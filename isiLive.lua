@@ -468,8 +468,11 @@ centerNoticeTeleportButton:RegisterForClicks("AnyDown", "AnyUp")
 centerNoticeTeleportButton:SetFrameStrata("HIGH")
 centerNoticeTeleportButton:SetFrameLevel(centerNoticeFrame:GetFrameLevel() + 10)
 centerNoticeTeleportButton:SetAttribute("type", "spell")
+centerNoticeTeleportButton:SetAttribute("type1", "spell")
+centerNoticeTeleportButton:SetAttribute("*type1", "spell")
 centerNoticeTeleportButton:SetAttribute("useOnKeyDown", true)
 centerNoticeTeleportButton:SetAttribute("spell", 0)
+centerNoticeTeleportButton:SetAttribute("spell1", 0)
 centerNoticeTeleportButton.icon = centerNoticeTeleportButton:CreateTexture(nil, "ARTWORK")
 centerNoticeTeleportButton.icon:SetAllPoints()
 centerNoticeTeleportButton.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
@@ -579,10 +582,21 @@ end
 
 local function ApplySecureSpellToButton(button, spellID)
     if not button or not spellID then return false end
+    local spellValue = spellID
+    if C_Spell and C_Spell.GetSpellName then
+        local spellName = C_Spell.GetSpellName(spellID)
+        if spellName and spellName ~= "" then
+            spellValue = spellName
+        end
+    end
+
     button.spellID = spellID
     button:SetAttribute("type", "spell")
+    button:SetAttribute("type1", "spell")
+    button:SetAttribute("*type1", "spell")
     button:SetAttribute("useOnKeyDown", true)
-    button:SetAttribute("spell", spellID)
+    button:SetAttribute("spell", spellValue)
+    button:SetAttribute("spell1", spellValue)
     return true
 end
 
@@ -926,8 +940,11 @@ mplusTeleportButton:RegisterForClicks("AnyDown", "AnyUp")
 mplusTeleportButton:SetFrameStrata("HIGH")
 mplusTeleportButton:SetFrameLevel(mainFrame:GetFrameLevel() + 10)
 mplusTeleportButton:SetAttribute("type", "spell")
+mplusTeleportButton:SetAttribute("type1", "spell")
+mplusTeleportButton:SetAttribute("*type1", "spell")
 mplusTeleportButton:SetAttribute("useOnKeyDown", true)
 mplusTeleportButton:SetAttribute("spell", 0)
+mplusTeleportButton:SetAttribute("spell1", 0)
 mplusTeleportButton.spellID = nil
 mplusTeleportButton.inCombatBlocked = false
 mplusTeleportButton.noTarget = true
@@ -1095,6 +1112,7 @@ local function UpdateMPlusTeleportButton()
         mplusTeleportButton.noTarget = true
         if not (InCombatLockdown and InCombatLockdown()) then
             mplusTeleportButton:SetAttribute("spell", 0)
+            mplusTeleportButton:SetAttribute("spell1", 0)
         end
         mplusTeleportButton:Enable()
         UpdateMPlusTeleportButtonVisual(nil, false, false, true)
@@ -1108,6 +1126,7 @@ local function UpdateMPlusTeleportButton()
         mplusTeleportButton.noTarget = true
         if not (InCombatLockdown and InCombatLockdown()) then
             mplusTeleportButton:SetAttribute("spell", 0)
+            mplusTeleportButton:SetAttribute("spell1", 0)
         end
         mplusTeleportButton:Enable()
         UpdateMPlusTeleportButtonVisual(nil, false, false, true)
@@ -2215,6 +2234,8 @@ mainFrame:SetScript("OnEvent", function(self, event, ...)
             or event == "PLAYER_ENTERING_WORLD"
             or event == "UPDATE_BINDINGS"
             or event == "PLAYER_REGEN_ENABLED"
+            -- Needed to capture real queue/app data while hidden so dungeon target stays correct.
+            or event == "LFG_LIST_APPLICATION_STATUS_UPDATED"
         )
         if not allowWhenHidden then
             return

@@ -25,5 +25,16 @@
 - Bump version in `isiLive.toc` for functional changes.
 - Validate addon loads without Lua errors after edits.
 
+## Versioning
+- Use `MAJOR.MINOR.PATCH` (SemVer-light), e.g. `0.9.1`.
+- While project is pre-1.0, keep releases in `0.x.y`.
+- `PATCH` bump (`0.9.1 -> 0.9.2`): bug fixes, no user-facing feature addition.
+- `MINOR` bump (`0.9.2 -> 0.10.0`): new features, new commands, new UI controls, backward-compatible behavior.
+- `MAJOR` bump (`0.x -> 1.0.0` or `1.x -> 2.0.0`): breaking changes or incompatible migration.
+- Every functional change must update:
+- `isiLive.toc` version
+- `CHANGELOG.md` entry with explicit date (`YYYY-MM-DD`)
+- `README.md` when user-visible behavior/commands/install changed
+
 ## Open Items
 - (add your project-specific rules here)

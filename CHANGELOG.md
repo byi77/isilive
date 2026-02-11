@@ -1,6 +1,13 @@
 # Changelog
 
-## 2026-02-11 - Version 0.91
+## 2026-02-11 - Version 0.9.2
+- Improved dungeon teleport secure-button compatibility by expanding secure spell attributes for reliable click-cast behavior.
+- Fixed hidden-state queue handling so `LFG_LIST_APPLICATION_STATUS_UPDATED` is still captured and dungeon targets do not stick to test/default values.
+- Added automated Lua quality checks via GitHub Actions (`.github/workflows/lua-check.yml`).
+- Added README quality-check section with local `luacheck` command.
+- Added explicit versioning rules (`MAJOR.MINOR.PATCH`) in `RULES.md`.
+
+## 2026-02-11 - Version 0.9.1
 - Added server-language detection based on Blizzard EU realm status data (`realm_language_data.lua`) with normalized realm-name fallback.
 - Replaced server/language text in roster with country flag icons (`DE/EN/FR/ES/IT/PT/RU`).
 - Added `/isilive tpdebug` to inspect current teleport target resolution, secure attributes, known/cooldown state, and button visibility.

@@ -56,8 +56,13 @@ Compatibility target: WoW `12.0+` only.
 
 1. `git init`
 2. `git add .`
-3. `git commit -m "Initial release v0.91"`
+3. `git commit -m "Initial release v0.9.1"`
 4. Create an empty GitHub repo (e.g. `isiLive`)
 5. `git branch -M main`
 6. `git remote add origin https://github.com/<user>/isiLive.git`
 7. `git push -u origin main`
+
+## Quality Check
+
+- GitHub Action: automatic Lua lint check on each push/PR to `main`.
+- Local (optional): `luacheck isiLive.lua realm_language_data.lua --no-global --no-max-line-length`
