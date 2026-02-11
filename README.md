@@ -66,3 +66,18 @@ Compatibility target: WoW `12.0+` only.
 
 - GitHub Action: automatic Lua syntax check on each push/PR to `main`.
 - Local (optional): `lua -e "assert(loadfile('isiLive.lua')); assert(loadfile('realm_language_data.lua'))"`
+
+## CurseForge Auto Publish
+
+`release.yml` publishes automatically when you push a tag like `v0.9.3`.
+
+Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
+
+1. `Secret`: `CF_API_KEY` (your CurseForge API token)
+2. `Variable`: `CURSE_PROJECT_ID` (numeric CurseForge project ID)
+
+Release flow:
+
+1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
+2. Commit + push to `main`
+3. Create and push tag: `git tag v0.9.3 && git push origin v0.9.3`

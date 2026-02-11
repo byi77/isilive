@@ -24,5 +24,8 @@ jobs:
           set -e
           for file in $(find . -type f -name "*.lua"); do
             echo "Checking $file"
-            lua -e "assert(loadfile('$file'))"
+            tmp="$(mktemp)"
+            sed '1s/^\xEF\xBB\xBF//' "$file" > "$tmp"
+            lua -e "assert(loadfile('$tmp'))"
+            rm -f "$tmp"
           done
