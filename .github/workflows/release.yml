@@ -6,21 +6,12 @@ on:
       - "v*"
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  package-and-publish:
+  trigger-curseforge-packager:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Build and Publish
-        uses: BigWigsMods/packager@v2
-        with:
-          args: -p ${{ vars.CURSE_PROJECT_ID }} -g 12.0.1
-        env:
-          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+      - name: Trigger CurseForge Auto-Packager
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST -d '' "https://www.curseforge.com/api/projects/${{ vars.CURSE_PROJECT_ID }}/package?token=${{ secrets.CF_API_KEY }}"
+          echo "CurseForge packaging trigger sent."

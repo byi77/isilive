@@ -69,7 +69,7 @@ Compatibility target: WoW `12.0+` only.
 
 ## CurseForge Auto Publish
 
-`release.yml` publishes automatically when you push a tag like `v0.9.3`.
+`release.yml` triggers CurseForge's official auto-packager when you push a tag like `v0.9.3`.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
 
@@ -81,3 +81,5 @@ Release flow:
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
 3. Create and push tag: `git tag v0.9.3 && git push origin v0.9.3`
+
+Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.
