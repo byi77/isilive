@@ -1,4 +1,4 @@
-## Interface: 120000
+## Interface: 120001
 ## Title: |cff00ccffisi|rLive
 ## Notes: Shows group members with item level and Mythic+ rating.
 ## Author: mematiWoW
