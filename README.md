@@ -80,6 +80,6 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push tag: `git tag v0.9.3 && git push origin v0.9.3`
+3. Create and push tag (recommended filename style): `git tag isiLive_0.9.7 && git push origin isiLive_0.9.7`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.
