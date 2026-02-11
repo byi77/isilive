@@ -64,5 +64,5 @@ Compatibility target: WoW `12.0+` only.
 
 ## Quality Check
 
-- GitHub Action: automatic Lua lint check on each push/PR to `main`.
-- Local (optional): `luacheck isiLive.lua realm_language_data.lua --no-global --no-max-line-length`
+- GitHub Action: automatic Lua syntax check on each push/PR to `main`.
+- Local (optional): `lua -e "assert(loadfile('isiLive.lua')); assert(loadfile('realm_language_data.lua'))"`

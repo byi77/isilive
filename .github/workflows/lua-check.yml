@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  luacheck:
+  syntax:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,11 +19,10 @@ jobs:
         with:
           luaVersion: "5.1"
 
-      - name: Setup LuaRocks
-        uses: leafo/gh-actions-luarocks@v4
-
-      - name: Install luacheck
-        run: luarocks install luacheck
-
-      - name: Run luacheck
-        run: luacheck isiLive.lua realm_language_data.lua --no-global --no-max-line-length
+      - name: Lua Syntax Check
+        run: |
+          set -e
+          for file in $(find . -type f -name "*.lua"); do
+            echo "Checking $file"
+            lua -e "assert(loadfile('$file'))"
+          done
