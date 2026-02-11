@@ -16,5 +16,21 @@ jobs:
           CURSE_PROJECT_ID: ${{ vars.CURSE_PROJECT_ID }}
         run: |
           set -euo pipefail
-          curl -fsS -X POST -d '' "https://www.curseforge.com/api/projects/${CURSE_PROJECT_ID}/package?token=${CF_API_KEY}"
+          case "${CURSE_PROJECT_ID}" in
+            ''|*[!0-9]*)
+              echo "CURSE_PROJECT_ID must be numeric. Current value is invalid."
+              exit 1
+              ;;
+          esac
+          url="https://www.curseforge.com/api/projects/${CURSE_PROJECT_ID}/package?token=${CF_API_KEY}"
+          body_file="$(mktemp)"
+          code="$(curl -sS -o "${body_file}" -w "%{http_code}" -X POST -d '' "${url}")"
+          echo "CurseForge response code: ${code}"
+          echo "CurseForge response body:"
+          cat "${body_file}"
+          rm -f "${body_file}"
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "Failed to trigger CurseForge packager."
+            exit 1
+          fi
           echo "CurseForge packaging trigger sent."
