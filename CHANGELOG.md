@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2026-02-12 - Version 0.9.9
 - Reworked right-side M+ teleport UI from single button to multi-button grid (one button per mapped dungeon teleport).
 - Added active-target highlight for the currently resolved teleport (strong pulse/glow + tinted overlay).
 - Improved active teleport target resolution with fallbacks:
