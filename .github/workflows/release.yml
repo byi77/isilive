@@ -3,7 +3,6 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
       - "isiLive_*"
   workflow_dispatch:
 
