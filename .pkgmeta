@@ -3,3 +3,12 @@ enable-nolib-creation: no
 manual-changelog:
   filename: CHANGELOG.md
   markup-type: markdown
+ignore:
+  - .github
+  - .vscode
+  - .gitignore
+  - README.md
+  - RULES.md
+  - LICENSE
+  - isiLive.png
+  - isiLive_screenshot.png

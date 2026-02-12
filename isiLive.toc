@@ -7,10 +7,13 @@
 ## IconTexture: Interface\Icons\INV_Misc_QuestionMark
 realm_language_data.lua
 isiLive_locale.lua
+isiLive_teleport.lua
+isiLive_notice.lua
 isiLive_sync.lua
 isiLive_queue.lua
 isiLive_inspect.lua
 isiLive_roster.lua
 isiLive_events.lua
 isiLive_commands.lua
+isiLive_ui.lua
 isiLive.lua

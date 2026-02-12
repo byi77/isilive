@@ -6,6 +6,9 @@ local isiLiveRoster = addonTable and addonTable.Roster
 local isiLiveEvents = addonTable and addonTable.Events
 local isiLiveCommands = addonTable and addonTable.Commands
 local isiLiveLocale = addonTable and addonTable.Locale
+local isiLiveUI = addonTable and addonTable.UI
+local isiLiveTeleport = addonTable and addonTable.Teleport
+local isiLiveNotice = addonTable and addonTable.Notice
 
 -- --- Configuration & Constants ---
 local INSPECT_TIMEOUT = 2 -- seconds
@@ -290,6 +293,49 @@ if not isiLiveLocale then
     }
 end
 
+if not isiLiveUI then
+    isiLiveUI = {
+        CreateMainFrame = function(opts)
+            local frame = CreateFrame("Frame", "isiLiveMainFrame", UIParent)
+            frame:SetSize(700, tonumber(opts and opts.minHeight) or 200)
+            frame:SetPoint("CENTER")
+            frame:Hide()
+            return {
+                frame = frame,
+                SetVisible = function(...) end,
+                SetHeightSafe = function(...) end,
+                ToggleVisibility = function(...) end,
+                ApplyStoredPosition = function(...) end,
+                GetPendingVisible = function() return nil end,
+                GetPendingHeight = function() return nil end,
+            }
+        end,
+    }
+end
+
+if not isiLiveTeleport then
+    isiLiveTeleport = {
+        GetSeason3TeleportInfoByMapID = function(...) return nil end,
+        ResolveSeason3TeleportSpellIDByMapID = function(...) return nil end,
+        ResolveSeason3TeleportSpellIDByActivityID = function(...) return nil end,
+        ResolveSeason3TeleportSpellID = function(...) return nil end,
+        ApplySecureSpellToButton = function(...) return false end,
+        BuildSeason3TeleportEntries = function(...) return {} end,
+    }
+end
+
+if not isiLiveNotice then
+    isiLiveNotice = {
+        CreateInviteHint = function(...)
+            return {
+                frame = nil,
+                Show = function(...) end,
+                Position = function(...) end,
+            }
+        end,
+    }
+end
+
 local function GetAddonVersionRaw()
     local legacyGetAddOnMetadata = rawget(_G, "GetAddOnMetadata")
     local version = nil
@@ -411,56 +457,10 @@ local CENTER_NOTICE_PADDING_X = 20
 local CENTER_NOTICE_PADDING_Y = 12
 local CENTER_NOTICE_BUTTON_HEIGHT = 36
 local CENTER_NOTICE_BUTTON_GAP = 8
-
-local TWW_SEASON3_MAP_TO_TELEPORT = {
-    [499] = 445444,  -- Priory of the Sacred Flame
-    [542] = 1237215, -- Eco-Dome Al'dani
-    [378] = 354465,  -- Halls of Atonement
-    [525] = 1216786, -- Operation: Floodgate
-    [503] = 445417,  -- Ara-Kara, City of Echoes
-    [392] = 367416,  -- Tazavesh: So'leah's Gambit
-    [505] = 445414,  -- The Dawnbreaker
-}
-
-local TWW_SEASON3_NAME_ALIASES = {
-    ["priory of the sacred flame"] = 499,
-    ["eco dome aldani"] = 542,
-    ["eco dome al dani"] = 542,
-    ["halls of atonement"] = 378,
-    ["operation floodgate"] = 525,
-    ["ara kara city of echoes"] = 503,
-    ["arakara city of echoes"] = 503,
-    ["tazavesh soleahs gambit"] = 392,
-    ["tazavesh so leahs gambit"] = 392,
-    ["the dawnbreaker"] = 505,
-}
-local season3TeleportByName = nil
-local ResolveSeason3TeleportSpellIDByMapID
-
-local function GetSeason3TeleportInfoByMapID(mapID)
-    local numericMapID = tonumber(mapID)
-    if not numericMapID then return nil end
-
-    local spellID = TWW_SEASON3_MAP_TO_TELEPORT[numericMapID]
-    if not spellID then return nil end
-
-    local icon
-    if C_Spell and C_Spell.GetSpellTexture then
-        icon = C_Spell.GetSpellTexture(spellID)
-    end
-    if not icon then
-        icon = "Interface\\Icons\\INV_Misc_QuestionMark"
-    end
-
-    local mapName = (C_ChallengeMode and C_ChallengeMode.GetMapUIInfo and C_ChallengeMode.GetMapUIInfo(numericMapID)) or tostring(numericMapID)
-
-    return {
-        mapID = numericMapID,
-        mapName = mapName,
-        spellID = spellID,
-        icon = icon,
-    }
-end
+local ResolveSeason3TeleportSpellIDByMapID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID
+local ResolveSeason3TeleportSpellIDByActivityID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByActivityID
+local ResolveSeason3TeleportSpellID = isiLiveTeleport.ResolveSeason3TeleportSpellID
+local ApplySecureSpellToButton = isiLiveTeleport.ApplySecureSpellToButton
 
 local centerNoticeFrame = CreateFrame("Frame", "isiLiveCenterNotice", UIParent)
 centerNoticeFrame:SetSize(680, CENTER_NOTICE_MIN_HEIGHT)
@@ -582,110 +582,6 @@ centerNoticeTeleportButton:SetScript("OnLeave", function()
     GameTooltip:Hide()
 end)
 
-local function NormalizeDungeonName(name)
-    if not name or name == "" then return nil end
-    local low = string.lower(tostring(name))
-    low = low:gsub("|c%x%x%x%x%x%x%x%x", "")
-    low = low:gsub("|r", "")
-    low = low:gsub("[%p]", " ")
-    low = low:gsub("%s+", " ")
-    low = low:gsub("^%s+", "")
-    low = low:gsub("%s+$", "")
-    if low == "" then return nil end
-    return low
-end
-
-local function BuildSeason3TeleportNameCache()
-    -- Keep this cache refreshable because localized map names can become available later.
-    season3TeleportByName = season3TeleportByName or {}
-
-    for mapID in pairs(TWW_SEASON3_MAP_TO_TELEPORT) do
-        local info = GetSeason3TeleportInfoByMapID(mapID)
-        if info then
-            local normalized = NormalizeDungeonName(info.mapName)
-            if normalized then
-                season3TeleportByName[normalized] = info.spellID
-            end
-        end
-    end
-
-    for aliasName, mapID in pairs(TWW_SEASON3_NAME_ALIASES) do
-        local spellID = ResolveSeason3TeleportSpellIDByMapID(mapID)
-        if spellID then
-            season3TeleportByName[aliasName] = spellID
-        end
-    end
-
-    return season3TeleportByName
-end
-
-ResolveSeason3TeleportSpellIDByMapID = function(mapID)
-    local info = GetSeason3TeleportInfoByMapID(mapID)
-    return info and info.spellID or nil
-end
-
-local function ResolveSeason3TeleportSpellIDByActivityID(activityID)
-    if not (activityID and C_LFGList and C_LFGList.GetActivityInfoTable) then
-        return nil
-    end
-    local info = C_LFGList.GetActivityInfoTable(activityID)
-    if not info then return nil end
-
-    local mapID = tonumber(rawget(info, "mapID") or rawget(info, "mapId"))
-    if mapID then
-        local spellID = ResolveSeason3TeleportSpellIDByMapID(mapID)
-        if spellID then
-            return spellID, mapID
-        end
-    end
-    return nil
-end
-
-local function ResolveSeason3TeleportSpellID(activityID, dungeonName)
-    local resolvedDungeonName = dungeonName
-
-    local spellFromActivityID = ResolveSeason3TeleportSpellIDByActivityID(activityID)
-    if spellFromActivityID then
-        return spellFromActivityID
-    end
-
-    if activityID and C_LFGList and C_LFGList.GetActivityInfoTable then
-        local info = C_LFGList.GetActivityInfoTable(activityID)
-        if info then
-            resolvedDungeonName = resolvedDungeonName
-                or rawget(info, "fullName")
-                or rawget(info, "shortName")
-                or rawget(info, "activityName")
-        end
-    end
-
-    local normalized = NormalizeDungeonName(resolvedDungeonName)
-    if not normalized then return nil end
-
-    local cache = BuildSeason3TeleportNameCache()
-    return cache[normalized]
-end
-
-local function ApplySecureSpellToButton(button, spellID)
-    if not button or not spellID then return false end
-    local spellValue = spellID
-    if C_Spell and C_Spell.GetSpellName then
-        local spellName = C_Spell.GetSpellName(spellID)
-        if spellName and spellName ~= "" then
-            spellValue = spellName
-        end
-    end
-
-    button.spellID = spellID
-    button:SetAttribute("type", "spell")
-    button:SetAttribute("type1", "spell")
-    button:SetAttribute("*type1", "spell")
-    button:SetAttribute("useOnKeyDown", true)
-    button:SetAttribute("spell", spellValue)
-    button:SetAttribute("spell1", spellValue)
-    return true
-end
-
 local function UpdateCenterTeleportButtonVisual(spellID, isEnabled, inCombatBlocked)
     local icon
     if spellID and C_Spell and C_Spell.GetSpellTexture then
@@ -769,153 +665,45 @@ centerNoticeFrame:SetScript("OnUpdate", function(self, elapsed)
     end
 end)
 
-local inviteHintFrame = CreateFrame("Frame", "isiLiveInviteHintFrame", UIParent)
-inviteHintFrame:SetSize(420, 46)
-inviteHintFrame:Hide()
-inviteHintFrame:SetFrameStrata("DIALOG")
-
-local inviteHintBg = inviteHintFrame:CreateTexture(nil, "BACKGROUND")
-inviteHintBg:SetAllPoints()
-inviteHintBg:SetColorTexture(0, 0, 0, 0.65)
-
-local inviteHintText = inviteHintFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-inviteHintText:SetPoint("CENTER", 0, 0)
-inviteHintText:SetJustifyH("CENTER")
-inviteHintText:SetTextColor(1, 0.82, 0)
-
-local inviteHintEndsAt = 0
-local function GetInviteAnchorFrame()
-    local lfgListInviteDialog = rawget(_G, "LFGListInviteDialog")
-    if lfgListInviteDialog and lfgListInviteDialog:IsShown() then
-        return lfgListInviteDialog
-    end
-    local lfgDungeonReadyDialog = rawget(_G, "LFGDungeonReadyDialog")
-    if lfgDungeonReadyDialog and lfgDungeonReadyDialog:IsShown() then
-        return lfgDungeonReadyDialog
-    end
-    return nil
-end
-
-local function PositionInviteHintFrame()
-    local anchor = GetInviteAnchorFrame()
-    inviteHintFrame:ClearAllPoints()
-
-    if anchor then
-        inviteHintFrame:SetPoint("TOP", anchor, "BOTTOM", 0, -8)
-        return
-    end
-
-    local globalMainFrame = rawget(_G, "isiLiveMainFrame")
-    if globalMainFrame and globalMainFrame:IsShown() then
-        inviteHintFrame:SetPoint("TOP", globalMainFrame, "BOTTOM", 0, -8)
-        return
-    end
-
-    inviteHintFrame:SetPoint("TOP", UIParent, "TOP", 0, -220)
-end
+local inviteHint = isiLiveNotice.CreateInviteHint({
+    parent = UIParent,
+    mainFrameGlobalName = "isiLiveMainFrame",
+})
 
 local function ShowInviteHint(message, durationSeconds)
-    inviteHintText:SetText(message)
-    PositionInviteHintFrame()
-    inviteHintEndsAt = GetTime() + (durationSeconds or 10)
-    inviteHintFrame:Show()
+    inviteHint.Show(message, durationSeconds)
 end
-
-inviteHintFrame:SetScript("OnUpdate", function(self, elapsed)
-    if GetTime() >= inviteHintEndsAt then
-        self:Hide()
-        return
-    end
-    PositionInviteHintFrame()
-end)
 
 -- --- UI Elements ---
-local mainFrame = CreateFrame("Frame", "isiLiveMainFrame", UIParent)
-mainFrame:SetSize(700, MIN_FRAME_HEIGHT)
-mainFrame:SetPoint("CENTER")
-mainFrame:SetMovable(true)
-mainFrame:EnableMouse(true)
-mainFrame:RegisterForDrag("LeftButton", "RightButton")
-mainFrame:SetScript("OnDragStart", function(self)
-    self:StartMoving()
-end)
-mainFrame:Hide() -- Hide initially, will be shown if in group
-
-local pendingMainFrameVisible = nil
-local pendingMainFrameHeight = nil
+local mainFrame
+local mainUI = isiLiveUI.CreateMainFrame({
+    minHeight = MIN_FRAME_HEIGHT,
+    parent = UIParent,
+    isInCombat = function()
+        return InCombatLockdown and InCombatLockdown()
+    end,
+    onShownInGroup = function()
+        local onEventHandler = mainFrame:GetScript("OnEvent")
+        if onEventHandler then
+            onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
+        end
+    end,
+    onShownNoGroup = function()
+        UpdateUI()
+        UpdateLeaderButtons()
+    end,
+})
+mainFrame = mainUI.frame
 local function SetMainFrameVisible(visible)
-    if InCombatLockdown and InCombatLockdown() then
-        pendingMainFrameVisible = visible and true or false
-        return
-    end
-    pendingMainFrameVisible = nil
-    if visible then
-        if not mainFrame:IsShown() then
-            mainFrame:Show()
-        end
-    else
-        if mainFrame:IsShown() then
-            mainFrame:Hide()
-        end
-    end
+    mainUI.SetVisible(visible)
 end
-
 local function SetMainFrameHeightSafe(height)
-    if not mainFrame then return end
-    if InCombatLockdown and InCombatLockdown() then
-        pendingMainFrameHeight = height
-        return
-    end
-    pendingMainFrameHeight = nil
-    mainFrame:SetHeight(height)
+    mainUI.SetHeightSafe(height)
 end
 
 local function ToggleMainFrameVisibility()
-    if mainFrame:IsShown() then
-        SetMainFrameVisible(false)
-    else
-        SetMainFrameVisible(true)
-        if IsInGroup() then
-            local onEventHandler = mainFrame:GetScript("OnEvent")
-            if onEventHandler then
-                onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
-            end
-        else
-            UpdateUI()
-            UpdateLeaderButtons()
-        end
-    end
+    mainUI.ToggleVisibility(IsInGroup())
 end
-
-local function SaveMainFramePosition(frame)
-    if not IsiLiveDB then
-        IsiLiveDB = {}
-    end
-    local point, _, relativePoint, x, y = frame:GetPoint()
-    IsiLiveDB.position = { point = point, relativePoint = relativePoint, x = x, y = y }
-end
-
-mainFrame:SetScript("OnDragStop", function(self)
-    self:StopMovingOrSizing()
-    SaveMainFramePosition(self)
-end)
-
--- Dedicated drag handle to avoid stealing left-clicks from interactive buttons.
-local mainFrameDragHandle = CreateFrame("Frame", nil, mainFrame)
-mainFrameDragHandle:SetPoint("TOPLEFT", 0, 0)
-mainFrameDragHandle:SetPoint("TOPRIGHT", 0, 0)
-mainFrameDragHandle:SetHeight(26)
-mainFrameDragHandle:SetFrameStrata(mainFrame:GetFrameStrata())
-mainFrameDragHandle:SetFrameLevel(mainFrame:GetFrameLevel() + 100)
-mainFrameDragHandle:EnableMouse(true)
-mainFrameDragHandle:RegisterForDrag("LeftButton")
-mainFrameDragHandle:SetScript("OnDragStart", function()
-    mainFrame:StartMoving()
-end)
-mainFrameDragHandle:SetScript("OnDragStop", function()
-    mainFrame:StopMovingOrSizing()
-    SaveMainFramePosition(mainFrame)
-end)
 
 -- Background for visibility
 local bg = mainFrame:CreateTexture(nil, "BACKGROUND")
@@ -1054,20 +842,6 @@ end)
 
 local mplusTeleportButtons = {}
 
-local function BuildSeason3TeleportEntries()
-    local entries = {}
-    for mapID in pairs(TWW_SEASON3_MAP_TO_TELEPORT) do
-        local info = GetSeason3TeleportInfoByMapID(mapID)
-        if info then
-            table.insert(entries, info)
-        end
-    end
-    table.sort(entries, function(a, b)
-        return tostring(a.mapName) < tostring(b.mapName)
-    end)
-    return entries
-end
-
 local function CreateMPlusTeleportButton(index, entry)
     local size = 28
     local colCount = 2
@@ -1154,7 +928,7 @@ local function CreateMPlusTeleportButton(index, entry)
     return button
 end
 
-for i, entry in ipairs(BuildSeason3TeleportEntries()) do
+for i, entry in ipairs(isiLiveTeleport.BuildSeason3TeleportEntries()) do
     table.insert(mplusTeleportButtons, CreateMPlusTeleportButton(i, entry))
 end
 
@@ -2034,9 +1808,11 @@ OnEvent = function(self, event, ...)
         if pendingBindingApply then
             ApplyHotkeyBindings()
         end
+        local pendingMainFrameHeight = mainUI.GetPendingHeight()
         if pendingMainFrameHeight then
             SetMainFrameHeightSafe(pendingMainFrameHeight)
         end
+        local pendingMainFrameVisible = mainUI.GetPendingVisible()
         if pendingMainFrameVisible ~= nil then
             SetMainFrameVisible(pendingMainFrameVisible)
         end
