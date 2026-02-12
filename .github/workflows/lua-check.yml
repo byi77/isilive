@@ -35,7 +35,7 @@ jobs:
         run: luarocks install luacheck
 
       - name: Luacheck
-        run: luacheck --exclude-files ".luarocks/**" .
+        run: luacheck --exclude-files ".luarocks/**" -- .
 
       - name: Lua Syntax Check
         run: |
