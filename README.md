@@ -10,7 +10,7 @@ Compatibility target: WoW `12.0+` only.
 - Stable role sorting: `Tank -> Healer -> Damager`
 - Right-side controls: `Readycheck`, `Countdown10`, `Refresh`, `DM Reset: ON/OFF`
 - `M+ Management` teleport grid with all Season dungeon teleports
-- Active queue/current dungeon teleport is highlighted (pulse/glow)
+- Active invite/queue dungeon teleport is highlighted (pulse/glow), independent of your current location
 - Queue join detection with chat message, center notice, and invite hint
 - Dungeon teleport controls in center notice + right-side grid
 - Teleport cooldown shown as `HH:MM`

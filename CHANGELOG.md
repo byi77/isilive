@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-02-12 - Version 0.9.11
+- Fixed queue-teleport highlight reliability so invite-detected dungeon targets are applied immediately and remain stable across follow-up LFG status events.
+- Prioritized invite/queue dungeon target for M+ teleport highlighting regardless of current player location/instance.
+- Added dedicated mapID-to-teleport helper flow and tightened activity selection to prefer teleport-mappable activities.
+- Fixed local function declaration order regression (`ResolveSeason3TeleportSpellIDByMapID`) that could cause a nil-call error in teleport cache building.
+- Removed dead code in `isiLive.lua` (`GetUnitID`, unused `mplusActiveSpellID`, inactive duplicate dungeon line updater).
+
 ## 2026-02-12 - Version 0.9.10
 - Reduced Lua diagnostics noise in `isiLive.lua`:
   - removed deprecated spell-known fallbacks

@@ -405,6 +405,32 @@ local TWW_SEASON3_NAME_ALIASES = {
     ["the dawnbreaker"] = 505,
 }
 local season3TeleportByName = nil
+local ResolveSeason3TeleportSpellIDByMapID
+
+local function GetSeason3TeleportInfoByMapID(mapID)
+    local numericMapID = tonumber(mapID)
+    if not numericMapID then return nil end
+
+    local spellID = TWW_SEASON3_MAP_TO_TELEPORT[numericMapID]
+    if not spellID then return nil end
+
+    local icon
+    if C_Spell and C_Spell.GetSpellTexture then
+        icon = C_Spell.GetSpellTexture(spellID)
+    end
+    if not icon then
+        icon = "Interface\\Icons\\INV_Misc_QuestionMark"
+    end
+
+    local mapName = (C_ChallengeMode and C_ChallengeMode.GetMapUIInfo and C_ChallengeMode.GetMapUIInfo(numericMapID)) or tostring(numericMapID)
+
+    return {
+        mapID = numericMapID,
+        mapName = mapName,
+        spellID = spellID,
+        icon = icon,
+    }
+end
 
 local centerNoticeFrame = CreateFrame("Frame", "isiLiveCenterNotice", UIParent)
 centerNoticeFrame:SetSize(680, CENTER_NOTICE_MIN_HEIGHT)
@@ -540,22 +566,21 @@ local function NormalizeDungeonName(name)
 end
 
 local function BuildSeason3TeleportNameCache()
-    if season3TeleportByName then return season3TeleportByName end
+    -- Keep this cache refreshable because localized map names can become available later.
+    season3TeleportByName = season3TeleportByName or {}
 
-    season3TeleportByName = {}
-
-    for mapID, spellID in pairs(TWW_SEASON3_MAP_TO_TELEPORT) do
-        if C_ChallengeMode and C_ChallengeMode.GetMapUIInfo then
-            local mapName = C_ChallengeMode.GetMapUIInfo(mapID)
-            local normalized = NormalizeDungeonName(mapName)
+    for mapID in pairs(TWW_SEASON3_MAP_TO_TELEPORT) do
+        local info = GetSeason3TeleportInfoByMapID(mapID)
+        if info then
+            local normalized = NormalizeDungeonName(info.mapName)
             if normalized then
-                season3TeleportByName[normalized] = spellID
+                season3TeleportByName[normalized] = info.spellID
             end
         end
     end
 
     for aliasName, mapID in pairs(TWW_SEASON3_NAME_ALIASES) do
-        local spellID = TWW_SEASON3_MAP_TO_TELEPORT[mapID]
+        local spellID = ResolveSeason3TeleportSpellIDByMapID(mapID)
         if spellID then
             season3TeleportByName[aliasName] = spellID
         end
@@ -564,16 +589,39 @@ local function BuildSeason3TeleportNameCache()
     return season3TeleportByName
 end
 
+ResolveSeason3TeleportSpellIDByMapID = function(mapID)
+    local info = GetSeason3TeleportInfoByMapID(mapID)
+    return info and info.spellID or nil
+end
+
+local function ResolveSeason3TeleportSpellIDByActivityID(activityID)
+    if not (activityID and C_LFGList and C_LFGList.GetActivityInfoTable) then
+        return nil
+    end
+    local info = C_LFGList.GetActivityInfoTable(activityID)
+    if not info then return nil end
+
+    local mapID = tonumber(rawget(info, "mapID") or rawget(info, "mapId"))
+    if mapID then
+        local spellID = ResolveSeason3TeleportSpellIDByMapID(mapID)
+        if spellID then
+            return spellID, mapID
+        end
+    end
+    return nil
+end
+
 local function ResolveSeason3TeleportSpellID(activityID, dungeonName)
     local resolvedDungeonName = dungeonName
+
+    local spellFromActivityID = ResolveSeason3TeleportSpellIDByActivityID(activityID)
+    if spellFromActivityID then
+        return spellFromActivityID
+    end
 
     if activityID and C_LFGList and C_LFGList.GetActivityInfoTable then
         local info = C_LFGList.GetActivityInfoTable(activityID)
         if info then
-            local mapID = tonumber(rawget(info, "mapID") or rawget(info, "mapId"))
-            if mapID and TWW_SEASON3_MAP_TO_TELEPORT[mapID] then
-                return TWW_SEASON3_MAP_TO_TELEPORT[mapID]
-            end
             resolvedDungeonName = resolvedDungeonName
                 or rawget(info, "fullName")
                 or rawget(info, "shortName")
@@ -955,13 +1003,14 @@ dmResetToggleButton:SetScript("OnLeave", function()
 end)
 
 local mplusTeleportButtons = {}
-local mplusActiveSpellID = nil
 
 local function BuildSeason3TeleportEntries()
     local entries = {}
-    for mapID, spellID in pairs(TWW_SEASON3_MAP_TO_TELEPORT) do
-        local mapName = (C_ChallengeMode and C_ChallengeMode.GetMapUIInfo and C_ChallengeMode.GetMapUIInfo(mapID)) or tostring(mapID)
-        table.insert(entries, { mapID = mapID, spellID = spellID, mapName = mapName })
+    for mapID in pairs(TWW_SEASON3_MAP_TO_TELEPORT) do
+        local info = GetSeason3TeleportInfoByMapID(mapID)
+        if info then
+            table.insert(entries, info)
+        end
     end
     table.sort(entries, function(a, b)
         return tostring(a.mapName) < tostring(b.mapName)
@@ -993,7 +1042,7 @@ local function CreateMPlusTeleportButton(index, entry)
     button.icon = button:CreateTexture(nil, "ARTWORK")
     button.icon:SetAllPoints()
     button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    button.icon:SetTexture((C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(entry.spellID)) or "Interface\\Icons\\INV_Misc_QuestionMark")
+    button.icon:SetTexture(entry.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
 
     button.overlay = button:CreateTexture(nil, "OVERLAY")
     button.overlay:SetAllPoints()
@@ -1058,12 +1107,6 @@ end
 for i, entry in ipairs(BuildSeason3TeleportEntries()) do
     table.insert(mplusTeleportButtons, CreateMPlusTeleportButton(i, entry))
 end
-
-local dungeonDifficultyLine = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-dungeonDifficultyLine:SetPoint("TOPRIGHT", -150, -190)
-dungeonDifficultyLine:SetWidth(120)
-dungeonDifficultyLine:SetJustifyH("CENTER")
-dungeonDifficultyLine:SetText("")
 
 local statusLine = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 statusLine:SetPoint("BOTTOMLEFT", 10, 10)
@@ -1130,6 +1173,7 @@ local wasInGroup = false
 local pendingQueueJoinInfo = nil
 local latestQueueDungeonName = nil
 local latestQueueActivityID = nil
+local latestQueueTeleportSpellID = nil
 local isTestMode = false
 local isStopped = false
 local isPaused = false
@@ -1154,34 +1198,17 @@ UpdateDMResetButton = function()
 end
 
 local function ResolveActiveTeleportSpellID()
+    if latestQueueTeleportSpellID then
+        return latestQueueTeleportSpellID
+    end
+
+    if pendingQueueJoinInfo and pendingQueueJoinInfo.teleportSpellID then
+        return pendingQueueJoinInfo.teleportSpellID
+    end
+
     local queueSpellID = ResolveSeason3TeleportSpellID(latestQueueActivityID, latestQueueDungeonName)
     if queueSpellID then
         return queueSpellID
-    end
-
-    if C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID then
-        local activeMapID = C_ChallengeMode.GetActiveChallengeMapID()
-        if activeMapID and TWW_SEASON3_MAP_TO_TELEPORT[activeMapID] then
-            return TWW_SEASON3_MAP_TO_TELEPORT[activeMapID]
-        end
-        if activeMapID and C_ChallengeMode.GetMapUIInfo then
-            local activeMapName = C_ChallengeMode.GetMapUIInfo(activeMapID)
-            local activeNameSpellID = ResolveSeason3TeleportSpellID(nil, activeMapName)
-            if activeNameSpellID then
-                return activeNameSpellID
-            end
-        end
-    end
-
-    local instanceName, instanceType, _, _, _, _, _, instanceMapID = GetInstanceInfo()
-    if instanceType == "party" then
-        if instanceMapID and TWW_SEASON3_MAP_TO_TELEPORT[instanceMapID] then
-            return TWW_SEASON3_MAP_TO_TELEPORT[instanceMapID]
-        end
-        local instanceNameSpellID = ResolveSeason3TeleportSpellID(nil, instanceName)
-        if instanceNameSpellID then
-            return instanceNameSpellID
-        end
     end
 
     return nil
@@ -1189,7 +1216,6 @@ end
 
 local function UpdateMPlusTeleportButton()
     local resolvedSpellID = ResolveActiveTeleportSpellID()
-    mplusActiveSpellID = resolvedSpellID
 
     for _, button in ipairs(mplusTeleportButtons) do
         local known = IsSpellKnownSafe(button.spellID)
@@ -1249,12 +1275,6 @@ local function SetProcessingActive(isActive)
     isInspecting = nil
 end
 
--- --- Helper Functions ---
-local function GetUnitID(index)
-    if index == 0 then return "player" end
-    return "party" .. index
-end
-
 local function GetAddonStateText()
     if isStopped then return L.STATUS_STATE_STOPPED end
     if isPaused then return L.STATUS_STATE_PAUSED end
@@ -1280,20 +1300,6 @@ local function GetDungeonDifficultyLabel()
     if difficultyID == 167 then return L.DUNGEON_DIFF_MYTHIC, true, true end
 
     return L.DUNGEON_DIFF_UNKNOWN, false, true
-end
-
-local function UpdateDungeonDifficultyLine()
-    local difficultyText, isMythic, inDungeon = GetDungeonDifficultyLabel()
-    local suffix = (inDungeon and not isMythic) and " (!)" or ""
-    dungeonDifficultyLine:SetText(string.format(L.DUNGEON_DIFF_TEXT, difficultyText) .. suffix)
-
-    if isMythic then
-        dungeonDifficultyLine:SetTextColor(0.3, 1, 0.3)
-    elseif inDungeon then
-        dungeonDifficultyLine:SetTextColor(1, 0.25, 0.25)
-    else
-        dungeonDifficultyLine:SetTextColor(0.8, 0.8, 0.8)
-    end
 end
 
 local function MaybeShowNonMythicDungeonEntryNotice()
@@ -1335,8 +1341,8 @@ UpdateStatusLine = function()
     local leadText = IsPlayerLeader() and L.STATUS_LEAD_YES or L.STATUS_LEAD_NO
     local mplusText = C_ChallengeMode.GetActiveChallengeMapID() and L.STATUS_MPLUS_YES or L.STATUS_MPLUS_NO
     local stateText = GetAddonStateText()
-    statusLine:SetText(leadText .. " | " .. mplusText .. " | " .. stateText)
-    UpdateDungeonDifficultyLine()
+    local difficultyText = select(1, GetDungeonDifficultyLabel())
+    statusLine:SetText(leadText .. " | " .. mplusText .. " | " .. stateText .. " | " .. string.format(L.DUNGEON_DIFF_TEXT, difficultyText))
 end
 
 local function IsUnitInInspectQueue(unit)
@@ -1490,16 +1496,33 @@ end
 local function GetSearchResultActivityID(result)
     if not result then return nil end
 
-    if type(result.activityID) == "number" and result.activityID > 0 then
-        return result.activityID
+    local candidateIDs = {}
+    local seen = {}
+    local function AddCandidate(id)
+        if type(id) ~= "number" or id <= 0 then return end
+        if seen[id] then return end
+        seen[id] = true
+        table.insert(candidateIDs, id)
     end
+
+    AddCandidate(result.activityID)
 
     if type(result.activityIDs) == "table" then
         for _, id in pairs(result.activityIDs) do
-            if type(id) == "number" and id > 0 then
-                return id
-            end
+            AddCandidate(id)
         end
+    end
+
+    -- Prefer activities that can be mapped directly to a known teleport mapID.
+    for _, id in ipairs(candidateIDs) do
+        if ResolveSeason3TeleportSpellIDByActivityID(id) then
+            return id
+        end
+    end
+
+    -- Fallback: first valid activity ID.
+    if #candidateIDs > 0 then
+        return candidateIDs[1]
     end
 
     return nil
@@ -1535,37 +1558,56 @@ local function UpdatePendingQueueJoin(groupName, dungeonName, priority, activity
     local oldPriority = pendingQueueJoinInfo and pendingQueueJoinInfo.priority or 0
     if priority < oldPriority then return end
 
+    local previous = pendingQueueJoinInfo
+
     -- Only carry dungeon forward when it is clearly the same group to avoid cross-application mixups.
-    if pendingQueueJoinInfo
-        and pendingQueueJoinInfo.dungeonName
+    if previous
+        and previous.dungeonName
         and not dungeonName
         and groupName
-        and pendingQueueJoinInfo.groupName
-        and groupName == pendingQueueJoinInfo.groupName
+        and previous.groupName
+        and groupName == previous.groupName
     then
-        dungeonName = pendingQueueJoinInfo.dungeonName
+        dungeonName = previous.dungeonName
     end
 
     if not activityID
         and groupName
-        and pendingQueueJoinInfo
-        and pendingQueueJoinInfo.groupName
-        and groupName == pendingQueueJoinInfo.groupName
+        and previous
+        and previous.groupName
+        and groupName == previous.groupName
     then
-        activityID = pendingQueueJoinInfo.activityID
+        activityID = previous.activityID
+    end
+
+    local resolvedTeleportSpellID = ResolveSeason3TeleportSpellID(activityID, dungeonName)
+    if not resolvedTeleportSpellID and previous then
+        local sameGroup = (not groupName) or (not previous.groupName) or (groupName == previous.groupName)
+        if sameGroup then
+            dungeonName = dungeonName or previous.dungeonName
+            activityID = activityID or previous.activityID
+            resolvedTeleportSpellID = previous.teleportSpellID
+        end
     end
 
     pendingQueueJoinInfo = {
-        groupName = groupName or (pendingQueueJoinInfo and pendingQueueJoinInfo.groupName) or nil,
+        groupName = groupName or (previous and previous.groupName) or nil,
         dungeonName = dungeonName,
         activityID = activityID,
+        teleportSpellID = resolvedTeleportSpellID,
         priority = priority,
         capturedAt = GetTime(),
     }
 
+    -- Update highlight target immediately when an invite-like queue signal is captured.
+    latestQueueDungeonName = pendingQueueJoinInfo.dungeonName
+    latestQueueActivityID = pendingQueueJoinInfo.activityID
+    latestQueueTeleportSpellID = pendingQueueJoinInfo.teleportSpellID
+
     local groupText = string.format(L.INVITE_HINT_GROUP, pendingQueueJoinInfo.groupName or L.UNKNOWN_GROUP)
     local dungeonText = pendingQueueJoinInfo.dungeonName and string.format(L.INVITE_HINT_DUNGEON, pendingQueueJoinInfo.dungeonName) or L.INVITE_HINT_UNKNOWN_DUNGEON
     ShowInviteHint(groupText .. "\n" .. dungeonText, 10)
+    UpdateMPlusTeleportButton()
 end
 
 local function CaptureQueueJoinFromApplications()
@@ -1688,6 +1730,7 @@ ShowQueueJoinPreview = function(groupName, dungeonName, activityID)
 
     latestQueueDungeonName = dungeon
     latestQueueActivityID = activityID
+    latestQueueTeleportSpellID = ResolveSeason3TeleportSpellID(activityID, dungeon)
     UpdateMPlusTeleportButton()
 
     local msg
@@ -1791,9 +1834,10 @@ local function PrintTeleportDebug()
     end
 
     Print(string.format(
-        "TP target dungeon=%s activityID=%s resolvedSpellID=%s known=%s cd=%s inCombat=%s",
+        "TP target dungeon=%s activityID=%s queueSpellID=%s resolvedSpellID=%s known=%s cd=%s inCombat=%s",
         tostring(latestQueueDungeonName),
         tostring(latestQueueActivityID),
+        tostring(latestQueueTeleportSpellID),
         tostring(resolvedSpellID),
         tostring(resolvedKnown),
         FormatCooldownSeconds(resolvedCooldown),
@@ -1809,6 +1853,7 @@ local function ForceTeleportTestTarget()
     local dungeon = L.TESTALL_DUMMY_DUNGEON or "The Dawnbreaker"
     latestQueueDungeonName = dungeon
     latestQueueActivityID = nil
+    latestQueueTeleportSpellID = ResolveSeason3TeleportSpellID(nil, dungeon)
     UpdateMPlusTeleportButton()
     local msg = string.format(L.JOINED_FROM_QUEUE_DUNGEON, L.TESTALL_DUMMY_GROUP or L.UNKNOWN_GROUP, dungeon)
     ShowCenterNotice(msg, 20, dungeon, nil)
@@ -1997,6 +2042,7 @@ OnEvent = function(self, event, ...)
             wasGroupLeader = nil
             latestQueueDungeonName = nil
             latestQueueActivityID = nil
+            latestQueueTeleportSpellID = nil
             roster = {}
             inspectQueue = {}
             retryQueue = {}
