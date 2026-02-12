@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026-02-12 - Version 0.9.15
+- Bumped version from `0.9.14` to `0.9.15` for release packaging/tagging.
+
 ## 2026-02-12 - Version 0.9.14
 - Modularized addon architecture into dedicated files:
   - `isiLive_locale.lua`
