@@ -20,3 +20,6 @@ desktop.ini
 *.zip
 dist/
 build/
+
+# Local LuaRocks tree (CI/local tooling)
+.luarocks/

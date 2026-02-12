@@ -3,6 +3,7 @@ std = "lua51+wow_isiLive"
 
 exclude_files = {
   "^%.git/",
+  "^%.luarocks/",
   "^build/",
   "^libs/",
   "^Libs/",

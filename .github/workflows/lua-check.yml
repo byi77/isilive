@@ -35,12 +35,12 @@ jobs:
         run: luarocks install luacheck
 
       - name: Luacheck
-        run: luacheck .
+        run: luacheck --exclude-files ".luarocks/**" .
 
       - name: Lua Syntax Check
         run: |
           set -e
-          for file in $(find . -type f -name "*.lua"); do
+          for file in $(find . -type f -name "*.lua" -not -path "./.luarocks/*"); do
             echo "Checking $file"
             tmp="$(mktemp)"
             sed '1s/^\xEF\xBB\xBF//' "$file" > "$tmp"
