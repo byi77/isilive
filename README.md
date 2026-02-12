@@ -47,7 +47,7 @@ Compatibility target: WoW `12.0+` only.
 ## Files
 
 - `isiLive.lua`: main addon logic
-- `realm_language_data.lua`: Blizzard EU realm locale mapping
+- `realm_language_data.lua`: Blizzard EU realm locale mapping (including UTF-8 Russian realm names)
 - `CHANGELOG.md`: release notes
 
 ## Local Install

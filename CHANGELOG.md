@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-02-12 - Version 0.9.10
+- Reduced Lua diagnostics noise in `isiLive.lua`:
+  - removed deprecated spell-known fallbacks
+  - added safer dynamic field/global access (`rawget`) for Blizzard runtime-provided fields/frames
+  - improved analyzer-friendly typing around teleport icon handling and rating summary reads
+- Restored Russian realm entries in `realm_language_data.lua` with proper UTF-8 names and normalized keys.
+- Removed corrupted `????` placeholder keys that produced duplicate-index diagnostics.
+
 ## 2026-02-12 - Version 0.9.9
 - Reworked right-side M+ teleport UI from single button to multi-button grid (one button per mapped dungeon teleport).
 - Added active-target highlight for the currently resolved teleport (strong pulse/glow + tinted overlay).

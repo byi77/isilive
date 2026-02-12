@@ -218,12 +218,6 @@ local function IsSpellKnownSafe(spellID)
     if C_SpellBook and C_SpellBook.IsSpellKnown then
         return C_SpellBook.IsSpellKnown(spellID) == true
     end
-    if IsPlayerSpell then
-        return IsPlayerSpell(spellID) == true
-    end
-    if _G.IsSpellKnown then
-        return _G.IsSpellKnown(spellID) == true
-    end
     return false
 end
 
@@ -576,11 +570,14 @@ local function ResolveSeason3TeleportSpellID(activityID, dungeonName)
     if activityID and C_LFGList and C_LFGList.GetActivityInfoTable then
         local info = C_LFGList.GetActivityInfoTable(activityID)
         if info then
-            local mapID = tonumber(info.mapID or info.mapId)
+            local mapID = tonumber(rawget(info, "mapID") or rawget(info, "mapId"))
             if mapID and TWW_SEASON3_MAP_TO_TELEPORT[mapID] then
                 return TWW_SEASON3_MAP_TO_TELEPORT[mapID]
             end
-            resolvedDungeonName = resolvedDungeonName or info.fullName or info.shortName or info.activityName
+            resolvedDungeonName = resolvedDungeonName
+                or rawget(info, "fullName")
+                or rawget(info, "shortName")
+                or rawget(info, "activityName")
         end
     end
 
@@ -612,9 +609,12 @@ local function ApplySecureSpellToButton(button, spellID)
 end
 
 local function UpdateCenterTeleportButtonVisual(spellID, isEnabled, inCombatBlocked)
-    local icon = "Interface\\Icons\\INV_Misc_QuestionMark"
+    local icon
     if spellID and C_Spell and C_Spell.GetSpellTexture then
-        icon = C_Spell.GetSpellTexture(spellID) or icon
+        icon = C_Spell.GetSpellTexture(spellID)
+    end
+    if not icon then
+        icon = "Interface\\Icons\\INV_Misc_QuestionMark"
     end
 
     centerNoticeTeleportButton.icon:SetTexture(icon)
@@ -707,11 +707,13 @@ inviteHintText:SetTextColor(1, 0.82, 0)
 
 local inviteHintEndsAt = 0
 local function GetInviteAnchorFrame()
-    if _G.LFGListInviteDialog and _G.LFGListInviteDialog:IsShown() then
-        return _G.LFGListInviteDialog
+    local lfgListInviteDialog = rawget(_G, "LFGListInviteDialog")
+    if lfgListInviteDialog and lfgListInviteDialog:IsShown() then
+        return lfgListInviteDialog
     end
-    if _G.LFGDungeonReadyDialog and _G.LFGDungeonReadyDialog:IsShown() then
-        return _G.LFGDungeonReadyDialog
+    local lfgDungeonReadyDialog = rawget(_G, "LFGDungeonReadyDialog")
+    if lfgDungeonReadyDialog and lfgDungeonReadyDialog:IsShown() then
+        return lfgDungeonReadyDialog
     end
     return nil
 end
@@ -725,8 +727,9 @@ local function PositionInviteHintFrame()
         return
     end
 
-    if _G.isiLiveMainFrame and _G.isiLiveMainFrame:IsShown() then
-        inviteHintFrame:SetPoint("TOP", _G.isiLiveMainFrame, "BOTTOM", 0, -8)
+    local globalMainFrame = rawget(_G, "isiLiveMainFrame")
+    if globalMainFrame and globalMainFrame:IsShown() then
+        inviteHintFrame:SetPoint("TOP", globalMainFrame, "BOTTOM", 0, -8)
         return
     end
 
@@ -1416,6 +1419,8 @@ local function TruncateName(name, maxChars)
     if not name then return "" end
     maxChars = maxChars or 10
 
+    local utf8len = rawget(_G, "utf8len")
+    local utf8sub = rawget(_G, "utf8sub")
     if utf8len and utf8sub then
         if utf8len(name) > maxChars then
             return utf8sub(name, 1, maxChars)
@@ -1476,7 +1481,7 @@ local function GetActivityName(activityID)
 
     local info = C_LFGList.GetActivityInfoTable(activityID)
     if info then
-        return info.fullName or info.shortName or info.activityName
+        return rawget(info, "fullName") or rawget(info, "shortName") or rawget(info, "activityName")
     end
 
     return nil
@@ -1896,10 +1901,15 @@ local function GetUnitRio(unit)
 
     local ok, summary = pcall(C_PlayerInfo.GetPlayerMythicPlusRatingSummary, unit)
     if ok and summary then
-        if summary.currentSeasonScore then return summary.currentSeasonScore end
-        if summary.currentSeasonBestScore then return summary.currentSeasonBestScore end
-        if summary.rating then return summary.rating end
-        if summary.score then return summary.score end
+        local currentSeasonScore = rawget(summary, "currentSeasonScore")
+        local currentSeasonBestScore = rawget(summary, "currentSeasonBestScore")
+        local rating = rawget(summary, "rating")
+        local score = rawget(summary, "score")
+
+        if currentSeasonScore then return currentSeasonScore end
+        if currentSeasonBestScore then return currentSeasonBestScore end
+        if rating then return rating end
+        if score then return score end
     end
 
     return nil
