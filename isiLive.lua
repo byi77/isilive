@@ -805,11 +805,14 @@ mainFrame:SetSize(700, MIN_FRAME_HEIGHT)
 mainFrame:SetPoint("CENTER")
 mainFrame:SetMovable(true)
 mainFrame:EnableMouse(true)
-mainFrame:RegisterForDrag("RightButton")
-mainFrame:SetScript("OnDragStart", mainFrame.StartMoving)
+mainFrame:RegisterForDrag("LeftButton", "RightButton")
+mainFrame:SetScript("OnDragStart", function(self)
+    self:StartMoving()
+end)
 mainFrame:Hide() -- Hide initially, will be shown if in group
 
 local pendingMainFrameVisible = nil
+local pendingMainFrameHeight = nil
 local function SetMainFrameVisible(visible)
     if InCombatLockdown and InCombatLockdown() then
         pendingMainFrameVisible = visible and true or false
@@ -825,6 +828,16 @@ local function SetMainFrameVisible(visible)
             mainFrame:Hide()
         end
     end
+end
+
+local function SetMainFrameHeightSafe(height)
+    if not mainFrame then return end
+    if InCombatLockdown and InCombatLockdown() then
+        pendingMainFrameHeight = height
+        return
+    end
+    pendingMainFrameHeight = nil
+    mainFrame:SetHeight(height)
 end
 
 local function ToggleMainFrameVisibility()
@@ -844,11 +857,17 @@ local function ToggleMainFrameVisibility()
     end
 end
 
+local function SaveMainFramePosition(frame)
+    if not IsiLiveDB then
+        IsiLiveDB = {}
+    end
+    local point, _, relativePoint, x, y = frame:GetPoint()
+    IsiLiveDB.position = { point = point, relativePoint = relativePoint, x = x, y = y }
+end
+
 mainFrame:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
-    -- Save position to DB
-    local point, _, relativePoint, x, y = self:GetPoint()
-    IsiLiveDB.position = { point = point, relativePoint = relativePoint, x = x, y = y }
+    SaveMainFramePosition(self)
 end)
 
 -- Dedicated drag handle to avoid stealing left-clicks from interactive buttons.
@@ -856,6 +875,8 @@ local mainFrameDragHandle = CreateFrame("Frame", nil, mainFrame)
 mainFrameDragHandle:SetPoint("TOPLEFT", 0, 0)
 mainFrameDragHandle:SetPoint("TOPRIGHT", 0, 0)
 mainFrameDragHandle:SetHeight(26)
+mainFrameDragHandle:SetFrameStrata(mainFrame:GetFrameStrata())
+mainFrameDragHandle:SetFrameLevel(mainFrame:GetFrameLevel() + 100)
 mainFrameDragHandle:EnableMouse(true)
 mainFrameDragHandle:RegisterForDrag("LeftButton")
 mainFrameDragHandle:SetScript("OnDragStart", function()
@@ -863,8 +884,7 @@ mainFrameDragHandle:SetScript("OnDragStart", function()
 end)
 mainFrameDragHandle:SetScript("OnDragStop", function()
     mainFrame:StopMovingOrSizing()
-    local point, _, relativePoint, x, y = mainFrame:GetPoint()
-    IsiLiveDB.position = { point = point, relativePoint = relativePoint, x = x, y = y }
+    SaveMainFramePosition(mainFrame)
 end)
 
 -- Background for visibility
@@ -1938,7 +1958,7 @@ UpdateUI = function()
     end
 
     -- Resize frame based on members
-    mainFrame:SetHeight(math.max(MIN_FRAME_HEIGHT, 45 + index * 16))
+    SetMainFrameHeightSafe(math.max(MIN_FRAME_HEIGHT, 45 + index * 16))
 end
 
 local function GetUnitRio(unit)
@@ -2156,6 +2176,9 @@ OnEvent = function(self, event, ...)
     elseif event == "PLAYER_REGEN_ENABLED" then
         if pendingBindingApply then
             ApplyHotkeyBindings()
+        end
+        if pendingMainFrameHeight then
+            SetMainFrameHeightSafe(pendingMainFrameHeight)
         end
         if pendingMainFrameVisible ~= nil then
             SetMainFrameVisible(pendingMainFrameVisible)

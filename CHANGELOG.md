@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-02-12 - Version 0.9.12
+- Fixed main window drag reliability:
+  - window now supports direct left/right mouse drag
+  - top drag handle is forced above overlays to prevent mouse event blocking
+- Fixed combat lockdown taint error (`ADDON_ACTION_BLOCKED`) by deferring protected `isiLiveMainFrame:SetHeight()` updates until `PLAYER_REGEN_ENABLED`.
+
 ## 2026-02-12 - Version 0.9.11
 - Fixed queue-teleport highlight reliability so invite-detected dungeon targets are applied immediately and remain stable across follow-up LFG status events.
 - Prioritized invite/queue dungeon target for M+ teleport highlighting regardless of current player location/instance.

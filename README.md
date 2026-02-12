@@ -22,6 +22,8 @@ Compatibility target: WoW `12.0+` only.
 - Auto-open on small-group join
 - Auto-hide on M+ key start (`CHALLENGE_MODE_START`)
 - Hidden window mode hard-stops non-essential scan/processing work
+- Main window is movable via left/right drag; top drag handle stays above overlays for reliable dragging
+- Main frame height updates are deferred during combat and applied on `PLAYER_REGEN_ENABLED`
 - `Readycheck` and `Countdown10` are leader-only
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 
@@ -84,6 +86,6 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push tag (recommended filename style): `git tag isiLive_0.9.7 && git push origin isiLive_0.9.7`
+3. Create and push tag (recommended filename style): `git tag isiLive_0.9.12 && git push origin isiLive_0.9.12`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.
