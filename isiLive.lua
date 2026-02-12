@@ -33,6 +33,7 @@ local locales = {
         TOOLTIP_TELEPORT_LOCKED = "Teleport not unlocked yet (requires +10 completion).",
         TOOLTIP_TELEPORT_COMBAT = "Teleport button setup is blocked in combat.",
         TOOLTIP_TELEPORT_NO_TARGET = "No queued dungeon available yet.",
+        TOOLTIP_TELEPORT_ACTIVE_TARGET = "Current queue target.",
         TOOLTIP_TELEPORT_READY = "Teleport is ready.",
         TOOLTIP_TELEPORT_COOLDOWN = "Teleport cooldown: %s",
         TELEPORT_ERR_NO_TARGET = "No dungeon teleport target available.",
@@ -124,6 +125,7 @@ local locales = {
         TOOLTIP_TELEPORT_LOCKED = "Teleport noch nicht freigeschaltet (benoetigt +10 Abschluss).",
         TOOLTIP_TELEPORT_COMBAT = "Teleport-Button kann im Kampf nicht vorbereitet werden.",
         TOOLTIP_TELEPORT_NO_TARGET = "Noch kein Queue-Dungeon verfuegbar.",
+        TOOLTIP_TELEPORT_ACTIVE_TARGET = "Aktuelles Queue-Ziel.",
         TOOLTIP_TELEPORT_READY = "Teleport ist bereit.",
         TOOLTIP_TELEPORT_COOLDOWN = "Teleport Cooldown: %s",
         TELEPORT_ERR_NO_TARGET = "Kein Dungeon-Teleportziel verfuegbar.",
@@ -859,7 +861,7 @@ ilvlHeader:SetText(L.COL_ILVL)
 local serverHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 serverHeader:SetPoint("TOPLEFT", SERVER_COL_X, -34)
 serverHeader:SetWidth(SERVER_COL_WIDTH)
-serverHeader:SetJustifyH("RIGHT")
+serverHeader:SetJustifyH("LEFT")
 serverHeader:SetText(L.COL_LANGUAGE)
 
 local rioHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -949,75 +951,113 @@ dmResetToggleButton:SetScript("OnLeave", function()
     GameTooltip:Hide()
 end)
 
-local mplusTeleportButton = CreateFrame("Button", nil, mainFrame, "SecureActionButtonTemplate")
-mplusTeleportButton:SetSize(36, 36)
-mplusTeleportButton:SetPoint("TOPRIGHT", -53, -60)
-mplusTeleportButton:EnableMouse(true)
-mplusTeleportButton:RegisterForClicks("AnyDown", "AnyUp")
-mplusTeleportButton:SetFrameStrata("HIGH")
-mplusTeleportButton:SetFrameLevel(mainFrame:GetFrameLevel() + 10)
-mplusTeleportButton:SetAttribute("type", "spell")
-mplusTeleportButton:SetAttribute("type1", "spell")
-mplusTeleportButton:SetAttribute("*type1", "spell")
-mplusTeleportButton:SetAttribute("useOnKeyDown", true)
-mplusTeleportButton:SetAttribute("spell", 0)
-mplusTeleportButton:SetAttribute("spell1", 0)
-mplusTeleportButton.spellID = nil
-mplusTeleportButton.inCombatBlocked = false
-mplusTeleportButton.noTarget = true
-mplusTeleportButton.icon = mplusTeleportButton:CreateTexture(nil, "ARTWORK")
-mplusTeleportButton.icon:SetAllPoints()
-mplusTeleportButton.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-mplusTeleportButton.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-mplusTeleportButton.overlay = mplusTeleportButton:CreateTexture(nil, "OVERLAY")
-mplusTeleportButton.overlay:SetAllPoints()
-mplusTeleportButton.overlay:SetColorTexture(0, 0, 0, 0.6)
-mplusTeleportButton.cooldownText = mplusTeleportButton:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-mplusTeleportButton.cooldownText:SetPoint("CENTER", mplusTeleportButton, "CENTER", 0, 0)
-mplusTeleportButton.cooldownText:SetTextColor(1, 1, 1)
-mplusTeleportButton.cooldownText:Hide()
-mplusTeleportButton:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    if self.noTarget then
-        GameTooltip:SetText(L.BTN_TELEPORT)
-        GameTooltip:AddLine(L.TOOLTIP_TELEPORT_NO_TARGET, 1, 1, 1, true)
-    elseif self.inCombatBlocked then
-        GameTooltip:SetText(L.BTN_TELEPORT)
-        GameTooltip:AddLine(L.TOOLTIP_TELEPORT_COMBAT, 1, 0.25, 0.25, true)
-    elseif self.spellID and IsSpellKnownSafe(self.spellID) then
-        GameTooltip:SetSpellByID(self.spellID)
-        GameTooltip:AddLine(L.TOOLTIP_TELEPORT_CAST, 1, 1, 1, true)
-        local remaining = GetTeleportCooldownRemaining(self.spellID)
-        if remaining > 0 then
-            GameTooltip:AddLine(string.format(L.TOOLTIP_TELEPORT_COOLDOWN, FormatCooldownSeconds(remaining)), 1, 0.82, 0, true)
+local mplusTeleportButtons = {}
+local mplusActiveSpellID = nil
+
+local function BuildSeason3TeleportEntries()
+    local entries = {}
+    for mapID, spellID in pairs(TWW_SEASON3_MAP_TO_TELEPORT) do
+        local mapName = (C_ChallengeMode and C_ChallengeMode.GetMapUIInfo and C_ChallengeMode.GetMapUIInfo(mapID)) or tostring(mapID)
+        table.insert(entries, { mapID = mapID, spellID = spellID, mapName = mapName })
+    end
+    table.sort(entries, function(a, b)
+        return tostring(a.mapName) < tostring(b.mapName)
+    end)
+    return entries
+end
+
+local function CreateMPlusTeleportButton(index, entry)
+    local size = 28
+    local colCount = 2
+    local col = (index - 1) % colCount
+    local row = math.floor((index - 1) / colCount)
+    local x = (col == 0) and -85 or -53
+    local y = -60 - (row * (size + 4))
+
+    local button = CreateFrame("Button", nil, mainFrame, "SecureActionButtonTemplate")
+    button:SetSize(size, size)
+    button:SetPoint("TOPRIGHT", x, y)
+    button:EnableMouse(true)
+    button:RegisterForClicks("AnyDown", "AnyUp")
+    button:SetFrameStrata("HIGH")
+    button:SetFrameLevel(mainFrame:GetFrameLevel() + 10)
+    button.spellID = entry.spellID
+    button.mapID = entry.mapID
+    button.mapName = entry.mapName
+    button.isActiveTarget = false
+    ApplySecureSpellToButton(button, entry.spellID)
+
+    button.icon = button:CreateTexture(nil, "ARTWORK")
+    button.icon:SetAllPoints()
+    button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    button.icon:SetTexture((C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(entry.spellID)) or "Interface\\Icons\\INV_Misc_QuestionMark")
+
+    button.overlay = button:CreateTexture(nil, "OVERLAY")
+    button.overlay:SetAllPoints()
+    button.overlay:SetColorTexture(0, 0, 0, 0.35)
+
+    button.activeBorder = button:CreateTexture(nil, "OVERLAY")
+    button.activeBorder:SetAllPoints()
+    button.activeBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+    button.activeBorder:SetBlendMode("ADD")
+    button.activeBorder:SetVertexColor(1, 0.85, 0.1, 1)
+    button.activeBorder:Hide()
+
+    button.activeGlow = button:CreateTexture(nil, "OVERLAY")
+    button.activeGlow:SetAllPoints()
+    button.activeGlow:SetTexture("Interface\\AddOns\\Blizzard_SharedXML\\Shared\\CircularGlow")
+    button.activeGlow:SetBlendMode("ADD")
+    button.activeGlow:SetVertexColor(1, 0.78, 0.08, 0.9)
+    button.activeGlow:Hide()
+
+    button:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if self.spellID and IsSpellKnownSafe(self.spellID) then
+            GameTooltip:SetSpellByID(self.spellID)
+            GameTooltip:AddLine(L.TOOLTIP_TELEPORT_CAST, 1, 1, 1, true)
+            local remaining = GetTeleportCooldownRemaining(self.spellID)
+            if remaining > 0 then
+                GameTooltip:AddLine(string.format(L.TOOLTIP_TELEPORT_COOLDOWN, FormatCooldownSeconds(remaining)), 1, 0.82, 0, true)
+            else
+                GameTooltip:AddLine(L.TOOLTIP_TELEPORT_READY, 0.3, 1, 0.3, true)
+            end
         else
-            GameTooltip:AddLine(L.TOOLTIP_TELEPORT_READY, 0.3, 1, 0.3, true)
+            GameTooltip:SetText(L.BTN_TELEPORT_LOCKED)
+            GameTooltip:AddLine(L.TOOLTIP_TELEPORT_LOCKED, 1, 0.25, 0.25, true)
         end
-    else
-        GameTooltip:SetText(L.BTN_TELEPORT_LOCKED)
-        GameTooltip:AddLine(L.TOOLTIP_TELEPORT_LOCKED, 1, 0.25, 0.25, true)
-    end
-    GameTooltip:Show()
-end)
-mplusTeleportButton:SetScript("OnUpdate", function(self, elapsed)
-    if not self.spellID then
-        self.cooldownText:Hide()
-        return
-    end
-    local remaining = GetTeleportCooldownRemaining(self.spellID)
-    if remaining > 0 then
-        self.cooldownText:SetText(FormatCooldownSeconds(remaining))
-        self.cooldownText:Show()
-    else
-        self.cooldownText:Hide()
-    end
-end)
-mplusTeleportButton:SetScript("OnLeave", function()
-    GameTooltip:Hide()
-end)
+        if self.isActiveTarget then
+            GameTooltip:AddLine(L.TOOLTIP_TELEPORT_ACTIVE_TARGET, 1, 0.85, 0.2, true)
+        end
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    button:SetScript("OnUpdate", function(self, elapsed)
+        if not self.isActiveTarget then
+            self.activeBorder:Hide()
+            self.activeGlow:Hide()
+            self:SetScale(1)
+            return
+        end
+        self.activeBorder:Show()
+        self.activeGlow:Show()
+        self._pulse = ((self._pulse or 0) + elapsed * 4) % (math.pi * 2)
+        local wave = math.sin(self._pulse)
+        self.activeBorder:SetAlpha(0.6 + (wave * 0.35))
+        self.activeGlow:SetAlpha(0.5 + (wave * 0.4))
+        self:SetScale(1.03 + (wave * 0.03))
+    end)
+
+    return button
+end
+
+for i, entry in ipairs(BuildSeason3TeleportEntries()) do
+    table.insert(mplusTeleportButtons, CreateMPlusTeleportButton(i, entry))
+end
 
 local dungeonDifficultyLine = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-dungeonDifficultyLine:SetPoint("TOPRIGHT", -150, -180)
+dungeonDifficultyLine:SetPoint("TOPRIGHT", -150, -190)
 dungeonDifficultyLine:SetWidth(120)
 dungeonDifficultyLine:SetJustifyH("CENTER")
 dungeonDifficultyLine:SetText("")
@@ -1066,7 +1106,7 @@ local function CreateMemberRow(index)
     row.realm = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     row.realm:SetPoint("TOPLEFT", SERVER_COL_X, yOffset)
     row.realm:SetWidth(SERVER_COL_WIDTH)
-    row.realm:SetJustifyH("CENTER")
+    row.realm:SetJustifyH("LEFT")
 
     memberRows[index] = row
     return row
@@ -1091,6 +1131,7 @@ local isTestMode = false
 local isStopped = false
 local isPaused = false
 local wasInDungeon = nil
+local nonMythicNoticeToken = 0
 
 local function IsAutoDamageMeterResetEnabled()
     return IsiLiveDB and IsiLiveDB.autoDamageMeterReset == true
@@ -1109,71 +1150,59 @@ UpdateDMResetButton = function()
     dmResetToggleButton:SetText(enabled and L.BTN_DMRESET_ON or L.BTN_DMRESET_OFF)
 end
 
-local function UpdateMPlusTeleportButtonVisual(spellID, isEnabled, inCombatBlocked, noTarget)
-    local icon = "Interface\\Icons\\INV_Misc_QuestionMark"
-    if spellID and C_Spell and C_Spell.GetSpellTexture then
-        icon = C_Spell.GetSpellTexture(spellID) or icon
+local function ResolveActiveTeleportSpellID()
+    local queueSpellID = ResolveSeason3TeleportSpellID(latestQueueActivityID, latestQueueDungeonName)
+    if queueSpellID then
+        return queueSpellID
     end
-    mplusTeleportButton.icon:SetTexture(icon)
 
-    if noTarget then
-        mplusTeleportButton.overlay:SetColorTexture(0, 0, 0, 0.6)
-    elseif inCombatBlocked then
-        mplusTeleportButton.overlay:SetColorTexture(0.4, 0.05, 0.05, 0.55)
-    elseif not isEnabled then
-        mplusTeleportButton.overlay:SetColorTexture(0, 0, 0, 0.6)
-    else
-        mplusTeleportButton.overlay:SetColorTexture(0, 0, 0, 0)
+    if C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID then
+        local activeMapID = C_ChallengeMode.GetActiveChallengeMapID()
+        if activeMapID and TWW_SEASON3_MAP_TO_TELEPORT[activeMapID] then
+            return TWW_SEASON3_MAP_TO_TELEPORT[activeMapID]
+        end
+        if activeMapID and C_ChallengeMode.GetMapUIInfo then
+            local activeMapName = C_ChallengeMode.GetMapUIInfo(activeMapID)
+            local activeNameSpellID = ResolveSeason3TeleportSpellID(nil, activeMapName)
+            if activeNameSpellID then
+                return activeNameSpellID
+            end
+        end
     end
+
+    local instanceName, instanceType, _, _, _, _, _, instanceMapID = GetInstanceInfo()
+    if instanceType == "party" then
+        if instanceMapID and TWW_SEASON3_MAP_TO_TELEPORT[instanceMapID] then
+            return TWW_SEASON3_MAP_TO_TELEPORT[instanceMapID]
+        end
+        local instanceNameSpellID = ResolveSeason3TeleportSpellID(nil, instanceName)
+        if instanceNameSpellID then
+            return instanceNameSpellID
+        end
+    end
+
+    return nil
 end
 
 local function UpdateMPlusTeleportButton()
-    if not mplusTeleportButton then return end
+    local resolvedSpellID = ResolveActiveTeleportSpellID()
+    mplusActiveSpellID = resolvedSpellID
 
-    if not latestQueueDungeonName or latestQueueDungeonName == "" then
-        mplusTeleportButton.spellID = nil
-        mplusTeleportButton.inCombatBlocked = false
-        mplusTeleportButton.noTarget = true
-        if not (InCombatLockdown and InCombatLockdown()) then
-            mplusTeleportButton:SetAttribute("spell", 0)
-            mplusTeleportButton:SetAttribute("spell1", 0)
+    for _, button in ipairs(mplusTeleportButtons) do
+        local known = IsSpellKnownSafe(button.spellID)
+        button.isActiveTarget = (resolvedSpellID and button.spellID == resolvedSpellID) and true or false
+        button:Enable()
+
+        if known then
+            if button.isActiveTarget then
+                button.overlay:SetColorTexture(1, 0.72, 0.05, 0.22)
+            else
+                button.overlay:SetColorTexture(0, 0, 0, 0.28)
+            end
+        else
+            button.overlay:SetColorTexture(0, 0, 0, 0.62)
         end
-        mplusTeleportButton:Enable()
-        UpdateMPlusTeleportButtonVisual(nil, false, false, true)
-        return
     end
-
-    local spellID = ResolveSeason3TeleportSpellID(latestQueueActivityID, latestQueueDungeonName)
-    if not spellID then
-        mplusTeleportButton.spellID = nil
-        mplusTeleportButton.inCombatBlocked = false
-        mplusTeleportButton.noTarget = true
-        if not (InCombatLockdown and InCombatLockdown()) then
-            mplusTeleportButton:SetAttribute("spell", 0)
-            mplusTeleportButton:SetAttribute("spell1", 0)
-        end
-        mplusTeleportButton:Enable()
-        UpdateMPlusTeleportButtonVisual(nil, false, false, true)
-        return
-    end
-
-    if InCombatLockdown and InCombatLockdown() then
-        mplusTeleportButton.spellID = spellID
-        mplusTeleportButton.inCombatBlocked = true
-        mplusTeleportButton.noTarget = false
-        mplusTeleportButton:Enable()
-        UpdateMPlusTeleportButtonVisual(spellID, false, true, false)
-        return
-    end
-
-    ApplySecureSpellToButton(mplusTeleportButton, spellID)
-    mplusTeleportButton.spellID = spellID
-    mplusTeleportButton.inCombatBlocked = false
-    mplusTeleportButton.noTarget = false
-
-    local known = IsSpellKnownSafe(spellID)
-    mplusTeleportButton:Enable()
-    UpdateMPlusTeleportButtonVisual(spellID, known, false, false)
 end
 
 ApplyLocalizationToUI = function()
@@ -1272,8 +1301,28 @@ local function MaybeShowNonMythicDungeonEntryNotice()
         return
     end
 
-    if inDungeon and not wasInDungeon and not isMythic then
-        ShowCenterNotice(string.format(L.NON_MYTHIC_ENTERED, difficultyText), 30, nil, nil)
+    if not inDungeon then
+        nonMythicNoticeToken = nonMythicNoticeToken + 1
+    end
+
+    local enteredDungeon = inDungeon and not wasInDungeon
+    if enteredDungeon then
+        nonMythicNoticeToken = nonMythicNoticeToken + 1
+        local token = nonMythicNoticeToken
+
+        local function ConfirmAndShowNotice()
+            if token ~= nonMythicNoticeToken then return end
+            local confirmedText, confirmedMythic, confirmedInDungeon = GetDungeonDifficultyLabel()
+            if not confirmedInDungeon or confirmedMythic then return end
+            if confirmedText == L.DUNGEON_DIFF_UNKNOWN then return end
+            ShowCenterNotice(string.format(L.NON_MYTHIC_ENTERED, confirmedText), 30, nil, nil)
+        end
+
+        if C_Timer and C_Timer.After then
+            C_Timer.After(3, ConfirmAndShowNotice)
+        else
+            ConfirmAndShowNotice()
+        end
     end
 
     wasInDungeon = inDungeon
@@ -1708,7 +1757,7 @@ local function SetLanguage(tag)
 end
 
 local function PrintTeleportDebug()
-    local resolvedSpellID = ResolveSeason3TeleportSpellID(latestQueueActivityID, latestQueueDungeonName)
+    local resolvedSpellID = ResolveActiveTeleportSpellID()
     local resolvedKnown = resolvedSpellID and IsSpellKnownSafe(resolvedSpellID) or false
     local resolvedCooldown = resolvedSpellID and GetTeleportCooldownRemaining(resolvedSpellID) or 0
 
@@ -1723,7 +1772,7 @@ local function PrintTeleportDebug()
         local known = spellID and IsSpellKnownSafe(spellID) or false
         local cooldown = spellID and GetTeleportCooldownRemaining(spellID) or 0
         Print(string.format(
-            "%s shown=%s spellID=%s attr(type=%s spell=%s) known=%s cd=%s combatBlocked=%s noTarget=%s",
+            "%s shown=%s spellID=%s attr(type=%s spell=%s) known=%s cd=%s active=%s map=%s",
             label,
             tostring(button:IsShown()),
             tostring(spellID),
@@ -1731,8 +1780,8 @@ local function PrintTeleportDebug()
             tostring(attrSpell),
             tostring(known),
             FormatCooldownSeconds(cooldown),
-            tostring(button.inCombatBlocked == true),
-            tostring(button.noTarget == true)
+            tostring(button.isActiveTarget == true),
+            tostring(button.mapName)
         ))
     end
 
@@ -1746,7 +1795,9 @@ local function PrintTeleportDebug()
         tostring(InCombatLockdown and InCombatLockdown())
     ))
     DumpButtonState("TP center", centerNoticeTeleportButton)
-    DumpButtonState("TP mplus", mplusTeleportButton)
+    for i, button in ipairs(mplusTeleportButtons) do
+        DumpButtonState("TP grid[" .. i .. "]", button)
+    end
 end
 
 local function ForceTeleportTestTarget()
@@ -1818,7 +1869,11 @@ UpdateUI = function()
         local colorHex = CreateColor(color.r, color.g, color.b):GenerateHexColor()
         local displayName = TruncateName(info.name, 10)
         local languageText = info.language or "??"
-        local languageDisplay = GetLanguageFlagMarkup(languageText)
+        local languageShort = tostring(languageText):upper():sub(1, 2)
+        if not languageShort or #languageShort < 2 then
+            languageShort = "??"
+        end
+        local languageDisplay = string.format("%s |cffd9d9d9%s|r", GetLanguageFlagMarkup(languageShort), languageShort)
 
         local specText = info.spec and TruncateName(info.spec, 15) or "-"
         local ilvlText = info.ilvl and tostring(math.floor(info.ilvl)) or "-"

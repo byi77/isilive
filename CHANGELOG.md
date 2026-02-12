@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+- Reworked right-side M+ teleport UI from single button to multi-button grid (one button per mapped dungeon teleport).
+- Added active-target highlight for the currently resolved teleport (strong pulse/glow + tinted overlay).
+- Improved active teleport target resolution with fallbacks:
+  - queue-derived dungeon/activity
+  - active challenge map
+  - current instance map/name
+- Fixed non-Mythic entry warning timing by adding delayed confirmation to avoid false positives during instance-load transitions.
+- Updated roster language display to include `flag + 2-letter code` (for example `DE`, `FR`).
+
 ## 2026-02-12 - Version 0.9.8
 - Added inspect-based specialization (`Spec`) detection for party members and integrated it into the group table.
 - Added a new `Spec` column before `Name`, with class-color rendering and localization support.

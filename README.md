@@ -6,13 +6,16 @@ Compatibility target: WoW `12.0+` only.
 
 ## Features
 
-- Group roster table with columns: `Name`, `Flag`, `iLvl`, `RIO`
+- Group roster table with columns: `Spec`, `Name`, `Sprache/Flag`, `iLvl`, `RIO`
 - Stable role sorting: `Tank -> Healer -> Damager`
 - Right-side controls: `Readycheck`, `Countdown10`, `Refresh`, `DM Reset: ON/OFF`
-- `M+ Management` teleport icon button
+- `M+ Management` teleport grid with all Season dungeon teleports
+- Active queue/current dungeon teleport is highlighted (pulse/glow)
 - Queue join detection with chat message, center notice, and invite hint
-- Dungeon teleport icon buttons (center + right side)
+- Dungeon teleport controls in center notice + right-side grid
 - Teleport cooldown shown as `HH:MM`
+- Center notices: left-click drag, right-click dismiss, persistent position
+- Non-Mythic dungeon entry warning (30s center notice with delayed confirmation)
 
 ## Behavior
 
@@ -20,6 +23,7 @@ Compatibility target: WoW `12.0+` only.
 - Auto-hide on M+ key start (`CHALLENGE_MODE_START`)
 - Hidden window mode hard-stops non-essential scan/processing work
 - `Readycheck` and `Countdown10` are leader-only
+- Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 
 ## Hotkeys
 
