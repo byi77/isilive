@@ -1,0 +1,14 @@
+{
+    "editor.formatOnSave": true,
+    "[lua]": {
+        "editor.defaultFormatter": null
+    },
+    "Lua.runtime.version": "Lua 5.1",
+    "Lua.workspace.checkThirdParty": false,
+    "Lua.diagnostics.globals": [
+        "UIParent",
+        "GameTooltip",
+        "SOUNDKIT",
+        "SlashCmdList"
+    ]
+}

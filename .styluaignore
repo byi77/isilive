@@ -1,0 +1,6 @@
+libs/**
+Libs/**
+vendor/**
+externals/**
+build/**
+realm_language_data.lua

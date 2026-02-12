@@ -1,4 +1,4 @@
-﻿# Rules
+# Rules
 
 ## Coding
 - Keep processing disabled while the window is hidden.

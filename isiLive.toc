@@ -9,6 +9,9 @@ realm_language_data.lua
 isiLive_locale.lua
 isiLive_teleport.lua
 isiLive_notice.lua
+isiLive_status.lua
+isiLive_units.lua
+isiLive_demo.lua
 isiLive_sync.lua
 isiLive_queue.lua
 isiLive_inspect.lua
