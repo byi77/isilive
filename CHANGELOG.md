@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-02-12 - Version 0.9.13
+- Release-only republish to force a unique CurseForge package artifact after `.11` and `.12` pointed to the same commit.
+- No code changes compared to `0.9.12`.
+
 ## 2026-02-12 - Version 0.9.12
 - Fixed main window drag reliability:
   - window now supports direct left/right mouse drag
