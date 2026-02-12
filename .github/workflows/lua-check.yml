@@ -9,6 +9,8 @@ on:
 jobs:
   quality-gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -17,7 +19,7 @@ jobs:
       - name: StyLua (check)
         uses: JohnnyMorganz/stylua-action@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
           version: "2.3.1"
           args: --check .
 
