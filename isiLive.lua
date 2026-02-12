@@ -11,6 +11,7 @@ local locale = GetLocale()
 local locales = {
     enUS = {
         TITLE = "isiLive",
+        COL_SPEC = "Spec",
         COL_NAME = "Name",
         COL_LANGUAGE = "Flag",
         COL_ILVL = "iLvl",
@@ -52,6 +53,7 @@ local locales = {
         DUNGEON_DIFF_NORMAL = "Normal",
         DUNGEON_DIFF_HEROIC = "Heroic",
         DUNGEON_DIFF_MYTHIC = "Mythic",
+        NON_MYTHIC_ENTERED = "Warning: Entered non-Mythic dungeon (%s).",
         TIMEOUT_INSPECT = "Timeout inspecting",
         ERR_STOPPED_TEST = "Addon is stopped (/isilive start). Test mode unavailable.",
         ERR_PAUSED_TEST = "Addon is paused (/isilive resume). Test mode unavailable.",
@@ -100,8 +102,9 @@ local locales = {
     },
     deDE = {
         TITLE = "isiLive",
+        COL_SPEC = "Spec",
         COL_NAME = "Name",
-        COL_LANGUAGE = "Flagge",
+        COL_LANGUAGE = "Sprache",
         COL_ILVL = "iLvl",
         COL_RIO = "RIO",
         LEAD_OPTIONS = "Lead Optionen",
@@ -141,6 +144,7 @@ local locales = {
         DUNGEON_DIFF_NORMAL = "Normal",
         DUNGEON_DIFF_HEROIC = "Heroisch",
         DUNGEON_DIFF_MYTHIC = "Mythisch",
+        NON_MYTHIC_ENTERED = "Achtung: Nicht-mythischen Dungeon betreten (%s).",
         TIMEOUT_INSPECT = "Timeout beim Inspizieren von",
         ERR_STOPPED_TEST = "Addon ist gestoppt (/isilive start). Testmodus nicht verfuegbar.",
         ERR_PAUSED_TEST = "Addon ist pausiert (/isilive resume). Testmodus nicht verfuegbar.",
@@ -411,7 +415,7 @@ centerNoticeFrame:SetSize(680, CENTER_NOTICE_MIN_HEIGHT)
 centerNoticeFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 centerNoticeFrame:SetMovable(true)
 centerNoticeFrame:EnableMouse(true)
-centerNoticeFrame:RegisterForDrag("RightButton")
+centerNoticeFrame:RegisterForDrag("LeftButton")
 centerNoticeFrame:Hide()
 centerNoticeFrame:SetScript("OnDragStart", function(self)
     self:StartMoving()
@@ -423,7 +427,6 @@ centerNoticeFrame:SetScript("OnDragStop", function(self)
         IsiLiveDB.centerNoticePosition = { point = point, relativePoint = relativePoint, x = x, y = y }
     end
 end)
-
 local pendingCenterNoticeVisible = nil
 local function SetCenterNoticeVisible(visible)
     if InCombatLockdown and InCombatLockdown() then
@@ -441,6 +444,12 @@ local function SetCenterNoticeVisible(visible)
         end
     end
 end
+
+centerNoticeFrame:SetScript("OnMouseUp", function(self, button)
+    if button == "RightButton" then
+        SetCenterNoticeVisible(false)
+    end
+end)
 
 local centerNoticeBg = centerNoticeFrame:CreateTexture(nil, "BACKGROUND")
 centerNoticeBg:SetAllPoints()
@@ -739,7 +748,7 @@ end)
 
 -- --- UI Elements ---
 local mainFrame = CreateFrame("Frame", "isiLiveMainFrame", UIParent)
-mainFrame:SetSize(620, MIN_FRAME_HEIGHT)
+mainFrame:SetSize(700, MIN_FRAME_HEIGHT)
 mainFrame:SetPoint("CENTER")
 mainFrame:SetMovable(true)
 mainFrame:EnableMouse(true)
@@ -818,19 +827,27 @@ title:SetShadowOffset(1, -1)
 title:SetText(L.TITLE)
 
 -- Column headers
-local NAME_COL_X = 10
-local SERVER_COL_X = 155
-local ILVL_COL_X = 225
-local RIO_COL_X = 262
-local NAME_COL_WIDTH = 130
+local SPEC_COL_X = 10
+local NAME_COL_X = 118
+local SERVER_COL_X = 245
+local ILVL_COL_X = 315
+local RIO_COL_X = 352
+local SPEC_COL_WIDTH = 100
+local NAME_COL_WIDTH = 120
 local SERVER_COL_WIDTH = 62
 local ILVL_COL_WIDTH = 35
 local RIO_COL_WIDTH = 55
 
+local specHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+specHeader:SetPoint("TOPLEFT", SPEC_COL_X, -34)
+specHeader:SetWidth(SPEC_COL_WIDTH)
+specHeader:SetJustifyH("RIGHT")
+specHeader:SetText(L.COL_SPEC)
+
 local nameHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 nameHeader:SetPoint("TOPLEFT", NAME_COL_X, -34)
 nameHeader:SetWidth(NAME_COL_WIDTH)
-nameHeader:SetJustifyH("RIGHT")
+nameHeader:SetJustifyH("LEFT")
 nameHeader:SetText(L.COL_NAME)
 
 local ilvlHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -1026,9 +1043,14 @@ local function CreateMemberRow(index)
     local yOffset = -52 - (index - 1) * 16
     local row = {}
 
+    row.spec = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    row.spec:SetPoint("TOPLEFT", SPEC_COL_X, yOffset)
+    row.spec:SetJustifyH("RIGHT")
+    row.spec:SetWidth(SPEC_COL_WIDTH)
+
     row.name = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     row.name:SetPoint("TOPLEFT", NAME_COL_X, yOffset)
-    row.name:SetJustifyH("RIGHT")
+    row.name:SetJustifyH("LEFT")
     row.name:SetWidth(NAME_COL_WIDTH)
 
     row.ilvl = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -1051,13 +1073,14 @@ local function CreateMemberRow(index)
 end
 
 -- --- Data & State ---
-local roster = {}        -- Stores info about current group members: { unit = "party1", name = "Name", class = "MAGE", role = "DAMAGER", ilvl = nil, rio = nil }
+local roster = {}        -- Stores info about current group members: { unit = "party1", name = "Name", class = "MAGE", role = "DAMAGER", spec = nil, ilvl = nil, rio = nil }
 local inspectQueue = {}  -- List of units to inspect
 local retryQueue = {}    -- List of units to retry later { unit = "party1", nextRetry = GetTime() + 5 }
 local isInspecting = nil -- Current unit being inspected or nil
 local lastInspectTime = 0
 local ilvlCache = {}     -- Stores { [GUID] = ilvl } to prevent re-inspecting
 local rioCache = {}      -- Stores { [GUID] = rio } to prevent re-reading
+local specCache = {}     -- Stores { [GUID] = specName } to prevent re-reading
 local InspectLoop
 local wasGroupLeader = nil
 local wasInGroup = false
@@ -1067,6 +1090,7 @@ local latestQueueActivityID = nil
 local isTestMode = false
 local isStopped = false
 local isPaused = false
+local wasInDungeon = nil
 
 local function IsAutoDamageMeterResetEnabled()
     return IsiLiveDB and IsiLiveDB.autoDamageMeterReset == true
@@ -1154,6 +1178,7 @@ end
 
 ApplyLocalizationToUI = function()
     title:SetText(L.TITLE)
+    specHeader:SetText(L.COL_SPEC)
     nameHeader:SetText(L.COL_NAME)
     serverHeader:SetText(L.COL_LANGUAGE)
     ilvlHeader:SetText(L.COL_ILVL)
@@ -1239,6 +1264,21 @@ local function UpdateDungeonDifficultyLine()
     end
 end
 
+local function MaybeShowNonMythicDungeonEntryNotice()
+    local difficultyText, isMythic, inDungeon = GetDungeonDifficultyLabel()
+
+    if wasInDungeon == nil then
+        wasInDungeon = inDungeon
+        return
+    end
+
+    if inDungeon and not wasInDungeon and not isMythic then
+        ShowCenterNotice(string.format(L.NON_MYTHIC_ENTERED, difficultyText), 30, nil, nil)
+    end
+
+    wasInDungeon = inDungeon
+end
+
 UpdateStatusLine = function()
     local leadText = IsPlayerLeader() and L.STATUS_LEAD_YES or L.STATUS_LEAD_NO
     local mplusText = C_ChallengeMode.GetActiveChallengeMapID() and L.STATUS_MPLUS_YES or L.STATUS_MPLUS_NO
@@ -1265,7 +1305,9 @@ local function QueueForceRefreshData()
             if guid then
                 ilvlCache[guid] = nil
                 rioCache[guid] = nil
+                specCache[guid] = nil
             end
+            info.spec = nil
             info.ilvl = nil
             info.rio = nil
             if not IsUnitInInspectQueue(unit) then
@@ -1578,11 +1620,11 @@ end
 
 local function BuildDummyRoster()
     return {
-        ["player"] = { name = "BigTank", language = "DE", class = "WARRIOR", role = "TANK", ilvl = 615, rio = 3200 },
-        ["party1"] = { name = "HealBot", language = "DE", class = "PRIEST", role = "HEALER", ilvl = 612, rio = 3050 },
-        ["party2"] = { name = "PumperDPS", language = "EN", class = "MAGE", role = "DAMAGER", ilvl = 620, rio = 3380 },
-        ["party3"] = { name = "LazyRogue", language = "EN", class = "ROGUE", role = "DAMAGER", ilvl = 605, rio = 2875 },
-        ["party4"] = { name = "Huntard", language = "EN", class = "HUNTER", role = "DAMAGER", ilvl = 610, rio = 2990 },
+        ["player"] = { name = "BigTank", language = "DE", class = "WARRIOR", role = "TANK", spec = "Protection", ilvl = 169, rio = 4025 },
+        ["party1"] = { name = "HealBot", language = "DE", class = "PRIEST", role = "HEALER", spec = "Holy", ilvl = 158, rio = 3810 },
+        ["party2"] = { name = "PumperDPS", language = "EN", class = "MAGE", role = "DAMAGER", spec = "Frost", ilvl = 166, rio = 3955 },
+        ["party3"] = { name = "LazyRogue", language = "EN", class = "ROGUE", role = "DAMAGER", spec = "Outlaw", ilvl = 161, rio = 3875 },
+        ["party4"] = { name = "Huntard", language = "EN", class = "HUNTER", role = "DAMAGER", spec = "Marksman", ilvl = 167, rio = 4090 },
     }
 end
 
@@ -1717,9 +1759,34 @@ local function ForceTeleportTestTarget()
     Print("Teleport test target set: " .. tostring(dungeon))
 end
 
+local function GetPlayerSpecName()
+    if not GetSpecialization or not GetSpecializationInfo then
+        return nil
+    end
+    local specIndex = GetSpecialization()
+    if not specIndex or specIndex <= 0 then
+        return nil
+    end
+    local _, specName = GetSpecializationInfo(specIndex)
+    return specName
+end
+
+local function GetInspectSpecName(unit)
+    if not unit or not GetInspectSpecialization or not GetSpecializationInfoByID then
+        return nil
+    end
+    local specID = GetInspectSpecialization(unit)
+    if not specID or specID <= 0 then
+        return nil
+    end
+    local _, specName = GetSpecializationInfoByID(specID)
+    return specName
+end
+
 UpdateUI = function()
     -- Hide all rows first
     for _, row in pairs(memberRows) do
+        row.spec:SetText("")
         row.name:SetText("")
         row.realm:SetText("")
         row.ilvl:SetText("")
@@ -1753,8 +1820,10 @@ UpdateUI = function()
         local languageText = info.language or "??"
         local languageDisplay = GetLanguageFlagMarkup(languageText)
 
+        local specText = info.spec and TruncateName(info.spec, 15) or "-"
         local ilvlText = info.ilvl and tostring(math.floor(info.ilvl)) or "-"
         local rioText = info.rio and tostring(math.floor(info.rio)) or "-"
+        row.spec:SetText("|c" .. colorHex .. specText .. "|r")
         row.name:SetText("|c" .. colorHex .. displayName .. "|r")
         row.realm:SetText(languageDisplay)
         row.ilvl:SetText(ilvlText)
@@ -1792,13 +1861,15 @@ local function EnqueueInspect(unit)
     if guid and rioCache[guid] and roster[unit] then
         roster[unit].rio = rioCache[guid]
     end
-    if guid and ilvlCache[guid] and rioCache[guid] then
+    if guid and specCache[guid] and roster[unit] then
+        roster[unit].spec = specCache[guid]
+    end
+    if guid and ilvlCache[guid] and rioCache[guid] and specCache[guid] then
         return -- Already cached, skip inspect
     end
 
-    -- Don't add if already in queue or fully inspected (unless forced re-inspect, but for now simple)
-    -- Simple check: if ilvl is missing, add.
-    if roster[unit] and not roster[unit].ilvl then
+    -- Queue inspect if we still miss one of the inspect-driven values.
+    if roster[unit] and (not roster[unit].ilvl or not roster[unit].rio or not roster[unit].spec) then
         table.insert(inspectQueue, unit)
     end
 end
@@ -1867,6 +1938,7 @@ OnEvent = function(self, event, ...)
             isInspecting = nil
             ilvlCache = {}   -- Clear cache when leaving group
             rioCache = {}    -- Clear cache when leaving group
+            specCache = {}   -- Clear cache when leaving group
             UpdateUI()       -- Clear the visual list
             UpdateMPlusTeleportButton()
             SetMainFrameVisible(false) -- Hide frame when not in a group
@@ -1892,7 +1964,7 @@ OnEvent = function(self, event, ...)
         local name, realm = GetUnitNameAndRealm("player")
         local _, class = UnitClass("player")
         local language = GetUnitServerLanguage("player", realm)
-        roster["player"] = { name = name, realm = realm, language = language, class = class, role = GetUnitRole("player"), ilvl = nil, rio = GetUnitRio("player") }
+        roster["player"] = { name = name, realm = realm, language = language, class = class, role = GetUnitRole("player"), spec = GetPlayerSpecName(), ilvl = nil, rio = GetUnitRio("player") }
         EnqueueInspect("player")
 
         -- Add party members
@@ -1903,7 +1975,7 @@ OnEvent = function(self, event, ...)
             if name then
                 local _, class = UnitClass(unit)
                 local language = GetUnitServerLanguage(unit, realm)
-                roster[unit] = { name = name, realm = realm, language = language, class = class, role = GetUnitRole(unit), ilvl = nil, rio = nil }
+                roster[unit] = { name = name, realm = realm, language = language, class = class, role = GetUnitRole(unit), spec = nil, ilvl = nil, rio = nil }
                 EnqueueInspect(unit)
             end
         end
@@ -1967,6 +2039,7 @@ OnEvent = function(self, event, ...)
             C_Timer.After(1, ApplyHotkeyBindings)
             C_Timer.After(3, ApplyHotkeyBindings)
         end
+        MaybeShowNonMythicDungeonEntryNotice()
     elseif event == "UPDATE_BINDINGS" then
         ApplyHotkeyBindings()
     elseif event == "PLAYER_REGEN_ENABLED" then
@@ -1986,6 +2059,7 @@ OnEvent = function(self, event, ...)
         end
     elseif event == "PLAYER_DIFFICULTY_CHANGED" or event == "ZONE_CHANGED_NEW_AREA" or event == "UPDATE_INSTANCE_INFO" then
         UpdateStatusLine()
+        MaybeShowNonMythicDungeonEntryNotice()
     elseif event == "INSPECT_READY" then
         if not mainFrame:IsShown() then return end
 
@@ -2004,6 +2078,16 @@ OnEvent = function(self, event, ...)
             end
             if rio and rio > 0 then
                 rioCache[guid] = rio
+            end
+            local specName = GetInspectSpecName(isInspecting)
+            if not specName and isInspecting == "player" then
+                specName = GetPlayerSpecName()
+            end
+            if roster[isInspecting] then
+                roster[isInspecting].spec = specName
+            end
+            if specName and specName ~= "" then
+                specCache[guid] = specName
             end
             isInspecting = nil         -- Free up inspector
             lastInspectTime = GetTime()

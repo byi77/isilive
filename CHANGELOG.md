@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-02-12 - Version 0.9.8
+- Added inspect-based specialization (`Spec`) detection for party members and integrated it into the group table.
+- Added a new `Spec` column before `Name`, with class-color rendering and localization support.
+- Updated roster table alignment and labels:
+  - `Name` column is left-aligned
+  - German header `Flagge` renamed to `Sprache`
+- Added non-Mythic dungeon entry warning as a center-screen notice with 30-second duration.
+- Improved center notice interaction:
+  - left-click drag to move
+  - right-click to dismiss immediately
+  - persisted position restore across reload/login
+- Updated dummy/test roster values and sample specs to match current test expectations.
+
 ## 2026-02-11 - Version 0.9.2
 - Improved dungeon teleport secure-button compatibility by expanding secure spell attributes for reliable click-cast behavior.
 - Fixed hidden-state queue handling so `LFG_LIST_APPLICATION_STATUS_UPDATED` is still captured and dungeon targets do not stick to test/default values.
