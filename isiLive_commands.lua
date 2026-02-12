@@ -14,17 +14,17 @@ function Commands.RegisterSlashCommands(opts)
   local getState = opts.getState or function()
     return {}
   end
-  local setState = opts.setState or function() end
+  local setState = opts.setState or function(_patch) end
   local triggerGroupRosterUpdate = opts.triggerGroupRosterUpdate or function() end
 
   local toggleStandardTestMode = opts.toggleStandardTestMode or function() end
   local enterFullDummyPreview = opts.enterFullDummyPreview or function() end
-  local setMainFrameVisible = opts.setMainFrameVisible or function() end
+  local setMainFrameVisible = opts.setMainFrameVisible or function(_visible) end
   local updateLeaderButtons = opts.updateLeaderButtons or function() end
   local isPlayerLeader = opts.isPlayerLeader or function()
     return false
   end
-  local setLanguage = opts.setLanguage or function() end
+  local setLanguage = opts.setLanguage or function(_language) end
   local forceTeleportTestTarget = opts.forceTeleportTestTarget or function() end
   local printTeleportDebug = opts.printTeleportDebug or function() end
 

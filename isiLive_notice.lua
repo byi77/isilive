@@ -17,16 +17,16 @@ function Notice.CreateCenterNotice(opts)
   local isInCombat = opts.isInCombat or function()
     return InCombatLockdown and InCombatLockdown()
   end
-  local resolveTeleportSpellID = opts.resolveTeleportSpellID or function()
+  local resolveTeleportSpellID = opts.resolveTeleportSpellID or function(_activityID, _dungeonName)
     return nil
   end
-  local applySecureSpellToButton = opts.applySecureSpellToButton or function()
+  local applySecureSpellToButton = opts.applySecureSpellToButton or function(_button, _spellID)
     return false
   end
-  local isSpellKnown = opts.isSpellKnown or function()
+  local isSpellKnown = opts.isSpellKnown or function(_spellID)
     return false
   end
-  local getTeleportCooldownRemaining = opts.getTeleportCooldownRemaining or function()
+  local getTeleportCooldownRemaining = opts.getTeleportCooldownRemaining or function(_spellID)
     return 0
   end
   local formatCooldownSeconds = opts.formatCooldownSeconds or function(sec)

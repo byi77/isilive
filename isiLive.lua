@@ -220,16 +220,16 @@ if not isiLiveSync then
     GetPrefix = function()
       return "ISILIVE"
     end,
-    RegisterPrefix = function() end,
-    MarkUser = function() end,
-    IsUserKnown = function()
+    RegisterPrefix = function(_prefix) end,
+    MarkUser = function(_name, _realm) end,
+    IsUserKnown = function(_name, _realm)
       return false
     end,
-    IsUnitKnown = function()
+    IsUnitKnown = function(_unit)
       return false
     end,
-    SendHello = function() end,
-    ProcessAddonMessage = function()
+    SendHello = function(_options) end,
+    ProcessAddonMessage = function(_prefix, _message, _sender, _localName, _localRealm)
       return nil
     end,
   }
@@ -237,7 +237,15 @@ end
 
 if not isiLiveQueue then
   isiLiveQueue = {
-    CaptureQueueJoinCandidate = function() end,
+    CaptureQueueJoinCandidate = function(
+      _updatePendingQueueJoin,
+      _resolveTeleportSpellIDByActivityID,
+      _event,
+      _groupName,
+      _activityID,
+      _searchResultInfo
+    )
+    end,
   }
 end
 
@@ -247,9 +255,9 @@ if not isiLiveInspect then
       return {
         ResetQueues = function() end,
         ResetAll = function() end,
-        QueueForceRefreshData = function() end,
-        EnqueueInspect = function() end,
-        OnInspectReady = function()
+        QueueForceRefreshData = function(_roster) end,
+        EnqueueInspect = function(_unit, _roster) end,
+        OnInspectReady = function(_guid, _roster, _getUnitRio, _getInspectSpecName, _getPlayerSpecName)
           return false
         end,
         OnUpdate = function() end,
@@ -260,13 +268,13 @@ end
 
 if not isiLiveRoster then
   isiLiveRoster = {
-    BuildOrderedRoster = function()
+    BuildOrderedRoster = function(_roster, _rolePriority, _unitPriority)
       return {}
     end,
-    HasFullSync = function()
+    HasFullSync = function(_roster)
       return false
     end,
-    BuildDisplayData = function()
+    BuildDisplayData = function(_info, _opts)
       return {
         colorHex = "ffffffff",
         displayName = "",
@@ -292,7 +300,7 @@ end
 
 if not isiLiveCommands then
   isiLiveCommands = {
-    RegisterSlashCommands = function() end,
+    RegisterSlashCommands = function(_opts) end,
   }
 end
 
@@ -301,10 +309,10 @@ if not isiLiveLocale then
     ResolveLocaleTag = function()
       return "enUS"
     end,
-    GetLanguageFlagMarkup = function()
+    GetLanguageFlagMarkup = function(_langTag, _small)
       return "|cffbfbfbf??|r"
     end,
-    GetUnitServerLanguage = function()
+    GetUnitServerLanguage = function(_unit, _realm, _getRealmInfoLib)
       return "??"
     end,
   }
@@ -319,10 +327,10 @@ if not isiLiveUI then
       frame:Hide()
       return {
         frame = frame,
-        SetVisible = function() end,
-        SetHeightSafe = function() end,
-        ToggleVisibility = function() end,
-        ApplyStoredPosition = function() end,
+        SetVisible = function(_visible) end,
+        SetHeightSafe = function(_height) end,
+        ToggleVisibility = function(_isInGroup) end,
+        ApplyStoredPosition = function(_pos) end,
         GetPendingVisible = function()
           return nil
         end,
@@ -342,13 +350,13 @@ if not isiLiveTeleport then
     ResolveSeason3TeleportSpellIDByMapID = function()
       return nil
     end,
-    ResolveSeason3TeleportSpellIDByActivityID = function()
+    ResolveSeason3TeleportSpellIDByActivityID = function(_activityID)
       return nil
     end,
-    ResolveSeason3TeleportSpellID = function()
+    ResolveSeason3TeleportSpellID = function(_activityID, _dungeonName)
       return nil
     end,
-    ApplySecureSpellToButton = function()
+    ApplySecureSpellToButton = function(_button, _spellID)
       return false
     end,
     BuildSeason3TeleportEntries = function()
@@ -359,24 +367,24 @@ end
 
 if not isiLiveNotice then
   isiLiveNotice = {
-    CreateCenterNotice = function()
+    CreateCenterNotice = function(_opts)
       return {
         frame = nil,
         teleportButton = nil,
-        Show = function() end,
-        SetVisible = function() end,
-        UpdateTeleportButtonVisual = function() end,
+        Show = function(_message, _durationSeconds, _dungeonName, _activityID) end,
+        SetVisible = function(_visible) end,
+        UpdateTeleportButtonVisual = function(_spellID, _isEnabled, _inCombatBlocked) end,
         GetPendingVisible = function()
           return nil
         end,
-        ApplyStoredPosition = function() end,
+        ApplyStoredPosition = function(_pos) end,
       }
     end,
-    CreateInviteHint = function()
+    CreateInviteHint = function(_opts)
       return {
         frame = nil,
-        Show = function() end,
-        Position = function() end,
+        Show = function(_message, _durationSeconds) end,
+        Position = function(_anchorFrame) end,
       }
     end,
   }
@@ -403,22 +411,22 @@ end
 
 if not isiLiveUnits then
   isiLiveUnits = {
-    GetUnitRole = function()
+    GetUnitRole = function(_unit)
       return "NONE"
     end,
-    TruncateName = function()
+    TruncateName = function(_name, _maxChars)
       return ""
     end,
-    GetUnitNameAndRealm = function()
+    GetUnitNameAndRealm = function(_unit)
       return nil, ""
     end,
     GetPlayerSpecName = function()
       return nil
     end,
-    GetInspectSpecName = function()
+    GetInspectSpecName = function(_unit)
       return nil
     end,
-    GetUnitRio = function()
+    GetUnitRio = function(_unit)
       return nil
     end,
   }
@@ -426,7 +434,7 @@ end
 
 if not isiLiveDemo then
   isiLiveDemo = {
-    BuildDummyRoster = function()
+    BuildDummyRoster = function(_opts)
       return {}
     end,
   }

@@ -10,7 +10,7 @@ function Status.CreateController(opts)
   local getL = opts.getL or function()
     return {}
   end
-  local showCenterNotice = opts.showCenterNotice or function() end
+  local showCenterNotice = opts.showCenterNotice or function(_message, _durationSeconds, _dungeonName, _activityID) end
   local isPlayerLeader = opts.isPlayerLeader or function()
     return false
   end
@@ -70,7 +70,7 @@ function Status.CreateController(opts)
 
   function controller.MaybeShowNonMythicDungeonEntryNotice()
     local L = getL()
-    local _, _, inDungeon = controller:GetDungeonDifficultyLabel()
+    local _, _, inDungeon = controller.GetDungeonDifficultyLabel()
 
     if wasInDungeon == nil then
       wasInDungeon = inDungeon
@@ -90,7 +90,7 @@ function Status.CreateController(opts)
         if token ~= nonMythicNoticeToken then
           return
         end
-        local confirmedText, confirmedMythic, confirmedInDungeon = controller:GetDungeonDifficultyLabel()
+        local confirmedText, confirmedMythic, confirmedInDungeon = controller.GetDungeonDifficultyLabel()
         if not confirmedInDungeon or confirmedMythic then
           return
         end
@@ -114,8 +114,8 @@ function Status.CreateController(opts)
     local L = getL()
     local leadText = isPlayerLeader() and L.STATUS_LEAD_YES or L.STATUS_LEAD_NO
     local mplusText = C_ChallengeMode.GetActiveChallengeMapID() and L.STATUS_MPLUS_YES or L.STATUS_MPLUS_NO
-    local stateText = controller:GetAddonStateText(flags)
-    local difficultyText = select(1, controller:GetDungeonDifficultyLabel())
+    local stateText = controller.GetAddonStateText(flags)
+    local difficultyText = select(1, controller.GetDungeonDifficultyLabel())
     return leadText
       .. " | "
       .. mplusText

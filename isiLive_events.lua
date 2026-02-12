@@ -7,7 +7,7 @@ addonTable.Events = Events
 
 function Events.CreateGate(config)
   config = config or {}
-  local dispatch = config.dispatch or function() end
+  local dispatch = config.dispatch or function(_frame, _event) end
   local isStopped = config.isStopped or function()
     return false
   end
@@ -18,7 +18,7 @@ function Events.CreateGate(config)
     return false
   end
   local allowWhenHidden = config.allowWhenHidden or {}
-  local shouldAllowWhenHidden = config.shouldAllowWhenHidden or function()
+  local shouldAllowWhenHidden = config.shouldAllowWhenHidden or function(_frame, _event)
     return false
   end
 

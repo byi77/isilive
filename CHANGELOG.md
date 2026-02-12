@@ -1,7 +1,36 @@
 # Changelog
 
+## 2026-02-12 - Version 0.9.16
+- Fixed LuaLS `redundant-parameter` diagnostics after modularization by aligning fallback callback signatures with real call sites in:
+  - `isiLive.lua`
+  - `isiLive_commands.lua`
+  - `isiLive_demo.lua`
+  - `isiLive_events.lua`
+  - `isiLive_notice.lua`
+  - `isiLive_status.lua`
+- Corrected status-controller method calls to consistent dot-style invocation where functions are defined without implicit `self`.
+- Bumped TOC version to `0.9.16`.
+
 ## 2026-02-12 - Version 0.9.15
-- Bumped version from `0.9.14` to `0.9.15` for release packaging/tagging.
+- Continued modularization and moved additional logic out of `isiLive.lua` into:
+  - `isiLive_units.lua`
+  - `isiLive_demo.lua`
+  - `isiLive_status.lua`
+- Added repo-wide Lua quality tooling and config:
+  - `.stylua.toml`
+  - `.luacheckrc` (strict globals + WoW API allowlist)
+  - `.editorconfig`
+  - `.styluaignore`
+  - `.vscode/tasks.json`
+- Hardened CI quality gate:
+  - pinned `StyLua` check in workflow
+  - integrated `luacheck` and syntax checks
+  - fixed `stylua-action` auth handling (`github.token`)
+  - excluded `.luarocks` noise from CI lint/syntax scope
+  - fixed `luacheck` CLI arg parsing (`--` separator)
+- Standardized release/tag naming to `isiLive_*` and aligned workflow/docs.
+- Added `RELEASE.md` runbook for the repeatable release flow.
+- Bumped TOC version to `0.9.15`.
 
 ## 2026-02-12 - Version 0.9.14
 - Modularized addon architecture into dedicated files:

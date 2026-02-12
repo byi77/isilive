@@ -19,16 +19,16 @@ function Demo.BuildDummyRoster(opts)
       end
       return name, realm
     end
-  local getUnitServerLanguage = opts.getUnitServerLanguage or function()
+  local getUnitServerLanguage = opts.getUnitServerLanguage or function(_unit, _realm)
     return "??"
   end
-  local getUnitRole = opts.getUnitRole or function()
+  local getUnitRole = opts.getUnitRole or function(_unit)
     return "DAMAGER"
   end
   local getPlayerSpecName = opts.getPlayerSpecName or function()
     return nil
   end
-  local getUnitRio = opts.getUnitRio or function()
+  local getUnitRio = opts.getUnitRio or function(_unit)
     return nil
   end
 

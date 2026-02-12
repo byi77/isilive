@@ -6,8 +6,14 @@ manual-changelog:
 ignore:
   - .github
   - .vscode
+  - .editorconfig
+  - .luacheckrc
+  - .stylua.toml
+  - .styluaignore
+  - .luarocks
   - .gitignore
   - README.md
+  - RELEASE.md
   - RULES.md
   - LICENSE
   - isiLive.png
