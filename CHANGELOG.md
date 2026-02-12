@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-02-12 - Version 0.9.14
+- Modularized addon architecture into dedicated files:
+  - `isiLive_locale.lua`
+  - `isiLive_sync.lua`
+  - `isiLive_queue.lua`
+  - `isiLive_inspect.lua`
+  - `isiLive_roster.lua`
+  - `isiLive_events.lua`
+  - `isiLive_commands.lua`
+- Added addon-presence roster markers:
+  - blue `<3` marker for detected `isiLive` users
+  - green `[fullsync]` marker when all visible roster members are detected as `isiLive` users
+- Updated test/dummy roster so the local player is always used as `player` entry in test modes.
+- Added bottom-right version line in the main window (`V.x.y.z`) sourced from TOC metadata.
+- Updated load chat message to: `isiLive: Loaded Version x.x.x.x Press STRG+F9 to open`.
+- Kept hidden-window behavior strict with minimal transition path: no non-essential processing while hidden; hotkey/binding flow remains active; small-group `GROUP_ROSTER_UPDATE` still allows auto-open.
+- Fixed Lua diagnostics `redundant-parameter` warnings in modular fallbacks by aligning fallback function signatures with call sites.
+
 ## 2026-02-12 - Version 0.9.13
 - Release-only republish to force a unique CurseForge package artifact after `.11` and `.12` pointed to the same commit.
 - No code changes compared to `0.9.12`.

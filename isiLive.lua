@@ -1,4 +1,11 @@
 local addonName, addonTable = ...
+local isiLiveSync = addonTable and addonTable.Sync
+local isiLiveQueue = addonTable and addonTable.Queue
+local isiLiveInspect = addonTable and addonTable.Inspect
+local isiLiveRoster = addonTable and addonTable.Roster
+local isiLiveEvents = addonTable and addonTable.Events
+local isiLiveCommands = addonTable and addonTable.Commands
+local isiLiveLocale = addonTable and addonTable.Locale
 
 -- --- Configuration & Constants ---
 local INSPECT_TIMEOUT = 2 -- seconds
@@ -76,7 +83,7 @@ local locales = {
         HELP_STOP = "  /isilive stop   - Fully disable addon",
         HELP_START = "  /isilive start  - Re-enable addon",
         HELP_LANG = "  /isilive lang [en|de] - Switch language",
-        LOADED_HINT = "Loaded. Type /isilive test for preview.",
+        LOADED_HINT = "Loaded Version %s Press STRG+F9 to open",
         LEAD_GAINED = "You are now the group leader.",
         LEAD_LOST = "You are no longer the group leader.",
         LEAD_TRANSFERRED = "Lead was transferred to you.",
@@ -168,7 +175,7 @@ local locales = {
         HELP_STOP = "  /isilive stop   - Addon komplett deaktivieren",
         HELP_START = "  /isilive start  - Addon wieder aktivieren",
         HELP_LANG = "  /isilive lang [en|de] - Sprache wechseln",
-        LOADED_HINT = "Geladen. Tippe /isilive test fuer Vorschau.",
+        LOADED_HINT = "Loaded Version %s Press STRG+F9 to open",
         LEAD_GAINED = "Du bist jetzt Gruppenleiter.",
         LEAD_LOST = "Du bist nicht mehr Gruppenleiter.",
         LEAD_TRANSFERRED = "Lead wurde auf dich uebertragen.",
@@ -196,17 +203,102 @@ local locales = {
 }
 local L = locales.enUS
 
-local function ResolveLocaleTag(tag)
-    if not tag then return "enUS" end
-    local normalized = string.lower(tostring(tag))
-    if normalized == "de" or normalized == "dede" then return "deDE" end
-    return "enUS"
-end
-
 local isTestAllMode = false
 
 local function Print(msg)
     print("isiLive: " .. msg)
+end
+
+if not isiLiveSync then
+    isiLiveSync = {
+        GetPrefix = function() return "ISILIVE" end,
+        RegisterPrefix = function(...) end,
+        MarkUser = function(...) end,
+        IsUserKnown = function(...) return false end,
+        IsUnitKnown = function(...) return false end,
+        SendHello = function(...) end,
+        ProcessAddonMessage = function(...) return nil end,
+    }
+end
+
+if not isiLiveQueue then
+    isiLiveQueue = {
+        CaptureQueueJoinCandidate = function(...) end,
+    }
+end
+
+if not isiLiveInspect then
+    isiLiveInspect = {
+        CreateController = function(...)
+            return {
+                ResetQueues = function(...) end,
+                ResetAll = function(...) end,
+                QueueForceRefreshData = function(...) end,
+                EnqueueInspect = function(...) end,
+                OnInspectReady = function(...) return false end,
+                OnUpdate = function(...) end,
+            }
+        end,
+    }
+end
+
+if not isiLiveRoster then
+    isiLiveRoster = {
+        BuildOrderedRoster = function(...) return {} end,
+        HasFullSync = function(...) return false end,
+        BuildDisplayData = function(...)
+            return {
+                colorHex = "ffffffff",
+                displayName = "",
+                languageDisplay = "|cffbfbfbf??|r |cffd9d9d9??|r",
+                specText = "-",
+                ilvlText = "-",
+                rioText = "-",
+                addonMarker = "",
+            }
+        end,
+    }
+end
+
+if not isiLiveEvents then
+    isiLiveEvents = {
+        CreateGate = function(config)
+            return function(frame, event, ...)
+                (config and config.dispatch or function(...) end)(frame, event, ...)
+            end
+        end,
+    }
+end
+
+if not isiLiveCommands then
+    isiLiveCommands = {
+        RegisterSlashCommands = function(...) end,
+    }
+end
+
+if not isiLiveLocale then
+    isiLiveLocale = {
+        ResolveLocaleTag = function(...)
+            return "enUS"
+        end,
+        GetLanguageFlagMarkup = function(...)
+            return "|cffbfbfbf??|r"
+        end,
+        GetUnitServerLanguage = function(...)
+            return "??"
+        end,
+    }
+end
+
+local function GetAddonVersionRaw()
+    local legacyGetAddOnMetadata = rawget(_G, "GetAddOnMetadata")
+    local version = nil
+    if C_AddOns and C_AddOns.GetAddOnMetadata then
+        version = C_AddOns.GetAddOnMetadata(addonName, "Version")
+    elseif legacyGetAddOnMetadata then
+        version = legacyGetAddOnMetadata(addonName, "Version")
+    end
+    return tostring(version or "?")
 end
 
 local function IsSpellKnownSafe(spellID)
@@ -261,69 +353,6 @@ local function GetRealmInfoLib()
     return realmInfoLib or nil
 end
 
-local function LocaleToLanguageTag(localeTag)
-    if not localeTag then return "??" end
-    local normalized = tostring(localeTag):gsub("%-", ""):lower()
-    if normalized == "dede" then return "DE" end
-    if normalized == "enus" or normalized == "engb" then return "EN" end
-    if normalized == "frfr" then return "FR" end
-    if normalized == "eses" or normalized == "esmx" then return "ES" end
-    if normalized == "ruru" then return "RU" end
-    if normalized == "itit" then return "IT" end
-    if normalized == "ptbr" or normalized == "ptpt" then return "PT" end
-    if normalized == "kokr" then return "KR" end
-    if normalized == "zhcn" then return "CN" end
-    if normalized == "zhtw" then return "TW" end
-    return "??"
-end
-
-local LANGUAGE_FLAG_TEXTURE_BY_TAG = {
-    DE = "Interface\\AddOns\\isiLive\\media\\flags\\de",
-    EN = "Interface\\AddOns\\isiLive\\media\\flags\\en",
-    FR = "Interface\\AddOns\\isiLive\\media\\flags\\fr",
-    ES = "Interface\\AddOns\\isiLive\\media\\flags\\es",
-    IT = "Interface\\AddOns\\isiLive\\media\\flags\\it",
-    PT = "Interface\\AddOns\\isiLive\\media\\flags\\pt",
-    RU = "Interface\\AddOns\\isiLive\\media\\flags\\ru",
-}
-
-local function GetLanguageFlagMarkup(languageTag)
-    local tag = languageTag and tostring(languageTag):upper() or "??"
-    local texturePath = LANGUAGE_FLAG_TEXTURE_BY_TAG[tag]
-    if not texturePath then
-        return "|cffbfbfbf??|r"
-    end
-    return string.format("|T%s:14:10:0:0|t", texturePath)
-end
-
-local function NormalizeRealmLookupKey(realm)
-    if not realm then return "" end
-    local key = tostring(realm):lower()
-    key = key:gsub("[%s%-%.%(%)'`]", "")
-    return key
-end
-
-local function GetRealmLocaleFromStaticData(realm)
-    if not realm or realm == "" then return nil end
-
-    local exactLookup = _G.IsiLiveRealmLocaleByExactName
-    if type(exactLookup) == "table" then
-        local exactLocale = exactLookup[tostring(realm):lower()]
-        if exactLocale then
-            return exactLocale
-        end
-    end
-
-    local normalizedLookup = _G.IsiLiveRealmLocaleByNormalizedName
-    if type(normalizedLookup) == "table" then
-        local normalizedLocale = normalizedLookup[NormalizeRealmLookupKey(realm)]
-        if normalizedLocale then
-            return normalizedLocale
-        end
-    end
-
-    return nil
-end
 local UpdateStatusLine
 local UpdateUI
 local ShowQueueJoinPreview
@@ -331,6 +360,7 @@ local UpdateDMResetButton
 local UpdateLeaderButtons
 local OnEvent
 local ApplyLocalizationToUI
+local GetUnitNameAndRealm
 local toggleBindingButton
 local testModeBindingButton
 local pendingBindingApply = false
@@ -1133,6 +1163,18 @@ statusLine:SetPoint("BOTTOMLEFT", 10, 10)
 statusLine:SetJustifyH("LEFT")
 statusLine:SetText("")
 
+local function GetAddonVersionText()
+    return "V." .. GetAddonVersionRaw()
+end
+
+local ISILIVE_SYNC_MARKER = " |cff33aaff<3|r"
+local ISILIVE_SYNC_FULL_MARKER = " |cff00e68a[fullsync]|r"
+
+local versionLine = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+versionLine:SetPoint("BOTTOMRIGHT", -10, 10)
+versionLine:SetJustifyH("RIGHT")
+versionLine:SetText(GetAddonVersionText())
+
 UpdateLeaderButtons = function()
     local enabled = IsPlayerLeader()
     readyCheckButton:SetEnabled(enabled)
@@ -1180,13 +1222,11 @@ end
 
 -- --- Data & State ---
 local roster = {}        -- Stores info about current group members: { unit = "party1", name = "Name", class = "MAGE", role = "DAMAGER", spec = nil, ilvl = nil, rio = nil }
-local inspectQueue = {}  -- List of units to inspect
-local retryQueue = {}    -- List of units to retry later { unit = "party1", nextRetry = GetTime() + 5 }
-local isInspecting = nil -- Current unit being inspected or nil
-local lastInspectTime = 0
-local ilvlCache = {}     -- Stores { [GUID] = ilvl } to prevent re-inspecting
-local rioCache = {}      -- Stores { [GUID] = rio } to prevent re-reading
-local specCache = {}     -- Stores { [GUID] = specName } to prevent re-reading
+local inspectController = isiLiveInspect.CreateController({
+    inspectTimeout = INSPECT_TIMEOUT,
+    retryInterval = RETRY_INTERVAL,
+    inspectDelay = INSPECT_DELAY,
+})
 local InspectLoop
 local wasGroupLeader = nil
 local wasInGroup = false
@@ -1199,6 +1239,26 @@ local isStopped = false
 local isPaused = false
 local wasInDungeon = nil
 local nonMythicNoticeToken = 0
+
+local function MarkIsiLiveUser(name, realm)
+    isiLiveSync.MarkUser(name, realm)
+end
+
+local function UnitHasIsiLive(unit)
+    return isiLiveSync.IsUnitKnown(GetUnitNameAndRealm, unit)
+end
+
+local function RegisterIsiLiveSyncPrefix()
+    isiLiveSync.RegisterPrefix()
+end
+
+local function SendIsiLiveHello(force)
+    isiLiveSync.SendHello({
+        force = force and true or false,
+        isVisible = mainFrame and mainFrame:IsShown(),
+        version = GetAddonVersionRaw(),
+    })
+end
 
 local function IsAutoDamageMeterResetEnabled()
     return IsiLiveDB and IsiLiveDB.autoDamageMeterReset == true
@@ -1290,9 +1350,7 @@ local function SetProcessingActive(isActive)
     end
 
     mainFrame:SetScript("OnUpdate", nil)
-    inspectQueue = {}
-    retryQueue = {}
-    isInspecting = nil
+    inspectController:ResetQueues()
 end
 
 local function GetAddonStateText()
@@ -1365,34 +1423,8 @@ UpdateStatusLine = function()
     statusLine:SetText(leadText .. " | " .. mplusText .. " | " .. stateText .. " | " .. string.format(L.DUNGEON_DIFF_TEXT, difficultyText))
 end
 
-local function IsUnitInInspectQueue(unit)
-    for i = 1, #inspectQueue do
-        if inspectQueue[i] == unit then return true end
-    end
-    return false
-end
-
 local function QueueForceRefreshData()
-    inspectQueue = {}
-    retryQueue = {}
-    isInspecting = nil
-
-    for unit, info in pairs(roster) do
-        if UnitExists(unit) then
-            local guid = UnitGUID(unit)
-            if guid then
-                ilvlCache[guid] = nil
-                rioCache[guid] = nil
-                specCache[guid] = nil
-            end
-            info.spec = nil
-            info.ilvl = nil
-            info.rio = nil
-            if not IsUnitInInspectQueue(unit) then
-                table.insert(inspectQueue, unit)
-            end
-        end
-    end
+    inspectController:QueueForceRefreshData(roster)
 end
 
 local function PlayLeadTransferSound()
@@ -1460,7 +1492,7 @@ local function TruncateName(name, maxChars)
     return name
 end
 
-local function GetUnitNameAndRealm(unit)
+GetUnitNameAndRealm = function(unit)
     local name, realm = UnitFullName(unit)
     if not name then
         name = UnitName(unit)
@@ -1472,106 +1504,7 @@ local function GetUnitNameAndRealm(unit)
 end
 
 local function GetUnitServerLanguage(unit, realm)
-    local staticLocale = GetRealmLocaleFromStaticData(realm)
-    if staticLocale then
-        return LocaleToLanguageTag(staticLocale)
-    end
-
-    local lib = GetRealmInfoLib()
-    if lib and unit and UnitExists(unit) then
-        local guid = UnitGUID(unit)
-        if guid then
-            local _, _, _, _, realmLocale = lib:GetRealmInfoByGUID(guid)
-            if realmLocale then
-                return LocaleToLanguageTag(realmLocale)
-            end
-        end
-    end
-
-    if lib and realm and realm ~= "" then
-        local _, _, _, _, realmLocale = lib:GetRealmInfo(realm)
-        if realmLocale then
-            return LocaleToLanguageTag(realmLocale)
-        end
-    end
-
-    if unit and UnitIsUnit(unit, "player") then
-        return LocaleToLanguageTag(GetLocale())
-    end
-
-    return "??"
-end
-
-local function GetActivityName(activityID)
-    if not activityID then return nil end
-
-    local info = C_LFGList.GetActivityInfoTable(activityID)
-    if info then
-        return rawget(info, "fullName") or rawget(info, "shortName") or rawget(info, "activityName")
-    end
-
-    return nil
-end
-
-local function GetSearchResultActivityID(result)
-    if not result then return nil end
-
-    local candidateIDs = {}
-    local seen = {}
-    local function AddCandidate(id)
-        if type(id) ~= "number" or id <= 0 then return end
-        if seen[id] then return end
-        seen[id] = true
-        table.insert(candidateIDs, id)
-    end
-
-    AddCandidate(result.activityID)
-
-    if type(result.activityIDs) == "table" then
-        for _, id in pairs(result.activityIDs) do
-            AddCandidate(id)
-        end
-    end
-
-    -- Prefer activities that can be mapped directly to a known teleport mapID.
-    for _, id in ipairs(candidateIDs) do
-        if ResolveSeason3TeleportSpellIDByActivityID(id) then
-            return id
-        end
-    end
-
-    -- Fallback: first valid activity ID.
-    if #candidateIDs > 0 then
-        return candidateIDs[1]
-    end
-
-    return nil
-end
-
-local function ParseApplicationStatus(rawStatus)
-    local statusText
-    local isAccepted = false
-    local isInviteLike = false
-
-    if type(rawStatus) == "string" then
-        statusText = string.lower(rawStatus)
-        isAccepted = statusText:find("accepted") ~= nil
-        isInviteLike = statusText:find("invite") ~= nil or isAccepted
-        return isInviteLike, isAccepted
-    end
-
-    if type(rawStatus) == "number" and Enum and Enum.LFGListApplicationStatus then
-        for key, value in pairs(Enum.LFGListApplicationStatus) do
-            if value == rawStatus then
-                local keyText = string.lower(tostring(key))
-                isAccepted = keyText:find("accepted") ~= nil
-                isInviteLike = keyText:find("invite") ~= nil or isAccepted
-                return isInviteLike, isAccepted
-            end
-        end
-    end
-
-    return false, false
+    return isiLiveLocale.GetUnitServerLanguage(unit, realm, GetRealmInfoLib)
 end
 
 local function UpdatePendingQueueJoin(groupName, dungeonName, priority, activityID)
@@ -1630,97 +1563,8 @@ local function UpdatePendingQueueJoin(groupName, dungeonName, priority, activity
     UpdateMPlusTeleportButton()
 end
 
-local function CaptureQueueJoinFromApplications()
-    if not (C_LFGList and C_LFGList.GetApplications and C_LFGList.GetApplicationInfo and C_LFGList.GetSearchResultInfo) then
-        return
-    end
-
-    local appIDs = C_LFGList.GetApplications()
-    if type(appIDs) ~= "table" then return end
-
-    for _, appID in ipairs(appIDs) do
-        local values = { C_LFGList.GetApplicationInfo(appID) }
-        local isAccepted = false
-        local isInviteLike = false
-        local searchResultID
-
-        for _, value in ipairs(values) do
-            local statusMatch, acceptedMatch = ParseApplicationStatus(value)
-            if statusMatch then
-                isInviteLike = true
-                if acceptedMatch then
-                    isAccepted = true
-                end
-            end
-
-            if type(value) == "number" then
-                if not searchResultID and C_LFGList.GetSearchResultInfo(value) then
-                    searchResultID = value
-                end
-            end
-        end
-
-        if isInviteLike and searchResultID then
-            local result = C_LFGList.GetSearchResultInfo(searchResultID)
-            if result then
-                local groupName = result.name or result.leaderName
-                local resultActivityID = GetSearchResultActivityID(result)
-                local dungeonName = GetActivityName(resultActivityID)
-                local priority = isAccepted and 2 or 1
-                UpdatePendingQueueJoin(groupName, dungeonName, priority, resultActivityID)
-            end
-        end
-    end
-end
-
 local function CaptureQueueJoinCandidate(...)
-    local args = { ... }
-    local searchResultID
-    local groupName
-    local isAccepted = false
-    local isInviteLike = false
-
-    for _, value in ipairs(args) do
-        local statusMatch, acceptedMatch = ParseApplicationStatus(value)
-        if statusMatch then
-            isInviteLike = true
-            if acceptedMatch then
-                isAccepted = true
-            end
-        end
-
-        if type(value) == "string" and not groupName and value ~= "" then
-            local low = string.lower(value)
-            if not (low:find("accepted") or low:find("invite")) then
-                groupName = value
-            end
-        elseif type(value) == "number" then
-            if not searchResultID and C_LFGList and C_LFGList.GetSearchResultInfo and C_LFGList.GetSearchResultInfo(value) then
-                searchResultID = value
-            end
-        end
-    end
-
-    if isInviteLike then
-        local dungeonName
-        local resultActivityID
-        local resolvedGroupName = groupName
-
-        if searchResultID and C_LFGList and C_LFGList.GetSearchResultInfo then
-            local result = C_LFGList.GetSearchResultInfo(searchResultID)
-            if result then
-                resolvedGroupName = resolvedGroupName or result.name or result.leaderName
-                resultActivityID = GetSearchResultActivityID(result)
-                dungeonName = GetActivityName(resultActivityID)
-            end
-        end
-
-        local priority = isAccepted and 2 or 1
-        UpdatePendingQueueJoin(resolvedGroupName, dungeonName, priority, resultActivityID)
-    end
-
-    -- Additional pass via applications to increase chance of finding dungeon reliably.
-    CaptureQueueJoinFromApplications()
+    isiLiveQueue.CaptureQueueJoinCandidate(UpdatePendingQueueJoin, ResolveSeason3TeleportSpellIDByActivityID, ...)
 end
 
 local function AnnounceQueuedGroupJoin()
@@ -1735,8 +1579,57 @@ local function AnnounceQueuedGroupJoin()
 end
 
 local function BuildDummyRoster()
+    local playerName, playerRealm = GetUnitNameAndRealm("player")
+    local _, playerClass = UnitClass("player")
+    local playerLanguage = GetUnitServerLanguage("player", playerRealm)
+    local playerRole = GetUnitRole("player")
+
+    local playerSpec = nil
+    if GetSpecialization and GetSpecializationInfo then
+        local specIndex = GetSpecialization()
+        if specIndex and specIndex > 0 then
+            local _, specName = GetSpecializationInfo(specIndex)
+            playerSpec = specName
+        end
+    end
+
+    local playerIlvl = nil
+    if C_Item and C_Item.GetAverageItemLevel then
+        local avgIlvl = C_Item.GetAverageItemLevel()
+        if type(avgIlvl) == "number" and avgIlvl > 0 then
+            playerIlvl = avgIlvl
+        end
+    elseif GetAverageItemLevel then
+        local avgIlvl, equippedIlvl = GetAverageItemLevel()
+        local resolvedIlvl = equippedIlvl or avgIlvl
+        if type(resolvedIlvl) == "number" and resolvedIlvl > 0 then
+            playerIlvl = resolvedIlvl
+        end
+    end
+
+    local playerRio = nil
+    if C_PlayerInfo and C_PlayerInfo.GetPlayerMythicPlusRatingSummary then
+        local ok, summary = pcall(C_PlayerInfo.GetPlayerMythicPlusRatingSummary, "player")
+        if ok and type(summary) == "table" then
+            playerRio = rawget(summary, "currentSeasonScore")
+                or rawget(summary, "currentSeasonBestScore")
+                or rawget(summary, "rating")
+                or rawget(summary, "score")
+        end
+    end
+
     return {
-        ["player"] = { name = "BigTank", language = "DE", class = "WARRIOR", role = "TANK", spec = "Protection", ilvl = 169, rio = 4025 },
+        ["player"] = {
+            name = playerName or UnitName("player") or "Player",
+            realm = playerRealm or GetRealmName() or "",
+            language = playerLanguage or "??",
+            class = playerClass or "WARRIOR",
+            role = playerRole or "DAMAGER",
+            spec = playerSpec,
+            ilvl = playerIlvl,
+            rio = playerRio,
+            hasIsiLive = true,
+        },
         ["party1"] = { name = "HealBot", language = "DE", class = "PRIEST", role = "HEALER", spec = "Holy", ilvl = 158, rio = 3810 },
         ["party2"] = { name = "PumperDPS", language = "EN", class = "MAGE", role = "DAMAGER", spec = "Frost", ilvl = 166, rio = 3955 },
         ["party3"] = { name = "LazyRogue", language = "EN", class = "ROGUE", role = "DAMAGER", spec = "Outlaw", ilvl = 161, rio = 3875 },
@@ -1815,7 +1708,7 @@ local function ToggleStandardTestMode()
 end
 
 local function SetLanguage(tag)
-    local resolved = ResolveLocaleTag(tag)
+    local resolved = isiLiveLocale.ResolveLocaleTag(tag)
     L = locales[resolved] or locales.enUS
     if IsiLiveDB then
         IsiLiveDB.locale = resolved
@@ -1915,44 +1808,26 @@ UpdateUI = function()
     end
 
     local index = 1
-    local orderedRoster = {}
-    for unit, info in pairs(roster) do
-        table.insert(orderedRoster, { unit = unit, info = info })
-    end
-
-    table.sort(orderedRoster, function(a, b)
-        local roleA = ROLE_PRIORITY[a.info.role or "NONE"] or ROLE_PRIORITY.NONE
-        local roleB = ROLE_PRIORITY[b.info.role or "NONE"] or ROLE_PRIORITY.NONE
-        if roleA ~= roleB then
-            return roleA < roleB
-        end
-        local unitA = UNIT_PRIORITY[a.unit] or 99
-        local unitB = UNIT_PRIORITY[b.unit] or 99
-        return unitA < unitB
-    end)
+    local orderedRoster = isiLiveRoster.BuildOrderedRoster(roster, ROLE_PRIORITY, UNIT_PRIORITY)
+    local hasFullSync = isiLiveRoster.HasFullSync(roster)
 
     for _, entry in ipairs(orderedRoster) do
         local info = entry.info
         local row = memberRows[index] or CreateMemberRow(index)
 
-        local color = RAID_CLASS_COLORS[info.class] or { r = 1, g = 1, b = 1 }
-        local colorHex = CreateColor(color.r, color.g, color.b):GenerateHexColor()
-        local displayName = TruncateName(info.name, 10)
-        local languageText = info.language or "??"
-        local languageShort = tostring(languageText):upper():sub(1, 2)
-        if not languageShort or #languageShort < 2 then
-            languageShort = "??"
-        end
-        local languageDisplay = string.format("%s |cffd9d9d9%s|r", GetLanguageFlagMarkup(languageShort), languageShort)
+        local displayData = isiLiveRoster.BuildDisplayData(info, {
+            truncateName = TruncateName,
+            getLanguageFlagMarkup = isiLiveLocale.GetLanguageFlagMarkup,
+            syncMarker = ISILIVE_SYNC_MARKER,
+            fullSyncMarker = ISILIVE_SYNC_FULL_MARKER,
+            hasFullSync = hasFullSync,
+        })
 
-        local specText = info.spec and TruncateName(info.spec, 15) or "-"
-        local ilvlText = info.ilvl and tostring(math.floor(info.ilvl)) or "-"
-        local rioText = info.rio and tostring(math.floor(info.rio)) or "-"
-        row.spec:SetText("|c" .. colorHex .. specText .. "|r")
-        row.name:SetText("|c" .. colorHex .. displayName .. "|r")
-        row.realm:SetText(languageDisplay)
-        row.ilvl:SetText(ilvlText)
-        row.rio:SetText(rioText)
+        row.spec:SetText("|c" .. displayData.colorHex .. displayData.specText .. "|r")
+        row.name:SetText("|c" .. displayData.colorHex .. displayData.displayName .. "|r" .. displayData.addonMarker)
+        row.realm:SetText(displayData.languageDisplay)
+        row.ilvl:SetText(displayData.ilvlText)
+        row.rio:SetText(displayData.rioText)
 
         index = index + 1
     end
@@ -1981,27 +1856,7 @@ local function GetUnitRio(unit)
 end
 
 local function EnqueueInspect(unit)
-    -- Check cache first
-    local guid = UnitGUID(unit)
-    if guid and ilvlCache[guid] then
-        if roster[unit] then
-            roster[unit].ilvl = ilvlCache[guid]
-        end
-    end
-    if guid and rioCache[guid] and roster[unit] then
-        roster[unit].rio = rioCache[guid]
-    end
-    if guid and specCache[guid] and roster[unit] then
-        roster[unit].spec = specCache[guid]
-    end
-    if guid and ilvlCache[guid] and rioCache[guid] and specCache[guid] then
-        return -- Already cached, skip inspect
-    end
-
-    -- Queue inspect if we still miss one of the inspect-driven values.
-    if roster[unit] and (not roster[unit].ilvl or not roster[unit].rio or not roster[unit].spec) then
-        table.insert(inspectQueue, unit)
-    end
+    inspectController:EnqueueInspect(unit, roster)
 end
 
 local function UpdateLeaderState(event)
@@ -2064,12 +1919,7 @@ OnEvent = function(self, event, ...)
             latestQueueActivityID = nil
             latestQueueTeleportSpellID = nil
             roster = {}
-            inspectQueue = {}
-            retryQueue = {}
-            isInspecting = nil
-            ilvlCache = {}   -- Clear cache when leaving group
-            rioCache = {}    -- Clear cache when leaving group
-            specCache = {}   -- Clear cache when leaving group
+            inspectController:ResetAll()
             UpdateUI()       -- Clear the visual list
             UpdateMPlusTeleportButton()
             SetMainFrameVisible(false) -- Hide frame when not in a group
@@ -2087,15 +1937,14 @@ OnEvent = function(self, event, ...)
 
         SetMainFrameVisible(true) -- Show frame when in a group
         roster = {}
-        inspectQueue = {}
-        retryQueue = {}
-        isInspecting = nil
+        inspectController:ResetQueues()
 
         -- Add player
         local name, realm = GetUnitNameAndRealm("player")
         local _, class = UnitClass("player")
         local language = GetUnitServerLanguage("player", realm)
-        roster["player"] = { name = name, realm = realm, language = language, class = class, role = GetUnitRole("player"), spec = GetPlayerSpecName(), ilvl = nil, rio = GetUnitRio("player") }
+        MarkIsiLiveUser(name, realm)
+        roster["player"] = { name = name, realm = realm, language = language, class = class, role = GetUnitRole("player"), spec = GetPlayerSpecName(), ilvl = nil, rio = GetUnitRio("player"), hasIsiLive = true }
         EnqueueInspect("player")
 
         -- Add party members
@@ -2106,12 +1955,13 @@ OnEvent = function(self, event, ...)
             if name then
                 local _, class = UnitClass(unit)
                 local language = GetUnitServerLanguage(unit, realm)
-                roster[unit] = { name = name, realm = realm, language = language, class = class, role = GetUnitRole(unit), spec = nil, ilvl = nil, rio = nil }
+                roster[unit] = { name = name, realm = realm, language = language, class = class, role = GetUnitRole(unit), spec = nil, ilvl = nil, rio = nil, hasIsiLive = UnitHasIsiLive(unit) }
                 EnqueueInspect(unit)
             end
         end
         UpdateUI()
         UpdateLeaderButtons()
+        SendIsiLiveHello(false)
     elseif event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
         CaptureQueueJoinCandidate(...)
     elseif event == "CHALLENGE_MODE_START" then
@@ -2140,7 +1990,7 @@ OnEvent = function(self, event, ...)
             IsiLiveDB = IsiLiveDB or {}
             IsiLiveDB.position = IsiLiveDB.position or { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
             IsiLiveDB.centerNoticePosition = IsiLiveDB.centerNoticePosition or { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
-            IsiLiveDB.locale = ResolveLocaleTag(IsiLiveDB.locale or locale)
+            IsiLiveDB.locale = isiLiveLocale.ResolveLocaleTag(IsiLiveDB.locale or locale)
             L = locales[IsiLiveDB.locale] or locales.enUS
             if IsiLiveDB.autoDamageMeterReset == nil then
                 IsiLiveDB.autoDamageMeterReset = false
@@ -2154,6 +2004,7 @@ OnEvent = function(self, event, ...)
             local centerPos = IsiLiveDB.centerNoticePosition
             centerNoticeFrame:ClearAllPoints()
             centerNoticeFrame:SetPoint(centerPos.point, UIParent, centerPos.relativePoint, centerPos.x, centerPos.y)
+            RegisterIsiLiveSyncPrefix()
             ApplyHotkeyBindings()
             StartBindingWatchdog()
             ApplyLocalizationToUI()
@@ -2161,6 +2012,9 @@ OnEvent = function(self, event, ...)
             UpdateLeaderButtons()
         end
     elseif event == "PLAYER_LOGIN" then
+        RegisterIsiLiveSyncPrefix()
+        local playerName, playerRealm = GetUnitNameAndRealm("player")
+        MarkIsiLiveUser(playerName, playerRealm)
         ApplyHotkeyBindings()
         StartBindingWatchdog()
     elseif event == "PLAYER_ENTERING_WORLD" then
@@ -2169,6 +2023,9 @@ OnEvent = function(self, event, ...)
         if C_Timer and C_Timer.After then
             C_Timer.After(1, ApplyHotkeyBindings)
             C_Timer.After(3, ApplyHotkeyBindings)
+            C_Timer.After(2, function()
+                SendIsiLiveHello(true)
+            end)
         end
         MaybeShowNonMythicDungeonEntryNotice()
     elseif event == "UPDATE_BINDINGS" then
@@ -2198,33 +2055,31 @@ OnEvent = function(self, event, ...)
         if not mainFrame:IsShown() then return end
 
         local guid = ...
-        if isInspecting and UnitGUID(isInspecting) == guid then
-            local ilvl = C_PaperDollInfo.GetInspectItemLevel(isInspecting)
-            if roster[isInspecting] then
-                roster[isInspecting].ilvl = ilvl
+        if inspectController:OnInspectReady(guid, roster, GetUnitRio, GetInspectSpecName, GetPlayerSpecName) then
+            UpdateUI()
+        end
+    elseif event == "CHAT_MSG_ADDON" then
+        local prefix, message, _, sender = ...
+        local localName, localRealm = GetUnitNameAndRealm("player")
+        local syncResult = isiLiveSync.ProcessAddonMessage(prefix, message, sender, localName, localRealm)
+        if not syncResult then
+            return
+        end
+
+        if syncResult.shouldAck then
+            if C_ChatInfo and C_ChatInfo.SendAddonMessage and type(syncResult.sender) == "string" and syncResult.sender ~= "" then
+                C_ChatInfo.SendAddonMessage(isiLiveSync.GetPrefix(), "ACK:" .. GetAddonVersionRaw(), "WHISPER", syncResult.sender)
             end
-            if ilvl and ilvl > 0 then
-                ilvlCache[guid] = ilvl -- Cache result
+        end
+
+        local changed = false
+        for _, info in pairs(roster) do
+            if not info.hasIsiLive and isiLiveSync.IsUserKnown(info.name, info.realm) then
+                info.hasIsiLive = true
+                changed = true
             end
-            local rio = GetUnitRio(isInspecting)
-            if roster[isInspecting] then
-                roster[isInspecting].rio = rio
-            end
-            if rio and rio > 0 then
-                rioCache[guid] = rio
-            end
-            local specName = GetInspectSpecName(isInspecting)
-            if not specName and isInspecting == "player" then
-                specName = GetPlayerSpecName()
-            end
-            if roster[isInspecting] then
-                roster[isInspecting].spec = specName
-            end
-            if specName and specName ~= "" then
-                specCache[guid] = specName
-            end
-            isInspecting = nil         -- Free up inspector
-            lastInspectTime = GetTime()
+        end
+        if changed then
             UpdateUI()
         end
     end
@@ -2232,49 +2087,7 @@ end
 
 -- --- Inspect Loop ---
 InspectLoop = function(self, elapsed)
-    local now = GetTime()
-
-    -- 1. Check if we are currently inspecting and timed out
-    if isInspecting then
-        if now - lastInspectTime > INSPECT_TIMEOUT then
-            -- Timeout! Move to retry
-            table.insert(retryQueue, { unit = isInspecting, nextRetry = now + RETRY_INTERVAL })
-            isInspecting = nil
-        end
-        return -- Busy inspecting, wait
-    end
-
-    -- 2. Process Queue
-    if #inspectQueue > 0 then
-        -- Throttling check
-        if now - lastInspectTime < INSPECT_DELAY then return end
-
-        local unit = table.remove(inspectQueue, 1)
-        if UnitIsVisible(unit) and CanInspect(unit) then
-            isInspecting = unit
-            lastInspectTime = now
-            NotifyInspect(unit)
-        else
-            -- Can't inspect right now, move to retry
-            table.insert(retryQueue, { unit = unit, nextRetry = now + RETRY_INTERVAL })
-        end
-        return
-    end
-
-    -- 3. Process Retry Queue
-    for i = #retryQueue, 1, -1 do
-        local entry = retryQueue[i]
-        if now >= entry.nextRetry then
-            if UnitIsVisible(entry.unit) and CheckInteractDistance(entry.unit, 1) then
-                -- Move back to normal queue (at front)
-                table.remove(retryQueue, i)
-                table.insert(inspectQueue, 1, entry.unit)
-            else
-                -- Still not ready, bump timer
-                entry.nextRetry = now + RETRY_INTERVAL
-            end
-        end
-    end
+    inspectController:OnUpdate()
 end
 
 mainFrame:RegisterEvent("ADDON_LOADED")
@@ -2287,6 +2100,7 @@ mainFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 mainFrame:RegisterEvent("UPDATE_INSTANCE_INFO")
 mainFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 mainFrame:RegisterEvent("LFG_LIST_APPLICATION_STATUS_UPDATED")
+mainFrame:RegisterEvent("CHAT_MSG_ADDON")
 mainFrame:RegisterEvent("INSPECT_READY")
 mainFrame:RegisterEvent("CHALLENGE_MODE_START")
 mainFrame:RegisterEvent("CHALLENGE_MODE_COMPLETED")
@@ -2323,145 +2137,63 @@ end)
 
 ApplyHotkeyBindings()
 
--- --- Slash Commands ---
--- --- Slash Commands ---
-SLASH_ISILIVE1 = "/isilive"
-
-SlashCmdList["ISILIVE"] = function(msg)
-    local cmd = string.lower(strtrim(msg or ""))
-
-    if cmd == "test" then
-        ToggleStandardTestMode()
-    elseif cmd == "testall" then
-        if isStopped then
-            Print(L.ERR_STOPPED_TEST)
-            return
-        end
-        if isPaused then
-            Print(L.ERR_PAUSED_TEST)
-            return
-        end
-        EnterFullDummyPreview()
-    elseif cmd == "stop" then
-        isStopped = true
-        isPaused = false
-        isTestMode = false
-        isTestAllMode = false
-        wasGroupLeader = nil
-        SetMainFrameVisible(false)
-        UpdateLeaderButtons()
-        Print(L.STOPPED)
-    elseif cmd == "pause" then
-        if isStopped then
-            Print(L.ERR_STOPPED_USE_START)
-            return
-        end
-        isPaused = true
-        isTestMode = false
-        isTestAllMode = false
-        SetMainFrameVisible(false)
-        UpdateLeaderButtons()
-        Print(L.PAUSED)
-    elseif cmd == "resume" then
-        if isStopped then
-            Print(L.ERR_STOPPED_USE_START)
-            return
-        end
-        isPaused = false
-        isTestMode = false
-        isTestAllMode = false
-        UpdateLeaderButtons()
-        Print(L.RESUMED)
+isiLiveCommands.RegisterSlashCommands({
+    printFn = Print,
+    getL = function() return L end,
+    getState = function()
+        return {
+            isStopped = isStopped,
+            isPaused = isPaused,
+            isTestMode = isTestMode,
+            isTestAllMode = isTestAllMode,
+            wasGroupLeader = wasGroupLeader,
+        }
+    end,
+    setState = function(patch)
+        if patch.isStopped ~= nil then isStopped = patch.isStopped end
+        if patch.isPaused ~= nil then isPaused = patch.isPaused end
+        if patch.isTestMode ~= nil then isTestMode = patch.isTestMode end
+        if patch.isTestAllMode ~= nil then isTestAllMode = patch.isTestAllMode end
+        if patch.wasGroupLeader ~= nil then wasGroupLeader = patch.wasGroupLeader end
+    end,
+    triggerGroupRosterUpdate = function()
         local onEventHandler = mainFrame:GetScript("OnEvent")
         if onEventHandler then
             onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
         end
-    elseif cmd == "start" then
-        isStopped = false
-        isPaused = false
-        isTestMode = false
-        isTestAllMode = false
-        UpdateLeaderButtons()
-        Print(L.STARTED)
-        local onEventHandler = mainFrame:GetScript("OnEvent")
-        if onEventHandler then
-            onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
-        end
-    elseif cmd == "lead" then
-        if IsPlayerLeader() then
-            Print(L.LEAD_STATUS_YES)
-        else
-            Print(L.LEAD_STATUS_NO)
-        end
-    elseif cmd:find("^lang") == 1 then
-        local arg = cmd:match("^lang%s+(%S+)$")
-        if arg == "en" or arg == "de" or arg == "enus" or arg == "dede" then
-            SetLanguage(arg)
-        else
-            Print(L.LANG_USAGE)
-        end
-    elseif cmd == "tptest" then
-        ForceTeleportTestTarget()
-    elseif cmd == "tpdebug" then
-        PrintTeleportDebug()
-    elseif cmd == "bindcheck" then
-        local action1 = GetBindingAction("CTRL-F9", true)
-        local action2 = GetBindingAction("CTRL-ALT-F9", true)
-        local action3 = GetBindingAction("ALT-CTRL-F9", true)
-        Print("CTRL-F9 => " .. (action1 and action1 ~= "" and action1 or "<none>"))
-        Print("CTRL-ALT-F9 => " .. (action2 and action2 ~= "" and action2 or "<none>"))
-        Print("ALT-CTRL-F9 => " .. (action3 and action3 ~= "" and action3 or "<none>"))
-    else
-        Print(L.HELP_HEADER)
-        print(L.HELP_LEAD)
-        print(L.HELP_TEST)
-        print(L.HELP_TESTALL)
-        print(L.HELP_TPTEST)
-        print(L.HELP_TPDEBUG)
-        print(L.HELP_BINDCHECK)
-        print(L.HELP_LANG)
-        print(L.HELP_PAUSE)
-        print(L.HELP_RESUME)
-        print(L.HELP_STOP)
-        print(L.HELP_START)
-    end
-end
+    end,
+    toggleStandardTestMode = ToggleStandardTestMode,
+    enterFullDummyPreview = EnterFullDummyPreview,
+    setMainFrameVisible = SetMainFrameVisible,
+    updateLeaderButtons = UpdateLeaderButtons,
+    isPlayerLeader = IsPlayerLeader,
+    setLanguage = SetLanguage,
+    forceTeleportTestTarget = ForceTeleportTestTarget,
+    printTeleportDebug = PrintTeleportDebug,
+})
 
--- Prevent event updates from overwriting test data or if stopped
-local originalOnEvent = mainFrame:GetScript("OnEvent")
-mainFrame:SetScript("OnEvent", function(self, event, ...)
-    if isStopped and event ~= "ADDON_LOADED" then return end
-    if isPaused and event ~= "ADDON_LOADED" then return end
-    if isTestMode and event ~= "ADDON_LOADED" then return end
-
-    -- Hard stop for all addon work while the main window is hidden.
-    if not self:IsShown() then
-        -- Allow only the minimal transition path to auto-open on small-group join.
-        if event == "GROUP_ROSTER_UPDATE" then
-            local inChallenge = C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID and C_ChallengeMode.GetActiveChallengeMapID()
-            local inSmallGroup = IsInGroup() and GetNumGroupMembers() <= 5
-            if inSmallGroup and not inChallenge then
-                originalOnEvent(self, event, ...)
-            end
-            return
+local gatedOnEvent = isiLiveEvents.CreateGate({
+    dispatch = OnEvent,
+    isStopped = function() return isStopped end,
+    isPaused = function() return isPaused end,
+    isTestMode = function() return isTestMode end,
+    allowWhenHidden = {
+        ADDON_LOADED = true,
+        PLAYER_LOGIN = true,
+        PLAYER_ENTERING_WORLD = true,
+        UPDATE_BINDINGS = true,
+        PLAYER_REGEN_ENABLED = true,
+    },
+    shouldAllowWhenHidden = function(_, event, ...)
+        if event ~= "GROUP_ROSTER_UPDATE" then
+            return false
         end
+        local inChallenge = C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID and C_ChallengeMode.GetActiveChallengeMapID()
+        local inSmallGroup = IsInGroup() and GetNumGroupMembers() <= 5
+        return inSmallGroup and not inChallenge
+    end,
+})
+mainFrame:SetScript("OnEvent", gatedOnEvent)
 
-        local allowWhenHidden = (
-            event == "ADDON_LOADED"
-            or event == "PLAYER_LOGIN"
-            or event == "PLAYER_ENTERING_WORLD"
-            or event == "UPDATE_BINDINGS"
-            or event == "PLAYER_REGEN_ENABLED"
-            -- Needed to capture real queue/app data while hidden so dungeon target stays correct.
-            or event == "LFG_LIST_APPLICATION_STATUS_UPDATED"
-        )
-        if not allowWhenHidden then
-            return
-        end
-    end
-
-    originalOnEvent(self, event, ...)
-end)
-
-Print(L.LOADED_HINT)
+Print(string.format(L.LOADED_HINT, GetAddonVersionRaw()))
 
