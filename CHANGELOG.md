@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-02-13 - Version 0.9.17
+- Release update after post-release architecture and repo-hardening changes.
+- Repo quality/tooling hardening:
+  - added `.gitattributes` to enforce LF line endings for core file types
+  - added optional `.githooks/pre-commit` checks (`stylua --check`, `luacheck`)
+  - finalized strict lint/format setup (`StyLua`, `Luacheck`, CI quality gate)
+- Documentation refresh:
+  - updated README with modular file inventory (including TOC/ui/teleport/status/units/demo modules)
+  - added developer setup, CI quality gate, and optional git hook usage notes
+- Bumped TOC version to `0.9.17`.
+
 ## 2026-02-12 - Version 0.9.16
 - Fixed LuaLS `redundant-parameter` diagnostics after modularization by aligning fallback callback signatures with real call sites in:
   - `isiLive.lua`
