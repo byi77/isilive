@@ -1,8 +1,9 @@
 # isiLive
 
-`isiLive` is a WoW group helper addon for Mythic+ pug/party flow.
+`isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
+Current addon version: `0.9.16`.
 
 ## Features
 
@@ -28,7 +29,7 @@ Compatibility target: WoW `12.0+` only.
 - Main frame height updates are deferred during combat and applied on `PLAYER_REGEN_ENABLED`
 - `Readycheck` and `Countdown10` are leader-only
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
-- On addon load, chat shows current version and open hint (`Press STRG+F9 to open`)
+- On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 
 ## Hotkeys
 
@@ -51,16 +52,26 @@ Compatibility target: WoW `12.0+` only.
 
 ## Files
 
+- `isiLive.toc`: addon metadata and load order
 - `isiLive.lua`: main addon logic
 - `isiLive_locale.lua`: locale/language/flag mapping helpers
+- `isiLive_teleport.lua`: dungeon teleport mapping and secure teleport button helpers
+- `isiLive_notice.lua`: center notice/invite hint UI components
+- `isiLive_status.lua`: status line and dungeon-difficulty helpers
+- `isiLive_units.lua`: unit/spec/name/RIO helper functions
+- `isiLive_demo.lua`: dummy/test roster generation
 - `isiLive_sync.lua`: addon sync (`HELLO`/`ACK`) and user detection
 - `isiLive_queue.lua`: LFG/queue invite capture and parsing
 - `isiLive_inspect.lua`: inspect queue/retry/cache controller
 - `isiLive_roster.lua`: roster ordering + display-data builders
 - `isiLive_events.lua`: event gate wrapper for stop/pause/test/hidden states
 - `isiLive_commands.lua`: slash command registration/dispatch
+- `isiLive_ui.lua`: main frame/UI construction and widget wiring
 - `realm_language_data.lua`: Blizzard EU realm locale mapping (including UTF-8 Russian realm names)
 - `CHANGELOG.md`: release notes
+- `RELEASE.md`: release runbook
+- `RULES.md`: project/versioning rules
+- `LICENSE`: license file
 
 ## Local Install
 
@@ -80,8 +91,10 @@ Compatibility target: WoW `12.0+` only.
 
 ## Quality Check
 
-- GitHub Action: automatic Lua syntax check on each push/PR to `main`.
-- Local (optional): `lua -e "assert(loadfile('isiLive.lua')); assert(loadfile('realm_language_data.lua'))"`
+- GitHub Action (on push/PR to `main`): `stylua --check .`, `luacheck --exclude-files ".luarocks/**" -- .`, and Lua syntax check.
+- Local checks:
+  - `stylua --check .`
+  - `luacheck --exclude-files ".luarocks/**" -- .`
 
 ## Developer Setup
 
