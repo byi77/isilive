@@ -251,7 +251,8 @@ local function ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivi
       if IsSecretValue(value) then
         DebugLog("skip secret numeric application value")
       else
-        -- Raw numeric tuple values are usually app/search IDs; treating them as activity IDs causes false dungeon matches.
+        -- Raw numeric tuple values are usually app/search IDs.
+        -- Treating them as activity IDs causes false dungeon matches.
         local resolvedActivityID, resolvedGroupName =
           ResolveActivityIDFromSearchResultID(value, resolveTeleportSpellIDByActivityID)
         if resolvedActivityID then
@@ -356,12 +357,7 @@ function Queue.CaptureQueueJoinFromApplications(updatePendingQueueJoin, resolveT
       if skipApply then
         DebugLog("skip duplicate apply app id=%s", tostring(appID))
       else
-        DebugLog(
-          "apply app id=%s priority=%s dungeon=%s",
-          tostring(appID),
-          tostring(priority),
-          tostring(dungeonName)
-        )
+        DebugLog("apply app id=%s priority=%s dungeon=%s", tostring(appID), tostring(priority), tostring(dungeonName))
         updatePendingQueueJoin(snap.groupName, dungeonName, priority, snap.activityID)
       end
     end
@@ -391,8 +387,8 @@ function Queue.CaptureQueueJoinCandidate(updatePendingQueueJoin, resolveTeleport
     if ShouldSkipDuplicateApply(signature) then
       DebugLog("skip duplicate apply event")
     else
-    DebugLog("apply event priority=%s dungeon=%s", tostring(priority), tostring(dungeonName))
-    updatePendingQueueJoin(snap.groupName, dungeonName, priority, snap.activityID)
+      DebugLog("apply event priority=%s dungeon=%s", tostring(priority), tostring(dungeonName))
+      updatePendingQueueJoin(snap.groupName, dungeonName, priority, snap.activityID)
     end
   end
 

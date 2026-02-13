@@ -50,6 +50,9 @@ return {
 
         "strtrim",
         "strsplit",
+        "date",
+        "wipe",
+        "issecretvalue",
 
         "Enum",
         "LE_PARTY_CATEGORY_INSTANCE",
