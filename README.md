@@ -83,6 +83,40 @@ Compatibility target: WoW `12.0+` only.
 - GitHub Action: automatic Lua syntax check on each push/PR to `main`.
 - Local (optional): `lua -e "assert(loadfile('isiLive.lua')); assert(loadfile('realm_language_data.lua'))"`
 
+## Developer Setup
+
+Prerequisites:
+- VS Code
+- VS Code extensions:
+  - `JohnnyMorganz.stylua`
+  - `sumneko.lua` (LuaLS)
+
+Local checks:
+- `stylua .` (format)
+- `stylua --check .` (CI check)
+- `luacheck .` (lint)
+
+Notes:
+- The addon is namespace-based (`local addonName, addonTable = ...`).
+- Do not introduce new globals. `IsiLiveDB` (SavedVariables) is intentionally allowed.
+- `realm_language_data.lua` is intentionally excluded from format/lint (data-only file).
+
+## CI Quality Gate
+
+The CI workflow runs three checks on `push`/`pull_request` to `main`:
+- `stylua --check .`
+- `luacheck --exclude-files ".luarocks/**" -- .`
+- Lua syntax check (`loadfile` validation for all `.lua` files except `.luarocks`)
+
+## Git Hooks (Optional)
+
+Enable the repository hook path:
+- `git config core.hooksPath .githooks`
+
+Then `pre-commit` will run:
+- `stylua --check .`
+- `luacheck --exclude-files ".luarocks/**" -- .`
+
 ## CurseForge Auto Publish
 
 `release.yml` triggers CurseForge's official auto-packager when you push a tag like `v0.9.3`.

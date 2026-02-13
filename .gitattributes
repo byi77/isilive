@@ -1,0 +1,9 @@
+# Enforce consistent line endings (avoid CRLF issues on Windows)
+*.lua   text eol=lf
+*.toc   text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.toml  text eol=lf
+*.ini   text eol=lf
+*.json  text eol=lf

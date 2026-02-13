@@ -2,9 +2,9 @@ name: Lua Check
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   quality-gate:
@@ -19,7 +19,6 @@ jobs:
       - name: StyLua (check)
         uses: JohnnyMorganz/stylua-action@v4
         with:
-          token: ${{ github.token }}
           version: "2.3.1"
           args: --check .
 

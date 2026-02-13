@@ -225,7 +225,7 @@ if not isiLiveSync then
     IsUserKnown = function(_name, _realm)
       return false
     end,
-    IsUnitKnown = function(_unit)
+    IsUnitKnown = function(_getUnitNameAndRealm, _unit)
       return false
     end,
     SendHello = function(_options) end,
@@ -251,7 +251,7 @@ end
 
 if not isiLiveInspect then
   isiLiveInspect = {
-    CreateController = function()
+    CreateController = function(_opts)
       return {
         ResetQueues = function() end,
         ResetAll = function() end,
@@ -292,7 +292,9 @@ if not isiLiveEvents then
   isiLiveEvents = {
     CreateGate = function(config)
       return function(frame, event, ...)
-        (config and config.dispatch or function() end)(frame, event, ...)
+        (config and config.dispatch or function(_frame, _event, ...)
+          local _ = ...
+        end)(frame, event, ...)
       end
     end,
   }
@@ -306,7 +308,7 @@ end
 
 if not isiLiveLocale then
   isiLiveLocale = {
-    ResolveLocaleTag = function()
+    ResolveLocaleTag = function(_tag)
       return "enUS"
     end,
     GetLanguageFlagMarkup = function(_langTag, _small)
@@ -392,16 +394,16 @@ end
 
 if not isiLiveStatus then
   isiLiveStatus = {
-    CreateController = function()
+    CreateController = function(_opts)
       return {
-        GetAddonStateText = function()
+        GetAddonStateText = function(_flags)
           return ""
         end,
         GetDungeonDifficultyLabel = function()
           return "", false, false
         end,
         MaybeShowNonMythicDungeonEntryNotice = function() end,
-        BuildStatusLineText = function()
+        BuildStatusLineText = function(_flags)
           return ""
         end,
       }
@@ -1573,15 +1575,16 @@ OnEvent = function(self, event, ...)
   elseif event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
     CaptureQueueJoinCandidate(...)
   elseif event == "CHALLENGE_MODE_START" then
+    local damageMeterApi = _G and _G.C_DamageMeter
     if
       IsAutoDamageMeterResetEnabled()
-      and C_DamageMeter
-      and C_DamageMeter.IsDamageMeterAvailable
-      and C_DamageMeter.ResetAllCombatSessions
+      and damageMeterApi
+      and damageMeterApi.IsDamageMeterAvailable
+      and damageMeterApi.ResetAllCombatSessions
     then
-      local okAvailable, isAvailable = pcall(C_DamageMeter.IsDamageMeterAvailable)
+      local okAvailable, isAvailable = pcall(damageMeterApi.IsDamageMeterAvailable)
       if okAvailable and isAvailable then
-        pcall(C_DamageMeter.ResetAllCombatSessions)
+        pcall(damageMeterApi.ResetAllCombatSessions)
       end
     end
     SetMainFrameVisible(false)

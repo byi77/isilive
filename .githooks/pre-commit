@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+
+set -e
+
+echo "Running pre-commit checks..."
+
+if ! stylua --check .; then
+  echo "pre-commit: stylua check failed. Run 'stylua .' and retry."
+  exit 1
+fi
+
+if ! luacheck --exclude-files ".luarocks/**" -- .; then
+  echo "pre-commit: luacheck failed. Fix lint issues and retry."
+  exit 1
+fi
+
+echo "pre-commit: all checks passed."

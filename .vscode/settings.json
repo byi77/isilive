@@ -1,30 +1,33 @@
 {
-    "editor.formatOnSave": true,
-    "[lua]": {
-        "editor.defaultFormatter": null
-    },
-    "Lua.runtime.version": "Lua 5.1",
-    "Lua.workspace.checkThirdParty": false,
-    "Lua.diagnostics.globals": [
-        "UIParent",
-        "GameTooltip",
-        "SOUNDKIT",
-        "SlashCmdList",
-        "RAID_CLASS_COLORS",
-        "LE_PARTY_CATEGORY_INSTANCE"
-    ],
-    "Lua.runtime.builtin": {
-        "basic": "disable",
-        "debug": "disable",
-        "io": "disable",
-        "math": "disable",
-        "os": "disable",
-        "package": "disable",
-        "string": "disable",
-        "table": "disable",
-        "utf8": "disable"
-    },
-    "Lua.workspace.library": [
-        "~\\.vscode\\extensions\\ketho.wow-api-0.22.2\\Annotations\\Core"
-    ]
+  "editor.formatOnSave": true,
+  "[lua]": {
+    "editor.defaultFormatter": "JohnnyMorganz.stylua"
+  },
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "Lua.diagnostics.globals": [
+    "UIParent",
+    "GameTooltip",
+    "SOUNDKIT",
+    "SlashCmdList",
+    "RAID_CLASS_COLORS",
+    "CreateColor",
+    "LE_PARTY_CATEGORY_INSTANCE"
+  ],
+  "Lua.runtime.version": "Lua 5.1",
+  "Lua.runtime.builtin": {
+    "basic": "disable",
+    "debug": "disable",
+    "io": "disable",
+    "math": "disable",
+    "os": "disable",
+    "package": "disable",
+    "string": "disable",
+    "table": "disable",
+    "utf8": "disable"
+  },
+  "Lua.workspace.library": [
+    "~\\.vscode\\extensions\\ketho.wow-api-0.22.2\\Annotations\\Core"
+  ]
 }
