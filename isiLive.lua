@@ -267,8 +267,14 @@ assert(type(isiLiveCommands.RegisterSlashCommands) == "function", "isiLive: Comm
 assert(type(isiLiveUI.CreateMainFrame) == "function", "isiLive: UI.CreateMainFrame missing")
 assert(type(isiLiveNotice.CreateCenterNotice) == "function", "isiLive: Notice.CreateCenterNotice missing")
 assert(type(isiLiveStatus.CreateController) == "function", "isiLive: Status.CreateController missing")
-assert(type(isiLiveTeleport.ResolveSeason3TeleportSpellID) == "function", "isiLive: Teleport.ResolveSeason3TeleportSpellID missing")
-assert(type(isiLiveTeleport.BuildSeason3TeleportEntries) == "function", "isiLive: Teleport.BuildSeason3TeleportEntries missing")
+assert(
+  type(isiLiveTeleport.ResolveSeason3TeleportSpellID) == "function",
+  "isiLive: Teleport.ResolveSeason3TeleportSpellID missing"
+)
+assert(
+  type(isiLiveTeleport.BuildSeason3TeleportEntries) == "function",
+  "isiLive: Teleport.BuildSeason3TeleportEntries missing"
+)
 
 local function GetAddonVersionRaw()
   local legacyGetAddOnMetadata = rawget(_G, "GetAddOnMetadata")
@@ -925,8 +931,10 @@ local function GetNormalizedActiveEntryInfo()
       primaryActivityID = tonumber(TryGet(r1, "primaryActivityID", "primaryActivity", nil)),
       activityIDs = TryGet(r1, "activityIDs", "activities", nil),
       name = type(TryGet(r1, "name", "listingName", nil)) == "string" and TryGet(r1, "name", "listingName", nil) or nil,
-      activityName = type(TryGet(r1, "activityName", nil, nil)) == "string" and TryGet(r1, "activityName", nil, nil) or nil,
-      title = type(TryGet(r1, "title", "groupTitle", nil)) == "string" and TryGet(r1, "title", "groupTitle", nil) or nil,
+      activityName = type(TryGet(r1, "activityName", nil, nil)) == "string" and TryGet(r1, "activityName", nil, nil)
+        or nil,
+      title = type(TryGet(r1, "title", "groupTitle", nil)) == "string" and TryGet(r1, "title", "groupTitle", nil)
+        or nil,
     }
 
     return entry
@@ -1395,12 +1403,7 @@ local function PrintTeleportDebug()
     )
   )
   local resolvedByActivity = ResolveSeason3TeleportSpellIDByActivityID(latestQueueActivityID)
-  Print(
-    string.format(
-      "TP resolve detail byActivity=%s",
-      tostring(resolvedByActivity)
-    )
-  )
+  Print(string.format("TP resolve detail byActivity=%s", tostring(resolvedByActivity)))
   local entryInfo = GetNormalizedActiveEntryInfo()
   local r1RawTable = nil
   if C_LFGList and C_LFGList.GetActiveEntryInfo then
@@ -1454,7 +1457,12 @@ local function PrintTeleportDebug()
       )
     )
     -- Wenn wir ein Spell gefunden haben - cachea alle ActivityIDs
-    if hostedSpell and type(entryInfo.activityIDs) == "table" and isiLiveTeleport and isiLiveTeleport.AddActivityToTeleportCache then
+    if
+      hostedSpell
+      and type(entryInfo.activityIDs) == "table"
+      and isiLiveTeleport
+      and isiLiveTeleport.AddActivityToTeleportCache
+    then
       for _, id in pairs(entryInfo.activityIDs) do
         local numID = tonumber(id)
         if numID then
@@ -1491,11 +1499,7 @@ local function PrintTeleportDebug()
       end
     end
   else
-    Print(
-      string.format(
-        "TP host detail active=nil activityID=nil spell=nil"
-      )
-    )
+    Print(string.format("TP host detail active=nil activityID=nil spell=nil"))
   end
   DumpButtonState("TP center", centerNoticeTeleportButton)
   for i, button in ipairs(mplusTeleportButtons) do
@@ -1625,7 +1629,11 @@ OnEvent = function(self, event, ...)
       else
         local now = GetTime()
         local keepQueueTarget = false
-        if pendingQueueJoinInfo and pendingQueueJoinInfo.capturedAt and (now - pendingQueueJoinInfo.capturedAt) <= 60 then
+        if
+          pendingQueueJoinInfo
+          and pendingQueueJoinInfo.capturedAt
+          and (now - pendingQueueJoinInfo.capturedAt) <= 60
+        then
           keepQueueTarget = true
         elseif latestQueueCapturedAt and (now - latestQueueCapturedAt) <= 60 then
           keepQueueTarget = true

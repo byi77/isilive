@@ -10,10 +10,9 @@ function Status.CreateController(opts)
   local getL = opts.getL or function()
     return {}
   end
-  local showCenterNotice =
-    opts.showCenterNotice or function(_message, _durationSeconds, _dungeonName, _activityID, _showOptions) end
-  local hideCenterNotice =
-    opts.hideCenterNotice or function() end
+  local showCenterNotice = opts.showCenterNotice
+    or function(_message, _durationSeconds, _dungeonName, _activityID, _showOptions) end
+  local hideCenterNotice = opts.hideCenterNotice or function() end
   local isPlayerLeader = opts.isPlayerLeader or function()
     return false
   end
