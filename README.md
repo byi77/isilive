@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.17`.
+Current addon version: `0.9.18`.
 
 ## Features
 
@@ -17,7 +17,7 @@ Current addon version: `0.9.17`.
 - Teleport cooldown shown as `HH:MM`
 - Addon-presence marker per roster name (`<3`) and full-group easter-egg marker (`[fullsync]`)
 - Center notices: left-click drag, right-click dismiss, persistent position
-- Non-Mythic dungeon entry warning (30s center notice with delayed confirmation)
+- Non-Mythic dungeon entry warning with delayed confirmation (larger/blinking persistent notice; right-click dismiss, left-click drag)
 - Bottom-right version label in main window (`V.x.y.z`)
 
 ## Behavior
@@ -49,6 +49,9 @@ Current addon version: `0.9.17`.
 - `/isilive stop`
 - `/isilive start`
 - `/isilive bindcheck`
+
+Developer debug (hidden command, not listed in in-game help):
+- `/isilive qdebug [on|off|status|clear]`
 
 ## Files
 

@@ -99,6 +99,10 @@ function Notice.CreateCenterNotice(opts)
 
   local pendingVisible = nil
   local endsAt = 0
+  local isPersistent = false
+  local isBlinking = false
+  local blinkTime = 0
+  local baseTextR, baseTextG, baseTextB = 1, 0.82, 0
 
   local function SetVisible(visible)
     if isInCombat() then
@@ -175,7 +179,32 @@ function Notice.CreateCenterNotice(opts)
     return true
   end
 
-  local function Show(message, durationSeconds, dungeonName, activityID)
+  local function Show(message, durationSeconds, dungeonName, activityID, showOptions)
+    showOptions = showOptions or {}
+    isPersistent = showOptions.persistent == true
+    isBlinking = showOptions.blink == true
+    blinkTime = 0
+
+    local fontScale = tonumber(showOptions.fontScale) or 1
+    if fontScale < 0.8 then
+      fontScale = 0.8
+    elseif fontScale > 2 then
+      fontScale = 2
+    end
+    local fontPath, baseSize, fontFlags = text:GetFont()
+    if fontPath and baseSize then
+      text:SetFont(fontPath, math.floor(baseSize * fontScale), fontFlags)
+    end
+
+    if type(showOptions.textColor) == "table" then
+      baseTextR = tonumber(showOptions.textColor[1]) or baseTextR
+      baseTextG = tonumber(showOptions.textColor[2]) or baseTextG
+      baseTextB = tonumber(showOptions.textColor[3]) or baseTextB
+    else
+      baseTextR, baseTextG, baseTextB = 1, 0.82, 0
+    end
+    text:SetTextColor(baseTextR, baseTextG, baseTextB)
+
     local hasTeleportButton = ConfigureTeleportButton(dungeonName, activityID)
     text:SetText(message)
     text:SetWidth(frame:GetWidth() - (paddingX * 2))
@@ -187,7 +216,7 @@ function Notice.CreateCenterNotice(opts)
     local extraHeight = hasTeleportButton and (buttonHeight + buttonGap) or 0
     local frameHeight = math.min(maxHeight, math.max(minHeight, math.ceil(textHeight + (paddingY * 2) + extraHeight)))
     frame:SetHeight(frameHeight)
-    endsAt = GetTime() + (durationSeconds or 20)
+    endsAt = isPersistent and math.huge or (GetTime() + (durationSeconds or 20))
     SetVisible(true)
   end
 
@@ -240,8 +269,17 @@ function Notice.CreateCenterNotice(opts)
       SetVisible(false)
     end
   end)
-  frame:SetScript("OnUpdate", function()
-    if GetTime() >= endsAt then
+  frame:SetScript("OnUpdate", function(_, elapsed)
+    if isBlinking and frame:IsShown() then
+      blinkTime = blinkTime + (elapsed or 0)
+      local wave = (math.sin(blinkTime * 8) + 1) * 0.5
+      local alpha = 0.55 + (wave * 0.45)
+      text:SetTextColor(baseTextR, baseTextG, baseTextB, alpha)
+    elseif frame:IsShown() then
+      text:SetTextColor(baseTextR, baseTextG, baseTextB, 1)
+    end
+
+    if not isPersistent and GetTime() >= endsAt then
       SetVisible(false)
     end
   end)

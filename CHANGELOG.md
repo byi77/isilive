@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-02-13 - Version 0.9.18
+- Teleport target/highlight:
+  - updated all 8 M+ dungeon mapIDs for TWW Season 3 in `TWW_SEASON3_MAP_TO_TELEPORT` table:
+    * Priory of Sacred Flame: 2649
+    * Eco-Dome Al'dani: 2830
+    * Halls of Atonement: 2287
+    * Operation: Floodgate: 2773
+    * Ara-Kara, City of Echoes: 2660
+    * Tazavesh: Streets of Wonder / So'leah's Gambit: 2441
+    * The Dawnbreaker: 2662
+  - removed redundant name-based fallback logic and kept strict mapID/activityID-based resolution
+  - removed unused local variable in teleport activity resolver
+- Queue/event processing cleanup:
+  - removed duplicate application rescans in `LFG_LIST_APPLICATION_STATUS_UPDATED` and `LFG_LIST_ACTIVE_ENTRY_UPDATE`
+  - queue apply scan now runs through the existing queue capture path only (single source of truth)
+- UX/Warnings:
+  - non-Mythic dungeon warning changed from persistent to 120-second timeout
+  - non-Mythic warning now auto-hides immediately upon dungeon exit
+- TOC version bumped to `0.9.18`.
+
 ## 2026-02-13 - Version 0.9.17
 - Release update after post-release architecture and repo-hardening changes.
 - Repo quality/tooling hardening:

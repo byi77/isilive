@@ -18,6 +18,7 @@ local INSPECT_TIMEOUT = 2 -- seconds
 local RETRY_INTERVAL = 5 -- seconds
 local INSPECT_DELAY = 1 -- seconds between inspects to avoid throttle
 local MIN_FRAME_HEIGHT = 200
+local FORCE_QUEUE_DEBUG_OFF_ON_LOAD = true
 
 -- --- Localization ---
 local locale = GetLocale()
@@ -210,237 +211,64 @@ local locales = {
 local L = locales.enUS
 
 local isTestAllMode = false
+local QUEUE_DEBUG_LOG_MAX = 400
 
 local function Print(msg)
   print("isiLive: " .. msg)
 end
 
-if not isiLiveSync then
-  isiLiveSync = {
-    GetPrefix = function()
-      return "ISILIVE"
-    end,
-    RegisterPrefix = function(_prefix) end,
-    MarkUser = function(_name, _realm) end,
-    IsUserKnown = function(_name, _realm)
-      return false
-    end,
-    IsUnitKnown = function(_getUnitNameAndRealm, _unit)
-      return false
-    end,
-    SendHello = function(_options) end,
-    ProcessAddonMessage = function(_prefix, _message, _sender, _localName, _localRealm)
-      return nil
-    end,
-  }
+local function EnsureQueueDebugStorage()
+  if not IsiLiveDB then
+    IsiLiveDB = {}
+  end
+  if type(IsiLiveDB.queueDebugLog) ~= "table" then
+    IsiLiveDB.queueDebugLog = {}
+  end
+  return IsiLiveDB.queueDebugLog
 end
 
-if not isiLiveQueue then
-  isiLiveQueue = {
-    CaptureQueueJoinCandidate = function(
-      _updatePendingQueueJoin,
-      _resolveTeleportSpellIDByActivityID,
-      _event,
-      _groupName,
-      _activityID,
-      _searchResultInfo
-    )
-    end,
-  }
+local function AppendQueueDebugLog(message)
+  local logs = EnsureQueueDebugStorage()
+  local timestamp = date and date("%H:%M:%S") or tostring(GetTime and GetTime() or 0)
+  local text = tostring(message or "")
+  -- Keep SavedVariables debug logs ASCII-friendly for easier external parsing.
+  text = text:gsub("[\128-\255]", "")
+  table.insert(logs, string.format("%s %s", timestamp, text))
+  local overflow = #logs - QUEUE_DEBUG_LOG_MAX
+  while overflow > 0 do
+    table.remove(logs, 1)
+    overflow = overflow - 1
+  end
 end
 
-if not isiLiveInspect then
-  isiLiveInspect = {
-    CreateController = function(_opts)
-      return {
-        ResetQueues = function() end,
-        ResetAll = function() end,
-        QueueForceRefreshData = function(_roster) end,
-        EnqueueInspect = function(_unit, _roster) end,
-        OnInspectReady = function(_guid, _roster, _getUnitRio, _getInspectSpecName, _getPlayerSpecName)
-          return false
-        end,
-        OnUpdate = function() end,
-      }
-    end,
-  }
+local function QueueDebugLogger(message)
+  Print(message)
+  AppendQueueDebugLog(message)
 end
 
-if not isiLiveRoster then
-  isiLiveRoster = {
-    BuildOrderedRoster = function(_roster, _rolePriority, _unitPriority)
-      return {}
-    end,
-    HasFullSync = function(_roster)
-      return false
-    end,
-    BuildDisplayData = function(_info, _opts)
-      return {
-        colorHex = "ffffffff",
-        displayName = "",
-        languageDisplay = "|cffbfbfbf??|r |cffd9d9d9??|r",
-        specText = "-",
-        ilvlText = "-",
-        rioText = "-",
-        addonMarker = "",
-      }
-    end,
-  }
-end
-
-if not isiLiveEvents then
-  isiLiveEvents = {
-    CreateGate = function(config)
-      return function(frame, event, ...)
-        (config and config.dispatch or function(_frame, _event, ...)
-          local _ = ...
-        end)(frame, event, ...)
-      end
-    end,
-  }
-end
-
-if not isiLiveCommands then
-  isiLiveCommands = {
-    RegisterSlashCommands = function(_opts) end,
-  }
-end
-
-if not isiLiveLocale then
-  isiLiveLocale = {
-    ResolveLocaleTag = function(_tag)
-      return "enUS"
-    end,
-    GetLanguageFlagMarkup = function(_langTag, _small)
-      return "|cffbfbfbf??|r"
-    end,
-    GetUnitServerLanguage = function(_unit, _realm, _getRealmInfoLib)
-      return "??"
-    end,
-  }
-end
-
-if not isiLiveUI then
-  isiLiveUI = {
-    CreateMainFrame = function(opts)
-      local frame = CreateFrame("Frame", "isiLiveMainFrame", UIParent)
-      frame:SetSize(700, tonumber(opts and opts.minHeight) or 200)
-      frame:SetPoint("CENTER")
-      frame:Hide()
-      return {
-        frame = frame,
-        SetVisible = function(_visible) end,
-        SetHeightSafe = function(_height) end,
-        ToggleVisibility = function(_isInGroup) end,
-        ApplyStoredPosition = function(_pos) end,
-        GetPendingVisible = function()
-          return nil
-        end,
-        GetPendingHeight = function()
-          return nil
-        end,
-      }
-    end,
-  }
-end
-
-if not isiLiveTeleport then
-  isiLiveTeleport = {
-    GetSeason3TeleportInfoByMapID = function()
-      return nil
-    end,
-    ResolveSeason3TeleportSpellIDByMapID = function()
-      return nil
-    end,
-    ResolveSeason3TeleportSpellIDByActivityID = function(_activityID)
-      return nil
-    end,
-    ResolveSeason3TeleportSpellID = function(_activityID, _dungeonName)
-      return nil
-    end,
-    ApplySecureSpellToButton = function(_button, _spellID)
-      return false
-    end,
-    BuildSeason3TeleportEntries = function()
-      return {}
-    end,
-  }
-end
-
-if not isiLiveNotice then
-  isiLiveNotice = {
-    CreateCenterNotice = function(_opts)
-      return {
-        frame = nil,
-        teleportButton = nil,
-        Show = function(_message, _durationSeconds, _dungeonName, _activityID) end,
-        SetVisible = function(_visible) end,
-        UpdateTeleportButtonVisual = function(_spellID, _isEnabled, _inCombatBlocked) end,
-        GetPendingVisible = function()
-          return nil
-        end,
-        ApplyStoredPosition = function(_pos) end,
-      }
-    end,
-    CreateInviteHint = function(_opts)
-      return {
-        frame = nil,
-        Show = function(_message, _durationSeconds) end,
-        Position = function(_anchorFrame) end,
-      }
-    end,
-  }
-end
-
-if not isiLiveStatus then
-  isiLiveStatus = {
-    CreateController = function(_opts)
-      return {
-        GetAddonStateText = function(_flags)
-          return ""
-        end,
-        GetDungeonDifficultyLabel = function()
-          return "", false, false
-        end,
-        MaybeShowNonMythicDungeonEntryNotice = function() end,
-        BuildStatusLineText = function(_flags)
-          return ""
-        end,
-      }
-    end,
-  }
-end
-
-if not isiLiveUnits then
-  isiLiveUnits = {
-    GetUnitRole = function(_unit)
-      return "NONE"
-    end,
-    TruncateName = function(_name, _maxChars)
-      return ""
-    end,
-    GetUnitNameAndRealm = function(_unit)
-      return nil, ""
-    end,
-    GetPlayerSpecName = function()
-      return nil
-    end,
-    GetInspectSpecName = function(_unit)
-      return nil
-    end,
-    GetUnitRio = function(_unit)
-      return nil
-    end,
-  }
-end
-
-if not isiLiveDemo then
-  isiLiveDemo = {
-    BuildDummyRoster = function(_opts)
-      return {}
-    end,
-  }
-end
+assert(isiLiveSync, "isiLive: missing module Sync (isiLive_sync.lua)")
+assert(isiLiveQueue, "isiLive: missing module Queue (isiLive_queue.lua)")
+assert(isiLiveInspect, "isiLive: missing module Inspect (isiLive_inspect.lua)")
+assert(isiLiveRoster, "isiLive: missing module Roster (isiLive_roster.lua)")
+assert(isiLiveEvents, "isiLive: missing module Events (isiLive_events.lua)")
+assert(isiLiveCommands, "isiLive: missing module Commands (isiLive_commands.lua)")
+assert(isiLiveLocale, "isiLive: missing module Locale (isiLive_locale.lua)")
+assert(isiLiveUI, "isiLive: missing module UI (isiLive_ui.lua)")
+assert(isiLiveTeleport, "isiLive: missing module Teleport (isiLive_teleport.lua)")
+assert(isiLiveNotice, "isiLive: missing module Notice (isiLive_notice.lua)")
+assert(isiLiveStatus, "isiLive: missing module Status (isiLive_status.lua)")
+assert(isiLiveUnits, "isiLive: missing module Units (isiLive_units.lua)")
+assert(isiLiveDemo, "isiLive: missing module Demo (isiLive_demo.lua)")
+assert(type(isiLiveQueue.CaptureQueueJoinCandidate) == "function", "isiLive: Queue.CaptureQueueJoinCandidate missing")
+assert(type(isiLiveInspect.CreateController) == "function", "isiLive: Inspect.CreateController missing")
+assert(type(isiLiveRoster.BuildOrderedRoster) == "function", "isiLive: Roster.BuildOrderedRoster missing")
+assert(type(isiLiveEvents.CreateGate) == "function", "isiLive: Events.CreateGate missing")
+assert(type(isiLiveCommands.RegisterSlashCommands) == "function", "isiLive: Commands.RegisterSlashCommands missing")
+assert(type(isiLiveUI.CreateMainFrame) == "function", "isiLive: UI.CreateMainFrame missing")
+assert(type(isiLiveNotice.CreateCenterNotice) == "function", "isiLive: Notice.CreateCenterNotice missing")
+assert(type(isiLiveStatus.CreateController) == "function", "isiLive: Status.CreateController missing")
+assert(type(isiLiveTeleport.ResolveSeason3TeleportSpellID) == "function", "isiLive: Teleport.ResolveSeason3TeleportSpellID missing")
+assert(type(isiLiveTeleport.BuildSeason3TeleportEntries) == "function", "isiLive: Teleport.BuildSeason3TeleportEntries missing")
 
 local function GetAddonVersionRaw()
   local legacyGetAddOnMetadata = rawget(_G, "GetAddOnMetadata")
@@ -451,6 +279,10 @@ local function GetAddonVersionRaw()
     version = legacyGetAddOnMetadata(addonName, "Version")
   end
   return tostring(version or "?")
+end
+
+if isiLiveQueue and isiLiveQueue.SetDebugLogger then
+  isiLiveQueue.SetDebugLogger(QueueDebugLogger)
 end
 
 local function IsSpellKnownSafe(spellID)
@@ -649,8 +481,8 @@ end
 local function UpdateCenterTeleportButtonVisual(spellID, isEnabled, inCombatBlocked)
   centerNotice.UpdateTeleportButtonVisual(spellID, isEnabled, inCombatBlocked)
 end
-local function ShowCenterNotice(message, durationSeconds, dungeonName, activityID)
-  centerNotice.Show(message, durationSeconds, dungeonName, activityID)
+local function ShowCenterNotice(message, durationSeconds, dungeonName, activityID, showOptions)
+  centerNotice.Show(message, durationSeconds, dungeonName, activityID, showOptions)
 end
 
 local inviteHint = isiLiveNotice.CreateInviteHint({
@@ -852,13 +684,14 @@ local function CreateMPlusTeleportButton(index, entry)
   button.spellID = entry.spellID
   button.mapID = entry.mapID
   button.mapName = entry.mapName
+  button.defaultIcon = entry.icon or "Interface\\Icons\\INV_Misc_QuestionMark"
   button.isActiveTarget = false
   ApplySecureSpellToButton(button, entry.spellID)
 
   button.icon = button:CreateTexture(nil, "ARTWORK")
   button.icon:SetAllPoints()
   button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  button.icon:SetTexture(entry.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+  button.icon:SetTexture(button.defaultIcon)
 
   button.overlay = button:CreateTexture(nil, "OVERLAY")
   button.overlay:SetAllPoints()
@@ -1007,6 +840,7 @@ local pendingQueueJoinInfo = nil
 local latestQueueDungeonName = nil
 local latestQueueActivityID = nil
 local latestQueueTeleportSpellID = nil
+local latestQueueCapturedAt = nil
 local isTestMode = false
 local isStopped = false
 local isPaused = false
@@ -1050,7 +884,128 @@ UpdateDMResetButton = function()
   dmResetToggleButton:SetText(enabled and L.BTN_DMRESET_ON or L.BTN_DMRESET_OFF)
 end
 
+local function GetNormalizedActiveEntryInfo()
+  if not (C_LFGList and C_LFGList.GetActiveEntryInfo) then
+    return nil
+  end
+
+  local ok, r1, r2, _, _, r5, r6, r7 = pcall(C_LFGList.GetActiveEntryInfo)
+  if not ok then
+    return nil
+  end
+
+  if type(r1) == "table" then
+    local function TryGet(obj, key1, key2, key3)
+      if obj then
+        return rawget(obj, key1) or rawget(obj, key2) or rawget(obj, key3)
+      end
+      return nil
+    end
+
+    -- Versuche activityID zu extrahieren
+    local activityID = tonumber(TryGet(r1, "activityID", "activity", nil))
+
+    -- Fallback: Wenn activityIDs (Plural) existiert, nimm den ersten Wert
+    if not activityID then
+      local activityIDsTable = TryGet(r1, "activityIDs", "activities", nil)
+      if type(activityIDsTable) == "table" then
+        for _, id in pairs(activityIDsTable) do
+          local numID = tonumber(id)
+          if numID and numID > 0 then
+            activityID = numID
+            break
+          end
+        end
+      end
+    end
+
+    local entry = {
+      active = TryGet(r1, "active", "isActive", nil),
+      activityID = activityID,
+      primaryActivityID = tonumber(TryGet(r1, "primaryActivityID", "primaryActivity", nil)),
+      activityIDs = TryGet(r1, "activityIDs", "activities", nil),
+      name = type(TryGet(r1, "name", "listingName", nil)) == "string" and TryGet(r1, "name", "listingName", nil) or nil,
+      activityName = type(TryGet(r1, "activityName", nil, nil)) == "string" and TryGet(r1, "activityName", nil, nil) or nil,
+      title = type(TryGet(r1, "title", "groupTitle", nil)) == "string" and TryGet(r1, "title", "groupTitle", nil) or nil,
+    }
+
+    return entry
+  end
+
+  local entry = {}
+  if type(r1) == "boolean" then
+    entry.active = r1
+    if type(r2) == "number" and r2 > 0 then
+      entry.activityID = r2
+    end
+    local tupleName = nil
+    if type(r5) == "string" and r5 ~= "" then
+      tupleName = r5
+    elseif type(r6) == "string" and r6 ~= "" then
+      tupleName = r6
+    elseif type(r7) == "string" and r7 ~= "" then
+      tupleName = r7
+    end
+    if tupleName then
+      entry.name = tupleName
+    end
+  end
+
+  return entry
+end
+
+local function ResolveActiveListingTeleportSpellID(entryInfo)
+  if type(entryInfo) ~= "table" then
+    return nil
+  end
+
+  local activeValue = rawget(entryInfo, "active")
+  local activeStateIsKnown = type(activeValue) == "boolean"
+  local hasActiveListing = (not activeStateIsKnown) or activeValue == true
+  if not hasActiveListing then
+    return nil
+  end
+
+  local candidates = {}
+  local seen = {}
+  local function addCandidate(id)
+    local numericID = tonumber(id)
+    if not numericID or numericID <= 0 or seen[numericID] then
+      return
+    end
+    seen[numericID] = true
+    table.insert(candidates, numericID)
+  end
+
+  addCandidate(entryInfo.activityID)
+  addCandidate(entryInfo.primaryActivityID)
+  if type(entryInfo.activityIDs) == "table" then
+    for _, id in pairs(entryInfo.activityIDs) do
+      addCandidate(id)
+    end
+  end
+
+  for _, hostedActivityID in ipairs(candidates) do
+    local hostedSpellID = ResolveSeason3TeleportSpellID(hostedActivityID, nil)
+    if hostedSpellID then
+      return hostedSpellID
+    end
+  end
+
+  -- Active listing exists but can't be resolved: fail closed (no wrong highlight).
+  return false
+end
+
 local function ResolveActiveTeleportSpellID()
+  local entryInfo = GetNormalizedActiveEntryInfo()
+  local activeListingSpellID = ResolveActiveListingTeleportSpellID(entryInfo)
+  if activeListingSpellID == false then
+    return nil
+  end
+  if activeListingSpellID then
+    return activeListingSpellID
+  end
+
   if latestQueueTeleportSpellID then
     return latestQueueTeleportSpellID
   end
@@ -1072,6 +1027,11 @@ local function UpdateMPlusTeleportButton()
 
   for _, button in ipairs(mplusTeleportButtons) do
     local known = IsSpellKnownSafe(button.spellID)
+    local icon = nil
+    if button.spellID and C_Spell and C_Spell.GetSpellTexture then
+      icon = C_Spell.GetSpellTexture(button.spellID)
+    end
+    button.icon:SetTexture(icon or button.defaultIcon or "Interface\\Icons\\INV_Misc_QuestionMark")
     button.isActiveTarget = (resolvedSpellID and button.spellID == resolvedSpellID) and true or false
     button:Enable()
 
@@ -1131,6 +1091,9 @@ local statusController = isiLiveStatus.CreateController({
     return L
   end,
   showCenterNotice = ShowCenterNotice,
+  hideCenterNotice = function()
+    centerNotice.SetVisible(false)
+  end,
   isPlayerLeader = IsPlayerLeader,
 })
 
@@ -1226,8 +1189,19 @@ local function UpdatePendingQueueJoin(groupName, dungeonName, priority, activity
     end
   end
 
+  local nextGroupName = groupName or (previous and previous.groupName) or nil
+  local isDuplicateUpdate = previous
+    and previous.priority == priority
+    and previous.groupName == nextGroupName
+    and previous.dungeonName == dungeonName
+    and previous.activityID == activityID
+    and previous.teleportSpellID == resolvedTeleportSpellID
+  if isDuplicateUpdate then
+    return
+  end
+
   pendingQueueJoinInfo = {
-    groupName = groupName or (previous and previous.groupName) or nil,
+    groupName = nextGroupName,
     dungeonName = dungeonName,
     activityID = activityID,
     teleportSpellID = resolvedTeleportSpellID,
@@ -1239,6 +1213,7 @@ local function UpdatePendingQueueJoin(groupName, dungeonName, priority, activity
   latestQueueDungeonName = pendingQueueJoinInfo.dungeonName
   latestQueueActivityID = pendingQueueJoinInfo.activityID
   latestQueueTeleportSpellID = pendingQueueJoinInfo.teleportSpellID
+  latestQueueCapturedAt = GetTime()
 
   local groupText = string.format(L.INVITE_HINT_GROUP, pendingQueueJoinInfo.groupName or L.UNKNOWN_GROUP)
   local dungeonText = pendingQueueJoinInfo.dungeonName
@@ -1250,6 +1225,33 @@ end
 
 local function CaptureQueueJoinCandidate(...)
   isiLiveQueue.CaptureQueueJoinCandidate(UpdatePendingQueueJoin, ResolveSeason3TeleportSpellIDByActivityID, ...)
+end
+
+local function SetQueueDebugEnabled(enabled)
+  if isiLiveQueue and isiLiveQueue.SetDebugEnabled then
+    isiLiveQueue.SetDebugEnabled(enabled)
+  end
+  if not IsiLiveDB then
+    IsiLiveDB = {}
+  end
+  IsiLiveDB.queueDebug = enabled and true or false
+end
+
+local function IsQueueDebugEnabled()
+  if isiLiveQueue and isiLiveQueue.IsDebugEnabled then
+    return isiLiveQueue.IsDebugEnabled() == true
+  end
+  return IsiLiveDB and IsiLiveDB.queueDebug == true
+end
+
+local function ClearQueueDebugLog()
+  local logs = EnsureQueueDebugStorage()
+  wipe(logs)
+end
+
+local function GetQueueDebugLogCount()
+  local logs = EnsureQueueDebugStorage()
+  return #logs
 end
 
 local function AnnounceQueuedGroupJoin()
@@ -1272,6 +1274,7 @@ ShowQueueJoinPreview = function(groupName, dungeonName, activityID)
   latestQueueDungeonName = dungeon
   latestQueueActivityID = activityID
   latestQueueTeleportSpellID = ResolveSeason3TeleportSpellID(activityID, dungeon)
+  latestQueueCapturedAt = GetTime()
   UpdateMPlusTeleportButton()
 
   local msg
@@ -1347,6 +1350,7 @@ local function SetLanguage(tag)
 end
 
 local function PrintTeleportDebug()
+  UpdateMPlusTeleportButton()
   local resolvedSpellID = ResolveActiveTeleportSpellID()
   local resolvedKnown = resolvedSpellID and IsSpellKnownSafe(resolvedSpellID) or false
   local resolvedCooldown = resolvedSpellID and GetTeleportCooldownRemaining(resolvedSpellID) or 0
@@ -1379,16 +1383,120 @@ local function PrintTeleportDebug()
 
   Print(
     string.format(
-      "TP target dungeon=%s activityID=%s queueSpellID=%s resolvedSpellID=%s known=%s cd=%s inCombat=%s",
+      "TP target dungeon=%s activityID=%s queueSpellID=%s resolvedSpellID=%s known=%s cd=%s inCombat=%s age=%s",
       tostring(latestQueueDungeonName),
       tostring(latestQueueActivityID),
       tostring(latestQueueTeleportSpellID),
       tostring(resolvedSpellID),
       tostring(resolvedKnown),
       FormatCooldownSeconds(resolvedCooldown),
-      tostring(InCombatLockdown and InCombatLockdown())
+      tostring(InCombatLockdown and InCombatLockdown()),
+      tostring(latestQueueCapturedAt and math.floor(GetTime() - latestQueueCapturedAt) or "nil")
     )
   )
+  local resolvedByActivity = ResolveSeason3TeleportSpellIDByActivityID(latestQueueActivityID)
+  Print(
+    string.format(
+      "TP resolve detail byActivity=%s",
+      tostring(resolvedByActivity)
+    )
+  )
+  local entryInfo = GetNormalizedActiveEntryInfo()
+  local r1RawTable = nil
+  if C_LFGList and C_LFGList.GetActiveEntryInfo then
+    local okRaw, r1, r2, r3, r4, r5, r6 = pcall(C_LFGList.GetActiveEntryInfo)
+    if okRaw then
+      r1RawTable = r1
+      Print(
+        string.format(
+          "TP host raw r1=%s(%s) r2=%s(%s) r3=%s(%s) r4=%s(%s) r5=%s(%s) r6=%s(%s)",
+          tostring(r1),
+          type(r1),
+          tostring(r2),
+          type(r2),
+          tostring(r3),
+          type(r3),
+          tostring(r4),
+          type(r4),
+          tostring(r5),
+          type(r5),
+          tostring(r6),
+          type(r6)
+        )
+      )
+    end
+  end
+  if type(entryInfo) == "table" then
+    local hostedID = tonumber(entryInfo.activityID)
+    local hostedSpell = ResolveSeason3TeleportSpellID(hostedID, nil)
+
+    -- Wenn wir hostedID nicht haben, aber activityIDs Table existiert - scan die für den Cache
+    if not hostedSpell and type(entryInfo.activityIDs) == "table" and isiLiveTeleport then
+      for _, id in pairs(entryInfo.activityIDs) do
+        local numID = tonumber(id)
+        if numID then
+          local spell = ResolveSeason3TeleportSpellID(numID, nil)
+          if spell then
+            hostedID = numID
+            hostedSpell = spell
+            break
+          end
+        end
+      end
+    end
+
+    Print(
+      string.format(
+        "TP host detail active=%s activityID=%s spell=%s",
+        tostring(entryInfo.active),
+        tostring(hostedID),
+        tostring(hostedSpell)
+      )
+    )
+    -- Wenn wir ein Spell gefunden haben - cachea alle ActivityIDs
+    if hostedSpell and type(entryInfo.activityIDs) == "table" and isiLiveTeleport and isiLiveTeleport.AddActivityToTeleportCache then
+      for _, id in pairs(entryInfo.activityIDs) do
+        local numID = tonumber(id)
+        if numID then
+          isiLiveTeleport.AddActivityToTeleportCache(numID, hostedSpell)
+        end
+      end
+    end
+
+    -- Debug: Was gibt GetActivityInfoTable zurück?
+    if hostedID and C_LFGList and C_LFGList.GetActivityInfoTable then
+      local ok, activityInfo = pcall(C_LFGList.GetActivityInfoTable, hostedID)
+      if ok and type(activityInfo) == "table" then
+        Print(string.format("TP GetActivityInfoTable(%s) returned:", tostring(hostedID)))
+        for key, value in pairs(activityInfo) do
+          Print(string.format("  [%s]=%s (%s)", tostring(key), tostring(value), type(value)))
+        end
+      else
+        Print(string.format("TP GetActivityInfoTable(%s) failed or nil", tostring(hostedID)))
+      end
+    end
+    -- Dump r1 keys für debugging
+    if type(r1RawTable) == "table" then
+      Print("TP host r1 keys:")
+      for key, value in pairs(r1RawTable) do
+        Print(string.format("  [%s]=%s (%s)", tostring(key), tostring(value), type(value)))
+      end
+      -- Dump activityIDs Table Inhalte
+      local activityIDsTable = rawget(r1RawTable, "activityIDs")
+      if type(activityIDsTable) == "table" then
+        Print("TP host activityIDs table contents:")
+        for _, id in pairs(activityIDsTable) do
+          Print(string.format("  id=%s (%s)", tostring(id), type(id)))
+        end
+      end
+    end
+  else
+    Print(
+      string.format(
+        "TP host detail active=nil activityID=nil spell=nil"
+      )
+    )
+  end
   DumpButtonState("TP center", centerNoticeTeleportButton)
   for i, button in ipairs(mplusTeleportButtons) do
     DumpButtonState("TP grid[" .. i .. "]", button)
@@ -1490,8 +1598,11 @@ end)
 -- --- Event Handlers ---
 OnEvent = function(self, event, ...)
   if event == "GROUP_ROSTER_UPDATE" then
+    local wasInGroupBefore = wasInGroup
     local inGroupNow = IsInGroup()
-    if inGroupNow and not wasInGroup then
+    if inGroupNow and not wasInGroupBefore then
+      -- Recovery path: if an invite status event was missed, rescan applications on group join.
+      CaptureQueueJoinCandidate()
       AnnounceQueuedGroupJoin()
     end
     wasInGroup = inGroupNow
@@ -1503,11 +1614,29 @@ OnEvent = function(self, event, ...)
       return
     end
 
-    if not IsInGroup() then
+    if not inGroupNow then
       wasGroupLeader = nil
-      latestQueueDungeonName = nil
-      latestQueueActivityID = nil
-      latestQueueTeleportSpellID = nil
+      local leftGroupNow = wasInGroupBefore and not inGroupNow
+      if leftGroupNow then
+        latestQueueDungeonName = nil
+        latestQueueActivityID = nil
+        latestQueueTeleportSpellID = nil
+        latestQueueCapturedAt = nil
+      else
+        local now = GetTime()
+        local keepQueueTarget = false
+        if pendingQueueJoinInfo and pendingQueueJoinInfo.capturedAt and (now - pendingQueueJoinInfo.capturedAt) <= 60 then
+          keepQueueTarget = true
+        elseif latestQueueCapturedAt and (now - latestQueueCapturedAt) <= 60 then
+          keepQueueTarget = true
+        end
+        if not keepQueueTarget then
+          latestQueueDungeonName = nil
+          latestQueueActivityID = nil
+          latestQueueTeleportSpellID = nil
+          latestQueueCapturedAt = nil
+        end
+      end
       roster = {}
       inspectController.ResetAll()
       UpdateUI() -- Clear the visual list
@@ -1574,6 +1703,21 @@ OnEvent = function(self, event, ...)
     SendIsiLiveHello(false)
   elseif event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
     CaptureQueueJoinCandidate(...)
+  elseif event == "LFG_LIST_ACTIVE_ENTRY_UPDATE" then
+    local entryInfo = GetNormalizedActiveEntryInfo()
+    if type(entryInfo) == "table" and entryInfo.active then
+      -- Aktive Listing erkannt: Nur pending Infos clearen (alte Applications)
+      -- Behalte latest* Variablen, damit selbst-gehostete Listings hervorgehoben werden
+      pendingQueueJoinInfo = nil
+    elseif type(entryInfo) ~= "table" or not entryInfo.active then
+      -- Keine aktive Listing mehr: Alle Queue-Infos löschen
+      pendingQueueJoinInfo = nil
+      latestQueueDungeonName = nil
+      latestQueueActivityID = nil
+      latestQueueTeleportSpellID = nil
+      latestQueueCapturedAt = nil
+    end
+    UpdateMPlusTeleportButton()
   elseif event == "CHALLENGE_MODE_START" then
     local damageMeterApi = _G and _G.C_DamageMeter
     if
@@ -1611,6 +1755,16 @@ OnEvent = function(self, event, ...)
       L = locales[IsiLiveDB.locale] or locales.enUS
       if IsiLiveDB.autoDamageMeterReset == nil then
         IsiLiveDB.autoDamageMeterReset = false
+      end
+      if IsiLiveDB.queueDebug == nil then
+        IsiLiveDB.queueDebug = false
+      end
+      EnsureQueueDebugStorage()
+      if FORCE_QUEUE_DEBUG_OFF_ON_LOAD then
+        IsiLiveDB.queueDebug = false
+        SetQueueDebugEnabled(false)
+      else
+        SetQueueDebugEnabled(IsiLiveDB.queueDebug == true)
       end
 
       -- Restore position
@@ -1740,6 +1894,7 @@ mainFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 mainFrame:RegisterEvent("UPDATE_INSTANCE_INFO")
 mainFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 mainFrame:RegisterEvent("LFG_LIST_APPLICATION_STATUS_UPDATED")
+mainFrame:RegisterEvent("LFG_LIST_ACTIVE_ENTRY_UPDATE")
 mainFrame:RegisterEvent("CHAT_MSG_ADDON")
 mainFrame:RegisterEvent("INSPECT_READY")
 mainFrame:RegisterEvent("CHALLENGE_MODE_START")
@@ -1826,6 +1981,10 @@ isiLiveCommands.RegisterSlashCommands({
   setLanguage = SetLanguage,
   forceTeleportTestTarget = ForceTeleportTestTarget,
   printTeleportDebug = PrintTeleportDebug,
+  setQueueDebugEnabled = SetQueueDebugEnabled,
+  getQueueDebugEnabled = IsQueueDebugEnabled,
+  clearQueueDebugLog = ClearQueueDebugLog,
+  getQueueDebugLogCount = GetQueueDebugLogCount,
 })
 
 local gatedOnEvent = isiLiveEvents.CreateGate({
@@ -1845,6 +2004,8 @@ local gatedOnEvent = isiLiveEvents.CreateGate({
     PLAYER_ENTERING_WORLD = true,
     UPDATE_BINDINGS = true,
     PLAYER_REGEN_ENABLED = true,
+    LFG_LIST_APPLICATION_STATUS_UPDATED = true,
+    LFG_LIST_ACTIVE_ENTRY_UPDATE = true,
   },
   shouldAllowWhenHidden = function(_, event)
     if event ~= "GROUP_ROSTER_UPDATE" then

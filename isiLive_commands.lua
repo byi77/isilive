@@ -27,6 +27,14 @@ function Commands.RegisterSlashCommands(opts)
   local setLanguage = opts.setLanguage or function(_language) end
   local forceTeleportTestTarget = opts.forceTeleportTestTarget or function() end
   local printTeleportDebug = opts.printTeleportDebug or function() end
+  local setQueueDebugEnabled = opts.setQueueDebugEnabled or function(_enabled) end
+  local getQueueDebugEnabled = opts.getQueueDebugEnabled or function()
+    return false
+  end
+  local clearQueueDebugLog = opts.clearQueueDebugLog or function() end
+  local getQueueDebugLogCount = opts.getQueueDebugLogCount or function()
+    return 0
+  end
 
   SLASH_ISILIVE1 = "/isilive"
   SlashCmdList["ISILIVE"] = function(msg)
@@ -110,6 +118,27 @@ function Commands.RegisterSlashCommands(opts)
       forceTeleportTestTarget()
     elseif cmd == "tpdebug" then
       printTeleportDebug()
+    elseif cmd == "qdebug" or cmd:find("^qdebug%s+") == 1 then
+      local arg = cmd:match("^qdebug%s+(%S+)$")
+      if not arg or arg == "status" then
+        printFn(
+          "Queue debug: "
+            .. (getQueueDebugEnabled() and "ON" or "OFF")
+            .. " | entries: "
+            .. tostring(getQueueDebugLogCount())
+        )
+      elseif arg == "on" or arg == "1" or arg == "true" then
+        setQueueDebugEnabled(true)
+        printFn("Queue debug: ON")
+      elseif arg == "off" or arg == "0" or arg == "false" then
+        setQueueDebugEnabled(false)
+        printFn("Queue debug: OFF")
+      elseif arg == "clear" then
+        clearQueueDebugLog()
+        printFn("Queue debug log: cleared")
+      else
+        printFn("Usage: /isilive qdebug [on|off|status|clear]")
+      end
     elseif cmd == "bindcheck" then
       local action1 = GetBindingAction("CTRL-F9", true)
       local action2 = GetBindingAction("CTRL-ALT-F9", true)

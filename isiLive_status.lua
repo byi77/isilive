@@ -10,7 +10,10 @@ function Status.CreateController(opts)
   local getL = opts.getL or function()
     return {}
   end
-  local showCenterNotice = opts.showCenterNotice or function(_message, _durationSeconds, _dungeonName, _activityID) end
+  local showCenterNotice =
+    opts.showCenterNotice or function(_message, _durationSeconds, _dungeonName, _activityID, _showOptions) end
+  local hideCenterNotice =
+    opts.hideCenterNotice or function() end
   local isPlayerLeader = opts.isPlayerLeader or function()
     return false
   end
@@ -79,6 +82,7 @@ function Status.CreateController(opts)
 
     if not inDungeon then
       nonMythicNoticeToken = nonMythicNoticeToken + 1
+      hideCenterNotice()
     end
 
     local enteredDungeon = inDungeon and not wasInDungeon
@@ -97,7 +101,11 @@ function Status.CreateController(opts)
         if confirmedText == L.DUNGEON_DIFF_UNKNOWN then
           return
         end
-        showCenterNotice(string.format(L.NON_MYTHIC_ENTERED, confirmedText), 30, nil, nil)
+        showCenterNotice(string.format(L.NON_MYTHIC_ENTERED, confirmedText), 120, nil, nil, {
+          blink = true,
+          fontScale = 1.35,
+          textColor = { 1, 0.2, 0.2 },
+        })
       end
 
       if C_Timer and C_Timer.After then
