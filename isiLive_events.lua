@@ -25,6 +25,9 @@ function Events.CreateGate(config)
       local _ = ...
       return false
     end
+  local allowInTestMode = config.allowInTestMode or {
+    ADDON_LOADED = true,
+  }
 
   return function(frame, event, ...)
     if isStopped() and event ~= "ADDON_LOADED" then
@@ -33,7 +36,7 @@ function Events.CreateGate(config)
     if isPaused() and event ~= "ADDON_LOADED" then
       return
     end
-    if isTestMode() and event ~= "ADDON_LOADED" then
+    if isTestMode() and not allowInTestMode[event] then
       return
     end
 

@@ -5,6 +5,16 @@ addonTable = addonTable or {}
 local Roster = {}
 addonTable.Roster = Roster
 
+local function CreateRoleIcon(coords)
+  return string.format("|TInterface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES:16:16:0:0:64:64:%s|t", coords)
+end
+
+local ROLE_ICONS = {
+  TANK = CreateRoleIcon("0:19:22:41"),
+  HEALER = CreateRoleIcon("20:39:1:20"),
+  DAMAGER = CreateRoleIcon("20:39:22:41"),
+}
+
 function Roster.BuildOrderedRoster(roster, rolePriority, unitPriority)
   local orderedRoster = {}
   for unit, info in pairs(roster or {}) do
@@ -68,6 +78,7 @@ function Roster.BuildDisplayData(info, opts)
   local ilvlText = info.ilvl and tostring(math.floor(info.ilvl)) or "-"
   local rioText = info.rio and tostring(math.floor(info.rio)) or "-"
   local addonMarker = info.hasIsiLive and (hasFullSync and fullSyncMarker or syncMarker) or ""
+  local roleIconMarkup = ROLE_ICONS[info.role] or ""
 
   return {
     colorHex = colorHex,
@@ -77,5 +88,6 @@ function Roster.BuildDisplayData(info, opts)
     ilvlText = ilvlText,
     rioText = rioText,
     addonMarker = addonMarker,
+    roleIconMarkup = roleIconMarkup,
   }
 end

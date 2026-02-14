@@ -53,7 +53,7 @@ function Demo.BuildDummyRoster(opts)
     end
   end
 
-  return {
+  local roster = {
     ["player"] = {
       name = playerName or UnitName("player") or "Player",
       realm = playerRealm or GetRealmName() or "",
@@ -65,41 +65,78 @@ function Demo.BuildDummyRoster(opts)
       rio = playerRio,
       hasIsiLive = true,
     },
-    ["party1"] = {
-      name = "HealBot",
+  }
+
+  local dummies = {
+    tank = {
+      name = "Atabey",
+      language = "DE",
+      class = "WARRIOR",
+      role = "TANK",
+      spec = "Protection",
+      ilvl = 166,
+      rio = 3850,
+    },
+    healer = {
+      name = "Nisan",
       language = "DE",
       class = "PRIEST",
       role = "HEALER",
       spec = "Holy",
-      ilvl = 158,
+      ilvl = 169,
       rio = 3810,
     },
-    ["party2"] = {
+    dd1 = {
       name = "PumperDPS",
       language = "EN",
       class = "MAGE",
       role = "DAMAGER",
       spec = "Frost",
-      ilvl = 166,
+      ilvl = 170,
       rio = 3955,
     },
-    ["party3"] = {
-      name = "LazyRogue",
+    dd2 = {
+      name = "Bircan",
       language = "EN",
       class = "ROGUE",
       role = "DAMAGER",
       spec = "Outlaw",
-      ilvl = 161,
-      rio = 3875,
+      ilvl = 164,
+      rio = 3780,
     },
-    ["party4"] = {
-      name = "Huntard",
+    dd3 = {
+      name = "KÜrshad",
       language = "EN",
       class = "HUNTER",
       role = "DAMAGER",
       spec = "Marksman",
-      ilvl = 167,
-      rio = 4090,
+      ilvl = 164,
+      rio = 3890,
     },
   }
+
+  local fill = {}
+  if playerRole == "TANK" then
+    table.insert(fill, dummies.healer)
+    table.insert(fill, dummies.dd1)
+    table.insert(fill, dummies.dd2)
+    table.insert(fill, dummies.dd3)
+  elseif playerRole == "HEALER" then
+    table.insert(fill, dummies.tank)
+    table.insert(fill, dummies.dd1)
+    table.insert(fill, dummies.dd2)
+    table.insert(fill, dummies.dd3)
+  else
+    -- DAMAGER or NONE
+    table.insert(fill, dummies.tank)
+    table.insert(fill, dummies.healer)
+    table.insert(fill, dummies.dd1)
+    table.insert(fill, dummies.dd2)
+  end
+
+  for i, member in ipairs(fill) do
+    roster["party" .. i] = member
+  end
+
+  return roster
 end

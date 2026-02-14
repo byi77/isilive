@@ -78,6 +78,7 @@ return {
         "GetNumGroupMembers",
         "GetRealmName",
         "GetSpecialization",
+        "GetSpecializationRole",
         "GetSpecializationInfo",
         "GetSpecializationInfoByID",
         "IsInGroup",

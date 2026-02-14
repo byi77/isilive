@@ -24,7 +24,7 @@ local FORCE_QUEUE_DEBUG_OFF_ON_LOAD = true
 local locale = GetLocale()
 local locales = {
   enUS = {
-    TITLE = "isiLive",
+    TITLE = "isiLive (will be renamed to isiKeyMPlus soon)",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
     COL_LANGUAGE = "Flag",
@@ -116,7 +116,7 @@ local locales = {
     LANG_USAGE = "Usage: /isilive lang [en|de]",
   },
   deDE = {
-    TITLE = "isiLive",
+    TITLE = "isiLive (will be renamed to isiKeyMPlus soon)",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
     COL_LANGUAGE = "Sprache",
@@ -532,13 +532,26 @@ local function ToggleMainFrameVisibility()
 end
 
 -- Background for visibility
-local bg = mainFrame:CreateTexture(nil, "BACKGROUND")
-bg:SetAllPoints()
-bg:SetColorTexture(0, 0, 0, 0.5)
+-- Visuals: Add Backdrop for a more native WoW look
+mainFrame:SetBackdrop({
+  bgFile = "Interface\\Buttons\\WHITE8X8",
+  edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+  tile = true,
+  tileSize = 32,
+  edgeSize = 16,
+  insets = { left = 4, right = 4, top = 4, bottom = 4 },
+})
+mainFrame:SetBackdropColor(0, 0, 0, 0.85)
 
 -- Title
 local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightHuge")
 title:SetPoint("TOP", 0, -4)
+do
+  local fontPath, fontSize, fontFlags = title:GetFont()
+  if fontPath and fontSize then
+    title:SetFont(fontPath, math.max(fontSize - 2, 8), fontFlags)
+  end
+end
 title:SetTextColor(1, 0.85, 0)
 title:SetShadowOffset(1, -1)
 title:SetText(L.TITLE)
@@ -596,6 +609,12 @@ mplusManagementHeader:SetPoint("TOPRIGHT", -16, -34)
 mplusManagementHeader:SetWidth(110)
 mplusManagementHeader:SetJustifyH("CENTER")
 mplusManagementHeader:SetText(L.MPLUS_MANAGEMENT)
+
+local headerSeparator = mainFrame:CreateTexture(nil, "ARTWORK")
+headerSeparator:SetHeight(1)
+headerSeparator:SetPoint("TOPLEFT", 8, -48)
+headerSeparator:SetPoint("TOPRIGHT", -8, -48)
+headerSeparator:SetColorTexture(1, 1, 1, 0.2)
 
 local readyCheckButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
 readyCheckButton:SetSize(120, 24)
@@ -717,6 +736,26 @@ local function CreateMPlusTeleportButton(index, entry)
   button.activeGlow:SetVertexColor(1, 0.78, 0.08, 0.9)
   button.activeGlow:Hide()
 
+  -- Performance: Use AnimationGroup instead of OnUpdate for pulsing
+  button.animGroup = button:CreateAnimationGroup()
+  button.animGroup:SetLooping("BOUNCE")
+
+  local scaleAnim = button.animGroup:CreateAnimation("Scale")
+  scaleAnim:SetScale(1.05, 1.05)
+  scaleAnim:SetDuration(1)
+  scaleAnim:SetSmoothing("IN_OUT")
+  scaleAnim:SetOrder(1)
+
+  local alphaAnim = button.animGroup:CreateAnimation("Alpha")
+  alphaAnim:SetFromAlpha(0.5)
+  alphaAnim:SetToAlpha(1.0)
+  alphaAnim:SetDuration(1)
+  alphaAnim:SetSmoothing("IN_OUT")
+  alphaAnim:SetOrder(1)
+  if alphaAnim.SetTarget then
+    alphaAnim:SetTarget(button.activeGlow)
+  end
+
   button:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     if self.spellID and IsSpellKnownSafe(self.spellID) then
@@ -745,21 +784,6 @@ local function CreateMPlusTeleportButton(index, entry)
   end)
   button:SetScript("OnLeave", function()
     GameTooltip:Hide()
-  end)
-  button:SetScript("OnUpdate", function(self, elapsed)
-    if not self.isActiveTarget then
-      self.activeBorder:Hide()
-      self.activeGlow:Hide()
-      self:SetScale(1)
-      return
-    end
-    self.activeBorder:Show()
-    self.activeGlow:Show()
-    self._pulse = ((self._pulse or 0) + elapsed * 4) % (math.pi * 2)
-    local wave = math.sin(self._pulse)
-    self.activeBorder:SetAlpha(0.6 + (wave * 0.35))
-    self.activeGlow:SetAlpha(0.5 + (wave * 0.4))
-    self:SetScale(1.03 + (wave * 0.03))
   end)
 
   return button
@@ -801,6 +825,23 @@ local memberRows = {}
 local function CreateMemberRow(index)
   local yOffset = -52 - (index - 1) * 16
   local row = {}
+
+  row.hoverFrame = CreateFrame("Frame", nil, mainFrame)
+  row.hoverFrame:SetPoint("TOPLEFT", 4, yOffset + 2)
+  row.hoverFrame:SetPoint("RIGHT", -4, 0)
+  row.hoverFrame:SetHeight(16)
+
+  row.highlight = row.hoverFrame:CreateTexture(nil, "BACKGROUND")
+  row.highlight:SetAllPoints()
+  row.highlight:SetColorTexture(1, 1, 1, 0.05)
+  row.highlight:Hide()
+
+  row.hoverFrame:SetScript("OnEnter", function()
+    row.highlight:Show()
+  end)
+  row.hoverFrame:SetScript("OnLeave", function()
+    row.highlight:Hide()
+  end)
 
   row.spec = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.spec:SetPoint("TOPLEFT", SPEC_COL_X, yOffset)
@@ -1027,6 +1068,17 @@ local function ResolveActiveTeleportSpellID()
     return queueSpellID
   end
 
+  -- Fallback: Try to get current active challenge map (for joined keys)
+  if C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID then
+    local currentMapID = C_ChallengeMode.GetActiveChallengeMapID()
+    if currentMapID and isiLiveTeleport and isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID then
+      local spellID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID(currentMapID)
+      if spellID then
+        return spellID
+      end
+    end
+  end
+
   return nil
 end
 
@@ -1046,11 +1098,24 @@ local function UpdateMPlusTeleportButton()
     if known then
       if button.isActiveTarget then
         button.overlay:SetColorTexture(1, 0.72, 0.05, 0.22)
+        button.activeBorder:Show()
+        button.activeGlow:Show()
+        if not button.animGroup:IsPlaying() then
+          button.animGroup:Play()
+        end
       else
         button.overlay:SetColorTexture(0, 0, 0, 0.28)
+        button.activeBorder:Hide()
+        button.activeGlow:Hide()
+        button.animGroup:Stop()
+        button:SetScale(1) -- Reset scale
       end
     else
       button.overlay:SetColorTexture(0, 0, 0, 0.62)
+      button.activeBorder:Hide()
+      button.activeGlow:Hide()
+      button.animGroup:Stop()
+      button:SetScale(1)
     end
   end
 end
@@ -1339,6 +1404,17 @@ local function ToggleStandardTestMode()
     ShowQueueJoinPreview(L.TESTALL_DUMMY_GROUP, L.TESTALL_DUMMY_DUNGEON)
   else
     Print(L.TEST_DISABLED)
+    roster = {}
+    inspectController.ResetAll()
+    latestQueueDungeonName = nil
+    latestQueueActivityID = nil
+    latestQueueTeleportSpellID = nil
+    latestQueueCapturedAt = nil
+    UpdateUI()
+    UpdateMPlusTeleportButton()
+    UpdateLeaderButtons()
+    SetCenterNoticeVisible(false)
+    inviteHint.frame:Hide()
     SetMainFrameVisible(false)
     local onEventHandler = mainFrame:GetScript("OnEvent")
     if onEventHandler then
@@ -1526,6 +1602,9 @@ UpdateUI = function()
     row.realm:SetText("")
     row.ilvl:SetText("")
     row.rio:SetText("")
+    if row.hoverFrame then
+      row.hoverFrame:Hide()
+    end
   end
 
   local index = 1
@@ -1545,10 +1624,20 @@ UpdateUI = function()
     })
 
     row.spec:SetText("|c" .. displayData.colorHex .. displayData.specText .. "|r")
-    row.name:SetText("|c" .. displayData.colorHex .. displayData.displayName .. "|r" .. displayData.addonMarker)
+    row.name:SetText(
+      displayData.roleIconMarkup
+        .. " |c"
+        .. displayData.colorHex
+        .. displayData.displayName
+        .. "|r"
+        .. displayData.addonMarker
+    )
     row.realm:SetText(displayData.languageDisplay)
     row.ilvl:SetText(displayData.ilvlText)
     row.rio:SetText(displayData.rioText)
+    if row.hoverFrame then
+      row.hoverFrame:Show()
+    end
 
     index = index + 1
   end
@@ -1741,6 +1830,7 @@ OnEvent = function(self, event, ...)
     end
     SetMainFrameVisible(false)
     UpdateLeaderButtons()
+    UpdateMPlusTeleportButton()
   elseif event == "CHALLENGE_MODE_COMPLETED" or event == "CHALLENGE_MODE_RESET" then
     if IsInGroup() then
       SetMainFrameVisible(true)
@@ -2025,6 +2115,11 @@ local gatedOnEvent = isiLiveEvents.CreateGate({
     local inSmallGroup = IsInGroup() and GetNumGroupMembers() <= 5
     return inSmallGroup and not inChallenge
   end,
+  allowInTestMode = {
+    ADDON_LOADED = true,
+    PLAYER_REGEN_ENABLED = true,
+    INSPECT_READY = true,
+  },
 })
 mainFrame:SetScript("OnEvent", gatedOnEvent)
 

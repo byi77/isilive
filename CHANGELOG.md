@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-02-14 - Version 0.9.19
+- UI/Mainframe refresh:
+  - title now shows rename note: `isiLive (will be renamed to isiKeyMPlus soon)`
+  - added native-style backdrop and subtle header separator
+  - roster rows now support hover highlight
+  - roster name column now includes role icons (tank/healer/damager)
+- Teleport/queue behavior:
+  - replaced per-frame `OnUpdate` pulse with `AnimationGroup`-based active target animation
+  - active teleport fallback now checks current challenge map ID
+  - improved reset behavior when leaving test mode and after challenge start
+- Data/role handling:
+  - added player-role fallback via specialization role when assigned group role is unavailable
+  - test roster generation now adapts party composition to the local player role
+- Event gating:
+  - test mode now supports configurable allowed events (`allowInTestMode`) and keeps required events active
+- Packaging/docs:
+  - added `TODO.md` and excluded it from CurseForge package via `.pkgmeta`
+  - README title updated with rename note
+- TOC version bumped to `0.9.19`.
+
 ## 2026-02-13 - Version 0.9.18
 - Teleport target/highlight:
   - updated all 8 M+ dungeon mapIDs for TWW Season 3 in `TWW_SEASON3_MAP_TO_TELEPORT` table:

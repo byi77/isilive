@@ -10,6 +10,18 @@ function Units.GetUnitRole(unit)
   if role == "TANK" or role == "HEALER" or role == "DAMAGER" then
     return role
   end
+
+  -- Fallback for player: use current specialization role if group role is not set
+  if UnitIsUnit(unit, "player") and GetSpecialization and GetSpecializationRole then
+    local specIndex = GetSpecialization()
+    if specIndex then
+      role = GetSpecializationRole(specIndex)
+      if role == "TANK" or role == "HEALER" or role == "DAMAGER" then
+        return role
+      end
+    end
+  end
+
   return "NONE"
 end
 

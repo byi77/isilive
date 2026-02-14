@@ -84,9 +84,9 @@ function Teleport.GetSeason3TeleportInfoByMapID(mapID)
 end
 
 function Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
-  local info = Teleport.GetSeason3TeleportInfoByMapID(mapID)
-  if info and info.spellID then
-    return info.spellID
+  local numericMapID = tonumber(mapID)
+  if numericMapID and TWW_SEASON3_MAP_TO_TELEPORT[numericMapID] then
+    return TWW_SEASON3_MAP_TO_TELEPORT[numericMapID]
   end
   return nil
 end
@@ -96,38 +96,34 @@ function Teleport.ResolveSeason3TeleportSpellIDByActivityID(activityID)
     return nil
   end
 
-  -- Versuche zuerst den Activity Cache
-  local cachedSpell = Teleport.ResolveTeleportSpellByActivityID(activityID)
-  if cachedSpell then
-    return cachedSpell
-  end
-
-  -- Fallback: Versuche über MapID via GetActivityInfoTable
-  if not (C_LFGList and C_LFGList.GetActivityInfoTable) then
-    return nil
-  end
-
-  local ok, info = pcall(C_LFGList.GetActivityInfoTable, activityID)
-  if not ok or not info then
-    return nil
-  end
-
-  local mapID = tonumber(rawget(info, "mapID") or rawget(info, "mapId"))
-  if mapID then
-    local spellID = Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
-    if spellID then
-      return spellID, mapID
-    end
-  end
-  return nil
+  -- Nutze die Cache-Funktion, die bereits den kompletten Lookup (Cache + LFG-Fallback) durchführt.
+  return Teleport.ResolveTeleportSpellByActivityID(activityID)
 end
 
 function Teleport.ResolveSeason3TeleportSpellID(activityID, dungeonName)
-  local _ = dungeonName
   local spellFromActivityID = Teleport.ResolveSeason3TeleportSpellIDByActivityID(activityID)
   if spellFromActivityID then
     return spellFromActivityID
   end
+
+  -- Fallback: Name resolution
+  local nameToUse = dungeonName
+  if (not nameToUse or nameToUse == "") and activityID and C_LFGList and C_LFGList.GetActivityInfoTable then
+    local ok, info = pcall(C_LFGList.GetActivityInfoTable, activityID)
+    if ok and info then
+      nameToUse = info.fullName or info.shortName
+    end
+  end
+
+  if nameToUse and nameToUse ~= "" then
+    for mapID, spellID in pairs(TWW_SEASON3_MAP_TO_TELEPORT) do
+      local info = Teleport.GetSeason3TeleportInfoByMapID(mapID)
+      if info and info.mapName and string.find(nameToUse, info.mapName, 1, true) then
+        return spellID
+      end
+    end
+  end
+
   return nil
 end
 
