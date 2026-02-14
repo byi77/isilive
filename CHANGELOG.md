@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-02-14 - Version 0.9.21
+- Queue capture reliability:
+  - added `LFG_LIST_SEARCH_RESULT_UPDATED` event handling to trigger `CaptureQueueJoinCandidate(...)`
+  - registered `LFG_LIST_SEARCH_RESULT_UPDATED` on the main frame and test-mode event gate allowlist
+- TOC version bumped to `0.9.21`.
+
 ## 2026-02-14 - Version 0.9.20
 - Queue capture cleanup:
   - removed redundant single-table fallback parsing in `Queue.CaptureQueueJoinFromApplications`
@@ -231,3 +237,4 @@
 - Fixed multiple scope/order Lua errors (`UpdateUI`, `UpdateLeaderButtons`, `OnEvent`).
 - Standardized visible addon strings to English output.
 - Added runtime language switching via `/isilive lang [en|de]` with persisted setting in `IsiLiveDB.locale`.
+

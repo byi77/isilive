@@ -1800,6 +1800,8 @@ OnEvent = function(self, event, ...)
     SendIsiLiveHello(false)
   elseif event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
     CaptureQueueJoinCandidate(...)
+  elseif event == "LFG_LIST_SEARCH_RESULT_UPDATED" then
+    CaptureQueueJoinCandidate(...)
   elseif event == "LFG_LIST_ACTIVE_ENTRY_UPDATE" then
     local entryInfo = GetNormalizedActiveEntryInfo()
     if type(entryInfo) == "table" and entryInfo.active then
@@ -1991,6 +1993,7 @@ mainFrame:RegisterEvent("PLAYER_DIFFICULTY_CHANGED")
 mainFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 mainFrame:RegisterEvent("UPDATE_INSTANCE_INFO")
 mainFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+mainFrame:RegisterEvent("LFG_LIST_SEARCH_RESULT_UPDATED")
 mainFrame:RegisterEvent("LFG_LIST_APPLICATION_STATUS_UPDATED")
 mainFrame:RegisterEvent("LFG_LIST_ACTIVE_ENTRY_UPDATE")
 mainFrame:RegisterEvent("CHAT_MSG_ADDON")
@@ -2103,6 +2106,7 @@ local gatedOnEvent = isiLiveEvents.CreateGate({
     UPDATE_BINDINGS = true,
     PLAYER_REGEN_ENABLED = true,
     LFG_LIST_APPLICATION_STATUS_UPDATED = true,
+    LFG_LIST_SEARCH_RESULT_UPDATED = true,
     LFG_LIST_ACTIVE_ENTRY_UPDATE = true,
   },
   shouldAllowWhenHidden = function(_, event)
