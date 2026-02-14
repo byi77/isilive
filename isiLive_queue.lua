@@ -327,11 +327,6 @@ function Queue.CaptureQueueJoinFromApplications(updatePendingQueueJoin, resolveT
     local snap = ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivityID)
     local status = tostring(values[2])
     local pending = tostring(values[3])
-    if type(values[1]) == "table" and #values == 1 then
-      local data = values[1]
-      status = tostring(data.applicationStatus or data.appStatus or data.status)
-      pending = tostring(data.pendingStatus or data.pendingApplicationStatus)
-    end
     DebugLog(
       "app id=%s status=%s pending=%s invite=%s accepted=%s group=%s activity=%s",
       tostring(appID),
