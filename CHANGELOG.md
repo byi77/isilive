@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-02-14 - Version 0.9.20
+- Queue capture cleanup:
+  - removed redundant single-table fallback parsing in `Queue.CaptureQueueJoinFromApplications`
+  - queue application status/pending extraction now uses the direct values path only
+- TOC version bumped to `0.9.20`.
+
 ## 2026-02-14 - Version 0.9.19
 - UI/Mainframe refresh:
   - title now shows rename note: `isiLive (will be renamed to isiKeyMPlus soon)`
