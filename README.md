@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.24`.
+Current addon version: `0.9.25`.
 
 ## Features
 

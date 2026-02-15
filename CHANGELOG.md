@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-02-15 - Version 0.9.25
+- CI/release follow-up:
+  - fixed Lua quality-gate regressions on `main` (Luacheck + StyLua compliance)
+  - no gameplay/feature behavior changes; release refresh for stable packaging
+- TOC version bumped to `0.9.25`.
+
 ## 2026-02-15 - Version 0.9.24
 - Teleport highlight behavior:
   - activation is now strict: highlight appears only after actual group join or while actively hosting your own listing
