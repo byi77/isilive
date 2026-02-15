@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.22`.
+Current addon version: `0.9.24`.
 
 ## Features
 
@@ -11,7 +11,7 @@ Current addon version: `0.9.22`.
 - Stable role sorting: `Tank -> Healer -> Damager`
 - Right-side controls: `Readycheck`, `Countdown10`, `Refresh`, `DM Reset: ON/OFF`
 - `M+ Management` teleport grid with all Season dungeon teleports
-- Active invite/queue dungeon teleport is highlighted (pulse/glow), independent of your current location
+- Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
 - Queue join detection with chat message, center notice, and invite hint
 - Dungeon teleport controls in center notice + right-side grid
 - Teleport cooldown shown as `HH:MM`
@@ -51,7 +51,7 @@ Current addon version: `0.9.22`.
 - `/isilive bindcheck`
 
 Developer debug (hidden command, not listed in in-game help):
-- `/isilive qdebug [on|off|status|clear]`
+- `/isilive qdebug [on|off|status|clear|tail [n]]`
 
 ## Files
 

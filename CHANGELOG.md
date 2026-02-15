@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-02-15 - Version 0.9.24
+- Teleport highlight behavior:
+  - activation is now strict: highlight appears only after actual group join or while actively hosting your own listing
+  - no pre-invite/pre-group highlight anymore
+- Teleport reliability:
+  - hardened cooldown handling against secret values from `C_Spell.GetSpellCooldown`
+  - fixed queue secret-table errors in `isiLive_queue.lua`
+  - improved Tazavesh resolution with normalized/localized name matching
+- Queue/LFG flow:
+  - block `LFG_LIST_*` processing during active Mythic+ key
+  - prevent "Joined from queue" message when player is leader/host
+  - allow dungeon-category queue capture even when no teleport spell is mapped
+- Debug cleanup:
+  - simplified `tpdebug` output to actionable fields only (removed raw dumps and debug-side cache mutation)
+  - added `/isilive qdebug tail [n]` (default `20`, clamped `1..100`)
+  - removed stale debug state (`latestQueueCapturedAt`) and dead debug branching
+- TOC version bumped to `0.9.24`.
+
+## 2026-02-15 - Version 0.9.23
+- Bugfixes:
+  - Fixed teleport highlight disappearing when the group becomes full (listing removal caused queue info to be overwritten with empty data).
+  - Fixed Lua error `attempt to compare local 'enabled' (a secret boolean value)` in `GetTeleportCooldownRemaining` by sanitizing secret values from `C_Spell.GetSpellCooldown`.
+  - Fixed multiple Lua errors `table expected, got secret` in `isiLive_queue.lua` (including `ExtractApplicationSnapshot`).
+  - Debug cleanup: reduced `tpdebug` output to actionable fields only (removed raw table dumps and debug-side cache mutation).
+  - Added `qdebug tail [n]` (clamped to 1..100, default 20) to inspect recent queue debug entries without log spam.
+  - Optimization: Completely block LFG event processing (`LFG_LIST_*`) when a Mythic+ key is active to prevent unnecessary background work and potential taint/secret errors.
+  - Added robust teleport resolution for Tazavesh (Streets/Gambit) via normalized name matching (handles split wings sharing one teleport, including localized map names).
+  - Fixed "Joined from queue" message appearing when hosting your own key (added leader check).
+  - Fixed missing notifications for dungeons without mapped teleport spells (e.g. leveling dungeons or unmapped IDs).
+    - Queue capture now validates activities via WoW API category (Dungeon/M+) instead of relying solely on teleport spell existence.
+- Teleport highlight:
+  - made visual pulse stronger/faster and overlay more dominant (scale 1.2, faster loop, stronger color)
+  - highlight activation is now strict to real context only: shown only after actual group join or while actively hosting your own listing
+- TOC version bumped to `0.9.23`.
+
 ## 2026-02-15 - Version 0.9.22
 - Test mode flow:
   - added dedicated `ExitTestMode()` handling to leave test mode with a consistent cleanup/reset path

@@ -18,7 +18,6 @@ local INSPECT_TIMEOUT = 2 -- seconds
 local RETRY_INTERVAL = 5 -- seconds
 local INSPECT_DELAY = 1 -- seconds between inspects to avoid throttle
 local MIN_FRAME_HEIGHT = 200
-local FORCE_QUEUE_DEBUG_OFF_ON_LOAD = true
 
 -- --- Localization ---
 local locale = GetLocale()
@@ -291,31 +290,64 @@ if isiLiveQueue and isiLiveQueue.SetDebugLogger then
   isiLiveQueue.SetDebugLogger(QueueDebugLogger)
 end
 
+local function GetSpellCooldownSafe(spellID)
+  if not spellID or not (C_Spell and C_Spell.GetSpellCooldown) then
+    return 0, 0, true
+  end
+  local ok, info = pcall(C_Spell.GetSpellCooldown, spellID)
+  if not ok or type(info) ~= "table" then
+    return 0, 0, true
+  end
+  local start = info.startTime or 0
+  local duration = info.duration or 0
+  local enabled = info.isEnabled
+
+  if issecretvalue then
+    ---@diagnostic disable-next-line: param-type-mismatch
+    if issecretvalue(enabled) then
+      enabled = true
+    end
+    ---@diagnostic disable-next-line: param-type-mismatch
+    if issecretvalue(start) then
+      start = 0
+    end
+    ---@diagnostic disable-next-line: param-type-mismatch
+    if issecretvalue(duration) then
+      duration = 0
+    end
+  end
+
+  return start, duration, enabled
+end
+
 local function IsSpellKnownSafe(spellID)
   if not spellID then
     return false
   end
 
   if C_SpellBook and C_SpellBook.IsSpellKnownOrOverridesKnown then
-    return C_SpellBook.IsSpellKnownOrOverridesKnown(spellID) == true
+    if C_SpellBook.IsSpellKnownOrOverridesKnown(spellID) == true then
+      return true
+    end
   end
   if C_SpellBook and C_SpellBook.IsSpellKnown then
-    return C_SpellBook.IsSpellKnown(spellID) == true
+    if C_SpellBook.IsSpellKnown(spellID) == true then
+      return true
+    end
   end
+
+  -- Fallback: If the spell has a duration > 2s (ignoring GCD), it must be known/active.
+  -- This fixes highlighting disappearing when the spell is on cooldown.
+  local _, duration = GetSpellCooldownSafe(spellID)
+  if duration and duration > 2 then
+    return true
+  end
+
   return false
 end
 
 local function GetTeleportCooldownRemaining(spellID)
-  if not spellID or not (C_Spell and C_Spell.GetSpellCooldown) then
-    return 0
-  end
-  local ok, info = pcall(C_Spell.GetSpellCooldown, spellID)
-  if not ok or type(info) ~= "table" then
-    return 0
-  end
-  local start = info.startTime or 0
-  local duration = info.duration or 0
-  local enabled = info.isEnabled
+  local start, duration, enabled = GetSpellCooldownSafe(spellID)
   if enabled == false or enabled == 0 then
     return 0
   end
@@ -342,6 +374,47 @@ local function IsPlayerLeader()
     return true
   end
   return IsInGroup() and UnitIsGroupLeader("player")
+end
+
+local function IsNegativeApplicationStatusValue(value)
+  if type(value) == "string" then
+    local low = string.lower(value)
+    if low:find("declin") or low:find("cancel") or low:find("failed") or low:find("timeout") then
+      return true
+    end
+  elseif type(value) == "number" and Enum and Enum.LFGListApplicationStatus then
+    for key, enumValue in pairs(Enum.LFGListApplicationStatus) do
+      if enumValue == value then
+        local keyText = string.lower(tostring(key))
+        if keyText:find("declin") or keyText:find("cancel") or keyText:find("failed") or keyText:find("timeout") then
+          return true
+        end
+      end
+    end
+  end
+
+  return false
+end
+
+local function IsNegativeApplicationStatusEvent(...)
+  local appStatus = select(2, ...)
+  if IsNegativeApplicationStatusValue(appStatus) then
+    return true
+  end
+
+  local pendingStatus = select(3, ...)
+  if IsNegativeApplicationStatusValue(pendingStatus) then
+    return true
+  end
+
+  local count = select("#", ...)
+  for i = 1, count do
+    local value = select(i, ...)
+    if type(value) == "string" and IsNegativeApplicationStatusValue(value) then
+      return true
+    end
+  end
+  return false
 end
 
 local realmInfoLib
@@ -399,6 +472,9 @@ local ShowQueueJoinPreview
 local UpdateDMResetButton
 local UpdateLeaderButtons
 local OnEvent
+local latestQueueDungeonName
+local latestQueueActivityID
+local latestQueueTeleportSpellID
 local ApplyLocalizationToUI
 local toggleBindingButton
 local testModeBindingButton
@@ -718,18 +794,28 @@ local function CreateMPlusTeleportButton(index, entry)
   button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   button.icon:SetTexture(button.defaultIcon)
 
-  button.overlay = button:CreateTexture(nil, "OVERLAY")
+  -- Cooldown frame (visualize CD)
+  button.cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
+  button.cooldown:SetAllPoints()
+  button.cooldown:SetDrawEdge(false)
+
+  -- Overlay frame (ensure highlight is above cooldown)
+  button.overlayFrame = CreateFrame("Frame", nil, button)
+  button.overlayFrame:SetAllPoints()
+  button.overlayFrame:SetFrameLevel(button.cooldown:GetFrameLevel() + 1)
+
+  button.overlay = button.overlayFrame:CreateTexture(nil, "OVERLAY")
   button.overlay:SetAllPoints()
   button.overlay:SetColorTexture(0, 0, 0, 0.35)
 
-  button.activeBorder = button:CreateTexture(nil, "OVERLAY")
+  button.activeBorder = button.overlayFrame:CreateTexture(nil, "OVERLAY")
   button.activeBorder:SetAllPoints()
   button.activeBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
   button.activeBorder:SetBlendMode("ADD")
   button.activeBorder:SetVertexColor(1, 0.85, 0.1, 1)
   button.activeBorder:Hide()
 
-  button.activeGlow = button:CreateTexture(nil, "OVERLAY")
+  button.activeGlow = button.overlayFrame:CreateTexture(nil, "OVERLAY")
   button.activeGlow:SetAllPoints()
   button.activeGlow:SetTexture("Interface\\AddOns\\Blizzard_SharedXML\\Shared\\CircularGlow")
   button.activeGlow:SetBlendMode("ADD")
@@ -741,15 +827,15 @@ local function CreateMPlusTeleportButton(index, entry)
   button.animGroup:SetLooping("BOUNCE")
 
   local scaleAnim = button.animGroup:CreateAnimation("Scale")
-  scaleAnim:SetScale(1.05, 1.05)
-  scaleAnim:SetDuration(1)
+  scaleAnim:SetScale(1.2, 1.2)
+  scaleAnim:SetDuration(0.8)
   scaleAnim:SetSmoothing("IN_OUT")
   scaleAnim:SetOrder(1)
 
   local alphaAnim = button.animGroup:CreateAnimation("Alpha")
   alphaAnim:SetFromAlpha(0.5)
   alphaAnim:SetToAlpha(1.0)
-  alphaAnim:SetDuration(1)
+  alphaAnim:SetDuration(0.8)
   alphaAnim:SetSmoothing("IN_OUT")
   alphaAnim:SetOrder(1)
   if alphaAnim.SetTarget then
@@ -884,13 +970,18 @@ local InspectLoop
 local wasGroupLeader = nil
 local wasInGroup = false
 local pendingQueueJoinInfo = nil
-local latestQueueDungeonName = nil
-local latestQueueActivityID = nil
-local latestQueueTeleportSpellID = nil
-local latestQueueCapturedAt = nil
+latestQueueDungeonName = nil
+latestQueueActivityID = nil
+latestQueueTeleportSpellID = nil
 local isTestMode = false
 local isStopped = false
 local isPaused = false
+
+local function ClearLatestQueueTarget()
+  latestQueueDungeonName = nil
+  latestQueueActivityID = nil
+  latestQueueTeleportSpellID = nil
+end
 
 local function MarkIsiLiveUser(name, realm)
   isiLiveSync.MarkUser(name, realm)
@@ -1046,6 +1137,11 @@ local function ResolveActiveListingTeleportSpellID(entryInfo)
 end
 
 local function ResolveActiveTeleportSpellID()
+  -- Business rule: highlight only while grouped (joined group or self-hosted in group).
+  if not IsInGroup() then
+    return nil
+  end
+
   local entryInfo = GetNormalizedActiveEntryInfo()
   local activeListingSpellID = ResolveActiveListingTeleportSpellID(entryInfo)
   if activeListingSpellID == false then
@@ -1057,10 +1153,6 @@ local function ResolveActiveTeleportSpellID()
 
   if latestQueueTeleportSpellID then
     return latestQueueTeleportSpellID
-  end
-
-  if pendingQueueJoinInfo and pendingQueueJoinInfo.teleportSpellID then
-    return pendingQueueJoinInfo.teleportSpellID
   end
 
   local queueSpellID = ResolveSeason3TeleportSpellID(latestQueueActivityID, latestQueueDungeonName)
@@ -1095,9 +1187,12 @@ local function UpdateMPlusTeleportButton()
     button.isActiveTarget = (resolvedSpellID and button.spellID == resolvedSpellID) and true or false
     button:Enable()
 
+    local start, duration, enabled = GetSpellCooldownSafe(button.spellID)
+    CooldownFrame_Set(button.cooldown, start, duration, enabled)
+
     if known then
       if button.isActiveTarget then
-        button.overlay:SetColorTexture(1, 0.72, 0.05, 0.22)
+        button.overlay:SetColorTexture(1, 0.5, 0.0, 0.5)
         button.activeBorder:Show()
         button.activeGlow:Show()
         if not button.animGroup:IsPlaying() then
@@ -1282,12 +1377,6 @@ local function UpdatePendingQueueJoin(groupName, dungeonName, priority, activity
     capturedAt = GetTime(),
   }
 
-  -- Update highlight target immediately when an invite-like queue signal is captured.
-  latestQueueDungeonName = pendingQueueJoinInfo.dungeonName
-  latestQueueActivityID = pendingQueueJoinInfo.activityID
-  latestQueueTeleportSpellID = pendingQueueJoinInfo.teleportSpellID
-  latestQueueCapturedAt = GetTime()
-
   local groupText = string.format(L.INVITE_HINT_GROUP, pendingQueueJoinInfo.groupName or L.UNKNOWN_GROUP)
   local dungeonText = pendingQueueJoinInfo.dungeonName
       and string.format(L.INVITE_HINT_DUNGEON, pendingQueueJoinInfo.dungeonName)
@@ -1297,7 +1386,24 @@ local function UpdatePendingQueueJoin(groupName, dungeonName, priority, activity
 end
 
 local function CaptureQueueJoinCandidate(...)
-  isiLiveQueue.CaptureQueueJoinCandidate(UpdatePendingQueueJoin, ResolveSeason3TeleportSpellIDByActivityID, ...)
+  if C_ChallengeMode.GetActiveChallengeMapID() then
+    return
+  end
+
+  local function permissiveResolver(activityID)
+    local spellID = ResolveSeason3TeleportSpellIDByActivityID(activityID)
+    if spellID then
+      return spellID
+    end
+    if activityID and C_LFGList and C_LFGList.GetActivityInfoTable then
+      local info = C_LFGList.GetActivityInfoTable(activityID)
+      if info and (info.isMythicPlusActivity or info.categoryID == 2) then
+        return true -- Valid dungeon/M+ activity, capture it even without teleport spell
+      end
+    end
+    return nil
+  end
+  isiLiveQueue.CaptureQueueJoinCandidate(UpdatePendingQueueJoin, permissiveResolver, ...)
 end
 
 local function SetQueueDebugEnabled(enabled)
@@ -1327,8 +1433,33 @@ local function GetQueueDebugLogCount()
   return #logs
 end
 
+local function GetQueueDebugLogTail(limit)
+  local logs = EnsureQueueDebugStorage()
+  local total = #logs
+  local count = tonumber(limit) or 20
+  if count < 1 then
+    count = 1
+  elseif count > 100 then
+    count = 100
+  end
+  local startIndex = total - count + 1
+  if startIndex < 1 then
+    startIndex = 1
+  end
+  local out = {}
+  for i = startIndex, total do
+    out[#out + 1] = logs[i]
+  end
+  return out
+end
+
 local function AnnounceQueuedGroupJoin()
   if not pendingQueueJoinInfo then
+    return
+  end
+
+  if IsPlayerLeader() then
+    pendingQueueJoinInfo = nil
     return
   end
 
@@ -1347,7 +1478,6 @@ ShowQueueJoinPreview = function(groupName, dungeonName, activityID)
   latestQueueDungeonName = dungeon
   latestQueueActivityID = activityID
   latestQueueTeleportSpellID = ResolveSeason3TeleportSpellID(activityID, dungeon)
-  latestQueueCapturedAt = GetTime()
   UpdateMPlusTeleportButton()
 
   local msg
@@ -1395,7 +1525,6 @@ local function ExitTestMode()
   latestQueueDungeonName = nil
   latestQueueActivityID = nil
   latestQueueTeleportSpellID = nil
-  latestQueueCapturedAt = nil
   UpdateUI()
   UpdateMPlusTeleportButton()
   UpdateLeaderButtons()
@@ -1476,50 +1605,25 @@ local function PrintTeleportDebug()
 
   Print(
     string.format(
-      "TP target dungeon=%s activityID=%s queueSpellID=%s resolvedSpellID=%s known=%s cd=%s inCombat=%s age=%s",
+      "TP target dungeon=%s activityID=%s queueSpellID=%s resolvedSpellID=%s known=%s cd=%s inCombat=%s",
       tostring(latestQueueDungeonName),
       tostring(latestQueueActivityID),
       tostring(latestQueueTeleportSpellID),
       tostring(resolvedSpellID),
       tostring(resolvedKnown),
       FormatCooldownSeconds(resolvedCooldown),
-      tostring(InCombatLockdown and InCombatLockdown()),
-      tostring(latestQueueCapturedAt and math.floor(GetTime() - latestQueueCapturedAt) or "nil")
+      tostring(InCombatLockdown and InCombatLockdown())
     )
   )
+
   local resolvedByActivity = ResolveSeason3TeleportSpellIDByActivityID(latestQueueActivityID)
   Print(string.format("TP resolve detail byActivity=%s", tostring(resolvedByActivity)))
+
   local entryInfo = GetNormalizedActiveEntryInfo()
-  local r1RawTable = nil
-  if C_LFGList and C_LFGList.GetActiveEntryInfo then
-    local okRaw, r1, r2, r3, r4, r5, r6 = pcall(C_LFGList.GetActiveEntryInfo)
-    if okRaw then
-      r1RawTable = r1
-      Print(
-        string.format(
-          "TP host raw r1=%s(%s) r2=%s(%s) r3=%s(%s) r4=%s(%s) r5=%s(%s) r6=%s(%s)",
-          tostring(r1),
-          type(r1),
-          tostring(r2),
-          type(r2),
-          tostring(r3),
-          type(r3),
-          tostring(r4),
-          type(r4),
-          tostring(r5),
-          type(r5),
-          tostring(r6),
-          type(r6)
-        )
-      )
-    end
-  end
   if type(entryInfo) == "table" then
     local hostedID = tonumber(entryInfo.activityID)
     local hostedSpell = ResolveSeason3TeleportSpellID(hostedID, nil)
-
-    -- Wenn wir hostedID nicht haben, aber activityIDs Table existiert - scan die für den Cache
-    if not hostedSpell and type(entryInfo.activityIDs) == "table" and isiLiveTeleport then
+    if not hostedSpell and type(entryInfo.activityIDs) == "table" then
       for _, id in pairs(entryInfo.activityIDs) do
         local numID = tonumber(id)
         if numID then
@@ -1541,51 +1645,10 @@ local function PrintTeleportDebug()
         tostring(hostedSpell)
       )
     )
-    -- Wenn wir ein Spell gefunden haben - cachea alle ActivityIDs
-    if
-      hostedSpell
-      and type(entryInfo.activityIDs) == "table"
-      and isiLiveTeleport
-      and isiLiveTeleport.AddActivityToTeleportCache
-    then
-      for _, id in pairs(entryInfo.activityIDs) do
-        local numID = tonumber(id)
-        if numID then
-          isiLiveTeleport.AddActivityToTeleportCache(numID, hostedSpell)
-        end
-      end
-    end
-
-    -- Debug: Was gibt GetActivityInfoTable zurück?
-    if hostedID and C_LFGList and C_LFGList.GetActivityInfoTable then
-      local ok, activityInfo = pcall(C_LFGList.GetActivityInfoTable, hostedID)
-      if ok and type(activityInfo) == "table" then
-        Print(string.format("TP GetActivityInfoTable(%s) returned:", tostring(hostedID)))
-        for key, value in pairs(activityInfo) do
-          Print(string.format("  [%s]=%s (%s)", tostring(key), tostring(value), type(value)))
-        end
-      else
-        Print(string.format("TP GetActivityInfoTable(%s) failed or nil", tostring(hostedID)))
-      end
-    end
-    -- Dump r1 keys für debugging
-    if type(r1RawTable) == "table" then
-      Print("TP host r1 keys:")
-      for key, value in pairs(r1RawTable) do
-        Print(string.format("  [%s]=%s (%s)", tostring(key), tostring(value), type(value)))
-      end
-      -- Dump activityIDs Table Inhalte
-      local activityIDsTable = rawget(r1RawTable, "activityIDs")
-      if type(activityIDsTable) == "table" then
-        Print("TP host activityIDs table contents:")
-        for _, id in pairs(activityIDsTable) do
-          Print(string.format("  id=%s (%s)", tostring(id), type(id)))
-        end
-      end
-    end
   else
-    Print(string.format("TP host detail active=nil activityID=nil spell=nil"))
+    Print("TP host detail active=nil activityID=nil spell=nil")
   end
+
   DumpButtonState("TP center", centerNoticeTeleportButton)
   for i, button in ipairs(mplusTeleportButtons) do
     DumpButtonState("TP grid[" .. i .. "]", button)
@@ -1683,6 +1746,23 @@ local function UpdateLeaderState(event)
   UpdateLeaderButtons()
 end
 
+local function CheckIfEnteredTargetDungeon()
+  if not latestQueueTeleportSpellID then
+    return
+  end
+  local mapID = C_Map.GetBestMapForUnit("player")
+  if not mapID then
+    return
+  end
+  if isiLiveTeleport and isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID then
+    local currentMapSpellID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
+    if currentMapSpellID and currentMapSpellID == latestQueueTeleportSpellID then
+      ClearLatestQueueTarget()
+      UpdateMPlusTeleportButton()
+    end
+  end
+end
+
 local leaderWatchFrame = CreateFrame("Frame")
 leaderWatchFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 leaderWatchFrame:RegisterEvent("PARTY_LEADER_CHANGED")
@@ -1725,28 +1805,8 @@ OnEvent = function(self, event, ...)
       wasGroupLeader = nil
       local leftGroupNow = wasInGroupBefore and not inGroupNow
       if leftGroupNow then
-        latestQueueDungeonName = nil
-        latestQueueActivityID = nil
-        latestQueueTeleportSpellID = nil
-        latestQueueCapturedAt = nil
+        ClearLatestQueueTarget()
       else
-        local now = GetTime()
-        local keepQueueTarget = false
-        if
-          pendingQueueJoinInfo
-          and pendingQueueJoinInfo.capturedAt
-          and (now - pendingQueueJoinInfo.capturedAt) <= 60
-        then
-          keepQueueTarget = true
-        elseif latestQueueCapturedAt and (now - latestQueueCapturedAt) <= 60 then
-          keepQueueTarget = true
-        end
-        if not keepQueueTarget then
-          latestQueueDungeonName = nil
-          latestQueueActivityID = nil
-          latestQueueTeleportSpellID = nil
-          latestQueueCapturedAt = nil
-        end
       end
       roster = {}
       inspectController.ResetAll()
@@ -1813,13 +1873,31 @@ OnEvent = function(self, event, ...)
     UpdateLeaderButtons()
     SendIsiLiveHello(false)
   elseif event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
+    if C_ChallengeMode.GetActiveChallengeMapID() then
+      return
+    end
     if isTestMode or isTestAllMode then
       ExitTestMode()
     end
+    if IsNegativeApplicationStatusEvent(...) then
+      pendingQueueJoinInfo = nil
+      local entryInfo = GetNormalizedActiveEntryInfo()
+      if type(entryInfo) ~= "table" or not entryInfo.active then
+        ClearLatestQueueTarget()
+      end
+      UpdateMPlusTeleportButton()
+      return
+    end
     CaptureQueueJoinCandidate(...)
   elseif event == "LFG_LIST_SEARCH_RESULT_UPDATED" then
+    if C_ChallengeMode.GetActiveChallengeMapID() then
+      return
+    end
     CaptureQueueJoinCandidate(...)
   elseif event == "LFG_LIST_ACTIVE_ENTRY_UPDATE" then
+    if C_ChallengeMode.GetActiveChallengeMapID() then
+      return
+    end
     local entryInfo = GetNormalizedActiveEntryInfo()
     if type(entryInfo) == "table" and entryInfo.active then
       if isTestMode or isTestAllMode then
@@ -1831,10 +1909,6 @@ OnEvent = function(self, event, ...)
     elseif type(entryInfo) ~= "table" or not entryInfo.active then
       -- Keine aktive Listing mehr: Alle Queue-Infos löschen
       pendingQueueJoinInfo = nil
-      latestQueueDungeonName = nil
-      latestQueueActivityID = nil
-      latestQueueTeleportSpellID = nil
-      latestQueueCapturedAt = nil
     end
     UpdateMPlusTeleportButton()
   elseif event == "CHALLENGE_MODE_START" then
@@ -1880,12 +1954,8 @@ OnEvent = function(self, event, ...)
         IsiLiveDB.queueDebug = false
       end
       EnsureQueueDebugStorage()
-      if FORCE_QUEUE_DEBUG_OFF_ON_LOAD then
-        IsiLiveDB.queueDebug = false
-        SetQueueDebugEnabled(false)
-      else
-        SetQueueDebugEnabled(IsiLiveDB.queueDebug == true)
-      end
+      IsiLiveDB.queueDebug = false
+      SetQueueDebugEnabled(false)
 
       -- Restore position
       local pos = IsiLiveDB.position
@@ -1918,6 +1988,7 @@ OnEvent = function(self, event, ...)
       end)
     end
     statusController.MaybeShowNonMythicDungeonEntryNotice()
+    CheckIfEnteredTargetDungeon()
   elseif event == "UPDATE_BINDINGS" then
     ApplyHotkeyBindings()
   elseif event == "PLAYER_REGEN_ENABLED" then
@@ -1953,6 +2024,7 @@ OnEvent = function(self, event, ...)
   then
     UpdateStatusLine()
     statusController.MaybeShowNonMythicDungeonEntryNotice()
+    CheckIfEnteredTargetDungeon()
   elseif event == "INSPECT_READY" then
     if not mainFrame:IsShown() then
       return
@@ -1996,6 +2068,8 @@ OnEvent = function(self, event, ...)
     if changed then
       UpdateUI()
     end
+  elseif event == "SPELL_UPDATE_COOLDOWN" then
+    UpdateMPlusTeleportButton()
   end
 end
 
@@ -2021,6 +2095,7 @@ mainFrame:RegisterEvent("INSPECT_READY")
 mainFrame:RegisterEvent("CHALLENGE_MODE_START")
 mainFrame:RegisterEvent("CHALLENGE_MODE_COMPLETED")
 mainFrame:RegisterEvent("CHALLENGE_MODE_RESET")
+mainFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 mainFrame:SetScript("OnEvent", OnEvent)
 mainFrame:SetScript("OnShow", function()
   SetProcessingActive(true)
@@ -2106,6 +2181,7 @@ isiLiveCommands.RegisterSlashCommands({
   getQueueDebugEnabled = IsQueueDebugEnabled,
   clearQueueDebugLog = ClearQueueDebugLog,
   getQueueDebugLogCount = GetQueueDebugLogCount,
+  getQueueDebugLogTail = GetQueueDebugLogTail,
 })
 
 local gatedOnEvent = isiLiveEvents.CreateGate({

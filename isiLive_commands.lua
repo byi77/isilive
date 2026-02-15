@@ -35,6 +35,9 @@ function Commands.RegisterSlashCommands(opts)
   local getQueueDebugLogCount = opts.getQueueDebugLogCount or function()
     return 0
   end
+  local getQueueDebugLogTail = opts.getQueueDebugLogTail or function(_limit)
+    return {}
+  end
 
   SLASH_ISILIVE1 = "/isilive"
   SlashCmdList["ISILIVE"] = function(msg)
@@ -119,7 +122,7 @@ function Commands.RegisterSlashCommands(opts)
     elseif cmd == "tpdebug" then
       printTeleportDebug()
     elseif cmd == "qdebug" or cmd:find("^qdebug%s+") == 1 then
-      local arg = cmd:match("^qdebug%s+(%S+)$")
+      local arg, numText = cmd:match("^qdebug%s+(%S+)%s*(%d*)$")
       if not arg or arg == "status" then
         printFn(
           "Queue debug: "
@@ -136,8 +139,26 @@ function Commands.RegisterSlashCommands(opts)
       elseif arg == "clear" then
         clearQueueDebugLog()
         printFn("Queue debug log: cleared")
+      elseif arg == "tail" or arg == "dump" then
+        local limit = tonumber(numText) or 20
+        if limit < 1 then
+          limit = 1
+        elseif limit > 100 then
+          limit = 100
+        end
+        local lines = getQueueDebugLogTail(limit)
+        printFn(
+          "Queue debug tail: "
+            .. tostring(#lines)
+            .. "/"
+            .. tostring(getQueueDebugLogCount())
+            .. " entries"
+        )
+        for _, line in ipairs(lines) do
+          printFn(tostring(line))
+        end
       else
-        printFn("Usage: /isilive qdebug [on|off|status|clear]")
+        printFn("Usage: /isilive qdebug [on|off|status|clear|tail [n]]")
       end
     elseif cmd == "bindcheck" then
       local action1 = GetBindingAction("CTRL-F9", true)

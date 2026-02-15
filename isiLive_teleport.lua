@@ -19,6 +19,47 @@ local TWW_SEASON3_MAP_TO_TELEPORT = {
 -- Cache: ActivityID -> SpellID
 local ACTIVITY_TO_TELEPORT_CACHE = {}
 
+local function NormalizeNameForMatch(text)
+  if type(text) ~= "string" then
+    return ""
+  end
+  local normalized = string.lower(text)
+  normalized = normalized:gsub("[%p%c]", " ")
+  normalized = normalized:gsub("%s+", " ")
+  normalized = normalized:gsub("^%s+", "")
+  normalized = normalized:gsub("%s+$", "")
+  return normalized
+end
+
+local function BuildTazaveshMatchTokens()
+  local tokens = {}
+  local seen = {}
+  local function AddToken(raw)
+    local token = NormalizeNameForMatch(raw)
+    if token == "" or seen[token] then
+      return
+    end
+    seen[token] = true
+    table.insert(tokens, token)
+  end
+
+  local info = Teleport.GetSeason3TeleportInfoByMapID(2441)
+  if info and info.mapName then
+    AddToken(info.mapName)
+    for part in string.gmatch(info.mapName, "[^:/%-]+") do
+      AddToken(part)
+    end
+  end
+
+  -- Fallback aliases for cases where activity/map names are incomplete.
+  AddToken("Tazavesh")
+  AddToken("Streets of Wonder")
+  AddToken("So'leah's Gambit")
+  AddToken("Soleahs Gambit")
+
+  return tokens
+end
+
 function Teleport.AddActivityToTeleportCache(activityID, spellID)
   if activityID and spellID then
     ACTIVITY_TO_TELEPORT_CACHE[activityID] = spellID
@@ -116,8 +157,20 @@ function Teleport.ResolveSeason3TeleportSpellID(activityID, dungeonName)
   end
 
   if nameToUse and nameToUse ~= "" then
+    local normalizedName = NormalizeNameForMatch(nameToUse)
+    for _, token in ipairs(BuildTazaveshMatchTokens()) do
+      if token ~= "" and string.find(normalizedName, token, 1, true) then
+        return 367416
+      end
+    end
     for mapID, spellID in pairs(TWW_SEASON3_MAP_TO_TELEPORT) do
       local info = Teleport.GetSeason3TeleportInfoByMapID(mapID)
+      if info and info.mapName then
+        local normalizedMapName = NormalizeNameForMatch(info.mapName)
+        if normalizedMapName ~= "" and string.find(normalizedName, normalizedMapName, 1, true) then
+          return spellID
+        end
+      end
       if info and info.mapName and string.find(nameToUse, info.mapName, 1, true) then
         return spellID
       end

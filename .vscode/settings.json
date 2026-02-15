@@ -13,7 +13,8 @@
     "SlashCmdList",
     "RAID_CLASS_COLORS",
     "CreateColor",
-    "LE_PARTY_CATEGORY_INSTANCE"
+    "LE_PARTY_CATEGORY_INSTANCE",
+    "CooldownFrame_Set"
   ],
   "Lua.runtime.version": "Lua 5.1",
   "Lua.runtime.builtin": {

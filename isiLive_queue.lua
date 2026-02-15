@@ -84,7 +84,7 @@ function Queue.GetSearchResultActivityID(result, resolveTeleportSpellIDByActivit
 
   AddCandidate(result.activityID)
 
-  if type(result.activityIDs) == "table" then
+  if type(result.activityIDs) == "table" and not IsSecretValue(result.activityIDs) then
     for _, id in pairs(result.activityIDs) do
       AddCandidate(id)
     end
@@ -276,7 +276,7 @@ local function ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivi
       end
     end
 
-    if not resultActivityID and type(data.activityIDs) == "table" then
+    if not resultActivityID and type(data.activityIDs) == "table" and not IsSecretValue(data.activityIDs) then
       for _, id in pairs(data.activityIDs) do
         if not IsSecretValue(id) and type(id) == "number" and Queue.GetActivityName(id) then
           resultActivityID = id
