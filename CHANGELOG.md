@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-02-15 - Version 0.9.22
+- Test mode flow:
+  - added dedicated `ExitTestMode()` handling to leave test mode with a consistent cleanup/reset path
+- TOC version bumped to `0.9.22`.
+
 ## 2026-02-14 - Version 0.9.21
 - Queue capture reliability:
   - added `LFG_LIST_SEARCH_RESULT_UPDATED` event handling to trigger `CaptureQueueJoinCandidate(...)`
@@ -237,4 +242,3 @@
 - Fixed multiple scope/order Lua errors (`UpdateUI`, `UpdateLeaderButtons`, `OnEvent`).
 - Standardized visible addon strings to English output.
 - Added runtime language switching via `/isilive lang [en|de]` with persisted setting in `IsiLiveDB.locale`.
-

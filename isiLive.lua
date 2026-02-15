@@ -1383,6 +1383,31 @@ local function EnterFullDummyPreview()
   Print(L.CHAT_QUEUE_PREFIX .. " | " .. L.TESTALL_CHAT_ACTIVE)
 end
 
+local function ExitTestMode()
+  if not isTestMode and not isTestAllMode then
+    return
+  end
+  isTestAllMode = false
+  isTestMode = false
+  Print(L.TEST_DISABLED)
+  roster = {}
+  inspectController.ResetAll()
+  latestQueueDungeonName = nil
+  latestQueueActivityID = nil
+  latestQueueTeleportSpellID = nil
+  latestQueueCapturedAt = nil
+  UpdateUI()
+  UpdateMPlusTeleportButton()
+  UpdateLeaderButtons()
+  SetCenterNoticeVisible(false)
+  inviteHint.frame:Hide()
+  SetMainFrameVisible(false)
+  local onEventHandler = mainFrame:GetScript("OnEvent")
+  if onEventHandler then
+    onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
+  end
+end
+
 local function ToggleStandardTestMode()
   if isStopped then
     Print(L.ERR_STOPPED_TEST)
@@ -1393,33 +1418,17 @@ local function ToggleStandardTestMode()
     return
   end
 
-  isTestAllMode = false
-  isTestMode = not isTestMode
   if isTestMode then
+    ExitTestMode()
+  else
+    isTestAllMode = false
+    isTestMode = true
     Print(L.TEST_ENABLED)
     roster = BuildDummyRoster()
     SetMainFrameVisible(true)
     UpdateUI()
     UpdateLeaderButtons()
     ShowQueueJoinPreview(L.TESTALL_DUMMY_GROUP, L.TESTALL_DUMMY_DUNGEON)
-  else
-    Print(L.TEST_DISABLED)
-    roster = {}
-    inspectController.ResetAll()
-    latestQueueDungeonName = nil
-    latestQueueActivityID = nil
-    latestQueueTeleportSpellID = nil
-    latestQueueCapturedAt = nil
-    UpdateUI()
-    UpdateMPlusTeleportButton()
-    UpdateLeaderButtons()
-    SetCenterNoticeVisible(false)
-    inviteHint.frame:Hide()
-    SetMainFrameVisible(false)
-    local onEventHandler = mainFrame:GetScript("OnEvent")
-    if onEventHandler then
-      onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
-    end
   end
 end
 
@@ -1691,6 +1700,11 @@ end)
 -- --- Event Handlers ---
 OnEvent = function(self, event, ...)
   if event == "GROUP_ROSTER_UPDATE" then
+    if IsInGroup() and (isTestMode or isTestAllMode) then
+      ExitTestMode()
+      return
+    end
+
     local wasInGroupBefore = wasInGroup
     local inGroupNow = IsInGroup()
     if inGroupNow and not wasInGroupBefore then
@@ -1799,12 +1813,18 @@ OnEvent = function(self, event, ...)
     UpdateLeaderButtons()
     SendIsiLiveHello(false)
   elseif event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
+    if isTestMode or isTestAllMode then
+      ExitTestMode()
+    end
     CaptureQueueJoinCandidate(...)
   elseif event == "LFG_LIST_SEARCH_RESULT_UPDATED" then
     CaptureQueueJoinCandidate(...)
   elseif event == "LFG_LIST_ACTIVE_ENTRY_UPDATE" then
     local entryInfo = GetNormalizedActiveEntryInfo()
     if type(entryInfo) == "table" and entryInfo.active then
+      if isTestMode or isTestAllMode then
+        ExitTestMode()
+      end
       -- Aktive Listing erkannt: Nur pending Infos clearen (alte Applications)
       -- Behalte latest* Variablen, damit selbst-gehostete Listings hervorgehoben werden
       pendingQueueJoinInfo = nil
