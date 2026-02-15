@@ -147,13 +147,7 @@ function Commands.RegisterSlashCommands(opts)
           limit = 100
         end
         local lines = getQueueDebugLogTail(limit)
-        printFn(
-          "Queue debug tail: "
-            .. tostring(#lines)
-            .. "/"
-            .. tostring(getQueueDebugLogCount())
-            .. " entries"
-        )
+        printFn("Queue debug tail: " .. tostring(#lines) .. "/" .. tostring(getQueueDebugLogCount()) .. " entries")
         for _, line in ipairs(lines) do
           printFn(tostring(line))
         end
