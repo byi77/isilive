@@ -320,6 +320,26 @@ local function GetSpellCooldownSafe(spellID)
   return start, duration, enabled
 end
 
+local function ApplyCooldownFrameSafe(cooldownFrame, start, duration, enabled)
+  if not cooldownFrame then
+    return
+  end
+
+  local cooldownFrameSet = rawget(_G, "CooldownFrame_Set")
+  if type(cooldownFrameSet) == "function" then
+    cooldownFrameSet(cooldownFrame, start, duration, enabled)
+    return
+  end
+
+  if cooldownFrame.SetCooldown then
+    if enabled == false or enabled == 0 or duration <= 0 then
+      cooldownFrame:SetCooldown(0, 0)
+    else
+      cooldownFrame:SetCooldown(start or 0, duration or 0)
+    end
+  end
+end
+
 local function IsSpellKnownSafe(spellID)
   if not spellID then
     return false
@@ -1188,7 +1208,7 @@ local function UpdateMPlusTeleportButton()
     button:Enable()
 
     local start, duration, enabled = GetSpellCooldownSafe(button.spellID)
-    CooldownFrame_Set(button.cooldown, start, duration, enabled)
+    ApplyCooldownFrameSafe(button.cooldown, start, duration, enabled)
 
     if known then
       if button.isActiveTarget then
@@ -1806,7 +1826,6 @@ OnEvent = function(self, event, ...)
       local leftGroupNow = wasInGroupBefore and not inGroupNow
       if leftGroupNow then
         ClearLatestQueueTarget()
-      else
       end
       roster = {}
       inspectController.ResetAll()
