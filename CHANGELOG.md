@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-02-16 - Version 0.9.26
+- Pre-key key visibility rework:
+  - removed bottom key header line and replaced it with a new roster column `Key`
+  - key values now render as `DungeonShortcut +Level` (for example `DB +14`)
+  - added Season 3 dungeon short codes for key display (`PSF`, `EDA`, `HOA`, `OFG`, `AK`, `TAZ`, `DB`)
+- Group key sync (isiLive users only):
+  - added addon sync payload `KEY:<mapID>:<level>` and per-player key cache
+  - roster key values are populated from sync data when party members also run `isiLive`
+  - key sync/send remains visibility-bound; no key sync processing in hidden/sleep mode
+  - clears known-isiLive runtime markers when the group is fully left, so next group starts with clean detection state
+- UI layout adjustments:
+  - widened main frame to reduce table overlap with right-side controls
+  - widened `Key` column and shifted `iLvl`/`RIO` positions to avoid line wrapping/collision
+- Teleport highlight stability:
+  - fixed edge-case where highlight could stop around full-group transition (for example when the 5th member joins)
+  - active-listing resolver now falls back to known queue/join target when listing activity cannot be resolved transiently
+- Spec column readability:
+  - added short-label mapping for long localized spec names (for example `Wiederherstellung -> Resto`, `Vergeltung -> Retri`)
+- Active key indicator in roster:
+  - added red key text marker for the active joined key (invite/join flow)
+  - strict ownership rule: marker is only shown when key owner can be identified unambiguously from synced group keys
+  - hosting flow is excluded from automatic ownership assumptions (active listing no longer implies own key owner)
+- Refresh behavior:
+  - `Refresh` now performs a full forced refresh for group data (`Spec/iLvl/RIO` + `hasIsiLive` + key sync state)
+  - refresh flow now forces fresh `HELLO` and `KEY` sync broadcasts and resets stale per-roster sync hints before rebuilding
+- TOC version bumped to `0.9.26`.
+
 ## 2026-02-15 - Version 0.9.25
 - CI/release follow-up:
   - fixed Lua quality-gate regressions on `main` (Luacheck + StyLua compliance)

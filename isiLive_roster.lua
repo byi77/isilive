@@ -50,7 +50,9 @@ end
 function Roster.BuildDisplayData(info, opts)
   opts = opts or {}
   local truncateName = opts.truncateName
+  local getShortSpecLabel = opts.getShortSpecLabel
   local getLanguageFlagMarkup = opts.getLanguageFlagMarkup
+  local getDungeonShortCode = opts.getDungeonShortCode
   local syncMarker = opts.syncMarker or ""
   local fullSyncMarker = opts.fullSyncMarker or ""
   local hasFullSync = opts.hasFullSync == true
@@ -72,11 +74,19 @@ function Roster.BuildDisplayData(info, opts)
   local languageDisplay = string.format("%s |cffd9d9d9%s|r", flagMarkup, languageShort)
 
   local specText = info.spec or "-"
+  if info.spec and getShortSpecLabel then
+    specText = getShortSpecLabel(specText) or specText
+  end
   if info.spec and truncateName then
-    specText = truncateName(info.spec, 15)
+    specText = truncateName(specText, 15)
   end
   local ilvlText = info.ilvl and tostring(math.floor(info.ilvl)) or "-"
   local rioText = info.rio and tostring(math.floor(info.rio)) or "-"
+  local keyText = "-"
+  if info.keyMapID and info.keyLevel then
+    local shortCode = getDungeonShortCode and getDungeonShortCode(info.keyMapID) or tostring(info.keyMapID)
+    keyText = string.format("%s +%d", shortCode, tonumber(info.keyLevel) or 0)
+  end
   local addonMarker = info.hasIsiLive and (hasFullSync and fullSyncMarker or syncMarker) or ""
   local roleIconMarkup = ROLE_ICONS[info.role] or ""
 
@@ -87,6 +97,7 @@ function Roster.BuildDisplayData(info, opts)
     specText = specText,
     ilvlText = ilvlText,
     rioText = rioText,
+    keyText = keyText,
     addonMarker = addonMarker,
     roleIconMarkup = roleIconMarkup,
   }

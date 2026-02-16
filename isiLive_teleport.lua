@@ -16,6 +16,16 @@ local TWW_SEASON3_MAP_TO_TELEPORT = {
   [2662] = 445414, -- The Dawnbreaker
 }
 
+local TWW_SEASON3_MAP_SHORT = {
+  [2649] = "PSF",
+  [2830] = "EDA",
+  [2287] = "HOA",
+  [2773] = "OFG",
+  [2660] = "AK",
+  [2441] = "TAZ",
+  [2662] = "DB",
+}
+
 -- Cache: ActivityID -> SpellID
 local ACTIVITY_TO_TELEPORT_CACHE = {}
 
@@ -124,10 +134,50 @@ function Teleport.GetSeason3TeleportInfoByMapID(mapID)
   }
 end
 
+function Teleport.GetSeason3DungeonShortCode(mapID)
+  local numericMapID = tonumber(mapID)
+  if not numericMapID then
+    return "?"
+  end
+  if TWW_SEASON3_MAP_SHORT[numericMapID] then
+    return TWW_SEASON3_MAP_SHORT[numericMapID]
+  end
+
+  local mapName = C_ChallengeMode and C_ChallengeMode.GetMapUIInfo and C_ChallengeMode.GetMapUIInfo(numericMapID)
+  if type(mapName) ~= "string" or mapName == "" then
+    return tostring(numericMapID)
+  end
+
+  local acronym = ""
+  for word in string.gmatch(mapName, "%a+") do
+    acronym = acronym .. string.upper(string.sub(word, 1, 1))
+    if #acronym >= 4 then
+      break
+    end
+  end
+  if acronym == "" then
+    return tostring(numericMapID)
+  end
+  return acronym
+end
+
 function Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
   local numericMapID = tonumber(mapID)
   if numericMapID and TWW_SEASON3_MAP_TO_TELEPORT[numericMapID] then
     return TWW_SEASON3_MAP_TO_TELEPORT[numericMapID]
+  end
+  return nil
+end
+
+function Teleport.ResolveSeason3MapIDBySpellID(spellID)
+  local numericSpellID = tonumber(spellID)
+  if not numericSpellID then
+    return nil
+  end
+  for mapID, mappedSpellID in pairs(TWW_SEASON3_MAP_TO_TELEPORT) do
+    if mappedSpellID == numericSpellID then
+      return mapID
+    end
   end
   return nil
 end

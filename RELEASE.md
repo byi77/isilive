@@ -39,8 +39,8 @@ git push origin isiLive_X.Y.Z
 Example:
 
 ```powershell
-git tag isiLive_0.9.15
-git push origin isiLive_0.9.15
+git tag isiLive_0.9.26
+git push origin isiLive_0.9.26
 ```
 
 ## 5) Verify GitHub Actions
@@ -57,6 +57,11 @@ After `Release` succeeds, verify on CurseForge:
 1. New file exists for the release tag.
 2. Version shown matches TOC version.
 3. Changelog/release notes look correct.
+
+## 7) Wago Publish
+
+- No automated Wago publish workflow is configured in this repository.
+- Publish/update on Wago manually after CurseForge/GitHub release is confirmed.
 
 ## Notes
 

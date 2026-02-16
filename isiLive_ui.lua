@@ -16,7 +16,7 @@ function UI.CreateMainFrame(opts)
   local onShownNoGroup = opts.onShownNoGroup or function() end
 
   local frame = CreateFrame("Frame", "isiLiveMainFrame", parent, "BackdropTemplate")
-  frame:SetSize(700, minHeight)
+  frame:SetSize(780, minHeight)
   frame:SetPoint("CENTER")
   frame:SetMovable(true)
   frame:EnableMouse(true)

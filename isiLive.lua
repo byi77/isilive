@@ -27,6 +27,7 @@ local locales = {
     COL_SPEC = "Spec",
     COL_NAME = "Name",
     COL_LANGUAGE = "Flag",
+    COL_KEY = "Key",
     COL_ILVL = "iLvl",
     COL_RIO = "RIO",
     LEAD_OPTIONS = "Lead Options",
@@ -119,6 +120,7 @@ local locales = {
     COL_SPEC = "Spec",
     COL_NAME = "Name",
     COL_LANGUAGE = "Sprache",
+    COL_KEY = "Key",
     COL_ILVL = "iLvl",
     COL_RIO = "RIO",
     LEAD_OPTIONS = "Lead Optionen",
@@ -470,6 +472,10 @@ local function GetInspectSpecName(unit)
   return isiLiveUnits.GetInspectSpecName(unit)
 end
 
+local function GetShortSpecLabel(specName)
+  return isiLiveUnits.GetShortSpecLabel(specName)
+end
+
 local function GetUnitRio(unit)
   return isiLiveUnits.GetUnitRio(unit)
 end
@@ -654,13 +660,15 @@ title:SetText(L.TITLE)
 
 -- Column headers
 local SPEC_COL_X = 10
-local NAME_COL_X = 118
-local SERVER_COL_X = 245
-local ILVL_COL_X = 315
-local RIO_COL_X = 352
-local SPEC_COL_WIDTH = 100
-local NAME_COL_WIDTH = 120
+local NAME_COL_X = 110
+local SERVER_COL_X = 240
+local KEY_COL_X = 304
+local ILVL_COL_X = 372
+local RIO_COL_X = 414
+local SPEC_COL_WIDTH = 92
+local NAME_COL_WIDTH = 125
 local SERVER_COL_WIDTH = 62
+local KEY_COL_WIDTH = 62
 local ILVL_COL_WIDTH = 35
 local RIO_COL_WIDTH = 55
 
@@ -687,6 +695,12 @@ serverHeader:SetPoint("TOPLEFT", SERVER_COL_X, -34)
 serverHeader:SetWidth(SERVER_COL_WIDTH)
 serverHeader:SetJustifyH("LEFT")
 serverHeader:SetText(L.COL_LANGUAGE)
+
+local keyHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+keyHeader:SetPoint("TOPLEFT", KEY_COL_X, -34)
+keyHeader:SetWidth(KEY_COL_WIDTH)
+keyHeader:SetJustifyH("RIGHT")
+keyHeader:SetText(L.COL_KEY)
 
 local rioHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 rioHeader:SetPoint("TOPLEFT", RIO_COL_X, -34)
@@ -964,6 +978,11 @@ local function CreateMemberRow(index)
   row.ilvl:SetWidth(ILVL_COL_WIDTH)
   row.ilvl:SetJustifyH("RIGHT")
 
+  row.key = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  row.key:SetPoint("TOPLEFT", KEY_COL_X, yOffset)
+  row.key:SetWidth(KEY_COL_WIDTH)
+  row.key:SetJustifyH("RIGHT")
+
   row.rio = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.rio:SetPoint("TOPLEFT", RIO_COL_X, yOffset)
   row.rio:SetWidth(RIO_COL_WIDTH)
@@ -993,6 +1012,7 @@ local pendingQueueJoinInfo = nil
 latestQueueDungeonName = nil
 latestQueueActivityID = nil
 latestQueueTeleportSpellID = nil
+local activeJoinedKeyMapID = nil
 local isTestMode = false
 local isStopped = false
 local isPaused = false
@@ -1001,6 +1021,7 @@ local function ClearLatestQueueTarget()
   latestQueueDungeonName = nil
   latestQueueActivityID = nil
   latestQueueTeleportSpellID = nil
+  activeJoinedKeyMapID = nil
 end
 
 local function MarkIsiLiveUser(name, realm)
@@ -1021,6 +1042,67 @@ local function SendIsiLiveHello(force)
     isVisible = mainFrame and mainFrame:IsShown(),
     version = GetAddonVersionRaw(),
   })
+end
+
+local function GetOwnedKeystoneSnapshot()
+  local mythicPlusApi = rawget(_G, "C_MythicPlus")
+  if not mythicPlusApi then
+    return nil, nil
+  end
+
+  local okLevel, level = pcall(mythicPlusApi.GetOwnedKeystoneLevel)
+  local okMapID, mapID = pcall(mythicPlusApi.GetOwnedKeystoneChallengeMapID)
+  if not okLevel or not okMapID then
+    return nil, nil
+  end
+
+  level = tonumber(level)
+  mapID = tonumber(mapID)
+  if not level or level <= 0 or not mapID or mapID <= 0 then
+    return nil, nil
+  end
+  return mapID, level
+end
+
+local function SendOwnKeySnapshot(force)
+  local mapID, level = GetOwnedKeystoneSnapshot()
+  isiLiveSync.SendKey({
+    force = force and true or false,
+    isVisible = mainFrame and mainFrame:IsShown(),
+    mapID = mapID,
+    level = level,
+  })
+end
+
+local function ApplyKnownKeyToRosterEntry(info)
+  if type(info) ~= "table" then
+    return false
+  end
+  local keyInfo = isiLiveSync.GetPlayerKeyInfo(info.name, info.realm)
+  local newMapID = keyInfo and keyInfo.mapID or nil
+  local newLevel = keyInfo and keyInfo.level or nil
+  if info.keyMapID == newMapID and info.keyLevel == newLevel then
+    return false
+  end
+  info.keyMapID = newMapID
+  info.keyLevel = newLevel
+  return true
+end
+
+local function RefreshLocalPlayerKey()
+  local playerInfo = roster and roster.player
+  if type(playerInfo) ~= "table" then
+    return false
+  end
+
+  local mapID, level = GetOwnedKeystoneSnapshot()
+  isiLiveSync.SetPlayerKeyInfo(playerInfo.name, playerInfo.realm, mapID, level)
+  if playerInfo.keyMapID == mapID and playerInfo.keyLevel == level then
+    return false
+  end
+  playerInfo.keyMapID = mapID
+  playerInfo.keyLevel = level
+  return true
 end
 
 local function IsAutoDamageMeterResetEnabled()
@@ -1152,8 +1234,9 @@ local function ResolveActiveListingTeleportSpellID(entryInfo)
     end
   end
 
-  -- Active listing exists but can't be resolved: fail closed (no wrong highlight).
-  return false
+  -- If the active listing cannot be resolved (common around full-group transitions),
+  -- allow fallback to known queue/join target instead of dropping highlight abruptly.
+  return nil
 end
 
 local function ResolveActiveTeleportSpellID()
@@ -1164,9 +1247,6 @@ local function ResolveActiveTeleportSpellID()
 
   local entryInfo = GetNormalizedActiveEntryInfo()
   local activeListingSpellID = ResolveActiveListingTeleportSpellID(entryInfo)
-  if activeListingSpellID == false then
-    return nil
-  end
   if activeListingSpellID then
     return activeListingSpellID
   end
@@ -1191,6 +1271,56 @@ local function ResolveActiveTeleportSpellID()
     end
   end
 
+  return nil
+end
+
+local function ResolveMapIDFromActivityID(activityID)
+  if not activityID or not (C_LFGList and C_LFGList.GetActivityInfoTable) then
+    return nil
+  end
+  local ok, info = pcall(C_LFGList.GetActivityInfoTable, activityID)
+  if not ok or type(info) ~= "table" then
+    return nil
+  end
+  local mapID = tonumber(rawget(info, "mapID") or rawget(info, "mapId"))
+  if mapID and mapID > 0 then
+    return mapID
+  end
+  return nil
+end
+
+local function ResolveJoinedKeyMapID(activityID, spellID)
+  local mapID = ResolveMapIDFromActivityID(activityID)
+  if mapID then
+    return mapID
+  end
+  if isiLiveTeleport and isiLiveTeleport.ResolveSeason3MapIDBySpellID then
+    return isiLiveTeleport.ResolveSeason3MapIDBySpellID(spellID)
+  end
+  return nil
+end
+
+local function ResolveActiveKeyOwnerUnit()
+  local targetMapID = tonumber(activeJoinedKeyMapID)
+  if not targetMapID then
+    return nil
+  end
+
+  local ownerUnit = nil
+  local matches = 0
+  for unit, info in pairs(roster or {}) do
+    if type(info) == "table" and tonumber(info.keyMapID) == targetMapID then
+      matches = matches + 1
+      ownerUnit = unit
+      if matches > 1 then
+        return nil
+      end
+    end
+  end
+
+  if matches == 1 then
+    return ownerUnit
+  end
   return nil
 end
 
@@ -1240,6 +1370,7 @@ ApplyLocalizationToUI = function()
   specHeader:SetText(L.COL_SPEC)
   nameHeader:SetText(L.COL_NAME)
   serverHeader:SetText(L.COL_LANGUAGE)
+  keyHeader:SetText(L.COL_KEY)
   ilvlHeader:SetText(L.COL_ILVL)
   rioHeader:SetText(L.COL_RIO)
   leadOptionsHeader:SetText(L.LEAD_OPTIONS)
@@ -1297,6 +1428,39 @@ local function QueueForceRefreshData()
   inspectController.QueueForceRefreshData(roster)
 end
 
+local function ForceRefreshSyncState()
+  if not roster then
+    return
+  end
+
+  if isiLiveSync and isiLiveSync.ClearKnownUsers then
+    isiLiveSync.ClearKnownUsers()
+  end
+
+  local playerName, playerRealm = GetUnitNameAndRealm("player")
+  MarkIsiLiveUser(playerName, playerRealm)
+
+  for unit, info in pairs(roster) do
+    if type(info) == "table" then
+      if unit ~= "player" then
+        info.hasIsiLive = false
+      else
+        info.hasIsiLive = true
+      end
+      info.keyMapID = nil
+      info.keyLevel = nil
+      isiLiveSync.SetPlayerKeyInfo(info.name, info.realm, nil, nil)
+    end
+  end
+
+  local ownKeyMapID, ownKeyLevel = GetOwnedKeystoneSnapshot()
+  if roster.player and type(roster.player) == "table" then
+    roster.player.keyMapID = ownKeyMapID
+    roster.player.keyLevel = ownKeyLevel
+  end
+  isiLiveSync.SetPlayerKeyInfo(playerName, playerRealm, ownKeyMapID, ownKeyLevel)
+end
+
 local function PlayLeadTransferSound()
   if not PlaySound then
     return
@@ -1320,6 +1484,9 @@ refreshButton:SetScript("OnClick", function()
       onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
     end
   end
+  ForceRefreshSyncState()
+  SendIsiLiveHello(true)
+  SendOwnKeySnapshot(true)
   QueueForceRefreshData()
   UpdateUI()
 end)
@@ -1498,7 +1665,9 @@ ShowQueueJoinPreview = function(groupName, dungeonName, activityID)
   latestQueueDungeonName = dungeon
   latestQueueActivityID = activityID
   latestQueueTeleportSpellID = ResolveSeason3TeleportSpellID(activityID, dungeon)
+  activeJoinedKeyMapID = ResolveJoinedKeyMapID(activityID, latestQueueTeleportSpellID)
   UpdateMPlusTeleportButton()
+  UpdateUI()
 
   local msg
   if dungeon and dungeon ~= "" then
@@ -1692,6 +1861,7 @@ UpdateUI = function()
     row.spec:SetText("")
     row.name:SetText("")
     row.realm:SetText("")
+    row.key:SetText("")
     row.ilvl:SetText("")
     row.rio:SetText("")
     if row.hoverFrame then
@@ -1702,6 +1872,7 @@ UpdateUI = function()
   local index = 1
   local orderedRoster = isiLiveRoster.BuildOrderedRoster(roster, ROLE_PRIORITY, UNIT_PRIORITY)
   local hasFullSync = isiLiveRoster.HasFullSync(roster)
+  local activeKeyOwnerUnit = ResolveActiveKeyOwnerUnit()
 
   for _, entry in ipairs(orderedRoster) do
     local info = entry.info
@@ -1709,7 +1880,9 @@ UpdateUI = function()
 
     local displayData = isiLiveRoster.BuildDisplayData(info, {
       truncateName = TruncateName,
+      getShortSpecLabel = GetShortSpecLabel,
       getLanguageFlagMarkup = isiLiveLocale.GetLanguageFlagMarkup,
+      getDungeonShortCode = isiLiveTeleport.GetSeason3DungeonShortCode,
       syncMarker = ISILIVE_SYNC_MARKER,
       fullSyncMarker = ISILIVE_SYNC_FULL_MARKER,
       hasFullSync = hasFullSync,
@@ -1725,6 +1898,11 @@ UpdateUI = function()
         .. displayData.addonMarker
     )
     row.realm:SetText(displayData.languageDisplay)
+    if displayData.keyText ~= "-" and activeKeyOwnerUnit and entry.unit == activeKeyOwnerUnit then
+      row.key:SetText("|cffff4040" .. displayData.keyText .. "|r")
+    else
+      row.key:SetText(displayData.keyText)
+    end
     row.ilvl:SetText(displayData.ilvlText)
     row.rio:SetText(displayData.rioText)
     if row.hoverFrame then
@@ -1826,6 +2004,9 @@ OnEvent = function(self, event, ...)
       local leftGroupNow = wasInGroupBefore and not inGroupNow
       if leftGroupNow then
         ClearLatestQueueTarget()
+        if isiLiveSync and isiLiveSync.ClearKnownUsers then
+          isiLiveSync.ClearKnownUsers()
+        end
       end
       roster = {}
       inspectController.ResetAll()
@@ -1852,7 +2033,9 @@ OnEvent = function(self, event, ...)
     local name, realm = GetUnitNameAndRealm("player")
     local _, class = UnitClass("player")
     local language = GetUnitServerLanguage("player", realm)
+    local ownKeyMapID, ownKeyLevel = GetOwnedKeystoneSnapshot()
     MarkIsiLiveUser(name, realm)
+    isiLiveSync.SetPlayerKeyInfo(name, realm, ownKeyMapID, ownKeyLevel)
     roster["player"] = {
       name = name,
       realm = realm,
@@ -1863,6 +2046,8 @@ OnEvent = function(self, event, ...)
       ilvl = nil,
       rio = GetUnitRio("player"),
       hasIsiLive = true,
+      keyMapID = ownKeyMapID,
+      keyLevel = ownKeyLevel,
     }
     EnqueueInspect("player")
 
@@ -1884,10 +2069,14 @@ OnEvent = function(self, event, ...)
           ilvl = nil,
           rio = nil,
           hasIsiLive = UnitHasIsiLive(unit),
+          keyMapID = nil,
+          keyLevel = nil,
         }
+        ApplyKnownKeyToRosterEntry(roster[unit])
         EnqueueInspect(unit)
       end
     end
+    SendOwnKeySnapshot(false)
     UpdateUI()
     UpdateLeaderButtons()
     SendIsiLiveHello(false)
@@ -1918,10 +2107,12 @@ OnEvent = function(self, event, ...)
       return
     end
     local entryInfo = GetNormalizedActiveEntryInfo()
+    local hadActiveJoinedKey = activeJoinedKeyMapID ~= nil
     if type(entryInfo) == "table" and entryInfo.active then
       if isTestMode or isTestAllMode then
         ExitTestMode()
       end
+      activeJoinedKeyMapID = nil
       -- Aktive Listing erkannt: Nur pending Infos clearen (alte Applications)
       -- Behalte latest* Variablen, damit selbst-gehostete Listings hervorgehoben werden
       pendingQueueJoinInfo = nil
@@ -1930,6 +2121,9 @@ OnEvent = function(self, event, ...)
       pendingQueueJoinInfo = nil
     end
     UpdateMPlusTeleportButton()
+    if hadActiveJoinedKey and not activeJoinedKeyMapID then
+      UpdateUI()
+    end
   elseif event == "CHALLENGE_MODE_START" then
     local damageMeterApi = _G and _G.C_DamageMeter
     if
@@ -1943,8 +2137,10 @@ OnEvent = function(self, event, ...)
         pcall(damageMeterApi.ResetAllCombatSessions)
       end
     end
+    activeJoinedKeyMapID = nil
     SetMainFrameVisible(false)
     UpdateLeaderButtons()
+    UpdateStatusLine()
     UpdateMPlusTeleportButton()
   elseif event == "CHALLENGE_MODE_COMPLETED" or event == "CHALLENGE_MODE_RESET" then
     if IsInGroup() then
@@ -1956,6 +2152,8 @@ OnEvent = function(self, event, ...)
     else
       UpdateLeaderButtons()
     end
+    UpdateStatusLine()
+    SendOwnKeySnapshot(true)
   elseif event == "ADDON_LOADED" then
     local loadedAddon = ...
     if loadedAddon == addonName then
@@ -2004,9 +2202,12 @@ OnEvent = function(self, event, ...)
       C_Timer.After(3, ApplyHotkeyBindings)
       C_Timer.After(2, function()
         SendIsiLiveHello(true)
+        SendOwnKeySnapshot(true)
       end)
     end
+    SendOwnKeySnapshot(true)
     statusController.MaybeShowNonMythicDungeonEntryNotice()
+    UpdateStatusLine()
     CheckIfEnteredTargetDungeon()
   elseif event == "UPDATE_BINDINGS" then
     ApplyHotkeyBindings()
@@ -2040,8 +2241,16 @@ OnEvent = function(self, event, ...)
     event == "PLAYER_DIFFICULTY_CHANGED"
     or event == "ZONE_CHANGED_NEW_AREA"
     or event == "UPDATE_INSTANCE_INFO"
+    or event == "BAG_UPDATE_DELAYED"
+    or event == "CHALLENGE_MODE_MAPS_UPDATE"
   then
     UpdateStatusLine()
+    if event == "BAG_UPDATE_DELAYED" or event == "CHALLENGE_MODE_MAPS_UPDATE" then
+      if RefreshLocalPlayerKey() then
+        UpdateUI()
+      end
+      SendOwnKeySnapshot(false)
+    end
     statusController.MaybeShowNonMythicDungeonEntryNotice()
     CheckIfEnteredTargetDungeon()
   elseif event == "INSPECT_READY" then
@@ -2083,6 +2292,9 @@ OnEvent = function(self, event, ...)
         info.hasIsiLive = true
         changed = true
       end
+      if ApplyKnownKeyToRosterEntry(info) then
+        changed = true
+      end
     end
     if changed then
       UpdateUI()
@@ -2114,6 +2326,8 @@ mainFrame:RegisterEvent("INSPECT_READY")
 mainFrame:RegisterEvent("CHALLENGE_MODE_START")
 mainFrame:RegisterEvent("CHALLENGE_MODE_COMPLETED")
 mainFrame:RegisterEvent("CHALLENGE_MODE_RESET")
+mainFrame:RegisterEvent("BAG_UPDATE_DELAYED")
+mainFrame:RegisterEvent("CHALLENGE_MODE_MAPS_UPDATE")
 mainFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 mainFrame:SetScript("OnEvent", OnEvent)
 mainFrame:SetScript("OnShow", function()

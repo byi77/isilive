@@ -3,19 +3,21 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.25`.
+Current addon version: `0.9.26`.
 
 ## Features
 
-- Group roster table with columns: `Spec`, `Name`, `Sprache/Flag`, `iLvl`, `RIO`
+- Group roster table with columns: `Spec`, `Name`, `Sprache/Flag`, `Key`, `iLvl`, `RIO`
 - Stable role sorting: `Tank -> Healer -> Damager`
 - Right-side controls: `Readycheck`, `Countdown10`, `Refresh`, `DM Reset: ON/OFF`
 - `M+ Management` teleport grid with all Season dungeon teleports
 - Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
+- Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14`)
 - Queue join detection with chat message, center notice, and invite hint
 - Dungeon teleport controls in center notice + right-side grid
 - Teleport cooldown shown as `HH:MM`
 - Addon-presence marker per roster name (`<3`) and full-group easter-egg marker (`[fullsync]`)
+- Spec column supports short labels for long localized names (for example `Wiederherstellung -> Resto`, `Vergeltung -> Retri`)
 - Center notices: left-click drag, right-click dismiss, persistent position
 - Non-Mythic dungeon entry warning with delayed confirmation (larger/blinking persistent notice; right-click dismiss, left-click drag)
 - Bottom-right version label in main window (`V.x.y.z`)
@@ -25,6 +27,7 @@ Current addon version: `0.9.25`.
 - Auto-open on small-group join
 - Auto-hide on M+ key start (`CHALLENGE_MODE_START`)
 - Hidden window mode hard-stops non-essential scan/processing work, while hotkey/binding remains active and minimal small-group join transition is still allowed for auto-open
+- Key sync runs only while the main window is visible (hidden mode stays in sleep behavior)
 - Main window is movable via left/right drag; top drag handle stays above overlays for reliable dragging
 - Main frame height updates are deferred during combat and applied on `PLAYER_REGEN_ENABLED`
 - `Readycheck` and `Countdown10` are leader-only
@@ -63,7 +66,7 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive_status.lua`: status line and dungeon-difficulty helpers
 - `isiLive_units.lua`: unit/spec/name/RIO helper functions
 - `isiLive_demo.lua`: dummy/test roster generation
-- `isiLive_sync.lua`: addon sync (`HELLO`/`ACK`) and user detection
+- `isiLive_sync.lua`: addon sync (`HELLO`/`ACK`/`KEY`) and user detection
 - `isiLive_queue.lua`: LFG/queue invite capture and parsing
 - `isiLive_inspect.lua`: inspect queue/retry/cache controller
 - `isiLive_roster.lua`: roster ordering + display-data builders
@@ -135,7 +138,7 @@ Then `pre-commit` will run:
 
 ## CurseForge Auto Publish
 
-`release.yml` triggers CurseForge's official auto-packager when you push a tag like `v0.9.3`.
+`release.yml` triggers CurseForge's official auto-packager when you push a tag like `isiLive_0.9.26`.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
 
@@ -146,6 +149,6 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push tag (recommended filename style): `git tag isiLive_0.9.14 && git push origin isiLive_0.9.14`
+3. Create and push tag (workflow tag style): `git tag isiLive_0.9.26 && git push origin isiLive_0.9.26`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

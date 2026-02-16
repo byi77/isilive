@@ -19,9 +19,6 @@ function Demo.BuildDummyRoster(opts)
       end
       return name, realm
     end
-  local getUnitServerLanguage = opts.getUnitServerLanguage or function(_unit, _realm)
-    return "??"
-  end
   local getUnitRole = opts.getUnitRole or function(_unit)
     return "DAMAGER"
   end
@@ -34,7 +31,7 @@ function Demo.BuildDummyRoster(opts)
 
   local playerName, playerRealm = getUnitNameAndRealm("player")
   local _, playerClass = UnitClass("player")
-  local playerLanguage = getUnitServerLanguage("player", playerRealm)
+  local playerLanguage = "DE"
   local playerRole = getUnitRole("player")
   local playerSpec = getPlayerSpecName()
   local playerRio = getUnitRio("player")
@@ -53,6 +50,22 @@ function Demo.BuildDummyRoster(opts)
     end
   end
 
+  local playerKeyMapID = nil
+  local playerKeyLevel = nil
+  local mythicPlusApi = rawget(_G, "C_MythicPlus")
+  if mythicPlusApi then
+    local okLevel, ownedLevel = pcall(mythicPlusApi.GetOwnedKeystoneLevel)
+    local okMapID, ownedMapID = pcall(mythicPlusApi.GetOwnedKeystoneChallengeMapID)
+    if okLevel and okMapID then
+      ownedLevel = tonumber(ownedLevel)
+      ownedMapID = tonumber(ownedMapID)
+      if ownedLevel and ownedLevel > 0 and ownedMapID and ownedMapID > 0 then
+        playerKeyLevel = ownedLevel
+        playerKeyMapID = ownedMapID
+      end
+    end
+  end
+
   local roster = {
     ["player"] = {
       name = playerName or UnitName("player") or "Player",
@@ -64,54 +77,66 @@ function Demo.BuildDummyRoster(opts)
       ilvl = playerIlvl,
       rio = playerRio,
       hasIsiLive = true,
+      keyMapID = playerKeyMapID,
+      keyLevel = playerKeyLevel,
     },
   }
 
   local dummies = {
     tank = {
       name = "Atabey",
-      language = "DE",
-      class = "WARRIOR",
+      language = "EN",
+      class = "DRUID",
       role = "TANK",
-      spec = "Protection",
+      spec = "Wachter",
       ilvl = 166,
       rio = 3850,
+      keyMapID = 2649,
+      keyLevel = 15,
     },
     healer = {
       name = "Nisan",
-      language = "DE",
+      language = "FR",
       class = "PRIEST",
       role = "HEALER",
       spec = "Holy",
       ilvl = 169,
       rio = 3810,
+      keyMapID = 2287,
+      keyLevel = 13,
     },
     dd1 = {
       name = "PumperDPS",
-      language = "EN",
+      language = "ES",
       class = "MAGE",
       role = "DAMAGER",
       spec = "Frost",
       ilvl = 170,
       rio = 3955,
+      keyMapID = 2773,
+      keyLevel = 16,
     },
     dd2 = {
       name = "Bircan",
-      language = "EN",
-      class = "ROGUE",
+      language = "IT",
+      class = "PALADIN",
       role = "DAMAGER",
-      spec = "Outlaw",
+      spec = "Retri",
       ilvl = 164,
       rio = 3780,
+      keyMapID = 2660,
+      keyLevel = 12,
     },
     dd3 = {
       name = "KÜrshad",
-      language = "EN",
+      language = "PT",
       class = "HUNTER",
       role = "DAMAGER",
       spec = "Marksman",
       ilvl = 164,
       rio = 3890,
+      keyMapID = 2441,
+      keyLevel = 14,
     },
   }
 

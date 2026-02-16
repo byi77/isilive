@@ -5,6 +5,92 @@ addonTable = addonTable or {}
 local Units = {}
 addonTable.Units = Units
 
+local SPEC_SHORT_LABELS = {
+  -- German
+  ["wiederherstellung"] = "Resto",
+  ["vergeltung"] = "Retri",
+  ["schutz"] = "Prot",
+  ["heilig"] = "Holy",
+  ["disziplin"] = "Disc",
+  ["schatten"] = "Shadow",
+  ["gleichgewicht"] = "Boomy",
+  ["wildheit"] = "Feral",
+  ["wachter"] = "Guard",
+  ["verwustung"] = "Havoc",
+  ["rachsucht"] = "Veng",
+  ["braumeister"] = "Brew",
+  ["nebelwirker"] = "MW",
+  ["windlaufer"] = "WW",
+  ["verstarkung"] = "Enh",
+  ["elementar"] = "Ele",
+  ["waffen"] = "Arms",
+  ["furor"] = "Fury",
+  ["blut"] = "Blood",
+  ["frost"] = "Frost",
+  ["unheilig"] = "Unholy",
+  ["treffsicherheit"] = "MM",
+  ["tierherrschaft"] = "BM",
+  ["uberleben"] = "Surv",
+  ["gebrechen"] = "Affli",
+  ["demonologie"] = "Demo",
+  ["zerstorung"] = "Destro",
+  ["meucheln"] = "Assa",
+  ["gesetzlosigkeit"] = "Outlaw",
+  ["tauschung"] = "Sub",
+  ["feuer"] = "Fire",
+  ["arkan"] = "Arcane",
+  ["bewahrung"] = "Pres",
+  ["verwustung-evoker"] = "Deva",
+  ["augmentation"] = "Aug",
+
+  -- English
+  ["restoration"] = "Resto",
+  ["retribution"] = "Retri",
+  ["protection"] = "Prot",
+  ["holy"] = "Holy",
+  ["discipline"] = "Disc",
+  ["shadow"] = "Shadow",
+  ["balance"] = "Boomy",
+  ["feral"] = "Feral",
+  ["guardian"] = "Guard",
+  ["havoc"] = "Havoc",
+  ["vengeance"] = "Veng",
+  ["brewmaster"] = "Brew",
+  ["mistweaver"] = "MW",
+  ["windwalker"] = "WW",
+  ["enhancement"] = "Enh",
+  ["elemental"] = "Ele",
+  ["arms"] = "Arms",
+  ["fury"] = "Fury",
+  ["blood"] = "Blood",
+  ["unholy"] = "Unholy",
+  ["marksmanship"] = "MM",
+  ["beast mastery"] = "BM",
+  ["survival"] = "Surv",
+  ["affliction"] = "Affli",
+  ["demonology"] = "Demo",
+  ["destruction"] = "Destro",
+  ["assassination"] = "Assa",
+  ["outlaw"] = "Outlaw",
+  ["subtlety"] = "Sub",
+  ["fire"] = "Fire",
+  ["arcane"] = "Arcane",
+  ["preservation"] = "Pres",
+  ["devastation"] = "Deva",
+}
+
+local function NormalizeSpecKey(text)
+  local value = string.lower(tostring(text or ""))
+  value = value:gsub("^%s+", "")
+  value = value:gsub("%s+$", "")
+  value = value:gsub("%s+", " ")
+  value = value:gsub("ä", "a")
+  value = value:gsub("ö", "o")
+  value = value:gsub("ü", "u")
+  value = value:gsub("ß", "ss")
+  return value
+end
+
 function Units.GetUnitRole(unit)
   local role = UnitGroupRolesAssigned(unit)
   if role == "TANK" or role == "HEALER" or role == "DAMAGER" then
@@ -78,6 +164,20 @@ function Units.GetInspectSpecName(unit)
     return nil
   end
   local _, specName = GetSpecializationInfoByID(specID)
+  return specName
+end
+
+function Units.GetShortSpecLabel(specName)
+  if type(specName) ~= "string" or specName == "" then
+    return specName
+  end
+
+  local normalized = NormalizeSpecKey(specName)
+  local mapped = SPEC_SHORT_LABELS[normalized]
+  if mapped then
+    return mapped
+  end
+
   return specName
 end
 
