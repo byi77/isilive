@@ -34,6 +34,9 @@ jobs:
       - name: Install luacheck
         run: luarocks install luacheck
 
+      - name: Install LuaFileSystem
+        run: luarocks install luafilesystem
+
       - name: Luacheck
         run: luacheck --exclude-files ".luarocks/**" -- .
 
