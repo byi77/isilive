@@ -2,21 +2,45 @@
 ## Title: |cff00ccffisi|rLive
 ## Notes: Shows group members with item level and Mythic+ rating.
 ## Author: mematiWoW
-## Version: 0.9.26
+## Version: 0.9.27
 ## SavedVariables: IsiLiveDB
 ## IconTexture: Interface\Icons\INV_Misc_QuestionMark
 realm_language_data.lua
 isiLive_locale.lua
+isiLive_texts.lua
+isiLive_spell_utils.lua
+isiLive_bindings.lua
+isiLive_event_utils.lua
+isiLive_bootstrap.lua
+isiLive_controller_wiring.lua
+isiLive_leader_watch.lua
+isiLive_config_builders.lua
+isiLive_frame_bridge.lua
+isiLive_context_helpers.lua
+isiLive_runtime_setup.lua
+isiLive_controller_init.lua
 isiLive_teleport.lua
+isiLive_teleport_ui.lua
+isiLive_teleport_debug.lua
 isiLive_notice.lua
 isiLive_status.lua
 isiLive_units.lua
 isiLive_demo.lua
+isiLive_test_mode.lua
 isiLive_sync.lua
+isiLive_keysync.lua
+isiLive_refresh.lua
+isiLive_highlight.lua
+isiLive_group.lua
 isiLive_queue.lua
+isiLive_queue_flow.lua
+isiLive_queue_debug.lua
 isiLive_inspect.lua
 isiLive_roster.lua
+isiLive_roster_panel.lua
 isiLive_events.lua
+isiLive_event_handlers.lua
 isiLive_commands.lua
 isiLive_ui.lua
+isiLive_guards.lua
 isiLive.lua

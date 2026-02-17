@@ -14,4 +14,9 @@ if ! luacheck --exclude-files ".luarocks/**" -- .; then
   exit 1
 fi
 
+if ! lua tools/lua_metrics_check.lua; then
+  echo "pre-commit: lua metrics check failed. Fix file/function size violations and retry."
+  exit 1
+fi
+
 echo "pre-commit: all checks passed."

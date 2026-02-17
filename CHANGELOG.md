@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-02-17 - Version 0.9.27
+- Big refactoring and modularization pass:
+  - split large runtime responsibilities into dedicated modules (wiring/bootstrap, event handlers, group lifecycle, queue flow, bindings, helpers)
+- Refactor stabilization after modularization:
+  - fixed runtime event-gate wiring regression where `dispatch` could be `nil` during setup (`onEvent` is now accepted as dispatch fallback)
+- Release safety hardening:
+  - stable CurseForge trigger restricted to `isiLive_release_*`
+  - manual release trigger now requires confirmation and validates that the provided tag exists
+  - added isolated pre-release workflow for `isiLive_alpha_*` and `isiLive_beta_*`
+- Documentation and release metadata sync:
+  - updated README/RELEASE examples and tag samples to `0.9.27`
+- TOC version bumped to `0.9.27`.
+
 ## 2026-02-16 - Version 0.9.26
 - Pre-key key visibility rework:
   - removed bottom key header line and replaced it with a new roster column `Key`

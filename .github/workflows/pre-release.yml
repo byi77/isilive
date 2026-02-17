@@ -1,33 +1,43 @@
-name: Release
+name: Pre-Release (Alpha/Beta)
 
 on:
   push:
     tags:
-      - "isiLive_release_*"
+      - "isiLive_alpha_*"
+      - "isiLive_beta_*"
   workflow_dispatch:
     inputs:
       confirm_release:
-        description: "Set to true to allow manual CurseForge trigger"
+        description: "Set to true to allow manual CurseForge pre-release trigger"
         required: true
         type: boolean
         default: false
+      channel:
+        description: "Pre-release channel"
+        required: true
+        type: choice
+        options:
+          - alpha
+          - beta
+        default: alpha
       release_tag:
-        description: "Release tag (must start with isiLive_release_)"
+        description: "Tag must match selected channel (isiLive_alpha_* or isiLive_beta_*)"
         required: true
         type: string
 
 jobs:
   trigger-curseforge-packager:
-    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/isiLive_release_')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_release == 'true' && startsWith(github.event.inputs.release_tag, 'isiLive_release_')) }}
+    if: ${{ (github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/isiLive_alpha_') || startsWith(github.ref, 'refs/tags/isiLive_beta_'))) || (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_release == 'true' && ((github.event.inputs.channel == 'alpha' && startsWith(github.event.inputs.release_tag, 'isiLive_alpha_')) || (github.event.inputs.channel == 'beta' && startsWith(github.event.inputs.release_tag, 'isiLive_beta_')))) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Validate Release Trigger
+      - name: Validate Pre-Release Trigger
         env:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           MANUAL_CONFIRM: ${{ github.event.inputs.confirm_release }}
+          MANUAL_CHANNEL: ${{ github.event.inputs.channel }}
           MANUAL_TAG: ${{ github.event.inputs.release_tag }}
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -35,24 +45,37 @@ jobs:
           set -euo pipefail
           if [ "${EVENT_NAME}" = "push" ]; then
             case "${REF}" in
-              refs/tags/isiLive_release_*) ;;
+              refs/tags/isiLive_alpha_*|refs/tags/isiLive_beta_*) ;;
               *)
-                echo "Blocked: only refs/tags/isiLive_release_* may trigger release."
+                echo "Blocked: only refs/tags/isiLive_alpha_* or refs/tags/isiLive_beta_* may trigger pre-release."
                 exit 1
                 ;;
             esac
           elif [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
             if [ "${MANUAL_CONFIRM}" != "true" ]; then
-              echo "Blocked: confirm_release must be true for manual release."
+              echo "Blocked: confirm_release must be true for manual pre-release."
               exit 1
             fi
-            case "${MANUAL_TAG}" in
-              isiLive_release_*) ;;
-              *)
-                echo "Blocked: release_tag must start with isiLive_release_."
-                exit 1
-                ;;
-            esac
+            if [ "${MANUAL_CHANNEL}" = "alpha" ]; then
+              case "${MANUAL_TAG}" in
+                isiLive_alpha_*) ;;
+                *)
+                  echo "Blocked: channel alpha requires tag prefix isiLive_alpha_."
+                  exit 1
+                  ;;
+              esac
+            elif [ "${MANUAL_CHANNEL}" = "beta" ]; then
+              case "${MANUAL_TAG}" in
+                isiLive_beta_*) ;;
+                *)
+                  echo "Blocked: channel beta requires tag prefix isiLive_beta_."
+                  exit 1
+                  ;;
+              esac
+            else
+              echo "Blocked: unknown channel ${MANUAL_CHANNEL}."
+              exit 1
+            fi
             tag_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/git/ref/tags/${MANUAL_TAG}"
             body_file="$(mktemp)"
             code="$(curl -sS -o "${body_file}" -w "%{http_code}" \

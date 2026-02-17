@@ -1,0 +1,366 @@
+local _, addonTable = ...
+
+addonTable = addonTable or {}
+
+local EventHandlers = {}
+addonTable.EventHandlers = EventHandlers
+
+local function RequireFunction(value, name)
+  assert(type(value) == "function", "isiLive: EventHandlers requires " .. name)
+  return value
+end
+
+local function OptionalFunction(value, fallback)
+  if type(value) == "function" then
+    return value
+  end
+  return fallback
+end
+
+local function BuildContext(opts)
+  local ctx = {}
+
+  ctx.addonName = opts.addonName
+  ctx.defaultLocale = opts.defaultLocale
+  ctx.locales = opts.locales or {}
+
+  ctx.resolveLocaleTag = RequireFunction(opts.resolveLocaleTag, "resolveLocaleTag")
+  ctx.setLocaleTable = RequireFunction(opts.setLocaleTable, "setLocaleTable")
+
+  ctx.isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
+  ctx.isTestMode = RequireFunction(opts.isTestMode, "isTestMode")
+  ctx.isTestAllMode = RequireFunction(opts.isTestAllMode, "isTestAllMode")
+  ctx.exitTestMode = RequireFunction(opts.exitTestMode, "exitTestMode")
+  ctx.handleGroupRosterUpdate = RequireFunction(opts.handleGroupRosterUpdate, "handleGroupRosterUpdate")
+
+  ctx.isInChallengeMode = RequireFunction(opts.isInChallengeMode, "isInChallengeMode")
+  ctx.isNegativeApplicationStatusEvent =
+    RequireFunction(opts.isNegativeApplicationStatusEvent, "isNegativeApplicationStatusEvent")
+  ctx.getNormalizedActiveEntryInfo = RequireFunction(opts.getNormalizedActiveEntryInfo, "getNormalizedActiveEntryInfo")
+  ctx.setPendingQueueJoinInfo = RequireFunction(opts.setPendingQueueJoinInfo, "setPendingQueueJoinInfo")
+  ctx.clearLatestQueueTarget = RequireFunction(opts.clearLatestQueueTarget, "clearLatestQueueTarget")
+  ctx.updateMPlusTeleportButton = RequireFunction(opts.updateMPlusTeleportButton, "updateMPlusTeleportButton")
+  ctx.captureQueueJoinCandidate = RequireFunction(opts.captureQueueJoinCandidate, "captureQueueJoinCandidate")
+  ctx.getActiveJoinedKeyMapID = RequireFunction(opts.getActiveJoinedKeyMapID, "getActiveJoinedKeyMapID")
+  ctx.setActiveJoinedKeyMapID = RequireFunction(opts.setActiveJoinedKeyMapID, "setActiveJoinedKeyMapID")
+  ctx.updateUI = RequireFunction(opts.updateUI, "updateUI")
+
+  ctx.isAutoDamageMeterResetEnabled =
+    RequireFunction(opts.isAutoDamageMeterResetEnabled, "isAutoDamageMeterResetEnabled")
+  ctx.resetDamageMeterSessions = RequireFunction(opts.resetDamageMeterSessions, "resetDamageMeterSessions")
+  ctx.setMainFrameVisible = RequireFunction(opts.setMainFrameVisible, "setMainFrameVisible")
+  ctx.updateLeaderButtons = RequireFunction(opts.updateLeaderButtons, "updateLeaderButtons")
+  ctx.updateStatusLine = RequireFunction(opts.updateStatusLine, "updateStatusLine")
+  ctx.sendOwnKeySnapshot = RequireFunction(opts.sendOwnKeySnapshot, "sendOwnKeySnapshot")
+
+  ctx.ensureQueueDebugStorage = RequireFunction(opts.ensureQueueDebugStorage, "ensureQueueDebugStorage")
+  ctx.setQueueDebugEnabled = RequireFunction(opts.setQueueDebugEnabled, "setQueueDebugEnabled")
+  ctx.getMainFrame = RequireFunction(opts.getMainFrame, "getMainFrame")
+  ctx.applyCenterNoticeStoredPosition =
+    RequireFunction(opts.applyCenterNoticeStoredPosition, "applyCenterNoticeStoredPosition")
+  ctx.registerIsiLiveSyncPrefix = RequireFunction(opts.registerIsiLiveSyncPrefix, "registerIsiLiveSyncPrefix")
+  ctx.applyHotkeyBindings = RequireFunction(opts.applyHotkeyBindings, "applyHotkeyBindings")
+  ctx.startBindingWatchdog = RequireFunction(opts.startBindingWatchdog, "startBindingWatchdog")
+  ctx.applyLocalizationToUI = RequireFunction(opts.applyLocalizationToUI, "applyLocalizationToUI")
+  ctx.updateDMResetButton = RequireFunction(opts.updateDMResetButton, "updateDMResetButton")
+  ctx.getUnitNameAndRealm = RequireFunction(opts.getUnitNameAndRealm, "getUnitNameAndRealm")
+  ctx.markIsiLiveUser = RequireFunction(opts.markIsiLiveUser, "markIsiLiveUser")
+  ctx.sendIsiLiveHello = RequireFunction(opts.sendIsiLiveHello, "sendIsiLiveHello")
+  ctx.maybeShowNonMythicDungeonEntryNotice =
+    RequireFunction(opts.maybeShowNonMythicDungeonEntryNotice, "maybeShowNonMythicDungeonEntryNotice")
+  ctx.checkIfEnteredTargetDungeon = RequireFunction(opts.checkIfEnteredTargetDungeon, "checkIfEnteredTargetDungeon")
+  ctx.timerAfter = OptionalFunction(opts.timerAfter, nil)
+
+  ctx.getPendingBindingApply = RequireFunction(opts.getPendingBindingApply, "getPendingBindingApply")
+  ctx.getPendingMainFrameHeight = RequireFunction(opts.getPendingMainFrameHeight, "getPendingMainFrameHeight")
+  ctx.setMainFrameHeightSafe = RequireFunction(opts.setMainFrameHeightSafe, "setMainFrameHeightSafe")
+  ctx.getPendingMainFrameVisible = RequireFunction(opts.getPendingMainFrameVisible, "getPendingMainFrameVisible")
+  ctx.getPendingCenterNoticeVisible =
+    RequireFunction(opts.getPendingCenterNoticeVisible, "getPendingCenterNoticeVisible")
+  ctx.setCenterNoticeVisible = RequireFunction(opts.setCenterNoticeVisible, "setCenterNoticeVisible")
+  ctx.tryRestoreCenterNoticeTeleportButton =
+    RequireFunction(opts.tryRestoreCenterNoticeTeleportButton, "tryRestoreCenterNoticeTeleportButton")
+
+  ctx.handleOwnedKeyRefresh = RequireFunction(opts.handleOwnedKeyRefresh, "handleOwnedKeyRefresh")
+  ctx.isMainFrameShown = RequireFunction(opts.isMainFrameShown, "isMainFrameShown")
+  ctx.onInspectReady = RequireFunction(opts.onInspectReady, "onInspectReady")
+
+  ctx.processAddonMessage = RequireFunction(opts.processAddonMessage, "processAddonMessage")
+  ctx.sendAck = RequireFunction(opts.sendAck, "sendAck")
+  ctx.forEachRosterInfo = RequireFunction(opts.forEachRosterInfo, "forEachRosterInfo")
+  ctx.isSyncUserKnown = RequireFunction(opts.isSyncUserKnown, "isSyncUserKnown")
+  ctx.applyKnownKeyToRosterEntry = RequireFunction(opts.applyKnownKeyToRosterEntry, "applyKnownKeyToRosterEntry")
+
+  return ctx
+end
+
+local function HandleGroupRosterUpdateEvent(ctx, _self)
+  if ctx.isInGroup() and (ctx.isTestMode() or ctx.isTestAllMode()) then
+    ctx.exitTestMode()
+    return
+  end
+
+  ctx.handleGroupRosterUpdate()
+end
+
+local function HandleLfgListApplicationStatusUpdatedEvent(ctx, _self, ...)
+  if ctx.isInChallengeMode() then
+    return
+  end
+  if ctx.isTestMode() or ctx.isTestAllMode() then
+    ctx.exitTestMode()
+  end
+  if ctx.isNegativeApplicationStatusEvent(...) then
+    ctx.setPendingQueueJoinInfo(nil)
+    local entryInfo = ctx.getNormalizedActiveEntryInfo()
+    if type(entryInfo) ~= "table" or not entryInfo.active then
+      ctx.clearLatestQueueTarget()
+    end
+    ctx.updateMPlusTeleportButton()
+    return
+  end
+  ctx.captureQueueJoinCandidate(...)
+end
+
+local function HandleLfgListSearchResultUpdatedEvent(ctx, _self, ...)
+  if ctx.isInChallengeMode() then
+    return
+  end
+  ctx.captureQueueJoinCandidate(...)
+end
+
+local function HandleLfgListActiveEntryUpdateEvent(ctx, _self)
+  if ctx.isInChallengeMode() then
+    return
+  end
+  local entryInfo = ctx.getNormalizedActiveEntryInfo()
+  local hadActiveJoinedKey = ctx.getActiveJoinedKeyMapID() ~= nil
+  if type(entryInfo) == "table" and entryInfo.active then
+    if ctx.isTestMode() or ctx.isTestAllMode() then
+      ctx.exitTestMode()
+    end
+    ctx.setActiveJoinedKeyMapID(nil)
+    -- Active listing detected: clear pending info (old applications) only.
+    -- Keep latest* vars so self-hosted listings stay highlighted.
+    ctx.setPendingQueueJoinInfo(nil)
+  elseif type(entryInfo) ~= "table" or not entryInfo.active then
+    -- No active listing anymore: clear pending info.
+    ctx.setPendingQueueJoinInfo(nil)
+  end
+  ctx.updateMPlusTeleportButton()
+  if hadActiveJoinedKey and not ctx.getActiveJoinedKeyMapID() then
+    ctx.updateUI()
+  end
+end
+
+local function HandleChallengeModeStartEvent(ctx, _self)
+  if ctx.isAutoDamageMeterResetEnabled() then
+    ctx.resetDamageMeterSessions()
+  end
+  ctx.setActiveJoinedKeyMapID(nil)
+  ctx.setMainFrameVisible(false)
+  ctx.updateLeaderButtons()
+  ctx.updateStatusLine()
+  ctx.updateMPlusTeleportButton()
+end
+
+local function HandleChallengeModeCompletedOrResetEvent(ctx, self)
+  if ctx.isInGroup() then
+    ctx.setMainFrameVisible(true)
+    local onEventHandler = self and self.GetScript and self:GetScript("OnEvent") or nil
+    if onEventHandler then
+      onEventHandler(self, "GROUP_ROSTER_UPDATE") -- Refresh roster
+    end
+  else
+    ctx.updateLeaderButtons()
+  end
+  ctx.updateStatusLine()
+  ctx.sendOwnKeySnapshot(true)
+end
+
+local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)
+  if loadedAddon ~= ctx.addonName then
+    return
+  end
+
+  -- Initialize DB
+  IsiLiveDB = IsiLiveDB or {}
+  IsiLiveDB.position = IsiLiveDB.position or { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
+  IsiLiveDB.centerNoticePosition = IsiLiveDB.centerNoticePosition
+    or { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
+  IsiLiveDB.locale = ctx.resolveLocaleTag(IsiLiveDB.locale or ctx.defaultLocale)
+  ctx.setLocaleTable(ctx.locales[IsiLiveDB.locale] or ctx.locales.enUS)
+  if IsiLiveDB.autoDamageMeterReset == nil then
+    IsiLiveDB.autoDamageMeterReset = false
+  end
+  if IsiLiveDB.queueDebug == nil then
+    IsiLiveDB.queueDebug = false
+  end
+  ctx.ensureQueueDebugStorage()
+  IsiLiveDB.queueDebug = false
+  ctx.setQueueDebugEnabled(false)
+
+  -- Restore position
+  local mainFrame = ctx.getMainFrame()
+  local pos = IsiLiveDB.position
+  if mainFrame and mainFrame.ClearAllPoints and mainFrame.SetPoint then
+    mainFrame:ClearAllPoints()
+    mainFrame:SetPoint(pos.point, UIParent, pos.relativePoint, pos.x, pos.y)
+  end
+
+  local centerPos = IsiLiveDB.centerNoticePosition
+  ctx.applyCenterNoticeStoredPosition(centerPos)
+  ctx.registerIsiLiveSyncPrefix()
+  ctx.applyHotkeyBindings()
+  ctx.startBindingWatchdog()
+  ctx.applyLocalizationToUI()
+  ctx.updateDMResetButton()
+  ctx.updateLeaderButtons()
+end
+
+local function HandlePlayerLoginEvent(ctx, _self)
+  ctx.registerIsiLiveSyncPrefix()
+  local playerName, playerRealm = ctx.getUnitNameAndRealm("player")
+  ctx.markIsiLiveUser(playerName, playerRealm)
+  ctx.applyHotkeyBindings()
+  ctx.startBindingWatchdog()
+end
+
+local function HandlePlayerEnteringWorldEvent(ctx, _self)
+  ctx.applyHotkeyBindings()
+  ctx.startBindingWatchdog()
+  if ctx.timerAfter then
+    ctx.timerAfter(1, ctx.applyHotkeyBindings)
+    ctx.timerAfter(3, ctx.applyHotkeyBindings)
+    ctx.timerAfter(2, function()
+      ctx.sendIsiLiveHello(true)
+      ctx.sendOwnKeySnapshot(true)
+    end)
+  end
+  ctx.sendOwnKeySnapshot(true)
+  ctx.maybeShowNonMythicDungeonEntryNotice()
+  ctx.updateStatusLine()
+  ctx.checkIfEnteredTargetDungeon()
+end
+
+local function HandleUpdateBindingsEvent(ctx, _self)
+  ctx.applyHotkeyBindings()
+end
+
+local function HandlePlayerRegenEnabledEvent(ctx, _self)
+  if ctx.getPendingBindingApply() then
+    ctx.applyHotkeyBindings()
+  end
+  local pendingMainFrameHeight = ctx.getPendingMainFrameHeight()
+  if pendingMainFrameHeight then
+    ctx.setMainFrameHeightSafe(pendingMainFrameHeight)
+  end
+  local pendingMainFrameVisible = ctx.getPendingMainFrameVisible()
+  if pendingMainFrameVisible ~= nil then
+    ctx.setMainFrameVisible(pendingMainFrameVisible)
+  end
+  local pendingCenterNoticeVisible = ctx.getPendingCenterNoticeVisible()
+  if pendingCenterNoticeVisible ~= nil then
+    ctx.setCenterNoticeVisible(pendingCenterNoticeVisible)
+  end
+  ctx.updateMPlusTeleportButton()
+  ctx.tryRestoreCenterNoticeTeleportButton()
+end
+
+local function HandleInstanceContextChangedEvent(ctx, _self)
+  ctx.updateStatusLine()
+  ctx.maybeShowNonMythicDungeonEntryNotice()
+  ctx.checkIfEnteredTargetDungeon()
+end
+
+local function HandleOwnedKeyContextEvent(ctx, _self)
+  ctx.updateStatusLine()
+  ctx.handleOwnedKeyRefresh()
+  ctx.maybeShowNonMythicDungeonEntryNotice()
+  ctx.checkIfEnteredTargetDungeon()
+end
+
+local function HandleInspectReadyEvent(ctx, _self, guid)
+  if not ctx.isMainFrameShown() then
+    return
+  end
+
+  if ctx.onInspectReady(guid) then
+    ctx.updateUI()
+  end
+end
+
+local function HandleChatMsgAddonEvent(ctx, _self, prefix, message, _channel, sender)
+  local syncResult = ctx.processAddonMessage(prefix, message, sender)
+  if not syncResult then
+    return
+  end
+
+  if syncResult.shouldAck then
+    ctx.sendAck(syncResult.sender)
+  end
+
+  local changed = false
+  ctx.forEachRosterInfo(function(info)
+    if not info.hasIsiLive and ctx.isSyncUserKnown(info.name, info.realm) then
+      info.hasIsiLive = true
+      changed = true
+    end
+    if ctx.applyKnownKeyToRosterEntry(info) then
+      changed = true
+    end
+  end)
+  if changed then
+    ctx.updateUI()
+  end
+end
+
+local function HandleSpellUpdateCooldownEvent(ctx, _self)
+  ctx.updateMPlusTeleportButton()
+end
+
+local EVENT_HANDLERS = {
+  GROUP_ROSTER_UPDATE = HandleGroupRosterUpdateEvent,
+  LFG_LIST_APPLICATION_STATUS_UPDATED = HandleLfgListApplicationStatusUpdatedEvent,
+  LFG_LIST_SEARCH_RESULT_UPDATED = HandleLfgListSearchResultUpdatedEvent,
+  LFG_LIST_ACTIVE_ENTRY_UPDATE = HandleLfgListActiveEntryUpdateEvent,
+  CHALLENGE_MODE_START = HandleChallengeModeStartEvent,
+  CHALLENGE_MODE_COMPLETED = HandleChallengeModeCompletedOrResetEvent,
+  CHALLENGE_MODE_RESET = HandleChallengeModeCompletedOrResetEvent,
+  ADDON_LOADED = HandleAddonLoadedEvent,
+  PLAYER_LOGIN = HandlePlayerLoginEvent,
+  PLAYER_ENTERING_WORLD = HandlePlayerEnteringWorldEvent,
+  UPDATE_BINDINGS = HandleUpdateBindingsEvent,
+  PLAYER_REGEN_ENABLED = HandlePlayerRegenEnabledEvent,
+  PLAYER_DIFFICULTY_CHANGED = HandleInstanceContextChangedEvent,
+  ZONE_CHANGED_NEW_AREA = HandleInstanceContextChangedEvent,
+  UPDATE_INSTANCE_INFO = HandleInstanceContextChangedEvent,
+  BAG_UPDATE_DELAYED = HandleOwnedKeyContextEvent,
+  CHALLENGE_MODE_MAPS_UPDATE = HandleOwnedKeyContextEvent,
+  INSPECT_READY = HandleInspectReadyEvent,
+  CHAT_MSG_ADDON = HandleChatMsgAddonEvent,
+  SPELL_UPDATE_COOLDOWN = HandleSpellUpdateCooldownEvent,
+}
+
+function EventHandlers.CreateController(opts)
+  opts = opts or {}
+
+  local ctx = BuildContext(opts)
+
+  assert(type(ctx.addonName) == "string" and ctx.addonName ~= "", "isiLive: EventHandlers requires addonName")
+  assert(
+    type(ctx.defaultLocale) == "string" and ctx.defaultLocale ~= "",
+    "isiLive: EventHandlers requires defaultLocale"
+  )
+
+  local controller = {}
+
+  function controller.Dispatch(self, event, ...)
+    local handler = EVENT_HANDLERS[event]
+    if handler then
+      handler(ctx, self, ...)
+    end
+  end
+
+  return controller
+end

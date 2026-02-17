@@ -1,17 +1,41 @@
 local addonName, addonTable = ...
 local isiLiveSync = addonTable and addonTable.Sync
+local isiLiveKeySync = addonTable and addonTable.KeySync
+local isiLiveRefresh = addonTable and addonTable.Refresh
+local isiLiveHighlight = addonTable and addonTable.Highlight
+local isiLiveGroup = addonTable and addonTable.Group
 local isiLiveQueue = addonTable and addonTable.Queue
+local isiLiveQueueFlow = addonTable and addonTable.QueueFlow
 local isiLiveInspect = addonTable and addonTable.Inspect
 local isiLiveRoster = addonTable and addonTable.Roster
 local isiLiveEvents = addonTable and addonTable.Events
+local isiLiveEventHandlers = addonTable and addonTable.EventHandlers
 local isiLiveCommands = addonTable and addonTable.Commands
 local isiLiveLocale = addonTable and addonTable.Locale
+local isiLiveTexts = addonTable and addonTable.Texts
 local isiLiveUI = addonTable and addonTable.UI
 local isiLiveTeleport = addonTable and addonTable.Teleport
+local isiLiveTeleportUI = addonTable and addonTable.TeleportUI
+local isiLiveTeleportDebug = addonTable and addonTable.TeleportDebug
 local isiLiveNotice = addonTable and addonTable.Notice
 local isiLiveStatus = addonTable and addonTable.Status
 local isiLiveUnits = addonTable and addonTable.Units
 local isiLiveDemo = addonTable and addonTable.Demo
+local isiLiveTestMode = addonTable and addonTable.TestMode
+local isiLiveQueueDebug = addonTable and addonTable.QueueDebug
+local isiLiveRosterPanel = addonTable and addonTable.RosterPanel
+local isiLiveSpellUtils = addonTable and addonTable.SpellUtils
+local isiLiveBindings = addonTable and addonTable.Bindings
+local isiLiveEventUtils = addonTable and addonTable.EventUtils
+local isiLiveBootstrap = addonTable and addonTable.Bootstrap
+local isiLiveControllerWiring = addonTable and addonTable.ControllerWiring
+local isiLiveLeaderWatch = addonTable and addonTable.LeaderWatch
+local isiLiveConfigBuilders = addonTable and addonTable.ConfigBuilders
+local isiLiveFrameBridge = addonTable and addonTable.FrameBridge
+local isiLiveContextHelpers = addonTable and addonTable.ContextHelpers
+local isiLiveRuntimeSetup = addonTable and addonTable.RuntimeSetup
+local isiLiveControllerInit = addonTable and addonTable.ControllerInit
+local isiLiveGuards = addonTable and addonTable.Guards
 
 -- --- Configuration & Constants ---
 local INSPECT_TIMEOUT = 2 -- seconds
@@ -21,375 +45,48 @@ local MIN_FRAME_HEIGHT = 200
 
 -- --- Localization ---
 local locale = GetLocale()
-local locales = {
-  enUS = {
-    TITLE = "isiLive (will be renamed to isiKeyMPlus soon)",
-    COL_SPEC = "Spec",
-    COL_NAME = "Name",
-    COL_LANGUAGE = "Flag",
-    COL_KEY = "Key",
-    COL_ILVL = "iLvl",
-    COL_RIO = "RIO",
-    LEAD_OPTIONS = "Lead Options",
-    MPLUS_MANAGEMENT = "M+ Management",
-    BTN_READYCHECK = "Readycheck",
-    BTN_COUNTDOWN10 = "Countdown10",
-    BTN_REFRESH = "Refresh",
-    BTN_DMRESET_ON = "DM Reset: ON",
-    BTN_DMRESET_OFF = "DM Reset: OFF",
-    BTN_TELEPORT = "Teleport",
-    BTN_TELEPORT_LOCKED = "Teleport (Locked)",
-    TOOLTIP_READY = "Start a ready check.",
-    TOOLTIP_CD10 = "Start a 10-second countdown.",
-    TOOLTIP_REFRESH = "Force refresh all iLvl/RIO values.",
-    TOOLTIP_DMRESET = "Auto-reset Blizzard Damage Meter at key start.",
-    TOOLTIP_TELEPORT_CAST = "Teleport to the invited dungeon.",
-    TOOLTIP_TELEPORT_LOCKED = "Teleport not unlocked yet (requires +10 completion).",
-    TOOLTIP_TELEPORT_COMBAT = "Teleport button setup is blocked in combat.",
-    TOOLTIP_TELEPORT_NO_TARGET = "No queued dungeon available yet.",
-    TOOLTIP_TELEPORT_ACTIVE_TARGET = "Current queue target.",
-    TOOLTIP_TELEPORT_READY = "Teleport is ready.",
-    TOOLTIP_TELEPORT_COOLDOWN = "Teleport cooldown: %s",
-    TELEPORT_ERR_NO_TARGET = "No dungeon teleport target available.",
-    TELEPORT_ERR_COMBAT = "Teleport is blocked in combat.",
-    TELEPORT_ERR_FAILED = "Teleport cast failed.",
-    TOOLTIP_LEAD_REQUIRED = "Requires group leader.",
-    STATUS_LEAD_YES = "Lead: Yes",
-    STATUS_LEAD_NO = "Lead: No",
-    STATUS_MPLUS_YES = "M+: Active",
-    STATUS_MPLUS_NO = "M+: Inactive",
-    STATUS_STATE_RUNNING = "State: Running",
-    STATUS_STATE_PAUSED = "State: Paused",
-    STATUS_STATE_STOPPED = "State: Stopped",
-    STATUS_STATE_TEST = "State: Test",
-    DUNGEON_DIFF_TEXT = "Dungeon: %s",
-    DUNGEON_DIFF_OUTSIDE = "Outside",
-    DUNGEON_DIFF_UNKNOWN = "Unknown",
-    DUNGEON_DIFF_NORMAL = "Normal",
-    DUNGEON_DIFF_HEROIC = "Heroic",
-    DUNGEON_DIFF_MYTHIC = "Mythic",
-    NON_MYTHIC_ENTERED = "Warning: Entered non-Mythic dungeon (%s).",
-    TIMEOUT_INSPECT = "Timeout inspecting",
-    ERR_STOPPED_TEST = "Addon is stopped (/isilive start). Test mode unavailable.",
-    ERR_PAUSED_TEST = "Addon is paused (/isilive resume). Test mode unavailable.",
-    TEST_ENABLED = "Test mode enabled (M+ preview).",
-    TEST_DISABLED = "Test mode disabled.",
-    STOPPED = "Addon manually stopped.",
-    ERR_STOPPED_USE_START = "Addon is stopped. Use /isilive start.",
-    PAUSED = "Addon paused.",
-    RESUMED = "Addon resumed.",
-    STARTED = "Addon started.",
-    HELP_HEADER = "Commands:",
-    HELP_TEST = "  /isilive test   - Toggle test mode",
-    HELP_TESTALL = "  /isilive testall - Show full dummy preview",
-    HELP_TPTEST = "  /isilive tptest - Force dummy teleport target",
-    HELP_TPDEBUG = "  /isilive tpdebug - Show teleport button debug info",
-    HELP_BINDCHECK = "  /isilive bindcheck - Show key binding actions",
-    HELP_PAUSE = "  /isilive pause  - Pause addon (standby)",
-    HELP_RESUME = "  /isilive resume - Resume after pause",
-    HELP_STOP = "  /isilive stop   - Fully disable addon",
-    HELP_START = "  /isilive start  - Re-enable addon",
-    HELP_LANG = "  /isilive lang [en|de] - Switch language",
-    LOADED_HINT = "Loaded Version %s Press STRG+F9 to open",
-    LEAD_GAINED = "You are now the group leader.",
-    LEAD_LOST = "You are no longer the group leader.",
-    LEAD_TRANSFERRED = "Lead was transferred to you.",
-    LEAD_TRANSFERRED_CENTER = "You are now the group leader!",
-    LEAD_STATUS_YES = "Current status: you are group leader.",
-    LEAD_STATUS_NO = "Current status: you are not group leader.",
-    HELP_LEAD = "  /isilive lead   - Show current lead status",
-    JOINED_FROM_QUEUE = "Joined from queue: %s",
-    JOINED_FROM_QUEUE_DUNGEON = "Joined from queue: %s (%s)",
-    UNKNOWN_GROUP = "Unknown group",
-    INVITE_HINT_TITLE = "Queue Invite",
-    INVITE_HINT_GROUP = "Group: %s",
-    INVITE_HINT_DUNGEON = "Dungeon: %s",
-    INVITE_HINT_UNKNOWN_DUNGEON = "Dungeon: Unknown",
-    CHAT_QUEUE_PREFIX = "|cff33ff99Queue Join|r",
-    TESTALL_DUMMY_GROUP = "Dummy Keys",
-    TESTALL_DUMMY_DUNGEON = "The Dawnbreaker",
-    TESTALL_CHAT_ACTIVE = "Dummy preview active (full UI).",
-    DMRESET_ENABLED = "Auto Damage Meter reset enabled.",
-    DMRESET_DISABLED = "Auto Damage Meter reset disabled.",
-    LANG_SET_EN = "Language set to English.",
-    LANG_SET_DE = "Language set to German.",
-    LANG_USAGE = "Usage: /isilive lang [en|de]",
-  },
-  deDE = {
-    TITLE = "isiLive (will be renamed to isiKeyMPlus soon)",
-    COL_SPEC = "Spec",
-    COL_NAME = "Name",
-    COL_LANGUAGE = "Sprache",
-    COL_KEY = "Key",
-    COL_ILVL = "iLvl",
-    COL_RIO = "RIO",
-    LEAD_OPTIONS = "Lead Optionen",
-    MPLUS_MANAGEMENT = "M+ Management",
-    BTN_READYCHECK = "Readycheck",
-    BTN_COUNTDOWN10 = "Countdown10",
-    BTN_REFRESH = "Refresh",
-    BTN_DMRESET_ON = "DM Reset: AN",
-    BTN_DMRESET_OFF = "DM Reset: AUS",
-    BTN_TELEPORT = "Teleport",
-    BTN_TELEPORT_LOCKED = "Teleport (Gesperrt)",
-    TOOLTIP_READY = "Startet einen Readycheck.",
-    TOOLTIP_CD10 = "Startet einen 10-Sekunden-Countdown.",
-    TOOLTIP_REFRESH = "Alle iLvl/RIO-Werte neu einlesen.",
-    TOOLTIP_DMRESET = "Blizzard Damage Meter bei Key-Start automatisch zuruecksetzen.",
-    TOOLTIP_TELEPORT_CAST = "Teleportiert zum eingeladenen Dungeon.",
-    TOOLTIP_TELEPORT_LOCKED = "Teleport noch nicht freigeschaltet (benoetigt +10 Abschluss).",
-    TOOLTIP_TELEPORT_COMBAT = "Teleport-Button kann im Kampf nicht vorbereitet werden.",
-    TOOLTIP_TELEPORT_NO_TARGET = "Noch kein Queue-Dungeon verfuegbar.",
-    TOOLTIP_TELEPORT_ACTIVE_TARGET = "Aktuelles Queue-Ziel.",
-    TOOLTIP_TELEPORT_READY = "Teleport ist bereit.",
-    TOOLTIP_TELEPORT_COOLDOWN = "Teleport Cooldown: %s",
-    TELEPORT_ERR_NO_TARGET = "Kein Dungeon-Teleportziel verfuegbar.",
-    TELEPORT_ERR_COMBAT = "Teleport ist im Kampf blockiert.",
-    TELEPORT_ERR_FAILED = "Teleport-Cast fehlgeschlagen.",
-    TOOLTIP_LEAD_REQUIRED = "Nur als Gruppenleiter nutzbar.",
-    STATUS_LEAD_YES = "Lead: Ja",
-    STATUS_LEAD_NO = "Lead: Nein",
-    STATUS_MPLUS_YES = "M+: Aktiv",
-    STATUS_MPLUS_NO = "M+: Inaktiv",
-    STATUS_STATE_RUNNING = "Status: Aktiv",
-    STATUS_STATE_PAUSED = "Status: Pausiert",
-    STATUS_STATE_STOPPED = "Status: Gestoppt",
-    STATUS_STATE_TEST = "Status: Test",
-    DUNGEON_DIFF_TEXT = "Dungeon: %s",
-    DUNGEON_DIFF_OUTSIDE = "Draussen",
-    DUNGEON_DIFF_UNKNOWN = "Unbekannt",
-    DUNGEON_DIFF_NORMAL = "Normal",
-    DUNGEON_DIFF_HEROIC = "Heroisch",
-    DUNGEON_DIFF_MYTHIC = "Mythisch",
-    NON_MYTHIC_ENTERED = "Achtung: Nicht-mythischen Dungeon betreten (%s).",
-    TIMEOUT_INSPECT = "Timeout beim Inspizieren von",
-    ERR_STOPPED_TEST = "Addon ist gestoppt (/isilive start). Testmodus nicht verfuegbar.",
-    ERR_PAUSED_TEST = "Addon ist pausiert (/isilive resume). Testmodus nicht verfuegbar.",
-    TEST_ENABLED = "Testmodus aktiviert (M+ Vorschau).",
-    TEST_DISABLED = "Testmodus deaktiviert.",
-    STOPPED = "Addon manuell gestoppt.",
-    ERR_STOPPED_USE_START = "Addon ist gestoppt. Nutze /isilive start.",
-    PAUSED = "Addon pausiert.",
-    RESUMED = "Addon fortgesetzt.",
-    STARTED = "Addon gestartet.",
-    HELP_HEADER = "Befehle:",
-    HELP_TEST = "  /isilive test   - Testmodus an/aus",
-    HELP_TESTALL = "  /isilive testall - Vollstaendige Dummy-Vorschau",
-    HELP_TPTEST = "  /isilive tptest - Dummy-Teleportziel setzen",
-    HELP_TPDEBUG = "  /isilive tpdebug - Teleport-Button Debug anzeigen",
-    HELP_BINDCHECK = "  /isilive bindcheck - Key-Binding-Aktionen anzeigen",
-    HELP_PAUSE = "  /isilive pause  - Addon pausieren (Standby)",
-    HELP_RESUME = "  /isilive resume - Addon nach Pause fortsetzen",
-    HELP_STOP = "  /isilive stop   - Addon komplett deaktivieren",
-    HELP_START = "  /isilive start  - Addon wieder aktivieren",
-    HELP_LANG = "  /isilive lang [en|de] - Sprache wechseln",
-    LOADED_HINT = "Loaded Version %s Press STRG+F9 to open",
-    LEAD_GAINED = "Du bist jetzt Gruppenleiter.",
-    LEAD_LOST = "Du bist nicht mehr Gruppenleiter.",
-    LEAD_TRANSFERRED = "Lead wurde auf dich uebertragen.",
-    LEAD_TRANSFERRED_CENTER = "Du bist jetzt Groupenfuehrer !",
-    LEAD_STATUS_YES = "Aktueller Status: du bist Gruppenleiter.",
-    LEAD_STATUS_NO = "Aktueller Status: du bist nicht Gruppenleiter.",
-    HELP_LEAD = "  /isilive lead   - Aktuellen Lead-Status anzeigen",
-    JOINED_FROM_QUEUE = "Aus Queue beigetreten: %s",
-    JOINED_FROM_QUEUE_DUNGEON = "Aus Queue beigetreten: %s (%s)",
-    UNKNOWN_GROUP = "Unbekannte Gruppe",
-    INVITE_HINT_TITLE = "Queue Einladung",
-    INVITE_HINT_GROUP = "Gruppe: %s",
-    INVITE_HINT_DUNGEON = "Dungeon: %s",
-    INVITE_HINT_UNKNOWN_DUNGEON = "Dungeon: Unbekannt",
-    CHAT_QUEUE_PREFIX = "|cff33ff99Queue Join|r",
-    TESTALL_DUMMY_GROUP = "Dummy Schluessel",
-    TESTALL_DUMMY_DUNGEON = "The Dawnbreaker",
-    TESTALL_CHAT_ACTIVE = "Dummy-Vorschau aktiv (volle UI).",
-    DMRESET_ENABLED = "Auto Damage Meter Reset aktiviert.",
-    DMRESET_DISABLED = "Auto Damage Meter Reset deaktiviert.",
-    LANG_SET_EN = "Sprache auf Englisch gesetzt.",
-    LANG_SET_DE = "Sprache auf Deutsch gesetzt.",
-    LANG_USAGE = "Nutzung: /isilive lang [en|de]",
-  },
-}
+local locales = isiLiveTexts.GetLocaleTables()
 local L = locales.enUS
 
 local isTestAllMode = false
-local QUEUE_DEBUG_LOG_MAX = 400
 
 local function Print(msg)
   print("isiLive: " .. msg)
 end
 
-local function EnsureQueueDebugStorage()
-  if not IsiLiveDB then
-    IsiLiveDB = {}
-  end
-  if type(IsiLiveDB.queueDebugLog) ~= "table" then
-    IsiLiveDB.queueDebugLog = {}
-  end
-  return IsiLiveDB.queueDebugLog
+assert(isiLiveGuards and type(isiLiveGuards.Validate) == "function", "isiLive: missing module Guards (isiLive_guards.lua)")
+isiLiveGuards.Validate(addonTable)
+
+local GetAddonVersionRaw = function()
+  return isiLiveContextHelpers.GetAddonVersionRaw(addonName)
 end
 
-local function AppendQueueDebugLog(message)
-  local logs = EnsureQueueDebugStorage()
-  local timestamp = date and date("%H:%M:%S") or tostring(GetTime and GetTime() or 0)
-  local text = tostring(message or "")
-  -- Keep SavedVariables debug logs ASCII-friendly for easier external parsing.
-  text = text:gsub("[\128-\255]", "")
-  table.insert(logs, string.format("%s %s", timestamp, text))
-  local overflow = #logs - QUEUE_DEBUG_LOG_MAX
-  while overflow > 0 do
-    table.remove(logs, 1)
-    overflow = overflow - 1
-  end
-end
-
-local function QueueDebugLogger(message)
-  Print(message)
-  AppendQueueDebugLog(message)
-end
-
-assert(isiLiveSync, "isiLive: missing module Sync (isiLive_sync.lua)")
-assert(isiLiveQueue, "isiLive: missing module Queue (isiLive_queue.lua)")
-assert(isiLiveInspect, "isiLive: missing module Inspect (isiLive_inspect.lua)")
-assert(isiLiveRoster, "isiLive: missing module Roster (isiLive_roster.lua)")
-assert(isiLiveEvents, "isiLive: missing module Events (isiLive_events.lua)")
-assert(isiLiveCommands, "isiLive: missing module Commands (isiLive_commands.lua)")
-assert(isiLiveLocale, "isiLive: missing module Locale (isiLive_locale.lua)")
-assert(isiLiveUI, "isiLive: missing module UI (isiLive_ui.lua)")
-assert(isiLiveTeleport, "isiLive: missing module Teleport (isiLive_teleport.lua)")
-assert(isiLiveNotice, "isiLive: missing module Notice (isiLive_notice.lua)")
-assert(isiLiveStatus, "isiLive: missing module Status (isiLive_status.lua)")
-assert(isiLiveUnits, "isiLive: missing module Units (isiLive_units.lua)")
-assert(isiLiveDemo, "isiLive: missing module Demo (isiLive_demo.lua)")
-assert(type(isiLiveQueue.CaptureQueueJoinCandidate) == "function", "isiLive: Queue.CaptureQueueJoinCandidate missing")
-assert(type(isiLiveInspect.CreateController) == "function", "isiLive: Inspect.CreateController missing")
-assert(type(isiLiveRoster.BuildOrderedRoster) == "function", "isiLive: Roster.BuildOrderedRoster missing")
-assert(type(isiLiveEvents.CreateGate) == "function", "isiLive: Events.CreateGate missing")
-assert(type(isiLiveCommands.RegisterSlashCommands) == "function", "isiLive: Commands.RegisterSlashCommands missing")
-assert(type(isiLiveUI.CreateMainFrame) == "function", "isiLive: UI.CreateMainFrame missing")
-assert(type(isiLiveNotice.CreateCenterNotice) == "function", "isiLive: Notice.CreateCenterNotice missing")
-assert(type(isiLiveStatus.CreateController) == "function", "isiLive: Status.CreateController missing")
-assert(
-  type(isiLiveTeleport.ResolveSeason3TeleportSpellID) == "function",
-  "isiLive: Teleport.ResolveSeason3TeleportSpellID missing"
-)
-assert(
-  type(isiLiveTeleport.BuildSeason3TeleportEntries) == "function",
-  "isiLive: Teleport.BuildSeason3TeleportEntries missing"
-)
-
-local function GetAddonVersionRaw()
-  local legacyGetAddOnMetadata = rawget(_G, "GetAddOnMetadata")
-  local version = nil
-  if C_AddOns and C_AddOns.GetAddOnMetadata then
-    version = C_AddOns.GetAddOnMetadata(addonName, "Version")
-  elseif legacyGetAddOnMetadata then
-    version = legacyGetAddOnMetadata(addonName, "Version")
-  end
-  return tostring(version or "?")
-end
+local queueDebugController = isiLiveQueueDebug.CreateController({
+  printFn = Print,
+  queueSetDebugEnabled = function(enabled)
+    if isiLiveQueue and isiLiveQueue.SetDebugEnabled then
+      isiLiveQueue.SetDebugEnabled(enabled)
+    end
+  end,
+  queueIsDebugEnabled = function()
+    if isiLiveQueue and isiLiveQueue.IsDebugEnabled then
+      return isiLiveQueue.IsDebugEnabled() == true
+    end
+    return nil
+  end,
+  maxEntries = 400,
+})
 
 if isiLiveQueue and isiLiveQueue.SetDebugLogger then
-  isiLiveQueue.SetDebugLogger(QueueDebugLogger)
+  isiLiveQueue.SetDebugLogger(queueDebugController.Log)
 end
 
-local function GetSpellCooldownSafe(spellID)
-  if not spellID or not (C_Spell and C_Spell.GetSpellCooldown) then
-    return 0, 0, true
-  end
-  local ok, info = pcall(C_Spell.GetSpellCooldown, spellID)
-  if not ok or type(info) ~= "table" then
-    return 0, 0, true
-  end
-  local start = info.startTime or 0
-  local duration = info.duration or 0
-  local enabled = info.isEnabled
-
-  if issecretvalue then
-    ---@diagnostic disable-next-line: param-type-mismatch
-    if issecretvalue(enabled) then
-      enabled = true
-    end
-    ---@diagnostic disable-next-line: param-type-mismatch
-    if issecretvalue(start) then
-      start = 0
-    end
-    ---@diagnostic disable-next-line: param-type-mismatch
-    if issecretvalue(duration) then
-      duration = 0
-    end
-  end
-
-  return start, duration, enabled
-end
-
-local function ApplyCooldownFrameSafe(cooldownFrame, start, duration, enabled)
-  if not cooldownFrame then
-    return
-  end
-
-  local cooldownFrameSet = rawget(_G, "CooldownFrame_Set")
-  if type(cooldownFrameSet) == "function" then
-    cooldownFrameSet(cooldownFrame, start, duration, enabled)
-    return
-  end
-
-  if cooldownFrame.SetCooldown then
-    if enabled == false or enabled == 0 or duration <= 0 then
-      cooldownFrame:SetCooldown(0, 0)
-    else
-      cooldownFrame:SetCooldown(start or 0, duration or 0)
-    end
-  end
-end
-
-local function IsSpellKnownSafe(spellID)
-  if not spellID then
-    return false
-  end
-
-  if C_SpellBook and C_SpellBook.IsSpellKnownOrOverridesKnown then
-    if C_SpellBook.IsSpellKnownOrOverridesKnown(spellID) == true then
-      return true
-    end
-  end
-  if C_SpellBook and C_SpellBook.IsSpellKnown then
-    if C_SpellBook.IsSpellKnown(spellID) == true then
-      return true
-    end
-  end
-
-  -- Fallback: If the spell has a duration > 2s (ignoring GCD), it must be known/active.
-  -- This fixes highlighting disappearing when the spell is on cooldown.
-  local _, duration = GetSpellCooldownSafe(spellID)
-  if duration and duration > 2 then
-    return true
-  end
-
-  return false
-end
-
-local function GetTeleportCooldownRemaining(spellID)
-  local start, duration, enabled = GetSpellCooldownSafe(spellID)
-  if enabled == false or enabled == 0 then
-    return 0
-  end
-  if duration <= 0 or start <= 0 then
-    return 0
-  end
-  local remaining = (start + duration) - GetTime()
-  if remaining < 0 then
-    remaining = 0
-  end
-  return remaining
-end
-
-local function FormatCooldownSeconds(sec)
-  sec = math.ceil(sec or 0)
-  local totalMinutes = math.floor(sec / 60)
-  local h = math.floor(totalMinutes / 60)
-  local m = totalMinutes % 60
-  return string.format("%02d:%02d", h, m)
-end
+local GetSpellCooldownSafe = isiLiveSpellUtils.GetSpellCooldownSafe
+local ApplyCooldownFrameSafe = isiLiveSpellUtils.ApplyCooldownFrameSafe
+local IsSpellKnownSafe = isiLiveSpellUtils.IsSpellKnownSafe
+local GetTeleportCooldownRemaining = isiLiveSpellUtils.GetTeleportCooldownRemaining
+local FormatCooldownSeconds = isiLiveSpellUtils.FormatCooldownSeconds
+local IsNegativeApplicationStatusEvent = isiLiveEventUtils.IsNegativeApplicationStatusEvent
 
 local function IsPlayerLeader()
   if isTestAllMode then
@@ -398,93 +95,22 @@ local function IsPlayerLeader()
   return IsInGroup() and UnitIsGroupLeader("player")
 end
 
-local function IsNegativeApplicationStatusValue(value)
-  if type(value) == "string" then
-    local low = string.lower(value)
-    if low:find("declin") or low:find("cancel") or low:find("failed") or low:find("timeout") then
-      return true
-    end
-  elseif type(value) == "number" and Enum and Enum.LFGListApplicationStatus then
-    for key, enumValue in pairs(Enum.LFGListApplicationStatus) do
-      if enumValue == value then
-        local keyText = string.lower(tostring(key))
-        if keyText:find("declin") or keyText:find("cancel") or keyText:find("failed") or keyText:find("timeout") then
-          return true
-        end
-      end
-    end
-  end
+local GetRealmInfoLib = isiLiveContextHelpers.CreateRealmInfoGetter()
 
-  return false
-end
-
-local function IsNegativeApplicationStatusEvent(...)
-  local appStatus = select(2, ...)
-  if IsNegativeApplicationStatusValue(appStatus) then
-    return true
-  end
-
-  local pendingStatus = select(3, ...)
-  if IsNegativeApplicationStatusValue(pendingStatus) then
-    return true
-  end
-
-  local count = select("#", ...)
-  for i = 1, count do
-    local value = select(i, ...)
-    if type(value) == "string" and IsNegativeApplicationStatusValue(value) then
-      return true
-    end
-  end
-  return false
-end
-
-local realmInfoLib
-local function GetRealmInfoLib()
-  if realmInfoLib ~= nil then
-    return realmInfoLib
-  end
-  if LibStub and LibStub.GetLibrary then
-    realmInfoLib = LibStub:GetLibrary("LibRealmInfo", true)
-  else
-    realmInfoLib = false
-  end
-  return realmInfoLib or nil
-end
-
-local function GetUnitRole(unit)
-  return isiLiveUnits.GetUnitRole(unit)
-end
-
-local function TruncateName(name, maxChars)
-  return isiLiveUnits.TruncateName(name, maxChars)
-end
-
-local function GetUnitNameAndRealm(unit)
-  return isiLiveUnits.GetUnitNameAndRealm(unit)
-end
-
-local function GetPlayerSpecName()
-  return isiLiveUnits.GetPlayerSpecName()
-end
-
-local function GetInspectSpecName(unit)
-  return isiLiveUnits.GetInspectSpecName(unit)
-end
-
-local function GetShortSpecLabel(specName)
-  return isiLiveUnits.GetShortSpecLabel(specName)
-end
-
-local function GetUnitRio(unit)
-  return isiLiveUnits.GetUnitRio(unit)
-end
+local GetUnitRole = isiLiveUnits.GetUnitRole
+local TruncateName = isiLiveUnits.TruncateName
+local GetUnitNameAndRealm = isiLiveUnits.GetUnitNameAndRealm
+local GetPlayerSpecName = isiLiveUnits.GetPlayerSpecName
+local GetInspectSpecName = isiLiveUnits.GetInspectSpecName
+local GetShortSpecLabel = isiLiveUnits.GetShortSpecLabel
+local GetUnitRio = isiLiveUnits.GetUnitRio
 
 local function BuildDummyRoster()
-  return isiLiveDemo.BuildDummyRoster({
+  return isiLiveContextHelpers.BuildDummyRoster({
+    demoBuildDummyRoster = isiLiveDemo.BuildDummyRoster,
     getUnitNameAndRealm = GetUnitNameAndRealm,
     getUnitServerLanguage = function(unit, realm)
-      return isiLiveLocale.GetUnitServerLanguage(unit, realm, GetRealmInfoLib)
+      return isiLiveContextHelpers.GetUnitServerLanguage(isiLiveLocale, GetRealmInfoLib, unit, realm)
     end,
     getUnitRole = GetUnitRole,
     getPlayerSpecName = GetPlayerSpecName,
@@ -498,79 +124,80 @@ local ShowQueueJoinPreview
 local UpdateDMResetButton
 local UpdateLeaderButtons
 local OnEvent
+local ResolveActiveKeyOwnerUnit
+local MarkIsiLiveUser
+local UnitHasIsiLive
+local RegisterIsiLiveSyncPrefix
+local SendIsiLiveHello
+local GetOwnedKeystoneSnapshot
+local SendOwnKeySnapshot
+local ApplyKnownKeyToRosterEntry
 local latestQueueDungeonName
 local latestQueueActivityID
 local latestQueueTeleportSpellID
 local ApplyLocalizationToUI
-local toggleBindingButton
-local testModeBindingButton
-local pendingBindingApply = false
-local bindingOwnerFrame = CreateFrame("Frame", "isiLiveBindingOwnerFrame", UIParent)
-local bindingWatchTicker
+local bindingController
+local keySyncController
+local refreshController
+local highlightController
+local groupController
+local queueFlowController
+local testModeController
+local eventHandlersController
+local teleportUIController
+local teleportDebugController
+local rosterPanelController
+local refreshButton
+local dmResetToggleButton
+local statusLine
+local mplusTeleportButtons
+local roster = {}
+local activeJoinedKeyMapID = nil
 
 local function ApplyHotkeyBindings()
-  if not (toggleBindingButton and testModeBindingButton) then
-    return
+  if bindingController then
+    bindingController.ApplyHotkeyBindings()
   end
-  if InCombatLockdown and InCombatLockdown() then
-    pendingBindingApply = true
-    return
-  end
-
-  if ClearOverrideBindings then
-    ClearOverrideBindings(bindingOwnerFrame)
-  end
-  SetOverrideBindingClick(bindingOwnerFrame, true, "CTRL-F9", "isiLiveToggleBindingButton", "LeftButton")
-  SetOverrideBindingClick(bindingOwnerFrame, true, "CTRL-ALT-F9", "isiLiveTestModeBindingButton", "LeftButton")
-  SetOverrideBindingClick(bindingOwnerFrame, true, "ALT-CTRL-F9", "isiLiveTestModeBindingButton", "LeftButton")
-  pendingBindingApply = false
-end
-
-local function ExpectedBindingPresent()
-  local a1 = GetBindingAction("CTRL-F9", true)
-  local a2 = GetBindingAction("CTRL-ALT-F9", true)
-  local a3 = GetBindingAction("ALT-CTRL-F9", true)
-  local ok1 = a1 and a1:find("isiLiveToggleBindingButton", 1, true)
-  local ok2 = (a2 and a2:find("isiLiveTestModeBindingButton", 1, true))
-    or (a3 and a3:find("isiLiveTestModeBindingButton", 1, true))
-  return ok1 and ok2
 end
 
 local function StartBindingWatchdog()
-  if bindingWatchTicker or not C_Timer or not C_Timer.NewTicker then
-    return
+  if bindingController then
+    bindingController.StartBindingWatchdog()
   end
-  bindingWatchTicker = C_Timer.NewTicker(5, function()
-    if not ExpectedBindingPresent() then
-      if InCombatLockdown and InCombatLockdown() then
-        pendingBindingApply = true
-      else
-        ApplyHotkeyBindings()
-      end
-    end
-  end)
 end
 
-local CENTER_NOTICE_MIN_HEIGHT = 70
-local CENTER_NOTICE_MAX_HEIGHT = 220
-local CENTER_NOTICE_PADDING_X = 20
-local CENTER_NOTICE_PADDING_Y = 12
-local CENTER_NOTICE_BUTTON_HEIGHT = 36
-local CENTER_NOTICE_BUTTON_GAP = 8
 local ResolveSeason3TeleportSpellIDByActivityID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByActivityID
 local ResolveSeason3TeleportSpellID = isiLiveTeleport.ResolveSeason3TeleportSpellID
 local ApplySecureSpellToButton = isiLiveTeleport.ApplySecureSpellToButton
 
-local centerNotice = isiLiveNotice.CreateCenterNotice({
+-- --- UI Elements ---
+local mainFrame
+local mainUI
+local centerNotice
+local centerNoticeFrame
+local centerNoticeTeleportButton
+local inviteHint
+
+local frameBridgeContext = isiLiveFrameBridge.CreateContext({
+  createCenterNotice = isiLiveNotice.CreateCenterNotice,
+  createInviteHint = isiLiveNotice.CreateInviteHint,
+  createMainFrame = isiLiveUI.CreateMainFrame,
   parent = UIParent,
-  minHeight = CENTER_NOTICE_MIN_HEIGHT,
-  maxHeight = CENTER_NOTICE_MAX_HEIGHT,
-  paddingX = CENTER_NOTICE_PADDING_X,
-  paddingY = CENTER_NOTICE_PADDING_Y,
-  buttonHeight = CENTER_NOTICE_BUTTON_HEIGHT,
-  buttonGap = CENTER_NOTICE_BUTTON_GAP,
+  mainFrameGlobalName = "isiLiveMainFrame",
+  mainFrameMinHeight = MIN_FRAME_HEIGHT,
+  isInGroup = IsInGroup,
   isInCombat = function()
     return InCombatLockdown and InCombatLockdown()
+  end,
+  onShownInGroup = function()
+    local onEventHandler = mainFrame and mainFrame:GetScript("OnEvent")
+    if onEventHandler then
+      onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
+    end
+  end,
+  onShownNoGroup = function()
+    UpdateUI()
+    UpdateLeaderButtons()
   end,
   resolveTeleportSpellID = ResolveSeason3TeleportSpellID,
   applySecureSpellToButton = ApplySecureSpellToButton,
@@ -581,425 +208,126 @@ local centerNotice = isiLiveNotice.CreateCenterNotice({
     return L
   end,
 })
-local centerNoticeFrame = centerNotice.frame
-local centerNoticeTeleportButton = centerNotice.teleportButton
+centerNotice = frameBridgeContext.centerNotice
+centerNoticeFrame = frameBridgeContext.centerNoticeFrame
+centerNoticeTeleportButton = frameBridgeContext.centerNoticeTeleportButton
+inviteHint = frameBridgeContext.inviteHint
+mainUI = frameBridgeContext.mainUI
+mainFrame = frameBridgeContext.mainFrame
+
 local function SetCenterNoticeVisible(visible)
-  centerNotice.SetVisible(visible)
+  frameBridgeContext.SetCenterNoticeVisible(visible)
 end
 local function UpdateCenterTeleportButtonVisual(spellID, isEnabled, inCombatBlocked)
-  centerNotice.UpdateTeleportButtonVisual(spellID, isEnabled, inCombatBlocked)
+  frameBridgeContext.UpdateCenterTeleportButtonVisual(spellID, isEnabled, inCombatBlocked)
 end
 local function ShowCenterNotice(message, durationSeconds, dungeonName, activityID, showOptions)
-  centerNotice.Show(message, durationSeconds, dungeonName, activityID, showOptions)
+  frameBridgeContext.ShowCenterNotice(message, durationSeconds, dungeonName, activityID, showOptions)
 end
-
-local inviteHint = isiLiveNotice.CreateInviteHint({
-  parent = UIParent,
-  mainFrameGlobalName = "isiLiveMainFrame",
-})
-
 local function ShowInviteHint(message, durationSeconds)
-  inviteHint.Show(message, durationSeconds)
+  frameBridgeContext.ShowInviteHint(message, durationSeconds)
 end
 
--- --- UI Elements ---
-local mainFrame
-local mainUI = isiLiveUI.CreateMainFrame({
-  minHeight = MIN_FRAME_HEIGHT,
-  parent = UIParent,
-  isInCombat = function()
-    return InCombatLockdown and InCombatLockdown()
-  end,
-  onShownInGroup = function()
-    local onEventHandler = mainFrame:GetScript("OnEvent")
-    if onEventHandler then
-      onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
-    end
-  end,
-  onShownNoGroup = function()
-    UpdateUI()
-    UpdateLeaderButtons()
-  end,
-})
-mainFrame = mainUI.frame
 local function SetMainFrameVisible(visible)
-  mainUI.SetVisible(visible)
+  frameBridgeContext.SetMainFrameVisible(visible)
 end
 local function SetMainFrameHeightSafe(height)
-  mainUI.SetHeightSafe(height)
+  frameBridgeContext.SetMainFrameHeightSafe(height)
 end
 
 local function ToggleMainFrameVisibility()
-  mainUI.ToggleVisibility(IsInGroup())
+  frameBridgeContext.ToggleMainFrameVisibility()
 end
 
--- Background for visibility
--- Visuals: Add Backdrop for a more native WoW look
-mainFrame:SetBackdrop({
-  bgFile = "Interface\\Buttons\\WHITE8X8",
-  edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-  tile = true,
-  tileSize = 32,
-  edgeSize = 16,
-  insets = { left = 4, right = 4, top = 4, bottom = 4 },
+local initResult = isiLiveControllerInit.CreateControllers({
+  sync = isiLiveSync,
+  keySyncModule = isiLiveKeySync,
+  highlightModule = isiLiveHighlight,
+  rosterPanelModule = isiLiveRosterPanel,
+  teleportUIModule = isiLiveTeleportUI,
+  isInGroup = IsInGroup,
+  getUnitNameAndRealm = GetUnitNameAndRealm,
+  getAddonVersionRaw = GetAddonVersionRaw,
+  isFrameVisible = function()
+    return mainFrame and mainFrame:IsShown()
+  end,
+  resolveSeason3TeleportSpellID = ResolveSeason3TeleportSpellID,
+  resolveSeason3TeleportSpellIDByMapID = function(mapID)
+    if isiLiveTeleport and isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID then
+      return isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
+    end
+    return nil
+  end,
+  resolveSeason3MapIDBySpellID = function(spellID)
+    if isiLiveTeleport and isiLiveTeleport.ResolveSeason3MapIDBySpellID then
+      return isiLiveTeleport.ResolveSeason3MapIDBySpellID(spellID)
+    end
+    return nil
+  end,
+  mainFrame = mainFrame,
+  getL = function()
+    return L
+  end,
+  isPlayerLeader = IsPlayerLeader,
+  getAddonVersionText = function()
+    return "V." .. GetAddonVersionRaw()
+  end,
+  updateStatusLine = function()
+    if UpdateStatusLine then
+      UpdateStatusLine()
+    end
+  end,
+  setMainFrameHeightSafe = SetMainFrameHeightSafe,
+  minFrameHeight = MIN_FRAME_HEIGHT,
+  buildOrderedRoster = isiLiveRoster.BuildOrderedRoster,
+  hasFullSync = isiLiveRoster.HasFullSync,
+  buildDisplayData = isiLiveRoster.BuildDisplayData,
+  truncateName = TruncateName,
+  getShortSpecLabel = GetShortSpecLabel,
+  getLanguageFlagMarkup = isiLiveLocale.GetLanguageFlagMarkup,
+  getDungeonShortCode = isiLiveTeleport.GetSeason3DungeonShortCode,
+  resolveActiveKeyOwnerUnit = function()
+    if ResolveActiveKeyOwnerUnit then
+      return ResolveActiveKeyOwnerUnit()
+    end
+    return nil
+  end,
+  applySecureSpellToButton = ApplySecureSpellToButton,
+  getEntries = isiLiveTeleport.BuildSeason3TeleportEntries,
+  isSpellKnown = IsSpellKnownSafe,
+  getTeleportCooldownRemaining = GetTeleportCooldownRemaining,
+  formatCooldownSeconds = FormatCooldownSeconds,
+  getSpellCooldownSafe = GetSpellCooldownSafe,
+  applyCooldownFrameSafe = ApplyCooldownFrameSafe,
+  getSpellTexture = function(spellID)
+    if spellID and C_Spell and C_Spell.GetSpellTexture then
+      return C_Spell.GetSpellTexture(spellID)
+    end
+    return nil
+  end,
 })
-mainFrame:SetBackdropColor(0, 0, 0, 0.85)
-
--- Title
-local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightHuge")
-title:SetPoint("TOP", 0, -4)
-do
-  local fontPath, fontSize, fontFlags = title:GetFont()
-  if fontPath and fontSize then
-    title:SetFont(fontPath, math.max(fontSize - 2, 8), fontFlags)
-  end
-end
-title:SetTextColor(1, 0.85, 0)
-title:SetShadowOffset(1, -1)
-title:SetText(L.TITLE)
-
--- Column headers
-local SPEC_COL_X = 10
-local NAME_COL_X = 110
-local SERVER_COL_X = 240
-local KEY_COL_X = 304
-local ILVL_COL_X = 372
-local RIO_COL_X = 414
-local SPEC_COL_WIDTH = 92
-local NAME_COL_WIDTH = 125
-local SERVER_COL_WIDTH = 62
-local KEY_COL_WIDTH = 62
-local ILVL_COL_WIDTH = 35
-local RIO_COL_WIDTH = 55
-
-local specHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-specHeader:SetPoint("TOPLEFT", SPEC_COL_X, -34)
-specHeader:SetWidth(SPEC_COL_WIDTH)
-specHeader:SetJustifyH("RIGHT")
-specHeader:SetText(L.COL_SPEC)
-
-local nameHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-nameHeader:SetPoint("TOPLEFT", NAME_COL_X, -34)
-nameHeader:SetWidth(NAME_COL_WIDTH)
-nameHeader:SetJustifyH("LEFT")
-nameHeader:SetText(L.COL_NAME)
-
-local ilvlHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-ilvlHeader:SetPoint("TOPLEFT", ILVL_COL_X, -34)
-ilvlHeader:SetWidth(ILVL_COL_WIDTH)
-ilvlHeader:SetJustifyH("RIGHT")
-ilvlHeader:SetText(L.COL_ILVL)
-
-local serverHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-serverHeader:SetPoint("TOPLEFT", SERVER_COL_X, -34)
-serverHeader:SetWidth(SERVER_COL_WIDTH)
-serverHeader:SetJustifyH("LEFT")
-serverHeader:SetText(L.COL_LANGUAGE)
-
-local keyHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-keyHeader:SetPoint("TOPLEFT", KEY_COL_X, -34)
-keyHeader:SetWidth(KEY_COL_WIDTH)
-keyHeader:SetJustifyH("RIGHT")
-keyHeader:SetText(L.COL_KEY)
-
-local rioHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-rioHeader:SetPoint("TOPLEFT", RIO_COL_X, -34)
-rioHeader:SetWidth(RIO_COL_WIDTH)
-rioHeader:SetJustifyH("RIGHT")
-rioHeader:SetText(L.COL_RIO)
-
-local leadOptionsHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-leadOptionsHeader:SetPoint("TOPRIGHT", -150, -34)
-leadOptionsHeader:SetWidth(120)
-leadOptionsHeader:SetJustifyH("CENTER")
-leadOptionsHeader:SetText(L.LEAD_OPTIONS)
-
-local mplusManagementHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-mplusManagementHeader:SetPoint("TOPRIGHT", -16, -34)
-mplusManagementHeader:SetWidth(110)
-mplusManagementHeader:SetJustifyH("CENTER")
-mplusManagementHeader:SetText(L.MPLUS_MANAGEMENT)
-
-local headerSeparator = mainFrame:CreateTexture(nil, "ARTWORK")
-headerSeparator:SetHeight(1)
-headerSeparator:SetPoint("TOPLEFT", 8, -48)
-headerSeparator:SetPoint("TOPRIGHT", -8, -48)
-headerSeparator:SetColorTexture(1, 1, 1, 0.2)
-
-local readyCheckButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
-readyCheckButton:SetSize(120, 24)
-readyCheckButton:SetPoint("TOPRIGHT", -146, -60)
-readyCheckButton:SetText(L.BTN_READYCHECK)
-readyCheckButton:SetScript("OnClick", function()
-  if not IsPlayerLeader() then
-    return
-  end
-  DoReadyCheck()
-end)
-readyCheckButton:SetScript("OnEnter", function(self)
-  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-  GameTooltip:SetText(L.BTN_READYCHECK)
-  GameTooltip:AddLine(L.TOOLTIP_READY, 1, 1, 1, true)
-  if not IsPlayerLeader() then
-    GameTooltip:AddLine(L.TOOLTIP_LEAD_REQUIRED, 1, 0.2, 0.2, true)
-  end
-  GameTooltip:Show()
-end)
-readyCheckButton:SetScript("OnLeave", function()
-  GameTooltip:Hide()
-end)
-
-local countdownButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
-countdownButton:SetSize(120, 24)
-countdownButton:SetPoint("TOPRIGHT", -146, -90)
-countdownButton:SetText(L.BTN_COUNTDOWN10)
-countdownButton:SetScript("OnClick", function()
-  if not IsPlayerLeader() then
-    return
-  end
-  C_PartyInfo.DoCountdown(10)
-end)
-countdownButton:SetScript("OnEnter", function(self)
-  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-  GameTooltip:SetText(L.BTN_COUNTDOWN10)
-  GameTooltip:AddLine(L.TOOLTIP_CD10, 1, 1, 1, true)
-  if not IsPlayerLeader() then
-    GameTooltip:AddLine(L.TOOLTIP_LEAD_REQUIRED, 1, 0.2, 0.2, true)
-  end
-  GameTooltip:Show()
-end)
-countdownButton:SetScript("OnLeave", function()
-  GameTooltip:Hide()
-end)
-
-local refreshButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
-refreshButton:SetSize(120, 24)
-refreshButton:SetPoint("TOPRIGHT", -146, -120)
-refreshButton:SetText(L.BTN_REFRESH)
-refreshButton:SetScript("OnEnter", function(self)
-  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-  GameTooltip:SetText(L.BTN_REFRESH)
-  GameTooltip:AddLine(L.TOOLTIP_REFRESH, 1, 1, 1, true)
-  GameTooltip:Show()
-end)
-refreshButton:SetScript("OnLeave", function()
-  GameTooltip:Hide()
-end)
-
-local dmResetToggleButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
-dmResetToggleButton:SetSize(120, 24)
-dmResetToggleButton:SetPoint("TOPRIGHT", -146, -150)
-dmResetToggleButton:SetText(L.BTN_DMRESET_OFF)
-dmResetToggleButton:SetScript("OnEnter", function(self)
-  GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-  GameTooltip:SetText(L.TOOLTIP_DMRESET)
-  GameTooltip:Show()
-end)
-dmResetToggleButton:SetScript("OnLeave", function()
-  GameTooltip:Hide()
-end)
-
-local mplusTeleportButtons = {}
-
-local function CreateMPlusTeleportButton(index, entry)
-  local size = 28
-  local colCount = 2
-  local col = (index - 1) % colCount
-  local row = math.floor((index - 1) / colCount)
-  local x = (col == 0) and -85 or -53
-  local y = -60 - (row * (size + 4))
-
-  local button = CreateFrame("Button", nil, mainFrame, "SecureActionButtonTemplate")
-  button:SetSize(size, size)
-  button:SetPoint("TOPRIGHT", x, y)
-  button:EnableMouse(true)
-  button:RegisterForClicks("AnyDown", "AnyUp")
-  button:SetFrameStrata("HIGH")
-  button:SetFrameLevel(mainFrame:GetFrameLevel() + 10)
-  button.spellID = entry.spellID
-  button.mapID = entry.mapID
-  button.mapName = entry.mapName
-  button.defaultIcon = entry.icon or "Interface\\Icons\\INV_Misc_QuestionMark"
-  button.isActiveTarget = false
-  ApplySecureSpellToButton(button, entry.spellID)
-
-  button.icon = button:CreateTexture(nil, "ARTWORK")
-  button.icon:SetAllPoints()
-  button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  button.icon:SetTexture(button.defaultIcon)
-
-  -- Cooldown frame (visualize CD)
-  button.cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
-  button.cooldown:SetAllPoints()
-  button.cooldown:SetDrawEdge(false)
-
-  -- Overlay frame (ensure highlight is above cooldown)
-  button.overlayFrame = CreateFrame("Frame", nil, button)
-  button.overlayFrame:SetAllPoints()
-  button.overlayFrame:SetFrameLevel(button.cooldown:GetFrameLevel() + 1)
-
-  button.overlay = button.overlayFrame:CreateTexture(nil, "OVERLAY")
-  button.overlay:SetAllPoints()
-  button.overlay:SetColorTexture(0, 0, 0, 0.35)
-
-  button.activeBorder = button.overlayFrame:CreateTexture(nil, "OVERLAY")
-  button.activeBorder:SetAllPoints()
-  button.activeBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-  button.activeBorder:SetBlendMode("ADD")
-  button.activeBorder:SetVertexColor(1, 0.85, 0.1, 1)
-  button.activeBorder:Hide()
-
-  button.activeGlow = button.overlayFrame:CreateTexture(nil, "OVERLAY")
-  button.activeGlow:SetAllPoints()
-  button.activeGlow:SetTexture("Interface\\AddOns\\Blizzard_SharedXML\\Shared\\CircularGlow")
-  button.activeGlow:SetBlendMode("ADD")
-  button.activeGlow:SetVertexColor(1, 0.78, 0.08, 0.9)
-  button.activeGlow:Hide()
-
-  -- Performance: Use AnimationGroup instead of OnUpdate for pulsing
-  button.animGroup = button:CreateAnimationGroup()
-  button.animGroup:SetLooping("BOUNCE")
-
-  local scaleAnim = button.animGroup:CreateAnimation("Scale")
-  scaleAnim:SetScale(1.2, 1.2)
-  scaleAnim:SetDuration(0.8)
-  scaleAnim:SetSmoothing("IN_OUT")
-  scaleAnim:SetOrder(1)
-
-  local alphaAnim = button.animGroup:CreateAnimation("Alpha")
-  alphaAnim:SetFromAlpha(0.5)
-  alphaAnim:SetToAlpha(1.0)
-  alphaAnim:SetDuration(0.8)
-  alphaAnim:SetSmoothing("IN_OUT")
-  alphaAnim:SetOrder(1)
-  if alphaAnim.SetTarget then
-    alphaAnim:SetTarget(button.activeGlow)
-  end
-
-  button:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    if self.spellID and IsSpellKnownSafe(self.spellID) then
-      GameTooltip:SetSpellByID(self.spellID)
-      GameTooltip:AddLine(L.TOOLTIP_TELEPORT_CAST, 1, 1, 1, true)
-      local remaining = GetTeleportCooldownRemaining(self.spellID)
-      if remaining > 0 then
-        GameTooltip:AddLine(
-          string.format(L.TOOLTIP_TELEPORT_COOLDOWN, FormatCooldownSeconds(remaining)),
-          1,
-          0.82,
-          0,
-          true
-        )
-      else
-        GameTooltip:AddLine(L.TOOLTIP_TELEPORT_READY, 0.3, 1, 0.3, true)
-      end
-    else
-      GameTooltip:SetText(L.BTN_TELEPORT_LOCKED)
-      GameTooltip:AddLine(L.TOOLTIP_TELEPORT_LOCKED, 1, 0.25, 0.25, true)
-    end
-    if self.isActiveTarget then
-      GameTooltip:AddLine(L.TOOLTIP_TELEPORT_ACTIVE_TARGET, 1, 0.85, 0.2, true)
-    end
-    GameTooltip:Show()
-  end)
-  button:SetScript("OnLeave", function()
-    GameTooltip:Hide()
-  end)
-
-  return button
-end
-
-for i, entry in ipairs(isiLiveTeleport.BuildSeason3TeleportEntries()) do
-  table.insert(mplusTeleportButtons, CreateMPlusTeleportButton(i, entry))
-end
-
-local statusLine = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-statusLine:SetPoint("BOTTOMLEFT", 10, 10)
-statusLine:SetJustifyH("LEFT")
-statusLine:SetText("")
-
-local function GetAddonVersionText()
-  return "V." .. GetAddonVersionRaw()
-end
-
-local ISILIVE_SYNC_MARKER = " |cff33aaff<3|r"
-local ISILIVE_SYNC_FULL_MARKER = " |cff00e68a[fullsync]|r"
-
-local versionLine = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-versionLine:SetPoint("BOTTOMRIGHT", -10, 10)
-versionLine:SetJustifyH("RIGHT")
-versionLine:SetText(GetAddonVersionText())
+keySyncController = initResult.keySyncController
+MarkIsiLiveUser = initResult.markIsiLiveUser
+UnitHasIsiLive = initResult.unitHasIsiLive
+RegisterIsiLiveSyncPrefix = initResult.registerIsiLiveSyncPrefix
+SendIsiLiveHello = initResult.sendIsiLiveHello
+GetOwnedKeystoneSnapshot = initResult.getOwnedKeystoneSnapshot
+SendOwnKeySnapshot = initResult.sendOwnKeySnapshot
+ApplyKnownKeyToRosterEntry = initResult.applyKnownKeyToRosterEntry
+highlightController = initResult.highlightController
+rosterPanelController = initResult.rosterPanelController
+refreshButton = initResult.refreshButton
+dmResetToggleButton = initResult.dmResetToggleButton
+statusLine = initResult.statusLine
+teleportUIController = initResult.teleportUIController
+mplusTeleportButtons = initResult.mplusTeleportButtons
 
 UpdateLeaderButtons = function()
-  local enabled = IsPlayerLeader()
-  readyCheckButton:SetEnabled(enabled)
-  countdownButton:SetEnabled(enabled)
-  readyCheckButton:SetAlpha(enabled and 1 or 0.45)
-  countdownButton:SetAlpha(enabled and 1 or 0.45)
-  UpdateStatusLine()
-end
-
--- Member Rows (Reuse pool or fixed list)
-local memberRows = {}
-
-local function CreateMemberRow(index)
-  local yOffset = -52 - (index - 1) * 16
-  local row = {}
-
-  row.hoverFrame = CreateFrame("Frame", nil, mainFrame)
-  row.hoverFrame:SetPoint("TOPLEFT", 4, yOffset + 2)
-  row.hoverFrame:SetPoint("RIGHT", -4, 0)
-  row.hoverFrame:SetHeight(16)
-
-  row.highlight = row.hoverFrame:CreateTexture(nil, "BACKGROUND")
-  row.highlight:SetAllPoints()
-  row.highlight:SetColorTexture(1, 1, 1, 0.05)
-  row.highlight:Hide()
-
-  row.hoverFrame:SetScript("OnEnter", function()
-    row.highlight:Show()
-  end)
-  row.hoverFrame:SetScript("OnLeave", function()
-    row.highlight:Hide()
-  end)
-
-  row.spec = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  row.spec:SetPoint("TOPLEFT", SPEC_COL_X, yOffset)
-  row.spec:SetJustifyH("RIGHT")
-  row.spec:SetWidth(SPEC_COL_WIDTH)
-
-  row.name = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  row.name:SetPoint("TOPLEFT", NAME_COL_X, yOffset)
-  row.name:SetJustifyH("LEFT")
-  row.name:SetWidth(NAME_COL_WIDTH)
-
-  row.ilvl = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  row.ilvl:SetPoint("TOPLEFT", ILVL_COL_X, yOffset)
-  row.ilvl:SetWidth(ILVL_COL_WIDTH)
-  row.ilvl:SetJustifyH("RIGHT")
-
-  row.key = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  row.key:SetPoint("TOPLEFT", KEY_COL_X, yOffset)
-  row.key:SetWidth(KEY_COL_WIDTH)
-  row.key:SetJustifyH("RIGHT")
-
-  row.rio = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  row.rio:SetPoint("TOPLEFT", RIO_COL_X, yOffset)
-  row.rio:SetWidth(RIO_COL_WIDTH)
-  row.rio:SetJustifyH("RIGHT")
-
-  row.realm = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  row.realm:SetPoint("TOPLEFT", SERVER_COL_X, yOffset)
-  row.realm:SetWidth(SERVER_COL_WIDTH)
-  row.realm:SetJustifyH("LEFT")
-
-  memberRows[index] = row
-  return row
+  rosterPanelController.UpdateLeaderButtons()
 end
 
 -- --- Data & State ---
 -- Stores current group members keyed by unit token.
-local roster = {}
 local inspectController = isiLiveInspect.CreateController({
   inspectTimeout = INSPECT_TIMEOUT,
   retryInterval = RETRY_INTERVAL,
@@ -1012,10 +340,48 @@ local pendingQueueJoinInfo = nil
 latestQueueDungeonName = nil
 latestQueueActivityID = nil
 latestQueueTeleportSpellID = nil
-local activeJoinedKeyMapID = nil
 local isTestMode = false
 local isStopped = false
 local isPaused = false
+
+local function GetActiveChallengeMapID()
+  return C_ChallengeMode.GetActiveChallengeMapID()
+end
+
+local function GetWasInGroup()
+  return wasInGroup
+end
+
+local function SetWasInGroup(value)
+  wasInGroup = value and true or false
+end
+
+local function SetWasGroupLeader(value)
+  wasGroupLeader = value
+end
+
+local function GetRoster()
+  return roster
+end
+
+local function SetRoster(value)
+  roster = value or {}
+end
+
+local function ResetInspectAll()
+  inspectController.ResetAll()
+end
+
+local function ResetInspectQueues()
+  inspectController.ResetQueues()
+end
+
+local function GetPendingBindingApply()
+  if not bindingController then
+    return false
+  end
+  return bindingController.GetPendingBindingApply()
+end
 
 local function ClearLatestQueueTarget()
   latestQueueDungeonName = nil
@@ -1024,85 +390,8 @@ local function ClearLatestQueueTarget()
   activeJoinedKeyMapID = nil
 end
 
-local function MarkIsiLiveUser(name, realm)
-  isiLiveSync.MarkUser(name, realm)
-end
-
-local function UnitHasIsiLive(unit)
-  return isiLiveSync.IsUnitKnown(GetUnitNameAndRealm, unit)
-end
-
-local function RegisterIsiLiveSyncPrefix()
-  isiLiveSync.RegisterPrefix()
-end
-
-local function SendIsiLiveHello(force)
-  isiLiveSync.SendHello({
-    force = force and true or false,
-    isVisible = mainFrame and mainFrame:IsShown(),
-    version = GetAddonVersionRaw(),
-  })
-end
-
-local function GetOwnedKeystoneSnapshot()
-  local mythicPlusApi = rawget(_G, "C_MythicPlus")
-  if not mythicPlusApi then
-    return nil, nil
-  end
-
-  local okLevel, level = pcall(mythicPlusApi.GetOwnedKeystoneLevel)
-  local okMapID, mapID = pcall(mythicPlusApi.GetOwnedKeystoneChallengeMapID)
-  if not okLevel or not okMapID then
-    return nil, nil
-  end
-
-  level = tonumber(level)
-  mapID = tonumber(mapID)
-  if not level or level <= 0 or not mapID or mapID <= 0 then
-    return nil, nil
-  end
-  return mapID, level
-end
-
-local function SendOwnKeySnapshot(force)
-  local mapID, level = GetOwnedKeystoneSnapshot()
-  isiLiveSync.SendKey({
-    force = force and true or false,
-    isVisible = mainFrame and mainFrame:IsShown(),
-    mapID = mapID,
-    level = level,
-  })
-end
-
-local function ApplyKnownKeyToRosterEntry(info)
-  if type(info) ~= "table" then
-    return false
-  end
-  local keyInfo = isiLiveSync.GetPlayerKeyInfo(info.name, info.realm)
-  local newMapID = keyInfo and keyInfo.mapID or nil
-  local newLevel = keyInfo and keyInfo.level or nil
-  if info.keyMapID == newMapID and info.keyLevel == newLevel then
-    return false
-  end
-  info.keyMapID = newMapID
-  info.keyLevel = newLevel
-  return true
-end
-
 local function RefreshLocalPlayerKey()
-  local playerInfo = roster and roster.player
-  if type(playerInfo) ~= "table" then
-    return false
-  end
-
-  local mapID, level = GetOwnedKeystoneSnapshot()
-  isiLiveSync.SetPlayerKeyInfo(playerInfo.name, playerInfo.realm, mapID, level)
-  if playerInfo.keyMapID == mapID and playerInfo.keyLevel == level then
-    return false
-  end
-  playerInfo.keyMapID = mapID
-  playerInfo.keyLevel = level
-  return true
+  return keySyncController.RefreshLocalPlayerKey(roster)
 end
 
 local function IsAutoDamageMeterResetEnabled()
@@ -1117,267 +406,70 @@ local function SetAutoDamageMeterResetEnabled(enabled)
 end
 
 UpdateDMResetButton = function()
-  if not dmResetToggleButton then
+  if not rosterPanelController then
     return
   end
   local enabled = IsAutoDamageMeterResetEnabled()
-  dmResetToggleButton:SetText(enabled and L.BTN_DMRESET_ON or L.BTN_DMRESET_OFF)
+  rosterPanelController.SetDMResetText(enabled and L.BTN_DMRESET_ON or L.BTN_DMRESET_OFF)
 end
 
 local function GetNormalizedActiveEntryInfo()
-  if not (C_LFGList and C_LFGList.GetActiveEntryInfo) then
-    return nil
-  end
-
-  local ok, r1, r2, _, _, r5, r6, r7 = pcall(C_LFGList.GetActiveEntryInfo)
-  if not ok then
-    return nil
-  end
-
-  if type(r1) == "table" then
-    local function TryGet(obj, key1, key2, key3)
-      if obj then
-        return rawget(obj, key1) or rawget(obj, key2) or rawget(obj, key3)
-      end
-      return nil
-    end
-
-    -- Versuche activityID zu extrahieren
-    local activityID = tonumber(TryGet(r1, "activityID", "activity", nil))
-
-    -- Fallback: Wenn activityIDs (Plural) existiert, nimm den ersten Wert
-    if not activityID then
-      local activityIDsTable = TryGet(r1, "activityIDs", "activities", nil)
-      if type(activityIDsTable) == "table" then
-        for _, id in pairs(activityIDsTable) do
-          local numID = tonumber(id)
-          if numID and numID > 0 then
-            activityID = numID
-            break
-          end
-        end
-      end
-    end
-
-    local entry = {
-      active = TryGet(r1, "active", "isActive", nil),
-      activityID = activityID,
-      primaryActivityID = tonumber(TryGet(r1, "primaryActivityID", "primaryActivity", nil)),
-      activityIDs = TryGet(r1, "activityIDs", "activities", nil),
-      name = type(TryGet(r1, "name", "listingName", nil)) == "string" and TryGet(r1, "name", "listingName", nil) or nil,
-      activityName = type(TryGet(r1, "activityName", nil, nil)) == "string" and TryGet(r1, "activityName", nil, nil)
-        or nil,
-      title = type(TryGet(r1, "title", "groupTitle", nil)) == "string" and TryGet(r1, "title", "groupTitle", nil)
-        or nil,
-    }
-
-    return entry
-  end
-
-  local entry = {}
-  if type(r1) == "boolean" then
-    entry.active = r1
-    if type(r2) == "number" and r2 > 0 then
-      entry.activityID = r2
-    end
-    local tupleName = nil
-    if type(r5) == "string" and r5 ~= "" then
-      tupleName = r5
-    elseif type(r6) == "string" and r6 ~= "" then
-      tupleName = r6
-    elseif type(r7) == "string" and r7 ~= "" then
-      tupleName = r7
-    end
-    if tupleName then
-      entry.name = tupleName
-    end
-  end
-
-  return entry
-end
-
-local function ResolveActiveListingTeleportSpellID(entryInfo)
-  if type(entryInfo) ~= "table" then
-    return nil
-  end
-
-  local activeValue = rawget(entryInfo, "active")
-  local activeStateIsKnown = type(activeValue) == "boolean"
-  local hasActiveListing = (not activeStateIsKnown) or activeValue == true
-  if not hasActiveListing then
-    return nil
-  end
-
-  local candidates = {}
-  local seen = {}
-  local function addCandidate(id)
-    local numericID = tonumber(id)
-    if not numericID or numericID <= 0 or seen[numericID] then
-      return
-    end
-    seen[numericID] = true
-    table.insert(candidates, numericID)
-  end
-
-  addCandidate(entryInfo.activityID)
-  addCandidate(entryInfo.primaryActivityID)
-  if type(entryInfo.activityIDs) == "table" then
-    for _, id in pairs(entryInfo.activityIDs) do
-      addCandidate(id)
-    end
-  end
-
-  for _, hostedActivityID in ipairs(candidates) do
-    local hostedSpellID = ResolveSeason3TeleportSpellID(hostedActivityID, nil)
-    if hostedSpellID then
-      return hostedSpellID
-    end
-  end
-
-  -- If the active listing cannot be resolved (common around full-group transitions),
-  -- allow fallback to known queue/join target instead of dropping highlight abruptly.
-  return nil
+  return highlightController.GetNormalizedActiveEntryInfo()
 end
 
 local function ResolveActiveTeleportSpellID()
-  -- Business rule: highlight only while grouped (joined group or self-hosted in group).
-  if not IsInGroup() then
-    return nil
-  end
-
-  local entryInfo = GetNormalizedActiveEntryInfo()
-  local activeListingSpellID = ResolveActiveListingTeleportSpellID(entryInfo)
-  if activeListingSpellID then
-    return activeListingSpellID
-  end
-
-  if latestQueueTeleportSpellID then
-    return latestQueueTeleportSpellID
-  end
-
-  local queueSpellID = ResolveSeason3TeleportSpellID(latestQueueActivityID, latestQueueDungeonName)
-  if queueSpellID then
-    return queueSpellID
-  end
-
-  -- Fallback: Try to get current active challenge map (for joined keys)
-  if C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID then
-    local currentMapID = C_ChallengeMode.GetActiveChallengeMapID()
-    if currentMapID and isiLiveTeleport and isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID then
-      local spellID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID(currentMapID)
-      if spellID then
-        return spellID
-      end
-    end
-  end
-
-  return nil
-end
-
-local function ResolveMapIDFromActivityID(activityID)
-  if not activityID or not (C_LFGList and C_LFGList.GetActivityInfoTable) then
-    return nil
-  end
-  local ok, info = pcall(C_LFGList.GetActivityInfoTable, activityID)
-  if not ok or type(info) ~= "table" then
-    return nil
-  end
-  local mapID = tonumber(rawget(info, "mapID") or rawget(info, "mapId"))
-  if mapID and mapID > 0 then
-    return mapID
-  end
-  return nil
+  return highlightController.ResolveActiveTeleportSpellID(
+    latestQueueActivityID,
+    latestQueueDungeonName,
+    latestQueueTeleportSpellID
+  )
 end
 
 local function ResolveJoinedKeyMapID(activityID, spellID)
-  local mapID = ResolveMapIDFromActivityID(activityID)
-  if mapID then
-    return mapID
-  end
-  if isiLiveTeleport and isiLiveTeleport.ResolveSeason3MapIDBySpellID then
-    return isiLiveTeleport.ResolveSeason3MapIDBySpellID(spellID)
-  end
-  return nil
+  return highlightController.ResolveJoinedKeyMapID(activityID, spellID)
 end
 
-local function ResolveActiveKeyOwnerUnit()
-  local targetMapID = tonumber(activeJoinedKeyMapID)
-  if not targetMapID then
-    return nil
-  end
-
-  local ownerUnit = nil
-  local matches = 0
-  for unit, info in pairs(roster or {}) do
-    if type(info) == "table" and tonumber(info.keyMapID) == targetMapID then
-      matches = matches + 1
-      ownerUnit = unit
-      if matches > 1 then
-        return nil
-      end
-    end
-  end
-
-  if matches == 1 then
-    return ownerUnit
-  end
-  return nil
+ResolveActiveKeyOwnerUnit = function()
+  return keySyncController.ResolveActiveKeyOwnerUnit(roster, activeJoinedKeyMapID)
 end
 
 local function UpdateMPlusTeleportButton()
   local resolvedSpellID = ResolveActiveTeleportSpellID()
-
-  for _, button in ipairs(mplusTeleportButtons) do
-    local known = IsSpellKnownSafe(button.spellID)
-    local icon = nil
-    if button.spellID and C_Spell and C_Spell.GetSpellTexture then
-      icon = C_Spell.GetSpellTexture(button.spellID)
-    end
-    button.icon:SetTexture(icon or button.defaultIcon or "Interface\\Icons\\INV_Misc_QuestionMark")
-    button.isActiveTarget = (resolvedSpellID and button.spellID == resolvedSpellID) and true or false
-    button:Enable()
-
-    local start, duration, enabled = GetSpellCooldownSafe(button.spellID)
-    ApplyCooldownFrameSafe(button.cooldown, start, duration, enabled)
-
-    if known then
-      if button.isActiveTarget then
-        button.overlay:SetColorTexture(1, 0.5, 0.0, 0.5)
-        button.activeBorder:Show()
-        button.activeGlow:Show()
-        if not button.animGroup:IsPlaying() then
-          button.animGroup:Play()
-        end
-      else
-        button.overlay:SetColorTexture(0, 0, 0, 0.28)
-        button.activeBorder:Hide()
-        button.activeGlow:Hide()
-        button.animGroup:Stop()
-        button:SetScale(1) -- Reset scale
-      end
-    else
-      button.overlay:SetColorTexture(0, 0, 0, 0.62)
-      button.activeBorder:Hide()
-      button.activeGlow:Hide()
-      button.animGroup:Stop()
-      button:SetScale(1)
-    end
-  end
+  teleportUIController.UpdateButtons(resolvedSpellID)
 end
 
+teleportDebugController = isiLiveTeleportDebug.CreateController({
+  printFn = Print,
+  getL = function()
+    return L
+  end,
+  updateMPlusTeleportButton = UpdateMPlusTeleportButton,
+  resolveActiveTeleportSpellID = ResolveActiveTeleportSpellID,
+  isSpellKnownSafe = IsSpellKnownSafe,
+  getTeleportCooldownRemaining = GetTeleportCooldownRemaining,
+  formatCooldownSeconds = FormatCooldownSeconds,
+  getLatestQueueState = function()
+    return latestQueueDungeonName, latestQueueActivityID, latestQueueTeleportSpellID
+  end,
+  resolveSeason3TeleportSpellIDByActivityID = ResolveSeason3TeleportSpellIDByActivityID,
+  getNormalizedActiveEntryInfo = GetNormalizedActiveEntryInfo,
+  resolveSeason3TeleportSpellID = ResolveSeason3TeleportSpellID,
+  getCenterNoticeTeleportButton = function()
+    return centerNoticeTeleportButton
+  end,
+  getMplusTeleportButtons = function()
+    return mplusTeleportButtons
+  end,
+  showCenterNotice = ShowCenterNotice,
+  setLatestQueueState = function(dungeonName, activityID, spellID)
+    latestQueueDungeonName = dungeonName
+    latestQueueActivityID = activityID
+    latestQueueTeleportSpellID = spellID
+  end,
+})
+
 ApplyLocalizationToUI = function()
-  title:SetText(L.TITLE)
-  specHeader:SetText(L.COL_SPEC)
-  nameHeader:SetText(L.COL_NAME)
-  serverHeader:SetText(L.COL_LANGUAGE)
-  keyHeader:SetText(L.COL_KEY)
-  ilvlHeader:SetText(L.COL_ILVL)
-  rioHeader:SetText(L.COL_RIO)
-  leadOptionsHeader:SetText(L.LEAD_OPTIONS)
-  mplusManagementHeader:SetText(L.MPLUS_MANAGEMENT)
-  readyCheckButton:SetText(L.BTN_READYCHECK)
-  countdownButton:SetText(L.BTN_COUNTDOWN10)
-  refreshButton:SetText(L.BTN_REFRESH)
+  rosterPanelController.ApplyLocalization()
   UpdateDMResetButton()
   if centerNoticeTeleportButton and centerNoticeTeleportButton:IsShown() then
     local spellID = centerNoticeTeleportButton.spellID
@@ -1429,326 +521,148 @@ local function QueueForceRefreshData()
 end
 
 local function ForceRefreshSyncState()
-  if not roster then
-    return
-  end
-
-  if isiLiveSync and isiLiveSync.ClearKnownUsers then
-    isiLiveSync.ClearKnownUsers()
-  end
-
-  local playerName, playerRealm = GetUnitNameAndRealm("player")
-  MarkIsiLiveUser(playerName, playerRealm)
-
-  for unit, info in pairs(roster) do
-    if type(info) == "table" then
-      if unit ~= "player" then
-        info.hasIsiLive = false
-      else
-        info.hasIsiLive = true
-      end
-      info.keyMapID = nil
-      info.keyLevel = nil
-      isiLiveSync.SetPlayerKeyInfo(info.name, info.realm, nil, nil)
-    end
-  end
-
-  local ownKeyMapID, ownKeyLevel = GetOwnedKeystoneSnapshot()
-  if roster.player and type(roster.player) == "table" then
-    roster.player.keyMapID = ownKeyMapID
-    roster.player.keyLevel = ownKeyLevel
-  end
-  isiLiveSync.SetPlayerKeyInfo(playerName, playerRealm, ownKeyMapID, ownKeyLevel)
+  keySyncController.ForceRefreshSyncState(roster)
 end
 
-local function PlayLeadTransferSound()
-  if not PlaySound then
-    return
-  end
-  if SOUNDKIT and SOUNDKIT.RAID_WARNING then
-    PlaySound(SOUNDKIT.RAID_WARNING, "Master")
-    return
-  end
-  if SOUNDKIT and SOUNDKIT.READY_CHECK then
-    PlaySound(SOUNDKIT.READY_CHECK, "Master")
-  end
-end
-
-refreshButton:SetScript("OnClick", function()
-  if isStopped or isPaused then
-    return
-  end
-  if IsInGroup() and next(roster) == nil then
+refreshController = isiLiveRefresh.CreateController(isiLiveConfigBuilders.BuildRefreshControllerOpts({
+  isStopped = function()
+    return isStopped
+  end,
+  isPaused = function()
+    return isPaused
+  end,
+  isInGroup = IsInGroup,
+  isRosterEmpty = function()
+    return next(roster) == nil
+  end,
+  triggerGroupRosterUpdate = function()
     local onEventHandler = mainFrame:GetScript("OnEvent")
     if onEventHandler then
       onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
     end
-  end
-  ForceRefreshSyncState()
-  SendIsiLiveHello(true)
-  SendOwnKeySnapshot(true)
-  QueueForceRefreshData()
-  UpdateUI()
+  end,
+  forceRefreshSyncState = ForceRefreshSyncState,
+  sendIsiLiveHello = SendIsiLiveHello,
+  sendOwnKeySnapshot = SendOwnKeySnapshot,
+  queueForceRefreshData = QueueForceRefreshData,
+  updateUI = UpdateUI,
+  refreshLocalPlayerKey = RefreshLocalPlayerKey,
+}))
+
+refreshButton:SetScript("OnClick", function()
+  refreshController.RunFullRefresh()
 end)
 
-local ROLE_PRIORITY = {
-  TANK = 1,
-  HEALER = 2,
-  DAMAGER = 3,
-  NONE = 4,
-}
-
-local UNIT_PRIORITY = {
-  player = 1,
-  party1 = 2,
-  party2 = 3,
-  party3 = 4,
-  party4 = 5,
-}
-
 local function GetUnitServerLanguage(unit, realm)
-  return isiLiveLocale.GetUnitServerLanguage(unit, realm, GetRealmInfoLib)
+  return isiLiveContextHelpers.GetUnitServerLanguage(isiLiveLocale, GetRealmInfoLib, unit, realm)
 end
 
-local function UpdatePendingQueueJoin(groupName, dungeonName, priority, activityID)
-  local oldPriority = pendingQueueJoinInfo and pendingQueueJoinInfo.priority or 0
-  if priority < oldPriority then
-    return
-  end
-
-  local previous = pendingQueueJoinInfo
-
-  -- Only carry dungeon forward when it is clearly the same group to avoid cross-application mixups.
-  if
-    previous
-    and previous.dungeonName
-    and not dungeonName
-    and groupName
-    and previous.groupName
-    and groupName == previous.groupName
-  then
-    dungeonName = previous.dungeonName
-  end
-
-  if not activityID and groupName and previous and previous.groupName and groupName == previous.groupName then
-    activityID = previous.activityID
-  end
-
-  local resolvedTeleportSpellID = ResolveSeason3TeleportSpellID(activityID, dungeonName)
-  if not resolvedTeleportSpellID and previous then
-    local sameGroup = (not groupName) or not previous.groupName or (groupName == previous.groupName)
-    if sameGroup then
-      dungeonName = dungeonName or previous.dungeonName
-      activityID = activityID or previous.activityID
-      resolvedTeleportSpellID = previous.teleportSpellID
-    end
-  end
-
-  local nextGroupName = groupName or (previous and previous.groupName) or nil
-  local isDuplicateUpdate = previous
-    and previous.priority == priority
-    and previous.groupName == nextGroupName
-    and previous.dungeonName == dungeonName
-    and previous.activityID == activityID
-    and previous.teleportSpellID == resolvedTeleportSpellID
-  if isDuplicateUpdate then
-    return
-  end
-
-  pendingQueueJoinInfo = {
-    groupName = nextGroupName,
-    dungeonName = dungeonName,
-    activityID = activityID,
-    teleportSpellID = resolvedTeleportSpellID,
-    priority = priority,
-    capturedAt = GetTime(),
-  }
-
-  local groupText = string.format(L.INVITE_HINT_GROUP, pendingQueueJoinInfo.groupName or L.UNKNOWN_GROUP)
-  local dungeonText = pendingQueueJoinInfo.dungeonName
-      and string.format(L.INVITE_HINT_DUNGEON, pendingQueueJoinInfo.dungeonName)
-    or L.INVITE_HINT_UNKNOWN_DUNGEON
-  ShowInviteHint(groupText .. "\n" .. dungeonText, 10)
-  UpdateMPlusTeleportButton()
-end
+queueFlowController = isiLiveQueueFlow.CreateController(isiLiveConfigBuilders.BuildQueueFlowControllerOpts({
+  getL = function()
+    return L
+  end,
+  getPendingQueueJoinInfo = function()
+    return pendingQueueJoinInfo
+  end,
+  setPendingQueueJoinInfo = function(value)
+    pendingQueueJoinInfo = value
+  end,
+  resolveSeason3TeleportSpellID = ResolveSeason3TeleportSpellID,
+  resolveSeason3TeleportSpellIDByActivityID = ResolveSeason3TeleportSpellIDByActivityID,
+  resolveJoinedKeyMapID = ResolveJoinedKeyMapID,
+  updateMPlusTeleportButton = UpdateMPlusTeleportButton,
+  showInviteHint = ShowInviteHint,
+  showCenterNotice = ShowCenterNotice,
+  updateUI = UpdateUI,
+  printFn = Print,
+  setQueueTargetState = function(dungeonName, activityID, spellID, joinedKeyMapID)
+    latestQueueDungeonName = dungeonName
+    latestQueueActivityID = activityID
+    latestQueueTeleportSpellID = spellID
+    activeJoinedKeyMapID = joinedKeyMapID
+  end,
+  queueCaptureQueueJoinCandidate = isiLiveQueue.CaptureQueueJoinCandidate,
+  isInChallengeMode = GetActiveChallengeMapID,
+  isPlayerLeader = IsPlayerLeader,
+  getTimeFn = GetTime,
+}))
 
 local function CaptureQueueJoinCandidate(...)
-  if C_ChallengeMode.GetActiveChallengeMapID() then
-    return
-  end
-
-  local function permissiveResolver(activityID)
-    local spellID = ResolveSeason3TeleportSpellIDByActivityID(activityID)
-    if spellID then
-      return spellID
-    end
-    if activityID and C_LFGList and C_LFGList.GetActivityInfoTable then
-      local info = C_LFGList.GetActivityInfoTable(activityID)
-      if info and (info.isMythicPlusActivity or info.categoryID == 2) then
-        return true -- Valid dungeon/M+ activity, capture it even without teleport spell
-      end
-    end
-    return nil
-  end
-  isiLiveQueue.CaptureQueueJoinCandidate(UpdatePendingQueueJoin, permissiveResolver, ...)
-end
-
-local function SetQueueDebugEnabled(enabled)
-  if isiLiveQueue and isiLiveQueue.SetDebugEnabled then
-    isiLiveQueue.SetDebugEnabled(enabled)
-  end
-  if not IsiLiveDB then
-    IsiLiveDB = {}
-  end
-  IsiLiveDB.queueDebug = enabled and true or false
-end
-
-local function IsQueueDebugEnabled()
-  if isiLiveQueue and isiLiveQueue.IsDebugEnabled then
-    return isiLiveQueue.IsDebugEnabled() == true
-  end
-  return IsiLiveDB and IsiLiveDB.queueDebug == true
-end
-
-local function ClearQueueDebugLog()
-  local logs = EnsureQueueDebugStorage()
-  wipe(logs)
-end
-
-local function GetQueueDebugLogCount()
-  local logs = EnsureQueueDebugStorage()
-  return #logs
-end
-
-local function GetQueueDebugLogTail(limit)
-  local logs = EnsureQueueDebugStorage()
-  local total = #logs
-  local count = tonumber(limit) or 20
-  if count < 1 then
-    count = 1
-  elseif count > 100 then
-    count = 100
-  end
-  local startIndex = total - count + 1
-  if startIndex < 1 then
-    startIndex = 1
-  end
-  local out = {}
-  for i = startIndex, total do
-    out[#out + 1] = logs[i]
-  end
-  return out
+  queueFlowController.CaptureQueueJoinCandidate(...)
 end
 
 local function AnnounceQueuedGroupJoin()
-  if not pendingQueueJoinInfo then
-    return
-  end
-
-  if IsPlayerLeader() then
-    pendingQueueJoinInfo = nil
-    return
-  end
-
-  local groupName = pendingQueueJoinInfo.groupName or L.UNKNOWN_GROUP
-  local dungeonName = pendingQueueJoinInfo.dungeonName
-  local activityID = pendingQueueJoinInfo.activityID
-  ShowQueueJoinPreview(groupName, dungeonName, activityID)
-
-  pendingQueueJoinInfo = nil
+  queueFlowController.AnnounceQueuedGroupJoin()
 end
 
 ShowQueueJoinPreview = function(groupName, dungeonName, activityID)
-  local group = groupName or L.UNKNOWN_GROUP
-  local dungeon = dungeonName
-
-  latestQueueDungeonName = dungeon
-  latestQueueActivityID = activityID
-  latestQueueTeleportSpellID = ResolveSeason3TeleportSpellID(activityID, dungeon)
-  activeJoinedKeyMapID = ResolveJoinedKeyMapID(activityID, latestQueueTeleportSpellID)
-  UpdateMPlusTeleportButton()
-  UpdateUI()
-
-  local msg
-  if dungeon and dungeon ~= "" then
-    msg = string.format(L.JOINED_FROM_QUEUE_DUNGEON, group, dungeon)
-  else
-    msg = string.format(L.JOINED_FROM_QUEUE, group)
-  end
-
-  local separator = "|cffffffff----------------------------------------|r"
-  Print(separator)
-  Print("|cffffffff" .. L.CHAT_QUEUE_PREFIX .. " | " .. msg .. "|r")
-  Print(separator)
-  ShowCenterNotice(msg, 20, dungeon, activityID)
-  ShowInviteHint(
-    string.format(L.INVITE_HINT_GROUP, group)
-      .. "\n"
-      .. (dungeon and string.format(L.INVITE_HINT_DUNGEON, dungeon) or L.INVITE_HINT_UNKNOWN_DUNGEON),
-    10
-  )
+  queueFlowController.ShowQueueJoinPreview(groupName, dungeonName, activityID)
 end
 
-local function EnterFullDummyPreview()
-  isTestMode = true
-  isTestAllMode = true
-  roster = BuildDummyRoster()
-  SetMainFrameVisible(true)
-  UpdateUI()
-  UpdateLeaderButtons()
+testModeController = isiLiveTestMode.CreateController(isiLiveConfigBuilders.BuildTestModeControllerOpts({
+  getL = function()
+    return L
+  end,
+  printFn = Print,
+  getState = function()
+    return {
+      isStopped = isStopped,
+      isPaused = isPaused,
+      isTestMode = isTestMode,
+      isTestAllMode = isTestAllMode,
+    }
+  end,
+  setState = function(patch)
+    if patch.isTestMode ~= nil then
+      isTestMode = patch.isTestMode and true or false
+    end
+    if patch.isTestAllMode ~= nil then
+      isTestAllMode = patch.isTestAllMode and true or false
+    end
+  end,
+  buildDummyRoster = BuildDummyRoster,
+  setRoster = SetRoster,
+  setMainFrameVisible = SetMainFrameVisible,
+  updateUI = UpdateUI,
+  updateLeaderButtons = UpdateLeaderButtons,
+  showCenterNotice = ShowCenterNotice,
+  showQueueJoinPreview = ShowQueueJoinPreview,
+  resetInspectAll = ResetInspectAll,
+  clearLatestQueueState = function()
+    latestQueueDungeonName = nil
+    latestQueueActivityID = nil
+    latestQueueTeleportSpellID = nil
+  end,
+  updateMPlusTeleportButton = UpdateMPlusTeleportButton,
+  setCenterNoticeVisible = SetCenterNoticeVisible,
+  hideInviteHint = function()
+    inviteHint.frame:Hide()
+  end,
+  triggerGroupRosterUpdate = function()
+    local onEventHandler = mainFrame:GetScript("OnEvent")
+    if onEventHandler then
+      onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
+    end
+  end,
+}))
 
-  ShowCenterNotice(L.LEAD_TRANSFERRED_CENTER, 20)
-  ShowQueueJoinPreview(L.TESTALL_DUMMY_GROUP, L.TESTALL_DUMMY_DUNGEON)
-  Print(L.CHAT_QUEUE_PREFIX .. " | " .. L.TESTALL_CHAT_ACTIVE)
+local function EnterFullDummyPreview()
+  testModeController.EnterFullDummyPreview()
 end
 
 local function ExitTestMode()
-  if not isTestMode and not isTestAllMode then
-    return
-  end
-  isTestAllMode = false
-  isTestMode = false
-  Print(L.TEST_DISABLED)
-  roster = {}
-  inspectController.ResetAll()
-  latestQueueDungeonName = nil
-  latestQueueActivityID = nil
-  latestQueueTeleportSpellID = nil
-  UpdateUI()
-  UpdateMPlusTeleportButton()
-  UpdateLeaderButtons()
-  SetCenterNoticeVisible(false)
-  inviteHint.frame:Hide()
-  SetMainFrameVisible(false)
-  local onEventHandler = mainFrame:GetScript("OnEvent")
-  if onEventHandler then
-    onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
-  end
+  testModeController.ExitTestMode()
 end
 
 local function ToggleStandardTestMode()
-  if isStopped then
-    Print(L.ERR_STOPPED_TEST)
-    return
-  end
-  if isPaused then
-    Print(L.ERR_PAUSED_TEST)
-    return
-  end
-
-  if isTestMode then
-    ExitTestMode()
-  else
-    isTestAllMode = false
-    isTestMode = true
-    Print(L.TEST_ENABLED)
-    roster = BuildDummyRoster()
-    SetMainFrameVisible(true)
-    UpdateUI()
-    UpdateLeaderButtons()
-    ShowQueueJoinPreview(L.TESTALL_DUMMY_GROUP, L.TESTALL_DUMMY_DUNGEON)
-  end
+  testModeController.ToggleStandardTestMode()
 end
+
+bindingController = isiLiveBindings.CreateController({
+  onToggleMainFrame = ToggleMainFrameVisibility,
+  onToggleTestMode = ToggleStandardTestMode,
+})
+ApplyHotkeyBindings()
 
 local function SetLanguage(tag)
   local resolved = isiLiveLocale.ResolveLocaleTag(tag)
@@ -1760,188 +674,16 @@ local function SetLanguage(tag)
   Print(resolved == "deDE" and L.LANG_SET_DE or L.LANG_SET_EN)
 end
 
-local function PrintTeleportDebug()
-  UpdateMPlusTeleportButton()
-  local resolvedSpellID = ResolveActiveTeleportSpellID()
-  local resolvedKnown = resolvedSpellID and IsSpellKnownSafe(resolvedSpellID) or false
-  local resolvedCooldown = resolvedSpellID and GetTeleportCooldownRemaining(resolvedSpellID) or 0
-
-  local function DumpButtonState(label, button)
-    if not button then
-      Print(label .. ": <missing>")
-      return
-    end
-    local attrType = button:GetAttribute("type")
-    local attrSpell = button:GetAttribute("spell")
-    local spellID = button.spellID
-    local known = spellID and IsSpellKnownSafe(spellID) or false
-    local cooldown = spellID and GetTeleportCooldownRemaining(spellID) or 0
-    Print(
-      string.format(
-        "%s shown=%s spellID=%s attr(type=%s spell=%s) known=%s cd=%s active=%s map=%s",
-        label,
-        tostring(button:IsShown()),
-        tostring(spellID),
-        tostring(attrType),
-        tostring(attrSpell),
-        tostring(known),
-        FormatCooldownSeconds(cooldown),
-        tostring(button.isActiveTarget == true),
-        tostring(button.mapName)
-      )
-    )
-  end
-
-  Print(
-    string.format(
-      "TP target dungeon=%s activityID=%s queueSpellID=%s resolvedSpellID=%s known=%s cd=%s inCombat=%s",
-      tostring(latestQueueDungeonName),
-      tostring(latestQueueActivityID),
-      tostring(latestQueueTeleportSpellID),
-      tostring(resolvedSpellID),
-      tostring(resolvedKnown),
-      FormatCooldownSeconds(resolvedCooldown),
-      tostring(InCombatLockdown and InCombatLockdown())
-    )
-  )
-
-  local resolvedByActivity = ResolveSeason3TeleportSpellIDByActivityID(latestQueueActivityID)
-  Print(string.format("TP resolve detail byActivity=%s", tostring(resolvedByActivity)))
-
-  local entryInfo = GetNormalizedActiveEntryInfo()
-  if type(entryInfo) == "table" then
-    local hostedID = tonumber(entryInfo.activityID)
-    local hostedSpell = ResolveSeason3TeleportSpellID(hostedID, nil)
-    if not hostedSpell and type(entryInfo.activityIDs) == "table" then
-      for _, id in pairs(entryInfo.activityIDs) do
-        local numID = tonumber(id)
-        if numID then
-          local spell = ResolveSeason3TeleportSpellID(numID, nil)
-          if spell then
-            hostedID = numID
-            hostedSpell = spell
-            break
-          end
-        end
-      end
-    end
-
-    Print(
-      string.format(
-        "TP host detail active=%s activityID=%s spell=%s",
-        tostring(entryInfo.active),
-        tostring(hostedID),
-        tostring(hostedSpell)
-      )
-    )
-  else
-    Print("TP host detail active=nil activityID=nil spell=nil")
-  end
-
-  DumpButtonState("TP center", centerNoticeTeleportButton)
-  for i, button in ipairs(mplusTeleportButtons) do
-    DumpButtonState("TP grid[" .. i .. "]", button)
-  end
-end
-
-local function ForceTeleportTestTarget()
-  local dungeon = L.TESTALL_DUMMY_DUNGEON or "The Dawnbreaker"
-  latestQueueDungeonName = dungeon
-  latestQueueActivityID = nil
-  latestQueueTeleportSpellID = ResolveSeason3TeleportSpellID(nil, dungeon)
-  UpdateMPlusTeleportButton()
-  local msg = string.format(L.JOINED_FROM_QUEUE_DUNGEON, L.TESTALL_DUMMY_GROUP or L.UNKNOWN_GROUP, dungeon)
-  ShowCenterNotice(msg, 20, dungeon, nil)
-  Print("Teleport test target set: " .. tostring(dungeon))
+local function SetLocaleTable(value)
+  L = value
 end
 
 UpdateUI = function()
-  -- Hide all rows first
-  for _, row in pairs(memberRows) do
-    row.spec:SetText("")
-    row.name:SetText("")
-    row.realm:SetText("")
-    row.key:SetText("")
-    row.ilvl:SetText("")
-    row.rio:SetText("")
-    if row.hoverFrame then
-      row.hoverFrame:Hide()
-    end
-  end
-
-  local index = 1
-  local orderedRoster = isiLiveRoster.BuildOrderedRoster(roster, ROLE_PRIORITY, UNIT_PRIORITY)
-  local hasFullSync = isiLiveRoster.HasFullSync(roster)
-  local activeKeyOwnerUnit = ResolveActiveKeyOwnerUnit()
-
-  for _, entry in ipairs(orderedRoster) do
-    local info = entry.info
-    local row = memberRows[index] or CreateMemberRow(index)
-
-    local displayData = isiLiveRoster.BuildDisplayData(info, {
-      truncateName = TruncateName,
-      getShortSpecLabel = GetShortSpecLabel,
-      getLanguageFlagMarkup = isiLiveLocale.GetLanguageFlagMarkup,
-      getDungeonShortCode = isiLiveTeleport.GetSeason3DungeonShortCode,
-      syncMarker = ISILIVE_SYNC_MARKER,
-      fullSyncMarker = ISILIVE_SYNC_FULL_MARKER,
-      hasFullSync = hasFullSync,
-    })
-
-    row.spec:SetText("|c" .. displayData.colorHex .. displayData.specText .. "|r")
-    row.name:SetText(
-      displayData.roleIconMarkup
-        .. " |c"
-        .. displayData.colorHex
-        .. displayData.displayName
-        .. "|r"
-        .. displayData.addonMarker
-    )
-    row.realm:SetText(displayData.languageDisplay)
-    if displayData.keyText ~= "-" and activeKeyOwnerUnit and entry.unit == activeKeyOwnerUnit then
-      row.key:SetText("|cffff4040" .. displayData.keyText .. "|r")
-    else
-      row.key:SetText(displayData.keyText)
-    end
-    row.ilvl:SetText(displayData.ilvlText)
-    row.rio:SetText(displayData.rioText)
-    if row.hoverFrame then
-      row.hoverFrame:Show()
-    end
-
-    index = index + 1
-  end
-
-  -- Resize frame based on members
-  SetMainFrameHeightSafe(math.max(MIN_FRAME_HEIGHT, 45 + index * 16))
+  rosterPanelController.RenderRoster(roster)
 end
 
 local function EnqueueInspect(unit)
   inspectController.EnqueueInspect(unit, roster)
-end
-
-local function UpdateLeaderState(event)
-  local isLeader = IsPlayerLeader()
-
-  if wasGroupLeader == nil then
-    wasGroupLeader = isLeader
-    return
-  end
-
-  if isLeader ~= wasGroupLeader then
-    if isLeader then
-      if event == "PARTY_LEADER_CHANGED" then
-        ShowCenterNotice(L.LEAD_TRANSFERRED_CENTER, 20)
-        PlayLeadTransferSound()
-      else
-        Print(L.LEAD_GAINED)
-      end
-    else
-      Print(L.LEAD_LOST)
-    end
-    wasGroupLeader = isLeader
-  end
-  UpdateLeaderButtons()
 end
 
 local function CheckIfEnteredTargetDungeon()
@@ -1961,347 +703,8 @@ local function CheckIfEnteredTargetDungeon()
   end
 end
 
-local leaderWatchFrame = CreateFrame("Frame")
-leaderWatchFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
-leaderWatchFrame:RegisterEvent("PARTY_LEADER_CHANGED")
-leaderWatchFrame:SetScript("OnEvent", function(_, event)
-  if isStopped then
-    wasGroupLeader = nil
-    return
-  end
-  if not mainFrame:IsShown() then
-    return
-  end
-  UpdateLeaderState(event)
-end)
-
--- --- Event Handlers ---
 OnEvent = function(self, event, ...)
-  if event == "GROUP_ROSTER_UPDATE" then
-    if IsInGroup() and (isTestMode or isTestAllMode) then
-      ExitTestMode()
-      return
-    end
-
-    local wasInGroupBefore = wasInGroup
-    local inGroupNow = IsInGroup()
-    if inGroupNow and not wasInGroupBefore then
-      -- Recovery path: if an invite status event was missed, rescan applications on group join.
-      CaptureQueueJoinCandidate()
-      AnnounceQueuedGroupJoin()
-    end
-    wasInGroup = inGroupNow
-
-    if C_ChallengeMode.GetActiveChallengeMapID() then
-      -- M+ Aktiv: Fenster versteckt lassen
-      SetMainFrameVisible(false)
-      UpdateLeaderButtons()
-      return
-    end
-
-    if not inGroupNow then
-      wasGroupLeader = nil
-      local leftGroupNow = wasInGroupBefore and not inGroupNow
-      if leftGroupNow then
-        ClearLatestQueueTarget()
-        if isiLiveSync and isiLiveSync.ClearKnownUsers then
-          isiLiveSync.ClearKnownUsers()
-        end
-      end
-      roster = {}
-      inspectController.ResetAll()
-      UpdateUI() -- Clear the visual list
-      UpdateMPlusTeleportButton()
-      SetMainFrameVisible(false) -- Hide frame when not in a group
-      UpdateLeaderButtons()
-      return
-    end
-
-    local numMembers = GetNumGroupMembers()
-    if numMembers > 5 then
-      -- Raid detected (or > 5 members), hide addon
-      SetMainFrameVisible(false)
-      UpdateLeaderButtons()
-      return
-    end
-
-    SetMainFrameVisible(true) -- Show frame when in a group
-    roster = {}
-    inspectController.ResetQueues()
-
-    -- Add player
-    local name, realm = GetUnitNameAndRealm("player")
-    local _, class = UnitClass("player")
-    local language = GetUnitServerLanguage("player", realm)
-    local ownKeyMapID, ownKeyLevel = GetOwnedKeystoneSnapshot()
-    MarkIsiLiveUser(name, realm)
-    isiLiveSync.SetPlayerKeyInfo(name, realm, ownKeyMapID, ownKeyLevel)
-    roster["player"] = {
-      name = name,
-      realm = realm,
-      language = language,
-      class = class,
-      role = GetUnitRole("player"),
-      spec = GetPlayerSpecName(),
-      ilvl = nil,
-      rio = GetUnitRio("player"),
-      hasIsiLive = true,
-      keyMapID = ownKeyMapID,
-      keyLevel = ownKeyLevel,
-    }
-    EnqueueInspect("player")
-
-    -- Add party members
-    local members = GetNumGroupMembers()
-    for i = 1, members - 1 do
-      local unit = "party" .. i
-      local memberName, memberRealm = GetUnitNameAndRealm(unit)
-      if memberName then
-        local _, memberClass = UnitClass(unit)
-        local memberLanguage = GetUnitServerLanguage(unit, memberRealm)
-        roster[unit] = {
-          name = memberName,
-          realm = memberRealm,
-          language = memberLanguage,
-          class = memberClass,
-          role = GetUnitRole(unit),
-          spec = nil,
-          ilvl = nil,
-          rio = nil,
-          hasIsiLive = UnitHasIsiLive(unit),
-          keyMapID = nil,
-          keyLevel = nil,
-        }
-        ApplyKnownKeyToRosterEntry(roster[unit])
-        EnqueueInspect(unit)
-      end
-    end
-    SendOwnKeySnapshot(false)
-    UpdateUI()
-    UpdateLeaderButtons()
-    SendIsiLiveHello(false)
-  elseif event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
-    if C_ChallengeMode.GetActiveChallengeMapID() then
-      return
-    end
-    if isTestMode or isTestAllMode then
-      ExitTestMode()
-    end
-    if IsNegativeApplicationStatusEvent(...) then
-      pendingQueueJoinInfo = nil
-      local entryInfo = GetNormalizedActiveEntryInfo()
-      if type(entryInfo) ~= "table" or not entryInfo.active then
-        ClearLatestQueueTarget()
-      end
-      UpdateMPlusTeleportButton()
-      return
-    end
-    CaptureQueueJoinCandidate(...)
-  elseif event == "LFG_LIST_SEARCH_RESULT_UPDATED" then
-    if C_ChallengeMode.GetActiveChallengeMapID() then
-      return
-    end
-    CaptureQueueJoinCandidate(...)
-  elseif event == "LFG_LIST_ACTIVE_ENTRY_UPDATE" then
-    if C_ChallengeMode.GetActiveChallengeMapID() then
-      return
-    end
-    local entryInfo = GetNormalizedActiveEntryInfo()
-    local hadActiveJoinedKey = activeJoinedKeyMapID ~= nil
-    if type(entryInfo) == "table" and entryInfo.active then
-      if isTestMode or isTestAllMode then
-        ExitTestMode()
-      end
-      activeJoinedKeyMapID = nil
-      -- Aktive Listing erkannt: Nur pending Infos clearen (alte Applications)
-      -- Behalte latest* Variablen, damit selbst-gehostete Listings hervorgehoben werden
-      pendingQueueJoinInfo = nil
-    elseif type(entryInfo) ~= "table" or not entryInfo.active then
-      -- Keine aktive Listing mehr: Alle Queue-Infos löschen
-      pendingQueueJoinInfo = nil
-    end
-    UpdateMPlusTeleportButton()
-    if hadActiveJoinedKey and not activeJoinedKeyMapID then
-      UpdateUI()
-    end
-  elseif event == "CHALLENGE_MODE_START" then
-    local damageMeterApi = _G and _G.C_DamageMeter
-    if
-      IsAutoDamageMeterResetEnabled()
-      and damageMeterApi
-      and damageMeterApi.IsDamageMeterAvailable
-      and damageMeterApi.ResetAllCombatSessions
-    then
-      local okAvailable, isAvailable = pcall(damageMeterApi.IsDamageMeterAvailable)
-      if okAvailable and isAvailable then
-        pcall(damageMeterApi.ResetAllCombatSessions)
-      end
-    end
-    activeJoinedKeyMapID = nil
-    SetMainFrameVisible(false)
-    UpdateLeaderButtons()
-    UpdateStatusLine()
-    UpdateMPlusTeleportButton()
-  elseif event == "CHALLENGE_MODE_COMPLETED" or event == "CHALLENGE_MODE_RESET" then
-    if IsInGroup() then
-      SetMainFrameVisible(true)
-      local onEventHandler = self:GetScript("OnEvent")
-      if onEventHandler then
-        onEventHandler(self, "GROUP_ROSTER_UPDATE") -- Refresh roster
-      end
-    else
-      UpdateLeaderButtons()
-    end
-    UpdateStatusLine()
-    SendOwnKeySnapshot(true)
-  elseif event == "ADDON_LOADED" then
-    local loadedAddon = ...
-    if loadedAddon == addonName then
-      -- Initialize DB
-      IsiLiveDB = IsiLiveDB or {}
-      IsiLiveDB.position = IsiLiveDB.position or { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
-      IsiLiveDB.centerNoticePosition = IsiLiveDB.centerNoticePosition
-        or { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
-      IsiLiveDB.locale = isiLiveLocale.ResolveLocaleTag(IsiLiveDB.locale or locale)
-      L = locales[IsiLiveDB.locale] or locales.enUS
-      if IsiLiveDB.autoDamageMeterReset == nil then
-        IsiLiveDB.autoDamageMeterReset = false
-      end
-      if IsiLiveDB.queueDebug == nil then
-        IsiLiveDB.queueDebug = false
-      end
-      EnsureQueueDebugStorage()
-      IsiLiveDB.queueDebug = false
-      SetQueueDebugEnabled(false)
-
-      -- Restore position
-      local pos = IsiLiveDB.position
-      mainFrame:ClearAllPoints()
-      mainFrame:SetPoint(pos.point, UIParent, pos.relativePoint, pos.x, pos.y)
-
-      local centerPos = IsiLiveDB.centerNoticePosition
-      centerNotice.ApplyStoredPosition(centerPos)
-      RegisterIsiLiveSyncPrefix()
-      ApplyHotkeyBindings()
-      StartBindingWatchdog()
-      ApplyLocalizationToUI()
-      UpdateDMResetButton()
-      UpdateLeaderButtons()
-    end
-  elseif event == "PLAYER_LOGIN" then
-    RegisterIsiLiveSyncPrefix()
-    local playerName, playerRealm = GetUnitNameAndRealm("player")
-    MarkIsiLiveUser(playerName, playerRealm)
-    ApplyHotkeyBindings()
-    StartBindingWatchdog()
-  elseif event == "PLAYER_ENTERING_WORLD" then
-    ApplyHotkeyBindings()
-    StartBindingWatchdog()
-    if C_Timer and C_Timer.After then
-      C_Timer.After(1, ApplyHotkeyBindings)
-      C_Timer.After(3, ApplyHotkeyBindings)
-      C_Timer.After(2, function()
-        SendIsiLiveHello(true)
-        SendOwnKeySnapshot(true)
-      end)
-    end
-    SendOwnKeySnapshot(true)
-    statusController.MaybeShowNonMythicDungeonEntryNotice()
-    UpdateStatusLine()
-    CheckIfEnteredTargetDungeon()
-  elseif event == "UPDATE_BINDINGS" then
-    ApplyHotkeyBindings()
-  elseif event == "PLAYER_REGEN_ENABLED" then
-    if pendingBindingApply then
-      ApplyHotkeyBindings()
-    end
-    local pendingMainFrameHeight = mainUI.GetPendingHeight()
-    if pendingMainFrameHeight then
-      SetMainFrameHeightSafe(pendingMainFrameHeight)
-    end
-    local pendingMainFrameVisible = mainUI.GetPendingVisible()
-    if pendingMainFrameVisible ~= nil then
-      SetMainFrameVisible(pendingMainFrameVisible)
-    end
-    local pendingCenterNoticeVisible = centerNotice.GetPendingVisible()
-    if pendingCenterNoticeVisible ~= nil then
-      SetCenterNoticeVisible(pendingCenterNoticeVisible)
-    end
-    UpdateMPlusTeleportButton()
-    if
-      centerNoticeFrame
-      and centerNoticeFrame:IsShown()
-      and centerNoticeTeleportButton
-      and centerNoticeTeleportButton.spellID
-    then
-      ApplySecureSpellToButton(centerNoticeTeleportButton, centerNoticeTeleportButton.spellID)
-      centerNoticeTeleportButton:Enable()
-    end
-  elseif
-    event == "PLAYER_DIFFICULTY_CHANGED"
-    or event == "ZONE_CHANGED_NEW_AREA"
-    or event == "UPDATE_INSTANCE_INFO"
-    or event == "BAG_UPDATE_DELAYED"
-    or event == "CHALLENGE_MODE_MAPS_UPDATE"
-  then
-    UpdateStatusLine()
-    if event == "BAG_UPDATE_DELAYED" or event == "CHALLENGE_MODE_MAPS_UPDATE" then
-      if RefreshLocalPlayerKey() then
-        UpdateUI()
-      end
-      SendOwnKeySnapshot(false)
-    end
-    statusController.MaybeShowNonMythicDungeonEntryNotice()
-    CheckIfEnteredTargetDungeon()
-  elseif event == "INSPECT_READY" then
-    if not mainFrame:IsShown() then
-      return
-    end
-
-    local guid = ...
-    if inspectController.OnInspectReady(guid, roster, GetUnitRio, GetInspectSpecName, GetPlayerSpecName) then
-      UpdateUI()
-    end
-  elseif event == "CHAT_MSG_ADDON" then
-    local prefix, message, _, sender = ...
-    local localName, localRealm = GetUnitNameAndRealm("player")
-    local syncResult = isiLiveSync.ProcessAddonMessage(prefix, message, sender, localName, localRealm)
-    if not syncResult then
-      return
-    end
-
-    if syncResult.shouldAck then
-      if
-        C_ChatInfo
-        and C_ChatInfo.SendAddonMessage
-        and type(syncResult.sender) == "string"
-        and syncResult.sender ~= ""
-      then
-        C_ChatInfo.SendAddonMessage(
-          isiLiveSync.GetPrefix(),
-          "ACK:" .. GetAddonVersionRaw(),
-          "WHISPER",
-          syncResult.sender
-        )
-      end
-    end
-
-    local changed = false
-    for _, info in pairs(roster) do
-      if not info.hasIsiLive and isiLiveSync.IsUserKnown(info.name, info.realm) then
-        info.hasIsiLive = true
-        changed = true
-      end
-      if ApplyKnownKeyToRosterEntry(info) then
-        changed = true
-      end
-    end
-    if changed then
-      UpdateUI()
-    end
-  elseif event == "SPELL_UPDATE_COOLDOWN" then
-    UpdateMPlusTeleportButton()
-  end
+  eventHandlersController.Dispatch(self, event, ...)
 end
 
 -- --- Inspect Loop ---
@@ -2309,67 +712,123 @@ InspectLoop = function()
   inspectController.OnUpdate()
 end
 
-mainFrame:RegisterEvent("ADDON_LOADED")
-mainFrame:RegisterEvent("PLAYER_LOGIN")
-mainFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-mainFrame:RegisterEvent("UPDATE_BINDINGS")
-mainFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-mainFrame:RegisterEvent("PLAYER_DIFFICULTY_CHANGED")
-mainFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-mainFrame:RegisterEvent("UPDATE_INSTANCE_INFO")
-mainFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
-mainFrame:RegisterEvent("LFG_LIST_SEARCH_RESULT_UPDATED")
-mainFrame:RegisterEvent("LFG_LIST_APPLICATION_STATUS_UPDATED")
-mainFrame:RegisterEvent("LFG_LIST_ACTIVE_ENTRY_UPDATE")
-mainFrame:RegisterEvent("CHAT_MSG_ADDON")
-mainFrame:RegisterEvent("INSPECT_READY")
-mainFrame:RegisterEvent("CHALLENGE_MODE_START")
-mainFrame:RegisterEvent("CHALLENGE_MODE_COMPLETED")
-mainFrame:RegisterEvent("CHALLENGE_MODE_RESET")
-mainFrame:RegisterEvent("BAG_UPDATE_DELAYED")
-mainFrame:RegisterEvent("CHALLENGE_MODE_MAPS_UPDATE")
-mainFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
-mainFrame:SetScript("OnEvent", OnEvent)
-mainFrame:SetScript("OnShow", function()
-  SetProcessingActive(true)
-end)
-mainFrame:SetScript("OnHide", function()
-  SetProcessingActive(false)
-end)
+isiLiveBootstrap.RegisterMainFrameEvents(mainFrame)
+isiLiveBootstrap.BindMainFrameScripts(mainFrame, {
+  onEvent = OnEvent,
+  onShow = function()
+    SetProcessingActive(true)
+  end,
+  onHide = function()
+    SetProcessingActive(false)
+  end,
+})
 
-toggleBindingButton = CreateFrame("Button", "isiLiveToggleBindingButton", UIParent)
-toggleBindingButton:SetSize(1, 1)
-toggleBindingButton:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", -100, -100)
-toggleBindingButton:SetAlpha(0)
-toggleBindingButton:EnableMouse(true)
-toggleBindingButton:RegisterForClicks("AnyDown", "AnyUp")
-toggleBindingButton:SetScript("OnClick", function(_, _, down)
-  if down == false then
-    return
-  end
-  ToggleMainFrameVisibility()
-end)
-
-testModeBindingButton = CreateFrame("Button", "isiLiveTestModeBindingButton", UIParent)
-testModeBindingButton:SetSize(1, 1)
-testModeBindingButton:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", -100, -102)
-testModeBindingButton:SetAlpha(0)
-testModeBindingButton:EnableMouse(true)
-testModeBindingButton:RegisterForClicks("AnyDown", "AnyUp")
-testModeBindingButton:SetScript("OnClick", function(_, _, down)
-  if down == false then
-    return
-  end
-  ToggleStandardTestMode()
-end)
-
-ApplyHotkeyBindings()
-
-isiLiveCommands.RegisterSlashCommands({
-  printFn = Print,
+local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
+  controllerWiring = isiLiveControllerWiring,
+  configBuilders = isiLiveConfigBuilders,
+  bootstrap = isiLiveBootstrap,
+  leaderWatchModule = isiLiveLeaderWatch,
+  groupModule = isiLiveGroup,
+  eventHandlersModule = isiLiveEventHandlers,
+  mainFrame = mainFrame,
+  onEvent = OnEvent,
+  sync = isiLiveSync,
+  events = isiLiveEvents,
+  commands = isiLiveCommands,
+  isInGroup = IsInGroup,
+  getNumGroupMembers = GetNumGroupMembers,
+  getActiveChallengeMapID = GetActiveChallengeMapID,
+  getWasInGroup = GetWasInGroup,
+  setWasInGroup = SetWasInGroup,
+  setWasGroupLeader = SetWasGroupLeader,
+  getWasGroupLeader = function()
+    return wasGroupLeader
+  end,
+  getRoster = GetRoster,
+  setRoster = SetRoster,
+  captureQueueJoinCandidate = CaptureQueueJoinCandidate,
+  announceQueuedGroupJoin = AnnounceQueuedGroupJoin,
+  setMainFrameVisible = SetMainFrameVisible,
+  setMainFrameHeightSafe = SetMainFrameHeightSafe,
+  updateLeaderButtons = UpdateLeaderButtons,
+  clearLatestQueueTarget = ClearLatestQueueTarget,
+  resetInspectAll = ResetInspectAll,
+  resetInspectQueues = ResetInspectQueues,
+  updateUI = UpdateUI,
+  updateMPlusTeleportButton = UpdateMPlusTeleportButton,
+  getUnitNameAndRealm = GetUnitNameAndRealm,
+  getUnitClass = UnitClass,
+  getUnitServerLanguage = GetUnitServerLanguage,
+  getOwnedKeystoneSnapshot = GetOwnedKeystoneSnapshot,
+  markIsiLiveUser = MarkIsiLiveUser,
+  getUnitRole = GetUnitRole,
+  getPlayerSpecName = GetPlayerSpecName,
+  getUnitRio = GetUnitRio,
+  getInspectSpecName = GetInspectSpecName,
+  unitHasIsiLive = UnitHasIsiLive,
+  applyKnownKeyToRosterEntry = ApplyKnownKeyToRosterEntry,
+  enqueueInspect = EnqueueInspect,
+  sendOwnKeySnapshot = SendOwnKeySnapshot,
+  sendIsiLiveHello = SendIsiLiveHello,
+  isPlayerLeader = IsPlayerLeader,
+  isStopped = function()
+    return isStopped
+  end,
+  isPaused = function()
+    return isPaused
+  end,
+  isTestMode = function()
+    return isTestMode
+  end,
+  isTestAllMode = function()
+    return isTestAllMode
+  end,
   getL = function()
     return L
   end,
+  printFn = Print,
+  showCenterNotice = ShowCenterNotice,
+  isMainFrameShown = function()
+    return mainFrame and mainFrame:IsShown()
+  end,
+  defaultLocale = locale,
+  locales = locales,
+  resolveLocaleTag = isiLiveLocale.ResolveLocaleTag,
+  setLocaleTable = SetLocaleTable,
+  isInChallengeMode = GetActiveChallengeMapID,
+  isNegativeApplicationStatusEvent = IsNegativeApplicationStatusEvent,
+  getNormalizedActiveEntryInfo = GetNormalizedActiveEntryInfo,
+  isAutoDamageMeterResetEnabled = IsAutoDamageMeterResetEnabled,
+  ensureQueueDebugStorage = queueDebugController.EnsureStorage,
+  setQueueDebugEnabled = queueDebugController.SetEnabled,
+  registerIsiLiveSyncPrefix = RegisterIsiLiveSyncPrefix,
+  applyHotkeyBindings = ApplyHotkeyBindings,
+  startBindingWatchdog = StartBindingWatchdog,
+  getAddonVersionRaw = GetAddonVersionRaw,
+  setPendingQueueJoinInfo = function(value)
+    pendingQueueJoinInfo = value
+  end,
+  getActiveJoinedKeyMapID = function()
+    return activeJoinedKeyMapID
+  end,
+  setActiveJoinedKeyMapID = function(value)
+    activeJoinedKeyMapID = value
+  end,
+  getPendingBindingApply = GetPendingBindingApply,
+  mainUI = mainUI,
+  centerNotice = centerNotice,
+  centerNoticeFrame = centerNoticeFrame,
+  centerNoticeTeleportButton = centerNoticeTeleportButton,
+  applySecureSpellToButton = ApplySecureSpellToButton,
+  refreshController = refreshController,
+  inspectController = inspectController,
+  statusController = statusController,
+  exitTestMode = ExitTestMode,
+  updateStatusLine = UpdateStatusLine,
+  applyLocalizationToUI = ApplyLocalizationToUI,
+  updateDMResetButton = UpdateDMResetButton,
+  checkIfEnteredTargetDungeon = CheckIfEnteredTargetDungeon,
+  setCenterNoticeVisible = SetCenterNoticeVisible,
   getState = function()
     return {
       isStopped = isStopped,
@@ -2404,56 +863,12 @@ isiLiveCommands.RegisterSlashCommands({
   end,
   toggleStandardTestMode = ToggleStandardTestMode,
   enterFullDummyPreview = EnterFullDummyPreview,
-  setMainFrameVisible = SetMainFrameVisible,
-  updateLeaderButtons = UpdateLeaderButtons,
-  isPlayerLeader = IsPlayerLeader,
   setLanguage = SetLanguage,
-  forceTeleportTestTarget = ForceTeleportTestTarget,
-  printTeleportDebug = PrintTeleportDebug,
-  setQueueDebugEnabled = SetQueueDebugEnabled,
-  getQueueDebugEnabled = IsQueueDebugEnabled,
-  clearQueueDebugLog = ClearQueueDebugLog,
-  getQueueDebugLogCount = GetQueueDebugLogCount,
-  getQueueDebugLogTail = GetQueueDebugLogTail,
+  teleportDebugController = teleportDebugController,
+  queueDebugController = queueDebugController,
+  addonName = addonName,
 })
-
-local gatedOnEvent = isiLiveEvents.CreateGate({
-  dispatch = OnEvent,
-  isStopped = function()
-    return isStopped
-  end,
-  isPaused = function()
-    return isPaused
-  end,
-  isTestMode = function()
-    return isTestMode
-  end,
-  allowWhenHidden = {
-    ADDON_LOADED = true,
-    PLAYER_LOGIN = true,
-    PLAYER_ENTERING_WORLD = true,
-    UPDATE_BINDINGS = true,
-    PLAYER_REGEN_ENABLED = true,
-    LFG_LIST_APPLICATION_STATUS_UPDATED = true,
-    LFG_LIST_SEARCH_RESULT_UPDATED = true,
-    LFG_LIST_ACTIVE_ENTRY_UPDATE = true,
-  },
-  shouldAllowWhenHidden = function(_, event)
-    if event ~= "GROUP_ROSTER_UPDATE" then
-      return false
-    end
-    local inChallenge = C_ChallengeMode
-      and C_ChallengeMode.GetActiveChallengeMapID
-      and C_ChallengeMode.GetActiveChallengeMapID()
-    local inSmallGroup = IsInGroup() and GetNumGroupMembers() <= 5
-    return inSmallGroup and not inChallenge
-  end,
-  allowInTestMode = {
-    ADDON_LOADED = true,
-    PLAYER_REGEN_ENABLED = true,
-    INSPECT_READY = true,
-  },
-})
-mainFrame:SetScript("OnEvent", gatedOnEvent)
+groupController = runtimeSetupResult.groupController
+eventHandlersController = runtimeSetupResult.eventHandlersController
 
 Print(string.format(L.LOADED_HINT, GetAddonVersionRaw()))

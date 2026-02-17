@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.26`.
+Current addon version: `0.9.27`.
 
 ## Features
 
@@ -34,6 +34,32 @@ Current addon version: `0.9.26`.
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 
+## Use Case / Logic Baseline (v0.9.26)
+
+Documented on `2026-02-17` as pre-refactor baseline for behavior checks.
+
+1. Queue invite -> grouped flow
+   - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`).
+   - On confirmed small-group join (`GROUP_ROSTER_UPDATE`), addon announces joined group, shows center notice + invite hint, resolves target dungeon teleport, and highlights the active teleport.
+2. Group roster build and ordering
+   - On group update, roster is rebuilt as `player + party1..party4`.
+   - Display ordering is stable by role (`TANK -> HEALER -> DAMAGER -> NONE`) and unit priority.
+   - Per row data includes `Spec`, `Name`, `Language/Flag`, `Key`, `iLvl`, `RIO`.
+3. Key sync and key column
+   - Addon sync channel exchanges `HELLO/ACK/KEY` between `isiLive` users.
+   - `KEY:<mapID>:<level>` snapshots populate roster key text as `Shortcut +Level` (for example `DB +14`).
+   - Active joined key owner is highlighted only when ownership is unambiguous.
+4. Teleport targeting and highlight logic
+   - Active target resolves in strict order: active listing activity, latest queue target, then active challenge map fallback.
+   - Highlight is group-bound (no solo highlight), and updates on queue/listing/challenge transitions.
+5. Refresh and inspect pipeline
+   - `Refresh` triggers forced sync reset (`HELLO/KEY`) and inspect cache invalidation/requeue.
+   - Inspect controller updates `Spec/iLvl/RIO` asynchronously via queue/retry flow and `INSPECT_READY`.
+6. Runtime gating and hidden/sleep behavior
+   - Event gate blocks non-required processing in `stopped`, `paused`, and hidden states.
+   - Hidden mode keeps minimal transition events active (for auto-open and queue continuity) while halting inspection loop work.
+   - `CHALLENGE_MODE_START` hides UI and performs optional DM reset; completion/reset rehydrates group view.
+
 ## Hotkeys
 
 - `CTRL+F9`: toggle isiLive window
@@ -62,15 +88,23 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive.lua`: main addon logic
 - `isiLive_locale.lua`: locale/language/flag mapping helpers
 - `isiLive_teleport.lua`: dungeon teleport mapping and secure teleport button helpers
+- `isiLive_teleport_ui.lua`: teleport grid button creation/update helpers
+- `isiLive_teleport_debug.lua`: teleport debug/test command controller (`tpdebug`, `tptest`)
 - `isiLive_notice.lua`: center notice/invite hint UI components
 - `isiLive_status.lua`: status line and dungeon-difficulty helpers
 - `isiLive_units.lua`: unit/spec/name/RIO helper functions
 - `isiLive_demo.lua`: dummy/test roster generation
 - `isiLive_sync.lua`: addon sync (`HELLO`/`ACK`/`KEY`) and user detection
+- `isiLive_keysync.lua`: key-sync controller (`HELLO/KEY` sends, key cache apply, active key owner resolver)
+- `isiLive_refresh.lua`: refresh controller (forced full refresh flow incl. `HELLO/KEY` + inspect requeue)
+- `isiLive_highlight.lua`: active-target resolver and highlight-state decision helpers
+- `isiLive_group.lua`: group lifecycle controller (`GROUP_ROSTER_UPDATE`, roster rebuild, leave cleanup)
 - `isiLive_queue.lua`: LFG/queue invite capture and parsing
+- `isiLive_queue_debug.lua`: queue debug storage + command helpers (`qdebug`)
 - `isiLive_inspect.lua`: inspect queue/retry/cache controller
 - `isiLive_roster.lua`: roster ordering + display-data builders
 - `isiLive_events.lua`: event gate wrapper for stop/pause/test/hidden states
+- `isiLive_event_handlers.lua`: runtime event handler controller (`OnEvent` routing targets)
 - `isiLive_commands.lua`: slash command registration/dispatch
 - `isiLive_ui.lua`: main frame/UI construction and widget wiring
 - `realm_language_data.lua`: Blizzard EU realm locale mapping (including UTF-8 Russian realm names)
@@ -97,10 +131,12 @@ Developer debug (hidden command, not listed in in-game help):
 
 ## Quality Check
 
-- GitHub Action (on push/PR to `main`): `stylua --check .`, `luacheck --exclude-files ".luarocks/**" -- .`, and Lua syntax check.
+- GitHub Action (on push/PR to `main`): `stylua --check .`, `luacheck --exclude-files ".luarocks/**" -- .`, Lua syntax check, and Lua metrics check (`lua tools/lua_metrics_check.lua`).
 - Local checks:
   - `stylua --check .`
   - `luacheck --exclude-files ".luarocks/**" -- .`
+  - `lua tools/lua_metrics_check.lua`
+  - Metrics defaults: file `warn>1200` / `hard>2400`, function `warn>120` / `hard>320` (override via `ISILIVE_WARN_FILE_LINES`, `ISILIVE_MAX_FILE_LINES`, `ISILIVE_WARN_FUNCTION_LINES`, `ISILIVE_MAX_FUNCTION_LINES`)
 
 ## Developer Setup
 
@@ -113,7 +149,8 @@ Prerequisites:
 Local checks:
 - `stylua .` (format)
 - `stylua --check .` (CI check)
-- `luacheck .` (lint)
+- `luacheck --exclude-files ".luarocks/**" -- .` (lint)
+- `lua tools/lua_metrics_check.lua` (file/function size metrics)
 
 Notes:
 - The addon is namespace-based (`local addonName, addonTable = ...`).
@@ -122,10 +159,11 @@ Notes:
 
 ## CI Quality Gate
 
-The CI workflow runs three checks on `push`/`pull_request` to `main`:
+The CI workflow runs four checks on `push`/`pull_request` to `main`:
 - `stylua --check .`
 - `luacheck --exclude-files ".luarocks/**" -- .`
 - Lua syntax check (`loadfile` validation for all `.lua` files except `.luarocks`)
+- Lua metrics check (`lua tools/lua_metrics_check.lua`)
 
 ## Git Hooks (Optional)
 
@@ -135,10 +173,16 @@ Enable the repository hook path:
 Then `pre-commit` will run:
 - `stylua --check .`
 - `luacheck --exclude-files ".luarocks/**" -- .`
+- `lua tools/lua_metrics_check.lua`
 
 ## CurseForge Auto Publish
 
-`release.yml` triggers CurseForge's official auto-packager when you push a tag like `isiLive_0.9.26`.
+Stable release:
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.27`.
+
+Pre-release:
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.27` or `isiLive_beta_0.9.27`.
+- Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
 
@@ -149,6 +193,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push tag (workflow tag style): `git tag isiLive_0.9.26 && git push origin isiLive_0.9.26`
+3. Create and push stable tag: `git tag isiLive_release_0.9.27 && git push origin isiLive_release_0.9.27`
+4. Optional pre-release tags:
+   - alpha: `git tag isiLive_alpha_0.9.27 && git push origin isiLive_alpha_0.9.27`
+   - beta: `git tag isiLive_beta_0.9.27 && git push origin isiLive_beta_0.9.27`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

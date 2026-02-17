@@ -29,18 +29,27 @@ git push origin main
 
 ## 4) Create Release Tag
 
-Tag format used by workflow:
+Stable tag format used by `Release` workflow:
 
 ```powershell
-git tag isiLive_X.Y.Z
-git push origin isiLive_X.Y.Z
+git tag isiLive_release_X.Y.Z
+git push origin isiLive_release_X.Y.Z
+```
+
+Pre-release tag formats used by `Pre-Release (Alpha/Beta)` workflow:
+
+```powershell
+git tag isiLive_alpha_X.Y.Z
+git push origin isiLive_alpha_X.Y.Z
+git tag isiLive_beta_X.Y.Z
+git push origin isiLive_beta_X.Y.Z
 ```
 
 Example:
 
 ```powershell
-git tag isiLive_0.9.26
-git push origin isiLive_0.9.26
+git tag isiLive_release_0.9.27
+git push origin isiLive_release_0.9.27
 ```
 
 ## 5) Verify GitHub Actions
@@ -48,7 +57,8 @@ git push origin isiLive_0.9.26
 Check Actions tab:
 
 1. `Lua Check` (quality-gate) must pass.
-2. `Release` workflow should trigger on the pushed tag.
+2. `Release` workflow should trigger only for `isiLive_release_*`.
+3. `Pre-Release (Alpha/Beta)` should trigger only for `isiLive_alpha_*` / `isiLive_beta_*`.
 
 ## 6) Verify CurseForge Package
 
