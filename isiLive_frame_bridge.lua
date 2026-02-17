@@ -23,7 +23,8 @@ function FrameBridge.CreateContext(opts)
   local resolveTeleportSpellID = RequireFunction(opts.resolveTeleportSpellID, "resolveTeleportSpellID")
   local applySecureSpellToButton = RequireFunction(opts.applySecureSpellToButton, "applySecureSpellToButton")
   local isSpellKnown = RequireFunction(opts.isSpellKnown, "isSpellKnown")
-  local getTeleportCooldownRemaining = RequireFunction(opts.getTeleportCooldownRemaining, "getTeleportCooldownRemaining")
+  local getTeleportCooldownRemaining =
+    RequireFunction(opts.getTeleportCooldownRemaining, "getTeleportCooldownRemaining")
   local formatCooldownSeconds = RequireFunction(opts.formatCooldownSeconds, "formatCooldownSeconds")
   local getL = RequireFunction(opts.getL, "getL")
 

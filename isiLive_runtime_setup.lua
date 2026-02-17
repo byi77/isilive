@@ -27,10 +27,8 @@ function RuntimeSetup.Configure(ctx)
   local mainFrame = assert(ctx.mainFrame, "isiLive: RuntimeSetup requires mainFrame")
   local onEvent = RequireFunction(ctx.onEvent, "onEvent")
 
-  local groupController = controllerWiring.CreateGroupController(
-    groupModule,
-    configBuilders.BuildGroupControllerDeps(ctx)
-  )
+  local groupController =
+    controllerWiring.CreateGroupController(groupModule, configBuilders.BuildGroupControllerDeps(ctx))
   ctx.groupController = groupController
 
   local leaderWatchController = leaderWatchModule.CreateController(configBuilders.BuildLeaderWatchControllerOpts(ctx))

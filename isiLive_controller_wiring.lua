@@ -32,7 +32,10 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     setWasGroupLeader = RequireFunction(state.setWasGroupLeader, "state.setWasGroupLeader"),
     getRoster = RequireFunction(state.getRoster, "state.getRoster"),
     setRoster = RequireFunction(state.setRoster, "state.setRoster"),
-    captureQueueJoinCandidate = RequireFunction(callbacks.captureQueueJoinCandidate, "callbacks.captureQueueJoinCandidate"),
+    captureQueueJoinCandidate = RequireFunction(
+      callbacks.captureQueueJoinCandidate,
+      "callbacks.captureQueueJoinCandidate"
+    ),
     announceQueuedGroupJoin = RequireFunction(callbacks.announceQueuedGroupJoin, "callbacks.announceQueuedGroupJoin"),
     setMainFrameVisible = RequireFunction(callbacks.setMainFrameVisible, "callbacks.setMainFrameVisible"),
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
@@ -46,7 +49,10 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     resetInspectAll = RequireFunction(callbacks.resetInspectAll, "callbacks.resetInspectAll"),
     resetInspectQueues = RequireFunction(callbacks.resetInspectQueues, "callbacks.resetInspectQueues"),
     updateUI = RequireFunction(callbacks.updateUI, "callbacks.updateUI"),
-    updateMPlusTeleportButton = RequireFunction(callbacks.updateMPlusTeleportButton, "callbacks.updateMPlusTeleportButton"),
+    updateMPlusTeleportButton = RequireFunction(
+      callbacks.updateMPlusTeleportButton,
+      "callbacks.updateMPlusTeleportButton"
+    ),
     getUnitNameAndRealm = RequireFunction(deps.getUnitNameAndRealm, "getUnitNameAndRealm"),
     getUnitClass = RequireFunction(deps.getUnitClass, "getUnitClass"),
     getUnitServerLanguage = RequireFunction(deps.getUnitServerLanguage, "getUnitServerLanguage"),
@@ -97,8 +103,14 @@ function ControllerWiring.CreateEventHandlersController(eventHandlersModule, dep
     getNormalizedActiveEntryInfo = RequireFunction(deps.getNormalizedActiveEntryInfo, "getNormalizedActiveEntryInfo"),
     setPendingQueueJoinInfo = RequireFunction(state.setPendingQueueJoinInfo, "state.setPendingQueueJoinInfo"),
     clearLatestQueueTarget = RequireFunction(callbacks.clearLatestQueueTarget, "callbacks.clearLatestQueueTarget"),
-    updateMPlusTeleportButton = RequireFunction(callbacks.updateMPlusTeleportButton, "callbacks.updateMPlusTeleportButton"),
-    captureQueueJoinCandidate = RequireFunction(callbacks.captureQueueJoinCandidate, "callbacks.captureQueueJoinCandidate"),
+    updateMPlusTeleportButton = RequireFunction(
+      callbacks.updateMPlusTeleportButton,
+      "callbacks.updateMPlusTeleportButton"
+    ),
+    captureQueueJoinCandidate = RequireFunction(
+      callbacks.captureQueueJoinCandidate,
+      "callbacks.captureQueueJoinCandidate"
+    ),
     getActiveJoinedKeyMapID = RequireFunction(state.getActiveJoinedKeyMapID, "state.getActiveJoinedKeyMapID"),
     setActiveJoinedKeyMapID = RequireFunction(state.setActiveJoinedKeyMapID, "state.setActiveJoinedKeyMapID"),
     updateUI = RequireFunction(callbacks.updateUI, "callbacks.updateUI"),

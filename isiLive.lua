@@ -54,7 +54,10 @@ local function Print(msg)
   print("isiLive: " .. msg)
 end
 
-assert(isiLiveGuards and type(isiLiveGuards.Validate) == "function", "isiLive: missing module Guards (isiLive_guards.lua)")
+assert(
+  isiLiveGuards and type(isiLiveGuards.Validate) == "function",
+  "isiLive: missing module Guards (isiLive_guards.lua)"
+)
 isiLiveGuards.Validate(addonTable)
 
 local GetAddonVersionRaw = function()
@@ -140,7 +143,6 @@ local bindingController
 local keySyncController
 local refreshController
 local highlightController
-local groupController
 local queueFlowController
 local testModeController
 local eventHandlersController
@@ -868,7 +870,6 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   queueDebugController = queueDebugController,
   addonName = addonName,
 })
-groupController = runtimeSetupResult.groupController
 eventHandlersController = runtimeSetupResult.eventHandlersController
 
 Print(string.format(L.LOADED_HINT, GetAddonVersionRaw()))

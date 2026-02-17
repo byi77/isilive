@@ -16,7 +16,8 @@ function QueueFlow.CreateController(opts)
   local getL = RequireFunction(opts.getL, "getL")
   local getPendingQueueJoinInfo = RequireFunction(opts.getPendingQueueJoinInfo, "getPendingQueueJoinInfo")
   local setPendingQueueJoinInfo = RequireFunction(opts.setPendingQueueJoinInfo, "setPendingQueueJoinInfo")
-  local resolveSeason3TeleportSpellID = RequireFunction(opts.resolveSeason3TeleportSpellID, "resolveSeason3TeleportSpellID")
+  local resolveSeason3TeleportSpellID =
+    RequireFunction(opts.resolveSeason3TeleportSpellID, "resolveSeason3TeleportSpellID")
   local resolveSeason3TeleportSpellIDByActivityID =
     RequireFunction(opts.resolveSeason3TeleportSpellIDByActivityID, "resolveSeason3TeleportSpellIDByActivityID")
   local resolveJoinedKeyMapID = RequireFunction(opts.resolveJoinedKeyMapID, "resolveJoinedKeyMapID")

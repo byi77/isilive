@@ -97,8 +97,14 @@ local REQUIRED_FUNCTIONS = {
   { path = { "ContextHelpers", "GetAddonVersionRaw" }, message = "isiLive: ContextHelpers.GetAddonVersionRaw missing" },
   { path = { "RuntimeSetup", "Configure" }, message = "isiLive: RuntimeSetup.Configure missing" },
   { path = { "ControllerInit", "CreateControllers" }, message = "isiLive: ControllerInit.CreateControllers missing" },
-  { path = { "Teleport", "ResolveSeason3TeleportSpellID" }, message = "isiLive: Teleport.ResolveSeason3TeleportSpellID missing" },
-  { path = { "Teleport", "BuildSeason3TeleportEntries" }, message = "isiLive: Teleport.BuildSeason3TeleportEntries missing" },
+  {
+    path = { "Teleport", "ResolveSeason3TeleportSpellID" },
+    message = "isiLive: Teleport.ResolveSeason3TeleportSpellID missing",
+  },
+  {
+    path = { "Teleport", "BuildSeason3TeleportEntries" },
+    message = "isiLive: Teleport.BuildSeason3TeleportEntries missing",
+  },
   { path = { "TeleportUI", "CreateController" }, message = "isiLive: TeleportUI.CreateController missing" },
   { path = { "TeleportDebug", "CreateController" }, message = "isiLive: TeleportDebug.CreateController missing" },
 }

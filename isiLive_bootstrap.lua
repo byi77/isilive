@@ -26,14 +26,10 @@ function Bootstrap.RegisterSlashCommands(opts)
   local isPlayerLeader = RequireFunction(opts.isPlayerLeader, "isPlayerLeader")
   local setLanguage = RequireFunction(opts.setLanguage, "setLanguage")
 
-  local teleportDebugController = assert(
-    opts.teleportDebugController,
-    "isiLive: Bootstrap.RegisterSlashCommands requires teleportDebugController"
-  )
-  local queueDebugController = assert(
-    opts.queueDebugController,
-    "isiLive: Bootstrap.RegisterSlashCommands requires queueDebugController"
-  )
+  local teleportDebugController =
+    assert(opts.teleportDebugController, "isiLive: Bootstrap.RegisterSlashCommands requires teleportDebugController")
+  local queueDebugController =
+    assert(opts.queueDebugController, "isiLive: Bootstrap.RegisterSlashCommands requires queueDebugController")
 
   commands.RegisterSlashCommands({
     printFn = printFn,
