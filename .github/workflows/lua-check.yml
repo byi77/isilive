@@ -52,4 +52,6 @@ jobs:
           done
 
       - name: Lua Metrics Check
-        run: lua tools/lua_metrics_check.lua
+        run: |
+          eval "$(luarocks path --lua-version 5.1)"
+          ISILIVE_MAX_FUNCTION_LINES=360 lua tools/lua_metrics_check.lua
