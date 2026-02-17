@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.28`.
+Current addon version: `0.9.29`.
 
 ## Features
 
@@ -178,10 +178,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.28`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.29`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.28` or `isiLive_beta_0.9.28`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.29` or `isiLive_beta_0.9.29`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -193,9 +193,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.28 && git push origin isiLive_release_0.9.28`
+3. Create and push stable tag: `git tag isiLive_release_0.9.29 && git push origin isiLive_release_0.9.29`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.28 && git push origin isiLive_alpha_0.9.28`
-   - beta: `git tag isiLive_beta_0.9.28 && git push origin isiLive_beta_0.9.28`
+   - alpha: `git tag isiLive_alpha_0.9.29 && git push origin isiLive_alpha_0.9.29`
+   - beta: `git tag isiLive_beta_0.9.29 && git push origin isiLive_beta_0.9.29`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

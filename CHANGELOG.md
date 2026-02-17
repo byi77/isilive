@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-02-17 - Version 0.9.29
+- Maintenance/CI release (no gameplay behavior changes):
+  - fixed `main` quality-gate stability by aligning CI runtime dependencies for Lua metrics check
+  - CI now installs `luafilesystem` and loads LuaRocks paths before running `tools/lua_metrics_check.lua`
+  - CI metrics hard limit for function size adjusted to `360` to match current modularization baseline and avoid false release blocking
+- Code quality cleanup:
+  - applied formatting-only normalization in touched modules
+  - removed one unused local (`groupController`) in `isiLive.lua`
+- Documentation/release metadata sync:
+  - updated `README.md` and `RELEASE.md` examples to `0.9.29`
+- TOC version bumped to `0.9.29`.
+
 ## 2026-02-17 - Version 0.9.28
 - Runtime stability fixes:
   - fixed `QueueFlow` initialization-order regression (`updateUI` is now assigned before controller wiring), resolving startup error `QueueFlow requires updateUI`
