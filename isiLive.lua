@@ -326,6 +326,10 @@ UpdateLeaderButtons = function()
   rosterPanelController.UpdateLeaderButtons()
 end
 
+UpdateUI = function()
+  rosterPanelController.RenderRoster(roster)
+end
+
 -- --- Data & State ---
 -- Stores current group members keyed by unit token.
 local inspectController = isiLiveInspect.CreateController({
@@ -676,10 +680,6 @@ end
 
 local function SetLocaleTable(value)
   L = value
-end
-
-UpdateUI = function()
-  rosterPanelController.RenderRoster(roster)
 end
 
 local function EnqueueInspect(unit)

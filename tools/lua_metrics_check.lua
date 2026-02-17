@@ -1,3 +1,11 @@
+-- Standalone CLI tool: uses standard Lua globals outside the WoW runtime.
+---@diagnostic disable-next-line: undefined-global
+local require = require
+---@diagnostic disable-next-line: undefined-global
+local io = io
+---@diagnostic disable-next-line: undefined-global
+local os = os
+
 local ok_lfs, lfs = pcall(require, "lfs")
 if not ok_lfs then
   io.stderr:write("metrics: missing dependency 'lfs' (LuaFileSystem)\n")

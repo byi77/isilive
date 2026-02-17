@@ -175,7 +175,6 @@ function TeleportUI.CreateController(opts)
       local icon = getSpellTexture(button.spellID)
       button.icon:SetTexture(icon or button.defaultIcon or "Interface\\Icons\\INV_Misc_QuestionMark")
       button.isActiveTarget = (resolvedSpellID and button.spellID == resolvedSpellID) and true or false
-      button:Enable()
 
       local start, duration, enabled = getSpellCooldownSafe(button.spellID)
       applyCooldownFrameSafe(button.cooldown, start, duration, enabled)

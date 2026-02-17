@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-02-17 - Version 0.9.28
+- Runtime stability fixes:
+  - fixed `QueueFlow` initialization-order regression (`updateUI` is now assigned before controller wiring), resolving startup error `QueueFlow requires updateUI`
+  - fixed combat taint/protected-call error (`ADDON_ACTION_BLOCKED: Button:Enable()`) by removing runtime `Enable()` calls from secure teleport button update path
+- Tooling/editor diagnostics:
+  - fixed LuaLS false-positive diagnostics in `tools/lua_metrics_check.lua` for CLI globals (`require`, `io`, `os`) in standalone metrics script
+- Documentation/release metadata sync:
+  - updated `README.md` and `RELEASE.md` examples to `0.9.28`
+- TOC version bumped to `0.9.28`.
+
 ## 2026-02-17 - Version 0.9.27
 - Big refactoring and modularization pass:
   - split large runtime responsibilities into dedicated modules (wiring/bootstrap, event handlers, group lifecycle, queue flow, bindings, helpers)
