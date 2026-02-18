@@ -86,6 +86,7 @@ return {
         "LibStub",
         "NotifyInspect",
         "PlaySound",
+        "SendChatMessage",
         "SetOverrideBindingClick",
         "UnitClass",
         "UnitExists",

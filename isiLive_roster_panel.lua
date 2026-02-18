@@ -147,7 +147,7 @@ function RosterPanel.CreateController(opts)
   keyHeader:SetWidth(KEY_COL_WIDTH)
   keyHeader:SetJustifyH("RIGHT")
 
-  local announceButton = CreateAnnounceButton({
+  CreateAnnounceButton({
     mainFrame = mainFrame,
     getL = getL,
     getRoster = getRoster,
