@@ -5,13 +5,18 @@
 Compatibility target: WoW `12.0+` only.
 Current addon version: `0.9.30`.
 
+## Season Scope
+
+- Active dungeon/teleport dataset is fixed to **The War Within Season 3 (TWW S3)**.
+- Do not mix in dungeon pools, map IDs, or teleports from other seasons.
+
 ## Features
 
 - Group roster table with columns: `Spec`, `Name`, `Sprache/Flag`, `Key`, `iLvl`, `RIO`
 - Stable role sorting: `Tank -> Healer -> Damager`
 - Right-side controls: `Readycheck`, `Countdown10`, `Refresh`, `DM Reset: ON/OFF`
-- `M+ Management` teleport grid with all Season dungeon teleports
-- Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
+- `M+ Management` teleport grid with all TWW S3 dungeon teleports
+- Active dungeon teleport is highlighted (pulse/glow) for joined queue groups and active self-hosted listings (including solo host); highlight turns off when already inside that target dungeon
 - Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14`)
 - Queue join detection with chat message, center notice, and invite hint
 - Dungeon teleport controls in center notice + right-side grid
@@ -20,7 +25,7 @@ Current addon version: `0.9.30`.
 - Spec column supports short labels for long localized names (for example `Wiederherstellung -> Resto`, `Vergeltung -> Retri`)
 - Center notices: left-click drag, right-click dismiss, persistent position
 - Non-Mythic dungeon entry warning with delayed confirmation (larger/blinking persistent notice; right-click dismiss, left-click drag)
-- Bottom-right version label in main window (`V.x.y.z`)
+- Top-right version label in main window (`V.x.y.z`)
 
 ## Behavior
 
@@ -34,9 +39,9 @@ Current addon version: `0.9.30`.
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 
-## Use Case / Logic Baseline (v0.9.26)
+## Use Case / Logic Baseline (v0.9.30)
 
-Documented on `2026-02-17` as pre-refactor baseline for behavior checks.
+Documented on `2026-02-18` as current behavior baseline for regression checks.
 
 1. Queue invite -> grouped flow
    - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`).
@@ -50,8 +55,8 @@ Documented on `2026-02-17` as pre-refactor baseline for behavior checks.
    - `KEY:<mapID>:<level>` snapshots populate roster key text as `Shortcut +Level` (for example `DB +14`).
    - Active joined key owner is highlighted only when ownership is unambiguous.
 4. Teleport targeting and highlight logic
-   - Active target resolves in strict order: active listing activity, latest queue target, then active challenge map fallback.
-   - Highlight is group-bound (no solo highlight), and updates on queue/listing/challenge transitions.
+   - Active target resolves in strict order: active listing (`mapID/activityID/name` fallback), latest queue target state, then queue activity/name resolution.
+   - Active self-hosted listings are highlighted even without a formed group; highlight is suppressed when already inside the matching target dungeon.
 5. Refresh and inspect pipeline
    - `Refresh` triggers forced sync reset (`HELLO/KEY`) and inspect cache invalidation/requeue.
    - Inspect controller updates `Spec/iLvl/RIO` asynchronously via queue/retry flow and `INSPECT_READY`.
@@ -87,6 +92,7 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive.toc`: addon metadata and load order
 - `isiLive.lua`: main addon logic
 - `isiLive_locale.lua`: locale/language/flag mapping helpers
+- `isiLive_season_data.lua`: canonical TWW S3 dungeon/teleport mapping data
 - `isiLive_teleport.lua`: dungeon teleport mapping and secure teleport button helpers
 - `isiLive_teleport_ui.lua`: teleport grid button creation/update helpers
 - `isiLive_teleport_debug.lua`: teleport debug/test command controller (`tpdebug`, `tptest`)

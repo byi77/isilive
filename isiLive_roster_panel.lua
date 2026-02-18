@@ -258,7 +258,7 @@ function RosterPanel.CreateController(opts)
   statusLine:SetText("")
 
   local versionLine = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  versionLine:SetPoint("BOTTOMRIGHT", -10, 10)
+  versionLine:SetPoint("TOPRIGHT", -10, -10)
   versionLine:SetJustifyH("RIGHT")
   versionLine:SetText(getAddonVersionText())
 

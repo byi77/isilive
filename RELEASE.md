@@ -2,22 +2,25 @@
 
 This is the canonical release flow for `isiLive`.
 
-## 1) Update Version + Changelog
+## 1) Update Version + Docs
 
 1. Update TOC version in `isiLive.toc`:
    - `## Version: x.y.z`
 2. Add a new entry at the top of `CHANGELOG.md`.
+3. Update `README.md` for user-visible behavior/layout changes.
+4. If season data was touched, verify docs explicitly state **TWW S3 only** (`README.md` + `CHANGELOG.md`).
 
 ## 2) Local Quality Gate
 
 Run before committing:
 
 ```powershell
-stylua .
-luacheck .
+stylua --check .
+luacheck --exclude-files ".luarocks/**" -- .
+lua tools/lua_metrics_check.lua
 ```
 
-Expected: `0 warnings / 0 errors`.
+Expected: lint/style/metrics checks pass.
 
 ## 3) Commit + Push
 

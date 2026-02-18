@@ -63,6 +63,7 @@ function Highlight.CreateController(opts)
         active = TryGet(r1, "active", "isActive", nil),
         activityID = activityID,
         primaryActivityID = tonumber(TryGet(r1, "primaryActivityID", "primaryActivity", nil)),
+        mapID = tonumber(TryGet(r1, "mapID", "mapId", nil)),
         activityIDs = TryGet(r1, "activityIDs", "activities", nil),
         name = type(TryGet(r1, "name", "listingName", nil)) == "string" and TryGet(r1, "name", "listingName", nil)
           or nil,
@@ -109,6 +110,13 @@ function Highlight.CreateController(opts)
       return nil
     end
 
+    if entryInfo.mapID then
+      local mapSpellID = resolveSeason3TeleportSpellIDByMapID(entryInfo.mapID)
+      if mapSpellID then
+        return mapSpellID
+      end
+    end
+
     local candidates = {}
     local seen = {}
     local function addCandidate(id)
@@ -135,6 +143,16 @@ function Highlight.CreateController(opts)
       end
     end
 
+    local nameCandidates = { entryInfo.activityName, entryInfo.name, entryInfo.title }
+    for _, listingName in ipairs(nameCandidates) do
+      if type(listingName) == "string" and listingName ~= "" then
+        local hostedSpellID = resolveSeason3TeleportSpellID(nil, listingName)
+        if hostedSpellID then
+          return hostedSpellID
+        end
+      end
+    end
+
     -- If the active listing cannot be resolved (common around full-group transitions),
     -- allow fallback to known queue/join target instead of dropping highlight abruptly.
     return nil
@@ -145,35 +163,42 @@ function Highlight.CreateController(opts)
     latestQueueDungeonName,
     latestQueueTeleportSpellID
   )
-    -- Business rule: highlight only while grouped (joined group or self-hosted in group).
-    if not isInGroup() then
-      return nil
+    local currentMapTeleportSpellID = nil
+    local currentMapResolved = false
+    local function IsCurrentDungeonSpell(spellID)
+      if not spellID then
+        return false
+      end
+      if not currentMapResolved then
+        currentMapResolved = true
+        if C_Map and C_Map.GetBestMapForUnit then
+          local mapID = C_Map.GetBestMapForUnit("player")
+          if mapID then
+            currentMapTeleportSpellID = resolveSeason3TeleportSpellIDByMapID(mapID)
+          end
+        end
+      end
+      return currentMapTeleportSpellID and currentMapTeleportSpellID == spellID
     end
 
     local entryInfo = controller.GetNormalizedActiveEntryInfo()
     local activeListingSpellID = controller.ResolveActiveListingTeleportSpellID(entryInfo)
-    if activeListingSpellID then
+    if activeListingSpellID and not IsCurrentDungeonSpell(activeListingSpellID) then
       return activeListingSpellID
     end
 
-    if latestQueueTeleportSpellID then
+    -- Outside group, only active hosted listing is highlighted.
+    if not isInGroup() then
+      return nil
+    end
+
+    if latestQueueTeleportSpellID and not IsCurrentDungeonSpell(latestQueueTeleportSpellID) then
       return latestQueueTeleportSpellID
     end
 
     local queueSpellID = resolveSeason3TeleportSpellID(latestQueueActivityID, latestQueueDungeonName)
-    if queueSpellID then
+    if queueSpellID and not IsCurrentDungeonSpell(queueSpellID) then
       return queueSpellID
-    end
-
-    -- Fallback: Try to get current active challenge map (for joined keys)
-    if C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID then
-      local currentMapID = C_ChallengeMode.GetActiveChallengeMapID()
-      if currentMapID then
-        local spellID = resolveSeason3TeleportSpellIDByMapID(currentMapID)
-        if spellID then
-          return spellID
-        end
-      end
     end
 
     return nil

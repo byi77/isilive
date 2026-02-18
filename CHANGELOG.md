@@ -3,11 +3,15 @@
 ## 2026-02-18 - Version 0.9.30
 - **Key Announce:** Added a speaker button to the roster panel to post all known party keys to chat.
 - **Season Data:** Extracted season data (dungeons, teleports) into `isiLive_season_data.lua` for easier updates.
-- **Season Data:** Updated dungeon list and teleports for **The War Within Season 1**.
+- **Season Data:** Updated/locked dungeon list and teleports for **The War Within Season 3 (TWW S3)**.
 - **UI Behavior:** The main window is now "frozen" instead of strictly hidden during M+ runs; it can be opened via hotkey (`CTRL+F9`) to view cached data.
 - **Auto-Refresh:** Added automatic group data refresh (iLvl/RIO) 5 seconds after dungeon completion.
+- **UI Layout:** Moved addon version label from bottom-right to top-right in the main window.
 - **Teleport UI:** Active dungeon target now shows the yellow border even if the teleport spell is not yet learned (locked), improving clarity for alts.
 - **Teleport:** Optimized caching for teleport spell lookups (Tazavesh tokens).
+- **Teleport Mapping:** Added support for multiple mapped spell IDs per dungeon map (for variant/faction-safe resolution).
+- **Teleport Highlight:** Fixed self-hosted key highlight resolution for localized listing names (e.g. `Morgenbringer`) and solo-host active listings.
+- **Teleport Highlight:** Highlight now turns off once the player is already inside the matching target dungeon.
 - **Sync:** Improved realm name normalization for stricter sync matching.
 - **Fixes:**
   - **Combat Safety:** Added retry logic for teleport buttons loaded during combat to prevent broken states.

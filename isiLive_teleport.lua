@@ -13,6 +13,72 @@ local MAP_SHORT_CODES = SeasonData.MAP_SHORT_CODES or {}
 local ACTIVITY_TO_TELEPORT_CACHE = {}
 local TAZAVESH_TOKENS_CACHE = nil
 
+local function IsSpellKnownByID(spellID)
+  if not spellID then
+    return false
+  end
+
+  if C_SpellBook and C_SpellBook.IsSpellKnownOrOverridesKnown then
+    local ok, known = pcall(C_SpellBook.IsSpellKnownOrOverridesKnown, spellID)
+    if ok and known == true then
+      return true
+    end
+  end
+
+  if C_SpellBook and C_SpellBook.IsSpellKnown then
+    local ok, known = pcall(C_SpellBook.IsSpellKnown, spellID)
+    if ok and known == true then
+      return true
+    end
+  end
+
+  return false
+end
+
+local function ResolveMappedSpellID(mapID)
+  local mapped = MAP_TO_TELEPORT[mapID]
+
+  if type(mapped) == "number" then
+    return mapped
+  end
+
+  if type(mapped) == "table" then
+    local firstCandidate = nil
+    for _, candidate in ipairs(mapped) do
+      local spellID = tonumber(candidate)
+      if spellID then
+        if not firstCandidate then
+          firstCandidate = spellID
+        end
+        if IsSpellKnownByID(spellID) then
+          return spellID
+        end
+      end
+    end
+    return firstCandidate
+  end
+
+  return nil
+end
+
+local function IterateMappedSpellIDs(mapID, callback)
+  local mapped = MAP_TO_TELEPORT[mapID]
+
+  if type(mapped) == "number" then
+    callback(mapped)
+    return
+  end
+
+  if type(mapped) == "table" then
+    for _, candidate in ipairs(mapped) do
+      local spellID = tonumber(candidate)
+      if spellID then
+        callback(spellID)
+      end
+    end
+  end
+end
+
 local function NormalizeNameForMatch(text)
   if type(text) ~= "string" then
     return ""
@@ -86,9 +152,11 @@ function Teleport.ResolveTeleportSpellByActivityID(activityID)
 
     -- Versuche via mapID
     if mapID and MAP_TO_TELEPORT[mapID] then
-      local spellID = MAP_TO_TELEPORT[mapID]
-      ACTIVITY_TO_TELEPORT_CACHE[activityID] = spellID
-      return spellID
+      local spellID = ResolveMappedSpellID(mapID)
+      if spellID then
+        ACTIVITY_TO_TELEPORT_CACHE[activityID] = spellID
+        return spellID
+      end
     end
   end
   return nil
@@ -100,7 +168,7 @@ function Teleport.GetSeason3TeleportInfoByMapID(mapID)
     return nil
   end
 
-  local spellID = MAP_TO_TELEPORT[numericMapID]
+  local spellID = ResolveMappedSpellID(numericMapID)
   if not spellID then
     return nil
   end
@@ -153,7 +221,7 @@ end
 function Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
   local numericMapID = tonumber(mapID)
   if numericMapID and MAP_TO_TELEPORT[numericMapID] then
-    return MAP_TO_TELEPORT[numericMapID]
+    return ResolveMappedSpellID(numericMapID)
   end
   return nil
 end
@@ -163,8 +231,14 @@ function Teleport.ResolveSeason3MapIDBySpellID(spellID)
   if not numericSpellID then
     return nil
   end
-  for mapID, mappedSpellID in pairs(MAP_TO_TELEPORT) do
-    if mappedSpellID == numericSpellID then
+  for mapID in pairs(MAP_TO_TELEPORT) do
+    local matched = false
+    IterateMappedSpellIDs(mapID, function(mappedSpellID)
+      if mappedSpellID == numericSpellID then
+        matched = true
+      end
+    end)
+    if matched then
       return mapID
     end
   end
@@ -202,16 +276,16 @@ function Teleport.ResolveSeason3TeleportSpellID(activityID, dungeonName)
         return 367416
       end
     end
-    for mapID, spellID in pairs(MAP_TO_TELEPORT) do
+    for mapID in pairs(MAP_TO_TELEPORT) do
       local info = Teleport.GetSeason3TeleportInfoByMapID(mapID)
       if info and info.mapName then
         local normalizedMapName = NormalizeNameForMatch(info.mapName)
         if normalizedMapName ~= "" and string.find(normalizedName, normalizedMapName, 1, true) then
-          return spellID
+          return info.spellID
         end
       end
       if info and info.mapName and string.find(nameToUse, info.mapName, 1, true) then
-        return spellID
+        return info.spellID
       end
     end
   end

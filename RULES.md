@@ -7,6 +7,13 @@
 - Support target is WoW patch `12.0+` only.
 - Treat `<12.0` as unsupported/incompatible; do not add legacy compatibility code.
 
+## Season Scope
+- This addon is locked to **The War Within Season 3 (TWW S3)** dungeon/teleport data only.
+- Do not merge, copy, or backport dungeon pools, map IDs, or teleport spell IDs from any other season (`TWW S1/S2`, Dragonflight, Shadowlands, etc.).
+- `isiLive_season_data.lua` must only contain the active TWW S3 pool.
+- Any season-data edit must be explicitly labeled as `TWW S3` in both `CHANGELOG.md` and `README.md`.
+- If an external change conflicts with this scope, reject it and keep the TWW S3 mapping.
+
 ## Localization
 - All user-facing text must use the localization table.
 - Use English as fallback for unsupported locales.
