@@ -32,13 +32,18 @@ jobs:
         uses: leafo/gh-actions-luarocks@v4
 
       - name: Install luacheck
-        run: luarocks install luacheck
+        run: |
+          luarocks install luacheck 1.2.0-1
+          echo "$(luarocks path --lr-bin)" >> "$GITHUB_PATH"
 
       - name: Install LuaFileSystem
-        run: luarocks install luafilesystem
+        run: luarocks install luafilesystem 1.8.0-1
 
       - name: Luacheck
-        run: luacheck --exclude-files ".luarocks/**" -- .
+        run: |
+          command -v luacheck
+          luacheck --version
+          luacheck --exclude-files ".luarocks/**" -- .
 
       - name: Lua Syntax Check
         run: |
