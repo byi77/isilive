@@ -34,6 +34,9 @@ function TeleportUI.CreateController(opts)
   local getSpellTexture = opts.getSpellTexture or function(_spellID)
     return nil
   end
+  local isInCombat = opts.isInCombat or function()
+    return InCombatLockdown and InCombatLockdown()
+  end
 
   assert(mainFrame and mainFrame.GetFrameLevel, "isiLive: TeleportUI requires mainFrame")
   assert(type(applySecureSpellToButton) == "function", "isiLive: TeleportUI requires applySecureSpellToButton")
@@ -45,6 +48,7 @@ function TeleportUI.CreateController(opts)
   assert(type(getSpellCooldownSafe) == "function", "isiLive: TeleportUI requires getSpellCooldownSafe")
   assert(type(applyCooldownFrameSafe) == "function", "isiLive: TeleportUI requires applyCooldownFrameSafe")
   assert(type(getSpellTexture) == "function", "isiLive: TeleportUI requires getSpellTexture")
+  assert(type(isInCombat) == "function", "isiLive: TeleportUI requires isInCombat")
 
   local controller = {}
   local buttons = {}
@@ -205,13 +209,17 @@ function TeleportUI.CreateController(opts)
           button.overlay:SetColorTexture(0, 0, 0, 0.28)
           button.activeGlow:Hide()
           button.animGroup:Stop()
-          button:SetScale(1) -- Reset scale
+          if not isInCombat() then
+            button:SetScale(1) -- Reset scale
+          end
         end
       else
         button.overlay:SetColorTexture(0, 0, 0, 0.62)
         button.activeGlow:Hide()
         button.animGroup:Stop()
-        button:SetScale(1)
+        if not isInCombat() then
+          button:SetScale(1)
+        end
       end
     end
   end

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-02-18 - Version 0.9.31
+- Runtime stability fixes:
+  - fixed combat taint/protected-call error (`ADDON_ACTION_BLOCKED: Button:SetScale()`) by skipping teleport-button scale resets during combat and applying the reset after `PLAYER_REGEN_ENABLED`
+- TOC version bumped to `0.9.31`.
+
 ## 2026-02-18 - Version 0.9.30
 - **Key Announce:** Added a speaker button to the roster panel to post all known party keys to chat.
 - **Season Data:** Extracted season data (dungeons, teleports) into `isiLive_season_data.lua` for easier updates.

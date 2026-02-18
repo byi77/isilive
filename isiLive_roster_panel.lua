@@ -23,6 +23,21 @@ local function RequireFunction(value, name)
   return value
 end
 
+local function SendPartyChatMessage(message)
+  if type(message) ~= "string" or message == "" then
+    return false
+  end
+
+  if C_ChatInfo and type(C_ChatInfo.SendChatMessage) == "function" then
+    local ok = pcall(C_ChatInfo.SendChatMessage, message, "PARTY")
+    if ok then
+      return true
+    end
+  end
+
+  return false
+end
+
 local function CreateAnnounceButton(opts)
   local mainFrame = opts.mainFrame
   local getL = opts.getL
@@ -64,7 +79,9 @@ local function CreateAnnounceButton(opts)
     end
     local msg = L.ANNOUNCE_PREFIX .. " " .. table.concat(parts, ", ")
     if isInGroup() then
-      SendChatMessage(msg, "PARTY")
+      if not SendPartyChatMessage(msg) then
+        print(msg)
+      end
     else
       print(msg)
     end
