@@ -23,6 +23,56 @@ local function RequireFunction(value, name)
   return value
 end
 
+local function CreateAnnounceButton(opts)
+  local mainFrame = opts.mainFrame
+  local getL = opts.getL
+  local getRoster = opts.getRoster
+  local buildOrderedRoster = opts.buildOrderedRoster
+  local rolePriority = opts.rolePriority
+  local unitPriority = opts.unitPriority
+  local getDungeonShortCode = opts.getDungeonShortCode
+  local isInGroup = opts.isInGroup
+
+  local button = CreateFrame("Button", nil, mainFrame)
+  button:SetSize(14, 14)
+  button:SetPoint("TOPLEFT", KEY_COL_X + 2, -34)
+  button:SetNormalTexture("Interface\\Buttons\\UI-GuildButton-PublicSpeaking-Up")
+  button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+  button:SetScript("OnEnter", function(self)
+    local L = getL()
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(L.TOOLTIP_ANNOUNCE_KEYS)
+    GameTooltip:Show()
+  end)
+  button:SetScript("OnLeave", function()
+    GameTooltip:Hide()
+  end)
+  button:SetScript("OnClick", function()
+    local L = getL()
+    local roster = getRoster()
+    local parts = {}
+    local ordered = buildOrderedRoster(roster, rolePriority, unitPriority)
+    for _, entry in ipairs(ordered) do
+      local info = entry.info
+      if info.keyMapID and info.keyLevel and tonumber(info.keyLevel) > 0 then
+        local short = getDungeonShortCode(info.keyMapID)
+        table.insert(parts, string.format("%s: %s +%s", info.name, short, info.keyLevel))
+      end
+    end
+    if #parts == 0 then
+      return
+    end
+    local msg = L.ANNOUNCE_PREFIX .. " " .. table.concat(parts, ", ")
+    if isInGroup() then
+      SendChatMessage(msg, "PARTY")
+    else
+      print(msg)
+    end
+  end)
+
+  return button
+end
+
 function RosterPanel.CreateController(opts)
   opts = opts or {}
 
@@ -97,42 +147,16 @@ function RosterPanel.CreateController(opts)
   keyHeader:SetWidth(KEY_COL_WIDTH)
   keyHeader:SetJustifyH("RIGHT")
 
-  local announceButton = CreateFrame("Button", nil, mainFrame)
-  announceButton:SetSize(14, 14)
-  announceButton:SetPoint("TOPLEFT", KEY_COL_X + 2, -34)
-  announceButton:SetNormalTexture("Interface\\Buttons\\UI-GuildButton-PublicSpeaking-Up")
-  announceButton:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
-  announceButton:SetScript("OnEnter", function(self)
-    local L = getL()
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetText(L.TOOLTIP_ANNOUNCE_KEYS)
-    GameTooltip:Show()
-  end)
-  announceButton:SetScript("OnLeave", function()
-    GameTooltip:Hide()
-  end)
-  announceButton:SetScript("OnClick", function()
-    local L = getL()
-    local roster = getRoster()
-    local parts = {}
-    local ordered = buildOrderedRoster(roster, rolePriority, unitPriority)
-    for _, entry in ipairs(ordered) do
-      local info = entry.info
-      if info.keyMapID and info.keyLevel and tonumber(info.keyLevel) > 0 then
-        local short = getDungeonShortCode(info.keyMapID)
-        table.insert(parts, string.format("%s: %s +%s", info.name, short, info.keyLevel))
-      end
-    end
-    if #parts == 0 then
-      return
-    end
-    local msg = L.ANNOUNCE_PREFIX .. " " .. table.concat(parts, ", ")
-    if isInGroup() then
-      SendChatMessage(msg, "PARTY")
-    else
-      print(msg)
-    end
-  end)
+  local announceButton = CreateAnnounceButton({
+    mainFrame = mainFrame,
+    getL = getL,
+    getRoster = getRoster,
+    buildOrderedRoster = buildOrderedRoster,
+    rolePriority = rolePriority,
+    unitPriority = unitPriority,
+    getDungeonShortCode = getDungeonShortCode,
+    isInGroup = isInGroup,
+  })
 
   local rioHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   rioHeader:SetPoint("TOPLEFT", RIO_COL_X, -34)

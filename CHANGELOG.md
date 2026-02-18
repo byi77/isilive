@@ -3,13 +3,16 @@
 ## 2026-02-18 - Version 0.9.30
 - **Key Announce:** Added a speaker button to the roster panel to post all known party keys to chat.
 - **Season Data:** Extracted season data (dungeons, teleports) into `isiLive_season_data.lua` for easier updates.
+- **Season Data:** Updated dungeon list and teleports for **The War Within Season 1**.
 - **UI Behavior:** The main window is now "frozen" instead of strictly hidden during M+ runs; it can be opened via hotkey (`CTRL+F9`) to view cached data.
 - **Auto-Refresh:** Added automatic group data refresh (iLvl/RIO) 5 seconds after dungeon completion.
+- **Teleport UI:** Active dungeon target now shows the yellow border even if the teleport spell is not yet learned (locked), improving clarity for alts.
 - **Teleport:** Optimized caching for teleport spell lookups (Tazavesh tokens).
 - **Sync:** Improved realm name normalization for stricter sync matching.
 - **Fixes:**
+  - **Combat Safety:** Added retry logic for teleport buttons loaded during combat to prevent broken states.
   - Fixed queue invite detection when `pendingStatus` is returned as `0`.
-  - Fixed persistence of debug settings (`qdebug`).
+  - Fixed persistence of debug settings (`qdebug`) and global variable usage (`issecretvalue`).
 - TOC version bumped to `0.9.30`.
 
 ## 2026-02-17 - Version 0.9.29
