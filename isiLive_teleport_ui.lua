@@ -99,7 +99,9 @@ function TeleportUI.CreateController(opts)
 
     button.activeGlow = button.overlayFrame:CreateTexture(nil, "OVERLAY")
     button.activeGlow:SetAllPoints()
-    button.activeGlow:SetTexture("Interface\\AddOns\\Blizzard_SharedXML\\Shared\\CircularGlow")
+    -- Use a standard glow texture (SpellActivationOverlay) or FileID
+    button.activeGlow:SetTexture("Interface\\SpellActivationOverlay\\IconAlert")
+    button.activeGlow:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     button.activeGlow:SetBlendMode("ADD")
     button.activeGlow:SetVertexColor(1, 0.78, 0.08, 0.9)
     button.activeGlow:Hide()
@@ -171,6 +173,11 @@ function TeleportUI.CreateController(opts)
 
   function controller.UpdateButtons(resolvedSpellID)
     for _, button in ipairs(buttons) do
+      -- Retry secure setup if missing (e.g. loaded in combat)
+      if not button:GetAttribute("type") then
+        applySecureSpellToButton(button, button.spellID)
+      end
+
       local known = isSpellKnown(button.spellID)
       local icon = getSpellTexture(button.spellID)
       button.icon:SetTexture(icon or button.defaultIcon or "Interface\\Icons\\INV_Misc_QuestionMark")
@@ -179,24 +186,29 @@ function TeleportUI.CreateController(opts)
       local start, duration, enabled = getSpellCooldownSafe(button.spellID)
       applyCooldownFrameSafe(button.cooldown, start, duration, enabled)
 
+      -- Logic: Show active border even if spell is not known (locked),
+      -- so the user knows which dungeon is the current target.
+      if button.isActiveTarget then
+        button.activeBorder:Show()
+      else
+        button.activeBorder:Hide()
+      end
+
       if known then
         if button.isActiveTarget then
           button.overlay:SetColorTexture(1, 0.5, 0.0, 0.5)
-          button.activeBorder:Show()
           button.activeGlow:Show()
           if not button.animGroup:IsPlaying() then
             button.animGroup:Play()
           end
         else
           button.overlay:SetColorTexture(0, 0, 0, 0.28)
-          button.activeBorder:Hide()
           button.activeGlow:Hide()
           button.animGroup:Stop()
           button:SetScale(1) -- Reset scale
         end
       else
         button.overlay:SetColorTexture(0, 0, 0, 0.62)
-        button.activeBorder:Hide()
         button.activeGlow:Hide()
         button.animGroup:Stop()
         button:SetScale(1)

@@ -18,6 +18,7 @@ function ConfigBuilders.BuildRefreshControllerOpts(ctx)
     queueForceRefreshData = ctx.queueForceRefreshData,
     updateUI = ctx.updateUI,
     refreshLocalPlayerKey = ctx.refreshLocalPlayerKey,
+    getActiveChallengeMapID = ctx.getActiveChallengeMapID,
   }
 end
 
@@ -196,6 +197,11 @@ function ConfigBuilders.BuildEventHandlersControllerDeps(ctx)
     getPlayerSpecName = ctx.getPlayerSpecName,
     getAddonVersionRaw = ctx.getAddonVersionRaw,
     applyKnownKeyToRosterEntry = ctx.applyKnownKeyToRosterEntry,
+    runFullRefresh = function()
+      if ctx.refreshController then
+        ctx.refreshController.RunFullRefresh()
+      end
+    end,
     modules = {
       sync = ctx.sync,
     },

@@ -28,11 +28,14 @@ function Refresh.CreateController(opts)
   local refreshLocalPlayerKey = opts.refreshLocalPlayerKey or function()
     return false
   end
+  local getActiveChallengeMapID = opts.getActiveChallengeMapID or function()
+    return nil
+  end
 
   local controller = {}
 
   function controller.RunFullRefresh()
-    if isStopped() or isPaused() then
+    if isStopped() or isPaused() or getActiveChallengeMapID() then
       return false
     end
 

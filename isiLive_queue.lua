@@ -6,7 +6,7 @@ local Queue = {}
 addonTable.Queue = Queue
 
 local function IsSecretValue(value)
-  return issecretvalue and issecretvalue(value) == true
+  return _G.issecretvalue and _G.issecretvalue(value) == true
 end
 
 local queueDebugEnabled = false
@@ -288,6 +288,10 @@ local function ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivi
     if not groupName and type(data.searchResultInfo) == "table" then
       groupName = data.searchResultInfo.name or data.searchResultInfo.leaderName
     end
+  end
+
+  if pendingStatus == 0 or pendingStatus == "" then
+    pendingStatus = nil
   end
 
   return {

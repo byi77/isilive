@@ -83,8 +83,8 @@ function Group.CreateController(opts)
     setWasInGroup(inGroupNow)
 
     if getActiveChallengeMapID() then
-      -- M+ active: keep frame hidden.
-      setMainFrameVisible(false)
+      -- M+ active: freeze updates but allow visibility.
+      updateUI()
       updateLeaderButtons()
       return
     end

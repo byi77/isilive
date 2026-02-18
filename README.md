@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.29`.
+Current addon version: `0.9.30`.
 
 ## Features
 
@@ -25,7 +25,7 @@ Current addon version: `0.9.29`.
 ## Behavior
 
 - Auto-open on small-group join
-- Auto-hide on M+ key start (`CHALLENGE_MODE_START`)
+- Auto-hide on M+ key start (`CHALLENGE_MODE_START`); can be manually opened (`CTRL+F9`) in "frozen" read-only state.
 - Hidden window mode hard-stops non-essential scan/processing work, while hotkey/binding remains active and minimal small-group join transition is still allowed for auto-open
 - Key sync runs only while the main window is visible (hidden mode stays in sleep behavior)
 - Main window is movable via left/right drag; top drag handle stays above overlays for reliable dragging
@@ -193,9 +193,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.29 && git push origin isiLive_release_0.9.29`
+3. Create and push stable tag: `git tag isiLive_release_0.9.30 && git push origin isiLive_release_0.9.30`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.29 && git push origin isiLive_alpha_0.9.29`
-   - beta: `git tag isiLive_beta_0.9.29 && git push origin isiLive_beta_0.9.29`
+   - alpha: `git tag isiLive_alpha_0.9.30 && git push origin isiLive_alpha_0.9.30`
+   - beta: `git tag isiLive_beta_0.9.30 && git push origin isiLive_beta_0.9.30`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

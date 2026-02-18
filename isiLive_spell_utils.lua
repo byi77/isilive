@@ -17,17 +17,17 @@ function SpellUtils.GetSpellCooldownSafe(spellID)
   local duration = info.duration or 0
   local enabled = info.isEnabled
 
-  if issecretvalue then
+  if _G.issecretvalue then
     ---@diagnostic disable-next-line: param-type-mismatch
-    if issecretvalue(enabled) then
+    if _G.issecretvalue(enabled) then
       enabled = true
     end
     ---@diagnostic disable-next-line: param-type-mismatch
-    if issecretvalue(start) then
+    if _G.issecretvalue(start) then
       start = 0
     end
     ---@diagnostic disable-next-line: param-type-mismatch
-    if issecretvalue(duration) then
+    if _G.issecretvalue(duration) then
       duration = 0
     end
   end

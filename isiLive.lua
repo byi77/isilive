@@ -241,97 +241,6 @@ local function ToggleMainFrameVisibility()
   frameBridgeContext.ToggleMainFrameVisibility()
 end
 
-local initResult = isiLiveControllerInit.CreateControllers({
-  sync = isiLiveSync,
-  keySyncModule = isiLiveKeySync,
-  highlightModule = isiLiveHighlight,
-  rosterPanelModule = isiLiveRosterPanel,
-  teleportUIModule = isiLiveTeleportUI,
-  isInGroup = IsInGroup,
-  getUnitNameAndRealm = GetUnitNameAndRealm,
-  getAddonVersionRaw = GetAddonVersionRaw,
-  isFrameVisible = function()
-    return mainFrame and mainFrame:IsShown()
-  end,
-  resolveSeason3TeleportSpellID = ResolveSeason3TeleportSpellID,
-  resolveSeason3TeleportSpellIDByMapID = function(mapID)
-    if isiLiveTeleport and isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID then
-      return isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
-    end
-    return nil
-  end,
-  resolveSeason3MapIDBySpellID = function(spellID)
-    if isiLiveTeleport and isiLiveTeleport.ResolveSeason3MapIDBySpellID then
-      return isiLiveTeleport.ResolveSeason3MapIDBySpellID(spellID)
-    end
-    return nil
-  end,
-  mainFrame = mainFrame,
-  getL = function()
-    return L
-  end,
-  isPlayerLeader = IsPlayerLeader,
-  getAddonVersionText = function()
-    return "V." .. GetAddonVersionRaw()
-  end,
-  updateStatusLine = function()
-    if UpdateStatusLine then
-      UpdateStatusLine()
-    end
-  end,
-  setMainFrameHeightSafe = SetMainFrameHeightSafe,
-  minFrameHeight = MIN_FRAME_HEIGHT,
-  buildOrderedRoster = isiLiveRoster.BuildOrderedRoster,
-  hasFullSync = isiLiveRoster.HasFullSync,
-  buildDisplayData = isiLiveRoster.BuildDisplayData,
-  truncateName = TruncateName,
-  getShortSpecLabel = GetShortSpecLabel,
-  getLanguageFlagMarkup = isiLiveLocale.GetLanguageFlagMarkup,
-  getDungeonShortCode = isiLiveTeleport.GetSeason3DungeonShortCode,
-  resolveActiveKeyOwnerUnit = function()
-    if ResolveActiveKeyOwnerUnit then
-      return ResolveActiveKeyOwnerUnit()
-    end
-    return nil
-  end,
-  applySecureSpellToButton = ApplySecureSpellToButton,
-  getEntries = isiLiveTeleport.BuildSeason3TeleportEntries,
-  isSpellKnown = IsSpellKnownSafe,
-  getTeleportCooldownRemaining = GetTeleportCooldownRemaining,
-  formatCooldownSeconds = FormatCooldownSeconds,
-  getSpellCooldownSafe = GetSpellCooldownSafe,
-  applyCooldownFrameSafe = ApplyCooldownFrameSafe,
-  getSpellTexture = function(spellID)
-    if spellID and C_Spell and C_Spell.GetSpellTexture then
-      return C_Spell.GetSpellTexture(spellID)
-    end
-    return nil
-  end,
-})
-keySyncController = initResult.keySyncController
-MarkIsiLiveUser = initResult.markIsiLiveUser
-UnitHasIsiLive = initResult.unitHasIsiLive
-RegisterIsiLiveSyncPrefix = initResult.registerIsiLiveSyncPrefix
-SendIsiLiveHello = initResult.sendIsiLiveHello
-GetOwnedKeystoneSnapshot = initResult.getOwnedKeystoneSnapshot
-SendOwnKeySnapshot = initResult.sendOwnKeySnapshot
-ApplyKnownKeyToRosterEntry = initResult.applyKnownKeyToRosterEntry
-highlightController = initResult.highlightController
-rosterPanelController = initResult.rosterPanelController
-refreshButton = initResult.refreshButton
-dmResetToggleButton = initResult.dmResetToggleButton
-statusLine = initResult.statusLine
-teleportUIController = initResult.teleportUIController
-mplusTeleportButtons = initResult.mplusTeleportButtons
-
-UpdateLeaderButtons = function()
-  rosterPanelController.UpdateLeaderButtons()
-end
-
-UpdateUI = function()
-  rosterPanelController.RenderRoster(roster)
-end
-
 -- --- Data & State ---
 -- Stores current group members keyed by unit token.
 local inspectController = isiLiveInspect.CreateController({
@@ -339,6 +248,7 @@ local inspectController = isiLiveInspect.CreateController({
   retryInterval = RETRY_INTERVAL,
   inspectDelay = INSPECT_DELAY,
 })
+local inspectLoopTimer = 0
 local InspectLoop
 local wasGroupLeader = nil
 local wasInGroup = false
@@ -417,6 +327,98 @@ UpdateDMResetButton = function()
   end
   local enabled = IsAutoDamageMeterResetEnabled()
   rosterPanelController.SetDMResetText(enabled and L.BTN_DMRESET_ON or L.BTN_DMRESET_OFF)
+end
+
+local initResult = isiLiveControllerInit.CreateControllers({
+  sync = isiLiveSync,
+  keySyncModule = isiLiveKeySync,
+  highlightModule = isiLiveHighlight,
+  rosterPanelModule = isiLiveRosterPanel,
+  teleportUIModule = isiLiveTeleportUI,
+  isInGroup = IsInGroup,
+  getUnitNameAndRealm = GetUnitNameAndRealm,
+  getAddonVersionRaw = GetAddonVersionRaw,
+  isFrameVisible = function()
+    return mainFrame and mainFrame:IsShown()
+  end,
+  resolveSeason3TeleportSpellID = ResolveSeason3TeleportSpellID,
+  resolveSeason3TeleportSpellIDByMapID = function(mapID)
+    if isiLiveTeleport and isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID then
+      return isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
+    end
+    return nil
+  end,
+  resolveSeason3MapIDBySpellID = function(spellID)
+    if isiLiveTeleport and isiLiveTeleport.ResolveSeason3MapIDBySpellID then
+      return isiLiveTeleport.ResolveSeason3MapIDBySpellID(spellID)
+    end
+    return nil
+  end,
+  mainFrame = mainFrame,
+  getL = function()
+    return L
+  end,
+  isPlayerLeader = IsPlayerLeader,
+  getAddonVersionText = function()
+    return "V." .. GetAddonVersionRaw()
+  end,
+  updateStatusLine = function()
+    if UpdateStatusLine then
+      UpdateStatusLine()
+    end
+  end,
+  setMainFrameHeightSafe = SetMainFrameHeightSafe,
+  minFrameHeight = MIN_FRAME_HEIGHT,
+  buildOrderedRoster = isiLiveRoster.BuildOrderedRoster,
+  hasFullSync = isiLiveRoster.HasFullSync,
+  buildDisplayData = isiLiveRoster.BuildDisplayData,
+  truncateName = TruncateName,
+  getShortSpecLabel = GetShortSpecLabel,
+  getLanguageFlagMarkup = isiLiveLocale.GetLanguageFlagMarkup,
+  getDungeonShortCode = isiLiveTeleport.GetSeason3DungeonShortCode,
+  resolveActiveKeyOwnerUnit = function()
+    if ResolveActiveKeyOwnerUnit then
+      return ResolveActiveKeyOwnerUnit()
+    end
+    return nil
+  end,
+  getRoster = GetRoster,
+  applySecureSpellToButton = ApplySecureSpellToButton,
+  getEntries = isiLiveTeleport.BuildSeason3TeleportEntries,
+  isSpellKnown = IsSpellKnownSafe,
+  getTeleportCooldownRemaining = GetTeleportCooldownRemaining,
+  formatCooldownSeconds = FormatCooldownSeconds,
+  getSpellCooldownSafe = GetSpellCooldownSafe,
+  applyCooldownFrameSafe = ApplyCooldownFrameSafe,
+  getSpellTexture = function(spellID)
+    if spellID and C_Spell and C_Spell.GetSpellTexture then
+      return C_Spell.GetSpellTexture(spellID)
+    end
+    return nil
+  end,
+})
+keySyncController = initResult.keySyncController
+MarkIsiLiveUser = initResult.markIsiLiveUser
+UnitHasIsiLive = initResult.unitHasIsiLive
+RegisterIsiLiveSyncPrefix = initResult.registerIsiLiveSyncPrefix
+SendIsiLiveHello = initResult.sendIsiLiveHello
+GetOwnedKeystoneSnapshot = initResult.getOwnedKeystoneSnapshot
+SendOwnKeySnapshot = initResult.sendOwnKeySnapshot
+ApplyKnownKeyToRosterEntry = initResult.applyKnownKeyToRosterEntry
+highlightController = initResult.highlightController
+rosterPanelController = initResult.rosterPanelController
+refreshButton = initResult.refreshButton
+dmResetToggleButton = initResult.dmResetToggleButton
+statusLine = initResult.statusLine
+teleportUIController = initResult.teleportUIController
+mplusTeleportButtons = initResult.mplusTeleportButtons
+
+UpdateLeaderButtons = function()
+  rosterPanelController.UpdateLeaderButtons()
+end
+
+UpdateUI = function()
+  rosterPanelController.RenderRoster(roster)
 end
 
 local function GetNormalizedActiveEntryInfo()
@@ -553,6 +555,7 @@ refreshController = isiLiveRefresh.CreateController(isiLiveConfigBuilders.BuildR
   queueForceRefreshData = QueueForceRefreshData,
   updateUI = UpdateUI,
   refreshLocalPlayerKey = RefreshLocalPlayerKey,
+  getActiveChallengeMapID = GetActiveChallengeMapID,
 }))
 
 refreshButton:SetScript("OnClick", function()
@@ -710,8 +713,15 @@ OnEvent = function(self, event, ...)
 end
 
 -- --- Inspect Loop ---
-InspectLoop = function()
-  inspectController.OnUpdate()
+InspectLoop = function(_self, elapsed)
+  inspectLoopTimer = inspectLoopTimer + (elapsed or 0)
+  if inspectLoopTimer >= 0.25 then
+    inspectLoopTimer = 0
+    if GetActiveChallengeMapID() then
+      return
+    end
+    inspectController.OnUpdate()
+  end
 end
 
 isiLiveBootstrap.RegisterMainFrameEvents(mainFrame)

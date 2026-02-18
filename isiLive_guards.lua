@@ -42,6 +42,7 @@ local REQUIRED_MODULES = {
   { key = "ContextHelpers", file = "isiLive_context_helpers.lua" },
   { key = "RuntimeSetup", file = "isiLive_runtime_setup.lua" },
   { key = "ControllerInit", file = "isiLive_controller_init.lua" },
+  { key = "SeasonData", file = "isiLive_season_data.lua" },
 }
 
 local REQUIRED_FUNCTIONS = {
@@ -104,6 +105,10 @@ local REQUIRED_FUNCTIONS = {
   {
     path = { "Teleport", "BuildSeason3TeleportEntries" },
     message = "isiLive: Teleport.BuildSeason3TeleportEntries missing",
+  },
+  {
+    path = { "Teleport", "GetSeason3DungeonShortCode" },
+    message = "isiLive: Teleport.GetSeason3DungeonShortCode missing",
   },
   { path = { "TeleportUI", "CreateController" }, message = "isiLive: TeleportUI.CreateController missing" },
   { path = { "TeleportDebug", "CreateController" }, message = "isiLive: TeleportDebug.CreateController missing" },

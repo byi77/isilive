@@ -42,6 +42,8 @@ function RosterPanel.CreateController(opts)
   local getLanguageFlagMarkup = RequireFunction(opts.getLanguageFlagMarkup, "getLanguageFlagMarkup")
   local getDungeonShortCode = RequireFunction(opts.getDungeonShortCode, "getDungeonShortCode")
   local resolveActiveKeyOwnerUnit = RequireFunction(opts.resolveActiveKeyOwnerUnit, "resolveActiveKeyOwnerUnit")
+  local getRoster = RequireFunction(opts.getRoster, "getRoster")
+  local isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
   local rolePriority = assert(opts.rolePriority, "isiLive: RosterPanel requires rolePriority")
   local unitPriority = assert(opts.unitPriority, "isiLive: RosterPanel requires unitPriority")
   local syncMarker = tostring(opts.syncMarker or "")
@@ -94,6 +96,43 @@ function RosterPanel.CreateController(opts)
   keyHeader:SetPoint("TOPLEFT", KEY_COL_X, -34)
   keyHeader:SetWidth(KEY_COL_WIDTH)
   keyHeader:SetJustifyH("RIGHT")
+
+  local announceButton = CreateFrame("Button", nil, mainFrame)
+  announceButton:SetSize(14, 14)
+  announceButton:SetPoint("TOPLEFT", KEY_COL_X + 2, -34)
+  announceButton:SetNormalTexture("Interface\\Buttons\\UI-GuildButton-PublicSpeaking-Up")
+  announceButton:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+  announceButton:SetScript("OnEnter", function(self)
+    local L = getL()
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(L.TOOLTIP_ANNOUNCE_KEYS)
+    GameTooltip:Show()
+  end)
+  announceButton:SetScript("OnLeave", function()
+    GameTooltip:Hide()
+  end)
+  announceButton:SetScript("OnClick", function()
+    local L = getL()
+    local roster = getRoster()
+    local parts = {}
+    local ordered = buildOrderedRoster(roster, rolePriority, unitPriority)
+    for _, entry in ipairs(ordered) do
+      local info = entry.info
+      if info.keyMapID and info.keyLevel and tonumber(info.keyLevel) > 0 then
+        local short = getDungeonShortCode(info.keyMapID)
+        table.insert(parts, string.format("%s: %s +%s", info.name, short, info.keyLevel))
+      end
+    end
+    if #parts == 0 then
+      return
+    end
+    local msg = L.ANNOUNCE_PREFIX .. " " .. table.concat(parts, ", ")
+    if isInGroup() then
+      SendChatMessage(msg, "PARTY")
+    else
+      print(msg)
+    end
+  end)
 
   local rioHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   rioHeader:SetPoint("TOPLEFT", RIO_COL_X, -34)

@@ -217,5 +217,6 @@ function ControllerWiring.CreateEventHandlersController(eventHandlersModule, dep
       return modules.sync.IsUserKnown(name, realm)
     end,
     applyKnownKeyToRosterEntry = RequireFunction(deps.applyKnownKeyToRosterEntry, "applyKnownKeyToRosterEntry"),
+    runFullRefresh = RequireFunction(deps.runFullRefresh, "runFullRefresh"),
   })
 end

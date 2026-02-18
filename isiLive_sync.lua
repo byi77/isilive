@@ -28,8 +28,12 @@ function Sync.NormalizePlayerKey(name, realm)
     r = GetRealmName() or ""
   end
 
-  local key = string.lower(n .. "-" .. r)
-  key = key:gsub("%s+", "")
+  -- Strict normalization:
+  -- Name: remove spaces (shouldn't have any, but safety first)
+  -- Realm: remove spaces, dashes, dots, parens, quotes (matches Locale.NormalizeRealmLookupKey)
+  local n_clean = tostring(n):gsub("%s+", "")
+  local r_clean = tostring(r):gsub("[%s%-%.%(%)'`]", "")
+  local key = string.lower(n_clean .. "-" .. r_clean)
   return key
 end
 

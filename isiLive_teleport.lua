@@ -5,29 +5,13 @@ addonTable = addonTable or {}
 local Teleport = {}
 addonTable.Teleport = Teleport
 
-local TWW_SEASON3_MAP_TO_TELEPORT = {
-  -- TWW Season 3 mapIDs (aktuelle WoW Version)
-  [2649] = 445444, -- Priory of the Sacred Flame
-  [2830] = 1237215, -- Eco-Dome Al'dani
-  [2287] = 354465, -- Halls of Atonement
-  [2773] = 1216786, -- Operation: Floodgate
-  [2660] = 445417, -- Ara-Kara, City of Echoes
-  [2441] = 367416, -- Tazavesh: Streets of Wonder / So'leah's Gambit
-  [2662] = 445414, -- The Dawnbreaker
-}
-
-local TWW_SEASON3_MAP_SHORT = {
-  [2649] = "PSF",
-  [2830] = "EDA",
-  [2287] = "HOA",
-  [2773] = "OFG",
-  [2660] = "AK",
-  [2441] = "TAZ",
-  [2662] = "DB",
-}
+local SeasonData = addonTable.SeasonData or {}
+local MAP_TO_TELEPORT = SeasonData.MAP_TO_TELEPORT or {}
+local MAP_SHORT_CODES = SeasonData.MAP_SHORT_CODES or {}
 
 -- Cache: ActivityID -> SpellID
 local ACTIVITY_TO_TELEPORT_CACHE = {}
+local TAZAVESH_TOKENS_CACHE = nil
 
 local function NormalizeNameForMatch(text)
   if type(text) ~= "string" then
@@ -41,7 +25,11 @@ local function NormalizeNameForMatch(text)
   return normalized
 end
 
-local function BuildTazaveshMatchTokens()
+local function GetTazaveshMatchTokens()
+  if TAZAVESH_TOKENS_CACHE then
+    return TAZAVESH_TOKENS_CACHE
+  end
+
   local tokens = {}
   local seen = {}
   local function AddToken(raw)
@@ -67,6 +55,7 @@ local function BuildTazaveshMatchTokens()
   AddToken("So'leah's Gambit")
   AddToken("Soleahs Gambit")
 
+  TAZAVESH_TOKENS_CACHE = tokens
   return tokens
 end
 
@@ -96,8 +85,8 @@ function Teleport.ResolveTeleportSpellByActivityID(activityID)
     local mapID = tonumber(rawget(activityInfo, "mapID") or rawget(activityInfo, "mapId"))
 
     -- Versuche via mapID
-    if mapID and TWW_SEASON3_MAP_TO_TELEPORT[mapID] then
-      local spellID = TWW_SEASON3_MAP_TO_TELEPORT[mapID]
+    if mapID and MAP_TO_TELEPORT[mapID] then
+      local spellID = MAP_TO_TELEPORT[mapID]
       ACTIVITY_TO_TELEPORT_CACHE[activityID] = spellID
       return spellID
     end
@@ -111,7 +100,7 @@ function Teleport.GetSeason3TeleportInfoByMapID(mapID)
     return nil
   end
 
-  local spellID = TWW_SEASON3_MAP_TO_TELEPORT[numericMapID]
+  local spellID = MAP_TO_TELEPORT[numericMapID]
   if not spellID then
     return nil
   end
@@ -139,8 +128,8 @@ function Teleport.GetSeason3DungeonShortCode(mapID)
   if not numericMapID then
     return "?"
   end
-  if TWW_SEASON3_MAP_SHORT[numericMapID] then
-    return TWW_SEASON3_MAP_SHORT[numericMapID]
+  if MAP_SHORT_CODES[numericMapID] then
+    return MAP_SHORT_CODES[numericMapID]
   end
 
   local mapName = C_ChallengeMode and C_ChallengeMode.GetMapUIInfo and C_ChallengeMode.GetMapUIInfo(numericMapID)
@@ -163,8 +152,8 @@ end
 
 function Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
   local numericMapID = tonumber(mapID)
-  if numericMapID and TWW_SEASON3_MAP_TO_TELEPORT[numericMapID] then
-    return TWW_SEASON3_MAP_TO_TELEPORT[numericMapID]
+  if numericMapID and MAP_TO_TELEPORT[numericMapID] then
+    return MAP_TO_TELEPORT[numericMapID]
   end
   return nil
 end
@@ -174,7 +163,7 @@ function Teleport.ResolveSeason3MapIDBySpellID(spellID)
   if not numericSpellID then
     return nil
   end
-  for mapID, mappedSpellID in pairs(TWW_SEASON3_MAP_TO_TELEPORT) do
+  for mapID, mappedSpellID in pairs(MAP_TO_TELEPORT) do
     if mappedSpellID == numericSpellID then
       return mapID
     end
@@ -208,12 +197,12 @@ function Teleport.ResolveSeason3TeleportSpellID(activityID, dungeonName)
 
   if nameToUse and nameToUse ~= "" then
     local normalizedName = NormalizeNameForMatch(nameToUse)
-    for _, token in ipairs(BuildTazaveshMatchTokens()) do
+    for _, token in ipairs(GetTazaveshMatchTokens()) do
       if token ~= "" and string.find(normalizedName, token, 1, true) then
         return 367416
       end
     end
-    for mapID, spellID in pairs(TWW_SEASON3_MAP_TO_TELEPORT) do
+    for mapID, spellID in pairs(MAP_TO_TELEPORT) do
       local info = Teleport.GetSeason3TeleportInfoByMapID(mapID)
       if info and info.mapName then
         local normalizedMapName = NormalizeNameForMatch(info.mapName)
@@ -232,6 +221,11 @@ end
 
 function Teleport.ApplySecureSpellToButton(button, spellID)
   if not button or not spellID then
+    return false
+  end
+
+  -- Protection: Cannot set attributes on secure frames while in combat.
+  if InCombatLockdown and InCombatLockdown() then
     return false
   end
 
@@ -256,7 +250,7 @@ end
 function Teleport.BuildSeason3TeleportEntries()
   local entries = {}
   local bySpellID = {}
-  for mapID in pairs(TWW_SEASON3_MAP_TO_TELEPORT) do
+  for mapID in pairs(MAP_TO_TELEPORT) do
     local info = Teleport.GetSeason3TeleportInfoByMapID(mapID)
     if info then
       if not bySpellID[info.spellID] then

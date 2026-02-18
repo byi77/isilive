@@ -26,6 +26,5 @@
 - [x] `isiLive_highlight.lua` extrahieren (Active-Target-Resolver + Highlight-State-Entscheidung).
 - [x] `isiLive_refresh.lua` extrahieren (voller Refresh-Flow inkl. forced HELLO/KEY + Inspect-Refresh).
 - [x] Event-Dispatcher in `isiLive.lua` auf duenne Routing-Schicht reduzieren.
-- [ ] Nach jedem Schritt: `stylua --check .` + `luacheck --exclude-files ".luarocks/**" -- .` + `lua tools/lua_metrics_check.lua` + kurzer Ingame-Smoketest.
+- [x] Nach jedem Schritt: `stylua --check .` + `luacheck --exclude-files ".luarocks/**" -- .` + `lua tools/lua_metrics_check.lua` + kurzer Ingame-Smoketest.
 - [x] Zielgroesse: `isiLive.lua` deutlich reduzieren (Richtwert < ~1200 Zeilen) ohne Verhaltensaenderung.
-

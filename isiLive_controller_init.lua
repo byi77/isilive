@@ -50,6 +50,8 @@ local function CreateRosterPanelController(ctx)
     getLanguageFlagMarkup = ctx.getLanguageFlagMarkup,
     getDungeonShortCode = ctx.getDungeonShortCode,
     resolveActiveKeyOwnerUnit = ctx.resolveActiveKeyOwnerUnit,
+    getRoster = ctx.getRoster,
+    isInGroup = ctx.isInGroup,
     rolePriority = {
       TANK = 1,
       HEALER = 2,

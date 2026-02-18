@@ -90,6 +90,7 @@ local function BuildContext(opts)
   ctx.forEachRosterInfo = RequireFunction(opts.forEachRosterInfo, "forEachRosterInfo")
   ctx.isSyncUserKnown = RequireFunction(opts.isSyncUserKnown, "isSyncUserKnown")
   ctx.applyKnownKeyToRosterEntry = RequireFunction(opts.applyKnownKeyToRosterEntry, "applyKnownKeyToRosterEntry")
+  ctx.runFullRefresh = RequireFunction(opts.runFullRefresh, "runFullRefresh")
 
   return ctx
 end
@@ -176,6 +177,13 @@ local function HandleChallengeModeCompletedOrResetEvent(ctx, self)
   end
   ctx.updateStatusLine()
   ctx.sendOwnKeySnapshot(true)
+  if ctx.timerAfter then
+    ctx.timerAfter(5, function()
+      if ctx.isInGroup() then
+        ctx.runFullRefresh()
+      end
+    end)
+  end
 end
 
 local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)
@@ -197,8 +205,7 @@ local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)
     IsiLiveDB.queueDebug = false
   end
   ctx.ensureQueueDebugStorage()
-  IsiLiveDB.queueDebug = false
-  ctx.setQueueDebugEnabled(false)
+  ctx.setQueueDebugEnabled(IsiLiveDB.queueDebug)
 
   -- Restore position
   local mainFrame = ctx.getMainFrame()
