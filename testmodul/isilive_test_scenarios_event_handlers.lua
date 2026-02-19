@@ -48,14 +48,19 @@ return function(test, ctx)
     local activeJoinedKey = 2441
 
     local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
-    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = { activityID = 1001 } }, counters, {
-      getActiveJoinedKeyMapID = function()
-        return activeJoinedKey
-      end,
-      setActiveJoinedKeyMapID = function(value)
-        activeJoinedKey = value
-      end,
-    })
+    local controller = Fixtures.BuildEventHandlersController(
+      addon.EventHandlers,
+      { value = { activityID = 1001 } },
+      counters,
+      {
+        getActiveJoinedKeyMapID = function()
+          return activeJoinedKey
+        end,
+        setActiveJoinedKeyMapID = function(value)
+          activeJoinedKey = value
+        end,
+      }
+    )
 
     controller:Dispatch("LFG_LIST_ACTIVE_ENTRY_UPDATE")
 
