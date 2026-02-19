@@ -39,8 +39,6 @@ local function with_globals(stubs, fn)
   if not results[1] then
     error(results[2], 0)
   end
-
-  return table.unpack(results, 2)
 end
 
 local function load_modules(files)

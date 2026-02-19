@@ -14,13 +14,21 @@ local ACTIVITY_TO_TELEPORT_CACHE = {}
 local TAZAVESH_TOKENS_CACHE = nil
 
 local pendingCombatUpdates = {}
+local function ClearTable(t)
+  if type(t) ~= "table" then
+    return
+  end
+  for key in pairs(t) do
+    t[key] = nil
+  end
+end
 local combatRetryFrame = CreateFrame("Frame")
 combatRetryFrame:SetScript("OnEvent", function(self, event)
   if event == "PLAYER_REGEN_ENABLED" then
     for button, spellID in pairs(pendingCombatUpdates) do
       Teleport.ApplySecureSpellToButton(button, spellID)
     end
-    table.wipe(pendingCombatUpdates)
+    ClearTable(pendingCombatUpdates)
     self:UnregisterEvent("PLAYER_REGEN_ENABLED")
   end
 end)
