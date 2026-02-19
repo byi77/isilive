@@ -18,7 +18,8 @@
   - reduced oversized function blocks across controller/UI modules
   - `tools/lua_metrics_check.lua` reports no function-size warnings at default thresholds (`warn>120`, `hard>320`)
   - added deterministic runtime usecase validator `tools/validate_usecases.lua` for queue/highlight/cooldown edge-case gates
-  - validator currently covers 8 deterministic gates (queue target resolution, shared-portcast highlight behavior, event clear behavior, cooldown state behavior)
+  - validator refactored to modular offline simulation suite (`testmodul/isilive_test_*.lua`) with 37 deterministic scenarios
+  - expanded CurseForge packaging ignore list in `.pkgmeta` to exclude non-runtime docs/dev assets (`tools/`, `testmodul/`, architecture/usecase docs, repo metadata)
   - wired `README.md` + `RELEASE.md` quality gates to include `lua tools/validate_usecases.lua`
   - removed 7 unused localization keys from `isiLive_texts.lua`:
     - `INVITE_HINT_TITLE`

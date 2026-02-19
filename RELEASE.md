@@ -85,7 +85,7 @@ After `Release` succeeds, verify on CurseForge:
 ## Notes
 
 - CI already excludes `.luarocks/` from lint/syntax checks.
-- Packaging ignores non-user files via `.pkgmeta`.
+- Packaging ignores non-user files via `.pkgmeta` (including `.github/`, docs like `README.md`/`ARCHITECTURE.md`/`USECASES.md`, and dev-only folders `tools/` + `testmodul/`).
 - If VS Code diagnostics look stale, run:
   - `Developer: Reload Window`
   - `Lua: Restart Language Server`

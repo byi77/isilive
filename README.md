@@ -110,7 +110,8 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive_event_handlers.lua`: runtime event handler controller (`OnEvent` routing targets)
 - `isiLive_commands.lua`: slash command registration/dispatch
 - `isiLive_ui.lua`: main frame/UI construction and widget wiring
-- `tools/validate_usecases.lua`: deterministic usecase validator for queue/highlight/cooldown edge cases
+- `tools/validate_usecases.lua`: deterministic usecase validator entrypoint
+- `testmodul/isilive_test_*.lua`: modular offline simulation scenarios + harness for queue/highlight/event/cooldown/teleport logic (dev-only, not packaged)
 - `realm_language_data.lua`: Blizzard EU realm locale mapping (including UTF-8 Russian realm names)
 - `CHANGELOG.md`: release notes
 - `RELEASE.md`: release runbook
@@ -146,7 +147,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 ## Deterministic Usecase Gate
 
-`tools/validate_usecases.lua` is a deterministic runtime-logic gate for critical behavior, including:
+`tools/validate_usecases.lua` runs a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 37 scenarios across queue/highlight/event/cooldown/teleport flows, including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)

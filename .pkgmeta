@@ -5,17 +5,23 @@ manual-changelog:
   markup-type: markdown
 ignore:
   - .github
+  - .githooks
   - .vscode
+  - .gitattributes
   - .editorconfig
   - .luacheckrc
   - .stylua.toml
   - .styluaignore
   - .luarocks
   - .gitignore
+  - ARCHITECTURE.md
+  - USECASES.md
   - README.md
   - RELEASE.md
   - TODO.md
   - RULES.md
   - LICENSE
+  - tools
+  - testmodul
   - isiLive.png
   - isiLive_screenshot.png
