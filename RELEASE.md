@@ -10,6 +10,7 @@ This is the canonical release flow for `isiLive`.
 3. Update `README.md` for user-visible behavior/layout changes.
 4. If season data was touched, verify docs explicitly state **TWW S3 only** (`README.md` + `CHANGELOG.md`).
 5. If runtime flow or UI behavior changed, update `ARCHITECTURE.md` and `USECASES.md`.
+6. If UI labels changed, verify `README.md` and `ARCHITECTURE.md` use the current button text.
 
 ## 2) Local Quality Gate
 
@@ -57,8 +58,8 @@ git push origin isiLive_beta_X.Y.Z
 Example:
 
 ```powershell
-git tag isiLive_release_0.9.32
-git push origin isiLive_release_0.9.32
+git tag isiLive_release_0.9.33
+git push origin isiLive_release_0.9.33
 ```
 
 ## 5) Verify GitHub Actions

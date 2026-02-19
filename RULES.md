@@ -25,6 +25,7 @@
 ## Documentation
 - Update `README.md` for every user-visible behavior change.
 - Keep examples and slash commands in sync with the code.
+- Keep active UI labels in docs synchronized with localization keys (for example README feature list and ARCHITECTURE ASCII sketch).
 - Update `CHANGELOG.md` for every functional/code change.
 - Add changelog entries with explicit date (`YYYY-MM-DD`).
 - Update `ARCHITECTURE.md` when module boundaries or runtime flow changes.

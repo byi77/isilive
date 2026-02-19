@@ -430,7 +430,7 @@ function RosterPanel.CreateController(opts)
   local getAddonVersionText = RequireFunction(opts.getAddonVersionText, "getAddonVersionText")
   local updateStatusLine = RequireFunction(opts.updateStatusLine, "updateStatusLine")
   local setMainFrameHeightSafe = RequireFunction(opts.setMainFrameHeightSafe, "setMainFrameHeightSafe")
-  local minFrameHeight = tonumber(opts.minFrameHeight) or 200
+  local minFrameHeight = tonumber(opts.minFrameHeight) or 212
 
   local buildOrderedRoster = RequireFunction(opts.buildOrderedRoster, "buildOrderedRoster")
   local hasFullSyncFn = RequireFunction(opts.hasFullSync, "hasFullSync")

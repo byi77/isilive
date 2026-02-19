@@ -41,7 +41,7 @@ local isiLiveGuards = addonTable and addonTable.Guards
 local INSPECT_TIMEOUT = 2 -- seconds
 local RETRY_INTERVAL = 5 -- seconds
 local INSPECT_DELAY = 1 -- seconds between inspects to avoid throttle
-local MIN_FRAME_HEIGHT = 200
+local MIN_FRAME_HEIGHT = 212
 
 -- --- Localization ---
 local locale = GetLocale()

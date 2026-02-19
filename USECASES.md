@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.32`
+Version baseline: `0.9.33`
 Last updated: `2026-02-19`
 
 ## Actors
@@ -89,7 +89,7 @@ Goal: allow user to post current party keys quickly.
 ## Non-Functional Rules
 
 1. No speculative behavior when concrete API data exists.
-2. Combat-protected UI operations must be deferred safely.
+2. Combat-protected UI operations must be deferred safely; main-frame drag start/stop must no-op during combat lockdown.
 3. Leader-only actions must stay disabled for non-leaders.
 4. Hidden mode should halt non-essential processing.
 

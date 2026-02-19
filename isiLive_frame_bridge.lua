@@ -51,7 +51,7 @@ function FrameBridge.CreateContext(opts)
   })
 
   local mainUI = createMainFrame({
-    minHeight = tonumber(opts.mainFrameMinHeight) or 200,
+    minHeight = tonumber(opts.mainFrameMinHeight) or 212,
     parent = opts.parent,
     isInCombat = isInCombat,
     onShownInGroup = onShownInGroup,

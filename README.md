@@ -3,13 +3,13 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.32`.
+Current addon version: `0.9.33`.
 
 ## Features
 
 - Group roster table with columns: `Spec`, `Name`, `Sprache/Flag`, `Key`, `iLvl`, `RIO`
 - Stable role sorting: `Tank -> Healer -> Damager`
-- Right-side controls: `Readycheck`, `Countdown10`, `Countdown Cancel`, `Refresh`, `Share Keys`
+- Right-side controls: `Readycheck`, `Countdown10`, `Countdown 0`, `Refresh`, `Share Keys`
 - `M+travel` teleport grid with all Season dungeon teleports
 - Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
 - Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14`)
@@ -28,13 +28,13 @@ Current addon version: `0.9.32`.
 - Auto-hide on M+ key start (`CHALLENGE_MODE_START`); can be manually opened (`CTRL+F9`) in "frozen" read-only state.
 - Hidden window mode hard-stops non-essential scan/processing work, while hotkey/binding remains active and minimal small-group join transition is still allowed for auto-open
 - Key sync runs only while the main window is visible (hidden mode stays in sleep behavior)
-- Main window is movable via left/right drag; top drag handle stays above overlays for reliable dragging
-- Main frame height updates are deferred during combat and applied on `PLAYER_REGEN_ENABLED`
-- `Readycheck`, `Countdown10`, and `Countdown Cancel` are leader-only
+- Main window is movable via left/right drag while out of combat; top drag handle stays above overlays for reliable dragging
+- Combat-safe frame updates: drag start/stop is ignored in combat and pending frame-height changes are applied on `PLAYER_REGEN_ENABLED`
+- `Readycheck`, `Countdown10`, and `Countdown 0` are leader-only
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 
-## Use Case / Logic Baseline (v0.9.32)
+## Use Case / Logic Baseline (v0.9.33)
 
 Documented on `2026-02-19` as runtime behavior baseline for validation checks.
 
@@ -62,6 +62,7 @@ Documented on `2026-02-19` as runtime behavior baseline for validation checks.
    - Event gate blocks non-required processing in `stopped`, `paused`, and hidden states.
    - Hidden mode keeps minimal transition events active (for auto-open and queue continuity) while halting inspection loop work.
    - `CHALLENGE_MODE_START` hides UI; completion/reset rehydrates group view and refresh flow.
+   - Combat-safe UI behavior: protected frame drag start/stop is skipped during combat lockdown.
 
 ## Hotkeys
 

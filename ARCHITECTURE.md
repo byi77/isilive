@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.32`
+Version baseline: `0.9.33`
 Last updated: `2026-02-19`
 
 ## Purpose
@@ -48,7 +48,7 @@ WoW Event
 1. Prefer concrete activity/map/spell data over fuzzy name matching.
 2. Avoid fallback-of-fallback chains when a primary source is available.
 3. Keep leader-only actions explicit and disabled when unauthorized.
-4. Keep combat-safe UI updates deferred when protected operations are blocked.
+4. Keep combat-safe UI updates deferred when protected operations are blocked, and skip frame drag start/stop during combat lockdown.
 5. For shared-portcast spells, prioritize exact activity map matching over spell-only suppression.
 6. Do not clear highlight state from ambiguous shared spell mappings when exact map context is unknown.
 
@@ -69,7 +69,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.32     |
+| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.33     |
 |--------------------------------------------------------------------------------------------------|
 | Spec         Name              Flag        Key         iLvl      RIO      M+ Management M+travel |
 |--------------------------------------------------------------------------------------------------|
@@ -77,7 +77,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 | [Healer]     PlayerTwo         EN          HOA +12     629       3410                           |
 | [DPS]        PlayerThree       FR          -           631       3377      [Readycheck]         |
 | [DPS]        PlayerFour        ES          AK +10      626       3290      [Countdown10]        |
-| [DPS]        PlayerFive        DE          OFG +11     628       3333      [Countdown Cancel]   |
+| [DPS]        PlayerFive        DE          OFG +11     628       3333      [Countdown 0]        |
 |                                                                       [Refresh]                  |
 |                                                                       [Share Keys]               |
 |                                                                 [Teleport Grid Buttons...]       |

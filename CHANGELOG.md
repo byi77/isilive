@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-02-19 - Version 0.9.33
+- **UI & UX:**
+  - Increased main frame minimum height from `200` to `212` so the `Share Keys` / `Keys teilen` button no longer sits on the bottom edge.
+  - Renamed the right-side countdown stop action label from `Countdown Cancel` to `Countdown 0` (behavior remains `DoCountdown(0)`).
+- **Combat Safety:**
+  - Fixed protected-call drag taint (`ADDON_ACTION_BLOCKED: isiLiveMainFrame:StartMoving()`) by skipping frame drag start/stop while in combat lockdown.
+- **Documentation:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RULES.md`, `RELEASE.md`, and `TODO.md` with current UI labels and combat-drag behavior.
+
 ## 2026-02-19 - Version 0.9.32
 - **Architecture & Stability:**
   - Fixed global variable leaks in realm data; moved to `addonTable.RealmData`.

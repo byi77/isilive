@@ -7,7 +7,7 @@ addonTable.UI = UI
 
 function UI.CreateMainFrame(opts)
   opts = opts or {}
-  local minHeight = tonumber(opts.minHeight) or 200
+  local minHeight = tonumber(opts.minHeight) or 212
   local parent = opts.parent or UIParent
   local isInCombat = opts.isInCombat or function()
     return InCombatLockdown and InCombatLockdown()
@@ -22,6 +22,9 @@ function UI.CreateMainFrame(opts)
   frame:EnableMouse(true)
   frame:RegisterForDrag("LeftButton", "RightButton")
   frame:SetScript("OnDragStart", function(self)
+    if isInCombat() then
+      return
+    end
     self:StartMoving()
   end)
   frame:Hide()
@@ -38,6 +41,9 @@ function UI.CreateMainFrame(opts)
   end
 
   frame:SetScript("OnDragStop", function(self)
+    if isInCombat() then
+      return
+    end
     self:StopMovingOrSizing()
     SavePosition(self)
   end)
@@ -51,9 +57,15 @@ function UI.CreateMainFrame(opts)
   dragHandle:EnableMouse(true)
   dragHandle:RegisterForDrag("LeftButton")
   dragHandle:SetScript("OnDragStart", function()
+    if isInCombat() then
+      return
+    end
     frame:StartMoving()
   end)
   dragHandle:SetScript("OnDragStop", function()
+    if isInCombat() then
+      return
+    end
     frame:StopMovingOrSizing()
     SavePosition(frame)
   end)
