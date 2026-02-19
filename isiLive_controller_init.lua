@@ -30,6 +30,7 @@ local function CreateHighlightController(ctx)
     resolveSeason3TeleportSpellID = ctx.resolveSeason3TeleportSpellID,
     resolveSeason3TeleportSpellIDByMapID = ctx.resolveSeason3TeleportSpellIDByMapID,
     resolveSeason3MapIDBySpellID = ctx.resolveSeason3MapIDBySpellID,
+    resolveSeason3MapIDsBySpellID = ctx.resolveSeason3MapIDsBySpellID,
   })
 end
 
@@ -72,7 +73,7 @@ local function CreateRosterPanelController(ctx)
   return {
     rosterPanelController = controller,
     refreshButton = controller.GetRefreshButton(),
-    dmResetToggleButton = controller.GetDMResetToggleButton(),
+    countdownCancelButton = controller.GetCountdownCancelButton(),
     statusLine = controller.GetStatusLine(),
   }
 end

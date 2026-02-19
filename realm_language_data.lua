@@ -1,7 +1,11 @@
+local _, addonTable = ...
+addonTable = addonTable or {}
+addonTable.RealmData = addonTable.RealmData or {}
+
 -- Auto-generated from Blizzard WoW EU realm status GraphQL (worldofwarcraft.blizzard.com).
 -- Generated: 2026-02-11 20:36:12 +01:00
 
-IsiLiveRealmLocaleByExactName = {
+addonTable.RealmData.IsiLiveRealmLocaleByExactName = {
     ["aegwynn"] = "deDE",
     ["aerie peak"] = "enGB",
     ["agamaggan"] = "enGB",
@@ -296,7 +300,7 @@ IsiLiveRealmLocaleByExactName = {
     ["Король-лич"] = "ruRU",
 }
 
-IsiLiveRealmLocaleByNormalizedName = {
+addonTable.RealmData.IsiLiveRealmLocaleByNormalizedName = {
     ["aegwynn"] = "deDE",
     ["aeriepeak"] = "enGB",
     ["agamaggan"] = "enGB",

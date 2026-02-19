@@ -124,7 +124,7 @@ end
 local UpdateStatusLine
 local UpdateUI
 local ShowQueueJoinPreview
-local UpdateDMResetButton
+local UpdateCountdownCancelButton
 local UpdateLeaderButtons
 local OnEvent
 local ResolveActiveKeyOwnerUnit
@@ -150,7 +150,7 @@ local teleportUIController
 local teleportDebugController
 local rosterPanelController
 local refreshButton
-local dmResetToggleButton
+local countdownCancelButton
 local statusLine
 local mplusTeleportButtons
 local roster = {}
@@ -310,23 +310,11 @@ local function RefreshLocalPlayerKey()
   return keySyncController.RefreshLocalPlayerKey(roster)
 end
 
-local function IsAutoDamageMeterResetEnabled()
-  return IsiLiveDB and IsiLiveDB.autoDamageMeterReset == true
-end
-
-local function SetAutoDamageMeterResetEnabled(enabled)
-  if not IsiLiveDB then
-    IsiLiveDB = {}
-  end
-  IsiLiveDB.autoDamageMeterReset = enabled and true or false
-end
-
-UpdateDMResetButton = function()
+UpdateCountdownCancelButton = function()
   if not rosterPanelController then
     return
   end
-  local enabled = IsAutoDamageMeterResetEnabled()
-  rosterPanelController.SetDMResetText(enabled and L.BTN_DMRESET_ON or L.BTN_DMRESET_OFF)
+  rosterPanelController.SetCountdownCancelText(L.BTN_COUNTDOWN_CANCEL)
 end
 
 local initResult = isiLiveControllerInit.CreateControllers({
@@ -351,6 +339,12 @@ local initResult = isiLiveControllerInit.CreateControllers({
   resolveSeason3MapIDBySpellID = function(spellID)
     if isiLiveTeleport and isiLiveTeleport.ResolveSeason3MapIDBySpellID then
       return isiLiveTeleport.ResolveSeason3MapIDBySpellID(spellID)
+    end
+    return nil
+  end,
+  resolveSeason3MapIDsBySpellID = function(spellID)
+    if isiLiveTeleport and isiLiveTeleport.ResolveSeason3MapIDsBySpellID then
+      return isiLiveTeleport.ResolveSeason3MapIDsBySpellID(spellID)
     end
     return nil
   end,
@@ -408,7 +402,7 @@ ApplyKnownKeyToRosterEntry = initResult.applyKnownKeyToRosterEntry
 highlightController = initResult.highlightController
 rosterPanelController = initResult.rosterPanelController
 refreshButton = initResult.refreshButton
-dmResetToggleButton = initResult.dmResetToggleButton
+countdownCancelButton = initResult.countdownCancelButton
 statusLine = initResult.statusLine
 teleportUIController = initResult.teleportUIController
 mplusTeleportButtons = initResult.mplusTeleportButtons
@@ -478,7 +472,7 @@ teleportDebugController = isiLiveTeleportDebug.CreateController({
 
 ApplyLocalizationToUI = function()
   rosterPanelController.ApplyLocalization()
-  UpdateDMResetButton()
+  UpdateCountdownCancelButton()
   if centerNoticeTeleportButton and centerNoticeTeleportButton:IsShown() then
     local spellID = centerNoticeTeleportButton.spellID
     local enabled = spellID and IsSpellKnownSafe(spellID) and not centerNoticeTeleportButton.inCombatBlocked
@@ -488,11 +482,13 @@ ApplyLocalizationToUI = function()
   UpdateStatusLine()
 end
 
-dmResetToggleButton:SetScript("OnClick", function()
-  local newValue = not IsAutoDamageMeterResetEnabled()
-  SetAutoDamageMeterResetEnabled(newValue)
-  UpdateDMResetButton()
-  Print(newValue and L.DMRESET_ENABLED or L.DMRESET_DISABLED)
+countdownCancelButton:SetScript("OnClick", function()
+  if not IsPlayerLeader() then
+    return
+  end
+  if C_PartyInfo and C_PartyInfo.DoCountdown then
+    pcall(C_PartyInfo.DoCountdown, 0)
+  end
 end)
 
 local function SetProcessingActive(isActive)
@@ -692,16 +688,48 @@ local function EnqueueInspect(unit)
 end
 
 local function CheckIfEnteredTargetDungeon()
-  if not latestQueueTeleportSpellID then
+  if not latestQueueTeleportSpellID and not latestQueueActivityID and not activeJoinedKeyMapID then
     return
   end
-  local mapID = C_Map.GetBestMapForUnit("player")
-  if not mapID then
+
+  local currentMapID = nil
+  if C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID then
+    local challengeMapID = C_ChallengeMode.GetActiveChallengeMapID()
+    if type(challengeMapID) == "number" and challengeMapID > 0 then
+      currentMapID = challengeMapID
+    end
+  end
+  if not currentMapID and C_Map and C_Map.GetBestMapForUnit then
+    local mapID = C_Map.GetBestMapForUnit("player")
+    if type(mapID) == "number" and mapID > 0 then
+      currentMapID = mapID
+    end
+  end
+  if not currentMapID then
     return
   end
-  if isiLiveTeleport and isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID then
-    local currentMapSpellID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
-    if currentMapSpellID and currentMapSpellID == latestQueueTeleportSpellID then
+
+  local targetMapID = activeJoinedKeyMapID
+  if not targetMapID and (latestQueueActivityID or latestQueueTeleportSpellID) then
+    targetMapID = ResolveJoinedKeyMapID(latestQueueActivityID, latestQueueTeleportSpellID)
+  end
+
+  if targetMapID and currentMapID == targetMapID then
+    ClearLatestQueueTarget()
+    UpdateMPlusTeleportButton()
+    return
+  end
+
+  -- Only clear by spell mapping when it resolves to exactly one map.
+  -- Shared spells (e.g. both Tazavesh wings) must not clear ambiguously.
+  if
+    not targetMapID
+    and isiLiveTeleport
+    and isiLiveTeleport.ResolveSeason3MapIDsBySpellID
+    and latestQueueTeleportSpellID
+  then
+    local candidateMapIDs = isiLiveTeleport.ResolveSeason3MapIDsBySpellID(latestQueueTeleportSpellID)
+    if type(candidateMapIDs) == "table" and #candidateMapIDs == 1 and currentMapID == candidateMapIDs[1] then
       ClearLatestQueueTarget()
       UpdateMPlusTeleportButton()
     end
@@ -810,7 +838,6 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   isInChallengeMode = GetActiveChallengeMapID,
   isNegativeApplicationStatusEvent = IsNegativeApplicationStatusEvent,
   getNormalizedActiveEntryInfo = GetNormalizedActiveEntryInfo,
-  isAutoDamageMeterResetEnabled = IsAutoDamageMeterResetEnabled,
   ensureQueueDebugStorage = queueDebugController.EnsureStorage,
   setQueueDebugEnabled = queueDebugController.SetEnabled,
   registerIsiLiveSyncPrefix = RegisterIsiLiveSyncPrefix,
@@ -838,7 +865,7 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   exitTestMode = ExitTestMode,
   updateStatusLine = UpdateStatusLine,
   applyLocalizationToUI = ApplyLocalizationToUI,
-  updateDMResetButton = UpdateDMResetButton,
+  updateCountdownCancelButton = UpdateCountdownCancelButton,
   checkIfEnteredTargetDungeon = CheckIfEnteredTargetDungeon,
   setCenterNoticeVisible = SetCenterNoticeVisible,
   getState = function()

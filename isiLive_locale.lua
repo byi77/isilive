@@ -87,7 +87,8 @@ function Locale.GetRealmLocaleFromStaticData(realm)
     return nil
   end
 
-  local exactLookup = _G.IsiLiveRealmLocaleByExactName
+  local RealmData = addonTable.RealmData or {}
+  local exactLookup = RealmData.IsiLiveRealmLocaleByExactName
   if type(exactLookup) == "table" then
     local exactLocale = exactLookup[tostring(realm):lower()]
     if exactLocale then
@@ -95,7 +96,7 @@ function Locale.GetRealmLocaleFromStaticData(realm)
     end
   end
 
-  local normalizedLookup = _G.IsiLiveRealmLocaleByNormalizedName
+  local normalizedLookup = RealmData.IsiLiveRealmLocaleByNormalizedName
   if type(normalizedLookup) == "table" then
     local normalizedLocale = normalizedLookup[Locale.NormalizeRealmLookupKey(realm)]
     if normalizedLocale then
@@ -107,6 +108,10 @@ function Locale.GetRealmLocaleFromStaticData(realm)
 end
 
 function Locale.GetUnitServerLanguage(unit, realm, getRealmInfoLib)
+  if not realm or realm == "" then
+    realm = GetRealmName()
+  end
+
   local staticLocale = Locale.GetRealmLocaleFromStaticData(realm)
   if staticLocale then
     return Locale.LocaleToLanguageTag(staticLocale)

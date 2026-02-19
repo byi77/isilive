@@ -9,6 +9,7 @@ This is the canonical release flow for `isiLive`.
 2. Add a new entry at the top of `CHANGELOG.md`.
 3. Update `README.md` for user-visible behavior/layout changes.
 4. If season data was touched, verify docs explicitly state **TWW S3 only** (`README.md` + `CHANGELOG.md`).
+5. If runtime flow or UI behavior changed, update `ARCHITECTURE.md` and `USECASES.md`.
 
 ## 2) Local Quality Gate
 
@@ -18,9 +19,14 @@ Run before committing:
 stylua --check .
 luacheck --exclude-files ".luarocks/**" -- .
 lua tools/lua_metrics_check.lua
+lua tools/validate_usecases.lua
 ```
 
-Expected: lint/style/metrics checks pass.
+Expected: lint/style/metrics/usecase checks pass.
+
+`tools/validate_usecases.lua` is mandatory for release gating and validates deterministic queue/highlight/cooldown behavior (including shared-portcast edge cases).
+
+Windows note: if metrics fail with missing LuaRocks modules (`lfs`, `luacheck.decoder`, `luacheck.parser`), set `LUA_PATH` and `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running the metrics check.
 
 ## 3) Commit + Push
 
@@ -51,8 +57,8 @@ git push origin isiLive_beta_X.Y.Z
 Example:
 
 ```powershell
-git tag isiLive_release_0.9.30
-git push origin isiLive_release_0.9.30
+git tag isiLive_release_0.9.32
+git push origin isiLive_release_0.9.32
 ```
 
 ## 5) Verify GitHub Actions

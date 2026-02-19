@@ -1,8 +1,45 @@
 # Changelog
 
+## 2026-02-19 - Version 0.9.32
+- **Architecture & Stability:**
+  - Fixed global variable leaks in realm data; moved to `addonTable.RealmData`.
+  - Added combat-queue for teleport buttons to ensure updates apply correctly after combat ends (`PLAYER_REGEN_ENABLED`).
+  - Fixed roster panel overflow in raid groups by strictly limiting display to 5 rows.
+  - Improved realm language detection for same-realm players.
+  - Fixed center-notice teleport resolution to also work with `activityID` when dungeon name is missing.
+  - Added deterministic shared-teleport map handling (e.g. both Tazavesh wings on one portcast).
+  - Fixed active-listing highlight suppression for shared portcasts by prioritizing exact activity map matching before shared-spell suppression.
+  - Harmonized active-listing detection in event handlers to avoid premature queue-target clears when API variants omit explicit `active` booleans.
+  - Hardened queue activity-name lookups with protected `GetActivityInfoTable` access.
+- **UI & UX:**
+  - Share Keys button is now disabled/dimmed if no keys are available to share.
+  - Fixed typos in German localization (`Managment` -> `Management`, `Groupenfuehrer` -> `Gruppenfuehrer`).
+- **Code Quality:**
+  - reduced oversized function blocks across controller/UI modules
+  - `tools/lua_metrics_check.lua` reports no function-size warnings at default thresholds (`warn>120`, `hard>320`)
+  - added deterministic runtime usecase validator `tools/validate_usecases.lua` for queue/highlight/cooldown edge-case gates
+  - validator currently covers 8 deterministic gates (queue target resolution, shared-portcast highlight behavior, event clear behavior, cooldown state behavior)
+  - wired `README.md` + `RELEASE.md` quality gates to include `lua tools/validate_usecases.lua`
+  - removed 7 unused localization keys from `isiLive_texts.lua`:
+    - `INVITE_HINT_TITLE`
+    - `LEAD_TRANSFERRED`
+    - `TELEPORT_ERR_NO_TARGET`
+    - `TELEPORT_ERR_COMBAT`
+    - `TELEPORT_ERR_FAILED`
+    - `TIMEOUT_INSPECT`
+    - `TOOLTIP_TELEPORT_NO_TARGET`
+
 ## 2026-02-18 - Version 0.9.31
 - Runtime stability fixes:
   - fixed combat taint/protected-call error (`ADDON_ACTION_BLOCKED: Button:SetScale()`) by skipping teleport-button scale resets during combat and applying the reset after `PLAYER_REGEN_ENABLED`
+  - fixed invite dungeon detection ambiguity by preferring concrete teleport-mapped activity IDs over generic dungeon candidates in queue application parsing (fixes `Halls of Atonement` / `Hallen der Suehne` mis-detection after invite)
+  - updated right control headers: former `M+ Management` renamed to `M+travel`, former `Lead Options` renamed to `M+ Managment`
+  - replaced obsolete `DM Reset` toggle with a leader-only `Countdown Cancel` action (`DoCountdown(0)`) and moved `Refresh` to the bottom slot in the right control stack
+  - replaced the tiny key-speaker icon with a full-size `Share Keys` button below `Refresh` in the right control stack
+- Documentation sync:
+  - added `ARCHITECTURE.md` (runtime architecture + ASCII UI sketch)
+  - added `USECASES.md` (invite/highlight/cooldown use-case plan)
+  - updated `README.md`, `RELEASE.md`, `RULES.md`, and `TODO.md` to `0.9.31` baseline/examples
 - TOC version bumped to `0.9.31`.
 
 ## 2026-02-18 - Version 0.9.30

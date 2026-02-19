@@ -3,20 +3,15 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.30`.
-
-## Season Scope
-
-- Active dungeon/teleport dataset is fixed to **The War Within Season 3 (TWW S3)**.
-- Do not mix in dungeon pools, map IDs, or teleports from other seasons.
+Current addon version: `0.9.32`.
 
 ## Features
 
 - Group roster table with columns: `Spec`, `Name`, `Sprache/Flag`, `Key`, `iLvl`, `RIO`
 - Stable role sorting: `Tank -> Healer -> Damager`
-- Right-side controls: `Readycheck`, `Countdown10`, `Refresh`, `DM Reset: ON/OFF`
-- `M+ Management` teleport grid with all TWW S3 dungeon teleports
-- Active dungeon teleport is highlighted (pulse/glow) for joined queue groups and active self-hosted listings (including solo host); highlight turns off when already inside that target dungeon
+- Right-side controls: `Readycheck`, `Countdown10`, `Countdown Cancel`, `Refresh`, `Share Keys`
+- `M+travel` teleport grid with all Season dungeon teleports
+- Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
 - Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14`)
 - Queue join detection with chat message, center notice, and invite hint
 - Dungeon teleport controls in center notice + right-side grid
@@ -35,13 +30,13 @@ Current addon version: `0.9.30`.
 - Key sync runs only while the main window is visible (hidden mode stays in sleep behavior)
 - Main window is movable via left/right drag; top drag handle stays above overlays for reliable dragging
 - Main frame height updates are deferred during combat and applied on `PLAYER_REGEN_ENABLED`
-- `Readycheck` and `Countdown10` are leader-only
+- `Readycheck`, `Countdown10`, and `Countdown Cancel` are leader-only
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 
-## Use Case / Logic Baseline (v0.9.30)
+## Use Case / Logic Baseline (v0.9.32)
 
-Documented on `2026-02-18` as current behavior baseline for regression checks.
+Documented on `2026-02-19` as runtime behavior baseline for validation checks.
 
 1. Queue invite -> grouped flow
    - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`).
@@ -55,15 +50,18 @@ Documented on `2026-02-18` as current behavior baseline for regression checks.
    - `KEY:<mapID>:<level>` snapshots populate roster key text as `Shortcut +Level` (for example `DB +14`).
    - Active joined key owner is highlighted only when ownership is unambiguous.
 4. Teleport targeting and highlight logic
-   - Active target resolves in strict order: active listing (`mapID/activityID/name` fallback), latest queue target state, then queue activity/name resolution.
-   - Active self-hosted listings are highlighted even without a formed group; highlight is suppressed when already inside the matching target dungeon.
+    - Active target resolves in strict order: active listing activity, latest queue target spell, then queue activity/name resolution.
+    - Highlight is group-bound (no solo highlight), and updates on queue/listing/challenge transitions.
+    - Exact target map has priority: if activity map is known, highlight clears only on that exact map.
+    - Shared-portcast dungeons (for example both Tazavesh wings) are handled as multi-map targets.
+    - Shared-portcast ambiguity is not guessed: spell-only suppression is used only when the spell maps uniquely to one target map.
 5. Refresh and inspect pipeline
    - `Refresh` triggers forced sync reset (`HELLO/KEY`) and inspect cache invalidation/requeue.
    - Inspect controller updates `Spec/iLvl/RIO` asynchronously via queue/retry flow and `INSPECT_READY`.
 6. Runtime gating and hidden/sleep behavior
    - Event gate blocks non-required processing in `stopped`, `paused`, and hidden states.
    - Hidden mode keeps minimal transition events active (for auto-open and queue continuity) while halting inspection loop work.
-   - `CHALLENGE_MODE_START` hides UI and performs optional DM reset; completion/reset rehydrates group view.
+   - `CHALLENGE_MODE_START` hides UI; completion/reset rehydrates group view and refresh flow.
 
 ## Hotkeys
 
@@ -92,7 +90,6 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive.toc`: addon metadata and load order
 - `isiLive.lua`: main addon logic
 - `isiLive_locale.lua`: locale/language/flag mapping helpers
-- `isiLive_season_data.lua`: canonical TWW S3 dungeon/teleport mapping data
 - `isiLive_teleport.lua`: dungeon teleport mapping and secure teleport button helpers
 - `isiLive_teleport_ui.lua`: teleport grid button creation/update helpers
 - `isiLive_teleport_debug.lua`: teleport debug/test command controller (`tpdebug`, `tptest`)
@@ -113,6 +110,7 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive_event_handlers.lua`: runtime event handler controller (`OnEvent` routing targets)
 - `isiLive_commands.lua`: slash command registration/dispatch
 - `isiLive_ui.lua`: main frame/UI construction and widget wiring
+- `tools/validate_usecases.lua`: deterministic usecase validator for queue/highlight/cooldown edge cases
 - `realm_language_data.lua`: Blizzard EU realm locale mapping (including UTF-8 Russian realm names)
 - `CHANGELOG.md`: release notes
 - `RELEASE.md`: release runbook
@@ -138,11 +136,23 @@ Developer debug (hidden command, not listed in in-game help):
 ## Quality Check
 
 - GitHub Action (on push/PR to `main`): `stylua --check .`, `luacheck --exclude-files ".luarocks/**" -- .`, Lua syntax check, and Lua metrics check (`lua tools/lua_metrics_check.lua`).
-- Local checks:
+- Local release-grade checks:
   - `stylua --check .`
   - `luacheck --exclude-files ".luarocks/**" -- .`
   - `lua tools/lua_metrics_check.lua`
+  - `lua tools/validate_usecases.lua`
   - Metrics defaults: file `warn>1200` / `hard>2400`, function `warn>120` / `hard>320` (override via `ISILIVE_WARN_FILE_LINES`, `ISILIVE_MAX_FILE_LINES`, `ISILIVE_WARN_FUNCTION_LINES`, `ISILIVE_MAX_FUNCTION_LINES`)
+  - Windows note: if metrics cannot find LuaRocks modules (`lfs`/`luacheck.*`), set `LUA_PATH` + `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running.
+
+## Deterministic Usecase Gate
+
+`tools/validate_usecases.lua` is a deterministic runtime-logic gate for critical behavior, including:
+- queue candidate resolution priority (concrete teleport mapping over generic candidates)
+- shared-portcast highlight behavior (queue + active listing exact-map suppression)
+- ambiguous shared-spell map handling (no guessing)
+- event-handler target-clear behavior under API shape variants
+- protected API fallback robustness in queue flow
+- cooldown recognition/format behavior for teleport spells
 
 ## Developer Setup
 
@@ -157,6 +167,7 @@ Local checks:
 - `stylua --check .` (CI check)
 - `luacheck --exclude-files ".luarocks/**" -- .` (lint)
 - `lua tools/lua_metrics_check.lua` (file/function size metrics)
+- `lua tools/validate_usecases.lua` (deterministic usecase gates)
 
 Notes:
 - The addon is namespace-based (`local addonName, addonTable = ...`).
@@ -170,6 +181,9 @@ The CI workflow runs four checks on `push`/`pull_request` to `main`:
 - `luacheck --exclude-files ".luarocks/**" -- .`
 - Lua syntax check (`loadfile` validation for all `.lua` files except `.luarocks`)
 - Lua metrics check (`lua tools/lua_metrics_check.lua`)
+
+Release gating additionally runs local deterministic usecase validation:
+- `lua tools/validate_usecases.lua`
 
 ## Git Hooks (Optional)
 

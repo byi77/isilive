@@ -45,9 +45,6 @@ local function BuildContext(opts)
   ctx.setActiveJoinedKeyMapID = RequireFunction(opts.setActiveJoinedKeyMapID, "setActiveJoinedKeyMapID")
   ctx.updateUI = RequireFunction(opts.updateUI, "updateUI")
 
-  ctx.isAutoDamageMeterResetEnabled =
-    RequireFunction(opts.isAutoDamageMeterResetEnabled, "isAutoDamageMeterResetEnabled")
-  ctx.resetDamageMeterSessions = RequireFunction(opts.resetDamageMeterSessions, "resetDamageMeterSessions")
   ctx.setMainFrameVisible = RequireFunction(opts.setMainFrameVisible, "setMainFrameVisible")
   ctx.updateLeaderButtons = RequireFunction(opts.updateLeaderButtons, "updateLeaderButtons")
   ctx.updateStatusLine = RequireFunction(opts.updateStatusLine, "updateStatusLine")
@@ -62,7 +59,7 @@ local function BuildContext(opts)
   ctx.applyHotkeyBindings = RequireFunction(opts.applyHotkeyBindings, "applyHotkeyBindings")
   ctx.startBindingWatchdog = RequireFunction(opts.startBindingWatchdog, "startBindingWatchdog")
   ctx.applyLocalizationToUI = RequireFunction(opts.applyLocalizationToUI, "applyLocalizationToUI")
-  ctx.updateDMResetButton = RequireFunction(opts.updateDMResetButton, "updateDMResetButton")
+  ctx.updateCountdownCancelButton = RequireFunction(opts.updateCountdownCancelButton, "updateCountdownCancelButton")
   ctx.getUnitNameAndRealm = RequireFunction(opts.getUnitNameAndRealm, "getUnitNameAndRealm")
   ctx.markIsiLiveUser = RequireFunction(opts.markIsiLiveUser, "markIsiLiveUser")
   ctx.sendIsiLiveHello = RequireFunction(opts.sendIsiLiveHello, "sendIsiLiveHello")
@@ -95,6 +92,37 @@ local function BuildContext(opts)
   return ctx
 end
 
+local function HasActiveListing(entryInfo)
+  if type(entryInfo) ~= "table" then
+    return false
+  end
+
+  local active = entryInfo.active
+  if type(active) == "boolean" then
+    return active
+  end
+
+  if tonumber(entryInfo.activityID) or tonumber(entryInfo.primaryActivityID) or tonumber(entryInfo.mapID) then
+    return true
+  end
+
+  if type(entryInfo.activityIDs) == "table" and next(entryInfo.activityIDs) ~= nil then
+    return true
+  end
+
+  if type(entryInfo.name) == "string" and entryInfo.name ~= "" then
+    return true
+  end
+  if type(entryInfo.activityName) == "string" and entryInfo.activityName ~= "" then
+    return true
+  end
+  if type(entryInfo.title) == "string" and entryInfo.title ~= "" then
+    return true
+  end
+
+  return false
+end
+
 local function HandleGroupRosterUpdateEvent(ctx, _self)
   if ctx.isInGroup() and (ctx.isTestMode() or ctx.isTestAllMode()) then
     ctx.exitTestMode()
@@ -114,7 +142,7 @@ local function HandleLfgListApplicationStatusUpdatedEvent(ctx, _self, ...)
   if ctx.isNegativeApplicationStatusEvent(...) then
     ctx.setPendingQueueJoinInfo(nil)
     local entryInfo = ctx.getNormalizedActiveEntryInfo()
-    if type(entryInfo) ~= "table" or not entryInfo.active then
+    if not HasActiveListing(entryInfo) then
       ctx.clearLatestQueueTarget()
     end
     ctx.updateMPlusTeleportButton()
@@ -136,7 +164,7 @@ local function HandleLfgListActiveEntryUpdateEvent(ctx, _self)
   end
   local entryInfo = ctx.getNormalizedActiveEntryInfo()
   local hadActiveJoinedKey = ctx.getActiveJoinedKeyMapID() ~= nil
-  if type(entryInfo) == "table" and entryInfo.active then
+  if HasActiveListing(entryInfo) then
     if ctx.isTestMode() or ctx.isTestAllMode() then
       ctx.exitTestMode()
     end
@@ -144,7 +172,7 @@ local function HandleLfgListActiveEntryUpdateEvent(ctx, _self)
     -- Active listing detected: clear pending info (old applications) only.
     -- Keep latest* vars so self-hosted listings stay highlighted.
     ctx.setPendingQueueJoinInfo(nil)
-  elseif type(entryInfo) ~= "table" or not entryInfo.active then
+  else
     -- No active listing anymore: clear pending info.
     ctx.setPendingQueueJoinInfo(nil)
   end
@@ -155,10 +183,8 @@ local function HandleLfgListActiveEntryUpdateEvent(ctx, _self)
 end
 
 local function HandleChallengeModeStartEvent(ctx, _self)
-  if ctx.isAutoDamageMeterResetEnabled() then
-    ctx.resetDamageMeterSessions()
-  end
   ctx.setActiveJoinedKeyMapID(nil)
+  ctx.checkIfEnteredTargetDungeon()
   ctx.setMainFrameVisible(false)
   ctx.updateLeaderButtons()
   ctx.updateStatusLine()
@@ -198,9 +224,6 @@ local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)
     or { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
   IsiLiveDB.locale = ctx.resolveLocaleTag(IsiLiveDB.locale or ctx.defaultLocale)
   ctx.setLocaleTable(ctx.locales[IsiLiveDB.locale] or ctx.locales.enUS)
-  if IsiLiveDB.autoDamageMeterReset == nil then
-    IsiLiveDB.autoDamageMeterReset = false
-  end
   if IsiLiveDB.queueDebug == nil then
     IsiLiveDB.queueDebug = false
   end
@@ -221,7 +244,7 @@ local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)
   ctx.applyHotkeyBindings()
   ctx.startBindingWatchdog()
   ctx.applyLocalizationToUI()
-  ctx.updateDMResetButton()
+  ctx.updateCountdownCancelButton()
   ctx.updateLeaderButtons()
 end
 

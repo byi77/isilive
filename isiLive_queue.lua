@@ -53,8 +53,8 @@ function Queue.GetActivityName(activityID)
     return nil
   end
 
-  local info = C_LFGList.GetActivityInfoTable(activityID)
-  if info then
+  local ok, info = pcall(C_LFGList.GetActivityInfoTable, activityID)
+  if ok and type(info) == "table" then
     return rawget(info, "fullName") or rawget(info, "shortName") or rawget(info, "activityName")
   end
 
@@ -90,10 +90,41 @@ function Queue.GetSearchResultActivityID(result, resolveTeleportSpellIDByActivit
     end
   end
 
+  local bestDungeonCandidate
   for _, id in ipairs(candidateIDs) do
-    if resolveTeleportSpellIDByActivityID and resolveTeleportSpellIDByActivityID(id) then
+    local resolveResult = nil
+    if resolveTeleportSpellIDByActivityID then
+      resolveResult = resolveTeleportSpellIDByActivityID(id)
+    end
+
+    -- Prefer a concrete teleport mapping over generic dungeon activity markers.
+    if type(resolveResult) == "number" and resolveResult > 0 then
       return id
     end
+
+    if not bestDungeonCandidate then
+      local info
+      if C_LFGList and C_LFGList.GetActivityInfoTable then
+        local ok, activityInfo = pcall(C_LFGList.GetActivityInfoTable, id)
+        if ok and type(activityInfo) == "table" then
+          info = activityInfo
+        end
+      end
+
+      if info then
+        local mapID = tonumber(rawget(info, "mapID") or rawget(info, "mapId"))
+        local isDungeonLike = rawget(info, "isMythicPlusActivity") == true or rawget(info, "categoryID") == 2
+        if isDungeonLike and mapID and mapID > 0 then
+          bestDungeonCandidate = id
+        end
+      elseif resolveResult == true then
+        bestDungeonCandidate = id
+      end
+    end
+  end
+
+  if bestDungeonCandidate then
+    return bestDungeonCandidate
   end
 
   if #candidateIDs > 0 then

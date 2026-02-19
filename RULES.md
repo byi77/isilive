@@ -27,6 +27,19 @@
 - Keep examples and slash commands in sync with the code.
 - Update `CHANGELOG.md` for every functional/code change.
 - Add changelog entries with explicit date (`YYYY-MM-DD`).
+- Update `ARCHITECTURE.md` when module boundaries or runtime flow changes.
+- Update `USECASES.md` when functional behavior/use-case flows change.
+- Keep `RELEASE.md` quality-gate commands aligned with the actual project gates.
+
+## Validation
+- Run all local quality gates before release commits:
+- `stylua --check .`
+- `luacheck --exclude-files ".luarocks/**" -- .`
+- Lua syntax parse for all `.lua` files (`luac -p`)
+- `lua tools/lua_metrics_check.lua`
+- `lua tools/validate_usecases.lua`
+- For behavioral fixes, add or update deterministic coverage in `tools/validate_usecases.lua`.
+- If a gate fails, fix root cause and rerun the full gate set (no partial-pass release).
 
 ## Release Hygiene
 - Bump version in `isiLive.toc` for functional changes.

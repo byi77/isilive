@@ -1,5 +1,11 @@
 # TODO
 
+## P0 - Reliability Gates
+
+- [x] Deterministische Runtime-Usecase-Pruefung als Script angelegt (`tools/validate_usecases.lua`).
+- [x] Release-Dokus auf harte Quality-Gates inkl. Usecase-Validator umgestellt (`README.md`, `RELEASE.md`).
+- [ ] CI Workflow optional um `tools/validate_usecases.lua` erweitern (zusatzlicher Runtime-Gate auf `main`).
+
 ## P1 - Rename `isiLive` -> `isiKeyMPlus` (stabil, mit Kompatibilitaet)
 
 - [ ] Rename aller Addon-Dateien per `git mv` (`isiLive*` -> `isiKeyMPlus*`) inkl. `.toc`.
@@ -16,6 +22,8 @@
 ## P2 - Pre-Key Readiness / Informationen vor Key-Start
 
 - [x] Key-Spalte anzeigen: Gruppenmitglieder-Key als `Shortcut +Stufe` (z. B. `DB +14`).
+- [ ] **Next Week:** Off-Season Modus aktivieren (Teleport-Grid ausblenden/leeren, Non-Mythic Warnung deaktivieren).
+- [ ] **Next Week:** Vorbereitung Midnight S1 (neue MapIDs/Spells recherchieren).
 
 ## P3 - Entschlackung `isiLive.lua` (nach Release `0.9.26`)
 

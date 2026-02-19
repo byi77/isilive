@@ -13,6 +13,18 @@ local MAP_SHORT_CODES = SeasonData.MAP_SHORT_CODES or {}
 local ACTIVITY_TO_TELEPORT_CACHE = {}
 local TAZAVESH_TOKENS_CACHE = nil
 
+local pendingCombatUpdates = {}
+local combatRetryFrame = CreateFrame("Frame")
+combatRetryFrame:SetScript("OnEvent", function(self, event)
+  if event == "PLAYER_REGEN_ENABLED" then
+    for button, spellID in pairs(pendingCombatUpdates) do
+      Teleport.ApplySecureSpellToButton(button, spellID)
+    end
+    table.wipe(pendingCombatUpdates)
+    self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+  end
+end)
+
 local function IsSpellKnownByID(spellID)
   if not spellID then
     return false
@@ -77,6 +89,29 @@ local function IterateMappedSpellIDs(mapID, callback)
       end
     end
   end
+end
+
+local function CollectMapIDsForSpell(spellID)
+  local numericSpellID = tonumber(spellID)
+  if not numericSpellID then
+    return {}
+  end
+
+  local mapIDs = {}
+  for mapID in pairs(MAP_TO_TELEPORT) do
+    local matched = false
+    IterateMappedSpellIDs(mapID, function(mappedSpellID)
+      if mappedSpellID == numericSpellID then
+        matched = true
+      end
+    end)
+    if matched then
+      table.insert(mapIDs, mapID)
+    end
+  end
+
+  table.sort(mapIDs)
+  return mapIDs
 end
 
 local function NormalizeNameForMatch(text)
@@ -227,22 +262,19 @@ function Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
 end
 
 function Teleport.ResolveSeason3MapIDBySpellID(spellID)
-  local numericSpellID = tonumber(spellID)
-  if not numericSpellID then
+  local mapIDs = Teleport.ResolveSeason3MapIDsBySpellID(spellID)
+  if type(mapIDs) ~= "table" then
     return nil
   end
-  for mapID in pairs(MAP_TO_TELEPORT) do
-    local matched = false
-    IterateMappedSpellIDs(mapID, function(mappedSpellID)
-      if mappedSpellID == numericSpellID then
-        matched = true
-      end
-    end)
-    if matched then
-      return mapID
-    end
+  return mapIDs[1]
+end
+
+function Teleport.ResolveSeason3MapIDsBySpellID(spellID)
+  local mapIDs = CollectMapIDsForSpell(spellID)
+  if #mapIDs == 0 then
+    return nil
   end
-  return nil
+  return mapIDs
 end
 
 function Teleport.ResolveSeason3TeleportSpellIDByActivityID(activityID)
@@ -300,6 +332,8 @@ function Teleport.ApplySecureSpellToButton(button, spellID)
 
   -- Protection: Cannot set attributes on secure frames while in combat.
   if InCombatLockdown and InCombatLockdown() then
+    pendingCombatUpdates[button] = spellID
+    combatRetryFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
     return false
   end
 
@@ -318,13 +352,30 @@ function Teleport.ApplySecureSpellToButton(button, spellID)
   button:SetAttribute("useOnKeyDown", true)
   button:SetAttribute("spell", spellValue)
   button:SetAttribute("spell1", spellValue)
+  if button.EnableMouse then
+    button:EnableMouse(true)
+  end
+
+  -- Clear from pending if it was queued previously
+  if pendingCombatUpdates[button] then
+    pendingCombatUpdates[button] = nil
+    if next(pendingCombatUpdates) == nil then
+      combatRetryFrame:UnregisterEvent("PLAYER_REGEN_ENABLED")
+    end
+  end
   return true
 end
 
 function Teleport.BuildSeason3TeleportEntries()
   local entries = {}
   local bySpellID = {}
+  local orderedMapIDs = {}
   for mapID in pairs(MAP_TO_TELEPORT) do
+    table.insert(orderedMapIDs, mapID)
+  end
+  table.sort(orderedMapIDs)
+
+  for _, mapID in ipairs(orderedMapIDs) do
     local info = Teleport.GetSeason3TeleportInfoByMapID(mapID)
     if info then
       if not bySpellID[info.spellID] then

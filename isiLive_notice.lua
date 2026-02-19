@@ -5,40 +5,52 @@ addonTable = addonTable or {}
 local Notice = {}
 addonTable.Notice = Notice
 
-function Notice.CreateCenterNotice(opts)
+local function BuildCenterNoticeConfig(opts)
   opts = opts or {}
-  local parent = opts.parent or UIParent
-  local minHeight = tonumber(opts.minHeight) or 70
-  local maxHeight = tonumber(opts.maxHeight) or 220
-  local paddingX = tonumber(opts.paddingX) or 20
-  local paddingY = tonumber(opts.paddingY) or 12
-  local buttonHeight = tonumber(opts.buttonHeight) or 36
-  local buttonGap = tonumber(opts.buttonGap) or 8
-  local isInCombat = opts.isInCombat or function()
-    return InCombatLockdown and InCombatLockdown()
-  end
-  local resolveTeleportSpellID = opts.resolveTeleportSpellID or function(_activityID, _dungeonName)
-    return nil
-  end
-  local applySecureSpellToButton = opts.applySecureSpellToButton or function(_button, _spellID)
-    return false
-  end
-  local isSpellKnown = opts.isSpellKnown or function(_spellID)
-    return false
-  end
-  local getTeleportCooldownRemaining = opts.getTeleportCooldownRemaining or function(_spellID)
-    return 0
-  end
-  local formatCooldownSeconds = opts.formatCooldownSeconds or function(sec)
-    return tostring(sec or 0)
-  end
-  local getL = opts.getL or function()
-    return {}
-  end
+  return {
+    parent = opts.parent or UIParent,
+    minHeight = tonumber(opts.minHeight) or 70,
+    maxHeight = tonumber(opts.maxHeight) or 220,
+    paddingX = tonumber(opts.paddingX) or 20,
+    paddingY = tonumber(opts.paddingY) or 12,
+    buttonHeight = tonumber(opts.buttonHeight) or 36,
+    buttonGap = tonumber(opts.buttonGap) or 8,
+    isInCombat = opts.isInCombat or function()
+      return InCombatLockdown and InCombatLockdown()
+    end,
+    resolveTeleportSpellID = opts.resolveTeleportSpellID or function(_activityID, _dungeonName)
+      return nil
+    end,
+    applySecureSpellToButton = opts.applySecureSpellToButton or function(_button, _spellID)
+      return false
+    end,
+    isSpellKnown = opts.isSpellKnown or function(_spellID)
+      return false
+    end,
+    getTeleportCooldownRemaining = opts.getTeleportCooldownRemaining or function(_spellID)
+      return 0
+    end,
+    formatCooldownSeconds = opts.formatCooldownSeconds or function(sec)
+      return tostring(sec or 0)
+    end,
+    getL = opts.getL or function()
+      return {}
+    end,
+  }
+end
 
-  local frame = CreateFrame("Frame", "isiLiveCenterNotice", parent)
-  frame:SetSize(680, minHeight)
-  frame:SetPoint("CENTER", parent, "CENTER", 0, 0)
+local function PersistCenterNoticePosition(frame)
+  if not IsiLiveDB then
+    return
+  end
+  local point, _, relativePoint, x, y = frame:GetPoint()
+  IsiLiveDB.centerNoticePosition = { point = point, relativePoint = relativePoint, x = x, y = y }
+end
+
+local function CreateCenterNoticeFrame(config)
+  local frame = CreateFrame("Frame", "isiLiveCenterNotice", config.parent)
+  frame:SetSize(680, config.minHeight)
+  frame:SetPoint("CENTER", config.parent, "CENTER", 0, 0)
   frame:SetMovable(true)
   frame:EnableMouse(true)
   frame:RegisterForDrag("LeftButton")
@@ -48,19 +60,19 @@ function Notice.CreateCenterNotice(opts)
   end)
   frame:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
-    if IsiLiveDB then
-      local point, _, relativePoint, x, y = self:GetPoint()
-      IsiLiveDB.centerNoticePosition = { point = point, relativePoint = relativePoint, x = x, y = y }
-    end
+    PersistCenterNoticePosition(self)
   end)
 
   local bg = frame:CreateTexture(nil, "BACKGROUND")
   bg:SetAllPoints()
   bg:SetColorTexture(0, 0, 0, 0.55)
+  return frame
+end
 
+local function CreateCenterNoticeText(frame, config)
   local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-  text:SetPoint("TOPLEFT", frame, "TOPLEFT", paddingX, -paddingY)
-  text:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -paddingX, -paddingY)
+  text:SetPoint("TOPLEFT", frame, "TOPLEFT", config.paddingX, -config.paddingY)
+  text:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -config.paddingX, -config.paddingY)
   text:SetJustifyH("CENTER")
   text:SetJustifyV("TOP")
   text:SetWordWrap(true)
@@ -68,171 +80,199 @@ function Notice.CreateCenterNotice(opts)
     text:SetNonSpaceWrap(true)
   end
   text:SetTextColor(1, 0.82, 0)
+  return text
+end
 
-  local teleportButton = CreateFrame("Button", "isiLiveCenterNoticeTeleportButton", frame, "SecureActionButtonTemplate")
-  teleportButton:SetSize(buttonHeight, buttonHeight)
-  teleportButton:SetPoint("TOP", frame, "TOP", 0, -(paddingY + 26 + buttonGap))
-  teleportButton:Hide()
-  teleportButton:EnableMouse(true)
-  teleportButton.spellID = nil
-  teleportButton.inCombatBlocked = false
-  teleportButton:RegisterForClicks("AnyDown", "AnyUp")
-  teleportButton:SetFrameStrata("HIGH")
-  teleportButton:SetFrameLevel(frame:GetFrameLevel() + 10)
-  teleportButton:SetAttribute("type", "spell")
-  teleportButton:SetAttribute("type1", "spell")
-  teleportButton:SetAttribute("*type1", "spell")
-  teleportButton:SetAttribute("useOnKeyDown", true)
-  teleportButton:SetAttribute("spell", 0)
-  teleportButton:SetAttribute("spell1", 0)
-  teleportButton.icon = teleportButton:CreateTexture(nil, "ARTWORK")
-  teleportButton.icon:SetAllPoints()
-  teleportButton.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  teleportButton.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-  teleportButton.overlay = teleportButton:CreateTexture(nil, "OVERLAY")
-  teleportButton.overlay:SetAllPoints()
-  teleportButton.overlay:SetColorTexture(0, 0, 0, 0)
-  teleportButton.cooldownText = teleportButton:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  teleportButton.cooldownText:SetPoint("CENTER", teleportButton, "CENTER", 0, 0)
-  teleportButton.cooldownText:SetTextColor(1, 1, 1)
-  teleportButton.cooldownText:Hide()
+local function CreateCenterNoticeTeleportButton(frame, config)
+  local button = CreateFrame("Button", "isiLiveCenterNoticeTeleportButton", frame, "SecureActionButtonTemplate")
+  button:SetSize(config.buttonHeight, config.buttonHeight)
+  button:SetPoint("TOP", frame, "TOP", 0, -(config.paddingY + 26 + config.buttonGap))
+  button:Hide()
+  button:EnableMouse(true)
+  button.spellID = nil
+  button.inCombatBlocked = false
+  button:RegisterForClicks("AnyDown", "AnyUp")
+  button:SetFrameStrata("HIGH")
+  button:SetFrameLevel(frame:GetFrameLevel() + 10)
+  button:SetAttribute("type", "spell")
+  button:SetAttribute("type1", "spell")
+  button:SetAttribute("*type1", "spell")
+  button:SetAttribute("useOnKeyDown", true)
+  button:SetAttribute("spell", 0)
+  button:SetAttribute("spell1", 0)
+  button.icon = button:CreateTexture(nil, "ARTWORK")
+  button.icon:SetAllPoints()
+  button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  button.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+  button.overlay = button:CreateTexture(nil, "OVERLAY")
+  button.overlay:SetAllPoints()
+  button.overlay:SetColorTexture(0, 0, 0, 0)
+  button.cooldownText = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  button.cooldownText:SetPoint("CENTER", button, "CENTER", 0, 0)
+  button.cooldownText:SetTextColor(1, 1, 1)
+  button.cooldownText:Hide()
+  return button
+end
 
-  local pendingVisible = nil
-  local endsAt = 0
-  local isPersistent = false
-  local isBlinking = false
-  local blinkTime = 0
-  local baseTextR, baseTextG, baseTextB = 1, 0.82, 0
-
-  local function SetVisible(visible)
-    if isInCombat() then
-      pendingVisible = visible and true or false
-      return
-    end
-    pendingVisible = nil
-    if visible then
-      if not frame:IsShown() then
-        frame:Show()
-      end
-    else
-      if frame:IsShown() then
-        frame:Hide()
-      end
-    end
+local function SetCenterNoticeVisible(state, visible)
+  if state.config.isInCombat() then
+    state.pendingVisible = visible and true or false
+    return
   end
 
-  local function UpdateTeleportButtonVisual(spellID, isEnabled, inCombatBlocked)
-    local icon
-    if spellID and C_Spell and C_Spell.GetSpellTexture then
-      icon = C_Spell.GetSpellTexture(spellID)
+  state.pendingVisible = nil
+  if visible then
+    if not state.frame:IsShown() then
+      state.frame:Show()
     end
-    if not icon then
-      icon = "Interface\\Icons\\INV_Misc_QuestionMark"
-    end
-    teleportButton.icon:SetTexture(icon)
+    return
+  end
+  if state.frame:IsShown() then
+    state.frame:Hide()
+  end
+end
 
-    if inCombatBlocked then
-      teleportButton.overlay:SetColorTexture(0.4, 0.05, 0.05, 0.55)
-    elseif not isEnabled then
-      teleportButton.overlay:SetColorTexture(0, 0, 0, 0.6)
-    else
-      teleportButton.overlay:SetColorTexture(0, 0, 0, 0)
-    end
+local function UpdateCenterNoticeTeleportButtonVisual(state, spellID, isEnabled, inCombatBlocked)
+  local icon
+  if spellID and C_Spell and C_Spell.GetSpellTexture then
+    icon = C_Spell.GetSpellTexture(spellID)
+  end
+  if not icon then
+    icon = "Interface\\Icons\\INV_Misc_QuestionMark"
+  end
+  state.teleportButton.icon:SetTexture(icon)
+
+  if inCombatBlocked then
+    state.teleportButton.overlay:SetColorTexture(0.4, 0.05, 0.05, 0.55)
+  elseif not isEnabled then
+    state.teleportButton.overlay:SetColorTexture(0, 0, 0, 0.6)
+  else
+    state.teleportButton.overlay:SetColorTexture(0, 0, 0, 0)
+  end
+end
+
+local function ClearCenterNoticeTeleportButton(state)
+  state.teleportButton:Hide()
+  state.teleportButton.spellID = nil
+  state.teleportButton.dungeonName = nil
+  state.teleportButton.inCombatBlocked = false
+  state.teleportButton:EnableMouse(true)
+end
+
+local function ConfigureCenterNoticeTeleportButton(state, dungeonName, activityID)
+  local hasDungeonName = type(dungeonName) == "string" and dungeonName ~= ""
+  local numericActivityID = tonumber(activityID)
+  if numericActivityID and numericActivityID <= 0 then
+    numericActivityID = nil
   end
 
-  local function ConfigureTeleportButton(dungeonName, activityID)
-    if not dungeonName or dungeonName == "" then
-      teleportButton:Hide()
-      teleportButton.spellID = nil
-      teleportButton.dungeonName = nil
-      teleportButton.inCombatBlocked = false
-      return false
-    end
+  if not hasDungeonName and not numericActivityID then
+    ClearCenterNoticeTeleportButton(state)
+    return false
+  end
 
-    local spellID = resolveTeleportSpellID(activityID, dungeonName)
-    if not spellID then
-      teleportButton:Hide()
-      teleportButton.spellID = nil
-      teleportButton.dungeonName = nil
-      teleportButton.inCombatBlocked = false
-      return false
-    end
+  local spellID = state.config.resolveTeleportSpellID(numericActivityID, hasDungeonName and dungeonName or nil)
+  if not spellID then
+    ClearCenterNoticeTeleportButton(state)
+    return false
+  end
 
-    if isInCombat() then
-      teleportButton.spellID = spellID
-      teleportButton.dungeonName = dungeonName
-      teleportButton.inCombatBlocked = true
-      UpdateTeleportButtonVisual(spellID, false, true)
-      teleportButton:Show()
-      return true
-    end
-
-    applySecureSpellToButton(teleportButton, spellID)
-    teleportButton.spellID = spellID
-    teleportButton.dungeonName = dungeonName
-    teleportButton.inCombatBlocked = false
-
-    local known = isSpellKnown(spellID)
-    teleportButton:Enable()
-    UpdateTeleportButtonVisual(spellID, known, false)
-    teleportButton:Show()
+  if state.config.isInCombat() then
+    state.teleportButton.spellID = spellID
+    state.teleportButton.dungeonName = hasDungeonName and dungeonName or nil
+    state.teleportButton.inCombatBlocked = true
+    state.teleportButton:EnableMouse(false)
+    UpdateCenterNoticeTeleportButtonVisual(state, spellID, false, true)
+    state.teleportButton:Show()
     return true
   end
 
-  local function Show(message, durationSeconds, dungeonName, activityID, showOptions)
-    showOptions = showOptions or {}
-    isPersistent = showOptions.persistent == true
-    isBlinking = showOptions.blink == true
-    blinkTime = 0
+  state.config.applySecureSpellToButton(state.teleportButton, spellID)
+  state.teleportButton.spellID = spellID
+  state.teleportButton.dungeonName = hasDungeonName and dungeonName or nil
+  state.teleportButton.inCombatBlocked = false
+  state.teleportButton:EnableMouse(true)
+  local known = state.config.isSpellKnown(spellID)
+  state.teleportButton:Enable()
+  UpdateCenterNoticeTeleportButtonVisual(state, spellID, known, false)
+  state.teleportButton:Show()
+  return true
+end
 
-    local fontScale = tonumber(showOptions.fontScale) or 1
-    if fontScale < 0.8 then
-      fontScale = 0.8
-    elseif fontScale > 2 then
-      fontScale = 2
-    end
-    local fontPath, baseSize, fontFlags = text:GetFont()
-    if fontPath and baseSize then
-      text:SetFont(fontPath, math.floor(baseSize * fontScale), fontFlags)
-    end
-
-    if type(showOptions.textColor) == "table" then
-      baseTextR = tonumber(showOptions.textColor[1]) or baseTextR
-      baseTextG = tonumber(showOptions.textColor[2]) or baseTextG
-      baseTextB = tonumber(showOptions.textColor[3]) or baseTextB
-    else
-      baseTextR, baseTextG, baseTextB = 1, 0.82, 0
-    end
-    text:SetTextColor(baseTextR, baseTextG, baseTextB)
-
-    local hasTeleportButton = ConfigureTeleportButton(dungeonName, activityID)
-    text:SetText(message)
-    text:SetWidth(frame:GetWidth() - (paddingX * 2))
-    local textHeight = text:GetStringHeight() or 0
-    if hasTeleportButton then
-      teleportButton:ClearAllPoints()
-      teleportButton:SetPoint("TOP", frame, "TOP", 0, -(paddingY + math.ceil(textHeight) + buttonGap))
-    end
-    local extraHeight = hasTeleportButton and (buttonHeight + buttonGap) or 0
-    local frameHeight = math.min(maxHeight, math.max(minHeight, math.ceil(textHeight + (paddingY * 2) + extraHeight)))
-    frame:SetHeight(frameHeight)
-    endsAt = isPersistent and math.huge or (GetTime() + (durationSeconds or 20))
-    SetVisible(true)
+local function ApplyCenterNoticeFontScale(state, showOptions)
+  local fontScale = tonumber(showOptions.fontScale) or 1
+  if fontScale < 0.8 then
+    fontScale = 0.8
+  elseif fontScale > 2 then
+    fontScale = 2
   end
 
-  teleportButton:SetScript("OnEnter", function(self)
-    local L = getL() or {}
+  local fontPath, baseSize, fontFlags = state.text:GetFont()
+  if fontPath and baseSize then
+    state.text:SetFont(fontPath, math.floor(baseSize * fontScale), fontFlags)
+  end
+end
+
+local function ApplyCenterNoticeTextColor(state, showOptions)
+  if type(showOptions.textColor) == "table" then
+    state.baseTextR = tonumber(showOptions.textColor[1]) or state.baseTextR
+    state.baseTextG = tonumber(showOptions.textColor[2]) or state.baseTextG
+    state.baseTextB = tonumber(showOptions.textColor[3]) or state.baseTextB
+  else
+    state.baseTextR, state.baseTextG, state.baseTextB = 1, 0.82, 0
+  end
+  state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB)
+end
+
+local function ShowCenterNotice(state, message, durationSeconds, dungeonName, activityID, showOptions)
+  showOptions = showOptions or {}
+  state.isPersistent = showOptions.persistent == true
+  state.isBlinking = showOptions.blink == true
+  state.blinkTime = 0
+
+  ApplyCenterNoticeFontScale(state, showOptions)
+  ApplyCenterNoticeTextColor(state, showOptions)
+
+  local hasTeleportButton = ConfigureCenterNoticeTeleportButton(state, dungeonName, activityID)
+  state.text:SetText(message)
+  state.text:SetWidth(state.frame:GetWidth() - (state.config.paddingX * 2))
+  local textHeight = state.text:GetStringHeight() or 0
+  if hasTeleportButton then
+    state.teleportButton:ClearAllPoints()
+    state.teleportButton:SetPoint(
+      "TOP",
+      state.frame,
+      "TOP",
+      0,
+      -(state.config.paddingY + math.ceil(textHeight) + state.config.buttonGap)
+    )
+  end
+
+  local extraHeight = hasTeleportButton and (state.config.buttonHeight + state.config.buttonGap) or 0
+  local frameHeight = math.min(
+    state.config.maxHeight,
+    math.max(state.config.minHeight, math.ceil(textHeight + (state.config.paddingY * 2) + extraHeight))
+  )
+  state.frame:SetHeight(frameHeight)
+  state.endsAt = state.isPersistent and math.huge or (GetTime() + (durationSeconds or 20))
+  SetCenterNoticeVisible(state, true)
+end
+
+local function AttachCenterNoticeTeleportButtonScripts(state)
+  state.teleportButton:SetScript("OnEnter", function(self)
+    local L = state.config.getL() or {}
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
+
     if self.inCombatBlocked then
       GameTooltip:SetText(L.BTN_TELEPORT)
       GameTooltip:AddLine(L.TOOLTIP_TELEPORT_COMBAT, 1, 0.25, 0.25, true)
-    elseif self.spellID and isSpellKnown(self.spellID) then
+    elseif self.spellID and state.config.isSpellKnown(self.spellID) then
       GameTooltip:SetSpellByID(self.spellID)
       GameTooltip:AddLine(L.TOOLTIP_TELEPORT_CAST, 1, 1, 1, true)
-      local remaining = getTeleportCooldownRemaining(self.spellID)
+      local remaining = state.config.getTeleportCooldownRemaining(self.spellID)
       if remaining > 0 then
         GameTooltip:AddLine(
-          string.format(L.TOOLTIP_TELEPORT_COOLDOWN, formatCooldownSeconds(remaining)),
+          string.format(L.TOOLTIP_TELEPORT_COOLDOWN, state.config.formatCooldownSeconds(remaining)),
           1,
           0.82,
           0,
@@ -247,64 +287,117 @@ function Notice.CreateCenterNotice(opts)
     end
     GameTooltip:Show()
   end)
-  teleportButton:SetScript("OnUpdate", function(self)
+
+  state.teleportButton:SetScript("OnUpdate", function(self)
     if not self.spellID or not self:IsShown() then
       self.cooldownText:Hide()
       return
     end
-    local remaining = getTeleportCooldownRemaining(self.spellID)
+
+    local remaining = state.config.getTeleportCooldownRemaining(self.spellID)
     if remaining > 0 then
-      self.cooldownText:SetText(formatCooldownSeconds(remaining))
+      self.cooldownText:SetText(state.config.formatCooldownSeconds(remaining))
       self.cooldownText:Show()
-    else
-      self.cooldownText:Hide()
-    end
-  end)
-  teleportButton:SetScript("OnLeave", function()
-    GameTooltip:Hide()
-  end)
-
-  frame:SetScript("OnMouseUp", function(_, button)
-    if button == "RightButton" then
-      SetVisible(false)
-    end
-  end)
-  frame:SetScript("OnUpdate", function(_, elapsed)
-    if isBlinking and frame:IsShown() then
-      blinkTime = blinkTime + (elapsed or 0)
-      local wave = (math.sin(blinkTime * 8) + 1) * 0.5
-      local alpha = 0.55 + (wave * 0.45)
-      text:SetTextColor(baseTextR, baseTextG, baseTextB, alpha)
-    elseif frame:IsShown() then
-      text:SetTextColor(baseTextR, baseTextG, baseTextB, 1)
-    end
-
-    if not isPersistent and GetTime() >= endsAt then
-      SetVisible(false)
-    end
-  end)
-
-  local function ApplyStoredPosition(pos)
-    if not pos then
       return
     end
-    frame:ClearAllPoints()
-    frame:SetPoint(pos.point, parent, pos.relativePoint, pos.x, pos.y)
+    self.cooldownText:Hide()
+  end)
+
+  state.teleportButton:SetScript("OnLeave", function()
+    GameTooltip:Hide()
+  end)
+end
+
+local function AttachCenterNoticeFrameScripts(state)
+  state.frame:SetScript("OnMouseUp", function(_, button)
+    if button == "RightButton" then
+      SetCenterNoticeVisible(state, false)
+    end
+  end)
+
+  state.frame:SetScript("OnUpdate", function(_, elapsed)
+    if state.isBlinking and state.frame:IsShown() then
+      state.blinkTime = state.blinkTime + (elapsed or 0)
+      local wave = (math.sin(state.blinkTime * 8) + 1) * 0.5
+      local alpha = 0.55 + (wave * 0.45)
+      state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, alpha)
+    elseif state.frame:IsShown() then
+      state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, 1)
+    end
+
+    if not state.isPersistent and GetTime() >= state.endsAt then
+      SetCenterNoticeVisible(state, false)
+    end
+  end)
+end
+
+local function ApplyCenterNoticeStoredPosition(state, pos)
+  if not pos then
+    return
+  end
+  state.frame:ClearAllPoints()
+  state.frame:SetPoint(pos.point, state.config.parent, pos.relativePoint, pos.x, pos.y)
+end
+
+local function BuildCenterNoticeController(state)
+  local function SetVisible(visible)
+    SetCenterNoticeVisible(state, visible)
+  end
+
+  local function Show(message, durationSeconds, dungeonName, activityID, showOptions)
+    ShowCenterNotice(state, message, durationSeconds, dungeonName, activityID, showOptions)
+  end
+
+  local function ConfigureTeleportButton(dungeonName, activityID)
+    return ConfigureCenterNoticeTeleportButton(state, dungeonName, activityID)
+  end
+
+  local function UpdateTeleportButtonVisual(spellID, isEnabled, inCombatBlocked)
+    UpdateCenterNoticeTeleportButtonVisual(state, spellID, isEnabled, inCombatBlocked)
+  end
+
+  local function ApplyStoredPosition(pos)
+    ApplyCenterNoticeStoredPosition(state, pos)
   end
 
   return {
-    frame = frame,
-    text = text,
-    teleportButton = teleportButton,
+    frame = state.frame,
+    text = state.text,
+    teleportButton = state.teleportButton,
     SetVisible = SetVisible,
     GetPendingVisible = function()
-      return pendingVisible
+      return state.pendingVisible
     end,
     Show = Show,
     ConfigureTeleportButton = ConfigureTeleportButton,
     UpdateTeleportButtonVisual = UpdateTeleportButtonVisual,
     ApplyStoredPosition = ApplyStoredPosition,
   }
+end
+
+function Notice.CreateCenterNotice(opts)
+  local config = BuildCenterNoticeConfig(opts)
+  local frame = CreateCenterNoticeFrame(config)
+  local text = CreateCenterNoticeText(frame, config)
+  local teleportButton = CreateCenterNoticeTeleportButton(frame, config)
+  local state = {
+    config = config,
+    frame = frame,
+    text = text,
+    teleportButton = teleportButton,
+    pendingVisible = nil,
+    endsAt = 0,
+    isPersistent = false,
+    isBlinking = false,
+    blinkTime = 0,
+    baseTextR = 1,
+    baseTextG = 0.82,
+    baseTextB = 0,
+  }
+
+  AttachCenterNoticeTeleportButtonScripts(state)
+  AttachCenterNoticeFrameScripts(state)
+  return BuildCenterNoticeController(state)
 end
 
 function Notice.CreateInviteHint(opts)
