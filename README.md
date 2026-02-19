@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.33`.
+Current addon version: `0.9.34`.
 
 ## Features
 
@@ -34,7 +34,7 @@ Current addon version: `0.9.33`.
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 
-## Use Case / Logic Baseline (v0.9.33)
+## Use Case / Logic Baseline (v0.9.34)
 
 Documented on `2026-02-19` as runtime behavior baseline for validation checks.
 
@@ -55,6 +55,7 @@ Documented on `2026-02-19` as runtime behavior baseline for validation checks.
     - Exact target map has priority: if activity map is known, highlight clears only on that exact map.
     - Shared-portcast dungeons (for example both Tazavesh wings) are handled as multi-map targets.
     - Shared-portcast ambiguity is not guessed: spell-only suppression is used only when the spell maps uniquely to one target map.
+    - Negative queue application follow-up events do not clear queue-derived target while already grouped (prevents highlight drop when group fills to 5 members).
 5. Refresh and inspect pipeline
    - `Refresh` triggers forced sync reset (`HELLO/KEY`) and inspect cache invalidation/requeue.
    - Inspect controller updates `Spec/iLvl/RIO` asynchronously via queue/retry flow and `INSPECT_READY`.
@@ -148,11 +149,12 @@ Developer debug (hidden command, not listed in in-game help):
 
 ## Deterministic Usecase Gate
 
-`tools/validate_usecases.lua` runs a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 37 scenarios across queue/highlight/event/cooldown/teleport flows, including:
+`tools/validate_usecases.lua` runs a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 38 scenarios across queue/highlight/event/cooldown/teleport flows, including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
 - event-handler target-clear behavior under API shape variants
+- grouped negative-application follow-up stability (no target clear on full-group transition)
 - protected API fallback robustness in queue flow
 - cooldown recognition/format behavior for teleport spells
 
@@ -200,10 +202,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.29`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.34`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.29` or `isiLive_beta_0.9.29`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.34` or `isiLive_beta_0.9.34`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -215,9 +217,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.30 && git push origin isiLive_release_0.9.30`
+3. Create and push stable tag: `git tag isiLive_release_0.9.34 && git push origin isiLive_release_0.9.34`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.30 && git push origin isiLive_alpha_0.9.30`
-   - beta: `git tag isiLive_beta_0.9.30 && git push origin isiLive_beta_0.9.30`
+   - alpha: `git tag isiLive_alpha_0.9.34 && git push origin isiLive_alpha_0.9.34`
+   - beta: `git tag isiLive_beta_0.9.34 && git push origin isiLive_beta_0.9.34`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

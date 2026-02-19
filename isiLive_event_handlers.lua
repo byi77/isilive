@@ -142,7 +142,10 @@ local function HandleLfgListApplicationStatusUpdatedEvent(ctx, _self, ...)
   if ctx.isNegativeApplicationStatusEvent(...) then
     ctx.setPendingQueueJoinInfo(nil)
     local entryInfo = ctx.getNormalizedActiveEntryInfo()
-    if not HasActiveListing(entryInfo) then
+    -- Negative application updates can still arrive after a successful join
+    -- (for example when the group fills and other applications get declined).
+    -- While grouped, keep the latest queue target so portal highlight remains stable.
+    if not HasActiveListing(entryInfo) and not ctx.isInGroup() then
       ctx.clearLatestQueueTarget()
     end
     ctx.updateMPlusTeleportButton()

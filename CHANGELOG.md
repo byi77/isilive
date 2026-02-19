@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-02-19 - Version 0.9.34
+- **Highlight Stability:**
+  - Fixed queue-target clear regression on negative `LFG_LIST_APPLICATION_STATUS_UPDATED` events while already grouped (for example when the 5th member joins and other applications get declined).
+  - Active teleport highlight now remains stable across full-group transition follow-up events.
+- **Validation:**
+  - Added deterministic regression coverage in `testmodul/isilive_test_scenarios_event_handlers.lua`.
+  - `tools/validate_usecases.lua` now runs 38 scenarios.
+
 ## 2026-02-19 - Version 0.9.33
 - **UI & UX:**
   - Increased main frame minimum height from `200` to `212` so the `Share Keys` / `Keys teilen` button no longer sits on the bottom edge.

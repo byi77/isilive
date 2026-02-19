@@ -17,12 +17,37 @@ return function(test, ctx)
 
       entryRef.value = {}
       controller:Dispatch("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "declined")
-      Assert.Equal(counters.clears, 1, "target must clear when listing info is empty")
+      Assert.Equal(counters.clears, 0, "target must stay while grouped even when listing info is empty")
+
+      entryRef.value = {}
+      controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, entryRef, counters, {
+        isInGroup = function()
+          return false
+        end,
+      })
+      controller:Dispatch("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "declined")
+      Assert.Equal(counters.clears, 1, "target must clear outside group when listing info is empty")
 
       entryRef.value = { active = false }
       controller:Dispatch("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "declined")
-      Assert.Equal(counters.clears, 2, "target must clear for explicit inactive listing")
+      Assert.Equal(counters.clears, 2, "target must clear outside group for explicit inactive listing")
     end)
+  end)
+
+  test("Event handlers keep target on negative updates when group fills to five", function()
+    local counters = { clears = 0, updates = 0 }
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = {} }, counters, {
+      isInGroup = function()
+        return true
+      end,
+    })
+
+    controller:Dispatch("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "declined")
+
+    Assert.Equal(counters.clears, 0, "negative updates after join must not clear latest target while grouped")
+    Assert.Equal(counters.updates, 1, "teleport button should still refresh on negative update")
   end)
 
   test("Event handlers forward positive application events to queue capture", function()

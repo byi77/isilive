@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.33`
+Version baseline: `0.9.34`
 Last updated: `2026-02-19`
 
 ## Purpose
@@ -51,6 +51,7 @@ WoW Event
 4. Keep combat-safe UI updates deferred when protected operations are blocked, and skip frame drag start/stop during combat lockdown.
 5. For shared-portcast spells, prioritize exact activity map matching over spell-only suppression.
 6. Do not clear highlight state from ambiguous shared spell mappings when exact map context is unknown.
+7. Do not clear queue-derived target on negative application follow-up events while already grouped.
 
 ## Deterministic Validation Gates
 
@@ -63,13 +64,13 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/lua_metrics_check.lua`
 2. Runtime logic checks:
    - `lua tools/validate_usecases.lua`
-3. `tools/validate_usecases.lua` covers critical queue/highlight/cooldown scenarios and shared-portcast edge behavior.
+3. `tools/validate_usecases.lua` covers critical queue/highlight/cooldown scenarios, grouped full-transition regressions, and shared-portcast edge behavior.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.33     |
+| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.34     |
 |--------------------------------------------------------------------------------------------------|
 | Spec         Name              Flag        Key         iLvl      RIO      M+ Management M+travel |
 |--------------------------------------------------------------------------------------------------|

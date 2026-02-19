@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.33`
+Version baseline: `0.9.34`
 Last updated: `2026-02-19`
 
 ## Actors
@@ -44,7 +44,8 @@ Goal: inform the player and highlight the correct portal cast icon.
 2. Processing: addon posts queue/join hint and updates notice/UI state.
 3. Processing: teleport button matching the resolved target spell is highlighted.
 4. User action: player can click the portal button or move manually to dungeon.
-5. Success criteria: highlight matches the same resolved dungeon as chat hint.
+5. Rule: follow-up negative application status updates must not clear queue target while player is already grouped.
+6. Success criteria: highlight matches the same resolved dungeon as chat hint and remains stable when group fills to 5 members.
 
 ## UC-03 Enter Exact Target Dungeon
 
@@ -100,7 +101,7 @@ Runtime behavior in this document is validated by `tools/validate_usecases.lua`.
 1. UC-01/UC-02: queue target resolution priority and queue highlight behavior.
 2. UC-03: exact-map suppression and shared-portcast ambiguity handling.
 3. UC-04/UC-05: cooldown recognition/format behavior and state handling.
-4. Event consistency: target clear behavior under API shape variants and protected API errors.
+4. Event consistency: target clear behavior under API shape variants, grouped negative-application follow-up events, and protected API errors.
 
 ## Traceability To Source Files
 
