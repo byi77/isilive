@@ -39,7 +39,7 @@ end
 
 print(string.format("Loaded %d usecase scenarios from %d modules", runner.GetCount(), #scenarioFiles))
 
-local _passed, failed = runner.Run()
+local _, failed = runner.Run()
 if failed > 0 then
   os.exit(1)
 end
