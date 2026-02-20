@@ -67,6 +67,8 @@ end
 
 function ConfigBuilders.BuildGroupControllerDeps(ctx)
   return {
+    printFn = ctx.printFn,
+    getL = ctx.getL,
     modules = {
       sync = ctx.sync,
     },
@@ -76,6 +78,8 @@ function ConfigBuilders.BuildGroupControllerDeps(ctx)
     state = {
       getWasInGroup = ctx.getWasInGroup,
       setWasInGroup = ctx.setWasInGroup,
+      getWasRaidGroup = ctx.getWasRaidGroup,
+      setWasRaidGroup = ctx.setWasRaidGroup,
       setWasGroupLeader = ctx.setWasGroupLeader,
       getRoster = ctx.getRoster,
       setRoster = ctx.setRoster,

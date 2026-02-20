@@ -45,8 +45,8 @@ local MIN_FRAME_HEIGHT = 212
 
 -- --- Localization ---
 local locale = GetLocale()
-local locales = isiLiveTexts.GetLocaleTables()
-local L = locales.enUS
+local locales
+local L
 
 local isTestAllMode = false
 
@@ -54,11 +54,19 @@ local function Print(msg)
   print("isiLive: " .. msg)
 end
 
-assert(
-  isiLiveGuards and type(isiLiveGuards.Validate) == "function",
-  "isiLive: missing module Guards (isiLive_guards.lua)"
-)
-isiLiveGuards.Validate(addonTable)
+if not (isiLiveGuards and type(isiLiveGuards.Validate) == "function") then
+  print("|cffff0000isiLive: missing module Guards (isiLive_guards.lua)|r")
+  return
+end
+
+local guardsOk, guardsErr = pcall(isiLiveGuards.Validate, addonTable)
+if not guardsOk then
+  print("|cffff0000isiLive: " .. tostring(guardsErr) .. "|r")
+  return
+end
+
+locales = isiLiveTexts.GetLocaleTables()
+L = locales.enUS
 
 local GetAddonVersionRaw = function()
   return isiLiveContextHelpers.GetAddonVersionRaw(addonName)
@@ -252,6 +260,7 @@ local inspectLoopTimer = 0
 local InspectLoop
 local wasGroupLeader = nil
 local wasInGroup = false
+local wasRaidGroup = false
 local pendingQueueJoinInfo = nil
 latestQueueDungeonName = nil
 latestQueueActivityID = nil
@@ -270,6 +279,14 @@ end
 
 local function SetWasInGroup(value)
   wasInGroup = value and true or false
+end
+
+local function GetWasRaidGroup()
+  return wasRaidGroup
+end
+
+local function SetWasRaidGroup(value)
+  wasRaidGroup = value and true or false
 end
 
 local function SetWasGroupLeader(value)
@@ -780,6 +797,8 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   getActiveChallengeMapID = GetActiveChallengeMapID,
   getWasInGroup = GetWasInGroup,
   setWasInGroup = SetWasInGroup,
+  getWasRaidGroup = GetWasRaidGroup,
+  setWasRaidGroup = SetWasRaidGroup,
   setWasGroupLeader = SetWasGroupLeader,
   getWasGroupLeader = function()
     return wasGroupLeader

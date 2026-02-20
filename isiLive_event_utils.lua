@@ -26,20 +26,13 @@ function EventUtils.IsNegativeApplicationStatusValue(value)
 end
 
 function EventUtils.IsNegativeApplicationStatusEvent(...)
-  local appStatus = select(2, ...)
-  if EventUtils.IsNegativeApplicationStatusValue(appStatus) then
-    return true
-  end
-
-  local pendingStatus = select(3, ...)
-  if EventUtils.IsNegativeApplicationStatusValue(pendingStatus) then
-    return true
-  end
-
   local count = select("#", ...)
   for i = 1, count do
     local value = select(i, ...)
-    if type(value) == "string" and EventUtils.IsNegativeApplicationStatusValue(value) then
+    -- LFG_LIST_APPLICATION_STATUS_UPDATED usually carries an application/listing ID
+    -- as first numeric argument. That ID must not be treated as status enum.
+    local isFirstNumericIdentifier = (i == 1 and count > 1 and type(value) == "number")
+    if not isFirstNumericIdentifier and EventUtils.IsNegativeApplicationStatusValue(value) then
       return true
     end
   end

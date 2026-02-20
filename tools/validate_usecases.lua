@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-global
 local loaderChunk, loaderErr = loadfile("testmodul/isilive_test_loader.lua")
 if not loaderChunk then
   error(string.format("cannot load test loader: %s", tostring(loaderErr)))
@@ -20,6 +21,15 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_queue_flow.lua",
   "testmodul/isilive_test_scenarios_spell_utils.lua",
   "testmodul/isilive_test_scenarios_teleport.lua",
+  "testmodul/isilive_test_scenarios_group.lua",
+  "testmodul/isilive_test_scenarios_event_utils.lua",
+  "testmodul/isilive_test_scenarios_locale.lua",
+  "testmodul/isilive_test_scenarios_sync.lua",
+  "testmodul/isilive_test_scenarios_guards.lua",
+  "testmodul/isilive_test_scenarios_test_mode.lua",
+  "testmodul/isilive_test_scenarios_leader_watch.lua",
+  "testmodul/isilive_test_scenarios_refresh.lua",
+  "testmodul/isilive_test_scenarios_commands.lua",
 }
 
 local context = {

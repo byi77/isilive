@@ -24,11 +24,15 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
   local modules = RequireTable(deps.modules, "modules")
 
   return groupModule.CreateController({
+    printFn = RequireFunction(deps.printFn, "printFn"),
+    getL = RequireFunction(deps.getL, "getL"),
     isInGroup = RequireFunction(deps.isInGroup, "isInGroup"),
     getNumGroupMembers = RequireFunction(deps.getNumGroupMembers, "getNumGroupMembers"),
     getActiveChallengeMapID = RequireFunction(deps.getActiveChallengeMapID, "getActiveChallengeMapID"),
     getWasInGroup = RequireFunction(state.getWasInGroup, "state.getWasInGroup"),
     setWasInGroup = RequireFunction(state.setWasInGroup, "state.setWasInGroup"),
+    getWasRaidGroup = RequireFunction(state.getWasRaidGroup, "state.getWasRaidGroup"),
+    setWasRaidGroup = RequireFunction(state.setWasRaidGroup, "state.setWasRaidGroup"),
     setWasGroupLeader = RequireFunction(state.setWasGroupLeader, "state.setWasGroupLeader"),
     getRoster = RequireFunction(state.getRoster, "state.getRoster"),
     setRoster = RequireFunction(state.setRoster, "state.setRoster"),

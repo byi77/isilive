@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-global
 local Loader = {}
 
 function Loader.LoadModule(file)

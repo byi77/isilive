@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-global
 local Harness = {}
 local Unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
 

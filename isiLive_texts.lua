@@ -71,7 +71,7 @@ local LOCALES = {
     HELP_STOP = "  /isilive stop   - Fully disable addon",
     HELP_START = "  /isilive start  - Re-enable addon",
     HELP_LANG = "  /isilive lang [en|de] - Switch language",
-    LOADED_HINT = "Loaded Version %s Press CTRL+F9 to open",
+    LOADED_HINT = "Loaded Version %s - Press CTRL+F9 to open",
     LEAD_GAINED = "You are now the group leader.",
     LEAD_LOST = "You are no longer the group leader.",
     LEAD_TRANSFERRED_CENTER = "You are now the group leader!",
@@ -91,6 +91,7 @@ local LOCALES = {
     LANG_SET_EN = "Language set to English.",
     LANG_SET_DE = "Language set to German.",
     LANG_USAGE = "Usage: /isilive lang [en|de]",
+    RAID_GROUP_HIDDEN = "Raid group detected (>5 members). Addon paused.",
   },
   deDE = {
     TITLE = "isiLive (will be renamed to isiKeyMPlus soon)",
@@ -157,7 +158,7 @@ local LOCALES = {
     HELP_STOP = "  /isilive stop   - Addon komplett deaktivieren",
     HELP_START = "  /isilive start  - Addon wieder aktivieren",
     HELP_LANG = "  /isilive lang [en|de] - Sprache wechseln",
-    LOADED_HINT = "Loaded Version %s Press STRG+F9 to open",
+    LOADED_HINT = "Version %s geladen - STRG+F9 zum Oeffnen",
     LEAD_GAINED = "Du bist jetzt Gruppenleiter.",
     LEAD_LOST = "Du bist nicht mehr Gruppenleiter.",
     LEAD_TRANSFERRED_CENTER = "Du bist jetzt Gruppenfuehrer !",
@@ -177,6 +178,7 @@ local LOCALES = {
     LANG_SET_EN = "Sprache auf Englisch gesetzt.",
     LANG_SET_DE = "Sprache auf Deutsch gesetzt.",
     LANG_USAGE = "Nutzung: /isilive lang [en|de]",
+    RAID_GROUP_HIDDEN = "Raid-Gruppe erkannt (>5 Mitglieder). Addon pausiert.",
   },
 }
 

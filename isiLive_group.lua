@@ -9,6 +9,10 @@ local function BuildDeps(opts)
   opts = opts or {}
 
   return {
+    printFn = opts.printFn or print,
+    getL = opts.getL or function()
+      return {}
+    end,
     isInGroup = opts.isInGroup or function()
       return false
     end,
@@ -22,6 +26,10 @@ local function BuildDeps(opts)
       return false
     end,
     setWasInGroup = opts.setWasInGroup or function(_value) end,
+    getWasRaidGroup = opts.getWasRaidGroup or function()
+      return false
+    end,
+    setWasRaidGroup = opts.setWasRaidGroup or function(_value) end,
     setWasGroupLeader = opts.setWasGroupLeader or function(_value) end,
     getRoster = opts.getRoster or function()
       return {}
@@ -74,6 +82,7 @@ end
 
 local function HandleNoGroup(deps, wasInGroupBefore)
   deps.setWasGroupLeader(nil)
+  deps.setWasRaidGroup(false)
   local leftGroupNow = wasInGroupBefore and not deps.isInGroup()
   if leftGroupNow then
     deps.clearLatestQueueTarget()
@@ -159,12 +168,21 @@ local function HandleGroupRosterUpdate(deps)
   end
 
   local numMembers = deps.getNumGroupMembers()
+  local wasRaidGroupBefore = deps.getWasRaidGroup() and true or false
   if numMembers > 5 then
+    if not wasRaidGroupBefore then
+      local L = deps.getL()
+      if L.RAID_GROUP_HIDDEN then
+        deps.printFn(L.RAID_GROUP_HIDDEN)
+      end
+    end
+    deps.setWasRaidGroup(true)
     deps.setMainFrameVisible(false)
     deps.updateLeaderButtons()
     return
   end
 
+  deps.setWasRaidGroup(false)
   deps.setMainFrameVisible(true)
   deps.setRoster({})
   deps.resetInspectQueues()

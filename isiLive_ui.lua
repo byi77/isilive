@@ -20,7 +20,7 @@ function UI.CreateMainFrame(opts)
   frame:SetPoint("CENTER")
   frame:SetMovable(true)
   frame:EnableMouse(true)
-  frame:RegisterForDrag("LeftButton", "RightButton")
+  frame:RegisterForDrag("LeftButton")
   frame:SetScript("OnDragStart", function(self)
     if isInCombat() then
       return
@@ -41,10 +41,10 @@ function UI.CreateMainFrame(opts)
   end
 
   frame:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
     if isInCombat() then
       return
     end
-    self:StopMovingOrSizing()
     SavePosition(self)
   end)
 
@@ -63,10 +63,10 @@ function UI.CreateMainFrame(opts)
     frame:StartMoving()
   end)
   dragHandle:SetScript("OnDragStop", function()
+    frame:StopMovingOrSizing()
     if isInCombat() then
       return
     end
-    frame:StopMovingOrSizing()
     SavePosition(frame)
   end)
 

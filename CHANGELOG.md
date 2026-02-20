@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-02-20 - Version 0.9.36
+- **Code Quality:**
+  - Simplified `EventUtils.IsNegativeApplicationStatusEvent` by removing redundant explicit checks for arg positions 2 and 3; unified into a single loop that checks all arguments uniformly (both strings and numbers at every position).
+  - Normalized inline comments in `isiLive_teleport.lua` from German to English for codebase-wide language consistency.
+  - Wrapped `Guards.Validate` in `pcall` with user-friendly red error message instead of crashing the entire addon on load failures.
+- **Combat Safety:**
+  - Fixed `OnDragStop` handlers on main frame and drag handle to always call `StopMovingOrSizing()` before the combat guard, preventing the frame from getting stuck in a moving state if combat starts mid-drag.
+  - Removed inconsistent `RightButton` drag registration from main frame; drag is now `LeftButton`-only, matching the drag handle behavior.
+- **UI & UX:**
+  - Added localized chat notification when addon hides due to raid group (>5 members), so the user understands why the window disappeared.
+  - Fixed `deDE` `LOADED_HINT` to be fully German instead of mixed English/German.
+- **Test Coverage:**
+  - Added 40 new offline test scenarios across 9 new modules (Group, EventUtils, Locale, Sync, Guards, TestMode, LeaderWatch, Refresh, Commands), bringing total from 42 to 82.
+- TOC version bumped to `0.9.36`.
+
 ## 2026-02-20 - Version 0.9.35
 - **Teleport/Queue Detection:**
   - Fixed localized queue target resolution for Eco-Dome Al'dani variants (for example `Biokuppel Al'dani`) when activity map data is missing or incomplete.

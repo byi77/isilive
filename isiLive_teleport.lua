@@ -259,12 +259,12 @@ function Teleport.ResolveTeleportSpellByActivityID(activityID)
     return nil
   end
 
-  -- Prüfe Cache zuerst
+  -- Check cache first
   if ACTIVITY_TO_TELEPORT_CACHE[activityID] then
     return ACTIVITY_TO_TELEPORT_CACHE[activityID]
   end
 
-  -- Versuche via GetActivityInfoTable
+  -- Try via GetActivityInfoTable
   if not (C_LFGList and C_LFGList.GetActivityInfoTable) then
     return nil
   end
@@ -273,7 +273,7 @@ function Teleport.ResolveTeleportSpellByActivityID(activityID)
   if ok and type(activityInfo) == "table" then
     local mapID = tonumber(rawget(activityInfo, "mapID") or rawget(activityInfo, "mapId"))
 
-    -- Versuche via mapID
+    -- Try via mapID
     if mapID and MAP_TO_TELEPORT[mapID] then
       local spellID = ResolveMappedSpellID(mapID)
       if spellID then
@@ -379,7 +379,7 @@ function Teleport.ResolveSeason3TeleportSpellIDByActivityID(activityID)
     return nil
   end
 
-  -- Nutze die Cache-Funktion, die bereits den kompletten Lookup (Cache + LFG-Fallback) durchführt.
+  -- Use the cache function which already performs the full lookup (cache + LFG fallback).
   return Teleport.ResolveTeleportSpellByActivityID(activityID)
 end
 

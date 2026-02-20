@@ -25,7 +25,7 @@ lua tools/validate_usecases.lua
 
 Expected: lint/style/metrics/usecase checks pass.
 
-`tools/validate_usecases.lua` is mandatory for release gating and validates deterministic queue/highlight/cooldown behavior (including shared-portcast edge cases).
+`tools/validate_usecases.lua` is mandatory for release gating and validates 82 deterministic scenarios across 15 modules (queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh).
 
 Windows note: if metrics fail with missing LuaRocks modules (`lfs`, `luacheck.decoder`, `luacheck.parser`), set `LUA_PATH` and `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running the metrics check.
 
@@ -58,8 +58,8 @@ git push origin isiLive_beta_X.Y.Z
 Example:
 
 ```powershell
-git tag isiLive_release_0.9.35
-git push origin isiLive_release_0.9.35
+git tag isiLive_release_0.9.36
+git push origin isiLive_release_0.9.36
 ```
 
 ## 5) Verify GitHub Actions
