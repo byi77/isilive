@@ -7,22 +7,10 @@ return function(test, ctx)
   test("EventUtils detects negative status strings", function()
     local addon = LoadAddonModules({ "isiLive_event_utils.lua" })
 
-    Assert.True(
-      addon.EventUtils.IsNegativeApplicationStatusValue("declined"),
-      "declined must be negative"
-    )
-    Assert.True(
-      addon.EventUtils.IsNegativeApplicationStatusValue("cancelled"),
-      "cancelled must be negative"
-    )
-    Assert.True(
-      addon.EventUtils.IsNegativeApplicationStatusValue("failed"),
-      "failed must be negative"
-    )
-    Assert.True(
-      addon.EventUtils.IsNegativeApplicationStatusValue("timeout"),
-      "timeout must be negative"
-    )
+    Assert.True(addon.EventUtils.IsNegativeApplicationStatusValue("declined"), "declined must be negative")
+    Assert.True(addon.EventUtils.IsNegativeApplicationStatusValue("cancelled"), "cancelled must be negative")
+    Assert.True(addon.EventUtils.IsNegativeApplicationStatusValue("failed"), "failed must be negative")
+    Assert.True(addon.EventUtils.IsNegativeApplicationStatusValue("timeout"), "timeout must be negative")
     Assert.True(
       addon.EventUtils.IsNegativeApplicationStatusValue("InviteDeclined"),
       "InviteDeclined must be negative (mixed case)"
@@ -42,18 +30,9 @@ return function(test, ctx)
     }, function()
       local addon = LoadAddonModules({ "isiLive_event_utils.lua" })
 
-      Assert.True(
-        addon.EventUtils.IsNegativeApplicationStatusValue(2),
-        "InviteDeclined enum must be negative"
-      )
-      Assert.True(
-        addon.EventUtils.IsNegativeApplicationStatusValue(5),
-        "Cancelled enum must be negative"
-      )
-      Assert.True(
-        addon.EventUtils.IsNegativeApplicationStatusValue(6),
-        "Failed enum must be negative"
-      )
+      Assert.True(addon.EventUtils.IsNegativeApplicationStatusValue(2), "InviteDeclined enum must be negative")
+      Assert.True(addon.EventUtils.IsNegativeApplicationStatusValue(5), "Cancelled enum must be negative")
+      Assert.True(addon.EventUtils.IsNegativeApplicationStatusValue(6), "Failed enum must be negative")
     end)
   end)
 
@@ -98,36 +77,18 @@ return function(test, ctx)
     }, function()
       local addon = LoadAddonModules({ "isiLive_event_utils.lua" })
 
-      Assert.False(
-        addon.EventUtils.IsNegativeApplicationStatusValue("invited"),
-        "invited must not be negative"
-      )
-      Assert.False(
-        addon.EventUtils.IsNegativeApplicationStatusValue("accepted"),
-        "accepted must not be negative"
-      )
-      Assert.False(
-        addon.EventUtils.IsNegativeApplicationStatusValue(3),
-        "InviteAccepted enum must not be negative"
-      )
-      Assert.False(
-        addon.EventUtils.IsNegativeApplicationStatusValue(1),
-        "Applied enum must not be negative"
-      )
+      Assert.False(addon.EventUtils.IsNegativeApplicationStatusValue("invited"), "invited must not be negative")
+      Assert.False(addon.EventUtils.IsNegativeApplicationStatusValue("accepted"), "accepted must not be negative")
+      Assert.False(addon.EventUtils.IsNegativeApplicationStatusValue(3), "InviteAccepted enum must not be negative")
+      Assert.False(addon.EventUtils.IsNegativeApplicationStatusValue(1), "Applied enum must not be negative")
     end)
   end)
 
   test("EventUtils handles nil and empty arguments without crashing", function()
     local addon = LoadAddonModules({ "isiLive_event_utils.lua" })
 
-    Assert.False(
-      addon.EventUtils.IsNegativeApplicationStatusEvent(),
-      "no arguments should return false"
-    )
-    Assert.False(
-      addon.EventUtils.IsNegativeApplicationStatusEvent(nil, nil),
-      "nil arguments should return false"
-    )
+    Assert.False(addon.EventUtils.IsNegativeApplicationStatusEvent(), "no arguments should return false")
+    Assert.False(addon.EventUtils.IsNegativeApplicationStatusEvent(nil, nil), "nil arguments should return false")
     Assert.False(
       addon.EventUtils.IsNegativeApplicationStatusEvent(42, true, {}),
       "non-string/non-enum arguments should return false"

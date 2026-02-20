@@ -17,10 +17,18 @@ return function(test, ctx)
 
     local addon = LoadAddonModules({ "isiLive_refresh.lua" })
     local controller = addon.Refresh.CreateController({
-      isStopped = overrides.isStopped or function() return false end,
-      isPaused = overrides.isPaused or function() return false end,
-      isInGroup = overrides.isInGroup or function() return true end,
-      isRosterEmpty = overrides.isRosterEmpty or function() return false end,
+      isStopped = overrides.isStopped or function()
+        return false
+      end,
+      isPaused = overrides.isPaused or function()
+        return false
+      end,
+      isInGroup = overrides.isInGroup or function()
+        return true
+      end,
+      isRosterEmpty = overrides.isRosterEmpty or function()
+        return false
+      end,
       triggerGroupRosterUpdate = function()
         state.rosterUpdates = state.rosterUpdates + 1
       end,
@@ -43,7 +51,9 @@ return function(test, ctx)
         state.keyRefreshes = state.keyRefreshes + 1
         return overrides.keyChanged or false
       end,
-      getActiveChallengeMapID = overrides.getActiveChallengeMapID or function() return nil end,
+      getActiveChallengeMapID = overrides.getActiveChallengeMapID or function()
+        return nil
+      end,
     })
 
     return controller, state
@@ -64,7 +74,9 @@ return function(test, ctx)
 
   test("Refresh RunFullRefresh skips when stopped", function()
     local controller, state = BuildRefreshController({
-      isStopped = function() return true end,
+      isStopped = function()
+        return true
+      end,
     })
 
     local result = controller.RunFullRefresh()
@@ -75,7 +87,9 @@ return function(test, ctx)
 
   test("Refresh RunFullRefresh skips during active M+", function()
     local controller, state = BuildRefreshController({
-      getActiveChallengeMapID = function() return 2649 end,
+      getActiveChallengeMapID = function()
+        return 2649
+      end,
     })
 
     local result = controller.RunFullRefresh()

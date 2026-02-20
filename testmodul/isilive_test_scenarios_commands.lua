@@ -58,8 +58,12 @@ return function(test, ctx)
         printFn = function(msg)
           table.insert(state.prints, tostring(msg))
         end,
-        getL = function() return L end,
-        getState = function() return state end,
+        getL = function()
+          return L
+        end,
+        getState = function()
+          return state
+        end,
         setState = function(patch)
           for k, v in pairs(patch) do
             state[k] = v
@@ -78,17 +82,25 @@ return function(test, ctx)
           state.mainFrameVisible = visible
         end,
         updateLeaderButtons = function() end,
-        isPlayerLeader = overrides.isPlayerLeader or function() return false end,
+        isPlayerLeader = overrides.isPlayerLeader or function()
+          return false
+        end,
         setLanguage = function(lang)
           state.languageSet = lang
         end,
         forceTeleportTestTarget = function() end,
         printTeleportDebug = function() end,
         setQueueDebugEnabled = function() end,
-        getQueueDebugEnabled = function() return false end,
+        getQueueDebugEnabled = function()
+          return false
+        end,
         clearQueueDebugLog = function() end,
-        getQueueDebugLogCount = function() return 0 end,
-        getQueueDebugLogTail = function() return {} end,
+        getQueueDebugLogCount = function()
+          return 0
+        end,
+        getQueueDebugLogTail = function()
+          return {}
+        end,
       })
 
       executor = SlashCmdList["ISILIVE"]
@@ -97,7 +109,9 @@ return function(test, ctx)
     state._execute = function(msg)
       -- strtrim must be available during execution too
       local oldStrtrim = rawget(_G, "strtrim")
-      _G.strtrim = function(s) return s:match("^%s*(.-)%s*$") end
+      _G.strtrim = function(s)
+        return s:match("^%s*(.-)%s*$")
+      end
       executor(msg)
       if oldStrtrim then
         _G.strtrim = oldStrtrim

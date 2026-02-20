@@ -13,11 +13,15 @@ return function(test, ctx)
         for part in str:gmatch(pattern) do
           count = count + 1
           table.insert(parts, part)
-          if max and count >= max then break end
+          if max and count >= max then
+            break
+          end
         end
         return unpack(parts)
       end,
-      GetRealmName = function() return "FallbackRealm" end,
+      GetRealmName = function()
+        return "FallbackRealm"
+      end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_sync.lua" })
       local key = addon.Sync.NormalizePlayerKey("TestPlayer", "TestRealm")
@@ -32,13 +36,17 @@ return function(test, ctx)
     WithGlobals({
       strsplit = function(sep, str, max)
         local pos = str:find(sep, 1, true)
-        if not pos then return str end
+        if not pos then
+          return str
+        end
         if max and max >= 2 then
           return str:sub(1, pos - 1), str:sub(pos + 1)
         end
         return str:sub(1, pos - 1)
       end,
-      GetRealmName = function() return "FallbackRealm" end,
+      GetRealmName = function()
+        return "FallbackRealm"
+      end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_sync.lua" })
       local key = addon.Sync.NormalizePlayerKey("Player-Der-Rat-von-Dalaran", "")
@@ -54,7 +62,9 @@ return function(test, ctx)
       strsplit = function(_sep, str, _max)
         return str
       end,
-      GetRealmName = function() return "MyRealm" end,
+      GetRealmName = function()
+        return "MyRealm"
+      end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_sync.lua" })
       local key = addon.Sync.NormalizePlayerKey("Solo", "")
@@ -67,8 +77,12 @@ return function(test, ctx)
 
   test("Sync MarkUser and IsUserKnown track players", function()
     WithGlobals({
-      strsplit = function(_sep, str, _max) return str end,
-      GetRealmName = function() return "Realm" end,
+      strsplit = function(_sep, str, _max)
+        return str
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_sync.lua" })
 
@@ -84,8 +98,12 @@ return function(test, ctx)
 
   test("Sync SetPlayerKeyInfo deduplicates identical key updates", function()
     WithGlobals({
-      strsplit = function(_sep, str, _max) return str end,
-      GetRealmName = function() return "Realm" end,
+      strsplit = function(_sep, str, _max)
+        return str
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_sync.lua" })
 
@@ -109,41 +127,41 @@ return function(test, ctx)
     WithGlobals({
       strsplit = function(sep, str, max)
         local pos = str:find(sep, 1, true)
-        if not pos then return str end
+        if not pos then
+          return str
+        end
         if max and max >= 2 then
           return str:sub(1, pos - 1), str:sub(pos + 1)
         end
         return str:sub(1, pos - 1)
       end,
-      GetRealmName = function() return "Realm" end,
+      GetRealmName = function()
+        return "Realm"
+      end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_sync.lua" })
 
       -- Test HELLO from another player
-      local helloResult = addon.Sync.ProcessAddonMessage(
-        "ISILIVE", "HELLO:0.9.36", "OtherPlayer-OtherRealm", "MyPlayer", "Realm"
-      )
+      local helloResult =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "HELLO:0.9.36", "OtherPlayer-OtherRealm", "MyPlayer", "Realm")
       Assert.NotNil(helloResult, "HELLO must return result")
       Assert.True(helloResult.shouldAck, "HELLO from different player must require ack")
 
       -- Test HELLO from self (should not ack)
-      local selfResult = addon.Sync.ProcessAddonMessage(
-        "ISILIVE", "HELLO:0.9.36", "MyPlayer-Realm", "MyPlayer", "Realm"
-      )
+      local selfResult =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "HELLO:0.9.36", "MyPlayer-Realm", "MyPlayer", "Realm")
       Assert.NotNil(selfResult, "self HELLO must return result")
       Assert.False(selfResult.shouldAck, "HELLO from self must not require ack")
 
       -- Test KEY message
-      local keyResult = addon.Sync.ProcessAddonMessage(
-        "ISILIVE", "KEY:2649:15", "OtherPlayer-OtherRealm", "MyPlayer", "Realm"
-      )
+      local keyResult =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "KEY:2649:15", "OtherPlayer-OtherRealm", "MyPlayer", "Realm")
       Assert.NotNil(keyResult, "KEY must return result")
       Assert.True(keyResult.keyUpdated, "first KEY must report update")
 
       -- Test wrong prefix is ignored
-      local wrongPrefix = addon.Sync.ProcessAddonMessage(
-        "WRONGPREFIX", "HELLO:1.0", "Someone-Realm", "MyPlayer", "Realm"
-      )
+      local wrongPrefix =
+        addon.Sync.ProcessAddonMessage("WRONGPREFIX", "HELLO:1.0", "Someone-Realm", "MyPlayer", "Realm")
       Assert.Nil(wrongPrefix, "wrong prefix must return nil")
     end)
   end)

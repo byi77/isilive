@@ -80,13 +80,19 @@ return function(test, ctx)
         state.teleportUpdates = state.teleportUpdates + 1
       end,
       getUnitNameAndRealm = overrides.getUnitNameAndRealm or function(unit)
-        if unit == "player" then return "TestPlayer", "TestRealm" end
+        if unit == "player" then
+          return "TestPlayer", "TestRealm"
+        end
         local idx = tonumber(unit:match("party(%d+)"))
-        if idx then return "Party" .. idx, "Realm" .. idx end
+        if idx then
+          return "Party" .. idx, "Realm" .. idx
+        end
         return nil, nil
       end,
       getUnitClass = overrides.getUnitClass or function(unit)
-        if unit == "player" then return "Warrior", "WARRIOR" end
+        if unit == "player" then
+          return "Warrior", "WARRIOR"
+        end
         return "Mage", "MAGE"
       end,
       getUnitServerLanguage = function(_unit, _realm)
@@ -122,7 +128,9 @@ return function(test, ctx)
 
   test("Group join builds roster with player and 4 party members", function()
     local controller, state = BuildGroupController({
-      getNumGroupMembers = function() return 5 end,
+      getNumGroupMembers = function()
+        return 5
+      end,
     })
 
     controller.HandleGroupRosterUpdate()
@@ -138,7 +146,9 @@ return function(test, ctx)
 
   test("Group leave clears roster and hides frame", function()
     local controller, state = BuildGroupController({
-      isInGroup = function() return false end,
+      isInGroup = function()
+        return false
+      end,
       wasInGroup = true,
     })
 
@@ -152,7 +162,9 @@ return function(test, ctx)
 
   test("Raid group hides frame and prints notification", function()
     local controller, state = BuildGroupController({
-      getNumGroupMembers = function() return 6 end,
+      getNumGroupMembers = function()
+        return 6
+      end,
     })
 
     controller.HandleGroupRosterUpdate()
@@ -160,16 +172,15 @@ return function(test, ctx)
 
     Assert.False(state.mainFrameVisible, "frame must be hidden for raid group")
     Assert.Equal(#state.prints, 1, "exactly one notification must be printed")
-    Assert.True(
-      state.prints[1]:find("Raid group") ~= nil,
-      "notification must contain raid group message"
-    )
+    Assert.True(state.prints[1]:find("Raid group") ~= nil, "notification must contain raid group message")
   end)
 
   test("Raid notification prints again after leaving raid-size group", function()
     local members = 6
     local controller, state = BuildGroupController({
-      getNumGroupMembers = function() return members end,
+      getNumGroupMembers = function()
+        return members
+      end,
     })
 
     controller.HandleGroupRosterUpdate()
@@ -194,7 +205,9 @@ return function(test, ctx)
 
   test("Active M+ key blocks roster rebuild", function()
     local controller, state = BuildGroupController({
-      getActiveChallengeMapID = function() return 2649 end,
+      getActiveChallengeMapID = function()
+        return 2649
+      end,
     })
 
     controller.HandleGroupRosterUpdate()
@@ -218,11 +231,19 @@ return function(test, ctx)
 
   test("Party members get correct roles and classes", function()
     local controller, state = BuildGroupController({
-      getNumGroupMembers = function() return 3 end,
+      getNumGroupMembers = function()
+        return 3
+      end,
       getUnitClass = function(unit)
-        if unit == "player" then return "Paladin", "PALADIN" end
-        if unit == "party1" then return "Priest", "PRIEST" end
-        if unit == "party2" then return "Rogue", "ROGUE" end
+        if unit == "player" then
+          return "Paladin", "PALADIN"
+        end
+        if unit == "party1" then
+          return "Priest", "PRIEST"
+        end
+        if unit == "party2" then
+          return "Rogue", "ROGUE"
+        end
         return "Warrior", "WARRIOR"
       end,
     })
@@ -236,7 +257,9 @@ return function(test, ctx)
 
   test("Group leave clears known isiLive users", function()
     local controller, state = BuildGroupController({
-      isInGroup = function() return false end,
+      isInGroup = function()
+        return false
+      end,
       wasInGroup = true,
     })
 

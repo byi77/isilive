@@ -9,10 +9,18 @@ return function(test, ctx)
       _events = {},
       _scripts = {},
     }
-    function frame:SetScript(name, handler) self._scripts[name] = handler end
-    function frame:RegisterEvent(event) self._events[event] = true end
-    function frame:UnregisterEvent(event) self._events[event] = nil end
-    function frame:IsEventRegistered(event) return self._events[event] == true end
+    function frame:SetScript(name, handler)
+      self._scripts[name] = handler
+    end
+    function frame:RegisterEvent(event)
+      self._events[event] = true
+    end
+    function frame:UnregisterEvent(event)
+      self._events[event] = nil
+    end
+    function frame:IsEventRegistered(event)
+      return self._events[event] == true
+    end
     return frame
   end
 
@@ -73,10 +81,7 @@ return function(test, ctx)
 
     local ok, err = pcall(addon.Guards.Validate, addon)
     Assert.False(ok, "Guards.Validate must fail when modules are missing")
-    Assert.True(
-      type(err) == "string" and err:find("missing module") ~= nil,
-      "error must mention missing module"
-    )
+    Assert.True(type(err) == "string" and err:find("missing module") ~= nil, "error must mention missing module")
   end)
 
   test("Guards fails when a required function is missing from module stub", function()
@@ -88,10 +93,7 @@ return function(test, ctx)
     addon.Queue = {}
     local ok, err = pcall(addon.Guards.Validate, addon)
     Assert.False(ok, "Guards.Validate must fail with empty module stub")
-    Assert.True(
-      type(err) == "string",
-      "error message must be a string"
-    )
+    Assert.True(type(err) == "string", "error message must be a string")
   end)
 
   test("Main addon exits gracefully when Guards validation fails", function()
