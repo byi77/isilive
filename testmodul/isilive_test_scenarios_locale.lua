@@ -11,10 +11,7 @@ return function(test, ctx)
     Assert.NotNil(locales.deDE, "deDE locale must exist")
 
     for key, _ in pairs(locales.enUS) do
-      Assert.NotNil(
-        locales.deDE[key],
-        "deDE must have key: " .. tostring(key)
-      )
+      Assert.NotNil(locales.deDE[key], "deDE must have key: " .. tostring(key))
     end
   end)
 
@@ -23,10 +20,7 @@ return function(test, ctx)
     local locales = addon.Texts.GetLocaleTables()
 
     for key, _ in pairs(locales.deDE) do
-      Assert.NotNil(
-        locales.enUS[key],
-        "enUS must have key: " .. tostring(key)
-      )
+      Assert.NotNil(locales.enUS[key], "enUS must have key: " .. tostring(key))
     end
   end)
 
