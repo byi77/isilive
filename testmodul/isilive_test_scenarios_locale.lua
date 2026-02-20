@@ -34,14 +34,8 @@ return function(test, ctx)
     local addon = LoadAddonModules({ "isiLive_texts.lua" })
     local locales = addon.Texts.GetLocaleTables()
 
-    Assert.True(
-      locales.enUS.LOADED_HINT:find("%%s") ~= nil,
-      "enUS LOADED_HINT must contain %s placeholder"
-    )
-    Assert.True(
-      locales.deDE.LOADED_HINT:find("%%s") ~= nil,
-      "deDE LOADED_HINT must contain %s placeholder"
-    )
+    Assert.True(locales.enUS.LOADED_HINT:find("%%s") ~= nil, "enUS LOADED_HINT must contain %s placeholder")
+    Assert.True(locales.deDE.LOADED_HINT:find("%%s") ~= nil, "deDE LOADED_HINT must contain %s placeholder")
   end)
 
   test("RAID_GROUP_HIDDEN is defined in both locales", function()
