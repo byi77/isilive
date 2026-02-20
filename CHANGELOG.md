@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-02-20 - Version 0.9.35
+- **Teleport/Queue Detection:**
+  - Fixed localized queue target resolution for Eco-Dome Al'dani variants (for example `Biokuppel Al'dani`) when activity map data is missing or incomplete.
+  - Added localized fallback token matching so queue join notices and active teleport highlight resolve correctly for Biokuppel listings.
+- **Runtime Defaults:**
+  - Re-enabled former `DM Reset` behavior as hardcoded default: on `CHALLENGE_MODE_START`, Blizzard damage meter sessions are reset when `C_DamageMeter` APIs are available.
+  - Enforced `advancedCombatLogging` as hardcoded `ON` (`1`) across startup/challenge lifecycle events.
+- **Validation:**
+  - Added deterministic regression tests for localized Eco-Dome name fallback and activity-name fallback without `mapID`.
+  - Added deterministic regression tests for hardcoded advanced-combat-log enforcement and challenge-start damage-meter reset.
+  - `tools/validate_usecases.lua` now runs 42 scenarios.
+
 ## 2026-02-19 - Version 0.9.34
 - **Highlight Stability:**
   - Fixed queue-target clear regression on negative `LFG_LIST_APPLICATION_STATUS_UPDATED` events while already grouped (for example when the 5th member joins and other applications get declined).

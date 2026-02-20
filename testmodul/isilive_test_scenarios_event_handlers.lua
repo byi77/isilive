@@ -154,4 +154,70 @@ return function(test, ctx)
     Assert.Equal(counters.uiUpdates, 1, "roster changes from sync must refresh UI")
     Assert.True(roster[1].hasIsiLive, "known sync user should be marked as isiLive-enabled")
   end)
+
+  test("Event handlers keep advanced combat logging hard-enabled across startup events", function()
+    local setCalls = 0
+    local cvarValue = "0"
+
+    WithGlobals({
+      C_CVar = {
+        GetCVar = function(name)
+          if name == "advancedCombatLogging" then
+            return cvarValue
+          end
+          return nil
+        end,
+        SetCVar = function(name, value)
+          if name == "advancedCombatLogging" then
+            cvarValue = tostring(value)
+            setCalls = setCalls + 1
+          end
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {})
+
+      controller:Dispatch("ADDON_LOADED", "isiLive")
+      controller:Dispatch("PLAYER_LOGIN")
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+    end)
+
+    Assert.Equal(setCalls, 1, "advanced combat logging should be enabled once and remain enforced")
+    Assert.Equal(cvarValue, "1", "advanced combat logging cvar should be hard-enabled")
+  end)
+
+  test("Event handlers reset damage meter on challenge start when available", function()
+    local resetCalls = 0
+    local setCalls = 0
+
+    WithGlobals({
+      C_DamageMeter = {
+        IsDamageMeterAvailable = function()
+          return true
+        end,
+        ResetAllCombatSessions = function()
+          resetCalls = resetCalls + 1
+        end,
+      },
+      C_CVar = {
+        GetCVar = function(_name)
+          return "0"
+        end,
+        SetCVar = function(name, value)
+          if name == "advancedCombatLogging" and tostring(value) == "1" then
+            setCalls = setCalls + 1
+          end
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {})
+
+      controller:Dispatch("CHALLENGE_MODE_START")
+    end)
+
+    Assert.Equal(resetCalls, 1, "challenge start must hard-reset Blizzard damage meter when API is available")
+    Assert.Equal(setCalls, 1, "challenge start should enforce advanced combat logging")
+  end)
 end

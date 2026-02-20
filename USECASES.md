@@ -1,7 +1,7 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.34`
-Last updated: `2026-02-19`
+Version baseline: `0.9.35`
+Last updated: `2026-02-20`
 
 ## Actors
 
@@ -93,6 +93,7 @@ Goal: allow user to post current party keys quickly.
 2. Combat-protected UI operations must be deferred safely; main-frame drag start/stop must no-op during combat lockdown.
 3. Leader-only actions must stay disabled for non-leaders.
 4. Hidden mode should halt non-essential processing.
+5. Runtime defaults are hard-enforced: `advancedCombatLogging=1` and challenge-start Blizzard damage-meter reset when API support exists.
 
 ## Automated Validation Mapping
 

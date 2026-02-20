@@ -8,10 +8,13 @@ addonTable.Teleport = Teleport
 local SeasonData = addonTable.SeasonData or {}
 local MAP_TO_TELEPORT = SeasonData.MAP_TO_TELEPORT or {}
 local MAP_SHORT_CODES = SeasonData.MAP_SHORT_CODES or {}
+local ECO_DOME_SPELL_ID = 1237215
+local TAZAVESH_SPELL_ID = 367416
 
 -- Cache: ActivityID -> SpellID
 local ACTIVITY_TO_TELEPORT_CACHE = {}
 local TAZAVESH_TOKENS_CACHE = nil
+local ECO_DOME_TOKENS_CACHE = nil
 
 local pendingCombatUpdates = {}
 local function ClearTable(t)
@@ -168,6 +171,83 @@ local function GetTazaveshMatchTokens()
   return tokens
 end
 
+local function GetEcoDomeMatchTokens()
+  if ECO_DOME_TOKENS_CACHE then
+    return ECO_DOME_TOKENS_CACHE
+  end
+
+  local tokens = {}
+  local seen = {}
+  local function AddToken(raw)
+    local token = NormalizeNameForMatch(raw)
+    if token == "" or seen[token] then
+      return
+    end
+    seen[token] = true
+    table.insert(tokens, token)
+  end
+
+  local info = Teleport.GetSeason3TeleportInfoByMapID(2830)
+  if info and info.mapName then
+    AddToken(info.mapName)
+    for part in string.gmatch(info.mapName, "[^:/%-]+") do
+      AddToken(part)
+    end
+  end
+
+  -- Fallback aliases for localized queue/activity names.
+  AddToken("Eco-Dome Al'dani")
+  AddToken("Eco Dome Aldani")
+  AddToken("Biokuppel Al'dani")
+  AddToken("Biokuppel Aldani")
+  AddToken("Biokuppel")
+  AddToken("Oeko-Kuppel Al'dani")
+  AddToken("Oeko Kuppel Aldani")
+  AddToken("Öko-Kuppel Al'dani")
+  AddToken("Öko Kuppel Aldani")
+
+  ECO_DOME_TOKENS_CACHE = tokens
+  return tokens
+end
+
+local function ResolveSeason3TeleportSpellIDByName(nameToUse)
+  if type(nameToUse) ~= "string" or nameToUse == "" then
+    return nil
+  end
+
+  local normalizedName = NormalizeNameForMatch(nameToUse)
+  if normalizedName == "" then
+    return nil
+  end
+
+  for _, token in ipairs(GetTazaveshMatchTokens()) do
+    if token ~= "" and string.find(normalizedName, token, 1, true) then
+      return TAZAVESH_SPELL_ID
+    end
+  end
+
+  for _, token in ipairs(GetEcoDomeMatchTokens()) do
+    if token ~= "" and string.find(normalizedName, token, 1, true) then
+      return ECO_DOME_SPELL_ID
+    end
+  end
+
+  for mapID in pairs(MAP_TO_TELEPORT) do
+    local info = Teleport.GetSeason3TeleportInfoByMapID(mapID)
+    if info and info.mapName then
+      local normalizedMapName = NormalizeNameForMatch(info.mapName)
+      if normalizedMapName ~= "" and string.find(normalizedName, normalizedMapName, 1, true) then
+        return info.spellID
+      end
+    end
+    if info and info.mapName and string.find(nameToUse, info.mapName, 1, true) then
+      return info.spellID
+    end
+  end
+
+  return nil
+end
+
 function Teleport.AddActivityToTeleportCache(activityID, spellID)
   if activityID and spellID then
     ACTIVITY_TO_TELEPORT_CACHE[activityID] = spellID
@@ -200,6 +280,15 @@ function Teleport.ResolveTeleportSpellByActivityID(activityID)
         ACTIVITY_TO_TELEPORT_CACHE[activityID] = spellID
         return spellID
       end
+    end
+
+    local activityName = rawget(activityInfo, "fullName")
+      or rawget(activityInfo, "shortName")
+      or rawget(activityInfo, "activityName")
+    local nameFallbackSpellID = ResolveSeason3TeleportSpellIDByName(activityName)
+    if nameFallbackSpellID then
+      ACTIVITY_TO_TELEPORT_CACHE[activityID] = nameFallbackSpellID
+      return nameFallbackSpellID
     end
   end
   return nil
@@ -310,23 +399,9 @@ function Teleport.ResolveSeason3TeleportSpellID(activityID, dungeonName)
   end
 
   if nameToUse and nameToUse ~= "" then
-    local normalizedName = NormalizeNameForMatch(nameToUse)
-    for _, token in ipairs(GetTazaveshMatchTokens()) do
-      if token ~= "" and string.find(normalizedName, token, 1, true) then
-        return 367416
-      end
-    end
-    for mapID in pairs(MAP_TO_TELEPORT) do
-      local info = Teleport.GetSeason3TeleportInfoByMapID(mapID)
-      if info and info.mapName then
-        local normalizedMapName = NormalizeNameForMatch(info.mapName)
-        if normalizedMapName ~= "" and string.find(normalizedName, normalizedMapName, 1, true) then
-          return info.spellID
-        end
-      end
-      if info and info.mapName and string.find(nameToUse, info.mapName, 1, true) then
-        return info.spellID
-      end
+    local spellFromName = ResolveSeason3TeleportSpellIDByName(nameToUse)
+    if spellFromName then
+      return spellFromName
     end
   end
 

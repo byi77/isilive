@@ -123,6 +123,59 @@ local function HasActiveListing(entryInfo)
   return false
 end
 
+local function ResetDamageMeterIfAvailable()
+  local damageMeterAPI = _G.C_DamageMeter
+  if
+    not (
+      type(damageMeterAPI) == "table"
+      and type(damageMeterAPI.IsDamageMeterAvailable) == "function"
+      and type(damageMeterAPI.ResetAllCombatSessions) == "function"
+    )
+  then
+    return false
+  end
+
+  local okAvailable, isAvailable = pcall(damageMeterAPI.IsDamageMeterAvailable)
+  if not okAvailable or not isAvailable then
+    return false
+  end
+
+  local okReset = pcall(damageMeterAPI.ResetAllCombatSessions)
+  return okReset
+end
+
+local function EnsureAdvancedCombatLoggingEnabled()
+  local getCVar = nil
+  local setCVar = nil
+  local cvarAPI = _G.C_CVar
+
+  if type(cvarAPI) == "table" and type(cvarAPI.GetCVar) == "function" then
+    getCVar = cvarAPI.GetCVar
+  elseif type(_G.GetCVar) == "function" then
+    getCVar = _G.GetCVar
+  end
+
+  if type(cvarAPI) == "table" and type(cvarAPI.SetCVar) == "function" then
+    setCVar = cvarAPI.SetCVar
+  elseif type(_G.SetCVar) == "function" then
+    setCVar = _G.SetCVar
+  end
+
+  if not setCVar then
+    return false
+  end
+
+  if getCVar then
+    local okCurrent, currentValue = pcall(getCVar, "advancedCombatLogging")
+    if okCurrent and tostring(currentValue or "") == "1" then
+      return true
+    end
+  end
+
+  local okSet = pcall(setCVar, "advancedCombatLogging", "1")
+  return okSet
+end
+
 local function HandleGroupRosterUpdateEvent(ctx, _self)
   if ctx.isInGroup() and (ctx.isTestMode() or ctx.isTestAllMode()) then
     ctx.exitTestMode()
@@ -186,6 +239,8 @@ local function HandleLfgListActiveEntryUpdateEvent(ctx, _self)
 end
 
 local function HandleChallengeModeStartEvent(ctx, _self)
+  EnsureAdvancedCombatLoggingEnabled()
+  ResetDamageMeterIfAvailable()
   ctx.setActiveJoinedKeyMapID(nil)
   ctx.checkIfEnteredTargetDungeon()
   ctx.setMainFrameVisible(false)
@@ -232,6 +287,7 @@ local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)
   end
   ctx.ensureQueueDebugStorage()
   ctx.setQueueDebugEnabled(IsiLiveDB.queueDebug)
+  EnsureAdvancedCombatLoggingEnabled()
 
   -- Restore position
   local mainFrame = ctx.getMainFrame()
@@ -252,6 +308,7 @@ local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)
 end
 
 local function HandlePlayerLoginEvent(ctx, _self)
+  EnsureAdvancedCombatLoggingEnabled()
   ctx.registerIsiLiveSyncPrefix()
   local playerName, playerRealm = ctx.getUnitNameAndRealm("player")
   ctx.markIsiLiveUser(playerName, playerRealm)
@@ -260,6 +317,7 @@ local function HandlePlayerLoginEvent(ctx, _self)
 end
 
 local function HandlePlayerEnteringWorldEvent(ctx, _self)
+  EnsureAdvancedCombatLoggingEnabled()
   ctx.applyHotkeyBindings()
   ctx.startBindingWatchdog()
   if ctx.timerAfter then

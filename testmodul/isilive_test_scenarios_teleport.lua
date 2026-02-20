@@ -117,6 +117,51 @@ return function(test, ctx)
     end)
   end)
 
+  test("Teleport resolves Eco-Dome via localized dungeon-name fallback tokens", function()
+    local createFrameStub = BuildCreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_season_data.lua",
+        "isiLive_teleport.lua",
+      })
+      local spellID = addon.Teleport.ResolveSeason3TeleportSpellID(nil, "Biokuppel Al'dani")
+      Assert.Equal(spellID, 1237215, "localized Biokuppel token should resolve Eco-Dome teleport spell")
+    end)
+  end)
+
+  test("Teleport resolves activity fallback by localized name when mapID is missing", function()
+    local createFrameStub = BuildCreateFrameStub()
+    local activityInfoCalls = 0
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      C_LFGList = {
+        GetActivityInfoTable = function(activityID)
+          activityInfoCalls = activityInfoCalls + 1
+          if activityID == 9910 then
+            return { fullName = "Biokuppel Al'dani" }
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_season_data.lua",
+        "isiLive_teleport.lua",
+      })
+      local first = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9910)
+      local second = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9910)
+
+      Assert.Equal(first, 1237215, "activity name fallback should resolve Eco-Dome teleport spell")
+      Assert.Equal(second, 1237215, "name-fallback result should be cached")
+    end)
+
+    Assert.Equal(activityInfoCalls, 1, "activity lookup should be cached after name-fallback resolve")
+  end)
+
   test("Teleport entry builder de-duplicates shared spells for grid rendering", function()
     local createFrameStub = BuildCreateFrameStub()
 

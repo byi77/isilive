@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.34`.
+Current addon version: `0.9.35`.
 
 ## Features
 
@@ -30,13 +30,15 @@ Current addon version: `0.9.34`.
 - Key sync runs only while the main window is visible (hidden mode stays in sleep behavior)
 - Main window is movable via left/right drag while out of combat; top drag handle stays above overlays for reliable dragging
 - Combat-safe frame updates: drag start/stop is ignored in combat and pending frame-height changes are applied on `PLAYER_REGEN_ENABLED`
+- Advanced combat logging (`advancedCombatLogging`) is hard-enforced to `ON`.
+- Blizzard damage meter reset is hard-enforced on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
 - `Readycheck`, `Countdown10`, and `Countdown 0` are leader-only
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 
-## Use Case / Logic Baseline (v0.9.34)
+## Use Case / Logic Baseline (v0.9.35)
 
-Documented on `2026-02-19` as runtime behavior baseline for validation checks.
+Documented on `2026-02-20` as runtime behavior baseline for validation checks.
 
 1. Queue invite -> grouped flow
    - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`).
@@ -149,12 +151,14 @@ Developer debug (hidden command, not listed in in-game help):
 
 ## Deterministic Usecase Gate
 
-`tools/validate_usecases.lua` runs a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 38 scenarios across queue/highlight/event/cooldown/teleport flows, including:
+`tools/validate_usecases.lua` runs a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 42 scenarios across queue/highlight/event/cooldown/teleport flows, including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
 - event-handler target-clear behavior under API shape variants
 - grouped negative-application follow-up stability (no target clear on full-group transition)
+- localized Eco-Dome/Biokuppel name fallback coverage for queue + teleport resolution
+- hardcoded advanced-combat-log enforcement and challenge-start damage-meter reset behavior
 - protected API fallback robustness in queue flow
 - cooldown recognition/format behavior for teleport spells
 
@@ -202,10 +206,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.34`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.35`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.34` or `isiLive_beta_0.9.34`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.35` or `isiLive_beta_0.9.35`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -217,9 +221,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.34 && git push origin isiLive_release_0.9.34`
+3. Create and push stable tag: `git tag isiLive_release_0.9.35 && git push origin isiLive_release_0.9.35`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.34 && git push origin isiLive_alpha_0.9.34`
-   - beta: `git tag isiLive_beta_0.9.34 && git push origin isiLive_beta_0.9.34`
+   - alpha: `git tag isiLive_alpha_0.9.35 && git push origin isiLive_alpha_0.9.35`
+   - beta: `git tag isiLive_beta_0.9.35 && git push origin isiLive_beta_0.9.35`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.
