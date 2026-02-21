@@ -4,7 +4,7 @@ return function(test, ctx)
   local LoadAddonModules = ctx.load_modules
   local Fixtures = ctx.fixtures
 
-  test("QueueFlow permissive resolver is robust when activity API errors", function()
+  test("QueueFlow strict resolver is robust when activity API errors", function()
     local callbackChecked = false
     local callbackOk = false
     local callbackValue = "unset"
@@ -18,8 +18,12 @@ return function(test, ctx)
     }, function()
       local addon = LoadAddonModules({ "isiLive_queue_flow.lua" })
       local controller = Fixtures.BuildQueueFlowController(addon.QueueFlow, {
-        queueCaptureQueueJoinCandidate = function(_updatePendingQueueJoin, permissiveResolver, ...)
-          local ok, value = pcall(permissiveResolver, 777, ...)
+        resolveSeason3MapIDByActivityID = function(activityID)
+          local info = C_LFGList.GetActivityInfoTable(activityID)
+          return info and info.mapID or nil
+        end,
+        queueCaptureQueueJoinCandidate = function(_updatePendingQueueJoin, strictResolver, ...)
+          local ok, value = pcall(strictResolver, 777, ...)
           callbackChecked = true
           callbackOk = ok
           callbackValue = value
@@ -31,7 +35,7 @@ return function(test, ctx)
 
     Assert.True(callbackChecked, "queue capture callback must run")
     Assert.True(callbackOk, "permissive resolver must not raise on API failure")
-    Assert.Nil(callbackValue, "permissive resolver should return nil on API failure")
+    Assert.Nil(callbackValue, "strict resolver should return nil on API failure")
   end)
 
   test("QueueFlow update ignores lower-priority pending updates", function()
@@ -54,10 +58,10 @@ return function(test, ctx)
     Assert.Equal(#state.hints, 0, "ignored updates must not produce invite hints")
   end)
 
-  test("QueueFlow update carries forward known target for same group", function()
+  test("QueueFlow update does not carry forward stale target for same group", function()
     local addon = LoadAddonModules({ "isiLive_queue_flow.lua" })
     local controller, state = Fixtures.BuildQueueFlowController(addon.QueueFlow, {
-      resolveSeason3TeleportSpellID = function(_activityID, _dungeonName)
+      resolveSeason3MapIDByActivityID = function(_activityID)
         return nil
       end,
     })
@@ -74,9 +78,10 @@ return function(test, ctx)
     controller.UpdatePendingQueueJoin("Carry Group", nil, 1, nil)
 
     Assert.NotNil(state.pending, "pending state should remain available")
-    Assert.Equal(state.pending.dungeonName, "Carry Dungeon", "same-group updates should keep known dungeon")
-    Assert.Equal(state.pending.activityID, 2001, "same-group updates should keep known activityID")
-    Assert.Equal(state.pending.teleportSpellID, 445414, "same-group updates should keep known teleport spell")
+    Assert.Nil(state.pending.dungeonName, "same-group updates must not carry old dungeon")
+    Assert.Nil(state.pending.activityID, "same-group updates must not carry old activityID")
+    Assert.Nil(state.pending.mapID, "same-group updates must not carry old mapID")
+    Assert.Nil(state.pending.teleportSpellID, "same-group updates must not carry old teleport spell")
   end)
 
   test("QueueFlow update suppresses exact duplicate updates", function()
@@ -128,6 +133,7 @@ return function(test, ctx)
     Assert.Equal(#state.queueTargets, 1, "member announce path should set queue target preview")
     Assert.Equal(state.queueTargets[1].activityID, 1001, "preview should keep pending activityID")
     Assert.Equal(state.queueTargets[1].spellID, 367416, "preview should resolve teleport spell for activity")
+    Assert.Equal(state.queueTargets[1].mapID, 2441, "preview should resolve target mapID from activity")
     Assert.Equal(#state.centerNotices, 1, "member announce should show center notice")
     Assert.True(#state.prints >= 3, "member announce should print queue summary lines")
   end)
@@ -144,5 +150,52 @@ return function(test, ctx)
 
     Assert.Equal(state.captures, 0, "challenge mode must skip queue candidate capture")
     Assert.Nil(state.pending, "challenge mode must not update pending queue target")
+  end)
+
+  test("QueueFlow capture announces immediately when candidate arrives after group join", function()
+    local addon = LoadAddonModules({ "isiLive_queue_flow.lua" })
+    local controller, state = Fixtures.BuildQueueFlowController(addon.QueueFlow, {
+      isInGroup = function()
+        return true
+      end,
+      queueCaptureQueueJoinCandidate = function(updatePendingQueueJoin, _strictResolver, _activityID, _status)
+        updatePendingQueueJoin("Late Group", "Late Dungeon", 2, 1001)
+      end,
+    })
+
+    controller.CaptureQueueJoinCandidate(1001, "accepted")
+
+    Assert.Nil(state.pending, "late grouped capture should be consumed by immediate announce")
+    Assert.Equal(#state.queueTargets, 1, "late grouped capture should set queue target")
+    Assert.Equal(state.queueTargets[1].activityID, 1001, "late grouped capture should keep activityID")
+    Assert.Equal(state.queueTargets[1].mapID, 2441, "late grouped capture should resolve mapID")
+    Assert.Equal(state.queueTargets[1].spellID, 367416, "late grouped capture should resolve spellID")
+    Assert.Equal(#state.centerNotices, 1, "late grouped capture should show center notice")
+    Assert.True(#state.prints >= 3, "late grouped capture should print chat summary lines")
+  end)
+
+  test("QueueFlow deduplicates repeated grouped announce for same target", function()
+    local now = 100
+    local addon = LoadAddonModules({ "isiLive_queue_flow.lua" })
+    local controller, state = Fixtures.BuildQueueFlowController(addon.QueueFlow, {
+      isInGroup = function()
+        return true
+      end,
+      getTimeFn = function()
+        return now
+      end,
+      queueCaptureQueueJoinCandidate = function(updatePendingQueueJoin, _strictResolver, _activityID, _status)
+        updatePendingQueueJoin("Spam Group", "Spam Dungeon", 2, 1001)
+      end,
+    })
+
+    controller.CaptureQueueJoinCandidate(1001, "accepted")
+    now = now + 5
+    controller.CaptureQueueJoinCandidate(1001, "accepted")
+
+    Assert.Equal(#state.queueTargets, 1, "same grouped target should not be re-announced repeatedly")
+    Assert.Equal(#state.centerNotices, 1, "same grouped target should not reset center notice timer")
+    Assert.True(#state.prints >= 3, "first grouped capture should still print queue summary")
+    Assert.True(#state.prints < 6, "second grouped capture should not duplicate chat summary")
   end)
 end

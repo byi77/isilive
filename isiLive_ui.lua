@@ -71,19 +71,25 @@ function UI.CreateMainFrame(opts)
   end)
 
   local function SetVisible(visible)
-    if isInCombat() then
-      pendingVisible = visible and true or false
-      return
-    end
-    pendingVisible = nil
     if visible then
+      if isInCombat() then
+        pendingVisible = true
+        return false
+      end
+      pendingVisible = nil
       if not frame:IsShown() then
         frame:Show()
+        return true
       end
+      return false
     else
+      -- Closing must always be possible, even during combat.
+      pendingVisible = nil
       if frame:IsShown() then
         frame:Hide()
+        return true
       end
+      return false
     end
   end
 
@@ -102,11 +108,19 @@ function UI.CreateMainFrame(opts)
       return
     end
 
-    SetVisible(true)
-    if isInGroup then
-      onShownInGroup()
-    else
-      onShownNoGroup()
+    -- Hotkey open is intentionally blocked during combat.
+    if isInCombat() then
+      pendingVisible = nil
+      return
+    end
+
+    local didShow = SetVisible(true)
+    if didShow then
+      if isInGroup then
+        onShownInGroup()
+      else
+        onShownNoGroup()
+      end
     end
   end
 

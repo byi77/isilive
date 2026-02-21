@@ -171,20 +171,20 @@ function Fixtures.BuildQueueFlowController(queueFlowModule, overrides)
     setPendingQueueJoinInfo = function(value)
       state.pending = value
     end,
-    resolveSeason3TeleportSpellID = function(activityID, _dungeonName)
+    resolveSeason3MapIDByActivityID = function(activityID)
       if activityID == 1001 then
-        return 367416
+        return 2441
       end
       if activityID == 2001 then
-        return 445414
+        return 2662
       end
       return nil
     end,
-    resolveSeason3TeleportSpellIDByActivityID = function(activityID)
-      if activityID == 1001 then
+    resolveSeason3TeleportSpellIDByMapID = function(mapID)
+      if mapID == 2441 or mapID == 2442 then
         return 367416
       end
-      if activityID == 2001 then
+      if mapID == 2662 then
         return 445414
       end
       return nil
@@ -218,24 +218,28 @@ function Fixtures.BuildQueueFlowController(queueFlowModule, overrides)
     printFn = function(message)
       table.insert(state.prints, tostring(message))
     end,
-    setQueueTargetState = function(dungeonName, activityID, spellID, mapID)
+    setQueueTargetState = function(dungeonName, activityID, spellID, joinedKeyMapID, mapID)
       table.insert(state.queueTargets, {
         dungeonName = dungeonName,
         activityID = activityID,
         spellID = spellID,
+        joinedKeyMapID = joinedKeyMapID,
         mapID = mapID,
       })
     end,
-    queueCaptureQueueJoinCandidate = function(updatePendingQueueJoin, permissiveResolver, ...)
+    queueCaptureQueueJoinCandidate = function(updatePendingQueueJoin, strictResolver, ...)
       state.captures = state.captures + 1
       local args = { ... }
       local activityID = args[1]
-      local resolved = permissiveResolver(activityID)
+      local resolved = strictResolver(activityID)
       if resolved then
         updatePendingQueueJoin("Captured Group", "Captured Dungeon", 1, activityID)
       end
     end,
     isInChallengeMode = function()
+      return false
+    end,
+    isInGroup = function()
       return false
     end,
     isPlayerLeader = function()

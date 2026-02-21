@@ -5,6 +5,24 @@ addonTable = addonTable or {}
 local TeleportUI = {}
 addonTable.TeleportUI = TeleportUI
 
+local function SyncButtonLayer(button, mainFrame)
+  if
+    not (
+      button
+      and mainFrame
+      and button.SetFrameStrata
+      and button.SetFrameLevel
+      and mainFrame.GetFrameStrata
+      and mainFrame.GetFrameLevel
+    )
+  then
+    return
+  end
+
+  button:SetFrameStrata(mainFrame:GetFrameStrata())
+  button:SetFrameLevel(mainFrame:GetFrameLevel() + 10)
+end
+
 local function CreateTeleportButton(mainFrame, deps, index, entry)
   local size = 28
   local colCount = 2
@@ -18,8 +36,7 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
   button:SetPoint("TOPRIGHT", x, y)
   button:EnableMouse(true)
   button:RegisterForClicks("AnyDown", "AnyUp")
-  button:SetFrameStrata("HIGH")
-  button:SetFrameLevel(mainFrame:GetFrameLevel() + 10)
+  SyncButtonLayer(button, mainFrame)
   button.spellID = entry.spellID
   button.mapID = entry.mapID
   button.mapName = entry.mapName
@@ -147,7 +164,7 @@ function TeleportUI.CreateController(opts)
     end,
   }
 
-  assert(mainFrame and mainFrame.GetFrameLevel, "isiLive: TeleportUI requires mainFrame")
+  assert(mainFrame and mainFrame.GetFrameLevel and mainFrame.GetFrameStrata, "isiLive: TeleportUI requires mainFrame")
   assert(type(deps.applySecureSpellToButton) == "function", "isiLive: TeleportUI requires applySecureSpellToButton")
   assert(type(deps.getEntries) == "function", "isiLive: TeleportUI requires getEntries")
   assert(type(deps.getL) == "function", "isiLive: TeleportUI requires getL")
@@ -178,6 +195,8 @@ function TeleportUI.CreateController(opts)
 
   function controller.UpdateButtons(resolvedSpellID)
     for _, button in ipairs(buttons) do
+      SyncButtonLayer(button, mainFrame)
+
       -- Retry secure setup if missing (e.g. loaded in combat)
       if not button:GetAttribute("type") then
         deps.applySecureSpellToButton(button, button.spellID)

@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-02-21 - Version 0.9.38
+- **RIO Delta Display:**
+  - Added challenge-start RIO baseline capture and per-player roster delta rendering as prefix `(+X)RIO`.
+  - Delta is now strictly non-negative (`+0` minimum; never minus).
+  - Added deterministic test-mode preview for visible positive RIO deltas in `/isilive test` and `/isilive testall`.
+- **UI & Labels:**
+  - Increased RIO-column spacing and adjusted right-side header/button offsets to avoid overlap with the management panel.
+  - Reduced language-column width to reclaim horizontal table space.
+  - Updated right-side column labels to `M+Managment` and `M+Travel`.
+- **Validation:**
+  - Added deterministic roster and event-handler coverage for RIO baseline/delta rules.
+  - `tools/validate_usecases.lua` now runs 98 deterministic scenarios across 18 modules.
+- **Documentation:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `RULES.md`, and `TODO.md` to current runtime/UI behavior.
+- TOC version bumped to `0.9.38`.
+
+## 2026-02-21 - Version 0.9.37
+- **Deterministic Target Resolution:**
+  - Switched queue/highlight/teleport resolution to strict `activityID -> mapID -> spellID` flow.
+  - Removed dungeon-name/token fallback resolution and removed first-candidate guessing when no concrete activity map exists.
+  - Added explicit queue target `mapID` runtime state (`latestQueueMapID`) and map-first target clear behavior.
+  - Fixed late queue-capture race: if LFG target data arrives after `GROUP_ROSTER_UPDATE`, grouped members now still get queue chat/notice/teleport preview immediately.
+  - Added grouped announce deduplication for identical queue targets to prevent repeated chat spam and center-notice timer resets.
+- **UI & UX:**
+  - Fixed teleport-grid button layering to inherit main-frame strata/level instead of forcing `HIGH` (issue #14).
+  - Fixed non-Mythic warning flow to also trigger on in-instance difficulty switches (for example `Normal -> Heroic`) and recognize heroic fallback difficulty ID `174`.
+  - Widened roster `Key` column and disabled key-text wrapping so `SHORT +LEVEL` values stay on one line.
+  - Updated `CTRL+F9` behavior: frame can always be closed in combat, but opening via hotkey is blocked during combat.
+- **Validation:**
+  - Added regression coverage for strict no-guess queue activity selection, strict no-name teleport resolution, unresolved-map caching, TeleportUI strata sync, and non-Mythic status transitions.
+  - `tools/validate_usecases.lua` now runs 94 deterministic scenarios.
+- TOC version bumped to `0.9.37`.
+
 ## 2026-02-20 - Version 0.9.36
 - **Code Quality:**
   - Simplified `EventUtils.IsNegativeApplicationStatusEvent` by removing redundant explicit checks for arg positions 2 and 3; unified into a single loop that checks all arguments uniformly (both strings and numbers at every position).

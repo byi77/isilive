@@ -66,6 +66,7 @@ local function BuildContext(opts)
   ctx.maybeShowNonMythicDungeonEntryNotice =
     RequireFunction(opts.maybeShowNonMythicDungeonEntryNotice, "maybeShowNonMythicDungeonEntryNotice")
   ctx.checkIfEnteredTargetDungeon = RequireFunction(opts.checkIfEnteredTargetDungeon, "checkIfEnteredTargetDungeon")
+  ctx.captureRioBaselineSnapshot = OptionalFunction(opts.captureRioBaselineSnapshot, function() end)
   ctx.timerAfter = OptionalFunction(opts.timerAfter, nil)
 
   ctx.getPendingBindingApply = RequireFunction(opts.getPendingBindingApply, "getPendingBindingApply")
@@ -241,6 +242,7 @@ end
 local function HandleChallengeModeStartEvent(ctx, _self)
   EnsureAdvancedCombatLoggingEnabled()
   ResetDamageMeterIfAvailable()
+  ctx.captureRioBaselineSnapshot()
   ctx.setActiveJoinedKeyMapID(nil)
   ctx.checkIfEnteredTargetDungeon()
   ctx.setMainFrameVisible(false)

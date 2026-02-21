@@ -8,15 +8,15 @@ addonTable.RosterPanel = RosterPanel
 local SPEC_COL_X = 10
 local NAME_COL_X = 110
 local SERVER_COL_X = 240
-local KEY_COL_X = 304
-local ILVL_COL_X = 372
-local RIO_COL_X = 414
+local KEY_COL_X = 292
+local ILVL_COL_X = 370
+local RIO_COL_X = 408
 local SPEC_COL_WIDTH = 92
 local NAME_COL_WIDTH = 125
-local SERVER_COL_WIDTH = 62
-local KEY_COL_WIDTH = 62
+local SERVER_COL_WIDTH = 50
+local KEY_COL_WIDTH = 72
 local ILVL_COL_WIDTH = 35
-local RIO_COL_WIDTH = 55
+local RIO_COL_WIDTH = 104
 
 local function RequireFunction(value, name)
   assert(type(value) == "function", "isiLive: RosterPanel requires " .. name)
@@ -118,11 +118,29 @@ local function CreateMemberRow(mainFrame, index)
   row.key:SetPoint("TOPLEFT", KEY_COL_X, yOffset)
   row.key:SetWidth(KEY_COL_WIDTH)
   row.key:SetJustifyH("RIGHT")
+  if row.key.SetWordWrap then
+    row.key:SetWordWrap(false)
+  end
+  if row.key.SetNonSpaceWrap then
+    row.key:SetNonSpaceWrap(false)
+  end
+  if row.key.SetMaxLines then
+    row.key:SetMaxLines(1)
+  end
 
   row.rio = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.rio:SetPoint("TOPLEFT", RIO_COL_X, yOffset)
   row.rio:SetWidth(RIO_COL_WIDTH)
   row.rio:SetJustifyH("RIGHT")
+  if row.rio.SetWordWrap then
+    row.rio:SetWordWrap(false)
+  end
+  if row.rio.SetNonSpaceWrap then
+    row.rio:SetNonSpaceWrap(false)
+  end
+  if row.rio.SetMaxLines then
+    row.rio:SetMaxLines(1)
+  end
 
   row.realm = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.realm:SetPoint("TOPLEFT", SERVER_COL_X, yOffset)
@@ -175,14 +193,32 @@ local function CreatePanelHeaders(mainFrame)
   keyHeader:SetPoint("TOPLEFT", KEY_COL_X, -34)
   keyHeader:SetWidth(KEY_COL_WIDTH)
   keyHeader:SetJustifyH("RIGHT")
+  if keyHeader.SetWordWrap then
+    keyHeader:SetWordWrap(false)
+  end
+  if keyHeader.SetNonSpaceWrap then
+    keyHeader:SetNonSpaceWrap(false)
+  end
+  if keyHeader.SetMaxLines then
+    keyHeader:SetMaxLines(1)
+  end
 
   local rioHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   rioHeader:SetPoint("TOPLEFT", RIO_COL_X, -34)
   rioHeader:SetWidth(RIO_COL_WIDTH)
   rioHeader:SetJustifyH("RIGHT")
+  if rioHeader.SetWordWrap then
+    rioHeader:SetWordWrap(false)
+  end
+  if rioHeader.SetNonSpaceWrap then
+    rioHeader:SetNonSpaceWrap(false)
+  end
+  if rioHeader.SetMaxLines then
+    rioHeader:SetMaxLines(1)
+  end
 
   local leadOptionsHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  leadOptionsHeader:SetPoint("TOPRIGHT", -150, -34)
+  leadOptionsHeader:SetPoint("TOPRIGHT", -136, -34)
   leadOptionsHeader:SetWidth(120)
   leadOptionsHeader:SetJustifyH("CENTER")
 
@@ -228,7 +264,7 @@ end
 local function CreateShareKeysButton(mainFrame, deps)
   local button = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   button:SetSize(120, 24)
-  button:SetPoint("TOPRIGHT", -146, -180)
+  button:SetPoint("TOPRIGHT", -136, -180)
   button:SetScript("OnClick", function()
     local msg = BuildKeyAnnouncement({
       getL = deps.getL,
@@ -259,7 +295,7 @@ local function CreatePanelButtons(mainFrame, deps)
 
   local readyCheckButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   readyCheckButton:SetSize(120, 24)
-  readyCheckButton:SetPoint("TOPRIGHT", -146, -60)
+  readyCheckButton:SetPoint("TOPRIGHT", -136, -60)
   readyCheckButton:SetScript("OnClick", function()
     if not isPlayerLeader() then
       return
@@ -270,7 +306,7 @@ local function CreatePanelButtons(mainFrame, deps)
 
   local countdownButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   countdownButton:SetSize(120, 24)
-  countdownButton:SetPoint("TOPRIGHT", -146, -90)
+  countdownButton:SetPoint("TOPRIGHT", -136, -90)
   countdownButton:SetScript("OnClick", function()
     if not isPlayerLeader() then
       return
@@ -281,14 +317,14 @@ local function CreatePanelButtons(mainFrame, deps)
 
   local refreshButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   refreshButton:SetSize(120, 24)
-  refreshButton:SetPoint("TOPRIGHT", -146, -150)
+  refreshButton:SetPoint("TOPRIGHT", -136, -150)
   AttachPanelButtonTooltip(refreshButton, getL, "BTN_REFRESH", "TOOLTIP_REFRESH", nil)
 
   local shareKeysButton = CreateShareKeysButton(mainFrame, deps)
 
   local countdownCancelButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   countdownCancelButton:SetSize(120, 24)
-  countdownCancelButton:SetPoint("TOPRIGHT", -146, -120)
+  countdownCancelButton:SetPoint("TOPRIGHT", -136, -120)
   AttachPanelButtonTooltip(countdownCancelButton, getL, "BTN_COUNTDOWN_CANCEL", "TOOLTIP_CD_CANCEL", isPlayerLeader)
 
   return {
@@ -387,6 +423,7 @@ local function RenderRosterImpl(state, roster)
       getShortSpecLabel = state.getShortSpecLabel,
       getLanguageFlagMarkup = state.getLanguageFlagMarkup,
       getDungeonShortCode = state.getDungeonShortCode,
+      getRioDelta = state.getRioDelta,
       syncMarker = state.syncMarker,
       fullSyncMarker = state.fullSyncMarker,
       hasFullSync = hasFullSync,
@@ -439,6 +476,7 @@ function RosterPanel.CreateController(opts)
   local getShortSpecLabel = RequireFunction(opts.getShortSpecLabel, "getShortSpecLabel")
   local getLanguageFlagMarkup = RequireFunction(opts.getLanguageFlagMarkup, "getLanguageFlagMarkup")
   local getDungeonShortCode = RequireFunction(opts.getDungeonShortCode, "getDungeonShortCode")
+  local getRioDelta = type(opts.getRioDelta) == "function" and opts.getRioDelta or nil
   local resolveActiveKeyOwnerUnit = RequireFunction(opts.resolveActiveKeyOwnerUnit, "resolveActiveKeyOwnerUnit")
   local getRoster = RequireFunction(opts.getRoster, "getRoster")
   local isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
@@ -516,6 +554,7 @@ function RosterPanel.CreateController(opts)
       getShortSpecLabel = getShortSpecLabel,
       getLanguageFlagMarkup = getLanguageFlagMarkup,
       getDungeonShortCode = getDungeonShortCode,
+      getRioDelta = getRioDelta,
       syncMarker = syncMarker,
       fullSyncMarker = fullSyncMarker,
     }, roster)

@@ -27,10 +27,8 @@ end
 local function CreateHighlightController(ctx)
   return ctx.highlightModule.CreateController({
     isInGroup = ctx.isInGroup,
-    resolveSeason3TeleportSpellID = ctx.resolveSeason3TeleportSpellID,
     resolveSeason3TeleportSpellIDByMapID = ctx.resolveSeason3TeleportSpellIDByMapID,
-    resolveSeason3MapIDBySpellID = ctx.resolveSeason3MapIDBySpellID,
-    resolveSeason3MapIDsBySpellID = ctx.resolveSeason3MapIDsBySpellID,
+    resolveSeason3MapIDByActivityID = ctx.resolveSeason3MapIDByActivityID,
   })
 end
 
@@ -50,6 +48,7 @@ local function CreateRosterPanelController(ctx)
     getShortSpecLabel = ctx.getShortSpecLabel,
     getLanguageFlagMarkup = ctx.getLanguageFlagMarkup,
     getDungeonShortCode = ctx.getDungeonShortCode,
+    getRioDelta = ctx.getRioDelta,
     resolveActiveKeyOwnerUnit = ctx.resolveActiveKeyOwnerUnit,
     getRoster = ctx.getRoster,
     isInGroup = ctx.isInGroup,

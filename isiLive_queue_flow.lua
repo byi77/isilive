@@ -5,6 +5,18 @@ addonTable = addonTable or {}
 local QueueFlow = {}
 addonTable.QueueFlow = QueueFlow
 
+local AnnounceQueuedGroupJoin
+
+local function BuildAnnouncementSignature(groupName, dungeonName, activityID, mapID, spellID)
+  return table.concat({
+    tostring(groupName or ""),
+    tostring(dungeonName or ""),
+    tostring(activityID or ""),
+    tostring(mapID or ""),
+    tostring(spellID or ""),
+  }, "|")
+end
+
 local function RequireFunction(value, name)
   assert(type(value) == "function", "isiLive: QueueFlow requires " .. name)
   return value
@@ -18,38 +30,16 @@ local function UpdatePendingQueueJoin(deps, groupName, dungeonName, priority, ac
     return
   end
 
-  -- Only carry dungeon forward when it is clearly the same group to avoid cross-application mixups.
-  if
-    previous
-    and previous.dungeonName
-    and not dungeonName
-    and groupName
-    and previous.groupName
-    and groupName == previous.groupName
-  then
-    dungeonName = previous.dungeonName
-  end
+  local resolvedMapID = deps.resolveSeason3MapIDByActivityID(activityID)
+  local resolvedTeleportSpellID = resolvedMapID and deps.resolveSeason3TeleportSpellIDByMapID(resolvedMapID) or nil
+  local nextGroupName = groupName or nil
 
-  if not activityID and groupName and previous and previous.groupName and groupName == previous.groupName then
-    activityID = previous.activityID
-  end
-
-  local resolvedTeleportSpellID = deps.resolveSeason3TeleportSpellID(activityID, dungeonName)
-  if not resolvedTeleportSpellID and previous then
-    local sameGroup = (not groupName) or not previous.groupName or (groupName == previous.groupName)
-    if sameGroup then
-      dungeonName = dungeonName or previous.dungeonName
-      activityID = activityID or previous.activityID
-      resolvedTeleportSpellID = previous.teleportSpellID
-    end
-  end
-
-  local nextGroupName = groupName or (previous and previous.groupName) or nil
   local isDuplicateUpdate = previous
     and previous.priority == priority
     and previous.groupName == nextGroupName
     and previous.dungeonName == dungeonName
     and previous.activityID == activityID
+    and previous.mapID == resolvedMapID
     and previous.teleportSpellID == resolvedTeleportSpellID
   if isDuplicateUpdate then
     return
@@ -59,6 +49,7 @@ local function UpdatePendingQueueJoin(deps, groupName, dungeonName, priority, ac
     groupName = nextGroupName,
     dungeonName = dungeonName,
     activityID = activityID,
+    mapID = resolvedMapID,
     teleportSpellID = resolvedTeleportSpellID,
     priority = priority,
     capturedAt = deps.getTimeFn(),
@@ -77,33 +68,34 @@ local function CaptureQueueJoinCandidate(deps, ...)
     return
   end
 
-  local function permissiveResolver(activityID)
-    local spellID = deps.resolveSeason3TeleportSpellIDByActivityID(activityID)
-    if spellID then
-      return spellID
+  local function strictResolver(activityID)
+    local ok, mapID = pcall(deps.resolveSeason3MapIDByActivityID, activityID)
+    if not ok then
+      return nil
     end
-    if activityID and C_LFGList and C_LFGList.GetActivityInfoTable then
-      local ok, info = pcall(C_LFGList.GetActivityInfoTable, activityID)
-      if ok and type(info) == "table" and (info.isMythicPlusActivity or info.categoryID == 2) then
-        return true -- Valid dungeon/M+ activity, capture it even without teleport spell
-      end
-    end
-    return nil
+    return mapID
   end
 
   deps.queueCaptureQueueJoinCandidate(function(...)
     return UpdatePendingQueueJoin(deps, ...)
-  end, permissiveResolver, ...)
+  end, strictResolver, ...)
+
+  -- Race guard: GROUP_ROSTER_UPDATE can happen before the final LFG payload.
+  -- If a valid candidate arrives while already grouped, announce immediately.
+  if deps.isInGroup() then
+    AnnounceQueuedGroupJoin(deps)
+  end
 end
 
 local function ShowQueueJoinPreview(deps, groupName, dungeonName, activityID)
   local L = deps.getL()
   local group = groupName or L.UNKNOWN_GROUP
   local dungeon = dungeonName
-  local spellID = deps.resolveSeason3TeleportSpellID(activityID, dungeon)
-  local joinedKeyMapID = deps.resolveJoinedKeyMapID(activityID, spellID)
+  local mapID = deps.resolveSeason3MapIDByActivityID(activityID)
+  local spellID = mapID and deps.resolveSeason3TeleportSpellIDByMapID(mapID) or nil
+  local joinedKeyMapID = deps.resolveJoinedKeyMapID(activityID, nil)
 
-  deps.setQueueTargetState(dungeon, activityID, spellID, joinedKeyMapID)
+  deps.setQueueTargetState(dungeon, activityID, spellID, joinedKeyMapID, mapID)
   deps.updateMPlusTeleportButton()
   deps.updateUI()
 
@@ -127,7 +119,7 @@ local function ShowQueueJoinPreview(deps, groupName, dungeonName, activityID)
   )
 end
 
-local function AnnounceQueuedGroupJoin(deps)
+AnnounceQueuedGroupJoin = function(deps)
   local L = deps.getL()
   local pending = deps.getPendingQueueJoinInfo()
   if not pending then
@@ -142,6 +134,21 @@ local function AnnounceQueuedGroupJoin(deps)
   local groupName = pending.groupName or L.UNKNOWN_GROUP
   local dungeonName = pending.dungeonName
   local activityID = pending.activityID
+  local mapID = pending.mapID or deps.resolveSeason3MapIDByActivityID(activityID)
+  local spellID = pending.teleportSpellID or (mapID and deps.resolveSeason3TeleportSpellIDByMapID(mapID) or nil)
+  local signature = BuildAnnouncementSignature(groupName, dungeonName, activityID, mapID, spellID)
+  local now = deps.getTimeFn()
+
+  if
+    deps.lastAnnouncementSignature == signature
+    and (now - deps.lastAnnouncementAt) <= deps.announcementDedupWindowSeconds
+  then
+    deps.setPendingQueueJoinInfo(nil)
+    return
+  end
+
+  deps.lastAnnouncementSignature = signature
+  deps.lastAnnouncementAt = now
   ShowQueueJoinPreview(deps, groupName, dungeonName, activityID)
   deps.setPendingQueueJoinInfo(nil)
 end
@@ -153,13 +160,13 @@ function QueueFlow.CreateController(opts)
     getL = RequireFunction(opts.getL, "getL"),
     getPendingQueueJoinInfo = RequireFunction(opts.getPendingQueueJoinInfo, "getPendingQueueJoinInfo"),
     setPendingQueueJoinInfo = RequireFunction(opts.setPendingQueueJoinInfo, "setPendingQueueJoinInfo"),
-    resolveSeason3TeleportSpellID = RequireFunction(
-      opts.resolveSeason3TeleportSpellID,
-      "resolveSeason3TeleportSpellID"
+    resolveSeason3MapIDByActivityID = RequireFunction(
+      opts.resolveSeason3MapIDByActivityID,
+      "resolveSeason3MapIDByActivityID"
     ),
-    resolveSeason3TeleportSpellIDByActivityID = RequireFunction(
-      opts.resolveSeason3TeleportSpellIDByActivityID,
-      "resolveSeason3TeleportSpellIDByActivityID"
+    resolveSeason3TeleportSpellIDByMapID = RequireFunction(
+      opts.resolveSeason3TeleportSpellIDByMapID,
+      "resolveSeason3TeleportSpellIDByMapID"
     ),
     resolveJoinedKeyMapID = RequireFunction(opts.resolveJoinedKeyMapID, "resolveJoinedKeyMapID"),
     updateMPlusTeleportButton = RequireFunction(opts.updateMPlusTeleportButton, "updateMPlusTeleportButton"),
@@ -173,8 +180,12 @@ function QueueFlow.CreateController(opts)
       "queueCaptureQueueJoinCandidate"
     ),
     isInChallengeMode = RequireFunction(opts.isInChallengeMode, "isInChallengeMode"),
+    isInGroup = RequireFunction(opts.isInGroup, "isInGroup"),
     isPlayerLeader = RequireFunction(opts.isPlayerLeader, "isPlayerLeader"),
     getTimeFn = opts.getTimeFn or GetTime,
+    announcementDedupWindowSeconds = tonumber(opts.announcementDedupWindowSeconds) or 30,
+    lastAnnouncementSignature = nil,
+    lastAnnouncementAt = 0,
   }
 
   assert(type(deps.printFn) == "function", "isiLive: QueueFlow requires printFn")

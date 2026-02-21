@@ -76,133 +76,42 @@ local function GetNormalizedActiveEntryInfo()
   return entry
 end
 
-local function ResolveActiveListingTeleportSpellID(
-  resolveSeason3TeleportSpellID,
-  resolveSeason3TeleportSpellIDByMapID,
-  entryInfo
-)
-  if type(entryInfo) ~= "table" then
-    return nil
-  end
-
-  local activeValue = rawget(entryInfo, "active")
-  local activeStateIsKnown = type(activeValue) == "boolean"
-  local hasActiveListing = (not activeStateIsKnown) or activeValue == true
-  if not hasActiveListing then
-    return nil
-  end
-
-  if entryInfo.mapID then
-    local mapSpellID = resolveSeason3TeleportSpellIDByMapID(entryInfo.mapID)
-    if mapSpellID then
-      return mapSpellID
+local function ResolveCurrentMapID()
+  if C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID then
+    local challengeMapID = C_ChallengeMode.GetActiveChallengeMapID()
+    if type(challengeMapID) == "number" and challengeMapID > 0 then
+      return challengeMapID
     end
   end
 
-  local candidates = {}
-  local seen = {}
-  local function addCandidate(id)
-    local numericID = tonumber(id)
-    if not numericID or numericID <= 0 or seen[numericID] then
-      return
-    end
-    seen[numericID] = true
-    table.insert(candidates, numericID)
-  end
-
-  addCandidate(entryInfo.activityID)
-  addCandidate(entryInfo.primaryActivityID)
-  if type(entryInfo.activityIDs) == "table" then
-    for _, id in pairs(entryInfo.activityIDs) do
-      addCandidate(id)
-    end
-  end
-
-  for _, hostedActivityID in ipairs(candidates) do
-    local hostedSpellID = resolveSeason3TeleportSpellID(hostedActivityID, nil)
-    if hostedSpellID then
-      return hostedSpellID
-    end
-  end
-
-  local nameCandidates = { entryInfo.activityName, entryInfo.name, entryInfo.title }
-  for _, listingName in ipairs(nameCandidates) do
-    if type(listingName) == "string" and listingName ~= "" then
-      local hostedSpellID = resolveSeason3TeleportSpellID(nil, listingName)
-      if hostedSpellID then
-        return hostedSpellID
-      end
+  if C_Map and C_Map.GetBestMapForUnit then
+    local mapID = C_Map.GetBestMapForUnit("player")
+    if type(mapID) == "number" and mapID > 0 then
+      return mapID
     end
   end
 
   return nil
 end
 
-local function BuildCurrentDungeonContext(resolveSeason3MapIDsBySpellID, resolveSeason3TeleportSpellIDByMapID)
-  local currentMapID = nil
-  local currentMapResolved = false
-  local currentMapTeleportSpellID = nil
-  local currentMapSpellResolved = false
-
-  local function ResolveCurrentMapID()
-    if not currentMapResolved then
-      currentMapResolved = true
-      if C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID then
-        local challengeMapID = C_ChallengeMode.GetActiveChallengeMapID()
-        if type(challengeMapID) == "number" and challengeMapID > 0 then
-          currentMapID = challengeMapID
-        end
-      end
-      if not currentMapID and C_Map and C_Map.GetBestMapForUnit then
-        local mapID = C_Map.GetBestMapForUnit("player")
-        if type(mapID) == "number" and mapID > 0 then
-          currentMapID = mapID
-        end
-      end
-    end
-    return currentMapID
-  end
-
-  local function IsCurrentDungeonSpell(spellID)
-    if not spellID then
-      return false
-    end
-
-    local mapID = ResolveCurrentMapID()
-
-    if mapID then
-      local targetMapIDs = resolveSeason3MapIDsBySpellID(spellID)
-      if type(targetMapIDs) == "table" then
-        for _, targetMapID in ipairs(targetMapIDs) do
-          if targetMapID and targetMapID == mapID then
-            return true
-          end
-        end
-      end
-    end
-
-    if not currentMapSpellResolved then
-      currentMapSpellResolved = true
-      if mapID then
-        currentMapTeleportSpellID = resolveSeason3TeleportSpellIDByMapID(mapID)
-      end
-    end
-
-    return currentMapTeleportSpellID and currentMapTeleportSpellID == spellID
-  end
-
-  return {
-    GetCurrentMapID = ResolveCurrentMapID,
-    IsCurrentDungeonSpell = IsCurrentDungeonSpell,
-  }
-end
-
-local function ResolveMapIDFromActivityID(activityID)
-  if not activityID or not (C_LFGList and C_LFGList.GetActivityInfoTable) then
+local function ResolveMapIDFromActivityID(deps, activityID)
+  local numericActivityID = tonumber(activityID)
+  if not numericActivityID or numericActivityID <= 0 then
     return nil
   end
 
-  local ok, info = pcall(C_LFGList.GetActivityInfoTable, activityID)
+  if deps.resolveSeason3MapIDByActivityID then
+    local resolved = deps.resolveSeason3MapIDByActivityID(numericActivityID)
+    if tonumber(resolved) and tonumber(resolved) > 0 then
+      return tonumber(resolved)
+    end
+  end
+
+  if not (C_LFGList and C_LFGList.GetActivityInfoTable) then
+    return nil
+  end
+
+  local ok, info = pcall(C_LFGList.GetActivityInfoTable, numericActivityID)
   if not ok or type(info) ~= "table" then
     return nil
   end
@@ -215,74 +124,116 @@ local function ResolveMapIDFromActivityID(activityID)
   return nil
 end
 
-local function ResolveActiveTeleportSpellID(
-  deps,
-  getActiveListingTarget,
-  latestQueueActivityID,
-  latestQueueDungeonName,
-  latestQueueTeleportSpellID
-)
-  local dungeonContext =
-    BuildCurrentDungeonContext(deps.resolveSeason3MapIDsBySpellID, deps.resolveSeason3TeleportSpellIDByMapID)
-  local currentMapID = dungeonContext.GetCurrentMapID()
+local function CollectUniqueActivityIDs(entryInfo)
+  local out = {}
+  local seen = {}
+
+  local function add(id)
+    local numericID = tonumber(id)
+    if not numericID or numericID <= 0 or seen[numericID] then
+      return
+    end
+    seen[numericID] = true
+    table.insert(out, numericID)
+  end
+
+  add(entryInfo.activityID)
+  add(entryInfo.primaryActivityID)
+  if type(entryInfo.activityIDs) == "table" then
+    for _, id in pairs(entryInfo.activityIDs) do
+      add(id)
+    end
+  end
+
+  return out
+end
+
+local function ResolveActiveListingTarget(deps, entryInfo)
+  if type(entryInfo) ~= "table" then
+    return nil
+  end
+
+  local activeValue = rawget(entryInfo, "active")
+  if type(activeValue) == "boolean" and activeValue == false then
+    return nil
+  end
+
+  local mapID = tonumber(rawget(entryInfo, "mapID") or rawget(entryInfo, "mapId"))
+  if not mapID then
+    local uniqueMaps = {}
+    local seenMaps = {}
+    for _, activityID in ipairs(CollectUniqueActivityIDs(entryInfo)) do
+      local activityMapID = ResolveMapIDFromActivityID(deps, activityID)
+      if activityMapID and not seenMaps[activityMapID] then
+        seenMaps[activityMapID] = true
+        table.insert(uniqueMaps, activityMapID)
+      end
+    end
+
+    if #uniqueMaps == 1 then
+      mapID = uniqueMaps[1]
+    else
+      mapID = nil
+    end
+  end
+
+  if not mapID then
+    return nil
+  end
+
+  local spellID = deps.resolveSeason3TeleportSpellIDByMapID(mapID)
+  if not spellID then
+    return nil
+  end
+
+  return {
+    mapID = mapID,
+    spellID = spellID,
+  }
+end
+
+local function ResolveActiveTeleportSpellID(deps, getActiveListingTarget, latestQueueActivityID, latestQueueMapID)
+  local currentMapID = ResolveCurrentMapID()
 
   local activeTarget = getActiveListingTarget()
-  if type(activeTarget) == "table" and activeTarget.spellID then
-    local activeTargetMapID = tonumber(activeTarget.mapID)
-    if activeTargetMapID and currentMapID then
-      if currentMapID ~= activeTargetMapID then
-        return activeTarget.spellID
-      end
-    elseif not dungeonContext.IsCurrentDungeonSpell(activeTarget.spellID) then
+  if type(activeTarget) == "table" and activeTarget.mapID and activeTarget.spellID then
+    if not currentMapID or currentMapID ~= activeTarget.mapID then
       return activeTarget.spellID
     end
+    return nil
   end
 
   if not deps.isInGroup() then
     return nil
   end
 
-  local queueTargetMapID = ResolveMapIDFromActivityID(latestQueueActivityID)
-  local queueSpellID = deps.resolveSeason3TeleportSpellID(latestQueueActivityID, latestQueueDungeonName)
-  if queueTargetMapID then
-    if currentMapID and currentMapID == queueTargetMapID then
-      return nil
-    end
-    return latestQueueTeleportSpellID or queueSpellID
+  local queueMapID = tonumber(latestQueueMapID)
+  if not queueMapID then
+    queueMapID = ResolveMapIDFromActivityID(deps, latestQueueActivityID)
   end
 
-  if latestQueueTeleportSpellID and not dungeonContext.IsCurrentDungeonSpell(latestQueueTeleportSpellID) then
-    return latestQueueTeleportSpellID
+  if not queueMapID then
+    return nil
   end
 
-  if queueSpellID and not dungeonContext.IsCurrentDungeonSpell(queueSpellID) then
-    return queueSpellID
+  if currentMapID and currentMapID == queueMapID then
+    return nil
   end
 
-  return nil
+  return deps.resolveSeason3TeleportSpellIDByMapID(queueMapID)
 end
 
 function Highlight.CreateController(opts)
   opts = opts or {}
-  local resolveSeason3MapIDBySpellID = opts.resolveSeason3MapIDBySpellID or function(_spellID)
-    return nil
-  end
+
   local deps = {
     isInGroup = opts.isInGroup or function()
       return false
     end,
-    resolveSeason3TeleportSpellID = opts.resolveSeason3TeleportSpellID or function(_activityID, _dungeonName)
-      return nil
-    end,
     resolveSeason3TeleportSpellIDByMapID = opts.resolveSeason3TeleportSpellIDByMapID or function(_mapID)
       return nil
     end,
-    resolveSeason3MapIDBySpellID = resolveSeason3MapIDBySpellID,
-    resolveSeason3MapIDsBySpellID = opts.resolveSeason3MapIDsBySpellID or function(spellID)
-      local mapID = resolveSeason3MapIDBySpellID(spellID)
-      if mapID then
-        return { mapID }
-      end
+    resolveSeason3MapIDByActivityID = opts.resolveSeason3MapIDByActivityID or function(_activityID)
       return nil
     end,
   }
@@ -293,66 +244,30 @@ function Highlight.CreateController(opts)
     return GetNormalizedActiveEntryInfo()
   end
 
-  function controller.ResolveActiveListingTeleportSpellID(entryInfo)
-    return ResolveActiveListingTeleportSpellID(
-      deps.resolveSeason3TeleportSpellID,
-      deps.resolveSeason3TeleportSpellIDByMapID,
-      entryInfo
-    )
+  function controller.ResolveMapIDFromActivityID(activityID)
+    return ResolveMapIDFromActivityID(deps, activityID)
   end
 
-  function controller.ResolveActiveTeleportSpellID(
-    latestQueueActivityID,
-    latestQueueDungeonName,
-    latestQueueTeleportSpellID
-  )
+  function controller.ResolveActiveListingTarget(entryInfo)
+    return ResolveActiveListingTarget(deps, entryInfo)
+  end
+
+  function controller.ResolveActiveListingTeleportSpellID(entryInfo)
+    local target = controller.ResolveActiveListingTarget(entryInfo)
+    return target and target.spellID or nil
+  end
+
+  function controller.ResolveActiveTeleportSpellID(latestQueueActivityID, latestQueueMapID)
     local function getActiveListingTarget()
       local entryInfo = controller.GetNormalizedActiveEntryInfo()
-      local spellID = controller.ResolveActiveListingTeleportSpellID(entryInfo)
-      if not spellID then
-        return nil
-      end
-
-      local mapID = nil
-      if type(entryInfo) == "table" then
-        mapID = tonumber(rawget(entryInfo, "mapID") or rawget(entryInfo, "mapId"))
-        if not mapID then
-          mapID = controller.ResolveMapIDFromActivityID(entryInfo.activityID)
-        end
-      end
-
-      return {
-        spellID = spellID,
-        mapID = mapID,
-      }
+      return controller.ResolveActiveListingTarget(entryInfo)
     end
 
-    return ResolveActiveTeleportSpellID(
-      deps,
-      getActiveListingTarget,
-      latestQueueActivityID,
-      latestQueueDungeonName,
-      latestQueueTeleportSpellID
-    )
+    return ResolveActiveTeleportSpellID(deps, getActiveListingTarget, latestQueueActivityID, latestQueueMapID)
   end
 
-  function controller.ResolveMapIDFromActivityID(activityID)
-    return ResolveMapIDFromActivityID(activityID)
-  end
-
-  function controller.ResolveJoinedKeyMapID(activityID, spellID)
-    local mapID = controller.ResolveMapIDFromActivityID(activityID)
-    if mapID then
-      return mapID
-    end
-    local mappedMapIDs = deps.resolveSeason3MapIDsBySpellID(spellID)
-    if type(mappedMapIDs) == "table" then
-      if #mappedMapIDs == 1 then
-        return mappedMapIDs[1]
-      end
-      return nil
-    end
-    return deps.resolveSeason3MapIDBySpellID(spellID)
+  function controller.ResolveJoinedKeyMapID(activityID, _spellID)
+    return controller.ResolveMapIDFromActivityID(activityID)
   end
 
   return controller

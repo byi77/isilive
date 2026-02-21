@@ -53,6 +53,7 @@ function Roster.BuildDisplayData(info, opts)
   local getShortSpecLabel = opts.getShortSpecLabel
   local getLanguageFlagMarkup = opts.getLanguageFlagMarkup
   local getDungeonShortCode = opts.getDungeonShortCode
+  local getRioDelta = opts.getRioDelta
   local syncMarker = opts.syncMarker or ""
   local fullSyncMarker = opts.fullSyncMarker or ""
   local hasFullSync = opts.hasFullSync == true
@@ -82,6 +83,13 @@ function Roster.BuildDisplayData(info, opts)
   end
   local ilvlText = info.ilvl and tostring(math.floor(info.ilvl)) or "-"
   local rioText = info.rio and tostring(math.floor(info.rio)) or "-"
+  if info.rio and type(getRioDelta) == "function" then
+    local rioDelta = tonumber(getRioDelta(info))
+    if rioDelta then
+      rioDelta = math.max(0, math.floor(rioDelta))
+      rioText = string.format("(+%d)%s", rioDelta, rioText)
+    end
+  end
   local keyText = "-"
   if info.keyMapID and info.keyLevel then
     local shortCode = getDungeonShortCode and getDungeonShortCode(info.keyMapID) or tostring(info.keyMapID)

@@ -36,42 +36,46 @@ local function DumpButtonState(deps, label, button)
   )
 end
 
-local function ResolveHostedSpell(entryInfo, resolveSeason3TeleportSpellID)
+local function ResolveHostedSpell(entryInfo, resolveSeason3MapIDByActivityID, resolveSeason3TeleportSpellIDByMapID)
   if type(entryInfo) ~= "table" then
-    return nil, nil
+    return nil, nil, nil
   end
 
   local hostedID = tonumber(entryInfo.activityID)
-  local hostedSpell = resolveSeason3TeleportSpellID(hostedID, nil)
+  local hostedMapID = resolveSeason3MapIDByActivityID(hostedID)
+  local hostedSpell = hostedMapID and resolveSeason3TeleportSpellIDByMapID(hostedMapID) or nil
   if hostedSpell or type(entryInfo.activityIDs) ~= "table" then
-    return hostedID, hostedSpell
+    return hostedID, hostedMapID, hostedSpell
   end
 
   for _, id in pairs(entryInfo.activityIDs) do
     local numID = tonumber(id)
     if numID then
-      local spell = resolveSeason3TeleportSpellID(numID, nil)
+      local mapID = resolveSeason3MapIDByActivityID(numID)
+      local spell = mapID and resolveSeason3TeleportSpellIDByMapID(mapID) or nil
       if spell then
-        return numID, spell
+        return numID, mapID, spell
       end
     end
   end
 
-  return hostedID, hostedSpell
+  return hostedID, hostedMapID, hostedSpell
 end
 
 local function PrintTeleportDebug(deps)
   deps.updateMPlusTeleportButton()
-  local latestQueueDungeonName, latestQueueActivityID, latestQueueTeleportSpellID = deps.getLatestQueueState()
+  local latestQueueDungeonName, latestQueueActivityID, latestQueueTeleportSpellID, latestQueueMapID =
+    deps.getLatestQueueState()
   local resolvedSpellID = deps.resolveActiveTeleportSpellID()
   local resolvedKnown = resolvedSpellID and deps.isSpellKnownSafe(resolvedSpellID) or false
   local resolvedCooldown = resolvedSpellID and deps.getTeleportCooldownRemaining(resolvedSpellID) or 0
 
   deps.printFn(
     string.format(
-      "TP target dungeon=%s activityID=%s queueSpellID=%s resolvedSpellID=%s known=%s cd=%s inCombat=%s",
+      "TP target dungeon=%s activityID=%s mapID=%s queueSpellID=%s resolvedSpellID=%s known=%s cd=%s inCombat=%s",
       tostring(latestQueueDungeonName),
       tostring(latestQueueActivityID),
+      tostring(latestQueueMapID),
       tostring(latestQueueTeleportSpellID),
       tostring(resolvedSpellID),
       tostring(resolvedKnown),
@@ -80,16 +84,27 @@ local function PrintTeleportDebug(deps)
     )
   )
 
+  local resolvedMap = deps.resolveSeason3MapIDByActivityID(latestQueueActivityID)
   local resolvedByActivity = deps.resolveSeason3TeleportSpellIDByActivityID(latestQueueActivityID)
-  deps.printFn(string.format("TP resolve detail byActivity=%s", tostring(resolvedByActivity)))
-
-  local entryInfo = deps.getNormalizedActiveEntryInfo()
-  local hostedID, hostedSpell = ResolveHostedSpell(entryInfo, deps.resolveSeason3TeleportSpellID)
+  local resolvedByMap = resolvedMap and deps.resolveSeason3TeleportSpellIDByMapID(resolvedMap) or nil
   deps.printFn(
     string.format(
-      "TP host detail active=%s activityID=%s spell=%s",
+      "TP resolve detail byActivity(map=%s spell=%s) byMapSpell=%s",
+      tostring(resolvedMap),
+      tostring(resolvedByActivity),
+      tostring(resolvedByMap)
+    )
+  )
+
+  local entryInfo = deps.getNormalizedActiveEntryInfo()
+  local hostedID, hostedMapID, hostedSpell =
+    ResolveHostedSpell(entryInfo, deps.resolveSeason3MapIDByActivityID, deps.resolveSeason3TeleportSpellIDByMapID)
+  deps.printFn(
+    string.format(
+      "TP host detail active=%s activityID=%s mapID=%s spell=%s",
       tostring(type(entryInfo) == "table" and entryInfo.active or nil),
       tostring(hostedID),
+      tostring(hostedMapID),
       tostring(hostedSpell)
     )
   )
@@ -103,8 +118,9 @@ end
 local function ForceTeleportTestTarget(deps)
   local L = deps.getL()
   local dungeon = L.TESTALL_DUMMY_DUNGEON or "The Dawnbreaker"
-  local spellID = deps.resolveSeason3TeleportSpellID(nil, dungeon)
-  deps.setLatestQueueState(dungeon, nil, spellID)
+  local targetMapID = 2662
+  local spellID = deps.resolveSeason3TeleportSpellIDByMapID(targetMapID)
+  deps.setLatestQueueState(dungeon, nil, spellID, targetMapID)
   deps.updateMPlusTeleportButton()
   local msg = string.format(L.JOINED_FROM_QUEUE_DUNGEON, L.TESTALL_DUMMY_GROUP or L.UNKNOWN_GROUP, dungeon)
   deps.showCenterNotice(msg, 20, dungeon, nil)
@@ -125,15 +141,19 @@ function TeleportDebug.CreateController(opts)
     getTeleportCooldownRemaining = RequireFunction(opts.getTeleportCooldownRemaining, "getTeleportCooldownRemaining"),
     formatCooldownSeconds = RequireFunction(opts.formatCooldownSeconds, "formatCooldownSeconds"),
     getLatestQueueState = RequireFunction(opts.getLatestQueueState, "getLatestQueueState"),
+    resolveSeason3MapIDByActivityID = RequireFunction(
+      opts.resolveSeason3MapIDByActivityID,
+      "resolveSeason3MapIDByActivityID"
+    ),
     resolveSeason3TeleportSpellIDByActivityID = RequireFunction(
       opts.resolveSeason3TeleportSpellIDByActivityID,
       "resolveSeason3TeleportSpellIDByActivityID"
     ),
-    getNormalizedActiveEntryInfo = RequireFunction(opts.getNormalizedActiveEntryInfo, "getNormalizedActiveEntryInfo"),
-    resolveSeason3TeleportSpellID = RequireFunction(
-      opts.resolveSeason3TeleportSpellID,
-      "resolveSeason3TeleportSpellID"
+    resolveSeason3TeleportSpellIDByMapID = RequireFunction(
+      opts.resolveSeason3TeleportSpellIDByMapID,
+      "resolveSeason3TeleportSpellIDByMapID"
     ),
+    getNormalizedActiveEntryInfo = RequireFunction(opts.getNormalizedActiveEntryInfo, "getNormalizedActiveEntryInfo"),
     getCenterNoticeTeleportButton = RequireFunction(
       opts.getCenterNoticeTeleportButton,
       "getCenterNoticeTeleportButton"

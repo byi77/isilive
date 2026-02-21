@@ -1,7 +1,7 @@
 # isiLive Architecture
 
-Version baseline: `0.9.36`
-Last updated: `2026-02-20`
+Version baseline: `0.9.38`
+Last updated: `2026-02-21`
 
 ## Purpose
 
@@ -45,14 +45,16 @@ WoW Event
 
 ## Deterministic Rule Set
 
-1. Prefer concrete activity/map/spell data over fuzzy name matching.
-2. Avoid fallback-of-fallback chains when a primary source is available.
+1. Resolve dungeon targets only through concrete `activityID -> mapID -> spellID` data.
+2. If `mapID` context is missing or ambiguous, keep target unresolved (no name/token guessing).
 3. Keep leader-only actions explicit and disabled when unauthorized.
 4. Keep combat-safe UI updates deferred when protected operations are blocked, and skip frame drag start/stop during combat lockdown.
-5. For shared-portcast spells, prioritize exact activity map matching over spell-only suppression.
-6. Do not clear highlight state from ambiguous shared spell mappings when exact map context is unknown.
-7. Do not clear queue-derived target on negative application follow-up events while already grouped.
-8. Keep `advancedCombatLogging` hard-enabled and trigger Blizzard damage-meter reset on challenge start when API support exists.
+5. Keep teleport-grid button strata/level synchronized with main-frame strata/level.
+6. For shared-portcast spells, prioritize exact activity map matching over spell-only suppression.
+7. Do not clear highlight state from ambiguous shared spell mappings when exact map context is unknown.
+8. Do not clear queue-derived target on negative application follow-up events while already grouped.
+9. Keep `advancedCombatLogging` hard-enabled and trigger Blizzard damage-meter reset on challenge start when API support exists.
+10. Capture per-player RIO baseline on challenge start and render delta only as non-negative `(+X)` prefix.
 
 ## Deterministic Validation Gates
 
@@ -65,21 +67,21 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/lua_metrics_check.lua`
 2. Runtime logic checks:
    - `lua tools/validate_usecases.lua`
-3. `tools/validate_usecases.lua` covers 82 scenarios across 15 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh logic.
+3. `tools/validate_usecases.lua` covers 98 scenarios across 18 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.36     |
+| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.38     |
 |--------------------------------------------------------------------------------------------------|
-| Spec         Name              Flag        Key         iLvl      RIO      M+ Management M+travel |
+| Spec         Name              Flag        Key         iLvl      RIO      M+Managment  M+Travel   |
 |--------------------------------------------------------------------------------------------------|
-| [Tank]       PlayerOne         DE          DB +14      633       3521                           |
-| [Healer]     PlayerTwo         EN          HOA +12     629       3410                           |
-| [DPS]        PlayerThree       FR          -           631       3377      [Readycheck]         |
-| [DPS]        PlayerFour        ES          AK +10      626       3290      [Countdown10]        |
-| [DPS]        PlayerFive        DE          OFG +11     628       3333      [Countdown 0]        |
+| [Tank]       PlayerOne         DE          DB +14      633       (+12)3521                      |
+| [Healer]     PlayerTwo         EN          HOA +12     629       (+0)3410                       |
+| [DPS]        PlayerThree       FR          -           631       3377         [Readycheck]      |
+| [DPS]        PlayerFour        ES          AK +10      626       3290         [Countdown10]     |
+| [DPS]        PlayerFive        DE          OFG +11     628       3333         [Countdown 0]     |
 |                                                                       [Refresh]                  |
 |                                                                       [Share Keys]               |
 |                                                                 [Teleport Grid Buttons...]       |

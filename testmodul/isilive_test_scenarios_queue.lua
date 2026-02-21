@@ -37,6 +37,28 @@ return function(test, ctx)
     end)
   end)
 
+  test("Queue does not guess first candidate when no concrete map is available", function()
+    WithGlobals({
+      C_LFGList = {
+        GetActivityInfoTable = function(_activityID)
+          return { isMythicPlusActivity = true, categoryID = 2 }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_queue.lua" })
+      local result = {
+        activityID = 9001,
+        activityIDs = { 9002 },
+      }
+
+      local resolvedID = addon.Queue.GetSearchResultActivityID(result, function(_activityID)
+        return nil
+      end)
+
+      Assert.Nil(resolvedID, "queue activity should remain unresolved without concrete map context")
+    end)
+  end)
+
   test("Queue activity name lookup is protected against API errors", function()
     WithGlobals({
       C_LFGList = {

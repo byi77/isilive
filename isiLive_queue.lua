@@ -61,6 +61,20 @@ function Queue.GetActivityName(activityID)
   return nil
 end
 
+local function HasConcreteActivityMap(activityID)
+  if not activityID or not (C_LFGList and C_LFGList.GetActivityInfoTable) then
+    return false
+  end
+
+  local ok, info = pcall(C_LFGList.GetActivityInfoTable, activityID)
+  if not ok or type(info) ~= "table" then
+    return false
+  end
+
+  local mapID = tonumber(rawget(info, "mapID") or rawget(info, "mapId"))
+  return mapID and mapID > 0
+end
+
 function Queue.GetSearchResultActivityID(result, resolveTeleportSpellIDByActivityID)
   if not result then
     return nil
@@ -117,18 +131,12 @@ function Queue.GetSearchResultActivityID(result, resolveTeleportSpellIDByActivit
         if isDungeonLike and mapID and mapID > 0 then
           bestDungeonCandidate = id
         end
-      elseif resolveResult == true then
-        bestDungeonCandidate = id
       end
     end
   end
 
   if bestDungeonCandidate then
     return bestDungeonCandidate
-  end
-
-  if #candidateIDs > 0 then
-    return candidateIDs[1]
   end
 
   return nil
@@ -227,7 +235,7 @@ local function ReadApplicationInfoStruct(data, resolveTeleportSpellIDByActivityI
 
   if not activityID then
     local directActivityID = data.activityID
-    if type(directActivityID) == "number" and Queue.GetActivityName(directActivityID) then
+    if type(directActivityID) == "number" and HasConcreteActivityMap(directActivityID) then
       activityID = directActivityID
     end
   end
@@ -309,7 +317,7 @@ local function ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivi
 
     if not resultActivityID and type(data.activityIDs) == "table" and not IsSecretValue(data.activityIDs) then
       for _, id in pairs(data.activityIDs) do
-        if not IsSecretValue(id) and type(id) == "number" and Queue.GetActivityName(id) then
+        if not IsSecretValue(id) and type(id) == "number" and HasConcreteActivityMap(id) then
           resultActivityID = id
           break
         end

@@ -30,8 +30,34 @@ function TestMode.CreateController(opts)
   local setCenterNoticeVisible = RequireFunction(opts.setCenterNoticeVisible, "setCenterNoticeVisible")
   local hideInviteHint = RequireFunction(opts.hideInviteHint, "hideInviteHint")
   local triggerGroupRosterUpdate = RequireFunction(opts.triggerGroupRosterUpdate, "triggerGroupRosterUpdate")
+  local captureRioBaselineSnapshot = opts.captureRioBaselineSnapshot or function() end
+  local clearRioBaselineSnapshot = opts.clearRioBaselineSnapshot or function() end
 
   assert(type(printFn) == "function", "isiLive: TestMode requires printFn")
+  assert(type(captureRioBaselineSnapshot) == "function", "isiLive: TestMode requires captureRioBaselineSnapshot")
+  assert(type(clearRioBaselineSnapshot) == "function", "isiLive: TestMode requires clearRioBaselineSnapshot")
+
+  local function ApplyDummyRioDeltaPreview(roster)
+    if type(roster) ~= "table" then
+      return
+    end
+
+    local incrementsByUnit = {
+      player = 15,
+      party1 = 12,
+      party2 = 9,
+      party3 = 6,
+      party4 = 3,
+    }
+
+    for unit, increment in pairs(incrementsByUnit) do
+      local info = roster[unit]
+      local currentRio = info and tonumber(info.rio)
+      if currentRio then
+        info.rio = math.max(0, math.floor(currentRio) + increment)
+      end
+    end
+  end
 
   local controller = {}
 
@@ -41,7 +67,10 @@ function TestMode.CreateController(opts)
       isTestMode = true,
       isTestAllMode = true,
     })
-    setRoster(buildDummyRoster())
+    local dummyRoster = buildDummyRoster()
+    setRoster(dummyRoster)
+    captureRioBaselineSnapshot()
+    ApplyDummyRioDeltaPreview(dummyRoster)
     setMainFrameVisible(true)
     updateUI()
     updateLeaderButtons()
@@ -63,6 +92,7 @@ function TestMode.CreateController(opts)
       isTestAllMode = false,
     })
     printFn(L.TEST_DISABLED)
+    clearRioBaselineSnapshot()
     setRoster({})
     resetInspectAll()
     clearLatestQueueState()
@@ -97,7 +127,10 @@ function TestMode.CreateController(opts)
       isTestAllMode = false,
     })
     printFn(L.TEST_ENABLED)
-    setRoster(buildDummyRoster())
+    local dummyRoster = buildDummyRoster()
+    setRoster(dummyRoster)
+    captureRioBaselineSnapshot()
+    ApplyDummyRioDeltaPreview(dummyRoster)
     setMainFrameVisible(true)
     updateUI()
     updateLeaderButtons()

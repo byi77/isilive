@@ -220,4 +220,19 @@ return function(test, ctx)
     Assert.Equal(resetCalls, 1, "challenge start must hard-reset Blizzard damage meter when API is available")
     Assert.Equal(setCalls, 1, "challenge start should enforce advanced combat logging")
   end)
+
+  test("Event handlers capture RIO baseline snapshot on challenge start", function()
+    local captureCalls = 0
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      captureRioBaselineSnapshot = function()
+        captureCalls = captureCalls + 1
+      end,
+    })
+
+    controller:Dispatch("CHALLENGE_MODE_START")
+
+    Assert.Equal(captureCalls, 1, "challenge start must capture one RIO baseline snapshot")
+  end)
 end

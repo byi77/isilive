@@ -8,13 +8,10 @@ addonTable.Teleport = Teleport
 local SeasonData = addonTable.SeasonData or {}
 local MAP_TO_TELEPORT = SeasonData.MAP_TO_TELEPORT or {}
 local MAP_SHORT_CODES = SeasonData.MAP_SHORT_CODES or {}
-local ECO_DOME_SPELL_ID = 1237215
-local TAZAVESH_SPELL_ID = 367416
 
--- Cache: ActivityID -> SpellID
+-- Cache: ActivityID -> SpellID / MapID
 local ACTIVITY_TO_TELEPORT_CACHE = {}
-local TAZAVESH_TOKENS_CACHE = nil
-local ECO_DOME_TOKENS_CACHE = nil
+local ACTIVITY_TO_MAP_CACHE = {}
 
 local pendingCombatUpdates = {}
 local function ClearTable(t)
@@ -125,173 +122,76 @@ local function CollectMapIDsForSpell(spellID)
   return mapIDs
 end
 
-local function NormalizeNameForMatch(text)
-  if type(text) ~= "string" then
-    return ""
-  end
-  local normalized = string.lower(text)
-  normalized = normalized:gsub("[%p%c]", " ")
-  normalized = normalized:gsub("%s+", " ")
-  normalized = normalized:gsub("^%s+", "")
-  normalized = normalized:gsub("%s+$", "")
-  return normalized
-end
-
-local function GetTazaveshMatchTokens()
-  if TAZAVESH_TOKENS_CACHE then
-    return TAZAVESH_TOKENS_CACHE
-  end
-
-  local tokens = {}
-  local seen = {}
-  local function AddToken(raw)
-    local token = NormalizeNameForMatch(raw)
-    if token == "" or seen[token] then
-      return
-    end
-    seen[token] = true
-    table.insert(tokens, token)
-  end
-
-  local info = Teleport.GetSeason3TeleportInfoByMapID(2441)
-  if info and info.mapName then
-    AddToken(info.mapName)
-    for part in string.gmatch(info.mapName, "[^:/%-]+") do
-      AddToken(part)
-    end
-  end
-
-  -- Fallback aliases for cases where activity/map names are incomplete.
-  AddToken("Tazavesh")
-  AddToken("Streets of Wonder")
-  AddToken("So'leah's Gambit")
-  AddToken("Soleahs Gambit")
-
-  TAZAVESH_TOKENS_CACHE = tokens
-  return tokens
-end
-
-local function GetEcoDomeMatchTokens()
-  if ECO_DOME_TOKENS_CACHE then
-    return ECO_DOME_TOKENS_CACHE
-  end
-
-  local tokens = {}
-  local seen = {}
-  local function AddToken(raw)
-    local token = NormalizeNameForMatch(raw)
-    if token == "" or seen[token] then
-      return
-    end
-    seen[token] = true
-    table.insert(tokens, token)
-  end
-
-  local info = Teleport.GetSeason3TeleportInfoByMapID(2830)
-  if info and info.mapName then
-    AddToken(info.mapName)
-    for part in string.gmatch(info.mapName, "[^:/%-]+") do
-      AddToken(part)
-    end
-  end
-
-  -- Fallback aliases for localized queue/activity names.
-  AddToken("Eco-Dome Al'dani")
-  AddToken("Eco Dome Aldani")
-  AddToken("Biokuppel Al'dani")
-  AddToken("Biokuppel Aldani")
-  AddToken("Biokuppel")
-  AddToken("Oeko-Kuppel Al'dani")
-  AddToken("Oeko Kuppel Aldani")
-  AddToken("Öko-Kuppel Al'dani")
-  AddToken("Öko Kuppel Aldani")
-
-  ECO_DOME_TOKENS_CACHE = tokens
-  return tokens
-end
-
-local function ResolveSeason3TeleportSpellIDByName(nameToUse)
-  if type(nameToUse) ~= "string" or nameToUse == "" then
-    return nil
-  end
-
-  local normalizedName = NormalizeNameForMatch(nameToUse)
-  if normalizedName == "" then
-    return nil
-  end
-
-  for _, token in ipairs(GetTazaveshMatchTokens()) do
-    if token ~= "" and string.find(normalizedName, token, 1, true) then
-      return TAZAVESH_SPELL_ID
-    end
-  end
-
-  for _, token in ipairs(GetEcoDomeMatchTokens()) do
-    if token ~= "" and string.find(normalizedName, token, 1, true) then
-      return ECO_DOME_SPELL_ID
-    end
-  end
-
-  for mapID in pairs(MAP_TO_TELEPORT) do
-    local info = Teleport.GetSeason3TeleportInfoByMapID(mapID)
-    if info and info.mapName then
-      local normalizedMapName = NormalizeNameForMatch(info.mapName)
-      if normalizedMapName ~= "" and string.find(normalizedName, normalizedMapName, 1, true) then
-        return info.spellID
-      end
-    end
-    if info and info.mapName and string.find(nameToUse, info.mapName, 1, true) then
-      return info.spellID
-    end
-  end
-
-  return nil
-end
-
 function Teleport.AddActivityToTeleportCache(activityID, spellID)
   if activityID and spellID then
     ACTIVITY_TO_TELEPORT_CACHE[activityID] = spellID
   end
 end
 
+function Teleport.ResolveSeason3MapIDByActivityID(activityID)
+  local numericActivityID = tonumber(activityID)
+  if not numericActivityID or numericActivityID <= 0 then
+    return nil
+  end
+
+  local cached = ACTIVITY_TO_MAP_CACHE[numericActivityID]
+  if cached ~= nil then
+    if cached == false then
+      return nil
+    end
+    return cached
+  end
+
+  if not (C_LFGList and C_LFGList.GetActivityInfoTable) then
+    ACTIVITY_TO_MAP_CACHE[numericActivityID] = false
+    return nil
+  end
+
+  local ok, activityInfo = pcall(C_LFGList.GetActivityInfoTable, numericActivityID)
+  if not ok or type(activityInfo) ~= "table" then
+    ACTIVITY_TO_MAP_CACHE[numericActivityID] = false
+    return nil
+  end
+
+  local mapID = tonumber(rawget(activityInfo, "mapID") or rawget(activityInfo, "mapId"))
+  if not mapID or mapID <= 0 then
+    ACTIVITY_TO_MAP_CACHE[numericActivityID] = false
+    return nil
+  end
+
+  ACTIVITY_TO_MAP_CACHE[numericActivityID] = mapID
+  return mapID
+end
+
 function Teleport.ResolveTeleportSpellByActivityID(activityID)
-  if not activityID then
+  local numericActivityID = tonumber(activityID)
+  if not numericActivityID or numericActivityID <= 0 then
     return nil
   end
 
   -- Check cache first
-  if ACTIVITY_TO_TELEPORT_CACHE[activityID] then
-    return ACTIVITY_TO_TELEPORT_CACHE[activityID]
+  local cached = ACTIVITY_TO_TELEPORT_CACHE[numericActivityID]
+  if cached ~= nil then
+    if cached == false then
+      return nil
+    end
+    return cached
   end
 
-  -- Try via GetActivityInfoTable
-  if not (C_LFGList and C_LFGList.GetActivityInfoTable) then
+  local mapID = Teleport.ResolveSeason3MapIDByActivityID(numericActivityID)
+  if not mapID then
+    ACTIVITY_TO_TELEPORT_CACHE[numericActivityID] = false
     return nil
   end
 
-  local ok, activityInfo = pcall(C_LFGList.GetActivityInfoTable, activityID)
-  if ok and type(activityInfo) == "table" then
-    local mapID = tonumber(rawget(activityInfo, "mapID") or rawget(activityInfo, "mapId"))
-
-    -- Try via mapID
-    if mapID and MAP_TO_TELEPORT[mapID] then
-      local spellID = ResolveMappedSpellID(mapID)
-      if spellID then
-        ACTIVITY_TO_TELEPORT_CACHE[activityID] = spellID
-        return spellID
-      end
-    end
-
-    local activityName = rawget(activityInfo, "fullName")
-      or rawget(activityInfo, "shortName")
-      or rawget(activityInfo, "activityName")
-    local nameFallbackSpellID = ResolveSeason3TeleportSpellIDByName(activityName)
-    if nameFallbackSpellID then
-      ACTIVITY_TO_TELEPORT_CACHE[activityID] = nameFallbackSpellID
-      return nameFallbackSpellID
-    end
+  local spellID = Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
+  if not spellID then
+    ACTIVITY_TO_TELEPORT_CACHE[numericActivityID] = false
+    return nil
   end
-  return nil
+
+  ACTIVITY_TO_TELEPORT_CACHE[numericActivityID] = spellID
+  return spellID
 end
 
 function Teleport.GetSeason3TeleportInfoByMapID(mapID)
@@ -379,33 +279,12 @@ function Teleport.ResolveSeason3TeleportSpellIDByActivityID(activityID)
     return nil
   end
 
-  -- Use the cache function which already performs the full lookup (cache + LFG fallback).
+  -- Strict resolver: activityID -> mapID -> spellID only.
   return Teleport.ResolveTeleportSpellByActivityID(activityID)
 end
 
-function Teleport.ResolveSeason3TeleportSpellID(activityID, dungeonName)
-  local spellFromActivityID = Teleport.ResolveSeason3TeleportSpellIDByActivityID(activityID)
-  if spellFromActivityID then
-    return spellFromActivityID
-  end
-
-  -- Fallback: Name resolution
-  local nameToUse = dungeonName
-  if (not nameToUse or nameToUse == "") and activityID and C_LFGList and C_LFGList.GetActivityInfoTable then
-    local ok, info = pcall(C_LFGList.GetActivityInfoTable, activityID)
-    if ok and info then
-      nameToUse = info.fullName or info.shortName
-    end
-  end
-
-  if nameToUse and nameToUse ~= "" then
-    local spellFromName = ResolveSeason3TeleportSpellIDByName(nameToUse)
-    if spellFromName then
-      return spellFromName
-    end
-  end
-
-  return nil
+function Teleport.ResolveSeason3TeleportSpellID(activityID, _dungeonName)
+  return Teleport.ResolveSeason3TeleportSpellIDByActivityID(activityID)
 end
 
 function Teleport.ApplySecureSpellToButton(button, spellID)

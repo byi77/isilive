@@ -40,6 +40,7 @@ local function BuildDeps(opts)
     setMainFrameVisible = opts.setMainFrameVisible or function(_visible) end,
     updateLeaderButtons = opts.updateLeaderButtons or function() end,
     clearLatestQueueTarget = opts.clearLatestQueueTarget or function() end,
+    clearRioBaselineSnapshot = opts.clearRioBaselineSnapshot or function() end,
     clearKnownUsers = opts.clearKnownUsers or function() end,
     resetInspectAll = opts.resetInspectAll or function() end,
     resetInspectQueues = opts.resetInspectQueues or function() end,
@@ -83,6 +84,7 @@ end
 local function HandleNoGroup(deps, wasInGroupBefore)
   deps.setWasGroupLeader(nil)
   deps.setWasRaidGroup(false)
+  deps.clearRioBaselineSnapshot()
   local leftGroupNow = wasInGroupBefore and not deps.isInGroup()
   if leftGroupNow then
     deps.clearLatestQueueTarget()

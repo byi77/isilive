@@ -5,6 +5,30 @@ addonTable = addonTable or {}
 local Status = {}
 addonTable.Status = Status
 
+local MYTHIC_DIFFICULTY_IDS = {
+  [8] = true,
+  [23] = true,
+  [24] = true,
+  [167] = true,
+}
+
+local HEROIC_DIFFICULTY_IDS = {
+  [2] = true,
+  [174] = true,
+}
+
+local function BuildDungeonContextSignature(instanceType, difficultyID, instanceName, isMythic)
+  if instanceType ~= "party" then
+    return nil
+  end
+
+  return table.concat({
+    tostring(instanceName or ""),
+    tostring(difficultyID or ""),
+    tostring(isMythic and 1 or 0),
+  }, "|")
+end
+
 local function GetAddonStateText(getL, flags)
   flags = flags or {}
   local L = getL()
@@ -22,44 +46,48 @@ end
 
 local function GetDungeonDifficultyLabel(getL)
   local L = getL()
-  local _, instanceType, difficultyID = GetInstanceInfo()
+  local instanceName, instanceType, difficultyID = GetInstanceInfo()
   if instanceType ~= "party" then
-    return L.DUNGEON_DIFF_OUTSIDE, false, false
+    return L.DUNGEON_DIFF_OUTSIDE, false, false, instanceType, difficultyID, instanceName
   end
 
   if C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID and C_ChallengeMode.GetActiveChallengeMapID() then
-    return L.DUNGEON_DIFF_MYTHIC, true, true
+    return L.DUNGEON_DIFF_MYTHIC, true, true, instanceType, difficultyID, instanceName
   end
 
   if difficultyID == 1 then
-    return L.DUNGEON_DIFF_NORMAL, false, true
+    return L.DUNGEON_DIFF_NORMAL, false, true, instanceType, difficultyID, instanceName
   end
-  if difficultyID == 2 then
-    return L.DUNGEON_DIFF_HEROIC, false, true
+  if HEROIC_DIFFICULTY_IDS[difficultyID] then
+    return L.DUNGEON_DIFF_HEROIC, false, true, instanceType, difficultyID, instanceName
   end
-  if difficultyID == 8 or difficultyID == 23 or difficultyID == 24 or difficultyID == 167 then
-    return L.DUNGEON_DIFF_MYTHIC, true, true
+  if MYTHIC_DIFFICULTY_IDS[difficultyID] then
+    return L.DUNGEON_DIFF_MYTHIC, true, true, instanceType, difficultyID, instanceName
   end
 
-  return L.DUNGEON_DIFF_UNKNOWN, false, true
+  return L.DUNGEON_DIFF_UNKNOWN, false, true, instanceType, difficultyID, instanceName
 end
 
 local function MaybeShowNonMythicDungeonEntryNotice(state, deps)
   local L = deps.getL()
-  local _, _, inDungeon = GetDungeonDifficultyLabel(deps.getL)
+  local isMythic, inDungeon, instanceType, difficultyID, instanceName = select(2, GetDungeonDifficultyLabel(deps.getL))
+  local dungeonContextSignature = BuildDungeonContextSignature(instanceType, difficultyID, instanceName, isMythic)
 
   if state.wasInDungeon == nil then
     state.wasInDungeon = inDungeon
+    state.lastDungeonContextSignature = dungeonContextSignature
     return
   end
 
   if not inDungeon then
     state.nonMythicNoticeToken = state.nonMythicNoticeToken + 1
+    state.lastAnnouncedNonMythicSignature = nil
     deps.hideCenterNotice()
   end
 
+  local contextChanged = inDungeon and dungeonContextSignature ~= state.lastDungeonContextSignature
   local enteredDungeon = inDungeon and not state.wasInDungeon
-  if enteredDungeon then
+  if enteredDungeon or contextChanged then
     state.nonMythicNoticeToken = state.nonMythicNoticeToken + 1
     local token = state.nonMythicNoticeToken
 
@@ -74,6 +102,18 @@ local function MaybeShowNonMythicDungeonEntryNotice(state, deps)
       if confirmedText == L.DUNGEON_DIFF_UNKNOWN then
         return
       end
+      local _, _, _, confirmedInstanceType, confirmedDifficultyID, confirmedInstanceName =
+        GetDungeonDifficultyLabel(deps.getL)
+      local confirmedSignature = BuildDungeonContextSignature(
+        confirmedInstanceType,
+        confirmedDifficultyID,
+        confirmedInstanceName,
+        confirmedMythic
+      )
+      if confirmedSignature == state.lastAnnouncedNonMythicSignature then
+        return
+      end
+      state.lastAnnouncedNonMythicSignature = confirmedSignature
       deps.showCenterNotice(string.format(L.NON_MYTHIC_ENTERED, confirmedText), 120, nil, nil, {
         blink = true,
         fontScale = 1.35,
@@ -89,6 +129,7 @@ local function MaybeShowNonMythicDungeonEntryNotice(state, deps)
   end
 
   state.wasInDungeon = inDungeon
+  state.lastDungeonContextSignature = dungeonContextSignature
 end
 
 local function BuildStatusLineText(deps, flags)
@@ -123,6 +164,8 @@ function Status.CreateController(opts)
   local state = {
     wasInDungeon = nil,
     nonMythicNoticeToken = 0,
+    lastDungeonContextSignature = nil,
+    lastAnnouncedNonMythicSignature = nil,
   }
 
   local controller = {}

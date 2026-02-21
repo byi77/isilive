@@ -146,6 +146,7 @@ local ApplyKnownKeyToRosterEntry
 local latestQueueDungeonName
 local latestQueueActivityID
 local latestQueueTeleportSpellID
+local latestQueueMapID
 local ApplyLocalizationToUI
 local bindingController
 local keySyncController
@@ -163,6 +164,8 @@ local statusLine
 local mplusTeleportButtons
 local roster = {}
 local activeJoinedKeyMapID = nil
+local rioBaselineByPlayerKey = {}
+local hasRioBaselineSnapshot = false
 
 local function ApplyHotkeyBindings()
   if bindingController then
@@ -177,6 +180,7 @@ local function StartBindingWatchdog()
 end
 
 local ResolveSeason3TeleportSpellIDByActivityID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByActivityID
+local ResolveSeason3MapIDByActivityID = isiLiveTeleport.ResolveSeason3MapIDByActivityID
 local ResolveSeason3TeleportSpellID = isiLiveTeleport.ResolveSeason3TeleportSpellID
 local ApplySecureSpellToButton = isiLiveTeleport.ApplySecureSpellToButton
 
@@ -265,6 +269,7 @@ local pendingQueueJoinInfo = nil
 latestQueueDungeonName = nil
 latestQueueActivityID = nil
 latestQueueTeleportSpellID = nil
+latestQueueMapID = nil
 local isTestMode = false
 local isStopped = false
 local isPaused = false
@@ -301,6 +306,86 @@ local function SetRoster(value)
   roster = value or {}
 end
 
+local function NormalizePlayerKey(name, realm)
+  if isiLiveSync and type(isiLiveSync.NormalizePlayerKey) == "function" then
+    return isiLiveSync.NormalizePlayerKey(name, realm)
+  end
+
+  local normalizedName = name and tostring(name) or ""
+  local normalizedRealm = realm and tostring(realm) or ""
+  if normalizedRealm == "" then
+    normalizedRealm = GetRealmName() or ""
+  end
+  return string.lower(normalizedName .. "-" .. normalizedRealm)
+end
+
+local function BuildRosterInfoPlayerKey(info)
+  if type(info) ~= "table" then
+    return nil
+  end
+
+  local name = info.name
+  if type(name) ~= "string" or name == "" then
+    return nil
+  end
+
+  return NormalizePlayerKey(name, info.realm)
+end
+
+local function ClearRioBaselineSnapshot()
+  rioBaselineByPlayerKey = {}
+  hasRioBaselineSnapshot = false
+end
+
+local function CaptureRioBaselineSnapshot()
+  local snapshot = {}
+  local hasSnapshotData = false
+
+  for unit, info in pairs(roster) do
+    local playerKey = BuildRosterInfoPlayerKey(info)
+    if playerKey and playerKey ~= "" then
+      local rioValue = tonumber(info and info.rio)
+      if not rioValue then
+        rioValue = tonumber(GetUnitRio(unit))
+      end
+      if rioValue then
+        snapshot[playerKey] = math.floor(rioValue)
+        hasSnapshotData = true
+      end
+    end
+  end
+
+  rioBaselineByPlayerKey = snapshot
+  hasRioBaselineSnapshot = hasSnapshotData
+end
+
+local function GetRioDeltaForRosterInfo(info)
+  if not hasRioBaselineSnapshot then
+    return nil
+  end
+
+  local playerKey = BuildRosterInfoPlayerKey(info)
+  if not playerKey then
+    return nil
+  end
+
+  local baselineRio = rioBaselineByPlayerKey[playerKey]
+  if baselineRio == nil then
+    return nil
+  end
+
+  local currentRio = tonumber(info and info.rio)
+  if not currentRio then
+    return nil
+  end
+
+  local delta = math.floor(currentRio) - baselineRio
+  if delta < 0 then
+    return 0
+  end
+  return delta
+end
+
 local function ResetInspectAll()
   inspectController.ResetAll()
 end
@@ -320,6 +405,7 @@ local function ClearLatestQueueTarget()
   latestQueueDungeonName = nil
   latestQueueActivityID = nil
   latestQueueTeleportSpellID = nil
+  latestQueueMapID = nil
   activeJoinedKeyMapID = nil
 end
 
@@ -350,6 +436,12 @@ local initResult = isiLiveControllerInit.CreateControllers({
   resolveSeason3TeleportSpellIDByMapID = function(mapID)
     if isiLiveTeleport and isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID then
       return isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
+    end
+    return nil
+  end,
+  resolveSeason3MapIDByActivityID = function(activityID)
+    if isiLiveTeleport and isiLiveTeleport.ResolveSeason3MapIDByActivityID then
+      return isiLiveTeleport.ResolveSeason3MapIDByActivityID(activityID)
     end
     return nil
   end,
@@ -387,6 +479,7 @@ local initResult = isiLiveControllerInit.CreateControllers({
   getShortSpecLabel = GetShortSpecLabel,
   getLanguageFlagMarkup = isiLiveLocale.GetLanguageFlagMarkup,
   getDungeonShortCode = isiLiveTeleport.GetSeason3DungeonShortCode,
+  getRioDelta = GetRioDeltaForRosterInfo,
   resolveActiveKeyOwnerUnit = function()
     if ResolveActiveKeyOwnerUnit then
       return ResolveActiveKeyOwnerUnit()
@@ -437,11 +530,7 @@ local function GetNormalizedActiveEntryInfo()
 end
 
 local function ResolveActiveTeleportSpellID()
-  return highlightController.ResolveActiveTeleportSpellID(
-    latestQueueActivityID,
-    latestQueueDungeonName,
-    latestQueueTeleportSpellID
-  )
+  return highlightController.ResolveActiveTeleportSpellID(latestQueueActivityID, latestQueueMapID)
 end
 
 local function ResolveJoinedKeyMapID(activityID, spellID)
@@ -468,9 +557,11 @@ teleportDebugController = isiLiveTeleportDebug.CreateController({
   getTeleportCooldownRemaining = GetTeleportCooldownRemaining,
   formatCooldownSeconds = FormatCooldownSeconds,
   getLatestQueueState = function()
-    return latestQueueDungeonName, latestQueueActivityID, latestQueueTeleportSpellID
+    return latestQueueDungeonName, latestQueueActivityID, latestQueueTeleportSpellID, latestQueueMapID
   end,
+  resolveSeason3MapIDByActivityID = ResolveSeason3MapIDByActivityID,
   resolveSeason3TeleportSpellIDByActivityID = ResolveSeason3TeleportSpellIDByActivityID,
+  resolveSeason3TeleportSpellIDByMapID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID,
   getNormalizedActiveEntryInfo = GetNormalizedActiveEntryInfo,
   resolveSeason3TeleportSpellID = ResolveSeason3TeleportSpellID,
   getCenterNoticeTeleportButton = function()
@@ -480,10 +571,11 @@ teleportDebugController = isiLiveTeleportDebug.CreateController({
     return mplusTeleportButtons
   end,
   showCenterNotice = ShowCenterNotice,
-  setLatestQueueState = function(dungeonName, activityID, spellID)
+  setLatestQueueState = function(dungeonName, activityID, spellID, mapID)
     latestQueueDungeonName = dungeonName
     latestQueueActivityID = activityID
     latestQueueTeleportSpellID = spellID
+    latestQueueMapID = mapID
   end,
 })
 
@@ -589,22 +681,24 @@ queueFlowController = isiLiveQueueFlow.CreateController(isiLiveConfigBuilders.Bu
   setPendingQueueJoinInfo = function(value)
     pendingQueueJoinInfo = value
   end,
-  resolveSeason3TeleportSpellID = ResolveSeason3TeleportSpellID,
-  resolveSeason3TeleportSpellIDByActivityID = ResolveSeason3TeleportSpellIDByActivityID,
+  resolveSeason3MapIDByActivityID = ResolveSeason3MapIDByActivityID,
+  resolveSeason3TeleportSpellIDByMapID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID,
   resolveJoinedKeyMapID = ResolveJoinedKeyMapID,
   updateMPlusTeleportButton = UpdateMPlusTeleportButton,
   showInviteHint = ShowInviteHint,
   showCenterNotice = ShowCenterNotice,
   updateUI = UpdateUI,
   printFn = Print,
-  setQueueTargetState = function(dungeonName, activityID, spellID, joinedKeyMapID)
+  setQueueTargetState = function(dungeonName, activityID, spellID, joinedKeyMapID, mapID)
     latestQueueDungeonName = dungeonName
     latestQueueActivityID = activityID
     latestQueueTeleportSpellID = spellID
+    latestQueueMapID = mapID
     activeJoinedKeyMapID = joinedKeyMapID
   end,
   queueCaptureQueueJoinCandidate = isiLiveQueue.CaptureQueueJoinCandidate,
   isInChallengeMode = GetActiveChallengeMapID,
+  isInGroup = IsInGroup,
   isPlayerLeader = IsPlayerLeader,
   getTimeFn = GetTime,
 }))
@@ -654,7 +748,10 @@ testModeController = isiLiveTestMode.CreateController(isiLiveConfigBuilders.Buil
     latestQueueDungeonName = nil
     latestQueueActivityID = nil
     latestQueueTeleportSpellID = nil
+    latestQueueMapID = nil
   end,
+  captureRioBaselineSnapshot = CaptureRioBaselineSnapshot,
+  clearRioBaselineSnapshot = ClearRioBaselineSnapshot,
   updateMPlusTeleportButton = UpdateMPlusTeleportButton,
   setCenterNoticeVisible = SetCenterNoticeVisible,
   hideInviteHint = function()
@@ -705,7 +802,7 @@ local function EnqueueInspect(unit)
 end
 
 local function CheckIfEnteredTargetDungeon()
-  if not latestQueueTeleportSpellID and not latestQueueActivityID and not activeJoinedKeyMapID then
+  if not latestQueueMapID and not latestQueueActivityID and not activeJoinedKeyMapID then
     return
   end
 
@@ -727,29 +824,17 @@ local function CheckIfEnteredTargetDungeon()
   end
 
   local targetMapID = activeJoinedKeyMapID
-  if not targetMapID and (latestQueueActivityID or latestQueueTeleportSpellID) then
-    targetMapID = ResolveJoinedKeyMapID(latestQueueActivityID, latestQueueTeleportSpellID)
+  if not targetMapID and latestQueueMapID then
+    targetMapID = latestQueueMapID
+  end
+  if not targetMapID and latestQueueActivityID then
+    targetMapID = ResolveJoinedKeyMapID(latestQueueActivityID, nil)
   end
 
   if targetMapID and currentMapID == targetMapID then
     ClearLatestQueueTarget()
     UpdateMPlusTeleportButton()
     return
-  end
-
-  -- Only clear by spell mapping when it resolves to exactly one map.
-  -- Shared spells (e.g. both Tazavesh wings) must not clear ambiguously.
-  if
-    not targetMapID
-    and isiLiveTeleport
-    and isiLiveTeleport.ResolveSeason3MapIDsBySpellID
-    and latestQueueTeleportSpellID
-  then
-    local candidateMapIDs = isiLiveTeleport.ResolveSeason3MapIDsBySpellID(latestQueueTeleportSpellID)
-    if type(candidateMapIDs) == "table" and #candidateMapIDs == 1 and currentMapID == candidateMapIDs[1] then
-      ClearLatestQueueTarget()
-      UpdateMPlusTeleportButton()
-    end
   end
 end
 
@@ -811,6 +896,7 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   setMainFrameHeightSafe = SetMainFrameHeightSafe,
   updateLeaderButtons = UpdateLeaderButtons,
   clearLatestQueueTarget = ClearLatestQueueTarget,
+  clearRioBaselineSnapshot = ClearRioBaselineSnapshot,
   resetInspectAll = ResetInspectAll,
   resetInspectQueues = ResetInspectQueues,
   updateUI = UpdateUI,
@@ -886,6 +972,7 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   applyLocalizationToUI = ApplyLocalizationToUI,
   updateCountdownCancelButton = UpdateCountdownCancelButton,
   checkIfEnteredTargetDungeon = CheckIfEnteredTargetDungeon,
+  captureRioBaselineSnapshot = CaptureRioBaselineSnapshot,
   setCenterNoticeVisible = SetCenterNoticeVisible,
   getState = function()
     return {

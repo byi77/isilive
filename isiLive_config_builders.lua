@@ -27,8 +27,8 @@ function ConfigBuilders.BuildQueueFlowControllerOpts(ctx)
     getL = ctx.getL,
     getPendingQueueJoinInfo = ctx.getPendingQueueJoinInfo,
     setPendingQueueJoinInfo = ctx.setPendingQueueJoinInfo,
-    resolveSeason3TeleportSpellID = ctx.resolveSeason3TeleportSpellID,
-    resolveSeason3TeleportSpellIDByActivityID = ctx.resolveSeason3TeleportSpellIDByActivityID,
+    resolveSeason3MapIDByActivityID = ctx.resolveSeason3MapIDByActivityID,
+    resolveSeason3TeleportSpellIDByMapID = ctx.resolveSeason3TeleportSpellIDByMapID,
     resolveJoinedKeyMapID = ctx.resolveJoinedKeyMapID,
     updateMPlusTeleportButton = ctx.updateMPlusTeleportButton,
     showInviteHint = ctx.showInviteHint,
@@ -38,6 +38,7 @@ function ConfigBuilders.BuildQueueFlowControllerOpts(ctx)
     setQueueTargetState = ctx.setQueueTargetState,
     queueCaptureQueueJoinCandidate = ctx.queueCaptureQueueJoinCandidate,
     isInChallengeMode = ctx.isInChallengeMode,
+    isInGroup = ctx.isInGroup,
     isPlayerLeader = ctx.isPlayerLeader,
     getTimeFn = ctx.getTimeFn,
   }
@@ -62,6 +63,8 @@ function ConfigBuilders.BuildTestModeControllerOpts(ctx)
     setCenterNoticeVisible = ctx.setCenterNoticeVisible,
     hideInviteHint = ctx.hideInviteHint,
     triggerGroupRosterUpdate = ctx.triggerGroupRosterUpdate,
+    captureRioBaselineSnapshot = ctx.captureRioBaselineSnapshot,
+    clearRioBaselineSnapshot = ctx.clearRioBaselineSnapshot,
   }
 end
 
@@ -90,6 +93,7 @@ function ConfigBuilders.BuildGroupControllerDeps(ctx)
       setMainFrameVisible = ctx.setMainFrameVisible,
       updateLeaderButtons = ctx.updateLeaderButtons,
       clearLatestQueueTarget = ctx.clearLatestQueueTarget,
+      clearRioBaselineSnapshot = ctx.clearRioBaselineSnapshot,
       resetInspectAll = ctx.resetInspectAll,
       resetInspectQueues = ctx.resetInspectQueues,
       updateUI = ctx.updateUI,
@@ -170,6 +174,7 @@ local function BuildEventCallbacks(ctx)
     applyLocalizationToUI = ctx.applyLocalizationToUI,
     updateCountdownCancelButton = ctx.updateCountdownCancelButton,
     checkIfEnteredTargetDungeon = ctx.checkIfEnteredTargetDungeon,
+    captureRioBaselineSnapshot = ctx.captureRioBaselineSnapshot,
     setMainFrameHeightSafe = ctx.setMainFrameHeightSafe,
     setCenterNoticeVisible = ctx.setCenterNoticeVisible,
   }

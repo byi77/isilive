@@ -44,6 +44,9 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     setMainFrameVisible = RequireFunction(callbacks.setMainFrameVisible, "callbacks.setMainFrameVisible"),
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
     clearLatestQueueTarget = RequireFunction(callbacks.clearLatestQueueTarget, "callbacks.clearLatestQueueTarget"),
+    clearRioBaselineSnapshot = type(callbacks.clearRioBaselineSnapshot) == "function"
+        and callbacks.clearRioBaselineSnapshot
+      or function() end,
     clearKnownUsers = function()
       local sync = modules.sync
       if sync and sync.ClearKnownUsers then
@@ -205,6 +208,7 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   end
   config.applyKnownKeyToRosterEntry = RequireFunction(deps.applyKnownKeyToRosterEntry, "applyKnownKeyToRosterEntry")
   config.runFullRefresh = RequireFunction(deps.runFullRefresh, "runFullRefresh")
+  config.captureRioBaselineSnapshot = callbacks.captureRioBaselineSnapshot
 end
 
 function ControllerWiring.CreateEventHandlersController(eventHandlersModule, deps)

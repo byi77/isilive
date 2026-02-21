@@ -1,46 +1,159 @@
+local function BuildCreateFrameStub()
+  local createdFrames = {}
+
+  local function CreateFrameStub(_frameType)
+    local frame = {
+      _events = {},
+      _scripts = {},
+    }
+
+    function frame:SetScript(name, handler)
+      self._scripts[name] = handler
+    end
+
+    function frame:RegisterEvent(event)
+      self._events[event] = true
+    end
+
+    function frame:UnregisterEvent(event)
+      self._events[event] = nil
+    end
+
+    function frame:IsEventRegistered(event)
+      return self._events[event] == true
+    end
+
+    function frame:FireEvent(event)
+      local handler = self._scripts.OnEvent
+      if handler then
+        handler(self, event)
+      end
+    end
+
+    table.insert(createdFrames, frame)
+    return frame
+  end
+
+  return CreateFrameStub, createdFrames
+end
+
+local function BuildTeleportUICreateFrameStub()
+  local createdFrames = {}
+
+  local function CreateTextureStub()
+    local texture = {}
+    texture.SetAllPoints = function(_self) end
+    texture.SetTexCoord = function(_self, _x1, _x2, _y1, _y2) end
+    texture.SetTexture = function(_self, _value) end
+    texture.SetColorTexture = function(_self, _r, _g, _b, _a) end
+    texture.SetBlendMode = function(_self, _mode) end
+    texture.SetVertexColor = function(_self, _r, _g, _b, _a) end
+    texture.Hide = function(_self) end
+    texture.Show = function(_self) end
+    return texture
+  end
+
+  local function CreateAnimationGroupStub()
+    local group = { playing = false }
+    group.SetLooping = function(_self, _mode) end
+    group.CreateAnimation = function(_group, _kind)
+      local anim = {}
+      anim.SetScale = function(_self, _x, _y) end
+      anim.SetDuration = function(_self, _duration) end
+      anim.SetSmoothing = function(_self, _value) end
+      anim.SetOrder = function(_self, _value) end
+      anim.SetFromAlpha = function(_self, _value) end
+      anim.SetToAlpha = function(_self, _value) end
+      anim.SetTarget = function(_self, _target) end
+      return anim
+    end
+    function group:IsPlaying()
+      return self.playing
+    end
+    function group:Play()
+      self.playing = true
+    end
+    function group:Stop()
+      self.playing = false
+    end
+    return group
+  end
+
+  local function CreateFrameStub(_frameType, _name, _parent, _template)
+    local frame = {
+      _events = {},
+      _scripts = {},
+      _attrs = {},
+      _frameStrata = "MEDIUM",
+      _frameLevel = 1,
+    }
+
+    function frame:SetScript(name, handler)
+      self._scripts[name] = handler
+    end
+
+    function frame:RegisterEvent(event)
+      self._events[event] = true
+    end
+
+    function frame:UnregisterEvent(event)
+      self._events[event] = nil
+    end
+
+    function frame:IsEventRegistered(event)
+      return self._events[event] == true
+    end
+
+    function frame:FireEvent(event)
+      local handler = self._scripts.OnEvent
+      if handler then
+        handler(self, event)
+      end
+    end
+
+    frame.SetSize = function(_self, _w, _h) end
+    frame.SetPoint = function(_self, _point, _x, _y) end
+    frame.EnableMouse = function(_self, _enabled) end
+    frame.RegisterForClicks = function(_self, _down, _up) end
+    function frame:SetFrameStrata(value)
+      self._frameStrata = value
+    end
+    function frame:GetFrameStrata()
+      return self._frameStrata
+    end
+    function frame:SetFrameLevel(value)
+      self._frameLevel = value
+    end
+    function frame:GetFrameLevel()
+      return self._frameLevel
+    end
+    frame.CreateTexture = function(_self, _texName, _layer)
+      return CreateTextureStub()
+    end
+    frame.CreateAnimationGroup = function(_self)
+      return CreateAnimationGroupStub()
+    end
+    function frame:SetAttribute(key, value)
+      self._attrs[key] = value
+    end
+    function frame:GetAttribute(key)
+      return self._attrs[key]
+    end
+    frame.SetScale = function(_self, _scale) end
+    frame.SetAllPoints = function(_self) end
+    frame.SetDrawEdge = function(_self, _enabled) end
+
+    table.insert(createdFrames, frame)
+    return frame
+  end
+
+  return CreateFrameStub, createdFrames
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
-
-  local function BuildCreateFrameStub()
-    local createdFrames = {}
-
-    local function CreateFrameStub(_frameType)
-      local frame = {
-        _events = {},
-        _scripts = {},
-      }
-
-      function frame:SetScript(name, handler)
-        self._scripts[name] = handler
-      end
-
-      function frame:RegisterEvent(event)
-        self._events[event] = true
-      end
-
-      function frame:UnregisterEvent(event)
-        self._events[event] = nil
-      end
-
-      function frame:IsEventRegistered(event)
-        return self._events[event] == true
-      end
-
-      function frame:FireEvent(event)
-        local handler = self._scripts.OnEvent
-        if handler then
-          handler(self, event)
-        end
-      end
-
-      table.insert(createdFrames, frame)
-      return frame
-    end
-
-    return CreateFrameStub, createdFrames
-  end
 
   test("Teleport resolves shared-map spell IDs as deterministic sorted map list", function()
     local createFrameStub = BuildCreateFrameStub()
@@ -81,9 +194,13 @@ return function(test, ctx)
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
+      local mapFirst = addon.Teleport.ResolveSeason3MapIDByActivityID(9900)
+      local mapSecond = addon.Teleport.ResolveSeason3MapIDByActivityID(9900)
       local first = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9900)
       local second = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9900)
 
+      Assert.Equal(mapFirst, 2662, "activity map should resolve directly from activity info")
+      Assert.Equal(mapSecond, 2662, "activity map resolver should use cached value")
       Assert.Equal(first, 445414, "activity map should resolve to mapped teleport spell")
       Assert.Equal(second, 445414, "cached activity map should keep same resolved spell")
     end)
@@ -91,33 +208,22 @@ return function(test, ctx)
     Assert.Equal(activityInfoCalls, 1, "activity lookup should be cached after first successful resolve")
   end)
 
-  test("Teleport resolves Tazavesh via dungeon-name fallback tokens", function()
+  test("Teleport does not resolve by dungeon name without activityID", function()
     local createFrameStub = BuildCreateFrameStub()
 
     WithGlobals({
       CreateFrame = createFrameStub,
-      C_ChallengeMode = {
-        GetMapUIInfo = function(mapID)
-          if mapID == 2441 then
-            return "Tazavesh: Streets of Wonder"
-          end
-          if mapID == 2442 then
-            return "Tazavesh: So'leah's Gambit"
-          end
-          return "Map " .. tostring(mapID)
-        end,
-      },
     }, function()
       local addon = LoadAddonModules({
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
       local spellID = addon.Teleport.ResolveSeason3TeleportSpellID(nil, "Queue to Tazavesh Gambit")
-      Assert.Equal(spellID, 367416, "Tazavesh token matching should resolve shared teleport spell")
+      Assert.Nil(spellID, "name-only resolution must stay nil in strict mode")
     end)
   end)
 
-  test("Teleport resolves Eco-Dome via localized dungeon-name fallback tokens", function()
+  test("Teleport does not resolve localized dungeon names without activityID", function()
     local createFrameStub = BuildCreateFrameStub()
 
     WithGlobals({
@@ -128,11 +234,11 @@ return function(test, ctx)
         "isiLive_teleport.lua",
       })
       local spellID = addon.Teleport.ResolveSeason3TeleportSpellID(nil, "Biokuppel Al'dani")
-      Assert.Equal(spellID, 1237215, "localized Biokuppel token should resolve Eco-Dome teleport spell")
+      Assert.Nil(spellID, "localized name-only resolution must stay nil in strict mode")
     end)
   end)
 
-  test("Teleport resolves activity fallback by localized name when mapID is missing", function()
+  test("Teleport keeps activity unresolved when mapID is missing", function()
     local createFrameStub = BuildCreateFrameStub()
     local activityInfoCalls = 0
 
@@ -155,11 +261,11 @@ return function(test, ctx)
       local first = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9910)
       local second = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9910)
 
-      Assert.Equal(first, 1237215, "activity name fallback should resolve Eco-Dome teleport spell")
-      Assert.Equal(second, 1237215, "name-fallback result should be cached")
+      Assert.Nil(first, "activity without concrete mapID must remain unresolved")
+      Assert.Nil(second, "unresolved activity result should stay nil")
     end)
 
-    Assert.Equal(activityInfoCalls, 1, "activity lookup should be cached after name-fallback resolve")
+    Assert.Equal(activityInfoCalls, 1, "unresolved map lookups should still be cached")
   end)
 
   test("Teleport entry builder de-duplicates shared spells for grid rendering", function()
@@ -236,6 +342,75 @@ return function(test, ctx)
         createdFrames[1]:IsEventRegistered("PLAYER_REGEN_ENABLED"),
         "retry frame should unregister after draining pending updates"
       )
+    end)
+  end)
+
+  test("TeleportUI buttons follow main-frame strata instead of forcing HIGH", function()
+    local createFrameStub = BuildTeleportUICreateFrameStub()
+    local mainFrame = {
+      frameStrata = "MEDIUM",
+      frameLevel = 7,
+      GetFrameStrata = function(self)
+        return self.frameStrata
+      end,
+      GetFrameLevel = function(self)
+        return self.frameLevel
+      end,
+    }
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_teleport_ui.lua",
+      })
+
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = mainFrame,
+        applySecureSpellToButton = function(_button, _spellID)
+          return true
+        end,
+        getEntries = function()
+          return {
+            { spellID = 445414, mapID = 2662, mapName = "The Dawnbreaker" },
+          }
+        end,
+        getL = function()
+          return {}
+        end,
+        isSpellKnown = function(_spellID)
+          return true
+        end,
+        getTeleportCooldownRemaining = function(_spellID)
+          return 0
+        end,
+        formatCooldownSeconds = function(sec)
+          return tostring(sec or 0)
+        end,
+        getSpellCooldownSafe = function(_spellID)
+          return 0, 0, true
+        end,
+        applyCooldownFrameSafe = function(_frame, _start, _duration, _enabled) end,
+        getSpellTexture = function(_spellID)
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      controller.BuildButtons()
+      local buttons = controller.GetButtons()
+      Assert.Equal(#buttons, 1, "TeleportUI should create one button for one entry")
+      Assert.Equal(buttons[1]:GetFrameStrata(), "MEDIUM", "button strata must match main frame strata")
+      Assert.Equal(buttons[1]:GetFrameLevel(), 17, "button frame level should be main frame level plus offset")
+
+      mainFrame.frameStrata = "LOW"
+      mainFrame.frameLevel = 3
+      controller.UpdateButtons(nil)
+
+      Assert.Equal(buttons[1]:GetFrameStrata(), "LOW", "button strata should stay in sync with main frame")
+      Assert.Equal(buttons[1]:GetFrameLevel(), 13, "button level should re-sync when main frame level changes")
     end)
   end)
 end

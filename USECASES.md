@@ -1,7 +1,7 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.36`
-Last updated: `2026-02-20`
+Version baseline: `0.9.38`
+Last updated: `2026-02-21`
 
 ## Actors
 
@@ -25,16 +25,17 @@ Last updated: `2026-02-20`
 | UC-04 | Use portal cast | All portal casts receive 8h cooldown behavior |
 | UC-05 | Cooldown lifecycle | Cooldown expires naturally or resets after dungeon finish |
 | UC-06 | Share keys action | Group keys are announced in party chat via button |
+| UC-07 | RIO delta visibility | Per-run RIO delta is shown as non-negative `(+X)` prefix |
 
 ## UC-01 Invite Detection And Target Resolution
 
 Goal: detect queue invite/join context and identify the correct dungeon target without guessing.
 
 1. Trigger: LFG list and queue events arrive.
-2. Inputs: activity ID, pending status, group metadata, known season mapping.
-3. Processing: resolver prioritizes concrete teleport-mapped activity IDs over generic dungeon candidates.
+2. Inputs: activity ID, pending status, group metadata, known season map/teleport mapping.
+3. Processing: resolver uses strict `activityID -> mapID -> spellID` mapping only.
 4. Output: `targetMapID`, `targetTeleportSpellID`, and display dungeon name are stored.
-5. Success criteria: one deterministic target is selected or no target is set.
+5. Success criteria: one deterministic target is selected, or target remains unset when concrete map context is missing.
 
 ## UC-02 Chat Hint And Teleport Highlight
 
@@ -87,22 +88,36 @@ Goal: allow user to post current party keys quickly.
 3. Output: message is sent to `PARTY`, with local print fallback on send failure.
 4. Success criteria: chat line contains party key list in deterministic format.
 
+## UC-07 RIO Delta Visibility
+
+Goal: show pre/post-run rating change per player in roster without negative display noise.
+
+1. Trigger: `CHALLENGE_MODE_START` fires while roster is available.
+2. Processing: addon captures baseline RIO per normalized player identity.
+3. Trigger: roster is rendered after rating updates.
+4. Output: RIO column shows `(+X)RIO` when baseline+current values exist.
+5. Rule: delta is clamped to non-negative values (`+0` minimum); no minus rendering.
+6. Rule: test modes (`/isilive test`, `/isilive testall`) include visible positive dummy delta preview.
+7. Success criteria: display is stable per player across unit-slot changes and never shows negative delta.
+
 ## Non-Functional Rules
 
-1. No speculative behavior when concrete API data exists.
+1. No speculative behavior: unresolved/ambiguous map context must stay unresolved (no name/token fallback guessing).
 2. Combat-protected UI operations must be deferred safely; main-frame drag start/stop must no-op during combat lockdown.
 3. Leader-only actions must stay disabled for non-leaders.
 4. Hidden mode should halt non-essential processing.
 5. Runtime defaults are hard-enforced: `advancedCombatLogging=1` and challenge-start Blizzard damage-meter reset when API support exists.
+6. RIO delta display must be deterministic and non-negative (`(+X)` only).
 
 ## Automated Validation Mapping
 
 Runtime behavior in this document is validated by `tools/validate_usecases.lua`.
 
-1. UC-01/UC-02: queue target resolution priority and queue highlight behavior.
+1. UC-01/UC-02: strict queue target resolution and queue highlight behavior without speculative fallback.
 2. UC-03: exact-map suppression and shared-portcast ambiguity handling.
 3. UC-04/UC-05: cooldown recognition/format behavior and state handling.
 4. Event consistency: target clear behavior under API shape variants, grouped negative-application follow-up events, and protected API errors.
+5. UC-07: challenge-start baseline capture and roster `(+X)RIO` rendering rules (including non-negative clamp).
 
 ## Traceability To Source Files
 
@@ -112,5 +127,6 @@ Runtime behavior in this document is validated by `tools/validate_usecases.lua`.
 | Highlight resolution and inside-dungeon suppression | `isiLive_highlight.lua` |
 | Teleport spell mapping and cooldown behavior | `isiLive_teleport.lua`, `isiLive_spell_utils.lua`, `isiLive_teleport_ui.lua` |
 | Group lifecycle and roster rebuild | `isiLive_group.lua`, `isiLive_roster.lua` |
+| RIO baseline capture and delta preview | `isiLive_event_handlers.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua` |
 | UI actions and key sharing button | `isiLive_roster_panel.lua` |
 | Event routing and gating | `isiLive_events.lua`, `isiLive_event_handlers.lua` |

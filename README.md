@@ -3,16 +3,19 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.36`.
+Current addon version: `0.9.38`.
 
 ## Features
 
 - Group roster table with columns: `Spec`, `Name`, `Sprache/Flag`, `Key`, `iLvl`, `RIO`
 - Stable role sorting: `Tank -> Healer -> Damager`
 - Right-side controls: `Readycheck`, `Countdown10`, `Countdown 0`, `Refresh`, `Share Keys`
-- `M+travel` teleport grid with all Season dungeon teleports
+- Right-side headers: `M+Managment` and `M+Travel`
+- `M+Travel` teleport grid with all Season dungeon teleports
 - Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
 - Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14`)
+- `Key` column keeps `Shortcut +Level` on one line (no row-wrap bleed into next member line)
+- `RIO` column can show per-run delta as `(+X)RIO` (non-negative only; never minus)
 - Queue join detection with chat message, center notice, and invite hint
 - Dungeon teleport controls in center notice + right-side grid
 - Teleport cooldown shown as `HH:MM`
@@ -26,19 +29,23 @@ Current addon version: `0.9.36`.
 
 - Auto-open on small-group join
 - Auto-hide on M+ key start (`CHALLENGE_MODE_START`); can be manually opened (`CTRL+F9`) in "frozen" read-only state.
+- `CTRL+F9`: closing is always allowed (including combat); opening is blocked during combat.
 - Hidden window mode hard-stops non-essential scan/processing work, while hotkey/binding remains active and minimal small-group join transition is still allowed for auto-open
 - Key sync runs only while the main window is visible (hidden mode stays in sleep behavior)
-- Main window is movable via left/right drag while out of combat; top drag handle stays above overlays for reliable dragging
+- Main window is movable via left drag while out of combat; top drag handle stays above overlays for reliable dragging
+- Teleport grid buttons inherit main-frame strata/level to avoid overlay conflicts with external UI panels
 - Combat-safe frame updates: drag start/stop is ignored in combat and pending frame-height changes are applied on `PLAYER_REGEN_ENABLED`
 - Advanced combat logging (`advancedCombatLogging`) is hard-enforced to `ON`.
 - Blizzard damage meter reset is hard-enforced on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
+- `CHALLENGE_MODE_START` captures a per-player RIO baseline; roster displays clamped delta as `(+X)RIO` while data is available.
+- Test mode (`/isilive test`, `/isilive testall`) includes visible positive dummy RIO delta preview.
 - `Readycheck`, `Countdown10`, and `Countdown 0` are leader-only
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 
-## Use Case / Logic Baseline (v0.9.36)
+## Use Case / Logic Baseline (v0.9.38)
 
-Documented on `2026-02-20` as runtime behavior baseline for validation checks.
+Documented on `2026-02-21` as runtime behavior baseline for validation checks.
 
 1. Queue invite -> grouped flow
    - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`).
@@ -46,17 +53,17 @@ Documented on `2026-02-20` as runtime behavior baseline for validation checks.
 2. Group roster build and ordering
    - On group update, roster is rebuilt as `player + party1..party4`.
    - Display ordering is stable by role (`TANK -> HEALER -> DAMAGER -> NONE`) and unit priority.
-   - Per row data includes `Spec`, `Name`, `Language/Flag`, `Key`, `iLvl`, `RIO`.
+   - Per row data includes `Spec`, `Name`, `Language/Flag`, `Key`, `iLvl`, `RIO` and optional run-delta prefix `(+X)`.
 3. Key sync and key column
    - Addon sync channel exchanges `HELLO/ACK/KEY` between `isiLive` users.
    - `KEY:<mapID>:<level>` snapshots populate roster key text as `Shortcut +Level` (for example `DB +14`).
    - Active joined key owner is highlighted only when ownership is unambiguous.
 4. Teleport targeting and highlight logic
-    - Active target resolves in strict order: active listing activity, latest queue target spell, then queue activity/name resolution.
+    - Active target resolves in strict order: active listing `activityID -> mapID -> spellID`, then latest queue target `mapID -> spellID`.
+    - If concrete `mapID` context is missing, target stays unresolved (no name/token guessing).
     - Highlight is group-bound (no solo highlight), and updates on queue/listing/challenge transitions.
     - Exact target map has priority: if activity map is known, highlight clears only on that exact map.
-    - Shared-portcast dungeons (for example both Tazavesh wings) are handled as multi-map targets.
-    - Shared-portcast ambiguity is not guessed: spell-only suppression is used only when the spell maps uniquely to one target map.
+    - Shared-portcast dungeons (for example both Tazavesh wings) are handled as multi-map targets and remain unresolved if map context is ambiguous.
     - Negative queue application follow-up events do not clear queue-derived target while already grouped (prevents highlight drop when group fills to 5 members).
 5. Refresh and inspect pipeline
    - `Refresh` triggers forced sync reset (`HELLO/KEY`) and inspect cache invalidation/requeue.
@@ -151,17 +158,20 @@ Developer debug (hidden command, not listed in in-game help):
 
 ## Deterministic Usecase Gate
 
-`tools/validate_usecases.lua` runs a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 82 scenarios across 15 modules, including:
+`tools/validate_usecases.lua` runs a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 98 scenarios across 18 modules, including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
 - event-handler target-clear behavior under API shape variants
 - grouped negative-application follow-up stability (no target clear on full-group transition)
-- localized Eco-Dome/Biokuppel name fallback coverage for queue + teleport resolution
+- strict no-guess behavior when activity map context is missing in queue/teleport resolution
 - hardcoded advanced-combat-log enforcement and challenge-start damage-meter reset behavior
 - protected API fallback robustness in queue flow
 - cooldown recognition/format behavior for teleport spells
 - group lifecycle (join/leave/raid detection/queue capture/roster build)
+- non-Mythic status detection (normal/heroic transitions and heroic fallback difficulty IDs)
+- combat hotkey visibility rules (`CTRL+F9`: close allowed, open blocked during combat)
+- RIO baseline/delta rendering rules (`(+X)RIO`, no negative deltas) and challenge-start baseline capture
 - EventUtils negative/positive status detection and edge cases
 - locale key completeness (enUS ↔ deDE symmetry, format placeholders)
 - sync NormalizePlayerKey, MarkUser/IsUserKnown, key dedup, HELLO/KEY messages
@@ -215,10 +225,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.36`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.38`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.36` or `isiLive_beta_0.9.36`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.38` or `isiLive_beta_0.9.38`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -230,9 +240,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.36 && git push origin isiLive_release_0.9.36`
+3. Create and push stable tag: `git tag isiLive_release_0.9.38 && git push origin isiLive_release_0.9.38`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.36 && git push origin isiLive_alpha_0.9.36`
-   - beta: `git tag isiLive_beta_0.9.36 && git push origin isiLive_beta_0.9.36`
+   - alpha: `git tag isiLive_alpha_0.9.38 && git push origin isiLive_alpha_0.9.38`
+   - beta: `git tag isiLive_beta_0.9.38 && git push origin isiLive_beta_0.9.38`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.
