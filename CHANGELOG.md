@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-02-22 - Version 0.9.40
+- **RIO Delta Fixes:**
+  - Fixed runtime wiring regression where `enableRioDeltaDisplay` was not forwarded into event-handler setup, which could keep delta display permanently disabled.
+  - Delta display activation now happens after the delayed post-run refresh path (`CHALLENGE_MODE_COMPLETED`/`RESET`) instead of immediately at event time.
+  - Added retry logic for delayed post-run refresh attempts when refresh is still temporarily blocked by active challenge-state timing.
+  - Roster delta callback now receives the current roster unit token, so live unit RIO can be used during delta rendering.
+- **Validation:**
+  - Added deterministic regression coverage for delayed delta activation, retry behavior, and unit-aware delta rendering.
+  - `tools/validate_usecases.lua` now runs 101 deterministic scenarios across 18 modules.
+- **Documentation:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `RULES.md`, and `TODO.md` to `0.9.40` references and current RIO-delta runtime behavior.
+- TOC version bumped to `0.9.40`.
+
+## 2026-02-21 - Version 0.9.39
+- **Maintenance:**
+  - Documentation/version sync only (no gameplay behavior changes).
+  - Updated `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, and `TODO.md` version/tag references to `0.9.39`.
+- TOC version bumped to `0.9.39`.
+
 ## 2026-02-21 - Version 0.9.38
 - **RIO Delta Display:**
   - Added challenge-start RIO baseline capture and per-player roster delta rendering as prefix `(+X)RIO`.

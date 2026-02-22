@@ -67,6 +67,7 @@ local function BuildContext(opts)
     RequireFunction(opts.maybeShowNonMythicDungeonEntryNotice, "maybeShowNonMythicDungeonEntryNotice")
   ctx.checkIfEnteredTargetDungeon = RequireFunction(opts.checkIfEnteredTargetDungeon, "checkIfEnteredTargetDungeon")
   ctx.captureRioBaselineSnapshot = OptionalFunction(opts.captureRioBaselineSnapshot, function() end)
+  ctx.enableRioDeltaDisplay = OptionalFunction(opts.enableRioDeltaDisplay, function() end)
   ctx.timerAfter = OptionalFunction(opts.timerAfter, nil)
 
   ctx.getPendingBindingApply = RequireFunction(opts.getPendingBindingApply, "getPendingBindingApply")
@@ -251,25 +252,59 @@ local function HandleChallengeModeStartEvent(ctx, _self)
   ctx.updateMPlusTeleportButton()
 end
 
+local function RefreshRosterAfterRunStateChange(ctx, self)
+  if ctx.isInGroup() then
+    local onEventHandler = self and self.GetScript and self:GetScript("OnEvent") or nil
+    if onEventHandler then
+      onEventHandler(self, "GROUP_ROSTER_UPDATE")
+      return
+    end
+    ctx.updateUI()
+    return
+  end
+
+  ctx.updateLeaderButtons()
+end
+
+local function RunDelayedPostChallengeRefresh(ctx, self, retriesRemaining)
+  if not ctx.isInGroup() then
+    ctx.enableRioDeltaDisplay()
+    return
+  end
+
+  local refreshed = ctx.runFullRefresh() ~= false
+  if refreshed then
+    ctx.enableRioDeltaDisplay()
+    RefreshRosterAfterRunStateChange(ctx, self)
+    return
+  end
+
+  if retriesRemaining > 0 and ctx.timerAfter then
+    ctx.timerAfter(1, function()
+      RunDelayedPostChallengeRefresh(ctx, self, retriesRemaining - 1)
+    end)
+    return
+  end
+
+  ctx.enableRioDeltaDisplay()
+  RefreshRosterAfterRunStateChange(ctx, self)
+end
+
 local function HandleChallengeModeCompletedOrResetEvent(ctx, self)
   if ctx.isInGroup() then
     ctx.setMainFrameVisible(true)
-    local onEventHandler = self and self.GetScript and self:GetScript("OnEvent") or nil
-    if onEventHandler then
-      onEventHandler(self, "GROUP_ROSTER_UPDATE") -- Refresh roster
-    end
-  else
-    ctx.updateLeaderButtons()
   end
+  RefreshRosterAfterRunStateChange(ctx, self)
   ctx.updateStatusLine()
   ctx.sendOwnKeySnapshot(true)
   if ctx.timerAfter then
     ctx.timerAfter(5, function()
-      if ctx.isInGroup() then
-        ctx.runFullRefresh()
-      end
+      RunDelayedPostChallengeRefresh(ctx, self, 5)
     end)
+    return
   end
+
+  RunDelayedPostChallengeRefresh(ctx, self, 0)
 end
 
 local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)

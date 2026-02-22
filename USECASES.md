@@ -1,7 +1,7 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.38`
-Last updated: `2026-02-21`
+Version baseline: `0.9.40`
+Last updated: `2026-02-22`
 
 ## Actors
 
@@ -94,11 +94,13 @@ Goal: show pre/post-run rating change per player in roster without negative disp
 
 1. Trigger: `CHALLENGE_MODE_START` fires while roster is available.
 2. Processing: addon captures baseline RIO per normalized player identity.
-3. Trigger: roster is rendered after rating updates.
-4. Output: RIO column shows `(+X)RIO` when baseline+current values exist.
-5. Rule: delta is clamped to non-negative values (`+0` minimum); no minus rendering.
-6. Rule: test modes (`/isilive test`, `/isilive testall`) include visible positive dummy delta preview.
-7. Success criteria: display is stable per player across unit-slot changes and never shows negative delta.
+3. Trigger: `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` schedules delayed post-run refresh.
+4. Processing: delta display is enabled only after the delayed refresh path succeeds (retry if still blocked by transient challenge-state timing).
+5. Trigger: roster is rendered after rating updates.
+6. Output: RIO column shows `(+X)RIO` when baseline+current values exist.
+7. Rule: delta is clamped to non-negative values (`+0` minimum); no minus rendering.
+8. Rule: test modes (`/isilive test`, `/isilive testall`) include visible positive dummy delta preview.
+9. Success criteria: display is stable per player across unit-slot changes and never shows negative delta.
 
 ## Non-Functional Rules
 

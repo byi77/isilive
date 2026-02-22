@@ -32,10 +32,12 @@ function TestMode.CreateController(opts)
   local triggerGroupRosterUpdate = RequireFunction(opts.triggerGroupRosterUpdate, "triggerGroupRosterUpdate")
   local captureRioBaselineSnapshot = opts.captureRioBaselineSnapshot or function() end
   local clearRioBaselineSnapshot = opts.clearRioBaselineSnapshot or function() end
+  local enableRioDeltaDisplay = opts.enableRioDeltaDisplay or function() end
 
   assert(type(printFn) == "function", "isiLive: TestMode requires printFn")
   assert(type(captureRioBaselineSnapshot) == "function", "isiLive: TestMode requires captureRioBaselineSnapshot")
   assert(type(clearRioBaselineSnapshot) == "function", "isiLive: TestMode requires clearRioBaselineSnapshot")
+  assert(type(enableRioDeltaDisplay) == "function", "isiLive: TestMode requires enableRioDeltaDisplay")
 
   local function ApplyDummyRioDeltaPreview(roster)
     if type(roster) ~= "table" then
@@ -71,6 +73,7 @@ function TestMode.CreateController(opts)
     setRoster(dummyRoster)
     captureRioBaselineSnapshot()
     ApplyDummyRioDeltaPreview(dummyRoster)
+    enableRioDeltaDisplay()
     setMainFrameVisible(true)
     updateUI()
     updateLeaderButtons()
@@ -131,6 +134,7 @@ function TestMode.CreateController(opts)
     setRoster(dummyRoster)
     captureRioBaselineSnapshot()
     ApplyDummyRioDeltaPreview(dummyRoster)
+    enableRioDeltaDisplay()
     setMainFrameVisible(true)
     updateUI()
     updateLeaderButtons()

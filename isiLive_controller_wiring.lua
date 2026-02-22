@@ -209,6 +209,7 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   config.applyKnownKeyToRosterEntry = RequireFunction(deps.applyKnownKeyToRosterEntry, "applyKnownKeyToRosterEntry")
   config.runFullRefresh = RequireFunction(deps.runFullRefresh, "runFullRefresh")
   config.captureRioBaselineSnapshot = callbacks.captureRioBaselineSnapshot
+  config.enableRioDeltaDisplay = callbacks.enableRioDeltaDisplay
 end
 
 function ControllerWiring.CreateEventHandlersController(eventHandlersModule, deps)

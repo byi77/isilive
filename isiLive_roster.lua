@@ -49,6 +49,7 @@ end
 
 function Roster.BuildDisplayData(info, opts)
   opts = opts or {}
+  local unit = opts.unit
   local truncateName = opts.truncateName
   local getShortSpecLabel = opts.getShortSpecLabel
   local getLanguageFlagMarkup = opts.getLanguageFlagMarkup
@@ -82,13 +83,15 @@ function Roster.BuildDisplayData(info, opts)
     specText = truncateName(specText, 15)
   end
   local ilvlText = info.ilvl and tostring(math.floor(info.ilvl)) or "-"
+
+  local rioDelta = nil
+  if type(getRioDelta) == "function" then
+    rioDelta = tonumber(getRioDelta(info, unit))
+  end
   local rioText = info.rio and tostring(math.floor(info.rio)) or "-"
-  if info.rio and type(getRioDelta) == "function" then
-    local rioDelta = tonumber(getRioDelta(info))
-    if rioDelta then
-      rioDelta = math.max(0, math.floor(rioDelta))
-      rioText = string.format("(+%d)%s", rioDelta, rioText)
-    end
+  if rioDelta and info.rio then
+    rioDelta = math.max(0, math.floor(rioDelta))
+    rioText = string.format("(+%d)%s", rioDelta, rioText)
   end
   local keyText = "-"
   if info.keyMapID and info.keyLevel then

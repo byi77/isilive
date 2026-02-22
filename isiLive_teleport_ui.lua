@@ -5,7 +5,7 @@ addonTable = addonTable or {}
 local TeleportUI = {}
 addonTable.TeleportUI = TeleportUI
 
-local function SyncButtonLayer(button, mainFrame)
+local function SyncButtonLayer(button, mainFrame, isInCombat)
   if
     not (
       button
@@ -19,8 +19,20 @@ local function SyncButtonLayer(button, mainFrame)
     return
   end
 
-  button:SetFrameStrata(mainFrame:GetFrameStrata())
-  button:SetFrameLevel(mainFrame:GetFrameLevel() + 10)
+  if type(isInCombat) == "function" and isInCombat() then
+    return
+  end
+
+  local targetStrata = mainFrame:GetFrameStrata()
+  local targetLevel = mainFrame:GetFrameLevel() + 10
+
+  if button.GetFrameStrata and button:GetFrameStrata() ~= targetStrata then
+    button:SetFrameStrata(targetStrata)
+  end
+
+  if button.GetFrameLevel and button:GetFrameLevel() ~= targetLevel then
+    button:SetFrameLevel(targetLevel)
+  end
 end
 
 local function CreateTeleportButton(mainFrame, deps, index, entry)
@@ -36,7 +48,7 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
   button:SetPoint("TOPRIGHT", x, y)
   button:EnableMouse(true)
   button:RegisterForClicks("AnyDown", "AnyUp")
-  SyncButtonLayer(button, mainFrame)
+  SyncButtonLayer(button, mainFrame, deps.isInCombat)
   button.spellID = entry.spellID
   button.mapID = entry.mapID
   button.mapName = entry.mapName
@@ -195,7 +207,7 @@ function TeleportUI.CreateController(opts)
 
   function controller.UpdateButtons(resolvedSpellID)
     for _, button in ipairs(buttons) do
-      SyncButtonLayer(button, mainFrame)
+      SyncButtonLayer(button, mainFrame, deps.isInCombat)
 
       -- Retry secure setup if missing (e.g. loaded in combat)
       if not button:GetAttribute("type") then

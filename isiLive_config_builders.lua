@@ -65,6 +65,7 @@ function ConfigBuilders.BuildTestModeControllerOpts(ctx)
     triggerGroupRosterUpdate = ctx.triggerGroupRosterUpdate,
     captureRioBaselineSnapshot = ctx.captureRioBaselineSnapshot,
     clearRioBaselineSnapshot = ctx.clearRioBaselineSnapshot,
+    enableRioDeltaDisplay = ctx.enableRioDeltaDisplay,
   }
 end
 
@@ -175,6 +176,7 @@ local function BuildEventCallbacks(ctx)
     updateCountdownCancelButton = ctx.updateCountdownCancelButton,
     checkIfEnteredTargetDungeon = ctx.checkIfEnteredTargetDungeon,
     captureRioBaselineSnapshot = ctx.captureRioBaselineSnapshot,
+    enableRioDeltaDisplay = ctx.enableRioDeltaDisplay,
     setMainFrameHeightSafe = ctx.setMainFrameHeightSafe,
     setCenterNoticeVisible = ctx.setCenterNoticeVisible,
   }
@@ -207,8 +209,9 @@ function ConfigBuilders.BuildEventHandlersControllerDeps(ctx)
     applyKnownKeyToRosterEntry = ctx.applyKnownKeyToRosterEntry,
     runFullRefresh = function()
       if ctx.refreshController then
-        ctx.refreshController.RunFullRefresh()
+        return ctx.refreshController.RunFullRefresh()
       end
+      return false
     end,
     modules = {
       sync = ctx.sync,

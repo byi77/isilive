@@ -166,6 +166,7 @@ local roster = {}
 local activeJoinedKeyMapID = nil
 local rioBaselineByPlayerKey = {}
 local hasRioBaselineSnapshot = false
+local isRioDeltaDisplayEnabled = false
 
 local function ApplyHotkeyBindings()
   if bindingController then
@@ -335,6 +336,7 @@ end
 local function ClearRioBaselineSnapshot()
   rioBaselineByPlayerKey = {}
   hasRioBaselineSnapshot = false
+  isRioDeltaDisplayEnabled = false
 end
 
 local function CaptureRioBaselineSnapshot()
@@ -357,10 +359,21 @@ local function CaptureRioBaselineSnapshot()
 
   rioBaselineByPlayerKey = snapshot
   hasRioBaselineSnapshot = hasSnapshotData
+  isRioDeltaDisplayEnabled = false
 end
 
-local function GetRioDeltaForRosterInfo(info)
+local function EnableRioDeltaDisplay()
   if not hasRioBaselineSnapshot then
+    return
+  end
+  isRioDeltaDisplayEnabled = true
+end
+
+local function GetRioDeltaForRosterInfo(info, unit)
+  if not hasRioBaselineSnapshot then
+    return nil
+  end
+  if not isRioDeltaDisplayEnabled then
     return nil
   end
 
@@ -375,6 +388,15 @@ local function GetRioDeltaForRosterInfo(info)
   end
 
   local currentRio = tonumber(info and info.rio)
+  if unit then
+    local liveRio = tonumber(GetUnitRio(unit))
+    if liveRio then
+      currentRio = liveRio
+      if type(info) == "table" then
+        info.rio = liveRio
+      end
+    end
+  end
   if not currentRio then
     return nil
   end
@@ -752,6 +774,7 @@ testModeController = isiLiveTestMode.CreateController(isiLiveConfigBuilders.Buil
   end,
   captureRioBaselineSnapshot = CaptureRioBaselineSnapshot,
   clearRioBaselineSnapshot = ClearRioBaselineSnapshot,
+  enableRioDeltaDisplay = EnableRioDeltaDisplay,
   updateMPlusTeleportButton = UpdateMPlusTeleportButton,
   setCenterNoticeVisible = SetCenterNoticeVisible,
   hideInviteHint = function()
@@ -973,6 +996,7 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   updateCountdownCancelButton = UpdateCountdownCancelButton,
   checkIfEnteredTargetDungeon = CheckIfEnteredTargetDungeon,
   captureRioBaselineSnapshot = CaptureRioBaselineSnapshot,
+  enableRioDeltaDisplay = EnableRioDeltaDisplay,
   setCenterNoticeVisible = SetCenterNoticeVisible,
   getState = function()
     return {

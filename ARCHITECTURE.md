@@ -1,7 +1,7 @@
 # isiLive Architecture
 
-Version baseline: `0.9.38`
-Last updated: `2026-02-21`
+Version baseline: `0.9.40`
+Last updated: `2026-02-22`
 
 ## Purpose
 
@@ -54,7 +54,7 @@ WoW Event
 7. Do not clear highlight state from ambiguous shared spell mappings when exact map context is unknown.
 8. Do not clear queue-derived target on negative application follow-up events while already grouped.
 9. Keep `advancedCombatLogging` hard-enabled and trigger Blizzard damage-meter reset on challenge start when API support exists.
-10. Capture per-player RIO baseline on challenge start and render delta only as non-negative `(+X)` prefix.
+10. Capture per-player RIO baseline on challenge start and enable delta rendering only after delayed post-run refresh; delta is always shown as non-negative `(+X)` prefix.
 
 ## Deterministic Validation Gates
 
@@ -67,13 +67,13 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/lua_metrics_check.lua`
 2. Runtime logic checks:
    - `lua tools/validate_usecases.lua`
-3. `tools/validate_usecases.lua` covers 98 scenarios across 18 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster logic.
+3. `tools/validate_usecases.lua` covers 101 scenarios across 18 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.38     |
+| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.40     |
 |--------------------------------------------------------------------------------------------------|
 | Spec         Name              Flag        Key         iLvl      RIO      M+Managment  M+Travel   |
 |--------------------------------------------------------------------------------------------------|

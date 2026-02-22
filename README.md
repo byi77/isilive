@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.38`.
+Current addon version: `0.9.40`.
 
 ## Features
 
@@ -37,15 +37,16 @@ Current addon version: `0.9.38`.
 - Combat-safe frame updates: drag start/stop is ignored in combat and pending frame-height changes are applied on `PLAYER_REGEN_ENABLED`
 - Advanced combat logging (`advancedCombatLogging`) is hard-enforced to `ON`.
 - Blizzard damage meter reset is hard-enforced on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
-- `CHALLENGE_MODE_START` captures a per-player RIO baseline; roster displays clamped delta as `(+X)RIO` while data is available.
+- `CHALLENGE_MODE_START` captures a per-player RIO baseline.
+- `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` schedules delayed post-run refresh and enables clamped delta display `(+X)RIO` after refresh succeeds (with short retry if still blocked).
 - Test mode (`/isilive test`, `/isilive testall`) includes visible positive dummy RIO delta preview.
 - `Readycheck`, `Countdown10`, and `Countdown 0` are leader-only
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 
-## Use Case / Logic Baseline (v0.9.38)
+## Use Case / Logic Baseline (v0.9.40)
 
-Documented on `2026-02-21` as runtime behavior baseline for validation checks.
+Documented on `2026-02-22` as runtime behavior baseline for validation checks.
 
 1. Queue invite -> grouped flow
    - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`).
@@ -68,6 +69,7 @@ Documented on `2026-02-21` as runtime behavior baseline for validation checks.
 5. Refresh and inspect pipeline
    - `Refresh` triggers forced sync reset (`HELLO/KEY`) and inspect cache invalidation/requeue.
    - Inspect controller updates `Spec/iLvl/RIO` asynchronously via queue/retry flow and `INSPECT_READY`.
+   - After challenge completion/reset, a delayed post-run refresh is attempted; RIO delta display is enabled only after this refresh path succeeds (with retry fallback).
 6. Runtime gating and hidden/sleep behavior
    - Event gate blocks non-required processing in `stopped`, `paused`, and hidden states.
    - Hidden mode keeps minimal transition events active (for auto-open and queue continuity) while halting inspection loop work.
@@ -158,7 +160,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 ## Deterministic Usecase Gate
 
-`tools/validate_usecases.lua` runs a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 98 scenarios across 18 modules, including:
+`tools/validate_usecases.lua` runs a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 101 scenarios across 18 modules, including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
@@ -225,10 +227,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.38`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.40`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.38` or `isiLive_beta_0.9.38`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.40` or `isiLive_beta_0.9.40`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -240,9 +242,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.38 && git push origin isiLive_release_0.9.38`
+3. Create and push stable tag: `git tag isiLive_release_0.9.40 && git push origin isiLive_release_0.9.40`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.38 && git push origin isiLive_alpha_0.9.38`
-   - beta: `git tag isiLive_beta_0.9.38 && git push origin isiLive_beta_0.9.38`
+   - alpha: `git tag isiLive_alpha_0.9.40 && git push origin isiLive_alpha_0.9.40`
+   - beta: `git tag isiLive_beta_0.9.40 && git push origin isiLive_beta_0.9.40`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

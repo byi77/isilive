@@ -79,4 +79,30 @@ return function(test, ctx)
       Assert.Equal(result.rioText, "3123", "missing baseline delta must keep plain RIO text")
     end)
   end)
+
+  test("Roster display forwards unit to delta callback and renders live-updated rio", function()
+    WithGlobals({
+      RAID_CLASS_COLORS = {
+        MAGE = { r = 0.25, g = 0.78, b = 0.92 },
+      },
+      CreateColor = CreateColorStub,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster.lua" })
+      local info = {
+        class = "MAGE",
+        name = "Tester",
+        language = "DE",
+      }
+      local result = addon.Roster.BuildDisplayData(info, {
+        unit = "party1",
+        getRioDelta = function(receivedInfo, receivedUnit)
+          Assert.Equal(receivedUnit, "party1", "delta callback must receive roster unit token")
+          receivedInfo.rio = 3500
+          return 15
+        end,
+      })
+
+      Assert.Equal(result.rioText, "(+15)3500", "delta callback should allow live rio rendering")
+    end)
+  end)
 end

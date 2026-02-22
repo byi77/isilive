@@ -419,6 +419,7 @@ local function RenderRosterImpl(state, roster)
     end
 
     local displayData = state.buildDisplayData(info, {
+      unit = entry.unit,
       truncateName = state.truncateName,
       getShortSpecLabel = state.getShortSpecLabel,
       getLanguageFlagMarkup = state.getLanguageFlagMarkup,

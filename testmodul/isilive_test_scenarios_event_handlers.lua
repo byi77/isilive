@@ -235,4 +235,70 @@ return function(test, ctx)
 
     Assert.Equal(captureCalls, 1, "challenge start must capture one RIO baseline snapshot")
   end)
+
+  test("Event handlers enable RIO delta only after delayed post-run refresh", function()
+    local enableCalls = 0
+    local refreshCalls = 0
+    local delayedCallback = nil
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      timerAfter = function(seconds, callback)
+        if seconds == 5 then
+          delayedCallback = callback
+        end
+      end,
+      runFullRefresh = function()
+        refreshCalls = refreshCalls + 1
+        return true
+      end,
+      enableRioDeltaDisplay = function()
+        enableCalls = enableCalls + 1
+      end,
+    })
+
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+
+    Assert.Equal(enableCalls, 0, "delta display must stay disabled before delayed refresh callback")
+    Assert.NotNil(delayedCallback, "post-run refresh must be scheduled with delay")
+
+    delayedCallback()
+
+    Assert.Equal(refreshCalls, 1, "delayed callback must run one refresh attempt")
+    Assert.Equal(enableCalls, 1, "delta display must enable after delayed refresh")
+  end)
+
+  test("Event handlers retry post-run refresh when first delayed attempt is blocked", function()
+    local enableCalls = 0
+    local refreshCalls = 0
+    local callbacks = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      timerAfter = function(_seconds, callback)
+        table.insert(callbacks, callback)
+      end,
+      runFullRefresh = function()
+        refreshCalls = refreshCalls + 1
+        return refreshCalls >= 2
+      end,
+      enableRioDeltaDisplay = function()
+        enableCalls = enableCalls + 1
+      end,
+    })
+
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+
+    Assert.Equal(enableCalls, 0, "delta display must stay disabled until refresh succeeds")
+    Assert.Equal(#callbacks, 1, "initial delayed refresh callback must be scheduled")
+
+    callbacks[1]()
+    Assert.Equal(refreshCalls, 1, "first delayed refresh attempt should run once")
+    Assert.Equal(enableCalls, 0, "delta display must not enable on failed refresh attempt")
+    Assert.Equal(#callbacks, 2, "failed attempt must schedule one retry callback")
+
+    callbacks[2]()
+    Assert.Equal(refreshCalls, 2, "retry callback should run second refresh attempt")
+    Assert.Equal(enableCalls, 1, "delta display must enable after successful retry")
+  end)
 end
