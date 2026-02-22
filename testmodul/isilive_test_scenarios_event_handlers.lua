@@ -1,9 +1,4 @@
-return function(test, ctx)
-  local Assert = ctx.assert
-  local WithGlobals = ctx.with_globals
-  local LoadAddonModules = ctx.load_modules
-  local Fixtures = ctx.fixtures
-
+local function RegisterTargetHandlingTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   test("Event handlers keep target when active listing is inferred", function()
     local entryRef = { value = { activityID = 1001 } }
     local counters = { clears = 0, updates = 0 }
@@ -125,7 +120,9 @@ return function(test, ctx)
     Assert.Equal(counters.updates, 1, "teleport button must refresh on active listing event")
     Assert.Equal(counters.uiUpdates, 1, "UI must refresh when active joined key was cleared")
   end)
+end
 
+local function RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixtures)
   test("Event handlers exit test mode on GROUP_ROSTER_UPDATE while grouped", function()
     local counters = { exits = 0, rosterUpdates = 0 }
 
@@ -185,7 +182,9 @@ return function(test, ctx)
     Assert.Equal(counters.uiUpdates, 1, "roster changes from sync must refresh UI")
     Assert.True(roster[1].hasIsiLive, "known sync user should be marked as isiLive-enabled")
   end)
+end
 
+local function RegisterCombatAndRioTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   test("Event handlers keep advanced combat logging hard-enabled across startup events", function()
     local setCalls = 0
     local cvarValue = "0"
@@ -369,4 +368,15 @@ return function(test, ctx)
     Assert.Equal(refreshCalls, 3, "second follow-up callback should run third refresh attempt")
     Assert.Equal(#scheduled, 3, "no further follow-up callback should be scheduled after configured attempts")
   end)
+end
+
+return function(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
+  local Fixtures = ctx.fixtures
+
+  RegisterTargetHandlingTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixtures)
+  RegisterCombatAndRioTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
 end
