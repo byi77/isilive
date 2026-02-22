@@ -500,7 +500,10 @@ local initResult = isiLiveControllerInit.CreateControllers({
   truncateName = TruncateName,
   getShortSpecLabel = GetShortSpecLabel,
   getLanguageFlagMarkup = isiLiveLocale.GetLanguageFlagMarkup,
-  getDungeonShortCode = isiLiveTeleport.GetSeason3DungeonShortCode,
+  getDungeonShortCode = function(mapID)
+    local activeLocale = (IsiLiveDB and IsiLiveDB.locale) or locale
+    return isiLiveTeleport.GetSeason3DungeonShortCode(mapID, activeLocale)
+  end,
   getRioDelta = GetRioDeltaForRosterInfo,
   resolveActiveKeyOwnerUnit = function()
     if ResolveActiveKeyOwnerUnit then

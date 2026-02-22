@@ -6,8 +6,13 @@ local Teleport = {}
 addonTable.Teleport = Teleport
 
 local SeasonData = addonTable.SeasonData or {}
-local MAP_TO_TELEPORT = SeasonData.MAP_TO_TELEPORT or {}
-local MAP_SHORT_CODES = SeasonData.MAP_SHORT_CODES or {}
+
+local function GetMapToTeleport()
+  if type(SeasonData.GetMapToTeleport) == "function" then
+    return SeasonData.GetMapToTeleport()
+  end
+  return SeasonData.MAP_TO_TELEPORT or {}
+end
 
 -- Cache: ActivityID -> SpellID / MapID
 local ACTIVITY_TO_TELEPORT_CACHE = {}
@@ -56,7 +61,8 @@ local function IsSpellKnownByID(spellID)
 end
 
 local function ResolveMappedSpellID(mapID)
-  local mapped = MAP_TO_TELEPORT[mapID]
+  local mapToTeleport = GetMapToTeleport()
+  local mapped = mapToTeleport[mapID]
 
   if type(mapped) == "number" then
     return mapped
@@ -82,7 +88,8 @@ local function ResolveMappedSpellID(mapID)
 end
 
 local function IterateMappedSpellIDs(mapID, callback)
-  local mapped = MAP_TO_TELEPORT[mapID]
+  local mapToTeleport = GetMapToTeleport()
+  local mapped = mapToTeleport[mapID]
 
   if type(mapped) == "number" then
     callback(mapped)
@@ -106,7 +113,8 @@ local function CollectMapIDsForSpell(spellID)
   end
 
   local mapIDs = {}
-  for mapID in pairs(MAP_TO_TELEPORT) do
+  local mapToTeleport = GetMapToTeleport()
+  for mapID in pairs(mapToTeleport) do
     local matched = false
     IterateMappedSpellIDs(mapID, function(mappedSpellID)
       if mappedSpellID == numericSpellID then
@@ -223,13 +231,22 @@ function Teleport.GetSeason3TeleportInfoByMapID(mapID)
   }
 end
 
-function Teleport.GetSeason3DungeonShortCode(mapID)
+function Teleport.GetSeason3DungeonShortCode(mapID, localeTag)
   local numericMapID = tonumber(mapID)
   if not numericMapID then
     return "?"
   end
-  if MAP_SHORT_CODES[numericMapID] then
-    return MAP_SHORT_CODES[numericMapID]
+
+  if type(SeasonData.GetDungeonShortCode) == "function" then
+    local shortCode = SeasonData.GetDungeonShortCode(numericMapID, localeTag)
+    if type(shortCode) == "string" and shortCode ~= "" then
+      return shortCode
+    end
+  end
+
+  local fallbackShortCodes = SeasonData.MAP_SHORT_CODES or {}
+  if fallbackShortCodes[numericMapID] then
+    return fallbackShortCodes[numericMapID]
   end
 
   local mapName = C_ChallengeMode and C_ChallengeMode.GetMapUIInfo and C_ChallengeMode.GetMapUIInfo(numericMapID)
@@ -252,7 +269,8 @@ end
 
 function Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
   local numericMapID = tonumber(mapID)
-  if numericMapID and MAP_TO_TELEPORT[numericMapID] then
+  local mapToTeleport = GetMapToTeleport()
+  if numericMapID and mapToTeleport[numericMapID] then
     return ResolveMappedSpellID(numericMapID)
   end
   return nil
@@ -332,7 +350,8 @@ function Teleport.BuildSeason3TeleportEntries()
   local entries = {}
   local bySpellID = {}
   local orderedMapIDs = {}
-  for mapID in pairs(MAP_TO_TELEPORT) do
+  local mapToTeleport = GetMapToTeleport()
+  for mapID in pairs(mapToTeleport) do
     table.insert(orderedMapIDs, mapID)
   end
   table.sort(orderedMapIDs)

@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-02-22 - Version 0.9.44
+- **Season Data Maintainability:**
+  - Refactored season configuration into centralized structured data in `isiLive_season_data.lua` with explicit `ACTIVE_SEASON_ID`.
+  - Added season helper API (`GetSeasonConfig`, `GetMapToTeleport`, `GetShortCodes`, `GetDungeonShortCode`) so future season swaps only require one data-file update.
+  - Updated teleport runtime to consume SeasonData helper API instead of hardwired map/shortcode tables.
+- **Localized Dungeon Short Codes:**
+  - Added locale-aware roster key short-code resolution by active addon locale.
+  - `deDE` short-code overrides now render as:
+    - `PSF -> PRI`
+    - `EDA -> BIO`
+    - `HOA -> HDS`
+    - `OFG -> SCH`
+    - `AK -> AK`
+    - `DB -> MB`
+    - `TAZ -> TAZ`
+  - `enUS` short codes remain unchanged.
+- **Validation:**
+  - Added deterministic coverage for locale-specific short-code resolution and SeasonData central helper fallback behavior.
+  - `tools/validate_usecases.lua` now runs 103 deterministic scenarios across 18 modules (all passing).
+- **Documentation:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, and `TODO.md` to `0.9.44` references and current runtime behavior.
+- TOC version bumped to `0.9.44`.
+
 ## 2026-02-22 - Version 0.9.43
 - **Combat-Safe Secure UI:**
   - Fixed `ADDON_ACTION_BLOCKED` errors from center-notice teleport secure button updates in combat (`Hide`, `EnableMouse`, and anchor changes).

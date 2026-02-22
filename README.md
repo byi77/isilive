@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.43`.
+Current addon version: `0.9.44`.
 
 ## Features
 
@@ -13,7 +13,7 @@ Current addon version: `0.9.43`.
 - Right-side headers: `M+Managment` and `M+Travel`
 - `M+Travel` teleport grid with all Season dungeon teleports
 - Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
-- Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14`)
+- Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale)
 - `Key` column keeps `Shortcut +Level` on one line (no row-wrap bleed into next member line)
 - `RIO` column can show per-run delta as `(+X)RIO` (non-negative only; never minus)
 - Queue join detection with chat message, center notice, and invite hint
@@ -44,7 +44,7 @@ Current addon version: `0.9.43`.
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 
-## Use Case / Logic Baseline (v0.9.43)
+## Use Case / Logic Baseline (v0.9.44)
 
 Documented on `2026-02-22` as runtime behavior baseline for validation checks.
 
@@ -57,7 +57,7 @@ Documented on `2026-02-22` as runtime behavior baseline for validation checks.
    - Per row data includes `Spec`, `Name`, `Language/Flag`, `Key`, `iLvl`, `RIO` and optional run-delta prefix `(+X)`.
 3. Key sync and key column
    - Addon sync channel exchanges `HELLO/ACK/KEY` between `isiLive` users.
-   - `KEY:<mapID>:<level>` snapshots populate roster key text as `Shortcut +Level` (for example `DB +14`).
+   - `KEY:<mapID>:<level>` snapshots populate roster key text as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale).
    - Active joined key owner is highlighted only when ownership is unambiguous.
 4. Teleport targeting and highlight logic
     - Active target resolves in strict order: active listing `activityID -> mapID -> spellID`, then latest queue target `mapID -> spellID`.
@@ -103,6 +103,7 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive.toc`: addon metadata and load order
 - `isiLive.lua`: main addon logic
 - `isiLive_locale.lua`: locale/language/flag mapping helpers
+- `isiLive_season_data.lua`: active season dataset (`ACTIVE_SEASON_ID`, map->teleport mappings, locale short-code overrides)
 - `isiLive_teleport.lua`: dungeon teleport mapping and secure teleport button helpers
 - `isiLive_teleport_ui.lua`: teleport grid button creation/update helpers
 - `isiLive_teleport_debug.lua`: teleport debug/test command controller (`tpdebug`, `tptest`)
@@ -160,7 +161,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 ## Deterministic Usecase Gate
 
-`tools/validate_usecases.lua` runs a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 102 scenarios across 18 modules, including:
+`tools/validate_usecases.lua` runs a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 103 scenarios across 18 modules, including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
@@ -227,10 +228,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.43`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.44`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.43` or `isiLive_beta_0.9.43`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.44` or `isiLive_beta_0.9.44`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -242,9 +243,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.43 && git push origin isiLive_release_0.9.43`
+3. Create and push stable tag: `git tag isiLive_release_0.9.44 && git push origin isiLive_release_0.9.44`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.43 && git push origin isiLive_alpha_0.9.43`
-   - beta: `git tag isiLive_beta_0.9.43 && git push origin isiLive_beta_0.9.43`
+   - alpha: `git tag isiLive_alpha_0.9.44 && git push origin isiLive_alpha_0.9.44`
+   - beta: `git tag isiLive_beta_0.9.44 && git push origin isiLive_beta_0.9.44`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

@@ -174,6 +174,38 @@ return function(test, ctx)
     end)
   end)
 
+  test("Teleport returns locale-specific dungeon short codes for deDE and keeps enUS defaults", function()
+    local createFrameStub = BuildCreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_season_data.lua",
+        "isiLive_teleport.lua",
+      })
+
+      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2649, "deDE"), "PRI", "deDE should map PSF to PRI")
+      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2830, "deDE"), "BIO", "deDE should map EDA to BIO")
+      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2287, "deDE"), "HDS", "deDE should map HOA to HDS")
+      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2773, "deDE"), "SCH", "deDE should map OFG to SCH")
+      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2660, "deDE"), "AK", "deDE should keep AK")
+      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2441, "deDE"), "TAZ", "deDE should keep TAZ")
+      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2662, "deDE"), "MB", "deDE should map DB to MB")
+      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2649, "enUS"), "PSF", "enUS should keep PSF")
+      Assert.Equal(
+        addon.SeasonData.GetMapToTeleport()[2662],
+        445414,
+        "active season map->spell table should stay centralized"
+      )
+      Assert.Equal(
+        addon.SeasonData.GetDungeonShortCode(2662, "frFR"),
+        "DB",
+        "unsupported locales should fallback to default"
+      )
+    end)
+  end)
+
   test("Teleport resolves activity map and caches activity lookups", function()
     local createFrameStub = BuildCreateFrameStub()
     local activityInfoCalls = 0
