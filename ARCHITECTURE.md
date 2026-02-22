@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.40`
+Version baseline: `0.9.41`
 Last updated: `2026-02-22`
 
 ## Purpose
@@ -67,13 +67,13 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/lua_metrics_check.lua`
 2. Runtime logic checks:
    - `lua tools/validate_usecases.lua`
-3. `tools/validate_usecases.lua` covers 101 scenarios across 18 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster logic.
+3. `tools/validate_usecases.lua` covers 102 scenarios across 18 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.40     |
+| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.41     |
 |--------------------------------------------------------------------------------------------------|
 | Spec         Name              Flag        Key         iLvl      RIO      M+Managment  M+Travel   |
 |--------------------------------------------------------------------------------------------------|

@@ -301,4 +301,41 @@ return function(test, ctx)
     Assert.Equal(refreshCalls, 2, "retry callback should run second refresh attempt")
     Assert.Equal(enableCalls, 1, "delta display must enable after successful retry")
   end)
+
+  test("Event handlers schedule follow-up refreshes after successful delayed refresh", function()
+    local refreshCalls = 0
+    local scheduled = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      timerAfter = function(seconds, callback)
+        table.insert(scheduled, {
+          seconds = seconds,
+          callback = callback,
+        })
+      end,
+      runFullRefresh = function()
+        refreshCalls = refreshCalls + 1
+        return true
+      end,
+    })
+
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    Assert.Equal(#scheduled, 1, "initial delayed refresh callback must be scheduled")
+    Assert.Equal(scheduled[1].seconds, 5, "initial delayed refresh should use 5-second delay")
+
+    scheduled[1].callback()
+    Assert.Equal(refreshCalls, 1, "initial delayed callback should run one refresh attempt")
+    Assert.Equal(#scheduled, 2, "successful refresh should schedule first follow-up callback")
+    Assert.Equal(scheduled[2].seconds, 6, "follow-up refresh should use short fixed delay")
+
+    scheduled[2].callback()
+    Assert.Equal(refreshCalls, 2, "first follow-up callback should run second refresh attempt")
+    Assert.Equal(#scheduled, 3, "second follow-up callback should be scheduled")
+    Assert.Equal(scheduled[3].seconds, 6, "second follow-up should keep same delay")
+
+    scheduled[3].callback()
+    Assert.Equal(refreshCalls, 3, "second follow-up callback should run third refresh attempt")
+    Assert.Equal(#scheduled, 3, "no further follow-up callback should be scheduled after configured attempts")
+  end)
 end

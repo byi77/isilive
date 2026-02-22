@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.40`.
+Current addon version: `0.9.41`.
 
 ## Features
 
@@ -44,7 +44,7 @@ Current addon version: `0.9.40`.
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 
-## Use Case / Logic Baseline (v0.9.40)
+## Use Case / Logic Baseline (v0.9.41)
 
 Documented on `2026-02-22` as runtime behavior baseline for validation checks.
 
@@ -160,7 +160,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 ## Deterministic Usecase Gate
 
-`tools/validate_usecases.lua` runs a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 101 scenarios across 18 modules, including:
+`tools/validate_usecases.lua` runs a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 102 scenarios across 18 modules, including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
@@ -227,10 +227,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.40`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.41`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.40` or `isiLive_beta_0.9.40`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.41` or `isiLive_beta_0.9.41`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -242,9 +242,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.40 && git push origin isiLive_release_0.9.40`
+3. Create and push stable tag: `git tag isiLive_release_0.9.41 && git push origin isiLive_release_0.9.41`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.40 && git push origin isiLive_alpha_0.9.40`
-   - beta: `git tag isiLive_beta_0.9.40 && git push origin isiLive_beta_0.9.40`
+   - alpha: `git tag isiLive_alpha_0.9.41 && git push origin isiLive_alpha_0.9.41`
+   - beta: `git tag isiLive_beta_0.9.41 && git push origin isiLive_beta_0.9.41`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

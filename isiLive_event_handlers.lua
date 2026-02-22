@@ -5,6 +5,12 @@ addonTable = addonTable or {}
 local EventHandlers = {}
 addonTable.EventHandlers = EventHandlers
 
+local POST_RUN_REFRESH_INITIAL_DELAY_SECONDS = 5
+local POST_RUN_REFRESH_RETRIES = 5
+local POST_RUN_REFRESH_RETRY_DELAY_SECONDS = 1
+local POST_RUN_FOLLOWUP_REFRESH_DELAY_SECONDS = 6
+local POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS = 2
+
 local function RequireFunction(value, name)
   assert(type(value) == "function", "isiLive: EventHandlers requires " .. name)
   return value
@@ -266,7 +272,7 @@ local function RefreshRosterAfterRunStateChange(ctx, self)
   ctx.updateLeaderButtons()
 end
 
-local function RunDelayedPostChallengeRefresh(ctx, self, retriesRemaining)
+local function RunDelayedPostChallengeRefresh(ctx, self, retriesRemaining, followUpRefreshesRemaining)
   if not ctx.isInGroup() then
     ctx.enableRioDeltaDisplay()
     return
@@ -276,12 +282,17 @@ local function RunDelayedPostChallengeRefresh(ctx, self, retriesRemaining)
   if refreshed then
     ctx.enableRioDeltaDisplay()
     RefreshRosterAfterRunStateChange(ctx, self)
+    if followUpRefreshesRemaining > 0 and ctx.timerAfter then
+      ctx.timerAfter(POST_RUN_FOLLOWUP_REFRESH_DELAY_SECONDS, function()
+        RunDelayedPostChallengeRefresh(ctx, self, 0, followUpRefreshesRemaining - 1)
+      end)
+    end
     return
   end
 
   if retriesRemaining > 0 and ctx.timerAfter then
-    ctx.timerAfter(1, function()
-      RunDelayedPostChallengeRefresh(ctx, self, retriesRemaining - 1)
+    ctx.timerAfter(POST_RUN_REFRESH_RETRY_DELAY_SECONDS, function()
+      RunDelayedPostChallengeRefresh(ctx, self, retriesRemaining - 1, followUpRefreshesRemaining)
     end)
     return
   end
@@ -298,13 +309,13 @@ local function HandleChallengeModeCompletedOrResetEvent(ctx, self)
   ctx.updateStatusLine()
   ctx.sendOwnKeySnapshot(true)
   if ctx.timerAfter then
-    ctx.timerAfter(5, function()
-      RunDelayedPostChallengeRefresh(ctx, self, 5)
+    ctx.timerAfter(POST_RUN_REFRESH_INITIAL_DELAY_SECONDS, function()
+      RunDelayedPostChallengeRefresh(ctx, self, POST_RUN_REFRESH_RETRIES, POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS)
     end)
     return
   end
 
-  RunDelayedPostChallengeRefresh(ctx, self, 0)
+  RunDelayedPostChallengeRefresh(ctx, self, 0, 0)
 end
 
 local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)

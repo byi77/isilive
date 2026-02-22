@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-02-22 - Version 0.9.41
+- **RIO Delta Reliability:**
+  - Added two short post-run follow-up refresh passes after the first successful delayed refresh so late RIO backend updates no longer stay stuck at temporary `(+0)` until manual refresh.
+- **Validation:**
+  - Added deterministic regression coverage for successful delayed refresh follow-up scheduling.
+  - `tools/validate_usecases.lua` now runs 102 deterministic scenarios across 18 modules.
+- **Documentation:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `RULES.md`, and `TODO.md` to `0.9.41` references and current post-run refresh behavior.
+- TOC version bumped to `0.9.41`.
+
 ## 2026-02-22 - Version 0.9.40
 - **RIO Delta Fixes:**
   - Fixed runtime wiring regression where `enableRioDeltaDisplay` was not forwarded into event-handler setup, which could keep delta display permanently disabled.
