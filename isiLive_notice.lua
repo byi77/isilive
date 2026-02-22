@@ -151,12 +151,57 @@ local function UpdateCenterNoticeTeleportButtonVisual(state, spellID, isEnabled,
   end
 end
 
+local function SetCenterNoticeTeleportButtonVisible(state, visible)
+  local shouldShow = visible and true or false
+
+  if state.config.isInCombat() then
+    state.pendingTeleportButtonVisible = shouldShow
+    return
+  end
+
+  state.pendingTeleportButtonVisible = nil
+  if shouldShow then
+    if not state.teleportButton:IsShown() then
+      state.teleportButton:Show()
+    end
+    return
+  end
+
+  if state.teleportButton:IsShown() then
+    state.teleportButton:Hide()
+  end
+end
+
+local function SetCenterNoticeTeleportButtonMouseEnabled(state, enabled)
+  local shouldEnableMouse = enabled and true or false
+
+  if state.config.isInCombat() then
+    state.pendingTeleportButtonMouseEnabled = shouldEnableMouse
+    return
+  end
+
+  state.pendingTeleportButtonMouseEnabled = nil
+  state.teleportButton:EnableMouse(shouldEnableMouse)
+end
+
+local function SetCenterNoticeTeleportButtonAnchor(state, yOffset)
+  if state.config.isInCombat() then
+    state.pendingTeleportButtonOffsetY = yOffset
+    return
+  end
+
+  state.pendingTeleportButtonOffsetY = nil
+  state.teleportButton:ClearAllPoints()
+  state.teleportButton:SetPoint("TOP", state.frame, "TOP", 0, yOffset)
+end
+
 local function ClearCenterNoticeTeleportButton(state)
-  state.teleportButton:Hide()
+  SetCenterNoticeTeleportButtonVisible(state, false)
+  state.pendingTeleportButtonOffsetY = nil
   state.teleportButton.spellID = nil
   state.teleportButton.dungeonName = nil
   state.teleportButton.inCombatBlocked = false
-  state.teleportButton:EnableMouse(true)
+  SetCenterNoticeTeleportButtonMouseEnabled(state, true)
 end
 
 local function ConfigureCenterNoticeTeleportButton(state, dungeonName, activityID)
@@ -181,9 +226,9 @@ local function ConfigureCenterNoticeTeleportButton(state, dungeonName, activityI
     state.teleportButton.spellID = spellID
     state.teleportButton.dungeonName = hasDungeonName and dungeonName or nil
     state.teleportButton.inCombatBlocked = true
-    state.teleportButton:EnableMouse(false)
+    SetCenterNoticeTeleportButtonMouseEnabled(state, false)
     UpdateCenterNoticeTeleportButtonVisual(state, spellID, false, true)
-    state.teleportButton:Show()
+    SetCenterNoticeTeleportButtonVisible(state, true)
     return true
   end
 
@@ -191,11 +236,11 @@ local function ConfigureCenterNoticeTeleportButton(state, dungeonName, activityI
   state.teleportButton.spellID = spellID
   state.teleportButton.dungeonName = hasDungeonName and dungeonName or nil
   state.teleportButton.inCombatBlocked = false
-  state.teleportButton:EnableMouse(true)
+  SetCenterNoticeTeleportButtonMouseEnabled(state, true)
   local known = state.config.isSpellKnown(spellID)
   state.teleportButton:Enable()
   UpdateCenterNoticeTeleportButtonVisual(state, spellID, known, false)
-  state.teleportButton:Show()
+  SetCenterNoticeTeleportButtonVisible(state, true)
   return true
 end
 
@@ -238,12 +283,8 @@ local function ShowCenterNotice(state, message, durationSeconds, dungeonName, ac
   state.text:SetWidth(state.frame:GetWidth() - (state.config.paddingX * 2))
   local textHeight = state.text:GetStringHeight() or 0
   if hasTeleportButton then
-    state.teleportButton:ClearAllPoints()
-    state.teleportButton:SetPoint(
-      "TOP",
-      state.frame,
-      "TOP",
-      0,
+    SetCenterNoticeTeleportButtonAnchor(
+      state,
       -(state.config.paddingY + math.ceil(textHeight) + state.config.buttonGap)
     )
   end
@@ -316,6 +357,18 @@ local function AttachCenterNoticeFrameScripts(state)
   end)
 
   state.frame:SetScript("OnUpdate", function(_, elapsed)
+    if not state.config.isInCombat() then
+      if state.pendingTeleportButtonOffsetY ~= nil then
+        SetCenterNoticeTeleportButtonAnchor(state, state.pendingTeleportButtonOffsetY)
+      end
+      if state.pendingTeleportButtonMouseEnabled ~= nil then
+        SetCenterNoticeTeleportButtonMouseEnabled(state, state.pendingTeleportButtonMouseEnabled)
+      end
+      if state.pendingTeleportButtonVisible ~= nil then
+        SetCenterNoticeTeleportButtonVisible(state, state.pendingTeleportButtonVisible)
+      end
+    end
+
     if state.isBlinking and state.frame:IsShown() then
       state.blinkTime = state.blinkTime + (elapsed or 0)
       local wave = (math.sin(state.blinkTime * 8) + 1) * 0.5
@@ -393,6 +446,9 @@ function Notice.CreateCenterNotice(opts)
     baseTextR = 1,
     baseTextG = 0.82,
     baseTextB = 0,
+    pendingTeleportButtonMouseEnabled = nil,
+    pendingTeleportButtonOffsetY = nil,
+    pendingTeleportButtonVisible = nil,
   }
 
   AttachCenterNoticeTeleportButtonScripts(state)

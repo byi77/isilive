@@ -99,6 +99,10 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
       "isNegativeApplicationStatusEvent"
     ),
     getNormalizedActiveEntryInfo = RequireFunction(deps.getNormalizedActiveEntryInfo, "getNormalizedActiveEntryInfo"),
+    getPendingQueueJoinInfo = type(state.getPendingQueueJoinInfo) == "function" and state.getPendingQueueJoinInfo
+      or function()
+        return nil
+      end,
     setPendingQueueJoinInfo = RequireFunction(state.setPendingQueueJoinInfo, "state.setPendingQueueJoinInfo"),
     clearLatestQueueTarget = RequireFunction(callbacks.clearLatestQueueTarget, "callbacks.clearLatestQueueTarget"),
     updateMPlusTeleportButton = RequireFunction(
@@ -210,6 +214,9 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   config.runFullRefresh = RequireFunction(deps.runFullRefresh, "runFullRefresh")
   config.captureRioBaselineSnapshot = callbacks.captureRioBaselineSnapshot
   config.enableRioDeltaDisplay = callbacks.enableRioDeltaDisplay
+  if type(deps.getTime) == "function" then
+    config.getTime = deps.getTime
+  end
 end
 
 function ControllerWiring.CreateEventHandlersController(eventHandlersModule, deps)

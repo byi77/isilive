@@ -972,6 +972,10 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   applyHotkeyBindings = ApplyHotkeyBindings,
   startBindingWatchdog = StartBindingWatchdog,
   getAddonVersionRaw = GetAddonVersionRaw,
+  getTime = GetTime,
+  getPendingQueueJoinInfo = function()
+    return pendingQueueJoinInfo
+  end,
   setPendingQueueJoinInfo = function(value)
     pendingQueueJoinInfo = value
   end,

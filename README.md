@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.41`.
+Current addon version: `0.9.43`.
 
 ## Features
 
@@ -38,13 +38,13 @@ Current addon version: `0.9.41`.
 - Advanced combat logging (`advancedCombatLogging`) is hard-enforced to `ON`.
 - Blizzard damage meter reset is hard-enforced on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
 - `CHALLENGE_MODE_START` captures a per-player RIO baseline.
-- `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` schedules delayed post-run refresh and enables clamped delta display `(+X)RIO` after refresh succeeds (with short retry if still blocked).
+- `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` schedules delayed post-run refresh and enables clamped delta display `(+X)RIO` after refresh succeeds (with short retry if still blocked), including when the window is currently hidden.
 - Test mode (`/isilive test`, `/isilive testall`) includes visible positive dummy RIO delta preview.
 - `Readycheck`, `Countdown10`, and `Countdown 0` are leader-only
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 
-## Use Case / Logic Baseline (v0.9.41)
+## Use Case / Logic Baseline (v0.9.43)
 
 Documented on `2026-02-22` as runtime behavior baseline for validation checks.
 
@@ -227,10 +227,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.41`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.43`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.41` or `isiLive_beta_0.9.41`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.43` or `isiLive_beta_0.9.43`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -242,9 +242,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.41 && git push origin isiLive_release_0.9.41`
+3. Create and push stable tag: `git tag isiLive_release_0.9.43 && git push origin isiLive_release_0.9.43`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.41 && git push origin isiLive_alpha_0.9.41`
-   - beta: `git tag isiLive_beta_0.9.41 && git push origin isiLive_beta_0.9.41`
+   - alpha: `git tag isiLive_alpha_0.9.43 && git push origin isiLive_alpha_0.9.43`
+   - beta: `git tag isiLive_beta_0.9.43 && git push origin isiLive_beta_0.9.43`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

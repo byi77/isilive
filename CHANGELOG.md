@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-02-22 - Version 0.9.43
+- **Combat-Safe Secure UI:**
+  - Fixed `ADDON_ACTION_BLOCKED` errors from center-notice teleport secure button updates in combat (`Hide`, `EnableMouse`, and anchor changes).
+  - Center-notice teleport button visibility, mouse state, and anchor updates are now deferred while in combat and applied safely after combat ends.
+- **Validation:**
+  - `tools/validate_usecases.lua` remains at 102 deterministic scenarios across 18 modules (all passing).
+- **Documentation:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `RULES.md`, and `TODO.md` to `0.9.43` references and current runtime behavior.
+- TOC version bumped to `0.9.43`.
+
+## 2026-02-22 - Version 0.9.42
+- **Queue/Highlight Reliability:**
+  - Added negative-status race protection so fresh pending queue invite context is not cleared too early by follow-up declined/canceled application events, preventing missing initial dungeon detection/highlight immediately after join.
+- **RIO Delta Reliability:**
+  - Hidden-state event gate now allows `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET`, so delayed post-run refresh and delta activation still run even when the main window is currently hidden.
+- **Packaging:**
+  - Excluded `isiKeyMplus_logo.png` from CurseForge packaging via `.pkgmeta` ignore list.
+- **Validation:**
+  - `tools/validate_usecases.lua` remains at 102 deterministic scenarios across 18 modules (all passing).
+- **Documentation:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `RULES.md`, and `TODO.md` to `0.9.42` references and current runtime behavior.
+- TOC version bumped to `0.9.42`.
+
 ## 2026-02-22 - Version 0.9.41
 - **RIO Delta Reliability:**
   - Added two short post-run follow-up refresh passes after the first successful delayed refresh so late RIO backend updates no longer stay stuck at temporary `(+0)` until manual refresh.

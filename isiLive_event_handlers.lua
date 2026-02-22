@@ -10,6 +10,7 @@ local POST_RUN_REFRESH_RETRIES = 5
 local POST_RUN_REFRESH_RETRY_DELAY_SECONDS = 1
 local POST_RUN_FOLLOWUP_REFRESH_DELAY_SECONDS = 6
 local POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS = 2
+local NEGATIVE_STATUS_PENDING_GRACE_SECONDS = 20
 
 local function RequireFunction(value, name)
   assert(type(value) == "function", "isiLive: EventHandlers requires " .. name)
@@ -44,6 +45,9 @@ local function BuildContext(opts)
     RequireFunction(opts.isNegativeApplicationStatusEvent, "isNegativeApplicationStatusEvent")
   ctx.getNormalizedActiveEntryInfo = RequireFunction(opts.getNormalizedActiveEntryInfo, "getNormalizedActiveEntryInfo")
   ctx.setPendingQueueJoinInfo = RequireFunction(opts.setPendingQueueJoinInfo, "setPendingQueueJoinInfo")
+  ctx.getPendingQueueJoinInfo = OptionalFunction(opts.getPendingQueueJoinInfo, function()
+    return nil
+  end)
   ctx.clearLatestQueueTarget = RequireFunction(opts.clearLatestQueueTarget, "clearLatestQueueTarget")
   ctx.updateMPlusTeleportButton = RequireFunction(opts.updateMPlusTeleportButton, "updateMPlusTeleportButton")
   ctx.captureQueueJoinCandidate = RequireFunction(opts.captureQueueJoinCandidate, "captureQueueJoinCandidate")
@@ -75,6 +79,7 @@ local function BuildContext(opts)
   ctx.captureRioBaselineSnapshot = OptionalFunction(opts.captureRioBaselineSnapshot, function() end)
   ctx.enableRioDeltaDisplay = OptionalFunction(opts.enableRioDeltaDisplay, function() end)
   ctx.timerAfter = OptionalFunction(opts.timerAfter, nil)
+  ctx.getTime = OptionalFunction(opts.getTime, GetTime)
 
   ctx.getPendingBindingApply = RequireFunction(opts.getPendingBindingApply, "getPendingBindingApply")
   ctx.getPendingMainFrameHeight = RequireFunction(opts.getPendingMainFrameHeight, "getPendingMainFrameHeight")
@@ -193,6 +198,29 @@ local function HandleGroupRosterUpdateEvent(ctx, _self)
   ctx.handleGroupRosterUpdate()
 end
 
+local function ShouldPreservePendingQueueJoinInfoOnNegativeStatus(ctx)
+  local pending = ctx.getPendingQueueJoinInfo()
+  if type(pending) ~= "table" then
+    return false
+  end
+
+  local capturedAt = tonumber(pending.capturedAt)
+  if not capturedAt then
+    return true
+  end
+
+  if type(ctx.getTime) ~= "function" then
+    return true
+  end
+
+  local now = tonumber(ctx.getTime())
+  if not now then
+    return true
+  end
+
+  return (now - capturedAt) <= NEGATIVE_STATUS_PENDING_GRACE_SECONDS
+end
+
 local function HandleLfgListApplicationStatusUpdatedEvent(ctx, _self, ...)
   if ctx.isInChallengeMode() then
     return
@@ -201,7 +229,9 @@ local function HandleLfgListApplicationStatusUpdatedEvent(ctx, _self, ...)
     ctx.exitTestMode()
   end
   if ctx.isNegativeApplicationStatusEvent(...) then
-    ctx.setPendingQueueJoinInfo(nil)
+    if not ShouldPreservePendingQueueJoinInfoOnNegativeStatus(ctx) then
+      ctx.setPendingQueueJoinInfo(nil)
+    end
     local entryInfo = ctx.getNormalizedActiveEntryInfo()
     -- Negative application updates can still arrive after a successful join
     -- (for example when the group fills and other applications get declined).

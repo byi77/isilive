@@ -7,6 +7,7 @@
 - Support target is WoW patch `12.0+` only.
 - Treat `<12.0` as unsupported/incompatible; do not add legacy compatibility code.
 - Keep RIO delta activation tied to delayed post-run refresh success (not immediate key-end event timing).
+- Keep `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` processing active while main window is hidden so post-run refresh/delta flow remains reliable.
 
 ## Season Scope
 - This addon is locked to **The War Within Season 3 (TWW S3)** dungeon/teleport data only.

@@ -20,17 +20,48 @@ return function(test, ctx)
       Assert.Equal(counters.clears, 0, "target must stay while grouped even when listing info is empty")
 
       entryRef.value = {}
+      local pendingQueueJoinInfo = {
+        groupName = "Race Group",
+        priority = 2,
+        capturedAt = 100,
+      }
+      local pendingClears = 0
       controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, entryRef, counters, {
         isInGroup = function()
           return false
         end,
+        getTime = function()
+          return 105
+        end,
+        getPendingQueueJoinInfo = function()
+          return pendingQueueJoinInfo
+        end,
+        setPendingQueueJoinInfo = function(value)
+          counters.pendingSets = counters.pendingSets + 1
+          pendingQueueJoinInfo = value
+          if value == nil then
+            pendingClears = pendingClears + 1
+          end
+        end,
       })
       controller:Dispatch("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "declined")
       Assert.Equal(counters.clears, 1, "target must clear outside group when listing info is empty")
+      Assert.NotNil(
+        pendingQueueJoinInfo,
+        "recent pending queue invite context must survive negative status race before group join"
+      )
+      Assert.Equal(pendingClears, 0, "recent pending queue invite context must not be cleared on negative status")
 
       entryRef.value = { active = false }
+      pendingQueueJoinInfo = {
+        groupName = "Stale Group",
+        priority = 2,
+        capturedAt = 70,
+      }
       controller:Dispatch("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "declined")
       Assert.Equal(counters.clears, 2, "target must clear outside group for explicit inactive listing")
+      Assert.Nil(pendingQueueJoinInfo, "stale pending queue invite context should clear on negative status update")
+      Assert.Equal(pendingClears, 1, "stale pending queue invite context should be cleared exactly once")
     end)
   end)
 

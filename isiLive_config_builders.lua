@@ -134,6 +134,7 @@ local function BuildEventState(ctx)
   return {
     isTestMode = ctx.isTestMode,
     isTestAllMode = ctx.isTestAllMode,
+    getPendingQueueJoinInfo = ctx.getPendingQueueJoinInfo,
     setPendingQueueJoinInfo = ctx.setPendingQueueJoinInfo,
     getActiveJoinedKeyMapID = ctx.getActiveJoinedKeyMapID,
     setActiveJoinedKeyMapID = ctx.setActiveJoinedKeyMapID,
@@ -206,6 +207,7 @@ function ConfigBuilders.BuildEventHandlersControllerDeps(ctx)
     getInspectSpecName = ctx.getInspectSpecName,
     getPlayerSpecName = ctx.getPlayerSpecName,
     getAddonVersionRaw = ctx.getAddonVersionRaw,
+    getTime = ctx.getTime,
     applyKnownKeyToRosterEntry = ctx.applyKnownKeyToRosterEntry,
     runFullRefresh = function()
       if ctx.refreshController then

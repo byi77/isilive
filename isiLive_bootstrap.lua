@@ -79,6 +79,8 @@ function Bootstrap.CreateGatedOnEvent(opts)
       LFG_LIST_APPLICATION_STATUS_UPDATED = true,
       LFG_LIST_SEARCH_RESULT_UPDATED = true,
       LFG_LIST_ACTIVE_ENTRY_UPDATE = true,
+      CHALLENGE_MODE_COMPLETED = true,
+      CHALLENGE_MODE_RESET = true,
     },
     shouldAllowWhenHidden = function(_, event)
       if event ~= "GROUP_ROSTER_UPDATE" then
