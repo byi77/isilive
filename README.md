@@ -22,6 +22,7 @@ Current addon version: `0.9.45`.
 - Addon-presence marker per roster name (`<3`) and full-group easter-egg marker (`[fullsync]`)
 - Spec column supports short labels for long localized names (for example `Wiederherstellung -> Resto`, `Vergeltung -> Retri`)
 - Center notices: left-click drag, right-click dismiss, persistent position
+- Optional runtime log persisted in `IsiLiveDB.runtimeLog` (enable/disable via slash command; flushed on `/reload`/logout)
 - Non-Mythic dungeon entry warning with delayed confirmation (larger/blinking persistent notice; right-click dismiss, left-click drag)
 - Top-right version label in main window (`V.x.y.z`)
 
@@ -44,6 +45,7 @@ Current addon version: `0.9.45`.
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 - Bottom status line includes current target dungeon context as `Target Dungeon: <Name> [+Level]` (or `Target Dungeon: -` when unresolved)
+- Runtime log entries are persisted through SavedVariables when logging is enabled.
 
 ## Use Case / Logic Baseline (v0.9.45)
 
@@ -88,6 +90,7 @@ Documented on `2026-02-23` as runtime behavior baseline for validation checks.
 - `/isilive testall`
 - `/isilive tptest`
 - `/isilive tpdebug`
+- `/isilive log [on|off|start|stop|status|clear|tail [n]]`
 - `/isilive lead`
 - `/isilive lang [en|de]`
 - `/isilive pause`
@@ -119,6 +122,7 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive_group.lua`: group lifecycle controller (`GROUP_ROSTER_UPDATE`, roster rebuild, leave cleanup)
 - `isiLive_queue.lua`: LFG/queue invite capture and parsing
 - `isiLive_queue_debug.lua`: queue debug storage + command helpers (`qdebug`)
+- `isiLive_runtime_log.lua`: runtime log storage + command helpers (`log`)
 - `isiLive_inspect.lua`: inspect queue/retry/cache controller
 - `isiLive_roster.lua`: roster ordering + display-data builders
 - `isiLive_events.lua`: event gate wrapper for stop/pause/test/hidden states
@@ -167,7 +171,7 @@ Developer debug (hidden command, not listed in in-game help):
 ## Deterministic Usecase Gate
 
 `tools/validate_rules_logic.lua` validates active rule contracts from `RULES_LOGIC.md` against deterministic test names.
-`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 111 scenarios across 18 modules, including:
+`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 113 scenarios across 18 modules, including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
@@ -188,7 +192,7 @@ Developer debug (hidden command, not listed in in-game help):
 - TestMode toggle/stop/pause guards, full dummy preview
 - LeaderWatch gain/loss/initial-state transitions
 - Refresh guards (stopped, active M+), full refresh pipeline
-- Commands slash routing (test, stop/start, pause/resume, lang switch)
+- Commands slash routing (test, stop/start, pause/resume, lang switch, runtime log start/stop)
 
 ## Developer Setup
 

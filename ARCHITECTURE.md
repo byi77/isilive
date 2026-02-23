@@ -20,7 +20,7 @@ The architecture is event-driven and split into clear runtime layers:
 | Event gate and dispatch | Enforce stop/pause/hidden/test behavior and route events | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_utils.lua` |
 | Domain logic | Queue parsing, group model, highlight resolution, key sync, refresh, inspect | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua` |
 | UI composition | Main frame, roster panel, teleport grid, notices, status line | `isiLive_ui.lua`, `isiLive_roster_panel.lua`, `isiLive_teleport_ui.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
-| Shared helpers and data | Locale, units, season map/spell data, config builders | `isiLive_locale.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_config_builders.lua` |
+| Shared helpers and data | Locale, units, season map/spell data, runtime logging, config builders | `isiLive_locale.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_runtime_log.lua`, `isiLive_config_builders.lua` |
 
 ## Runtime Flow
 
@@ -70,7 +70,7 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_rules_logic.lua`
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
-4. `tools/validate_usecases.lua` runs the rules validator first and then covers 111 scenarios across 18 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster logic.
+4. `tools/validate_usecases.lua` runs the rules validator first and then covers 113 scenarios across 18 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster logic.
 
 ## UI Structure (ASCII Sketch)
 

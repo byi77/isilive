@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+- **Runtime Logging:**
+  - Added runtime log persistence controller (`isiLive_runtime_log.lua`) storing entries in `IsiLiveDB.runtimeLog`.
+  - Added slash command `/isilive log [on|off|start|stop|status|clear|tail [n]]` for runtime log control.
+  - Added runtime-log command regression coverage to deterministic command scenarios.
+- **Documentation:**
+  - Synced `README.md`, `ARCHITECTURE.md`, and `RELEASE.md` with runtime log command support and validator coverage updates.
+  - Updated deterministic usecase gate references from `111` to `113` scenarios.
+
 ## 2026-02-23 - Version 0.9.45
 - **Runtime Reliability:**
   - Removed duplicate forced key-sync payload behavior on `PLAYER_ENTERING_WORLD` by keeping immediate send forced and delayed follow-up send non-forced.
