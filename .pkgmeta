@@ -20,6 +20,8 @@ ignore:
   - RELEASE.md
   - TODO.md
   - RULES.md
+  - RULES_LOGIC.md
+  - AGENTS.md
   - LICENSE
   - tools
   - testmodul

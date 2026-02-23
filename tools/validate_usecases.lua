@@ -8,32 +8,29 @@ local Loader = loaderChunk()
 local Assert = Loader.LoadModule("testmodul/isilive_test_assert.lua")
 local Harness = Loader.LoadModule("testmodul/isilive_test_harness.lua")
 local Fixtures = Loader.LoadModule("testmodul/isilive_test_fixtures.lua")
+local RulesLogicValidator = Loader.LoadModule("tools/rules_logic_validator.lua")
+local scenarioFiles = Loader.LoadModule("tools/usecase_scenarios.lua")
 
 local runner = Harness.NewRunner()
 local function test(name, fn)
   runner.Test(name, fn)
 end
 
-local scenarioFiles = {
-  "testmodul/isilive_test_scenarios_queue.lua",
-  "testmodul/isilive_test_scenarios_highlight.lua",
-  "testmodul/isilive_test_scenarios_event_handlers.lua",
-  "testmodul/isilive_test_scenarios_queue_flow.lua",
-  "testmodul/isilive_test_scenarios_spell_utils.lua",
-  "testmodul/isilive_test_scenarios_teleport.lua",
-  "testmodul/isilive_test_scenarios_group.lua",
-  "testmodul/isilive_test_scenarios_event_utils.lua",
-  "testmodul/isilive_test_scenarios_locale.lua",
-  "testmodul/isilive_test_scenarios_sync.lua",
-  "testmodul/isilive_test_scenarios_guards.lua",
-  "testmodul/isilive_test_scenarios_test_mode.lua",
-  "testmodul/isilive_test_scenarios_leader_watch.lua",
-  "testmodul/isilive_test_scenarios_refresh.lua",
-  "testmodul/isilive_test_scenarios_commands.lua",
-  "testmodul/isilive_test_scenarios_roster.lua",
-  "testmodul/isilive_test_scenarios_status.lua",
-  "testmodul/isilive_test_scenarios_ui.lua",
-}
+if type(RulesLogicValidator) ~= "table" or type(RulesLogicValidator.Run) ~= "function" then
+  error("rules logic validator module must return table with Run(opts)")
+end
+if type(scenarioFiles) ~= "table" then
+  error("scenario manifest must return table")
+end
+
+local rulesOk = RulesLogicValidator.Run({
+  rulesPath = "RULES_LOGIC.md",
+  scenarioFiles = scenarioFiles,
+  printFn = print,
+})
+if not rulesOk then
+  os.exit(1)
+end
 
 local context = {
   assert = Assert,

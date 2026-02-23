@@ -13,7 +13,7 @@
 - [x] Zielname: `isiKeyMplus` (genau diese Schreibweise).
 - [x] Modell: Hard-Split (`isiLive` Sunset + neues Addon `isiKeyMplus`).
 - [x] Versionen:
-  - `isiLive` Sunset-Release: `0.9.44`
+  - `isiLive` Sunset-Release: `0.9.45`
   - `isiKeyMplus` Start-Release: `1.0.45`
 - [x] Neuer Slash-Befehl: nur `/ikm`.
 - [x] Kein Legacy-Slash-Alias `/isilive`.
@@ -28,7 +28,7 @@
 - [ ] Alten Stand fuer `isiLive` Sunset-Branch sichern.
 - [ ] Neues Repo `byi77/isiKeyMplus` als eigenes Remote anbinden.
 
-### B) `isiLive` Sunset (v0.9.44)
+### B) `isiLive` Sunset (v0.9.45)
 
 - [ ] Addon-Verhalten auf Migrations-Hinweis reduzieren:
   - Kein produktiver GUI-Flow mehr.
@@ -36,8 +36,8 @@
     - `deDE`: Bitte `isiLive` loeschen und `isiKeyMplus` installieren.
     - `enUS`: Please delete `isiLive` and install `isiKeyMplus`.
 - [ ] Dokumentation auf Sunset umstellen (`README.md`, `CHANGELOG.md`, `RELEASE.md`).
-- [ ] `isiLive.toc` auf `0.9.44` heben.
-- [ ] Release-Tag erstellen: `isiLive_release_0.9.44`.
+- [ ] `isiLive.toc` auf `0.9.45` heben.
+- [ ] Release-Tag erstellen: `isiLive_release_0.9.45`.
 
 ### C) Neues Addon `isiKeyMplus` (v1.0.45)
 
@@ -86,7 +86,7 @@
 ## P3 - Entschlackung `isiLive.lua` (nach Release `0.9.26`)
 
 - [x] `v0.9.26` zuerst releasen (keine strukturellen Refactors im Release-Commit mischen).
-- [x] Baseline dokumentieren: kurzer Ingame-Smoketest vor Refactor (Group join/leave, Queue/Teleport highlight, Key-Spalte, Refresh, Hidden/Sleep). Siehe `README.md` Abschnitt `Use Case / Logic Baseline (v0.9.44)`.
+- [x] Baseline dokumentieren: kurzer Ingame-Smoketest vor Refactor (Group join/leave, Queue/Teleport highlight, Key-Spalte, Refresh, Hidden/Sleep). Siehe `README.md` Abschnitt `Use Case / Logic Baseline (v0.9.45)`.
 - [x] `isiLive_keysync.lua` extrahieren (Key-Sync + Active-Key-Owner-Logik), in `isiLive.lua` nur noch Aufrufe.
 - [x] `isiLive_group.lua` extrahieren (Group-Lifecycle / Roster-Rebuild / Group-Leave-Cleanup).
 - [x] `isiLive_highlight.lua` extrahieren (Active-Target-Resolver + Highlight-State-Entscheidung).

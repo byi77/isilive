@@ -44,6 +44,31 @@ local function GetAddonStateText(getL, flags)
   return L.STATUS_STATE_RUNNING
 end
 
+local function BuildTargetDungeonText(deps)
+  local L = deps.getL()
+  local template = L.STATUS_TARGET_DUNGEON_TEXT or "Target Dungeon: %s"
+  local emptyText = L.STATUS_TARGET_DUNGEON_NONE or string.format(template, "-")
+
+  local info = deps.getTargetDungeonInfo and deps.getTargetDungeonInfo() or nil
+  if type(info) ~= "table" then
+    return emptyText
+  end
+
+  local name = tostring(info.name or "")
+  name = name:gsub("^%s+", ""):gsub("%s+$", "")
+  if name == "" then
+    return emptyText
+  end
+
+  local level = tonumber(info.level)
+  local targetText = name
+  if level and level > 0 then
+    targetText = string.format("%s +%d", name, level)
+  end
+
+  return string.format(template, targetText)
+end
+
 local function GetDungeonDifficultyLabel(getL)
   local L = getL()
   local instanceName, instanceType, difficultyID = GetInstanceInfo()
@@ -136,6 +161,7 @@ local function BuildStatusLineText(deps, flags)
   local L = deps.getL()
   local leadText = deps.isPlayerLeader() and L.STATUS_LEAD_YES or L.STATUS_LEAD_NO
   local mplusText = C_ChallengeMode.GetActiveChallengeMapID() and L.STATUS_MPLUS_YES or L.STATUS_MPLUS_NO
+  local targetDungeonText = BuildTargetDungeonText(deps)
   local stateText = GetAddonStateText(deps.getL, flags)
   local difficultyText = select(1, GetDungeonDifficultyLabel(deps.getL))
   return leadText
@@ -145,6 +171,8 @@ local function BuildStatusLineText(deps, flags)
     .. stateText
     .. " | "
     .. string.format(L.DUNGEON_DIFF_TEXT, difficultyText)
+    .. " | "
+    .. targetDungeonText
 end
 
 function Status.CreateController(opts)
@@ -158,6 +186,9 @@ function Status.CreateController(opts)
     hideCenterNotice = opts.hideCenterNotice or function() end,
     isPlayerLeader = opts.isPlayerLeader or function()
       return false
+    end,
+    getTargetDungeonInfo = opts.getTargetDungeonInfo or function()
+      return nil
     end,
   }
 

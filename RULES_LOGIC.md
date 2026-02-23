@@ -21,35 +21,40 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ## Regeluebersicht
 
-1. Queue-Zielaufloesung darf ohne konkrete `activityID -> mapID`-Aufloesung kein Ziel setzen.
+1. Queue-Zielaufloesung darf ohne konkreten map/activity-Kontext niemals raten.
 2. Die UI darf per STRG-F9 nur ausserhalb des Kampfes geoeffnet werden und muss per STRG-F9 jederzeit schliessbar bleiben.
-3. Negative Queue-Status-Folgeevents duerfen ein bereits gesetztes gruppiertes Ziel nicht loeschen.
-4. RIO-Delta wird erst nach erfolgreichem verzoegertem Post-Run-Refresh aktiviert.
-5. Teleport-Zielaufloesung per Dungeon-Name ohne `activityID` ist verboten.
-6. Identische KEY-Sync-Zustaende duerfen keinen zusaetzlichen State- oder Refresh-Folgeeffekt ausloesen.
-7. Queue-Capture ignoriert `pending`-Anwendungsstatus und dedupliziert identische Apply-Signaturen.
-8. Highlight-Aufloesung arbeitet nur mit eindeutigem `activityID/mapID`-Kontext und ohne Gruppen-freies Fallback.
-9. QueueFlow ignoriert Queue-Events waehrend aktiver Challenge und unterdrueckt doppelte Updates/Announces.
-10. Secure-Button-Updates werden im Kampf nur verzoegert angewendet; nicht-Hotkey-Oeffnen bleibt als pending erlaubt.
-11. Bei Raid-Groesse bleibt die UI ausgeblendet; beim Rueckwechsel wird Sichtbarkeit/Hinweiszustand korrekt zurueckgesetzt.
-12. Locale-Tabellen bleiben schluesselsymmetrisch; Fallback fuer unbekannte Tags ist enUS.
-13. Voll-Refresh laeuft nur in erlaubten Zustaenden und setzt bei Stop oder aktivem M+ aus.
-14. Slash-Commands fuehren State-Zyklen stabil aus (`test/stop/start/pause/resume/lang`).
+3. Negative Queue-Folgeevents duerfen ein bereits gruppiertes Ziel nicht unerwartet loeschen.
+4. RIO-Delta darf erst nach erfolgreichem verzoegertem Post-Run-Refresh aktiviert werden.
+5. Teleport-Ziel darf ohne Activity-Kontext nicht per Name geraten werden.
+6. Identische KEY-Sync-Zustaende duerfen keine unnoetigen Folgeupdates erzeugen.
+7. Queue-Capture darf pending/applied Rauschen nicht als neues Ziel behandeln und muss Doppler ignorieren.
+8. Highlight-Aufloesung darf nur mit eindeutigem activity/map-Kontext arbeiten und kein Gruppen-freies Fallback nutzen.
+9. QueueFlow muss waehrend aktiver Challenge Queue-Events ignorieren und doppelte Updates/Announces unterdruecken.
+10. Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; nicht-Hotkey-Oeffnen darf pending bleiben.
+11. In Raid-Groesse bleibt die UI ausgeblendet; beim Gruppenwechsel werden Hinweise und Sichtbarkeit korrekt rueckgesetzt.
+12. Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
+13. Voll-Refresh laeuft nur in erlaubten Zustaenden und muss bei Stop oder aktivem M+ sauber aussetzen.
+14. Slash-Commands muessen State-Zyklen stabil ausfuehren (test/stop/start/pause/resume/lang).
 15. Roster-RIO-Delta bleibt nicht-negativ und im Prefix-Format, inklusive unit-basiertem Live-Update.
-16. Addon-Sync-Nachrichten verarbeiten rosterrelevante Aenderungen, deduplizieren und refreshen nur bei Aenderung.
-17. Die Statuszeile zeigt den Target Dungeon konsistent (inkl. Key-Level falls bekannt) und immer am Ende.
-18. Advanced Combat Logging bleibt ueber Startup-Events hinweg erzwungen aktiv.
-19. Beim `PLAYER_ENTERING_WORLD` darf kein doppelter forced Key-Snapshot versendet werden.
-20. TestMode-State-Wechsel sind nur in gueltigen Zustaenden erlaubt.
-21. Guards validieren Pflichtmodule/Pflichtfunktionen hart und brechen den Main-Start bei Fehlern sauber ab.
-22. Non-Mythic-Dungeonstatus wird korrekt erkannt und bei Kontextwechsel robust signalisiert.
+16. Addon-Sync-Nachrichten muessen rosterrelevante Aenderungen verarbeiten, deduplizieren und refreshen.
+17. Die Buttons `Readycheck`, `Countdown10` und `Countdown 0` werden nur angezeigt, wenn man Gruppenleiter ist.
+18. Der Button `Refresh` wird nur angezeigt, wenn kein aktiver M+-Run laeuft (`ChallengeMode` inaktiv).
+19. Die Buttons `Share Keys` und `Refresh` sind gegen Klick-Spam geschuetzt (Debounce/Rate-Limit).
+20. In den Gruppenmitglieder-Zeilen ist kein Zeilenumbruch erlaubt.
+21. Es gibt kein Dungeon-Portal-Highlight, wenn das Ziel nicht eindeutig aufloesbar ist.
+22. Es gibt keinen wiederholten Target-Dungeon-Chatspam; bei identischem erkanntem Ziel reicht eine einmalige Ausgabe.
+23. coding: NO fallbacks of fallbacks
+24. coding: kein raten, schätzen oder herbeizaubern von aussagen. fakten zählen! robust und qualitativ hochwertig bleiben!
+25. der rio delta kann niemals negativ sein also zb. -15, der kann nur 0 oder höher sein.
+
+
 
 ## Regelbloecke
 
 ### RULE-QUEUE-NO-GUESS
 - Regelnummer: 1
 - Status: aktiv
-- Zusammenfassung: Queue-Zielaufloesung darf ohne konkrete `activityID -> mapID`-Aufloesung kein Ziel setzen.
+- Zusammenfassung: Queue-Zielaufloesung darf ohne konkreten map/activity-Kontext niemals raten.
 - Erforderliche Tests:
   - Queue does not guess first candidate when no concrete map is available
   - Teleport does not resolve by dungeon name without activityID
@@ -66,14 +71,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-QUEUE-NEGATIV-GRUPPE-STABIL
 - Regelnummer: 3
 - Status: entwurf
-- Zusammenfassung: Negative Queue-Status-Folgeevents duerfen ein bereits gesetztes gruppiertes Ziel nicht loeschen.
+- Zusammenfassung: Negative Queue-Folgeevents duerfen ein bereits gruppiertes Ziel nicht unerwartet loeschen.
 - Erforderliche Tests:
   - Event handlers keep target on negative updates when group fills to five
 
 ### RULE-RIO-DELTA-POSTRUN-AKTIVIERUNG
 - Regelnummer: 4
 - Status: entwurf
-- Zusammenfassung: RIO-Delta wird erst nach erfolgreichem verzoegertem Post-Run-Refresh aktiviert.
+- Zusammenfassung: RIO-Delta darf erst nach erfolgreichem verzoegertem Post-Run-Refresh aktiviert werden.
 - Erforderliche Tests:
   - Event handlers enable RIO delta only after delayed post-run refresh
   - Event handlers retry post-run refresh when first delayed attempt is blocked
@@ -81,7 +86,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-TELEPORT-KEIN-NAME-GUESSING
 - Regelnummer: 5
 - Status: entwurf
-- Zusammenfassung: Teleport-Zielaufloesung per Dungeon-Name ohne `activityID` ist verboten.
+- Zusammenfassung: Teleport-Ziel darf ohne Activity-Kontext nicht per Name geraten werden.
 - Erforderliche Tests:
   - Teleport does not resolve by dungeon name without activityID
   - Teleport does not resolve localized dungeon names without activityID
@@ -89,14 +94,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-SYNC-KEY-DEDUP
 - Regelnummer: 6
 - Status: entwurf
-- Zusammenfassung: Identische KEY-Sync-Zustaende duerfen keinen zusaetzlichen State- oder Refresh-Folgeeffekt ausloesen.
+- Zusammenfassung: Identische KEY-Sync-Zustaende duerfen keine unnoetigen Folgeupdates erzeugen.
 - Erforderliche Tests:
   - Sync SetPlayerKeyInfo deduplicates identical key updates
 
 ### RULE-QUEUE-CAPTURE-PENDING-DEDUP
 - Regelnummer: 7
 - Status: entwurf
-- Zusammenfassung: Queue-Capture ignoriert `pending`-Anwendungsstatus und dedupliziert identische Apply-Signaturen.
+- Zusammenfassung: Queue-Capture darf pending/applied Rauschen nicht als neues Ziel behandeln und muss Doppler ignorieren.
 - Erforderliche Tests:
   - Queue capture ignores pending application updates
   - Queue capture deduplicates duplicate apply signatures
@@ -105,7 +110,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-HIGHLIGHT-STRIKTER-MAP-KONTEXT
 - Regelnummer: 8
 - Status: entwurf
-- Zusammenfassung: Highlight-Aufloesung arbeitet nur mit eindeutigem `activityID/mapID`-Kontext und ohne Gruppen-freies Fallback.
+- Zusammenfassung: Highlight-Aufloesung darf nur mit eindeutigem activity/map-Kontext arbeiten und kein Gruppen-freies Fallback nutzen.
 - Erforderliche Tests:
   - Highlight joined-key resolver requires activity-based map context
   - Highlight listing resolver requires unique activity map
@@ -114,7 +119,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-QUEUEFLOW-CHALLENGE-UND-DEDUP
 - Regelnummer: 9
 - Status: entwurf
-- Zusammenfassung: QueueFlow ignoriert Queue-Events waehrend aktiver Challenge und unterdrueckt doppelte Updates/Announces.
+- Zusammenfassung: QueueFlow muss waehrend aktiver Challenge Queue-Events ignorieren und doppelte Updates/Announces unterdruecken.
 - Erforderliche Tests:
   - QueueFlow capture ignores queue events while in challenge mode
   - QueueFlow update suppresses exact duplicate updates
@@ -123,7 +128,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-TELEPORT-SECURE-COMBAT-DEFER
 - Regelnummer: 10
 - Status: entwurf
-- Zusammenfassung: Secure-Button-Updates werden im Kampf nur verzoegert angewendet; nicht-Hotkey-Oeffnen bleibt als pending erlaubt.
+- Zusammenfassung: Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; nicht-Hotkey-Oeffnen darf pending bleiben.
 - Erforderliche Tests:
   - Teleport secure button updates are deferred during combat and applied after regen
   - UI direct SetVisible(true) in combat still queues pending open for non-hotkey flows
@@ -131,7 +136,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-GRUPPE-RAID-SICHTBARKEIT
 - Regelnummer: 11
 - Status: entwurf
-- Zusammenfassung: Bei Raid-Groesse bleibt die UI ausgeblendet; beim Rueckwechsel wird Sichtbarkeit/Hinweiszustand korrekt zurueckgesetzt.
+- Zusammenfassung: In Raid-Groesse bleibt die UI ausgeblendet; beim Gruppenwechsel werden Hinweise und Sichtbarkeit korrekt rueckgesetzt.
 - Erforderliche Tests:
   - Group leave clears roster and hides frame
   - Raid group hides frame and prints notification
@@ -140,7 +145,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-LOCALE-SYMMETRIE-FALLBACK
 - Regelnummer: 12
 - Status: entwurf
-- Zusammenfassung: Locale-Tabellen bleiben schluesselsymmetrisch; Fallback fuer unbekannte Tags ist enUS.
+- Zusammenfassung: Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
 - Erforderliche Tests:
   - All enUS keys exist in deDE locale
   - All deDE keys exist in enUS locale
@@ -149,7 +154,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-REFRESH-STATE-GATES
 - Regelnummer: 13
 - Status: entwurf
-- Zusammenfassung: Voll-Refresh laeuft nur in erlaubten Zustaenden und setzt bei Stop oder aktivem M+ aus.
+- Zusammenfassung: Voll-Refresh laeuft nur in erlaubten Zustaenden und muss bei Stop oder aktivem M+ sauber aussetzen.
 - Erforderliche Tests:
   - Refresh RunFullRefresh executes all refresh steps
   - Refresh RunFullRefresh skips when stopped
@@ -158,7 +163,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-COMMANDS-STATE-ZYKLEN
 - Regelnummer: 14
 - Status: entwurf
-- Zusammenfassung: Slash-Commands fuehren State-Zyklen stabil aus (`test/stop/start/pause/resume/lang`).
+- Zusammenfassung: Slash-Commands muessen State-Zyklen stabil ausfuehren (test/stop/start/pause/resume/lang).
 - Erforderliche Tests:
   - Commands routes test command to toggle
   - Commands stop/start cycle works correctly
@@ -178,62 +183,56 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-EVENT-SYNC-ROSTER-REFRESH
 - Regelnummer: 16
 - Status: entwurf
-- Zusammenfassung: Addon-Sync-Nachrichten verarbeiten rosterrelevante Aenderungen, deduplizieren und refreshen nur bei Aenderung.
+- Zusammenfassung: Addon-Sync-Nachrichten muessen rosterrelevante Aenderungen verarbeiten, deduplizieren und refreshen.
 - Erforderliche Tests:
   - Event handlers process addon sync messages and refresh changed roster
   - Sync ProcessAddonMessage handles HELLO and KEY payloads
   - Sync SetPlayerKeyInfo deduplicates identical key updates
 
-### RULE-STATUS-TARGET-DUNGEON-KONSISTENZ
+### RULE-LEADER-BUTTONS-SICHTBARKEIT
 - Regelnummer: 17
 - Status: entwurf
-- Zusammenfassung: Die Statuszeile zeigt den Target Dungeon konsistent (inkl. Key-Level falls bekannt) und immer am Ende.
+- Zusammenfassung: Die Buttons `Readycheck`, `Countdown10` und `Countdown 0` werden nur angezeigt, wenn man Gruppenleiter ist.
 - Erforderliche Tests:
-  - Status line includes target dungeon and key level when available
-  - Status line places target dungeon at the end
-  - Status line keeps target placeholder when no target is available
+  - LeaderWatch detects leader gain via PARTY_LEADER_CHANGED
+  - LeaderWatch detects leader loss
 
-### RULE-ACL-HARD-ENFORCED-STARTUP
+### RULE-REFRESH-BUTTON-CHALLENGE-SICHTBARKEIT
 - Regelnummer: 18
 - Status: entwurf
-- Zusammenfassung: Advanced Combat Logging bleibt ueber Startup-Events hinweg erzwungen aktiv.
+- Zusammenfassung: Der Button `Refresh` wird nur angezeigt, wenn kein aktiver M+-Run laeuft (`ChallengeMode` inaktiv).
 - Erforderliche Tests:
-  - Event handlers keep advanced combat logging hard-enabled across startup events
+  - Refresh RunFullRefresh skips during active M+
 
-### RULE-KEY-SNAPSHOT-ENTERING-WORLD-NO-DUP
+### RULE-BUTTON-SPAM-GUARD
 - Regelnummer: 19
 - Status: entwurf
-- Zusammenfassung: Beim `PLAYER_ENTERING_WORLD` darf kein doppelter forced Key-Snapshot versendet werden.
+- Zusammenfassung: Die Buttons `Share Keys` und `Refresh` sind gegen Klick-Spam geschuetzt (Debounce/Rate-Limit).
 - Erforderliche Tests:
-  - Event handlers avoid duplicate forced key snapshot sends on PLAYER_ENTERING_WORLD
+  - Replace with exact deterministic test name
 
-### RULE-TESTMODE-STATE-GUARDS
+### RULE-ROSTER-ZEILENUMBRUCH-VERBOT
 - Regelnummer: 20
 - Status: entwurf
-- Zusammenfassung: TestMode-State-Wechsel sind nur in gueltigen Zustaenden erlaubt.
+- Zusammenfassung: In den Gruppenmitglieder-Zeilen ist kein Zeilenumbruch erlaubt.
 - Erforderliche Tests:
-  - TestMode toggle enters and exits test mode
-  - TestMode toggle blocked when stopped
-  - TestMode toggle blocked when paused
-  - TestMode full dummy preview sets testall state
+  - Replace with exact deterministic test name
 
-### RULE-GUARDS-BOOTSTRAP-HARD-FAIL
+### RULE-HIGHLIGHT-NUR-BEI-EINDEUTIGEM-ZIEL
 - Regelnummer: 21
 - Status: entwurf
-- Zusammenfassung: Guards validieren Pflichtmodule/Pflichtfunktionen hart und brechen den Main-Start bei Fehlern sauber ab.
+- Zusammenfassung: Es gibt kein Dungeon-Portal-Highlight, wenn das Ziel nicht eindeutig aufloesbar ist.
 - Erforderliche Tests:
-  - Guards validates all required modules are present
-  - Guards fails when a required module is missing
-  - Guards fails when a required function is missing from module stub
-  - Main addon exits gracefully when Guards validation fails
+  - Highlight listing resolver requires unique activity map
+  - Highlight joined-key resolver requires activity-based map context
+  - Queue does not guess first candidate when no concrete map is available
 
-### RULE-STATUS-NON-MYTHIC-KONTEXT
+### RULE-TARGET-DUNGEON-CHAT-DEDUP
 - Regelnummer: 22
 - Status: entwurf
-- Zusammenfassung: Non-Mythic-Dungeonstatus wird korrekt erkannt und bei Kontextwechsel robust signalisiert.
+- Zusammenfassung: Es gibt keinen wiederholten Target-Dungeon-Chatspam; bei identischem erkanntem Ziel reicht eine einmalige Ausgabe.
 - Erforderliche Tests:
-  - Status maps heroic fallback difficulty IDs as non-mythic heroic
-  - Status warns when switching from normal to heroic without leaving dungeon context
+  - QueueFlow deduplicates repeated grouped announce for same target
 
 ## Hinweise
 

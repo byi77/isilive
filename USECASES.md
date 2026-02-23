@@ -1,7 +1,7 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.44`
-Last updated: `2026-02-22`
+Version baseline: `0.9.45`
+Last updated: `2026-02-23`
 
 ## Actors
 
@@ -114,6 +114,7 @@ Goal: show pre/post-run rating change per player in roster without negative disp
 ## Automated Validation Mapping
 
 Runtime behavior in this document is validated by `tools/validate_usecases.lua`.
+Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules_logic.lua` and also enforced during `tools/validate_usecases.lua`.
 
 1. UC-01/UC-02: strict queue target resolution and queue highlight behavior without speculative fallback.
 2. UC-03: exact-map suppression and shared-portcast ambiguity handling.

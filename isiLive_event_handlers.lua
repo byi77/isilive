@@ -403,7 +403,7 @@ local function HandlePlayerEnteringWorldEvent(ctx, _self)
     ctx.timerAfter(3, ctx.applyHotkeyBindings)
     ctx.timerAfter(2, function()
       ctx.sendIsiLiveHello(true)
-      ctx.sendOwnKeySnapshot(true)
+      ctx.sendOwnKeySnapshot(false)
     end)
   end
   ctx.sendOwnKeySnapshot(true)

@@ -127,11 +127,13 @@ function Bootstrap.BindMainFrameScripts(mainFrame, opts)
   opts = opts or {}
 
   assert(mainFrame, "isiLive: Bootstrap.BindMainFrameScripts requires mainFrame")
-  local onEvent = RequireFunction(opts.onEvent, "onEvent")
+  local onEvent = opts.onEvent
   local onShow = RequireFunction(opts.onShow, "onShow")
   local onHide = RequireFunction(opts.onHide, "onHide")
 
-  mainFrame:SetScript("OnEvent", onEvent)
+  if onEvent ~= nil then
+    mainFrame:SetScript("OnEvent", RequireFunction(onEvent, "onEvent"))
+  end
   mainFrame:SetScript("OnShow", onShow)
   mainFrame:SetScript("OnHide", onHide)
 end

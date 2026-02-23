@@ -120,4 +120,3 @@ end
 -- Backward-compatible aliases used by existing runtime wiring.
 SeasonData.MAP_TO_TELEPORT = SeasonData.GetMapToTeleport()
 SeasonData.MAP_SHORT_CODES = SeasonData.GetShortCodes("enUS")
-SeasonData.MAP_SHORT_CODES_DE = SeasonData.GetShortCodes("deDE")

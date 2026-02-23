@@ -217,6 +217,40 @@ local function RegisterCombatAndRioTests(test, Assert, WithGlobals, LoadAddonMod
     Assert.Equal(cvarValue, "1", "advanced combat logging cvar should be hard-enabled")
   end)
 
+  test("Event handlers avoid duplicate forced key snapshot sends on PLAYER_ENTERING_WORLD", function()
+    local keySnapshotForceCalls = {}
+    local scheduled = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      timerAfter = function(seconds, callback)
+        table.insert(scheduled, { seconds = seconds, callback = callback })
+      end,
+      sendOwnKeySnapshot = function(force)
+        table.insert(keySnapshotForceCalls, force == true)
+      end,
+    })
+
+    controller:Dispatch("PLAYER_ENTERING_WORLD")
+
+    Assert.Equal(#keySnapshotForceCalls, 1, "entering world should send one immediate key snapshot")
+    Assert.True(keySnapshotForceCalls[1], "immediate entering-world key snapshot must stay forced")
+
+    local delayedRefreshCallback = nil
+    for _, item in ipairs(scheduled) do
+      if item.seconds == 2 then
+        delayedRefreshCallback = item.callback
+        break
+      end
+    end
+    Assert.NotNil(delayedRefreshCallback, "entering world should schedule delayed refresh callback")
+
+    delayedRefreshCallback()
+
+    Assert.Equal(#keySnapshotForceCalls, 2, "delayed refresh callback should trigger second key snapshot attempt")
+    Assert.False(keySnapshotForceCalls[2], "delayed key snapshot attempt must be non-forced to avoid duplicate sends")
+  end)
+
   test("Event handlers reset damage meter on challenge start when available", function()
     local resetCalls = 0
     local setCalls = 0

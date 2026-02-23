@@ -19,4 +19,9 @@ if ! lua tools/lua_metrics_check.lua; then
   exit 1
 fi
 
+if ! lua tools/validate_usecases.lua; then
+  echo "pre-commit: deterministic usecase/rules logic validation failed. Fix failing scenarios or RULES_LOGIC mapping and retry."
+  exit 1
+fi
+
 echo "pre-commit: all checks passed."

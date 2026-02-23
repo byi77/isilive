@@ -1,0 +1,22 @@
+local scenarioFiles = {
+  "testmodul/isilive_test_scenarios_queue.lua",
+  "testmodul/isilive_test_scenarios_highlight.lua",
+  "testmodul/isilive_test_scenarios_event_handlers.lua",
+  "testmodul/isilive_test_scenarios_queue_flow.lua",
+  "testmodul/isilive_test_scenarios_spell_utils.lua",
+  "testmodul/isilive_test_scenarios_teleport.lua",
+  "testmodul/isilive_test_scenarios_group.lua",
+  "testmodul/isilive_test_scenarios_event_utils.lua",
+  "testmodul/isilive_test_scenarios_locale.lua",
+  "testmodul/isilive_test_scenarios_sync.lua",
+  "testmodul/isilive_test_scenarios_guards.lua",
+  "testmodul/isilive_test_scenarios_test_mode.lua",
+  "testmodul/isilive_test_scenarios_leader_watch.lua",
+  "testmodul/isilive_test_scenarios_refresh.lua",
+  "testmodul/isilive_test_scenarios_commands.lua",
+  "testmodul/isilive_test_scenarios_roster.lua",
+  "testmodul/isilive_test_scenarios_status.lua",
+  "testmodul/isilive_test_scenarios_ui.lua",
+}
+
+return scenarioFiles

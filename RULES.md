@@ -41,7 +41,10 @@
 - `luacheck --exclude-files ".luarocks/**" -- .`
 - Lua syntax parse for all `.lua` files (`luac -p`)
 - `lua tools/lua_metrics_check.lua`
+- `lua tools/validate_rules_logic.lua`
 - `lua tools/validate_usecases.lua`
+- Keep enforceable usecase/rule contracts in `RULES_LOGIC.md` with stable `RULE-ID` blocks.
+- Mark only production-enforced contracts as `Status: active` and map each to exact deterministic test names.
 - For behavioral fixes, add or update deterministic coverage in `tools/validate_usecases.lua`.
 - If a gate fails, fix root cause and rerun the full gate set (no partial-pass release).
 
