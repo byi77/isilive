@@ -27,6 +27,14 @@ local function NormalizeLocaleTag(localeTag)
   return "default"
 end
 
+local function NormalizeMapIDInput(mapID)
+  local numericMapID = tonumber(mapID)
+  if not numericMapID then
+    return nil
+  end
+  return numericMapID
+end
+
 SeasonData.ACTIVE_SEASON_ID = "tww_s3"
 
 SeasonData.SEASONS = {
@@ -66,6 +74,17 @@ SeasonData.SEASONS = {
         [2662] = "MB",
       },
     },
+    -- ChallengeMapID -> canonical season mapID aliases used by roster key snapshots.
+    challengeMapAliases = {
+      [378] = 2287, -- Halls of Atonement
+      [391] = 2441, -- Tazavesh: Streets of Wonder
+      [392] = 2441, -- Tazavesh: So'leah's Gambit
+      [499] = 2649, -- Priory of the Sacred Flame
+      [503] = 2660, -- Ara-Kara, City of Echoes
+      [505] = 2662, -- The Dawnbreaker
+      [525] = 2773, -- Operation: Floodgate
+      [542] = 2830, -- Eco-Dome Al'dani
+    },
   },
 }
 
@@ -73,6 +92,31 @@ function SeasonData.GetSeasonConfig(seasonID)
   local resolvedSeasonID = seasonID or SeasonData.ACTIVE_SEASON_ID
   local seasons = SeasonData.SEASONS or {}
   return seasons[resolvedSeasonID]
+end
+
+function SeasonData.NormalizeMapID(mapID, seasonID)
+  local numericMapID = NormalizeMapIDInput(mapID)
+  if not numericMapID then
+    return nil
+  end
+
+  local season = SeasonData.GetSeasonConfig(seasonID)
+  if type(season) ~= "table" then
+    return numericMapID
+  end
+
+  local mapToTeleport = season.mapToTeleport or {}
+  if mapToTeleport[numericMapID] then
+    return numericMapID
+  end
+
+  local aliases = season.challengeMapAliases or {}
+  local canonical = NormalizeMapIDInput(aliases[numericMapID])
+  if canonical and mapToTeleport[canonical] then
+    return canonical
+  end
+
+  return numericMapID
 end
 
 function SeasonData.GetMapToTeleport(seasonID)
@@ -103,7 +147,7 @@ function SeasonData.GetShortCodes(localeTag, seasonID)
 end
 
 function SeasonData.GetDungeonShortCode(mapID, localeTag, seasonID)
-  local numericMapID = tonumber(mapID)
+  local numericMapID = SeasonData.NormalizeMapID(mapID, seasonID)
   if not numericMapID then
     return nil
   end

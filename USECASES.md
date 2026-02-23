@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.45`
+Version baseline: `0.9.47`
 Last updated: `2026-02-23`
 
 ## Actors
@@ -42,7 +42,7 @@ Goal: detect queue invite/join context and identify the correct dungeon target w
 Goal: inform the player and highlight the correct portal cast icon.
 
 1. Trigger: group join is confirmed and target metadata exists.
-2. Processing: addon posts queue/join hint and updates notice/UI state.
+2. Processing: addon posts queue/join hint and updates UI state (chat + invite hint, no queue center notice).
 3. Processing: teleport button matching the resolved target spell is highlighted.
 4. User action: player can click the portal button or move manually to dungeon.
 5. Rule: follow-up negative application status updates must not clear queue target while player is already grouped.
@@ -85,8 +85,8 @@ Goal: allow user to post current party keys quickly.
 
 1. Trigger: user clicks `Share Keys` button in right control stack.
 2. Processing: addon builds ordered roster key summary from known keys.
-3. Output: message is sent to `PARTY`, with local print fallback on send failure.
-4. Success criteria: chat line contains party key list in deterministic format.
+3. Output: one message per key owner is sent to `PARTY`, with local print fallback on send failure.
+4. Success criteria: each available member key appears as its own deterministic chat line (`Name: SHORT +Level`).
 
 ## UC-07 RIO Delta Visibility
 

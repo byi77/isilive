@@ -5,6 +5,8 @@ addonTable = addonTable or {}
 local KeySync = {}
 addonTable.KeySync = KeySync
 
+local SeasonData = addonTable.SeasonData or {}
+
 local function GetOwnedKeystoneSnapshot()
   local mythicPlusApi = rawget(_G, "C_MythicPlus")
   if not mythicPlusApi then
@@ -19,6 +21,9 @@ local function GetOwnedKeystoneSnapshot()
 
   level = tonumber(level)
   mapID = tonumber(mapID)
+  if type(SeasonData.NormalizeMapID) == "function" then
+    mapID = SeasonData.NormalizeMapID(mapID)
+  end
   if not level or level <= 0 or not mapID or mapID <= 0 then
     return nil, nil
   end

@@ -188,6 +188,16 @@ local function RegisterTeleportResolverTests(test, Assert, WithGlobals, LoadAddo
       Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2660, "deDE"), "AK", "deDE should keep AK")
       Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2441, "deDE"), "TAZ", "deDE should keep TAZ")
       Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2662, "deDE"), "MB", "deDE should map DB to MB")
+      Assert.Equal(
+        addon.Teleport.GetSeason3DungeonShortCode(542, "deDE"),
+        "BIO",
+        "challenge-map alias should resolve to same localized short code list"
+      )
+      Assert.Equal(
+        addon.Teleport.ResolveSeason3TeleportSpellIDByMapID(542),
+        1237215,
+        "challenge-map alias should resolve to canonical teleport spell"
+      )
       Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2649, "enUS"), "PSF", "enUS should keep PSF")
       Assert.Equal(
         addon.SeasonData.GetMapToTeleport()[2662],
@@ -199,6 +209,52 @@ local function RegisterTeleportResolverTests(test, Assert, WithGlobals, LoadAddo
         "DB",
         "unsupported locales should fallback to default"
       )
+    end)
+  end)
+
+  test("Teleport resolves challenge-map IDs by static alias list before short-code rendering", function()
+    local createFrameStub = BuildCreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      C_ChallengeMode = {
+        GetMapUIInfo = function(mapID)
+          local names = {
+            [2441] = "Tazavesh: Streets of Wonder",
+            [392] = "Tazavesh: Streets of Wonder",
+            [2662] = "The Dawnbreaker",
+            [505] = "The Dawnbreaker",
+          }
+          return names[mapID]
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_season_data.lua",
+        "isiLive_teleport.lua",
+        "isiLive_sync.lua",
+      })
+
+      Assert.Equal(
+        addon.Teleport.GetSeason3DungeonShortCode(392, "deDE"),
+        "TAZ",
+        "challenge-map aliases resolved by map name should use localized short code"
+      )
+      Assert.Equal(
+        addon.Teleport.GetSeason3DungeonShortCode(505, "deDE"),
+        "MB",
+        "challenge-map aliases resolved by map name should use dawnbreaker short code"
+      )
+      Assert.Equal(
+        addon.Teleport.ResolveSeason3TeleportSpellIDByMapID(505),
+        445414,
+        "runtime map-name alias should resolve canonical teleport spell"
+      )
+
+      local keyChanged = addon.Sync.SetPlayerKeyInfo("Tester", "Realm", 505, 12)
+      local keyInfo = addon.Sync.GetPlayerKeyInfo("Tester", "Realm")
+      Assert.True(keyChanged, "sync key cache should accept first normalized challenge-map update")
+      Assert.Equal(keyInfo and keyInfo.mapID, 2662, "sync key cache should store canonical map id after normalization")
     end)
   end)
 

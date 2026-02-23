@@ -42,7 +42,7 @@ local isiLiveGuards = addonTable and addonTable.Guards
 local INSPECT_TIMEOUT = 2 -- seconds
 local RETRY_INTERVAL = 5 -- seconds
 local INSPECT_DELAY = 1 -- seconds between inspects to avoid throttle
-local MIN_FRAME_HEIGHT = 212
+local MIN_FRAME_HEIGHT = 228
 
 -- --- Localization ---
 local locale = GetLocale()
@@ -190,6 +190,40 @@ local function StartBindingWatchdog()
   end
 end
 
+local function EnsureSoloPlayerRoster()
+  if IsInGroup() then
+    return
+  end
+
+  local name, realm = GetUnitNameAndRealm("player")
+  if type(name) ~= "string" or name == "" then
+    return
+  end
+
+  local _, class = UnitClass("player")
+  local language = isiLiveContextHelpers.GetUnitServerLanguage(isiLiveLocale, GetRealmInfoLib, "player", realm)
+  local keyMapID, keyLevel = nil, nil
+  if type(GetOwnedKeystoneSnapshot) == "function" then
+    keyMapID, keyLevel = GetOwnedKeystoneSnapshot()
+  end
+
+  roster = {
+    player = {
+      name = name,
+      realm = realm,
+      language = language,
+      class = class,
+      role = GetUnitRole("player"),
+      spec = GetPlayerSpecName(),
+      ilvl = nil,
+      rio = GetUnitRio("player"),
+      hasIsiLive = true,
+      keyMapID = keyMapID,
+      keyLevel = keyLevel,
+    },
+  }
+end
+
 local ResolveSeason3TeleportSpellIDByActivityID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByActivityID
 local ResolveSeason3MapIDByActivityID = isiLiveTeleport.ResolveSeason3MapIDByActivityID
 local ResolveSeason3TeleportSpellID = isiLiveTeleport.ResolveSeason3TeleportSpellID
@@ -221,6 +255,7 @@ local frameBridgeContext = isiLiveFrameBridge.CreateContext({
     end
   end,
   onShownNoGroup = function()
+    EnsureSoloPlayerRoster()
     UpdateUI()
     UpdateLeaderButtons()
   end,

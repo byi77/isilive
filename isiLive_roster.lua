@@ -56,8 +56,6 @@ function Roster.BuildDisplayData(info, opts)
   local getDungeonShortCode = opts.getDungeonShortCode
   local getRioDelta = opts.getRioDelta
   local syncMarker = opts.syncMarker or ""
-  local fullSyncMarker = opts.fullSyncMarker or ""
-  local hasFullSync = opts.hasFullSync == true
 
   local classColor = RAID_CLASS_COLORS[info.class] or { r = 1, g = 1, b = 1 }
   local colorHex = CreateColor(classColor.r, classColor.g, classColor.b):GenerateHexColor()
@@ -98,7 +96,7 @@ function Roster.BuildDisplayData(info, opts)
     local shortCode = getDungeonShortCode and getDungeonShortCode(info.keyMapID) or tostring(info.keyMapID)
     keyText = string.format("%s +%d", shortCode, tonumber(info.keyLevel) or 0)
   end
-  local addonMarker = info.hasIsiLive and (hasFullSync and fullSyncMarker or syncMarker) or ""
+  local addonMarker = info.hasIsiLive and syncMarker or ""
   local roleIconMarkup = ROLE_ICONS[info.role] or ""
 
   return {

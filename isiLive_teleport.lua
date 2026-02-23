@@ -187,6 +187,9 @@ end
 
 function Teleport.GetSeason3TeleportInfoByMapID(mapID)
   local numericMapID = tonumber(mapID)
+  if type(SeasonData.NormalizeMapID) == "function" then
+    numericMapID = SeasonData.NormalizeMapID(numericMapID)
+  end
   if not numericMapID then
     return nil
   end
@@ -241,6 +244,9 @@ end
 
 function Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
   local numericMapID = tonumber(mapID)
+  if type(SeasonData.NormalizeMapID) == "function" then
+    numericMapID = SeasonData.NormalizeMapID(numericMapID)
+  end
   local mapToTeleport = GetMapToTeleport()
   if numericMapID and mapToTeleport[numericMapID] then
     return ResolveMappedSpellID(numericMapID)

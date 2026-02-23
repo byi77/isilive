@@ -32,7 +32,7 @@ local function CreateHighlightController(ctx)
   })
 end
 
-local function CreateRosterPanelController(ctx)
+local function CreateRosterPanelController(ctx, keySyncResult)
   local controller = ctx.rosterPanelModule.CreateController({
     mainFrame = ctx.mainFrame,
     getL = ctx.getL,
@@ -67,6 +67,7 @@ local function CreateRosterPanelController(ctx)
     },
     syncMarker = " |cff33aaff<3|r",
     fullSyncMarker = " |cff00e68a[fullsync]|r",
+    applyKnownKeyToRosterEntry = keySyncResult and keySyncResult.applyKnownKeyToRosterEntry or nil,
   })
 
   return {
@@ -107,7 +108,7 @@ function ControllerInit.CreateControllers(ctx)
 
   result.highlightController = CreateHighlightController(ctx)
 
-  local rosterPanelResult = CreateRosterPanelController(ctx)
+  local rosterPanelResult = CreateRosterPanelController(ctx, keySyncResult)
   for key, value in pairs(rosterPanelResult) do
     result[key] = value
   end

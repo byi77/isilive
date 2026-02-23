@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local Sync = {}
 addonTable.Sync = Sync
+local SeasonData = addonTable.SeasonData or {}
 
 local ISILIVE_SYNC_PREFIX = "ISILIVE"
 local ISILIVE_HELLO_COOLDOWN = 8
@@ -44,6 +45,9 @@ end
 local function NormalizeKeyPayload(mapID, level)
   local numericLevel = tonumber(level)
   local numericMapID = tonumber(mapID)
+  if type(SeasonData.NormalizeMapID) == "function" then
+    numericMapID = SeasonData.NormalizeMapID(numericMapID)
+  end
   if not numericLevel or numericLevel <= 0 or not numericMapID or numericMapID <= 0 then
     return "KEY:0:0", nil, nil
   end

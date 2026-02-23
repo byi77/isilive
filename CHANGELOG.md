@@ -1,6 +1,35 @@
 # Changelog
 
-## Unreleased
+## 2026-02-23 - Version 0.9.47
+- **Key Mapping Reliability (TWW S3):**
+  - Added explicit challenge-map alias mapping for TWW S3 key IDs:
+    - `378 -> 2287` (Halls of Atonement)
+    - `391 -> 2441` (Tazavesh: Streets of Wonder)
+    - `392 -> 2441` (Tazavesh: So'leah's Gambit)
+    - `499 -> 2649` (Priory of the Sacred Flame)
+    - `503 -> 2660` (Ara-Kara, City of Echoes)
+    - `505 -> 2662` (The Dawnbreaker)
+    - `525 -> 2773` (Operation: Floodgate)
+    - `542 -> 2830` (Eco-Dome Al'dani)
+  - Incoming addon sync payloads (`KEY:<mapID>:<level>`) are now normalized through the same alias mapping before roster storage/rendering.
+  - Fixed roster key column fallback-to-number behavior for known aliased challenge-map IDs.
+- **Roster/UI Fixes:**
+  - Fixed solo/manual-open path to always keep the local player row (including own key snapshot) visible.
+  - Increased minimum frame height and moved status line further down to avoid overlap with bottom controls.
+  - Removed `[fullsync]` roster marker override; detected `isiLive` users now consistently render the blue `<3` marker only.
+- **Share Keys Output:**
+  - `Share Keys` now sends one chat line per member key instead of one aggregated line.
+  - Share action now keeps existing visible key values stable and only backfills missing key data from sync cache.
+- **Validation/Docs:**
+  - Added deterministic teleport/sync coverage for challenge-map alias normalization.
+  - `tools/validate_usecases.lua` now runs `114` deterministic scenarios across 18 modules (all passing).
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `RELEASE.md` to current runtime behavior and versioning.
+- TOC version bumped to `0.9.47`.
+
+## 2026-02-23 - Version 0.9.46
+- **Queue Join UX:**
+  - Removed queue-join center notice popup (`Joined from queue ...`) from grouped announce flow.
+  - Queue-join feedback now uses chat summary + invite hint only.
 - **Runtime Logging:**
   - Added runtime log persistence controller (`isiLive_runtime_log.lua`) storing entries in `IsiLiveDB.runtimeLog`.
   - Added slash command `/isilive log [on|off|start|stop|status|clear|tail [n]]` for runtime log control.
@@ -8,6 +37,7 @@
 - **Documentation:**
   - Synced `README.md`, `ARCHITECTURE.md`, and `RELEASE.md` with runtime log command support and validator coverage updates.
   - Updated deterministic usecase gate references from `111` to `113` scenarios.
+- TOC version bumped to `0.9.46`.
 
 ## 2026-02-23 - Version 0.9.45
 - **Runtime Reliability:**

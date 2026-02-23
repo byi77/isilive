@@ -28,8 +28,15 @@ local function SendPartyChatMessage(message)
     return false
   end
 
-  if C_ChatInfo and type(C_ChatInfo.SendChatMessage) == "function" then
-    local ok = pcall(C_ChatInfo.SendChatMessage, message, "PARTY")
+  local sendChatMessage = nil
+  if type(_G.SendChatMessage) == "function" then
+    sendChatMessage = _G.SendChatMessage
+  elseif C_ChatInfo and type(C_ChatInfo.SendChatMessage) == "function" then
+    sendChatMessage = C_ChatInfo.SendChatMessage
+  end
+
+  if type(sendChatMessage) == "function" then
+    local ok = pcall(sendChatMessage, message, "PARTY")
     if ok then
       return true
     end
@@ -45,26 +52,45 @@ local function BuildKeyAnnouncement(opts)
   local rolePriority = opts.rolePriority
   local unitPriority = opts.unitPriority
   local getDungeonShortCode = opts.getDungeonShortCode
-  local parts = {}
+  local applyKnownKeyToRosterEntry = opts.applyKnownKeyToRosterEntry
+  local lines = {}
   local ordered = buildOrderedRoster(roster, rolePriority, unitPriority)
   for _, entry in ipairs(ordered) do
     local info = entry.info
-    if info.keyMapID and info.keyLevel and tonumber(info.keyLevel) > 0 then
-      local short = getDungeonShortCode(info.keyMapID)
-      table.insert(parts, string.format("%s: %s +%s", info.name, short, info.keyLevel))
+    if type(info) == "table" then
+      local currentMapID = tonumber(info.keyMapID)
+      local currentLevel = tonumber(info.keyLevel)
+      local hasCurrentKey = currentMapID and currentMapID > 0 and currentLevel and currentLevel > 0
+
+      if type(applyKnownKeyToRosterEntry) == "function" then
+        -- Only backfill missing keys from sync cache.
+        -- Never overwrite already-visible key data with empty cache state.
+        if not hasCurrentKey then
+          applyKnownKeyToRosterEntry(info)
+        end
+      end
+
+      local keyMapID = tonumber(info.keyMapID)
+      local keyLevel = tonumber(info.keyLevel)
+      if keyMapID and keyMapID > 0 and keyLevel and keyLevel > 0 then
+        local short = getDungeonShortCode(keyMapID)
+        local prefixText = tostring(L.ANNOUNCE_PREFIX or "")
+        local nameText = tostring(info.name or "?")
+        table.insert(lines, string.format("%s %s: %s +%d", prefixText, nameText, short, math.floor(keyLevel)))
+      end
     end
   end
 
-  if #parts == 0 then
+  if #lines == 0 then
     return nil
   end
 
-  return L.ANNOUNCE_PREFIX .. " " .. table.concat(parts, ", ")
+  return lines
 end
 
 local function CreateStatusLine(mainFrame)
   local statusLine = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  statusLine:SetPoint("BOTTOMLEFT", 10, 10)
+  statusLine:SetPoint("BOTTOMLEFT", 10, 6)
   statusLine:SetJustifyH("LEFT")
   statusLine:SetText("")
   return statusLine
@@ -266,23 +292,28 @@ local function CreateShareKeysButton(mainFrame, deps)
   button:SetSize(120, 24)
   button:SetPoint("TOPRIGHT", -136, -180)
   button:SetScript("OnClick", function()
-    local msg = BuildKeyAnnouncement({
+    local lines = BuildKeyAnnouncement({
       getL = deps.getL,
       getRoster = deps.getRoster,
       buildOrderedRoster = deps.buildOrderedRoster,
       rolePriority = deps.rolePriority,
       unitPriority = deps.unitPriority,
       getDungeonShortCode = deps.getDungeonShortCode,
+      applyKnownKeyToRosterEntry = deps.applyKnownKeyToRosterEntry,
     })
-    if not msg then
+    if not lines then
       return
     end
     if deps.isInGroup() then
-      if not SendPartyChatMessage(msg) then
-        print(msg)
+      for _, line in ipairs(lines) do
+        if not SendPartyChatMessage(line) then
+          print(line)
+        end
       end
     else
-      print(msg)
+      for _, line in ipairs(lines) do
+        print(line)
+      end
     end
   end)
   AttachPanelButtonTooltip(button, deps.getL, "BTN_SHARE_KEYS", "TOOLTIP_ANNOUNCE_KEYS", nil)
@@ -485,6 +516,9 @@ function RosterPanel.CreateController(opts)
   local unitPriority = assert(opts.unitPriority, "isiLive: RosterPanel requires unitPriority")
   local syncMarker = tostring(opts.syncMarker or "")
   local fullSyncMarker = tostring(opts.fullSyncMarker or "")
+  local applyKnownKeyToRosterEntry = type(opts.applyKnownKeyToRosterEntry) == "function"
+      and opts.applyKnownKeyToRosterEntry
+    or nil
 
   local ui = ConstructPanelUI(mainFrame, {
     getL = getL,
@@ -496,6 +530,7 @@ function RosterPanel.CreateController(opts)
     rolePriority = rolePriority,
     unitPriority = unitPriority,
     getDungeonShortCode = getDungeonShortCode,
+    applyKnownKeyToRosterEntry = applyKnownKeyToRosterEntry,
     isInGroup = isInGroup,
   })
 

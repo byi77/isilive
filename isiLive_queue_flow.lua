@@ -110,7 +110,6 @@ local function ShowQueueJoinPreview(deps, groupName, dungeonName, activityID)
   deps.printFn(separator)
   deps.printFn("|cffffffff" .. L.CHAT_QUEUE_PREFIX .. " | " .. msg .. "|r")
   deps.printFn(separator)
-  deps.showCenterNotice(msg, 20, dungeon, activityID)
   deps.showInviteHint(
     string.format(L.INVITE_HINT_GROUP, group)
       .. "\n"

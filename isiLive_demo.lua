@@ -5,6 +5,8 @@ addonTable = addonTable or {}
 local Demo = {}
 addonTable.Demo = Demo
 
+local SeasonData = addonTable.SeasonData or {}
+
 local DUMMY_MEMBERS = {
   tank = {
     name = "Atabey",
@@ -105,6 +107,9 @@ local function ResolvePlayerKeystone()
 
   ownedLevel = tonumber(ownedLevel)
   ownedMapID = tonumber(ownedMapID)
+  if type(SeasonData.NormalizeMapID) == "function" then
+    ownedMapID = SeasonData.NormalizeMapID(ownedMapID)
+  end
   if ownedLevel and ownedLevel > 0 and ownedMapID and ownedMapID > 0 then
     return ownedMapID, ownedLevel
   end
