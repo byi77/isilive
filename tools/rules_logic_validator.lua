@@ -122,9 +122,7 @@ local function ParseRulesFile(path)
             if normalizedTest ~= "" then
               table.insert(currentRule.requiredTests, normalizedTest)
             end
-          elseif rawLine:match("^%s*$") then
-            -- keep Required Tests section open across blank lines
-          else
+          elseif not rawLine:match("^%s*$") then
             inRequiredTests = false
           end
         end
@@ -250,7 +248,9 @@ function Validator.Run(opts)
         table.insert(
           errors,
           string.format(
-            "%s:%d rule %s has invalid status '%s' (allowed: active|draft|deprecated|disabled; de: aktiv|entwurf|veraltet|deaktiviert)",
+            "%s:%d rule %s has invalid status '%s' "
+              .. "(allowed: active|draft|deprecated|disabled; "
+              .. "de: aktiv|entwurf|veraltet|deaktiviert)",
             rulesPath,
             tonumber(rule.line) or 0,
             tostring(rule.id),
@@ -377,7 +377,8 @@ function Validator.Run(opts)
 
   printFn(
     string.format(
-      "Rules logic validation: %d rules (%d active, %d draft, %d deprecated, %d disabled) | %d deterministic tests indexed",
+      "Rules logic validation: %d rules (%d active, %d draft, %d deprecated, %d disabled) "
+        .. "| %d deterministic tests indexed",
       type(rules) == "table" and #rules or 0,
       activeCount,
       draftCount,
