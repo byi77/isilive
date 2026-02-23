@@ -62,8 +62,8 @@ local function BuildContext(opts)
 
   ctx.ensureQueueDebugStorage = RequireFunction(opts.ensureQueueDebugStorage, "ensureQueueDebugStorage")
   ctx.setQueueDebugEnabled = RequireFunction(opts.setQueueDebugEnabled, "setQueueDebugEnabled")
-  ctx.ensureRuntimeLogStorage = RequireFunction(opts.ensureRuntimeLogStorage, "ensureRuntimeLogStorage")
-  ctx.setRuntimeLogEnabled = RequireFunction(opts.setRuntimeLogEnabled, "setRuntimeLogEnabled")
+  ctx.ensureRuntimeLogStorage = OptionalFunction(opts.ensureRuntimeLogStorage, function() end)
+  ctx.setRuntimeLogEnabled = OptionalFunction(opts.setRuntimeLogEnabled, function(_enabled) end)
   ctx.getMainFrame = RequireFunction(opts.getMainFrame, "getMainFrame")
   ctx.applyCenterNoticeStoredPosition =
     RequireFunction(opts.applyCenterNoticeStoredPosition, "applyCenterNoticeStoredPosition")
