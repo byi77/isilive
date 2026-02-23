@@ -100,25 +100,14 @@ local function ResolveMapIDFromActivityID(deps, activityID)
     return nil
   end
 
-  if deps.resolveSeason3MapIDByActivityID then
-    local resolved = deps.resolveSeason3MapIDByActivityID(numericActivityID)
-    if tonumber(resolved) and tonumber(resolved) > 0 then
-      return tonumber(resolved)
-    end
-  end
-
-  if not (C_LFGList and C_LFGList.GetActivityInfoTable) then
+  if not deps.resolveSeason3MapIDByActivityID then
     return nil
   end
 
-  local ok, info = pcall(C_LFGList.GetActivityInfoTable, numericActivityID)
-  if not ok or type(info) ~= "table" then
-    return nil
-  end
-
-  local mapID = tonumber(rawget(info, "mapID") or rawget(info, "mapId"))
-  if mapID and mapID > 0 then
-    return mapID
+  local resolved = deps.resolveSeason3MapIDByActivityID(numericActivityID)
+  local resolvedMapID = tonumber(resolved)
+  if resolvedMapID and resolvedMapID > 0 then
+    return resolvedMapID
   end
 
   return nil

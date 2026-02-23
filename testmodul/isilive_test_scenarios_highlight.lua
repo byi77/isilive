@@ -204,4 +204,24 @@ return function(test, ctx)
     })
     Assert.Equal(unique, 367416, "unique activity map should produce deterministic highlight")
   end)
+
+  test("Highlight map resolver does not bypass injected resolver with direct API fallback", function()
+    WithGlobals({
+      C_LFGList = {
+        GetActivityInfoTable = function(_activityID)
+          return { mapID = 2662 }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_highlight.lua" })
+      local controller = BuildHighlightController(addon, {
+        resolveSeason3MapIDByActivityID = function(_activityID)
+          return nil
+        end,
+      })
+
+      local mapID = controller.ResolveMapIDFromActivityID(2001)
+      Assert.Nil(mapID, "highlight must not bypass strict resolver with direct C_LFGList fallback")
+    end)
+  end)
 end

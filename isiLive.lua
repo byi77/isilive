@@ -429,10 +429,100 @@ local function ClearLatestQueueTarget()
   latestQueueTeleportSpellID = nil
   latestQueueMapID = nil
   activeJoinedKeyMapID = nil
+  if UpdateStatusLine then
+    UpdateStatusLine()
+  end
 end
 
 local function RefreshLocalPlayerKey()
   return keySyncController.RefreshLocalPlayerKey(roster)
+end
+
+local function NormalizeStatusTargetName(value)
+  if type(value) ~= "string" then
+    return nil
+  end
+  local normalized = value:gsub("^%s+", ""):gsub("%s+$", "")
+  if normalized == "" then
+    return nil
+  end
+  return normalized
+end
+
+local function NormalizeConcreteStatusTargetName(value, targetMapID)
+  local normalized = NormalizeStatusTargetName(value)
+  if not normalized then
+    return nil
+  end
+
+  local numericName = tonumber(normalized)
+  local numericTargetMapID = tonumber(targetMapID)
+  if numericName and numericTargetMapID and numericName == numericTargetMapID then
+    return nil
+  end
+
+  return normalized
+end
+
+local function ResolveStatusTargetMapID()
+  local activeMapID = tonumber(activeJoinedKeyMapID)
+  if activeMapID and activeMapID > 0 then
+    return activeMapID
+  end
+
+  local queueMapID = tonumber(latestQueueMapID)
+  if queueMapID and queueMapID > 0 then
+    return queueMapID
+  end
+
+  if latestQueueActivityID then
+    local resolvedMapID = ResolveSeason3MapIDByActivityID(latestQueueActivityID)
+    if type(resolvedMapID) == "number" and resolvedMapID > 0 then
+      return resolvedMapID
+    end
+  end
+
+  return nil
+end
+
+local function GetStatusTargetDungeonInfo()
+  local targetMapID = ResolveStatusTargetMapID()
+
+  local targetName = NormalizeConcreteStatusTargetName(latestQueueDungeonName, targetMapID)
+  if not targetName and targetMapID and isiLiveTeleport and isiLiveTeleport.GetSeason3TeleportInfoByMapID then
+    local info = isiLiveTeleport.GetSeason3TeleportInfoByMapID(targetMapID)
+    if type(info) == "table" then
+      targetName = NormalizeConcreteStatusTargetName(info.mapName, targetMapID)
+    end
+  end
+  if not targetName and latestQueueActivityID and isiLiveQueue and isiLiveQueue.GetActivityName then
+    targetName = NormalizeConcreteStatusTargetName(isiLiveQueue.GetActivityName(latestQueueActivityID), targetMapID)
+  end
+  if not targetName then
+    return nil
+  end
+
+  local targetLevel = nil
+  local ownerUnit = ResolveActiveKeyOwnerUnit and ResolveActiveKeyOwnerUnit() or nil
+  if ownerUnit and type(roster[ownerUnit]) == "table" then
+    targetLevel = tonumber(roster[ownerUnit].keyLevel)
+  end
+
+  if (not targetLevel or targetLevel <= 0) and targetMapID and type(roster.player) == "table" then
+    local playerInfo = roster.player
+    if tonumber(playerInfo.keyMapID) == targetMapID then
+      targetLevel = tonumber(playerInfo.keyLevel)
+    end
+  end
+
+  if targetLevel and targetLevel <= 0 then
+    targetLevel = nil
+  end
+
+  return {
+    name = targetName,
+    level = targetLevel,
+  }
 end
 
 UpdateCountdownCancelButton = function()
@@ -455,30 +545,10 @@ local initResult = isiLiveControllerInit.CreateControllers({
     return mainFrame and mainFrame:IsShown()
   end,
   resolveSeason3TeleportSpellID = ResolveSeason3TeleportSpellID,
-  resolveSeason3TeleportSpellIDByMapID = function(mapID)
-    if isiLiveTeleport and isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID then
-      return isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
-    end
-    return nil
-  end,
-  resolveSeason3MapIDByActivityID = function(activityID)
-    if isiLiveTeleport and isiLiveTeleport.ResolveSeason3MapIDByActivityID then
-      return isiLiveTeleport.ResolveSeason3MapIDByActivityID(activityID)
-    end
-    return nil
-  end,
-  resolveSeason3MapIDBySpellID = function(spellID)
-    if isiLiveTeleport and isiLiveTeleport.ResolveSeason3MapIDBySpellID then
-      return isiLiveTeleport.ResolveSeason3MapIDBySpellID(spellID)
-    end
-    return nil
-  end,
-  resolveSeason3MapIDsBySpellID = function(spellID)
-    if isiLiveTeleport and isiLiveTeleport.ResolveSeason3MapIDsBySpellID then
-      return isiLiveTeleport.ResolveSeason3MapIDsBySpellID(spellID)
-    end
-    return nil
-  end,
+  resolveSeason3TeleportSpellIDByMapID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID,
+  resolveSeason3MapIDByActivityID = isiLiveTeleport.ResolveSeason3MapIDByActivityID,
+  resolveSeason3MapIDBySpellID = isiLiveTeleport.ResolveSeason3MapIDBySpellID,
+  resolveSeason3MapIDsBySpellID = isiLiveTeleport.ResolveSeason3MapIDsBySpellID,
   mainFrame = mainFrame,
   getL = function()
     return L
@@ -601,6 +671,9 @@ teleportDebugController = isiLiveTeleportDebug.CreateController({
     latestQueueActivityID = activityID
     latestQueueTeleportSpellID = spellID
     latestQueueMapID = mapID
+    if UpdateStatusLine then
+      UpdateStatusLine()
+    end
   end,
 })
 
@@ -644,6 +717,7 @@ local statusController = isiLiveStatus.CreateController({
     centerNotice.SetVisible(false)
   end,
   isPlayerLeader = IsPlayerLeader,
+  getTargetDungeonInfo = GetStatusTargetDungeonInfo,
 })
 
 UpdateStatusLine = function()
@@ -720,6 +794,9 @@ queueFlowController = isiLiveQueueFlow.CreateController(isiLiveConfigBuilders.Bu
     latestQueueTeleportSpellID = spellID
     latestQueueMapID = mapID
     activeJoinedKeyMapID = joinedKeyMapID
+    if UpdateStatusLine then
+      UpdateStatusLine()
+    end
   end,
   queueCaptureQueueJoinCandidate = isiLiveQueue.CaptureQueueJoinCandidate,
   isInChallengeMode = GetActiveChallengeMapID,
@@ -828,7 +905,8 @@ local function EnqueueInspect(unit)
 end
 
 local function CheckIfEnteredTargetDungeon()
-  if not latestQueueMapID and not latestQueueActivityID and not activeJoinedKeyMapID then
+  local targetMapID = ResolveStatusTargetMapID()
+  if not targetMapID then
     return
   end
 
@@ -847,14 +925,6 @@ local function CheckIfEnteredTargetDungeon()
   end
   if not currentMapID then
     return
-  end
-
-  local targetMapID = activeJoinedKeyMapID
-  if not targetMapID and latestQueueMapID then
-    targetMapID = latestQueueMapID
-  end
-  if not targetMapID and latestQueueActivityID then
-    targetMapID = ResolveJoinedKeyMapID(latestQueueActivityID, nil)
   end
 
   if targetMapID and currentMapID == targetMapID then
@@ -882,7 +952,6 @@ end
 
 isiLiveBootstrap.RegisterMainFrameEvents(mainFrame)
 isiLiveBootstrap.BindMainFrameScripts(mainFrame, {
-  onEvent = OnEvent,
   onShow = function()
     SetProcessingActive(true)
   end,

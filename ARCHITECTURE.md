@@ -1,7 +1,7 @@
 # isiLive Architecture
 
-Version baseline: `0.9.44`
-Last updated: `2026-02-22`
+Version baseline: `0.9.45`
+Last updated: `2026-02-23`
 
 ## Purpose
 
@@ -67,14 +67,16 @@ Local release-grade validation is intentionally split into static and runtime ga
    - Lua syntax parse (`luac -p` for all `.lua` files)
    - `lua tools/lua_metrics_check.lua`
 2. Runtime logic checks:
+   - `lua tools/validate_rules_logic.lua`
    - `lua tools/validate_usecases.lua`
-3. `tools/validate_usecases.lua` covers 103 scenarios across 18 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster logic.
+3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
+4. `tools/validate_usecases.lua` runs the rules validator first and then covers 111 scenarios across 18 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.44     |
+| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.45     |
 |--------------------------------------------------------------------------------------------------|
 | Spec         Name              Flag        Key         iLvl      RIO      M+Managment  M+Travel   |
 |--------------------------------------------------------------------------------------------------|
@@ -87,7 +89,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 |                                                                       [Share Keys]               |
 |                                                                 [Teleport Grid Buttons...]       |
 |--------------------------------------------------------------------------------------------------|
-| Lead: Yes   M+: Active   State: Running   Dungeon: Mythic                                       |
+| Lead: Yes   M+: Active   State: Running   Dungeon: Mythic   Target Dungeon: Ara-Kara +14       |
 +--------------------------------------------------------------------------------------------------+
 ```
 

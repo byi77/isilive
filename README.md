@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.44`.
+Current addon version: `0.9.45`.
 
 ## Features
 
@@ -43,10 +43,11 @@ Current addon version: `0.9.44`.
 - `Readycheck`, `Countdown10`, and `Countdown 0` are leader-only
 - Server language is shown as `Flag + 2-letter code` (e.g. `DE`, `FR`)
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
+- Bottom status line includes current target dungeon context as `Target Dungeon: <Name> [+Level]` (or `Target Dungeon: -` when unresolved)
 
-## Use Case / Logic Baseline (v0.9.44)
+## Use Case / Logic Baseline (v0.9.45)
 
-Documented on `2026-02-22` as runtime behavior baseline for validation checks.
+Documented on `2026-02-23` as runtime behavior baseline for validation checks.
 
 1. Queue invite -> grouped flow
    - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`).
@@ -124,12 +125,15 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive_event_handlers.lua`: runtime event handler controller (`OnEvent` routing targets)
 - `isiLive_commands.lua`: slash command registration/dispatch
 - `isiLive_ui.lua`: main frame/UI construction and widget wiring
+- `RULES_LOGIC.md`: enforceable usecase/rule contract source (`RULE-ID` blocks with status + required tests)
+- `tools/validate_rules_logic.lua`: rules-logic validator entrypoint
 - `tools/validate_usecases.lua`: deterministic usecase validator entrypoint
 - `testmodul/isilive_test_*.lua`: modular offline simulation scenarios + harness for queue/highlight/event/cooldown/teleport/group/sync/locale/commands/guards logic (dev-only, not packaged)
 - `realm_language_data.lua`: Blizzard EU realm locale mapping (including UTF-8 Russian realm names)
 - `CHANGELOG.md`: release notes
 - `RELEASE.md`: release runbook
 - `RULES.md`: project/versioning rules
+- `RULES_LOGIC.md`: runtime usecase/rule contracts
 - `LICENSE`: license file
 
 ## Local Install
@@ -150,18 +154,20 @@ Developer debug (hidden command, not listed in in-game help):
 
 ## Quality Check
 
-- GitHub Action (on push/PR to `main`): `stylua --check .`, `luacheck --exclude-files ".luarocks/**" -- .`, Lua syntax check, and Lua metrics check (`lua tools/lua_metrics_check.lua`).
+- GitHub Action (on push/PR to `main`): `stylua --check .`, `luacheck --exclude-files ".luarocks/**" -- .`, Lua syntax check, Lua metrics check (`lua tools/lua_metrics_check.lua`), and deterministic usecase/rules gate (`lua tools/validate_usecases.lua`).
 - Local release-grade checks:
   - `stylua --check .`
   - `luacheck --exclude-files ".luarocks/**" -- .`
   - `lua tools/lua_metrics_check.lua`
+  - `lua tools/validate_rules_logic.lua`
   - `lua tools/validate_usecases.lua`
   - Metrics defaults: file `warn>1200` / `hard>2400`, function `warn>120` / `hard>320` (override via `ISILIVE_WARN_FILE_LINES`, `ISILIVE_MAX_FILE_LINES`, `ISILIVE_WARN_FUNCTION_LINES`, `ISILIVE_MAX_FUNCTION_LINES`)
   - Windows note: if metrics cannot find LuaRocks modules (`lfs`/`luacheck.*`), set `LUA_PATH` + `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running.
 
 ## Deterministic Usecase Gate
 
-`tools/validate_usecases.lua` runs a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 103 scenarios across 18 modules, including:
+`tools/validate_rules_logic.lua` validates active rule contracts from `RULES_LOGIC.md` against deterministic test names.
+`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 111 scenarios across 18 modules, including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
@@ -197,6 +203,7 @@ Local checks:
 - `stylua --check .` (CI check)
 - `luacheck --exclude-files ".luarocks/**" -- .` (lint)
 - `lua tools/lua_metrics_check.lua` (file/function size metrics)
+- `lua tools/validate_rules_logic.lua` (active rule/test mapping gate)
 - `lua tools/validate_usecases.lua` (deterministic usecase gates)
 
 Notes:
@@ -206,13 +213,14 @@ Notes:
 
 ## CI Quality Gate
 
-The CI workflow runs four checks on `push`/`pull_request` to `main`:
+The CI workflow runs five checks on `push`/`pull_request` to `main`:
 - `stylua --check .`
 - `luacheck --exclude-files ".luarocks/**" -- .`
 - Lua syntax check (`loadfile` validation for all `.lua` files except `.luarocks`)
 - Lua metrics check (`lua tools/lua_metrics_check.lua`)
+- deterministic usecase and rules gate (`lua tools/validate_usecases.lua`)
 
-Release gating additionally runs local deterministic usecase validation:
+Release gating additionally runs local deterministic usecase/rules validation:
 - `lua tools/validate_usecases.lua`
 
 ## Git Hooks (Optional)
@@ -224,14 +232,15 @@ Then `pre-commit` will run:
 - `stylua --check .`
 - `luacheck --exclude-files ".luarocks/**" -- .`
 - `lua tools/lua_metrics_check.lua`
+- `lua tools/validate_usecases.lua`
 
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.44`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.45`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.44` or `isiLive_beta_0.9.44`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.45` or `isiLive_beta_0.9.45`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -243,9 +252,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.44 && git push origin isiLive_release_0.9.44`
+3. Create and push stable tag: `git tag isiLive_release_0.9.45 && git push origin isiLive_release_0.9.45`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.44 && git push origin isiLive_alpha_0.9.44`
-   - beta: `git tag isiLive_beta_0.9.44 && git push origin isiLive_beta_0.9.44`
+   - alpha: `git tag isiLive_alpha_0.9.45 && git push origin isiLive_alpha_0.9.45`
+   - beta: `git tag isiLive_beta_0.9.45 && git push origin isiLive_beta_0.9.45`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

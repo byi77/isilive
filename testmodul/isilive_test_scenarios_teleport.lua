@@ -150,11 +150,7 @@ local function BuildTeleportUICreateFrameStub()
   return CreateFrameStub, createdFrames
 end
 
-return function(test, ctx)
-  local Assert = ctx.assert
-  local WithGlobals = ctx.with_globals
-  local LoadAddonModules = ctx.load_modules
-
+local function RegisterTeleportResolverTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Teleport resolves shared-map spell IDs as deterministic sorted map list", function()
     local createFrameStub = BuildCreateFrameStub()
 
@@ -203,6 +199,47 @@ return function(test, ctx)
         "DB",
         "unsupported locales should fallback to default"
       )
+    end)
+  end)
+
+  test("Teleport short-code resolver does not guess acronyms when no season mapping exists", function()
+    local createFrameStub = BuildCreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      C_ChallengeMode = {
+        GetMapUIInfo = function(_mapID)
+          return "Mystery Dungeon Name"
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_season_data.lua",
+        "isiLive_teleport.lua",
+      })
+      local shortCode = addon.Teleport.GetSeason3DungeonShortCode(9999, "enUS")
+      Assert.Equal(shortCode, "9999", "unknown maps should fallback to mapID instead of guessed acronyms")
+    end)
+  end)
+
+  test("Teleport info keeps map name unresolved when API has no concrete name", function()
+    local createFrameStub = BuildCreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      C_ChallengeMode = {
+        GetMapUIInfo = function(_mapID)
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_season_data.lua",
+        "isiLive_teleport.lua",
+      })
+      local info = addon.Teleport.GetSeason3TeleportInfoByMapID(2662)
+      Assert.NotNil(info, "known map should still resolve teleport info")
+      Assert.Nil(info.mapName, "map name must stay unresolved when API provides no concrete name")
     end)
   end)
 
@@ -270,7 +307,7 @@ return function(test, ctx)
     end)
   end)
 
-  test("Teleport keeps activity unresolved when mapID is missing", function()
+  test("Teleport keeps activity unresolved when mapID is missing and retries unresolved lookups", function()
     local createFrameStub = BuildCreateFrameStub()
     local activityInfoCalls = 0
 
@@ -297,9 +334,47 @@ return function(test, ctx)
       Assert.Nil(second, "unresolved activity result should stay nil")
     end)
 
-    Assert.Equal(activityInfoCalls, 1, "unresolved map lookups should still be cached")
+    Assert.Equal(activityInfoCalls, 2, "unresolved map lookups should be retried (no negative cache lock)")
   end)
 
+  test("Teleport unresolved activity lookup can recover when map data appears later", function()
+    local createFrameStub = BuildCreateFrameStub()
+    local activityInfoCalls = 0
+    local exposeMap = false
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      C_LFGList = {
+        GetActivityInfoTable = function(activityID)
+          activityInfoCalls = activityInfoCalls + 1
+          if activityID ~= 9911 then
+            return nil
+          end
+          if exposeMap then
+            return { mapID = 2662 }
+          end
+          return { fullName = "Late Map Payload" }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_season_data.lua",
+        "isiLive_teleport.lua",
+      })
+
+      local first = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9911)
+      Assert.Nil(first, "first resolve must stay nil while map data is missing")
+
+      exposeMap = true
+      local second = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9911)
+      Assert.Equal(second, 445414, "resolver must recover once concrete map data appears")
+    end)
+
+    Assert.Equal(activityInfoCalls, 2, "resolver should query activity info again after unresolved first attempt")
+  end)
+end
+
+local function RegisterTeleportEntryAndCombatTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Teleport entry builder de-duplicates shared spells for grid rendering", function()
     local createFrameStub = BuildCreateFrameStub()
 
@@ -376,7 +451,9 @@ return function(test, ctx)
       )
     end)
   end)
+end
 
+local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModules)
   test("TeleportUI buttons follow main-frame strata instead of forcing HIGH", function()
     local createFrameStub = BuildTeleportUICreateFrameStub()
     local mainFrame = {
@@ -445,4 +522,14 @@ return function(test, ctx)
       Assert.Equal(buttons[1]:GetFrameLevel(), 13, "button level should re-sync when main frame level changes")
     end)
   end)
+end
+
+return function(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
+
+  RegisterTeleportResolverTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTeleportEntryAndCombatTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModules)
 end

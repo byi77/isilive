@@ -130,12 +130,6 @@ local function CollectMapIDsForSpell(spellID)
   return mapIDs
 end
 
-function Teleport.AddActivityToTeleportCache(activityID, spellID)
-  if activityID and spellID then
-    ACTIVITY_TO_TELEPORT_CACHE[activityID] = spellID
-  end
-end
-
 function Teleport.ResolveSeason3MapIDByActivityID(activityID)
   local numericActivityID = tonumber(activityID)
   if not numericActivityID or numericActivityID <= 0 then
@@ -143,27 +137,21 @@ function Teleport.ResolveSeason3MapIDByActivityID(activityID)
   end
 
   local cached = ACTIVITY_TO_MAP_CACHE[numericActivityID]
-  if cached ~= nil then
-    if cached == false then
-      return nil
-    end
+  if type(cached) == "number" and cached > 0 then
     return cached
   end
 
   if not (C_LFGList and C_LFGList.GetActivityInfoTable) then
-    ACTIVITY_TO_MAP_CACHE[numericActivityID] = false
     return nil
   end
 
   local ok, activityInfo = pcall(C_LFGList.GetActivityInfoTable, numericActivityID)
   if not ok or type(activityInfo) ~= "table" then
-    ACTIVITY_TO_MAP_CACHE[numericActivityID] = false
     return nil
   end
 
   local mapID = tonumber(rawget(activityInfo, "mapID") or rawget(activityInfo, "mapId"))
   if not mapID or mapID <= 0 then
-    ACTIVITY_TO_MAP_CACHE[numericActivityID] = false
     return nil
   end
 
@@ -177,24 +165,19 @@ function Teleport.ResolveTeleportSpellByActivityID(activityID)
     return nil
   end
 
-  -- Check cache first
+  -- Cache successful resolutions only. Unresolved lookups must be retryable.
   local cached = ACTIVITY_TO_TELEPORT_CACHE[numericActivityID]
-  if cached ~= nil then
-    if cached == false then
-      return nil
-    end
+  if type(cached) == "number" and cached > 0 then
     return cached
   end
 
   local mapID = Teleport.ResolveSeason3MapIDByActivityID(numericActivityID)
   if not mapID then
-    ACTIVITY_TO_TELEPORT_CACHE[numericActivityID] = false
     return nil
   end
 
   local spellID = Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
   if not spellID then
-    ACTIVITY_TO_TELEPORT_CACHE[numericActivityID] = false
     return nil
   end
 
@@ -221,8 +204,13 @@ function Teleport.GetSeason3TeleportInfoByMapID(mapID)
     icon = "Interface\\Icons\\INV_Misc_QuestionMark"
   end
 
-  local mapName = (C_ChallengeMode and C_ChallengeMode.GetMapUIInfo and C_ChallengeMode.GetMapUIInfo(numericMapID))
-    or tostring(numericMapID)
+  local mapName = nil
+  if C_ChallengeMode and C_ChallengeMode.GetMapUIInfo then
+    local resolvedMapName = C_ChallengeMode.GetMapUIInfo(numericMapID)
+    if type(resolvedMapName) == "string" and resolvedMapName ~= "" then
+      mapName = resolvedMapName
+    end
+  end
   return {
     mapID = numericMapID,
     mapName = mapName,
@@ -237,34 +225,18 @@ function Teleport.GetSeason3DungeonShortCode(mapID, localeTag)
     return "?"
   end
 
+  local shortCode = nil
   if type(SeasonData.GetDungeonShortCode) == "function" then
-    local shortCode = SeasonData.GetDungeonShortCode(numericMapID, localeTag)
-    if type(shortCode) == "string" and shortCode ~= "" then
-      return shortCode
-    end
+    shortCode = SeasonData.GetDungeonShortCode(numericMapID, localeTag)
+  elseif type(SeasonData.MAP_SHORT_CODES) == "table" then
+    shortCode = SeasonData.MAP_SHORT_CODES[numericMapID]
   end
 
-  local fallbackShortCodes = SeasonData.MAP_SHORT_CODES or {}
-  if fallbackShortCodes[numericMapID] then
-    return fallbackShortCodes[numericMapID]
+  if type(shortCode) == "string" and shortCode ~= "" then
+    return shortCode
   end
 
-  local mapName = C_ChallengeMode and C_ChallengeMode.GetMapUIInfo and C_ChallengeMode.GetMapUIInfo(numericMapID)
-  if type(mapName) ~= "string" or mapName == "" then
-    return tostring(numericMapID)
-  end
-
-  local acronym = ""
-  for word in string.gmatch(mapName, "%a+") do
-    acronym = acronym .. string.upper(string.sub(word, 1, 1))
-    if #acronym >= 4 then
-      break
-    end
-  end
-  if acronym == "" then
-    return tostring(numericMapID)
-  end
-  return acronym
+  return tostring(numericMapID)
 end
 
 function Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)

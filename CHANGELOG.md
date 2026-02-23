@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-02-23 - Version 0.9.45
+- **Runtime Reliability:**
+  - Removed duplicate forced key-sync payload behavior on `PLAYER_ENTERING_WORLD` by keeping immediate send forced and delayed follow-up send non-forced.
+  - Added deterministic regression coverage to ensure no duplicate forced key snapshot sends in the entering-world flow.
+  - Extended bottom status line with target dungeon context (`Target Dungeon: <Name> [+Level]`) sourced from resolved queue/joined-key state.
+  - Unified target-map resolution across status/enter-check/highlight flows to a strict resolver path (no hidden API bypass in highlight map resolving).
+  - Removed negative activity resolver cache locking so late-arriving activity map payloads can recover to concrete map/spell targets.
+- **Code Cleanup:**
+  - Removed dead helper `Teleport.AddActivityToTeleportCache` from `isiLive_teleport.lua`.
+  - Removed unused season alias `SeasonData.MAP_SHORT_CODES_DE` from `isiLive_season_data.lua`.
+  - Removed redundant early `OnEvent` script binding in bootstrap/main setup; runtime gate remains the single `OnEvent` owner.
+- **Validation:**
+  - Added contract source file `RULES_LOGIC.md` for enforceable usecase/rule definitions with `active|draft|deprecated|disabled` status.
+  - Added rules-logic validator (`tools/validate_rules_logic.lua`, `tools/rules_logic_validator.lua`) and integrated it into `tools/validate_usecases.lua`.
+  - `tools/validate_usecases.lua` now runs 111 deterministic scenarios across 18 modules (all passing).
+  - Local hook `.githooks/pre-commit` now includes deterministic usecase/rules validation.
+  - CI workflow `Lua Check` now includes deterministic usecase/rules validation.
+- **Documentation:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `RULES.md`, and `TODO.md` to `0.9.45` references and current runtime behavior.
+  - Updated `RULES_LOGIC.md` to append-only rule maintenance (no forced sorting) and expanded draft usecase rule coverage; aligned `AGENTS.md` workflow accordingly.
+- TOC version bumped to `0.9.45`.
+
 ## 2026-02-22 - Version 0.9.44
 - **Season Data Maintainability:**
   - Refactored season configuration into centralized structured data in `isiLive_season_data.lua` with explicit `ACTIVE_SEASON_ID`.
