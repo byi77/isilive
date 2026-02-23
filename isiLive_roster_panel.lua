@@ -28,12 +28,7 @@ local function SendPartyChatMessage(message)
     return false
   end
 
-  local sendChatMessage = nil
-  if type(_G.SendChatMessage) == "function" then
-    sendChatMessage = _G.SendChatMessage
-  elseif C_ChatInfo and type(C_ChatInfo.SendChatMessage) == "function" then
-    sendChatMessage = C_ChatInfo.SendChatMessage
-  end
+  local sendChatMessage = C_ChatInfo and C_ChatInfo.SendChatMessage or nil
 
   if type(sendChatMessage) == "function" then
     local ok = pcall(sendChatMessage, message, "PARTY")
