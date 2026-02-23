@@ -30,6 +30,8 @@ function Bootstrap.RegisterSlashCommands(opts)
     assert(opts.teleportDebugController, "isiLive: Bootstrap.RegisterSlashCommands requires teleportDebugController")
   local queueDebugController =
     assert(opts.queueDebugController, "isiLive: Bootstrap.RegisterSlashCommands requires queueDebugController")
+  local runtimeLogController =
+    assert(opts.runtimeLogController, "isiLive: Bootstrap.RegisterSlashCommands requires runtimeLogController")
 
   commands.RegisterSlashCommands({
     printFn = printFn,
@@ -50,6 +52,11 @@ function Bootstrap.RegisterSlashCommands(opts)
     clearQueueDebugLog = queueDebugController.ClearLog,
     getQueueDebugLogCount = queueDebugController.GetLogCount,
     getQueueDebugLogTail = queueDebugController.GetLogTail,
+    setRuntimeLogEnabled = runtimeLogController.SetEnabled,
+    getRuntimeLogEnabled = runtimeLogController.IsEnabled,
+    clearRuntimeLog = runtimeLogController.ClearLog,
+    getRuntimeLogCount = runtimeLogController.GetLogCount,
+    getRuntimeLogTail = runtimeLogController.GetLogTail,
   })
 end
 

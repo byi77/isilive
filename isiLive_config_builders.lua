@@ -197,6 +197,8 @@ function ConfigBuilders.BuildEventHandlersControllerDeps(ctx)
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
     ensureQueueDebugStorage = ctx.ensureQueueDebugStorage,
     setQueueDebugEnabled = ctx.setQueueDebugEnabled,
+    ensureRuntimeLogStorage = ctx.ensureRuntimeLogStorage,
+    setRuntimeLogEnabled = ctx.setRuntimeLogEnabled,
     registerIsiLiveSyncPrefix = ctx.registerIsiLiveSyncPrefix,
     applyHotkeyBindings = ctx.applyHotkeyBindings,
     startBindingWatchdog = ctx.startBindingWatchdog,
@@ -241,6 +243,7 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
     setLanguage = ctx.setLanguage,
     teleportDebugController = ctx.teleportDebugController,
     queueDebugController = ctx.queueDebugController,
+    runtimeLogController = ctx.runtimeLogController,
   }
 end
 

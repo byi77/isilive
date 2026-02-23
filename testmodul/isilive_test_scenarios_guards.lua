@@ -54,6 +54,7 @@ return function(test, ctx)
         "isiLive_demo.lua",
         "isiLive_test_mode.lua",
         "isiLive_queue_debug.lua",
+        "isiLive_runtime_log.lua",
         "isiLive_roster_panel.lua",
         "isiLive_spell_utils.lua",
         "isiLive_bindings.lua",

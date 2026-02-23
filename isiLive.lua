@@ -23,6 +23,7 @@ local isiLiveUnits = addonTable and addonTable.Units
 local isiLiveDemo = addonTable and addonTable.Demo
 local isiLiveTestMode = addonTable and addonTable.TestMode
 local isiLiveQueueDebug = addonTable and addonTable.QueueDebug
+local isiLiveRuntimeLog = addonTable and addonTable.RuntimeLog
 local isiLiveRosterPanel = addonTable and addonTable.RosterPanel
 local isiLiveSpellUtils = addonTable and addonTable.SpellUtils
 local isiLiveBindings = addonTable and addonTable.Bindings
@@ -49,9 +50,14 @@ local locales
 local L
 
 local isTestAllMode = false
+local runtimeLogController
 
 local function Print(msg)
-  print("isiLive: " .. msg)
+  local text = tostring(msg or "")
+  print("isiLive: " .. text)
+  if runtimeLogController and runtimeLogController.Log then
+    runtimeLogController.Log(text)
+  end
 end
 
 if not (isiLiveGuards and type(isiLiveGuards.Validate) == "function") then
@@ -71,6 +77,10 @@ L = locales.enUS
 local GetAddonVersionRaw = function()
   return isiLiveContextHelpers.GetAddonVersionRaw(addonName)
 end
+
+runtimeLogController = isiLiveRuntimeLog.CreateController({
+  maxEntries = 800,
+})
 
 local queueDebugController = isiLiveQueueDebug.CreateController({
   printFn = Print,
@@ -1040,6 +1050,8 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   getNormalizedActiveEntryInfo = GetNormalizedActiveEntryInfo,
   ensureQueueDebugStorage = queueDebugController.EnsureStorage,
   setQueueDebugEnabled = queueDebugController.SetEnabled,
+  ensureRuntimeLogStorage = runtimeLogController.EnsureStorage,
+  setRuntimeLogEnabled = runtimeLogController.SetEnabled,
   registerIsiLiveSyncPrefix = RegisterIsiLiveSyncPrefix,
   applyHotkeyBindings = ApplyHotkeyBindings,
   startBindingWatchdog = StartBindingWatchdog,
@@ -1111,6 +1123,7 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   setLanguage = SetLanguage,
   teleportDebugController = teleportDebugController,
   queueDebugController = queueDebugController,
+  runtimeLogController = runtimeLogController,
   addonName = addonName,
 })
 eventHandlersController = runtimeSetupResult.eventHandlersController

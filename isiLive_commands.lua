@@ -38,6 +38,17 @@ local function BuildDeps(opts)
     getQueueDebugLogTail = opts.getQueueDebugLogTail or function(_limit)
       return {}
     end,
+    setRuntimeLogEnabled = opts.setRuntimeLogEnabled or function(_enabled) end,
+    getRuntimeLogEnabled = opts.getRuntimeLogEnabled or function()
+      return false
+    end,
+    clearRuntimeLog = opts.clearRuntimeLog or function() end,
+    getRuntimeLogCount = opts.getRuntimeLogCount or function()
+      return 0
+    end,
+    getRuntimeLogTail = opts.getRuntimeLogTail or function(_limit)
+      return {}
+    end,
   }
 end
 
@@ -48,12 +59,59 @@ local function PrintHelp(printFn, L)
   printFn(L.HELP_TESTALL)
   printFn(L.HELP_TPTEST)
   printFn(L.HELP_TPDEBUG)
+  printFn(L.HELP_LOG)
   printFn(L.HELP_BINDCHECK)
   printFn(L.HELP_LANG)
   printFn(L.HELP_PAUSE)
   printFn(L.HELP_RESUME)
   printFn(L.HELP_STOP)
   printFn(L.HELP_START)
+end
+
+local function HandleLogCommand(ctx, cmd)
+  local arg, numText = cmd:match("^log%s+(%S+)%s*(%d*)$")
+  if not arg or arg == "status" then
+    ctx.printFn(
+      "Runtime log: "
+        .. (ctx.getRuntimeLogEnabled() and "ON" or "OFF")
+        .. " | entries: "
+        .. tostring(ctx.getRuntimeLogCount())
+    )
+    return
+  end
+
+  if arg == "on" or arg == "start" or arg == "1" or arg == "true" then
+    ctx.setRuntimeLogEnabled(true)
+    ctx.printFn("Runtime log: ON")
+    return
+  end
+  if arg == "off" or arg == "stop" or arg == "0" or arg == "false" then
+    ctx.setRuntimeLogEnabled(false)
+    ctx.printFn("Runtime log: OFF")
+    return
+  end
+  if arg == "clear" then
+    ctx.clearRuntimeLog()
+    ctx.printFn("Runtime log: cleared")
+    return
+  end
+
+  if arg == "tail" or arg == "dump" then
+    local limit = tonumber(numText) or 20
+    if limit < 1 then
+      limit = 1
+    elseif limit > 100 then
+      limit = 100
+    end
+    local lines = ctx.getRuntimeLogTail(limit)
+    ctx.printFn("Runtime log tail: " .. tostring(#lines) .. "/" .. tostring(ctx.getRuntimeLogCount()) .. " entries")
+    for _, line in ipairs(lines) do
+      ctx.printFn(tostring(line))
+    end
+    return
+  end
+
+  ctx.printFn("Usage: /isilive log [on|off|start|stop|status|clear|tail [n]]")
 end
 
 local function HandleQDebugCommand(ctx, cmd)
@@ -215,6 +273,11 @@ local function ExecuteSlashCommand(ctx, msg)
 
   if cmd == "tpdebug" then
     ctx.printTeleportDebug()
+    return
+  end
+
+  if cmd == "log" or cmd:find("^log%s+") == 1 then
+    HandleLogCommand(ctx, cmd)
     return
   end
 

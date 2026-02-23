@@ -80,6 +80,8 @@ function Fixtures.BuildEventHandlersController(eventHandlersModule, entryRef, co
     sendOwnKeySnapshot = function(_force) end,
     ensureQueueDebugStorage = function() end,
     setQueueDebugEnabled = function(_enabled) end,
+    ensureRuntimeLogStorage = function() end,
+    setRuntimeLogEnabled = function(_enabled) end,
     getMainFrame = function()
       return {
         ClearAllPoints = function() end,

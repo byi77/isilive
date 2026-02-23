@@ -62,6 +62,8 @@ local function BuildContext(opts)
 
   ctx.ensureQueueDebugStorage = RequireFunction(opts.ensureQueueDebugStorage, "ensureQueueDebugStorage")
   ctx.setQueueDebugEnabled = RequireFunction(opts.setQueueDebugEnabled, "setQueueDebugEnabled")
+  ctx.ensureRuntimeLogStorage = RequireFunction(opts.ensureRuntimeLogStorage, "ensureRuntimeLogStorage")
+  ctx.setRuntimeLogEnabled = RequireFunction(opts.setRuntimeLogEnabled, "setRuntimeLogEnabled")
   ctx.getMainFrame = RequireFunction(opts.getMainFrame, "getMainFrame")
   ctx.applyCenterNoticeStoredPosition =
     RequireFunction(opts.applyCenterNoticeStoredPosition, "applyCenterNoticeStoredPosition")
@@ -363,8 +365,13 @@ local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)
   if IsiLiveDB.queueDebug == nil then
     IsiLiveDB.queueDebug = false
   end
+  if IsiLiveDB.runtimeLogEnabled == nil then
+    IsiLiveDB.runtimeLogEnabled = false
+  end
   ctx.ensureQueueDebugStorage()
   ctx.setQueueDebugEnabled(IsiLiveDB.queueDebug)
+  ctx.ensureRuntimeLogStorage()
+  ctx.setRuntimeLogEnabled(IsiLiveDB.runtimeLogEnabled)
   EnsureAdvancedCombatLoggingEnabled()
 
   -- Restore position

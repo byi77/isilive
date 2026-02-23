@@ -17,6 +17,8 @@ return function(test, ctx)
       mainFrameVisible = true,
       languageSet = nil,
       rosterUpdates = 0,
+      runtimeLogEnabled = false,
+      runtimeLogs = {},
     }
 
     local L = {
@@ -26,6 +28,7 @@ return function(test, ctx)
       HELP_TESTALL = "/isilive testall",
       HELP_TPTEST = "/isilive tptest",
       HELP_TPDEBUG = "/isilive tpdebug",
+      HELP_LOG = "/isilive log",
       HELP_BINDCHECK = "/isilive bindcheck",
       HELP_LANG = "/isilive lang [en|de]",
       HELP_PAUSE = "/isilive pause",
@@ -101,6 +104,35 @@ return function(test, ctx)
         getQueueDebugLogTail = function()
           return {}
         end,
+        setRuntimeLogEnabled = function(enabled)
+          state.runtimeLogEnabled = enabled == true
+        end,
+        getRuntimeLogEnabled = function()
+          return state.runtimeLogEnabled
+        end,
+        clearRuntimeLog = function()
+          state.runtimeLogs = {}
+        end,
+        getRuntimeLogCount = function()
+          return #state.runtimeLogs
+        end,
+        getRuntimeLogTail = function(limit)
+          local count = tonumber(limit) or 20
+          if count < 1 then
+            count = 1
+          elseif count > 100 then
+            count = 100
+          end
+          local startIndex = #state.runtimeLogs - count + 1
+          if startIndex < 1 then
+            startIndex = 1
+          end
+          local out = {}
+          for i = startIndex, #state.runtimeLogs do
+            out[#out + 1] = state.runtimeLogs[i]
+          end
+          return out
+        end,
       })
 
       executor = SlashCmdList["ISILIVE"]
@@ -164,5 +196,40 @@ return function(test, ctx)
     state._execute("lang xx")
     Assert.Equal(state.languageSet, "en", "invalid lang must not change from last valid")
     Assert.True(#state.prints > 0, "invalid lang must print usage")
+  end)
+
+  test("Commands runtime log toggle and status output work", function()
+    local state = BuildCommandExecutor()
+
+    state._execute("log status")
+    Assert.True(state.prints[#state.prints]:find("Runtime log: OFF") ~= nil, "status should report runtime log OFF")
+
+    state._execute("log start")
+    Assert.True(state.runtimeLogEnabled, "log start must enable runtime log")
+
+    state._execute("log stop")
+    Assert.False(state.runtimeLogEnabled, "log stop must disable runtime log")
+
+    state._execute("log on")
+    Assert.True(state.runtimeLogEnabled, "log on alias must enable runtime log")
+
+    state._execute("log off")
+    Assert.False(state.runtimeLogEnabled, "log off alias must disable runtime log")
+  end)
+
+  test("Commands runtime log tail and clear work", function()
+    local state = BuildCommandExecutor()
+    state.runtimeLogs = {
+      "10:00:00 first",
+      "10:00:01 second",
+      "10:00:02 third",
+    }
+
+    state._execute("log tail 2")
+    Assert.True(state.prints[#state.prints - 1]:find("10:00:01 second") ~= nil, "tail must include second newest entry")
+    Assert.True(state.prints[#state.prints]:find("10:00:02 third") ~= nil, "tail must include newest entry")
+
+    state._execute("log clear")
+    Assert.Equal(#state.runtimeLogs, 0, "log clear must wipe runtime log storage")
   end)
 end

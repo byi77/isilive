@@ -36,6 +36,7 @@ isiLive_group.lua
 isiLive_queue.lua
 isiLive_queue_flow.lua
 isiLive_queue_debug.lua
+isiLive_runtime_log.lua
 isiLive_inspect.lua
 isiLive_roster.lua
 isiLive_roster_panel.lua
