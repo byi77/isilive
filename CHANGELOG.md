@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-02-24 - Version 0.9.48
+- **Queue Join Dedup Reliability:**
+  - Switched grouped queue-announce deduplication to stable queue source IDs instead of display-text signatures.
+  - Stable dedup IDs now prioritize `applicationID`, then `searchResultID`, then `listingID`.
+  - Queue capture now forwards stable source metadata into `QueueFlow` pending state and grouped announce signature generation.
+  - This suppresses duplicate grouped announce output when group/dungeon text changes but the underlying queue event is unchanged.
+- **Validation:**
+  - Added deterministic coverage for:
+    - stable search-result dedup ID forwarding in queue capture
+    - stable application dedup ID forwarding in application scans
+    - grouped announce deduplication by stable queue event ID in QueueFlow
+  - `tools/validate_usecases.lua` now runs `117` deterministic scenarios across 18 modules (all passing).
+- **Documentation:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, and `TODO.md` to `0.9.48` references and validator count updates.
+- TOC version bumped to `0.9.48`.
+
 ## 2026-02-23 - Version 0.9.47
 - **Key Mapping Reliability (TWW S3):**
   - Added explicit challenge-map alias mapping for TWW S3 key IDs:

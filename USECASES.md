@@ -1,7 +1,7 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.47`
-Last updated: `2026-02-23`
+Version baseline: `0.9.48`
+Last updated: `2026-02-24`
 
 ## Actors
 
@@ -46,7 +46,8 @@ Goal: inform the player and highlight the correct portal cast icon.
 3. Processing: teleport button matching the resolved target spell is highlighted.
 4. User action: player can click the portal button or move manually to dungeon.
 5. Rule: follow-up negative application status updates must not clear queue target while player is already grouped.
-6. Success criteria: highlight matches the same resolved dungeon as chat hint and remains stable when group fills to 5 members.
+6. Rule: repeated grouped queue announces are deduplicated by stable queue source IDs (`applicationID`/`searchResultID`/`listingID`) instead of display text.
+7. Success criteria: highlight matches the same resolved dungeon as chat hint and remains stable when group fills to 5 members.
 
 ## UC-03 Enter Exact Target Dungeon
 

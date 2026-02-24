@@ -198,4 +198,38 @@ return function(test, ctx)
     Assert.True(#state.prints >= 3, "first grouped capture should still print queue summary")
     Assert.True(#state.prints < 6, "second grouped capture should not duplicate chat summary")
   end)
+
+  test("QueueFlow deduplicates grouped announce by stable queue event ID", function()
+    local now = 100
+    local captureIndex = 0
+    local addon = LoadAddonModules({ "isiLive_queue_flow.lua" })
+    local controller, state = Fixtures.BuildQueueFlowController(addon.QueueFlow, {
+      isInGroup = function()
+        return true
+      end,
+      getTimeFn = function()
+        return now
+      end,
+      queueCaptureQueueJoinCandidate = function(updatePendingQueueJoin, _strictResolver, _activityID, _status)
+        captureIndex = captureIndex + 1
+        local groupName = captureIndex == 1 and "Stable Group A" or "Stable Group B"
+        local dungeonName = captureIndex == 1 and "Stable Dungeon A" or "Stable Dungeon B"
+        updatePendingQueueJoin(groupName, dungeonName, 2, 1001, {
+          stableQueueEventID = "search:901",
+        })
+      end,
+    })
+
+    controller.CaptureQueueJoinCandidate(1001, "accepted")
+    now = now + 5
+    controller.CaptureQueueJoinCandidate(1001, "accepted")
+
+    Assert.Equal(
+      #state.queueTargets,
+      1,
+      "same stable queue event ID should suppress re-announce even with changed display text"
+    )
+    Assert.True(#state.prints >= 3, "first grouped capture should still print queue summary")
+    Assert.True(#state.prints < 6, "second grouped capture should not duplicate chat summary")
+  end)
 end

@@ -75,6 +75,35 @@ local function HasConcreteActivityMap(activityID)
   return mapID and mapID > 0
 end
 
+local function NormalizeStableNumericID(value)
+  if IsSecretValue(value) then
+    return nil
+  end
+  if type(value) ~= "number" or value <= 0 then
+    return nil
+  end
+  return math.floor(value)
+end
+
+local function BuildStableQueueEventID(snapshot)
+  local applicationID = NormalizeStableNumericID(snapshot and snapshot.applicationID)
+  if applicationID then
+    return "app:" .. tostring(applicationID)
+  end
+
+  local searchResultID = NormalizeStableNumericID(snapshot and snapshot.searchResultID)
+  if searchResultID then
+    return "search:" .. tostring(searchResultID)
+  end
+
+  local listingID = NormalizeStableNumericID(snapshot and snapshot.listingID)
+  if listingID then
+    return "listing:" .. tostring(listingID)
+  end
+
+  return nil
+end
+
 function Queue.GetSearchResultActivityID(result, resolveTeleportSpellIDByActivityID)
   if not result then
     return nil
@@ -205,19 +234,24 @@ end
 local function ResolveActivityIDFromSearchResultID(searchResultID, resolveTeleportSpellIDByActivityID)
   local searchResultInfo = GetSearchResultInfoSafe(searchResultID)
   if not searchResultInfo then
-    return nil, nil
+    return nil, nil, false
   end
 
   local activityID = Queue.GetSearchResultActivityID(searchResultInfo, resolveTeleportSpellIDByActivityID)
   local groupName = searchResultInfo.name or searchResultInfo.leaderName
-  return activityID, groupName
+  return activityID, groupName, true
 end
 
 local function ReadApplicationInfoStruct(data, resolveTeleportSpellIDByActivityID)
   local appStatus = data.applicationStatus or data.appStatus or data.status
   local pendingStatus = data.pendingStatus or data.pendingApplicationStatus
   local searchResultInfo = data.searchResultInfo or data.searchResultData or data.searchResult
-  local searchResultID = data.searchResultID or data.resultID or data.listingID
+  local searchResultID = NormalizeStableNumericID(data.searchResultID or data.resultID)
+  local listingID = NormalizeStableNumericID(data.listingID)
+  if not searchResultID then
+    searchResultID = listingID
+  end
+  local applicationID = NormalizeStableNumericID(data.applicationID or data.appID or data.id)
   local groupName = data.name or data.groupName
   local activityID
 
@@ -240,24 +274,46 @@ local function ReadApplicationInfoStruct(data, resolveTeleportSpellIDByActivityI
     end
   end
 
-  return appStatus, pendingStatus, groupName, activityID
+  return appStatus, pendingStatus, groupName, activityID, applicationID, searchResultID, listingID
 end
 
-local function ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivityID)
+local function ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivityID, opts)
+  opts = opts or {}
+
   local appStatus = values[2]
   local pendingStatus = values[3]
   local seededGroupName
   local seededActivityID
+  local seededApplicationID = NormalizeStableNumericID(opts.defaultApplicationID)
+  local seededSearchResultID = NormalizeStableNumericID(opts.defaultSearchResultID)
+  local seededListingID = NormalizeStableNumericID(opts.defaultListingID)
 
   if type(values[1]) == "table" and #values == 1 then
-    appStatus, pendingStatus, seededGroupName, seededActivityID =
+    local structAppID
+    local structSearchResultID
+    local structListingID
+    appStatus, pendingStatus, seededGroupName, seededActivityID, structAppID, structSearchResultID, structListingID =
       ReadApplicationInfoStruct(values[1], resolveTeleportSpellIDByActivityID)
+    if structAppID then
+      seededApplicationID = structAppID
+    end
+    if structSearchResultID then
+      seededSearchResultID = structSearchResultID
+    end
+    if structListingID then
+      seededListingID = structListingID
+    end
     DebugLog(
-      "struct appInfo status=%s pending=%s group=%s activity=%s",
+      "struct appInfo status=%s pending=%s group=%s activity=%s stableID=%s",
       tostring(appStatus),
       tostring(pendingStatus),
       tostring(seededGroupName),
-      tostring(seededActivityID)
+      tostring(seededActivityID),
+      tostring(BuildStableQueueEventID({
+        applicationID = seededApplicationID,
+        searchResultID = seededSearchResultID,
+        listingID = seededListingID,
+      }))
     )
   end
 
@@ -268,7 +324,7 @@ local function ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivi
   local groupName = seededGroupName
   local resultActivityID = seededActivityID
 
-  for _, value in ipairs(values) do
+  for index, value in ipairs(values) do
     local statusHit, acceptedHit = Queue.ParseApplicationStatus(value)
     if statusHit then
       isInviteLike = true
@@ -286,19 +342,28 @@ local function ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivi
       end
     elseif type(value) == "string" and not groupName and not IsLikelyStatusText(value) then
       groupName = value
-    elseif type(value) == "number" and not resultActivityID then
-      if IsSecretValue(value) then
-        DebugLog("skip secret numeric application value")
+    elseif type(value) == "number" then
+      local numericID = NormalizeStableNumericID(value)
+      if not numericID then
+        DebugLog("skip secret/invalid numeric application value")
       else
-        -- Raw numeric tuple values are usually app/search IDs.
-        -- Treating them as activity IDs causes false dungeon matches.
-        local resolvedActivityID, resolvedGroupName =
-          ResolveActivityIDFromSearchResultID(value, resolveTeleportSpellIDByActivityID)
-        if resolvedActivityID then
-          resultActivityID = resolvedActivityID
-          groupName = groupName or resolvedGroupName
-        else
-          DebugLog("ignore unresolved numeric application value=%s", tostring(value))
+        if not resultActivityID then
+          -- Raw numeric tuple values are usually app/search IDs.
+          -- Treating them as activity IDs causes false dungeon matches.
+          local resolvedActivityID, resolvedGroupName, foundSearchResult =
+            ResolveActivityIDFromSearchResultID(numericID, resolveTeleportSpellIDByActivityID)
+          if foundSearchResult and not seededSearchResultID then
+            seededSearchResultID = numericID
+          end
+          if resolvedActivityID then
+            resultActivityID = resolvedActivityID
+            groupName = groupName or resolvedGroupName
+          else
+            DebugLog("ignore unresolved numeric application value=%s", tostring(numericID))
+          end
+          if (not foundSearchResult) and index == 1 and (not seededApplicationID) then
+            seededApplicationID = numericID
+          end
         end
       end
     end
@@ -333,13 +398,18 @@ local function ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivi
     pendingStatus = nil
   end
 
-  return {
+  local snapshot = {
     isInviteLike = isInviteLike,
     isAccepted = isAccepted,
     pendingStatus = pendingStatus,
     groupName = groupName,
     activityID = resultActivityID,
+    applicationID = seededApplicationID,
+    searchResultID = seededSearchResultID,
+    listingID = seededListingID,
   }
+  snapshot.stableQueueEventID = BuildStableQueueEventID(snapshot)
+  return snapshot
 end
 
 local function ShouldSkipDuplicateApply(signature)
@@ -367,18 +437,21 @@ function Queue.CaptureQueueJoinFromApplications(updatePendingQueueJoin, resolveT
 
   for _, appID in ipairs(appIDs) do
     local values = { C_LFGList.GetApplicationInfo(appID) }
-    local snap = ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivityID)
+    local snap = ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivityID, {
+      defaultApplicationID = appID,
+    })
     local status = tostring(values[2])
     local pending = tostring(values[3])
     DebugLog(
-      "app id=%s status=%s pending=%s invite=%s accepted=%s group=%s activity=%s",
+      "app id=%s status=%s pending=%s invite=%s accepted=%s group=%s activity=%s stableID=%s",
       tostring(appID),
       status,
       pending,
       tostring(snap.isInviteLike),
       tostring(snap.isAccepted),
       tostring(snap.groupName),
-      tostring(snap.activityID)
+      tostring(snap.activityID),
+      tostring(snap.stableQueueEventID)
     )
 
     if snap.isInviteLike and not snap.pendingStatus then
@@ -386,6 +459,7 @@ function Queue.CaptureQueueJoinFromApplications(updatePendingQueueJoin, resolveT
       local priority = snap.isAccepted and 2 or 1
       local signature = table.concat({
         tostring(appID),
+        tostring(snap.stableQueueEventID),
         tostring(snap.isAccepted),
         tostring(priority),
         tostring(snap.groupName),
@@ -396,7 +470,12 @@ function Queue.CaptureQueueJoinFromApplications(updatePendingQueueJoin, resolveT
         DebugLog("skip duplicate apply app id=%s", tostring(appID))
       else
         DebugLog("apply app id=%s priority=%s dungeon=%s", tostring(appID), tostring(priority), tostring(dungeonName))
-        updatePendingQueueJoin(snap.groupName, dungeonName, priority, snap.activityID)
+        updatePendingQueueJoin(snap.groupName, dungeonName, priority, snap.activityID, {
+          stableQueueEventID = snap.stableQueueEventID,
+          applicationID = snap.applicationID,
+          searchResultID = snap.searchResultID,
+          listingID = snap.listingID,
+        })
       end
     end
   end
@@ -405,18 +484,20 @@ end
 function Queue.CaptureQueueJoinCandidate(updatePendingQueueJoin, resolveTeleportSpellIDByActivityID, ...)
   local snap = ExtractApplicationSnapshot({ ... }, resolveTeleportSpellIDByActivityID)
   DebugLog(
-    "event candidate invite=%s accepted=%s pending=%s group=%s activity=%s",
+    "event candidate invite=%s accepted=%s pending=%s group=%s activity=%s stableID=%s",
     tostring(snap.isInviteLike),
     tostring(snap.isAccepted),
     tostring(snap.pendingStatus),
     tostring(snap.groupName),
-    tostring(snap.activityID)
+    tostring(snap.activityID),
+    tostring(snap.stableQueueEventID)
   )
   if snap.isInviteLike and not snap.pendingStatus then
     local dungeonName = Queue.GetActivityName(snap.activityID)
     local priority = snap.isAccepted and 2 or 1
     local signature = table.concat({
       "event",
+      tostring(snap.stableQueueEventID),
       tostring(snap.isAccepted),
       tostring(priority),
       tostring(snap.groupName),
@@ -426,7 +507,12 @@ function Queue.CaptureQueueJoinCandidate(updatePendingQueueJoin, resolveTeleport
       DebugLog("skip duplicate apply event")
     else
       DebugLog("apply event priority=%s dungeon=%s", tostring(priority), tostring(dungeonName))
-      updatePendingQueueJoin(snap.groupName, dungeonName, priority, snap.activityID)
+      updatePendingQueueJoin(snap.groupName, dungeonName, priority, snap.activityID, {
+        stableQueueEventID = snap.stableQueueEventID,
+        applicationID = snap.applicationID,
+        searchResultID = snap.searchResultID,
+        listingID = snap.listingID,
+      })
     end
   end
 

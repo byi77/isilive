@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.47`.
+Current addon version: `0.9.48`.
 
 ## Features
 
@@ -18,6 +18,7 @@ Current addon version: `0.9.47`.
 - `Key` column keeps `Shortcut +Level` on one line (no row-wrap bleed into next member line)
 - `RIO` column can show per-run delta as `(+X)RIO` (non-negative only; never minus)
 - Queue join detection with chat message and invite hint
+- Grouped queue-join announce deduplication is driven by stable queue source IDs (`applicationID`/`searchResultID`/`listingID`), not volatile display text
 - Dungeon teleport controls in center notice + right-side grid
 - Teleport cooldown shown as `HH:MM`
 - Addon-presence marker per roster name (`<3`)
@@ -49,9 +50,9 @@ Current addon version: `0.9.47`.
 - Bottom status line includes current target dungeon context as `Target Dungeon: <Name> [+Level]` (or `Target Dungeon: -` when unresolved)
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 
-## Use Case / Logic Baseline (v0.9.47)
+## Use Case / Logic Baseline (v0.9.48)
 
-Documented on `2026-02-23` as runtime behavior baseline for validation checks.
+Documented on `2026-02-24` as runtime behavior baseline for validation checks.
 
 1. Queue invite -> grouped flow
    - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`).
@@ -173,7 +174,7 @@ Developer debug (hidden command, not listed in in-game help):
 ## Deterministic Usecase Gate
 
 `tools/validate_rules_logic.lua` validates active rule contracts from `RULES_LOGIC.md` against deterministic test names.
-`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 114 scenarios across 18 modules, including:
+`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 117 scenarios across 18 modules, including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
@@ -243,10 +244,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.47`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.48`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.47` or `isiLive_beta_0.9.47`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.48` or `isiLive_beta_0.9.48`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -258,9 +259,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.47 && git push origin isiLive_release_0.9.47`
+3. Create and push stable tag: `git tag isiLive_release_0.9.48 && git push origin isiLive_release_0.9.48`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.47 && git push origin isiLive_alpha_0.9.47`
-   - beta: `git tag isiLive_beta_0.9.47 && git push origin isiLive_beta_0.9.47`
+   - alpha: `git tag isiLive_alpha_0.9.48 && git push origin isiLive_alpha_0.9.48`
+   - beta: `git tag isiLive_beta_0.9.48 && git push origin isiLive_beta_0.9.48`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

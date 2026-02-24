@@ -218,4 +218,93 @@ return function(test, ctx)
     Assert.Equal(applied.dungeonName, "Floodgate", "resolved activity name must be used for hint text")
     Assert.Equal(applied.priority, 1, "invited (not accepted) should use priority 1")
   end)
+
+  test("Queue capture forwards stable search-result dedup ID", function()
+    local appliedMeta = nil
+
+    WithGlobals({
+      C_LFGList = {
+        GetActivityInfoTable = function(activityID)
+          if activityID == 311 then
+            return { fullName = "Ara-Kara", mapID = 2660, isMythicPlusActivity = true }
+          end
+          return nil
+        end,
+        GetSearchResultInfo = function(searchResultID)
+          if searchResultID == 901 then
+            return {
+              name = "Stable Search Group",
+              activityIDs = { 311 },
+            }
+          end
+          return nil
+        end,
+        GetApplications = function()
+          return {}
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_queue.lua" })
+      addon.Queue.CaptureQueueJoinCandidate(function(_groupName, _dungeonName, _priority, _activityID, meta)
+        appliedMeta = meta
+      end, function(activityID)
+        if activityID == 311 then
+          return 1226485
+        end
+        return nil
+      end, 901, "invited")
+    end)
+
+    Assert.NotNil(appliedMeta, "capture callback should receive metadata table")
+    Assert.Equal(
+      appliedMeta.stableQueueEventID,
+      "search:901",
+      "search-result driven captures must forward stable search dedup ID"
+    )
+  end)
+
+  test("Queue application capture forwards stable app dedup ID", function()
+    local appliedMeta = nil
+
+    WithGlobals({
+      C_LFGList = {
+        GetApplications = function()
+          return { 77 }
+        end,
+        GetApplicationInfo = function(appID)
+          if appID == 77 then
+            return {
+              applicationStatus = "accepted",
+              groupName = "Stable App Group",
+              activityID = 312,
+            }
+          end
+          return nil
+        end,
+        GetActivityInfoTable = function(activityID)
+          if activityID == 312 then
+            return { fullName = "Dawnbreaker", mapID = 2662, isMythicPlusActivity = true }
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_queue.lua" })
+      addon.Queue.CaptureQueueJoinFromApplications(function(_groupName, _dungeonName, _priority, _activityID, meta)
+        appliedMeta = meta
+      end, function(activityID)
+        if activityID == 312 then
+          return 1216786
+        end
+        return nil
+      end)
+    end)
+
+    Assert.NotNil(appliedMeta, "application capture callback should receive metadata table")
+    Assert.Equal(
+      appliedMeta.stableQueueEventID,
+      "app:77",
+      "application-driven capture must forward stable app dedup ID"
+    )
+  end)
 end

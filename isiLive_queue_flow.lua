@@ -7,7 +7,12 @@ addonTable.QueueFlow = QueueFlow
 
 local AnnounceQueuedGroupJoin
 
-local function BuildAnnouncementSignature(groupName, dungeonName, activityID, mapID, spellID)
+local function BuildAnnouncementSignature(pending, groupName, dungeonName, activityID, mapID, spellID)
+  local stableQueueEventID = type(pending) == "table" and pending.stableQueueEventID or nil
+  if type(stableQueueEventID) == "string" and stableQueueEventID ~= "" then
+    return "stable|" .. stableQueueEventID
+  end
+
   return table.concat({
     tostring(groupName or ""),
     tostring(dungeonName or ""),
@@ -22,12 +27,19 @@ local function RequireFunction(value, name)
   return value
 end
 
-local function UpdatePendingQueueJoin(deps, groupName, dungeonName, priority, activityID)
+local function UpdatePendingQueueJoin(deps, groupName, dungeonName, priority, activityID, sourceInfo)
   local L = deps.getL()
   local previous = deps.getPendingQueueJoinInfo()
   local oldPriority = previous and previous.priority or 0
   if priority < oldPriority then
     return
+  end
+
+  local stableQueueEventID = nil
+  if type(sourceInfo) == "table" and type(sourceInfo.stableQueueEventID) == "string" then
+    if sourceInfo.stableQueueEventID ~= "" then
+      stableQueueEventID = sourceInfo.stableQueueEventID
+    end
   end
 
   local resolvedMapID = deps.resolveSeason3MapIDByActivityID(activityID)
@@ -41,6 +53,7 @@ local function UpdatePendingQueueJoin(deps, groupName, dungeonName, priority, ac
     and previous.activityID == activityID
     and previous.mapID == resolvedMapID
     and previous.teleportSpellID == resolvedTeleportSpellID
+    and previous.stableQueueEventID == stableQueueEventID
   if isDuplicateUpdate then
     return
   end
@@ -52,6 +65,7 @@ local function UpdatePendingQueueJoin(deps, groupName, dungeonName, priority, ac
     mapID = resolvedMapID,
     teleportSpellID = resolvedTeleportSpellID,
     priority = priority,
+    stableQueueEventID = stableQueueEventID,
     capturedAt = deps.getTimeFn(),
   }
   deps.setPendingQueueJoinInfo(pending)
@@ -135,7 +149,7 @@ AnnounceQueuedGroupJoin = function(deps)
   local activityID = pending.activityID
   local mapID = pending.mapID or deps.resolveSeason3MapIDByActivityID(activityID)
   local spellID = pending.teleportSpellID or (mapID and deps.resolveSeason3TeleportSpellIDByMapID(mapID) or nil)
-  local signature = BuildAnnouncementSignature(groupName, dungeonName, activityID, mapID, spellID)
+  local signature = BuildAnnouncementSignature(pending, groupName, dungeonName, activityID, mapID, spellID)
   local now = deps.getTimeFn()
 
   if
@@ -192,8 +206,8 @@ function QueueFlow.CreateController(opts)
 
   local controller = {}
 
-  function controller.UpdatePendingQueueJoin(groupName, dungeonName, priority, activityID)
-    UpdatePendingQueueJoin(deps, groupName, dungeonName, priority, activityID)
+  function controller.UpdatePendingQueueJoin(groupName, dungeonName, priority, activityID, sourceInfo)
+    UpdatePendingQueueJoin(deps, groupName, dungeonName, priority, activityID, sourceInfo)
   end
 
   function controller.CaptureQueueJoinCandidate(...)
