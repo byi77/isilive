@@ -361,7 +361,7 @@ local function ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivi
           else
             DebugLog("ignore unresolved numeric application value=%s", tostring(numericID))
           end
-          if (not foundSearchResult) and index == 1 and (not seededApplicationID) then
+          if (not foundSearchResult) and index == 1 and not seededApplicationID then
             seededApplicationID = numericID
           end
         end
