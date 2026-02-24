@@ -474,6 +474,9 @@ local function HandleChatMsgAddonEvent(ctx, _self, prefix, message, _channel, se
 
   if syncResult.shouldAck then
     ctx.sendAck(syncResult.sender)
+    -- Refresh-driven HELLO handshakes must proactively republish own KEY data,
+    -- otherwise peers that just cleared sync cache can stay one-sided.
+    ctx.sendOwnKeySnapshot(true)
   end
 
   local changed = false

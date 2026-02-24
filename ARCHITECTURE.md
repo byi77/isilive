@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.48`
+Version baseline: `0.9.49`
 Last updated: `2026-02-24`
 
 ## Purpose
@@ -56,6 +56,7 @@ WoW Event
 9. Keep `advancedCombatLogging` hard-enabled and trigger Blizzard damage-meter reset on challenge start when API support exists.
 10. Capture per-player RIO baseline on challenge start and enable delta rendering only after delayed post-run refresh; delta is always shown as non-negative `(+X)` prefix.
 11. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
+12. Keep sync handshake resilient: HELLO recipients acknowledge and force-send own KEY snapshot so refresh-driven cache clears repopulate deterministically.
 
 ## Deterministic Validation Gates
 
@@ -76,7 +77,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.48     |
+| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.49     |
 |--------------------------------------------------------------------------------------------------|
 | Spec         Name              Flag        Key         iLvl      RIO      M+Managment  M+Travel   |
 |--------------------------------------------------------------------------------------------------|

@@ -153,6 +153,7 @@ local function RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixture
 
   test("Event handlers process addon sync messages and refresh changed roster", function()
     local counters = { acks = 0, uiUpdates = 0 }
+    local keySnapshotForceCalls = {}
     local roster = {
       { name = "Alpha", realm = "RealmA", hasIsiLive = false },
       { name = "Beta", realm = "RealmB", hasIsiLive = true },
@@ -174,11 +175,16 @@ local function RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixture
       applyKnownKeyToRosterEntry = function(info)
         return info.name == "Beta"
       end,
+      sendOwnKeySnapshot = function(force)
+        table.insert(keySnapshotForceCalls, force == true)
+      end,
     })
 
     controller:Dispatch("CHAT_MSG_ADDON", "ISI_SYNC", "hello", "PARTY", "Alpha-RealmA")
 
     Assert.Equal(counters.acks, 1, "sync payload requiring ack must send ack once")
+    Assert.Equal(#keySnapshotForceCalls, 1, "HELLO ack path must trigger one key snapshot send")
+    Assert.True(keySnapshotForceCalls[1], "HELLO ack path key snapshot send must be forced")
     Assert.Equal(counters.uiUpdates, 1, "roster changes from sync must refresh UI")
     Assert.True(roster[1].hasIsiLive, "known sync user should be marked as isiLive-enabled")
   end)

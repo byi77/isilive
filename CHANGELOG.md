@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-02-24 - Version 0.9.49
+- **Sync/Refresh Key Visibility Fix:**
+  - Fixed refresh handshake race where remote member keys could disappear after one client used `Refresh`.
+  - `HELLO` messages that require `ACK` now also trigger an immediate forced own-key snapshot send.
+  - This repopulates peer key caches deterministically after refresh-driven sync resets and prevents one-sided key visibility flip-flops between clients.
+- **Validation:**
+  - Extended deterministic event-handler sync coverage to assert `HELLO -> ACK -> forced KEY snapshot` behavior.
+  - `tools/validate_usecases.lua` remains at `117` deterministic scenarios across 18 modules (all passing).
+- **Documentation:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, and `TODO.md` to `0.9.49` references.
+- TOC version bumped to `0.9.49`.
+
 ## 2026-02-24 - Version 0.9.48
 - **Queue Join Dedup Reliability:**
   - Switched grouped queue-announce deduplication to stable queue source IDs instead of display-text signatures.

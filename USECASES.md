@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.48`
+Version baseline: `0.9.49`
 Last updated: `2026-02-24`
 
 ## Actors
@@ -86,8 +86,9 @@ Goal: allow user to post current party keys quickly.
 
 1. Trigger: user clicks `Share Keys` button in right control stack.
 2. Processing: addon builds ordered roster key summary from known keys.
-3. Output: one message per key owner is sent to `PARTY`, with local print fallback on send failure.
-4. Success criteria: each available member key appears as its own deterministic chat line (`Name: SHORT +Level`).
+3. Sync relation: on refresh handshakes, HELLO recipients send ACK and a forced own KEY snapshot so peer key caches are repopulated.
+4. Output: one message per key owner is sent to `PARTY`, with local print fallback on send failure.
+5. Success criteria: each available member key appears as its own deterministic chat line (`Name: SHORT +Level`).
 
 ## UC-07 RIO Delta Visibility
 

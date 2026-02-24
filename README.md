@@ -3,7 +3,7 @@
 `isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.48`.
+Current addon version: `0.9.49`.
 
 ## Features
 
@@ -49,8 +49,9 @@ Current addon version: `0.9.48`.
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 - Bottom status line includes current target dungeon context as `Target Dungeon: <Name> [+Level]` (or `Target Dungeon: -` when unresolved)
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
+- Sync handshake behavior: `HELLO` recipients send `ACK` and also force-send their own `KEY` snapshot to restore peer key visibility after refresh.
 
-## Use Case / Logic Baseline (v0.9.48)
+## Use Case / Logic Baseline (v0.9.49)
 
 Documented on `2026-02-24` as runtime behavior baseline for validation checks.
 
@@ -244,10 +245,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.48`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.49`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.48` or `isiLive_beta_0.9.48`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.49` or `isiLive_beta_0.9.49`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -259,9 +260,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.48 && git push origin isiLive_release_0.9.48`
+3. Create and push stable tag: `git tag isiLive_release_0.9.49 && git push origin isiLive_release_0.9.49`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.48 && git push origin isiLive_alpha_0.9.48`
-   - beta: `git tag isiLive_beta_0.9.48 && git push origin isiLive_beta_0.9.48`
+   - alpha: `git tag isiLive_alpha_0.9.49 && git push origin isiLive_alpha_0.9.49`
+   - beta: `git tag isiLive_beta_0.9.49 && git push origin isiLive_beta_0.9.49`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.
