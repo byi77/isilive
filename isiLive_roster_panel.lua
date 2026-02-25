@@ -10,13 +10,13 @@ local NAME_COL_X = 110
 local SERVER_COL_X = 240
 local KEY_COL_X = 292
 local ILVL_COL_X = 370
-local RIO_COL_X = 408
+local RIO_COL_X = 396
 local SPEC_COL_WIDTH = 92
 local NAME_COL_WIDTH = 125
 local SERVER_COL_WIDTH = 50
 local KEY_COL_WIDTH = 72
 local ILVL_COL_WIDTH = 35
-local RIO_COL_WIDTH = 104
+local RIO_COL_WIDTH = 88
 
 local function RequireFunction(value, name)
   assert(type(value) == "function", "isiLive: RosterPanel requires " .. name)
