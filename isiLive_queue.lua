@@ -341,8 +341,16 @@ local function SeedSnapshotFromSingleStruct(values, resolveTeleportSpellIDByActi
   local structAppID
   local structSearchResultID
   local structListingID
-  state.appStatus, state.pendingStatus, state.groupName, state.activityID, structAppID, structSearchResultID, structListingID =
+  local appStatus
+  local pendingStatus
+  local groupName
+  local activityID
+  appStatus, pendingStatus, groupName, activityID, structAppID, structSearchResultID, structListingID =
     ReadApplicationInfoStruct(values[1], resolveTeleportSpellIDByActivityID)
+  state.appStatus = appStatus
+  state.pendingStatus = pendingStatus
+  state.groupName = groupName
+  state.activityID = activityID
 
   if structAppID then
     state.applicationID = structAppID
