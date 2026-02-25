@@ -301,6 +301,11 @@ return function(test, ctx)
           chatMessages[#chatMessages + 1] = message
         end,
       },
+      C_MythicPlus = {
+        GetOwnedKeystoneLink = function()
+          return "|cffa335ee|Hkeystone:180653:503:12:10:9:147:0:17|h[Keystone: Ara-Kara, City of Echoes (12)]|h|r"
+        end,
+      },
     }, function()
       local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
       local controller = BuildRosterPanelController(addon, mainFrame, nowRef)
@@ -324,6 +329,25 @@ return function(test, ctx)
       onClick(shareButton, "LeftButton")
 
       Assert.Equal(#chatMessages, 2, "rapid second click must be blocked by debounce")
+      Assert.True(
+        type(chatMessages[1]) == "string" and chatMessages[1]:find("isiKeyMPlus PartyKeys: Alpha -> ", 1, true) ~= nil,
+        "share output must include addon prefix and player name"
+      )
+      Assert.True(
+        type(chatMessages[1]) == "string"
+          and chatMessages[1]:find(
+              "|Hkeystone:180653:503:12:10:9:147:0:17|h[Keystone: Ara-Kara, City of Echoes (12)]|h|r",
+              1,
+              true
+            )
+            ~= nil,
+        "share output must use owned keystone hyperlink payload when available"
+      )
+      Assert.Equal(
+        chatMessages[2],
+        chatMessages[1],
+        "debounced follow-up share should keep deterministic message format"
+      )
     end)
   end)
 end

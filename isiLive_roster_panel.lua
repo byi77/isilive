@@ -40,6 +40,33 @@ local function SendPartyChatMessage(message)
   return false
 end
 
+local function BuildKeystoneLinkText(shortCode, keyLevel)
+  local level = math.floor(tonumber(keyLevel) or 0)
+  return string.format("%s +%d", tostring(shortCode or "?"), level)
+end
+
+local function TryGetOwnedKeystoneLink(getOwnedKeystoneLink, keyLevel)
+  if type(getOwnedKeystoneLink) ~= "function" then
+    return nil
+  end
+
+  local ok, ownedLink = pcall(getOwnedKeystoneLink)
+  if not ok or type(ownedLink) ~= "string" or ownedLink == "" then
+    return nil
+  end
+  if ownedLink:find("|Hkeystone:", 1, true) == nil then
+    return nil
+  end
+
+  local linkLevel = tonumber(string.match(ownedLink, "|Hkeystone:%d+:%d+:(%-?%d+):"))
+  local expectedLevel = tonumber(keyLevel)
+  if linkLevel and expectedLevel and linkLevel ~= math.floor(expectedLevel) then
+    return nil
+  end
+
+  return ownedLink
+end
+
 local function BuildKeyAnnouncement(opts)
   local L = opts.getL()
   local roster = opts.getRoster()
@@ -48,6 +75,7 @@ local function BuildKeyAnnouncement(opts)
   local unitPriority = opts.unitPriority
   local getDungeonShortCode = opts.getDungeonShortCode
   local applyKnownKeyToRosterEntry = opts.applyKnownKeyToRosterEntry
+  local getOwnedKeystoneLink = opts.getOwnedKeystoneLink
   local lines = {}
   local ordered = buildOrderedRoster(roster, rolePriority, unitPriority)
   for _, entry in ipairs(ordered) do
@@ -69,9 +97,16 @@ local function BuildKeyAnnouncement(opts)
       local keyLevel = tonumber(info.keyLevel)
       if keyMapID and keyMapID > 0 and keyLevel and keyLevel > 0 then
         local short = getDungeonShortCode(keyMapID)
-        local prefixText = tostring(L.ANNOUNCE_PREFIX or "")
+        local announcePrefix = tostring(L.ANNOUNCE_PREFIX or "PartyKeys:")
+        announcePrefix = announcePrefix:gsub("%s+", "")
+        local prefixText = string.format("%s %s", tostring(L.TITLE or "isiKeyMPlus"), announcePrefix)
         local nameText = tostring(info.name or "?")
-        table.insert(lines, string.format("%s %s: %s +%d", prefixText, nameText, short, math.floor(keyLevel)))
+        local keyText = BuildKeystoneLinkText(short or keyMapID, keyLevel)
+        local keyLink = nil
+        if entry.unit == "player" then
+          keyLink = TryGetOwnedKeystoneLink(getOwnedKeystoneLink, keyLevel)
+        end
+        table.insert(lines, string.format("%s %s -> %s", prefixText, nameText, tostring(keyLink or keyText)))
       end
     end
   end
@@ -308,6 +343,7 @@ local function CreateShareKeysButton(mainFrame, deps)
       unitPriority = deps.unitPriority,
       getDungeonShortCode = deps.getDungeonShortCode,
       applyKnownKeyToRosterEntry = deps.applyKnownKeyToRosterEntry,
+      getOwnedKeystoneLink = deps.getOwnedKeystoneLink,
     })
     if not lines then
       return
@@ -527,6 +563,15 @@ function RosterPanel.CreateController(opts)
   local applyKnownKeyToRosterEntry = type(opts.applyKnownKeyToRosterEntry) == "function"
       and opts.applyKnownKeyToRosterEntry
     or nil
+  local getOwnedKeystoneLink = type(opts.getOwnedKeystoneLink) == "function" and opts.getOwnedKeystoneLink
+    or function()
+      local mythicPlusApi = rawget(_G, "C_MythicPlus")
+      local linkFn = mythicPlusApi and mythicPlusApi.GetOwnedKeystoneLink
+      if type(linkFn) == "function" then
+        return linkFn()
+      end
+      return nil
+    end
   local getTime = type(opts.getTime) == "function" and opts.getTime
     or function()
       if type(GetTime) == "function" then
@@ -550,6 +595,7 @@ function RosterPanel.CreateController(opts)
     unitPriority = unitPriority,
     getDungeonShortCode = getDungeonShortCode,
     applyKnownKeyToRosterEntry = applyKnownKeyToRosterEntry,
+    getOwnedKeystoneLink = getOwnedKeystoneLink,
     isInGroup = isInGroup,
     getTime = getTime,
     shareKeysDebounceSeconds = shareKeysDebounceSeconds,

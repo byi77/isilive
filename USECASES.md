@@ -1,6 +1,6 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.51`
+Version baseline: `0.9.52`
 Last updated: `2026-02-25`
 
 ## Actors
@@ -89,7 +89,7 @@ Goal: allow user to post current party keys quickly.
 3. Sync relation: on refresh handshakes, HELLO recipients send ACK and a forced own KEY snapshot so peer key caches are repopulated.
 4. Output: one message per key owner is sent to `PARTY`, with local print fallback on send failure.
 5. Rule: `Share Keys` button clicks are debounced to suppress rapid duplicate chat output.
-6. Success criteria: each available member key appears as its own deterministic chat line (`Name: SHORT +Level`).
+6. Success criteria: each available member key appears as its own deterministic chat line (`isiKeyMPlus PartyKeys: Name -> Key`), with owned-keystone hyperlink payload for the local player when available.
 
 ## UC-07 RIO Delta Visibility
 

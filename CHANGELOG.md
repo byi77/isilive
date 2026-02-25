@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-02-25 - Version 0.9.52
+- **Share Keys Chat Output Fix:**
+  - Fixed `Share Keys` no-output regression caused by invalid manually built keystone chat links.
+  - `Share Keys` now uses Blizzard owned-keystone link payload for the local player when available (`C_MythicPlus.GetOwnedKeystoneLink`).
+  - Added safe fallback to plain text key output when no valid owned keystone link is available.
+  - Share line format is now `isiKeyMPlus PartyKeys: <Name> -> <KeyLinkOrText>`.
+- **Validation:**
+  - `tools/validate_usecases.lua` remains at `140` deterministic scenarios across `20` modules (all passing).
+- **Docs Sync:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `RELEASE.md` to `0.9.52` references and updated Share Keys output wording.
+- **TOC:**
+  - TOC version bumped to `0.9.52`.
+
 ## 2026-02-25 - Version 0.9.51
 - **Runtime Reliability + Error Logging:**
   - Event gate dispatch now supports a safe error callback path (`onDispatchError`) so handler failures are captured without hard-crashing the gate loop.

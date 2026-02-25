@@ -1,6 +1,6 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.51`
+Version baseline: `0.9.52`
 Last updated: `2026-02-25`
 
 ## Purpose
@@ -81,7 +81,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiKeyMPlus                                                                        V.0.9.51     |
+| isiKeyMPlus                                                                        V.0.9.52     |
 |--------------------------------------------------------------------------------------------------|
 | Spec         Name              Flag        Key         iLvl      RIO      M+Managment  M+Travel   |
 |--------------------------------------------------------------------------------------------------|

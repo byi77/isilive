@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.51`.
+Current addon version: `0.9.52`.
 
 ## Features
 
@@ -24,7 +24,7 @@ Current addon version: `0.9.51`.
 - Dungeon teleport controls in center notice + right-side grid
 - Teleport cooldown shown as `HH:MM`
 - Addon-presence marker per roster name (`<3`)
-- `Share Keys` posts one party-chat line per available member key (`Name: SHORT +Level`)
+- `Share Keys` posts one party-chat line per available member key (`isiKeyMPlus PartyKeys: Name -> Key`), using Blizzard owned-keystone link payload for the local player when available
 - Spec column supports short labels for long localized names (for example `Wiederherstellung -> Resto`, `Vergeltung -> Retri`)
 - Center notices: left-click drag, right-click dismiss, top-right close button; position resets to center on each open
 - Optional runtime log persisted in `IsiLiveDB.runtimeLog` (enable/disable via slash command; flushed on `/reload`/logout)
@@ -55,7 +55,7 @@ Current addon version: `0.9.51`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK` and also force-send their own `KEY` snapshot to restore peer key visibility after refresh.
 
-## Use Case / Logic Baseline (v0.9.51)
+## Use Case / Logic Baseline (v0.9.52)
 
 Documented on `2026-02-25` as runtime behavior baseline for validation checks.
 
@@ -254,10 +254,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.51`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.52`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.51` or `isiLive_beta_0.9.51`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.52` or `isiLive_beta_0.9.52`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -269,9 +269,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.51 && git push origin isiLive_release_0.9.51`
+3. Create and push stable tag: `git tag isiLive_release_0.9.52 && git push origin isiLive_release_0.9.52`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.51 && git push origin isiLive_alpha_0.9.51`
-   - beta: `git tag isiLive_beta_0.9.51 && git push origin isiLive_beta_0.9.51`
+   - alpha: `git tag isiLive_alpha_0.9.52 && git push origin isiLive_alpha_0.9.52`
+   - beta: `git tag isiLive_beta_0.9.52 && git push origin isiLive_beta_0.9.52`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.
