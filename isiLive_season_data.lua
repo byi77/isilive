@@ -8,8 +8,9 @@ addonTable.SeasonData = SeasonData
 -- Seasonal data is centralized here.
 -- To onboard a new season:
 -- 1) Add a new entry under SeasonData.SEASONS.
--- 2) Set SeasonData.ACTIVE_SEASON_ID to that entry key.
+-- 2) Fill mapToTeleport / shortCodesByLocale / challengeMapAliases completely.
 -- 3) Keep locale short-code overrides inside shortCodesByLocale.
+-- 4) Switch SeasonData.ACTIVE_SEASON_ID only after step 2 is complete.
 
 local function NormalizeLocaleTag(localeTag)
   if not localeTag then
@@ -35,6 +36,19 @@ local function NormalizeMapIDInput(mapID)
   return numericMapID
 end
 
+local function BuildSeasonScaffold(label)
+  return {
+    label = label,
+    mapToTeleport = {},
+    displayOrder = {},
+    shortCodesByLocale = {
+      default = {},
+      deDE = {},
+    },
+    challengeMapAliases = {},
+  }
+end
+
 SeasonData.ACTIVE_SEASON_ID = "tww_s3"
 
 SeasonData.SEASONS = {
@@ -50,6 +64,17 @@ SeasonData.SEASONS = {
       [2441] = 367416, -- Tazavesh: Streets of Wonder
       [2442] = 367416, -- Tazavesh: So'leah's Gambit
       [2662] = 445414, -- The Dawnbreaker
+    },
+    -- Stable UI slot order for teleport buttons.
+    displayOrder = {
+      2287, -- Halls of Atonement
+      2441, -- Tazavesh: Streets of Wonder
+      2442, -- Tazavesh: So'leah's Gambit (shared spell, deduped later)
+      2649, -- Priory of the Sacred Flame
+      2660, -- Ara-Kara, City of Echoes
+      2662, -- The Dawnbreaker
+      2773, -- Operation: Floodgate
+      2830, -- Eco-Dome Al'dani
     },
     -- MapID -> short code grouped by locale.
     shortCodesByLocale = {
@@ -86,12 +111,28 @@ SeasonData.SEASONS = {
       [542] = 2830, -- Eco-Dome Al'dani
     },
   },
+  -- Preparation scaffold only. Keep inactive until concrete Midnight S1 IDs are complete.
+  midnight_s1 = BuildSeasonScaffold("Midnight Season 1 (prepared, inactive)"),
 }
 
 function SeasonData.GetSeasonConfig(seasonID)
   local resolvedSeasonID = seasonID or SeasonData.ACTIVE_SEASON_ID
   local seasons = SeasonData.SEASONS or {}
   return seasons[resolvedSeasonID]
+end
+
+function SeasonData.GetActiveSeasonID()
+  return SeasonData.ACTIVE_SEASON_ID
+end
+
+function SeasonData.GetAvailableSeasonIDs()
+  local out = {}
+  local seasons = SeasonData.SEASONS or {}
+  for seasonID in pairs(seasons) do
+    table.insert(out, seasonID)
+  end
+  table.sort(out)
+  return out
 end
 
 function SeasonData.NormalizeMapID(mapID, seasonID)
@@ -125,6 +166,41 @@ function SeasonData.GetMapToTeleport(seasonID)
     return {}
   end
   return season.mapToTeleport or {}
+end
+
+function SeasonData.GetOrderedMapIDs(seasonID)
+  local season = SeasonData.GetSeasonConfig(seasonID)
+  if type(season) ~= "table" then
+    return {}
+  end
+
+  local mapToTeleport = season.mapToTeleport or {}
+  local ordered = {}
+  local seen = {}
+
+  local explicitOrder = season.displayOrder
+  if type(explicitOrder) == "table" then
+    for _, mapID in ipairs(explicitOrder) do
+      local numericMapID = NormalizeMapIDInput(mapID)
+      if numericMapID and mapToTeleport[numericMapID] and not seen[numericMapID] then
+        seen[numericMapID] = true
+        table.insert(ordered, numericMapID)
+      end
+    end
+  end
+
+  local remaining = {}
+  for mapID in pairs(mapToTeleport) do
+    if not seen[mapID] then
+      table.insert(remaining, mapID)
+    end
+  end
+  table.sort(remaining)
+  for _, mapID in ipairs(remaining) do
+    table.insert(ordered, mapID)
+  end
+
+  return ordered
 end
 
 function SeasonData.GetShortCodes(localeTag, seasonID)

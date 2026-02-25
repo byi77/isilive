@@ -1,7 +1,7 @@
 # isiLive Architecture
 
-Version baseline: `0.9.49`
-Last updated: `2026-02-24`
+Version baseline: `0.9.50`
+Last updated: `2026-02-25`
 
 ## Purpose
 
@@ -40,7 +40,7 @@ WoW Event
 | Running | Full processing active |
 | Paused | Processing blocked except required transitions |
 | Stopped | Addon processing disabled except minimal control paths |
-| Hidden | Window hidden and non-essential work halted |
+| Hidden | Window hidden, queue/sync events suppressed, only transition events kept |
 | Test/TestAll | Controlled preview mode for UI/testing |
 
 ## Deterministic Rule Set
@@ -48,7 +48,7 @@ WoW Event
 1. Resolve dungeon targets only through concrete `activityID -> mapID -> spellID` data.
 2. If `mapID` context is missing or ambiguous, keep target unresolved (no name/token guessing).
 3. Keep leader-only actions explicit and disabled when unauthorized.
-4. Keep combat-safe UI updates deferred when protected operations are blocked, and skip frame drag start/stop during combat lockdown.
+4. Keep combat-safe UI updates deferred when protected operations are blocked; frame dragging remains available.
 5. Keep teleport-grid button strata/level synchronized with main-frame strata/level.
 6. For shared-portcast spells, prioritize exact activity map matching over spell-only suppression.
 7. Do not clear highlight state from ambiguous shared spell mappings when exact map context is unknown.
@@ -57,6 +57,7 @@ WoW Event
 10. Capture per-player RIO baseline on challenge start and enable delta rendering only after delayed post-run refresh; delta is always shown as non-negative `(+X)` prefix.
 11. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
 12. Keep sync handshake resilient: HELLO recipients acknowledge and force-send own KEY snapshot so refresh-driven cache clears repopulate deterministically.
+13. In hidden mode, suppress queue/sync event processing; keep only required auto-open transitions (`GROUP_ROSTER_UPDATE`, key-end events).
 
 ## Deterministic Validation Gates
 
@@ -71,13 +72,13 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_rules_logic.lua`
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
-4. `tools/validate_usecases.lua` runs the rules validator first and then covers 117 scenarios across 18 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster logic.
+4. `tools/validate_usecases.lua` runs the rules validator first and then covers 131 scenarios across 18 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.49     |
+| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.50     |
 |--------------------------------------------------------------------------------------------------|
 | Spec         Name              Flag        Key         iLvl      RIO      M+Managment  M+Travel   |
 |--------------------------------------------------------------------------------------------------|

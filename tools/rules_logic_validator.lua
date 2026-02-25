@@ -187,12 +187,233 @@ local function CollectDeterministicTests(scenarioFiles)
   return testsByName, errors
 end
 
+local function CountIndexedTests(testsByName)
+  local count = 0
+  for _ in pairs(testsByName) do
+    count = count + 1
+  end
+  return count
+end
+
+local function ValidateRuleID(rule, rulesPath, seenRuleIDs, errors)
+  local normalizedID = string.upper(Trim(rule.id))
+  if normalizedID == "" then
+    table.insert(errors, string.format("%s:%d rule id must not be empty", rulesPath, tonumber(rule.line) or 0))
+    return
+  end
+
+  local previousLine = seenRuleIDs[normalizedID]
+  if previousLine then
+    table.insert(
+      errors,
+      string.format(
+        "%s:%d duplicate rule id '%s' (already declared at line %d)",
+        rulesPath,
+        tonumber(rule.line) or 0,
+        rule.id,
+        previousLine
+      )
+    )
+    return
+  end
+
+  seenRuleIDs[normalizedID] = tonumber(rule.line) or 0
+end
+
+local function CountRuleStatus(rule, rulesPath, counts, errors)
+  if not VALID_STATUSES[rule.status] then
+    table.insert(
+      errors,
+      string.format(
+        "%s:%d rule %s has invalid status '%s' "
+          .. "(allowed: active|draft|deprecated|disabled; "
+          .. "de: aktiv|entwurf|veraltet|deaktiviert)",
+        rulesPath,
+        tonumber(rule.line) or 0,
+        tostring(rule.id),
+        tostring(rule.status)
+      )
+    )
+    return
+  end
+
+  if rule.status == "active" then
+    counts.activeCount = counts.activeCount + 1
+  elseif rule.status == "draft" then
+    counts.draftCount = counts.draftCount + 1
+  elseif rule.status == "deprecated" then
+    counts.deprecatedCount = counts.deprecatedCount + 1
+  elseif rule.status == "disabled" then
+    counts.disabledCount = counts.disabledCount + 1
+  end
+end
+
+local function ValidateSummary(rule, rulesPath, seenSummarySignatures, warnings)
+  local summaryText = Trim(rule.summary or "")
+  if summaryText == "" then
+    return summaryText
+  end
+
+  local summarySignature = NormalizeSummarySignature(summaryText)
+  local previousSummary = seenSummarySignatures[summarySignature]
+  if previousSummary then
+    table.insert(
+      warnings,
+      string.format(
+        "%s:%d rule %s has duplicate summary text as %s:%d (%s)",
+        rulesPath,
+        tonumber(rule.line) or 0,
+        tostring(rule.id),
+        rulesPath,
+        tonumber(previousSummary.line) or 0,
+        tostring(previousSummary.id)
+      )
+    )
+    return summaryText
+  end
+
+  seenSummarySignatures[summarySignature] = {
+    id = tostring(rule.id),
+    line = tonumber(rule.line) or 0,
+  }
+  return summaryText
+end
+
+local function ValidateActiveRuleRequiredTests(rule, rulesPath, testsByName, errors, warnings)
+  if type(rule.requiredTests) ~= "table" or #rule.requiredTests == 0 then
+    table.insert(
+      errors,
+      string.format(
+        "%s:%d active rule %s requires at least one Required Tests/Erforderliche Tests entry",
+        rulesPath,
+        tonumber(rule.line) or 0,
+        tostring(rule.id)
+      )
+    )
+    return
+  end
+
+  local seenRuleTests = {}
+  for _, testName in ipairs(rule.requiredTests) do
+    local normalizedTestName = NormalizeTestReference(testName)
+    if normalizedTestName == "" then
+      table.insert(
+        errors,
+        string.format(
+          "%s:%d active rule %s has an empty Required Tests/Erforderliche Tests entry",
+          rulesPath,
+          tonumber(rule.line) or 0,
+          tostring(rule.id)
+        )
+      )
+    else
+      if seenRuleTests[normalizedTestName] then
+        table.insert(
+          warnings,
+          string.format(
+            "%s:%d active rule %s references duplicate test '%s'",
+            rulesPath,
+            tonumber(rule.line) or 0,
+            tostring(rule.id),
+            normalizedTestName
+          )
+        )
+      end
+      seenRuleTests[normalizedTestName] = true
+
+      if not testsByName[normalizedTestName] then
+        table.insert(
+          errors,
+          string.format(
+            "%s:%d active rule %s references unknown deterministic test '%s'",
+            rulesPath,
+            tonumber(rule.line) or 0,
+            tostring(rule.id),
+            normalizedTestName
+          )
+        )
+      end
+    end
+  end
+end
+
+local function ValidateActiveRule(rule, rulesPath, summaryText, testsByName, errors, warnings)
+  if rule.status ~= "active" then
+    return
+  end
+
+  if summaryText == "" then
+    table.insert(
+      errors,
+      string.format(
+        "%s:%d active rule %s requires a non-empty Summary/Zusammenfassung field",
+        rulesPath,
+        tonumber(rule.line) or 0,
+        tostring(rule.id)
+      )
+    )
+  end
+
+  ValidateActiveRuleRequiredTests(rule, rulesPath, testsByName, errors, warnings)
+end
+
+local function ValidateRules(rules, rulesPath, testsByName, errors, warnings)
+  local counts = {
+    activeCount = 0,
+    draftCount = 0,
+    deprecatedCount = 0,
+    disabledCount = 0,
+  }
+  local seenRuleIDs = {}
+  local seenSummarySignatures = {}
+
+  if type(rules) ~= "table" then
+    return counts
+  end
+
+  for _, rule in ipairs(rules) do
+    ValidateRuleID(rule, rulesPath, seenRuleIDs, errors)
+    CountRuleStatus(rule, rulesPath, counts, errors)
+    local summaryText = ValidateSummary(rule, rulesPath, seenSummarySignatures, warnings)
+    ValidateActiveRule(rule, rulesPath, summaryText, testsByName, errors, warnings)
+  end
+
+  return counts
+end
+
+local function PrintWarnings(printFn, warnings)
+  for _, warning in ipairs(warnings) do
+    printFn("[WARN] " .. warning)
+  end
+end
+
+local function PrintErrors(printFn, errors)
+  printFn("Rules logic validation failed:")
+  for _, err in ipairs(errors) do
+    printFn("[FAIL] " .. err)
+  end
+end
+
+local function PrintSummary(printFn, rules, counts, indexedTests)
+  printFn(
+    string.format(
+      "Rules logic validation: %d rules (%d active, %d draft, %d deprecated, %d disabled) "
+        .. "| %d deterministic tests indexed",
+      type(rules) == "table" and #rules or 0,
+      counts.activeCount,
+      counts.draftCount,
+      counts.deprecatedCount,
+      counts.disabledCount,
+      indexedTests
+    )
+  )
+end
+
 function Validator.Run(opts)
   opts = opts or {}
   local rulesPath = opts.rulesPath or "RULES_LOGIC.md"
   local scenarioFiles = opts.scenarioFiles or {}
   local printFn = type(opts.printFn) == "function" and opts.printFn or print
-
   local errors = {}
   local warnings = {}
 
@@ -214,189 +435,19 @@ function Validator.Run(opts)
     table.insert(warnings, warning)
   end
 
-  local activeCount = 0
-  local draftCount = 0
-  local deprecatedCount = 0
-  local disabledCount = 0
-  local seenRuleIDs = {}
-  local seenSummarySignatures = {}
-
-  if type(rules) == "table" then
-    for _, rule in ipairs(rules) do
-      local normalizedID = string.upper(Trim(rule.id))
-      if normalizedID == "" then
-        table.insert(errors, string.format("%s:%d rule id must not be empty", rulesPath, tonumber(rule.line) or 0))
-      else
-        local previousLine = seenRuleIDs[normalizedID]
-        if previousLine then
-          table.insert(
-            errors,
-            string.format(
-              "%s:%d duplicate rule id '%s' (already declared at line %d)",
-              rulesPath,
-              tonumber(rule.line) or 0,
-              rule.id,
-              previousLine
-            )
-          )
-        else
-          seenRuleIDs[normalizedID] = tonumber(rule.line) or 0
-        end
-      end
-
-      if not VALID_STATUSES[rule.status] then
-        table.insert(
-          errors,
-          string.format(
-            "%s:%d rule %s has invalid status '%s' "
-              .. "(allowed: active|draft|deprecated|disabled; "
-              .. "de: aktiv|entwurf|veraltet|deaktiviert)",
-            rulesPath,
-            tonumber(rule.line) or 0,
-            tostring(rule.id),
-            tostring(rule.status)
-          )
-        )
-      elseif rule.status == "active" then
-        activeCount = activeCount + 1
-      elseif rule.status == "draft" then
-        draftCount = draftCount + 1
-      elseif rule.status == "deprecated" then
-        deprecatedCount = deprecatedCount + 1
-      elseif rule.status == "disabled" then
-        disabledCount = disabledCount + 1
-      end
-
-      local summaryText = Trim(rule.summary or "")
-      if summaryText ~= "" then
-        local summarySignature = NormalizeSummarySignature(summaryText)
-        local previousSummary = seenSummarySignatures[summarySignature]
-        if previousSummary then
-          table.insert(
-            warnings,
-            string.format(
-              "%s:%d rule %s has duplicate summary text as %s:%d (%s)",
-              rulesPath,
-              tonumber(rule.line) or 0,
-              tostring(rule.id),
-              rulesPath,
-              tonumber(previousSummary.line) or 0,
-              tostring(previousSummary.id)
-            )
-          )
-        else
-          seenSummarySignatures[summarySignature] = {
-            id = tostring(rule.id),
-            line = tonumber(rule.line) or 0,
-          }
-        end
-      end
-
-      if rule.status == "active" then
-        if summaryText == "" then
-          table.insert(
-            errors,
-            string.format(
-              "%s:%d active rule %s requires a non-empty Summary/Zusammenfassung field",
-              rulesPath,
-              tonumber(rule.line) or 0,
-              tostring(rule.id)
-            )
-          )
-        end
-
-        if type(rule.requiredTests) ~= "table" or #rule.requiredTests == 0 then
-          table.insert(
-            errors,
-            string.format(
-              "%s:%d active rule %s requires at least one Required Tests/Erforderliche Tests entry",
-              rulesPath,
-              tonumber(rule.line) or 0,
-              tostring(rule.id)
-            )
-          )
-        else
-          local seenRuleTests = {}
-          for _, testName in ipairs(rule.requiredTests) do
-            local normalizedTestName = NormalizeTestReference(testName)
-            if normalizedTestName == "" then
-              table.insert(
-                errors,
-                string.format(
-                  "%s:%d active rule %s has an empty Required Tests/Erforderliche Tests entry",
-                  rulesPath,
-                  tonumber(rule.line) or 0,
-                  tostring(rule.id)
-                )
-              )
-            else
-              if seenRuleTests[normalizedTestName] then
-                table.insert(
-                  warnings,
-                  string.format(
-                    "%s:%d active rule %s references duplicate test '%s'",
-                    rulesPath,
-                    tonumber(rule.line) or 0,
-                    tostring(rule.id),
-                    normalizedTestName
-                  )
-                )
-              end
-              seenRuleTests[normalizedTestName] = true
-
-              if not testsByName[normalizedTestName] then
-                table.insert(
-                  errors,
-                  string.format(
-                    "%s:%d active rule %s references unknown deterministic test '%s'",
-                    rulesPath,
-                    tonumber(rule.line) or 0,
-                    tostring(rule.id),
-                    normalizedTestName
-                  )
-                )
-              end
-            end
-          end
-        end
-      end
-    end
-  end
-
-  local indexedTests = 0
-  for _ in pairs(testsByName) do
-    indexedTests = indexedTests + 1
-  end
-
-  if activeCount == 0 then
+  local counts = ValidateRules(rules, rulesPath, testsByName, errors, warnings)
+  local indexedTests = CountIndexedTests(testsByName)
+  if counts.activeCount == 0 then
     table.insert(
       warnings,
       "rules: no active rules configured; set Status: active (or aktiv) on rule blocks to enforce runtime contracts."
     )
   end
 
-  printFn(
-    string.format(
-      "Rules logic validation: %d rules (%d active, %d draft, %d deprecated, %d disabled) "
-        .. "| %d deterministic tests indexed",
-      type(rules) == "table" and #rules or 0,
-      activeCount,
-      draftCount,
-      deprecatedCount,
-      disabledCount,
-      indexedTests
-    )
-  )
-
-  for _, warning in ipairs(warnings) do
-    printFn("[WARN] " .. warning)
-  end
-
+  PrintSummary(printFn, rules, counts, indexedTests)
+  PrintWarnings(printFn, warnings)
   if #errors > 0 then
-    printFn("Rules logic validation failed:")
-    for _, err in ipairs(errors) do
-      printFn("[FAIL] " .. err)
-    end
+    PrintErrors(printFn, errors)
     return false
   end
 

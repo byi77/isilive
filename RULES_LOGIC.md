@@ -22,7 +22,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ## Regeluebersicht
 
 1. Queue-Zielaufloesung darf ohne konkreten map/activity-Kontext niemals raten.
-2. Die UI darf per STRG-F9 nur ausserhalb des Kampfes geoeffnet werden und muss per STRG-F9 jederzeit schliessbar bleiben.
+2. Die UI muss per STRG-F9 in jedem Zustand (auch im Kampf) geoeffnet und geschlossen werden koennen.
 3. Negative Queue-Folgeevents duerfen ein bereits gruppiertes Ziel nicht unerwartet loeschen.
 4. RIO-Delta darf erst nach erfolgreichem verzoegertem Post-Run-Refresh aktiviert werden.
 5. Teleport-Ziel darf ohne Activity-Kontext nicht per Name geraten werden.
@@ -30,7 +30,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 7. Queue-Capture darf pending/applied Rauschen nicht als neues Ziel behandeln und muss Doppler ignorieren.
 8. Highlight-Aufloesung darf nur mit eindeutigem activity/map-Kontext arbeiten und kein Gruppen-freies Fallback nutzen.
 9. QueueFlow muss waehrend aktiver Challenge Queue-Events ignorieren und doppelte Updates/Announces unterdruecken.
-10. Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; nicht-Hotkey-Oeffnen darf pending bleiben.
+10. Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; UI-Oeffnen muss trotzdem sofort moeglich bleiben.
 11. In Raid-Groesse bleibt die UI ausgeblendet; beim Gruppenwechsel werden Hinweise und Sichtbarkeit korrekt rueckgesetzt.
 12. Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
 13. Voll-Refresh laeuft nur in erlaubten Zustaenden und muss bei Stop oder aktivem M+ sauber aussetzen.
@@ -43,11 +43,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 20. In den Gruppenmitglieder-Zeilen ist kein Zeilenumbruch erlaubt.
 21. Es gibt kein Dungeon-Portal-Highlight, wenn das Ziel nicht eindeutig aufloesbar ist.
 22. Es gibt keinen wiederholten Target-Dungeon-Chatspam; bei identischem erkanntem Ziel reicht eine einmalige Ausgabe.
-23. coding: NO fallbacks of fallbacks
+23. coding: KEINE fallbacks von fallbacks
 24. coding: kein raten, schätzen oder herbeizaubern von aussagen. fakten zählen! robust und qualitativ hochwertig bleiben!
 25. der rio delta kann niemals negativ sein also zb. -15, der kann nur 0 oder höher sein.
-
-
+26. die ui kann jederzeit mit STRG+F9 geöffnet und geschlossen werden, auch infight
+27. das schliessen der ui ist jederzeit möglich, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9
+28. während die ui ausgeblendet/geschlossen ist, arbeiten wir auf "sparflamme" also keine ui oder sonstigen updates
+29. die dungeon portal icons sind immer an gleicher stelle wenn sie einmal sortiert worden sind, kein switch oder neu sortieren
+30. falls ein anderer user entdeckt wird welcher auch "isiLive" benutzt, hängen wir hinter seinen Namen ein <3 (blaues herz) an
+31. main ui immer -> auto open beim gruppenbeitritt, autoclose bei key start und auto open bei key ende weiterhin behalten
 
 ## Regelbloecke
 
@@ -63,10 +67,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-HOTKEY-KAMPF-TOGGLE
 - Regelnummer: 2
 - Status: aktiv
-- Zusammenfassung: Die UI darf per STRG-F9 nur ausserhalb des Kampfes geoeffnet werden und muss per STRG-F9 jederzeit schliessbar bleiben.
+- Zusammenfassung: Die UI muss per STRG-F9 in jedem Zustand (auch im Kampf) geoeffnet und geschlossen werden koennen.
 - Erforderliche Tests:
   - UI toggle allows closing frame during combat
-  - UI toggle blocks opening frame during combat and does not queue delayed open
+  - UI toggle opens frame during combat without pending delay
 
 ### RULE-QUEUE-NEGATIV-GRUPPE-STABIL
 - Regelnummer: 3
@@ -128,10 +132,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-TELEPORT-SECURE-COMBAT-DEFER
 - Regelnummer: 10
 - Status: entwurf
-- Zusammenfassung: Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; nicht-Hotkey-Oeffnen darf pending bleiben.
+- Zusammenfassung: Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; UI-Oeffnen muss trotzdem sofort moeglich bleiben.
 - Erforderliche Tests:
   - Teleport secure button updates are deferred during combat and applied after regen
-  - UI direct SetVisible(true) in combat still queues pending open for non-hotkey flows
+  - UI direct SetVisible(true) in combat opens immediately without pending delay
 
 ### RULE-GRUPPE-RAID-SICHTBARKEIT
 - Regelnummer: 11
@@ -233,6 +237,57 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Es gibt keinen wiederholten Target-Dungeon-Chatspam; bei identischem erkanntem Ziel reicht eine einmalige Ausgabe.
 - Erforderliche Tests:
   - QueueFlow deduplicates repeated grouped announce for same target
+
+### RULE-UI-STRG-F9-JEDERZEIT
+- Regelnummer: 26
+- Status: entwurf
+- Zusammenfassung: die ui kann jederzeit mit STRG+F9 geoeffnet und geschlossen werden, auch infight
+- Erforderliche Tests:
+  - UI toggle allows closing frame during combat
+  - UI toggle opens frame during combat without pending delay
+
+### RULE-UI-SCHLIESSEN-X-ODER-HOTKEY
+- Regelnummer: 27
+- Status: entwurf
+- Zusammenfassung: das schliessen der ui ist jederzeit moeglich, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9
+- Erforderliche Tests:
+  - UI close button hides frame directly
+  - UI toggle allows closing frame during combat
+
+### RULE-UI-HIDDEN-SPARFLAMME
+- Regelnummer: 28
+- Status: entwurf
+- Zusammenfassung: waehrend die ui ausgeblendet/geschlossen ist, arbeiten wir auf "sparflamme" also keine ui oder sonstigen updates
+- Erforderliche Tests:
+  - Bootstrap gate suppresses queue and sync events while frame is hidden
+  - Event handlers keep non-UI regen recovery while frame is hidden
+  - Bootstrap gate keeps hidden auto-open triggers for group join and key end
+  - Event handlers run regen teleport refresh when frame is visible
+
+### RULE-PORTAL-ICONS-STABILE-SLOTS
+- Regelnummer: 29
+- Status: entwurf
+- Zusammenfassung: die dungeon portal icons behalten nach der ersten sortierung eine feste slot-reihenfolge; danach gibt es keinen slot-switch und keine neu-sortierung mehr
+- Erforderliche Tests:
+  - Teleport resolves shared-map spell IDs as deterministic sorted map list
+  - Teleport entry builder de-duplicates shared spells for grid rendering
+
+### RULE-SYNC-USER-BLUESHEART-MARKER
+- Regelnummer: 30
+- Status: entwurf
+- Zusammenfassung: falls ein anderer user entdeckt wird welcher auch "isiLive" benutzt, haengen wir hinter seinen namen ein <3 (blaues herz) an
+- Erforderliche Tests:
+  - Sync MarkUser and IsUserKnown track players
+  - Event handlers process addon sync messages and refresh changed roster
+
+### RULE-MAIN-UI-AUTO-OPEN-CLOSE-ZYKLEN
+- Regelnummer: 31
+- Status: entwurf
+- Zusammenfassung: main ui immer -> auto open beim gruppenbeitritt, autoclose bei key start und auto open bei key ende weiterhin behalten
+- Erforderliche Tests:
+  - Group join builds roster with player and 4 party members
+  - Event handlers auto-hide main frame on challenge start
+  - Event handlers auto-show main frame on challenge completion while grouped
 
 ## Hinweise
 

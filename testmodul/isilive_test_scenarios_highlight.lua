@@ -1,38 +1,34 @@
-return function(test, ctx)
-  local Assert = ctx.assert
-  local WithGlobals = ctx.with_globals
-  local LoadAddonModules = ctx.load_modules
+local function BuildHighlightController(addon, overrides)
+  overrides = overrides or {}
+  return addon.Highlight.CreateController({
+    isInGroup = overrides.isInGroup or function()
+      return true
+    end,
+    resolveSeason3TeleportSpellIDByMapID = overrides.resolveSeason3TeleportSpellIDByMapID or function(mapID)
+      if mapID == 2441 or mapID == 2442 then
+        return 367416
+      end
+      if mapID == 2662 then
+        return 445414
+      end
+      return nil
+    end,
+    resolveSeason3MapIDByActivityID = overrides.resolveSeason3MapIDByActivityID or function(activityID)
+      if activityID == 1001 then
+        return 2442
+      end
+      if activityID == 1002 then
+        return 2441
+      end
+      if activityID == 2001 then
+        return 2662
+      end
+      return nil
+    end,
+  })
+end
 
-  local function BuildHighlightController(addon, overrides)
-    overrides = overrides or {}
-    return addon.Highlight.CreateController({
-      isInGroup = overrides.isInGroup or function()
-        return true
-      end,
-      resolveSeason3TeleportSpellIDByMapID = overrides.resolveSeason3TeleportSpellIDByMapID or function(mapID)
-        if mapID == 2441 or mapID == 2442 then
-          return 367416
-        end
-        if mapID == 2662 then
-          return 445414
-        end
-        return nil
-      end,
-      resolveSeason3MapIDByActivityID = overrides.resolveSeason3MapIDByActivityID or function(activityID)
-        if activityID == 1001 then
-          return 2442
-        end
-        if activityID == 1002 then
-          return 2441
-        end
-        if activityID == 2001 then
-          return 2662
-        end
-        return nil
-      end,
-    })
-  end
-
+local function RegisterHighlightActiveAndQueueTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Highlight keeps active listing for shared spell when map is different", function()
     local currentMapID = nil
     local activeEntry = nil
@@ -111,7 +107,9 @@ return function(test, ctx)
     local spellOnly = controller.ResolveJoinedKeyMapID(nil, 445414)
     Assert.Nil(spellOnly, "joined-key map must stay nil for spell-only context")
   end)
+end
 
+local function RegisterHighlightNormalizationTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Highlight normalizes active-entry tables with activityIDs fallback", function()
     WithGlobals({
       C_LFGList = {
@@ -177,7 +175,9 @@ return function(test, ctx)
       Assert.Nil(spellID, "queue-derived highlight should be blocked while player is not in group")
     end)
   end)
+end
 
+local function RegisterHighlightResolverTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Highlight listing resolver requires unique activity map", function()
     local addon = LoadAddonModules({ "isiLive_highlight.lua" })
     local controller = BuildHighlightController(addon, {
@@ -224,4 +224,14 @@ return function(test, ctx)
       Assert.Nil(mapID, "highlight must not bypass strict resolver with direct C_LFGList fallback")
     end)
   end)
+end
+
+return function(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
+
+  RegisterHighlightActiveAndQueueTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterHighlightNormalizationTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterHighlightResolverTests(test, Assert, WithGlobals, LoadAddonModules)
 end

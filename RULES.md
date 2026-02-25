@@ -10,11 +10,11 @@
 - Keep `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` processing active while main window is hidden so post-run refresh/delta flow remains reliable.
 
 ## Season Scope
-- This addon is locked to **The War Within Season 3 (TWW S3)** dungeon/teleport data only.
-- Do not merge, copy, or backport dungeon pools, map IDs, or teleport spell IDs from any other season (`TWW S1/S2`, Dragonflight, Shadowlands, etc.).
-- `isiLive_season_data.lua` must only contain the active TWW S3 pool.
-- Any season-data edit must be explicitly labeled as `TWW S3` in both `CHANGELOG.md` and `README.md`.
-- If an external change conflicts with this scope, reject it and keep the TWW S3 mapping.
+- This addon is season-open; active runtime season data is selected only via `SeasonData.ACTIVE_SEASON_ID`.
+- `isiLive_season_data.lua` may contain multiple season entries (`active` + prepared future seasons), but only one season ID is active at runtime.
+- Season switch rule: never switch `ACTIVE_SEASON_ID` until the target season mapping is complete (`mapToTeleport`, `displayOrder`, `shortCodesByLocale`, `challengeMapAliases`) and validated.
+- Documentation rule: season-data edits must explicitly name the active season ID and prepared-next season status in `README.md` and `CHANGELOG.md`.
+- Current planning baseline: `tww_s3` remains active; `midnight_s1` is prepared/inactive until concrete IDs are complete.
 
 ## Localization
 - All user-facing text must use the localization table.

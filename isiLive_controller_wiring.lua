@@ -125,9 +125,6 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
     getMainFrame = function()
       return refs.mainFrame
     end,
-    applyCenterNoticeStoredPosition = function(position)
-      refs.centerNotice.ApplyStoredPosition(position)
-    end,
     registerIsiLiveSyncPrefix = RequireFunction(deps.registerIsiLiveSyncPrefix, "registerIsiLiveSyncPrefix"),
     applyHotkeyBindings = RequireFunction(deps.applyHotkeyBindings, "applyHotkeyBindings"),
     startBindingWatchdog = RequireFunction(deps.startBindingWatchdog, "startBindingWatchdog"),
@@ -158,13 +155,6 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     return refs.mainUI.GetPendingHeight()
   end
   config.setMainFrameHeightSafe = RequireFunction(callbacks.setMainFrameHeightSafe, "callbacks.setMainFrameHeightSafe")
-  config.getPendingMainFrameVisible = function()
-    return refs.mainUI.GetPendingVisible()
-  end
-  config.getPendingCenterNoticeVisible = function()
-    return refs.centerNotice.GetPendingVisible()
-  end
-  config.setCenterNoticeVisible = RequireFunction(callbacks.setCenterNoticeVisible, "callbacks.setCenterNoticeVisible")
   config.tryRestoreCenterNoticeTeleportButton = function()
     local centerNoticeFrame = refs.centerNoticeFrame
     local centerNoticeTeleportButton = refs.centerNoticeTeleportButton

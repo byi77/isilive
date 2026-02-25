@@ -1,8 +1,4 @@
-return function(test, ctx)
-  local Assert = ctx.assert
-  local WithGlobals = ctx.with_globals
-  local LoadAddonModules = ctx.load_modules
-
+local function RegisterQueueActivityResolutionTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Queue prefers concrete teleport-mapped activity over generic candidate", function()
     WithGlobals({
       C_LFGList = {
@@ -12,6 +8,9 @@ return function(test, ctx)
           end
           if activityID == 201 then
             return { mapID = 2442, isMythicPlusActivity = true, categoryID = 2 }
+          end
+          if activityID == 202 then
+            return { mapID = 2662, isMythicPlusActivity = true, categoryID = 2 }
           end
           return nil
         end,
@@ -34,6 +33,24 @@ return function(test, ctx)
       end)
 
       Assert.Equal(resolvedID, 201, "queue candidate resolution must prefer concrete mapping")
+
+      local ambiguousResult = {
+        activityID = 200,
+        activityIDs = { 201, 202 },
+      }
+      local ambiguousID = addon.Queue.GetSearchResultActivityID(ambiguousResult, function(activityID)
+        if activityID == 201 then
+          return 367416
+        end
+        if activityID == 202 then
+          return 445414
+        end
+        return nil
+      end)
+      Assert.Nil(
+        ambiguousID,
+        "queue candidate resolution must stay unresolved when multiple mapped activities disagree"
+      )
     end)
   end)
 
@@ -72,7 +89,9 @@ return function(test, ctx)
       Assert.Nil(name, "activity name lookup should not crash on API failure")
     end)
   end)
+end
 
+local function RegisterQueueApplicationStatusTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Queue.ParseApplicationStatus handles string states", function()
     local addon = LoadAddonModules({ "isiLive_queue.lua" })
 
@@ -105,7 +124,9 @@ return function(test, ctx)
       Assert.True(acceptedState, "accepted enum must be accepted")
     end)
   end)
+end
 
+local function RegisterQueueCaptureCoreTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Queue capture ignores pending application updates", function()
     local applied = 0
 
@@ -219,6 +240,9 @@ return function(test, ctx)
     Assert.Equal(applied.priority, 1, "invited (not accepted) should use priority 1")
   end)
 
+end
+
+local function RegisterQueueCaptureStableIDTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Queue capture forwards stable search-result dedup ID", function()
     local appliedMeta = nil
 
@@ -307,4 +331,15 @@ return function(test, ctx)
       "application-driven capture must forward stable app dedup ID"
     )
   end)
+end
+
+return function(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
+
+  RegisterQueueActivityResolutionTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterQueueApplicationStatusTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterQueueCaptureCoreTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterQueueCaptureStableIDTests(test, Assert, WithGlobals, LoadAddonModules)
 end

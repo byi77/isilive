@@ -87,7 +87,14 @@ local function CaptureQueueJoinCandidate(deps, ...)
     if not ok then
       return nil
     end
-    return mapID
+    if type(mapID) ~= "number" or mapID <= 0 then
+      return nil
+    end
+
+    return {
+      mapID = mapID,
+      spellID = deps.resolveSeason3TeleportSpellIDByMapID(mapID),
+    }
   end
 
   deps.queueCaptureQueueJoinCandidate(function(...)

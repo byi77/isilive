@@ -1,9 +1,6 @@
 ---@diagnostic disable: undefined-global
-return function(test, ctx)
-  local Assert = ctx.assert
-  local WithGlobals = ctx.with_globals
-  local LoadAddonModules = ctx.load_modules
 
+local function RegisterNormalizeKeyTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Sync NormalizePlayerKey extracts name and realm correctly", function()
     WithGlobals({
       strsplit = function(sep, str, max)
@@ -74,7 +71,9 @@ return function(test, ctx)
       Assert.True(key:find("myrealm") ~= nil, "key must use GetRealmName fallback")
     end)
   end)
+end
 
+local function RegisterKnownUserAndKeyTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Sync MarkUser and IsUserKnown track players", function()
     WithGlobals({
       strsplit = function(_sep, str, _max)
@@ -122,7 +121,9 @@ return function(test, ctx)
       Assert.Equal(info.level, 16, "stored level must match latest update")
     end)
   end)
+end
 
+local function RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Sync ProcessAddonMessage handles HELLO and KEY payloads", function()
     WithGlobals({
       strsplit = function(sep, str, max)
@@ -141,28 +142,34 @@ return function(test, ctx)
     }, function()
       local addon = LoadAddonModules({ "isiLive_sync.lua" })
 
-      -- Test HELLO from another player
       local helloResult =
         addon.Sync.ProcessAddonMessage("ISILIVE", "HELLO:0.9.36", "OtherPlayer-OtherRealm", "MyPlayer", "Realm")
       Assert.NotNil(helloResult, "HELLO must return result")
       Assert.True(helloResult.shouldAck, "HELLO from different player must require ack")
 
-      -- Test HELLO from self (should not ack)
       local selfResult =
         addon.Sync.ProcessAddonMessage("ISILIVE", "HELLO:0.9.36", "MyPlayer-Realm", "MyPlayer", "Realm")
       Assert.NotNil(selfResult, "self HELLO must return result")
       Assert.False(selfResult.shouldAck, "HELLO from self must not require ack")
 
-      -- Test KEY message
       local keyResult =
         addon.Sync.ProcessAddonMessage("ISILIVE", "KEY:2649:15", "OtherPlayer-OtherRealm", "MyPlayer", "Realm")
       Assert.NotNil(keyResult, "KEY must return result")
       Assert.True(keyResult.keyUpdated, "first KEY must report update")
 
-      -- Test wrong prefix is ignored
       local wrongPrefix =
         addon.Sync.ProcessAddonMessage("WRONGPREFIX", "HELLO:1.0", "Someone-Realm", "MyPlayer", "Realm")
       Assert.Nil(wrongPrefix, "wrong prefix must return nil")
     end)
   end)
+end
+
+return function(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
+
+  RegisterNormalizeKeyTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterKnownUserAndKeyTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonModules)
 end

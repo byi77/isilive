@@ -179,7 +179,6 @@ local function BuildEventCallbacks(ctx)
     captureRioBaselineSnapshot = ctx.captureRioBaselineSnapshot,
     enableRioDeltaDisplay = ctx.enableRioDeltaDisplay,
     setMainFrameHeightSafe = ctx.setMainFrameHeightSafe,
-    setCenterNoticeVisible = ctx.setCenterNoticeVisible,
   }
 end
 
@@ -255,6 +254,7 @@ function ConfigBuilders.BuildGateOpts(ctx)
     isStopped = ctx.isStopped,
     isPaused = ctx.isPaused,
     isTestMode = ctx.isTestMode,
+    isInCombat = ctx.isInCombat,
     isInGroup = ctx.isInGroup,
     getNumGroupMembers = ctx.getNumGroupMembers,
     getActiveChallengeMapID = ctx.getActiveChallengeMapID,

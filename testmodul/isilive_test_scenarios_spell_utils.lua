@@ -1,8 +1,4 @@
-return function(test, ctx)
-  local Assert = ctx.assert
-  local WithGlobals = ctx.with_globals
-  local LoadAddonModules = ctx.load_modules
-
+local function RegisterSpellKnownAndCooldownTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Spell utils keep teleports recognized during cooldown", function()
     WithGlobals({
       C_SpellBook = {
@@ -47,6 +43,48 @@ return function(test, ctx)
     Assert.True(isEnabled, "missing cooldown API should return enabled=true")
   end)
 
+  test("Spell utils cooldown remaining is zero when disabled or expired", function()
+    WithGlobals({
+      C_Spell = {
+        GetSpellCooldown = function(_spellID)
+          return {
+            startTime = 100,
+            duration = 30,
+            isEnabled = false,
+          }
+        end,
+      },
+      GetTime = function()
+        return 1000
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_spell_utils.lua" })
+      local disabled = addon.SpellUtils.GetTeleportCooldownRemaining(777)
+      Assert.Equal(disabled, 0, "disabled cooldown should report zero remaining")
+    end)
+
+    WithGlobals({
+      C_Spell = {
+        GetSpellCooldown = function(_spellID)
+          return {
+            startTime = 100,
+            duration = 30,
+            isEnabled = true,
+          }
+        end,
+      },
+      GetTime = function()
+        return 1000
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_spell_utils.lua" })
+      local expired = addon.SpellUtils.GetTeleportCooldownRemaining(777)
+      Assert.Equal(expired, 0, "expired cooldown should clamp to zero remaining")
+    end)
+  end)
+end
+
+local function RegisterCooldownFrameApplyTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Spell utils apply cooldown uses CooldownFrame_Set when available", function()
     local called = nil
     local frame = {
@@ -92,44 +130,13 @@ return function(test, ctx)
     Assert.Equal(appliedStart, 0, "disabled cooldown should clear with start=0")
     Assert.Equal(appliedDuration, 0, "disabled cooldown should clear with duration=0")
   end)
+end
 
-  test("Spell utils cooldown remaining is zero when disabled or expired", function()
-    WithGlobals({
-      C_Spell = {
-        GetSpellCooldown = function(_spellID)
-          return {
-            startTime = 100,
-            duration = 30,
-            isEnabled = false,
-          }
-        end,
-      },
-      GetTime = function()
-        return 1000
-      end,
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_spell_utils.lua" })
-      local disabled = addon.SpellUtils.GetTeleportCooldownRemaining(777)
-      Assert.Equal(disabled, 0, "disabled cooldown should report zero remaining")
-    end)
+return function(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
 
-    WithGlobals({
-      C_Spell = {
-        GetSpellCooldown = function(_spellID)
-          return {
-            startTime = 100,
-            duration = 30,
-            isEnabled = true,
-          }
-        end,
-      },
-      GetTime = function()
-        return 1000
-      end,
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_spell_utils.lua" })
-      local expired = addon.SpellUtils.GetTeleportCooldownRemaining(777)
-      Assert.Equal(expired, 0, "expired cooldown should clamp to zero remaining")
-    end)
-  end)
+  RegisterSpellKnownAndCooldownTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterCooldownFrameApplyTests(test, Assert, WithGlobals, LoadAddonModules)
 end

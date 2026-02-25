@@ -1,9 +1,6 @@
 ---@diagnostic disable: undefined-global
-return function(test, ctx)
-  local Assert = ctx.assert
-  local WithGlobals = ctx.with_globals
-  local LoadAddonModules = ctx.load_modules
 
+local function RegisterNegativeStatusTests(test, Assert, WithGlobals, LoadAddonModules)
   test("EventUtils detects negative status strings", function()
     local addon = LoadAddonModules({ "isiLive_event_utils.lua" })
 
@@ -98,4 +95,170 @@ return function(test, ctx)
       "declined at any position should be detected"
     )
   end)
+end
+
+local function RegisterEventGateTests(test, Assert, LoadAddonModules)
+  test("Events gate blocks non-essential events during combat", function()
+    local dispatched = 0
+
+    local addon = LoadAddonModules({ "isiLive_events.lua" })
+    local gate = addon.Events.CreateGate({
+      dispatch = function(_frame, _event, ...)
+        local _ = ...
+        dispatched = dispatched + 1
+      end,
+      isStopped = function()
+        return false
+      end,
+      isPaused = function()
+        return false
+      end,
+      isTestMode = function()
+        return false
+      end,
+      isInCombat = function()
+        return true
+      end,
+      allowInCombat = {
+        PLAYER_REGEN_ENABLED = true,
+      },
+    })
+
+    local frame = {
+      IsShown = function()
+        return true
+      end,
+    }
+    gate(frame, "GROUP_ROSTER_UPDATE")
+
+    Assert.Equal(dispatched, 0, "combat gate must suppress non-essential events")
+  end)
+
+  test("Events gate allows whitelisted events during combat", function()
+    local dispatched = 0
+
+    local addon = LoadAddonModules({ "isiLive_events.lua" })
+    local gate = addon.Events.CreateGate({
+      dispatch = function(_frame, _event, ...)
+        local _ = ...
+        dispatched = dispatched + 1
+      end,
+      isStopped = function()
+        return false
+      end,
+      isPaused = function()
+        return false
+      end,
+      isTestMode = function()
+        return false
+      end,
+      isInCombat = function()
+        return true
+      end,
+      allowInCombat = {
+        PLAYER_REGEN_ENABLED = true,
+      },
+    })
+
+    local frame = {
+      IsShown = function()
+        return true
+      end,
+    }
+    gate(frame, "PLAYER_REGEN_ENABLED")
+
+    Assert.Equal(dispatched, 1, "combat gate must allow explicitly whitelisted events")
+  end)
+end
+
+local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
+  local function CreateBootstrapGate(addon, dispatch, opts)
+    opts = opts or {}
+    return addon.Bootstrap.CreateGatedOnEvent({
+      events = addon.Events,
+      dispatch = dispatch,
+      isStopped = function()
+        return false
+      end,
+      isPaused = function()
+        return false
+      end,
+      isTestMode = function()
+        return false
+      end,
+      isInCombat = function()
+        return false
+      end,
+      isInGroup = function()
+        if opts.isInGroup ~= nil then
+          return opts.isInGroup
+        end
+        return true
+      end,
+      getNumGroupMembers = function()
+        return opts.numMembers or 5
+      end,
+      getActiveChallengeMapID = function()
+        return opts.activeChallengeMapID
+      end,
+    })
+  end
+
+  test("Bootstrap gate suppresses queue and sync events while frame is hidden", function()
+    local dispatched = {}
+
+    local addon = LoadAddonModules({ "isiLive_events.lua", "isiLive_bootstrap.lua" })
+    local gate = CreateBootstrapGate(addon, function(_frame, event, ...)
+      local _ = ...
+      table.insert(dispatched, event)
+    end)
+
+    local frame = {
+      IsShown = function()
+        return false
+      end,
+    }
+
+    gate(frame, "LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "applied")
+    gate(frame, "LFG_LIST_SEARCH_RESULT_UPDATED", 1001)
+    gate(frame, "LFG_LIST_ACTIVE_ENTRY_UPDATE")
+    gate(frame, "CHAT_MSG_ADDON", "ISI_SYNC", "HELLO", "PARTY", "Alpha-Realm")
+
+    Assert.Equal(#dispatched, 0, "hidden gate must suppress queue/sync processing events")
+  end)
+
+  test("Bootstrap gate keeps hidden auto-open triggers for group join and key end", function()
+    local dispatched = {}
+
+    local addon = LoadAddonModules({ "isiLive_events.lua", "isiLive_bootstrap.lua" })
+    local gate = CreateBootstrapGate(addon, function(_frame, event, ...)
+      local _ = ...
+      table.insert(dispatched, event)
+    end)
+
+    local frame = {
+      IsShown = function()
+        return false
+      end,
+    }
+
+    gate(frame, "GROUP_ROSTER_UPDATE")
+    gate(frame, "CHALLENGE_MODE_COMPLETED")
+    gate(frame, "CHALLENGE_MODE_RESET")
+
+    Assert.Equal(#dispatched, 3, "hidden gate must keep required auto-open triggers")
+    Assert.Equal(dispatched[1], "GROUP_ROSTER_UPDATE", "group-join trigger should pass hidden gate")
+    Assert.Equal(dispatched[2], "CHALLENGE_MODE_COMPLETED", "key-end completed trigger should pass hidden gate")
+    Assert.Equal(dispatched[3], "CHALLENGE_MODE_RESET", "key-end reset trigger should pass hidden gate")
+  end)
+end
+
+return function(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
+
+  RegisterNegativeStatusTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterEventGateTests(test, Assert, LoadAddonModules)
+  RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
 end

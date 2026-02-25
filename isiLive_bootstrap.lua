@@ -68,6 +68,7 @@ function Bootstrap.CreateGatedOnEvent(opts)
   local isStopped = RequireFunction(opts.isStopped, "isStopped")
   local isPaused = RequireFunction(opts.isPaused, "isPaused")
   local isTestMode = RequireFunction(opts.isTestMode, "isTestMode")
+  local isInCombat = RequireFunction(opts.isInCombat, "isInCombat")
   local isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
   local getNumGroupMembers = RequireFunction(opts.getNumGroupMembers, "getNumGroupMembers")
   local getActiveChallengeMapID = RequireFunction(opts.getActiveChallengeMapID, "getActiveChallengeMapID")
@@ -77,15 +78,23 @@ function Bootstrap.CreateGatedOnEvent(opts)
     isStopped = isStopped,
     isPaused = isPaused,
     isTestMode = isTestMode,
+    isInCombat = isInCombat,
+    allowInCombat = {
+      ADDON_LOADED = true,
+      PLAYER_LOGIN = true,
+      PLAYER_ENTERING_WORLD = true,
+      UPDATE_BINDINGS = true,
+      PLAYER_REGEN_ENABLED = true,
+      CHALLENGE_MODE_START = true,
+      CHALLENGE_MODE_COMPLETED = true,
+      CHALLENGE_MODE_RESET = true,
+    },
     allowWhenHidden = {
       ADDON_LOADED = true,
       PLAYER_LOGIN = true,
       PLAYER_ENTERING_WORLD = true,
       UPDATE_BINDINGS = true,
       PLAYER_REGEN_ENABLED = true,
-      LFG_LIST_APPLICATION_STATUS_UPDATED = true,
-      LFG_LIST_SEARCH_RESULT_UPDATED = true,
-      LFG_LIST_ACTIVE_ENTRY_UPDATE = true,
       CHALLENGE_MODE_COMPLETED = true,
       CHALLENGE_MODE_RESET = true,
     },

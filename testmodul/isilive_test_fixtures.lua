@@ -11,8 +11,7 @@ local function Merge(base, overrides)
   return merged
 end
 
-function Fixtures.BuildEventHandlersController(eventHandlersModule, entryRef, counters, overrides)
-  entryRef = entryRef or { value = nil }
+local function EnsureEventHandlerCounters(counters)
   counters = counters or {}
   counters.clears = counters.clears or 0
   counters.updates = counters.updates or 0
@@ -22,8 +21,11 @@ function Fixtures.BuildEventHandlersController(eventHandlersModule, entryRef, co
   counters.uiUpdates = counters.uiUpdates or 0
   counters.pendingSets = counters.pendingSets or 0
   counters.acks = counters.acks or 0
+  return counters
+end
 
-  local baseOptions = {
+local function BuildEventHandlersBaseOptions(entryRef, counters)
+  return {
     addonName = "isiLive",
     defaultLocale = "enUS",
     locales = { enUS = {} },
@@ -88,7 +90,6 @@ function Fixtures.BuildEventHandlersController(eventHandlersModule, entryRef, co
         SetPoint = function() end,
       }
     end,
-    applyCenterNoticeStoredPosition = function(_position) end,
     registerIsiLiveSyncPrefix = function() end,
     applyHotkeyBindings = function() end,
     startBindingWatchdog = function() end,
@@ -108,13 +109,6 @@ function Fixtures.BuildEventHandlersController(eventHandlersModule, entryRef, co
       return nil
     end,
     setMainFrameHeightSafe = function(_height) end,
-    getPendingMainFrameVisible = function()
-      return nil
-    end,
-    getPendingCenterNoticeVisible = function()
-      return nil
-    end,
-    setCenterNoticeVisible = function(_visible) end,
     tryRestoreCenterNoticeTeleportButton = function() end,
     handleOwnedKeyRefresh = function() end,
     isMainFrameShown = function()
@@ -138,7 +132,12 @@ function Fixtures.BuildEventHandlersController(eventHandlersModule, entryRef, co
     end,
     runFullRefresh = function() end,
   }
+end
 
+function Fixtures.BuildEventHandlersController(eventHandlersModule, entryRef, counters, overrides)
+  entryRef = entryRef or { value = nil }
+  counters = EnsureEventHandlerCounters(counters)
+  local baseOptions = BuildEventHandlersBaseOptions(entryRef, counters)
   local options = Merge(baseOptions, overrides)
   return eventHandlersModule.CreateController(options), counters, entryRef
 end

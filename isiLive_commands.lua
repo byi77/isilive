@@ -169,29 +169,29 @@ local function HandleBindCheck(printFn)
   printFn("ALT-CTRL-F9 => " .. (action3 and action3 ~= "" and action3 or "<none>"))
 end
 
-local function ExecuteSlashCommand(ctx, msg)
-  local L = ctx.getL() or {}
-  local state = ctx.getState() or {}
-  local cmd = string.lower(strtrim(msg or ""))
-
+local function TryHandleTestCommands(ctx, L, state, cmd)
   if cmd == "test" then
     ctx.toggleStandardTestMode()
-    return
+    return true
   end
 
   if cmd == "testall" then
     if state.isStopped then
       ctx.printFn(L.ERR_STOPPED_TEST)
-      return
+      return true
     end
     if state.isPaused then
       ctx.printFn(L.ERR_PAUSED_TEST)
-      return
+      return true
     end
     ctx.enterFullDummyPreview()
-    return
+    return true
   end
 
+  return false
+end
+
+local function TryHandleStateCommands(ctx, L, state, cmd)
   if cmd == "stop" then
     ctx.setState({
       isStopped = true,
@@ -203,13 +203,13 @@ local function ExecuteSlashCommand(ctx, msg)
     ctx.setMainFrameVisible(false)
     ctx.updateLeaderButtons()
     ctx.printFn(L.STOPPED)
-    return
+    return true
   end
 
   if cmd == "pause" then
     if state.isStopped then
       ctx.printFn(L.ERR_STOPPED_USE_START)
-      return
+      return true
     end
     ctx.setState({
       isPaused = true,
@@ -219,13 +219,13 @@ local function ExecuteSlashCommand(ctx, msg)
     ctx.setMainFrameVisible(false)
     ctx.updateLeaderButtons()
     ctx.printFn(L.PAUSED)
-    return
+    return true
   end
 
   if cmd == "resume" then
     if state.isStopped then
       ctx.printFn(L.ERR_STOPPED_USE_START)
-      return
+      return true
     end
     ctx.setState({
       isPaused = false,
@@ -235,7 +235,7 @@ local function ExecuteSlashCommand(ctx, msg)
     ctx.updateLeaderButtons()
     ctx.printFn(L.RESUMED)
     ctx.triggerGroupRosterUpdate()
-    return
+    return true
   end
 
   if cmd == "start" then
@@ -248,12 +248,16 @@ local function ExecuteSlashCommand(ctx, msg)
     ctx.updateLeaderButtons()
     ctx.printFn(L.STARTED)
     ctx.triggerGroupRosterUpdate()
-    return
+    return true
   end
 
+  return false
+end
+
+local function TryHandleInfoCommands(ctx, L, cmd)
   if cmd == "lead" then
     ctx.printFn(ctx.isPlayerLeader() and L.LEAD_STATUS_YES or L.LEAD_STATUS_NO)
-    return
+    return true
   end
 
   if cmd:find("^lang") == 1 then
@@ -263,31 +267,56 @@ local function ExecuteSlashCommand(ctx, msg)
     else
       ctx.printFn(L.LANG_USAGE)
     end
-    return
+    return true
   end
 
+  return false
+end
+
+local function TryHandleUtilityCommands(ctx, cmd)
   if cmd == "tptest" then
     ctx.forceTeleportTestTarget()
-    return
+    return true
   end
 
   if cmd == "tpdebug" then
     ctx.printTeleportDebug()
-    return
+    return true
   end
 
   if cmd == "log" or cmd:find("^log%s+") == 1 then
     HandleLogCommand(ctx, cmd)
-    return
+    return true
   end
 
   if cmd == "qdebug" or cmd:find("^qdebug%s+") == 1 then
     HandleQDebugCommand(ctx, cmd)
-    return
+    return true
   end
 
   if cmd == "bindcheck" then
     HandleBindCheck(ctx.printFn)
+    return true
+  end
+
+  return false
+end
+
+local function ExecuteSlashCommand(ctx, msg)
+  local L = ctx.getL() or {}
+  local state = ctx.getState() or {}
+  local cmd = string.lower(strtrim(msg or ""))
+
+  if TryHandleTestCommands(ctx, L, state, cmd) then
+    return
+  end
+  if TryHandleStateCommands(ctx, L, state, cmd) then
+    return
+  end
+  if TryHandleInfoCommands(ctx, L, cmd) then
+    return
+  end
+  if TryHandleUtilityCommands(ctx, cmd) then
     return
   end
 

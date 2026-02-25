@@ -4,6 +4,10 @@ addonTable = addonTable or {}
 
 local Notice = {}
 addonTable.Notice = Notice
+local createRedCloseButton = assert(
+  addonTable.UICommon and addonTable.UICommon.CreateRedCloseButton,
+  "isiLive: UICommon.CreateRedCloseButton missing"
+)
 
 local function BuildCenterNoticeConfig(opts)
   opts = opts or {}
@@ -39,14 +43,6 @@ local function BuildCenterNoticeConfig(opts)
   }
 end
 
-local function PersistCenterNoticePosition(frame)
-  if not IsiLiveDB then
-    return
-  end
-  local point, _, relativePoint, x, y = frame:GetPoint()
-  IsiLiveDB.centerNoticePosition = { point = point, relativePoint = relativePoint, x = x, y = y }
-end
-
 local function CreateCenterNoticeFrame(config)
   local frame = CreateFrame("Frame", "isiLiveCenterNotice", config.parent)
   frame:SetSize(680, config.minHeight)
@@ -60,7 +56,6 @@ local function CreateCenterNoticeFrame(config)
   end)
   frame:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
-    PersistCenterNoticePosition(self)
   end)
 
   local bg = frame:CreateTexture(nil, "BACKGROUND")
@@ -81,6 +76,13 @@ local function CreateCenterNoticeText(frame, config)
   end
   text:SetTextColor(1, 0.82, 0)
   return text
+end
+
+local function CreateCenterNoticeCloseButton(frame)
+  return createRedCloseButton(frame, {
+    point = { "TOPRIGHT", frame, "TOPRIGHT", -2, -2 },
+    frameLevel = frame:GetFrameLevel() + 20,
+  })
 end
 
 local function CreateCenterNoticeTeleportButton(frame, config)
@@ -114,15 +116,17 @@ local function CreateCenterNoticeTeleportButton(frame, config)
   return button
 end
 
-local function SetCenterNoticeVisible(state, visible)
-  if state.config.isInCombat() then
-    state.pendingVisible = visible and true or false
-    return
-  end
+local function ResetCenterNoticeToDefaultPosition(state)
+  state.frame:ClearAllPoints()
+  state.frame:SetPoint("CENTER", state.config.parent, "CENTER", 0, 0)
+end
 
-  state.pendingVisible = nil
+local function SetCenterNoticeVisible(state, visible)
+  -- Opening/closing must always be possible, even in combat/in-key.
   if visible then
     if not state.frame:IsShown() then
+      -- Center notice position is intentionally non-persistent.
+      ResetCenterNoticeToDefaultPosition(state)
       state.frame:Show()
     end
     return
@@ -384,14 +388,6 @@ local function AttachCenterNoticeFrameScripts(state)
   end)
 end
 
-local function ApplyCenterNoticeStoredPosition(state, pos)
-  if not pos then
-    return
-  end
-  state.frame:ClearAllPoints()
-  state.frame:SetPoint(pos.point, state.config.parent, pos.relativePoint, pos.x, pos.y)
-end
-
 local function BuildCenterNoticeController(state)
   local function SetVisible(visible)
     SetCenterNoticeVisible(state, visible)
@@ -409,22 +405,15 @@ local function BuildCenterNoticeController(state)
     UpdateCenterNoticeTeleportButtonVisual(state, spellID, isEnabled, inCombatBlocked)
   end
 
-  local function ApplyStoredPosition(pos)
-    ApplyCenterNoticeStoredPosition(state, pos)
-  end
-
   return {
     frame = state.frame,
     text = state.text,
+    closeButton = state.closeButton,
     teleportButton = state.teleportButton,
     SetVisible = SetVisible,
-    GetPendingVisible = function()
-      return state.pendingVisible
-    end,
     Show = Show,
     ConfigureTeleportButton = ConfigureTeleportButton,
     UpdateTeleportButtonVisual = UpdateTeleportButtonVisual,
-    ApplyStoredPosition = ApplyStoredPosition,
   }
 end
 
@@ -432,13 +421,14 @@ function Notice.CreateCenterNotice(opts)
   local config = BuildCenterNoticeConfig(opts)
   local frame = CreateCenterNoticeFrame(config)
   local text = CreateCenterNoticeText(frame, config)
+  local closeButton = CreateCenterNoticeCloseButton(frame)
   local teleportButton = CreateCenterNoticeTeleportButton(frame, config)
   local state = {
     config = config,
     frame = frame,
     text = text,
+    closeButton = closeButton,
     teleportButton = teleportButton,
-    pendingVisible = nil,
     endsAt = 0,
     isPersistent = false,
     isBlinking = false,
@@ -453,6 +443,9 @@ function Notice.CreateCenterNotice(opts)
 
   AttachCenterNoticeTeleportButtonScripts(state)
   AttachCenterNoticeFrameScripts(state)
+  closeButton:SetScript("OnClick", function()
+    SetCenterNoticeVisible(state, false)
+  end)
   return BuildCenterNoticeController(state)
 end
 

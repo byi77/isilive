@@ -1,30 +1,26 @@
-return function(test, ctx)
-  local Assert = ctx.assert
-  local WithGlobals = ctx.with_globals
-  local LoadAddonModules = ctx.load_modules
+local function BuildLocale()
+  return {
+    DUNGEON_DIFF_OUTSIDE = "Outside",
+    DUNGEON_DIFF_UNKNOWN = "Unknown",
+    DUNGEON_DIFF_NORMAL = "Normal",
+    DUNGEON_DIFF_HEROIC = "Heroic",
+    DUNGEON_DIFF_MYTHIC = "Mythic",
+    NON_MYTHIC_ENTERED = "Warning: Entered non-Mythic dungeon (%s).",
+    STATUS_LEAD_YES = "Lead: Yes",
+    STATUS_LEAD_NO = "Lead: No",
+    STATUS_MPLUS_YES = "M+: Active",
+    STATUS_MPLUS_NO = "M+: Inactive",
+    STATUS_TARGET_DUNGEON_TEXT = "Target Dungeon: %s",
+    STATUS_TARGET_DUNGEON_NONE = "Target Dungeon: -",
+    STATUS_STATE_RUNNING = "State: Running",
+    STATUS_STATE_PAUSED = "State: Paused",
+    STATUS_STATE_STOPPED = "State: Stopped",
+    STATUS_STATE_TEST = "State: Test",
+    DUNGEON_DIFF_TEXT = "Dungeon: %s",
+  }
+end
 
-  local function BuildLocale()
-    return {
-      DUNGEON_DIFF_OUTSIDE = "Outside",
-      DUNGEON_DIFF_UNKNOWN = "Unknown",
-      DUNGEON_DIFF_NORMAL = "Normal",
-      DUNGEON_DIFF_HEROIC = "Heroic",
-      DUNGEON_DIFF_MYTHIC = "Mythic",
-      NON_MYTHIC_ENTERED = "Warning: Entered non-Mythic dungeon (%s).",
-      STATUS_LEAD_YES = "Lead: Yes",
-      STATUS_LEAD_NO = "Lead: No",
-      STATUS_MPLUS_YES = "M+: Active",
-      STATUS_MPLUS_NO = "M+: Inactive",
-      STATUS_TARGET_DUNGEON_TEXT = "Target Dungeon: %s",
-      STATUS_TARGET_DUNGEON_NONE = "Target Dungeon: -",
-      STATUS_STATE_RUNNING = "State: Running",
-      STATUS_STATE_PAUSED = "State: Paused",
-      STATUS_STATE_STOPPED = "State: Stopped",
-      STATUS_STATE_TEST = "State: Test",
-      DUNGEON_DIFF_TEXT = "Dungeon: %s",
-    }
-  end
-
+local function RegisterDungeonDifficultyTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Status maps heroic fallback difficulty IDs as non-mythic heroic", function()
     local current = {
       instanceName = "Priory of the Sacred Flame",
@@ -86,7 +82,6 @@ return function(test, ctx)
         hideCenterNotice = function() end,
       })
 
-      -- Prime state outside dungeon.
       controller.MaybeShowNonMythicDungeonEntryNotice()
 
       current.instanceType = "party"
@@ -98,7 +93,6 @@ return function(test, ctx)
         "normal notice should include normal difficulty label"
       )
 
-      -- Difficulty changes to heroic while still in party instance context.
       current.difficultyID = 2
       controller.MaybeShowNonMythicDungeonEntryNotice()
       Assert.Equal(#notices, 2, "normal -> heroic switch should show another non-mythic notice")
@@ -107,12 +101,13 @@ return function(test, ctx)
         "heroic notice should include heroic difficulty label"
       )
 
-      -- Repeated context refreshes for same difficulty must not spam.
       controller.MaybeShowNonMythicDungeonEntryNotice()
       Assert.Equal(#notices, 2, "repeated heroic refresh should not re-show same notice")
     end)
   end)
+end
 
+local function RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Status line includes target dungeon and key level when available", function()
     WithGlobals({
       GetInstanceInfo = function()
@@ -197,4 +192,13 @@ return function(test, ctx)
       )
     end)
   end)
+end
+
+return function(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
+
+  RegisterDungeonDifficultyTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModules)
 end

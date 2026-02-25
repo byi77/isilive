@@ -65,8 +65,6 @@ local function BuildContext(opts)
   ctx.ensureRuntimeLogStorage = OptionalFunction(opts.ensureRuntimeLogStorage, function() end)
   ctx.setRuntimeLogEnabled = OptionalFunction(opts.setRuntimeLogEnabled, function(_enabled) end)
   ctx.getMainFrame = RequireFunction(opts.getMainFrame, "getMainFrame")
-  ctx.applyCenterNoticeStoredPosition =
-    RequireFunction(opts.applyCenterNoticeStoredPosition, "applyCenterNoticeStoredPosition")
   ctx.registerIsiLiveSyncPrefix = RequireFunction(opts.registerIsiLiveSyncPrefix, "registerIsiLiveSyncPrefix")
   ctx.applyHotkeyBindings = RequireFunction(opts.applyHotkeyBindings, "applyHotkeyBindings")
   ctx.startBindingWatchdog = RequireFunction(opts.startBindingWatchdog, "startBindingWatchdog")
@@ -86,10 +84,6 @@ local function BuildContext(opts)
   ctx.getPendingBindingApply = RequireFunction(opts.getPendingBindingApply, "getPendingBindingApply")
   ctx.getPendingMainFrameHeight = RequireFunction(opts.getPendingMainFrameHeight, "getPendingMainFrameHeight")
   ctx.setMainFrameHeightSafe = RequireFunction(opts.setMainFrameHeightSafe, "setMainFrameHeightSafe")
-  ctx.getPendingMainFrameVisible = RequireFunction(opts.getPendingMainFrameVisible, "getPendingMainFrameVisible")
-  ctx.getPendingCenterNoticeVisible =
-    RequireFunction(opts.getPendingCenterNoticeVisible, "getPendingCenterNoticeVisible")
-  ctx.setCenterNoticeVisible = RequireFunction(opts.setCenterNoticeVisible, "setCenterNoticeVisible")
   ctx.tryRestoreCenterNoticeTeleportButton =
     RequireFunction(opts.tryRestoreCenterNoticeTeleportButton, "tryRestoreCenterNoticeTeleportButton")
 
@@ -358,8 +352,6 @@ local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)
   -- Initialize DB
   IsiLiveDB = IsiLiveDB or {}
   IsiLiveDB.position = IsiLiveDB.position or { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
-  IsiLiveDB.centerNoticePosition = IsiLiveDB.centerNoticePosition
-    or { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
   IsiLiveDB.locale = ctx.resolveLocaleTag(IsiLiveDB.locale or ctx.defaultLocale)
   ctx.setLocaleTable(ctx.locales[IsiLiveDB.locale] or ctx.locales.enUS)
   if IsiLiveDB.queueDebug == nil then
@@ -381,9 +373,6 @@ local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)
     mainFrame:ClearAllPoints()
     mainFrame:SetPoint(pos.point, UIParent, pos.relativePoint, pos.x, pos.y)
   end
-
-  local centerPos = IsiLiveDB.centerNoticePosition
-  ctx.applyCenterNoticeStoredPosition(centerPos)
   ctx.registerIsiLiveSyncPrefix()
   ctx.applyHotkeyBindings()
   ctx.startBindingWatchdog()
@@ -431,16 +420,10 @@ local function HandlePlayerRegenEnabledEvent(ctx, _self)
   if pendingMainFrameHeight then
     ctx.setMainFrameHeightSafe(pendingMainFrameHeight)
   end
-  local pendingMainFrameVisible = ctx.getPendingMainFrameVisible()
-  if pendingMainFrameVisible ~= nil then
-    ctx.setMainFrameVisible(pendingMainFrameVisible)
+  if ctx.isMainFrameShown() then
+    ctx.updateMPlusTeleportButton()
+    ctx.tryRestoreCenterNoticeTeleportButton()
   end
-  local pendingCenterNoticeVisible = ctx.getPendingCenterNoticeVisible()
-  if pendingCenterNoticeVisible ~= nil then
-    ctx.setCenterNoticeVisible(pendingCenterNoticeVisible)
-  end
-  ctx.updateMPlusTeleportButton()
-  ctx.tryRestoreCenterNoticeTeleportButton()
 end
 
 local function HandleInstanceContextChangedEvent(ctx, _self)

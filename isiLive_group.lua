@@ -151,11 +151,7 @@ end
 local function HandleGroupRosterUpdate(deps)
   local wasInGroupBefore = deps.getWasInGroup() and true or false
   local inGroupNow = deps.isInGroup() and true or false
-
-  if inGroupNow and not wasInGroupBefore then
-    deps.captureQueueJoinCandidate()
-    deps.announceQueuedGroupJoin()
-  end
+  local joinedNow = inGroupNow and not wasInGroupBefore
   deps.setWasInGroup(inGroupNow)
 
   if deps.getActiveChallengeMapID() then
@@ -186,6 +182,10 @@ local function HandleGroupRosterUpdate(deps)
 
   deps.setWasRaidGroup(false)
   deps.setMainFrameVisible(true)
+  if joinedNow then
+    deps.captureQueueJoinCandidate()
+    deps.announceQueuedGroupJoin()
+  end
   deps.setRoster({})
   deps.resetInspectQueues()
 

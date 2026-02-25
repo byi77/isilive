@@ -93,7 +93,9 @@ local function RegisterTargetHandlingTests(test, Assert, WithGlobals, LoadAddonM
     Assert.Equal(counters.captures, 1, "positive application events must call queue capture")
     Assert.Equal(counters.clears, 0, "positive application events must not clear latest queue target")
   end)
+end
 
+local function RegisterTargetActiveEntryTests(test, Assert, LoadAddonModules, Fixtures)
   test("Event handlers active-entry update clears joined key and refreshes UI", function()
     local counters = { updates = 0, uiUpdates = 0, pendingSets = 0 }
     local activeJoinedKey = 2441
@@ -190,7 +192,7 @@ local function RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixture
   end)
 end
 
-local function RegisterCombatAndRioTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   test("Event handlers keep advanced combat logging hard-enabled across startup events", function()
     local setCalls = 0
     local cvarValue = "0"
@@ -290,7 +292,9 @@ local function RegisterCombatAndRioTests(test, Assert, WithGlobals, LoadAddonMod
     Assert.Equal(resetCalls, 1, "challenge start must hard-reset Blizzard damage meter when API is available")
     Assert.Equal(setCalls, 1, "challenge start should enforce advanced combat logging")
   end)
+end
 
+local function RegisterChallengeStartAndDelayTests(test, Assert, LoadAddonModules, Fixtures)
   test("Event handlers capture RIO baseline snapshot on challenge start", function()
     local captureCalls = 0
 
@@ -304,6 +308,45 @@ local function RegisterCombatAndRioTests(test, Assert, WithGlobals, LoadAddonMod
     controller:Dispatch("CHALLENGE_MODE_START")
 
     Assert.Equal(captureCalls, 1, "challenge start must capture one RIO baseline snapshot")
+  end)
+
+  test("Event handlers auto-hide main frame on challenge start", function()
+    local hideCalls = 0
+    local lastVisible = nil
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      setMainFrameVisible = function(visible)
+        hideCalls = hideCalls + 1
+        lastVisible = visible
+      end,
+    })
+
+    controller:Dispatch("CHALLENGE_MODE_START")
+
+    Assert.Equal(hideCalls, 1, "challenge start must call main-frame visibility update exactly once")
+    Assert.Equal(lastVisible, false, "challenge start must auto-hide main frame")
+  end)
+
+  test("Event handlers auto-show main frame on challenge completion while grouped", function()
+    local showCalls = 0
+    local lastVisible = nil
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      setMainFrameVisible = function(visible)
+        showCalls = showCalls + 1
+        lastVisible = visible
+      end,
+      isInGroup = function()
+        return true
+      end,
+    })
+
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+
+    Assert.Equal(showCalls, 1, "challenge completion must call main-frame visibility update exactly once")
+    Assert.Equal(lastVisible, true, "challenge completion must auto-show main frame while grouped")
   end)
 
   test("Event handlers enable RIO delta only after delayed post-run refresh", function()
@@ -337,7 +380,9 @@ local function RegisterCombatAndRioTests(test, Assert, WithGlobals, LoadAddonMod
     Assert.Equal(refreshCalls, 1, "delayed callback must run one refresh attempt")
     Assert.Equal(enableCalls, 1, "delta display must enable after delayed refresh")
   end)
+end
 
+local function RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtures)
   test("Event handlers retry post-run refresh when first delayed attempt is blocked", function()
     local enableCalls = 0
     local refreshCalls = 0
@@ -410,6 +455,70 @@ local function RegisterCombatAndRioTests(test, Assert, WithGlobals, LoadAddonMod
   end)
 end
 
+local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fixtures)
+  test("Event handlers keep non-UI regen recovery while frame is hidden", function()
+    local applyHotkeyCalls = 0
+    local pendingHeightApplied = nil
+    local teleportRefreshCalls = 0
+    local restoreButtonCalls = 0
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      getPendingBindingApply = function()
+        return true
+      end,
+      applyHotkeyBindings = function()
+        applyHotkeyCalls = applyHotkeyCalls + 1
+      end,
+      getPendingMainFrameHeight = function()
+        return 420
+      end,
+      setMainFrameHeightSafe = function(height)
+        pendingHeightApplied = height
+      end,
+      isMainFrameShown = function()
+        return false
+      end,
+      updateMPlusTeleportButton = function()
+        teleportRefreshCalls = teleportRefreshCalls + 1
+      end,
+      tryRestoreCenterNoticeTeleportButton = function()
+        restoreButtonCalls = restoreButtonCalls + 1
+      end,
+    })
+
+    controller:Dispatch("PLAYER_REGEN_ENABLED")
+
+    Assert.Equal(applyHotkeyCalls, 1, "regen must still apply pending bindings while frame is hidden")
+    Assert.Equal(pendingHeightApplied, 420, "regen must still apply pending frame height while frame is hidden")
+    Assert.Equal(teleportRefreshCalls, 0, "hidden regen must skip teleport UI refresh")
+    Assert.Equal(restoreButtonCalls, 0, "hidden regen must skip teleport button restore")
+  end)
+
+  test("Event handlers run regen teleport refresh when frame is visible", function()
+    local teleportRefreshCalls = 0
+    local restoreButtonCalls = 0
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      isMainFrameShown = function()
+        return true
+      end,
+      updateMPlusTeleportButton = function()
+        teleportRefreshCalls = teleportRefreshCalls + 1
+      end,
+      tryRestoreCenterNoticeTeleportButton = function()
+        restoreButtonCalls = restoreButtonCalls + 1
+      end,
+    })
+
+    controller:Dispatch("PLAYER_REGEN_ENABLED")
+
+    Assert.Equal(teleportRefreshCalls, 1, "visible regen must refresh teleport UI")
+    Assert.Equal(restoreButtonCalls, 1, "visible regen must restore center notice teleport button")
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -417,6 +526,10 @@ return function(test, ctx)
   local Fixtures = ctx.fixtures
 
   RegisterTargetHandlingTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  RegisterTargetActiveEntryTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixtures)
-  RegisterCombatAndRioTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  RegisterChallengeStartAndDelayTests(test, Assert, LoadAddonModules, Fixtures)
+  RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtures)
+  RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fixtures)
 end

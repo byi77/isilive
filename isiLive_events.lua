@@ -19,8 +19,17 @@ function Events.CreateGate(config)
   local isTestMode = config.isTestMode or function()
     return false
   end
+  local isInCombat = config.isInCombat or function()
+    return false
+  end
   local allowWhenHidden = config.allowWhenHidden or {}
   local shouldAllowWhenHidden = config.shouldAllowWhenHidden
+    or function(_frame, _event, ...)
+      local _ = ...
+      return false
+    end
+  local allowInCombat = config.allowInCombat or {}
+  local shouldAllowInCombat = config.shouldAllowInCombat
     or function(_frame, _event, ...)
       local _ = ...
       return false
@@ -37,6 +46,10 @@ function Events.CreateGate(config)
       return
     end
     if isTestMode() and not allowInTestMode[event] then
+      return
+    end
+
+    if isInCombat() and not allowInCombat[event] and not shouldAllowInCombat(frame, event, ...) then
       return
     end
 

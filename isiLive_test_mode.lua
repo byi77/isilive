@@ -10,113 +10,117 @@ local function RequireFunction(value, name)
   return value
 end
 
-function TestMode.CreateController(opts)
-  opts = opts or {}
-
-  local getL = RequireFunction(opts.getL, "getL")
-  local printFn = opts.printFn or print
-  local getState = RequireFunction(opts.getState, "getState")
-  local setState = RequireFunction(opts.setState, "setState")
-  local buildDummyRoster = RequireFunction(opts.buildDummyRoster, "buildDummyRoster")
-  local setRoster = RequireFunction(opts.setRoster, "setRoster")
-  local setMainFrameVisible = RequireFunction(opts.setMainFrameVisible, "setMainFrameVisible")
-  local updateUI = RequireFunction(opts.updateUI, "updateUI")
-  local updateLeaderButtons = RequireFunction(opts.updateLeaderButtons, "updateLeaderButtons")
-  local showCenterNotice = RequireFunction(opts.showCenterNotice, "showCenterNotice")
-  local showQueueJoinPreview = RequireFunction(opts.showQueueJoinPreview, "showQueueJoinPreview")
-  local resetInspectAll = RequireFunction(opts.resetInspectAll, "resetInspectAll")
-  local clearLatestQueueState = RequireFunction(opts.clearLatestQueueState, "clearLatestQueueState")
-  local updateMPlusTeleportButton = RequireFunction(opts.updateMPlusTeleportButton, "updateMPlusTeleportButton")
-  local setCenterNoticeVisible = RequireFunction(opts.setCenterNoticeVisible, "setCenterNoticeVisible")
-  local hideInviteHint = RequireFunction(opts.hideInviteHint, "hideInviteHint")
-  local triggerGroupRosterUpdate = RequireFunction(opts.triggerGroupRosterUpdate, "triggerGroupRosterUpdate")
-  local captureRioBaselineSnapshot = opts.captureRioBaselineSnapshot or function() end
-  local clearRioBaselineSnapshot = opts.clearRioBaselineSnapshot or function() end
-  local enableRioDeltaDisplay = opts.enableRioDeltaDisplay or function() end
-
-  assert(type(printFn) == "function", "isiLive: TestMode requires printFn")
-  assert(type(captureRioBaselineSnapshot) == "function", "isiLive: TestMode requires captureRioBaselineSnapshot")
-  assert(type(clearRioBaselineSnapshot) == "function", "isiLive: TestMode requires clearRioBaselineSnapshot")
-  assert(type(enableRioDeltaDisplay) == "function", "isiLive: TestMode requires enableRioDeltaDisplay")
-
-  local function ApplyDummyRioDeltaPreview(roster)
-    if type(roster) ~= "table" then
-      return
-    end
-
-    local incrementsByUnit = {
-      player = 15,
-      party1 = 12,
-      party2 = 9,
-      party3 = 6,
-      party4 = 3,
-    }
-
-    for unit, increment in pairs(incrementsByUnit) do
-      local info = roster[unit]
-      local currentRio = info and tonumber(info.rio)
-      if currentRio then
-        info.rio = math.max(0, math.floor(currentRio) + increment)
-      end
-    end
+local function ApplyDummyRioDeltaPreview(roster)
+  if type(roster) ~= "table" then
+    return
   end
 
+  local incrementsByUnit = {
+    player = 15,
+    party1 = 12,
+    party2 = 9,
+    party3 = 6,
+    party4 = 3,
+  }
+
+  for unit, increment in pairs(incrementsByUnit) do
+    local info = roster[unit]
+    local currentRio = info and tonumber(info.rio)
+    if currentRio then
+      info.rio = math.max(0, math.floor(currentRio) + increment)
+    end
+  end
+end
+
+local function BuildDeps(opts)
+  opts = opts or {}
+  local deps = {}
+  deps.getL = RequireFunction(opts.getL, "getL")
+  deps.printFn = opts.printFn or print
+  deps.getState = RequireFunction(opts.getState, "getState")
+  deps.setState = RequireFunction(opts.setState, "setState")
+  deps.buildDummyRoster = RequireFunction(opts.buildDummyRoster, "buildDummyRoster")
+  deps.setRoster = RequireFunction(opts.setRoster, "setRoster")
+  deps.setMainFrameVisible = RequireFunction(opts.setMainFrameVisible, "setMainFrameVisible")
+  deps.updateUI = RequireFunction(opts.updateUI, "updateUI")
+  deps.updateLeaderButtons = RequireFunction(opts.updateLeaderButtons, "updateLeaderButtons")
+  deps.showCenterNotice = RequireFunction(opts.showCenterNotice, "showCenterNotice")
+  deps.showQueueJoinPreview = RequireFunction(opts.showQueueJoinPreview, "showQueueJoinPreview")
+  deps.resetInspectAll = RequireFunction(opts.resetInspectAll, "resetInspectAll")
+  deps.clearLatestQueueState = RequireFunction(opts.clearLatestQueueState, "clearLatestQueueState")
+  deps.updateMPlusTeleportButton = RequireFunction(opts.updateMPlusTeleportButton, "updateMPlusTeleportButton")
+  deps.setCenterNoticeVisible = RequireFunction(opts.setCenterNoticeVisible, "setCenterNoticeVisible")
+  deps.hideInviteHint = RequireFunction(opts.hideInviteHint, "hideInviteHint")
+  deps.triggerGroupRosterUpdate = RequireFunction(opts.triggerGroupRosterUpdate, "triggerGroupRosterUpdate")
+  deps.captureRioBaselineSnapshot = opts.captureRioBaselineSnapshot or function() end
+  deps.clearRioBaselineSnapshot = opts.clearRioBaselineSnapshot or function() end
+  deps.enableRioDeltaDisplay = opts.enableRioDeltaDisplay or function() end
+
+  assert(type(deps.printFn) == "function", "isiLive: TestMode requires printFn")
+  assert(type(deps.captureRioBaselineSnapshot) == "function", "isiLive: TestMode requires captureRioBaselineSnapshot")
+  assert(type(deps.clearRioBaselineSnapshot) == "function", "isiLive: TestMode requires clearRioBaselineSnapshot")
+  assert(type(deps.enableRioDeltaDisplay) == "function", "isiLive: TestMode requires enableRioDeltaDisplay")
+  return deps
+end
+
+function TestMode.CreateController(opts)
+  local deps = BuildDeps(opts)
   local controller = {}
 
   function controller.EnterFullDummyPreview()
-    local L = getL()
-    setState({
+    local L = deps.getL()
+    deps.setState({
       isTestMode = true,
       isTestAllMode = true,
     })
-    local dummyRoster = buildDummyRoster()
-    setRoster(dummyRoster)
-    captureRioBaselineSnapshot()
+    local dummyRoster = deps.buildDummyRoster()
+    deps.setRoster(dummyRoster)
+    deps.captureRioBaselineSnapshot()
     ApplyDummyRioDeltaPreview(dummyRoster)
-    enableRioDeltaDisplay()
-    setMainFrameVisible(true)
-    updateUI()
-    updateLeaderButtons()
+    deps.enableRioDeltaDisplay()
+    deps.setMainFrameVisible(true)
+    deps.updateUI()
+    deps.updateLeaderButtons()
 
-    showCenterNotice(L.LEAD_TRANSFERRED_CENTER, 20)
-    showQueueJoinPreview(L.TESTALL_DUMMY_GROUP, L.TESTALL_DUMMY_DUNGEON)
-    printFn(L.CHAT_QUEUE_PREFIX .. " | " .. L.TESTALL_CHAT_ACTIVE)
+    deps.showCenterNotice(L.LEAD_TRANSFERRED_CENTER, 20)
+    deps.showQueueJoinPreview(L.TESTALL_DUMMY_GROUP, L.TESTALL_DUMMY_DUNGEON)
+    deps.printFn(L.CHAT_QUEUE_PREFIX .. " | " .. L.TESTALL_CHAT_ACTIVE)
   end
 
   function controller.ExitTestMode()
-    local state = getState()
+    local state = deps.getState()
     if not state.isTestMode and not state.isTestAllMode then
       return
     end
 
-    local L = getL()
-    setState({
+    local L = deps.getL()
+    deps.setState({
       isTestMode = false,
       isTestAllMode = false,
     })
-    printFn(L.TEST_DISABLED)
-    clearRioBaselineSnapshot()
-    setRoster({})
-    resetInspectAll()
-    clearLatestQueueState()
-    updateUI()
-    updateMPlusTeleportButton()
-    updateLeaderButtons()
-    setCenterNoticeVisible(false)
-    hideInviteHint()
-    setMainFrameVisible(false)
-    triggerGroupRosterUpdate()
+    deps.printFn(L.TEST_DISABLED)
+    deps.clearRioBaselineSnapshot()
+    deps.setRoster({})
+    deps.resetInspectAll()
+    deps.clearLatestQueueState()
+    deps.updateUI()
+    deps.updateMPlusTeleportButton()
+    deps.updateLeaderButtons()
+    deps.setCenterNoticeVisible(false)
+    deps.hideInviteHint()
+    deps.setMainFrameVisible(false)
+    deps.triggerGroupRosterUpdate()
   end
 
   function controller.ToggleStandardTestMode()
-    local state = getState()
-    local L = getL()
+    local state = deps.getState()
+    local L = deps.getL()
     if state.isStopped then
-      printFn(L.ERR_STOPPED_TEST)
+      deps.printFn(L.ERR_STOPPED_TEST)
       return
     end
     if state.isPaused then
-      printFn(L.ERR_PAUSED_TEST)
+      deps.printFn(L.ERR_PAUSED_TEST)
       return
     end
 
@@ -125,20 +129,20 @@ function TestMode.CreateController(opts)
       return
     end
 
-    setState({
+    deps.setState({
       isTestMode = true,
       isTestAllMode = false,
     })
-    printFn(L.TEST_ENABLED)
-    local dummyRoster = buildDummyRoster()
-    setRoster(dummyRoster)
-    captureRioBaselineSnapshot()
+    deps.printFn(L.TEST_ENABLED)
+    local dummyRoster = deps.buildDummyRoster()
+    deps.setRoster(dummyRoster)
+    deps.captureRioBaselineSnapshot()
     ApplyDummyRioDeltaPreview(dummyRoster)
-    enableRioDeltaDisplay()
-    setMainFrameVisible(true)
-    updateUI()
-    updateLeaderButtons()
-    showQueueJoinPreview(L.TESTALL_DUMMY_GROUP, L.TESTALL_DUMMY_DUNGEON)
+    deps.enableRioDeltaDisplay()
+    deps.setMainFrameVisible(true)
+    deps.updateUI()
+    deps.updateLeaderButtons()
+    deps.showQueueJoinPreview(L.TESTALL_DUMMY_GROUP, L.TESTALL_DUMMY_DUNGEON)
   end
 
   return controller

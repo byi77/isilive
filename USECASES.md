@@ -1,7 +1,7 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.49`
-Last updated: `2026-02-24`
+Version baseline: `0.9.50`
+Last updated: `2026-02-25`
 
 ## Actors
 
@@ -12,8 +12,8 @@ Last updated: `2026-02-24`
 ## Preconditions
 
 1. Addon is loaded and not in `stopped` state.
-2. Season dataset is TWW S3.
-3. Relevant UI is visible or can be auto-opened by group transition logic.
+2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `tww_s3`; next prepared season: `midnight_s1` inactive scaffold).
+3. Relevant UI is visible (queue/sync capture is hidden-gated); UI can be auto-opened by group transition logic.
 
 ## Use Case Matrix
 
@@ -31,7 +31,7 @@ Last updated: `2026-02-24`
 
 Goal: detect queue invite/join context and identify the correct dungeon target without guessing.
 
-1. Trigger: LFG list and queue events arrive.
+1. Trigger: LFG list and queue events arrive while main UI is visible.
 2. Inputs: activity ID, pending status, group metadata, known season map/teleport mapping.
 3. Processing: resolver uses strict `activityID -> mapID -> spellID` mapping only.
 4. Output: `targetMapID`, `targetTeleportSpellID`, and display dungeon name are stored.
@@ -107,11 +107,13 @@ Goal: show pre/post-run rating change per player in roster without negative disp
 ## Non-Functional Rules
 
 1. No speculative behavior: unresolved/ambiguous map context must stay unresolved (no name/token fallback guessing).
-2. Combat-protected UI operations must be deferred safely; main-frame drag start/stop must no-op during combat lockdown.
+2. Combat-protected UI operations must be deferred safely while window dragging stays available.
 3. Leader-only actions must stay disabled for non-leaders.
-4. Hidden mode should halt non-essential processing.
+4. Hidden mode should halt non-essential processing and suspend queue/sync event processing.
 5. Runtime defaults are hard-enforced: `advancedCombatLogging=1` and challenge-start Blizzard damage-meter reset when API support exists.
 6. RIO delta display must be deterministic and non-negative (`(+X)` only).
+7. UI visibility toggle (`CTRL+F9`) must allow both open and close in combat; `CHALLENGE_MODE_START` still auto-hides the main window.
+8. During combat, non-essential event processing is suspended by runtime gate; essential events continue.
 
 ## Automated Validation Mapping
 

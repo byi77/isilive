@@ -86,7 +86,7 @@
 ## P3 - Entschlackung `isiLive.lua` (nach Release `0.9.26`)
 
 - [x] `v0.9.26` zuerst releasen (keine strukturellen Refactors im Release-Commit mischen).
-- [x] Baseline dokumentieren: kurzer Ingame-Smoketest vor Refactor (Group join/leave, Queue/Teleport highlight, Key-Spalte, Refresh, Hidden/Sleep). Siehe `README.md` Abschnitt `Use Case / Logic Baseline (v0.9.49)`.
+- [x] Baseline dokumentieren: kurzer Ingame-Smoketest vor Refactor (Group join/leave, Queue/Teleport highlight, Key-Spalte, Refresh, Hidden/Sleep). Siehe `README.md` Abschnitt `Use Case / Logic Baseline (v0.9.50)`.
 - [x] `isiLive_keysync.lua` extrahieren (Key-Sync + Active-Key-Owner-Logik), in `isiLive.lua` nur noch Aufrufe.
 - [x] `isiLive_group.lua` extrahieren (Group-Lifecycle / Roster-Rebuild / Group-Leave-Cleanup).
 - [x] `isiLive_highlight.lua` extrahieren (Active-Target-Resolver + Highlight-State-Entscheidung).

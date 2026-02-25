@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-02-25 - Documentation Sync (Workspace)
+- **Rules/Contract Coverage:**
+  - Added rule-detail blocks for rule numbers `26-31` in `RULES_LOGIC.md` with deterministic test mappings.
+  - Clarified portal-slot contract wording: once sorted, portal icon slot order stays fixed (no re-sorting/switching).
+- **Runtime Behavior Docs Sync:**
+  - Synced docs to current hidden-mode behavior: queue/sync processing is suspended while UI is hidden.
+  - Confirmed auto-open transition behavior remains active for group join and key end (`CHALLENGE_MODE_COMPLETED`/`RESET`).
+  - Added deterministic coverage note for key-end auto-show while grouped.
+- **Validation:**
+  - `tools/validate_usecases.lua` now validates `131` deterministic scenarios across 18 modules (all passing).
+- **Documentation:**
+  - Updated `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `RELEASE.md` to current validator count and hidden-mode semantics.
+
+## 2026-02-25 - Version 0.9.50
+- **Season Scope Policy:**
+  - Removed the hard **TWW S3-only lock** from project rules/docs.
+  - Season scope is now open and controlled via `SeasonData.ACTIVE_SEASON_ID`.
+  - Current active season remains `tww_s3`; next target season is `midnight_s1` (prepared/inactive until IDs are complete).
+- **UI Visibility Behavior:**
+  - `CTRL+F9` now allows opening and closing the main window in every state, including combat.
+  - Center notice visibility no longer defers opening during combat; close and open both apply immediately.
+  - Removed legacy `pendingCenterNoticeVisible` regen-apply path (`PLAYER_REGEN_ENABLED`) and related dead wiring.
+  - Removed legacy main-frame pending-visibility regen path (`GetPendingVisible/getPendingMainFrameVisible`) and dead wiring.
+  - Main window and center notice drag remain available in all states, including combat.
+  - Center notice position is no longer persisted; each open resets to screen center.
+  - Deduplicated red close-button creation/style via shared `UICommon.CreateRedCloseButton`.
+  - `CHALLENGE_MODE_START` auto-hide behavior remains unchanged.
+  - Hidden-mode processing behavior remains unchanged (non-essential processing still halted while UI is hidden).
+  - Combat runtime gate now suppresses non-essential event processing while in combat and only keeps essential event paths active.
+- **Documentation Sync:**
+  - Updated `RULES.md`, `RELEASE.md`, `USECASES.md`, and `README.md` to reflect the season-open workflow.
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, and `TODO.md` to `0.9.50` references.
+- **Validation:**
+  - `tools/validate_usecases.lua` validates `126` deterministic scenarios across 18 modules (all passing).
+  - Split oversized test registration blocks in queue/UI/teleport scenario modules so no function exceeds the `lua_metrics_check` hard limit (`320` lines).
+  - Refactored remaining oversized runtime/test validator functions (`commands`, `queue`, `ui`, `test_mode`, rules validator, scenario suites) so `lua_metrics_check` now reports **no metric warnings**.
+- TOC version bumped to `0.9.50`.
+
 ## 2026-02-24 - Version 0.9.49
 - **Sync/Refresh Key Visibility Fix:**
   - Fixed refresh handshake race where remote member keys could disappear after one client used `Refresh`.

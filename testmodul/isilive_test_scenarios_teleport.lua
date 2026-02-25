@@ -150,7 +150,7 @@ local function BuildTeleportUICreateFrameStub()
   return CreateFrameStub, createdFrames
 end
 
-local function RegisterTeleportResolverTests(test, Assert, WithGlobals, LoadAddonModules)
+local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Teleport resolves shared-map spell IDs as deterministic sorted map list", function()
     local createFrameStub = BuildCreateFrameStub()
 
@@ -209,9 +209,40 @@ local function RegisterTeleportResolverTests(test, Assert, WithGlobals, LoadAddo
         "DB",
         "unsupported locales should fallback to default"
       )
+      Assert.Equal(
+        addon.SeasonData.GetActiveSeasonID(),
+        "tww_s3",
+        "active season must remain unchanged until manually switched"
+      )
+      local orderedActiveMapIDs = addon.SeasonData.GetOrderedMapIDs()
+      Assert.Equal(#orderedActiveMapIDs, 8, "active season ordered map list should include all mapped dungeons")
+      Assert.Equal(orderedActiveMapIDs[1], 2287, "explicit season display order should place HOA first")
+      Assert.Equal(orderedActiveMapIDs[2], 2441, "explicit season display order should keep Tazavesh slot stable")
+
+      local availableSeasonIDs = addon.SeasonData.GetAvailableSeasonIDs()
+      local hasPreparedMidnightSeason = false
+      for _, seasonID in ipairs(availableSeasonIDs) do
+        if seasonID == "midnight_s1" then
+          hasPreparedMidnightSeason = true
+          break
+        end
+      end
+      Assert.True(hasPreparedMidnightSeason, "prepared midnight_s1 season scaffold should be registered")
+      Assert.Nil(
+        next(addon.SeasonData.GetMapToTeleport("midnight_s1")),
+        "prepared midnight_s1 must stay inactive with empty mapping until IDs are filled"
+      )
+      Assert.Equal(
+        #addon.SeasonData.GetOrderedMapIDs("midnight_s1"),
+        0,
+        "prepared midnight_s1 should keep empty ordered-map list until mappings are provided"
+      )
     end)
   end)
 
+end
+
+local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Teleport resolves challenge-map IDs by static alias list before short-code rendering", function()
     local createFrameStub = BuildCreateFrameStub()
 
@@ -298,7 +329,9 @@ local function RegisterTeleportResolverTests(test, Assert, WithGlobals, LoadAddo
       Assert.Nil(info.mapName, "map name must stay unresolved when API provides no concrete name")
     end)
   end)
+end
 
+local function RegisterTeleportResolverActivityTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Teleport resolves activity map and caches activity lookups", function()
     local createFrameStub = BuildCreateFrameStub()
     local activityInfoCalls = 0
@@ -323,11 +356,29 @@ local function RegisterTeleportResolverTests(test, Assert, WithGlobals, LoadAddo
       local mapSecond = addon.Teleport.ResolveSeason3MapIDByActivityID(9900)
       local first = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9900)
       local second = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9900)
+      local genericMap = addon.Teleport.ResolveMapIDByActivityID(9900)
+      local genericActivitySpell = addon.Teleport.ResolveTeleportSpellIDByActivityID(9900)
+      local genericMapSpell = addon.Teleport.ResolveTeleportSpellIDByMapID(2662)
 
       Assert.Equal(mapFirst, 2662, "activity map should resolve directly from activity info")
       Assert.Equal(mapSecond, 2662, "activity map resolver should use cached value")
       Assert.Equal(first, 445414, "activity map should resolve to mapped teleport spell")
       Assert.Equal(second, 445414, "cached activity map should keep same resolved spell")
+      Assert.Equal(
+        genericMap,
+        2662,
+        "generic activity map resolver should stay compatible with season-specific resolver"
+      )
+      Assert.Equal(
+        genericActivitySpell,
+        445414,
+        "generic activity spell resolver should stay compatible with season-specific resolver"
+      )
+      Assert.Equal(
+        genericMapSpell,
+        445414,
+        "generic map spell resolver should stay compatible with season-specific resolver"
+      )
     end)
 
     Assert.Equal(activityInfoCalls, 1, "activity lookup should be cached after first successful resolve")
@@ -362,7 +413,9 @@ local function RegisterTeleportResolverTests(test, Assert, WithGlobals, LoadAddo
       Assert.Nil(spellID, "localized name-only resolution must stay nil in strict mode")
     end)
   end)
+end
 
+local function RegisterTeleportResolverRecoveryTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Teleport keeps activity unresolved when mapID is missing and retries unresolved lookups", function()
     local createFrameStub = BuildCreateFrameStub()
     local activityInfoCalls = 0
@@ -447,15 +500,27 @@ local function RegisterTeleportEntryAndCombatTests(test, Assert, WithGlobals, Lo
         "isiLive_teleport.lua",
       })
       local entries = addon.Teleport.BuildSeason3TeleportEntries()
+      local genericEntries = addon.Teleport.BuildTeleportEntries()
+      local expectedMapOrder = { 2287, 2441, 2649, 2660, 2662, 2773, 2830 }
 
       local sharedSpellCount = 0
-      for _, info in ipairs(entries) do
+      for index, info in ipairs(entries) do
         if info.spellID == 367416 then
           sharedSpellCount = sharedSpellCount + 1
         end
+        Assert.Equal(
+          info.mapID,
+          expectedMapOrder[index],
+          "teleport entries should keep deterministic slot order by canonical map sequence"
+        )
       end
 
       Assert.Equal(#entries, 7, "8 maps with one shared spell should render as 7 unique teleport entries")
+      Assert.Equal(
+        #genericEntries,
+        #entries,
+        "generic teleport entry builder should mirror legacy season-specific behavior"
+      )
       Assert.Equal(sharedSpellCount, 1, "shared teleport spell should appear exactly once")
     end)
   end)
@@ -585,7 +650,10 @@ return function(test, ctx)
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
 
-  RegisterTeleportResolverTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTeleportResolverActivityTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTeleportResolverRecoveryTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTeleportEntryAndCombatTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModules)
 end

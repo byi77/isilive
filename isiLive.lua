@@ -1065,6 +1065,9 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   isTestMode = function()
     return isTestMode
   end,
+  isInCombat = function()
+    return InCombatLockdown and InCombatLockdown()
+  end,
   isTestAllMode = function()
     return isTestAllMode
   end,

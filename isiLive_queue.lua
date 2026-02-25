@@ -104,6 +104,77 @@ local function BuildStableQueueEventID(snapshot)
   return nil
 end
 
+local function AddUniqueActivityCandidate(candidateIDs, seen, id)
+  if IsSecretValue(id) then
+    return
+  end
+  if type(id) ~= "number" or id <= 0 then
+    return
+  end
+  if seen[id] then
+    return
+  end
+  seen[id] = true
+  table.insert(candidateIDs, id)
+end
+
+local function AddUniqueActivityCandidateList(candidateIDs, seen, ids)
+  if type(ids) ~= "table" or IsSecretValue(ids) then
+    return
+  end
+
+  local list = {}
+  for _, id in pairs(ids) do
+    if not IsSecretValue(id) and type(id) == "number" and id > 0 and not seen[id] then
+      table.insert(list, id)
+    end
+  end
+  table.sort(list)
+
+  for _, id in ipairs(list) do
+    AddUniqueActivityCandidate(candidateIDs, seen, id)
+  end
+end
+
+local function RegisterByMap(storage, keyCount, mapID, activityID)
+  if storage[mapID] then
+    return keyCount
+  end
+  storage[mapID] = activityID
+  return keyCount + 1
+end
+
+local function GetActivityContext(activityID)
+  if not (C_LFGList and C_LFGList.GetActivityInfoTable) then
+    return nil, false
+  end
+
+  local ok, activityInfo = pcall(C_LFGList.GetActivityInfoTable, activityID)
+  if not ok or type(activityInfo) ~= "table" then
+    return nil, false
+  end
+
+  local mapID = tonumber(rawget(activityInfo, "mapID") or rawget(activityInfo, "mapId"))
+  local isDungeonLike = rawget(activityInfo, "isMythicPlusActivity") == true
+    or rawget(activityInfo, "categoryID") == 2
+  return mapID, isDungeonLike
+end
+
+local function ParseResolverResult(value)
+  if type(value) == "table" then
+    local mapID = tonumber(rawget(value, "mapID") or rawget(value, "mapId"))
+    local spellID = tonumber(rawget(value, "spellID") or rawget(value, "spellId") or rawget(value, "teleportSpellID"))
+    return mapID, spellID
+  end
+
+  if type(value) == "number" and value > 0 then
+    -- Legacy callback behavior: a positive numeric result means "concrete mapped candidate".
+    return nil, value
+  end
+
+  return nil, nil
+end
+
 function Queue.GetSearchResultActivityID(result, resolveTeleportSpellIDByActivityID)
   if not result then
     return nil
@@ -111,61 +182,47 @@ function Queue.GetSearchResultActivityID(result, resolveTeleportSpellIDByActivit
 
   local candidateIDs = {}
   local seen = {}
-  local function AddCandidate(id)
-    if IsSecretValue(id) then
-      return
-    end
-    if type(id) ~= "number" or id <= 0 then
-      return
-    end
-    if seen[id] then
-      return
-    end
-    seen[id] = true
-    table.insert(candidateIDs, id)
-  end
+  AddUniqueActivityCandidate(candidateIDs, seen, result.activityID)
+  AddUniqueActivityCandidate(candidateIDs, seen, result.primaryActivityID)
+  AddUniqueActivityCandidate(candidateIDs, seen, result.activity)
 
-  AddCandidate(result.activityID)
+  AddUniqueActivityCandidateList(candidateIDs, seen, result.activityIDs)
+  AddUniqueActivityCandidateList(candidateIDs, seen, result.activities)
 
-  if type(result.activityIDs) == "table" and not IsSecretValue(result.activityIDs) then
-    for _, id in pairs(result.activityIDs) do
-      AddCandidate(id)
-    end
-  end
+  local mappedByMap = {}
+  local mappedMapCount = 0
+  local dungeonByMap = {}
+  local dungeonMapCount = 0
 
-  local bestDungeonCandidate
   for _, id in ipairs(candidateIDs) do
     local resolveResult = nil
     if resolveTeleportSpellIDByActivityID then
       resolveResult = resolveTeleportSpellIDByActivityID(id)
     end
 
-    -- Prefer a concrete teleport mapping over generic dungeon activity markers.
-    if type(resolveResult) == "number" and resolveResult > 0 then
-      return id
-    end
-
-    if not bestDungeonCandidate then
-      local info
-      if C_LFGList and C_LFGList.GetActivityInfoTable then
-        local ok, activityInfo = pcall(C_LFGList.GetActivityInfoTable, id)
-        if ok and type(activityInfo) == "table" then
-          info = activityInfo
-        end
-      end
-
-      if info then
-        local mapID = tonumber(rawget(info, "mapID") or rawget(info, "mapId"))
-        local isDungeonLike = rawget(info, "isMythicPlusActivity") == true or rawget(info, "categoryID") == 2
-        if isDungeonLike and mapID and mapID > 0 then
-          bestDungeonCandidate = id
-        end
+    local resolverMapID, resolverSpellID = ParseResolverResult(resolveResult)
+    local activityMapID, isDungeonLike = GetActivityContext(id)
+    local mapID = resolverMapID or activityMapID
+    if type(mapID) == "number" and mapID > 0 then
+      if resolverSpellID and resolverSpellID > 0 then
+        mappedMapCount = RegisterByMap(mappedByMap, mappedMapCount, mapID, id)
+      elseif isDungeonLike then
+        dungeonMapCount = RegisterByMap(dungeonByMap, dungeonMapCount, mapID, id)
       end
     end
   end
 
-  if bestDungeonCandidate then
-    return bestDungeonCandidate
+  if mappedMapCount == 1 then
+    local _, activityID = next(mappedByMap)
+    return activityID
+  end
+  if mappedMapCount > 1 then
+    return nil
+  end
+
+  if dungeonMapCount == 1 then
+    local _, activityID = next(dungeonByMap)
+    return activityID
   end
 
   return nil
@@ -277,136 +334,158 @@ local function ReadApplicationInfoStruct(data, resolveTeleportSpellIDByActivityI
   return appStatus, pendingStatus, groupName, activityID, applicationID, searchResultID, listingID
 end
 
+local function SeedSnapshotFromSingleStruct(values, resolveTeleportSpellIDByActivityID, state)
+  if type(values[1]) ~= "table" or #values ~= 1 then
+    return
+  end
+
+  local structAppID
+  local structSearchResultID
+  local structListingID
+  state.appStatus, state.pendingStatus, state.groupName, state.activityID, structAppID, structSearchResultID,
+    structListingID = ReadApplicationInfoStruct(values[1], resolveTeleportSpellIDByActivityID)
+
+  if structAppID then
+    state.applicationID = structAppID
+  end
+  if structSearchResultID then
+    state.searchResultID = structSearchResultID
+  end
+  if structListingID then
+    state.listingID = structListingID
+  end
+
+  DebugLog(
+    "struct appInfo status=%s pending=%s group=%s activity=%s stableID=%s",
+    tostring(state.appStatus),
+    tostring(state.pendingStatus),
+    tostring(state.groupName),
+    tostring(state.activityID),
+    tostring(BuildStableQueueEventID({
+      applicationID = state.applicationID,
+      searchResultID = state.searchResultID,
+      listingID = state.listingID,
+    }))
+  )
+end
+
+local function AccumulateStatusFlags(value, state)
+  local statusHit, acceptedHit = Queue.ParseApplicationStatus(value)
+  if statusHit then
+    state.isInviteLike = true
+    if acceptedHit then
+      state.isAccepted = true
+    end
+  end
+end
+
+local function HandleNumericApplicationValue(numericID, index, resolveTeleportSpellIDByActivityID, state)
+  if not numericID then
+    DebugLog("skip secret/invalid numeric application value")
+    return
+  end
+  if state.activityID then
+    return
+  end
+
+  -- Raw numeric tuple values are usually app/search IDs.
+  -- Treating them as activity IDs causes false dungeon matches.
+  local resolvedActivityID, resolvedGroupName, foundSearchResult =
+    ResolveActivityIDFromSearchResultID(numericID, resolveTeleportSpellIDByActivityID)
+  if foundSearchResult and not state.searchResultID then
+    state.searchResultID = numericID
+  end
+  if resolvedActivityID then
+    state.activityID = resolvedActivityID
+    state.groupName = state.groupName or resolvedGroupName
+  else
+    DebugLog("ignore unresolved numeric application value=%s", tostring(numericID))
+  end
+  if (not foundSearchResult) and index == 1 and not state.applicationID then
+    state.applicationID = numericID
+  end
+end
+
+local function ScanApplicationTupleValues(values, resolveTeleportSpellIDByActivityID, state)
+  for index, value in ipairs(values) do
+    AccumulateStatusFlags(value, state)
+
+    if type(value) == "table" and not state.activityID then
+      state.activityID = Queue.GetSearchResultActivityID(value, resolveTeleportSpellIDByActivityID)
+      if value.name and type(value.name) == "string" and value.name ~= "" and not state.groupName then
+        state.groupName = value.name
+      elseif
+        value.leaderName and type(value.leaderName) == "string" and value.leaderName ~= "" and not state.groupName
+      then
+        state.groupName = value.leaderName
+      end
+    elseif type(value) == "string" and not state.groupName and not IsLikelyStatusText(value) then
+      state.groupName = value
+    elseif type(value) == "number" then
+      HandleNumericApplicationValue(
+        NormalizeStableNumericID(value),
+        index,
+        resolveTeleportSpellIDByActivityID,
+        state
+      )
+    end
+  end
+end
+
+local function ApplySingleStructFallback(values, state)
+  if type(values[1]) ~= "table" or #values ~= 1 then
+    return
+  end
+
+  local data = values[1]
+  AccumulateStatusFlags(data.applicationStatus or data.appStatus or data.status, state)
+
+  if not state.activityID and type(data.activityIDs) == "table" and not IsSecretValue(data.activityIDs) then
+    for _, id in pairs(data.activityIDs) do
+      if not IsSecretValue(id) and type(id) == "number" and HasConcreteActivityMap(id) then
+        state.activityID = id
+        break
+      end
+    end
+  end
+
+  if not state.groupName and type(data.searchResultInfo) == "table" then
+    state.groupName = data.searchResultInfo.name or data.searchResultInfo.leaderName
+  end
+end
+
 local function ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivityID, opts)
   opts = opts or {}
+  local state = {
+    appStatus = values[2],
+    pendingStatus = values[3],
+    groupName = nil,
+    activityID = nil,
+    applicationID = NormalizeStableNumericID(opts.defaultApplicationID),
+    searchResultID = NormalizeStableNumericID(opts.defaultSearchResultID),
+    listingID = NormalizeStableNumericID(opts.defaultListingID),
+    isInviteLike = false,
+    isAccepted = false,
+  }
 
-  local appStatus = values[2]
-  local pendingStatus = values[3]
-  local seededGroupName
-  local seededActivityID
-  local seededApplicationID = NormalizeStableNumericID(opts.defaultApplicationID)
-  local seededSearchResultID = NormalizeStableNumericID(opts.defaultSearchResultID)
-  local seededListingID = NormalizeStableNumericID(opts.defaultListingID)
+  SeedSnapshotFromSingleStruct(values, resolveTeleportSpellIDByActivityID, state)
+  AccumulateStatusFlags(state.appStatus, state)
+  ScanApplicationTupleValues(values, resolveTeleportSpellIDByActivityID, state)
+  ApplySingleStructFallback(values, state)
 
-  if type(values[1]) == "table" and #values == 1 then
-    local structAppID
-    local structSearchResultID
-    local structListingID
-    appStatus, pendingStatus, seededGroupName, seededActivityID, structAppID, structSearchResultID, structListingID =
-      ReadApplicationInfoStruct(values[1], resolveTeleportSpellIDByActivityID)
-    if structAppID then
-      seededApplicationID = structAppID
-    end
-    if structSearchResultID then
-      seededSearchResultID = structSearchResultID
-    end
-    if structListingID then
-      seededListingID = structListingID
-    end
-    DebugLog(
-      "struct appInfo status=%s pending=%s group=%s activity=%s stableID=%s",
-      tostring(appStatus),
-      tostring(pendingStatus),
-      tostring(seededGroupName),
-      tostring(seededActivityID),
-      tostring(BuildStableQueueEventID({
-        applicationID = seededApplicationID,
-        searchResultID = seededSearchResultID,
-        listingID = seededListingID,
-      }))
-    )
-  end
-
-  local statusMatch, acceptedMatch = Queue.ParseApplicationStatus(appStatus)
-  local isInviteLike = statusMatch
-  local isAccepted = acceptedMatch
-
-  local groupName = seededGroupName
-  local resultActivityID = seededActivityID
-
-  for index, value in ipairs(values) do
-    local statusHit, acceptedHit = Queue.ParseApplicationStatus(value)
-    if statusHit then
-      isInviteLike = true
-      if acceptedHit then
-        isAccepted = true
-      end
-    end
-
-    if type(value) == "table" and not resultActivityID then
-      resultActivityID = Queue.GetSearchResultActivityID(value, resolveTeleportSpellIDByActivityID)
-      if value.name and type(value.name) == "string" and value.name ~= "" and not groupName then
-        groupName = value.name
-      elseif value.leaderName and type(value.leaderName) == "string" and value.leaderName ~= "" and not groupName then
-        groupName = value.leaderName
-      end
-    elseif type(value) == "string" and not groupName and not IsLikelyStatusText(value) then
-      groupName = value
-    elseif type(value) == "number" then
-      local numericID = NormalizeStableNumericID(value)
-      if not numericID then
-        DebugLog("skip secret/invalid numeric application value")
-      else
-        if not resultActivityID then
-          -- Raw numeric tuple values are usually app/search IDs.
-          -- Treating them as activity IDs causes false dungeon matches.
-          local resolvedActivityID, resolvedGroupName, foundSearchResult =
-            ResolveActivityIDFromSearchResultID(numericID, resolveTeleportSpellIDByActivityID)
-          if foundSearchResult and not seededSearchResultID then
-            seededSearchResultID = numericID
-          end
-          if resolvedActivityID then
-            resultActivityID = resolvedActivityID
-            groupName = groupName or resolvedGroupName
-          else
-            DebugLog("ignore unresolved numeric application value=%s", tostring(numericID))
-          end
-          if (not foundSearchResult) and index == 1 and not seededApplicationID then
-            seededApplicationID = numericID
-          end
-        end
-      end
-    end
-  end
-
-  if type(values[1]) == "table" and #values == 1 then
-    local data = values[1]
-    local statusFromFields = data.applicationStatus or data.appStatus or data.status
-    local statusHit, acceptedHit = Queue.ParseApplicationStatus(statusFromFields)
-    if statusHit then
-      isInviteLike = true
-      if acceptedHit then
-        isAccepted = true
-      end
-    end
-
-    if not resultActivityID and type(data.activityIDs) == "table" and not IsSecretValue(data.activityIDs) then
-      for _, id in pairs(data.activityIDs) do
-        if not IsSecretValue(id) and type(id) == "number" and HasConcreteActivityMap(id) then
-          resultActivityID = id
-          break
-        end
-      end
-    end
-
-    if not groupName and type(data.searchResultInfo) == "table" then
-      groupName = data.searchResultInfo.name or data.searchResultInfo.leaderName
-    end
-  end
-
-  if pendingStatus == 0 or pendingStatus == "" then
-    pendingStatus = nil
+  if state.pendingStatus == 0 or state.pendingStatus == "" then
+    state.pendingStatus = nil
   end
 
   local snapshot = {
-    isInviteLike = isInviteLike,
-    isAccepted = isAccepted,
-    pendingStatus = pendingStatus,
-    groupName = groupName,
-    activityID = resultActivityID,
-    applicationID = seededApplicationID,
-    searchResultID = seededSearchResultID,
-    listingID = seededListingID,
+    isInviteLike = state.isInviteLike,
+    isAccepted = state.isAccepted,
+    pendingStatus = state.pendingStatus,
+    groupName = state.groupName,
+    activityID = state.activityID,
+    applicationID = state.applicationID,
+    searchResultID = state.searchResultID,
+    listingID = state.listingID,
   }
   snapshot.stableQueueEventID = BuildStableQueueEventID(snapshot)
   return snapshot

@@ -1,133 +1,138 @@
 ---@diagnostic disable: undefined-global
-return function(test, ctx)
-  local Assert = ctx.assert
-  local LoadAddonModules = ctx.load_modules
 
-  local function BuildGroupController(overrides)
-    overrides = overrides or {}
-    local state = {
-      wasInGroup = overrides.wasInGroup or false,
-      wasRaidGroup = overrides.wasRaidGroup or false,
-      roster = {},
-      mainFrameVisible = false,
-      prints = {},
-      queued = 0,
-      announced = 0,
-      knownUsersCleared = 0,
-      inspectResets = 0,
-      uiUpdates = 0,
-      teleportUpdates = 0,
-    }
+local function BuildGroupState(overrides)
+  overrides = overrides or {}
+  return {
+    wasInGroup = overrides.wasInGroup or false,
+    wasRaidGroup = overrides.wasRaidGroup or false,
+    roster = {},
+    mainFrameVisible = false,
+    prints = {},
+    queued = 0,
+    announced = 0,
+    knownUsersCleared = 0,
+    inspectResets = 0,
+    uiUpdates = 0,
+    teleportUpdates = 0,
+  }
+end
 
-    local addon = LoadAddonModules({ "isiLive_group.lua" })
-    local controller = addon.Group.CreateController({
-      printFn = function(msg)
-        table.insert(state.prints, tostring(msg))
-      end,
-      getL = overrides.getL or function()
-        return { RAID_GROUP_HIDDEN = "Raid group detected (>5 members). Addon paused." }
-      end,
-      isInGroup = overrides.isInGroup or function()
-        return true
-      end,
-      getNumGroupMembers = overrides.getNumGroupMembers or function()
-        return 5
-      end,
-      getActiveChallengeMapID = overrides.getActiveChallengeMapID or function()
-        return nil
-      end,
-      getWasInGroup = function()
-        return state.wasInGroup
-      end,
-      setWasInGroup = function(value)
-        state.wasInGroup = value
-      end,
-      getWasRaidGroup = function()
-        return state.wasRaidGroup
-      end,
-      setWasRaidGroup = function(value)
-        state.wasRaidGroup = value
-      end,
-      setWasGroupLeader = function(_value) end,
-      getRoster = function()
-        return state.roster
-      end,
-      setRoster = function(value)
-        state.roster = value
-      end,
-      captureQueueJoinCandidate = function()
-        state.queued = state.queued + 1
-      end,
-      announceQueuedGroupJoin = function()
-        state.announced = state.announced + 1
-      end,
-      setMainFrameVisible = function(visible)
-        state.mainFrameVisible = visible
-      end,
-      updateLeaderButtons = function() end,
-      clearLatestQueueTarget = function() end,
-      clearKnownUsers = function()
-        state.knownUsersCleared = state.knownUsersCleared + 1
-      end,
-      resetInspectAll = function()
-        state.inspectResets = state.inspectResets + 1
-      end,
-      resetInspectQueues = function() end,
-      updateUI = function()
-        state.uiUpdates = state.uiUpdates + 1
-      end,
-      updateMPlusTeleportButton = function()
-        state.teleportUpdates = state.teleportUpdates + 1
-      end,
-      getUnitNameAndRealm = overrides.getUnitNameAndRealm or function(unit)
-        if unit == "player" then
-          return "TestPlayer", "TestRealm"
-        end
-        local idx = tonumber(unit:match("party(%d+)"))
-        if idx then
-          return "Party" .. idx, "Realm" .. idx
-        end
-        return nil, nil
-      end,
-      getUnitClass = overrides.getUnitClass or function(unit)
-        if unit == "player" then
-          return "Warrior", "WARRIOR"
-        end
-        return "Mage", "MAGE"
-      end,
-      getUnitServerLanguage = function(_unit, _realm)
-        return "DE"
-      end,
-      getOwnedKeystoneSnapshot = function()
-        return 2649, 15
-      end,
-      markIsiLiveUser = function() end,
-      setPlayerKeyInfo = function() end,
-      getUnitRole = function(_unit)
-        return "DAMAGER"
-      end,
-      getPlayerSpecName = function()
-        return "Arms"
-      end,
-      getUnitRio = function(_unit)
-        return 3500
-      end,
-      unitHasIsiLive = function(_unit)
-        return false
-      end,
-      applyKnownKeyToRosterEntry = function(_info)
-        return false
-      end,
-      enqueueInspect = function(_unit) end,
-      sendOwnKeySnapshot = function(_force) end,
-      sendIsiLiveHello = function(_force) end,
-    })
+local function BuildGroupControllerOptions(state, overrides)
+  overrides = overrides or {}
+  return {
+    printFn = function(msg)
+      table.insert(state.prints, tostring(msg))
+    end,
+    getL = overrides.getL or function()
+      return { RAID_GROUP_HIDDEN = "Raid group detected (>5 members). Addon paused." }
+    end,
+    isInGroup = overrides.isInGroup or function()
+      return true
+    end,
+    getNumGroupMembers = overrides.getNumGroupMembers or function()
+      return 5
+    end,
+    getActiveChallengeMapID = overrides.getActiveChallengeMapID or function()
+      return nil
+    end,
+    getWasInGroup = function()
+      return state.wasInGroup
+    end,
+    setWasInGroup = function(value)
+      state.wasInGroup = value
+    end,
+    getWasRaidGroup = function()
+      return state.wasRaidGroup
+    end,
+    setWasRaidGroup = function(value)
+      state.wasRaidGroup = value
+    end,
+    setWasGroupLeader = function(_value) end,
+    getRoster = function()
+      return state.roster
+    end,
+    setRoster = function(value)
+      state.roster = value
+    end,
+    captureQueueJoinCandidate = function()
+      state.queued = state.queued + 1
+    end,
+    announceQueuedGroupJoin = function()
+      state.announced = state.announced + 1
+    end,
+    setMainFrameVisible = function(visible)
+      state.mainFrameVisible = visible
+    end,
+    updateLeaderButtons = function() end,
+    clearLatestQueueTarget = function() end,
+    clearKnownUsers = function()
+      state.knownUsersCleared = state.knownUsersCleared + 1
+    end,
+    resetInspectAll = function()
+      state.inspectResets = state.inspectResets + 1
+    end,
+    resetInspectQueues = function() end,
+    updateUI = function()
+      state.uiUpdates = state.uiUpdates + 1
+    end,
+    updateMPlusTeleportButton = function()
+      state.teleportUpdates = state.teleportUpdates + 1
+    end,
+    getUnitNameAndRealm = overrides.getUnitNameAndRealm or function(unit)
+      if unit == "player" then
+        return "TestPlayer", "TestRealm"
+      end
+      local idx = tonumber(unit:match("party(%d+)"))
+      if idx then
+        return "Party" .. idx, "Realm" .. idx
+      end
+      return nil, nil
+    end,
+    getUnitClass = overrides.getUnitClass or function(unit)
+      if unit == "player" then
+        return "Warrior", "WARRIOR"
+      end
+      return "Mage", "MAGE"
+    end,
+    getUnitServerLanguage = function(_unit, _realm)
+      return "DE"
+    end,
+    getOwnedKeystoneSnapshot = function()
+      return 2649, 15
+    end,
+    markIsiLiveUser = function() end,
+    setPlayerKeyInfo = function() end,
+    getUnitRole = function(_unit)
+      return "DAMAGER"
+    end,
+    getPlayerSpecName = function()
+      return "Arms"
+    end,
+    getUnitRio = function(_unit)
+      return 3500
+    end,
+    unitHasIsiLive = function(_unit)
+      return false
+    end,
+    applyKnownKeyToRosterEntry = function(_info)
+      return false
+    end,
+    enqueueInspect = function(_unit) end,
+    sendOwnKeySnapshot = function(_force) end,
+    sendIsiLiveHello = function(_force) end,
+  }
+end
 
-    return controller, state
-  end
+local function BuildGroupController(loadAddonModules, overrides)
+  local state = BuildGroupState(overrides)
+  local addon = loadAddonModules({ "isiLive_group.lua" })
+  local controller = addon.Group.CreateController(BuildGroupControllerOptions(state, overrides))
+  return controller, state
+end
 
+local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules)
   test("Group join builds roster with player and 4 party members", function()
-    local controller, state = BuildGroupController({
+    local controller, state = BuildGroupController(LoadAddonModules, {
       getNumGroupMembers = function()
         return 5
       end,
@@ -145,7 +150,7 @@ return function(test, ctx)
   end)
 
   test("Group leave clears roster and hides frame", function()
-    local controller, state = BuildGroupController({
+    local controller, state = BuildGroupController(LoadAddonModules, {
       isInGroup = function()
         return false
       end,
@@ -161,7 +166,7 @@ return function(test, ctx)
   end)
 
   test("Raid group hides frame and prints notification", function()
-    local controller, state = BuildGroupController({
+    local controller, state = BuildGroupController(LoadAddonModules, {
       getNumGroupMembers = function()
         return 6
       end,
@@ -177,7 +182,7 @@ return function(test, ctx)
 
   test("Raid notification prints again after leaving raid-size group", function()
     local members = 6
-    local controller, state = BuildGroupController({
+    local controller, state = BuildGroupController(LoadAddonModules, {
       getNumGroupMembers = function()
         return members
       end,
@@ -193,7 +198,7 @@ return function(test, ctx)
   end)
 
   test("First group join fires queue capture and announce", function()
-    local controller, state = BuildGroupController({
+    local controller, state = BuildGroupController(LoadAddonModules, {
       wasInGroup = false,
     })
 
@@ -202,9 +207,11 @@ return function(test, ctx)
     Assert.Equal(state.queued, 1, "queue capture must fire on first join")
     Assert.Equal(state.announced, 1, "queue announce must fire on first join")
   end)
+end
 
+local function RegisterGroupRosterTests(test, Assert, LoadAddonModules)
   test("Active M+ key blocks roster rebuild", function()
-    local controller, state = BuildGroupController({
+    local controller, state = BuildGroupController(LoadAddonModules, {
       getActiveChallengeMapID = function()
         return 2649
       end,
@@ -217,7 +224,7 @@ return function(test, ctx)
   end)
 
   test("Re-join after leave resets wasInGroup correctly", function()
-    local controller, state = BuildGroupController({
+    local controller, state = BuildGroupController(LoadAddonModules, {
       wasInGroup = false,
     })
 
@@ -230,7 +237,7 @@ return function(test, ctx)
   end)
 
   test("Party members get correct roles and classes", function()
-    local controller, state = BuildGroupController({
+    local controller, state = BuildGroupController(LoadAddonModules, {
       getNumGroupMembers = function()
         return 3
       end,
@@ -256,7 +263,7 @@ return function(test, ctx)
   end)
 
   test("Group leave clears known isiLive users", function()
-    local controller, state = BuildGroupController({
+    local controller, state = BuildGroupController(LoadAddonModules, {
       isInGroup = function()
         return false
       end,
@@ -267,4 +274,12 @@ return function(test, ctx)
 
     Assert.Equal(state.knownUsersCleared, 1, "known users cache must be cleared on group leave")
   end)
+end
+
+return function(test, ctx)
+  local Assert = ctx.assert
+  local LoadAddonModules = ctx.load_modules
+
+  RegisterGroupLifecycleTests(test, Assert, LoadAddonModules)
+  RegisterGroupRosterTests(test, Assert, LoadAddonModules)
 end

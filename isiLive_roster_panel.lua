@@ -93,7 +93,7 @@ end
 
 local function CreateVersionLine(mainFrame, getAddonVersionText)
   local versionLine = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  versionLine:SetPoint("TOPRIGHT", -10, -10)
+  versionLine:SetPoint("BOTTOMRIGHT", -10, 6)
   versionLine:SetJustifyH("RIGHT")
   versionLine:SetText(getAddonVersionText())
   return versionLine
