@@ -239,7 +239,6 @@ local function RegisterQueueCaptureCoreTests(test, Assert, WithGlobals, LoadAddo
     Assert.Equal(applied.dungeonName, "Floodgate", "resolved activity name must be used for hint text")
     Assert.Equal(applied.priority, 1, "invited (not accepted) should use priority 1")
   end)
-
 end
 
 local function RegisterQueueCaptureStableIDTests(test, Assert, WithGlobals, LoadAddonModules)

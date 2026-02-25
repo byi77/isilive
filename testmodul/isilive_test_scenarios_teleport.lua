@@ -239,7 +239,6 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
       )
     end)
   end)
-
 end
 
 local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, LoadAddonModules)

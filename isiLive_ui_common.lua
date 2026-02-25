@@ -21,8 +21,7 @@ function UICommon.CreateRedCloseButton(parent, opts)
   local strata = opts.frameStrata or (parent and parent.GetFrameStrata and parent:GetFrameStrata()) or "MEDIUM"
   button:SetFrameStrata(strata)
 
-  local level = tonumber(opts.frameLevel)
-    or ((parent and parent.GetFrameLevel and parent:GetFrameLevel()) or 1) + 20
+  local level = tonumber(opts.frameLevel) or ((parent and parent.GetFrameLevel and parent:GetFrameLevel()) or 1) + 20
   button:SetFrameLevel(level)
 
   local normalTexture = button.GetNormalTexture and button:GetNormalTexture() or nil

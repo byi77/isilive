@@ -155,8 +155,7 @@ local function GetActivityContext(activityID)
   end
 
   local mapID = tonumber(rawget(activityInfo, "mapID") or rawget(activityInfo, "mapId"))
-  local isDungeonLike = rawget(activityInfo, "isMythicPlusActivity") == true
-    or rawget(activityInfo, "categoryID") == 2
+  local isDungeonLike = rawget(activityInfo, "isMythicPlusActivity") == true or rawget(activityInfo, "categoryID") == 2
   return mapID, isDungeonLike
 end
 
@@ -342,8 +341,8 @@ local function SeedSnapshotFromSingleStruct(values, resolveTeleportSpellIDByActi
   local structAppID
   local structSearchResultID
   local structListingID
-  state.appStatus, state.pendingStatus, state.groupName, state.activityID, structAppID, structSearchResultID,
-    structListingID = ReadApplicationInfoStruct(values[1], resolveTeleportSpellIDByActivityID)
+  state.appStatus, state.pendingStatus, state.groupName, state.activityID, structAppID, structSearchResultID, structListingID =
+    ReadApplicationInfoStruct(values[1], resolveTeleportSpellIDByActivityID)
 
   if structAppID then
     state.applicationID = structAppID
@@ -415,19 +414,17 @@ local function ScanApplicationTupleValues(values, resolveTeleportSpellIDByActivi
       if value.name and type(value.name) == "string" and value.name ~= "" and not state.groupName then
         state.groupName = value.name
       elseif
-        value.leaderName and type(value.leaderName) == "string" and value.leaderName ~= "" and not state.groupName
+        value.leaderName
+        and type(value.leaderName) == "string"
+        and value.leaderName ~= ""
+        and not state.groupName
       then
         state.groupName = value.leaderName
       end
     elseif type(value) == "string" and not state.groupName and not IsLikelyStatusText(value) then
       state.groupName = value
     elseif type(value) == "number" then
-      HandleNumericApplicationValue(
-        NormalizeStableNumericID(value),
-        index,
-        resolveTeleportSpellIDByActivityID,
-        state
-      )
+      HandleNumericApplicationValue(NormalizeStableNumericID(value), index, resolveTeleportSpellIDByActivityID, state)
     end
   end
 end
