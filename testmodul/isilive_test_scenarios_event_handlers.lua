@@ -259,6 +259,35 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
     Assert.False(keySnapshotForceCalls[2], "delayed key snapshot attempt must be non-forced to avoid duplicate sends")
   end)
 
+  test("Event handlers restore runtime log storage and enabled flag on ADDON_LOADED", function()
+    local ensureRuntimeLogStorageCalls = 0
+    local setRuntimeLogEnabledValue = nil
+
+    WithGlobals({
+      IsiLiveDB = {
+        locale = "enUS",
+        queueDebug = false,
+        runtimeLogEnabled = true,
+        position = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 },
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        ensureRuntimeLogStorage = function()
+          ensureRuntimeLogStorageCalls = ensureRuntimeLogStorageCalls + 1
+        end,
+        setRuntimeLogEnabled = function(enabled)
+          setRuntimeLogEnabledValue = enabled
+        end,
+      })
+
+      controller:Dispatch("ADDON_LOADED", "isiLive")
+    end)
+
+    Assert.Equal(ensureRuntimeLogStorageCalls, 1, "ADDON_LOADED must ensure runtime log storage exactly once")
+    Assert.True(setRuntimeLogEnabledValue == true, "ADDON_LOADED must restore runtime log enabled state from DB")
+  end)
+
   test("Event handlers reset damage meter on challenge start when available", function()
     local resetCalls = 0
     local setCalls = 0

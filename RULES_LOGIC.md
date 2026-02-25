@@ -213,14 +213,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: entwurf
 - Zusammenfassung: Die Buttons `Share Keys` und `Refresh` sind gegen Klick-Spam geschuetzt (Debounce/Rate-Limit).
 - Erforderliche Tests:
-  - Replace with exact deterministic test name
+  - Refresh RunFullRefresh debounces rapid clicks
+  - Roster panel share keys button debounces rapid clicks
 
 ### RULE-ROSTER-ZEILENUMBRUCH-VERBOT
 - Regelnummer: 20
 - Status: entwurf
 - Zusammenfassung: In den Gruppenmitglieder-Zeilen ist kein Zeilenumbruch erlaubt.
 - Erforderliche Tests:
-  - Replace with exact deterministic test name
+  - Roster panel rows disable wrapping for all member text columns
 
 ### RULE-HIGHLIGHT-NUR-BEI-EINDEUTIGEM-ZIEL
 - Regelnummer: 21

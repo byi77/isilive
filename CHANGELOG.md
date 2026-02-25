@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-02-25 - Version 0.9.51
+- **Runtime Reliability + Error Logging:**
+  - Event gate dispatch now supports a safe error callback path (`onDispatchError`) so handler failures are captured without hard-crashing the gate loop.
+  - Runtime setup now routes dispatch failures through addon logging (`Print(...)`), so enabled runtime-log sessions persist these failures in `IsiLiveDB.runtimeLog`.
+  - Event-handler wiring now consistently restores `runtimeLogEnabled` state from SavedVariables on `ADDON_LOADED`.
+- **Spam Guard + Roster Row Stability:**
+  - Added debounce guard for `Refresh` full-refresh execution (`isiLive_refresh.lua`).
+  - Added debounce guard for `Share Keys` button spam (`isiLive_roster_panel.lua`).
+  - Hardened roster member row rendering to enforce single-line text behavior (no wrap) across all row columns.
+- **Log Code De-duplication:**
+  - Added shared log helper module `isiLive_log_buffer.lua`.
+  - `isiLive_queue_debug.lua` and `isiLive_runtime_log.lua` now use the shared helper for storage init, ASCII sanitizing, append trim, and tail extraction.
+- **Tests + Validation Coverage:**
+  - Added new deterministic scenario modules:
+    - `testmodul/isilive_test_scenarios_runtime_log.lua`
+    - `testmodul/isilive_test_scenarios_roster_panel.lua`
+  - Added dispatch-error callback coverage in `testmodul/isilive_test_scenarios_event_utils.lua`.
+  - Added runtime-log restore coverage in `testmodul/isilive_test_scenarios_event_handlers.lua`.
+  - `tools/validate_usecases.lua` now validates `140` deterministic scenarios across `20` modules (all passing).
+- **Rules + Docs Sync:**
+  - Filled rule-to-test mappings for:
+    - `RULE-BUTTON-SPAM-GUARD`
+    - `RULE-ROSTER-ZEILENUMBRUCH-VERBOT`
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `RELEASE.md` to `0.9.51` references and current validator counts.
+- **TOC:**
+  - Updated addon list title to `isiKeyMPlus`.
+  - TOC version bumped to `0.9.51`.
+
 ## 2026-02-25 - Documentation Sync (Workspace)
 - **Rules/Contract Coverage:**
   - Added rule-detail blocks for rule numbers `26-31` in `RULES_LOGIC.md` with deterministic test mappings.

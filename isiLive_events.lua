@@ -37,6 +37,28 @@ function Events.CreateGate(config)
   local allowInTestMode = config.allowInTestMode or {
     ADDON_LOADED = true,
   }
+  local onDispatchError = type(config.onDispatchError) == "function" and config.onDispatchError or nil
+
+  local function DispatchSafe(frame, event, ...)
+    if not onDispatchError then
+      dispatch(frame, event, ...)
+      return
+    end
+
+    local args = { ... }
+    local ok, err = xpcall(function()
+      dispatch(frame, event, unpack(args))
+    end, function(runtimeErr)
+      local msg = tostring(runtimeErr)
+      if type(debug) == "table" and type(debug.traceback) == "function" then
+        return debug.traceback(msg, 2)
+      end
+      return msg
+    end)
+    if not ok then
+      local _ = pcall(onDispatchError, frame, event, err)
+    end
+  end
 
   return function(frame, event, ...)
     if isStopped() and event ~= "ADDON_LOADED" then
@@ -57,6 +79,6 @@ function Events.CreateGate(config)
       return
     end
 
-    dispatch(frame, event, ...)
+    DispatchSafe(frame, event, ...)
   end
 end

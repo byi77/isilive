@@ -19,6 +19,8 @@ function ConfigBuilders.BuildRefreshControllerOpts(ctx)
     updateUI = ctx.updateUI,
     refreshLocalPlayerKey = ctx.refreshLocalPlayerKey,
     getActiveChallengeMapID = ctx.getActiveChallengeMapID,
+    getTime = ctx.getTime,
+    refreshDebounceSeconds = ctx.refreshDebounceSeconds,
   }
 end
 
@@ -251,6 +253,7 @@ function ConfigBuilders.BuildGateOpts(ctx)
   return {
     events = ctx.events,
     dispatch = dispatch,
+    onDispatchError = ctx.onDispatchError,
     isStopped = ctx.isStopped,
     isPaused = ctx.isPaused,
     isTestMode = ctx.isTestMode,

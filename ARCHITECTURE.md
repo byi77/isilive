@@ -1,11 +1,12 @@
-# isiLive Architecture
+# isiKeyMPlus Architecture
 
-Version baseline: `0.9.50`
+Version baseline: `0.9.51`
 Last updated: `2026-02-25`
 
 ## Purpose
 
-`isiLive` is a WoW Mythic+ group helper addon.
+`isiKeyMPlus` is a WoW Mythic+ group helper addon.
+Internal runtime namespace and module filenames remain `isiLive_*`.
 The architecture is event-driven and split into clear runtime layers:
 
 1. WoW event input and gating.
@@ -20,7 +21,7 @@ The architecture is event-driven and split into clear runtime layers:
 | Event gate and dispatch | Enforce stop/pause/hidden/test behavior and route events | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_utils.lua` |
 | Domain logic | Queue parsing, group model, highlight resolution, key sync, refresh, inspect | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua` |
 | UI composition | Main frame, roster panel, teleport grid, notices, status line | `isiLive_ui.lua`, `isiLive_roster_panel.lua`, `isiLive_teleport_ui.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
-| Shared helpers and data | Locale, units, season map/spell data, runtime logging, config builders | `isiLive_locale.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_runtime_log.lua`, `isiLive_config_builders.lua` |
+| Shared helpers and data | Locale, units, season map/spell data, runtime logging, config builders | `isiLive_locale.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua` |
 
 ## Runtime Flow
 
@@ -58,6 +59,8 @@ WoW Event
 11. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
 12. Keep sync handshake resilient: HELLO recipients acknowledge and force-send own KEY snapshot so refresh-driven cache clears repopulate deterministically.
 13. In hidden mode, suppress queue/sync event processing; keep only required auto-open transitions (`GROUP_ROSTER_UPDATE`, key-end events).
+14. Keep UI action spam guards active for `Refresh` and `Share Keys` (debounce/rate-limit behavior).
+15. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
 
 ## Deterministic Validation Gates
 
@@ -72,13 +75,13 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_rules_logic.lua`
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
-4. `tools/validate_usecases.lua` runs the rules validator first and then covers 131 scenarios across 18 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster logic.
+4. `tools/validate_usecases.lua` runs the rules validator first and then covers 140 scenarios across 20 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster/runtime-log/roster-panel logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiLive (will be renamed to isiKeyMPlus soon)                                      V.0.9.50     |
+| isiKeyMPlus                                                                        V.0.9.51     |
 |--------------------------------------------------------------------------------------------------|
 | Spec         Name              Flag        Key         iLvl      RIO      M+Managment  M+Travel   |
 |--------------------------------------------------------------------------------------------------|

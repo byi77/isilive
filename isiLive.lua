@@ -640,6 +640,8 @@ local initResult = isiLiveControllerInit.CreateControllers({
     end
     return nil
   end,
+  getTime = GetTime,
+  shareKeysDebounceSeconds = 1,
 })
 keySyncController = initResult.keySyncController
 MarkIsiLiveUser = initResult.markIsiLiveUser
@@ -805,6 +807,8 @@ refreshController = isiLiveRefresh.CreateController(isiLiveConfigBuilders.BuildR
   updateUI = UpdateUI,
   refreshLocalPlayerKey = RefreshLocalPlayerKey,
   getActiveChallengeMapID = GetActiveChallengeMapID,
+  getTime = GetTime,
+  refreshDebounceSeconds = 1,
 }))
 
 refreshButton:SetScript("OnClick", function()
@@ -1014,6 +1018,9 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   eventHandlersModule = isiLiveEventHandlers,
   mainFrame = mainFrame,
   onEvent = OnEvent,
+  onDispatchError = function(_frame, event, err)
+    Print(string.format("Event dispatch failed (%s): %s", tostring(event), tostring(err)))
+  end,
   sync = isiLiveSync,
   events = isiLiveEvents,
   commands = isiLiveCommands,

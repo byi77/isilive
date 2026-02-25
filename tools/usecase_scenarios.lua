@@ -14,7 +14,9 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_leader_watch.lua",
   "testmodul/isilive_test_scenarios_refresh.lua",
   "testmodul/isilive_test_scenarios_commands.lua",
+  "testmodul/isilive_test_scenarios_runtime_log.lua",
   "testmodul/isilive_test_scenarios_roster.lua",
+  "testmodul/isilive_test_scenarios_roster_panel.lua",
   "testmodul/isilive_test_scenarios_status.lua",
   "testmodul/isilive_test_scenarios_ui.lua",
 }

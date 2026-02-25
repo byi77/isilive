@@ -7,7 +7,7 @@ addonTable.Texts = Texts
 
 local LOCALES = {
   enUS = {
-    TITLE = "isiLive (will be renamed to isiKeyMPlus soon)",
+    TITLE = "isiKeyMPlus",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
     COL_LANGUAGE = "Flag",
@@ -97,7 +97,7 @@ local LOCALES = {
     RAID_GROUP_HIDDEN = "Raid group detected (>5 members). Addon paused.",
   },
   deDE = {
-    TITLE = "isiLive (will be renamed to isiKeyMPlus soon)",
+    TITLE = "isiKeyMPlus",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
     COL_LANGUAGE = "Sprache",

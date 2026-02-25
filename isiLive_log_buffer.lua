@@ -1,0 +1,69 @@
+local _, addonTable = ...
+
+addonTable = addonTable or {}
+
+local LogBuffer = {}
+addonTable.LogBuffer = LogBuffer
+
+local function ClampLimit(limit, defaultValue, minValue, maxValue)
+  local value = tonumber(limit) or defaultValue
+  if value < minValue then
+    value = minValue
+  elseif value > maxValue then
+    value = maxValue
+  end
+  return math.floor(value)
+end
+
+function LogBuffer.EnsureSavedTable(key)
+  assert(type(key) == "string" and key ~= "", "isiLive: LogBuffer requires non-empty key")
+
+  return function()
+    if not IsiLiveDB then
+      IsiLiveDB = {}
+    end
+    if type(IsiLiveDB[key]) ~= "table" then
+      IsiLiveDB[key] = {}
+    end
+    return IsiLiveDB[key]
+  end
+end
+
+function LogBuffer.SanitizeMessage(message)
+  local text = tostring(message or "")
+  -- Keep SavedVariables debug logs ASCII-friendly for easier external parsing.
+  return text:gsub("[\128-\255]", "")
+end
+
+function LogBuffer.Append(logs, timestamp, message, maxEntries)
+  assert(type(logs) == "table", "isiLive: LogBuffer.Append requires logs table")
+  local cap = tonumber(maxEntries) or #logs
+  if cap < 1 then
+    cap = 1
+  end
+
+  table.insert(logs, string.format("%s %s", tostring(timestamp), LogBuffer.SanitizeMessage(message)))
+
+  local overflow = #logs - cap
+  while overflow > 0 do
+    table.remove(logs, 1)
+    overflow = overflow - 1
+  end
+end
+
+function LogBuffer.GetTail(logs, limit, defaultLimit, maxLimit)
+  assert(type(logs) == "table", "isiLive: LogBuffer.GetTail requires logs table")
+
+  local count = ClampLimit(limit, tonumber(defaultLimit) or 20, 1, tonumber(maxLimit) or 100)
+  local total = #logs
+  local startIndex = total - count + 1
+  if startIndex < 1 then
+    startIndex = 1
+  end
+
+  local out = {}
+  for i = startIndex, total do
+    out[#out + 1] = logs[i]
+  end
+  return out
+end

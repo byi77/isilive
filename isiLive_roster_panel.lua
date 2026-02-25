@@ -99,6 +99,18 @@ local function CreateVersionLine(mainFrame, getAddonVersionText)
   return versionLine
 end
 
+local function DisableFontStringWrapping(fontString)
+  if fontString.SetWordWrap then
+    fontString:SetWordWrap(false)
+  end
+  if fontString.SetNonSpaceWrap then
+    fontString:SetNonSpaceWrap(false)
+  end
+  if fontString.SetMaxLines then
+    fontString:SetMaxLines(1)
+  end
+end
+
 local function CreateMemberRow(mainFrame, index)
   local yOffset = -52 - (index - 1) * 16
   local row = {}
@@ -124,49 +136,37 @@ local function CreateMemberRow(mainFrame, index)
   row.spec:SetPoint("TOPLEFT", SPEC_COL_X, yOffset)
   row.spec:SetJustifyH("RIGHT")
   row.spec:SetWidth(SPEC_COL_WIDTH)
+  DisableFontStringWrapping(row.spec)
 
   row.name = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.name:SetPoint("TOPLEFT", NAME_COL_X, yOffset)
   row.name:SetJustifyH("LEFT")
   row.name:SetWidth(NAME_COL_WIDTH)
+  DisableFontStringWrapping(row.name)
 
   row.ilvl = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.ilvl:SetPoint("TOPLEFT", ILVL_COL_X, yOffset)
   row.ilvl:SetWidth(ILVL_COL_WIDTH)
   row.ilvl:SetJustifyH("RIGHT")
+  DisableFontStringWrapping(row.ilvl)
 
   row.key = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.key:SetPoint("TOPLEFT", KEY_COL_X, yOffset)
   row.key:SetWidth(KEY_COL_WIDTH)
   row.key:SetJustifyH("RIGHT")
-  if row.key.SetWordWrap then
-    row.key:SetWordWrap(false)
-  end
-  if row.key.SetNonSpaceWrap then
-    row.key:SetNonSpaceWrap(false)
-  end
-  if row.key.SetMaxLines then
-    row.key:SetMaxLines(1)
-  end
+  DisableFontStringWrapping(row.key)
 
   row.rio = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.rio:SetPoint("TOPLEFT", RIO_COL_X, yOffset)
   row.rio:SetWidth(RIO_COL_WIDTH)
   row.rio:SetJustifyH("RIGHT")
-  if row.rio.SetWordWrap then
-    row.rio:SetWordWrap(false)
-  end
-  if row.rio.SetNonSpaceWrap then
-    row.rio:SetNonSpaceWrap(false)
-  end
-  if row.rio.SetMaxLines then
-    row.rio:SetMaxLines(1)
-  end
+  DisableFontStringWrapping(row.rio)
 
   row.realm = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.realm:SetPoint("TOPLEFT", SERVER_COL_X, yOffset)
   row.realm:SetWidth(SERVER_COL_WIDTH)
   row.realm:SetJustifyH("LEFT")
+  DisableFontStringWrapping(row.realm)
 
   return row
 end
@@ -286,7 +286,20 @@ local function CreateShareKeysButton(mainFrame, deps)
   local button = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   button:SetSize(120, 24)
   button:SetPoint("TOPRIGHT", -136, -180)
+  local lastShareKeysClickAt = nil
+  local debounceSeconds = tonumber(deps.shareKeysDebounceSeconds) or 0
+  if debounceSeconds < 0 then
+    debounceSeconds = 0
+  end
   button:SetScript("OnClick", function()
+    local now = type(deps.getTime) == "function" and tonumber(deps.getTime()) or nil
+    if now and debounceSeconds > 0 and lastShareKeysClickAt and (now - lastShareKeysClickAt) < debounceSeconds then
+      return
+    end
+    if now then
+      lastShareKeysClickAt = now
+    end
+
     local lines = BuildKeyAnnouncement({
       getL = deps.getL,
       getRoster = deps.getRoster,
@@ -514,6 +527,16 @@ function RosterPanel.CreateController(opts)
   local applyKnownKeyToRosterEntry = type(opts.applyKnownKeyToRosterEntry) == "function"
       and opts.applyKnownKeyToRosterEntry
     or nil
+  local getTime = type(opts.getTime) == "function" and opts.getTime or function()
+    if type(GetTime) == "function" then
+      return GetTime()
+    end
+    return nil
+  end
+  local shareKeysDebounceSeconds = tonumber(opts.shareKeysDebounceSeconds) or 1
+  if shareKeysDebounceSeconds < 0 then
+    shareKeysDebounceSeconds = 0
+  end
 
   local ui = ConstructPanelUI(mainFrame, {
     getL = getL,
@@ -527,6 +550,8 @@ function RosterPanel.CreateController(opts)
     getDungeonShortCode = getDungeonShortCode,
     applyKnownKeyToRosterEntry = applyKnownKeyToRosterEntry,
     isInGroup = isInGroup,
+    getTime = getTime,
+    shareKeysDebounceSeconds = shareKeysDebounceSeconds,
   })
 
   local readyCheckButton = ui.readyCheckButton

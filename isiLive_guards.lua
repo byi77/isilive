@@ -13,6 +13,7 @@ local REQUIRED_MODULES = {
   { key = "Group", file = "isiLive_group.lua" },
   { key = "Queue", file = "isiLive_queue.lua" },
   { key = "QueueFlow", file = "isiLive_queue_flow.lua" },
+  { key = "LogBuffer", file = "isiLive_log_buffer.lua" },
   { key = "Inspect", file = "isiLive_inspect.lua" },
   { key = "Roster", file = "isiLive_roster.lua" },
   { key = "Events", file = "isiLive_events.lua" },

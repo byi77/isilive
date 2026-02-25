@@ -72,9 +72,11 @@ function Bootstrap.CreateGatedOnEvent(opts)
   local isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
   local getNumGroupMembers = RequireFunction(opts.getNumGroupMembers, "getNumGroupMembers")
   local getActiveChallengeMapID = RequireFunction(opts.getActiveChallengeMapID, "getActiveChallengeMapID")
+  local onDispatchError = type(opts.onDispatchError) == "function" and opts.onDispatchError or nil
 
   return events.CreateGate({
     dispatch = dispatch,
+    onDispatchError = onDispatchError,
     isStopped = isStopped,
     isPaused = isPaused,
     isTestMode = isTestMode,

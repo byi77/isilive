@@ -169,6 +169,55 @@ local function RegisterEventGateTests(test, Assert, LoadAddonModules)
 
     Assert.Equal(dispatched, 1, "combat gate must allow explicitly whitelisted events")
   end)
+
+  test("Events gate reports dispatch errors via callback without crashing", function()
+    local reports = {}
+
+    local addon = LoadAddonModules({ "isiLive_events.lua" })
+    local gate = addon.Events.CreateGate({
+      dispatch = function(_frame, _event, ...)
+        local _ = ...
+        error("simulated dispatch error")
+      end,
+      onDispatchError = function(_frame, event, err)
+        table.insert(reports, {
+          event = event,
+          err = tostring(err),
+        })
+      end,
+      isStopped = function()
+        return false
+      end,
+      isPaused = function()
+        return false
+      end,
+      isTestMode = function()
+        return false
+      end,
+      isInCombat = function()
+        return false
+      end,
+    })
+
+    local frame = {
+      IsShown = function()
+        return true
+      end,
+    }
+
+    local ok, callErr = pcall(function()
+      gate(frame, "GROUP_ROSTER_UPDATE")
+    end)
+
+    Assert.True(ok, "dispatch errors must be caught by gate: " .. tostring(callErr))
+    Assert.Equal(#reports, 1, "dispatch errors must be reported exactly once")
+    Assert.Equal(reports[1].event, "GROUP_ROSTER_UPDATE", "error callback must receive event name")
+    local errText = string.lower(reports[1].err)
+    Assert.True(
+      errText:find("simulated", 1, true) ~= nil or errText:find("dispatch", 1, true) ~= nil,
+      "error payload must include root error context"
+    )
+  end)
 end
 
 local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)

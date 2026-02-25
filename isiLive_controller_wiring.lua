@@ -122,6 +122,10 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
     sendOwnKeySnapshot = RequireFunction(deps.sendOwnKeySnapshot, "sendOwnKeySnapshot"),
     ensureQueueDebugStorage = RequireFunction(deps.ensureQueueDebugStorage, "ensureQueueDebugStorage"),
     setQueueDebugEnabled = RequireFunction(deps.setQueueDebugEnabled, "setQueueDebugEnabled"),
+    ensureRuntimeLogStorage = type(deps.ensureRuntimeLogStorage) == "function" and deps.ensureRuntimeLogStorage
+      or function() end,
+    setRuntimeLogEnabled = type(deps.setRuntimeLogEnabled) == "function" and deps.setRuntimeLogEnabled
+      or function(_enabled) end,
     getMainFrame = function()
       return refs.mainFrame
     end,

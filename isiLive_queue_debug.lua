@@ -4,16 +4,8 @@ addonTable = addonTable or {}
 
 local QueueDebug = {}
 addonTable.QueueDebug = QueueDebug
-
-local function EnsureStorage()
-  if not IsiLiveDB then
-    IsiLiveDB = {}
-  end
-  if type(IsiLiveDB.queueDebugLog) ~= "table" then
-    IsiLiveDB.queueDebugLog = {}
-  end
-  return IsiLiveDB.queueDebugLog
-end
+local logBuffer = assert(addonTable.LogBuffer, "isiLive: LogBuffer module missing")
+local EnsureStorage = logBuffer.EnsureSavedTable("queueDebugLog")
 
 function QueueDebug.CreateController(opts)
   opts = opts or {}
@@ -45,16 +37,7 @@ function QueueDebug.CreateController(opts)
   end
 
   function controller.AppendLog(message)
-    local logs = EnsureStorage()
-    local text = tostring(message or "")
-    -- Keep SavedVariables debug logs ASCII-friendly for easier external parsing.
-    text = text:gsub("[\128-\255]", "")
-    table.insert(logs, string.format("%s %s", tostring(getTimestamp()), text))
-    local overflow = #logs - maxEntries
-    while overflow > 0 do
-      table.remove(logs, 1)
-      overflow = overflow - 1
-    end
+    logBuffer.Append(EnsureStorage(), getTimestamp(), message, maxEntries)
   end
 
   function controller.Log(message)
@@ -88,23 +71,7 @@ function QueueDebug.CreateController(opts)
   end
 
   function controller.GetLogTail(limit)
-    local logs = EnsureStorage()
-    local total = #logs
-    local count = tonumber(limit) or 20
-    if count < 1 then
-      count = 1
-    elseif count > 100 then
-      count = 100
-    end
-    local startIndex = total - count + 1
-    if startIndex < 1 then
-      startIndex = 1
-    end
-    local out = {}
-    for i = startIndex, total do
-      out[#out + 1] = logs[i]
-    end
-    return out
+    return logBuffer.GetTail(EnsureStorage(), limit, 20, 100)
   end
 
   return controller

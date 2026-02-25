@@ -1,12 +1,12 @@
-# isiLive Use Cases
+# isiKeyMPlus Use Cases
 
-Version baseline: `0.9.50`
+Version baseline: `0.9.51`
 Last updated: `2026-02-25`
 
 ## Actors
 
 1. Player (group leader or member).
-2. isiLive addon runtime.
+2. isiKeyMPlus addon runtime (internal namespace: `isiLive_*`).
 3. WoW APIs and events.
 
 ## Preconditions
@@ -88,7 +88,8 @@ Goal: allow user to post current party keys quickly.
 2. Processing: addon builds ordered roster key summary from known keys.
 3. Sync relation: on refresh handshakes, HELLO recipients send ACK and a forced own KEY snapshot so peer key caches are repopulated.
 4. Output: one message per key owner is sent to `PARTY`, with local print fallback on send failure.
-5. Success criteria: each available member key appears as its own deterministic chat line (`Name: SHORT +Level`).
+5. Rule: `Share Keys` button clicks are debounced to suppress rapid duplicate chat output.
+6. Success criteria: each available member key appears as its own deterministic chat line (`Name: SHORT +Level`).
 
 ## UC-07 RIO Delta Visibility
 
@@ -114,6 +115,8 @@ Goal: show pre/post-run rating change per player in roster without negative disp
 6. RIO delta display must be deterministic and non-negative (`(+X)` only).
 7. UI visibility toggle (`CTRL+F9`) must allow both open and close in combat; `CHALLENGE_MODE_START` still auto-hides the main window.
 8. During combat, non-essential event processing is suspended by runtime gate; essential events continue.
+9. Refresh and key-share UI actions must enforce click-spam guards (debounce/rate-limit behavior).
+10. Event-gate dispatch failures must be reported through error callbacks for diagnostics without terminating the gate loop.
 
 ## Automated Validation Mapping
 

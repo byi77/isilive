@@ -1,6 +1,6 @@
 # Release Runbook
 
-This is the canonical release flow for `isiLive`.
+This is the canonical release flow for `isiKeyMPlus` (repository/tag prefix remains `isiLive_*`).
 
 ## 1) Update Version + Docs
 
@@ -27,7 +27,7 @@ lua tools/validate_usecases.lua
 Expected: lint/style/metrics/usecase/rules checks pass.
 
 `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
-`tools/validate_usecases.lua` is mandatory for release gating, runs the rules-logic validation first, and then validates 131 deterministic scenarios across 18 modules (queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster).
+`tools/validate_usecases.lua` is mandatory for release gating, runs the rules-logic validation first, and then validates 140 deterministic scenarios across 20 modules (queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster/runtime-log/roster-panel).
 
 Windows note: if metrics fail with missing LuaRocks modules (`lfs`, `luacheck.decoder`, `luacheck.parser`), set `LUA_PATH` and `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running the metrics check.
 
@@ -60,8 +60,8 @@ git push origin isiLive_beta_X.Y.Z
 Example:
 
 ```powershell
-git tag isiLive_release_0.9.50
-git push origin isiLive_release_0.9.50
+git tag isiLive_release_0.9.51
+git push origin isiLive_release_0.9.51
 ```
 
 ## 5) Verify GitHub Actions

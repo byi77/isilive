@@ -68,6 +68,8 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     syncMarker = " |cff33aaff<3|r",
     fullSyncMarker = " |cff00e68a[fullsync]|r",
     applyKnownKeyToRosterEntry = keySyncResult and keySyncResult.applyKnownKeyToRosterEntry or nil,
+    getTime = ctx.getTime,
+    shareKeysDebounceSeconds = ctx.shareKeysDebounceSeconds,
   })
 
   return {

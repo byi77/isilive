@@ -5,6 +5,7 @@ return function(test, ctx)
 
   local function BuildRefreshController(overrides)
     overrides = overrides or {}
+    local now = overrides.now or 100
     local state = {
       rosterUpdates = 0,
       syncRefreshes = 0,
@@ -54,7 +55,15 @@ return function(test, ctx)
       getActiveChallengeMapID = overrides.getActiveChallengeMapID or function()
         return nil
       end,
+      getTime = overrides.getTime or function()
+        return now
+      end,
+      refreshDebounceSeconds = overrides.refreshDebounceSeconds or 0,
     })
+
+    state.setNow = function(value)
+      now = tonumber(value) or now
+    end
 
     return controller, state
   end
@@ -96,5 +105,23 @@ return function(test, ctx)
 
     Assert.False(result, "RunFullRefresh must return false during active M+")
     Assert.Equal(state.uiUpdates, 0, "must not update UI during active M+")
+  end)
+
+  test("Refresh RunFullRefresh debounces rapid clicks", function()
+    local controller, state = BuildRefreshController({
+      refreshDebounceSeconds = 1,
+      now = 10,
+    })
+
+    local firstResult = controller.RunFullRefresh()
+    local secondResult = controller.RunFullRefresh()
+
+    state.setNow(11.2)
+    local thirdResult = controller.RunFullRefresh()
+
+    Assert.True(firstResult, "first refresh should run")
+    Assert.False(secondResult, "second refresh inside debounce window must be ignored")
+    Assert.True(thirdResult, "refresh after debounce window should run again")
+    Assert.Equal(state.syncRefreshes, 2, "only first and third refresh should execute refresh actions")
   end)
 end
