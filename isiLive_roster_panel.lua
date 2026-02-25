@@ -527,12 +527,13 @@ function RosterPanel.CreateController(opts)
   local applyKnownKeyToRosterEntry = type(opts.applyKnownKeyToRosterEntry) == "function"
       and opts.applyKnownKeyToRosterEntry
     or nil
-  local getTime = type(opts.getTime) == "function" and opts.getTime or function()
-    if type(GetTime) == "function" then
-      return GetTime()
+  local getTime = type(opts.getTime) == "function" and opts.getTime
+    or function()
+      if type(GetTime) == "function" then
+        return GetTime()
+      end
+      return nil
     end
-    return nil
-  end
   local shareKeysDebounceSeconds = tonumber(opts.shareKeysDebounceSeconds) or 1
   if shareKeysDebounceSeconds < 0 then
     shareKeysDebounceSeconds = 0

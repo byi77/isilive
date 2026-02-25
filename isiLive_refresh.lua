@@ -31,12 +31,13 @@ function Refresh.CreateController(opts)
   local getActiveChallengeMapID = opts.getActiveChallengeMapID or function()
     return nil
   end
-  local getTime = opts.getTime or function()
-    if type(GetTime) == "function" then
-      return GetTime()
+  local getTime = opts.getTime
+    or function()
+      if type(GetTime) == "function" then
+        return GetTime()
+      end
+      return nil
     end
-    return nil
-  end
   local refreshDebounceSeconds = tonumber(opts.refreshDebounceSeconds) or 0
   if refreshDebounceSeconds < 0 then
     refreshDebounceSeconds = 0
