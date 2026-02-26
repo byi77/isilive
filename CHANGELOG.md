@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-02-26 - Version 0.9.54
+- **Lua Diagnostics Hardening:**
+  - Replaced direct `debug.traceback` global access in event-gate error handling with guarded `_G.debug` lookup.
+  - Normalized `GameTooltip:SetText` calls to explicit color-argument signatures for LuaLS compatibility.
+  - Added explicit nil/type guards in roster-panel deterministic test handlers before invoking captured callbacks.
+- **Validation:**
+  - `tools/validate_usecases.lua` remains at `142` deterministic scenarios across `20` modules (all passing).
+- **Docs Sync:**
+  - Updated `README.md` and `ARCHITECTURE.md` with explicit Lua diagnostics compatibility notes.
+- **TOC:**
+  - TOC version bumped to `0.9.54`.
+
+## 2026-02-26 - Version 0.9.53
+- **Roster Hover Tooltip UX:**
+  - Added Blizzard-style roster row mouseover tooltip via unit binding (`GameTooltip:SetUnit(unit)`).
+  - Hover rows now keep unit context from current roster render (`player`/`partyX`) for deterministic tooltip targeting.
+  - Added safe fallback tooltip text (`Name-Realm`) when unit tokens are temporarily unavailable (for example fast roster transition timing).
+- **Validation:**
+  - `tools/validate_usecases.lua` now validates `142` deterministic scenarios across `20` modules (all passing).
+- **Docs Sync:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `RELEASE.md` to `0.9.53` references and current validator counts.
+- **TOC:**
+  - TOC version bumped to `0.9.53`.
+
 ## 2026-02-25 - Version 0.9.52
 - **Share Keys Chat Output Fix:**
   - Fixed `Share Keys` no-output regression caused by invalid manually built keystone chat links.

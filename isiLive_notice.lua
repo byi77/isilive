@@ -309,7 +309,7 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
 
     if self.inCombatBlocked then
-      GameTooltip:SetText(L.BTN_TELEPORT)
+      GameTooltip:SetText(L.BTN_TELEPORT, 1, 1, 1)
       GameTooltip:AddLine(L.TOOLTIP_TELEPORT_COMBAT, 1, 0.25, 0.25, true)
     elseif self.spellID and state.config.isSpellKnown(self.spellID) then
       GameTooltip:SetSpellByID(self.spellID)
@@ -327,7 +327,7 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
         GameTooltip:AddLine(L.TOOLTIP_TELEPORT_READY, 0.3, 1, 0.3, true)
       end
     else
-      GameTooltip:SetText(L.BTN_TELEPORT_LOCKED)
+      GameTooltip:SetText(L.BTN_TELEPORT_LOCKED, 1, 1, 1)
       GameTooltip:AddLine(L.TOOLTIP_TELEPORT_LOCKED, 1, 0.25, 0.25, true)
     end
     GameTooltip:Show()

@@ -126,7 +126,7 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
         GameTooltip:AddLine(L.TOOLTIP_TELEPORT_READY, 0.3, 1, 0.3, true)
       end
     else
-      GameTooltip:SetText(L.BTN_TELEPORT_LOCKED)
+      GameTooltip:SetText(L.BTN_TELEPORT_LOCKED, 1, 1, 1)
       GameTooltip:AddLine(L.TOOLTIP_TELEPORT_LOCKED, 1, 0.25, 0.25, true)
     end
     if self.isActiveTarget then
@@ -194,11 +194,28 @@ function TeleportUI.CreateController(opts)
   local controller = {}
   local buttons = {}
 
-  function controller.BuildButtons()
+  local function HideExistingButtons()
+    for _, button in ipairs(buttons) do
+      if button and button.Hide then
+        button:Hide()
+      end
+    end
+  end
+
+  local function BuildButtonsInternal()
     buttons = {}
     for i, entry in ipairs(deps.getEntries()) do
       table.insert(buttons, CreateTeleportButton(mainFrame, deps, i, entry))
     end
+  end
+
+  function controller.BuildButtons()
+    BuildButtonsInternal()
+  end
+
+  function controller.RebuildButtons()
+    HideExistingButtons()
+    BuildButtonsInternal()
   end
 
   function controller.GetButtons()

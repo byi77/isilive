@@ -50,8 +50,9 @@ function Events.CreateGate(config)
       dispatch(frame, event, unpack(args))
     end, function(runtimeErr)
       local msg = tostring(runtimeErr)
-      if type(debug) == "table" and type(debug.traceback) == "function" then
-        return debug.traceback(msg, 2)
+      local debugLib = rawget(_G, "debug")
+      if type(debugLib) == "table" and type(debugLib.traceback) == "function" then
+        return debugLib.traceback(msg, 2)
       end
       return msg
     end)

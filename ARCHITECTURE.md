@@ -1,7 +1,7 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.52`
-Last updated: `2026-02-25`
+Version baseline: `0.9.54`
+Last updated: `2026-02-26`
 
 ## Purpose
 
@@ -61,6 +61,7 @@ WoW Event
 13. In hidden mode, suppress queue/sync event processing; keep only required auto-open transitions (`GROUP_ROSTER_UPDATE`, key-end events).
 14. Keep UI action spam guards active for `Refresh` and `Share Keys` (debounce/rate-limit behavior).
 15. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
+16. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures for `GameTooltip:SetText`.
 
 ## Deterministic Validation Gates
 
@@ -75,13 +76,13 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_rules_logic.lua`
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
-4. `tools/validate_usecases.lua` runs the rules validator first and then covers 140 scenarios across 20 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster/runtime-log/roster-panel logic.
+4. `tools/validate_usecases.lua` runs the rules validator first and then covers 142 scenarios across 20 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster/runtime-log/roster-panel logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiKeyMPlus                                                                        V.0.9.52     |
+| isiKeyMPlus                                                                        V.0.9.54     |
 |--------------------------------------------------------------------------------------------------|
 | Spec         Name              Flag        Key         iLvl      RIO      M+Managment  M+Travel   |
 |--------------------------------------------------------------------------------------------------|

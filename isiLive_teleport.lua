@@ -27,6 +27,12 @@ local function ClearTable(t)
     t[key] = nil
   end
 end
+
+function Teleport.ResetActivityCaches()
+  ClearTable(ACTIVITY_TO_TELEPORT_CACHE)
+  ClearTable(ACTIVITY_TO_MAP_CACHE)
+end
+
 local combatRetryFrame = CreateFrame("Frame")
 combatRetryFrame:SetScript("OnEvent", function(self, event)
   if event == "PLAYER_REGEN_ENABLED" then

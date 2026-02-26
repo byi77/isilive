@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.52`.
+Current addon version: `0.9.54`.
 
 ## Features
 
@@ -41,6 +41,7 @@ Current addon version: `0.9.52`.
 - Combat runtime gate now suppresses non-essential event processing while in combat; essential events (for example `PLAYER_REGEN_ENABLED` and `CHALLENGE_MODE_*`) still run.
 - Key sync runs only while the main window is visible (hidden mode stays in sleep behavior)
 - Main window is movable via left drag in every mode; top drag handle stays above overlays for reliable dragging
+- Roster member row hover shows the Blizzard player tooltip when unit context exists, with `Name-Realm` fallback text when unit tokens are temporarily unavailable
 - Teleport grid buttons inherit main-frame strata/level to avoid overlay conflicts with external UI panels
 - Combat-safe frame updates: pending frame-height changes are applied on `PLAYER_REGEN_ENABLED`
 - Advanced combat logging (`advancedCombatLogging`) is hard-enforced to `ON`.
@@ -55,9 +56,9 @@ Current addon version: `0.9.52`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK` and also force-send their own `KEY` snapshot to restore peer key visibility after refresh.
 
-## Use Case / Logic Baseline (v0.9.52)
+## Use Case / Logic Baseline (v0.9.54)
 
-Documented on `2026-02-25` as runtime behavior baseline for validation checks.
+Documented on `2026-02-26` as runtime behavior baseline for validation checks.
 
 1. Queue invite -> grouped flow
    - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`) while main UI is visible.
@@ -180,7 +181,7 @@ Developer debug (hidden command, not listed in in-game help):
 ## Deterministic Usecase Gate
 
 `tools/validate_rules_logic.lua` validates active rule contracts from `RULES_LOGIC.md` against deterministic test names.
-`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 140 scenarios across 20 modules, including:
+`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 142 scenarios across 20 modules, including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
@@ -226,6 +227,7 @@ Local checks:
 Notes:
 - The addon is namespace-based (`local addonName, addonTable = ...`).
 - Do not introduce new globals. `IsiLiveDB` (SavedVariables) is intentionally allowed.
+- LuaLS compatibility baseline: use guarded `rawget(_G, "debug")` access for traceback paths and pass explicit RGB args to `GameTooltip:SetText`.
 - `realm_language_data.lua` is intentionally excluded from format/lint (data-only file).
 
 ## CI Quality Gate
@@ -254,10 +256,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.52`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.54`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.52` or `isiLive_beta_0.9.52`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.54` or `isiLive_beta_0.9.54`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -269,9 +271,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.52 && git push origin isiLive_release_0.9.52`
+3. Create and push stable tag: `git tag isiLive_release_0.9.54 && git push origin isiLive_release_0.9.54`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.52 && git push origin isiLive_alpha_0.9.52`
-   - beta: `git tag isiLive_beta_0.9.52 && git push origin isiLive_beta_0.9.52`
+   - alpha: `git tag isiLive_alpha_0.9.54 && git push origin isiLive_alpha_0.9.54`
+   - beta: `git tag isiLive_beta_0.9.54 && git push origin isiLive_beta_0.9.54`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

@@ -146,6 +146,82 @@ local function DisableFontStringWrapping(fontString)
   end
 end
 
+local function HideGlobalGameTooltip()
+  local tooltip = rawget(_G, "GameTooltip")
+  if type(tooltip) == "table" and type(tooltip.Hide) == "function" then
+    tooltip:Hide()
+  end
+end
+
+local function AnchorGlobalGameTooltip(anchorFrame)
+  local tooltip = rawget(_G, "GameTooltip")
+  if type(tooltip) ~= "table" then
+    return nil
+  end
+
+  local setDefaultAnchor = rawget(_G, "GameTooltip_SetDefaultAnchor")
+  if type(setDefaultAnchor) == "function" then
+    setDefaultAnchor(tooltip, anchorFrame)
+  elseif type(tooltip.SetOwner) == "function" then
+    tooltip:SetOwner(anchorFrame, "ANCHOR_CURSOR_RIGHT")
+  end
+
+  return tooltip
+end
+
+local function ShowRosterUnitTooltip(anchorFrame, unit)
+  if type(unit) ~= "string" or unit == "" then
+    return false
+  end
+
+  if type(UnitExists) == "function" and not UnitExists(unit) then
+    return false
+  end
+
+  local tooltip = AnchorGlobalGameTooltip(anchorFrame)
+  if type(tooltip) ~= "table" or type(tooltip.SetUnit) ~= "function" then
+    return false
+  end
+
+  tooltip:SetUnit(unit)
+  if type(tooltip.Show) == "function" then
+    tooltip:Show()
+  end
+  return true
+end
+
+local function BuildFallbackTooltipPlayerName(name, realm)
+  local playerName = type(name) == "string" and name or nil
+  if not playerName or playerName == "" then
+    return nil
+  end
+
+  local playerRealm = type(realm) == "string" and realm or nil
+  if playerRealm and playerRealm ~= "" then
+    return string.format("%s-%s", playerName, playerRealm)
+  end
+
+  return playerName
+end
+
+local function ShowRosterNameFallbackTooltip(anchorFrame, name, realm)
+  local tooltipName = BuildFallbackTooltipPlayerName(name, realm)
+  if not tooltipName then
+    return false
+  end
+
+  local tooltip = AnchorGlobalGameTooltip(anchorFrame)
+  if type(tooltip) ~= "table" or type(tooltip.SetText) ~= "function" then
+    return false
+  end
+
+  tooltip:SetText(tooltipName)
+  if type(tooltip.Show) == "function" then
+    tooltip:Show()
+  end
+  return true
+end
+
 local function CreateMemberRow(mainFrame, index)
   local yOffset = -52 - (index - 1) * 16
   local row = {}
@@ -154,6 +230,9 @@ local function CreateMemberRow(mainFrame, index)
   row.hoverFrame:SetPoint("TOPLEFT", 4, yOffset + 2)
   row.hoverFrame:SetPoint("RIGHT", -4, 0)
   row.hoverFrame:SetHeight(16)
+  if row.hoverFrame.EnableMouse then
+    row.hoverFrame:EnableMouse(true)
+  end
 
   row.highlight = row.hoverFrame:CreateTexture(nil, "BACKGROUND")
   row.highlight:SetAllPoints()
@@ -162,9 +241,13 @@ local function CreateMemberRow(mainFrame, index)
 
   row.hoverFrame:SetScript("OnEnter", function()
     row.highlight:Show()
+    if not ShowRosterUnitTooltip(row.hoverFrame, row.unit) then
+      ShowRosterNameFallbackTooltip(row.hoverFrame, row.tooltipName, row.tooltipRealm)
+    end
   end)
   row.hoverFrame:SetScript("OnLeave", function()
     row.highlight:Hide()
+    HideGlobalGameTooltip()
   end)
 
   row.spec = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -305,7 +388,7 @@ local function AttachPanelButtonTooltip(button, getL, titleKey, descriptionKey, 
   button:SetScript("OnEnter", function(self)
     local L = getL()
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetText(L[titleKey])
+    GameTooltip:SetText(L[titleKey], 1, 1, 1)
     GameTooltip:AddLine(L[descriptionKey], 1, 1, 1, true)
     if isPlayerLeader and not isPlayerLeader() then
       GameTooltip:AddLine(L.TOOLTIP_LEAD_REQUIRED, 1, 0.2, 0.2, true)
@@ -466,7 +549,11 @@ local function RenderRosterImpl(state, roster)
     row.key:SetText("")
     row.ilvl:SetText("")
     row.rio:SetText("")
+    row.unit = nil
+    row.tooltipName = nil
+    row.tooltipRealm = nil
     if row.hoverFrame then
+      row.hoverFrame.unit = nil
       row.hoverFrame:Hide()
     end
   end
@@ -522,7 +609,11 @@ local function RenderRosterImpl(state, roster)
     end
     row.ilvl:SetText(displayData.ilvlText)
     row.rio:SetText(displayData.rioText)
+    row.unit = entry.unit
+    row.tooltipName = info and info.name or nil
+    row.tooltipRealm = info and info.realm or nil
     if row.hoverFrame then
+      row.hoverFrame.unit = entry.unit
       row.hoverFrame:Show()
     end
     index = index + 1

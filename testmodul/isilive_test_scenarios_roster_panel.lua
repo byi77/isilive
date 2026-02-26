@@ -65,7 +65,12 @@ local function CreateFrameStubFactory(createdFrames)
     frame.SetPoint = function(self, ...)
       self._point = { ... }
     end
-    frame.SetHeight = function(_self, _h) end
+    frame.SetHeight = function(self, h)
+      self._height = h
+    end
+    frame.EnableMouse = function(self, enabled)
+      self._mouseEnabled = enabled == true
+    end
     frame.SetBackdrop = function(_self, _value) end
     frame.SetBackdropColor = function(_self, _r, _g, _b, _a) end
     frame.SetScript = function(self, scriptName, handler)
@@ -254,6 +259,15 @@ local function FilterRowFontStringsAtYOffset(fontStrings, yOffset)
   return out
 end
 
+local function FindFirstRowHoverFrame(createdFrames, mainFrame)
+  for _, frame in ipairs(createdFrames) do
+    if frame._parent == mainFrame and frame._height == 16 and frame._scripts and frame._scripts.OnEnter then
+      return frame
+    end
+  end
+  return nil
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -288,6 +302,162 @@ return function(test, ctx)
     end)
   end)
 
+  test("Roster panel row hover shows and hides unit tooltip", function()
+    local createdFrames = {}
+    local nowRef = { now = 100 }
+    local mainFrame = BuildMainFrameStub()
+    local tooltipState = {
+      defaultAnchorCalls = 0,
+      setOwnerCalls = 0,
+      setUnitCalls = 0,
+      showCalls = 0,
+      hideCalls = 0,
+      lastUnit = nil,
+    }
+    local tooltipStub = {}
+
+    tooltipStub.SetOwner = function(_self, _owner, _anchor)
+      tooltipState.setOwnerCalls = tooltipState.setOwnerCalls + 1
+    end
+    tooltipStub.SetUnit = function(_self, unit)
+      tooltipState.setUnitCalls = tooltipState.setUnitCalls + 1
+      tooltipState.lastUnit = unit
+    end
+    tooltipStub.Show = function(_self)
+      tooltipState.showCalls = tooltipState.showCalls + 1
+    end
+    tooltipStub.Hide = function(_self)
+      tooltipState.hideCalls = tooltipState.hideCalls + 1
+    end
+
+    WithGlobals({
+      CreateFrame = CreateFrameStubFactory(createdFrames),
+      GameTooltip = tooltipStub,
+      GameTooltip_SetDefaultAnchor = function(_tooltip, _owner)
+        tooltipState.defaultAnchorCalls = tooltipState.defaultAnchorCalls + 1
+      end,
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = BuildRosterPanelController(addon, mainFrame, nowRef)
+      controller.RenderRoster({
+        player = {
+          name = "Alpha",
+          keyMapID = 2660,
+          keyLevel = 12,
+        },
+      })
+
+      local hoverFrame = FindFirstRowHoverFrame(createdFrames, mainFrame)
+      Assert.NotNil(hoverFrame, "roster row hover frame must exist")
+      if type(hoverFrame) ~= "table" then
+        return
+      end
+      Assert.Equal(hoverFrame.unit, "player", "hover frame should keep rendered unit token")
+
+      local onEnter = hoverFrame._scripts and hoverFrame._scripts.OnEnter or nil
+      local onLeave = hoverFrame._scripts and hoverFrame._scripts.OnLeave or nil
+      Assert.True(type(onEnter) == "function", "hover frame must define OnEnter handler")
+      Assert.True(type(onLeave) == "function", "hover frame must define OnLeave handler")
+      if type(onEnter) ~= "function" or type(onLeave) ~= "function" then
+        return
+      end
+
+      onEnter(hoverFrame)
+      Assert.Equal(tooltipState.setUnitCalls, 1, "row hover should set tooltip unit exactly once")
+      Assert.Equal(tooltipState.lastUnit, "player", "row hover should use row unit for tooltip")
+      Assert.Equal(tooltipState.defaultAnchorCalls, 1, "row hover should use default tooltip anchoring when available")
+      Assert.Equal(tooltipState.setOwnerCalls, 0, "default anchoring should avoid explicit SetOwner fallback")
+      Assert.Equal(tooltipState.showCalls, 1, "row hover should explicitly show tooltip")
+
+      onLeave(hoverFrame)
+      Assert.Equal(tooltipState.hideCalls, 1, "row leave should hide tooltip")
+    end)
+  end)
+
+  test("Roster panel row hover falls back to name tooltip when unit token is missing", function()
+    local createdFrames = {}
+    local nowRef = { now = 100 }
+    local mainFrame = BuildMainFrameStub()
+    local tooltipState = {
+      defaultAnchorCalls = 0,
+      setOwnerCalls = 0,
+      setUnitCalls = 0,
+      setTextCalls = 0,
+      showCalls = 0,
+      hideCalls = 0,
+      lastText = nil,
+    }
+    local tooltipStub = {}
+
+    tooltipStub.SetOwner = function(_self, _owner, _anchor)
+      tooltipState.setOwnerCalls = tooltipState.setOwnerCalls + 1
+    end
+    tooltipStub.SetUnit = function(_self, _unit)
+      tooltipState.setUnitCalls = tooltipState.setUnitCalls + 1
+    end
+    tooltipStub.SetText = function(_self, text)
+      tooltipState.setTextCalls = tooltipState.setTextCalls + 1
+      tooltipState.lastText = text
+    end
+    tooltipStub.Show = function(_self)
+      tooltipState.showCalls = tooltipState.showCalls + 1
+    end
+    tooltipStub.Hide = function(_self)
+      tooltipState.hideCalls = tooltipState.hideCalls + 1
+    end
+
+    WithGlobals({
+      CreateFrame = CreateFrameStubFactory(createdFrames),
+      GameTooltip = tooltipStub,
+      GameTooltip_SetDefaultAnchor = function(_tooltip, _owner)
+        tooltipState.defaultAnchorCalls = tooltipState.defaultAnchorCalls + 1
+      end,
+      UnitExists = function(_unit)
+        return false
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = BuildRosterPanelController(addon, mainFrame, nowRef)
+      controller.RenderRoster({
+        player = {
+          name = "Alpha",
+          realm = "Blackmoore",
+          keyMapID = 2660,
+          keyLevel = 12,
+        },
+      })
+
+      local hoverFrame = FindFirstRowHoverFrame(createdFrames, mainFrame)
+      Assert.NotNil(hoverFrame, "roster row hover frame must exist")
+      if type(hoverFrame) ~= "table" then
+        return
+      end
+      Assert.Equal(hoverFrame.unit, "player", "hover frame should keep rendered unit token")
+
+      local onEnter = hoverFrame._scripts and hoverFrame._scripts.OnEnter or nil
+      local onLeave = hoverFrame._scripts and hoverFrame._scripts.OnLeave or nil
+      Assert.True(type(onEnter) == "function", "hover frame must define OnEnter handler")
+      Assert.True(type(onLeave) == "function", "hover frame must define OnLeave handler")
+      if type(onEnter) ~= "function" or type(onLeave) ~= "function" then
+        return
+      end
+
+      onEnter(hoverFrame)
+      Assert.Equal(tooltipState.setUnitCalls, 0, "fallback path must skip SetUnit when unit token is missing")
+      Assert.Equal(tooltipState.setTextCalls, 1, "fallback path should set tooltip text exactly once")
+      Assert.Equal(tooltipState.lastText, "Alpha-Blackmoore", "fallback tooltip should use name-realm text")
+      Assert.Equal(tooltipState.defaultAnchorCalls, 1, "fallback tooltip should still use default anchoring")
+      Assert.Equal(tooltipState.setOwnerCalls, 0, "default anchoring should avoid explicit SetOwner fallback")
+      Assert.Equal(tooltipState.showCalls, 1, "fallback tooltip should be shown")
+
+      onLeave(hoverFrame)
+      Assert.Equal(tooltipState.hideCalls, 1, "row leave should hide fallback tooltip")
+    end)
+  end)
+
   test("Roster panel share keys button debounces rapid clicks", function()
     local createdFrames = {}
     local chatMessages = {}
@@ -311,9 +481,15 @@ return function(test, ctx)
       local controller = BuildRosterPanelController(addon, mainFrame, nowRef)
       local shareButton = FindShareKeysButton(createdFrames)
       Assert.NotNil(shareButton, "share keys button must exist")
+      if type(shareButton) ~= "table" then
+        return
+      end
 
       local onClick = shareButton._scripts and shareButton._scripts.OnClick or nil
-      Assert.NotNil(onClick, "share keys button must define click handler")
+      Assert.True(type(onClick) == "function", "share keys button must define click handler")
+      if type(onClick) ~= "function" then
+        return
+      end
 
       controller.RenderRoster({
         player = {
