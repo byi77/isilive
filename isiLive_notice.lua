@@ -86,7 +86,8 @@ local function CreateCenterNoticeCloseButton(frame)
 end
 
 local function CreateCenterNoticeTeleportButton(frame, config)
-  local button = CreateFrame("Button", "isiLiveCenterNoticeTeleportButton", frame, "SecureActionButtonTemplate")
+  -- Use insecure action template so center notice can still be shown/hidden in combat.
+  local button = CreateFrame("Button", "isiLiveCenterNoticeTeleportButton", frame, "InsecureActionButtonTemplate")
   button:SetSize(config.buttonHeight, config.buttonHeight)
   button:SetPoint("TOP", frame, "TOP", 0, -(config.paddingY + 26 + config.buttonGap))
   button:Hide()

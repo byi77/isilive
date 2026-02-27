@@ -60,8 +60,8 @@ git push origin isiLive_beta_X.Y.Z
 Example:
 
 ```powershell
-git tag isiLive_release_0.9.55
-git push origin isiLive_release_0.9.55
+git tag isiLive_release_0.9.56
+git push origin isiLive_release_0.9.56
 ```
 
 ## 5) Verify GitHub Actions

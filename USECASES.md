@@ -1,7 +1,7 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.54`
-Last updated: `2026-02-26`
+Version baseline: `0.9.56`
+Last updated: `2026-02-27`
 
 ## Actors
 
@@ -65,10 +65,11 @@ Goal: remove highlight as soon as the player is in the exact dungeon target.
 Goal: apply portal cooldown behavior only when the portal cast is actually used.
 
 1. Trigger: player clicks portal button and cast succeeds.
-2. Processing: cooldown state is read from WoW spell cooldown APIs.
-3. Rule: all dungeon portal casts share the same 8h cooldown window after use.
-4. Output: teleport grid shows cooldown time and lock state consistently.
-5. Success criteria: every portal button reflects the shared cooldown.
+2. Processing: portal action buttons use `InsecureActionButtonTemplate` so parent frame show/hide remains combat-toggleable.
+3. Processing: cooldown state is read from WoW spell cooldown APIs.
+4. Rule: all dungeon portal casts share the same 8h cooldown window after use.
+5. Output: teleport grid shows cooldown time and lock state consistently.
+6. Success criteria: every portal button reflects the shared cooldown.
 
 ## UC-05 Cooldown Lifecycle
 
@@ -108,7 +109,7 @@ Goal: show pre/post-run rating change per player in roster without negative disp
 ## Non-Functional Rules
 
 1. No speculative behavior: unresolved/ambiguous map context must stay unresolved (no name/token fallback guessing).
-2. Combat-protected UI operations must be deferred safely while window dragging stays available.
+2. Combat-protected UI operations must be deferred safely while window dragging stays available, and teleport action buttons must not promote parent frames to protected status.
 3. Leader-only actions must stay disabled for non-leaders.
 4. Hidden mode should halt non-essential processing and suspend queue/sync event processing.
 5. Runtime defaults are hard-enforced: `advancedCombatLogging=1` and challenge-start Blizzard damage-meter reset when API support exists.

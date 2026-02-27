@@ -36,6 +36,34 @@ local function CreateFontStringStub()
   }
 end
 
+local function CreateAnimationGroupStub()
+  local group = {
+    _playing = false,
+  }
+  group.SetLooping = function(_self, _mode) end
+  group.CreateAnimation = function(_self, _kind)
+    return {
+      SetScale = function(_anim, _x, _y) end,
+      SetDuration = function(_anim, _duration) end,
+      SetSmoothing = function(_anim, _value) end,
+      SetOrder = function(_anim, _value) end,
+      SetFromAlpha = function(_anim, _value) end,
+      SetToAlpha = function(_anim, _value) end,
+      SetTarget = function(_anim, _target) end,
+    }
+  end
+  group.IsPlaying = function(self)
+    return self._playing == true
+  end
+  group.Play = function(self)
+    self._playing = true
+  end
+  group.Stop = function(self)
+    self._playing = false
+  end
+  return group
+end
+
 local function ApplyFrameMethods(frame)
   frame.SetSize = function(self, width, height)
     self._width = tonumber(width) or self._width
@@ -64,6 +92,9 @@ local function ApplyFrameMethods(frame)
     self._scripts[name] = handler
   end
   frame.Show = function(self)
+    if self._simulateProtectedFrames and self._isProtected and self._isInCombat() then
+      error("ADDON_ACTION_BLOCKED: protected frame show blocked in combat")
+    end
     self._shown = true
   end
   frame.Hide = function(self)
@@ -105,10 +136,33 @@ local function ApplyFrameMethods(frame)
   frame.GetFrameLevel = function(self)
     return self._frameLevel
   end
+  frame.SetAllPoints = function(_self) end
+  frame.SetDrawEdge = function(_self, _value) end
+  frame.SetScale = function(self, value)
+    self._scale = value
+  end
+  frame.CreateAnimationGroup = function(_self)
+    return CreateAnimationGroupStub()
+  end
 end
 
-local function BuildCreateFrameStub()
-  local function CreateFrameStub(_frameType, _name, _parent, _template)
+local function BuildCreateFrameStub(opts)
+  opts = opts or {}
+  local createdFrames = {}
+  local simulateProtectedFrames = opts.simulateProtectedFrames == true
+  local isInCombat = opts.isInCombat or function()
+    return false
+  end
+
+  local function MarkParentChainProtected(parent)
+    local current = parent
+    while current do
+      current._isProtected = true
+      current = current._parent
+    end
+  end
+
+  local function CreateFrameStub(_frameType, _name, parent, template)
     local frame = {
       _scripts = {},
       _shown = true,
@@ -120,12 +174,24 @@ local function BuildCreateFrameStub()
       _attrs = {},
       _startMovingCalls = 0,
       _stopMovingCalls = 0,
+      _parent = parent,
+      _template = template,
+      _simulateProtectedFrames = simulateProtectedFrames,
+      _isInCombat = isInCombat,
+      _isProtected = false,
     }
+
+    if simulateProtectedFrames and template == "SecureActionButtonTemplate" then
+      frame._isProtected = true
+      MarkParentChainProtected(parent)
+    end
+
     ApplyFrameMethods(frame)
+    table.insert(createdFrames, frame)
     return frame
   end
 
-  return CreateFrameStub
+  return CreateFrameStub, createdFrames
 end
 
 local function RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
@@ -163,12 +229,18 @@ local function RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadA
     local inCombat = true
     local shownInGroupCalls = 0
     local shownNoGroupCalls = 0
+    local createFrameStub, createdFrames = BuildCreateFrameStub({
+      simulateProtectedFrames = true,
+      isInCombat = function()
+        return inCombat
+      end,
+    })
 
     WithGlobals({
       UIParent = {},
-      CreateFrame = BuildCreateFrameStub(),
+      CreateFrame = createFrameStub,
     }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua", "isiLive_teleport_ui.lua" })
       local mainUI = addon.UI.CreateMainFrame({
         parent = UIParent,
         isInCombat = function()
@@ -181,6 +253,52 @@ local function RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadA
           shownNoGroupCalls = shownNoGroupCalls + 1
         end,
       })
+      local teleportController = addon.TeleportUI.CreateController({
+        mainFrame = mainUI.frame,
+        applySecureSpellToButton = function(_button, _spellID)
+          return true
+        end,
+        getEntries = function()
+          return {
+            { spellID = 445414, mapID = 2662, mapName = "The Dawnbreaker" },
+          }
+        end,
+        getL = function()
+          return {}
+        end,
+        isSpellKnown = function(_spellID)
+          return true
+        end,
+        getTeleportCooldownRemaining = function(_spellID)
+          return 0
+        end,
+        formatCooldownSeconds = function(sec)
+          return tostring(sec or 0)
+        end,
+        getSpellCooldownSafe = function(_spellID)
+          return 0, 0, true
+        end,
+        applyCooldownFrameSafe = function(_frame, _start, _duration, _enabled) end,
+        getSpellTexture = function(_spellID)
+          return nil
+        end,
+        isInCombat = function()
+          return inCombat
+        end,
+      })
+      teleportController.BuildButtons()
+
+      local hasSecureChildOnMainFrame = false
+      for _, frame in ipairs(createdFrames) do
+        if frame._parent == mainUI.frame and frame._template == "SecureActionButtonTemplate" then
+          hasSecureChildOnMainFrame = true
+          break
+        end
+      end
+      Assert.False(
+        hasSecureChildOnMainFrame,
+        "combat-toggleable main frame must not receive secure-action child buttons"
+      )
 
       Assert.False(mainUI.frame:IsShown(), "frame should start hidden")
       mainUI.ToggleVisibility(true)
@@ -334,10 +452,17 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
 
   test("Center notice can open during combat without pending delay", function()
     local now = 0
+    local inCombat = true
+    local createFrameStub = BuildCreateFrameStub({
+      simulateProtectedFrames = true,
+      isInCombat = function()
+        return inCombat
+      end,
+    })
 
     WithGlobals({
       UIParent = {},
-      CreateFrame = BuildCreateFrameStub(),
+      CreateFrame = createFrameStub,
       GetTime = function()
         return now
       end,
@@ -346,7 +471,7 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
       local centerNotice = addon.Notice.CreateCenterNotice({
         parent = UIParent,
         isInCombat = function()
-          return true
+          return inCombat
         end,
       })
 

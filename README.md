@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.55`.
+Current addon version: `0.9.56`.
 
 ## Features
 
@@ -14,6 +14,7 @@ Current addon version: `0.9.55`.
 - Right-side headers: `M+Managment` and `M+Travel`
 - `M+Travel` teleport grid with all Season dungeon teleports
 - Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
+- Teleport action buttons use `InsecureActionButtonTemplate` so main/notice frame visibility remains combat-toggleable without protected-frame promotion
 - Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale)
 - Key mapping normalizes active-season challenge-map IDs to canonical season map IDs before short-code rendering
 - Season scope is open via `ACTIVE_SEASON_ID`; current active season is `tww_s3`, and `midnight_s1` exists as prepared inactive scaffold
@@ -43,6 +44,7 @@ Current addon version: `0.9.55`.
 - Main window is movable via left drag in every mode; top drag handle stays above overlays for reliable dragging
 - Roster member row hover shows the Blizzard player tooltip when unit context exists, with `Name-Realm` fallback text when unit tokens are temporarily unavailable
 - Teleport grid buttons inherit main-frame strata/level to avoid overlay conflicts with external UI panels
+- Teleport action buttons are intentionally `InsecureActionButtonTemplate` so `CTRL+F9` main-frame open/close and center-notice visibility remain combat-safe
 - Combat-safe frame updates: pending frame-height changes are applied on `PLAYER_REGEN_ENABLED`
 - Advanced combat logging (`advancedCombatLogging`) is hard-enforced to `ON`.
 - Blizzard damage meter reset is hard-enforced on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
@@ -56,7 +58,7 @@ Current addon version: `0.9.55`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK` and also force-send their own `KEY` snapshot to restore peer key visibility after refresh.
 
-## Use Case / Logic Baseline (v0.9.55)
+## Use Case / Logic Baseline (v0.9.56)
 
 Documented on `2026-02-27` as runtime behavior baseline for validation checks.
 
@@ -86,7 +88,7 @@ Documented on `2026-02-27` as runtime behavior baseline for validation checks.
    - Event gate blocks non-required processing in `stopped`, `paused`, and hidden states.
    - Hidden mode keeps only transition events active (auto-open on group join/key end); queue/sync events are suppressed while hidden.
    - `CHALLENGE_MODE_START` hides UI; completion/reset rehydrates group view and refresh flow.
-   - Combat-safe UI behavior: secure teleport-button updates are still deferred during combat lockdown and restored on `PLAYER_REGEN_ENABLED`.
+   - Combat-safe UI behavior: teleport action buttons use `InsecureActionButtonTemplate` (to avoid protected-parent show/hide taint), while spell-attribute updates are still deferred during combat lockdown and restored on `PLAYER_REGEN_ENABLED`.
 
 ## Hotkeys
 
@@ -256,10 +258,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.55`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.56`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.55` or `isiLive_beta_0.9.55`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.56` or `isiLive_beta_0.9.56`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -271,9 +273,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.55 && git push origin isiLive_release_0.9.55`
+3. Create and push stable tag: `git tag isiLive_release_0.9.56 && git push origin isiLive_release_0.9.56`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.55 && git push origin isiLive_alpha_0.9.55`
-   - beta: `git tag isiLive_beta_0.9.55 && git push origin isiLive_beta_0.9.55`
+   - alpha: `git tag isiLive_alpha_0.9.56 && git push origin isiLive_alpha_0.9.56`
+   - beta: `git tag isiLive_beta_0.9.56 && git push origin isiLive_beta_0.9.56`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

@@ -43,7 +43,8 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
   local x = (col == 0) and -85 or -53
   local y = -60 - (row * (size + 4))
 
-  local button = CreateFrame("Button", nil, mainFrame, "SecureActionButtonTemplate")
+  -- Keep cast attributes working out of combat, but avoid promoting the parent to a protected frame.
+  local button = CreateFrame("Button", nil, mainFrame, "InsecureActionButtonTemplate")
   button:SetSize(size, size)
   button:SetPoint("TOPRIGHT", x, y)
   button:EnableMouse(true)

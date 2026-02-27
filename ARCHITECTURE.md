@@ -1,7 +1,7 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.54`
-Last updated: `2026-02-26`
+Version baseline: `0.9.56`
+Last updated: `2026-02-27`
 
 ## Purpose
 
@@ -49,7 +49,7 @@ WoW Event
 1. Resolve dungeon targets only through concrete `activityID -> mapID -> spellID` data.
 2. If `mapID` context is missing or ambiguous, keep target unresolved (no name/token guessing).
 3. Keep leader-only actions explicit and disabled when unauthorized.
-4. Keep combat-safe UI updates deferred when protected operations are blocked; frame dragging remains available.
+4. Keep combat-safe UI updates deferred when protected operations are blocked; teleport action buttons must not promote parent frames to protected status, and frame dragging remains available.
 5. Keep teleport-grid button strata/level synchronized with main-frame strata/level.
 6. For shared-portcast spells, prioritize exact activity map matching over spell-only suppression.
 7. Do not clear highlight state from ambiguous shared spell mappings when exact map context is unknown.
@@ -76,13 +76,13 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_rules_logic.lua`
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
-4. `tools/validate_usecases.lua` runs the rules validator first and then covers 142 scenarios across 20 modules: queue/highlight/cooldown/teleport/group/sync/locale/commands/guards/test-mode/leader-watch/refresh/status/ui/roster/runtime-log/roster-panel logic.
+4. `tools/validate_usecases.lua` runs the rules validator first and then covers 143 scenarios across 21 modules: queue/highlight/event-handlers/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/roster/roster-panel/status/ui logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiKeyMPlus                                                                        V.0.9.54     |
+| isiKeyMPlus                                                                        V.0.9.56     |
 |--------------------------------------------------------------------------------------------------|
 | Spec         Name              Flag        Key         iLvl      RIO      M+Managment  M+Travel   |
 |--------------------------------------------------------------------------------------------------|
@@ -109,7 +109,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 | KeySync | Sync messages and owned key snapshot | Roster key map ownership and sync markers |
 | Refresh | User refresh action | Forced key/sync/inspect refresh pipeline |
 | RosterPanel | Roster model and localization | Main table rendering and action button callbacks |
-| TeleportUI | Season teleport entries and state | Secure teleport button states and cooldown labels |
+| TeleportUI | Season teleport entries and state | Insecure-action teleport button states and cooldown labels |
 
 ## Extension Points
 

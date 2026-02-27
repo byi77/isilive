@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-02-27 - Version 0.9.56
+- **Documentation + Packaging Sync:**
+  - Synced version references in `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `RELEASE.md` to `0.9.56`.
+  - Added the release-example tag references for `0.9.56`.
+- **TOC:**
+  - TOC version bumped to `0.9.56`.
+
+## 2026-02-27 - Documentation Sync (Workspace)
+- **Combat UI Taint Hardening (`ADDON_ACTION_BLOCKED`):**
+  - Teleport grid buttons now use `InsecureActionButtonTemplate` so `isiLiveMainFrame:Show()` remains combat-toggleable (`CTRL+F9`) without protected-frame promotion.
+  - Center notice teleport button now also uses `InsecureActionButtonTemplate` so notice show/hide stays combat-safe.
+  - Existing combat defer/retry behavior for teleport spell-attribute updates remains unchanged.
+- **Validation:**
+  - Added deterministic UI coverage that simulates protected-frame show blocking in combat and verifies no secure child template is attached to the main frame in the teleport UI path.
+  - `tools/validate_usecases.lua` validates `143` deterministic scenarios across `21` modules (all passing).
+- **Documentation:**
+  - Synced `README.md`, `ARCHITECTURE.md`, and `USECASES.md` to reflect the insecure-action teleport template behavior and combat-toggle guarantees.
+
 ## 2026-02-27 - Version 0.9.55
 - **Inspect Taint Fix (`ADDON_ACTION_BLOCKED`):**
   - Removed protected `CheckInteractDistance()` usage from inspect retry processing in `isiLive_inspect.lua`.
