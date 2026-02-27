@@ -99,6 +99,10 @@ local function OnInspectTimeout(controller, now)
   controller.isInspecting = nil
 end
 
+local function IsUnitInspectable(unit)
+  return UnitIsVisible(unit) and CanInspect(unit)
+end
+
 local function TryDispatchInspect(controller, now)
   if #controller.inspectQueue == 0 then
     return false
@@ -109,7 +113,7 @@ local function TryDispatchInspect(controller, now)
   end
 
   local unit = table.remove(controller.inspectQueue, 1)
-  if UnitIsVisible(unit) and CanInspect(unit) then
+  if IsUnitInspectable(unit) then
     controller.isInspecting = unit
     controller.lastInspectTime = now
     NotifyInspect(unit)
@@ -124,7 +128,7 @@ local function ProcessRetryQueue(controller, now)
   for i = #controller.retryQueue, 1, -1 do
     local entry = controller.retryQueue[i]
     if now >= entry.nextRetry then
-      if UnitIsVisible(entry.unit) and CheckInteractDistance(entry.unit, 1) then
+      if IsUnitInspectable(entry.unit) then
         table.remove(controller.retryQueue, i)
         table.insert(controller.inspectQueue, 1, entry.unit)
       else

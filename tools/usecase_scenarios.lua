@@ -10,6 +10,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_locale.lua",
   "testmodul/isilive_test_scenarios_sync.lua",
   "testmodul/isilive_test_scenarios_guards.lua",
+  "testmodul/isilive_test_scenarios_inspect.lua",
   "testmodul/isilive_test_scenarios_test_mode.lua",
   "testmodul/isilive_test_scenarios_leader_watch.lua",
   "testmodul/isilive_test_scenarios_refresh.lua",

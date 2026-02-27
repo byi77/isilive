@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-02-27 - Version 0.9.55
+- **Inspect Taint Fix (`ADDON_ACTION_BLOCKED`):**
+  - Removed protected `CheckInteractDistance()` usage from inspect retry processing in `isiLive_inspect.lua`.
+  - Unified inspectability gating to `UnitIsVisible + CanInspect` for both initial dispatch and retry requeue paths.
+- **Validation:**
+  - Added deterministic inspect retry coverage in new scenario module `testmodul/isilive_test_scenarios_inspect.lua`.
+  - `tools/validate_usecases.lua` now validates `143` deterministic scenarios across `21` modules (all passing).
+- **TOC:**
+  - TOC version bumped to `0.9.55`.
+
 ## 2026-02-26 - Version 0.9.54
 - **Lua Diagnostics Hardening:**
   - Replaced direct `debug.traceback` global access in event-gate error handling with guarded `_G.debug` lookup.

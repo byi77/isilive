@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.54`.
+Current addon version: `0.9.55`.
 
 ## Features
 
@@ -56,9 +56,9 @@ Current addon version: `0.9.54`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK` and also force-send their own `KEY` snapshot to restore peer key visibility after refresh.
 
-## Use Case / Logic Baseline (v0.9.54)
+## Use Case / Logic Baseline (v0.9.55)
 
-Documented on `2026-02-26` as runtime behavior baseline for validation checks.
+Documented on `2026-02-27` as runtime behavior baseline for validation checks.
 
 1. Queue invite -> grouped flow
    - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`) while main UI is visible.
@@ -181,7 +181,7 @@ Developer debug (hidden command, not listed in in-game help):
 ## Deterministic Usecase Gate
 
 `tools/validate_rules_logic.lua` validates active rule contracts from `RULES_LOGIC.md` against deterministic test names.
-`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 142 scenarios across 20 modules, including:
+`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 143 scenarios across 21 modules (queue/highlight/event-handlers/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/roster/roster-panel/status/ui), including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
@@ -256,10 +256,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.54`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.55`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.54` or `isiLive_beta_0.9.54`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.55` or `isiLive_beta_0.9.55`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -271,9 +271,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.54 && git push origin isiLive_release_0.9.54`
+3. Create and push stable tag: `git tag isiLive_release_0.9.55 && git push origin isiLive_release_0.9.55`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.54 && git push origin isiLive_alpha_0.9.54`
-   - beta: `git tag isiLive_beta_0.9.54 && git push origin isiLive_beta_0.9.54`
+   - alpha: `git tag isiLive_alpha_0.9.55 && git push origin isiLive_alpha_0.9.55`
+   - beta: `git tag isiLive_beta_0.9.55 && git push origin isiLive_beta_0.9.55`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.
