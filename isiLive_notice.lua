@@ -257,7 +257,13 @@ local function ApplyCenterNoticeFontScale(state, showOptions)
     fontScale = 2
   end
 
-  local fontPath, baseSize, fontFlags = state.text:GetFont()
+  local fontPath = state.baseFontPath
+  local baseSize = state.baseFontSize
+  local fontFlags = state.baseFontFlags
+  if not fontPath or not baseSize then
+    fontPath, baseSize, fontFlags = state.text:GetFont()
+    baseSize = tonumber(baseSize)
+  end
   if fontPath and baseSize then
     state.text:SetFont(fontPath, math.floor(baseSize * fontScale), fontFlags)
   end
@@ -422,6 +428,7 @@ function Notice.CreateCenterNotice(opts)
   local config = BuildCenterNoticeConfig(opts)
   local frame = CreateCenterNoticeFrame(config)
   local text = CreateCenterNoticeText(frame, config)
+  local baseFontPath, baseFontSize, baseFontFlags = text:GetFont()
   local closeButton = CreateCenterNoticeCloseButton(frame)
   local teleportButton = CreateCenterNoticeTeleportButton(frame, config)
   local state = {
@@ -437,6 +444,9 @@ function Notice.CreateCenterNotice(opts)
     baseTextR = 1,
     baseTextG = 0.82,
     baseTextB = 0,
+    baseFontPath = baseFontPath,
+    baseFontSize = tonumber(baseFontSize),
+    baseFontFlags = baseFontFlags,
     pendingTeleportButtonMouseEnabled = nil,
     pendingTeleportButtonOffsetY = nil,
     pendingTeleportButtonVisible = nil,

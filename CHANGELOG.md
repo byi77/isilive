@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-02-28 - Version 0.9.57
+- **Center Notice Font Regression Fix:**
+  - Fixed center-notice font scaling so repeated non-Mythic warning notices no longer grow larger after each re-show.
+  - Center notice font scaling now always applies relative to the cached base font instead of the last already-scaled size.
+- **Validation:**
+  - Added deterministic regression coverage for repeated center-notice font scaling.
+  - `tools/validate_usecases.lua` now validates `144` deterministic scenarios across `21` modules (all passing).
+- **Documentation + Packaging Sync:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `RELEASE.md` to `0.9.57`.
+- **TOC:**
+  - TOC version bumped to `0.9.57`.
+
 ## 2026-02-27 - Version 0.9.56
 - **Documentation + Packaging Sync:**
   - Synced version references in `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `RELEASE.md` to `0.9.56`.

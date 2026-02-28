@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.56`.
+Current addon version: `0.9.57`.
 
 ## Features
 
@@ -58,7 +58,7 @@ Current addon version: `0.9.56`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK` and also force-send their own `KEY` snapshot to restore peer key visibility after refresh.
 
-## Use Case / Logic Baseline (v0.9.56)
+## Use Case / Logic Baseline (v0.9.57)
 
 Documented on `2026-02-27` as runtime behavior baseline for validation checks.
 
@@ -183,7 +183,7 @@ Developer debug (hidden command, not listed in in-game help):
 ## Deterministic Usecase Gate
 
 `tools/validate_rules_logic.lua` validates active rule contracts from `RULES_LOGIC.md` against deterministic test names.
-`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 143 scenarios across 21 modules (queue/highlight/event-handlers/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/roster/roster-panel/status/ui), including:
+`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 144 scenarios across 21 modules (queue/highlight/event-handlers/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/roster/roster-panel/status/ui), including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
@@ -197,6 +197,7 @@ Developer debug (hidden command, not listed in in-game help):
 - hidden-mode gate behavior (queue/sync suppression while hidden, auto-open transition triggers only)
 - non-Mythic status detection (normal/heroic transitions and heroic fallback difficulty IDs)
 - combat hotkey visibility rules (`CTRL+F9`: open and close allowed during combat)
+- center-notice font-scale stability across repeated warning re-shows (no cumulative growth)
 - RIO baseline/delta rendering rules (`(+X)RIO`, no negative deltas) and challenge-start baseline capture
 - EventUtils negative/positive status detection and edge cases
 - locale key completeness (enUS ↔ deDE symmetry, format placeholders)
@@ -258,10 +259,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.56`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.57`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.56` or `isiLive_beta_0.9.56`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.57` or `isiLive_beta_0.9.57`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -273,9 +274,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.56 && git push origin isiLive_release_0.9.56`
+3. Create and push stable tag: `git tag isiLive_release_0.9.57 && git push origin isiLive_release_0.9.57`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.56 && git push origin isiLive_alpha_0.9.56`
-   - beta: `git tag isiLive_beta_0.9.56 && git push origin isiLive_beta_0.9.56`
+   - alpha: `git tag isiLive_alpha_0.9.57 && git push origin isiLive_alpha_0.9.57`
+   - beta: `git tag isiLive_beta_0.9.57 && git push origin isiLive_beta_0.9.57`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

@@ -1,6 +1,6 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.56`
+Version baseline: `0.9.57`
 Last updated: `2026-02-27`
 
 ## Purpose
@@ -76,13 +76,13 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_rules_logic.lua`
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
-4. `tools/validate_usecases.lua` runs the rules validator first and then covers 143 scenarios across 21 modules: queue/highlight/event-handlers/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/roster/roster-panel/status/ui logic.
+4. `tools/validate_usecases.lua` runs the rules validator first and then covers 144 scenarios across 21 modules: queue/highlight/event-handlers/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/roster/roster-panel/status/ui logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiKeyMPlus                                                                        V.0.9.56     |
+| isiKeyMPlus                                                                        V.0.9.57     |
 |--------------------------------------------------------------------------------------------------|
 | Spec         Name              Flag        Key         iLvl      RIO      M+Managment  M+Travel   |
 |--------------------------------------------------------------------------------------------------|

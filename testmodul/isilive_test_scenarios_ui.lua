@@ -480,6 +480,39 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
       Assert.True(centerNotice.frame:IsShown(), "center notice should open during combat")
     end)
   end)
+
+  test("Center notice font scale does not grow across repeated notices", function()
+    local now = 0
+
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = BuildCreateFrameStub(),
+      GetTime = function()
+        return now
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local centerNotice = addon.Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      local _, baseSize = centerNotice.text:GetFont()
+      centerNotice.Show("Scaled notice 1", 20, nil, nil, { fontScale = 1.35 })
+      local _, firstScaledSize = centerNotice.text:GetFont()
+      centerNotice.Show("Scaled notice 2", 20, nil, nil, { fontScale = 1.35 })
+      local _, secondScaledSize = centerNotice.text:GetFont()
+      centerNotice.Show("Default notice", 20, nil, nil, {})
+      local _, resetSize = centerNotice.text:GetFont()
+
+      Assert.Equal(baseSize, 14, "font stub baseline should remain stable for regression test")
+      Assert.Equal(firstScaledSize, 18, "first scaled notice should apply configured font scale once")
+      Assert.Equal(secondScaledSize, 18, "repeated scaled notice must not compound font size")
+      Assert.Equal(resetSize, 14, "default notice should reset font size back to baseline")
+    end)
+  end)
 end
 
 local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, LoadAddonModules)

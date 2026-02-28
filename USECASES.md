@@ -1,6 +1,6 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.56`
+Version baseline: `0.9.57`
 Last updated: `2026-02-27`
 
 ## Actors
