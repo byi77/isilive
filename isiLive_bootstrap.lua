@@ -70,9 +70,10 @@ function Bootstrap.CreateGatedOnEvent(opts)
   local isTestMode = RequireFunction(opts.isTestMode, "isTestMode")
   local isInCombat = RequireFunction(opts.isInCombat, "isInCombat")
   local isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
-  local isInPartyInstance = type(opts.isInPartyInstance) == "function" and opts.isInPartyInstance or function()
-    return false
-  end
+  local isInPartyInstance = type(opts.isInPartyInstance) == "function" and opts.isInPartyInstance
+    or function()
+      return false
+    end
   local getNumGroupMembers = RequireFunction(opts.getNumGroupMembers, "getNumGroupMembers")
   local getActiveChallengeMapID = RequireFunction(opts.getActiveChallengeMapID, "getActiveChallengeMapID")
   local onDispatchError = type(opts.onDispatchError) == "function" and opts.onDispatchError or nil
