@@ -1,7 +1,7 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.57`
-Last updated: `2026-02-27`
+Version baseline: `0.9.58`
+Last updated: `2026-03-01`
 
 ## Purpose
 
@@ -41,7 +41,7 @@ WoW Event
 | Running | Full processing active |
 | Paused | Processing blocked except required transitions |
 | Stopped | Addon processing disabled except minimal control paths |
-| Hidden | Window hidden, queue/sync events suppressed, only transition events kept |
+| Hidden | Window hidden, queue/sync events suppressed, only required auto-open transitions kept |
 | Test/TestAll | Controlled preview mode for UI/testing |
 
 ## Deterministic Rule Set
@@ -54,11 +54,11 @@ WoW Event
 6. For shared-portcast spells, prioritize exact activity map matching over spell-only suppression.
 7. Do not clear highlight state from ambiguous shared spell mappings when exact map context is unknown.
 8. Do not clear queue-derived target on negative application follow-up events while already grouped.
-9. Keep `advancedCombatLogging` hard-enabled and trigger Blizzard damage-meter reset on challenge start when API support exists.
+9. Keep `advancedCombatLogging` and `damageMeterResetOnNewInstance` hard-enabled; also trigger Blizzard damage-meter reset on challenge start when API support exists.
 10. Capture per-player RIO baseline on challenge start and enable delta rendering only after delayed post-run refresh; delta is always shown as non-negative `(+X)` prefix.
 11. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
-12. Keep sync handshake resilient: HELLO recipients acknowledge and force-send own KEY snapshot so refresh-driven cache clears repopulate deterministically.
-13. In hidden mode, suppress queue/sync event processing; keep only required auto-open transitions (`GROUP_ROSTER_UPDATE`, key-end events).
+12. Keep sync handshake resilient: HELLO recipients acknowledge and force-send own KEY/STATS snapshot so refresh-driven cache clears and manual reopen repopulate deterministically.
+13. In hidden mode, suppress queue/sync event processing; keep only required auto-open transitions (fresh group join, real dungeon entry, key-end events).
 14. Keep UI action spam guards active for `Refresh` and `Share Keys` (debounce/rate-limit behavior).
 15. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
 16. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures for `GameTooltip:SetText`.
@@ -76,13 +76,13 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_rules_logic.lua`
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
-4. `tools/validate_usecases.lua` runs the rules validator first and then covers 144 scenarios across 21 modules: queue/highlight/event-handlers/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/roster/roster-panel/status/ui logic.
+4. `tools/validate_usecases.lua` runs the rules validator first and then covers 152 scenarios across 21 modules: queue/highlight/event-handlers/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/roster/roster-panel/status/ui logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiKeyMPlus                                                                        V.0.9.57     |
+| isiKeyMPlus                                                                        V.0.9.58     |
 |--------------------------------------------------------------------------------------------------|
 | Spec         Name              Flag        Key         iLvl      RIO      M+Managment  M+Travel   |
 |--------------------------------------------------------------------------------------------------|

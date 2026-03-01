@@ -1,7 +1,7 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.57`
-Last updated: `2026-02-27`
+Version baseline: `0.9.58`
+Last updated: `2026-03-01`
 
 ## Actors
 
@@ -13,7 +13,7 @@ Last updated: `2026-02-27`
 
 1. Addon is loaded and not in `stopped` state.
 2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `tww_s3`; next prepared season: `midnight_s1` inactive scaffold).
-3. Relevant UI is visible (queue/sync capture is hidden-gated); UI can be auto-opened by group transition logic.
+3. Relevant UI is visible (queue/sync capture is hidden-gated); UI can be auto-opened by fresh group join, key-end, or real dungeon-entry transition logic.
 
 ## Use Case Matrix
 
@@ -87,7 +87,7 @@ Goal: allow user to post current party keys quickly.
 
 1. Trigger: user clicks `Share Keys` button in right control stack.
 2. Processing: addon builds ordered roster key summary from known keys.
-3. Sync relation: on refresh handshakes, HELLO recipients send ACK and a forced own KEY snapshot so peer key caches are repopulated.
+3. Sync relation: on refresh handshakes, HELLO recipients send ACK and a forced own KEY/STATS snapshot so peer key and peer stats caches are repopulated.
 4. Output: one message per key owner is sent to `PARTY`, with local print fallback on send failure.
 5. Rule: `Share Keys` button clicks are debounced to suppress rapid duplicate chat output.
 6. Success criteria: each available member key appears as its own deterministic chat line (`isiKeyMPlus PartyKeys: Name -> Key`), with owned-keystone hyperlink payload for the local player when available.
@@ -111,8 +111,8 @@ Goal: show pre/post-run rating change per player in roster without negative disp
 1. No speculative behavior: unresolved/ambiguous map context must stay unresolved (no name/token fallback guessing).
 2. Combat-protected UI operations must be deferred safely while window dragging stays available, and teleport action buttons must not promote parent frames to protected status.
 3. Leader-only actions must stay disabled for non-leaders.
-4. Hidden mode should halt non-essential processing and suspend queue/sync event processing.
-5. Runtime defaults are hard-enforced: `advancedCombatLogging=1` and challenge-start Blizzard damage-meter reset when API support exists.
+4. Hidden mode should halt non-essential processing, suspend queue/sync event processing, and only keep required auto-open transitions active.
+5. Runtime defaults are hard-enforced: `advancedCombatLogging=1`, `damageMeterResetOnNewInstance=1`, and challenge-start Blizzard damage-meter reset when API support exists.
 6. RIO delta display must be deterministic and non-negative (`(+X)` only).
 7. UI visibility toggle (`CTRL+F9`) must allow both open and close in combat; `CHALLENGE_MODE_START` still auto-hides the main window.
 8. During combat, non-essential event processing is suspended by runtime gate; essential events continue.

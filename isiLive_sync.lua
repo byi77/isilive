@@ -9,11 +9,15 @@ local SeasonData = addonTable.SeasonData or {}
 local ISILIVE_SYNC_PREFIX = "ISILIVE"
 local ISILIVE_HELLO_COOLDOWN = 8
 local ISILIVE_KEY_COOLDOWN = 5
+local ISILIVE_STATS_COOLDOWN = 5
 local lastIsiLiveHelloAt = 0
 local lastIsiLiveKeyAt = 0
+local lastIsiLiveStatsAt = 0
 local lastKeyPayloadSent = nil
+local lastStatsPayloadSent = nil
 local isiLiveUsersByKey = {}
 local keyInfoByPlayerKey = {}
+local statsInfoByPlayerKey = {}
 
 function Sync.NormalizePlayerKey(name, realm)
   local n = name and tostring(name) or ""
@@ -52,6 +56,35 @@ local function NormalizeKeyPayload(mapID, level)
     return "KEY:0:0", nil, nil
   end
   return string.format("KEY:%d:%d", numericMapID, numericLevel), numericMapID, numericLevel
+end
+
+local function NormalizeStatsPayload(specID, ilvl, rio)
+  local numericSpecID = tonumber(specID)
+  local numericIlvl = tonumber(ilvl)
+  local numericRio = tonumber(rio)
+
+  if not numericSpecID or numericSpecID <= 0 then
+    numericSpecID = 0
+  else
+    numericSpecID = math.floor(numericSpecID)
+  end
+
+  if not numericIlvl or numericIlvl <= 0 then
+    numericIlvl = -1
+  else
+    numericIlvl = math.floor(numericIlvl)
+  end
+
+  if numericRio == nil then
+    numericRio = -1
+  else
+    numericRio = math.floor(numericRio)
+    if numericRio < 0 then
+      numericRio = -1
+    end
+  end
+
+  return string.format("STATS:%d:%d:%d", numericSpecID, numericIlvl, numericRio), numericSpecID, numericIlvl, numericRio
 end
 
 function Sync.MarkUser(name, realm)
@@ -109,6 +142,47 @@ function Sync.GetPlayerKeyInfo(name, realm)
     return nil
   end
   return keyInfoByPlayerKey[key]
+end
+
+function Sync.SetPlayerStatsInfo(name, realm, specID, ilvl, rio)
+  local key = Sync.NormalizePlayerKey(name, realm)
+  if not key or key == "" then
+    return false
+  end
+
+  local _, numericSpecID, numericIlvl, numericRio = NormalizeStatsPayload(specID, ilvl, rio)
+  local nextValue = {
+    specID = numericSpecID > 0 and numericSpecID or nil,
+    ilvl = numericIlvl > 0 and numericIlvl or nil,
+    rio = numericRio >= 0 and numericRio or nil,
+  }
+
+  if nextValue.specID == nil and nextValue.ilvl == nil and nextValue.rio == nil then
+    local hadValue = type(statsInfoByPlayerKey[key]) == "table"
+    statsInfoByPlayerKey[key] = nil
+    return hadValue
+  end
+
+  local previous = statsInfoByPlayerKey[key]
+  if
+    previous
+    and previous.specID == nextValue.specID
+    and previous.ilvl == nextValue.ilvl
+    and previous.rio == nextValue.rio
+  then
+    return false
+  end
+
+  statsInfoByPlayerKey[key] = nextValue
+  return true
+end
+
+function Sync.GetPlayerStatsInfo(name, realm)
+  local key = Sync.NormalizePlayerKey(name, realm)
+  if not key or key == "" then
+    return nil
+  end
+  return statsInfoByPlayerKey[key]
 end
 
 function Sync.GetAddonSyncChannel()
@@ -181,6 +255,32 @@ function Sync.SendKey(opts)
   C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel)
 end
 
+function Sync.SendStats(opts)
+  if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
+    return
+  end
+  opts = opts or {}
+
+  if not opts.isVisible then
+    return
+  end
+
+  local channel = Sync.GetAddonSyncChannel()
+  if not channel then
+    return
+  end
+
+  local payload = NormalizeStatsPayload(opts.specID, opts.ilvl, opts.rio)
+  local now = GetTime()
+  if not opts.force and payload == lastStatsPayloadSent and (now - lastIsiLiveStatsAt) < ISILIVE_STATS_COOLDOWN then
+    return
+  end
+
+  lastIsiLiveStatsAt = now
+  lastStatsPayloadSent = payload
+  C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel)
+end
+
 function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm)
   if prefix ~= ISILIVE_SYNC_PREFIX then
     return nil
@@ -203,9 +303,18 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     end
   end
 
+  local statsUpdated = false
+  if type(message) == "string" and message:find("^STATS:") then
+    local specIDRaw, ilvlRaw, rioRaw = string.match(message, "^STATS:([%-]?%d+):([%-]?%d+):([%-]?%d+)$")
+    if specIDRaw and ilvlRaw and rioRaw then
+      statsUpdated = Sync.SetPlayerStatsInfo(sender, nil, tonumber(specIDRaw), tonumber(ilvlRaw), tonumber(rioRaw))
+    end
+  end
+
   return {
     shouldAck = shouldAck and true or false,
     sender = sender,
     keyUpdated = keyUpdated and true or false,
+    statsUpdated = statsUpdated and true or false,
   }
 end

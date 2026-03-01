@@ -52,10 +52,66 @@ local function RegisterInspectRetryTests(test, Assert, WithGlobals, LoadAddonMod
   end)
 end
 
+local function RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Inspect marks local stats fresh and clears freshness on force refresh", function()
+    local now = 10
+
+    WithGlobals({
+      GetTime = function()
+        return now
+      end,
+      UnitGUID = function(unit)
+        return "guid-" .. tostring(unit)
+      end,
+      UnitExists = function(_unit)
+        return true
+      end,
+      C_PaperDollInfo = {
+        GetInspectItemLevel = function(_unit)
+          return 615
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+      local controller = addon.Inspect.CreateController({})
+
+      local roster = {
+        party1 = {},
+      }
+
+      controller.isInspecting = "party1"
+      local changed = controller.OnInspectReady("guid-party1", roster, function(_unit)
+        return 3210
+      end, function(_unit)
+        return "Fury"
+      end, nil)
+
+      Assert.True(changed, "matching inspect ready event must update roster")
+      Assert.Equal(roster.party1.spec, "Fury", "inspect should write spec")
+      Assert.Equal(roster.party1.ilvl, 615, "inspect should write ilvl")
+      Assert.Equal(roster.party1.rio, 3210, "inspect should write rio")
+      Assert.True(roster.party1._localSpecFresh, "inspect should mark spec as fresh local data")
+      Assert.True(roster.party1._localIlvlFresh, "inspect should mark ilvl as fresh local data")
+      Assert.True(roster.party1._localRioFresh, "inspect should mark rio as fresh local data")
+
+      controller.QueueForceRefreshData(roster)
+
+      Assert.Nil(roster.party1.spec, "force refresh should clear spec")
+      Assert.Nil(roster.party1.ilvl, "force refresh should clear ilvl")
+      Assert.Nil(roster.party1.rio, "force refresh should clear rio")
+      Assert.Nil(roster.party1._localSpecFresh, "force refresh should clear spec freshness")
+      Assert.Nil(roster.party1._localIlvlFresh, "force refresh should clear ilvl freshness")
+      Assert.Nil(roster.party1._localRioFresh, "force refresh should clear rio freshness")
+      Assert.Equal(#controller.inspectQueue, 1, "force refresh should queue unit for a new inspect")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
 
   RegisterInspectRetryTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddonModules)
 end

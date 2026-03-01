@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-03-01 - Version 0.9.58
+- **Window Auto-Open Tightening:**
+  - Hidden-window auto-open now only triggers on a real fresh small-group join, on key end, and on real dungeon entry (`outside -> party instance`).
+  - Repeated `GROUP_ROSTER_UPDATE` events while already grouped no longer re-open a manually hidden main window.
+  - Hidden `GROUP_ROSTER_UPDATE` updates inside non-key party instances remain blocked, so normal/heroic dungeon roster refreshes do not pop the UI back open.
+- **Peer Sync Expansion (Visible Window Only):**
+  - `isiLive` peers now exchange `STATS` snapshots in addition to `HELLO/ACK/KEY`, so `Spec`, `iLvl`, and `RIO` can backfill without inspect range when both players use `isiLive`.
+  - Opening the main window now forces an immediate sync refresh (`HELLO` + `KEY/STATS`), even if the normal sync cooldown is still active.
+  - Remote sync data only backfills `Spec/iLvl/RIO` until a fresh local inspect result exists; fresh local inspect data wins afterward.
+- **Damage Meter Defaults:**
+  - `damageMeterResetOnNewInstance` is now hard-enforced to `ON`, alongside `advancedCombatLogging`.
+  - The existing manual Blizzard damage-meter reset on `CHALLENGE_MODE_START` remains active as an additional reset path when the API is available.
+- **Validation:**
+  - Added deterministic coverage for visible-window peer stats sync, local-inspect precedence, non-key dungeon hidden reopen guards, fresh-join-only auto-open, and outdoor-to-dungeon auto-open transitions.
+  - `tools/validate_usecases.lua` now validates `152` deterministic scenarios across `21` modules (all passing).
+- **Documentation + Packaging Sync:**
+  - Synced `README.md` and `ARCHITECTURE.md` to `0.9.58` and current runtime semantics.
+- **TOC:**
+  - TOC version bumped to `0.9.58`.
+
 ## 2026-02-28 - Version 0.9.57
 - **Center Notice Font Regression Fix:**
   - Fixed center-notice font scaling so repeated non-Mythic warning notices no longer grow larger after each re-show.

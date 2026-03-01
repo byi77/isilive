@@ -259,6 +259,7 @@ function ConfigBuilders.BuildGateOpts(ctx)
     isTestMode = ctx.isTestMode,
     isInCombat = ctx.isInCombat,
     isInGroup = ctx.isInGroup,
+    isInPartyInstance = ctx.isInPartyInstance,
     getNumGroupMembers = ctx.getNumGroupMembers,
     getActiveChallengeMapID = ctx.getActiveChallengeMapID,
   }

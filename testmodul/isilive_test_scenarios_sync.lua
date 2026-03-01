@@ -123,6 +123,262 @@ local function RegisterKnownUserAndKeyTests(test, Assert, WithGlobals, LoadAddon
   end)
 end
 
+local function RegisterStatsSyncTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Sync ProcessAddonMessage stores STATS payload and exposes synced stats", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str:sub(1, pos - 1)
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local firstResult =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "STATS:72:615:3210", "OtherPlayer-OtherRealm", "MyPlayer", "Realm")
+      Assert.NotNil(firstResult, "STATS must return result")
+      Assert.True(firstResult.statsUpdated, "first STATS must report update")
+
+      local secondResult =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "STATS:72:615:3210", "OtherPlayer-OtherRealm", "MyPlayer", "Realm")
+      Assert.NotNil(secondResult, "duplicate STATS must still return result")
+      Assert.False(secondResult.statsUpdated, "identical STATS must be deduplicated")
+
+      local statsInfo = addon.Sync.GetPlayerStatsInfo("OtherPlayer", "OtherRealm")
+      Assert.NotNil(statsInfo, "synced stats info must be stored")
+      Assert.Equal(statsInfo.specID, 72, "stored specID must match payload")
+      Assert.Equal(statsInfo.ilvl, 615, "stored ilvl must match payload")
+      Assert.Equal(statsInfo.rio, 3210, "stored rio must match payload")
+    end)
+  end)
+
+  test("Sync SendStats respects visibility and deduplicates payloads", function()
+    local sentMessages = {}
+    local now = 100
+
+    WithGlobals({
+      GetTime = function()
+        return now
+      end,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      addon.Sync.SendStats({
+        isVisible = false,
+        specID = 72,
+        ilvl = 615,
+        rio = 3210,
+      })
+      Assert.Equal(#sentMessages, 0, "hidden stats send must be suppressed")
+
+      addon.Sync.SendStats({
+        isVisible = true,
+        specID = 72,
+        ilvl = 615,
+        rio = 3210,
+      })
+      Assert.Equal(#sentMessages, 1, "visible stats send must publish one payload")
+      Assert.Equal(sentMessages[1].prefix, "ISILIVE", "stats payload must use isiLive prefix")
+      Assert.Equal(sentMessages[1].message, "STATS:72:615:3210", "stats payload must encode spec/ilvl/rio")
+      Assert.Equal(sentMessages[1].channel, "PARTY", "stats payload must use party channel while grouped")
+
+      now = 101
+      addon.Sync.SendStats({
+        isVisible = true,
+        specID = 72,
+        ilvl = 615,
+        rio = 3210,
+      })
+      Assert.Equal(#sentMessages, 1, "duplicate stats payload within cooldown must be suppressed")
+
+      now = 106
+      addon.Sync.SendStats({
+        isVisible = true,
+        specID = 72,
+        ilvl = 615,
+        rio = 3210,
+      })
+      Assert.Equal(#sentMessages, 2, "same stats payload must resend after cooldown expires")
+    end)
+  end)
+end
+
+local function RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("KeySync SendOwnKeySnapshot publishes key and stats when frame is visible", function()
+    local sentMessages = {}
+
+    WithGlobals({
+      GetTime = function()
+        return 100
+      end,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+        end,
+      },
+      C_MythicPlus = {
+        GetOwnedKeystoneLevel = function()
+          return 15
+        end,
+        GetOwnedKeystoneChallengeMapID = function()
+          return 2649
+        end,
+      },
+      GetSpecialization = function()
+        return 1
+      end,
+      GetSpecializationInfo = function(index)
+        if index == 1 then
+          return 72, "Fury"
+        end
+        return nil
+      end,
+      GetSpecializationInfoByID = function(specID)
+        if specID == 72 then
+          return 72, "Fury"
+        end
+        return nil, nil
+      end,
+      C_Item = {
+        GetAverageItemLevel = function()
+          return 611.4, 615.2
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_keysync.lua" })
+      local controller = addon.KeySync.CreateController({
+        sync = addon.Sync,
+        getUnitNameAndRealm = function(_unit)
+          return "Me", "Realm"
+        end,
+        getAddonVersionRaw = function()
+          return "1.0"
+        end,
+        getUnitRio = function(_unit)
+          return 3210
+        end,
+        isFrameVisible = function()
+          return true
+        end,
+      })
+
+      controller.SendOwnKeySnapshot(true)
+
+      Assert.Equal(#sentMessages, 2, "key snapshot should publish both KEY and STATS payloads")
+      Assert.Equal(sentMessages[1].message, "KEY:2649:15", "first payload must be KEY snapshot")
+      Assert.Equal(sentMessages[2].message, "STATS:72:615:3210", "second payload must be STATS snapshot")
+
+      addon.Sync.SetPlayerKeyInfo("Peer", "Realm", 2649, 15)
+      addon.Sync.SetPlayerStatsInfo("Peer", "Realm", 72, 615, 3210)
+
+      local info = {
+        name = "Peer",
+        realm = "Realm",
+        keyMapID = nil,
+        keyLevel = nil,
+        spec = nil,
+        ilvl = nil,
+        rio = nil,
+      }
+
+      local changed = controller.ApplyKnownKeyToRosterEntry(info)
+
+      Assert.True(changed, "synced key+stats should update roster entry")
+      Assert.Equal(info.keyMapID, 2649, "synced key mapID must backfill roster entry")
+      Assert.Equal(info.keyLevel, 15, "synced key level must backfill roster entry")
+      Assert.Equal(info.spec, "Fury", "synced specID must resolve to localized spec name")
+      Assert.Equal(info.ilvl, 615, "synced ilvl must backfill roster entry")
+      Assert.Equal(info.rio, 3210, "synced rio must backfill roster entry")
+    end)
+  end)
+
+  test("KeySync keeps fresh local inspect stats over synced peer stats", function()
+    WithGlobals({
+      GetSpecializationInfoByID = function(specID)
+        if specID == 72 then
+          return 72, "Fury"
+        end
+        return nil, nil
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_keysync.lua" })
+      local controller = addon.KeySync.CreateController({
+        sync = addon.Sync,
+        getUnitNameAndRealm = function(_unit)
+          return "Me", "Realm"
+        end,
+        getAddonVersionRaw = function()
+          return "1.0"
+        end,
+        getUnitRio = function(_unit)
+          return nil
+        end,
+        isFrameVisible = function()
+          return true
+        end,
+      })
+
+      addon.Sync.SetPlayerKeyInfo("Peer", "Realm", 2649, 15)
+      addon.Sync.SetPlayerStatsInfo("Peer", "Realm", 72, 615, 3210)
+
+      local info = {
+        name = "Peer",
+        realm = "Realm",
+        keyMapID = nil,
+        keyLevel = nil,
+        spec = "Arms",
+        ilvl = 622,
+        rio = 3300,
+        _localSpecFresh = true,
+        _localIlvlFresh = true,
+        _localRioFresh = true,
+      }
+
+      local changed = controller.ApplyKnownKeyToRosterEntry(info)
+
+      Assert.True(changed, "key sync should still backfill key while local inspect stats stay authoritative")
+      Assert.Equal(info.keyMapID, 2649, "key mapID must still be applied from sync")
+      Assert.Equal(info.keyLevel, 15, "key level must still be applied from sync")
+      Assert.Equal(info.spec, "Arms", "fresh local spec must not be overwritten by sync")
+      Assert.Equal(info.ilvl, 622, "fresh local ilvl must not be overwritten by sync")
+      Assert.Equal(info.rio, 3300, "fresh local rio must not be overwritten by sync")
+    end)
+  end)
+end
+
 local function RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Sync ProcessAddonMessage handles HELLO and KEY payloads", function()
     WithGlobals({
@@ -171,5 +427,7 @@ return function(test, ctx)
 
   RegisterNormalizeKeyTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterKnownUserAndKeyTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterStatsSyncTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonModules)
 end

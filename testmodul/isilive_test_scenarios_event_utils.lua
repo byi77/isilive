@@ -244,6 +244,9 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
         end
         return true
       end,
+      isInPartyInstance = function()
+        return opts.isInPartyInstance == true
+      end,
       getNumGroupMembers = function()
         return opts.numMembers or 5
       end,
@@ -299,6 +302,33 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
     Assert.Equal(dispatched[1], "GROUP_ROSTER_UPDATE", "group-join trigger should pass hidden gate")
     Assert.Equal(dispatched[2], "CHALLENGE_MODE_COMPLETED", "key-end completed trigger should pass hidden gate")
     Assert.Equal(dispatched[3], "CHALLENGE_MODE_RESET", "key-end reset trigger should pass hidden gate")
+  end)
+
+  test("Bootstrap gate blocks hidden group auto-open while inside non-key dungeon", function()
+    local dispatched = {}
+
+    local addon = LoadAddonModules({ "isiLive_events.lua", "isiLive_bootstrap.lua" })
+    local gate = CreateBootstrapGate(addon, function(_frame, event, ...)
+      local _ = ...
+      table.insert(dispatched, event)
+    end, {
+      isInPartyInstance = true,
+      activeChallengeMapID = nil,
+    })
+
+    local frame = {
+      IsShown = function()
+        return false
+      end,
+    }
+
+    gate(frame, "GROUP_ROSTER_UPDATE")
+    gate(frame, "CHALLENGE_MODE_COMPLETED")
+    gate(frame, "CHALLENGE_MODE_RESET")
+
+    Assert.Equal(#dispatched, 2, "hidden gate must block group auto-open inside non-key dungeon")
+    Assert.Equal(dispatched[1], "CHALLENGE_MODE_COMPLETED", "key-end completed trigger must still pass hidden gate")
+    Assert.Equal(dispatched[2], "CHALLENGE_MODE_RESET", "key-end reset trigger must still pass hidden gate")
   end)
 end
 

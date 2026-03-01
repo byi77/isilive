@@ -10,6 +10,7 @@ local function CreateKeySyncController(ctx)
     sync = ctx.sync,
     getUnitNameAndRealm = ctx.getUnitNameAndRealm,
     getAddonVersionRaw = ctx.getAddonVersionRaw,
+    getUnitRio = ctx.getUnitRio,
     isFrameVisible = ctx.isFrameVisible,
   })
   return {

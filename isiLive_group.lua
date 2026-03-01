@@ -181,8 +181,8 @@ local function HandleGroupRosterUpdate(deps)
   end
 
   deps.setWasRaidGroup(false)
-  deps.setMainFrameVisible(true)
   if joinedNow then
+    deps.setMainFrameVisible(true)
     deps.captureQueueJoinCandidate()
     deps.announceQueuedGroupJoin()
   end

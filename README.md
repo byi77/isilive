@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.57`.
+Current addon version: `0.9.58`.
 
 ## Features
 
@@ -16,6 +16,7 @@ Current addon version: `0.9.57`.
 - Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
 - Teleport action buttons use `InsecureActionButtonTemplate` so main/notice frame visibility remains combat-toggleable without protected-frame promotion
 - Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale)
+- Visible-window peer sync between `isiLive` users can also backfill remote `Spec`, `iLvl`, and `RIO` without inspect range; fresh local inspect data keeps priority once available
 - Key mapping normalizes active-season challenge-map IDs to canonical season map IDs before short-code rendering
 - Season scope is open via `ACTIVE_SEASON_ID`; current active season is `tww_s3`, and `midnight_s1` exists as prepared inactive scaffold
 - `Key` column keeps `Shortcut +Level` on one line (no row-wrap bleed into next member line)
@@ -34,20 +35,22 @@ Current addon version: `0.9.57`.
 
 ## Behavior
 
-- Auto-open on small-group join
+- Auto-open on real fresh small-group join
 - Auto-hide on M+ key start (`CHALLENGE_MODE_START`); can be manually opened (`CTRL+F9`) in "frozen" read-only state.
 - Auto-open on key end (`CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET`) while grouped.
+- Auto-open on real dungeon entry (`outside -> party instance`) while not in an active key.
 - `CTRL+F9`: opening and closing are always allowed (including combat).
 - Hidden window mode hard-stops non-essential scan/processing work; queue/sync event processing is suspended while hidden.
 - Combat runtime gate now suppresses non-essential event processing while in combat; essential events (for example `PLAYER_REGEN_ENABLED` and `CHALLENGE_MODE_*`) still run.
-- Key sync runs only while the main window is visible (hidden mode stays in sleep behavior)
+- Peer sync (`HELLO`/`ACK`/`KEY`/`STATS`) runs only while the main window is visible (hidden mode stays in sleep behavior)
 - Main window is movable via left drag in every mode; top drag handle stays above overlays for reliable dragging
 - Roster member row hover shows the Blizzard player tooltip when unit context exists, with `Name-Realm` fallback text when unit tokens are temporarily unavailable
 - Teleport grid buttons inherit main-frame strata/level to avoid overlay conflicts with external UI panels
 - Teleport action buttons are intentionally `InsecureActionButtonTemplate` so `CTRL+F9` main-frame open/close and center-notice visibility remain combat-safe
 - Combat-safe frame updates: pending frame-height changes are applied on `PLAYER_REGEN_ENABLED`
 - Advanced combat logging (`advancedCombatLogging`) is hard-enforced to `ON`.
-- Blizzard damage meter reset is hard-enforced on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
+- Blizzard damage-meter new-instance auto-reset (`damageMeterResetOnNewInstance`) is hard-enforced to `ON`.
+- Blizzard damage meter is also manually reset on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
 - `CHALLENGE_MODE_START` captures a per-player RIO baseline.
 - `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` schedules delayed post-run refresh and enables clamped delta display `(+X)RIO` after refresh succeeds (with short retry if still blocked), including when the window is currently hidden.
 - Test mode (`/isilive test`, `/isilive testall`) includes visible positive dummy RIO delta preview.
@@ -56,11 +59,11 @@ Current addon version: `0.9.57`.
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 - Bottom status line includes current target dungeon context as `Target Dungeon: <Name> [+Level]` (or `Target Dungeon: -` when unresolved)
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
-- Sync handshake behavior: `HELLO` recipients send `ACK` and also force-send their own `KEY` snapshot to restore peer key visibility after refresh.
+- Sync handshake behavior: `HELLO` recipients send `ACK` and also force-send their own `KEY/STATS` snapshot to restore peer data after refresh or manual reopen.
 
-## Use Case / Logic Baseline (v0.9.57)
+## Use Case / Logic Baseline (v0.9.58)
 
-Documented on `2026-02-27` as runtime behavior baseline for validation checks.
+Documented on `2026-03-01` as runtime behavior baseline for validation checks.
 
 1. Queue invite -> grouped flow
    - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`) while main UI is visible.
@@ -70,8 +73,9 @@ Documented on `2026-02-27` as runtime behavior baseline for validation checks.
    - Display ordering is stable by role (`TANK -> HEALER -> DAMAGER -> NONE`) and unit priority.
    - Per row data includes `Spec`, `Name`, `Language/Flag`, `Key`, `iLvl`, `RIO` and optional run-delta prefix `(+X)`.
 3. Key sync and key column
-   - Addon sync channel exchanges `HELLO/ACK/KEY` between `isiLive` users.
+   - Addon sync channel exchanges `HELLO/ACK/KEY/STATS` between `isiLive` users while the main window is visible.
    - `KEY:<mapID>:<level>` snapshots populate roster key text as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale).
+   - `STATS` snapshots can backfill remote `Spec/iLvl/RIO` without inspect range; once fresh local inspect data exists for a field, that local value keeps priority over later sync backfill.
    - Active joined key owner is highlighted only when ownership is unambiguous.
 4. Teleport targeting and highlight logic
     - Active target resolves in strict order: active listing `activityID -> mapID -> spellID`, then latest queue target `mapID -> spellID`.
@@ -86,7 +90,7 @@ Documented on `2026-02-27` as runtime behavior baseline for validation checks.
    - After challenge completion/reset, a delayed post-run refresh is attempted; RIO delta display is enabled only after this refresh path succeeds (with retry fallback).
 6. Runtime gating and hidden/sleep behavior
    - Event gate blocks non-required processing in `stopped`, `paused`, and hidden states.
-   - Hidden mode keeps only transition events active (auto-open on group join/key end); queue/sync events are suppressed while hidden.
+   - Hidden mode keeps only transition events active (auto-open on fresh group join, key end, and real dungeon entry); queue/sync events are suppressed while hidden.
    - `CHALLENGE_MODE_START` hides UI; completion/reset rehydrates group view and refresh flow.
    - Combat-safe UI behavior: teleport action buttons use `InsecureActionButtonTemplate` (to avoid protected-parent show/hide taint), while spell-attribute updates are still deferred during combat lockdown and restored on `PLAYER_REGEN_ENABLED`.
 
@@ -126,9 +130,9 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive_status.lua`: status line and dungeon-difficulty helpers
 - `isiLive_units.lua`: unit/spec/name/RIO helper functions
 - `isiLive_demo.lua`: dummy/test roster generation
-- `isiLive_sync.lua`: addon sync (`HELLO`/`ACK`/`KEY`) and user detection
+- `isiLive_sync.lua`: addon sync (`HELLO`/`ACK`/`KEY`/`STATS`) and user detection
 - `isiLive_keysync.lua`: key-sync controller (`HELLO/KEY` sends, key cache apply, active key owner resolver)
-- `isiLive_refresh.lua`: refresh controller (forced full refresh flow incl. `HELLO/KEY` + inspect requeue)
+- `isiLive_refresh.lua`: refresh controller (forced full refresh flow incl. `HELLO/KEY/STATS` + inspect requeue)
 - `isiLive_highlight.lua`: active-target resolver and highlight-state decision helpers
 - `isiLive_group.lua`: group lifecycle controller (`GROUP_ROSTER_UPDATE`, roster rebuild, leave cleanup)
 - `isiLive_queue.lua`: LFG/queue invite capture and parsing
@@ -183,7 +187,7 @@ Developer debug (hidden command, not listed in in-game help):
 ## Deterministic Usecase Gate
 
 `tools/validate_rules_logic.lua` validates active rule contracts from `RULES_LOGIC.md` against deterministic test names.
-`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 144 scenarios across 21 modules (queue/highlight/event-handlers/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/roster/roster-panel/status/ui), including:
+`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 152 scenarios across 21 modules (queue/highlight/event-handlers/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/roster/roster-panel/status/ui), including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
@@ -194,7 +198,8 @@ Developer debug (hidden command, not listed in in-game help):
 - protected API fallback robustness in queue flow
 - cooldown recognition/format behavior for teleport spells
 - group lifecycle (join/leave/raid detection/queue capture/roster build)
-- hidden-mode gate behavior (queue/sync suppression while hidden, auto-open transition triggers only)
+- hidden-mode gate behavior (queue/sync suppression while hidden, auto-open only on fresh join, dungeon entry, and key-end transitions)
+- visible-window peer sync for remote `Spec/iLvl/RIO` backfill plus local-inspect precedence over later sync payloads
 - non-Mythic status detection (normal/heroic transitions and heroic fallback difficulty IDs)
 - combat hotkey visibility rules (`CTRL+F9`: open and close allowed during combat)
 - center-notice font-scale stability across repeated warning re-shows (no cumulative growth)
@@ -259,10 +264,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.57`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.58`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.57` or `isiLive_beta_0.9.57`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.58` or `isiLive_beta_0.9.58`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -274,9 +279,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.57 && git push origin isiLive_release_0.9.57`
+3. Create and push stable tag: `git tag isiLive_release_0.9.58 && git push origin isiLive_release_0.9.58`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.57 && git push origin isiLive_alpha_0.9.57`
-   - beta: `git tag isiLive_beta_0.9.57 && git push origin isiLive_beta_0.9.57`
+   - alpha: `git tag isiLive_alpha_0.9.58 && git push origin isiLive_alpha_0.9.58`
+   - beta: `git tag isiLive_beta_0.9.58 && git push origin isiLive_beta_0.9.58`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

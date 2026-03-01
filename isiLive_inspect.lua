@@ -27,6 +27,9 @@ local function QueueForceRefreshData(controller, roster)
       info.spec = nil
       info.ilvl = nil
       info.rio = nil
+      info._localSpecFresh = nil
+      info._localIlvlFresh = nil
+      info._localRioFresh = nil
       if not IsUnitInInspectQueue(controller, unit) then
         table.insert(controller.inspectQueue, unit)
       end
@@ -38,12 +41,15 @@ local function EnqueueInspect(controller, unit, roster)
   local guid = UnitGUID(unit)
   if guid and controller.ilvlCache[guid] and roster[unit] then
     roster[unit].ilvl = controller.ilvlCache[guid]
+    roster[unit]._localIlvlFresh = true
   end
   if guid and controller.rioCache[guid] and roster[unit] then
     roster[unit].rio = controller.rioCache[guid]
+    roster[unit]._localRioFresh = true
   end
   if guid and controller.specCache[guid] and roster[unit] then
     roster[unit].spec = controller.specCache[guid]
+    roster[unit]._localSpecFresh = true
   end
   if guid and controller.ilvlCache[guid] and controller.rioCache[guid] and controller.specCache[guid] then
     return
@@ -62,6 +68,9 @@ local function OnInspectReady(controller, guid, roster, getUnitRio, getInspectSp
   local ilvl = C_PaperDollInfo.GetInspectItemLevel(controller.isInspecting)
   if roster[controller.isInspecting] then
     roster[controller.isInspecting].ilvl = ilvl
+    if ilvl and ilvl > 0 then
+      roster[controller.isInspecting]._localIlvlFresh = true
+    end
   end
   if ilvl and ilvl > 0 then
     controller.ilvlCache[guid] = ilvl
@@ -70,6 +79,9 @@ local function OnInspectReady(controller, guid, roster, getUnitRio, getInspectSp
   local rio = getUnitRio and getUnitRio(controller.isInspecting) or nil
   if roster[controller.isInspecting] then
     roster[controller.isInspecting].rio = rio
+    if rio and rio >= 0 then
+      roster[controller.isInspecting]._localRioFresh = true
+    end
   end
   if rio and rio > 0 then
     controller.rioCache[guid] = rio
@@ -81,6 +93,9 @@ local function OnInspectReady(controller, guid, roster, getUnitRio, getInspectSp
   end
   if roster[controller.isInspecting] then
     roster[controller.isInspecting].spec = specName
+    if specName and specName ~= "" then
+      roster[controller.isInspecting]._localSpecFresh = true
+    end
   end
   if specName and specName ~= "" then
     controller.specCache[guid] = specName

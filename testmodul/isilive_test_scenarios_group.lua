@@ -236,6 +236,17 @@ local function RegisterGroupRosterTests(test, Assert, LoadAddonModules)
     Assert.Equal(state.queued, 1, "subsequent updates must not re-capture queue")
   end)
 
+  test("Existing grouped roster updates do not re-open a manually hidden frame", function()
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+    })
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.False(state.mainFrameVisible, "non-join roster updates must keep hidden frame hidden")
+    Assert.Equal(state.queued, 0, "non-join roster updates must not re-capture queue")
+  end)
+
   test("Party members get correct roles and classes", function()
     local controller, state = BuildGroupController(LoadAddonModules, {
       getNumGroupMembers = function()

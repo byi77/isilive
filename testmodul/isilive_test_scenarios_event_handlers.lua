@@ -193,22 +193,25 @@ local function RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixture
 end
 
 local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
-  test("Event handlers keep advanced combat logging hard-enabled across startup events", function()
-    local setCalls = 0
-    local cvarValue = "0"
+  test("Event handlers keep core cvars hard-enabled across startup events", function()
+    local cvarValues = {
+      advancedCombatLogging = "0",
+      damageMeterResetOnNewInstance = "0",
+    }
+    local setCalls = {
+      advancedCombatLogging = 0,
+      damageMeterResetOnNewInstance = 0,
+    }
 
     WithGlobals({
       C_CVar = {
         GetCVar = function(name)
-          if name == "advancedCombatLogging" then
-            return cvarValue
-          end
-          return nil
+          return cvarValues[name]
         end,
         SetCVar = function(name, value)
-          if name == "advancedCombatLogging" then
-            cvarValue = tostring(value)
-            setCalls = setCalls + 1
+          if cvarValues[name] ~= nil then
+            cvarValues[name] = tostring(value)
+            setCalls[name] = setCalls[name] + 1
           end
         end,
       },
@@ -221,8 +224,22 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
       controller:Dispatch("PLAYER_ENTERING_WORLD")
     end)
 
-    Assert.Equal(setCalls, 1, "advanced combat logging should be enabled once and remain enforced")
-    Assert.Equal(cvarValue, "1", "advanced combat logging cvar should be hard-enabled")
+    Assert.Equal(
+      setCalls.advancedCombatLogging,
+      1,
+      "advanced combat logging should be enabled once and remain enforced"
+    )
+    Assert.Equal(
+      setCalls.damageMeterResetOnNewInstance,
+      1,
+      "damage meter reset-on-new-instance should be enabled once and remain enforced"
+    )
+    Assert.Equal(cvarValues.advancedCombatLogging, "1", "advanced combat logging cvar should be hard-enabled")
+    Assert.Equal(
+      cvarValues.damageMeterResetOnNewInstance,
+      "1",
+      "damage meter reset-on-new-instance cvar should be hard-enabled"
+    )
   end)
 
   test("Event handlers avoid duplicate forced key snapshot sends on PLAYER_ENTERING_WORLD", function()
@@ -259,6 +276,34 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
     Assert.False(keySnapshotForceCalls[2], "delayed key snapshot attempt must be non-forced to avoid duplicate sends")
   end)
 
+  test("Event handlers auto-show main frame on dungeon entry after outdoor state", function()
+    local showCalls = 0
+    local lastVisible = nil
+    local inPartyInstance = false
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      isInPartyInstance = function()
+        return inPartyInstance
+      end,
+      setMainFrameVisible = function(visible)
+        showCalls = showCalls + 1
+        lastVisible = visible
+      end,
+    })
+
+    controller:Dispatch("PLAYER_ENTERING_WORLD")
+    Assert.Equal(showCalls, 0, "first outdoor state sample must not auto-open")
+
+    inPartyInstance = true
+    controller:Dispatch("PLAYER_ENTERING_WORLD")
+    Assert.Equal(showCalls, 1, "fresh dungeon entry must auto-open main frame")
+    Assert.Equal(lastVisible, true, "dungeon entry auto-open must show main frame")
+
+    controller:Dispatch("PLAYER_ENTERING_WORLD")
+    Assert.Equal(showCalls, 1, "repeated in-dungeon entering-world events must not re-open again")
+  end)
+
   test("Event handlers restore runtime log storage and enabled flag on ADDON_LOADED", function()
     local ensureRuntimeLogStorageCalls = 0
     local setRuntimeLogEnabledValue = nil
@@ -290,7 +335,14 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
 
   test("Event handlers reset damage meter on challenge start when available", function()
     local resetCalls = 0
-    local setCalls = 0
+    local cvarValues = {
+      advancedCombatLogging = "0",
+      damageMeterResetOnNewInstance = "0",
+    }
+    local setCalls = {
+      advancedCombatLogging = 0,
+      damageMeterResetOnNewInstance = 0,
+    }
 
     WithGlobals({
       C_DamageMeter = {
@@ -302,12 +354,13 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
         end,
       },
       C_CVar = {
-        GetCVar = function(_name)
-          return "0"
+        GetCVar = function(name)
+          return cvarValues[name]
         end,
         SetCVar = function(name, value)
-          if name == "advancedCombatLogging" and tostring(value) == "1" then
-            setCalls = setCalls + 1
+          if cvarValues[name] ~= nil and tostring(value) == "1" then
+            cvarValues[name] = "1"
+            setCalls[name] = setCalls[name] + 1
           end
         end,
       },
@@ -319,7 +372,12 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
     end)
 
     Assert.Equal(resetCalls, 1, "challenge start must hard-reset Blizzard damage meter when API is available")
-    Assert.Equal(setCalls, 1, "challenge start should enforce advanced combat logging")
+    Assert.Equal(setCalls.advancedCombatLogging, 1, "challenge start should enforce advanced combat logging")
+    Assert.Equal(
+      setCalls.damageMeterResetOnNewInstance,
+      1,
+      "challenge start should enforce damage meter reset-on-new-instance"
+    )
   end)
 end
 

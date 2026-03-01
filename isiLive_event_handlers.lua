@@ -35,6 +35,14 @@ local function BuildContext(opts)
   ctx.setLocaleTable = RequireFunction(opts.setLocaleTable, "setLocaleTable")
 
   ctx.isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
+  ctx.isInPartyInstance = OptionalFunction(opts.isInPartyInstance, function()
+    if type(GetInstanceInfo) ~= "function" then
+      return false
+    end
+    local _, instanceType = GetInstanceInfo()
+    return instanceType == "party"
+  end)
+  ctx.wasInPartyInstance = nil
   ctx.isTestMode = RequireFunction(opts.isTestMode, "isTestMode")
   ctx.isTestAllMode = RequireFunction(opts.isTestAllMode, "isTestAllMode")
   ctx.exitTestMode = RequireFunction(opts.exitTestMode, "exitTestMode")
@@ -153,7 +161,11 @@ local function ResetDamageMeterIfAvailable()
   return okReset
 end
 
-local function EnsureAdvancedCombatLoggingEnabled()
+local function EnsureCVarEnabled(cvarName)
+  if type(cvarName) ~= "string" or cvarName == "" then
+    return false
+  end
+
   local getCVar = nil
   local setCVar = nil
   local cvarAPI = _G.C_CVar
@@ -175,14 +187,27 @@ local function EnsureAdvancedCombatLoggingEnabled()
   end
 
   if getCVar then
-    local okCurrent, currentValue = pcall(getCVar, "advancedCombatLogging")
+    local okCurrent, currentValue = pcall(getCVar, cvarName)
     if okCurrent and tostring(currentValue or "") == "1" then
       return true
     end
   end
 
-  local okSet = pcall(setCVar, "advancedCombatLogging", "1")
+  local okSet = pcall(setCVar, cvarName, "1")
   return okSet
+end
+
+local function EnsureAdvancedCombatLoggingEnabled()
+  return EnsureCVarEnabled("advancedCombatLogging")
+end
+
+local function EnsureDamageMeterResetOnNewInstanceEnabled()
+  return EnsureCVarEnabled("damageMeterResetOnNewInstance")
+end
+
+local function EnsureCoreCVarDefaults()
+  EnsureAdvancedCombatLoggingEnabled()
+  EnsureDamageMeterResetOnNewInstanceEnabled()
 end
 
 local function HandleGroupRosterUpdateEvent(ctx, _self)
@@ -273,7 +298,7 @@ local function HandleLfgListActiveEntryUpdateEvent(ctx, _self)
 end
 
 local function HandleChallengeModeStartEvent(ctx, _self)
-  EnsureAdvancedCombatLoggingEnabled()
+  EnsureCoreCVarDefaults()
   ResetDamageMeterIfAvailable()
   ctx.captureRioBaselineSnapshot()
   ctx.setActiveJoinedKeyMapID(nil)
@@ -364,7 +389,7 @@ local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)
   ctx.setQueueDebugEnabled(IsiLiveDB.queueDebug)
   ctx.ensureRuntimeLogStorage()
   ctx.setRuntimeLogEnabled(IsiLiveDB.runtimeLogEnabled)
-  EnsureAdvancedCombatLoggingEnabled()
+  EnsureCoreCVarDefaults()
 
   -- Restore position
   local mainFrame = ctx.getMainFrame()
@@ -382,7 +407,7 @@ local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)
 end
 
 local function HandlePlayerLoginEvent(ctx, _self)
-  EnsureAdvancedCombatLoggingEnabled()
+  EnsureCoreCVarDefaults()
   ctx.registerIsiLiveSyncPrefix()
   local playerName, playerRealm = ctx.getUnitNameAndRealm("player")
   ctx.markIsiLiveUser(playerName, playerRealm)
@@ -391,7 +416,7 @@ local function HandlePlayerLoginEvent(ctx, _self)
 end
 
 local function HandlePlayerEnteringWorldEvent(ctx, _self)
-  EnsureAdvancedCombatLoggingEnabled()
+  EnsureCoreCVarDefaults()
   ctx.applyHotkeyBindings()
   ctx.startBindingWatchdog()
   if ctx.timerAfter then
@@ -406,6 +431,13 @@ local function HandlePlayerEnteringWorldEvent(ctx, _self)
   ctx.maybeShowNonMythicDungeonEntryNotice()
   ctx.updateStatusLine()
   ctx.checkIfEnteredTargetDungeon()
+
+  local inPartyInstance = ctx.isInPartyInstance() and true or false
+  local wasInPartyInstance = ctx.wasInPartyInstance
+  ctx.wasInPartyInstance = inPartyInstance
+  if wasInPartyInstance ~= nil and not wasInPartyInstance and inPartyInstance and not ctx.isInChallengeMode() then
+    ctx.setMainFrameVisible(true)
+  end
 end
 
 local function HandleUpdateBindingsEvent(ctx, _self)

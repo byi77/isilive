@@ -324,6 +324,14 @@ local function GetActiveChallengeMapID()
   return C_ChallengeMode.GetActiveChallengeMapID()
 end
 
+local function IsInPartyInstance()
+  if type(GetInstanceInfo) ~= "function" then
+    return false
+  end
+  local _, instanceType = GetInstanceInfo()
+  return instanceType == "party"
+end
+
 local function GetWasInGroup()
   return wasInGroup
 end
@@ -602,6 +610,7 @@ local initResult = isiLiveControllerInit.CreateControllers({
   getAddonVersionText = function()
     return "V." .. GetAddonVersionRaw()
   end,
+  getUnitRio = GetUnitRio,
   updateStatusLine = function()
     if UpdateStatusLine then
       UpdateStatusLine()
@@ -1003,6 +1012,14 @@ isiLiveBootstrap.RegisterMainFrameEvents(mainFrame)
 isiLiveBootstrap.BindMainFrameScripts(mainFrame, {
   onShow = function()
     SetProcessingActive(true)
+    if IsInGroup() then
+      if SendIsiLiveHello then
+        SendIsiLiveHello(true)
+      end
+      if SendOwnKeySnapshot then
+        SendOwnKeySnapshot(true)
+      end
+    end
   end,
   onHide = function()
     SetProcessingActive(false)
@@ -1075,6 +1092,7 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   isInCombat = function()
     return InCombatLockdown and InCombatLockdown()
   end,
+  isInPartyInstance = IsInPartyInstance,
   isTestAllMode = function()
     return isTestAllMode
   end,
