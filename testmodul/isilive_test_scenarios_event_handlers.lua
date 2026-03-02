@@ -218,11 +218,7 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
       controller:Dispatch("PLAYER_ENTERING_WORLD")
     end)
 
-    Assert.Equal(
-      setCalls.advancedCombatLogging,
-      0,
-      "startup should not force advanced combat logging"
-    )
+    Assert.Equal(setCalls.advancedCombatLogging, 0, "startup should not force advanced combat logging")
     Assert.Equal(
       setCalls.damageMeterResetOnNewInstance,
       0,
