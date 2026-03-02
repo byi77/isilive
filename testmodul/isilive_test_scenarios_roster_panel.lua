@@ -92,6 +92,12 @@ local function CreateFrameStubFactory(createdFrames)
     frame.SetText = function(_self, _text) end
     frame.SetEnabled = function(_self, _value) end
     frame.SetAlpha = function(_self, _value) end
+    frame.SetChecked = function(self, value)
+      self._checked = value == true
+    end
+    frame.GetChecked = function(self)
+      return self._checked == true
+    end
     frame.Hide = function(_self) end
     frame.Show = function(_self) end
 
@@ -144,6 +150,8 @@ local function BuildRosterPanelController(addon, mainFrame, nowRef)
         BTN_COUNTDOWN_CANCEL = "Countdown 0",
         BTN_REFRESH = "Refresh",
         BTN_SHARE_KEYS = "Share Keys",
+        OPT_ADVANCED_COMBAT_LOGGING = "Combat Logging",
+        OPT_DAMAGE_METER_RESET = "DM Reset on Entry",
         ANNOUNCE_PREFIX = "Party Keys:",
         TOOLTIP_READY = "ready",
         TOOLTIP_CD10 = "cd10",
@@ -238,6 +246,28 @@ local function FindShareKeysButton(createdFrames)
       if point[1] == "TOPRIGHT" and point[2] == -136 and point[3] == -180 then
         return frame
       end
+    end
+  end
+  return nil
+end
+
+local function FindSystemOptionToggle(createdFrames, xOffset)
+  for _, frame in ipairs(createdFrames) do
+    if frame._frameType == "CheckButton" and type(frame._point) == "table" then
+      local point = frame._point
+      if point[1] == "BOTTOMLEFT" and point[2] == xOffset and point[3] == 24 then
+        return frame
+      end
+    end
+  end
+  return nil
+end
+
+local function FindSystemOptionWatcher(createdFrames, mainFrame)
+  for _, frame in ipairs(createdFrames) do
+    local hasOnUpdate = frame._scripts and type(frame._scripts.OnUpdate) == "function"
+    if frame._frameType == "Frame" and frame._parent == mainFrame and hasOnUpdate then
+      return frame
     end
   end
   return nil
@@ -524,6 +554,81 @@ return function(test, ctx)
         chatMessages[1],
         "debounced follow-up share should keep deterministic message format"
       )
+    end)
+  end)
+
+  test("Roster panel system option toggles mirror live cvar state and write once on click", function()
+    local createdFrames = {}
+    local nowRef = { now = 100 }
+    local mainFrame = BuildMainFrameStub()
+    local cvarValues = {
+      advancedCombatLogging = "1",
+      damageMeterResetOnNewInstance = "0",
+    }
+    local setCalls = {}
+
+    WithGlobals({
+      CreateFrame = CreateFrameStubFactory(createdFrames),
+      C_CVar = {
+        GetCVar = function(name)
+          return cvarValues[name]
+        end,
+        SetCVar = function(name, value)
+          cvarValues[name] = tostring(value)
+          setCalls[#setCalls + 1] = {
+            name = name,
+            value = tostring(value),
+          }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = BuildRosterPanelController(addon, mainFrame, nowRef)
+      controller.ApplyLocalization()
+
+      local combatLoggingToggle = FindSystemOptionToggle(createdFrames, 10)
+      local damageMeterToggle = FindSystemOptionToggle(createdFrames, 220)
+      Assert.NotNil(combatLoggingToggle, "combat logging toggle must exist")
+      Assert.NotNil(damageMeterToggle, "damage meter reset toggle must exist")
+      if type(combatLoggingToggle) ~= "table" or type(damageMeterToggle) ~= "table" then
+        return
+      end
+
+      Assert.True(combatLoggingToggle:GetChecked(), "combat logging toggle should mirror enabled live cvar")
+      Assert.False(damageMeterToggle:GetChecked(), "damage meter reset toggle should mirror disabled live cvar")
+
+      local watcher = FindSystemOptionWatcher(createdFrames, mainFrame)
+      Assert.NotNil(watcher, "system option watcher must exist")
+      if type(watcher) ~= "table" then
+        return
+      end
+
+      cvarValues.advancedCombatLogging = "0"
+      local onUpdate = watcher._scripts and watcher._scripts.OnUpdate or nil
+      Assert.True(type(onUpdate) == "function", "system option watcher must define OnUpdate handler")
+      if type(onUpdate) ~= "function" then
+        return
+      end
+
+      onUpdate(watcher, 5)
+      Assert.False(
+        combatLoggingToggle:GetChecked(),
+        "watcher should re-read live cvar state from Blizzard settings while the window stays open"
+      )
+
+      damageMeterToggle:SetChecked(true)
+      local onClick = damageMeterToggle._scripts and damageMeterToggle._scripts.OnClick or nil
+      Assert.True(type(onClick) == "function", "damage meter toggle must define click handler")
+      if type(onClick) ~= "function" then
+        return
+      end
+
+      onClick(damageMeterToggle, "LeftButton")
+
+      Assert.Equal(#setCalls, 1, "clicking toggle should write current state exactly once")
+      Assert.Equal(setCalls[1].name, "damageMeterResetOnNewInstance", "toggle should write the matching cvar")
+      Assert.Equal(setCalls[1].value, "1", "checked toggle should write enabled cvar value")
+      Assert.True(damageMeterToggle:GetChecked(), "toggle should re-read and keep the new live cvar state")
     end)
   end)
 end

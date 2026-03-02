@@ -155,7 +155,6 @@ local function RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixture
 
   test("Event handlers process addon sync messages and refresh changed roster", function()
     local counters = { acks = 0, uiUpdates = 0 }
-    local keySnapshotForceCalls = {}
     local roster = {
       { name = "Alpha", realm = "RealmA", hasIsiLive = false },
       { name = "Beta", realm = "RealmB", hasIsiLive = true },
@@ -177,23 +176,18 @@ local function RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixture
       applyKnownKeyToRosterEntry = function(info)
         return info.name == "Beta"
       end,
-      sendOwnKeySnapshot = function(force)
-        table.insert(keySnapshotForceCalls, force == true)
-      end,
     })
 
     controller:Dispatch("CHAT_MSG_ADDON", "ISI_SYNC", "hello", "PARTY", "Alpha-RealmA")
 
     Assert.Equal(counters.acks, 1, "sync payload requiring ack must send ack once")
-    Assert.Equal(#keySnapshotForceCalls, 1, "HELLO ack path must trigger one key snapshot send")
-    Assert.True(keySnapshotForceCalls[1], "HELLO ack path key snapshot send must be forced")
     Assert.Equal(counters.uiUpdates, 1, "roster changes from sync must refresh UI")
     Assert.True(roster[1].hasIsiLive, "known sync user should be marked as isiLive-enabled")
   end)
 end
 
 local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
-  test("Event handlers keep core cvars hard-enabled across startup events", function()
+  test("Event handlers do not force Blizzard cvars during startup events", function()
     local cvarValues = {
       advancedCombatLogging = "0",
       damageMeterResetOnNewInstance = "0",
@@ -226,23 +220,27 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
 
     Assert.Equal(
       setCalls.advancedCombatLogging,
-      1,
-      "advanced combat logging should be enabled once and remain enforced"
+      0,
+      "startup should not force advanced combat logging"
     )
     Assert.Equal(
       setCalls.damageMeterResetOnNewInstance,
-      1,
-      "damage meter reset-on-new-instance should be enabled once and remain enforced"
+      0,
+      "startup should not force damage meter reset-on-new-instance"
     )
-    Assert.Equal(cvarValues.advancedCombatLogging, "1", "advanced combat logging cvar should be hard-enabled")
+    Assert.Equal(
+      cvarValues.advancedCombatLogging,
+      "0",
+      "advanced combat logging cvar should remain unchanged on startup"
+    )
     Assert.Equal(
       cvarValues.damageMeterResetOnNewInstance,
-      "1",
-      "damage meter reset-on-new-instance cvar should be hard-enabled"
+      "0",
+      "damage meter reset-on-new-instance cvar should remain unchanged on startup"
     )
   end)
 
-  test("Event handlers avoid duplicate forced key snapshot sends on PLAYER_ENTERING_WORLD", function()
+  test("Event handlers send one forced key snapshot on PLAYER_ENTERING_WORLD", function()
     local keySnapshotForceCalls = {}
     local scheduled = {}
 
@@ -260,20 +258,7 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
 
     Assert.Equal(#keySnapshotForceCalls, 1, "entering world should send one immediate key snapshot")
     Assert.True(keySnapshotForceCalls[1], "immediate entering-world key snapshot must stay forced")
-
-    local delayedRefreshCallback = nil
-    for _, item in ipairs(scheduled) do
-      if item.seconds == 2 then
-        delayedRefreshCallback = item.callback
-        break
-      end
-    end
-    Assert.NotNil(delayedRefreshCallback, "entering world should schedule delayed refresh callback")
-
-    delayedRefreshCallback()
-
-    Assert.Equal(#keySnapshotForceCalls, 2, "delayed refresh callback should trigger second key snapshot attempt")
-    Assert.False(keySnapshotForceCalls[2], "delayed key snapshot attempt must be non-forced to avoid duplicate sends")
+    Assert.Equal(#scheduled, 2, "entering world should only schedule hotkey reapply callbacks")
   end)
 
   test("Event handlers auto-show main frame on dungeon entry after outdoor state", function()
@@ -372,11 +357,16 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
     end)
 
     Assert.Equal(resetCalls, 1, "challenge start must hard-reset Blizzard damage meter when API is available")
-    Assert.Equal(setCalls.advancedCombatLogging, 1, "challenge start should enforce advanced combat logging")
+    Assert.Equal(setCalls.advancedCombatLogging, 0, "challenge start should not force advanced combat logging")
     Assert.Equal(
       setCalls.damageMeterResetOnNewInstance,
-      1,
-      "challenge start should enforce damage meter reset-on-new-instance"
+      0,
+      "challenge start should not force damage meter reset-on-new-instance"
+    )
+    Assert.Equal(
+      cvarValues.advancedCombatLogging,
+      "0",
+      "challenge start should leave advanced combat logging unchanged"
     )
   end)
 end

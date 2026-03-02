@@ -143,7 +143,6 @@ end
 local function ExtendEventHandlersConfig(config, deps, state, refs, controllers, callbacks, modules)
   config.getUnitNameAndRealm = RequireFunction(deps.getUnitNameAndRealm, "getUnitNameAndRealm")
   config.markIsiLiveUser = RequireFunction(deps.markIsiLiveUser, "markIsiLiveUser")
-  config.sendIsiLiveHello = RequireFunction(deps.sendIsiLiveHello, "sendIsiLiveHello")
   config.maybeShowNonMythicDungeonEntryNotice = function()
     controllers.status.MaybeShowNonMythicDungeonEntryNotice()
   end

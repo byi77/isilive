@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.58`.
+Current addon version: `0.9.59`.
 
 ## Features
 
@@ -48,8 +48,8 @@ Current addon version: `0.9.58`.
 - Teleport grid buttons inherit main-frame strata/level to avoid overlay conflicts with external UI panels
 - Teleport action buttons are intentionally `InsecureActionButtonTemplate` so `CTRL+F9` main-frame open/close and center-notice visibility remain combat-safe
 - Combat-safe frame updates: pending frame-height changes are applied on `PLAYER_REGEN_ENABLED`
-- Advanced combat logging (`advancedCombatLogging`) is hard-enforced to `ON`.
-- Blizzard damage-meter new-instance auto-reset (`damageMeterResetOnNewInstance`) is hard-enforced to `ON`.
+- Bottom-left system toggles mirror the live Blizzard CVar state for `advancedCombatLogging` and `damageMeterResetOnNewInstance`.
+- Clicking those toggles writes the selected Blizzard setting once; `isiLive` does not keep re-enforcing either CVar afterward.
 - Blizzard damage meter is also manually reset on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
 - `CHALLENGE_MODE_START` captures a per-player RIO baseline.
 - `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` schedules delayed post-run refresh and enables clamped delta display `(+X)RIO` after refresh succeeds (with short retry if still blocked), including when the window is currently hidden.
@@ -59,11 +59,11 @@ Current addon version: `0.9.58`.
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 - Bottom status line includes current target dungeon context as `Target Dungeon: <Name> [+Level]` (or `Target Dungeon: -` when unresolved)
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
-- Sync handshake behavior: `HELLO` recipients send `ACK` and also force-send their own `KEY/STATS` snapshot to restore peer data after refresh or manual reopen.
+- Sync handshake behavior: `HELLO` recipients send `ACK`, while explicit local refresh triggers and visibility-bound snapshots keep `KEY/STATS` current.
 
-## Use Case / Logic Baseline (v0.9.58)
+## Use Case / Logic Baseline (v0.9.59)
 
-Documented on `2026-03-01` as runtime behavior baseline for validation checks.
+Documented on `2026-03-02` as runtime behavior baseline for validation checks.
 
 1. Queue invite -> grouped flow
    - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`) while main UI is visible.
@@ -264,10 +264,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.58`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.59`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.58` or `isiLive_beta_0.9.58`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.59` or `isiLive_beta_0.9.59`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -279,9 +279,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.58 && git push origin isiLive_release_0.9.58`
+3. Create and push stable tag: `git tag isiLive_release_0.9.59 && git push origin isiLive_release_0.9.59`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.58 && git push origin isiLive_alpha_0.9.58`
-   - beta: `git tag isiLive_beta_0.9.58 && git push origin isiLive_beta_0.9.58`
+   - alpha: `git tag isiLive_alpha_0.9.59 && git push origin isiLive_alpha_0.9.59`
+   - beta: `git tag isiLive_beta_0.9.59 && git push origin isiLive_beta_0.9.59`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

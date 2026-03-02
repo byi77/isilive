@@ -1,7 +1,7 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.58`
-Last updated: `2026-03-01`
+Version baseline: `0.9.59`
+Last updated: `2026-03-02`
 
 ## Actors
 
@@ -112,7 +112,7 @@ Goal: show pre/post-run rating change per player in roster without negative disp
 2. Combat-protected UI operations must be deferred safely while window dragging stays available, and teleport action buttons must not promote parent frames to protected status.
 3. Leader-only actions must stay disabled for non-leaders.
 4. Hidden mode should halt non-essential processing, suspend queue/sync event processing, and only keep required auto-open transitions active.
-5. Runtime defaults are hard-enforced: `advancedCombatLogging=1`, `damageMeterResetOnNewInstance=1`, and challenge-start Blizzard damage-meter reset when API support exists.
+5. Blizzard CVar state remains authoritative: `isiLive` only mirrors `advancedCombatLogging` / `damageMeterResetOnNewInstance` in the UI and writes them on explicit user clicks; challenge-start Blizzard damage-meter reset still runs when API support exists.
 6. RIO delta display must be deterministic and non-negative (`(+X)` only).
 7. UI visibility toggle (`CTRL+F9`) must allow both open and close in combat; `CHALLENGE_MODE_START` still auto-hides the main window.
 8. During combat, non-essential event processing is suspended by runtime gate; essential events continue.

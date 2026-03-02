@@ -99,7 +99,6 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
       return "player", "realm"
     end,
     markIsiLiveUser = function() end,
-    sendIsiLiveHello = function(_force) end,
     maybeShowNonMythicDungeonEntryNotice = function() end,
     checkIfEnteredTargetDungeon = function() end,
     getPendingBindingApply = function()

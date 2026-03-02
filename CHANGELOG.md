@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-03-02 - Version 0.9.59
+- **CurseForge Review Softening:**
+  - Removed the remaining automatic Blizzard-CVar enforcement from runtime startup and challenge-start flows.
+  - Added passive main-UI checkboxes for `advancedCombatLogging` and `damageMeterResetOnNewInstance`; the UI mirrors live Blizzard settings and writes only on explicit user clicks.
+  - Reduced review-risk sync chatter further: no extra `HELLO` burst on main-window open, no delayed second sync wave on `PLAYER_ENTERING_WORLD`, and no `KEY/STATS` re-publish on incoming `HELLO`.
+- **UI / Runtime Cleanup:**
+  - Removed the stale `sendIsiLiveHello` dependency from the event-handler wiring path.
+  - Added a lightweight live refresh watcher so the new Blizzard-setting checkboxes re-read current CVar state while the window remains open.
+- **Validation:**
+  - Deterministic runtime coverage increased to `153` scenarios across `21` modules (all passing).
+  - `luacheck .` is clean across the repository.
+- **Documentation + Packaging Sync:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, and `TODO.md` to `0.9.59` and current runtime semantics.
+- **TOC:**
+  - TOC version bumped to `0.9.59`.
+
 ## 2026-03-01 - Version 0.9.58
 - **Window Auto-Open Tightening:**
   - Hidden-window auto-open now only triggers on a real fresh small-group join, on key end, and on real dungeon entry (`outside -> party instance`).

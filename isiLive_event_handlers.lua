@@ -80,7 +80,6 @@ local function BuildContext(opts)
   ctx.updateCountdownCancelButton = RequireFunction(opts.updateCountdownCancelButton, "updateCountdownCancelButton")
   ctx.getUnitNameAndRealm = RequireFunction(opts.getUnitNameAndRealm, "getUnitNameAndRealm")
   ctx.markIsiLiveUser = RequireFunction(opts.markIsiLiveUser, "markIsiLiveUser")
-  ctx.sendIsiLiveHello = RequireFunction(opts.sendIsiLiveHello, "sendIsiLiveHello")
   ctx.maybeShowNonMythicDungeonEntryNotice =
     RequireFunction(opts.maybeShowNonMythicDungeonEntryNotice, "maybeShowNonMythicDungeonEntryNotice")
   ctx.checkIfEnteredTargetDungeon = RequireFunction(opts.checkIfEnteredTargetDungeon, "checkIfEnteredTargetDungeon")
@@ -159,55 +158,6 @@ local function ResetDamageMeterIfAvailable()
 
   local okReset = pcall(damageMeterAPI.ResetAllCombatSessions)
   return okReset
-end
-
-local function EnsureCVarEnabled(cvarName)
-  if type(cvarName) ~= "string" or cvarName == "" then
-    return false
-  end
-
-  local getCVar = nil
-  local setCVar = nil
-  local cvarAPI = _G.C_CVar
-
-  if type(cvarAPI) == "table" and type(cvarAPI.GetCVar) == "function" then
-    getCVar = cvarAPI.GetCVar
-  elseif type(_G.GetCVar) == "function" then
-    getCVar = _G.GetCVar
-  end
-
-  if type(cvarAPI) == "table" and type(cvarAPI.SetCVar) == "function" then
-    setCVar = cvarAPI.SetCVar
-  elseif type(_G.SetCVar) == "function" then
-    setCVar = _G.SetCVar
-  end
-
-  if not setCVar then
-    return false
-  end
-
-  if getCVar then
-    local okCurrent, currentValue = pcall(getCVar, cvarName)
-    if okCurrent and tostring(currentValue or "") == "1" then
-      return true
-    end
-  end
-
-  local okSet = pcall(setCVar, cvarName, "1")
-  return okSet
-end
-
-local function EnsureAdvancedCombatLoggingEnabled()
-  return EnsureCVarEnabled("advancedCombatLogging")
-end
-
-local function EnsureDamageMeterResetOnNewInstanceEnabled()
-  return EnsureCVarEnabled("damageMeterResetOnNewInstance")
-end
-
-local function EnsureCoreCVarDefaults()
-  EnsureAdvancedCombatLoggingEnabled()
-  EnsureDamageMeterResetOnNewInstanceEnabled()
 end
 
 local function HandleGroupRosterUpdateEvent(ctx, _self)
@@ -298,7 +248,6 @@ local function HandleLfgListActiveEntryUpdateEvent(ctx, _self)
 end
 
 local function HandleChallengeModeStartEvent(ctx, _self)
-  EnsureCoreCVarDefaults()
   ResetDamageMeterIfAvailable()
   ctx.captureRioBaselineSnapshot()
   ctx.setActiveJoinedKeyMapID(nil)
@@ -389,7 +338,6 @@ local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)
   ctx.setQueueDebugEnabled(IsiLiveDB.queueDebug)
   ctx.ensureRuntimeLogStorage()
   ctx.setRuntimeLogEnabled(IsiLiveDB.runtimeLogEnabled)
-  EnsureCoreCVarDefaults()
 
   -- Restore position
   local mainFrame = ctx.getMainFrame()
@@ -407,7 +355,6 @@ local function HandleAddonLoadedEvent(ctx, _self, loadedAddon)
 end
 
 local function HandlePlayerLoginEvent(ctx, _self)
-  EnsureCoreCVarDefaults()
   ctx.registerIsiLiveSyncPrefix()
   local playerName, playerRealm = ctx.getUnitNameAndRealm("player")
   ctx.markIsiLiveUser(playerName, playerRealm)
@@ -416,16 +363,11 @@ local function HandlePlayerLoginEvent(ctx, _self)
 end
 
 local function HandlePlayerEnteringWorldEvent(ctx, _self)
-  EnsureCoreCVarDefaults()
   ctx.applyHotkeyBindings()
   ctx.startBindingWatchdog()
   if ctx.timerAfter then
     ctx.timerAfter(1, ctx.applyHotkeyBindings)
     ctx.timerAfter(3, ctx.applyHotkeyBindings)
-    ctx.timerAfter(2, function()
-      ctx.sendIsiLiveHello(true)
-      ctx.sendOwnKeySnapshot(false)
-    end)
   end
   ctx.sendOwnKeySnapshot(true)
   ctx.maybeShowNonMythicDungeonEntryNotice()
@@ -489,9 +431,6 @@ local function HandleChatMsgAddonEvent(ctx, _self, prefix, message, _channel, se
 
   if syncResult.shouldAck then
     ctx.sendAck(syncResult.sender)
-    -- Refresh-driven HELLO handshakes must proactively republish own KEY data,
-    -- otherwise peers that just cleared sync cache can stay one-sided.
-    ctx.sendOwnKeySnapshot(true)
   end
 
   local changed = false

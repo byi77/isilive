@@ -146,6 +146,132 @@ local function DisableFontStringWrapping(fontString)
   end
 end
 
+local function ResolveGetCVar()
+  local cvarAPI = rawget(_G, "C_CVar")
+  if type(cvarAPI) == "table" and type(cvarAPI.GetCVar) == "function" then
+    return cvarAPI.GetCVar
+  end
+  if type(_G.GetCVar) == "function" then
+    return _G.GetCVar
+  end
+  return nil
+end
+
+local function ResolveSetCVar()
+  local cvarAPI = rawget(_G, "C_CVar")
+  if type(cvarAPI) == "table" and type(cvarAPI.SetCVar) == "function" then
+    return cvarAPI.SetCVar
+  end
+  if type(_G.SetCVar) == "function" then
+    return _G.SetCVar
+  end
+  return nil
+end
+
+local function ReadCVarEnabled(cvarName)
+  if type(cvarName) ~= "string" or cvarName == "" then
+    return false
+  end
+  local getCVar = ResolveGetCVar()
+  if not getCVar then
+    return false
+  end
+  local ok, value = pcall(getCVar, cvarName)
+  if not ok then
+    return false
+  end
+  return tostring(value or "") == "1"
+end
+
+local function WriteCVarEnabled(cvarName, enabled)
+  if type(cvarName) ~= "string" or cvarName == "" then
+    return false
+  end
+  local setCVar = ResolveSetCVar()
+  if not setCVar then
+    return false
+  end
+  local ok = pcall(setCVar, cvarName, enabled and "1" or "0")
+  return ok
+end
+
+local function RefreshSystemOptionToggle(button)
+  if type(button) ~= "table" or type(button._cvarName) ~= "string" then
+    return false
+  end
+  local enabled = ReadCVarEnabled(button._cvarName)
+  if button.SetChecked then
+    button:SetChecked(enabled)
+  end
+  return enabled
+end
+
+local function CreateSystemOptionToggle(mainFrame, cvarName, xOffset)
+  local button = CreateFrame("CheckButton", nil, mainFrame, "UICheckButtonTemplate")
+  button:SetSize(18, 18)
+  button:SetPoint("BOTTOMLEFT", xOffset, 24)
+  button._cvarName = cvarName
+
+  local label = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  label:SetPoint("LEFT", button, "RIGHT", 4, 0)
+  label:SetJustifyH("LEFT")
+  DisableFontStringWrapping(label)
+  button.label = label
+
+  button:SetScript("OnClick", function(self)
+    local enabled = self.GetChecked and self:GetChecked() or false
+    WriteCVarEnabled(self._cvarName, enabled)
+    RefreshSystemOptionToggle(self)
+  end)
+
+  RefreshSystemOptionToggle(button)
+  return button
+end
+
+local function CreateSystemOptionToggles(mainFrame)
+  local advancedCombatLoggingToggle = CreateSystemOptionToggle(mainFrame, "advancedCombatLogging", 10)
+  local damageMeterResetToggle = CreateSystemOptionToggle(mainFrame, "damageMeterResetOnNewInstance", 220)
+
+  return {
+    advancedCombatLoggingToggle = advancedCombatLoggingToggle,
+    damageMeterResetToggle = damageMeterResetToggle,
+  }
+end
+
+local function RefreshSystemOptionToggles(ui)
+  if type(ui) ~= "table" then
+    return
+  end
+  RefreshSystemOptionToggle(ui.advancedCombatLoggingToggle)
+  RefreshSystemOptionToggle(ui.damageMeterResetToggle)
+end
+
+local function AttachSystemOptionToggleWatcher(mainFrame, ui)
+  local watcher = CreateFrame("Frame", nil, mainFrame)
+  local elapsedSinceRefresh = 0
+
+  watcher:SetScript("OnUpdate", function(_, elapsed)
+    local isShown = true
+    if type(mainFrame) == "table" and type(mainFrame.IsShown) == "function" then
+      isShown = mainFrame:IsShown()
+    end
+    if not isShown then
+      elapsedSinceRefresh = 0
+      return
+    end
+
+    elapsedSinceRefresh = elapsedSinceRefresh + (tonumber(elapsed) or 0)
+    if elapsedSinceRefresh < 5 then
+      return
+    end
+
+    elapsedSinceRefresh = 0
+    RefreshSystemOptionToggles(ui)
+  end)
+
+  ui.systemOptionWatcher = watcher
+end
+
 local function HideGlobalGameTooltip()
   local tooltip = rawget(_G, "GameTooltip")
   if type(tooltip) == "table" and type(tooltip.Hide) == "function" then
@@ -520,6 +646,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   local headers = CreatePanelHeaders(mainFrame)
   local buttons = CreatePanelButtons(mainFrame, uiDeps)
   local statusLine = CreateStatusLine(mainFrame)
+  local optionToggles = CreateSystemOptionToggles(mainFrame)
   CreateVersionLine(mainFrame, uiDeps.getAddonVersionText)
 
   local ui = {
@@ -532,6 +659,10 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   for k, v in pairs(buttons) do
     ui[k] = v
   end
+  for k, v in pairs(optionToggles) do
+    ui[k] = v
+  end
+  AttachSystemOptionToggleWatcher(mainFrame, ui)
   return ui
 end
 
@@ -718,6 +849,9 @@ function RosterPanel.CreateController(opts)
     countdownCancelButton:SetText(L.BTN_COUNTDOWN_CANCEL)
     refreshButton:SetText(L.BTN_REFRESH)
     shareKeysButton:SetText(L.BTN_SHARE_KEYS)
+    ui.advancedCombatLoggingToggle.label:SetText(L.OPT_ADVANCED_COMBAT_LOGGING)
+    ui.damageMeterResetToggle.label:SetText(L.OPT_DAMAGE_METER_RESET)
+    RefreshSystemOptionToggles(ui)
   end
 
   function controller.UpdateLeaderButtons()
@@ -728,6 +862,7 @@ function RosterPanel.CreateController(opts)
     readyCheckButton:SetAlpha(enabled and 1 or 0.45)
     countdownButton:SetAlpha(enabled and 1 or 0.45)
     countdownCancelButton:SetAlpha(enabled and 1 or 0.45)
+    RefreshSystemOptionToggles(ui)
     updateStatusLine()
   end
 
@@ -752,6 +887,11 @@ function RosterPanel.CreateController(opts)
       syncMarker = syncMarker,
       fullSyncMarker = fullSyncMarker,
     }, roster)
+    RefreshSystemOptionToggles(ui)
+  end
+
+  function controller.RefreshSystemOptionToggles()
+    RefreshSystemOptionToggles(ui)
   end
 
   AttachControllerAccessors(controller, {

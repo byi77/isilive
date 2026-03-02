@@ -1012,10 +1012,10 @@ isiLiveBootstrap.RegisterMainFrameEvents(mainFrame)
 isiLiveBootstrap.BindMainFrameScripts(mainFrame, {
   onShow = function()
     SetProcessingActive(true)
+    if rosterPanelController and rosterPanelController.RefreshSystemOptionToggles then
+      rosterPanelController.RefreshSystemOptionToggles()
+    end
     if IsInGroup() then
-      if SendIsiLiveHello then
-        SendIsiLiveHello(true)
-      end
       if SendOwnKeySnapshot then
         SendOwnKeySnapshot(true)
       end

@@ -205,7 +205,6 @@ function ConfigBuilders.BuildEventHandlersControllerDeps(ctx)
     startBindingWatchdog = ctx.startBindingWatchdog,
     getUnitNameAndRealm = ctx.getUnitNameAndRealm,
     markIsiLiveUser = ctx.markIsiLiveUser,
-    sendIsiLiveHello = ctx.sendIsiLiveHello,
     getUnitRio = ctx.getUnitRio,
     getInspectSpecName = ctx.getInspectSpecName,
     getPlayerSpecName = ctx.getPlayerSpecName,

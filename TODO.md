@@ -1,96 +1,51 @@
 # TODO
 
-## P0 - Reliability Gates
+## P0 - Release / Review
 
-- [x] Deterministische Runtime-Usecase-Pruefung als Script angelegt (`tools/validate_usecases.lua`).
-- [x] Release-Dokus auf harte Quality-Gates inkl. Usecase-Validator umgestellt (`README.md`, `RELEASE.md`).
-- [ ] CI Workflow optional um `tools/validate_usecases.lua` erweitern (zusaetzlicher Runtime-Gate auf `main`).
+- [x] `v0.9.59` vorbereiten:
+  - `isiLive.toc` auf `0.9.59` heben
+  - `CHANGELOG.md` auf aktuellen Runtime-Stand bringen
+  - `README.md` / `RELEASE.md` auf `0.9.59` Beispiele und Tag-Namen synchronisieren
+- [ ] `v0.9.59` als entschärften Folge-Release gegenueber `0.9.58` veroeffentlichen
+  - passive Blizzard-CVar-Checkboxen statt hartem Erzwingen
+  - reduzierte Sync-Aktivitaet aus `v0.9.58` beibehalten
+- [ ] Kurz-Smoketest vor Release:
+  - UI oeffnen/schliessen
+  - Checkboxen fuer `advancedCombatLogging` / `damageMeterResetOnNewInstance`
+  - Blizzard-UI-Aenderung pruefen und kontrollieren, dass `isiLive` nur spiegelt
+  - Group join / key start / key end / queue target / teleport button
 
-## P1 - Hard Split `isiLive` -> `isiKeyMplus` (Planung)
+## P1 - Quality Gates
 
-### Final beschlossen (nicht mehr offen)
+- [ ] CI optional um `lua tools/validate_usecases.lua` erweitern (zusaetzlicher Runtime-Gate auf `main`)
+- [ ] Optional pruefen, ob `luacheck .` ebenfalls als GitHub-Workflow-Gate aufgenommen werden soll
+- [ ] Optional pruefen, ob `lua tools/lua_metrics_check.lua` als separater CI-Check sinnvoll ist
 
-- [x] Zielname: `isiKeyMplus` (genau diese Schreibweise).
-- [x] Modell: Hard-Split (`isiLive` Sunset + neues Addon `isiKeyMplus`).
-- [x] Versionen:
-  - `isiLive` Sunset-Release: `0.9.45`
-  - `isiKeyMplus` Start-Release: `1.0.45`
-- [x] Neuer Slash-Befehl: nur `/ikm`.
-- [x] Kein Legacy-Slash-Alias `/isilive`.
-- [x] Kein Dual-Listen des alten Sync-Prefix fuer eine Version.
-- [x] Neues GitHub-Repo: `https://github.com/byi77/isiKeyMplus`
-- [x] CurseForge Web-Schritte werden manuell gemacht (Projektseite/Projektverwaltung).
-- [x] Umsetzungsregel: erst starten, wenn explizit `start` freigegeben wurde.
+## P2 - Season / Runtime
 
-### A) Preflight (vor Umsetzung)
+- [ ] Off-Season-Modus vorbereiten:
+  - Teleport-Grid ausblenden / leeren
+  - Non-Mythic-Warnung deaktivieren
+- [ ] Vorbereitung fuer Midnight S1:
+  - neue MapIDs recherchieren
+  - neue Teleport-Spells recherchieren
+  - Alias-/Resolver-Daten anpassen, sobald Blizzard-Daten feststehen
 
-- [ ] Arbeitsbaum bereinigen und Start-Commit fuer reproduzierbaren Split markieren.
-- [ ] Alten Stand fuer `isiLive` Sunset-Branch sichern.
-- [ ] Neues Repo `byi77/isiKeyMplus` als eigenes Remote anbinden.
+## P3 - Doku / Pflege
 
-### B) `isiLive` Sunset (v0.9.45)
+- [ ] Nach `v0.9.59`: `TODO.md`, `CHANGELOG.md`, `README.md`, `RELEASE.md` wieder auf denselben Stand ziehen
+- [ ] Release-Text fuer CurseForge / GitHub kurz pruefen, damit die neue passive CVar-Logik klar beschrieben ist
 
-- [ ] Addon-Verhalten auf Migrations-Hinweis reduzieren:
-  - Kein produktiver GUI-Flow mehr.
-  - Beim Laden und bei Slash nur Hinweis anzeigen:
-    - `deDE`: Bitte `isiLive` loeschen und `isiKeyMplus` installieren.
-    - `enUS`: Please delete `isiLive` and install `isiKeyMplus`.
-- [ ] Dokumentation auf Sunset umstellen (`README.md`, `CHANGELOG.md`, `RELEASE.md`).
-- [ ] `isiLive.toc` auf `0.9.45` heben.
-- [ ] Release-Tag erstellen: `isiLive_release_0.9.45`.
+## Geparkt / Nicht aktiv
 
-### C) Neues Addon `isiKeyMplus` (v1.0.45)
+- [ ] Hard-Split `isiLive` -> `isiKeyMplus` ist aktuell nicht der aktive Arbeitsplan
+  - nur bei expliziter Reaktivierung neu aufsetzen
+  - alten Split-Plan nicht stillschweigend wieder aufnehmen
 
-- [ ] Vollstaendiges Rename der Dateien via `git mv`:
-  - `isiLive.toc` -> `isiKeyMplus.toc`
-  - `isiLive.lua` -> `isiKeyMplus.lua`
-  - `isiLive_*.lua` -> `isiKeyMplus_*.lua`
-  - `testmodul/isilive_test_*.lua` -> `testmodul/isikeymplus_test_*.lua`
-- [ ] Vollstaendiges Identifier- und String-Rename:
-  - `isiLive` -> `isiKeyMplus`
-  - `IsiLiveDB` -> `IsiKeyMplusDB`
-  - `ISILIVE_` -> `ISIKEYMPLUS_`
-  - Addon-Sync-Prefix auf neuen Wert fuer `isiKeyMplus` setzen.
-- [ ] Slash-Command-System auf `/ikm` umstellen (ohne `/isilive` Alias).
-- [ ] `.toc` auf neuen Namen/Version `1.0.45` und neue SavedVariables anpassen.
-- [ ] `.pkgmeta` (`package-as`) auf `isiKeyMplus` umstellen.
-- [ ] `.luacheckrc` und `tools/lua_metrics_check.lua` Prefix-Variablen umstellen.
-- [ ] GitHub Workflows auf neue Tag-Prefixe umstellen:
-  - `isiKeyMplus_release_*`
-  - `isiKeyMplus_alpha_*`
-  - `isiKeyMplus_beta_*`
-- [ ] Release-Tag erstellen: `isiKeyMplus_release_1.0.45`.
+## Bereits erledigt (wichtig als Kontext)
 
-### D) Quality-Gates fuer beide Straenge
-
-- [ ] `stylua --check .`
-- [ ] `luacheck --exclude-files ".luarocks/**" -- .`
-- [ ] `lua tools/lua_metrics_check.lua`
-- [ ] `lua tools/validate_usecases.lua`
-- [ ] Kurz-Smoketest (Login, Slash, Message-Text Sunset / Kernfunktionen neues Addon).
-
-### E) GitHub + Release-Ablauf
-
-- [ ] `isiLive` Sunset-Commit+Tag in altes Repo pushen.
-- [ ] `isiKeyMplus` Full-Rename-Commit+Tag in neues Repo pushen.
-- [ ] Actions-Runs fuer beide Repos/Tags auf gruen validieren.
-
-## P2 - Pre-Key Readiness / Informationen vor Key-Start
-
-- [x] Key-Spalte anzeigen: Gruppenmitglieder-Key als `Shortcut +Stufe` (z. B. `DB +14`).
-- [x] RIO-Delta-Anzeige: pro Spieler als Prefix `(+X)RIO`, niemals negativ (mindestens `+0`).
-- [x] Testmodus zeigt sichtbare positive RIO-Delta-Vorschau (`/isilive test`, `/isilive testall`).
-- [ ] **Next Week:** Off-Season Modus aktivieren (Teleport-Grid ausblenden/leeren, Non-Mythic Warnung deaktivieren).
-- [ ] **Next Week:** Vorbereitung Midnight S1 (neue MapIDs/Spells recherchieren).
-
-## P3 - Entschlackung `isiLive.lua` (nach Release `0.9.26`)
-
-- [x] `v0.9.26` zuerst releasen (keine strukturellen Refactors im Release-Commit mischen).
-- [x] Baseline dokumentieren: kurzer Ingame-Smoketest vor Refactor (Group join/leave, Queue/Teleport highlight, Key-Spalte, Refresh, Hidden/Sleep). Siehe `README.md` Abschnitt `Use Case / Logic Baseline (v0.9.52)`.
-- [x] `isiLive_keysync.lua` extrahieren (Key-Sync + Active-Key-Owner-Logik), in `isiLive.lua` nur noch Aufrufe.
-- [x] `isiLive_group.lua` extrahieren (Group-Lifecycle / Roster-Rebuild / Group-Leave-Cleanup).
-- [x] `isiLive_highlight.lua` extrahieren (Active-Target-Resolver + Highlight-State-Entscheidung).
-- [x] `isiLive_refresh.lua` extrahieren (voller Refresh-Flow inkl. forced HELLO/KEY + Inspect-Refresh).
-- [x] Event-Dispatcher in `isiLive.lua` auf duenne Routing-Schicht reduzieren.
-- [x] Nach jedem Schritt: `stylua --check .` + `luacheck --exclude-files ".luarocks/**" -- .` + `lua tools/lua_metrics_check.lua` + kurzer Ingame-Smoketest.
-- [x] Zielgroesse: `isiLive.lua` deutlich reduzieren (Richtwert < ~1200 Zeilen) ohne Verhaltensaenderung.
+- [x] Deterministische Runtime-Usecase-Pruefung (`tools/validate_usecases.lua`)
+- [x] Release-Dokus auf Quality-Gates inkl. Usecase-Validator umgestellt
+- [x] `isiLive.lua` in Kernmodule zerlegt (`keysync`, `group`, `highlight`, `refresh`, Event-Routing)
+- [x] Passive Blizzard-CVar-Checkboxen in der Main-UI eingebaut
+- [x] `luacheck .` und `lua tools/validate_usecases.lua` aktuell gruen
