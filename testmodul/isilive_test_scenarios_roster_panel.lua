@@ -298,7 +298,7 @@ local function FindFirstRowHoverFrame(createdFrames, mainFrame)
   return nil
 end
 
-return function(test, ctx)
+local function RegisterRowWrappingTest(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
@@ -331,6 +331,12 @@ return function(test, ctx)
       end
     end)
   end)
+end
+
+local function RegisterRowHoverUnitTooltipTest(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
 
   test("Roster panel row hover shows and hides unit tooltip", function()
     local createdFrames = {}
@@ -406,6 +412,12 @@ return function(test, ctx)
       Assert.Equal(tooltipState.hideCalls, 1, "row leave should hide tooltip")
     end)
   end)
+end
+
+local function RegisterRowHoverNameFallbackTooltipTest(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
 
   test("Roster panel row hover falls back to name tooltip when unit token is missing", function()
     local createdFrames = {}
@@ -487,6 +499,12 @@ return function(test, ctx)
       Assert.Equal(tooltipState.hideCalls, 1, "row leave should hide fallback tooltip")
     end)
   end)
+end
+
+local function RegisterShareKeysDebounceTest(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
 
   test("Roster panel share keys button debounces rapid clicks", function()
     local createdFrames = {}
@@ -556,6 +574,12 @@ return function(test, ctx)
       )
     end)
   end)
+end
+
+local function RegisterSystemOptionToggleTest(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
 
   test("Roster panel system option toggles mirror live cvar state and write once on click", function()
     local createdFrames = {}
@@ -631,4 +655,12 @@ return function(test, ctx)
       Assert.True(damageMeterToggle:GetChecked(), "toggle should re-read and keep the new live cvar state")
     end)
   end)
+end
+
+return function(test, ctx)
+  RegisterRowWrappingTest(test, ctx)
+  RegisterRowHoverUnitTooltipTest(test, ctx)
+  RegisterRowHoverNameFallbackTooltipTest(test, ctx)
+  RegisterShareKeysDebounceTest(test, ctx)
+  RegisterSystemOptionToggleTest(test, ctx)
 end
