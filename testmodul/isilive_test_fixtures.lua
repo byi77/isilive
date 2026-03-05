@@ -130,6 +130,7 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
       return false
     end,
     runFullRefresh = function() end,
+    restoreRioBaseline = function() end,
   }
 end
 

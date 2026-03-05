@@ -144,6 +144,12 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   config.getUnitNameAndRealm = RequireFunction(deps.getUnitNameAndRealm, "getUnitNameAndRealm")
   config.markIsiLiveUser = RequireFunction(deps.markIsiLiveUser, "markIsiLiveUser")
   config.maybeShowNonMythicDungeonEntryNotice = function()
+    local seasonData = addonTable.SeasonData
+    if type(seasonData) == "table" and type(seasonData.HasActiveDungeons) == "function" then
+      if not seasonData.HasActiveDungeons() then
+        return
+      end
+    end
     controllers.status.MaybeShowNonMythicDungeonEntryNotice()
   end
   config.checkIfEnteredTargetDungeon =

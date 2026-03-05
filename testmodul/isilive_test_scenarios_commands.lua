@@ -1,4 +1,4 @@
----@diagnostic disable: undefined-global, duplicate-set-field, need-check-nil
+---@diagnostic disable: undefined-global, duplicate-set-field
 
 local function BuildCommandLocale()
   return {
@@ -152,6 +152,9 @@ local function BuildCommandExecutor(WithGlobals, LoadAddonModules, overrides)
     local oldStrtrim = rawget(_G, "strtrim")
     _G.strtrim = function(s)
       return s:match("^%s*(.-)%s*$")
+    end
+    if type(executor) ~= "function" then
+      return
     end
     executor(msg)
     if oldStrtrim then

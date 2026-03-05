@@ -6,8 +6,8 @@
 - [x] `v0.9.61` vorbereiten:
   - `isiLive.toc` auf `0.9.61` gehoben
   - `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md` auf `0.9.61` synchronisiert
-- [ ] `v0.9.61` veroeffentlichen
-- [ ] Kurz-Smoketest vor Release:
+- [x] `v0.9.61` veroeffentlichen
+- [x] Kurz-Smoketest vor Release:
   - `/il` Alias testen (alle Sub-Commands)
   - UI oeffnen/schliessen, Hover-Tooltip auf Roster-Zeilen pruefen
   - Key starten, `/reload`, Rio-Baseline nach Reload pruefen
@@ -21,9 +21,10 @@
 
 ## P2 - Season / Runtime
 
-- [ ] Off-Season-Modus vorbereiten:
-  - Teleport-Grid ausblenden / leeren
-  - Non-Mythic-Warnung deaktivieren
+- [x] Off-Season-Modus vorbereiten:
+  - `SeasonData.HasActiveDungeons()` ergaenzt
+  - Teleport-Grid blendet sich bei leerem Season-Mapping automatisch aus (kein extra Code noetig)
+  - Non-Mythic-Warnung via `controller_wiring` gated hinter `HasActiveDungeons()`
 - [ ] Vorbereitung fuer Midnight S1:
   - neue MapIDs recherchieren
   - neue Teleport-Spells recherchieren
@@ -31,8 +32,8 @@
 
 ## P3 - Doku / Pflege
 
-- [ ] Nach `v0.9.60`: `TODO.md`, `CHANGELOG.md`, `README.md`, `RELEASE.md` wieder auf denselben Stand ziehen
-- [ ] Release-Text fuer CurseForge / GitHub kurz pruefen, damit die neue passive CVar-Logik klar beschrieben ist
+- [x] Nach `v0.9.60`: `TODO.md`, `CHANGELOG.md`, `README.md`, `RELEASE.md` wieder auf denselben Stand ziehen
+- [x] Release-Text fuer CurseForge / GitHub kurz pruefen, damit die neue passive CVar-Logik klar beschrieben ist
 
 ## Geparkt / Nicht aktiv
 

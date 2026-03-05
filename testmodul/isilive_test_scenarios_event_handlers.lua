@@ -314,6 +314,30 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
     Assert.True(setRuntimeLogEnabledValue == true, "ADDON_LOADED must restore runtime log enabled state from DB")
   end)
 
+  test("Event handlers restore Rio baseline from DB on ADDON_LOADED", function()
+    local restoreCalls = 0
+
+    WithGlobals({
+      IsiLiveDB = {
+        locale = "enUS",
+        queueDebug = false,
+        rioBaseline = { ["Alpha-Blackmoore"] = 2400 },
+        position = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 },
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        restoreRioBaseline = function()
+          restoreCalls = restoreCalls + 1
+        end,
+      })
+
+      controller:Dispatch("ADDON_LOADED", "isiLive")
+    end)
+
+    Assert.Equal(restoreCalls, 1, "ADDON_LOADED must restore Rio baseline from DB exactly once")
+  end)
+
   test("Event handlers reset damage meter on challenge start when available", function()
     local resetCalls = 0
     local cvarValues = {
