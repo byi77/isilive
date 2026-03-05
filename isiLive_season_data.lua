@@ -323,10 +323,7 @@ end
 
 function SeasonData.HasActiveDungeons(seasonID)
   local mapToTeleport = SeasonData.GetMapToTeleport(seasonID)
-  for _ in pairs(mapToTeleport) do
-    return true
-  end
-  return false
+  return next(mapToTeleport) ~= nil
 end
 
 function SeasonData.SetActiveSeasonID(seasonID, opts)
