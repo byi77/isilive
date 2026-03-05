@@ -447,6 +447,9 @@ local function RegisterChallengeStartAndDelayTests(test, Assert, LoadAddonModule
 
     Assert.Equal(enableCalls, 0, "delta display must stay disabled before delayed refresh callback")
     Assert.NotNil(delayedCallback, "post-run refresh must be scheduled with delay")
+    if type(delayedCallback) ~= "function" then
+      return
+    end
 
     delayedCallback()
 
