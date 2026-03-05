@@ -19,6 +19,7 @@ return {
       globals = {
         "IsiLiveDB",
         "SLASH_ISILIVE1",
+        "SLASH_ISILIVE2",
         "SlashCmdList",
         "IsiLiveRealmLocaleByExactName",
         "IsiLiveRealmLocaleByNormalizedName",
