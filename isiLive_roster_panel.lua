@@ -357,6 +357,15 @@ local function ShowRosterInfoTooltip(anchorFrame, info, getDungeonShortCode)
     return false
   end
 
+  -- Only show rich tooltip when actual addon-synced data is present beyond name/key
+  local hasRichInfo = (type(info.class) == "string" and info.class ~= "")
+    or (type(info.spec) == "string" and info.spec ~= "")
+    or (tonumber(info.ilvl) and tonumber(info.ilvl) > 0)
+    or (tonumber(info.rio) and tonumber(info.rio) > 0)
+  if not hasRichInfo then
+    return false
+  end
+
   local tooltip = AnchorGlobalGameTooltip(anchorFrame)
   if type(tooltip) ~= "table" or type(tooltip.SetText) ~= "function" then
     return false
