@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-03-05 - Version 0.9.62
+- **Bug Fix: Rich Roster Tooltip Guard:**
+  - `ShowRosterInfoTooltip` now only fires when actual addon-synced data is present (`class`, `spec`, `iLvl`, or `RIO`).
+  - Previously, players with only name/key data (no addon sync yet) could trigger the isiLive tooltip instead of the Blizzard unit tooltip, and double-anchor `GameTooltip`.
+- **CI Fix: `SLASH_ISILIVE2` in luacheck whitelist:**
+  - `.luacheckrc` globals list was missing `SLASH_ISILIVE2`. Lua Check CI gate is now fully green.
+- **Off-Season Mode Infrastructure:**
+  - Added `SeasonData.HasActiveDungeons()` helper: returns `true` when the active season has at least one mapped dungeon.
+  - `MaybeShowNonMythicDungeonEntryNotice` is now gated in `isiLive_controller_wiring.lua`: the warning is suppressed automatically when `HasActiveDungeons()` is `false`.
+  - Teleport grid already handles empty season mapping gracefully (renders no buttons). No extra code needed.
+  - To activate off-season mode: set `ACTIVE_SEASON_ID` to an empty season scaffold (e.g. `midnight_s1` before data is ready).
+- **Test Coverage:**
+  - New deterministic test: `ADDON_LOADED` restores Rio baseline from `IsiLiveDB` (total: `156` scenarios across `21` modules).
+  - Nil-guard fix for `delayedCallback` in event handler test.
+  - Replaced broad `need-check-nil` diagnostic suppression in commands test with targeted `executor` type guard.
+
 ## 2026-03-05 - Version 0.9.61
 - **`/il` Slash Alias:**
   - `/il` is now a registered shorthand for `/isilive`. All sub-commands work identically.

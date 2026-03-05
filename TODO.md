@@ -2,16 +2,14 @@
 
 ## P0 - Release / Review
 
-- [x] `v0.9.60` vorbereiten und veroeffentlichen
-- [x] `v0.9.61` vorbereiten:
-  - `isiLive.toc` auf `0.9.61` gehoben
-  - `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md` auf `0.9.61` synchronisiert
 - [x] `v0.9.61` veroeffentlichen
-- [x] Kurz-Smoketest vor Release:
-  - `/il` Alias testen (alle Sub-Commands)
-  - UI oeffnen/schliessen, Hover-Tooltip auf Roster-Zeilen pruefen
-  - Key starten, `/reload`, Rio-Baseline nach Reload pruefen
-  - Key beenden, Delta-Anzeige `(+X)RIO` pruefen
+- [ ] `v0.9.62` vorbereiten:
+  - `isiLive.toc` auf `0.9.62` gehoben
+  - `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md` auf `0.9.62` synchronisiert
+- [ ] `v0.9.62` veroeffentlichen
+- [ ] Kurz-Smoketest vor Release:
+  - Hover-Tooltip auf Roster-Zeilen: nur mit echten Addon-Daten (Spec/iLvl/Rio) pruefen
+  - Teleport-Grid und Non-Mythic-Warnung in normalem Season-Betrieb pruefen
 
 ## P1 - Quality Gates
 
@@ -43,11 +41,15 @@
 
 ## Bereits erledigt (wichtig als Kontext)
 
+- [x] Bugfix: `ShowRosterInfoTooltip` Guard auf class/spec/ilvl/rio (verhindert Doppel-Anchor und falschen Tooltip-Typ)
+- [x] `SLASH_ISILIVE2` in `.luacheckrc` ergaenzt (CI Lua Check jetzt vollstaendig gruen)
+- [x] Off-Season-Infrastruktur: `SeasonData.HasActiveDungeons()` + Non-Mythic-Warnung gated
+- [x] Testabdeckung: `restoreRioBaseline` ADDON_LOADED Test (156 Szenarien); Nil-Guards; Diagnostic Cleanup
+
 - [x] Interne Refaktorierung `isiLive_commands.lua`: `HandleLogCommand` / `HandleQDebugCommand` in gemeinsame `HandleDebugLogCommand` zusammengefuehrt (kein Behavior-Change)
 - [x] `/il` Slash-Alias registriert (`SLASH_ISILIVE2`)
 - [x] Rio-Baseline persistent in `IsiLiveDB.rioBaseline` gespeichert und bei `ADDON_LOADED` wiederhergestellt
 - [x] Roster-Hover-Tooltip zeigt isiLive-Daten (Name, Realm, Spec, iLvl, Rio, Key)
-
 - [x] Deterministische Runtime-Usecase-Pruefung (`tools/validate_usecases.lua`)
 - [x] Release-Dokus auf Quality-Gates inkl. Usecase-Validator umgestellt
 - [x] `isiLive.lua` in Kernmodule zerlegt (`keysync`, `group`, `highlight`, `refresh`, Event-Routing)
