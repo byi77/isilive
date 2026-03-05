@@ -307,7 +307,7 @@ function Commands.RegisterSlashCommands(opts)
   local deps = BuildDeps(opts)
 
   SLASH_ISILIVE1 = "/isilive"
-  SLASH_ISILIVE2 = "/il"
+  SLASH_ISILIVE2 = "/isk"
   SlashCmdList["ISILIVE"] = function(msg)
     ExecuteSlashCommand(deps, msg)
   end

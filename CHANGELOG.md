@@ -17,8 +17,8 @@
   - Replaced broad `need-check-nil` diagnostic suppression in commands test with targeted `executor` type guard.
 
 ## 2026-03-05 - Version 0.9.61
-- **`/il` Slash Alias:**
-  - `/il` is now a registered shorthand for `/isilive`. All sub-commands work identically.
+- **`/isk` Slash Alias:**
+  - `/isk` is now a registered shorthand for `/isilive`. All sub-commands work identically.
 - **Persistent Rio Baseline:**
   - The Rio baseline captured on `CHALLENGE_MODE_START` is now persisted in `IsiLiveDB.rioBaseline` and restored on `ADDON_LOADED`.
   - A UI reload mid-session no longer loses the baseline. Delta display still only activates after a key completes and the post-run refresh fires.

@@ -47,7 +47,7 @@
 - [x] Testabdeckung: `restoreRioBaseline` ADDON_LOADED Test (156 Szenarien); Nil-Guards; Diagnostic Cleanup
 
 - [x] Interne Refaktorierung `isiLive_commands.lua`: `HandleLogCommand` / `HandleQDebugCommand` in gemeinsame `HandleDebugLogCommand` zusammengefuehrt (kein Behavior-Change)
-- [x] `/il` Slash-Alias registriert (`SLASH_ISILIVE2`)
+- [x] `/isk` Slash-Alias registriert (`SLASH_ISILIVE2`)
 - [x] Rio-Baseline persistent in `IsiLiveDB.rioBaseline` gespeichert und bei `ADDON_LOADED` wiederhergestellt
 - [x] Roster-Hover-Tooltip zeigt isiLive-Daten (Name, Realm, Spec, iLvl, Rio, Key)
 - [x] Deterministische Runtime-Usecase-Pruefung (`tools/validate_usecases.lua`)

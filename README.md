@@ -103,23 +103,23 @@ Documented on `2026-03-05` as runtime behavior baseline for validation checks.
 
 ## Slash Commands
 
-`/isilive` and `/il` are interchangeable.
+`/isilive` and `/isk` are interchangeable.
 
-- `/il test`
-- `/il testall`
-- `/il tptest`
-- `/il tpdebug`
-- `/il log [on|off|start|stop|status|clear|tail [n]]`
-- `/il lead`
-- `/il lang [en|de]`
-- `/il pause`
-- `/il resume`
-- `/il stop`
-- `/il start`
-- `/il bindcheck`
+- `/isk test`
+- `/isk testall`
+- `/isk tptest`
+- `/isk tpdebug`
+- `/isk log [on|off|start|stop|status|clear|tail [n]]`
+- `/isk lead`
+- `/isk lang [en|de]`
+- `/isk pause`
+- `/isk resume`
+- `/isk stop`
+- `/isk start`
+- `/isk bindcheck`
 
 Developer debug (hidden command, not listed in in-game help):
-- `/il qdebug [on|off|status|clear|tail [n]]`
+- `/isk qdebug [on|off|status|clear|tail [n]]`
 
 ## Files
 
