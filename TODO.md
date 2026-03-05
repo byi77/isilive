@@ -2,18 +2,16 @@
 
 ## P0 - Release / Review
 
-- [x] `v0.9.60` vorbereiten:
-  - `isiLive.toc` auf `0.9.60` heben
-  - `CHANGELOG.md` auf aktuellen Runtime-Stand bringen
-  - `README.md` / `RELEASE.md` auf `0.9.60` Beispiele und Tag-Namen synchronisieren
-- [ ] `v0.9.60` als entschaerften Folge-Release gegenueber `0.9.59` veroeffentlichen
-  - passive Blizzard-CVar-Checkboxen statt hartem Erzwingen
-  - reduzierte Sync-Aktivitaet aus `v0.9.59` beibehalten
+- [x] `v0.9.60` vorbereiten und veroeffentlichen
+- [x] `v0.9.61` vorbereiten:
+  - `isiLive.toc` auf `0.9.61` gehoben
+  - `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md` auf `0.9.61` synchronisiert
+- [ ] `v0.9.61` veroeffentlichen
 - [ ] Kurz-Smoketest vor Release:
-  - UI oeffnen/schliessen
-  - Checkboxen fuer `advancedCombatLogging` / `damageMeterResetOnNewInstance`
-  - Blizzard-UI-Aenderung pruefen und kontrollieren, dass `isiLive` nur spiegelt
-  - Group join / key start / key end / queue target / teleport button
+  - `/il` Alias testen (alle Sub-Commands)
+  - UI oeffnen/schliessen, Hover-Tooltip auf Roster-Zeilen pruefen
+  - Key starten, `/reload`, Rio-Baseline nach Reload pruefen
+  - Key beenden, Delta-Anzeige `(+X)RIO` pruefen
 
 ## P1 - Quality Gates
 
@@ -43,6 +41,11 @@
   - alten Split-Plan nicht stillschweigend wieder aufnehmen
 
 ## Bereits erledigt (wichtig als Kontext)
+
+- [x] Interne Refaktorierung `isiLive_commands.lua`: `HandleLogCommand` / `HandleQDebugCommand` in gemeinsame `HandleDebugLogCommand` zusammengefuehrt (kein Behavior-Change)
+- [x] `/il` Slash-Alias registriert (`SLASH_ISILIVE2`)
+- [x] Rio-Baseline persistent in `IsiLiveDB.rioBaseline` gespeichert und bei `ADDON_LOADED` wiederhergestellt
+- [x] Roster-Hover-Tooltip zeigt isiLive-Daten (Name, Realm, Spec, iLvl, Rio, Key)
 
 - [x] Deterministische Runtime-Usecase-Pruefung (`tools/validate_usecases.lua`)
 - [x] Release-Dokus auf Quality-Gates inkl. Usecase-Validator umgestellt

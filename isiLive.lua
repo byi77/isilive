@@ -390,6 +390,10 @@ local function ClearRioBaselineSnapshot()
   rioBaselineByPlayerKey = {}
   hasRioBaselineSnapshot = false
   isRioDeltaDisplayEnabled = false
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) == "table" then
+    db.rioBaseline = nil
+  end
 end
 
 local function CaptureRioBaselineSnapshot()
@@ -413,6 +417,29 @@ local function CaptureRioBaselineSnapshot()
   rioBaselineByPlayerKey = snapshot
   hasRioBaselineSnapshot = hasSnapshotData
   isRioDeltaDisplayEnabled = false
+
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) == "table" then
+    db.rioBaseline = hasSnapshotData and snapshot or nil
+  end
+end
+
+local function RestoreRioBaselineFromDB()
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) ~= "table" or type(db.rioBaseline) ~= "table" then
+    return
+  end
+  local restored = {}
+  local hasData = false
+  for key, value in pairs(db.rioBaseline) do
+    if type(key) == "string" and type(value) == "number" then
+      restored[key] = value
+      hasData = true
+    end
+  end
+  rioBaselineByPlayerKey = restored
+  hasRioBaselineSnapshot = hasData
+  -- isRioDeltaDisplayEnabled stays false; delta display is enabled only after a key completes.
 end
 
 local function EnableRioDeltaDisplay()
@@ -1147,6 +1174,7 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   updateCountdownCancelButton = UpdateCountdownCancelButton,
   checkIfEnteredTargetDungeon = CheckIfEnteredTargetDungeon,
   captureRioBaselineSnapshot = CaptureRioBaselineSnapshot,
+  restoreRioBaseline = RestoreRioBaselineFromDB,
   enableRioDeltaDisplay = EnableRioDeltaDisplay,
   setCenterNoticeVisible = SetCenterNoticeVisible,
   getState = function()

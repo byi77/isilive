@@ -1,6 +1,6 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.60`
+Version baseline: `0.9.61`
 Last updated: `2026-03-05`
 
 ## Purpose

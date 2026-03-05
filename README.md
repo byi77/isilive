@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.60`.
+Current addon version: `0.9.61`.
 
 ## Features
 
@@ -30,6 +30,8 @@ Current addon version: `0.9.60`.
 - Spec column supports short labels for long localized names (for example `Wiederherstellung -> Resto`, `Vergeltung -> Retri`)
 - Center notices: left-click drag, right-click dismiss, top-right close button; position resets to center on each open
 - Optional runtime log persisted in `IsiLiveDB.runtimeLog` (enable/disable via slash command; flushed on `/reload`/logout)
+- Per-run RIO baseline persisted in `IsiLiveDB.rioBaseline`; restored on addon load so a UI reload mid-session does not lose the delta reference
+- Roster row hover shows an isiLive-data tooltip: name (class-colored), realm, spec, iLvl, Rio, and current key; falls back to WoW unit tooltip then plain name
 - Non-Mythic dungeon entry warning with delayed confirmation (larger/blinking persistent notice; right-click dismiss, left-click drag)
 - Top-right version label in main window (`V.x.y.z`)
 
@@ -44,14 +46,14 @@ Current addon version: `0.9.60`.
 - Combat runtime gate now suppresses non-essential event processing while in combat; essential events (for example `PLAYER_REGEN_ENABLED` and `CHALLENGE_MODE_*`) still run.
 - Peer sync (`HELLO`/`ACK`/`KEY`/`STATS`) runs only while the main window is visible (hidden mode stays in sleep behavior)
 - Main window is movable via left drag in every mode; top drag handle stays above overlays for reliable dragging
-- Roster member row hover shows the Blizzard player tooltip when unit context exists, with `Name-Realm` fallback text when unit tokens are temporarily unavailable
+- Roster member row hover shows an isiLive-data tooltip (name class-colored, realm, spec, iLvl, Rio, key); falls back to Blizzard player tooltip when isiLive data is absent, then plain `Name-Realm` text
 - Teleport grid buttons inherit main-frame strata/level to avoid overlay conflicts with external UI panels
 - Teleport action buttons are intentionally `InsecureActionButtonTemplate` so `CTRL+F9` main-frame open/close and center-notice visibility remain combat-safe
 - Combat-safe frame updates: pending frame-height changes are applied on `PLAYER_REGEN_ENABLED`
 - Bottom-left system toggles mirror the live Blizzard CVar state for `advancedCombatLogging` and `damageMeterResetOnNewInstance`.
 - Clicking those toggles writes the selected Blizzard setting once; `isiLive` does not keep re-enforcing either CVar afterward.
 - Blizzard damage meter is also manually reset on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
-- `CHALLENGE_MODE_START` captures a per-player RIO baseline.
+- `CHALLENGE_MODE_START` captures a per-player RIO baseline and persists it to `IsiLiveDB.rioBaseline`; restored automatically on next `ADDON_LOADED`.
 - `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` schedules delayed post-run refresh and enables clamped delta display `(+X)RIO` after refresh succeeds (with short retry if still blocked), including when the window is currently hidden.
 - Test mode (`/isilive test`, `/isilive testall`) includes visible positive dummy RIO delta preview.
 - `Readycheck`, `Countdown10`, and `Countdown 0` are leader-only
@@ -61,7 +63,7 @@ Current addon version: `0.9.60`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`, while explicit local refresh triggers and visibility-bound snapshots keep `KEY/STATS` current.
 
-## Use Case / Logic Baseline (v0.9.60)
+## Use Case / Logic Baseline (v0.9.61)
 
 Documented on `2026-03-05` as runtime behavior baseline for validation checks.
 
@@ -101,21 +103,23 @@ Documented on `2026-03-05` as runtime behavior baseline for validation checks.
 
 ## Slash Commands
 
-- `/isilive test`
-- `/isilive testall`
-- `/isilive tptest`
-- `/isilive tpdebug`
-- `/isilive log [on|off|start|stop|status|clear|tail [n]]`
-- `/isilive lead`
-- `/isilive lang [en|de]`
-- `/isilive pause`
-- `/isilive resume`
-- `/isilive stop`
-- `/isilive start`
-- `/isilive bindcheck`
+`/isilive` and `/il` are interchangeable.
+
+- `/il test`
+- `/il testall`
+- `/il tptest`
+- `/il tpdebug`
+- `/il log [on|off|start|stop|status|clear|tail [n]]`
+- `/il lead`
+- `/il lang [en|de]`
+- `/il pause`
+- `/il resume`
+- `/il stop`
+- `/il start`
+- `/il bindcheck`
 
 Developer debug (hidden command, not listed in in-game help):
-- `/isilive qdebug [on|off|status|clear|tail [n]]`
+- `/il qdebug [on|off|status|clear|tail [n]]`
 
 ## Files
 
@@ -264,10 +268,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.60`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.61`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.60` or `isiLive_beta_0.9.60`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.61` or `isiLive_beta_0.9.61`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -279,7 +283,7 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.60 && git push origin isiLive_release_0.9.60`
+3. Create and push stable tag: `git tag isiLive_release_0.9.61 && git push origin isiLive_release_0.9.61`
 4. Optional pre-release tags:
    - alpha: `git tag isiLive_alpha_0.9.60 && git push origin isiLive_alpha_0.9.60`
    - beta: `git tag isiLive_beta_0.9.60 && git push origin isiLive_beta_0.9.60`

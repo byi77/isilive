@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-03-05 - Version 0.9.61
+- **`/il` Slash Alias:**
+  - `/il` is now a registered shorthand for `/isilive`. All sub-commands work identically.
+- **Persistent Rio Baseline:**
+  - The Rio baseline captured on `CHALLENGE_MODE_START` is now persisted in `IsiLiveDB.rioBaseline` and restored on `ADDON_LOADED`.
+  - A UI reload mid-session no longer loses the baseline. Delta display still only activates after a key completes and the post-run refresh fires.
+  - Clearing the baseline (group leave, new key start) also clears the saved value from `IsiLiveDB`.
+- **Rich Roster Hover Tooltip:**
+  - Hovering a roster row now shows an isiLive-data tooltip: name (class-colored), realm, spec, iLvl, Rio, and key (if any).
+  - Falls back to the WoW unit tooltip then plain name if isiLive data is unavailable.
+- **Internal Refactor: Debug Log Command Handlers:**
+  - Extracted shared `HandleDebugLogCommand` in `isiLive_commands.lua` to eliminate duplication between `HandleLogCommand` and `HandleQDebugCommand` (~90 lines → ~55 lines).
+  - Minor inconsistency in qdebug `"cleared"` message normalized to match shared label pattern.
+  - No user-facing behaviour change.
+
 ## 2026-03-05 - Version 0.9.60
 - **Dungeon Announce Spam Softening:**
   - Grouped queue announces are now deduplicated by signature without a time-window fallback, so identical dungeon announce blocks do not re-fire later from timing jitter.

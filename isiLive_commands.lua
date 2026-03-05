@@ -68,31 +68,29 @@ local function PrintHelp(printFn, L)
   printFn(L.HELP_START)
 end
 
-local function HandleLogCommand(ctx, cmd)
-  local arg, numText = cmd:match("^log%s+(%S+)%s*(%d*)$")
+-- Generic handler for debug log sub-commands (shared by "log" and "qdebug").
+-- cfg fields: prefix, label, extraOn (table), extraOff (table),
+--             getEnabled, setEnabled, clearLog, getCount, getTail, usageStr
+local function HandleDebugLogCommand(ctx, cmd, cfg)
+  local arg, numText = cmd:match("^" .. cfg.prefix .. "%s+(%S+)%s*(%d*)$")
   if not arg or arg == "status" then
-    ctx.printFn(
-      "Runtime log: "
-        .. (ctx.getRuntimeLogEnabled() and "ON" or "OFF")
-        .. " | entries: "
-        .. tostring(ctx.getRuntimeLogCount())
-    )
+    ctx.printFn(cfg.label .. ": " .. (cfg.getEnabled() and "ON" or "OFF") .. " | entries: " .. tostring(cfg.getCount()))
     return
   end
 
-  if arg == "on" or arg == "start" or arg == "1" or arg == "true" then
-    ctx.setRuntimeLogEnabled(true)
-    ctx.printFn("Runtime log: ON")
+  if arg == "on" or arg == "1" or arg == "true" or (cfg.extraOn and cfg.extraOn[arg]) then
+    cfg.setEnabled(true)
+    ctx.printFn(cfg.label .. ": ON")
     return
   end
-  if arg == "off" or arg == "stop" or arg == "0" or arg == "false" then
-    ctx.setRuntimeLogEnabled(false)
-    ctx.printFn("Runtime log: OFF")
+  if arg == "off" or arg == "0" or arg == "false" or (cfg.extraOff and cfg.extraOff[arg]) then
+    cfg.setEnabled(false)
+    ctx.printFn(cfg.label .. ": OFF")
     return
   end
   if arg == "clear" then
-    ctx.clearRuntimeLog()
-    ctx.printFn("Runtime log: cleared")
+    cfg.clearLog()
+    ctx.printFn(cfg.label .. ": cleared")
     return
   end
 
@@ -103,61 +101,43 @@ local function HandleLogCommand(ctx, cmd)
     elseif limit > 100 then
       limit = 100
     end
-    local lines = ctx.getRuntimeLogTail(limit)
-    ctx.printFn("Runtime log tail: " .. tostring(#lines) .. "/" .. tostring(ctx.getRuntimeLogCount()) .. " entries")
+    local lines = cfg.getTail(limit)
+    ctx.printFn(cfg.label .. " tail: " .. tostring(#lines) .. "/" .. tostring(cfg.getCount()) .. " entries")
     for _, line in ipairs(lines) do
       ctx.printFn(tostring(line))
     end
     return
   end
 
-  ctx.printFn("Usage: /isilive log [on|off|start|stop|status|clear|tail [n]]")
+  ctx.printFn(cfg.usageStr)
+end
+
+local function HandleLogCommand(ctx, cmd)
+  HandleDebugLogCommand(ctx, cmd, {
+    prefix = "log",
+    label = "Runtime log",
+    extraOn = { start = true },
+    extraOff = { stop = true },
+    getEnabled = ctx.getRuntimeLogEnabled,
+    setEnabled = ctx.setRuntimeLogEnabled,
+    clearLog = ctx.clearRuntimeLog,
+    getCount = ctx.getRuntimeLogCount,
+    getTail = ctx.getRuntimeLogTail,
+    usageStr = "Usage: /isilive log [on|off|start|stop|status|clear|tail [n]]",
+  })
 end
 
 local function HandleQDebugCommand(ctx, cmd)
-  local arg, numText = cmd:match("^qdebug%s+(%S+)%s*(%d*)$")
-  if not arg or arg == "status" then
-    ctx.printFn(
-      "Queue debug: "
-        .. (ctx.getQueueDebugEnabled() and "ON" or "OFF")
-        .. " | entries: "
-        .. tostring(ctx.getQueueDebugLogCount())
-    )
-    return
-  end
-
-  if arg == "on" or arg == "1" or arg == "true" then
-    ctx.setQueueDebugEnabled(true)
-    ctx.printFn("Queue debug: ON")
-    return
-  end
-  if arg == "off" or arg == "0" or arg == "false" then
-    ctx.setQueueDebugEnabled(false)
-    ctx.printFn("Queue debug: OFF")
-    return
-  end
-  if arg == "clear" then
-    ctx.clearQueueDebugLog()
-    ctx.printFn("Queue debug log: cleared")
-    return
-  end
-
-  if arg == "tail" or arg == "dump" then
-    local limit = tonumber(numText) or 20
-    if limit < 1 then
-      limit = 1
-    elseif limit > 100 then
-      limit = 100
-    end
-    local lines = ctx.getQueueDebugLogTail(limit)
-    ctx.printFn("Queue debug tail: " .. tostring(#lines) .. "/" .. tostring(ctx.getQueueDebugLogCount()) .. " entries")
-    for _, line in ipairs(lines) do
-      ctx.printFn(tostring(line))
-    end
-    return
-  end
-
-  ctx.printFn("Usage: /isilive qdebug [on|off|status|clear|tail [n]]")
+  HandleDebugLogCommand(ctx, cmd, {
+    prefix = "qdebug",
+    label = "Queue debug",
+    getEnabled = ctx.getQueueDebugEnabled,
+    setEnabled = ctx.setQueueDebugEnabled,
+    clearLog = ctx.clearQueueDebugLog,
+    getCount = ctx.getQueueDebugLogCount,
+    getTail = ctx.getQueueDebugLogTail,
+    usageStr = "Usage: /isilive qdebug [on|off|status|clear|tail [n]]",
+  })
 end
 
 local function HandleBindCheck(printFn)
@@ -327,6 +307,7 @@ function Commands.RegisterSlashCommands(opts)
   local deps = BuildDeps(opts)
 
   SLASH_ISILIVE1 = "/isilive"
+  SLASH_ISILIVE2 = "/il"
   SlashCmdList["ISILIVE"] = function(msg)
     ExecuteSlashCommand(deps, msg)
   end

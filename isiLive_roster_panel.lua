@@ -348,6 +348,61 @@ local function ShowRosterNameFallbackTooltip(anchorFrame, name, realm)
   return true
 end
 
+local function ShowRosterInfoTooltip(anchorFrame, info, getDungeonShortCode)
+  if type(info) ~= "table" then
+    return false
+  end
+  local name = type(info.name) == "string" and info.name ~= "" and info.name or nil
+  if not name then
+    return false
+  end
+
+  local tooltip = AnchorGlobalGameTooltip(anchorFrame)
+  if type(tooltip) ~= "table" or type(tooltip.SetText) ~= "function" then
+    return false
+  end
+
+  local classColors = rawget(_G, "RAID_CLASS_COLORS")
+  local classColor = classColors and info.class and classColors[info.class]
+  local titleText
+  if classColor then
+    local r = math.floor((classColor.r or 1) * 255)
+    local g = math.floor((classColor.g or 1) * 255)
+    local b = math.floor((classColor.b or 1) * 255)
+    titleText = string.format("|cff%02x%02x%02x%s|r", r, g, b, name)
+  else
+    titleText = name
+  end
+  tooltip:SetText(titleText, 1, 1, 1)
+
+  if type(tooltip.AddLine) == "function" then
+    local realm = type(info.realm) == "string" and info.realm ~= "" and info.realm or nil
+    if realm then
+      tooltip:AddLine(realm, 0.7, 0.7, 0.7)
+    end
+    if type(info.spec) == "string" and info.spec ~= "" then
+      tooltip:AddLine(info.spec, 0.9, 0.9, 0.9)
+    end
+    if info.ilvl then
+      tooltip:AddLine("iLvl: " .. tostring(math.floor(tonumber(info.ilvl) or 0)), 0.9, 0.9, 0.9)
+    end
+    if info.rio then
+      tooltip:AddLine("Rio: " .. tostring(math.floor(tonumber(info.rio) or 0)), 0.9, 0.9, 0.9)
+    end
+    local keyMapID = tonumber(info.keyMapID)
+    local keyLevel = tonumber(info.keyLevel)
+    if keyMapID and keyMapID > 0 and keyLevel and keyLevel > 0 then
+      local shortCode = type(getDungeonShortCode) == "function" and getDungeonShortCode(keyMapID) or tostring(keyMapID)
+      tooltip:AddLine(string.format("Key: %s +%d", tostring(shortCode), keyLevel), 1, 0.85, 0)
+    end
+  end
+
+  if type(tooltip.Show) == "function" then
+    tooltip:Show()
+  end
+  return true
+end
+
 local function CreateMemberRow(mainFrame, index)
   local yOffset = -52 - (index - 1) * 16
   local row = {}
@@ -367,8 +422,10 @@ local function CreateMemberRow(mainFrame, index)
 
   row.hoverFrame:SetScript("OnEnter", function()
     row.highlight:Show()
-    if not ShowRosterUnitTooltip(row.hoverFrame, row.unit) then
-      ShowRosterNameFallbackTooltip(row.hoverFrame, row.tooltipName, row.tooltipRealm)
+    if not ShowRosterInfoTooltip(row.hoverFrame, row.tooltipInfo, row.getDungeonShortCode) then
+      if not ShowRosterUnitTooltip(row.hoverFrame, row.unit) then
+        ShowRosterNameFallbackTooltip(row.hoverFrame, row.tooltipName, row.tooltipRealm)
+      end
     end
   end)
   row.hoverFrame:SetScript("OnLeave", function()
@@ -683,6 +740,8 @@ local function RenderRosterImpl(state, roster)
     row.unit = nil
     row.tooltipName = nil
     row.tooltipRealm = nil
+    row.tooltipInfo = nil
+    row.getDungeonShortCode = nil
     if row.hoverFrame then
       row.hoverFrame.unit = nil
       row.hoverFrame:Hide()
@@ -743,6 +802,8 @@ local function RenderRosterImpl(state, roster)
     row.unit = entry.unit
     row.tooltipName = info and info.name or nil
     row.tooltipRealm = info and info.realm or nil
+    row.tooltipInfo = info
+    row.getDungeonShortCode = state.getDungeonShortCode
     if row.hoverFrame then
       row.hoverFrame.unit = entry.unit
       row.hoverFrame:Show()

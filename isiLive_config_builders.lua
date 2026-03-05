@@ -179,6 +179,7 @@ local function BuildEventCallbacks(ctx)
     updateCountdownCancelButton = ctx.updateCountdownCancelButton,
     checkIfEnteredTargetDungeon = ctx.checkIfEnteredTargetDungeon,
     captureRioBaselineSnapshot = ctx.captureRioBaselineSnapshot,
+    restoreRioBaseline = ctx.restoreRioBaseline,
     enableRioDeltaDisplay = ctx.enableRioDeltaDisplay,
     setMainFrameHeightSafe = ctx.setMainFrameHeightSafe,
   }
