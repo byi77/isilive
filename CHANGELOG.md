@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-03-05 - Version 0.9.60
+- **Dungeon Announce Spam Softening:**
+  - Grouped queue announces are now deduplicated by signature without a time-window fallback, so identical dungeon announce blocks do not re-fire later from timing jitter.
+  - Dedup state is reset when no group is active, so the same dungeon can be announced again on a real leave/rejoin cycle.
+  - Added deterministic QueueFlow coverage for "same target beyond debounce window" and "re-announce after regroup".
+- **Release Metadata + Docs Sync:**
+  - TOC version bumped to `0.9.60`.
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, and `TODO.md` to `0.9.60`.
+- **Validation:**
+  - `lua tools/validate_usecases.lua` passes with `155` deterministic scenarios across `21` modules.
+
 ## 2026-03-02 - Version 0.9.59
 - **CurseForge Review Softening:**
   - Removed the remaining automatic Blizzard-CVar enforcement from runtime startup and challenge-start flows.

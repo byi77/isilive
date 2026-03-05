@@ -5,7 +5,6 @@ desktop.ini
 
 # Editor
 .vscode/*
-!.vscode/settings.json
 !.vscode/tasks.json
 .idea/
 *.code-workspace

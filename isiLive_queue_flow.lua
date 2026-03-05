@@ -82,6 +82,11 @@ local function CaptureQueueJoinCandidate(deps, ...)
     return
   end
 
+  -- New queue-search phase starts outside a group: allow next grouped announce again.
+  if not deps.isInGroup() then
+    deps.lastAnnouncementSignature = nil
+  end
+
   local function strictResolver(activityID)
     local ok, mapID = pcall(deps.resolveSeason3MapIDByActivityID, activityID)
     if not ok then
@@ -157,18 +162,12 @@ AnnounceQueuedGroupJoin = function(deps)
   local mapID = pending.mapID or deps.resolveSeason3MapIDByActivityID(activityID)
   local spellID = pending.teleportSpellID or (mapID and deps.resolveSeason3TeleportSpellIDByMapID(mapID) or nil)
   local signature = BuildAnnouncementSignature(pending, groupName, dungeonName, activityID, mapID, spellID)
-  local now = deps.getTimeFn()
-
-  if
-    deps.lastAnnouncementSignature == signature
-    and (now - deps.lastAnnouncementAt) <= deps.announcementDedupWindowSeconds
-  then
+  if deps.lastAnnouncementSignature == signature then
     deps.setPendingQueueJoinInfo(nil)
     return
   end
 
   deps.lastAnnouncementSignature = signature
-  deps.lastAnnouncementAt = now
   ShowQueueJoinPreview(deps, groupName, dungeonName, activityID)
   deps.setPendingQueueJoinInfo(nil)
 end
@@ -203,9 +202,7 @@ function QueueFlow.CreateController(opts)
     isInGroup = RequireFunction(opts.isInGroup, "isInGroup"),
     isPlayerLeader = RequireFunction(opts.isPlayerLeader, "isPlayerLeader"),
     getTimeFn = opts.getTimeFn or GetTime,
-    announcementDedupWindowSeconds = tonumber(opts.announcementDedupWindowSeconds) or 30,
     lastAnnouncementSignature = nil,
-    lastAnnouncementAt = 0,
   }
 
   assert(type(deps.printFn) == "function", "isiLive: QueueFlow requires printFn")

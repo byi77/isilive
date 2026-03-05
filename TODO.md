@@ -2,13 +2,13 @@
 
 ## P0 - Release / Review
 
-- [x] `v0.9.59` vorbereiten:
-  - `isiLive.toc` auf `0.9.59` heben
+- [x] `v0.9.60` vorbereiten:
+  - `isiLive.toc` auf `0.9.60` heben
   - `CHANGELOG.md` auf aktuellen Runtime-Stand bringen
-  - `README.md` / `RELEASE.md` auf `0.9.59` Beispiele und Tag-Namen synchronisieren
-- [ ] `v0.9.59` als entschärften Folge-Release gegenueber `0.9.58` veroeffentlichen
+  - `README.md` / `RELEASE.md` auf `0.9.60` Beispiele und Tag-Namen synchronisieren
+- [ ] `v0.9.60` als entschaerften Folge-Release gegenueber `0.9.59` veroeffentlichen
   - passive Blizzard-CVar-Checkboxen statt hartem Erzwingen
-  - reduzierte Sync-Aktivitaet aus `v0.9.58` beibehalten
+  - reduzierte Sync-Aktivitaet aus `v0.9.59` beibehalten
 - [ ] Kurz-Smoketest vor Release:
   - UI oeffnen/schliessen
   - Checkboxen fuer `advancedCombatLogging` / `damageMeterResetOnNewInstance`
@@ -33,7 +33,7 @@
 
 ## P3 - Doku / Pflege
 
-- [ ] Nach `v0.9.59`: `TODO.md`, `CHANGELOG.md`, `README.md`, `RELEASE.md` wieder auf denselben Stand ziehen
+- [ ] Nach `v0.9.60`: `TODO.md`, `CHANGELOG.md`, `README.md`, `RELEASE.md` wieder auf denselben Stand ziehen
 - [ ] Release-Text fuer CurseForge / GitHub kurz pruefen, damit die neue passive CVar-Logik klar beschrieben ist
 
 ## Geparkt / Nicht aktiv

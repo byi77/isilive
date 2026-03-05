@@ -231,6 +231,54 @@ local function RegisterQueueFlowCaptureAndDedupTests(test, Assert, LoadAddonModu
     Assert.True(#state.prints >= 3, "first grouped capture should still print queue summary")
     Assert.True(#state.prints < 6, "second grouped capture should not duplicate chat summary")
   end)
+
+  test("QueueFlow deduplicates grouped announce for same target beyond debounce window", function()
+    local now = 100
+    local addon = LoadAddonModules({ "isiLive_queue_flow.lua" })
+    local controller, state = Fixtures.BuildQueueFlowController(addon.QueueFlow, {
+      isInGroup = function()
+        return true
+      end,
+      getTimeFn = function()
+        return now
+      end,
+      queueCaptureQueueJoinCandidate = function(updatePendingQueueJoin, _strictResolver, _activityID, _status)
+        updatePendingQueueJoin("Slow Spam Group", "Slow Spam Dungeon", 2, 1001)
+      end,
+    })
+
+    controller.CaptureQueueJoinCandidate(1001, "accepted")
+    now = now + 90
+    controller.CaptureQueueJoinCandidate(1001, "accepted")
+
+    Assert.Equal(#state.queueTargets, 1, "same grouped target should stay deduplicated even after long delay")
+    Assert.True(#state.prints >= 3, "first grouped capture should still print queue summary")
+    Assert.True(#state.prints < 6, "second grouped capture should not duplicate chat summary after long delay")
+  end)
+
+  test("QueueFlow allows same target announce again after leaving and rejoining group", function()
+    local inGroup = true
+    local addon = LoadAddonModules({ "isiLive_queue_flow.lua" })
+    local controller, state = Fixtures.BuildQueueFlowController(addon.QueueFlow, {
+      isInGroup = function()
+        return inGroup
+      end,
+      queueCaptureQueueJoinCandidate = function(updatePendingQueueJoin, _strictResolver, _activityID, _status)
+        updatePendingQueueJoin("Rejoin Group", "Rejoin Dungeon", 2, 1001)
+      end,
+    })
+
+    controller.CaptureQueueJoinCandidate(1001, "accepted")
+    Assert.Equal(#state.prints, 3, "first grouped join should print one queue summary block")
+
+    inGroup = false
+    controller.CaptureQueueJoinCandidate(1001, "accepted")
+    Assert.Equal(#state.prints, 3, "outside group capture should not print queue summary")
+
+    inGroup = true
+    controller.AnnounceQueuedGroupJoin()
+    Assert.Equal(#state.prints, 6, "same target should print again after a fresh regroup cycle")
+  end)
 end
 
 return function(test, ctx)
