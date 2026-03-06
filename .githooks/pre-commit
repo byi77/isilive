@@ -4,24 +4,36 @@ set -e
 
 echo "Running pre-commit checks..."
 
-if ! stylua --check .; then
-  echo "pre-commit: stylua check failed. Run 'stylua .' and retry."
-  exit 1
-fi
+if command -v powershell >/dev/null 2>&1; then
+  if ! powershell -ExecutionPolicy Bypass -File tools/validate_ci_local.ps1; then
+    echo "pre-commit: local CI preflight failed."
+    exit 1
+  fi
+elif command -v pwsh >/dev/null 2>&1; then
+  if ! pwsh -File tools/validate_ci_local.ps1; then
+    echo "pre-commit: local CI preflight failed."
+    exit 1
+  fi
+else
+  if ! stylua --check .; then
+    echo "pre-commit: stylua check failed. Run 'stylua .' and retry."
+    exit 1
+  fi
 
-if ! luacheck --exclude-files ".luarocks/**" -- .; then
-  echo "pre-commit: luacheck failed. Fix lint issues and retry."
-  exit 1
-fi
+  if ! luacheck --exclude-files ".luarocks/**" -- .; then
+    echo "pre-commit: luacheck failed. Fix lint issues and retry."
+    exit 1
+  fi
 
-if ! lua tools/lua_metrics_check.lua; then
-  echo "pre-commit: lua metrics check failed. Fix file/function size violations and retry."
-  exit 1
-fi
+  if ! lua tools/lua_metrics_check.lua; then
+    echo "pre-commit: lua metrics check failed. Fix file/function size violations and retry."
+    exit 1
+  fi
 
-if ! lua tools/validate_usecases.lua; then
-  echo "pre-commit: deterministic usecase/rules logic validation failed. Fix failing scenarios or RULES_LOGIC mapping and retry."
-  exit 1
+  if ! lua tools/validate_usecases.lua; then
+    echo "pre-commit: deterministic usecase/rules logic validation failed. Fix failing scenarios or RULES_LOGIC mapping and retry."
+    exit 1
+  fi
 fi
 
 echo "pre-commit: all checks passed."
