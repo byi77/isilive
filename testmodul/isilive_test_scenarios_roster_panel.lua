@@ -1,4 +1,55 @@
 local function RegisterRosterDisplayTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster name color follows ready check status colors", function()
+    local readyCheckStatusByUnit = {}
+
+    WithGlobals({
+      GetReadyCheckStatus = function(unit)
+        return readyCheckStatusByUnit[unit]
+      end,
+      RAID_CLASS_COLORS = {
+        WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
+      },
+      CreateColor = function(r, g, b)
+        return {
+          GenerateHexColor = function()
+            return string.format("ff%02x%02x%02x", math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+          end,
+        }
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster.lua",
+      })
+
+      local info = {
+        name = "TestPlayer",
+        class = "WARRIOR",
+        role = "DAMAGER",
+      }
+
+      readyCheckStatusByUnit.player = "ready"
+      local readyData = addon.Roster.BuildDisplayData(info, {
+        unit = "player",
+        isReadyCheckActive = true,
+      })
+      Assert.Equal(readyData.colorHex, "ff00ff00", "Ready status should color name green")
+
+      readyCheckStatusByUnit.player = "notready"
+      local notReadyData = addon.Roster.BuildDisplayData(info, {
+        unit = "player",
+        isReadyCheckActive = true,
+      })
+      Assert.Equal(notReadyData.colorHex, "ffff0000", "Not-ready status should color name red")
+
+      readyCheckStatusByUnit.player = "waiting"
+      local waitingData = addon.Roster.BuildDisplayData(info, {
+        unit = "player",
+        isReadyCheckActive = true,
+      })
+      Assert.Equal(waitingData.colorHex, "ffffff00", "Waiting status should color name yellow")
+    end)
+  end)
+
   test("Roster name color resets to class color after ready check", function()
     local readyCheckStatusByUnit = {}
     local roster = {
@@ -117,9 +168,221 @@ local function RegisterRosterDisplayTests(test, Assert, WithGlobals, LoadAddonMo
       Assert.Equal(displayData.colorHex, "ff808080", "Ghost member should be rendered in grey")
     end)
   end)
+
+  test("Roster display appends blue-heart marker for synced users", function()
+    WithGlobals({
+      GetReadyCheckStatus = function()
+        return nil
+      end,
+      RAID_CLASS_COLORS = {},
+      CreateColor = function()
+        return {
+          GenerateHexColor = function()
+            return "ffffffff"
+          end,
+        }
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster.lua",
+      })
+
+      local displayData = addon.Roster.BuildDisplayData({
+        name = "SyncedPlayer",
+        hasIsiLive = true,
+      }, {
+        syncMarker = " |cff33aaff<3|r",
+      })
+
+      Assert.True(
+        displayData.addonMarker:find("<3", 1, true) ~= nil,
+        "synced users should receive the blue-heart marker"
+      )
+    end)
+  end)
+end
+
+local function NewRecordedFontString(createdFontStrings)
+  local fontString = {
+    wordWrap = nil,
+    nonSpaceWrap = nil,
+    maxLines = nil,
+  }
+
+  function fontString.SetPoint() end
+  function fontString.SetWidth() end
+  function fontString.SetJustifyH() end
+  function fontString.GetFont()
+    return "font", 10, ""
+  end
+  function fontString.SetFont() end
+  function fontString.SetTextColor() end
+  function fontString.SetShadowOffset() end
+  function fontString.SetText() end
+  function fontString.SetWordWrap(self, value)
+    self.wordWrap = value
+  end
+  function fontString.SetNonSpaceWrap(self, value)
+    self.nonSpaceWrap = value
+  end
+  function fontString.SetMaxLines(self, value)
+    self.maxLines = value
+  end
+
+  table.insert(createdFontStrings, fontString)
+  return fontString
+end
+
+local function NewRecordedFrame(createdFrames, createdFontStrings)
+  local frame = {
+    enabled = nil,
+    alpha = nil,
+    pointY = nil,
+    checked = false,
+  }
+
+  function frame.SetSize() end
+  function frame.SetHeight() end
+  function frame.SetPoint(self, ...)
+    local argCount = select("#", ...)
+    for index = argCount, 1, -1 do
+      local value = select(index, ...)
+      if type(value) == "number" then
+        self.pointY = value
+        return
+      end
+    end
+  end
+  function frame.SetScript(self, script, handler)
+    self[script] = handler
+  end
+  function frame.SetText(self, text)
+    self.text = text
+  end
+  function frame.SetEnabled(self, value)
+    self.enabled = value and true or false
+  end
+  function frame.SetAlpha(self, value)
+    self.alpha = value
+  end
+  function frame.SetChecked(self, value)
+    self.checked = value and true or false
+  end
+  function frame.GetChecked(self)
+    return self.checked
+  end
+  function frame.EnableMouse() end
+  function frame.Hide() end
+  function frame.Show() end
+  function frame.IsShown()
+    return true
+  end
+  function frame.CreateTexture()
+    return {
+      SetAllPoints = function() end,
+      SetColorTexture = function() end,
+      Hide = function() end,
+      Show = function() end,
+      SetHeight = function() end,
+      SetPoint = function() end,
+    }
+  end
+  function frame.CreateFontString()
+    return NewRecordedFontString(createdFontStrings)
+  end
+
+  table.insert(createdFrames, frame)
+  return frame
+end
+
+local function NewRecordedMainFrame(createdFontStrings)
+  local mainFrame = {}
+
+  function mainFrame.SetBackdrop() end
+  function mainFrame.SetBackdropColor() end
+  function mainFrame.IsShown()
+    return true
+  end
+  function mainFrame.CreateFontString()
+    return NewRecordedFontString(createdFontStrings)
+  end
+  function mainFrame.CreateTexture()
+    return {
+      SetHeight = function() end,
+      SetPoint = function() end,
+      SetColorTexture = function() end,
+    }
+  end
+
+  return mainFrame
 end
 
 local function RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster panel leader-only buttons disable when player is not leader", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = NewRecordedMainFrame(createdFontStrings),
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return false
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        buildOrderedRoster = function()
+          return {}
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {}
+        end,
+        truncateName = function() end,
+        getShortSpecLabel = function() end,
+        getLanguageFlagMarkup = function() end,
+        getDungeonShortCode = function() end,
+        resolveActiveKeyOwnerUnit = function() end,
+        getRoster = function()
+          return {}
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {},
+        unitPriority = {},
+      })
+
+      controller.UpdateLeaderButtons()
+
+      Assert.False(createdFrames[1].enabled, "ready-check button should be disabled for non-leaders")
+      Assert.False(createdFrames[2].enabled, "countdown button should be disabled for non-leaders")
+      Assert.False(createdFrames[5].enabled, "countdown-cancel button should be disabled for non-leaders")
+      Assert.Equal(createdFrames[1].alpha, 0.45, "ready-check button should be dimmed for non-leaders")
+      Assert.Equal(createdFrames[2].alpha, 0.45, "countdown button should be dimmed for non-leaders")
+      Assert.Equal(createdFrames[5].alpha, 0.45, "countdown-cancel button should be dimmed for non-leaders")
+    end)
+  end)
+
   test("RosterPanel control buttons use ANCHOR_CURSOR for tooltips", function()
     local tooltipAnchor = nil
     local createFrameStub = function(_type, _name, _parent)
@@ -398,6 +661,245 @@ local function RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, Lo
         end
       end
       Assert.True(foundRuns, "Tooltip should contain 'Runs together: 5'")
+    end)
+  end)
+
+  test("Roster panel share keys button debounces rapid clicks", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local sentMessages = {}
+    local currentTime = 100
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      C_ChatInfo = {
+        SendChatMessage = function(text, channel)
+          table.insert(sentMessages, {
+            text = text,
+            channel = channel,
+          })
+        end,
+      },
+      print = function() end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = NewRecordedMainFrame(createdFontStrings),
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        buildOrderedRoster = function(roster)
+          return {
+            { unit = "player", info = roster.player },
+          }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Self",
+            languageDisplay = "EN",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "DB +10",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return "DB"
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {
+            player = {
+              name = "Self",
+              role = "DAMAGER",
+              keyMapID = 2441,
+              keyLevel = 10,
+            },
+          }
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {
+          DAMAGER = 1,
+          NONE = 2,
+        },
+        unitPriority = {
+          player = 1,
+        },
+        getTime = function()
+          return currentTime
+        end,
+        shareKeysDebounceSeconds = 1,
+      })
+
+      controller.RenderRoster({
+        player = {
+          name = "Self",
+          role = "DAMAGER",
+          keyMapID = 2441,
+          keyLevel = 10,
+        },
+      })
+
+      local shareKeysButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame.pointY == -180 then
+          shareKeysButton = frame
+          break
+        end
+      end
+
+      Assert.NotNil(shareKeysButton, "share-keys button should exist")
+      shareKeysButton.OnClick()
+      shareKeysButton.OnClick()
+      Assert.Equal(#sentMessages, 1, "rapid repeated share-keys clicks should be debounced")
+      Assert.Equal(sentMessages[1].channel, "PARTY", "share-keys should announce to party chat")
+
+      currentTime = 101.5
+      shareKeysButton.OnClick()
+      Assert.Equal(#sentMessages, 2, "share-keys click should fire again after debounce window")
+    end)
+  end)
+
+  test("Roster panel rows disable wrapping for all member text columns", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = NewRecordedMainFrame(createdFontStrings),
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        buildOrderedRoster = function()
+          return {
+            {
+              unit = "party1",
+              info = {
+                name = "Member",
+                role = "DAMAGER",
+              },
+            },
+          }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Member",
+            languageDisplay = "EN",
+            specText = "DPS",
+            ilvlText = "650",
+            rioText = "3000",
+            keyText = "DB +10",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return "DB"
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {}
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {
+          DAMAGER = 1,
+          NONE = 2,
+        },
+        unitPriority = {
+          party1 = 1,
+        },
+      })
+
+      local fontStringsBeforeRender = #createdFontStrings
+      controller.RenderRoster({})
+
+      local rowFontStrings = {}
+      for index = fontStringsBeforeRender + 1, #createdFontStrings do
+        table.insert(rowFontStrings, createdFontStrings[index])
+      end
+
+      Assert.Equal(#rowFontStrings, 6, "one rendered row should create six member text columns")
+      for _, fontString in ipairs(rowFontStrings) do
+        Assert.False(fontString.wordWrap, "member text columns must disable word wrap")
+        Assert.False(fontString.nonSpaceWrap, "member text columns must disable non-space wrap")
+      end
     end)
   end)
 end

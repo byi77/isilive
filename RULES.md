@@ -46,6 +46,9 @@
 - Keep enforceable usecase/rule contracts in `RULES_LOGIC.md` with stable `RULE-ID` blocks.
 - Mark only production-enforced contracts as `Status: active` and map each to exact deterministic test names.
 - For behavioral fixes, add or update deterministic coverage in `tools/validate_usecases.lua`.
+- Active rules are always part of the mandatory gate through `lua tools/validate_usecases.lua`; do not merge runtime behavior changes without a green rules/usecase run.
+- If a change touches behavior covered by an active rule, update code, deterministic tests, and the rule-to-test mapping in the same change.
+- If a deterministic test name changes, update every active `Erforderliche Tests` reference immediately so the rule gate stays valid.
 - If a gate fails, fix root cause and rerun the full gate set (no partial-pass release).
 
 ## Release Hygiene

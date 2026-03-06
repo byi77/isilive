@@ -37,9 +37,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 14. Slash-Commands muessen State-Zyklen stabil ausfuehren (test/stop/start/pause/resume/lang).
 15. Roster-RIO-Delta bleibt nicht-negativ und im Prefix-Format, inklusive unit-basiertem Live-Update.
 16. Addon-Sync-Nachrichten muessen rosterrelevante Aenderungen verarbeiten, deduplizieren und refreshen.
-17. Die Buttons `Readycheck`, `Countdown10` und `Countdown 0` werden nur angezeigt, wenn man Gruppenleiter ist.
-18. Der Button `Refresh` wird nur angezeigt, wenn kein aktiver M+-Run laeuft (`ChallengeMode` inaktiv).
-19. Die Buttons `Share Keys` und `Refresh` sind gegen Klick-Spam geschuetzt (Debounce/Rate-Limit).
+17. Die Buttons `Readycheck`, `Countdown10` und `Countdown 0` sind fuer Nicht-Leader deaktiviert und optisch abgedimmt.
+18. Voll-Refresh wird waehrend aktivem M+-Run nicht ausgefuehrt.
+19. Die Aktionen `Share Keys` und `Refresh` sind gegen Klick-Spam geschuetzt (Debounce/Rate-Limit).
 20. In den Gruppenmitglieder-Zeilen ist kein Zeilenumbruch erlaubt.
 21. Es gibt kein Dungeon-Portal-Highlight, wenn das Ziel nicht eindeutig aufloesbar ist.
 22. Es gibt keinen wiederholten Target-Dungeon-Chatspam; bei identischem erkanntem Ziel reicht eine einmalige Ausgabe.
@@ -48,8 +48,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 25. der rio delta kann niemals negativ sein also zb. -15, der kann nur 0 oder höher sein.
 26. die ui kann jederzeit mit STRG+F9 geöffnet und geschlossen werden, auch infight
 27. das schliessen der ui ist jederzeit möglich, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9
-28. während die ui ausgeblendet/geschlossen ist, arbeiten wir auf "sparflamme" also keine ui oder sonstigen updates
-29. die dungeon portal icons sind immer an gleicher stelle wenn sie einmal sortiert worden sind, kein switch oder neu sortieren
+28. während die ui ausgeblendet ist, laufen roster/addon-sync im hintergrund weiter; ui-rendering und queue-scanning stoppen jedoch.
+29. teleport-eintraege fuer shared spells bleiben deterministisch sortiert und doppelte grid-eintraege werden entfernt.
 30. falls ein anderer user entdeckt wird welcher auch "isiLive" benutzt, hängen wir hinter seinen Namen ein <3 (blaues herz) an
 31. main ui immer -> auto open beim gruppenbeitritt, autoclose bei key start und auto open bei key ende weiterhin behalten
 32. verlaesst ein spieler die gruppe, bleibt er als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt
@@ -77,14 +77,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-QUEUE-NEGATIV-GRUPPE-STABIL
 - Regelnummer: 3
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: Negative Queue-Folgeevents duerfen ein bereits gruppiertes Ziel nicht unerwartet loeschen.
 - Erforderliche Tests:
   - Event handlers keep target on negative updates when group fills to five
 
 ### RULE-RIO-DELTA-POSTRUN-AKTIVIERUNG
 - Regelnummer: 4
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: RIO-Delta darf erst nach erfolgreichem verzoegertem Post-Run-Refresh aktiviert werden.
 - Erforderliche Tests:
   - Event handlers enable RIO delta only after delayed post-run refresh
@@ -92,7 +92,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-TELEPORT-KEIN-NAME-GUESSING
 - Regelnummer: 5
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: Teleport-Ziel darf ohne Activity-Kontext nicht per Name geraten werden.
 - Erforderliche Tests:
   - Teleport does not resolve by dungeon name without activityID
@@ -100,14 +100,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-SYNC-KEY-DEDUP
 - Regelnummer: 6
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: Identische KEY-Sync-Zustaende duerfen keine unnoetigen Folgeupdates erzeugen.
 - Erforderliche Tests:
   - Sync SetPlayerKeyInfo deduplicates identical key updates
 
 ### RULE-QUEUE-CAPTURE-PENDING-DEDUP
 - Regelnummer: 7
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: Queue-Capture darf pending/applied Rauschen nicht als neues Ziel behandeln und muss Doppler ignorieren.
 - Erforderliche Tests:
   - Queue capture ignores pending application updates
@@ -116,7 +116,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-HIGHLIGHT-STRIKTER-MAP-KONTEXT
 - Regelnummer: 8
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: Highlight-Aufloesung darf nur mit eindeutigem activity/map-Kontext arbeiten und kein Gruppen-freies Fallback nutzen.
 - Erforderliche Tests:
   - Highlight joined-key resolver requires activity-based map context
@@ -125,7 +125,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-QUEUEFLOW-CHALLENGE-UND-DEDUP
 - Regelnummer: 9
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: QueueFlow muss waehrend aktiver Challenge Queue-Events ignorieren und doppelte Updates/Announces unterdruecken.
 - Erforderliche Tests:
   - QueueFlow capture ignores queue events while in challenge mode
@@ -134,7 +134,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-TELEPORT-SECURE-COMBAT-DEFER
 - Regelnummer: 10
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; UI-Oeffnen muss trotzdem sofort moeglich bleiben.
 - Erforderliche Tests:
   - Teleport secure button updates are deferred during combat and applied after regen
@@ -142,7 +142,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-GRUPPE-RAID-SICHTBARKEIT
 - Regelnummer: 11
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: In Raid-Groesse bleibt die UI ausgeblendet; beim Gruppenwechsel werden Hinweise und Sichtbarkeit korrekt rueckgesetzt.
 - Erforderliche Tests:
   - Group leave clears roster and hides frame
@@ -151,7 +151,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-LOCALE-SYMMETRIE-FALLBACK
 - Regelnummer: 12
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
 - Erforderliche Tests:
   - All enUS keys exist in deDE locale
@@ -160,7 +160,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-REFRESH-STATE-GATES
 - Regelnummer: 13
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: Voll-Refresh laeuft nur in erlaubten Zustaenden und muss bei Stop oder aktivem M+ sauber aussetzen.
 - Erforderliche Tests:
   - Refresh RunFullRefresh executes all refresh steps
@@ -169,7 +169,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-COMMANDS-STATE-ZYKLEN
 - Regelnummer: 14
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: Slash-Commands muessen State-Zyklen stabil ausfuehren (test/stop/start/pause/resume/lang).
 - Erforderliche Tests:
   - Commands routes test command to toggle
@@ -179,7 +179,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-ROSTER-RIO-DELTA-FORMAT
 - Regelnummer: 15
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: Roster-RIO-Delta bleibt nicht-negativ und im Prefix-Format, inklusive unit-basiertem Live-Update.
 - Erforderliche Tests:
   - Roster display prepends positive RIO delta in parentheses
@@ -189,7 +189,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-EVENT-SYNC-ROSTER-REFRESH
 - Regelnummer: 16
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: Addon-Sync-Nachrichten muessen rosterrelevante Aenderungen verarbeiten, deduplizieren und refreshen.
 - Erforderliche Tests:
   - Event handlers process addon sync messages and refresh changed roster
@@ -198,37 +198,38 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-LEADER-BUTTONS-SICHTBARKEIT
 - Regelnummer: 17
-- Status: entwurf
-- Zusammenfassung: Die Buttons `Readycheck`, `Countdown10` und `Countdown 0` werden nur angezeigt, wenn man Gruppenleiter ist.
+- Status: aktiv
+- Zusammenfassung: Die Buttons `Readycheck`, `Countdown10` und `Countdown 0` sind fuer Nicht-Leader deaktiviert und optisch abgedimmt.
 - Erforderliche Tests:
+  - Roster panel leader-only buttons disable when player is not leader
   - LeaderWatch detects leader gain via PARTY_LEADER_CHANGED
   - LeaderWatch detects leader loss
 
 ### RULE-REFRESH-BUTTON-CHALLENGE-SICHTBARKEIT
 - Regelnummer: 18
-- Status: entwurf
-- Zusammenfassung: Der Button `Refresh` wird nur angezeigt, wenn kein aktiver M+-Run laeuft (`ChallengeMode` inaktiv).
+- Status: aktiv
+- Zusammenfassung: Voll-Refresh wird waehrend aktivem M+-Run nicht ausgefuehrt.
 - Erforderliche Tests:
   - Refresh RunFullRefresh skips during active M+
 
 ### RULE-BUTTON-SPAM-GUARD
 - Regelnummer: 19
-- Status: entwurf
-- Zusammenfassung: Die Buttons `Share Keys` und `Refresh` sind gegen Klick-Spam geschuetzt (Debounce/Rate-Limit).
+- Status: aktiv
+- Zusammenfassung: Die Aktionen `Share Keys` und `Refresh` sind gegen Klick-Spam geschuetzt (Debounce/Rate-Limit).
 - Erforderliche Tests:
   - Refresh RunFullRefresh debounces rapid clicks
   - Roster panel share keys button debounces rapid clicks
 
 ### RULE-ROSTER-ZEILENUMBRUCH-VERBOT
 - Regelnummer: 20
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: In den Gruppenmitglieder-Zeilen ist kein Zeilenumbruch erlaubt.
 - Erforderliche Tests:
   - Roster panel rows disable wrapping for all member text columns
 
 ### RULE-HIGHLIGHT-NUR-BEI-EINDEUTIGEM-ZIEL
 - Regelnummer: 21
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: Es gibt kein Dungeon-Portal-Highlight, wenn das Ziel nicht eindeutig aufloesbar ist.
 - Erforderliche Tests:
   - Highlight listing resolver requires unique activity map
@@ -237,22 +238,22 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-TARGET-DUNGEON-CHAT-DEDUP
 - Regelnummer: 22
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: Es gibt keinen wiederholten Target-Dungeon-Chatspam; bei identischem erkanntem Ziel reicht eine einmalige Ausgabe.
 - Erforderliche Tests:
   - QueueFlow deduplicates repeated grouped announce for same target
 
 ### RULE-UI-STRG-F9-JEDERZEIT
 - Regelnummer: 26
-- Status: entwurf
-- Zusammenfassung: die ui kann jederzeit mit STRG+F9 geoeffnet und geschlossen werden, auch infight
+- Status: veraltet
+- Zusammenfassung: Duplikat zu Regel 2; der STRG-F9-Kampf-Toggle wird dort verbindlich erzwungen.
 - Erforderliche Tests:
   - UI toggle allows closing frame during combat
   - UI toggle opens frame during combat without pending delay
 
 ### RULE-UI-SCHLIESSEN-X-ODER-HOTKEY
 - Regelnummer: 27
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: das schliessen der ui ist jederzeit moeglich, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9
 - Erforderliche Tests:
   - UI close button hides frame directly
@@ -260,33 +261,34 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-UI-HIDDEN-SPARFLAMME
 - Regelnummer: 28
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: waehrend die ui ausgeblendet ist, laeuft der daten-sync (roster/addon-msgs) im hintergrund weiter; ui-rendering stoppt jedoch.
 - Erforderliche Tests:
   - Bootstrap gate allows sync events while frame is hidden if configured
-  - Event handlers process addon sync messages while frame is hidden
+  - Event handlers process addon sync messages and refresh changed roster
   - Bootstrap gate keeps hidden auto-open triggers for group join and key end
   - Event handlers run regen teleport refresh when frame is visible
 
 ### RULE-PORTAL-ICONS-STABILE-SLOTS
 - Regelnummer: 29
-- Status: entwurf
-- Zusammenfassung: die dungeon portal icons behalten nach der ersten sortierung eine feste slot-reihenfolge; danach gibt es keinen slot-switch und keine neu-sortierung mehr
+- Status: aktiv
+- Zusammenfassung: Teleport-Eintraege fuer Shared-Spells bleiben deterministisch sortiert und doppelte Grid-Eintraege werden entfernt.
 - Erforderliche Tests:
   - Teleport resolves shared-map spell IDs as deterministic sorted map list
   - Teleport entry builder de-duplicates shared spells for grid rendering
 
 ### RULE-SYNC-USER-BLUESHEART-MARKER
 - Regelnummer: 30
-- Status: entwurf
-- Zusammenfassung: falls ein anderer user entdeckt wird welcher auch "isiLive" benutzt, haengen wir hinter seinen namen ein <3 (blaues herz) an
+- Status: aktiv
+- Zusammenfassung: Bekannte isiLive-Nutzer erhalten im Roster den `<3`-Marker.
 - Erforderliche Tests:
+  - Roster display appends blue-heart marker for synced users
   - Sync MarkUser and IsUserKnown track players
   - Event handlers process addon sync messages and refresh changed roster
 
 ### RULE-MAIN-UI-AUTO-OPEN-CLOSE-ZYKLEN
 - Regelnummer: 31
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: main ui immer -> auto open beim gruppenbeitritt, autoclose bei key start und auto open bei key ende weiterhin behalten
 - Erforderliche Tests:
   - Group join builds roster with player and 4 party members
@@ -295,7 +297,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-ROSTER-GHOST-MEMBER
 - Regelnummer: 32
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: verlaesst ein spieler die gruppe, bleibt er als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt.
 - Erforderliche Tests:
   - Group member leaving becomes ghost
@@ -303,17 +305,39 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-ROSTER-AT-DUNGEON-MARKER
 - Regelnummer: 33
-- Status: entwurf
+- Status: aktiv
 - Zusammenfassung: spieler, die sich bereits im zieldungeon befinden, werden mit einem portal-icon markiert.
 - Erforderliche Tests:
   - Roster shows at-dungeon marker when unit map matches target
 
 ### RULE-ROSTER-READY-CHECK-INDICATOR
 - Regelnummer: 34
-- Status: entwurf
-- Zusammenfassung: waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt.
+- Status: aktiv
+- Zusammenfassung: waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt und danach auf die klassenfarbe zurueckgesetzt.
 - Erforderliche Tests:
+  - Roster name color follows ready check status colors
   - Roster name color resets to class color after ready check
+
+### RULE-CODING-KEINE-FALLBACK-KETTEN
+- Regelnummer: 23
+- Status: entwurf
+- Zusammenfassung: Resolver sollen keinen weiteren ratebasierten API-Fallback ausfuehren, wenn der primäre injizierte Resolver bereits keine eindeutige Aussage liefert.
+- Erforderliche Tests:
+  - Highlight map resolver does not bypass injected resolver with direct API fallback
+
+### RULE-CODING-KEIN-RATEN
+- Regelnummer: 24
+- Status: veraltet
+- Zusammenfassung: Duplikat zu Regel 1 und Regel 5; unklare Faktenlage bleibt unresolved statt geraten zu werden.
+- Erforderliche Tests:
+  - Queue does not guess first candidate when no concrete map is available
+
+### RULE-RIO-DELTA-NIE-NEGATIV
+- Regelnummer: 25
+- Status: veraltet
+- Zusammenfassung: Duplikat zu Regel 15; RIO-Delta bleibt immer bei `+0` oder hoeher.
+- Erforderliche Tests:
+  - Roster display clamps negative RIO delta to +0
 
 ## Hinweise
 
