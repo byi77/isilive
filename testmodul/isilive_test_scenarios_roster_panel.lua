@@ -317,7 +317,7 @@ local function NewRecordedMainFrame(createdFontStrings)
   return mainFrame
 end
 
-local function RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
+local function RegisterRosterPanelLeaderInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster panel leader-only buttons disable when player is not leader", function()
     local createdFrames = {}
     local createdFontStrings = {}
@@ -382,7 +382,9 @@ local function RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, Lo
       Assert.Equal(createdFrames[5].alpha, 0.45, "countdown-cancel button should be dimmed for non-leaders")
     end)
   end)
+end
 
+local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
   test("RosterPanel control buttons use ANCHOR_CURSOR for tooltips", function()
     local tooltipAnchor = nil
     local createFrameStub = function(_type, _name, _parent)
@@ -493,7 +495,9 @@ local function RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, Lo
       Assert.Equal(tooltipAnchor, "ANCHOR_CURSOR", "Refresh button tooltip must use ANCHOR_CURSOR")
     end)
   end)
+end
 
+local function RegisterRosterPanelRowTooltipTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster row tooltip shows 'Runs together' when count > 0", function()
     local tooltipLines = {}
     local createdFrames = {}
@@ -663,7 +667,9 @@ local function RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, Lo
       Assert.True(foundRuns, "Tooltip should contain 'Runs together: 5'")
     end)
   end)
+end
 
+local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster panel share keys button debounces rapid clicks", function()
     local createdFrames = {}
     local createdFontStrings = {}
@@ -797,7 +803,9 @@ local function RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, Lo
       Assert.Equal(#sentMessages, 2, "share-keys click should fire again after debounce window")
     end)
   end)
+end
 
+local function RegisterRosterPanelWrappingTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster panel rows disable wrapping for all member text columns", function()
     local createdFrames = {}
     local createdFontStrings = {}
@@ -902,6 +910,14 @@ local function RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, Lo
       end
     end)
   end)
+end
+
+local function RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelLeaderInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelRowTooltipTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelWrappingTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 local function RegisterRosterPanelTests(test, Assert, WithGlobals, LoadAddonModules)
