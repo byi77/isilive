@@ -41,18 +41,24 @@
   - Reduced `isiLive.lua` toward a composition root by moving mutable runtime concerns behind the runtime-state controller.
   - Split `isiLive_event_handlers.lua` into lifecycle-specific modules: `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, and `isiLive_event_handlers_challenge.lua`.
   - Simplified wiring by adding context-based controller factories in `isiLive_controller_wiring.lua` and consuming them from `isiLive_runtime_setup.lua`.
+- **Architecture Rule Gate:**
+  - Added `ARCHITECTURE_RULES.md` as a dedicated contract source for structural module boundaries.
+  - Added `tools/validate_architecture_rules.lua` and deterministic architecture scenarios for composition-root ownership, lifecycle aggregation, context-based wiring, runtime-state ownership, and focused config builders.
+  - `tools/validate_usecases.lua` now validates both runtime rules and architecture rules before executing the full deterministic gate.
 - **Runtime Fixes:**
   - Ready-check state is now fully wired through bootstrap, gating, event handling, and roster rendering.
   - Ghost roster members are excluded from forced inspect refresh paths so their cached data is preserved.
   - Completed-run recording is deduplicated across `CHALLENGE_MODE_COMPLETED` and `CHALLENGE_MODE_RESET`.
 - **Test Coverage:**
   - Added dedicated `RuntimeState` regression scenarios.
+  - Added dedicated architecture rule scenarios and validator coverage.
   - Test harness now supports implicit addon-module dependencies for aggregated controller modules.
-  - Deterministic validator coverage increased to `174` scenarios across `23` modules.
+  - Deterministic validator coverage increased to `185` scenarios across `24` modules.
 - **Documentation:**
   - Updated `RULES_LOGIC.md` with Rule 32 (Ghost Member), Rule 33 (At Dungeon), Rule 34 (Ready Check), and updated Rule 28 (matching exact test names).
+  - Added `ARCHITECTURE_RULES.md` and aligned docs with the architecture gate.
   - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, and `TODO.md` to 0.9.63.
-  - Validator count increased to `174` deterministic scenarios across `23` modules.
+  - Validator count increased to `185` deterministic scenarios across `24` modules.
 
 ## 2026-03-05 - Version 0.9.62
 - **Bug Fix: Rich Roster Tooltip Guard:**

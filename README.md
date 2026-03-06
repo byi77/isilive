@@ -157,14 +157,15 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive_commands.lua`: slash command registration/dispatch
 - `isiLive_ui.lua`: main frame/UI construction and widget wiring
 - `RULES_LOGIC.md`: enforceable usecase/rule contract source (`RULE-ID` blocks with status + required tests)
+- `ARCHITECTURE_RULES.md`: enforceable architecture contract source (`RULE-ID` blocks with status + required tests)
 - `tools/validate_rules_logic.lua`: rules-logic validator entrypoint
+- `tools/validate_architecture_rules.lua`: architecture-rules validator entrypoint
 - `tools/validate_usecases.lua`: deterministic usecase validator entrypoint
 - `testmodul/isilive_test_*.lua`: modular offline simulation scenarios + harness for queue/highlight/event/cooldown/teleport/group/sync/locale/commands/guards logic (dev-only, not packaged)
 - `realm_language_data.lua`: Blizzard EU realm locale mapping (including UTF-8 Russian realm names)
 - `CHANGELOG.md`: release notes
 - `RELEASE.md`: release runbook
 - `RULES.md`: project/versioning rules
-- `RULES_LOGIC.md`: runtime usecase/rule contracts
 - `LICENSE`: license file
 
 ## Local Install
@@ -191,6 +192,7 @@ Developer debug (hidden command, not listed in in-game help):
   - `luacheck --exclude-files ".luarocks/**" -- .`
   - `lua tools/lua_metrics_check.lua`
   - `lua tools/validate_rules_logic.lua`
+  - `lua tools/validate_architecture_rules.lua`
   - `lua tools/validate_usecases.lua`
   - Windows preflight mirroring the GitHub workflow as closely as possible: `powershell -ExecutionPolicy Bypass -File tools/validate_ci_local.ps1`
   - Metrics defaults: file `warn>1200` / `hard>2400`, function `warn>120` / `hard>320` (override via `ISILIVE_WARN_FILE_LINES`, `ISILIVE_MAX_FILE_LINES`, `ISILIVE_WARN_FUNCTION_LINES`, `ISILIVE_MAX_FUNCTION_LINES`)
@@ -198,8 +200,10 @@ Developer debug (hidden command, not listed in in-game help):
 
 ## Deterministic Usecase Gate
 
-`tools/validate_rules_logic.lua` validates active rule contracts from `RULES_LOGIC.md` against deterministic test names.
-`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 174 scenarios across 23 modules (queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui), including:
+`tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
+`tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
+`tools/validate_usecases.lua` runs both rule validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 185 scenarios across 24 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui), including:
+- architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
@@ -244,6 +248,7 @@ Local checks:
 - `luacheck --exclude-files ".luarocks/**" -- .` (lint)
 - `lua tools/lua_metrics_check.lua` (file/function size metrics)
 - `lua tools/validate_rules_logic.lua` (active rule/test mapping gate)
+- `lua tools/validate_architecture_rules.lua` (active architecture-rule/test mapping gate)
 - `lua tools/validate_usecases.lua` (deterministic usecase gates)
 
 Notes:
@@ -260,6 +265,7 @@ The CI workflow runs five checks on `push`/`pull_request` to `main`:
 - Lua syntax check (`loadfile` validation for all `.lua` files except `.luarocks`)
 - Lua metrics check (`lua tools/lua_metrics_check.lua`)
 - deterministic usecase and rules gate (`lua tools/validate_usecases.lua`)
+  - includes runtime rules from `RULES_LOGIC.md` and architecture rules from `ARCHITECTURE_RULES.md`
 
 Release gating additionally runs local deterministic usecase/rules validation:
 - `lua tools/validate_usecases.lua`

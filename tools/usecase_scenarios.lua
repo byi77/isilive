@@ -1,4 +1,5 @@
 local scenarioFiles = {
+  "testmodul/isilive_test_scenarios_architecture.lua",
   "testmodul/isilive_test_scenarios_queue.lua",
   "testmodul/isilive_test_scenarios_highlight.lua",
   "testmodul/isilive_test_scenarios_event_handlers.lua",

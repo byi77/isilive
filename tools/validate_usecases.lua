@@ -9,6 +9,7 @@ local Assert = Loader.LoadModule("testmodul/isilive_test_assert.lua")
 local Harness = Loader.LoadModule("testmodul/isilive_test_harness.lua")
 local Fixtures = Loader.LoadModule("testmodul/isilive_test_fixtures.lua")
 local RulesLogicValidator = Loader.LoadModule("tools/rules_logic_validator.lua")
+local ArchitectureRulesValidator = Loader.LoadModule("tools/rules_logic_validator.lua")
 local scenarioFiles = Loader.LoadModule("tools/usecase_scenarios.lua")
 
 local runner = Harness.NewRunner()
@@ -29,6 +30,15 @@ local rulesOk = RulesLogicValidator.Run({
   printFn = print,
 })
 if not rulesOk then
+  os.exit(1)
+end
+
+local architectureRulesOk = ArchitectureRulesValidator.Run({
+  rulesPath = "ARCHITECTURE_RULES.md",
+  scenarioFiles = scenarioFiles,
+  printFn = print,
+})
+if not architectureRulesOk then
   os.exit(1)
 end
 

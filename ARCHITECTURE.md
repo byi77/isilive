@@ -64,6 +64,19 @@ WoW Event
 15. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
 16. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures for `GameTooltip:SetText`.
 
+## Architecture Contract Set
+
+`ARCHITECTURE_RULES.md` defines the structural contracts for the current module split.
+These rules are not style rules like `pep8`; they describe allowed ownership and dependency boundaries and are enforced through deterministic source/module tests.
+
+Current active architecture contracts cover:
+- `isiLive.lua` as composition root
+- `isiLive_event_handlers.lua` as lifecycle aggregator
+- `isiLive_runtime_setup.lua` using context-based controller factories
+- `isiLive_runtime_state.lua` as shared mutable runtime-state API
+- `isiLive_controller_wiring.lua` exporting context factories
+- `isiLive_config_builders.lua` staying focused without legacy event/group dependency builders
+
 ## Deterministic Validation Gates
 
 Local release-grade validation is intentionally split into static and runtime gates:
@@ -75,9 +88,11 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/lua_metrics_check.lua`
 2. Runtime logic checks:
    - `lua tools/validate_rules_logic.lua`
+   - `lua tools/validate_architecture_rules.lua`
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
-4. `tools/validate_usecases.lua` runs the rules validator first and then covers 174 scenarios across 23 modules: queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui logic.
+4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 185 scenarios across 24 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui logic.
 
 ## UI Structure (ASCII Sketch)
 
@@ -119,5 +134,5 @@ Local release-grade validation is intentionally split into static and runtime ga
 ## Extension Points
 
 1. New season support should be added in `isiLive_season_data.lua` and consumed through `isiLive_teleport.lua`.
-2. New UI actions should be added through controller interfaces in `isiLive_roster_panel.lua` plus wiring in `isiLive_controller_init.lua`.
+2. New UI actions should be added through controller interfaces in `isiLive_roster_panel.lua` plus wiring in `isiLive_controller_wiring.lua` and `isiLive_runtime_setup.lua`.
 3. New event behavior should pass through gate logic first and then land in the appropriate lifecycle handler to keep runtime state consistent.
