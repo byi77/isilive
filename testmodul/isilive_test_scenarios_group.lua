@@ -288,7 +288,6 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
 end
 
 local function RegisterGroupGhostShiftTests(test, Assert, LoadAddonModules)
-
   test("Group member leaving becomes ghost", function()
     local members = 2
     local controller, state = BuildGroupController(LoadAddonModules, {
@@ -423,7 +422,6 @@ local function RegisterGroupGhostShiftTests(test, Assert, LoadAddonModules)
 end
 
 local function RegisterGroupGhostLifecycleTests(test, Assert, LoadAddonModules)
-
   test("Ghost is removed and data restored when player rejoins", function()
     local members = 2 -- Player + 1 party member
     local unitMapping = {
