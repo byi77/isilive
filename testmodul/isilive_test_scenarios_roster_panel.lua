@@ -669,6 +669,140 @@ local function RegisterRosterPanelRowTooltipTests(test, Assert, WithGlobals, Loa
   end)
 end
 
+local function FindInteractiveRosterRow(createdFrames)
+  for _, frame in ipairs(createdFrames) do
+    if frame.unit == "party1" and type(frame.OnMouseUp) == "function" then
+      return frame
+    end
+  end
+
+  return nil
+end
+
+local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster row left-click does not call protected targeting from insecure row UI", function()
+    local createdFrames = {}
+    local targetCalls = 0
+
+    WithGlobals({
+      CreateFrame = function()
+        local frame = {
+          SetPoint = function() end,
+          SetSize = function() end,
+          SetHeight = function() end,
+          SetEnabled = function() end,
+          SetAlpha = function() end,
+          EnableMouse = function() end,
+          SetScript = function(self, script, handler)
+            self[script] = handler
+          end,
+          CreateTexture = function()
+            return {
+              SetAllPoints = function() end,
+              SetColorTexture = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetJustifyH = function() end,
+              SetWidth = function() end,
+              SetText = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetMaxLines = function() end,
+            }
+          end,
+          Hide = function() end,
+          Show = function() end,
+        }
+        table.insert(createdFrames, frame)
+        return frame
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      TargetUnit = function()
+        targetCalls = targetCalls + 1
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = NewRecordedMainFrame({}),
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        buildOrderedRoster = function()
+          return { { unit = "party1", info = { name = "Buddy", role = "DAMAGER" } } }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Buddy",
+            languageDisplay = "EN",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return ""
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {}
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {},
+        unitPriority = {},
+      })
+
+      controller.RenderRoster({})
+
+      local rowFrame = FindInteractiveRosterRow(createdFrames)
+      Assert.NotNil(rowFrame, "interactive roster row should exist")
+
+      rowFrame.OnMouseUp(nil, "LeftButton")
+      Assert.Equal(targetCalls, 0, "left-click must not invoke protected targeting from the roster row")
+    end)
+  end)
+end
+
 local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster panel share keys button debounces rapid clicks", function()
     local createdFrames = {}
@@ -916,6 +1050,7 @@ local function RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, Lo
   RegisterRosterPanelLeaderInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelWrappingTests(test, Assert, WithGlobals, LoadAddonModules)
 end

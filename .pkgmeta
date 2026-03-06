@@ -19,6 +19,7 @@ ignore:
   - README.md
   - RELEASE.md
   - TODO.md
+  - TODO_RENAME.md
   - RULES.md
   - RULES_LOGIC.md
   - AGENTS.md

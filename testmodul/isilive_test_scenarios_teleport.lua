@@ -150,6 +150,11 @@ local function BuildTeleportUICreateFrameStub()
   return CreateFrameStub, createdFrames
 end
 
+local function ActivateSeasonOrFail(Assert, addon, seasonID, opts)
+  local ok, err = addon.SeasonData.SetActiveSeasonID(seasonID, opts)
+  Assert.True(ok, tostring(err))
+end
+
 local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Teleport resolves shared-map spell IDs as deterministic sorted map list", function()
     local createFrameStub = BuildCreateFrameStub()
@@ -161,6 +166,7 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
+      ActivateSeasonOrFail(Assert, addon, "tww_s3")
       local mapIDs = addon.Teleport.ResolveSeason3MapIDsBySpellID(367416)
 
       Assert.NotNil(mapIDs, "shared spell should map to map list")
@@ -180,6 +186,20 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
+
+      Assert.Equal(
+        addon.SeasonData.GetActiveSeasonID(),
+        "midnight_s1",
+        "pre-season runtime should default to midnight_s1"
+      )
+      Assert.False(addon.SeasonData.HasActiveDungeons(), "pre-season runtime should expose empty active portal pool")
+      Assert.Equal(
+        #addon.SeasonData.GetOrderedMapIDs(),
+        0,
+        "pre-season runtime should keep active ordered map list empty"
+      )
+
+      ActivateSeasonOrFail(Assert, addon, "tww_s3")
 
       Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2649, "deDE"), "PRI", "deDE should map PSF to PRI")
       Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2830, "deDE"), "BIO", "deDE should map EDA to BIO")
@@ -212,7 +232,7 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
       Assert.Equal(
         addon.SeasonData.GetActiveSeasonID(),
         "tww_s3",
-        "active season must remain unchanged until manually switched"
+        "legacy season switch should work explicitly for mapping validation"
       )
       local orderedActiveMapIDs = addon.SeasonData.GetOrderedMapIDs()
       Assert.Equal(#orderedActiveMapIDs, 8, "active season ordered map list should include all mapped dungeons")
@@ -264,6 +284,7 @@ local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, Loa
         "isiLive_teleport.lua",
         "isiLive_sync.lua",
       })
+      ActivateSeasonOrFail(Assert, addon, "tww_s3")
 
       Assert.Equal(
         addon.Teleport.GetSeason3DungeonShortCode(392, "deDE"),
@@ -323,6 +344,7 @@ local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, Loa
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
+      ActivateSeasonOrFail(Assert, addon, "tww_s3")
       local info = addon.Teleport.GetSeason3TeleportInfoByMapID(2662)
       Assert.NotNil(info, "known map should still resolve teleport info")
       Assert.Nil(info.mapName, "map name must stay unresolved when API provides no concrete name")
@@ -351,6 +373,7 @@ local function RegisterTeleportResolverActivityTests(test, Assert, WithGlobals, 
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
+      ActivateSeasonOrFail(Assert, addon, "tww_s3")
       local mapFirst = addon.Teleport.ResolveSeason3MapIDByActivityID(9900)
       local mapSecond = addon.Teleport.ResolveSeason3MapIDByActivityID(9900)
       local first = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9900)
@@ -469,6 +492,7 @@ local function RegisterTeleportResolverRecoveryTests(test, Assert, WithGlobals, 
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
+      ActivateSeasonOrFail(Assert, addon, "tww_s3")
 
       local first = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9911)
       Assert.Nil(first, "first resolve must stay nil while map data is missing")
@@ -498,6 +522,7 @@ local function RegisterTeleportEntryAndCombatTests(test, Assert, WithGlobals, Lo
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
+      ActivateSeasonOrFail(Assert, addon, "tww_s3")
       local entries = addon.Teleport.BuildSeason3TeleportEntries()
       local genericEntries = addon.Teleport.BuildTeleportEntries()
       local expectedMapOrder = { 2287, 2441, 2649, 2660, 2662, 2773, 2830 }
@@ -712,6 +737,92 @@ local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModul
 
       onEnter(button)
       Assert.Equal(tooltipAnchor, "ANCHOR_CURSOR", "Teleport tooltip must use ANCHOR_CURSOR")
+    end)
+  end)
+
+  test("TeleportUI shows pre-season message when active portal pool is empty", function()
+    local createFrameStub = BuildTeleportUICreateFrameStub()
+    local emptyState = {
+      text = nil,
+      shown = false,
+      SetPoint = function() end,
+      SetWidth = function() end,
+      SetJustifyH = function() end,
+      SetTextColor = function() end,
+      SetWordWrap = function() end,
+      SetNonSpaceWrap = function() end,
+      SetText = function(self, value)
+        self.text = value
+      end,
+      Show = function(self)
+        self.shown = true
+      end,
+      Hide = function(self)
+        self.shown = false
+      end,
+    }
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_teleport_ui.lua",
+      })
+
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = {
+          GetFrameLevel = function()
+            return 10
+          end,
+          GetFrameStrata = function()
+            return "MEDIUM"
+          end,
+          CreateFontString = function()
+            return emptyState
+          end,
+        },
+        applySecureSpellToButton = function()
+          return true
+        end,
+        getEntries = function()
+          return {}
+        end,
+        getEmptyStateText = function()
+          return "Midnight S1 starts week of March 17, 2026"
+        end,
+        getL = function()
+          return {}
+        end,
+        isSpellKnown = function()
+          return false
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getSpellCooldownSafe = function()
+          return 0, 0, true
+        end,
+        applyCooldownFrameSafe = function() end,
+        getSpellTexture = function()
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      controller.BuildButtons()
+
+      Assert.Equal(#controller.GetButtons(), 0, "pre-season empty state should not create teleport buttons")
+      Assert.True(emptyState.shown, "pre-season empty state message should be visible")
+      Assert.Equal(
+        emptyState.text,
+        "Midnight S1 starts week of March 17, 2026",
+        "empty state should show season message"
+      )
     end)
   end)
 end

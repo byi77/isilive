@@ -53,20 +53,7 @@ local function CountTableEntries(value)
   return count
 end
 
-local function BuildSeasonScaffold(label)
-  return {
-    label = label,
-    mapToTeleport = {},
-    displayOrder = {},
-    shortCodesByLocale = {
-      default = {},
-      deDE = {},
-    },
-    challengeMapAliases = {},
-  }
-end
-
-SeasonData.ACTIVE_SEASON_ID = "tww_s3"
+SeasonData.ACTIVE_SEASON_ID = "midnight_s1"
 
 SeasonData.SEASONS = {
   tww_s3 = {
@@ -128,8 +115,20 @@ SeasonData.SEASONS = {
       [542] = 2830, -- Eco-Dome Al'dani
     },
   },
-  -- Preparation scaffold only. Keep inactive until concrete Midnight S1 IDs are complete.
-  midnight_s1 = BuildSeasonScaffold("Midnight Season 1 (prepared, inactive)"),
+  midnight_s1 = {
+    label = "Midnight Season 1 (prepared, inactive)",
+    mapToTeleport = {},
+    displayOrder = {},
+    shortCodesByLocale = {
+      default = {},
+      deDE = {},
+    },
+    challengeMapAliases = {},
+    inactivePortalMessageByLocale = {
+      default = "Midnight S1 starts week of March 17, 2026",
+      deDE = "Midnight S1 startet in der Woche vom 17.03.2026",
+    },
+  },
 }
 
 local function RefreshLegacyAliases()
@@ -447,6 +446,25 @@ function SeasonData.GetDungeonShortCode(mapID, localeTag, seasonID)
 
   local defaultShortCodes = SeasonData.GetShortCodes("default", seasonID)
   return defaultShortCodes[numericMapID]
+end
+
+function SeasonData.GetInactivePortalMessage(localeTag, seasonID)
+  local season = SeasonData.GetSeasonConfig(seasonID)
+  if type(season) ~= "table" then
+    return nil
+  end
+
+  local byLocale = season.inactivePortalMessageByLocale or {}
+  local localeKey = NormalizeLocaleTag(localeTag)
+  if localeKey ~= "default" and type(byLocale[localeKey]) == "string" and byLocale[localeKey] ~= "" then
+    return byLocale[localeKey]
+  end
+
+  if type(byLocale.default) == "string" and byLocale.default ~= "" then
+    return byLocale.default
+  end
+
+  return nil
 end
 
 -- Backward-compatible aliases used by existing runtime wiring.

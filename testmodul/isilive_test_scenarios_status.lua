@@ -12,6 +12,7 @@ local function BuildLocale()
     STATUS_MPLUS_NO = "M+: Inactive",
     STATUS_TARGET_DUNGEON_TEXT = "Target Dungeon: %s",
     STATUS_TARGET_DUNGEON_NONE = "Target Dungeon: -",
+    STATUS_TARGET_DUNGEON_PRESEASON = "Target Dungeon: Pre-Season (%s)",
     STATUS_STATE_RUNNING = "State: Running",
     STATUS_STATE_PAUSED = "State: Paused",
     STATUS_STATE_STOPPED = "State: Stopped",
@@ -189,6 +190,36 @@ local function RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModul
       Assert.True(
         string.find(text, "Target Dungeon: -", 1, true) ~= nil,
         "status line should show target placeholder when no target is known"
+      )
+    end)
+  end)
+
+  test("Status line shows pre-season placeholder when active portal pool is empty", function()
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Outside", "none", 0, "Unknown"
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_status.lua" })
+      local controller = addon.Status.CreateController({
+        getL = BuildLocale,
+        hasActiveDungeons = function()
+          return false
+        end,
+        getActiveSeasonLabel = function()
+          return "Midnight Season 1 (prepared, inactive)"
+        end,
+      })
+
+      local text = controller.BuildStatusLineText({})
+      Assert.True(
+        string.find(text, "Target Dungeon: Pre-Season (Midnight Season 1 (prepared, inactive))", 1, true) ~= nil,
+        "status line should explain the empty pre-season portal pool"
       )
     end)
   end)

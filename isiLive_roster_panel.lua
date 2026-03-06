@@ -431,21 +431,7 @@ local function CreateMemberRow(mainFrame, index)
       return
     end
 
-    if button == "LeftButton" then
-      local inCombat = false
-      local inCombatLockdown = _G.InCombatLockdown
-      if type(inCombatLockdown) == "function" then
-        local ok, locked = pcall(inCombatLockdown)
-        inCombat = ok and locked and true or false
-      end
-
-      if not inCombat then
-        local targetUnit = _G.TargetUnit
-        if type(targetUnit) == "function" then
-          pcall(targetUnit, row.unit)
-        end
-      end
-    elseif button == "RightButton" then
+    if button == "RightButton" then
       local name = row.tooltipName
       if name then
         local target = (row.tooltipRealm and row.tooltipRealm ~= "") and (name .. "-" .. row.tooltipRealm) or name

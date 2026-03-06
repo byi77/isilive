@@ -103,6 +103,7 @@ local function CreateTeleportUIController(ctx)
     getSpellCooldownSafe = ctx.getSpellCooldownSafe,
     applyCooldownFrameSafe = ctx.applyCooldownFrameSafe,
     getSpellTexture = ctx.getSpellTexture,
+    getEmptyStateText = ctx.getTeleportEmptyStateText,
   })
   controller.BuildButtons()
   return {

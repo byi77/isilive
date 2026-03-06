@@ -172,6 +172,9 @@ function TeleportUI.CreateController(opts)
     getSpellTexture = opts.getSpellTexture or function(_spellID)
       return nil
     end,
+    getEmptyStateText = opts.getEmptyStateText or function()
+      return nil
+    end,
     isInCombat = opts.isInCombat or function()
       return InCombatLockdown and InCombatLockdown()
     end,
@@ -190,10 +193,60 @@ function TeleportUI.CreateController(opts)
   assert(type(deps.getSpellCooldownSafe) == "function", "isiLive: TeleportUI requires getSpellCooldownSafe")
   assert(type(deps.applyCooldownFrameSafe) == "function", "isiLive: TeleportUI requires applyCooldownFrameSafe")
   assert(type(deps.getSpellTexture) == "function", "isiLive: TeleportUI requires getSpellTexture")
+  assert(type(deps.getEmptyStateText) == "function", "isiLive: TeleportUI requires getEmptyStateText")
   assert(type(deps.isInCombat) == "function", "isiLive: TeleportUI requires isInCombat")
 
   local controller = {}
   local buttons = {}
+  local emptyStateLabel = nil
+
+  local function EnsureEmptyStateLabel()
+    if emptyStateLabel or type(mainFrame.CreateFontString) ~= "function" then
+      return
+    end
+
+    emptyStateLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    emptyStateLabel:SetPoint("TOPRIGHT", -14, -58)
+    emptyStateLabel:SetWidth(116)
+    emptyStateLabel:SetJustifyH("RIGHT")
+    if emptyStateLabel.SetTextColor then
+      emptyStateLabel:SetTextColor(1, 0.82, 0.18)
+    end
+    if emptyStateLabel.SetWordWrap then
+      emptyStateLabel:SetWordWrap(true)
+    end
+    if emptyStateLabel.SetNonSpaceWrap then
+      emptyStateLabel:SetNonSpaceWrap(true)
+    end
+    if emptyStateLabel.SetText then
+      emptyStateLabel:SetText("")
+    end
+    if emptyStateLabel.Hide then
+      emptyStateLabel:Hide()
+    end
+  end
+
+  local function UpdateEmptyState(entries)
+    EnsureEmptyStateLabel()
+    if not emptyStateLabel then
+      return
+    end
+
+    local hasEntries = type(entries) == "table" and #entries > 0
+    local emptyText = nil
+    if not hasEntries then
+      emptyText = deps.getEmptyStateText()
+    end
+
+    if type(emptyText) == "string" and emptyText ~= "" then
+      emptyStateLabel:SetText(emptyText)
+      emptyStateLabel:Show()
+      return
+    end
+
+    emptyStateLabel:SetText("")
+    emptyStateLabel:Hide()
+  end
 
   local function HideExistingButtons()
     for _, button in ipairs(buttons) do
@@ -205,7 +258,9 @@ function TeleportUI.CreateController(opts)
 
   local function BuildButtonsInternal()
     buttons = {}
-    for i, entry in ipairs(deps.getEntries()) do
+    local entries = deps.getEntries()
+    UpdateEmptyState(entries)
+    for i, entry in ipairs(entries) do
       table.insert(buttons, CreateTeleportButton(mainFrame, deps, i, entry))
     end
   end
@@ -221,6 +276,10 @@ function TeleportUI.CreateController(opts)
 
   function controller.GetButtons()
     return buttons
+  end
+
+  function controller.GetEmptyStateLabel()
+    return emptyStateLabel
   end
 
   function controller.UpdateButtons(resolvedSpellID)

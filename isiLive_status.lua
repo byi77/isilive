@@ -51,6 +51,13 @@ local function BuildTargetDungeonText(deps)
 
   local info = deps.getTargetDungeonInfo and deps.getTargetDungeonInfo() or nil
   if type(info) ~= "table" then
+    if type(deps.hasActiveDungeons) == "function" and deps.hasActiveDungeons() == false then
+      local seasonLabel = type(deps.getActiveSeasonLabel) == "function" and deps.getActiveSeasonLabel() or nil
+      if type(seasonLabel) == "string" and seasonLabel ~= "" then
+        local preSeasonTemplate = L.STATUS_TARGET_DUNGEON_PRESEASON or template
+        return string.format(preSeasonTemplate, seasonLabel)
+      end
+    end
     return emptyText
   end
 
@@ -188,6 +195,12 @@ function Status.CreateController(opts)
       return false
     end,
     getTargetDungeonInfo = opts.getTargetDungeonInfo or function()
+      return nil
+    end,
+    hasActiveDungeons = opts.hasActiveDungeons or function()
+      return true
+    end,
+    getActiveSeasonLabel = opts.getActiveSeasonLabel or function()
       return nil
     end,
   }

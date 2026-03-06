@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-03-06 - Version 0.9.64
+- **Midnight S1 Pre-Season Portal Messaging:**
+  - Kept the active season dataset on `midnight_s1` pre-season mode.
+  - `M+Travel` now shows a localized Midnight Season 1 start message instead of stale `tww_s3` portal icons when no active portal pool exists.
+  - The status line keeps the matching pre-season placeholder so the empty portal area reads as intentional, not broken.
+- **Roster Interaction Safety:**
+  - Removed roster-row left-click targeting from the insecure row UI path.
+  - Right-click whisper remains available.
+  - Added deterministic regression coverage so protected `TargetUnit` calls do not reappear through the row interaction path.
+- **Packaging + Planning Docs:**
+  - Excluded `TODO_RENAME.md` from CurseForge packaging via `.pkgmeta`.
+  - Added `TODO_RENAME.md` as the hardcut rename runbook for the planned `isiLive -> isiKeyMPlus` migration after `v0.9.65`.
+- **Validation + Docs Sync:**
+  - Deterministic validator coverage increased to `188` scenarios across `24` modules.
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `RULES.md`, and `TODO.md` to the current runtime/release state.
+
 ## 2026-03-05 - Version 0.9.63
 - **Roster Tooltip Positioning:**
   - Forced roster tooltips to anchor at the mouse cursor (`ANCHOR_CURSOR`) instead of using the default UI position.
@@ -26,9 +42,8 @@
   - Previously, updates were only sent on group join, key end, or manual refresh.
   - This ensures the group always sees your current gear/score without manual intervention.
 - **Roster Interaction:**
-  - **Left-Click** on a roster row now targets the player (out of combat only).
   - **Right-Click** on a roster row now opens a whisper to the player.
-  - This brings standard unit-frame interactivity to the isiLive list.
+  - This adds direct whisper access from the isiLive list.
 - **Ready Check Indicators:**
   - The roster now colors player names to indicate status during a ready check.
   - Green for "Ready", Red for "Not Ready", and Yellow for "Waiting".
@@ -36,6 +51,11 @@
 - **"At Dungeon" Indicator:**
   - Players in the group who are already inside the target dungeon are now marked with a summon-portal icon next to their name.
   - This provides a quick visual cue for who is ready at the summoning stone.
+- **Midnight S1 Pre-Season Mode:**
+  - Switched the active season dataset to `midnight_s1` pre-season mode instead of continuing to expose stale `tww_s3` portals.
+  - `M+Travel` now shows an empty active portal pool until Midnight Season 1 dungeon/teleport mappings are complete.
+  - The status line now explains the empty pool via a pre-season target-dungeon placeholder instead of looking broken.
+  - The portal area itself now shows a `Midnight S1` season-start message instead of rendering obsolete `tww_s3` portal icons.
 - **Architecture Refactor:**
   - Introduced central runtime state in `isiLive_runtime_state.lua` for roster, queue target, runtime flags, ready-check state, and RIO baseline ownership.
   - Reduced `isiLive.lua` toward a composition root by moving mutable runtime concerns behind the runtime-state controller.
@@ -49,16 +69,17 @@
   - Ready-check state is now fully wired through bootstrap, gating, event handling, and roster rendering.
   - Ghost roster members are excluded from forced inspect refresh paths so their cached data is preserved.
   - Completed-run recording is deduplicated across `CHALLENGE_MODE_COMPLETED` and `CHALLENGE_MODE_RESET`.
+  - Removed insecure roster-row left-click targeting because direct `TargetUnit` calls from the current row UI can taint into protected-action errors ingame.
 - **Test Coverage:**
   - Added dedicated `RuntimeState` regression scenarios.
   - Added dedicated architecture rule scenarios and validator coverage.
   - Test harness now supports implicit addon-module dependencies for aggregated controller modules.
-  - Deterministic validator coverage increased to `185` scenarios across `24` modules.
+  - Deterministic validator coverage increased to `186` scenarios across `24` modules.
 - **Documentation:**
   - Updated `RULES_LOGIC.md` with Rule 32 (Ghost Member), Rule 33 (At Dungeon), Rule 34 (Ready Check), and updated Rule 28 (matching exact test names).
   - Added `ARCHITECTURE_RULES.md` and aligned docs with the architecture gate.
   - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, and `TODO.md` to 0.9.63.
-  - Validator count increased to `185` deterministic scenarios across `24` modules.
+  - Validator count increased to `186` deterministic scenarios across `24` modules.
 
 ## 2026-03-05 - Version 0.9.62
 - **Bug Fix: Rich Roster Tooltip Guard:**

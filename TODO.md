@@ -2,13 +2,13 @@
 
 ## P0 - Release / Review
 
-- [x] `v0.9.63` vorbereiten:
-  - `isiLive.toc` auf `0.9.63` heben
+- [x] `v0.9.64` vorbereiten:
+  - `isiLive.toc` auf `0.9.64` heben
   - `CHANGELOG.md` auf aktuellen Runtime-Stand bringen
-  - `README.md` / `RELEASE.md` auf `0.9.63` Beispiele und Tag-Namen synchronisieren
-- [ ] `v0.9.63` als entschärften Folge-Release gegenueber `0.9.58` veroeffentlichen
-  - passive Blizzard-CVar-Checkboxen statt hartem Erzwingen
-  - reduzierte Sync-Aktivitaet aus `v0.9.58` beibehalten
+  - `README.md` / `RELEASE.md` auf `0.9.64` Beispiele und Tag-Namen synchronisieren
+- [ ] `v0.9.64` veroeffentlichen
+  - Midnight-S1-Pre-Season-Text und leeres Portal-Grid pruefen
+  - unsicheren Roster-Linksklick nicht mehr bewerben
 - [ ] Kurz-Smoketest vor Release:
   - UI oeffnen/schliessen
   - Checkboxen fuer `advancedCombatLogging` / `damageMeterResetOnNewInstance`
@@ -23,7 +23,7 @@
 
 ## P2 - Season / Runtime
 
-- [ ] Off-Season-Modus vorbereiten:
+- [x] Off-Season-Modus vorbereiten:
   - Teleport-Grid ausblenden / leeren
   - Non-Mythic-Warnung deaktivieren
 - [ ] Vorbereitung fuer Midnight S1:
@@ -33,14 +33,14 @@
 
 ## P3 - Doku / Pflege
 
-- [ ] Nach `v0.9.59`: `TODO.md`, `CHANGELOG.md`, `README.md`, `RELEASE.md` wieder auf denselben Stand ziehen
+- [ ] Nach `v0.9.64`: `TODO.md`, `CHANGELOG.md`, `README.md`, `RELEASE.md` wieder auf denselben Stand ziehen
 - [ ] Release-Text fuer CurseForge / GitHub kurz pruefen, damit die neue passive CVar-Logik klar beschrieben ist
 
 ## Geparkt / Nicht aktiv
 
-- [ ] Hard-Split `isiLive` -> `isiKeyMplus` ist aktuell nicht der aktive Arbeitsplan
-  - nur bei expliziter Reaktivierung neu aufsetzen
-  - alten Split-Plan nicht stillschweigend wieder aufnehmen
+- [x] Hard-Split `isiLive` -> `isiKeyMPlus` wurde reaktiviert und in `TODO_RENAME.md` konkret geplant
+  - Ziel: Hardcut nach `v0.9.65`
+  - kein Legacy-Fallback, keine DB-Migration, kein Alt-Sync
 
 ## Bereits erledigt (wichtig als Kontext)
 

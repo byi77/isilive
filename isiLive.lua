@@ -644,6 +644,21 @@ local initResult = isiLiveControllerInit.CreateControllers({
   getRoster = GetRoster,
   applySecureSpellToButton = ApplySecureSpellToButton,
   getEntries = isiLiveTeleport.BuildSeason3TeleportEntries,
+  getTeleportEmptyStateText = function()
+    local seasonData = addonTable.SeasonData
+    if type(seasonData) ~= "table" then
+      return nil
+    end
+    if type(seasonData.HasActiveDungeons) == "function" and seasonData.HasActiveDungeons() then
+      return nil
+    end
+    if type(seasonData.GetInactivePortalMessage) ~= "function" then
+      return nil
+    end
+
+    local activeLocale = (IsiLiveDB and IsiLiveDB.locale) or locale
+    return seasonData.GetInactivePortalMessage(activeLocale)
+  end,
   isSpellKnown = IsSpellKnownSafe,
   getTeleportCooldownRemaining = GetTeleportCooldownRemaining,
   formatCooldownSeconds = FormatCooldownSeconds,
@@ -779,6 +794,20 @@ local statusController = isiLiveStatus.CreateController({
   end,
   isPlayerLeader = IsPlayerLeader,
   getTargetDungeonInfo = GetStatusTargetDungeonInfo,
+  hasActiveDungeons = function()
+    local seasonData = addonTable.SeasonData
+    if type(seasonData) == "table" and type(seasonData.HasActiveDungeons) == "function" then
+      return seasonData.HasActiveDungeons()
+    end
+    return true
+  end,
+  getActiveSeasonLabel = function()
+    local seasonData = addonTable.SeasonData
+    if type(seasonData) == "table" and type(seasonData.GetSeasonLabel) == "function" then
+      return seasonData.GetSeasonLabel()
+    end
+    return nil
+  end,
 })
 
 UpdateStatusLine = function()

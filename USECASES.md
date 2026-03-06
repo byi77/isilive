@@ -1,6 +1,6 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.63`
+Version baseline: `0.9.64`
 Last updated: `2026-03-06`
 
 ## Actors
@@ -12,7 +12,7 @@ Last updated: `2026-03-06`
 ## Preconditions
 
 1. Addon is loaded and not in `stopped` state.
-2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `tww_s3`; next prepared season: `midnight_s1` inactive scaffold).
+2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `midnight_s1` pre-season with empty active portal pool; `tww_s3` remains available as legacy dataset).
 3. Relevant UI is visible for queue scanning and rendering; while hidden, addon-message sync and roster updates may still run in the background, and UI can be auto-opened by fresh group join, key-end, or real dungeon-entry transition logic.
 
 ## Use Case Matrix

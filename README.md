@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.63`.
+Current addon version: `0.9.64`.
 
 ## Features
 
@@ -12,14 +12,14 @@ Current addon version: `0.9.63`.
 - Stable role sorting: `Tank -> Healer -> Damager`
 - Right-side controls: `Readycheck`, `Countdown10`, `Countdown 0`, `Refresh`, `Share Keys`
 - Right-side headers: `M+Managment` and `M+Travel`
-- `M+Travel` teleport grid with all Season dungeon teleports
+- `M+Travel` teleport grid with active-season dungeon teleports; during pre-season/off-season without active portal pool it shows a season-start text instead of stale portals
 - Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
 - Teleport action buttons use `InsecureActionButtonTemplate` so main/notice frame visibility remains combat-toggleable without protected-frame promotion
 - Players inside the target dungeon are marked with a portal icon in the roster
 - Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale)
 - Visible-window peer sync between `isiLive` users can also backfill remote `Spec`, `iLvl`, and `RIO` without inspect range; fresh local inspect data keeps priority once available
 - Key mapping normalizes active-season challenge-map IDs to canonical season map IDs before short-code rendering
-- Season scope is open via `ACTIVE_SEASON_ID`; current active season is `tww_s3`, and `midnight_s1` exists as prepared inactive scaffold
+- Season scope is open via `ACTIVE_SEASON_ID`; current active season is `midnight_s1` pre-season, while `tww_s3` remains available as legacy dataset
 - `Key` column keeps `Shortcut +Level` on one line (no row-wrap bleed into next member line)
 - `RIO` column can show per-run delta as `(+X)RIO` (non-negative only; never minus)
 - Queue join detection with chat message and invite hint
@@ -31,7 +31,7 @@ Current addon version: `0.9.63`.
 - Spec column supports short labels for long localized names (for example `Wiederherstellung -> Resto`, `Vergeltung -> Retri`)
 - Center notices: left-click drag, right-click dismiss, top-right close button; position resets to center on each open
 - Optional runtime log persisted in `IsiLiveDB.runtimeLog` (enable/disable via slash command; flushed on `/reload`/logout)
-- Roster rows support **Left-Click** (Target) and **Right-Click** (Whisper)
+- Roster rows support **Right-Click** (Whisper)
 - Non-Mythic dungeon entry warning with delayed confirmation (larger/blinking persistent notice; right-click dismiss, left-click drag)
 - Top-right version label in main window (`V.x.y.z`)
 
@@ -65,7 +65,7 @@ Current addon version: `0.9.63`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`, while explicit local refresh triggers and visibility-bound snapshots keep `KEY/STATS` current.
 
-## Use Case / Logic Baseline (v0.9.63)
+## Use Case / Logic Baseline (v0.9.64)
 
 Documented on `2026-03-06` as runtime behavior baseline for validation checks.
 
@@ -202,7 +202,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-`tools/validate_usecases.lua` runs both rule validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 185 scenarios across 24 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui), including:
+`tools/validate_usecases.lua` runs both rule validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 188 scenarios across 24 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui), including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
@@ -284,10 +284,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.63`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.64`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.59` or `isiLive_beta_0.9.59`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.64` or `isiLive_beta_0.9.64`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -299,9 +299,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.63 && git push origin isiLive_release_0.9.63`
+3. Create and push stable tag: `git tag isiLive_release_0.9.64 && git push origin isiLive_release_0.9.64`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.63 && git push origin isiLive_alpha_0.9.63`
-   - beta: `git tag isiLive_beta_0.9.63 && git push origin isiLive_beta_0.9.63`
+   - alpha: `git tag isiLive_alpha_0.9.64 && git push origin isiLive_alpha_0.9.64`
+   - beta: `git tag isiLive_beta_0.9.64 && git push origin isiLive_beta_0.9.64`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

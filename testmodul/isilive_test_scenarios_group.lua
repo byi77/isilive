@@ -209,7 +209,7 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules)
   end)
 end
 
-local function RegisterGroupRosterTests(test, Assert, LoadAddonModules)
+local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
   test("Active M+ key blocks roster rebuild", function()
     local controller, state = BuildGroupController(LoadAddonModules, {
       getActiveChallengeMapID = function()
@@ -285,6 +285,9 @@ local function RegisterGroupRosterTests(test, Assert, LoadAddonModules)
 
     Assert.Equal(state.knownUsersCleared, 1, "known users cache must be cleared on group leave")
   end)
+end
+
+local function RegisterGroupGhostShiftTests(test, Assert, LoadAddonModules)
 
   test("Group member leaving becomes ghost", function()
     local members = 2
@@ -417,6 +420,9 @@ local function RegisterGroupRosterTests(test, Assert, LoadAddonModules)
     Assert.Equal(state.roster.party1.rio, 2500, "RIO should persist across slot shift")
     Assert.Equal(state.roster.party1.keyLevel, 15, "Key level should persist across slot shift")
   end)
+end
+
+local function RegisterGroupGhostLifecycleTests(test, Assert, LoadAddonModules)
 
   test("Ghost is removed and data restored when player rejoins", function()
     local members = 2 -- Player + 1 party member
@@ -560,5 +566,7 @@ return function(test, ctx)
   local LoadAddonModules = ctx.load_modules
 
   RegisterGroupLifecycleTests(test, Assert, LoadAddonModules)
-  RegisterGroupRosterTests(test, Assert, LoadAddonModules)
+  RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
+  RegisterGroupGhostShiftTests(test, Assert, LoadAddonModules)
+  RegisterGroupGhostLifecycleTests(test, Assert, LoadAddonModules)
 end
