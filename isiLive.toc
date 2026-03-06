@@ -11,6 +11,7 @@ isiLive_texts.lua
 isiLive_spell_utils.lua
 isiLive_bindings.lua
 isiLive_event_utils.lua
+isiLive_runtime_state.lua
 isiLive_bootstrap.lua
 isiLive_controller_wiring.lua
 isiLive_leader_watch.lua
@@ -44,6 +45,9 @@ isiLive_inspect.lua
 isiLive_roster.lua
 isiLive_roster_panel.lua
 isiLive_events.lua
+isiLive_event_handlers_queue.lua
+isiLive_event_handlers_challenge.lua
+isiLive_event_handlers_runtime.lua
 isiLive_event_handlers.lua
 isiLive_commands.lua
 isiLive_ui.lua

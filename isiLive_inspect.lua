@@ -14,8 +14,18 @@ local function IsUnitInInspectQueue(controller, unit)
   return false
 end
 
+local function IsGhostRosterUnit(unit, roster)
+  if type(unit) ~= "string" then
+    return false
+  end
+  if string.find(unit, "^ghost:") then
+    return true
+  end
+  return type(roster) == "table" and type(roster[unit]) == "table" and roster[unit].isGhost == true
+end
+
 local function EnqueueInspect(controller, unit, roster)
-  if not unit or not roster then
+  if not unit or not roster or IsGhostRosterUnit(unit, roster) then
     return
   end
 
@@ -48,19 +58,21 @@ end
 local function QueueForceRefreshData(controller, roster)
   controller.ResetQueues()
   for unit, info in pairs(roster or {}) do
-    local guid = UnitGUID(unit)
-    if guid then
-      controller.ilvlCache[guid] = nil
-      controller.rioCache[guid] = nil
-      controller.specCache[guid] = nil
+    if not (info.isGhost or IsGhostRosterUnit(unit, roster)) then
+      local guid = UnitGUID(unit)
+      if guid then
+        controller.ilvlCache[guid] = nil
+        controller.rioCache[guid] = nil
+        controller.specCache[guid] = nil
+      end
+      info.spec = nil
+      info.ilvl = nil
+      info.rio = nil
+      info._localSpecFresh = nil
+      info._localIlvlFresh = nil
+      info._localRioFresh = nil
+      EnqueueInspect(controller, unit, roster)
     end
-    info.spec = nil
-    info.ilvl = nil
-    info.rio = nil
-    info._localSpecFresh = nil
-    info._localIlvlFresh = nil
-    info._localRioFresh = nil
-    EnqueueInspect(controller, unit, roster)
   end
 end
 

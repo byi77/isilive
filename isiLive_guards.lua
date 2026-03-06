@@ -38,6 +38,7 @@ local REQUIRED_MODULES = {
   { key = "SpellUtils", file = "isiLive_spell_utils.lua" },
   { key = "Bindings", file = "isiLive_bindings.lua" },
   { key = "EventUtils", file = "isiLive_event_utils.lua" },
+  { key = "RuntimeState", file = "isiLive_runtime_state.lua" },
   { key = "Bootstrap", file = "isiLive_bootstrap.lua" },
   { key = "ControllerWiring", file = "isiLive_controller_wiring.lua" },
   { key = "LeaderWatch", file = "isiLive_leader_watch.lua" },
@@ -47,6 +48,9 @@ local REQUIRED_MODULES = {
   { key = "RuntimeSetup", file = "isiLive_runtime_setup.lua" },
   { key = "ControllerInit", file = "isiLive_controller_init.lua" },
   { key = "SeasonData", file = "isiLive_season_data.lua" },
+  { key = "EventHandlersQueueLifecycle", file = "isiLive_event_handlers_queue.lua" },
+  { key = "EventHandlersChallengeLifecycle", file = "isiLive_event_handlers_challenge.lua" },
+  { key = "EventHandlersRuntimeLifecycle", file = "isiLive_event_handlers_runtime.lua" },
 }
 
 local REQUIRED_FUNCTIONS = {
@@ -80,9 +84,22 @@ local REQUIRED_FUNCTIONS = {
   },
   { path = { "SpellUtils", "FormatCooldownSeconds" }, message = "isiLive: SpellUtils.FormatCooldownSeconds missing" },
   { path = { "Bindings", "CreateController" }, message = "isiLive: Bindings.CreateController missing" },
+  { path = { "RuntimeState", "CreateController" }, message = "isiLive: RuntimeState.CreateController missing" },
   {
     path = { "EventUtils", "IsNegativeApplicationStatusEvent" },
     message = "isiLive: EventUtils.IsNegativeApplicationStatusEvent missing",
+  },
+  {
+    path = { "EventHandlersQueueLifecycle", "BuildHandlers" },
+    message = "isiLive: EventHandlersQueueLifecycle.BuildHandlers missing",
+  },
+  {
+    path = { "EventHandlersChallengeLifecycle", "BuildHandlers" },
+    message = "isiLive: EventHandlersChallengeLifecycle.BuildHandlers missing",
+  },
+  {
+    path = { "EventHandlersRuntimeLifecycle", "BuildHandlers" },
+    message = "isiLive: EventHandlersRuntimeLifecycle.BuildHandlers missing",
   },
   { path = { "Bootstrap", "RegisterSlashCommands" }, message = "isiLive: Bootstrap.RegisterSlashCommands missing" },
   { path = { "Bootstrap", "CreateGatedOnEvent" }, message = "isiLive: Bootstrap.CreateGatedOnEvent missing" },
@@ -93,8 +110,16 @@ local REQUIRED_FUNCTIONS = {
     message = "isiLive: ControllerWiring.CreateGroupController missing",
   },
   {
+    path = { "ControllerWiring", "CreateGroupControllerFromContext" },
+    message = "isiLive: ControllerWiring.CreateGroupControllerFromContext missing",
+  },
+  {
     path = { "ControllerWiring", "CreateEventHandlersController" },
     message = "isiLive: ControllerWiring.CreateEventHandlersController missing",
+  },
+  {
+    path = { "ControllerWiring", "CreateEventHandlersControllerFromContext" },
+    message = "isiLive: ControllerWiring.CreateEventHandlersControllerFromContext missing",
   },
   { path = { "LeaderWatch", "CreateController" }, message = "isiLive: LeaderWatch.CreateController missing" },
   {

@@ -150,6 +150,52 @@ local function RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddo
       Assert.Equal(roster.player.ilvl, 620, "roster should be updated")
     end)
   end)
+
+  test("Inspect force refresh keeps ghost member data and skips ghost inspect queueing", function()
+    WithGlobals({
+      UnitGUID = function(unit)
+        return "guid-" .. tostring(unit)
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+      local controller = addon.Inspect.CreateController({})
+
+      local roster = {
+        party1 = {
+          spec = "Fury",
+          ilvl = 615,
+          rio = 3200,
+          _localSpecFresh = true,
+          _localIlvlFresh = true,
+          _localRioFresh = true,
+        },
+        ["ghost:Leaver-Realm"] = {
+          name = "Leaver",
+          realm = "Realm",
+          spec = "Holy",
+          ilvl = 612,
+          rio = 3000,
+          isGhost = true,
+          _localSpecFresh = true,
+          _localIlvlFresh = true,
+          _localRioFresh = true,
+        },
+      }
+
+      controller.QueueForceRefreshData(roster)
+
+      Assert.Nil(roster.party1.spec, "active roster entry should be cleared for refresh")
+      Assert.Equal(#controller.inspectQueue, 1, "only active roster entry should be queued for inspect")
+      Assert.Equal(controller.inspectQueue[1], "party1", "ghost roster entries must not be queued for inspect")
+
+      Assert.Equal(roster["ghost:Leaver-Realm"].spec, "Holy", "ghost spec should be preserved")
+      Assert.Equal(roster["ghost:Leaver-Realm"].ilvl, 612, "ghost ilvl should be preserved")
+      Assert.Equal(roster["ghost:Leaver-Realm"].rio, 3000, "ghost rio should be preserved")
+      Assert.True(roster["ghost:Leaver-Realm"]._localSpecFresh, "ghost freshness flags should stay intact")
+      Assert.True(roster["ghost:Leaver-Realm"]._localIlvlFresh, "ghost freshness flags should stay intact")
+      Assert.True(roster["ghost:Leaver-Realm"]._localRioFresh, "ghost freshness flags should stay intact")
+    end)
+  end)
 end
 
 return function(test, ctx)

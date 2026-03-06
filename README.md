@@ -42,10 +42,9 @@ Current addon version: `0.9.63`.
 - Auto-open on key end (`CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET`) while grouped.
 - Auto-open on real dungeon entry (`outside -> party instance`) while not in an active key.
 - `CTRL+F9`: opening and closing are always allowed (including combat).
-- Hidden window mode hard-stops non-essential scan/processing work; queue/sync event processing is suspended while hidden.
-- Hidden window mode suspends UI rendering and queue scanning, but keeps data sync active (Addon messages, Roster updates).
+- Hidden window mode suspends UI rendering and queue scanning, but keeps background data sync active (`CHAT_MSG_ADDON`, `GROUP_ROSTER_UPDATE`) so roster data is still warm on reopen.
 - Combat runtime gate suppresses non-essential event processing while in combat; essential events (for example `PLAYER_REGEN_ENABLED` and `CHALLENGE_MODE_*`) still run.
-- Peer sync (`HELLO`/`ACK`/`KEY`/`STATS`) runs only while the main window is visible (hidden mode stays in sleep behavior)
+- Own sync handshakes and forced snapshots (`HELLO`/`ACK`/`KEY`/`STATS`) remain visibility-bound; hidden mode still processes background addon sync messages so cached roster data can update without rendering.
 - Main window is movable via left drag in every mode; top drag handle stays above overlays for reliable dragging
 - Roster member row hover shows the Blizzard player tooltip when unit context exists, with `Name-Realm` fallback text when unit tokens are temporarily unavailable
 - Teleport grid buttons inherit main-frame strata/level to avoid overlay conflicts with external UI panels
@@ -68,7 +67,7 @@ Current addon version: `0.9.63`.
 
 ## Use Case / Logic Baseline (v0.9.63)
 
-Documented on `2026-03-05` as runtime behavior baseline for validation checks.
+Documented on `2026-03-06` as runtime behavior baseline for validation checks.
 
 1. Queue invite -> grouped flow
    - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`) while main UI is visible.
@@ -78,7 +77,7 @@ Documented on `2026-03-05` as runtime behavior baseline for validation checks.
    - Display ordering is stable by role (`TANK -> HEALER -> DAMAGER -> NONE`) and unit priority.
    - Per row data includes `Spec`, `Name`, `Language/Flag`, `Key`, `iLvl`, `RIO` and optional run-delta prefix `(+X)`.
 3. Key sync and key column
-   - Addon sync channel exchanges `HELLO/ACK/KEY/STATS` between `isiLive` users while the main window is visible.
+   - Own outbound sync snapshots remain visibility-bound, while incoming addon sync messages can still refresh cached roster data during hidden mode.
    - `KEY:<mapID>:<level>` snapshots populate roster key text as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale).
    - `STATS` snapshots can backfill remote `Spec/iLvl/RIO` without inspect range; once fresh local inspect data exists for a field, that local value keeps priority over later sync backfill.
    - Active joined key owner is highlighted only when ownership is unambiguous.
@@ -125,7 +124,8 @@ Developer debug (hidden command, not listed in in-game help):
 ## Files
 
 - `isiLive.toc`: addon metadata and load order
-- `isiLive.lua`: main addon logic
+- `isiLive.lua`: composition root and top-level addon orchestration
+- `isiLive_runtime_state.lua`: central runtime-state controller for roster, queue target, flags, ready check, and RIO baseline
 - `isiLive_locale.lua`: locale/language/flag mapping helpers
 - `isiLive_season_data.lua`: active season dataset (`ACTIVE_SEASON_ID`, map->teleport mappings, locale short-code overrides)
 - `isiLive_teleport.lua`: dungeon teleport mapping and secure teleport button helpers
@@ -147,7 +147,13 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive_inspect.lua`: inspect queue/retry/cache controller
 - `isiLive_roster.lua`: roster ordering + display-data builders
 - `isiLive_events.lua`: event gate wrapper for stop/pause/test/hidden states
-- `isiLive_event_handlers.lua`: runtime event handler controller (`OnEvent` routing targets)
+- `isiLive_event_handlers.lua`: runtime event-handler aggregator (`OnEvent` routing targets)
+- `isiLive_event_handlers_runtime.lua`: addon/world/combat/inspect/sync lifecycle handlers
+- `isiLive_event_handlers_queue.lua`: LFG queue/listing lifecycle handlers
+- `isiLive_event_handlers_challenge.lua`: challenge/ready-check lifecycle handlers
+- `isiLive_controller_wiring.lua`: controller dependency wiring and context-to-controller adapters
+- `isiLive_runtime_setup.lua`: runtime bootstrap assembly for group/event/gate controllers
+- `isiLive_config_builders.lua`: focused builders for refresh, queue-flow, slash commands, gate, and leader watch
 - `isiLive_commands.lua`: slash command registration/dispatch
 - `isiLive_ui.lua`: main frame/UI construction and widget wiring
 - `RULES_LOGIC.md`: enforceable usecase/rule contract source (`RULE-ID` blocks with status + required tests)
@@ -192,7 +198,7 @@ Developer debug (hidden command, not listed in in-game help):
 ## Deterministic Usecase Gate
 
 `tools/validate_rules_logic.lua` validates active rule contracts from `RULES_LOGIC.md` against deterministic test names.
-`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 152 scenarios across 21 modules (queue/highlight/event-handlers/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/roster/roster-panel/status/ui), including:
+`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 174 scenarios across 23 modules (queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui), including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
@@ -203,12 +209,14 @@ Developer debug (hidden command, not listed in in-game help):
 - protected API fallback robustness in queue flow
 - cooldown recognition/format behavior for teleport spells
 - group lifecycle (join/leave/raid detection/queue capture/roster build)
-- hidden-mode gate behavior (queue/sync suppression while hidden, auto-open only on fresh join, dungeon entry, and key-end transitions)
+- hidden-mode gate behavior (queue scanning and rendering suspended while hidden, background sync allowed, auto-open only on fresh join, dungeon entry, and key-end transitions)
+- hidden-mode background sync behavior (`CHAT_MSG_ADDON` and `GROUP_ROSTER_UPDATE` stay active while rendering stays suspended)
 - visible-window peer sync for remote `Spec/iLvl/RIO` backfill plus local-inspect precedence over later sync payloads
 - non-Mythic status detection (normal/heroic transitions and heroic fallback difficulty IDs)
 - combat hotkey visibility rules (`CTRL+F9`: open and close allowed during combat)
 - center-notice font-scale stability across repeated warning re-shows (no cumulative growth)
 - RIO baseline/delta rendering rules (`(+X)RIO`, no negative deltas) and challenge-start baseline capture
+- runtime-state patching/queue-target clearing/RIO-baseline reset invariants
 - EventUtils negative/positive status detection and edge cases
 - locale key completeness (enUS ↔ deDE symmetry, format placeholders)
 - sync NormalizePlayerKey, MarkUser/IsUserKnown, key dedup, HELLO/KEY messages

@@ -157,17 +157,24 @@ local function UpdatePartyMembersInRoster(deps, roster)
   end
 
   -- 2. Convert missing members to ghosts BEFORE overwriting slots
+  local ghostConversions = {}
   for unit, info in pairs(roster) do
     if unit ~= "player" and string.find(unit, "^party") and not info.isGhost then
       local key = info.name .. "-" .. (info.realm or "")
       if not currentMemberKeys[key] then
-        -- Member is gone, convert to ghost
-        local ghostKey = "ghost:" .. key
-        roster[ghostKey] = info
-        info.isGhost = true
-        roster[unit] = nil -- Clear the partyX slot so it's free for new data
+        table.insert(ghostConversions, {
+          partyUnit = unit,
+          ghostKey = "ghost:" .. key,
+          info = info,
+        })
       end
     end
+  end
+
+  for _, conversion in ipairs(ghostConversions) do
+    conversion.info.isGhost = true
+    roster[conversion.ghostKey] = conversion.info
+    roster[conversion.partyUnit] = nil
   end
 
   -- 3. Update slots with current group data (preserving data across slot shifts)

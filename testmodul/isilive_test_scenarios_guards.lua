@@ -54,6 +54,7 @@ local REQUIRED_MODULES = {
   "isiLive_spell_utils.lua",
   "isiLive_bindings.lua",
   "isiLive_event_utils.lua",
+  "isiLive_runtime_state.lua",
   "isiLive_bootstrap.lua",
   "isiLive_controller_wiring.lua",
   "isiLive_leader_watch.lua",
@@ -62,6 +63,9 @@ local REQUIRED_MODULES = {
   "isiLive_context_helpers.lua",
   "isiLive_runtime_setup.lua",
   "isiLive_controller_init.lua",
+  "isiLive_event_handlers_queue.lua",
+  "isiLive_event_handlers_challenge.lua",
+  "isiLive_event_handlers_runtime.lua",
   "isiLive_guards.lua",
 }
 

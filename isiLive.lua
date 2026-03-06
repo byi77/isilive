@@ -38,6 +38,7 @@ local isiLiveRuntimeSetup = addonTable and addonTable.RuntimeSetup
 local isiLiveControllerInit = addonTable and addonTable.ControllerInit
 local isiLiveGuards = addonTable and addonTable.Guards
 local isiLiveStats = addonTable and addonTable.Stats
+local isiLiveRuntimeState = addonTable and addonTable.RuntimeState
 
 -- --- Configuration & Constants ---
 local INSPECT_TIMEOUT = 2 -- seconds
@@ -50,7 +51,6 @@ local locale = GetLocale()
 local locales
 local L
 
-local isTestAllMode = false
 local runtimeLogController
 
 local function Print(msg)
@@ -103,6 +103,8 @@ if isiLiveQueue and isiLiveQueue.SetDebugLogger then
   isiLiveQueue.SetDebugLogger(queueDebugController.Log)
 end
 
+local runtimeState = isiLiveRuntimeState.CreateController()
+
 local GetSpellCooldownSafe = isiLiveSpellUtils.GetSpellCooldownSafe
 local ApplyCooldownFrameSafe = isiLiveSpellUtils.ApplyCooldownFrameSafe
 local IsSpellKnownSafe = isiLiveSpellUtils.IsSpellKnownSafe
@@ -111,7 +113,7 @@ local FormatCooldownSeconds = isiLiveSpellUtils.FormatCooldownSeconds
 local IsNegativeApplicationStatusEvent = isiLiveEventUtils.IsNegativeApplicationStatusEvent
 
 local function IsPlayerLeader()
-  if isTestAllMode then
+  if runtimeState.IsTestAllMode() then
     return true
   end
   return IsInGroup() and UnitIsGroupLeader("player")
@@ -154,10 +156,7 @@ local SendIsiLiveHello
 local GetOwnedKeystoneSnapshot
 local SendOwnKeySnapshot
 local ApplyKnownKeyToRosterEntry
-local latestQueueDungeonName
-local latestQueueActivityID
-local latestQueueTeleportSpellID
-local latestQueueMapID
+local RecordRun
 local ApplyLocalizationToUI
 local bindingController
 local keySyncController
@@ -173,11 +172,6 @@ local refreshButton
 local countdownCancelButton
 local statusLine
 local mplusTeleportButtons
-local roster = {}
-local activeJoinedKeyMapID = nil
-local rioBaselineByPlayerKey = {}
-local hasRioBaselineSnapshot = false
-local isRioDeltaDisplayEnabled = false
 
 local function ApplyHotkeyBindings()
   if bindingController then
@@ -208,7 +202,7 @@ local function EnsureSoloPlayerRoster()
     keyMapID, keyLevel = GetOwnedKeystoneSnapshot()
   end
 
-  roster = {
+  runtimeState.SetRoster({
     player = {
       name = name,
       realm = realm,
@@ -222,7 +216,7 @@ local function EnsureSoloPlayerRoster()
       keyMapID = keyMapID,
       keyLevel = keyLevel,
     },
-  }
+  })
 end
 
 local ResolveSeason3TeleportSpellIDByActivityID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByActivityID
@@ -300,18 +294,6 @@ local function ToggleMainFrameVisibility()
   frameBridgeContext.ToggleMainFrameVisibility()
 end
 
-local pendingQueueJoinInfo = nil
-latestQueueDungeonName = nil
-latestQueueActivityID = nil
-latestQueueTeleportSpellID = nil
-latestQueueMapID = nil
-local isTestMode = false
-local isStopped = false
-local isPaused = false
-local isReadyCheckActive = false
-local wasGroupLeader = nil
-local wasInGroup = false
-local wasRaidGroup = false
 local inspectController
 local inspectLoopTimer = 0
 local InspectLoop
@@ -321,11 +303,11 @@ local function GetActiveChallengeMapID()
 end
 
 local function IsReadyCheckActive()
-  return isReadyCheckActive
+  return runtimeState.IsReadyCheckActive()
 end
 
 local function SetReadyCheckActive(value)
-  isReadyCheckActive = value and true or false
+  runtimeState.SetReadyCheckActive(value)
 end
 
 local function IsInPartyInstance()
@@ -337,31 +319,31 @@ local function IsInPartyInstance()
 end
 
 local function GetWasInGroup()
-  return wasInGroup
+  return runtimeState.GetWasInGroup()
 end
 
 local function SetWasInGroup(value)
-  wasInGroup = value and true or false
+  runtimeState.SetWasInGroup(value)
 end
 
 local function GetWasRaidGroup()
-  return wasRaidGroup
+  return runtimeState.GetWasRaidGroup()
 end
 
 local function SetWasRaidGroup(value)
-  wasRaidGroup = value and true or false
+  runtimeState.SetWasRaidGroup(value)
 end
 
 local function SetWasGroupLeader(value)
-  wasGroupLeader = value
+  runtimeState.SetWasGroupLeader(value)
 end
 
 local function GetRoster()
-  return roster
+  return runtimeState.GetRoster()
 end
 
 local function SetRoster(value)
-  roster = value or {}
+  runtimeState.SetRoster(value)
 end
 
 local function NormalizePlayerKey(name, realm)
@@ -392,18 +374,15 @@ end
 
 local function RestoreRioBaseline()
   if IsiLiveDB and type(IsiLiveDB.rioBaseline) == "table" then
-    rioBaselineByPlayerKey = IsiLiveDB.rioBaseline
-    hasRioBaselineSnapshot = next(rioBaselineByPlayerKey) ~= nil
-    if hasRioBaselineSnapshot then
-      isRioDeltaDisplayEnabled = true
+    runtimeState.SetRioBaselineByPlayerKey(IsiLiveDB.rioBaseline)
+    if runtimeState.HasRioBaselineSnapshot() then
+      runtimeState.SetRioDeltaDisplayEnabled(true)
     end
   end
 end
 
 local function ClearRioBaselineSnapshot()
-  rioBaselineByPlayerKey = {}
-  hasRioBaselineSnapshot = false
-  isRioDeltaDisplayEnabled = false
+  runtimeState.ClearRioBaseline()
   if IsiLiveDB then
     IsiLiveDB.rioBaseline = nil
   end
@@ -412,6 +391,7 @@ end
 local function CaptureRioBaselineSnapshot()
   local snapshot = {}
   local hasSnapshotData = false
+  local roster = GetRoster()
 
   for unit, info in pairs(roster) do
     local playerKey = BuildRosterInfoPlayerKey(info)
@@ -427,26 +407,26 @@ local function CaptureRioBaselineSnapshot()
     end
   end
 
-  rioBaselineByPlayerKey = snapshot
-  hasRioBaselineSnapshot = hasSnapshotData
-  isRioDeltaDisplayEnabled = false
+  runtimeState.SetRioBaselineByPlayerKey(snapshot)
+  runtimeState.SetHasRioBaselineSnapshot(hasSnapshotData)
+  runtimeState.SetRioDeltaDisplayEnabled(false)
   if IsiLiveDB then
     IsiLiveDB.rioBaseline = snapshot
   end
 end
 
 local function EnableRioDeltaDisplay()
-  if not hasRioBaselineSnapshot then
+  if not runtimeState.HasRioBaselineSnapshot() then
     return
   end
-  isRioDeltaDisplayEnabled = true
+  runtimeState.SetRioDeltaDisplayEnabled(true)
 end
 
 local function GetRioDeltaForRosterInfo(info, unit)
-  if not hasRioBaselineSnapshot then
+  if not runtimeState.HasRioBaselineSnapshot() then
     return nil
   end
-  if not isRioDeltaDisplayEnabled then
+  if not runtimeState.IsRioDeltaDisplayEnabled() then
     return nil
   end
 
@@ -455,7 +435,7 @@ local function GetRioDeltaForRosterInfo(info, unit)
     return nil
   end
 
-  local baselineRio = rioBaselineByPlayerKey[playerKey]
+  local baselineRio = runtimeState.GetRioBaselineByPlayerKey()[playerKey]
   if baselineRio == nil then
     return nil
   end
@@ -497,18 +477,14 @@ local function GetPendingBindingApply()
 end
 
 local function ClearLatestQueueTarget()
-  latestQueueDungeonName = nil
-  latestQueueActivityID = nil
-  latestQueueTeleportSpellID = nil
-  latestQueueMapID = nil
-  activeJoinedKeyMapID = nil
+  runtimeState.ClearLatestQueueTarget()
   if UpdateStatusLine then
     UpdateStatusLine()
   end
 end
 
 local function RefreshLocalPlayerKey()
-  return keySyncController.RefreshLocalPlayerKey(roster)
+  return keySyncController.RefreshLocalPlayerKey(GetRoster())
 end
 
 local function NormalizeStatusTargetName(value)
@@ -538,7 +514,8 @@ local function NormalizeConcreteStatusTargetName(value, targetMapID)
 end
 
 local function ResolveStatusTargetMapID()
-  local activeMapID = tonumber(activeJoinedKeyMapID)
+  local _, latestQueueActivityID, _, latestQueueMapID = runtimeState.GetLatestQueueState()
+  local activeMapID = tonumber(runtimeState.GetActiveJoinedKeyMapID())
   if activeMapID and activeMapID > 0 then
     return activeMapID
   end
@@ -560,6 +537,8 @@ end
 
 local function GetStatusTargetDungeonInfo()
   local targetMapID = ResolveStatusTargetMapID()
+  local latestQueueDungeonName, latestQueueActivityID = runtimeState.GetLatestQueueState()
+  local roster = GetRoster()
 
   local targetName = NormalizeConcreteStatusTargetName(latestQueueDungeonName, targetMapID)
   if not targetName and targetMapID and isiLiveTeleport and isiLiveTeleport.GetSeason3TeleportInfoByMapID then
@@ -687,6 +666,7 @@ SendIsiLiveHello = initResult.sendIsiLiveHello
 GetOwnedKeystoneSnapshot = initResult.getOwnedKeystoneSnapshot
 SendOwnKeySnapshot = initResult.sendOwnKeySnapshot
 ApplyKnownKeyToRosterEntry = initResult.applyKnownKeyToRosterEntry
+RecordRun = initResult.recordRun
 highlightController = initResult.highlightController
 rosterPanelController = initResult.rosterPanelController
 refreshButton = initResult.refreshButton
@@ -700,7 +680,7 @@ UpdateLeaderButtons = function()
 end
 
 UpdateUI = function()
-  rosterPanelController.RenderRoster(roster)
+  rosterPanelController.RenderRoster(GetRoster())
 end
 
 local function GetNormalizedActiveEntryInfo()
@@ -708,6 +688,7 @@ local function GetNormalizedActiveEntryInfo()
 end
 
 local function ResolveActiveTeleportSpellID()
+  local _, latestQueueActivityID, _, latestQueueMapID = runtimeState.GetLatestQueueState()
   return highlightController.ResolveActiveTeleportSpellID(latestQueueActivityID, latestQueueMapID)
 end
 
@@ -716,7 +697,7 @@ local function ResolveJoinedKeyMapID(activityID, spellID)
 end
 
 ResolveActiveKeyOwnerUnit = function()
-  return keySyncController.ResolveActiveKeyOwnerUnit(roster, activeJoinedKeyMapID)
+  return keySyncController.ResolveActiveKeyOwnerUnit(GetRoster(), runtimeState.GetActiveJoinedKeyMapID())
 end
 
 local function UpdateMPlusTeleportButton()
@@ -735,7 +716,7 @@ teleportDebugController = isiLiveTeleportDebug.CreateController({
   getTeleportCooldownRemaining = GetTeleportCooldownRemaining,
   formatCooldownSeconds = FormatCooldownSeconds,
   getLatestQueueState = function()
-    return latestQueueDungeonName, latestQueueActivityID, latestQueueTeleportSpellID, latestQueueMapID
+    return runtimeState.GetLatestQueueState()
   end,
   resolveSeason3MapIDByActivityID = ResolveSeason3MapIDByActivityID,
   resolveSeason3TeleportSpellIDByActivityID = ResolveSeason3TeleportSpellIDByActivityID,
@@ -750,10 +731,7 @@ teleportDebugController = isiLiveTeleportDebug.CreateController({
   end,
   showCenterNotice = ShowCenterNotice,
   setLatestQueueState = function(dungeonName, activityID, spellID, mapID)
-    latestQueueDungeonName = dungeonName
-    latestQueueActivityID = activityID
-    latestQueueTeleportSpellID = spellID
-    latestQueueMapID = mapID
+    runtimeState.SetLatestQueueState(dungeonName, activityID, spellID, mapID)
     if UpdateStatusLine then
       UpdateStatusLine()
     end
@@ -804,31 +782,28 @@ local statusController = isiLiveStatus.CreateController({
 })
 
 UpdateStatusLine = function()
+  local flags = runtimeState.GetRuntimeFlags()
   statusLine:SetText(statusController.BuildStatusLineText({
-    isStopped = isStopped,
-    isPaused = isPaused,
-    isTestMode = isTestMode,
+    isStopped = flags.isStopped,
+    isPaused = flags.isPaused,
+    isTestMode = flags.isTestMode,
   }))
 end
 
 local function QueueForceRefreshData()
-  inspectController.QueueForceRefreshData(roster)
+  inspectController.QueueForceRefreshData(GetRoster())
 end
 
 local function ForceRefreshSyncState()
-  keySyncController.ForceRefreshSyncState(roster)
+  keySyncController.ForceRefreshSyncState(GetRoster())
 end
 
 refreshController = isiLiveRefresh.CreateController(isiLiveConfigBuilders.BuildRefreshControllerOpts({
-  isStopped = function()
-    return isStopped
-  end,
-  isPaused = function()
-    return isPaused
-  end,
+  isStopped = runtimeState.IsStopped,
+  isPaused = runtimeState.IsPaused,
   isInGroup = IsInGroup,
   isRosterEmpty = function()
-    return next(roster) == nil
+    return next(GetRoster()) == nil
   end,
   triggerGroupRosterUpdate = function()
     local onEventHandler = mainFrame:GetScript("OnEvent")
@@ -860,10 +835,10 @@ queueFlowController = isiLiveQueueFlow.CreateController(isiLiveConfigBuilders.Bu
     return L
   end,
   getPendingQueueJoinInfo = function()
-    return pendingQueueJoinInfo
+    return runtimeState.GetPendingQueueJoinInfo()
   end,
   setPendingQueueJoinInfo = function(value)
-    pendingQueueJoinInfo = value
+    runtimeState.SetPendingQueueJoinInfo(value)
   end,
   resolveSeason3MapIDByActivityID = ResolveSeason3MapIDByActivityID,
   resolveSeason3TeleportSpellIDByMapID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID,
@@ -874,11 +849,8 @@ queueFlowController = isiLiveQueueFlow.CreateController(isiLiveConfigBuilders.Bu
   updateUI = UpdateUI,
   printFn = Print,
   setQueueTargetState = function(dungeonName, activityID, spellID, joinedKeyMapID, mapID)
-    latestQueueDungeonName = dungeonName
-    latestQueueActivityID = activityID
-    latestQueueTeleportSpellID = spellID
-    latestQueueMapID = mapID
-    activeJoinedKeyMapID = joinedKeyMapID
+    runtimeState.SetLatestQueueState(dungeonName, activityID, spellID, mapID)
+    runtimeState.SetActiveJoinedKeyMapID(joinedKeyMapID)
     if UpdateStatusLine then
       UpdateStatusLine()
     end
@@ -907,22 +879,8 @@ testModeController = isiLiveTestMode.CreateController(isiLiveConfigBuilders.Buil
     return L
   end,
   printFn = Print,
-  getState = function()
-    return {
-      isStopped = isStopped,
-      isPaused = isPaused,
-      isTestMode = isTestMode,
-      isTestAllMode = isTestAllMode,
-    }
-  end,
-  setState = function(patch)
-    if patch.isTestMode ~= nil then
-      isTestMode = patch.isTestMode and true or false
-    end
-    if patch.isTestAllMode ~= nil then
-      isTestAllMode = patch.isTestAllMode and true or false
-    end
-  end,
+  getState = runtimeState.GetRuntimeFlags,
+  setState = runtimeState.PatchRuntimeFlags,
   buildDummyRoster = BuildDummyRoster,
   setRoster = SetRoster,
   setMainFrameVisible = SetMainFrameVisible,
@@ -932,10 +890,7 @@ testModeController = isiLiveTestMode.CreateController(isiLiveConfigBuilders.Buil
   showQueueJoinPreview = ShowQueueJoinPreview,
   resetInspectAll = ResetInspectAll,
   clearLatestQueueState = function()
-    latestQueueDungeonName = nil
-    latestQueueActivityID = nil
-    latestQueueTeleportSpellID = nil
-    latestQueueMapID = nil
+    runtimeState.ClearLatestQueueTarget({ keepActiveJoinedKey = true })
   end,
   captureRioBaselineSnapshot = CaptureRioBaselineSnapshot,
   clearRioBaselineSnapshot = ClearRioBaselineSnapshot,
@@ -986,7 +941,7 @@ local function SetLocaleTable(value)
 end
 
 local function EnqueueInspect(unit)
-  inspectController.EnqueueInspect(unit, roster)
+  inspectController.EnqueueInspect(unit, GetRoster())
 end
 
 local function CheckIfEnteredTargetDungeon()
@@ -1084,9 +1039,7 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   getWasRaidGroup = GetWasRaidGroup,
   setWasRaidGroup = SetWasRaidGroup,
   setWasGroupLeader = SetWasGroupLeader,
-  getWasGroupLeader = function()
-    return wasGroupLeader
-  end,
+  getWasGroupLeader = runtimeState.GetWasGroupLeader,
   getRoster = GetRoster,
   setRoster = SetRoster,
   captureQueueJoinCandidate = CaptureQueueJoinCandidate,
@@ -1115,22 +1068,14 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   sendOwnKeySnapshot = SendOwnKeySnapshot,
   sendIsiLiveHello = SendIsiLiveHello,
   isPlayerLeader = IsPlayerLeader,
-  isStopped = function()
-    return isStopped
-  end,
-  isPaused = function()
-    return isPaused
-  end,
-  isTestMode = function()
-    return isTestMode
-  end,
+  isStopped = runtimeState.IsStopped,
+  isPaused = runtimeState.IsPaused,
+  isTestMode = runtimeState.IsTestMode,
   isInCombat = function()
     return InCombatLockdown and InCombatLockdown()
   end,
   isInPartyInstance = IsInPartyInstance,
-  isTestAllMode = function()
-    return isTestAllMode
-  end,
+  isTestAllMode = runtimeState.IsTestAllMode,
   getL = function()
     return L
   end,
@@ -1155,18 +1100,10 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   startBindingWatchdog = StartBindingWatchdog,
   getAddonVersionRaw = GetAddonVersionRaw,
   getTime = GetTime,
-  getPendingQueueJoinInfo = function()
-    return pendingQueueJoinInfo
-  end,
-  setPendingQueueJoinInfo = function(value)
-    pendingQueueJoinInfo = value
-  end,
-  getActiveJoinedKeyMapID = function()
-    return activeJoinedKeyMapID
-  end,
-  setActiveJoinedKeyMapID = function(value)
-    activeJoinedKeyMapID = value
-  end,
+  getPendingQueueJoinInfo = runtimeState.GetPendingQueueJoinInfo,
+  setPendingQueueJoinInfo = runtimeState.SetPendingQueueJoinInfo,
+  getActiveJoinedKeyMapID = runtimeState.GetActiveJoinedKeyMapID,
+  setActiveJoinedKeyMapID = runtimeState.SetActiveJoinedKeyMapID,
   getPendingBindingApply = GetPendingBindingApply,
   mainUI = mainUI,
   centerNotice = centerNotice,
@@ -1187,32 +1124,8 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   setReadyCheckActive = SetReadyCheckActive,
   enableRioDeltaDisplay = EnableRioDeltaDisplay,
   setCenterNoticeVisible = SetCenterNoticeVisible,
-  getState = function()
-    return {
-      isStopped = isStopped,
-      isPaused = isPaused,
-      isTestMode = isTestMode,
-      isTestAllMode = isTestAllMode,
-      wasGroupLeader = wasGroupLeader,
-    }
-  end,
-  setState = function(patch)
-    if patch.isStopped ~= nil then
-      isStopped = patch.isStopped
-    end
-    if patch.isPaused ~= nil then
-      isPaused = patch.isPaused
-    end
-    if patch.isTestMode ~= nil then
-      isTestMode = patch.isTestMode
-    end
-    if patch.isTestAllMode ~= nil then
-      isTestAllMode = patch.isTestAllMode
-    end
-    if patch.wasGroupLeader ~= nil then
-      wasGroupLeader = patch.wasGroupLeader
-    end
-  end,
+  getState = runtimeState.GetRuntimeFlags,
+  setState = runtimeState.PatchRuntimeFlags,
   triggerGroupRosterUpdate = function()
     local onEventHandler = mainFrame:GetScript("OnEvent")
     if onEventHandler then
@@ -1225,6 +1138,7 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   teleportDebugController = teleportDebugController,
   queueDebugController = queueDebugController,
   runtimeLogController = runtimeLogController,
+  recordRun = RecordRun,
   addonName = addonName,
 })
 eventHandlersController = runtimeSetupResult.eventHandlersController

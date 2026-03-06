@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-03-06 - Unreleased
+- **Architecture Refactor:**
+  - Introduced central runtime state in `isiLive_runtime_state.lua` for roster, queue target, runtime flags, ready-check state, and RIO baseline ownership.
+  - Reduced `isiLive.lua` toward a composition root by moving mutable runtime concerns behind the runtime-state controller.
+  - Split `isiLive_event_handlers.lua` into lifecycle-specific modules: `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, and `isiLive_event_handlers_challenge.lua`.
+  - Simplified wiring by adding context-based controller factories in `isiLive_controller_wiring.lua` and consuming them from `isiLive_runtime_setup.lua`.
+- **Runtime Fixes:**
+  - Ready-check state is now fully wired through bootstrap, gating, event handling, and roster rendering.
+  - Ghost roster members are excluded from forced inspect refresh paths so their cached data is preserved.
+  - Completed-run recording is deduplicated across `CHALLENGE_MODE_COMPLETED` and `CHALLENGE_MODE_RESET`.
+- **Test Coverage:**
+  - Added dedicated `RuntimeState` regression scenarios.
+  - Test harness now supports implicit addon-module dependencies for aggregated controller modules.
+  - Deterministic validator coverage increased to `174` scenarios across `23` modules.
+- **Documentation:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `RELEASE.md` to the current runtime architecture and hidden-mode semantics.
+
 ## 2026-03-05 - Version 0.9.63
 - **Roster Tooltip Positioning:**
   - Forced roster tooltips to anchor at the mouse cursor (`ANCHOR_CURSOR`) instead of using the default UI position.

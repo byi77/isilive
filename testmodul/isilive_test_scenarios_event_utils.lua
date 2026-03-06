@@ -256,6 +256,70 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
     })
   end
 
+  test("Bootstrap registers ready check lifecycle events on main frame", function()
+    local addon = LoadAddonModules({ "isiLive_bootstrap.lua" })
+    local frame = {
+      _events = {},
+      RegisterEvent = function(self, event)
+        self._events[event] = true
+      end,
+      IsEventRegistered = function(self, event)
+        return self._events[event] == true
+      end,
+    }
+
+    addon.Bootstrap.RegisterMainFrameEvents(frame)
+
+    Assert.True(frame:IsEventRegistered("READY_CHECK"), "READY_CHECK must be registered")
+    Assert.True(frame:IsEventRegistered("READY_CHECK_CONFIRM"), "READY_CHECK_CONFIRM must be registered")
+    Assert.True(frame:IsEventRegistered("READY_CHECK_FINISHED"), "READY_CHECK_FINISHED must be registered")
+  end)
+
+  test("Bootstrap gate allows ready check events during combat", function()
+    local dispatched = {}
+
+    local addon = LoadAddonModules({ "isiLive_events.lua", "isiLive_bootstrap.lua" })
+    local gate = addon.Bootstrap.CreateGatedOnEvent({
+      events = addon.Events,
+      dispatch = function(_frame, event)
+        table.insert(dispatched, event)
+      end,
+      isStopped = function()
+        return false
+      end,
+      isPaused = function()
+        return false
+      end,
+      isTestMode = function()
+        return false
+      end,
+      isInCombat = function()
+        return true
+      end,
+      isInGroup = function()
+        return true
+      end,
+      getNumGroupMembers = function()
+        return 5
+      end,
+      getActiveChallengeMapID = function()
+        return nil
+      end,
+    })
+
+    local frame = {
+      IsShown = function()
+        return true
+      end,
+    }
+
+    gate(frame, "READY_CHECK")
+    gate(frame, "READY_CHECK_CONFIRM")
+    gate(frame, "READY_CHECK_FINISHED")
+
+    Assert.Equal(#dispatched, 3, "combat gate should allow ready check lifecycle events")
+  end)
+
   test("Bootstrap gate allows sync events while frame is hidden if configured", function()
     local dispatched = {}
 

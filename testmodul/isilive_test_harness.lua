@@ -1,6 +1,13 @@
 ---@diagnostic disable: undefined-global
 local Harness = {}
 local Unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+local IMPLICIT_DEPENDENCIES = {
+  ["isiLive_event_handlers.lua"] = {
+    "isiLive_event_handlers_queue.lua",
+    "isiLive_event_handlers_challenge.lua",
+    "isiLive_event_handlers_runtime.lua",
+  },
+}
 
 local function Fail(message)
   error(message or "test harness error", 2)
@@ -39,8 +46,30 @@ function Harness.WithGlobals(stubs, fn)
 end
 
 function Harness.LoadAddonModules(files, seedAddonTable)
+  local expandedFiles = {}
+  local seenFiles = {}
+  local function AddFileWithDependencies(file)
+    if seenFiles[file] then
+      return
+    end
+
+    local dependencies = IMPLICIT_DEPENDENCIES[file]
+    if type(dependencies) == "table" then
+      for _, dependency in ipairs(dependencies) do
+        AddFileWithDependencies(dependency)
+      end
+    end
+
+    seenFiles[file] = true
+    table.insert(expandedFiles, file)
+  end
+
+  for _, file in ipairs(files or {}) do
+    AddFileWithDependencies(file)
+  end
+
   local addonTable = seedAddonTable or {}
-  for _, file in ipairs(files) do
+  for _, file in ipairs(expandedFiles) do
     local chunk, loadErr = loadfile(file)
     if not chunk then
       Fail(string.format("cannot load %s: %s", file, tostring(loadErr)))

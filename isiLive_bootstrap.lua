@@ -109,6 +109,9 @@ function Bootstrap.CreateGatedOnEvent(opts)
       CHALLENGE_MODE_START = true,
       CHALLENGE_MODE_COMPLETED = true,
       CHALLENGE_MODE_RESET = true,
+      READY_CHECK = true,
+      READY_CHECK_CONFIRM = true,
+      READY_CHECK_FINISHED = true,
     },
     allowWhenHidden = allowWhenHidden,
     shouldAllowWhenHidden = function(_, event)
@@ -153,6 +156,9 @@ function Bootstrap.RegisterMainFrameEvents(mainFrame)
   mainFrame:RegisterEvent("BAG_UPDATE_DELAYED")
   mainFrame:RegisterEvent("CHALLENGE_MODE_MAPS_UPDATE")
   mainFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+  mainFrame:RegisterEvent("READY_CHECK")
+  mainFrame:RegisterEvent("READY_CHECK_CONFIRM")
+  mainFrame:RegisterEvent("READY_CHECK_FINISHED")
 end
 
 function Bootstrap.BindMainFrameScripts(mainFrame, opts)

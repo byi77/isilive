@@ -26,19 +26,15 @@ function RuntimeSetup.Configure(ctx)
   local eventHandlersModule = assert(ctx.eventHandlersModule, "isiLive: RuntimeSetup requires eventHandlersModule")
   local mainFrame = assert(ctx.mainFrame, "isiLive: RuntimeSetup requires mainFrame")
   assert(ctx.statsModule, "isiLive: RuntimeSetup requires statsModule")
-  local onEvent = RequireFunction(ctx.onEvent, "onEvent")
+  RequireFunction(ctx.onEvent, "onEvent")
 
-  local groupController =
-    controllerWiring.CreateGroupController(groupModule, configBuilders.BuildGroupControllerDeps(ctx))
+  local groupController = controllerWiring.CreateGroupControllerFromContext(groupModule, ctx)
   ctx.groupController = groupController
 
   local leaderWatchController = leaderWatchModule.CreateController(configBuilders.BuildLeaderWatchControllerOpts(ctx))
   leaderWatchController.Start()
 
-  local eventHandlersController = controllerWiring.CreateEventHandlersController(
-    eventHandlersModule,
-    configBuilders.BuildEventHandlersControllerDeps(ctx)
-  )
+  local eventHandlersController = controllerWiring.CreateEventHandlersControllerFromContext(eventHandlersModule, ctx)
 
   bootstrap.RegisterSlashCommands(configBuilders.BuildSlashCommandsOpts(ctx))
 
@@ -56,6 +52,6 @@ function RuntimeSetup.Configure(ctx)
     leaderWatchController = leaderWatchController,
     eventHandlersController = eventHandlersController,
     gatedOnEvent = gatedOnEvent,
-    onEvent = onEvent,
+    onEvent = ctx.onEvent,
   }
 end

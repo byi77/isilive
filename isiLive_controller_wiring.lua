@@ -79,6 +79,57 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
   })
 end
 
+local function BuildGroupControllerDepsFromContext(ctx)
+  return {
+    printFn = ctx.printFn,
+    getL = ctx.getL,
+    modules = {
+      sync = ctx.sync,
+    },
+    isInGroup = ctx.isInGroup,
+    getNumGroupMembers = ctx.getNumGroupMembers,
+    getActiveChallengeMapID = ctx.getActiveChallengeMapID,
+    state = {
+      getWasInGroup = ctx.getWasInGroup,
+      setWasInGroup = ctx.setWasInGroup,
+      getWasRaidGroup = ctx.getWasRaidGroup,
+      setWasRaidGroup = ctx.setWasRaidGroup,
+      setWasGroupLeader = ctx.setWasGroupLeader,
+      getRoster = ctx.getRoster,
+      setRoster = ctx.setRoster,
+    },
+    callbacks = {
+      captureQueueJoinCandidate = ctx.captureQueueJoinCandidate,
+      announceQueuedGroupJoin = ctx.announceQueuedGroupJoin,
+      setMainFrameVisible = ctx.setMainFrameVisible,
+      updateLeaderButtons = ctx.updateLeaderButtons,
+      clearLatestQueueTarget = ctx.clearLatestQueueTarget,
+      clearRioBaselineSnapshot = ctx.clearRioBaselineSnapshot,
+      resetInspectAll = ctx.resetInspectAll,
+      resetInspectQueues = ctx.resetInspectQueues,
+      updateUI = ctx.updateUI,
+      updateMPlusTeleportButton = ctx.updateMPlusTeleportButton,
+    },
+    getUnitNameAndRealm = ctx.getUnitNameAndRealm,
+    getUnitClass = ctx.getUnitClass,
+    getUnitServerLanguage = ctx.getUnitServerLanguage,
+    getOwnedKeystoneSnapshot = ctx.getOwnedKeystoneSnapshot,
+    markIsiLiveUser = ctx.markIsiLiveUser,
+    getUnitRole = ctx.getUnitRole,
+    getPlayerSpecName = ctx.getPlayerSpecName,
+    getUnitRio = ctx.getUnitRio,
+    unitHasIsiLive = ctx.unitHasIsiLive,
+    applyKnownKeyToRosterEntry = ctx.applyKnownKeyToRosterEntry,
+    enqueueInspect = ctx.enqueueInspect,
+    sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
+    sendIsiLiveHello = ctx.sendIsiLiveHello,
+  }
+end
+
+function ControllerWiring.CreateGroupControllerFromContext(groupModule, ctx)
+  return ControllerWiring.CreateGroupController(groupModule, BuildGroupControllerDepsFromContext(ctx))
+end
+
 local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, callbacks)
   return {
     addonName = assert(deps.addonName, "isiLive: ControllerWiring requires addonName"),
@@ -213,6 +264,12 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   config.runFullRefresh = RequireFunction(deps.runFullRefresh, "runFullRefresh")
   config.captureRioBaselineSnapshot = callbacks.captureRioBaselineSnapshot
   config.enableRioDeltaDisplay = callbacks.enableRioDeltaDisplay
+  config.isReadyCheckActive = type(callbacks.isReadyCheckActive) == "function" and callbacks.isReadyCheckActive
+    or function()
+      return false
+    end
+  config.setReadyCheckActive = type(callbacks.setReadyCheckActive) == "function" and callbacks.setReadyCheckActive
+    or function(_value) end
   if type(deps.getTime) == "function" then
     config.getTime = deps.getTime
   end
@@ -231,4 +288,91 @@ function ControllerWiring.CreateEventHandlersController(eventHandlersModule, dep
   local config = BuildEventHandlersBaseConfig(deps, state, refs, controllers, callbacks)
   ExtendEventHandlersConfig(config, deps, state, refs, controllers, callbacks, modules)
   return eventHandlersModule.CreateController(config)
+end
+
+local function BuildEventHandlersDepsFromContext(ctx)
+  return {
+    addonName = ctx.addonName,
+    defaultLocale = ctx.defaultLocale,
+    locales = ctx.locales,
+    resolveLocaleTag = ctx.resolveLocaleTag,
+    setLocaleTable = ctx.setLocaleTable,
+    isInGroup = ctx.isInGroup,
+    isInChallengeMode = ctx.isInChallengeMode,
+    isNegativeApplicationStatusEvent = ctx.isNegativeApplicationStatusEvent,
+    getNormalizedActiveEntryInfo = ctx.getNormalizedActiveEntryInfo,
+    sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
+    ensureQueueDebugStorage = ctx.ensureQueueDebugStorage,
+    setQueueDebugEnabled = ctx.setQueueDebugEnabled,
+    ensureRuntimeLogStorage = ctx.ensureRuntimeLogStorage,
+    setRuntimeLogEnabled = ctx.setRuntimeLogEnabled,
+    registerIsiLiveSyncPrefix = ctx.registerIsiLiveSyncPrefix,
+    applyHotkeyBindings = ctx.applyHotkeyBindings,
+    startBindingWatchdog = ctx.startBindingWatchdog,
+    getUnitNameAndRealm = ctx.getUnitNameAndRealm,
+    markIsiLiveUser = ctx.markIsiLiveUser,
+    getUnitRio = ctx.getUnitRio,
+    getInspectSpecName = ctx.getInspectSpecName,
+    getPlayerSpecName = ctx.getPlayerSpecName,
+    getAddonVersionRaw = ctx.getAddonVersionRaw,
+    getTime = ctx.getTime,
+    applyKnownKeyToRosterEntry = ctx.applyKnownKeyToRosterEntry,
+    runFullRefresh = function()
+      if ctx.refreshController then
+        return ctx.refreshController.RunFullRefresh()
+      end
+      return false
+    end,
+    modules = {
+      sync = ctx.sync,
+    },
+    state = {
+      isTestMode = ctx.isTestMode,
+      isTestAllMode = ctx.isTestAllMode,
+      getPendingQueueJoinInfo = ctx.getPendingQueueJoinInfo,
+      setPendingQueueJoinInfo = ctx.setPendingQueueJoinInfo,
+      getActiveJoinedKeyMapID = ctx.getActiveJoinedKeyMapID,
+      setActiveJoinedKeyMapID = ctx.setActiveJoinedKeyMapID,
+      getPendingBindingApply = ctx.getPendingBindingApply,
+      getRoster = ctx.getRoster,
+    },
+    refs = {
+      mainFrame = ctx.mainFrame,
+      mainUI = ctx.mainUI,
+      centerNotice = ctx.centerNotice,
+      centerNoticeFrame = ctx.centerNoticeFrame,
+      centerNoticeTeleportButton = ctx.centerNoticeTeleportButton,
+      applySecureSpellToButton = ctx.applySecureSpellToButton,
+    },
+    controllers = {
+      group = ctx.groupController,
+      refresh = ctx.refreshController,
+      inspect = ctx.inspectController,
+      status = ctx.statusController,
+    },
+    callbacks = {
+      exitTestMode = ctx.exitTestMode,
+      clearLatestQueueTarget = ctx.clearLatestQueueTarget,
+      updateMPlusTeleportButton = ctx.updateMPlusTeleportButton,
+      captureQueueJoinCandidate = ctx.captureQueueJoinCandidate,
+      updateUI = ctx.updateUI,
+      setMainFrameVisible = ctx.setMainFrameVisible,
+      updateLeaderButtons = ctx.updateLeaderButtons,
+      updateStatusLine = ctx.updateStatusLine,
+      applyLocalizationToUI = ctx.applyLocalizationToUI,
+      updateCountdownCancelButton = ctx.updateCountdownCancelButton,
+      checkIfEnteredTargetDungeon = ctx.checkIfEnteredTargetDungeon,
+      captureRioBaselineSnapshot = ctx.captureRioBaselineSnapshot,
+      restoreRioBaseline = ctx.restoreRioBaseline,
+      isReadyCheckActive = ctx.isReadyCheckActive,
+      setReadyCheckActive = ctx.setReadyCheckActive,
+      enableRioDeltaDisplay = ctx.enableRioDeltaDisplay,
+      setMainFrameHeightSafe = ctx.setMainFrameHeightSafe,
+      recordRun = ctx.recordRun,
+    },
+  }
+end
+
+function ControllerWiring.CreateEventHandlersControllerFromContext(eventHandlersModule, ctx)
+  return ControllerWiring.CreateEventHandlersController(eventHandlersModule, BuildEventHandlersDepsFromContext(ctx))
 end

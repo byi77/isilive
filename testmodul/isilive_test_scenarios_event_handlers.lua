@@ -619,6 +619,68 @@ local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fix
   end)
 end
 
+local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  test("Event handlers toggle ready check state and refresh UI on ready check events", function()
+    local counters = { uiUpdates = 0 }
+    local readyCheckActive = false
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+      setReadyCheckActive = function(value)
+        readyCheckActive = value and true or false
+      end,
+      isReadyCheckActive = function()
+        return readyCheckActive
+      end,
+    })
+
+    controller:Dispatch("READY_CHECK")
+    Assert.True(readyCheckActive, "READY_CHECK must mark ready check as active")
+    Assert.Equal(counters.uiUpdates, 1, "READY_CHECK should refresh UI once")
+
+    controller:Dispatch("READY_CHECK_CONFIRM", "party1", "ready")
+    Assert.Equal(counters.uiUpdates, 2, "READY_CHECK_CONFIRM should refresh UI while ready check is active")
+
+    controller:Dispatch("READY_CHECK_FINISHED")
+    Assert.False(readyCheckActive, "READY_CHECK_FINISHED must clear ready check state")
+    Assert.Equal(counters.uiUpdates, 3, "READY_CHECK_FINISHED should refresh UI once")
+
+    controller:Dispatch("READY_CHECK_CONFIRM", "party1", "ready")
+    Assert.Equal(counters.uiUpdates, 3, "READY_CHECK_CONFIRM should not refresh UI after ready check finished")
+  end)
+
+  test("Event handlers record completed run only once across completion and reset events", function()
+    local recordedRuns = {}
+
+    WithGlobals({
+      C_ChallengeMode = {
+        GetCompletionInfo = function()
+          return 2662, 10, 123456, true
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        recordRun = function(mapID, level, onTime)
+          table.insert(recordedRuns, {
+            mapID = mapID,
+            level = level,
+            onTime = onTime,
+          })
+        end,
+      })
+
+      controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+      controller:Dispatch("CHALLENGE_MODE_RESET")
+      Assert.Equal(#recordedRuns, 1, "completion/reset pair must record the run only once")
+
+      controller:Dispatch("CHALLENGE_MODE_START")
+      controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+      Assert.Equal(#recordedRuns, 2, "new run after challenge start should be recordable again")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -632,4 +694,5 @@ return function(test, ctx)
   RegisterChallengeStartAndDelayTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fixtures)
+  RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
 end

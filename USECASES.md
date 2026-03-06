@@ -1,7 +1,7 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.62`
-Last updated: `2026-03-05`
+Version baseline: `0.9.63`
+Last updated: `2026-03-06`
 
 ## Actors
 
@@ -13,7 +13,7 @@ Last updated: `2026-03-05`
 
 1. Addon is loaded and not in `stopped` state.
 2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `tww_s3`; next prepared season: `midnight_s1` inactive scaffold).
-3. Relevant UI is visible (queue/sync capture is hidden-gated); UI can be auto-opened by fresh group join, key-end, or real dungeon-entry transition logic.
+3. Relevant UI is visible for queue scanning and rendering; while hidden, addon-message sync and roster updates may still run in the background, and UI can be auto-opened by fresh group join, key-end, or real dungeon-entry transition logic.
 
 ## Use Case Matrix
 
@@ -111,7 +111,7 @@ Goal: show pre/post-run rating change per player in roster without negative disp
 1. No speculative behavior: unresolved/ambiguous map context must stay unresolved (no name/token fallback guessing).
 2. Combat-protected UI operations must be deferred safely while window dragging stays available, and teleport action buttons must not promote parent frames to protected status.
 3. Leader-only actions must stay disabled for non-leaders.
-4. Hidden mode should halt non-essential processing, suspend queue/sync event processing, and only keep required auto-open transitions active.
+4. Hidden mode should halt non-essential processing, suspend queue scanning and UI rendering, keep background roster/addon-message sync active, and only keep required auto-open transitions active.
 5. Blizzard CVar state remains authoritative: `isiLive` only mirrors `advancedCombatLogging` / `damageMeterResetOnNewInstance` in the UI and writes them on explicit user clicks; challenge-start Blizzard damage-meter reset still runs when API support exists.
 6. RIO delta display must be deterministic and non-negative (`(+X)` only).
 7. UI visibility toggle (`CTRL+F9`) must allow both open and close in combat; `CHALLENGE_MODE_START` still auto-hides the main window.
@@ -138,6 +138,6 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 | Highlight resolution and inside-dungeon suppression | `isiLive_highlight.lua` |
 | Teleport spell mapping and cooldown behavior | `isiLive_teleport.lua`, `isiLive_spell_utils.lua`, `isiLive_teleport_ui.lua` |
 | Group lifecycle and roster rebuild | `isiLive_group.lua`, `isiLive_roster.lua` |
-| RIO baseline capture and delta preview | `isiLive_event_handlers.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua` |
+| RIO baseline capture and delta preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
 | UI actions and key sharing button | `isiLive_roster_panel.lua` |
-| Event routing and gating | `isiLive_events.lua`, `isiLive_event_handlers.lua` |
+| Event routing and gating | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua` |
