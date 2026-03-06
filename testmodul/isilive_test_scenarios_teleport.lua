@@ -642,6 +642,78 @@ local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModul
       Assert.Equal(buttons[1]:GetFrameLevel(), 13, "button level should re-sync when main frame level changes")
     end)
   end)
+
+  test("TeleportUI buttons use ANCHOR_CURSOR for tooltips", function()
+    local createFrameStub = BuildTeleportUICreateFrameStub()
+    local tooltipAnchor = nil
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      GameTooltip = {
+        SetOwner = function(_self, _owner, anchor)
+          tooltipAnchor = anchor
+        end,
+        SetSpellByID = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+        SetText = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_teleport_ui.lua",
+      })
+
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = {
+          GetFrameLevel = function()
+            return 10
+          end,
+          GetFrameStrata = function()
+            return "MEDIUM"
+          end,
+        },
+        applySecureSpellToButton = function()
+          return true
+        end,
+        getEntries = function()
+          return { { spellID = 12345, mapID = 100, mapName = "Test Dungeon" } }
+        end,
+        getL = function()
+          return {}
+        end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getSpellCooldownSafe = function()
+          return 0, 0, true
+        end,
+        applyCooldownFrameSafe = function() end,
+        getSpellTexture = function()
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      controller.BuildButtons()
+      local buttons = controller.GetButtons()
+      local button = buttons[1]
+
+      local onEnter = button._scripts.OnEnter
+      Assert.NotNil(onEnter, "Teleport button must have OnEnter script")
+
+      onEnter(button)
+      Assert.Equal(tooltipAnchor, "ANCHOR_CURSOR", "Teleport tooltip must use ANCHOR_CURSOR")
+    end)
+  end)
 end
 
 return function(test, ctx)

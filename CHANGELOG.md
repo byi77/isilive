@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-03-05 - Version 0.9.63
+- **Roster Tooltip Positioning:**
+  - Forced roster tooltips to anchor at the mouse cursor (`ANCHOR_CURSOR`) instead of using the default UI position.
+  - This keeps the tooltip near the mouse pointer for better context visibility.
+  - Updated control buttons (Refresh, Readycheck, Share Keys) to also use `ANCHOR_CURSOR` for consistency.
+- **"Runs Together" Tracker:**
+  - The addon now tracks how often you have completed a dungeon with specific players.
+  - If you have played with a group member before, a line `Runs together: X` appears in their roster tooltip.
+  - Data is stored locally in `IsiLiveDB` and updates automatically on dungeon completion.
+- **Ghost Members (Roster Persistence):**
+  - Players leaving the group now remain visible as "ghosts" (greyed out) until their slot is filled or the UI is reloaded.
+  - This improves context when forming groups, preventing rows from jumping immediately upon a leave.
+- **Ghost Member Stability:**
+  - Fixed data loss when group members shift slots (e.g. `party2` becomes `party1`).
+  - Fixed duplicate ghost entries appearing during slot shifts.
+  - RIO, iLvl, and Key data now correctly persists when a player moves slots or rejoins the group.
+  - Ghosts are now reliably pruned when the group becomes full (5 members).
+- **Background Data Sync:**
+  - Relaxed Rule 28 ("Sparflamme"): Data synchronization (Addon messages, Roster updates) now continues in the background while the main window is hidden.
+  - UI rendering remains suspended to conserve performance.
+  - This ensures data (Keys, RIO, iLvl) is immediately available upon opening the window, improving responsiveness.
+- **Smart Self-Update:**
+  - The addon now automatically broadcasts a data snapshot (Key/Stats) when the player's own iLvl, RIO, or Spec changes (detected via inspect loop).
+  - Previously, updates were only sent on group join, key end, or manual refresh.
+  - This ensures the group always sees your current gear/score without manual intervention.
+- **Roster Interaction:**
+  - **Left-Click** on a roster row now targets the player (out of combat only).
+  - **Right-Click** on a roster row now opens a whisper to the player.
+  - This brings standard unit-frame interactivity to the isiLive list.
+- **Ready Check Indicators:**
+  - The roster now colors player names to indicate status during a ready check.
+  - Green for "Ready", Red for "Not Ready", and Yellow for "Waiting".
+  - This replaces the previous dot indicator for a cleaner look.
+- **"At Dungeon" Indicator:**
+  - Players in the group who are already inside the target dungeon are now marked with a summon-portal icon next to their name.
+  - This provides a quick visual cue for who is ready at the summoning stone.
+- **Documentation:**
+  - Updated `RULES_LOGIC.md` with Rule 32 (Ghost Member), Rule 33 (At Dungeon), Rule 34 (Ready Check), and updated Rule 28 (matching exact test names).
+  - Synced `README.md`, `RELEASE.md`, `TODO.md` to 0.9.63.
+  - Validator count increased to `167` deterministic scenarios.
+
 ## 2026-03-05 - Version 0.9.62
 - **Bug Fix: Rich Roster Tooltip Guard:**
   - `ShowRosterInfoTooltip` now only fires when actual addon-synced data is present (`class`, `spec`, `iLvl`, or `RIO`).

@@ -285,11 +285,8 @@ local function AnchorGlobalGameTooltip(anchorFrame)
     return nil
   end
 
-  local setDefaultAnchor = rawget(_G, "GameTooltip_SetDefaultAnchor")
-  if type(setDefaultAnchor) == "function" then
-    setDefaultAnchor(tooltip, anchorFrame)
-  elseif type(tooltip.SetOwner) == "function" then
-    tooltip:SetOwner(anchorFrame, "ANCHOR_CURSOR_RIGHT")
+  if type(tooltip.SetOwner) == "function" then
+    tooltip:SetOwner(anchorFrame, "ANCHOR_CURSOR")
   end
 
   return tooltip
@@ -348,7 +345,7 @@ local function ShowRosterNameFallbackTooltip(anchorFrame, name, realm)
   return true
 end
 
-local function ShowRosterInfoTooltip(anchorFrame, info, getDungeonShortCode)
+local function ShowRosterInfoTooltip(anchorFrame, info, getDungeonShortCode, getPlayerRunCount)
   if type(info) ~= "table" then
     return false
   end
@@ -404,6 +401,11 @@ local function ShowRosterInfoTooltip(anchorFrame, info, getDungeonShortCode)
       local shortCode = type(getDungeonShortCode) == "function" and getDungeonShortCode(keyMapID) or tostring(keyMapID)
       tooltip:AddLine(string.format("Key: %s +%d", tostring(shortCode), keyLevel), 1, 0.85, 0)
     end
+
+    local runsTogether = type(getPlayerRunCount) == "function" and getPlayerRunCount(info.name, info.realm) or 0
+    if runsTogether > 0 then
+      tooltip:AddLine(string.format("Runs together: %d", runsTogether), 0.4, 1, 0.4)
+    end
   end
 
   if type(tooltip.Show) == "function" then
@@ -424,6 +426,37 @@ local function CreateMemberRow(mainFrame, index)
     row.hoverFrame:EnableMouse(true)
   end
 
+  row.hoverFrame:SetScript("OnMouseUp", function(_, button)
+    if not row.unit then
+      return
+    end
+
+    if button == "LeftButton" then
+      local inCombat = false
+      local inCombatLockdown = _G.InCombatLockdown
+      if type(inCombatLockdown) == "function" then
+        local ok, locked = pcall(inCombatLockdown)
+        inCombat = ok and locked and true or false
+      end
+
+      if not inCombat then
+        local targetUnit = _G.TargetUnit
+        if type(targetUnit) == "function" then
+          pcall(targetUnit, row.unit)
+        end
+      end
+    elseif button == "RightButton" then
+      local name = row.tooltipName
+      if name then
+        local target = (row.tooltipRealm and row.tooltipRealm ~= "") and (name .. "-" .. row.tooltipRealm) or name
+        local openChat = _G.ChatFrame_OpenChat
+        if type(openChat) == "function" then
+          pcall(openChat, "/w " .. target .. " ")
+        end
+      end
+    end
+  end)
+
   row.highlight = row.hoverFrame:CreateTexture(nil, "BACKGROUND")
   row.highlight:SetAllPoints()
   row.highlight:SetColorTexture(1, 1, 1, 0.05)
@@ -431,7 +464,7 @@ local function CreateMemberRow(mainFrame, index)
 
   row.hoverFrame:SetScript("OnEnter", function()
     row.highlight:Show()
-    if not ShowRosterInfoTooltip(row.hoverFrame, row.tooltipInfo, row.getDungeonShortCode) then
+    if not ShowRosterInfoTooltip(row.hoverFrame, row.tooltipInfo, row.getDungeonShortCode, row.getPlayerRunCount) then
       if not ShowRosterUnitTooltip(row.hoverFrame, row.unit) then
         ShowRosterNameFallbackTooltip(row.hoverFrame, row.tooltipName, row.tooltipRealm)
       end
@@ -578,17 +611,33 @@ end
 
 local function AttachPanelButtonTooltip(button, getL, titleKey, descriptionKey, isPlayerLeader)
   button:SetScript("OnEnter", function(self)
-    local L = getL()
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetText(L[titleKey], 1, 1, 1)
-    GameTooltip:AddLine(L[descriptionKey], 1, 1, 1, true)
-    if isPlayerLeader and not isPlayerLeader() then
-      GameTooltip:AddLine(L.TOOLTIP_LEAD_REQUIRED, 1, 0.2, 0.2, true)
+    local tooltip = rawget(_G, "GameTooltip")
+    if type(tooltip) ~= "table" then
+      return
     end
-    GameTooltip:Show()
+
+    local L = getL()
+    if type(tooltip.SetOwner) == "function" then
+      tooltip:SetOwner(self, "ANCHOR_CURSOR")
+    end
+    if type(tooltip.SetText) == "function" then
+      tooltip:SetText(L[titleKey], 1, 1, 1)
+    end
+    if type(tooltip.AddLine) == "function" then
+      tooltip:AddLine(L[descriptionKey], 1, 1, 1, true)
+      if isPlayerLeader and not isPlayerLeader() then
+        tooltip:AddLine(L.TOOLTIP_LEAD_REQUIRED, 1, 0.2, 0.2, true)
+      end
+    end
+    if type(tooltip.Show) == "function" then
+      tooltip:Show()
+    end
   end)
   button:SetScript("OnLeave", function()
-    GameTooltip:Hide()
+    local tooltip = rawget(_G, "GameTooltip")
+    if type(tooltip) == "table" and type(tooltip.Hide) == "function" then
+      tooltip:Hide()
+    end
   end)
 end
 
@@ -650,7 +699,10 @@ local function CreatePanelButtons(mainFrame, deps)
     if not isPlayerLeader() then
       return
     end
-    DoReadyCheck()
+    local doReadyCheck = _G.DoReadyCheck
+    if type(doReadyCheck) == "function" then
+      pcall(doReadyCheck)
+    end
   end)
   AttachPanelButtonTooltip(readyCheckButton, getL, "BTN_READYCHECK", "TOOLTIP_READY", isPlayerLeader)
 
@@ -661,7 +713,12 @@ local function CreatePanelButtons(mainFrame, deps)
     if not isPlayerLeader() then
       return
     end
-    C_PartyInfo.DoCountdown(10)
+
+    local partyInfo = rawget(_G, "C_PartyInfo")
+    local doCountdown = partyInfo and partyInfo.DoCountdown or nil
+    if type(doCountdown) == "function" then
+      pcall(doCountdown, 10)
+    end
   end)
   AttachPanelButtonTooltip(countdownButton, getL, "BTN_COUNTDOWN10", "TOOLTIP_CD10", isPlayerLeader)
 
@@ -761,6 +818,8 @@ local function RenderRosterImpl(state, roster)
   local orderedRoster = state.buildOrderedRoster(roster, state.rolePriority, state.unitPriority)
   local hasFullSync = state.hasFullSyncFn(roster)
   local activeKeyOwnerUnit = state.resolveActiveKeyOwnerUnit()
+  local isReadyCheckActive = state.isReadyCheckActive and state.isReadyCheckActive() or false
+  local targetMapID = state.resolveTargetMapID and state.resolveTargetMapID() or nil
   local hasAnyKey = false
 
   for _, entry in ipairs(orderedRoster) do
@@ -779,6 +838,18 @@ local function RenderRosterImpl(state, roster)
       memberRows[index] = row
     end
 
+    local isAtDungeon = false
+    if targetMapID and entry.unit then
+      local mapApi = rawget(_G, "C_Map")
+      local getBestMapForUnit = mapApi and mapApi.GetBestMapForUnit or nil
+      if type(getBestMapForUnit) == "function" then
+        local ok, playerMapID = pcall(getBestMapForUnit, entry.unit)
+        if ok and playerMapID and tonumber(playerMapID) == tonumber(targetMapID) then
+          isAtDungeon = true
+        end
+      end
+    end
+
     local displayData = state.buildDisplayData(info, {
       unit = entry.unit,
       truncateName = state.truncateName,
@@ -789,15 +860,19 @@ local function RenderRosterImpl(state, roster)
       syncMarker = state.syncMarker,
       fullSyncMarker = state.fullSyncMarker,
       hasFullSync = hasFullSync,
+      isReadyCheckActive = isReadyCheckActive,
+      isAtDungeon = isAtDungeon,
     })
 
     row.spec:SetText("|c" .. displayData.colorHex .. displayData.specText .. "|r")
     row.name:SetText(
-      displayData.roleIconMarkup
+      displayData.readyCheckMarkup
+        .. displayData.roleIconMarkup
         .. " |c"
         .. displayData.colorHex
         .. displayData.displayName
         .. "|r"
+        .. displayData.atDungeonMarker
         .. displayData.addonMarker
     )
     row.realm:SetText(displayData.languageDisplay)
@@ -813,6 +888,7 @@ local function RenderRosterImpl(state, roster)
     row.tooltipRealm = info and info.realm or nil
     row.tooltipInfo = info
     row.getDungeonShortCode = state.getDungeonShortCode
+    row.getPlayerRunCount = state.getPlayerRunCount
     if row.hoverFrame then
       row.hoverFrame.unit = entry.unit
       row.hoverFrame:Show()
@@ -847,6 +923,8 @@ function RosterPanel.CreateController(opts)
   local getRioDelta = type(opts.getRioDelta) == "function" and opts.getRioDelta or nil
   local resolveActiveKeyOwnerUnit = RequireFunction(opts.resolveActiveKeyOwnerUnit, "resolveActiveKeyOwnerUnit")
   local getRoster = RequireFunction(opts.getRoster, "getRoster")
+  local isReadyCheckActive = type(opts.isReadyCheckActive) == "function" and opts.isReadyCheckActive or nil
+  local resolveTargetMapID = type(opts.resolveTargetMapID) == "function" and opts.resolveTargetMapID or nil
   local isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
   local rolePriority = assert(opts.rolePriority, "isiLive: RosterPanel requires rolePriority")
   local unitPriority = assert(opts.unitPriority, "isiLive: RosterPanel requires unitPriority")
@@ -875,6 +953,7 @@ function RosterPanel.CreateController(opts)
   if shareKeysDebounceSeconds < 0 then
     shareKeysDebounceSeconds = 0
   end
+  local getPlayerRunCount = type(opts.getPlayerRunCount) == "function" and opts.getPlayerRunCount or nil
 
   local ui = ConstructPanelUI(mainFrame, {
     getL = getL,
@@ -948,6 +1027,8 @@ function RosterPanel.CreateController(opts)
       unitPriority = unitPriority,
       hasFullSyncFn = hasFullSyncFn,
       resolveActiveKeyOwnerUnit = resolveActiveKeyOwnerUnit,
+      isReadyCheckActive = isReadyCheckActive,
+      resolveTargetMapID = resolveTargetMapID,
       buildDisplayData = buildDisplayData,
       truncateName = truncateName,
       getShortSpecLabel = getShortSpecLabel,
@@ -956,6 +1037,7 @@ function RosterPanel.CreateController(opts)
       getRioDelta = getRioDelta,
       syncMarker = syncMarker,
       fullSyncMarker = fullSyncMarker,
+      getPlayerRunCount = getPlayerRunCount,
     }, roster)
     RefreshSystemOptionToggles(ui)
   end

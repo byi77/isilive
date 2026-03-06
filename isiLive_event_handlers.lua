@@ -39,7 +39,10 @@ local function BuildContext(opts)
     if type(GetInstanceInfo) ~= "function" then
       return false
     end
-    local _, instanceType = GetInstanceInfo()
+    local ok, _, instanceType = pcall(GetInstanceInfo)
+    if not ok then
+      return false
+    end
     return instanceType == "party"
   end)
   ctx.wasInPartyInstance = nil
@@ -105,6 +108,7 @@ local function BuildContext(opts)
   ctx.isSyncUserKnown = RequireFunction(opts.isSyncUserKnown, "isSyncUserKnown")
   ctx.applyKnownKeyToRosterEntry = RequireFunction(opts.applyKnownKeyToRosterEntry, "applyKnownKeyToRosterEntry")
   ctx.runFullRefresh = RequireFunction(opts.runFullRefresh, "runFullRefresh")
+  ctx.recordRun = OptionalFunction(opts.recordRun, function() end)
 
   return ctx
 end
@@ -159,6 +163,19 @@ local function ResetDamageMeterIfAvailable()
 
   local okReset = pcall(damageMeterAPI.ResetAllCombatSessions)
   return okReset
+end
+
+local function GetChallengeCompletionInfoSafe()
+  if not (type(C_ChallengeMode) == "table" and type(C_ChallengeMode.GetCompletionInfo) == "function") then
+    return nil, nil, nil, nil
+  end
+
+  local ok, mapID, level, time, onTime = pcall(C_ChallengeMode.GetCompletionInfo)
+  if not ok then
+    return nil, nil, nil, nil
+  end
+
+  return mapID, level, time, onTime
 end
 
 local function HandleGroupRosterUpdateEvent(ctx, _self)
@@ -303,6 +320,12 @@ local function RunDelayedPostChallengeRefresh(ctx, self, retriesRemaining, follo
 end
 
 local function HandleChallengeModeCompletedOrResetEvent(ctx, self)
+  -- Record stats on completion
+  local mapID, level, _, onTime = GetChallengeCompletionInfoSafe()
+  if mapID and level then
+    ctx.recordRun(mapID, level, onTime)
+  end
+
   if ctx.isInGroup() then
     ctx.setMainFrameVisible(true)
   end

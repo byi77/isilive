@@ -78,6 +78,21 @@ function Bootstrap.CreateGatedOnEvent(opts)
   local getActiveChallengeMapID = RequireFunction(opts.getActiveChallengeMapID, "getActiveChallengeMapID")
   local onDispatchError = type(opts.onDispatchError) == "function" and opts.onDispatchError or nil
 
+  local allowWhenHidden = {
+    ADDON_LOADED = true,
+    PLAYER_LOGIN = true,
+    PLAYER_ENTERING_WORLD = true,
+    UPDATE_BINDINGS = true,
+    PLAYER_REGEN_ENABLED = true,
+    CHALLENGE_MODE_COMPLETED = true,
+    CHALLENGE_MODE_RESET = true,
+  }
+  if type(opts.allowWhenHidden) == "table" then
+    for k, v in pairs(opts.allowWhenHidden) do
+      allowWhenHidden[k] = v
+    end
+  end
+
   return events.CreateGate({
     dispatch = dispatch,
     onDispatchError = onDispatchError,
@@ -95,15 +110,7 @@ function Bootstrap.CreateGatedOnEvent(opts)
       CHALLENGE_MODE_COMPLETED = true,
       CHALLENGE_MODE_RESET = true,
     },
-    allowWhenHidden = {
-      ADDON_LOADED = true,
-      PLAYER_LOGIN = true,
-      PLAYER_ENTERING_WORLD = true,
-      UPDATE_BINDINGS = true,
-      PLAYER_REGEN_ENABLED = true,
-      CHALLENGE_MODE_COMPLETED = true,
-      CHALLENGE_MODE_RESET = true,
-    },
+    allowWhenHidden = allowWhenHidden,
     shouldAllowWhenHidden = function(_, event)
       if event ~= "GROUP_ROSTER_UPDATE" then
         return false

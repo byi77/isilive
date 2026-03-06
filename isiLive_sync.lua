@@ -211,7 +211,7 @@ function Sync.SendHello(opts)
   end
   opts = opts or {}
 
-  if not opts.isVisible then
+  if opts.isVisible == false then
     return
   end
 
@@ -235,7 +235,7 @@ function Sync.SendKey(opts)
   end
   opts = opts or {}
 
-  if not opts.isVisible then
+  if opts.isVisible == false then
     return
   end
 
@@ -261,7 +261,7 @@ function Sync.SendStats(opts)
   end
   opts = opts or {}
 
-  if not opts.isVisible then
+  if opts.isVisible == false then
     return
   end
 

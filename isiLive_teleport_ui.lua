@@ -110,7 +110,7 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
 
   button:SetScript("OnEnter", function(self)
     local L = deps.getL()
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
     if self.spellID and deps.isSpellKnown(self.spellID) then
       GameTooltip:SetSpellByID(self.spellID)
       GameTooltip:AddLine(L.TOOLTIP_TELEPORT_CAST, 1, 1, 1, true)

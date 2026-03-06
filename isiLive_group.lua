@@ -98,6 +98,24 @@ local function HandleNoGroup(deps, wasInGroupBefore)
   deps.updateLeaderButtons()
 end
 
+local function PruneGhosts(roster)
+  local activeCount = 0
+  local ghosts = {}
+  for unit, info in pairs(roster) do
+    if not info.isGhost then
+      activeCount = activeCount + 1
+    else
+      table.insert(ghosts, unit)
+    end
+  end
+
+  for _, ghostUnit in ipairs(ghosts) do
+    if activeCount >= 5 then
+      roster[ghostUnit] = nil
+    end
+  end
+end
+
 local function AddPlayerToRoster(deps, roster)
   local name, realm = deps.getUnitNameAndRealm("player")
   local _, class = deps.getUnitClass("player")
@@ -121,31 +139,97 @@ local function AddPlayerToRoster(deps, roster)
   deps.enqueueInspect("player")
 end
 
-local function AddPartyMembersToRoster(deps, roster)
+local function UpdatePartyMembersInRoster(deps, roster)
+  -- 1. Identify current group members to protect them from ghosting
+  local currentMemberKeys = {}
+  local name, realm = deps.getUnitNameAndRealm("player")
+  if name then
+    currentMemberKeys[name .. "-" .. (realm or "")] = true
+  end
+
   local members = deps.getNumGroupMembers()
+  for i = 1, members - 1 do
+    local unit = "party" .. i
+    local memberName, memberRealm = deps.getUnitNameAndRealm(unit)
+    if memberName then
+      currentMemberKeys[memberName .. "-" .. (memberRealm or "")] = true
+    end
+  end
+
+  -- 2. Convert missing members to ghosts BEFORE overwriting slots
+  for unit, info in pairs(roster) do
+    if unit ~= "player" and string.find(unit, "^party") and not info.isGhost then
+      local key = info.name .. "-" .. (info.realm or "")
+      if not currentMemberKeys[key] then
+        -- Member is gone, convert to ghost
+        local ghostKey = "ghost:" .. key
+        roster[ghostKey] = info
+        info.isGhost = true
+        roster[unit] = nil -- Clear the partyX slot so it's free for new data
+      end
+    end
+  end
+
+  -- 3. Update slots with current group data (preserving data across slot shifts)
+  -- Build a lookup for existing data by name to handle slot swaps
+  local existingDataByName = {}
+  local slotsToClear = {}
+  for unit, info in pairs(roster) do
+    if info.name then
+      existingDataByName[info.name .. "-" .. (info.realm or "")] = info
+    end
+    -- Clear all party slots to avoid duplicates/stale entries when group shrinks or shifts
+    if string.find(unit, "^party") then
+      table.insert(slotsToClear, unit)
+    end
+  end
+  for _, unit in ipairs(slotsToClear) do
+    roster[unit] = nil
+  end
+
   for i = 1, members - 1 do
     local unit = "party" .. i
     local memberName, memberRealm = deps.getUnitNameAndRealm(unit)
     if memberName then
       local _, memberClass = deps.getUnitClass(unit)
       local memberLanguage = deps.getUnitServerLanguage(unit, memberRealm)
+
+      -- Try to find existing data for this PLAYER, not just this SLOT
+      local existing = existingDataByName[memberName .. "-" .. (memberRealm or "")]
+
+      local keyMapID = existing and existing.keyMapID
+      local keyLevel = existing and existing.keyLevel
+      local spec = existing and existing.spec
+      local ilvl = existing and existing.ilvl
+      local rio = existing and existing.rio
+
       roster[unit] = {
         name = memberName,
         realm = memberRealm,
         language = memberLanguage,
         class = memberClass,
         role = deps.getUnitRole(unit),
-        spec = nil,
-        ilvl = nil,
-        rio = nil,
+        spec = spec,
+        ilvl = ilvl,
+        rio = rio,
         hasIsiLive = deps.unitHasIsiLive(unit),
-        keyMapID = nil,
-        keyLevel = nil,
+        keyMapID = keyMapID,
+        keyLevel = keyLevel,
+        isGhost = false,
       }
+
+      -- If we pulled data from a ghost slot (resurrected player), clear the ghost entry
+      local ghostKey = "ghost:" .. memberName .. "-" .. (memberRealm or "")
+      if roster[ghostKey] then
+        roster[ghostKey] = nil
+      end
+
       deps.applyKnownKeyToRosterEntry(roster[unit])
       deps.enqueueInspect(unit)
     end
   end
+
+  PruneGhosts(roster)
 end
 
 local function HandleGroupRosterUpdate(deps)
@@ -186,12 +270,12 @@ local function HandleGroupRosterUpdate(deps)
     deps.captureQueueJoinCandidate()
     deps.announceQueuedGroupJoin()
   end
-  deps.setRoster({})
-  deps.resetInspectQueues()
 
   local roster = deps.getRoster()
+  deps.resetInspectQueues()
+
   AddPlayerToRoster(deps, roster)
-  AddPartyMembersToRoster(deps, roster)
+  UpdatePartyMembersInRoster(deps, roster)
 
   deps.sendOwnKeySnapshot(false)
   deps.updateUI()

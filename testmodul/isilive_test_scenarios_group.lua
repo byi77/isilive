@@ -285,6 +285,274 @@ local function RegisterGroupRosterTests(test, Assert, LoadAddonModules)
 
     Assert.Equal(state.knownUsersCleared, 1, "known users cache must be cleared on group leave")
   end)
+
+  test("Group member leaving becomes ghost", function()
+    local members = 2
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function()
+        return members
+      end,
+      getUnitNameAndRealm = function(unit)
+        if unit == "player" then
+          return "Player", "Realm"
+        end
+        if unit == "party1" then
+          return "Member", "Realm"
+        end
+        return nil
+      end,
+    })
+
+    -- Initial join
+    controller.HandleGroupRosterUpdate()
+    Assert.NotNil(state.roster.party1, "party1 should exist")
+
+    -- Member leaves
+    members = 1
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Nil(state.roster.party1, "party1 slot should be cleared")
+    Assert.NotNil(state.roster["ghost:Member-Realm"], "ghost entry should be created")
+    Assert.True(state.roster["ghost:Member-Realm"].isGhost, "ghost flag should be set")
+
+    -- Member rejoins (or slot filled)
+    members = 2
+    controller.HandleGroupRosterUpdate()
+
+    -- Note: In a real scenario, if the SAME player rejoins,
+    -- the ghost key logic might vary depending on implementation details,
+    -- but if the slot is filled, the ghost should eventually be pruned if the group is full or logic dictates.
+    -- Current implementation prunes ghosts only when activeCount >= 5.
+    -- Let's verify the ghost persists if group is not full.
+    Assert.Nil(state.roster["ghost:Member-Realm"], "ghost should be removed if player rejoins")
+    Assert.NotNil(state.roster.party1, "party1 should be back")
+  end)
+
+  test("Ghost created correctly when party1 leaves and party2 shifts to party1", function()
+    local members = 3 -- Player + 2 party members
+    local unitMapping = {
+      player = "Player",
+      party1 = "MemberA",
+      party2 = "MemberB",
+    }
+
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function()
+        return members
+      end,
+      getUnitNameAndRealm = function(unit)
+        local name = unitMapping[unit]
+        if name then
+          return name, "Realm"
+        end
+        return nil
+      end,
+    })
+
+    -- Initial state
+    controller.HandleGroupRosterUpdate()
+    Assert.Equal(state.roster.party1.name, "MemberA", "party1 should be MemberA")
+    Assert.Equal(state.roster.party2.name, "MemberB", "party2 should be MemberB")
+
+    -- Shift: MemberA leaves, MemberB becomes party1
+    members = 2
+    unitMapping = {
+      player = "Player",
+      party1 = "MemberB",
+    }
+
+    controller.HandleGroupRosterUpdate()
+
+    -- Verify MemberA is ghost
+    local ghostKey = "ghost:MemberA-Realm"
+    Assert.NotNil(state.roster[ghostKey], "MemberA should be a ghost")
+    Assert.True(state.roster[ghostKey].isGhost, "MemberA ghost flag should be true")
+
+    -- Verify MemberB is party1
+    Assert.Equal(state.roster.party1.name, "MemberB", "party1 should now be MemberB")
+
+    -- Verify party2 is gone (stale slot cleared)
+    Assert.Nil(state.roster.party2, "party2 slot should be empty after shrink")
+  end)
+
+  test("RIO data persists when member shifts from party2 to party1", function()
+    local members = 3
+    local unitMapping = {
+      player = "Player",
+      party1 = "MemberA",
+      party2 = "MemberB",
+    }
+
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function()
+        return members
+      end,
+      getUnitNameAndRealm = function(unit)
+        local name = unitMapping[unit]
+        if name then
+          return name, "Realm"
+        end
+        return nil
+      end,
+    })
+
+    -- Initial state
+    controller.HandleGroupRosterUpdate()
+
+    -- Inject data into MemberB (party2)
+    state.roster.party2.rio = 2500
+    state.roster.party2.keyLevel = 15
+
+    -- Shift: MemberA leaves, MemberB becomes party1
+    members = 2
+    unitMapping = {
+      player = "Player",
+      party1 = "MemberB",
+    }
+
+    controller.HandleGroupRosterUpdate()
+
+    -- Verify MemberB (now party1) kept data
+    Assert.Equal(state.roster.party1.name, "MemberB", "party1 should be MemberB")
+    Assert.Equal(state.roster.party1.rio, 2500, "RIO should persist across slot shift")
+    Assert.Equal(state.roster.party1.keyLevel, 15, "Key level should persist across slot shift")
+  end)
+
+  test("Ghost is removed and data restored when player rejoins", function()
+    local members = 2 -- Player + 1 party member
+    local unitMapping = {
+      player = "Player",
+      party1 = "Rejoiner",
+    }
+
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function()
+        return members
+      end,
+      getUnitNameAndRealm = function(unit)
+        local name = unitMapping[unit]
+        if name then
+          return name, "Realm"
+        end
+        return nil
+      end,
+    })
+
+    -- Initial state
+    controller.HandleGroupRosterUpdate()
+    state.roster.party1.rio = 2000 -- Inject data
+    Assert.Equal(state.roster.party1.name, "Rejoiner", "party1 should be Rejoiner")
+
+    -- Leave
+    members = 1
+    unitMapping = { player = "Player" }
+    controller.HandleGroupRosterUpdate()
+
+    -- Verify ghost
+    local ghostKey = "ghost:Rejoiner-Realm"
+    Assert.NotNil(state.roster[ghostKey], "Rejoiner should be a ghost")
+    Assert.True(state.roster[ghostKey].isGhost, "ghost flag should be set")
+    Assert.Equal(state.roster[ghostKey].rio, 2000, "ghost should retain data")
+
+    -- Rejoin
+    members = 2
+    unitMapping = {
+      player = "Player",
+      party1 = "Rejoiner",
+    }
+    controller.HandleGroupRosterUpdate()
+
+    -- Verify ghost gone
+    Assert.Nil(state.roster[ghostKey], "ghost entry should be removed on rejoin")
+
+    -- Verify party1 back with data
+    Assert.NotNil(state.roster.party1, "party1 should be present")
+    Assert.Equal(state.roster.party1.name, "Rejoiner", "party1 should be Rejoiner")
+    Assert.Equal(state.roster.party1.rio, 2000, "data should be restored from ghost")
+    Assert.False(state.roster.party1.isGhost, "isGhost should be false for active member")
+  end)
+
+  test("Ghosts are pruned when group becomes full (5 members)", function()
+    local members = 5 -- Full group (Player + 4)
+    local unitMapping = {
+      player = "Player",
+      party1 = "Member1",
+      party2 = "Member2",
+      party3 = "Member3",
+      party4 = "Member4",
+    }
+
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function()
+        return members
+      end,
+      getUnitNameAndRealm = function(unit)
+        local name = unitMapping[unit]
+        if name then
+          return name, "Realm"
+        end
+        return nil
+      end,
+    })
+
+    -- Inject a ghost
+    state.roster["ghost:Leaver-Realm"] = {
+      name = "Leaver",
+      realm = "Realm",
+      isGhost = true,
+    }
+
+    -- Update with full group
+    controller.HandleGroupRosterUpdate()
+
+    -- Verify full group
+    Assert.NotNil(state.roster.party1, "party1 should be present")
+    Assert.NotNil(state.roster.party4, "party4 should be present")
+
+    -- Verify ghost is pruned
+    Assert.Nil(state.roster["ghost:Leaver-Realm"], "ghost should be pruned when group is full")
+  end)
+
+  test("Ghosts persist when group is not full (4 members)", function()
+    local members = 4 -- Player + 3 party members
+    local unitMapping = {
+      player = "Player",
+      party1 = "Member1",
+      party2 = "Member2",
+      party3 = "Member3",
+    }
+
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function()
+        return members
+      end,
+      getUnitNameAndRealm = function(unit)
+        local name = unitMapping[unit]
+        if name then
+          return name, "Realm"
+        end
+        return nil
+      end,
+    })
+
+    -- Inject a ghost
+    state.roster["ghost:Leaver-Realm"] = {
+      name = "Leaver",
+      realm = "Realm",
+      isGhost = true,
+    }
+
+    -- Update with 4 members
+    controller.HandleGroupRosterUpdate()
+
+    -- Verify active members
+    Assert.NotNil(state.roster.party1, "party1 should be present")
+    Assert.NotNil(state.roster.party3, "party3 should be present")
+    Assert.Nil(state.roster.party4, "party4 should not be present")
+
+    -- Verify ghost persists
+    Assert.NotNil(state.roster["ghost:Leaver-Realm"], "ghost should persist when group is not full")
+  end)
 end
 
 return function(test, ctx)

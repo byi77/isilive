@@ -33,6 +33,13 @@ local function CreateHighlightController(ctx)
   })
 end
 
+local function CreateStatsController(ctx)
+  return ctx.statsModule.CreateController({
+    getRoster = ctx.getRoster,
+    getUnitNameAndRealm = ctx.getUnitNameAndRealm,
+  })
+end
+
 local function CreateRosterPanelController(ctx, keySyncResult)
   local controller = ctx.rosterPanelModule.CreateController({
     mainFrame = ctx.mainFrame,
@@ -51,6 +58,8 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     getDungeonShortCode = ctx.getDungeonShortCode,
     getRioDelta = ctx.getRioDelta,
     resolveActiveKeyOwnerUnit = ctx.resolveActiveKeyOwnerUnit,
+    resolveTargetMapID = ctx.resolveTargetMapID,
+    isReadyCheckActive = ctx.isReadyCheckActive,
     getRoster = ctx.getRoster,
     isInGroup = ctx.isInGroup,
     rolePriority = {
@@ -71,6 +80,7 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     applyKnownKeyToRosterEntry = keySyncResult and keySyncResult.applyKnownKeyToRosterEntry or nil,
     getTime = ctx.getTime,
     shareKeysDebounceSeconds = ctx.shareKeysDebounceSeconds,
+    getPlayerRunCount = ctx.getPlayerRunCount,
   })
 
   return {
@@ -103,6 +113,13 @@ end
 
 function ControllerInit.CreateControllers(ctx)
   local result = {}
+
+  local statsController = CreateStatsController(ctx)
+  result.statsController = statsController
+  -- Inject stats getters into context for downstream consumers
+  ctx.getPlayerRunCount = statsController.GetPlayerCount
+  ctx.getDungeonCount = statsController.GetDungeonCount
+  result.recordRun = statsController.RecordRun
 
   local keySyncResult = CreateKeySyncController(ctx)
   for key, value in pairs(keySyncResult) do

@@ -105,6 +105,51 @@ local function RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddo
       Assert.Equal(#controller.inspectQueue, 1, "force refresh should queue unit for a new inspect")
     end)
   end)
+
+  test("Inspect triggers sendOwnKeySnapshot on player data change", function()
+    local sentSnapshot = false
+    WithGlobals({
+      GetTime = function()
+        return 100
+      end,
+      UnitGUID = function(unit)
+        return "guid-" .. unit
+      end,
+      C_PaperDollInfo = {
+        GetInspectItemLevel = function()
+          return 620
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+      local controller = addon.Inspect.CreateController({
+        sendOwnKeySnapshot = function()
+          sentSnapshot = true
+        end,
+      })
+
+      local roster = { player = { ilvl = 610 } }
+      controller.isInspecting = "player"
+
+      -- Simulate inspect ready with changed data
+      controller.OnInspectReady(
+        "guid-player",
+        roster,
+        function()
+          return 2000
+        end, -- rio
+        function()
+          return "Fury"
+        end, -- spec
+        function()
+          return "Fury"
+        end -- player spec
+      )
+
+      Assert.True(sentSnapshot, "should trigger snapshot send when player data changes")
+      Assert.Equal(roster.player.ilvl, 620, "roster should be updated")
+    end)
+  end)
 end
 
 return function(test, ctx)

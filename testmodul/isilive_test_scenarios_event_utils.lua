@@ -256,14 +256,42 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
     })
   end
 
-  test("Bootstrap gate suppresses queue and sync events while frame is hidden", function()
+  test("Bootstrap gate allows sync events while frame is hidden if configured", function()
     local dispatched = {}
 
     local addon = LoadAddonModules({ "isiLive_events.lua", "isiLive_bootstrap.lua" })
-    local gate = CreateBootstrapGate(addon, function(_frame, event, ...)
-      local _ = ...
-      table.insert(dispatched, event)
-    end)
+    -- Simulate RuntimeSetup configuration for Rule 28
+    local gate = addon.Bootstrap.CreateGatedOnEvent({
+      events = addon.Events,
+      dispatch = function(_frame, event)
+        table.insert(dispatched, event)
+      end,
+      isStopped = function()
+        return false
+      end,
+      isPaused = function()
+        return false
+      end,
+      isTestMode = function()
+        return false
+      end,
+      isInCombat = function()
+        return false
+      end,
+      isInGroup = function()
+        return true
+      end,
+      getNumGroupMembers = function()
+        return 5
+      end,
+      getActiveChallengeMapID = function()
+        return nil
+      end,
+      allowWhenHidden = {
+        CHAT_MSG_ADDON = true,
+        GROUP_ROSTER_UPDATE = true,
+      },
+    })
 
     local frame = {
       IsShown = function()
@@ -275,8 +303,11 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
     gate(frame, "LFG_LIST_SEARCH_RESULT_UPDATED", 1001)
     gate(frame, "LFG_LIST_ACTIVE_ENTRY_UPDATE")
     gate(frame, "CHAT_MSG_ADDON", "ISI_SYNC", "HELLO", "PARTY", "Alpha-Realm")
+    gate(frame, "GROUP_ROSTER_UPDATE")
 
-    Assert.Equal(#dispatched, 0, "hidden gate must suppress queue/sync processing events")
+    Assert.Equal(#dispatched, 2, "hidden gate must allow configured sync events")
+    Assert.Equal(dispatched[1], "CHAT_MSG_ADDON", "CHAT_MSG_ADDON should pass")
+    Assert.Equal(dispatched[2], "GROUP_ROSTER_UPDATE", "GROUP_ROSTER_UPDATE should pass")
   end)
 
   test("Bootstrap gate keeps hidden auto-open triggers for group join and key end", function()

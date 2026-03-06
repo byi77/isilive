@@ -37,6 +37,7 @@ local isiLiveContextHelpers = addonTable and addonTable.ContextHelpers
 local isiLiveRuntimeSetup = addonTable and addonTable.RuntimeSetup
 local isiLiveControllerInit = addonTable and addonTable.ControllerInit
 local isiLiveGuards = addonTable and addonTable.Guards
+local isiLiveStats = addonTable and addonTable.Stats
 
 -- --- Configuration & Constants ---
 local INSPECT_TIMEOUT = 2 -- seconds
@@ -299,18 +300,6 @@ local function ToggleMainFrameVisibility()
   frameBridgeContext.ToggleMainFrameVisibility()
 end
 
--- --- Data & State ---
--- Stores current group members keyed by unit token.
-local inspectController = isiLiveInspect.CreateController({
-  inspectTimeout = INSPECT_TIMEOUT,
-  retryInterval = RETRY_INTERVAL,
-  inspectDelay = INSPECT_DELAY,
-})
-local inspectLoopTimer = 0
-local InspectLoop
-local wasGroupLeader = nil
-local wasInGroup = false
-local wasRaidGroup = false
 local pendingQueueJoinInfo = nil
 latestQueueDungeonName = nil
 latestQueueActivityID = nil
@@ -319,9 +308,24 @@ latestQueueMapID = nil
 local isTestMode = false
 local isStopped = false
 local isPaused = false
+local isReadyCheckActive = false
+local wasGroupLeader = nil
+local wasInGroup = false
+local wasRaidGroup = false
+local inspectController
+local inspectLoopTimer = 0
+local InspectLoop
 
 local function GetActiveChallengeMapID()
   return C_ChallengeMode.GetActiveChallengeMapID()
+end
+
+local function IsReadyCheckActive()
+  return isReadyCheckActive
+end
+
+local function SetReadyCheckActive(value)
+  isReadyCheckActive = value and true or false
 end
 
 local function IsInPartyInstance()
@@ -386,13 +390,22 @@ local function BuildRosterInfoPlayerKey(info)
   return NormalizePlayerKey(name, info.realm)
 end
 
+local function RestoreRioBaseline()
+  if IsiLiveDB and type(IsiLiveDB.rioBaseline) == "table" then
+    rioBaselineByPlayerKey = IsiLiveDB.rioBaseline
+    hasRioBaselineSnapshot = next(rioBaselineByPlayerKey) ~= nil
+    if hasRioBaselineSnapshot then
+      isRioDeltaDisplayEnabled = true
+    end
+  end
+end
+
 local function ClearRioBaselineSnapshot()
   rioBaselineByPlayerKey = {}
   hasRioBaselineSnapshot = false
   isRioDeltaDisplayEnabled = false
-  local db = rawget(_G, "IsiLiveDB")
-  if type(db) == "table" then
-    db.rioBaseline = nil
+  if IsiLiveDB then
+    IsiLiveDB.rioBaseline = nil
   end
 end
 
@@ -417,29 +430,9 @@ local function CaptureRioBaselineSnapshot()
   rioBaselineByPlayerKey = snapshot
   hasRioBaselineSnapshot = hasSnapshotData
   isRioDeltaDisplayEnabled = false
-
-  local db = rawget(_G, "IsiLiveDB")
-  if type(db) == "table" then
-    db.rioBaseline = hasSnapshotData and snapshot or nil
+  if IsiLiveDB then
+    IsiLiveDB.rioBaseline = snapshot
   end
-end
-
-local function RestoreRioBaselineFromDB()
-  local db = rawget(_G, "IsiLiveDB")
-  if type(db) ~= "table" or type(db.rioBaseline) ~= "table" then
-    return
-  end
-  local restored = {}
-  local hasData = false
-  for key, value in pairs(db.rioBaseline) do
-    if type(key) == "string" and type(value) == "number" then
-      restored[key] = value
-      hasData = true
-    end
-  end
-  rioBaselineByPlayerKey = restored
-  hasRioBaselineSnapshot = hasData
-  -- isRioDeltaDisplayEnabled stays false; delta display is enabled only after a key completes.
 end
 
 local function EnableRioDeltaDisplay()
@@ -618,6 +611,7 @@ local initResult = isiLiveControllerInit.CreateControllers({
   highlightModule = isiLiveHighlight,
   rosterPanelModule = isiLiveRosterPanel,
   teleportUIModule = isiLiveTeleportUI,
+  statsModule = isiLiveStats,
   isInGroup = IsInGroup,
   getUnitNameAndRealm = GetUnitNameAndRealm,
   getAddonVersionRaw = GetAddonVersionRaw,
@@ -661,6 +655,12 @@ local initResult = isiLiveControllerInit.CreateControllers({
       return ResolveActiveKeyOwnerUnit()
     end
     return nil
+  end,
+  resolveTargetMapID = function()
+    return ResolveStatusTargetMapID()
+  end,
+  isReadyCheckActive = function()
+    return IsReadyCheckActive()
   end,
   getRoster = GetRoster,
   applySecureSpellToButton = ApplySecureSpellToButton,
@@ -1019,6 +1019,13 @@ local function CheckIfEnteredTargetDungeon()
   end
 end
 
+inspectController = isiLiveInspect.CreateController({
+  inspectTimeout = INSPECT_TIMEOUT,
+  retryInterval = RETRY_INTERVAL,
+  inspectDelay = INSPECT_DELAY,
+  sendOwnKeySnapshot = SendOwnKeySnapshot,
+})
+
 OnEvent = function(self, event, ...)
   eventHandlersController.Dispatch(self, event, ...)
 end
@@ -1060,6 +1067,7 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   leaderWatchModule = isiLiveLeaderWatch,
   groupModule = isiLiveGroup,
   eventHandlersModule = isiLiveEventHandlers,
+  statsModule = isiLiveStats,
   mainFrame = mainFrame,
   onEvent = OnEvent,
   onDispatchError = function(_frame, event, err)
@@ -1174,7 +1182,9 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   updateCountdownCancelButton = UpdateCountdownCancelButton,
   checkIfEnteredTargetDungeon = CheckIfEnteredTargetDungeon,
   captureRioBaselineSnapshot = CaptureRioBaselineSnapshot,
-  restoreRioBaseline = RestoreRioBaselineFromDB,
+  restoreRioBaseline = RestoreRioBaseline,
+  isReadyCheckActive = IsReadyCheckActive,
+  setReadyCheckActive = SetReadyCheckActive,
   enableRioDeltaDisplay = EnableRioDeltaDisplay,
   setCenterNoticeVisible = SetCenterNoticeVisible,
   getState = function()

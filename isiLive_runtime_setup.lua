@@ -25,6 +25,7 @@ function RuntimeSetup.Configure(ctx)
   local groupModule = assert(ctx.groupModule, "isiLive: RuntimeSetup requires groupModule")
   local eventHandlersModule = assert(ctx.eventHandlersModule, "isiLive: RuntimeSetup requires eventHandlersModule")
   local mainFrame = assert(ctx.mainFrame, "isiLive: RuntimeSetup requires mainFrame")
+  assert(ctx.statsModule, "isiLive: RuntimeSetup requires statsModule")
   local onEvent = RequireFunction(ctx.onEvent, "onEvent")
 
   local groupController =
@@ -41,7 +42,13 @@ function RuntimeSetup.Configure(ctx)
 
   bootstrap.RegisterSlashCommands(configBuilders.BuildSlashCommandsOpts(ctx))
 
-  local gatedOnEvent = bootstrap.CreateGatedOnEvent(configBuilders.BuildGateOpts(ctx))
+  local gateOpts = configBuilders.BuildGateOpts(ctx)
+  -- Rule 28 relaxation: Allow background sync events
+  gateOpts.allowWhenHidden = gateOpts.allowWhenHidden or {}
+  gateOpts.allowWhenHidden["CHAT_MSG_ADDON"] = true
+  gateOpts.allowWhenHidden["GROUP_ROSTER_UPDATE"] = true
+
+  local gatedOnEvent = bootstrap.CreateGatedOnEvent(gateOpts)
   mainFrame:SetScript("OnEvent", gatedOnEvent)
 
   return {

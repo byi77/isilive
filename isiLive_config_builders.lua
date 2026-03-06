@@ -180,8 +180,11 @@ local function BuildEventCallbacks(ctx)
     checkIfEnteredTargetDungeon = ctx.checkIfEnteredTargetDungeon,
     captureRioBaselineSnapshot = ctx.captureRioBaselineSnapshot,
     restoreRioBaseline = ctx.restoreRioBaseline,
+    isReadyCheckActive = ctx.isReadyCheckActive,
+    setReadyCheckActive = ctx.setReadyCheckActive,
     enableRioDeltaDisplay = ctx.enableRioDeltaDisplay,
     setMainFrameHeightSafe = ctx.setMainFrameHeightSafe,
+    recordRun = ctx.recordRun,
   }
 end
 

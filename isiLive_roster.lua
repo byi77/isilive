@@ -15,6 +15,38 @@ local ROLE_ICONS = {
   DAMAGER = CreateRoleIcon("20:39:22:41"),
 }
 
+local function BuildColorHexSafe(r, g, b)
+  local createColor = _G.CreateColor
+  if type(createColor) == "function" then
+    local okColor, color = pcall(createColor, r, g, b)
+    if okColor and type(color) == "table" and type(color.GenerateHexColor) == "function" then
+      local okHex, hex = pcall(color.GenerateHexColor, color)
+      if okHex and type(hex) == "string" and hex ~= "" then
+        return hex
+      end
+    end
+  end
+
+  local rr = math.max(0, math.min(255, math.floor((tonumber(r) or 1) * 255)))
+  local gg = math.max(0, math.min(255, math.floor((tonumber(g) or 1) * 255)))
+  local bb = math.max(0, math.min(255, math.floor((tonumber(b) or 1) * 255)))
+  return string.format("ff%02x%02x%02x", rr, gg, bb)
+end
+
+local function GetReadyCheckStatusSafe(unit)
+  local getReadyCheckStatus = _G.GetReadyCheckStatus
+  if type(getReadyCheckStatus) ~= "function" then
+    return nil
+  end
+
+  local ok, status = pcall(getReadyCheckStatus, unit)
+  if not ok then
+    return nil
+  end
+
+  return status
+end
+
 function Roster.BuildOrderedRoster(roster, rolePriority, unitPriority)
   local orderedRoster = {}
   for unit, info in pairs(roster or {}) do
@@ -56,9 +88,27 @@ function Roster.BuildDisplayData(info, opts)
   local getDungeonShortCode = opts.getDungeonShortCode
   local getRioDelta = opts.getRioDelta
   local syncMarker = opts.syncMarker or ""
+  local isReadyCheckActive = opts.isReadyCheckActive
 
-  local classColor = RAID_CLASS_COLORS[info.class] or { r = 1, g = 1, b = 1 }
-  local colorHex = CreateColor(classColor.r, classColor.g, classColor.b):GenerateHexColor()
+  local colorHex
+  if info.isGhost then
+    colorHex = "ff808080" -- Grey
+  else
+    local classColors = type(_G.RAID_CLASS_COLORS) == "table" and _G.RAID_CLASS_COLORS or nil
+    local classColor = (classColors and classColors[info.class]) or { r = 1, g = 1, b = 1 }
+    colorHex = BuildColorHexSafe(classColor.r, classColor.g, classColor.b)
+  end
+
+  if isReadyCheckActive and unit then
+    local status = GetReadyCheckStatusSafe(unit)
+    if status == "ready" then
+      colorHex = "ff00ff00" -- Green
+    elseif status == "notready" then
+      colorHex = "ffff0000" -- Red
+    elseif status == "waiting" then
+      colorHex = "ffffff00" -- Yellow
+    end
+  end
 
   local displayName = info.name or ""
   if truncateName then
@@ -97,7 +147,9 @@ function Roster.BuildDisplayData(info, opts)
     keyText = string.format("%s +%d", shortCode, tonumber(info.keyLevel) or 0)
   end
   local addonMarker = info.hasIsiLive and syncMarker or ""
+  local atDungeonMarker = opts.isAtDungeon and "|TInterface\\MINIMAP\\Minimap_Summon_Icon:12:12:0:0|t" or ""
   local roleIconMarkup = ROLE_ICONS[info.role] or ""
+  local readyCheckMarkup = ""
 
   return {
     colorHex = colorHex,
@@ -108,6 +160,8 @@ function Roster.BuildDisplayData(info, opts)
     rioText = rioText,
     keyText = keyText,
     addonMarker = addonMarker,
+    atDungeonMarker = atDungeonMarker,
+    readyCheckMarkup = readyCheckMarkup,
     roleIconMarkup = roleIconMarkup,
   }
 end

@@ -14,30 +14,11 @@ local function IsUnitInInspectQueue(controller, unit)
   return false
 end
 
-local function QueueForceRefreshData(controller, roster)
-  controller.ResetQueues()
-  for unit, info in pairs(roster or {}) do
-    if UnitExists(unit) then
-      local guid = UnitGUID(unit)
-      if guid then
-        controller.ilvlCache[guid] = nil
-        controller.rioCache[guid] = nil
-        controller.specCache[guid] = nil
-      end
-      info.spec = nil
-      info.ilvl = nil
-      info.rio = nil
-      info._localSpecFresh = nil
-      info._localIlvlFresh = nil
-      info._localRioFresh = nil
-      if not IsUnitInInspectQueue(controller, unit) then
-        table.insert(controller.inspectQueue, unit)
-      end
-    end
-  end
-end
-
 local function EnqueueInspect(controller, unit, roster)
+  if not unit or not roster then
+    return
+  end
+
   local guid = UnitGUID(unit)
   if guid and controller.ilvlCache[guid] and roster[unit] then
     roster[unit].ilvl = controller.ilvlCache[guid]
@@ -55,46 +36,82 @@ local function EnqueueInspect(controller, unit, roster)
     return
   end
 
-  if roster[unit] and (not roster[unit].ilvl or not roster[unit].rio or not roster[unit].spec) then
+  if
+    not IsUnitInInspectQueue(controller, unit)
+    and roster[unit]
+    and (not roster[unit].ilvl or not roster[unit].rio or not roster[unit].spec)
+  then
     table.insert(controller.inspectQueue, unit)
   end
 end
 
+local function QueueForceRefreshData(controller, roster)
+  controller.ResetQueues()
+  for unit, info in pairs(roster or {}) do
+    local guid = UnitGUID(unit)
+    if guid then
+      controller.ilvlCache[guid] = nil
+      controller.rioCache[guid] = nil
+      controller.specCache[guid] = nil
+    end
+    info.spec = nil
+    info.ilvl = nil
+    info.rio = nil
+    info._localSpecFresh = nil
+    info._localIlvlFresh = nil
+    info._localRioFresh = nil
+    EnqueueInspect(controller, unit, roster)
+  end
+end
+
 local function OnInspectReady(controller, guid, roster, getUnitRio, getInspectSpecName, getPlayerSpecName)
-  if not (controller.isInspecting and UnitGUID(controller.isInspecting) == guid) then
+  local inspectedUnit = controller.isInspecting
+  if not (inspectedUnit and UnitGUID(inspectedUnit) == guid) then
     return false
   end
 
-  local ilvl = C_PaperDollInfo.GetInspectItemLevel(controller.isInspecting)
-  if roster[controller.isInspecting] then
-    roster[controller.isInspecting].ilvl = ilvl
+  local ilvl = C_PaperDollInfo.GetInspectItemLevel(inspectedUnit)
+  local ilvlChanged = false
+  if roster[inspectedUnit] then
+    if roster[inspectedUnit].ilvl ~= ilvl then
+      ilvlChanged = true
+    end
+    roster[inspectedUnit].ilvl = ilvl
     if ilvl and ilvl > 0 then
-      roster[controller.isInspecting]._localIlvlFresh = true
+      roster[inspectedUnit]._localIlvlFresh = true
     end
   end
   if ilvl and ilvl > 0 then
     controller.ilvlCache[guid] = ilvl
   end
 
-  local rio = getUnitRio and getUnitRio(controller.isInspecting) or nil
-  if roster[controller.isInspecting] then
-    roster[controller.isInspecting].rio = rio
+  local rio = getUnitRio and getUnitRio(inspectedUnit) or nil
+  local rioChanged = false
+  if roster[inspectedUnit] then
+    if roster[inspectedUnit].rio ~= rio then
+      rioChanged = true
+    end
+    roster[inspectedUnit].rio = rio
     if rio and rio >= 0 then
-      roster[controller.isInspecting]._localRioFresh = true
+      roster[inspectedUnit]._localRioFresh = true
     end
   end
   if rio and rio > 0 then
     controller.rioCache[guid] = rio
   end
 
-  local specName = getInspectSpecName and getInspectSpecName(controller.isInspecting) or nil
-  if not specName and controller.isInspecting == "player" and getPlayerSpecName then
+  local specName = getInspectSpecName and getInspectSpecName(inspectedUnit) or nil
+  if not specName and inspectedUnit == "player" and getPlayerSpecName then
     specName = getPlayerSpecName()
   end
-  if roster[controller.isInspecting] then
-    roster[controller.isInspecting].spec = specName
+  local specChanged = false
+  if roster[inspectedUnit] then
+    if roster[inspectedUnit].spec ~= specName then
+      specChanged = true
+    end
+    roster[inspectedUnit].spec = specName
     if specName and specName ~= "" then
-      roster[controller.isInspecting]._localSpecFresh = true
+      roster[inspectedUnit]._localSpecFresh = true
     end
   end
   if specName and specName ~= "" then
@@ -103,7 +120,13 @@ local function OnInspectReady(controller, guid, roster, getUnitRio, getInspectSp
 
   controller.isInspecting = nil
   controller.lastInspectTime = GetTime()
-  return true
+
+  local dataChanged = ilvlChanged or rioChanged or specChanged
+  if inspectedUnit == "player" and dataChanged and controller.sendOwnKeySnapshot then
+    controller.sendOwnKeySnapshot(false)
+  end
+
+  return dataChanged
 end
 
 local function OnInspectTimeout(controller, now)
@@ -175,6 +198,8 @@ function Inspect.CreateController(config)
   controller.inspectTimeout = tonumber(config and config.inspectTimeout) or 2
   controller.retryInterval = tonumber(config and config.retryInterval) or 5
   controller.inspectDelay = tonumber(config and config.inspectDelay) or 1
+
+  controller.sendOwnKeySnapshot = type(config.sendOwnKeySnapshot) == "function" and config.sendOwnKeySnapshot or nil
 
   controller.inspectQueue = {}
   controller.retryQueue = {}

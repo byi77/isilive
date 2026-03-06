@@ -1,4 +1,4 @@
-﻿# Regellogik
+﻿﻿﻿﻿# Regellogik
 
 Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im Gate geprueft werden.
 
@@ -52,6 +52,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 29. die dungeon portal icons sind immer an gleicher stelle wenn sie einmal sortiert worden sind, kein switch oder neu sortieren
 30. falls ein anderer user entdeckt wird welcher auch "isiLive" benutzt, hängen wir hinter seinen Namen ein <3 (blaues herz) an
 31. main ui immer -> auto open beim gruppenbeitritt, autoclose bei key start und auto open bei key ende weiterhin behalten
+32. verlaesst ein spieler die gruppe, bleibt er als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt
+33. spieler, die sich bereits im zieldungeon befinden, werden mit einem portal-icon markiert
+34. waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt
 
 ## Regelbloecke
 
@@ -258,10 +261,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-HIDDEN-SPARFLAMME
 - Regelnummer: 28
 - Status: entwurf
-- Zusammenfassung: waehrend die ui ausgeblendet/geschlossen ist, arbeiten wir auf "sparflamme" also keine ui oder sonstigen updates
+- Zusammenfassung: waehrend die ui ausgeblendet ist, laeuft der daten-sync (roster/addon-msgs) im hintergrund weiter; ui-rendering stoppt jedoch.
 - Erforderliche Tests:
-  - Bootstrap gate suppresses queue and sync events while frame is hidden
-  - Event handlers keep non-UI regen recovery while frame is hidden
+  - Bootstrap gate allows sync events while frame is hidden if configured
+  - Event handlers process addon sync messages while frame is hidden
   - Bootstrap gate keeps hidden auto-open triggers for group join and key end
   - Event handlers run regen teleport refresh when frame is visible
 
@@ -289,6 +292,28 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Group join builds roster with player and 4 party members
   - Event handlers auto-hide main frame on challenge start
   - Event handlers auto-show main frame on challenge completion while grouped
+
+### RULE-ROSTER-GHOST-MEMBER
+- Regelnummer: 32
+- Status: entwurf
+- Zusammenfassung: verlaesst ein spieler die gruppe, bleibt er als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt.
+- Erforderliche Tests:
+  - Group member leaving becomes ghost
+  - Ghost is removed and data restored when player rejoins
+
+### RULE-ROSTER-AT-DUNGEON-MARKER
+- Regelnummer: 33
+- Status: entwurf
+- Zusammenfassung: spieler, die sich bereits im zieldungeon befinden, werden mit einem portal-icon markiert.
+- Erforderliche Tests:
+  - Roster shows at-dungeon marker when unit map matches target
+
+### RULE-ROSTER-READY-CHECK-INDICATOR
+- Regelnummer: 34
+- Status: entwurf
+- Zusammenfassung: waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt.
+- Erforderliche Tests:
+  - Roster name color resets to class color after ready check
 
 ## Hinweise
 

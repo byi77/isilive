@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current addon version: `0.9.62`.
+Current addon version: `0.9.63`.
 
 ## Features
 
@@ -15,6 +15,7 @@ Current addon version: `0.9.62`.
 - `M+Travel` teleport grid with all Season dungeon teleports
 - Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
 - Teleport action buttons use `InsecureActionButtonTemplate` so main/notice frame visibility remains combat-toggleable without protected-frame promotion
+- Players inside the target dungeon are marked with a portal icon in the roster
 - Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale)
 - Visible-window peer sync between `isiLive` users can also backfill remote `Spec`, `iLvl`, and `RIO` without inspect range; fresh local inspect data keeps priority once available
 - Key mapping normalizes active-season challenge-map IDs to canonical season map IDs before short-code rendering
@@ -30,8 +31,7 @@ Current addon version: `0.9.62`.
 - Spec column supports short labels for long localized names (for example `Wiederherstellung -> Resto`, `Vergeltung -> Retri`)
 - Center notices: left-click drag, right-click dismiss, top-right close button; position resets to center on each open
 - Optional runtime log persisted in `IsiLiveDB.runtimeLog` (enable/disable via slash command; flushed on `/reload`/logout)
-- Per-run RIO baseline persisted in `IsiLiveDB.rioBaseline`; restored on addon load so a UI reload mid-session does not lose the delta reference
-- Roster row hover shows an isiLive-data tooltip: name (class-colored), realm, spec, iLvl, Rio, and current key; falls back to WoW unit tooltip then plain name
+- Roster rows support **Left-Click** (Target) and **Right-Click** (Whisper)
 - Non-Mythic dungeon entry warning with delayed confirmation (larger/blinking persistent notice; right-click dismiss, left-click drag)
 - Top-right version label in main window (`V.x.y.z`)
 
@@ -43,17 +43,20 @@ Current addon version: `0.9.62`.
 - Auto-open on real dungeon entry (`outside -> party instance`) while not in an active key.
 - `CTRL+F9`: opening and closing are always allowed (including combat).
 - Hidden window mode hard-stops non-essential scan/processing work; queue/sync event processing is suspended while hidden.
-- Combat runtime gate now suppresses non-essential event processing while in combat; essential events (for example `PLAYER_REGEN_ENABLED` and `CHALLENGE_MODE_*`) still run.
+- Hidden window mode suspends UI rendering and queue scanning, but keeps data sync active (Addon messages, Roster updates).
+- Combat runtime gate suppresses non-essential event processing while in combat; essential events (for example `PLAYER_REGEN_ENABLED` and `CHALLENGE_MODE_*`) still run.
 - Peer sync (`HELLO`/`ACK`/`KEY`/`STATS`) runs only while the main window is visible (hidden mode stays in sleep behavior)
 - Main window is movable via left drag in every mode; top drag handle stays above overlays for reliable dragging
-- Roster member row hover shows an isiLive-data tooltip (name class-colored, realm, spec, iLvl, Rio, key); falls back to Blizzard player tooltip when isiLive data is absent, then plain `Name-Realm` text
+- Roster member row hover shows the Blizzard player tooltip when unit context exists, with `Name-Realm` fallback text when unit tokens are temporarily unavailable
 - Teleport grid buttons inherit main-frame strata/level to avoid overlay conflicts with external UI panels
+- Ghost members: players leaving the group remain visible (greyed out) until their slot is filled or the UI is reloaded.
+- Smart self-update: automatically broadcasts a data snapshot (Key/Stats) when the player's own iLvl, RIO, or Spec changes.
 - Teleport action buttons are intentionally `InsecureActionButtonTemplate` so `CTRL+F9` main-frame open/close and center-notice visibility remain combat-safe
 - Combat-safe frame updates: pending frame-height changes are applied on `PLAYER_REGEN_ENABLED`
 - Bottom-left system toggles mirror the live Blizzard CVar state for `advancedCombatLogging` and `damageMeterResetOnNewInstance`.
 - Clicking those toggles writes the selected Blizzard setting once; `isiLive` does not keep re-enforcing either CVar afterward.
 - Blizzard damage meter is also manually reset on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
-- `CHALLENGE_MODE_START` captures a per-player RIO baseline and persists it to `IsiLiveDB.rioBaseline`; restored automatically on next `ADDON_LOADED`.
+- `CHALLENGE_MODE_START` captures a per-player RIO baseline.
 - `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` schedules delayed post-run refresh and enables clamped delta display `(+X)RIO` after refresh succeeds (with short retry if still blocked), including when the window is currently hidden.
 - Test mode (`/isilive test`, `/isilive testall`) includes visible positive dummy RIO delta preview.
 - `Readycheck`, `Countdown10`, and `Countdown 0` are leader-only
@@ -63,7 +66,7 @@ Current addon version: `0.9.62`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`, while explicit local refresh triggers and visibility-bound snapshots keep `KEY/STATS` current.
 
-## Use Case / Logic Baseline (v0.9.61)
+## Use Case / Logic Baseline (v0.9.63)
 
 Documented on `2026-03-05` as runtime behavior baseline for validation checks.
 
@@ -92,7 +95,7 @@ Documented on `2026-03-05` as runtime behavior baseline for validation checks.
    - After challenge completion/reset, a delayed post-run refresh is attempted; RIO delta display is enabled only after this refresh path succeeds (with retry fallback).
 6. Runtime gating and hidden/sleep behavior
    - Event gate blocks non-required processing in `stopped`, `paused`, and hidden states.
-   - Hidden mode keeps only transition events active (auto-open on fresh group join, key end, and real dungeon entry); queue/sync events are suppressed while hidden.
+   - Hidden mode keeps transition events active (auto-open) and allows background data sync (`CHAT_MSG_ADDON`, `GROUP_ROSTER_UPDATE`); queue scanning and UI rendering are suppressed.
    - `CHALLENGE_MODE_START` hides UI; completion/reset rehydrates group view and refresh flow.
    - Combat-safe UI behavior: teleport action buttons use `InsecureActionButtonTemplate` (to avoid protected-parent show/hide taint), while spell-attribute updates are still deferred during combat lockdown and restored on `PLAYER_REGEN_ENABLED`.
 
@@ -103,23 +106,21 @@ Documented on `2026-03-05` as runtime behavior baseline for validation checks.
 
 ## Slash Commands
 
-`/isilive` and `/isk` are interchangeable.
-
-- `/isk test`
-- `/isk testall`
-- `/isk tptest`
-- `/isk tpdebug`
-- `/isk log [on|off|start|stop|status|clear|tail [n]]`
-- `/isk lead`
-- `/isk lang [en|de]`
-- `/isk pause`
-- `/isk resume`
-- `/isk stop`
-- `/isk start`
-- `/isk bindcheck`
+- `/isilive test`
+- `/isilive testall`
+- `/isilive tptest`
+- `/isilive tpdebug`
+- `/isilive log [on|off|start|stop|status|clear|tail [n]]`
+- `/isilive lead`
+- `/isilive lang [en|de]`
+- `/isilive pause`
+- `/isilive resume`
+- `/isilive stop`
+- `/isilive start`
+- `/isilive bindcheck`
 
 Developer debug (hidden command, not listed in in-game help):
-- `/isk qdebug [on|off|status|clear|tail [n]]`
+- `/isilive qdebug [on|off|status|clear|tail [n]]`
 
 ## Files
 
@@ -191,7 +192,7 @@ Developer debug (hidden command, not listed in in-game help):
 ## Deterministic Usecase Gate
 
 `tools/validate_rules_logic.lua` validates active rule contracts from `RULES_LOGIC.md` against deterministic test names.
-`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 155 scenarios across 21 modules (queue/highlight/event-handlers/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/roster/roster-panel/status/ui), including:
+`tools/validate_usecases.lua` runs the same rules-logic validation first and then executes a modular deterministic runtime-logic gate (`testmodul/isilive_test_*.lua`) with 152 scenarios across 21 modules (queue/highlight/event-handlers/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/roster/roster-panel/status/ui), including:
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
 - ambiguous shared-spell map handling (no guessing)
@@ -268,10 +269,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.61`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.63`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.61` or `isiLive_beta_0.9.61`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.59` or `isiLive_beta_0.9.59`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -283,9 +284,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.61 && git push origin isiLive_release_0.9.61`
+3. Create and push stable tag: `git tag isiLive_release_0.9.63 && git push origin isiLive_release_0.9.63`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.60 && git push origin isiLive_alpha_0.9.60`
-   - beta: `git tag isiLive_beta_0.9.60 && git push origin isiLive_beta_0.9.60`
+   - alpha: `git tag isiLive_alpha_0.9.63 && git push origin isiLive_alpha_0.9.63`
+   - beta: `git tag isiLive_beta_0.9.63 && git push origin isiLive_beta_0.9.63`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.
