@@ -1,7 +1,7 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.65`
-Last updated: `2026-03-07`
+Version baseline: `0.9.66`
+Last updated: `2026-03-08`
 
 ## Actors
 
@@ -118,8 +118,9 @@ Goal: expose the latest completed dungeon DPS per player from Blizzard damage me
 5. Storage: foreign-player DPS snapshots stay runtime-only for the current session; persistent storage keeps only the local player's own last-run DPS.
 6. Output: the roster shows a dedicated `DPS` column and hovering a roster row shows a localized `Last run DPS: ...` tooltip line for players with a currently available stored value.
 7. Output: the tooltip also shows `Level` and `Lang` without re-expanding the roster layout.
-8. Rule: if the Blizzard damage meter API/session is unavailable or a player has no exact source match, no DPS line is shown.
-9. Success criteria: roster and tooltip show the latest dungeon DPS for matching roster players in-session, keep only the local player's own snapshot persistently, and stay empty for unresolved players instead of guessing.
+8. UI rule: roster/button/teleport/notice hover uses isolated `isiLive` tooltip frames with wrapped compact text layout instead of the shared Blizzard `GameTooltip`.
+9. Rule: if the Blizzard damage meter API/session is unavailable or a player has no exact source match, no DPS line is shown.
+10. Success criteria: roster and tooltip show the latest dungeon DPS for matching roster players in-session, keep only the local player's own snapshot persistently, and stay empty for unresolved players instead of guessing.
 
 ## Non-Functional Rules
 

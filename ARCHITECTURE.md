@@ -1,7 +1,7 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.65`
-Last updated: `2026-03-07`
+Version baseline: `0.9.66`
+Last updated: `2026-03-08`
 
 ## Purpose
 
@@ -21,7 +21,7 @@ The architecture is event-driven and split into clear runtime layers:
 | Event gate and dispatch | Enforce stop/pause/hidden/test behavior and route lifecycle handlers | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_utils.lua` |
 | Domain logic | Queue parsing, group model, highlight resolution, key sync, refresh, inspect, bounded run stats | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua` |
 | UI composition | Main frame, roster panel, teleport grid, notices, status line | `isiLive_ui.lua`, `isiLive_roster_panel.lua`, `isiLive_teleport_ui.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
-| Shared helpers and data | Locale, units, season map/spell data, runtime logging, focused config builders | `isiLive_locale.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua` |
+| Shared helpers and data | Locale, units, season map/spell data, runtime logging, focused config builders, private tooltip/shared UI helpers | `isiLive_locale.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_ui_common.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua` |
 
 ## Runtime Flow
 
@@ -62,7 +62,8 @@ WoW Event
 13. In hidden mode, suspend queue scanning and permanent polling; keep background roster/addon-message sync plus required auto-open transitions active, and allow event-driven pre-render updates.
 14. Keep UI action spam guards active for `Refresh` and `Share Keys` (debounce/rate-limit behavior).
 15. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
-16. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures for `GameTooltip:SetText`.
+16. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures where Blizzard tooltip APIs are still referenced.
+17. Shared `isiLive` tooltip frames own their own text layout and must not route UI hover rendering back through the shared Blizzard `GameTooltip`.
 
 ## Architecture Contract Set
 
@@ -92,13 +93,13 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 220 scenarios across 24 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui logic.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 221 scenarios across 24 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiKeyMPlus                                                                        V.0.9.65     |
+| isiKeyMPlus                                                                        V.0.9.66     |
 |--------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  M+Travel         |
 |--------------------------------------------------------------------------------------------------|

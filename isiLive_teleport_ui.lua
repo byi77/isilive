@@ -4,6 +4,16 @@ addonTable = addonTable or {}
 
 local TeleportUI = {}
 addonTable.TeleportUI = TeleportUI
+local createPrivateTooltip = assert(
+  addonTable.UICommon and addonTable.UICommon.CreatePrivateTooltip,
+  "isiLive: UICommon.CreatePrivateTooltip missing"
+)
+local preparePrivateTooltip = assert(
+  addonTable.UICommon and addonTable.UICommon.PreparePrivateTooltip,
+  "isiLive: UICommon.PreparePrivateTooltip missing"
+)
+local hidePrivateTooltip =
+  assert(addonTable.UICommon and addonTable.UICommon.HidePrivateTooltip, "isiLive: UICommon.HidePrivateTooltip missing")
 
 local function SyncButtonLayer(button, mainFrame, isInCombat)
   if
@@ -110,13 +120,16 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
 
   button:SetScript("OnEnter", function(self)
     local L = deps.getL()
-    GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+    local tooltip = preparePrivateTooltip(deps.tooltip, self, "ANCHOR_CURSOR")
+    if type(tooltip) ~= "table" then
+      return
+    end
     if self.spellID and deps.isSpellKnown(self.spellID) then
-      GameTooltip:SetSpellByID(self.spellID)
-      GameTooltip:AddLine(L.TOOLTIP_TELEPORT_CAST, 1, 1, 1, true)
+      tooltip:SetSpellByID(self.spellID)
+      tooltip:AddLine(L.TOOLTIP_TELEPORT_CAST, 1, 1, 1, true)
       local remaining = deps.getTeleportCooldownRemaining(self.spellID)
       if remaining > 0 then
-        GameTooltip:AddLine(
+        tooltip:AddLine(
           string.format(L.TOOLTIP_TELEPORT_COOLDOWN, deps.formatCooldownSeconds(remaining)),
           1,
           0.82,
@@ -124,19 +137,19 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
           true
         )
       else
-        GameTooltip:AddLine(L.TOOLTIP_TELEPORT_READY, 0.3, 1, 0.3, true)
+        tooltip:AddLine(L.TOOLTIP_TELEPORT_READY, 0.3, 1, 0.3, true)
       end
     else
-      GameTooltip:SetText(L.BTN_TELEPORT_LOCKED, 1, 1, 1)
-      GameTooltip:AddLine(L.TOOLTIP_TELEPORT_LOCKED, 1, 0.25, 0.25, true)
+      tooltip:SetText(L.BTN_TELEPORT_LOCKED, 1, 1, 1)
+      tooltip:AddLine(L.TOOLTIP_TELEPORT_LOCKED, 1, 0.25, 0.25, true)
     end
     if self.isActiveTarget then
-      GameTooltip:AddLine(L.TOOLTIP_TELEPORT_ACTIVE_TARGET, 1, 0.85, 0.2, true)
+      tooltip:AddLine(L.TOOLTIP_TELEPORT_ACTIVE_TARGET, 1, 0.85, 0.2, true)
     end
-    GameTooltip:Show()
+    tooltip:Show()
   end)
   button:SetScript("OnLeave", function()
-    GameTooltip:Hide()
+    hidePrivateTooltip(deps.tooltip)
   end)
 
   return button
@@ -199,6 +212,7 @@ function TeleportUI.CreateController(opts)
   local controller = {}
   local buttons = {}
   local emptyStateLabel = nil
+  deps.tooltip = createPrivateTooltip(mainFrame)
 
   local function EnsureEmptyStateLabel()
     if emptyStateLabel or type(mainFrame.CreateFontString) ~= "function" then

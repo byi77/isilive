@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-03-08 - Version 0.9.66
+- **Tooltip Isolation Hardening:**
+  - Roster row hover, roster control buttons, teleport grid buttons, and center-notice teleport hover now all use isolated `isiLive` tooltip frames instead of the shared Blizzard `GameTooltip`.
+  - This removes the remaining shared `GameTooltip` anchor/unit path from `isiLive` and reduces exposure to external tooltip taint and anchor-family conflicts.
+- **Tooltip Runtime Fixes:**
+  - Fixed the post-isolation load-order regression by loading `isiLive_ui_common.lua` before tooltip consumers in `isiLive.toc`.
+  - Fixed private tooltip rendering so isolated tooltips show their text content again instead of appearing empty.
+  - Tightened private tooltip layout: narrower width, left-aligned wrapped text, and height derived from real line height so long strings no longer bleed past the tooltip edge.
+- **Validation + Docs Sync:**
+  - `lua tools/validate_usecases.lua` remains green at `221` deterministic scenarios across `24` modules.
+  - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, and `TODO.md` to `0.9.66`.
+
 ## 2026-03-07 - Version 0.9.65
 - **Post-Run DPS Snapshot:**
   - The addon now reads the Blizzard `C_DamageMeter` session after a dungeon run and exposes the latest run DPS for the current roster without guessing.
@@ -26,13 +38,15 @@
   - The hardcut rename plan in `TODO_RENAME.md` was moved from `after v0.9.65` to `after v0.9.70`.
   - Added `WARTUNG.md` as a maintenance runbook for long breaks and excluded it from CurseForge packaging.
 - **Validation + Docs Sync:**
-  - Deterministic validator coverage increased to `220` scenarios across `24` modules.
+  - Deterministic validator coverage increased to `221` scenarios across `24` modules.
   - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `TODO.md`, `TODO_RENAME.md`, and `WARTUNG.md` to the current runtime/release state.
 - **Post-Review Fixes:**
   - `M0` snapshots no longer flush early on tracked mythic subzone/map changes; the frozen roster now stays bound to the original dungeon entry until real instance exit.
   - `M0` snapshots now hydrate from the first reliable post-entry group roster update when zoning finishes before the roster is fully available.
   - Unknown tooltip key short codes now stay unresolved as `?` instead of falling back to numeric `mapID` values.
   - Roster row hover now uses a private `isiLive` tooltip instead of the shared Blizzard `GameTooltip`, removing the risky `SetUnit`/global-hide path that could collide with external tooltip taint.
+  - Roster control buttons, teleport buttons, and center-notice teleport hover now also use isolated `isiLive` tooltip frames instead of the shared Blizzard `GameTooltip`.
+  - Fixed addon load order regression by moving `isiLive_ui_common.lua` ahead of tooltip consumers in `isiLive.toc`.
   - Internal teleport wiring now uses season-agnostic resolver names; legacy `Season3` exports remain only as compatibility wrappers.
   - Runtime event wiring now forwards `recordRun` correctly from the composition root, hidden addon-sync/group updates may pre-render event-driven UI state without polling, and dead queue/runtime wiring was removed.
   - Status-line `M+` text now safely handles missing Blizzard challenge APIs instead of calling `C_ChallengeMode` unguarded.

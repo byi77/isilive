@@ -483,21 +483,39 @@ local function RegisterRosterPanelLeaderInteractionTests(test, Assert, WithGloba
 
       controller.UpdateLeaderButtons()
 
-      Assert.False(createdFrames[1].enabled, "ready-check button should be disabled for non-leaders")
-      Assert.False(createdFrames[2].enabled, "countdown button should be disabled for non-leaders")
-      Assert.False(createdFrames[5].enabled, "countdown-cancel button should be disabled for non-leaders")
-      Assert.Equal(createdFrames[1].alpha, 0.45, "ready-check button should be dimmed for non-leaders")
-      Assert.Equal(createdFrames[2].alpha, 0.45, "countdown button should be dimmed for non-leaders")
-      Assert.Equal(createdFrames[5].alpha, 0.45, "countdown-cancel button should be dimmed for non-leaders")
+      local readyCheckButton = nil
+      local countdownButton = nil
+      local countdownCancelButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame.pointY == -60 then
+          readyCheckButton = frame
+        elseif frame.pointY == -90 then
+          countdownButton = frame
+        elseif frame.pointY == -120 then
+          countdownCancelButton = frame
+        end
+      end
+
+      Assert.NotNil(readyCheckButton, "ready-check button should exist")
+      Assert.NotNil(countdownButton, "countdown button should exist")
+      Assert.NotNil(countdownCancelButton, "countdown-cancel button should exist")
+      Assert.False(readyCheckButton.enabled, "ready-check button should be disabled for non-leaders")
+      Assert.False(countdownButton.enabled, "countdown button should be disabled for non-leaders")
+      Assert.False(countdownCancelButton.enabled, "countdown-cancel button should be disabled for non-leaders")
+      Assert.Equal(readyCheckButton.alpha, 0.45, "ready-check button should be dimmed for non-leaders")
+      Assert.Equal(countdownButton.alpha, 0.45, "countdown button should be dimmed for non-leaders")
+      Assert.Equal(countdownCancelButton.alpha, 0.45, "countdown-cancel button should be dimmed for non-leaders")
     end)
   end)
 end
 
 local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("RosterPanel control buttons use ANCHOR_CURSOR for tooltips", function()
-    local tooltipAnchor = nil
-    local createFrameStub = function(_type, _name, _parent)
-      return {
+  test("RosterPanel control buttons use isolated cursor-anchored tooltips", function()
+    local createdFrames = {}
+    local sharedTooltipCalls = 0
+    local createFrameStub = function(frameType, _name, _parent)
+      local frame = {
+        _frameType = frameType,
         SetSize = function() end,
         SetPoint = function() end,
         SetScript = function(self, script, handler)
@@ -523,19 +541,37 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
             SetMaxLines = function() end,
           }
         end,
+        Show = function(self)
+          self._shown = true
+        end,
+        Hide = function(self)
+          self._shown = false
+        end,
+        SetFrameStrata = function() end,
+        SetClampedToScreen = function() end,
       }
+      table.insert(createdFrames, frame)
+      return frame
     end
 
     WithGlobals({
       CreateFrame = createFrameStub,
       GameTooltip = {
-        SetOwner = function(_self, _owner, anchor)
-          tooltipAnchor = anchor
+        SetOwner = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
         end,
-        SetText = function() end,
-        AddLine = function() end,
-        Show = function() end,
-        Hide = function() end,
+        SetText = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
+        AddLine = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
+        Show = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
+        Hide = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
       },
     }, function()
       local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
@@ -601,7 +637,22 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
 
       local refreshBtn = controller.GetRefreshButton()
       refreshBtn.OnEnter(refreshBtn)
-      Assert.Equal(tooltipAnchor, "ANCHOR_CURSOR", "Refresh button tooltip must use ANCHOR_CURSOR")
+
+      local privateTooltip = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._isIsiLiveTooltip == true then
+          privateTooltip = frame
+          break
+        end
+      end
+
+      Assert.NotNil(privateTooltip, "RosterPanel should allocate a private tooltip frame")
+      Assert.Equal(
+        privateTooltip._isiLiveTooltipAnchor,
+        "ANCHOR_CURSOR",
+        "Refresh button tooltip must use cursor anchor"
+      )
+      Assert.Equal(sharedTooltipCalls, 0, "RosterPanel control tooltips should not use the shared Blizzard GameTooltip")
     end)
   end)
 end
@@ -634,7 +685,11 @@ local function NewRowTooltipCreateFrameStub(createdFrames, tooltipLines, tooltip
         SetPoint = function() end,
         SetJustifyH = function() end,
         SetWidth = function() end,
-        SetText = function() end,
+        SetText = function(_, text)
+          if f._isIsiLiveTooltip == true then
+            table.insert(tooltipLines, tostring(text or ""))
+          end
+        end,
         SetWordWrap = function() end,
         SetNonSpaceWrap = function() end,
         SetMaxLines = function() end,
@@ -643,36 +698,23 @@ local function NewRowTooltipCreateFrameStub(createdFrames, tooltipLines, tooltip
       }
     end
     f.Hide = function()
-      if tooltipOps and frameType == "GameTooltip" then
+      if tooltipOps and f._isIsiLiveTooltip == true then
         tooltipOps.hideCalls = (tooltipOps.hideCalls or 0) + 1
       end
     end
     f.Show = function()
-      if tooltipOps and frameType == "GameTooltip" then
+      if tooltipOps and f._isIsiLiveTooltip == true then
         tooltipOps.showCalls = (tooltipOps.showCalls or 0) + 1
       end
     end
 
-    if frameType == "GameTooltip" then
+    if tooltipOps then
+      f.ClearAllPoints = function() end
       f.SetOwner = function(_self, _anchorFrame, anchor)
-        if tooltipOps then
+        if f._isIsiLiveTooltip == true then
           tooltipOps.setOwnerCalls = (tooltipOps.setOwnerCalls or 0) + 1
           tooltipOps.lastAnchor = anchor
         end
-      end
-      f.ClearLines = function()
-        for index = #tooltipLines, 1, -1 do
-          table.remove(tooltipLines, index)
-        end
-      end
-      f.SetText = function(_self, text)
-        for index = #tooltipLines, 1, -1 do
-          table.remove(tooltipLines, index)
-        end
-        table.insert(tooltipLines, text)
-      end
-      f.AddLine = function(_self, text)
-        table.insert(tooltipLines, text)
       end
     end
 
@@ -1358,7 +1400,21 @@ local function RegisterRosterPanelRowTooltipIsolationTests(test, Assert, WithGlo
     Assert.Equal(sharedTooltipCalls.show, 0, "row hover must not show the shared Blizzard GameTooltip")
     Assert.Equal(sharedTooltipCalls.hide, 0, "row hover must not hide the shared Blizzard GameTooltip")
     Assert.Equal(sharedTooltipCalls.setUnit, 0, "row hover must not call SetUnit on the shared Blizzard GameTooltip")
-    Assert.True((privateTooltipOps.setOwnerCalls or 0) > 0, "private roster tooltip should be anchored on hover")
+    local privateTooltip = nil
+    for _, frame in ipairs(createdFrames) do
+      if frame._isIsiLiveTooltip == true and frame._isiLiveTooltipOwner ~= nil then
+        privateTooltip = frame
+        break
+      end
+    end
+
+    Assert.NotNil(privateTooltip, "private roster tooltip frame should exist")
+    Assert.Equal(
+      privateTooltip._isiLiveTooltipAnchor,
+      "ANCHOR_CURSOR",
+      "private roster tooltip should keep cursor anchoring"
+    )
+    Assert.True(privateTooltip._isiLiveTooltipOwner ~= nil, "private roster tooltip should keep its hover owner")
   end)
 end
 

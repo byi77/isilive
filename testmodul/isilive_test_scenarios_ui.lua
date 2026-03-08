@@ -162,8 +162,9 @@ local function BuildCreateFrameStub(opts)
     end
   end
 
-  local function CreateFrameStub(_frameType, _name, parent, template)
+  local function CreateFrameStub(frameType, _name, parent, template)
     local frame = {
+      _frameType = frameType,
       _scripts = {},
       _shown = true,
       _point = { "CENTER", nil, "CENTER", 0, 0 },
@@ -511,6 +512,83 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
       Assert.Equal(firstScaledSize, 18, "first scaled notice should apply configured font scale once")
       Assert.Equal(secondScaledSize, 18, "repeated scaled notice must not compound font size")
       Assert.Equal(resetSize, 14, "default notice should reset font size back to baseline")
+    end)
+  end)
+
+  test("Center notice teleport button uses isolated top-anchored tooltip", function()
+    local now = 0
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local sharedTooltipCalls = 0
+
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = createFrameStub,
+      GetTime = function()
+        return now
+      end,
+      GameTooltip = {
+        SetOwner = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
+        SetText = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
+        AddLine = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
+        SetSpellByID = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
+        Show = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
+        Hide = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local centerNotice = addon.Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellID = function()
+          return 12345
+        end,
+        applySecureSpellToButton = function() end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getL = function()
+          return {
+            TOOLTIP_TELEPORT_CAST = "Cast",
+          }
+        end,
+      })
+
+      centerNotice.ConfigureTeleportButton("Test Dungeon", 999)
+      local onEnter = centerNotice.teleportButton._scripts and centerNotice.teleportButton._scripts.OnEnter or nil
+      Assert.NotNil(onEnter, "center notice teleport button should define tooltip OnEnter")
+      onEnter(centerNotice.teleportButton)
+
+      local privateTooltip = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._isIsiLiveTooltip == true then
+          privateTooltip = frame
+          break
+        end
+      end
+
+      Assert.NotNil(privateTooltip, "center notice should allocate a private tooltip frame")
+      Assert.Equal(privateTooltip._isiLiveTooltipAnchor, "ANCHOR_TOP", "center notice tooltip must stay top-anchored")
+      Assert.Equal(sharedTooltipCalls, 0, "center notice tooltip should not use the shared Blizzard GameTooltip")
     end)
   end)
 end

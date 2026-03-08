@@ -8,6 +8,16 @@ local createRedCloseButton = assert(
   addonTable.UICommon and addonTable.UICommon.CreateRedCloseButton,
   "isiLive: UICommon.CreateRedCloseButton missing"
 )
+local createPrivateTooltip = assert(
+  addonTable.UICommon and addonTable.UICommon.CreatePrivateTooltip,
+  "isiLive: UICommon.CreatePrivateTooltip missing"
+)
+local preparePrivateTooltip = assert(
+  addonTable.UICommon and addonTable.UICommon.PreparePrivateTooltip,
+  "isiLive: UICommon.PreparePrivateTooltip missing"
+)
+local hidePrivateTooltip =
+  assert(addonTable.UICommon and addonTable.UICommon.HidePrivateTooltip, "isiLive: UICommon.HidePrivateTooltip missing")
 
 local function BuildCenterNoticeConfig(opts)
   opts = opts or {}
@@ -313,17 +323,20 @@ end
 local function AttachCenterNoticeTeleportButtonScripts(state)
   state.teleportButton:SetScript("OnEnter", function(self)
     local L = state.config.getL() or {}
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    local tooltip = preparePrivateTooltip(state.tooltip, self, "ANCHOR_TOP")
+    if type(tooltip) ~= "table" then
+      return
+    end
 
     if self.inCombatBlocked then
-      GameTooltip:SetText(L.BTN_TELEPORT, 1, 1, 1)
-      GameTooltip:AddLine(L.TOOLTIP_TELEPORT_COMBAT, 1, 0.25, 0.25, true)
+      tooltip:SetText(L.BTN_TELEPORT, 1, 1, 1)
+      tooltip:AddLine(L.TOOLTIP_TELEPORT_COMBAT, 1, 0.25, 0.25, true)
     elseif self.spellID and state.config.isSpellKnown(self.spellID) then
-      GameTooltip:SetSpellByID(self.spellID)
-      GameTooltip:AddLine(L.TOOLTIP_TELEPORT_CAST, 1, 1, 1, true)
+      tooltip:SetSpellByID(self.spellID)
+      tooltip:AddLine(L.TOOLTIP_TELEPORT_CAST, 1, 1, 1, true)
       local remaining = state.config.getTeleportCooldownRemaining(self.spellID)
       if remaining > 0 then
-        GameTooltip:AddLine(
+        tooltip:AddLine(
           string.format(L.TOOLTIP_TELEPORT_COOLDOWN, state.config.formatCooldownSeconds(remaining)),
           1,
           0.82,
@@ -331,13 +344,13 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
           true
         )
       else
-        GameTooltip:AddLine(L.TOOLTIP_TELEPORT_READY, 0.3, 1, 0.3, true)
+        tooltip:AddLine(L.TOOLTIP_TELEPORT_READY, 0.3, 1, 0.3, true)
       end
     else
-      GameTooltip:SetText(L.BTN_TELEPORT_LOCKED, 1, 1, 1)
-      GameTooltip:AddLine(L.TOOLTIP_TELEPORT_LOCKED, 1, 0.25, 0.25, true)
+      tooltip:SetText(L.BTN_TELEPORT_LOCKED, 1, 1, 1)
+      tooltip:AddLine(L.TOOLTIP_TELEPORT_LOCKED, 1, 0.25, 0.25, true)
     end
-    GameTooltip:Show()
+    tooltip:Show()
   end)
 
   state.teleportButton:SetScript("OnUpdate", function(self)
@@ -356,7 +369,7 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
   end)
 
   state.teleportButton:SetScript("OnLeave", function()
-    GameTooltip:Hide()
+    hidePrivateTooltip(state.tooltip)
   end)
 end
 
@@ -437,6 +450,7 @@ function Notice.CreateCenterNotice(opts)
     text = text,
     closeButton = closeButton,
     teleportButton = teleportButton,
+    tooltip = createPrivateTooltip(frame),
     endsAt = 0,
     isPersistent = false,
     isBlinking = false,

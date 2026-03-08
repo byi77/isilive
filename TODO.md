@@ -5,10 +5,16 @@
 - [x] `v0.9.65` vorbereiten:
   - `CHANGELOG.md` auf `0.9.65` Runtime-/Doku-Stand bringen
   - `README.md` / `RELEASE.md` auf `0.9.65` Beispiele und Tag-Namen synchronisieren
-- [ ] `v0.9.65` veroeffentlichen
+- [x] `v0.9.65` veroeffentlichen
   - Midnight-S1-Pre-Season-Text und leeres Portal-Grid pruefen
   - unsicheren Roster-Linksklick nicht mehr bewerben
   - DPS-Snapshot fuer `M+` und `M0` ingame querpruefen
+- [x] `v0.9.66` vorbereiten:
+  - Tooltip-Isolation, Load-Order-Hotfix und private Tooltip-Layoutfixes dokumentieren
+  - `README.md` / `ARCHITECTURE.md` / `USECASES.md` / `RELEASE.md` auf `0.9.66` Beispiele und Baselines synchronisieren
+- [ ] `v0.9.66` veroeffentlichen
+  - isolierte Tooltip-Hover in Roster / Buttons / Teleport / Notice ingame querpruefen
+  - Tooltip-Wrap und Kantenabstand bei laengeren Strings im Live-Client pruefen
 - [ ] Kurz-Smoketest vor Release:
   - UI oeffnen/schliessen
   - Checkboxen fuer `advancedCombatLogging` / `damageMeterResetOnNewInstance`
@@ -40,6 +46,7 @@
 ## P3 - Doku / Pflege
 
 - [x] Nach `v0.9.65`: `TODO.md`, `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md` und `WARTUNG.md` wieder auf denselben Stand ziehen
+- [x] Nach `v0.9.66`: Tooltip-Doku/Runbooks wieder auf denselben Stand ziehen
 - [ ] Release-Text fuer CurseForge / GitHub kurz pruefen, damit die neue passive CVar-Logik klar beschrieben ist
 
 ## Geparkt / Nicht aktiv

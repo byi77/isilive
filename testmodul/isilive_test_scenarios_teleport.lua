@@ -79,8 +79,9 @@ local function BuildTeleportUICreateFrameStub()
     return group
   end
 
-  local function CreateFrameStub(_frameType, _name, _parent, _template)
+  local function CreateFrameStub(frameType, _name, _parent, _template)
     local frame = {
+      _frameType = frameType,
       _events = {},
       _scripts = {},
       _attrs = {},
@@ -142,6 +143,21 @@ local function BuildTeleportUICreateFrameStub()
     frame.SetScale = function(_self, _scale) end
     frame.SetAllPoints = function(_self) end
     frame.SetDrawEdge = function(_self, _enabled) end
+    frame.SetClampedToScreen = function(_self, _enabled) end
+    frame.Show = function(self)
+      self._shown = true
+    end
+    frame.Hide = function(self)
+      self._shown = false
+    end
+    frame.CreateFontString = function()
+      return {
+        SetPoint = function() end,
+        SetText = function() end,
+        Hide = function() end,
+        Show = function() end,
+      }
+    end
 
     table.insert(createdFrames, frame)
     return frame
@@ -664,6 +680,7 @@ local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModul
       CreateFrame = createFrameStub,
     }, function()
       local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
         "isiLive_teleport_ui.lua",
       })
 
@@ -716,24 +733,35 @@ local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModul
     end)
   end)
 
-  test("TeleportUI buttons use ANCHOR_CURSOR for tooltips", function()
-    local createFrameStub = BuildTeleportUICreateFrameStub()
-    local tooltipAnchor = nil
+  test("TeleportUI buttons use isolated cursor-anchored tooltips", function()
+    local createFrameStub, createdFrames = BuildTeleportUICreateFrameStub()
+    local sharedTooltipCalls = 0
 
     WithGlobals({
       CreateFrame = createFrameStub,
       GameTooltip = {
-        SetOwner = function(_self, _owner, anchor)
-          tooltipAnchor = anchor
+        SetOwner = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
         end,
-        SetSpellByID = function() end,
-        AddLine = function() end,
-        Show = function() end,
-        Hide = function() end,
-        SetText = function() end,
+        SetSpellByID = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
+        AddLine = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
+        Show = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
+        Hide = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
+        SetText = function()
+          sharedTooltipCalls = sharedTooltipCalls + 1
+        end,
       },
     }, function()
       local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
         "isiLive_teleport_ui.lua",
       })
 
@@ -784,7 +812,22 @@ local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModul
       Assert.NotNil(onEnter, "Teleport button must have OnEnter script")
 
       onEnter(button)
-      Assert.Equal(tooltipAnchor, "ANCHOR_CURSOR", "Teleport tooltip must use ANCHOR_CURSOR")
+
+      local privateTooltip = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._isIsiLiveTooltip == true then
+          privateTooltip = frame
+          break
+        end
+      end
+
+      Assert.NotNil(privateTooltip, "TeleportUI should allocate a private tooltip frame")
+      Assert.Equal(
+        privateTooltip._isiLiveTooltipAnchor,
+        "ANCHOR_CURSOR",
+        "private teleport tooltip must keep cursor anchor"
+      )
+      Assert.Equal(sharedTooltipCalls, 0, "TeleportUI should not touch the shared Blizzard GameTooltip")
     end)
   end)
 
@@ -814,6 +857,7 @@ local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModul
       CreateFrame = createFrameStub,
     }, function()
       local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
         "isiLive_teleport_ui.lua",
       })
 

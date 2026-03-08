@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.65`.
+Current documented baseline: `0.9.66`.
 
 ## Features
 
@@ -24,6 +24,7 @@ Current documented baseline: `0.9.65`.
 - `RIO` column can show per-run delta as `(+X)RIO` (non-negative only; never minus)
 - Dedicated `DPS` column shows the latest completed-run Blizzard damage-meter snapshot for the current roster when an exact player match exists
 - Roster tooltip adds `Level`, `Lang`, and localized `Last run DPS` details
+- Private `isiLive` tooltips now use their own wrapped compact layout so longer lines stay inside the tooltip frame
 - Persistent stats stay bounded: only the local player's own last-run DPS is kept in SavedVariables; foreign-player DPS snapshots are session-only
 - Queue join detection with chat message and invite hint
 - Grouped queue-join announce deduplication is driven by stable queue source IDs (`applicationID`/`searchResultID`/`listingID`), not volatile display text
@@ -50,6 +51,7 @@ Current documented baseline: `0.9.65`.
 - Own sync handshakes and forced snapshots (`HELLO`/`ACK`/`KEY`/`STATS`) remain visibility-bound; hidden mode still processes background addon sync messages so cached roster data and pre-rendered UI state stay current without polling.
 - Main window is movable via left drag in every mode; top drag handle stays above overlays for reliable dragging
 - Roster member row hover uses an isolated `isiLive` tooltip instead of the shared Blizzard `GameTooltip`, with `Name-Realm` fallback when no synced details are available
+- Roster control buttons, teleport grid buttons, and center-notice teleport hover also use isolated `isiLive` tooltip frames instead of the shared Blizzard `GameTooltip`
 - Teleport grid buttons inherit main-frame strata/level to avoid overlay conflicts with external UI panels
 - Ghost members: players leaving the group remain visible (greyed out) until their slot is filled or the UI is reloaded.
 - Smart self-update: automatically broadcasts a data snapshot (Key/Stats) when the player's own iLvl, RIO, or Spec changes.
@@ -69,9 +71,9 @@ Current documented baseline: `0.9.65`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`, while explicit local refresh triggers and visibility-bound snapshots keep `KEY/STATS` current.
 
-## Use Case / Logic Baseline (v0.9.65)
+## Use Case / Logic Baseline (v0.9.66)
 
-Documented on `2026-03-07` as runtime behavior baseline for validation checks.
+Documented on `2026-03-08` as runtime behavior baseline for validation checks.
 
 1. Queue invite -> grouped flow
    - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`) while main UI is visible.
@@ -137,6 +139,7 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive_runtime_state.lua`: central runtime-state controller for roster, queue target, flags, ready check, and RIO baseline
 - `isiLive_locale.lua`: locale/language/flag mapping helpers
 - `isiLive_season_data.lua`: active season dataset (`ACTIVE_SEASON_ID`, map->teleport mappings, locale short-code overrides)
+- `isiLive_ui_common.lua`: shared UI helpers for close buttons and isolated private tooltip frames
 - `isiLive_teleport.lua`: dungeon teleport mapping and secure teleport button helpers
 - `isiLive_teleport_ui.lua`: teleport grid button creation/update helpers
 - `isiLive_teleport_debug.lua`: teleport debug/test command controller (`tpdebug`, `tptest`)
@@ -214,7 +217,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-`tools/validate_usecases.lua` runs both rule validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 220 scenarios across 24 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui), including:
+`tools/validate_usecases.lua` runs both rule validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 221 scenarios across 24 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui), including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
@@ -296,10 +299,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.65`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.66`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.65` or `isiLive_beta_0.9.65`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.66` or `isiLive_beta_0.9.66`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -311,9 +314,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.65 && git push origin isiLive_release_0.9.65`
+3. Create and push stable tag: `git tag isiLive_release_0.9.66 && git push origin isiLive_release_0.9.66`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.65 && git push origin isiLive_alpha_0.9.65`
-   - beta: `git tag isiLive_beta_0.9.65 && git push origin isiLive_beta_0.9.65`
+   - alpha: `git tag isiLive_alpha_0.9.66 && git push origin isiLive_alpha_0.9.66`
+   - beta: `git tag isiLive_beta_0.9.66 && git push origin isiLive_beta_0.9.66`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

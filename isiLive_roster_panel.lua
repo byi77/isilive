@@ -19,6 +19,12 @@ local KEY_COL_WIDTH = 56
 local ILVL_COL_WIDTH = 24
 local RIO_COL_WIDTH = 70
 local DPS_COL_WIDTH = 58
+local TOOLTIP_HORIZONTAL_PADDING = 10
+local TOOLTIP_VERTICAL_PADDING = 10
+local TOOLTIP_LINE_SPACING = 3
+local TOOLTIP_MIN_HEIGHT = 28
+local TOOLTIP_WIDTH = 200
+local TOOLTIP_TEXT_WIDTH = TOOLTIP_WIDTH - (TOOLTIP_HORIZONTAL_PADDING * 2)
 
 local function RequireFunction(value, name)
   assert(type(value) == "function", "isiLive: RosterPanel requires " .. name)
@@ -286,6 +292,21 @@ local function AcquireSimpleTooltipLine(tooltip, index)
   end
 
   line = tooltip:CreateFontString(nil, "OVERLAY", index == 1 and "GameTooltipHeaderText" or "GameTooltipText")
+  if type(line.SetWidth) == "function" then
+    line:SetWidth(TOOLTIP_TEXT_WIDTH)
+  end
+  if type(line.SetJustifyH) == "function" then
+    line:SetJustifyH("LEFT")
+  end
+  if type(line.SetWordWrap) == "function" then
+    line:SetWordWrap(true)
+  end
+  if type(line.SetNonSpaceWrap) == "function" then
+    line:SetNonSpaceWrap(true)
+  end
+  if type(line.SetMaxLines) == "function" then
+    line:SetMaxLines(0)
+  end
   tooltip._isiLiveTooltipLines[index] = line
   return line
 end
@@ -297,20 +318,81 @@ local function LayoutSimpleTooltip(tooltip)
 
   local lines = tooltip._isiLiveTooltipLines or {}
   local lineCount = tonumber(tooltip._isiLiveTooltipLineCount) or 0
+  local tooltipHeight = TOOLTIP_VERTICAL_PADDING
+  local previousLine = nil
   for index, line in ipairs(lines) do
+    local isActiveLine = index <= lineCount
     if type(line) == "table" and type(line.SetPoint) == "function" then
-      if index == 1 then
-        line:SetPoint("TOPLEFT", tooltip, "TOPLEFT", 12, -12)
-      else
-        line:SetPoint("TOPLEFT", lines[index - 1], "BOTTOMLEFT", 0, -4)
+      if type(line.ClearAllPoints) == "function" then
+        line:ClearAllPoints()
       end
+      if previousLine == nil then
+        line:SetPoint("TOPLEFT", tooltip, "TOPLEFT", TOOLTIP_HORIZONTAL_PADDING, -TOOLTIP_VERTICAL_PADDING)
+      else
+        line:SetPoint("TOPLEFT", previousLine, "BOTTOMLEFT", 0, -TOOLTIP_LINE_SPACING)
+      end
+    end
+    if isActiveLine then
+      local lineHeight = 16
+      if type(line) == "table" and type(line.GetStringHeight) == "function" then
+        local ok, measuredHeight = pcall(line.GetStringHeight, line)
+        if ok and tonumber(measuredHeight) and tonumber(measuredHeight) > 0 then
+          lineHeight = math.max(tonumber(measuredHeight), 14)
+        end
+      end
+      tooltipHeight = tooltipHeight + lineHeight
+      if previousLine ~= nil then
+        tooltipHeight = tooltipHeight + TOOLTIP_LINE_SPACING
+      end
+      previousLine = line
+    end
+  end
+  tooltipHeight = tooltipHeight + TOOLTIP_VERTICAL_PADDING
+
+  if type(tooltip.SetSize) == "function" then
+    tooltip:SetSize(TOOLTIP_WIDTH, math.max(TOOLTIP_MIN_HEIGHT, tooltipHeight))
+  elseif type(tooltip.SetWidth) == "function" and type(tooltip.SetHeight) == "function" then
+    tooltip:SetWidth(TOOLTIP_WIDTH)
+    tooltip:SetHeight(math.max(TOOLTIP_MIN_HEIGHT, tooltipHeight))
+  elseif type(tooltip.SetHeight) == "function" then
+    tooltip:SetHeight(math.max(TOOLTIP_MIN_HEIGHT, tooltipHeight))
+  end
+end
+
+local function PositionSimpleTooltip(tooltip)
+  if type(tooltip) ~= "table" then
+    return
+  end
+
+  if type(tooltip.ClearAllPoints) == "function" then
+    tooltip:ClearAllPoints()
+  end
+
+  local owner = tooltip._isiLiveTooltipOwner
+  local anchor = tooltip._isiLiveTooltipAnchor or "ANCHOR_CURSOR"
+  if type(tooltip.SetPoint) ~= "function" then
+    return
+  end
+
+  if anchor == "ANCHOR_CURSOR" and type(rawget(_G, "GetCursorPosition")) == "function" then
+    local tooltipParent = rawget(_G, "UIParent") or owner
+    local x, y = rawget(_G, "GetCursorPosition")()
+    local scale = 1
+    if type(tooltipParent) == "table" and type(tooltipParent.GetEffectiveScale) == "function" then
+      local ok, tooltipScale = pcall(tooltipParent.GetEffectiveScale, tooltipParent)
+      if ok and tonumber(tooltipScale) and tonumber(tooltipScale) > 0 then
+        scale = tonumber(tooltipScale)
+      end
+    end
+
+    if tooltipParent then
+      tooltip:SetPoint("BOTTOMLEFT", tooltipParent, "BOTTOMLEFT", (x / scale) + 16, (y / scale) + 16)
+      return
     end
   end
 
-  if type(tooltip.SetSize) == "function" then
-    tooltip:SetSize(220, math.max(28, 20 + (lineCount * 16)))
-  elseif type(tooltip.SetHeight) == "function" then
-    tooltip:SetHeight(math.max(28, 20 + (lineCount * 16)))
+  if owner then
+    tooltip:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", 0, -4)
   end
 end
 
@@ -318,71 +400,82 @@ local function EnsureSimpleTooltipAPI(tooltip)
   if type(tooltip) ~= "table" then
     return nil
   end
+  if tooltip._isiLiveTooltipReady == true then
+    return tooltip
+  end
 
-  if type(tooltip.ClearLines) ~= "function" then
-    function tooltip:ClearLines()
-      local lines = self._isiLiveTooltipLines or {}
-      for _, line in ipairs(lines) do
-        if type(line) == "table" and type(line.Hide) == "function" then
-          line:Hide()
-        end
+  tooltip._isiLiveTooltipReady = true
+  tooltip._isIsiLiveTooltip = true
+  tooltip._isiLiveTooltipNativeShow = tooltip.Show
+  tooltip._isiLiveTooltipNativeHide = tooltip.Hide
+
+  function tooltip:ClearLines()
+    local lines = self._isiLiveTooltipLines or {}
+    for _, line in ipairs(lines) do
+      if type(line) == "table" and type(line.Hide) == "function" then
+        line:Hide()
       end
-      self._isiLiveTooltipLineCount = 0
+    end
+    self._isiLiveTooltipLineCount = 0
+  end
+
+  function tooltip:SetOwner(anchorFrame, anchor)
+    self._isiLiveTooltipOwner = anchorFrame
+    self._isiLiveTooltipAnchor = anchor
+    PositionSimpleTooltip(self)
+  end
+
+  function tooltip:SetText(text, r, g, b)
+    self:ClearLines()
+    local line = AcquireSimpleTooltipLine(self, 1)
+    if type(line) ~= "table" then
+      return
+    end
+    if type(line.SetTextColor) == "function" then
+      line:SetTextColor(tonumber(r) or 1, tonumber(g) or 1, tonumber(b) or 1)
+    end
+    if type(line.SetText) == "function" then
+      line:SetText(tostring(text or ""))
+    end
+    if type(line.Show) == "function" then
+      line:Show()
+    end
+    self._isiLiveTooltipLineCount = 1
+    LayoutSimpleTooltip(self)
+  end
+
+  function tooltip:AddLine(text, r, g, b)
+    local index = (tonumber(self._isiLiveTooltipLineCount) or 0) + 1
+    local line = AcquireSimpleTooltipLine(self, index)
+    if type(line) ~= "table" then
+      return
+    end
+    if type(line.SetTextColor) == "function" then
+      line:SetTextColor(tonumber(r) or 1, tonumber(g) or 1, tonumber(b) or 1)
+    end
+    if type(line.SetText) == "function" then
+      line:SetText(tostring(text or ""))
+    end
+    if type(line.Show) == "function" then
+      line:Show()
+    end
+    self._isiLiveTooltipLineCount = index
+    LayoutSimpleTooltip(self)
+  end
+
+  function tooltip:Show()
+    self._isiLiveTooltipShown = true
+    PositionSimpleTooltip(self)
+    if type(self._isiLiveTooltipNativeShow) == "function" then
+      pcall(self._isiLiveTooltipNativeShow, self)
     end
   end
 
-  if type(tooltip.SetOwner) ~= "function" then
-    function tooltip:SetOwner(anchorFrame)
-      self._isiLiveTooltipOwner = anchorFrame
-    end
-  end
-
-  if type(tooltip.SetText) ~= "function" then
-    function tooltip:SetText(text)
-      self:ClearLines()
-      local line = AcquireSimpleTooltipLine(self, 1)
-      if type(line) ~= "table" then
-        return
-      end
-      if type(line.SetText) == "function" then
-        line:SetText(tostring(text or ""))
-      end
-      if type(line.Show) == "function" then
-        line:Show()
-      end
-      self._isiLiveTooltipLineCount = 1
-      LayoutSimpleTooltip(self)
-    end
-  end
-
-  if type(tooltip.AddLine) ~= "function" then
-    function tooltip:AddLine(text)
-      local index = (tonumber(self._isiLiveTooltipLineCount) or 0) + 1
-      local line = AcquireSimpleTooltipLine(self, index)
-      if type(line) ~= "table" then
-        return
-      end
-      if type(line.SetText) == "function" then
-        line:SetText(tostring(text or ""))
-      end
-      if type(line.Show) == "function" then
-        line:Show()
-      end
-      self._isiLiveTooltipLineCount = index
-      LayoutSimpleTooltip(self)
-    end
-  end
-
-  if type(tooltip.Show) ~= "function" then
-    function tooltip:Show()
-      self._isiLiveTooltipShown = true
-    end
-  end
-
-  if type(tooltip.Hide) ~= "function" then
-    function tooltip:Hide()
-      self._isiLiveTooltipShown = false
-      self:ClearLines()
+  function tooltip:Hide()
+    self._isiLiveTooltipShown = false
+    self:ClearLines()
+    if type(self._isiLiveTooltipNativeHide) == "function" then
+      pcall(self._isiLiveTooltipNativeHide, self)
     end
   end
 
@@ -391,10 +484,32 @@ end
 
 local function CreateRosterHoverTooltip(mainFrame)
   local tooltipParent = rawget(_G, "UIParent") or mainFrame
-  local tooltip = CreateFrame("GameTooltip", nil, tooltipParent, "GameTooltipTemplate")
+  local tooltip = CreateFrame("Frame", nil, tooltipParent, "BackdropTemplate")
   tooltip = EnsureSimpleTooltipAPI(tooltip)
   if type(tooltip) ~= "table" then
     return nil
+  end
+
+  if type(tooltip.SetBackdrop) == "function" then
+    tooltip:SetBackdrop({
+      bgFile = "Interface\\Buttons\\WHITE8X8",
+      edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+      tile = true,
+      tileSize = 16,
+      edgeSize = 12,
+      insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    if type(tooltip.SetBackdropColor) == "function" then
+      tooltip:SetBackdropColor(0, 0, 0, 0.92)
+    end
+  elseif type(tooltip.CreateTexture) == "function" then
+    tooltip._isiLiveTooltipBackground = tooltip._isiLiveTooltipBackground or tooltip:CreateTexture(nil, "BACKGROUND")
+    if type(tooltip._isiLiveTooltipBackground.SetAllPoints) == "function" then
+      tooltip._isiLiveTooltipBackground:SetAllPoints()
+    end
+    if type(tooltip._isiLiveTooltipBackground.SetColorTexture) == "function" then
+      tooltip._isiLiveTooltipBackground:SetColorTexture(0, 0, 0, 0.92)
+    end
   end
 
   if type(tooltip.SetFrameStrata) == "function" then
@@ -428,6 +543,8 @@ local function AnchorRosterHoverTooltip(tooltip, anchorFrame)
   if type(tooltip.SetOwner) == "function" then
     tooltip:SetOwner(anchorFrame, "ANCHOR_CURSOR")
   end
+  tooltip._isiLiveTooltipOwner = anchorFrame
+  tooltip._isiLiveTooltipAnchor = "ANCHOR_CURSOR"
 
   return tooltip
 end
@@ -823,17 +940,14 @@ local function CreatePanelHeaders(mainFrame)
   }
 end
 
-local function AttachPanelButtonTooltip(button, getL, titleKey, descriptionKey, isPlayerLeader)
+local function AttachPanelButtonTooltip(tooltipFrame, button, getL, titleKey, descriptionKey, isPlayerLeader)
   button:SetScript("OnEnter", function(self)
-    local tooltip = rawget(_G, "GameTooltip")
+    local tooltip = AnchorRosterHoverTooltip(tooltipFrame, self)
     if type(tooltip) ~= "table" then
       return
     end
 
     local L = getL()
-    if type(tooltip.SetOwner) == "function" then
-      tooltip:SetOwner(self, "ANCHOR_CURSOR")
-    end
     if type(tooltip.SetText) == "function" then
       tooltip:SetText(L[titleKey], 1, 1, 1)
     end
@@ -848,10 +962,7 @@ local function AttachPanelButtonTooltip(button, getL, titleKey, descriptionKey, 
     end
   end)
   button:SetScript("OnLeave", function()
-    local tooltip = rawget(_G, "GameTooltip")
-    if type(tooltip) == "table" and type(tooltip.Hide) == "function" then
-      tooltip:Hide()
-    end
+    HideRosterHoverTooltip(tooltipFrame)
   end)
 end
 
@@ -898,7 +1009,7 @@ local function CreateShareKeysButton(mainFrame, deps)
       end
     end
   end)
-  AttachPanelButtonTooltip(button, deps.getL, "BTN_SHARE_KEYS", "TOOLTIP_ANNOUNCE_KEYS", nil)
+  AttachPanelButtonTooltip(deps.tooltipFrame, button, deps.getL, "BTN_SHARE_KEYS", "TOOLTIP_ANNOUNCE_KEYS", nil)
   return button
 end
 
@@ -918,7 +1029,7 @@ local function CreatePanelButtons(mainFrame, deps)
       pcall(doReadyCheck)
     end
   end)
-  AttachPanelButtonTooltip(readyCheckButton, getL, "BTN_READYCHECK", "TOOLTIP_READY", isPlayerLeader)
+  AttachPanelButtonTooltip(deps.tooltipFrame, readyCheckButton, getL, "BTN_READYCHECK", "TOOLTIP_READY", isPlayerLeader)
 
   local countdownButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   countdownButton:SetSize(120, 24)
@@ -934,19 +1045,26 @@ local function CreatePanelButtons(mainFrame, deps)
       pcall(doCountdown, 10)
     end
   end)
-  AttachPanelButtonTooltip(countdownButton, getL, "BTN_COUNTDOWN10", "TOOLTIP_CD10", isPlayerLeader)
+  AttachPanelButtonTooltip(deps.tooltipFrame, countdownButton, getL, "BTN_COUNTDOWN10", "TOOLTIP_CD10", isPlayerLeader)
 
   local refreshButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   refreshButton:SetSize(120, 24)
   refreshButton:SetPoint("TOPRIGHT", -136, -150)
-  AttachPanelButtonTooltip(refreshButton, getL, "BTN_REFRESH", "TOOLTIP_REFRESH", nil)
+  AttachPanelButtonTooltip(deps.tooltipFrame, refreshButton, getL, "BTN_REFRESH", "TOOLTIP_REFRESH", nil)
 
   local shareKeysButton = CreateShareKeysButton(mainFrame, deps)
 
   local countdownCancelButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   countdownCancelButton:SetSize(120, 24)
   countdownCancelButton:SetPoint("TOPRIGHT", -136, -120)
-  AttachPanelButtonTooltip(countdownCancelButton, getL, "BTN_COUNTDOWN_CANCEL", "TOOLTIP_CD_CANCEL", isPlayerLeader)
+  AttachPanelButtonTooltip(
+    deps.tooltipFrame,
+    countdownCancelButton,
+    getL,
+    "BTN_COUNTDOWN_CANCEL",
+    "TOOLTIP_CD_CANCEL",
+    isPlayerLeader
+  )
 
   return {
     readyCheckButton = readyCheckButton,
@@ -981,13 +1099,20 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   title:SetShadowOffset(1, -1)
 
   local headers = CreatePanelHeaders(mainFrame)
-  local buttons = CreatePanelButtons(mainFrame, uiDeps)
+  local panelTooltip = CreateRosterHoverTooltip(mainFrame)
+  local buttonDeps = {}
+  for key, value in pairs(uiDeps) do
+    buttonDeps[key] = value
+  end
+  buttonDeps.tooltipFrame = panelTooltip
+  local buttons = CreatePanelButtons(mainFrame, buttonDeps)
   local rosterTooltip = CreateRosterHoverTooltip(mainFrame)
   local statusLine = CreateStatusLine(mainFrame)
   local optionToggles = CreateSystemOptionToggles(mainFrame)
   CreateVersionLine(mainFrame, uiDeps.getAddonVersionText)
 
   local ui = {
+    panelTooltip = panelTooltip,
     rosterTooltip = rosterTooltip,
     title = title,
     statusLine = statusLine,
