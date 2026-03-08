@@ -42,8 +42,8 @@ local function UpdatePendingQueueJoin(deps, groupName, dungeonName, priority, ac
     end
   end
 
-  local resolvedMapID = deps.resolveSeason3MapIDByActivityID(activityID)
-  local resolvedTeleportSpellID = resolvedMapID and deps.resolveSeason3TeleportSpellIDByMapID(resolvedMapID) or nil
+  local resolvedMapID = deps.resolveMapIDByActivityID(activityID)
+  local resolvedTeleportSpellID = resolvedMapID and deps.resolveTeleportSpellIDByMapID(resolvedMapID) or nil
   local nextGroupName = groupName or nil
 
   local isDuplicateUpdate = previous
@@ -88,7 +88,7 @@ local function CaptureQueueJoinCandidate(deps, ...)
   end
 
   local function strictResolver(activityID)
-    local ok, mapID = pcall(deps.resolveSeason3MapIDByActivityID, activityID)
+    local ok, mapID = pcall(deps.resolveMapIDByActivityID, activityID)
     if not ok then
       return nil
     end
@@ -98,7 +98,7 @@ local function CaptureQueueJoinCandidate(deps, ...)
 
     return {
       mapID = mapID,
-      spellID = deps.resolveSeason3TeleportSpellIDByMapID(mapID),
+      spellID = deps.resolveTeleportSpellIDByMapID(mapID),
     }
   end
 
@@ -117,8 +117,8 @@ local function ShowQueueJoinPreview(deps, groupName, dungeonName, activityID)
   local L = deps.getL()
   local group = groupName or L.UNKNOWN_GROUP
   local dungeon = dungeonName
-  local mapID = deps.resolveSeason3MapIDByActivityID(activityID)
-  local spellID = mapID and deps.resolveSeason3TeleportSpellIDByMapID(mapID) or nil
+  local mapID = deps.resolveMapIDByActivityID(activityID)
+  local spellID = mapID and deps.resolveTeleportSpellIDByMapID(mapID) or nil
   local joinedKeyMapID = deps.resolveJoinedKeyMapID(activityID, nil)
 
   deps.setQueueTargetState(dungeon, activityID, spellID, joinedKeyMapID, mapID)
@@ -159,8 +159,8 @@ AnnounceQueuedGroupJoin = function(deps)
   local groupName = pending.groupName or L.UNKNOWN_GROUP
   local dungeonName = pending.dungeonName
   local activityID = pending.activityID
-  local mapID = pending.mapID or deps.resolveSeason3MapIDByActivityID(activityID)
-  local spellID = pending.teleportSpellID or (mapID and deps.resolveSeason3TeleportSpellIDByMapID(mapID) or nil)
+  local mapID = pending.mapID or deps.resolveMapIDByActivityID(activityID)
+  local spellID = pending.teleportSpellID or (mapID and deps.resolveTeleportSpellIDByMapID(mapID) or nil)
   local signature = BuildAnnouncementSignature(pending, groupName, dungeonName, activityID, mapID, spellID)
   if deps.lastAnnouncementSignature == signature then
     deps.setPendingQueueJoinInfo(nil)
@@ -179,18 +179,14 @@ function QueueFlow.CreateController(opts)
     getL = RequireFunction(opts.getL, "getL"),
     getPendingQueueJoinInfo = RequireFunction(opts.getPendingQueueJoinInfo, "getPendingQueueJoinInfo"),
     setPendingQueueJoinInfo = RequireFunction(opts.setPendingQueueJoinInfo, "setPendingQueueJoinInfo"),
-    resolveSeason3MapIDByActivityID = RequireFunction(
-      opts.resolveSeason3MapIDByActivityID,
-      "resolveSeason3MapIDByActivityID"
-    ),
-    resolveSeason3TeleportSpellIDByMapID = RequireFunction(
-      opts.resolveSeason3TeleportSpellIDByMapID,
-      "resolveSeason3TeleportSpellIDByMapID"
+    resolveMapIDByActivityID = RequireFunction(opts.resolveMapIDByActivityID, "resolveMapIDByActivityID"),
+    resolveTeleportSpellIDByMapID = RequireFunction(
+      opts.resolveTeleportSpellIDByMapID,
+      "resolveTeleportSpellIDByMapID"
     ),
     resolveJoinedKeyMapID = RequireFunction(opts.resolveJoinedKeyMapID, "resolveJoinedKeyMapID"),
     updateMPlusTeleportButton = RequireFunction(opts.updateMPlusTeleportButton, "updateMPlusTeleportButton"),
     showInviteHint = RequireFunction(opts.showInviteHint, "showInviteHint"),
-    showCenterNotice = RequireFunction(opts.showCenterNotice, "showCenterNotice"),
     updateUI = RequireFunction(opts.updateUI, "updateUI"),
     printFn = opts.printFn or print,
     setQueueTargetState = RequireFunction(opts.setQueueTargetState, "setQueueTargetState"),

@@ -105,4 +105,50 @@ return function(test, ctx)
       Assert.Equal(result.rioText, "(+15)3500", "delta callback should allow live rio rendering")
     end)
   end)
+
+  test("Roster display clamps key short code to four letters", function()
+    WithGlobals({
+      RAID_CLASS_COLORS = {
+        MAGE = { r = 0.25, g = 0.78, b = 0.92 },
+      },
+      CreateColor = CreateColorStub,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster.lua" })
+      local result = addon.Roster.BuildDisplayData({
+        class = "MAGE",
+        name = "Tester",
+        keyMapID = 1234,
+        keyLevel = 14,
+      }, {
+        getDungeonShortCode = function()
+          return "DAWN"
+        end,
+      })
+
+      Assert.Equal(result.keyText, "DAWN +14", "key display should clamp short code to four letters")
+    end)
+  end)
+
+  test("Roster display never shows numeric map ids as key short code", function()
+    WithGlobals({
+      RAID_CLASS_COLORS = {
+        MAGE = { r = 0.25, g = 0.78, b = 0.92 },
+      },
+      CreateColor = CreateColorStub,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster.lua" })
+      local result = addon.Roster.BuildDisplayData({
+        class = "MAGE",
+        name = "Tester",
+        keyMapID = 2287,
+        keyLevel = 14,
+      }, {
+        getDungeonShortCode = function()
+          return "2287"
+        end,
+      })
+
+      Assert.Equal(result.keyText, "? +14", "numeric fallback ids must not render as visible dungeon codes")
+    end)
+  end)
 end

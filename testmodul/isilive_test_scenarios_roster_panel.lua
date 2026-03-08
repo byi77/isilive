@@ -200,6 +200,110 @@ local function RegisterRosterDisplayTests(test, Assert, WithGlobals, LoadAddonMo
       )
     end)
   end)
+
+  test("Roster display truncates names to Blizzard 12-character limit", function()
+    WithGlobals({
+      GetReadyCheckStatus = function()
+        return nil
+      end,
+      RAID_CLASS_COLORS = {},
+      CreateColor = function()
+        return {
+          GenerateHexColor = function()
+            return "ffffffff"
+          end,
+        }
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster.lua",
+      })
+
+      local capturedMaxChars = nil
+      local displayData = addon.Roster.BuildDisplayData({
+        name = "VeryLongCharacterName",
+      }, {
+        truncateName = function(text, maxChars)
+          capturedMaxChars = maxChars
+          return string.sub(text, 1, maxChars)
+        end,
+      })
+
+      Assert.Equal(capturedMaxChars, 12, "name display should use Blizzard's 12-character player-name limit")
+      Assert.Equal(displayData.displayName, "VeryLongChar", "display name should be truncated to 12 characters")
+    end)
+  end)
+
+  test("Roster display truncates spec labels to six characters", function()
+    WithGlobals({
+      GetReadyCheckStatus = function()
+        return nil
+      end,
+      RAID_CLASS_COLORS = {},
+      CreateColor = function()
+        return {
+          GenerateHexColor = function()
+            return "ffffffff"
+          end,
+        }
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster.lua",
+      })
+
+      local capturedMaxChars = nil
+      local displayData = addon.Roster.BuildDisplayData({
+        name = "SpecPlayer",
+        spec = "Shadow",
+      }, {
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        truncateName = function(text, maxChars)
+          if text == "Shadow" then
+            capturedMaxChars = maxChars
+          end
+          return string.sub(text, 1, maxChars)
+        end,
+      })
+
+      Assert.Equal(capturedMaxChars, 6, "spec display should use the six-character limit")
+      Assert.Equal(displayData.specText, "Shadow", "six-character spec labels should remain intact")
+    end)
+  end)
+
+  test("Roster display shows flag only without language letters", function()
+    WithGlobals({
+      GetReadyCheckStatus = function()
+        return nil
+      end,
+      RAID_CLASS_COLORS = {},
+      CreateColor = function()
+        return {
+          GenerateHexColor = function()
+            return "ffffffff"
+          end,
+        }
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster.lua",
+      })
+
+      local displayData = addon.Roster.BuildDisplayData({
+        name = "FlagPlayer",
+        language = "DE",
+      }, {
+        getLanguageFlagMarkup = function(tag)
+          Assert.Equal(tag, "DE", "flag resolver should still receive the 2-letter language tag")
+          return "|Tflag-de:0|t"
+        end,
+      })
+
+      Assert.Equal(displayData.languageDisplay, "|Tflag-de:0|t", "language column should render only the flag markup")
+    end)
+  end)
 end
 
 local function NewRecordedFontString(createdFontStrings)
@@ -207,10 +311,13 @@ local function NewRecordedFontString(createdFontStrings)
     wordWrap = nil,
     nonSpaceWrap = nil,
     maxLines = nil,
+    width = nil,
   }
 
   function fontString.SetPoint() end
-  function fontString.SetWidth() end
+  function fontString.SetWidth(self, value)
+    self.width = value
+  end
   function fontString.SetJustifyH() end
   function fontString.GetFont()
     return "font", 10, ""
@@ -218,7 +325,9 @@ local function NewRecordedFontString(createdFontStrings)
   function fontString.SetFont() end
   function fontString.SetTextColor() end
   function fontString.SetShadowOffset() end
-  function fontString.SetText() end
+  function fontString.SetText(self, value)
+    self.text = value
+  end
   function fontString.SetWordWrap(self, value)
     self.wordWrap = value
   end
@@ -497,46 +606,86 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
   end)
 end
 
-local function RegisterRosterPanelRowTooltipTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Roster row tooltip shows 'Runs together' when count > 0", function()
-    local tooltipLines = {}
-    local createdFrames = {}
-    local createFrameStub = function()
-      local f = {
-        SetPoint = function() end,
-        SetSize = function() end,
-        SetHeight = function() end,
-        SetEnabled = function() end,
-        SetAlpha = function() end,
-        EnableMouse = function() end,
-        SetScript = function(self, script, handler)
-          self[script] = handler
-        end,
-        CreateTexture = function()
-          return {
-            SetAllPoints = function() end,
-            SetColorTexture = function() end,
-            Hide = function() end,
-            Show = function() end,
-          }
-        end,
-        CreateFontString = function()
-          return {
-            SetPoint = function() end,
-            SetJustifyH = function() end,
-            SetWidth = function() end,
-            SetText = function() end,
-            SetWordWrap = function() end,
-            SetNonSpaceWrap = function() end,
-            SetMaxLines = function() end,
-          }
-        end,
+local function NewRowTooltipCreateFrameStub(createdFrames, tooltipLines, tooltipOps)
+  return function(frameType)
+    local f = {
+      frameType = frameType,
+    }
+
+    f.SetPoint = function() end
+    f.SetSize = function() end
+    f.SetHeight = function() end
+    f.SetEnabled = function() end
+    f.SetAlpha = function() end
+    f.EnableMouse = function() end
+    f.SetScript = function(self, script, handler)
+      self[script] = handler
+    end
+    f.CreateTexture = function()
+      return {
+        SetAllPoints = function() end,
+        SetColorTexture = function() end,
         Hide = function() end,
         Show = function() end,
       }
-      table.insert(createdFrames, f)
-      return f
     end
+    f.CreateFontString = function()
+      return {
+        SetPoint = function() end,
+        SetJustifyH = function() end,
+        SetWidth = function() end,
+        SetText = function() end,
+        SetWordWrap = function() end,
+        SetNonSpaceWrap = function() end,
+        SetMaxLines = function() end,
+        Hide = function() end,
+        Show = function() end,
+      }
+    end
+    f.Hide = function()
+      if tooltipOps and frameType == "GameTooltip" then
+        tooltipOps.hideCalls = (tooltipOps.hideCalls or 0) + 1
+      end
+    end
+    f.Show = function()
+      if tooltipOps and frameType == "GameTooltip" then
+        tooltipOps.showCalls = (tooltipOps.showCalls or 0) + 1
+      end
+    end
+
+    if frameType == "GameTooltip" then
+      f.SetOwner = function(_self, _anchorFrame, anchor)
+        if tooltipOps then
+          tooltipOps.setOwnerCalls = (tooltipOps.setOwnerCalls or 0) + 1
+          tooltipOps.lastAnchor = anchor
+        end
+      end
+      f.ClearLines = function()
+        for index = #tooltipLines, 1, -1 do
+          table.remove(tooltipLines, index)
+        end
+      end
+      f.SetText = function(_self, text)
+        for index = #tooltipLines, 1, -1 do
+          table.remove(tooltipLines, index)
+        end
+        table.insert(tooltipLines, text)
+      end
+      f.AddLine = function(_self, text)
+        table.insert(tooltipLines, text)
+      end
+    end
+
+    table.insert(createdFrames, f)
+    return f
+  end
+end
+
+local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster row tooltip no longer shows deprecated runs-together history", function()
+    local tooltipLines = {}
+    local createdFrames = {}
+    local createFrameStub = NewRowTooltipCreateFrameStub(createdFrames, tooltipLines)
 
     WithGlobals({
       CreateFrame = createFrameStub,
@@ -632,12 +781,6 @@ local function RegisterRosterPanelRowTooltipTests(test, Assert, WithGlobals, Loa
         end,
         rolePriority = {},
         unitPriority = {},
-        getPlayerRunCount = function(name)
-          if name == "Buddy" then
-            return 5
-          end
-          return 0
-        end,
       })
 
       controller.RenderRoster({})
@@ -664,9 +807,565 @@ local function RegisterRosterPanelRowTooltipTests(test, Assert, WithGlobals, Loa
           foundRuns = true
         end
       end
-      Assert.True(foundRuns, "Tooltip should contain 'Runs together: 5'")
+      Assert.False(foundRuns, "Tooltip should not contain deprecated runs-together history")
     end)
   end)
+
+  test("Roster row tooltip shows last run DPS when available", function()
+    local tooltipLines = {}
+    local createdFrames = {}
+    local createFrameStub = NewRowTooltipCreateFrameStub(createdFrames, tooltipLines)
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function(_self, text)
+          table.insert(tooltipLines, text)
+        end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      RAID_CLASS_COLORS = {},
+      AbbreviateNumbers = function(value)
+        if value == 321123 then
+          return "321.1K"
+        end
+        return tostring(value)
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = {
+          SetBackdrop = function() end,
+          SetBackdropColor = function() end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              GetFont = function()
+                return "font", 10, ""
+              end,
+              SetFont = function() end,
+              SetTextColor = function() end,
+              SetShadowOffset = function() end,
+              SetText = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetMaxLines = function() end,
+            }
+          end,
+          CreateTexture = function()
+            return { SetHeight = function() end, SetPoint = function() end, SetColorTexture = function() end }
+          end,
+        },
+        getL = function()
+          return {
+            TOOLTIP_LAST_RUN_DPS = "Last run DPS: %s",
+          }
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        buildOrderedRoster = function()
+          return { { unit = "party1", info = { name = "Buddy", realm = "Realm", class = "WARRIOR" } } }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Buddy",
+            languageDisplay = "EN",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(n)
+          return n
+        end,
+        getShortSpecLabel = function(s)
+          return s
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return ""
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {}
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {},
+        unitPriority = {},
+        getPlayerLastRunDps = function(name, realm)
+          if name == "Buddy" and realm == "Realm" then
+            return 321123
+          end
+          return nil
+        end,
+      })
+
+      controller.RenderRoster({})
+
+      local rowFrame = nil
+      for _, f in ipairs(createdFrames) do
+        if f.OnEnter and f.unit == "party1" then
+          f.OnEnter()
+          if #tooltipLines > 0 then
+            rowFrame = f
+            break
+          end
+        end
+      end
+
+      Assert.NotNil(rowFrame, "Should find a row frame with OnEnter")
+      local foundDps = false
+      for _, line in ipairs(tooltipLines) do
+        if line:find("Last run DPS: 321.1K", 1, true) then
+          foundDps = true
+        end
+      end
+      Assert.True(foundDps, "Tooltip should contain abbreviated last-run DPS")
+    end)
+  end)
+end
+
+local function RegisterRosterPanelRowTooltipMetadataTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster row tooltip shows level and language abbreviation", function()
+    local tooltipLines = {}
+    local createdFrames = {}
+    local createFrameStub = NewRowTooltipCreateFrameStub(createdFrames, tooltipLines)
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      UnitLevel = function(unit)
+        if unit == "party1" then
+          return 80
+        end
+        return nil
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function(_self, text)
+          table.insert(tooltipLines, text)
+        end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      RAID_CLASS_COLORS = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = {
+          SetBackdrop = function() end,
+          SetBackdropColor = function() end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              GetFont = function()
+                return "font", 10, ""
+              end,
+              SetFont = function() end,
+              SetTextColor = function() end,
+              SetShadowOffset = function() end,
+              SetText = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetMaxLines = function() end,
+            }
+          end,
+          CreateTexture = function()
+            return { SetHeight = function() end, SetPoint = function() end, SetColorTexture = function() end }
+          end,
+        },
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        buildOrderedRoster = function()
+          return { { unit = "party1", info = { name = "Buddy", realm = "Realm", class = "WARRIOR", language = "DE" } } }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Buddy",
+            languageDisplay = "|Tflag-de:0|t",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(n)
+          return n
+        end,
+        getShortSpecLabel = function(s)
+          return s
+        end,
+        getLanguageFlagMarkup = function()
+          return "|Tflag-de:0|t"
+        end,
+        getDungeonShortCode = function()
+          return ""
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {}
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {},
+        unitPriority = {},
+      })
+
+      controller.RenderRoster({})
+
+      local rowFrame = nil
+      for _, f in ipairs(createdFrames) do
+        if f.OnEnter and f.unit == "party1" then
+          f.OnEnter()
+          if #tooltipLines > 0 then
+            rowFrame = f
+            break
+          end
+        end
+      end
+
+      Assert.NotNil(rowFrame, "Should find a row frame with OnEnter")
+      local foundLevel = false
+      local foundLanguage = false
+      for _, line in ipairs(tooltipLines) do
+        if line == "Level: 80" then
+          foundLevel = true
+        end
+        if line == "Lang: DE" then
+          foundLanguage = true
+        end
+      end
+      Assert.True(foundLevel, "Tooltip should contain the player level")
+      Assert.True(foundLanguage, "Tooltip should contain the language abbreviation")
+    end)
+  end)
+
+  test("Roster row tooltip keeps unknown key short code unresolved instead of showing numeric map ids", function()
+    local tooltipLines = {}
+    local createdFrames = {}
+    local createFrameStub = NewRowTooltipCreateFrameStub(createdFrames, tooltipLines)
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function(_self, text)
+          table.insert(tooltipLines, text)
+        end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      RAID_CLASS_COLORS = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = {
+          SetBackdrop = function() end,
+          SetBackdropColor = function() end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              GetFont = function()
+                return "font", 10, ""
+              end,
+              SetFont = function() end,
+              SetTextColor = function() end,
+              SetShadowOffset = function() end,
+              SetText = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetMaxLines = function() end,
+            }
+          end,
+          CreateTexture = function()
+            return { SetHeight = function() end, SetPoint = function() end, SetColorTexture = function() end }
+          end,
+        },
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        buildOrderedRoster = function()
+          return {
+            {
+              unit = "party1",
+              info = { name = "Buddy", realm = "Realm", class = "WARRIOR", keyMapID = 2287, keyLevel = 14 },
+            },
+          }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Buddy",
+            languageDisplay = "",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(n)
+          return n
+        end,
+        getShortSpecLabel = function(s)
+          return s
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return nil
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {}
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {},
+        unitPriority = {},
+      })
+
+      controller.RenderRoster({})
+
+      for _, f in ipairs(createdFrames) do
+        if f.OnEnter and f.unit == "party1" then
+          f.OnEnter()
+          break
+        end
+      end
+    end)
+
+    local foundUnknownKey = false
+    local foundNumericKey = false
+    for _, line in ipairs(tooltipLines) do
+      if line == "Key: ? +14" then
+        foundUnknownKey = true
+      end
+      if line:find("2287", 1, true) then
+        foundNumericKey = true
+      end
+    end
+    Assert.True(foundUnknownKey, "Tooltip should keep unresolved keys as '?' instead of exposing numeric map ids")
+    Assert.False(foundNumericKey, "Tooltip must not show numeric map ids for unresolved key short codes")
+  end)
+end
+
+local function RegisterRosterPanelRowTooltipIsolationTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster row tooltip stays off the shared Blizzard GameTooltip path", function()
+    local tooltipLines = {}
+    local createdFrames = {}
+    local privateTooltipOps = {}
+    local sharedTooltipCalls = {
+      setOwner = 0,
+      setText = 0,
+      addLine = 0,
+      show = 0,
+      hide = 0,
+      setUnit = 0,
+    }
+
+    WithGlobals({
+      CreateFrame = NewRowTooltipCreateFrameStub(createdFrames, tooltipLines, privateTooltipOps),
+      GameTooltip = {
+        SetOwner = function()
+          sharedTooltipCalls.setOwner = sharedTooltipCalls.setOwner + 1
+        end,
+        SetText = function()
+          sharedTooltipCalls.setText = sharedTooltipCalls.setText + 1
+        end,
+        AddLine = function()
+          sharedTooltipCalls.addLine = sharedTooltipCalls.addLine + 1
+        end,
+        Show = function()
+          sharedTooltipCalls.show = sharedTooltipCalls.show + 1
+        end,
+        Hide = function()
+          sharedTooltipCalls.hide = sharedTooltipCalls.hide + 1
+        end,
+        SetUnit = function()
+          sharedTooltipCalls.setUnit = sharedTooltipCalls.setUnit + 1
+        end,
+      },
+      RAID_CLASS_COLORS = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = {
+          SetBackdrop = function() end,
+          SetBackdropColor = function() end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              GetFont = function()
+                return "font", 10, ""
+              end,
+              SetFont = function() end,
+              SetTextColor = function() end,
+              SetShadowOffset = function() end,
+              SetText = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetMaxLines = function() end,
+            }
+          end,
+          CreateTexture = function()
+            return { SetHeight = function() end, SetPoint = function() end, SetColorTexture = function() end }
+          end,
+        },
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        buildOrderedRoster = function()
+          return { { unit = "party1", info = { name = "Buddy", realm = "Realm", class = "WARRIOR" } } }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Buddy",
+            languageDisplay = "",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(n)
+          return n
+        end,
+        getShortSpecLabel = function(s)
+          return s
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return ""
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {}
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {},
+        unitPriority = {},
+      })
+
+      controller.RenderRoster({})
+
+      for _, f in ipairs(createdFrames) do
+        if f.OnEnter and f.unit == "party1" then
+          f.OnEnter()
+          f.OnLeave()
+          break
+        end
+      end
+    end)
+
+    Assert.True(#tooltipLines > 0, "private roster tooltip should still render content")
+    Assert.Equal(sharedTooltipCalls.setOwner, 0, "row hover must not re-anchor the shared Blizzard GameTooltip")
+    Assert.Equal(sharedTooltipCalls.setText, 0, "row hover must not write to the shared Blizzard GameTooltip")
+    Assert.Equal(sharedTooltipCalls.addLine, 0, "row hover must not add lines to the shared Blizzard GameTooltip")
+    Assert.Equal(sharedTooltipCalls.show, 0, "row hover must not show the shared Blizzard GameTooltip")
+    Assert.Equal(sharedTooltipCalls.hide, 0, "row hover must not hide the shared Blizzard GameTooltip")
+    Assert.Equal(sharedTooltipCalls.setUnit, 0, "row hover must not call SetUnit on the shared Blizzard GameTooltip")
+    Assert.True((privateTooltipOps.setOwnerCalls or 0) > 0, "private roster tooltip should be anchored on hover")
+  end)
+end
+
+local function RegisterRosterPanelRowTooltipTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelRowTooltipMetadataTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelRowTooltipIsolationTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 local function FindInteractiveRosterRow(createdFrames)
@@ -939,7 +1638,7 @@ local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, Load
   end)
 end
 
-local function RegisterRosterPanelWrappingTests(test, Assert, WithGlobals, LoadAddonModules)
+local function RegisterRosterPanelWrappingLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster panel rows disable wrapping for all member text columns", function()
     local createdFrames = {}
     local createdFontStrings = {}
@@ -1037,13 +1736,255 @@ local function RegisterRosterPanelWrappingTests(test, Assert, WithGlobals, LoadA
         table.insert(rowFontStrings, createdFontStrings[index])
       end
 
-      Assert.Equal(#rowFontStrings, 6, "one rendered row should create six member text columns")
+      Assert.Equal(#rowFontStrings, 7, "one rendered row should create seven member text columns")
       for _, fontString in ipairs(rowFontStrings) do
         Assert.False(fontString.wordWrap, "member text columns must disable word wrap")
         Assert.False(fontString.nonSpaceWrap, "member text columns must disable non-space wrap")
       end
     end)
   end)
+
+  test("Roster panel uses compact width budget for primary data columns", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = NewRecordedMainFrame(createdFontStrings),
+        getL = function()
+          return {
+            COL_DPS = "DPS",
+          }
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        buildOrderedRoster = function()
+          return {
+            {
+              unit = "party1",
+              info = {
+                name = "Member",
+                realm = "Realm",
+                role = "DAMAGER",
+              },
+            },
+          }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Member",
+            languageDisplay = "|Tflag-de:0|t",
+            specText = "Shadow",
+            ilvlText = "650",
+            rioText = "(+15)3000",
+            keyText = "DAWN +14",
+            dpsText = "321.1K",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return "DAWN"
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {}
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {
+          DAMAGER = 1,
+          NONE = 2,
+        },
+        unitPriority = {
+          party1 = 1,
+        },
+      })
+
+      local fontStringsBeforeRender = #createdFontStrings
+      controller.RenderRoster({})
+
+      local rowFontStrings = {}
+      for index = fontStringsBeforeRender + 1, #createdFontStrings do
+        table.insert(rowFontStrings, createdFontStrings[index])
+      end
+
+      Assert.Equal(#rowFontStrings, 7, "one rendered row should create seven member text columns")
+      Assert.Equal(rowFontStrings[1].width, 52, "spec column should keep compact width budget")
+      Assert.Equal(rowFontStrings[2].width, 134, "name column should keep compact width budget")
+      Assert.Equal(rowFontStrings[3].width, 24, "ilvl column should keep three-digit width budget")
+      Assert.Equal(rowFontStrings[4].width, 56, "key column should keep four-letter short-code width budget")
+      Assert.Equal(rowFontStrings[5].width, 70, "rio column should keep compact width budget")
+      Assert.Equal(rowFontStrings[6].width, 58, "dps column should keep compact width budget")
+      Assert.Equal(rowFontStrings[7].width, 14, "flag column should keep flag-only width budget")
+    end)
+  end)
+end
+
+local function RegisterRosterPanelWrappingDpsTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster panel renders DPS column from latest run snapshot", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      AbbreviateNumbers = function(value)
+        if value == 321123 then
+          return "321.1K"
+        end
+        return tostring(value)
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = NewRecordedMainFrame(createdFontStrings),
+        getL = function()
+          return {
+            COL_DPS = "DPS",
+          }
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        buildOrderedRoster = function()
+          return {
+            {
+              unit = "party1",
+              info = {
+                name = "Member",
+                realm = "Realm",
+                role = "DAMAGER",
+              },
+            },
+          }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Member",
+            languageDisplay = "EN",
+            specText = "DPS",
+            ilvlText = "650",
+            rioText = "3000",
+            keyText = "DB +10",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return "DB"
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {}
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {
+          DAMAGER = 1,
+          NONE = 2,
+        },
+        unitPriority = {
+          party1 = 1,
+        },
+        getPlayerLastRunDps = function(name, realm)
+          if name == "Member" and realm == "Realm" then
+            return 321123
+          end
+          return nil
+        end,
+      })
+
+      local fontStringsBeforeRender = #createdFontStrings
+      controller.RenderRoster({})
+
+      local rowFontStrings = {}
+      for index = fontStringsBeforeRender + 1, #createdFontStrings do
+        table.insert(rowFontStrings, createdFontStrings[index])
+      end
+
+      local foundDpsText = false
+      for _, fontString in ipairs(rowFontStrings) do
+        if fontString.text == "321.1K" then
+          foundDpsText = true
+          break
+        end
+      end
+      Assert.True(foundDpsText, "rendered row should include abbreviated DPS text")
+    end)
+  end)
+end
+
+local function RegisterRosterPanelWrappingTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelWrappingLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelWrappingDpsTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 local function RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, LoadAddonModules)

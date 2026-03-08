@@ -167,7 +167,7 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
         "isiLive_teleport.lua",
       })
       ActivateSeasonOrFail(Assert, addon, "tww_s3")
-      local mapIDs = addon.Teleport.ResolveSeason3MapIDsBySpellID(367416)
+      local mapIDs = addon.Teleport.ResolveMapIDsBySpellID(367416)
 
       Assert.NotNil(mapIDs, "shared spell should map to map list")
       Assert.Equal(#mapIDs, 2, "shared tazavesh spell should map to exactly two dungeons")
@@ -201,24 +201,24 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
 
       ActivateSeasonOrFail(Assert, addon, "tww_s3")
 
-      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2649, "deDE"), "PRI", "deDE should map PSF to PRI")
-      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2830, "deDE"), "BIO", "deDE should map EDA to BIO")
-      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2287, "deDE"), "HDS", "deDE should map HOA to HDS")
-      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2773, "deDE"), "SCH", "deDE should map OFG to SCH")
-      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2660, "deDE"), "AK", "deDE should keep AK")
-      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2441, "deDE"), "TAZ", "deDE should keep TAZ")
-      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2662, "deDE"), "MB", "deDE should map DB to MB")
+      Assert.Equal(addon.Teleport.GetDungeonShortCode(2649, "deDE"), "PRI", "deDE should map PSF to PRI")
+      Assert.Equal(addon.Teleport.GetDungeonShortCode(2830, "deDE"), "BIO", "deDE should map EDA to BIO")
+      Assert.Equal(addon.Teleport.GetDungeonShortCode(2287, "deDE"), "HDS", "deDE should map HOA to HDS")
+      Assert.Equal(addon.Teleport.GetDungeonShortCode(2773, "deDE"), "SCH", "deDE should map OFG to SCH")
+      Assert.Equal(addon.Teleport.GetDungeonShortCode(2660, "deDE"), "AK", "deDE should keep AK")
+      Assert.Equal(addon.Teleport.GetDungeonShortCode(2441, "deDE"), "TAZ", "deDE should keep TAZ")
+      Assert.Equal(addon.Teleport.GetDungeonShortCode(2662, "deDE"), "MB", "deDE should map DB to MB")
       Assert.Equal(
-        addon.Teleport.GetSeason3DungeonShortCode(542, "deDE"),
+        addon.Teleport.GetDungeonShortCode(542, "deDE"),
         "BIO",
         "challenge-map alias should resolve to same localized short code list"
       )
       Assert.Equal(
-        addon.Teleport.ResolveSeason3TeleportSpellIDByMapID(542),
+        addon.Teleport.ResolveTeleportSpellIDByMapID(542),
         1237215,
         "challenge-map alias should resolve to canonical teleport spell"
       )
-      Assert.Equal(addon.Teleport.GetSeason3DungeonShortCode(2649, "enUS"), "PSF", "enUS should keep PSF")
+      Assert.Equal(addon.Teleport.GetDungeonShortCode(2649, "enUS"), "PSF", "enUS should keep PSF")
       Assert.Equal(
         addon.SeasonData.GetMapToTeleport()[2662],
         445414,
@@ -262,6 +262,54 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
 end
 
 local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Teleport legacy Season3 wrappers mirror generic resolver outputs", function()
+    local createFrameStub = BuildCreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      C_LFGList = {
+        GetActivityInfoTable = function(activityID)
+          if activityID == 9901 then
+            return { mapID = 2662 }
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_season_data.lua",
+        "isiLive_teleport.lua",
+      })
+      ActivateSeasonOrFail(Assert, addon, "tww_s3")
+
+      Assert.Equal(
+        addon.Teleport.ResolveSeason3MapIDByActivityID(9901),
+        addon.Teleport.ResolveMapIDByActivityID(9901),
+        "legacy activity->map wrapper should mirror generic resolver"
+      )
+      Assert.Equal(
+        addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9901),
+        addon.Teleport.ResolveTeleportSpellIDByActivityID(9901),
+        "legacy activity->spell wrapper should mirror generic resolver"
+      )
+      Assert.Equal(
+        addon.Teleport.ResolveSeason3TeleportSpellIDByMapID(2662),
+        addon.Teleport.ResolveTeleportSpellIDByMapID(2662),
+        "legacy map->spell wrapper should mirror generic resolver"
+      )
+      Assert.Equal(
+        addon.Teleport.GetSeason3DungeonShortCode(2662, "enUS"),
+        addon.Teleport.GetDungeonShortCode(2662, "enUS"),
+        "legacy short-code wrapper should mirror generic resolver"
+      )
+      Assert.Equal(
+        #addon.Teleport.BuildSeason3TeleportEntries(),
+        #addon.Teleport.BuildTeleportEntries(),
+        "legacy entry builder should mirror generic resolver"
+      )
+    end)
+  end)
+
   test("Teleport resolves challenge-map IDs by static alias list before short-code rendering", function()
     local createFrameStub = BuildCreateFrameStub()
 
@@ -287,17 +335,17 @@ local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, Loa
       ActivateSeasonOrFail(Assert, addon, "tww_s3")
 
       Assert.Equal(
-        addon.Teleport.GetSeason3DungeonShortCode(392, "deDE"),
+        addon.Teleport.GetDungeonShortCode(392, "deDE"),
         "TAZ",
         "challenge-map aliases resolved by map name should use localized short code"
       )
       Assert.Equal(
-        addon.Teleport.GetSeason3DungeonShortCode(505, "deDE"),
+        addon.Teleport.GetDungeonShortCode(505, "deDE"),
         "MB",
         "challenge-map aliases resolved by map name should use dawnbreaker short code"
       )
       Assert.Equal(
-        addon.Teleport.ResolveSeason3TeleportSpellIDByMapID(505),
+        addon.Teleport.ResolveTeleportSpellIDByMapID(505),
         445414,
         "runtime map-name alias should resolve canonical teleport spell"
       )
@@ -309,7 +357,7 @@ local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, Loa
     end)
   end)
 
-  test("Teleport short-code resolver does not guess acronyms when no season mapping exists", function()
+  test("Teleport short-code resolver keeps unknown maps unresolved instead of showing map ids", function()
     local createFrameStub = BuildCreateFrameStub()
 
     WithGlobals({
@@ -324,8 +372,8 @@ local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, Loa
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
-      local shortCode = addon.Teleport.GetSeason3DungeonShortCode(9999, "enUS")
-      Assert.Equal(shortCode, "9999", "unknown maps should fallback to mapID instead of guessed acronyms")
+      local shortCode = addon.Teleport.GetDungeonShortCode(9999, "enUS")
+      Assert.Nil(shortCode, "unknown maps should stay unresolved instead of showing numeric map ids")
     end)
   end)
 
@@ -345,7 +393,7 @@ local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, Loa
         "isiLive_teleport.lua",
       })
       ActivateSeasonOrFail(Assert, addon, "tww_s3")
-      local info = addon.Teleport.GetSeason3TeleportInfoByMapID(2662)
+      local info = addon.Teleport.GetTeleportInfoByMapID(2662)
       Assert.NotNil(info, "known map should still resolve teleport info")
       Assert.Nil(info.mapName, "map name must stay unresolved when API provides no concrete name")
     end)
@@ -374,10 +422,10 @@ local function RegisterTeleportResolverActivityTests(test, Assert, WithGlobals, 
         "isiLive_teleport.lua",
       })
       ActivateSeasonOrFail(Assert, addon, "tww_s3")
-      local mapFirst = addon.Teleport.ResolveSeason3MapIDByActivityID(9900)
-      local mapSecond = addon.Teleport.ResolveSeason3MapIDByActivityID(9900)
-      local first = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9900)
-      local second = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9900)
+      local mapFirst = addon.Teleport.ResolveMapIDByActivityID(9900)
+      local mapSecond = addon.Teleport.ResolveMapIDByActivityID(9900)
+      local first = addon.Teleport.ResolveTeleportSpellIDByActivityID(9900)
+      local second = addon.Teleport.ResolveTeleportSpellIDByActivityID(9900)
       local genericMap = addon.Teleport.ResolveMapIDByActivityID(9900)
       local genericActivitySpell = addon.Teleport.ResolveTeleportSpellIDByActivityID(9900)
       local genericMapSpell = addon.Teleport.ResolveTeleportSpellIDByMapID(2662)
@@ -416,7 +464,7 @@ local function RegisterTeleportResolverActivityTests(test, Assert, WithGlobals, 
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
-      local spellID = addon.Teleport.ResolveSeason3TeleportSpellID(nil, "Queue to Tazavesh Gambit")
+      local spellID = addon.Teleport.ResolveTeleportSpellID(nil, "Queue to Tazavesh Gambit")
       Assert.Nil(spellID, "name-only resolution must stay nil in strict mode")
     end)
   end)
@@ -431,7 +479,7 @@ local function RegisterTeleportResolverActivityTests(test, Assert, WithGlobals, 
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
-      local spellID = addon.Teleport.ResolveSeason3TeleportSpellID(nil, "Biokuppel Al'dani")
+      local spellID = addon.Teleport.ResolveTeleportSpellID(nil, "Biokuppel Al'dani")
       Assert.Nil(spellID, "localized name-only resolution must stay nil in strict mode")
     end)
   end)
@@ -458,8 +506,8 @@ local function RegisterTeleportResolverRecoveryTests(test, Assert, WithGlobals, 
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
-      local first = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9910)
-      local second = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9910)
+      local first = addon.Teleport.ResolveTeleportSpellIDByActivityID(9910)
+      local second = addon.Teleport.ResolveTeleportSpellIDByActivityID(9910)
 
       Assert.Nil(first, "activity without concrete mapID must remain unresolved")
       Assert.Nil(second, "unresolved activity result should stay nil")
@@ -494,11 +542,11 @@ local function RegisterTeleportResolverRecoveryTests(test, Assert, WithGlobals, 
       })
       ActivateSeasonOrFail(Assert, addon, "tww_s3")
 
-      local first = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9911)
+      local first = addon.Teleport.ResolveTeleportSpellIDByActivityID(9911)
       Assert.Nil(first, "first resolve must stay nil while map data is missing")
 
       exposeMap = true
-      local second = addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9911)
+      local second = addon.Teleport.ResolveTeleportSpellIDByActivityID(9911)
       Assert.Equal(second, 445414, "resolver must recover once concrete map data appears")
     end)
 
@@ -523,7 +571,7 @@ local function RegisterTeleportEntryAndCombatTests(test, Assert, WithGlobals, Lo
         "isiLive_teleport.lua",
       })
       ActivateSeasonOrFail(Assert, addon, "tww_s3")
-      local entries = addon.Teleport.BuildSeason3TeleportEntries()
+      local entries = addon.Teleport.BuildTeleportEntries()
       local genericEntries = addon.Teleport.BuildTeleportEntries()
       local expectedMapOrder = { 2287, 2441, 2649, 2660, 2662, 2773, 2830 }
 

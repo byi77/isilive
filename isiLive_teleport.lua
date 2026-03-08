@@ -136,7 +136,7 @@ local function CollectMapIDsForSpell(spellID)
   return mapIDs
 end
 
-function Teleport.ResolveSeason3MapIDByActivityID(activityID)
+function Teleport.ResolveMapIDByActivityID(activityID)
   local numericActivityID = tonumber(activityID)
   if not numericActivityID or numericActivityID <= 0 then
     return nil
@@ -177,12 +177,12 @@ function Teleport.ResolveTeleportSpellByActivityID(activityID)
     return cached
   end
 
-  local mapID = Teleport.ResolveSeason3MapIDByActivityID(numericActivityID)
+  local mapID = Teleport.ResolveMapIDByActivityID(numericActivityID)
   if not mapID then
     return nil
   end
 
-  local spellID = Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
+  local spellID = Teleport.ResolveTeleportSpellIDByMapID(mapID)
   if not spellID then
     return nil
   end
@@ -191,7 +191,7 @@ function Teleport.ResolveTeleportSpellByActivityID(activityID)
   return spellID
 end
 
-function Teleport.GetSeason3TeleportInfoByMapID(mapID)
+function Teleport.GetTeleportInfoByMapID(mapID)
   local numericMapID = tonumber(mapID)
   if type(SeasonData.NormalizeMapID) == "function" then
     numericMapID = SeasonData.NormalizeMapID(numericMapID)
@@ -228,10 +228,10 @@ function Teleport.GetSeason3TeleportInfoByMapID(mapID)
   }
 end
 
-function Teleport.GetSeason3DungeonShortCode(mapID, localeTag)
+function Teleport.GetDungeonShortCode(mapID, localeTag)
   local numericMapID = tonumber(mapID)
   if not numericMapID then
-    return "?"
+    return nil
   end
 
   local shortCode = nil
@@ -245,10 +245,10 @@ function Teleport.GetSeason3DungeonShortCode(mapID, localeTag)
     return shortCode
   end
 
-  return tostring(numericMapID)
+  return nil
 end
 
-function Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
+function Teleport.ResolveTeleportSpellIDByMapID(mapID)
   local numericMapID = tonumber(mapID)
   if type(SeasonData.NormalizeMapID) == "function" then
     numericMapID = SeasonData.NormalizeMapID(numericMapID)
@@ -260,15 +260,15 @@ function Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
   return nil
 end
 
-function Teleport.ResolveSeason3MapIDBySpellID(spellID)
-  local mapIDs = Teleport.ResolveSeason3MapIDsBySpellID(spellID)
+function Teleport.ResolveMapIDBySpellID(spellID)
+  local mapIDs = Teleport.ResolveMapIDsBySpellID(spellID)
   if type(mapIDs) ~= "table" then
     return nil
   end
   return mapIDs[1]
 end
 
-function Teleport.ResolveSeason3MapIDsBySpellID(spellID)
+function Teleport.ResolveMapIDsBySpellID(spellID)
   local mapIDs = CollectMapIDsForSpell(spellID)
   if #mapIDs == 0 then
     return nil
@@ -276,7 +276,7 @@ function Teleport.ResolveSeason3MapIDsBySpellID(spellID)
   return mapIDs
 end
 
-function Teleport.ResolveSeason3TeleportSpellIDByActivityID(activityID)
+function Teleport.ResolveTeleportSpellIDByActivityID(activityID)
   if not activityID then
     return nil
   end
@@ -285,8 +285,8 @@ function Teleport.ResolveSeason3TeleportSpellIDByActivityID(activityID)
   return Teleport.ResolveTeleportSpellByActivityID(activityID)
 end
 
-function Teleport.ResolveSeason3TeleportSpellID(activityID, _dungeonName)
-  return Teleport.ResolveSeason3TeleportSpellIDByActivityID(activityID)
+function Teleport.ResolveTeleportSpellID(activityID, _dungeonName)
+  return Teleport.ResolveTeleportSpellIDByActivityID(activityID)
 end
 
 function Teleport.ApplySecureSpellToButton(button, spellID)
@@ -330,7 +330,7 @@ function Teleport.ApplySecureSpellToButton(button, spellID)
   return true
 end
 
-function Teleport.BuildSeason3TeleportEntries()
+function Teleport.BuildTeleportEntries()
   local entries = {}
   local seenSpellID = {}
   local orderedMapIDs = nil
@@ -355,7 +355,7 @@ function Teleport.BuildSeason3TeleportEntries()
   end
 
   for _, mapID in ipairs(orderedMapIDs) do
-    local info = Teleport.GetSeason3TeleportInfoByMapID(mapID)
+    local info = Teleport.GetTeleportInfoByMapID(mapID)
     if info then
       local spellID = tonumber(info.spellID)
       if spellID and not seenSpellID[spellID] then
@@ -368,40 +368,39 @@ function Teleport.BuildSeason3TeleportEntries()
   return entries
 end
 
--- Season-agnostic aliases.
--- Keep legacy Season3 function names for compatibility while callers migrate.
-function Teleport.ResolveMapIDByActivityID(activityID)
-  return Teleport.ResolveSeason3MapIDByActivityID(activityID)
+-- Legacy Season3 wrappers kept for compatibility with older tests/callers.
+function Teleport.ResolveSeason3MapIDByActivityID(activityID)
+  return Teleport.ResolveMapIDByActivityID(activityID)
 end
 
-function Teleport.ResolveTeleportSpellIDByActivityID(activityID)
-  return Teleport.ResolveSeason3TeleportSpellIDByActivityID(activityID)
+function Teleport.ResolveSeason3TeleportSpellIDByActivityID(activityID)
+  return Teleport.ResolveTeleportSpellIDByActivityID(activityID)
 end
 
-function Teleport.ResolveTeleportSpellIDByMapID(mapID)
-  return Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
+function Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
+  return Teleport.ResolveTeleportSpellIDByMapID(mapID)
 end
 
-function Teleport.ResolveMapIDBySpellID(spellID)
-  return Teleport.ResolveSeason3MapIDBySpellID(spellID)
+function Teleport.ResolveSeason3MapIDBySpellID(spellID)
+  return Teleport.ResolveMapIDBySpellID(spellID)
 end
 
-function Teleport.ResolveMapIDsBySpellID(spellID)
-  return Teleport.ResolveSeason3MapIDsBySpellID(spellID)
+function Teleport.ResolveSeason3MapIDsBySpellID(spellID)
+  return Teleport.ResolveMapIDsBySpellID(spellID)
 end
 
-function Teleport.GetTeleportInfoByMapID(mapID)
-  return Teleport.GetSeason3TeleportInfoByMapID(mapID)
+function Teleport.GetSeason3TeleportInfoByMapID(mapID)
+  return Teleport.GetTeleportInfoByMapID(mapID)
 end
 
-function Teleport.GetDungeonShortCode(mapID, localeTag)
-  return Teleport.GetSeason3DungeonShortCode(mapID, localeTag)
+function Teleport.GetSeason3DungeonShortCode(mapID, localeTag)
+  return Teleport.GetDungeonShortCode(mapID, localeTag)
 end
 
-function Teleport.ResolveTeleportSpellID(activityID, dungeonName)
-  return Teleport.ResolveSeason3TeleportSpellID(activityID, dungeonName)
+function Teleport.ResolveSeason3TeleportSpellID(activityID, dungeonName)
+  return Teleport.ResolveTeleportSpellID(activityID, dungeonName)
 end
 
-function Teleport.BuildTeleportEntries()
-  return Teleport.BuildSeason3TeleportEntries()
+function Teleport.BuildSeason3TeleportEntries()
+  return Teleport.BuildTeleportEntries()
 end

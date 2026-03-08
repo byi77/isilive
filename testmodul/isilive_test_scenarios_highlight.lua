@@ -4,7 +4,7 @@ local function BuildHighlightController(addon, overrides)
     isInGroup = overrides.isInGroup or function()
       return true
     end,
-    resolveSeason3TeleportSpellIDByMapID = overrides.resolveSeason3TeleportSpellIDByMapID or function(mapID)
+    resolveTeleportSpellIDByMapID = overrides.resolveTeleportSpellIDByMapID or function(mapID)
       if mapID == 2441 or mapID == 2442 then
         return 367416
       end
@@ -13,7 +13,7 @@ local function BuildHighlightController(addon, overrides)
       end
       return nil
     end,
-    resolveSeason3MapIDByActivityID = overrides.resolveSeason3MapIDByActivityID or function(activityID)
+    resolveMapIDByActivityID = overrides.resolveMapIDByActivityID or function(activityID)
       if activityID == 1001 then
         return 2442
       end
@@ -181,7 +181,7 @@ local function RegisterHighlightResolverTests(test, Assert, WithGlobals, LoadAdd
   test("Highlight listing resolver requires unique activity map", function()
     local addon = LoadAddonModules({ "isiLive_highlight.lua" })
     local controller = BuildHighlightController(addon, {
-      resolveSeason3MapIDByActivityID = function(activityID)
+      resolveMapIDByActivityID = function(activityID)
         if activityID == 1001 then
           return 2441
         end
@@ -215,7 +215,7 @@ local function RegisterHighlightResolverTests(test, Assert, WithGlobals, LoadAdd
     }, function()
       local addon = LoadAddonModules({ "isiLive_highlight.lua" })
       local controller = BuildHighlightController(addon, {
-        resolveSeason3MapIDByActivityID = function(_activityID)
+        resolveMapIDByActivityID = function(_activityID)
           return nil
         end,
       })

@@ -2,6 +2,7 @@
 return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
+  local WithGlobals = ctx.with_globals
 
   local function BuildLeaderWatchController(overrides)
     overrides = overrides or {}
@@ -11,6 +12,7 @@ return function(test, ctx)
       prints = {},
       centerNotices = {},
       leaderButtonUpdates = 0,
+      mainFrameShown = overrides.mainFrameShown ~= false,
     }
 
     local addon = LoadAddonModules({ "isiLive_leader_watch.lua" })
@@ -28,7 +30,7 @@ return function(test, ctx)
         return false
       end,
       isMainFrameShown = function()
-        return true
+        return state.mainFrameShown
       end,
       showCenterNotice = function(message, duration)
         table.insert(state.centerNotices, { message = message, duration = duration })
@@ -88,5 +90,45 @@ return function(test, ctx)
     Assert.Equal(#state.prints, 0, "first check must not print")
     Assert.Equal(#state.centerNotices, 0, "first check must not show notice")
     Assert.True(state.wasGroupLeader, "wasGroupLeader must be initialized")
+  end)
+
+  test("LeaderWatch silently tracks hidden leader changes and preserves next visible transition", function()
+    local frameScript = nil
+
+    WithGlobals({
+      CreateFrame = function()
+        return {
+          RegisterEvent = function() end,
+          SetScript = function(_, scriptType, script)
+            if scriptType == "OnEvent" then
+              frameScript = script
+            end
+          end,
+        }
+      end,
+    }, function()
+      local controller, state = BuildLeaderWatchController({
+        wasGroupLeader = false,
+        isLeader = true,
+        mainFrameShown = false,
+      })
+
+      controller.Start()
+      Assert.NotNil(frameScript, "LeaderWatch must register an OnEvent handler when started")
+
+      frameScript(nil, "PARTY_LEADER_CHANGED")
+      Assert.True(state.wasGroupLeader, "hidden leader change must still update cached leader state")
+      Assert.Equal(#state.centerNotices, 0, "hidden leader change must not show a notice")
+      Assert.Equal(#state.prints, 0, "hidden leader change must not print chat output")
+      Assert.Equal(state.leaderButtonUpdates, 0, "hidden leader change must not refresh leader buttons")
+
+      state.mainFrameShown = true
+      state.isLeader = false
+      frameScript(nil, "PARTY_LEADER_CHANGED")
+
+      Assert.Equal(#state.prints, 1, "next visible leader loss must still be detected after hidden sync")
+      Assert.False(state.wasGroupLeader, "visible transition after hidden sync must update cached leader state")
+      Assert.Equal(state.leaderButtonUpdates, 1, "visible transition must refresh leader buttons exactly once")
+    end)
   end)
 end

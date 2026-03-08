@@ -167,7 +167,11 @@ end
 local function BuildStatusLineText(deps, flags)
   local L = deps.getL()
   local leadText = deps.isPlayerLeader() and L.STATUS_LEAD_YES or L.STATUS_LEAD_NO
-  local mplusText = C_ChallengeMode.GetActiveChallengeMapID() and L.STATUS_MPLUS_YES or L.STATUS_MPLUS_NO
+  local hasActiveChallenge = false
+  if C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID then
+    hasActiveChallenge = C_ChallengeMode.GetActiveChallengeMapID() and true or false
+  end
+  local mplusText = hasActiveChallenge and L.STATUS_MPLUS_YES or L.STATUS_MPLUS_NO
   local targetDungeonText = BuildTargetDungeonText(deps)
   local stateText = GetAddonStateText(deps.getL, flags)
   local difficultyText = select(1, GetDungeonDifficultyLabel(deps.getL))

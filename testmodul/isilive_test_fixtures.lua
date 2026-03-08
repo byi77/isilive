@@ -130,6 +130,9 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
       return false
     end,
     runFullRefresh = function() end,
+    getRoster = function()
+      return {}
+    end,
     restoreRioBaseline = function() end,
   }
 end
@@ -172,7 +175,7 @@ function Fixtures.BuildQueueFlowController(queueFlowModule, overrides)
     setPendingQueueJoinInfo = function(value)
       state.pending = value
     end,
-    resolveSeason3MapIDByActivityID = function(activityID)
+    resolveMapIDByActivityID = function(activityID)
       if activityID == 1001 then
         return 2441
       end
@@ -181,7 +184,7 @@ function Fixtures.BuildQueueFlowController(queueFlowModule, overrides)
       end
       return nil
     end,
-    resolveSeason3TeleportSpellIDByMapID = function(mapID)
+    resolveTeleportSpellIDByMapID = function(mapID)
       if mapID == 2441 or mapID == 2442 then
         return 367416
       end

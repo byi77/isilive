@@ -1,7 +1,7 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.64`
-Last updated: `2026-03-06`
+Version baseline: `0.9.65`
+Last updated: `2026-03-07`
 
 ## Purpose
 
@@ -19,7 +19,7 @@ The architecture is event-driven and split into clear runtime layers:
 |---|---|---|
 | Entry and orchestration | Composition root, runtime state, wiring, controller lifecycle | `isiLive.lua`, `isiLive_runtime_state.lua`, `isiLive_bootstrap.lua`, `isiLive_runtime_setup.lua`, `isiLive_controller_wiring.lua` |
 | Event gate and dispatch | Enforce stop/pause/hidden/test behavior and route lifecycle handlers | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_utils.lua` |
-| Domain logic | Queue parsing, group model, highlight resolution, key sync, refresh, inspect | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua` |
+| Domain logic | Queue parsing, group model, highlight resolution, key sync, refresh, inspect, bounded run stats | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua` |
 | UI composition | Main frame, roster panel, teleport grid, notices, status line | `isiLive_ui.lua`, `isiLive_roster_panel.lua`, `isiLive_teleport_ui.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
 | Shared helpers and data | Locale, units, season map/spell data, runtime logging, focused config builders | `isiLive_locale.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua` |
 
@@ -30,7 +30,7 @@ WoW Event
   -> Event Gate (stopped/paused/hidden/test checks)
   -> Event Handler Aggregator
   -> Lifecycle Handler (runtime/queue/challenge)
-  -> Domain Controllers (queue/group/highlight/sync/inspect/refresh)
+  -> Domain Controllers (queue/group/highlight/sync/inspect/refresh/stats)
   -> Runtime State Update
   -> UI Controllers Render
 ```
@@ -42,7 +42,7 @@ WoW Event
 | Running | Full processing active |
 | Paused | Processing blocked except required transitions |
 | Stopped | Addon processing disabled except minimal control paths |
-| Hidden | Window hidden, UI rendering and queue scanning suspended; background addon sync and roster updates continue |
+| Hidden | Window hidden, queue scanning suspended; background addon sync and roster updates continue and may event-drive pre-rendered UI state without polling |
 | Test/TestAll | Controlled preview mode for UI/testing |
 
 ## Deterministic Rule Set
@@ -59,7 +59,7 @@ WoW Event
 10. Capture per-player RIO baseline on challenge start and enable delta rendering only after delayed post-run refresh; delta is always shown as non-negative `(+X)` prefix.
 11. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
 12. Keep sync handshake resilient: HELLO recipients acknowledge and force-send own KEY/STATS snapshot so refresh-driven cache clears and manual reopen repopulate deterministically.
-13. In hidden mode, suspend queue scanning and UI rendering; keep background roster/addon-message sync plus required auto-open transitions active.
+13. In hidden mode, suspend queue scanning and permanent polling; keep background roster/addon-message sync plus required auto-open transitions active, and allow event-driven pre-render updates.
 14. Keep UI action spam guards active for `Refresh` and `Share Keys` (debounce/rate-limit behavior).
 15. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
 16. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures for `GameTooltip:SetText`.
@@ -92,23 +92,21 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 188 scenarios across 24 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui logic.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 220 scenarios across 24 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiKeyMPlus                                                                        V.0.9.60     |
+| isiKeyMPlus                                                                        V.0.9.65     |
 |--------------------------------------------------------------------------------------------------|
-| Spec         Name              Flag        Key         iLvl      RIO      M+Managment  M+Travel   |
+| Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  M+Travel         |
 |--------------------------------------------------------------------------------------------------|
-| [Tank]       PlayerOne         DE          DB +14      633       (+12)3521                      |
-| [Healer]     PlayerTwo         EN          HOA +12     629       (+0)3410                       |
-| [DPS]        PlayerThree       FR          -           631       3377         [Readycheck]      |
-| [DPS]        PlayerFour        ES          AK +10      626       3290         [Countdown10]     |
-| [DPS]        PlayerFive        DE          OFG +11     628       3333         [Countdown 0]     |
-|                                                                       [Refresh]                  |
-|                                                                       [Share Keys]               |
+| [Tank] PlayerOne    [ ]  DB +14  633  (+12)3521 321.1K                     [Readycheck]|
+| [Heal] PlayerTwo    [ ]  DAWN+12 629  (+0)3410  287.4K                    [Countdown10]|
+| [DPS]  PlayerThree  [ ]  -       631  3377      -                         [Countdown 0]|
+| [DPS]  PlayerFour   [ ]  AK +10  626  3290      301.8K                    [Refresh]    |
+| [DPS]  PlayerFive   [ ]  OFG+11  628  3333      298.2K                    [Share Keys] |
 |                                                                 [Teleport Grid Buttons...]       |
 |--------------------------------------------------------------------------------------------------|
 | Lead: Yes   M+: Active   State: Running   Dungeon: Mythic   Target Dungeon: Ara-Kara +14       |
@@ -128,6 +126,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 | EventHandlersRuntime | Addon/world/combat/inspect/sync events | Startup, hidden-mode sync, regen recovery, inspect dispatch |
 | EventHandlersQueue | LFG queue/listing events | Queue capture, target preservation, joined-key tracking |
 | EventHandlersChallenge | Challenge and ready-check events | Run lifecycle, delayed refresh, rio delta enable, ready-check state |
+| Stats | Challenge/M0 run completion signals plus Blizzard damage-meter session | Bounded last-run DPS snapshots (persistent only for local player, foreign players session-only) |
 | RosterPanel | Roster model and localization | Main table rendering and action button callbacks |
 | TeleportUI | Season teleport entries and state | Insecure-action teleport button states and cooldown labels |
 

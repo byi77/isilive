@@ -25,6 +25,15 @@ function Refresh.CreateController(opts)
   local sendOwnKeySnapshot = opts.sendOwnKeySnapshot or function(_force) end
   local queueForceRefreshData = opts.queueForceRefreshData or function() end
   local updateUI = opts.updateUI or function() end
+  local isTestMode = opts.isTestMode or function()
+    return false
+  end
+  local isTestAllMode = opts.isTestAllMode or function()
+    return false
+  end
+  local refreshTestModeRoster = opts.refreshTestModeRoster or function()
+    return false
+  end
   local refreshLocalPlayerKey = opts.refreshLocalPlayerKey or function()
     return false
   end
@@ -57,6 +66,10 @@ function Refresh.CreateController(opts)
     end
     if now then
       lastRefreshAt = now
+    end
+
+    if isTestMode() or isTestAllMode() then
+      return refreshTestModeRoster()
     end
 
     if isInGroup() and isRosterEmpty() then

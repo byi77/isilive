@@ -219,9 +219,9 @@ local function EnsureSoloPlayerRoster()
   })
 end
 
-local ResolveSeason3TeleportSpellIDByActivityID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByActivityID
-local ResolveSeason3MapIDByActivityID = isiLiveTeleport.ResolveSeason3MapIDByActivityID
-local ResolveSeason3TeleportSpellID = isiLiveTeleport.ResolveSeason3TeleportSpellID
+local ResolveTeleportSpellIDByActivityID = isiLiveTeleport.ResolveTeleportSpellIDByActivityID
+local ResolveMapIDByActivityID = isiLiveTeleport.ResolveMapIDByActivityID
+local ResolveTeleportSpellID = isiLiveTeleport.ResolveTeleportSpellID
 local ApplySecureSpellToButton = isiLiveTeleport.ApplySecureSpellToButton
 
 -- --- UI Elements ---
@@ -254,7 +254,7 @@ local frameBridgeContext = isiLiveFrameBridge.CreateContext({
     UpdateUI()
     UpdateLeaderButtons()
   end,
-  resolveTeleportSpellID = ResolveSeason3TeleportSpellID,
+  resolveTeleportSpellID = ResolveTeleportSpellID,
   applySecureSpellToButton = ApplySecureSpellToButton,
   isSpellKnown = IsSpellKnownSafe,
   getTeleportCooldownRemaining = GetTeleportCooldownRemaining,
@@ -299,7 +299,14 @@ local inspectLoopTimer = 0
 local InspectLoop
 
 local function GetActiveChallengeMapID()
-  return C_ChallengeMode.GetActiveChallengeMapID()
+  if not (C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID) then
+    return nil
+  end
+  local ok, mapID = pcall(C_ChallengeMode.GetActiveChallengeMapID)
+  if not ok then
+    return nil
+  end
+  return mapID
 end
 
 local function IsReadyCheckActive()
@@ -526,7 +533,7 @@ local function ResolveStatusTargetMapID()
   end
 
   if latestQueueActivityID then
-    local resolvedMapID = ResolveSeason3MapIDByActivityID(latestQueueActivityID)
+    local resolvedMapID = ResolveMapIDByActivityID(latestQueueActivityID)
     if type(resolvedMapID) == "number" and resolvedMapID > 0 then
       return resolvedMapID
     end
@@ -541,8 +548,8 @@ local function GetStatusTargetDungeonInfo()
   local roster = GetRoster()
 
   local targetName = NormalizeConcreteStatusTargetName(latestQueueDungeonName, targetMapID)
-  if not targetName and targetMapID and isiLiveTeleport and isiLiveTeleport.GetSeason3TeleportInfoByMapID then
-    local info = isiLiveTeleport.GetSeason3TeleportInfoByMapID(targetMapID)
+  if not targetName and targetMapID and isiLiveTeleport and isiLiveTeleport.GetTeleportInfoByMapID then
+    local info = isiLiveTeleport.GetTeleportInfoByMapID(targetMapID)
     if type(info) == "table" then
       targetName = NormalizeConcreteStatusTargetName(info.mapName, targetMapID)
     end
@@ -597,11 +604,11 @@ local initResult = isiLiveControllerInit.CreateControllers({
   isFrameVisible = function()
     return mainFrame and mainFrame:IsShown()
   end,
-  resolveSeason3TeleportSpellID = ResolveSeason3TeleportSpellID,
-  resolveSeason3TeleportSpellIDByMapID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID,
-  resolveSeason3MapIDByActivityID = isiLiveTeleport.ResolveSeason3MapIDByActivityID,
-  resolveSeason3MapIDBySpellID = isiLiveTeleport.ResolveSeason3MapIDBySpellID,
-  resolveSeason3MapIDsBySpellID = isiLiveTeleport.ResolveSeason3MapIDsBySpellID,
+  resolveTeleportSpellID = ResolveTeleportSpellID,
+  resolveTeleportSpellIDByMapID = isiLiveTeleport.ResolveTeleportSpellIDByMapID,
+  resolveMapIDByActivityID = isiLiveTeleport.ResolveMapIDByActivityID,
+  resolveMapIDBySpellID = isiLiveTeleport.ResolveMapIDBySpellID,
+  resolveMapIDsBySpellID = isiLiveTeleport.ResolveMapIDsBySpellID,
   mainFrame = mainFrame,
   getL = function()
     return L
@@ -626,7 +633,7 @@ local initResult = isiLiveControllerInit.CreateControllers({
   getLanguageFlagMarkup = isiLiveLocale.GetLanguageFlagMarkup,
   getDungeonShortCode = function(mapID)
     local activeLocale = (IsiLiveDB and IsiLiveDB.locale) or locale
-    return isiLiveTeleport.GetSeason3DungeonShortCode(mapID, activeLocale)
+    return isiLiveTeleport.GetDungeonShortCode(mapID, activeLocale)
   end,
   getRioDelta = GetRioDeltaForRosterInfo,
   resolveActiveKeyOwnerUnit = function()
@@ -643,7 +650,7 @@ local initResult = isiLiveControllerInit.CreateControllers({
   end,
   getRoster = GetRoster,
   applySecureSpellToButton = ApplySecureSpellToButton,
-  getEntries = isiLiveTeleport.BuildSeason3TeleportEntries,
+  getEntries = isiLiveTeleport.BuildTeleportEntries,
   getTeleportEmptyStateText = function()
     local seasonData = addonTable.SeasonData
     if type(seasonData) ~= "table" then
@@ -733,11 +740,11 @@ teleportDebugController = isiLiveTeleportDebug.CreateController({
   getLatestQueueState = function()
     return runtimeState.GetLatestQueueState()
   end,
-  resolveSeason3MapIDByActivityID = ResolveSeason3MapIDByActivityID,
-  resolveSeason3TeleportSpellIDByActivityID = ResolveSeason3TeleportSpellIDByActivityID,
-  resolveSeason3TeleportSpellIDByMapID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID,
+  resolveMapIDByActivityID = ResolveMapIDByActivityID,
+  resolveTeleportSpellIDByActivityID = ResolveTeleportSpellIDByActivityID,
+  resolveTeleportSpellIDByMapID = isiLiveTeleport.ResolveTeleportSpellIDByMapID,
   getNormalizedActiveEntryInfo = GetNormalizedActiveEntryInfo,
-  resolveSeason3TeleportSpellID = ResolveSeason3TeleportSpellID,
+  resolveTeleportSpellID = ResolveTeleportSpellID,
   getCenterNoticeTeleportButton = function()
     return centerNoticeTeleportButton
   end,
@@ -827,18 +834,28 @@ local function ForceRefreshSyncState()
   keySyncController.ForceRefreshSyncState(GetRoster())
 end
 
+local function TriggerGroupRosterUpdate()
+  local onEventHandler = mainFrame:GetScript("OnEvent")
+  if onEventHandler then
+    onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
+  end
+end
+
 refreshController = isiLiveRefresh.CreateController(isiLiveConfigBuilders.BuildRefreshControllerOpts({
   isStopped = runtimeState.IsStopped,
   isPaused = runtimeState.IsPaused,
+  isTestMode = runtimeState.IsTestMode,
+  isTestAllMode = runtimeState.IsTestAllMode,
   isInGroup = IsInGroup,
   isRosterEmpty = function()
     return next(GetRoster()) == nil
   end,
-  triggerGroupRosterUpdate = function()
-    local onEventHandler = mainFrame:GetScript("OnEvent")
-    if onEventHandler then
-      onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
+  triggerGroupRosterUpdate = TriggerGroupRosterUpdate,
+  refreshTestModeRoster = function()
+    if not testModeController then
+      return false
     end
+    return testModeController.RefreshActivePreview()
   end,
   forceRefreshSyncState = ForceRefreshSyncState,
   sendIsiLiveHello = SendIsiLiveHello,
@@ -869,12 +886,11 @@ queueFlowController = isiLiveQueueFlow.CreateController(isiLiveConfigBuilders.Bu
   setPendingQueueJoinInfo = function(value)
     runtimeState.SetPendingQueueJoinInfo(value)
   end,
-  resolveSeason3MapIDByActivityID = ResolveSeason3MapIDByActivityID,
-  resolveSeason3TeleportSpellIDByMapID = isiLiveTeleport.ResolveSeason3TeleportSpellIDByMapID,
+  resolveMapIDByActivityID = ResolveMapIDByActivityID,
+  resolveTeleportSpellIDByMapID = isiLiveTeleport.ResolveTeleportSpellIDByMapID,
   resolveJoinedKeyMapID = ResolveJoinedKeyMapID,
   updateMPlusTeleportButton = UpdateMPlusTeleportButton,
   showInviteHint = ShowInviteHint,
-  showCenterNotice = ShowCenterNotice,
   updateUI = UpdateUI,
   printFn = Print,
   setQueueTargetState = function(dungeonName, activityID, spellID, joinedKeyMapID, mapID)
@@ -929,12 +945,7 @@ testModeController = isiLiveTestMode.CreateController(isiLiveConfigBuilders.Buil
   hideInviteHint = function()
     inviteHint.frame:Hide()
   end,
-  triggerGroupRosterUpdate = function()
-    local onEventHandler = mainFrame:GetScript("OnEvent")
-    if onEventHandler then
-      onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
-    end
-  end,
+  triggerGroupRosterUpdate = TriggerGroupRosterUpdate,
 }))
 
 local function EnterFullDummyPreview()
@@ -1051,7 +1062,6 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   leaderWatchModule = isiLiveLeaderWatch,
   groupModule = isiLiveGroup,
   eventHandlersModule = isiLiveEventHandlers,
-  statsModule = isiLiveStats,
   mainFrame = mainFrame,
   onEvent = OnEvent,
   onDispatchError = function(_frame, event, err)
@@ -1155,12 +1165,7 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   setCenterNoticeVisible = SetCenterNoticeVisible,
   getState = runtimeState.GetRuntimeFlags,
   setState = runtimeState.PatchRuntimeFlags,
-  triggerGroupRosterUpdate = function()
-    local onEventHandler = mainFrame:GetScript("OnEvent")
-    if onEventHandler then
-      onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
-    end
-  end,
+  triggerGroupRosterUpdate = TriggerGroupRosterUpdate,
   toggleStandardTestMode = ToggleStandardTestMode,
   enterFullDummyPreview = EnterFullDummyPreview,
   setLanguage = SetLanguage,

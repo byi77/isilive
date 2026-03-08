@@ -1,6 +1,6 @@
 # TODO Rename: `isiLive` -> `isiKeyMPlus`
 
-Zieltermin: nach `v0.9.65`
+Zieltermin: nach `v0.9.70`
 
 ## Zielbild
 
@@ -21,7 +21,7 @@ Zieltermin: nach `v0.9.65`
 
 ## Phase 1 - Freeze
 
-- Nach `v0.9.65` Feature-Freeze fuer den Rename.
+- Nach `v0.9.70` Feature-Freeze fuer den Rename.
 - Arbeitsbranch anlegen: `rename/isikeymplus-hardcut`
 - Vollscan vor Start:
   - `isiLive`

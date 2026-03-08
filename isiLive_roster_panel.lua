@@ -5,18 +5,20 @@ addonTable = addonTable or {}
 local RosterPanel = {}
 addonTable.RosterPanel = RosterPanel
 
-local SPEC_COL_X = 10
-local NAME_COL_X = 110
-local SERVER_COL_X = 240
-local KEY_COL_X = 292
-local ILVL_COL_X = 370
-local RIO_COL_X = 396
-local SPEC_COL_WIDTH = 92
-local NAME_COL_WIDTH = 125
-local SERVER_COL_WIDTH = 50
-local KEY_COL_WIDTH = 72
-local ILVL_COL_WIDTH = 35
-local RIO_COL_WIDTH = 88
+local SPEC_COL_X = 4
+local NAME_COL_X = 80
+local SERVER_COL_X = 202
+local KEY_COL_X = 222
+local ILVL_COL_X = 284
+local RIO_COL_X = 314
+local DPS_COL_X = 388
+local SPEC_COL_WIDTH = 52
+local NAME_COL_WIDTH = 134
+local SERVER_COL_WIDTH = 14
+local KEY_COL_WIDTH = 56
+local ILVL_COL_WIDTH = 24
+local RIO_COL_WIDTH = 70
+local DPS_COL_WIDTH = 58
 
 local function RequireFunction(value, name)
   assert(type(value) == "function", "isiLive: RosterPanel requires " .. name)
@@ -101,7 +103,7 @@ local function BuildKeyAnnouncement(opts)
         announcePrefix = announcePrefix:gsub("%s+", "")
         local prefixText = string.format("%s %s", tostring(L.TITLE or "isiKeyMPlus"), announcePrefix)
         local nameText = tostring(info.name or "?")
-        local keyText = BuildKeystoneLinkText(short or keyMapID, keyLevel)
+        local keyText = BuildKeystoneLinkText(short, keyLevel)
         local keyLink = nil
         if entry.unit == "player" then
           keyLink = TryGetOwnedKeystoneLink(getOwnedKeystoneLink, keyLevel)
@@ -272,45 +274,162 @@ local function AttachSystemOptionToggleWatcher(mainFrame, ui)
   ui.systemOptionWatcher = watcher
 end
 
-local function HideGlobalGameTooltip()
-  local tooltip = rawget(_G, "GameTooltip")
-  if type(tooltip) == "table" and type(tooltip.Hide) == "function" then
-    tooltip:Hide()
+local function AcquireSimpleTooltipLine(tooltip, index)
+  if type(tooltip) ~= "table" or type(index) ~= "number" or index < 1 then
+    return nil
+  end
+
+  tooltip._isiLiveTooltipLines = tooltip._isiLiveTooltipLines or {}
+  local line = tooltip._isiLiveTooltipLines[index]
+  if line or type(tooltip.CreateFontString) ~= "function" then
+    return line
+  end
+
+  line = tooltip:CreateFontString(nil, "OVERLAY", index == 1 and "GameTooltipHeaderText" or "GameTooltipText")
+  tooltip._isiLiveTooltipLines[index] = line
+  return line
+end
+
+local function LayoutSimpleTooltip(tooltip)
+  if type(tooltip) ~= "table" then
+    return
+  end
+
+  local lines = tooltip._isiLiveTooltipLines or {}
+  local lineCount = tonumber(tooltip._isiLiveTooltipLineCount) or 0
+  for index, line in ipairs(lines) do
+    if type(line) == "table" and type(line.SetPoint) == "function" then
+      if index == 1 then
+        line:SetPoint("TOPLEFT", tooltip, "TOPLEFT", 12, -12)
+      else
+        line:SetPoint("TOPLEFT", lines[index - 1], "BOTTOMLEFT", 0, -4)
+      end
+    end
+  end
+
+  if type(tooltip.SetSize) == "function" then
+    tooltip:SetSize(220, math.max(28, 20 + (lineCount * 16)))
+  elseif type(tooltip.SetHeight) == "function" then
+    tooltip:SetHeight(math.max(28, 20 + (lineCount * 16)))
   end
 end
 
-local function AnchorGlobalGameTooltip(anchorFrame)
-  local tooltip = rawget(_G, "GameTooltip")
+local function EnsureSimpleTooltipAPI(tooltip)
   if type(tooltip) ~= "table" then
     return nil
   end
 
-  if type(tooltip.SetOwner) == "function" then
-    tooltip:SetOwner(anchorFrame, "ANCHOR_CURSOR")
+  if type(tooltip.ClearLines) ~= "function" then
+    function tooltip:ClearLines()
+      local lines = self._isiLiveTooltipLines or {}
+      for _, line in ipairs(lines) do
+        if type(line) == "table" and type(line.Hide) == "function" then
+          line:Hide()
+        end
+      end
+      self._isiLiveTooltipLineCount = 0
+    end
+  end
+
+  if type(tooltip.SetOwner) ~= "function" then
+    function tooltip:SetOwner(anchorFrame)
+      self._isiLiveTooltipOwner = anchorFrame
+    end
+  end
+
+  if type(tooltip.SetText) ~= "function" then
+    function tooltip:SetText(text)
+      self:ClearLines()
+      local line = AcquireSimpleTooltipLine(self, 1)
+      if type(line) ~= "table" then
+        return
+      end
+      if type(line.SetText) == "function" then
+        line:SetText(tostring(text or ""))
+      end
+      if type(line.Show) == "function" then
+        line:Show()
+      end
+      self._isiLiveTooltipLineCount = 1
+      LayoutSimpleTooltip(self)
+    end
+  end
+
+  if type(tooltip.AddLine) ~= "function" then
+    function tooltip:AddLine(text)
+      local index = (tonumber(self._isiLiveTooltipLineCount) or 0) + 1
+      local line = AcquireSimpleTooltipLine(self, index)
+      if type(line) ~= "table" then
+        return
+      end
+      if type(line.SetText) == "function" then
+        line:SetText(tostring(text or ""))
+      end
+      if type(line.Show) == "function" then
+        line:Show()
+      end
+      self._isiLiveTooltipLineCount = index
+      LayoutSimpleTooltip(self)
+    end
+  end
+
+  if type(tooltip.Show) ~= "function" then
+    function tooltip:Show()
+      self._isiLiveTooltipShown = true
+    end
+  end
+
+  if type(tooltip.Hide) ~= "function" then
+    function tooltip:Hide()
+      self._isiLiveTooltipShown = false
+      self:ClearLines()
+    end
   end
 
   return tooltip
 end
 
-local function ShowRosterUnitTooltip(anchorFrame, unit)
-  if type(unit) ~= "string" or unit == "" then
-    return false
+local function CreateRosterHoverTooltip(mainFrame)
+  local tooltipParent = rawget(_G, "UIParent") or mainFrame
+  local tooltip = CreateFrame("GameTooltip", nil, tooltipParent, "GameTooltipTemplate")
+  tooltip = EnsureSimpleTooltipAPI(tooltip)
+  if type(tooltip) ~= "table" then
+    return nil
   end
 
-  if type(UnitExists) == "function" and not UnitExists(unit) then
-    return false
+  if type(tooltip.SetFrameStrata) == "function" then
+    tooltip:SetFrameStrata("TOOLTIP")
+  end
+  if type(tooltip.SetClampedToScreen) == "function" then
+    tooltip:SetClampedToScreen(true)
+  end
+  if type(tooltip.Hide) == "function" then
+    tooltip:Hide()
   end
 
-  local tooltip = AnchorGlobalGameTooltip(anchorFrame)
-  if type(tooltip) ~= "table" or type(tooltip.SetUnit) ~= "function" then
-    return false
+  return tooltip
+end
+
+local function HideRosterHoverTooltip(tooltip)
+  if type(tooltip) == "table" and type(tooltip.Hide) == "function" then
+    tooltip:Hide()
+  end
+end
+
+local function AnchorRosterHoverTooltip(tooltip, anchorFrame)
+  tooltip = EnsureSimpleTooltipAPI(tooltip)
+  if type(tooltip) ~= "table" then
+    return nil
   end
 
-  tooltip:SetUnit(unit)
-  if type(tooltip.Show) == "function" then
-    tooltip:Show()
+  if type(tooltip.ClearLines) == "function" then
+    tooltip:ClearLines()
   end
-  return true
+  if type(tooltip.SetOwner) == "function" then
+    tooltip:SetOwner(anchorFrame, "ANCHOR_CURSOR")
+  end
+
+  return tooltip
 end
 
 local function BuildFallbackTooltipPlayerName(name, realm)
@@ -327,13 +446,46 @@ local function BuildFallbackTooltipPlayerName(name, realm)
   return playerName
 end
 
-local function ShowRosterNameFallbackTooltip(anchorFrame, name, realm)
+local function FormatCompactTooltipNumber(value)
+  local numericValue = tonumber(value)
+  if not numericValue then
+    return nil
+  end
+
+  local roundedValue = math.floor(numericValue + 0.5)
+  local abbreviateNumbers = rawget(_G, "AbbreviateNumbers")
+  if type(abbreviateNumbers) == "function" then
+    local ok, abbreviated = pcall(abbreviateNumbers, roundedValue)
+    if ok and type(abbreviated) == "string" and abbreviated ~= "" then
+      return abbreviated
+    end
+  end
+
+  local absoluteValue = math.abs(roundedValue)
+  local units = {
+    { limit = 1000000000, suffix = "B" },
+    { limit = 1000000, suffix = "M" },
+    { limit = 1000, suffix = "K" },
+  }
+
+  for _, unit in ipairs(units) do
+    if absoluteValue >= unit.limit then
+      local scaled = roundedValue / unit.limit
+      local formatted = string.format("%.1f%s", scaled, unit.suffix)
+      return formatted:gsub("%.0([KMB])$", "%1")
+    end
+  end
+
+  return tostring(roundedValue)
+end
+
+local function ShowRosterNameFallbackTooltip(tooltipFrame, anchorFrame, name, realm)
   local tooltipName = BuildFallbackTooltipPlayerName(name, realm)
   if not tooltipName then
     return false
   end
 
-  local tooltip = AnchorGlobalGameTooltip(anchorFrame)
+  local tooltip = AnchorRosterHoverTooltip(tooltipFrame, anchorFrame)
   if type(tooltip) ~= "table" or type(tooltip.SetText) ~= "function" then
     return false
   end
@@ -345,7 +497,33 @@ local function ShowRosterNameFallbackTooltip(anchorFrame, name, realm)
   return true
 end
 
-local function ShowRosterInfoTooltip(anchorFrame, info, getDungeonShortCode, getPlayerRunCount)
+local function ResolveTooltipUnitLevel(unit, info)
+  if type(unit) == "string" and unit ~= "" then
+    local unitLevel = rawget(_G, "UnitLevel")
+    if type(unitLevel) == "function" then
+      local ok, level = pcall(unitLevel, unit)
+      if ok and tonumber(level) and tonumber(level) > 0 then
+        return math.floor(tonumber(level))
+      end
+    end
+  end
+
+  if type(info) == "table" and tonumber(info.level) and tonumber(info.level) > 0 then
+    return math.floor(tonumber(info.level))
+  end
+
+  return nil
+end
+
+local function ShowRosterInfoTooltip(
+  tooltipFrame,
+  anchorFrame,
+  unit,
+  info,
+  getDungeonShortCode,
+  getPlayerLastRunDps,
+  getL
+)
   if type(info) ~= "table" then
     return false
   end
@@ -354,16 +532,26 @@ local function ShowRosterInfoTooltip(anchorFrame, info, getDungeonShortCode, get
     return false
   end
 
+  local lastRunDps = type(getPlayerLastRunDps) == "function" and getPlayerLastRunDps(info.name, info.realm) or nil
+  local unitLevel = ResolveTooltipUnitLevel(unit, info)
+  local languageCode = type(info.language) == "string"
+      and info.language ~= ""
+      and tostring(info.language):upper():sub(1, 2)
+    or nil
+
   -- Only show rich tooltip when actual addon-synced data is present beyond name/key
   local hasRichInfo = (type(info.class) == "string" and info.class ~= "")
     or (type(info.spec) == "string" and info.spec ~= "")
     or (tonumber(info.ilvl) and tonumber(info.ilvl) > 0)
     or (tonumber(info.rio) and tonumber(info.rio) > 0)
+    or (tonumber(lastRunDps) and tonumber(lastRunDps) > 0)
+    or (unitLevel and unitLevel > 0)
+    or (languageCode and languageCode ~= "")
   if not hasRichInfo then
     return false
   end
 
-  local tooltip = AnchorGlobalGameTooltip(anchorFrame)
+  local tooltip = AnchorRosterHoverTooltip(tooltipFrame, anchorFrame)
   if type(tooltip) ~= "table" or type(tooltip.SetText) ~= "function" then
     return false
   end
@@ -386,6 +574,12 @@ local function ShowRosterInfoTooltip(anchorFrame, info, getDungeonShortCode, get
     if realm then
       tooltip:AddLine(realm, 0.7, 0.7, 0.7)
     end
+    if unitLevel then
+      tooltip:AddLine("Level: " .. tostring(unitLevel), 0.9, 0.9, 0.9)
+    end
+    if languageCode then
+      tooltip:AddLine("Lang: " .. languageCode, 0.9, 0.9, 0.9)
+    end
     if type(info.spec) == "string" and info.spec ~= "" then
       tooltip:AddLine(info.spec, 0.9, 0.9, 0.9)
     end
@@ -398,13 +592,18 @@ local function ShowRosterInfoTooltip(anchorFrame, info, getDungeonShortCode, get
     local keyMapID = tonumber(info.keyMapID)
     local keyLevel = tonumber(info.keyLevel)
     if keyMapID and keyMapID > 0 and keyLevel and keyLevel > 0 then
-      local shortCode = type(getDungeonShortCode) == "function" and getDungeonShortCode(keyMapID) or tostring(keyMapID)
+      local shortCode = type(getDungeonShortCode) == "function" and getDungeonShortCode(keyMapID) or nil
+      if type(shortCode) ~= "string" or shortCode == "" then
+        shortCode = "?"
+      end
       tooltip:AddLine(string.format("Key: %s +%d", tostring(shortCode), keyLevel), 1, 0.85, 0)
     end
 
-    local runsTogether = type(getPlayerRunCount) == "function" and getPlayerRunCount(info.name, info.realm) or 0
-    if runsTogether > 0 then
-      tooltip:AddLine(string.format("Runs together: %d", runsTogether), 0.4, 1, 0.4)
+    if lastRunDps and lastRunDps > 0 then
+      local L = type(getL) == "function" and getL() or {}
+      local label = type(L.TOOLTIP_LAST_RUN_DPS) == "string" and L.TOOLTIP_LAST_RUN_DPS or "Last run DPS: %s"
+      local formattedDps = FormatCompactTooltipNumber(lastRunDps) or tostring(math.floor(lastRunDps + 0.5))
+      tooltip:AddLine(string.format(label, formattedDps), 0.4, 0.8, 1)
     end
   end
 
@@ -414,7 +613,7 @@ local function ShowRosterInfoTooltip(anchorFrame, info, getDungeonShortCode, get
   return true
 end
 
-local function CreateMemberRow(mainFrame, index)
+local function CreateMemberRow(mainFrame, index, rosterTooltip)
   local yOffset = -52 - (index - 1) * 16
   local row = {}
 
@@ -450,15 +649,23 @@ local function CreateMemberRow(mainFrame, index)
 
   row.hoverFrame:SetScript("OnEnter", function()
     row.highlight:Show()
-    if not ShowRosterInfoTooltip(row.hoverFrame, row.tooltipInfo, row.getDungeonShortCode, row.getPlayerRunCount) then
-      if not ShowRosterUnitTooltip(row.hoverFrame, row.unit) then
-        ShowRosterNameFallbackTooltip(row.hoverFrame, row.tooltipName, row.tooltipRealm)
-      end
+    if
+      not ShowRosterInfoTooltip(
+        rosterTooltip,
+        row.hoverFrame,
+        row.unit,
+        row.tooltipInfo,
+        row.getDungeonShortCode,
+        row.getPlayerLastRunDps,
+        row.getL
+      )
+    then
+      ShowRosterNameFallbackTooltip(rosterTooltip, row.hoverFrame, row.tooltipName, row.tooltipRealm)
     end
   end)
   row.hoverFrame:SetScript("OnLeave", function()
     row.highlight:Hide()
-    HideGlobalGameTooltip()
+    HideRosterHoverTooltip(rosterTooltip)
   end)
 
   row.spec = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -490,6 +697,12 @@ local function CreateMemberRow(mainFrame, index)
   row.rio:SetWidth(RIO_COL_WIDTH)
   row.rio:SetJustifyH("RIGHT")
   DisableFontStringWrapping(row.rio)
+
+  row.dps = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  row.dps:SetPoint("TOPLEFT", DPS_COL_X, yOffset)
+  row.dps:SetWidth(DPS_COL_WIDTH)
+  row.dps:SetJustifyH("RIGHT")
+  DisableFontStringWrapping(row.dps)
 
   row.realm = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.realm:SetPoint("TOPLEFT", SERVER_COL_X, yOffset)
@@ -567,6 +780,20 @@ local function CreatePanelHeaders(mainFrame)
     rioHeader:SetMaxLines(1)
   end
 
+  local dpsHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  dpsHeader:SetPoint("TOPLEFT", DPS_COL_X, -34)
+  dpsHeader:SetWidth(DPS_COL_WIDTH)
+  dpsHeader:SetJustifyH("RIGHT")
+  if dpsHeader.SetWordWrap then
+    dpsHeader:SetWordWrap(false)
+  end
+  if dpsHeader.SetNonSpaceWrap then
+    dpsHeader:SetNonSpaceWrap(false)
+  end
+  if dpsHeader.SetMaxLines then
+    dpsHeader:SetMaxLines(1)
+  end
+
   local leadOptionsHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   leadOptionsHeader:SetPoint("TOPRIGHT", -136, -34)
   leadOptionsHeader:SetWidth(120)
@@ -590,6 +817,7 @@ local function CreatePanelHeaders(mainFrame)
     serverHeader = serverHeader,
     keyHeader = keyHeader,
     rioHeader = rioHeader,
+    dpsHeader = dpsHeader,
     leadOptionsHeader = leadOptionsHeader,
     mplusManagementHeader = mplusManagementHeader,
   }
@@ -754,11 +982,13 @@ local function ConstructPanelUI(mainFrame, uiDeps)
 
   local headers = CreatePanelHeaders(mainFrame)
   local buttons = CreatePanelButtons(mainFrame, uiDeps)
+  local rosterTooltip = CreateRosterHoverTooltip(mainFrame)
   local statusLine = CreateStatusLine(mainFrame)
   local optionToggles = CreateSystemOptionToggles(mainFrame)
   CreateVersionLine(mainFrame, uiDeps.getAddonVersionText)
 
   local ui = {
+    rosterTooltip = rosterTooltip,
     title = title,
     statusLine = statusLine,
   }
@@ -779,6 +1009,7 @@ local function RenderRosterImpl(state, roster)
   local memberRows = state.memberRows
   local mainFrame = state.mainFrame
   local shareKeysButton = state.shareKeysButton
+  local rosterTooltip = state.rosterTooltip
   local setMainFrameHeightSafe = state.setMainFrameHeightSafe
   local minFrameHeight = state.minFrameHeight
 
@@ -789,12 +1020,16 @@ local function RenderRosterImpl(state, roster)
     row.key:SetText("")
     row.ilvl:SetText("")
     row.rio:SetText("")
+    row.dps:SetText("")
     row.unit = nil
     row.tooltipName = nil
     row.tooltipRealm = nil
     row.tooltipInfo = nil
     row.getDungeonShortCode = nil
+    row.getPlayerLastRunDps = nil
+    row.getL = nil
     if row.hoverFrame then
+      HideRosterHoverTooltip(rosterTooltip)
       row.hoverFrame.unit = nil
       row.hoverFrame:Hide()
     end
@@ -820,7 +1055,7 @@ local function RenderRosterImpl(state, roster)
 
     local row = memberRows[index]
     if not row then
-      row = CreateMemberRow(mainFrame, index)
+      row = CreateMemberRow(mainFrame, index, rosterTooltip)
       memberRows[index] = row
     end
 
@@ -869,12 +1104,18 @@ local function RenderRosterImpl(state, roster)
     end
     row.ilvl:SetText(displayData.ilvlText)
     row.rio:SetText(displayData.rioText)
+    row.dps:SetText(
+      type(state.getPlayerLastRunDps) == "function"
+          and (FormatCompactTooltipNumber(state.getPlayerLastRunDps(info.name, info.realm)) or "-")
+        or "-"
+    )
     row.unit = entry.unit
     row.tooltipName = info and info.name or nil
     row.tooltipRealm = info and info.realm or nil
     row.tooltipInfo = info
     row.getDungeonShortCode = state.getDungeonShortCode
-    row.getPlayerRunCount = state.getPlayerRunCount
+    row.getPlayerLastRunDps = state.getPlayerLastRunDps
+    row.getL = state.getL
     if row.hoverFrame then
       row.hoverFrame.unit = entry.unit
       row.hoverFrame:Show()
@@ -939,7 +1180,7 @@ function RosterPanel.CreateController(opts)
   if shareKeysDebounceSeconds < 0 then
     shareKeysDebounceSeconds = 0
   end
-  local getPlayerRunCount = type(opts.getPlayerRunCount) == "function" and opts.getPlayerRunCount or nil
+  local getPlayerLastRunDps = type(opts.getPlayerLastRunDps) == "function" and opts.getPlayerLastRunDps or nil
 
   local ui = ConstructPanelUI(mainFrame, {
     getL = getL,
@@ -977,6 +1218,7 @@ function RosterPanel.CreateController(opts)
     ui.keyHeader:SetText(L.COL_KEY)
     ui.ilvlHeader:SetText(L.COL_ILVL)
     ui.rioHeader:SetText(L.COL_RIO)
+    ui.dpsHeader:SetText(L.COL_DPS)
     ui.leadOptionsHeader:SetText(L.LEAD_OPTIONS)
     ui.mplusManagementHeader:SetText(L.MPLUS_MANAGEMENT)
     readyCheckButton:SetText(L.BTN_READYCHECK)
@@ -1006,6 +1248,7 @@ function RosterPanel.CreateController(opts)
       memberRows = memberRows,
       mainFrame = mainFrame,
       shareKeysButton = shareKeysButton,
+      rosterTooltip = ui.rosterTooltip,
       setMainFrameHeightSafe = setMainFrameHeightSafe,
       minFrameHeight = minFrameHeight,
       buildOrderedRoster = buildOrderedRoster,
@@ -1023,7 +1266,8 @@ function RosterPanel.CreateController(opts)
       getRioDelta = getRioDelta,
       syncMarker = syncMarker,
       fullSyncMarker = fullSyncMarker,
-      getPlayerRunCount = getPlayerRunCount,
+      getPlayerLastRunDps = getPlayerLastRunDps,
+      getL = getL,
     }, roster)
     RefreshSystemOptionToggles(ui)
   end

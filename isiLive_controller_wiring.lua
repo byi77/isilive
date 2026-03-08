@@ -262,6 +262,8 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   end
   config.applyKnownKeyToRosterEntry = RequireFunction(deps.applyKnownKeyToRosterEntry, "applyKnownKeyToRosterEntry")
   config.runFullRefresh = RequireFunction(deps.runFullRefresh, "runFullRefresh")
+  config.recordRun = type(deps.recordRun) == "function" and deps.recordRun or function() end
+  config.getRoster = RequireFunction(state.getRoster, "state.getRoster")
   config.captureRioBaselineSnapshot = callbacks.captureRioBaselineSnapshot
   config.enableRioDeltaDisplay = callbacks.enableRioDeltaDisplay
   config.isReadyCheckActive = type(callbacks.isReadyCheckActive) == "function" and callbacks.isReadyCheckActive
@@ -316,6 +318,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     getPlayerSpecName = ctx.getPlayerSpecName,
     getAddonVersionRaw = ctx.getAddonVersionRaw,
     getTime = ctx.getTime,
+    recordRun = ctx.recordRun,
     applyKnownKeyToRosterEntry = ctx.applyKnownKeyToRosterEntry,
     runFullRefresh = function()
       if ctx.refreshController then
@@ -368,7 +371,6 @@ local function BuildEventHandlersDepsFromContext(ctx)
       setReadyCheckActive = ctx.setReadyCheckActive,
       enableRioDeltaDisplay = ctx.enableRioDeltaDisplay,
       setMainFrameHeightSafe = ctx.setMainFrameHeightSafe,
-      recordRun = ctx.recordRun,
     },
   }
 end

@@ -105,11 +105,16 @@ local function BuildContext(opts)
   ctx.applyKnownKeyToRosterEntry = RequireFunction(opts.applyKnownKeyToRosterEntry, "applyKnownKeyToRosterEntry")
   ctx.runFullRefresh = RequireFunction(opts.runFullRefresh, "runFullRefresh")
   ctx.recordRun = OptionalFunction(opts.recordRun, function() end)
+  ctx.getRoster = OptionalFunction(opts.getRoster, function()
+    return {}
+  end)
   ctx.setReadyCheckActive = OptionalFunction(opts.setReadyCheckActive, function(_value) end)
   ctx.isReadyCheckActive = OptionalFunction(opts.isReadyCheckActive, function()
     return false
   end)
   ctx.lastRecordedRunSignature = nil
+  ctx.activeMythicZeroMapID = nil
+  ctx.activeMythicZeroRosterSnapshot = nil
 
   return ctx
 end

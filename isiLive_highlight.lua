@@ -100,11 +100,11 @@ local function ResolveMapIDFromActivityID(deps, activityID)
     return nil
   end
 
-  if not deps.resolveSeason3MapIDByActivityID then
+  if not deps.resolveMapIDByActivityID then
     return nil
   end
 
-  local resolved = deps.resolveSeason3MapIDByActivityID(numericActivityID)
+  local resolved = deps.resolveMapIDByActivityID(numericActivityID)
   local resolvedMapID = tonumber(resolved)
   if resolvedMapID and resolvedMapID > 0 then
     return resolvedMapID
@@ -170,7 +170,7 @@ local function ResolveActiveListingTarget(deps, entryInfo)
     return nil
   end
 
-  local spellID = deps.resolveSeason3TeleportSpellIDByMapID(mapID)
+  local spellID = deps.resolveTeleportSpellIDByMapID(mapID)
   if not spellID then
     return nil
   end
@@ -209,7 +209,7 @@ local function ResolveActiveTeleportSpellID(deps, getActiveListingTarget, latest
     return nil
   end
 
-  return deps.resolveSeason3TeleportSpellIDByMapID(queueMapID)
+  return deps.resolveTeleportSpellIDByMapID(queueMapID)
 end
 
 function Highlight.CreateController(opts)
@@ -219,10 +219,10 @@ function Highlight.CreateController(opts)
     isInGroup = opts.isInGroup or function()
       return false
     end,
-    resolveSeason3TeleportSpellIDByMapID = opts.resolveSeason3TeleportSpellIDByMapID or function(_mapID)
+    resolveTeleportSpellIDByMapID = opts.resolveTeleportSpellIDByMapID or function(_mapID)
       return nil
     end,
-    resolveSeason3MapIDByActivityID = opts.resolveSeason3MapIDByActivityID or function(_activityID)
+    resolveMapIDByActivityID = opts.resolveMapIDByActivityID or function(_activityID)
       return nil
     end,
   }

@@ -36,14 +36,14 @@ local function DumpButtonState(deps, label, button)
   )
 end
 
-local function ResolveHostedSpell(entryInfo, resolveSeason3MapIDByActivityID, resolveSeason3TeleportSpellIDByMapID)
+local function ResolveHostedSpell(entryInfo, resolveMapIDByActivityID, resolveTeleportSpellIDByMapID)
   if type(entryInfo) ~= "table" then
     return nil, nil, nil
   end
 
   local hostedID = tonumber(entryInfo.activityID)
-  local hostedMapID = resolveSeason3MapIDByActivityID(hostedID)
-  local hostedSpell = hostedMapID and resolveSeason3TeleportSpellIDByMapID(hostedMapID) or nil
+  local hostedMapID = resolveMapIDByActivityID(hostedID)
+  local hostedSpell = hostedMapID and resolveTeleportSpellIDByMapID(hostedMapID) or nil
   if hostedSpell or type(entryInfo.activityIDs) ~= "table" then
     return hostedID, hostedMapID, hostedSpell
   end
@@ -51,8 +51,8 @@ local function ResolveHostedSpell(entryInfo, resolveSeason3MapIDByActivityID, re
   for _, id in pairs(entryInfo.activityIDs) do
     local numID = tonumber(id)
     if numID then
-      local mapID = resolveSeason3MapIDByActivityID(numID)
-      local spell = mapID and resolveSeason3TeleportSpellIDByMapID(mapID) or nil
+      local mapID = resolveMapIDByActivityID(numID)
+      local spell = mapID and resolveTeleportSpellIDByMapID(mapID) or nil
       if spell then
         return numID, mapID, spell
       end
@@ -84,9 +84,9 @@ local function PrintTeleportDebug(deps)
     )
   )
 
-  local resolvedMap = deps.resolveSeason3MapIDByActivityID(latestQueueActivityID)
-  local resolvedByActivity = deps.resolveSeason3TeleportSpellIDByActivityID(latestQueueActivityID)
-  local resolvedByMap = resolvedMap and deps.resolveSeason3TeleportSpellIDByMapID(resolvedMap) or nil
+  local resolvedMap = deps.resolveMapIDByActivityID(latestQueueActivityID)
+  local resolvedByActivity = deps.resolveTeleportSpellIDByActivityID(latestQueueActivityID)
+  local resolvedByMap = resolvedMap and deps.resolveTeleportSpellIDByMapID(resolvedMap) or nil
   deps.printFn(
     string.format(
       "TP resolve detail byActivity(map=%s spell=%s) byMapSpell=%s",
@@ -98,7 +98,7 @@ local function PrintTeleportDebug(deps)
 
   local entryInfo = deps.getNormalizedActiveEntryInfo()
   local hostedID, hostedMapID, hostedSpell =
-    ResolveHostedSpell(entryInfo, deps.resolveSeason3MapIDByActivityID, deps.resolveSeason3TeleportSpellIDByMapID)
+    ResolveHostedSpell(entryInfo, deps.resolveMapIDByActivityID, deps.resolveTeleportSpellIDByMapID)
   deps.printFn(
     string.format(
       "TP host detail active=%s activityID=%s mapID=%s spell=%s",
@@ -119,7 +119,7 @@ local function ForceTeleportTestTarget(deps)
   local L = deps.getL()
   local dungeon = L.TESTALL_DUMMY_DUNGEON or "The Dawnbreaker"
   local targetMapID = 2662
-  local spellID = deps.resolveSeason3TeleportSpellIDByMapID(targetMapID)
+  local spellID = deps.resolveTeleportSpellIDByMapID(targetMapID)
   deps.setLatestQueueState(dungeon, nil, spellID, targetMapID)
   deps.updateMPlusTeleportButton()
   local msg = string.format(L.JOINED_FROM_QUEUE_DUNGEON, L.TESTALL_DUMMY_GROUP or L.UNKNOWN_GROUP, dungeon)
@@ -141,17 +141,14 @@ function TeleportDebug.CreateController(opts)
     getTeleportCooldownRemaining = RequireFunction(opts.getTeleportCooldownRemaining, "getTeleportCooldownRemaining"),
     formatCooldownSeconds = RequireFunction(opts.formatCooldownSeconds, "formatCooldownSeconds"),
     getLatestQueueState = RequireFunction(opts.getLatestQueueState, "getLatestQueueState"),
-    resolveSeason3MapIDByActivityID = RequireFunction(
-      opts.resolveSeason3MapIDByActivityID,
-      "resolveSeason3MapIDByActivityID"
+    resolveMapIDByActivityID = RequireFunction(opts.resolveMapIDByActivityID, "resolveMapIDByActivityID"),
+    resolveTeleportSpellIDByActivityID = RequireFunction(
+      opts.resolveTeleportSpellIDByActivityID,
+      "resolveTeleportSpellIDByActivityID"
     ),
-    resolveSeason3TeleportSpellIDByActivityID = RequireFunction(
-      opts.resolveSeason3TeleportSpellIDByActivityID,
-      "resolveSeason3TeleportSpellIDByActivityID"
-    ),
-    resolveSeason3TeleportSpellIDByMapID = RequireFunction(
-      opts.resolveSeason3TeleportSpellIDByMapID,
-      "resolveSeason3TeleportSpellIDByMapID"
+    resolveTeleportSpellIDByMapID = RequireFunction(
+      opts.resolveTeleportSpellIDByMapID,
+      "resolveTeleportSpellIDByMapID"
     ),
     getNormalizedActiveEntryInfo = RequireFunction(opts.getNormalizedActiveEntryInfo, "getNormalizedActiveEntryInfo"),
     getCenterNoticeTeleportButton = RequireFunction(

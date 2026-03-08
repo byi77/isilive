@@ -67,12 +67,11 @@ function TestMode.CreateController(opts)
   local deps = BuildDeps(opts)
   local controller = {}
 
-  function controller.EnterFullDummyPreview()
+  local function ApplyDummyPreviewState(statePatch, shouldAnnounceLeader, shouldPrintChat)
     local L = deps.getL()
-    deps.setState({
-      isTestMode = true,
-      isTestAllMode = true,
-    })
+    if type(statePatch) == "table" then
+      deps.setState(statePatch)
+    end
     local dummyRoster = deps.buildDummyRoster()
     deps.setRoster(dummyRoster)
     deps.captureRioBaselineSnapshot()
@@ -82,9 +81,30 @@ function TestMode.CreateController(opts)
     deps.updateUI()
     deps.updateLeaderButtons()
 
-    deps.showCenterNotice(L.LEAD_TRANSFERRED_CENTER, 20)
+    if shouldAnnounceLeader then
+      deps.showCenterNotice(L.LEAD_TRANSFERRED_CENTER, 20)
+    end
     deps.showQueueJoinPreview(L.TESTALL_DUMMY_GROUP, L.TESTALL_DUMMY_DUNGEON)
-    deps.printFn(L.CHAT_QUEUE_PREFIX .. " | " .. L.TESTALL_CHAT_ACTIVE)
+    if shouldPrintChat then
+      deps.printFn(L.CHAT_QUEUE_PREFIX .. " | " .. L.TESTALL_CHAT_ACTIVE)
+    end
+  end
+
+  function controller.EnterFullDummyPreview()
+    ApplyDummyPreviewState({
+      isTestMode = true,
+      isTestAllMode = true,
+    }, true, true)
+  end
+
+  function controller.RefreshActivePreview()
+    local state = deps.getState()
+    if not state.isTestMode and not state.isTestAllMode then
+      return false
+    end
+
+    ApplyDummyPreviewState(nil, false, false)
+    return true
   end
 
   function controller.ExitTestMode()
@@ -134,15 +154,7 @@ function TestMode.CreateController(opts)
       isTestAllMode = false,
     })
     deps.printFn(L.TEST_ENABLED)
-    local dummyRoster = deps.buildDummyRoster()
-    deps.setRoster(dummyRoster)
-    deps.captureRioBaselineSnapshot()
-    ApplyDummyRioDeltaPreview(dummyRoster)
-    deps.enableRioDeltaDisplay()
-    deps.setMainFrameVisible(true)
-    deps.updateUI()
-    deps.updateLeaderButtons()
-    deps.showQueueJoinPreview(L.TESTALL_DUMMY_GROUP, L.TESTALL_DUMMY_DUNGEON)
+    ApplyDummyPreviewState(nil, false, false)
   end
 
   return controller

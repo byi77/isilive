@@ -15,6 +15,17 @@ local ROLE_ICONS = {
   DAMAGER = CreateRoleIcon("20:39:22:41"),
 }
 
+local function NormalizeDisplayedKeyShortCode(shortCode)
+  local text = tostring(shortCode or ""):gsub("%s+", "")
+  if text == "" then
+    return "?"
+  end
+  if text:match("^%d+$") then
+    return "?"
+  end
+  return string.upper(string.sub(text, 1, 4))
+end
+
 local function BuildColorHexSafe(r, g, b)
   local createColor = _G.CreateColor
   if type(createColor) == "function" then
@@ -112,7 +123,7 @@ function Roster.BuildDisplayData(info, opts)
 
   local displayName = info.name or ""
   if truncateName then
-    displayName = truncateName(displayName, 10)
+    displayName = truncateName(displayName, 12)
   end
 
   local languageText = info.language or "??"
@@ -121,14 +132,14 @@ function Roster.BuildDisplayData(info, opts)
     languageShort = "??"
   end
   local flagMarkup = getLanguageFlagMarkup and getLanguageFlagMarkup(languageShort) or "|cffbfbfbf??|r"
-  local languageDisplay = string.format("%s |cffd9d9d9%s|r", flagMarkup, languageShort)
+  local languageDisplay = flagMarkup
 
   local specText = info.spec or "-"
   if info.spec and getShortSpecLabel then
     specText = getShortSpecLabel(specText) or specText
   end
   if info.spec and truncateName then
-    specText = truncateName(specText, 15)
+    specText = truncateName(specText, 6)
   end
   local ilvlText = info.ilvl and tostring(math.floor(info.ilvl)) or "-"
 
@@ -144,7 +155,7 @@ function Roster.BuildDisplayData(info, opts)
   local keyText = "-"
   if info.keyMapID and info.keyLevel then
     local shortCode = getDungeonShortCode and getDungeonShortCode(info.keyMapID) or tostring(info.keyMapID)
-    keyText = string.format("%s +%d", shortCode, tonumber(info.keyLevel) or 0)
+    keyText = string.format("%s +%d", NormalizeDisplayedKeyShortCode(shortCode), tonumber(info.keyLevel) or 0)
   end
   local addonMarker = info.hasIsiLive and syncMarker or ""
   local atDungeonMarker = opts.isAtDungeon and "|TInterface\\MINIMAP\\Minimap_Summon_Icon:12:12:0:0|t" or ""

@@ -186,7 +186,7 @@ local function RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixture
   end)
 end
 
-local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+local function RegisterCombatStartupCVarAndWorldEntryTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   test("Event handlers do not force Blizzard cvars during startup events", function()
     local cvarValues = {
       advancedCombatLogging = "0",
@@ -284,7 +284,259 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
     controller:Dispatch("PLAYER_ENTERING_WORLD")
     Assert.Equal(showCalls, 1, "repeated in-dungeon entering-world events must not re-open again")
   end)
+end
 
+local function RegisterCombatStartupM0TrackingTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  test("Event handlers record M0 run when leaving tracked mythic non-challenge dungeon", function()
+    local current = {
+      instanceType = "party",
+      difficultyID = 23,
+      mapID = 2662,
+    }
+    local recordedRuns = {}
+    local roster = {
+      player = { name = "Me", realm = "MyRealm" },
+      party1 = { name = "Buddy", realm = "Realm" },
+      party2 = { name = "Other", realm = "Else" },
+    }
+
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "The Dawnbreaker", current.instanceType, current.difficultyID, "Mythic"
+      end,
+      C_Map = {
+        GetBestMapForUnit = function(unit)
+          if unit == "player" then
+            return current.mapID
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        getRoster = function()
+          return roster
+        end,
+        recordRun = function(mapID, level, onTime, rosterSnapshot)
+          table.insert(recordedRuns, {
+            mapID = mapID,
+            level = level,
+            onTime = onTime,
+            rosterSnapshot = rosterSnapshot,
+          })
+        end,
+      })
+
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+      Assert.Equal(#recordedRuns, 0, "entering tracked M0 dungeon must not record a run yet")
+
+      current.instanceType = "none"
+      current.difficultyID = 0
+      current.mapID = nil
+      roster = {}
+
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+    end)
+
+    Assert.Equal(#recordedRuns, 1, "leaving tracked M0 dungeon should record exactly one run snapshot")
+    Assert.Equal(recordedRuns[1].mapID, 2662, "recorded M0 run should keep the last tracked dungeon map id")
+    Assert.Equal(recordedRuns[1].level, 0, "M0 snapshots should use level 0")
+    Assert.Nil(recordedRuns[1].onTime, "M0 snapshots have no timed-run flag")
+    Assert.NotNil(recordedRuns[1].rosterSnapshot.party1, "M0 exit should still use the frozen entry roster snapshot")
+    Assert.Equal(
+      recordedRuns[1].rosterSnapshot.party1.name,
+      "Buddy",
+      "frozen M0 roster snapshot should preserve party members after group dissolution"
+    )
+  end)
+
+  test("Event handlers do not record run when leaving non-mythic dungeon", function()
+    local current = {
+      instanceType = "party",
+      difficultyID = 2,
+      mapID = 2649,
+    }
+    local recordedRuns = {}
+
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Priory of the Sacred Flame", current.instanceType, current.difficultyID, "Heroic"
+      end,
+      C_Map = {
+        GetBestMapForUnit = function(unit)
+          if unit == "player" then
+            return current.mapID
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        recordRun = function(mapID, level, onTime)
+          table.insert(recordedRuns, {
+            mapID = mapID,
+            level = level,
+            onTime = onTime,
+          })
+        end,
+      })
+
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+
+      current.instanceType = "none"
+      current.difficultyID = 0
+      current.mapID = nil
+
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+    end)
+
+    Assert.Equal(#recordedRuns, 0, "non-mythic dungeon exits must not record an M0 run snapshot")
+  end)
+
+  test("Event handlers do not record M0 run on tracked mythic subzone map changes", function()
+    local current = {
+      instanceType = "party",
+      difficultyID = 23,
+      mapID = 2662,
+    }
+    local recordedRuns = {}
+    local roster = {
+      player = { name = "Me", realm = "MyRealm" },
+      party1 = { name = "Buddy", realm = "Realm" },
+    }
+
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Tracked Dungeon", current.instanceType, current.difficultyID, "Mythic"
+      end,
+      C_Map = {
+        GetBestMapForUnit = function(unit)
+          if unit == "player" then
+            return current.mapID
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        getRoster = function()
+          return roster
+        end,
+        recordRun = function(mapID, level, onTime, rosterSnapshot)
+          table.insert(recordedRuns, {
+            mapID = mapID,
+            level = level,
+            onTime = onTime,
+            rosterSnapshot = rosterSnapshot,
+          })
+        end,
+      })
+
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+      Assert.Equal(#recordedRuns, 0, "initial tracked M0 entry must not record a run")
+
+      current.mapID = 2649
+      roster = {
+        player = { name = "Me", realm = "MyRealm" },
+        party1 = { name = "Replacement", realm = "Realm" },
+      }
+      controller:Dispatch("ZONE_CHANGED_NEW_AREA")
+
+      Assert.Equal(
+        #recordedRuns,
+        0,
+        "tracked mythic subzone map changes inside the same M0 dungeon must not flush a completed run"
+      )
+
+      current.instanceType = "none"
+      current.difficultyID = 0
+      current.mapID = nil
+      roster = {}
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+    end)
+
+    Assert.Equal(#recordedRuns, 1, "tracked M0 run should still be recorded exactly once on real instance exit")
+    Assert.Equal(recordedRuns[1].mapID, 2662, "recorded run should keep the original tracked dungeon map id")
+    Assert.Equal(recordedRuns[1].level, 0, "tracked M0 exit snapshots should still use level 0")
+    Assert.Nil(recordedRuns[1].onTime, "tracked M0 exit snapshots have no timed-run flag")
+    Assert.Equal(
+      recordedRuns[1].rosterSnapshot.party1.name,
+      "Buddy",
+      "tracked M0 exit must keep the frozen roster from the original dungeon entry despite subzone map changes"
+    )
+  end)
+
+  test("Event handlers hydrate pending M0 roster snapshot from later group roster update", function()
+    local current = {
+      instanceType = "party",
+      difficultyID = 23,
+      mapID = 2662,
+    }
+    local recordedRuns = {}
+    local roster = {
+      player = { name = "Me", realm = "MyRealm" },
+    }
+
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Tracked Dungeon", current.instanceType, current.difficultyID, "Mythic"
+      end,
+      C_Map = {
+        GetBestMapForUnit = function(unit)
+          if unit == "player" then
+            return current.mapID
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        getRoster = function()
+          return roster
+        end,
+        recordRun = function(mapID, level, onTime, rosterSnapshot)
+          table.insert(recordedRuns, {
+            mapID = mapID,
+            level = level,
+            onTime = onTime,
+            rosterSnapshot = rosterSnapshot,
+          })
+        end,
+      })
+
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+
+      roster = {
+        player = { name = "Me", realm = "MyRealm" },
+        party1 = { name = "LateBuddy", realm = "Realm" },
+      }
+      controller:Dispatch("GROUP_ROSTER_UPDATE")
+
+      current.instanceType = "none"
+      current.difficultyID = 0
+      current.mapID = nil
+      roster = {}
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+    end)
+
+    Assert.Equal(#recordedRuns, 1, "tracked M0 exit should still record exactly one run")
+    Assert.NotNil(
+      recordedRuns[1].rosterSnapshot.party1,
+      "late group roster update should hydrate pending M0 snapshot before exit"
+    )
+    Assert.Equal(
+      recordedRuns[1].rosterSnapshot.party1.name,
+      "LateBuddy",
+      "hydrated M0 snapshot should use the first full roster update after entry"
+    )
+  end)
+end
+
+local function RegisterCombatStartupStateRestoreTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   test("Event handlers restore runtime log storage and enabled flag on ADDON_LOADED", function()
     local ensureRuntimeLogStorageCalls = 0
     local setRuntimeLogEnabledValue = nil
@@ -389,6 +641,12 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
       "challenge start should leave advanced combat logging unchanged"
     )
   end)
+end
+
+local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  RegisterCombatStartupCVarAndWorldEntryTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  RegisterCombatStartupM0TrackingTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  RegisterCombatStartupStateRestoreTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
 end
 
 local function RegisterChallengeStartAndDelayTests(test, Assert, LoadAddonModules, Fixtures)
@@ -616,6 +874,36 @@ local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fix
 
     Assert.Equal(teleportRefreshCalls, 1, "visible regen must refresh teleport UI")
     Assert.Equal(restoreButtonCalls, 1, "visible regen must restore center notice teleport button")
+  end)
+
+  test("Event handlers pre-render UI for hidden addon sync updates", function()
+    local counters = { uiUpdates = 0 }
+    local roster = {
+      { name = "Alpha", realm = "RealmA", hasIsiLive = false },
+    }
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+      isMainFrameShown = function()
+        return false
+      end,
+      processAddonMessage = function(_prefix, _message, _sender)
+        return { shouldAck = false }
+      end,
+      forEachRosterInfo = function(visitor)
+        for _, info in ipairs(roster) do
+          visitor(info)
+        end
+      end,
+      isSyncUserKnown = function(name, _realm)
+        return name == "Alpha"
+      end,
+    })
+
+    controller:Dispatch("CHAT_MSG_ADDON", "ISI_SYNC", "hello", "PARTY", "Alpha-RealmA")
+
+    Assert.True(roster[1].hasIsiLive, "hidden sync handling must still update background roster state")
+    Assert.Equal(counters.uiUpdates, 1, "hidden sync handling should pre-render UI state once")
   end)
 end
 

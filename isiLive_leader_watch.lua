@@ -25,6 +25,15 @@ function LeaderWatch.CreateController(opts)
 
   local controller = {}
 
+  local function SyncLeaderStateSilently()
+    local isLeader = isPlayerLeader()
+    local wasGroupLeader = getWasGroupLeader()
+
+    if wasGroupLeader == nil or isLeader ~= wasGroupLeader then
+      setWasGroupLeader(isLeader)
+    end
+  end
+
   local function PlayLeadTransferSound()
     if not PlaySound then
       return
@@ -74,6 +83,7 @@ function LeaderWatch.CreateController(opts)
         return
       end
       if not isMainFrameShown() then
+        SyncLeaderStateSilently()
         return
       end
       controller.UpdateLeaderState(event)

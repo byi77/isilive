@@ -9,9 +9,12 @@ function ConfigBuilders.BuildRefreshControllerOpts(ctx)
   return {
     isStopped = ctx.isStopped,
     isPaused = ctx.isPaused,
+    isTestMode = ctx.isTestMode,
+    isTestAllMode = ctx.isTestAllMode,
     isInGroup = ctx.isInGroup,
     isRosterEmpty = ctx.isRosterEmpty,
     triggerGroupRosterUpdate = ctx.triggerGroupRosterUpdate,
+    refreshTestModeRoster = ctx.refreshTestModeRoster,
     forceRefreshSyncState = ctx.forceRefreshSyncState,
     sendIsiLiveHello = ctx.sendIsiLiveHello,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
@@ -29,12 +32,11 @@ function ConfigBuilders.BuildQueueFlowControllerOpts(ctx)
     getL = ctx.getL,
     getPendingQueueJoinInfo = ctx.getPendingQueueJoinInfo,
     setPendingQueueJoinInfo = ctx.setPendingQueueJoinInfo,
-    resolveSeason3MapIDByActivityID = ctx.resolveSeason3MapIDByActivityID,
-    resolveSeason3TeleportSpellIDByMapID = ctx.resolveSeason3TeleportSpellIDByMapID,
+    resolveMapIDByActivityID = ctx.resolveMapIDByActivityID,
+    resolveTeleportSpellIDByMapID = ctx.resolveTeleportSpellIDByMapID,
     resolveJoinedKeyMapID = ctx.resolveJoinedKeyMapID,
     updateMPlusTeleportButton = ctx.updateMPlusTeleportButton,
     showInviteHint = ctx.showInviteHint,
-    showCenterNotice = ctx.showCenterNotice,
     updateUI = ctx.updateUI,
     printFn = ctx.printFn,
     setQueueTargetState = ctx.setQueueTargetState,
@@ -119,5 +121,9 @@ function ConfigBuilders.BuildGateOpts(ctx)
     isInPartyInstance = ctx.isInPartyInstance,
     getNumGroupMembers = ctx.getNumGroupMembers,
     getActiveChallengeMapID = ctx.getActiveChallengeMapID,
+    allowWhenHidden = {
+      CHAT_MSG_ADDON = true,
+      GROUP_ROSTER_UPDATE = true,
+    },
   }
 end

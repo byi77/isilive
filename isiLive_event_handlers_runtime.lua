@@ -5,6 +5,160 @@ addonTable = addonTable or {}
 local RuntimeLifecycle = {}
 addonTable.EventHandlersRuntimeLifecycle = RuntimeLifecycle
 
+local NON_CHALLENGE_MYTHIC_DIFFICULTY_IDS = {
+  [8] = true,
+  [23] = true,
+  [24] = true,
+  [167] = true,
+}
+
+local function ResolveTrackedMythicZeroMapID()
+  if type(GetInstanceInfo) == "function" then
+    local okInstance, _, _, _, _, _, _, instanceMapID = pcall(GetInstanceInfo)
+    instanceMapID = okInstance and tonumber(instanceMapID) or nil
+    if instanceMapID and instanceMapID > 0 then
+      return math.floor(instanceMapID)
+    end
+  end
+
+  local mapApi = rawget(_G, "C_Map")
+  local getBestMapForUnit = mapApi and rawget(mapApi, "GetBestMapForUnit") or nil
+  if type(getBestMapForUnit) ~= "function" then
+    return nil
+  end
+
+  local okMap, mapID = pcall(getBestMapForUnit, "player")
+  mapID = okMap and tonumber(mapID) or nil
+  if not mapID or mapID <= 0 then
+    return nil
+  end
+
+  return math.floor(mapID)
+end
+
+local function GetTrackedMythicZeroState(ctx)
+  if ctx.isInChallengeMode() then
+    return false, nil
+  end
+
+  if type(GetInstanceInfo) ~= "function" then
+    return false, nil
+  end
+
+  local okInstance, _, instanceType, difficultyID = pcall(GetInstanceInfo)
+  if not okInstance or instanceType ~= "party" or not NON_CHALLENGE_MYTHIC_DIFFICULTY_IDS[difficultyID] then
+    return false, nil
+  end
+
+  return true, ResolveTrackedMythicZeroMapID()
+end
+
+local function CloneRosterSnapshotForStats(roster)
+  if type(roster) ~= "table" then
+    return {}
+  end
+
+  local snapshot = {}
+  for unit, info in pairs(roster) do
+    if type(info) == "table" then
+      local clonedInfo = {}
+      for key, value in pairs(info) do
+        clonedInfo[key] = value
+      end
+      snapshot[unit] = clonedInfo
+    end
+  end
+
+  return snapshot
+end
+
+local function HasReliableTrackedMythicZeroRoster(ctx, roster)
+  if type(roster) ~= "table" then
+    return false
+  end
+
+  local memberCount = 0
+  for unit, info in pairs(roster) do
+    if type(info) == "table" and info.isGhost ~= true then
+      memberCount = memberCount + 1
+      if unit ~= "player" then
+        return true
+      end
+    end
+  end
+
+  if memberCount == 0 then
+    return false
+  end
+
+  return not ctx.isInGroup()
+end
+
+local function UpdateTrackedMythicZeroRun(ctx)
+  local isTrackedMythicZero, currentMapID = GetTrackedMythicZeroState(ctx)
+  local previousMapID = tonumber(ctx.activeMythicZeroMapID)
+  local roster = ctx.getRoster()
+
+  if isTrackedMythicZero then
+    if ctx.activeMythicZeroRosterSnapshot == nil and HasReliableTrackedMythicZeroRoster(ctx, roster) then
+      ctx.activeMythicZeroRosterSnapshot = CloneRosterSnapshotForStats(roster)
+    end
+    if not previousMapID and currentMapID then
+      ctx.activeMythicZeroMapID = currentMapID
+    end
+    return
+  end
+
+  if previousMapID then
+    local rosterSnapshot = ctx.activeMythicZeroRosterSnapshot
+    if rosterSnapshot == nil and type(roster) == "table" and next(roster) ~= nil then
+      rosterSnapshot = CloneRosterSnapshotForStats(roster)
+    end
+    if rosterSnapshot ~= nil then
+      ctx.recordRun(previousMapID, 0, nil, rosterSnapshot)
+    end
+  end
+  ctx.activeMythicZeroMapID = nil
+  ctx.activeMythicZeroRosterSnapshot = nil
+end
+
+local function CaptureTrackedMythicZeroRosterSnapshotIfPending(ctx)
+  if ctx.activeMythicZeroRosterSnapshot ~= nil or not ctx.activeMythicZeroMapID then
+    return false
+  end
+
+  local isTrackedMythicZero = GetTrackedMythicZeroState(ctx)
+  if not isTrackedMythicZero then
+    return false
+  end
+
+  local roster = ctx.getRoster()
+  if type(roster) ~= "table" or next(roster) == nil then
+    return false
+  end
+
+  ctx.activeMythicZeroRosterSnapshot = CloneRosterSnapshotForStats(roster)
+  return true
+end
+
+local function ApplyBindingStartupRefresh(ctx)
+  ctx.applyHotkeyBindings()
+  ctx.startBindingWatchdog()
+end
+
+local function ScheduleBindingStartupRefresh(ctx)
+  ApplyBindingStartupRefresh(ctx)
+  if ctx.timerAfter then
+    ctx.timerAfter(1, ctx.applyHotkeyBindings)
+    ctx.timerAfter(3, ctx.applyHotkeyBindings)
+  end
+end
+
+local function RegisterSyncPrefixAndBindings(ctx)
+  ctx.registerIsiLiveSyncPrefix()
+  ApplyBindingStartupRefresh(ctx)
+end
+
 function RuntimeLifecycle.BuildHandlers(ctx)
   local function HandleGroupRosterUpdateEvent(_self)
     if ctx.isInGroup() and (ctx.isTestMode() or ctx.isTestAllMode()) then
@@ -13,6 +167,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end
 
     ctx.handleGroupRosterUpdate()
+    CaptureTrackedMythicZeroRosterSnapshotIfPending(ctx)
   end
 
   local function HandleAddonLoadedEvent(_self, loadedAddon)
@@ -42,29 +197,21 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       mainFrame:ClearAllPoints()
       mainFrame:SetPoint(pos.point, UIParent, pos.relativePoint, pos.x, pos.y)
     end
-    ctx.registerIsiLiveSyncPrefix()
-    ctx.applyHotkeyBindings()
-    ctx.startBindingWatchdog()
+    RegisterSyncPrefixAndBindings(ctx)
     ctx.applyLocalizationToUI()
     ctx.updateCountdownCancelButton()
     ctx.updateLeaderButtons()
   end
 
   local function HandlePlayerLoginEvent(_self)
-    ctx.registerIsiLiveSyncPrefix()
+    RegisterSyncPrefixAndBindings(ctx)
     local playerName, playerRealm = ctx.getUnitNameAndRealm("player")
     ctx.markIsiLiveUser(playerName, playerRealm)
-    ctx.applyHotkeyBindings()
-    ctx.startBindingWatchdog()
   end
 
   local function HandlePlayerEnteringWorldEvent(_self)
-    ctx.applyHotkeyBindings()
-    ctx.startBindingWatchdog()
-    if ctx.timerAfter then
-      ctx.timerAfter(1, ctx.applyHotkeyBindings)
-      ctx.timerAfter(3, ctx.applyHotkeyBindings)
-    end
+    UpdateTrackedMythicZeroRun(ctx)
+    ScheduleBindingStartupRefresh(ctx)
     ctx.sendOwnKeySnapshot(true)
     ctx.maybeShowNonMythicDungeonEntryNotice()
     ctx.updateStatusLine()
@@ -97,6 +244,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandleInstanceContextChangedEvent(_self)
+    UpdateTrackedMythicZeroRun(ctx)
     ctx.updateStatusLine()
     ctx.maybeShowNonMythicDungeonEntryNotice()
     ctx.checkIfEnteredTargetDungeon()

@@ -14,6 +14,7 @@ return function(test, ctx)
       queueRefreshes = 0,
       uiUpdates = 0,
       keyRefreshes = 0,
+      demoRefreshes = 0,
     }
 
     local addon = LoadAddonModules({ "isiLive_refresh.lua" })
@@ -24,6 +25,12 @@ return function(test, ctx)
       isPaused = overrides.isPaused or function()
         return false
       end,
+      isTestMode = overrides.isTestMode or function()
+        return false
+      end,
+      isTestAllMode = overrides.isTestAllMode or function()
+        return false
+      end,
       isInGroup = overrides.isInGroup or function()
         return true
       end,
@@ -32,6 +39,13 @@ return function(test, ctx)
       end,
       triggerGroupRosterUpdate = function()
         state.rosterUpdates = state.rosterUpdates + 1
+      end,
+      refreshTestModeRoster = function()
+        state.demoRefreshes = state.demoRefreshes + 1
+        if overrides.refreshTestModeRoster then
+          return overrides.refreshTestModeRoster(state)
+        end
+        return true
       end,
       forceRefreshSyncState = function()
         state.syncRefreshes = state.syncRefreshes + 1
@@ -79,6 +93,23 @@ return function(test, ctx)
     Assert.Equal(state.keySnapshots, 1, "must send key snapshot")
     Assert.Equal(state.queueRefreshes, 1, "must refresh queue data")
     Assert.Equal(state.uiUpdates, 1, "must update UI")
+  end)
+
+  test("Refresh RunFullRefresh reroutes to demo preview while test mode is active", function()
+    local controller, state = BuildRefreshController({
+      isTestMode = function()
+        return true
+      end,
+    })
+
+    local result = controller.RunFullRefresh()
+
+    Assert.True(result, "RunFullRefresh must return true when demo refresh succeeds")
+    Assert.Equal(state.demoRefreshes, 1, "must rebuild demo roster once")
+    Assert.Equal(state.syncRefreshes, 0, "must not run live sync refresh in demo mode")
+    Assert.Equal(state.hellos, 0, "must not send hello in demo mode")
+    Assert.Equal(state.keySnapshots, 0, "must not send key snapshot in demo mode")
+    Assert.Equal(state.queueRefreshes, 0, "must not refresh live queue data in demo mode")
   end)
 
   test("Refresh RunFullRefresh skips when stopped", function()

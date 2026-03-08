@@ -110,6 +110,19 @@ local function RegisterTestModeToggleTests(test, Assert, LoadAddonModules)
     Assert.Equal(state.captureRioBaselineCalls, 1, "testall preview must capture one RIO baseline snapshot")
     Assert.Equal(state.roster.party1.rio, 2012, "testall preview should apply visible positive RIO delta")
   end)
+
+  test("TestMode refresh rebuilds active dummy preview roster", function()
+    local controller, state = BuildTestModeController(LoadAddonModules)
+
+    controller.EnterFullDummyPreview()
+    state.roster.player.rio = 9999
+
+    local refreshed = controller.RefreshActivePreview()
+
+    Assert.True(refreshed, "active demo preview refresh must report success")
+    Assert.Equal(state.captureRioBaselineCalls, 2, "refresh must capture a fresh RIO baseline snapshot")
+    Assert.Equal(state.roster.player.rio, 1015, "refresh must rebuild the dummy roster instead of reusing mutated rows")
+  end)
 end
 
 local function RegisterTestModeGuardTests(test, Assert, LoadAddonModules)
@@ -130,10 +143,56 @@ local function RegisterTestModeGuardTests(test, Assert, LoadAddonModules)
   end)
 end
 
+local function RegisterDemoRosterTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Demo dummy roster uses canonical hunter spec name so short-label mapping can resolve", function()
+    WithGlobals({
+      UnitClass = function(_unit)
+        return "Warrior", "WARRIOR"
+      end,
+      UnitName = function(_unit)
+        return "Player"
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_demo.lua" })
+      local roster = addon.Demo.BuildDummyRoster({
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "Player", "Realm"
+          end
+          return nil, nil
+        end,
+        getUnitRole = function(unit)
+          if unit == "player" then
+            return "TANK"
+          end
+          return "DAMAGER"
+        end,
+        getPlayerSpecName = function()
+          return "Protection"
+        end,
+        getUnitRio = function(_unit)
+          return 3000
+        end,
+      })
+
+      Assert.Equal(
+        roster.party4.spec,
+        "Marksmanship",
+        "demo roster should keep the canonical hunter spec name for short-label mapping"
+      )
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
 
   RegisterTestModeToggleTests(test, Assert, LoadAddonModules)
   RegisterTestModeGuardTests(test, Assert, LoadAddonModules)
+  RegisterDemoRosterTests(test, Assert, WithGlobals, LoadAddonModules)
 end

@@ -6,7 +6,7 @@ local function BuildGroupState(overrides)
     wasInGroup = overrides.wasInGroup or false,
     wasRaidGroup = overrides.wasRaidGroup or false,
     roster = {},
-    mainFrameVisible = false,
+    mainFrameVisible = overrides.mainFrameVisible or false,
     prints = {},
     queued = 0,
     announced = 0,
@@ -212,6 +212,7 @@ end
 local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
   test("Active M+ key blocks roster rebuild", function()
     local controller, state = BuildGroupController(LoadAddonModules, {
+      mainFrameVisible = true,
       getActiveChallengeMapID = function()
         return 2649
       end,
@@ -221,6 +222,18 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
 
     Assert.Nil(state.roster.player, "roster must not rebuild during active M+")
     Assert.Equal(state.uiUpdates, 1, "UI should still update during active M+")
+  end)
+
+  test("Hidden grouped roster updates keep pre-rendered UI fresh", function()
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      mainFrameVisible = false,
+    })
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(state.uiUpdates, 1, "hidden grouped roster updates should still pre-render UI state")
+    Assert.False(state.mainFrameVisible, "hidden grouped roster updates must keep the frame hidden")
   end)
 
   test("Re-join after leave resets wasInGroup correctly", function()

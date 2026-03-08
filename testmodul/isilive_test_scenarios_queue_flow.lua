@@ -13,7 +13,7 @@ local function RegisterQueueFlowResolverAndUpdateTests(test, Assert, WithGlobals
     }, function()
       local addon = LoadAddonModules({ "isiLive_queue_flow.lua" })
       local controller = Fixtures.BuildQueueFlowController(addon.QueueFlow, {
-        resolveSeason3MapIDByActivityID = function(activityID)
+        resolveMapIDByActivityID = function(activityID)
           local info = C_LFGList.GetActivityInfoTable(activityID)
           return info and info.mapID or nil
         end,
@@ -56,7 +56,7 @@ local function RegisterQueueFlowResolverAndUpdateTests(test, Assert, WithGlobals
   test("QueueFlow update does not carry forward stale target for same group", function()
     local addon = LoadAddonModules({ "isiLive_queue_flow.lua" })
     local controller, state = Fixtures.BuildQueueFlowController(addon.QueueFlow, {
-      resolveSeason3MapIDByActivityID = function(_activityID)
+      resolveMapIDByActivityID = function(_activityID)
         return nil
       end,
     })

@@ -194,6 +194,26 @@ local function RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModul
     end)
   end)
 
+  test("Status line keeps M+ inactive when challenge API is unavailable", function()
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Outside", "none", 0, "Unknown"
+      end,
+      C_ChallengeMode = nil,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_status.lua" })
+      local controller = addon.Status.CreateController({
+        getL = BuildLocale,
+      })
+
+      local text = controller.BuildStatusLineText({})
+      Assert.True(
+        string.find(text, "M+: Inactive", 1, true) ~= nil,
+        "status line should keep M+ inactive when the Blizzard challenge API is missing"
+      )
+    end)
+  end)
+
   test("Status line shows pre-season placeholder when active portal pool is empty", function()
     WithGlobals({
       GetInstanceInfo = function()

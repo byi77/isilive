@@ -1,5 +1,45 @@
 # Changelog
 
+## 2026-03-07 - Version 0.9.65
+- **Post-Run DPS Snapshot:**
+  - The addon now reads the Blizzard `C_DamageMeter` session after a dungeon run and exposes the latest run DPS for the current roster without guessing.
+  - Supported completion paths are now `Mythic Plus` via `CHALLENGE_MODE_COMPLETED/RESET` and `Mythic 0` via tracked mythic non-challenge dungeon exit.
+  - Roster tooltips now show a localized `Last run DPS` line when a matching post-run damage-meter value exists.
+  - The main roster now includes a dedicated `DPS` column that renders the same latest completed-run snapshot.
+  - Foreign-player DPS snapshots are now session-only and are no longer persisted to SavedVariables; only the local player's own last-run DPS remains persistent.
+- **Stats Storage Pruning:**
+  - Removed persistent foreign-player history from `IsiLiveDB.stats` so the database cannot grow unbounded with old group members.
+  - Deprecated `Runs together` tooltip history has been removed together with the foreign-player persistence it relied on.
+  - Removed the unused persistent dungeon-counter path and dead stats count APIs so the stats layer only keeps the bounded last-run DPS snapshot.
+- **Roster Tooltip Expansion:**
+  - Roster tooltips now also show the player's `Level` and server-language abbreviation (`DE`, `EN`, `FR`) in addition to the synced addon stats.
+- **Roster Column Compression:**
+  - The server-language column now renders only the flag icon, and its header is intentionally blank so no `....` placeholder appears.
+  - The `Spec` column is now anchored further left, player names are clamped to Blizzard's 12-character limit, and spec labels are clamped to 6 characters.
+  - `Key`, `iLvl`, `RIO`, and `DPS` column widths are now constrained to their real display maxima to free as much space as possible for the DPS snapshot.
+  - Visible key short codes now allow up to 4 letters.
+  - Unknown or unresolved dungeons no longer fall back to numeric map IDs in the roster or key-share text; the addon only shows fact-based short codes from season data.
+- **Demo/Test Mode Fixes:**
+  - Pressing `Refresh` while demo/test mode is active now rebuilds the full dummy roster instead of falling back to the live refresh path and showing only the local player.
+  - Demo roster data now uses the canonical hunter spec name `Marksmanship`, so short-label resolution stays stable in preview mode.
+- **Planning Docs:**
+  - The hardcut rename plan in `TODO_RENAME.md` was moved from `after v0.9.65` to `after v0.9.70`.
+  - Added `WARTUNG.md` as a maintenance runbook for long breaks and excluded it from CurseForge packaging.
+- **Validation + Docs Sync:**
+  - Deterministic validator coverage increased to `220` scenarios across `24` modules.
+  - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `TODO.md`, `TODO_RENAME.md`, and `WARTUNG.md` to the current runtime/release state.
+- **Post-Review Fixes:**
+  - `M0` snapshots no longer flush early on tracked mythic subzone/map changes; the frozen roster now stays bound to the original dungeon entry until real instance exit.
+  - `M0` snapshots now hydrate from the first reliable post-entry group roster update when zoning finishes before the roster is fully available.
+  - Unknown tooltip key short codes now stay unresolved as `?` instead of falling back to numeric `mapID` values.
+  - Roster row hover now uses a private `isiLive` tooltip instead of the shared Blizzard `GameTooltip`, removing the risky `SetUnit`/global-hide path that could collide with external tooltip taint.
+  - Internal teleport wiring now uses season-agnostic resolver names; legacy `Season3` exports remain only as compatibility wrappers.
+  - Runtime event wiring now forwards `recordRun` correctly from the composition root, hidden addon-sync/group updates may pre-render event-driven UI state without polling, and dead queue/runtime wiring was removed.
+  - Status-line `M+` text now safely handles missing Blizzard challenge APIs instead of calling `C_ChallengeMode` unguarded.
+  - Hidden-gate policy for background sync is now owned centrally by `ConfigBuilders.BuildGateOpts(...)` instead of being patched later in `RuntimeSetup`.
+  - The root now de-duplicates the shared `GROUP_ROSTER_UPDATE` trigger helper and trims unused `RuntimeSetup` return payloads.
+  - `LeaderWatch` now keeps `wasGroupLeader` synchronized even while the main UI is hidden, without firing hidden notices or chat output.
+
 ## 2026-03-06 - Version 0.9.64
 - **Midnight S1 Pre-Season Portal Messaging:**
   - Kept the active season dataset on `midnight_s1` pre-season mode.

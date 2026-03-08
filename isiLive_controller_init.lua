@@ -28,8 +28,8 @@ end
 local function CreateHighlightController(ctx)
   return ctx.highlightModule.CreateController({
     isInGroup = ctx.isInGroup,
-    resolveSeason3TeleportSpellIDByMapID = ctx.resolveSeason3TeleportSpellIDByMapID,
-    resolveSeason3MapIDByActivityID = ctx.resolveSeason3MapIDByActivityID,
+    resolveTeleportSpellIDByMapID = ctx.resolveTeleportSpellIDByMapID,
+    resolveMapIDByActivityID = ctx.resolveMapIDByActivityID,
   })
 end
 
@@ -80,7 +80,7 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     applyKnownKeyToRosterEntry = keySyncResult and keySyncResult.applyKnownKeyToRosterEntry or nil,
     getTime = ctx.getTime,
     shareKeysDebounceSeconds = ctx.shareKeysDebounceSeconds,
-    getPlayerRunCount = ctx.getPlayerRunCount,
+    getPlayerLastRunDps = ctx.getPlayerLastRunDps,
   })
 
   return {
@@ -118,8 +118,7 @@ function ControllerInit.CreateControllers(ctx)
   local statsController = CreateStatsController(ctx)
   result.statsController = statsController
   -- Inject stats getters into context for downstream consumers
-  ctx.getPlayerRunCount = statsController.GetPlayerCount
-  ctx.getDungeonCount = statsController.GetDungeonCount
+  ctx.getPlayerLastRunDps = statsController.GetPlayerLastRunDps
   result.recordRun = statsController.RecordRun
 
   local keySyncResult = CreateKeySyncController(ctx)

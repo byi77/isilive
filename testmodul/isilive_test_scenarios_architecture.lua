@@ -115,6 +115,121 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
       "BuildEventHandlersControllerDeps(",
       "RuntimeSetup must not rebuild legacy event deps directly"
     )
+    AssertNotContains(
+      Assert,
+      content,
+      "RuntimeSetup requires statsModule",
+      "RuntimeSetup must not require dead statsModule wiring"
+    )
+    AssertNotContains(
+      Assert,
+      content,
+      "gateOpts.allowWhenHidden",
+      "RuntimeSetup must not mutate hidden-gate policy after config building"
+    )
+    AssertNotContains(
+      Assert,
+      content,
+      "    groupController = groupController,",
+      "RuntimeSetup must not expose unused group controller return payload"
+    )
+    AssertNotContains(
+      Assert,
+      content,
+      "    leaderWatchController = leaderWatchController,",
+      "RuntimeSetup must not expose unused leader-watch return payload"
+    )
+    AssertNotContains(
+      Assert,
+      content,
+      "    gatedOnEvent = gatedOnEvent,",
+      "RuntimeSetup must not expose unused gated handler return payload"
+    )
+    AssertNotContains(
+      Assert,
+      content,
+      "    onEvent = ctx.onEvent,",
+      "RuntimeSetup must not expose unused raw onEvent return payload"
+    )
+  end)
+
+  test("Architecture hidden-gate policy is owned by config builders instead of runtime setup", function()
+    local content = ReadFile("isiLive_config_builders.lua")
+
+    AssertContains(Assert, content, "allowWhenHidden = {", "ConfigBuilders must define hidden-gate allowlist centrally")
+    AssertContains(
+      Assert,
+      content,
+      "CHAT_MSG_ADDON = true",
+      "ConfigBuilders hidden-gate allowlist must include addon sync"
+    )
+    AssertContains(
+      Assert,
+      content,
+      "GROUP_ROSTER_UPDATE = true",
+      "ConfigBuilders hidden-gate allowlist must include roster sync"
+    )
+  end)
+
+  test("Architecture root keeps challenge helper guarded and de-duplicates roster trigger helper", function()
+    local content = ReadFile("isiLive.lua")
+
+    AssertContains(
+      Assert,
+      content,
+      "if not (C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID) then",
+      "isiLive.lua must guard Blizzard challenge API access in root helper"
+    )
+    AssertContains(
+      Assert,
+      content,
+      "local function TriggerGroupRosterUpdate()",
+      "isiLive.lua must centralize GROUP_ROSTER_UPDATE helper"
+    )
+    AssertNotContains(
+      Assert,
+      content,
+      "triggerGroupRosterUpdate = function()",
+      "isiLive.lua must not keep duplicated inline GROUP_ROSTER_UPDATE closures"
+    )
+  end)
+
+  test("Architecture controller wiring forwards recordRun into event handler config", function()
+    local content = ReadFile("isiLive_controller_wiring.lua")
+
+    AssertContains(
+      Assert,
+      content,
+      'config.recordRun = type(deps.recordRun) == "function" and deps.recordRun or function() end',
+      "ControllerWiring must forward recordRun into event handler config"
+    )
+    AssertContains(
+      Assert,
+      content,
+      "recordRun = ctx.recordRun,",
+      "ControllerWiring context builder must pass top-level recordRun into event handlers"
+    )
+  end)
+
+  test("Architecture pkgmeta excludes WARTUNG maintenance doc from release package", function()
+    local content = ReadFile(".pkgmeta")
+
+    AssertContains(Assert, content, "  - WARTUNG.md", ".pkgmeta must exclude WARTUNG.md from CurseForge packaging")
+  end)
+
+  test("Architecture WARTUNG runbook references the required maintenance document chain", function()
+    local content = ReadFile("WARTUNG.md")
+
+    AssertContains(Assert, content, "CHANGELOG.md", "WARTUNG.md must reference CHANGELOG.md")
+    AssertContains(Assert, content, "TODO.md", "WARTUNG.md must reference TODO.md")
+    AssertContains(Assert, content, "TODO_RENAME.md", "WARTUNG.md must reference TODO_RENAME.md")
+    AssertContains(Assert, content, "RULES_LOGIC.md", "WARTUNG.md must reference RULES_LOGIC.md")
+    AssertContains(Assert, content, "ARCHITECTURE_RULES.md", "WARTUNG.md must reference ARCHITECTURE_RULES.md")
+    AssertContains(Assert, content, "AGENTS.md", "WARTUNG.md must reference AGENTS.md")
+    AssertContains(Assert, content, "README.md", "WARTUNG.md must reference README.md")
+    AssertContains(Assert, content, "RELEASE.md", "WARTUNG.md must reference RELEASE.md")
+    AssertContains(Assert, content, "USECASES.md", "WARTUNG.md must reference USECASES.md")
+    AssertContains(Assert, content, "ARCHITECTURE.md", "WARTUNG.md must reference ARCHITECTURE.md")
   end)
 end
 

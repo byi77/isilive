@@ -48,13 +48,17 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 25. der rio delta kann niemals negativ sein also zb. -15, der kann nur 0 oder höher sein.
 26. die ui kann jederzeit mit STRG+F9 geöffnet und geschlossen werden, auch infight
 27. das schliessen der ui ist jederzeit möglich, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9
-28. während die ui ausgeblendet ist, laufen roster/addon-sync im hintergrund weiter; ui-rendering und queue-scanning stoppen jedoch.
+28. während die ui ausgeblendet ist, laufen roster/addon-sync im hintergrund weiter und dürfen eventgetrieben vor-rendern; queue-scanning und dauerhafte polling-last stoppen jedoch.
 29. teleport-eintraege fuer shared spells bleiben deterministisch sortiert und doppelte grid-eintraege werden entfernt.
 30. falls ein anderer user entdeckt wird welcher auch "isiLive" benutzt, hängen wir hinter seinen Namen ein <3 (blaues herz) an
 31. main ui immer -> auto open beim gruppenbeitritt, autoclose bei key start und auto open bei key ende weiterhin behalten
 32. verlaesst ein spieler die gruppe, bleibt er als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt
 33. spieler, die sich bereits im zieldungeon befinden, werden mit einem portal-icon markiert
 34. waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt
+35. die kompakten roster-datenspalten behalten ihr festes breitenbudget fuer spec, name, ilvl, key, rio, dps und flagge.
+36. roster-kurztexte bleiben kompakt und faktenbasiert: name max 12 zeichen, spec max 6 zeichen, sprache nur flagge, key-code max 4 zeichen und nie numerischer mapid-fallback.
+37. die wartungsdatei `WARTUNG.md` darf nicht im curseforge-paket landen.
+38. `WARTUNG.md` muss die verpflichtende wartungskette fuer den wiedereinstieg nennen: `CHANGELOG.md`, `TODO.md`, `TODO_RENAME.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `AGENTS.md`, `README.md`, `RELEASE.md`, `USECASES.md`, `ARCHITECTURE.md`.
 
 ## Regelbloecke
 
@@ -262,9 +266,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-HIDDEN-SPARFLAMME
 - Regelnummer: 28
 - Status: aktiv
-- Zusammenfassung: waehrend die ui ausgeblendet ist, laeuft der daten-sync (roster/addon-msgs) im hintergrund weiter; ui-rendering stoppt jedoch.
+- Zusammenfassung: waehrend die ui ausgeblendet ist, laeuft der daten-sync (roster/addon-msgs) im hintergrund weiter und darf eventgetrieben ui-zustand vor-rendern; queue-scanning und dauerhafte polling-last bleiben jedoch aus.
 - Erforderliche Tests:
   - Bootstrap gate allows sync events while frame is hidden if configured
+  - Hidden grouped roster updates keep pre-rendered UI fresh
+  - Event handlers pre-render UI for hidden addon sync updates
   - Event handlers process addon sync messages and refresh changed roster
   - Bootstrap gate keeps hidden auto-open triggers for group join and key end
   - Event handlers run regen teleport refresh when frame is visible
@@ -338,6 +344,38 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Duplikat zu Regel 15; RIO-Delta bleibt immer bei `+0` oder hoeher.
 - Erforderliche Tests:
   - Roster display clamps negative RIO delta to +0
+
+### RULE-ROSTER-KOMPAKT-SPALTENBREITEN
+- Regelnummer: 35
+- Status: aktiv
+- Zusammenfassung: Die Roster-Datenspalten behalten ein festes Kompaktlayout mit den Breiten Spec=52, Name=134, iLvl=24, Key=56, Rio=70, DPS=58 und Flagge=14.
+- Erforderliche Tests:
+  - Roster panel uses compact width budget for primary data columns
+
+### RULE-ROSTER-KOMPAKT-KURZTEXTE
+- Regelnummer: 36
+- Status: aktiv
+- Zusammenfassung: Die Roster-Anzeige bleibt kompakt und faktenbasiert: Name max 12 Zeichen, Spec max 6 Zeichen, Sprache nur Flagge, Key-Code max 4 Zeichen und kein numerischer mapID-Fallback.
+- Erforderliche Tests:
+  - Roster display truncates names to Blizzard 12-character limit
+  - Roster display truncates spec labels to six characters
+  - Roster display shows flag only without language letters
+  - Roster display clamps key short code to four letters
+  - Roster display never shows numeric map ids as key short code
+
+### RULE-WARTUNGSDATEI-NICHT-IM-PAKET
+- Regelnummer: 37
+- Status: aktiv
+- Zusammenfassung: Die Wartungsdatei `WARTUNG.md` darf nicht im CurseForge-Paket landen.
+- Erforderliche Tests:
+  - Architecture pkgmeta excludes WARTUNG maintenance doc from release package
+
+### RULE-WARTUNGSKETTE-WIEDEREINSTIEG
+- Regelnummer: 38
+- Status: aktiv
+- Zusammenfassung: `WARTUNG.md` muss die verpflichtende Wartungskette fuer den Wiedereinstieg nennen: `CHANGELOG.md`, `TODO.md`, `TODO_RENAME.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `AGENTS.md`, `README.md`, `RELEASE.md`, `USECASES.md`, `ARCHITECTURE.md`.
+- Erforderliche Tests:
+  - Architecture WARTUNG runbook references the required maintenance document chain
 
 ## Hinweise
 

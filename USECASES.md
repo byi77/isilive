@@ -1,7 +1,7 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.64`
-Last updated: `2026-03-06`
+Version baseline: `0.9.65`
+Last updated: `2026-03-07`
 
 ## Actors
 
@@ -26,6 +26,7 @@ Last updated: `2026-03-06`
 | UC-05 | Cooldown lifecycle | Cooldown expires naturally or resets after dungeon finish |
 | UC-06 | Share keys action | Group keys are announced in party chat via button |
 | UC-07 | RIO delta visibility | Per-run RIO delta is shown as non-negative `(+X)` prefix |
+| UC-08 | Post-run DPS snapshot | Latest dungeon DPS per player is read from Blizzard damage meter and shown in roster + tooltip |
 
 ## UC-01 Invite Detection And Target Resolution
 
@@ -106,18 +107,33 @@ Goal: show pre/post-run rating change per player in roster without negative disp
 8. Rule: test modes (`/isilive test`, `/isilive testall`) include visible positive dummy delta preview.
 9. Success criteria: display is stable per player across unit-slot changes and never shows negative delta.
 
+## UC-08 Post-Run DPS Snapshot
+
+Goal: expose the latest completed dungeon DPS per player from Blizzard damage meter without guessing or layout churn, while keeping persistent storage bounded.
+
+1. Trigger: `CHALLENGE_MODE_COMPLETED` / `CHALLENGE_MODE_RESET` records a completed `M+` run, and leaving a tracked mythic non-challenge party dungeon records an `M0` run snapshot.
+2. Processing: addon reads the Blizzard `C_DamageMeter` overall run session when `combatSources` are available.
+3. Processing: `M0` matching uses the roster snapshot frozen on dungeon entry so later group leavers still remain matchable at dungeon exit.
+4. Processing: addon matches damage-meter source names deterministically against the current roster or frozen roster snapshot and keeps only exact player matches.
+5. Storage: foreign-player DPS snapshots stay runtime-only for the current session; persistent storage keeps only the local player's own last-run DPS.
+6. Output: the roster shows a dedicated `DPS` column and hovering a roster row shows a localized `Last run DPS: ...` tooltip line for players with a currently available stored value.
+7. Output: the tooltip also shows `Level` and `Lang` without re-expanding the roster layout.
+8. Rule: if the Blizzard damage meter API/session is unavailable or a player has no exact source match, no DPS line is shown.
+9. Success criteria: roster and tooltip show the latest dungeon DPS for matching roster players in-session, keep only the local player's own snapshot persistently, and stay empty for unresolved players instead of guessing.
+
 ## Non-Functional Rules
 
 1. No speculative behavior: unresolved/ambiguous map context must stay unresolved (no name/token fallback guessing).
 2. Combat-protected UI operations must be deferred safely while window dragging stays available, and teleport action buttons must not promote parent frames to protected status.
 3. Leader-only actions must stay disabled for non-leaders.
-4. Hidden mode should halt non-essential processing, suspend queue scanning and UI rendering, keep background roster/addon-message sync active, and only keep required auto-open transitions active.
+4. Hidden mode should halt non-essential processing, suspend queue scanning and permanent polling, keep background roster/addon-message sync active, allow event-driven pre-rendered UI state updates, and only keep required auto-open transitions active.
 5. Blizzard CVar state remains authoritative: `isiLive` only mirrors `advancedCombatLogging` / `damageMeterResetOnNewInstance` in the UI and writes them on explicit user clicks; challenge-start Blizzard damage-meter reset still runs when API support exists.
 6. RIO delta display must be deterministic and non-negative (`(+X)` only).
 7. UI visibility toggle (`CTRL+F9`) must allow both open and close in combat; `CHALLENGE_MODE_START` still auto-hides the main window.
 8. During combat, non-essential event processing is suspended by runtime gate; essential events continue.
 9. Refresh and key-share UI actions must enforce click-spam guards (debounce/rate-limit behavior).
 10. Event-gate dispatch failures must be reported through error callbacks for diagnostics without terminating the gate loop.
+11. Persistent stats storage must stay bounded: no persistent foreign-player run history and no persistent `Runs together` cache.
 
 ## Automated Validation Mapping
 
@@ -129,6 +145,7 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 3. UC-04/UC-05: cooldown recognition/format behavior and state handling.
 4. Event consistency: target clear behavior under API shape variants, grouped negative-application follow-up events, and protected API errors.
 5. UC-07: challenge-start baseline capture and roster `(+X)RIO` rendering rules (including non-negative clamp).
+6. UC-08: post-run DPS snapshot capture for `M+` and `M0`, bounded persistence, and tooltip/roster rendering.
 
 ## Traceability To Source Files
 
@@ -139,5 +156,6 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 | Teleport spell mapping and cooldown behavior | `isiLive_teleport.lua`, `isiLive_spell_utils.lua`, `isiLive_teleport_ui.lua` |
 | Group lifecycle and roster rebuild | `isiLive_group.lua`, `isiLive_roster.lua` |
 | RIO baseline capture and delta preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
+| Last-run DPS capture and bounded stats persistence | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua` |
 | UI actions and key sharing button | `isiLive_roster_panel.lua` |
 | Event routing and gating | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua` |
