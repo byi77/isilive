@@ -113,8 +113,11 @@ local function BuildContext(opts)
     return false
   end)
   ctx.lastRecordedRunSignature = nil
+  ctx.lastRecordedRunCaptured = false
+  ctx.pendingRecordedRunRetrySignature = nil
   ctx.activeMythicZeroMapID = nil
   ctx.activeMythicZeroRosterSnapshot = nil
+  ctx.pendingMythicZeroRunCapture = nil
 
   return ctx
 end

@@ -12,9 +12,14 @@
 - [x] `v0.9.67` vorbereiten:
   - Tooltip-Isolation, Load-Order-Hotfix und private Tooltip-Layoutfixes dokumentieren
   - `README.md` / `ARCHITECTURE.md` / `USECASES.md` / `RELEASE.md` auf `0.9.67` Beispiele und Baselines synchronisieren
-- [ ] `v0.9.67` veroeffentlichen
+- [x] `v0.9.67` veroeffentlichen
   - isolierte Tooltip-Hover in Roster / Buttons / Teleport / Notice ingame querpruefen
   - Tooltip-Wrap und Kantenabstand bei laengeren Strings im Live-Client pruefen
+- [x] `v0.9.68` vorbereiten:
+  - Post-Run-DPS-Retry fuer `M+` und `M0` dokumentieren
+  - `README.md` / `ARCHITECTURE.md` / `USECASES.md` / `RELEASE.md` auf `0.9.68` Beispiele, Baselines und Validator-Zaehler synchronisieren
+- [ ] `v0.9.68` veroeffentlichen
+  - Ingame querpruefen, dass spaet veroeffentlichte Blizzard-Damage-Meter-Sessions die DPS-Spalte nach Key-Ende/M0-Exit noch fuellen
 - [ ] Kurz-Smoketest vor Release:
   - UI oeffnen/schliessen
   - Checkboxen fuer `advancedCombatLogging` / `damageMeterResetOnNewInstance`
@@ -47,6 +52,7 @@
 
 - [x] Nach `v0.9.65`: `TODO.md`, `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md` und `WARTUNG.md` wieder auf denselben Stand ziehen
 - [x] Nach `v0.9.67`: Tooltip-Doku/Runbooks wieder auf denselben Stand ziehen
+- [x] Nach `v0.9.68`: DPS-Retry-Doku/Runbooks wieder auf denselben Stand ziehen
 - [ ] Release-Text fuer CurseForge / GitHub kurz pruefen, damit die neue passive CVar-Logik klar beschrieben ist
 
 ## Geparkt / Nicht aktiv

@@ -108,6 +108,49 @@ local function RegisterStatsPruningTests(test, Assert, WithGlobals, LoadAddonMod
 end
 
 local function RegisterStatsDamageMeterTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Stats controller reports whether a run snapshot captured any roster DPS", function()
+    local db = { stats = {} }
+    local damageMeterSession = nil
+
+    WithGlobals({
+      IsiLiveDB = db,
+      GetRealmName = function()
+        return "MyRealm"
+      end,
+      C_DamageMeter = {
+        GetCombatSessionFromType = function()
+          return damageMeterSession
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_stats.lua" })
+      local controller = addon.Stats.CreateController({
+        getRoster = function()
+          return {
+            player = { name = "Me", realm = "MyRealm" },
+          }
+        end,
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "Me", "MyRealm"
+          end
+          return nil
+        end,
+      })
+
+      Assert.False(controller.RecordRun(2662, 12, true), "empty damage-meter data should report an uncaptured run")
+
+      damageMeterSession = {
+        durationSeconds = 1800,
+        combatSources = {
+          { name = "Me", amountPerSecond = 456789.4, totalAmount = 822220920 },
+        },
+      }
+
+      Assert.True(controller.RecordRun(2662, 12, true), "matching roster DPS snapshot should report successful capture")
+    end)
+  end)
+
   test("Stats controller stores latest run DPS from Blizzard damage meter for roster players", function()
     local db = { stats = {} }
     local roster = {

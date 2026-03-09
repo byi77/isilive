@@ -534,6 +534,72 @@ local function RegisterCombatStartupM0TrackingTests(test, Assert, WithGlobals, L
       "hydrated M0 snapshot should use the first full roster update after entry"
     )
   end)
+
+  test("Event handlers retry M0 run capture when damage meter snapshot is delayed", function()
+    local current = {
+      instanceType = "party",
+      difficultyID = 23,
+      mapID = 2662,
+    }
+    local captureAttempts = 0
+    local scheduled = {}
+    local roster = {
+      player = { name = "Me", realm = "MyRealm" },
+      party1 = { name = "Buddy", realm = "Realm" },
+    }
+
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Tracked Dungeon", current.instanceType, current.difficultyID, "Mythic"
+      end,
+      C_Map = {
+        GetBestMapForUnit = function(unit)
+          if unit == "player" then
+            return current.mapID
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        getRoster = function()
+          return roster
+        end,
+        timerAfter = function(seconds, callback)
+          table.insert(scheduled, {
+            seconds = seconds,
+            callback = callback,
+          })
+        end,
+        recordRun = function(mapID, level, onTime, rosterSnapshot)
+          captureAttempts = captureAttempts + 1
+          Assert.Equal(mapID, 2662, "M0 retry capture must keep original dungeon map id")
+          Assert.Equal(level, 0, "M0 retry capture must stay on level 0")
+          Assert.Nil(onTime, "M0 retry capture must keep nil timed flag")
+          Assert.NotNil(rosterSnapshot.party1, "M0 retry capture must keep frozen roster snapshot")
+          return captureAttempts >= 2
+        end,
+      })
+
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+
+      current.instanceType = "none"
+      current.difficultyID = 0
+      current.mapID = nil
+      roster = {}
+
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+    end)
+
+    Assert.Equal(captureAttempts, 1, "M0 exit should attempt immediate run capture once")
+    Assert.Equal(#scheduled, 5, "M0 entry/exit should keep the normal binding refresh callbacks plus one capture retry")
+    Assert.Equal(scheduled[3].seconds, 1, "run capture retry should use short fixed delay")
+
+    scheduled[3].callback()
+
+    Assert.Equal(captureAttempts, 2, "scheduled M0 retry should attempt run capture again")
+  end)
 end
 
 local function RegisterCombatStartupStateRestoreTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
@@ -810,6 +876,47 @@ local function RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtu
     scheduled[3].callback()
     Assert.Equal(refreshCalls, 3, "second follow-up callback should run third refresh attempt")
     Assert.Equal(#scheduled, 3, "no further follow-up callback should be scheduled after configured attempts")
+  end)
+
+  test("Event handlers retry completed-run capture when damage meter snapshot is delayed", function()
+    local captureAttempts = 0
+    local scheduled = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      timerAfter = function(seconds, callback)
+        table.insert(scheduled, {
+          seconds = seconds,
+          callback = callback,
+        })
+      end,
+      recordRun = function(mapID, level, onTime)
+        captureAttempts = captureAttempts + 1
+        Assert.Equal(mapID, 2662, "completed-run retry must keep challenge map id")
+        Assert.Equal(level, 10, "completed-run retry must keep challenge level")
+        Assert.True(onTime == true, "completed-run retry must keep timed flag")
+        return captureAttempts >= 2
+      end,
+    })
+
+    local previousChallengeMode = _G.C_ChallengeMode
+    _G.C_ChallengeMode = {
+      GetCompletionInfo = function()
+        return 2662, 10, 123456, true
+      end,
+    }
+
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    _G.C_ChallengeMode = previousChallengeMode
+
+    Assert.Equal(captureAttempts, 1, "challenge completion should attempt immediate run capture once")
+    Assert.Equal(#scheduled, 2, "challenge completion should schedule one capture retry plus delayed refresh")
+    Assert.Equal(scheduled[1].seconds, 1, "capture retry should use short fixed delay")
+    Assert.Equal(scheduled[2].seconds, 5, "delayed refresh should keep its existing delay")
+
+    scheduled[1].callback()
+
+    Assert.Equal(captureAttempts, 2, "capture retry should attempt completed-run capture again")
   end)
 end
 

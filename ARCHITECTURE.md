@@ -1,6 +1,6 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.67`
+Version baseline: `0.9.68`
 Last updated: `2026-03-09`
 
 ## Purpose
@@ -57,13 +57,14 @@ WoW Event
 8. Do not clear queue-derived target on negative application follow-up events while already grouped.
 9. Mirror Blizzard CVar state for `advancedCombatLogging` and `damageMeterResetOnNewInstance` in the main UI, write only on explicit user toggle clicks, and still trigger Blizzard damage-meter reset on challenge start when API support exists.
 10. Capture per-player RIO baseline on challenge start and enable delta rendering only after delayed post-run refresh; delta is always shown as non-negative `(+X)` prefix.
-11. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
-12. Keep sync handshake resilient: HELLO recipients acknowledge and force-send own KEY/STATS snapshot so refresh-driven cache clears and manual reopen repopulate deterministically.
-13. In hidden mode, suspend queue scanning and permanent polling; keep background roster/addon-message sync plus required auto-open transitions active, and allow event-driven pre-render updates.
-14. Keep UI action spam guards active for `Refresh` and `Share Keys` (debounce/rate-limit behavior).
-15. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
-16. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures where Blizzard tooltip APIs are still referenced.
-17. Shared `isiLive` tooltip frames own their own text layout and must not route UI hover rendering back through the shared Blizzard `GameTooltip`.
+11. Completed-run DPS capture must tolerate delayed Blizzard damage-meter availability through short deterministic retries for both `M+` and tracked `M0` exits.
+12. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
+13. Keep sync handshake resilient: HELLO recipients acknowledge and force-send own KEY/STATS snapshot so refresh-driven cache clears and manual reopen repopulate deterministically.
+14. In hidden mode, suspend queue scanning and permanent polling; keep background roster/addon-message sync plus required auto-open transitions active, and allow event-driven pre-render updates.
+15. Keep UI action spam guards active for `Refresh` and `Share Keys` (debounce/rate-limit behavior).
+16. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
+17. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures where Blizzard tooltip APIs are still referenced.
+18. Shared `isiLive` tooltip frames own their own text layout and must not route UI hover rendering back through the shared Blizzard `GameTooltip`.
 
 ## Architecture Contract Set
 
@@ -93,13 +94,13 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 221 scenarios across 24 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui logic.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 228 scenarios across 24 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiKeyMPlus                                                                        V.0.9.67     |
+| isiKeyMPlus                                                                        V.0.9.68     |
 |--------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  M+Travel         |
 |--------------------------------------------------------------------------------------------------|
@@ -127,7 +128,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 | EventHandlersRuntime | Addon/world/combat/inspect/sync events | Startup, hidden-mode sync, regen recovery, inspect dispatch |
 | EventHandlersQueue | LFG queue/listing events | Queue capture, target preservation, joined-key tracking |
 | EventHandlersChallenge | Challenge and ready-check events | Run lifecycle, delayed refresh, rio delta enable, ready-check state |
-| Stats | Challenge/M0 run completion signals plus Blizzard damage-meter session | Bounded last-run DPS snapshots (persistent only for local player, foreign players session-only) |
+| Stats | Challenge/M0 run completion signals plus Blizzard damage-meter session | Bounded last-run DPS snapshots with short delayed-session retry (persistent only for local player, foreign players session-only) |
 | RosterPanel | Roster model and localization | Main table rendering and action button callbacks |
 | TeleportUI | Season teleport entries and state | Insecure-action teleport button states and cooldown labels |
 

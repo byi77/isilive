@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.67`.
+Current documented baseline: `0.9.68`.
 
 ## Features
 
@@ -63,7 +63,7 @@ Current documented baseline: `0.9.67`.
 - Blizzard damage meter is also manually reset on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
 - `CHALLENGE_MODE_START` captures a per-player RIO baseline.
 - `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` schedules delayed post-run refresh and enables clamped delta display `(+X)RIO` after refresh succeeds (with short retry if still blocked), including when the window is currently hidden.
-- Latest run DPS is captured after `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` for `M+`, and after leaving a tracked mythic non-challenge dungeon for `M0`; `M0` matching uses the roster snapshot frozen on dungeon entry.
+- Latest run DPS is captured after `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` for `M+`, and after leaving a tracked mythic non-challenge dungeon for `M0`; both paths now retry briefly if the Blizzard damage-meter session is not ready yet, and `M0` matching still uses the roster snapshot frozen on dungeon entry.
 - Test mode (`/isilive test`, `/isilive testall`) includes visible positive dummy RIO delta preview.
 - `Readycheck`, `Countdown10`, and `Countdown 0` are leader-only
 - Roster language column shows only the flag icon; the tooltip shows the 2-letter server language code (for example `DE`, `FR`, `EN`)
@@ -72,7 +72,7 @@ Current documented baseline: `0.9.67`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`, while explicit local refresh triggers and visibility-bound snapshots keep `KEY/STATS` current.
 
-## Use Case / Logic Baseline (v0.9.67)
+## Use Case / Logic Baseline (v0.9.68)
 
 Documented on `2026-03-09` as runtime behavior baseline for validation checks.
 
@@ -107,8 +107,8 @@ Documented on `2026-03-09` as runtime behavior baseline for validation checks.
    - Hidden leader changes are synchronized silently so leader-only button state stays correct on the next visible transition without firing hidden notices/chat output.
    - Leaving or getting removed from a normal party keeps the current frame visibility state and converts former party members into ghost rows instead of clearing the roster immediately.
 7. Post-run DPS snapshot behavior
-   - `M+` run-end events (`CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET`) record the latest Blizzard damage-meter overall session for exact roster matches.
-   - `M0` snapshots are recorded when leaving a tracked mythic non-challenge dungeon, using the roster frozen on dungeon entry so late leavers still match.
+   - `M+` run-end events (`CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET`) record the latest Blizzard damage-meter overall session for exact roster matches and retry briefly if the session is still empty on the first event.
+   - `M0` snapshots are recorded when leaving a tracked mythic non-challenge dungeon, use the roster frozen on dungeon entry so late leavers still match, and also retry briefly if the damage-meter session is not ready yet.
    - Only the local player's own last-run DPS persists across sessions; foreign-player snapshots stay runtime-only.
 
 ## Hotkeys
@@ -219,7 +219,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-`tools/validate_usecases.lua` runs both rule validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 221 scenarios across 24 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui), including:
+`tools/validate_usecases.lua` runs both rule validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 228 scenarios across 24 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui), including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
@@ -301,10 +301,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.67`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.68`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.67` or `isiLive_beta_0.9.67`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.68` or `isiLive_beta_0.9.68`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -316,9 +316,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.67 && git push origin isiLive_release_0.9.67`
+3. Create and push stable tag: `git tag isiLive_release_0.9.68 && git push origin isiLive_release_0.9.68`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.67 && git push origin isiLive_alpha_0.9.67`
-   - beta: `git tag isiLive_beta_0.9.67 && git push origin isiLive_beta_0.9.67`
+   - alpha: `git tag isiLive_alpha_0.9.68 && git push origin isiLive_alpha_0.9.68`
+   - beta: `git tag isiLive_beta_0.9.68 && git push origin isiLive_beta_0.9.68`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

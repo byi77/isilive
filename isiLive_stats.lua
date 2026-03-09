@@ -165,7 +165,7 @@ function Stats.CreateController(opts)
 
   function controller.RecordRun(mapID, level, onTime, rosterOverride)
     if not mapID then
-      return
+      return false
     end
 
     EnsureStatsTables()
@@ -173,11 +173,14 @@ function Stats.CreateController(opts)
     local roster = type(rosterOverride) == "table" and rosterOverride or (getRoster and getRoster())
     local runSnapshot = CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
     sessionPlayerLastRuns = runSnapshot
+    local recordedAnyPlayer = next(runSnapshot) ~= nil
 
     local selfRun = localPlayerKey and runSnapshot[localPlayerKey] or nil
     if selfRun then
       IsiLiveDB.stats.playerLastRun = selfRun
     end
+
+    return recordedAnyPlayer
   end
 
   function controller.GetPlayerLastRunDps(name, realm)

@@ -10,6 +10,8 @@ local POST_RUN_REFRESH_RETRIES = 5
 local POST_RUN_REFRESH_RETRY_DELAY_SECONDS = 1
 local POST_RUN_FOLLOWUP_REFRESH_DELAY_SECONDS = 6
 local POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS = 2
+local POST_RUN_CAPTURE_RETRIES = 5
+local POST_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
 
 local function ResetDamageMeterIfAvailable()
   local damageMeterAPI = _G.C_DamageMeter
@@ -47,19 +49,48 @@ local function GetChallengeCompletionInfoSafe()
   return mapID, level, time, onTime
 end
 
-local function TryRecordCompletedRun(ctx)
+local function DidRecordRunSucceed(recorded)
+  return recorded ~= false
+end
+
+local function ResolveCompletedRunInfo()
   local mapID, level, time, onTime = GetChallengeCompletionInfoSafe()
   if not (mapID and level) then
+    return nil
+  end
+
+  return {
+    mapID = mapID,
+    level = level,
+    onTime = onTime,
+    signature = string.format("%s:%s:%s:%s", tostring(mapID), tostring(level), tostring(time), tostring(onTime)),
+  }
+end
+
+local TryRecordCompletedRun
+
+local function ScheduleCompletedRunRetry(ctx, runInfo, retriesRemaining)
+  if
+    type(runInfo) ~= "table"
+    or retriesRemaining <= 0
+    or not ctx.timerAfter
+    or ctx.pendingRecordedRunRetrySignature == runInfo.signature
+  then
     return false
   end
 
-  local signature = string.format("%s:%s:%s:%s", tostring(mapID), tostring(level), tostring(time), tostring(onTime))
-  if ctx.lastRecordedRunSignature == signature then
-    return false
-  end
+  ctx.pendingRecordedRunRetrySignature = runInfo.signature
+  ctx.timerAfter(POST_RUN_CAPTURE_RETRY_DELAY_SECONDS, function()
+    if ctx.lastRecordedRunSignature ~= runInfo.signature or ctx.lastRecordedRunCaptured then
+      return
+    end
 
-  ctx.lastRecordedRunSignature = signature
-  ctx.recordRun(mapID, level, onTime)
+    ctx.pendingRecordedRunRetrySignature = nil
+    if TryRecordCompletedRun(ctx, runInfo, retriesRemaining - 1) then
+      ctx.updateUI()
+    end
+  end)
+
   return true
 end
 
@@ -75,6 +106,30 @@ local function RefreshRosterAfterRunStateChange(ctx, frame)
   end
 
   ctx.updateLeaderButtons()
+end
+
+TryRecordCompletedRun = function(ctx, runInfo, retriesRemaining)
+  if type(runInfo) ~= "table" then
+    return false
+  end
+
+  if ctx.lastRecordedRunSignature ~= runInfo.signature then
+    ctx.lastRecordedRunSignature = runInfo.signature
+    ctx.lastRecordedRunCaptured = false
+    ctx.pendingRecordedRunRetrySignature = nil
+  elseif ctx.lastRecordedRunCaptured then
+    return false
+  end
+
+  local capturedNow = DidRecordRunSucceed(ctx.recordRun(runInfo.mapID, runInfo.level, runInfo.onTime))
+  if capturedNow then
+    ctx.lastRecordedRunCaptured = true
+    ctx.pendingRecordedRunRetrySignature = nil
+    return true
+  end
+
+  ScheduleCompletedRunRetry(ctx, runInfo, retriesRemaining or POST_RUN_CAPTURE_RETRIES)
+  return false
 end
 
 local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, followUpRefreshesRemaining)
@@ -109,6 +164,8 @@ end
 function ChallengeLifecycle.BuildHandlers(ctx)
   local function HandleChallengeModeStart(_self)
     ctx.lastRecordedRunSignature = nil
+    ctx.lastRecordedRunCaptured = false
+    ctx.pendingRecordedRunRetrySignature = nil
     ctx.setReadyCheckActive(false)
     ResetDamageMeterIfAvailable()
     ctx.captureRioBaselineSnapshot()
@@ -121,7 +178,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandleChallengeModeCompletedOrReset(frame)
-    TryRecordCompletedRun(ctx)
+    TryRecordCompletedRun(ctx, ResolveCompletedRunInfo(), POST_RUN_CAPTURE_RETRIES)
 
     if ctx.isInGroup() then
       ctx.setMainFrameVisible(true)

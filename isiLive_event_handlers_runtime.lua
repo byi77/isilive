@@ -11,6 +11,8 @@ local NON_CHALLENGE_MYTHIC_DIFFICULTY_IDS = {
   [24] = true,
   [167] = true,
 }
+local NON_CHALLENGE_RUN_CAPTURE_RETRIES = 5
+local NON_CHALLENGE_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
 
 local function ResolveTrackedMythicZeroMapID()
   if type(GetInstanceInfo) == "function" then
@@ -94,12 +96,60 @@ local function HasReliableTrackedMythicZeroRoster(ctx, roster)
   return not ctx.isInGroup()
 end
 
+local function DidRecordRunSucceed(recorded)
+  return recorded ~= false
+end
+
+local RetryTrackedMythicZeroRunCapture
+
+local function ScheduleTrackedMythicZeroRunRetry(ctx, runInfo, retriesRemaining)
+  if
+    type(runInfo) ~= "table"
+    or retriesRemaining <= 0
+    or not ctx.timerAfter
+    or ctx.pendingMythicZeroRunCapture ~= runInfo
+    or runInfo.retryScheduled
+  then
+    return false
+  end
+
+  runInfo.retryScheduled = true
+  ctx.timerAfter(NON_CHALLENGE_RUN_CAPTURE_RETRY_DELAY_SECONDS, function()
+    if ctx.pendingMythicZeroRunCapture ~= runInfo then
+      return
+    end
+
+    runInfo.retryScheduled = false
+    if RetryTrackedMythicZeroRunCapture(ctx, runInfo, retriesRemaining - 1) then
+      ctx.updateUI()
+    end
+  end)
+
+  return true
+end
+
+RetryTrackedMythicZeroRunCapture = function(ctx, runInfo, retriesRemaining)
+  if type(runInfo) ~= "table" or ctx.pendingMythicZeroRunCapture ~= runInfo then
+    return false
+  end
+
+  local capturedNow = DidRecordRunSucceed(ctx.recordRun(runInfo.mapID, 0, nil, runInfo.rosterSnapshot))
+  if capturedNow then
+    ctx.pendingMythicZeroRunCapture = nil
+    return true
+  end
+
+  ScheduleTrackedMythicZeroRunRetry(ctx, runInfo, retriesRemaining or NON_CHALLENGE_RUN_CAPTURE_RETRIES)
+  return false
+end
+
 local function UpdateTrackedMythicZeroRun(ctx)
   local isTrackedMythicZero, currentMapID = GetTrackedMythicZeroState(ctx)
   local previousMapID = tonumber(ctx.activeMythicZeroMapID)
   local roster = ctx.getRoster()
 
   if isTrackedMythicZero then
+    ctx.pendingMythicZeroRunCapture = nil
     if ctx.activeMythicZeroRosterSnapshot == nil and HasReliableTrackedMythicZeroRoster(ctx, roster) then
       ctx.activeMythicZeroRosterSnapshot = CloneRosterSnapshotForStats(roster)
     end
@@ -115,7 +165,13 @@ local function UpdateTrackedMythicZeroRun(ctx)
       rosterSnapshot = CloneRosterSnapshotForStats(roster)
     end
     if rosterSnapshot ~= nil then
-      ctx.recordRun(previousMapID, 0, nil, rosterSnapshot)
+      local runInfo = {
+        mapID = previousMapID,
+        rosterSnapshot = rosterSnapshot,
+        retryScheduled = false,
+      }
+      ctx.pendingMythicZeroRunCapture = runInfo
+      RetryTrackedMythicZeroRunCapture(ctx, runInfo, NON_CHALLENGE_RUN_CAPTURE_RETRIES)
     end
   end
   ctx.activeMythicZeroMapID = nil

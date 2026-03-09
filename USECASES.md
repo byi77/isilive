@@ -1,6 +1,6 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.67`
+Version baseline: `0.9.68`
 Last updated: `2026-03-09`
 
 ## Actors
@@ -113,14 +113,15 @@ Goal: expose the latest completed dungeon DPS per player from Blizzard damage me
 
 1. Trigger: `CHALLENGE_MODE_COMPLETED` / `CHALLENGE_MODE_RESET` records a completed `M+` run, and leaving a tracked mythic non-challenge party dungeon records an `M0` run snapshot.
 2. Processing: addon reads the Blizzard `C_DamageMeter` overall run session when `combatSources` are available.
-3. Processing: `M0` matching uses the roster snapshot frozen on dungeon entry so later group leavers still remain matchable at dungeon exit.
-4. Processing: addon matches damage-meter source names deterministically against the current roster or frozen roster snapshot and keeps only exact player matches.
-5. Storage: foreign-player DPS snapshots stay runtime-only for the current session; persistent storage keeps only the local player's own last-run DPS.
-6. Output: the roster shows a dedicated `DPS` column and hovering a roster row shows a localized `Last run DPS: ...` tooltip line for players with a currently available stored value.
-7. Output: the tooltip also shows `Level` and `Lang` without re-expanding the roster layout.
-8. UI rule: roster/button/teleport/notice hover uses isolated `isiLive` tooltip frames with wrapped compact text layout instead of the shared Blizzard `GameTooltip`.
-9. Rule: if the Blizzard damage meter API/session is unavailable or a player has no exact source match, no DPS line is shown.
-10. Success criteria: roster and tooltip show the latest dungeon DPS for matching roster players in-session, keep only the local player's own snapshot persistently, and stay empty for unresolved players instead of guessing.
+3. Processing: if the first post-run read is still empty because Blizzard has not finalized the session yet, addon retries briefly on a short deterministic timer instead of permanently accepting an empty snapshot.
+4. Processing: `M0` matching uses the roster snapshot frozen on dungeon entry so later group leavers still remain matchable at dungeon exit.
+5. Processing: addon matches damage-meter source names deterministically against the current roster or frozen roster snapshot and keeps only exact player matches.
+6. Storage: foreign-player DPS snapshots stay runtime-only for the current session; persistent storage keeps only the local player's own last-run DPS.
+7. Output: the roster shows a dedicated `DPS` column and hovering a roster row shows a localized `Last run DPS: ...` tooltip line for players with a currently available stored value.
+8. Output: the tooltip also shows `Level` and `Lang` without re-expanding the roster layout.
+9. UI rule: roster/button/teleport/notice hover uses isolated `isiLive` tooltip frames with wrapped compact text layout instead of the shared Blizzard `GameTooltip`.
+10. Rule: if the Blizzard damage meter API/session is unavailable or a player has no exact source match, no DPS line is shown.
+11. Success criteria: roster and tooltip show the latest dungeon DPS for matching roster players in-session, keep only the local player's own snapshot persistently, and stay empty for unresolved players instead of guessing.
 
 ## Non-Functional Rules
 

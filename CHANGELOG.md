@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-03-09 - Version 0.9.68
+- **Post-Run DPS Capture Reliability:**
+  - `M+` completed-run DPS capture now retries briefly when the Blizzard `C_DamageMeter` session is not ready on the first completion/reset event.
+  - Tracked `M0` exit snapshots now use the same short retry path, so delayed damage-meter availability no longer leaves the roster `DPS` column empty permanently for that run.
+  - Run capture still stays deterministic: no guessed player mapping, no duplicate completed-run records, and no persistent foreign-player history.
+- **Validation + Docs Sync:**
+  - Deterministic validator coverage is now `228` scenarios across `24` modules.
+  - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, and `TODO.md` to `0.9.68`.
+
 ## 2026-03-09 - Version 0.9.67
 - **Demo/Test Mode:**
   - `CTRL+ALT+F9` / `/isilive test` now use the exact same full dummy preview path as `/isilive testall`.
