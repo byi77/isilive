@@ -56,77 +56,55 @@ end
 SeasonData.ACTIVE_SEASON_ID = "midnight_s1"
 
 SeasonData.SEASONS = {
-  tww_s3 = {
-    label = "TWW Season 3",
-    -- MapID -> Teleport SpellID
-    mapToTeleport = {
-      [2649] = 445444, -- Priory of the Sacred Flame
-      [2830] = 1237215, -- Eco-Dome Al'dani
-      [2287] = 354465, -- Halls of Atonement
-      [2773] = 1216786, -- Operation: Floodgate
-      [2660] = 445417, -- Ara-Kara, City of Echoes
-      [2441] = 367416, -- Tazavesh: Streets of Wonder
-      [2442] = 367416, -- Tazavesh: So'leah's Gambit
-      [2662] = 445414, -- The Dawnbreaker
-    },
-    -- Stable UI slot order for teleport buttons.
-    displayOrder = {
-      2287, -- Halls of Atonement
-      2441, -- Tazavesh: Streets of Wonder
-      2442, -- Tazavesh: So'leah's Gambit (shared spell, deduped later)
-      2649, -- Priory of the Sacred Flame
-      2660, -- Ara-Kara, City of Echoes
-      2662, -- The Dawnbreaker
-      2773, -- Operation: Floodgate
-      2830, -- Eco-Dome Al'dani
-    },
-    -- MapID -> short code grouped by locale.
-    shortCodesByLocale = {
-      default = {
-        [2649] = "PSF",
-        [2830] = "EDA",
-        [2287] = "HOA",
-        [2773] = "OFG",
-        [2660] = "AK",
-        [2441] = "TAZ",
-        [2442] = "TAZ",
-        [2662] = "DB",
-      },
-      deDE = {
-        [2649] = "PRI",
-        [2830] = "BIO",
-        [2287] = "HDS",
-        [2773] = "SCH",
-        [2660] = "AK",
-        [2441] = "TAZ",
-        [2442] = "TAZ",
-        [2662] = "MB",
-      },
-    },
-    -- ChallengeMapID -> canonical season mapID aliases used by roster key snapshots.
-    challengeMapAliases = {
-      [378] = 2287, -- Halls of Atonement
-      [391] = 2441, -- Tazavesh: Streets of Wonder
-      [392] = 2441, -- Tazavesh: So'leah's Gambit
-      [499] = 2649, -- Priory of the Sacred Flame
-      [503] = 2660, -- Ara-Kara, City of Echoes
-      [505] = 2662, -- The Dawnbreaker
-      [525] = 2773, -- Operation: Floodgate
-      [542] = 2830, -- Eco-Dome Al'dani
-    },
-  },
   midnight_s1 = {
     label = "Midnight Season 1 (prepared, inactive)",
-    mapToTeleport = {},
-    displayOrder = {},
+    mapToTeleport = {
+      -- TODO: Add numeric MapIDs and SpellIDs when Midnight PTR is available
+      -- [2526] = 393256, -- Algeth'ar Academy (DF S1 IDs, might change)
+      -- [115]  = 0,      -- Magisters' Terrace
+      -- [658]  = 0,      -- Pit of Saron
+      -- [1677] = 0,      -- Seat of the Triumvirate
+      -- [1176] = 0,      -- Skyreach
+      -- [?]    = 0,      -- Maisara Caverns
+      -- [?]    = 0,      -- Nexus-Point Xenas
+      -- [?]    = 0,      -- Windrunner Spire
+    },
+    displayOrder = {
+      -- 2526, -- Algeth'ar Academy
+      -- 115,  -- Magisters' Terrace
+      -- 658,  -- Pit of Saron
+      -- 1677, -- Seat of the Triumvirate
+      -- 1176, -- Skyreach
+      -- ?,    -- Maisara Caverns
+      -- ?,    -- Nexus-Point Xenas
+      -- ?,    -- Windrunner Spire
+    },
     shortCodesByLocale = {
-      default = {},
-      deDE = {},
+      default = {
+        -- [2526] = "AA",
+        -- [115]  = "MGT",
+        -- [658]  = "POS",
+        -- [1677] = "SOT",
+        -- [1176] = "SKY",
+        -- [?]    = "MAC",
+        -- [?]    = "NPX",
+        -- [?]    = "WS",
+      },
+      deDE = {
+        -- [2526] = "AA",
+        -- [115]  = "TDM",
+        -- [658]  = "GVS",
+        -- [1677] = "SDT",
+        -- [1176] = "HN",
+        -- [?]    = "MH",
+        -- [?]    = "NPX",
+        -- [?]    = "WS",
+      },
     },
     challengeMapAliases = {},
     inactivePortalMessageByLocale = {
-      default = "Midnight S1 starts week of March 17, 2026",
-      deDE = "Midnight S1 startet in der Woche vom 17.03.2026",
+      default = "Midnight S1 launches March 18, 2026\nM+ available March 25, 2026",
+      deDE = "Midnight S1 startet am 18.03.2026\nM+ verfügbar ab 25.03.2026",
     },
   },
 }

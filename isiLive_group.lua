@@ -89,12 +89,45 @@ local function HandleNoGroup(deps, wasInGroupBefore)
   if leftGroupNow then
     deps.clearLatestQueueTarget()
     deps.clearKnownUsers()
+
+    local roster = deps.getRoster()
+    local newRoster = {}
+    local playerName, playerRealm = deps.getUnitNameAndRealm("player")
+    local _, playerClass = deps.getUnitClass("player")
+    local playerLanguage = deps.getUnitServerLanguage("player", playerRealm)
+    local playerKeyMapID, playerKeyLevel = deps.getOwnedKeystoneSnapshot()
+    local existingPlayer = roster.player or {}
+
+    deps.markIsiLiveUser(playerName, playerRealm)
+    deps.setPlayerKeyInfo(playerName, playerRealm, playerKeyMapID, playerKeyLevel)
+
+    newRoster.player = {
+      name = playerName or existingPlayer.name,
+      realm = playerRealm or existingPlayer.realm,
+      language = playerLanguage or existingPlayer.language or "??",
+      class = playerClass or existingPlayer.class,
+      role = deps.getUnitRole("player") or existingPlayer.role,
+      spec = deps.getPlayerSpecName() or existingPlayer.spec,
+      ilvl = existingPlayer.ilvl,
+      rio = deps.getUnitRio("player") or existingPlayer.rio,
+      hasIsiLive = true,
+      keyMapID = playerKeyMapID or existingPlayer.keyMapID,
+      keyLevel = playerKeyLevel or existingPlayer.keyLevel,
+      isGhost = false,
+    }
+
+    for unit, info in pairs(roster) do
+      if unit ~= "player" then
+        info.isGhost = true
+        local key = "ghost:" .. (info.name or "Unknown") .. "-" .. (info.realm or "")
+        newRoster[key] = info
+      end
+    end
+    deps.setRoster(newRoster)
   end
-  deps.setRoster({})
   deps.resetInspectAll()
   deps.updateUI()
   deps.updateMPlusTeleportButton()
-  deps.setMainFrameVisible(false)
   deps.updateLeaderButtons()
 end
 
@@ -273,6 +306,7 @@ local function HandleGroupRosterUpdate(deps)
 
   deps.setWasRaidGroup(false)
   if joinedNow then
+    deps.setRoster({})
     deps.setMainFrameVisible(true)
     deps.captureQueueJoinCandidate()
     deps.announceQueuedGroupJoin()

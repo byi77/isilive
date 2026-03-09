@@ -21,6 +21,9 @@ local function GetOwnedKeystoneSnapshot()
 
   level = tonumber(level)
   mapID = tonumber(mapID)
+  -- NormalizeMapID hier beim Lesen anwenden; sync.lua NormalizeKeyPayload
+  -- wendet es nochmals an (idempotent), um eingehende Nachrichten einheitlich
+  -- zu normalisieren.
   if type(SeasonData.NormalizeMapID) == "function" then
     mapID = SeasonData.NormalizeMapID(mapID)
   end
@@ -52,6 +55,8 @@ local function GetOwnedStatsSnapshot(getUnitRio)
       ilvl = math.floor(resolvedIlvl)
     end
   elseif GetAverageItemLevel then
+    -- Note: This is an unfortunate copy of the C_Item fallback logic above.
+    -- Kept inline to avoid an extra function call overhead for just 4 lines.
     local avgIlvl, equippedIlvl = GetAverageItemLevel()
     local resolvedIlvl = tonumber(equippedIlvl) or tonumber(avgIlvl)
     if resolvedIlvl and resolvedIlvl > 0 then

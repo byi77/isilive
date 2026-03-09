@@ -31,7 +31,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 8. Highlight-Aufloesung darf nur mit eindeutigem activity/map-Kontext arbeiten und kein Gruppen-freies Fallback nutzen.
 9. QueueFlow muss waehrend aktiver Challenge Queue-Events ignorieren und doppelte Updates/Announces unterdruecken.
 10. Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; UI-Oeffnen muss trotzdem sofort moeglich bleiben.
-11. In Raid-Groesse bleibt die UI ausgeblendet; beim Gruppenwechsel werden Hinweise und Sichtbarkeit korrekt rueckgesetzt.
+11. In Raid-Groesse bleibt die UI ausgeblendet; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
 12. Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
 13. Voll-Refresh laeuft nur in erlaubten Zustaenden und muss bei Stop oder aktivem M+ sauber aussetzen.
 14. Slash-Commands muessen State-Zyklen stabil ausfuehren (test/stop/start/pause/resume/lang).
@@ -52,7 +52,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 29. teleport-eintraege fuer shared spells bleiben deterministisch sortiert und doppelte grid-eintraege werden entfernt.
 30. falls ein anderer user entdeckt wird welcher auch "isiLive" benutzt, hängen wir hinter seinen Namen ein <3 (blaues herz) an
 31. main ui immer -> auto open beim gruppenbeitritt, autoclose bei key start und auto open bei key ende weiterhin behalten
-32. verlaesst ein spieler die gruppe, bleibt er als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt
+32. verlaesst ein gruppenmitglied die gruppe, bleibt es als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt
 33. spieler, die sich bereits im zieldungeon befinden, werden mit einem portal-icon markiert
 34. waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt
 35. die kompakten roster-datenspalten behalten ihr festes breitenbudget fuer spec, name, ilvl, key, rio, dps und flagge.
@@ -147,9 +147,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-GRUPPE-RAID-SICHTBARKEIT
 - Regelnummer: 11
 - Status: aktiv
-- Zusammenfassung: In Raid-Groesse bleibt die UI ausgeblendet; beim Gruppenwechsel werden Hinweise und Sichtbarkeit korrekt rueckgesetzt.
+- Zusammenfassung: In Raid-Groesse bleibt die UI ausgeblendet; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
 - Erforderliche Tests:
-  - Group leave clears roster and hides frame
+  - Group leave keeps frame state and ghosts former party members
+  - Old ghosts are cleared when joining a new group
   - Raid group hides frame and prints notification
   - Raid notification prints again after leaving raid-size group
 
@@ -304,7 +305,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-GHOST-MEMBER
 - Regelnummer: 32
 - Status: aktiv
-- Zusammenfassung: verlaesst ein spieler die gruppe, bleibt er als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt.
+- Zusammenfassung: verlaesst ein gruppenmitglied die gruppe, bleibt es als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt.
 - Erforderliche Tests:
   - Group member leaving becomes ghost
   - Ghost is removed and data restored when player rejoins

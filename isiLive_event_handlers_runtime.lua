@@ -14,8 +14,8 @@ local NON_CHALLENGE_MYTHIC_DIFFICULTY_IDS = {
 
 local function ResolveTrackedMythicZeroMapID()
   if type(GetInstanceInfo) == "function" then
-    local okInstance, _, _, _, _, _, _, instanceMapID = pcall(GetInstanceInfo)
-    instanceMapID = okInstance and tonumber(instanceMapID) or nil
+    local okInstance, _, _, _, _, _, _, rawInstanceMapID = pcall(GetInstanceInfo)
+    local instanceMapID = okInstance and tonumber(rawInstanceMapID) or nil
     if instanceMapID and instanceMapID > 0 then
       return math.floor(instanceMapID)
     end
@@ -140,7 +140,10 @@ local function CaptureTrackedMythicZeroRosterSnapshotIfPending(ctx)
   ctx.activeMythicZeroRosterSnapshot = CloneRosterSnapshotForStats(roster)
   return true
 end
-
+-- applyHotkeyBindings wird beim Startup bewusst mehrfach aufgerufen
+-- (ADDON_LOADED / PLAYER_LOGIN via ApplyBindingStartupRefresh, sowie
+-- PLAYER_ENTERING_WORLD + 2 delayed via ScheduleBindingStartupRefresh),
+-- um Timing-Probleme mit dem WoW-Binding-System zuverlässig abzufangen.
 local function ApplyBindingStartupRefresh(ctx)
   ctx.applyHotkeyBindings()
   ctx.startBindingWatchdog()

@@ -352,6 +352,7 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
 
   function frame.SetSize() end
   function frame.SetHeight() end
+  function frame.SetWidth() end
   function frame.SetPoint(self, ...)
     local argCount = select("#", ...)
     for index = argCount, 1, -1 do
@@ -666,6 +667,7 @@ local function NewRowTooltipCreateFrameStub(createdFrames, tooltipLines, tooltip
     f.SetPoint = function() end
     f.SetSize = function() end
     f.SetHeight = function() end
+    f.SetWidth = function() end
     f.SetEnabled = function() end
     f.SetAlpha = function() end
     f.EnableMouse = function() end
@@ -1445,6 +1447,7 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
           SetPoint = function() end,
           SetSize = function() end,
           SetHeight = function() end,
+          SetWidth = function() end,
           SetEnabled = function() end,
           SetAlpha = function() end,
           EnableMouse = function() end,

@@ -14,7 +14,7 @@
 - `isiLive_season_data.lua` may contain multiple season entries (`active` + prepared future seasons), but only one season ID is active at runtime.
 - Season switch rule: never switch `ACTIVE_SEASON_ID` until the target season mapping is complete (`mapToTeleport`, `displayOrder`, `shortCodesByLocale`, `challengeMapAliases`) and validated.
 - Documentation rule: season-data edits must explicitly name the active season ID and prepared-next season status in `README.md` and `CHANGELOG.md`.
-- Current planning baseline: `midnight_s1` is the active pre-season dataset; `tww_s3` remains only as legacy fallback data until Midnight Season 1 mappings are complete.
+- Current planning baseline: `midnight_s1` is the active pre-season dataset.
 
 ## Localization
 - All user-facing text must use the localization table.

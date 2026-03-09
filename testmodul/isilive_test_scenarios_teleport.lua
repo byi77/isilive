@@ -182,7 +182,52 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
-      ActivateSeasonOrFail(Assert, addon, "tww_s3")
+      addon.SeasonData.SEASONS.test_season = {
+        mapToTeleport = {
+          [2649] = 445444,
+          [2830] = 1237215,
+          [2287] = 354465,
+          [2773] = 1216786,
+          [2660] = 445417,
+          [2441] = 367416,
+          [2442] = 367416,
+          [2662] = 445414,
+        },
+        displayOrder = { 2287, 2441, 2442, 2649, 2660, 2662, 2773, 2830 },
+        shortCodesByLocale = {
+          default = {
+            [2649] = "PSF",
+            [2830] = "EDA",
+            [2287] = "HOA",
+            [2773] = "OFG",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "DB",
+          },
+          deDE = {
+            [2649] = "PRI",
+            [2830] = "BIO",
+            [2287] = "HDS",
+            [2773] = "SCH",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "MB",
+          },
+        },
+        challengeMapAliases = {
+          [378] = 2287,
+          [391] = 2441,
+          [392] = 2441,
+          [499] = 2649,
+          [503] = 2660,
+          [505] = 2662,
+          [525] = 2773,
+          [542] = 2830,
+        },
+      }
+      ActivateSeasonOrFail(Assert, addon, "test_season")
       local mapIDs = addon.Teleport.ResolveMapIDsBySpellID(367416)
 
       Assert.NotNil(mapIDs, "shared spell should map to map list")
@@ -215,7 +260,52 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
         "pre-season runtime should keep active ordered map list empty"
       )
 
-      ActivateSeasonOrFail(Assert, addon, "tww_s3")
+      addon.SeasonData.SEASONS.test_season = {
+        mapToTeleport = {
+          [2649] = 445444,
+          [2830] = 1237215,
+          [2287] = 354465,
+          [2773] = 1216786,
+          [2660] = 445417,
+          [2441] = 367416,
+          [2442] = 367416,
+          [2662] = 445414,
+        },
+        displayOrder = { 2287, 2441, 2442, 2649, 2660, 2662, 2773, 2830 },
+        shortCodesByLocale = {
+          default = {
+            [2649] = "PSF",
+            [2830] = "EDA",
+            [2287] = "HOA",
+            [2773] = "OFG",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "DB",
+          },
+          deDE = {
+            [2649] = "PRI",
+            [2830] = "BIO",
+            [2287] = "HDS",
+            [2773] = "SCH",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "MB",
+          },
+        },
+        challengeMapAliases = {
+          [378] = 2287,
+          [391] = 2441,
+          [392] = 2441,
+          [499] = 2649,
+          [503] = 2660,
+          [505] = 2662,
+          [525] = 2773,
+          [542] = 2830,
+        },
+      }
+      ActivateSeasonOrFail(Assert, addon, "test_season")
 
       Assert.Equal(addon.Teleport.GetDungeonShortCode(2649, "deDE"), "PRI", "deDE should map PSF to PRI")
       Assert.Equal(addon.Teleport.GetDungeonShortCode(2830, "deDE"), "BIO", "deDE should map EDA to BIO")
@@ -247,7 +337,7 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
       )
       Assert.Equal(
         addon.SeasonData.GetActiveSeasonID(),
-        "tww_s3",
+        "test_season",
         "legacy season switch should work explicitly for mapping validation"
       )
       local orderedActiveMapIDs = addon.SeasonData.GetOrderedMapIDs()
@@ -296,7 +386,52 @@ local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, Loa
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
-      ActivateSeasonOrFail(Assert, addon, "tww_s3")
+      addon.SeasonData.SEASONS.test_season = {
+        mapToTeleport = {
+          [2649] = 445444,
+          [2830] = 1237215,
+          [2287] = 354465,
+          [2773] = 1216786,
+          [2660] = 445417,
+          [2441] = 367416,
+          [2442] = 367416,
+          [2662] = 445414,
+        },
+        displayOrder = { 2287, 2441, 2442, 2649, 2660, 2662, 2773, 2830 },
+        shortCodesByLocale = {
+          default = {
+            [2649] = "PSF",
+            [2830] = "EDA",
+            [2287] = "HOA",
+            [2773] = "OFG",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "DB",
+          },
+          deDE = {
+            [2649] = "PRI",
+            [2830] = "BIO",
+            [2287] = "HDS",
+            [2773] = "SCH",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "MB",
+          },
+        },
+        challengeMapAliases = {
+          [378] = 2287,
+          [391] = 2441,
+          [392] = 2441,
+          [499] = 2649,
+          [503] = 2660,
+          [505] = 2662,
+          [525] = 2773,
+          [542] = 2830,
+        },
+      }
+      ActivateSeasonOrFail(Assert, addon, "test_season")
 
       Assert.Equal(
         addon.Teleport.ResolveSeason3MapIDByActivityID(9901),
@@ -348,7 +483,52 @@ local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, Loa
         "isiLive_teleport.lua",
         "isiLive_sync.lua",
       })
-      ActivateSeasonOrFail(Assert, addon, "tww_s3")
+      addon.SeasonData.SEASONS.test_season = {
+        mapToTeleport = {
+          [2649] = 445444,
+          [2830] = 1237215,
+          [2287] = 354465,
+          [2773] = 1216786,
+          [2660] = 445417,
+          [2441] = 367416,
+          [2442] = 367416,
+          [2662] = 445414,
+        },
+        displayOrder = { 2287, 2441, 2442, 2649, 2660, 2662, 2773, 2830 },
+        shortCodesByLocale = {
+          default = {
+            [2649] = "PSF",
+            [2830] = "EDA",
+            [2287] = "HOA",
+            [2773] = "OFG",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "DB",
+          },
+          deDE = {
+            [2649] = "PRI",
+            [2830] = "BIO",
+            [2287] = "HDS",
+            [2773] = "SCH",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "MB",
+          },
+        },
+        challengeMapAliases = {
+          [378] = 2287,
+          [391] = 2441,
+          [392] = 2441,
+          [499] = 2649,
+          [503] = 2660,
+          [505] = 2662,
+          [525] = 2773,
+          [542] = 2830,
+        },
+      }
+      ActivateSeasonOrFail(Assert, addon, "test_season")
 
       Assert.Equal(
         addon.Teleport.GetDungeonShortCode(392, "deDE"),
@@ -408,7 +588,52 @@ local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, Loa
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
-      ActivateSeasonOrFail(Assert, addon, "tww_s3")
+      addon.SeasonData.SEASONS.test_season = {
+        mapToTeleport = {
+          [2649] = 445444,
+          [2830] = 1237215,
+          [2287] = 354465,
+          [2773] = 1216786,
+          [2660] = 445417,
+          [2441] = 367416,
+          [2442] = 367416,
+          [2662] = 445414,
+        },
+        displayOrder = { 2287, 2441, 2442, 2649, 2660, 2662, 2773, 2830 },
+        shortCodesByLocale = {
+          default = {
+            [2649] = "PSF",
+            [2830] = "EDA",
+            [2287] = "HOA",
+            [2773] = "OFG",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "DB",
+          },
+          deDE = {
+            [2649] = "PRI",
+            [2830] = "BIO",
+            [2287] = "HDS",
+            [2773] = "SCH",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "MB",
+          },
+        },
+        challengeMapAliases = {
+          [378] = 2287,
+          [391] = 2441,
+          [392] = 2441,
+          [499] = 2649,
+          [503] = 2660,
+          [505] = 2662,
+          [525] = 2773,
+          [542] = 2830,
+        },
+      }
+      ActivateSeasonOrFail(Assert, addon, "test_season")
       local info = addon.Teleport.GetTeleportInfoByMapID(2662)
       Assert.NotNil(info, "known map should still resolve teleport info")
       Assert.Nil(info.mapName, "map name must stay unresolved when API provides no concrete name")
@@ -437,7 +662,52 @@ local function RegisterTeleportResolverActivityTests(test, Assert, WithGlobals, 
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
-      ActivateSeasonOrFail(Assert, addon, "tww_s3")
+      addon.SeasonData.SEASONS.test_season = {
+        mapToTeleport = {
+          [2649] = 445444,
+          [2830] = 1237215,
+          [2287] = 354465,
+          [2773] = 1216786,
+          [2660] = 445417,
+          [2441] = 367416,
+          [2442] = 367416,
+          [2662] = 445414,
+        },
+        displayOrder = { 2287, 2441, 2442, 2649, 2660, 2662, 2773, 2830 },
+        shortCodesByLocale = {
+          default = {
+            [2649] = "PSF",
+            [2830] = "EDA",
+            [2287] = "HOA",
+            [2773] = "OFG",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "DB",
+          },
+          deDE = {
+            [2649] = "PRI",
+            [2830] = "BIO",
+            [2287] = "HDS",
+            [2773] = "SCH",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "MB",
+          },
+        },
+        challengeMapAliases = {
+          [378] = 2287,
+          [391] = 2441,
+          [392] = 2441,
+          [499] = 2649,
+          [503] = 2660,
+          [505] = 2662,
+          [525] = 2773,
+          [542] = 2830,
+        },
+      }
+      ActivateSeasonOrFail(Assert, addon, "test_season")
       local mapFirst = addon.Teleport.ResolveMapIDByActivityID(9900)
       local mapSecond = addon.Teleport.ResolveMapIDByActivityID(9900)
       local first = addon.Teleport.ResolveTeleportSpellIDByActivityID(9900)
@@ -556,7 +826,52 @@ local function RegisterTeleportResolverRecoveryTests(test, Assert, WithGlobals, 
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
-      ActivateSeasonOrFail(Assert, addon, "tww_s3")
+      addon.SeasonData.SEASONS.test_season = {
+        mapToTeleport = {
+          [2649] = 445444,
+          [2830] = 1237215,
+          [2287] = 354465,
+          [2773] = 1216786,
+          [2660] = 445417,
+          [2441] = 367416,
+          [2442] = 367416,
+          [2662] = 445414,
+        },
+        displayOrder = { 2287, 2441, 2442, 2649, 2660, 2662, 2773, 2830 },
+        shortCodesByLocale = {
+          default = {
+            [2649] = "PSF",
+            [2830] = "EDA",
+            [2287] = "HOA",
+            [2773] = "OFG",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "DB",
+          },
+          deDE = {
+            [2649] = "PRI",
+            [2830] = "BIO",
+            [2287] = "HDS",
+            [2773] = "SCH",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "MB",
+          },
+        },
+        challengeMapAliases = {
+          [378] = 2287,
+          [391] = 2441,
+          [392] = 2441,
+          [499] = 2649,
+          [503] = 2660,
+          [505] = 2662,
+          [525] = 2773,
+          [542] = 2830,
+        },
+      }
+      ActivateSeasonOrFail(Assert, addon, "test_season")
 
       local first = addon.Teleport.ResolveTeleportSpellIDByActivityID(9911)
       Assert.Nil(first, "first resolve must stay nil while map data is missing")
@@ -586,7 +901,52 @@ local function RegisterTeleportEntryAndCombatTests(test, Assert, WithGlobals, Lo
         "isiLive_season_data.lua",
         "isiLive_teleport.lua",
       })
-      ActivateSeasonOrFail(Assert, addon, "tww_s3")
+      addon.SeasonData.SEASONS.test_season = {
+        mapToTeleport = {
+          [2649] = 445444,
+          [2830] = 1237215,
+          [2287] = 354465,
+          [2773] = 1216786,
+          [2660] = 445417,
+          [2441] = 367416,
+          [2442] = 367416,
+          [2662] = 445414,
+        },
+        displayOrder = { 2287, 2441, 2442, 2649, 2660, 2662, 2773, 2830 },
+        shortCodesByLocale = {
+          default = {
+            [2649] = "PSF",
+            [2830] = "EDA",
+            [2287] = "HOA",
+            [2773] = "OFG",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "DB",
+          },
+          deDE = {
+            [2649] = "PRI",
+            [2830] = "BIO",
+            [2287] = "HDS",
+            [2773] = "SCH",
+            [2660] = "AK",
+            [2441] = "TAZ",
+            [2442] = "TAZ",
+            [2662] = "MB",
+          },
+        },
+        challengeMapAliases = {
+          [378] = 2287,
+          [391] = 2441,
+          [392] = 2441,
+          [499] = 2649,
+          [503] = 2660,
+          [505] = 2662,
+          [525] = 2773,
+          [542] = 2830,
+        },
+      }
+      ActivateSeasonOrFail(Assert, addon, "test_season")
       local entries = addon.Teleport.BuildTeleportEntries()
       local genericEntries = addon.Teleport.BuildTeleportEntries()
       local expectedMapOrder = { 2287, 2441, 2649, 2660, 2662, 2773, 2830 }
@@ -880,7 +1240,7 @@ local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModul
           return {}
         end,
         getEmptyStateText = function()
-          return "Midnight S1 starts week of March 17, 2026"
+          return "Midnight S1 launches March 18, 2026\nM+ available March 25, 2026"
         end,
         getL = function()
           return {}
@@ -912,7 +1272,7 @@ local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModul
       Assert.True(emptyState.shown, "pre-season empty state message should be visible")
       Assert.Equal(
         emptyState.text,
-        "Midnight S1 starts week of March 17, 2026",
+        "Midnight S1 launches March 18, 2026\nM+ available March 25, 2026",
         "empty state should show season message"
       )
     end)

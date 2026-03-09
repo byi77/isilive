@@ -108,10 +108,9 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
 end
 
 function ConfigBuilders.BuildGateOpts(ctx)
-  local dispatch = ctx.dispatch or ctx.onEvent
   return {
     events = ctx.events,
-    dispatch = dispatch,
+    dispatch = ctx.onEvent,
     onDispatchError = ctx.onDispatchError,
     isStopped = ctx.isStopped,
     isPaused = ctx.isPaused,

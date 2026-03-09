@@ -5,6 +5,8 @@ addonTable = addonTable or {}
 local QueueFlow = {}
 addonTable.QueueFlow = QueueFlow
 
+-- Forward-Declaration nötig: CaptureQueueJoinCandidate ruft AnnounceQueuedGroupJoin
+-- auf, das aber erst später im File definiert werden kann (gegenseitige Referenz).
 local AnnounceQueuedGroupJoin
 
 local function BuildAnnouncementSignature(pending, groupName, dungeonName, activityID, mapID, spellID)

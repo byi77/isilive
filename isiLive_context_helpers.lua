@@ -37,10 +37,10 @@ end
 
 function ContextHelpers.BuildDummyRoster(opts)
   return opts.demoBuildDummyRoster({
+    previewVariant = opts.previewVariant,
+    includeGhostMember = opts.includeGhostMember,
     getUnitNameAndRealm = opts.getUnitNameAndRealm,
-    getUnitServerLanguage = function(unit, realm)
-      return opts.getUnitServerLanguage(unit, realm)
-    end,
+    getUnitServerLanguage = opts.getUnitServerLanguage,
     getUnitRole = opts.getUnitRole,
     getPlayerSpecName = opts.getPlayerSpecName,
     getUnitRio = opts.getUnitRio,

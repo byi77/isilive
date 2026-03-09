@@ -9,7 +9,11 @@ local function TryGet(obj, key1, key2, key3)
   if not obj then
     return nil
   end
-  return rawget(obj, key1) or rawget(obj, key2) or rawget(obj, key3)
+  -- rawget(obj, nil) ist in Standard-Lua ein Fehler → Keys explizit prüfen
+  local v1 = key1 ~= nil and rawget(obj, key1) or nil
+  local v2 = key2 ~= nil and rawget(obj, key2) or nil
+  local v3 = key3 ~= nil and rawget(obj, key3) or nil
+  return v1 or v2 or v3
 end
 
 local function GetNormalizedActiveEntryInfo()

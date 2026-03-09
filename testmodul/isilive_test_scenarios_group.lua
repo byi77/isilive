@@ -149,20 +149,56 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules)
     Assert.True(state.mainFrameVisible, "main frame must be visible after group join")
   end)
 
-  test("Group leave clears roster and hides frame", function()
+  test("Group leave keeps frame state and ghosts former party members", function()
     local controller, state = BuildGroupController(LoadAddonModules, {
       isInGroup = function()
         return false
       end,
       wasInGroup = true,
+      mainFrameVisible = true,
+      getUnitNameAndRealm = function(unit)
+        if unit == "player" then
+          return "Hero", "Realm"
+        end
+        return nil, nil
+      end,
     })
+
+    state.roster.player = { name = "Hero", realm = "Realm", rio = 3210, isGhost = false }
+    state.roster.party1 = { name = "Buddy", realm = "Realm" }
 
     controller.HandleGroupRosterUpdate()
 
-    Assert.Nil(state.roster.player, "roster must be empty after leave")
-    Assert.False(state.mainFrameVisible, "main frame must be hidden after leave")
+    Assert.NotNil(state.roster.player, "player row must remain visible after leave")
+    Assert.Equal(state.roster.player.name, "Hero", "player row should keep the local player visible")
+    Assert.False(state.roster.player.isGhost, "player row must stay active after leave")
+    Assert.Nil(state.roster.party1, "active party1 slot must be cleared after leave")
+    Assert.NotNil(state.roster["ghost:Buddy-Realm"], "party1 must become a ghost")
+    Assert.True(state.roster["ghost:Buddy-Realm"].isGhost, "party1 ghost flag must be set")
+    Assert.Nil(state.roster["ghost:Hero-Realm"], "local player must not become a ghost on leave")
+    Assert.True(state.mainFrameVisible, "main frame must stay open after leave when it was visible")
     Assert.Equal(state.inspectResets, 1, "inspect queues must be reset on leave")
     Assert.Equal(state.knownUsersCleared, 1, "known users must be cleared on leave")
+  end)
+
+  test("Old ghosts are cleared when joining a new group", function()
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      isInGroup = function()
+        return true
+      end,
+      wasInGroup = false,
+      getNumGroupMembers = function()
+        return 2
+      end,
+    })
+
+    state.roster["ghost:OldGuy-Realm"] = { name = "OldGuy", realm = "Realm", isGhost = true }
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Nil(state.roster["ghost:OldGuy-Realm"], "old ghosts should be wiped out on new group join")
+    Assert.NotNil(state.roster.player, "player should be in roster")
+    Assert.NotNil(state.roster.party1, "party1 should be in roster")
   end)
 
   test("Raid group hides frame and prints notification", function()
@@ -549,6 +585,10 @@ local function RegisterGroupGhostLifecycleTests(test, Assert, LoadAddonModules)
           return name, "Realm"
         end
         return nil
+      end,
+      wasInGroup = true,
+      isInGroup = function()
+        return true
       end,
     })
 

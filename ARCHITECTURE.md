@@ -1,7 +1,7 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.66`
-Last updated: `2026-03-08`
+Version baseline: `0.9.67`
+Last updated: `2026-03-09`
 
 ## Purpose
 
@@ -43,7 +43,7 @@ WoW Event
 | Paused | Processing blocked except required transitions |
 | Stopped | Addon processing disabled except minimal control paths |
 | Hidden | Window hidden, queue scanning suspended; background addon sync and roster updates continue and may event-drive pre-rendered UI state without polling |
-| Test/TestAll | Controlled preview mode for UI/testing |
+| Test/TestAll | Unified full dummy preview mode for UI/testing, including positive RIO delta preview and ghost/leaver row |
 
 ## Deterministic Rule Set
 
@@ -99,7 +99,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 
 ```text
 +--------------------------------------------------------------------------------------------------+
-| isiKeyMPlus                                                                        V.0.9.66     |
+| isiKeyMPlus                                                                        V.0.9.67     |
 |--------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  M+Travel         |
 |--------------------------------------------------------------------------------------------------|
@@ -120,7 +120,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 |---|---|---|
 | RuntimeState | Root orchestration and controller callbacks | Central mutable runtime snapshot (`roster`, queue target, flags, rio baseline, ready-check state) |
 | QueueFlow | LFG events and queue snapshots | Joined target metadata |
-| Group | Group roster events | Rebuilt roster model and lifecycle transitions |
+| Group | Group roster events | Rebuilt roster model, ghost retention/pruning, and lifecycle transitions |
 | Highlight | Active listing and queue target | Active teleport spell and highlight state |
 | KeySync | Sync messages and owned key snapshot | Roster key map ownership and sync markers |
 | Refresh | User refresh action | Forced key/sync/inspect refresh pipeline |

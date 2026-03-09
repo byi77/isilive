@@ -19,10 +19,16 @@ Arbeite immer in dieser Reihenfolge:
    - aktive Regeln sind harte Runtime-Vertraege
 5. `ARCHITECTURE_RULES.md` lesen:
    - aktive Architekturregeln sind ebenfalls Gate-relevant
-6. `ARCHITECTURE.md` lesen:
-   - aktueller Struktur- und Wiring-Stand
-7. `AGENTS.md` lesen:
+6. `AGENTS.md` lesen:
    - Workflow-/Gate-Pflichten nicht vergessen
+7. `README.md` lesen:
+   - aktueller Produkt- und Verhaltensstand fuer Nutzer
+8. `RELEASE.md` lesen:
+   - offizieller Release-Ablauf und Freigabe-Gates
+9. `USECASES.md` lesen:
+   - deterministische Laufzeit- und Validierungsbasis
+10. `ARCHITECTURE.md` lesen:
+   - aktueller Struktur- und Wiring-Stand
 
 ## 2) Pflicht-Gates vor jeder echten Aenderung
 

@@ -82,7 +82,13 @@ local function OnInspectReady(controller, guid, roster, getUnitRio, getInspectSp
     return false
   end
 
-  local ilvl = C_PaperDollInfo.GetInspectItemLevel(inspectedUnit)
+  local ilvl = nil
+  if C_PaperDollInfo and type(C_PaperDollInfo.GetInspectItemLevel) == "function" then
+    local ok, ilvlResult = pcall(C_PaperDollInfo.GetInspectItemLevel, inspectedUnit)
+    if ok then
+      ilvl = ilvlResult
+    end
+  end
   local ilvlChanged = false
   if roster[inspectedUnit] then
     if roster[inspectedUnit].ilvl ~= ilvl then
@@ -134,8 +140,8 @@ local function OnInspectReady(controller, guid, roster, getUnitRio, getInspectSp
   controller.lastInspectTime = GetTime()
 
   local dataChanged = ilvlChanged or rioChanged or specChanged
-  if inspectedUnit == "player" and dataChanged and controller.sendOwnKeySnapshot then
-    controller.sendOwnKeySnapshot(false)
+  if inspectedUnit == "player" and dataChanged and controller.TriggerOwnKeySnapshot then
+    controller.TriggerOwnKeySnapshot(false)
   end
 
   return dataChanged
@@ -211,7 +217,10 @@ function Inspect.CreateController(config)
   controller.retryInterval = tonumber(config and config.retryInterval) or 5
   controller.inspectDelay = tonumber(config and config.inspectDelay) or 1
 
-  controller.sendOwnKeySnapshot = type(config.sendOwnKeySnapshot) == "function" and config.sendOwnKeySnapshot or nil
+  -- Lokale Variable statt öffentlichem Controller-Feld, um versehentliches
+  -- Überschreiben von außen zu verhindern.
+  local sendOwnKeySnapshot = type(config and config.sendOwnKeySnapshot) == "function" and config.sendOwnKeySnapshot
+    or nil
 
   controller.inspectQueue = {}
   controller.retryQueue = {}
@@ -248,6 +257,12 @@ function Inspect.CreateController(config)
 
   function controller.OnUpdate()
     OnUpdate(controller)
+  end
+
+  function controller.TriggerOwnKeySnapshot(force)
+    if sendOwnKeySnapshot then
+      sendOwnKeySnapshot(force)
+    end
   end
 
   return controller

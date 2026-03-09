@@ -127,26 +127,21 @@ local function MaybeShowNonMythicDungeonEntryNotice(state, deps)
       if token ~= state.nonMythicNoticeToken then
         return
       end
-      local confirmedText, confirmedMythic, confirmedInDungeon = GetDungeonDifficultyLabel(deps.getL)
-      if not confirmedInDungeon or confirmedMythic then
-        return
-      end
-      if confirmedText == L.DUNGEON_DIFF_UNKNOWN then
-        return
-      end
-      local _, _, _, confirmedInstanceType, confirmedDifficultyID, confirmedInstanceName =
+      -- GetDungeonDifficultyLabel einmal aufrufen und alle 6 Rückgabewerte entpacken.
+      local cText, cMythic, cInDungeon, cInstanceType, cDifficultyID, cInstanceName =
         GetDungeonDifficultyLabel(deps.getL)
-      local confirmedSignature = BuildDungeonContextSignature(
-        confirmedInstanceType,
-        confirmedDifficultyID,
-        confirmedInstanceName,
-        confirmedMythic
-      )
+      if not cInDungeon or cMythic then
+        return
+      end
+      if cText == L.DUNGEON_DIFF_UNKNOWN then
+        return
+      end
+      local confirmedSignature = BuildDungeonContextSignature(cInstanceType, cDifficultyID, cInstanceName, cMythic)
       if confirmedSignature == state.lastAnnouncedNonMythicSignature then
         return
       end
       state.lastAnnouncedNonMythicSignature = confirmedSignature
-      deps.showCenterNotice(string.format(L.NON_MYTHIC_ENTERED, confirmedText), 120, nil, nil, {
+      deps.showCenterNotice(string.format(L.NON_MYTHIC_ENTERED, cText), 120, nil, nil, {
         blink = true,
         fontScale = 1.35,
         textColor = { 1, 0.2, 0.2 },

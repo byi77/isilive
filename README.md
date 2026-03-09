@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.66`.
+Current documented baseline: `0.9.67`.
 
 ## Features
 
@@ -19,7 +19,7 @@ Current documented baseline: `0.9.66`.
 - Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale)
 - Visible-window peer sync between `isiLive` users can also backfill remote `Spec`, `iLvl`, and `RIO` without inspect range; fresh local inspect data keeps priority once available
 - Key mapping normalizes active-season challenge-map IDs to canonical season map IDs before short-code rendering
-- Season scope is open via `ACTIVE_SEASON_ID`; current active season is `midnight_s1` pre-season, while `tww_s3` remains available as legacy dataset
+- Season scope is open via `ACTIVE_SEASON_ID`; current active season is `midnight_s1` pre-season
 - `Key` column keeps `Shortcut +Level` on one line (no row-wrap bleed into next member line)
 - `RIO` column can show per-run delta as `(+X)RIO` (non-negative only; never minus)
 - Dedicated `DPS` column shows the latest completed-run Blizzard damage-meter snapshot for the current roster when an exact player match exists
@@ -53,7 +53,8 @@ Current documented baseline: `0.9.66`.
 - Roster member row hover uses an isolated `isiLive` tooltip instead of the shared Blizzard `GameTooltip`, with `Name-Realm` fallback when no synced details are available
 - Roster control buttons, teleport grid buttons, and center-notice teleport hover also use isolated `isiLive` tooltip frames instead of the shared Blizzard `GameTooltip`
 - Teleport grid buttons inherit main-frame strata/level to avoid overlay conflicts with external UI panels
-- Ghost members: players leaving the group remain visible (greyed out) until their slot is filled or the UI is reloaded.
+- Ghost members: players leaving the group remain visible (greyed out) across slot shifts and even after party leave/disband; ghost rows are pruned deterministically on rejoin, fresh group join, full-group rebuild, or reload.
+- `CTRL+ALT+F9`, `/isilive test`, and `/isilive testall` now enter the same full dummy preview path, including a visible ghost/leaver row and positive dummy RIO delta preview; preview refresh rebuilds fresh dummy copies each time.
 - Smart self-update: automatically broadcasts a data snapshot (Key/Stats) when the player's own iLvl, RIO, or Spec changes.
 - Teleport action buttons are intentionally `InsecureActionButtonTemplate` so `CTRL+F9` main-frame open/close and center-notice visibility remain combat-safe
 - Combat-safe frame updates: pending frame-height changes are applied on `PLAYER_REGEN_ENABLED`
@@ -71,9 +72,9 @@ Current documented baseline: `0.9.66`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`, while explicit local refresh triggers and visibility-bound snapshots keep `KEY/STATS` current.
 
-## Use Case / Logic Baseline (v0.9.66)
+## Use Case / Logic Baseline (v0.9.67)
 
-Documented on `2026-03-08` as runtime behavior baseline for validation checks.
+Documented on `2026-03-09` as runtime behavior baseline for validation checks.
 
 1. Queue invite -> grouped flow
    - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`) while main UI is visible.
@@ -104,6 +105,7 @@ Documented on `2026-03-08` as runtime behavior baseline for validation checks.
    - `CHALLENGE_MODE_START` hides UI; completion/reset rehydrates group view and refresh flow.
    - Combat-safe UI behavior: teleport action buttons use `InsecureActionButtonTemplate` (to avoid protected-parent show/hide taint), while spell-attribute updates are still deferred during combat lockdown and restored on `PLAYER_REGEN_ENABLED`.
    - Hidden leader changes are synchronized silently so leader-only button state stays correct on the next visible transition without firing hidden notices/chat output.
+   - Leaving or getting removed from a normal party keeps the current frame visibility state and converts former party members into ghost rows instead of clearing the roster immediately.
 7. Post-run DPS snapshot behavior
    - `M+` run-end events (`CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET`) record the latest Blizzard damage-meter overall session for exact roster matches.
    - `M0` snapshots are recorded when leaving a tracked mythic non-challenge dungeon, using the roster frozen on dungeon entry so late leavers still match.
@@ -146,7 +148,7 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive_notice.lua`: center notice/invite hint UI components
 - `isiLive_status.lua`: status line and dungeon-difficulty helpers
 - `isiLive_units.lua`: unit/spec/name/RIO helper functions
-- `isiLive_demo.lua`: dummy/test roster generation
+- `isiLive_demo.lua`: dummy/test roster generation, including unified full-preview ghost rows for test mode
 - `isiLive_sync.lua`: addon sync (`HELLO`/`ACK`/`KEY`/`STATS`) and user detection
 - `isiLive_stats.lua`: bounded last-run DPS snapshot storage (persistent only for the local player; foreign players session-only)
 - `isiLive_leader_watch.lua`: leader-transfer detection and leader-only button state sync
@@ -299,10 +301,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.66`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.67`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.66` or `isiLive_beta_0.9.66`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.67` or `isiLive_beta_0.9.67`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -314,9 +316,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.66 && git push origin isiLive_release_0.9.66`
+3. Create and push stable tag: `git tag isiLive_release_0.9.67 && git push origin isiLive_release_0.9.67`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.66 && git push origin isiLive_alpha_0.9.66`
-   - beta: `git tag isiLive_beta_0.9.66 && git push origin isiLive_beta_0.9.66`
+   - alpha: `git tag isiLive_alpha_0.9.67 && git push origin isiLive_alpha_0.9.67`
+   - beta: `git tag isiLive_beta_0.9.67 && git push origin isiLive_beta_0.9.67`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

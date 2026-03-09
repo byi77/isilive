@@ -17,6 +17,10 @@ function SpellUtils.GetSpellCooldownSafe(spellID)
   local duration = info.duration or 0
   local enabled = info.isEnabled
 
+  -- WoW-interner Bug-Workaround: GetSpellCooldown kann in manchen Builds
+  -- undurchsichtige "SecretValue"-Typen zurückgeben, die normale Lua-
+  -- Typprüfungen umgehen. issecretvalue() erkennt diese und ersetzt sie
+  -- durch sichere Standardwerte.
   if _G.issecretvalue then
     ---@diagnostic disable-next-line: param-type-mismatch
     if _G.issecretvalue(enabled) then

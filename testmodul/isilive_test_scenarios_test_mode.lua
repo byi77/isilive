@@ -14,6 +14,8 @@ local function BuildTestModeController(LoadAddonModules, overrides)
     uiUpdates = 0,
     captureRioBaselineCalls = 0,
     clearRioBaselineCalls = 0,
+    buildDummyRosterCalls = 0,
+    lastBuildDummyRosterOpts = nil,
   }
 
   local addon = LoadAddonModules({ "isiLive_test_mode.lua" })
@@ -42,14 +44,21 @@ local function BuildTestModeController(LoadAddonModules, overrides)
         state[k] = v
       end
     end,
-    buildDummyRoster = function()
-      return {
+    buildDummyRoster = function(opts)
+      state.buildDummyRosterCalls = state.buildDummyRosterCalls + 1
+      state.lastBuildDummyRosterOpts = opts
+      local roster = {
         player = { name = "Test", rio = 1000 },
         party1 = { name = "Dummy1", rio = 2000 },
         party2 = { name = "Dummy2", rio = 2100 },
         party3 = { name = "Dummy3", rio = 2200 },
         party4 = { name = "Dummy4", rio = 2300 },
       }
+      if opts and opts.includeGhostMember then
+        roster.party4 = nil
+        roster["ghost:DummyLeaver-Realm"] = { name = "DummyLeaver", realm = "Realm", rio = 2400, isGhost = true }
+      end
+      return roster
     end,
     setRoster = function(value)
       state.roster = value
@@ -88,9 +97,12 @@ local function RegisterTestModeToggleTests(test, Assert, LoadAddonModules)
 
     controller.ToggleStandardTestMode()
     Assert.True(state.isTestMode, "isTestMode must be true after toggle on")
+    Assert.True(state.isTestAllMode, "standard toggle must now use the full preview state")
     Assert.True(state.mainFrameVisible, "frame must be visible in test mode")
     Assert.Equal(state.uiUpdates, 1, "UI must update on enter")
     Assert.Equal(state.captureRioBaselineCalls, 1, "test-mode enter must capture one RIO baseline snapshot")
+    Assert.Equal(state.lastBuildDummyRosterOpts.previewVariant, "full", "standard toggle must request full preview")
+    Assert.NotNil(state.roster["ghost:DummyLeaver-Realm"], "standard toggle must include a ghost member")
     Assert.Equal(state.roster.player.rio, 1015, "test-mode preview should apply visible positive RIO delta")
 
     controller.ToggleStandardTestMode()
@@ -107,21 +119,56 @@ local function RegisterTestModeToggleTests(test, Assert, LoadAddonModules)
     Assert.True(state.isTestAllMode, "isTestAllMode must be true for full preview")
     Assert.True(state.mainFrameVisible, "frame must be visible for full preview")
     Assert.NotNil(state.roster.player, "roster must contain dummy player")
+    Assert.Equal(
+      state.lastBuildDummyRosterOpts.previewVariant,
+      "full",
+      "testall preview must request full preview variant"
+    )
+    Assert.NotNil(state.roster["ghost:DummyLeaver-Realm"], "testall preview must include a ghost member")
     Assert.Equal(state.captureRioBaselineCalls, 1, "testall preview must capture one RIO baseline snapshot")
     Assert.Equal(state.roster.party1.rio, 2012, "testall preview should apply visible positive RIO delta")
+  end)
+
+  test("TestMode standard toggle and testall build the same preview state", function()
+    local standardController, standardState = BuildTestModeController(LoadAddonModules)
+    local fullController, fullState = BuildTestModeController(LoadAddonModules)
+
+    standardController.ToggleStandardTestMode()
+    fullController.EnterFullDummyPreview()
+
+    Assert.Equal(standardState.isTestMode, fullState.isTestMode, "both entries must enable test mode equally")
+    Assert.Equal(standardState.isTestAllMode, fullState.isTestAllMode, "both entries must use the same preview mode")
+    Assert.Equal(
+      standardState.lastBuildDummyRosterOpts.previewVariant,
+      fullState.lastBuildDummyRosterOpts.previewVariant,
+      "both entries must request the same preview variant"
+    )
+    Assert.Equal(
+      standardState.roster["ghost:DummyLeaver-Realm"].name,
+      fullState.roster["ghost:DummyLeaver-Realm"].name,
+      "both entries must include the same ghost row"
+    )
+    Assert.Equal(
+      standardState.roster.party1.rio,
+      fullState.roster.party1.rio,
+      "both entries must apply the same RIO preview"
+    )
   end)
 
   test("TestMode refresh rebuilds active dummy preview roster", function()
     local controller, state = BuildTestModeController(LoadAddonModules)
 
-    controller.EnterFullDummyPreview()
+    controller.ToggleStandardTestMode()
     state.roster.player.rio = 9999
+    state.roster["ghost:DummyLeaver-Realm"] = nil
 
     local refreshed = controller.RefreshActivePreview()
 
     Assert.True(refreshed, "active demo preview refresh must report success")
+    Assert.Equal(state.buildDummyRosterCalls, 2, "refresh must rebuild the preview roster from scratch")
     Assert.Equal(state.captureRioBaselineCalls, 2, "refresh must capture a fresh RIO baseline snapshot")
     Assert.Equal(state.roster.player.rio, 1015, "refresh must rebuild the dummy roster instead of reusing mutated rows")
+    Assert.NotNil(state.roster["ghost:DummyLeaver-Realm"], "refresh must restore the ghost member for unified preview")
   end)
 end
 
@@ -183,6 +230,89 @@ local function RegisterDemoRosterTests(test, Assert, WithGlobals, LoadAddonModul
         "Marksmanship",
         "demo roster should keep the canonical hunter spec name for short-label mapping"
       )
+    end)
+  end)
+
+  test("Demo dummy roster exposes a ghost member in full preview mode", function()
+    WithGlobals({
+      UnitClass = function(_unit)
+        return "Warrior", "WARRIOR"
+      end,
+      UnitName = function(_unit)
+        return "Player"
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_demo.lua" })
+      local roster = addon.Demo.BuildDummyRoster({
+        previewVariant = "full",
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "Player", "Realm"
+          end
+          return nil, nil
+        end,
+      })
+
+      Assert.Nil(roster.party4, "full preview should keep one visible slot free for a ghost")
+
+      local ghostCount = 0
+      local ghostUnit = nil
+      for unit, info in pairs(roster) do
+        if info and info.isGhost then
+          ghostCount = ghostCount + 1
+          ghostUnit = unit
+        end
+      end
+
+      Assert.Equal(ghostCount, 1, "full preview should create exactly one ghost member")
+      Assert.True(
+        type(ghostUnit) == "string" and ghostUnit:find("^ghost:") == 1,
+        "ghost should use ghost unit key format"
+      )
+    end)
+  end)
+
+  test("Demo dummy roster returns fresh member copies on rebuild", function()
+    WithGlobals({
+      UnitClass = function(_unit)
+        return "Warrior", "WARRIOR"
+      end,
+      UnitName = function(_unit)
+        return "Player"
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_demo.lua" })
+      local firstRoster = addon.Demo.BuildDummyRoster({
+        previewVariant = "full",
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "Player", "Realm"
+          end
+          return nil, nil
+        end,
+      })
+
+      firstRoster.party1.rio = 9999
+      firstRoster["ghost:Kurshad-Antonidas"].rio = 1111
+
+      local secondRoster = addon.Demo.BuildDummyRoster({
+        previewVariant = "full",
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "Player", "Realm"
+          end
+          return nil, nil
+        end,
+      })
+
+      Assert.True(secondRoster.party1.rio ~= 9999, "rebuild must not reuse mutated active member tables")
+      Assert.True(secondRoster["ghost:Kurshad-Antonidas"].rio ~= 1111, "rebuild must not reuse mutated ghost tables")
     end)
   end)
 end

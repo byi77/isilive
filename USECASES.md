@@ -1,7 +1,7 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.66`
-Last updated: `2026-03-08`
+Version baseline: `0.9.67`
+Last updated: `2026-03-09`
 
 ## Actors
 
@@ -12,7 +12,7 @@ Last updated: `2026-03-08`
 ## Preconditions
 
 1. Addon is loaded and not in `stopped` state.
-2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `midnight_s1` pre-season with empty active portal pool; `tww_s3` remains available as legacy dataset).
+2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `midnight_s1` pre-season with empty active portal pool).
 3. Relevant UI is visible for queue scanning and rendering; while hidden, addon-message sync and roster updates may still run in the background, and UI can be auto-opened by fresh group join, key-end, or real dungeon-entry transition logic.
 
 ## Use Case Matrix
@@ -104,7 +104,7 @@ Goal: show pre/post-run rating change per player in roster without negative disp
 5. Trigger: roster is rendered after rating updates.
 6. Output: RIO column shows `(+X)RIO` when baseline+current values exist.
 7. Rule: delta is clamped to non-negative values (`+0` minimum); no minus rendering.
-8. Rule: test modes (`/isilive test`, `/isilive testall`) include visible positive dummy delta preview.
+8. Rule: test modes (`/isilive test`, `/isilive testall`) use the same full dummy preview path, including visible positive dummy delta preview and a ghost/leaver row.
 9. Success criteria: display is stable per player across unit-slot changes and never shows negative delta.
 
 ## UC-08 Post-Run DPS Snapshot
@@ -135,6 +135,7 @@ Goal: expose the latest completed dungeon DPS per player from Blizzard damage me
 9. Refresh and key-share UI actions must enforce click-spam guards (debounce/rate-limit behavior).
 10. Event-gate dispatch failures must be reported through error callbacks for diagnostics without terminating the gate loop.
 11. Persistent stats storage must stay bounded: no persistent foreign-player run history and no persistent `Runs together` cache.
+12. Leaving or being removed from a normal party must keep the current frame visibility state and retain former members as ghost rows until a deterministic prune path occurs.
 
 ## Automated Validation Mapping
 

@@ -10,6 +10,7 @@ local SeasonData = addonTable.SeasonData or {}
 local DUMMY_MEMBERS = {
   tank = {
     name = "Atabey",
+    realm = "Blackmoore",
     language = "EN",
     class = "DRUID",
     role = "TANK",
@@ -21,6 +22,7 @@ local DUMMY_MEMBERS = {
   },
   healer = {
     name = "Nisan",
+    realm = "Hyjal",
     language = "FR",
     class = "PRIEST",
     role = "HEALER",
@@ -32,6 +34,7 @@ local DUMMY_MEMBERS = {
   },
   dd1 = {
     name = "PumperDPS",
+    realm = "Kazzak",
     language = "ES",
     class = "MAGE",
     role = "DAMAGER",
@@ -43,6 +46,7 @@ local DUMMY_MEMBERS = {
   },
   dd2 = {
     name = "Bircan",
+    realm = "Blackhand",
     language = "IT",
     class = "PALADIN",
     role = "DAMAGER",
@@ -53,7 +57,8 @@ local DUMMY_MEMBERS = {
     keyLevel = 12,
   },
   dd3 = {
-    name = "KÜrshad",
+    name = "Kurshad",
+    realm = "Antonidas",
     language = "PT",
     class = "HUNTER",
     role = "DAMAGER",
@@ -64,6 +69,23 @@ local DUMMY_MEMBERS = {
     keyLevel = 14,
   },
 }
+
+local function CopyRosterEntry(entry)
+  local copy = {}
+  for key, value in pairs(entry or {}) do
+    copy[key] = value
+  end
+  return copy
+end
+
+local function BuildGhostUnitKey(info)
+  local name = tostring(info and info.name or "Ghost")
+  local realm = tostring(info and info.realm or "")
+  if realm ~= "" then
+    return "ghost:" .. name .. "-" .. realm
+  end
+  return "ghost:" .. name
+end
 
 local function DefaultGetUnitNameAndRealm(unit)
   local name, realm = UnitFullName(unit)
@@ -144,6 +166,9 @@ function Demo.BuildDummyRoster(opts)
   opts = opts or {}
 
   local getUnitNameAndRealm = opts.getUnitNameAndRealm or DefaultGetUnitNameAndRealm
+  local getUnitServerLanguage = opts.getUnitServerLanguage or function(_unit, _realm)
+    return nil
+  end
   local getUnitRole = opts.getUnitRole or function(_unit)
     return "DAMAGER"
   end
@@ -156,12 +181,13 @@ function Demo.BuildDummyRoster(opts)
 
   local playerName, playerRealm = getUnitNameAndRealm("player")
   local _, playerClass = UnitClass("player")
-  local playerLanguage = "DE"
+  local playerLanguage = getUnitServerLanguage("player", playerRealm) or "DE"
   local playerRole = getUnitRole("player")
   local playerSpec = getPlayerSpecName()
   local playerRio = getUnitRio("player")
   local playerIlvl = ResolvePlayerIlvl()
   local playerKeyMapID, playerKeyLevel = ResolvePlayerKeystone()
+  local includeGhostMember = opts.previewVariant == "full" or opts.includeGhostMember == true
 
   local roster = {
     ["player"] = {
@@ -180,8 +206,15 @@ function Demo.BuildDummyRoster(opts)
   }
 
   local fill = BuildFillMembers(playerRole, DUMMY_MEMBERS)
-  for i, member in ipairs(fill) do
-    roster["party" .. i] = member
+  local activeSlots = includeGhostMember and 3 or 4
+  for i = 1, math.min(activeSlots, #fill) do
+    roster["party" .. i] = CopyRosterEntry(fill[i])
+  end
+
+  if includeGhostMember then
+    local ghostEntry = CopyRosterEntry(DUMMY_MEMBERS.dd3)
+    ghostEntry.isGhost = true
+    roster[BuildGhostUnitKey(ghostEntry)] = ghostEntry
   end
 
   return roster

@@ -736,7 +736,9 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
 
   row.hoverFrame = CreateFrame("Frame", nil, mainFrame)
   row.hoverFrame:SetPoint("TOPLEFT", 4, yOffset + 2)
-  row.hoverFrame:SetPoint("RIGHT", -4, 0)
+  -- Hover-Bereich endet an der rechten Kante der DPS-Spalte (DPS_COL_X + DPS_COL_WIDTH).
+  -- Die Buttons (Readycheck, Countdown etc.) rechts davon lösen den Tooltip nicht aus.
+  row.hoverFrame:SetWidth(DPS_COL_X + DPS_COL_WIDTH - 4)
   row.hoverFrame:SetHeight(16)
   if row.hoverFrame.EnableMouse then
     row.hoverFrame:EnableMouse(true)
@@ -1212,7 +1214,7 @@ local function RenderRosterImpl(state, roster)
 
     row.spec:SetText("|c" .. displayData.colorHex .. displayData.specText .. "|r")
     row.name:SetText(
-      displayData.readyCheckMarkup
+      (displayData.readyCheckMarkup or "")
         .. displayData.roleIconMarkup
         .. " |c"
         .. displayData.colorHex

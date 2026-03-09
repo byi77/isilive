@@ -105,7 +105,7 @@ function Roster.BuildDisplayData(info, opts)
   if info.isGhost then
     colorHex = "ff808080" -- Grey
   else
-    local classColors = type(_G.RAID_CLASS_COLORS) == "table" and _G.RAID_CLASS_COLORS or nil
+    local classColors = type(rawget(_G, "RAID_CLASS_COLORS")) == "table" and rawget(_G, "RAID_CLASS_COLORS") or nil
     local classColor = (classColors and classColors[info.class]) or { r = 1, g = 1, b = 1 }
     colorHex = BuildColorHexSafe(classColor.r, classColor.g, classColor.b)
   end
@@ -160,7 +160,6 @@ function Roster.BuildDisplayData(info, opts)
   local addonMarker = info.hasIsiLive and syncMarker or ""
   local atDungeonMarker = opts.isAtDungeon and "|TInterface\\MINIMAP\\Minimap_Summon_Icon:12:12:0:0|t" or ""
   local roleIconMarkup = ROLE_ICONS[info.role] or ""
-  local readyCheckMarkup = ""
 
   return {
     colorHex = colorHex,
@@ -172,7 +171,6 @@ function Roster.BuildDisplayData(info, opts)
     keyText = keyText,
     addonMarker = addonMarker,
     atDungeonMarker = atDungeonMarker,
-    readyCheckMarkup = readyCheckMarkup,
     roleIconMarkup = roleIconMarkup,
   }
 end

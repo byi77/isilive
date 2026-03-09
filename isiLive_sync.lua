@@ -19,6 +19,9 @@ local isiLiveUsersByKey = {}
 local keyInfoByPlayerKey = {}
 local statsInfoByPlayerKey = {}
 
+-- Hinweis: Diese Normalisierung ist strikter als NormalizeName() in isiLive_stats.lua
+-- (entfernt zusätzlich Sonderzeichen aus dem Realm-Namen). Beide müssen konsistent
+-- gehalten werden, sonst können Keys bei Realms mit Sonderzeichen divergieren.
 function Sync.NormalizePlayerKey(name, realm)
   local n = name and tostring(name) or ""
   local r = realm and tostring(realm) or ""

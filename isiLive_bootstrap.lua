@@ -169,8 +169,12 @@ function Bootstrap.BindMainFrameScripts(mainFrame, opts)
   local onShow = RequireFunction(opts.onShow, "onShow")
   local onHide = RequireFunction(opts.onHide, "onHide")
 
+  -- onEvent ist bewusst optional: das OnEvent-Script wird normalerweise
+  -- separat durch Bootstrap.CreateGatedOnEvent() gesetzt.
+  -- Wird es dennoch übergeben, muss es eine Funktion sein.
   if onEvent ~= nil then
-    mainFrame:SetScript("OnEvent", RequireFunction(onEvent, "onEvent"))
+    assert(type(onEvent) == "function", "isiLive: Bootstrap.BindMainFrameScripts – onEvent must be a function")
+    mainFrame:SetScript("OnEvent", onEvent)
   end
   mainFrame:SetScript("OnShow", onShow)
   mainFrame:SetScript("OnHide", onHide)

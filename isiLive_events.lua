@@ -7,9 +7,7 @@ addonTable.Events = Events
 
 function Events.CreateGate(config)
   config = config or {}
-  local dispatch = config.dispatch or function(_frame, _event, ...)
-    local _ = ...
-  end
+  local dispatch = config.dispatch or function(_frame, _event, ...) end -- luacheck: ignore 212
   local isStopped = config.isStopped or function()
     return false
   end
@@ -24,14 +22,15 @@ function Events.CreateGate(config)
   end
   local allowWhenHidden = config.allowWhenHidden or {}
   local shouldAllowWhenHidden = config.shouldAllowWhenHidden
-    or function(_frame, _event, ...)
-      local _ = ...
+    or function(_frame, _event, ...) -- luacheck: ignore 212
       return false
     end
   local allowInCombat = config.allowInCombat or {}
+  -- shouldAllowInCombat: Erweiterungspunkt für Caller die einzelne Events
+  -- auch mitten im Kampf erlauben wollen. Kein aktueller Caller nutzt das,
+  -- der Fallback gibt immer false zurück.
   local shouldAllowInCombat = config.shouldAllowInCombat
-    or function(_frame, _event, ...)
-      local _ = ...
+    or function(_frame, _event, ...) -- luacheck: ignore 212
       return false
     end
   local allowInTestMode = config.allowInTestMode or {

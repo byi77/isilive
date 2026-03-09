@@ -42,6 +42,7 @@ local SPEC_SHORT_LABELS = {
   ["bewahrung"] = "Pres",
   ["verwustung-evoker"] = "Deva",
   ["augmentation"] = "Aug",
+  ["stärkung"] = "Aug", -- DE: Augmentation Evoker
 
   -- English
   ["restoration"] = "Resto",

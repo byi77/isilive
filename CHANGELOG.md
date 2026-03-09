@@ -1,5 +1,47 @@
 # Changelog
 
+## 2026-03-09 - Version 0.9.67
+- **Demo/Test Mode:**
+  - `CTRL+ALT+F9` / `/isilive test` now use the exact same full dummy preview path as `/isilive testall`.
+  - Both demo entries show a visible ghost/leaver row in the dummy roster so leave-state UI can be previewed without a live group.
+  - Dummy preview rosters are rebuilt from fresh copies, so repeated refreshes do not accumulate mutated demo data.
+- **Group Leave UI:**
+  - Leaving or getting kicked from a normal party no longer auto-closes the main UI.
+  - The local player stays active in the roster while former party members remain as grey ghost rows.
+- **Midnight S1 Preparation:**
+  - Added skeleton structure in `isiLive_season_data.lua` for the 8 upcoming Midnight Season 1 dungeons (Algeth'ar Academy, Magisters' Terrace, Maisara Caverns, Nexus-Point Xenas, Pit of Saron, Seat of the Triumvirate, Skyreach, Windrunner Spire).
+  - Drafted English and German short codes for the new dungeons. MapIDs and SpellIDs remain commented out placeholders until the expansion hits the PTR.
+- **Cleanup:**
+  - Completely removed `tww_s3` data from `isiLive_season_data.lua` and replaced all test and documentation references with the new season context.
+- **Feature:** Roster members now remain as greyed-out "ghosts" in the UI when they leave or the group disbands. Ghost rows are pruned deterministically on rejoin, fresh group join, or full-group rebuild instead of disappearing immediately.
+- **Fix:** Corrected Midnight Season 1 M+ launch date from June 25, 2026, to March 25, 2026.
+- **Hotfix:** `isiLive_roster_panel.lua` – Fixed a nil-crash related to `displayData.readyCheckMarkup` by adding an `or ""` fallback. This field was removed from `BuildDisplayData` in this session, missing a nil-check on the caller's side.
+- **Code Review Pass 1 – Core Architecture Fixes:**
+  - Extracted a single `GetL` helper in `isiLive.lua` to replace 7 duplicated `getL = function() return L end` lambdas.
+  - Added `GetWasGroupLeader` wrapper for consistency with the existing `SetWasGroupLeader` wrapper.
+  - Fixed duplicate `isInCombat` lambda that was defined twice in the main file.
+  - Removed unnecessary `local _ = ...` assignments from fallback closures in `isiLive_events.lua`.
+  - Fixed asymmetric `onEvent` handling in `isiLive_bootstrap.lua` (`BindMainFrameScripts`).
+  - Removed unnecessary lambda wrapper around `opts.getUnitServerLanguage` in `isiLive_context_helpers.lua`.
+  - Removed dead `ctx.dispatch` fallback code in `isiLive_config_builders.lua`.
+  - Fixed `pcall` return type lint warning in `isiLive_event_handlers_runtime.lua`.
+  - Added clarifying comment for intentional multiple `applyHotkeyBindings` calls on startup.
+  - Added `CreatePrivateTooltip`, `PreparePrivateTooltip`, `HidePrivateTooltip` to `REQUIRED_FUNCTIONS` guards.
+  - Renamed `self` → `frame` in challenge handler functions for consistency with WoW naming conventions.
+- **Code Review Pass 2 – Module-Level Fixes:**
+  - `isiLive_inspect.lua`: Wrapped `C_PaperDollInfo.GetInspectItemLevel` in `pcall` to prevent crash if API is absent. Moved `sendOwnKeySnapshot` from a public controller field to a local closure; exposed it via `TriggerOwnKeySnapshot()` method.
+  - `isiLive_status.lua`: Fixed `GetDungeonDifficultyLabel` (internally calls `GetInstanceInfo`) being called twice inside `ConfirmAndShowNotice`; now called once, all 6 return values unpacked together.
+  - `isiLive_highlight.lua`: Fixed `TryGet` calling `rawget(obj, nil)` when passed `nil` keys — guarded each key before calling `rawget`.
+  - `isiLive_roster.lua`: Removed dead `readyCheckMarkup` variable (always `""`, never populated). Fixed `RAID_CLASS_COLORS` lint warning via `rawget(_G, ...)`.
+  - `isiLive_log_buffer.lua`: Fixed O(n²) overflow trimming loop — now O(n) via in-place shift instead of repeated `table.remove(logs, 1)`.
+  - `isiLive_units.lua`: Added `["stärkung"] = "Aug"` (DE: Augmentation Evoker) to spec short-label table.
+  - `isiLive_spell_utils.lua`: Added explanatory comment for `issecretvalue` WoW-internal bug workaround.
+  - `isiLive_queue_flow.lua`: Added comment explaining `AnnounceQueuedGroupJoin` forward-declaration pattern.
+  - `isiLive_sync.lua`: Added comment noting `NormalizePlayerKey` is stricter than `NormalizeName` in `stats.lua` (potential key divergence on special-character realms).
+  - `isiLive_keysync.lua`: Added comment documenting that `SeasonData.NormalizeMapID` is applied here (on read) and again in `sync.lua NormalizeKeyPayload` (idempotent).
+  - `isiLive_stats.lua`: Added comment flagging potential parameter order question for `C_DamageMeter.GetCombatSessionFromType`.
+- The code review items above do not change runtime behavior; they are internal code quality improvements.
+
 ## 2026-03-08 - Version 0.9.66
 - **Tooltip Isolation Hardening:**
   - Roster row hover, roster control buttons, teleport grid buttons, and center-notice teleport hover now all use isolated `isiLive` tooltip frames instead of the shared Blizzard `GameTooltip`.

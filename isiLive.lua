@@ -51,6 +51,12 @@ local locale = GetLocale()
 local locales
 local L
 
+-- Gibt immer den aktuellen Wert von L zurück – wird von allen
+-- Controllern als getL-Abhängigkeit genutzt.
+local function GetL()
+  return L
+end
+
 local runtimeLogController
 
 local function Print(msg)
@@ -129,9 +135,12 @@ local GetInspectSpecName = isiLiveUnits.GetInspectSpecName
 local GetShortSpecLabel = isiLiveUnits.GetShortSpecLabel
 local GetUnitRio = isiLiveUnits.GetUnitRio
 
-local function BuildDummyRoster()
+local function BuildDummyRoster(opts)
+  opts = opts or {}
   return isiLiveContextHelpers.BuildDummyRoster({
     demoBuildDummyRoster = isiLiveDemo.BuildDummyRoster,
+    previewVariant = opts.previewVariant,
+    includeGhostMember = opts.includeGhostMember,
     getUnitNameAndRealm = GetUnitNameAndRealm,
     getUnitServerLanguage = function(unit, realm)
       return isiLiveContextHelpers.GetUnitServerLanguage(isiLiveLocale, GetRealmInfoLib, unit, realm)
@@ -197,7 +206,7 @@ local function EnsureSoloPlayerRoster()
 
   local _, class = UnitClass("player")
   local language = isiLiveContextHelpers.GetUnitServerLanguage(isiLiveLocale, GetRealmInfoLib, "player", realm)
-  local keyMapID, keyLevel = nil, nil
+  local keyMapID, keyLevel
   if type(GetOwnedKeystoneSnapshot) == "function" then
     keyMapID, keyLevel = GetOwnedKeystoneSnapshot()
   end
@@ -224,6 +233,10 @@ local ResolveMapIDByActivityID = isiLiveTeleport.ResolveMapIDByActivityID
 local ResolveTeleportSpellID = isiLiveTeleport.ResolveTeleportSpellID
 local ApplySecureSpellToButton = isiLiveTeleport.ApplySecureSpellToButton
 
+local function IsInCombat()
+  return InCombatLockdown and InCombatLockdown()
+end
+
 -- --- UI Elements ---
 local mainFrame
 local mainUI
@@ -240,9 +253,7 @@ local frameBridgeContext = isiLiveFrameBridge.CreateContext({
   mainFrameGlobalName = "isiLiveMainFrame",
   mainFrameMinHeight = MIN_FRAME_HEIGHT,
   isInGroup = IsInGroup,
-  isInCombat = function()
-    return InCombatLockdown and InCombatLockdown()
-  end,
+  isInCombat = IsInCombat,
   onShownInGroup = function()
     local onEventHandler = mainFrame and mainFrame:GetScript("OnEvent")
     if onEventHandler then
@@ -259,9 +270,7 @@ local frameBridgeContext = isiLiveFrameBridge.CreateContext({
   isSpellKnown = IsSpellKnownSafe,
   getTeleportCooldownRemaining = GetTeleportCooldownRemaining,
   formatCooldownSeconds = FormatCooldownSeconds,
-  getL = function()
-    return L
-  end,
+  getL = GetL,
 })
 centerNotice = frameBridgeContext.centerNotice
 centerNoticeFrame = frameBridgeContext.centerNoticeFrame
@@ -343,6 +352,10 @@ end
 
 local function SetWasGroupLeader(value)
   runtimeState.SetWasGroupLeader(value)
+end
+
+local function GetWasGroupLeader()
+  return runtimeState.GetWasGroupLeader()
 end
 
 local function GetRoster()
@@ -610,9 +623,7 @@ local initResult = isiLiveControllerInit.CreateControllers({
   resolveMapIDBySpellID = isiLiveTeleport.ResolveMapIDBySpellID,
   resolveMapIDsBySpellID = isiLiveTeleport.ResolveMapIDsBySpellID,
   mainFrame = mainFrame,
-  getL = function()
-    return L
-  end,
+  getL = GetL,
   isPlayerLeader = IsPlayerLeader,
   getAddonVersionText = function()
     return "V." .. GetAddonVersionRaw()
@@ -729,9 +740,7 @@ end
 
 teleportDebugController = isiLiveTeleportDebug.CreateController({
   printFn = Print,
-  getL = function()
-    return L
-  end,
+  getL = GetL,
   updateMPlusTeleportButton = UpdateMPlusTeleportButton,
   resolveActiveTeleportSpellID = ResolveActiveTeleportSpellID,
   isSpellKnownSafe = IsSpellKnownSafe,
@@ -792,9 +801,7 @@ local function SetProcessingActive(isActive)
 end
 
 local statusController = isiLiveStatus.CreateController({
-  getL = function()
-    return L
-  end,
+  getL = GetL,
   showCenterNotice = ShowCenterNotice,
   hideCenterNotice = function()
     centerNotice.SetVisible(false)
@@ -877,9 +884,7 @@ local function GetUnitServerLanguage(unit, realm)
 end
 
 queueFlowController = isiLiveQueueFlow.CreateController(isiLiveConfigBuilders.BuildQueueFlowControllerOpts({
-  getL = function()
-    return L
-  end,
+  getL = GetL,
   getPendingQueueJoinInfo = function()
     return runtimeState.GetPendingQueueJoinInfo()
   end,
@@ -920,9 +925,7 @@ ShowQueueJoinPreview = function(groupName, dungeonName, activityID)
 end
 
 testModeController = isiLiveTestMode.CreateController(isiLiveConfigBuilders.BuildTestModeControllerOpts({
-  getL = function()
-    return L
-  end,
+  getL = GetL,
   printFn = Print,
   getState = runtimeState.GetRuntimeFlags,
   setState = runtimeState.PatchRuntimeFlags,
@@ -1078,7 +1081,7 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   getWasRaidGroup = GetWasRaidGroup,
   setWasRaidGroup = SetWasRaidGroup,
   setWasGroupLeader = SetWasGroupLeader,
-  getWasGroupLeader = runtimeState.GetWasGroupLeader,
+  getWasGroupLeader = GetWasGroupLeader,
   getRoster = GetRoster,
   setRoster = SetRoster,
   captureQueueJoinCandidate = CaptureQueueJoinCandidate,
@@ -1110,14 +1113,10 @@ local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
   isStopped = runtimeState.IsStopped,
   isPaused = runtimeState.IsPaused,
   isTestMode = runtimeState.IsTestMode,
-  isInCombat = function()
-    return InCombatLockdown and InCombatLockdown()
-  end,
+  isInCombat = IsInCombat,
   isInPartyInstance = IsInPartyInstance,
   isTestAllMode = runtimeState.IsTestAllMode,
-  getL = function()
-    return L
-  end,
+  getL = GetL,
   printFn = Print,
   showCenterNotice = ShowCenterNotice,
   isMainFrameShown = function()

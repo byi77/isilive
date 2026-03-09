@@ -67,12 +67,15 @@ function TestMode.CreateController(opts)
   local deps = BuildDeps(opts)
   local controller = {}
 
-  local function ApplyDummyPreviewState(statePatch, shouldAnnounceLeader, shouldPrintChat)
+  local function ApplyDummyPreviewState(statePatch, shouldAnnounceLeader, shouldPrintChat, previewVariant)
     local L = deps.getL()
     if type(statePatch) == "table" then
       deps.setState(statePatch)
     end
-    local dummyRoster = deps.buildDummyRoster()
+    local dummyRoster = deps.buildDummyRoster({
+      previewVariant = previewVariant,
+      includeGhostMember = true,
+    })
     deps.setRoster(dummyRoster)
     deps.captureRioBaselineSnapshot()
     ApplyDummyRioDeltaPreview(dummyRoster)
@@ -94,7 +97,7 @@ function TestMode.CreateController(opts)
     ApplyDummyPreviewState({
       isTestMode = true,
       isTestAllMode = true,
-    }, true, true)
+    }, true, true, "full")
   end
 
   function controller.RefreshActivePreview()
@@ -103,7 +106,7 @@ function TestMode.CreateController(opts)
       return false
     end
 
-    ApplyDummyPreviewState(nil, false, false)
+    ApplyDummyPreviewState(nil, false, false, state.isTestAllMode and "full" or "standard")
     return true
   end
 
@@ -149,12 +152,8 @@ function TestMode.CreateController(opts)
       return
     end
 
-    deps.setState({
-      isTestMode = true,
-      isTestAllMode = false,
-    })
     deps.printFn(L.TEST_ENABLED)
-    ApplyDummyPreviewState(nil, false, false)
+    controller.EnterFullDummyPreview()
   end
 
   return controller

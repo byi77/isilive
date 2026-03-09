@@ -63,11 +63,11 @@ local function TryRecordCompletedRun(ctx)
   return true
 end
 
-local function RefreshRosterAfterRunStateChange(ctx, self)
+local function RefreshRosterAfterRunStateChange(ctx, frame)
   if ctx.isInGroup() then
-    local onEventHandler = self and self.GetScript and self:GetScript("OnEvent") or nil
+    local onEventHandler = frame and frame.GetScript and frame:GetScript("OnEvent") or nil
     if onEventHandler then
-      onEventHandler(self, "GROUP_ROSTER_UPDATE")
+      onEventHandler(frame, "GROUP_ROSTER_UPDATE")
       return
     end
     ctx.updateUI()
@@ -77,7 +77,7 @@ local function RefreshRosterAfterRunStateChange(ctx, self)
   ctx.updateLeaderButtons()
 end
 
-local function RunDelayedPostChallengeRefresh(ctx, self, retriesRemaining, followUpRefreshesRemaining)
+local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, followUpRefreshesRemaining)
   if not ctx.isInGroup() then
     ctx.enableRioDeltaDisplay()
     return
@@ -86,10 +86,10 @@ local function RunDelayedPostChallengeRefresh(ctx, self, retriesRemaining, follo
   local refreshed = ctx.runFullRefresh() ~= false
   if refreshed then
     ctx.enableRioDeltaDisplay()
-    RefreshRosterAfterRunStateChange(ctx, self)
+    RefreshRosterAfterRunStateChange(ctx, frame)
     if followUpRefreshesRemaining > 0 and ctx.timerAfter then
       ctx.timerAfter(POST_RUN_FOLLOWUP_REFRESH_DELAY_SECONDS, function()
-        RunDelayedPostChallengeRefresh(ctx, self, 0, followUpRefreshesRemaining - 1)
+        RunDelayedPostChallengeRefresh(ctx, frame, 0, followUpRefreshesRemaining - 1)
       end)
     end
     return
@@ -97,13 +97,13 @@ local function RunDelayedPostChallengeRefresh(ctx, self, retriesRemaining, follo
 
   if retriesRemaining > 0 and ctx.timerAfter then
     ctx.timerAfter(POST_RUN_REFRESH_RETRY_DELAY_SECONDS, function()
-      RunDelayedPostChallengeRefresh(ctx, self, retriesRemaining - 1, followUpRefreshesRemaining)
+      RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining - 1, followUpRefreshesRemaining)
     end)
     return
   end
 
   ctx.enableRioDeltaDisplay()
-  RefreshRosterAfterRunStateChange(ctx, self)
+  RefreshRosterAfterRunStateChange(ctx, frame)
 end
 
 function ChallengeLifecycle.BuildHandlers(ctx)
@@ -120,23 +120,23 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     ctx.updateMPlusTeleportButton()
   end
 
-  local function HandleChallengeModeCompletedOrReset(self)
+  local function HandleChallengeModeCompletedOrReset(frame)
     TryRecordCompletedRun(ctx)
 
     if ctx.isInGroup() then
       ctx.setMainFrameVisible(true)
     end
-    RefreshRosterAfterRunStateChange(ctx, self)
+    RefreshRosterAfterRunStateChange(ctx, frame)
     ctx.updateStatusLine()
     ctx.sendOwnKeySnapshot(true)
     if ctx.timerAfter then
       ctx.timerAfter(POST_RUN_REFRESH_INITIAL_DELAY_SECONDS, function()
-        RunDelayedPostChallengeRefresh(ctx, self, POST_RUN_REFRESH_RETRIES, POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS)
+        RunDelayedPostChallengeRefresh(ctx, frame, POST_RUN_REFRESH_RETRIES, POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS)
       end)
       return
     end
 
-    RunDelayedPostChallengeRefresh(ctx, self, 0, 0)
+    RunDelayedPostChallengeRefresh(ctx, frame, 0, 0)
   end
 
   return {
