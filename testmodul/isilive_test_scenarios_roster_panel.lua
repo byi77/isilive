@@ -1928,10 +1928,7 @@ local function RegisterRosterPanelSystemOptionLayoutTests(test, Assert, WithGlob
       Assert.Equal(autoMarkToggle.pointX, 18, "auto-mark toggle should keep a visible gap after combat logging")
       Assert.Equal(autoMarkToggle.pointY, 0, "auto-mark toggle should stay on the same baseline")
 
-      Assert.NotNil(
-        damageMeterResetToggle,
-        "damage meter reset toggle should anchor after the auto-mark label"
-      )
+      Assert.NotNil(damageMeterResetToggle, "damage meter reset toggle should anchor after the auto-mark label")
       Assert.Equal(damageMeterResetToggle.pointX, 18, "damage meter reset toggle should keep the same visible gap")
     end)
   end)
