@@ -15,9 +15,11 @@
   - **Mocking Strategy:** Standardized UI element mocks in the test suite (adding `Hide`/`Show` to `CreateFontString` mocks) to better reflect actual WoW API behavior and improve test reliability.
 - **Robustness & UI:**
   - Improved `mainFrame:GetWidth()` robustness in `isiLive_roster_panel.lua` to handle mocked frame environments in tests.
+  - Fixed the factory/runtime wiring regression for Auto-Mark state: the shared runtime state now forwards `getAutoMarkEnabled` / `setAutoMarkEnabled` back into roster-panel and controller wiring, preventing the startup crash in `isiLive_controller_wiring.lua`.
+  - Reworked the bottom-left system-toggle layout so `Combat Logging`, `Auto-Mark T/H`, and `DM Reset on Entry` keep a fixed visible gap and no longer run into each other.
 - **Validation + Docs Sync:**
-  - Deterministic validator coverage is now `232` scenarios across `24` modules.
-  - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RULES_LOGIC.md`, and `isiLive.toc` to `0.9.69`.
+  - Deterministic validator coverage is now `234` scenarios across `24` modules.
+  - Synced `CHANGELOG.md`, `README.md`, and `ARCHITECTURE.md` to the current runtime/UI state.
 
 
 ## 2026-03-09 - Version 0.9.68

@@ -25,6 +25,9 @@ local TOOLTIP_LINE_SPACING = 3
 local TOOLTIP_MIN_HEIGHT = 28
 local TOOLTIP_WIDTH = 200
 local TOOLTIP_TEXT_WIDTH = TOOLTIP_WIDTH - (TOOLTIP_HORIZONTAL_PADDING * 2)
+local SYSTEM_OPTION_TOGGLE_LEFT_MARGIN = 10
+local SYSTEM_OPTION_TOGGLE_BOTTOM_OFFSET = 24
+local SYSTEM_OPTION_TOGGLE_GAP = 18
 
 local function RequireFunction(value, name)
   assert(type(value) == "function", "isiLive: RosterPanel requires " .. name)
@@ -214,10 +217,9 @@ local function RefreshSystemOptionToggle(button)
   return enabled
 end
 
-local function CreateSystemOptionToggle(mainFrame, cvarName, xOffset)
+local function CreateSystemOptionToggle(mainFrame, cvarName)
   local button = CreateFrame("CheckButton", nil, mainFrame, "UICheckButtonTemplate")
   button:SetSize(18, 18)
-  button:SetPoint("BOTTOMLEFT", xOffset, 24)
   button._cvarName = cvarName
 
   local label = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -236,10 +238,9 @@ local function CreateSystemOptionToggle(mainFrame, cvarName, xOffset)
   return button
 end
 
-local function CreateCustomOptionToggle(mainFrame, getterFn, setterFn, xOffset)
+local function CreateCustomOptionToggle(mainFrame, getterFn, setterFn)
   local button = CreateFrame("CheckButton", nil, mainFrame, "UICheckButtonTemplate")
   button:SetSize(18, 18)
-  button:SetPoint("BOTTOMLEFT", xOffset, 24)
 
   local label = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   label:SetPoint("LEFT", button, "RIGHT", 4, 0)
@@ -259,16 +260,62 @@ local function CreateCustomOptionToggle(mainFrame, getterFn, setterFn, xOffset)
   return button
 end
 
-local function CreateSystemOptionToggles(mainFrame, getAutoMarkEnabled, setAutoMarkEnabled)
-  local advancedCombatLoggingToggle = CreateSystemOptionToggle(mainFrame, "advancedCombatLogging", 10)
-  local autoMarkToggle = CreateCustomOptionToggle(mainFrame, getAutoMarkEnabled, setAutoMarkEnabled, 100)
-  local damageMeterResetToggle = CreateSystemOptionToggle(mainFrame, "damageMeterResetOnNewInstance", 200)
+local function LayoutSystemOptionToggles(ui)
+  if type(ui) ~= "table" then
+    return
+  end
 
-  return {
-    advancedCombatLoggingToggle = advancedCombatLoggingToggle,
-    autoMarkToggle = autoMarkToggle,
-    damageMeterResetToggle = damageMeterResetToggle,
+  local advancedCombatLoggingToggle = ui.advancedCombatLoggingToggle
+  local autoMarkToggle = ui.autoMarkToggle
+  local damageMeterResetToggle = ui.damageMeterResetToggle
+
+  if advancedCombatLoggingToggle and advancedCombatLoggingToggle.SetPoint then
+    if advancedCombatLoggingToggle.ClearAllPoints then
+      advancedCombatLoggingToggle:ClearAllPoints()
+    end
+    advancedCombatLoggingToggle:SetPoint(
+      "BOTTOMLEFT",
+      SYSTEM_OPTION_TOGGLE_LEFT_MARGIN,
+      SYSTEM_OPTION_TOGGLE_BOTTOM_OFFSET
+    )
+  end
+
+  if autoMarkToggle and autoMarkToggle.SetPoint then
+    if autoMarkToggle.ClearAllPoints then
+      autoMarkToggle:ClearAllPoints()
+    end
+    autoMarkToggle:SetPoint(
+      "LEFT",
+      advancedCombatLoggingToggle and advancedCombatLoggingToggle.label or nil,
+      "RIGHT",
+      SYSTEM_OPTION_TOGGLE_GAP,
+      0
+    )
+  end
+
+  if damageMeterResetToggle and damageMeterResetToggle.SetPoint then
+    if damageMeterResetToggle.ClearAllPoints then
+      damageMeterResetToggle:ClearAllPoints()
+    end
+    damageMeterResetToggle:SetPoint(
+      "LEFT",
+      autoMarkToggle and autoMarkToggle.label or nil,
+      "RIGHT",
+      SYSTEM_OPTION_TOGGLE_GAP,
+      0
+    )
+  end
+end
+
+local function CreateSystemOptionToggles(mainFrame, getAutoMarkEnabled, setAutoMarkEnabled)
+  local ui = {
+    advancedCombatLoggingToggle = CreateSystemOptionToggle(mainFrame, "advancedCombatLogging"),
+    autoMarkToggle = CreateCustomOptionToggle(mainFrame, getAutoMarkEnabled, setAutoMarkEnabled),
+    damageMeterResetToggle = CreateSystemOptionToggle(mainFrame, "damageMeterResetOnNewInstance"),
   }
+
+  LayoutSystemOptionToggles(ui)
+  return ui
 end
 
 local function RefreshSystemOptionToggles(ui)
@@ -1427,6 +1474,7 @@ function RosterPanel.CreateController(opts)
     ui.advancedCombatLoggingToggle.label:SetText(L.OPT_ADVANCED_COMBAT_LOGGING)
     ui.autoMarkToggle.label:SetText(L.OPT_AUTO_MARK)
     ui.damageMeterResetToggle.label:SetText(L.OPT_DAMAGE_METER_RESET)
+    LayoutSystemOptionToggles(ui)
     RefreshSystemOptionToggles(ui)
   end
 

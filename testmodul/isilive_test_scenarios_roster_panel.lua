@@ -1715,6 +1715,228 @@ local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, Load
   end)
 end
 
+local function RegisterRosterPanelSystemOptionLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster panel system option toggles keep spacing between adjacent labels", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+
+    local function NewPointRecordedFontString()
+      local fontString = {}
+
+      function fontString.SetPoint(self, point, relativeTo, relativePoint, x, y)
+        self.point = point
+        self.relativeTo = relativeTo
+        self.relativePoint = relativePoint
+        self.pointX = x
+        self.pointY = y
+      end
+      function fontString.SetWidth() end
+      function fontString.SetJustifyH() end
+      function fontString.GetFont()
+        return "font", 10, ""
+      end
+      function fontString.SetFont() end
+      function fontString.SetTextColor() end
+      function fontString.SetShadowOffset() end
+      function fontString.SetText(self, value)
+        self.text = value
+      end
+      function fontString.SetWordWrap() end
+      function fontString.SetNonSpaceWrap() end
+      function fontString.SetMaxLines() end
+      function fontString.Hide() end
+      function fontString.Show() end
+
+      table.insert(createdFontStrings, fontString)
+      return fontString
+    end
+
+    local function NewPointRecordedFrame()
+      local frame = {
+        checked = false,
+      }
+
+      function frame.SetSize() end
+      function frame.SetHeight() end
+      function frame.SetWidth() end
+      function frame.ClearAllPoints(self)
+        self.point = nil
+        self.relativeTo = nil
+        self.relativePoint = nil
+        self.pointX = nil
+        self.pointY = nil
+      end
+      function frame.SetPoint(self, point, relativeTo, relativePoint, x, y)
+        self.point = point
+        self.relativeTo = relativeTo
+        self.relativePoint = relativePoint
+        self.pointX = x
+        self.pointY = y
+      end
+      function frame.SetScript(self, script, handler)
+        self[script] = handler
+      end
+      function frame.SetText(self, value)
+        self.text = value
+      end
+      function frame.SetEnabled() end
+      function frame.SetAlpha() end
+      function frame.SetChecked(self, value)
+        self.checked = value and true or false
+      end
+      function frame.GetChecked(self)
+        return self.checked
+      end
+      function frame.EnableMouse() end
+      function frame.Hide() end
+      function frame.Show() end
+      function frame.IsShown()
+        return true
+      end
+      function frame.CreateTexture()
+        return {
+          SetAllPoints = function() end,
+          SetColorTexture = function() end,
+          Hide = function() end,
+          Show = function() end,
+          SetHeight = function() end,
+          SetPoint = function() end,
+        }
+      end
+      function frame.CreateFontString()
+        return NewPointRecordedFontString()
+      end
+
+      table.insert(createdFrames, frame)
+      return frame
+    end
+
+    local mainFrame = {
+      SetBackdrop = function() end,
+      SetBackdropColor = function() end,
+      IsShown = function()
+        return true
+      end,
+      CreateFontString = function()
+        return NewPointRecordedFontString()
+      end,
+      CreateTexture = function()
+        return {
+          SetHeight = function() end,
+          SetPoint = function() end,
+          SetColorTexture = function() end,
+        }
+      end,
+    }
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewPointRecordedFrame()
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = mainFrame,
+        getL = function()
+          return {
+            OPT_ADVANCED_COMBAT_LOGGING = "Combat Logging",
+            OPT_AUTO_MARK = "Auto-Mark T/H",
+            OPT_DAMAGE_METER_RESET = "DM Reset on Entry",
+          }
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        buildOrderedRoster = function()
+          return {}
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {}
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return ""
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {}
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {},
+        unitPriority = {},
+        getAutoMarkEnabled = function()
+          return true
+        end,
+        setAutoMarkEnabled = function() end,
+      })
+
+      controller.ApplyLocalization()
+
+      local combatLabel = nil
+      local autoMarkLabel = nil
+      for _, fontString in ipairs(createdFontStrings) do
+        if fontString.text == "Combat Logging" then
+          combatLabel = fontString
+        elseif fontString.text == "Auto-Mark T/H" then
+          autoMarkLabel = fontString
+        end
+      end
+
+      Assert.NotNil(combatLabel, "combat logging label should exist")
+      Assert.NotNil(autoMarkLabel, "auto-mark label should exist")
+
+      local autoMarkToggle = nil
+      local damageMeterResetToggle = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame.relativeTo == combatLabel then
+          autoMarkToggle = frame
+        elseif frame.relativeTo == autoMarkLabel then
+          damageMeterResetToggle = frame
+        end
+      end
+
+      Assert.NotNil(autoMarkToggle, "auto-mark toggle should anchor after combat logging label")
+      Assert.Equal(autoMarkToggle.point, "LEFT", "auto-mark toggle should align horizontally")
+      Assert.Equal(autoMarkToggle.relativePoint, "RIGHT", "auto-mark toggle should attach to the combat label edge")
+      Assert.Equal(autoMarkToggle.pointX, 18, "auto-mark toggle should keep a visible gap after combat logging")
+      Assert.Equal(autoMarkToggle.pointY, 0, "auto-mark toggle should stay on the same baseline")
+
+      Assert.NotNil(
+        damageMeterResetToggle,
+        "damage meter reset toggle should anchor after the auto-mark label"
+      )
+      Assert.Equal(damageMeterResetToggle.pointX, 18, "damage meter reset toggle should keep the same visible gap")
+    end)
+  end)
+end
+
 local function RegisterRosterPanelWrappingLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster panel rows disable wrapping for all member text columns", function()
     local createdFrames = {}
@@ -2070,6 +2292,7 @@ local function RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, Lo
   RegisterRosterPanelRowTooltipTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelSystemOptionLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelWrappingTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 

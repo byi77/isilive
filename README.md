@@ -11,6 +11,7 @@ Current documented baseline: `0.9.69`.
 - Group roster table with columns: `Spec`, `Name`, `Flag`, `Key`, `iLvl`, `RIO`, `DPS`
 - Persistent raid warning label in the Roster Panel for groups > 5 members (hides roster rows)
 - Automatic party markers: Tanks marked as Blue Square ({rt6}), Healers as Green Triangle ({rt4}) for all group members without leader restriction
+- Bottom-left system toggles: `Combat Logging`, `Auto-Mark T/H`, `DM Reset on Entry`
 - Stable role sorting: `Tank -> Healer -> Damager`
 - Right-side controls: `Readycheck`, `Countdown10`, `Countdown 0`, `Refresh`, `Share Keys`
 - Right-side headers: `M+Managment` and `M+Travel`
@@ -60,8 +61,10 @@ Current documented baseline: `0.9.69`.
 - Smart self-update: automatically broadcasts a data snapshot (Key/Stats) when the player's own iLvl, RIO, or Spec changes.
 - Teleport action buttons are intentionally `InsecureActionButtonTemplate` so `CTRL+F9` main-frame open/close and center-notice visibility remain combat-safe
 - Combat-safe frame updates: pending frame-height changes are applied on `PLAYER_REGEN_ENABLED`
-- Bottom-left system toggles mirror the live Blizzard CVar state for `advancedCombatLogging` and `damageMeterResetOnNewInstance`.
-- Clicking those toggles writes the selected Blizzard setting once; `isiLive` does not keep re-enforcing either CVar afterward.
+- Bottom-left system toggles expose `advancedCombatLogging`, `Auto-Mark T/H`, and `damageMeterResetOnNewInstance`.
+- `advancedCombatLogging` and `damageMeterResetOnNewInstance` mirror the live Blizzard CVar state; `Auto-Mark T/H` mirrors addon runtime state and can be toggled live without reload.
+- The toggle row keeps a fixed gap between adjacent labels so `Combat Logging` and `Auto-Mark T/H` do not overlap.
+- Clicking the Blizzard CVar toggles writes the selected Blizzard setting once; `isiLive` does not keep re-enforcing either CVar afterward.
 - Blizzard damage meter is also manually reset on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
 - `CHALLENGE_MODE_START` captures a per-player RIO baseline.
 - `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` schedules delayed post-run refresh and enables clamped delta display `(+X)RIO` after refresh succeeds (with short retry if still blocked), including when the window is currently hidden.

@@ -320,6 +320,12 @@ local function InitializeFactoryRuntimeHelpers(ctx)
   ctx.GetWasGroupLeader = function()
     return runtimeState.GetWasGroupLeader()
   end
+  ctx.GetAutoMarkEnabled = function()
+    return runtimeState.GetAutoMarkEnabled()
+  end
+  ctx.SetAutoMarkEnabled = function(value)
+    runtimeState.SetAutoMarkEnabled(value)
+  end
   ctx.GetRoster = function()
     return runtimeState.GetRoster()
   end
@@ -623,6 +629,8 @@ local function InitializeFactoryPrimaryControllers(ctx)
       return ctx.IsReadyCheckActive()
     end,
     getRoster = ctx.GetRoster,
+    getAutoMarkEnabled = ctx.GetAutoMarkEnabled,
+    setAutoMarkEnabled = ctx.SetAutoMarkEnabled,
     applySecureSpellToButton = ctx.ApplySecureSpellToButton,
     getEntries = modules.teleport.BuildTeleportEntries,
     getTeleportEmptyStateText = ctx.GetTeleportEmptyStateText,
@@ -1032,6 +1040,8 @@ local function FinalizeFactoryRuntime(ctx)
     getWasGroupLeader = ctx.GetWasGroupLeader,
     getRoster = ctx.GetRoster,
     setRoster = ctx.SetRoster,
+    getAutoMarkEnabled = ctx.GetAutoMarkEnabled,
+    setAutoMarkEnabled = ctx.SetAutoMarkEnabled,
     captureQueueJoinCandidate = ctx.CaptureQueueJoinCandidate,
     announceQueuedGroupJoin = ctx.AnnounceQueuedGroupJoin,
     setMainFrameVisible = ctx.SetMainFrameVisible,
