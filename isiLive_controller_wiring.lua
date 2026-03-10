@@ -76,6 +76,11 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     enqueueInspect = RequireFunction(deps.enqueueInspect, "enqueueInspect"),
     sendOwnKeySnapshot = RequireFunction(deps.sendOwnKeySnapshot, "sendOwnKeySnapshot"),
     sendIsiLiveHello = RequireFunction(deps.sendIsiLiveHello, "sendIsiLiveHello"),
+    getAutoMarkEnabled = RequireFunction(state.getAutoMarkEnabled, "state.getAutoMarkEnabled"),
+    unitIsGroupLeader = RequireFunction(deps.unitIsGroupLeader, "unitIsGroupLeader"),
+    unitExists = RequireFunction(deps.unitExists, "unitExists"),
+    getRaidTargetIndex = RequireFunction(deps.getRaidTargetIndex, "getRaidTargetIndex"),
+    setRaidTarget = RequireFunction(deps.setRaidTarget, "setRaidTarget"),
   })
 end
 
@@ -97,6 +102,7 @@ local function BuildGroupControllerDepsFromContext(ctx)
       setWasGroupLeader = ctx.setWasGroupLeader,
       getRoster = ctx.getRoster,
       setRoster = ctx.setRoster,
+      getAutoMarkEnabled = ctx.getAutoMarkEnabled,
     },
     callbacks = {
       captureQueueJoinCandidate = ctx.captureQueueJoinCandidate,
@@ -123,6 +129,10 @@ local function BuildGroupControllerDepsFromContext(ctx)
     enqueueInspect = ctx.enqueueInspect,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
     sendIsiLiveHello = ctx.sendIsiLiveHello,
+    unitIsGroupLeader = ctx.unitIsGroupLeader,
+    unitExists = ctx.unitExists,
+    getRaidTargetIndex = ctx.getRaidTargetIndex,
+    setRaidTarget = ctx.setRaidTarget,
   }
 end
 

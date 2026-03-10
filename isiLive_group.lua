@@ -78,6 +78,11 @@ local function BuildDeps(opts)
     enqueueInspect = opts.enqueueInspect or function(_unit) end,
     sendOwnKeySnapshot = opts.sendOwnKeySnapshot or function(_force) end,
     sendIsiLiveHello = opts.sendIsiLiveHello or function(_force) end,
+    getAutoMarkEnabled = opts.getAutoMarkEnabled or function() return true end,
+    unitIsGroupLeader = opts.unitIsGroupLeader or function(_unit) return false end,
+    unitExists = opts.unitExists or function(_unit) return false end,
+    getRaidTargetIndex = opts.getRaidTargetIndex or function(_unit) return nil end,
+    setRaidTarget = opts.setRaidTarget or function(_unit, _index) end,
   }
 end
 
@@ -271,6 +276,32 @@ local function UpdatePartyMembersInRoster(deps, roster)
 
   PruneGhosts(roster)
 end
+local function ApplyAutoMarkers(deps, roster)
+  if not deps.getAutoMarkEnabled() then
+    return
+  end
+  if not deps.isInGroup() then
+    return
+  end
+
+  local function SafeSetRaidTarget(unit, targetIndex)
+    if not unit or not deps.unitExists(unit) then return end
+    local currentIndex = deps.getRaidTargetIndex(unit)
+    if currentIndex ~= targetIndex then
+      deps.setRaidTarget(unit, targetIndex)
+    end
+  end
+
+  for unit, info in pairs(roster) do
+    if not info.isGhost then
+      if info.role == "TANK" then
+        SafeSetRaidTarget(unit, 6) -- Blue Square
+      elseif info.role == "HEALER" then
+        SafeSetRaidTarget(unit, 4) -- Green Triangle
+      end
+    end
+  end
+end
 
 local function HandleGroupRosterUpdate(deps)
   local wasInGroupBefore = deps.getWasInGroup() and true or false
@@ -317,6 +348,7 @@ local function HandleGroupRosterUpdate(deps)
 
   AddPlayerToRoster(deps, roster)
   UpdatePartyMembersInRoster(deps, roster)
+  ApplyAutoMarkers(deps, roster)
 
   deps.sendOwnKeySnapshot(false)
   deps.updateUI()

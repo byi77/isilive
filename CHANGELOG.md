@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-03-10 - Version 0.9.69
+- **Raid Notice in Roster Panel:**
+  - Integrated the raid notice directly into the Roster Panel UI. When the group size exceeds 5 members, the roster rows are hidden and a localized "Raid warning" is displayed in the center of the roster area.
+  - Removed the temporary `Center Notice` fallback for raid groups, consolidating all raid feedback into the main Roster Panel.
+- **Auto-Marker Feature:**
+  - Finalized the Auto-Marker feature for parties: Tanks are marked with **Blue Square** ({rt6}) and Healers with **Green Triangle** ({rt4}).
+  - Removed the group leader restriction: any party member (regardless of lead status) can now automatically apply markers to group members.
+  - Added an anti-spam check: the addon now verifies existing raid target indices before calling `SetRaidTarget` to avoid redundant API traffic.
+  - Auto-marking logic is strictly scoped to 5-man parties; raid groups remain ignored for marking.
+- **Architecture & Refactoring:**
+  - **Dependency Injection Framework:** Refactored the `isRaidGroup` status to be passed through the factory context and controller wiring, ensuring clean separation between group state logic and UI rendering.
+  - **Code Cleanup:** Removed deprecated `showCenterNotice` wiring and logic from `isiLive_group.lua` and `isiLive_controller_wiring.lua` in favor of the new integrated UI label.
+  - **Mocking Strategy:** Standardized UI element mocks in the test suite (adding `Hide`/`Show` to `CreateFontString` mocks) to better reflect actual WoW API behavior and improve test reliability.
+- **Robustness & UI:**
+  - Improved `mainFrame:GetWidth()` robustness in `isiLive_roster_panel.lua` to handle mocked frame environments in tests.
+- **Validation + Docs Sync:**
+  - Deterministic validator coverage is now `232` scenarios across `24` modules.
+  - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RULES_LOGIC.md`, and `isiLive.toc` to `0.9.69`.
+
+
 ## 2026-03-09 - Version 0.9.68
 - **Post-Run DPS Capture Reliability:**
   - `M+` completed-run DPS capture now retries briefly when the Blizzard `C_DamageMeter` session is not ready on the first completion/reset event.

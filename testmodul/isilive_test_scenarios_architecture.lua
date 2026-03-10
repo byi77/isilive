@@ -25,31 +25,31 @@ end
 
 local function RegisterArchitectureSourceBoundaryTests(test, Assert)
   test("Architecture root wires runtime through RuntimeState and RuntimeSetup", function()
-    local content = ReadFile("isiLive.lua")
+    local content = ReadFile("isiLive_factory.lua")
 
     AssertContains(
       Assert,
       content,
       "local runtimeState = isiLiveRuntimeState.CreateController()",
-      "isiLive.lua must instantiate RuntimeState centrally"
+      "isiLive_factory.lua must instantiate RuntimeState centrally"
     )
     AssertContains(
       Assert,
       content,
       "local runtimeSetupResult = isiLiveRuntimeSetup.Configure({",
-      "isiLive.lua must delegate final assembly to RuntimeSetup.Configure"
+      "isiLive_factory.lua must delegate final assembly to RuntimeSetup.Configure"
     )
     AssertNotContains(
       Assert,
       content,
       "isiLiveEventHandlers.CreateController(",
-      "isiLive.lua must not instantiate EventHandlers directly"
+      "isiLive_factory.lua must not instantiate EventHandlers directly"
     )
     AssertNotContains(
       Assert,
       content,
       "isiLiveGroup.CreateController(",
-      "isiLive.lua must not instantiate Group directly"
+      "isiLive_factory.lua must not instantiate Group directly"
     )
   end)
 
@@ -172,25 +172,25 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
   end)
 
   test("Architecture root keeps challenge helper guarded and de-duplicates roster trigger helper", function()
-    local content = ReadFile("isiLive.lua")
+    local content = ReadFile("isiLive_factory.lua")
 
     AssertContains(
       Assert,
       content,
       "if not (C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID) then",
-      "isiLive.lua must guard Blizzard challenge API access in root helper"
+      "isiLive_factory.lua must guard Blizzard challenge API access in root helper"
     )
     AssertContains(
       Assert,
       content,
       "local function TriggerGroupRosterUpdate()",
-      "isiLive.lua must centralize GROUP_ROSTER_UPDATE helper"
+      "isiLive_factory.lua must centralize GROUP_ROSTER_UPDATE helper"
     )
     AssertNotContains(
       Assert,
       content,
       "triggerGroupRosterUpdate = function()",
-      "isiLive.lua must not keep duplicated inline GROUP_ROSTER_UPDATE closures"
+      "isiLive_factory.lua must not keep duplicated inline GROUP_ROSTER_UPDATE closures"
     )
   end)
 

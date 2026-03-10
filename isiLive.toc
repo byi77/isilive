@@ -2,7 +2,7 @@
 ## Title: |cff00ccffisi|rKeyMPlus
 ## Notes: Shows group members with item level and Mythic+ rating.
 ## Author: mematiWoW
-## Version: 0.9.68
+## Version: 0.9.69
 ## SavedVariables: IsiLiveDB
 ## IconTexture: Interface\Icons\INV_Misc_QuestionMark
 realm_language_data.lua
@@ -52,4 +52,5 @@ isiLive_event_handlers.lua
 isiLive_commands.lua
 isiLive_ui.lua
 isiLive_guards.lua
+isiLive_factory.lua
 isiLive.lua

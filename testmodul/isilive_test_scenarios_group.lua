@@ -13,7 +13,8 @@ local function BuildGroupState(overrides)
     knownUsersCleared = 0,
     inspectResets = 0,
     uiUpdates = 0,
-    teleportUpdates = 0,
+    teleportUpdates = overrides.teleportUpdates or 0,
+    autoMarkEnabled = true,
   }
 end
 
@@ -102,7 +103,7 @@ local function BuildGroupControllerOptions(state, overrides)
     end,
     markIsiLiveUser = function() end,
     setPlayerKeyInfo = function() end,
-    getUnitRole = function(_unit)
+    getUnitRole = overrides.getUnitRole or function(_unit)
       return "DAMAGER"
     end,
     getPlayerSpecName = function()
@@ -117,9 +118,13 @@ local function BuildGroupControllerOptions(state, overrides)
     applyKnownKeyToRosterEntry = function(_info)
       return false
     end,
-    enqueueInspect = function(_unit) end,
     sendOwnKeySnapshot = function(_force) end,
     sendIsiLiveHello = function(_force) end,
+    getAutoMarkEnabled = function() return state.autoMarkEnabled end,
+    unitIsGroupLeader = overrides.unitIsGroupLeader or function(_unit) return false end,
+    unitExists = overrides.unitExists or function(_unit) return true end,
+    getRaidTargetIndex = overrides.getRaidTargetIndex or function(_unit) return nil end,
+    setRaidTarget = overrides.setRaidTarget or function(_unit, _index) end,
   }
 end
 
@@ -128,6 +133,114 @@ local function BuildGroupController(loadAddonModules, overrides)
   local addon = loadAddonModules({ "isiLive_group.lua" })
   local controller = addon.Group.CreateController(BuildGroupControllerOptions(state, overrides))
   return controller, state
+end
+
+local function RegisterGroupAutoMarkTests(test, Assert, LoadAddonModules, WithGlobals)
+  test("AutoMark assigns Tank to Blue Square and Healer to Green Triangle", function()
+    local setRaidTargetCalls = {}
+
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function() return 3 end,
+      getUnitRole = function(unit)
+        if unit == "player" then return "DAMAGER" end
+        if unit == "party1" then return "TANK" end
+        if unit == "party2" then return "HEALER" end
+        return "DAMAGER"
+      end,
+      unitIsGroupLeader = function(unit) return unit == "player" end,
+      unitExists = function(_unit) return true end,
+      getRaidTargetIndex = function(_unit) return nil end,
+      setRaidTarget = function(unit, index)
+        setRaidTargetCalls[unit] = index
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(setRaidTargetCalls["party1"], 6, "Tank should get Blue Square (6)")
+    Assert.Equal(setRaidTargetCalls["party2"], 4, "Healer should get Green Triangle (4)")
+    Assert.Nil(setRaidTargetCalls["player"], "Damager should not get a marker")
+  end)
+
+  test("AutoMark assigns no markers when AutoMark is disabled", function()
+    local setRaidTargetCalls = {}
+
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function() return 3 end,
+      getUnitRole = function(unit)
+        if unit == "party1" then return "TANK" end
+        if unit == "party2" then return "HEALER" end
+        return "DAMAGER"
+      end,
+      unitIsGroupLeader = function(unit) return unit == "player" end,
+      unitExists = function(_unit) return true end,
+      getRaidTargetIndex = function(_unit) return nil end,
+      setRaidTarget = function(unit, index)
+        setRaidTargetCalls[unit] = index
+      end,
+    })
+    state.autoMarkEnabled = false
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Nil(setRaidTargetCalls["party1"], "Tank marker skipped because disabled")
+    Assert.Nil(setRaidTargetCalls["party2"], "Healer marker skipped because disabled")
+  end)
+
+  test("AutoMark assigns markers even when player is not group leader", function()
+    local setRaidTargetCalls = {}
+
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function() return 3 end,
+      getUnitRole = function(unit)
+        if unit == "party1" then return "TANK" end
+        if unit == "party2" then return "HEALER" end
+        return "DAMAGER"
+      end,
+      unitIsGroupLeader = function(_unit) return false end, -- NOT leader
+      unitExists = function(_unit) return true end,
+      getRaidTargetIndex = function(_unit) return nil end,
+      setRaidTarget = function(unit, index)
+        setRaidTargetCalls[unit] = index
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+
+    -- Marking should still happen even without leader
+    Assert.Equal(setRaidTargetCalls["party1"], 6, "Tank should get Blue Square (6) without leader")
+    Assert.Equal(setRaidTargetCalls["party2"], 4, "Healer should get Green Triangle (4) without leader")
+  end)
+
+  test("AutoMark skips units already correctly marked", function()
+    local setRaidTargetCalls = {}
+
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function() return 3 end,
+      getUnitRole = function(unit)
+        if unit == "party1" then return "TANK" end
+        if unit == "party2" then return "HEALER" end
+        return "DAMAGER"
+      end,
+      unitIsGroupLeader = function(_unit) return false end,
+      unitExists = function(_unit) return true end,
+      getRaidTargetIndex = function(unit)
+        -- Simulate: party1 already has Blue Square, party2 already has Green Triangle
+        if unit == "party1" then return 6 end
+        if unit == "party2" then return 4 end
+        return nil
+      end,
+      setRaidTarget = function(unit, index)
+        setRaidTargetCalls[unit] = index
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+
+    -- Already correctly marked → should NOT call SetRaidTarget again
+    Assert.Nil(setRaidTargetCalls["party1"], "Tank already marked, should not call SetRaidTarget again")
+    Assert.Nil(setRaidTargetCalls["party2"], "Healer already marked, should not call SetRaidTarget again")
+  end)
 end
 
 local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules)
@@ -615,9 +728,11 @@ end
 return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
+  local WithGlobals = ctx.with_globals
 
   RegisterGroupLifecycleTests(test, Assert, LoadAddonModules)
   RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
   RegisterGroupGhostShiftTests(test, Assert, LoadAddonModules)
   RegisterGroupGhostLifecycleTests(test, Assert, LoadAddonModules)
+  RegisterGroupAutoMarkTests(test, Assert, LoadAddonModules, WithGlobals)
 end

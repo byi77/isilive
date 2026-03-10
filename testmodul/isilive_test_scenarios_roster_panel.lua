@@ -315,6 +315,8 @@ local function NewRecordedFontString(createdFontStrings)
   }
 
   function fontString.SetPoint() end
+  function fontString.Hide() end
+  function fontString.Show() end
   function fontString.SetWidth(self, value)
     self.width = value
   end
@@ -540,6 +542,8 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
             SetWordWrap = function() end,
             SetNonSpaceWrap = function() end,
             SetMaxLines = function() end,
+            Hide = function() end,
+            Show = function() end,
           }
         end,
         Show = function(self)
@@ -595,6 +599,8 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
               SetWordWrap = function() end,
               SetNonSpaceWrap = function() end,
               SetMaxLines = function() end,
+              Hide = function() end,
+              Show = function() end,
             }
           end,
           CreateTexture = function()
@@ -764,6 +770,8 @@ local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, Wit
               SetWordWrap = function() end,
               SetNonSpaceWrap = function() end,
               SetMaxLines = function() end,
+              Hide = function() end,
+              Show = function() end,
             }
           end,
           CreateTexture = function()
@@ -899,6 +907,8 @@ local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, Wit
               SetWordWrap = function() end,
               SetNonSpaceWrap = function() end,
               SetMaxLines = function() end,
+              Hide = function() end,
+              Show = function() end,
             }
           end,
           CreateTexture = function()
@@ -1040,6 +1050,8 @@ local function RegisterRosterPanelRowTooltipMetadataTests(test, Assert, WithGlob
               SetWordWrap = function() end,
               SetNonSpaceWrap = function() end,
               SetMaxLines = function() end,
+              Hide = function() end,
+              Show = function() end,
             }
           end,
           CreateTexture = function()
@@ -1170,6 +1182,8 @@ local function RegisterRosterPanelRowTooltipMetadataTests(test, Assert, WithGlob
               SetWordWrap = function() end,
               SetNonSpaceWrap = function() end,
               SetMaxLines = function() end,
+              Hide = function() end,
+              Show = function() end,
             }
           end,
           CreateTexture = function()
@@ -1321,6 +1335,8 @@ local function RegisterRosterPanelRowTooltipIsolationTests(test, Assert, WithGlo
               SetWordWrap = function() end,
               SetNonSpaceWrap = function() end,
               SetMaxLines = function() end,
+              Hide = function() end,
+              Show = function() end,
             }
           end,
           CreateTexture = function()
@@ -1471,6 +1487,8 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
               SetWordWrap = function() end,
               SetNonSpaceWrap = function() end,
               SetMaxLines = function() end,
+              Hide = function() end,
+              Show = function() end,
             }
           end,
           Hide = function() end,

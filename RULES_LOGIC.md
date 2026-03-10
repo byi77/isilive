@@ -1,4 +1,4 @@
-﻿﻿﻿﻿# Regellogik
+﻿﻿﻿# Regellogik
 
 Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im Gate geprueft werden.
 
@@ -59,6 +59,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 36. roster-kurztexte bleiben kompakt und faktenbasiert: name max 12 zeichen, spec max 6 zeichen, sprache nur flagge, key-code max 4 zeichen und nie numerischer mapid-fallback.
 37. die wartungsdatei `WARTUNG.md` darf nicht im curseforge-paket landen.
 38. `WARTUNG.md` muss die verpflichtende wartungskette fuer den wiedereinstieg nennen: `CHANGELOG.md`, `TODO.md`, `TODO_RENAME.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `AGENTS.md`, `README.md`, `RELEASE.md`, `USECASES.md`, `ARCHITECTURE.md`.
+39. Automatisches Markieren von Tank und Heiler in 5-Mann-Gruppen (Tank=Blau, Heiler=Gruen) ist fuer alle Gruppenmitglieder aktiv und verfuegt ueber einen Anti-Spam Check.
+40. Bei Gruppengroessen > 5 (Raid) wird im Roster-Panel ein persistenter Hinweis angezeigt und die Gruppenmitglieder-Zeilen werden ausgeblendet.
 
 ## Regelbloecke
 
@@ -386,3 +388,18 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Duplikate sind in `entwurf` erstmal ok; wir klaeren/mergen sie spaeter. Exakt gleiche Zusammenfassungen werden im Validator als Warnung ausgegeben.
 - Lange Beschreibungen sind ok; fuer das Gate sind `Status` und `Erforderliche Tests` entscheidend.
 - Regeln mit `Status: aktiv` brechen den Gate-Lauf, wenn verknuepfte Tests fehlen oder nicht existieren.
+### RULE-ROSTER-AUTO-MARKER
+- Regelnummer: 39
+- Status: aktiv
+- Zusammenfassung: Automatisches Markieren von Tank und Heiler in 5-Mann-Gruppen (Tank=Blau, Heiler=Gruen) ist fuer alle Gruppenmitglieder aktiv und verfuegt ueber einen Anti-Spam Check.
+- Erforderliche Tests:
+  - AutoMark assigns Tank to Blue Square and Healer to Green Triangle
+  - AutoMark assigns markers even when player is not group leader
+  - AutoMark skips units already correctly marked
+
+### RULE-ROSTER-RAID-NOTICE
+- Regelnummer: 40
+- Status: aktiv
+- Zusammenfassung: Bei Gruppengroessen > 5 (Raid) wird im Roster-Panel ein persistenter Hinweis angezeigt und die Gruppenmitglieder-Zeilen werden ausgeblendet.
+- Erforderliche Tests:
+  - Raid group hides frame and prints notification

@@ -39,6 +39,7 @@ function RuntimeState.CreateController(opts)
     rioBaselineByPlayerKey = type(opts.rioBaselineByPlayerKey) == "table" and opts.rioBaselineByPlayerKey or {},
     hasRioBaselineSnapshot = NormalizeBoolean(opts.hasRioBaselineSnapshot),
     isRioDeltaDisplayEnabled = NormalizeBoolean(opts.isRioDeltaDisplayEnabled),
+    autoMarkTankHealerEnabled = opts.autoMarkTankHealerEnabled ~= false, -- Default to true
   }
 
   if next(state.rioBaselineByPlayerKey) ~= nil then
@@ -213,6 +214,14 @@ function RuntimeState.CreateController(opts)
     state.isRioDeltaDisplayEnabled = NormalizeBoolean(value)
   end
 
+  function controller.GetAutoMarkEnabled()
+    return state.autoMarkTankHealerEnabled
+  end
+
+  function controller.SetAutoMarkEnabled(value)
+    state.autoMarkTankHealerEnabled = NormalizeBoolean(value)
+  end
+
   function controller.GetSnapshot()
     return {
       roster = state.roster,
@@ -233,6 +242,7 @@ function RuntimeState.CreateController(opts)
       rioBaselineByPlayerKey = CopyTableShallow(state.rioBaselineByPlayerKey),
       hasRioBaselineSnapshot = state.hasRioBaselineSnapshot,
       isRioDeltaDisplayEnabled = state.isRioDeltaDisplayEnabled,
+      autoMarkTankHealerEnabled = state.autoMarkTankHealerEnabled,
     }
   end
 

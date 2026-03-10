@@ -1,7 +1,7 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.68`
-Last updated: `2026-03-09`
+Version baseline: `0.9.69`
+Last updated: `2026-03-10`
 
 ## Actors
 
@@ -27,6 +27,8 @@ Last updated: `2026-03-09`
 | UC-06 | Share keys action | Group keys are announced in party chat via button |
 | UC-07 | RIO delta visibility | Per-run RIO delta is shown as non-negative `(+X)` prefix |
 | UC-08 | Post-run DPS snapshot | Latest dungeon DPS per player is read from Blizzard damage meter and shown in roster + tooltip |
+| UC-09 | Auto-Marker Feature | Tank and Healer are automatically marked with icons in parties |
+| UC-10 | Raid Notice integration | Persistent warning is shown in roster area when group > 5 members |
 
 ## UC-01 Invite Detection And Target Resolution
 
@@ -137,6 +139,8 @@ Goal: expose the latest completed dungeon DPS per player from Blizzard damage me
 10. Event-gate dispatch failures must be reported through error callbacks for diagnostics without terminating the gate loop.
 11. Persistent stats storage must stay bounded: no persistent foreign-player run history and no persistent `Runs together` cache.
 12. Leaving or being removed from a normal party must keep the current frame visibility state and retain former members as ghost rows until a deterministic prune path occurs.
+13. Auto-marking (Tank=Blue, Healer=Green) happens automatically for all group members without leader restriction in 5-man parties.
+14. Raid-group detection (> 5 members) shows a persistent localized warning in the roster area and hides roster rows.
 
 ## Automated Validation Mapping
 
@@ -149,6 +153,8 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 4. Event consistency: target clear behavior under API shape variants, grouped negative-application follow-up events, and protected API errors.
 5. UC-07: challenge-start baseline capture and roster `(+X)RIO` rendering rules (including non-negative clamp).
 6. UC-08: post-run DPS snapshot capture for `M+` and `M0`, bounded persistence, and tooltip/roster rendering.
+7. UC-09: Auto-Marker logic (Tank=Blue Square, Healer=Green Triangle) available for all party members.
+8. UC-10: Raid notice integration within the Roster Panel.
 
 ## Traceability To Source Files
 
@@ -161,4 +167,6 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 | RIO baseline capture and delta preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
 | Last-run DPS capture and bounded stats persistence | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua` |
 | UI actions and key sharing button | `isiLive_roster_panel.lua` |
+| Auto-Marker logic | `isiLive_group.lua` |
+| Raid notice UI | `isiLive_roster_panel.lua` |
 | Event routing and gating | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua` |

@@ -236,12 +236,37 @@ local function CreateSystemOptionToggle(mainFrame, cvarName, xOffset)
   return button
 end
 
-local function CreateSystemOptionToggles(mainFrame)
+local function CreateCustomOptionToggle(mainFrame, getterFn, setterFn, xOffset)
+  local button = CreateFrame("CheckButton", nil, mainFrame, "UICheckButtonTemplate")
+  button:SetSize(18, 18)
+  button:SetPoint("BOTTOMLEFT", xOffset, 24)
+
+  local label = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  label:SetPoint("LEFT", button, "RIGHT", 4, 0)
+  label:SetJustifyH("LEFT")
+  DisableFontStringWrapping(label)
+  button.label = label
+
+  if button.SetChecked then
+    button:SetChecked(getterFn())
+  end
+
+  button:SetScript("OnClick", function(self)
+    local enabled = self.GetChecked and self:GetChecked() or false
+    setterFn(enabled)
+  end)
+
+  return button
+end
+
+local function CreateSystemOptionToggles(mainFrame, getAutoMarkEnabled, setAutoMarkEnabled)
   local advancedCombatLoggingToggle = CreateSystemOptionToggle(mainFrame, "advancedCombatLogging", 10)
-  local damageMeterResetToggle = CreateSystemOptionToggle(mainFrame, "damageMeterResetOnNewInstance", 220)
+  local autoMarkToggle = CreateCustomOptionToggle(mainFrame, getAutoMarkEnabled, setAutoMarkEnabled, 100)
+  local damageMeterResetToggle = CreateSystemOptionToggle(mainFrame, "damageMeterResetOnNewInstance", 200)
 
   return {
     advancedCombatLoggingToggle = advancedCombatLoggingToggle,
+    autoMarkToggle = autoMarkToggle,
     damageMeterResetToggle = damageMeterResetToggle,
   }
 end
@@ -1110,14 +1135,24 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   local buttons = CreatePanelButtons(mainFrame, buttonDeps)
   local rosterTooltip = CreateRosterHoverTooltip(mainFrame)
   local statusLine = CreateStatusLine(mainFrame)
-  local optionToggles = CreateSystemOptionToggles(mainFrame)
+  local optionToggles = CreateSystemOptionToggles(mainFrame, uiDeps.getAutoMarkEnabled, uiDeps.setAutoMarkEnabled)
   CreateVersionLine(mainFrame, uiDeps.getAddonVersionText)
+
+  local raidNoticeLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  raidNoticeLabel:SetPoint("TOP", 0, -100)
+  local frameWidth = type(mainFrame.GetWidth) == "function" and mainFrame:GetWidth() or 400
+  raidNoticeLabel:SetWidth(frameWidth - 16)
+  raidNoticeLabel:SetJustifyH("CENTER")
+  raidNoticeLabel:SetTextColor(1, 0.5, 0)
+  raidNoticeLabel:SetWordWrap(true)
+  raidNoticeLabel:Hide()
 
   local ui = {
     panelTooltip = panelTooltip,
     rosterTooltip = rosterTooltip,
     title = title,
     statusLine = statusLine,
+    raidNoticeLabel = raidNoticeLabel,
   }
   for k, v in pairs(headers) do
     ui[k] = v
@@ -1139,6 +1174,35 @@ local function RenderRosterImpl(state, roster)
   local rosterTooltip = state.rosterTooltip
   local setMainFrameHeightSafe = state.setMainFrameHeightSafe
   local minFrameHeight = state.minFrameHeight
+  local raidNoticeLabel = state.raidNoticeLabel
+
+  -- If in a raid group, show the notice and hide rows
+  if state.isRaidGroup and state.isRaidGroup() then
+    for _, row in pairs(memberRows) do
+      row.spec:SetText("")
+      row.name:SetText("")
+      row.realm:SetText("")
+      row.key:SetText("")
+      row.ilvl:SetText("")
+      row.rio:SetText("")
+      row.dps:SetText("")
+      if row.hoverFrame then
+        row.hoverFrame:Hide()
+      end
+    end
+    if raidNoticeLabel then
+      local L = state.getL and state.getL() or {}
+      raidNoticeLabel:SetText(L.RAID_GROUP_HIDDEN or "Raid group detected. Addon paused.")
+      raidNoticeLabel:Show()
+    end
+    setMainFrameHeightSafe(minFrameHeight)
+    return
+  end
+
+  -- Normal case: hide notice, show rows
+  if raidNoticeLabel then
+    raidNoticeLabel:Hide()
+  end
 
   for _, row in pairs(memberRows) do
     row.spec:SetText("")
@@ -1280,6 +1344,7 @@ function RosterPanel.CreateController(opts)
   local isReadyCheckActive = type(opts.isReadyCheckActive) == "function" and opts.isReadyCheckActive or nil
   local resolveTargetMapID = type(opts.resolveTargetMapID) == "function" and opts.resolveTargetMapID or nil
   local isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
+  local isRaidGroup = type(opts.isRaidGroup) == "function" and opts.isRaidGroup or function() return false end
   local rolePriority = assert(opts.rolePriority, "isiLive: RosterPanel requires rolePriority")
   local unitPriority = assert(opts.unitPriority, "isiLive: RosterPanel requires unitPriority")
   local syncMarker = tostring(opts.syncMarker or "")
@@ -1324,6 +1389,8 @@ function RosterPanel.CreateController(opts)
     isInGroup = isInGroup,
     getTime = getTime,
     shareKeysDebounceSeconds = shareKeysDebounceSeconds,
+    getAutoMarkEnabled = type(opts.getAutoMarkEnabled) == "function" and opts.getAutoMarkEnabled or function() return false end,
+    setAutoMarkEnabled = type(opts.setAutoMarkEnabled) == "function" and opts.setAutoMarkEnabled or function() end,
   })
 
   local readyCheckButton = ui.readyCheckButton
@@ -1354,6 +1421,7 @@ function RosterPanel.CreateController(opts)
     refreshButton:SetText(L.BTN_REFRESH)
     shareKeysButton:SetText(L.BTN_SHARE_KEYS)
     ui.advancedCombatLoggingToggle.label:SetText(L.OPT_ADVANCED_COMBAT_LOGGING)
+    ui.autoMarkToggle.label:SetText(L.OPT_AUTO_MARK)
     ui.damageMeterResetToggle.label:SetText(L.OPT_DAMAGE_METER_RESET)
     RefreshSystemOptionToggles(ui)
   end
@@ -1395,6 +1463,8 @@ function RosterPanel.CreateController(opts)
       fullSyncMarker = fullSyncMarker,
       getPlayerLastRunDps = getPlayerLastRunDps,
       getL = getL,
+      isRaidGroup = isRaidGroup,
+      raidNoticeLabel = ui.raidNoticeLabel,
     }, roster)
     RefreshSystemOptionToggles(ui)
   end
