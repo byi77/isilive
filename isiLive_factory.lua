@@ -4,230 +4,203 @@ moduleAddonTable = moduleAddonTable or {}
 local Factory = {}
 moduleAddonTable.Factory = Factory
 
-function Factory.InitializeAddon(addonName, addonTable)
-  local isiLiveSync = addonTable and addonTable.Sync
-  local isiLiveKeySync = addonTable and addonTable.KeySync
-  local isiLiveRefresh = addonTable and addonTable.Refresh
-  local isiLiveHighlight = addonTable and addonTable.Highlight
-  local isiLiveGroup = addonTable and addonTable.Group
-  local isiLiveQueue = addonTable and addonTable.Queue
-  local isiLiveQueueFlow = addonTable and addonTable.QueueFlow
-  local isiLiveInspect = addonTable and addonTable.Inspect
-  local isiLiveRoster = addonTable and addonTable.Roster
-  local isiLiveEvents = addonTable and addonTable.Events
-  local isiLiveEventHandlers = addonTable and addonTable.EventHandlers
-  local isiLiveCommands = addonTable and addonTable.Commands
-  local isiLiveLocale = addonTable and addonTable.Locale
-  local isiLiveTexts = addonTable and addonTable.Texts
-  local isiLiveUI = addonTable and addonTable.UI
-  local isiLiveTeleport = addonTable and addonTable.Teleport
-  local isiLiveTeleportUI = addonTable and addonTable.TeleportUI
-  local isiLiveTeleportDebug = addonTable and addonTable.TeleportDebug
-  local isiLiveNotice = addonTable and addonTable.Notice
-  local isiLiveStatus = addonTable and addonTable.Status
-  local isiLiveUnits = addonTable and addonTable.Units
-  local isiLiveDemo = addonTable and addonTable.Demo
-  local isiLiveTestMode = addonTable and addonTable.TestMode
-  local isiLiveQueueDebug = addonTable and addonTable.QueueDebug
-  local isiLiveRuntimeLog = addonTable and addonTable.RuntimeLog
-  local isiLiveRosterPanel = addonTable and addonTable.RosterPanel
-  local isiLiveSpellUtils = addonTable and addonTable.SpellUtils
-  local isiLiveBindings = addonTable and addonTable.Bindings
-  local isiLiveEventUtils = addonTable and addonTable.EventUtils
-  local isiLiveBootstrap = addonTable and addonTable.Bootstrap
-  local isiLiveControllerWiring = addonTable and addonTable.ControllerWiring
-  local isiLiveLeaderWatch = addonTable and addonTable.LeaderWatch
-  local isiLiveConfigBuilders = addonTable and addonTable.ConfigBuilders
-  local isiLiveFrameBridge = addonTable and addonTable.FrameBridge
-  local isiLiveContextHelpers = addonTable and addonTable.ContextHelpers
-  local isiLiveRuntimeSetup = addonTable and addonTable.RuntimeSetup
-  local isiLiveControllerInit = addonTable and addonTable.ControllerInit
-  local isiLiveGuards = addonTable and addonTable.Guards
-  local isiLiveStats = addonTable and addonTable.Stats
-  local isiLiveRuntimeState = addonTable and addonTable.RuntimeState
+local function BuildFactoryModules(addonTable)
+  return {
+    sync = addonTable and addonTable.Sync,
+    keySync = addonTable and addonTable.KeySync,
+    refresh = addonTable and addonTable.Refresh,
+    highlight = addonTable and addonTable.Highlight,
+    group = addonTable and addonTable.Group,
+    queue = addonTable and addonTable.Queue,
+    queueFlow = addonTable and addonTable.QueueFlow,
+    inspect = addonTable and addonTable.Inspect,
+    roster = addonTable and addonTable.Roster,
+    events = addonTable and addonTable.Events,
+    eventHandlers = addonTable and addonTable.EventHandlers,
+    commands = addonTable and addonTable.Commands,
+    locale = addonTable and addonTable.Locale,
+    texts = addonTable and addonTable.Texts,
+    ui = addonTable and addonTable.UI,
+    teleport = addonTable and addonTable.Teleport,
+    teleportUI = addonTable and addonTable.TeleportUI,
+    teleportDebug = addonTable and addonTable.TeleportDebug,
+    notice = addonTable and addonTable.Notice,
+    status = addonTable and addonTable.Status,
+    units = addonTable and addonTable.Units,
+    demo = addonTable and addonTable.Demo,
+    testMode = addonTable and addonTable.TestMode,
+    queueDebug = addonTable and addonTable.QueueDebug,
+    runtimeLog = addonTable and addonTable.RuntimeLog,
+    rosterPanel = addonTable and addonTable.RosterPanel,
+    spellUtils = addonTable and addonTable.SpellUtils,
+    bindings = addonTable and addonTable.Bindings,
+    eventUtils = addonTable and addonTable.EventUtils,
+    bootstrap = addonTable and addonTable.Bootstrap,
+    controllerWiring = addonTable and addonTable.ControllerWiring,
+    leaderWatch = addonTable and addonTable.LeaderWatch,
+    configBuilders = addonTable and addonTable.ConfigBuilders,
+    frameBridge = addonTable and addonTable.FrameBridge,
+    contextHelpers = addonTable and addonTable.ContextHelpers,
+    runtimeSetup = addonTable and addonTable.RuntimeSetup,
+    controllerInit = addonTable and addonTable.ControllerInit,
+    guards = addonTable and addonTable.Guards,
+    stats = addonTable and addonTable.Stats,
+    runtimeState = addonTable and addonTable.RuntimeState,
+  }
+end
 
-  -- --- Configuration & Constants ---
-  local INSPECT_TIMEOUT = 2 -- seconds
-  local RETRY_INTERVAL = 5 -- seconds
-  local INSPECT_DELAY = 1 -- seconds between inspects to avoid throttle
-  local MIN_FRAME_HEIGHT = 228
+local function CreateFactoryContext(addonName, addonTable)
+  local modules = BuildFactoryModules(addonTable)
+  local isiLiveRuntimeState = modules.runtimeState
+  local ctx = {
+    addonName = addonName,
+    addonTable = addonTable,
+    modules = modules,
+    INSPECT_TIMEOUT = 2,
+    RETRY_INTERVAL = 5,
+    INSPECT_DELAY = 1,
+    MIN_FRAME_HEIGHT = 228,
+    locale = GetLocale(),
+  }
 
-  -- --- Localization ---
-  local locale = GetLocale()
-  local locales
-  local L
-
-  -- Gibt immer den aktuellen Wert von L zurück – wird von allen
-  -- Controllern als getL-Abhängigkeit genutzt.
-
-  local function GetL()
-    return L
+  ctx.GetL = function()
+    return ctx.L
   end
 
-  local runtimeLogController
-
-  local function Print(msg)
+  ctx.Print = function(msg)
     local text = tostring(msg or "")
     print("isiLive: " .. text)
-    if runtimeLogController and runtimeLogController.Log then
-      runtimeLogController.Log(text)
+    if ctx.runtimeLogController and ctx.runtimeLogController.Log then
+      ctx.runtimeLogController.Log(text)
     end
   end
 
-  if not (isiLiveGuards and type(isiLiveGuards.Validate) == "function") then
+  if not (modules.guards and type(modules.guards.Validate) == "function") then
     print("|cffff0000isiLive: missing module Guards (isiLive_guards.lua)|r")
-    return
+    return nil
   end
 
-  local guardsOk, guardsErr = pcall(isiLiveGuards.Validate, addonTable)
+  local guardsOk, guardsErr = pcall(modules.guards.Validate, addonTable)
   if not guardsOk then
     print("|cffff0000isiLive: " .. tostring(guardsErr) .. "|r")
-    return
+    return nil
   end
 
-  locales = isiLiveTexts.GetLocaleTables()
-  L = locales.enUS
-
-  local GetAddonVersionRaw = function()
-    return isiLiveContextHelpers.GetAddonVersionRaw(addonName)
+  ctx.locales = modules.texts.GetLocaleTables()
+  ctx.L = ctx.locales.enUS
+  ctx.GetAddonVersionRaw = function()
+    return modules.contextHelpers.GetAddonVersionRaw(addonName)
   end
 
-  runtimeLogController = isiLiveRuntimeLog.CreateController({
+  ctx.runtimeLogController = modules.runtimeLog.CreateController({
     maxEntries = 800,
   })
 
-  local queueDebugController = isiLiveQueueDebug.CreateController({
-    printFn = Print,
+  ctx.queueDebugController = modules.queueDebug.CreateController({
+    printFn = ctx.Print,
     queueSetDebugEnabled = function(enabled)
-      if isiLiveQueue and isiLiveQueue.SetDebugEnabled then
-        isiLiveQueue.SetDebugEnabled(enabled)
+      if modules.queue and modules.queue.SetDebugEnabled then
+        modules.queue.SetDebugEnabled(enabled)
       end
     end,
     queueIsDebugEnabled = function()
-      if isiLiveQueue and isiLiveQueue.IsDebugEnabled then
-        return isiLiveQueue.IsDebugEnabled() == true
+      if modules.queue and modules.queue.IsDebugEnabled then
+        return modules.queue.IsDebugEnabled() == true
       end
       return nil
     end,
     maxEntries = 400,
   })
 
-  if isiLiveQueue and isiLiveQueue.SetDebugLogger then
-    isiLiveQueue.SetDebugLogger(queueDebugController.Log)
+  if modules.queue and modules.queue.SetDebugLogger then
+    modules.queue.SetDebugLogger(ctx.queueDebugController.Log)
   end
 
   local runtimeState = isiLiveRuntimeState.CreateController()
-
-  local GetSpellCooldownSafe = isiLiveSpellUtils.GetSpellCooldownSafe
-  local ApplyCooldownFrameSafe = isiLiveSpellUtils.ApplyCooldownFrameSafe
-  local IsSpellKnownSafe = isiLiveSpellUtils.IsSpellKnownSafe
-  local GetTeleportCooldownRemaining = isiLiveSpellUtils.GetTeleportCooldownRemaining
-  local FormatCooldownSeconds = isiLiveSpellUtils.FormatCooldownSeconds
-  local IsNegativeApplicationStatusEvent = isiLiveEventUtils.IsNegativeApplicationStatusEvent
-
-  local function IsPlayerLeader()
-    if runtimeState.IsTestAllMode() then
+  ctx.runtimeState = runtimeState
+  ctx.GetSpellCooldownSafe = modules.spellUtils.GetSpellCooldownSafe
+  ctx.ApplyCooldownFrameSafe = modules.spellUtils.ApplyCooldownFrameSafe
+  ctx.IsSpellKnownSafe = modules.spellUtils.IsSpellKnownSafe
+  ctx.GetTeleportCooldownRemaining = modules.spellUtils.GetTeleportCooldownRemaining
+  ctx.FormatCooldownSeconds = modules.spellUtils.FormatCooldownSeconds
+  ctx.IsNegativeApplicationStatusEvent = modules.eventUtils.IsNegativeApplicationStatusEvent
+  ctx.IsPlayerLeader = function()
+    if ctx.runtimeState.IsTestAllMode() then
       return true
     end
     return IsInGroup() and UnitIsGroupLeader("player")
   end
 
-  local GetRealmInfoLib = isiLiveContextHelpers.CreateRealmInfoGetter()
+  ctx.GetRealmInfoLib = modules.contextHelpers.CreateRealmInfoGetter()
+  ctx.GetUnitRole = modules.units.GetUnitRole
+  ctx.TruncateName = modules.units.TruncateName
+  ctx.GetUnitNameAndRealm = modules.units.GetUnitNameAndRealm
+  ctx.GetPlayerSpecName = modules.units.GetPlayerSpecName
+  ctx.GetInspectSpecName = modules.units.GetInspectSpecName
+  ctx.GetShortSpecLabel = modules.units.GetShortSpecLabel
+  ctx.GetUnitRio = modules.units.GetUnitRio
 
-  local GetUnitRole = isiLiveUnits.GetUnitRole
-  local TruncateName = isiLiveUnits.TruncateName
-  local GetUnitNameAndRealm = isiLiveUnits.GetUnitNameAndRealm
-  local GetPlayerSpecName = isiLiveUnits.GetPlayerSpecName
-  local GetInspectSpecName = isiLiveUnits.GetInspectSpecName
-  local GetShortSpecLabel = isiLiveUnits.GetShortSpecLabel
-  local GetUnitRio = isiLiveUnits.GetUnitRio
-
-  local function BuildDummyRoster(opts)
+  ctx.BuildDummyRoster = function(opts)
     opts = opts or {}
-    return isiLiveContextHelpers.BuildDummyRoster({
-      demoBuildDummyRoster = isiLiveDemo.BuildDummyRoster,
+    return modules.contextHelpers.BuildDummyRoster({
+      demoBuildDummyRoster = modules.demo.BuildDummyRoster,
       previewVariant = opts.previewVariant,
       includeGhostMember = opts.includeGhostMember,
-      getUnitNameAndRealm = GetUnitNameAndRealm,
+      getUnitNameAndRealm = ctx.GetUnitNameAndRealm,
       getUnitServerLanguage = function(unit, realm)
-        return isiLiveContextHelpers.GetUnitServerLanguage(isiLiveLocale, GetRealmInfoLib, unit, realm)
+        return modules.contextHelpers.GetUnitServerLanguage(modules.locale, ctx.GetRealmInfoLib, unit, realm)
       end,
-      getUnitRole = GetUnitRole,
-      getPlayerSpecName = GetPlayerSpecName,
-      getUnitRio = GetUnitRio,
+      getUnitRole = ctx.GetUnitRole,
+      getPlayerSpecName = ctx.GetPlayerSpecName,
+      getUnitRio = ctx.GetUnitRio,
     })
   end
 
-  local UpdateStatusLine
-  local UpdateUI
-  local ShowQueueJoinPreview
-  local UpdateCountdownCancelButton
-  local UpdateLeaderButtons
-  local OnEvent
-  local ResolveActiveKeyOwnerUnit
-  local MarkIsiLiveUser
-  local UnitHasIsiLive
-  local RegisterIsiLiveSyncPrefix
-  local SendIsiLiveHello
-  local GetOwnedKeystoneSnapshot
-  local SendOwnKeySnapshot
-  local ApplyKnownKeyToRosterEntry
-  local RecordRun
-  local ApplyLocalizationToUI
-  local bindingController
-  local keySyncController
-  local refreshController
-  local highlightController
-  local queueFlowController
-  local testModeController
-  local eventHandlersController
-  local teleportUIController
-  local teleportDebugController
-  local rosterPanelController
-  local refreshButton
-  local countdownCancelButton
-  local statusLine
-  local mplusTeleportButtons
+  return ctx
+end
 
-  local function ApplyHotkeyBindings()
-    if bindingController then
-      bindingController.ApplyHotkeyBindings()
+local function InitializeFactoryFrameBridge(ctx)
+  local modules = ctx.modules
+
+  ctx.ApplyHotkeyBindings = function()
+    if ctx.bindingController then
+      ctx.bindingController.ApplyHotkeyBindings()
     end
   end
 
-  local function StartBindingWatchdog()
-    if bindingController then
-      bindingController.StartBindingWatchdog()
+  ctx.StartBindingWatchdog = function()
+    if ctx.bindingController then
+      ctx.bindingController.StartBindingWatchdog()
     end
   end
 
-  local function EnsureSoloPlayerRoster()
+  ctx.EnsureSoloPlayerRoster = function()
     if IsInGroup() then
       return
     end
 
-    local name, realm = GetUnitNameAndRealm("player")
+    local name, realm = ctx.GetUnitNameAndRealm("player")
     if type(name) ~= "string" or name == "" then
       return
     end
 
     local _, class = UnitClass("player")
-    local language = isiLiveContextHelpers.GetUnitServerLanguage(isiLiveLocale, GetRealmInfoLib, "player", realm)
+    local language = modules.contextHelpers.GetUnitServerLanguage(modules.locale, ctx.GetRealmInfoLib, "player", realm)
     local keyMapID, keyLevel
-    if type(GetOwnedKeystoneSnapshot) == "function" then
-      keyMapID, keyLevel = GetOwnedKeystoneSnapshot()
+    if type(ctx.GetOwnedKeystoneSnapshot) == "function" then
+      keyMapID, keyLevel = ctx.GetOwnedKeystoneSnapshot()
     end
 
-    runtimeState.SetRoster({
+    ctx.runtimeState.SetRoster({
       player = {
         name = name,
         realm = realm,
         language = language,
         class = class,
-        role = GetUnitRole("player"),
-        spec = GetPlayerSpecName(),
+        role = ctx.GetUnitRole("player"),
+        spec = ctx.GetPlayerSpecName(),
         ilvl = nil,
-        rio = GetUnitRio("player"),
+        rio = ctx.GetUnitRio("player"),
         hasIsiLive = true,
         keyMapID = keyMapID,
         keyLevel = keyLevel,
@@ -235,86 +208,78 @@ function Factory.InitializeAddon(addonName, addonTable)
     })
   end
 
-  local ResolveTeleportSpellIDByActivityID = isiLiveTeleport.ResolveTeleportSpellIDByActivityID
-  local ResolveMapIDByActivityID = isiLiveTeleport.ResolveMapIDByActivityID
-  local ResolveTeleportSpellID = isiLiveTeleport.ResolveTeleportSpellID
-  local ApplySecureSpellToButton = isiLiveTeleport.ApplySecureSpellToButton
-
-  local function IsInCombat()
+  ctx.ResolveTeleportSpellIDByActivityID = modules.teleport.ResolveTeleportSpellIDByActivityID
+  ctx.ResolveMapIDByActivityID = modules.teleport.ResolveMapIDByActivityID
+  ctx.ResolveTeleportSpellID = modules.teleport.ResolveTeleportSpellID
+  ctx.ApplySecureSpellToButton = modules.teleport.ApplySecureSpellToButton
+  ctx.IsInCombat = function()
     return InCombatLockdown and InCombatLockdown()
   end
 
-  -- --- UI Elements ---
-  local mainFrame
-  local mainUI
-  local centerNotice
-  local centerNoticeFrame
-  local centerNoticeTeleportButton
-  local inviteHint
-
-  local frameBridgeContext = isiLiveFrameBridge.CreateContext({
-    createCenterNotice = isiLiveNotice.CreateCenterNotice,
-    createInviteHint = isiLiveNotice.CreateInviteHint,
-    createMainFrame = isiLiveUI.CreateMainFrame,
+  local frameBridgeContext = modules.frameBridge.CreateContext({
+    createCenterNotice = modules.notice.CreateCenterNotice,
+    createInviteHint = modules.notice.CreateInviteHint,
+    createMainFrame = modules.ui.CreateMainFrame,
     parent = UIParent,
     mainFrameGlobalName = "isiLiveMainFrame",
-    mainFrameMinHeight = MIN_FRAME_HEIGHT,
+    mainFrameMinHeight = ctx.MIN_FRAME_HEIGHT,
     isInGroup = IsInGroup,
-    isInCombat = IsInCombat,
+    isInCombat = ctx.IsInCombat,
     onShownInGroup = function()
-      local onEventHandler = mainFrame and mainFrame:GetScript("OnEvent")
+      local onEventHandler = ctx.mainFrame and ctx.mainFrame:GetScript("OnEvent")
       if onEventHandler then
-        onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
+        onEventHandler(ctx.mainFrame, "GROUP_ROSTER_UPDATE")
       end
     end,
     onShownNoGroup = function()
-      EnsureSoloPlayerRoster()
-      UpdateUI()
-      UpdateLeaderButtons()
+      ctx.EnsureSoloPlayerRoster()
+      ctx.UpdateUI()
+      ctx.UpdateLeaderButtons()
     end,
-    resolveTeleportSpellID = ResolveTeleportSpellID,
-    applySecureSpellToButton = ApplySecureSpellToButton,
-    isSpellKnown = IsSpellKnownSafe,
-    getTeleportCooldownRemaining = GetTeleportCooldownRemaining,
-    formatCooldownSeconds = FormatCooldownSeconds,
-    getL = GetL,
+    resolveTeleportSpellID = ctx.ResolveTeleportSpellID,
+    applySecureSpellToButton = ctx.ApplySecureSpellToButton,
+    isSpellKnown = ctx.IsSpellKnownSafe,
+    getTeleportCooldownRemaining = ctx.GetTeleportCooldownRemaining,
+    formatCooldownSeconds = ctx.FormatCooldownSeconds,
+    getL = ctx.GetL,
   })
-  centerNotice = frameBridgeContext.centerNotice
-  centerNoticeFrame = frameBridgeContext.centerNoticeFrame
-  centerNoticeTeleportButton = frameBridgeContext.centerNoticeTeleportButton
-  inviteHint = frameBridgeContext.inviteHint
-  mainUI = frameBridgeContext.mainUI
-  mainFrame = frameBridgeContext.mainFrame
 
-  local function SetCenterNoticeVisible(visible)
+  ctx.centerNotice = frameBridgeContext.centerNotice
+  ctx.centerNoticeFrame = frameBridgeContext.centerNoticeFrame
+  ctx.centerNoticeTeleportButton = frameBridgeContext.centerNoticeTeleportButton
+  ctx.inviteHint = frameBridgeContext.inviteHint
+  ctx.mainUI = frameBridgeContext.mainUI
+  ctx.mainFrame = frameBridgeContext.mainFrame
+  ctx.SetCenterNoticeVisible = function(visible)
     frameBridgeContext.SetCenterNoticeVisible(visible)
   end
-  local function UpdateCenterTeleportButtonVisual(spellID, isEnabled, inCombatBlocked)
+  ctx.UpdateCenterTeleportButtonVisual = function(spellID, isEnabled, inCombatBlocked)
     frameBridgeContext.UpdateCenterTeleportButtonVisual(spellID, isEnabled, inCombatBlocked)
   end
-  local function ShowCenterNotice(message, durationSeconds, dungeonName, activityID, showOptions)
+  ctx.ShowCenterNotice = function(message, durationSeconds, dungeonName, activityID, showOptions)
     frameBridgeContext.ShowCenterNotice(message, durationSeconds, dungeonName, activityID, showOptions)
   end
-  local function ShowInviteHint(message, durationSeconds)
+  ctx.ShowInviteHint = function(message, durationSeconds)
     frameBridgeContext.ShowInviteHint(message, durationSeconds)
   end
-
-  local function SetMainFrameVisible(visible)
+  ctx.SetMainFrameVisible = function(visible)
     frameBridgeContext.SetMainFrameVisible(visible)
   end
-  local function SetMainFrameHeightSafe(height)
+  ctx.SetMainFrameHeightSafe = function(height)
     frameBridgeContext.SetMainFrameHeightSafe(height)
   end
-
-  local function ToggleMainFrameVisibility()
+  ctx.ToggleMainFrameVisibility = function()
     frameBridgeContext.ToggleMainFrameVisibility()
   end
+  ctx.inspectLoopTimer = 0
+end
 
-  local inspectController
-  local inspectLoopTimer = 0
-  local InspectLoop
+local function InitializeFactoryRuntimeHelpers(ctx)
+  local modules = ctx.modules
+  local runtimeState = ctx.runtimeState
+  local addonTable = ctx.addonTable
 
-  local function GetActiveChallengeMapID()
+  ctx.GetActiveChallengeMapID = function()
     if not (C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID) then
       return nil
     end
@@ -324,58 +289,46 @@ function Factory.InitializeAddon(addonName, addonTable)
     end
     return mapID
   end
-
-  local function IsReadyCheckActive()
+  ctx.IsReadyCheckActive = function()
     return runtimeState.IsReadyCheckActive()
   end
-
-  local function SetReadyCheckActive(value)
+  ctx.SetReadyCheckActive = function(value)
     runtimeState.SetReadyCheckActive(value)
   end
-
-  local function IsInPartyInstance()
+  ctx.IsInPartyInstance = function()
     if type(GetInstanceInfo) ~= "function" then
       return false
     end
     local _, instanceType = GetInstanceInfo()
     return instanceType == "party"
   end
-
-  local function GetWasInGroup()
+  ctx.GetWasInGroup = function()
     return runtimeState.GetWasInGroup()
   end
-
-  local function SetWasInGroup(value)
+  ctx.SetWasInGroup = function(value)
     runtimeState.SetWasInGroup(value)
   end
-
-  local function GetWasRaidGroup()
+  ctx.GetWasRaidGroup = function()
     return runtimeState.GetWasRaidGroup()
   end
-
-  local function SetWasRaidGroup(value)
+  ctx.SetWasRaidGroup = function(value)
     runtimeState.SetWasRaidGroup(value)
   end
-
-  local function SetWasGroupLeader(value)
+  ctx.SetWasGroupLeader = function(value)
     runtimeState.SetWasGroupLeader(value)
   end
-
-  local function GetWasGroupLeader()
+  ctx.GetWasGroupLeader = function()
     return runtimeState.GetWasGroupLeader()
   end
-
-  local function GetRoster()
+  ctx.GetRoster = function()
     return runtimeState.GetRoster()
   end
-
-  local function SetRoster(value)
+  ctx.SetRoster = function(value)
     runtimeState.SetRoster(value)
   end
-
-  local function NormalizePlayerKey(name, realm)
-    if isiLiveSync and type(isiLiveSync.NormalizePlayerKey) == "function" then
-      return isiLiveSync.NormalizePlayerKey(name, realm)
+  ctx.NormalizePlayerKey = function(name, realm)
+    if modules.sync and type(modules.sync.NormalizePlayerKey) == "function" then
+      return modules.sync.NormalizePlayerKey(name, realm)
     end
 
     local normalizedName = name and tostring(name) or ""
@@ -385,8 +338,7 @@ function Factory.InitializeAddon(addonName, addonTable)
     end
     return string.lower(normalizedName .. "-" .. normalizedRealm)
   end
-
-  local function BuildRosterInfoPlayerKey(info)
+  ctx.BuildRosterInfoPlayerKey = function(info)
     if type(info) ~= "table" then
       return nil
     end
@@ -396,10 +348,9 @@ function Factory.InitializeAddon(addonName, addonTable)
       return nil
     end
 
-    return NormalizePlayerKey(name, info.realm)
+    return ctx.NormalizePlayerKey(name, info.realm)
   end
-
-  local function RestoreRioBaseline()
+  ctx.RestoreRioBaseline = function()
     if IsiLiveDB and type(IsiLiveDB.rioBaseline) == "table" then
       runtimeState.SetRioBaselineByPlayerKey(IsiLiveDB.rioBaseline)
       if runtimeState.HasRioBaselineSnapshot() then
@@ -407,25 +358,23 @@ function Factory.InitializeAddon(addonName, addonTable)
       end
     end
   end
-
-  local function ClearRioBaselineSnapshot()
+  ctx.ClearRioBaselineSnapshot = function()
     runtimeState.ClearRioBaseline()
     if IsiLiveDB then
       IsiLiveDB.rioBaseline = nil
     end
   end
-
-  local function CaptureRioBaselineSnapshot()
+  ctx.CaptureRioBaselineSnapshot = function()
     local snapshot = {}
     local hasSnapshotData = false
-    local roster = GetRoster()
+    local roster = ctx.GetRoster()
 
     for unit, info in pairs(roster) do
-      local playerKey = BuildRosterInfoPlayerKey(info)
+      local playerKey = ctx.BuildRosterInfoPlayerKey(info)
       if playerKey and playerKey ~= "" then
         local rioValue = tonumber(info and info.rio)
         if not rioValue then
-          rioValue = tonumber(GetUnitRio(unit))
+          rioValue = tonumber(ctx.GetUnitRio(unit))
         end
         if rioValue then
           snapshot[playerKey] = math.floor(rioValue)
@@ -441,15 +390,13 @@ function Factory.InitializeAddon(addonName, addonTable)
       IsiLiveDB.rioBaseline = snapshot
     end
   end
-
-  local function EnableRioDeltaDisplay()
+  ctx.EnableRioDeltaDisplay = function()
     if not runtimeState.HasRioBaselineSnapshot() then
       return
     end
     runtimeState.SetRioDeltaDisplayEnabled(true)
   end
-
-  local function GetRioDeltaForRosterInfo(info, unit)
+  ctx.GetRioDeltaForRosterInfo = function(info, unit)
     if not runtimeState.HasRioBaselineSnapshot() then
       return nil
     end
@@ -457,7 +404,7 @@ function Factory.InitializeAddon(addonName, addonTable)
       return nil
     end
 
-    local playerKey = BuildRosterInfoPlayerKey(info)
+    local playerKey = ctx.BuildRosterInfoPlayerKey(info)
     if not playerKey then
       return nil
     end
@@ -469,7 +416,7 @@ function Factory.InitializeAddon(addonName, addonTable)
 
     local currentRio = tonumber(info and info.rio)
     if unit then
-      local liveRio = tonumber(GetUnitRio(unit))
+      local liveRio = tonumber(ctx.GetUnitRio(unit))
       if liveRio then
         currentRio = liveRio
         if type(info) == "table" then
@@ -487,34 +434,28 @@ function Factory.InitializeAddon(addonName, addonTable)
     end
     return delta
   end
-
-  local function ResetInspectAll()
-    inspectController.ResetAll()
+  ctx.ResetInspectAll = function()
+    ctx.inspectController.ResetAll()
   end
-
-  local function ResetInspectQueues()
-    inspectController.ResetQueues()
+  ctx.ResetInspectQueues = function()
+    ctx.inspectController.ResetQueues()
   end
-
-  local function GetPendingBindingApply()
-    if not bindingController then
+  ctx.GetPendingBindingApply = function()
+    if not ctx.bindingController then
       return false
     end
-    return bindingController.GetPendingBindingApply()
+    return ctx.bindingController.GetPendingBindingApply()
   end
-
-  local function ClearLatestQueueTarget()
+  ctx.ClearLatestQueueTarget = function()
     runtimeState.ClearLatestQueueTarget()
-    if UpdateStatusLine then
-      UpdateStatusLine()
+    if ctx.UpdateStatusLine then
+      ctx.UpdateStatusLine()
     end
   end
-
-  local function RefreshLocalPlayerKey()
-    return keySyncController.RefreshLocalPlayerKey(GetRoster())
+  ctx.RefreshLocalPlayerKey = function()
+    return ctx.keySyncController.RefreshLocalPlayerKey(ctx.GetRoster())
   end
-
-  local function NormalizeStatusTargetName(value)
+  ctx.NormalizeStatusTargetName = function(value)
     if type(value) ~= "string" then
       return nil
     end
@@ -524,9 +465,8 @@ function Factory.InitializeAddon(addonName, addonTable)
     end
     return normalized
   end
-
-  local function NormalizeConcreteStatusTargetName(value, targetMapID)
-    local normalized = NormalizeStatusTargetName(value)
+  ctx.NormalizeConcreteStatusTargetName = function(value, targetMapID)
+    local normalized = ctx.NormalizeStatusTargetName(value)
     if not normalized then
       return nil
     end
@@ -539,8 +479,7 @@ function Factory.InitializeAddon(addonName, addonTable)
 
     return normalized
   end
-
-  local function ResolveStatusTargetMapID()
+  ctx.ResolveStatusTargetMapID = function()
     local _, latestQueueActivityID, _, latestQueueMapID = runtimeState.GetLatestQueueState()
     local activeMapID = tonumber(runtimeState.GetActiveJoinedKeyMapID())
     if activeMapID and activeMapID > 0 then
@@ -553,7 +492,7 @@ function Factory.InitializeAddon(addonName, addonTable)
     end
 
     if latestQueueActivityID then
-      local resolvedMapID = ResolveMapIDByActivityID(latestQueueActivityID)
+      local resolvedMapID = ctx.ResolveMapIDByActivityID(latestQueueActivityID)
       if type(resolvedMapID) == "number" and resolvedMapID > 0 then
         return resolvedMapID
       end
@@ -561,28 +500,28 @@ function Factory.InitializeAddon(addonName, addonTable)
 
     return nil
   end
-
-  local function GetStatusTargetDungeonInfo()
-    local targetMapID = ResolveStatusTargetMapID()
+  ctx.GetStatusTargetDungeonInfo = function()
+    local targetMapID = ctx.ResolveStatusTargetMapID()
     local latestQueueDungeonName, latestQueueActivityID = runtimeState.GetLatestQueueState()
-    local roster = GetRoster()
+    local roster = ctx.GetRoster()
 
-    local targetName = NormalizeConcreteStatusTargetName(latestQueueDungeonName, targetMapID)
-    if not targetName and targetMapID and isiLiveTeleport and isiLiveTeleport.GetTeleportInfoByMapID then
-      local info = isiLiveTeleport.GetTeleportInfoByMapID(targetMapID)
+    local targetName = ctx.NormalizeConcreteStatusTargetName(latestQueueDungeonName, targetMapID)
+    if not targetName and targetMapID and modules.teleport and modules.teleport.GetTeleportInfoByMapID then
+      local info = modules.teleport.GetTeleportInfoByMapID(targetMapID)
       if type(info) == "table" then
-        targetName = NormalizeConcreteStatusTargetName(info.mapName, targetMapID)
+        targetName = ctx.NormalizeConcreteStatusTargetName(info.mapName, targetMapID)
       end
     end
-    if not targetName and latestQueueActivityID and isiLiveQueue and isiLiveQueue.GetActivityName then
-      targetName = NormalizeConcreteStatusTargetName(isiLiveQueue.GetActivityName(latestQueueActivityID), targetMapID)
+    if not targetName and latestQueueActivityID and modules.queue and modules.queue.GetActivityName then
+      targetName =
+        ctx.NormalizeConcreteStatusTargetName(modules.queue.GetActivityName(latestQueueActivityID), targetMapID)
     end
     if not targetName then
       return nil
     end
 
     local targetLevel = nil
-    local ownerUnit = ResolveActiveKeyOwnerUnit and ResolveActiveKeyOwnerUnit() or nil
+    local ownerUnit = ctx.ResolveActiveKeyOwnerUnit and ctx.ResolveActiveKeyOwnerUnit() or nil
     if ownerUnit and type(roster[ownerUnit]) == "table" then
       targetLevel = tonumber(roster[ownerUnit].keyLevel)
     end
@@ -603,92 +542,95 @@ function Factory.InitializeAddon(addonName, addonTable)
       level = targetLevel,
     }
   end
-
-  UpdateCountdownCancelButton = function()
-    if not rosterPanelController then
+  ctx.UpdateCountdownCancelButton = function()
+    if not ctx.rosterPanelController then
       return
     end
-    rosterPanelController.SetCountdownCancelText(L.BTN_COUNTDOWN_CANCEL)
+    ctx.rosterPanelController.SetCountdownCancelText(ctx.L.BTN_COUNTDOWN_CANCEL)
   end
+  ctx.GetTeleportEmptyStateText = function()
+    local seasonData = addonTable.SeasonData
+    if type(seasonData) ~= "table" then
+      return nil
+    end
+    if type(seasonData.HasActiveDungeons) == "function" and seasonData.HasActiveDungeons() then
+      return nil
+    end
+    if type(seasonData.GetInactivePortalMessage) ~= "function" then
+      return nil
+    end
 
-  local initResult = isiLiveControllerInit.CreateControllers({
-    sync = isiLiveSync,
-    keySyncModule = isiLiveKeySync,
-    highlightModule = isiLiveHighlight,
-    rosterPanelModule = isiLiveRosterPanel,
-    teleportUIModule = isiLiveTeleportUI,
-    statsModule = isiLiveStats,
+    local activeLocale = (IsiLiveDB and IsiLiveDB.locale) or ctx.locale
+    return seasonData.GetInactivePortalMessage(activeLocale)
+  end
+end
+
+local function InitializeFactoryPrimaryControllers(ctx)
+  local modules = ctx.modules
+  local initResult = modules.controllerInit.CreateControllers({
+    sync = modules.sync,
+    keySyncModule = modules.keySync,
+    highlightModule = modules.highlight,
+    rosterPanelModule = modules.rosterPanel,
+    teleportUIModule = modules.teleportUI,
+    statsModule = modules.stats,
     isInGroup = IsInGroup,
-    getUnitNameAndRealm = GetUnitNameAndRealm,
-    getAddonVersionRaw = GetAddonVersionRaw,
+    getUnitNameAndRealm = ctx.GetUnitNameAndRealm,
+    getAddonVersionRaw = ctx.GetAddonVersionRaw,
     isFrameVisible = function()
-      return mainFrame and mainFrame:IsShown()
+      return ctx.mainFrame and ctx.mainFrame:IsShown()
     end,
-    resolveTeleportSpellID = ResolveTeleportSpellID,
-    resolveTeleportSpellIDByMapID = isiLiveTeleport.ResolveTeleportSpellIDByMapID,
-    resolveMapIDByActivityID = isiLiveTeleport.ResolveMapIDByActivityID,
-    resolveMapIDBySpellID = isiLiveTeleport.ResolveMapIDBySpellID,
-    resolveMapIDsBySpellID = isiLiveTeleport.ResolveMapIDsBySpellID,
-    mainFrame = mainFrame,
-    getL = GetL,
-    isPlayerLeader = IsPlayerLeader,
+    resolveTeleportSpellID = ctx.ResolveTeleportSpellID,
+    resolveTeleportSpellIDByMapID = modules.teleport.ResolveTeleportSpellIDByMapID,
+    resolveMapIDByActivityID = modules.teleport.ResolveMapIDByActivityID,
+    resolveMapIDBySpellID = modules.teleport.ResolveMapIDBySpellID,
+    resolveMapIDsBySpellID = modules.teleport.ResolveMapIDsBySpellID,
+    mainFrame = ctx.mainFrame,
+    getL = ctx.GetL,
+    isPlayerLeader = ctx.IsPlayerLeader,
     getAddonVersionText = function()
-      return "V." .. GetAddonVersionRaw()
+      return "V." .. ctx.GetAddonVersionRaw()
     end,
-    getUnitRio = GetUnitRio,
+    getUnitRio = ctx.GetUnitRio,
     updateStatusLine = function()
-      if UpdateStatusLine then
-        UpdateStatusLine()
+      if ctx.UpdateStatusLine then
+        ctx.UpdateStatusLine()
       end
     end,
-    setMainFrameHeightSafe = SetMainFrameHeightSafe,
-    minFrameHeight = MIN_FRAME_HEIGHT,
-    buildOrderedRoster = isiLiveRoster.BuildOrderedRoster,
-    hasFullSync = isiLiveRoster.HasFullSync,
-    buildDisplayData = isiLiveRoster.BuildDisplayData,
-    truncateName = TruncateName,
-    getShortSpecLabel = GetShortSpecLabel,
-    getLanguageFlagMarkup = isiLiveLocale.GetLanguageFlagMarkup,
+    setMainFrameHeightSafe = ctx.SetMainFrameHeightSafe,
+    minFrameHeight = ctx.MIN_FRAME_HEIGHT,
+    buildOrderedRoster = modules.roster.BuildOrderedRoster,
+    hasFullSync = modules.roster.HasFullSync,
+    buildDisplayData = modules.roster.BuildDisplayData,
+    truncateName = ctx.TruncateName,
+    getShortSpecLabel = ctx.GetShortSpecLabel,
+    getLanguageFlagMarkup = modules.locale.GetLanguageFlagMarkup,
     getDungeonShortCode = function(mapID)
-      local activeLocale = (IsiLiveDB and IsiLiveDB.locale) or locale
-      return isiLiveTeleport.GetDungeonShortCode(mapID, activeLocale)
+      local activeLocale = (IsiLiveDB and IsiLiveDB.locale) or ctx.locale
+      return modules.teleport.GetDungeonShortCode(mapID, activeLocale)
     end,
-    getRioDelta = GetRioDeltaForRosterInfo,
+    getRioDelta = ctx.GetRioDeltaForRosterInfo,
     resolveActiveKeyOwnerUnit = function()
-      if ResolveActiveKeyOwnerUnit then
-        return ResolveActiveKeyOwnerUnit()
+      if ctx.ResolveActiveKeyOwnerUnit then
+        return ctx.ResolveActiveKeyOwnerUnit()
       end
       return nil
     end,
     resolveTargetMapID = function()
-      return ResolveStatusTargetMapID()
+      return ctx.ResolveStatusTargetMapID()
     end,
     isReadyCheckActive = function()
-      return IsReadyCheckActive()
+      return ctx.IsReadyCheckActive()
     end,
-    getRoster = GetRoster,
-    applySecureSpellToButton = ApplySecureSpellToButton,
-    getEntries = isiLiveTeleport.BuildTeleportEntries,
-    getTeleportEmptyStateText = function()
-      local seasonData = addonTable.SeasonData
-      if type(seasonData) ~= "table" then
-        return nil
-      end
-      if type(seasonData.HasActiveDungeons) == "function" and seasonData.HasActiveDungeons() then
-        return nil
-      end
-      if type(seasonData.GetInactivePortalMessage) ~= "function" then
-        return nil
-      end
-
-      local activeLocale = (IsiLiveDB and IsiLiveDB.locale) or locale
-      return seasonData.GetInactivePortalMessage(activeLocale)
-    end,
-    isSpellKnown = IsSpellKnownSafe,
-    getTeleportCooldownRemaining = GetTeleportCooldownRemaining,
-    formatCooldownSeconds = FormatCooldownSeconds,
-    getSpellCooldownSafe = GetSpellCooldownSafe,
-    applyCooldownFrameSafe = ApplyCooldownFrameSafe,
+    getRoster = ctx.GetRoster,
+    applySecureSpellToButton = ctx.ApplySecureSpellToButton,
+    getEntries = modules.teleport.BuildTeleportEntries,
+    getTeleportEmptyStateText = ctx.GetTeleportEmptyStateText,
+    isSpellKnown = ctx.IsSpellKnownSafe,
+    getTeleportCooldownRemaining = ctx.GetTeleportCooldownRemaining,
+    formatCooldownSeconds = ctx.FormatCooldownSeconds,
+    getSpellCooldownSafe = ctx.GetSpellCooldownSafe,
+    applyCooldownFrameSafe = ctx.ApplyCooldownFrameSafe,
     getSpellTexture = function(spellID)
       if spellID and C_Spell and C_Spell.GetSpellTexture then
         return C_Spell.GetSpellTexture(spellID)
@@ -698,98 +640,97 @@ function Factory.InitializeAddon(addonName, addonTable)
     getTime = GetTime,
     shareKeysDebounceSeconds = 1,
   })
-  keySyncController = initResult.keySyncController
-  MarkIsiLiveUser = initResult.markIsiLiveUser
-  UnitHasIsiLive = initResult.unitHasIsiLive
-  RegisterIsiLiveSyncPrefix = initResult.registerIsiLiveSyncPrefix
-  SendIsiLiveHello = initResult.sendIsiLiveHello
-  GetOwnedKeystoneSnapshot = initResult.getOwnedKeystoneSnapshot
-  SendOwnKeySnapshot = initResult.sendOwnKeySnapshot
-  ApplyKnownKeyToRosterEntry = initResult.applyKnownKeyToRosterEntry
-  RecordRun = initResult.recordRun
-  highlightController = initResult.highlightController
-  rosterPanelController = initResult.rosterPanelController
-  refreshButton = initResult.refreshButton
-  countdownCancelButton = initResult.countdownCancelButton
-  statusLine = initResult.statusLine
-  teleportUIController = initResult.teleportUIController
-  mplusTeleportButtons = initResult.mplusTeleportButtons
 
-  UpdateLeaderButtons = function()
-    rosterPanelController.UpdateLeaderButtons()
+  ctx.keySyncController = initResult.keySyncController
+  ctx.MarkIsiLiveUser = initResult.markIsiLiveUser
+  ctx.UnitHasIsiLive = initResult.unitHasIsiLive
+  ctx.RegisterIsiLiveSyncPrefix = initResult.registerIsiLiveSyncPrefix
+  ctx.SendIsiLiveHello = initResult.sendIsiLiveHello
+  ctx.GetOwnedKeystoneSnapshot = initResult.getOwnedKeystoneSnapshot
+  ctx.SendOwnKeySnapshot = initResult.sendOwnKeySnapshot
+  ctx.ApplyKnownKeyToRosterEntry = initResult.applyKnownKeyToRosterEntry
+  ctx.RecordRun = initResult.recordRun
+  ctx.highlightController = initResult.highlightController
+  ctx.rosterPanelController = initResult.rosterPanelController
+  ctx.refreshButton = initResult.refreshButton
+  ctx.countdownCancelButton = initResult.countdownCancelButton
+  ctx.statusLine = initResult.statusLine
+  ctx.teleportUIController = initResult.teleportUIController
+  ctx.mplusTeleportButtons = initResult.mplusTeleportButtons
+  ctx.UpdateLeaderButtons = function()
+    ctx.rosterPanelController.UpdateLeaderButtons()
   end
-
-  UpdateUI = function()
-    rosterPanelController.RenderRoster(GetRoster())
+  ctx.UpdateUI = function()
+    ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
   end
-
-  local function GetNormalizedActiveEntryInfo()
-    return highlightController.GetNormalizedActiveEntryInfo()
+  ctx.GetNormalizedActiveEntryInfo = function()
+    return ctx.highlightController.GetNormalizedActiveEntryInfo()
   end
-
-  local function ResolveActiveTeleportSpellID()
-    local _, latestQueueActivityID, _, latestQueueMapID = runtimeState.GetLatestQueueState()
-    return highlightController.ResolveActiveTeleportSpellID(latestQueueActivityID, latestQueueMapID)
+  ctx.ResolveActiveTeleportSpellID = function()
+    local _, latestQueueActivityID, _, latestQueueMapID = ctx.runtimeState.GetLatestQueueState()
+    return ctx.highlightController.ResolveActiveTeleportSpellID(latestQueueActivityID, latestQueueMapID)
   end
-
-  local function ResolveJoinedKeyMapID(activityID, spellID)
-    return highlightController.ResolveJoinedKeyMapID(activityID, spellID)
+  ctx.ResolveJoinedKeyMapID = function(activityID, spellID)
+    return ctx.highlightController.ResolveJoinedKeyMapID(activityID, spellID)
   end
-
-  ResolveActiveKeyOwnerUnit = function()
-    return keySyncController.ResolveActiveKeyOwnerUnit(GetRoster(), runtimeState.GetActiveJoinedKeyMapID())
+  ctx.ResolveActiveKeyOwnerUnit = function()
+    return ctx.keySyncController.ResolveActiveKeyOwnerUnit(ctx.GetRoster(), ctx.runtimeState.GetActiveJoinedKeyMapID())
   end
-
-  local function UpdateMPlusTeleportButton()
-    local resolvedSpellID = ResolveActiveTeleportSpellID()
-    teleportUIController.UpdateButtons(resolvedSpellID)
+  ctx.UpdateMPlusTeleportButton = function()
+    local resolvedSpellID = ctx.ResolveActiveTeleportSpellID()
+    ctx.teleportUIController.UpdateButtons(resolvedSpellID)
   end
+end
 
-  teleportDebugController = isiLiveTeleportDebug.CreateController({
-    printFn = Print,
-    getL = GetL,
-    updateMPlusTeleportButton = UpdateMPlusTeleportButton,
-    resolveActiveTeleportSpellID = ResolveActiveTeleportSpellID,
-    isSpellKnownSafe = IsSpellKnownSafe,
-    getTeleportCooldownRemaining = GetTeleportCooldownRemaining,
-    formatCooldownSeconds = FormatCooldownSeconds,
+local function InitializeFactorySecondaryControllers(ctx)
+  local modules = ctx.modules
+  local runtimeState = ctx.runtimeState
+
+  ctx.teleportDebugController = modules.teleportDebug.CreateController({
+    printFn = ctx.Print,
+    getL = ctx.GetL,
+    updateMPlusTeleportButton = ctx.UpdateMPlusTeleportButton,
+    resolveActiveTeleportSpellID = ctx.ResolveActiveTeleportSpellID,
+    isSpellKnownSafe = ctx.IsSpellKnownSafe,
+    getTeleportCooldownRemaining = ctx.GetTeleportCooldownRemaining,
+    formatCooldownSeconds = ctx.FormatCooldownSeconds,
     getLatestQueueState = function()
       return runtimeState.GetLatestQueueState()
     end,
-    resolveMapIDByActivityID = ResolveMapIDByActivityID,
-    resolveTeleportSpellIDByActivityID = ResolveTeleportSpellIDByActivityID,
-    resolveTeleportSpellIDByMapID = isiLiveTeleport.ResolveTeleportSpellIDByMapID,
-    getNormalizedActiveEntryInfo = GetNormalizedActiveEntryInfo,
-    resolveTeleportSpellID = ResolveTeleportSpellID,
+    resolveMapIDByActivityID = ctx.ResolveMapIDByActivityID,
+    resolveTeleportSpellIDByActivityID = ctx.ResolveTeleportSpellIDByActivityID,
+    resolveTeleportSpellIDByMapID = modules.teleport.ResolveTeleportSpellIDByMapID,
+    getNormalizedActiveEntryInfo = ctx.GetNormalizedActiveEntryInfo,
+    resolveTeleportSpellID = ctx.ResolveTeleportSpellID,
     getCenterNoticeTeleportButton = function()
-      return centerNoticeTeleportButton
+      return ctx.centerNoticeTeleportButton
     end,
     getMplusTeleportButtons = function()
-      return mplusTeleportButtons
+      return ctx.mplusTeleportButtons
     end,
-    showCenterNotice = ShowCenterNotice,
+    showCenterNotice = ctx.ShowCenterNotice,
     setLatestQueueState = function(dungeonName, activityID, spellID, mapID)
       runtimeState.SetLatestQueueState(dungeonName, activityID, spellID, mapID)
-      if UpdateStatusLine then
-        UpdateStatusLine()
+      if ctx.UpdateStatusLine then
+        ctx.UpdateStatusLine()
       end
     end,
   })
 
-  ApplyLocalizationToUI = function()
-    rosterPanelController.ApplyLocalization()
-    UpdateCountdownCancelButton()
-    if centerNoticeTeleportButton and centerNoticeTeleportButton:IsShown() then
-      local spellID = centerNoticeTeleportButton.spellID
-      local enabled = spellID and IsSpellKnownSafe(spellID) and not centerNoticeTeleportButton.inCombatBlocked
-      UpdateCenterTeleportButtonVisual(spellID, enabled, centerNoticeTeleportButton.inCombatBlocked)
+  ctx.ApplyLocalizationToUI = function()
+    ctx.rosterPanelController.ApplyLocalization()
+    ctx.UpdateCountdownCancelButton()
+    if ctx.centerNoticeTeleportButton and ctx.centerNoticeTeleportButton:IsShown() then
+      local spellID = ctx.centerNoticeTeleportButton.spellID
+      local enabled = spellID and ctx.IsSpellKnownSafe(spellID) and not ctx.centerNoticeTeleportButton.inCombatBlocked
+      ctx.UpdateCenterTeleportButtonVisual(spellID, enabled, ctx.centerNoticeTeleportButton.inCombatBlocked)
     end
-    UpdateMPlusTeleportButton()
-    UpdateStatusLine()
+    ctx.UpdateMPlusTeleportButton()
+    ctx.UpdateStatusLine()
   end
 
-  countdownCancelButton:SetScript("OnClick", function()
-    if not IsPlayerLeader() then
+  ctx.countdownCancelButton:SetScript("OnClick", function()
+    if not ctx.IsPlayerLeader() then
       return
     end
     if C_PartyInfo and C_PartyInfo.DoCountdown then
@@ -799,31 +740,31 @@ function Factory.InitializeAddon(addonName, addonTable)
 
   local function SetProcessingActive(isActive)
     if isActive then
-      mainFrame:SetScript("OnUpdate", InspectLoop)
+      ctx.mainFrame:SetScript("OnUpdate", ctx.InspectLoop)
       return
     end
 
-    mainFrame:SetScript("OnUpdate", nil)
-    inspectController.ResetQueues()
+    ctx.mainFrame:SetScript("OnUpdate", nil)
+    ctx.inspectController.ResetQueues()
   end
 
-  local statusController = isiLiveStatus.CreateController({
-    getL = GetL,
-    showCenterNotice = ShowCenterNotice,
+  local statusController = modules.status.CreateController({
+    getL = ctx.GetL,
+    showCenterNotice = ctx.ShowCenterNotice,
     hideCenterNotice = function()
-      centerNotice.SetVisible(false)
+      ctx.centerNotice.SetVisible(false)
     end,
-    isPlayerLeader = IsPlayerLeader,
-    getTargetDungeonInfo = GetStatusTargetDungeonInfo,
+    isPlayerLeader = ctx.IsPlayerLeader,
+    getTargetDungeonInfo = ctx.GetStatusTargetDungeonInfo,
     hasActiveDungeons = function()
-      local seasonData = addonTable.SeasonData
+      local seasonData = ctx.addonTable.SeasonData
       if type(seasonData) == "table" and type(seasonData.HasActiveDungeons) == "function" then
         return seasonData.HasActiveDungeons()
       end
       return true
     end,
     getActiveSeasonLabel = function()
-      local seasonData = addonTable.SeasonData
+      local seasonData = ctx.addonTable.SeasonData
       if type(seasonData) == "table" and type(seasonData.GetSeasonLabel) == "function" then
         return seasonData.GetSeasonLabel()
       end
@@ -831,9 +772,10 @@ function Factory.InitializeAddon(addonName, addonTable)
     end,
   })
 
-  UpdateStatusLine = function()
+  ctx.statusController = statusController
+  ctx.UpdateStatusLine = function()
     local flags = runtimeState.GetRuntimeFlags()
-    statusLine:SetText(statusController.BuildStatusLineText({
+    ctx.statusLine:SetText(statusController.BuildStatusLineText({
       isStopped = flags.isStopped,
       isPaused = flags.isPaused,
       isTestMode = flags.isTestMode,
@@ -841,161 +783,156 @@ function Factory.InitializeAddon(addonName, addonTable)
   end
 
   local function QueueForceRefreshData()
-    inspectController.QueueForceRefreshData(GetRoster())
+    ctx.inspectController.QueueForceRefreshData(ctx.GetRoster())
   end
 
   local function ForceRefreshSyncState()
-    keySyncController.ForceRefreshSyncState(GetRoster())
+    ctx.keySyncController.ForceRefreshSyncState(ctx.GetRoster())
   end
 
   local function TriggerGroupRosterUpdate()
-    local onEventHandler = mainFrame:GetScript("OnEvent")
+    local onEventHandler = ctx.mainFrame:GetScript("OnEvent")
     if onEventHandler then
-      onEventHandler(mainFrame, "GROUP_ROSTER_UPDATE")
+      onEventHandler(ctx.mainFrame, "GROUP_ROSTER_UPDATE")
     end
   end
 
-  refreshController = isiLiveRefresh.CreateController(isiLiveConfigBuilders.BuildRefreshControllerOpts({
+  ctx.TriggerGroupRosterUpdate = TriggerGroupRosterUpdate
+
+  ctx.refreshController = modules.refresh.CreateController(modules.configBuilders.BuildRefreshControllerOpts({
     isStopped = runtimeState.IsStopped,
     isPaused = runtimeState.IsPaused,
     isTestMode = runtimeState.IsTestMode,
     isTestAllMode = runtimeState.IsTestAllMode,
     isInGroup = IsInGroup,
     isRosterEmpty = function()
-      return next(GetRoster()) == nil
+      return next(ctx.GetRoster()) == nil
     end,
-    triggerGroupRosterUpdate = TriggerGroupRosterUpdate,
+    triggerGroupRosterUpdate = ctx.TriggerGroupRosterUpdate,
     refreshTestModeRoster = function()
-      if not testModeController then
+      if not ctx.testModeController then
         return false
       end
-      return testModeController.RefreshActivePreview()
+      return ctx.testModeController.RefreshActivePreview()
     end,
     forceRefreshSyncState = ForceRefreshSyncState,
-    sendIsiLiveHello = SendIsiLiveHello,
-    sendOwnKeySnapshot = SendOwnKeySnapshot,
+    sendIsiLiveHello = ctx.SendIsiLiveHello,
+    sendOwnKeySnapshot = ctx.SendOwnKeySnapshot,
     queueForceRefreshData = QueueForceRefreshData,
-    updateUI = UpdateUI,
-    refreshLocalPlayerKey = RefreshLocalPlayerKey,
-    getActiveChallengeMapID = GetActiveChallengeMapID,
+    updateUI = ctx.UpdateUI,
+    refreshLocalPlayerKey = ctx.RefreshLocalPlayerKey,
+    getActiveChallengeMapID = ctx.GetActiveChallengeMapID,
     getTime = GetTime,
     refreshDebounceSeconds = 1,
   }))
 
-  refreshButton:SetScript("OnClick", function()
-    refreshController.RunFullRefresh()
+  ctx.refreshButton:SetScript("OnClick", function()
+    ctx.refreshController.RunFullRefresh()
   end)
 
-  local function GetUnitServerLanguage(unit, realm)
-    return isiLiveContextHelpers.GetUnitServerLanguage(isiLiveLocale, GetRealmInfoLib, unit, realm)
+  ctx.GetUnitServerLanguage = function(unit, realm)
+    return modules.contextHelpers.GetUnitServerLanguage(modules.locale, ctx.GetRealmInfoLib, unit, realm)
   end
 
-  queueFlowController = isiLiveQueueFlow.CreateController(isiLiveConfigBuilders.BuildQueueFlowControllerOpts({
-    getL = GetL,
+  ctx.queueFlowController = modules.queueFlow.CreateController(modules.configBuilders.BuildQueueFlowControllerOpts({
+    getL = ctx.GetL,
     getPendingQueueJoinInfo = function()
       return runtimeState.GetPendingQueueJoinInfo()
     end,
     setPendingQueueJoinInfo = function(value)
       runtimeState.SetPendingQueueJoinInfo(value)
     end,
-    resolveMapIDByActivityID = ResolveMapIDByActivityID,
-    resolveTeleportSpellIDByMapID = isiLiveTeleport.ResolveTeleportSpellIDByMapID,
-    resolveJoinedKeyMapID = ResolveJoinedKeyMapID,
-    updateMPlusTeleportButton = UpdateMPlusTeleportButton,
-    showInviteHint = ShowInviteHint,
-    updateUI = UpdateUI,
-    printFn = Print,
+    resolveMapIDByActivityID = ctx.ResolveMapIDByActivityID,
+    resolveTeleportSpellIDByMapID = modules.teleport.ResolveTeleportSpellIDByMapID,
+    resolveJoinedKeyMapID = ctx.ResolveJoinedKeyMapID,
+    updateMPlusTeleportButton = ctx.UpdateMPlusTeleportButton,
+    showInviteHint = ctx.ShowInviteHint,
+    updateUI = ctx.UpdateUI,
+    printFn = ctx.Print,
     setQueueTargetState = function(dungeonName, activityID, spellID, joinedKeyMapID, mapID)
       runtimeState.SetLatestQueueState(dungeonName, activityID, spellID, mapID)
       runtimeState.SetActiveJoinedKeyMapID(joinedKeyMapID)
-      if UpdateStatusLine then
-        UpdateStatusLine()
+      if ctx.UpdateStatusLine then
+        ctx.UpdateStatusLine()
       end
     end,
-    queueCaptureQueueJoinCandidate = isiLiveQueue.CaptureQueueJoinCandidate,
-    isInChallengeMode = GetActiveChallengeMapID,
+    queueCaptureQueueJoinCandidate = modules.queue.CaptureQueueJoinCandidate,
+    isInChallengeMode = ctx.GetActiveChallengeMapID,
     isInGroup = IsInGroup,
-    isPlayerLeader = IsPlayerLeader,
+    isPlayerLeader = ctx.IsPlayerLeader,
     getTimeFn = GetTime,
   }))
 
-  local function CaptureQueueJoinCandidate(...)
-    queueFlowController.CaptureQueueJoinCandidate(...)
+  ctx.CaptureQueueJoinCandidate = function(...)
+    ctx.queueFlowController.CaptureQueueJoinCandidate(...)
+  end
+  ctx.AnnounceQueuedGroupJoin = function()
+    ctx.queueFlowController.AnnounceQueuedGroupJoin()
+  end
+  ctx.ShowQueueJoinPreview = function(groupName, dungeonName, activityID)
+    ctx.queueFlowController.ShowQueueJoinPreview(groupName, dungeonName, activityID)
   end
 
-  local function AnnounceQueuedGroupJoin()
-    queueFlowController.AnnounceQueuedGroupJoin()
-  end
-
-  ShowQueueJoinPreview = function(groupName, dungeonName, activityID)
-    queueFlowController.ShowQueueJoinPreview(groupName, dungeonName, activityID)
-  end
-
-  testModeController = isiLiveTestMode.CreateController(isiLiveConfigBuilders.BuildTestModeControllerOpts({
-    getL = GetL,
-    printFn = Print,
+  ctx.testModeController = modules.testMode.CreateController(modules.configBuilders.BuildTestModeControllerOpts({
+    getL = ctx.GetL,
+    printFn = ctx.Print,
     getState = runtimeState.GetRuntimeFlags,
     setState = runtimeState.PatchRuntimeFlags,
-    buildDummyRoster = BuildDummyRoster,
-    setRoster = SetRoster,
-    setMainFrameVisible = SetMainFrameVisible,
-    updateUI = UpdateUI,
-    updateLeaderButtons = UpdateLeaderButtons,
-    showCenterNotice = ShowCenterNotice,
-    showQueueJoinPreview = ShowQueueJoinPreview,
-    resetInspectAll = ResetInspectAll,
+    buildDummyRoster = ctx.BuildDummyRoster,
+    setRoster = ctx.SetRoster,
+    setMainFrameVisible = ctx.SetMainFrameVisible,
+    updateUI = ctx.UpdateUI,
+    updateLeaderButtons = ctx.UpdateLeaderButtons,
+    showCenterNotice = ctx.ShowCenterNotice,
+    showQueueJoinPreview = ctx.ShowQueueJoinPreview,
+    resetInspectAll = ctx.ResetInspectAll,
     clearLatestQueueState = function()
       runtimeState.ClearLatestQueueTarget({ keepActiveJoinedKey = true })
     end,
-    captureRioBaselineSnapshot = CaptureRioBaselineSnapshot,
-    clearRioBaselineSnapshot = ClearRioBaselineSnapshot,
-    enableRioDeltaDisplay = EnableRioDeltaDisplay,
-    updateMPlusTeleportButton = UpdateMPlusTeleportButton,
-    setCenterNoticeVisible = SetCenterNoticeVisible,
+    captureRioBaselineSnapshot = ctx.CaptureRioBaselineSnapshot,
+    clearRioBaselineSnapshot = ctx.ClearRioBaselineSnapshot,
+    enableRioDeltaDisplay = ctx.EnableRioDeltaDisplay,
+    updateMPlusTeleportButton = ctx.UpdateMPlusTeleportButton,
+    setCenterNoticeVisible = ctx.SetCenterNoticeVisible,
     hideInviteHint = function()
-      inviteHint.frame:Hide()
+      ctx.inviteHint.frame:Hide()
     end,
-    triggerGroupRosterUpdate = TriggerGroupRosterUpdate,
+    triggerGroupRosterUpdate = ctx.TriggerGroupRosterUpdate,
   }))
 
-  local function EnterFullDummyPreview()
-    testModeController.EnterFullDummyPreview()
+  ctx.EnterFullDummyPreview = function()
+    ctx.testModeController.EnterFullDummyPreview()
+  end
+  ctx.ExitTestMode = function()
+    ctx.testModeController.ExitTestMode()
+  end
+  ctx.ToggleStandardTestMode = function()
+    ctx.testModeController.ToggleStandardTestMode()
   end
 
-  local function ExitTestMode()
-    testModeController.ExitTestMode()
-  end
-
-  local function ToggleStandardTestMode()
-    testModeController.ToggleStandardTestMode()
-  end
-
-  bindingController = isiLiveBindings.CreateController({
-    onToggleMainFrame = ToggleMainFrameVisibility,
-    onToggleTestMode = ToggleStandardTestMode,
+  ctx.bindingController = modules.bindings.CreateController({
+    onToggleMainFrame = ctx.ToggleMainFrameVisibility,
+    onToggleTestMode = ctx.ToggleStandardTestMode,
   })
-  ApplyHotkeyBindings()
+  ctx.ApplyHotkeyBindings()
 
-  local function SetLanguage(tag)
-    local resolved = isiLiveLocale.ResolveLocaleTag(tag)
-    L = locales[resolved] or locales.enUS
+  ctx.SetLanguage = function(tag)
+    local resolved = modules.locale.ResolveLocaleTag(tag)
+    ctx.L = ctx.locales[resolved] or ctx.locales.enUS
     if IsiLiveDB then
       IsiLiveDB.locale = resolved
     end
-    ApplyLocalizationToUI()
-    Print(resolved == "deDE" and L.LANG_SET_DE or L.LANG_SET_EN)
+    ctx.ApplyLocalizationToUI()
+    ctx.Print(resolved == "deDE" and ctx.L.LANG_SET_DE or ctx.L.LANG_SET_EN)
   end
-
-  local function SetLocaleTable(value)
-    L = value
+  ctx.SetLocaleTable = function(value)
+    ctx.L = value
   end
-
-  local function EnqueueInspect(unit)
-    inspectController.EnqueueInspect(unit, GetRoster())
+  ctx.EnqueueInspect = function(unit)
+    ctx.inspectController.EnqueueInspect(unit, ctx.GetRoster())
   end
-
-  local function CheckIfEnteredTargetDungeon()
-    local targetMapID = ResolveStatusTargetMapID()
+  ctx.CheckIfEnteredTargetDungeon = function()
+    local targetMapID = ctx.ResolveStatusTargetMapID()
     if not targetMapID then
       return
     end
@@ -1018,175 +955,191 @@ function Factory.InitializeAddon(addonName, addonTable)
     end
 
     if targetMapID and currentMapID == targetMapID then
-      ClearLatestQueueTarget()
-      UpdateMPlusTeleportButton()
+      ctx.ClearLatestQueueTarget()
+      ctx.UpdateMPlusTeleportButton()
       return
     end
   end
 
-  inspectController = isiLiveInspect.CreateController({
-    inspectTimeout = INSPECT_TIMEOUT,
-    retryInterval = RETRY_INTERVAL,
-    inspectDelay = INSPECT_DELAY,
-    sendOwnKeySnapshot = SendOwnKeySnapshot,
+  ctx.SetProcessingActive = SetProcessingActive
+end
+
+local function FinalizeFactoryRuntime(ctx)
+  local modules = ctx.modules
+  local runtimeState = ctx.runtimeState
+  local isiLiveRuntimeSetup = modules.runtimeSetup
+
+  ctx.inspectController = modules.inspect.CreateController({
+    inspectTimeout = ctx.INSPECT_TIMEOUT,
+    retryInterval = ctx.RETRY_INTERVAL,
+    inspectDelay = ctx.INSPECT_DELAY,
+    sendOwnKeySnapshot = ctx.SendOwnKeySnapshot,
   })
-
-  OnEvent = function(self, event, ...)
-    eventHandlersController.Dispatch(self, event, ...)
+  ctx.OnEvent = function(self, event, ...)
+    ctx.eventHandlersController.Dispatch(self, event, ...)
   end
-
-  -- --- Inspect Loop ---
-  InspectLoop = function(_self, elapsed)
-    inspectLoopTimer = inspectLoopTimer + (elapsed or 0)
-    if inspectLoopTimer >= 0.25 then
-      inspectLoopTimer = 0
-      if GetActiveChallengeMapID() then
+  ctx.InspectLoop = function(_self, elapsed)
+    ctx.inspectLoopTimer = ctx.inspectLoopTimer + (elapsed or 0)
+    if ctx.inspectLoopTimer >= 0.25 then
+      ctx.inspectLoopTimer = 0
+      if ctx.GetActiveChallengeMapID() then
         return
       end
-      inspectController.OnUpdate()
+      ctx.inspectController.OnUpdate()
     end
   end
 
-  isiLiveBootstrap.RegisterMainFrameEvents(mainFrame)
-  isiLiveBootstrap.BindMainFrameScripts(mainFrame, {
+  modules.bootstrap.RegisterMainFrameEvents(ctx.mainFrame)
+  modules.bootstrap.BindMainFrameScripts(ctx.mainFrame, {
     onShow = function()
-      SetProcessingActive(true)
-      if rosterPanelController and rosterPanelController.RefreshSystemOptionToggles then
-        rosterPanelController.RefreshSystemOptionToggles()
+      ctx.SetProcessingActive(true)
+      if ctx.rosterPanelController and ctx.rosterPanelController.RefreshSystemOptionToggles then
+        ctx.rosterPanelController.RefreshSystemOptionToggles()
       end
-      if IsInGroup() then
-        if SendOwnKeySnapshot then
-          SendOwnKeySnapshot(true)
-        end
+      if IsInGroup() and ctx.SendOwnKeySnapshot then
+        ctx.SendOwnKeySnapshot(true)
       end
     end,
     onHide = function()
-      SetProcessingActive(false)
+      ctx.SetProcessingActive(false)
     end,
   })
 
   local runtimeSetupResult = isiLiveRuntimeSetup.Configure({
-    controllerWiring = isiLiveControllerWiring,
-    configBuilders = isiLiveConfigBuilders,
-    bootstrap = isiLiveBootstrap,
-    leaderWatchModule = isiLiveLeaderWatch,
-    groupModule = isiLiveGroup,
-    eventHandlersModule = isiLiveEventHandlers,
-    mainFrame = mainFrame,
-    onEvent = OnEvent,
+    controllerWiring = modules.controllerWiring,
+    configBuilders = modules.configBuilders,
+    bootstrap = modules.bootstrap,
+    leaderWatchModule = modules.leaderWatch,
+    groupModule = modules.group,
+    eventHandlersModule = modules.eventHandlers,
+    mainFrame = ctx.mainFrame,
+    onEvent = ctx.OnEvent,
     onDispatchError = function(_frame, event, err)
-      Print(string.format("Event dispatch failed (%s): %s", tostring(event), tostring(err)))
+      ctx.Print(string.format("Event dispatch failed (%s): %s", tostring(event), tostring(err)))
     end,
-    sync = isiLiveSync,
-    events = isiLiveEvents,
-    commands = isiLiveCommands,
+    sync = modules.sync,
+    events = modules.events,
+    commands = modules.commands,
     isInGroup = IsInGroup,
     getNumGroupMembers = GetNumGroupMembers,
-    getActiveChallengeMapID = GetActiveChallengeMapID,
-    getWasInGroup = GetWasInGroup,
-    setWasInGroup = SetWasInGroup,
-    getWasRaidGroup = GetWasRaidGroup,
-    setWasRaidGroup = SetWasRaidGroup,
-    isRaidGroup = GetWasRaidGroup,
-    setWasGroupLeader = SetWasGroupLeader,
-    getWasGroupLeader = GetWasGroupLeader,
-    getRoster = GetRoster,
-    setRoster = SetRoster,
-    captureQueueJoinCandidate = CaptureQueueJoinCandidate,
-    announceQueuedGroupJoin = AnnounceQueuedGroupJoin,
-    setMainFrameVisible = SetMainFrameVisible,
-    setMainFrameHeightSafe = SetMainFrameHeightSafe,
-    updateLeaderButtons = UpdateLeaderButtons,
-    clearLatestQueueTarget = ClearLatestQueueTarget,
-    clearRioBaselineSnapshot = ClearRioBaselineSnapshot,
-    resetInspectAll = ResetInspectAll,
-    resetInspectQueues = ResetInspectQueues,
-    updateUI = UpdateUI,
-    updateMPlusTeleportButton = UpdateMPlusTeleportButton,
-    getUnitNameAndRealm = GetUnitNameAndRealm,
+    getActiveChallengeMapID = ctx.GetActiveChallengeMapID,
+    getWasInGroup = ctx.GetWasInGroup,
+    setWasInGroup = ctx.SetWasInGroup,
+    getWasRaidGroup = ctx.GetWasRaidGroup,
+    setWasRaidGroup = ctx.SetWasRaidGroup,
+    isRaidGroup = ctx.GetWasRaidGroup,
+    setWasGroupLeader = ctx.SetWasGroupLeader,
+    getWasGroupLeader = ctx.GetWasGroupLeader,
+    getRoster = ctx.GetRoster,
+    setRoster = ctx.SetRoster,
+    captureQueueJoinCandidate = ctx.CaptureQueueJoinCandidate,
+    announceQueuedGroupJoin = ctx.AnnounceQueuedGroupJoin,
+    setMainFrameVisible = ctx.SetMainFrameVisible,
+    setMainFrameHeightSafe = ctx.SetMainFrameHeightSafe,
+    updateLeaderButtons = ctx.UpdateLeaderButtons,
+    clearLatestQueueTarget = ctx.ClearLatestQueueTarget,
+    clearRioBaselineSnapshot = ctx.ClearRioBaselineSnapshot,
+    resetInspectAll = ctx.ResetInspectAll,
+    resetInspectQueues = ctx.ResetInspectQueues,
+    updateUI = ctx.UpdateUI,
+    updateMPlusTeleportButton = ctx.UpdateMPlusTeleportButton,
+    getUnitNameAndRealm = ctx.GetUnitNameAndRealm,
     getUnitClass = UnitClass,
-    getUnitServerLanguage = GetUnitServerLanguage,
-    getOwnedKeystoneSnapshot = GetOwnedKeystoneSnapshot,
-    markIsiLiveUser = MarkIsiLiveUser,
-    getUnitRole = GetUnitRole,
-    getPlayerSpecName = GetPlayerSpecName,
-    getUnitRio = GetUnitRio,
-    getInspectSpecName = GetInspectSpecName,
-    unitHasIsiLive = UnitHasIsiLive,
-    applyKnownKeyToRosterEntry = ApplyKnownKeyToRosterEntry,
-    enqueueInspect = EnqueueInspect,
-    sendOwnKeySnapshot = SendOwnKeySnapshot,
-    sendIsiLiveHello = SendIsiLiveHello,
+    getUnitServerLanguage = ctx.GetUnitServerLanguage,
+    getOwnedKeystoneSnapshot = ctx.GetOwnedKeystoneSnapshot,
+    markIsiLiveUser = ctx.MarkIsiLiveUser,
+    getUnitRole = ctx.GetUnitRole,
+    getPlayerSpecName = ctx.GetPlayerSpecName,
+    getUnitRio = ctx.GetUnitRio,
+    getInspectSpecName = ctx.GetInspectSpecName,
+    unitHasIsiLive = ctx.UnitHasIsiLive,
+    applyKnownKeyToRosterEntry = ctx.ApplyKnownKeyToRosterEntry,
+    enqueueInspect = ctx.EnqueueInspect,
+    sendOwnKeySnapshot = ctx.SendOwnKeySnapshot,
+    sendIsiLiveHello = ctx.SendIsiLiveHello,
     unitIsGroupLeader = UnitIsGroupLeader,
     unitExists = UnitExists,
     getRaidTargetIndex = rawget(_G, "GetRaidTargetIndex"),
     setRaidTarget = rawget(_G, "SetRaidTarget"),
-    isPlayerLeader = IsPlayerLeader,
+    isPlayerLeader = ctx.IsPlayerLeader,
     isStopped = runtimeState.IsStopped,
     isPaused = runtimeState.IsPaused,
     isTestMode = runtimeState.IsTestMode,
-    isInCombat = IsInCombat,
-    isInPartyInstance = IsInPartyInstance,
+    isInCombat = ctx.IsInCombat,
+    isInPartyInstance = ctx.IsInPartyInstance,
     isTestAllMode = runtimeState.IsTestAllMode,
-    getL = GetL,
-    printFn = Print,
-    showCenterNotice = ShowCenterNotice,
+    getL = ctx.GetL,
+    printFn = ctx.Print,
+    showCenterNotice = ctx.ShowCenterNotice,
     isMainFrameShown = function()
-      return mainFrame and mainFrame:IsShown()
+      return ctx.mainFrame and ctx.mainFrame:IsShown()
     end,
-    defaultLocale = locale,
-    locales = locales,
-    resolveLocaleTag = isiLiveLocale.ResolveLocaleTag,
-    setLocaleTable = SetLocaleTable,
-    isInChallengeMode = GetActiveChallengeMapID,
-    isNegativeApplicationStatusEvent = IsNegativeApplicationStatusEvent,
-    getNormalizedActiveEntryInfo = GetNormalizedActiveEntryInfo,
-    ensureQueueDebugStorage = queueDebugController.EnsureStorage,
-    setQueueDebugEnabled = queueDebugController.SetEnabled,
-    ensureRuntimeLogStorage = runtimeLogController.EnsureStorage,
-    setRuntimeLogEnabled = runtimeLogController.SetEnabled,
-    registerIsiLiveSyncPrefix = RegisterIsiLiveSyncPrefix,
-    applyHotkeyBindings = ApplyHotkeyBindings,
-    startBindingWatchdog = StartBindingWatchdog,
-    getAddonVersionRaw = GetAddonVersionRaw,
+    defaultLocale = ctx.locale,
+    locales = ctx.locales,
+    resolveLocaleTag = modules.locale.ResolveLocaleTag,
+    setLocaleTable = ctx.SetLocaleTable,
+    isInChallengeMode = ctx.GetActiveChallengeMapID,
+    isNegativeApplicationStatusEvent = ctx.IsNegativeApplicationStatusEvent,
+    getNormalizedActiveEntryInfo = ctx.GetNormalizedActiveEntryInfo,
+    ensureQueueDebugStorage = ctx.queueDebugController.EnsureStorage,
+    setQueueDebugEnabled = ctx.queueDebugController.SetEnabled,
+    ensureRuntimeLogStorage = ctx.runtimeLogController.EnsureStorage,
+    setRuntimeLogEnabled = ctx.runtimeLogController.SetEnabled,
+    registerIsiLiveSyncPrefix = ctx.RegisterIsiLiveSyncPrefix,
+    applyHotkeyBindings = ctx.ApplyHotkeyBindings,
+    startBindingWatchdog = ctx.StartBindingWatchdog,
+    getAddonVersionRaw = ctx.GetAddonVersionRaw,
     getTime = GetTime,
     getPendingQueueJoinInfo = runtimeState.GetPendingQueueJoinInfo,
     setPendingQueueJoinInfo = runtimeState.SetPendingQueueJoinInfo,
     getActiveJoinedKeyMapID = runtimeState.GetActiveJoinedKeyMapID,
     setActiveJoinedKeyMapID = runtimeState.SetActiveJoinedKeyMapID,
-    getPendingBindingApply = GetPendingBindingApply,
-    mainUI = mainUI,
-    centerNotice = centerNotice,
-    centerNoticeFrame = centerNoticeFrame,
-    centerNoticeTeleportButton = centerNoticeTeleportButton,
-    applySecureSpellToButton = ApplySecureSpellToButton,
-    refreshController = refreshController,
-    inspectController = inspectController,
-    statusController = statusController,
-    exitTestMode = ExitTestMode,
-    updateStatusLine = UpdateStatusLine,
-    applyLocalizationToUI = ApplyLocalizationToUI,
-    updateCountdownCancelButton = UpdateCountdownCancelButton,
-    checkIfEnteredTargetDungeon = CheckIfEnteredTargetDungeon,
-    captureRioBaselineSnapshot = CaptureRioBaselineSnapshot,
-    restoreRioBaseline = RestoreRioBaseline,
-    isReadyCheckActive = IsReadyCheckActive,
-    setReadyCheckActive = SetReadyCheckActive,
-    enableRioDeltaDisplay = EnableRioDeltaDisplay,
-    setCenterNoticeVisible = SetCenterNoticeVisible,
+    getPendingBindingApply = ctx.GetPendingBindingApply,
+    mainUI = ctx.mainUI,
+    centerNotice = ctx.centerNotice,
+    centerNoticeFrame = ctx.centerNoticeFrame,
+    centerNoticeTeleportButton = ctx.centerNoticeTeleportButton,
+    applySecureSpellToButton = ctx.ApplySecureSpellToButton,
+    refreshController = ctx.refreshController,
+    inspectController = ctx.inspectController,
+    statusController = ctx.statusController,
+    exitTestMode = ctx.ExitTestMode,
+    updateStatusLine = ctx.UpdateStatusLine,
+    applyLocalizationToUI = ctx.ApplyLocalizationToUI,
+    updateCountdownCancelButton = ctx.UpdateCountdownCancelButton,
+    checkIfEnteredTargetDungeon = ctx.CheckIfEnteredTargetDungeon,
+    captureRioBaselineSnapshot = ctx.CaptureRioBaselineSnapshot,
+    restoreRioBaseline = ctx.RestoreRioBaseline,
+    isReadyCheckActive = ctx.IsReadyCheckActive,
+    setReadyCheckActive = ctx.SetReadyCheckActive,
+    enableRioDeltaDisplay = ctx.EnableRioDeltaDisplay,
+    setCenterNoticeVisible = ctx.SetCenterNoticeVisible,
     getState = runtimeState.GetRuntimeFlags,
     setState = runtimeState.PatchRuntimeFlags,
-    triggerGroupRosterUpdate = TriggerGroupRosterUpdate,
-    toggleStandardTestMode = ToggleStandardTestMode,
-    enterFullDummyPreview = EnterFullDummyPreview,
-    setLanguage = SetLanguage,
-    teleportDebugController = teleportDebugController,
-    queueDebugController = queueDebugController,
-    runtimeLogController = runtimeLogController,
-    recordRun = RecordRun,
-    addonName = addonName,
+    triggerGroupRosterUpdate = ctx.TriggerGroupRosterUpdate,
+    toggleStandardTestMode = ctx.ToggleStandardTestMode,
+    enterFullDummyPreview = ctx.EnterFullDummyPreview,
+    setLanguage = ctx.SetLanguage,
+    teleportDebugController = ctx.teleportDebugController,
+    queueDebugController = ctx.queueDebugController,
+    runtimeLogController = ctx.runtimeLogController,
+    recordRun = ctx.RecordRun,
+    addonName = ctx.addonName,
   })
-  eventHandlersController = runtimeSetupResult.eventHandlersController
 
-  Print(string.format(L.LOADED_HINT, GetAddonVersionRaw()))
+  ctx.eventHandlersController = runtimeSetupResult.eventHandlersController
+  ctx.Print(string.format(ctx.L.LOADED_HINT, ctx.GetAddonVersionRaw()))
+end
+
+function Factory.InitializeAddon(addonName, addonTable)
+  local ctx = CreateFactoryContext(addonName, addonTable)
+  if not ctx then
+    return
+  end
+
+  InitializeFactoryFrameBridge(ctx)
+  InitializeFactoryRuntimeHelpers(ctx)
+  InitializeFactoryPrimaryControllers(ctx)
+  InitializeFactorySecondaryControllers(ctx)
+  FinalizeFactoryRuntime(ctx)
 end
