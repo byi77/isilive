@@ -78,10 +78,18 @@ local function BuildDeps(opts)
     enqueueInspect = opts.enqueueInspect or function(_unit) end,
     sendOwnKeySnapshot = opts.sendOwnKeySnapshot or function(_force) end,
     sendIsiLiveHello = opts.sendIsiLiveHello or function(_force) end,
-    getAutoMarkEnabled = opts.getAutoMarkEnabled or function() return true end,
-    unitIsGroupLeader = opts.unitIsGroupLeader or function(_unit) return false end,
-    unitExists = opts.unitExists or function(_unit) return false end,
-    getRaidTargetIndex = opts.getRaidTargetIndex or function(_unit) return nil end,
+    getAutoMarkEnabled = opts.getAutoMarkEnabled or function()
+      return true
+    end,
+    unitIsGroupLeader = opts.unitIsGroupLeader or function(_unit)
+      return false
+    end,
+    unitExists = opts.unitExists or function(_unit)
+      return false
+    end,
+    getRaidTargetIndex = opts.getRaidTargetIndex or function(_unit)
+      return nil
+    end,
     setRaidTarget = opts.setRaidTarget or function(_unit, _index) end,
   }
 end
@@ -285,7 +293,9 @@ local function ApplyAutoMarkers(deps, roster)
   end
 
   local function SafeSetRaidTarget(unit, targetIndex)
-    if not unit or not deps.unitExists(unit) then return end
+    if not unit or not deps.unitExists(unit) then
+      return
+    end
     local currentIndex = deps.getRaidTargetIndex(unit)
     if currentIndex ~= targetIndex then
       deps.setRaidTarget(unit, targetIndex)

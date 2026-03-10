@@ -1344,7 +1344,9 @@ function RosterPanel.CreateController(opts)
   local isReadyCheckActive = type(opts.isReadyCheckActive) == "function" and opts.isReadyCheckActive or nil
   local resolveTargetMapID = type(opts.resolveTargetMapID) == "function" and opts.resolveTargetMapID or nil
   local isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
-  local isRaidGroup = type(opts.isRaidGroup) == "function" and opts.isRaidGroup or function() return false end
+  local isRaidGroup = type(opts.isRaidGroup) == "function" and opts.isRaidGroup or function()
+    return false
+  end
   local rolePriority = assert(opts.rolePriority, "isiLive: RosterPanel requires rolePriority")
   local unitPriority = assert(opts.unitPriority, "isiLive: RosterPanel requires unitPriority")
   local syncMarker = tostring(opts.syncMarker or "")
@@ -1389,7 +1391,9 @@ function RosterPanel.CreateController(opts)
     isInGroup = isInGroup,
     getTime = getTime,
     shareKeysDebounceSeconds = shareKeysDebounceSeconds,
-    getAutoMarkEnabled = type(opts.getAutoMarkEnabled) == "function" and opts.getAutoMarkEnabled or function() return false end,
+    getAutoMarkEnabled = type(opts.getAutoMarkEnabled) == "function" and opts.getAutoMarkEnabled or function()
+      return false
+    end,
     setAutoMarkEnabled = type(opts.setAutoMarkEnabled) == "function" and opts.setAutoMarkEnabled or function() end,
   })
 
