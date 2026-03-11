@@ -4,13 +4,13 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.71`.
+Current documented baseline: `0.9.72`.
 
 ## Features
 
 - Group roster table with columns: `Spec`, `Name`, `Flag`, `Key`, `iLvl`, `RIO`, `DPS`
 - Persistent raid warning label in the Roster Panel for groups > 5 members (hides roster rows)
-- Automatic party markers: Tanks marked as Blue Square ({rt6}), Healers as Green Triangle ({rt4}) for all group members without leader restriction
+- `Auto-Mark T/H` toggle remains in the UI, but raid-marker API calls only run on explicitly allowed marker runtimes; the default retail runtime suppresses forbidden marker calls
 - Bottom-left system toggles: `Combat Logging`, `Auto-Mark T/H`, `DM Reset on Entry`
 - Stable role sorting: `Tank -> Healer -> Damager`
 - Right-side controls: `Readycheck`, `Countdown10`, `Countdown 0`, `Refresh`, `Share Keys`
@@ -77,9 +77,9 @@ Current documented baseline: `0.9.71`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`, while explicit local refresh triggers and visibility-bound snapshots keep `KEY/STATS` current.
 
-## Use Case / Logic Baseline (v0.9.71)
+## Use Case / Logic Baseline (v0.9.72)
 
-Documented on `2026-03-11` as runtime behavior baseline (`0.9.71`) for validation checks.
+Documented on `2026-03-11` as runtime behavior baseline (`0.9.72`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -225,7 +225,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 244 scenarios across 26 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/units/ui/roster-display), including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 245 scenarios across 26 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/units/ui/roster-display), including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)

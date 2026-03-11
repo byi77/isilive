@@ -123,6 +123,9 @@ local function BuildGroupControllerOptions(state, overrides)
     getAutoMarkEnabled = function()
       return state.autoMarkEnabled
     end,
+    canApplyRaidMarkers = overrides.canApplyRaidMarkers or function()
+      return false
+    end,
     unitIsGroupLeader = overrides.unitIsGroupLeader or function(_unit)
       return false
     end,
@@ -171,6 +174,9 @@ local function RegisterGroupAutoMarkTests(test, Assert, LoadAddonModules)
         unitExists = function(_unit)
           return true
         end,
+        canApplyRaidMarkers = function()
+          return true
+        end,
         getRaidTargetIndex = function(_unit)
           return nil
         end,
@@ -207,6 +213,9 @@ local function RegisterGroupAutoMarkTests(test, Assert, LoadAddonModules)
         return unit == "player"
       end,
       unitExists = function(_unit)
+        return true
+      end,
+      canApplyRaidMarkers = function()
         return true
       end,
       getRaidTargetIndex = function(_unit)
@@ -246,6 +255,9 @@ local function RegisterGroupAutoMarkTests(test, Assert, LoadAddonModules)
           return false
         end, -- NOT leader
         unitExists = function(_unit)
+          return true
+        end,
+        canApplyRaidMarkers = function()
           return true
         end,
         getRaidTargetIndex = function(_unit)
@@ -288,6 +300,9 @@ local function RegisterGroupAutoMarkTests(test, Assert, LoadAddonModules)
         unitExists = function(_unit)
           return true
         end,
+        canApplyRaidMarkers = function()
+          return true
+        end,
         getRaidTargetIndex = function(unit)
           -- Simulate: party1 already has Blue Square, party2 already has Green Triangle
           if unit == "party1" then
@@ -309,6 +324,51 @@ local function RegisterGroupAutoMarkTests(test, Assert, LoadAddonModules)
     -- Already correctly marked → should NOT call SetRaidTarget again
     Assert.Nil(setRaidTargetCalls["party1"], "Tank already marked, should not call SetRaidTarget again")
     Assert.Nil(setRaidTargetCalls["party2"], "Healer already marked, should not call SetRaidTarget again")
+  end)
+
+  test("AutoMark skips protected raid marker API when runtime disallows markers", function()
+    local getRaidTargetIndexCalls = 0
+    local setRaidTargetCalls = 0
+
+    local controller = select(
+      1,
+      BuildGroupController(LoadAddonModules, {
+        getNumGroupMembers = function()
+          return 3
+        end,
+        getUnitRole = function(unit)
+          if unit == "party1" then
+            return "TANK"
+          end
+          if unit == "party2" then
+            return "HEALER"
+          end
+          return "DAMAGER"
+        end,
+        unitExists = function(_unit)
+          return true
+        end,
+        canApplyRaidMarkers = function()
+          return false
+        end,
+        getRaidTargetIndex = function(_unit)
+          getRaidTargetIndexCalls = getRaidTargetIndexCalls + 1
+          return nil
+        end,
+        setRaidTarget = function(_unit, _index)
+          setRaidTargetCalls = setRaidTargetCalls + 1
+        end,
+      })
+    )
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(
+      getRaidTargetIndexCalls,
+      0,
+      "Runtime must not query protected raid markers when marker API is disabled"
+    )
+    Assert.Equal(setRaidTargetCalls, 0, "Runtime must not call protected SetRaidTarget when marker API is disabled")
   end)
 end
 

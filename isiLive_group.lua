@@ -81,6 +81,9 @@ local function BuildDeps(opts)
     getAutoMarkEnabled = opts.getAutoMarkEnabled or function()
       return true
     end,
+    canApplyRaidMarkers = opts.canApplyRaidMarkers or function()
+      return false
+    end,
     unitIsGroupLeader = opts.unitIsGroupLeader or function(_unit)
       return false
     end,
@@ -289,6 +292,9 @@ local function ApplyAutoMarkers(deps, roster)
     return
   end
   if not deps.isInGroup() then
+    return
+  end
+  if not deps.canApplyRaidMarkers() then
     return
   end
 

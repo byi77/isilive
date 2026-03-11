@@ -1067,6 +1067,9 @@ local function FinalizeFactoryRuntime(ctx)
     enqueueInspect = ctx.EnqueueInspect,
     sendOwnKeySnapshot = ctx.SendOwnKeySnapshot,
     sendIsiLiveHello = ctx.SendIsiLiveHello,
+    canApplyRaidMarkers = function()
+      return false
+    end,
     unitIsGroupLeader = UnitIsGroupLeader,
     unitExists = UnitExists,
     getRaidTargetIndex = rawget(_G, "GetRaidTargetIndex"),

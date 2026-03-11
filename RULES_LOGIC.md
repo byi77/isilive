@@ -59,7 +59,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 36. roster-kurztexte bleiben kompakt und faktenbasiert: name max 12 zeichen, spec max 6 zeichen, sprache nur flagge, key-code max 4 zeichen und nie numerischer mapid-fallback.
 37. die wartungsdatei `WARTUNG.md` darf nicht im curseforge-paket landen.
 38. `WARTUNG.md` muss die verpflichtende wartungskette fuer den wiedereinstieg nennen: `CHANGELOG.md`, `TODO.md`, `TODO_RENAME.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `AGENTS.md`, `README.md`, `RELEASE.md`, `USECASES.md`, `ARCHITECTURE.md`.
-39. Automatisches Markieren von Tank und Heiler in 5-Mann-Gruppen (Tank=Blau, Heiler=Gruen) ist fuer alle Gruppenmitglieder aktiv und verfuegt ueber einen Anti-Spam Check.
+39. Auto-Mark weist Tank=Blau und Heiler=Gruen nur bei aktivierter Option und explizit erlaubter Marker-API zu; ohne Freigabe erfolgen keine Marker-API-Aufrufe und bereits passende Marker werden nicht erneut gesetzt.
 40. Bei Gruppengroessen > 5 (Raid) wird im Roster-Panel ein persistenter Hinweis angezeigt und die Gruppenmitglieder-Zeilen werden ausgeblendet.
 41. API-Aufrufe mit Unit-Tokens muessen `UnitExists` pruefen, bevor sie aufgerufen werden, um Race-Conditions bei Gruppenaenderungen abzufangen.
 
@@ -392,10 +392,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-AUTO-MARKER
 - Regelnummer: 39
 - Status: aktiv
-- Zusammenfassung: Automatisches Markieren von Tank und Heiler in 5-Mann-Gruppen (Tank=Blau, Heiler=Gruen) ist fuer alle Gruppenmitglieder aktiv und verfuegt ueber einen Anti-Spam Check.
+- Zusammenfassung: Auto-Mark weist Tank=Blau und Heiler=Gruen nur bei aktivierter Option und explizit erlaubter Marker-API zu; ohne Freigabe erfolgen keine Marker-API-Aufrufe und bereits passende Marker werden nicht erneut gesetzt.
 - Erforderliche Tests:
   - AutoMark assigns Tank to Blue Square and Healer to Green Triangle
-  - AutoMark assigns markers even when player is not group leader
+  - AutoMark assigns no markers when AutoMark is disabled
+  - AutoMark skips protected raid marker API when runtime disallows markers
   - AutoMark skips units already correctly marked
 
 ### RULE-ROSTER-RAID-NOTICE

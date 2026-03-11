@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-03-11 - Version 0.9.72
+- **Auto-Mark Hotfix:**
+  - Removed the forbidden direct `SetRaidTarget()` runtime path that triggered `ADDON_ACTION_FORBIDDEN` in retail.
+  - Added an explicit runtime capability gate so Auto-Mark only touches raid-marker APIs when that API path is deliberately allowed; the default retail runtime now skips all marker API calls instead of tainting.
+  - Kept the anti-spam behavior intact for explicitly allowed marker runtimes by still skipping units that already have the correct marker.
+- **Rules + Validation Sync:**
+  - Updated `RULES_LOGIC.md` rule `39` to the machine-checkable contract: markers require both the user toggle and an explicitly allowed marker API runtime; without that allowance, no marker API calls may occur.
+  - Added deterministic coverage for the protected-API guard in `isilive_test_scenarios_group.lua`.
+  - `tools/validate_usecases.lua` now validates `245` deterministic scenarios across `26` modules.
+- **Docs Sync:**
+  - Synced `CHANGELOG.md`, `README.md`, `RELEASE.md`, `ARCHITECTURE.md`, and `USECASES.md` to `0.9.72`.
+
 ## 2026-03-11 - Version 0.9.71
 - **Runtime Hardening:**
   - Rolled the finalized `0.9.70` fix set forward into the next stable release after the archived accidental `0.9.70` package/tag.
