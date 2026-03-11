@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local Queue = {}
 addonTable.Queue = Queue
+local unpack = unpack or rawget(table, "unpack")
 
 local function IsSecretValue(value)
   return _G.issecretvalue and _G.issecretvalue(value) == true
@@ -295,7 +296,7 @@ local function GetApplicationInfoSafe(appID)
   if not results[1] then
     return
   end
-  return table.unpack(results, 2)
+  return unpack(results, 2)
 end
 
 local function ResolveActivityIDFromSearchResultID(searchResultID, resolveTeleportSpellIDByActivityID)

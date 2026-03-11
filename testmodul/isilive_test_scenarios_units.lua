@@ -32,7 +32,6 @@ return function(test, ctx)
     end)
 
     test.it("Units GetUnitNameAndRealm returns nil for non-existing unit", function()
-      local unitNameCalled = false
       WithGlobals({
         UnitExists = function(u)
           return u == "player"
@@ -41,7 +40,6 @@ return function(test, ctx)
           return "TestName", "TestRealm"
         end,
         UnitName = function(_u)
-          unitNameCalled = true
           return "TestName"
         end,
         GetRealmName = function()
