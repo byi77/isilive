@@ -10,16 +10,10 @@ return function(test, ctx)
           return u == "player" -- "party1" exists not
         end,
         UnitGroupRolesAssigned = function(_u)
-          return "NONE" -- Return NONE so we test the fallback or empty state
+          return "DAMAGER"
         end,
         UnitIsUnit = function(a, b)
           return a == b
-        end,
-        GetSpecialization = function()
-          return nil -- Simulate no spec role available
-        end,
-        GetSpecializationRole = function()
-          return nil
         end,
       }, function()
         local addon = LoadAddonModules({ "isiLive_units.lua" })
