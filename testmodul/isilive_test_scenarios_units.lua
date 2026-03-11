@@ -21,7 +21,7 @@ return function(test, ctx)
 
         -- Case 1: Unit exists
         local roleExisting = Units.GetUnitRole("player")
-        Assert.Equal(roleExisting, "NONE", "fallback for player without spec role should be NONE")
+        Assert.Equal(roleExisting, "DAMAGER", "existing unit should keep its assigned group role")
 
         -- Case 2: Unit does not exist (simulating race condition)
         -- If UnitGroupRolesAssigned was called, it might return something or crash,
