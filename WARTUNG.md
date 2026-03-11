@@ -25,6 +25,7 @@ Arbeite immer in dieser Reihenfolge:
    - aktueller Produkt- und Verhaltensstand fuer Nutzer
 8. `RELEASE.md` lesen:
    - offizieller Release-Ablauf und Freigabe-Gates
+   - Release-Tag erst nach gruenem `Lua Check` auf `main`
 9. `USECASES.md` lesen:
    - deterministische Laufzeit- und Validierungsbasis
 10. `ARCHITECTURE.md` lesen:
@@ -50,6 +51,7 @@ lua tools/validate_usecases.lua
 ```
 
 Wenn das nicht gruen ist, nicht "kurz weiterbauen".
+Vor jedem Release-Tag gilt zusaetzlich: erst `main` pushen, dann den gruenen `Lua Check` fuer genau diesen Commit abwarten.
 
 ## 3) Die Stellen, die nach WoW-Patches zuerst brechen koennen
 
@@ -188,6 +190,7 @@ Pflicht nachziehen je nach Aenderung:
 Wichtig:
 - `RULES_LOGIC.md` ist append-only
 - bei neuen aktiven Regeln immer Testnamen im selben Change ergaenzen
+- ein geloeschter Git-Tag loescht kein bereits erzeugtes CurseForge-Paket; das muss dort separat archiviert/entfernt werden
 
 ## 6) Wenn die Season gewechselt oder Dungeon-Daten angefasst wurden
 
@@ -206,6 +209,7 @@ Datei:
 
 Aktueller Stand:
 - Hardcut geplant nach `v0.9.70`
+- der erste `0.9.70`-Releaseversuch wurde archiviert; vor dem naechsten echten Stable-Tag den Rename-Plan nochmal gegen den realen Release-Stand pruefen
 
 Dann zusaetzlich pruefen:
 - Addon-Ordner

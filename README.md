@@ -77,9 +77,9 @@ Current documented baseline: `0.9.70`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`, while explicit local refresh triggers and visibility-bound snapshots keep `KEY/STATS` current.
 
-## Use Case / Logic Baseline (v0.9.69)
+## Use Case / Logic Baseline (v0.9.70)
 
-Documented on `2026-03-10` as runtime behavior baseline (v0.9.70) for validation checks.
+Documented on `2026-03-11` as runtime behavior baseline (`0.9.70`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -225,7 +225,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 242 scenarios across 26 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/units/ui/roster-display), including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 244 scenarios across 26 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/units/ui/roster-display), including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
@@ -307,10 +307,10 @@ Then `pre-commit` will run:
 ## CurseForge Auto Publish
 
 Stable release:
-- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_0.9.68`.
+- `release.yml` triggers CurseForge's official auto-packager only for tags like `isiLive_release_X.Y.Z`.
 
 Pre-release:
-- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_0.9.68` or `isiLive_beta_0.9.68`.
+- `pre-release.yml` triggers CurseForge packaging for tags like `isiLive_alpha_X.Y.Z` or `isiLive_beta_X.Y.Z`.
 - Stable workflow is isolated and will not trigger on alpha/beta tags.
 
 Required GitHub settings (repo `Settings -> Secrets and variables -> Actions`):
@@ -322,9 +322,13 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.70 && git push origin isiLive_release_0.9.70`
-4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.70 && git push origin isiLive_alpha_0.9.70`
-   - beta: `git tag isiLive_beta_0.9.70 && git push origin isiLive_beta_0.9.70`
+3. Wait until the `Lua Check` workflow is green for that exact `main` commit
+4. Create and push stable tag: `git tag isiLive_release_X.Y.Z && git push origin isiLive_release_X.Y.Z`
+5. Optional pre-release tags:
+   - alpha: `git tag isiLive_alpha_X.Y.Z && git push origin isiLive_alpha_X.Y.Z`
+   - beta: `git tag isiLive_beta_X.Y.Z && git push origin isiLive_beta_X.Y.Z`
 
-Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.
+Notes:
+- Deleting a release tag does not delete an already-created CurseForge file; archive/remove that artifact separately on CurseForge if a release fired accidentally.
+- The mistaken `isiLive_release_0.9.70` package had to be archived manually after tag cleanup; keep Git cleanup and CurseForge cleanup as two separate steps.
+- This avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

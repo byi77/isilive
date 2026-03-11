@@ -24,7 +24,10 @@
   - `isiLive_stats.lua` Argumentreihenfolge fixen
   - Code Review Robustness (pcall, UnitExists) umsetzen
   - `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md` und `RELEASE.md` auf 0.9.70 synchronisieren
-- [ ] `v0.9.70` veroeffentlichen
+- [ ] `v0.9.70` neu veroeffentlichen
+  - erster Release-Tag wurde wieder geloescht
+  - zugehoeriges CurseForge-Paket wurde archiviert
+  - neuer Stable-Tag erst nach gruenem `Lua Check` auf `main`
   - Ingame Smoketest
   - Kurz-Smoketest vor Release:
     - UI oeffnen/schliessen
@@ -60,6 +63,7 @@
 - [x] Nach `v0.9.67`: Tooltip-Doku/Runbooks wieder auf denselben Stand ziehen
 - [x] Nach `v0.9.68`: DPS-Retry-Doku/Runbooks wieder auf denselben Stand ziehen
 - [x] Release-Text fuer CurseForge / GitHub kurz pruefen, damit die neue passive CVar-Logik klar beschrieben ist
+- [x] Nach archiviertem `v0.9.70`-Fehlrelease: Release-Dokus/Runbooks auf Tag-delete + CurseForge-Archiv-Flow haerten
 
 ## Geparkt / Nicht aktiv
 

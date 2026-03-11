@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-03-11 - Release Follow-up / Docs Sync
+- **Release Cleanup:**
+  - Deleted the accidental stable tag `isiLive_release_0.9.70` from Git after it had triggered the release workflow too early.
+  - Archived the corresponding CurseForge `0.9.70` package so the mistaken artifact no longer remains part of the active stable line.
+- **Release Runbook Hardening:**
+  - Documented the mandatory order `push main -> wait for green Lua Check on the exact commit -> create release tag`.
+  - Documented rollback handling for accidental release tags and clarified that deleting a Git tag does not remove an already-created CurseForge artifact.
+- **Docs Consistency:**
+  - Synced `CHANGELOG.md`, `README.md`, `RELEASE.md`, `TODO.md`, `WARTUNG.md`, `ARCHITECTURE.md`, and `USECASES.md` after the archived `0.9.70` release incident.
+  - Updated deterministic validation references to `244` scenarios across `26` modules and removed a leftover conflict marker from `ARCHITECTURE.md`.
+
 ## 2026-03-10 - Version 0.9.70
 - **Code Review & Robustness:**
   - **Defensive API Calls:** Applied `pcall` protection to critical WoW API interactions in `isiLive_queue.lua`, `isiLive_spell_utils.lua`, `isiLive_units.lua`, `isiLive_inspect.lua`, `isiLive_status.lua`, and `isiLive_controller_wiring.lua` to prevent Lua errors during transient API failures or race conditions.
