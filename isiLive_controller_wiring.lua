@@ -217,7 +217,9 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     RequireFunction(callbacks.checkIfEnteredTargetDungeon, "callbacks.checkIfEnteredTargetDungeon")
   config.timerAfter = function(seconds, callback)
     if C_Timer and C_Timer.After then
-      C_Timer.After(seconds, callback)
+      C_Timer.After(seconds, function()
+        pcall(callback)
+      end)
     end
   end
   config.getPendingBindingApply = RequireFunction(state.getPendingBindingApply, "state.getPendingBindingApply")

@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-03-10 - Version 0.9.70
+- **Code Review & Robustness:**
+  - **Defensive API Calls:** Applied `pcall` protection to critical WoW API interactions in `isiLive_queue.lua`, `isiLive_spell_utils.lua`, `isiLive_units.lua`, `isiLive_inspect.lua`, `isiLive_status.lua`, and `isiLive_controller_wiring.lua` to prevent Lua errors during transient API failures or race conditions.
+  - **Unit Safety:** Added explicit `UnitExists` checks in `isiLive_units.lua` loops to handle group member transitions more gracefully.
+  - **Damage Meter API:** Corrected the argument order for `C_DamageMeter.GetCombatSessionFromType` in `isiLive_stats.lua` to ensure reliable session retrieval.
+  - **Inspect Stability:** Hardened `IsUnitInspectable` in the inspect loop against potential API errors.
+- **Test Coverage:**
+  - Added a new deterministic test module `isiLive_test_scenarios_roster_display.lua` covering roster value formatting, truncation rules, and key display logic.
+  - Added robustness scenarios for API error handling in the inspect controller.
+  - Added a new deterministic test module `isilive_test_scenarios_units.lua` to validate `UnitExists` guards.
+  - Consolidated all `Roster.BuildDisplayData` unit tests into `isilive_test_scenarios_roster_display.lua` to resolve duplicate test names.
+  - Deterministic validator coverage is now `242` scenarios across `26` modules.
+- **Validation + Docs Sync:**
+  - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `RELEASE.md` to `0.9.70`.
+
 ## 2026-03-10 - Version 0.9.69
 - **Raid Notice in Roster Panel:**
   - Integrated the raid notice directly into the Roster Panel UI. When the group size exceeds 5 members, the roster rows are hidden and a localized "Raid warning" is displayed in the center of the roster area.

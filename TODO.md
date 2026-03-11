@@ -20,13 +20,19 @@
   - `README.md` / `ARCHITECTURE.md` / `USECASES.md` / `RELEASE.md` auf `0.9.68` Beispiele, Baselines und Validator-Zaehler synchronisieren
 - [ ] `v0.9.68` veroeffentlichen
   - Ingame querpruefen, dass spaet veroeffentlichte Blizzard-Damage-Meter-Sessions die DPS-Spalte nach Key-Ende/M0-Exit noch fuellen
-- [ ] Kurz-Smoketest vor Release:
-  - UI oeffnen/schliessen
-  - Checkboxen fuer `advancedCombatLogging` / `damageMeterResetOnNewInstance`
-  - Blizzard-UI-Aenderung pruefen und kontrollieren, dass `isiLive` nur spiegelt
-  - Group join / key start / key end / queue target / teleport button
-  - Demo-Refresh
-  - `M0` betreten/verlassen mit frueh leavenden Gruppenmitgliedern
+- [x] `v0.9.70` vorbereiten:
+  - `isiLive_stats.lua` Argumentreihenfolge fixen
+  - Code Review Robustness (pcall, UnitExists) umsetzen
+  - `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md` und `RELEASE.md` auf 0.9.70 synchronisieren
+- [ ] `v0.9.70` veroeffentlichen
+  - Ingame Smoketest
+  - Kurz-Smoketest vor Release:
+    - UI oeffnen/schliessen
+    - Checkboxen fuer `advancedCombatLogging` / `damageMeterResetOnNewInstance`
+    - Blizzard-UI-Aenderung pruefen und kontrollieren, dass `isiLive` nur spiegelt
+    - Group join / key start / key end / queue target / teleport button
+    - Demo-Refresh
+    - `M0` betreten/verlassen mit frueh leavenden Gruppenmitgliedern
 
 ## P1 - Quality Gates
 
@@ -43,7 +49,7 @@
   - neue MapIDs recherchieren
   - neue Teleport-Spells recherchieren
   - Alias-/Resolver-Daten anpassen, sobald Blizzard-Daten feststehen
-- [ ] Blizzard Damage Meter API nach Patches revalidieren:
+- [x] Blizzard Damage Meter API nach Patches revalidieren:
   - belastbar pruefen, ob `C_DamageMeter`-Lesepfade im Live-Client unveraendert verfuegbar sind
   - `overall/current` Session-Aufloesung und `combatSources` querpruefen
   - pruefen, ob `amountPerSecond`, `totalAmount` und `durationSeconds` weiterhin stabil geliefert werden
@@ -53,7 +59,7 @@
 - [x] Nach `v0.9.65`: `TODO.md`, `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md` und `WARTUNG.md` wieder auf denselben Stand ziehen
 - [x] Nach `v0.9.67`: Tooltip-Doku/Runbooks wieder auf denselben Stand ziehen
 - [x] Nach `v0.9.68`: DPS-Retry-Doku/Runbooks wieder auf denselben Stand ziehen
-- [ ] Release-Text fuer CurseForge / GitHub kurz pruefen, damit die neue passive CVar-Logik klar beschrieben ist
+- [x] Release-Text fuer CurseForge / GitHub kurz pruefen, damit die neue passive CVar-Logik klar beschrieben ist
 
 ## Geparkt / Nicht aktiv
 

@@ -159,6 +159,12 @@ local function CollectDeterministicTests(scenarioFiles)
         if not testName then
           testName = line:match("^%s*test%(%s*'(.-)'%s*,")
         end
+        if not testName then
+          testName = line:match('^%s*test%.it%(%s*"(.-)"%s*,')
+        end
+        if not testName then
+          testName = line:match("^%s*test%.it%(%s*'(.-)'%s*,")
+        end
         if testName and testName ~= "" then
           if testsByName[testName] then
             table.insert(

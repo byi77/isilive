@@ -13,8 +13,32 @@ local ArchitectureRulesValidator = Loader.LoadModule("tools/rules_logic_validato
 local scenarioFiles = Loader.LoadModule("tools/usecase_scenarios.lua")
 
 local runner = Harness.NewRunner()
-local function test(name, fn)
-  runner.Test(name, fn)
+local currentBeforeEach = nil
+local test = {}
+setmetatable(test, {
+  __call = function(_, name, fn)
+    runner.Test(name, fn)
+  end,
+})
+
+function test.describe(_name, fn)
+  local parentBeforeEach = currentBeforeEach
+  fn()
+  currentBeforeEach = parentBeforeEach
+end
+
+function test.before_each(fn)
+  currentBeforeEach = fn
+end
+
+function test.it(name, fn)
+  local setup = currentBeforeEach
+  runner.Test(name, function()
+    if setup then
+      setup()
+    end
+    fn()
+  end)
 end
 
 if type(RulesLogicValidator) ~= "table" or type(RulesLogicValidator.Run) ~= "function" then

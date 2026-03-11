@@ -65,12 +65,14 @@ function SpellUtils.IsSpellKnownSafe(spellID)
   end
 
   if C_SpellBook and C_SpellBook.IsSpellKnownOrOverridesKnown then
-    if C_SpellBook.IsSpellKnownOrOverridesKnown(spellID) == true then
+    local ok, known = pcall(C_SpellBook.IsSpellKnownOrOverridesKnown, spellID)
+    if ok and known == true then
       return true
     end
   end
   if C_SpellBook and C_SpellBook.IsSpellKnown then
-    if C_SpellBook.IsSpellKnown(spellID) == true then
+    local ok, known = pcall(C_SpellBook.IsSpellKnown, spellID)
+    if ok and known == true then
       return true
     end
   end

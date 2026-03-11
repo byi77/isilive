@@ -149,7 +149,9 @@ local function MaybeShowNonMythicDungeonEntryNotice(state, deps)
     end
 
     if C_Timer and C_Timer.After then
-      C_Timer.After(3, ConfirmAndShowNotice)
+      C_Timer.After(3, function()
+        pcall(ConfirmAndShowNotice)
+      end)
     else
       ConfirmAndShowNotice()
     end

@@ -287,6 +287,17 @@ local function GetSearchResultInfoSafe(searchResultID)
   return info
 end
 
+local function GetApplicationInfoSafe(appID)
+  if not (C_LFGList and C_LFGList.GetApplicationInfo) then
+    return
+  end
+  local results = { pcall(C_LFGList.GetApplicationInfo, appID) }
+  if not results[1] then
+    return
+  end
+  return table.unpack(results, 2)
+end
+
 local function ResolveActivityIDFromSearchResultID(searchResultID, resolveTeleportSpellIDByActivityID)
   local searchResultInfo = GetSearchResultInfoSafe(searchResultID)
   if not searchResultInfo then
@@ -520,46 +531,51 @@ function Queue.CaptureQueueJoinFromApplications(updatePendingQueueJoin, resolveT
   DebugLog("applications: count=%d", #appIDs)
 
   for _, appID in ipairs(appIDs) do
-    local values = { C_LFGList.GetApplicationInfo(appID) }
-    local snap = ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivityID, {
-      defaultApplicationID = appID,
-    })
-    local status = tostring(values[2])
-    local pending = tostring(values[3])
-    DebugLog(
-      "app id=%s status=%s pending=%s invite=%s accepted=%s group=%s activity=%s stableID=%s",
-      tostring(appID),
-      status,
-      pending,
-      tostring(snap.isInviteLike),
-      tostring(snap.isAccepted),
-      tostring(snap.groupName),
-      tostring(snap.activityID),
-      tostring(snap.stableQueueEventID)
-    )
+    local values = { GetApplicationInfoSafe(appID) }
+    if #values == 0 then
+      DebugLog("skip application info failure id=%s", tostring(appID))
+    else
+      local snap = ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivityID, {
+        defaultApplicationID = appID,
+      })
 
-    if snap.isInviteLike and not snap.pendingStatus then
-      local dungeonName = Queue.GetActivityName(snap.activityID)
-      local priority = snap.isAccepted and 2 or 1
-      local signature = table.concat({
+      local status = tostring(values[2])
+      local pending = tostring(values[3])
+      DebugLog(
+        "app id=%s status=%s pending=%s invite=%s accepted=%s group=%s activity=%s stableID=%s",
         tostring(appID),
-        tostring(snap.stableQueueEventID),
+        status,
+        pending,
+        tostring(snap.isInviteLike),
         tostring(snap.isAccepted),
-        tostring(priority),
         tostring(snap.groupName),
         tostring(snap.activityID),
-      }, "|")
-      local skipApply = ShouldSkipDuplicateApply(signature)
-      if skipApply then
-        DebugLog("skip duplicate apply app id=%s", tostring(appID))
-      else
-        DebugLog("apply app id=%s priority=%s dungeon=%s", tostring(appID), tostring(priority), tostring(dungeonName))
-        updatePendingQueueJoin(snap.groupName, dungeonName, priority, snap.activityID, {
-          stableQueueEventID = snap.stableQueueEventID,
-          applicationID = snap.applicationID,
-          searchResultID = snap.searchResultID,
-          listingID = snap.listingID,
-        })
+        tostring(snap.stableQueueEventID)
+      )
+
+      if snap.isInviteLike and not snap.pendingStatus then
+        local dungeonName = Queue.GetActivityName(snap.activityID)
+        local priority = snap.isAccepted and 2 or 1
+        local signature = table.concat({
+          tostring(appID),
+          tostring(snap.stableQueueEventID),
+          tostring(snap.isAccepted),
+          tostring(priority),
+          tostring(snap.groupName),
+          tostring(snap.activityID),
+        }, "|")
+        local skipApply = ShouldSkipDuplicateApply(signature)
+        if skipApply then
+          DebugLog("skip duplicate apply app id=%s", tostring(appID))
+        else
+          DebugLog("apply app id=%s priority=%s dungeon=%s", tostring(appID), tostring(priority), tostring(dungeonName))
+          updatePendingQueueJoin(snap.groupName, dungeonName, priority, snap.activityID, {
+            stableQueueEventID = snap.stableQueueEventID,
+            applicationID = snap.applicationID,
+            searchResultID = snap.searchResultID,
+            listingID = snap.listingID,
+          })
+        end
       end
     end
   end

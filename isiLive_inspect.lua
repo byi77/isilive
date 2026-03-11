@@ -156,7 +156,18 @@ local function OnInspectTimeout(controller, now)
 end
 
 local function IsUnitInspectable(unit)
-  return UnitIsVisible(unit) and CanInspect(unit)
+  if not unit then
+    return false
+  end
+  local okVisible, isVisible = pcall(UnitIsVisible, unit)
+  if not okVisible or not isVisible then
+    return false
+  end
+  local okCanInspect, canInspect = pcall(CanInspect, unit)
+  if not okCanInspect or not canInspect then
+    return false
+  end
+  return true
 end
 
 local function TryDispatchInspect(controller, now)

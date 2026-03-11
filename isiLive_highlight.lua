@@ -63,13 +63,12 @@ local function GetNormalizedActiveEntryInfo()
       entry.activityID = r2
     end
 
-    local tupleName = nil
-    if type(r5) == "string" and r5 ~= "" then
-      tupleName = r5
-    elseif type(r6) == "string" and r6 ~= "" then
-      tupleName = r6
-    elseif type(r7) == "string" and r7 ~= "" then
-      tupleName = r7
+    local tupleName
+    for _, nameCandidate in ipairs({ r5, r6, r7 }) do
+      if type(nameCandidate) == "string" and nameCandidate ~= "" then
+        tupleName = nameCandidate
+        break
+      end
     end
 
     if tupleName then

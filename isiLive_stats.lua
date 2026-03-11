@@ -82,9 +82,9 @@ local function GetCombatSessionFromTypeSafe(api, sessionType, damageMeterType)
     return nil
   end
 
-  -- Parameterreihenfolge: WoW-Doku ggf. prüfen (damageMeterType vs. sessionType).
-  -- Derzeit harmlos da beide Konstanten den Wert 0 haben.
-  local ok, session = pcall(api.GetCombatSessionFromType, sessionType, damageMeterType)
+  -- Parameterreihenfolge: (damageMeterType, sessionType)
+  -- 0=Damage/0=Overall; 0=Damage/1=Current
+  local ok, session = pcall(api.GetCombatSessionFromType, damageMeterType, sessionType)
   if not ok or type(session) ~= "table" then
     return nil
   end

@@ -198,6 +198,37 @@ local function RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddo
   end)
 end
 
+local function RegisterInspectRobustnessTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Inspect OnUpdate handles UnitIsVisible errors gracefully by requeueing unit", function()
+    WithGlobals({
+      GetTime = function()
+        return 100
+      end,
+      UnitIsVisible = function(_unit)
+        error("simulated api error")
+      end,
+      CanInspect = function(_unit)
+        return true
+      end,
+      NotifyInspect = function(_unit) end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+      local controller = addon.Inspect.CreateController({
+        inspectDelay = 0,
+        retryInterval = 5,
+      })
+
+      table.insert(controller.inspectQueue, "party1")
+
+      controller.OnUpdate()
+
+      Assert.Equal(#controller.inspectQueue, 0, "unit should be removed from inspect queue")
+      Assert.Equal(#controller.retryQueue, 1, "unit should be moved to retry queue on error")
+      Assert.Equal(controller.retryQueue[1].unit, "party1", "retry entry should be the problematic unit")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -205,4 +236,5 @@ return function(test, ctx)
 
   RegisterInspectRetryTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterInspectRobustnessTests(test, Assert, WithGlobals, LoadAddonModules)
 end

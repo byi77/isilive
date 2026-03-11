@@ -82,9 +82,11 @@ function Roster.HasFullSync(roster)
   local totalMembers = 0
   local syncedMembers = 0
   for _, info in pairs(roster or {}) do
-    totalMembers = totalMembers + 1
-    if info.hasIsiLive then
-      syncedMembers = syncedMembers + 1
+    if not info.isGhost then
+      totalMembers = totalMembers + 1
+      if info.hasIsiLive then
+        syncedMembers = syncedMembers + 1
+      end
     end
   end
   return totalMembers >= 2 and syncedMembers == totalMembers
@@ -126,11 +128,8 @@ function Roster.BuildDisplayData(info, opts)
     displayName = truncateName(displayName, 12)
   end
 
-  local languageText = info.language or "??"
-  local languageShort = tostring(languageText):upper():sub(1, 2)
-  if not languageShort or #languageShort < 2 then
-    languageShort = "??"
-  end
+  local lang = tostring(info.language or "")
+  local languageShort = #lang >= 2 and lang:upper():sub(1, 2) or "??"
   local flagMarkup = getLanguageFlagMarkup and getLanguageFlagMarkup(languageShort) or "|cffbfbfbf??|r"
   local languageDisplay = flagMarkup
 

@@ -93,6 +93,10 @@ local function NormalizeSpecKey(text)
 end
 
 function Units.GetUnitRole(unit)
+  if not unit or not UnitExists(unit) then
+    return "NONE"
+  end
+
   local role = UnitGroupRolesAssigned(unit)
   if role == "TANK" or role == "HEALER" or role == "DAMAGER" then
     return role
@@ -134,6 +138,10 @@ function Units.TruncateName(name, maxChars)
 end
 
 function Units.GetUnitNameAndRealm(unit)
+  if not unit or not UnitExists(unit) then
+    return nil, nil
+  end
+
   local name, realm = UnitFullName(unit)
   if not name then
     name = UnitName(unit)
@@ -160,12 +168,17 @@ function Units.GetInspectSpecName(unit)
   if not unit or not GetInspectSpecialization or not GetSpecializationInfoByID then
     return nil
   end
-  local specID = GetInspectSpecialization(unit)
-  if not specID or specID <= 0 then
+
+  local okSpec, specID = pcall(GetInspectSpecialization, unit)
+  if not okSpec or not specID or specID <= 0 then
     return nil
   end
-  local _, specName = GetSpecializationInfoByID(specID)
-  return specName
+
+  local okName, _, specName = pcall(GetSpecializationInfoByID, specID)
+  if okName and type(specName) == "string" and specName ~= "" then
+    return specName
+  end
+  return nil
 end
 
 function Units.GetShortSpecLabel(specName)

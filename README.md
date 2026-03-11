@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.69`.
+Current documented baseline: `0.9.70`.
 
 ## Features
 
@@ -79,7 +79,7 @@ Current documented baseline: `0.9.69`.
 
 ## Use Case / Logic Baseline (v0.9.69)
 
-Documented on `2026-03-10` as runtime behavior baseline for validation checks.
+Documented on `2026-03-10` as runtime behavior baseline (v0.9.70) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -225,7 +225,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-`tools/validate_usecases.lua` runs both rule validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 232 scenarios across 24 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/ui), including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 242 scenarios across 26 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/units/ui/roster-display), including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
@@ -322,9 +322,9 @@ Release flow:
 
 1. Bump version in `isiLive.toc` and update `CHANGELOG.md`
 2. Commit + push to `main`
-3. Create and push stable tag: `git tag isiLive_release_0.9.68 && git push origin isiLive_release_0.9.68`
+3. Create and push stable tag: `git tag isiLive_release_0.9.70 && git push origin isiLive_release_0.9.70`
 4. Optional pre-release tags:
-   - alpha: `git tag isiLive_alpha_0.9.68 && git push origin isiLive_alpha_0.9.68`
-   - beta: `git tag isiLive_beta_0.9.68 && git push origin isiLive_beta_0.9.68`
+   - alpha: `git tag isiLive_alpha_0.9.70 && git push origin isiLive_alpha_0.9.70`
+   - beta: `git tag isiLive_beta_0.9.70 && git push origin isiLive_beta_0.9.70`
 
 Note: this avoids the legacy `wow.curseforge.com/api/game/versions` lookup used by older packaging flows.

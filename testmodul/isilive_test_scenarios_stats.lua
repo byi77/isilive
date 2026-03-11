@@ -221,7 +221,7 @@ local function RegisterStatsDamageMeterTests(test, Assert, WithGlobals, LoadAddo
         return "MyRealm"
       end,
       C_DamageMeter = {
-        GetCombatSessionFromType = function(sessionType, _damageType)
+        GetCombatSessionFromType = function(_damageType, sessionType)
           table.insert(requestedSessionTypes, sessionType)
           if sessionType == 0 then
             return nil

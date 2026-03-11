@@ -1,4 +1,4 @@
-﻿﻿﻿# Regellogik
+﻿﻿﻿﻿﻿# Regellogik
 
 Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im Gate geprueft werden.
 
@@ -61,6 +61,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 38. `WARTUNG.md` muss die verpflichtende wartungskette fuer den wiedereinstieg nennen: `CHANGELOG.md`, `TODO.md`, `TODO_RENAME.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `AGENTS.md`, `README.md`, `RELEASE.md`, `USECASES.md`, `ARCHITECTURE.md`.
 39. Automatisches Markieren von Tank und Heiler in 5-Mann-Gruppen (Tank=Blau, Heiler=Gruen) ist fuer alle Gruppenmitglieder aktiv und verfuegt ueber einen Anti-Spam Check.
 40. Bei Gruppengroessen > 5 (Raid) wird im Roster-Panel ein persistenter Hinweis angezeigt und die Gruppenmitglieder-Zeilen werden ausgeblendet.
+41. API-Aufrufe mit Unit-Tokens muessen `UnitExists` pruefen, bevor sie aufgerufen werden, um Race-Conditions bei Gruppenaenderungen abzufangen.
 
 ## Regelbloecke
 
@@ -364,7 +365,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Roster display truncates spec labels to six characters
   - Roster display shows flag only without language letters
   - Roster display clamps key short code to four letters
-  - Roster display never shows numeric map ids as key short code
+  - Roster display falls back to '?' for numeric-only key short codes
 
 ### RULE-WARTUNGSDATEI-NICHT-IM-PAKET
 - Regelnummer: 37
@@ -403,3 +404,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Bei Gruppengroessen > 5 (Raid) wird im Roster-Panel ein persistenter Hinweis angezeigt und die Gruppenmitglieder-Zeilen werden ausgeblendet.
 - Erforderliche Tests:
   - Raid group hides frame and prints notification
+
+### RULE-UNIT-EXISTS-GUARD
+- Regelnummer: 41
+- Status: aktiv
+- Zusammenfassung: API-Aufrufe mit Unit-Tokens muessen `UnitExists` pruefen, bevor sie aufgerufen werden, um Race-Conditions bei Gruppenaenderungen abzufangen.
+- Erforderliche Tests:
+  - Units GetUnitRole returns NONE for non-existing unit
+  - Units GetUnitNameAndRealm returns nil for non-existing unit
