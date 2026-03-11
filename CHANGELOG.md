@@ -1,15 +1,23 @@
 # Changelog
 
-## 2026-03-11 - Release Follow-up / Docs Sync
-- **Release Cleanup:**
-  - Deleted the accidental stable tag `isiLive_release_0.9.70` from Git after it had triggered the release workflow too early.
-  - Archived the corresponding CurseForge `0.9.70` package so the mistaken artifact no longer remains part of the active stable line.
-- **Release Runbook Hardening:**
+## 2026-03-11 - Version 0.9.71
+- **Runtime Hardening:**
+  - Rolled the finalized `0.9.70` fix set forward into the next stable release after the archived accidental `0.9.70` package/tag.
+  - Applied `pcall` protection to critical WoW API interactions in `isiLive_queue.lua`, `isiLive_spell_utils.lua`, `isiLive_units.lua`, `isiLive_inspect.lua`, `isiLive_status.lua`, and `isiLive_controller_wiring.lua` to prevent Lua errors during transient API failures or race conditions.
+  - Added explicit `UnitExists` guards before unit-token API calls in `isiLive_units.lua` to handle group-member transitions more safely.
+  - Corrected the argument order for `C_DamageMeter.GetCombatSessionFromType` in `isiLive_stats.lua` and hardened `IsUnitInspectable` in the inspect loop against API faults.
+- **Tests + Validation:**
+  - Added deterministic test coverage in `isiLive_test_scenarios_roster_display.lua` for roster value formatting, truncation rules, and key display logic.
+  - Added deterministic `UnitExists` guard coverage in `isiLive_test_scenarios_units.lua` and inspect robustness scenarios for API error handling.
+  - Consolidated `Roster.BuildDisplayData` tests into the dedicated roster-display module to remove duplicate test names and keep validation ownership clear.
+  - `tools/validate_usecases.lua` now validates `244` deterministic scenarios across `26` modules.
+- **Release Hardening:**
+  - Deleted the accidental stable tag `isiLive_release_0.9.70` from Git and archived the corresponding CurseForge `0.9.70` artifact.
   - Documented the mandatory order `push main -> wait for green Lua Check on the exact commit -> create release tag`.
   - Documented rollback handling for accidental release tags and clarified that deleting a Git tag does not remove an already-created CurseForge artifact.
-- **Docs Consistency:**
-  - Synced `CHANGELOG.md`, `README.md`, `RELEASE.md`, `TODO.md`, `WARTUNG.md`, `ARCHITECTURE.md`, and `USECASES.md` after the archived `0.9.70` release incident.
-  - Updated deterministic validation references to `244` scenarios across `26` modules and removed a leftover conflict marker from `ARCHITECTURE.md`.
+- **Docs Sync:**
+  - Synced `CHANGELOG.md`, `README.md`, `RELEASE.md`, `TODO.md`, `WARTUNG.md`, `ARCHITECTURE.md`, and `USECASES.md` to `0.9.71`.
+  - Removed a leftover conflict marker from `ARCHITECTURE.md`.
 
 ## 2026-03-10 - Version 0.9.70
 - **Code Review & Robustness:**

@@ -24,7 +24,11 @@
   - `isiLive_stats.lua` Argumentreihenfolge fixen
   - Code Review Robustness (pcall, UnitExists) umsetzen
   - `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md` und `RELEASE.md` auf 0.9.70 synchronisieren
-- [ ] `v0.9.70` neu veroeffentlichen
+- [x] `v0.9.71` vorbereiten:
+  - Diff von `2026-03-10` auf `2026-03-11` fuer die heutigen Commits in die Release-Notes ziehen
+  - `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md` und `isiLive.toc` auf 0.9.71 synchronisieren
+  - Release-Dokus/Tasks auf den naechsten echten Stable-Stand nach dem archivierten `0.9.70`-Fehlrelease umstellen
+- [ ] `v0.9.71` veroeffentlichen
   - erster Release-Tag wurde wieder geloescht
   - zugehoeriges CurseForge-Paket wurde archiviert
   - neuer Stable-Tag erst nach gruenem `Lua Check` auf `main`
@@ -68,7 +72,7 @@
 ## Geparkt / Nicht aktiv
 
 - [x] Hard-Split `isiLive` -> `isiKeyMPlus` wurde reaktiviert und in `TODO_RENAME.md` konkret geplant
-  - Ziel: Hardcut nach `v0.9.70`
+  - Ziel: Hardcut nach `v0.9.71`
   - kein Legacy-Fallback, keine DB-Migration, kein Alt-Sync
 
 ## Bereits erledigt (wichtig als Kontext)

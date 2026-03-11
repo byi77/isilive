@@ -14,7 +14,7 @@ Arbeite immer in dieser Reihenfolge:
    - offene Nachzuegler
    - Doku-/Release-Sync
 3. `TODO_RENAME.md` lesen:
-   - Rename ist aktuell fuer `nach v0.9.70` geplant
+   - Rename ist aktuell fuer `nach v0.9.71` geplant
 4. `RULES_LOGIC.md` lesen:
    - aktive Regeln sind harte Runtime-Vertraege
 5. `ARCHITECTURE_RULES.md` lesen:
@@ -208,8 +208,8 @@ Datei:
 - `TODO_RENAME.md`
 
 Aktueller Stand:
-- Hardcut geplant nach `v0.9.70`
-- der erste `0.9.70`-Releaseversuch wurde archiviert; vor dem naechsten echten Stable-Tag den Rename-Plan nochmal gegen den realen Release-Stand pruefen
+- Hardcut geplant nach `v0.9.71`
+- der erste `0.9.70`-Releaseversuch wurde archiviert; vor dem naechsten echten Stable-Tag `0.9.71` den Rename-Plan nochmal gegen den realen Release-Stand pruefen
 
 Dann zusaetzlich pruefen:
 - Addon-Ordner
