@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.72`.
+Current documented baseline: `0.9.73`.
 
 ## Features
 
@@ -57,6 +57,7 @@ Current documented baseline: `0.9.72`.
 - Roster control buttons, teleport grid buttons, and center-notice teleport hover also use isolated `isiLive` tooltip frames instead of the shared Blizzard `GameTooltip`
 - Teleport grid buttons inherit main-frame strata/level to avoid overlay conflicts with external UI panels
 - Ghost members: players leaving the group remain visible (greyed out) across slot shifts and even after party leave/disband; ghost rows are pruned deterministically on rejoin, fresh group join, full-group rebuild, or reload.
+- Offline group members are also rendered grey in the roster until they reconnect.
 - `CTRL+ALT+F9`, `/isilive test`, and `/isilive testall` now enter the same full dummy preview path, including a visible ghost/leaver row and positive dummy RIO delta preview; preview refresh rebuilds fresh dummy copies each time.
 - Smart self-update: automatically broadcasts a data snapshot (Key/Stats) when the player's own iLvl, RIO, or Spec changes.
 - Teleport action buttons are intentionally `InsecureActionButtonTemplate` so `CTRL+F9` main-frame open/close and center-notice visibility remain combat-safe
@@ -77,9 +78,9 @@ Current documented baseline: `0.9.72`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`, while explicit local refresh triggers and visibility-bound snapshots keep `KEY/STATS` current.
 
-## Use Case / Logic Baseline (v0.9.72)
+## Use Case / Logic Baseline (v0.9.73)
 
-Documented on `2026-03-11` as runtime behavior baseline (`0.9.72`) for validation checks.
+Documented on `2026-03-11` as runtime behavior baseline (`0.9.73`) for validation checks.
 
 
 1. Queue invite -> grouped flow

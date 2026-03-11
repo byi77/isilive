@@ -58,6 +58,23 @@ local function GetReadyCheckStatusSafe(unit)
   return status
 end
 
+local function IsUnitConnectedSafe(unit)
+  local unitIsConnected = _G.UnitIsConnected
+  if type(unitIsConnected) ~= "function" then
+    return true
+  end
+  if type(unit) ~= "string" or unit == "" then
+    return true
+  end
+
+  local ok, isConnected = pcall(unitIsConnected, unit)
+  if not ok then
+    return true
+  end
+
+  return isConnected ~= false
+end
+
 function Roster.BuildOrderedRoster(roster, rolePriority, unitPriority)
   local orderedRoster = {}
   for unit, info in pairs(roster or {}) do
@@ -103,8 +120,10 @@ function Roster.BuildDisplayData(info, opts)
   local syncMarker = opts.syncMarker or ""
   local isReadyCheckActive = opts.isReadyCheckActive
 
+  local isOffline = not info.isGhost and unit and not IsUnitConnectedSafe(unit)
+
   local colorHex
-  if info.isGhost then
+  if info.isGhost or isOffline then
     colorHex = "ff808080" -- Grey
   else
     local classColors = type(rawget(_G, "RAID_CLASS_COLORS")) == "table" and rawget(_G, "RAID_CLASS_COLORS") or nil
@@ -112,7 +131,7 @@ function Roster.BuildDisplayData(info, opts)
     colorHex = BuildColorHexSafe(classColor.r, classColor.g, classColor.b)
   end
 
-  if isReadyCheckActive and unit then
+  if not isOffline and not info.isGhost and isReadyCheckActive and unit then
     local status = GetReadyCheckStatusSafe(unit)
     if status == "ready" then
       colorHex = "ff00ff00" -- Green

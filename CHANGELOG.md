@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-03-11 - Version 0.9.73
+- **Roster UI:**
+  - Offline group members are now rendered in grey in the roster, matching ghost-style visual de-emphasis.
+  - Ready-check status colors no longer override the offline-grey state.
+- **Tests + Validation:**
+  - Added deterministic coverage for offline roster-member grey rendering in `isilive_test_scenarios_roster_panel.lua`.
+  - `tools/validate_usecases.lua` now validates `246` deterministic scenarios across `26` modules.
+- **Docs Sync:**
+  - Synced `CHANGELOG.md`, `README.md`, `RELEASE.md`, `ARCHITECTURE.md`, and `USECASES.md` to `0.9.73`.
+
 ## 2026-03-11 - Version 0.9.72
 - **Auto-Mark Hotfix:**
   - Removed the forbidden direct `SetRaidTarget()` runtime path that triggered `ADDON_ACTION_FORBIDDEN` in retail.

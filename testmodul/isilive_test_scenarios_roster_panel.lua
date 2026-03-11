@@ -169,6 +169,46 @@ local function RegisterRosterDisplayTests(test, Assert, WithGlobals, LoadAddonMo
     end)
   end)
 
+  test("Roster renders offline member name in grey", function()
+    local roster = {
+      party1 = {
+        name = "OfflinePlayer",
+        class = "WARRIOR",
+        role = "DAMAGER",
+      },
+    }
+
+    WithGlobals({
+      GetReadyCheckStatus = function(_unit)
+        return "ready"
+      end,
+      UnitIsConnected = function(unit)
+        return unit ~= "party1"
+      end,
+      RAID_CLASS_COLORS = {
+        WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
+      },
+      CreateColor = function(r, g, b)
+        return {
+          GenerateHexColor = function()
+            return string.format("ff%02x%02x%02x", math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+          end,
+        }
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster.lua",
+      })
+
+      local displayData = addon.Roster.BuildDisplayData(roster.party1, {
+        unit = "party1",
+        isReadyCheckActive = true,
+      })
+
+      Assert.Equal(displayData.colorHex, "ff808080", "Offline member should be rendered in grey")
+    end)
+  end)
+
   test("Roster display appends blue-heart marker for synced users", function()
     WithGlobals({
       GetReadyCheckStatus = function()
