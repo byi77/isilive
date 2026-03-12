@@ -20,6 +20,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_runtime_log.lua",
   "testmodul/isilive_test_scenarios_roster.lua",
   "testmodul/isilive_test_scenarios_roster_panel.lua",
+  "testmodul/isilive_test_scenarios_roster_panel_wrapping.lua",
   "testmodul/isilive_test_scenarios_status.lua",
   "testmodul/isilive_test_scenarios_units.lua",
   "testmodul/isilive_test_scenarios_stats.lua",
