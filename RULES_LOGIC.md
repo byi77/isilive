@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿# Regellogik
+﻿﻿﻿﻿﻿﻿﻿# Regellogik
 
 Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im Gate geprueft werden.
 
@@ -59,7 +59,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 36. roster-kurztexte bleiben kompakt und faktenbasiert: name max 12 zeichen, spec max 6 zeichen, sprache nur flagge, key-code max 4 zeichen und nie numerischer mapid-fallback.
 37. die wartungsdatei `WARTUNG.md` darf nicht im curseforge-paket landen.
 38. `WARTUNG.md` muss die verpflichtende wartungskette fuer den wiedereinstieg nennen: `CHANGELOG.md`, `TODO.md`, `TODO_RENAME.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `AGENTS.md`, `README.md`, `RELEASE.md`, `USECASES.md`, `ARCHITECTURE.md`.
-39. Auto-Mark weist Tank=Blau und Heiler=Gruen nur bei aktivierter Option und explizit erlaubter Marker-API zu; ohne Freigabe erfolgen keine Marker-API-Aufrufe und bereits passende Marker werden nicht erneut gesetzt.
+39. Die Rollensymbole im Roster-Panel sind interaktive Buttons und ermoeglichen per Klick das manuelle Markieren von Tank (Blau) und Heiler (Gruen).
 40. Bei Gruppengroessen > 5 (Raid) wird im Roster-Panel ein persistenter Hinweis angezeigt und die Gruppenmitglieder-Zeilen werden ausgeblendet.
 41. API-Aufrufe mit Unit-Tokens muessen `UnitExists` pruefen, bevor sie aufgerufen werden, um Race-Conditions bei Gruppenaenderungen abzufangen.
 
@@ -392,12 +392,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-AUTO-MARKER
 - Regelnummer: 39
 - Status: aktiv
-- Zusammenfassung: Auto-Mark weist Tank=Blau und Heiler=Gruen nur bei aktivierter Option und explizit erlaubter Marker-API zu; ohne Freigabe erfolgen keine Marker-API-Aufrufe und bereits passende Marker werden nicht erneut gesetzt.
+- Zusammenfassung: Die Rollensymbole im Roster-Panel sind interaktive Buttons und ermoeglichen per Klick das manuelle Markieren von Tank (Blau) und Heiler (Gruen).
 - Erforderliche Tests:
-  - AutoMark assigns Tank to Blue Square and Healer to Green Triangle
-  - AutoMark assigns no markers when AutoMark is disabled
-  - AutoMark skips protected raid marker API when runtime disallows markers
-  - AutoMark skips units already correctly marked
+  - Roster role icon is a secure action button
+  - Roster role icon click applies Blue Square to Tank unit
+  - Roster role icon click applies Green Triangle to Healer unit
 
 ### RULE-ROSTER-RAID-NOTICE
 - Regelnummer: 40

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-03-11 - Version 0.9.74
+- **Manual Role Markers:**
+  - Replaced the restricted "Auto-Mark" feature with interactive secure role icons in the roster.
+  - Clicking the Tank icon securely applies **Blue Square** ({rt6}).
+  - Clicking the Healer icon securely applies **Green Triangle** ({rt4}).
+  - Removed the "Auto-Mark T/H" toggle from system options; the icons are now always interactive when a role is assigned.
+- **Taint-Safe Hardening:**
+  - Added a new automated test suite (`isilive_test_scenarios_taint.lua`) to proactively prevent `ADDON_ACTION_FORBIDDEN` errors.
+  - The new "Härtetest" simulates a tainted environment and ensures that critical code paths (Group, Roster, Teleport, Bindings) do not call protected WoW APIs from insecure contexts.
+- **Docs Sync:**
+  - Synced `CHANGELOG.md`, `README.md`, `RELEASE.md`, `ARCHITECTURE.md`, `TODO.md`, and `USECASES.md` to `0.9.74`.
+
 ## 2026-03-11 - Version 0.9.73
 - **Roster UI:**
   - Offline group members are now rendered in grey in the roster, matching ghost-style visual de-emphasis.

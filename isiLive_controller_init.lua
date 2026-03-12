@@ -63,8 +63,6 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     getRoster = ctx.getRoster,
     isInGroup = ctx.isInGroup,
     isRaidGroup = ctx.isRaidGroup,
-    getAutoMarkEnabled = ctx.getAutoMarkEnabled,
-    setAutoMarkEnabled = ctx.setAutoMarkEnabled,
     rolePriority = {
       TANK = 1,
       HEALER = 2,

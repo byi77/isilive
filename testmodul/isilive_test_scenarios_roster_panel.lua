@@ -390,6 +390,7 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
     alpha = nil,
     pointY = nil,
     checked = false,
+    attributes = {},
   }
 
   function frame.SetSize() end
@@ -423,6 +424,12 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
   function frame.GetChecked(self)
     return self.checked
   end
+  function frame.SetAttribute(self, key, value)
+    self.attributes[key] = value
+  end
+  function frame.GetAttribute(self, key)
+    return self.attributes[key]
+  end
   function frame.EnableMouse() end
   function frame.Hide() end
   function frame.Show() end
@@ -433,6 +440,8 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
     return {
       SetAllPoints = function() end,
       SetColorTexture = function() end,
+      SetTexture = function() end,
+      SetTexCoord = function() end,
       Hide = function() end,
       Show = function() end,
       SetHeight = function() end,
@@ -463,6 +472,8 @@ local function NewRecordedMainFrame(createdFontStrings)
       SetHeight = function() end,
       SetPoint = function() end,
       SetColorTexture = function() end,
+      SetTexture = function() end,
+      SetTexCoord = function() end,
     }
   end
 
@@ -644,7 +655,13 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
             }
           end,
           CreateTexture = function()
-            return { SetHeight = function() end, SetPoint = function() end, SetColorTexture = function() end }
+            return {
+              SetHeight = function() end,
+              SetPoint = function() end,
+              SetColorTexture = function() end,
+              SetTexture = function() end,
+              SetTexCoord = function() end,
+            }
           end,
         },
         getL = function()
@@ -724,6 +741,8 @@ local function NewRowTooltipCreateFrameStub(createdFrames, tooltipLines, tooltip
       return {
         SetAllPoints = function() end,
         SetColorTexture = function() end,
+        SetTexture = function() end,
+        SetTexCoord = function() end,
         Hide = function() end,
         Show = function() end,
       }
@@ -815,7 +834,13 @@ local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, Wit
             }
           end,
           CreateTexture = function()
-            return { SetHeight = function() end, SetPoint = function() end, SetColorTexture = function() end }
+            return {
+              SetHeight = function() end,
+              SetPoint = function() end,
+              SetColorTexture = function() end,
+              SetTexture = function() end,
+              SetTexCoord = function() end,
+            }
           end,
         },
         getL = function()
@@ -952,7 +977,13 @@ local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, Wit
             }
           end,
           CreateTexture = function()
-            return { SetHeight = function() end, SetPoint = function() end, SetColorTexture = function() end }
+            return {
+              SetHeight = function() end,
+              SetPoint = function() end,
+              SetColorTexture = function() end,
+              SetTexture = function() end,
+              SetTexCoord = function() end,
+            }
           end,
         },
         getL = function()
@@ -1095,7 +1126,13 @@ local function RegisterRosterPanelRowTooltipMetadataTests(test, Assert, WithGlob
             }
           end,
           CreateTexture = function()
-            return { SetHeight = function() end, SetPoint = function() end, SetColorTexture = function() end }
+            return {
+              SetHeight = function() end,
+              SetPoint = function() end,
+              SetColorTexture = function() end,
+              SetTexture = function() end,
+              SetTexCoord = function() end,
+            }
           end,
         },
         getL = function()
@@ -1227,7 +1264,13 @@ local function RegisterRosterPanelRowTooltipMetadataTests(test, Assert, WithGlob
             }
           end,
           CreateTexture = function()
-            return { SetHeight = function() end, SetPoint = function() end, SetColorTexture = function() end }
+            return {
+              SetHeight = function() end,
+              SetPoint = function() end,
+              SetColorTexture = function() end,
+              SetTexture = function() end,
+              SetTexCoord = function() end,
+            }
           end,
         },
         getL = function()
@@ -1380,7 +1423,13 @@ local function RegisterRosterPanelRowTooltipIsolationTests(test, Assert, WithGlo
             }
           end,
           CreateTexture = function()
-            return { SetHeight = function() end, SetPoint = function() end, SetColorTexture = function() end }
+            return {
+              SetHeight = function() end,
+              SetPoint = function() end,
+              SetColorTexture = function() end,
+              SetTexture = function() end,
+              SetTexCoord = function() end,
+            }
           end,
         },
         getL = function()
@@ -1500,6 +1549,7 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
     WithGlobals({
       CreateFrame = function()
         local frame = {
+          attributes = {},
           SetPoint = function() end,
           SetSize = function() end,
           SetHeight = function() end,
@@ -1510,10 +1560,18 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
           SetScript = function(self, script, handler)
             self[script] = handler
           end,
+          SetAttribute = function(self, key, value)
+            self.attributes[key] = value
+          end,
+          GetAttribute = function(self, key)
+            return self.attributes[key]
+          end,
           CreateTexture = function()
             return {
               SetAllPoints = function() end,
               SetColorTexture = function() end,
+              SetTexture = function() end,
+              SetTexCoord = function() end,
               Hide = function() end,
               Show = function() end,
             }
@@ -1837,6 +1895,8 @@ local function RegisterRosterPanelSystemOptionLayoutTests(test, Assert, WithGlob
         return {
           SetAllPoints = function() end,
           SetColorTexture = function() end,
+          SetTexture = function() end,
+          SetTexCoord = function() end,
           Hide = function() end,
           Show = function() end,
           SetHeight = function() end,
@@ -1865,6 +1925,8 @@ local function RegisterRosterPanelSystemOptionLayoutTests(test, Assert, WithGlob
           SetHeight = function() end,
           SetPoint = function() end,
           SetColorTexture = function() end,
+          SetTexture = function() end,
+          SetTexCoord = function() end,
         }
       end,
     }
@@ -1887,7 +1949,6 @@ local function RegisterRosterPanelSystemOptionLayoutTests(test, Assert, WithGlob
         getL = function()
           return {
             OPT_ADVANCED_COMBAT_LOGGING = "Combat Logging",
-            OPT_AUTO_MARK = "Auto-Mark T/H",
             OPT_DAMAGE_METER_RESET = "DM Reset on Entry",
           }
         end,
@@ -1931,45 +1992,39 @@ local function RegisterRosterPanelSystemOptionLayoutTests(test, Assert, WithGlob
         end,
         rolePriority = {},
         unitPriority = {},
-        getAutoMarkEnabled = function()
-          return true
-        end,
-        setAutoMarkEnabled = function() end,
       })
 
       controller.ApplyLocalization()
 
       local combatLabel = nil
-      local autoMarkLabel = nil
+      local damageMeterResetLabel = nil
       for _, fontString in ipairs(createdFontStrings) do
         if fontString.text == "Combat Logging" then
           combatLabel = fontString
-        elseif fontString.text == "Auto-Mark T/H" then
-          autoMarkLabel = fontString
+        elseif fontString.text == "DM Reset on Entry" then
+          damageMeterResetLabel = fontString
         end
       end
 
       Assert.NotNil(combatLabel, "combat logging label should exist")
-      Assert.NotNil(autoMarkLabel, "auto-mark label should exist")
+      Assert.NotNil(damageMeterResetLabel, "damage meter reset label should exist")
 
-      local autoMarkToggle = nil
       local damageMeterResetToggle = nil
       for _, frame in ipairs(createdFrames) do
         if frame.relativeTo == combatLabel then
-          autoMarkToggle = frame
-        elseif frame.relativeTo == autoMarkLabel then
           damageMeterResetToggle = frame
         end
       end
 
-      Assert.NotNil(autoMarkToggle, "auto-mark toggle should anchor after combat logging label")
-      Assert.Equal(autoMarkToggle.point, "LEFT", "auto-mark toggle should align horizontally")
-      Assert.Equal(autoMarkToggle.relativePoint, "RIGHT", "auto-mark toggle should attach to the combat label edge")
-      Assert.Equal(autoMarkToggle.pointX, 18, "auto-mark toggle should keep a visible gap after combat logging")
-      Assert.Equal(autoMarkToggle.pointY, 0, "auto-mark toggle should stay on the same baseline")
-
-      Assert.NotNil(damageMeterResetToggle, "damage meter reset toggle should anchor after the auto-mark label")
+      Assert.NotNil(damageMeterResetToggle, "damage meter reset toggle should anchor after the combat logging label")
+      Assert.Equal(damageMeterResetToggle.point, "LEFT", "damage meter reset toggle should align horizontally")
+      Assert.Equal(
+        damageMeterResetToggle.relativePoint,
+        "RIGHT",
+        "damage meter reset toggle should attach to the combat label edge"
+      )
       Assert.Equal(damageMeterResetToggle.pointX, 18, "damage meter reset toggle should keep the same visible gap")
+      Assert.Equal(damageMeterResetToggle.pointY, 0, "damage meter reset toggle should stay on the same baseline")
     end)
   end)
 end
@@ -2183,7 +2238,7 @@ local function RegisterRosterPanelWrappingLayoutTests(test, Assert, WithGlobals,
 
       Assert.Equal(#rowFontStrings, 7, "one rendered row should create seven member text columns")
       Assert.Equal(rowFontStrings[1].width, 52, "spec column should keep compact width budget")
-      Assert.Equal(rowFontStrings[2].width, 134, "name column should keep compact width budget")
+      Assert.Equal(rowFontStrings[2].width, 118, "name column should reserve space for the role button")
       Assert.Equal(rowFontStrings[3].width, 24, "ilvl column should keep three-digit width budget")
       Assert.Equal(rowFontStrings[4].width, 56, "key column should keep four-letter short-code width budget")
       Assert.Equal(rowFontStrings[5].width, 70, "rio column should keep compact width budget")

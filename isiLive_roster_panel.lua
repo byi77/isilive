@@ -206,6 +206,10 @@ local function WriteCVarEnabled(cvarName, enabled)
   return ok
 end
 
+local function IsCombatLockdownActive()
+  return type(InCombatLockdown) == "function" and InCombatLockdown() == true
+end
+
 local function RefreshSystemOptionToggle(button)
   if type(button) ~= "table" or type(button._cvarName) ~= "string" then
     return false
@@ -266,7 +270,6 @@ local function LayoutSystemOptionToggles(ui)
   end
 
   local advancedCombatLoggingToggle = ui.advancedCombatLoggingToggle
-  local autoMarkToggle = ui.autoMarkToggle
   local damageMeterResetToggle = ui.damageMeterResetToggle
 
   if advancedCombatLoggingToggle and advancedCombatLoggingToggle.SetPoint then
@@ -280,11 +283,11 @@ local function LayoutSystemOptionToggles(ui)
     )
   end
 
-  if autoMarkToggle and autoMarkToggle.SetPoint then
-    if autoMarkToggle.ClearAllPoints then
-      autoMarkToggle:ClearAllPoints()
+  if damageMeterResetToggle and damageMeterResetToggle.SetPoint then
+    if damageMeterResetToggle.ClearAllPoints then
+      damageMeterResetToggle:ClearAllPoints()
     end
-    autoMarkToggle:SetPoint(
+    damageMeterResetToggle:SetPoint(
       "LEFT",
       advancedCombatLoggingToggle and advancedCombatLoggingToggle.label or nil,
       "RIGHT",
@@ -292,25 +295,11 @@ local function LayoutSystemOptionToggles(ui)
       0
     )
   end
-
-  if damageMeterResetToggle and damageMeterResetToggle.SetPoint then
-    if damageMeterResetToggle.ClearAllPoints then
-      damageMeterResetToggle:ClearAllPoints()
-    end
-    damageMeterResetToggle:SetPoint(
-      "LEFT",
-      autoMarkToggle and autoMarkToggle.label or nil,
-      "RIGHT",
-      SYSTEM_OPTION_TOGGLE_GAP,
-      0
-    )
-  end
 end
 
-local function CreateSystemOptionToggles(mainFrame, getAutoMarkEnabled, setAutoMarkEnabled)
+local function CreateSystemOptionToggles(mainFrame)
   local ui = {
     advancedCombatLoggingToggle = CreateSystemOptionToggle(mainFrame, "advancedCombatLogging"),
-    autoMarkToggle = CreateCustomOptionToggle(mainFrame, getAutoMarkEnabled, setAutoMarkEnabled),
     damageMeterResetToggle = CreateSystemOptionToggle(mainFrame, "damageMeterResetOnNewInstance"),
   }
 
@@ -859,6 +848,28 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
     HideRosterHoverTooltip(rosterTooltip)
   end)
 
+  row.roleButton = CreateFrame("Button", nil, mainFrame, "SecureActionButtonTemplate")
+  row.roleButton:SetSize(14, 14)
+  row.roleButton:SetPoint("TOPLEFT", NAME_COL_X, yOffset - 1)
+  row.roleButton.icon = row.roleButton:CreateTexture(nil, "ARTWORK")
+  row.roleButton.icon:SetAllPoints()
+  row.roleButton.icon:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES")
+  row.roleButton:SetScript("OnEnter", function(self)
+    local tooltip = AnchorRosterHoverTooltip(rosterTooltip, self)
+    if type(tooltip) == "table" and type(tooltip.SetText) == "function" then
+      tooltip:SetText("Role Marker", 1, 1, 1)
+      if type(tooltip.AddLine) == "function" then
+        tooltip:AddLine("Click to mark unit", 1, 1, 1, true)
+        tooltip:AddLine("Tank: Blue Square", 0.2, 0.4, 1, true)
+        tooltip:AddLine("Healer: Green Triangle", 0.2, 1, 0.2, true)
+      end
+      tooltip:Show()
+    end
+  end)
+  row.roleButton:SetScript("OnLeave", function()
+    HideRosterHoverTooltip(rosterTooltip)
+  end)
+
   row.spec = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.spec:SetPoint("TOPLEFT", SPEC_COL_X, yOffset)
   row.spec:SetJustifyH("RIGHT")
@@ -866,9 +877,9 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   DisableFontStringWrapping(row.spec)
 
   row.name = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  row.name:SetPoint("TOPLEFT", NAME_COL_X, yOffset)
+  row.name:SetPoint("TOPLEFT", NAME_COL_X + 16, yOffset)
   row.name:SetJustifyH("LEFT")
-  row.name:SetWidth(NAME_COL_WIDTH)
+  row.name:SetWidth(NAME_COL_WIDTH - 16)
   DisableFontStringWrapping(row.name)
 
   row.ilvl = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -1182,7 +1193,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   local buttons = CreatePanelButtons(mainFrame, buttonDeps)
   local rosterTooltip = CreateRosterHoverTooltip(mainFrame)
   local statusLine = CreateStatusLine(mainFrame)
-  local optionToggles = CreateSystemOptionToggles(mainFrame, uiDeps.getAutoMarkEnabled, uiDeps.setAutoMarkEnabled)
+  local optionToggles = CreateSystemOptionToggles(mainFrame)
   CreateVersionLine(mainFrame, uiDeps.getAddonVersionText)
 
   local raidNoticeLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -1236,6 +1247,13 @@ local function RenderRosterImpl(state, roster)
       if row.hoverFrame then
         row.hoverFrame:Hide()
       end
+      if row.roleButton then
+        if not IsCombatLockdownActive() then
+          row.roleButton:Hide()
+        else
+          -- Combat deferral handled by secure driver usually, but here we just accept state until regen
+        end
+      end
     end
     if raidNoticeLabel then
       local L = state.getL and state.getL() or {}
@@ -1270,6 +1288,14 @@ local function RenderRosterImpl(state, roster)
       HideRosterHoverTooltip(rosterTooltip)
       row.hoverFrame.unit = nil
       row.hoverFrame:Hide()
+    end
+
+    if row.roleButton then
+      if not IsCombatLockdownActive() then
+        row.roleButton:Hide()
+      else
+        -- Defer hide if needed or accept stale state in combat
+      end
     end
   end
 
@@ -1309,6 +1335,42 @@ local function RenderRosterImpl(state, roster)
       end
     end
 
+    if row.roleButton then
+      local role = info.role
+      local icon = row.roleButton.icon
+      local showButton = false
+
+      if role == "TANK" then
+        icon:SetTexCoord(0, 19 / 64, 22 / 64, 41 / 64)
+        showButton = true
+      elseif role == "HEALER" then
+        icon:SetTexCoord(20 / 64, 39 / 64, 1 / 64, 20 / 64)
+        showButton = true
+      elseif role == "DAMAGER" then
+        icon:SetTexCoord(20 / 64, 39 / 64, 22 / 64, 41 / 64)
+        showButton = true
+      end
+
+      if not IsCombatLockdownActive() then
+        if showButton then
+          row.roleButton:Show()
+          row.roleButton:SetAttribute("unit", entry.unit)
+          row.roleButton:SetAttribute("type", "macro")
+          if role == "TANK" then
+            -- Blue Square = 6
+            row.roleButton:SetAttribute("macrotext", "/tm @" .. entry.unit .. " 6")
+          elseif role == "HEALER" then
+            -- Green Triangle = 4
+            row.roleButton:SetAttribute("macrotext", "/tm @" .. entry.unit .. " 4")
+          else
+            row.roleButton:SetAttribute("macrotext", nil)
+          end
+        else
+          row.roleButton:Hide()
+        end
+      end
+    end
+
     local displayData = state.buildDisplayData(info, {
       unit = entry.unit,
       truncateName = state.truncateName,
@@ -1324,9 +1386,9 @@ local function RenderRosterImpl(state, roster)
     })
 
     row.spec:SetText("|c" .. displayData.colorHex .. displayData.specText .. "|r")
+    -- Skip displayData.roleIconMarkup since we render it as a secure button
     row.name:SetText(
       (displayData.readyCheckMarkup or "")
-        .. displayData.roleIconMarkup
         .. " |c"
         .. displayData.colorHex
         .. displayData.displayName
@@ -1438,10 +1500,6 @@ function RosterPanel.CreateController(opts)
     isInGroup = isInGroup,
     getTime = getTime,
     shareKeysDebounceSeconds = shareKeysDebounceSeconds,
-    getAutoMarkEnabled = type(opts.getAutoMarkEnabled) == "function" and opts.getAutoMarkEnabled or function()
-      return false
-    end,
-    setAutoMarkEnabled = type(opts.setAutoMarkEnabled) == "function" and opts.setAutoMarkEnabled or function() end,
   })
 
   local readyCheckButton = ui.readyCheckButton
@@ -1472,7 +1530,6 @@ function RosterPanel.CreateController(opts)
     refreshButton:SetText(L.BTN_REFRESH)
     shareKeysButton:SetText(L.BTN_SHARE_KEYS)
     ui.advancedCombatLoggingToggle.label:SetText(L.OPT_ADVANCED_COMBAT_LOGGING)
-    ui.autoMarkToggle.label:SetText(L.OPT_AUTO_MARK)
     ui.damageMeterResetToggle.label:SetText(L.OPT_DAMAGE_METER_RESET)
     LayoutSystemOptionToggles(ui)
     RefreshSystemOptionToggles(ui)

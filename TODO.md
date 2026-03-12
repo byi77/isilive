@@ -41,6 +41,12 @@
     - Demo-Refresh
     - `M0` betreten/verlassen mit frueh leavenden Gruppenmitgliedern
 
+- [x] `v0.9.74` vorbereiten:
+  - Auto-Mark Toggle und Logik entfernen
+  - Secure Role-Buttons implementieren
+  - `CHANGELOG.md` / `README.md` / `RULES_LOGIC.md` aktualisieren
+  - Tag: `isiLive_release_0.9.74`
+
 ## P1 - Quality Gates
 
 - [x] CI optional um `lua tools/validate_usecases.lua` erweitern (zusaetzlicher Runtime-Gate auf `main`)

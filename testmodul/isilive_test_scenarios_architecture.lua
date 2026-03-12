@@ -194,32 +194,32 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     )
   end)
 
-  test("Architecture root forwards auto-mark state into runtime setup and roster panel wiring", function()
+  test("Architecture root omits removed auto-mark state from runtime setup and roster panel wiring", function()
     local content = ReadFile("isiLive_factory.lua")
 
-    AssertContains(
+    AssertNotContains(
       Assert,
       content,
       "ctx.GetAutoMarkEnabled = function()",
-      "isiLive_factory.lua must expose GetAutoMarkEnabled on the factory context"
+      "isiLive_factory.lua must not expose removed GetAutoMarkEnabled state on the factory context"
     )
-    AssertContains(
+    AssertNotContains(
       Assert,
       content,
       "ctx.SetAutoMarkEnabled = function(value)",
-      "isiLive_factory.lua must expose SetAutoMarkEnabled on the factory context"
+      "isiLive_factory.lua must not expose removed SetAutoMarkEnabled state on the factory context"
     )
-    AssertContains(
+    AssertNotContains(
       Assert,
       content,
       "getAutoMarkEnabled = ctx.GetAutoMarkEnabled,",
-      "isiLive_factory.lua must forward getAutoMarkEnabled into controller wiring"
+      "isiLive_factory.lua must not forward removed getAutoMarkEnabled wiring"
     )
-    AssertContains(
+    AssertNotContains(
       Assert,
       content,
       "setAutoMarkEnabled = ctx.SetAutoMarkEnabled,",
-      "isiLive_factory.lua must forward setAutoMarkEnabled into roster panel wiring"
+      "isiLive_factory.lua must not forward removed setAutoMarkEnabled wiring"
     )
   end)
 
@@ -277,18 +277,14 @@ local function RegisterArchitectureModuleApiTests(test, Assert, LoadAddonModules
     Assert.Equal(type(state.ClearLatestQueueTarget), "function", "RuntimeState must expose ClearLatestQueueTarget")
     Assert.Equal(type(state.IsReadyCheckActive), "function", "RuntimeState must expose IsReadyCheckActive")
     Assert.Equal(type(state.SetReadyCheckActive), "function", "RuntimeState must expose SetReadyCheckActive")
-    Assert.Equal(type(state.GetAutoMarkEnabled), "function", "RuntimeState must expose GetAutoMarkEnabled")
-    Assert.Equal(type(state.SetAutoMarkEnabled), "function", "RuntimeState must expose SetAutoMarkEnabled")
+    Assert.Nil(state.GetAutoMarkEnabled, "RuntimeState must not expose removed GetAutoMarkEnabled state")
+    Assert.Nil(state.SetAutoMarkEnabled, "RuntimeState must not expose removed SetAutoMarkEnabled state")
     Assert.Equal(
       type(state.GetRioBaselineByPlayerKey),
       "function",
       "RuntimeState must expose GetRioBaselineByPlayerKey"
     )
     Assert.Equal(type(state.ClearRioBaseline), "function", "RuntimeState must expose ClearRioBaseline")
-
-    Assert.True(state.GetAutoMarkEnabled(), "RuntimeState auto-mark must default to enabled")
-    state.SetAutoMarkEnabled(false)
-    Assert.False(state.GetAutoMarkEnabled(), "RuntimeState auto-mark setter must update the shared state")
   end)
 
   test("Architecture controller wiring exports context factories", function()

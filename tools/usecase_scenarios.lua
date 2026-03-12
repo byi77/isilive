@@ -25,6 +25,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_stats.lua",
   "testmodul/isilive_test_scenarios_ui.lua",
   "testmodul/isilive_test_scenarios_roster_display.lua",
+  "testmodul/isilive_test_scenarios_taint.lua",
 }
 
 return scenarioFiles
