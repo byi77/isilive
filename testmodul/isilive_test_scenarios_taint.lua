@@ -451,7 +451,16 @@ end
 
 local function FindCollapseButton(createdFrames)
   for _, frame in ipairs(createdFrames) do
-    if frame.normalTexture == "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up" then
+    if frame._collapseLayoutMode == "compact_vertical" then
+      return frame
+    end
+  end
+  return nil
+end
+
+local function FindHorizontalCollapseButton(createdFrames)
+  for _, frame in ipairs(createdFrames) do
+    if frame._collapseLayoutMode == "compact_horizontal" then
       return frame
     end
   end
@@ -755,6 +764,36 @@ local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddo
 
     Assert.True(ok, "combat collapse click must not crash on secure child buttons: " .. tostring(err))
     Assert.False(controller.IsCollapsed(), "combat collapse click must be ignored")
+  end)
+
+  test("TAINT: Horizontal collapse click is ignored during combat while secure roster buttons exist", function()
+    local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules)
+
+    WithGlobals(stubs, function()
+      controller.RenderRoster({
+        player = { name = "Tank", role = "TANK", class = "WARRIOR" },
+      })
+    end)
+
+    local collapseButton = FindHorizontalCollapseButton(createdFrames)
+    local roleButton = FindSecureRoleButton(createdFrames, "player")
+
+    Assert.NotNil(collapseButton, "horizontal collapse button should exist")
+    Assert.NotNil(roleButton, "secure role button should exist before combat collapse test")
+    Assert.False(controller.IsCollapsed(), "panel should start expanded")
+
+    stubs.InCombatLockdown = function()
+      return true
+    end
+
+    local ok, err = pcall(function()
+      WithGlobals(stubs, function()
+        collapseButton.OnClick(collapseButton)
+      end)
+    end)
+
+    Assert.True(ok, "combat horizontal collapse click must not crash on secure child buttons: " .. tostring(err))
+    Assert.False(controller.IsCollapsed(), "combat horizontal collapse click must be ignored")
   end)
 end
 

@@ -53,15 +53,14 @@
   - Layout-Anpassung und Breite
   - Tag: `isiLive_release_0.9.75`
 
-- [x] `v0.9.76` vorbereiten:
-  - Taint-/`ADDON_ACTION_FORBIDDEN`-Regressionstests fuer Teleport, Notice, Collapse und M+Helper erweitern
-  - Doku-/Validator-Zaehler auf `0.9.76` synchronisieren
-  - Code-Review-Runde 1: 7 Bugfixes + 3 Doku-Annotationen (highlight, stats, queue, runtime_state, units, controller_wiring, locale, group, sync)
-  - Code-Review-Runde 2: locale KR/CN/TW-Text, keysync ForceRefresh-Cleanup, +2 Regressionstests (highlight active=false, stats lazy-init)
-  - Runde 3: M+Helper-Umbenennung, Header-Position korrigiert, 8 native World-Marker-Buttons (`type1/type2 = worldmarker`, `AnyUp/AnyDown`) und kompaktes Mini-Layout
-  - Tag: `isiLive_release_0.9.76`
+- [x] `v0.9.77` vorbereiten:
+  - Zweite Collapse-Variante als horizontale Slim-Toolbar mit eigenem Down-Arrow einbauen
+  - Horizontal-Mode auf Management-Karussell + Marker-Reihe reduzieren und Layout-Bugs beim Zurueckwechseln beseitigen
+  - Vertical-/Horizontal-Compact-Polish: Titel, Trennlinie, Versionszeile und Spacing auf die Tool-Palette abstimmen
+  - Doku-/Validator-Zaehler auf `0.9.77` synchronisieren
+  - Tag: `isiLive_release_0.9.77`
 
-- [ ] `v0.9.76` veroeffentlichen
+- [ ] `v0.9.77` veroeffentlichen
   - Ingame Combat-Smoketest fuer Teleport-Grid, Center Notice, Collapse und Role-/M+Helper-Buttons
   - Release-Tag erst nach gruenem `Lua Check` auf `main`
 

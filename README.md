@@ -4,15 +4,16 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.76`.
+Current documented baseline: `0.9.77`.
 
 ## Features
 
 - Group roster table with columns: `Spec`, `Name`, `Flag`, `Key`, `iLvl`, `RIO`, `DPS`
 - Persistent raid warning label in the Roster Panel for groups > 5 members (hides roster rows)
 - Interactive Role Icons: Click the role icon in the roster to securely mark Tank (**Blue Square**) or Healer (**Green Triangle**).
-- **M+Helper:** Vertical bar of 8 world marker buttons (`Square`, `Triangle`, `Diamond`, `Cross`, `Star`, `Circle`, `Moon`, `Skull`) using native secure world-marker actions for immediate place/clear.
-- **Mini Mode:** Collapse button to hide the roster list and `M+Travel`, while keeping M+Helper and Management buttons visible in a compact two-column palette.
+- **M+Helper:** Expanded view uses a vertical bar of 8 world marker buttons (`Square`, `Triangle`, `Diamond`, `Cross`, `Star`, `Circle`, `Moon`, `Skull`) with native secure world-marker actions; the horizontal mini layout arranges the same icons in one slim row and restores the vertical stack correctly when expanded again.
+- **Mini Mode:** Two collapse buttons are available next to the close button: the existing side-collapse keeps M+Helper and Management in a compact vertical palette, and the down-arrow collapse switches to a slim horizontal tool layout.
+- **Horizontal Mini Mode:** Shows one `M+Managment` action at a time with left/right arrow buttons to cycle through `Readycheck`, `Countdown10`, `Countdown 0`, `Share Keys`, and `Refresh`, while M+Helper stays visible as one horizontal marker row.
 - Bottom-left system toggles: `Combat Logging`, `DM Reset on Entry`
 - Stable role sorting: `Tank -> Healer -> Damager`
 - Right-side controls: `Readycheck`, `Countdown10`, `Countdown 0`, `Share Keys`, `Refresh`
@@ -67,7 +68,7 @@ Current documented baseline: `0.9.76`.
 - They mirror the live Blizzard CVar state and write only on explicit user clicks.
 - The toggle row keeps a fixed gap between adjacent labels.
 - Blizzard damage meter is also manually reset on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
-- In **Mini Mode** (collapsed), the window acts as a compact tool palette with M+Helper and Management controls only, and stays open during key start or raid join, bypassing the usual auto-hide logic for the full roster view.
+- In **Mini Mode** (collapsed), the window acts as a compact tool palette with M+Helper and Management controls only. The left/right collapse keeps the existing vertical compact palette, while the down-arrow collapse switches to a low-height horizontal toolbar with a single cycling management action plus left/right switch arrows. Both compact modes stay open during key start or raid join, bypassing the usual auto-hide logic for the full roster view.
 - `CHALLENGE_MODE_START` captures a per-player RIO baseline.
 - `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` schedules delayed post-run refresh and enables clamped delta display `(+X)RIO` after refresh succeeds (with short retry if still blocked), including when the window is currently hidden.
 - Latest run DPS is captured after `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` for `M+`, and after leaving a tracked mythic non-challenge dungeon for `M0`; both paths now retry briefly if the Blizzard damage-meter session is not ready yet, and `M0` matching still uses the roster snapshot frozen on dungeon entry.
@@ -79,9 +80,9 @@ Current documented baseline: `0.9.76`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`, while explicit local refresh triggers and visibility-bound snapshots keep `KEY/STATS` current.
 
-## Use Case / Logic Baseline (v0.9.76)
+## Use Case / Logic Baseline (v0.9.77)
 
-Documented on `2026-03-12` as runtime behavior baseline (`0.9.76`) for validation checks.
+Documented on `2026-03-13` as runtime behavior baseline (`0.9.77`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -227,7 +228,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 255 scenarios across 29 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper), including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 258 scenarios across 29 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper), including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)

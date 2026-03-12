@@ -10,28 +10,46 @@ local NAME_COL_X = 80
 local SERVER_COL_X = 202
 local KEY_COL_X = 222
 local ILVL_COL_X = 284
-local RIO_COL_X = 314
-local DPS_COL_X = 388
+local RIO_COL_X = 324
+local DPS_COL_X = 398
 local SPEC_COL_WIDTH = 52
 local NAME_COL_WIDTH = 134
 local SERVER_COL_WIDTH = 14
 local KEY_COL_WIDTH = 56
-local ILVL_COL_WIDTH = 24
+local ILVL_COL_WIDTH = 34
 local RIO_COL_WIDTH = 70
 local DPS_COL_WIDTH = 58
 local TOOLTIP_HORIZONTAL_PADDING = 10
 local TOOLTIP_VERTICAL_PADDING = 10
 local TOOLTIP_LINE_SPACING = 3
 local TOOLTIP_MIN_HEIGHT = 28
-local TOOLTIP_WIDTH = 200
-local TOOLTIP_TEXT_WIDTH = TOOLTIP_WIDTH - (TOOLTIP_HORIZONTAL_PADDING * 2)
+local TOOLTIP_MIN_WIDTH = 220
+local TOOLTIP_MAX_WIDTH = 280
+local TOOLTIP_TEXT_WIDTH = TOOLTIP_MAX_WIDTH - (TOOLTIP_HORIZONTAL_PADDING * 2)
 local SYSTEM_OPTION_TOGGLE_LEFT_MARGIN = 10
 local SYSTEM_OPTION_TOGGLE_BOTTOM_OFFSET = 24
 local SYSTEM_OPTION_TOGGLE_GAP = 18
 
 -- Layout Konstanten
+local LAYOUT_MODE_EXPANDED = "expanded"
+local LAYOUT_MODE_COMPACT_VERTICAL = "compact_vertical"
+local LAYOUT_MODE_COMPACT_HORIZONTAL = "compact_horizontal"
 local FULL_FRAME_WIDTH = 780
 local MINI_FRAME_WIDTH = 220
+local MINI_HORIZONTAL_FRAME_WIDTH = 212
+local MANAGEMENT_COLUMN_X = -170
+local MANAGEMENT_COLUMN_X_MINI = -70
+local HELPER_COLUMN_X = -136
+local HELPER_COLUMN_X_MINI = -37
+local MINI_HORIZONTAL_FRAME_HEIGHT = 94
+local MINI_HORIZONTAL_MANAGEMENT_ROW_Y = -28
+local MINI_HORIZONTAL_HELPER_ROW_Y = -64
+local MINI_HORIZONTAL_MANAGEMENT_BUTTON_WIDTH = 120
+local MINI_HORIZONTAL_MANAGEMENT_CYCLE_BUTTON_WIDTH = 24
+local HELPER_BUTTON_SIZE = 18
+local MINI_HORIZONTAL_HELPER_BUTTON_SIZE = HELPER_BUTTON_SIZE
+local MINI_HORIZONTAL_HELPER_GAP = 2
+local MINI_HORIZONTAL_MANAGEMENT_ARROW_GAP = 6
 
 local function RequireFunction(value, name)
   assert(type(value) == "function", "isiLive: RosterPanel requires " .. name)
@@ -40,6 +58,42 @@ end
 
 local function IsCombatLockdownActive()
   return type(InCombatLockdown) == "function" and InCombatLockdown() == true
+end
+
+local function NormalizeLayoutMode(layoutMode)
+  if layoutMode == LAYOUT_MODE_COMPACT_VERTICAL then
+    return LAYOUT_MODE_COMPACT_VERTICAL
+  end
+  if layoutMode == LAYOUT_MODE_COMPACT_HORIZONTAL then
+    return LAYOUT_MODE_COMPACT_HORIZONTAL
+  end
+  return LAYOUT_MODE_EXPANDED
+end
+
+local function IsCompactLayoutMode(layoutMode)
+  return NormalizeLayoutMode(layoutMode) ~= LAYOUT_MODE_EXPANDED
+end
+
+local function IsHorizontalCompactLayoutMode(layoutMode)
+  return NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_HORIZONTAL
+end
+
+local function GetFrameWidthForLayoutMode(layoutMode)
+  layoutMode = NormalizeLayoutMode(layoutMode)
+  if layoutMode == LAYOUT_MODE_COMPACT_VERTICAL then
+    return MINI_FRAME_WIDTH
+  end
+  if layoutMode == LAYOUT_MODE_COMPACT_HORIZONTAL then
+    return MINI_HORIZONTAL_FRAME_WIDTH
+  end
+  return FULL_FRAME_WIDTH
+end
+
+local function GetFrameHeightForLayoutMode(layoutMode, minFrameHeight)
+  if NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_HORIZONTAL then
+    return MINI_HORIZONTAL_FRAME_HEIGHT
+  end
+  return tonumber(minFrameHeight) or 212
 end
 
 local function SendPartyChatMessage(message)
@@ -362,6 +416,7 @@ local function LayoutSimpleTooltip(tooltip)
   local lines = tooltip._isiLiveTooltipLines or {}
   local lineCount = tonumber(tooltip._isiLiveTooltipLineCount) or 0
   local tooltipHeight = TOOLTIP_VERTICAL_PADDING
+  local tooltipWidth = TOOLTIP_MIN_WIDTH
   local previousLine = nil
   for index, line in ipairs(lines) do
     local isActiveLine = index <= lineCount
@@ -388,15 +443,23 @@ local function LayoutSimpleTooltip(tooltip)
       if previousLine ~= nil then
         tooltipHeight = tooltipHeight + TOOLTIP_LINE_SPACING
       end
+      if type(line) == "table" and type(line.GetStringWidth) == "function" then
+        local ok, measuredWidth = pcall(line.GetStringWidth, line)
+        local measuredWidthNumber = ok and tonumber(measuredWidth) or nil
+        if measuredWidthNumber and measuredWidthNumber > 0 then
+          local paddedWidth = measuredWidthNumber + (TOOLTIP_HORIZONTAL_PADDING * 2)
+          tooltipWidth = math.max(tooltipWidth, math.min(TOOLTIP_MAX_WIDTH, paddedWidth))
+        end
+      end
       previousLine = line
     end
   end
   tooltipHeight = tooltipHeight + TOOLTIP_VERTICAL_PADDING
 
   if type(tooltip.SetSize) == "function" then
-    tooltip:SetSize(TOOLTIP_WIDTH, math.max(TOOLTIP_MIN_HEIGHT, tooltipHeight))
+    tooltip:SetSize(tooltipWidth, math.max(TOOLTIP_MIN_HEIGHT, tooltipHeight))
   elseif type(tooltip.SetWidth) == "function" and type(tooltip.SetHeight) == "function" then
-    tooltip:SetWidth(TOOLTIP_WIDTH)
+    tooltip:SetWidth(tooltipWidth)
     tooltip:SetHeight(math.max(TOOLTIP_MIN_HEIGHT, tooltipHeight))
   elseif type(tooltip.SetHeight) == "function" then
     tooltip:SetHeight(math.max(TOOLTIP_MIN_HEIGHT, tooltipHeight))
@@ -679,6 +742,45 @@ local function ResolveTooltipUnitLevel(unit, info)
   return nil
 end
 
+local ENGLISH_CLASS_NAME_BY_TAG = {
+  DEATHKNIGHT = "Death Knight",
+  DEMONHUNTER = "Demon Hunter",
+  DRUID = "Druid",
+  EVOKER = "Evoker",
+  HUNTER = "Hunter",
+  MAGE = "Mage",
+  MONK = "Monk",
+  PALADIN = "Paladin",
+  PRIEST = "Priest",
+  ROGUE = "Rogue",
+  SHAMAN = "Shaman",
+  WARLOCK = "Warlock",
+  WARRIOR = "Warrior",
+}
+
+local function ResolveTooltipClassName(info)
+  if type(info) ~= "table" or type(info.class) ~= "string" or info.class == "" then
+    return nil
+  end
+
+  local classTag = tostring(info.class):upper()
+  local localizedMale = rawget(_G, "LOCALIZED_CLASS_NAMES_MALE")
+  if type(localizedMale) == "table" and type(localizedMale[classTag]) == "string" and localizedMale[classTag] ~= "" then
+    return localizedMale[classTag]
+  end
+
+  local localizedFemale = rawget(_G, "LOCALIZED_CLASS_NAMES_FEMALE")
+  if
+    type(localizedFemale) == "table"
+    and type(localizedFemale[classTag]) == "string"
+    and localizedFemale[classTag] ~= ""
+  then
+    return localizedFemale[classTag]
+  end
+
+  return ENGLISH_CLASS_NAME_BY_TAG[classTag] or info.class
+end
+
 local function ShowRosterInfoTooltip(
   tooltipFrame,
   anchorFrame,
@@ -698,6 +800,7 @@ local function ShowRosterInfoTooltip(
 
   local lastRunDps = type(getPlayerLastRunDps) == "function" and getPlayerLastRunDps(info.name, info.realm) or nil
   local unitLevel = ResolveTooltipUnitLevel(unit, info)
+  local className = ResolveTooltipClassName(info)
   local languageCode = type(info.language) == "string"
       and info.language ~= ""
       and tostring(info.language):upper():sub(1, 2)
@@ -744,7 +847,9 @@ local function ShowRosterInfoTooltip(
     if languageCode then
       tooltip:AddLine("Lang: " .. languageCode, 0.9, 0.9, 0.9)
     end
-    if type(info.spec) == "string" and info.spec ~= "" then
+    if className then
+      tooltip:AddLine("Class: " .. className, 0.9, 0.9, 0.9)
+    elseif type(info.spec) == "string" and info.spec ~= "" then
       tooltip:AddLine(info.spec, 0.9, 0.9, 0.9)
     end
     if info.ilvl then
@@ -1009,6 +1114,7 @@ local function CreatePanelHeaders(mainFrame)
     dpsHeader = dpsHeader,
     leadOptionsHeader = leadOptionsHeader,
     mplusManagementHeader = mplusManagementHeader,
+    headerSeparator = headerSeparator,
   }
 end
 
@@ -1042,6 +1148,7 @@ local function CreateShareKeysButton(mainFrame, deps)
   local button = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   button:SetSize(120, 24)
   button:SetPoint("TOPRIGHT", -136, -150)
+  button._verticalY = -150
   local lastShareKeysClickAt = nil
   local debounceSeconds = tonumber(deps.shareKeysDebounceSeconds) or 0
   if debounceSeconds < 0 then
@@ -1092,6 +1199,7 @@ local function CreatePanelButtons(mainFrame, deps)
   local readyCheckButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   readyCheckButton:SetSize(120, 24)
   readyCheckButton:SetPoint("TOPRIGHT", -136, -60)
+  readyCheckButton._verticalY = -60
   readyCheckButton:SetScript("OnClick", function()
     if not isPlayerLeader() then
       return
@@ -1106,6 +1214,7 @@ local function CreatePanelButtons(mainFrame, deps)
   local countdownButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   countdownButton:SetSize(120, 24)
   countdownButton:SetPoint("TOPRIGHT", -136, -90)
+  countdownButton._verticalY = -90
   countdownButton:SetScript("OnClick", function()
     if not isPlayerLeader() then
       return
@@ -1122,6 +1231,7 @@ local function CreatePanelButtons(mainFrame, deps)
   local refreshButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   refreshButton:SetSize(120, 24)
   refreshButton:SetPoint("TOPRIGHT", -136, -180)
+  refreshButton._verticalY = -180
   AttachPanelButtonTooltip(deps.tooltipFrame, refreshButton, getL, "BTN_REFRESH", "TOOLTIP_REFRESH", nil)
 
   local shareKeysButton = CreateShareKeysButton(mainFrame, deps)
@@ -1129,6 +1239,7 @@ local function CreatePanelButtons(mainFrame, deps)
   local countdownCancelButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   countdownCancelButton:SetSize(120, 24)
   countdownCancelButton:SetPoint("TOPRIGHT", -136, -120)
+  countdownCancelButton._verticalY = -120
   AttachPanelButtonTooltip(
     deps.tooltipFrame,
     countdownCancelButton,
@@ -1161,16 +1272,19 @@ local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
 
   local buttons = {}
   local startY = -60
-  local size = 16
+  local size = HELPER_BUTTON_SIZE
   local gap = 2
 
-  -- Position: Rechts von der DPS-Spalte, links von den M+ Management Buttons
-  local xPos = -275
+  -- Position: Rechts von der DPS-Spalte, direkt links von M+Travel.
+  -- M+Helper und M+Managment sind gegenüber der alten Anordnung getauscht.
+  local xPos = HELPER_COLUMN_X
 
   for i, marker in ipairs(markers) do
     local btn = CreateFrame("Button", nil, mainFrame, "SecureActionButtonTemplate")
     btn:SetSize(size, size)
-    btn:SetPoint("TOPRIGHT", xPos, startY - ((i - 1) * (size + gap)))
+    btn._verticalY = startY - ((i - 1) * (size + gap))
+    btn:SetPoint("TOPRIGHT", xPos, btn._verticalY)
+    btn._markerIndex = i
 
     if btn.SetNormalTexture then
       btn:SetNormalTexture(marker.icon)
@@ -1215,55 +1329,164 @@ local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
   return buttons, header
 end
 
-local function UpdateColumnPositions(ui, isCollapsed)
-  local tankX = isCollapsed and -167 or -275
-  local leadX = isCollapsed and -37 or -136
+local function WrapManagementButtonIndex(ui, nextIndex)
+  local managementButtons = ui and ui.managementButtons or nil
+  local buttonCount = type(managementButtons) == "table" and #managementButtons or 0
+  if buttonCount <= 0 then
+    return 1
+  end
+
+  local numericIndex = math.floor(tonumber(nextIndex) or 1)
+  if numericIndex < 1 then
+    numericIndex = buttonCount
+  elseif numericIndex > buttonCount then
+    numericIndex = 1
+  end
+  return numericIndex
+end
+
+local function UpdateHorizontalManagementButtons(ui, isHorizontal)
+  local managementButtons = ui and ui.managementButtons or {}
+  local activeIndex = WrapManagementButtonIndex(ui, ui and ui.horizontalManagementButtonIndex or 1)
+  if ui then
+    ui.horizontalManagementButtonIndex = activeIndex
+  end
+
+  for index, btn in ipairs(managementButtons) do
+    local shouldShow = (not isHorizontal) or index == activeIndex
+    if btn and btn.SetShown then
+      btn:SetShown(shouldShow)
+    elseif btn and shouldShow and btn.Show then
+      btn:Show()
+    elseif btn and not shouldShow and btn.Hide then
+      btn:Hide()
+    end
+  end
+
+  local showCarousel = isHorizontal and #managementButtons > 1
+  if ui and ui.managementPrevButton then
+    if ui.managementPrevButton.SetShown then
+      ui.managementPrevButton:SetShown(showCarousel)
+    elseif showCarousel and ui.managementPrevButton.Show then
+      ui.managementPrevButton:Show()
+    elseif (not showCarousel) and ui.managementPrevButton.Hide then
+      ui.managementPrevButton:Hide()
+    end
+  end
+  if ui and ui.managementNextButton then
+    if ui.managementNextButton.SetShown then
+      ui.managementNextButton:SetShown(showCarousel)
+    elseif showCarousel and ui.managementNextButton.Show then
+      ui.managementNextButton:Show()
+    elseif (not showCarousel) and ui.managementNextButton.Hide then
+      ui.managementNextButton:Hide()
+    end
+  end
+end
+
+local function GetHorizontalManagementCenterX()
+  return -math.floor((MINI_HORIZONTAL_FRAME_WIDTH - MINI_HORIZONTAL_MANAGEMENT_BUTTON_WIDTH) / 2)
+end
+
+local function GetHorizontalHelperButtonX(markerIndex)
+  local helperRowWidth = (8 * MINI_HORIZONTAL_HELPER_BUTTON_SIZE) + (7 * MINI_HORIZONTAL_HELPER_GAP)
+  local leftInset = math.floor((MINI_HORIZONTAL_FRAME_WIDTH - helperRowWidth) / 2)
+  local rightEdge = leftInset
+    + MINI_HORIZONTAL_HELPER_BUTTON_SIZE
+    + ((markerIndex - 1) * (MINI_HORIZONTAL_HELPER_BUTTON_SIZE + MINI_HORIZONTAL_HELPER_GAP))
+  return rightEdge - MINI_HORIZONTAL_FRAME_WIDTH
+end
+
+local function UpdateColumnPositions(ui, layoutMode)
+  layoutMode = NormalizeLayoutMode(layoutMode)
+  local isCollapsed = IsCompactLayoutMode(layoutMode)
+  local isHorizontal = IsHorizontalCompactLayoutMode(layoutMode)
+  local tankX = isCollapsed and HELPER_COLUMN_X_MINI or HELPER_COLUMN_X
+  local leadX = isCollapsed and MANAGEMENT_COLUMN_X_MINI or MANAGEMENT_COLUMN_X
+  local managementButtons = ui.managementButtons or {}
 
   if ui.tankButtons then
     for _, btn in ipairs(ui.tankButtons) do
-      if btn.GetPoint then
-        local _, _, _, _, y = btn:GetPoint()
-        btn:SetPoint("TOPRIGHT", tankX, y or 0)
+      if isHorizontal then
+        local markerIndex = tonumber(btn._markerIndex) or 1
+        local x = GetHorizontalHelperButtonX(markerIndex)
+        btn:SetPoint("TOPRIGHT", x, MINI_HORIZONTAL_HELPER_ROW_Y)
+      else
+        local y = tonumber(btn._verticalY) or 0
+        btn:SetPoint("TOPRIGHT", tankX, y)
       end
     end
   end
 
   if ui.tankHeader then
-    if ui.tankHeader.GetPoint then
+    if isHorizontal then
+      ui.tankHeader:SetPoint("TOPRIGHT", -10, -34)
+    elseif ui.tankHeader.GetPoint then
       local _, _, _, _, y = ui.tankHeader:GetPoint()
       local headerXOffset = isCollapsed and 30 or 18
       ui.tankHeader:SetPoint("TOPRIGHT", tankX + headerXOffset, y or 0)
     end
   end
 
-  local leadButtons = {
-    ui.readyCheckButton,
-    ui.countdownButton,
-    ui.countdownCancelButton,
-    ui.refreshButton,
-    ui.shareKeysButton,
-  }
-
-  for _, btn in ipairs(leadButtons) do
+  for index, btn in ipairs(managementButtons) do
     if btn and btn.GetPoint then
-      local _, _, _, _, y = btn:GetPoint()
-      btn:SetPoint("TOPRIGHT", leadX, y)
+      if isHorizontal then
+        if index == WrapManagementButtonIndex(ui, ui.horizontalManagementButtonIndex) then
+          btn:SetPoint("TOPRIGHT", GetHorizontalManagementCenterX(), MINI_HORIZONTAL_MANAGEMENT_ROW_Y)
+        end
+      else
+        local y = tonumber(btn._verticalY) or 0
+        btn:SetPoint("TOPRIGHT", leadX, y)
+      end
     end
   end
 
+  if ui.managementPrevButton then
+    ui.managementPrevButton:SetPoint(
+      "TOPRIGHT",
+      GetHorizontalManagementCenterX() - MINI_HORIZONTAL_MANAGEMENT_BUTTON_WIDTH - MINI_HORIZONTAL_MANAGEMENT_ARROW_GAP,
+      MINI_HORIZONTAL_MANAGEMENT_ROW_Y
+    )
+  end
+  if ui.managementNextButton then
+    ui.managementNextButton:SetPoint(
+      "TOPRIGHT",
+      GetHorizontalManagementCenterX()
+        + MINI_HORIZONTAL_MANAGEMENT_CYCLE_BUTTON_WIDTH
+        + MINI_HORIZONTAL_MANAGEMENT_ARROW_GAP,
+      MINI_HORIZONTAL_MANAGEMENT_ROW_Y
+    )
+  end
+
   if ui.leadOptionsHeader and ui.leadOptionsHeader.GetPoint then
-    local _, _, _, _, y = ui.leadOptionsHeader:GetPoint()
-    ui.leadOptionsHeader:SetPoint("TOPRIGHT", leadX, y)
+    if isHorizontal then
+      ui.leadOptionsHeader:SetPoint("TOPRIGHT", -10, -34)
+    else
+      local _, _, _, _, y = ui.leadOptionsHeader:GetPoint()
+      ui.leadOptionsHeader:SetPoint("TOPRIGHT", leadX, y)
+    end
   end
 end
 
-local function UpdateCollapseState(ui, isCollapsed, mainFrame)
+local function UpdateCollapseState(ui, layoutMode, mainFrame)
+  layoutMode = NormalizeLayoutMode(layoutMode or (ui and ui.layoutMode))
+  local isCollapsed = IsCompactLayoutMode(layoutMode)
+  local isHorizontal = IsHorizontalCompactLayoutMode(layoutMode)
+
+  if type(ui) == "table" then
+    ui.layoutMode = layoutMode
+    ui.isCollapsed = isCollapsed
+  end
+
   if mainFrame.SetWidth then
-    mainFrame:SetWidth(isCollapsed and MINI_FRAME_WIDTH or FULL_FRAME_WIDTH)
+    mainFrame:SetWidth(GetFrameWidthForLayoutMode(layoutMode))
+  end
+  if type(ui) == "table" and type(ui.setMainFrameHeightSafe) == "function" then
+    ui.setMainFrameHeightSafe(GetFrameHeightForLayoutMode(layoutMode, ui.minFrameHeight))
   end
 
   if ui.collapseButton then
-    local tex = isCollapsed and "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up"
+    local tex = layoutMode == LAYOUT_MODE_COMPACT_VERTICAL and "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up"
       or "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up"
     if ui.collapseButton.SetNormalTexture then
       ui.collapseButton:SetNormalTexture(tex)
@@ -1272,16 +1495,31 @@ local function UpdateCollapseState(ui, isCollapsed, mainFrame)
       ui.collapseButton:SetPushedTexture(tex)
     end
   end
+  if ui.horizontalCollapseButton then
+    local tex = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Down"
+    if ui.horizontalCollapseButton.SetNormalTexture then
+      ui.horizontalCollapseButton:SetNormalTexture(tex)
+    end
+    if ui.horizontalCollapseButton.SetPushedTexture then
+      ui.horizontalCollapseButton:SetPushedTexture(tex)
+    end
+  end
 
-  UpdateColumnPositions(ui, isCollapsed)
+  UpdateColumnPositions(ui, layoutMode)
+  UpdateHorizontalManagementButtons(ui, isHorizontal)
 
   local function SetVisible(obj, show)
     if obj and obj.SetShown then
       obj:SetShown(show)
+    elseif obj and show and obj.Show then
+      obj:Show()
+    elseif obj and not show and obj.Hide then
+      obj:Hide()
     end
   end
   local show = not isCollapsed
 
+  SetVisible(ui.title, not isCollapsed)
   SetVisible(ui.specHeader, show)
   SetVisible(ui.nameHeader, show)
   SetVisible(ui.ilvlHeader, show)
@@ -1289,8 +1527,12 @@ local function UpdateCollapseState(ui, isCollapsed, mainFrame)
   SetVisible(ui.keyHeader, show)
   SetVisible(ui.rioHeader, show)
   SetVisible(ui.dpsHeader, show)
+  SetVisible(ui.headerSeparator, not isCollapsed)
   SetVisible(ui.statusLine, show)
+  SetVisible(ui.versionLine, not isCollapsed)
+  SetVisible(ui.leadOptionsHeader, not isHorizontal)
   SetVisible(ui.mplusManagementHeader, show)
+  SetVisible(ui.tankHeader, not isHorizontal)
 
   if ui.advancedCombatLoggingToggle then
     SetVisible(ui.advancedCombatLoggingToggle, show)
@@ -1323,22 +1565,45 @@ local function NotifyCollapseChanged(ui, isCollapsed)
   end
 end
 
-local function CreateCollapseButton(mainFrame, onClick)
+local function CreateCollapseButton(mainFrame, xOffset, normalTexture, onClick)
   local btn = CreateFrame("Button", nil, mainFrame)
   btn:SetSize(20, 20)
-  btn:SetPoint("TOPRIGHT", -24, -2)
+  btn:SetPoint("TOPRIGHT", xOffset, -2)
   -- DragHandle liegt auf mainFrame:GetFrameLevel() + 100; Button muss darüber liegen.
   -- Entspricht dem FrameLevel des Close-Buttons (dragHandle + 2 = mainFrame + 102).
   if btn.SetFrameLevel and mainFrame.GetFrameLevel then
     btn:SetFrameLevel(mainFrame:GetFrameLevel() + 102)
   end
   if btn.SetNormalTexture then
-    btn:SetNormalTexture("Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up")
+    btn:SetNormalTexture(normalTexture)
   end
   if btn.SetHighlightTexture then
     btn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
   end
   btn:SetScript("OnClick", onClick)
+  return btn
+end
+
+local function CreateManagementCycleButton(mainFrame, normalTexture, direction, onClick)
+  local btn = CreateFrame("Button", nil, mainFrame)
+  btn:SetSize(MINI_HORIZONTAL_MANAGEMENT_CYCLE_BUTTON_WIDTH, MINI_HORIZONTAL_MANAGEMENT_CYCLE_BUTTON_WIDTH)
+  btn._managementCycleDirection = direction
+  if btn.SetFrameLevel and mainFrame.GetFrameLevel then
+    btn:SetFrameLevel(mainFrame:GetFrameLevel() + 102)
+  end
+  if btn.SetNormalTexture then
+    btn:SetNormalTexture(normalTexture)
+  end
+  if btn.SetPushedTexture then
+    btn:SetPushedTexture(normalTexture)
+  end
+  if btn.SetHighlightTexture then
+    btn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
+  end
+  btn:SetScript("OnClick", onClick)
+  if btn.Hide then
+    btn:Hide()
+  end
   return btn
 end
 
@@ -1381,7 +1646,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
 
   local statusLine = CreateStatusLine(mainFrame)
   local optionToggles = CreateSystemOptionToggles(mainFrame)
-  CreateVersionLine(mainFrame, uiDeps.getAddonVersionText)
+  local versionLine = CreateVersionLine(mainFrame, uiDeps.getAddonVersionText)
 
   local raidNoticeLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   raidNoticeLabel:SetPoint("TOP", 0, -100)
@@ -1397,9 +1662,12 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     rosterTooltip = rosterTooltip,
     title = title,
     statusLine = statusLine,
+    versionLine = versionLine,
     raidNoticeLabel = raidNoticeLabel,
     tankButtons = tankButtons,
     tankHeader = tankHeader,
+    setMainFrameHeightSafe = uiDeps.setMainFrameHeightSafe,
+    minFrameHeight = uiDeps.minFrameHeight,
   }
   for k, v in pairs(headers) do
     ui[k] = v
@@ -1411,19 +1679,79 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     ui[k] = v
   end
 
+  ui.managementButtons = {
+    ui.readyCheckButton,
+    ui.countdownButton,
+    ui.countdownCancelButton,
+    ui.shareKeysButton,
+    ui.refreshButton,
+  }
+  ui.horizontalManagementButtonIndex = 1
+  ui.managementPrevButton = CreateManagementCycleButton(
+    mainFrame,
+    "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up",
+    -1,
+    function()
+      ui.horizontalManagementButtonIndex = WrapManagementButtonIndex(ui, (ui.horizontalManagementButtonIndex or 1) - 1)
+      UpdateCollapseState(ui, ui.layoutMode, mainFrame)
+    end
+  )
+  ui.managementNextButton = CreateManagementCycleButton(
+    mainFrame,
+    "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up",
+    1,
+    function()
+      ui.horizontalManagementButtonIndex = WrapManagementButtonIndex(ui, (ui.horizontalManagementButtonIndex or 1) + 1)
+      UpdateCollapseState(ui, ui.layoutMode, mainFrame)
+    end
+  )
+  ui.layoutMode = LAYOUT_MODE_EXPANDED
   ui.isCollapsed = false
-  ui.collapseButton = CreateCollapseButton(mainFrame, function()
-    if IsCombatLockdownActive() then
-      return
+  ui.collapseButton = CreateCollapseButton(
+    mainFrame,
+    -24,
+    "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up",
+    function()
+      if IsCombatLockdownActive() then
+        return
+      end
+      if ui.layoutMode == LAYOUT_MODE_COMPACT_VERTICAL then
+        ui.layoutMode = LAYOUT_MODE_EXPANDED
+      else
+        ui.layoutMode = LAYOUT_MODE_COMPACT_VERTICAL
+      end
+      if IsiLiveDB then
+        IsiLiveDB.rosterLayoutMode = ui.layoutMode
+        IsiLiveDB.rosterCollapsed = IsCompactLayoutMode(ui.layoutMode)
+      end
+      UpdateCollapseState(ui, ui.layoutMode, mainFrame)
+      NotifyCollapseChanged(ui, ui.isCollapsed)
     end
-    ui.isCollapsed = not ui.isCollapsed
-    if IsiLiveDB then
-      IsiLiveDB.rosterCollapsed = ui.isCollapsed
+  )
+  ui.collapseButton._collapseLayoutMode = LAYOUT_MODE_COMPACT_VERTICAL
+  ui.horizontalCollapseButton = CreateCollapseButton(
+    mainFrame,
+    -46,
+    "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Down",
+    function()
+      if IsCombatLockdownActive() then
+        return
+      end
+      if ui.layoutMode == LAYOUT_MODE_COMPACT_HORIZONTAL then
+        ui.layoutMode = LAYOUT_MODE_EXPANDED
+      else
+        ui.layoutMode = LAYOUT_MODE_COMPACT_HORIZONTAL
+      end
+      if IsiLiveDB then
+        IsiLiveDB.rosterLayoutMode = ui.layoutMode
+        IsiLiveDB.rosterCollapsed = IsCompactLayoutMode(ui.layoutMode)
+      end
+      UpdateCollapseState(ui, ui.layoutMode, mainFrame)
+      NotifyCollapseChanged(ui, ui.isCollapsed)
     end
-    UpdateCollapseState(ui, ui.isCollapsed, mainFrame)
-    NotifyCollapseChanged(ui, ui.isCollapsed)
-  end)
-  UpdateCollapseState(ui, false, mainFrame)
+  )
+  ui.horizontalCollapseButton._collapseLayoutMode = LAYOUT_MODE_COMPACT_HORIZONTAL
+  UpdateCollapseState(ui, LAYOUT_MODE_EXPANDED, mainFrame)
 
   AttachSystemOptionToggleWatcher(mainFrame, ui)
   return ui
@@ -1441,7 +1769,8 @@ local function RenderRosterImpl(state, roster)
   if state.uiRef then
     state.uiRef.memberRows = memberRows
   end
-  local isCollapsed = state.uiRef and state.uiRef.isCollapsed
+  local layoutMode = state.uiRef and state.uiRef.layoutMode or LAYOUT_MODE_EXPANDED
+  local isCollapsed = IsCompactLayoutMode(layoutMode)
 
   -- If in a raid group, show the notice and hide rows
   if state.isRaidGroup and state.isRaidGroup() then
@@ -1637,11 +1966,12 @@ local function RenderRosterImpl(state, roster)
   shareKeysButton:SetEnabled(hasAnyKey)
   shareKeysButton:SetAlpha(hasAnyKey and 1 or 0.45)
 
-  local desiredHeight = math.max(minFrameHeight, 45 + index * 16)
+  local desiredHeight = isCollapsed and GetFrameHeightForLayoutMode(layoutMode, minFrameHeight)
+    or math.max(minFrameHeight, 45 + index * 16)
   setMainFrameHeightSafe(desiredHeight)
 
   if state.uiRef then
-    UpdateCollapseState(state.uiRef, isCollapsed, mainFrame)
+    UpdateCollapseState(state.uiRef, layoutMode, mainFrame)
   end
 end
 
@@ -1706,6 +2036,8 @@ function RosterPanel.CreateController(opts)
     isPlayerLeader = isPlayerLeader,
     getAddonVersionText = getAddonVersionText,
     updateStatusLine = updateStatusLine,
+    setMainFrameHeightSafe = setMainFrameHeightSafe,
+    minFrameHeight = minFrameHeight,
     getRoster = getRoster,
     buildOrderedRoster = buildOrderedRoster,
     rolePriority = rolePriority,
@@ -1756,9 +2088,13 @@ function RosterPanel.CreateController(opts)
   end
 
   function controller.RestoreSavedState()
-    if IsiLiveDB and IsiLiveDB.rosterCollapsed ~= nil then
-      ui.isCollapsed = IsiLiveDB.rosterCollapsed
-      UpdateCollapseState(ui, ui.isCollapsed, mainFrame)
+    local savedLayoutMode = IsiLiveDB and IsiLiveDB.rosterLayoutMode or nil
+    if savedLayoutMode == nil and IsiLiveDB and IsiLiveDB.rosterCollapsed ~= nil then
+      savedLayoutMode = IsiLiveDB.rosterCollapsed and LAYOUT_MODE_COMPACT_VERTICAL or LAYOUT_MODE_EXPANDED
+    end
+    if savedLayoutMode ~= nil then
+      ui.layoutMode = NormalizeLayoutMode(savedLayoutMode)
+      UpdateCollapseState(ui, ui.layoutMode, mainFrame)
       NotifyCollapseChanged(ui, ui.isCollapsed)
     end
   end

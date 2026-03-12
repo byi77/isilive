@@ -352,7 +352,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-KOMPAKT-SPALTENBREITEN
 - Regelnummer: 35
 - Status: aktiv
-- Zusammenfassung: Die Roster-Datenspalten behalten ein festes Kompaktlayout mit den Breiten Spec=52, Name=134, iLvl=24, Key=56, Rio=70, DPS=58 und Flagge=14.
+- Zusammenfassung: Die Roster-Datenspalten behalten ein festes Kompaktlayout mit den Breiten Spec=52, Name=134, iLvl=34, Key=56, Rio=70, DPS=58 und Flagge=14.
 - Erforderliche Tests:
   - Roster panel uses compact width budget for primary data columns
 

@@ -750,7 +750,7 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
 
       local privateTooltip = nil
       for _, frame in ipairs(createdFrames) do
-        if frame._isIsiLiveTooltip == true then
+        if frame._isIsiLiveTooltip == true and frame._isiLiveTooltipOwner ~= nil then
           privateTooltip = frame
           break
         end
@@ -774,9 +774,16 @@ local function NewRowTooltipCreateFrameStub(createdFrames, tooltipLines, tooltip
     }
 
     f.SetPoint = function() end
-    f.SetSize = function() end
-    f.SetHeight = function() end
-    f.SetWidth = function() end
+    f.SetSize = function(_self, width, height)
+      f.width = width
+      f.height = height
+    end
+    f.SetHeight = function(_self, height)
+      f.height = height
+    end
+    f.SetWidth = function(_self, width)
+      f.width = width
+    end
     f.SetEnabled = function() end
     f.SetAlpha = function() end
     f.EnableMouse = function() end
@@ -795,14 +802,19 @@ local function NewRowTooltipCreateFrameStub(createdFrames, tooltipLines, tooltip
       }
     end
     f.CreateFontString = function()
-      return {
+      local fontString = {
+        text = "",
         SetPoint = function() end,
         SetJustifyH = function() end,
         SetWidth = function() end,
-        SetText = function(_, text)
+        SetText = function(self, text)
+          self.text = tostring(text or "")
           if f._isIsiLiveTooltip == true then
-            table.insert(tooltipLines, tostring(text or ""))
+            table.insert(tooltipLines, self.text)
           end
+        end,
+        GetStringWidth = function(self)
+          return #tostring(self.text or "") * 6
         end,
         SetWordWrap = function() end,
         SetNonSpaceWrap = function() end,
@@ -810,6 +822,7 @@ local function NewRowTooltipCreateFrameStub(createdFrames, tooltipLines, tooltip
         Hide = function() end,
         Show = function() end,
       }
+      return fontString
     end
     f.Hide = function()
       if tooltipOps and f._isIsiLiveTooltip == true then
@@ -1124,6 +1137,157 @@ local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, Wit
 end
 
 local function RegisterRosterPanelRowTooltipMetadataTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster row tooltip shows localized class instead of specialization", function()
+    local tooltipLines = {}
+    local createdFrames = {}
+    local createFrameStub = NewRowTooltipCreateFrameStub(createdFrames, tooltipLines)
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      LOCALIZED_CLASS_NAMES_MALE = {
+        MONK = "Monk",
+      },
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function(_self, text)
+          table.insert(tooltipLines, text)
+        end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      RAID_CLASS_COLORS = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = {
+          SetBackdrop = function() end,
+          SetBackdropColor = function() end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              GetFont = function()
+                return "font", 10, ""
+              end,
+              SetFont = function() end,
+              SetTextColor = function() end,
+              SetShadowOffset = function() end,
+              SetText = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetMaxLines = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+          CreateTexture = function()
+            return {
+              SetHeight = function() end,
+              SetPoint = function() end,
+              SetColorTexture = function() end,
+              SetTexture = function() end,
+              SetTexCoord = function() end,
+            }
+          end,
+        },
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        buildOrderedRoster = function()
+          return {
+            {
+              unit = "party1",
+              info = { name = "Buddy", realm = "Realm", class = "MONK", spec = "Brewmaster", language = "DE" },
+            },
+          }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Buddy",
+            languageDisplay = "|Tflag-de:0|t",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(n)
+          return n
+        end,
+        getShortSpecLabel = function(s)
+          return s
+        end,
+        getLanguageFlagMarkup = function()
+          return "|Tflag-de:0|t"
+        end,
+        getDungeonShortCode = function()
+          return ""
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {}
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {},
+        unitPriority = {},
+      })
+
+      controller.RenderRoster({})
+
+      for _, f in ipairs(createdFrames) do
+        if f.OnEnter and f.unit == "party1" then
+          f.OnEnter()
+          break
+        end
+      end
+
+      local foundClass = false
+      local foundSpec = false
+      for _, line in ipairs(tooltipLines) do
+        if line == "Class: Monk" then
+          foundClass = true
+        end
+        if line == "Brewmaster" then
+          foundSpec = true
+        end
+      end
+
+      local privateTooltip = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._isIsiLiveTooltip == true then
+          privateTooltip = frame
+          break
+        end
+      end
+
+      Assert.True(foundClass, "Tooltip should show the localized class name")
+      Assert.False(foundSpec, "Tooltip should no longer show the specialization line when class info exists")
+      Assert.NotNil(privateTooltip, "private tooltip should exist")
+    end)
+  end)
+
   test("Roster row tooltip shows level and language abbreviation", function()
     local tooltipLines = {}
     local createdFrames = {}

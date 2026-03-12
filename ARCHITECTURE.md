@@ -1,7 +1,7 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.76`
-Last updated: `2026-03-12`
+Version baseline: `0.9.77`
+Last updated: `2026-03-13`
 
 ## Purpose
 
@@ -94,14 +94,14 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 255 scenarios across 29 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper logic.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 258 scenarios across 29 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiKeyMPlus                                                                        V.0.9.76 [<][X]|
+| isiKeyMPlus                                                                        V.0.9.77 [<][v][X]|
 |---------------------------------------------------------------------------------------------------|
-| Spec   Name         Flag Key     iLvl RIO        DPS    M+Helper  M+Managment  M+Travel           |
+| Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  M+Helper  M+Travel           |
 |---------------------------------------------------------------------------------------------------|
 | [Tank] PlayerOne    [ ]  DB +14  633  (+12)3521 321.1K  [Blue]              [Readycheck]          |
 | [Heal] PlayerTwo    [ ]  DAWN+12 629  (+0)3410  287.4K  [Grn]               [Countdown10]         |
@@ -114,18 +114,26 @@ Local release-grade validation is intentionally split into static and runtime ga
 | Lead: Yes   M+: Active   State: Running   Dungeon: Mythic   Target Dungeon: Ara-Kara +14          |
 +---------------------------------------------------------------------------------------------------+
 
-Collapsed / Mini Mode:
+Collapsed / Vertical Mini Mode:
 
-| isiKeyMPlus                                V.0.9.76 [>][X]|
+|                                             [>][v][X]|
 |----------------------------------------------------------------|
-| M+Helper                    M+Managment                         |
-| [Blue]                      [Readycheck]                        |
-| [Green]                     [Countdown10]                       |
-| [Purple]                    [Countdown 0]                       |
-| [Red]                       [Share Keys]                        |
-| [Yellow]                    [Refresh]                           |
+| M+Managment                 M+Helper                            |
+| [Readycheck]                [Blue]                              |
+| [Countdown10]               [Green]                             |
+| [Countdown 0]               [Purple]                            |
+| [Share Keys]                [Red]                               |
+| [Refresh]                   [Yellow]                            |
 | [... Circle / Moon / Skull stay stacked below in mini mode ...] |
 +----------------------------------------------------------------+
+
+Horizontal Mini Mode:
+
+|                           [<][v][X]|
+|-------------------------------------|
+| [<] [Readycheck] [>]                |
+| [Blue][Green][Purple][Red][Yel]...  |
++-------------------------------------+
 ```
 
 ## Current Controller Boundaries

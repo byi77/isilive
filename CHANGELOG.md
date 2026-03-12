@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026-03-12 - Version 0.9.76
+## 2026-03-13 - Version 0.9.77
 - **Taint-Safe Hardening:**
   - Expanded deterministic `ADDON_ACTION_FORBIDDEN` regression coverage for deferred teleport spell attributes, insecure teleport-grid buttons, center-notice teleport handling, tank-helper secure macros, and collapse interaction while secure roster buttons already exist.
   - Added explicit combat-path regression tests so secure/insecure button boundaries are exercised before release instead of only being inferred from higher-level UI tests.
@@ -28,9 +28,17 @@
   - Replaced the `/wm`/`/cwm` macro approach with the native `SecureActionButtonTemplate` attribute type `"worldmarker"`. Left-click uses `action1 = "set"`, right-click uses `action2 = "clear"` — no cursor-placement step required, marker is placed immediately.
   - Expanded the M+Helper palette from 5 to all 8 Blizzard world markers (`Square`, `Triangle`, `Diamond`, `Cross`, `Star`, `Circle`, `Moon`, `Skull`) and compacted the icon spacing so collapsed mode still fits cleanly.
   - Restored `RegisterForClicks("AnyUp", "AnyDown")` to match the required registration for the `worldmarker` attribute type.
+- **UI - Second Compact Layout:**
+  - Added a second collapse toggle next to the existing arrow. The original arrow still switches to the vertical compact palette; the new down-arrow switches to a slim horizontal compact layout.
+  - Horizontal compact mode hides the roster/table area and `M+Travel`, keeps only `M+Managment` plus `M+Helper`, places all 8 marker icons next to each other in one row, and uses left/right cycle arrows so only one management action button is shown at a time.
+  - Fixed the horizontal-layout restore bug: marker icons now return to their original vertical stack after switching back to the normal roster view.
+  - Added deterministic layout and taint regressions for the new horizontal compact mode, including the combat-ignore path for the second collapse button, the management-action carousel, and the marker restore path.
+- **UI - Compact Mode Polish:**
+  - Vertical compact mode now also hides the title, header separator, and bottom version line, matching the stripped-down tool-palette intent.
+  - Horizontal compact mode width was reduced to the minimum practical toolbar width, gained slightly larger carousel arrows and marker buttons, hides the header separator and bottom version line, and keeps a bit more air between the management carousel and the marker row.
 - **Docs Sync:**
-  - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `TODO.md`, and `isiLive.toc` to `0.9.76`.
-  - Updated deterministic validator counters to `255` scenarios across `29` modules.
+  - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `TODO.md`, and `isiLive.toc` to `0.9.77`.
+  - Updated deterministic validator counters to `258` scenarios across `29` modules.
 
 ## 2026-03-11 - Version 0.9.75
 - **Tank Helper:**
