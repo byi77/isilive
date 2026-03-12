@@ -1136,7 +1136,7 @@ local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, Wit
   end)
 end
 
-local function RegisterRosterPanelRowTooltipMetadataTests(test, Assert, WithGlobals, LoadAddonModules)
+local function RegisterRosterPanelRowTooltipLocalizedClassTest(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster row tooltip shows localized class instead of specialization", function()
     local tooltipLines = {}
     local createdFrames = {}
@@ -1287,7 +1287,9 @@ local function RegisterRosterPanelRowTooltipMetadataTests(test, Assert, WithGlob
       Assert.NotNil(privateTooltip, "private tooltip should exist")
     end)
   end)
+end
 
+local function RegisterRosterPanelRowTooltipLevelAndLanguageTest(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster row tooltip shows level and language abbreviation", function()
     local tooltipLines = {}
     local createdFrames = {}
@@ -1431,7 +1433,9 @@ local function RegisterRosterPanelRowTooltipMetadataTests(test, Assert, WithGlob
       Assert.True(foundLanguage, "Tooltip should contain the language abbreviation")
     end)
   end)
+end
 
+local function RegisterRosterPanelRowTooltipUnknownKeyTest(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster row tooltip keeps unknown key short code unresolved instead of showing numeric map ids", function()
     local tooltipLines = {}
     local createdFrames = {}
@@ -1569,6 +1573,12 @@ local function RegisterRosterPanelRowTooltipMetadataTests(test, Assert, WithGlob
     Assert.True(foundUnknownKey, "Tooltip should keep unresolved keys as '?' instead of exposing numeric map ids")
     Assert.False(foundNumericKey, "Tooltip must not show numeric map ids for unresolved key short codes")
   end)
+end
+
+local function RegisterRosterPanelRowTooltipMetadataTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelRowTooltipLocalizedClassTest(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelRowTooltipLevelAndLanguageTest(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelRowTooltipUnknownKeyTest(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 local function RegisterRosterPanelRowTooltipIsolationTests(test, Assert, WithGlobals, LoadAddonModules)

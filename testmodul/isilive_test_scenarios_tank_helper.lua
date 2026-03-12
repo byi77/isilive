@@ -194,11 +194,7 @@ local function FindFontStringByPoint(createdFontStrings, point, x, y)
   return nil
 end
 
-return function(test, ctx)
-  local Assert = ctx.assert
-  local WithGlobals = ctx.with_globals
-  local LoadAddonModules = ctx.load_modules
-
+local function RegisterNativeWorldMarkerButtonTests(test, Assert, WithGlobals, LoadAddonModules)
   test("M+Helper buttons use native world-marker secure attributes", function()
     local createdFrames = {}
     local createdFontStrings = {}
@@ -321,7 +317,9 @@ return function(test, ctx)
     Assert.Equal(tankHelperButtons[1]:GetAttribute("action2"), "clear", "right click must clear marker")
     Assert.Equal(tankHelperButtons[8]:GetAttribute("marker1"), 8, "Skull uses world marker 8")
   end)
+end
 
+local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Mini frame width accommodates tank helper buttons without clipping", function()
     local createdFrames = {}
     local createdFontStrings = {}
@@ -449,7 +447,9 @@ return function(test, ctx)
     Assert.True(titleFontString.hidden, "Title should be hidden in vertical mini mode")
     Assert.True(versionFontString.hidden, "Version line should be hidden in vertical mini mode")
   end)
+end
 
+local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Horizontal mini mode arranges management buttons and helper icons in slim rows", function()
     local createdFrames = {}
     local createdFontStrings = {}
@@ -608,4 +608,14 @@ return function(test, ctx)
     Assert.True(managementButtons[1]._shown, "All management buttons should return when leaving horizontal mode")
     Assert.True(managementButtons[2]._shown, "Second management button should be visible again in expanded mode")
   end)
+end
+
+return function(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
+
+  RegisterNativeWorldMarkerButtonTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
 end
