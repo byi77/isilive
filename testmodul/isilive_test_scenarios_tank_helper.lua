@@ -29,19 +29,19 @@ local function NewRecordedFontString(createdFontStrings)
     width = nil,
   }
 
-  function fontString:SetPoint() end
-  function fontString:Hide() end
-  function fontString:Show() end
+  function fontString.SetPoint(_self) end
+  function fontString.Hide(_self) end
+  function fontString.Show(_self) end
   function fontString:SetWidth(value)
     self.width = value
   end
-  function fontString:SetJustifyH() end
-  function fontString:GetFont()
+  function fontString.SetJustifyH(_self) end
+  function fontString.GetFont(_self)
     return "font", 10, ""
   end
-  function fontString:SetFont() end
-  function fontString:SetTextColor() end
-  function fontString:SetShadowOffset() end
+  function fontString.SetFont(_self) end
+  function fontString.SetTextColor(_self) end
+  function fontString.SetShadowOffset(_self) end
   function fontString:SetText(value)
     self.text = value
   end
@@ -91,15 +91,15 @@ local function NewRecordedFrame(createdFrames, createdFontStrings, frameType, na
   function frame:GetAttribute(key)
     return self._attributes[key]
   end
-  function frame:EnableMouse() end
-  function frame:RegisterForClicks() end
+  function frame.EnableMouse(_self) end
+  function frame.RegisterForClicks(_self) end
   function frame:SetShown(shown)
     self._shown = shown and true or false
   end
-  function frame:CreateTexture()
+  function frame.CreateTexture(_self)
     return NewRecordedTexture()
   end
-  function frame:CreateFontString()
+  function frame.CreateFontString(_self)
     return NewRecordedFontString(createdFontStrings)
   end
   function frame:Hide()
@@ -127,24 +127,24 @@ local function NewRecordedMainFrame(createdFontStrings)
     width = 0,
   }
 
-  function mainFrame:SetBackdrop() end
-  function mainFrame:SetBackdropColor() end
-  function mainFrame:IsShown()
+  function mainFrame.SetBackdrop(_self) end
+  function mainFrame.SetBackdropColor(_self) end
+  function mainFrame.IsShown(_self)
     return true
   end
-  function mainFrame:CreateFontString()
+  function mainFrame.CreateFontString(_self)
     return NewRecordedFontString(createdFontStrings)
   end
-  function mainFrame:CreateTexture()
+  function mainFrame.CreateTexture(_self)
     return { SetHeight = function() end, SetPoint = function() end, SetColorTexture = function() end }
   end
   function mainFrame:SetWidth(w)
     self.width = w
   end
-  function mainFrame:GetFrameStrata()
+  function mainFrame.GetFrameStrata(_self)
     return "MEDIUM"
   end
-  function mainFrame:GetFrameLevel()
+  function mainFrame.GetFrameLevel(_self)
     return 1
   end
 

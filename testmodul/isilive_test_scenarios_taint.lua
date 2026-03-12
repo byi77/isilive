@@ -93,9 +93,9 @@ local function NewRecordedAnimationGroup()
     playing = false,
   }
 
-  function group:SetLooping(_mode) end
+  function group.SetLooping(_self, _mode) end
 
-  function group:CreateAnimation(_kind)
+  function group.CreateAnimation(_self, _kind)
     return {
       SetScale = function() end,
       SetDuration = function() end,
@@ -207,18 +207,18 @@ local function NewRecordedFrame(createdFrames, frameType, name, parent, template
     end
   end
 
-  function frame.EnableMouse() end
-  function frame:RegisterForClicks() end
-  function frame:RegisterForDrag() end
-  function frame:SetMovable() end
+  function frame.EnableMouse(_self) end
+  function frame.RegisterForClicks(_self) end
+  function frame.RegisterForDrag(_self) end
+  function frame.SetMovable(_self) end
   function frame:StartMoving()
     self._startMovingCalls = (self._startMovingCalls or 0) + 1
   end
   function frame:StopMovingOrSizing()
     self._stopMovingCalls = (self._stopMovingCalls or 0) + 1
   end
-  function frame.SetBackdrop() end
-  function frame.SetBackdropColor() end
+  function frame.SetBackdrop(_self) end
+  function frame.SetBackdropColor(_self) end
   function frame:SetFrameStrata(value)
     self._frameStrata = value
   end
@@ -231,9 +231,9 @@ local function NewRecordedFrame(createdFrames, frameType, name, parent, template
   function frame:GetFrameLevel()
     return self._frameLevel or 1
   end
-  function frame.SetClampedToScreen() end
-  function frame:SetAllPoints() end
-  function frame:SetDrawEdge() end
+  function frame.SetClampedToScreen(_self) end
+  function frame.SetAllPoints(_self) end
+  function frame.SetDrawEdge(_self, _value) end
   function frame:SetNormalTexture(texture)
     self.normalTexture = texture
   end
@@ -258,7 +258,7 @@ local function NewRecordedFrame(createdFrames, frameType, name, parent, template
     return NewRecordedFontString()
   end
 
-  function frame:CreateAnimationGroup()
+  function frame.CreateAnimationGroup(_self)
     return NewRecordedAnimationGroup()
   end
 
@@ -699,7 +699,7 @@ local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddo
   test("TAINT: Tank helper buttons stay secure-macro only and touch no protected globals", function()
     local cleanupTraps = RegisterProtectedApiTraps()
     local ok, err = pcall(function()
-      local _controller, createdFrames, _stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules)
+      local _, createdFrames = BuildRosterPanelController(WithGlobals, LoadAddonModules)
       local tankButtons = FindTankHelperButtons(createdFrames)
       Assert.Equal(#tankButtons, 5, "tank helper should expose five secure macro buttons")
     end)

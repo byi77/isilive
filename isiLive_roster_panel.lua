@@ -246,28 +246,6 @@ local function CreateSystemOptionToggle(mainFrame, cvarName)
   return button
 end
 
-local function CreateCustomOptionToggle(mainFrame, getterFn, setterFn)
-  local button = CreateFrame("CheckButton", nil, mainFrame, "UICheckButtonTemplate")
-  button:SetSize(18, 18)
-
-  local label = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  label:SetPoint("LEFT", button, "RIGHT", 4, 0)
-  label:SetJustifyH("LEFT")
-  DisableFontStringWrapping(label)
-  button.label = label
-
-  if button.SetChecked then
-    button:SetChecked(getterFn())
-  end
-
-  button:SetScript("OnClick", function(self)
-    local enabled = self.GetChecked and self:GetChecked() or false
-    setterFn(enabled)
-  end)
-
-  return button
-end
-
 local function LayoutSystemOptionToggles(ui)
   if type(ui) ~= "table" then
     return
@@ -1418,12 +1396,8 @@ local function RenderRosterImpl(state, roster)
       if row.hoverFrame then
         row.hoverFrame:Hide()
       end
-      if row.roleButton then
-        if not IsCombatLockdownActive() then
-          row.roleButton:Hide()
-        else
-          -- Combat deferral handled by secure driver usually, but here we just accept state until regen
-        end
+      if row.roleButton and not IsCombatLockdownActive() then
+        row.roleButton:Hide()
       end
     end
     if raidNoticeLabel then
@@ -1438,10 +1412,6 @@ local function RenderRosterImpl(state, roster)
   -- Normal case: hide notice, show rows
   if raidNoticeLabel then
     raidNoticeLabel:Hide()
-  end
-
-  if isCollapsed then
-    -- No need to render rows if collapsed
   end
 
   for _, row in pairs(memberRows) do
@@ -1465,12 +1435,8 @@ local function RenderRosterImpl(state, roster)
       row.hoverFrame:Hide()
     end
 
-    if row.roleButton then
-      if not IsCombatLockdownActive() then
-        row.roleButton:Hide()
-      else
-        -- Defer hide if needed or accept stale state in combat
-      end
+    if row.roleButton and not IsCombatLockdownActive() then
+      row.roleButton:Hide()
     end
   end
 
