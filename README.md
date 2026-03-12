@@ -11,11 +11,11 @@ Current documented baseline: `0.9.76`.
 - Group roster table with columns: `Spec`, `Name`, `Flag`, `Key`, `iLvl`, `RIO`, `DPS`
 - Persistent raid warning label in the Roster Panel for groups > 5 members (hides roster rows)
 - Interactive Role Icons: Click the role icon in the roster to securely mark Tank (**Blue Square**) or Healer (**Green Triangle**).
-- **Tank Helper:** Vertical bar of 5 world marker buttons (Square, Triangle, Diamond, Cross, Star) for quick placement/clearing.
-- **Mini Mode:** Collapse button to hide the roster list and `M+Travel`, while keeping Tank Helper and Management buttons visible.
+- **M+Helper:** Vertical bar of 8 world marker buttons (`Square`, `Triangle`, `Diamond`, `Cross`, `Star`, `Circle`, `Moon`, `Skull`) using native secure world-marker actions for immediate place/clear.
+- **Mini Mode:** Collapse button to hide the roster list and `M+Travel`, while keeping M+Helper and Management buttons visible in a compact two-column palette.
 - Bottom-left system toggles: `Combat Logging`, `DM Reset on Entry`
 - Stable role sorting: `Tank -> Healer -> Damager`
-- Right-side controls: `Readycheck`, `Countdown10`, `Countdown 0`, `Refresh`, `Share Keys`
+- Right-side controls: `Readycheck`, `Countdown10`, `Countdown 0`, `Share Keys`, `Refresh`
 - Right-side headers: `M+Managment` and `M+Travel`
 - `M+Travel` teleport grid with active-season dungeon teleports; during pre-season/off-season without active portal pool it shows a season-start text instead of stale portals
 - Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
@@ -67,13 +67,13 @@ Current documented baseline: `0.9.76`.
 - They mirror the live Blizzard CVar state and write only on explicit user clicks.
 - The toggle row keeps a fixed gap between adjacent labels.
 - Blizzard damage meter is also manually reset on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
-- In **Mini Mode** (collapsed), the window acts as a compact tool palette with Tank Helper and Management controls only, and stays open during key start or raid join, bypassing the usual auto-hide logic for the full roster view.
+- In **Mini Mode** (collapsed), the window acts as a compact tool palette with M+Helper and Management controls only, and stays open during key start or raid join, bypassing the usual auto-hide logic for the full roster view.
 - `CHALLENGE_MODE_START` captures a per-player RIO baseline.
 - `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` schedules delayed post-run refresh and enables clamped delta display `(+X)RIO` after refresh succeeds (with short retry if still blocked), including when the window is currently hidden.
 - Latest run DPS is captured after `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` for `M+`, and after leaving a tracked mythic non-challenge dungeon for `M0`; both paths now retry briefly if the Blizzard damage-meter session is not ready yet, and `M0` matching still uses the roster snapshot frozen on dungeon entry.
 - Test mode (`/isilive test`, `/isilive testall`) includes visible positive dummy RIO delta preview.
 - `Readycheck`, `Countdown10`, and `Countdown 0` are leader-only
-- Roster language column shows only the flag icon; the tooltip shows the 2-letter server language code (for example `DE`, `FR`, `EN`)
+- Roster language column shows the flag icon when a texture exists; for tags without a flag asset (for example `KR`, `CN`, `TW`) it shows a grey text tag instead. The tooltip still shows the 2-letter server language code.
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 - Bottom status line includes current target dungeon context as `Target Dungeon: <Name> [+Level]` (or `Target Dungeon: -` when unresolved)
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
@@ -227,7 +227,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 253 scenarios across 28 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/units/ui/roster-display/taint/tank-helper), including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 255 scenarios across 29 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper), including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)

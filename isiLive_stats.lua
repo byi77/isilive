@@ -156,10 +156,23 @@ function Stats.CreateController(opts)
   local getRoster = opts.getRoster
   local getUnitNameAndRealm = opts.getUnitNameAndRealm
 
-  local localPlayerKey = ResolveLocalPlayerKey(getUnitNameAndRealm)
+  -- localPlayerKey und Migration werden bewusst lazy initialisiert:
+  -- Stats.CreateController() wird zur Lua-Ladezeit aufgerufen, bevor
+  -- ADDON_LOADED feuert. Zu diesem Zeitpunkt existiert die Spielereinheit
+  -- noch nicht sicher (UnitExists("player") kann false liefern) und die
+  -- SavedVariables (IsiLiveDB) sind noch nicht wiederhergestellt.
+  local localPlayerKey = nil
+  local initialized = false
   local sessionPlayerLastRuns = {}
 
-  MigrateAndPrunePersistentPlayerStats(localPlayerKey)
+  local function EnsureInitialized()
+    if initialized then
+      return
+    end
+    initialized = true
+    localPlayerKey = ResolveLocalPlayerKey(getUnitNameAndRealm)
+    MigrateAndPrunePersistentPlayerStats(localPlayerKey)
+  end
 
   local controller = {}
 
@@ -168,6 +181,7 @@ function Stats.CreateController(opts)
       return false
     end
 
+    EnsureInitialized()
     EnsureStatsTables()
 
     local roster = type(rosterOverride) == "table" and rosterOverride or (getRoster and getRoster())
@@ -184,6 +198,7 @@ function Stats.CreateController(opts)
   end
 
   function controller.GetPlayerLastRunDps(name, realm)
+    EnsureInitialized()
     if not name or not IsiLiveDB or not IsiLiveDB.stats then
       return nil
     end

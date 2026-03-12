@@ -53,7 +53,42 @@ local function RegisterStatsPruningTests(test, Assert, WithGlobals, LoadAddonMod
     end)
   end)
 
-  test("Stats controller migrates legacy local-player DPS and prunes foreign legacy entries", function()
+  test("Stats controller does not touch IsiLiveDB before first method call", function()
+    local db = {
+      stats = {
+        players = { ["buddy-realm"] = 7 },
+        dungeons = { [2662] = 4 },
+        playerLastRuns = { ["me-myrealm"] = { dps = 100 } },
+      },
+    }
+
+    WithGlobals({
+      IsiLiveDB = db,
+      GetRealmName = function()
+        return "MyRealm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_stats.lua" })
+      addon.Stats.CreateController({
+        getRoster = function()
+          return {}
+        end,
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "Me", "MyRealm"
+          end
+          return nil
+        end,
+      })
+
+      -- Migration must be deferred: SavedVariables may not be restored yet at construction time
+      Assert.NotNil(db.stats.players, "IsiLiveDB must not be modified before first method call")
+      Assert.NotNil(db.stats.dungeons, "IsiLiveDB must not be modified before first method call")
+      Assert.NotNil(db.stats.playerLastRuns, "IsiLiveDB must not be modified before first method call")
+    end)
+  end)
+
+  test("Stats controller migrates legacy local-player DPS and prunes foreign legacy entries on first use", function()
     local db = {
       stats = {
         dungeons = { [2662] = 4 },
@@ -86,18 +121,19 @@ local function RegisterStatsPruningTests(test, Assert, WithGlobals, LoadAddonMod
         end,
       })
 
-      Assert.Nil(db.stats.players, "legacy foreign player counters must be pruned on controller creation")
-      Assert.Nil(db.stats.dungeons, "unused legacy dungeon counters must be pruned on controller creation")
-      Assert.Nil(db.stats.playerLastRuns, "legacy multi-player last-run storage must be removed on migration")
+      -- Migration runs lazily on first method call, not at construction time
+      Assert.Equal(
+        math.floor(controller.GetPlayerLastRunDps("Me", "MyRealm") or 0),
+        456789,
+        "migrated local-player DPS should be readable on first use"
+      )
+      Assert.Nil(db.stats.players, "legacy foreign player counters must be pruned on first use")
+      Assert.Nil(db.stats.dungeons, "unused legacy dungeon counters must be pruned on first use")
+      Assert.Nil(db.stats.playerLastRuns, "legacy multi-player last-run storage must be removed on first use")
       Assert.Equal(
         math.floor(db.stats.playerLastRun.dps or 0),
         456789,
         "local player's legacy DPS snapshot should migrate into the bounded single-player slot"
-      )
-      Assert.Equal(
-        math.floor(controller.GetPlayerLastRunDps("Me", "MyRealm") or 0),
-        456789,
-        "migrated local-player DPS should remain readable after controller creation"
       )
       Assert.Nil(
         controller.GetPlayerLastRunDps("Buddy", "Realm"),

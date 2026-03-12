@@ -419,7 +419,8 @@ end
 local function FindSecureRoleButton(createdFrames, unit)
   for _, frame in ipairs(createdFrames) do
     if frame._template == "SecureActionButtonTemplate" then
-      if unit == nil or frame:GetAttribute("unit") == unit then
+      local macrotext1 = frame:GetAttribute("macrotext1")
+      if unit == nil or (type(macrotext1) == "string" and macrotext1:find("/target " .. unit, 1, true) ~= nil) then
         return frame
       end
     end
@@ -440,8 +441,7 @@ local function FindTankHelperButtons(createdFrames)
   local buttons = {}
   for _, frame in ipairs(createdFrames) do
     if frame._template == "SecureActionButtonTemplate" and type(frame.GetAttribute) == "function" then
-      local macrotext1 = frame:GetAttribute("macrotext1")
-      if type(macrotext1) == "string" and macrotext1:find("/wm", 1, true) ~= nil then
+      if frame:GetAttribute("type1") == "worldmarker" and frame:GetAttribute("type2") == "worldmarker" then
         table.insert(buttons, frame)
       end
     end
@@ -653,7 +653,8 @@ local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddo
     local roleButton = FindSecureRoleButton(createdFrames, "player")
     Assert.NotNil(roleButton, "tank row should create a role button")
     Assert.Equal(roleButton._template, "SecureActionButtonTemplate", "role icon must use a secure action button")
-    Assert.Equal(roleButton:GetAttribute("type"), "macro", "role button must be wired as a secure macro action")
+    Assert.Equal(roleButton:GetAttribute("type1"), "macro", "left click must be wired as a secure macro action")
+    Assert.Equal(roleButton:GetAttribute("type2"), "macro", "right click must be wired as a secure macro action")
   end)
 
   test("Roster role icon click applies Blue Square to Tank unit", function()
@@ -673,7 +674,16 @@ local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddo
     Assert.True(ok, "tank render crashed or hit a taint trap: " .. tostring(err))
     local roleButton = FindSecureRoleButton(createdFrames, "player")
     Assert.NotNil(roleButton, "tank row should create a role button")
-    Assert.Equal(roleButton:GetAttribute("macrotext"), "/tm @player 6", "tank role button must mark Blue Square")
+    Assert.Equal(
+      roleButton:GetAttribute("macrotext1"),
+      "/target player\n/tm 6\n/targetlasttarget",
+      "tank role button must mark Blue Square"
+    )
+    Assert.Equal(
+      roleButton:GetAttribute("macrotext2"),
+      "/target player\n/tm 0\n/targetlasttarget",
+      "tank role button right click must clear marker"
+    )
   end)
 
   test("Roster role icon click applies Green Triangle to Healer unit", function()
@@ -693,15 +703,24 @@ local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddo
     Assert.True(ok, "healer render crashed or hit a taint trap: " .. tostring(err))
     local roleButton = FindSecureRoleButton(createdFrames, "party1")
     Assert.NotNil(roleButton, "healer row should create a role button")
-    Assert.Equal(roleButton:GetAttribute("macrotext"), "/tm @party1 4", "healer role button must mark Green Triangle")
+    Assert.Equal(
+      roleButton:GetAttribute("macrotext1"),
+      "/target party1\n/tm 4\n/targetlasttarget",
+      "healer role button must mark Green Triangle"
+    )
+    Assert.Equal(
+      roleButton:GetAttribute("macrotext2"),
+      "/target party1\n/tm 0\n/targetlasttarget",
+      "healer role button right click must clear marker"
+    )
   end)
 
-  test("TAINT: Tank helper buttons stay secure-macro only and touch no protected globals", function()
+  test("TAINT: M+Helper buttons stay secure world-marker buttons and touch no protected globals", function()
     local cleanupTraps = RegisterProtectedApiTraps()
     local ok, err = pcall(function()
       local _, createdFrames = BuildRosterPanelController(WithGlobals, LoadAddonModules)
       local tankButtons = FindTankHelperButtons(createdFrames)
-      Assert.Equal(#tankButtons, 5, "tank helper should expose five secure macro buttons")
+      Assert.Equal(#tankButtons, 8, "M+Helper should expose eight secure world-marker buttons")
     end)
 
     cleanupTraps()

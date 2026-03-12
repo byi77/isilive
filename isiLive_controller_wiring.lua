@@ -212,7 +212,24 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   config.timerAfter = function(seconds, callback)
     if C_Timer and C_Timer.After then
       C_Timer.After(seconds, function()
-        pcall(callback)
+        local ok, err = xpcall(callback, function(e)
+          local debugLib = rawget(_G, "debug")
+          if type(debugLib) == "table" and type(debugLib.traceback) == "function" then
+            return debugLib.traceback(tostring(e), 2)
+          end
+          return tostring(e)
+        end)
+        if not ok then
+          -- Fehler an WoWs globalem Error-Handler melden (roter Fehlerrahmen),
+          -- damit Timer-Callback-Crashes nicht lautlos verschwinden.
+          local getEH = rawget(_G, "geterrorhandler")
+          if type(getEH) == "function" then
+            local h = getEH()
+            if type(h) == "function" then
+              pcall(h, err)
+            end
+          end
+        end
       end)
     end
   end

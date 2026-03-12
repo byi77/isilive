@@ -10,6 +10,13 @@ local ISILIVE_SYNC_PREFIX = "ISILIVE"
 local ISILIVE_HELLO_COOLDOWN = 8
 local ISILIVE_KEY_COOLDOWN = 5
 local ISILIVE_STATS_COOLDOWN = 5
+
+-- Hinweis: Die folgenden Variablen sind bewusst auf Modul-Ebene (Singleton).
+-- Das Addon hat genau eine aktive Sync-Instanz pro Session. Die Cooldown-Variablen
+-- (lastIsiLive*) verhindern Doppelnachrichten addon-weit. isiLiveUsersByKey und
+-- keyInfoByPlayerKey sind session-globaler Zustand, der beim Gruppenauflösen via
+-- ClearKnownUsers() zurückgesetzt wird (siehe group.lua → HandleNoGroup).
+-- Architekturinkonsistenz zum CreateController()-Muster der übrigen Module ist bekannt.
 local lastIsiLiveHelloAt = 0
 local lastIsiLiveKeyAt = 0
 local lastIsiLiveStatsAt = 0

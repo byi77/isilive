@@ -134,6 +134,9 @@ local function HandleNoGroup(deps, wasInGroupBefore)
   deps.updateLeaderButtons()
 end
 
+-- Ghosts werden nur entfernt, wenn die Gruppe voll besetzt ist (5 aktive Mitglieder).
+-- Bei weniger als 5 aktiven Mitgliedern bleiben Ghosts als sichtbare Historie erhalten.
+-- Intentionelles Design: Eine 4er-Gruppe soll frühere Zusammensetzungen noch zeigen.
 local function PruneGhosts(roster)
   local activeCount = 0
   local ghosts = {}

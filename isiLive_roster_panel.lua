@@ -31,7 +31,7 @@ local SYSTEM_OPTION_TOGGLE_GAP = 18
 
 -- Layout Konstanten
 local FULL_FRAME_WIDTH = 780
-local MINI_FRAME_WIDTH = 320 -- Tank Helfer (-275) + M+ Buttons (-136) + Teleport
+local MINI_FRAME_WIDTH = 220
 
 local function RequireFunction(value, name)
   assert(type(value) == "function", "isiLive: RosterPanel requires " .. name)
@@ -77,7 +77,7 @@ local function TryGetOwnedKeystoneLink(getOwnedKeystoneLink, keyLevel)
     return nil
   end
 
-  local linkLevel = tonumber(string.match(ownedLink, "|Hkeystone:%d+:%d+:(%-?%d+):"))
+  local linkLevel = tonumber(string.match(ownedLink, "|Hkeystone:%d+:%d+:(%-?%d+):") or "")
   local expectedLevel = tonumber(keyLevel)
   if linkLevel and expectedLevel and linkLevel ~= math.floor(expectedLevel) then
     return nil
@@ -379,8 +379,9 @@ local function LayoutSimpleTooltip(tooltip)
       local lineHeight = 16
       if type(line) == "table" and type(line.GetStringHeight) == "function" then
         local ok, measuredHeight = pcall(line.GetStringHeight, line)
-        if ok and tonumber(measuredHeight) and tonumber(measuredHeight) > 0 then
-          lineHeight = math.max(tonumber(measuredHeight), 14)
+        local measuredHeightNumber = ok and tonumber(measuredHeight) or nil
+        if measuredHeightNumber and measuredHeightNumber > 0 then
+          lineHeight = math.max(measuredHeightNumber, 14)
         end
       end
       tooltipHeight = tooltipHeight + lineHeight
@@ -423,8 +424,9 @@ local function PositionSimpleTooltip(tooltip)
     local scale = 1
     if type(tooltipParent) == "table" and type(tooltipParent.GetEffectiveScale) == "function" then
       local ok, tooltipScale = pcall(tooltipParent.GetEffectiveScale, tooltipParent)
-      if ok and tonumber(tooltipScale) and tonumber(tooltipScale) > 0 then
-        scale = tonumber(tooltipScale)
+      local tooltipScaleNumber = ok and tonumber(tooltipScale) or nil
+      if tooltipScaleNumber and tooltipScaleNumber > 0 then
+        scale = tooltipScaleNumber
       end
     end
 
@@ -527,8 +529,8 @@ end
 
 local function CreateRosterHoverTooltip(mainFrame)
   local tooltipParent = rawget(_G, "UIParent") or mainFrame
-  local tooltip = CreateFrame("Frame", nil, tooltipParent, "BackdropTemplate")
-  tooltip = EnsureSimpleTooltipAPI(tooltip)
+  local tooltipFrame = CreateFrame("Frame", nil, tooltipParent, "BackdropTemplate")
+  local tooltip = EnsureSimpleTooltipAPI(tooltipFrame)
   if type(tooltip) ~= "table" then
     return nil
   end
@@ -662,14 +664,16 @@ local function ResolveTooltipUnitLevel(unit, info)
     local unitLevel = rawget(_G, "UnitLevel")
     if type(unitLevel) == "function" then
       local ok, level = pcall(unitLevel, unit)
-      if ok and tonumber(level) and tonumber(level) > 0 then
-        return math.floor(tonumber(level))
+      local levelNumber = ok and tonumber(level) or nil
+      if levelNumber and levelNumber > 0 then
+        return math.floor(levelNumber)
       end
     end
   end
 
-  if type(info) == "table" and tonumber(info.level) and tonumber(info.level) > 0 then
-    return math.floor(tonumber(info.level))
+  local infoLevelNumber = type(info) == "table" and tonumber(info.level) or nil
+  if infoLevelNumber and infoLevelNumber > 0 then
+    return math.floor(infoLevelNumber)
   end
 
   return nil
@@ -796,7 +800,7 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
       local name = row.tooltipName
       if name then
         local target = (row.tooltipRealm and row.tooltipRealm ~= "") and (name .. "-" .. row.tooltipRealm) or name
-        local openChat = _G.ChatFrame_OpenChat
+        local openChat = rawget(_G, "ChatFrame_OpenChat")
         if type(openChat) == "function" then
           pcall(openChat, "/w " .. target .. " ")
         end
@@ -833,6 +837,7 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   row.roleButton = CreateFrame("Button", nil, mainFrame, "SecureActionButtonTemplate")
   row.roleButton:SetSize(14, 14)
   row.roleButton:SetPoint("TOPLEFT", NAME_COL_X, yOffset - 1)
+  row.roleButton:RegisterForClicks("AnyUp", "AnyDown")
   row.roleButton.icon = row.roleButton:CreateTexture(nil, "ARTWORK")
   row.roleButton.icon:SetAllPoints()
   row.roleButton.icon:SetTexture("Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES")
@@ -1036,7 +1041,7 @@ end
 local function CreateShareKeysButton(mainFrame, deps)
   local button = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   button:SetSize(120, 24)
-  button:SetPoint("TOPRIGHT", -136, -180)
+  button:SetPoint("TOPRIGHT", -136, -150)
   local lastShareKeysClickAt = nil
   local debounceSeconds = tonumber(deps.shareKeysDebounceSeconds) or 0
   if debounceSeconds < 0 then
@@ -1116,7 +1121,7 @@ local function CreatePanelButtons(mainFrame, deps)
 
   local refreshButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   refreshButton:SetSize(120, 24)
-  refreshButton:SetPoint("TOPRIGHT", -136, -150)
+  refreshButton:SetPoint("TOPRIGHT", -136, -180)
   AttachPanelButtonTooltip(deps.tooltipFrame, refreshButton, getL, "BTN_REFRESH", "TOOLTIP_REFRESH", nil)
 
   local shareKeysButton = CreateShareKeysButton(mainFrame, deps)
@@ -1144,17 +1149,20 @@ end
 
 local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
   local markers = {
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_6", id = 6, name = "Square (Blue)" }, -- Blue
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_4", id = 4, name = "Triangle (Green)" }, -- Green
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_3", id = 3, name = "Diamond (Purple)" }, -- Purple
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_7", id = 7, name = "Cross (Red)" }, -- Red
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_1", id = 1, name = "Star (Yellow)" }, -- Yellow
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_6", id = 1, name = "Square (Blue)" },
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_4", id = 2, name = "Triangle (Green)" },
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_3", id = 3, name = "Diamond (Purple)" },
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_7", id = 4, name = "Cross (Red)" },
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_1", id = 5, name = "Star (Yellow)" },
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_2", id = 6, name = "Circle (Orange)" },
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_5", id = 7, name = "Moon (Silver)" },
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_8", id = 8, name = "Skull (White)" },
   }
 
   local buttons = {}
   local startY = -60
-  local size = 24
-  local gap = 6
+  local size = 16
+  local gap = 2
 
   -- Position: Rechts von der DPS-Spalte, links von den M+ Management Buttons
   local xPos = -275
@@ -1168,10 +1176,12 @@ local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
       btn:SetNormalTexture(marker.icon)
     end
     if btn.SetAttribute then
-      btn:SetAttribute("type1", "macro") -- Left click
-      btn:SetAttribute("macrotext1", "/wm " .. marker.id)
-      btn:SetAttribute("type2", "macro") -- Right click
-      btn:SetAttribute("macrotext2", "/cwm " .. marker.id)
+      btn:SetAttribute("type1", "worldmarker") -- Left click: setzen
+      btn:SetAttribute("marker1", marker.id)
+      btn:SetAttribute("action1", "set")
+      btn:SetAttribute("type2", "worldmarker") -- Right click: löschen
+      btn:SetAttribute("marker2", marker.id)
+      btn:SetAttribute("action2", "clear")
     end
     if btn.RegisterForClicks then
       btn:RegisterForClicks("AnyUp", "AnyDown")
@@ -1196,13 +1206,55 @@ local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
   end
 
   local header = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  header:SetPoint("TOPRIGHT", xPos - 15, -34)
+  header:SetPoint("TOPRIGHT", xPos + 18, -34)
   header:SetWidth(60)
   header:SetJustifyH("CENTER")
   local L = getL()
   header:SetText(L.TANK_HELPER_HEADER or "Tank Helper")
 
   return buttons, header
+end
+
+local function UpdateColumnPositions(ui, isCollapsed)
+  local tankX = isCollapsed and -167 or -275
+  local leadX = isCollapsed and -37 or -136
+
+  if ui.tankButtons then
+    for _, btn in ipairs(ui.tankButtons) do
+      if btn.GetPoint then
+        local _, _, _, _, y = btn:GetPoint()
+        btn:SetPoint("TOPRIGHT", tankX, y or 0)
+      end
+    end
+  end
+
+  if ui.tankHeader then
+    if ui.tankHeader.GetPoint then
+      local _, _, _, _, y = ui.tankHeader:GetPoint()
+      local headerXOffset = isCollapsed and 30 or 18
+      ui.tankHeader:SetPoint("TOPRIGHT", tankX + headerXOffset, y or 0)
+    end
+  end
+
+  local leadButtons = {
+    ui.readyCheckButton,
+    ui.countdownButton,
+    ui.countdownCancelButton,
+    ui.refreshButton,
+    ui.shareKeysButton,
+  }
+
+  for _, btn in ipairs(leadButtons) do
+    if btn and btn.GetPoint then
+      local _, _, _, _, y = btn:GetPoint()
+      btn:SetPoint("TOPRIGHT", leadX, y)
+    end
+  end
+
+  if ui.leadOptionsHeader and ui.leadOptionsHeader.GetPoint then
+    local _, _, _, _, y = ui.leadOptionsHeader:GetPoint()
+    ui.leadOptionsHeader:SetPoint("TOPRIGHT", leadX, y)
+  end
 end
 
 local function UpdateCollapseState(ui, isCollapsed, mainFrame)
@@ -1221,6 +1273,8 @@ local function UpdateCollapseState(ui, isCollapsed, mainFrame)
     end
   end
 
+  UpdateColumnPositions(ui, isCollapsed)
+
   local function SetVisible(obj, show)
     if obj and obj.SetShown then
       obj:SetShown(show)
@@ -1236,6 +1290,7 @@ local function UpdateCollapseState(ui, isCollapsed, mainFrame)
   SetVisible(ui.rioHeader, show)
   SetVisible(ui.dpsHeader, show)
   SetVisible(ui.statusLine, show)
+  SetVisible(ui.mplusManagementHeader, show)
 
   if ui.advancedCombatLoggingToggle then
     SetVisible(ui.advancedCombatLoggingToggle, show)
@@ -1272,6 +1327,11 @@ local function CreateCollapseButton(mainFrame, onClick)
   local btn = CreateFrame("Button", nil, mainFrame)
   btn:SetSize(20, 20)
   btn:SetPoint("TOPRIGHT", -24, -2)
+  -- DragHandle liegt auf mainFrame:GetFrameLevel() + 100; Button muss darüber liegen.
+  -- Entspricht dem FrameLevel des Close-Buttons (dragHandle + 2 = mainFrame + 102).
+  if btn.SetFrameLevel and mainFrame.GetFrameLevel then
+    btn:SetFrameLevel(mainFrame:GetFrameLevel() + 102)
+  end
   if btn.SetNormalTexture then
     btn:SetNormalTexture("Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up")
   end
@@ -1492,19 +1552,26 @@ local function RenderRosterImpl(state, roster)
         showButton = true
       end
 
+      if info.isGhost then
+        showButton = false
+      end
+
       if not IsCombatLockdownActive() then
         if showButton and not isCollapsed then
           row.roleButton:Show()
-          row.roleButton:SetAttribute("unit", entry.unit)
-          row.roleButton:SetAttribute("type", "macro")
+          row.roleButton:SetAttribute("type1", "macro")
+          row.roleButton:SetAttribute("type2", "macro")
           if role == "TANK" then
             -- Blue Square = 6
-            row.roleButton:SetAttribute("macrotext", "/tm @" .. entry.unit .. " 6")
+            row.roleButton:SetAttribute("macrotext1", "/target " .. entry.unit .. "\n/tm 6\n/targetlasttarget")
+            row.roleButton:SetAttribute("macrotext2", "/target " .. entry.unit .. "\n/tm 0\n/targetlasttarget")
           elseif role == "HEALER" then
             -- Green Triangle = 4
-            row.roleButton:SetAttribute("macrotext", "/tm @" .. entry.unit .. " 4")
+            row.roleButton:SetAttribute("macrotext1", "/target " .. entry.unit .. "\n/tm 4\n/targetlasttarget")
+            row.roleButton:SetAttribute("macrotext2", "/target " .. entry.unit .. "\n/tm 0\n/targetlasttarget")
           else
-            row.roleButton:SetAttribute("macrotext", nil)
+            row.roleButton:SetAttribute("macrotext1", nil)
+            row.roleButton:SetAttribute("macrotext2", nil)
           end
         else
           row.roleButton:Hide()
@@ -1545,11 +1612,11 @@ local function RenderRosterImpl(state, roster)
     end
     row.ilvl:SetText(displayData.ilvlText)
     row.rio:SetText(displayData.rioText)
-    row.dps:SetText(
-      type(state.getPlayerLastRunDps) == "function"
-          and (FormatCompactTooltipNumber(state.getPlayerLastRunDps(info.name, info.realm)) or "-")
-        or "-"
-    )
+    local dpsText = "-"
+    if type(state.getPlayerLastRunDps) == "function" then
+      dpsText = FormatCompactTooltipNumber(state.getPlayerLastRunDps(info.name, info.realm)) or "-"
+    end
+    row.dps:SetText(dpsText)
     row.unit = entry.unit
     row.tooltipName = info and info.name or nil
     row.tooltipRealm = info and info.realm or nil

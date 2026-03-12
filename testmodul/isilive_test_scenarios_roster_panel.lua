@@ -780,6 +780,7 @@ local function NewRowTooltipCreateFrameStub(createdFrames, tooltipLines, tooltip
     f.SetEnabled = function() end
     f.SetAlpha = function() end
     f.EnableMouse = function() end
+    f.RegisterForClicks = function() end
     f.SetScript = function(self, script, handler)
       self[script] = handler
     end
@@ -1603,6 +1604,7 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
           SetEnabled = function() end,
           SetAlpha = function() end,
           EnableMouse = function() end,
+          RegisterForClicks = function() end,
           SetScript = function(self, script, handler)
             self[script] = handler
           end,
@@ -1840,7 +1842,7 @@ local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, Load
 
       local shareKeysButton = nil
       for _, frame in ipairs(createdFrames) do
-        if frame.pointY == -180 then
+        if frame.pointY == -150 then
           shareKeysButton = frame
           break
         end

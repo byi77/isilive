@@ -215,7 +215,7 @@ function RuntimeState.CreateController(opts)
 
   function controller.GetSnapshot()
     return {
-      roster = state.roster,
+      roster = CopyTableShallow(state.roster),
       pendingQueueJoinInfo = state.pendingQueueJoinInfo,
       activeJoinedKeyMapID = state.activeJoinedKeyMapID,
       latestQueueDungeonName = state.latestQueueDungeonName,

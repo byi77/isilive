@@ -94,20 +94,21 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 253 scenarios across 28 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/units/ui/roster-display/taint/tank-helper logic.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 255 scenarios across 29 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 | isiKeyMPlus                                                                        V.0.9.76 [<][X]|
 |---------------------------------------------------------------------------------------------------|
-| Spec   Name         Flag Key     iLvl RIO        DPS    Tank   M+Managment  M+Travel              |
+| Spec   Name         Flag Key     iLvl RIO        DPS    M+Helper  M+Managment  M+Travel           |
 |---------------------------------------------------------------------------------------------------|
 | [Tank] PlayerOne    [ ]  DB +14  633  (+12)3521 321.1K  [Blue]              [Readycheck]          |
 | [Heal] PlayerTwo    [ ]  DAWN+12 629  (+0)3410  287.4K  [Grn]               [Countdown10]         |
 | [DPS]  PlayerThree  [ ]  -       631  3377      -       [Purp]              [Countdown 0]         |
-| [DPS]  PlayerFour   [ ]  AK +10  626  3290      301.8K  [Red]               [Refresh]             |
-| [DPS]  PlayerFive   [ ]  OFG+11  628  3333      298.2K  [Yel]               [Share Keys]          |
+| [DPS]  PlayerFour   [ ]  AK +10  626  3290      301.8K  [Red]               [Share Keys]          |
+| [DPS]  PlayerFive   [ ]  OFG+11  628  3333      298.2K  [Yel]               [Refresh]             |
+|                                               ... [Circle] [Moon] [Skull] ...                     |
 |                                                                             [Teleport Grid...]    |
 |---------------------------------------------------------------------------------------------------|
 | Lead: Yes   M+: Active   State: Running   Dungeon: Mythic   Target Dungeon: Ara-Kara +14          |
@@ -117,12 +118,13 @@ Collapsed / Mini Mode:
 
 | isiKeyMPlus                                V.0.9.76 [>][X]|
 |----------------------------------------------------------------|
-| Tank Helper                 M+Managment                         |
+| M+Helper                    M+Managment                         |
 | [Blue]                      [Readycheck]                        |
 | [Green]                     [Countdown10]                       |
 | [Purple]                    [Countdown 0]                       |
-| [Red]                       [Refresh]                           |
-| [Yellow]                    [Share Keys]                        |
+| [Red]                       [Share Keys]                        |
+| [Yellow]                    [Refresh]                           |
+| [... Circle / Moon / Skull stay stacked below in mini mode ...] |
 +----------------------------------------------------------------+
 ```
 

@@ -100,10 +100,8 @@ function QueueLifecycle.BuildHandlers(ctx)
           ctx.exitTestMode()
         end
         ctx.setActiveJoinedKeyMapID(nil)
-        ctx.setPendingQueueJoinInfo(nil)
-      else
-        ctx.setPendingQueueJoinInfo(nil)
       end
+      ctx.setPendingQueueJoinInfo(nil)
       ctx.updateMPlusTeleportButton()
       if hadActiveJoinedKey and not ctx.getActiveJoinedKeyMapID() then
         ctx.updateUI()

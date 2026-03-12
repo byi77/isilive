@@ -52,6 +52,8 @@ function Locale.LocaleToLanguageTag(localeTag)
   if normalized == "ptbr" or normalized == "ptpt" then
     return "PT"
   end
+  -- KR/CN/TW: Tags werden erkannt, haben aber kein Flag-Asset in
+  -- LANGUAGE_FLAG_TEXTURE_BY_TAG → GetLanguageFlagMarkup gibt "??" zurück.
   if normalized == "kokr" then
     return "KR"
   end
@@ -68,7 +70,9 @@ function Locale.GetLanguageFlagMarkup(languageTag)
   local tag = languageTag and tostring(languageTag):upper() or "??"
   local texturePath = LANGUAGE_FLAG_TEXTURE_BY_TAG[tag]
   if not texturePath then
-    return "|cffbfbfbf??|r"
+    -- Zeigt den Sprach-Tag als Text statt generischem "??" an,
+    -- damit KR/CN/TW-Spieler erkennbare Kürzel statt Fragezeichen sehen.
+    return string.format("|cffbfbfbf%s|r", tag)
   end
   return string.format("|T%s:14:10:0:0|t", texturePath)
 end

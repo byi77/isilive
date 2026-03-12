@@ -29,8 +29,8 @@ Last updated: `2026-03-12`
 | UC-08 | Post-run DPS snapshot | Latest dungeon DPS per player is read from Blizzard damage meter and shown in roster + tooltip |
 | UC-09 | Manual Role Marker Buttons | Tank/Healer role icons are secure buttons to set raid markers |
 | UC-10 | Raid Notice integration | Persistent warning is shown in roster area when group > 5 members |
-| UC-11 | Tank Helper World Markers | Vertical bar of secure world-marker buttons for quick placement |
-| UC-12 | Roster Panel Mini Mode | Collapse toggle hides roster list and `M+Travel`, while keeping compact tools visible |
+| UC-11 | M+Helper World Markers | Vertical bar of 8 secure world-marker buttons for immediate place/clear |
+| UC-12 | Roster Panel Mini Mode | Collapse toggle hides roster list and `M+Travel`, while keeping compact M+Helper and management tools visible |
 
 ## UC-01 Invite Detection And Target Resolution
 
@@ -157,7 +157,7 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 6. UC-08: post-run DPS snapshot capture for `M+` and `M0`, bounded persistence, and tooltip/roster rendering.
 7. UC-09: Manual Role Marker secure button configuration.
 8. UC-10: Raid notice integration within the Roster Panel.
-9. UC-11/UC-12: Secure button configuration for Tank Helper and combat-deferred visibility logic for Collapse mode.
+9. UC-11/UC-12: Secure world-marker button configuration for M+Helper and combat-deferred visibility logic for Collapse mode.
 10. Taint hardening: deferred secure attribute writes, insecure teleport/notice actions, and combat-safe collapse handling.
 
 ## Traceability To Source Files

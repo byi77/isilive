@@ -110,6 +110,26 @@ local function RegisterHighlightActiveAndQueueTests(test, Assert, WithGlobals, L
 end
 
 local function RegisterHighlightNormalizationTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Highlight treats struct-based inactive listing correctly when active=false in C_LFGList response", function()
+    WithGlobals({
+      C_LFGList = {
+        GetActiveEntryInfo = function()
+          return { active = false, mapID = 2441 }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_highlight.lua" })
+      local controller = BuildHighlightController(addon)
+
+      local entry = controller.GetNormalizedActiveEntryInfo()
+      Assert.NotNil(entry, "entry info should be present even when inactive")
+      Assert.Equal(entry.active, false, "struct active=false must propagate through TryGet normalization")
+
+      local spellID = controller.ResolveActiveListingTeleportSpellID(entry)
+      Assert.Nil(spellID, "inactive struct listing must not produce active highlight spell")
+    end)
+  end)
+
   test("Highlight normalizes active-entry tables with activityIDs fallback", function()
     WithGlobals({
       C_LFGList = {

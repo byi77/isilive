@@ -4,9 +4,33 @@
 - **Taint-Safe Hardening:**
   - Expanded deterministic `ADDON_ACTION_FORBIDDEN` regression coverage for deferred teleport spell attributes, insecure teleport-grid buttons, center-notice teleport handling, tank-helper secure macros, and collapse interaction while secure roster buttons already exist.
   - Added explicit combat-path regression tests so secure/insecure button boundaries are exercised before release instead of only being inferred from higher-level UI tests.
+- **Code Review — Bug Fixes & Correctness:**
+  - `isiLive_runtime_state.lua`: `GetSnapshot()` was returning a live reference to the internal roster table instead of a copy; callers holding a snapshot could observe subsequent group changes. Fixed by returning a shallow copy via `CopyTableShallow`.
+  - `isiLive_units.lua`: Dead entry `["stärkung"]` in `SPEC_SHORT_LABELS` was never reachable because `NormalizeSpecKey` converts `ä→a` before the lookup; corrected key to `["starkung"]`. Also fixed the UTF-8 fallback path in `TruncateName` to roll back continuation bytes (`0x80–0xBF`) at the cut point so the returned string is always valid UTF-8.
+  - `isiLive_controller_wiring.lua`: `timerAfter` callbacks were silently swallowing all runtime errors. Wrapped callbacks in `xpcall` with traceback and forwarded failures to WoW's global error handler (`geterrorhandler()`) so crashes surface as the standard red error frame.
+  - `isiLive_highlight.lua`: `TryGet()` used `rawget(obj, key) or nil`, which coerces `false` to `nil`. An inactive LFG listing (`active = false`) was therefore indistinguishable from an absent field, causing `ResolveActiveListingTarget` to skip the inactive-listing guard. Fixed by using explicit `~= nil` checks so `false` propagates correctly.
+  - `isiLive_stats.lua`: `localPlayerKey` was resolved and `MigrateAndPrunePersistentPlayerStats` was called at Lua file-execution time — before `ADDON_LOADED` fires, before SavedVariables are restored, and before `UnitExists("player")` is reliable. Both operations are now deferred via a lazy `EnsureInitialized()` called on the first `RecordRun` or `GetPlayerLastRunDps` invocation, which always happens after `ADDON_LOADED`.
+  - `isiLive_event_handlers_queue.lua`: `ctx.setPendingQueueJoinInfo(nil)` appeared in both the `if` and `else` branches of `LFG_LIST_ACTIVE_ENTRY_UPDATE`. Deduplicated to a single unconditional call after the branch.
+- **Code Review — Documentation & Dead-Path Annotation:**
+  - `isiLive_group.lua`: Added inline comment to `PruneGhosts` explaining the intentional design: ghosts are only pruned when the group is at full capacity (5 active members), so a 4-member group still shows prior-member history.
+  - `isiLive_sync.lua`: Added module-level comment documenting the deliberate Singleton pattern and explaining how `ClearKnownUsers()` scopes the session-global state.
+  - `isiLive_locale.lua`: Added comment to `LocaleToLanguageTag` documenting that `KR`, `CN`, and `TW` tags are recognized but have no flag assets in `LANGUAGE_FLAG_TEXTURE_BY_TAG`.
+- **Code Review — Round 2 Follow-Up:**
+  - `isiLive_locale.lua`: `GetLanguageFlagMarkup` now shows the language tag as grey text (e.g. `KR`, `CN`, `TW`) instead of `??` when no flag texture exists, giving Korean/Chinese/Taiwanese players a recognizable label.
+  - `isiLive_keysync.lua`: `ForceRefreshSyncState` was clearing the player roster entry's key fields in the loop and immediately overwriting them after the loop. The redundant loop-side clear is removed; the player's key is now set only once from the live keystone snapshot after the loop.
+- **Code Review — Regression Tests:**
+  - `isilive_test_scenarios_highlight.lua`: Added scenario verifying that a `C_LFGList.GetActiveEntryInfo` struct response with `active = false` correctly propagates through `GetNormalizedActiveEntryInfo` and causes `ResolveActiveListingTeleportSpellID` to return `nil`. Directly covers the `TryGet` false-propagation fix.
+  - `isilive_test_scenarios_stats.lua`: Added scenario asserting that `CreateController` alone does not touch `IsiLiveDB` (migration is deferred). Updated the legacy-migration scenario: pruning assertions now run after the first `GetPlayerLastRunDps` call to match the lazy-init contract.
+- **UI — M+Helper Column:**
+  - Renamed "Tank Helper" to "M+Helper" in the roster panel header (`isiLive_texts.lua`, `isiLive_roster_panel.lua`).
+  - Corrected the header label position: the `TOPRIGHT`-anchored `FontString` is now placed at `xPos + 18` so its visual centre aligns with the button column centre, matching the layout of all other column headers.
+- **UI — World Marker Buttons Fix:**
+  - Replaced the `/wm`/`/cwm` macro approach with the native `SecureActionButtonTemplate` attribute type `"worldmarker"`. Left-click uses `action1 = "set"`, right-click uses `action2 = "clear"` — no cursor-placement step required, marker is placed immediately.
+  - Expanded the M+Helper palette from 5 to all 8 Blizzard world markers (`Square`, `Triangle`, `Diamond`, `Cross`, `Star`, `Circle`, `Moon`, `Skull`) and compacted the icon spacing so collapsed mode still fits cleanly.
+  - Restored `RegisterForClicks("AnyUp", "AnyDown")` to match the required registration for the `worldmarker` attribute type.
 - **Docs Sync:**
   - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `TODO.md`, and `isiLive.toc` to `0.9.76`.
-  - Updated deterministic validator counters to `253` scenarios across `28` modules.
+  - Updated deterministic validator counters to `255` scenarios across `29` modules.
 
 ## 2026-03-11 - Version 0.9.75
 - **Tank Helper:**

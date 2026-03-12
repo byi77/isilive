@@ -9,11 +9,28 @@ local function TryGet(obj, key1, key2, key3)
   if not obj then
     return nil
   end
-  -- rawget(obj, nil) ist in Standard-Lua ein Fehler → Keys explizit prüfen
-  local v1 = key1 ~= nil and rawget(obj, key1) or nil
-  local v2 = key2 ~= nil and rawget(obj, key2) or nil
-  local v3 = key3 ~= nil and rawget(obj, key3) or nil
-  return v1 or v2 or v3
+  -- rawget(obj, nil) ist in Standard-Lua ein Fehler → Keys explizit prüfen.
+  -- Wert wird direkt zurückgegeben (nil-Check statt Wahrheitswert), damit
+  -- auch false korrekt propagiert wird (z. B. active=false bei inaktivem Eintrag).
+  if key1 ~= nil then
+    local v = rawget(obj, key1)
+    if v ~= nil then
+      return v
+    end
+  end
+  if key2 ~= nil then
+    local v = rawget(obj, key2)
+    if v ~= nil then
+      return v
+    end
+  end
+  if key3 ~= nil then
+    local v = rawget(obj, key3)
+    if v ~= nil then
+      return v
+    end
+  end
+  return nil
 end
 
 local function GetNormalizedActiveEntryInfo()

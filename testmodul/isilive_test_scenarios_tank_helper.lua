@@ -82,6 +82,9 @@ local function NewRecordedFrame(createdFrames, createdFontStrings, frameType, na
       self.pointY = y
     end
   end
+  function frame:GetPoint()
+    return "TOPRIGHT", nil, nil, self.pointX, self.pointY
+  end
   function frame:SetScript(script, handler)
     self[script] = handler
   end
@@ -156,7 +159,7 @@ return function(test, ctx)
   local WithGlobals = ctx.with_globals
   local LoadAddonModules = ctx.load_modules
 
-  test("Tank Helper buttons have correct world marker macro attributes", function()
+  test("M+Helper buttons use native world-marker secure attributes", function()
     local createdFrames = {}
     local createdFontStrings = {}
 
@@ -181,7 +184,7 @@ return function(test, ctx)
       addon.RosterPanel.CreateController({
         mainFrame = NewRecordedMainFrame(createdFontStrings),
         getL = function()
-          return { TANK_HELPER_HEADER = "Tank Helper" }
+          return { TANK_HELPER_HEADER = "M+Helper" }
         end,
         getAddonVersionText = function()
           return ""
@@ -243,8 +246,7 @@ return function(test, ctx)
     local tankHelperButtons = {}
     for _, frame in ipairs(createdFrames) do
       if frame._template == "SecureActionButtonTemplate" then
-        local macro1 = frame:GetAttribute("macrotext1")
-        if macro1 and macro1:find("/wm") then
+        if frame:GetAttribute("type1") == "worldmarker" then
           table.insert(tankHelperButtons, frame)
         end
       end
@@ -254,14 +256,12 @@ return function(test, ctx)
       return a.pointY > b.pointY
     end)
 
-    Assert.Equal(#tankHelperButtons, 5, "Should create 5 tank helper buttons")
-    Assert.Equal(tankHelperButtons[1]:GetAttribute("macrotext1"), "/wm 6", "Blue Square")
-    Assert.Equal(tankHelperButtons[2]:GetAttribute("macrotext1"), "/wm 4", "Green Triangle")
-    Assert.Equal(tankHelperButtons[3]:GetAttribute("macrotext1"), "/wm 3", "Purple Diamond")
-    Assert.Equal(tankHelperButtons[4]:GetAttribute("macrotext1"), "/wm 7", "Red Cross")
-    Assert.Equal(tankHelperButtons[5]:GetAttribute("macrotext1"), "/wm 1", "Yellow Star")
-    Assert.Equal(tankHelperButtons[1]:GetAttribute("macrotext2"), "/cwm 6", "Clear Blue Square")
-    Assert.Equal(tankHelperButtons[5]:GetAttribute("macrotext2"), "/cwm 1", "Clear Yellow Star")
+    Assert.Equal(#tankHelperButtons, 8, "Should create 8 M+Helper world-marker buttons")
+    Assert.Equal(tankHelperButtons[1]:GetAttribute("marker1"), 1, "Blue Square uses world marker 1")
+    Assert.Equal(tankHelperButtons[1]:GetAttribute("action1"), "set", "left click must place marker")
+    Assert.Equal(tankHelperButtons[1]:GetAttribute("marker2"), 1, "Blue Square clears same marker")
+    Assert.Equal(tankHelperButtons[1]:GetAttribute("action2"), "clear", "right click must clear marker")
+    Assert.Equal(tankHelperButtons[8]:GetAttribute("marker1"), 8, "Skull uses world marker 8")
   end)
 
   test("Mini frame width accommodates tank helper buttons without clipping", function()
@@ -290,7 +290,7 @@ return function(test, ctx)
       addon.RosterPanel.CreateController({
         mainFrame = mainFrame,
         getL = function()
-          return { TANK_HELPER_HEADER = "Tank Helper" }
+          return { TANK_HELPER_HEADER = "M+Helper" }
         end,
         getAddonVersionText = function()
           return ""
