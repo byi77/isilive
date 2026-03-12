@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-03-13 - Version 0.9.78
+- **Refresh Sync Request:**
+  - `Refresh` sends a dedicated `REQSYNC` addon message so hidden `isiLive` peers can answer with one forced `KEY` + `STATS` snapshot even while their UI is hidden.
+  - Hidden refresh replies remain locally gated on the responder: no answer while `stopped`, `paused`, or during an active Mythic+ run.
+  - Added deterministic regression coverage for refresh-triggered hidden replies, blocked reply states, and hidden event-handler processing.
+- **UI â€” Compact Toggle Polish:**
+  - Replaced the top-right compact-mode arrow icons with direct text toggles: `V` for vertical compact, `H` for horizontal compact, and `M` in compact modes to return to the main roster view.
+  - Positioned the two compact toggles directly next to each other and kept the active alternate mode accessible from each compact layout.
+- **UI â€” Panel Height Adjustment:**
+  - Increased the default roster-panel base height so the lower M+Helper marker buttons keep clean visual separation from the `Target Dungeon` status line.
+- **Docs Sync:**
+  - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `TODO.md`, and `isiLive.toc` to `0.9.78`.
+  - Updated deterministic validator counters to `262` scenarios across `29` modules.
+
 ## 2026-03-13 - Version 0.9.77
 - **Taint-Safe Hardening:**
   - Expanded deterministic `ADDON_ACTION_FORBIDDEN` regression coverage for deferred teleport spell attributes, insecure teleport-grid buttons, center-notice teleport handling, tank-helper secure macros, and collapse interaction while secure roster buttons already exist.

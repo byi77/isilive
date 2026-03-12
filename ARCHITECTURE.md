@@ -1,6 +1,6 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.77`
+Version baseline: `0.9.78`
 Last updated: `2026-03-13`
 
 ## Purpose
@@ -59,8 +59,8 @@ WoW Event
 10. Capture per-player RIO baseline on challenge start and enable delta rendering only after delayed post-run refresh; delta is always shown as non-negative `(+X)` prefix.
 11. Completed-run DPS capture must tolerate delayed Blizzard damage-meter availability through short deterministic retries for both `M+` and tracked `M0` exits.
 12. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
-13. Keep sync handshake resilient: HELLO recipients acknowledge and force-send own KEY/STATS snapshot so refresh-driven cache clears and manual reopen repopulate deterministically.
-14. In hidden mode, suspend queue scanning and permanent polling; keep background roster/addon-message sync plus required auto-open transitions active, and allow event-driven pre-render updates.
+13. Keep sync handshake resilient: HELLO recipients acknowledge and force-send own KEY/STATS snapshot so refresh-driven cache clears and manual reopen repopulate deterministically; manual `REQSYNC` refresh requests may trigger one hidden reply when locally allowed.
+14. In hidden mode, suspend queue scanning and permanent polling; keep background roster/addon-message sync plus required auto-open transitions active, allow event-driven pre-render updates, and permit one forced refresh reply without un-hiding the frame.
 15. Keep UI action spam guards active for `Refresh` and `Share Keys` (debounce/rate-limit behavior).
 16. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
 17. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures where Blizzard tooltip APIs are still referenced.
@@ -94,12 +94,12 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 258 scenarios across 29 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper logic.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 262 scenarios across 29 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiKeyMPlus                                                                        V.0.9.77 [<][v][X]|
+| isiKeyMPlus                                                                        V.0.9.78 [V][H][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  M+Helper  M+Travel           |
 |---------------------------------------------------------------------------------------------------|
@@ -116,7 +116,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 
 Collapsed / Vertical Mini Mode:
 
-|                                             [>][v][X]|
+|                                             [M][H][X]|
 |----------------------------------------------------------------|
 | M+Managment                 M+Helper                            |
 | [Readycheck]                [Blue]                              |
@@ -129,7 +129,7 @@ Collapsed / Vertical Mini Mode:
 
 Horizontal Mini Mode:
 
-|                           [<][v][X]|
+|                           [V][M][X]|
 |-------------------------------------|
 | [<] [Readycheck] [>]                |
 | [Blue][Green][Purple][Red][Yel]...  |

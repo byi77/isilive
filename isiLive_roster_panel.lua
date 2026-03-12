@@ -50,6 +50,7 @@ local HELPER_BUTTON_SIZE = 18
 local MINI_HORIZONTAL_HELPER_BUTTON_SIZE = HELPER_BUTTON_SIZE
 local MINI_HORIZONTAL_HELPER_GAP = 2
 local MINI_HORIZONTAL_MANAGEMENT_ARROW_GAP = 6
+local DEFAULT_MIN_FRAME_HEIGHT = 236
 
 local function RequireFunction(value, name)
   assert(type(value) == "function", "isiLive: RosterPanel requires " .. name)
@@ -93,7 +94,7 @@ local function GetFrameHeightForLayoutMode(layoutMode, minFrameHeight)
   if NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_HORIZONTAL then
     return MINI_HORIZONTAL_FRAME_HEIGHT
   end
-  return tonumber(minFrameHeight) or 212
+  return tonumber(minFrameHeight) or DEFAULT_MIN_FRAME_HEIGHT
 end
 
 local function SendPartyChatMessage(message)
@@ -1468,6 +1469,8 @@ local function UpdateColumnPositions(ui, layoutMode)
   end
 end
 
+local SetCollapseButtonLabel
+
 local function UpdateCollapseState(ui, layoutMode, mainFrame)
   layoutMode = NormalizeLayoutMode(layoutMode or (ui and ui.layoutMode))
   local isCollapsed = IsCompactLayoutMode(layoutMode)
@@ -1486,23 +1489,12 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
   end
 
   if ui.collapseButton then
-    local tex = layoutMode == LAYOUT_MODE_COMPACT_VERTICAL and "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up"
-      or "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up"
-    if ui.collapseButton.SetNormalTexture then
-      ui.collapseButton:SetNormalTexture(tex)
-    end
-    if ui.collapseButton.SetPushedTexture then
-      ui.collapseButton:SetPushedTexture(tex)
-    end
+    local label = layoutMode == LAYOUT_MODE_COMPACT_VERTICAL and "M" or "V"
+    SetCollapseButtonLabel(ui.collapseButton, label)
   end
   if ui.horizontalCollapseButton then
-    local tex = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Down"
-    if ui.horizontalCollapseButton.SetNormalTexture then
-      ui.horizontalCollapseButton:SetNormalTexture(tex)
-    end
-    if ui.horizontalCollapseButton.SetPushedTexture then
-      ui.horizontalCollapseButton:SetPushedTexture(tex)
-    end
+    local label = layoutMode == LAYOUT_MODE_COMPACT_HORIZONTAL and "M" or "H"
+    SetCollapseButtonLabel(ui.horizontalCollapseButton, label)
   end
 
   UpdateColumnPositions(ui, layoutMode)
@@ -1565,7 +1557,41 @@ local function NotifyCollapseChanged(ui, isCollapsed)
   end
 end
 
-local function CreateCollapseButton(mainFrame, xOffset, normalTexture, onClick)
+SetCollapseButtonLabel = function(btn, labelText)
+  if type(btn) ~= "table" then
+    return
+  end
+
+  if btn.SetText then
+    btn:SetText(labelText or "")
+  end
+
+  if not btn.label and type(btn.CreateFontString) == "function" then
+    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label:SetPoint("CENTER", 0, 0)
+    if label.GetFont and label.SetFont then
+      local fontPath, fontSize, fontFlags = label:GetFont()
+      if fontPath and fontSize then
+        label:SetFont(fontPath, math.max(fontSize + 2, 10), fontFlags)
+      end
+    end
+    if label.SetTextColor then
+      label:SetTextColor(1, 0.85, 0)
+    end
+    if label.SetShadowOffset then
+      label:SetShadowOffset(1, -1)
+    end
+    btn.label = label
+  end
+
+  if btn.label and btn.label.SetText then
+    btn.label:SetText(labelText or "")
+  end
+
+  btn._collapseButtonLabel = labelText or ""
+end
+
+local function CreateCollapseButton(mainFrame, xOffset, initialLabel, onClick)
   local btn = CreateFrame("Button", nil, mainFrame)
   btn:SetSize(20, 20)
   btn:SetPoint("TOPRIGHT", xOffset, -2)
@@ -1574,12 +1600,10 @@ local function CreateCollapseButton(mainFrame, xOffset, normalTexture, onClick)
   if btn.SetFrameLevel and mainFrame.GetFrameLevel then
     btn:SetFrameLevel(mainFrame:GetFrameLevel() + 102)
   end
-  if btn.SetNormalTexture then
-    btn:SetNormalTexture(normalTexture)
-  end
   if btn.SetHighlightTexture then
     btn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
   end
+  SetCollapseButtonLabel(btn, initialLabel)
   btn:SetScript("OnClick", onClick)
   return btn
 end
@@ -1707,49 +1731,39 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   )
   ui.layoutMode = LAYOUT_MODE_EXPANDED
   ui.isCollapsed = false
-  ui.collapseButton = CreateCollapseButton(
-    mainFrame,
-    -24,
-    "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up",
-    function()
-      if IsCombatLockdownActive() then
-        return
-      end
-      if ui.layoutMode == LAYOUT_MODE_COMPACT_VERTICAL then
-        ui.layoutMode = LAYOUT_MODE_EXPANDED
-      else
-        ui.layoutMode = LAYOUT_MODE_COMPACT_VERTICAL
-      end
-      if IsiLiveDB then
-        IsiLiveDB.rosterLayoutMode = ui.layoutMode
-        IsiLiveDB.rosterCollapsed = IsCompactLayoutMode(ui.layoutMode)
-      end
-      UpdateCollapseState(ui, ui.layoutMode, mainFrame)
-      NotifyCollapseChanged(ui, ui.isCollapsed)
+  ui.collapseButton = CreateCollapseButton(mainFrame, -24, "V", function()
+    if IsCombatLockdownActive() then
+      return
     end
-  )
+    if ui.layoutMode == LAYOUT_MODE_COMPACT_VERTICAL then
+      ui.layoutMode = LAYOUT_MODE_EXPANDED
+    else
+      ui.layoutMode = LAYOUT_MODE_COMPACT_VERTICAL
+    end
+    if IsiLiveDB then
+      IsiLiveDB.rosterLayoutMode = ui.layoutMode
+      IsiLiveDB.rosterCollapsed = IsCompactLayoutMode(ui.layoutMode)
+    end
+    UpdateCollapseState(ui, ui.layoutMode, mainFrame)
+    NotifyCollapseChanged(ui, ui.isCollapsed)
+  end)
   ui.collapseButton._collapseLayoutMode = LAYOUT_MODE_COMPACT_VERTICAL
-  ui.horizontalCollapseButton = CreateCollapseButton(
-    mainFrame,
-    -46,
-    "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Down",
-    function()
-      if IsCombatLockdownActive() then
-        return
-      end
-      if ui.layoutMode == LAYOUT_MODE_COMPACT_HORIZONTAL then
-        ui.layoutMode = LAYOUT_MODE_EXPANDED
-      else
-        ui.layoutMode = LAYOUT_MODE_COMPACT_HORIZONTAL
-      end
-      if IsiLiveDB then
-        IsiLiveDB.rosterLayoutMode = ui.layoutMode
-        IsiLiveDB.rosterCollapsed = IsCompactLayoutMode(ui.layoutMode)
-      end
-      UpdateCollapseState(ui, ui.layoutMode, mainFrame)
-      NotifyCollapseChanged(ui, ui.isCollapsed)
+  ui.horizontalCollapseButton = CreateCollapseButton(mainFrame, -44, "H", function()
+    if IsCombatLockdownActive() then
+      return
     end
-  )
+    if ui.layoutMode == LAYOUT_MODE_COMPACT_HORIZONTAL then
+      ui.layoutMode = LAYOUT_MODE_EXPANDED
+    else
+      ui.layoutMode = LAYOUT_MODE_COMPACT_HORIZONTAL
+    end
+    if IsiLiveDB then
+      IsiLiveDB.rosterLayoutMode = ui.layoutMode
+      IsiLiveDB.rosterCollapsed = IsCompactLayoutMode(ui.layoutMode)
+    end
+    UpdateCollapseState(ui, ui.layoutMode, mainFrame)
+    NotifyCollapseChanged(ui, ui.isCollapsed)
+  end)
   ui.horizontalCollapseButton._collapseLayoutMode = LAYOUT_MODE_COMPACT_HORIZONTAL
   UpdateCollapseState(ui, LAYOUT_MODE_EXPANDED, mainFrame)
 
@@ -1984,7 +1998,7 @@ function RosterPanel.CreateController(opts)
   local getAddonVersionText = RequireFunction(opts.getAddonVersionText, "getAddonVersionText")
   local updateStatusLine = RequireFunction(opts.updateStatusLine, "updateStatusLine")
   local setMainFrameHeightSafe = RequireFunction(opts.setMainFrameHeightSafe, "setMainFrameHeightSafe")
-  local minFrameHeight = tonumber(opts.minFrameHeight) or 212
+  local minFrameHeight = tonumber(opts.minFrameHeight) or DEFAULT_MIN_FRAME_HEIGHT
 
   local buildOrderedRoster = RequireFunction(opts.buildOrderedRoster, "buildOrderedRoster")
   local hasFullSyncFn = RequireFunction(opts.hasFullSync, "hasFullSync")

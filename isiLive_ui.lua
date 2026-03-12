@@ -90,7 +90,7 @@ end
 
 function UI.CreateMainFrame(opts)
   opts = opts or {}
-  local minHeight = tonumber(opts.minHeight) or 212
+  local minHeight = tonumber(opts.minHeight) or 236
   local parent = opts.parent or UIParent
   local isInCombat = opts.isInCombat or function()
     return InCombatLockdown and InCombatLockdown()

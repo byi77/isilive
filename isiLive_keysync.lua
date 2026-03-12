@@ -83,6 +83,12 @@ local function SendIsiLiveHello(sync, isFrameVisible, getAddonVersionRaw, force)
   })
 end
 
+local function SendRefreshRequest(sync, force)
+  sync.SendRefreshRequest({
+    force = force and true or false,
+  })
+end
+
 local function SendOwnStatsSnapshot(sync, isFrameVisible, getUnitRio, force)
   local specID, ilvl, rio = GetOwnedStatsSnapshot(getUnitRio)
   sync.SendStats({
@@ -103,6 +109,32 @@ local function SendOwnKeySnapshot(sync, isFrameVisible, getUnitRio, force)
     level = level,
   })
   SendOwnStatsSnapshot(sync, isFrameVisible, getUnitRio, force)
+end
+
+local function SendRefreshResponse(sync, isFrameVisible, getUnitRio, canRespondToRefreshRequest)
+  if type(canRespondToRefreshRequest) == "function" and not canRespondToRefreshRequest() then
+    return false
+  end
+
+  local mapID, level = GetOwnedKeystoneSnapshot()
+  sync.SendKey({
+    force = true,
+    isVisible = isFrameVisible(),
+    allowHidden = true,
+    mapID = mapID,
+    level = level,
+  })
+
+  local specID, ilvl, rio = GetOwnedStatsSnapshot(getUnitRio)
+  sync.SendStats({
+    force = true,
+    isVisible = isFrameVisible(),
+    allowHidden = true,
+    specID = specID,
+    ilvl = ilvl,
+    rio = rio,
+  })
+  return true
 end
 
 local function ResolveSpecName(specID)
@@ -246,6 +278,9 @@ function KeySync.CreateController(opts)
   local isFrameVisible = opts.isFrameVisible or function()
     return false
   end
+  local canRespondToRefreshRequest = opts.canRespondToRefreshRequest or function()
+    return true
+  end
 
   assert(type(sync.MarkUser) == "function", "isiLive: KeySync requires sync.MarkUser")
   assert(type(sync.IsUnitKnown) == "function", "isiLive: KeySync requires sync.IsUnitKnown")
@@ -253,6 +288,7 @@ function KeySync.CreateController(opts)
   assert(type(sync.SendHello) == "function", "isiLive: KeySync requires sync.SendHello")
   assert(type(sync.SendKey) == "function", "isiLive: KeySync requires sync.SendKey")
   assert(type(sync.SendStats) == "function", "isiLive: KeySync requires sync.SendStats")
+  assert(type(sync.SendRefreshRequest) == "function", "isiLive: KeySync requires sync.SendRefreshRequest")
   assert(type(sync.GetPlayerKeyInfo) == "function", "isiLive: KeySync requires sync.GetPlayerKeyInfo")
   assert(type(sync.GetPlayerStatsInfo) == "function", "isiLive: KeySync requires sync.GetPlayerStatsInfo")
   assert(type(sync.SetPlayerKeyInfo) == "function", "isiLive: KeySync requires sync.SetPlayerKeyInfo")
@@ -275,12 +311,20 @@ function KeySync.CreateController(opts)
     SendIsiLiveHello(sync, isFrameVisible, getAddonVersionRaw, force)
   end
 
+  function controller.SendRefreshRequest(force)
+    SendRefreshRequest(sync, force)
+  end
+
   function controller.GetOwnedKeystoneSnapshot()
     return GetOwnedKeystoneSnapshot()
   end
 
   function controller.SendOwnKeySnapshot(force)
     SendOwnKeySnapshot(sync, isFrameVisible, getUnitRio, force)
+  end
+
+  function controller.SendRefreshResponse()
+    return SendRefreshResponse(sync, isFrameVisible, getUnitRio, canRespondToRefreshRequest)
   end
 
   function controller.ApplyKnownKeyToRosterEntry(info)

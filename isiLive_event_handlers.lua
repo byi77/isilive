@@ -103,6 +103,7 @@ local function BuildContext(opts)
 
   ctx.processAddonMessage = RequireFunction(opts.processAddonMessage, "processAddonMessage")
   ctx.sendAck = RequireFunction(opts.sendAck, "sendAck")
+  ctx.sendRefreshResponse = RequireFunction(opts.sendRefreshResponse, "sendRefreshResponse")
   ctx.forEachRosterInfo = RequireFunction(opts.forEachRosterInfo, "forEachRosterInfo")
   ctx.isSyncUserKnown = RequireFunction(opts.isSyncUserKnown, "isSyncUserKnown")
   ctx.applyKnownKeyToRosterEntry = RequireFunction(opts.applyKnownKeyToRosterEntry, "applyKnownKeyToRosterEntry")

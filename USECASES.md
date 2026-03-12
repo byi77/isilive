@@ -1,6 +1,6 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.77`
+Version baseline: `0.9.78`
 Last updated: `2026-03-13`
 
 ## Actors
@@ -13,7 +13,7 @@ Last updated: `2026-03-13`
 
 1. Addon is loaded and not in `stopped` state.
 2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `midnight_s1` pre-season with empty active portal pool).
-3. Relevant UI is visible for queue scanning and rendering; while hidden, addon-message sync and roster updates may still run in the background, and UI can be auto-opened by fresh group join, key-end, or real dungeon-entry transition logic.
+3. Relevant UI is visible for queue scanning and rendering; while hidden, addon-message sync and roster updates may still run in the background, UI can be auto-opened by fresh group join, key-end, or real dungeon-entry transition logic, and explicit refresh requests may still trigger one gated hidden sync reply.
 
 ## Use Case Matrix
 

@@ -10,6 +10,7 @@ local ISILIVE_SYNC_PREFIX = "ISILIVE"
 local ISILIVE_HELLO_COOLDOWN = 8
 local ISILIVE_KEY_COOLDOWN = 5
 local ISILIVE_STATS_COOLDOWN = 5
+local ISILIVE_REFRESH_REQUEST_COOLDOWN = 1
 
 -- Hinweis: Die folgenden Variablen sind bewusst auf Modul-Ebene (Singleton).
 -- Das Addon hat genau eine aktive Sync-Instanz pro Session. Die Cooldown-Variablen
@@ -20,6 +21,7 @@ local ISILIVE_STATS_COOLDOWN = 5
 local lastIsiLiveHelloAt = 0
 local lastIsiLiveKeyAt = 0
 local lastIsiLiveStatsAt = 0
+local lastIsiLiveRefreshRequestAt = 0
 local lastKeyPayloadSent = nil
 local lastStatsPayloadSent = nil
 local isiLiveUsersByKey = {}
@@ -221,7 +223,7 @@ function Sync.SendHello(opts)
   end
   opts = opts or {}
 
-  if opts.isVisible == false then
+  if opts.isVisible == false and opts.allowHidden ~= true then
     return
   end
 
@@ -245,7 +247,7 @@ function Sync.SendKey(opts)
   end
   opts = opts or {}
 
-  if opts.isVisible == false then
+  if opts.isVisible == false and opts.allowHidden ~= true then
     return
   end
 
@@ -271,7 +273,7 @@ function Sync.SendStats(opts)
   end
   opts = opts or {}
 
-  if opts.isVisible == false then
+  if opts.isVisible == false and opts.allowHidden ~= true then
     return
   end
 
@@ -291,6 +293,26 @@ function Sync.SendStats(opts)
   C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel)
 end
 
+function Sync.SendRefreshRequest(opts)
+  if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
+    return
+  end
+  opts = opts or {}
+
+  local channel = Sync.GetAddonSyncChannel()
+  if not channel then
+    return
+  end
+
+  local now = GetTime()
+  if not opts.force and (now - lastIsiLiveRefreshRequestAt) < ISILIVE_REFRESH_REQUEST_COOLDOWN then
+    return
+  end
+
+  lastIsiLiveRefreshRequestAt = now
+  C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, "REQSYNC", channel)
+end
+
 function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm)
   if prefix ~= ISILIVE_SYNC_PREFIX then
     return nil
@@ -304,6 +326,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
   local senderKey = Sync.NormalizePlayerKey(sender)
   local selfKey = Sync.NormalizePlayerKey(localName, localRealm)
   local shouldAck = type(message) == "string" and message:find("^HELLO:") and senderKey ~= selfKey
+  local shouldRequestRefresh = type(message) == "string" and message == "REQSYNC" and senderKey ~= selfKey
   local keyUpdated = false
 
   if type(message) == "string" and message:find("^KEY:") then
@@ -323,6 +346,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
 
   return {
     shouldAck = shouldAck and true or false,
+    shouldRequestRefresh = shouldRequestRefresh and true or false,
     sender = sender,
     keyUpdated = keyUpdated and true or false,
     statsUpdated = statsUpdated and true or false,

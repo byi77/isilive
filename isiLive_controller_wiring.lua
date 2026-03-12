@@ -275,6 +275,7 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
       C_ChatInfo.SendAddonMessage(modules.sync.GetPrefix(), "ACK:" .. deps.getAddonVersionRaw(), "WHISPER", sender)
     end
   end
+  config.sendRefreshResponse = RequireFunction(deps.sendRefreshResponse, "sendRefreshResponse")
   config.forEachRosterInfo = function(visitor)
     for _, info in pairs(state.getRoster()) do
       visitor(info)
@@ -328,6 +329,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     isNegativeApplicationStatusEvent = ctx.isNegativeApplicationStatusEvent,
     getNormalizedActiveEntryInfo = ctx.getNormalizedActiveEntryInfo,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
+    sendRefreshResponse = ctx.sendRefreshResponse,
     ensureQueueDebugStorage = ctx.ensureQueueDebugStorage,
     setQueueDebugEnabled = ctx.setQueueDebugEnabled,
     ensureRuntimeLogStorage = ctx.ensureRuntimeLogStorage,

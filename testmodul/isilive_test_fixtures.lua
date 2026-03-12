@@ -21,6 +21,7 @@ local function EnsureEventHandlerCounters(counters)
   counters.uiUpdates = counters.uiUpdates or 0
   counters.pendingSets = counters.pendingSets or 0
   counters.acks = counters.acks or 0
+  counters.refreshResponses = counters.refreshResponses or 0
   return counters
 end
 
@@ -125,6 +126,10 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
     end,
     sendAck = function(_sender)
       counters.acks = counters.acks + 1
+    end,
+    sendRefreshResponse = function()
+      counters.refreshResponses = counters.refreshResponses + 1
+      return true
     end,
     forEachRosterInfo = function(_visitor) end,
     isSyncUserKnown = function(_name, _realm)

@@ -59,7 +59,7 @@ local function CreateFactoryContext(addonName, addonTable)
     INSPECT_TIMEOUT = 2,
     RETRY_INTERVAL = 5,
     INSPECT_DELAY = 1,
-    MIN_FRAME_HEIGHT = 228,
+    MIN_FRAME_HEIGHT = 236,
     locale = GetLocale(),
   }
 
@@ -580,6 +580,9 @@ local function InitializeFactoryPrimaryControllers(ctx)
     isFrameVisible = function()
       return ctx.mainFrame and ctx.mainFrame:IsShown()
     end,
+    canRespondToRefreshRequest = function()
+      return not ctx.runtimeState.IsStopped() and not ctx.runtimeState.IsPaused() and not ctx.GetActiveChallengeMapID()
+    end,
     resolveTeleportSpellID = ctx.ResolveTeleportSpellID,
     resolveTeleportSpellIDByMapID = modules.teleport.ResolveTeleportSpellIDByMapID,
     resolveMapIDByActivityID = modules.teleport.ResolveMapIDByActivityID,
@@ -646,8 +649,10 @@ local function InitializeFactoryPrimaryControllers(ctx)
   ctx.UnitHasIsiLive = initResult.unitHasIsiLive
   ctx.RegisterIsiLiveSyncPrefix = initResult.registerIsiLiveSyncPrefix
   ctx.SendIsiLiveHello = initResult.sendIsiLiveHello
+  ctx.SendRefreshRequest = initResult.sendRefreshRequest
   ctx.GetOwnedKeystoneSnapshot = initResult.getOwnedKeystoneSnapshot
   ctx.SendOwnKeySnapshot = initResult.sendOwnKeySnapshot
+  ctx.SendRefreshResponse = initResult.sendRefreshResponse
   ctx.ApplyKnownKeyToRosterEntry = initResult.applyKnownKeyToRosterEntry
   ctx.RecordRun = initResult.recordRun
   ctx.highlightController = initResult.highlightController
@@ -827,6 +832,7 @@ local function InitializeFactorySecondaryControllers(ctx)
     forceRefreshSyncState = ForceRefreshSyncState,
     sendIsiLiveHello = ctx.SendIsiLiveHello,
     sendOwnKeySnapshot = ctx.SendOwnKeySnapshot,
+    sendRefreshRequest = ctx.SendRefreshRequest,
     queueForceRefreshData = QueueForceRefreshData,
     updateUI = ctx.UpdateUI,
     refreshLocalPlayerKey = ctx.RefreshLocalPlayerKey,
@@ -1066,6 +1072,7 @@ local function FinalizeFactoryRuntime(ctx)
     applyKnownKeyToRosterEntry = ctx.ApplyKnownKeyToRosterEntry,
     enqueueInspect = ctx.EnqueueInspect,
     sendOwnKeySnapshot = ctx.SendOwnKeySnapshot,
+    sendRefreshResponse = ctx.SendRefreshResponse,
     sendIsiLiveHello = ctx.SendIsiLiveHello,
     canApplyRaidMarkers = function()
       return false

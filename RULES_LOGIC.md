@@ -201,7 +201,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Addon-Sync-Nachrichten muessen rosterrelevante Aenderungen verarbeiten, deduplizieren und refreshen.
 - Erforderliche Tests:
   - Event handlers process addon sync messages and refresh changed roster
-  - Sync ProcessAddonMessage handles HELLO and KEY payloads
+  - Sync ProcessAddonMessage handles HELLO, REQSYNC, and KEY payloads
   - Sync SetPlayerKeyInfo deduplicates identical key updates
 
 ### RULE-LEADER-BUTTONS-SICHTBARKEIT
@@ -270,12 +270,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-HIDDEN-SPARFLAMME
 - Regelnummer: 28
 - Status: aktiv
-- Zusammenfassung: waehrend die ui ausgeblendet ist, laeuft der daten-sync (roster/addon-msgs) im hintergrund weiter und darf eventgetrieben ui-zustand vor-rendern; queue-scanning und dauerhafte polling-last bleiben jedoch aus.
+- Zusammenfassung: waehrend die ui ausgeblendet ist, laeuft der daten-sync (roster/addon-msgs) im hintergrund weiter und darf eventgetrieben ui-zustand vor-rendern; queue-scanning und dauerhafte polling-last bleiben jedoch aus. Ein expliziter Refresh-Request darf Hidden-Clients genau eine forciert eventgetriebene KEY/STATS-Antwort entlocken; gestoppte, pausierte oder aktive M+-Runs antworten dabei nicht.
 - Erforderliche Tests:
   - Bootstrap gate allows sync events while frame is hidden if configured
   - Hidden grouped roster updates keep pre-rendered UI fresh
   - Event handlers pre-render UI for hidden addon sync updates
   - Event handlers process addon sync messages and refresh changed roster
+  - Event handlers answer refresh requests while frame is hidden
+  - KeySync SendRefreshResponse can answer hidden refresh requests outside active M+
+  - KeySync SendRefreshResponse skips while paused, stopped, or active M+
   - Bootstrap gate keeps hidden auto-open triggers for group join and key end
   - Event handlers run regen teleport refresh when frame is visible
 

@@ -53,14 +53,14 @@
   - Layout-Anpassung und Breite
   - Tag: `isiLive_release_0.9.75`
 
-- [x] `v0.9.77` vorbereiten:
-  - Zweite Collapse-Variante als horizontale Slim-Toolbar mit eigenem Down-Arrow einbauen
-  - Horizontal-Mode auf Management-Karussell + Marker-Reihe reduzieren und Layout-Bugs beim Zurueckwechseln beseitigen
-  - Vertical-/Horizontal-Compact-Polish: Titel, Trennlinie, Versionszeile und Spacing auf die Tool-Palette abstimmen
-  - Doku-/Validator-Zaehler auf `0.9.77` synchronisieren
-  - Tag: `isiLive_release_0.9.77`
+- [x] `v0.9.78` vorbereiten:
+  - Compact-Toggles auf `V` / `H` / `M` umstellen und direkt nebeneinander positionieren
+  - Default-Rosterhoehe unten leicht vergroessern, damit M+Helper und `Target Dungeon` sauber getrennt bleiben
+  - `Refresh` um gruppenweiten `REQSYNC`-Pfad erweitern, damit Hidden-Peers einmal forciert `KEY/STATS` antworten koennen
+  - Doku-/Validator-Zaehler auf `0.9.78` synchronisieren
+  - Tag: `isiLive_release_0.9.78`
 
-- [ ] `v0.9.77` veroeffentlichen
+- [ ] `v0.9.78` veroeffentlichen
   - Ingame Combat-Smoketest fuer Teleport-Grid, Center Notice, Collapse und Role-/M+Helper-Buttons
   - Release-Tag erst nach gruenem `Lua Check` auf `main`
 

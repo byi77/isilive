@@ -336,6 +336,9 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if syncResult.shouldAck then
       ctx.sendAck(syncResult.sender)
     end
+    if syncResult.shouldRequestRefresh then
+      ctx.sendRefreshResponse()
+    end
 
     local changed = false
     ctx.forEachRosterInfo(function(info)

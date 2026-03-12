@@ -167,15 +167,6 @@ local function NewRecordedMainFrame(createdFontStrings)
   return mainFrame
 end
 
-local function FindFrameByTexture(createdFrames, texture)
-  for _, frame in ipairs(createdFrames) do
-    if frame.normalTexture == texture then
-      return frame
-    end
-  end
-  return nil
-end
-
 local function FindFrameByProperty(createdFrames, key, value)
   for _, frame in ipairs(createdFrames) do
     if frame[key] == value then
@@ -352,7 +343,9 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
           return ""
         end,
         updateStatusLine = function() end,
-        setMainFrameHeightSafe = function() end,
+        setMainFrameHeightSafe = function(height)
+          mainFrame.height = height
+        end,
         buildOrderedRoster = function()
           return {}
         end,
@@ -415,11 +408,33 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     Assert.NotNil(tankButton, "Tank helper button should exist")
 
     local collapseButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_vertical")
+    local horizontalCollapseButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_horizontal")
     Assert.NotNil(collapseButton, "Collapse button should exist")
+    Assert.NotNil(horizontalCollapseButton, "Horizontal collapse button should exist")
     local titleFontString = FindFontStringByPoint(createdFontStrings, "TOP", 0, -4)
     local versionFontString = FindFontStringByPoint(createdFontStrings, "BOTTOMRIGHT", -10, 6)
     Assert.NotNil(titleFontString, "Title font string should exist")
     Assert.NotNil(versionFontString, "Version font string should exist")
+    Assert.Equal(
+      collapseButton._collapseButtonLabel,
+      "V",
+      "Vertical collapse toggle should use the V label in expanded mode"
+    )
+    Assert.Equal(
+      horizontalCollapseButton._collapseButtonLabel,
+      "H",
+      "Horizontal collapse toggle should use the H label in expanded mode"
+    )
+    Assert.Equal(
+      collapseButton.pointX - horizontalCollapseButton.pointX,
+      collapseButton.width,
+      "Expanded collapse toggles should sit directly next to each other"
+    )
+    Assert.Equal(
+      mainFrame.height,
+      236,
+      "Expanded roster panel should reserve extra bottom space for helper/status separation"
+    )
 
     -- Click collapse to switch to MINI mode
     collapseButton.OnClick()
@@ -446,6 +461,12 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     )
     Assert.True(titleFontString.hidden, "Title should be hidden in vertical mini mode")
     Assert.True(versionFontString.hidden, "Version line should be hidden in vertical mini mode")
+    Assert.Equal(collapseButton._collapseButtonLabel, "M", "Vertical mini mode should expose M to return to main UI")
+    Assert.Equal(
+      horizontalCollapseButton._collapseButtonLabel,
+      "H",
+      "Horizontal toggle should stay available while vertical mini mode is active"
+    )
   end)
 end
 
@@ -537,12 +558,19 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
       })
     end)
 
-    local horizontalButton = FindFrameByTexture(createdFrames, "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Down")
+    local collapseButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_vertical")
+    local horizontalButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_horizontal")
+    Assert.NotNil(collapseButton, "Vertical collapse button should exist")
     Assert.NotNil(horizontalButton, "Horizontal collapse button should exist")
     local previousButton = FindFrameByProperty(createdFrames, "_managementCycleDirection", -1)
     local nextButton = FindFrameByProperty(createdFrames, "_managementCycleDirection", 1)
     Assert.NotNil(previousButton, "Horizontal management previous button should exist")
     Assert.NotNil(nextButton, "Horizontal management next button should exist")
+    Assert.Equal(
+      horizontalButton._collapseButtonLabel,
+      "H",
+      "Horizontal toggle should use the H label in expanded mode"
+    )
 
     local helperButtons = {}
     local managementButtons = {}
@@ -575,6 +603,16 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     Assert.True(nextButton._shown, "Next button should be visible in horizontal mode")
     Assert.Equal(previousButton.width, 24, "Previous carousel button should be slightly enlarged")
     Assert.Equal(nextButton.width, 24, "Next carousel button should be slightly enlarged")
+    Assert.Equal(
+      horizontalButton._collapseButtonLabel,
+      "M",
+      "Horizontal mini mode should expose M to return to main UI"
+    )
+    Assert.Equal(
+      collapseButton._collapseButtonLabel,
+      "V",
+      "Vertical toggle should remain available in horizontal mini mode"
+    )
     Assert.True(
       helperButtons[1].pointX < helperButtons[#helperButtons].pointX,
       "Helper icons should spread horizontally"
@@ -607,6 +645,11 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     Assert.Equal(helperButtons[2].pointY, -80, "Second helper button should restore its own original Y slot")
     Assert.True(managementButtons[1]._shown, "All management buttons should return when leaving horizontal mode")
     Assert.True(managementButtons[2]._shown, "Second management button should be visible again in expanded mode")
+    Assert.Equal(
+      horizontalButton._collapseButtonLabel,
+      "H",
+      "Horizontal toggle should restore H after leaving horizontal mode"
+    )
   end)
 end
 

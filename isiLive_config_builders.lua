@@ -18,6 +18,7 @@ function ConfigBuilders.BuildRefreshControllerOpts(ctx)
     forceRefreshSyncState = ctx.forceRefreshSyncState,
     sendIsiLiveHello = ctx.sendIsiLiveHello,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
+    sendRefreshRequest = ctx.sendRefreshRequest,
     queueForceRefreshData = ctx.queueForceRefreshData,
     updateUI = ctx.updateUI,
     refreshLocalPlayerKey = ctx.refreshLocalPlayerKey,

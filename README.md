@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.77`.
+Current documented baseline: `0.9.78`.
 
 ## Features
 
@@ -12,7 +12,7 @@ Current documented baseline: `0.9.77`.
 - Persistent raid warning label in the Roster Panel for groups > 5 members (hides roster rows)
 - Interactive Role Icons: Click the role icon in the roster to securely mark Tank (**Blue Square**) or Healer (**Green Triangle**).
 - **M+Helper:** Expanded view uses a vertical bar of 8 world marker buttons (`Square`, `Triangle`, `Diamond`, `Cross`, `Star`, `Circle`, `Moon`, `Skull`) with native secure world-marker actions; the horizontal mini layout arranges the same icons in one slim row and restores the vertical stack correctly when expanded again.
-- **Mini Mode:** Two collapse buttons are available next to the close button: the existing side-collapse keeps M+Helper and Management in a compact vertical palette, and the down-arrow collapse switches to a slim horizontal tool layout.
+- **Mini Mode:** Two compact-mode buttons are available next to the close button: `V` switches to the compact vertical palette, `H` switches to the slim horizontal tool layout, and compact modes expose `M` to return to the main roster view.
 - **Horizontal Mini Mode:** Shows one `M+Managment` action at a time with left/right arrow buttons to cycle through `Readycheck`, `Countdown10`, `Countdown 0`, `Share Keys`, and `Refresh`, while M+Helper stays visible as one horizontal marker row.
 - Bottom-left system toggles: `Combat Logging`, `DM Reset on Entry`
 - Stable role sorting: `Tank -> Healer -> Damager`
@@ -24,6 +24,7 @@ Current documented baseline: `0.9.77`.
 - Players inside the target dungeon are marked with a portal icon in the roster
 - Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale)
 - Visible-window peer sync between `isiLive` users can also backfill remote `Spec`, `iLvl`, and `RIO` without inspect range; fresh local inspect data keeps priority once available
+- Manual `Refresh` also broadcasts a `REQSYNC` request so hidden `isiLive` peers can answer once with a forced `KEY` + `STATS` snapshot when they are not stopped, paused, or inside an active Mythic+ run
 - Key mapping normalizes active-season challenge-map IDs to canonical season map IDs before short-code rendering
 - Season scope is open via `ACTIVE_SEASON_ID`; current active season is `midnight_s1` pre-season
 - `Key` column keeps `Shortcut +Level` on one line (no row-wrap bleed into next member line)
@@ -55,6 +56,7 @@ Current documented baseline: `0.9.77`.
 - Hidden window mode still blocks queue scanning, but background data sync (`CHAT_MSG_ADDON`, `GROUP_ROSTER_UPDATE`) may event-drive pre-rendered roster state so reopen stays immediate without adding polling load.
 - Combat runtime gate suppresses non-essential event processing while in combat; essential events (for example `PLAYER_REGEN_ENABLED` and `CHALLENGE_MODE_*`) still run.
 - Own sync handshakes and forced snapshots (`HELLO`/`ACK`/`KEY`/`STATS`) remain visibility-bound; hidden mode still processes background addon sync messages so cached roster data and pre-rendered UI state stay current without polling.
+- A manual `Refresh` additionally sends `REQSYNC`; hidden peers may answer with one forced `KEY`/`STATS` reply while staying hidden, but they suppress that reply when locally stopped, paused, or inside an active key.
 - Main window is movable via left drag in every mode; top drag handle stays above overlays for reliable dragging
 - Roster member row hover uses an isolated `isiLive` tooltip instead of the shared Blizzard `GameTooltip`, with `Name-Realm` fallback when no synced details are available
 - Roster control buttons, teleport grid buttons, and center-notice teleport hover also use isolated `isiLive` tooltip frames instead of the shared Blizzard `GameTooltip`
@@ -68,7 +70,7 @@ Current documented baseline: `0.9.77`.
 - They mirror the live Blizzard CVar state and write only on explicit user clicks.
 - The toggle row keeps a fixed gap between adjacent labels.
 - Blizzard damage meter is also manually reset on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
-- In **Mini Mode** (collapsed), the window acts as a compact tool palette with M+Helper and Management controls only. The left/right collapse keeps the existing vertical compact palette, while the down-arrow collapse switches to a low-height horizontal toolbar with a single cycling management action plus left/right switch arrows. Both compact modes stay open during key start or raid join, bypassing the usual auto-hide logic for the full roster view.
+- In **Mini Mode** (collapsed), the window acts as a compact tool palette with M+Helper and Management controls only. `V` switches to the existing vertical compact palette, `H` switches to a low-height horizontal toolbar with a single cycling management action plus left/right switch arrows, and `M` returns to the main roster view. Both compact modes stay open during key start or raid join, bypassing the usual auto-hide logic for the full roster view.
 - `CHALLENGE_MODE_START` captures a per-player RIO baseline.
 - `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` schedules delayed post-run refresh and enables clamped delta display `(+X)RIO` after refresh succeeds (with short retry if still blocked), including when the window is currently hidden.
 - Latest run DPS is captured after `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` for `M+`, and after leaving a tracked mythic non-challenge dungeon for `M0`; both paths now retry briefly if the Blizzard damage-meter session is not ready yet, and `M0` matching still uses the roster snapshot frozen on dungeon entry.
@@ -78,11 +80,11 @@ Current documented baseline: `0.9.77`.
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 - Bottom status line includes current target dungeon context as `Target Dungeon: <Name> [+Level]` (or `Target Dungeon: -` when unresolved)
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
-- Sync handshake behavior: `HELLO` recipients send `ACK`, while explicit local refresh triggers and visibility-bound snapshots keep `KEY/STATS` current.
+- Sync handshake behavior: `HELLO` recipients send `ACK`, explicit local refresh triggers broadcast `REQSYNC`, and visibility-bound snapshots keep `KEY/STATS` current.
 
-## Use Case / Logic Baseline (v0.9.77)
+## Use Case / Logic Baseline (v0.9.78)
 
-Documented on `2026-03-13` as runtime behavior baseline (`0.9.77`) for validation checks.
+Documented on `2026-03-13` as runtime behavior baseline (`0.9.78`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -94,6 +96,7 @@ Documented on `2026-03-13` as runtime behavior baseline (`0.9.77`) for validatio
    - Per row data includes `Spec`, `Name`, `Flag`, `Key`, `iLvl`, `RIO`, `DPS` and optional run-delta prefix `(+X)`.
 3. Key sync and key column
    - Own outbound sync snapshots remain visibility-bound, while incoming addon sync messages can still refresh cached roster data during hidden mode.
+   - Manual `Refresh` also sends `REQSYNC`; hidden peers may answer with one forced `KEY/STATS` reply without opening their UI, but only when they are not stopped, paused, or inside an active key.
    - `KEY:<mapID>:<level>` snapshots populate roster key text as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale).
    - `STATS` snapshots can backfill remote `Spec/iLvl/RIO` without inspect range; once fresh local inspect data exists for a field, that local value keeps priority over later sync backfill.
    - Active joined key owner is highlighted only when ownership is unambiguous.
@@ -105,7 +108,7 @@ Documented on `2026-03-13` as runtime behavior baseline (`0.9.77`) for validatio
     - Shared-portcast dungeons (for example both Tazavesh wings) are handled as multi-map targets and remain unresolved if map context is ambiguous.
     - Negative queue application follow-up events do not clear queue-derived target while already grouped (prevents highlight drop when group fills to 5 members).
 5. Refresh and inspect pipeline
-   - `Refresh` triggers forced sync reset (`HELLO/KEY`) and inspect cache invalidation/requeue.
+   - `Refresh` triggers forced sync reset (`HELLO/KEY`), a groupwide `REQSYNC` hidden-peer reply request, and inspect cache invalidation/requeue.
    - Inspect controller updates `Spec/iLvl/RIO` asynchronously via queue/retry flow and `INSPECT_READY`.
    - After challenge completion/reset, a delayed post-run refresh is attempted; RIO delta display is enabled only after this refresh path succeeds (with retry fallback).
 6. Runtime gating and hidden/sleep behavior
@@ -228,7 +231,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 258 scenarios across 29 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper), including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 262 scenarios across 29 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper), including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)

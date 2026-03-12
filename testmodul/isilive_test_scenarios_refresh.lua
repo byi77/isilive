@@ -11,6 +11,7 @@ return function(test, ctx)
       syncRefreshes = 0,
       hellos = 0,
       keySnapshots = 0,
+      refreshRequests = 0,
       queueRefreshes = 0,
       uiUpdates = 0,
       keyRefreshes = 0,
@@ -56,6 +57,9 @@ return function(test, ctx)
       sendOwnKeySnapshot = function(_force)
         state.keySnapshots = state.keySnapshots + 1
       end,
+      sendRefreshRequest = function(_force)
+        state.refreshRequests = state.refreshRequests + 1
+      end,
       queueForceRefreshData = function()
         state.queueRefreshes = state.queueRefreshes + 1
       end,
@@ -91,8 +95,18 @@ return function(test, ctx)
     Assert.Equal(state.syncRefreshes, 1, "must refresh sync state")
     Assert.Equal(state.hellos, 1, "must send hello")
     Assert.Equal(state.keySnapshots, 1, "must send key snapshot")
+    Assert.Equal(state.refreshRequests, 1, "must request hidden peer sync replies")
     Assert.Equal(state.queueRefreshes, 1, "must refresh queue data")
     Assert.Equal(state.uiUpdates, 1, "must update UI")
+  end)
+
+  test("Refresh RunFullRefresh requests hidden peer sync replies", function()
+    local controller, state = BuildRefreshController()
+
+    local result = controller.RunFullRefresh()
+
+    Assert.True(result, "RunFullRefresh must stay successful when hidden peer sync replies are requested")
+    Assert.Equal(state.refreshRequests, 1, "refresh must broadcast exactly one sync request")
   end)
 
   test("Refresh RunFullRefresh reroutes to demo preview while test mode is active", function()
@@ -109,6 +123,7 @@ return function(test, ctx)
     Assert.Equal(state.syncRefreshes, 0, "must not run live sync refresh in demo mode")
     Assert.Equal(state.hellos, 0, "must not send hello in demo mode")
     Assert.Equal(state.keySnapshots, 0, "must not send key snapshot in demo mode")
+    Assert.Equal(state.refreshRequests, 0, "must not request peer sync in demo mode")
     Assert.Equal(state.queueRefreshes, 0, "must not refresh live queue data in demo mode")
   end)
 
@@ -123,6 +138,7 @@ return function(test, ctx)
 
     Assert.False(result, "RunFullRefresh must return false when stopped")
     Assert.Equal(state.syncRefreshes, 0, "must not refresh when stopped")
+    Assert.Equal(state.refreshRequests, 0, "stopped refresh must not request peer sync")
   end)
 
   test("Refresh RunFullRefresh skips during active M+", function()
@@ -136,6 +152,7 @@ return function(test, ctx)
 
     Assert.False(result, "RunFullRefresh must return false during active M+")
     Assert.Equal(state.uiUpdates, 0, "must not update UI during active M+")
+    Assert.Equal(state.refreshRequests, 0, "active M+ refresh must not request peer sync")
   end)
 
   test("Refresh RunFullRefresh debounces rapid clicks", function()

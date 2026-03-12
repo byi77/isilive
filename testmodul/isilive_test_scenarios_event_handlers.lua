@@ -1012,6 +1012,25 @@ local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fix
     Assert.True(roster[1].hasIsiLive, "hidden sync handling must still update background roster state")
     Assert.Equal(counters.uiUpdates, 1, "hidden sync handling should pre-render UI state once")
   end)
+
+  test("Event handlers answer refresh requests while frame is hidden", function()
+    local counters = { uiUpdates = 0, refreshResponses = 0 }
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+      isMainFrameShown = function()
+        return false
+      end,
+      processAddonMessage = function(_prefix, _message, _sender)
+        return { shouldAck = false, shouldRequestRefresh = true }
+      end,
+    })
+
+    controller:Dispatch("CHAT_MSG_ADDON", "ISI_SYNC", "REQSYNC", "PARTY", "Alpha-RealmA")
+
+    Assert.Equal(counters.refreshResponses, 1, "hidden refresh requests must trigger one sync response")
+    Assert.Equal(counters.uiUpdates, 0, "answering a hidden refresh request must not force a UI redraw by itself")
+  end)
 end
 
 local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)

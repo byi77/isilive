@@ -222,6 +222,17 @@ local function RegisterStatsSyncTests(test, Assert, WithGlobals, LoadAddonModule
         rio = 3210,
       })
       Assert.Equal(#sentMessages, 2, "same stats payload must resend after cooldown expires")
+
+      now = 107
+      addon.Sync.SendStats({
+        force = true,
+        isVisible = false,
+        allowHidden = true,
+        specID = 72,
+        ilvl = 615,
+        rio = 3210,
+      })
+      Assert.Equal(#sentMessages, 3, "forced hidden refresh replies must bypass visibility suppression")
     end)
   end)
 end
@@ -325,6 +336,130 @@ local function RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonMod
     end)
   end)
 
+  test("KeySync SendRefreshResponse can answer hidden refresh requests outside active M+", function()
+    local sentMessages = {}
+
+    WithGlobals({
+      GetTime = function()
+        return 100
+      end,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+        end,
+      },
+      C_MythicPlus = {
+        GetOwnedKeystoneLevel = function()
+          return 15
+        end,
+        GetOwnedKeystoneChallengeMapID = function()
+          return 2649
+        end,
+      },
+      GetSpecialization = function()
+        return 1
+      end,
+      GetSpecializationInfo = function(index)
+        if index == 1 then
+          return 72, "Fury"
+        end
+        return nil
+      end,
+      C_Item = {
+        GetAverageItemLevel = function()
+          return 611.4, 615.2
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_keysync.lua" })
+      local controller = addon.KeySync.CreateController({
+        sync = addon.Sync,
+        getUnitNameAndRealm = function(_unit)
+          return "Me", "Realm"
+        end,
+        getAddonVersionRaw = function()
+          return "1.0"
+        end,
+        getUnitRio = function(_unit)
+          return 3210
+        end,
+        isFrameVisible = function()
+          return false
+        end,
+        canRespondToRefreshRequest = function()
+          return true
+        end,
+      })
+
+      local sent = controller.SendRefreshResponse()
+
+      Assert.True(sent, "hidden refresh response should be allowed outside blocked runtime states")
+      Assert.Equal(#sentMessages, 2, "refresh response should publish KEY and STATS")
+      Assert.Equal(sentMessages[1].message, "KEY:2649:15", "refresh response must publish current key payload first")
+      Assert.Equal(sentMessages[2].message, "STATS:72:615:3210", "refresh response must publish current stats payload")
+    end)
+  end)
+
+  test("KeySync SendRefreshResponse skips while paused, stopped, or active M+", function()
+    local sentMessages = {}
+
+    WithGlobals({
+      GetTime = function()
+        return 100
+      end,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_keysync.lua" })
+      local controller = addon.KeySync.CreateController({
+        sync = addon.Sync,
+        getUnitNameAndRealm = function(_unit)
+          return "Me", "Realm"
+        end,
+        getAddonVersionRaw = function()
+          return "1.0"
+        end,
+        getUnitRio = function(_unit)
+          return nil
+        end,
+        isFrameVisible = function()
+          return false
+        end,
+        canRespondToRefreshRequest = function()
+          return false
+        end,
+      })
+
+      local sent = controller.SendRefreshResponse()
+
+      Assert.False(sent, "blocked runtime states must suppress hidden refresh responses")
+      Assert.Equal(#sentMessages, 0, "blocked refresh responses must not publish sync payloads")
+    end)
+  end)
+
   test("KeySync keeps fresh local inspect stats over synced peer stats", function()
     WithGlobals({
       GetSpecializationInfoByID = function(specID)
@@ -380,7 +515,7 @@ local function RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonMod
 end
 
 local function RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Sync ProcessAddonMessage handles HELLO and KEY payloads", function()
+  test("Sync ProcessAddonMessage handles HELLO, REQSYNC, and KEY payloads", function()
     WithGlobals({
       strsplit = function(sep, str, max)
         local pos = str:find(sep, 1, true)
@@ -407,6 +542,11 @@ local function RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonM
         addon.Sync.ProcessAddonMessage("ISILIVE", "HELLO:0.9.36", "MyPlayer-Realm", "MyPlayer", "Realm")
       Assert.NotNil(selfResult, "self HELLO must return result")
       Assert.False(selfResult.shouldAck, "HELLO from self must not require ack")
+
+      local requestResult =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "REQSYNC", "OtherPlayer-OtherRealm", "MyPlayer", "Realm")
+      Assert.NotNil(requestResult, "REQSYNC must return result")
+      Assert.True(requestResult.shouldRequestRefresh, "REQSYNC from different player must request a refresh response")
 
       local keyResult =
         addon.Sync.ProcessAddonMessage("ISILIVE", "KEY:2649:15", "OtherPlayer-OtherRealm", "MyPlayer", "Realm")

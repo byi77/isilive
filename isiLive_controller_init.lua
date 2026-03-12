@@ -12,6 +12,7 @@ local function CreateKeySyncController(ctx)
     getAddonVersionRaw = ctx.getAddonVersionRaw,
     getUnitRio = ctx.getUnitRio,
     isFrameVisible = ctx.isFrameVisible,
+    canRespondToRefreshRequest = ctx.canRespondToRefreshRequest,
   })
   return {
     keySyncController = controller,
@@ -19,8 +20,10 @@ local function CreateKeySyncController(ctx)
     unitHasIsiLive = controller.UnitHasIsiLive,
     registerIsiLiveSyncPrefix = controller.RegisterIsiLiveSyncPrefix,
     sendIsiLiveHello = controller.SendIsiLiveHello,
+    sendRefreshRequest = controller.SendRefreshRequest,
     getOwnedKeystoneSnapshot = controller.GetOwnedKeystoneSnapshot,
     sendOwnKeySnapshot = controller.SendOwnKeySnapshot,
+    sendRefreshResponse = controller.SendRefreshResponse,
     applyKnownKeyToRosterEntry = controller.ApplyKnownKeyToRosterEntry,
   }
 end
