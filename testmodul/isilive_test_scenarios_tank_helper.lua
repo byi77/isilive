@@ -170,9 +170,12 @@ return function(test, ctx)
       InCombatLockdown = function()
         return false
       end,
-      C_CVar = { GetCVar = function()
-        return "0"
-      end, SetCVar = function() end },
+      C_CVar = {
+        GetCVar = function()
+          return "0"
+        end,
+        SetCVar = function() end,
+      },
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_roster_panel.lua" })
       addon.RosterPanel.CreateController({
@@ -225,7 +228,9 @@ return function(test, ctx)
         end,
         rolePriority = {},
         unitPriority = {},
-        isPlayerLeader = function() return true end,
+        isPlayerLeader = function()
+          return true
+        end,
         isInGroup = function()
           return true
         end,
@@ -274,9 +279,12 @@ return function(test, ctx)
       InCombatLockdown = function()
         return false
       end,
-      C_CVar = { GetCVar = function()
-        return "0"
-      end, SetCVar = function() end },
+      C_CVar = {
+        GetCVar = function()
+          return "0"
+        end,
+        SetCVar = function() end,
+      },
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_roster_panel.lua" })
       addon.RosterPanel.CreateController({
@@ -329,7 +337,9 @@ return function(test, ctx)
         end,
         rolePriority = {},
         unitPriority = {},
-        isPlayerLeader = function() return true end,
+        isPlayerLeader = function()
+          return true
+        end,
         isInGroup = function()
           return true
         end,
@@ -362,6 +372,9 @@ return function(test, ctx)
 
     local miniWidth = mainFrame.width
     local buttonX = tankButton.pointX -- Negative value relative to TOPRIGHT
-    Assert.True(miniWidth + buttonX > 20, "Tank buttons (at " .. tostring(buttonX) .. ") must fit inside mini frame width (" .. tostring(miniWidth) .. ")")
+    Assert.True(
+      miniWidth + buttonX > 20,
+      "Tank buttons (at " .. tostring(buttonX) .. ") must fit inside mini frame width (" .. tostring(miniWidth) .. ")"
+    )
   end)
 end

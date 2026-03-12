@@ -1166,11 +1166,11 @@ end
 
 local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
   local markers = {
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_6", id = 6, name = "Square (Blue)" },   -- Blue
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_6", id = 6, name = "Square (Blue)" }, -- Blue
     { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_4", id = 4, name = "Triangle (Green)" }, -- Green
     { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_3", id = 3, name = "Diamond (Purple)" }, -- Purple
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_7", id = 7, name = "Cross (Red)" },     -- Red
-    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_1", id = 1, name = "Star (Yellow)" },   -- Yellow
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_7", id = 7, name = "Cross (Red)" }, -- Red
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_1", id = 1, name = "Star (Yellow)" }, -- Yellow
   }
 
   local buttons = {}

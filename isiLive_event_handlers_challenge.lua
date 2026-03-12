@@ -170,7 +170,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     ResetDamageMeterIfAvailable()
     ctx.captureRioBaselineSnapshot()
     ctx.setActiveJoinedKeyMapID(nil)
-    ctx.checkIfEnteredTargetDungeon()    
+    ctx.checkIfEnteredTargetDungeon()
     if not ctx.isRosterCollapsed() then
       ctx.setMainFrameVisible(false)
     end
