@@ -26,6 +26,7 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
   return groupModule.CreateController({
     printFn = RequireFunction(deps.printFn, "printFn"),
     getL = RequireFunction(deps.getL, "getL"),
+    isRosterCollapsed = deps.isRosterCollapsed,
     isInGroup = RequireFunction(deps.isInGroup, "isInGroup"),
     getNumGroupMembers = RequireFunction(deps.getNumGroupMembers, "getNumGroupMembers"),
     getActiveChallengeMapID = RequireFunction(deps.getActiveChallengeMapID, "getActiveChallengeMapID"),
@@ -83,6 +84,7 @@ local function BuildGroupControllerDepsFromContext(ctx)
   return {
     printFn = ctx.printFn,
     getL = ctx.getL,
+    isRosterCollapsed = ctx.isRosterCollapsed,
     modules = {
       sync = ctx.sync,
     },
@@ -133,6 +135,7 @@ end
 local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, callbacks)
   return {
     addonName = assert(deps.addonName, "isiLive: ControllerWiring requires addonName"),
+    isRosterCollapsed = deps.isRosterCollapsed,
     defaultLocale = assert(deps.defaultLocale, "isiLive: ControllerWiring requires defaultLocale"),
     locales = assert(deps.locales, "isiLive: ControllerWiring requires locales"),
     resolveLocaleTag = RequireFunction(deps.resolveLocaleTag, "resolveLocaleTag"),
@@ -183,6 +186,7 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
     registerIsiLiveSyncPrefix = RequireFunction(deps.registerIsiLiveSyncPrefix, "registerIsiLiveSyncPrefix"),
     applyHotkeyBindings = RequireFunction(deps.applyHotkeyBindings, "applyHotkeyBindings"),
     startBindingWatchdog = RequireFunction(deps.startBindingWatchdog, "startBindingWatchdog"),
+    restoreLayoutState = RequireFunction(callbacks.restoreLayoutState, "callbacks.restoreLayoutState"),
     applyLocalizationToUI = RequireFunction(callbacks.applyLocalizationToUI, "callbacks.applyLocalizationToUI"),
     updateCountdownCancelButton = RequireFunction(
       callbacks.updateCountdownCancelButton,
@@ -297,6 +301,7 @@ end
 local function BuildEventHandlersDepsFromContext(ctx)
   return {
     addonName = ctx.addonName,
+    isRosterCollapsed = ctx.isRosterCollapsed,
     defaultLocale = ctx.defaultLocale,
     locales = ctx.locales,
     resolveLocaleTag = ctx.resolveLocaleTag,
@@ -365,6 +370,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
       updateLeaderButtons = ctx.updateLeaderButtons,
       updateStatusLine = ctx.updateStatusLine,
       applyLocalizationToUI = ctx.applyLocalizationToUI,
+      restoreLayoutState = ctx.restoreLayoutState,
       updateCountdownCancelButton = ctx.updateCountdownCancelButton,
       checkIfEnteredTargetDungeon = ctx.checkIfEnteredTargetDungeon,
       captureRioBaselineSnapshot = ctx.captureRioBaselineSnapshot,

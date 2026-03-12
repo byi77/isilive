@@ -29,9 +29,17 @@ local SYSTEM_OPTION_TOGGLE_LEFT_MARGIN = 10
 local SYSTEM_OPTION_TOGGLE_BOTTOM_OFFSET = 24
 local SYSTEM_OPTION_TOGGLE_GAP = 18
 
+-- Layout Konstanten
+local FULL_FRAME_WIDTH = 780
+local MINI_FRAME_WIDTH = 320 -- Tank Helfer (-275) + M+ Buttons (-136) + Teleport
+
 local function RequireFunction(value, name)
   assert(type(value) == "function", "isiLive: RosterPanel requires " .. name)
   return value
+end
+
+local function IsCombatLockdownActive()
+  return type(InCombatLockdown) == "function" and InCombatLockdown() == true
 end
 
 local function SendPartyChatMessage(message)
@@ -206,10 +214,6 @@ local function WriteCVarEnabled(cvarName, enabled)
   return ok
 end
 
-local function IsCombatLockdownActive()
-  return type(InCombatLockdown) == "function" and InCombatLockdown() == true
-end
-
 local function RefreshSystemOptionToggle(button)
   if type(button) ~= "table" or type(button._cvarName) ~= "string" then
     return false
@@ -239,6 +243,28 @@ local function CreateSystemOptionToggle(mainFrame, cvarName)
   end)
 
   RefreshSystemOptionToggle(button)
+  return button
+end
+
+local function CreateCustomOptionToggle(mainFrame, getterFn, setterFn)
+  local button = CreateFrame("CheckButton", nil, mainFrame, "UICheckButtonTemplate")
+  button:SetSize(18, 18)
+
+  local label = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  label:SetPoint("LEFT", button, "RIGHT", 4, 0)
+  label:SetJustifyH("LEFT")
+  DisableFontStringWrapping(label)
+  button.label = label
+
+  if button.SetChecked then
+    button:SetChecked(getterFn())
+  end
+
+  button:SetScript("OnClick", function(self)
+    local enabled = self.GetChecked and self:GetChecked() or false
+    setterFn(enabled)
+  end)
+
   return button
 end
 
@@ -1138,6 +1164,146 @@ local function CreatePanelButtons(mainFrame, deps)
   }
 end
 
+local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
+  local markers = {
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_6", id = 6, name = "Square (Blue)" },   -- Blue
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_4", id = 4, name = "Triangle (Green)" }, -- Green
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_3", id = 3, name = "Diamond (Purple)" }, -- Purple
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_7", id = 7, name = "Cross (Red)" },     -- Red
+    { icon = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_1", id = 1, name = "Star (Yellow)" },   -- Yellow
+  }
+
+  local buttons = {}
+  local startY = -60
+  local size = 24
+  local gap = 6
+
+  -- Position: Rechts von der DPS-Spalte, links von den M+ Management Buttons
+  local xPos = -275
+
+  for i, marker in ipairs(markers) do
+    local btn = CreateFrame("Button", nil, mainFrame, "SecureActionButtonTemplate")
+    btn:SetSize(size, size)
+    btn:SetPoint("TOPRIGHT", xPos, startY - ((i - 1) * (size + gap)))
+
+    if btn.SetNormalTexture then
+      btn:SetNormalTexture(marker.icon)
+    end
+    if btn.SetAttribute then
+      btn:SetAttribute("type1", "macro") -- Left click
+      btn:SetAttribute("macrotext1", "/wm " .. marker.id)
+      btn:SetAttribute("type2", "macro") -- Right click
+      btn:SetAttribute("macrotext2", "/cwm " .. marker.id)
+    end
+    if btn.RegisterForClicks then
+      btn:RegisterForClicks("AnyUp", "AnyDown")
+    end
+
+    btn:SetScript("OnEnter", function(self)
+      local tooltip = AnchorRosterHoverTooltip(tooltipFrame, self)
+      if type(tooltip) == "table" and type(tooltip.SetText) == "function" then
+        tooltip:SetText("World Marker: " .. marker.name, 1, 1, 1)
+        if type(tooltip.AddLine) == "function" then
+          tooltip:AddLine("Left-Click: Place", 0, 1, 0)
+          tooltip:AddLine("Right-Click: Clear", 1, 0.2, 0.2)
+        end
+        tooltip:Show()
+      end
+    end)
+    btn:SetScript("OnLeave", function()
+      HideRosterHoverTooltip(tooltipFrame)
+    end)
+
+    table.insert(buttons, btn)
+  end
+
+  local header = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  header:SetPoint("TOPRIGHT", xPos - 15, -34)
+  header:SetWidth(60)
+  header:SetJustifyH("CENTER")
+  local L = getL()
+  header:SetText(L.TANK_HELPER_HEADER or "Tank Helper")
+
+  return buttons, header
+end
+
+local function UpdateCollapseState(ui, isCollapsed, mainFrame)
+  if mainFrame.SetWidth then
+    mainFrame:SetWidth(isCollapsed and MINI_FRAME_WIDTH or FULL_FRAME_WIDTH)
+  end
+
+  if ui.collapseButton then
+    local tex = isCollapsed and "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up"
+      or "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up"
+    if ui.collapseButton.SetNormalTexture then
+      ui.collapseButton:SetNormalTexture(tex)
+    end
+    if ui.collapseButton.SetPushedTexture then
+      ui.collapseButton:SetPushedTexture(tex)
+    end
+  end
+
+  local function SetVisible(obj, show)
+    if obj and obj.SetShown then
+      obj:SetShown(show)
+    end
+  end
+  local show = not isCollapsed
+
+  SetVisible(ui.specHeader, show)
+  SetVisible(ui.nameHeader, show)
+  SetVisible(ui.ilvlHeader, show)
+  SetVisible(ui.serverHeader, show)
+  SetVisible(ui.keyHeader, show)
+  SetVisible(ui.rioHeader, show)
+  SetVisible(ui.dpsHeader, show)
+  SetVisible(ui.statusLine, show)
+
+  if ui.advancedCombatLoggingToggle then
+    SetVisible(ui.advancedCombatLoggingToggle, show)
+    SetVisible(ui.advancedCombatLoggingToggle.label, show)
+  end
+  if ui.damageMeterResetToggle then
+    SetVisible(ui.damageMeterResetToggle, show)
+    SetVisible(ui.damageMeterResetToggle.label, show)
+  end
+
+  if ui.memberRows then
+    for _, row in pairs(ui.memberRows) do
+      SetVisible(row.spec, show)
+      SetVisible(row.name, show)
+      SetVisible(row.ilvl, show)
+      SetVisible(row.key, show)
+      SetVisible(row.rio, show)
+      SetVisible(row.dps, show)
+      SetVisible(row.realm, show)
+      if row.roleButton and not IsCombatLockdownActive() then
+        SetVisible(row.roleButton, show)
+      end
+    end
+  end
+end
+
+local function NotifyCollapseChanged(ui, isCollapsed)
+  if type(ui) == "table" and type(ui.onCollapseChanged) == "function" then
+    ui.onCollapseChanged(isCollapsed and true or false)
+  end
+end
+
+local function CreateCollapseButton(mainFrame, onClick)
+  local btn = CreateFrame("Button", nil, mainFrame)
+  btn:SetSize(20, 20)
+  btn:SetPoint("TOPRIGHT", -24, -2)
+  if btn.SetNormalTexture then
+    btn:SetNormalTexture("Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up")
+  end
+  if btn.SetHighlightTexture then
+    btn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
+  end
+  btn:SetScript("OnClick", onClick)
+  return btn
+end
+
 local function ConstructPanelUI(mainFrame, uiDeps)
   -- Background for visibility
   mainFrame:SetBackdrop({
@@ -1149,6 +1315,9 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     insets = { left = 4, right = 4, top = 4, bottom = 4 },
   })
   mainFrame:SetBackdropColor(0, 0, 0, 0.85)
+  if mainFrame.SetWidth then
+    mainFrame:SetWidth(FULL_FRAME_WIDTH)
+  end
 
   local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightHuge")
   title:SetPoint("TOP", 0, -4)
@@ -1170,6 +1339,8 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   buttonDeps.tooltipFrame = panelTooltip
   local buttons = CreatePanelButtons(mainFrame, buttonDeps)
   local rosterTooltip = CreateRosterHoverTooltip(mainFrame)
+  local tankButtons, tankHeader = CreateTankHelperButtons(mainFrame, panelTooltip, uiDeps.getL)
+
   local statusLine = CreateStatusLine(mainFrame)
   local optionToggles = CreateSystemOptionToggles(mainFrame)
   CreateVersionLine(mainFrame, uiDeps.getAddonVersionText)
@@ -1189,6 +1360,8 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     title = title,
     statusLine = statusLine,
     raidNoticeLabel = raidNoticeLabel,
+    tankButtons = tankButtons,
+    tankHeader = tankHeader,
   }
   for k, v in pairs(headers) do
     ui[k] = v
@@ -1199,6 +1372,21 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   for k, v in pairs(optionToggles) do
     ui[k] = v
   end
+
+  ui.isCollapsed = false
+  ui.collapseButton = CreateCollapseButton(mainFrame, function()
+    if IsCombatLockdownActive() then
+      return
+    end
+    ui.isCollapsed = not ui.isCollapsed
+    if IsiLiveDB then
+      IsiLiveDB.rosterCollapsed = ui.isCollapsed
+    end
+    UpdateCollapseState(ui, ui.isCollapsed, mainFrame)
+    NotifyCollapseChanged(ui, ui.isCollapsed)
+  end)
+  UpdateCollapseState(ui, false, mainFrame)
+
   AttachSystemOptionToggleWatcher(mainFrame, ui)
   return ui
 end
@@ -1211,6 +1399,11 @@ local function RenderRosterImpl(state, roster)
   local setMainFrameHeightSafe = state.setMainFrameHeightSafe
   local minFrameHeight = state.minFrameHeight
   local raidNoticeLabel = state.raidNoticeLabel
+
+  if state.uiRef then
+    state.uiRef.memberRows = memberRows
+  end
+  local isCollapsed = state.uiRef and state.uiRef.isCollapsed
 
   -- If in a raid group, show the notice and hide rows
   if state.isRaidGroup and state.isRaidGroup() then
@@ -1225,8 +1418,12 @@ local function RenderRosterImpl(state, roster)
       if row.hoverFrame then
         row.hoverFrame:Hide()
       end
-      if row.roleButton and not IsCombatLockdownActive() then
-        row.roleButton:Hide()
+      if row.roleButton then
+        if not IsCombatLockdownActive() then
+          row.roleButton:Hide()
+        else
+          -- Combat deferral handled by secure driver usually, but here we just accept state until regen
+        end
       end
     end
     if raidNoticeLabel then
@@ -1241,6 +1438,10 @@ local function RenderRosterImpl(state, roster)
   -- Normal case: hide notice, show rows
   if raidNoticeLabel then
     raidNoticeLabel:Hide()
+  end
+
+  if isCollapsed then
+    -- No need to render rows if collapsed
   end
 
   for _, row in pairs(memberRows) do
@@ -1264,8 +1465,12 @@ local function RenderRosterImpl(state, roster)
       row.hoverFrame:Hide()
     end
 
-    if row.roleButton and not IsCombatLockdownActive() then
-      row.roleButton:Hide()
+    if row.roleButton then
+      if not IsCombatLockdownActive() then
+        row.roleButton:Hide()
+      else
+        -- Defer hide if needed or accept stale state in combat
+      end
     end
   end
 
@@ -1322,7 +1527,7 @@ local function RenderRosterImpl(state, roster)
       end
 
       if not IsCombatLockdownActive() then
-        if showButton then
+        if showButton and not isCollapsed then
           row.roleButton:Show()
           row.roleButton:SetAttribute("unit", entry.unit)
           row.roleButton:SetAttribute("type", "macro")
@@ -1389,6 +1594,9 @@ local function RenderRosterImpl(state, roster)
     if row.hoverFrame then
       row.hoverFrame.unit = entry.unit
       row.hoverFrame:Show()
+      if isCollapsed then
+        row.hoverFrame:Hide()
+      end
     end
     index = index + 1
   end
@@ -1396,7 +1604,12 @@ local function RenderRosterImpl(state, roster)
   shareKeysButton:SetEnabled(hasAnyKey)
   shareKeysButton:SetAlpha(hasAnyKey and 1 or 0.45)
 
-  setMainFrameHeightSafe(math.max(minFrameHeight, 45 + index * 16))
+  local desiredHeight = math.max(minFrameHeight, 45 + index * 16)
+  setMainFrameHeightSafe(desiredHeight)
+
+  if state.uiRef then
+    UpdateCollapseState(state.uiRef, isCollapsed, mainFrame)
+  end
 end
 
 function RosterPanel.CreateController(opts)
@@ -1505,6 +1718,22 @@ function RosterPanel.CreateController(opts)
     RefreshSystemOptionToggles(ui)
   end
 
+  function controller.IsCollapsed()
+    return ui.isCollapsed
+  end
+
+  function controller.RestoreSavedState()
+    if IsiLiveDB and IsiLiveDB.rosterCollapsed ~= nil then
+      ui.isCollapsed = IsiLiveDB.rosterCollapsed
+      UpdateCollapseState(ui, ui.isCollapsed, mainFrame)
+      NotifyCollapseChanged(ui, ui.isCollapsed)
+    end
+  end
+
+  function controller.SetCollapseChangedHandler(handler)
+    ui.onCollapseChanged = type(handler) == "function" and handler or nil
+  end
+
   function controller.UpdateLeaderButtons()
     local enabled = isPlayerLeader()
     readyCheckButton:SetEnabled(enabled)
@@ -1544,6 +1773,7 @@ function RosterPanel.CreateController(opts)
       getL = getL,
       isRaidGroup = isRaidGroup,
       raidNoticeLabel = ui.raidNoticeLabel,
+      uiRef = ui,
     }, roster)
     RefreshSystemOptionToggles(ui)
   end

@@ -13,6 +13,9 @@ local function BuildDeps(opts)
     getL = opts.getL or function()
       return {}
     end,
+    isRosterCollapsed = opts.isRosterCollapsed or function()
+      return false
+    end,
     isInGroup = opts.isInGroup or function()
       return false
     end,
@@ -299,7 +302,9 @@ local function HandleGroupRosterUpdate(deps)
       end
     end
     deps.setWasRaidGroup(true)
-    deps.setMainFrameVisible(false)
+    if not deps.isRosterCollapsed() then
+      deps.setMainFrameVisible(false)
+    end
     deps.updateLeaderButtons()
     return
   end

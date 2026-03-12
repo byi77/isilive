@@ -212,6 +212,7 @@ function TeleportUI.CreateController(opts)
   local controller = {}
   local buttons = {}
   local emptyStateLabel = nil
+  local isVisible = true
   deps.tooltip = createPrivateTooltip(mainFrame)
 
   local function EnsureEmptyStateLabel()
@@ -246,6 +247,12 @@ function TeleportUI.CreateController(opts)
       return
     end
 
+    if not isVisible then
+      emptyStateLabel:SetText("")
+      emptyStateLabel:Hide()
+      return
+    end
+
     local hasEntries = type(entries) == "table" and #entries > 0
     local emptyText = nil
     if not hasEntries then
@@ -270,6 +277,21 @@ function TeleportUI.CreateController(opts)
     end
   end
 
+  local function ApplyVisibility()
+    if isVisible then
+      for _, button in ipairs(buttons) do
+        if button and button.Show then
+          button:Show()
+        end
+      end
+    else
+      HideExistingButtons()
+      if emptyStateLabel and emptyStateLabel.Hide then
+        emptyStateLabel:Hide()
+      end
+    end
+  end
+
   local function BuildButtonsInternal()
     buttons = {}
     local entries = deps.getEntries()
@@ -277,6 +299,7 @@ function TeleportUI.CreateController(opts)
     for i, entry in ipairs(entries) do
       table.insert(buttons, CreateTeleportButton(mainFrame, deps, i, entry))
     end
+    ApplyVisibility()
   end
 
   function controller.BuildButtons()
@@ -296,7 +319,20 @@ function TeleportUI.CreateController(opts)
     return emptyStateLabel
   end
 
+  function controller.SetVisible(visible)
+    isVisible = visible and true or false
+    if isVisible then
+      UpdateEmptyState(deps.getEntries())
+    end
+    ApplyVisibility()
+  end
+
   function controller.UpdateButtons(resolvedSpellID)
+    if not isVisible then
+      ApplyVisibility()
+      return
+    end
+
     for _, button in ipairs(buttons) do
       SyncButtonLayer(button, mainFrame, deps.isInCombat)
 
@@ -345,6 +381,7 @@ function TeleportUI.CreateController(opts)
         end
       end
     end
+    UpdateEmptyState(deps.getEntries())
   end
 
   return controller

@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-03-12 - Version 0.9.76
+- **Taint-Safe Hardening:**
+  - Expanded deterministic `ADDON_ACTION_FORBIDDEN` regression coverage for deferred teleport spell attributes, insecure teleport-grid buttons, center-notice teleport handling, tank-helper secure macros, and collapse interaction while secure roster buttons already exist.
+  - Added explicit combat-path regression tests so secure/insecure button boundaries are exercised before release instead of only being inferred from higher-level UI tests.
+- **Docs Sync:**
+  - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `TODO.md`, and `isiLive.toc` to `0.9.76`.
+  - Updated deterministic validator counters to `253` scenarios across `28` modules.
+
+## 2026-03-11 - Version 0.9.75
+- **Tank Helper:**
+  - Added a vertical bar of 5 secure world marker buttons (Blue Square, Green Triangle, Purple Diamond, Red Cross, Yellow Star) to the right of the DPS column.
+  - Left-Click places the world marker (`/wm X`), Right-Click clears it (`/cwm X`).
+- **Mini Mode (Collapse):**
+  - Added a collapse toggle button (`<` / `>`) next to the top-right close button.
+  - Toggling "Mini Mode" hides the roster table (left side) and `M+Travel`, while keeping Tank Helper and M+ Management visible.
+  - Collapse state is persisted in `IsiLiveDB.rosterCollapsed` and restored on reload.
+  - When collapsed, the window will not auto-close on key start or raid join, serving as a persistent compact tool palette.
+- **Docs Sync:**
+  - Synced all documentation files to `0.9.75` and updated the UI ASCII sketch in `ARCHITECTURE.md`.
+
 ## 2026-03-11 - Version 0.9.74
 - **Manual Role Markers:**
   - Replaced the restricted "Auto-Mark" feature with interactive secure role icons in the roster.

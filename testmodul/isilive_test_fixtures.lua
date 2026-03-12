@@ -33,6 +33,9 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
       return tag
     end,
     setLocaleTable = function(_table) end,
+    isRosterCollapsed = function()
+      return false
+    end,
     isInGroup = function()
       return true
     end,
@@ -94,6 +97,7 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
     applyHotkeyBindings = function() end,
     startBindingWatchdog = function() end,
     applyLocalizationToUI = function() end,
+    restoreLayoutState = function() end,
     updateCountdownCancelButton = function() end,
     getUnitNameAndRealm = function()
       return "player", "realm"

@@ -140,5 +140,12 @@ function ControllerInit.CreateControllers(ctx)
     result[key] = value
   end
 
+  if result.rosterPanelController and result.teleportUIController then
+    result.rosterPanelController.SetCollapseChangedHandler(function(isCollapsed)
+      result.teleportUIController.SetVisible(not isCollapsed)
+    end)
+    result.teleportUIController.SetVisible(not result.rosterPanelController.IsCollapsed())
+  end
+
   return result
 end

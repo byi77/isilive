@@ -1277,6 +1277,91 @@ local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModul
       )
     end)
   end)
+
+  test("TeleportUI SetVisible hides travel buttons and empty state", function()
+    local createFrameStub = BuildTeleportUICreateFrameStub()
+    local emptyState = {
+      text = nil,
+      shown = false,
+      SetPoint = function() end,
+      SetWidth = function() end,
+      SetJustifyH = function() end,
+      SetTextColor = function() end,
+      SetWordWrap = function() end,
+      SetNonSpaceWrap = function() end,
+      SetText = function(self, value)
+        self.text = value
+      end,
+      Show = function(self)
+        self.shown = true
+      end,
+      Hide = function(self)
+        self.shown = false
+      end,
+    }
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
+        "isiLive_teleport_ui.lua",
+      })
+
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = {
+          GetFrameLevel = function()
+            return 10
+          end,
+          GetFrameStrata = function()
+            return "MEDIUM"
+          end,
+          CreateFontString = function()
+            return emptyState
+          end,
+        },
+        applySecureSpellToButton = function()
+          return true
+        end,
+        getEntries = function()
+          return {}
+        end,
+        getEmptyStateText = function()
+          return "No teleports"
+        end,
+        getL = function()
+          return {}
+        end,
+        isSpellKnown = function()
+          return false
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getSpellCooldownSafe = function()
+          return 0, 0, true
+        end,
+        applyCooldownFrameSafe = function() end,
+        getSpellTexture = function()
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      controller.BuildButtons()
+      Assert.True(emptyState.shown, "empty state should be visible before collapse hiding")
+
+      controller.SetVisible(false)
+
+      Assert.False(emptyState.shown, "empty state should hide when travel area is collapsed")
+      Assert.Equal(#controller.GetButtons(), 0, "empty-state setup should still keep button list empty")
+    end)
+  end)
 end
 
 return function(test, ctx)

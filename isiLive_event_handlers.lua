@@ -30,6 +30,8 @@ local function BuildContext(opts)
   ctx.resolveLocaleTag = RequireFunction(opts.resolveLocaleTag, "resolveLocaleTag")
   ctx.setLocaleTable = RequireFunction(opts.setLocaleTable, "setLocaleTable")
 
+  ctx.isRosterCollapsed = RequireFunction(opts.isRosterCollapsed, "isRosterCollapsed")
+
   ctx.isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
   ctx.isInPartyInstance = OptionalFunction(opts.isInPartyInstance, function()
     if type(GetInstanceInfo) ~= "function" then
@@ -76,6 +78,7 @@ local function BuildContext(opts)
   ctx.applyHotkeyBindings = RequireFunction(opts.applyHotkeyBindings, "applyHotkeyBindings")
   ctx.startBindingWatchdog = RequireFunction(opts.startBindingWatchdog, "startBindingWatchdog")
   ctx.applyLocalizationToUI = RequireFunction(opts.applyLocalizationToUI, "applyLocalizationToUI")
+  ctx.restoreLayoutState = RequireFunction(opts.restoreLayoutState, "restoreLayoutState")
   ctx.updateCountdownCancelButton = RequireFunction(opts.updateCountdownCancelButton, "updateCountdownCancelButton")
   ctx.getUnitNameAndRealm = RequireFunction(opts.getUnitNameAndRealm, "getUnitNameAndRealm")
   ctx.markIsiLiveUser = RequireFunction(opts.markIsiLiveUser, "markIsiLiveUser")

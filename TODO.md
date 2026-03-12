@@ -47,6 +47,21 @@
   - `CHANGELOG.md` / `README.md` / `RULES_LOGIC.md` aktualisieren
   - Tag: `isiLive_release_0.9.74`
 
+- [x] `v0.9.75` vorbereiten:
+  - Tank Helper Buttons (Secure /wm Macros)
+  - Mini Mode (Collapse Toggle) und Persistenz
+  - Layout-Anpassung und Breite
+  - Tag: `isiLive_release_0.9.75`
+
+- [x] `v0.9.76` vorbereiten:
+  - Taint-/`ADDON_ACTION_FORBIDDEN`-Regressionstests fuer Teleport, Notice, Collapse und Tank Helper erweitern
+  - Doku-/Validator-Zaehler auf `0.9.76` synchronisieren
+  - Tag: `isiLive_release_0.9.76`
+
+- [ ] `v0.9.76` veroeffentlichen
+  - Ingame Combat-Smoketest fuer Teleport-Grid, Center Notice, Collapse und Role-/Tank-Helper-Buttons
+  - Release-Tag erst nach gruenem `Lua Check` auf `main`
+
 ## P1 - Quality Gates
 
 - [x] CI optional um `lua tools/validate_usecases.lua` erweitern (zusaetzlicher Runtime-Gate auf `main`)

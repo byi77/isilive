@@ -660,6 +660,15 @@ local function InitializeFactoryPrimaryControllers(ctx)
   ctx.UpdateLeaderButtons = function()
     ctx.rosterPanelController.UpdateLeaderButtons()
   end
+  ctx.IsRosterCollapsed = function()
+    if not ctx.rosterPanelController then
+      return false
+    end
+    return ctx.rosterPanelController.IsCollapsed()
+  end
+  ctx.RestoreLayoutState = function()
+    ctx.rosterPanelController.RestoreSavedState()
+  end
   ctx.UpdateUI = function()
     ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
   end
@@ -1027,6 +1036,7 @@ local function FinalizeFactoryRuntime(ctx)
     setWasInGroup = ctx.SetWasInGroup,
     getWasRaidGroup = ctx.GetWasRaidGroup,
     setWasRaidGroup = ctx.SetWasRaidGroup,
+    isRosterCollapsed = ctx.IsRosterCollapsed,
     isRaidGroup = ctx.GetWasRaidGroup,
     setWasGroupLeader = ctx.SetWasGroupLeader,
     getWasGroupLeader = ctx.GetWasGroupLeader,
@@ -1110,6 +1120,7 @@ local function FinalizeFactoryRuntime(ctx)
     updateStatusLine = ctx.UpdateStatusLine,
     applyLocalizationToUI = ctx.ApplyLocalizationToUI,
     updateCountdownCancelButton = ctx.UpdateCountdownCancelButton,
+    restoreLayoutState = ctx.RestoreLayoutState,
     checkIfEnteredTargetDungeon = ctx.CheckIfEnteredTargetDungeon,
     captureRioBaselineSnapshot = ctx.CaptureRioBaselineSnapshot,
     restoreRioBaseline = ctx.RestoreRioBaseline,

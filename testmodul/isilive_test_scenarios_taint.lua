@@ -40,6 +40,12 @@ local function NewRecordedTexture()
     SetTexCoord = function(self, ...)
       self.texCoord = { ... }
     end,
+    SetBlendMode = function(self, mode)
+      self.blendMode = mode
+    end,
+    SetVertexColor = function(self, ...)
+      self.vertexColor = { ... }
+    end,
     Hide = function(self)
       self.hidden = true
     end,
@@ -57,6 +63,7 @@ local function NewRecordedFontString()
       self.width = width
     end,
     SetJustifyH = function() end,
+    SetJustifyV = function() end,
     GetFont = function()
       return "font", 10, ""
     end,
@@ -81,6 +88,40 @@ local function NewRecordedFontString()
   }
 end
 
+local function NewRecordedAnimationGroup()
+  local group = {
+    playing = false,
+  }
+
+  function group:SetLooping(_mode) end
+
+  function group:CreateAnimation(_kind)
+    return {
+      SetScale = function() end,
+      SetDuration = function() end,
+      SetSmoothing = function() end,
+      SetOrder = function() end,
+      SetFromAlpha = function() end,
+      SetToAlpha = function() end,
+      SetTarget = function() end,
+    }
+  end
+
+  function group:IsPlaying()
+    return self.playing == true
+  end
+
+  function group:Play()
+    self.playing = true
+  end
+
+  function group:Stop()
+    self.playing = false
+  end
+
+  return group
+end
+
 local function NewRecordedFrame(createdFrames, frameType, name, parent, template)
   local frame = {
     _frameType = frameType,
@@ -89,6 +130,8 @@ local function NewRecordedFrame(createdFrames, frameType, name, parent, template
     _template = template,
     _attributes = {},
     _shown = true,
+    _events = {},
+    _scripts = {},
   }
 
   function frame:SetSize(width, height)
@@ -114,6 +157,7 @@ local function NewRecordedFrame(createdFrames, frameType, name, parent, template
 
   function frame:SetScript(script, handler)
     self[script] = handler
+    self._scripts[script] = handler
   end
 
   function frame:SetText(text)
@@ -144,11 +188,67 @@ local function NewRecordedFrame(createdFrames, frameType, name, parent, template
     return self._attributes[key]
   end
 
+  function frame:RegisterEvent(event)
+    self._events[event] = true
+  end
+
+  function frame:UnregisterEvent(event)
+    self._events[event] = nil
+  end
+
+  function frame:IsEventRegistered(event)
+    return self._events[event] == true
+  end
+
+  function frame:FireEvent(event, ...)
+    local onEvent = self._scripts.OnEvent
+    if onEvent then
+      onEvent(self, event, ...)
+    end
+  end
+
   function frame.EnableMouse() end
+  function frame:RegisterForClicks() end
+  function frame:RegisterForDrag() end
+  function frame:SetMovable() end
+  function frame:StartMoving()
+    self._startMovingCalls = (self._startMovingCalls or 0) + 1
+  end
+  function frame:StopMovingOrSizing()
+    self._stopMovingCalls = (self._stopMovingCalls or 0) + 1
+  end
   function frame.SetBackdrop() end
   function frame.SetBackdropColor() end
-  function frame.SetFrameStrata() end
+  function frame:SetFrameStrata(value)
+    self._frameStrata = value
+  end
+  function frame:GetFrameStrata()
+    return self._frameStrata or "MEDIUM"
+  end
+  function frame:SetFrameLevel(value)
+    self._frameLevel = value
+  end
+  function frame:GetFrameLevel()
+    return self._frameLevel or 1
+  end
   function frame.SetClampedToScreen() end
+  function frame:SetAllPoints() end
+  function frame:SetDrawEdge() end
+  function frame:SetNormalTexture(texture)
+    self.normalTexture = texture
+  end
+  function frame:SetPushedTexture(texture)
+    self.pushedTexture = texture
+  end
+  function frame:SetHighlightTexture(texture)
+    self.highlightTexture = texture
+  end
+  function frame:SetShown(shown)
+    self._shown = shown and true or false
+  end
+  function frame:SetScale(value)
+    self._scale = value
+  end
 
   function frame.CreateTexture()
     return NewRecordedTexture()
@@ -156,6 +256,10 @@ local function NewRecordedFrame(createdFrames, frameType, name, parent, template
 
   function frame.CreateFontString()
     return NewRecordedFontString()
+  end
+
+  function frame:CreateAnimationGroup()
+    return NewRecordedAnimationGroup()
   end
 
   function frame:Hide()
@@ -183,6 +287,14 @@ local function NewRecordedMainFrame(createdFrames)
 
   function frame.GetEffectiveScale()
     return 1
+  end
+
+  function frame:GetFrameStrata()
+    return self._frameStrata or "MEDIUM"
+  end
+
+  function frame:GetFrameLevel()
+    return self._frameLevel or 1
   end
 
   return frame
@@ -315,6 +427,37 @@ local function FindSecureRoleButton(createdFrames, unit)
   return nil
 end
 
+local function FindCombatRetryFrame(createdFrames)
+  for _, frame in ipairs(createdFrames) do
+    if frame:IsEventRegistered("PLAYER_REGEN_ENABLED") then
+      return frame
+    end
+  end
+  return nil
+end
+
+local function FindTankHelperButtons(createdFrames)
+  local buttons = {}
+  for _, frame in ipairs(createdFrames) do
+    if frame._template == "SecureActionButtonTemplate" and type(frame.GetAttribute) == "function" then
+      local macrotext1 = frame:GetAttribute("macrotext1")
+      if type(macrotext1) == "string" and macrotext1:find("/wm", 1, true) ~= nil then
+        table.insert(buttons, frame)
+      end
+    end
+  end
+  return buttons
+end
+
+local function FindCollapseButton(createdFrames)
+  for _, frame in ipairs(createdFrames) do
+    if frame.normalTexture == "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up" then
+      return frame
+    end
+  end
+  return nil
+end
+
 local function RegisterGroupTaintTests(test, Assert, _WithGlobals, LoadAddonModules)
   test("TAINT: Group update logic relies purely on deps and touches no globals", function()
     local cleanupTraps = RegisterProtectedApiTraps()
@@ -352,6 +495,148 @@ local function RegisterGroupTaintTests(test, Assert, _WithGlobals, LoadAddonModu
     cleanupTraps()
 
     Assert.True(ok, "Group update crashed or hit a taint trap: " .. tostring(err))
+  end)
+end
+
+local function RegisterTeleportTaintTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("TAINT: Teleport secure spell apply avoids attribute writes during combat", function()
+    local createdFrames = {}
+    local inCombat = true
+    local attributes = {}
+
+    local button = {
+      SetAttribute = function(_self, key, value)
+        if inCombat then
+          error("secure attribute write attempted during combat")
+        end
+        attributes[key] = value
+      end,
+      EnableMouse = function(_self, value)
+        attributes.enableMouse = value
+      end,
+    }
+
+    WithGlobals({
+      CreateFrame = function(frameType, name, parent, template)
+        return NewRecordedFrame(createdFrames, frameType, name, parent, template)
+      end,
+      InCombatLockdown = function()
+        return inCombat
+      end,
+      C_Spell = {
+        GetSpellName = function(spellID)
+          return "Spell-" .. tostring(spellID)
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_teleport.lua" })
+
+      local ok, err = pcall(function()
+        local applied = addon.Teleport.ApplySecureSpellToButton(button, 445414)
+        Assert.False(applied, "combat apply must defer secure spell attributes")
+      end)
+      Assert.True(ok, "combat deferral must not attempt secure attributes immediately: " .. tostring(err))
+
+      local retryFrame = FindCombatRetryFrame(createdFrames)
+      Assert.NotNil(retryFrame, "combat deferral should register a regen retry frame")
+
+      inCombat = false
+      retryFrame:FireEvent("PLAYER_REGEN_ENABLED")
+
+      Assert.Equal(attributes.type, "spell", "regen retry should restore spell action type")
+      Assert.Equal(attributes.spell, "Spell-445414", "regen retry should restore spell payload")
+      Assert.True(attributes.enableMouse, "regen retry should re-enable mouse interaction")
+    end)
+  end)
+
+  test("TAINT: TeleportUI keeps insecure teleport buttons combat-safe while secure spell apply is deferred", function()
+    local cleanupTraps = RegisterProtectedApiTraps()
+    local createdFrames = {}
+    local inCombat = true
+
+    local ok, err = pcall(function()
+      WithGlobals({
+        CreateFrame = function(frameType, name, parent, template)
+          return NewRecordedFrame(createdFrames, frameType, name, parent, template)
+        end,
+        InCombatLockdown = function()
+          return inCombat
+        end,
+        UIParent = {
+          GetEffectiveScale = function()
+            return 1
+          end,
+        },
+        C_Spell = {
+          GetSpellName = function(spellID)
+            return "Spell-" .. tostring(spellID)
+          end,
+          GetSpellTexture = function()
+            return nil
+          end,
+        },
+      }, function()
+        local addon = LoadAddonModules({
+          "isiLive_ui_common.lua",
+          "isiLive_teleport.lua",
+          "isiLive_teleport_ui.lua",
+        })
+
+        local controller = addon.TeleportUI.CreateController({
+          mainFrame = NewRecordedMainFrame(createdFrames),
+          applySecureSpellToButton = addon.Teleport.ApplySecureSpellToButton,
+          getEntries = function()
+            return {
+              { spellID = 445414, mapID = 2662, mapName = "The Dawnbreaker" },
+            }
+          end,
+          getL = function()
+            return {}
+          end,
+          isSpellKnown = function()
+            return true
+          end,
+          getTeleportCooldownRemaining = function()
+            return 0
+          end,
+          formatCooldownSeconds = function()
+            return ""
+          end,
+          getSpellCooldownSafe = function()
+            return 0, 0, true
+          end,
+          applyCooldownFrameSafe = function() end,
+          getSpellTexture = function()
+            return nil
+          end,
+          isInCombat = function()
+            return inCombat
+          end,
+        })
+
+        controller.BuildButtons()
+        controller.UpdateButtons(445414)
+
+        local button = controller.GetButtons()[1]
+        Assert.NotNil(button, "TeleportUI should create one teleport button")
+        Assert.Equal(
+          button._template,
+          "InsecureActionButtonTemplate",
+          "TeleportUI grid button must stay insecure to avoid protected-parent taint"
+        )
+
+        local retryFrame = FindCombatRetryFrame(createdFrames)
+        Assert.NotNil(retryFrame, "combat teleport update should queue regen retry")
+
+        inCombat = false
+        retryFrame:FireEvent("PLAYER_REGEN_ENABLED")
+
+        Assert.Equal(button:GetAttribute("type"), "spell", "regen retry should eventually restore teleport spell type")
+      end)
+    end)
+
+    cleanupTraps()
+    Assert.True(ok, "TeleportUI combat path must not hit protected globals or crash: " .. tostring(err))
   end)
 end
 
@@ -410,6 +695,108 @@ local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddo
     Assert.NotNil(roleButton, "healer row should create a role button")
     Assert.Equal(roleButton:GetAttribute("macrotext"), "/tm @party1 4", "healer role button must mark Green Triangle")
   end)
+
+  test("TAINT: Tank helper buttons stay secure-macro only and touch no protected globals", function()
+    local cleanupTraps = RegisterProtectedApiTraps()
+    local ok, err = pcall(function()
+      local _controller, createdFrames, _stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules)
+      local tankButtons = FindTankHelperButtons(createdFrames)
+      Assert.Equal(#tankButtons, 5, "tank helper should expose five secure macro buttons")
+    end)
+
+    cleanupTraps()
+    Assert.True(ok, "tank helper setup must not touch protected globals: " .. tostring(err))
+  end)
+
+  test("TAINT: Collapse click is ignored during combat while secure roster buttons exist", function()
+    local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules)
+
+    WithGlobals(stubs, function()
+      controller.RenderRoster({
+        player = { name = "Tank", role = "TANK", class = "WARRIOR" },
+      })
+    end)
+
+    local collapseButton = FindCollapseButton(createdFrames)
+    local roleButton = FindSecureRoleButton(createdFrames, "player")
+
+    Assert.NotNil(collapseButton, "collapse button should exist")
+    Assert.NotNil(roleButton, "secure role button should exist before combat collapse test")
+    Assert.False(controller.IsCollapsed(), "panel should start expanded")
+
+    stubs.InCombatLockdown = function()
+      return true
+    end
+
+    local ok, err = pcall(function()
+      WithGlobals(stubs, function()
+        collapseButton.OnClick(collapseButton)
+      end)
+    end)
+
+    Assert.True(ok, "combat collapse click must not crash on secure child buttons: " .. tostring(err))
+    Assert.False(controller.IsCollapsed(), "combat collapse click must be ignored")
+  end)
+end
+
+local function RegisterNoticeTaintTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("TAINT: Center notice teleport button stays insecure and avoids secure apply while in combat", function()
+    local createdFrames = {}
+    local inCombat = true
+    local applyCalls = 0
+
+    WithGlobals({
+      CreateFrame = function(frameType, name, parent, template)
+        return NewRecordedFrame(createdFrames, frameType, name, parent, template)
+      end,
+      UIParent = NewRecordedMainFrame(createdFrames),
+      InCombatLockdown = function()
+        return inCombat
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local notice = addon.Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return inCombat
+        end,
+        resolveTeleportSpellID = function()
+          return 445414
+        end,
+        applySecureSpellToButton = function()
+          applyCalls = applyCalls + 1
+          error("secure spell apply must not run from in-combat notice configuration")
+        end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getL = function()
+          return {}
+        end,
+      })
+
+      local ok, err = pcall(function()
+        local configured = notice.ConfigureTeleportButton("The Dawnbreaker", 2662)
+        Assert.True(configured, "notice should resolve a teleport button when spell is available")
+      end)
+
+      Assert.True(ok, "combat notice configuration must avoid secure spell apply: " .. tostring(err))
+      Assert.Equal(
+        notice.teleportButton._template,
+        "InsecureActionButtonTemplate",
+        "center notice teleport button must stay insecure to avoid protected-parent taint"
+      )
+      Assert.Equal(applyCalls, 0, "combat notice configuration must not call secure spell apply")
+      Assert.Equal(notice.teleportButton.spellID, 445414, "combat notice path should still store resolved spell id")
+      Assert.True(notice.teleportButton.inCombatBlocked, "combat notice path should flag teleport button as blocked")
+    end)
+  end)
 end
 
 return function(test, ctx)
@@ -418,5 +805,7 @@ return function(test, ctx)
   local LoadAddonModules = ctx.load_modules
 
   RegisterGroupTaintTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTeleportTaintTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterNoticeTaintTests(test, Assert, WithGlobals, LoadAddonModules)
 end

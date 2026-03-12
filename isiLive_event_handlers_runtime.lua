@@ -258,6 +258,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end
     RegisterSyncPrefixAndBindings(ctx)
     ctx.applyLocalizationToUI()
+    ctx.restoreLayoutState()
     ctx.updateCountdownCancelButton()
     ctx.updateLeaderButtons()
   end

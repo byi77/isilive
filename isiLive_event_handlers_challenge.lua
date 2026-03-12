@@ -170,8 +170,10 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     ResetDamageMeterIfAvailable()
     ctx.captureRioBaselineSnapshot()
     ctx.setActiveJoinedKeyMapID(nil)
-    ctx.checkIfEnteredTargetDungeon()
-    ctx.setMainFrameVisible(false)
+    ctx.checkIfEnteredTargetDungeon()    
+    if not ctx.isRosterCollapsed() then
+      ctx.setMainFrameVisible(false)
+    end
     ctx.updateLeaderButtons()
     ctx.updateStatusLine()
     ctx.updateMPlusTeleportButton()

@@ -391,6 +391,9 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
     pointY = nil,
     checked = false,
     attributes = {},
+    _shown = true,
+    _frameStrata = "MEDIUM",
+    _frameLevel = 1,
   }
 
   function frame.SetSize() end
@@ -431,10 +434,35 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
     return self.attributes[key]
   end
   function frame.EnableMouse() end
+  function frame.RegisterForClicks() end
   function frame.Hide() end
   function frame.Show() end
+  function frame.SetShown(self, value)
+    self._shown = value and true or false
+  end
   function frame.IsShown()
     return true
+  end
+  function frame.SetNormalTexture(self, value)
+    self.normalTexture = value
+  end
+  function frame.SetPushedTexture(self, value)
+    self.pushedTexture = value
+  end
+  function frame.SetHighlightTexture(self, value)
+    self.highlightTexture = value
+  end
+  function frame.SetFrameStrata(self, value)
+    self._frameStrata = value
+  end
+  function frame.GetFrameStrata(self)
+    return self._frameStrata
+  end
+  function frame.SetFrameLevel(self, value)
+    self._frameLevel = value
+  end
+  function frame.GetFrameLevel(self)
+    return self._frameLevel
   end
   function frame.CreateTexture()
     return {
@@ -457,10 +485,23 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
 end
 
 local function NewRecordedMainFrame(createdFontStrings)
-  local mainFrame = {}
+  local mainFrame = {
+    width = 0,
+    _frameStrata = "MEDIUM",
+    _frameLevel = 1,
+  }
 
   function mainFrame.SetBackdrop() end
   function mainFrame.SetBackdropColor() end
+  function mainFrame.SetWidth(self, value)
+    self.width = value
+  end
+  function mainFrame.GetFrameStrata(self)
+    return self._frameStrata
+  end
+  function mainFrame.GetFrameLevel(self)
+    return self._frameLevel
+  end
   function mainFrame.IsShown()
     return true
   end
@@ -501,7 +542,11 @@ local function RegisterRosterPanelLeaderInteractionTests(test, Assert, WithGloba
       local controller = addon.RosterPanel.CreateController({
         mainFrame = NewRecordedMainFrame(createdFontStrings),
         getL = function()
-          return {}
+          return {
+            BTN_READYCHECK = "Readycheck",
+            BTN_COUNTDOWN10 = "Countdown10",
+            BTN_COUNTDOWN_CANCEL = "Countdown 0",
+          }
         end,
         isPlayerLeader = function()
           return false
@@ -535,17 +580,18 @@ local function RegisterRosterPanelLeaderInteractionTests(test, Assert, WithGloba
         unitPriority = {},
       })
 
+      controller.ApplyLocalization()
       controller.UpdateLeaderButtons()
 
       local readyCheckButton = nil
       local countdownButton = nil
       local countdownCancelButton = nil
       for _, frame in ipairs(createdFrames) do
-        if frame.pointY == -60 then
+        if frame.text == "Readycheck" then
           readyCheckButton = frame
-        elseif frame.pointY == -90 then
+        elseif frame.text == "Countdown10" then
           countdownButton = frame
-        elseif frame.pointY == -120 then
+        elseif frame.text == "Countdown 0" then
           countdownCancelButton = frame
         end
       end
