@@ -144,17 +144,17 @@ local function NewRecordedFrame(createdFrames, frameType, name, parent, template
     return self._attributes[key]
   end
 
-  function frame:EnableMouse() end
-  function frame:SetBackdrop() end
-  function frame:SetBackdropColor() end
-  function frame:SetFrameStrata() end
-  function frame:SetClampedToScreen() end
+  function frame.EnableMouse() end
+  function frame.SetBackdrop() end
+  function frame.SetBackdropColor() end
+  function frame.SetFrameStrata() end
+  function frame.SetClampedToScreen() end
 
-  function frame:CreateTexture()
+  function frame.CreateTexture()
     return NewRecordedTexture()
   end
 
-  function frame:CreateFontString()
+  function frame.CreateFontString()
     return NewRecordedFontString()
   end
 
@@ -177,11 +177,11 @@ end
 local function NewRecordedMainFrame(createdFrames)
   local frame = NewRecordedFrame(createdFrames, "Frame", "MainFrame", nil, nil)
 
-  function frame:GetWidth()
+  function frame.GetWidth()
     return 420
   end
 
-  function frame:GetEffectiveScale()
+  function frame.GetEffectiveScale()
     return 1
   end
 
