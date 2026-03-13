@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-03-13 - Version 0.9.81
+- **Packaging - Exclude PNG Assets From Curse Release:**
+  - CurseForge packaging now excludes the UI screenshot PNG files `isiLive_H_ui.png`, `isiLive_M_ui.png`, and `isiLive_V_ui.png` in addition to the already ignored logo/screenshot assets.
+  - Release maintenance docs now explicitly state that PNG screenshots and logo assets stay out of packaged addon releases unless intentionally re-added.
+- **Docs Sync:**
+  - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `TODO.md`, and `isiLive.toc` to `0.9.81`.
+  - Updated deterministic validator counters to `263` scenarios across `29` modules.
+
 ## 2026-03-13 - Version 0.9.80
 - **Stats — Character-Scoped Local DPS Persistence:**
   - The persisted local last-run DPS snapshot is now stored per local character key instead of a single account-wide slot.

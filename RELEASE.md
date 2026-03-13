@@ -30,7 +30,7 @@ Expected: lint/style/metrics/usecase/rules checks pass.
 
 `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 262 deterministic scenarios across 29 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper).
+`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 263 deterministic scenarios across 29 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper).
 
 Windows note: if metrics fail with missing LuaRocks modules (`lfs`, `luacheck.decoder`, `luacheck.parser`), set `LUA_PATH` and `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running the metrics check.
 
@@ -75,8 +75,8 @@ git push origin isiLive_beta_X.Y.Z
 Example:
 
 ```powershell
-git tag isiLive_release_0.9.80
-git push origin isiLive_release_0.9.80
+git tag isiLive_release_0.9.81
+git push origin isiLive_release_0.9.81
 ```
 
 ## 6) Verify GitHub Actions
@@ -122,7 +122,7 @@ git push origin :refs/tags/isiLive_release_X.Y.Z
 
 - Release tagging is intentionally separated from the normal `main` push so CI can fail safely before CurseForge packaging is triggered.
 - CI already excludes `.luarocks/` from lint/syntax checks.
-- Packaging ignores non-user files via `.pkgmeta` (including `.github/`, docs like `README.md`/`ARCHITECTURE.md`/`USECASES.md`/`WARTUNG.md`/`TODO_RENAME.md`, and dev-only folders `tools/` + `testmodul/`).
+- Packaging ignores non-user files via `.pkgmeta` (including `.github/`, docs like `README.md`/`ARCHITECTURE.md`/`USECASES.md`/`WARTUNG.md`/`TODO_RENAME.md`, dev-only folders `tools/` + `testmodul/`, and PNG screenshots/logo assets).
 - If VS Code diagnostics look stale, run:
   - `Developer: Reload Window`
   - `Lua: Restart Language Server`

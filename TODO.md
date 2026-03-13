@@ -82,8 +82,18 @@
   - Doku/Release-Beispiele auf `0.9.80` synchronisieren
   - Tag: `isiLive_release_0.9.80`
 
-- [ ] `v0.9.80` veroeffentlichen
+- [x] `v0.9.80` veroeffentlichen
   - Ingame pruefen: eigener DPS nach Reload mit demselben Char vorhanden, nach Relog auf anderen Alt nicht uebernommen
+  - Release-Tag erst nach gruenem `Lua Check` auf `main`
+
+- [x] `v0.9.81` vorbereiten:
+  - PNG-Screenshot-Assets aus dem CurseForge-Paket ausschliessen
+  - Doku/Release-Beispiele auf `0.9.81` synchronisieren
+  - Validator-Zaehler auf `263` Szenarien abgleichen
+  - Tag: `isiLive_release_0.9.81`
+
+- [ ] `v0.9.81` veroeffentlichen
+  - pruefen, dass die neuen PNG-Dateien nicht mehr im CurseForge-Artefakt landen
   - Release-Tag erst nach gruenem `Lua Check` auf `main`
 
 ## P1 - Quality Gates

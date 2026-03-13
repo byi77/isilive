@@ -191,6 +191,7 @@ Wichtig:
 - `RULES_LOGIC.md` ist append-only
 - bei neuen aktiven Regeln immer Testnamen im selben Change ergaenzen
 - ein geloeschter Git-Tag loescht kein bereits erzeugtes CurseForge-Paket; das muss dort separat archiviert/entfernt werden
+- `.pkgmeta` haelt PNG-Screenshots und Logo-Dateien aus dem CurseForge-Paket raus; neue `*.png`-Dateien dort bei Bedarf direkt mit nachziehen
 
 ## 6) Wenn die Season gewechselt oder Dungeon-Daten angefasst wurden
 
