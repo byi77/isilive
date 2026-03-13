@@ -7,6 +7,7 @@ local function BuildGroupState(overrides)
     wasRaidGroup = overrides.wasRaidGroup or false,
     roster = {},
     mainFrameVisible = overrides.mainFrameVisible or false,
+    raidModeSwitches = 0,
     prints = {},
     queued = 0,
     announced = 0,
@@ -62,6 +63,9 @@ local function BuildGroupControllerOptions(state, overrides)
     end,
     setMainFrameVisible = function(visible)
       state.mainFrameVisible = visible
+    end,
+    switchToRaidMode = function()
+      state.raidModeSwitches = state.raidModeSwitches + 1
     end,
     updateLeaderButtons = function() end,
     clearLatestQueueTarget = function() end,
@@ -200,7 +204,7 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules)
     Assert.NotNil(state.roster.party1, "party1 should be in roster")
   end)
 
-  test("Raid group hides frame and prints notification", function()
+  test("Raid group switches to H mode, keeps frame visible and prints notification", function()
     local controller, state = BuildGroupController(LoadAddonModules, {
       getNumGroupMembers = function()
         return 6
@@ -210,9 +214,10 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules)
     controller.HandleGroupRosterUpdate()
     controller.HandleGroupRosterUpdate()
 
-    Assert.False(state.mainFrameVisible, "frame must be hidden for raid group")
+    Assert.True(state.mainFrameVisible, "frame must stay visible for raid group (H mode)")
+    Assert.Equal(state.raidModeSwitches, 1, "switchToRaidMode must be called exactly once on first raid transition")
     Assert.Equal(#state.prints, 1, "exactly one notification must be printed")
-    Assert.True(state.prints[1]:find("Raid group") ~= nil, "notification must contain raid group message")
+    Assert.True(state.prints[1]:find("Raid") ~= nil, "notification must contain raid message")
   end)
 
   test("Raid notification prints again after leaving raid-size group", function()

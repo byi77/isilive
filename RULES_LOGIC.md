@@ -31,7 +31,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 8. Highlight-Aufloesung darf nur mit eindeutigem activity/map-Kontext arbeiten und kein Gruppen-freies Fallback nutzen.
 9. QueueFlow muss waehrend aktiver Challenge Queue-Events ignorieren und doppelte Updates/Announces unterdruecken.
 10. Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; UI-Oeffnen muss trotzdem sofort moeglich bleiben.
-11. In Raid-Groesse bleibt die UI ausgeblendet; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
+11. In Raid-Groesse bleibt die UI sichtbar, wechselt in den H-Modus; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
 12. Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
 13. Voll-Refresh laeuft nur in erlaubten Zustaenden und muss bei Stop oder aktivem M+ sauber aussetzen.
 14. Slash-Commands muessen State-Zyklen stabil ausfuehren (test/stop/start/pause/resume/lang).
@@ -60,7 +60,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 37. die wartungsdatei `WARTUNG.md` darf nicht im curseforge-paket landen.
 38. `WARTUNG.md` muss die verpflichtende wartungskette fuer den wiedereinstieg nennen: `CHANGELOG.md`, `TODO.md`, `TODO_RENAME.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `AGENTS.md`, `README.md`, `RELEASE.md`, `USECASES.md`, `ARCHITECTURE.md`.
 39. Die Rollensymbole im Roster-Panel sind interaktive Buttons und ermoeglichen per Klick das manuelle Markieren von Tank (Blau) und Heiler (Gruen).
-40. Bei Gruppengroessen > 5 (Raid) wird im Roster-Panel ein persistenter Hinweis angezeigt und die Gruppenmitglieder-Zeilen werden ausgeblendet.
+40. Bei Gruppengroessen > 5 (Raid) wird im Roster-Panel in den H-Modus gewechselt, die Gruppenmitglieder-Zeilen werden ausgeblendet und die Raid-Benachrichtigung nur einmal pro Raid-Uebergang ausgegeben.
 41. API-Aufrufe mit Unit-Tokens muessen `UnitExists` pruefen, bevor sie aufgerufen werden, um Race-Conditions bei Gruppenaenderungen abzufangen.
 
 ## Regelbloecke
@@ -150,11 +150,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-GRUPPE-RAID-SICHTBARKEIT
 - Regelnummer: 11
 - Status: aktiv
-- Zusammenfassung: In Raid-Groesse bleibt die UI ausgeblendet; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
+- Zusammenfassung: In Raid-Groesse bleibt die UI sichtbar und wechselt in den H-Modus; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
 - Erforderliche Tests:
   - Group leave keeps frame state and ghosts former party members
   - Old ghosts are cleared when joining a new group
-  - Raid group hides frame and prints notification
+  - Raid group switches to H mode, keeps frame visible and prints notification
   - Raid notification prints again after leaving raid-size group
 
 ### RULE-LOCALE-SYMMETRIE-FALLBACK
@@ -404,9 +404,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-RAID-NOTICE
 - Regelnummer: 40
 - Status: aktiv
-- Zusammenfassung: Bei Gruppengroessen > 5 (Raid) wird im Roster-Panel ein persistenter Hinweis angezeigt und die Gruppenmitglieder-Zeilen werden ausgeblendet.
+- Zusammenfassung: Bei Gruppengroessen > 5 (Raid) wird im Roster-Panel in den H-Modus gewechselt, die Gruppenmitglieder-Zeilen werden ausgeblendet und die Raid-Benachrichtigung nur einmal pro Raid-Uebergang ausgegeben.
 - Erforderliche Tests:
-  - Raid group hides frame and prints notification
+  - Raid group switches to H mode, keeps frame visible and prints notification
 
 ### RULE-UNIT-EXISTS-GUARD
 - Regelnummer: 41

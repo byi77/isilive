@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-03-13 - Version 0.9.79
+- **UI — Static Layout Mode Buttons:**
+  - Replaced the old mode-toggle behavior with three always-visible top-right mode buttons `H`, `V`, and `M`; the active layout is now indicated by a gold label while inactive modes stay grey.
+- **UI — Horizontal Compact Mode Simplification:**
+  - Removed the H-mode management carousel and its left/right cycle arrows.
+  - Horizontal compact mode now shows all three leader actions side by side with short labels `RC`, `CD`, and `CD 0`.
+  - `Share Keys` and `Refresh` remain available in expanded and vertical compact mode, but are intentionally hidden in H mode to keep the toolbar minimal.
+- **UI — Raid Transition Behavior:**
+  - Entering a raid-size group (`>5` members) no longer hides the addon window.
+  - The roster panel now stays visible, automatically switches to H mode, keeps roster rows hidden, and prints a localized raid transition notice once per raid-size transition.
+- **UI — Title Size:**
+  - Reduced `isiKeyMPlus` title font size by an additional 2 pt (delta now `-4` instead of `-2`) for a cleaner compact look.
+- **Bug Fix — Test Mode Cleanup:**
+  - `roleButton` was re-shown for empty roster rows after `ExitTestMode()` because `UpdateCollapseState` unconditionally called `SetVisible(row.roleButton, show)`. Fixed to `SetVisible(row.roleButton, show and row.unit ~= nil)` so empty rows are never re-activated.
+- **Runtime — Hidden Group Update Gate:**
+  - Hidden `GROUP_ROSTER_UPDATE` processing no longer depends on small-group size and stays available for grouped non-challenge transitions, so pre-rendered roster state also remains current across raid-size transitions.
+- **Refactor — Declarative Layout Visibility:**
+  - Replaced the flat `SetVisible` list in `UpdateCollapseState` with a `UI_VISIBILITY_RULES` table that declares M/V/H visibility per element as explicit `true/false` columns. Adding or changing an element's per-mode visibility now requires touching only one row in that table.
+  - Introduced `ui.columnButtons` as the canonical list of management-column buttons that stay outside H mode (`shareKeysButton`, `refreshButton`). `UpdateColumnPositions` now iterates `columnButtons` uniformly instead of using a separate special-case block.
+- **Docs Sync:**
+  - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `TODO.md`, `RULES_LOGIC.md`, and `isiLive.toc` to the current `0.9.79` runtime/UI behavior.
+
 ## 2026-03-13 - Version 0.9.78
 - **Refresh Sync Request:**
   - `Refresh` sends a dedicated `REQSYNC` addon message so hidden `isiLive` peers can answer with one forced `KEY` + `STATS` snapshot even while their UI is hidden.
@@ -9,7 +31,7 @@
   - Replaced the top-right compact-mode arrow icons with direct text toggles: `V` for vertical compact, `H` for horizontal compact, and `M` in compact modes to return to the main roster view.
   - Positioned the two compact toggles directly next to each other and kept the active alternate mode accessible from each compact layout.
 - **UI â€” Panel Height Adjustment:**
-  - Increased the default roster-panel base height so the lower M+Helper marker buttons keep clean visual separation from the `Target Dungeon` status line.
+  - Increased the default roster-panel base height so the lower M+Marker marker buttons keep clean visual separation from the `Target Dungeon` status line.
 - **Docs Sync:**
   - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `TODO.md`, and `isiLive.toc` to `0.9.78`.
   - Updated deterministic validator counters to `262` scenarios across `29` modules.
@@ -35,16 +57,16 @@
 - **Code Review — Regression Tests:**
   - `isilive_test_scenarios_highlight.lua`: Added scenario verifying that a `C_LFGList.GetActiveEntryInfo` struct response with `active = false` correctly propagates through `GetNormalizedActiveEntryInfo` and causes `ResolveActiveListingTeleportSpellID` to return `nil`. Directly covers the `TryGet` false-propagation fix.
   - `isilive_test_scenarios_stats.lua`: Added scenario asserting that `CreateController` alone does not touch `IsiLiveDB` (migration is deferred). Updated the legacy-migration scenario: pruning assertions now run after the first `GetPlayerLastRunDps` call to match the lazy-init contract.
-- **UI — M+Helper Column:**
-  - Renamed "Tank Helper" to "M+Helper" in the roster panel header (`isiLive_texts.lua`, `isiLive_roster_panel.lua`).
+- **UI — M+Marker Column:**
+  - Renamed "Tank Helper" to "M+Marker" in the roster panel header (`isiLive_texts.lua`, `isiLive_roster_panel.lua`).
   - Corrected the header label position: the `TOPRIGHT`-anchored `FontString` is now placed at `xPos + 18` so its visual centre aligns with the button column centre, matching the layout of all other column headers.
 - **UI — World Marker Buttons Fix:**
   - Replaced the `/wm`/`/cwm` macro approach with the native `SecureActionButtonTemplate` attribute type `"worldmarker"`. Left-click uses `action1 = "set"`, right-click uses `action2 = "clear"` — no cursor-placement step required, marker is placed immediately.
-  - Expanded the M+Helper palette from 5 to all 8 Blizzard world markers (`Square`, `Triangle`, `Diamond`, `Cross`, `Star`, `Circle`, `Moon`, `Skull`) and compacted the icon spacing so collapsed mode still fits cleanly.
+  - Expanded the M+Marker palette from 5 to all 8 Blizzard world markers (`Square`, `Triangle`, `Diamond`, `Cross`, `Star`, `Circle`, `Moon`, `Skull`) and compacted the icon spacing so collapsed mode still fits cleanly.
   - Restored `RegisterForClicks("AnyUp", "AnyDown")` to match the required registration for the `worldmarker` attribute type.
 - **UI - Second Compact Layout:**
   - Added a second collapse toggle next to the existing arrow. The original arrow still switches to the vertical compact palette; the new down-arrow switches to a slim horizontal compact layout.
-  - Horizontal compact mode hides the roster/table area and `M+Travel`, keeps only `M+Managment` plus `M+Helper`, places all 8 marker icons next to each other in one row, and uses left/right cycle arrows so only one management action button is shown at a time.
+  - Horizontal compact mode hides the roster/table area and `M+Travel`, keeps only `M+Managment` plus `M+Marker`, places all 8 marker icons next to each other in one row, and uses left/right cycle arrows so only one management action button is shown at a time.
   - Fixed the horizontal-layout restore bug: marker icons now return to their original vertical stack after switching back to the normal roster view.
   - Added deterministic layout and taint regressions for the new horizontal compact mode, including the combat-ignore path for the second collapse button, the management-action carousel, and the marker restore path.
 - **UI - Compact Mode Polish:**

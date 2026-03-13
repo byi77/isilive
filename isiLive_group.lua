@@ -41,6 +41,7 @@ local function BuildDeps(opts)
     captureQueueJoinCandidate = opts.captureQueueJoinCandidate or function() end,
     announceQueuedGroupJoin = opts.announceQueuedGroupJoin or function() end,
     setMainFrameVisible = opts.setMainFrameVisible or function(_visible) end,
+    switchToRaidMode = opts.switchToRaidMode or function() end,
     updateLeaderButtons = opts.updateLeaderButtons or function() end,
     clearLatestQueueTarget = opts.clearLatestQueueTarget or function() end,
     clearRioBaselineSnapshot = opts.clearRioBaselineSnapshot or function() end,
@@ -303,11 +304,10 @@ local function HandleGroupRosterUpdate(deps)
       if L.RAID_GROUP_HIDDEN then
         deps.printFn(L.RAID_GROUP_HIDDEN)
       end
+      deps.switchToRaidMode()
     end
     deps.setWasRaidGroup(true)
-    if not deps.isRosterCollapsed() then
-      deps.setMainFrameVisible(false)
-    end
+    deps.setMainFrameVisible(true)
     deps.updateLeaderButtons()
     return
   end

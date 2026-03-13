@@ -1,6 +1,6 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.78`
+Version baseline: `0.9.79`
 Last updated: `2026-03-13`
 
 ## Actors
@@ -28,9 +28,9 @@ Last updated: `2026-03-13`
 | UC-07 | RIO delta visibility | Per-run RIO delta is shown as non-negative `(+X)` prefix |
 | UC-08 | Post-run DPS snapshot | Latest dungeon DPS per player is read from Blizzard damage meter and shown in roster + tooltip |
 | UC-09 | Manual Role Marker Buttons | Tank/Healer role icons are secure buttons to set raid markers |
-| UC-10 | Raid Notice integration | Persistent warning is shown in roster area when group > 5 members |
-| UC-11 | M+Helper World Markers | Vertical bar of 8 secure world-marker buttons for immediate place/clear |
-| UC-12 | Roster Panel Mini Mode | Collapse toggle hides roster list and `M+Travel`, while keeping compact M+Helper and management tools visible |
+| UC-10 | Raid H-mode transition | Raid-size groups keep the addon visible in H mode while roster rows stay hidden |
+| UC-11 | M+Marker World Markers | Vertical bar of 8 secure world-marker buttons for immediate place/clear |
+| UC-12 | Roster Panel Mini Mode | Collapse toggle hides roster list and `M+Travel`, while keeping compact M+Marker and management tools visible |
 
 ## UC-01 Invite Detection And Target Resolution
 
@@ -142,7 +142,7 @@ Goal: expose the latest completed dungeon DPS per player from Blizzard damage me
 11. Persistent stats storage must stay bounded: no persistent foreign-player run history and no persistent `Runs together` cache.
 12. Leaving or being removed from a normal party must keep the current frame visibility state and retain former members as ghost rows until a deterministic prune path occurs.
 13. Manual marking (Tank=Blue, Healer=Green) is available via secure role-icon buttons for all group members without leader restriction in 5-man parties.
-14. Raid-group detection (> 5 members) shows a persistent localized warning in the roster area and hides roster rows.
+14. Raid-group detection (> 5 members) keeps the addon visible, forces H mode, hides roster rows, prints a localized transition notice once per raid-size transition, and blocks switching back to M/V until party size returns.
 
 ## Automated Validation Mapping
 
@@ -156,8 +156,8 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 5. UC-07: challenge-start baseline capture and roster `(+X)RIO` rendering rules (including non-negative clamp).
 6. UC-08: post-run DPS snapshot capture for `M+` and `M0`, bounded persistence, and tooltip/roster rendering.
 7. UC-09: Manual Role Marker secure button configuration.
-8. UC-10: Raid notice integration within the Roster Panel.
-9. UC-11/UC-12: Secure world-marker button configuration for M+Helper and combat-deferred visibility logic for Collapse mode.
+8. UC-10: raid-size H-mode transition, visible-frame behavior, and duplicate-notice suppression.
+9. UC-11/UC-12: Secure world-marker button configuration for M+Marker and compact-layout visibility logic for M/V/H mode switching.
 10. Taint hardening: deferred secure attribute writes, insecure teleport/notice actions, and combat-safe collapse handling.
 
 ## Traceability To Source Files
@@ -172,5 +172,5 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 | Last-run DPS capture and bounded stats persistence | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua` |
 | UI actions, role buttons, key sharing button | `isiLive_roster_panel.lua` |
 | Auto-Marker logic (removed/replaced) | `isiLive_group.lua` (cleaned up) |
-| Raid notice UI | `isiLive_roster_panel.lua` |
+| Raid-size H-mode UI | `isiLive_roster_panel.lua`, `isiLive_group.lua` |
 | Event routing and gating | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua` |

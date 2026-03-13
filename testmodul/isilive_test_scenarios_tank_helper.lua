@@ -186,7 +186,7 @@ local function FindFontStringByPoint(createdFontStrings, point, x, y)
 end
 
 local function RegisterNativeWorldMarkerButtonTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("M+Helper buttons use native world-marker secure attributes", function()
+  test("M+Marker buttons use native world-marker secure attributes", function()
     local createdFrames = {}
     local createdFontStrings = {}
 
@@ -211,7 +211,7 @@ local function RegisterNativeWorldMarkerButtonTests(test, Assert, WithGlobals, L
       addon.RosterPanel.CreateController({
         mainFrame = NewRecordedMainFrame(createdFontStrings),
         getL = function()
-          return { TANK_HELPER_HEADER = "M+Helper" }
+          return { TANK_HELPER_HEADER = "M+Marker" }
         end,
         getAddonVersionText = function()
           return ""
@@ -283,11 +283,11 @@ local function RegisterNativeWorldMarkerButtonTests(test, Assert, WithGlobals, L
       return a.pointY > b.pointY
     end)
 
-    Assert.Equal(#tankHelperButtons, 8, "Should create 8 M+Helper world-marker buttons")
+    Assert.Equal(#tankHelperButtons, 8, "Should create 8 M+Marker world-marker buttons")
     Assert.Equal(
       tankHelperButtons[1].pointX,
       -136,
-      "M+Helper column should occupy the management-side slot in expanded mode"
+      "M+Marker column should occupy the management-side slot in expanded mode"
     )
     local readyCheckButton = nil
     for _, frame in ipairs(createdFrames) do
@@ -337,7 +337,7 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
       addon.RosterPanel.CreateController({
         mainFrame = mainFrame,
         getL = function()
-          return { TANK_HELPER_HEADER = "M+Helper" }
+          return { TANK_HELPER_HEADER = "M+Marker" }
         end,
         getAddonVersionText = function()
           return ""
@@ -449,7 +449,7 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
       end
     end
     Assert.NotNil(readyCheckButton, "Readycheck button should exist")
-    Assert.Equal(buttonX, -37, "M+Helper buttons should move into the right mini-mode tool column")
+    Assert.Equal(buttonX, -37, "M+Marker buttons should move into the right mini-mode tool column")
     Assert.Equal(readyCheckButton.pointX, -70, "M+Managment buttons should stay fully inside the mini-mode frame")
     Assert.True(
       miniWidth + buttonX > 20,
@@ -461,11 +461,11 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     )
     Assert.True(titleFontString.hidden, "Title should be hidden in vertical mini mode")
     Assert.True(versionFontString.hidden, "Version line should be hidden in vertical mini mode")
-    Assert.Equal(collapseButton._collapseButtonLabel, "M", "Vertical mini mode should expose M to return to main UI")
+    Assert.Equal(collapseButton._collapseButtonLabel, "V", "V mode button keeps static V label")
     Assert.Equal(
       horizontalCollapseButton._collapseButtonLabel,
       "H",
-      "Horizontal toggle should stay available while vertical mini mode is active"
+      "H mode button keeps static H label while vertical mini mode is active"
     )
   end)
 end
@@ -497,7 +497,7 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
       addon.RosterPanel.CreateController({
         mainFrame = mainFrame,
         getL = function()
-          return { TANK_HELPER_HEADER = "M+Helper" }
+          return { TANK_HELPER_HEADER = "M+Marker" }
         end,
         getAddonVersionText = function()
           return ""
@@ -560,17 +560,11 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
 
     local collapseButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_vertical")
     local horizontalButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_horizontal")
+    local expandedButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "expanded")
     Assert.NotNil(collapseButton, "Vertical collapse button should exist")
     Assert.NotNil(horizontalButton, "Horizontal collapse button should exist")
-    local previousButton = FindFrameByProperty(createdFrames, "_managementCycleDirection", -1)
-    local nextButton = FindFrameByProperty(createdFrames, "_managementCycleDirection", 1)
-    Assert.NotNil(previousButton, "Horizontal management previous button should exist")
-    Assert.NotNil(nextButton, "Horizontal management next button should exist")
-    Assert.Equal(
-      horizontalButton._collapseButtonLabel,
-      "H",
-      "Horizontal toggle should use the H label in expanded mode"
-    )
+    Assert.NotNil(expandedButton, "Expanded mode button should exist")
+    Assert.Equal(horizontalButton._collapseButtonLabel, "H", "H mode button has static H label in expanded mode")
 
     local helperButtons = {}
     local managementButtons = {}
@@ -581,6 +575,10 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
         table.insert(managementButtons, frame)
       end
     end
+    -- managementButtons-Reihenfolge: readyCheck (y=-60), countdown (y=-90), countdownCancel (y=-120)
+    table.sort(managementButtons, function(a, b)
+      return (a.pointY or 0) > (b.pointY or 0)
+    end)
 
     horizontalButton.OnClick()
 
@@ -589,48 +587,26 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     end)
     Assert.Equal(mainFrame.width, 212, "Horizontal mini mode should use only the minimal toolbar width")
     Assert.Equal(mainFrame.height, 94, "Horizontal mini mode should shrink the frame height")
-    Assert.Equal(helperButtons[1].width, 18, "M+Helper icons should be slightly enlarged")
-    Assert.Equal(helperButtons[1].height, 18, "M+Helper icons should keep the enlarged square size")
-    Assert.Equal(
-      helperButtons[1].pointY,
-      -64,
-      "M+Helper icons should share one horizontal row with extra spacing below the carousel"
-    )
-    Assert.Equal(helperButtons[#helperButtons].pointY, -64, "All M+Helper icons should stay on the same row")
-    Assert.Equal(managementButtons[1].pointY, -28, "Active management button should use the horizontal toolbar row")
-    Assert.False(managementButtons[2]._shown, "Only one management button should stay visible in horizontal mode")
-    Assert.True(previousButton._shown, "Previous button should be visible in horizontal mode")
-    Assert.True(nextButton._shown, "Next button should be visible in horizontal mode")
-    Assert.Equal(previousButton.width, 24, "Previous carousel button should be slightly enlarged")
-    Assert.Equal(nextButton.width, 24, "Next carousel button should be slightly enlarged")
-    Assert.Equal(
-      horizontalButton._collapseButtonLabel,
-      "M",
-      "Horizontal mini mode should expose M to return to main UI"
-    )
-    Assert.Equal(
-      collapseButton._collapseButtonLabel,
-      "V",
-      "Vertical toggle should remain available in horizontal mini mode"
-    )
+    Assert.Equal(helperButtons[1].width, 18, "M+Marker icons should keep their size")
+    Assert.Equal(helperButtons[1].height, 18, "M+Marker icons should keep the square size")
+    Assert.Equal(helperButtons[1].pointY, -64, "M+Marker icons should share one horizontal row")
+    Assert.Equal(helperButtons[#helperButtons].pointY, -64, "All M+Marker icons should stay on the same row")
+    -- Alle 3 Management-Buttons nebeneinander in H-Modus (rechts nach links: index 1,2,3)
+    Assert.Equal(managementButtons[1].pointY, -28, "Management buttons should use the horizontal toolbar row")
+    Assert.Equal(managementButtons[2].pointY, -28, "All management buttons share the toolbar row")
+    Assert.Equal(managementButtons[3].pointY, -28, "All management buttons share the toolbar row")
+    Assert.Equal(managementButtons[1].pointX, -10, "First management button anchored at right in H mode")
+    Assert.Equal(managementButtons[2].pointX, -76, "Second management button at center in H mode")
+    Assert.Equal(managementButtons[3].pointX, -142, "Third management button at left in H mode")
+    Assert.Equal(managementButtons[1].width, 60, "Management buttons resize to compact width in H mode")
+    Assert.Equal(horizontalButton._collapseButtonLabel, "H", "H mode button keeps static H label in horizontal mode")
+    Assert.Equal(collapseButton._collapseButtonLabel, "V", "V mode button keeps static V label in horizontal mode")
     Assert.True(
       helperButtons[1].pointX < helperButtons[#helperButtons].pointX,
       "Helper icons should spread horizontally"
     )
 
-    local firstManagementX = managementButtons[1].pointX
-    nextButton.OnClick()
-
-    Assert.False(managementButtons[1]._shown, "First management button should hide after cycling")
-    Assert.True(managementButtons[2]._shown, "Second management button should appear after cycling")
-    Assert.Equal(managementButtons[2].pointY, -28, "Cycled management button should stay on the toolbar row")
-    Assert.Equal(
-      managementButtons[2].pointX,
-      firstManagementX,
-      "Cycled management button should reuse the centered slot"
-    )
-
-    horizontalButton.OnClick()
+    expandedButton.OnClick()
 
     Assert.Equal(
       helperButtons[1].pointX,
@@ -643,12 +619,11 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
       "Helper buttons should restore their original vertical stack after leaving horizontal mode"
     )
     Assert.Equal(helperButtons[2].pointY, -80, "Second helper button should restore its own original Y slot")
-    Assert.True(managementButtons[1]._shown, "All management buttons should return when leaving horizontal mode")
-    Assert.True(managementButtons[2]._shown, "Second management button should be visible again in expanded mode")
+    Assert.Equal(managementButtons[1].width, 120, "Management buttons restore full width after leaving H mode")
     Assert.Equal(
       horizontalButton._collapseButtonLabel,
       "H",
-      "Horizontal toggle should restore H after leaving horizontal mode"
+      "H mode button keeps static H label after leaving horizontal mode"
     )
   end)
 end

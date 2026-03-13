@@ -74,7 +74,6 @@ function Bootstrap.CreateGatedOnEvent(opts)
     or function()
       return false
     end
-  local getNumGroupMembers = RequireFunction(opts.getNumGroupMembers, "getNumGroupMembers")
   local getActiveChallengeMapID = RequireFunction(opts.getActiveChallengeMapID, "getActiveChallengeMapID")
   local onDispatchError = type(opts.onDispatchError) == "function" and opts.onDispatchError or nil
 
@@ -122,8 +121,7 @@ function Bootstrap.CreateGatedOnEvent(opts)
       if not inChallenge and isInPartyInstance() then
         return false
       end
-      local inSmallGroup = isInGroup() and getNumGroupMembers() <= 5
-      return inSmallGroup and not inChallenge
+      return isInGroup() and not inChallenge
     end,
     allowInTestMode = {
       ADDON_LOADED = true,

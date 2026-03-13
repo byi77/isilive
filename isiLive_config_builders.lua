@@ -119,7 +119,6 @@ function ConfigBuilders.BuildGateOpts(ctx)
     isInCombat = ctx.isInCombat,
     isInGroup = ctx.isInGroup,
     isInPartyInstance = ctx.isInPartyInstance,
-    getNumGroupMembers = ctx.getNumGroupMembers,
     getActiveChallengeMapID = ctx.getActiveChallengeMapID,
     allowWhenHidden = {
       CHAT_MSG_ADDON = true,

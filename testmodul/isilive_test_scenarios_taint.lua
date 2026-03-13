@@ -467,6 +467,11 @@ local function FindHorizontalCollapseButton(createdFrames)
   return nil
 end
 
+local function RequireNonNil(value, message)
+  assert(value ~= nil, message or "expected non-nil value")
+  return value
+end
+
 local function RegisterGroupTaintTests(test, Assert, _WithGlobals, LoadAddonModules)
   test("TAINT: Group update logic relies purely on deps and touches no globals", function()
     local cleanupTraps = RegisterProtectedApiTraps()
@@ -548,6 +553,7 @@ local function RegisterTeleportTaintTests(test, Assert, WithGlobals, LoadAddonMo
 
       local retryFrame = FindCombatRetryFrame(createdFrames)
       Assert.NotNil(retryFrame, "combat deferral should register a regen retry frame")
+      retryFrame = RequireNonNil(retryFrame, "combat deferral should register a regen retry frame")
 
       inCombat = false
       retryFrame:FireEvent("PLAYER_REGEN_ENABLED")
@@ -636,6 +642,7 @@ local function RegisterTeleportTaintTests(test, Assert, WithGlobals, LoadAddonMo
 
         local retryFrame = FindCombatRetryFrame(createdFrames)
         Assert.NotNil(retryFrame, "combat teleport update should queue regen retry")
+        retryFrame = RequireNonNil(retryFrame, "combat teleport update should queue regen retry")
 
         inCombat = false
         retryFrame:FireEvent("PLAYER_REGEN_ENABLED")
@@ -661,6 +668,7 @@ local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddo
 
     local roleButton = FindSecureRoleButton(createdFrames, "player")
     Assert.NotNil(roleButton, "tank row should create a role button")
+    roleButton = RequireNonNil(roleButton, "tank row should create a role button")
     Assert.Equal(roleButton._template, "SecureActionButtonTemplate", "role icon must use a secure action button")
     Assert.Equal(roleButton:GetAttribute("type1"), "macro", "left click must be wired as a secure macro action")
     Assert.Equal(roleButton:GetAttribute("type2"), "macro", "right click must be wired as a secure macro action")
@@ -683,6 +691,7 @@ local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddo
     Assert.True(ok, "tank render crashed or hit a taint trap: " .. tostring(err))
     local roleButton = FindSecureRoleButton(createdFrames, "player")
     Assert.NotNil(roleButton, "tank row should create a role button")
+    roleButton = RequireNonNil(roleButton, "tank row should create a role button")
     Assert.Equal(
       roleButton:GetAttribute("macrotext1"),
       "/target player\n/tm 6\n/targetlasttarget",
@@ -712,6 +721,7 @@ local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddo
     Assert.True(ok, "healer render crashed or hit a taint trap: " .. tostring(err))
     local roleButton = FindSecureRoleButton(createdFrames, "party1")
     Assert.NotNil(roleButton, "healer row should create a role button")
+    roleButton = RequireNonNil(roleButton, "healer row should create a role button")
     Assert.Equal(
       roleButton:GetAttribute("macrotext1"),
       "/target party1\n/tm 4\n/targetlasttarget",
@@ -724,12 +734,12 @@ local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddo
     )
   end)
 
-  test("TAINT: M+Helper buttons stay secure world-marker buttons and touch no protected globals", function()
+  test("TAINT: M+Marker buttons stay secure world-marker buttons and touch no protected globals", function()
     local cleanupTraps = RegisterProtectedApiTraps()
     local ok, err = pcall(function()
       local _, createdFrames = BuildRosterPanelController(WithGlobals, LoadAddonModules)
       local tankButtons = FindTankHelperButtons(createdFrames)
-      Assert.Equal(#tankButtons, 8, "M+Helper should expose eight secure world-marker buttons")
+      Assert.Equal(#tankButtons, 8, "M+Marker should expose eight secure world-marker buttons")
     end)
 
     cleanupTraps()
@@ -750,6 +760,7 @@ local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddo
 
     Assert.NotNil(collapseButton, "collapse button should exist")
     Assert.NotNil(roleButton, "secure role button should exist before combat collapse test")
+    collapseButton = RequireNonNil(collapseButton, "collapse button should exist")
     Assert.False(controller.IsCollapsed(), "panel should start expanded")
 
     stubs.InCombatLockdown = function()
@@ -780,6 +791,7 @@ local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddo
 
     Assert.NotNil(collapseButton, "horizontal collapse button should exist")
     Assert.NotNil(roleButton, "secure role button should exist before combat collapse test")
+    collapseButton = RequireNonNil(collapseButton, "horizontal collapse button should exist")
     Assert.False(controller.IsCollapsed(), "panel should start expanded")
 
     stubs.InCombatLockdown = function()

@@ -17,7 +17,7 @@ local LOCALES = {
     COL_DPS = "DPS",
     LEAD_OPTIONS = "M+Managment",
     MPLUS_MANAGEMENT = "M+Travel",
-    TANK_HELPER_HEADER = "M+Helper",
+    TANK_HELPER_HEADER = "M+Marker",
     BTN_READYCHECK = "Readycheck",
     BTN_COUNTDOWN10 = "Countdown10",
     BTN_REFRESH = "Refresh",
@@ -100,7 +100,7 @@ local LOCALES = {
     LANG_SET_EN = "Language set to English.",
     LANG_SET_DE = "Language set to German.",
     LANG_USAGE = "Usage: /isilive lang [en|de]",
-    RAID_GROUP_HIDDEN = "Raid group detected (>5 members). Addon paused.",
+    RAID_GROUP_HIDDEN = "Raid group detected (>5 members). Switching to H mode.",
   },
   deDE = {
     TITLE = "isiKeyMPlus",
@@ -113,7 +113,7 @@ local LOCALES = {
     COL_DPS = "DPS",
     LEAD_OPTIONS = "M+Managment",
     MPLUS_MANAGEMENT = "M+Travel",
-    TANK_HELPER_HEADER = "M+Helper",
+    TANK_HELPER_HEADER = "M+Marker",
     BTN_READYCHECK = "Readycheck",
     BTN_COUNTDOWN10 = "Countdown10",
     BTN_REFRESH = "Refresh",
@@ -196,7 +196,7 @@ local LOCALES = {
     LANG_SET_EN = "Sprache auf Englisch gesetzt.",
     LANG_SET_DE = "Sprache auf Deutsch gesetzt.",
     LANG_USAGE = "Nutzung: /isilive lang [en|de]",
-    RAID_GROUP_HIDDEN = "Raid-Gruppe erkannt (>5 Mitglieder). Addon pausiert.",
+    RAID_GROUP_HIDDEN = "Raid-Gruppe erkannt (>5 Mitglieder). Wechsle zu H-Modus.",
   },
 }
 

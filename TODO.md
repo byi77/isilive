@@ -55,13 +55,24 @@
 
 - [x] `v0.9.78` vorbereiten:
   - Compact-Toggles auf `V` / `H` / `M` umstellen und direkt nebeneinander positionieren
-  - Default-Rosterhoehe unten leicht vergroessern, damit M+Helper und `Target Dungeon` sauber getrennt bleiben
+  - Default-Rosterhoehe unten leicht vergroessern, damit M+Marker und `Target Dungeon` sauber getrennt bleiben
   - `Refresh` um gruppenweiten `REQSYNC`-Pfad erweitern, damit Hidden-Peers einmal forciert `KEY/STATS` antworten koennen
   - Doku-/Validator-Zaehler auf `0.9.78` synchronisieren
   - Tag: `isiLive_release_0.9.78`
 
 - [ ] `v0.9.78` veroeffentlichen
-  - Ingame Combat-Smoketest fuer Teleport-Grid, Center Notice, Collapse und Role-/M+Helper-Buttons
+  - Ingame Combat-Smoketest fuer Teleport-Grid, Center Notice, Collapse und Role-/M+Marker-Buttons
+  - Release-Tag erst nach gruenem `Lua Check` auf `main`
+
+- [x] `v0.9.79` vorbereiten:
+  - H/V/M-Layoutbuttons auf statische Direktschalter mit aktiver Gold-Markierung umstellen
+  - H-Modus auf `RC` / `CD` / `CD 0` verdichten; `Share Keys` und `Refresh` nur noch in M/V zeigen
+  - Raid-Gruppen automatisch in den sichtbaren H-Modus schalten statt die UI auszublenden
+  - Doku/Regeln/Release-Beispiele auf `0.9.79` synchronisieren
+  - Tag: `isiLive_release_0.9.79`
+
+- [ ] `v0.9.79` veroeffentlichen
+  - Ingame pruefen: Raid->H-Modus, H/V/M-Schalter, H-Modus-Shortlabels und versteckte `Share Keys`/`Refresh`
   - Release-Tag erst nach gruenem `Lua Check` auf `main`
 
 ## P1 - Quality Gates

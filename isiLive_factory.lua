@@ -671,6 +671,11 @@ local function InitializeFactoryPrimaryControllers(ctx)
     end
     return ctx.rosterPanelController.IsCollapsed()
   end
+  ctx.SwitchToRaidMode = function()
+    if ctx.rosterPanelController then
+      ctx.rosterPanelController.SwitchToRaidMode()
+    end
+  end
   ctx.RestoreLayoutState = function()
     ctx.rosterPanelController.RestoreSavedState()
   end
@@ -1043,6 +1048,7 @@ local function FinalizeFactoryRuntime(ctx)
     getWasRaidGroup = ctx.GetWasRaidGroup,
     setWasRaidGroup = ctx.SetWasRaidGroup,
     isRosterCollapsed = ctx.IsRosterCollapsed,
+    switchToRaidMode = ctx.SwitchToRaidMode,
     isRaidGroup = ctx.GetWasRaidGroup,
     setWasGroupLeader = ctx.SetWasGroupLeader,
     getWasGroupLeader = ctx.GetWasGroupLeader,

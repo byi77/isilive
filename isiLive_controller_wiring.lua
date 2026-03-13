@@ -43,6 +43,7 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     ),
     announceQueuedGroupJoin = RequireFunction(callbacks.announceQueuedGroupJoin, "callbacks.announceQueuedGroupJoin"),
     setMainFrameVisible = RequireFunction(callbacks.setMainFrameVisible, "callbacks.setMainFrameVisible"),
+    switchToRaidMode = callbacks.switchToRaidMode or function() end,
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
     clearLatestQueueTarget = RequireFunction(callbacks.clearLatestQueueTarget, "callbacks.clearLatestQueueTarget"),
     clearRioBaselineSnapshot = type(callbacks.clearRioBaselineSnapshot) == "function"
@@ -104,6 +105,7 @@ local function BuildGroupControllerDepsFromContext(ctx)
       captureQueueJoinCandidate = ctx.captureQueueJoinCandidate,
       announceQueuedGroupJoin = ctx.announceQueuedGroupJoin,
       setMainFrameVisible = ctx.setMainFrameVisible,
+      switchToRaidMode = ctx.switchToRaidMode,
       updateLeaderButtons = ctx.updateLeaderButtons,
       clearLatestQueueTarget = ctx.clearLatestQueueTarget,
       clearRioBaselineSnapshot = ctx.clearRioBaselineSnapshot,

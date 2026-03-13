@@ -1,6 +1,6 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.78`
+Version baseline: `0.9.79`
 Last updated: `2026-03-13`
 
 ## Purpose
@@ -65,6 +65,7 @@ WoW Event
 16. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
 17. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures where Blizzard tooltip APIs are still referenced.
 18. Shared `isiLive` tooltip frames own their own text layout and must not route UI hover rendering back through the shared Blizzard `GameTooltip`.
+19. Raid-size groups force the visible roster panel into H mode, hide roster rows, and suppress duplicate raid-transition notifications until the group leaves raid size again.
 
 ## Architecture Contract Set
 
@@ -99,9 +100,9 @@ Local release-grade validation is intentionally split into static and runtime ga
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiKeyMPlus                                                                        V.0.9.78 [V][H][X]|
+| isiKeyMPlus                                                                      V.0.9.79 [H][V][M][X]|
 |---------------------------------------------------------------------------------------------------|
-| Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  M+Helper  M+Travel           |
+| Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  M+Marker  M+Travel           |
 |---------------------------------------------------------------------------------------------------|
 | [Tank] PlayerOne    [ ]  DB +14  633  (+12)3521 321.1K  [Blue]              [Readycheck]          |
 | [Heal] PlayerTwo    [ ]  DAWN+12 629  (+0)3410  287.4K  [Grn]               [Countdown10]         |
@@ -116,9 +117,9 @@ Local release-grade validation is intentionally split into static and runtime ga
 
 Collapsed / Vertical Mini Mode:
 
-|                                             [M][H][X]|
+|                                          [H][V][M][X]|
 |----------------------------------------------------------------|
-| M+Managment                 M+Helper                            |
+| M+Managment                 M+Marker                            |
 | [Readycheck]                [Blue]                              |
 | [Countdown10]               [Green]                             |
 | [Countdown 0]               [Purple]                            |
@@ -129,10 +130,10 @@ Collapsed / Vertical Mini Mode:
 
 Horizontal Mini Mode:
 
-|                           [V][M][X]|
-|-------------------------------------|
-| [<] [Readycheck] [>]                |
-| [Blue][Green][Purple][Red][Yel]...  |
+|                                      [H][V][M][X]|
+|---------------------------------------------------|
+| [CD 0] [CD] [RC]                                  |
+| [Blue][Green][Purple][Red][Yel][Cir][Moo][Sku]    |
 +-------------------------------------+
 ```
 
