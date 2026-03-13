@@ -50,6 +50,11 @@ local function RegisterStatsPruningTests(test, Assert, WithGlobals, LoadAddonMod
       Assert.Nil(db.stats.dungeons, "unused dungeon counters must not stay persisted")
       Assert.Nil(db.stats.players, "foreign player counters must not stay persisted")
       Assert.Nil(db.stats.playerLastRuns, "legacy foreign player DPS storage must be pruned")
+      Assert.Equal(
+        math.floor((db.stats.playerLastRunByCharacter["me-myrealm"] or {}).dps or 0),
+        456789,
+        "local player DPS should persist in the character-keyed store"
+      )
     end)
   end)
 
@@ -131,9 +136,9 @@ local function RegisterStatsPruningTests(test, Assert, WithGlobals, LoadAddonMod
       Assert.Nil(db.stats.dungeons, "unused legacy dungeon counters must be pruned on first use")
       Assert.Nil(db.stats.playerLastRuns, "legacy multi-player last-run storage must be removed on first use")
       Assert.Equal(
-        math.floor(db.stats.playerLastRun.dps or 0),
+        math.floor((db.stats.playerLastRunByCharacter["me-myrealm"] or {}).dps or 0),
         456789,
-        "local player's legacy DPS snapshot should migrate into the bounded single-player slot"
+        "local player's legacy DPS snapshot should migrate into the character-keyed local store"
       )
       Assert.Nil(
         controller.GetPlayerLastRunDps("Buddy", "Realm"),
@@ -141,6 +146,47 @@ local function RegisterStatsPruningTests(test, Assert, WithGlobals, LoadAddonMod
       )
     end)
   end)
+
+  test(
+    "Stats controller discards ambiguous legacy single-slot DPS instead of reassigning it to another local character",
+    function()
+      local db = {
+        stats = {
+          playerLastRun = { dps = 456789.4, mapID = 2662, level = 12 },
+        },
+      }
+
+      WithGlobals({
+        IsiLiveDB = db,
+        GetRealmName = function()
+          return "MyRealm"
+        end,
+      }, function()
+        local addon = LoadAddonModules({ "isiLive_stats.lua" })
+        local controller = addon.Stats.CreateController({
+          getRoster = function()
+            return {}
+          end,
+          getUnitNameAndRealm = function(unit)
+            if unit == "player" then
+              return "Alt", "MyRealm"
+            end
+            return nil
+          end,
+        })
+
+        Assert.Nil(
+          controller.GetPlayerLastRunDps("Alt", "MyRealm"),
+          "ambiguous legacy single-slot DPS must not be guessed onto the currently logged-in alt"
+        )
+        Assert.Nil(db.stats.playerLastRun, "legacy single-slot DPS must be removed during migration")
+        Assert.Nil(
+          (db.stats.playerLastRunByCharacter or {})["alt-myrealm"],
+          "no new character-keyed DPS entry may be fabricated from the ambiguous legacy slot"
+        )
+      end)
+    end
+  )
 end
 
 local function RegisterStatsDamageMeterTests(test, Assert, WithGlobals, LoadAddonModules)
@@ -305,67 +351,87 @@ local function RegisterStatsDamageMeterTests(test, Assert, WithGlobals, LoadAddo
 end
 
 local function RegisterStatsPersistenceTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Stats controller persists only the local player's last-run DPS across controller recreation", function()
-    local db = { stats = {} }
+  test(
+    "Stats controller persists only the matching local character's last-run DPS across controller recreation",
+    function()
+      local db = { stats = {} }
 
-    WithGlobals({
-      IsiLiveDB = db,
-      GetRealmName = function()
-        return "MyRealm"
-      end,
-      C_DamageMeter = {
-        GetCombatSessionFromType = function()
-          return {
-            durationSeconds = 1800,
-            combatSources = {
-              { name = "Me", amountPerSecond = 456789.4, totalAmount = 822220920 },
-              { name = "Buddy-Realm", amountPerSecond = 321123.8, totalAmount = 578022840 },
-            },
-          }
+      WithGlobals({
+        IsiLiveDB = db,
+        GetRealmName = function()
+          return "MyRealm"
         end,
-      },
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_stats.lua" })
-      local firstController = addon.Stats.CreateController({
-        getRoster = function()
-          return {
-            player = { name = "Me", realm = "MyRealm" },
-            party1 = { name = "Buddy", realm = "Realm" },
-          }
-        end,
-        getUnitNameAndRealm = function(unit)
-          if unit == "player" then
-            return "Me", "MyRealm"
-          end
-          return nil
-        end,
-      })
+        C_DamageMeter = {
+          GetCombatSessionFromType = function()
+            return {
+              durationSeconds = 1800,
+              combatSources = {
+                { name = "Me", amountPerSecond = 456789.4, totalAmount = 822220920 },
+                { name = "Buddy-Realm", amountPerSecond = 321123.8, totalAmount = 578022840 },
+              },
+            }
+          end,
+        },
+      }, function()
+        local addon = LoadAddonModules({ "isiLive_stats.lua" })
+        local firstController = addon.Stats.CreateController({
+          getRoster = function()
+            return {
+              player = { name = "Me", realm = "MyRealm" },
+              party1 = { name = "Buddy", realm = "Realm" },
+            }
+          end,
+          getUnitNameAndRealm = function(unit)
+            if unit == "player" then
+              return "Me", "MyRealm"
+            end
+            return nil
+          end,
+        })
 
-      firstController.RecordRun(2662, 12, true)
+        firstController.RecordRun(2662, 12, true)
 
-      local secondController = addon.Stats.CreateController({
-        getRoster = function()
-          return {}
-        end,
-        getUnitNameAndRealm = function(unit)
-          if unit == "player" then
-            return "Me", "MyRealm"
-          end
-          return nil
-        end,
-      })
+        local secondController = addon.Stats.CreateController({
+          getRoster = function()
+            return {}
+          end,
+          getUnitNameAndRealm = function(unit)
+            if unit == "player" then
+              return "Me", "MyRealm"
+            end
+            return nil
+          end,
+        })
 
-      Assert.Equal(
-        math.floor(secondController.GetPlayerLastRunDps("Me", "MyRealm") or 0),
-        456789,
-        "local player's last-run DPS should persist across reload/controller recreation"
-      )
-      Assert.Nil(
-        secondController.GetPlayerLastRunDps("Buddy", "Realm"),
-        "foreign player DPS must stay session-only and disappear after controller recreation"
-      )
-    end)
-  end)
+        Assert.Equal(
+          math.floor(secondController.GetPlayerLastRunDps("Me", "MyRealm") or 0),
+          456789,
+          "local player's last-run DPS should persist across reload/controller recreation"
+        )
+        Assert.Nil(
+          secondController.GetPlayerLastRunDps("Buddy", "Realm"),
+          "foreign player DPS must stay session-only and disappear after controller recreation"
+        )
+
+        local altController = addon.Stats.CreateController({
+          getRoster = function()
+            return {}
+          end,
+          getUnitNameAndRealm = function(unit)
+            if unit == "player" then
+              return "Alt", "MyRealm"
+            end
+            return nil
+          end,
+        })
+
+        Assert.Nil(
+          altController.GetPlayerLastRunDps("Alt", "MyRealm"),
+          "a different local character must not inherit another character's persisted DPS entry"
+        )
+      end)
+    end
+  )
 
   test("Stats controller can resolve DPS from explicit frozen roster snapshot override", function()
     local db = { stats = {} }

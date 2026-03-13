@@ -1512,6 +1512,9 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
       if row.roleButton and not IsCombatLockdownActive() then
         SetVisible(row.roleButton, show and row.unit ~= nil)
       end
+      if row.hoverFrame and row.hoverFrame.EnableMouse then
+        row.hoverFrame:EnableMouse(show)
+      end
     end
   end
 end

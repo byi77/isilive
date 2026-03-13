@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-03-13 - Version 0.9.80
+- **Stats — Character-Scoped Local DPS Persistence:**
+  - The persisted local last-run DPS snapshot is now stored per local character key instead of a single account-wide slot.
+  - Relogging to another own character no longer shows the previous character's persisted DPS entry.
+  - Foreign-player DPS remains session-only and is still never persisted.
+- **UI — Hidden Roster Hover Gating:**
+  - Roster row hover frames now disable mouse interaction while the roster table is hidden in compact layouts, so invisible rows no longer keep tooltip/right-click hit areas active behind the compact tool palette.
+- **Stats — Safe Legacy Migration:**
+  - The legacy multi-entry `playerLastRuns` store is still migrated only for the exact current local character key.
+  - The old single-slot `playerLastRun` snapshot is now discarded during migration because it has no owner identity and would otherwise be guessed onto whichever character logs in first.
+- **Tests:**
+  - Added deterministic regression coverage for per-character local DPS persistence and for discarding ambiguous legacy single-slot DPS during migration.
+- **Docs Sync:**
+  - Synced `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `TODO.md`, and `isiLive.toc` to `0.9.80`.
+  - Updated deterministic validator counters to `263` scenarios across `29` modules.
+
 ## 2026-03-13 - Version 0.9.79
 - **UI — Static Layout Mode Buttons:**
   - Replaced the old mode-toggle behavior with three always-visible top-right mode buttons `H`, `V`, and `M`; the active layout is now indicated by a gold label while inactive modes stay grey.

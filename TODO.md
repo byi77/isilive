@@ -75,6 +75,17 @@
   - Ingame pruefen: Raid->H-Modus, H/V/M-Schalter, H-Modus-Shortlabels und versteckte `Share Keys`/`Refresh`
   - Release-Tag erst nach gruenem `Lua Check` auf `main`
 
+- [x] `v0.9.80` vorbereiten:
+  - lokalen Last-Run-DPS char-genau statt accountweit in einem Single-Slot persistieren
+  - alte mehrwertige `playerLastRuns` nur fuer den exakt passenden lokalen Char migrieren
+  - den ambiguen Legacy-Single-Slot `playerLastRun` verwerfen statt ihn auf den zuerst eingeloggenen Char zu raten
+  - Doku/Release-Beispiele auf `0.9.80` synchronisieren
+  - Tag: `isiLive_release_0.9.80`
+
+- [ ] `v0.9.80` veroeffentlichen
+  - Ingame pruefen: eigener DPS nach Reload mit demselben Char vorhanden, nach Relog auf anderen Alt nicht uebernommen
+  - Release-Tag erst nach gruenem `Lua Check` auf `main`
+
 ## P1 - Quality Gates
 
 - [x] CI optional um `lua tools/validate_usecases.lua` erweitern (zusaetzlicher Runtime-Gate auf `main`)

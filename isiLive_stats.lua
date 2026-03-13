@@ -43,6 +43,13 @@ local function EnsureStatsTables()
   end
 end
 
+local function EnsurePlayerLastRunByCharacterTable(stats)
+  if type(stats.playerLastRunByCharacter) ~= "table" then
+    stats.playerLastRunByCharacter = {}
+  end
+  return stats.playerLastRunByCharacter
+end
+
 local function ResolveLocalPlayerKey(getUnitNameAndRealm)
   if type(getUnitNameAndRealm) ~= "function" then
     return nil
@@ -56,12 +63,16 @@ local function MigrateAndPrunePersistentPlayerStats(localPlayerKey)
   EnsureStatsTables()
 
   local stats = IsiLiveDB.stats
-  if type(stats.playerLastRun) ~= "table" then
-    local legacyLastRuns = type(stats.playerLastRuns) == "table" and stats.playerLastRuns or nil
-    if legacyLastRuns and localPlayerKey and type(legacyLastRuns[localPlayerKey]) == "table" then
-      stats.playerLastRun = legacyLastRuns[localPlayerKey]
-    end
+  local persistentLastRuns = EnsurePlayerLastRunByCharacterTable(stats)
+  local legacyLastRuns = type(stats.playerLastRuns) == "table" and stats.playerLastRuns or nil
+  if legacyLastRuns and localPlayerKey and type(legacyLastRuns[localPlayerKey]) == "table" then
+    persistentLastRuns[localPlayerKey] = legacyLastRuns[localPlayerKey]
   end
+
+  -- The legacy single-slot snapshot has no owner identity attached.
+  -- Reassigning it to whichever character logs in first would be a guess,
+  -- so it is discarded during migration.
+  stats.playerLastRun = nil
 
   -- Foreign player stats must never persist across sessions.
   stats.dungeons = nil
@@ -190,8 +201,8 @@ function Stats.CreateController(opts)
     local recordedAnyPlayer = next(runSnapshot) ~= nil
 
     local selfRun = localPlayerKey and runSnapshot[localPlayerKey] or nil
-    if selfRun then
-      IsiLiveDB.stats.playerLastRun = selfRun
+    if selfRun and localPlayerKey then
+      EnsurePlayerLastRunByCharacterTable(IsiLiveDB.stats)[localPlayerKey] = selfRun
     end
 
     return recordedAnyPlayer
@@ -205,7 +216,10 @@ function Stats.CreateController(opts)
     local key = NormalizeName(name, realm)
     local info = key and sessionPlayerLastRuns[key] or nil
     if type(info) ~= "table" and key and localPlayerKey and key == localPlayerKey then
-      info = IsiLiveDB.stats.playerLastRun
+      local persistentLastRuns = type(IsiLiveDB.stats.playerLastRunByCharacter) == "table"
+          and IsiLiveDB.stats.playerLastRunByCharacter
+        or nil
+      info = persistentLastRuns and persistentLastRuns[localPlayerKey] or nil
     end
     if type(info) ~= "table" then
       return nil

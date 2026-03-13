@@ -1,6 +1,6 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.79`
+Version baseline: `0.9.80`
 Last updated: `2026-03-13`
 
 ## Purpose
@@ -100,7 +100,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiKeyMPlus                                                                      V.0.9.79 [H][V][M][X]|
+| isiKeyMPlus                                                                      V.0.9.80 [H][V][M][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  M+Marker  M+Travel           |
 |---------------------------------------------------------------------------------------------------|
@@ -150,7 +150,7 @@ Horizontal Mini Mode:
 | EventHandlersRuntime | Addon/world/combat/inspect/sync events | Startup, hidden-mode sync, regen recovery, inspect dispatch |
 | EventHandlersQueue | LFG queue/listing events | Queue capture, target preservation, joined-key tracking |
 | EventHandlersChallenge | Challenge and ready-check events | Run lifecycle, delayed refresh, rio delta enable, ready-check state |
-| Stats | Challenge/M0 run completion signals plus Blizzard damage-meter session | Bounded last-run DPS snapshots with short delayed-session retry (persistent only for local player, foreign players session-only) |
+| Stats | Challenge/M0 run completion signals plus Blizzard damage-meter session | Bounded last-run DPS snapshots with short delayed-session retry (persistent only for the matching local character, foreign players session-only) |
 | RosterPanel | Roster model and localization | Main table rendering and action button callbacks |
 | TeleportUI | Season teleport entries and state | Insecure-action teleport button states and cooldown labels |
 

@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.79`.
+Current documented baseline: `0.9.80`.
 
 ## Features
 
@@ -32,7 +32,7 @@ Current documented baseline: `0.9.79`.
 - Dedicated `DPS` column shows the latest completed-run Blizzard damage-meter snapshot for the current roster when an exact player match exists
 - Roster tooltip adds `Level`, `Lang`, and localized `Last run DPS` details
 - Private `isiLive` tooltips now use their own wrapped compact layout so longer lines stay inside the tooltip frame
-- Persistent stats stay bounded: only the local player's own last-run DPS is kept in SavedVariables; foreign-player DPS snapshots are session-only
+- Persistent stats stay bounded: only the matching local character's own last-run DPS is kept in SavedVariables; foreign-player DPS snapshots are session-only
 - Queue join detection with chat message and invite hint
 - Grouped queue-join announce deduplication is driven by stable queue source IDs (`applicationID`/`searchResultID`/`listingID`), not volatile display text
 - Dungeon teleport controls in center notice + right-side grid
@@ -60,6 +60,7 @@ Current documented baseline: `0.9.79`.
 - Main window is movable via left drag in every mode; top drag handle stays above overlays for reliable dragging
 - Roster member row hover uses an isolated `isiLive` tooltip instead of the shared Blizzard `GameTooltip`, with `Name-Realm` fallback when no synced details are available
 - Roster control buttons, teleport grid buttons, and center-notice teleport hover also use isolated `isiLive` tooltip frames instead of the shared Blizzard `GameTooltip`
+- When the roster table is hidden in compact layouts, the hidden row hover/click hitboxes are also disabled so invisible rows do not keep catching tooltip or whisper interactions.
 - Teleport grid buttons inherit main-frame strata/level to avoid overlay conflicts with external UI panels
 - Ghost members: players leaving the group remain visible (greyed out) across slot shifts and even after party leave/disband; ghost rows are pruned deterministically on rejoin, fresh group join, full-group rebuild, or reload.
 - `CTRL+ALT+F9`, `/isilive test`, and `/isilive testall` now enter the same full dummy preview path, including a visible ghost/leaver row and positive dummy RIO delta preview; preview refresh rebuilds fresh dummy copies each time.
@@ -83,9 +84,9 @@ Current documented baseline: `0.9.79`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`, explicit local refresh triggers broadcast `REQSYNC`, and visibility-bound snapshots keep `KEY/STATS` current.
 
-## Use Case / Logic Baseline (v0.9.79)
+## Use Case / Logic Baseline (v0.9.80)
 
-Documented on `2026-03-13` as runtime behavior baseline (`0.9.79`) for validation checks.
+Documented on `2026-03-13` as runtime behavior baseline (`0.9.80`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -122,7 +123,7 @@ Documented on `2026-03-13` as runtime behavior baseline (`0.9.79`) for validatio
 7. Post-run DPS snapshot behavior
    - `M+` run-end events (`CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET`) record the latest Blizzard damage-meter overall session for exact roster matches and retry briefly if the session is still empty on the first event.
    - `M0` snapshots are recorded when leaving a tracked mythic non-challenge dungeon, use the roster frozen on dungeon entry so late leavers still match, and also retry briefly if the damage-meter session is not ready yet.
-   - Only the local player's own last-run DPS persists across sessions; foreign-player snapshots stay runtime-only.
+   - Only the matching local character's own last-run DPS persists across sessions; relogging to another own character does not inherit the previous character's persisted DPS, and foreign-player snapshots stay runtime-only.
 
 ## Hotkeys
 
@@ -163,7 +164,7 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive_units.lua`: unit/spec/name/RIO helper functions
 - `isiLive_demo.lua`: dummy/test roster generation, including unified full-preview ghost rows for test mode
 - `isiLive_sync.lua`: addon sync (`HELLO`/`ACK`/`KEY`/`STATS`) and user detection
-- `isiLive_stats.lua`: bounded last-run DPS snapshot storage (persistent only for the local player; foreign players session-only)
+- `isiLive_stats.lua`: bounded last-run DPS snapshot storage (persistent only for the matching local character; foreign players session-only)
 - `isiLive_leader_watch.lua`: leader-transfer detection and leader-only button state sync
 - `isiLive_keysync.lua`: key-sync controller (`HELLO/KEY` sends, key cache apply, active key owner resolver)
 - `isiLive_refresh.lua`: refresh controller (forced full refresh flow incl. `HELLO/KEY/STATS` + inspect requeue)
