@@ -1,7 +1,7 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.81`
-Last updated: `2026-03-13`
+Version baseline: `0.9.82`
+Last updated: `2026-03-14`
 
 ## Actors
 
@@ -12,7 +12,7 @@ Last updated: `2026-03-13`
 ## Preconditions
 
 1. Addon is loaded and not in `stopped` state.
-2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `midnight_s1` pre-season with empty active portal pool).
+2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `midnight_s1` with the live 8-dungeon Midnight Season 1 portal pool).
 3. Relevant UI is visible for queue scanning and rendering; while hidden, addon-message sync and roster updates may still run in the background, UI can be auto-opened by fresh group join, key-end, or real dungeon-entry transition logic, and explicit refresh requests may still trigger one gated hidden sync reply.
 
 ## Use Case Matrix
@@ -30,7 +30,7 @@ Last updated: `2026-03-13`
 | UC-09 | Manual Role Marker Buttons | Tank/Healer role icons are secure buttons to set raid markers |
 | UC-10 | Raid H-mode transition | Raid-size groups keep the addon visible in H mode while roster rows stay hidden |
 | UC-11 | M+Marker World Markers | Vertical bar of 8 secure world-marker buttons for immediate place/clear |
-| UC-12 | Roster Panel Mini Mode | Collapse toggle hides roster list and `M+Travel`, while keeping compact M+Marker and management tools visible |
+| UC-12 | Roster Panel Mini Mode | Collapse toggle hides roster list and `Travel`, while keeping compact Marker and management tools visible |
 
 ## UC-01 Invite Detection And Target Resolution
 
@@ -73,8 +73,9 @@ Goal: apply portal cooldown behavior only when the portal cast is actually used.
 2. Processing: portal action buttons use `InsecureActionButtonTemplate` so parent frame show/hide remains combat-toggleable.
 3. Processing: cooldown state is read from WoW spell cooldown APIs.
 4. Rule: all dungeon portal casts share the same 8h cooldown window after use.
-5. Output: teleport grid shows cooldown time and lock state consistently.
-6. Success criteria: every portal button reflects the shared cooldown.
+5. Rule: visible portal slots stay in deterministic season display order even when multiple dungeons share one teleport spell.
+6. Output: teleport grid shows cooldown time and lock state consistently.
+7. Success criteria: every portal button reflects the shared cooldown without slot drift.
 
 ## UC-05 Cooldown Lifecycle
 
@@ -135,7 +136,7 @@ Goal: expose the latest completed dungeon DPS per player from Blizzard damage me
 4. Hidden mode should halt non-essential processing, suspend queue scanning and permanent polling, keep background roster/addon-message sync active, allow event-driven pre-rendered UI state updates, and only keep required auto-open transitions active.
 5. Blizzard CVar state remains authoritative: `isiLive` only mirrors `advancedCombatLogging` / `damageMeterResetOnNewInstance` in the UI and writes them on explicit user clicks; challenge-start Blizzard damage-meter reset still runs when API support exists.
 6. RIO delta display must be deterministic and non-negative (`(+X)` only).
-7. UI visibility toggle (`CTRL+F9`) must allow both open and close in combat; `CHALLENGE_MODE_START` still auto-hides the main window.
+7. UI visibility toggle (`CTRL+F9`) must stay requestable in combat; if combat lockdown blocks `Show` or `Hide`, the requested state is replayed on `PLAYER_REGEN_ENABLED`. `CHALLENGE_MODE_START` still auto-hides the main window.
 8. During combat, non-essential event processing is suspended by runtime gate; essential events continue.
 9. Refresh and key-share UI actions must enforce click-spam guards (debounce/rate-limit behavior).
 10. Event-gate dispatch failures must be reported through error callbacks for diagnostics without terminating the gate loop.

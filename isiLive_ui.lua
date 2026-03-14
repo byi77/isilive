@@ -36,8 +36,16 @@ local function CreateDragHandle(frame)
   return dragHandle
 end
 
-local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup)
+local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup, isInCombat)
+  local pendingVisible = nil
+
   local function SetVisible(visible)
+    if isInCombat and isInCombat() then
+      pendingVisible = visible and true or false
+      return false
+    end
+    pendingVisible = nil
+
     if visible then
       if not frame:IsShown() then
         frame:Show()
@@ -54,6 +62,12 @@ local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup)
   end
 
   local function ToggleVisibility(isInGroup)
+    if isInCombat and isInCombat() then
+      local wantVisible = not frame:IsShown()
+      pendingVisible = wantVisible
+      return
+    end
+
     if frame:IsShown() then
       SetVisible(false)
       return
@@ -69,7 +83,11 @@ local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup)
     end
   end
 
-  return SetVisible, ToggleVisibility
+  local function GetPendingVisible()
+    return pendingVisible
+  end
+
+  return SetVisible, ToggleVisibility, GetPendingVisible
 end
 
 local function CreateHeightController(frame, isInCombat)
@@ -99,7 +117,7 @@ function UI.CreateMainFrame(opts)
   local onShownNoGroup = opts.onShownNoGroup or function() end
 
   local frame = CreateFrame("Frame", "isiLiveMainFrame", parent, "BackdropTemplate")
-  frame:SetSize(780, minHeight)
+  frame:SetSize(755, minHeight)
   frame:SetPoint("CENTER")
   frame:SetMovable(true)
   frame:EnableMouse(true)
@@ -121,7 +139,8 @@ function UI.CreateMainFrame(opts)
     frameLevel = dragHandle:GetFrameLevel() + 2,
   })
 
-  local SetVisible, ToggleVisibility = CreateVisibilityController(frame, onShownInGroup, onShownNoGroup)
+  local SetVisible, ToggleVisibility, GetPendingVisible =
+    CreateVisibilityController(frame, onShownInGroup, onShownNoGroup, isInCombat)
   local SetHeightSafe, GetPendingHeight = CreateHeightController(frame, isInCombat)
 
   local function ApplyStoredPosition(pos)
@@ -144,5 +163,6 @@ function UI.CreateMainFrame(opts)
     ToggleVisibility = ToggleVisibility,
     ApplyStoredPosition = ApplyStoredPosition,
     GetPendingHeight = GetPendingHeight,
+    GetPendingVisible = GetPendingVisible,
   }
 end

@@ -57,48 +57,47 @@ SeasonData.ACTIVE_SEASON_ID = "midnight_s1"
 
 SeasonData.SEASONS = {
   midnight_s1 = {
-    label = "Midnight Season 1 (prepared, inactive)",
+    label = "Midnight Season 1",
     mapToTeleport = {
-      -- TODO: Add numeric MapIDs and SpellIDs when Midnight PTR is available
-      -- [2526] = 393256, -- Algeth'ar Academy (DF S1 IDs, might change)
-      -- [115]  = 0,      -- Magisters' Terrace
-      -- [658]  = 0,      -- Pit of Saron
-      -- [1677] = 0,      -- Seat of the Triumvirate
-      -- [1176] = 0,      -- Skyreach
-      -- [?]    = 0,      -- Maisara Caverns
-      -- [?]    = 0,      -- Nexus-Point Xenas
-      -- [?]    = 0,      -- Windrunner Spire
+      [557] = 1254400, -- Windrunner Spire
+      [558] = 1254572, -- Magisters' Terrace
+      [559] = 1254563, -- Nexus-Point Xenas
+      [560] = 1254559, -- Maisara Caverns
+      [402] = 393273, -- Algeth'ar Academy
+      [556] = 1254555, -- Pit of Saron
+      [239] = 1254551, -- Seat of the Triumvirate
+      [161] = 159898, -- Skyreach
     },
     displayOrder = {
-      -- 2526, -- Algeth'ar Academy
-      -- 115,  -- Magisters' Terrace
-      -- 658,  -- Pit of Saron
-      -- 1677, -- Seat of the Triumvirate
-      -- 1176, -- Skyreach
-      -- ?,    -- Maisara Caverns
-      -- ?,    -- Nexus-Point Xenas
-      -- ?,    -- Windrunner Spire
+      558, -- Magisters' Terrace
+      560, -- Maisara Caverns
+      559, -- Nexus-Point Xenas
+      557, -- Windrunner Spire
+      402, -- Algeth'ar Academy
+      556, -- Pit of Saron
+      239, -- Seat of the Triumvirate
+      161, -- Skyreach
     },
     shortCodesByLocale = {
       default = {
-        -- [2526] = "AA",
-        -- [115]  = "MGT",
-        -- [658]  = "POS",
-        -- [1677] = "SOT",
-        -- [1176] = "SKY",
-        -- [?]    = "MAC",
-        -- [?]    = "NPX",
-        -- [?]    = "WS",
+        [557] = "WS",
+        [558] = "MGT",
+        [559] = "NPX",
+        [560] = "MAC",
+        [402] = "AA",
+        [556] = "POS",
+        [239] = "SOT",
+        [161] = "SKY",
       },
       deDE = {
-        -- [2526] = "AA",
-        -- [115]  = "TDM",
-        -- [658]  = "GVS",
-        -- [1677] = "SDT",
-        -- [1176] = "HN",
-        -- [?]    = "MH",
-        -- [?]    = "NPX",
-        -- [?]    = "WS",
+        [557] = "WS",
+        [558] = "TDM",
+        [559] = "NPX",
+        [560] = "MH",
+        [402] = "AA",
+        [556] = "GVS",
+        [239] = "SDT",
+        [161] = "HN",
       },
     },
     challengeMapAliases = {},

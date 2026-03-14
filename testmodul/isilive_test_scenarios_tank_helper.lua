@@ -286,8 +286,8 @@ local function RegisterNativeWorldMarkerButtonTests(test, Assert, WithGlobals, L
     Assert.Equal(#tankHelperButtons, 8, "Should create 8 M+Marker world-marker buttons")
     Assert.Equal(
       tankHelperButtons[1].pointX,
-      -136,
-      "M+Marker column should occupy the management-side slot in expanded mode"
+      -111,
+      "M+Marker column should occupy the compact helper slot in expanded mode"
     )
     local readyCheckButton = nil
     for _, frame in ipairs(createdFrames) do
@@ -297,11 +297,7 @@ local function RegisterNativeWorldMarkerButtonTests(test, Assert, WithGlobals, L
       end
     end
     Assert.NotNil(readyCheckButton, "Readycheck button should exist")
-    Assert.Equal(
-      readyCheckButton.pointX,
-      -170,
-      "M+Managment buttons must keep a safe fixed slot right of the DPS column in expanded mode"
-    )
+    Assert.Equal(readyCheckButton.pointX, -145, "M+Managment buttons should align with the expanded management column")
     Assert.Equal(tankHelperButtons[1]:GetAttribute("marker1"), 1, "Blue Square uses world marker 1")
     Assert.Equal(tankHelperButtons[1]:GetAttribute("action1"), "set", "left click must place marker")
     Assert.Equal(tankHelperButtons[1]:GetAttribute("marker2"), 1, "Blue Square clears same marker")
@@ -610,8 +606,8 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
 
     Assert.Equal(
       helperButtons[1].pointX,
-      -136,
-      "Helper buttons should restore the expanded tool column after leaving horizontal mode"
+      -111,
+      "Helper buttons should restore the compact expanded tool column after leaving horizontal mode"
     )
     Assert.Equal(
       helperButtons[1].pointY,

@@ -354,12 +354,13 @@ function Teleport.BuildTeleportEntries()
     table.sort(orderedMapIDs)
   end
 
-  for _, mapID in ipairs(orderedMapIDs) do
+  for slotIndex, mapID in ipairs(orderedMapIDs) do
     local info = Teleport.GetTeleportInfoByMapID(mapID)
     if info then
       local spellID = tonumber(info.spellID)
       if spellID and not seenSpellID[spellID] then
         seenSpellID[spellID] = true
+        info.slotIndex = slotIndex
         table.insert(entries, info)
       end
     end

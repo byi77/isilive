@@ -1,7 +1,7 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.81`
-Last updated: `2026-03-13`
+Version baseline: `0.9.82`
+Last updated: `2026-03-14`
 
 ## Purpose
 
@@ -50,7 +50,7 @@ WoW Event
 1. Resolve dungeon targets only through concrete `activityID -> mapID -> spellID` data.
 2. If `mapID` context is missing or ambiguous, keep target unresolved (no name/token guessing).
 3. Keep leader-only actions explicit and disabled when unauthorized.
-4. Keep combat-safe UI updates deferred when protected operations are blocked; teleport action buttons must not promote parent frames to protected status, and frame dragging remains available.
+4. Keep combat-safe UI updates deferred when protected operations are blocked; teleport action buttons must not promote parent frames to protected status, and blocked main-frame visibility/height changes must replay on `PLAYER_REGEN_ENABLED`.
 5. Keep teleport-grid button strata/level synchronized with main-frame strata/level.
 6. For shared-portcast spells, prioritize exact activity map matching over spell-only suppression.
 7. Do not clear highlight state from ambiguous shared spell mappings when exact map context is unknown.
@@ -95,14 +95,14 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 263 scenarios across 29 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper logic.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 267 scenarios across 29 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiKeyMPlus                                                                      V.0.9.81 [H][V][M][X]|
+| isiKeyMPlus                                                                      V.0.9.82 [H][V][M][X]|
 |---------------------------------------------------------------------------------------------------|
-| Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  M+Marker  M+Travel           |
+| Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  Marker    Travel              |
 |---------------------------------------------------------------------------------------------------|
 | [Tank] PlayerOne    [ ]  DB +14  633  (+12)3521 321.1K  [Blue]              [Readycheck]          |
 | [Heal] PlayerTwo    [ ]  DAWN+12 629  (+0)3410  287.4K  [Grn]               [Countdown10]         |
@@ -119,7 +119,7 @@ Collapsed / Vertical Mini Mode:
 
 |                                          [H][V][M][X]|
 |----------------------------------------------------------------|
-| M+Managment                 M+Marker                            |
+| M+Managment                 Marker                              |
 | [Readycheck]                [Blue]                              |
 | [Countdown10]               [Green]                             |
 | [Countdown 0]               [Purple]                            |
@@ -147,12 +147,12 @@ Horizontal Mini Mode:
 | Highlight | Active listing and queue target | Active teleport spell and highlight state |
 | KeySync | Sync messages and owned key snapshot | Roster key map ownership and sync markers |
 | Refresh | User refresh action | Forced key/sync/inspect refresh pipeline |
-| EventHandlersRuntime | Addon/world/combat/inspect/sync events | Startup, hidden-mode sync, regen recovery, inspect dispatch |
+| EventHandlersRuntime | Addon/world/combat/inspect/sync events | Startup, hidden-mode sync, regen recovery for pending visibility/height, inspect dispatch |
 | EventHandlersQueue | LFG queue/listing events | Queue capture, target preservation, joined-key tracking |
 | EventHandlersChallenge | Challenge and ready-check events | Run lifecycle, delayed refresh, rio delta enable, ready-check state |
 | Stats | Challenge/M0 run completion signals plus Blizzard damage-meter session | Bounded last-run DPS snapshots with short delayed-session retry (persistent only for the matching local character, foreign players session-only) |
 | RosterPanel | Roster model and localization | Main table rendering and action button callbacks |
-| TeleportUI | Season teleport entries and state | Insecure-action teleport button states and cooldown labels |
+| TeleportUI | Season teleport entries and state | Insecure-action teleport button states, deterministic season-slot placement, and cooldown labels |
 
 ## Extension Points
 

@@ -34,12 +34,12 @@ local SYSTEM_OPTION_TOGGLE_GAP = 18
 local LAYOUT_MODE_EXPANDED = "expanded"
 local LAYOUT_MODE_COMPACT_VERTICAL = "compact_vertical"
 local LAYOUT_MODE_COMPACT_HORIZONTAL = "compact_horizontal"
-local FULL_FRAME_WIDTH = 780
+local FULL_FRAME_WIDTH = 755
 local MINI_FRAME_WIDTH = 220
 local MINI_HORIZONTAL_FRAME_WIDTH = 212
-local MANAGEMENT_COLUMN_X = -170
+local MANAGEMENT_COLUMN_X = -145
 local MANAGEMENT_COLUMN_X_MINI = -70
-local HELPER_COLUMN_X = -136
+local HELPER_COLUMN_X = -111
 local HELPER_COLUMN_X_MINI = -37
 local MINI_HORIZONTAL_FRAME_HEIGHT = 94
 local MINI_HORIZONTAL_MANAGEMENT_ROW_Y = -28
@@ -1112,19 +1112,19 @@ local function CreatePanelHeaders(mainFrame)
   end
 
   local leadOptionsHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  leadOptionsHeader:SetPoint("TOPRIGHT", -136, -34)
+  leadOptionsHeader:SetPoint("TOPRIGHT", -111, -34)
   leadOptionsHeader:SetWidth(120)
   leadOptionsHeader:SetJustifyH("CENTER")
 
   local mplusManagementHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  mplusManagementHeader:SetPoint("TOPRIGHT", -16, -34)
+  mplusManagementHeader:SetPoint("TOPRIGHT", -3, -34)
   mplusManagementHeader:SetWidth(110)
   mplusManagementHeader:SetJustifyH("CENTER")
 
   local headerSeparator = mainFrame:CreateTexture(nil, "ARTWORK")
   headerSeparator:SetHeight(1)
   headerSeparator:SetPoint("TOPLEFT", 8, -48)
-  headerSeparator:SetPoint("TOPRIGHT", -8, -48)
+  headerSeparator:SetPoint("TOPRIGHT", 0, -48)
   headerSeparator:SetColorTexture(1, 1, 1, 0.2)
 
   return {
@@ -1170,7 +1170,7 @@ end
 local function CreateShareKeysButton(mainFrame, deps)
   local button = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   button:SetSize(120, 24)
-  button:SetPoint("TOPRIGHT", -136, -150)
+  button:SetPoint("TOPRIGHT", -111, -150)
   button._verticalY = -150
   local lastShareKeysClickAt = nil
   local debounceSeconds = tonumber(deps.shareKeysDebounceSeconds) or 0
@@ -1221,7 +1221,7 @@ local function CreatePanelButtons(mainFrame, deps)
 
   local readyCheckButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   readyCheckButton:SetSize(120, 24)
-  readyCheckButton:SetPoint("TOPRIGHT", -136, -60)
+  readyCheckButton:SetPoint("TOPRIGHT", -111, -60)
   readyCheckButton._verticalY = -60
   readyCheckButton._hModeText = "RC"
   readyCheckButton:SetScript("OnClick", function()
@@ -1237,7 +1237,7 @@ local function CreatePanelButtons(mainFrame, deps)
 
   local countdownButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   countdownButton:SetSize(120, 24)
-  countdownButton:SetPoint("TOPRIGHT", -136, -90)
+  countdownButton:SetPoint("TOPRIGHT", -111, -90)
   countdownButton._verticalY = -90
   countdownButton._hModeText = "CD"
   countdownButton:SetScript("OnClick", function()
@@ -1255,7 +1255,7 @@ local function CreatePanelButtons(mainFrame, deps)
 
   local refreshButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   refreshButton:SetSize(120, 24)
-  refreshButton:SetPoint("TOPRIGHT", -136, -180)
+  refreshButton:SetPoint("TOPRIGHT", -111, -180)
   refreshButton._verticalY = -180
   AttachPanelButtonTooltip(deps.tooltipFrame, refreshButton, getL, "BTN_REFRESH", "TOOLTIP_REFRESH", nil)
 
@@ -1263,7 +1263,7 @@ local function CreatePanelButtons(mainFrame, deps)
 
   local countdownCancelButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
   countdownCancelButton:SetSize(120, 24)
-  countdownCancelButton:SetPoint("TOPRIGHT", -136, -120)
+  countdownCancelButton:SetPoint("TOPRIGHT", -111, -120)
   countdownCancelButton._verticalY = -120
   countdownCancelButton._hModeText = "CD 0"
   AttachPanelButtonTooltip(
@@ -1704,35 +1704,7 @@ local function RenderRosterImpl(state, roster)
   local layoutMode = state.uiRef and state.uiRef.layoutMode or LAYOUT_MODE_EXPANDED
   local isCollapsed = IsCompactLayoutMode(layoutMode)
 
-  -- If in a raid group, clear rows and skip roster render (H mode shows the tool buttons)
-  if state.isRaidGroup and state.isRaidGroup() then
-    for _, row in pairs(memberRows) do
-      row.spec:SetText("")
-      row.name:SetText("")
-      row.realm:SetText("")
-      row.key:SetText("")
-      row.ilvl:SetText("")
-      row.rio:SetText("")
-      row.dps:SetText("")
-      if row.hoverFrame then
-        row.hoverFrame:Hide()
-      end
-      if row.roleButton and not IsCombatLockdownActive() then
-        row.roleButton:Hide()
-      end
-    end
-    if raidNoticeLabel then
-      raidNoticeLabel:Hide()
-    end
-    return
-  end
-
-  -- Normal case: hide notice, show rows
-  if raidNoticeLabel then
-    raidNoticeLabel:Hide()
-  end
-
-  for _, row in pairs(memberRows) do
+  local function ClearMemberRow(row)
     row.spec:SetText("")
     row.name:SetText("")
     row.realm:SetText("")
@@ -1752,10 +1724,29 @@ local function RenderRosterImpl(state, roster)
       row.hoverFrame.unit = nil
       row.hoverFrame:Hide()
     end
-
     if row.roleButton and not IsCombatLockdownActive() then
       row.roleButton:Hide()
     end
+  end
+
+  -- If in a raid group, clear rows and skip roster render (H mode shows the tool buttons)
+  if state.isRaidGroup and state.isRaidGroup() then
+    for _, row in pairs(memberRows) do
+      ClearMemberRow(row)
+    end
+    if raidNoticeLabel then
+      raidNoticeLabel:Hide()
+    end
+    return
+  end
+
+  -- Normal case: hide notice, show rows
+  if raidNoticeLabel then
+    raidNoticeLabel:Hide()
+  end
+
+  for _, row in pairs(memberRows) do
+    ClearMemberRow(row)
   end
 
   local index = 1

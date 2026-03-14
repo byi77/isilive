@@ -2,6 +2,14 @@
 
 ## P0 - Release / Review
 
+- [x] `v0.9.82` vorbereiten:
+  - Combat-Defer fuer Main-UI-Sichtbarkeit und Regen-Replay dokumentieren
+  - Midnight-S1-Portalpool mit finalen Map-/Spell-IDs und Shortcodes dokumentieren
+  - kompaktere `Marker`/`Travel`-Beschriftung im Roster-Panel nachziehen
+  - LuaLS-/Validator-Haertung fuer dynamische UI-Testfixtures und Regen-Visibility-Wiring nachziehen
+  - `CHANGELOG.md`, `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RULES_LOGIC.md`, `TODO.md` und `isiLive.toc` synchronisieren
+  - Tag: `isiLive_release_0.9.82`
+
 - [x] `v0.9.65` vorbereiten:
   - `CHANGELOG.md` auf `0.9.65` Runtime-/Doku-Stand bringen
   - `README.md` / `RELEASE.md` auf `0.9.65` Beispiele und Tag-Namen synchronisieren

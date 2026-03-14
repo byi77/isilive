@@ -960,6 +960,77 @@ local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fix
     Assert.Equal(restoreButtonCalls, 0, "hidden regen must skip teleport button restore")
   end)
 
+  test("Event handlers apply pending visibility on regen when combat-deferred show is queued", function()
+    local visibilityCalls = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      getPendingMainFrameVisible = function()
+        return true
+      end,
+      setMainFrameVisible = function(visible)
+        table.insert(visibilityCalls, visible)
+      end,
+      isMainFrameShown = function()
+        return true
+      end,
+      updateMPlusTeleportButton = function() end,
+      tryRestoreCenterNoticeTeleportButton = function() end,
+    })
+
+    controller:Dispatch("PLAYER_REGEN_ENABLED")
+
+    Assert.Equal(#visibilityCalls, 1, "regen must apply pending visibility exactly once")
+    Assert.True(visibilityCalls[1], "regen must apply pending show when combat-deferred show was queued")
+  end)
+
+  test("Event handlers apply pending visibility on regen when combat-deferred hide is queued", function()
+    local visibilityCalls = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      getPendingMainFrameVisible = function()
+        return false
+      end,
+      setMainFrameVisible = function(visible)
+        table.insert(visibilityCalls, visible)
+      end,
+      isMainFrameShown = function()
+        return false
+      end,
+      updateMPlusTeleportButton = function() end,
+      tryRestoreCenterNoticeTeleportButton = function() end,
+    })
+
+    controller:Dispatch("PLAYER_REGEN_ENABLED")
+
+    Assert.Equal(#visibilityCalls, 1, "regen must apply pending visibility exactly once")
+    Assert.False(visibilityCalls[1], "regen must apply pending hide when combat-deferred hide was queued")
+  end)
+
+  test("Event handlers skip pending visibility on regen when no combat-deferred toggle exists", function()
+    local visibilityCalls = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      getPendingMainFrameVisible = function()
+        return nil
+      end,
+      setMainFrameVisible = function(visible)
+        table.insert(visibilityCalls, visible)
+      end,
+      isMainFrameShown = function()
+        return true
+      end,
+      updateMPlusTeleportButton = function() end,
+      tryRestoreCenterNoticeTeleportButton = function() end,
+    })
+
+    controller:Dispatch("PLAYER_REGEN_ENABLED")
+
+    Assert.Equal(#visibilityCalls, 0, "regen must not call setMainFrameVisible when no pending toggle exists")
+  end)
+
   test("Event handlers run regen teleport refresh when frame is visible", function()
     local teleportRefreshCalls = 0
     local restoreButtonCalls = 0

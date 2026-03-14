@@ -1,4 +1,4 @@
-local function RegisterRosterDisplayTests(test, Assert, WithGlobals, LoadAddonModules)
+local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster name color follows ready check status colors", function()
     local readyCheckStatusByUnit = {}
 
@@ -208,7 +208,9 @@ local function RegisterRosterDisplayTests(test, Assert, WithGlobals, LoadAddonMo
       Assert.Equal(displayData.colorHex, "ff808080", "Offline member should be rendered in grey")
     end)
   end)
+end
 
+local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster display appends blue-heart marker for synced users", function()
     WithGlobals({
       GetReadyCheckStatus = function()
@@ -240,7 +242,9 @@ local function RegisterRosterDisplayTests(test, Assert, WithGlobals, LoadAddonMo
       )
     end)
   end)
+end
 
+local function RegisterRosterDisplayTruncationTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster display truncates names to Blizzard 12-character limit", function()
     WithGlobals({
       GetReadyCheckStatus = function()
@@ -344,6 +348,12 @@ local function RegisterRosterDisplayTests(test, Assert, WithGlobals, LoadAddonMo
       Assert.Equal(displayData.languageDisplay, "|Tflag-de:0|t", "language column should render only the flag markup")
     end)
   end)
+end
+
+local function RegisterRosterDisplayTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterDisplayTruncationTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 local function NewRecordedFontString(createdFontStrings)

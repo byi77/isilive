@@ -48,9 +48,10 @@ end
 local function CreateTeleportButton(mainFrame, deps, index, entry)
   local size = 28
   local colCount = 2
-  local col = (index - 1) % colCount
-  local row = math.floor((index - 1) / colCount)
-  local x = (col == 0) and -85 or -53
+  local slot = (entry.slotIndex or index) - 1
+  local col = slot % colCount
+  local row = math.floor(slot / colCount)
+  local x = (col == 0) and -60 or -28
   local y = -60 - (row * (size + 4))
 
   -- Keep cast attributes working out of combat, but avoid promoting the parent to a protected frame.
@@ -221,7 +222,7 @@ function TeleportUI.CreateController(opts)
     end
 
     emptyStateLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    emptyStateLabel:SetPoint("TOPRIGHT", -14, -58)
+    emptyStateLabel:SetPoint("TOPRIGHT", 0, -58)
     emptyStateLabel:SetWidth(116)
     emptyStateLabel:SetJustifyH("RIGHT")
     if emptyStateLabel.SetTextColor then

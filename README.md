@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.81`.
+Current documented baseline: `0.9.82`.
 
 ## Features
 
@@ -17,16 +17,16 @@ Current documented baseline: `0.9.81`.
 - Bottom-left system toggles: `Combat Logging`, `DM Reset on Entry`
 - Stable role sorting: `Tank -> Healer -> Damager`
 - Right-side controls: `Readycheck`, `Countdown10`, `Countdown 0`, `Share Keys`, `Refresh`
-- Right-side headers: `M+Managment` and `M+Travel`
-- `M+Travel` teleport grid with active-season dungeon teleports; during pre-season/off-season without active portal pool it shows a season-start text instead of stale portals
+- Right-side headers: `M+Managment`, `Marker`, and `Travel`
+- `Travel` teleport grid uses the active-season portal pool in deterministic Midnight Season 1 order; duplicate shared-spell entries are collapsed without losing slot order
 - Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
-- Teleport action buttons use `InsecureActionButtonTemplate` so main/notice frame visibility remains combat-toggleable without protected-frame promotion
+- Teleport action buttons use `InsecureActionButtonTemplate` so main/notice visibility requests stay combat-safe without protected-frame promotion
 - Players inside the target dungeon are marked with a portal icon in the roster
 - Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale)
 - Visible-window peer sync between `isiLive` users can also backfill remote `Spec`, `iLvl`, and `RIO` without inspect range; fresh local inspect data keeps priority once available
 - Manual `Refresh` also broadcasts a `REQSYNC` request so hidden `isiLive` peers can answer once with a forced `KEY` + `STATS` snapshot when they are not stopped, paused, or inside an active Mythic+ run
 - Key mapping normalizes active-season challenge-map IDs to canonical season map IDs before short-code rendering
-- Season scope is open via `ACTIVE_SEASON_ID`; current active season is `midnight_s1` pre-season
+- Season scope is open via `ACTIVE_SEASON_ID`; current active season is `midnight_s1` with all 8 Midnight Season 1 portals mapped live
 - `Key` column keeps `Shortcut +Level` on one line (no row-wrap bleed into next member line)
 - `RIO` column can show per-run delta as `(+X)RIO` (non-negative only; never minus)
 - Dedicated `DPS` column shows the latest completed-run Blizzard damage-meter snapshot for the current roster when an exact player match exists
@@ -53,7 +53,7 @@ Current documented baseline: `0.9.81`.
 - Auto-hide on M+ key start (`CHALLENGE_MODE_START`); can be manually opened (`CTRL+F9`) in "frozen" read-only state.
 - Auto-open on key end (`CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET`) while grouped.
 - Auto-open on real dungeon entry (`outside -> party instance`) while not in an active key.
-- `CTRL+F9`: opening and closing are always allowed (including combat).
+- `CTRL+F9`: visibility changes can always be requested; if combat lockdown blocks `Show`/`Hide`, the pending open/close is applied on `PLAYER_REGEN_ENABLED`.
 - Hidden window mode still blocks queue scanning, but background data sync (`CHAT_MSG_ADDON`, `GROUP_ROSTER_UPDATE`) may event-drive pre-rendered roster state so reopen stays immediate without adding polling load.
 - Combat runtime gate suppresses non-essential event processing while in combat; essential events (for example `PLAYER_REGEN_ENABLED` and `CHALLENGE_MODE_*`) still run.
 - Own sync handshakes and forced snapshots (`HELLO`/`ACK`/`KEY`/`STATS`) remain visibility-bound; hidden mode still processes background addon sync messages so cached roster data and pre-rendered UI state stay current without polling.
@@ -66,8 +66,8 @@ Current documented baseline: `0.9.81`.
 - Ghost members: players leaving the group remain visible (greyed out) across slot shifts and even after party leave/disband; ghost rows are pruned deterministically on rejoin, fresh group join, full-group rebuild, or reload.
 - `CTRL+ALT+F9`, `/isilive test`, and `/isilive testall` now enter the same full dummy preview path, including a visible ghost/leaver row and positive dummy RIO delta preview; preview refresh rebuilds fresh dummy copies each time.
 - Smart self-update: automatically broadcasts a data snapshot (Key/Stats) when the player's own iLvl, RIO, or Spec changes.
-- Teleport action buttons are intentionally `InsecureActionButtonTemplate` so `CTRL+F9` main-frame open/close and center-notice visibility remain combat-safe
-- Combat-safe frame updates: pending frame-height changes are applied on `PLAYER_REGEN_ENABLED`
+- Teleport action buttons are intentionally `InsecureActionButtonTemplate` so main-frame and notice visibility do not promote their parents to protected frames
+- Combat-safe frame updates: pending main-frame visibility and frame-height changes are applied on `PLAYER_REGEN_ENABLED`
 - Bottom-left system toggles expose `advancedCombatLogging` and `damageMeterResetOnNewInstance`.
 - They mirror the live Blizzard CVar state and write only on explicit user clicks.
 - The toggle row keeps a fixed gap between adjacent labels.
@@ -85,9 +85,9 @@ Current documented baseline: `0.9.81`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`, explicit local refresh triggers broadcast `REQSYNC`, and visibility-bound snapshots keep `KEY/STATS` current.
 
-## Use Case / Logic Baseline (v0.9.81)
+## Use Case / Logic Baseline (v0.9.82)
 
-Documented on `2026-03-13` as runtime behavior baseline (`0.9.81`) for validation checks.
+Documented on `2026-03-14` as runtime behavior baseline (`0.9.82`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -118,7 +118,7 @@ Documented on `2026-03-13` as runtime behavior baseline (`0.9.81`) for validatio
    - Event gate blocks non-required processing in `stopped`, `paused`, and hidden states.
    - Hidden mode keeps transition events active (auto-open) and allows background data sync (`CHAT_MSG_ADDON`, `GROUP_ROSTER_UPDATE`) plus event-driven pre-rendered UI state; grouped non-challenge roster updates stay active even across raid-size transitions, while queue scanning and permanent polling remain suppressed.
    - `CHALLENGE_MODE_START` hides UI; completion/reset rehydrates group view and refresh flow.
-   - Combat-safe UI behavior: teleport action buttons use `InsecureActionButtonTemplate` (to avoid protected-parent show/hide taint), while spell-attribute updates are still deferred during combat lockdown and restored on `PLAYER_REGEN_ENABLED`.
+   - Combat-safe UI behavior: teleport action buttons use `InsecureActionButtonTemplate` (to avoid protected-parent show/hide taint), while spell-attribute updates, main-frame visibility, and blocked frame-height changes are restored on `PLAYER_REGEN_ENABLED`.
    - Hidden leader changes are synchronized silently so leader-only button state stays correct on the next visible transition without firing hidden notices/chat output.
    - Leaving or getting removed from a normal party keeps the current frame visibility state and converts former party members into ghost rows instead of clearing the roster immediately.
 7. Post-run DPS snapshot behavior
@@ -234,7 +234,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 263 scenarios across 29 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper), including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 267 scenarios across 29 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper), including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
@@ -250,7 +250,7 @@ Developer debug (hidden command, not listed in in-game help):
 - hidden-mode background sync behavior (`CHAT_MSG_ADDON` and `GROUP_ROSTER_UPDATE` stay active while cached/pre-rendered UI state is refreshed without polling)
 - visible-window peer sync for remote `Spec/iLvl/RIO` backfill plus local-inspect precedence over later sync payloads
 - non-Mythic status detection (normal/heroic transitions and heroic fallback difficulty IDs)
-- combat hotkey visibility rules (`CTRL+F9`: open and close allowed during combat)
+- combat hotkey visibility rules (`CTRL+F9`: blocked show/hide requests are replayed on `PLAYER_REGEN_ENABLED`)
 - center-notice font-scale stability across repeated warning re-shows (no cumulative growth)
 - expanded taint-hardening regressions for deferred secure spell apply, insecure notice/teleport buttons, tank-helper macros, and collapse behavior around secure child buttons
 - RIO baseline/delta rendering rules (`(+X)RIO`, no negative deltas) and challenge-start baseline capture

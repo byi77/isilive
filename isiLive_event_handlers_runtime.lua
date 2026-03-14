@@ -293,6 +293,10 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if ctx.getPendingBindingApply() then
       ctx.applyHotkeyBindings()
     end
+    local pendingVisible = ctx.getPendingMainFrameVisible and ctx.getPendingMainFrameVisible()
+    if pendingVisible ~= nil then
+      ctx.setMainFrameVisible(pendingVisible)
+    end
     local pendingMainFrameHeight = ctx.getPendingMainFrameHeight()
     if pendingMainFrameHeight then
       ctx.setMainFrameHeightSafe(pendingMainFrameHeight)

@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-03-14 - Version 0.9.82
+- **UI - Combat Visibility Deferral:**
+  - Main-frame show/hide requests are now deferred during combat lockdown and deterministically replayed on `PLAYER_REGEN_ENABLED`.
+  - Runtime regen recovery now reapplies queued main-frame visibility before the pending post-combat height/layout refresh.
+- **UI - Roster Panel Compacting:**
+  - Tightened the expanded roster-panel width and shifted the right-side columns left to reduce wasted horizontal space.
+  - Shortened the visible helper headers from `M+Marker` / `M+Travel` to `Marker` / `Travel`.
+  - Unified member-row clearing so raid H-mode and normal rerenders use the same deterministic reset path.
+- **Season Data - Midnight Season 1 Live Portal Pool:**
+  - Replaced the placeholder `midnight_s1` dataset with concrete map IDs, spell IDs, display order, and localized short codes for all eight season dungeons.
+  - Teleport-grid entries now keep their deterministic season slot positions even when shared spells collapse duplicate visible buttons.
+- **Validation + Docs Sync:**
+  - Updated combat-visibility deterministic tests and active rule mappings to the deferred regen-apply behavior.
+  - Hardened `isiLive_event_handlers.lua` so the pending-visibility getter is wired as an explicit optional dependency and the regen visibility path is exercised by the deterministic handler tests.
+  - Cleaned up `testmodul/isilive_test_scenarios_ui.lua` with explicit nil-guards / `rawget` access so LuaLS no longer reports false-positive `need-check-nil` / `undefined-field` diagnostics on the dynamic test fixtures.
+  - Updated deterministic validator counters to `267` scenarios across `29` modules.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RULES_LOGIC.md`, `TODO.md`, and `isiLive.toc` to `0.9.82`.
+
 ## 2026-03-13 - Version 0.9.81
 - **Packaging - Exclude PNG Assets From Curse Release:**
   - CurseForge packaging now excludes the UI screenshot PNG files `isiLive_H_ui.png`, `isiLive_M_ui.png`, and `isiLive_V_ui.png` in addition to the already ignored logo/screenshot assets.

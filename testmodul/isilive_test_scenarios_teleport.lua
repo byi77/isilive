@@ -248,16 +248,15 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
         "isiLive_teleport.lua",
       })
 
-      Assert.Equal(
-        addon.SeasonData.GetActiveSeasonID(),
-        "midnight_s1",
-        "pre-season runtime should default to midnight_s1"
+      Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s1", "runtime should default to midnight_s1")
+      Assert.True(
+        addon.SeasonData.HasActiveDungeons(),
+        "runtime should expose the active Midnight Season 1 portal pool"
       )
-      Assert.False(addon.SeasonData.HasActiveDungeons(), "pre-season runtime should expose empty active portal pool")
       Assert.Equal(
         #addon.SeasonData.GetOrderedMapIDs(),
-        0,
-        "pre-season runtime should keep active ordered map list empty"
+        8,
+        "runtime should keep all 8 Midnight Season 1 dungeons in the active ordered map list"
       )
 
       addon.SeasonData.SEASONS.test_season = {
@@ -354,14 +353,14 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
         end
       end
       Assert.True(hasPreparedMidnightSeason, "prepared midnight_s1 season scaffold should be registered")
-      Assert.Nil(
+      Assert.NotNil(
         next(addon.SeasonData.GetMapToTeleport("midnight_s1")),
-        "prepared midnight_s1 must stay inactive with empty mapping until IDs are filled"
+        "midnight_s1 should expose filled live mappings once portal IDs are available"
       )
       Assert.Equal(
         #addon.SeasonData.GetOrderedMapIDs("midnight_s1"),
-        0,
-        "prepared midnight_s1 should keep empty ordered-map list until mappings are provided"
+        8,
+        "midnight_s1 should keep all 8 active ordered-map entries once mappings are provided"
       )
     end)
   end)
@@ -1022,7 +1021,7 @@ local function RegisterTeleportEntryAndCombatTests(test, Assert, WithGlobals, Lo
   end)
 end
 
-local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModules)
+local function RegisterTeleportUIStrataAndTooltipTests(test, Assert, WithGlobals, LoadAddonModules)
   test("TeleportUI buttons follow main-frame strata instead of forcing HIGH", function()
     local createFrameStub = BuildTeleportUICreateFrameStub()
     local mainFrame = {
@@ -1190,7 +1189,9 @@ local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModul
       Assert.Equal(sharedTooltipCalls, 0, "TeleportUI should not touch the shared Blizzard GameTooltip")
     end)
   end)
+end
 
+local function RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, LoadAddonModules)
   test("TeleportUI shows pre-season message when active portal pool is empty", function()
     local createFrameStub = BuildTeleportUICreateFrameStub()
     local emptyState = {
@@ -1362,6 +1363,11 @@ local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModul
       Assert.Equal(#controller.GetButtons(), 0, "empty-state setup should still keep button list empty")
     end)
   end)
+end
+
+local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTeleportUIStrataAndTooltipTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 return function(test, ctx)

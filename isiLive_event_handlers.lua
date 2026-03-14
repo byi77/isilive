@@ -92,6 +92,9 @@ local function BuildContext(opts)
   ctx.getTime = OptionalFunction(opts.getTime, GetTime)
 
   ctx.getPendingBindingApply = RequireFunction(opts.getPendingBindingApply, "getPendingBindingApply")
+  ctx.getPendingMainFrameVisible = OptionalFunction(opts.getPendingMainFrameVisible, function()
+    return nil
+  end)
   ctx.getPendingMainFrameHeight = RequireFunction(opts.getPendingMainFrameHeight, "getPendingMainFrameHeight")
   ctx.setMainFrameHeightSafe = RequireFunction(opts.setMainFrameHeightSafe, "setMainFrameHeightSafe")
   ctx.tryRestoreCenterNoticeTeleportButton =

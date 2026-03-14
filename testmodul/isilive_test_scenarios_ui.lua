@@ -64,6 +64,17 @@ local function CreateAnimationGroupStub()
   return group
 end
 
+---@generic T
+---@param value T?
+---@param message string
+---@return T
+local function RequireValue(value, message)
+  if value == nil then
+    error(message, 2)
+  end
+  return value
+end
+
 local function ApplyFrameMethods(frame)
   frame.SetSize = function(self, width, height)
     self._width = tonumber(width) or self._width
@@ -196,7 +207,7 @@ local function BuildCreateFrameStub(opts)
 end
 
 local function RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("UI toggle allows closing frame during combat", function()
+  test("UI toggle defers closing frame during combat and applies after regen", function()
     local inCombat = false
     local shownInGroupCalls = 0
 
@@ -205,7 +216,8 @@ local function RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadA
       CreateFrame = BuildCreateFrameStub(),
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
-      local mainUI = addon.UI.CreateMainFrame({
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local mainUI = UI.CreateMainFrame({
         parent = UIParent,
         isInCombat = function()
           return inCombat
@@ -221,28 +233,27 @@ local function RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadA
       inCombat = true
       mainUI.ToggleVisibility(true)
 
-      Assert.False(mainUI.frame:IsShown(), "combat toggle must be able to close an open frame")
+      Assert.True(mainUI.frame:IsShown(), "combat toggle must not close frame immediately (taint protection)")
+      Assert.Equal(mainUI.GetPendingVisible(), false, "combat toggle should store pending hide")
       Assert.Equal(shownInGroupCalls, 0, "close path must not trigger show callbacks")
+
+      inCombat = false
+      mainUI.SetVisible(mainUI.GetPendingVisible())
+      Assert.False(mainUI.frame:IsShown(), "frame should close after combat ends and pending is applied")
     end)
   end)
 
-  test("UI toggle opens frame during combat without pending delay", function()
-    local inCombat = true
+  test("UI toggle defers opening frame during combat and applies after regen", function()
+    local inCombat = false
     local shownInGroupCalls = 0
-    local shownNoGroupCalls = 0
-    local createFrameStub, createdFrames = BuildCreateFrameStub({
-      simulateProtectedFrames = true,
-      isInCombat = function()
-        return inCombat
-      end,
-    })
 
     WithGlobals({
       UIParent = {},
-      CreateFrame = createFrameStub,
+      CreateFrame = BuildCreateFrameStub(),
     }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua", "isiLive_teleport_ui.lua" })
-      local mainUI = addon.UI.CreateMainFrame({
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local mainUI = UI.CreateMainFrame({
         parent = UIParent,
         isInCombat = function()
           return inCombat
@@ -250,67 +261,24 @@ local function RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadA
         onShownInGroup = function()
           shownInGroupCalls = shownInGroupCalls + 1
         end,
-        onShownNoGroup = function()
-          shownNoGroupCalls = shownNoGroupCalls + 1
-        end,
       })
-      local teleportController = addon.TeleportUI.CreateController({
-        mainFrame = mainUI.frame,
-        applySecureSpellToButton = function(_button, _spellID)
-          return true
-        end,
-        getEntries = function()
-          return {
-            { spellID = 445414, mapID = 2662, mapName = "The Dawnbreaker" },
-          }
-        end,
-        getL = function()
-          return {}
-        end,
-        isSpellKnown = function(_spellID)
-          return true
-        end,
-        getTeleportCooldownRemaining = function(_spellID)
-          return 0
-        end,
-        formatCooldownSeconds = function(sec)
-          return tostring(sec or 0)
-        end,
-        getSpellCooldownSafe = function(_spellID)
-          return 0, 0, true
-        end,
-        applyCooldownFrameSafe = function(_frame, _start, _duration, _enabled) end,
-        getSpellTexture = function(_spellID)
-          return nil
-        end,
-        isInCombat = function()
-          return inCombat
-        end,
-      })
-      teleportController.BuildButtons()
-
-      local hasSecureChildOnMainFrame = false
-      for _, frame in ipairs(createdFrames) do
-        if frame._parent == mainUI.frame and frame._template == "SecureActionButtonTemplate" then
-          hasSecureChildOnMainFrame = true
-          break
-        end
-      end
-      Assert.False(
-        hasSecureChildOnMainFrame,
-        "combat-toggleable main frame must not receive secure-action child buttons"
-      )
 
       Assert.False(mainUI.frame:IsShown(), "frame should start hidden")
+
+      inCombat = true
       mainUI.ToggleVisibility(true)
 
-      Assert.True(mainUI.frame:IsShown(), "combat toggle must open hidden frame immediately")
-      Assert.Equal(shownInGroupCalls, 1, "combat hotkey-open should trigger in-group callback")
-      Assert.Equal(shownNoGroupCalls, 0, "in-group combat open must not trigger no-group callback")
+      Assert.False(mainUI.frame:IsShown(), "combat toggle must not open frame immediately (taint protection)")
+      Assert.Equal(mainUI.GetPendingVisible(), true, "combat toggle should store pending show")
+      Assert.Equal(shownInGroupCalls, 0, "combat show must not trigger callbacks yet")
+
+      inCombat = false
+      mainUI.SetVisible(mainUI.GetPendingVisible())
+      Assert.True(mainUI.frame:IsShown(), "frame should open after combat ends and pending is applied")
     end)
   end)
 
-  test("UI direct SetVisible(true) in combat opens immediately without pending delay", function()
+  test("UI direct SetVisible defers during combat and applies after regen", function()
     local inCombat = true
 
     WithGlobals({
@@ -318,7 +286,8 @@ local function RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadA
       CreateFrame = BuildCreateFrameStub(),
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
-      local mainUI = addon.UI.CreateMainFrame({
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local mainUI = UI.CreateMainFrame({
         parent = UIParent,
         isInCombat = function()
           return inCombat
@@ -327,7 +296,36 @@ local function RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadA
 
       mainUI.SetVisible(true)
 
-      Assert.True(mainUI.frame:IsShown(), "direct SetVisible should open during combat")
+      Assert.False(mainUI.frame:IsShown(), "direct SetVisible must not open during combat (taint protection)")
+      Assert.Equal(mainUI.GetPendingVisible(), true, "combat SetVisible should store pending show")
+
+      inCombat = false
+      mainUI.SetVisible(mainUI.GetPendingVisible())
+      Assert.True(mainUI.frame:IsShown(), "frame should open after combat ends and pending is applied")
+    end)
+  end)
+
+  test("UI SetVisible outside combat has no pending state", function()
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = BuildCreateFrameStub(),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local mainUI = UI.CreateMainFrame({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      mainUI.SetVisible(true)
+      Assert.True(mainUI.frame:IsShown(), "SetVisible(true) outside combat should open immediately")
+      Assert.Nil(mainUI.GetPendingVisible(), "no pending state outside combat")
+
+      mainUI.SetVisible(false)
+      Assert.False(mainUI.frame:IsShown(), "SetVisible(false) outside combat should close immediately")
+      Assert.Nil(mainUI.GetPendingVisible(), "no pending state outside combat after close")
     end)
   end)
 end
@@ -342,7 +340,8 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
       IsiLiveDB = {},
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
-      local mainUI = addon.UI.CreateMainFrame({
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local mainUI = UI.CreateMainFrame({
         parent = UIParent,
         isInCombat = function()
           return inCombat
@@ -369,7 +368,8 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
       CreateFrame = BuildCreateFrameStub(),
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
-      local mainUI = addon.UI.CreateMainFrame({
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local mainUI = UI.CreateMainFrame({
         parent = UIParent,
         isInCombat = function()
           return false
@@ -401,7 +401,8 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
       end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local centerNotice = addon.Notice.CreateCenterNotice({
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local centerNotice = Notice.CreateCenterNotice({
         parent = UIParent,
         isInCombat = function()
           return false
@@ -432,7 +433,8 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
       end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local centerNotice = addon.Notice.CreateCenterNotice({
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local centerNotice = Notice.CreateCenterNotice({
         parent = UIParent,
         isInCombat = function()
           return inCombat
@@ -469,7 +471,8 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
       end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local centerNotice = addon.Notice.CreateCenterNotice({
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local centerNotice = Notice.CreateCenterNotice({
         parent = UIParent,
         isInCombat = function()
           return inCombat
@@ -493,7 +496,8 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
       end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local centerNotice = addon.Notice.CreateCenterNotice({
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local centerNotice = Notice.CreateCenterNotice({
         parent = UIParent,
         isInCombat = function()
           return false
@@ -548,7 +552,8 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
       },
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local centerNotice = addon.Notice.CreateCenterNotice({
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local centerNotice = Notice.CreateCenterNotice({
         parent = UIParent,
         isInCombat = function()
           return false
@@ -587,7 +592,12 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
       end
 
       Assert.NotNil(privateTooltip, "center notice should allocate a private tooltip frame")
-      Assert.Equal(privateTooltip._isiLiveTooltipAnchor, "ANCHOR_TOP", "center notice tooltip must stay top-anchored")
+      local privateTooltipFrame = RequireValue(privateTooltip, "center notice should allocate a private tooltip frame")
+      Assert.Equal(
+        rawget(privateTooltipFrame, "_isiLiveTooltipAnchor"),
+        "ANCHOR_TOP",
+        "center notice tooltip must stay top-anchored"
+      )
       Assert.Equal(sharedTooltipCalls, 0, "center notice tooltip should not use the shared Blizzard GameTooltip")
     end)
   end)
@@ -606,7 +616,8 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
       end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local centerNotice = addon.Notice.CreateCenterNotice({
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local centerNotice = Notice.CreateCenterNotice({
         parent = UIParent,
         isInCombat = function()
           return true
@@ -640,9 +651,9 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
 end
 
 return function(test, ctx)
-  local Assert = ctx.assert
-  local WithGlobals = ctx.with_globals
-  local LoadAddonModules = ctx.load_modules
+  local Assert = RequireValue(ctx.assert, "UI scenario ctx.assert should exist")
+  local WithGlobals = RequireValue(ctx.with_globals, "UI scenario ctx.with_globals should exist")
+  local LoadAddonModules = RequireValue(ctx.load_modules, "UI scenario ctx.load_modules should exist")
 
   RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterMainFrameInteractionTests(test, Assert, WithGlobals, LoadAddonModules)

@@ -22,7 +22,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ## Regeluebersicht
 
 1. Queue-Zielaufloesung darf ohne konkreten map/activity-Kontext niemals raten.
-2. Die UI muss per STRG-F9 in jedem Zustand (auch im Kampf) geoeffnet und geschlossen werden koennen.
+2. Die UI muss per STRG-F9 in jedem Zustand toggelbar bleiben; blockierte Show/Hide-Wechsel werden im Kampf gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
 3. Negative Queue-Folgeevents duerfen ein bereits gruppiertes Ziel nicht unerwartet loeschen.
 4. RIO-Delta darf erst nach erfolgreichem verzoegertem Post-Run-Refresh aktiviert werden.
 5. Teleport-Ziel darf ohne Activity-Kontext nicht per Name geraten werden.
@@ -30,7 +30,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 7. Queue-Capture darf pending/applied Rauschen nicht als neues Ziel behandeln und muss Doppler ignorieren.
 8. Highlight-Aufloesung darf nur mit eindeutigem activity/map-Kontext arbeiten und kein Gruppen-freies Fallback nutzen.
 9. QueueFlow muss waehrend aktiver Challenge Queue-Events ignorieren und doppelte Updates/Announces unterdruecken.
-10. Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; UI-Oeffnen muss trotzdem sofort moeglich bleiben.
+10. Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; blockierte Main-UI-Sichtbarkeitswechsel werden gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
 11. In Raid-Groesse bleibt die UI sichtbar, wechselt in den H-Modus; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
 12. Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
 13. Voll-Refresh laeuft nur in erlaubten Zustaenden und muss bei Stop oder aktivem M+ sauber aussetzen.
@@ -47,7 +47,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 24. coding: kein raten, schätzen oder herbeizaubern von aussagen. fakten zählen! robust und qualitativ hochwertig bleiben!
 25. der rio delta kann niemals negativ sein also zb. -15, der kann nur 0 oder höher sein.
 26. die ui kann jederzeit mit STRG+F9 geöffnet und geschlossen werden, auch infight
-27. das schliessen der ui ist jederzeit möglich, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9
+27. das schliessen der ui ist jederzeit anforderbar, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9; blockierte hide-wechsel werden bei `PLAYER_REGEN_ENABLED` nachgezogen
 28. während die ui ausgeblendet ist, laufen roster/addon-sync im hintergrund weiter und dürfen eventgetrieben vor-rendern; queue-scanning und dauerhafte polling-last stoppen jedoch.
 29. teleport-eintraege fuer shared spells bleiben deterministisch sortiert und doppelte grid-eintraege werden entfernt.
 30. falls ein anderer user entdeckt wird welcher auch "isiLive" benutzt, hängen wir hinter seinen Namen ein <3 (blaues herz) an
@@ -77,10 +77,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-HOTKEY-KAMPF-TOGGLE
 - Regelnummer: 2
 - Status: aktiv
-- Zusammenfassung: Die UI muss per STRG-F9 in jedem Zustand (auch im Kampf) geoeffnet und geschlossen werden koennen.
+- Zusammenfassung: Die UI muss per STRG-F9 in jedem Zustand toggelbar bleiben; wenn Kampf-Lockdown `Show` oder `Hide` blockiert, wird die angeforderte Sichtbarkeit bei `PLAYER_REGEN_ENABLED` deterministisch nachgezogen.
 - Erforderliche Tests:
-  - UI toggle allows closing frame during combat
-  - UI toggle opens frame during combat without pending delay
+  - UI toggle defers closing frame during combat and applies after regen
+  - UI toggle defers opening frame during combat and applies after regen
 
 ### RULE-QUEUE-NEGATIV-GRUPPE-STABIL
 - Regelnummer: 3
@@ -142,10 +142,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-TELEPORT-SECURE-COMBAT-DEFER
 - Regelnummer: 10
 - Status: aktiv
-- Zusammenfassung: Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; UI-Oeffnen muss trotzdem sofort moeglich bleiben.
+- Zusammenfassung: Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; direkte Main-UI-Sichtbarkeitswechsel werden bei Kampf-Lockdown gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
 - Erforderliche Tests:
   - Teleport secure button updates are deferred during combat and applied after regen
-  - UI direct SetVisible(true) in combat opens immediately without pending delay
+  - UI direct SetVisible defers during combat and applies after regen
 
 ### RULE-GRUPPE-RAID-SICHTBARKEIT
 - Regelnummer: 11
@@ -256,16 +256,16 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: veraltet
 - Zusammenfassung: Duplikat zu Regel 2; der STRG-F9-Kampf-Toggle wird dort verbindlich erzwungen.
 - Erforderliche Tests:
-  - UI toggle allows closing frame during combat
-  - UI toggle opens frame during combat without pending delay
+  - UI toggle defers closing frame during combat and applies after regen
+  - UI toggle defers opening frame during combat and applies after regen
 
 ### RULE-UI-SCHLIESSEN-X-ODER-HOTKEY
 - Regelnummer: 27
 - Status: aktiv
-- Zusammenfassung: das schliessen der ui ist jederzeit moeglich, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9
+- Zusammenfassung: das schliessen der ui ist jederzeit anforderbar, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9; falls Kampf-Lockdown das Ausblenden blockiert, wird es bei `PLAYER_REGEN_ENABLED` deterministisch nachgezogen.
 - Erforderliche Tests:
   - UI close button hides frame directly
-  - UI toggle allows closing frame during combat
+  - UI toggle defers closing frame during combat and applies after regen
 
 ### RULE-UI-HIDDEN-SPARFLAMME
 - Regelnummer: 28

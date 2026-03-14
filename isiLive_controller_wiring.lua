@@ -239,6 +239,9 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   config.getPendingMainFrameHeight = function()
     return refs.mainUI.GetPendingHeight()
   end
+  config.getPendingMainFrameVisible = function()
+    return refs.mainUI.GetPendingVisible()
+  end
   config.setMainFrameHeightSafe = RequireFunction(callbacks.setMainFrameHeightSafe, "callbacks.setMainFrameHeightSafe")
   config.tryRestoreCenterNoticeTeleportButton = function()
     local centerNoticeFrame = refs.centerNoticeFrame
