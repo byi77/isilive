@@ -1,7 +1,7 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.82`
-Last updated: `2026-03-14`
+Version baseline: `0.9.85`
+Last updated: `2026-03-16`
 
 ## Purpose
 
@@ -17,11 +17,11 @@ The architecture is event-driven and split into clear runtime layers:
 
 | Layer | Responsibility | Primary files |
 |---|---|---|
-| Entry and orchestration | Composition root, runtime state, wiring, controller lifecycle | `isiLive.lua`, `isiLive_runtime_state.lua`, `isiLive_bootstrap.lua`, `isiLive_runtime_setup.lua`, `isiLive_controller_wiring.lua` |
+| Entry and orchestration | Composition root, runtime state, wiring, controller lifecycle | `isiLive.lua`, `isiLive_runtime_state.lua`, `isiLive_bootstrap.lua`, `isiLive_runtime_setup.lua`, `isiLive_controller_wiring.lua`, `isiLive_factory.lua` |
 | Event gate and dispatch | Enforce stop/pause/hidden/test behavior and route lifecycle handlers | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_utils.lua` |
 | Domain logic | Queue parsing, group model, highlight resolution, key sync, refresh, inspect, bounded run stats | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua` |
-| UI composition | Main frame, roster panel, teleport grid, notices, status line | `isiLive_ui.lua`, `isiLive_roster_panel.lua`, `isiLive_teleport_ui.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
-| Shared helpers and data | Locale, units, season map/spell data, runtime logging, focused config builders, private tooltip/shared UI helpers | `isiLive_locale.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_ui_common.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua` |
+| UI composition | Main frame, roster panel, optional game-menu side panel, Blizzard settings canvas, teleport grid, notices, status line | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_roster_panel.lua`, `isiLive_teleport_ui.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
+| Shared helpers and data | Locale, localized texts, units, season map/spell data, runtime logging, focused config builders, private tooltip/shared UI helpers | `isiLive_locale.lua`, `isiLive_texts.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_ui_common.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua` |
 
 ## Runtime Flow
 
@@ -55,17 +55,19 @@ WoW Event
 6. For shared-portcast spells, prioritize exact activity map matching over spell-only suppression.
 7. Do not clear highlight state from ambiguous shared spell mappings when exact map context is unknown.
 8. Do not clear queue-derived target on negative application follow-up events while already grouped.
-9. Mirror Blizzard CVar state for `advancedCombatLogging` and `damageMeterResetOnNewInstance` in the main UI, write only on explicit user toggle clicks, and still trigger Blizzard damage-meter reset on challenge start when API support exists.
+9. Mirror Blizzard CVar state for `advancedCombatLogging` and `damageMeterResetOnNewInstance` in the main UI and Blizzard settings canvas, write only on explicit user toggle clicks, and still trigger Blizzard damage-meter reset on challenge start when API support exists.
 10. Capture per-player RIO baseline on challenge start and enable delta rendering only after delayed post-run refresh; delta is always shown as non-negative `(+X)` prefix.
-11. Completed-run DPS capture must tolerate delayed Blizzard damage-meter availability through short deterministic retries for both `M+` and tracked `M0` exits.
+11. Completed-run DPS capture must tolerate delayed Blizzard damage-meter availability through short deterministic retries for both `M+` and tracked non-challenge party exits (`Normal`/`Heroic`/`Mythic`).
 12. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
-13. Keep sync handshake resilient: HELLO recipients acknowledge and force-send own KEY/STATS snapshot so refresh-driven cache clears and manual reopen repopulate deterministically; manual `REQSYNC` refresh requests may trigger one hidden reply when locally allowed.
+13. Keep sync handshake resilient: HELLO recipients acknowledge with `ACK`, explicit local refresh force-sends the local `HELLO/KEY/STATS/DPS/LOC` snapshot, and manual `REQSYNC` refresh requests may trigger one hidden `KEY/STATS/DPS/LOC` reply when locally allowed.
 14. In hidden mode, suspend queue scanning and permanent polling; keep background roster/addon-message sync plus required auto-open transitions active, allow event-driven pre-render updates, and permit one forced refresh reply without un-hiding the frame.
 15. Keep UI action spam guards active for `Refresh` and `Share Keys` (debounce/rate-limit behavior).
 16. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
 17. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures where Blizzard tooltip APIs are still referenced.
 18. Shared `isiLive` tooltip frames own their own text layout and must not route UI hover rendering back through the shared Blizzard `GameTooltip`.
 19. Raid-size groups force the visible roster panel into H mode, hide roster rows, and suppress duplicate raid-transition notifications until the group leaves raid size again.
+20. The optional game-menu shortcut strip closes the menu before opening its target panel; `ReloadUI` is owned by a secure macro button (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`, while the other entries keep direct opener paths for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, and `Guild`.
+21. Temporarily hidden legacy settings controls stay absent from Blizzard Settings while runtime enforces their fixed defaults (`DPS` on, markers leader-only off, sound off, fixed name truncation, legacy 2-column `Travel` grid) until the controls are re-enabled.
 
 ## Architecture Contract Set
 
@@ -95,12 +97,12 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 267 scenarios across 29 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper logic.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 286 deterministic tests indexed and 288 scenarios across 30 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiKeyMPlus                                                                      V.0.9.82 [H][V][M][X]|
+| isiKeyMPlus                                                                      V.0.9.85 [H][V][M][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  Marker    Travel              |
 |---------------------------------------------------------------------------------------------------|
@@ -137,6 +139,8 @@ Horizontal Mini Mode:
 +-------------------------------------+
 ```
 
+In addition to the main roster frame, `isiLive_ui.lua` can attach an optional shortcut panel left of `GameMenuFrame`, and `isiLive_settings.lua` registers the Blizzard Settings canvas for localized config/state mirrors.
+
 ## Current Controller Boundaries
 
 | Controller | Input | Output |
@@ -145,17 +149,18 @@ Horizontal Mini Mode:
 | QueueFlow | LFG events and queue snapshots | Joined target metadata |
 | Group | Group roster events | Rebuilt roster model, ghost retention/pruning, and lifecycle transitions |
 | Highlight | Active listing and queue target | Active teleport spell and highlight state |
-| KeySync | Sync messages and owned key snapshot | Roster key map ownership and sync markers |
-| Refresh | User refresh action | Forced key/sync/inspect refresh pipeline |
+| KeySync | Sync messages and owned snapshot data | Roster key/stats/dps/location backfill, key ownership, and sync markers |
+| Refresh | User refresh action | Forced local snapshot, groupwide sync request, and inspect refresh pipeline |
 | EventHandlersRuntime | Addon/world/combat/inspect/sync events | Startup, hidden-mode sync, regen recovery for pending visibility/height, inspect dispatch |
 | EventHandlersQueue | LFG queue/listing events | Queue capture, target preservation, joined-key tracking |
 | EventHandlersChallenge | Challenge and ready-check events | Run lifecycle, delayed refresh, rio delta enable, ready-check state |
-| Stats | Challenge/M0 run completion signals plus Blizzard damage-meter session | Bounded last-run DPS snapshots with short delayed-session retry (persistent only for the matching local character, foreign players session-only) |
+| Stats | Challenge/non-challenge party run completion signals plus Blizzard damage-meter session | Bounded last-run DPS snapshots with short delayed-session retry (persistent only for the matching local character, foreign players session-only) |
 | RosterPanel | Roster model and localization | Main table rendering and action button callbacks |
-| TeleportUI | Season teleport entries and state | Insecure-action teleport button states, deterministic season-slot placement, and cooldown labels |
+| SettingsPanel | Locale/CVar/SavedVariable getters plus toggle callbacks | Blizzard Settings canvas, language selector, visible display/behavior/debug toggles, UI/background sliders, and temporary legacy-setting suppression |
+| TeleportUI | Season teleport entries and state | Insecure-action teleport button states, deterministic season-slot placement, legacy 2-column travel layout, and cooldown labels |
 
 ## Extension Points
 
 1. New season support should be added in `isiLive_season_data.lua` and consumed through `isiLive_teleport.lua`.
-2. New UI actions should be added through controller interfaces in `isiLive_roster_panel.lua` plus wiring in `isiLive_controller_wiring.lua` and `isiLive_runtime_setup.lua`.
+2. New UI actions and config surfaces should be added through `isiLive_roster_panel.lua`, `isiLive_ui.lua`, or `isiLive_settings.lua`, then wired through `isiLive_controller_wiring.lua` / `isiLive_factory.lua`.
 3. New event behavior should pass through gate logic first and then land in the appropriate lifecycle handler to keep runtime state consistent.

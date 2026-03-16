@@ -113,7 +113,16 @@ local function BuildTeleportUICreateFrameStub()
     end
 
     frame.SetSize = function(_self, _w, _h) end
-    frame.SetPoint = function(_self, _point, _x, _y) end
+    frame.SetPoint = function(self, point, ...)
+      local args = { ... }
+      self._point = {
+        point = point,
+        relativeTo = #args >= 4 and args[1] or nil,
+        relativePoint = #args >= 4 and args[2] or nil,
+        x = #args >= 4 and args[3] or args[1] or 0,
+        y = #args >= 4 and args[4] or args[2] or 0,
+      }
+    end
     frame.EnableMouse = function(_self, _enabled) end
     frame.RegisterForClicks = function(_self, _down, _up) end
     function frame:SetFrameStrata(value)
@@ -151,12 +160,25 @@ local function BuildTeleportUICreateFrameStub()
       self._shown = false
     end
     frame.CreateFontString = function()
-      return {
-        SetPoint = function() end,
-        SetText = function() end,
-        Hide = function() end,
-        Show = function() end,
+      local fontString = {
+        _text = nil,
       }
+      fontString.SetPoint = function() end
+      fontString.SetText = function(self, value)
+        self._text = value
+      end
+      fontString.Hide = function() end
+      fontString.Show = function() end
+      fontString.SetWidth = function() end
+      fontString.SetJustifyH = function() end
+      fontString.SetWordWrap = function() end
+      fontString.SetNonSpaceWrap = function() end
+      fontString.SetMaxLines = function() end
+      fontString.SetTextColor = function() end
+      fontString.GetStringHeight = function()
+        return 16
+      end
+      return fontString
     end
 
     table.insert(createdFrames, frame)
@@ -1098,6 +1120,9 @@ local function RegisterTeleportUIStrataAndTooltipTests(test, Assert, WithGlobals
 
     WithGlobals({
       CreateFrame = createFrameStub,
+      GetSpellInfo = function()
+        return "Pfad des drakonischen Diploms"
+      end,
       GameTooltip = {
         SetOwner = function()
           sharedTooltipCalls = sharedTooltipCalls + 1
@@ -1185,6 +1210,11 @@ local function RegisterTeleportUIStrataAndTooltipTests(test, Assert, WithGlobals
         privateTooltip._isiLiveTooltipAnchor,
         "ANCHOR_CURSOR",
         "private teleport tooltip must keep cursor anchor"
+      )
+      Assert.Equal(
+        privateTooltip._isiLiveTooltipLines[1] and privateTooltip._isiLiveTooltipLines[1]._text or nil,
+        "Test Dungeon",
+        "teleport tooltip should prefer the dungeon name over the raw spell name"
       )
       Assert.Equal(sharedTooltipCalls, 0, "TeleportUI should not touch the shared Blizzard GameTooltip")
     end)
@@ -1361,6 +1391,119 @@ local function RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, Load
 
       Assert.False(emptyState.shown, "empty state should hide when travel area is collapsed")
       Assert.Equal(#controller.GetButtons(), 0, "empty-state setup should still keep button list empty")
+    end)
+  end)
+
+  test("TeleportUI keeps the legacy two-column travel grid", function()
+    local createFrameStub = BuildTeleportUICreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      IsiLiveDB = {
+        teleportColumns = 4,
+      },
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
+        "isiLive_teleport_ui.lua",
+      })
+
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = {
+          GetFrameLevel = function()
+            return 10
+          end,
+          GetFrameStrata = function()
+            return "MEDIUM"
+          end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              SetTextColor = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetText = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+        },
+        applySecureSpellToButton = function()
+          return true
+        end,
+        getEntries = function()
+          return {
+            { spellID = 1, mapID = 1001, slotIndex = 1 },
+            { spellID = 2, mapID = 1002, slotIndex = 2 },
+            { spellID = 3, mapID = 1003, slotIndex = 3 },
+            { spellID = 4, mapID = 1004, slotIndex = 4 },
+          }
+        end,
+        getEmptyStateText = function()
+          return nil
+        end,
+        getL = function()
+          return {}
+        end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getSpellCooldownSafe = function()
+          return 0, 0, true
+        end,
+        applyCooldownFrameSafe = function() end,
+        getSpellTexture = function()
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      controller.BuildButtons()
+      local buttons = controller.GetButtons()
+
+      Assert.Equal(#buttons, 4, "travel grid should build one button per entry")
+      Assert.Equal(
+        buttons[1]._point and buttons[1]._point.x or nil,
+        -60,
+        "first column should keep the original left slot anchor"
+      )
+      Assert.Equal(
+        buttons[2]._point and buttons[2]._point.x or nil,
+        -28,
+        "second column should keep the original right slot anchor"
+      )
+      Assert.Equal(
+        buttons[3]._point and buttons[3]._point.x or nil,
+        -60,
+        "third button should wrap back to the left column on the second row"
+      )
+      Assert.Equal(
+        buttons[4]._point and buttons[4]._point.x or nil,
+        -28,
+        "fourth button should stay in the right column on the second row"
+      )
+      Assert.Equal(
+        buttons[1]._point and buttons[1]._point.y or nil,
+        -60,
+        "first travel row should stay under the header baseline"
+      )
+      Assert.Equal(buttons[2]._point and buttons[2]._point.y or nil, -60, "second button should stay on the first row")
+      Assert.Equal(
+        buttons[3]._point and buttons[3]._point.y or nil,
+        -92,
+        "third button should start the second row one slot below"
+      )
+      Assert.Equal(buttons[4]._point and buttons[4]._point.y or nil, -92, "fourth button should stay on the second row")
     end)
   end)
 end

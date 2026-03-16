@@ -54,7 +54,7 @@ local function BuildCenterNoticeConfig(opts)
 end
 
 local function CreateCenterNoticeFrame(config)
-  local frame = CreateFrame("Frame", "isiLiveCenterNotice", config.parent)
+  local frame = CreateFrame("Frame", "isiLiveCenterNotice", config.parent, "BackdropTemplate")
   frame:SetSize(680, config.minHeight)
   frame:SetPoint("CENTER", config.parent, "CENTER", 0, 0)
   frame:SetMovable(true)
@@ -68,9 +68,26 @@ local function CreateCenterNoticeFrame(config)
     self:StopMovingOrSizing()
   end)
 
-  local bg = frame:CreateTexture(nil, "BACKGROUND")
-  bg:SetAllPoints()
-  bg:SetColorTexture(0, 0, 0, 0.55)
+  if type(frame.SetBackdrop) == "function" then
+    frame:SetBackdrop({
+      bgFile = "Interface\\Buttons\\WHITE8X8",
+      edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+      tile = true,
+      tileSize = 16,
+      edgeSize = 8,
+      insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    if type(frame.SetBackdropColor) == "function" then
+      frame:SetBackdropColor(0.05, 0.05, 0.08, 0.75)
+    end
+    if type(frame.SetBackdropBorderColor) == "function" then
+      frame:SetBackdropBorderColor(1, 0.82, 0, 0.2)
+    end
+  else
+    local bg = frame:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0.05, 0.05, 0.08, 0.75)
+  end
   return frame
 end
 
@@ -124,6 +141,19 @@ local function CreateCenterNoticeTeleportButton(frame, config)
   button.cooldownText:SetPoint("CENTER", button, "CENTER", 0, 0)
   button.cooldownText:SetTextColor(1, 1, 1)
   button.cooldownText:Hide()
+
+  button.hoverGlow = button:CreateTexture(nil, "BACKGROUND")
+  if type(button.hoverGlow.SetPoint) == "function" then
+    button.hoverGlow:SetPoint("TOPLEFT", button, "TOPLEFT", -4, 4)
+    button.hoverGlow:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 4, -4)
+  end
+  if type(button.hoverGlow.SetColorTexture) == "function" then
+    button.hoverGlow:SetColorTexture(0.3, 0.65, 1, 0.2)
+  end
+  if type(button.hoverGlow.Hide) == "function" then
+    button.hoverGlow:Hide()
+  end
+
   return button
 end
 
@@ -322,6 +352,9 @@ end
 
 local function AttachCenterNoticeTeleportButtonScripts(state)
   state.teleportButton:SetScript("OnEnter", function(self)
+    if self.hoverGlow and type(self.hoverGlow.Show) == "function" then
+      self.hoverGlow:Show()
+    end
     local L = state.config.getL() or {}
     local tooltip = preparePrivateTooltip(state.tooltip, self, "ANCHOR_TOP")
     if type(tooltip) ~= "table" then
@@ -332,8 +365,11 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
       tooltip:SetText(L.BTN_TELEPORT, 1, 1, 1)
       tooltip:AddLine(L.TOOLTIP_TELEPORT_COMBAT, 1, 0.25, 0.25, true)
     elseif self.spellID and state.config.isSpellKnown(self.spellID) then
-      tooltip:SetSpellByID(self.spellID)
-      tooltip:AddLine(L.TOOLTIP_TELEPORT_CAST, 1, 1, 1, true)
+      if type(self.dungeonName) == "string" and self.dungeonName ~= "" then
+        tooltip:SetText(self.dungeonName, 1, 1, 1)
+      else
+        tooltip:SetSpellByID(self.spellID)
+      end
       local remaining = state.config.getTeleportCooldownRemaining(self.spellID)
       if remaining > 0 then
         tooltip:AddLine(
@@ -369,6 +405,9 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
   end)
 
   state.teleportButton:SetScript("OnLeave", function()
+    if state.teleportButton.hoverGlow and type(state.teleportButton.hoverGlow.Hide) == "function" then
+      state.teleportButton.hoverGlow:Hide()
+    end
     hidePrivateTooltip(state.tooltip)
   end)
 end
@@ -395,8 +434,8 @@ local function AttachCenterNoticeFrameScripts(state)
 
     if state.isBlinking and state.frame:IsShown() then
       state.blinkTime = state.blinkTime + (elapsed or 0)
-      local wave = (math.sin(state.blinkTime * 8) + 1) * 0.5
-      local alpha = 0.55 + (wave * 0.45)
+      local wave = (math.sin(state.blinkTime * 3) + 1) * 0.5
+      local alpha = 0.65 + (wave * 0.35)
       state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, alpha)
     elseif state.frame:IsShown() then
       state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, 1)
@@ -479,14 +518,31 @@ function Notice.CreateInviteHint(opts)
   local parent = opts.parent or UIParent
   local mainFrameGlobalName = opts.mainFrameGlobalName or "isiLiveMainFrame"
 
-  local frame = CreateFrame("Frame", "isiLiveInviteHintFrame", parent)
+  local frame = CreateFrame("Frame", "isiLiveInviteHintFrame", parent, "BackdropTemplate")
   frame:SetSize(420, 46)
   frame:Hide()
   frame:SetFrameStrata("DIALOG")
 
-  local bg = frame:CreateTexture(nil, "BACKGROUND")
-  bg:SetAllPoints()
-  bg:SetColorTexture(0, 0, 0, 0.65)
+  if type(frame.SetBackdrop) == "function" then
+    frame:SetBackdrop({
+      bgFile = "Interface\\Buttons\\WHITE8X8",
+      edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+      tile = true,
+      tileSize = 16,
+      edgeSize = 8,
+      insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    if type(frame.SetBackdropColor) == "function" then
+      frame:SetBackdropColor(0.05, 0.05, 0.08, 0.75)
+    end
+    if type(frame.SetBackdropBorderColor) == "function" then
+      frame:SetBackdropBorderColor(1, 0.82, 0, 0.2)
+    end
+  else
+    local bg = frame:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0.05, 0.05, 0.08, 0.75)
+  end
 
   local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   text:SetPoint("CENTER", 0, 0)

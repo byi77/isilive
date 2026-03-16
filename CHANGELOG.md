@@ -1,5 +1,57 @@
 # Changelog
 
+## 2026-03-16 - Version 0.9.85
+- **Settings - Expanded Blizzard Settings + Hidden Legacy Defaults:**
+  - Extended `Settings -> AddOns -> isiKeyMPlus` with `UI Scale`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, and `Auto-Hide when Solo`.
+  - Temporarily hid `Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`, and `Sound Notifications` from Blizzard Settings without removing their code paths.
+  - While these controls stay hidden, runtime now keeps deterministic live defaults: fixed 12-char name truncation, legacy 2-column `Travel` grid, `DPS` column on, `Markers: Leader Only` off, and `Sound Notifications` off.
+- **Runtime - Non-Challenge DPS Capture:**
+  - Last-run DPS capture on instance exit now covers tracked normal and heroic party dungeons in addition to tracked non-challenge mythic exits and `M+` completions.
+  - Non-challenge exit capture still uses the roster frozen on dungeon entry and retries briefly if the Blizzard damage-meter session is not finalized yet.
+- **UI - Travel Grid Layout Restore:**
+  - Restored the `Travel` grid to the legacy two-column layout and kept the button block aligned under the `Travel` header again.
+- **Validation + Docs Sync:**
+  - `lua tools/validate_usecases.lua` now validates `286` deterministic tests indexed and `288` scenarios across `30` modules.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.85`.
+
+## 2026-03-15 - Version 0.9.84
+- **UI - Sync Heart Marker:**
+  - Replaced the text-based `<3` addon-presence marker with a custom dark-blue 16x16 TGA heart icon (`media/heart_sync.tga`) rendered as inline texture behind synced member names.
+- **UI - Background Opacity Slider:**
+  - Added a `Background Opacity` slider to the Blizzard Settings canvas (`Settings -> AddOns -> isiKeyMPlus`) with a configurable range from 30% to 100% (default 50%, step 5%).
+  - Changing the slider live-updates the main frame, ESC panel, and settings canvas backdrop alpha; the value persists in `IsiLiveDB.bgAlpha`.
+- **UI - Teleport Tooltip Dungeon Name:**
+  - Center-notice teleport button tooltip now shows the dungeon name instead of the spell name, so users can identify which dungeon the teleport leads to.
+- **UI - Flat Management Buttons:**
+  - Replaced standard Blizzard `UIPanelButtonTemplate` management buttons (`Readycheck`, `Countdown10`, `Countdown 0`, `Share Keys`, `Refresh`) with flat dark `BackdropTemplate` buttons matching the ESC panel style, including blue hover accent borders.
+- **UI - Compact Spec Labels:**
+  - Tightened long spec shortcodes to a max visible width of 4 characters (for example `Rest`, `Retr`, `Boom`, `Shad`) so the roster keeps its compact column fit.
+- **UI - Combat-Safe Close Button:**
+  - The main frame X (close) button now always hides the frame immediately, even during combat lockdown. Toggle via `CTRL+F9` remains combat-deferred for taint safety.
+- **Sync - DPS and Location Sharing:**
+  - Added `DPS:<value>` sync message: isiLive users now share their last-run DPS with group members. The DPS column falls back to synced DPS when local data is unavailable.
+  - Added `LOC:<mapID>` sync message: isiLive users now share their current dungeon location. The roster portal icon uses synced location as fallback when local unit map info is unavailable.
+  - Both messages are included in local snapshot sends, `REQSYNC` responses, zone/context refreshes, and self-update snapshot pushes.
+  - Foreign DPS and LOC data is session-only and cleared on group leave.
+- **Validation + Docs Sync:**
+  - `lua tools/validate_usecases.lua` now validates `280` deterministic tests indexed and `282` scenarios across `29` modules.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, and `CHANGELOG.md` to `0.9.84`.
+
+## 2026-03-15 - Version 0.9.83
+- **UI - Esc Menu + Settings Integration:**
+  - Added a Blizzard `Settings -> AddOns -> isiKeyMPlus` category with localized controls for language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Queue Debug Log`, and `Runtime Log`.
+  - Wired the new settings canvas into the shared localization refresh path so locale changes immediately refresh both the Blizzard settings canvas and the optional `Esc`-menu shortcut strip.
+  - The optional `Esc` shortcut strip now documents the actual 10 wired targets: `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button.
+  - The `ReloadUI` shortcut now runs through a secure macro (`/click GameMenuButtonContinue` + `/reload`) and mirrors `ActionButtonUseKeyDown` instead of dispatching an addon-side Lua reload call.
+- **UI - Visual Refresh:**
+  - Added a shared dark/gold/blue UI palette in `isiLive_ui_common.lua` and applied it across private tooltips, center notice, invite hint, roster hover treatment, and panel chrome.
+  - Roster rows now use alternating background shading, split gradient header separators, and a softer blue hover highlight; the roster title also gets a stronger shadow treatment.
+  - Center-notice teleport hover gains a subtle glow and the blinking text pulse was slowed down for readability.
+- **Validation + Docs Sync:**
+  - Added the new `isiLive_settings.lua` module to the `.toc` load order and bumped the addon/docs baseline to `0.9.83`.
+  - `lua tools/validate_usecases.lua` now validates `275` deterministic tests indexed and `277` scenarios across `29` modules.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, and `isiLive.toc` to `0.9.83`.
+
 ## 2026-03-14 - Version 0.9.82
 - **UI - Combat Visibility Deferral:**
   - Main-frame show/hide requests are now deferred during combat lockdown and deterministically replayed on `PLAYER_REGEN_ENABLED`.

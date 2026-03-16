@@ -78,6 +78,7 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     enqueueInspect = RequireFunction(deps.enqueueInspect, "enqueueInspect"),
     sendOwnKeySnapshot = RequireFunction(deps.sendOwnKeySnapshot, "sendOwnKeySnapshot"),
     sendIsiLiveHello = RequireFunction(deps.sendIsiLiveHello, "sendIsiLiveHello"),
+    autoHideSolo = deps.autoHideSolo or function() end,
   })
 end
 
@@ -127,6 +128,7 @@ local function BuildGroupControllerDepsFromContext(ctx)
     enqueueInspect = ctx.enqueueInspect,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
     sendIsiLiveHello = ctx.sendIsiLiveHello,
+    autoHideSolo = ctx.autoHideSolo,
   }
 end
 

@@ -291,12 +291,15 @@ local function RegisterNativeWorldMarkerButtonTests(test, Assert, WithGlobals, L
     )
     local readyCheckButton = nil
     for _, frame in ipairs(createdFrames) do
-      if frame._template == "UIPanelButtonTemplate" and frame.pointY == -60 then
+      if
+        (frame._template == "UIPanelButtonTemplate" or frame._template == "BackdropTemplate") and frame.pointY == -60
+      then
         readyCheckButton = frame
         break
       end
     end
     Assert.NotNil(readyCheckButton, "Readycheck button should exist")
+    ---@diagnostic disable-next-line: need-check-nil, undefined-field
     Assert.Equal(readyCheckButton.pointX, -145, "M+Managment buttons should align with the expanded management column")
     Assert.Equal(tankHelperButtons[1]:GetAttribute("marker1"), 1, "Blue Square uses world marker 1")
     Assert.Equal(tankHelperButtons[1]:GetAttribute("action1"), "set", "left click must place marker")
@@ -411,6 +414,7 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     local versionFontString = FindFontStringByPoint(createdFontStrings, "BOTTOMRIGHT", -10, 6)
     Assert.NotNil(titleFontString, "Title font string should exist")
     Assert.NotNil(versionFontString, "Version font string should exist")
+    ---@diagnostic disable: need-check-nil, undefined-field
     Assert.Equal(
       collapseButton._collapseButtonLabel,
       "V",
@@ -439,7 +443,9 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     local buttonX = tankButton.pointX -- Negative value relative to TOPRIGHT
     local readyCheckButton = nil
     for _, frame in ipairs(createdFrames) do
-      if frame._template == "UIPanelButtonTemplate" and frame.pointY == -60 then
+      if
+        (frame._template == "UIPanelButtonTemplate" or frame._template == "BackdropTemplate") and frame.pointY == -60
+      then
         readyCheckButton = frame
         break
       end
@@ -463,6 +469,7 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
       "H",
       "H mode button keeps static H label while vertical mini mode is active"
     )
+    ---@diagnostic enable: need-check-nil, undefined-field
   end)
 end
 
@@ -560,6 +567,7 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     Assert.NotNil(collapseButton, "Vertical collapse button should exist")
     Assert.NotNil(horizontalButton, "Horizontal collapse button should exist")
     Assert.NotNil(expandedButton, "Expanded mode button should exist")
+    ---@diagnostic disable: need-check-nil
     Assert.Equal(horizontalButton._collapseButtonLabel, "H", "H mode button has static H label in expanded mode")
 
     local helperButtons = {}
@@ -567,7 +575,9 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     for _, frame in ipairs(createdFrames) do
       if frame._template == "SecureActionButtonTemplate" and frame:GetAttribute("type1") == "worldmarker" then
         table.insert(helperButtons, frame)
-      elseif frame._template == "UIPanelButtonTemplate" then
+      elseif
+        (frame._template == "UIPanelButtonTemplate" or frame._template == "BackdropTemplate") and frame._verticalY
+      then
         table.insert(managementButtons, frame)
       end
     end
@@ -621,6 +631,7 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
       "H",
       "H mode button keeps static H label after leaving horizontal mode"
     )
+    ---@diagnostic enable: need-check-nil
   end)
 end
 

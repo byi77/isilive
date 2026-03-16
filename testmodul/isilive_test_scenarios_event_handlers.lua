@@ -286,7 +286,7 @@ local function RegisterCombatStartupCVarAndWorldEntryTests(test, Assert, WithGlo
   end)
 end
 
-local function RegisterCombatStartupM0TrackingTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   test("Event handlers record M0 run when leaving tracked mythic non-challenge dungeon", function()
     local current = {
       instanceType = "party",
@@ -351,17 +351,21 @@ local function RegisterCombatStartupM0TrackingTests(test, Assert, WithGlobals, L
     )
   end)
 
-  test("Event handlers do not record run when leaving non-mythic dungeon", function()
+  test("Event handlers record run when leaving non-challenge normal dungeon", function()
     local current = {
       instanceType = "party",
-      difficultyID = 2,
+      difficultyID = 1,
       mapID = 2649,
     }
     local recordedRuns = {}
+    local roster = {
+      player = { name = "Me", realm = "MyRealm" },
+      party1 = { name = "Buddy", realm = "Realm" },
+    }
 
     WithGlobals({
       GetInstanceInfo = function()
-        return "Priory of the Sacred Flame", current.instanceType, current.difficultyID, "Heroic"
+        return "Priory of the Sacred Flame", current.instanceType, current.difficultyID, "Normal"
       end,
       C_Map = {
         GetBestMapForUnit = function(unit)
@@ -374,6 +378,9 @@ local function RegisterCombatStartupM0TrackingTests(test, Assert, WithGlobals, L
     }, function()
       local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
       local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        getRoster = function()
+          return roster
+        end,
         recordRun = function(mapID, level, onTime)
           table.insert(recordedRuns, {
             mapID = mapID,
@@ -388,13 +395,19 @@ local function RegisterCombatStartupM0TrackingTests(test, Assert, WithGlobals, L
       current.instanceType = "none"
       current.difficultyID = 0
       current.mapID = nil
+      roster = {}
 
       controller:Dispatch("PLAYER_ENTERING_WORLD")
     end)
 
-    Assert.Equal(#recordedRuns, 0, "non-mythic dungeon exits must not record an M0 run snapshot")
+    Assert.Equal(#recordedRuns, 1, "normal dungeon exits should record one non-challenge run snapshot")
+    Assert.Equal(recordedRuns[1].mapID, 2649, "normal dungeon exit should keep the recorded dungeon map id")
+    Assert.Equal(recordedRuns[1].level, 0, "normal dungeon snapshots should keep non-key level 0")
+    Assert.Nil(recordedRuns[1].onTime, "normal dungeon snapshots have no timed-run flag")
   end)
+end
 
+local function RegisterCombatStartupM0EdgeCaseTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   test("Event handlers do not record M0 run on tracked mythic subzone map changes", function()
     local current = {
       instanceType = "party",
@@ -602,7 +615,34 @@ local function RegisterCombatStartupM0TrackingTests(test, Assert, WithGlobals, L
   end)
 end
 
+local function RegisterCombatStartupM0TrackingTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  RegisterCombatStartupM0EdgeCaseTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+end
+
 local function RegisterCombatStartupStateRestoreTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  test("Event handlers force hidden setting defaults on ADDON_LOADED", function()
+    local db = {
+      locale = "enUS",
+      showDpsColumn = false,
+      markersLeaderOnly = false,
+      soundEnabled = true,
+      position = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 },
+    }
+
+    WithGlobals({
+      IsiLiveDB = db,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {})
+      controller:Dispatch("ADDON_LOADED", "isiLive")
+    end)
+
+    Assert.True(db.showDpsColumn == true, "ADDON_LOADED must force the hidden DPS-column setting on")
+    Assert.False(db.markersLeaderOnly == true, "ADDON_LOADED must force the hidden marker setting off")
+    Assert.False(db.soundEnabled == true, "ADDON_LOADED must force the hidden sound setting off")
+  end)
+
   test("Event handlers restore runtime log storage and enabled flag on ADDON_LOADED", function()
     local ensureRuntimeLogStorageCalls = 0
     local setRuntimeLogEnabledValue = nil
@@ -715,7 +755,7 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
   RegisterCombatStartupStateRestoreTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
 end
 
-local function RegisterChallengeStartAndDelayTests(test, Assert, LoadAddonModules, Fixtures)
+local function RegisterChallengeStartAndDelayTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   test("Event handlers capture RIO baseline snapshot on challenge start", function()
     local captureCalls = 0
 
@@ -747,6 +787,31 @@ local function RegisterChallengeStartAndDelayTests(test, Assert, LoadAddonModule
 
     Assert.Equal(hideCalls, 1, "challenge start must call main-frame visibility update exactly once")
     Assert.Equal(lastVisible, false, "challenge start must auto-hide main frame")
+  end)
+
+  test("Event handlers keep hidden sound notifications hard-disabled even when DB enables them", function()
+    local playSoundCalls = 0
+
+    WithGlobals({
+      IsiLiveDB = {
+        soundEnabled = true,
+      },
+      PlaySound = function(_soundID)
+        playSoundCalls = playSoundCalls + 1
+      end,
+      SOUNDKIT = {
+        READY_CHECK = 8960,
+        UI_CHALLENGES_NEW_RECORD = 63127,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {})
+      controller:Dispatch("READY_CHECK")
+      controller:Dispatch("CHALLENGE_MODE_START")
+      controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    end)
+
+    Assert.Equal(playSoundCalls, 0, "hidden sound setting must keep all event sounds disabled")
   end)
 
   test("Event handlers auto-show main frame on challenge completion while grouped", function()
@@ -1176,7 +1241,7 @@ return function(test, ctx)
   RegisterTargetActiveEntryTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
-  RegisterChallengeStartAndDelayTests(test, Assert, LoadAddonModules, Fixtures)
+  RegisterChallengeStartAndDelayTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)

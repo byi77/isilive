@@ -308,9 +308,11 @@ local function RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonMod
 
       controller.SendOwnKeySnapshot(true)
 
-      Assert.Equal(#sentMessages, 2, "key snapshot should publish both KEY and STATS payloads")
+      Assert.Equal(#sentMessages, 4, "key snapshot should publish KEY, STATS, DPS, and LOC payloads")
       Assert.Equal(sentMessages[1].message, "KEY:2649:15", "first payload must be KEY snapshot")
       Assert.Equal(sentMessages[2].message, "STATS:72:615:3210", "second payload must be STATS snapshot")
+      Assert.Equal(sentMessages[3].message, "DPS:0", "third payload must be DPS snapshot")
+      Assert.Equal(sentMessages[4].message, "LOC:0", "fourth payload must be LOC snapshot")
 
       addon.Sync.SetPlayerKeyInfo("Peer", "Realm", 2649, 15)
       addon.Sync.SetPlayerStatsInfo("Peer", "Realm", 72, 615, 3210)
@@ -404,9 +406,11 @@ local function RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonMod
       local sent = controller.SendRefreshResponse()
 
       Assert.True(sent, "hidden refresh response should be allowed outside blocked runtime states")
-      Assert.Equal(#sentMessages, 2, "refresh response should publish KEY and STATS")
+      Assert.Equal(#sentMessages, 4, "refresh response should publish KEY, STATS, DPS, and LOC")
       Assert.Equal(sentMessages[1].message, "KEY:2649:15", "refresh response must publish current key payload first")
       Assert.Equal(sentMessages[2].message, "STATS:72:615:3210", "refresh response must publish current stats payload")
+      Assert.Equal(sentMessages[3].message, "DPS:0", "refresh response must publish DPS payload")
+      Assert.Equal(sentMessages[4].message, "LOC:0", "refresh response must publish LOC payload")
     end)
   end)
 
@@ -560,6 +564,147 @@ local function RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonM
   end)
 end
 
+local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Sync ProcessAddonMessage parses DPS payload and stores it", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local result = addon.Sync.ProcessAddonMessage("ISILIVE", "DPS:321100", "Peer-Realm", "Me", "Realm")
+      Assert.NotNil(result, "DPS message must return result")
+      Assert.True(result.dpsUpdated, "first DPS must report update")
+
+      local dpsInfo = addon.Sync.GetPlayerDpsInfo("Peer", "Realm")
+      Assert.NotNil(dpsInfo, "DPS info must be stored")
+      Assert.Equal(dpsInfo.dps, 321100, "stored DPS must match payload")
+
+      local dupResult = addon.Sync.ProcessAddonMessage("ISILIVE", "DPS:321100", "Peer-Realm", "Me", "Realm")
+      Assert.False(dupResult.dpsUpdated, "duplicate DPS must not report update")
+    end)
+  end)
+
+  test("Sync ProcessAddonMessage parses LOC payload and stores it", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local result = addon.Sync.ProcessAddonMessage("ISILIVE", "LOC:2649", "Peer-Realm", "Me", "Realm")
+      Assert.NotNil(result, "LOC message must return result")
+      Assert.True(result.locUpdated, "first LOC must report update")
+
+      local locInfo = addon.Sync.GetPlayerLocInfo("Peer", "Realm")
+      Assert.NotNil(locInfo, "LOC info must be stored")
+      Assert.Equal(locInfo.mapID, 2649, "stored mapID must match payload")
+
+      local dupResult = addon.Sync.ProcessAddonMessage("ISILIVE", "LOC:2649", "Peer-Realm", "Me", "Realm")
+      Assert.False(dupResult.locUpdated, "duplicate LOC must not report update")
+    end)
+  end)
+
+  test("KeySync ApplyKnownKeyToRosterEntry backfills syncDps and syncLocMapID", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_keysync.lua" })
+      local controller = addon.KeySync.CreateController({
+        sync = addon.Sync,
+        getUnitNameAndRealm = function(_unit)
+          return "Me", "Realm"
+        end,
+        getAddonVersionRaw = function()
+          return "1.0"
+        end,
+        isFrameVisible = function()
+          return true
+        end,
+      })
+
+      addon.Sync.SetPlayerDpsInfo("Peer", "Realm", 250000)
+      addon.Sync.SetPlayerLocInfo("Peer", "Realm", 2649)
+
+      local info = {
+        name = "Peer",
+        realm = "Realm",
+      }
+
+      local changed = controller.ApplyKnownKeyToRosterEntry(info)
+      Assert.True(changed, "DPS/LOC backfill should mark entry as changed")
+      Assert.Equal(info.syncDps, 250000, "syncDps should be backfilled from sync data")
+      Assert.Equal(info.syncLocMapID, 2649, "syncLocMapID should be backfilled from sync data")
+
+      local unchanged = controller.ApplyKnownKeyToRosterEntry(info)
+      Assert.False(unchanged, "repeat apply with same data should not mark as changed")
+    end)
+  end)
+
+  test("Sync ClearKnownUsers also clears DPS and LOC caches", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      addon.Sync.SetPlayerDpsInfo("Peer", "Realm", 100000)
+      addon.Sync.SetPlayerLocInfo("Peer", "Realm", 2649)
+      Assert.NotNil(addon.Sync.GetPlayerDpsInfo("Peer", "Realm"), "DPS info should exist before clear")
+      Assert.NotNil(addon.Sync.GetPlayerLocInfo("Peer", "Realm"), "LOC info should exist before clear")
+
+      addon.Sync.ClearKnownUsers()
+      Assert.Nil(addon.Sync.GetPlayerDpsInfo("Peer", "Realm"), "DPS info should be cleared")
+      Assert.Nil(addon.Sync.GetPlayerLocInfo("Peer", "Realm"), "LOC info should be cleared")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -570,4 +715,5 @@ return function(test, ctx)
   RegisterStatsSyncTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModules)
 end

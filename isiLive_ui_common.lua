@@ -5,6 +5,28 @@ addonTable = addonTable or {}
 local UICommon = {}
 addonTable.UICommon = UICommon
 
+UICommon.DEFAULT_BG_ALPHA = 0.50
+
+UICommon.Colors = {
+  BG_PRIMARY = { 0.08, 0.08, 0.12, UICommon.DEFAULT_BG_ALPHA },
+  BG_SECONDARY = { 0.12, 0.12, 0.18, 0.7 },
+  BORDER_DEFAULT = { 0.25, 0.25, 0.35, 0.5 },
+  ACCENT_GOLD = { 1, 0.82, 0 },
+  ACCENT_BLUE = { 0.3, 0.65, 1 },
+  TEXT_NORMAL = { 0.85, 0.85, 0.9 },
+  TEXT_DIM = { 0.5, 0.5, 0.6 },
+  HOVER_HIGHLIGHT = { 1, 1, 1, 0.10 },
+  ROW_ALT = { 1, 1, 1, 0.03 },
+}
+
+function UICommon.GetBackgroundAlpha()
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) == "table" and type(db.bgAlpha) == "number" then
+    return db.bgAlpha
+  end
+  return UICommon.DEFAULT_BG_ALPHA
+end
+
 local TOOLTIP_HORIZONTAL_PADDING = 10
 local TOOLTIP_VERTICAL_PADDING = 10
 local TOOLTIP_LINE_SPACING = 3
@@ -342,6 +364,10 @@ function UICommon.CreatePrivateTooltip(parent)
     })
     if type(tooltip.SetBackdropColor) == "function" then
       tooltip:SetBackdropColor(0, 0, 0, 0.92)
+    end
+    if type(tooltip.SetBackdropBorderColor) == "function" then
+      local bc = UICommon.Colors.BORDER_DEFAULT
+      tooltip:SetBackdropBorderColor(bc[1], bc[2], bc[3], bc[4])
     end
   elseif type(tooltip.CreateTexture) == "function" then
     tooltip._isiLiveTooltipBackground = tooltip._isiLiveTooltipBackground or tooltip:CreateTexture(nil, "BACKGROUND")

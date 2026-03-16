@@ -5,7 +5,10 @@ addonTable = addonTable or {}
 local RuntimeLifecycle = {}
 addonTable.EventHandlersRuntimeLifecycle = RuntimeLifecycle
 
-local NON_CHALLENGE_MYTHIC_DIFFICULTY_IDS = {
+local TRACKED_NON_CHALLENGE_PARTY_DIFFICULTY_IDS = {
+  [1] = true,
+  [2] = true,
+  [174] = true,
   [8] = true,
   [23] = true,
   [24] = true,
@@ -48,7 +51,9 @@ local function GetTrackedMythicZeroState(ctx)
   end
 
   local okInstance, _, instanceType, difficultyID = pcall(GetInstanceInfo)
-  if not okInstance or instanceType ~= "party" or not NON_CHALLENGE_MYTHIC_DIFFICULTY_IDS[difficultyID] then
+  -- Legacy helper name: this now tracks all supported non-challenge party dungeons
+  -- so last-run DPS also appears after normal and heroic completions.
+  if not okInstance or instanceType ~= "party" or not TRACKED_NON_CHALLENGE_PARTY_DIFFICULTY_IDS[difficultyID] then
     return false, nil
   end
 
@@ -238,6 +243,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     IsiLiveDB.position = IsiLiveDB.position or { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
     IsiLiveDB.locale = ctx.resolveLocaleTag(IsiLiveDB.locale or ctx.defaultLocale)
     ctx.setLocaleTable(ctx.locales[IsiLiveDB.locale] or ctx.locales.enUS)
+    -- These settings are temporarily hidden from Blizzard Settings.
+    -- Keep SavedVariables aligned with the hard runtime defaults until the controls return.
+    IsiLiveDB.showDpsColumn = true
+    IsiLiveDB.markersLeaderOnly = false
+    IsiLiveDB.soundEnabled = false
     if IsiLiveDB.queueDebug == nil then
       IsiLiveDB.queueDebug = false
     end
@@ -312,6 +322,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.updateStatusLine()
     ctx.maybeShowNonMythicDungeonEntryNotice()
     ctx.checkIfEnteredTargetDungeon()
+    ctx.sendOwnKeySnapshot(false)
   end
 
   local function HandleOwnedKeyContextEvent(_self)

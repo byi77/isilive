@@ -1,7 +1,7 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.82`
-Last updated: `2026-03-14`
+Version baseline: `0.9.85`
+Last updated: `2026-03-16`
 
 ## Actors
 
@@ -14,6 +14,7 @@ Last updated: `2026-03-14`
 1. Addon is loaded and not in `stopped` state.
 2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `midnight_s1` with the live 8-dungeon Midnight Season 1 portal pool).
 3. Relevant UI is visible for queue scanning and rendering; while hidden, addon-message sync and roster updates may still run in the background, UI can be auto-opened by fresh group join, key-end, or real dungeon-entry transition logic, and explicit refresh requests may still trigger one gated hidden sync reply.
+4. The optional `Esc` shortcut strip is enabled unless the user explicitly disables it in addon settings.
 
 ## Use Case Matrix
 
@@ -31,6 +32,7 @@ Last updated: `2026-03-14`
 | UC-10 | Raid H-mode transition | Raid-size groups keep the addon visible in H mode while roster rows stay hidden |
 | UC-11 | M+Marker World Markers | Vertical bar of 8 secure world-marker buttons for immediate place/clear |
 | UC-12 | Roster Panel Mini Mode | Collapse toggle hides roster list and `Travel`, while keeping compact Marker and management tools visible |
+| UC-13 | Esc shortcuts and addon settings | Player gets a second Blizzard-UI entry surface plus localized config toggles |
 
 ## UC-01 Invite Detection And Target Resolution
 
@@ -93,7 +95,7 @@ Goal: allow user to post current party keys quickly.
 
 1. Trigger: user clicks `Share Keys` button in right control stack.
 2. Processing: addon builds ordered roster key summary from known keys.
-3. Sync relation: on refresh handshakes, HELLO recipients send ACK and a forced own KEY/STATS snapshot so peer key and peer stats caches are repopulated.
+3. Sync relation: explicit local refresh force-sends the local `HELLO` + `KEY/STATS/DPS/LOC` snapshot and broadcasts `REQSYNC`; hidden peers may answer that request once with forced `KEY/STATS/DPS/LOC` while locally allowed.
 4. Output: one message per key owner is sent to `PARTY`, with local print fallback on send failure.
 5. Rule: `Share Keys` button clicks are debounced to suppress rapid duplicate chat output.
 6. Success criteria: each available member key appears as its own deterministic chat line (`isiKeyMPlus PartyKeys: Name -> Key`), with owned-keystone hyperlink payload for the local player when available.
@@ -116,10 +118,10 @@ Goal: show pre/post-run rating change per player in roster without negative disp
 
 Goal: expose the latest completed dungeon DPS per player from Blizzard damage meter without guessing or layout churn, while keeping persistent storage bounded.
 
-1. Trigger: `CHALLENGE_MODE_COMPLETED` / `CHALLENGE_MODE_RESET` records a completed `M+` run, and leaving a tracked mythic non-challenge party dungeon records an `M0` run snapshot.
+1. Trigger: `CHALLENGE_MODE_COMPLETED` / `CHALLENGE_MODE_RESET` records a completed `M+` run, and leaving a tracked non-challenge party dungeon (`Normal`/`Heroic`/`Mythic`) records a non-key run snapshot.
 2. Processing: addon reads the Blizzard `C_DamageMeter` overall run session when `combatSources` are available.
 3. Processing: if the first post-run read is still empty because Blizzard has not finalized the session yet, addon retries briefly on a short deterministic timer instead of permanently accepting an empty snapshot.
-4. Processing: `M0` matching uses the roster snapshot frozen on dungeon entry so later group leavers still remain matchable at dungeon exit.
+4. Processing: non-challenge matching uses the roster snapshot frozen on dungeon entry so later group leavers still remain matchable at dungeon exit.
 5. Processing: addon matches damage-meter source names deterministically against the current roster or frozen roster snapshot and keeps only exact player matches.
 6. Storage: foreign-player DPS snapshots stay runtime-only for the current session; persistent storage keeps only the matching local character's own last-run DPS.
 7. Output: the roster shows a dedicated `DPS` column and hovering a roster row shows a localized `Last run DPS: ...` tooltip line for players with a currently available stored value.
@@ -128,13 +130,26 @@ Goal: expose the latest completed dungeon DPS per player from Blizzard damage me
 10. Rule: if the Blizzard damage meter API/session is unavailable or a player has no exact source match, no DPS line is shown.
 11. Success criteria: roster and tooltip show the latest dungeon DPS for matching roster players in-session, keep only the local player's own snapshot persistently, and stay empty for unresolved players instead of guessing.
 
+## UC-13 Esc Shortcuts And Addon Settings
+
+Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without desynchronizing live CVars or SavedVariables.
+
+1. Trigger A: player opens the WoW `Esc` game menu while `IsiLiveDB.showEscPanel ~= false`.
+2. Result A: addon shows a localized shortcut strip left of `GameMenuFrame` with buttons for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button.
+3. Action: clicking a shortcut closes the game menu first and then opens the targeted Blizzard panel through the dedicated microbutton/direct opener path; the `ReloadUI` entry instead uses a secure macro path that clicks Blizzard `Continue` and then runs `/reload`.
+4. Rule: the spellbook shortcut must use spellbook-specific openers and must not route through the talents panel.
+5. Trigger B: player opens `Settings -> AddOns -> isiKeyMPlus`.
+6. Result B: Blizzard settings expose language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Queue Debug Log`, and `Runtime Log`.
+7. Rule: settings controls mirror live Blizzard CVars / SavedVariables and apply changes immediately without requiring the main addon window to be visible; changing `Background Opacity` live-updates the main frame, the optional `Esc` shortcut panel, and the settings canvas itself. Hidden legacy controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`, `Sound Notifications`) stay out of the settings UI and currently use fixed runtime defaults.
+8. Success criteria: both entry surfaces stay localized, deterministic, and reflect the current config/runtime state.
+
 ## Non-Functional Rules
 
 1. No speculative behavior: unresolved/ambiguous map context must stay unresolved (no name/token fallback guessing).
 2. Combat-protected UI operations must be deferred safely while window dragging stays available, and teleport action buttons must not promote parent frames to protected status.
 3. Leader-only actions must stay disabled for non-leaders.
 4. Hidden mode should halt non-essential processing, suspend queue scanning and permanent polling, keep background roster/addon-message sync active, allow event-driven pre-rendered UI state updates, and only keep required auto-open transitions active.
-5. Blizzard CVar state remains authoritative: `isiLive` only mirrors `advancedCombatLogging` / `damageMeterResetOnNewInstance` in the UI and writes them on explicit user clicks; challenge-start Blizzard damage-meter reset still runs when API support exists.
+5. Blizzard CVar state remains authoritative: `isiLive` only mirrors `advancedCombatLogging` / `damageMeterResetOnNewInstance` in the main window and Blizzard settings canvas and writes them on explicit user clicks; challenge-start Blizzard damage-meter reset still runs when API support exists.
 6. RIO delta display must be deterministic and non-negative (`(+X)` only).
 7. UI visibility toggle (`CTRL+F9`) must stay requestable in combat; if combat lockdown blocks `Show` or `Hide`, the requested state is replayed on `PLAYER_REGEN_ENABLED`. `CHALLENGE_MODE_START` still auto-hides the main window.
 8. During combat, non-essential event processing is suspended by runtime gate; essential events continue.
@@ -144,6 +159,8 @@ Goal: expose the latest completed dungeon DPS per player from Blizzard damage me
 12. Leaving or being removed from a normal party must keep the current frame visibility state and retain former members as ghost rows until a deterministic prune path occurs.
 13. Manual marking (Tank=Blue, Healer=Green) is available via secure role-icon buttons for all group members without leader restriction in 5-man parties.
 14. Raid-group detection (> 5 members) keeps the addon visible, forces H mode, hides roster rows, prints a localized transition notice once per raid-size transition, and blocks switching back to M/V until party size returns.
+15. The optional `Esc` shortcut strip stays localized, closes the game menu before opening its target panel, and keeps `ReloadUI` on a secure macro path (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown` instead of issuing a Lua reload call from `isiLive`.
+16. Hidden legacy settings controls remain absent from Blizzard Settings and currently use fixed runtime defaults: `DPS` column on, markers visible for all, sound off, fixed name truncation, and legacy 2-column `Travel` layout.
 
 ## Automated Validation Mapping
 
@@ -155,11 +172,12 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 3. UC-04/UC-05: cooldown recognition/format behavior and state handling.
 4. Event consistency: target clear behavior under API shape variants, grouped negative-application follow-up events, and protected API errors.
 5. UC-07: challenge-start baseline capture and roster `(+X)RIO` rendering rules (including non-negative clamp).
-6. UC-08: post-run DPS snapshot capture for `M+` and `M0`, bounded persistence, and tooltip/roster rendering.
+6. UC-08: post-run DPS snapshot capture for `M+` and tracked non-challenge party exits, bounded persistence, and tooltip/roster rendering.
 7. UC-09: Manual Role Marker secure button configuration.
 8. UC-10: raid-size H-mode transition, visible-frame behavior, and duplicate-notice suppression.
 9. UC-11/UC-12: Secure world-marker button configuration for M+Marker and compact-layout visibility logic for M/V/H mode switching.
 10. Taint hardening: deferred secure attribute writes, insecure teleport/notice actions, and combat-safe collapse handling.
+11. UC-13: game-menu side-strip layout, localization, close-then-open behavior, direct opener fallback selection, and settings-canvas state mirroring/background-opacity behavior.
 
 ## Traceability To Source Files
 
@@ -172,6 +190,7 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 | RIO baseline capture and delta preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
 | Last-run DPS capture and bounded stats persistence | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua` |
 | UI actions, role buttons, key sharing button | `isiLive_roster_panel.lua` |
+| Esc shortcut strip and Blizzard settings canvas | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_factory.lua`, `isiLive_texts.lua`, `isiLive_ui_common.lua` |
 | Auto-Marker logic (removed/replaced) | `isiLive_group.lua` (cleaned up) |
 | Raid-size H-mode UI | `isiLive_roster_panel.lua`, `isiLive_group.lua` |
 | Event routing and gating | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua` |

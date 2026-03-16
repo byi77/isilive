@@ -100,7 +100,52 @@ local function SendOwnStatsSnapshot(sync, isFrameVisible, getUnitRio, force)
   })
 end
 
-local function SendOwnKeySnapshot(sync, isFrameVisible, getUnitRio, force)
+local function SendOwnDpsSnapshot(sync, isFrameVisible, getPlayerLastRunDps, getUnitNameAndRealm, force)
+  local dps = nil
+  if type(getPlayerLastRunDps) == "function" and type(getUnitNameAndRealm) == "function" then
+    local name, realm = getUnitNameAndRealm("player")
+    if name then
+      dps = getPlayerLastRunDps(name, realm)
+    end
+  end
+  sync.SendDps({
+    force = force and true or false,
+    isVisible = isFrameVisible(),
+    dps = dps,
+  })
+end
+
+local function GetOwnedLocMapID()
+  if not GetInstanceInfo then
+    return nil
+  end
+  local ok, _, instanceType = pcall(GetInstanceInfo)
+  if not ok or instanceType ~= "party" then
+    return nil
+  end
+  local mapApi = rawget(_G, "C_Map")
+  local getBestMapForUnit = mapApi and mapApi.GetBestMapForUnit
+  if type(getBestMapForUnit) ~= "function" then
+    return nil
+  end
+  local okMap, mapID = pcall(getBestMapForUnit, "player")
+  mapID = okMap and tonumber(mapID) or nil
+  if not mapID or mapID <= 0 then
+    return nil
+  end
+  return math.floor(mapID)
+end
+
+local function SendOwnLocSnapshot(sync, isFrameVisible, force)
+  local mapID = GetOwnedLocMapID()
+  sync.SendLoc({
+    force = force and true or false,
+    isVisible = isFrameVisible(),
+    mapID = mapID,
+  })
+end
+
+local function SendOwnKeySnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, force)
   local mapID, level = GetOwnedKeystoneSnapshot()
   sync.SendKey({
     force = force and true or false,
@@ -109,9 +154,18 @@ local function SendOwnKeySnapshot(sync, isFrameVisible, getUnitRio, force)
     level = level,
   })
   SendOwnStatsSnapshot(sync, isFrameVisible, getUnitRio, force)
+  SendOwnDpsSnapshot(sync, isFrameVisible, getPlayerLastRunDps, getUnitNameAndRealm, force)
+  SendOwnLocSnapshot(sync, isFrameVisible, force)
 end
 
-local function SendRefreshResponse(sync, isFrameVisible, getUnitRio, canRespondToRefreshRequest)
+local function SendRefreshResponse(
+  sync,
+  isFrameVisible,
+  getUnitRio,
+  getPlayerLastRunDps,
+  getUnitNameAndRealm,
+  canRespondToRefreshRequest
+)
   if type(canRespondToRefreshRequest) == "function" and not canRespondToRefreshRequest() then
     return false
   end
@@ -133,6 +187,28 @@ local function SendRefreshResponse(sync, isFrameVisible, getUnitRio, canRespondT
     specID = specID,
     ilvl = ilvl,
     rio = rio,
+  })
+
+  local dps = nil
+  if type(getPlayerLastRunDps) == "function" and type(getUnitNameAndRealm) == "function" then
+    local name, realm = getUnitNameAndRealm("player")
+    if name then
+      dps = getPlayerLastRunDps(name, realm)
+    end
+  end
+  sync.SendDps({
+    force = true,
+    isVisible = isFrameVisible(),
+    allowHidden = true,
+    dps = dps,
+  })
+
+  local locMapID = GetOwnedLocMapID()
+  sync.SendLoc({
+    force = true,
+    isVisible = isFrameVisible(),
+    allowHidden = true,
+    mapID = locMapID,
   })
   return true
 end
@@ -184,6 +260,23 @@ local function ApplyKnownKeyToRosterEntry(sync, info)
     end
   end
 
+  local dpsInfo = sync.GetPlayerDpsInfo(info.name, info.realm)
+  if type(dpsInfo) == "table" and dpsInfo.dps then
+    if not info._localDpsFresh and info.syncDps ~= dpsInfo.dps then
+      info.syncDps = dpsInfo.dps
+      changed = true
+    end
+  end
+
+  local locInfo = sync.GetPlayerLocInfo(info.name, info.realm)
+  if type(locInfo) == "table" then
+    local newLocMapID = locInfo.mapID
+    if info.syncLocMapID ~= newLocMapID then
+      info.syncLocMapID = newLocMapID
+      changed = true
+    end
+  end
+
   return changed
 end
 
@@ -220,6 +313,8 @@ local function ForceRefreshSyncState(sync, getUnitNameAndRealm, roster)
   for unit, info in pairs(roster) do
     if type(info) == "table" then
       info.hasIsiLive = (unit == "player")
+      info.syncDps = nil
+      info.syncLocMapID = nil
       if unit ~= "player" then
         info.keyMapID = nil
         info.keyLevel = nil
@@ -227,6 +322,12 @@ local function ForceRefreshSyncState(sync, getUnitNameAndRealm, roster)
       end
       if type(sync.SetPlayerStatsInfo) == "function" then
         sync.SetPlayerStatsInfo(info.name, info.realm, nil, nil, nil)
+      end
+      if type(sync.SetPlayerDpsInfo) == "function" then
+        sync.SetPlayerDpsInfo(info.name, info.realm, nil)
+      end
+      if type(sync.SetPlayerLocInfo) == "function" then
+        sync.SetPlayerLocInfo(info.name, info.realm, nil)
       end
     end
   end
@@ -281,16 +382,20 @@ function KeySync.CreateController(opts)
   local canRespondToRefreshRequest = opts.canRespondToRefreshRequest or function()
     return true
   end
-
+  local getPlayerLastRunDps = opts.getPlayerLastRunDps or nil
   assert(type(sync.MarkUser) == "function", "isiLive: KeySync requires sync.MarkUser")
   assert(type(sync.IsUnitKnown) == "function", "isiLive: KeySync requires sync.IsUnitKnown")
   assert(type(sync.RegisterPrefix) == "function", "isiLive: KeySync requires sync.RegisterPrefix")
   assert(type(sync.SendHello) == "function", "isiLive: KeySync requires sync.SendHello")
   assert(type(sync.SendKey) == "function", "isiLive: KeySync requires sync.SendKey")
   assert(type(sync.SendStats) == "function", "isiLive: KeySync requires sync.SendStats")
+  assert(type(sync.SendDps) == "function", "isiLive: KeySync requires sync.SendDps")
+  assert(type(sync.SendLoc) == "function", "isiLive: KeySync requires sync.SendLoc")
   assert(type(sync.SendRefreshRequest) == "function", "isiLive: KeySync requires sync.SendRefreshRequest")
   assert(type(sync.GetPlayerKeyInfo) == "function", "isiLive: KeySync requires sync.GetPlayerKeyInfo")
   assert(type(sync.GetPlayerStatsInfo) == "function", "isiLive: KeySync requires sync.GetPlayerStatsInfo")
+  assert(type(sync.GetPlayerDpsInfo) == "function", "isiLive: KeySync requires sync.GetPlayerDpsInfo")
+  assert(type(sync.GetPlayerLocInfo) == "function", "isiLive: KeySync requires sync.GetPlayerLocInfo")
   assert(type(sync.SetPlayerKeyInfo) == "function", "isiLive: KeySync requires sync.SetPlayerKeyInfo")
 
   local controller = {}
@@ -320,11 +425,18 @@ function KeySync.CreateController(opts)
   end
 
   function controller.SendOwnKeySnapshot(force)
-    SendOwnKeySnapshot(sync, isFrameVisible, getUnitRio, force)
+    SendOwnKeySnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, force)
   end
 
   function controller.SendRefreshResponse()
-    return SendRefreshResponse(sync, isFrameVisible, getUnitRio, canRespondToRefreshRequest)
+    return SendRefreshResponse(
+      sync,
+      isFrameVisible,
+      getUnitRio,
+      getPlayerLastRunDps,
+      getUnitNameAndRealm,
+      canRespondToRefreshRequest
+    )
   end
 
   function controller.ApplyKnownKeyToRosterEntry(info)

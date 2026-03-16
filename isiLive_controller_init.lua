@@ -13,6 +13,7 @@ local function CreateKeySyncController(ctx)
     getUnitRio = ctx.getUnitRio,
     isFrameVisible = ctx.isFrameVisible,
     canRespondToRefreshRequest = ctx.canRespondToRefreshRequest,
+    getPlayerLastRunDps = ctx.getPlayerLastRunDps,
   })
   return {
     keySyncController = controller,
@@ -79,7 +80,7 @@ local function CreateRosterPanelController(ctx, keySyncResult)
       party3 = 4,
       party4 = 5,
     },
-    syncMarker = " |cff33aaff<3|r",
+    syncMarker = " |TInterface\\AddOns\\isiLive\\media\\heart_sync:12:12|t",
     fullSyncMarker = " |cff00e68a[fullsync]|r",
     applyKnownKeyToRosterEntry = keySyncResult and keySyncResult.applyKnownKeyToRosterEntry or nil,
     getTime = ctx.getTime,

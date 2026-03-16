@@ -51,6 +51,10 @@ local HELPER_BUTTON_SIZE = 18
 local MINI_HORIZONTAL_HELPER_BUTTON_SIZE = HELPER_BUTTON_SIZE
 local MINI_HORIZONTAL_HELPER_GAP = 2
 local DEFAULT_MIN_FRAME_HEIGHT = 236
+-- These settings are temporarily hidden from Blizzard Settings.
+-- Keep the runtime behavior hard-forced until the controls are re-enabled.
+local FORCE_SHOW_DPS_COLUMN = true
+local FORCE_MARKERS_LEADER_ONLY = false
 
 -- Descriptor pro Layout-Modus: Breite und Label für den Mode-Button
 local LAYOUT_MODE_CONFIG = {
@@ -63,7 +67,8 @@ local LAYOUT_MODE_CONFIG = {
 -- M = EXPANDED, V = COMPACT_VERTICAL, H = COMPACT_HORIZONTAL
 local UI_VISIBILITY_RULES = {
   { "title", true, false, false },
-  { "headerSeparator", true, false, false },
+  { "headerSepLeft", true, false, false },
+  { "headerSepRight", true, false, false },
   { "versionLine", true, false, false },
   { "specHeader", true, false, false },
   { "nameHeader", true, false, false },
@@ -633,6 +638,9 @@ local function CreateRosterHoverTooltip(mainFrame)
     if type(tooltip.SetBackdropColor) == "function" then
       tooltip:SetBackdropColor(0, 0, 0, 0.92)
     end
+    if type(tooltip.SetBackdropBorderColor) == "function" then
+      tooltip:SetBackdropBorderColor(0.25, 0.25, 0.35, 0.5)
+    end
   elseif type(tooltip.CreateTexture) == "function" then
     tooltip._isiLiveTooltipBackground = tooltip._isiLiveTooltipBackground or tooltip:CreateTexture(nil, "BACKGROUND")
     if type(tooltip._isiLiveTooltipBackground.SetAllPoints) == "function" then
@@ -936,9 +944,15 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
     end
   end)
 
+  if index % 2 == 0 then
+    local altBg = row.hoverFrame:CreateTexture(nil, "BACKGROUND", nil, -1)
+    altBg:SetAllPoints()
+    altBg:SetColorTexture(1, 1, 1, 0.03)
+  end
+
   row.highlight = row.hoverFrame:CreateTexture(nil, "BACKGROUND")
   row.highlight:SetAllPoints()
-  row.highlight:SetColorTexture(1, 1, 1, 0.05)
+  row.highlight:SetColorTexture(0.3, 0.65, 1, 0.08)
   row.highlight:Hide()
 
   row.hoverFrame:SetScript("OnEnter", function()
@@ -1030,6 +1044,79 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   return row
 end
 
+local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
+
+local function CreateFlatButton(parent, width, height)
+  local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
+  button:SetSize(width, height)
+  if type(button.SetBackdrop) == "function" then
+    button:SetBackdrop({
+      bgFile = "Interface\\Buttons\\WHITE8X8",
+      edgeFile = "Interface\\Buttons\\WHITE8X8",
+      edgeSize = 1,
+      insets = { left = 0, right = 0, top = 0, bottom = 0 },
+    })
+    if type(button.SetBackdropColor) == "function" then
+      local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
+      button:SetBackdropColor(bgSec[1], bgSec[2], bgSec[3], bgSec[4])
+    end
+    if type(button.SetBackdropBorderColor) == "function" then
+      local bd = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
+      button:SetBackdropBorderColor(bd[1], bd[2], bd[3], bd[4])
+    end
+  end
+  if type(button.EnableMouse) == "function" then
+    button:EnableMouse(true)
+  end
+  if type(button.RegisterForClicks) == "function" then
+    button:RegisterForClicks("LeftButtonUp")
+  end
+
+  local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  if type(label.SetPoint) == "function" then
+    label:SetPoint("CENTER", 0, 0)
+  end
+  local tn = Colors.TEXT_NORMAL or { 0.85, 0.85, 0.9 }
+  if type(label.SetTextColor) == "function" then
+    label:SetTextColor(tn[1], tn[2], tn[3], 1)
+  end
+  button._flatLabel = label
+
+  if type(button.HookScript) == "function" then
+    button:HookScript("OnEnter", function(self)
+      if type(self.SetBackdropColor) == "function" then
+        self:SetBackdropColor(0.18, 0.18, 0.26, 0.8)
+      end
+      if type(self.SetBackdropBorderColor) == "function" then
+        local ab = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
+        self:SetBackdropBorderColor(ab[1], ab[2], ab[3], 0.6)
+      end
+    end)
+    button:HookScript("OnLeave", function(self)
+      if type(self.SetBackdropColor) == "function" then
+        local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
+        self:SetBackdropColor(bgSec[1], bgSec[2], bgSec[3], bgSec[4])
+      end
+      if type(self.SetBackdropBorderColor) == "function" then
+        local bd = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
+        self:SetBackdropBorderColor(bd[1], bd[2], bd[3], bd[4])
+      end
+    end)
+  end
+
+  return button
+end
+
+local function SetFlatButtonText(button, text)
+  local resolved = text or ""
+  if button._flatLabel and type(button._flatLabel.SetText) == "function" then
+    button._flatLabel:SetText(resolved)
+  end
+  if type(button.SetText) == "function" then
+    button:SetText(resolved)
+  end
+end
+
 local function AttachControllerAccessors(controller, deps)
   function controller.GetRefreshButton()
     return deps.refreshButton
@@ -1044,7 +1131,7 @@ local function AttachControllerAccessors(controller, deps)
   end
 
   function controller.SetCountdownCancelText(text)
-    deps.countdownCancelButton:SetText(tostring(text or ""))
+    SetFlatButtonText(deps.countdownCancelButton, tostring(text or ""))
   end
 end
 
@@ -1121,11 +1208,35 @@ local function CreatePanelHeaders(mainFrame)
   mplusManagementHeader:SetWidth(110)
   mplusManagementHeader:SetJustifyH("CENTER")
 
-  local headerSeparator = mainFrame:CreateTexture(nil, "ARTWORK")
-  headerSeparator:SetHeight(1)
-  headerSeparator:SetPoint("TOPLEFT", 8, -48)
-  headerSeparator:SetPoint("TOPRIGHT", 0, -48)
-  headerSeparator:SetColorTexture(1, 1, 1, 0.2)
+  local headerSepLeft = mainFrame:CreateTexture(nil, "ARTWORK")
+  headerSepLeft:SetHeight(1)
+  headerSepLeft:SetPoint("TOPLEFT", 8, -48)
+  headerSepLeft:SetPoint("TOPRIGHT", mainFrame, "TOP", 0, -48)
+  if type(headerSepLeft.SetTexture) == "function" then
+    headerSepLeft:SetTexture("Interface\\Buttons\\WHITE8X8")
+  end
+  if type(headerSepLeft.SetGradient) == "function" then
+    headerSepLeft:SetGradient(
+      "HORIZONTAL",
+      { r = 0.5, g = 0.5, b = 0.7, a = 0 },
+      { r = 0.5, g = 0.5, b = 0.7, a = 0.3 }
+    )
+  end
+
+  local headerSepRight = mainFrame:CreateTexture(nil, "ARTWORK")
+  headerSepRight:SetHeight(1)
+  headerSepRight:SetPoint("TOPLEFT", mainFrame, "TOP", 0, -48)
+  headerSepRight:SetPoint("TOPRIGHT", 0, -48)
+  if type(headerSepRight.SetTexture) == "function" then
+    headerSepRight:SetTexture("Interface\\Buttons\\WHITE8X8")
+  end
+  if type(headerSepRight.SetGradient) == "function" then
+    headerSepRight:SetGradient(
+      "HORIZONTAL",
+      { r = 0.5, g = 0.5, b = 0.7, a = 0.3 },
+      { r = 0.5, g = 0.5, b = 0.7, a = 0 }
+    )
+  end
 
   return {
     specHeader = specHeader,
@@ -1137,7 +1248,8 @@ local function CreatePanelHeaders(mainFrame)
     dpsHeader = dpsHeader,
     leadOptionsHeader = leadOptionsHeader,
     mplusManagementHeader = mplusManagementHeader,
-    headerSeparator = headerSeparator,
+    headerSepLeft = headerSepLeft,
+    headerSepRight = headerSepRight,
   }
 end
 
@@ -1168,8 +1280,7 @@ local function AttachPanelButtonTooltip(tooltipFrame, button, getL, titleKey, de
 end
 
 local function CreateShareKeysButton(mainFrame, deps)
-  local button = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
-  button:SetSize(120, 24)
+  local button = CreateFlatButton(mainFrame, 120, 24)
   button:SetPoint("TOPRIGHT", -111, -150)
   button._verticalY = -150
   local lastShareKeysClickAt = nil
@@ -1219,8 +1330,7 @@ local function CreatePanelButtons(mainFrame, deps)
   local getL = deps.getL
   local isPlayerLeader = deps.isPlayerLeader
 
-  local readyCheckButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
-  readyCheckButton:SetSize(120, 24)
+  local readyCheckButton = CreateFlatButton(mainFrame, 120, 24)
   readyCheckButton:SetPoint("TOPRIGHT", -111, -60)
   readyCheckButton._verticalY = -60
   readyCheckButton._hModeText = "RC"
@@ -1235,8 +1345,7 @@ local function CreatePanelButtons(mainFrame, deps)
   end)
   AttachPanelButtonTooltip(deps.tooltipFrame, readyCheckButton, getL, "BTN_READYCHECK", "TOOLTIP_READY", isPlayerLeader)
 
-  local countdownButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
-  countdownButton:SetSize(120, 24)
+  local countdownButton = CreateFlatButton(mainFrame, 120, 24)
   countdownButton:SetPoint("TOPRIGHT", -111, -90)
   countdownButton._verticalY = -90
   countdownButton._hModeText = "CD"
@@ -1253,16 +1362,14 @@ local function CreatePanelButtons(mainFrame, deps)
   end)
   AttachPanelButtonTooltip(deps.tooltipFrame, countdownButton, getL, "BTN_COUNTDOWN10", "TOOLTIP_CD10", isPlayerLeader)
 
-  local refreshButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
-  refreshButton:SetSize(120, 24)
+  local refreshButton = CreateFlatButton(mainFrame, 120, 24)
   refreshButton:SetPoint("TOPRIGHT", -111, -180)
   refreshButton._verticalY = -180
   AttachPanelButtonTooltip(deps.tooltipFrame, refreshButton, getL, "BTN_REFRESH", "TOOLTIP_REFRESH", nil)
 
   local shareKeysButton = CreateShareKeysButton(mainFrame, deps)
 
-  local countdownCancelButton = CreateFrame("Button", nil, mainFrame, "UIPanelButtonTemplate")
-  countdownCancelButton:SetSize(120, 24)
+  local countdownCancelButton = CreateFlatButton(mainFrame, 120, 24)
   countdownCancelButton:SetPoint("TOPRIGHT", -111, -120)
   countdownCancelButton._verticalY = -120
   countdownCancelButton._hModeText = "CD 0"
@@ -1460,13 +1567,13 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
     if btn and btn.SetSize then
       if isHorizontal then
         btn:SetSize(MINI_HORIZONTAL_MANAGEMENT_BTN_WIDTH, MINI_HORIZONTAL_MANAGEMENT_BTN_HEIGHT)
-        if btn._hModeText and btn.SetText then
-          btn:SetText(btn._hModeText)
+        if btn._hModeText then
+          SetFlatButtonText(btn, btn._hModeText)
         end
       else
         btn:SetSize(120, 24)
-        if btn._fullText and btn.SetText then
-          btn:SetText(btn._fullText)
+        if btn._fullText then
+          SetFlatButtonText(btn, btn._fullText)
         end
       end
     end
@@ -1582,7 +1689,12 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     edgeSize = 16,
     insets = { left = 4, right = 4, top = 4, bottom = 4 },
   })
-  mainFrame:SetBackdropColor(0, 0, 0, 0.85)
+  local uiCommon = addonTable and addonTable.UICommon
+  local bgAlpha = type(uiCommon) == "table"
+      and type(uiCommon.GetBackgroundAlpha) == "function"
+      and uiCommon.GetBackgroundAlpha()
+    or 0.85
+  mainFrame:SetBackdropColor(0, 0, 0, bgAlpha)
   if mainFrame.SetWidth then
     mainFrame:SetWidth(FULL_FRAME_WIDTH)
   end
@@ -1592,11 +1704,14 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   do
     local fontPath, fontSize, fontFlags = title:GetFont()
     if fontPath and fontSize then
-      title:SetFont(fontPath, math.max(fontSize - 4, 8), fontFlags)
+      title:SetFont(fontPath, math.max(fontSize - 2, 8), fontFlags)
     end
   end
   title:SetTextColor(1, 0.85, 0)
   title:SetShadowOffset(1, -1)
+  if type(title.SetShadowColor) == "function" then
+    title:SetShadowColor(0, 0, 0, 0.8)
+  end
 
   local headers = CreatePanelHeaders(mainFrame)
   local panelTooltip = CreateRosterHoverTooltip(mainFrame)
@@ -1633,6 +1748,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     tankHeader = tankHeader,
     setMainFrameHeightSafe = uiDeps.setMainFrameHeightSafe,
     minFrameHeight = uiDeps.minFrameHeight,
+    isPlayerLeader = uiDeps.isPlayerLeader,
   }
   for k, v in pairs(headers) do
     ui[k] = v
@@ -1745,6 +1861,37 @@ local function RenderRosterImpl(state, roster)
     raidNoticeLabel:Hide()
   end
 
+  -- Temporarily hidden in Settings: keep the DPS column hard-enabled in runtime.
+  local showDpsColumn = FORCE_SHOW_DPS_COLUMN
+  if state.uiRef and state.uiRef.dpsHeader then
+    if showDpsColumn then
+      state.uiRef.dpsHeader:Show()
+    else
+      state.uiRef.dpsHeader:Hide()
+    end
+  end
+
+  -- Temporarily hidden in Settings: keep raid markers visible for all users in runtime.
+  local markersLeaderOnly = FORCE_MARKERS_LEADER_ONLY
+  if state.uiRef and state.uiRef.tankButtons and not IsCombatLockdownActive() then
+    local isLeader = type(state.uiRef.isPlayerLeader) == "function" and state.uiRef.isPlayerLeader()
+    local showMarkers = not markersLeaderOnly or (isLeader and true or false)
+    for _, btn in ipairs(state.uiRef.tankButtons) do
+      if showMarkers then
+        btn:Show()
+      else
+        btn:Hide()
+      end
+    end
+    if state.uiRef.tankHeader then
+      if showMarkers then
+        state.uiRef.tankHeader:Show()
+      else
+        state.uiRef.tankHeader:Hide()
+      end
+    end
+  end
+
   for _, row in pairs(memberRows) do
     ClearMemberRow(row)
   end
@@ -1782,6 +1929,11 @@ local function RenderRosterImpl(state, roster)
         if ok and playerMapID and tonumber(playerMapID) == tonumber(targetMapID) then
           isAtDungeon = true
         end
+      end
+    end
+    if not isAtDungeon and targetMapID and info.syncLocMapID then
+      if tonumber(info.syncLocMapID) == tonumber(targetMapID) then
+        isAtDungeon = true
       end
     end
 
@@ -1861,11 +2013,21 @@ local function RenderRosterImpl(state, roster)
     end
     row.ilvl:SetText(displayData.ilvlText)
     row.rio:SetText(displayData.rioText)
-    local dpsText = "-"
-    if type(state.getPlayerLastRunDps) == "function" then
-      dpsText = FormatCompactTooltipNumber(state.getPlayerLastRunDps(info.name, info.realm)) or "-"
+    local showDps = FORCE_SHOW_DPS_COLUMN
+    if showDps then
+      local dpsText = "-"
+      if type(state.getPlayerLastRunDps) == "function" then
+        dpsText = FormatCompactTooltipNumber(state.getPlayerLastRunDps(info.name, info.realm)) or "-"
+      end
+      if dpsText == "-" and info.syncDps and info.syncDps > 0 then
+        dpsText = FormatCompactTooltipNumber(info.syncDps) or "-"
+      end
+      row.dps:SetText(dpsText)
+      row.dps:Show()
+    else
+      row.dps:SetText("")
+      row.dps:Hide()
     end
-    row.dps:SetText(dpsText)
     row.unit = entry.unit
     row.tooltipName = info and info.name or nil
     row.tooltipRealm = info and info.realm or nil
@@ -1997,11 +2159,14 @@ function RosterPanel.CreateController(opts)
     countdownButton._fullText = L.BTN_COUNTDOWN10
     countdownCancelButton._fullText = L.BTN_COUNTDOWN_CANCEL
     local isH = IsHorizontalCompactLayoutMode(ui and ui.layoutMode)
-    readyCheckButton:SetText(isH and readyCheckButton._hModeText or readyCheckButton._fullText)
-    countdownButton:SetText(isH and countdownButton._hModeText or countdownButton._fullText)
-    countdownCancelButton:SetText(isH and countdownCancelButton._hModeText or countdownCancelButton._fullText)
-    refreshButton:SetText(L.BTN_REFRESH)
-    shareKeysButton:SetText(L.BTN_SHARE_KEYS)
+    SetFlatButtonText(readyCheckButton, isH and readyCheckButton._hModeText or readyCheckButton._fullText)
+    SetFlatButtonText(countdownButton, isH and countdownButton._hModeText or countdownButton._fullText)
+    SetFlatButtonText(
+      countdownCancelButton,
+      isH and countdownCancelButton._hModeText or countdownCancelButton._fullText
+    )
+    SetFlatButtonText(refreshButton, L.BTN_REFRESH)
+    SetFlatButtonText(shareKeysButton, L.BTN_SHARE_KEYS)
     ui.advancedCombatLoggingToggle.label:SetText(L.OPT_ADVANCED_COMBAT_LOGGING)
     ui.damageMeterResetToggle.label:SetText(L.OPT_DAMAGE_METER_RESET)
     LayoutSystemOptionToggles(ui)

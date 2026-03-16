@@ -12,6 +12,19 @@ local POST_RUN_FOLLOWUP_REFRESH_DELAY_SECONDS = 6
 local POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS = 2
 local POST_RUN_CAPTURE_RETRIES = 5
 local POST_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
+-- Temporarily hidden from Settings: keep sound notifications hard-disabled in runtime.
+local FORCE_SOUND_NOTIFICATIONS = false
+
+local function PlaySettingsSound(soundID)
+  if not FORCE_SOUND_NOTIFICATIONS then
+    return
+  end
+
+  local playSound = rawget(_G, "PlaySound")
+  if type(playSound) == "function" then
+    pcall(playSound, soundID)
+  end
+end
 
 local function ResetDamageMeterIfAvailable()
   local damageMeterAPI = _G.C_DamageMeter
@@ -163,6 +176,7 @@ end
 
 function ChallengeLifecycle.BuildHandlers(ctx)
   local function HandleChallengeModeStart(_self)
+    PlaySettingsSound(SOUNDKIT and SOUNDKIT.UI_CHALLENGES_NEW_RECORD or 63127)
     ctx.lastRecordedRunSignature = nil
     ctx.lastRecordedRunCaptured = false
     ctx.pendingRecordedRunRetrySignature = nil
@@ -180,6 +194,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandleChallengeModeCompletedOrReset(frame)
+    PlaySettingsSound(SOUNDKIT and SOUNDKIT.UI_CHALLENGES_NEW_RECORD or 63127)
     TryRecordCompletedRun(ctx, ResolveCompletedRunInfo(), POST_RUN_CAPTURE_RETRIES)
 
     if ctx.isInGroup() then
@@ -205,6 +220,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     READY_CHECK = function(_self)
       ctx.setReadyCheckActive(true)
       ctx.updateUI()
+      PlaySettingsSound(SOUNDKIT and SOUNDKIT.READY_CHECK or 8960)
     end,
     READY_CHECK_CONFIRM = function(_self)
       if ctx.isReadyCheckActive() then

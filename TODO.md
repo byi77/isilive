@@ -2,6 +2,28 @@
 
 ## P0 - Release / Review
 
+- [x] `v0.9.85` vorbereiten:
+  - erweiterte Blizzard-Settings, Hidden-Legacy-Controls und die hart gesetzten Runtime-Defaults dokumentieren
+  - Exit-DPS-Capture fuer normale, heroische und mythische Non-Challenge-Dungeons in den Baselines/Release-Notes nachziehen
+  - `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md` und `isiLive.toc` auf `0.9.85` synchronisieren
+  - Tag: `isiLive_release_0.9.85`
+
+- [ ] `v0.9.85` veroeffentlichen
+  - `main` pushen und auf gruene `Lua Check` fuer den exakten Commit warten
+  - Stable-Tag danach pushen und CurseForge-Paket pruefen
+
+- [x] `v0.9.84` vorbereiten:
+  - Heart-Sync-Marker, DPS/LOC-Sync und 4-Zeichen-Spec-Labels dokumentieren
+  - Blizzard-Settings `Background Opacity` und Combat-Close-Verhalten in den Release-Notes und Baselines nachziehen
+  - `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md` und `CHANGELOG.md` auf `0.9.84` synchronisieren
+  - Tag: `isiLive_release_0.9.84`
+
+- [x] `v0.9.83` vorbereiten:
+  - Esc-Menu-Shortcut-Strip und Blizzard-Settings-Panel dokumentieren
+  - UI-Polish fuer Roster/Notice/Tooltip-Frames in den Release-Notes nachziehen
+  - `CHANGELOG.md`, `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md` und `isiLive.toc` auf `0.9.83` synchronisieren
+  - Tag: `isiLive_release_0.9.83`
+
 - [x] `v0.9.82` vorbereiten:
   - Combat-Defer fuer Main-UI-Sichtbarkeit und Regen-Replay dokumentieren
   - Midnight-S1-Portalpool mit finalen Map-/Spell-IDs und Shortcodes dokumentieren

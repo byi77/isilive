@@ -125,9 +125,14 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
     if type(tooltip) ~= "table" then
       return
     end
+    local hasMapName = type(self.mapName) == "string" and self.mapName ~= ""
+    if hasMapName then
+      tooltip:SetText(self.mapName, 1, 1, 1)
+    end
     if self.spellID and deps.isSpellKnown(self.spellID) then
-      tooltip:SetSpellByID(self.spellID)
-      tooltip:AddLine(L.TOOLTIP_TELEPORT_CAST, 1, 1, 1, true)
+      if not hasMapName then
+        tooltip:SetSpellByID(self.spellID)
+      end
       local remaining = deps.getTeleportCooldownRemaining(self.spellID)
       if remaining > 0 then
         tooltip:AddLine(
@@ -141,7 +146,9 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
         tooltip:AddLine(L.TOOLTIP_TELEPORT_READY, 0.3, 1, 0.3, true)
       end
     else
-      tooltip:SetText(L.BTN_TELEPORT_LOCKED, 1, 1, 1)
+      if not hasMapName then
+        tooltip:SetText(L.BTN_TELEPORT_LOCKED, 1, 1, 1)
+      end
       tooltip:AddLine(L.TOOLTIP_TELEPORT_LOCKED, 1, 0.25, 0.25, true)
     end
     if self.isActiveTarget then

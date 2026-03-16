@@ -21,12 +21,23 @@ local ISILIVE_REFRESH_REQUEST_COOLDOWN = 1
 local lastIsiLiveHelloAt = 0
 local lastIsiLiveKeyAt = 0
 local lastIsiLiveStatsAt = 0
+local lastIsiLiveDpsAt = 0
+local lastIsiLiveLocAt = 0
 local lastIsiLiveRefreshRequestAt = 0
 local lastKeyPayloadSent = nil
 local lastStatsPayloadSent = nil
+local lastDpsPayloadSent = nil
+local lastLocPayloadSent = nil
 local isiLiveUsersByKey = {}
 local keyInfoByPlayerKey = {}
 local statsInfoByPlayerKey = {}
+local dpsInfoByPlayerKey = {}
+local locInfoByPlayerKey = {}
+
+local function IsSyncEnabled()
+  local db = rawget(_G, "IsiLiveDB")
+  return not db or db.syncEnabled ~= false
+end
 
 -- Hinweis: Diese Normalisierung ist strikter als NormalizeName() in isiLive_stats.lua
 -- (entfernt zusätzlich Sonderzeichen aus dem Realm-Namen). Beide müssen konsistent
@@ -99,6 +110,25 @@ local function NormalizeStatsPayload(specID, ilvl, rio)
   return string.format("STATS:%d:%d:%d", numericSpecID, numericIlvl, numericRio), numericSpecID, numericIlvl, numericRio
 end
 
+local function NormalizeDpsPayload(dps)
+  local numericDps = tonumber(dps)
+  if not numericDps or numericDps < 0 then
+    numericDps = 0
+  else
+    numericDps = math.floor(numericDps + 0.5)
+  end
+  return string.format("DPS:%d", numericDps), numericDps
+end
+
+local function NormalizeLocPayload(mapID)
+  local numericMapID = tonumber(mapID)
+  if not numericMapID or numericMapID <= 0 then
+    return "LOC:0", nil
+  end
+  numericMapID = math.floor(numericMapID)
+  return string.format("LOC:%d", numericMapID), numericMapID
+end
+
 function Sync.MarkUser(name, realm)
   local key = Sync.NormalizePlayerKey(name, realm)
   if key and key ~= "" then
@@ -121,6 +151,8 @@ end
 
 function Sync.ClearKnownUsers()
   isiLiveUsersByKey = {}
+  dpsInfoByPlayerKey = {}
+  locInfoByPlayerKey = {}
 end
 
 function Sync.SetPlayerKeyInfo(name, realm, mapID, level)
@@ -197,6 +229,66 @@ function Sync.GetPlayerStatsInfo(name, realm)
   return statsInfoByPlayerKey[key]
 end
 
+function Sync.SetPlayerDpsInfo(name, realm, dps)
+  local key = Sync.NormalizePlayerKey(name, realm)
+  if not key or key == "" then
+    return false
+  end
+
+  local _, numericDps = NormalizeDpsPayload(dps)
+  if not numericDps or numericDps <= 0 then
+    local hadValue = type(dpsInfoByPlayerKey[key]) == "table"
+    dpsInfoByPlayerKey[key] = nil
+    return hadValue
+  end
+
+  local previous = dpsInfoByPlayerKey[key]
+  if previous and previous.dps == numericDps then
+    return false
+  end
+
+  dpsInfoByPlayerKey[key] = { dps = numericDps }
+  return true
+end
+
+function Sync.GetPlayerDpsInfo(name, realm)
+  local key = Sync.NormalizePlayerKey(name, realm)
+  if not key or key == "" then
+    return nil
+  end
+  return dpsInfoByPlayerKey[key]
+end
+
+function Sync.SetPlayerLocInfo(name, realm, mapID)
+  local key = Sync.NormalizePlayerKey(name, realm)
+  if not key or key == "" then
+    return false
+  end
+
+  local _, numericMapID = NormalizeLocPayload(mapID)
+  if not numericMapID then
+    local hadValue = type(locInfoByPlayerKey[key]) == "table"
+    locInfoByPlayerKey[key] = nil
+    return hadValue
+  end
+
+  local previous = locInfoByPlayerKey[key]
+  if previous and previous.mapID == numericMapID then
+    return false
+  end
+
+  locInfoByPlayerKey[key] = { mapID = numericMapID }
+  return true
+end
+
+function Sync.GetPlayerLocInfo(name, realm)
+  local key = Sync.NormalizePlayerKey(name, realm)
+  if not key or key == "" then
+    return nil
+  end
+  return locInfoByPlayerKey[key]
+end
+
 function Sync.GetAddonSyncChannel()
   local inInstanceGroup = LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE)
   if inInstanceGroup then
@@ -221,6 +313,9 @@ function Sync.SendHello(opts)
   if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
     return
   end
+  if not IsSyncEnabled() then
+    return
+  end
   opts = opts or {}
 
   if opts.isVisible == false and opts.allowHidden ~= true then
@@ -243,6 +338,9 @@ end
 
 function Sync.SendKey(opts)
   if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
+    return
+  end
+  if not IsSyncEnabled() then
     return
   end
   opts = opts or {}
@@ -271,6 +369,9 @@ function Sync.SendStats(opts)
   if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
     return
   end
+  if not IsSyncEnabled() then
+    return
+  end
   opts = opts or {}
 
   if opts.isVisible == false and opts.allowHidden ~= true then
@@ -293,8 +394,69 @@ function Sync.SendStats(opts)
   C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel)
 end
 
+function Sync.SendDps(opts)
+  if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
+    return
+  end
+  if not IsSyncEnabled() then
+    return
+  end
+  opts = opts or {}
+
+  if opts.isVisible == false and opts.allowHidden ~= true then
+    return
+  end
+
+  local channel = Sync.GetAddonSyncChannel()
+  if not channel then
+    return
+  end
+
+  local payload = NormalizeDpsPayload(opts.dps)
+  local now = GetTime()
+  if not opts.force and payload == lastDpsPayloadSent and (now - lastIsiLiveDpsAt) < ISILIVE_STATS_COOLDOWN then
+    return
+  end
+
+  lastIsiLiveDpsAt = now
+  lastDpsPayloadSent = payload
+  C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel)
+end
+
+function Sync.SendLoc(opts)
+  if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
+    return
+  end
+  if not IsSyncEnabled() then
+    return
+  end
+  opts = opts or {}
+
+  if opts.isVisible == false and opts.allowHidden ~= true then
+    return
+  end
+
+  local channel = Sync.GetAddonSyncChannel()
+  if not channel then
+    return
+  end
+
+  local payload = NormalizeLocPayload(opts.mapID)
+  local now = GetTime()
+  if not opts.force and payload == lastLocPayloadSent and (now - lastIsiLiveLocAt) < ISILIVE_STATS_COOLDOWN then
+    return
+  end
+
+  lastIsiLiveLocAt = now
+  lastLocPayloadSent = payload
+  C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel)
+end
+
 function Sync.SendRefreshRequest(opts)
   if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
+    return
+  end
+  if not IsSyncEnabled() then
     return
   end
   opts = opts or {}
@@ -344,11 +506,29 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     end
   end
 
+  local dpsUpdated = false
+  if type(message) == "string" and message:find("^DPS:") then
+    local dpsRaw = string.match(message, "^DPS:(%d+)$")
+    if dpsRaw then
+      dpsUpdated = Sync.SetPlayerDpsInfo(sender, nil, tonumber(dpsRaw))
+    end
+  end
+
+  local locUpdated = false
+  if type(message) == "string" and message:find("^LOC:") then
+    local mapIDRaw = string.match(message, "^LOC:(%d+)$")
+    if mapIDRaw then
+      locUpdated = Sync.SetPlayerLocInfo(sender, nil, tonumber(mapIDRaw))
+    end
+  end
+
   return {
     shouldAck = shouldAck and true or false,
     shouldRequestRefresh = shouldRequestRefresh and true or false,
     sender = sender,
     keyUpdated = keyUpdated and true or false,
     statsUpdated = statsUpdated and true or false,
+    dpsUpdated = dpsUpdated and true or false,
+    locUpdated = locUpdated and true or false,
   }
 end

@@ -133,6 +133,11 @@ local function HandleNoGroup(deps, wasInGroupBefore)
   deps.updateUI()
   deps.updateMPlusTeleportButton()
   deps.updateLeaderButtons()
+
+  -- Auto-hide when solo if enabled
+  if leftGroupNow and type(deps.autoHideSolo) == "function" then
+    deps.autoHideSolo()
+  end
 end
 
 -- Ghosts werden nur entfernt, wenn die Gruppe voll besetzt ist (5 aktive Mitglieder).

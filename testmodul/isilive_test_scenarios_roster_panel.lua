@@ -233,12 +233,12 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
         name = "SyncedPlayer",
         hasIsiLive = true,
       }, {
-        syncMarker = " |cff33aaff<3|r",
+        syncMarker = " |TInterface\\AddOns\\isiLive\\media\\heart_sync:12:12|t",
       })
 
       Assert.True(
-        displayData.addonMarker:find("<3", 1, true) ~= nil,
-        "synced users should receive the blue-heart marker"
+        displayData.addonMarker:find("heart_sync", 1, true) ~= nil,
+        "synced users should receive the heart icon marker"
       )
     end)
   end)
@@ -362,11 +362,36 @@ local function NewRecordedFontString(createdFontStrings)
     nonSpaceWrap = nil,
     maxLines = nil,
     width = nil,
+    pointX = nil,
+    pointY = nil,
+    _shown = true,
   }
 
-  function fontString.SetPoint() end
-  function fontString.Hide() end
-  function fontString.Show() end
+  function fontString.SetPoint(self, ...)
+    local numericArgs = {}
+    for index = 1, select("#", ...) do
+      local value = select(index, ...)
+      if type(value) == "number" then
+        table.insert(numericArgs, value)
+      end
+    end
+    if #numericArgs >= 2 then
+      self.pointX = numericArgs[#numericArgs - 1]
+      self.pointY = numericArgs[#numericArgs]
+    elseif #numericArgs == 1 then
+      self.pointX = 0
+      self.pointY = numericArgs[1]
+    end
+  end
+  function fontString.Hide(self)
+    self._shown = false
+  end
+  function fontString.Show(self)
+    self._shown = true
+  end
+  function fontString.IsShown(self)
+    return self._shown
+  end
   function fontString.SetWidth(self, value)
     self.width = value
   end
@@ -398,6 +423,7 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
   local frame = {
     enabled = nil,
     alpha = nil,
+    pointX = nil,
     pointY = nil,
     checked = false,
     attributes = {},
@@ -410,13 +436,19 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
   function frame.SetHeight() end
   function frame.SetWidth() end
   function frame.SetPoint(self, ...)
-    local argCount = select("#", ...)
-    for index = argCount, 1, -1 do
+    local numericArgs = {}
+    for index = 1, select("#", ...) do
       local value = select(index, ...)
       if type(value) == "number" then
-        self.pointY = value
-        return
+        table.insert(numericArgs, value)
       end
+    end
+    if #numericArgs >= 2 then
+      self.pointX = numericArgs[#numericArgs - 1]
+      self.pointY = numericArgs[#numericArgs]
+    elseif #numericArgs == 1 then
+      self.pointX = 0
+      self.pointY = numericArgs[1]
     end
   end
   function frame.SetScript(self, script, handler)
@@ -445,13 +477,17 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
   end
   function frame.EnableMouse() end
   function frame.RegisterForClicks() end
-  function frame.Hide() end
-  function frame.Show() end
+  function frame.Hide(self)
+    self._shown = false
+  end
+  function frame.Show(self)
+    self._shown = true
+  end
   function frame.SetShown(self, value)
     self._shown = value and true or false
   end
-  function frame.IsShown()
-    return true
+  function frame.IsShown(self)
+    return self._shown
   end
   function frame.SetNormalTexture(self, value)
     self.normalTexture = value
@@ -609,12 +645,14 @@ local function RegisterRosterPanelLeaderInteractionTests(test, Assert, WithGloba
       Assert.NotNil(readyCheckButton, "ready-check button should exist")
       Assert.NotNil(countdownButton, "countdown button should exist")
       Assert.NotNil(countdownCancelButton, "countdown-cancel button should exist")
+      ---@diagnostic disable: need-check-nil, undefined-field
       Assert.False(readyCheckButton.enabled, "ready-check button should be disabled for non-leaders")
       Assert.False(countdownButton.enabled, "countdown button should be disabled for non-leaders")
       Assert.False(countdownCancelButton.enabled, "countdown-cancel button should be disabled for non-leaders")
       Assert.Equal(readyCheckButton.alpha, 0.45, "ready-check button should be dimmed for non-leaders")
       Assert.Equal(countdownButton.alpha, 0.45, "countdown button should be dimmed for non-leaders")
       Assert.Equal(countdownCancelButton.alpha, 0.45, "countdown-cancel button should be dimmed for non-leaders")
+      ---@diagnostic enable: need-check-nil, undefined-field
     end)
   end)
 end
@@ -767,11 +805,13 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
       end
 
       Assert.NotNil(privateTooltip, "RosterPanel should allocate a private tooltip frame")
+      ---@diagnostic disable: need-check-nil, undefined-field
       Assert.Equal(
         privateTooltip._isiLiveTooltipAnchor,
         "ANCHOR_CURSOR",
         "Refresh button tooltip must use cursor anchor"
       )
+      ---@diagnostic enable: need-check-nil, undefined-field
       Assert.Equal(sharedTooltipCalls, 0, "RosterPanel control tooltips should not use the shared Blizzard GameTooltip")
     end)
   end)
@@ -1747,12 +1787,14 @@ local function RegisterRosterPanelRowTooltipIsolationTests(test, Assert, WithGlo
     end
 
     Assert.NotNil(privateTooltip, "private roster tooltip frame should exist")
+    ---@diagnostic disable: need-check-nil, undefined-field
     Assert.Equal(
       privateTooltip._isiLiveTooltipAnchor,
       "ANCHOR_CURSOR",
       "private roster tooltip should keep cursor anchoring"
     )
     Assert.True(privateTooltip._isiLiveTooltipOwner ~= nil, "private roster tooltip should keep its hover owner")
+    ---@diagnostic enable: need-check-nil, undefined-field
   end)
 end
 
@@ -1770,6 +1812,17 @@ local function FindInteractiveRosterRow(createdFrames)
   end
 
   return nil
+end
+
+local function FindWorldMarkerButtons(createdFrames)
+  local buttons = {}
+  for _, frame in ipairs(createdFrames) do
+    if frame.attributes and frame.attributes.type1 == "worldmarker" and frame.attributes.type2 == "worldmarker" then
+      table.insert(buttons, frame)
+    end
+  end
+
+  return buttons
 end
 
 local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
@@ -1903,6 +1956,7 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
       local rowFrame = FindInteractiveRosterRow(createdFrames)
       Assert.NotNil(rowFrame, "interactive roster row should exist")
 
+      ---@diagnostic disable-next-line: need-check-nil
       rowFrame.OnMouseUp(nil, "LeftButton")
       Assert.Equal(targetCalls, 0, "left-click must not invoke protected targeting from the roster row")
     end)
@@ -2033,6 +2087,7 @@ local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, Load
       end
 
       Assert.NotNil(shareKeysButton, "share-keys button should exist")
+      ---@diagnostic disable: need-check-nil, undefined-field
       shareKeysButton.OnClick()
       shareKeysButton.OnClick()
       Assert.Equal(#sentMessages, 1, "rapid repeated share-keys clicks should be debounced")
@@ -2040,132 +2095,92 @@ local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, Load
 
       currentTime = 101.5
       shareKeysButton.OnClick()
+      ---@diagnostic enable: need-check-nil, undefined-field
       Assert.Equal(#sentMessages, 2, "share-keys click should fire again after debounce window")
     end)
   end)
 end
 
-local function RegisterRosterPanelSystemOptionLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Roster panel system option toggles keep spacing between adjacent labels", function()
+local function RegisterRosterPanelHiddenSettingDefaultTests(test, Assert, WithGlobals, LoadAddonModules)
+  local function BuildHiddenSettingTestController(addon, createdFontStrings, opts)
+    opts = opts or {}
+    return addon.RosterPanel.CreateController({
+      mainFrame = NewRecordedMainFrame(createdFontStrings),
+      getL = function()
+        return {
+          TITLE = "isiLive",
+          COL_SPEC = "Spec",
+          COL_NAME = "Name",
+          COL_LANGUAGE = "Lang",
+          COL_KEY = "Key",
+          COL_ILVL = "iLvl",
+          COL_RIO = "RIO",
+          COL_DPS = "DPS",
+          LEAD_OPTIONS = "Lead",
+          MPLUS_MANAGEMENT = "M+",
+          BTN_READYCHECK = "Readycheck",
+          BTN_COUNTDOWN10 = "Countdown10",
+          BTN_COUNTDOWN_CANCEL = "Countdown 0",
+          BTN_REFRESH = "Refresh",
+          BTN_SHARE_KEYS = "Share",
+          OPT_ADVANCED_COMBAT_LOGGING = "ACL",
+          OPT_DAMAGE_METER_RESET = "DMR",
+          TANK_HELPER_HEADER = "Tank Helper",
+        }
+      end,
+      isPlayerLeader = opts.isPlayerLeader or function()
+        return true
+      end,
+      getAddonVersionText = function()
+        return ""
+      end,
+      updateStatusLine = function() end,
+      setMainFrameHeightSafe = function() end,
+      buildOrderedRoster = opts.buildOrderedRoster or function()
+        return {}
+      end,
+      hasFullSync = function()
+        return false
+      end,
+      buildDisplayData = opts.buildDisplayData or function()
+        return {}
+      end,
+      truncateName = function(text)
+        return text
+      end,
+      getShortSpecLabel = function(text)
+        return text
+      end,
+      getLanguageFlagMarkup = function()
+        return ""
+      end,
+      getDungeonShortCode = function()
+        return ""
+      end,
+      resolveActiveKeyOwnerUnit = function()
+        return nil
+      end,
+      getRoster = function()
+        return {}
+      end,
+      isInGroup = function()
+        return true
+      end,
+      rolePriority = opts.rolePriority or {},
+      unitPriority = opts.unitPriority or {},
+    })
+  end
+
+  test("Roster panel keeps hidden DPS setting hard-enabled even when DB disables it", function()
     local createdFrames = {}
     local createdFontStrings = {}
 
-    local function NewPointRecordedFontString()
-      local fontString = {}
-
-      function fontString.SetPoint(self, point, relativeTo, relativePoint, x, y)
-        self.point = point
-        self.relativeTo = relativeTo
-        self.relativePoint = relativePoint
-        self.pointX = x
-        self.pointY = y
-      end
-      function fontString.SetWidth() end
-      function fontString.SetJustifyH() end
-      function fontString.GetFont()
-        return "font", 10, ""
-      end
-      function fontString.SetFont() end
-      function fontString.SetTextColor() end
-      function fontString.SetShadowOffset() end
-      function fontString.SetText(self, value)
-        self.text = value
-      end
-      function fontString.SetWordWrap() end
-      function fontString.SetNonSpaceWrap() end
-      function fontString.SetMaxLines() end
-      function fontString.Hide() end
-      function fontString.Show() end
-
-      table.insert(createdFontStrings, fontString)
-      return fontString
-    end
-
-    local function NewPointRecordedFrame()
-      local frame = {
-        checked = false,
-      }
-
-      function frame.SetSize() end
-      function frame.SetHeight() end
-      function frame.SetWidth() end
-      function frame.ClearAllPoints(self)
-        self.point = nil
-        self.relativeTo = nil
-        self.relativePoint = nil
-        self.pointX = nil
-        self.pointY = nil
-      end
-      function frame.SetPoint(self, point, relativeTo, relativePoint, x, y)
-        self.point = point
-        self.relativeTo = relativeTo
-        self.relativePoint = relativePoint
-        self.pointX = x
-        self.pointY = y
-      end
-      function frame.SetScript(self, script, handler)
-        self[script] = handler
-      end
-      function frame.SetText(self, value)
-        self.text = value
-      end
-      function frame.SetEnabled() end
-      function frame.SetAlpha() end
-      function frame.SetChecked(self, value)
-        self.checked = value and true or false
-      end
-      function frame.GetChecked(self)
-        return self.checked
-      end
-      function frame.EnableMouse() end
-      function frame.Hide() end
-      function frame.Show() end
-      function frame.IsShown()
-        return true
-      end
-      function frame.CreateTexture()
-        return {
-          SetAllPoints = function() end,
-          SetColorTexture = function() end,
-          SetTexture = function() end,
-          SetTexCoord = function() end,
-          Hide = function() end,
-          Show = function() end,
-          SetHeight = function() end,
-          SetPoint = function() end,
-        }
-      end
-      function frame.CreateFontString()
-        return NewPointRecordedFontString()
-      end
-
-      table.insert(createdFrames, frame)
-      return frame
-    end
-
-    local mainFrame = {
-      SetBackdrop = function() end,
-      SetBackdropColor = function() end,
-      IsShown = function()
-        return true
-      end,
-      CreateFontString = function()
-        return NewPointRecordedFontString()
-      end,
-      CreateTexture = function()
-        return {
-          SetHeight = function() end,
-          SetPoint = function() end,
-          SetColorTexture = function() end,
-          SetTexture = function() end,
-          SetTexCoord = function() end,
-        }
-      end,
-    }
-
     WithGlobals({
+      IsiLiveDB = {
+        showDpsColumn = false,
+      },
       CreateFrame = function()
-        return NewPointRecordedFrame()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
       end,
       GameTooltip = {
         SetOwner = function() end,
@@ -2176,87 +2191,97 @@ local function RegisterRosterPanelSystemOptionLayoutTests(test, Assert, WithGlob
       },
     }, function()
       local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
-      local controller = addon.RosterPanel.CreateController({
-        mainFrame = mainFrame,
-        getL = function()
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings, {
+        buildOrderedRoster = function()
           return {
-            OPT_ADVANCED_COMBAT_LOGGING = "Combat Logging",
-            OPT_DAMAGE_METER_RESET = "DM Reset on Entry",
+            {
+              unit = "party1",
+              info = {
+                name = "Buddy",
+                role = "DAMAGER",
+              },
+            },
           }
         end,
-        isPlayerLeader = function()
-          return true
-        end,
-        getAddonVersionText = function()
-          return ""
-        end,
-        updateStatusLine = function() end,
-        setMainFrameHeightSafe = function() end,
-        buildOrderedRoster = function()
-          return {}
-        end,
-        hasFullSync = function()
-          return false
-        end,
         buildDisplayData = function()
-          return {}
+          return {
+            colorHex = "ffffffff",
+            displayName = "Buddy",
+            languageDisplay = "EN",
+            specText = "Fury",
+            ilvlText = "650",
+            rioText = "3000",
+            keyText = "DB +10",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
         end,
-        truncateName = function(text)
-          return text
-        end,
-        getShortSpecLabel = function(text)
-          return text
-        end,
-        getLanguageFlagMarkup = function()
-          return ""
-        end,
-        getDungeonShortCode = function()
-          return ""
-        end,
-        resolveActiveKeyOwnerUnit = function()
-          return nil
-        end,
-        getRoster = function()
-          return {}
-        end,
-        isInGroup = function()
-          return true
-        end,
-        rolePriority = {},
-        unitPriority = {},
+        rolePriority = {
+          DAMAGER = 1,
+        },
+        unitPriority = {
+          party1 = 1,
+        },
       })
 
-      controller.ApplyLocalization()
+      controller.RenderRoster({})
 
-      local combatLabel = nil
-      local damageMeterResetLabel = nil
+      local dpsHeader = nil
+      local rowDps = nil
       for _, fontString in ipairs(createdFontStrings) do
-        if fontString.text == "Combat Logging" then
-          combatLabel = fontString
-        elseif fontString.text == "DM Reset on Entry" then
-          damageMeterResetLabel = fontString
+        if fontString.pointX == 398 and fontString.pointY == -34 then
+          dpsHeader = fontString
+        elseif fontString.pointX == 398 and fontString.pointY ~= -34 then
+          rowDps = fontString
         end
       end
 
-      Assert.NotNil(combatLabel, "combat logging label should exist")
-      Assert.NotNil(damageMeterResetLabel, "damage meter reset label should exist")
+      Assert.NotNil(dpsHeader, "DPS header should exist")
+      Assert.True(dpsHeader:IsShown(), "hidden settings must keep the DPS header visible")
+      Assert.NotNil(rowDps, "row DPS cell should exist")
+      Assert.True(rowDps:IsShown(), "hidden settings must keep row DPS values visible")
+      Assert.Equal(rowDps.text, "-", "row DPS cell should still render the placeholder value")
+    end)
+  end)
 
-      local damageMeterResetToggle = nil
-      for _, frame in ipairs(createdFrames) do
-        if frame.relativeTo == combatLabel then
-          damageMeterResetToggle = frame
-        end
+  test("Roster panel keeps hidden marker setting visible for non-leaders even when DB enables leader-only", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+
+    WithGlobals({
+      IsiLiveDB = {
+        markersLeaderOnly = true,
+      },
+      InCombatLockdown = function()
+        return false
+      end,
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings, {
+        isPlayerLeader = function()
+          return false
+        end,
+      })
+
+      controller.RenderRoster({})
+
+      local tankButtons = FindWorldMarkerButtons(createdFrames)
+      Assert.Equal(#tankButtons, 8, "marker helper should still create all eight world-marker buttons")
+      for _, button in ipairs(tankButtons) do
+        Assert.True(button:IsShown(), "hidden settings must keep world-marker buttons visible for non-leaders")
       end
-
-      Assert.NotNil(damageMeterResetToggle, "damage meter reset toggle should anchor after the combat logging label")
-      Assert.Equal(damageMeterResetToggle.point, "LEFT", "damage meter reset toggle should align horizontally")
-      Assert.Equal(
-        damageMeterResetToggle.relativePoint,
-        "RIGHT",
-        "damage meter reset toggle should attach to the combat label edge"
-      )
-      Assert.Equal(damageMeterResetToggle.pointX, 18, "damage meter reset toggle should keep the same visible gap")
-      Assert.Equal(damageMeterResetToggle.pointY, 0, "damage meter reset toggle should stay on the same baseline")
     end)
   end)
 end
@@ -2267,12 +2292,12 @@ local function RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, Lo
   RegisterRosterPanelRowTooltipTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, LoadAddonModules)
-  RegisterRosterPanelSystemOptionLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 local function RegisterRosterPanelTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterDisplayTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelHiddenSettingDefaultTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 return function(test, ctx)
