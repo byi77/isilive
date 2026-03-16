@@ -25,10 +25,18 @@ local FULL_FRAME_WIDTH = RI.FULL_FRAME_WIDTH or 755
 local HELPER_BUTTON_SIZE = RI.HELPER_BUTTON_SIZE or 18
 local HELPER_COLUMN_X = RI.HELPER_COLUMN_X or -111
 local DEFAULT_MIN_FRAME_HEIGHT = RI.DEFAULT_MIN_FRAME_HEIGHT or 236
-local IsCombatLockdownActive = RI.IsCombatLockdownActive or function() return false end
-local NormalizeLayoutMode = RI.NormalizeLayoutMode or function(_mode) return LAYOUT_MODE_EXPANDED end
-local IsCompactLayoutMode = RI.IsCompactLayoutMode or function(_mode) return false end
-local IsHorizontalCompactLayoutMode = RI.IsHorizontalCompactLayoutMode or function(_mode) return false end
+local IsCombatLockdownActive = RI.IsCombatLockdownActive or function()
+  return false
+end
+local NormalizeLayoutMode = RI.NormalizeLayoutMode or function(_mode)
+  return LAYOUT_MODE_EXPANDED
+end
+local IsCompactLayoutMode = RI.IsCompactLayoutMode or function(_mode)
+  return false
+end
+local IsHorizontalCompactLayoutMode = RI.IsHorizontalCompactLayoutMode or function(_mode)
+  return false
+end
 local GetFrameWidthForLayoutMode = RI.GetFrameWidthForLayoutMode
 local GetFrameHeightForLayoutMode = RI.GetFrameHeightForLayoutMode
 local UI_VISIBILITY_RULES = RI.UI_VISIBILITY_RULES or {}
