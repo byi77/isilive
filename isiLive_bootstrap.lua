@@ -60,6 +60,54 @@ function Bootstrap.RegisterSlashCommands(opts)
   })
 end
 
+-- Deklarative Event-Registry: { event, combat, hidden, test }
+-- hidden = true (statisch erlaubt), "cond" (per Callback), false (gesperrt)
+local EVENT_REGISTRY = {
+  { "ADDON_LOADED",                        true,   true,   true  },
+  { "PLAYER_LOGIN",                        true,   true,   false },
+  { "PLAYER_ENTERING_WORLD",               true,   true,   false },
+  { "UPDATE_BINDINGS",                     true,   true,   false },
+  { "PLAYER_REGEN_ENABLED",                true,   true,   true  },
+  { "PLAYER_DIFFICULTY_CHANGED",           false,  false,  false },
+  { "ZONE_CHANGED_NEW_AREA",              false,  false,  false },
+  { "UPDATE_INSTANCE_INFO",               false,  false,  false },
+  { "GROUP_ROSTER_UPDATE",                false,  "cond", false },
+  { "LFG_LIST_SEARCH_RESULT_UPDATED",     false,  false,  false },
+  { "LFG_LIST_APPLICATION_STATUS_UPDATED", false,  false,  false },
+  { "LFG_LIST_ACTIVE_ENTRY_UPDATE",       false,  false,  false },
+  { "CHAT_MSG_ADDON",                     false,  false,  false },
+  { "INSPECT_READY",                      false,  false,  true  },
+  { "CHALLENGE_MODE_START",               true,   false,  false },
+  { "CHALLENGE_MODE_COMPLETED",           true,   true,   false },
+  { "CHALLENGE_MODE_RESET",               true,   true,   false },
+  { "BAG_UPDATE_DELAYED",                 false,  false,  false },
+  { "CHALLENGE_MODE_MAPS_UPDATE",         false,  false,  false },
+  { "SPELL_UPDATE_COOLDOWN",              false,  false,  false },
+  { "READY_CHECK",                        true,   false,  false },
+  { "READY_CHECK_CONFIRM",                true,   false,  false },
+  { "READY_CHECK_FINISHED",              true,   false,  false },
+}
+Bootstrap.EVENT_REGISTRY = EVENT_REGISTRY
+
+local function BuildGateTables()
+  local allowInCombat = {}
+  local allowWhenHidden = {}
+  local allowInTestMode = {}
+  for _, entry in ipairs(EVENT_REGISTRY) do
+    local event, combat, hidden, test = entry[1], entry[2], entry[3], entry[4]
+    if combat then
+      allowInCombat[event] = true
+    end
+    if hidden == true then
+      allowWhenHidden[event] = true
+    end
+    if test then
+      allowInTestMode[event] = true
+    end
+  end
+  return allowInCombat, allowWhenHidden, allowInTestMode
+end
+
 function Bootstrap.CreateGatedOnEvent(opts)
   opts = opts or {}
 
@@ -77,15 +125,7 @@ function Bootstrap.CreateGatedOnEvent(opts)
   local getActiveChallengeMapID = RequireFunction(opts.getActiveChallengeMapID, "getActiveChallengeMapID")
   local onDispatchError = type(opts.onDispatchError) == "function" and opts.onDispatchError or nil
 
-  local allowWhenHidden = {
-    ADDON_LOADED = true,
-    PLAYER_LOGIN = true,
-    PLAYER_ENTERING_WORLD = true,
-    UPDATE_BINDINGS = true,
-    PLAYER_REGEN_ENABLED = true,
-    CHALLENGE_MODE_COMPLETED = true,
-    CHALLENGE_MODE_RESET = true,
-  }
+  local allowInCombat, allowWhenHidden, allowInTestMode = BuildGateTables()
   if type(opts.allowWhenHidden) == "table" then
     for k, v in pairs(opts.allowWhenHidden) do
       allowWhenHidden[k] = v
@@ -99,19 +139,7 @@ function Bootstrap.CreateGatedOnEvent(opts)
     isPaused = isPaused,
     isTestMode = isTestMode,
     isInCombat = isInCombat,
-    allowInCombat = {
-      ADDON_LOADED = true,
-      PLAYER_LOGIN = true,
-      PLAYER_ENTERING_WORLD = true,
-      UPDATE_BINDINGS = true,
-      PLAYER_REGEN_ENABLED = true,
-      CHALLENGE_MODE_START = true,
-      CHALLENGE_MODE_COMPLETED = true,
-      CHALLENGE_MODE_RESET = true,
-      READY_CHECK = true,
-      READY_CHECK_CONFIRM = true,
-      READY_CHECK_FINISHED = true,
-    },
+    allowInCombat = allowInCombat,
     allowWhenHidden = allowWhenHidden,
     shouldAllowWhenHidden = function(_, event)
       if event ~= "GROUP_ROSTER_UPDATE" then
@@ -123,40 +151,16 @@ function Bootstrap.CreateGatedOnEvent(opts)
       end
       return isInGroup() and not inChallenge
     end,
-    allowInTestMode = {
-      ADDON_LOADED = true,
-      PLAYER_REGEN_ENABLED = true,
-      INSPECT_READY = true,
-    },
+    allowInTestMode = allowInTestMode,
   })
 end
 
 function Bootstrap.RegisterMainFrameEvents(mainFrame)
   assert(mainFrame, "isiLive: Bootstrap.RegisterMainFrameEvents requires mainFrame")
 
-  mainFrame:RegisterEvent("ADDON_LOADED")
-  mainFrame:RegisterEvent("PLAYER_LOGIN")
-  mainFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-  mainFrame:RegisterEvent("UPDATE_BINDINGS")
-  mainFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-  mainFrame:RegisterEvent("PLAYER_DIFFICULTY_CHANGED")
-  mainFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-  mainFrame:RegisterEvent("UPDATE_INSTANCE_INFO")
-  mainFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
-  mainFrame:RegisterEvent("LFG_LIST_SEARCH_RESULT_UPDATED")
-  mainFrame:RegisterEvent("LFG_LIST_APPLICATION_STATUS_UPDATED")
-  mainFrame:RegisterEvent("LFG_LIST_ACTIVE_ENTRY_UPDATE")
-  mainFrame:RegisterEvent("CHAT_MSG_ADDON")
-  mainFrame:RegisterEvent("INSPECT_READY")
-  mainFrame:RegisterEvent("CHALLENGE_MODE_START")
-  mainFrame:RegisterEvent("CHALLENGE_MODE_COMPLETED")
-  mainFrame:RegisterEvent("CHALLENGE_MODE_RESET")
-  mainFrame:RegisterEvent("BAG_UPDATE_DELAYED")
-  mainFrame:RegisterEvent("CHALLENGE_MODE_MAPS_UPDATE")
-  mainFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
-  mainFrame:RegisterEvent("READY_CHECK")
-  mainFrame:RegisterEvent("READY_CHECK_CONFIRM")
-  mainFrame:RegisterEvent("READY_CHECK_FINISHED")
+  for _, entry in ipairs(EVENT_REGISTRY) do
+    mainFrame:RegisterEvent(entry[1])
+  end
 end
 
 function Bootstrap.BindMainFrameScripts(mainFrame, opts)

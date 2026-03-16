@@ -43,6 +43,8 @@ isiLive_stats.lua
 isiLive_runtime_log.lua
 isiLive_inspect.lua
 isiLive_roster.lua
+isiLive_roster_tooltip.lua
+isiLive_roster_layout.lua
 isiLive_roster_panel.lua
 isiLive_events.lua
 isiLive_event_handlers_queue.lua
@@ -53,5 +55,7 @@ isiLive_commands.lua
 isiLive_ui.lua
 isiLive_settings.lua
 isiLive_guards.lua
+isiLive_factory_frame_bridge.lua
+isiLive_factory_controllers.lua
 isiLive_factory.lua
 isiLive.lua

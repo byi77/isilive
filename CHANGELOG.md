@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-03-16 - Internal Modernization (post 0.9.85)
+- **Code Split - Factory Module:**
+  - Extracted `isiLive_factory_frame_bridge.lua` (context creation, module wiring, frame bridge) and `isiLive_factory_controllers.lua` (runtime helpers, primary/secondary controllers, minimap button) from `isiLive_factory.lua`.
+  - `isiLive_factory.lua` reduced from ~1413 to ~310 lines; sub-modules export via `addonTable._FactoryInternal`.
+- **Code Split - Roster Panel Module:**
+  - Extracted `isiLive_roster_tooltip.lua` (simple tooltip API, hover tooltip, content builders) and `isiLive_roster_layout.lua` (layout modes, collapse state, system option toggles) from `isiLive_roster_panel.lua`.
+  - `isiLive_roster_panel.lua` reduced from ~2259 to ~1383 lines; sub-modules export via `addonTable._RosterInternal`.
+- **Centralized Backdrop Helper:**
+  - Added `UICommon.BACKDROP_PRESETS` and `UICommon.ApplyBackdrop(frame, presetName)` in `isiLive_ui_common.lua`, replacing ~111 redundant inline `SetBackdrop` calls across UI files.
+- **Declarative Event Registry:**
+  - Replaced 23 individual `RegisterEvent` calls in `isiLive_bootstrap.lua` with a declarative `EVENT_REGISTRY` table; gate tables for combat/hidden/test modes are now generated from the registry.
+- **Test Harness:**
+  - Added `IMPLICIT_DEPENDENCIES` for `isiLive_roster_panel.lua` and `isiLive_factory.lua` so sub-modules auto-load in tests.
+  - Updated architecture source-boundary tests to reference the new split files.
+- **Validation:**
+  - `lua tools/validate_usecases.lua`: 288 passed, 0 failed.
+  - `lua tools/validate_architecture_rules.lua`: all 6 active rules passed.
+
 ## 2026-03-16 - Version 0.9.85
 - **Settings - Expanded Blizzard Settings + Hidden Legacy Defaults:**
   - Extended `Settings -> AddOns -> isiKeyMPlus` with `UI Scale`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, and `Auto-Hide when Solo`.

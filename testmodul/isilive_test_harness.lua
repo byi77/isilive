@@ -7,6 +7,14 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_event_handlers_challenge.lua",
     "isiLive_event_handlers_runtime.lua",
   },
+  ["isiLive_roster_panel.lua"] = {
+    "isiLive_roster_tooltip.lua",
+    "isiLive_roster_layout.lua",
+  },
+  ["isiLive_factory.lua"] = {
+    "isiLive_factory_frame_bridge.lua",
+    "isiLive_factory_controllers.lua",
+  },
 }
 
 local function Fail(message)

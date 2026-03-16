@@ -7,15 +7,7 @@ addonTable.SettingsPanel = SettingsPanel
 
 local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
 local DEFAULT_BG_ALPHA = addonTable.UICommon and addonTable.UICommon.DEFAULT_BG_ALPHA or 0.50
-
-local SETTINGS_BACKDROP = {
-  bgFile = "Interface\\Buttons\\WHITE8X8",
-  edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-  tile = true,
-  tileSize = 16,
-  edgeSize = 8,
-  insets = { left = 2, right = 2, top = 2, bottom = 2 },
-}
+local ApplyBackdrop = addonTable.UICommon and addonTable.UICommon.ApplyBackdrop
 
 local PADDING_X = 16
 local PADDING_TOP = 16
@@ -35,22 +27,8 @@ local SHOW_MARKERS_LEADER_ONLY_SETTING = false
 local SHOW_SOUND_ENABLED_SETTING = false
 
 local function ApplySettingsBackdrop(frame)
-  if type(frame.SetBackdrop) ~= "function" then
-    return
-  end
-  frame:SetBackdrop(SETTINGS_BACKDROP)
-  if type(frame.SetBackdropColor) == "function" then
-    local bg = Colors.BG_PRIMARY or { 0.08, 0.08, 0.12, DEFAULT_BG_ALPHA }
-    local uiCommon = addonTable and addonTable.UICommon
-    local alpha = type(uiCommon) == "table"
-        and type(uiCommon.GetBackgroundAlpha) == "function"
-        and uiCommon.GetBackgroundAlpha()
-      or bg[4]
-    frame:SetBackdropColor(bg[1], bg[2], bg[3], alpha)
-  end
-  if type(frame.SetBackdropBorderColor) == "function" then
-    local bc = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
-    frame:SetBackdropBorderColor(bc[1], bc[2], bc[3], bc[4])
+  if type(ApplyBackdrop) == "function" then
+    ApplyBackdrop(frame, "PRIMARY")
   end
 end
 

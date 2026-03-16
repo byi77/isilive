@@ -68,25 +68,13 @@ local function CreateCenterNoticeFrame(config)
     self:StopMovingOrSizing()
   end)
 
-  if type(frame.SetBackdrop) == "function" then
-    frame:SetBackdrop({
-      bgFile = "Interface\\Buttons\\WHITE8X8",
-      edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-      tile = true,
-      tileSize = 16,
-      edgeSize = 8,
-      insets = { left = 2, right = 2, top = 2, bottom = 2 },
-    })
-    if type(frame.SetBackdropColor) == "function" then
-      frame:SetBackdropColor(0.05, 0.05, 0.08, 0.75)
+  local UICommon = addonTable and addonTable.UICommon
+  if not (type(UICommon) == "table" and UICommon.ApplyBackdrop and UICommon.ApplyBackdrop(frame, "NOTICE")) then
+    if type(frame.CreateTexture) == "function" then
+      local bg = frame:CreateTexture(nil, "BACKGROUND")
+      bg:SetAllPoints()
+      bg:SetColorTexture(0.05, 0.05, 0.08, 0.75)
     end
-    if type(frame.SetBackdropBorderColor) == "function" then
-      frame:SetBackdropBorderColor(1, 0.82, 0, 0.2)
-    end
-  else
-    local bg = frame:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    bg:SetColorTexture(0.05, 0.05, 0.08, 0.75)
   end
   return frame
 end
@@ -523,25 +511,13 @@ function Notice.CreateInviteHint(opts)
   frame:Hide()
   frame:SetFrameStrata("DIALOG")
 
-  if type(frame.SetBackdrop) == "function" then
-    frame:SetBackdrop({
-      bgFile = "Interface\\Buttons\\WHITE8X8",
-      edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-      tile = true,
-      tileSize = 16,
-      edgeSize = 8,
-      insets = { left = 2, right = 2, top = 2, bottom = 2 },
-    })
-    if type(frame.SetBackdropColor) == "function" then
-      frame:SetBackdropColor(0.05, 0.05, 0.08, 0.75)
+  local UICommon = addonTable and addonTable.UICommon
+  if not (type(UICommon) == "table" and UICommon.ApplyBackdrop and UICommon.ApplyBackdrop(frame, "NOTICE")) then
+    if type(frame.CreateTexture) == "function" then
+      local bg = frame:CreateTexture(nil, "BACKGROUND")
+      bg:SetAllPoints()
+      bg:SetColorTexture(0.05, 0.05, 0.08, 0.75)
     end
-    if type(frame.SetBackdropBorderColor) == "function" then
-      frame:SetBackdropBorderColor(1, 0.82, 0, 0.2)
-    end
-  else
-    local bg = frame:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    bg:SetColorTexture(0.05, 0.05, 0.08, 0.75)
   end
 
   local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")

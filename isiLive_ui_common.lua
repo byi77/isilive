@@ -27,6 +27,108 @@ function UICommon.GetBackgroundAlpha()
   return UICommon.DEFAULT_BG_ALPHA
 end
 
+local BACKDROP_STANDARD = {
+  bgFile = "Interface\\Buttons\\WHITE8X8",
+  edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+  tile = true,
+  tileSize = 16,
+  edgeSize = 8,
+  insets = { left = 2, right = 2, top = 2, bottom = 2 },
+}
+
+local BACKDROP_DETAIL = {
+  bgFile = "Interface\\Buttons\\WHITE8X8",
+  edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+  tile = true,
+  tileSize = 16,
+  edgeSize = 12,
+  insets = { left = 3, right = 3, top = 3, bottom = 3 },
+}
+
+local BACKDROP_MAIN_FRAME = {
+  bgFile = "Interface\\Buttons\\WHITE8X8",
+  edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+  tile = true,
+  tileSize = 32,
+  edgeSize = 16,
+  insets = { left = 4, right = 4, top = 4, bottom = 4 },
+}
+
+local BACKDROP_FLAT_BUTTON = {
+  bgFile = "Interface\\Buttons\\WHITE8X8",
+  edgeFile = "Interface\\Buttons\\WHITE8X8",
+  edgeSize = 1,
+  insets = { left = 0, right = 0, top = 0, bottom = 0 },
+}
+
+local BACKDROP_BG_ONLY = {
+  bgFile = "Interface\\Buttons\\WHITE8X8",
+}
+
+UICommon.BACKDROP_PRESETS = {
+  PRIMARY = {
+    backdrop = BACKDROP_STANDARD,
+    bgColor = function()
+      local bg = UICommon.Colors.BG_PRIMARY
+      return bg[1], bg[2], bg[3], UICommon.GetBackgroundAlpha()
+    end,
+    borderColor = UICommon.Colors.BORDER_DEFAULT,
+  },
+  MAIN_FRAME = {
+    backdrop = BACKDROP_MAIN_FRAME,
+    bgColor = function()
+      return 0, 0, 0, UICommon.GetBackgroundAlpha()
+    end,
+  },
+  NOTICE = {
+    backdrop = BACKDROP_STANDARD,
+    bgColor = { 0.05, 0.05, 0.08, 0.75 },
+    borderColor = { 1, 0.82, 0, 0.2 },
+  },
+  TOOLTIP = {
+    backdrop = BACKDROP_DETAIL,
+    bgColor = { 0, 0, 0, 0.92 },
+    borderColor = UICommon.Colors.BORDER_DEFAULT,
+  },
+  CLOSE_BUTTON = {
+    backdrop = BACKDROP_DETAIL,
+    bgColor = { 0, 0, 0, 0.85 },
+  },
+  FLAT_BUTTON = {
+    backdrop = BACKDROP_FLAT_BUTTON,
+    bgColor = UICommon.Colors.BG_SECONDARY,
+    borderColor = UICommon.Colors.BORDER_DEFAULT,
+  },
+  BUTTON_BG = {
+    backdrop = BACKDROP_BG_ONLY,
+    bgColor = UICommon.Colors.BG_SECONDARY,
+  },
+}
+
+function UICommon.ApplyBackdrop(frame, presetName)
+  if type(frame) ~= "table" or type(frame.SetBackdrop) ~= "function" then
+    return false
+  end
+  local preset = UICommon.BACKDROP_PRESETS[presetName]
+  if not preset then
+    return false
+  end
+  frame:SetBackdrop(preset.backdrop)
+  if preset.bgColor and type(frame.SetBackdropColor) == "function" then
+    if type(preset.bgColor) == "function" then
+      frame:SetBackdropColor(preset.bgColor())
+    else
+      local c = preset.bgColor
+      frame:SetBackdropColor(c[1], c[2], c[3], c[4])
+    end
+  end
+  if preset.borderColor and type(frame.SetBackdropBorderColor) == "function" then
+    local bc = preset.borderColor
+    frame:SetBackdropBorderColor(bc[1], bc[2], bc[3], bc[4])
+  end
+  return true
+end
+
 local TOOLTIP_HORIZONTAL_PADDING = 10
 local TOOLTIP_VERTICAL_PADDING = 10
 local TOOLTIP_LINE_SPACING = 3
@@ -267,22 +369,7 @@ local function EnsurePrivateTooltipAPI(tooltip)
 end
 
 local function ApplyCloseButtonBackdrop(button)
-  if type(button.SetBackdrop) ~= "function" then
-    return
-  end
-
-  button:SetBackdrop({
-    bgFile = "Interface\\Buttons\\WHITE8X8",
-    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-    tile = true,
-    tileSize = 16,
-    edgeSize = 12,
-    insets = { left = 3, right = 3, top = 3, bottom = 3 },
-  })
-
-  if type(button.SetBackdropColor) == "function" then
-    button:SetBackdropColor(0, 0, 0, 0.85)
-  end
+  UICommon.ApplyBackdrop(button, "CLOSE_BUTTON")
 end
 
 local function CreateCloseButtonLabel(button)
@@ -353,23 +440,7 @@ function UICommon.CreatePrivateTooltip(parent)
     return nil
   end
 
-  if type(tooltip.SetBackdrop) == "function" then
-    tooltip:SetBackdrop({
-      bgFile = "Interface\\Buttons\\WHITE8X8",
-      edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-      tile = true,
-      tileSize = 16,
-      edgeSize = 12,
-      insets = { left = 3, right = 3, top = 3, bottom = 3 },
-    })
-    if type(tooltip.SetBackdropColor) == "function" then
-      tooltip:SetBackdropColor(0, 0, 0, 0.92)
-    end
-    if type(tooltip.SetBackdropBorderColor) == "function" then
-      local bc = UICommon.Colors.BORDER_DEFAULT
-      tooltip:SetBackdropBorderColor(bc[1], bc[2], bc[3], bc[4])
-    end
-  elseif type(tooltip.CreateTexture) == "function" then
+  if not UICommon.ApplyBackdrop(tooltip, "TOOLTIP") and type(tooltip.CreateTexture) == "function" then
     tooltip._isiLiveTooltipBackground = tooltip._isiLiveTooltipBackground or tooltip:CreateTexture(nil, "BACKGROUND")
     if type(tooltip._isiLiveTooltipBackground.SetAllPoints) == "function" then
       tooltip._isiLiveTooltipBackground:SetAllPoints()

@@ -22,14 +22,7 @@ local PANEL_UI_SECTION_HEADER_HEIGHT = 16
 local PANEL_UI_SECTION_HEADER_GAP = 3
 local PANEL_UI_ICON_SIZE = 18
 local PANEL_UI_ICON_PADDING = 6
-local PANEL_UI_BACKDROP = {
-  bgFile = "Interface\\Buttons\\WHITE8X8",
-  edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-  tile = true,
-  tileSize = 16,
-  edgeSize = 8,
-  insets = { left = 2, right = 2, top = 2, bottom = 2 },
-}
+local ApplyBackdrop = addonTable.UICommon.ApplyBackdrop
 local PANEL_UI_ENTRIES = {
   {
     id = "professions",
@@ -304,13 +297,7 @@ end
 
 local function CreatePanelUIButton(parent, frameStrata, baseFrameLevel, frameLevelOffset, iconPath, buttonTemplate)
   local button = CreateFrame("Button", nil, parent, buttonTemplate or "BackdropTemplate")
-  if type(button.SetBackdrop) == "function" then
-    button:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
-  end
-  if type(button.SetBackdropColor) == "function" then
-    local bg = Colors.BG_SECONDARY
-    button:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
-  end
+  ApplyBackdrop(button, "BUTTON_BG")
   if type(button.EnableMouse) == "function" then
     button:EnableMouse(true)
   end
@@ -407,24 +394,7 @@ local function ResolvePanelUIWidth(buttonWidth)
 end
 
 local function ApplyPanelUIBackdrop(panelFrame)
-  if type(panelFrame) ~= "table" or type(panelFrame.SetBackdrop) ~= "function" then
-    return
-  end
-
-  panelFrame:SetBackdrop(PANEL_UI_BACKDROP)
-  if type(panelFrame.SetBackdropColor) == "function" then
-    local bg = Colors.BG_PRIMARY
-    local uiCommon = addonTable and addonTable.UICommon
-    local alpha = type(uiCommon) == "table"
-        and type(uiCommon.GetBackgroundAlpha) == "function"
-        and uiCommon.GetBackgroundAlpha()
-      or bg[4]
-    panelFrame:SetBackdropColor(bg[1], bg[2], bg[3], alpha)
-  end
-  if type(panelFrame.SetBackdropBorderColor) == "function" then
-    local bc = Colors.BORDER_DEFAULT
-    panelFrame:SetBackdropBorderColor(bc[1], bc[2], bc[3], bc[4])
-  end
+  ApplyBackdrop(panelFrame, "PRIMARY")
 end
 
 local function OpenViaMicroButton(buttonName, targetFrameNames, fallbackFn, ...)
