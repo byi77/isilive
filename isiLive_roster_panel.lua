@@ -37,9 +37,7 @@ end
 local IsHorizontalCompactLayoutMode = RI.IsHorizontalCompactLayoutMode or function(_mode)
   return false
 end
-local GetFrameWidthForLayoutMode = RI.GetFrameWidthForLayoutMode
 local GetFrameHeightForLayoutMode = RI.GetFrameHeightForLayoutMode
-local UI_VISIBILITY_RULES = RI.UI_VISIBILITY_RULES or {}
 local CreateSystemOptionToggles = RI.CreateSystemOptionToggles
 local RefreshSystemOptionToggles = RI.RefreshSystemOptionToggles
 local LayoutSystemOptionToggles = RI.LayoutSystemOptionToggles
