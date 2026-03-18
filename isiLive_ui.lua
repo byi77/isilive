@@ -292,11 +292,7 @@ local function IsPanelUIEnabled(state)
 end
 
 local function RefreshPanelUISecureButton(button)
-  if
-    type(button) ~= "table"
-    or not IsPanelUISecureMacroButton(button)
-    or type(button.SetAttribute) ~= "function"
-  then
+  if type(button) ~= "table" or not IsPanelUISecureMacroButton(button) or type(button.SetAttribute) ~= "function" then
     return
   end
 
