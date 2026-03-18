@@ -145,6 +145,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; direkte Main-UI-Sichtbarkeitswechsel werden bei Kampf-Lockdown gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
 - Erforderliche Tests:
   - Teleport secure button updates are deferred during combat and applied after regen
+  - UI game-menu secure button updates are deferred during combat and applied after regen
   - UI direct SetVisible defers during combat and applies after regen
 
 ### RULE-GRUPPE-RAID-SICHTBARKEIT

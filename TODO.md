@@ -2,6 +2,15 @@
 
 ## P0 - Release / Review
 
+- [x] `v0.9.86` vorbereiten:
+  - Combat-Defer fuer `Esc`-Shortcut-Secure-Buttons und Regen-Retry in den Baselines/Release-Notes dokumentieren
+  - `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md` und `isiLive.toc` auf `0.9.86` synchronisieren
+  - Tag: `isiLive_release_0.9.86`
+
+- [ ] `v0.9.86` veroeffentlichen
+  - `main` pushen und auf gruene `Lua Check` fuer den exakten Commit warten
+  - Stable-Tag danach pushen und CurseForge-Paket pruefen
+
 - [x] `v0.9.85` vorbereiten:
   - erweiterte Blizzard-Settings, Hidden-Legacy-Controls und die hart gesetzten Runtime-Defaults dokumentieren
   - Exit-DPS-Capture fuer normale, heroische und mythische Non-Challenge-Dungeons in den Baselines/Release-Notes nachziehen

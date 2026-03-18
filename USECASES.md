@@ -1,7 +1,7 @@
 # isiKeyMPlus Use Cases
 
-Version baseline: `0.9.85`
-Last updated: `2026-03-16`
+Version baseline: `0.9.86`
+Last updated: `2026-03-18`
 
 ## Actors
 
@@ -137,11 +137,12 @@ Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without d
 1. Trigger A: player opens the WoW `Esc` game menu while `IsiLiveDB.showEscPanel ~= false`.
 2. Result A: addon shows a localized shortcut strip left of `GameMenuFrame` with buttons for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button.
 3. Action: clicking a shortcut closes the game menu first and then opens the targeted Blizzard panel through the dedicated microbutton/direct opener path; the `ReloadUI` entry instead uses a secure macro path that clicks Blizzard `Continue` and then runs `/reload`.
-4. Rule: the spellbook shortcut must use spellbook-specific openers and must not route through the talents panel.
-5. Trigger B: player opens `Settings -> AddOns -> isiKeyMPlus`.
-6. Result B: Blizzard settings expose language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Queue Debug Log`, and `Runtime Log`.
-7. Rule: settings controls mirror live Blizzard CVars / SavedVariables and apply changes immediately without requiring the main addon window to be visible; changing `Background Opacity` live-updates the main frame, the optional `Esc` shortcut panel, and the settings canvas itself. Hidden legacy controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`, `Sound Notifications`) stay out of the settings UI and currently use fixed runtime defaults.
-8. Success criteria: both entry surfaces stay localized, deterministic, and reflect the current config/runtime state.
+4. Combat safety: if combat lockdown blocks secure `ReloadUI` button refreshes (for example click registration or macro attribute updates), addon defers that secure update and retries it on `PLAYER_REGEN_ENABLED` instead of touching the protected button immediately.
+5. Rule: the spellbook shortcut must use spellbook-specific openers and must not route through the talents panel.
+6. Trigger B: player opens `Settings -> AddOns -> isiKeyMPlus`.
+7. Result B: Blizzard settings expose language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Queue Debug Log`, and `Runtime Log`.
+8. Rule: settings controls mirror live Blizzard CVars / SavedVariables and apply changes immediately without requiring the main addon window to be visible; changing `Background Opacity` live-updates the main frame, the optional `Esc` shortcut panel, and the settings canvas itself. Hidden legacy controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`, `Sound Notifications`) stay out of the settings UI and currently use fixed runtime defaults.
+9. Success criteria: both entry surfaces stay localized, deterministic, and reflect the current config/runtime state.
 
 ## Non-Functional Rules
 
@@ -159,7 +160,7 @@ Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without d
 12. Leaving or being removed from a normal party must keep the current frame visibility state and retain former members as ghost rows until a deterministic prune path occurs.
 13. Manual marking (Tank=Blue, Healer=Green) is available via secure role-icon buttons for all group members without leader restriction in 5-man parties.
 14. Raid-group detection (> 5 members) keeps the addon visible, forces H mode, hides roster rows, prints a localized transition notice once per raid-size transition, and blocks switching back to M/V until party size returns.
-15. The optional `Esc` shortcut strip stays localized, closes the game menu before opening its target panel, and keeps `ReloadUI` on a secure macro path (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown` instead of issuing a Lua reload call from `isiLive`.
+15. The optional `Esc` shortcut strip stays localized, closes the game menu before opening its target panel, and keeps `ReloadUI` on a secure macro path (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`; blocked secure refreshes for that button replay on `PLAYER_REGEN_ENABLED` instead of running in combat.
 16. Hidden legacy settings controls remain absent from Blizzard Settings and currently use fixed runtime defaults: `DPS` column on, markers visible for all, sound off, fixed name truncation, and legacy 2-column `Travel` layout.
 
 ## Automated Validation Mapping
@@ -176,8 +177,8 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 7. UC-09: Manual Role Marker secure button configuration.
 8. UC-10: raid-size H-mode transition, visible-frame behavior, and duplicate-notice suppression.
 9. UC-11/UC-12: Secure world-marker button configuration for M+Marker and compact-layout visibility logic for M/V/H mode switching.
-10. Taint hardening: deferred secure attribute writes, insecure teleport/notice actions, and combat-safe collapse handling.
-11. UC-13: game-menu side-strip layout, localization, close-then-open behavior, direct opener fallback selection, and settings-canvas state mirroring/background-opacity behavior.
+10. Taint hardening: deferred secure attribute writes, deferred `Esc` shortcut secure-button refreshes, insecure teleport/notice actions, and combat-safe collapse handling.
+11. UC-13: game-menu side-strip layout, localization, close-then-open behavior, deferred secure reload-button refresh, direct opener fallback selection, and settings-canvas state mirroring/background-opacity behavior.
 
 ## Traceability To Source Files
 

@@ -88,6 +88,10 @@ local PANEL_UI_ENTRIES = {
   },
 }
 local panelUIState = nil
+local PositionPanelUIButtons
+local ApplyPanelUISecureState
+local panelUISecureRetryFrame
+local pendingPanelUISecureStateRefresh = {}
 local GAME_MENU_BUTTON_SIZE_CANDIDATE_NAMES = {
   "GameMenuButtonContinue",
   "GameMenuButtonOptions",
@@ -104,6 +108,54 @@ local GAME_MENU_BUTTON_SIZE_CANDIDATE_FIELDS = {
   "LogoutButton",
   "QuitButton",
 }
+
+local function IsPanelUISecureMacroButton(button)
+  return type(button) == "table" and type(button._secureMacroText) == "string" and button._secureMacroText ~= ""
+end
+
+local function IsPanelUISecureUpdateBlocked(state)
+  return type(state) == "table" and type(state.isInCombat) == "function" and state.isInCombat() == true
+end
+
+local function ClearQueuedPanelUISecureState(state)
+  if pendingPanelUISecureStateRefresh[state] ~= true then
+    return
+  end
+
+  pendingPanelUISecureStateRefresh[state] = nil
+  if panelUISecureRetryFrame and next(pendingPanelUISecureStateRefresh) == nil then
+    panelUISecureRetryFrame:UnregisterEvent("PLAYER_REGEN_ENABLED")
+  end
+end
+
+local function QueuePanelUISecureStateRefresh(state)
+  if type(state) ~= "table" then
+    return
+  end
+
+  pendingPanelUISecureStateRefresh[state] = true
+  if panelUISecureRetryFrame then
+    panelUISecureRetryFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+  end
+end
+
+panelUISecureRetryFrame = CreateFrame("Frame")
+panelUISecureRetryFrame:SetScript("OnEvent", function(self, event)
+  if event ~= "PLAYER_REGEN_ENABLED" then
+    return
+  end
+
+  local queuedStates = {}
+  for state in pairs(pendingPanelUISecureStateRefresh) do
+    queuedStates[#queuedStates + 1] = state
+    pendingPanelUISecureStateRefresh[state] = nil
+  end
+  self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+
+  for _, state in ipairs(queuedStates) do
+    ApplyPanelUISecureState(state, true)
+  end
+end)
 
 local function SafeCall(fn, ...)
   if type(fn) ~= "function" then
@@ -240,11 +292,11 @@ local function IsPanelUIEnabled(state)
 end
 
 local function RefreshPanelUISecureButton(button)
-  if type(button) ~= "table" or type(button.GetAttribute) ~= "function" or type(button.SetAttribute) ~= "function" then
-    return
-  end
-
-  if button:GetAttribute("type1") ~= "macro" then
+  if
+    type(button) ~= "table"
+    or not IsPanelUISecureMacroButton(button)
+    or type(button.SetAttribute) ~= "function"
+  then
     return
   end
 
@@ -252,7 +304,12 @@ local function RefreshPanelUISecureButton(button)
   if type(button.RegisterForClicks) == "function" then
     button:RegisterForClicks(clickBinding)
   end
+  button:SetAttribute("type", "macro")
+  button:SetAttribute("type1", "macro")
+  button:SetAttribute("*type1", "macro")
   button:SetAttribute("useOnKeyDown", useOnKeyDown)
+  button:SetAttribute("macrotext", button._secureMacroText)
+  button:SetAttribute("macrotext1", button._secureMacroText)
 end
 
 local function RefreshPanelUISecureButtons(state)
@@ -260,9 +317,16 @@ local function RefreshPanelUISecureButtons(state)
     return
   end
 
+  if IsPanelUISecureUpdateBlocked(state) then
+    QueuePanelUISecureStateRefresh(state)
+    return
+  end
+
   for _, button in ipairs(state.buttons or {}) do
     RefreshPanelUISecureButton(button)
   end
+
+  ClearQueuedPanelUISecureState(state)
 end
 
 local function SyncPanelUIButtonVisibility(button, visible)
@@ -287,21 +351,36 @@ local function SyncPanelUISecureButtonVisibility(state)
     return
   end
 
+  if IsPanelUISecureUpdateBlocked(state) then
+    QueuePanelUISecureStateRefresh(state)
+    return
+  end
+
   local visible = IsPanelUIEnabled(state)
   for _, button in ipairs(state.buttons or {}) do
-    if type(button.GetAttribute) == "function" and button:GetAttribute("type1") == "macro" then
+    if IsPanelUISecureMacroButton(button) then
       SyncPanelUIButtonVisibility(button, visible)
     end
   end
+
+  ClearQueuedPanelUISecureState(state)
 end
 
-local function CreatePanelUIButton(parent, frameStrata, baseFrameLevel, frameLevelOffset, iconPath, buttonTemplate)
+local function CreatePanelUIButton(
+  parent,
+  frameStrata,
+  baseFrameLevel,
+  frameLevelOffset,
+  iconPath,
+  buttonTemplate,
+  skipInitialClickRegistration
+)
   local button = CreateFrame("Button", nil, parent, buttonTemplate or "BackdropTemplate")
   ApplyBackdrop(button, "BUTTON_BG")
   if type(button.EnableMouse) == "function" then
     button:EnableMouse(true)
   end
-  if type(button.RegisterForClicks) == "function" then
+  if not skipInitialClickRegistration and type(button.RegisterForClicks) == "function" then
     button:RegisterForClicks("LeftButtonUp")
   end
   if frameStrata ~= nil and type(button.SetFrameStrata) == "function" then
@@ -569,7 +648,6 @@ local function ResolvePanelUICloseAnchor(gameMenuFrame)
   return nil
 end
 
-local PositionPanelUIButtons
 local ApplyPanelUILocalization
 local HideGameMenuFrame
 local RunAfterGameMenuClose
@@ -692,25 +770,54 @@ PositionPanelUIButtons = function(state)
     PANEL_UI_PADDING_TOP
     + (hasShortcutsHeader and (PANEL_UI_SECTION_HEADER_HEIGHT + PANEL_UI_SECTION_HEADER_GAP) or 0)
   )
+  local secureUpdatesBlocked = IsPanelUISecureUpdateBlocked(state)
+  local needsSecureRetry = false
 
   local previousButton = nil
   for _, button in ipairs(buttons) do
-    if type(button.SetSize) == "function" then
-      button:SetSize(buttonWidth, buttonHeight)
-    end
-    if type(button.ClearAllPoints) == "function" then
-      button:ClearAllPoints()
-    end
-
-    if previousButton ~= nil then
-      local gapBefore = math.max(0, tonumber(button._gapBefore) or PANEL_UI_BUTTON_GAP)
-      button:SetPoint("TOP", previousButton, "BOTTOM", 0, -gapBefore)
+    if IsPanelUISecureMacroButton(button) and secureUpdatesBlocked then
+      needsSecureRetry = true
     else
-      button:SetPoint("TOP", panelFrame or hostFrame, "TOP", 0, firstButtonTopOffset)
+      if type(button.SetSize) == "function" then
+        button:SetSize(buttonWidth, buttonHeight)
+      end
+      if type(button.ClearAllPoints) == "function" then
+        button:ClearAllPoints()
+      end
+
+      if previousButton ~= nil then
+        local gapBefore = math.max(0, tonumber(button._gapBefore) or PANEL_UI_BUTTON_GAP)
+        button:SetPoint("TOP", previousButton, "BOTTOM", 0, -gapBefore)
+      else
+        button:SetPoint("TOP", panelFrame or hostFrame, "TOP", 0, firstButtonTopOffset)
+      end
     end
 
     previousButton = button
   end
+
+  if needsSecureRetry then
+    QueuePanelUISecureStateRefresh(state)
+  else
+    ClearQueuedPanelUISecureState(state)
+  end
+end
+
+ApplyPanelUISecureState = function(state, force)
+  if type(state) ~= "table" then
+    return false
+  end
+
+  if not force and IsPanelUISecureUpdateBlocked(state) then
+    QueuePanelUISecureStateRefresh(state)
+    return false
+  end
+
+  PositionPanelUIButtons(state)
+  RefreshPanelUISecureButtons(state)
+  SyncPanelUISecureButtonVisibility(state)
+  ClearQueuedPanelUISecureState(state)
+  return true
 end
 
 HideGameMenuFrame = function(gameMenuFrame)
@@ -778,10 +885,9 @@ function UI.EnsurePanelUI(opts)
       panelUIState.getL = opts.getL
     end
     panelUIState.isEnabled = opts.isEnabled
+    panelUIState.isInCombat = type(opts.isInCombat) == "function" and opts.isInCombat or nil
     panelUIState.actions = MergePanelUIActions(opts.isInCombat, actionOverrides)
-    RefreshPanelUISecureButtons(panelUIState)
-    SyncPanelUISecureButtonVisibility(panelUIState)
-    PositionPanelUIButtons(panelUIState)
+    ApplyPanelUISecureState(panelUIState)
     ApplyPanelUILocalization(panelUIState)
     return panelUIState
   end
@@ -793,6 +899,7 @@ function UI.EnsurePanelUI(opts)
     end,
     actions = MergePanelUIActions(opts.isInCombat, actionOverrides),
     isEnabled = opts.isEnabled,
+    isInCombat = type(opts.isInCombat) == "function" and opts.isInCombat or nil,
     buttons = {},
     buttonsById = {},
     anchor = nil,
@@ -830,7 +937,7 @@ function UI.EnsurePanelUI(opts)
       if type(state.isEnabled) == "function" and not state.isEnabled() then
         return
       end
-      RefreshPanelUISecureButtons(state)
+      ApplyPanelUISecureState(state)
       if state.hostFrame and type(state.hostFrame.Show) == "function" then
         state.hostFrame:Show()
       end
@@ -868,9 +975,15 @@ function UI.EnsurePanelUI(opts)
     local buttonTemplate = type(entry.secureMacroText) == "string" and "SecureActionButtonTemplate,BackdropTemplate"
       or "BackdropTemplate"
     local buttonParent = type(entry.secureMacroText) == "string" and gameMenuFrame or panelFrame
-    local button =
-      CreatePanelUIButton(buttonParent, frameStrata, baseFrameLevel, 10 + index, entry.icon, buttonTemplate)
-    button:SetSize(state.buttonWidth, state.buttonHeight)
+    local button = CreatePanelUIButton(
+      buttonParent,
+      frameStrata,
+      baseFrameLevel,
+      10 + index,
+      entry.icon,
+      buttonTemplate,
+      type(entry.secureMacroText) == "string"
+    )
 
     button._actionId = entry.id
     button._labelKey = entry.labelKey
@@ -880,16 +993,7 @@ function UI.EnsurePanelUI(opts)
     button._secureMacroText = entry.secureMacroText
 
     if type(entry.secureMacroText) == "string" and type(button.SetAttribute) == "function" then
-      local clickBinding, useOnKeyDown = ResolveSecureClickBinding()
-      if type(button.RegisterForClicks) == "function" then
-        button:RegisterForClicks(clickBinding)
-      end
-      button:SetAttribute("type", "macro")
-      button:SetAttribute("type1", "macro")
-      button:SetAttribute("*type1", "macro")
-      button:SetAttribute("useOnKeyDown", useOnKeyDown)
-      button:SetAttribute("macrotext", entry.secureMacroText)
-      button:SetAttribute("macrotext1", entry.secureMacroText)
+      button._secureMacroText = entry.secureMacroText
     else
       button:SetScript("OnClick", function(self)
         local action = state.actions[self._actionId]
@@ -907,20 +1011,16 @@ function UI.EnsurePanelUI(opts)
   end
 
   function state.ApplyLocalization()
-    RefreshPanelUISecureButtons(state)
-    SyncPanelUISecureButtonVisibility(state)
-    PositionPanelUIButtons(state)
+    ApplyPanelUISecureState(state)
     ApplyPanelUILocalization(state)
   end
 
   state.SyncVisibility = function()
-    SyncPanelUISecureButtonVisibility(state)
+    ApplyPanelUISecureState(state)
   end
 
   panelUIState = state
-  RefreshPanelUISecureButtons(state)
-  SyncPanelUISecureButtonVisibility(state)
-  PositionPanelUIButtons(state)
+  ApplyPanelUISecureState(state)
   ApplyPanelUILocalization(state)
   return state
 end

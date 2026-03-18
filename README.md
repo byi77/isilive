@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.85`.
+Current documented baseline: `0.9.86`.
 
 ## Features
 
@@ -14,7 +14,7 @@ Current documented baseline: `0.9.85`.
 - **M+Marker:** Expanded view uses a vertical bar of 8 world marker buttons (`Square`, `Triangle`, `Diamond`, `Cross`, `Star`, `Circle`, `Moon`, `Skull`) with native secure world-marker actions; the horizontal mini layout arranges the same icons in one slim row and restores the vertical stack correctly when expanded again.
 - **Mini Mode:** Three static mode buttons are available next to the close button: `H` switches to the slim horizontal tool layout, `V` switches to the compact vertical palette, and `M` switches back to the main roster view. The active mode is highlighted in gold.
 - **Horizontal Mini Mode:** Shows the compact leader actions `RC`, `CD`, and `CD 0` side by side while M+Marker stays visible as one horizontal marker row. `Share Keys` and `Refresh` stay available only in M/V layouts.
-- **Esc Menu Shortcuts:** The WoW `Esc` game menu can show a second vertical shortcut strip left of the default menu, with direct buttons for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button. The `ReloadUI` entry is wired as a secure macro (`/click GameMenuButtonContinue` + `/reload`) and mirrors `ActionButtonUseKeyDown`.
+- **Esc Menu Shortcuts:** The WoW `Esc` game menu can show a second vertical shortcut strip left of the default menu, with direct buttons for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button. The `ReloadUI` entry is wired as a secure macro (`/click GameMenuButtonContinue` + `/reload`), mirrors `ActionButtonUseKeyDown`, and defers blocked secure refreshes until `PLAYER_REGEN_ENABLED`.
 - **Blizzard Settings Category:** `Settings -> AddOns -> isiKeyMPlus` exposes localized controls for language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Queue Debug Log`, and `Runtime Log`.
 - **Hidden Legacy Settings Defaults:** `Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`, and `Sound Notifications` are temporarily hidden from Blizzard Settings; runtime keeps fixed live defaults instead (`DPS` on, markers visible for all, sound off, fixed name truncation, legacy 2-column `Travel` grid).
 - **UI Polish Refresh:** The roster panel, private tooltips, invite hint, and center notice now share the same dark framed palette with softer blue hover accents, alternating row shading, and cleaner separators.
@@ -72,7 +72,7 @@ Current documented baseline: `0.9.85`.
 - `CTRL+ALT+F9`, `/isilive test`, and `/isilive testall` now enter the same full dummy preview path, including a visible ghost/leaver row and positive dummy RIO delta preview; preview refresh rebuilds fresh dummy copies each time.
 - Smart self-update: automatically broadcasts a full sync snapshot (`KEY`/`STATS`/`DPS`/`LOC`) when the player's own iLvl, RIO, or Spec changes.
 - Teleport action buttons are intentionally `InsecureActionButtonTemplate` so main-frame and notice visibility do not promote their parents to protected frames
-- Combat-safe frame updates: pending main-frame visibility and frame-height changes are applied on `PLAYER_REGEN_ENABLED`
+- Combat-safe frame updates: pending main-frame visibility, frame-height changes, and blocked `Esc` shortcut secure-button refreshes are applied on `PLAYER_REGEN_ENABLED`
 - Bottom-left system toggles expose `advancedCombatLogging` and `damageMeterResetOnNewInstance`.
 - They mirror the live Blizzard CVar state and write only on explicit user clicks.
 - Blizzard `Settings -> AddOns -> isiKeyMPlus` mirrors locale, those same CVar-backed toggles, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Queue Debug Log`, and `Runtime Log` without forcing the main addon window open.
@@ -93,9 +93,9 @@ Current documented baseline: `0.9.85`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`; explicit local refresh force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.85)
+## Use Case / Logic Baseline (v0.9.86)
 
-Documented on `2026-03-16` as runtime behavior baseline (`0.9.85`) for validation checks.
+Documented on `2026-03-18` as runtime behavior baseline (`0.9.86`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -128,7 +128,7 @@ Documented on `2026-03-16` as runtime behavior baseline (`0.9.85`) for validatio
    - Event gate blocks non-required processing in `stopped`, `paused`, and hidden states.
    - Hidden mode keeps transition events active (auto-open) and allows background data sync (`CHAT_MSG_ADDON`, `GROUP_ROSTER_UPDATE`) plus event-driven pre-rendered UI state; grouped non-challenge roster updates stay active even across raid-size transitions, while queue scanning and permanent polling remain suppressed.
    - `CHALLENGE_MODE_START` hides UI; completion/reset rehydrates group view and refresh flow.
-   - Combat-safe UI behavior: teleport action buttons use `InsecureActionButtonTemplate` (to avoid protected-parent show/hide taint), while spell-attribute updates, main-frame visibility, and blocked frame-height changes are restored on `PLAYER_REGEN_ENABLED`.
+   - Combat-safe UI behavior: teleport action buttons use `InsecureActionButtonTemplate` (to avoid protected-parent show/hide taint), while spell-attribute updates, `Esc` shortcut secure-button refreshes, main-frame visibility, and blocked frame-height changes are restored on `PLAYER_REGEN_ENABLED`.
    - Hidden leader changes are synchronized silently so leader-only button state stays correct on the next visible transition without firing hidden notices/chat output.
    - Leaving or getting removed from a normal party keeps the current frame visibility state and converts former party members into ghost rows instead of clearing the roster immediately.
 7. Post-run DPS snapshot behavior
@@ -254,7 +254,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 286 deterministic tests indexed and 288 scenarios across 30 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper), including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 287 deterministic tests indexed and 289 scenarios across 30 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper), including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)

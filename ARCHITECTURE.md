@@ -1,7 +1,7 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.85`
-Last updated: `2026-03-16`
+Version baseline: `0.9.86`
+Last updated: `2026-03-18`
 
 ## Purpose
 
@@ -50,7 +50,7 @@ WoW Event
 1. Resolve dungeon targets only through concrete `activityID -> mapID -> spellID` data.
 2. If `mapID` context is missing or ambiguous, keep target unresolved (no name/token guessing).
 3. Keep leader-only actions explicit and disabled when unauthorized.
-4. Keep combat-safe UI updates deferred when protected operations are blocked; teleport action buttons must not promote parent frames to protected status, and blocked main-frame visibility/height changes must replay on `PLAYER_REGEN_ENABLED`.
+4. Keep combat-safe UI updates deferred when protected operations are blocked; teleport action buttons must not promote parent frames to protected status, and blocked main-frame visibility/height changes plus blocked `Esc` shortcut secure-button refreshes must replay on `PLAYER_REGEN_ENABLED`.
 5. Keep teleport-grid button strata/level synchronized with main-frame strata/level.
 6. For shared-portcast spells, prioritize exact activity map matching over spell-only suppression.
 7. Do not clear highlight state from ambiguous shared spell mappings when exact map context is unknown.
@@ -66,7 +66,7 @@ WoW Event
 17. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures where Blizzard tooltip APIs are still referenced.
 18. Shared `isiLive` tooltip frames own their own text layout and must not route UI hover rendering back through the shared Blizzard `GameTooltip`.
 19. Raid-size groups force the visible roster panel into H mode, hide roster rows, and suppress duplicate raid-transition notifications until the group leaves raid size again.
-20. The optional game-menu shortcut strip closes the menu before opening its target panel; `ReloadUI` is owned by a secure macro button (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`, while the other entries keep direct opener paths for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, and `Guild`.
+20. The optional game-menu shortcut strip closes the menu before opening its target panel; `ReloadUI` is owned by a secure macro button (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`, defers blocked secure refreshes to `PLAYER_REGEN_ENABLED`, while the other entries keep direct opener paths for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, and `Guild`.
 21. Temporarily hidden legacy settings controls stay absent from Blizzard Settings while runtime enforces their fixed defaults (`DPS` on, markers leader-only off, sound off, fixed name truncation, legacy 2-column `Travel` grid) until the controls are re-enabled.
 
 ## Architecture Contract Set
@@ -97,12 +97,12 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 286 deterministic tests indexed and 288 scenarios across 30 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/roster-panel-layout/status/stats/units/ui/roster-display/taint/tank-helper logic.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 287 deterministic tests indexed and 289 scenarios across 30 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/roster-panel-layout/status/stats/units/ui/roster-display/taint/tank-helper logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiKeyMPlus                                                                      V.0.9.85 [H][V][M][X]|
+| isiKeyMPlus                                                                      V.0.9.86 [H][V][M][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  Marker    Travel              |
 |---------------------------------------------------------------------------------------------------|

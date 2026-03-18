@@ -79,6 +79,15 @@ local function RequireValue(value, message)
   return value
 end
 
+local function FindCombatRetryFrame(createdFrames)
+  for _, frame in ipairs(createdFrames or {}) do
+    if frame.IsEventRegistered and frame:IsEventRegistered("PLAYER_REGEN_ENABLED") then
+      return frame
+    end
+  end
+  return nil
+end
+
 local function ApplyFrameMethods(frame)
   frame.SetSize = function(self, width, height)
     self._width = tonumber(width) or self._width
@@ -110,6 +119,23 @@ local function ApplyFrameMethods(frame)
   frame.RegisterForDrag = function() end
   frame.SetScript = function(self, name, handler)
     self._scripts[name] = handler
+  end
+  frame.RegisterEvent = function(self, event)
+    self._events = self._events or {}
+    self._events[event] = true
+  end
+  frame.UnregisterEvent = function(self, event)
+    self._events = self._events or {}
+    self._events[event] = nil
+  end
+  frame.IsEventRegistered = function(self, event)
+    return self._events and self._events[event] == true or false
+  end
+  frame.FireEvent = function(self, event, ...)
+    local handler = self._scripts and self._scripts.OnEvent or nil
+    if type(handler) == "function" then
+      handler(self, event, ...)
+    end
   end
   frame.HookScript = function(self, name, handler)
     local previous = self._scripts[name]
@@ -779,6 +805,143 @@ local function RegisterGameMenuReloadButtonTests(test, Assert, WithGlobals, Load
         strip.buttonsById.reloadui:GetAttribute("useOnKeyDown"),
         true,
         "reload button should mirror the action-button key-down cvar into its secure attributes"
+      )
+    end)
+  end)
+
+  test("UI game-menu secure button updates are deferred during combat and applied after regen", function()
+    local inCombat = false
+    local useKeyDown = false
+    local createFrameStub, createdFrames = BuildCreateFrameStub({
+      simulateProtectedFrames = true,
+      isInCombat = function()
+        return inCombat
+      end,
+    })
+    local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+    local closeButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
+    gameMenuFrame.CloseButton = closeButton
+
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = createFrameStub,
+      GameMenuFrame = gameMenuFrame,
+      GetCVarBool = function(name)
+        if name == "ActionButtonUseKeyDown" then
+          return useKeyDown
+        end
+        return false
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local strip = UI.EnsurePanelUI({
+        gameMenuFrame = gameMenuFrame,
+        isInCombat = function()
+          return inCombat
+        end,
+      })
+
+      local reloadButton = RequireValue(strip.buttonsById.reloadui, "reload button should exist")
+      local originalRegisterForClicks = reloadButton.RegisterForClicks
+      reloadButton.RegisterForClicks = function(self, ...)
+        if inCombat then
+          error("secure click registration blocked in combat")
+        end
+        return originalRegisterForClicks(self, ...)
+      end
+
+      local originalSetAttribute = reloadButton.SetAttribute
+      reloadButton.SetAttribute = function(self, key, value)
+        if inCombat then
+          error("secure attribute write blocked in combat: " .. tostring(key))
+        end
+        return originalSetAttribute(self, key, value)
+      end
+
+      local originalSetSize = reloadButton.SetSize
+      reloadButton.SetSize = function(self, ...)
+        if inCombat then
+          error("secure size update blocked in combat")
+        end
+        return originalSetSize(self, ...)
+      end
+
+      local originalClearAllPoints = reloadButton.ClearAllPoints
+      reloadButton.ClearAllPoints = function(self)
+        if inCombat then
+          error("secure point clear blocked in combat")
+        end
+        return originalClearAllPoints(self)
+      end
+
+      local originalSetPoint = reloadButton.SetPoint
+      reloadButton.SetPoint = function(self, ...)
+        if inCombat then
+          error("secure point update blocked in combat")
+        end
+        return originalSetPoint(self, ...)
+      end
+
+      local originalShow = reloadButton.Show
+      reloadButton.Show = function(self)
+        if inCombat then
+          error("secure show blocked in combat")
+        end
+        return originalShow(self)
+      end
+
+      local originalHide = reloadButton.Hide
+      reloadButton.Hide = function(self)
+        if inCombat then
+          error("secure hide blocked in combat")
+        end
+        return originalHide(self)
+      end
+
+      useKeyDown = true
+      inCombat = true
+
+      local onShow = gameMenuFrame._scripts and gameMenuFrame._scripts.OnShow or nil
+      Assert.NotNil(onShow, "game menu should register an OnShow hook")
+
+      local ok, err = pcall(function()
+        ---@diagnostic disable-next-line: need-check-nil
+        onShow(gameMenuFrame)
+      end)
+
+      Assert.True(ok, "combat OnShow must defer secure button updates instead of tainting: " .. tostring(err))
+      Assert.Equal(
+        reloadButton._registeredClicks[1],
+        "LeftButtonUp",
+        "combat OnShow should keep the previous secure click binding until regen"
+      )
+      Assert.Equal(
+        reloadButton:GetAttribute("useOnKeyDown"),
+        false,
+        "combat OnShow should keep the previous secure attribute until regen"
+      )
+
+      local retryFrame = FindCombatRetryFrame(createdFrames)
+      Assert.NotNil(retryFrame, "combat secure update should register a regen retry frame")
+      retryFrame = RequireValue(retryFrame, "combat secure update should register a regen retry frame")
+
+      inCombat = false
+      retryFrame:FireEvent("PLAYER_REGEN_ENABLED")
+
+      Assert.Equal(
+        reloadButton._registeredClicks[1],
+        "LeftButtonDown",
+        "deferred secure update should apply the key-down click binding after regen"
+      )
+      Assert.Equal(
+        reloadButton:GetAttribute("useOnKeyDown"),
+        true,
+        "deferred secure update should refresh secure attributes after regen"
+      )
+      Assert.False(
+        retryFrame:IsEventRegistered("PLAYER_REGEN_ENABLED"),
+        "regen retry frame should unregister after applying pending secure updates"
       )
     end)
   end)
