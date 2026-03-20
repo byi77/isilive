@@ -287,7 +287,11 @@ local function RegisterInspectRobustnessTests(test, Assert, WithGlobals, LoadAdd
       controller.OnUpdate()
 
       Assert.Equal(notifyCalls, 0, "missing units must not reach NotifyInspect")
-      Assert.Equal(#controller.retryQueue, 1, "stale inspect queue entries should be deferred without raw unit API calls")
+      Assert.Equal(
+        #controller.retryQueue,
+        1,
+        "stale inspect queue entries should be deferred without raw unit API calls"
+      )
     end)
   end)
 end
