@@ -174,7 +174,7 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithG
             GetUnitServerLanguage = function(_locale, _realmInfoLib, _unit, _realm)
               return "DE"
             end,
-            BuildDummyRoster = function(opts)
+            BuildDummyRoster = function(_opts)
               return {
                 player = {
                   name = "TestPlayer",

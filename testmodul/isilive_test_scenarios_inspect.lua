@@ -69,9 +69,6 @@ local function RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddo
       UnitGUID = function(unit)
         return "guid-" .. tostring(unit)
       end,
-      UnitExists = function(_unit)
-        return true
-      end,
       C_PaperDollInfo = {
         GetInspectItemLevel = function(_unit)
           return 615
