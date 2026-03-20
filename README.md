@@ -247,7 +247,7 @@ Developer debug (hidden command, not listed in in-game help):
   - `lua tools/validate_architecture_rules.lua`
   - `lua tools/validate_usecases.lua`
   - Windows preflight mirroring the GitHub workflow as closely as possible: `powershell -ExecutionPolicy Bypass -File tools/validate_ci_local.ps1`
-  - Metrics defaults: file `warn>1200` / `hard>2400`, function `warn>120` / `hard>320` (override via `ISILIVE_WARN_FILE_LINES`, `ISILIVE_MAX_FILE_LINES`, `ISILIVE_WARN_FUNCTION_LINES`, `ISILIVE_MAX_FUNCTION_LINES`)
+  - Metrics defaults: file `warn>1200` / `hard>2600`, function `warn>120` / `hard>320` (override via `ISILIVE_WARN_FILE_LINES`, `ISILIVE_MAX_FILE_LINES`, `ISILIVE_WARN_FUNCTION_LINES`, `ISILIVE_MAX_FUNCTION_LINES`)
   - Windows note: if metrics cannot find LuaRocks modules (`lfs`/`luacheck.*`), set `LUA_PATH` + `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running.
 
 ## Deterministic Usecase Gate

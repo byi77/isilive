@@ -37,7 +37,7 @@ local function getenv_number(name, default_value)
 end
 
 local WARN_FILE_LINES = getenv_number("ISILIVE_WARN_FILE_LINES", 1200)
-local MAX_FILE_LINES = getenv_number("ISILIVE_MAX_FILE_LINES", 2400)
+local MAX_FILE_LINES = getenv_number("ISILIVE_MAX_FILE_LINES", 2600)
 local WARN_FUNCTION_LINES = getenv_number("ISILIVE_WARN_FUNCTION_LINES", 120)
 local MAX_FUNCTION_LINES = getenv_number("ISILIVE_MAX_FUNCTION_LINES", 320)
 

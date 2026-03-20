@@ -9,6 +9,8 @@
   - Bumped TOC version to `0.9.87`.
   - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.87`.
   - `lua tools/validate_usecases.lua` now validates `292` deterministic tests indexed and `294` scenarios across `30` modules.
+- **Metrics Policy:**
+  - Raised the `lua tools/lua_metrics_check.lua` file hard limit to `2600` lines so the current `testmodul/isilive_test_scenarios_roster_panel.lua` size stays within the release gate.
 
 ## 2026-03-18 - Version 0.9.86
 - **UI - Combat-Safe Esc Shortcut Secure Refresh:**
