@@ -320,7 +320,7 @@ local function HandleGroupRosterUpdate(deps)
   deps.setWasRaidGroup(false)
   if joinedNow then
     deps.setRoster({})
-    deps.setMainFrameVisible(true)
+    deps.setMainFrameVisible(true, "queue")
     deps.captureQueueJoinCandidate()
     deps.announceQueuedGroupJoin()
   end

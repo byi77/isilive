@@ -130,11 +130,16 @@ local function CreateFactoryContext(addonName, addonTable)
     if ctx.runtimeState.IsTestAllMode() then
       return true
     end
+    local unitExists = rawget(_G, "UnitExists")
+    if type(unitExists) ~= "function" or not unitExists("player") then
+      return false
+    end
     return IsInGroup() and UnitIsGroupLeader("player")
   end
 
   ctx.GetRealmInfoLib = modules.contextHelpers.CreateRealmInfoGetter()
   ctx.GetUnitRole = modules.units.GetUnitRole
+  ctx.GetUnitClass = modules.units.GetUnitClass
   ctx.TruncateName = modules.units.TruncateName
   ctx.GetUnitNameAndRealm = modules.units.GetUnitNameAndRealm
   ctx.GetPlayerSpecName = modules.units.GetPlayerSpecName
@@ -149,6 +154,7 @@ local function CreateFactoryContext(addonName, addonTable)
       previewVariant = opts.previewVariant,
       includeGhostMember = opts.includeGhostMember,
       getUnitNameAndRealm = ctx.GetUnitNameAndRealm,
+      getUnitClass = ctx.GetUnitClass,
       getUnitServerLanguage = function(unit, realm)
         return modules.contextHelpers.GetUnitServerLanguage(modules.locale, ctx.GetRealmInfoLib, unit, realm)
       end,
@@ -187,7 +193,7 @@ local function InitializeFactoryFrameBridge(ctx)
       return
     end
 
-    local _, class = UnitClass("player")
+    local _, class = ctx.GetUnitClass("player")
     local language = modules.contextHelpers.GetUnitServerLanguage(modules.locale, ctx.GetRealmInfoLib, "player", realm)
     local keyMapID, keyLevel
     if type(ctx.GetOwnedKeystoneSnapshot) == "function" then
@@ -265,9 +271,8 @@ local function InitializeFactoryFrameBridge(ctx)
   ctx.ShowInviteHint = function(message, durationSeconds)
     frameBridgeContext.ShowInviteHint(message, durationSeconds)
   end
-  ctx.SetMainFrameVisible = function(visible)
-    if visible then
-      -- Respect autoOpenOnQueue setting (default: true)
+  ctx.SetMainFrameVisible = function(visible, reason)
+    if visible and reason == "queue" then
       local dbRef = rawget(_G, "IsiLiveDB")
       if dbRef and dbRef.autoOpenOnQueue == false then
         return

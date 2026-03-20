@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-03-20 - Version 0.9.87
+- **Runtime Bugfixes:**
+  - Narrowed the `autoOpenOnQueue` gate so only queue-triggered frame opens are suppressed; dungeon-entry, key-end, and test-preview opens still show the main frame.
+  - Added `UnitExists`-guarded helpers around unit-token reads so missing or shifting group tokens no longer hit raw `UnitClass`, `UnitName`, `UnitLevel`, `UnitIsConnected`, `UnitGUID`, `UnitIsUnit`, `UnitIsVisible`, or `CanInspect` paths.
+  - Added deterministic regression coverage for the queue gate and missing-unit race paths across group, inspect, locale, roster display/panel, test mode, and unit helpers.
+- **Docs + Release Baseline:**
+  - Bumped TOC version to `0.9.87`.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.87`.
+  - `lua tools/validate_usecases.lua` now validates `292` deterministic tests indexed and `294` scenarios across `30` modules.
+
 ## 2026-03-18 - Version 0.9.86
 - **UI - Combat-Safe Esc Shortcut Secure Refresh:**
   - Fixed the `ADDON_ACTION_BLOCKED` path where the `Esc`-menu `ReloadUI` secure button tried to refresh click registration / secure macro attributes while the protected `GameMenuFrame` was being shown during combat.

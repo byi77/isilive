@@ -24,12 +24,44 @@ local function IsGhostRosterUnit(unit, roster)
   return type(roster) == "table" and type(roster[unit]) == "table" and roster[unit].isGhost == true
 end
 
+local function IsExistingUnit(unit)
+  if type(unit) ~= "string" or unit == "" then
+    return false
+  end
+
+  local unitExists = rawget(_G, "UnitExists")
+  if type(unitExists) ~= "function" then
+    return false
+  end
+
+  local ok, exists = pcall(unitExists, unit)
+  return ok and exists == true
+end
+
+local function GetUnitGUIDSafe(unit)
+  if not IsExistingUnit(unit) then
+    return nil
+  end
+
+  local unitGUID = rawget(_G, "UnitGUID")
+  if type(unitGUID) ~= "function" then
+    return nil
+  end
+
+  local ok, guid = pcall(unitGUID, unit)
+  if ok then
+    return guid
+  end
+
+  return nil
+end
+
 local function EnqueueInspect(controller, unit, roster)
-  if not unit or not roster or IsGhostRosterUnit(unit, roster) then
+  if not unit or not roster or IsGhostRosterUnit(unit, roster) or not IsExistingUnit(unit) then
     return
   end
 
-  local guid = UnitGUID(unit)
+  local guid = GetUnitGUIDSafe(unit)
   if guid and controller.ilvlCache[guid] and roster[unit] then
     roster[unit].ilvl = controller.ilvlCache[guid]
     roster[unit]._localIlvlFresh = true
@@ -59,7 +91,7 @@ local function QueueForceRefreshData(controller, roster)
   controller.ResetQueues()
   for unit, info in pairs(roster or {}) do
     if not (info.isGhost or IsGhostRosterUnit(unit, roster)) then
-      local guid = UnitGUID(unit)
+      local guid = GetUnitGUIDSafe(unit)
       if guid then
         controller.ilvlCache[guid] = nil
         controller.rioCache[guid] = nil
@@ -71,14 +103,16 @@ local function QueueForceRefreshData(controller, roster)
       info._localSpecFresh = nil
       info._localIlvlFresh = nil
       info._localRioFresh = nil
-      EnqueueInspect(controller, unit, roster)
+      if IsExistingUnit(unit) then
+        EnqueueInspect(controller, unit, roster)
+      end
     end
   end
 end
 
 local function OnInspectReady(controller, guid, roster, getUnitRio, getInspectSpecName, getPlayerSpecName)
   local inspectedUnit = controller.isInspecting
-  if not (inspectedUnit and UnitGUID(inspectedUnit) == guid) then
+  if not (inspectedUnit and GetUnitGUIDSafe(inspectedUnit) == guid) then
     return false
   end
 
@@ -156,14 +190,25 @@ local function OnInspectTimeout(controller, now)
 end
 
 local function IsUnitInspectable(unit)
-  if not unit then
+  if not IsExistingUnit(unit) then
     return false
   end
-  local okVisible, isVisible = pcall(UnitIsVisible, unit)
+
+  local unitIsVisible = rawget(_G, "UnitIsVisible")
+  if type(unitIsVisible) ~= "function" then
+    return false
+  end
+  local okVisible, isVisible = pcall(unitIsVisible, unit)
   if not okVisible or not isVisible then
     return false
   end
-  local okCanInspect, canInspect = pcall(CanInspect, unit)
+
+  local canInspectFn = rawget(_G, "CanInspect")
+  if type(canInspectFn) ~= "function" then
+    return false
+  end
+
+  local okCanInspect, canInspect = pcall(canInspectFn, unit)
   if not okCanInspect or not canInspect then
     return false
   end

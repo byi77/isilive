@@ -10,6 +10,9 @@ local function RegisterInspectRetryTests(test, Assert, WithGlobals, LoadAddonMod
       GetTime = function()
         return now
       end,
+      UnitExists = function(_unit)
+        return true
+      end,
       UnitGUID = function(unit)
         return "guid-" .. tostring(unit)
       end,
@@ -59,6 +62,9 @@ local function RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddo
     WithGlobals({
       GetTime = function()
         return now
+      end,
+      UnitExists = function(_unit)
+        return true
       end,
       UnitGUID = function(unit)
         return "guid-" .. tostring(unit)
@@ -112,6 +118,9 @@ local function RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddo
       GetTime = function()
         return 100
       end,
+      UnitExists = function(_unit)
+        return true
+      end,
       UnitGUID = function(unit)
         return "guid-" .. unit
       end,
@@ -155,6 +164,9 @@ local function RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddo
     WithGlobals({
       UnitGUID = function(unit)
         return "guid-" .. tostring(unit)
+      end,
+      UnitExists = function(_unit)
+        return true
       end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_inspect.lua" })
@@ -225,6 +237,57 @@ local function RegisterInspectRobustnessTests(test, Assert, WithGlobals, LoadAdd
       Assert.Equal(#controller.inspectQueue, 0, "unit should be removed from inspect queue")
       Assert.Equal(#controller.retryQueue, 1, "unit should be moved to retry queue on error")
       Assert.Equal(controller.retryQueue[1].unit, "party1", "retry entry should be the problematic unit")
+    end)
+  end)
+
+  test("Inspect skips missing units before UnitGUID, UnitIsVisible, or CanInspect are called", function()
+    local now = 0
+    local notifyCalls = 0
+
+    WithGlobals({
+      GetTime = function()
+        return now
+      end,
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
+      UnitGUID = function(_unit)
+        error("UnitGUID must not be called for missing units")
+      end,
+      UnitIsVisible = function(_unit)
+        error("UnitIsVisible must not be called for missing units")
+      end,
+      CanInspect = function(_unit)
+        error("CanInspect must not be called for missing units")
+      end,
+      NotifyInspect = function(_unit)
+        notifyCalls = notifyCalls + 1
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+      local controller = addon.Inspect.CreateController({
+        inspectDelay = 0,
+        retryInterval = 1,
+      })
+
+      local roster = { party1 = {} }
+
+      controller.EnqueueInspect("party1", roster)
+      Assert.Equal(#controller.inspectQueue, 0, "missing units must not be queued for inspect")
+
+      controller.QueueForceRefreshData(roster)
+      Assert.Equal(#controller.inspectQueue, 0, "force refresh must not queue missing units for inspect")
+
+      controller.isInspecting = "party1"
+      local changed = controller.OnInspectReady("guid-party1", roster, nil, nil, nil)
+      Assert.False(changed, "missing units must not complete inspect-ready processing")
+      controller.isInspecting = nil
+
+      table.insert(controller.inspectQueue, "party1")
+      controller.OnUpdate()
+
+      Assert.Equal(notifyCalls, 0, "missing units must not reach NotifyInspect")
+      Assert.Equal(#controller.retryQueue, 1, "stale inspect queue entries should be deferred without raw unit API calls")
     end)
   end)
 end

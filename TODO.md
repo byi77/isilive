@@ -2,12 +2,12 @@
 
 ## P0 - Release / Review
 
-- [x] `v0.9.86` vorbereiten:
-  - Combat-Defer fuer `Esc`-Shortcut-Secure-Buttons und Regen-Retry in den Baselines/Release-Notes dokumentieren
-  - `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md` und `isiLive.toc` auf `0.9.86` synchronisieren
-  - Tag: `isiLive_release_0.9.86`
+- [x] `v0.9.87` vorbereiten:
+  - Doku- und Baseline-Sync auf `0.9.87` abgeschlossen
+  - `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md` und `isiLive.toc` auf `0.9.87` synchronisieren
+  - Tag: `isiLive_release_0.9.87`
 
-- [ ] `v0.9.86` veroeffentlichen
+- [ ] `v0.9.87` veroeffentlichen
   - `main` pushen und auf gruene `Lua Check` fuer den exakten Commit warten
   - Stable-Tag danach pushen und CurseForge-Paket pruefen
 

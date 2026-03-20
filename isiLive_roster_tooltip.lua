@@ -370,12 +370,18 @@ RI.ShowRosterNameFallbackTooltip = ShowRosterNameFallbackTooltip
 
 local function ResolveTooltipUnitLevel(unit, info)
   if type(unit) == "string" and unit ~= "" then
-    local unitLevel = rawget(_G, "UnitLevel")
-    if type(unitLevel) == "function" then
-      local ok, level = pcall(unitLevel, unit)
-      local levelNumber = ok and tonumber(level) or nil
-      if levelNumber and levelNumber > 0 then
-        return math.floor(levelNumber)
+    local unitExists = rawget(_G, "UnitExists")
+    if type(unitExists) == "function" then
+      local okExists, exists = pcall(unitExists, unit)
+      if okExists and exists then
+        local unitLevel = rawget(_G, "UnitLevel")
+        if type(unitLevel) == "function" then
+          local ok, level = pcall(unitLevel, unit)
+          local levelNumber = ok and tonumber(level) or nil
+          if levelNumber and levelNumber > 0 then
+            return math.floor(levelNumber)
+          end
+        end
       end
     end
   end

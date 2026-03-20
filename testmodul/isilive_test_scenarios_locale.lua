@@ -2,6 +2,7 @@
 return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
+  local WithGlobals = ctx.with_globals
 
   test("All enUS keys exist in deDE locale", function()
     local addon = LoadAddonModules({ "isiLive_texts.lua" })
@@ -56,5 +57,26 @@ return function(test, ctx)
     Assert.Equal(addon.Locale.ResolveLocaleTag("de"), "deDE", "de tag must resolve to deDE")
     Assert.Equal(addon.Locale.ResolveLocaleTag("dede"), "deDE", "dede tag must resolve to deDE")
     Assert.Equal(addon.Locale.ResolveLocaleTag("en"), "enUS", "en tag must resolve to enUS")
+  end)
+
+  test("Locale GetUnitServerLanguage skips missing units without UnitGUID or UnitIsUnit", function()
+    WithGlobals({
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
+      UnitGUID = function(_unit)
+        error("UnitGUID must not be called for missing units")
+      end,
+      UnitIsUnit = function(_unit, _other)
+        error("UnitIsUnit must not be called for missing units")
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_locale.lua" })
+      local language = addon.Locale.GetUnitServerLanguage("party1", "TestRealm", function()
+        return nil
+      end)
+
+      Assert.Equal(language, "??", "missing units must resolve to unknown language without raw unit API calls")
+    end)
   end)
 end

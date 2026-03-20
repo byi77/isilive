@@ -133,7 +133,7 @@ local function BuildGroupController(loadAddonModules, overrides)
   return controller, state
 end
 
-local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules)
+local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithGlobals)
   test("Group join builds roster with player and 4 party members", function()
     local controller, state = BuildGroupController(LoadAddonModules, {
       getNumGroupMembers = function()
@@ -150,6 +150,173 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules)
     Assert.NotNil(state.roster.party1, "party1 must exist")
     Assert.NotNil(state.roster.party4, "party4 must exist")
     Assert.True(state.mainFrameVisible, "main frame must be visible after group join")
+
+    WithGlobals({
+      IsiLiveDB = {
+        autoOpenOnQueue = false,
+      },
+      UIParent = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_factory_frame_bridge.lua" })
+      local frameBridgeCalls = {}
+
+      local ctx = {
+        modules = {
+          contextHelpers = {
+            CreateRealmInfoGetter = function()
+              return function()
+                return nil
+              end
+            end,
+            GetAddonVersionRaw = function()
+              return "1.0.0"
+            end,
+            GetUnitServerLanguage = function(_locale, _realmInfoLib, _unit, _realm)
+              return "DE"
+            end,
+            BuildDummyRoster = function(opts)
+              return {
+                player = {
+                  name = "TestPlayer",
+                  realm = "TestRealm",
+                  class = "WARRIOR",
+                },
+              }
+            end,
+          },
+          frameBridge = {
+            CreateContext = function(_opts)
+              return {
+                centerNotice = {},
+                centerNoticeFrame = {},
+                centerNoticeTeleportButton = {},
+                inviteHint = {},
+                mainUI = {},
+                mainFrame = {
+                  GetScript = function()
+                    return nil
+                  end,
+                  IsShown = function()
+                    return false
+                  end,
+                },
+                SetCenterNoticeVisible = function() end,
+                UpdateCenterTeleportButtonVisual = function() end,
+                ShowCenterNotice = function() end,
+                ShowInviteHint = function() end,
+                SetMainFrameVisible = function(visible)
+                  table.insert(frameBridgeCalls, visible)
+                end,
+                SetMainFrameHeightSafe = function() end,
+                ToggleMainFrameVisibility = function() end,
+              }
+            end,
+          },
+          locale = {},
+          notice = {
+            CreateCenterNotice = function()
+              return {}
+            end,
+            CreateInviteHint = function()
+              return {}
+            end,
+          },
+          ui = {
+            CreateMainFrame = function()
+              return {}
+            end,
+          },
+          teleport = {
+            ResolveTeleportSpellIDByActivityID = function() end,
+            ResolveMapIDByActivityID = function() end,
+            ResolveTeleportSpellID = function() end,
+            ApplySecureSpellToButton = function() end,
+          },
+          units = {
+            GetUnitRole = function()
+              return "DAMAGER"
+            end,
+            GetUnitClass = function()
+              return "Warrior", "WARRIOR"
+            end,
+            TruncateName = function(value)
+              return value
+            end,
+            GetUnitNameAndRealm = function()
+              return "TestPlayer", "TestRealm"
+            end,
+            GetPlayerSpecName = function()
+              return nil
+            end,
+            GetInspectSpecName = function()
+              return nil
+            end,
+            GetShortSpecLabel = function(value)
+              return value
+            end,
+            GetUnitRio = function()
+              return nil
+            end,
+          },
+          demo = {
+            BuildDummyRoster = function()
+              return {}
+            end,
+          },
+        },
+        runtimeState = {
+          IsTestAllMode = function()
+            return false
+          end,
+          SetRoster = function() end,
+        },
+        GetUnitNameAndRealm = function()
+          return "TestPlayer", "TestRealm"
+        end,
+        GetUnitClass = function()
+          return "Warrior", "WARRIOR"
+        end,
+        GetUnitRole = function()
+          return "DAMAGER"
+        end,
+        GetPlayerSpecName = function()
+          return nil
+        end,
+        GetUnitRio = function()
+          return nil
+        end,
+        GetOwnedKeystoneSnapshot = function()
+          return nil, nil
+        end,
+        UpdateUI = function() end,
+        UpdateLeaderButtons = function() end,
+        IsSpellKnownSafe = function()
+          return true
+        end,
+        GetTeleportCooldownRemaining = function()
+          return nil
+        end,
+        FormatCooldownSeconds = function(value)
+          return tostring(value or "")
+        end,
+        GetL = function()
+          return {}
+        end,
+        IsInCombat = function()
+          return false
+        end,
+        GetRealmInfoLib = function()
+          return nil
+        end,
+      }
+
+      addon._FactoryInternal.InitializeFactoryFrameBridge(ctx)
+      ctx.SetMainFrameVisible(true, "queue")
+      Assert.Equal(#frameBridgeCalls, 0, "queue auto-open must stay disabled when the setting is off")
+      ctx.SetMainFrameVisible(true)
+      Assert.Equal(#frameBridgeCalls, 1, "non-queue show requests must still work when queue auto-open is off")
+      Assert.True(frameBridgeCalls[1], "non-queue show request must remain visible")
+    end)
   end)
 
   test("Group leave keeps frame state and ghosts former party members", function()
@@ -619,8 +786,9 @@ end
 return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
+  local WithGlobals = ctx.with_globals
 
-  RegisterGroupLifecycleTests(test, Assert, LoadAddonModules)
+  RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithGlobals)
   RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
   RegisterGroupGhostShiftTests(test, Assert, LoadAddonModules)
   RegisterGroupGhostLifecycleTests(test, Assert, LoadAddonModules)

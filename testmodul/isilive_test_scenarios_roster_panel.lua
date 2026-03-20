@@ -182,6 +182,9 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
       GetReadyCheckStatus = function(_unit)
         return "ready"
       end,
+      UnitExists = function(unit)
+        return unit == "party1"
+      end,
       UnitIsConnected = function(unit)
         return unit ~= "party1"
       end,
@@ -1347,6 +1350,9 @@ local function RegisterRosterPanelRowTooltipLevelAndLanguageTest(test, Assert, W
 
     WithGlobals({
       CreateFrame = createFrameStub,
+      UnitExists = function(unit)
+        return unit == "party1"
+      end,
       UnitLevel = function(unit)
         if unit == "party1" then
           return 80
@@ -1481,6 +1487,155 @@ local function RegisterRosterPanelRowTooltipLevelAndLanguageTest(test, Assert, W
       end
       Assert.True(foundLevel, "Tooltip should contain the player level")
       Assert.True(foundLanguage, "Tooltip should contain the language abbreviation")
+    end)
+  end)
+
+  test("Roster row tooltip skips UnitLevel for missing units", function()
+    local tooltipLines = {}
+    local createdFrames = {}
+    local createFrameStub = NewRowTooltipCreateFrameStub(createdFrames, tooltipLines)
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
+      UnitLevel = function(_unit)
+        error("UnitLevel must not be called for missing units")
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function(_self, text)
+          table.insert(tooltipLines, text)
+        end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      RAID_CLASS_COLORS = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = {
+          SetBackdrop = function() end,
+          SetBackdropColor = function() end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              GetFont = function()
+                return "font", 10, ""
+              end,
+              SetFont = function() end,
+              SetTextColor = function() end,
+              SetShadowOffset = function() end,
+              SetText = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetMaxLines = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+          CreateTexture = function()
+            return {
+              SetHeight = function() end,
+              SetPoint = function() end,
+              SetColorTexture = function() end,
+              SetTexture = function() end,
+              SetTexCoord = function() end,
+            }
+          end,
+        },
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        buildOrderedRoster = function()
+          return {
+            {
+              unit = "party1",
+              info = { name = "Buddy", realm = "Realm", class = "WARRIOR", language = "DE" },
+            },
+          }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Buddy",
+            languageDisplay = "|Tflag-de:0|t",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(n)
+          return n
+        end,
+        getShortSpecLabel = function(s)
+          return s
+        end,
+        getLanguageFlagMarkup = function()
+          return "|Tflag-de:0|t"
+        end,
+        getDungeonShortCode = function()
+          return ""
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {}
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {},
+        unitPriority = {},
+      })
+
+      controller.RenderRoster({})
+
+      local rowFrame = nil
+      for _, f in ipairs(createdFrames) do
+        if f.OnEnter and f.unit == "party1" then
+          f.OnEnter()
+          if #tooltipLines > 0 then
+            rowFrame = f
+            break
+          end
+        end
+      end
+
+      Assert.NotNil(rowFrame, "Should find a row frame with OnEnter")
+      local foundLevel = false
+      local foundLanguage = false
+      for _, line in ipairs(tooltipLines) do
+        if line:find("Level:", 1, true) then
+          foundLevel = true
+        end
+        if line == "Lang: DE" then
+          foundLanguage = true
+        end
+      end
+      Assert.False(foundLevel, "Tooltip must not query level for missing units")
+      Assert.True(foundLanguage, "Tooltip should still show the language abbreviation")
     end)
   end)
 end

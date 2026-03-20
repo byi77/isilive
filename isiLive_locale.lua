@@ -111,9 +111,24 @@ function Locale.GetRealmLocaleFromStaticData(realm)
   return nil
 end
 
+local function IsExistingUnit(unit)
+  if type(unit) ~= "string" or unit == "" then
+    return false
+  end
+
+  local unitExists = rawget(_G, "UnitExists")
+  if type(unitExists) ~= "function" then
+    return false
+  end
+
+  local ok, exists = pcall(unitExists, unit)
+  return ok and exists == true
+end
+
 function Locale.GetUnitServerLanguage(unit, realm, getRealmInfoLib)
   if not realm or realm == "" then
-    realm = GetRealmName()
+    local getRealmName = rawget(_G, "GetRealmName")
+    realm = type(getRealmName) == "function" and getRealmName() or ""
   end
 
   local staticLocale = Locale.GetRealmLocaleFromStaticData(realm)
@@ -122,12 +137,15 @@ function Locale.GetUnitServerLanguage(unit, realm, getRealmInfoLib)
   end
 
   local lib = type(getRealmInfoLib) == "function" and getRealmInfoLib() or nil
-  if lib and unit and UnitExists(unit) then
-    local guid = UnitGUID(unit)
-    if guid then
-      local _, _, _, _, realmLocale = lib:GetRealmInfoByGUID(guid)
-      if realmLocale then
-        return Locale.LocaleToLanguageTag(realmLocale)
+  if lib and IsExistingUnit(unit) then
+    local unitGUID = rawget(_G, "UnitGUID")
+    if type(unitGUID) == "function" then
+      local okGuid, guid = pcall(unitGUID, unit)
+      if okGuid and guid then
+        local _, _, _, _, realmLocale = lib:GetRealmInfoByGUID(guid)
+        if realmLocale then
+          return Locale.LocaleToLanguageTag(realmLocale)
+        end
       end
     end
   end
@@ -139,7 +157,8 @@ function Locale.GetUnitServerLanguage(unit, realm, getRealmInfoLib)
     end
   end
 
-  if unit and UnitIsUnit(unit, "player") then
+  local unitIsUnit = rawget(_G, "UnitIsUnit")
+  if IsExistingUnit(unit) and type(unitIsUnit) == "function" and unitIsUnit(unit, "player") then
     return Locale.LocaleToLanguageTag(GetLocale())
   end
 

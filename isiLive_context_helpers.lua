@@ -40,6 +40,7 @@ function ContextHelpers.BuildDummyRoster(opts)
     previewVariant = opts.previewVariant,
     includeGhostMember = opts.includeGhostMember,
     getUnitNameAndRealm = opts.getUnitNameAndRealm,
+    getUnitClass = opts.getUnitClass,
     getUnitServerLanguage = opts.getUnitServerLanguage,
     getUnitRole = opts.getUnitRole,
     getPlayerSpecName = opts.getPlayerSpecName,

@@ -7,6 +7,7 @@ This is the canonical release flow for `isiKeyMPlus` (repository/tag prefix rema
 1. Update TOC version in `isiLive.toc`:
    - `## Version: x.y.z`
 2. Add a new entry at the top of `CHANGELOG.md`.
+   - For `0.9.87`, note the runtime bugfixes: queue auto-open gating is narrowed to queue-triggered opens, and missing-unit access is guarded with `UnitExists` in the roster/inspect/locale paths.
 3. Update `README.md` for user-visible behavior/layout changes.
 4. If season data was touched, verify docs explicitly state active `ACTIVE_SEASON_ID` and prepared-next season status (`README.md` + `CHANGELOG.md`).
 5. If runtime flow or UI behavior changed, update `ARCHITECTURE.md` and `USECASES.md`.
@@ -30,7 +31,7 @@ Expected: lint/style/metrics/usecase/rules checks pass.
 
 `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 287 deterministic tests indexed and 289 scenarios across 30 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper).
+`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 292 deterministic tests indexed and 294 scenarios across 30 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper).
 
 Windows note: if metrics fail with missing LuaRocks modules (`lfs`, `luacheck.decoder`, `luacheck.parser`), set `LUA_PATH` and `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running the metrics check.
 
@@ -75,8 +76,8 @@ git push origin isiLive_beta_X.Y.Z
 Example:
 
 ```powershell
-git tag isiLive_release_0.9.86
-git push origin isiLive_release_0.9.86
+git tag isiLive_release_0.9.87
+git push origin isiLive_release_0.9.87
 ```
 
 ## 6) Verify GitHub Actions

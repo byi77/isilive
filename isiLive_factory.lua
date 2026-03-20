@@ -94,7 +94,7 @@ local function FinalizeFactoryRuntime(ctx)
     updateUI = ctx.UpdateUI,
     updateMPlusTeleportButton = ctx.UpdateMPlusTeleportButton,
     getUnitNameAndRealm = ctx.GetUnitNameAndRealm,
-    getUnitClass = UnitClass,
+    getUnitClass = ctx.GetUnitClass,
     getUnitServerLanguage = ctx.GetUnitServerLanguage,
     getOwnedKeystoneSnapshot = ctx.GetOwnedKeystoneSnapshot,
     markIsiLiveUser = ctx.MarkIsiLiveUser,
@@ -117,7 +117,29 @@ local function FinalizeFactoryRuntime(ctx)
     canApplyRaidMarkers = function()
       return false
     end,
-    unitIsGroupLeader = UnitIsGroupLeader,
+    unitIsGroupLeader = function(unit)
+      if type(unit) ~= "string" or unit == "" then
+        return false
+      end
+
+      local unitExists = rawget(_G, "UnitExists")
+      if type(unitExists) ~= "function" then
+        return false
+      end
+
+      local okExists, exists = pcall(unitExists, unit)
+      if not okExists or not exists then
+        return false
+      end
+
+      local unitIsGroupLeader = rawget(_G, "UnitIsGroupLeader")
+      if type(unitIsGroupLeader) ~= "function" then
+        return false
+      end
+
+      local okLeader, isLeader = pcall(unitIsGroupLeader, unit)
+      return okLeader and isLeader == true
+    end,
     unitExists = UnitExists,
     getRaidTargetIndex = rawget(_G, "GetRaidTargetIndex"),
     setRaidTarget = rawget(_G, "SetRaidTarget"),

@@ -1,7 +1,7 @@
 # isiKeyMPlus Architecture
 
-Version baseline: `0.9.86`
-Last updated: `2026-03-18`
+Version baseline: `0.9.87`
+Last updated: `2026-03-20`
 
 ## Purpose
 
@@ -97,12 +97,12 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 287 deterministic tests indexed and 289 scenarios across 30 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/roster-panel-layout/status/stats/units/ui/roster-display/taint/tank-helper logic.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 292 deterministic tests indexed and 294 scenarios across 30 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/roster-panel-layout/status/stats/units/ui/roster-display/taint/tank-helper logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiKeyMPlus                                                                      V.0.9.86 [H][V][M][X]|
+| isiKeyMPlus                                                                      V.0.9.87 [H][V][M][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  Marker    Travel              |
 |---------------------------------------------------------------------------------------------------|

@@ -58,12 +58,27 @@ local function GetReadyCheckStatusSafe(unit)
   return status
 end
 
+local function IsExistingUnit(unit)
+  if type(unit) ~= "string" or unit == "" then
+    return false
+  end
+
+  local unitExists = rawget(_G, "UnitExists")
+  if type(unitExists) ~= "function" then
+    return false
+  end
+
+  local ok, exists = pcall(unitExists, unit)
+  return ok and exists == true
+end
+
 local function IsUnitConnectedSafe(unit)
-  local unitIsConnected = _G.UnitIsConnected
-  if type(unitIsConnected) ~= "function" then
+  if not IsExistingUnit(unit) then
     return true
   end
-  if type(unit) ~= "string" or unit == "" then
+
+  local unitIsConnected = rawget(_G, "UnitIsConnected")
+  if type(unitIsConnected) ~= "function" then
     return true
   end
 

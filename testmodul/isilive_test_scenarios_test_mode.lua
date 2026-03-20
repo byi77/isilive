@@ -315,6 +315,29 @@ local function RegisterDemoRosterTests(test, Assert, WithGlobals, LoadAddonModul
       Assert.True(secondRoster["ghost:Kurshad-Antonidas"].rio ~= 1111, "rebuild must not reuse mutated ghost tables")
     end)
   end)
+
+  test("Demo dummy roster skips player UnitClass and UnitName lookups when player unit is missing", function()
+    WithGlobals({
+      UnitExists = function(unit)
+        return unit ~= "player"
+      end,
+      UnitClass = function(_unit)
+        error("UnitClass must not be called for missing units")
+      end,
+      UnitFullName = function(_unit)
+        error("UnitFullName must not be called for missing units")
+      end,
+      UnitName = function(_unit)
+        error("UnitName must not be called for missing units")
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_demo.lua" })
+      local roster = addon.Demo.BuildDummyRoster({})
+
+      Assert.Equal(roster.player.name, "Player", "missing player units should fall back to a neutral player name")
+      Assert.Equal(roster.player.class, "WARRIOR", "missing player units should fall back to the default class")
+    end)
+  end)
 end
 
 return function(test, ctx)

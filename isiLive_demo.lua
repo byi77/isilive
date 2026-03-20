@@ -88,14 +88,73 @@ local function BuildGhostUnitKey(info)
 end
 
 local function DefaultGetUnitNameAndRealm(unit)
-  local name, realm = UnitFullName(unit)
-  if not name then
-    name = UnitName(unit)
+  if type(unit) ~= "string" or unit == "" then
+    return nil, nil
   end
+
+  local unitExists = rawget(_G, "UnitExists")
+  if type(unitExists) ~= "function" then
+    return nil, nil
+  end
+
+  local okExists, exists = pcall(unitExists, unit)
+  if not okExists or not exists then
+    return nil, nil
+  end
+
+  local name, realm = nil, nil
+  local unitFullName = rawget(_G, "UnitFullName")
+  if type(unitFullName) == "function" then
+    local okFullName, fullName, fullRealm = pcall(unitFullName, unit)
+    if okFullName then
+      name = fullName
+      realm = fullRealm
+    end
+  end
+
+  if not name then
+    local unitName = rawget(_G, "UnitName")
+    if type(unitName) == "function" then
+      local okName, fallbackName = pcall(unitName, unit)
+      if okName then
+        name = fallbackName
+      end
+    end
+  end
+
   if not realm or realm == "" then
-    realm = GetRealmName() or ""
+    local getRealmName = rawget(_G, "GetRealmName")
+    realm = type(getRealmName) == "function" and getRealmName() or ""
   end
   return name, realm
+end
+
+local function DefaultGetUnitClass(unit)
+  if type(unit) ~= "string" or unit == "" then
+    return nil, nil
+  end
+
+  local unitExists = rawget(_G, "UnitExists")
+  if type(unitExists) ~= "function" then
+    return nil, nil
+  end
+
+  local okExists, exists = pcall(unitExists, unit)
+  if not okExists or not exists then
+    return nil, nil
+  end
+
+  local unitClass = rawget(_G, "UnitClass")
+  if type(unitClass) ~= "function" then
+    return nil, nil
+  end
+
+  local okClass, localizedClass, classToken = pcall(unitClass, unit)
+  if not okClass then
+    return nil, nil
+  end
+
+  return localizedClass, classToken
 end
 
 local function ResolvePlayerIlvl()
@@ -166,6 +225,7 @@ function Demo.BuildDummyRoster(opts)
   opts = opts or {}
 
   local getUnitNameAndRealm = opts.getUnitNameAndRealm or DefaultGetUnitNameAndRealm
+  local getUnitClass = opts.getUnitClass or DefaultGetUnitClass
   local getUnitServerLanguage = opts.getUnitServerLanguage or function(_unit, _realm)
     return nil
   end
@@ -180,7 +240,7 @@ function Demo.BuildDummyRoster(opts)
   end
 
   local playerName, playerRealm = getUnitNameAndRealm("player")
-  local _, playerClass = UnitClass("player")
+  local _, playerClass = getUnitClass("player")
   local playerLanguage = getUnitServerLanguage("player", playerRealm) or "DE"
   local playerRole = getUnitRole("player")
   local playerSpec = getPlayerSpecName()
@@ -191,8 +251,11 @@ function Demo.BuildDummyRoster(opts)
 
   local roster = {
     ["player"] = {
-      name = playerName or UnitName("player") or "Player",
-      realm = playerRealm or GetRealmName() or "",
+      name = playerName or "Player",
+      realm = playerRealm or (function()
+        local getRealmName = rawget(_G, "GetRealmName")
+        return type(getRealmName) == "function" and getRealmName() or ""
+      end)(),
       language = playerLanguage or "??",
       class = playerClass or "WARRIOR",
       role = playerRole or "DAMAGER",

@@ -95,8 +95,22 @@ local function NormalizeSpecKey(text)
   return value
 end
 
+local function IsExistingUnit(unit)
+  if type(unit) ~= "string" or unit == "" then
+    return false
+  end
+
+  local unitExists = rawget(_G, "UnitExists")
+  if type(unitExists) ~= "function" then
+    return false
+  end
+
+  local ok, exists = pcall(unitExists, unit)
+  return ok and exists == true
+end
+
 function Units.GetUnitRole(unit)
-  if not unit or not UnitExists(unit) then
+  if not IsExistingUnit(unit) then
     return "NONE"
   end
 
@@ -117,6 +131,24 @@ function Units.GetUnitRole(unit)
   end
 
   return "NONE"
+end
+
+function Units.GetUnitClass(unit)
+  if not IsExistingUnit(unit) then
+    return nil, nil
+  end
+
+  local unitClass = rawget(_G, "UnitClass")
+  if type(unitClass) ~= "function" then
+    return nil, nil
+  end
+
+  local ok, localizedClass, classToken = pcall(unitClass, unit)
+  if not ok then
+    return nil, nil
+  end
+
+  return localizedClass, classToken
 end
 
 function Units.TruncateName(name, maxChars)
@@ -147,7 +179,7 @@ function Units.TruncateName(name, maxChars)
 end
 
 function Units.GetUnitNameAndRealm(unit)
-  if not unit or not UnitExists(unit) then
+  if not IsExistingUnit(unit) then
     return nil, nil
   end
 
@@ -174,7 +206,7 @@ function Units.GetPlayerSpecName()
 end
 
 function Units.GetInspectSpecName(unit)
-  if not unit or not GetInspectSpecialization or not GetSpecializationInfoByID then
+  if not IsExistingUnit(unit) or not GetInspectSpecialization or not GetSpecializationInfoByID then
     return nil
   end
 
@@ -205,7 +237,7 @@ function Units.GetShortSpecLabel(specName)
 end
 
 function Units.GetUnitRio(unit)
-  if not unit or not UnitExists(unit) then
+  if not IsExistingUnit(unit) then
     return nil
   end
   if not C_PlayerInfo or not C_PlayerInfo.GetPlayerMythicPlusRatingSummary then

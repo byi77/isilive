@@ -188,5 +188,30 @@ return function(test, ctx)
         Assert.Equal("(+15)3500", result.rioText)
       end)
     end)
+
+    test.it("Roster display treats missing units as online without calling UnitIsConnected", function()
+      WithGlobals({
+        RAID_CLASS_COLORS = { WARRIOR = { r = 1, g = 1, b = 1 } },
+        CreateColor = function()
+          return {
+            GenerateHexColor = function()
+              return "ffffffff"
+            end,
+          }
+        end,
+        UnitExists = function(unit)
+          return unit == "player"
+        end,
+        UnitIsConnected = function(_unit)
+          error("UnitIsConnected must not be called for missing units")
+        end,
+      }, function()
+        local Roster = LoadAddonModules({ "isiLive_roster.lua" }).Roster
+        mockOpts.unit = "party1"
+        local result = Roster.BuildDisplayData(mockInfo, mockOpts)
+
+        Assert.Equal(result.colorHex, "ffffffff", "missing unit tokens should not be treated as offline")
+      end)
+    end)
   end)
 end
