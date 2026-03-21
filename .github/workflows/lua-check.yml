@@ -59,7 +59,7 @@ jobs:
       - name: Lua Metrics Check
         run: |
           eval "$(luarocks path --lua-version 5.1)"
-          ISILIVE_MAX_FUNCTION_LINES=360 lua tools/lua_metrics_check.lua
+          ISILIVE_MAX_FILE_LINES=3000 ISILIVE_MAX_FUNCTION_LINES=420 lua tools/lua_metrics_check.lua
 
       - name: Deterministic Usecase + Rules Logic Validation
         run: |

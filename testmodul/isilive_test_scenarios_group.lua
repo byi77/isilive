@@ -489,7 +489,9 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithG
       Assert.Equal(restoreCalls, 1, "main frame show should restore the configured layout state")
     end)
   end)
+end
 
+local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModules)
   test("Factory auto-hide when solo defaults to enabled unless explicitly disabled", function()
     local addon = LoadAddonModules({ "isiLive_factory.lua" }, {
       _FactoryInternal = {},
@@ -1061,6 +1063,7 @@ return function(test, ctx)
   local WithGlobals = ctx.with_globals
 
   RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithGlobals)
+  RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModules)
   RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
   RegisterGroupGhostShiftTests(test, Assert, LoadAddonModules)
   RegisterGroupGhostLifecycleTests(test, Assert, LoadAddonModules)

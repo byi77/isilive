@@ -1075,7 +1075,9 @@ local function RegisterGameMenuReloadButtonTests(test, Assert, WithGlobals, Load
       Assert.True(strip.buttonsById.reloadui._isProtected, "reload button itself should remain secure")
     end)
   end)
+end
 
+local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGlobals, LoadAddonModules)
   test("UI game-menu hides the host frame after close via deferred callback", function()
     local createFrameStub = BuildCreateFrameStub()
     local uiParent = {}
@@ -1371,6 +1373,7 @@ end
 local function RegisterGameMenuMicroButtonTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGameMenuMicroButtonLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGameMenuReloadButtonTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGameMenuDefaultOpenerTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
@@ -1660,7 +1663,9 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       Assert.False(autoHideCheck:GetChecked(), "refresh should honor an explicit false override")
     end)
   end)
+end
 
+local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Settings panel keeps column guides disabled by default and lets the user enable them", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}
@@ -2116,6 +2121,7 @@ return function(test, ctx)
   RegisterMainFrameInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGameMenuMicroButtonTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, LoadAddonModules)
 end

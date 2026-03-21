@@ -1512,7 +1512,9 @@ local function RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, Load
       Assert.Equal(buttons[4]._point and buttons[4]._point.y or nil, -92, "fourth button should stay on the second row")
     end)
   end)
+end
 
+local function RegisterTeleportUIHorizontalLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
   test("TeleportUI M2 layout stacks portal buttons in one left-aligned row", function()
     local createFrameStub = BuildTeleportUICreateFrameStub()
 
@@ -1657,6 +1659,7 @@ end
 local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTeleportUIStrataAndTooltipTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTeleportUIHorizontalLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 return function(test, ctx)
