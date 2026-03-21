@@ -42,7 +42,7 @@ jobs:
       - name: Luacheck
         run: |
           command -v luacheck
-          luacheck --version
+          luacheck --version || true
           luacheck --exclude-files ".luarocks/**" -- .
 
       - name: Lua Syntax Check
