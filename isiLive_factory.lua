@@ -5,12 +5,19 @@ local Factory = {}
 moduleAddonTable.Factory = Factory
 
 local FI = moduleAddonTable._FactoryInternal or {}
+moduleAddonTable._FactoryInternal = FI
 local CreateFactoryContext = FI.CreateFactoryContext
 local InitializeFactoryFrameBridge = FI.InitializeFactoryFrameBridge
 local InitializeFactoryRuntimeHelpers = FI.InitializeFactoryRuntimeHelpers
 local InitializeFactoryPrimaryControllers = FI.InitializeFactoryPrimaryControllers
 local InitializeFactorySecondaryControllers = FI.InitializeFactorySecondaryControllers
 local CreateFactoryMinimapButton = FI.CreateFactoryMinimapButton
+
+local function ResolveAutoHideSoloEnabled(dbRef)
+  return dbRef == nil or dbRef.autoHideSolo ~= false
+end
+
+FI.ResolveAutoHideSoloEnabled = ResolveAutoHideSoloEnabled
 
 local function FinalizeFactoryRuntime(ctx)
   local modules = ctx.modules
@@ -110,7 +117,7 @@ local function FinalizeFactoryRuntime(ctx)
     sendIsiLiveHello = ctx.SendIsiLiveHello,
     autoHideSolo = function()
       local dbRef = rawget(_G, "IsiLiveDB")
-      if dbRef and dbRef.autoHideSolo and ctx.mainFrame and ctx.mainFrame:IsShown() then
+      if ResolveAutoHideSoloEnabled(dbRef) and ctx.mainFrame and ctx.mainFrame:IsShown() then
         ctx.mainFrame:Hide()
       end
     end,
@@ -282,6 +289,13 @@ local function FinalizeFactoryRuntime(ctx)
           ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
         end
       end,
+      onRosterColumnGuidesToggle = function(_enabled)
+        if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshLayoutState) == "function" then
+          ctx.rosterPanelController.RefreshLayoutState()
+        elseif ctx.rosterPanelController and type(ctx.rosterPanelController.RenderRoster) == "function" then
+          ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
+        end
+      end,
       onMinimapButtonToggle = function(enabled)
         if ctx.minimapButton then
           if enabled then
@@ -297,6 +311,11 @@ local function FinalizeFactoryRuntime(ctx)
       onAutoHideSoloToggle = function(enabled)
         if enabled and not IsInGroup() and ctx.mainFrame and ctx.mainFrame:IsShown() then
           ctx.mainFrame:Hide()
+        end
+      end,
+      onDefaultLayoutModeChange = function(_layoutMode)
+        if type(ctx.RestoreLayoutState) == "function" then
+          ctx.RestoreLayoutState()
         end
       end,
       onNameMaxCharsChange = function(_maxChars)

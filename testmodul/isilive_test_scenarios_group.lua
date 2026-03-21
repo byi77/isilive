@@ -319,6 +319,197 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithG
     end)
   end)
 
+  test("Factory frame bridge restores the layout state when the main frame opens", function()
+    local frameBridgeCalls = {}
+    local restoreCalls = 0
+
+    WithGlobals({
+      IsiLiveDB = {
+        autoOpenOnQueue = true,
+      },
+      UIParent = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_factory_frame_bridge.lua" })
+
+      local ctx = {
+        modules = {
+          contextHelpers = {
+            CreateRealmInfoGetter = function()
+              return function()
+                return nil
+              end
+            end,
+            GetAddonVersionRaw = function()
+              return "1.0.0"
+            end,
+            GetUnitServerLanguage = function(_locale, _realmInfoLib, _unit, _realm)
+              return "DE"
+            end,
+            BuildDummyRoster = function(_opts)
+              return {}
+            end,
+          },
+          frameBridge = {
+            CreateContext = function(opts)
+              return {
+                centerNotice = {},
+                centerNoticeFrame = {},
+                centerNoticeTeleportButton = {},
+                inviteHint = {},
+                mainUI = {},
+                mainFrame = {
+                  GetScript = function()
+                    return nil
+                  end,
+                  IsShown = function()
+                    return false
+                  end,
+                },
+                SetCenterNoticeVisible = function() end,
+                UpdateCenterTeleportButtonVisual = function() end,
+                ShowCenterNotice = function() end,
+                ShowInviteHint = function() end,
+                SetMainFrameVisible = function(visible)
+                  table.insert(frameBridgeCalls, visible)
+                  if visible and type(opts.onShownInGroup) == "function" then
+                    opts.onShownInGroup()
+                  end
+                  return visible and true or false
+                end,
+                SetMainFrameHeightSafe = function() end,
+                ToggleMainFrameVisibility = function() end,
+              }
+            end,
+          },
+          locale = {},
+          notice = {
+            CreateCenterNotice = function()
+              return {}
+            end,
+            CreateInviteHint = function()
+              return {}
+            end,
+          },
+          ui = {
+            CreateMainFrame = function()
+              return {}
+            end,
+          },
+          teleport = {
+            ResolveTeleportSpellIDByActivityID = function() end,
+            ResolveMapIDByActivityID = function() end,
+            ResolveTeleportSpellID = function() end,
+            ApplySecureSpellToButton = function() end,
+          },
+          units = {
+            GetUnitRole = function()
+              return "DAMAGER"
+            end,
+            GetUnitClass = function()
+              return "Warrior", "WARRIOR"
+            end,
+            TruncateName = function(value)
+              return value
+            end,
+            GetUnitNameAndRealm = function()
+              return "TestPlayer", "TestRealm"
+            end,
+            GetPlayerSpecName = function()
+              return nil
+            end,
+            GetInspectSpecName = function()
+              return nil
+            end,
+            GetShortSpecLabel = function(value)
+              return value
+            end,
+            GetUnitRio = function()
+              return nil
+            end,
+          },
+          demo = {
+            BuildDummyRoster = function()
+              return {}
+            end,
+          },
+        },
+        runtimeState = {
+          IsTestAllMode = function()
+            return false
+          end,
+          SetRoster = function() end,
+        },
+        RestoreLayoutState = function()
+          restoreCalls = restoreCalls + 1
+        end,
+        GetUnitNameAndRealm = function()
+          return "TestPlayer", "TestRealm"
+        end,
+        GetUnitClass = function()
+          return "Warrior", "WARRIOR"
+        end,
+        GetUnitRole = function()
+          return "DAMAGER"
+        end,
+        GetPlayerSpecName = function()
+          return nil
+        end,
+        GetUnitRio = function()
+          return nil
+        end,
+        GetOwnedKeystoneSnapshot = function()
+          return nil, nil
+        end,
+        UpdateUI = function() end,
+        UpdateLeaderButtons = function() end,
+        IsSpellKnownSafe = function()
+          return true
+        end,
+        GetTeleportCooldownRemaining = function()
+          return nil
+        end,
+        FormatCooldownSeconds = function(value)
+          return tostring(value or "")
+        end,
+        GetL = function()
+          return {}
+        end,
+        IsInCombat = function()
+          return false
+        end,
+        GetRealmInfoLib = function()
+          return nil
+        end,
+      }
+
+      addon._FactoryInternal.InitializeFactoryFrameBridge(ctx)
+      ctx.SetMainFrameVisible(true)
+
+      Assert.Equal(#frameBridgeCalls, 1, "main frame should be shown once")
+      Assert.Equal(restoreCalls, 1, "main frame show should restore the configured layout state")
+    end)
+  end)
+
+  test("Factory auto-hide when solo defaults to enabled unless explicitly disabled", function()
+    local addon = LoadAddonModules({ "isiLive_factory.lua" }, {
+      _FactoryInternal = {},
+    })
+
+    local resolveAutoHideSoloEnabled = addon._FactoryInternal and addon._FactoryInternal.ResolveAutoHideSoloEnabled or nil
+
+    Assert.NotNil(resolveAutoHideSoloEnabled, "factory should export the auto-hide default resolver")
+    Assert.True(resolveAutoHideSoloEnabled(nil), "missing saved data should default auto-hide to enabled")
+    Assert.True(resolveAutoHideSoloEnabled({}), "missing saved value should default auto-hide to enabled")
+    Assert.True(
+      resolveAutoHideSoloEnabled({ autoHideSolo = true }),
+      "explicit true should keep auto-hide enabled"
+    )
+    Assert.False(
+      resolveAutoHideSoloEnabled({ autoHideSolo = false }),
+      "explicit false should disable auto-hide"
+    )
+  end)
+
   test("Group leave keeps frame state and ghosts former party members", function()
     local controller, state = BuildGroupController(LoadAddonModules, {
       isInGroup = function()
@@ -334,13 +525,45 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithG
       end,
     })
 
-    state.roster.player = { name = "Hero", realm = "Realm", rio = 3210, isGhost = false }
+    state.roster.player = {
+      name = "Hero",
+      realm = "Realm",
+      language = "DE",
+      class = "WARRIOR",
+      role = "DAMAGER",
+      spec = "Arms",
+      ilvl = 610,
+      rio = 3210,
+      hasIsiLive = true,
+      keyMapID = 2649,
+      keyLevel = 15,
+      isGhost = false,
+      syncDps = 420000,
+      syncLocMapID = 2649,
+      _refreshQueued = true,
+      _localSpecFresh = true,
+      _localIlvlFresh = true,
+      _localRioFresh = true,
+      _localDpsFresh = true,
+    }
+    local playerEntry = state.roster.player
     state.roster.party1 = { name = "Buddy", realm = "Realm" }
 
     controller.HandleGroupRosterUpdate()
 
     Assert.NotNil(state.roster.player, "player row must remain visible after leave")
+    Assert.True(state.roster.player == playerEntry, "player row must be updated in place on leave")
     Assert.Equal(state.roster.player.name, "Hero", "player row should keep the local player visible")
+    Assert.Equal(state.roster.player.spec, "Arms", "player row should keep the fresh local spec on leave")
+    Assert.Equal(state.roster.player.ilvl, 610, "player row should keep the fresh local ilvl on leave")
+    Assert.Equal(state.roster.player.rio, 3210, "player row should keep the fresh local rio on leave")
+    Assert.Equal(state.roster.player.syncDps, 420000, "player row should keep the sync DPS on leave")
+    Assert.Equal(state.roster.player.syncLocMapID, 2649, "player row should keep the sync map on leave")
+    Assert.True(state.roster.player._refreshQueued, "player row should keep the pending forced refresh on leave")
+    Assert.True(state.roster.player._localSpecFresh, "player row should keep the local spec freshness on leave")
+    Assert.True(state.roster.player._localIlvlFresh, "player row should keep the local ilvl freshness on leave")
+    Assert.True(state.roster.player._localRioFresh, "player row should keep the local rio freshness on leave")
+    Assert.True(state.roster.player._localDpsFresh, "player row should keep the local dps freshness on leave")
     Assert.False(state.roster.player.isGhost, "player row must stay active after leave")
     Assert.Nil(state.roster.party1, "active party1 slot must be cleared after leave")
     Assert.NotNil(state.roster["ghost:Buddy-Realm"], "party1 must become a ghost")
@@ -459,12 +682,56 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
   test("Existing grouped roster updates do not re-open a manually hidden frame", function()
     local controller, state = BuildGroupController(LoadAddonModules, {
       wasInGroup = true,
+      getPlayerSpecName = function()
+        return "Fury"
+      end,
+      getUnitRio = function()
+        return 9999
+      end,
     })
+
+    state.roster.player = {
+      name = "TestPlayer",
+      realm = "TestRealm",
+      language = "DE",
+      class = "WARRIOR",
+      role = "DAMAGER",
+      spec = "Arms",
+      ilvl = 622,
+      rio = 3300,
+      hasIsiLive = true,
+      keyMapID = 2649,
+      keyLevel = 15,
+      isGhost = false,
+      syncDps = 480000,
+      syncLocMapID = 2649,
+      _refreshQueued = true,
+      _localSpecFresh = true,
+      _localIlvlFresh = true,
+      _localRioFresh = true,
+      _localDpsFresh = true,
+    }
+    local playerEntry = state.roster.player
 
     controller.HandleGroupRosterUpdate()
 
     Assert.False(state.mainFrameVisible, "non-join roster updates must keep hidden frame hidden")
     Assert.Equal(state.queued, 0, "non-join roster updates must not re-capture queue")
+    Assert.True(state.roster.player == playerEntry, "player row must be updated in place during grouped rebuild")
+    Assert.Equal(state.roster.player.spec, "Arms", "pending player spec must not be overwritten during grouped rebuild")
+    Assert.Equal(state.roster.player.ilvl, 622, "pending player ilvl must not be overwritten during grouped rebuild")
+    Assert.Equal(state.roster.player.rio, 3300, "pending player rio must not be overwritten during grouped rebuild")
+    Assert.Equal(state.roster.player.syncDps, 480000, "pending player sync dps must stay intact during grouped rebuild")
+    Assert.Equal(
+      state.roster.player.syncLocMapID,
+      2649,
+      "pending player sync map must stay intact during grouped rebuild"
+    )
+    Assert.True(state.roster.player._refreshQueued, "pending forced refresh must survive grouped rebuild")
+    Assert.True(state.roster.player._localSpecFresh, "local spec freshness must survive grouped rebuild")
+    Assert.True(state.roster.player._localIlvlFresh, "local ilvl freshness must survive grouped rebuild")
+    Assert.True(state.roster.player._localRioFresh, "local rio freshness must survive grouped rebuild")
+    Assert.True(state.roster.player._localDpsFresh, "local dps freshness must survive grouped rebuild")
   end)
 
   test("Party members get correct roles and classes", function()
@@ -510,6 +777,7 @@ end
 local function RegisterGroupGhostShiftTests(test, Assert, LoadAddonModules)
   test("Group member leaving becomes ghost", function()
     local members = 2
+    local unitState = "present"
     local controller, state = BuildGroupController(LoadAddonModules, {
       getNumGroupMembers = function()
         return members
@@ -518,7 +786,7 @@ local function RegisterGroupGhostShiftTests(test, Assert, LoadAddonModules)
         if unit == "player" then
           return "Player", "Realm"
         end
-        if unit == "party1" then
+        if unit == "party1" and unitState == "present" then
           return "Member", "Realm"
         end
         return nil
@@ -528,6 +796,14 @@ local function RegisterGroupGhostShiftTests(test, Assert, LoadAddonModules)
     -- Initial join
     controller.HandleGroupRosterUpdate()
     Assert.NotNil(state.roster.party1, "party1 should exist")
+
+    -- Transient UnitExists failure: keep the current slot alive until it can be read again.
+    unitState = "missing"
+    controller.HandleGroupRosterUpdate()
+
+    Assert.NotNil(state.roster.party1, "party1 should survive a transient missing-unit race")
+    Assert.False(state.roster.party1.isGhost, "transient missing-unit race must not ghost the slot")
+    Assert.Nil(state.roster["ghost:Member-Realm"], "transient missing-unit race must not create a ghost")
 
     -- Member leaves
     members = 1
@@ -539,6 +815,7 @@ local function RegisterGroupGhostShiftTests(test, Assert, LoadAddonModules)
 
     -- Member rejoins (or slot filled)
     members = 2
+    unitState = "present"
     controller.HandleGroupRosterUpdate()
 
     -- Note: In a real scenario, if the SAME player rejoins,

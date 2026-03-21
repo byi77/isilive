@@ -25,6 +25,12 @@ local SHOW_TELEPORT_COLUMNS_SETTING = false
 local SHOW_DPS_COLUMN_SETTING = false
 local SHOW_MARKERS_LEADER_ONLY_SETTING = false
 local SHOW_SOUND_ENABLED_SETTING = false
+local DEFAULT_LAYOUT_MODE_EXPANDED = "expanded"
+local DEFAULT_LAYOUT_MODE_COMPACT_VERTICAL = "compact_vertical"
+local DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL = "compact_horizontal"
+local DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = "compact_main_horizontal"
+local DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL_2_LEGACY = "compact_horizontal_2"
+local DEFAULT_LAYOUT_MODE_LAST_USED = "last_used"
 
 local function ApplySettingsBackdrop(frame)
   if type(ApplyBackdrop) == "function" then
@@ -50,11 +56,14 @@ local function CreateSectionHeader(parent, yOffset, text)
   return header, yOffset - HEADER_HEIGHT - HEADER_LINE_GAP
 end
 
-local function CreateSettingsCheckbox(parent, yOffset, labelText, getter, setter)
+local function CreateSettingsCheckbox(parent, yOffset, labelText, getter, setter, settingKey)
   local check = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
   check:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset)
   if type(check.SetSize) == "function" then
     check:SetSize(24, 24)
+  end
+  if type(settingKey) == "string" and settingKey ~= "" then
+    check._settingKey = settingKey
   end
 
   local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -231,6 +240,131 @@ local function CreateLanguageSelector(parent, yOffset, labelText, getCurrentLoca
   return { label = label, btnEn = btnEn, btnDe = btnDe, UpdateHighlight = UpdateHighlight }, yOffset - LINE_HEIGHT
 end
 
+local function NormalizeStoredLayoutMode(layoutMode)
+  if layoutMode == nil or layoutMode == false or layoutMode == "" then
+    return DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+  end
+  if layoutMode == DEFAULT_LAYOUT_MODE_LAST_USED then
+    return DEFAULT_LAYOUT_MODE_LAST_USED
+  end
+  if layoutMode == DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL_2_LEGACY then
+    return DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+  end
+  if
+    layoutMode == DEFAULT_LAYOUT_MODE_EXPANDED
+    or layoutMode == DEFAULT_LAYOUT_MODE_COMPACT_VERTICAL
+    or layoutMode == DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL
+    or layoutMode == DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+  then
+    return layoutMode
+  end
+  return nil
+end
+
+local function CreateSettingsOptionSelector(
+  parent,
+  yOffset,
+  labelKey,
+  fallbackLabel,
+  options,
+  getLabels,
+  getter,
+  setter
+)
+  local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  local tn = Colors.TEXT_NORMAL or { 0.85, 0.85, 0.9 }
+  label:SetTextColor(tn[1], tn[2], tn[3], 1)
+  label:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset - 3)
+  label:SetText(fallbackLabel or "")
+
+  local buttons = {}
+  local buttonX = PADDING_X + 160
+  local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
+  local acBlue = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
+  local borderDefault = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
+
+  local function ApplyButtonStyle(button, selected)
+    if type(button.SetBackdropColor) == "function" then
+      if selected then
+        button:SetBackdropColor(acBlue[1], acBlue[2], acBlue[3], 0.25)
+      else
+        button:SetBackdropColor(bgSec[1], bgSec[2], bgSec[3], bgSec[4])
+      end
+    end
+    if type(button.SetBackdropBorderColor) == "function" then
+      if selected then
+        button:SetBackdropBorderColor(acBlue[1], acBlue[2], acBlue[3], 0.9)
+      else
+        button:SetBackdropBorderColor(borderDefault[1], borderDefault[2], borderDefault[3], borderDefault[4])
+      end
+    end
+    if button.label and type(button.label.SetTextColor) == "function" then
+      if selected then
+        button.label:SetTextColor(1, 0.85, 0, 1)
+      else
+        button.label:SetTextColor(tn[1], tn[2], tn[3], 1)
+      end
+    end
+  end
+
+  for _, option in ipairs(options or {}) do
+    local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    local buttonWidth = tonumber(option.width) or 40
+    button:SetSize(buttonWidth, LANG_BUTTON_HEIGHT)
+    button:SetPoint("TOPLEFT", parent, "TOPLEFT", buttonX, yOffset - 1)
+    if type(button.SetBackdrop) == "function" then
+      button:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
+    end
+
+    local buttonLabel = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    buttonLabel:SetPoint("CENTER", 0, 0)
+    button.label = buttonLabel
+    button._optionValue = option.value
+    button._optionLabelKey = option.labelKey
+    button._optionFallback = option.fallback or ""
+
+    button:SetScript("OnClick", function()
+      if type(setter) == "function" then
+        setter(option.value)
+      end
+      local freshL = type(getLabels) == "function" and getLabels() or {}
+      label:SetText((freshL and freshL[labelKey]) or fallbackLabel or "")
+      local selectedMode = NormalizeStoredLayoutMode(type(getter) == "function" and getter() or nil)
+      for _, btn in ipairs(buttons) do
+        local btnText = freshL and freshL[btn._optionLabelKey] or btn._optionFallback or ""
+        if btn.label and type(btn.label.SetText) == "function" then
+          btn.label:SetText(btnText)
+        end
+        ApplyButtonStyle(btn, selectedMode == btn._optionValue)
+      end
+    end)
+
+    table.insert(buttons, button)
+    buttonX = buttonX + buttonWidth + 4
+  end
+
+  local function UpdateHighlight()
+    local freshL = type(getLabels) == "function" and getLabels() or {}
+    label:SetText((freshL and freshL[labelKey]) or fallbackLabel or "")
+    local selectedMode = NormalizeStoredLayoutMode(type(getter) == "function" and getter() or nil)
+    for _, button in ipairs(buttons) do
+      local buttonText = freshL and freshL[button._optionLabelKey] or button._optionFallback or ""
+      if button.label and type(button.label.SetText) == "function" then
+        button.label:SetText(buttonText)
+      end
+      ApplyButtonStyle(button, selectedMode == button._optionValue)
+    end
+  end
+
+  UpdateHighlight()
+
+  return {
+    label = label,
+    buttons = buttons,
+    UpdateHighlight = UpdateHighlight,
+  }, yOffset - LINE_HEIGHT
+end
+
 local function ResolveSettingsOptions(opts)
   opts = opts or {}
 
@@ -251,8 +385,10 @@ local function ResolveSettingsOptions(opts)
     onMinimapButtonToggle = opts.onMinimapButtonToggle,
     onAutoOpenQueueToggle = opts.onAutoOpenQueueToggle,
     onAutoHideSoloToggle = opts.onAutoHideSoloToggle,
+    onDefaultLayoutModeChange = opts.onDefaultLayoutModeChange,
     onNameMaxCharsChange = opts.onNameMaxCharsChange,
     onMarkersLeaderOnlyToggle = opts.onMarkersLeaderOnlyToggle,
+    onRosterColumnGuidesToggle = opts.onRosterColumnGuidesToggle,
     onTeleportColumnsChange = opts.onTeleportColumnsChange,
     onSoundToggle = opts.onSoundToggle,
     onQueueDebugToggle = opts.onQueueDebugToggle,
@@ -520,13 +656,68 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
     labels.SETTINGS_AUTO_HIDE_SOLO or "Auto-Hide when Solo",
     function()
       local db = config.getDB()
-      return db.autoHideSolo == true
+      return db.autoHideSolo ~= false
     end,
     function(checked)
       local db = config.getDB()
       db.autoHideSolo = checked
       if type(config.onAutoHideSoloToggle) == "function" then
         config.onAutoHideSoloToggle(checked)
+      end
+    end
+  )
+
+  controls.defaultLayout, yOffset = CreateSettingsOptionSelector(
+    canvas,
+    yOffset,
+    "SETTINGS_DEFAULT_OPEN_UI",
+    labels.SETTINGS_DEFAULT_OPEN_UI or "Default UI on Open",
+    {
+      {
+        value = DEFAULT_LAYOUT_MODE_LAST_USED,
+        labelKey = "SETTINGS_DEFAULT_OPEN_UI_LAST",
+        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_LAST or "Last Used",
+        width = 78,
+      },
+      {
+        value = DEFAULT_LAYOUT_MODE_EXPANDED,
+        labelKey = "SETTINGS_DEFAULT_OPEN_UI_M",
+        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_M or "M",
+        width = 34,
+      },
+      {
+        value = DEFAULT_LAYOUT_MODE_COMPACT_VERTICAL,
+        labelKey = "SETTINGS_DEFAULT_OPEN_UI_V",
+        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_V or "V",
+        width = 34,
+      },
+      {
+        value = DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL,
+        labelKey = "SETTINGS_DEFAULT_OPEN_UI_H",
+        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_H or "H",
+        width = 34,
+      },
+      {
+        value = DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL,
+        labelKey = "SETTINGS_DEFAULT_OPEN_UI_M2",
+        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_M2 or "M2",
+        width = 40,
+      },
+    },
+    config.getL,
+    function()
+      local db = config.getDB()
+      return NormalizeStoredLayoutMode(db.rosterDefaultLayoutMode)
+    end,
+    function(mode)
+      local db = config.getDB()
+      db.rosterDefaultLayoutMode = NormalizeStoredLayoutMode(mode)
+      if type(config.onDefaultLayoutModeChange) == "function" then
+        local callbackMode = db.rosterDefaultLayoutMode
+        if callbackMode == DEFAULT_LAYOUT_MODE_LAST_USED then
+          callbackMode = nil
+        end
+        config.onDefaultLayoutModeChange(callbackMode)
       end
     end
   )
@@ -549,6 +740,24 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
       end
     )
   end
+
+  controls.columnGuides, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_ROSTER_COLUMN_GUIDES or "Column Guides",
+    function()
+      local db = config.getDB()
+      return db.showRosterColumnGuides == true
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.showRosterColumnGuides = checked
+      if type(config.onRosterColumnGuidesToggle) == "function" then
+        config.onRosterColumnGuidesToggle(checked)
+      end
+    end,
+    "SETTINGS_ROSTER_COLUMN_GUIDES"
+  )
 
   if SHOW_SOUND_ENABLED_SETTING then
     controls.sound, yOffset = CreateSettingsCheckbox(
@@ -622,6 +831,9 @@ local function RefreshSettingsControls(controls, config)
   controls.sync.label:SetText(freshL.SETTINGS_SYNC_ENABLED or "Addon Sync")
   controls.autoOpen.label:SetText(freshL.SETTINGS_AUTO_OPEN_QUEUE or "Auto-Open on M+ Queue")
   controls.autoHide.label:SetText(freshL.SETTINGS_AUTO_HIDE_SOLO or "Auto-Hide when Solo")
+  if controls.defaultLayout then
+    controls.defaultLayout.UpdateHighlight()
+  end
   controls.queueDebug.label:SetText(freshL.SETTINGS_QUEUE_DEBUG or "Queue Debug Log")
   controls.runtimeLog.label:SetText(freshL.SETTINGS_RUNTIME_LOG or "Runtime Log")
 
@@ -637,6 +849,9 @@ local function RefreshSettingsControls(controls, config)
   if controls.markers then
     controls.markers.label:SetText(freshL.SETTINGS_MARKERS_LEADER_ONLY or "Markers: Leader Only")
   end
+  if controls.columnGuides then
+    controls.columnGuides.label:SetText(freshL.SETTINGS_ROSTER_COLUMN_GUIDES or "Column Guides")
+  end
   if controls.sound then
     controls.sound.label:SetText(freshL.SETTINGS_SOUND_ENABLED or "Sound Notifications")
   end
@@ -650,9 +865,12 @@ local function RefreshSettingsControls(controls, config)
   controls.minimapBtn.check:SetChecked(db.showMinimapButton == true)
   controls.sync.check:SetChecked(db.syncEnabled ~= false)
   controls.autoOpen.check:SetChecked(db.autoOpenOnQueue ~= false)
-  controls.autoHide.check:SetChecked(db.autoHideSolo == true)
+  controls.autoHide.check:SetChecked(db.autoHideSolo ~= false)
   controls.queueDebug.check:SetChecked(db.queueDebug == true)
   controls.runtimeLog.check:SetChecked(db.runtimeLogEnabled == true)
+  if controls.columnGuides then
+    controls.columnGuides.check:SetChecked(db.showRosterColumnGuides == true)
+  end
 
   if controls.showDps then
     controls.showDps.check:SetChecked(db.showDpsColumn ~= false)

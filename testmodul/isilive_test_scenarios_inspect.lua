@@ -58,15 +58,23 @@ end
 local function RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Inspect marks local stats fresh and clears freshness on force refresh", function()
     local now = 10
+    local unitExists = {
+      party1 = true,
+      party2 = false,
+      player = true,
+    }
 
     WithGlobals({
       GetTime = function()
         return now
       end,
-      UnitExists = function(_unit)
-        return true
+      UnitExists = function(unit)
+        return unitExists[unit] == true
       end,
       UnitGUID = function(unit)
+        if not unitExists[unit] then
+          error("UnitGUID must not be called for missing units")
+        end
         return "guid-" .. tostring(unit)
       end,
       C_PaperDollInfo = {
@@ -79,7 +87,20 @@ local function RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddo
       local controller = addon.Inspect.CreateController({})
 
       local roster = {
-        party1 = {},
+        party1 = {
+          name = "PartyOne",
+          realm = "RealmOne",
+        },
+        party2 = {
+          name = "PartyTwo",
+          realm = "RealmTwo",
+          spec = "Holy",
+          ilvl = 610,
+          rio = 2000,
+          _localSpecFresh = true,
+          _localIlvlFresh = true,
+          _localRioFresh = true,
+        },
       }
 
       controller.isInspecting = "party1"
@@ -105,7 +126,129 @@ local function RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddo
       Assert.Nil(roster.party1._localSpecFresh, "force refresh should clear spec freshness")
       Assert.Nil(roster.party1._localIlvlFresh, "force refresh should clear ilvl freshness")
       Assert.Nil(roster.party1._localRioFresh, "force refresh should clear rio freshness")
+      Assert.True(
+        roster.party1._refreshQueued,
+        "force refresh should keep existing units pending until inspect completes"
+      )
       Assert.Equal(#controller.inspectQueue, 1, "force refresh should queue unit for a new inspect")
+      Assert.Equal(controller.inspectQueue[1], "party1", "force refresh should immediately queue existing units")
+      Assert.Equal(
+        roster.party2.spec,
+        "Holy",
+        "missing units must keep their visible spec until they can be inspected again"
+      )
+      Assert.Equal(
+        roster.party2.ilvl,
+        610,
+        "missing units must keep their visible ilvl until they can be inspected again"
+      )
+      Assert.Equal(
+        roster.party2.rio,
+        2000,
+        "missing units must keep their visible rio until they can be inspected again"
+      )
+      Assert.True(roster.party2._refreshQueued, "missing units must be marked for a later forced inspect")
+
+      local function InspectQueueContains(unit)
+        for i = 1, #controller.inspectQueue do
+          if controller.inspectQueue[i] == unit then
+            return true
+          end
+        end
+        return false
+      end
+
+      unitExists.party2 = true
+      local addonWithGroup = LoadAddonModules({ "isiLive_inspect.lua", "isiLive_group.lua" })
+      local groupController = addonWithGroup.Group.CreateController({
+        isInGroup = function()
+          return true
+        end,
+        getWasInGroup = function()
+          return true
+        end,
+        getNumGroupMembers = function()
+          return 3
+        end,
+        getRoster = function()
+          return roster
+        end,
+        setRoster = function(value)
+          roster = value
+        end,
+        resetInspectQueues = function()
+          controller.ResetQueues()
+        end,
+        enqueueInspect = function(unit)
+          controller.EnqueueInspect(unit, roster)
+        end,
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "TestPlayer", "TestRealm"
+          end
+          if unit == "party1" then
+            return "PartyOne", "RealmOne"
+          end
+          if unit == "party2" then
+            return "PartyTwo", "RealmTwo"
+          end
+          return nil, nil
+        end,
+        getUnitClass = function(unit)
+          if unit == "player" then
+            return "Warrior", "WARRIOR"
+          end
+          return "Mage", "MAGE"
+        end,
+        getUnitServerLanguage = function()
+          return "DE"
+        end,
+        getOwnedKeystoneSnapshot = function()
+          return nil, nil
+        end,
+        markIsiLiveUser = function() end,
+        setPlayerKeyInfo = function() end,
+        getUnitRole = function()
+          return "DAMAGER"
+        end,
+        getPlayerSpecName = function()
+          return "Arms"
+        end,
+        getUnitRio = function()
+          return nil
+        end,
+        unitHasIsiLive = function()
+          return false
+        end,
+        applyKnownKeyToRosterEntry = function(info)
+          if not info._refreshQueued and not info._localSpecFresh then
+            info.spec = "SYNC-SPEC"
+          end
+          if not info._refreshQueued and not info._localIlvlFresh then
+            info.ilvl = 999
+          end
+          if not info._refreshQueued and not info._localRioFresh then
+            info.rio = 9999
+          end
+          return true
+        end,
+      })
+
+      groupController.HandleGroupRosterUpdate()
+
+      Assert.Nil(roster.party1.spec, "rebuilt row must stay blank while the forced refresh is pending")
+      Assert.Nil(roster.party1.ilvl, "rebuilt row must stay blank while the forced refresh is pending")
+      Assert.Nil(roster.party1.rio, "rebuilt row must stay blank while the forced refresh is pending")
+      Assert.True(roster.party1._refreshQueued, "rebuilt row must keep the pending forced refresh")
+      Assert.True(InspectQueueContains("party1"), "rebuilt existing units must be re-queued for forced inspect")
+      Assert.Equal(roster.party2.spec, "Holy", "rebuilt row must keep the local spec freshness")
+      Assert.Equal(roster.party2.ilvl, 610, "rebuilt row must keep the local ilvl freshness")
+      Assert.Equal(roster.party2.rio, 2000, "rebuilt row must keep the local rio freshness")
+      Assert.True(roster.party2._localSpecFresh, "rebuilt row must keep the local spec freshness flag")
+      Assert.True(roster.party2._localIlvlFresh, "rebuilt row must keep the local ilvl freshness flag")
+      Assert.True(roster.party2._localRioFresh, "rebuilt row must keep the local rio freshness flag")
+      Assert.True(roster.party2._refreshQueued, "rebuilt row must keep the pending forced refresh")
+      Assert.True(InspectQueueContains("party2"), "missing units must queue once they become available again")
     end)
   end)
 

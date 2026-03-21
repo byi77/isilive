@@ -235,12 +235,18 @@ local function InitializeFactoryFrameBridge(ctx)
     isInGroup = IsInGroup,
     isInCombat = ctx.IsInCombat,
     onShownInGroup = function()
+      if type(ctx.RestoreLayoutState) == "function" then
+        ctx.RestoreLayoutState()
+      end
       local onEventHandler = ctx.mainFrame and ctx.mainFrame:GetScript("OnEvent")
       if onEventHandler then
         onEventHandler(ctx.mainFrame, "GROUP_ROSTER_UPDATE")
       end
     end,
     onShownNoGroup = function()
+      if type(ctx.RestoreLayoutState) == "function" then
+        ctx.RestoreLayoutState()
+      end
       ctx.EnsureSoloPlayerRoster()
       ctx.UpdateUI()
       ctx.UpdateLeaderButtons()
@@ -275,10 +281,10 @@ local function InitializeFactoryFrameBridge(ctx)
     if visible and reason == "queue" then
       local dbRef = rawget(_G, "IsiLiveDB")
       if dbRef and dbRef.autoOpenOnQueue == false then
-        return
+        return false
       end
     end
-    frameBridgeContext.SetMainFrameVisible(visible)
+    return frameBridgeContext.SetMainFrameVisible(visible)
   end
   ctx.SetMainFrameHeightSafe = function(height)
     frameBridgeContext.SetMainFrameHeightSafe(height)

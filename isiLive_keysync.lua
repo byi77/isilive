@@ -242,7 +242,7 @@ local function ApplyKnownKeyToRosterEntry(sync, info)
   end
 
   local statsInfo = sync.GetPlayerStatsInfo(info.name, info.realm)
-  if type(statsInfo) == "table" then
+  if type(statsInfo) == "table" and not info._refreshQueued then
     if not info._localSpecFresh and statsInfo.specID then
       local specName = ResolveSpecName(statsInfo.specID)
       if specName and info.spec ~= specName then
@@ -261,7 +261,7 @@ local function ApplyKnownKeyToRosterEntry(sync, info)
   end
 
   local dpsInfo = sync.GetPlayerDpsInfo(info.name, info.realm)
-  if type(dpsInfo) == "table" and dpsInfo.dps then
+  if type(dpsInfo) == "table" and dpsInfo.dps and not info._refreshQueued then
     if not info._localDpsFresh and info.syncDps ~= dpsInfo.dps then
       info.syncDps = dpsInfo.dps
       changed = true

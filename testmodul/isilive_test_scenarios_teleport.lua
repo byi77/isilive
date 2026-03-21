@@ -112,7 +112,10 @@ local function BuildTeleportUICreateFrameStub()
       end
     end
 
-    frame.SetSize = function(_self, _w, _h) end
+    frame.SetSize = function(self, w, h)
+      self.width = w
+      self.height = h
+    end
     frame.SetPoint = function(self, point, ...)
       local args = { ... }
       self._point = {
@@ -122,6 +125,9 @@ local function BuildTeleportUICreateFrameStub()
         x = #args >= 4 and args[3] or args[1] or 0,
         y = #args >= 4 and args[4] or args[2] or 0,
       }
+    end
+    frame.ClearAllPoints = function(self)
+      self._point = nil
     end
     frame.EnableMouse = function(_self, _enabled) end
     frame.RegisterForClicks = function(_self, _down, _up) end
@@ -1504,6 +1510,102 @@ local function RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, Load
         "third button should start the second row one slot below"
       )
       Assert.Equal(buttons[4]._point and buttons[4]._point.y or nil, -92, "fourth button should stay on the second row")
+    end)
+  end)
+
+  test("TeleportUI M2 layout stacks portal buttons in one left-aligned row", function()
+    local createFrameStub = BuildTeleportUICreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
+        "isiLive_teleport_ui.lua",
+      })
+
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = {
+          GetFrameLevel = function()
+            return 10
+          end,
+          GetFrameStrata = function()
+            return "MEDIUM"
+          end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              SetTextColor = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetText = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+        },
+        applySecureSpellToButton = function()
+          return true
+        end,
+        getEntries = function()
+          return {
+            { spellID = 1, mapID = 1001, slotIndex = 1 },
+            { spellID = 2, mapID = 1002, slotIndex = 2 },
+            { spellID = 3, mapID = 1003, slotIndex = 3 },
+            { spellID = 4, mapID = 1004, slotIndex = 4 },
+            { spellID = 5, mapID = 1005, slotIndex = 5 },
+            { spellID = 6, mapID = 1006, slotIndex = 6 },
+            { spellID = 7, mapID = 1007, slotIndex = 7 },
+            { spellID = 8, mapID = 1008, slotIndex = 8 },
+          }
+        end,
+        getEmptyStateText = function()
+          return nil
+        end,
+        getL = function()
+          return {}
+        end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getSpellCooldownSafe = function()
+          return 0, 0, true
+        end,
+        applyCooldownFrameSafe = function() end,
+        getSpellTexture = function()
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      controller.SetLayoutMode("compact_main_horizontal")
+      controller.BuildButtons()
+      local buttons = controller.GetButtons()
+
+      Assert.Equal(#buttons, 8, "M2 portal row should still build one button per entry")
+      Assert.Equal(buttons[1]._point and buttons[1]._point.point or nil, "BOTTOMLEFT", "M2 row should anchor from the bottom-left")
+      Assert.Equal(buttons[1]._point and buttons[1]._point.x or nil, 10, "first M2 portal button should start at the left margin")
+      Assert.Equal(buttons[1].width, 57, "M2 portal buttons should use the wider horizontal icon size")
+      Assert.Equal(buttons[1].height, 32, "M2 portal buttons should use the wider horizontal icon size")
+      Assert.Equal(buttons[2]._point and buttons[2]._point.x or nil, 71, "second M2 portal button should step to the right")
+      Assert.Equal(buttons[3]._point and buttons[3]._point.x or nil, 132, "third M2 portal button should keep the same row")
+      Assert.Equal(buttons[4]._point and buttons[4]._point.x or nil, 193, "fourth M2 portal button should keep the same row")
+      Assert.Equal(buttons[5]._point and buttons[5]._point.x or nil, 254, "fifth M2 portal button should keep the same row")
+      Assert.Equal(buttons[6]._point and buttons[6]._point.x or nil, 315, "sixth M2 portal button should keep the same row")
+      Assert.Equal(buttons[7]._point and buttons[7]._point.x or nil, 376, "seventh M2 portal button should keep the same row")
+      Assert.Equal(buttons[8]._point and buttons[8]._point.x or nil, 437, "eighth M2 portal button should keep the same row")
+      Assert.Equal(buttons[1]._point and buttons[1]._point.y or nil, 42, "M2 portal row should sit below the management row")
+      Assert.Equal(buttons[8]._point and buttons[8]._point.y or nil, 42, "all M2 portal buttons should share the same row")
     end)
   end)
 end

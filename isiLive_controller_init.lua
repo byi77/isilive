@@ -109,6 +109,10 @@ local function CreateTeleportUIController(ctx)
     applyCooldownFrameSafe = ctx.applyCooldownFrameSafe,
     getSpellTexture = ctx.getSpellTexture,
     getEmptyStateText = ctx.getTeleportEmptyStateText,
+    layoutMode =
+      ctx.rosterPanelController and type(ctx.rosterPanelController.GetLayoutMode) == "function"
+      and ctx.rosterPanelController.GetLayoutMode()
+      or nil,
   })
   controller.BuildButtons()
   return {
@@ -148,6 +152,14 @@ function ControllerInit.CreateControllers(ctx)
     result.rosterPanelController.SetCollapseChangedHandler(function(isCollapsed)
       result.teleportUIController.SetVisible(not isCollapsed)
     end)
+    if type(result.rosterPanelController.SetLayoutChangedHandler) == "function" then
+      result.rosterPanelController.SetLayoutChangedHandler(function(layoutMode)
+        result.teleportUIController.SetLayoutMode(layoutMode)
+      end)
+    end
+    if type(result.rosterPanelController.GetLayoutMode) == "function" then
+      result.teleportUIController.SetLayoutMode(result.rosterPanelController.GetLayoutMode())
+    end
     result.teleportUIController.SetVisible(not result.rosterPanelController.IsCollapsed())
   end
 

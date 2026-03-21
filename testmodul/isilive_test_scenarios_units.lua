@@ -88,5 +88,42 @@ return function(test, ctx)
         Assert.Nil(realmGhost, "non-existing unit should return nil realm")
       end)
     end)
+
+    test.it("Units GetShortSpecLabel prefers readable five-character labels", function()
+      WithGlobals({}, function()
+        local addon = LoadAddonModules({ "isiLive_units.lua" })
+        local Units = addon.Units
+
+        local cases = {
+          { input = "Wiederherstellung", expected = "Resto" },
+          { input = "Vergeltung", expected = "Retri" },
+          { input = "Schutz", expected = "Prote" },
+          { input = "Schatten", expected = "Shado" },
+          { input = "Gleichgewicht", expected = "Boomy" },
+          { input = "Wachter", expected = "Guard" },
+          { input = "Verwustung", expected = "Havoc" },
+          { input = "Rachsucht", expected = "Venge" },
+          { input = "Brewmaster", expected = "Brewm" },
+          { input = "Verstarkung", expected = "Enhan" },
+          { input = "Elemental", expected = "Eleme" },
+          { input = "Treffsicherheit", expected = "MM" },
+          { input = "Tierherrschaft", expected = "BM" },
+          { input = "Uberleben", expected = "Survi" },
+          { input = "Gebrechen", expected = "Affli" },
+          { input = "Demonologie", expected = "Demon" },
+          { input = "Zerstorung", expected = "Destr" },
+          { input = "Meucheln", expected = "Assas" },
+          { input = "Gesetzlosigkeit", expected = "Outla" },
+          { input = "Tauschung", expected = "Subtl" },
+          { input = "Arkan", expected = "Arcan" },
+          { input = "Bewahrung", expected = "Prese" },
+          { input = "Verwustung-Evoker", expected = "Devas" },
+        }
+
+        for _, case in ipairs(cases) do
+          Assert.Equal(case.expected, Units.GetShortSpecLabel(case.input), case.input .. " should map to " .. case.expected)
+        end
+      end)
+    end)
   end)
 end

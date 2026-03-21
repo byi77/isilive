@@ -172,7 +172,7 @@ function Roster.BuildDisplayData(info, opts)
     specText = getShortSpecLabel(specText) or specText
   end
   if info.spec and truncateName then
-    specText = truncateName(specText, 6)
+    specText = truncateName(specText, 5)
   end
   local ilvlText = info.ilvl and tostring(math.floor(info.ilvl)) or "-"
 

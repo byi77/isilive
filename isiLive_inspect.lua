@@ -56,32 +56,40 @@ local function GetUnitGUIDSafe(unit)
   return nil
 end
 
+local function IsForceRefreshQueued(info)
+  return type(info) == "table" and info._refreshQueued == true
+end
+
 local function EnqueueInspect(controller, unit, roster)
   if not unit or not roster or IsGhostRosterUnit(unit, roster) or not IsExistingUnit(unit) then
     return
   end
 
+  local rosterEntry = roster[unit]
+  local forceRefreshQueued = IsForceRefreshQueued(rosterEntry)
   local guid = GetUnitGUIDSafe(unit)
-  if guid and controller.ilvlCache[guid] and roster[unit] then
-    roster[unit].ilvl = controller.ilvlCache[guid]
-    roster[unit]._localIlvlFresh = true
-  end
-  if guid and controller.rioCache[guid] and roster[unit] then
-    roster[unit].rio = controller.rioCache[guid]
-    roster[unit]._localRioFresh = true
-  end
-  if guid and controller.specCache[guid] and roster[unit] then
-    roster[unit].spec = controller.specCache[guid]
-    roster[unit]._localSpecFresh = true
-  end
-  if guid and controller.ilvlCache[guid] and controller.rioCache[guid] and controller.specCache[guid] then
-    return
+  if guid and rosterEntry and not forceRefreshQueued then
+    if controller.ilvlCache[guid] then
+      rosterEntry.ilvl = controller.ilvlCache[guid]
+      rosterEntry._localIlvlFresh = true
+    end
+    if controller.rioCache[guid] then
+      rosterEntry.rio = controller.rioCache[guid]
+      rosterEntry._localRioFresh = true
+    end
+    if controller.specCache[guid] then
+      rosterEntry.spec = controller.specCache[guid]
+      rosterEntry._localSpecFresh = true
+    end
+    if controller.ilvlCache[guid] and controller.rioCache[guid] and controller.specCache[guid] then
+      return
+    end
   end
 
   if
     not IsUnitInInspectQueue(controller, unit)
-    and roster[unit]
-    and (not roster[unit].ilvl or not roster[unit].rio or not roster[unit].spec)
+    and rosterEntry
+    and (forceRefreshQueued or not rosterEntry.ilvl or not rosterEntry.rio or not rosterEntry.spec)
   then
     table.insert(controller.inspectQueue, unit)
   end
@@ -91,20 +99,23 @@ local function QueueForceRefreshData(controller, roster)
   controller.ResetQueues()
   for unit, info in pairs(roster or {}) do
     if not (info.isGhost or IsGhostRosterUnit(unit, roster)) then
-      local guid = GetUnitGUIDSafe(unit)
-      if guid then
-        controller.ilvlCache[guid] = nil
-        controller.rioCache[guid] = nil
-        controller.specCache[guid] = nil
-      end
-      info.spec = nil
-      info.ilvl = nil
-      info.rio = nil
-      info._localSpecFresh = nil
-      info._localIlvlFresh = nil
-      info._localRioFresh = nil
       if IsExistingUnit(unit) then
+        local guid = GetUnitGUIDSafe(unit)
+        if guid then
+          controller.ilvlCache[guid] = nil
+          controller.rioCache[guid] = nil
+          controller.specCache[guid] = nil
+        end
+        info.spec = nil
+        info.ilvl = nil
+        info.rio = nil
+        info._localSpecFresh = nil
+        info._localIlvlFresh = nil
+        info._localRioFresh = nil
+        info._refreshQueued = true
         EnqueueInspect(controller, unit, roster)
+      else
+        info._refreshQueued = true
       end
     end
   end
@@ -170,6 +181,9 @@ local function OnInspectReady(controller, guid, roster, getUnitRio, getInspectSp
     controller.specCache[guid] = specName
   end
 
+  if roster[inspectedUnit] then
+    roster[inspectedUnit]._refreshQueued = nil
+  end
   controller.isInspecting = nil
   controller.lastInspectTime = GetTime()
 

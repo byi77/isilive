@@ -21,6 +21,8 @@ local ShowRosterInfoTooltip = RI.ShowRosterInfoTooltip
 local LAYOUT_MODE_EXPANDED = RI.LAYOUT_MODE_EXPANDED or "expanded"
 local LAYOUT_MODE_COMPACT_VERTICAL = RI.LAYOUT_MODE_COMPACT_VERTICAL or "compact_vertical"
 local LAYOUT_MODE_COMPACT_HORIZONTAL = RI.LAYOUT_MODE_COMPACT_HORIZONTAL or "compact_horizontal"
+local LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or "compact_main_horizontal"
+local DEFAULT_LAYOUT_MODE_LAST_USED = "last_used"
 local FULL_FRAME_WIDTH = RI.FULL_FRAME_WIDTH or 755
 local HELPER_BUTTON_SIZE = RI.HELPER_BUTTON_SIZE or 18
 local HELPER_COLUMN_X = RI.HELPER_COLUMN_X or -111
@@ -29,7 +31,46 @@ local IsCombatLockdownActive = RI.IsCombatLockdownActive or function()
   return false
 end
 local NormalizeLayoutMode = RI.NormalizeLayoutMode or function(_mode)
+  if _mode == LAYOUT_MODE_COMPACT_VERTICAL then
+    return LAYOUT_MODE_COMPACT_VERTICAL
+  end
+  if _mode == LAYOUT_MODE_COMPACT_HORIZONTAL then
+    return LAYOUT_MODE_COMPACT_HORIZONTAL
+  end
+  if _mode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or _mode == "compact_horizontal_2" then
+    return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+  end
   return LAYOUT_MODE_EXPANDED
+end
+local function ResolveConfiguredDefaultOpenLayoutMode()
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) ~= "table" then
+    return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+  end
+
+  local layoutMode = db.rosterDefaultLayoutMode
+  if layoutMode == nil or layoutMode == false or layoutMode == "" then
+    return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+  end
+
+  if layoutMode == DEFAULT_LAYOUT_MODE_LAST_USED then
+    return DEFAULT_LAYOUT_MODE_LAST_USED
+  end
+
+  if layoutMode == "compact_horizontal_2" then
+    return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+  end
+
+  if
+    layoutMode == LAYOUT_MODE_EXPANDED
+    or layoutMode == LAYOUT_MODE_COMPACT_VERTICAL
+    or layoutMode == LAYOUT_MODE_COMPACT_HORIZONTAL
+    or layoutMode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+  then
+    return layoutMode
+  end
+
+  return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
 end
 local IsCompactLayoutMode = RI.IsCompactLayoutMode or function(_mode)
   return false
@@ -37,6 +78,10 @@ end
 local IsHorizontalCompactLayoutMode = RI.IsHorizontalCompactLayoutMode or function(_mode)
   return false
 end
+local IsMainHorizontalLayoutMode = RI.IsMainHorizontalLayoutMode or RI.IsStackedModernLayoutMode or function(_mode)
+  return false
+end
+local IsStackedModernLayoutMode = IsMainHorizontalLayoutMode
 local GetFrameHeightForLayoutMode = RI.GetFrameHeightForLayoutMode
 local CreateSystemOptionToggles = RI.CreateSystemOptionToggles
 local RefreshSystemOptionToggles = RI.RefreshSystemOptionToggles
@@ -45,23 +90,26 @@ local AttachSystemOptionToggleWatcher = RI.AttachSystemOptionToggleWatcher
 local SetFlatButtonText = RI.SetFlatButtonText or function(_btn, _text) end
 local UpdateCollapseState = RI.UpdateCollapseState
 local NotifyCollapseChanged = RI.NotifyCollapseChanged
+local NotifyLayoutChanged = RI.NotifyLayoutChanged or function(_ui, _layoutMode) end
 local CreateModeButton = RI.CreateModeButton
 
 -- Column position constants
 local SPEC_COL_X = 4
-local NAME_COL_X = 80
-local SERVER_COL_X = 202
-local KEY_COL_X = 222
-local ILVL_COL_X = 284
-local RIO_COL_X = 324
-local DPS_COL_X = 398
+local NAME_COL_X = 89
+local SERVER_COL_X = 75
+local KEY_COL_X = 216
+local ILVL_COL_X = 272
+local RIO_COL_X = 308
+local DPS_COL_X = 350
 local SPEC_COL_WIDTH = 52
-local NAME_COL_WIDTH = 134
+local NAME_COL_WIDTH = 126
 local SERVER_COL_WIDTH = 14
-local KEY_COL_WIDTH = 56
-local ILVL_COL_WIDTH = 34
-local RIO_COL_WIDTH = 70
-local DPS_COL_WIDTH = 58
+local KEY_COL_WIDTH = 52
+local ILVL_COL_WIDTH = 32
+-- Keep the rating and DPS columns compact enough for 4-digit values.
+local RIO_COL_WIDTH = 40
+local DPS_COL_WIDTH = 40
+local ROLE_BUTTON_X = SPEC_COL_X + SPEC_COL_WIDTH + 4
 
 -- These settings are temporarily hidden from Blizzard Settings.
 -- Keep the runtime behavior hard-forced until the controls are re-enabled.
@@ -249,7 +297,7 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
 
   row.roleButton = CreateFrame("Button", nil, mainFrame, "SecureActionButtonTemplate")
   row.roleButton:SetSize(14, 14)
-  row.roleButton:SetPoint("TOPLEFT", NAME_COL_X, yOffset - 1)
+  row.roleButton:SetPoint("TOPLEFT", ROLE_BUTTON_X, yOffset - 1)
   row.roleButton:RegisterForClicks("AnyUp", "AnyDown")
   row.roleButton.icon = row.roleButton:CreateTexture(nil, "ARTWORK")
   row.roleButton.icon:SetAllPoints()
@@ -277,9 +325,9 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   DisableFontStringWrapping(row.spec)
 
   row.name = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  row.name:SetPoint("TOPLEFT", NAME_COL_X + 16, yOffset)
+  row.name:SetPoint("TOPLEFT", NAME_COL_X, yOffset)
   row.name:SetJustifyH("LEFT")
-  row.name:SetWidth(NAME_COL_WIDTH - 16)
+  row.name:SetWidth(NAME_COL_WIDTH)
   DisableFontStringWrapping(row.name)
 
   row.ilvl = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -502,6 +550,46 @@ local function CreatePanelHeaders(mainFrame)
   }
 end
 
+local function CreateM2ColumnGuides(mainFrame)
+  local guideDefs = {
+    { key = "spec", x = SPEC_COL_X + SPEC_COL_WIDTH },
+    { key = "name", x = NAME_COL_X + NAME_COL_WIDTH },
+    { key = "server", x = SERVER_COL_X + SERVER_COL_WIDTH },
+    { key = "key", x = KEY_COL_X + KEY_COL_WIDTH },
+    { key = "ilvl", x = ILVL_COL_X + ILVL_COL_WIDTH },
+    { key = "rio", x = RIO_COL_X + RIO_COL_WIDTH },
+    { key = "dps", x = DPS_COL_X + DPS_COL_WIDTH },
+  }
+
+  local guides = {}
+  for _, def in ipairs(guideDefs) do
+    local guide = mainFrame:CreateTexture(nil, "OVERLAY")
+    guide._m2ColumnGuide = true
+    guide._guideKey = def.key
+    guide._guideX = def.x
+    if guide.SetWidth then
+      guide:SetWidth(1)
+    elseif guide.SetSize then
+      guide:SetSize(1, 1)
+    end
+    if guide.SetColorTexture then
+      guide:SetColorTexture(0.2, 0.8, 1, 0.28)
+    elseif guide.SetTexture then
+      guide:SetTexture("Interface\\Buttons\\WHITE8X8")
+    end
+    if guide.SetPoint then
+      guide:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", def.x, -30)
+      guide:SetPoint("BOTTOMLEFT", mainFrame, "BOTTOMLEFT", def.x, 20)
+    end
+    if guide.Hide then
+      guide:Hide()
+    end
+    table.insert(guides, guide)
+  end
+
+  return guides
+end
+
 local function AttachPanelButtonTooltip(tooltipFrame, button, getL, titleKey, descriptionKey, isPlayerLeader)
   button:SetScript("OnEnter", function(self)
     local tooltip = AnchorRosterHoverTooltip(tooltipFrame, self)
@@ -517,6 +605,43 @@ local function AttachPanelButtonTooltip(tooltipFrame, button, getL, titleKey, de
       tooltip:AddLine(L[descriptionKey], 1, 1, 1, true)
       if isPlayerLeader and not isPlayerLeader() then
         tooltip:AddLine(L.TOOLTIP_LEAD_REQUIRED, 1, 0.2, 0.2, true)
+      end
+    end
+    if type(tooltip.Show) == "function" then
+      tooltip:Show()
+    end
+  end)
+  button:SetScript("OnLeave", function()
+    HideRosterHoverTooltip(tooltipFrame)
+  end)
+end
+
+local function AttachModeButtonTooltip(tooltipFrame, button, getL, titleText, descriptionKey, descriptionFallback, clickHintKey, clickHintFallback)
+  button:SetScript("OnEnter", function(self)
+    local tooltip = AnchorRosterHoverTooltip(tooltipFrame, self)
+    if type(tooltip) ~= "table" then
+      return
+    end
+
+    local L = type(getL) == "function" and getL() or {}
+    local descriptionText = type(descriptionKey) == "string" and L[descriptionKey] or nil
+    if type(descriptionText) ~= "string" or descriptionText == "" then
+      descriptionText = descriptionFallback
+    end
+    local clickHintText = type(clickHintKey) == "string" and L[clickHintKey] or nil
+    if type(clickHintText) ~= "string" or clickHintText == "" then
+      clickHintText = clickHintFallback
+    end
+
+    if type(tooltip.SetText) == "function" then
+      tooltip:SetText(titleText, 1, 1, 1)
+    end
+    if type(tooltip.AddLine) == "function" then
+      if type(descriptionText) == "string" and descriptionText ~= "" then
+        tooltip:AddLine(descriptionText, 1, 1, 1, true)
+      end
+      if type(clickHintText) == "string" and clickHintText ~= "" then
+        tooltip:AddLine(clickHintText, 0.8, 0.8, 0.8, true)
       end
     end
     if type(tooltip.Show) == "function" then
@@ -743,7 +868,12 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   end
 
   local headers = CreatePanelHeaders(mainFrame)
+  local m2ColumnGuides = CreateM2ColumnGuides(mainFrame)
   local panelTooltip = CreateRosterHoverTooltip(mainFrame)
+  local getL = type(uiDeps.getL) == "function" and uiDeps.getL or function()
+    return {}
+  end
+  local L = getL()
   local buttonDeps = {}
   for key, value in pairs(uiDeps) do
     buttonDeps[key] = value
@@ -773,11 +903,14 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     statusLine = statusLine,
     versionLine = versionLine,
     raidNoticeLabel = raidNoticeLabel,
+    m2ColumnGuides = m2ColumnGuides,
+    showRosterColumnGuides = uiDeps.showRosterColumnGuides,
     tankButtons = tankButtons,
     tankHeader = tankHeader,
     setMainFrameHeightSafe = uiDeps.setMainFrameHeightSafe,
     minFrameHeight = uiDeps.minFrameHeight,
     isPlayerLeader = uiDeps.isPlayerLeader,
+    forceMarkersLeaderOnly = FORCE_MARKERS_LEADER_ONLY,
   }
   for k, v in pairs(headers) do
     ui[k] = v
@@ -799,16 +932,49 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     ui.shareKeysButton,
     ui.refreshButton,
   }
+  ui.toolbarButtons = {
+    ui.readyCheckButton,
+    ui.countdownButton,
+    ui.countdownCancelButton,
+    ui.shareKeysButton,
+    ui.refreshButton,
+  }
 
-  -- Drei statische Mode-Buttons [H][V][M] von links nach rechts oben-rechts.
+  -- Vier statische Mode-Buttons [M2][H][V][M] von links nach rechts oben-rechts.
   -- Jeder Button setzt den Modus direkt; aktiver Modus wird gold hervorgehoben.
   ui.layoutMode = LAYOUT_MODE_EXPANDED
   ui.isCollapsed = false
   ui.modeButtons = {}
   local modeButtonDefs = {
-    { xOffset = -64, label = "H", target = LAYOUT_MODE_COMPACT_HORIZONTAL },
-    { xOffset = -44, label = "V", target = LAYOUT_MODE_COMPACT_VERTICAL },
-    { xOffset = -24, label = "M", target = LAYOUT_MODE_EXPANDED },
+    {
+      xOffset = -88,
+      label = "M2",
+      target = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL,
+      width = 24,
+      descriptionKey = "MODE_LAYOUT_M2",
+      descriptionFallback = L.MODE_LAYOUT_M2 or "Main horizontal layout.",
+    },
+    {
+      xOffset = -64,
+      label = "H",
+      target = LAYOUT_MODE_COMPACT_HORIZONTAL,
+      descriptionKey = "MODE_LAYOUT_H",
+      descriptionFallback = L.MODE_LAYOUT_H or "Compact horizontal layout.",
+    },
+    {
+      xOffset = -44,
+      label = "V",
+      target = LAYOUT_MODE_COMPACT_VERTICAL,
+      descriptionKey = "MODE_LAYOUT_V",
+      descriptionFallback = L.MODE_LAYOUT_V or "Compact vertical layout.",
+    },
+    {
+      xOffset = -24,
+      label = "M",
+      target = LAYOUT_MODE_EXPANDED,
+      descriptionKey = "MODE_LAYOUT_M",
+      descriptionFallback = L.MODE_LAYOUT_M or "Expanded main layout.",
+    },
   }
   for _, def in ipairs(modeButtonDefs) do
     local target = def.target
@@ -825,7 +991,18 @@ local function ConstructPanelUI(mainFrame, uiDeps)
       end
       UpdateCollapseState(ui, target, mainFrame)
       NotifyCollapseChanged(ui, ui.isCollapsed)
-    end)
+      NotifyLayoutChanged(ui, ui.layoutMode)
+    end, def.width)
+    AttachModeButtonTooltip(
+      panelTooltip,
+      btn,
+      getL,
+      def.label,
+      def.descriptionKey,
+      def.descriptionFallback,
+      "TOOLTIP_LAYOUT_SWITCH",
+      L.TOOLTIP_LAYOUT_SWITCH or "Click to switch layout."
+    )
     table.insert(ui.modeButtons, btn)
   end
   UpdateCollapseState(ui, LAYOUT_MODE_EXPANDED, mainFrame)
@@ -901,10 +1078,11 @@ local function RenderRosterImpl(state, roster)
   end
 
   -- Temporarily hidden in Settings: keep raid markers visible for all users in runtime.
-  local markersLeaderOnly = FORCE_MARKERS_LEADER_ONLY
+  local markersLeaderOnly = (state.uiRef and state.uiRef.forceMarkersLeaderOnly) or FORCE_MARKERS_LEADER_ONLY
   if state.uiRef and state.uiRef.tankButtons and not IsCombatLockdownActive() then
+    local isMainHorizontal = IsMainHorizontalLayoutMode(state.uiRef.layoutMode)
     local isLeader = type(state.uiRef.isPlayerLeader) == "function" and state.uiRef.isPlayerLeader()
-    local showMarkers = not markersLeaderOnly or (isLeader and true or false)
+    local showMarkers = not isMainHorizontal and (not markersLeaderOnly or (isLeader and true or false))
     for _, btn in ipairs(state.uiRef.tankButtons) do
       if showMarkers then
         btn:Show()
@@ -1141,6 +1319,10 @@ function RosterPanel.CreateController(opts)
     shareKeysDebounceSeconds = 0
   end
   local getPlayerLastRunDps = type(opts.getPlayerLastRunDps) == "function" and opts.getPlayerLastRunDps or nil
+  local showRosterColumnGuides = type(opts.showRosterColumnGuides) == "function" and opts.showRosterColumnGuides
+    or function()
+      return false
+    end
 
   local ui = ConstructPanelUI(mainFrame, {
     getL = getL,
@@ -1160,6 +1342,7 @@ function RosterPanel.CreateController(opts)
     getTime = getTime,
     shareKeysDebounceSeconds = shareKeysDebounceSeconds,
     isRaidGroup = isRaidGroup,
+    showRosterColumnGuides = showRosterColumnGuides,
   })
 
   local readyCheckButton = ui.readyCheckButton
@@ -1187,6 +1370,8 @@ function RosterPanel.CreateController(opts)
     readyCheckButton._fullText = L.BTN_READYCHECK
     countdownButton._fullText = L.BTN_COUNTDOWN10
     countdownCancelButton._fullText = L.BTN_COUNTDOWN_CANCEL
+    shareKeysButton._fullText = L.BTN_SHARE_KEYS
+    refreshButton._fullText = L.BTN_REFRESH
     local isH = IsHorizontalCompactLayoutMode(ui and ui.layoutMode)
     SetFlatButtonText(readyCheckButton, isH and readyCheckButton._hModeText or readyCheckButton._fullText)
     SetFlatButtonText(countdownButton, isH and countdownButton._hModeText or countdownButton._fullText)
@@ -1194,8 +1379,8 @@ function RosterPanel.CreateController(opts)
       countdownCancelButton,
       isH and countdownCancelButton._hModeText or countdownCancelButton._fullText
     )
-    SetFlatButtonText(refreshButton, L.BTN_REFRESH)
-    SetFlatButtonText(shareKeysButton, L.BTN_SHARE_KEYS)
+    SetFlatButtonText(refreshButton, refreshButton._fullText)
+    SetFlatButtonText(shareKeysButton, shareKeysButton._fullText)
     ui.advancedCombatLoggingToggle.label:SetText(L.OPT_ADVANCED_COMBAT_LOGGING)
     ui.damageMeterResetToggle.label:SetText(L.OPT_DAMAGE_METER_RESET)
     LayoutSystemOptionToggles(ui)
@@ -1206,8 +1391,24 @@ function RosterPanel.CreateController(opts)
     return ui.isCollapsed
   end
 
+  function controller.GetLayoutMode()
+    return ui.layoutMode
+  end
+
   function controller.RestoreSavedState()
-    local savedLayoutMode = IsiLiveDB and IsiLiveDB.rosterLayoutMode or nil
+    local savedLayoutMode = ResolveConfiguredDefaultOpenLayoutMode()
+    if savedLayoutMode == DEFAULT_LAYOUT_MODE_LAST_USED then
+      local db = rawget(_G, "IsiLiveDB")
+      local lastUsedLayoutMode = type(db) == "table" and db.rosterLayoutMode or nil
+      if lastUsedLayoutMode == nil or lastUsedLayoutMode == false or lastUsedLayoutMode == "" then
+        savedLayoutMode = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+      else
+        savedLayoutMode = lastUsedLayoutMode
+      end
+    end
+    if savedLayoutMode == nil then
+      savedLayoutMode = IsiLiveDB and IsiLiveDB.rosterLayoutMode or nil
+    end
     if savedLayoutMode == nil and IsiLiveDB and IsiLiveDB.rosterCollapsed ~= nil then
       savedLayoutMode = IsiLiveDB.rosterCollapsed and LAYOUT_MODE_COMPACT_VERTICAL or LAYOUT_MODE_EXPANDED
     end
@@ -1215,6 +1416,13 @@ function RosterPanel.CreateController(opts)
       ui.layoutMode = NormalizeLayoutMode(savedLayoutMode)
       UpdateCollapseState(ui, ui.layoutMode, mainFrame)
       NotifyCollapseChanged(ui, ui.isCollapsed)
+      NotifyLayoutChanged(ui, ui.layoutMode)
+    end
+  end
+
+  function controller.RefreshLayoutState()
+    if type(ui) == "table" then
+      UpdateCollapseState(ui, ui.layoutMode, mainFrame)
     end
   end
 
@@ -1223,11 +1431,16 @@ function RosterPanel.CreateController(opts)
       ui.layoutMode = LAYOUT_MODE_COMPACT_HORIZONTAL
       UpdateCollapseState(ui, LAYOUT_MODE_COMPACT_HORIZONTAL, mainFrame)
       NotifyCollapseChanged(ui, ui.isCollapsed)
+      NotifyLayoutChanged(ui, ui.layoutMode)
     end
   end
 
   function controller.SetCollapseChangedHandler(handler)
     ui.onCollapseChanged = type(handler) == "function" and handler or nil
+  end
+
+  function controller.SetLayoutChangedHandler(handler)
+    ui.onLayoutChanged = type(handler) == "function" and handler or nil
   end
 
   function controller.UpdateLeaderButtons()

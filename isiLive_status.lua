@@ -179,7 +179,7 @@ local function BuildStatusLineText(deps, flags)
     .. stateText
     .. " | "
     .. string.format(L.DUNGEON_DIFF_TEXT, difficultyText)
-    .. " | "
+    .. "\n"
     .. targetDungeonText
 end
 

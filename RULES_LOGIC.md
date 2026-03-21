@@ -56,7 +56,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 33. spieler, die sich bereits im zieldungeon befinden, werden mit einem portal-icon markiert
 34. waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt
 35. die kompakten roster-datenspalten behalten ihr festes breitenbudget fuer spec, name, ilvl, key, rio, dps und flagge.
-36. roster-kurztexte bleiben kompakt und faktenbasiert: name max 12 zeichen, spec max 6 zeichen, sprache nur flagge, key-code max 4 zeichen und nie numerischer mapid-fallback.
+36. roster-kurztexte bleiben kompakt und faktenbasiert: name max 12 zeichen, spec max 5 zeichen mit hunter-kurzlabels `MM`/`BM`, sprache nur flagge, key-code max 4 zeichen und kein numerischer mapID-Fallback.
 37. die wartungsdatei `WARTUNG.md` darf nicht im curseforge-paket landen.
 38. `WARTUNG.md` muss die verpflichtende wartungskette fuer den wiedereinstieg nennen: `CHANGELOG.md`, `TODO.md`, `TODO_RENAME.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `AGENTS.md`, `README.md`, `RELEASE.md`, `USECASES.md`, `ARCHITECTURE.md`.
 39. Die Rollensymbole im Roster-Panel sind interaktive Buttons und ermoeglichen per Klick das manuelle Markieren von Tank (Blau) und Heiler (Gruen).
@@ -306,6 +306,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: main ui immer -> auto open beim gruppenbeitritt, autoclose bei key start und auto open bei key ende weiterhin behalten
 - Erforderliche Tests:
   - Group join builds roster with player and 4 party members
+  - Group leave keeps frame state and ghosts former party members
+  - Existing grouped roster updates do not re-open a manually hidden frame
   - Event handlers auto-hide main frame on challenge start
   - Event handlers auto-show main frame on challenge completion while grouped
 
@@ -363,10 +365,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-KOMPAKT-KURZTEXTE
 - Regelnummer: 36
 - Status: aktiv
-- Zusammenfassung: Die Roster-Anzeige bleibt kompakt und faktenbasiert: Name max 12 Zeichen, Spec max 6 Zeichen, Sprache nur Flagge, Key-Code max 4 Zeichen und kein numerischer mapID-Fallback.
+- Zusammenfassung: Die Roster-Anzeige bleibt kompakt und faktenbasiert: Name max 12 Zeichen, Spec max 5 Zeichen mit Hunter-Kurzlabels `MM`/`BM`, Sprache nur Flagge, Key-Code max 4 Zeichen und kein numerischer mapID-Fallback.
 - Erforderliche Tests:
+  - Units GetShortSpecLabel prefers readable five-character labels
   - Roster display truncates names to Blizzard 12-character limit
-  - Roster display truncates spec labels to six characters
+  - Roster display truncates spec labels to five characters
   - Roster display shows flag only without language letters
   - Roster display clamps key short code to four letters
   - Roster display falls back to '?' for numeric-only key short codes

@@ -281,7 +281,7 @@ local function RegisterRosterDisplayTruncationTests(test, Assert, WithGlobals, L
     end)
   end)
 
-  test("Roster display truncates spec labels to six characters", function()
+  test("Roster display truncates spec labels to five characters", function()
     WithGlobals({
       GetReadyCheckStatus = function()
         return nil
@@ -315,8 +315,8 @@ local function RegisterRosterDisplayTruncationTests(test, Assert, WithGlobals, L
         end,
       })
 
-      Assert.Equal(capturedMaxChars, 6, "spec display should use the six-character limit")
-      Assert.Equal(displayData.specText, "Shadow", "six-character spec labels should remain intact")
+      Assert.Equal(capturedMaxChars, 5, "spec display should use the five-character limit")
+      Assert.Equal(displayData.specText, "Shado", "five-character spec labels should remain intact")
     end)
   end)
 
@@ -422,6 +422,63 @@ local function NewRecordedFontString(createdFontStrings)
   return fontString
 end
 
+local function NewRecordedTexture(createdTextures)
+  local texture = {
+    _shown = true,
+    pointX = nil,
+    pointY = nil,
+    width = nil,
+    height = nil,
+  }
+
+  function texture.SetPoint(self, ...)
+    local numericArgs = {}
+    for index = 1, select("#", ...) do
+      local value = select(index, ...)
+      if type(value) == "number" then
+        table.insert(numericArgs, value)
+      end
+    end
+    if #numericArgs >= 2 then
+      self.pointX = numericArgs[#numericArgs - 1]
+      self.pointY = numericArgs[#numericArgs]
+    elseif #numericArgs == 1 then
+      self.pointX = 0
+      self.pointY = numericArgs[1]
+    end
+  end
+  function texture.SetWidth(self, value)
+    self.width = value
+  end
+  function texture.SetHeight(self, value)
+    self.height = value
+  end
+  function texture.SetAllPoints(self)
+    self.allPoints = true
+  end
+  function texture.SetColorTexture(self, r, g, b, a)
+    self.color = { r, g, b, a }
+  end
+  function texture.SetTexture(self, value)
+    self.texture = value
+  end
+  function texture.SetTexCoord(self, ...)
+    self.texCoord = { ... }
+  end
+  function texture.Hide(self)
+    self._shown = false
+  end
+  function texture.Show(self)
+    self._shown = true
+  end
+  function texture.IsShown(self)
+    return self._shown
+  end
+
+  table.insert(createdTextures, texture)
+  return texture
+end
+
 local function NewRecordedFrame(createdFrames, createdFontStrings)
   local frame = {
     enabled = nil,
@@ -514,16 +571,12 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
     return self._frameLevel
   end
   function frame.CreateTexture()
-    return {
-      SetAllPoints = function() end,
-      SetColorTexture = function() end,
-      SetTexture = function() end,
-      SetTexCoord = function() end,
-      Hide = function() end,
-      Show = function() end,
-      SetHeight = function() end,
-      SetPoint = function() end,
-    }
+    local textures = rawget(frame, "_textures")
+    if type(textures) ~= "table" then
+      textures = {}
+      frame._textures = textures
+    end
+    return NewRecordedTexture(textures)
   end
   function frame.CreateFontString()
     return NewRecordedFontString(createdFontStrings)
@@ -533,11 +586,13 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
   return frame
 end
 
-local function NewRecordedMainFrame(createdFontStrings)
+local function NewRecordedMainFrame(createdFontStrings, createdTextures)
+  createdTextures = createdTextures or {}
   local mainFrame = {
     width = 0,
     _frameStrata = "MEDIUM",
     _frameLevel = 1,
+    _textures = createdTextures,
   }
 
   function mainFrame.SetBackdrop() end
@@ -558,16 +613,34 @@ local function NewRecordedMainFrame(createdFontStrings)
     return NewRecordedFontString(createdFontStrings)
   end
   function mainFrame.CreateTexture()
-    return {
-      SetHeight = function() end,
-      SetPoint = function() end,
-      SetColorTexture = function() end,
-      SetTexture = function() end,
-      SetTexCoord = function() end,
-    }
+    return NewRecordedTexture(createdTextures)
   end
 
   return mainFrame
+end
+
+local function FindFrameByProperty(createdFrames, key, value)
+  for _, frame in ipairs(createdFrames) do
+    if frame[key] == value then
+      return frame
+    end
+  end
+
+  return nil
+end
+
+local function GetTooltipLineTexts(tooltip)
+  local texts = {}
+  local lineCount = tonumber(tooltip and tooltip._isiLiveTooltipLineCount) or 0
+  local lines = tooltip and tooltip._isiLiveTooltipLines or {}
+  for index = 1, lineCount do
+    local line = lines[index]
+    if type(line) == "table" then
+      table.insert(texts, tostring(line.text or ""))
+    end
+  end
+
+  return texts
 end
 
 local function RegisterRosterPanelLeaderInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
@@ -664,6 +737,59 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
   test("RosterPanel control buttons use isolated cursor-anchored tooltips", function()
     local createdFrames = {}
     local sharedTooltipCalls = 0
+    local deLocale = {
+      BTN_READYCHECK = "Bereitcheck",
+      BTN_COUNTDOWN10 = "Countdown10",
+      BTN_COUNTDOWN_CANCEL = "Countdown 0",
+      BTN_REFRESH = "Aktualisieren",
+      BTN_SHARE_KEYS = "Keys teilen",
+      OPT_ADVANCED_COMBAT_LOGGING = "Combat-Logging",
+      OPT_DAMAGE_METER_RESET = "DM-Reset beim Betreten",
+      TOOLTIP_REFRESH = "Alle iLvl/RIO-Werte aktualisieren.",
+      TOOLTIP_LAYOUT_SWITCH = "Zum Wechseln klicken.",
+      MODE_LAYOUT_M = "Erweitertes Haupt-Layout.",
+      MODE_LAYOUT_V = "Kompaktes vertikales Layout.",
+      MODE_LAYOUT_H = "Kompaktes horizontales Layout.",
+      MODE_LAYOUT_M2 = "Horizontales Haupt-Layout.",
+      COL_SPEC = "Spec",
+      COL_NAME = "Name",
+      COL_LANGUAGE = "",
+      COL_KEY = "Key",
+      COL_ILVL = "iLvl",
+      COL_RIO = "RIO",
+      COL_DPS = "DPS",
+      PANEL_HEADER_SHORTCUTS = "Shortcuts",
+      LEAD_OPTIONS = "M+Managment",
+      MPLUS_MANAGEMENT = "Travel",
+      TANK_HELPER_HEADER = "Marker",
+    }
+    local enLocale = {
+      BTN_READYCHECK = "Readycheck",
+      BTN_COUNTDOWN10 = "Countdown10",
+      BTN_COUNTDOWN_CANCEL = "Countdown 0",
+      BTN_REFRESH = "Refresh",
+      BTN_SHARE_KEYS = "Share Keys",
+      OPT_ADVANCED_COMBAT_LOGGING = "Combat Logging",
+      OPT_DAMAGE_METER_RESET = "DM Reset on Entry",
+      TOOLTIP_REFRESH = "Force refresh all iLvl/RIO values.",
+      TOOLTIP_LAYOUT_SWITCH = "Click to switch layout.",
+      MODE_LAYOUT_M = "Expanded main layout.",
+      MODE_LAYOUT_V = "Compact vertical layout.",
+      MODE_LAYOUT_H = "Compact horizontal layout.",
+      MODE_LAYOUT_M2 = "Main horizontal layout.",
+      COL_SPEC = "Spec",
+      COL_NAME = "Name",
+      COL_LANGUAGE = "",
+      COL_KEY = "Key",
+      COL_ILVL = "iLvl",
+      COL_RIO = "RIO",
+      COL_DPS = "DPS",
+      PANEL_HEADER_SHORTCUTS = "Shortcuts",
+      LEAD_OPTIONS = "M+Management",
+      MPLUS_MANAGEMENT = "Travel",
+      TANK_HELPER_HEADER = "Marker",
+    }
+    local currentLocale = deLocale
     local createFrameStub = function(frameType, _name, _parent)
       local frame = {
         _frameType = frameType,
@@ -686,7 +812,12 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
             SetFont = function() end,
             SetTextColor = function() end,
             SetShadowOffset = function() end,
-            SetText = function() end,
+            SetText = function(self, text)
+              self.text = tostring(text or "")
+            end,
+            GetStringWidth = function(self)
+              return #tostring(self.text or "") * 6
+            end,
             SetWordWrap = function() end,
             SetNonSpaceWrap = function() end,
             SetMaxLines = function() end,
@@ -762,7 +893,7 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
           end,
         },
         getL = function()
-          return {}
+          return currentLocale
         end,
         isPlayerLeader = function()
           return true
@@ -816,6 +947,55 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
       )
       ---@diagnostic enable: need-check-nil, undefined-field
       Assert.Equal(sharedTooltipCalls, 0, "RosterPanel control tooltips should not use the shared Blizzard GameTooltip")
+
+      local expectedModeButtons = {
+        { mode = "compact_main_horizontal", label = "M2", description = "MODE_LAYOUT_M2" },
+        { mode = "compact_horizontal", label = "H", description = "MODE_LAYOUT_H" },
+        { mode = "compact_vertical", label = "V", description = "MODE_LAYOUT_V" },
+        { mode = "expanded", label = "M", description = "MODE_LAYOUT_M" },
+      }
+
+      for _, expected in ipairs(expectedModeButtons) do
+        local modeButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", expected.mode)
+        Assert.NotNil(modeButton, "Mode button " .. expected.label .. " should exist")
+        ---@diagnostic disable: need-check-nil, undefined-field
+        Assert.Equal(modeButton._modeLabel, expected.label, "Mode button should keep its label")
+        Assert.True(type(modeButton.OnEnter) == "function", "Mode button " .. expected.label .. " should have a tooltip handler")
+        modeButton:OnEnter()
+        Assert.Equal(
+          privateTooltip._isiLiveTooltipOwner,
+          modeButton,
+          "Mode button " .. expected.label .. " tooltip should anchor to the hovered button"
+        )
+        Assert.Equal(
+          privateTooltip._isiLiveTooltipAnchor,
+          "ANCHOR_CURSOR",
+          "Mode button " .. expected.label .. " tooltip must use cursor anchor"
+        )
+        local tooltipTexts = GetTooltipLineTexts(privateTooltip)
+        Assert.Equal(tooltipTexts[1], expected.label, "Mode button tooltip should keep its short label")
+        Assert.Equal(
+          tooltipTexts[2],
+          currentLocale[expected.description],
+          "Mode button tooltip should use the active locale description"
+        )
+        Assert.Equal(
+          tooltipTexts[3],
+          currentLocale.TOOLTIP_LAYOUT_SWITCH,
+          "Mode button tooltip should use the active locale click hint"
+        )
+        ---@diagnostic enable: need-check-nil, undefined-field
+      end
+
+      currentLocale = enLocale
+      local m2Button = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_main_horizontal")
+      Assert.NotNil(m2Button, "M2 button should still exist after locale switch")
+      ---@diagnostic disable: need-check-nil, undefined-field
+      m2Button:OnEnter()
+      local englishTooltipTexts = GetTooltipLineTexts(privateTooltip)
+      Assert.Equal(englishTooltipTexts[2], enLocale.MODE_LAYOUT_M2, "Mode button tooltip should refresh to English after locale switch")
+      Assert.Equal(englishTooltipTexts[3], enLocale.TOOLTIP_LAYOUT_SWITCH, "Mode button tooltip click hint should refresh to English after locale switch")
+      ---@diagnostic enable: need-check-nil, undefined-field
     end)
   end)
 end
@@ -1980,6 +2160,17 @@ local function FindWorldMarkerButtons(createdFrames)
   return buttons
 end
 
+local function FindM2ColumnGuides(createdTextures)
+  local guides = {}
+  for _, texture in ipairs(createdTextures or {}) do
+    if texture._m2ColumnGuide then
+      guides[texture._guideKey] = texture
+    end
+  end
+
+  return guides
+end
+
 local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster row left-click does not call protected targeting from insecure row UI", function()
     local createdFrames = {}
@@ -2260,7 +2451,7 @@ local function RegisterRosterPanelHiddenSettingDefaultTests(test, Assert, WithGl
   local function BuildHiddenSettingTestController(addon, createdFontStrings, opts)
     opts = opts or {}
     return addon.RosterPanel.CreateController({
-      mainFrame = NewRecordedMainFrame(createdFontStrings),
+      mainFrame = NewRecordedMainFrame(createdFontStrings, opts.createdTextures),
       getL = function()
         return {
           TITLE = "isiLive",
@@ -2320,6 +2511,10 @@ local function RegisterRosterPanelHiddenSettingDefaultTests(test, Assert, WithGl
       end,
       isInGroup = function()
         return true
+      end,
+      showRosterColumnGuides = opts.showRosterColumnGuides or function()
+        local db = rawget(_G, "IsiLiveDB")
+        return type(db) == "table" and db.showRosterColumnGuides == true
       end,
       rolePriority = opts.rolePriority or {},
       unitPriority = opts.unitPriority or {},
@@ -2386,9 +2581,9 @@ local function RegisterRosterPanelHiddenSettingDefaultTests(test, Assert, WithGl
       local dpsHeader = nil
       local rowDps = nil
       for _, fontString in ipairs(createdFontStrings) do
-        if fontString.pointX == 398 and fontString.pointY == -34 then
+        if fontString.pointX == 350 and fontString.pointY == -34 then
           dpsHeader = fontString
-        elseif fontString.pointX == 398 and fontString.pointY ~= -34 then
+        elseif fontString.pointX == 350 and fontString.pointY ~= -34 then
           rowDps = fontString
         end
       end
@@ -2437,6 +2632,230 @@ local function RegisterRosterPanelHiddenSettingDefaultTests(test, Assert, WithGl
       for _, button in ipairs(tankButtons) do
         Assert.True(button:IsShown(), "hidden settings must keep world-marker buttons visible for non-leaders")
       end
+    end)
+  end)
+
+  test("Roster panel keeps column guides disabled until the setting is enabled", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local createdTextures = {}
+
+    WithGlobals({
+      IsiLiveDB = {
+        rosterDefaultLayoutMode = "compact_main_horizontal",
+      },
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings, {
+        createdTextures = createdTextures,
+      })
+
+      local guides = FindM2ColumnGuides(createdTextures)
+      local expectedGuideX = {
+        spec = 56,
+        server = 89,
+        name = 215,
+        key = 268,
+        ilvl = 304,
+        rio = 348,
+        dps = 390,
+      }
+
+      for guideKey, expectedX in pairs(expectedGuideX) do
+        local guide = guides[guideKey]
+        Assert.NotNil(guide, "M2 guide " .. guideKey .. " should exist")
+        Assert.Equal(guide.pointX, expectedX, "M2 guide " .. guideKey .. " should sit at the expected boundary")
+        Assert.False(guide:IsShown(), "column guides should start hidden while the setting is off")
+      end
+
+      IsiLiveDB.showRosterColumnGuides = true
+      controller.RefreshLayoutState()
+
+      for guideKey, _ in pairs(expectedGuideX) do
+        Assert.True(guides[guideKey]:IsShown(), "column guides should be visible in the main layout when enabled")
+      end
+
+      controller.RestoreSavedState()
+
+      for guideKey, _ in pairs(expectedGuideX) do
+        Assert.True(guides[guideKey]:IsShown(), "column guides should stay visible in M2 when enabled")
+      end
+
+      controller.SwitchToRaidMode()
+
+      for guideKey, _ in pairs(expectedGuideX) do
+        Assert.False(guides[guideKey]:IsShown(), "column guides should hide again when leaving the main layout family")
+      end
+    end)
+  end)
+
+  test("Roster panel keeps the status line only in the main M layout", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+
+    WithGlobals({
+      IsiLiveDB = {},
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings)
+
+      local statusLine = controller.GetStatusLine()
+      Assert.NotNil(statusLine, "status line should exist")
+      Assert.True(statusLine:IsShown(), "status line should be visible in the main M layout")
+
+      controller.RestoreSavedState()
+
+      Assert.False(statusLine:IsShown(), "status line should hide in M2")
+    end)
+  end)
+
+  test("Roster panel hides the main-panel combat logging and DM reset toggles", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+
+    WithGlobals({
+      IsiLiveDB = {},
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      BuildHiddenSettingTestController(addon, createdFontStrings)
+
+      local combatLoggingToggle = FindFrameByProperty(createdFrames, "_cvarName", "advancedCombatLogging")
+      local damageMeterResetToggle = FindFrameByProperty(createdFrames, "_cvarName", "damageMeterResetOnNewInstance")
+
+      Assert.NotNil(combatLoggingToggle, "combat logging toggle should exist in the main panel")
+      Assert.NotNil(damageMeterResetToggle, "damage-meter reset toggle should exist in the main panel")
+      Assert.False(combatLoggingToggle:IsShown(), "combat logging toggle should stay hidden in the main panel")
+      Assert.False(damageMeterResetToggle:IsShown(), "DM reset toggle should stay hidden in the main panel")
+    end)
+  end)
+
+  test("Roster panel restore prefers the configured default layout when opening", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+
+    WithGlobals({
+      IsiLiveDB = {
+        rosterLayoutMode = "compact_vertical",
+        rosterDefaultLayoutMode = "compact_main_horizontal",
+      },
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings)
+
+      controller.RestoreSavedState()
+
+      Assert.Equal(
+        controller.GetLayoutMode(),
+        "compact_main_horizontal",
+        "configured default layout should override the saved layout mode when opening"
+      )
+      Assert.False(controller.IsCollapsed(), "configured default M2 layout should stay in the main horizontal mode")
+    end)
+  end)
+
+  test("Roster panel defaults to M2 when no default is configured", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+
+    WithGlobals({
+      IsiLiveDB = {
+      },
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings)
+
+      controller.RestoreSavedState()
+
+      Assert.Equal(
+        controller.GetLayoutMode(),
+        "compact_main_horizontal",
+        "without a configured default, the roster should open in M2"
+      )
+      Assert.False(controller.IsCollapsed(), "M2 should keep the roster visible")
+    end)
+  end)
+
+  test("Roster panel restore honors explicit last-used default layout when configured", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+
+    WithGlobals({
+      IsiLiveDB = {
+        rosterLayoutMode = "compact_horizontal",
+        rosterDefaultLayoutMode = "last_used",
+      },
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings)
+
+      controller.RestoreSavedState()
+
+      Assert.Equal(
+        controller.GetLayoutMode(),
+        "compact_horizontal",
+        "explicit last-used default should restore the saved compact layout"
+      )
+      Assert.True(controller.IsCollapsed(), "explicit last-used default should keep compact horizontal collapsed")
     end)
   end)
 end

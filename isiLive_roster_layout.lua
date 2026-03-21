@@ -9,14 +9,18 @@ addonTable._RosterInternal = RI
 local LAYOUT_MODE_EXPANDED = "expanded"
 local LAYOUT_MODE_COMPACT_VERTICAL = "compact_vertical"
 local LAYOUT_MODE_COMPACT_HORIZONTAL = "compact_horizontal"
+local LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = "compact_main_horizontal"
+local LAYOUT_MODE_COMPACT_HORIZONTAL_2_LEGACY = "compact_horizontal_2"
 local FULL_FRAME_WIDTH = 755
 local MINI_FRAME_WIDTH = 220
 local MINI_HORIZONTAL_FRAME_WIDTH = 212
+local MINI_MAIN_HORIZONTAL_FRAME_WIDTH = 500
 local MANAGEMENT_COLUMN_X = -145
 local MANAGEMENT_COLUMN_X_MINI = -70
 local HELPER_COLUMN_X = -111
 local HELPER_COLUMN_X_MINI = -37
 local MINI_HORIZONTAL_FRAME_HEIGHT = 94
+local MINI_MAIN_HORIZONTAL_EXTRA_HEIGHT = 8
 local MINI_HORIZONTAL_MANAGEMENT_ROW_Y = -28
 local MINI_HORIZONTAL_HELPER_ROW_Y = -64
 local MINI_HORIZONTAL_MANAGEMENT_BTN_WIDTH = 60
@@ -26,6 +30,20 @@ local HELPER_BUTTON_SIZE = 18
 local MINI_HORIZONTAL_HELPER_BUTTON_SIZE = HELPER_BUTTON_SIZE
 local MINI_HORIZONTAL_HELPER_GAP = 2
 local DEFAULT_MIN_FRAME_HEIGHT = 236
+local MINI_MAIN_HORIZONTAL_MIN_HEIGHT = DEFAULT_MIN_FRAME_HEIGHT + MINI_MAIN_HORIZONTAL_EXTRA_HEIGHT
+local M2_ROW_LEFT_MARGIN = 10
+local M2_MANAGEMENT_ROW_Y = 80
+local M2_TELEPORT_ROW_Y = 42
+local M2_HELPER_ROW_Y = 14
+local M2_TOOLBAR_BUTTON_WIDTH = 92
+local M2_TOOLBAR_BUTTON_HEIGHT = 22
+local M2_TOOLBAR_BUTTON_GAP = 6
+-- The M2 portal row is meant to line up with the 5 management buttons above it.
+local M2_TELEPORT_BUTTON_WIDTH = 57
+local M2_TELEPORT_BUTTON_HEIGHT = 32
+local M2_TELEPORT_BUTTON_GAP = 4
+local M2_HELPER_BUTTON_SIZE = 22
+local M2_HELPER_BUTTON_GAP = 6
 
 local SYSTEM_OPTION_TOGGLE_LEFT_MARGIN = 10
 local SYSTEM_OPTION_TOGGLE_BOTTOM_OFFSET = 24
@@ -34,10 +52,18 @@ local SYSTEM_OPTION_TOGGLE_GAP = 18
 RI.LAYOUT_MODE_EXPANDED = LAYOUT_MODE_EXPANDED
 RI.LAYOUT_MODE_COMPACT_VERTICAL = LAYOUT_MODE_COMPACT_VERTICAL
 RI.LAYOUT_MODE_COMPACT_HORIZONTAL = LAYOUT_MODE_COMPACT_HORIZONTAL
+RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+RI.LAYOUT_MODE_COMPACT_HORIZONTAL_2 = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
 RI.FULL_FRAME_WIDTH = FULL_FRAME_WIDTH
 RI.MINI_FRAME_WIDTH = MINI_FRAME_WIDTH
 RI.MINI_HORIZONTAL_FRAME_WIDTH = MINI_HORIZONTAL_FRAME_WIDTH
+RI.MINI_MAIN_HORIZONTAL_FRAME_WIDTH = MINI_MAIN_HORIZONTAL_FRAME_WIDTH
+RI.MINI_HORIZONTAL_2_FRAME_WIDTH = MINI_MAIN_HORIZONTAL_FRAME_WIDTH
 RI.MINI_HORIZONTAL_FRAME_HEIGHT = MINI_HORIZONTAL_FRAME_HEIGHT
+RI.MINI_MAIN_HORIZONTAL_EXTRA_HEIGHT = MINI_MAIN_HORIZONTAL_EXTRA_HEIGHT
+RI.MINI_HORIZONTAL_2_EXTRA_HEIGHT = MINI_MAIN_HORIZONTAL_EXTRA_HEIGHT
+RI.MINI_MAIN_HORIZONTAL_MIN_HEIGHT = MINI_MAIN_HORIZONTAL_MIN_HEIGHT
+RI.MINI_HORIZONTAL_2_MIN_HEIGHT = MINI_MAIN_HORIZONTAL_MIN_HEIGHT
 RI.DEFAULT_MIN_FRAME_HEIGHT = DEFAULT_MIN_FRAME_HEIGHT
 RI.MINI_HORIZONTAL_MANAGEMENT_ROW_Y = MINI_HORIZONTAL_MANAGEMENT_ROW_Y
 RI.MINI_HORIZONTAL_HELPER_ROW_Y = MINI_HORIZONTAL_HELPER_ROW_Y
@@ -51,6 +77,32 @@ RI.MANAGEMENT_COLUMN_X = MANAGEMENT_COLUMN_X
 RI.MANAGEMENT_COLUMN_X_MINI = MANAGEMENT_COLUMN_X_MINI
 RI.HELPER_COLUMN_X = HELPER_COLUMN_X
 RI.HELPER_COLUMN_X_MINI = HELPER_COLUMN_X_MINI
+RI.M2_ROW_LEFT_MARGIN = M2_ROW_LEFT_MARGIN
+RI.H2_ROW_LEFT_MARGIN = M2_ROW_LEFT_MARGIN
+RI.M2_MANAGEMENT_ROW_Y = M2_MANAGEMENT_ROW_Y
+RI.H2_MANAGEMENT_ROW_Y = M2_MANAGEMENT_ROW_Y
+RI.M2_TELEPORT_ROW_Y = M2_TELEPORT_ROW_Y
+RI.H2_TELEPORT_ROW_Y = M2_TELEPORT_ROW_Y
+RI.M2_HELPER_ROW_Y = M2_HELPER_ROW_Y
+RI.H2_HELPER_ROW_Y = M2_HELPER_ROW_Y
+RI.M2_TOOLBAR_BUTTON_WIDTH = M2_TOOLBAR_BUTTON_WIDTH
+RI.H2_TOOLBAR_BUTTON_WIDTH = M2_TOOLBAR_BUTTON_WIDTH
+RI.M2_TOOLBAR_BUTTON_HEIGHT = M2_TOOLBAR_BUTTON_HEIGHT
+RI.H2_TOOLBAR_BUTTON_HEIGHT = M2_TOOLBAR_BUTTON_HEIGHT
+RI.M2_TOOLBAR_BUTTON_GAP = M2_TOOLBAR_BUTTON_GAP
+RI.H2_TOOLBAR_BUTTON_GAP = M2_TOOLBAR_BUTTON_GAP
+RI.M2_TELEPORT_BUTTON_WIDTH = M2_TELEPORT_BUTTON_WIDTH
+RI.H2_TELEPORT_BUTTON_WIDTH = M2_TELEPORT_BUTTON_WIDTH
+RI.M2_TELEPORT_BUTTON_HEIGHT = M2_TELEPORT_BUTTON_HEIGHT
+RI.H2_TELEPORT_BUTTON_HEIGHT = M2_TELEPORT_BUTTON_HEIGHT
+RI.M2_TELEPORT_BUTTON_SIZE = M2_TELEPORT_BUTTON_WIDTH
+RI.H2_TELEPORT_BUTTON_SIZE = M2_TELEPORT_BUTTON_WIDTH
+RI.M2_TELEPORT_BUTTON_GAP = M2_TELEPORT_BUTTON_GAP
+RI.H2_TELEPORT_BUTTON_GAP = M2_TELEPORT_BUTTON_GAP
+RI.M2_HELPER_BUTTON_SIZE = M2_HELPER_BUTTON_SIZE
+RI.H2_HELPER_BUTTON_SIZE = M2_HELPER_BUTTON_SIZE
+RI.M2_HELPER_BUTTON_GAP = M2_HELPER_BUTTON_GAP
+RI.H2_HELPER_BUTTON_GAP = M2_HELPER_BUTTON_GAP
 RI.SYSTEM_OPTION_TOGGLE_LEFT_MARGIN = SYSTEM_OPTION_TOGGLE_LEFT_MARGIN
 RI.SYSTEM_OPTION_TOGGLE_BOTTOM_OFFSET = SYSTEM_OPTION_TOGGLE_BOTTOM_OFFSET
 RI.SYSTEM_OPTION_TOGGLE_GAP = SYSTEM_OPTION_TOGGLE_GAP
@@ -60,29 +112,30 @@ local LAYOUT_MODE_CONFIG = {
   [LAYOUT_MODE_EXPANDED] = { width = FULL_FRAME_WIDTH, label = "M" },
   [LAYOUT_MODE_COMPACT_VERTICAL] = { width = MINI_FRAME_WIDTH, label = "V" },
   [LAYOUT_MODE_COMPACT_HORIZONTAL] = { width = MINI_HORIZONTAL_FRAME_WIDTH, label = "H" },
+  [LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL] = { width = MINI_MAIN_HORIZONTAL_FRAME_WIDTH, label = "M2" },
 }
 RI.LAYOUT_MODE_CONFIG = LAYOUT_MODE_CONFIG
 
--- Sichtbarkeitsregeln pro Layout-Modus: { ui-Key, M, V, H }
--- M = EXPANDED, V = COMPACT_VERTICAL, H = COMPACT_HORIZONTAL
+-- Sichtbarkeitsregeln pro Layout-Modus: { ui-Key, M, V, H, M2 }
+-- M = EXPANDED, V = COMPACT_VERTICAL, H = COMPACT_HORIZONTAL, M2 = COMPACT_MAIN_HORIZONTAL
 local UI_VISIBILITY_RULES = {
-  { "title", true, false, false },
-  { "headerSepLeft", true, false, false },
-  { "headerSepRight", true, false, false },
-  { "versionLine", true, false, false },
-  { "specHeader", true, false, false },
-  { "nameHeader", true, false, false },
-  { "ilvlHeader", true, false, false },
-  { "serverHeader", true, false, false },
-  { "keyHeader", true, false, false },
-  { "rioHeader", true, false, false },
-  { "dpsHeader", true, false, false },
-  { "statusLine", true, false, false },
-  { "mplusManagementHeader", true, false, false },
-  { "shareKeysButton", true, true, false },
-  { "refreshButton", true, true, false },
-  { "leadOptionsHeader", true, true, false },
-  { "tankHeader", true, true, false },
+  { "title", true, false, false, true },
+  { "headerSepLeft", true, false, false, true },
+  { "headerSepRight", true, false, false, true },
+  { "versionLine", true, false, false, true },
+  { "specHeader", true, false, false, true },
+  { "nameHeader", true, false, false, true },
+  { "ilvlHeader", true, false, false, true },
+  { "serverHeader", true, false, false, true },
+  { "keyHeader", true, false, false, true },
+  { "rioHeader", true, false, false, true },
+  { "dpsHeader", true, false, false, true },
+  { "statusLine", true, false, false, false },
+  { "mplusManagementHeader", true, false, false, false },
+  { "shareKeysButton", true, true, false, true },
+  { "refreshButton", true, true, false, true },
+  { "leadOptionsHeader", true, true, false, false },
+  { "tankHeader", true, true, false, false },
 }
 RI.UI_VISIBILITY_RULES = UI_VISIBILITY_RULES
 
@@ -98,12 +151,16 @@ local function NormalizeLayoutMode(layoutMode)
   if layoutMode == LAYOUT_MODE_COMPACT_HORIZONTAL then
     return LAYOUT_MODE_COMPACT_HORIZONTAL
   end
+  if layoutMode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or layoutMode == LAYOUT_MODE_COMPACT_HORIZONTAL_2_LEGACY then
+    return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+  end
   return LAYOUT_MODE_EXPANDED
 end
 RI.NormalizeLayoutMode = NormalizeLayoutMode
 
 local function IsCompactLayoutMode(layoutMode)
-  return NormalizeLayoutMode(layoutMode) ~= LAYOUT_MODE_EXPANDED
+  local normalized = NormalizeLayoutMode(layoutMode)
+  return normalized == LAYOUT_MODE_COMPACT_VERTICAL or normalized == LAYOUT_MODE_COMPACT_HORIZONTAL
 end
 RI.IsCompactLayoutMode = IsCompactLayoutMode
 
@@ -111,6 +168,18 @@ local function IsHorizontalCompactLayoutMode(layoutMode)
   return NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_HORIZONTAL
 end
 RI.IsHorizontalCompactLayoutMode = IsHorizontalCompactLayoutMode
+
+local function IsHorizontalToolbarLayoutMode(layoutMode)
+  local normalized = NormalizeLayoutMode(layoutMode)
+  return normalized == LAYOUT_MODE_COMPACT_HORIZONTAL or normalized == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+end
+RI.IsHorizontalToolbarLayoutMode = IsHorizontalToolbarLayoutMode
+
+local function IsMainHorizontalLayoutMode(layoutMode)
+  return NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+end
+RI.IsMainHorizontalLayoutMode = IsMainHorizontalLayoutMode
+RI.IsStackedModernLayoutMode = IsMainHorizontalLayoutMode
 
 local function GetFrameWidthForLayoutMode(layoutMode)
   local cfg = LAYOUT_MODE_CONFIG[NormalizeLayoutMode(layoutMode)]
@@ -121,6 +190,9 @@ RI.GetFrameWidthForLayoutMode = GetFrameWidthForLayoutMode
 local function GetFrameHeightForLayoutMode(layoutMode, minFrameHeight)
   if NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_HORIZONTAL then
     return MINI_HORIZONTAL_FRAME_HEIGHT
+  end
+  if NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL then
+    return math.max(tonumber(minFrameHeight) or DEFAULT_MIN_FRAME_HEIGHT, MINI_MAIN_HORIZONTAL_MIN_HEIGHT)
   end
   return tonumber(minFrameHeight) or DEFAULT_MIN_FRAME_HEIGHT
 end
@@ -313,64 +385,92 @@ local function GetHorizontalHelperButtonX(markerIndex)
 end
 RI.GetHorizontalHelperButtonX = GetHorizontalHelperButtonX
 
+local function ReanchorFrame(frame, point, x, y)
+  if not (frame and frame.SetPoint) then
+    return
+  end
+  if frame.ClearAllPoints then
+    frame:ClearAllPoints()
+  end
+  frame:SetPoint(point, x, y)
+end
+
 local function UpdateColumnPositions(ui, layoutMode)
   layoutMode = NormalizeLayoutMode(layoutMode)
   local isCollapsed = IsCompactLayoutMode(layoutMode)
   local isHorizontal = IsHorizontalCompactLayoutMode(layoutMode)
+  local isMainHorizontal = IsMainHorizontalLayoutMode(layoutMode)
   local tankX = isCollapsed and HELPER_COLUMN_X_MINI or HELPER_COLUMN_X
   local leadX = isCollapsed and MANAGEMENT_COLUMN_X_MINI or MANAGEMENT_COLUMN_X
   local managementButtons = ui.managementButtons or {}
 
   if ui.tankButtons then
     for _, btn in ipairs(ui.tankButtons) do
-      if isHorizontal then
+      if isMainHorizontal then
+        local markerIndex = tonumber(btn._markerIndex) or 1
+        local x = M2_ROW_LEFT_MARGIN + ((markerIndex - 1) * (M2_HELPER_BUTTON_SIZE + M2_HELPER_BUTTON_GAP))
+        if btn.SetSize then
+          btn:SetSize(M2_HELPER_BUTTON_SIZE, M2_HELPER_BUTTON_SIZE)
+        end
+        ReanchorFrame(btn, "BOTTOMLEFT", x, M2_HELPER_ROW_Y)
+      elseif isHorizontal then
         local markerIndex = tonumber(btn._markerIndex) or 1
         local x = GetHorizontalHelperButtonX(markerIndex)
-        btn:SetPoint("TOPRIGHT", x, MINI_HORIZONTAL_HELPER_ROW_Y)
+        ReanchorFrame(btn, "TOPRIGHT", x, MINI_HORIZONTAL_HELPER_ROW_Y)
       else
         local y = tonumber(btn._verticalY) or 0
-        btn:SetPoint("TOPRIGHT", tankX, y)
+        ReanchorFrame(btn, "TOPRIGHT", tankX, y)
       end
     end
   end
 
   if ui.tankHeader then
     if isHorizontal then
-      ui.tankHeader:SetPoint("TOPRIGHT", -10, -34)
-    elseif ui.tankHeader.GetPoint then
+      ReanchorFrame(ui.tankHeader, "TOPRIGHT", -10, -34)
+    elseif not isMainHorizontal and ui.tankHeader.GetPoint then
       local _, _, _, _, y = ui.tankHeader:GetPoint()
       local headerXOffset = isCollapsed and 30 or 18
-      ui.tankHeader:SetPoint("TOPRIGHT", tankX + headerXOffset, y or 0)
+      ReanchorFrame(ui.tankHeader, "TOPRIGHT", tankX + headerXOffset, y or 0)
     end
   end
 
   -- In H-Modus: alle Management-Buttons nebeneinander (rechts nach links)
+  -- In M2-Modus: Management-/Toolbar-Reihe unten links, Portal- und Marker-Reihen darunter
   -- In M/V-Modus: jeder Button an seiner vertikalen Position in der Spalte
-  for index, btn in ipairs(managementButtons) do
-    if btn and btn.GetPoint then
-      if isHorizontal then
-        local x = -(10 + (index - 1) * (MINI_HORIZONTAL_MANAGEMENT_BTN_WIDTH + MINI_HORIZONTAL_MANAGEMENT_BTN_GAP))
-        btn:SetPoint("TOPRIGHT", x, MINI_HORIZONTAL_MANAGEMENT_ROW_Y)
-      else
-        local y = tonumber(btn._verticalY) or 0
-        btn:SetPoint("TOPRIGHT", leadX, y)
+  if isMainHorizontal then
+    for index, btn in ipairs(ui.toolbarButtons or managementButtons) do
+      if btn and btn.GetPoint then
+        local x = M2_ROW_LEFT_MARGIN + ((index - 1) * (M2_TOOLBAR_BUTTON_WIDTH + M2_TOOLBAR_BUTTON_GAP))
+        ReanchorFrame(btn, "BOTTOMLEFT", x, M2_MANAGEMENT_ROW_Y)
       end
     end
-  end
+  else
+    for index, btn in ipairs(managementButtons) do
+      if btn and btn.GetPoint then
+        if isHorizontal then
+          local x = -(10 + (index - 1) * (MINI_HORIZONTAL_MANAGEMENT_BTN_WIDTH + MINI_HORIZONTAL_MANAGEMENT_BTN_GAP))
+          ReanchorFrame(btn, "TOPRIGHT", x, MINI_HORIZONTAL_MANAGEMENT_ROW_Y)
+        else
+          local y = tonumber(btn._verticalY) or 0
+          ReanchorFrame(btn, "TOPRIGHT", leadX, y)
+        end
+      end
+    end
 
-  for _, btn in ipairs(ui.columnButtons or {}) do
-    if btn and btn.GetPoint then
-      local y = tonumber(btn._verticalY) or 0
-      btn:SetPoint("TOPRIGHT", leadX, y)
+    for _, btn in ipairs(ui.columnButtons or {}) do
+      if btn and btn.GetPoint then
+        local y = tonumber(btn._verticalY) or 0
+        ReanchorFrame(btn, "TOPRIGHT", leadX, y)
+      end
     end
   end
 
   if ui.leadOptionsHeader and ui.leadOptionsHeader.GetPoint then
     if isHorizontal then
-      ui.leadOptionsHeader:SetPoint("TOPRIGHT", -10, -34)
-    else
+      ReanchorFrame(ui.leadOptionsHeader, "TOPRIGHT", -10, -34)
+    elseif not isMainHorizontal then
       local _, _, _, _, y = ui.leadOptionsHeader:GetPoint()
-      ui.leadOptionsHeader:SetPoint("TOPRIGHT", leadX, y)
+      ReanchorFrame(ui.leadOptionsHeader, "TOPRIGHT", leadX, y)
     end
   end
 end
@@ -379,6 +479,7 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
   layoutMode = NormalizeLayoutMode(layoutMode or (ui and ui.layoutMode))
   local isCollapsed = IsCompactLayoutMode(layoutMode)
   local isHorizontal = IsHorizontalCompactLayoutMode(layoutMode)
+  local isMainHorizontal = IsMainHorizontalLayoutMode(layoutMode)
 
   if type(ui) == "table" then
     ui.layoutMode = layoutMode
@@ -404,15 +505,35 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
     end
   end
 
-  -- Management-Buttons in H-Modus verkleinern und Kurztext setzen
-  for _, btn in ipairs(ui.managementButtons or {}) do
-    if btn and btn.SetSize then
-      if isHorizontal then
-        btn:SetSize(MINI_HORIZONTAL_MANAGEMENT_BTN_WIDTH, MINI_HORIZONTAL_MANAGEMENT_BTN_HEIGHT)
-        if btn._hModeText then
-          SetFlatButtonText(btn, btn._hModeText)
+  -- Management-Buttons in H-Modus verkleinern und M2-Toolbar kompakt nebeneinander setzen
+  if isMainHorizontal then
+    for _, btn in ipairs(ui.toolbarButtons or {}) do
+      if btn and btn.SetSize then
+        btn:SetSize(M2_TOOLBAR_BUTTON_WIDTH, M2_TOOLBAR_BUTTON_HEIGHT)
+      end
+      if btn and btn._fullText then
+        SetFlatButtonText(btn, btn._fullText)
+      end
+    end
+  else
+    for _, btn in ipairs(ui.managementButtons or {}) do
+      if btn and btn.SetSize then
+        if isHorizontal then
+          btn:SetSize(MINI_HORIZONTAL_MANAGEMENT_BTN_WIDTH, MINI_HORIZONTAL_MANAGEMENT_BTN_HEIGHT)
+          if btn._hModeText then
+            SetFlatButtonText(btn, btn._hModeText)
+          end
+        else
+          btn:SetSize(120, 24)
+          if btn._fullText then
+            SetFlatButtonText(btn, btn._fullText)
+          end
         end
-      else
+      end
+    end
+
+    for _, btn in ipairs(ui.columnButtons or {}) do
+      if btn and btn.SetSize then
         btn:SetSize(120, 24)
         if btn._fullText then
           SetFlatButtonText(btn, btn._fullText)
@@ -422,6 +543,27 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
   end
 
   UpdateColumnPositions(ui, layoutMode)
+
+  if ui.tankButtons and not IsCombatLockdownActive() then
+    local markersLeaderOnly = ui.forceMarkersLeaderOnly and true or false
+    local isLeader = type(ui.isPlayerLeader) == "function" and ui.isPlayerLeader()
+    local showMarkers = not isMainHorizontal and (not markersLeaderOnly or (isLeader and true or false))
+    for _, btn in ipairs(ui.tankButtons) do
+      if showMarkers then
+        if btn.Show then
+          btn:Show()
+        elseif btn.SetShown then
+          btn:SetShown(true)
+        end
+      else
+        if btn.Hide then
+          btn:Hide()
+        elseif btn.SetShown then
+          btn:SetShown(false)
+        end
+      end
+    end
+  end
 
   local function SetVisible(obj, show)
     if obj and obj.SetShown then
@@ -433,20 +575,28 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
     end
   end
 
-  -- Sichtbarkeit nach deklarativer Tabelle: Spalten 2/3/4 = M/V/H
-  local modeCol = isHorizontal and 4 or (isCollapsed and 3 or 2)
+  -- Sichtbarkeit nach deklarativer Tabelle: Spalten 2/3/4/5 = M/V/H/M2
+  local modeCol = isMainHorizontal and 5 or (isHorizontal and 4 or (isCollapsed and 3 or 2))
   for _, rule in ipairs(UI_VISIBILITY_RULES) do
     SetVisible(ui[rule[1]], rule[modeCol])
   end
 
+  if ui.m2ColumnGuides then
+    local showColumnGuides = type(ui.showRosterColumnGuides) == "function" and ui.showRosterColumnGuides() or false
+    for _, guide in ipairs(ui.m2ColumnGuides) do
+      SetVisible(guide, showColumnGuides and not isCollapsed)
+    end
+  end
+
   local show = not isCollapsed
+  local showSystemOptionToggles = false
   if ui.advancedCombatLoggingToggle then
-    SetVisible(ui.advancedCombatLoggingToggle, show)
-    SetVisible(ui.advancedCombatLoggingToggle.label, show)
+    SetVisible(ui.advancedCombatLoggingToggle, showSystemOptionToggles)
+    SetVisible(ui.advancedCombatLoggingToggle.label, showSystemOptionToggles)
   end
   if ui.damageMeterResetToggle then
-    SetVisible(ui.damageMeterResetToggle, show)
-    SetVisible(ui.damageMeterResetToggle.label, show)
+    SetVisible(ui.damageMeterResetToggle, showSystemOptionToggles)
+    SetVisible(ui.damageMeterResetToggle.label, showSystemOptionToggles)
   end
 
   if ui.memberRows then
@@ -476,12 +626,19 @@ local function NotifyCollapseChanged(ui, isCollapsed)
 end
 RI.NotifyCollapseChanged = NotifyCollapseChanged
 
--- Erstellt einen der drei statischen Mode-Buttons [M][V][H].
+local function NotifyLayoutChanged(ui, layoutMode)
+  if type(ui) == "table" and type(ui.onLayoutChanged) == "function" then
+    ui.onLayoutChanged(layoutMode or ui.layoutMode)
+  end
+end
+RI.NotifyLayoutChanged = NotifyLayoutChanged
+
+-- Erstellt einen der vier statischen Mode-Buttons.
 -- _modeTarget und _collapseLayoutMode identifizieren den Button für Tests.
 -- Aktiv/Inaktiv-Zustand wird per Textfarbe in UpdateCollapseState gesetzt.
-local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onClick)
+local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onClick, buttonWidth)
   local btn = CreateFrame("Button", nil, mainFrame)
-  btn:SetSize(20, 20)
+  btn:SetSize(tonumber(buttonWidth) or 20, 20)
   btn:SetPoint("TOPRIGHT", xOffset, -2)
   -- DragHandle liegt auf mainFrame:GetFrameLevel() + 100; Button muss darüber liegen.
   if btn.SetFrameLevel and mainFrame.GetFrameLevel then

@@ -1,14 +1,31 @@
 # Changelog
 
-## 2026-03-20 - Version 0.9.87
+## 2026-03-21 - Version 0.9.89
+- **UI / Settings Defaults:**
+  - `Default UI on Open` now defaults to `M2` when no explicit choice is stored, while `Last Used` stays available as the explicit fallback sentinel.
+  - `Auto-Hide when Solo` now defaults to enabled until the user turns it off.
+  - Blizzard Settings now also expose the optional `Column Guides` debug toggle for roster layout tuning.
+- **UI / Layout Cleanup:**
+  - The roster panel keeps the `M2` main-horizontal layout as the default open view, shows the status line only in `M`, and removes the combat-logging / DM-reset toggles from the main panel UI.
+  - Column guides stay hidden by default and are only shown in `M` and `M2` when explicitly enabled for tuning.
+  - Portal buttons keep deterministic season-slot placement, and active-target highlighting remains unchanged.
+- **Docs + Release Baseline:**
+  - Bumped TOC version to `0.9.89`.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.89`.
+  - `lua tools/validate_usecases.lua` now validates `308` deterministic tests indexed and `310` scenarios across `30` modules.
+
+## 2026-03-20 - Version 0.9.88
 - **Runtime Bugfixes:**
   - Narrowed the `autoOpenOnQueue` gate so only queue-triggered frame opens are suppressed; dungeon-entry, key-end, and test-preview opens still show the main frame.
+  - Kept pending force-refresh state row-local across group rebuilds, and blocked sync backfill from overwriting an in-flight local refresh until the inspect result arrives.
+  - Reused the existing player row on leave/rebuild so pending refresh state, freshness flags, sync data, and live player data survive group churn instead of being dropped during a fresh table build.
+  - The deferred `GameMenuFrame` close callback now ignores a stale reopen race so the host frame is not hidden if the menu was reopened before the timer fired.
   - Added `UnitExists`-guarded helpers around unit-token reads so missing or shifting group tokens no longer hit raw `UnitClass`, `UnitName`, `UnitLevel`, `UnitIsConnected`, `UnitGUID`, `UnitIsUnit`, `UnitIsVisible`, or `CanInspect` paths.
-  - Added deterministic regression coverage for the queue gate and missing-unit race paths across group, inspect, locale, roster display/panel, test mode, and unit helpers.
+  - Added deterministic regression coverage for the queue gate, pending force-refresh rebuilds, the deferred game-menu close race, and the missing-unit race paths across group, inspect, locale, roster display/panel, test mode, sync, UI, and unit helpers.
 - **Docs + Release Baseline:**
-  - Bumped TOC version to `0.9.87`.
-  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.87`.
-  - `lua tools/validate_usecases.lua` now validates `292` deterministic tests indexed and `294` scenarios across `30` modules.
+  - Bumped TOC version to `0.9.88`.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.88`.
+  - `lua tools/validate_usecases.lua` now validates `293` deterministic tests indexed and `295` scenarios across `30` modules.
 - **Metrics Policy:**
   - Raised the `lua tools/lua_metrics_check.lua` file hard limit to `2600` lines so the current `testmodul/isilive_test_scenarios_roster_panel.lua` size stays within the release gate.
 
@@ -56,7 +73,7 @@
 - **UI - Flat Management Buttons:**
   - Replaced standard Blizzard `UIPanelButtonTemplate` management buttons (`Readycheck`, `Countdown10`, `Countdown 0`, `Share Keys`, `Refresh`) with flat dark `BackdropTemplate` buttons matching the ESC panel style, including blue hover accent borders.
 - **UI - Compact Spec Labels:**
-  - Tightened long spec shortcodes to a max visible width of 4 characters (for example `Rest`, `Retr`, `Boom`, `Shad`) so the roster keeps its compact column fit.
+  - Tightened long spec shortcodes to a max visible width of 5 characters (for example `Resto`, `Retri`, `Boomy`, `Shado`, with hunter short labels kept as `MM`/`BM`) so the roster keeps its compact column fit.
 - **UI - Combat-Safe Close Button:**
   - The main frame X (close) button now always hides the frame immediately, even during combat lockdown. Toggle via `CTRL+F9` remains combat-deferred for taint safety.
 - **Sync - DPS and Location Sharing:**
@@ -381,7 +398,7 @@
   - Roster tooltips now also show the player's `Level` and server-language abbreviation (`DE`, `EN`, `FR`) in addition to the synced addon stats.
 - **Roster Column Compression:**
   - The server-language column now renders only the flag icon, and its header is intentionally blank so no `....` placeholder appears.
-  - The `Spec` column is now anchored further left, player names are clamped to Blizzard's 12-character limit, and spec labels are clamped to 6 characters.
+  - The `Spec` column is now anchored further left, player names are clamped to Blizzard's 12-character limit, and spec labels are clamped to 5 characters.
   - `Key`, `iLvl`, `RIO`, and `DPS` column widths are now constrained to their real display maxima to free as much space as possible for the DPS snapshot.
   - Visible key short codes now allow up to 4 letters.
   - Unknown or unresolved dungeons no longer fall back to numeric map IDs in the roster or key-share text; the addon only shows fact-based short codes from season data.

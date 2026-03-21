@@ -2,12 +2,12 @@
 
 ## P0 - Release / Review
 
-- [x] `v0.9.87` vorbereiten:
-  - Doku- und Baseline-Sync auf `0.9.87` abgeschlossen
-  - `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md` und `isiLive.toc` auf `0.9.87` synchronisieren
-  - Tag: `isiLive_release_0.9.87`
+- [x] `v0.9.89` vorbereiten:
+  - Doku- und Baseline-Sync auf `0.9.89` abgeschlossen
+  - `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md` und `isiLive.toc` auf `0.9.89` synchronisieren
+  - Tag: `isiLive_release_0.9.89`
 
-- [ ] `v0.9.87` veroeffentlichen
+- [ ] `v0.9.89` veroeffentlichen
   - `main` pushen und auf gruene `Lua Check` fuer den exakten Commit warten
   - Stable-Tag danach pushen und CurseForge-Paket pruefen
 

@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local TeleportUI = {}
 addonTable.TeleportUI = TeleportUI
+local RI = addonTable._RosterInternal or {}
 local createPrivateTooltip = assert(
   addonTable.UICommon and addonTable.UICommon.CreatePrivateTooltip,
   "isiLive: UICommon.CreatePrivateTooltip missing"
@@ -14,6 +15,24 @@ local preparePrivateTooltip = assert(
 )
 local hidePrivateTooltip =
   assert(addonTable.UICommon and addonTable.UICommon.HidePrivateTooltip, "isiLive: UICommon.HidePrivateTooltip missing")
+
+local LAYOUT_MODE_EXPANDED = RI.LAYOUT_MODE_EXPANDED or "expanded"
+local LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or "compact_main_horizontal"
+local M2_ROW_LEFT_MARGIN = RI.M2_ROW_LEFT_MARGIN or 10
+local M2_TELEPORT_ROW_Y = RI.M2_TELEPORT_ROW_Y or 42
+local M2_TELEPORT_BUTTON_WIDTH = RI.M2_TELEPORT_BUTTON_WIDTH or RI.M2_TELEPORT_BUTTON_SIZE or 57
+local M2_TELEPORT_BUTTON_HEIGHT = RI.M2_TELEPORT_BUTTON_HEIGHT or RI.M2_TELEPORT_BUTTON_SIZE or 32
+local M2_TELEPORT_BUTTON_GAP = RI.M2_TELEPORT_BUTTON_GAP or 4
+local NormalizeLayoutMode = RI.NormalizeLayoutMode or function(layoutMode)
+  if layoutMode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or layoutMode == "compact_horizontal_2" then
+    return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+  end
+  return LAYOUT_MODE_EXPANDED
+end
+
+local function IsM2LayoutMode(layoutMode)
+  return NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+end
 
 local function SyncButtonLayer(button, mainFrame, isInCombat)
   if
@@ -45,19 +64,48 @@ local function SyncButtonLayer(button, mainFrame, isInCombat)
   end
 end
 
-local function CreateTeleportButton(mainFrame, deps, index, entry)
+local function ApplyTeleportButtonLayout(button, slotIndex, layoutMode)
+  if not (button and button.SetPoint) then
+    return
+  end
+
+  local slot = math.max(0, (tonumber(slotIndex) or 1) - 1)
+  if button.ClearAllPoints then
+    button:ClearAllPoints()
+  end
+
+  if IsM2LayoutMode(layoutMode) then
+    local width = M2_TELEPORT_BUTTON_WIDTH
+    local height = M2_TELEPORT_BUTTON_HEIGHT
+    if button.SetSize then
+      button:SetSize(width, height)
+    end
+    local x = M2_ROW_LEFT_MARGIN + (slot * (width + M2_TELEPORT_BUTTON_GAP))
+    button:SetPoint("BOTTOMLEFT", x, M2_TELEPORT_ROW_Y)
+    return
+  end
+
   local size = 28
+  if button.SetSize then
+    button:SetSize(size, size)
+  end
   local colCount = 2
-  local slot = (entry.slotIndex or index) - 1
   local col = slot % colCount
   local row = math.floor(slot / colCount)
   local x = (col == 0) and -60 or -28
   local y = -60 - (row * (size + 4))
+  button:SetPoint("TOPRIGHT", x, y)
+end
+
+local function CreateTeleportButton(mainFrame, deps, index, entry)
+  local size = 28
+  local slotIndex = entry.slotIndex or index
 
   -- Keep cast attributes working out of combat, but avoid promoting the parent to a protected frame.
   local button = CreateFrame("Button", nil, mainFrame, "InsecureActionButtonTemplate")
   button:SetSize(size, size)
-  button:SetPoint("TOPRIGHT", x, y)
+  button.slotIndex = slotIndex
+  ApplyTeleportButtonLayout(button, slotIndex, deps.layoutMode)
   button:EnableMouse(true)
   button:RegisterForClicks("AnyDown", "AnyUp")
   SyncButtonLayer(button, mainFrame, deps.isInCombat)
@@ -199,6 +247,7 @@ function TeleportUI.CreateController(opts)
     isInCombat = opts.isInCombat or function()
       return InCombatLockdown and InCombatLockdown()
     end,
+    layoutMode = NormalizeLayoutMode(opts.layoutMode or LAYOUT_MODE_EXPANDED),
   }
 
   assert(mainFrame and mainFrame.GetFrameLevel and mainFrame.GetFrameStrata, "isiLive: TeleportUI requires mainFrame")
@@ -222,6 +271,12 @@ function TeleportUI.CreateController(opts)
   local emptyStateLabel = nil
   local isVisible = true
   deps.tooltip = createPrivateTooltip(mainFrame)
+
+  local function RelayoutButtons()
+    for _, button in ipairs(buttons) do
+      ApplyTeleportButtonLayout(button, button.slotIndex, deps.layoutMode)
+    end
+  end
 
   local function EnsureEmptyStateLabel()
     if emptyStateLabel or type(mainFrame.CreateFontString) ~= "function" then
@@ -307,6 +362,7 @@ function TeleportUI.CreateController(opts)
     for i, entry in ipairs(entries) do
       table.insert(buttons, CreateTeleportButton(mainFrame, deps, i, entry))
     end
+    RelayoutButtons()
     ApplyVisibility()
   end
 
@@ -317,6 +373,15 @@ function TeleportUI.CreateController(opts)
   function controller.RebuildButtons()
     HideExistingButtons()
     BuildButtonsInternal()
+  end
+
+  function controller.SetLayoutMode(layoutMode)
+    deps.layoutMode = NormalizeLayoutMode(layoutMode or deps.layoutMode)
+    RelayoutButtons()
+  end
+
+  function controller.GetLayoutMode()
+    return deps.layoutMode
   end
 
   function controller.GetButtons()

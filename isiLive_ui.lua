@@ -939,9 +939,14 @@ function UI.EnsurePanelUI(opts)
       end
     end)
     gameMenuFrame:HookScript("OnHide", function()
-      if state.hostFrame and type(state.hostFrame.Hide) == "function" then
-        state.hostFrame:Hide()
-      end
+      RunAfterGameMenuClose(function()
+        if type(state.gameMenuFrame) == "table" and state.gameMenuFrame.IsShown and state.gameMenuFrame:IsShown() then
+          return
+        end
+        if state.hostFrame and type(state.hostFrame.Hide) == "function" then
+          state.hostFrame:Hide()
+        end
+      end)
     end)
   end
 

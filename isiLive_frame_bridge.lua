@@ -84,7 +84,15 @@ function FrameBridge.CreateContext(opts)
   end
 
   function context.SetMainFrameVisible(visible)
-    mainUI.SetVisible(visible)
+    local didShow = mainUI.SetVisible(visible)
+    if visible and didShow == true then
+      if isInGroup() then
+        onShownInGroup()
+      else
+        onShownNoGroup()
+      end
+    end
+    return didShow
   end
 
   function context.SetMainFrameHeightSafe(height)

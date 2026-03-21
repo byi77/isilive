@@ -38,6 +38,11 @@ local function NewRecordedFontString(createdFontStrings)
     self.pointX = x
     self.pointY = y
   end
+  function fontString:ClearAllPoints()
+    self.point = nil
+    self.pointX = nil
+    self.pointY = nil
+  end
   function fontString:Hide()
     self.hidden = true
   end
@@ -88,14 +93,34 @@ local function NewRecordedFrame(createdFrames, createdFontStrings, frameType, na
     self.width = width
     self.height = height
   end
-  function frame:SetPoint(point, x, y)
-    if point == "TOPRIGHT" then
-      self.pointX = x
-      self.pointY = y
+  function frame:SetPoint(point, ...)
+    local args = { ... }
+    self.point = point
+    if #args >= 4 then
+      self.relativeTo = args[1]
+      self.relativePoint = args[2]
+      self.pointX = args[3]
+      self.pointY = args[4]
+    elseif #args >= 2 then
+      self.pointX = args[1]
+      self.pointY = args[2]
+    elseif #args == 1 then
+      self.pointX = args[1]
+      self.pointY = nil
+    else
+      self.pointX = nil
+      self.pointY = nil
     end
   end
+  function frame:ClearAllPoints()
+    self.point = nil
+    self.pointX = nil
+    self.pointY = nil
+    self.relativeTo = nil
+    self.relativePoint = nil
+  end
   function frame:GetPoint()
-    return "TOPRIGHT", nil, nil, self.pointX, self.pointY
+    return self.point or "TOPRIGHT", self.relativeTo, self.relativePoint, self.pointX, self.pointY
   end
   function frame:SetScript(script, handler)
     self[script] = handler
@@ -635,6 +660,161 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
   end)
 end
 
+local function RegisterHorizontalModernLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("M2 mode keeps roster visible and stacks action rows under the list", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local mainFrame = NewRecordedMainFrame(createdFontStrings)
+
+    WithGlobals({
+      CreateFrame = function(frameType, name, parent, template)
+        return NewRecordedFrame(createdFrames, createdFontStrings, frameType, name, parent, template)
+      end,
+      IsCombatLockdownActive = function()
+        return false
+      end,
+      InCombatLockdown = function()
+        return false
+      end,
+      C_CVar = {
+        GetCVar = function()
+          return "0"
+        end,
+        SetCVar = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_roster_panel.lua" })
+      addon.RosterPanel.CreateController({
+        mainFrame = mainFrame,
+        getL = function()
+          return {
+            TITLE = "isiLive",
+            COL_SPEC = "Spec",
+            COL_NAME = "Name",
+            COL_LANGUAGE = "Lang",
+            COL_KEY = "Key",
+            COL_ILVL = "iLvl",
+            COL_RIO = "RIO",
+            COL_DPS = "DPS",
+            LEAD_OPTIONS = "Lead",
+            MPLUS_MANAGEMENT = "Mgmt",
+            BTN_READYCHECK = "Readycheck",
+            BTN_COUNTDOWN10 = "Countdown10",
+            BTN_COUNTDOWN_CANCEL = "Countdown 0",
+            BTN_SHARE_KEYS = "Share Keys",
+            BTN_REFRESH = "Refresh",
+            OPT_ADVANCED_COMBAT_LOGGING = "Logging",
+            OPT_DAMAGE_METER_RESET = "Reset",
+            TANK_HELPER_HEADER = "M+Marker",
+          }
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function(height)
+          mainFrame.height = height
+        end,
+        buildOrderedRoster = function()
+          return {}
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function(info)
+          return {
+            colorHex = "ffffffff",
+            displayName = tostring(info and info.name or ""),
+            languageDisplay = "",
+            specText = "",
+            ilvlText = "-",
+            rioText = "-",
+            keyText = "-",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+          }
+        end,
+        truncateName = function(name)
+          return name
+        end,
+        getShortSpecLabel = function(spec)
+          return spec
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return ""
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {}
+        end,
+        rolePriority = {},
+        unitPriority = {},
+        isPlayerLeader = function()
+          return true
+        end,
+        isInGroup = function()
+          return true
+        end,
+        isRaidGroup = function()
+          return false
+        end,
+      })
+    end)
+
+    local m2Button = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_main_horizontal")
+    Assert.NotNil(m2Button, "M2 collapse button should exist")
+
+    local toolbarButtons = {}
+    local markerButtons = {}
+    for _, frame in ipairs(createdFrames) do
+      if (frame._template == "UIPanelButtonTemplate" or frame._template == "BackdropTemplate") and frame._flatLabel then
+        table.insert(toolbarButtons, frame)
+      elseif frame._template == "SecureActionButtonTemplate" and frame:GetAttribute("type1") == "worldmarker" then
+        table.insert(markerButtons, frame)
+      end
+    end
+
+    m2Button.OnClick()
+
+    table.sort(toolbarButtons, function(a, b)
+      return (a.pointX or 0) < (b.pointX or 0)
+    end)
+    table.sort(markerButtons, function(a, b)
+      return (a.pointX or 0) < (b.pointX or 0)
+    end)
+
+    Assert.Equal(mainFrame.width, 500, "M2 mode should use the widened modern frame")
+    Assert.Equal(mainFrame.height, 244, "M2 mode should keep the roster compact and leave room for the action rows")
+    Assert.Equal(m2Button._collapseButtonLabel, "M2", "M2 mode button should keep its static label")
+    Assert.Equal(#toolbarButtons, 5, "M2 mode should keep all action buttons in one horizontal row")
+    Assert.Equal(toolbarButtons[1].point, "BOTTOMLEFT", "M2 action row should anchor from the bottom-left")
+    Assert.Equal(toolbarButtons[1].pointX, 10, "M2 action row should start at the left margin")
+    Assert.Equal(toolbarButtons[1].pointY, 80, "M2 action row should sit closest to the roster list")
+    Assert.Equal(toolbarButtons[1].width, 92, "M2 action buttons should use the modern compact width")
+    Assert.Equal(toolbarButtons[1].height, 22, "M2 action buttons should use the modern compact height")
+    Assert.Equal(toolbarButtons[#toolbarButtons].pointX, 402, "M2 action row should remain left-aligned")
+    Assert.Equal(toolbarButtons[#toolbarButtons].pointY, 80, "All M2 action buttons should share one row")
+    Assert.Equal(#markerButtons, 8, "M2 mode should keep all world markers available")
+    Assert.False(markerButtons[1]._shown, "M2 marker buttons should be hidden entirely")
+    Assert.False(markerButtons[#markerButtons]._shown, "M2 marker buttons should be hidden entirely")
+    local tankHeaderFontString = nil
+    for _, fontString in ipairs(createdFontStrings) do
+      if fontString.text == "M+Marker" then
+        tankHeaderFontString = fontString
+        break
+      end
+    end
+    Assert.NotNil(tankHeaderFontString, "M2 marker header should exist")
+    Assert.True(tankHeaderFontString.hidden, "M2 marker header should be hidden entirely")
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -643,4 +823,5 @@ return function(test, ctx)
   RegisterNativeWorldMarkerButtonTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterHorizontalModernLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
 end

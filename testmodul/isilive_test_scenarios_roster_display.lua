@@ -106,15 +106,15 @@ return function(test, ctx)
       end)
     end)
 
-    test.it("Roster display truncates spec labels longer than 6 characters", function()
+    test.it("Roster display truncates spec labels longer than 5 characters", function()
       runTest(function(Roster)
         mockInfo.spec = "AVeryLongSpecName"
         local result = Roster.BuildDisplayData(mockInfo, mockOpts)
-        Assert.Equal("AVeryL", result.specText)
+        Assert.Equal("AVery", result.specText)
       end)
     end)
 
-    test.it("Roster display keeps spec labels with 6 or fewer characters intact", function()
+    test.it("Roster display keeps spec labels with 5 or fewer characters intact", function()
       runTest(function(Roster)
         mockInfo.spec = "Short"
         local result = Roster.BuildDisplayData(mockInfo, mockOpts)

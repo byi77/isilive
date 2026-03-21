@@ -133,8 +133,8 @@ local function RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModul
 
       local text = controller.BuildStatusLineText({})
       Assert.True(
-        string.find(text, "Target Dungeon: Ara-Kara +14", 1, true) ~= nil,
-        "status line should include resolved target dungeon with key level"
+        string.find(text, "\nTarget Dungeon: Ara-Kara +14", 1, true) ~= nil,
+        "status line should include resolved target dungeon with key level on the second line"
       )
     end)
   end)
@@ -164,8 +164,8 @@ local function RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModul
       local text = controller.BuildStatusLineText({})
       Assert.Equal(
         text,
-        "Lead: No | M+: Inactive | State: Running | Dungeon: Outside | Target Dungeon: Ara-Kara +14",
-        "target dungeon should be rendered at the end of the status line"
+        "Lead: No | M+: Inactive | State: Running | Dungeon: Outside\nTarget Dungeon: Ara-Kara +14",
+        "target dungeon should be rendered on a second line below the lead/status summary"
       )
     end)
   end)
@@ -188,8 +188,8 @@ local function RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModul
 
       local text = controller.BuildStatusLineText({})
       Assert.True(
-        string.find(text, "Target Dungeon: -", 1, true) ~= nil,
-        "status line should show target placeholder when no target is known"
+        string.find(text, "\nTarget Dungeon: -", 1, true) ~= nil,
+        "status line should show target placeholder on the second line when no target is known"
       )
     end)
   end)
@@ -238,8 +238,8 @@ local function RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModul
 
       local text = controller.BuildStatusLineText({})
       Assert.True(
-        string.find(text, "Target Dungeon: Pre-Season (Midnight Season 1 (prepared, inactive))", 1, true) ~= nil,
-        "status line should explain the empty pre-season portal pool"
+        string.find(text, "\nTarget Dungeon: Pre-Season (Midnight Season 1 (prepared, inactive))", 1, true) ~= nil,
+        "status line should explain the empty pre-season portal pool on the second line"
       )
     end)
   end)

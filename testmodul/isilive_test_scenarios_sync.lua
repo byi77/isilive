@@ -514,6 +514,25 @@ local function RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonMod
       Assert.Equal(info.spec, "Arms", "fresh local spec must not be overwritten by sync")
       Assert.Equal(info.ilvl, 622, "fresh local ilvl must not be overwritten by sync")
       Assert.Equal(info.rio, 3300, "fresh local rio must not be overwritten by sync")
+
+      local pendingInfo = {
+        name = "Peer",
+        realm = "Realm",
+        keyMapID = nil,
+        keyLevel = nil,
+        spec = "Arms",
+        ilvl = 622,
+        rio = 3300,
+        _refreshQueued = true,
+      }
+
+      local pendingChanged = controller.ApplyKnownKeyToRosterEntry(pendingInfo)
+      Assert.True(pendingChanged, "pending forced refresh should still backfill key data")
+      Assert.Equal(pendingInfo.keyMapID, 2649, "pending forced refresh must still backfill key mapID")
+      Assert.Equal(pendingInfo.keyLevel, 15, "pending forced refresh must still backfill key level")
+      Assert.Equal(pendingInfo.spec, "Arms", "pending forced refresh must not be overwritten by sync")
+      Assert.Equal(pendingInfo.ilvl, 622, "pending forced refresh must not be overwritten by sync")
+      Assert.Equal(pendingInfo.rio, 3300, "pending forced refresh must not be overwritten by sync")
     end)
   end)
 end
@@ -669,6 +688,17 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
       Assert.True(changed, "DPS/LOC backfill should mark entry as changed")
       Assert.Equal(info.syncDps, 250000, "syncDps should be backfilled from sync data")
       Assert.Equal(info.syncLocMapID, 2649, "syncLocMapID should be backfilled from sync data")
+
+      local pendingInfo = {
+        name = "Peer",
+        realm = "Realm",
+        _refreshQueued = true,
+      }
+
+      local pendingChanged = controller.ApplyKnownKeyToRosterEntry(pendingInfo)
+      Assert.True(pendingChanged, "pending forced refresh should still backfill LOC data")
+      Assert.Nil(pendingInfo.syncDps, "pending forced refresh must not backfill syncDps")
+      Assert.Equal(pendingInfo.syncLocMapID, 2649, "pending forced refresh should still backfill syncLocMapID")
 
       local unchanged = controller.ApplyKnownKeyToRosterEntry(info)
       Assert.False(unchanged, "repeat apply with same data should not mark as changed")

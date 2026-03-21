@@ -404,6 +404,104 @@ local function RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadA
     end)
   end)
 
+  test("Frame bridge direct SetMainFrameVisible triggers show callbacks on successful open", function()
+    local visible = false
+    local inGroup = true
+    local groupShownCalls = 0
+    local soloShownCalls = 0
+
+    WithGlobals({
+      UIParent = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_frame_bridge.lua" })
+      local FrameBridge = RequireValue(addon.FrameBridge, "FrameBridge module should load")
+
+      local context = FrameBridge.CreateContext({
+        createCenterNotice = function()
+          return {
+            frame = {},
+            teleportButton = {},
+            SetVisible = function() end,
+            UpdateTeleportButtonVisual = function() end,
+            Show = function() end,
+          }
+        end,
+        createInviteHint = function()
+          return {
+            Show = function() end,
+          }
+        end,
+        createMainFrame = function(_opts)
+          return {
+            frame = {
+              IsShown = function()
+                return visible
+              end,
+            },
+            SetVisible = function(wantVisible)
+              if wantVisible then
+                if visible then
+                  return false
+                end
+                visible = true
+                return true
+              end
+              if not visible then
+                return false
+              end
+              visible = false
+              return true
+            end,
+            SetHeightSafe = function() end,
+            ToggleVisibility = function() end,
+          }
+        end,
+        isInGroup = function()
+          return inGroup
+        end,
+        onShownInGroup = function()
+          groupShownCalls = groupShownCalls + 1
+        end,
+        onShownNoGroup = function()
+          soloShownCalls = soloShownCalls + 1
+        end,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellID = function()
+          return nil
+        end,
+        applySecureSpellToButton = function() end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return nil
+        end,
+        formatCooldownSeconds = function(value)
+          return tostring(value or "")
+        end,
+        getL = function()
+          return {}
+        end,
+      })
+
+      local didShow = context.SetMainFrameVisible(true)
+      Assert.True(didShow, "direct show should report a successful visibility change")
+      Assert.Equal(groupShownCalls, 1, "group show callback should run after a successful direct open")
+      Assert.Equal(soloShownCalls, 0, "solo callback should stay untouched while in a group")
+
+      local didHide = context.SetMainFrameVisible(false)
+      Assert.True(didHide, "direct hide should also report a successful visibility change")
+
+      inGroup = false
+      local didSoloShow = context.SetMainFrameVisible(true)
+      Assert.True(didSoloShow, "direct solo show should report a successful visibility change")
+      Assert.Equal(groupShownCalls, 1, "group callback should not run again for solo open")
+      Assert.Equal(soloShownCalls, 1, "solo show callback should run when not in a group")
+    end)
+  end)
+
   test("UI SetVisible outside combat has no pending state", function()
     WithGlobals({
       UIParent = {},
@@ -978,6 +1076,69 @@ local function RegisterGameMenuReloadButtonTests(test, Assert, WithGlobals, Load
     end)
   end)
 
+  test("UI game-menu hides the host frame after close via deferred callback", function()
+    local createFrameStub = BuildCreateFrameStub()
+    local uiParent = {}
+    local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+    local closeButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
+    gameMenuFrame.CloseButton = closeButton
+    local scheduledCallback = nil
+    local hideCalls = 0
+
+    WithGlobals({
+      UIParent = uiParent,
+      CreateFrame = createFrameStub,
+      GameMenuFrame = gameMenuFrame,
+      C_Timer = {
+        After = function(_delay, callback)
+          scheduledCallback = callback
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local strip = UI.EnsurePanelUI({
+        gameMenuFrame = gameMenuFrame,
+      })
+
+      strip.hostFrame.Hide = function()
+        hideCalls = hideCalls + 1
+      end
+
+      local onHide = gameMenuFrame._scripts and gameMenuFrame._scripts.OnHide or nil
+      Assert.NotNil(onHide, "game menu should register an OnHide hook")
+
+      ---@diagnostic disable: need-check-nil
+      gameMenuFrame:Show()
+      onHide(gameMenuFrame)
+      ---@diagnostic enable: need-check-nil
+
+      Assert.Equal(hideCalls, 0, "host frame should not hide synchronously inside the GameMenuFrame OnHide hook")
+      Assert.NotNil(scheduledCallback, "host frame hide should be deferred after game menu close")
+
+      ---@diagnostic disable: need-check-nil
+      gameMenuFrame:Show()
+      scheduledCallback()
+      ---@diagnostic enable: need-check-nil
+
+      Assert.Equal(hideCalls, 0, "reopened game menu should not hide the host frame when a stale close callback fires")
+
+      scheduledCallback = nil
+      gameMenuFrame:Hide()
+      ---@diagnostic disable: need-check-nil
+      onHide(gameMenuFrame)
+      ---@diagnostic enable: need-check-nil
+
+      Assert.NotNil(scheduledCallback, "host frame hide should be scheduled when the game menu actually closes")
+
+      ---@diagnostic disable: need-check-nil
+      scheduledCallback()
+      ---@diagnostic enable: need-check-nil
+
+      Assert.Equal(hideCalls, 1, "host frame should hide once the deferred game menu close callback runs")
+    end)
+  end)
+
   test("UI game-menu reload button refreshes secure click mode when panel UI is reused", function()
     local useKeyDown = false
     local createFrameStub = BuildCreateFrameStub()
@@ -1306,6 +1467,289 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
     end)
   end)
 
+  test("Settings panel lets the user choose the default layout on open", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+    local defaultLayoutChanges = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_BEHAVIOR = "Behavior",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_UI_SCALE = "UI Scale",
+            SETTINGS_SHOW_DPS_COLUMN = "Show DPS Column",
+            SETTINGS_NAME_MAX_CHARS = "Name Length",
+            SETTINGS_TELEPORT_COLUMNS = "Teleport Grid Columns",
+            SETTINGS_MINIMAP_BUTTON = "Minimap Button",
+            SETTINGS_SYNC_ENABLED = "Addon Sync",
+            SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
+            SETTINGS_AUTO_HIDE_SOLO = "Auto Hide Solo",
+            SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
+            SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
+            SETTINGS_DEFAULT_OPEN_UI_M = "M",
+            SETTINGS_DEFAULT_OPEN_UI_V = "V",
+            SETTINGS_DEFAULT_OPEN_UI_H = "H",
+            SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
+            SETTINGS_MARKERS_LEADER_ONLY = "Markers Leader Only",
+            SETTINGS_SOUND_ENABLED = "Sound Enabled",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+        onDefaultLayoutModeChange = function(mode)
+          defaultLayoutChanges[#defaultLayoutChanges + 1] = mode or false
+        end,
+      })
+
+      Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
+      Assert.Nil(db.rosterDefaultLayoutMode, "default layout should stay unset until the user chooses one")
+
+      local m2Button = nil
+      local lastUsedButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._optionValue == "compact_main_horizontal" then
+          m2Button = frame
+        elseif frame._optionValue == "last_used" and frame._optionLabelKey == "SETTINGS_DEFAULT_OPEN_UI_LAST" then
+          lastUsedButton = frame
+        end
+      end
+
+      Assert.NotNil(m2Button, "settings panel should create an M2 default-layout button")
+      Assert.NotNil(lastUsedButton, "settings panel should create a last-used default-layout button")
+      ---@diagnostic disable: need-check-nil, undefined-field
+      Assert.Equal(
+        m2Button._backdropColor[4],
+        0.25,
+        "M2 should be highlighted by default when no saved default layout exists"
+      )
+      Assert.Equal(
+        lastUsedButton._backdropColor[4],
+        0.7,
+        "Last Used should stay unselected by default when no saved default layout exists"
+      )
+      ---@diagnostic enable: need-check-nil, undefined-field
+
+      local onClickM2 = m2Button._scripts and m2Button._scripts.OnClick or nil
+      local onClickLast = lastUsedButton._scripts and lastUsedButton._scripts.OnClick or nil
+      Assert.NotNil(onClickM2, "M2 button should define OnClick")
+      Assert.NotNil(onClickLast, "Last Used button should define OnClick")
+
+      ---@diagnostic disable: need-check-nil
+      onClickM2(m2Button, "LeftButton")
+      onClickLast(lastUsedButton, "LeftButton")
+      ---@diagnostic enable: need-check-nil
+
+      Assert.Equal(
+        db.rosterDefaultLayoutMode,
+        "last_used",
+        "choosing Last Used should store the explicit last-used sentinel"
+      )
+      Assert.Equal(
+        defaultLayoutChanges[1],
+        "compact_main_horizontal",
+        "clicking M2 should persist the normalized layout mode and notify the callback"
+      )
+      Assert.Equal(
+        defaultLayoutChanges[2],
+        false,
+        "clicking Last Used should notify the callback with a nil layout mode"
+      )
+    end)
+  end)
+
+  test("Settings panel defaults Auto-Hide when Solo to enabled until the user turns it off", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_BEHAVIOR = "Behavior",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_UI_SCALE = "UI Scale",
+            SETTINGS_MINIMAP_BUTTON = "Minimap Button",
+            SETTINGS_SYNC_ENABLED = "Addon Sync",
+            SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
+            SETTINGS_AUTO_HIDE_SOLO = "Auto Hide Solo",
+            SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
+            SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
+            SETTINGS_DEFAULT_OPEN_UI_M = "M",
+            SETTINGS_DEFAULT_OPEN_UI_V = "V",
+            SETTINGS_DEFAULT_OPEN_UI_H = "H",
+            SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+      })
+
+      Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
+      Assert.Nil(db.autoHideSolo, "opening settings should not persist the default auto-hide value")
+
+      local autoHideCheck = nil
+      local checkButtonIndex = 0
+      for _, frame in ipairs(createdFrames) do
+        if frame._frameType == "CheckButton" then
+          checkButtonIndex = checkButtonIndex + 1
+          if checkButtonIndex == 7 then
+            autoHideCheck = frame
+            break
+          end
+        end
+      end
+
+      Assert.NotNil(autoHideCheck, "settings panel should create an auto-hide checkbox")
+      Assert.True(autoHideCheck:GetChecked(), "auto-hide should default to enabled when no saved value exists")
+
+      db.autoHideSolo = false
+      panel.Refresh()
+
+      Assert.False(autoHideCheck:GetChecked(), "refresh should honor an explicit false override")
+    end)
+  end)
+
+  test("Settings panel keeps column guides disabled by default and lets the user enable them", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+    local callbackStates = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_BEHAVIOR = "Behavior",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_UI_SCALE = "UI Scale",
+            SETTINGS_MINIMAP_BUTTON = "Minimap Button",
+            SETTINGS_SYNC_ENABLED = "Addon Sync",
+            SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
+            SETTINGS_AUTO_HIDE_SOLO = "Auto Hide Solo",
+            SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
+            SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
+            SETTINGS_DEFAULT_OPEN_UI_M = "M",
+            SETTINGS_DEFAULT_OPEN_UI_V = "V",
+            SETTINGS_DEFAULT_OPEN_UI_H = "H",
+            SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
+            SETTINGS_ROSTER_COLUMN_GUIDES = "Column Guides",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+        onRosterColumnGuidesToggle = function(enabled)
+          callbackStates[#callbackStates + 1] = enabled and true or false
+        end,
+      })
+
+      Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
+      Assert.Nil(db.showRosterColumnGuides, "column guides should stay unset until the user chooses them")
+
+      local guideCheck = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._settingKey == "SETTINGS_ROSTER_COLUMN_GUIDES" then
+          guideCheck = frame
+          break
+        end
+      end
+
+      Assert.NotNil(guideCheck, "settings panel should create a column-guides checkbox")
+      Assert.False(guideCheck:GetChecked(), "column guides should default to disabled")
+
+      local onClick = guideCheck._scripts and guideCheck._scripts.OnClick or nil
+      Assert.NotNil(onClick, "column guides checkbox should define OnClick")
+
+      guideCheck:SetChecked(true)
+      onClick(guideCheck)
+      Assert.True(db.showRosterColumnGuides, "enabling the checkbox should persist the enabled setting")
+      Assert.Equal(callbackStates[1], true, "enabling the checkbox should notify the callback")
+
+      panel.Refresh()
+      Assert.True(guideCheck:GetChecked(), "refresh should keep the enabled checkbox state")
+
+      guideCheck:SetChecked(false)
+      onClick(guideCheck)
+      Assert.False(db.showRosterColumnGuides, "disabling the checkbox should persist the disabled setting")
+      Assert.Equal(callbackStates[2], false, "disabling the checkbox should notify the callback")
+    end)
+  end)
+
   test("Settings panel hides disabled legacy display and behavior controls", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {
@@ -1378,13 +1822,17 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       Assert.Equal(sliderCount, 2, "settings should only expose the background opacity and UI scale sliders")
       Assert.Equal(
         checkboxCount,
-        9,
-        "settings should hide the legacy DPS, markers, sound, name-length, and teleport-column controls"
+        10,
+        "settings should hide the legacy DPS, markers, sound, name-length, and teleport-column controls while keeping column guides visible"
       )
 
       panel.Refresh()
       Assert.Equal(sliderCount, 2, "refresh should keep the legacy sliders hidden")
-      Assert.Equal(checkboxCount, 9, "refresh should keep the hidden legacy checkboxes out of the settings UI")
+      Assert.Equal(
+        checkboxCount,
+        10,
+        "refresh should keep the hidden legacy checkboxes out of the settings UI while preserving column guides"
+      )
     end)
   end)
 end

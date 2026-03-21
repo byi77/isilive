@@ -85,6 +85,9 @@ local function BuildDeps(opts)
   }
 end
 
+local SetIfNotNil
+local UpdatePlayerEntry
+
 local function HandleNoGroup(deps, wasInGroupBefore)
   deps.setWasGroupLeader(nil)
   deps.setWasRaidGroup(false)
@@ -96,29 +99,7 @@ local function HandleNoGroup(deps, wasInGroupBefore)
 
     local roster = deps.getRoster()
     local newRoster = {}
-    local playerName, playerRealm = deps.getUnitNameAndRealm("player")
-    local _, playerClass = deps.getUnitClass("player")
-    local playerLanguage = deps.getUnitServerLanguage("player", playerRealm)
-    local playerKeyMapID, playerKeyLevel = deps.getOwnedKeystoneSnapshot()
-    local existingPlayer = roster.player or {}
-
-    deps.markIsiLiveUser(playerName, playerRealm)
-    deps.setPlayerKeyInfo(playerName, playerRealm, playerKeyMapID, playerKeyLevel)
-
-    newRoster.player = {
-      name = playerName or existingPlayer.name,
-      realm = playerRealm or existingPlayer.realm,
-      language = playerLanguage or existingPlayer.language or "??",
-      class = playerClass or existingPlayer.class,
-      role = deps.getUnitRole("player") or existingPlayer.role,
-      spec = deps.getPlayerSpecName() or existingPlayer.spec,
-      ilvl = existingPlayer.ilvl,
-      rio = deps.getUnitRio("player") or existingPlayer.rio,
-      hasIsiLive = true,
-      keyMapID = playerKeyMapID or existingPlayer.keyMapID,
-      keyLevel = playerKeyLevel or existingPlayer.keyLevel,
-      isGhost = false,
-    }
+    newRoster.player = UpdatePlayerEntry(deps, roster.player, true)
 
     for unit, info in pairs(roster) do
       if unit ~= "player" then
@@ -161,32 +142,55 @@ local function PruneGhosts(roster)
   end
 end
 
-local function AddPlayerToRoster(deps, roster)
+SetIfNotNil = function(entry, key, value)
+  if value ~= nil then
+    entry[key] = value
+  end
+end
+
+UpdatePlayerEntry = function(deps, playerEntry, preserveIlvl)
+  if type(playerEntry) ~= "table" then
+    playerEntry = {}
+  end
+
   local name, realm = deps.getUnitNameAndRealm("player")
   local _, class = deps.getUnitClass("player")
   local language = deps.getUnitServerLanguage("player", realm)
   local ownKeyMapID, ownKeyLevel = deps.getOwnedKeystoneSnapshot()
+
   deps.markIsiLiveUser(name, realm)
   deps.setPlayerKeyInfo(name, realm, ownKeyMapID, ownKeyLevel)
-  roster.player = {
-    name = name,
-    realm = realm,
-    language = language,
-    class = class,
-    role = deps.getUnitRole("player"),
-    spec = deps.getPlayerSpecName(),
-    ilvl = nil,
-    rio = deps.getUnitRio("player"),
-    hasIsiLive = true,
-    keyMapID = ownKeyMapID,
-    keyLevel = ownKeyLevel,
-  }
+
+  SetIfNotNil(playerEntry, "name", name)
+  SetIfNotNil(playerEntry, "realm", realm)
+  SetIfNotNil(playerEntry, "language", language)
+  SetIfNotNil(playerEntry, "class", class)
+  SetIfNotNil(playerEntry, "role", deps.getUnitRole("player"))
+  SetIfNotNil(playerEntry, "keyMapID", ownKeyMapID)
+  SetIfNotNil(playerEntry, "keyLevel", ownKeyLevel)
+  playerEntry.hasIsiLive = true
+  playerEntry.isGhost = false
+
+  if not playerEntry._refreshQueued then
+    SetIfNotNil(playerEntry, "spec", deps.getPlayerSpecName())
+    SetIfNotNil(playerEntry, "rio", deps.getUnitRio("player"))
+    if not preserveIlvl and not playerEntry._localIlvlFresh then
+      playerEntry.ilvl = nil
+    end
+  end
+
+  return playerEntry
+end
+
+local function AddPlayerToRoster(deps, roster)
+  roster.player = UpdatePlayerEntry(deps, roster.player, false)
   deps.enqueueInspect("player")
 end
 
 local function UpdatePartyMembersInRoster(deps, roster)
   -- 1. Identify current group members to protect them from ghosting
   local currentMemberKeys = {}
+  local unreadablePartySlots = {}
   local name, realm = deps.getUnitNameAndRealm("player")
   if name then
     currentMemberKeys[name .. "-" .. (realm or "")] = true
@@ -198,6 +202,9 @@ local function UpdatePartyMembersInRoster(deps, roster)
     local memberName, memberRealm = deps.getUnitNameAndRealm(unit)
     if memberName then
       currentMemberKeys[memberName .. "-" .. (memberRealm or "")] = true
+    else
+      -- A transient UnitExists race should not turn a still-occupied slot into a ghost.
+      unreadablePartySlots[unit] = true
     end
   end
 
@@ -205,13 +212,15 @@ local function UpdatePartyMembersInRoster(deps, roster)
   local ghostConversions = {}
   for unit, info in pairs(roster) do
     if unit ~= "player" and string.find(unit, "^party") and not info.isGhost then
-      local key = info.name .. "-" .. (info.realm or "")
-      if not currentMemberKeys[key] then
-        table.insert(ghostConversions, {
-          partyUnit = unit,
-          ghostKey = "ghost:" .. key,
-          info = info,
-        })
+      if not unreadablePartySlots[unit] then
+        local key = info.name .. "-" .. (info.realm or "")
+        if not currentMemberKeys[key] then
+          table.insert(ghostConversions, {
+            partyUnit = unit,
+            ghostKey = "ghost:" .. key,
+            info = info,
+          })
+        end
       end
     end
   end
@@ -231,7 +240,7 @@ local function UpdatePartyMembersInRoster(deps, roster)
       existingDataByName[info.name .. "-" .. (info.realm or "")] = info
     end
     -- Clear all party slots to avoid duplicates/stale entries when group shrinks or shifts
-    if string.find(unit, "^party") then
+    if string.find(unit, "^party") and not unreadablePartySlots[unit] then
       table.insert(slotsToClear, unit)
     end
   end
@@ -254,6 +263,11 @@ local function UpdatePartyMembersInRoster(deps, roster)
       local spec = existing and existing.spec
       local ilvl = existing and existing.ilvl
       local rio = existing and existing.rio
+      local refreshQueued = existing and existing._refreshQueued
+      local localSpecFresh = existing and existing._localSpecFresh
+      local localIlvlFresh = existing and existing._localIlvlFresh
+      local localRioFresh = existing and existing._localRioFresh
+      local localDpsFresh = existing and existing._localDpsFresh
 
       roster[unit] = {
         name = memberName,
@@ -268,6 +282,11 @@ local function UpdatePartyMembersInRoster(deps, roster)
         keyMapID = keyMapID,
         keyLevel = keyLevel,
         isGhost = false,
+        _refreshQueued = refreshQueued,
+        _localSpecFresh = localSpecFresh,
+        _localIlvlFresh = localIlvlFresh,
+        _localRioFresh = localRioFresh,
+        _localDpsFresh = localDpsFresh,
       }
 
       -- If we pulled data from a ghost slot (resurrected player), clear the ghost entry
