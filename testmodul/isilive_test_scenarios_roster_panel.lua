@@ -245,6 +245,44 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
       )
     end)
   end)
+
+  test("Roster display adds a sync badge when sync metadata exists", function()
+    WithGlobals({
+      GetReadyCheckStatus = function()
+        return nil
+      end,
+      RAID_CLASS_COLORS = {},
+      CreateColor = function()
+        return {
+          GenerateHexColor = function()
+            return "ffffffff"
+          end,
+        }
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster.lua",
+      })
+
+      local displayData = addon.Roster.BuildDisplayData({
+        name = "SyncedPlayer",
+        hasIsiLive = true,
+      }, {
+        syncMarker = " |TInterface\\AddOns\\isiLive\\media\\heart_sync:12:12|t",
+        syncBadge = " |TInterface\\Buttons\\UI-RefreshButton:12:12|t",
+        syncSummary = {
+          source = "refresh",
+          capturedAt = 100,
+          receivedAt = 100,
+        },
+      })
+
+      Assert.True(
+        displayData.addonMarker:find("UI%-RefreshButton", 1) ~= nil,
+        "synced users with metadata should receive the refresh icon badge"
+      )
+    end)
+  end)
 end
 
 local function RegisterRosterDisplayTruncationTests(test, Assert, WithGlobals, LoadAddonModules)
@@ -840,6 +878,9 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
 
     WithGlobals({
       CreateFrame = createFrameStub,
+      GetTime = function()
+        return 100
+      end,
       GameTooltip = {
         SetOwner = function()
           sharedTooltipCalls = sharedTooltipCalls + 1
@@ -858,7 +899,8 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
         end,
       },
     }, function()
-      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_roster_panel.lua" })
+      addon.Sync.SetPlayerHelloInfo("Buddy", "Realm", "0.9.36", 2, 90, "inspect")
       local controller = addon.RosterPanel.CreateController({
         mainFrame = {
           SetBackdrop = function() end,
@@ -1102,6 +1144,9 @@ local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, Wit
 
     WithGlobals({
       CreateFrame = createFrameStub,
+      GetTime = function()
+        return 100
+      end,
       GameTooltip = {
         SetOwner = function() end,
         SetText = function() end,
@@ -1113,7 +1158,8 @@ local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, Wit
       },
       RAID_CLASS_COLORS = {},
     }, function()
-      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_roster_panel.lua" })
+      addon.Sync.SetPlayerHelloInfo("Buddy", "Realm", "0.9.36", 2, 90, "inspect")
       local controller = addon.RosterPanel.CreateController({
         mainFrame = {
           SetBackdrop = function() end,
@@ -1239,6 +1285,9 @@ local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, Wit
 
     WithGlobals({
       CreateFrame = createFrameStub,
+      GetTime = function()
+        return 100
+      end,
       GameTooltip = {
         SetOwner = function() end,
         SetText = function() end,
@@ -1256,7 +1305,8 @@ local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, Wit
         return tostring(value)
       end,
     }, function()
-      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_roster_panel.lua" })
+      addon.Sync.SetPlayerHelloInfo("Buddy", "Realm", "0.9.36", 2, 90, "inspect")
       local controller = addon.RosterPanel.CreateController({
         mainFrame = {
           SetBackdrop = function() end,
@@ -1370,12 +1420,217 @@ local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, Wit
 
       Assert.NotNil(rowFrame, "Should find a row frame with OnEnter")
       local foundDps = false
+      local foundSyncAge = false
+      local foundSyncSource = false
+      local foundSyncVersion = false
       for _, line in ipairs(tooltipLines) do
         if line:find("Last run DPS: 321.1K", 1, true) then
           foundDps = true
         end
+        if line:find("Sync age: 10s", 1, true) then
+          foundSyncAge = true
+        end
+        if line:find("Source: inspect", 1, true) then
+          foundSyncSource = true
+        end
+        if line:find("Peer version: 0.9.36 (p2)", 1, true) then
+          foundSyncVersion = true
+        end
       end
       Assert.True(foundDps, "Tooltip should contain abbreviated last-run DPS")
+      Assert.True(foundSyncAge, "Tooltip should contain sync age")
+      Assert.True(foundSyncSource, "Tooltip should contain sync source")
+      Assert.True(foundSyncVersion, "Tooltip should contain peer version info")
+    end)
+  end)
+
+  test("Roster row tooltip shows sync debug field sources when shift is held", function()
+    local tooltipLines = {}
+    local createdFrames = {}
+    local createFrameStub = NewRowTooltipCreateFrameStub(createdFrames, tooltipLines)
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      GetTime = function()
+        return 100
+      end,
+      IsShiftKeyDown = function()
+        return true
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function(_self, text)
+          table.insert(tooltipLines, text)
+        end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      RAID_CLASS_COLORS = {},
+      AbbreviateNumbers = function(value)
+        if value == 321123 then
+          return "321.1K"
+        end
+        return tostring(value)
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_roster_panel.lua" })
+      addon.Sync.SetPlayerHelloInfo("Buddy", "Realm", "0.9.36", 2, 90, "group")
+      addon.Sync.SetPlayerKeyInfo("Buddy", "Realm", 2649, 15, 89, "refresh")
+      addon.Sync.SetPlayerStatsInfo("Buddy", "Realm", 72, 615, 3210, 88, "inspect")
+      addon.Sync.SetPlayerDpsInfo("Buddy", "Realm", 321123, 87, "world")
+      addon.Sync.SetPlayerLocInfo("Buddy", "Realm", 2649, 86, "zone")
+
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = {
+          SetBackdrop = function() end,
+          SetBackdropColor = function() end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              GetFont = function()
+                return "font", 10, ""
+              end,
+              SetFont = function() end,
+              SetTextColor = function() end,
+              SetShadowOffset = function() end,
+              SetText = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetMaxLines = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+          CreateTexture = function()
+            return {
+              SetHeight = function() end,
+              SetPoint = function() end,
+              SetColorTexture = function() end,
+              SetTexture = function() end,
+              SetTexCoord = function() end,
+            }
+          end,
+        },
+        getL = function()
+          return {
+            TOOLTIP_LAST_RUN_DPS = "Last run DPS: %s",
+            TOOLTIP_SYNC_DEBUG_HEADER = "Sync debug",
+            TOOLTIP_SYNC_DEBUG_HELLO = "Hello",
+            TOOLTIP_SYNC_DEBUG_KEY = "Key",
+            TOOLTIP_SYNC_DEBUG_STATS = "Stats",
+            TOOLTIP_SYNC_DEBUG_DPS = "DPS",
+            TOOLTIP_SYNC_DEBUG_LOC = "Loc",
+          }
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        buildOrderedRoster = function()
+          return { { unit = "party1", info = { name = "Buddy", realm = "Realm", class = "WARRIOR" } } }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Buddy",
+            languageDisplay = "EN",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(n)
+          return n
+        end,
+        getShortSpecLabel = function(s)
+          return s
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return ""
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {}
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {},
+        unitPriority = {},
+        getPlayerLastRunDps = function(name, realm)
+          if name == "Buddy" and realm == "Realm" then
+            return 321123
+          end
+          return nil
+        end,
+      })
+
+      controller.RenderRoster({})
+
+      local rowFrame = nil
+      for _, f in ipairs(createdFrames) do
+        if f.OnEnter and f.unit == "party1" then
+          f.OnEnter()
+          if #tooltipLines > 0 then
+            rowFrame = f
+            break
+          end
+        end
+      end
+
+      Assert.NotNil(rowFrame, "Should find a row frame with OnEnter")
+      local foundDebugHeader = false
+      local foundHello = false
+      local foundKey = false
+      local foundStats = false
+      local foundDps = false
+      local foundLoc = false
+      for _, line in ipairs(tooltipLines) do
+        if line:find("Sync debug", 1, true) then
+          foundDebugHeader = true
+        end
+        if line:find("Hello: group (10s)", 1, true) then
+          foundHello = true
+        end
+        if line:find("Key: refresh (11s)", 1, true) then
+          foundKey = true
+        end
+        if line:find("Stats: inspect (12s)", 1, true) then
+          foundStats = true
+        end
+        if line:find("DPS: world (13s)", 1, true) then
+          foundDps = true
+        end
+        if line:find("Loc: zone (14s)", 1, true) then
+          foundLoc = true
+        end
+      end
+      Assert.True(foundDebugHeader, "Tooltip should contain sync debug header")
+      Assert.True(foundHello, "Tooltip should contain hello sync source")
+      Assert.True(foundKey, "Tooltip should contain key sync source")
+      Assert.True(foundStats, "Tooltip should contain stats sync source")
+      Assert.True(foundDps, "Tooltip should contain DPS sync source")
+      Assert.True(foundLoc, "Tooltip should contain location sync source")
     end)
   end)
 end

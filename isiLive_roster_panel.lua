@@ -199,7 +199,7 @@ local function BuildKeyAnnouncement(opts)
         local short = getDungeonShortCode(keyMapID)
         local announcePrefix = tostring(L.ANNOUNCE_PREFIX or "PartyKeys:")
         announcePrefix = announcePrefix:gsub("%s+", "")
-        local prefixText = string.format("%s %s", tostring(L.TITLE or "isiKeyMPlus"), announcePrefix)
+        local prefixText = string.format("%s %s", tostring(L.TITLE or "isiLive"), announcePrefix)
         local nameText = tostring(info.name or "?")
         local keyText = BuildKeystoneLinkText(short, keyLevel)
         local keyLink = nil
@@ -1116,7 +1116,6 @@ local function RenderRosterImpl(state, roster)
 
   local index = 1
   local orderedRoster = state.buildOrderedRoster(roster, state.rolePriority, state.unitPriority)
-  local hasFullSync = state.hasFullSyncFn(roster)
   local activeKeyOwnerUnit = state.resolveActiveKeyOwnerUnit()
   local isReadyCheckActive = state.isReadyCheckActive and state.isReadyCheckActive() or false
   local targetMapID = state.resolveTargetMapID and state.resolveTargetMapID() or nil
@@ -1206,8 +1205,8 @@ local function RenderRosterImpl(state, roster)
       getDungeonShortCode = state.getDungeonShortCode,
       getRioDelta = state.getRioDelta,
       syncMarker = state.syncMarker,
-      fullSyncMarker = state.fullSyncMarker,
-      hasFullSync = hasFullSync,
+      syncBadge = state.syncBadge,
+      syncSummary = state.getPlayerSyncSummary and state.getPlayerSyncSummary(info.name, info.realm) or nil,
       isReadyCheckActive = isReadyCheckActive,
       isAtDungeon = isAtDungeon,
     })
@@ -1287,13 +1286,13 @@ function RosterPanel.CreateController(opts)
   local minFrameHeight = tonumber(opts.minFrameHeight) or DEFAULT_MIN_FRAME_HEIGHT
 
   local buildOrderedRoster = RequireFunction(opts.buildOrderedRoster, "buildOrderedRoster")
-  local hasFullSyncFn = RequireFunction(opts.hasFullSync, "hasFullSync")
   local buildDisplayData = RequireFunction(opts.buildDisplayData, "buildDisplayData")
   local truncateName = RequireFunction(opts.truncateName, "truncateName")
   local getShortSpecLabel = RequireFunction(opts.getShortSpecLabel, "getShortSpecLabel")
   local getLanguageFlagMarkup = RequireFunction(opts.getLanguageFlagMarkup, "getLanguageFlagMarkup")
   local getDungeonShortCode = RequireFunction(opts.getDungeonShortCode, "getDungeonShortCode")
   local getRioDelta = type(opts.getRioDelta) == "function" and opts.getRioDelta or nil
+  local getPlayerSyncSummary = type(opts.getPlayerSyncSummary) == "function" and opts.getPlayerSyncSummary or nil
   local resolveActiveKeyOwnerUnit = RequireFunction(opts.resolveActiveKeyOwnerUnit, "resolveActiveKeyOwnerUnit")
   local getRoster = RequireFunction(opts.getRoster, "getRoster")
   local isReadyCheckActive = type(opts.isReadyCheckActive) == "function" and opts.isReadyCheckActive or nil
@@ -1305,7 +1304,7 @@ function RosterPanel.CreateController(opts)
   local rolePriority = assert(opts.rolePriority, "isiLive: RosterPanel requires rolePriority")
   local unitPriority = assert(opts.unitPriority, "isiLive: RosterPanel requires unitPriority")
   local syncMarker = tostring(opts.syncMarker or "")
-  local fullSyncMarker = tostring(opts.fullSyncMarker or "")
+  local syncBadge = tostring(opts.syncBadge or "")
   local applyKnownKeyToRosterEntry = type(opts.applyKnownKeyToRosterEntry) == "function"
       and opts.applyKnownKeyToRosterEntry
     or nil
@@ -1477,18 +1476,18 @@ function RosterPanel.CreateController(opts)
       buildOrderedRoster = buildOrderedRoster,
       rolePriority = rolePriority,
       unitPriority = unitPriority,
-      hasFullSyncFn = hasFullSyncFn,
       resolveActiveKeyOwnerUnit = resolveActiveKeyOwnerUnit,
       isReadyCheckActive = isReadyCheckActive,
       resolveTargetMapID = resolveTargetMapID,
       buildDisplayData = buildDisplayData,
       truncateName = truncateName,
       getShortSpecLabel = getShortSpecLabel,
-      getLanguageFlagMarkup = getLanguageFlagMarkup,
-      getDungeonShortCode = getDungeonShortCode,
-      getRioDelta = getRioDelta,
+    getLanguageFlagMarkup = getLanguageFlagMarkup,
+    getDungeonShortCode = getDungeonShortCode,
+    getRioDelta = getRioDelta,
       syncMarker = syncMarker,
-      fullSyncMarker = fullSyncMarker,
+      syncBadge = syncBadge,
+      getPlayerSyncSummary = getPlayerSyncSummary,
       getPlayerLastRunDps = getPlayerLastRunDps,
       getL = getL,
       isRaidGroup = isRaidGroup,

@@ -350,10 +350,10 @@ local function HandleGroupRosterUpdate(deps)
   AddPlayerToRoster(deps, roster)
   UpdatePartyMembersInRoster(deps, roster)
 
-  deps.sendOwnKeySnapshot(false)
+  deps.sendOwnKeySnapshot(false, "group")
   deps.updateUI()
   deps.updateLeaderButtons()
-  deps.sendIsiLiveHello(false)
+  deps.sendIsiLiveHello(false, "group")
 end
 
 function Group.CreateController(opts)

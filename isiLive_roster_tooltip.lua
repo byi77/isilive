@@ -349,6 +349,98 @@ local function FormatCompactTooltipNumber(value)
 end
 RI.FormatCompactTooltipNumber = FormatCompactTooltipNumber
 
+local function GetCurrentSyncTimestamp()
+  local getServerTime = rawget(_G, "GetServerTime")
+  if type(getServerTime) == "function" then
+    local ok, serverTime = pcall(getServerTime)
+    local numericServerTime = ok and tonumber(serverTime) or nil
+    if numericServerTime and numericServerTime > 0 then
+      return math.floor(numericServerTime)
+    end
+  end
+
+  local timeFn = rawget(_G, "time")
+  if type(timeFn) == "function" then
+    local ok, unixTime = pcall(timeFn)
+    local numericUnixTime = ok and tonumber(unixTime) or nil
+    if numericUnixTime and numericUnixTime > 0 then
+      return math.floor(numericUnixTime)
+    end
+  end
+
+  local getTime = rawget(_G, "GetTime")
+  if type(getTime) == "function" then
+    local ok, elapsed = pcall(getTime)
+    local numericElapsed = ok and tonumber(elapsed) or nil
+    if numericElapsed and numericElapsed > 0 then
+      return math.floor(numericElapsed)
+    end
+  end
+
+  return nil
+end
+
+local function FormatSyncAge(seconds)
+  local numericSeconds = tonumber(seconds)
+  if not numericSeconds or numericSeconds < 0 then
+    return nil
+  end
+
+  numericSeconds = math.floor(numericSeconds)
+  if numericSeconds <= 0 then
+    return "0s"
+  end
+  if numericSeconds < 60 then
+    return string.format("%ds", numericSeconds)
+  end
+
+  local minutes = math.floor(numericSeconds / 60)
+  local remainingSeconds = numericSeconds % 60
+  if minutes < 60 then
+    if remainingSeconds > 0 then
+      return string.format("%dm %ds", minutes, remainingSeconds)
+    end
+    return string.format("%dm", minutes)
+  end
+
+  local hours = math.floor(minutes / 60)
+  local remainingMinutes = minutes % 60
+  if remainingMinutes > 0 then
+    return string.format("%dh %dm", hours, remainingMinutes)
+  end
+  return string.format("%dh", hours)
+end
+
+local function IsSyncDebugTooltipEnabled()
+  local isShiftKeyDown = rawget(_G, "IsShiftKeyDown")
+  if type(isShiftKeyDown) ~= "function" then
+    return false
+  end
+  local ok, isDown = pcall(isShiftKeyDown)
+  return ok and isDown == true
+end
+
+local function FormatSyncDebugField(label, info, currentStamp)
+  if type(info) ~= "table" then
+    return nil
+  end
+
+  local source = type(info.source) == "string" and info.source ~= "" and info.source or nil
+  local stamp = tonumber(info.capturedAt) or tonumber(info.receivedAt)
+  local ageText = stamp and currentStamp and currentStamp >= stamp and FormatSyncAge(currentStamp - stamp) or nil
+
+  if source and ageText then
+    return string.format("%s: %s (%s)", label, source, ageText)
+  end
+  if source then
+    return string.format("%s: %s", label, source)
+  end
+  if ageText then
+    return string.format("%s: %s", label, ageText)
+  end
+  return nil
+end
+
 local function ShowRosterNameFallbackTooltip(tooltipFrame, anchorFrame, name, realm)
   local tooltipName = BuildFallbackTooltipPlayerName(name, realm)
   if not tooltipName then
@@ -451,6 +543,25 @@ local function ShowRosterInfoTooltip(
   end
 
   local lastRunDps = type(getPlayerLastRunDps) == "function" and getPlayerLastRunDps(info.name, info.realm) or nil
+  local syncModule = addonTable.Sync
+  local syncSummary = type(syncModule) == "table" and type(syncModule.GetPlayerSyncSummary) == "function"
+      and syncModule.GetPlayerSyncSummary(info.name, info.realm)
+    or nil
+  local syncHelloInfo = type(syncModule) == "table" and type(syncModule.GetPlayerHelloInfo) == "function"
+      and syncModule.GetPlayerHelloInfo(info.name, info.realm)
+    or nil
+  local syncKeyInfo = type(syncModule) == "table" and type(syncModule.GetPlayerKeyInfo) == "function"
+      and syncModule.GetPlayerKeyInfo(info.name, info.realm)
+    or nil
+  local syncStatsInfo = type(syncModule) == "table" and type(syncModule.GetPlayerStatsInfo) == "function"
+      and syncModule.GetPlayerStatsInfo(info.name, info.realm)
+    or nil
+  local syncDpsInfo = type(syncModule) == "table" and type(syncModule.GetPlayerDpsInfo) == "function"
+      and syncModule.GetPlayerDpsInfo(info.name, info.realm)
+    or nil
+  local syncLocInfo = type(syncModule) == "table" and type(syncModule.GetPlayerLocInfo) == "function"
+      and syncModule.GetPlayerLocInfo(info.name, info.realm)
+    or nil
   local unitLevel = ResolveTooltipUnitLevel(unit, info)
   local className = ResolveTooltipClassName(info)
   local languageCode = type(info.language) == "string"
@@ -466,9 +577,13 @@ local function ShowRosterInfoTooltip(
     or (tonumber(lastRunDps) and tonumber(lastRunDps) > 0)
     or (unitLevel and unitLevel > 0)
     or (languageCode and languageCode ~= "")
+    or syncSummary ~= nil
+    or syncHelloInfo ~= nil
   if not hasRichInfo then
     return false
   end
+
+  local syncDebugEnabled = IsSyncDebugTooltipEnabled()
 
   local tooltip = AnchorRosterHoverTooltip(tooltipFrame, anchorFrame)
   if type(tooltip) ~= "table" or type(tooltip.SetText) ~= "function" then
@@ -509,6 +624,59 @@ local function ShowRosterInfoTooltip(
     end
     if info.rio then
       tooltip:AddLine("Rio: " .. tostring(math.floor(tonumber(info.rio) or 0)), 0.9, 0.9, 0.9)
+    end
+    if syncSummary then
+      local L = type(getL) == "function" and getL() or {}
+      local ageLabel = type(L.TOOLTIP_SYNC_FRESHNESS) == "string" and L.TOOLTIP_SYNC_FRESHNESS or "Sync age: %s"
+      local sourceLabel = type(L.TOOLTIP_SYNC_SOURCE) == "string" and L.TOOLTIP_SYNC_SOURCE or "Source: %s"
+      local syncStamp = tonumber(syncSummary.capturedAt) or tonumber(syncSummary.receivedAt)
+      local currentStamp = GetCurrentSyncTimestamp()
+      local ageSeconds = syncStamp and currentStamp and currentStamp >= syncStamp and (currentStamp - syncStamp) or nil
+      local ageText = ageSeconds and FormatSyncAge(ageSeconds) or nil
+      if ageText then
+        tooltip:AddLine(string.format(ageLabel, ageText), 0.4, 0.8, 1)
+      end
+      if type(syncSummary.source) == "string" and syncSummary.source ~= "" then
+        tooltip:AddLine(string.format(sourceLabel, syncSummary.source), 0.4, 0.8, 1)
+      end
+    end
+    if syncHelloInfo and type(syncHelloInfo.addonVersion) == "string" and syncHelloInfo.addonVersion ~= "" then
+      local L = type(getL) == "function" and getL() or {}
+      local versionLabel = type(L.TOOLTIP_SYNC_VERSION) == "string" and L.TOOLTIP_SYNC_VERSION or "Peer version: %s (p%d)"
+      local protocolVersion = tonumber(syncHelloInfo.protocolVersion) or tonumber(syncSummary and syncSummary.protocolVersion) or 0
+      tooltip:AddLine(string.format(versionLabel, syncHelloInfo.addonVersion, protocolVersion), 0.65, 0.85, 1)
+    end
+    if syncDebugEnabled then
+      local L = type(getL) == "function" and getL() or {}
+      local debugHeader = type(L.TOOLTIP_SYNC_DEBUG_HEADER) == "string" and L.TOOLTIP_SYNC_DEBUG_HEADER or "Sync debug"
+      local debugKeyLabel = type(L.TOOLTIP_SYNC_DEBUG_KEY) == "string" and L.TOOLTIP_SYNC_DEBUG_KEY or "Key: %s"
+      local debugStatsLabel = type(L.TOOLTIP_SYNC_DEBUG_STATS) == "string" and L.TOOLTIP_SYNC_DEBUG_STATS or "Stats: %s"
+      local debugDpsLabel = type(L.TOOLTIP_SYNC_DEBUG_DPS) == "string" and L.TOOLTIP_SYNC_DEBUG_DPS or "DPS: %s"
+      local debugLocLabel = type(L.TOOLTIP_SYNC_DEBUG_LOC) == "string" and L.TOOLTIP_SYNC_DEBUG_LOC or "Loc: %s"
+      local debugHelloLabel = type(L.TOOLTIP_SYNC_DEBUG_HELLO) == "string" and L.TOOLTIP_SYNC_DEBUG_HELLO or "Hello: %s"
+      local currentStamp = GetCurrentSyncTimestamp()
+
+      tooltip:AddLine(debugHeader, 0.5, 0.75, 1)
+      local debugHello = FormatSyncDebugField(debugHelloLabel, syncHelloInfo, currentStamp)
+      if debugHello then
+        tooltip:AddLine(debugHello, 0.6, 0.78, 1)
+      end
+      local debugKey = FormatSyncDebugField(debugKeyLabel, syncKeyInfo, currentStamp)
+      if debugKey then
+        tooltip:AddLine(debugKey, 0.6, 0.78, 1)
+      end
+      local debugStats = FormatSyncDebugField(debugStatsLabel, syncStatsInfo, currentStamp)
+      if debugStats then
+        tooltip:AddLine(debugStats, 0.6, 0.78, 1)
+      end
+      local debugDps = FormatSyncDebugField(debugDpsLabel, syncDpsInfo, currentStamp)
+      if debugDps then
+        tooltip:AddLine(debugDps, 0.6, 0.78, 1)
+      end
+      local debugLoc = FormatSyncDebugField(debugLocLabel, syncLocInfo, currentStamp)
+      if debugLoc then
+        tooltip:AddLine(debugLoc, 0.6, 0.78, 1)
+      end
     end
     local keyMapID = tonumber(info.keyMapID)
     local keyLevel = tonumber(info.keyLevel)

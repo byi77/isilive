@@ -189,7 +189,7 @@ local function OnInspectReady(controller, guid, roster, getUnitRio, getInspectSp
 
   local dataChanged = ilvlChanged or rioChanged or specChanged
   if inspectedUnit == "player" and dataChanged and controller.TriggerOwnKeySnapshot then
-    controller.TriggerOwnKeySnapshot(false)
+    controller.TriggerOwnKeySnapshot(false, "inspect")
   end
 
   return dataChanged
@@ -329,9 +329,9 @@ function Inspect.CreateController(config)
     OnUpdate(controller)
   end
 
-  function controller.TriggerOwnKeySnapshot(force)
+  function controller.TriggerOwnKeySnapshot(force, source)
     if sendOwnKeySnapshot then
-      sendOwnKeySnapshot(force)
+      sendOwnKeySnapshot(force, source)
     end
   end
 

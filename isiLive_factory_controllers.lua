@@ -164,6 +164,13 @@ local function InitializeFactoryRuntimeHelpers(ctx)
     end
     return delta
   end
+  ctx.GetPlayerSyncSummary = function(name, realm)
+    if modules.sync and type(modules.sync.GetPlayerSyncSummary) == "function" then
+      return modules.sync.GetPlayerSyncSummary(name, realm)
+    end
+    return nil
+  end
+  ctx.getPlayerSyncSummary = ctx.GetPlayerSyncSummary
   ctx.ResetInspectAll = function()
     ctx.inspectController.ResetAll()
   end
@@ -737,7 +744,7 @@ local function CreateFactoryMinimapButton(ctx)
     return nil
   end
 
-  local btn = CreateFrame("Button", "isiKeyMPlusMinimapButton", Minimap)
+  local btn = CreateFrame("Button", "isiLiveMinimapButton", Minimap)
   btn:SetSize(28, 28)
   btn:SetFrameStrata("MEDIUM")
   btn:SetFrameLevel(8)
@@ -810,7 +817,7 @@ local function CreateFactoryMinimapButton(ctx)
     local GameTooltip = rawget(_G, "GameTooltip")
     if GameTooltip then
       GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-      GameTooltip:AddLine("isiKeyMPlus")
+      GameTooltip:AddLine("isiLive")
       GameTooltip:AddLine("Click to toggle window", 0.8, 0.8, 0.8)
       GameTooltip:Show()
     end

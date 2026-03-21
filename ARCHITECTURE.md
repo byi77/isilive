@@ -1,11 +1,11 @@
-# isiKeyMPlus Architecture
+# isiLive Architecture
 
-Version baseline: `0.9.89`
+Version baseline: `0.9.90`
 Last updated: `2026-03-21`
 
 ## Purpose
 
-`isiKeyMPlus` is a WoW Mythic+ group helper addon.
+`isiLive` is a WoW Mythic+ group helper addon.
 Internal runtime namespace and module filenames remain `isiLive_*`.
 The architecture is event-driven and split into clear runtime layers:
 
@@ -102,7 +102,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiKeyMPlus                                                                      V.0.9.89 [H][V][M][X]|
+| isiLive                                                                          V.0.9.90 [H][V][M][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  Marker    Travel              |
 |---------------------------------------------------------------------------------------------------|

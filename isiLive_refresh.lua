@@ -78,8 +78,8 @@ function Refresh.CreateController(opts)
     end
 
     forceRefreshSyncState()
-    sendIsiLiveHello(true)
-    sendOwnKeySnapshot(true)
+    sendIsiLiveHello(true, "refresh")
+    sendOwnKeySnapshot(true, "refresh")
     sendRefreshRequest(true)
     queueForceRefreshData()
     updateUI()
@@ -91,7 +91,7 @@ function Refresh.CreateController(opts)
     if changed then
       updateUI()
     end
-    sendOwnKeySnapshot(false)
+    sendOwnKeySnapshot(false, "owned-key-refresh")
     return changed
   end
 

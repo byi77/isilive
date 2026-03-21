@@ -1,6 +1,6 @@
-# TODO Rename: `isiLive` -> `isiKeyMPlus`
+# TODO Rename: `isiLive` -> `isiKeyMPlus` [CANCELLED]
 
-Zieltermin: nach `v0.9.71`
+Status: **STORNIERT**. Der Rename wird nicht durchgefuehrt. `isiLive` bleibt der Produktname.
 
 ## Zielbild
 

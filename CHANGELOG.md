@@ -1,6 +1,10 @@
 # Changelog
 
-## 2026-03-21 - Version 0.9.89
+## 2026-03-21 - Version 0.9.90
+- **UI / Sync UX:**
+  - Sync payloads now carry freshness metadata (`capturedAt`, `source`) and HELLO also carries the sync protocol version.
+  - The roster tooltip shows sync age, source, peer version, and a Shift-only debug block for per-field sync provenance.
+  - The roster row shows a compact sync icon badge next to the existing addon-presence heart marker; the visible `fullsync` row marker was removed.
 - **UI / Settings Defaults:**
   - `Default UI on Open` now defaults to `M2` when no explicit choice is stored, while `Last Used` stays available as the explicit fallback sentinel.
   - `Auto-Hide when Solo` now defaults to enabled until the user turns it off.
@@ -10,9 +14,9 @@
   - Column guides stay hidden by default and are only shown in `M` and `M2` when explicitly enabled for tuning.
   - Portal buttons keep deterministic season-slot placement, and active-target highlighting remains unchanged.
 - **Docs + Release Baseline:**
-  - Bumped TOC version to `0.9.89`.
-  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.89`.
-  - `lua tools/validate_usecases.lua` now validates `308` deterministic tests indexed and `310` scenarios across `30` modules.
+  - Bumped TOC version to `0.9.90`.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.90`.
+  - `lua tools/validate_usecases.lua` now validates `310` deterministic tests indexed and `312` scenarios across `30` modules.
 
 ## 2026-03-20 - Version 0.9.88
 - **Runtime Bugfixes:**
@@ -50,7 +54,7 @@
 
 ## 2026-03-16 - Version 0.9.85
 - **Settings - Expanded Blizzard Settings + Hidden Legacy Defaults:**
-  - Extended `Settings -> AddOns -> isiKeyMPlus` with `UI Scale`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, and `Auto-Hide when Solo`.
+  - Extended `Settings -> AddOns -> isiLive` with `UI Scale`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, and `Auto-Hide when Solo`.
   - Temporarily hid `Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`, and `Sound Notifications` from Blizzard Settings without removing their code paths.
   - While these controls stay hidden, runtime now keeps deterministic live defaults: fixed 12-char name truncation, legacy 2-column `Travel` grid, `DPS` column on, `Markers: Leader Only` off, and `Sound Notifications` off.
 - **Runtime - Non-Challenge DPS Capture:**
@@ -66,7 +70,7 @@
 - **UI - Sync Heart Marker:**
   - Replaced the text-based `<3` addon-presence marker with a custom dark-blue 16x16 TGA heart icon (`media/heart_sync.tga`) rendered as inline texture behind synced member names.
 - **UI - Background Opacity Slider:**
-  - Added a `Background Opacity` slider to the Blizzard Settings canvas (`Settings -> AddOns -> isiKeyMPlus`) with a configurable range from 30% to 100% (default 50%, step 5%).
+  - Added a `Background Opacity` slider to the Blizzard Settings canvas (`Settings -> AddOns -> isiLive`) with a configurable range from 30% to 100% (default 50%, step 5%).
   - Changing the slider live-updates the main frame, ESC panel, and settings canvas backdrop alpha; the value persists in `IsiLiveDB.bgAlpha`.
 - **UI - Teleport Tooltip Dungeon Name:**
   - Center-notice teleport button tooltip now shows the dungeon name instead of the spell name, so users can identify which dungeon the teleport leads to.
@@ -87,7 +91,7 @@
 
 ## 2026-03-15 - Version 0.9.83
 - **UI - Esc Menu + Settings Integration:**
-  - Added a Blizzard `Settings -> AddOns -> isiKeyMPlus` category with localized controls for language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Queue Debug Log`, and `Runtime Log`.
+  - Added a Blizzard `Settings -> AddOns -> isiLive` category with localized controls for language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Queue Debug Log`, and `Runtime Log`.
   - Wired the new settings canvas into the shared localization refresh path so locale changes immediately refresh both the Blizzard settings canvas and the optional `Esc`-menu shortcut strip.
   - The optional `Esc` shortcut strip now documents the actual 10 wired targets: `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button.
   - The `ReloadUI` shortcut now runs through a secure macro (`/click GameMenuButtonContinue` + `/reload`) and mirrors `ActionButtonUseKeyDown` instead of dispatching an addon-side Lua reload call.
@@ -153,7 +157,7 @@
   - Entering a raid-size group (`>5` members) no longer hides the addon window.
   - The roster panel now stays visible, automatically switches to H mode, keeps roster rows hidden, and prints a localized raid transition notice once per raid-size transition.
 - **UI — Title Size:**
-  - Reduced `isiKeyMPlus` title font size by an additional 2 pt (delta now `-4` instead of `-2`) for a cleaner compact look.
+  - Reduced the addon title font size by an additional 2 pt (delta now `-4` instead of `-2`) for a cleaner compact look.
 - **Bug Fix — Test Mode Cleanup:**
   - `roleButton` was re-shown for empty roster rows after `ExitTestMode()` because `UpdateCollapseState` unconditionally called `SetVisible(row.roleButton, show)`. Fixed to `SetVisible(row.roleButton, show and row.unit ~= nil)` so empty rows are never re-activated.
 - **Runtime — Hidden Group Update Gate:**
@@ -436,7 +440,7 @@
   - Added deterministic regression coverage so protected `TargetUnit` calls do not reappear through the row interaction path.
 - **Packaging + Planning Docs:**
   - Excluded `TODO_RENAME.md` from CurseForge packaging via `.pkgmeta`.
-  - Added `TODO_RENAME.md` as the hardcut rename runbook for the planned `isiLive -> isiKeyMPlus` migration after `v0.9.65`.
+  - Added `TODO_RENAME.md` as the hardcut rename runbook for the planned rename migration after `v0.9.65`.
 - **Validation + Docs Sync:**
   - Deterministic validator coverage increased to `188` scenarios across `24` modules.
   - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, `RULES.md`, and `TODO.md` to the current runtime/release state.
@@ -653,7 +657,7 @@
   - Fixed `Share Keys` no-output regression caused by invalid manually built keystone chat links.
   - `Share Keys` now uses Blizzard owned-keystone link payload for the local player when available (`C_MythicPlus.GetOwnedKeystoneLink`).
   - Added safe fallback to plain text key output when no valid owned keystone link is available.
-  - Share line format is now `isiKeyMPlus PartyKeys: <Name> -> <KeyLinkOrText>`.
+  - Share line format is now `isiLive PartyKeys: <Name> -> <KeyLinkOrText>`.
 - **Validation:**
   - `tools/validate_usecases.lua` remains at `140` deterministic scenarios across `20` modules (all passing).
 - **Docs Sync:**
@@ -686,7 +690,7 @@
     - `RULE-ROSTER-ZEILENUMBRUCH-VERBOT`
   - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `RELEASE.md` to `0.9.51` references and current validator counts.
 - **TOC:**
-  - Updated addon list title to `isiKeyMPlus`.
+  - Updated addon list title to `isiLive`.
   - TOC version bumped to `0.9.51`.
 
 ## 2026-02-25 - Documentation Sync (Workspace)
@@ -855,7 +859,7 @@
 - **RIO Delta Reliability:**
   - Hidden-state event gate now allows `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET`, so delayed post-run refresh and delta activation still run even when the main window is currently hidden.
 - **Packaging:**
-  - Excluded `isiKeyMplus_logo.png` from CurseForge packaging via `.pkgmeta` ignore list.
+  - Excluded the logo asset from CurseForge packaging via `.pkgmeta` ignore list.
 - **Validation:**
   - `tools/validate_usecases.lua` remains at 102 deterministic scenarios across 18 modules (all passing).
 - **Documentation:**
@@ -1152,7 +1156,7 @@
 
 ## 2026-02-14 - Version 0.9.19
 - UI/Mainframe refresh:
-  - title now shows rename note: `isiLive (will be renamed to isiKeyMPlus soon)`
+  - title now shows `isiLive` branding.
   - added native-style backdrop and subtle header separator
   - roster rows now support hover highlight
   - roster name column now includes role icons (tank/healer/damager)

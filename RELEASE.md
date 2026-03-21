@@ -1,13 +1,13 @@
 # Release Runbook
 
-This is the canonical release flow for `isiKeyMPlus` (repository/tag prefix remains `isiLive_*`).
+This is the canonical release flow for `isiLive` (repository/tag prefix remains `isiLive_*`).
 
 ## 1) Update Version + Docs
 
 1. Update TOC version in `isiLive.toc`:
    - `## Version: x.y.z`
 2. Add a new entry at the top of `CHANGELOG.md`.
-   - For `0.9.89`, note the UI and settings changes: `Default UI on Open` now defaults to `M2`, `Auto-Hide when Solo` defaults to enabled, the roster keeps the status line only in `M`, the main-panel combat logging / DM-reset toggles are removed, and the optional `Column Guides` debug overlay can be enabled for `M`/`M2` tuning.
+   - For `0.9.90`, note the sync UX changes: sync payloads now carry freshness metadata and protocol versioning, the roster tooltip shows sync age/source/version plus a Shift-only provenance block, the roster row shows a compact sync icon badge, and the visible `fullsync` marker was removed.
 3. Update `README.md` for user-visible behavior/layout changes.
 4. If season data was touched, verify docs explicitly state active `ACTIVE_SEASON_ID` and prepared-next season status (`README.md` + `CHANGELOG.md`).
 5. If runtime flow or UI behavior changed, update `ARCHITECTURE.md` and `USECASES.md`.
@@ -31,7 +31,7 @@ Expected: lint/style/metrics/usecase/rules checks pass.
 
 `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 308 deterministic tests indexed and 310 scenarios across 30 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper).
+`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 310 deterministic tests indexed and 312 scenarios across 30 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper).
 
 Windows note: if metrics fail with missing LuaRocks modules (`lfs`, `luacheck.decoder`, `luacheck.parser`), set `LUA_PATH` and `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running the metrics check.
 
@@ -76,8 +76,8 @@ git push origin isiLive_beta_X.Y.Z
 Example:
 
 ```powershell
-git tag isiLive_release_0.9.89
-git push origin isiLive_release_0.9.89
+git tag isiLive_release_0.9.90
+git push origin isiLive_release_0.9.90
 ```
 
 ## 6) Verify GitHub Actions

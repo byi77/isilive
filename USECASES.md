@@ -1,12 +1,12 @@
-# isiKeyMPlus Use Cases
+# isiLive Use Cases
 
-Version baseline: `0.9.89`
+Version baseline: `0.9.90`
 Last updated: `2026-03-21`
 
 ## Actors
 
 1. Player (group leader or member).
-2. isiKeyMPlus addon runtime (internal namespace: `isiLive_*`).
+2. isiLive addon runtime (internal namespace: `isiLive_*`).
 3. WoW APIs and events.
 
 ## Preconditions
@@ -98,7 +98,7 @@ Goal: allow user to post current party keys quickly.
 3. Sync relation: explicit local refresh force-sends the local `HELLO` + `KEY/STATS/DPS/LOC` snapshot and broadcasts `REQSYNC`; hidden peers may answer that request once with forced `KEY/STATS/DPS/LOC` while locally allowed.
 4. Output: one message per key owner is sent to `PARTY`, with local print fallback on send failure.
 5. Rule: `Share Keys` button clicks are debounced to suppress rapid duplicate chat output.
-6. Success criteria: each available member key appears as its own deterministic chat line (`isiKeyMPlus PartyKeys: Name -> Key`), with owned-keystone hyperlink payload for the local player when available.
+6. Success criteria: each available member key appears as its own deterministic chat line (`isiLive PartyKeys: Name -> Key`), with owned-keystone hyperlink payload for the local player when available.
 
 ## UC-07 RIO Delta Visibility
 
@@ -139,7 +139,7 @@ Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without d
 3. Action: clicking a shortcut closes the game menu first and then opens the targeted Blizzard panel through the dedicated microbutton/direct opener path; the `ReloadUI` entry instead uses a secure macro path that clicks Blizzard `Continue` and then runs `/reload`.
 4. Combat safety: if combat lockdown blocks secure `ReloadUI` button refreshes (for example click registration or macro attribute updates), addon defers that secure update and retries it on `PLAYER_REGEN_ENABLED` instead of touching the protected button immediately.
 5. Rule: the spellbook shortcut must use spellbook-specific openers and must not route through the talents panel.
-6. Trigger B: player opens `Settings -> AddOns -> isiKeyMPlus`.
+6. Trigger B: player opens `Settings -> AddOns -> isiLive`.
 7. Result B: Blizzard settings expose language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log`.
 8. Rule: settings controls mirror live Blizzard CVars / SavedVariables and apply changes immediately without requiring the main addon window to be visible; changing `Background Opacity` live-updates the main frame, the optional `Esc` shortcut panel, and the settings canvas itself. Hidden legacy controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`, `Sound Notifications`) stay out of the settings UI and currently use fixed runtime defaults.
 9. Success criteria: both entry surfaces stay localized, deterministic, and reflect the current config/runtime state.
@@ -162,8 +162,6 @@ Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without d
 14. Raid-group detection (> 5 members) keeps the addon visible, forces H mode, hides roster rows, prints a localized transition notice once per raid-size transition, and blocks switching back to M/V until party size returns.
 15. The optional `Esc` shortcut strip stays localized, closes the game menu before opening its target panel, and keeps `ReloadUI` on a secure macro path (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`; blocked secure refreshes for that button replay on `PLAYER_REGEN_ENABLED` instead of running in combat.
 16. Hidden legacy settings controls remain absent from Blizzard Settings and currently use fixed runtime defaults: `DPS` column on, markers visible for all, sound off, fixed name truncation, and legacy 2-column `Travel` layout.
-
-## Automated Validation Mapping
 
 Runtime behavior in this document is validated by `tools/validate_usecases.lua`.
 Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules_logic.lua` and also enforced during `tools/validate_usecases.lua`.

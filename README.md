@@ -1,10 +1,10 @@
-# isiKeyMPlus
+# isiLive
 
-`isiKeyMPlus` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
+`isiLive` is a WoW group helper addon for Mythic+ pug/party flow, focused on pre-key group overview.
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.89`.
+Current documented baseline: `0.9.90`.
 
 ## Features
 
@@ -15,13 +15,13 @@ Current documented baseline: `0.9.89`.
 - **Mini Mode:** Three static mode buttons are available next to the close button: `H` switches to the slim horizontal tool layout, `V` switches to the compact vertical palette, and `M` switches back to the main roster view. The active mode is highlighted in gold.
 - **Horizontal Mini Mode:** Shows the compact leader actions `RC`, `CD`, and `CD 0` side by side while M+Marker stays visible as one horizontal marker row. `Share Keys` and `Refresh` stay available only in M/V layouts.
 - **Esc Menu Shortcuts:** The WoW `Esc` game menu can show a second vertical shortcut strip left of the default menu, with direct buttons for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button. The `ReloadUI` entry is wired as a secure macro (`/click GameMenuButtonContinue` + `/reload`), mirrors `ActionButtonUseKeyDown`, and defers blocked secure refreshes until `PLAYER_REGEN_ENABLED`.
-- **Blizzard Settings Category:** `Settings -> AddOns -> isiKeyMPlus` exposes localized controls for language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log`.
+- **Blizzard Settings Category:** `Settings -> AddOns -> isiLive` exposes localized controls for language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log`.
 - **Default Open Layout:** `Default UI on Open` now opens the addon in `M2` by default until the user picks another layout; `Last Used` remains an explicit option.
 - **Roster Column Guides:** Optional debug column guides can be enabled for `M` and `M2` layout tuning and stay off by default.
 - **Hidden Legacy Settings Defaults:** `Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`, and `Sound Notifications` are temporarily hidden from Blizzard Settings; runtime keeps fixed live defaults instead (`DPS` on, markers visible for all, sound off, fixed name truncation, legacy 2-column `Travel` grid).
 - **UI Polish Refresh:** The roster panel, private tooltips, invite hint, and center notice now share the same dark framed palette with softer blue hover accents, alternating row shading, and cleaner separators.
 - **Minimap Button:** Optional draggable Minimap button toggles the main window and persists its angle around the minimap.
-- Blizzard Settings only: `Combat Logging` and `DM Reset on Entry` live in `Settings -> AddOns -> isiKeyMPlus`; the main roster panel no longer shows those toggles.
+- Blizzard Settings only: `Combat Logging` and `DM Reset on Entry` live in `Settings -> AddOns -> isiLive`; the main roster panel no longer shows those toggles.
 - Stable role sorting: `Tank -> Healer -> Damager`
 - Right-side controls: `Readycheck`, `Countdown10`, `Countdown 0`, `Share Keys`, `Refresh`
 - Right-side headers: `M+Managment`, `Marker`, and `Travel`
@@ -37,7 +37,7 @@ Current documented baseline: `0.9.89`.
 - `Key` column keeps `Shortcut +Level` on one line (no row-wrap bleed into next member line)
 - `RIO` column can show per-run delta as `(+X)RIO` (non-negative only; never minus)
 - Dedicated `DPS` column shows the latest completed-run Blizzard damage-meter snapshot for the current roster when an exact player match exists
-- Roster tooltip adds `Level`, `Lang`, and localized `Last run DPS` details
+- Roster tooltip adds `Level`, `Lang`, localized `Last run DPS`, sync age/source/version, and a Shift-only provenance debug block
 - Private `isiLive` tooltips now use their own wrapped compact layout so longer lines stay inside the tooltip frame
 - Persistent stats stay bounded: only the matching local character's own last-run DPS is kept in SavedVariables; foreign-player DPS snapshots are session-only
 - CurseForge release packaging excludes PNG screenshot/logo assets via `.pkgmeta`, so repository preview images do not ship inside the addon zip
@@ -45,8 +45,8 @@ Current documented baseline: `0.9.89`.
 - Grouped queue-join announce deduplication is driven by stable queue source IDs (`applicationID`/`searchResultID`/`listingID`), not volatile display text
 - Dungeon teleport controls in center notice + right-side grid
 - Teleport cooldown shown as `HH:MM`
-- Addon-presence marker per roster name (custom blue heart icon)
-- `Share Keys` posts one party-chat line per available member key (`isiKeyMPlus PartyKeys: Name -> Key`), using Blizzard owned-keystone link payload for the local player when available
+- Addon-presence marker per roster name (custom blue heart icon plus a compact sync refresh badge when metadata is available)
+- `Share Keys` posts one party-chat line per available member key (`isiLive PartyKeys: Name -> Key`), using Blizzard owned-keystone link payload for the local player when available
 - Spec column uses max-5-char short labels for long localized names (for example `Wiederherstellung -> Resto`, `Vergeltung -> Retri`, `Treffsicherheit -> MM`, `Tierherrschaft -> BM`)
 - Center notices: left-click drag, right-click dismiss, top-right close button; position resets to center on each open
 - Optional runtime log persisted in `IsiLiveDB.runtimeLog` (enable/disable via slash command; flushed on `/reload`/logout)
@@ -79,7 +79,7 @@ Current documented baseline: `0.9.89`.
 - Combat-safe frame updates: pending main-frame visibility, frame-height changes, and blocked `Esc` shortcut secure-button refreshes are applied on `PLAYER_REGEN_ENABLED`
 - `Advanced Combat Logging` and `DM Reset on Dungeon Entry` live in Blizzard Settings only.
 - They mirror the live Blizzard CVar state and write only on explicit user clicks.
-- Blizzard `Settings -> AddOns -> isiKeyMPlus` mirrors locale, those same CVar-backed toggles, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log` without forcing the main addon window open.
+- Blizzard `Settings -> AddOns -> isiLive` mirrors locale, those same CVar-backed toggles, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log` without forcing the main addon window open.
 - Hidden legacy Settings controls stay absent from Blizzard Settings for now and use fixed runtime defaults (`DPS` on, markers visible for all, sound off, fixed name truncation, legacy 2-column `Travel` grid).
 - Disabling `Show ESC Menu Shortcuts` hides the optional `Esc` side panel immediately; localization refresh updates both the side panel and the Blizzard settings canvas.
 - The toggle row keeps a fixed gap between adjacent labels.
@@ -97,9 +97,9 @@ Current documented baseline: `0.9.89`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`; explicit local refresh force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.89)
+## Use Case / Logic Baseline (v0.9.90)
 
-Documented on `2026-03-21` as runtime behavior baseline (`0.9.89`) for validation checks.
+Documented on `2026-03-21` as runtime behavior baseline (`0.9.90`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -143,7 +143,7 @@ Documented on `2026-03-21` as runtime behavior baseline (`0.9.89`) for validatio
    - Opening the WoW `Esc` menu can show a localized shortcut strip for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button.
    - The `ReloadUI` shortcut uses a secure macro path instead of an addon-side Lua reload call, first dismissing the menu via Blizzard's own `Continue` button and then dispatching `/reload`.
    - Successful shortcut clicks close the game menu first and then open the targeted Blizzard panel through the dedicated opener path; the spellbook path does not route through talents.
-   - Blizzard `Settings -> AddOns -> isiKeyMPlus` mirrors locale, CVar-backed toggles, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log`.
+   - Blizzard `Settings -> AddOns -> isiLive` mirrors locale, CVar-backed toggles, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log`.
    - Hidden legacy settings (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`, `Sound Notifications`) stay absent from Blizzard Settings and currently use fixed runtime defaults.
 
 ## Hotkeys

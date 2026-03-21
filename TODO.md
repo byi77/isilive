@@ -2,24 +2,16 @@
 
 ## P0 - Release / Review
 
-- [x] `v0.9.89` vorbereiten:
-  - Doku- und Baseline-Sync auf `0.9.89` abgeschlossen
-  - `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md` und `isiLive.toc` auf `0.9.89` synchronisieren
-  - Tag: `isiLive_release_0.9.89`
-
-- [ ] `v0.9.89` veroeffentlichen
-  - `main` pushen und auf gruene `Lua Check` fuer den exakten Commit warten
-  - Stable-Tag danach pushen und CurseForge-Paket pruefen
+- [x] `v0.9.90` vorbereiten:
+  - Doku- und Baseline-Sync auf `0.9.90` abgeschlossen
+  - `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md` und `isiLive.toc` auf `0.9.90` synchronisieren
+  - Tag: `isiLive_release_0.9.90`
 
 - [x] `v0.9.85` vorbereiten:
   - erweiterte Blizzard-Settings, Hidden-Legacy-Controls und die hart gesetzten Runtime-Defaults dokumentieren
   - Exit-DPS-Capture fuer normale, heroische und mythische Non-Challenge-Dungeons in den Baselines/Release-Notes nachziehen
   - `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md` und `isiLive.toc` auf `0.9.85` synchronisieren
   - Tag: `isiLive_release_0.9.85`
-
-- [ ] `v0.9.85` veroeffentlichen
-  - `main` pushen und auf gruene `Lua Check` fuer den exakten Commit warten
-  - Stable-Tag danach pushen und CurseForge-Paket pruefen
 
 - [x] `v0.9.84` vorbereiten:
   - Heart-Sync-Marker, DPS/LOC-Sync und 4-Zeichen-Spec-Labels dokumentieren
@@ -57,8 +49,6 @@
 - [x] `v0.9.68` vorbereiten:
   - Post-Run-DPS-Retry fuer `M+` und `M0` dokumentieren
   - `README.md` / `ARCHITECTURE.md` / `USECASES.md` / `RELEASE.md` auf `0.9.68` Beispiele, Baselines und Validator-Zaehler synchronisieren
-- [ ] `v0.9.68` veroeffentlichen
-  - Ingame querpruefen, dass spaet veroeffentlichte Blizzard-Damage-Meter-Sessions die DPS-Spalte nach Key-Ende/M0-Exit noch fuellen
 - [x] `v0.9.70` vorbereiten:
   - `isiLive_stats.lua` Argumentreihenfolge fixen
   - Code Review Robustness (pcall, UnitExists) umsetzen
@@ -67,19 +57,6 @@
   - Diff von `2026-03-10` auf `2026-03-11` fuer die heutigen Commits in die Release-Notes ziehen
   - `CHANGELOG.md`, `README.md`, `ARCHITECTURE.md`, `USECASES.md` und `isiLive.toc` auf 0.9.71 synchronisieren
   - Release-Dokus/Tasks auf den naechsten echten Stable-Stand nach dem archivierten `0.9.70`-Fehlrelease umstellen
-- [ ] `v0.9.71` veroeffentlichen
-  - erster Release-Tag wurde wieder geloescht
-  - zugehoeriges CurseForge-Paket wurde archiviert
-  - neuer Stable-Tag erst nach gruenem `Lua Check` auf `main`
-  - Ingame Smoketest
-  - Kurz-Smoketest vor Release:
-    - UI oeffnen/schliessen
-    - Checkboxen fuer `advancedCombatLogging` / `damageMeterResetOnNewInstance`
-    - Blizzard-UI-Aenderung pruefen und kontrollieren, dass `isiLive` nur spiegelt
-    - Group join / key start / key end / queue target / teleport button
-    - Demo-Refresh
-    - `M0` betreten/verlassen mit frueh leavenden Gruppenmitgliedern
-
 - [x] `v0.9.74` vorbereiten:
   - Auto-Mark Toggle und Logik entfernen
   - Secure Role-Buttons implementieren
@@ -99,20 +76,12 @@
   - Doku-/Validator-Zaehler auf `0.9.78` synchronisieren
   - Tag: `isiLive_release_0.9.78`
 
-- [ ] `v0.9.78` veroeffentlichen
-  - Ingame Combat-Smoketest fuer Teleport-Grid, Center Notice, Collapse und Role-/M+Marker-Buttons
-  - Release-Tag erst nach gruenem `Lua Check` auf `main`
-
 - [x] `v0.9.79` vorbereiten:
   - H/V/M-Layoutbuttons auf statische Direktschalter mit aktiver Gold-Markierung umstellen
   - H-Modus auf `RC` / `CD` / `CD 0` verdichten; `Share Keys` und `Refresh` nur noch in M/V zeigen
   - Raid-Gruppen automatisch in den sichtbaren H-Modus schalten statt die UI auszublenden
   - Doku/Regeln/Release-Beispiele auf `0.9.79` synchronisieren
   - Tag: `isiLive_release_0.9.79`
-
-- [ ] `v0.9.79` veroeffentlichen
-  - Ingame pruefen: Raid->H-Modus, H/V/M-Schalter, H-Modus-Shortlabels und versteckte `Share Keys`/`Refresh`
-  - Release-Tag erst nach gruenem `Lua Check` auf `main`
 
 - [x] `v0.9.80` vorbereiten:
   - lokalen Last-Run-DPS char-genau statt accountweit in einem Single-Slot persistieren
@@ -131,25 +100,30 @@
   - Validator-Zaehler auf `263` Szenarien abgleichen
   - Tag: `isiLive_release_0.9.81`
 
-- [ ] `v0.9.81` veroeffentlichen
-  - pruefen, dass die neuen PNG-Dateien nicht mehr im CurseForge-Artefakt landen
-  - Release-Tag erst nach gruenem `Lua Check` auf `main`
-
 ## P1 - Quality Gates
 
 - [x] CI optional um `lua tools/validate_usecases.lua` erweitern (zusaetzlicher Runtime-Gate auf `main`)
 - [x] Optional pruefen, ob `luacheck .` ebenfalls als GitHub-Workflow-Gate aufgenommen werden soll
 - [x] Optional pruefen, ob `lua tools/lua_metrics_check.lua` als separater CI-Check sinnvoll ist
 
+## P2 - UI / Navigation
+
+- [ ] M2-UI-Umbau weiterziehen:
+  - Abstaende, Reihenfolge und visuelle Hierarchie der Hauptansicht weiter glatten
+  - Portalreihe, Statuszeile und Bedienung im Haupt-Layout gegen die neuen Defaults pruefen
+- [ ] Portalraum-Navigator definieren:
+  - schnelle Navigation zwischen Portalraum, Zielportal und aktiver Zielanzeige konzipieren
+  - pruefen, ob die Navigation rein als UI-Hilfe oder als echtes Bedien-Feature umgesetzt werden soll
+
 ## P2 - Season / Runtime
 
 - [x] Off-Season-Modus vorbereiten:
   - Teleport-Grid ausblenden / leeren
   - Non-Mythic-Warnung deaktivieren
-- [ ] Vorbereitung fuer Midnight S1:
-  - neue MapIDs recherchieren
-  - neue Teleport-Spells recherchieren
-  - Alias-/Resolver-Daten anpassen, sobald Blizzard-Daten feststehen
+- [x] Vorbereitung fuer Midnight S1:
+  - neue MapIDs recherchieren (erledigt in v0.9.82)
+  - neue Teleport-Spells recherchieren (erledigt in v0.9.82)
+  - Alias-/Resolver-Daten anpassen (erledigt in v0.9.82)
 - [x] Blizzard Damage Meter API nach Patches revalidieren:
   - belastbar pruefen, ob `C_DamageMeter`-Lesepfade im Live-Client unveraendert verfuegbar sind
   - `overall/current` Session-Aufloesung und `combatSources` querpruefen
@@ -165,9 +139,8 @@
 
 ## Geparkt / Nicht aktiv
 
-- [x] Hard-Split `isiLive` -> `isiKeyMPlus` wurde reaktiviert und in `TODO_RENAME.md` konkret geplant
-  - Ziel: Hardcut nach `v0.9.71`
-  - kein Legacy-Fallback, keine DB-Migration, kein Alt-Sync
+- [x] Hard-Split `isiLive` -> `isiKeyMPlus` wurde **storniert**.
+  - Der Addon-Name bleibt dauerhaft `isiLive`.
 
 ## Bereits erledigt (wichtig als Kontext)
 

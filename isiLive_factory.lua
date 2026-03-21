@@ -52,7 +52,7 @@ local function FinalizeFactoryRuntime(ctx)
         ctx.rosterPanelController.RefreshSystemOptionToggles()
       end
       if IsInGroup() and ctx.SendOwnKeySnapshot then
-        ctx.SendOwnKeySnapshot(true)
+        ctx.SendOwnKeySnapshot(true, "show")
       end
     end,
     onHide = function()

@@ -75,11 +75,13 @@ local function GetOwnedStatsSnapshot(getUnitRio)
   return specID, ilvl, rio
 end
 
-local function SendIsiLiveHello(sync, isFrameVisible, getAddonVersionRaw, force)
+local function SendIsiLiveHello(sync, isFrameVisible, getAddonVersionRaw, force, source)
   sync.SendHello({
     force = force and true or false,
     isVisible = isFrameVisible(),
     version = getAddonVersionRaw(),
+    protocolVersion = type(sync.GetProtocolVersion) == "function" and sync.GetProtocolVersion() or nil,
+    source = source,
   })
 end
 
@@ -89,7 +91,7 @@ local function SendRefreshRequest(sync, force)
   })
 end
 
-local function SendOwnStatsSnapshot(sync, isFrameVisible, getUnitRio, force)
+local function SendOwnStatsSnapshot(sync, isFrameVisible, getUnitRio, force, source)
   local specID, ilvl, rio = GetOwnedStatsSnapshot(getUnitRio)
   sync.SendStats({
     force = force and true or false,
@@ -97,10 +99,11 @@ local function SendOwnStatsSnapshot(sync, isFrameVisible, getUnitRio, force)
     specID = specID,
     ilvl = ilvl,
     rio = rio,
+    source = source,
   })
 end
 
-local function SendOwnDpsSnapshot(sync, isFrameVisible, getPlayerLastRunDps, getUnitNameAndRealm, force)
+local function SendOwnDpsSnapshot(sync, isFrameVisible, getPlayerLastRunDps, getUnitNameAndRealm, force, source)
   local dps = nil
   if type(getPlayerLastRunDps) == "function" and type(getUnitNameAndRealm) == "function" then
     local name, realm = getUnitNameAndRealm("player")
@@ -112,6 +115,7 @@ local function SendOwnDpsSnapshot(sync, isFrameVisible, getPlayerLastRunDps, get
     force = force and true or false,
     isVisible = isFrameVisible(),
     dps = dps,
+    source = source,
   })
 end
 
@@ -136,26 +140,28 @@ local function GetOwnedLocMapID()
   return math.floor(mapID)
 end
 
-local function SendOwnLocSnapshot(sync, isFrameVisible, force)
+local function SendOwnLocSnapshot(sync, isFrameVisible, force, source)
   local mapID = GetOwnedLocMapID()
   sync.SendLoc({
     force = force and true or false,
     isVisible = isFrameVisible(),
     mapID = mapID,
+    source = source,
   })
 end
 
-local function SendOwnKeySnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, force)
+local function SendOwnKeySnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, force, source)
   local mapID, level = GetOwnedKeystoneSnapshot()
   sync.SendKey({
     force = force and true or false,
     isVisible = isFrameVisible(),
     mapID = mapID,
     level = level,
+    source = source,
   })
-  SendOwnStatsSnapshot(sync, isFrameVisible, getUnitRio, force)
-  SendOwnDpsSnapshot(sync, isFrameVisible, getPlayerLastRunDps, getUnitNameAndRealm, force)
-  SendOwnLocSnapshot(sync, isFrameVisible, force)
+  SendOwnStatsSnapshot(sync, isFrameVisible, getUnitRio, force, source)
+  SendOwnDpsSnapshot(sync, isFrameVisible, getPlayerLastRunDps, getUnitNameAndRealm, force, source)
+  SendOwnLocSnapshot(sync, isFrameVisible, force, source)
 end
 
 local function SendRefreshResponse(
@@ -177,6 +183,7 @@ local function SendRefreshResponse(
     allowHidden = true,
     mapID = mapID,
     level = level,
+    source = "reqsync",
   })
 
   local specID, ilvl, rio = GetOwnedStatsSnapshot(getUnitRio)
@@ -187,6 +194,7 @@ local function SendRefreshResponse(
     specID = specID,
     ilvl = ilvl,
     rio = rio,
+    source = "reqsync",
   })
 
   local dps = nil
@@ -201,6 +209,7 @@ local function SendRefreshResponse(
     isVisible = isFrameVisible(),
     allowHidden = true,
     dps = dps,
+    source = "reqsync",
   })
 
   local locMapID = GetOwnedLocMapID()
@@ -209,6 +218,7 @@ local function SendRefreshResponse(
     isVisible = isFrameVisible(),
     allowHidden = true,
     mapID = locMapID,
+    source = "reqsync",
   })
   return true
 end
@@ -412,8 +422,8 @@ function KeySync.CreateController(opts)
     sync.RegisterPrefix()
   end
 
-  function controller.SendIsiLiveHello(force)
-    SendIsiLiveHello(sync, isFrameVisible, getAddonVersionRaw, force)
+  function controller.SendIsiLiveHello(force, source)
+    SendIsiLiveHello(sync, isFrameVisible, getAddonVersionRaw, force, source)
   end
 
   function controller.SendRefreshRequest(force)
@@ -424,8 +434,8 @@ function KeySync.CreateController(opts)
     return GetOwnedKeystoneSnapshot()
   end
 
-  function controller.SendOwnKeySnapshot(force)
-    SendOwnKeySnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, force)
+  function controller.SendOwnKeySnapshot(force, source)
+    SendOwnKeySnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, force, source)
   end
 
   function controller.SendRefreshResponse()

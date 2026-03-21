@@ -14,6 +14,7 @@ local function CreateKeySyncController(ctx)
     isFrameVisible = ctx.isFrameVisible,
     canRespondToRefreshRequest = ctx.canRespondToRefreshRequest,
     getPlayerLastRunDps = ctx.getPlayerLastRunDps,
+    getPlayerSyncSummary = ctx.getPlayerSyncSummary,
   })
   return {
     keySyncController = controller,
@@ -61,6 +62,7 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     getLanguageFlagMarkup = ctx.getLanguageFlagMarkup,
     getDungeonShortCode = ctx.getDungeonShortCode,
     getRioDelta = ctx.getRioDelta,
+    getPlayerSyncSummary = ctx.getPlayerSyncSummary,
     resolveActiveKeyOwnerUnit = ctx.resolveActiveKeyOwnerUnit,
     resolveTargetMapID = ctx.resolveTargetMapID,
     isReadyCheckActive = ctx.isReadyCheckActive,
@@ -81,7 +83,7 @@ local function CreateRosterPanelController(ctx, keySyncResult)
       party4 = 5,
     },
     syncMarker = " |TInterface\\AddOns\\isiLive\\media\\heart_sync:12:12|t",
-    fullSyncMarker = " |cff00e68a[fullsync]|r",
+    syncBadge = " |TInterface\\Buttons\\UI-RefreshButton:12:12|t",
     applyKnownKeyToRosterEntry = keySyncResult and keySyncResult.applyKnownKeyToRosterEntry or nil,
     getTime = ctx.getTime,
     shareKeysDebounceSeconds = ctx.shareKeysDebounceSeconds,

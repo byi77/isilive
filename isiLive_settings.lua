@@ -417,7 +417,7 @@ local function CreateSettingsTitle(canvas)
   local ag = Colors.ACCENT_GOLD or { 1, 0.82, 0 }
   title:SetTextColor(ag[1], ag[2], ag[3], 1)
   title:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X, -PADDING_TOP)
-  title:SetText("isiKeyMPlus")
+  title:SetText("isiLive")
 
   return title
 end
@@ -914,7 +914,7 @@ function SettingsPanel.Create(opts)
   y = y - SECTION_GAP
   BuildDebugSettingsSection(canvas, y, L, config, controls)
 
-  local category = blizzardSettings.RegisterCanvasLayoutCategory(canvas, "isiKeyMPlus")
+  local category = blizzardSettings.RegisterCanvasLayoutCategory(canvas, "isiLive")
   if type(blizzardSettings.RegisterAddOnCategory) == "function" then
     blizzardSettings.RegisterAddOnCategory(category)
   end

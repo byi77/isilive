@@ -133,6 +133,8 @@ function Roster.BuildDisplayData(info, opts)
   local getDungeonShortCode = opts.getDungeonShortCode
   local getRioDelta = opts.getRioDelta
   local syncMarker = opts.syncMarker or ""
+  local syncBadge = opts.syncBadge or ""
+  local syncSummary = opts.syncSummary
   local isReadyCheckActive = opts.isReadyCheckActive
 
   local isOffline = not info.isGhost and unit and not IsUnitConnectedSafe(unit)
@@ -190,7 +192,13 @@ function Roster.BuildDisplayData(info, opts)
     local shortCode = getDungeonShortCode and getDungeonShortCode(info.keyMapID) or tostring(info.keyMapID)
     keyText = string.format("%s +%d", NormalizeDisplayedKeyShortCode(shortCode), tonumber(info.keyLevel) or 0)
   end
-  local addonMarker = info.hasIsiLive and syncMarker or ""
+  local addonMarker = ""
+  if info.hasIsiLive then
+    addonMarker = addonMarker .. syncMarker
+  end
+  if type(syncSummary) == "table" then
+    addonMarker = addonMarker .. syncBadge
+  end
   local atDungeonMarker = opts.isAtDungeon and "|TInterface\\MINIMAP\\Minimap_Summon_Icon:12:12:0:0|t" or ""
   local roleIconMarkup = ROLE_ICONS[info.role] or ""
 
