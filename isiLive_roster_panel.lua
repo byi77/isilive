@@ -31,14 +31,14 @@ local IsCombatLockdownActive = RI.IsCombatLockdownActive or function()
   return false
 end
 local NormalizeLayoutMode = RI.NormalizeLayoutMode
-  or function(_mode)
-    if _mode == LAYOUT_MODE_COMPACT_VERTICAL then
+  or function(mode)
+    if mode == LAYOUT_MODE_COMPACT_VERTICAL then
       return LAYOUT_MODE_COMPACT_VERTICAL
     end
-    if _mode == LAYOUT_MODE_COMPACT_HORIZONTAL then
+    if mode == LAYOUT_MODE_COMPACT_HORIZONTAL then
       return LAYOUT_MODE_COMPACT_HORIZONTAL
     end
-    if _mode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or _mode == "compact_horizontal_2" then
+    if mode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or mode == "compact_horizontal_2" then
       return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
     end
     return LAYOUT_MODE_EXPANDED
@@ -84,7 +84,6 @@ local IsMainHorizontalLayoutMode = RI.IsMainHorizontalLayoutMode
   or function(_mode)
     return false
   end
-local IsStackedModernLayoutMode = IsMainHorizontalLayoutMode
 local GetFrameHeightForLayoutMode = RI.GetFrameHeightForLayoutMode
 local CreateSystemOptionToggles = RI.CreateSystemOptionToggles
 local RefreshSystemOptionToggles = RI.RefreshSystemOptionToggles

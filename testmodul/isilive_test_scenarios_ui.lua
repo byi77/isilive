@@ -1823,7 +1823,8 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       Assert.Equal(
         checkboxCount,
         10,
-        "settings should hide the legacy DPS, markers, sound, name-length, and teleport-column controls while keeping column guides visible"
+        "settings should hide the legacy DPS, markers, sound, name-length,"
+          .. " and teleport-column controls while keeping column guides visible"
       )
 
       panel.Refresh()
