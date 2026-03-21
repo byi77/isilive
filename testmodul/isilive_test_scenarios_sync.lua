@@ -202,7 +202,11 @@ local function RegisterStatsSyncTests(test, Assert, WithGlobals, LoadAddonModule
       })
       Assert.Equal(#sentMessages, 1, "visible stats send must publish one payload")
       Assert.Equal(sentMessages[1].prefix, "ISILIVE", "stats payload must use isiLive prefix")
-      Assert.Equal(sentMessages[1].message, "STATS:72:615:3210:100:local", "stats payload must encode spec/ilvl/rio and metadata")
+      Assert.Equal(
+        sentMessages[1].message,
+        "STATS:72:615:3210:100:local",
+        "stats payload must encode spec/ilvl/rio and metadata"
+      )
       Assert.Equal(sentMessages[1].channel, "PARTY", "stats payload must use party channel while grouped")
 
       now = 101
@@ -409,8 +413,16 @@ local function RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonMod
 
       Assert.True(sent, "hidden refresh response should be allowed outside blocked runtime states")
       Assert.Equal(#sentMessages, 4, "refresh response should publish KEY, STATS, DPS, and LOC")
-      Assert.Equal(sentMessages[1].message, "KEY:2649:15:100:reqsync", "refresh response must publish current key payload first")
-      Assert.Equal(sentMessages[2].message, "STATS:72:615:3210:100:reqsync", "refresh response must publish current stats payload")
+      Assert.Equal(
+        sentMessages[1].message,
+        "KEY:2649:15:100:reqsync",
+        "refresh response must publish current key payload first"
+      )
+      Assert.Equal(
+        sentMessages[2].message,
+        "STATS:72:615:3210:100:reqsync",
+        "refresh response must publish current stats payload"
+      )
       Assert.Equal(sentMessages[3].message, "DPS:0:100:reqsync", "refresh response must publish DPS payload")
       Assert.Equal(sentMessages[4].message, "LOC:0:100:reqsync", "refresh response must publish LOC payload")
     end)
@@ -558,8 +570,13 @@ local function RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonM
     }, function()
       local addon = LoadAddonModules({ "isiLive_sync.lua" })
 
-      local helloResult =
-        addon.Sync.ProcessAddonMessage("ISILIVE", "HELLO:0.9.36:2:123:refresh", "OtherPlayer-OtherRealm", "MyPlayer", "Realm")
+      local helloResult = addon.Sync.ProcessAddonMessage(
+        "ISILIVE",
+        "HELLO:0.9.36:2:123:refresh",
+        "OtherPlayer-OtherRealm",
+        "MyPlayer",
+        "Realm"
+      )
       Assert.NotNil(helloResult, "HELLO must return result")
       Assert.True(helloResult.shouldAck, "HELLO from different player must require ack")
       Assert.Equal(helloResult.peerProtocolVersion, 2, "HELLO must expose protocol version")

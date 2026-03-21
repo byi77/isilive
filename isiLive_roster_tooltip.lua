@@ -544,22 +544,28 @@ local function ShowRosterInfoTooltip(
 
   local lastRunDps = type(getPlayerLastRunDps) == "function" and getPlayerLastRunDps(info.name, info.realm) or nil
   local syncModule = addonTable.Sync
-  local syncSummary = type(syncModule) == "table" and type(syncModule.GetPlayerSyncSummary) == "function"
+  local syncSummary = type(syncModule) == "table"
+      and type(syncModule.GetPlayerSyncSummary) == "function"
       and syncModule.GetPlayerSyncSummary(info.name, info.realm)
     or nil
-  local syncHelloInfo = type(syncModule) == "table" and type(syncModule.GetPlayerHelloInfo) == "function"
+  local syncHelloInfo = type(syncModule) == "table"
+      and type(syncModule.GetPlayerHelloInfo) == "function"
       and syncModule.GetPlayerHelloInfo(info.name, info.realm)
     or nil
-  local syncKeyInfo = type(syncModule) == "table" and type(syncModule.GetPlayerKeyInfo) == "function"
+  local syncKeyInfo = type(syncModule) == "table"
+      and type(syncModule.GetPlayerKeyInfo) == "function"
       and syncModule.GetPlayerKeyInfo(info.name, info.realm)
     or nil
-  local syncStatsInfo = type(syncModule) == "table" and type(syncModule.GetPlayerStatsInfo) == "function"
+  local syncStatsInfo = type(syncModule) == "table"
+      and type(syncModule.GetPlayerStatsInfo) == "function"
       and syncModule.GetPlayerStatsInfo(info.name, info.realm)
     or nil
-  local syncDpsInfo = type(syncModule) == "table" and type(syncModule.GetPlayerDpsInfo) == "function"
+  local syncDpsInfo = type(syncModule) == "table"
+      and type(syncModule.GetPlayerDpsInfo) == "function"
       and syncModule.GetPlayerDpsInfo(info.name, info.realm)
     or nil
-  local syncLocInfo = type(syncModule) == "table" and type(syncModule.GetPlayerLocInfo) == "function"
+  local syncLocInfo = type(syncModule) == "table"
+      and type(syncModule.GetPlayerLocInfo) == "function"
       and syncModule.GetPlayerLocInfo(info.name, info.realm)
     or nil
   local unitLevel = ResolveTooltipUnitLevel(unit, info)
@@ -642,8 +648,11 @@ local function ShowRosterInfoTooltip(
     end
     if syncHelloInfo and type(syncHelloInfo.addonVersion) == "string" and syncHelloInfo.addonVersion ~= "" then
       local L = type(getL) == "function" and getL() or {}
-      local versionLabel = type(L.TOOLTIP_SYNC_VERSION) == "string" and L.TOOLTIP_SYNC_VERSION or "Peer version: %s (p%d)"
-      local protocolVersion = tonumber(syncHelloInfo.protocolVersion) or tonumber(syncSummary and syncSummary.protocolVersion) or 0
+      local versionLabel = type(L.TOOLTIP_SYNC_VERSION) == "string" and L.TOOLTIP_SYNC_VERSION
+        or "Peer version: %s (p%d)"
+      local protocolVersion = tonumber(syncHelloInfo.protocolVersion)
+        or tonumber(syncSummary and syncSummary.protocolVersion)
+        or 0
       tooltip:AddLine(string.format(versionLabel, syncHelloInfo.addonVersion, protocolVersion), 0.65, 0.85, 1)
     end
     if syncDebugEnabled then

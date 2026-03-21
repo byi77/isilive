@@ -139,14 +139,24 @@ local function NormalizeKeyPayload(mapID, level, capturedAt, source)
     numericMapID = SeasonData.NormalizeMapID(numericMapID)
   end
   if not numericLevel or numericLevel <= 0 or not numericMapID or numericMapID <= 0 then
-    return string.format("KEY:0:0:%d:%s", GetSyncTimestamp() or 0, NormalizeSyncSource(source) or "local"), nil, nil, nil, nil
+    return string.format("KEY:0:0:%d:%s", GetSyncTimestamp() or 0, NormalizeSyncSource(source) or "local"),
+      nil,
+      nil,
+      nil,
+      nil
   end
   local normalizedCapturedAt = tonumber(capturedAt)
   if not normalizedCapturedAt or normalizedCapturedAt <= 0 then
     normalizedCapturedAt = GetSyncTimestamp() or 0
   end
   local normalizedSource = NormalizeSyncSource(source) or "local"
-  return string.format("KEY:%d:%d:%d:%s", numericMapID, numericLevel, math.floor(normalizedCapturedAt), normalizedSource),
+  return string.format(
+    "KEY:%d:%d:%d:%s",
+    numericMapID,
+    numericLevel,
+    math.floor(normalizedCapturedAt),
+    normalizedSource
+  ),
     numericMapID,
     numericLevel,
     math.floor(normalizedCapturedAt),
@@ -186,13 +196,13 @@ local function NormalizeStatsPayload(specID, ilvl, rio, capturedAt, source)
   local normalizedSource = NormalizeSyncSource(source) or "local"
 
   return string.format(
-      "STATS:%d:%d:%d:%d:%s",
-      numericSpecID,
-      numericIlvl,
-      numericRio,
-      math.floor(normalizedCapturedAt),
-      normalizedSource
-    ),
+    "STATS:%d:%d:%d:%d:%s",
+    numericSpecID,
+    numericIlvl,
+    numericRio,
+    math.floor(normalizedCapturedAt),
+    normalizedSource
+  ),
     numericSpecID,
     numericIlvl,
     numericRio,
@@ -226,7 +236,10 @@ local function NormalizeLocPayload(mapID, capturedAt, source)
       normalizedCapturedAt = GetSyncTimestamp() or 0
     end
     local normalizedSource = NormalizeSyncSource(source) or "local"
-    return string.format("LOC:0:%d:%s", math.floor(normalizedCapturedAt), normalizedSource), nil, math.floor(normalizedCapturedAt), normalizedSource
+    return string.format("LOC:0:%d:%s", math.floor(normalizedCapturedAt), normalizedSource),
+      nil,
+      math.floor(normalizedCapturedAt),
+      normalizedSource
   end
   numericMapID = math.floor(numericMapID)
   local normalizedCapturedAt = tonumber(capturedAt)
@@ -317,7 +330,8 @@ function Sync.SetPlayerKeyInfo(name, realm, mapID, level, capturedAt, source)
     return false
   end
 
-  local _, numericMapID, numericLevel, normalizedCapturedAt, normalizedSource = NormalizeKeyPayload(mapID, level, capturedAt, source)
+  local _, numericMapID, numericLevel, normalizedCapturedAt, normalizedSource =
+    NormalizeKeyPayload(mapID, level, capturedAt, source)
   local previous = keyInfoByPlayerKey[key]
   if not numericMapID or not numericLevel then
     local hadValue = type(previous) == "table"
@@ -356,13 +370,8 @@ function Sync.SetPlayerStatsInfo(name, realm, specID, ilvl, rio, capturedAt, sou
     return false
   end
 
-  local _, numericSpecID, numericIlvl, numericRio, normalizedCapturedAt, normalizedSource = NormalizeStatsPayload(
-    specID,
-    ilvl,
-    rio,
-    capturedAt,
-    source
-  )
+  local _, numericSpecID, numericIlvl, numericRio, normalizedCapturedAt, normalizedSource =
+    NormalizeStatsPayload(specID, ilvl, rio, capturedAt, source)
   local nextValue = {
     specID = numericSpecID > 0 and numericSpecID or nil,
     ilvl = numericIlvl > 0 and numericIlvl or nil,
@@ -626,21 +635,16 @@ function Sync.SendStats(opts)
     return
   end
 
-  local payload, numericSpecID, numericIlvl, numericRio = NormalizeStatsPayload(
-    opts.specID,
-    opts.ilvl,
-    opts.rio,
-    opts.capturedAt,
-    opts.source
-  )
-  local dedupePayload = string.format(
-    "STATS:%d:%d:%d",
-    tonumber(numericSpecID) or 0,
-    tonumber(numericIlvl) or 0,
-    tonumber(numericRio) or 0
-  )
+  local payload, numericSpecID, numericIlvl, numericRio =
+    NormalizeStatsPayload(opts.specID, opts.ilvl, opts.rio, opts.capturedAt, opts.source)
+  local dedupePayload =
+    string.format("STATS:%d:%d:%d", tonumber(numericSpecID) or 0, tonumber(numericIlvl) or 0, tonumber(numericRio) or 0)
   local now = GetTime()
-  if not opts.force and dedupePayload == lastStatsPayloadSent and (now - lastIsiLiveStatsAt) < ISILIVE_STATS_COOLDOWN then
+  if
+    not opts.force
+    and dedupePayload == lastStatsPayloadSent
+    and (now - lastIsiLiveStatsAt) < ISILIVE_STATS_COOLDOWN
+  then
     return
   end
 
@@ -756,7 +760,8 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     local capturedAtRaw = parts[4]
     local sourceRaw = parts[5]
     if mapIDRaw and levelRaw then
-      keyUpdated = Sync.SetPlayerKeyInfo(sender, nil, tonumber(mapIDRaw), tonumber(levelRaw), tonumber(capturedAtRaw), sourceRaw)
+      keyUpdated =
+        Sync.SetPlayerKeyInfo(sender, nil, tonumber(mapIDRaw), tonumber(levelRaw), tonumber(capturedAtRaw), sourceRaw)
     end
   end
 

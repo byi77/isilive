@@ -150,7 +150,15 @@ local function SendOwnLocSnapshot(sync, isFrameVisible, force, source)
   })
 end
 
-local function SendOwnKeySnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, force, source)
+local function SendOwnKeySnapshot(
+  sync,
+  isFrameVisible,
+  getUnitRio,
+  getPlayerLastRunDps,
+  getUnitNameAndRealm,
+  force,
+  source
+)
   local mapID, level = GetOwnedKeystoneSnapshot()
   sync.SendKey({
     force = force and true or false,
