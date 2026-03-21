@@ -121,7 +121,11 @@ return function(test, ctx)
         }
 
         for _, case in ipairs(cases) do
-          Assert.Equal(case.expected, Units.GetShortSpecLabel(case.input), case.input .. " should map to " .. case.expected)
+          Assert.Equal(
+            case.expected,
+            Units.GetShortSpecLabel(case.input),
+            case.input .. " should map to " .. case.expected
+          )
         end
       end)
     end)

@@ -1593,19 +1593,63 @@ local function RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, Load
       local buttons = controller.GetButtons()
 
       Assert.Equal(#buttons, 8, "M2 portal row should still build one button per entry")
-      Assert.Equal(buttons[1]._point and buttons[1]._point.point or nil, "BOTTOMLEFT", "M2 row should anchor from the bottom-left")
-      Assert.Equal(buttons[1]._point and buttons[1]._point.x or nil, 10, "first M2 portal button should start at the left margin")
+      Assert.Equal(
+        buttons[1]._point and buttons[1]._point.point or nil,
+        "BOTTOMLEFT",
+        "M2 row should anchor from the bottom-left"
+      )
+      Assert.Equal(
+        buttons[1]._point and buttons[1]._point.x or nil,
+        10,
+        "first M2 portal button should start at the left margin"
+      )
       Assert.Equal(buttons[1].width, 57, "M2 portal buttons should use the wider horizontal icon size")
       Assert.Equal(buttons[1].height, 32, "M2 portal buttons should use the wider horizontal icon size")
-      Assert.Equal(buttons[2]._point and buttons[2]._point.x or nil, 71, "second M2 portal button should step to the right")
-      Assert.Equal(buttons[3]._point and buttons[3]._point.x or nil, 132, "third M2 portal button should keep the same row")
-      Assert.Equal(buttons[4]._point and buttons[4]._point.x or nil, 193, "fourth M2 portal button should keep the same row")
-      Assert.Equal(buttons[5]._point and buttons[5]._point.x or nil, 254, "fifth M2 portal button should keep the same row")
-      Assert.Equal(buttons[6]._point and buttons[6]._point.x or nil, 315, "sixth M2 portal button should keep the same row")
-      Assert.Equal(buttons[7]._point and buttons[7]._point.x or nil, 376, "seventh M2 portal button should keep the same row")
-      Assert.Equal(buttons[8]._point and buttons[8]._point.x or nil, 437, "eighth M2 portal button should keep the same row")
-      Assert.Equal(buttons[1]._point and buttons[1]._point.y or nil, 42, "M2 portal row should sit below the management row")
-      Assert.Equal(buttons[8]._point and buttons[8]._point.y or nil, 42, "all M2 portal buttons should share the same row")
+      Assert.Equal(
+        buttons[2]._point and buttons[2]._point.x or nil,
+        71,
+        "second M2 portal button should step to the right"
+      )
+      Assert.Equal(
+        buttons[3]._point and buttons[3]._point.x or nil,
+        132,
+        "third M2 portal button should keep the same row"
+      )
+      Assert.Equal(
+        buttons[4]._point and buttons[4]._point.x or nil,
+        193,
+        "fourth M2 portal button should keep the same row"
+      )
+      Assert.Equal(
+        buttons[5]._point and buttons[5]._point.x or nil,
+        254,
+        "fifth M2 portal button should keep the same row"
+      )
+      Assert.Equal(
+        buttons[6]._point and buttons[6]._point.x or nil,
+        315,
+        "sixth M2 portal button should keep the same row"
+      )
+      Assert.Equal(
+        buttons[7]._point and buttons[7]._point.x or nil,
+        376,
+        "seventh M2 portal button should keep the same row"
+      )
+      Assert.Equal(
+        buttons[8]._point and buttons[8]._point.x or nil,
+        437,
+        "eighth M2 portal button should keep the same row"
+      )
+      Assert.Equal(
+        buttons[1]._point and buttons[1]._point.y or nil,
+        42,
+        "M2 portal row should sit below the management row"
+      )
+      Assert.Equal(
+        buttons[8]._point and buttons[8]._point.y or nil,
+        42,
+        "all M2 portal buttons should share the same row"
+      )
     end)
   end)
 end

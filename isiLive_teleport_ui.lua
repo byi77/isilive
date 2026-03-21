@@ -23,12 +23,13 @@ local M2_TELEPORT_ROW_Y = RI.M2_TELEPORT_ROW_Y or 42
 local M2_TELEPORT_BUTTON_WIDTH = RI.M2_TELEPORT_BUTTON_WIDTH or RI.M2_TELEPORT_BUTTON_SIZE or 57
 local M2_TELEPORT_BUTTON_HEIGHT = RI.M2_TELEPORT_BUTTON_HEIGHT or RI.M2_TELEPORT_BUTTON_SIZE or 32
 local M2_TELEPORT_BUTTON_GAP = RI.M2_TELEPORT_BUTTON_GAP or 4
-local NormalizeLayoutMode = RI.NormalizeLayoutMode or function(layoutMode)
-  if layoutMode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or layoutMode == "compact_horizontal_2" then
-    return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+local NormalizeLayoutMode = RI.NormalizeLayoutMode
+  or function(layoutMode)
+    if layoutMode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or layoutMode == "compact_horizontal_2" then
+      return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+    end
+    return LAYOUT_MODE_EXPANDED
   end
-  return LAYOUT_MODE_EXPANDED
-end
 
 local function IsM2LayoutMode(layoutMode)
   return NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL

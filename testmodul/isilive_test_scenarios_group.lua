@@ -495,19 +495,14 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithG
       _FactoryInternal = {},
     })
 
-    local resolveAutoHideSoloEnabled = addon._FactoryInternal and addon._FactoryInternal.ResolveAutoHideSoloEnabled or nil
+    local resolveAutoHideSoloEnabled = addon._FactoryInternal and addon._FactoryInternal.ResolveAutoHideSoloEnabled
+      or nil
 
     Assert.NotNil(resolveAutoHideSoloEnabled, "factory should export the auto-hide default resolver")
     Assert.True(resolveAutoHideSoloEnabled(nil), "missing saved data should default auto-hide to enabled")
     Assert.True(resolveAutoHideSoloEnabled({}), "missing saved value should default auto-hide to enabled")
-    Assert.True(
-      resolveAutoHideSoloEnabled({ autoHideSolo = true }),
-      "explicit true should keep auto-hide enabled"
-    )
-    Assert.False(
-      resolveAutoHideSoloEnabled({ autoHideSolo = false }),
-      "explicit false should disable auto-hide"
-    )
+    Assert.True(resolveAutoHideSoloEnabled({ autoHideSolo = true }), "explicit true should keep auto-hide enabled")
+    Assert.False(resolveAutoHideSoloEnabled({ autoHideSolo = false }), "explicit false should disable auto-hide")
   end)
 
   test("Group leave keeps frame state and ghosts former party members", function()

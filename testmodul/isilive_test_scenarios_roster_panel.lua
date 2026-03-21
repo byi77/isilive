@@ -960,7 +960,10 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
         Assert.NotNil(modeButton, "Mode button " .. expected.label .. " should exist")
         ---@diagnostic disable: need-check-nil, undefined-field
         Assert.Equal(modeButton._modeLabel, expected.label, "Mode button should keep its label")
-        Assert.True(type(modeButton.OnEnter) == "function", "Mode button " .. expected.label .. " should have a tooltip handler")
+        Assert.True(
+          type(modeButton.OnEnter) == "function",
+          "Mode button " .. expected.label .. " should have a tooltip handler"
+        )
         modeButton:OnEnter()
         Assert.Equal(
           privateTooltip._isiLiveTooltipOwner,
@@ -993,8 +996,16 @@ local function RegisterRosterPanelTooltipInteractionTests(test, Assert, WithGlob
       ---@diagnostic disable: need-check-nil, undefined-field
       m2Button:OnEnter()
       local englishTooltipTexts = GetTooltipLineTexts(privateTooltip)
-      Assert.Equal(englishTooltipTexts[2], enLocale.MODE_LAYOUT_M2, "Mode button tooltip should refresh to English after locale switch")
-      Assert.Equal(englishTooltipTexts[3], enLocale.TOOLTIP_LAYOUT_SWITCH, "Mode button tooltip click hint should refresh to English after locale switch")
+      Assert.Equal(
+        englishTooltipTexts[2],
+        enLocale.MODE_LAYOUT_M2,
+        "Mode button tooltip should refresh to English after locale switch"
+      )
+      Assert.Equal(
+        englishTooltipTexts[3],
+        enLocale.TOOLTIP_LAYOUT_SWITCH,
+        "Mode button tooltip click hint should refresh to English after locale switch"
+      )
       ---@diagnostic enable: need-check-nil, undefined-field
     end)
   end)
@@ -2798,8 +2809,7 @@ local function RegisterRosterPanelHiddenSettingDefaultTests(test, Assert, WithGl
     local createdFontStrings = {}
 
     WithGlobals({
-      IsiLiveDB = {
-      },
+      IsiLiveDB = {},
       CreateFrame = function()
         return NewRecordedFrame(createdFrames, createdFontStrings)
       end,

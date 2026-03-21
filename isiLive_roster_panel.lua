@@ -30,18 +30,19 @@ local DEFAULT_MIN_FRAME_HEIGHT = RI.DEFAULT_MIN_FRAME_HEIGHT or 236
 local IsCombatLockdownActive = RI.IsCombatLockdownActive or function()
   return false
 end
-local NormalizeLayoutMode = RI.NormalizeLayoutMode or function(_mode)
-  if _mode == LAYOUT_MODE_COMPACT_VERTICAL then
-    return LAYOUT_MODE_COMPACT_VERTICAL
+local NormalizeLayoutMode = RI.NormalizeLayoutMode
+  or function(_mode)
+    if _mode == LAYOUT_MODE_COMPACT_VERTICAL then
+      return LAYOUT_MODE_COMPACT_VERTICAL
+    end
+    if _mode == LAYOUT_MODE_COMPACT_HORIZONTAL then
+      return LAYOUT_MODE_COMPACT_HORIZONTAL
+    end
+    if _mode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or _mode == "compact_horizontal_2" then
+      return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+    end
+    return LAYOUT_MODE_EXPANDED
   end
-  if _mode == LAYOUT_MODE_COMPACT_HORIZONTAL then
-    return LAYOUT_MODE_COMPACT_HORIZONTAL
-  end
-  if _mode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or _mode == "compact_horizontal_2" then
-    return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
-  end
-  return LAYOUT_MODE_EXPANDED
-end
 local function ResolveConfiguredDefaultOpenLayoutMode()
   local db = rawget(_G, "IsiLiveDB")
   if type(db) ~= "table" then
@@ -78,9 +79,11 @@ end
 local IsHorizontalCompactLayoutMode = RI.IsHorizontalCompactLayoutMode or function(_mode)
   return false
 end
-local IsMainHorizontalLayoutMode = RI.IsMainHorizontalLayoutMode or RI.IsStackedModernLayoutMode or function(_mode)
-  return false
-end
+local IsMainHorizontalLayoutMode = RI.IsMainHorizontalLayoutMode
+  or RI.IsStackedModernLayoutMode
+  or function(_mode)
+    return false
+  end
 local IsStackedModernLayoutMode = IsMainHorizontalLayoutMode
 local GetFrameHeightForLayoutMode = RI.GetFrameHeightForLayoutMode
 local CreateSystemOptionToggles = RI.CreateSystemOptionToggles
@@ -616,7 +619,16 @@ local function AttachPanelButtonTooltip(tooltipFrame, button, getL, titleKey, de
   end)
 end
 
-local function AttachModeButtonTooltip(tooltipFrame, button, getL, titleText, descriptionKey, descriptionFallback, clickHintKey, clickHintFallback)
+local function AttachModeButtonTooltip(
+  tooltipFrame,
+  button,
+  getL,
+  titleText,
+  descriptionKey,
+  descriptionFallback,
+  clickHintKey,
+  clickHintFallback
+)
   button:SetScript("OnEnter", function(self)
     local tooltip = AnchorRosterHoverTooltip(tooltipFrame, self)
     if type(tooltip) ~= "table" then

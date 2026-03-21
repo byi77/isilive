@@ -109,9 +109,9 @@ local function CreateTeleportUIController(ctx)
     applyCooldownFrameSafe = ctx.applyCooldownFrameSafe,
     getSpellTexture = ctx.getSpellTexture,
     getEmptyStateText = ctx.getTeleportEmptyStateText,
-    layoutMode =
-      ctx.rosterPanelController and type(ctx.rosterPanelController.GetLayoutMode) == "function"
-      and ctx.rosterPanelController.GetLayoutMode()
+    layoutMode = ctx.rosterPanelController
+        and type(ctx.rosterPanelController.GetLayoutMode) == "function"
+        and ctx.rosterPanelController.GetLayoutMode()
       or nil,
   })
   controller.BuildButtons()
