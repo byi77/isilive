@@ -53,7 +53,11 @@ return function(test, ctx)
         end,
       },
     }, function()
-      local ctrl = MakeController({ getTime = function() return 1000 end })
+      local ctrl = MakeController({
+        getTime = function()
+          return 1000
+        end,
+      })
       ctrl.Scan()
       local info = ctrl.GetBResInfo()
       Assert.NotNil(info, "BRes info must not be nil when charges are available")
@@ -72,7 +76,11 @@ return function(test, ctx)
         end,
       },
     }, function()
-      local ctrl = MakeController({ getTime = function() return 1000 end })
+      local ctrl = MakeController({
+        getTime = function()
+          return 1000
+        end,
+      })
       ctrl.Scan()
       local info = ctrl.GetBResInfo()
       Assert.NotNil(info, "BRes info must not be nil when on cooldown")
@@ -91,7 +99,11 @@ return function(test, ctx)
       },
     }, function()
       -- getTime is past the cooldown expiry (500+100=600, now=700)
-      local ctrl = MakeController({ getTime = function() return 700 end })
+      local ctrl = MakeController({
+        getTime = function()
+          return 700
+        end,
+      })
       ctrl.Scan()
       local info = ctrl.GetBResInfo()
       Assert.NotNil(info, "BRes info must not be nil")
@@ -157,7 +169,11 @@ return function(test, ctx)
         end,
       },
     }, function()
-      local ctrl = MakeController({ getTime = function() return NOW end })
+      local ctrl = MakeController({
+        getTime = function()
+          return NOW
+        end,
+      })
       ctrl.Scan()
       local info = ctrl.GetLustInfo()
       Assert.NotNil(info, "Lust info must not be nil when Sated aura is active")
@@ -178,45 +194,53 @@ return function(test, ctx)
         end,
       },
     }, function()
-      local ctrl = MakeController({ getTime = function() return NOW end })
+      local ctrl = MakeController({
+        getTime = function()
+          return NOW
+        end,
+      })
       ctrl.Scan()
       Assert.Nil(ctrl.GetLustInfo(), "Lust info must be nil when aura expiration is in the past")
     end)
   end)
 
-  test("CdTracker reads aura fields via rawget — direct table fields are accessible, __index trap is not triggered", function()
-    local NOW = 1000
-    local unexpectedKeyAccessed = false
-    -- Simulate a WoW aura object: real fields stored directly in the table (rawget works),
-    -- __index trap catches any non-direct access to unexpected keys.
-    local aura = setmetatable(
-      { expirationTime = NOW + 200, icon = 132114 },
-      {
+  test(
+    "CdTracker reads aura fields via rawget — direct table fields are accessible, __index trap is not triggered",
+    function()
+      local NOW = 1000
+      local unexpectedKeyAccessed = false
+      -- Simulate a WoW aura object: real fields stored directly in the table (rawget works),
+      -- __index trap catches any non-direct access to unexpected keys.
+      local aura = setmetatable({ expirationTime = NOW + 200, icon = 132114 }, {
         __index = function(_, key)
           if key ~= "expirationTime" and key ~= "icon" then
             unexpectedKeyAccessed = true
           end
           return nil
         end,
-      }
-    )
-    local auras = { [57724] = aura }
-    WithGlobals({
-      C_UnitAuras = {
-        GetPlayerAuraBySpellID = function(spellId)
-          return auras[spellId] or nil
-        end,
-      },
-    }, function()
-      local ctrl = MakeController({ getTime = function() return NOW end })
-      ctrl.Scan()
-      local info = ctrl.GetLustInfo()
-      Assert.NotNil(info, "Lust info must be detected when aura fields are stored directly in the table")
-      Assert.Equal(info.remain, 200, "remain should be calculated from the direct expirationTime field")
-      Assert.Equal(info.icon, 132114, "icon should be read from the direct icon field")
-      Assert.False(unexpectedKeyAccessed, "no unexpected key access should occur via __index")
-    end)
-  end)
+      })
+      local auras = { [57724] = aura }
+      WithGlobals({
+        C_UnitAuras = {
+          GetPlayerAuraBySpellID = function(spellId)
+            return auras[spellId] or nil
+          end,
+        },
+      }, function()
+        local ctrl = MakeController({
+          getTime = function()
+            return NOW
+          end,
+        })
+        ctrl.Scan()
+        local info = ctrl.GetLustInfo()
+        Assert.NotNil(info, "Lust info must be detected when aura fields are stored directly in the table")
+        Assert.Equal(info.remain, 200, "remain should be calculated from the direct expirationTime field")
+        Assert.Equal(info.icon, 132114, "icon should be read from the direct icon field")
+        Assert.False(unexpectedKeyAccessed, "no unexpected key access should occur via __index")
+      end)
+    end
+  )
 
   test("CdTracker Scan updates BRes and Lust state independently", function()
     local NOW = 500
@@ -232,7 +256,11 @@ return function(test, ctx)
         end,
       },
     }, function()
-      local ctrl = MakeController({ getTime = function() return NOW end })
+      local ctrl = MakeController({
+        getTime = function()
+          return NOW
+        end,
+      })
       ctrl.Scan()
       -- BRes: 2/3 charges, cooldown = 400+200-500 = 100
       local bres = ctrl.GetBResInfo()

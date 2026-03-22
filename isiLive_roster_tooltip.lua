@@ -826,12 +826,14 @@ local function ShowRosterInfoTooltip(
       local formattedDps = FormatCompactTooltipNumber(lastRunDps) or tostring(math.floor(lastRunDps + 0.5))
       tooltip:AddLine(string.format(label, formattedDps), 0.4, 0.8, 1)
     end
-    local lastRunDeaths = type(getPlayerLastRunDeaths) == "function" and getPlayerLastRunDeaths(info.name, info.realm) or nil
+    local lastRunDeaths = type(getPlayerLastRunDeaths) == "function" and getPlayerLastRunDeaths(info.name, info.realm)
+      or nil
     if lastRunDeaths ~= nil then
       local label = type(L.TOOLTIP_LAST_RUN_DEATHS) == "string" and L.TOOLTIP_LAST_RUN_DEATHS or "Last run deaths: %s"
       tooltip:AddLine(string.format(label, tostring(lastRunDeaths)), 0.4, 0.8, 1)
     end
-    local lastRunKicks = type(getPlayerLastRunKicks) == "function" and getPlayerLastRunKicks(info.name, info.realm) or nil
+    local lastRunKicks = type(getPlayerLastRunKicks) == "function" and getPlayerLastRunKicks(info.name, info.realm)
+      or nil
     if lastRunKicks ~= nil then
       local label = type(L.TOOLTIP_LAST_RUN_KICKS) == "string" and L.TOOLTIP_LAST_RUN_KICKS or "Last run kicks: %s"
       tooltip:AddLine(string.format(label, tostring(lastRunKicks)), 0.4, 0.8, 1)

@@ -1255,7 +1255,11 @@ local function RenderRosterImpl(state, roster)
     local function setHeaderVisible(key, visible)
       local h = state.uiRef[key]
       if h then
-        if visible then h:Show() else h:Hide() end
+        if visible then
+          h:Show()
+        else
+          h:Hide()
+        end
       end
     end
     setHeaderVisible("dpsHeader", showDpsColumn)
@@ -1419,12 +1423,12 @@ local function RenderRosterImpl(state, roster)
     end
     if showDps then
       local deathsVal = type(state.getPlayerLastRunDeaths) == "function"
-        and state.getPlayerLastRunDeaths(info.name, info.realm)
+          and state.getPlayerLastRunDeaths(info.name, info.realm)
         or nil
       row.deaths:SetText(deathsVal ~= nil and tostring(deathsVal) or "-")
       row.deaths:Show()
       local kicksVal = type(state.getPlayerLastRunKicks) == "function"
-        and state.getPlayerLastRunKicks(info.name, info.realm)
+          and state.getPlayerLastRunKicks(info.name, info.realm)
         or nil
       row.kicks:SetText(kicksVal ~= nil and tostring(kicksVal) or "-")
       row.kicks:Show()

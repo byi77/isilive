@@ -90,10 +90,38 @@ local PANEL_UI_ENTRIES = {
 }
 -- Hearthstone toy IDs sourced from TeleportMenu (github.com/Justw8/TeleportMenu)
 local HEARTHSTONE_TOY_IDS = {
-  54452, 64488, 93672, 142542, 162973, 163045, 163206, 165669, 165670,
-  165802, 166746, 166747, 168907, 172179, 188952, 190196, 190237, 193588,
-  200630, 206195, 208704, 209035, 212337, 228940, 235016, 236687, 245970,
-  246565, 257736, 263489, 263933, 265100,
+  54452,
+  64488,
+  93672,
+  142542,
+  162973,
+  163045,
+  163206,
+  165669,
+  165670,
+  165802,
+  166746,
+  166747,
+  168907,
+  172179,
+  188952,
+  190196,
+  190237,
+  193588,
+  200630,
+  206195,
+  208704,
+  209035,
+  212337,
+  228940,
+  235016,
+  236687,
+  245970,
+  246565,
+  257736,
+  263489,
+  263933,
+  265100,
 }
 local housingSecureButton = nil
 local housingDataEventFrame = nil
@@ -1205,15 +1233,8 @@ function UI.EnsureSecondPanelUI(opts)
     local isSecure = isSecureMacro or entry.isSecure == true
     local buttonTemplate = isSecure and "SecureActionButtonTemplate,BackdropTemplate" or "BackdropTemplate"
     local buttonParent = isSecure and gameMenuFrame or panelFrame
-    local button = CreatePanelUIButton(
-      buttonParent,
-      frameStrata,
-      baseFrameLevel,
-      10 + index,
-      entry.icon,
-      buttonTemplate,
-      isSecure
-    )
+    local button =
+      CreatePanelUIButton(buttonParent, frameStrata, baseFrameLevel, 10 + index, entry.icon, buttonTemplate, isSecure)
 
     button._actionId = entry.id
     button._labelKey = entry.labelKey

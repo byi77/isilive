@@ -769,15 +769,11 @@ local function InitializeFactorySecondaryControllers(ctx)
     ctx.cdTrackerController = modules.cdTracker.CreateController({ getTime = GetTime })
     ctx.UpdateCdTracker = function()
       ctx.cdTrackerController.Scan()
-      if ctx.rosterPanelController
-        and type(ctx.rosterPanelController.RefreshCdTracker) == "function"
-      then
+      if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
         ctx.rosterPanelController.RefreshCdTracker()
       end
     end
-    if ctx.rosterPanelController
-      and type(ctx.rosterPanelController.SetCdController) == "function"
-    then
+    if ctx.rosterPanelController and type(ctx.rosterPanelController.SetCdController) == "function" then
       ctx.rosterPanelController.SetCdController(ctx.cdTrackerController)
     end
     -- Ticker: scan + UI refresh every second for countdown timers (BL remaining time).

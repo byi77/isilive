@@ -8,10 +8,22 @@ local BRES_SPELL_ID = 20484
 
 -- All Bloodlust / Heroism / Time Warp variant spell IDs that inflict Sated/Exhaustion
 local LUST_SATED_IDS = {
-  [2825]   = true, [32182]  = true, [80353]  = true, [264667] = true, [390386] = true,
-  [381301] = true, [178207] = true, [230935] = true, [256740] = true, [57723]  = true,
-  [57724]  = true, [80354]  = true, [264689] = true, [390435] = true, [95809]  = true,
-  [16045]  = true,
+  [2825] = true,
+  [32182] = true,
+  [80353] = true,
+  [264667] = true,
+  [390386] = true,
+  [381301] = true,
+  [178207] = true,
+  [230935] = true,
+  [256740] = true,
+  [57723] = true,
+  [57724] = true,
+  [80354] = true,
+  [264689] = true,
+  [390435] = true,
+  [95809] = true,
+  [16045] = true,
 }
 
 function CdTracker.CreateController(opts)
@@ -46,8 +58,7 @@ function CdTracker.CreateController(opts)
 
   local function ScanLust()
     local C_UnitAuras_ref = rawget(_G, "C_UnitAuras")
-    local getBySpellID = type(C_UnitAuras_ref) == "table"
-      and rawget(C_UnitAuras_ref, "GetPlayerAuraBySpellID") or nil
+    local getBySpellID = type(C_UnitAuras_ref) == "table" and rawget(C_UnitAuras_ref, "GetPlayerAuraBySpellID") or nil
     if type(getBySpellID) ~= "function" then
       lustRemain = nil
       lustIcon = nil
