@@ -21,8 +21,8 @@ function Refresh.CreateController(opts)
   end
   local triggerGroupRosterUpdate = opts.triggerGroupRosterUpdate or function() end
   local forceRefreshSyncState = opts.forceRefreshSyncState or function() end
-  local sendIsiLiveHello = opts.sendIsiLiveHello or function() end
-  local sendOwnKeySnapshot = opts.sendOwnKeySnapshot or function() end
+  local sendIsiLiveHello = opts.sendIsiLiveHello or function(_force, _source) end
+  local sendOwnKeySnapshot = opts.sendOwnKeySnapshot or function(_force, _source) end
   local sendRefreshRequest = opts.sendRefreshRequest or function(_force) end
   local queueForceRefreshData = opts.queueForceRefreshData or function() end
   local updateUI = opts.updateUI or function() end
