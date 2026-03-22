@@ -48,6 +48,8 @@ local M2_HELPER_BUTTON_GAP = 6
 local SYSTEM_OPTION_TOGGLE_LEFT_MARGIN = 10
 local SYSTEM_OPTION_TOGGLE_BOTTOM_OFFSET = 24
 local SYSTEM_OPTION_TOGGLE_GAP = 18
+local CD_TRACKER_ROW_HEIGHT = 20
+local CD_TRACKER_ROW_BOTTOM_OFFSET = 20
 
 RI.LAYOUT_MODE_EXPANDED = LAYOUT_MODE_EXPANDED
 RI.LAYOUT_MODE_COMPACT_VERTICAL = LAYOUT_MODE_COMPACT_VERTICAL
@@ -93,6 +95,8 @@ RI.M2_HELPER_BUTTON_GAP = M2_HELPER_BUTTON_GAP
 RI.SYSTEM_OPTION_TOGGLE_LEFT_MARGIN = SYSTEM_OPTION_TOGGLE_LEFT_MARGIN
 RI.SYSTEM_OPTION_TOGGLE_BOTTOM_OFFSET = SYSTEM_OPTION_TOGGLE_BOTTOM_OFFSET
 RI.SYSTEM_OPTION_TOGGLE_GAP = SYSTEM_OPTION_TOGGLE_GAP
+RI.CD_TRACKER_ROW_HEIGHT = CD_TRACKER_ROW_HEIGHT
+RI.CD_TRACKER_ROW_BOTTOM_OFFSET = CD_TRACKER_ROW_BOTTOM_OFFSET
 
 -- Descriptor pro Layout-Modus: Breite und Label für den Mode-Button
 local LAYOUT_MODE_CONFIG = {
@@ -117,6 +121,9 @@ local UI_VISIBILITY_RULES = {
   { "keyHeader", true, false, false, true },
   { "rioHeader", true, false, false, true },
   { "dpsHeader", true, false, false, true },
+  { "deathsHeader", true, false, false, true },
+  { "kicksHeader", true, false, false, true },
+  { "cdTrackerRow", false, false, false, true },
   { "statusLine", true, false, false, false },
   { "mplusManagementHeader", true, false, false, false },
   { "shareKeysButton", true, true, false, true },

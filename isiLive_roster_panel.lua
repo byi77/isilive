@@ -85,6 +85,8 @@ local IsMainHorizontalLayoutMode = RI.IsMainHorizontalLayoutMode
     return false
   end
 local GetFrameHeightForLayoutMode = RI.GetFrameHeightForLayoutMode
+local CD_TRACKER_ROW_HEIGHT = RI.CD_TRACKER_ROW_HEIGHT or 20
+local CD_TRACKER_ROW_BOTTOM_OFFSET = RI.CD_TRACKER_ROW_BOTTOM_OFFSET or 20
 local CreateSystemOptionToggles = RI.CreateSystemOptionToggles
 local RefreshSystemOptionToggles = RI.RefreshSystemOptionToggles
 local LayoutSystemOptionToggles = RI.LayoutSystemOptionToggles
@@ -111,6 +113,10 @@ local ILVL_COL_WIDTH = 32
 local RIO_COL_WIDTH = 70
 local DPS_COL_X = RIO_COL_X + RIO_COL_WIDTH + 2
 local DPS_COL_WIDTH = 40
+local DEATHS_COL_X = DPS_COL_X + DPS_COL_WIDTH + 2
+local DEATHS_COL_WIDTH = 30
+local KICKS_COL_X = DEATHS_COL_X + DEATHS_COL_WIDTH + 2
+local KICKS_COL_WIDTH = 30
 local ROLE_BUTTON_X = SPEC_COL_X + SPEC_COL_WIDTH + 4
 
 -- These settings are temporarily hidden from Blizzard Settings.
@@ -218,6 +224,127 @@ local function BuildKeyAnnouncement(opts)
   return lines
 end
 
+local function CreateCdTrackerRow(mainFrame)
+  local row = CreateFrame("Frame", nil, mainFrame)
+  if type(row.CreateTexture) ~= "function" or type(row.CreateFontString) ~= "function" then
+    return nil
+  end
+  if type(row.SetHeight) == "function" then
+    row:SetHeight(20)
+  end
+  if type(row.SetPoint) == "function" then
+    row:SetPoint("BOTTOMLEFT", 10, CD_TRACKER_ROW_BOTTOM_OFFSET)
+    row:SetPoint("BOTTOMRIGHT", -10, CD_TRACKER_ROW_BOTTOM_OFFSET)
+  end
+
+  -- Both groups centered side by side: [BR_icon][BR_text]  [BL_icon][BL_text]
+  row.bresIcon = row:CreateTexture(nil, "OVERLAY")
+  if type(row.bresIcon.SetSize) == "function" then
+    row.bresIcon:SetSize(18, 18)
+  end
+  if type(row.bresIcon.SetPoint) == "function" then
+    row.bresIcon:SetPoint("CENTER", row, "CENTER", -90, 0)
+  end
+  if type(row.bresIcon.SetTexCoord) == "function" then
+    row.bresIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  end
+  row.bresIcon:Hide()
+
+  row.bresText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  row.bresText:SetPoint("LEFT", row.bresIcon, "RIGHT", 5, 0)
+  row.bresText:SetJustifyH("LEFT")
+  row.bresText:SetText("")
+
+  row.lustIcon = row:CreateTexture(nil, "OVERLAY")
+  if type(row.lustIcon.SetSize) == "function" then
+    row.lustIcon:SetSize(18, 18)
+  end
+  if type(row.lustIcon.SetPoint) == "function" then
+    row.lustIcon:SetPoint("CENTER", row, "CENTER", 20, 0)
+  end
+  if type(row.lustIcon.SetTexCoord) == "function" then
+    row.lustIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  end
+  row.lustIcon:Hide()
+
+  row.lustText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  row.lustText:SetPoint("LEFT", row.lustIcon, "RIGHT", 5, 0)
+  row.lustText:SetJustifyH("LEFT")
+  row.lustText:SetText("")
+
+  -- Cache spell icons once at creation time to avoid repeated API calls on every refresh.
+  local C_Spell_ref = rawget(_G, "C_Spell")
+  if type(C_Spell_ref) == "table" and type(C_Spell_ref.GetSpellTexture) == "function" then
+    local ok, tex = pcall(C_Spell_ref.GetSpellTexture, 20484)
+    if ok and tex then
+      row.bresIcon:SetTexture(tex)
+      row._bresIconReady = true
+    end
+    ok, tex = pcall(C_Spell_ref.GetSpellTexture, 2825)
+    if ok and tex then
+      row.lustIcon:SetTexture(tex)
+      row._lustDefaultIcon = tex
+      row._lustIconReady = true
+    end
+  end
+
+  return row
+end
+
+local function UpdateCdTrackerRow(row, cdController)
+  if not row or not cdController then
+    return
+  end
+
+  -- BRes: always show icon + text; if spell unavailable show "--"
+  do
+    if row._bresIconReady then
+      row.bresIcon:Show()
+    end
+    local bres = cdController.GetBResInfo()
+    if bres then
+      local charges = bres.charges or 0
+      local maxCharges = bres.maxCharges or 0
+      local remain = bres.cooldownRemain or 0
+      if remain > 0 then
+        local mins = math.floor(remain / 60)
+        local secs = math.floor(remain % 60)
+        row.bresText:SetText(string.format("%d/%d  %d:%02d", charges, maxCharges, mins, secs))
+      else
+        row.bresText:SetText(string.format("%d/%d", charges, maxCharges))
+      end
+    else
+      row.bresText:SetText("BR: --")
+    end
+  end
+
+  -- BL: always show icon + text; show countdown when active, "--" when inactive.
+  -- Use the aura's own icon when lust is active (covers Heroism, Time Warp variants),
+  -- fall back to the cached Bloodlust icon when inactive.
+  do
+    local lust = cdController.GetLustInfo()
+    if lust and lust.remain and lust.remain > 0 then
+      if lust.icon then
+        row.lustIcon:SetTexture(lust.icon)
+      end
+      if row._lustIconReady or lust.icon then
+        row.lustIcon:Show()
+      end
+      local mins = math.floor(lust.remain / 60)
+      local secs = math.floor(lust.remain % 60)
+      row.lustText:SetText(string.format("BL: %d:%02d", mins, secs))
+    else
+      if row._lustDefaultIcon then
+        row.lustIcon:SetTexture(row._lustDefaultIcon)
+      end
+      if row._lustIconReady then
+        row.lustIcon:Show()
+      end
+      row.lustText:SetText("BL: --")
+    end
+  end
+end
+
 local function CreateStatusLine(mainFrame)
   local statusLine = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   statusLine:SetPoint("BOTTOMLEFT", 10, 6)
@@ -240,9 +367,9 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
 
   row.hoverFrame = CreateFrame("Frame", nil, mainFrame)
   row.hoverFrame:SetPoint("TOPLEFT", 4, yOffset + 2)
-  -- Hover-Bereich endet an der rechten Kante der DPS-Spalte (DPS_COL_X + DPS_COL_WIDTH).
+  -- Hover-Bereich endet an der rechten Kante der Kicks-Spalte (KICKS_COL_X + KICKS_COL_WIDTH).
   -- Die Buttons (Readycheck, Countdown etc.) rechts davon lösen den Tooltip nicht aus.
-  row.hoverFrame:SetWidth(DPS_COL_X + DPS_COL_WIDTH - 4)
+  row.hoverFrame:SetWidth(KICKS_COL_X + KICKS_COL_WIDTH - 4)
   row.hoverFrame:SetHeight(16)
   if row.hoverFrame.EnableMouse then
     row.hoverFrame:EnableMouse(true)
@@ -287,7 +414,9 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
         row.getDungeonShortCode,
         row.getPlayerLastRunDps,
         row.getLanguageTooltipMarkup,
-        row.getL
+        row.getL,
+        row.getPlayerLastRunDeaths,
+        row.getPlayerLastRunKicks
       )
     then
       ShowRosterNameFallbackTooltip(rosterTooltip, row.hoverFrame, row.tooltipName, row.tooltipRealm)
@@ -356,6 +485,18 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   row.dps:SetWidth(DPS_COL_WIDTH)
   row.dps:SetJustifyH("RIGHT")
   DisableFontStringWrapping(row.dps)
+
+  row.deaths = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  row.deaths:SetPoint("TOPLEFT", DEATHS_COL_X, yOffset)
+  row.deaths:SetWidth(DEATHS_COL_WIDTH)
+  row.deaths:SetJustifyH("RIGHT")
+  DisableFontStringWrapping(row.deaths)
+
+  row.kicks = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  row.kicks:SetPoint("TOPLEFT", KICKS_COL_X, yOffset)
+  row.kicks:SetWidth(KICKS_COL_WIDTH)
+  row.kicks:SetJustifyH("RIGHT")
+  DisableFontStringWrapping(row.kicks)
 
   row.realm = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.realm:SetPoint("TOPLEFT", SERVER_COL_X, yOffset)
@@ -498,6 +639,34 @@ local function CreatePanelHeaders(mainFrame)
     dpsHeader:SetMaxLines(1)
   end
 
+  local deathsHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  deathsHeader:SetPoint("TOPLEFT", DEATHS_COL_X, -34)
+  deathsHeader:SetWidth(DEATHS_COL_WIDTH)
+  deathsHeader:SetJustifyH("RIGHT")
+  if deathsHeader.SetWordWrap then
+    deathsHeader:SetWordWrap(false)
+  end
+  if deathsHeader.SetNonSpaceWrap then
+    deathsHeader:SetNonSpaceWrap(false)
+  end
+  if deathsHeader.SetMaxLines then
+    deathsHeader:SetMaxLines(1)
+  end
+
+  local kicksHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  kicksHeader:SetPoint("TOPLEFT", KICKS_COL_X, -34)
+  kicksHeader:SetWidth(KICKS_COL_WIDTH)
+  kicksHeader:SetJustifyH("RIGHT")
+  if kicksHeader.SetWordWrap then
+    kicksHeader:SetWordWrap(false)
+  end
+  if kicksHeader.SetNonSpaceWrap then
+    kicksHeader:SetNonSpaceWrap(false)
+  end
+  if kicksHeader.SetMaxLines then
+    kicksHeader:SetMaxLines(1)
+  end
+
   local leadOptionsHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   leadOptionsHeader:SetPoint("TOPRIGHT", -111, -34)
   leadOptionsHeader:SetWidth(120)
@@ -546,6 +715,8 @@ local function CreatePanelHeaders(mainFrame)
     keyHeader = keyHeader,
     rioHeader = rioHeader,
     dpsHeader = dpsHeader,
+    deathsHeader = deathsHeader,
+    kicksHeader = kicksHeader,
     leadOptionsHeader = leadOptionsHeader,
     mplusManagementHeader = mplusManagementHeader,
     headerSepLeft = headerSepLeft,
@@ -562,6 +733,8 @@ local function CreateM2ColumnGuides(mainFrame)
     { key = "ilvl", x = ILVL_COL_X + ILVL_COL_WIDTH },
     { key = "rio", x = RIO_COL_X + RIO_COL_WIDTH },
     { key = "dps", x = DPS_COL_X + DPS_COL_WIDTH },
+    { key = "deaths", x = DEATHS_COL_X + DEATHS_COL_WIDTH },
+    { key = "kicks", x = KICKS_COL_X + KICKS_COL_WIDTH },
   }
 
   local guides = {}
@@ -883,6 +1056,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   local rosterTooltip = CreateRosterHoverTooltip(mainFrame)
   local tankButtons, tankHeader = CreateTankHelperButtons(mainFrame, panelTooltip, uiDeps.getL)
 
+  local cdTrackerRow = CreateCdTrackerRow(mainFrame)
   local statusLine = CreateStatusLine(mainFrame)
   local optionToggles = CreateSystemOptionToggles(mainFrame)
   local versionLine = CreateVersionLine(mainFrame, uiDeps.getAddonVersionText)
@@ -900,6 +1074,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     panelTooltip = panelTooltip,
     rosterTooltip = rosterTooltip,
     title = title,
+    cdTrackerRow = cdTrackerRow,
     statusLine = statusLine,
     versionLine = versionLine,
     raidNoticeLabel = raidNoticeLabel,
@@ -1034,12 +1209,18 @@ local function RenderRosterImpl(state, roster)
     row.ilvl:SetText("")
     row.rio:SetText("")
     row.dps:SetText("")
+    row.deaths:SetText("")
+    row.deaths:Hide()
+    row.kicks:SetText("")
+    row.kicks:Hide()
     row.unit = nil
     row.tooltipName = nil
     row.tooltipRealm = nil
     row.tooltipInfo = nil
     row.getDungeonShortCode = nil
     row.getPlayerLastRunDps = nil
+    row.getPlayerLastRunDeaths = nil
+    row.getPlayerLastRunKicks = nil
     row.getLanguageTooltipMarkup = nil
     row.getL = nil
     if row.hoverFrame then
@@ -1068,14 +1249,18 @@ local function RenderRosterImpl(state, roster)
     raidNoticeLabel:Hide()
   end
 
-  -- Temporarily hidden in Settings: keep the DPS column hard-enabled in runtime.
+  -- Temporarily hidden in Settings: keep the DPS/Deaths/Kicks columns hard-enabled in runtime.
   local showDpsColumn = FORCE_SHOW_DPS_COLUMN
-  if state.uiRef and state.uiRef.dpsHeader then
-    if showDpsColumn then
-      state.uiRef.dpsHeader:Show()
-    else
-      state.uiRef.dpsHeader:Hide()
+  if state.uiRef then
+    local function setHeaderVisible(key, visible)
+      local h = state.uiRef[key]
+      if h then
+        if visible then h:Show() else h:Hide() end
+      end
     end
+    setHeaderVisible("dpsHeader", showDpsColumn)
+    setHeaderVisible("deathsHeader", showDpsColumn)
+    setHeaderVisible("kicksHeader", showDpsColumn)
   end
 
   if state.uiRef and state.uiRef.tankButtons and not IsCombatLockdownActive() then
@@ -1232,12 +1417,31 @@ local function RenderRosterImpl(state, roster)
       row.dps:SetText("")
       row.dps:Hide()
     end
+    if showDps then
+      local deathsVal = type(state.getPlayerLastRunDeaths) == "function"
+        and state.getPlayerLastRunDeaths(info.name, info.realm)
+        or nil
+      row.deaths:SetText(deathsVal ~= nil and tostring(deathsVal) or "-")
+      row.deaths:Show()
+      local kicksVal = type(state.getPlayerLastRunKicks) == "function"
+        and state.getPlayerLastRunKicks(info.name, info.realm)
+        or nil
+      row.kicks:SetText(kicksVal ~= nil and tostring(kicksVal) or "-")
+      row.kicks:Show()
+    else
+      row.deaths:SetText("")
+      row.deaths:Hide()
+      row.kicks:SetText("")
+      row.kicks:Hide()
+    end
     row.unit = entry.unit
     row.tooltipName = info and info.name or nil
     row.tooltipRealm = info and info.realm or nil
     row.tooltipInfo = info
     row.getDungeonShortCode = state.getDungeonShortCode
     row.getPlayerLastRunDps = state.getPlayerLastRunDps
+    row.getPlayerLastRunDeaths = state.getPlayerLastRunDeaths
+    row.getPlayerLastRunKicks = state.getPlayerLastRunKicks
     row.getLanguageTooltipMarkup = state.getLanguageTooltipMarkup
     row.getL = state.getL
     if row.hoverFrame then
@@ -1253,8 +1457,9 @@ local function RenderRosterImpl(state, roster)
   shareKeysButton:SetEnabled(hasAnyKey)
   shareKeysButton:SetAlpha(hasAnyKey and 1 or 0.45)
 
+  local cdTrackerExtra = IsMainHorizontalLayoutMode(layoutMode) and CD_TRACKER_ROW_HEIGHT or 0
   local desiredHeight = isCollapsed and GetFrameHeightForLayoutMode(layoutMode, minFrameHeight)
-    or math.max(minFrameHeight, 45 + index * 16)
+    or math.max(minFrameHeight, 45 + index * 16) + cdTrackerExtra
   setMainFrameHeightSafe(desiredHeight)
 
   if state.uiRef then
@@ -1332,6 +1537,8 @@ function RosterPanel.CreateController(opts)
     shareKeysDebounceSeconds = 0
   end
   local getPlayerLastRunDps = type(opts.getPlayerLastRunDps) == "function" and opts.getPlayerLastRunDps or nil
+  local getPlayerLastRunDeaths = type(opts.getPlayerLastRunDeaths) == "function" and opts.getPlayerLastRunDeaths or nil
+  local getPlayerLastRunKicks = type(opts.getPlayerLastRunKicks) == "function" and opts.getPlayerLastRunKicks or nil
   local showRosterColumnGuides = type(opts.showRosterColumnGuides) == "function" and opts.showRosterColumnGuides
     or function()
       return false
@@ -1378,6 +1585,8 @@ function RosterPanel.CreateController(opts)
     ui.ilvlHeader:SetText(L.COL_ILVL)
     ui.rioHeader:SetText(L.COL_RIO)
     ui.dpsHeader:SetText(L.COL_DPS)
+    ui.deathsHeader:SetText(L.COL_DEATHS)
+    ui.kicksHeader:SetText(L.COL_KICKS)
     ui.leadOptionsHeader:SetText(L.LEAD_OPTIONS)
     ui.mplusManagementHeader:SetText(L.MPLUS_MANAGEMENT)
     readyCheckButton._fullText = L.BTN_READYCHECK
@@ -1496,6 +1705,8 @@ function RosterPanel.CreateController(opts)
       syncBadge = syncBadge,
       getPlayerSyncSummary = getPlayerSyncSummary,
       getPlayerLastRunDps = getPlayerLastRunDps,
+      getPlayerLastRunDeaths = getPlayerLastRunDeaths,
+      getPlayerLastRunKicks = getPlayerLastRunKicks,
       getL = getL,
       isRaidGroup = isRaidGroup,
       raidNoticeLabel = ui.raidNoticeLabel,
@@ -1506,6 +1717,16 @@ function RosterPanel.CreateController(opts)
 
   function controller.RefreshSystemOptionToggles()
     RefreshSystemOptionToggles(ui)
+  end
+
+  local cdController = nil
+
+  function controller.SetCdController(ctrl)
+    cdController = ctrl
+  end
+
+  function controller.RefreshCdTracker()
+    UpdateCdTrackerRow(ui.cdTrackerRow, cdController)
   end
 
   AttachControllerAccessors(controller, {

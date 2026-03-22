@@ -301,6 +301,7 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   config.captureRioBaselineSnapshot = callbacks.captureRioBaselineSnapshot
   config.restoreRioBaseline = callbacks.restoreRioBaseline
   config.enableRioDeltaDisplay = callbacks.enableRioDeltaDisplay
+  config.updateCdTracker = type(callbacks.updateCdTracker) == "function" and callbacks.updateCdTracker or function() end
   config.isReadyCheckActive = type(callbacks.isReadyCheckActive) == "function" and callbacks.isReadyCheckActive
     or function()
       return false
@@ -409,6 +410,13 @@ local function BuildEventHandlersDepsFromContext(ctx)
       setReadyCheckActive = ctx.setReadyCheckActive,
       enableRioDeltaDisplay = ctx.enableRioDeltaDisplay,
       setMainFrameHeightSafe = ctx.setMainFrameHeightSafe,
+      -- Late-bound: ctx.UpdateCdTracker is set after event handlers are wired,
+      -- so capture ctx by reference and resolve at call time.
+      updateCdTracker = function()
+        if type(ctx.UpdateCdTracker) == "function" then
+          ctx.UpdateCdTracker()
+        end
+      end,
     },
   }
 end

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-03-22 - Version 0.9.92
+- **Docs / Release Baseline:**
+  - Bumped TOC version to `0.9.92`.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.92`.
+  - `lua tools/validate_usecases.lua` now validates `338` deterministic tests indexed and `341` scenarios across `32` modules.
+- **UI / Stats / Utility Row:**
+  - Roster run stats now include `Deaths` and `Kicks` alongside `DPS`, with matching tooltip lines for completed runs.
+  - Added the live cooldown tracker row for `BRes` charges/cooldown and `Bloodlust`/`Heroism`/`Time Warp` countdowns.
+  - The `Esc` menu now also exposes a second travel strip with `Ark. Key`, `Hearthstone`, and `Housing`.
+
 ## 2026-03-22 - Version 0.9.91
 - **Docs / Release Baseline:**
   - Bumped TOC version to `0.9.91`.

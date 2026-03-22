@@ -479,6 +479,16 @@ local function InitializeFactorySecondaryControllers(ctx)
         end,
       })
     end
+    if modules.ui and type(modules.ui.EnsureSecondPanelUI) == "function" then
+      ctx.secondPanelUI = modules.ui.EnsureSecondPanelUI({
+        getL = ctx.GetL,
+        isInCombat = ctx.IsInCombat,
+        isEnabled = function()
+          return not IsiLiveDB or IsiLiveDB.showEscPanel ~= false
+        end,
+        firstPanelState = ctx.panelUI,
+      })
+    end
     ctx.rosterPanelController.ApplyLocalization()
     ctx.UpdateCountdownCancelButton()
     if ctx.centerNoticeTeleportButton and ctx.centerNoticeTeleportButton:IsShown() then
@@ -754,6 +764,30 @@ local function InitializeFactorySecondaryControllers(ctx)
   end
 
   ctx.SetProcessingActive = SetProcessingActive
+
+  if modules.cdTracker and type(modules.cdTracker.CreateController) == "function" then
+    ctx.cdTrackerController = modules.cdTracker.CreateController({ getTime = GetTime })
+    ctx.UpdateCdTracker = function()
+      ctx.cdTrackerController.Scan()
+      if ctx.rosterPanelController
+        and type(ctx.rosterPanelController.RefreshCdTracker) == "function"
+      then
+        ctx.rosterPanelController.RefreshCdTracker()
+      end
+    end
+    if ctx.rosterPanelController
+      and type(ctx.rosterPanelController.SetCdController) == "function"
+    then
+      ctx.rosterPanelController.SetCdController(ctx.cdTrackerController)
+    end
+    -- Ticker: scan + UI refresh every second for countdown timers (BL remaining time).
+    local C_Timer_ref = rawget(_G, "C_Timer")
+    if type(C_Timer_ref) == "table" and type(C_Timer_ref.NewTicker) == "function" then
+      C_Timer_ref.NewTicker(1.0, function()
+        ctx.UpdateCdTracker()
+      end)
+    end
+  end
 end
 FI.InitializeFactorySecondaryControllers = InitializeFactorySecondaryControllers
 

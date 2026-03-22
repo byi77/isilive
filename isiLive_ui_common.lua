@@ -434,8 +434,8 @@ end
 
 function UICommon.CreatePrivateTooltip(parent)
   local tooltipParent = rawget(_G, "UIParent") or parent
-  local tooltip = CreateFrame("Frame", nil, tooltipParent, "BackdropTemplate")
-  tooltip = EnsurePrivateTooltipAPI(tooltip)
+  local tooltipFrame = CreateFrame("Frame", nil, tooltipParent, "BackdropTemplate")
+  local tooltip = EnsurePrivateTooltipAPI(tooltipFrame)
   if type(tooltip) ~= "table" then
     return nil
   end

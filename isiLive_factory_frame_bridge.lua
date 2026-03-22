@@ -33,6 +33,7 @@ local function BuildFactoryModules(addonTable)
     runtimeLog = addonTable and addonTable.RuntimeLog,
     rosterPanel = addonTable and addonTable.RosterPanel,
     spellUtils = addonTable and addonTable.SpellUtils,
+    cdTracker = addonTable and addonTable.CdTracker,
     bindings = addonTable and addonTable.Bindings,
     eventUtils = addonTable and addonTable.EventUtils,
     bootstrap = addonTable and addonTable.Bootstrap,

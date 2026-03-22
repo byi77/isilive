@@ -85,6 +85,8 @@ local EVENT_REGISTRY = {
   { "BAG_UPDATE_DELAYED", false, false, false },
   { "CHALLENGE_MODE_MAPS_UPDATE", false, false, false },
   { "SPELL_UPDATE_COOLDOWN", false, false, false },
+  { "SPELL_UPDATE_CHARGES", true, false, false },
+  { "UNIT_AURA", true, false, false, "player" },
   { "READY_CHECK", true, false, false },
   { "READY_CHECK_CONFIRM", true, false, false },
   { "READY_CHECK_FINISHED", true, false, false },
@@ -158,7 +160,18 @@ function Bootstrap.RegisterMainFrameEvents(mainFrame)
   assert(mainFrame, "isiLive: Bootstrap.RegisterMainFrameEvents requires mainFrame")
 
   for _, entry in ipairs(EVENT_REGISTRY) do
-    mainFrame:RegisterEvent(entry[1])
+    local unitFilter = entry[5]
+    if unitFilter then
+      if type(mainFrame.RegisterUnitEvent) == "function" then
+        mainFrame:RegisterUnitEvent(entry[1], unitFilter)
+      elseif type(mainFrame.RegisterEvent) == "function" then
+        mainFrame:RegisterEvent(entry[1])
+      end
+    else
+      if type(mainFrame.RegisterEvent) == "function" then
+        mainFrame:RegisterEvent(entry[1])
+      end
+    end
   end
 end
 

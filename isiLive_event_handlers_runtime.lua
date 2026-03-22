@@ -370,6 +370,17 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.updateMPlusTeleportButton()
   end
 
+  local function HandleSpellUpdateChargesEvent(_self)
+    ctx.updateCdTracker()
+  end
+
+  local function HandleUnitAuraEvent(_self, unit)
+    if unit ~= "player" then
+      return
+    end
+    ctx.updateCdTracker()
+  end
+
   return {
     GROUP_ROSTER_UPDATE = HandleGroupRosterUpdateEvent,
     ADDON_LOADED = HandleAddonLoadedEvent,
@@ -387,5 +398,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     INSPECT_READY = HandleInspectReadyEvent,
     CHAT_MSG_ADDON = HandleChatMsgAddonEvent,
     SPELL_UPDATE_COOLDOWN = HandleSpellUpdateCooldownEvent,
+    SPELL_UPDATE_CHARGES = HandleSpellUpdateChargesEvent,
+    UNIT_AURA = HandleUnitAuraEvent,
   }
 end

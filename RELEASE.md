@@ -7,7 +7,7 @@ This is the canonical release flow for `isiLive` (repository/tag prefix remains 
 1. Update TOC version in `isiLive.toc`:
    - `## Version: x.y.z`
 2. Add a new entry at the top of `CHANGELOG.md`.
-   - For `0.9.91`, note the docs baseline bump: `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, and `isiLive.toc` now align to the new version.
+   - For `0.9.92`, note the docs baseline bump: `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, and `isiLive.toc` now align to the new version.
 3. Update `README.md` for user-visible behavior/layout changes.
 4. If season data was touched, verify docs explicitly state active `ACTIVE_SEASON_ID` and prepared-next season status (`README.md` + `CHANGELOG.md`).
 5. If runtime flow or UI behavior changed, update `ARCHITECTURE.md` and `USECASES.md`.
@@ -31,7 +31,7 @@ Expected: lint/style/metrics/usecase/rules checks pass.
 
 `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 324 deterministic tests indexed and 327 scenarios across 31 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/units/ui/roster-display/taint/tank-helper).
+`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 338 deterministic tests indexed and 341 scenarios across 32 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/cd-tracker/units/ui/roster-display/taint/tank-helper).
 
 Windows note: if metrics fail with missing LuaRocks modules (`lfs`, `luacheck.decoder`, `luacheck.parser`), set `LUA_PATH` and `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running the metrics check.
 
@@ -76,8 +76,8 @@ git push origin isiLive_beta_X.Y.Z
 Example:
 
 ```powershell
-git tag isiLive_release_0.9.91
-git push origin isiLive_release_0.9.91
+git tag isiLive_release_0.9.92
+git push origin isiLive_release_0.9.92
 ```
 
 ## 6) Verify GitHub Actions

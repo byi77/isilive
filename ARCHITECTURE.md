@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.91`
+Version baseline: `0.9.92`
 Last updated: `2026-03-22`
 
 ## Purpose
@@ -19,8 +19,8 @@ The architecture is event-driven and split into clear runtime layers:
 |---|---|---|
 | Entry and orchestration | Composition root, runtime state, wiring, controller lifecycle | `isiLive.lua`, `isiLive_runtime_state.lua`, `isiLive_bootstrap.lua`, `isiLive_runtime_setup.lua`, `isiLive_controller_wiring.lua`, `isiLive_factory.lua`, `isiLive_factory_frame_bridge.lua`, `isiLive_factory_controllers.lua` |
 | Event gate and dispatch | Enforce stop/pause/hidden/test behavior and route lifecycle handlers | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_utils.lua` |
-| Domain logic | Queue parsing, group model, highlight resolution, key sync, refresh, inspect, bounded run stats | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua` |
-| UI composition | Main frame, roster panel, optional game-menu side panel, Blizzard settings canvas, teleport grid, notices, status line | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_roster_layout.lua`, `isiLive_teleport_ui.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
+| Domain logic | Queue parsing, group model, highlight resolution, key sync, refresh, inspect, bounded run stats, cooldown tracker | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua`, `isiLive_cd_tracker.lua` |
+| UI composition | Main frame, roster panel, optional game-menu tooling/travel side panels, Blizzard settings canvas, cooldown tracker row, teleport grid, notices, status line | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_roster_layout.lua`, `isiLive_teleport_ui.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
 | Shared helpers and data | Locale, localized texts, units, season map/spell data, runtime logging, focused config builders, private tooltip/shared UI helpers, centralized backdrop presets | `isiLive_locale.lua`, `isiLive_texts.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_ui_common.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua` |
 
 ## Runtime Flow
@@ -30,7 +30,7 @@ WoW Event
   -> Event Gate (stopped/paused/hidden/test checks)
   -> Event Handler Aggregator
   -> Lifecycle Handler (runtime/queue/challenge)
-  -> Domain Controllers (queue/group/highlight/sync/inspect/refresh/stats)
+  -> Domain Controllers (queue/group/highlight/sync/inspect/refresh/stats/cd-tracker)
   -> Runtime State Update
   -> UI Controllers Render
 ```
@@ -57,7 +57,7 @@ WoW Event
 8. Do not clear queue-derived target on negative application follow-up events while already grouped.
 9. Mirror Blizzard CVar state for `advancedCombatLogging` and `damageMeterResetOnNewInstance` in the Blizzard settings canvas, write only on explicit user toggle clicks, and still trigger Blizzard damage-meter reset on challenge start when API support exists.
 10. Capture per-player RIO baseline on challenge start and enable delta rendering only after delayed post-run refresh; delta is always shown as non-negative `(+X)` prefix.
-11. Completed-run DPS capture must tolerate delayed Blizzard damage-meter availability through short deterministic retries for both `M+` and tracked non-challenge party exits (`Normal`/`Heroic`/`Mythic`).
+11. Completed-run stat capture must tolerate delayed Blizzard damage-meter availability through short deterministic retries for both `M+` and tracked non-challenge party exits (`Normal`/`Heroic`/`Mythic`), feeding the `DPS`/`Deaths`/`Kicks` roster columns.
 12. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
 13. Keep sync handshake resilient: HELLO recipients acknowledge with `ACK`, explicit local refresh force-sends the local `HELLO/KEY/STATS/DPS/LOC` snapshot, and manual `REQSYNC` refresh requests may trigger one hidden `KEY/STATS/DPS/LOC` reply when locally allowed.
 14. In hidden mode, suspend queue scanning and permanent polling; keep background roster/addon-message sync plus required auto-open transitions active, allow event-driven pre-render updates, and permit one forced refresh reply without un-hiding the frame.
@@ -66,8 +66,8 @@ WoW Event
 17. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures where Blizzard tooltip APIs are still referenced.
 18. Shared `isiLive` tooltip frames own their own text layout and must not route UI hover rendering back through the shared Blizzard `GameTooltip`.
 19. Raid-size groups force the visible roster panel into H mode, hide roster rows, and suppress duplicate raid-transition notifications until the group leaves raid size again.
-20. The optional game-menu shortcut strip closes the menu before opening its target panel; `ReloadUI` is owned by a secure macro button (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`, defers blocked secure refreshes to `PLAYER_REGEN_ENABLED`, while the other entries keep direct opener paths for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, and `Guild`.
-21. Temporarily hidden legacy settings controls stay absent from Blizzard Settings while runtime enforces their fixed defaults (`DPS` on, markers leader-only off, sound off, fixed name truncation, legacy 2-column `Travel` grid) until the controls are re-enabled.
+20. The optional game-menu tooling strip closes the menu before opening its target panel; `ReloadUI` is owned by a secure macro button (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`, defers blocked secure refreshes to `PLAYER_REGEN_ENABLED`, while the other entries keep direct opener paths for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, and `Guild`. The secondary travel strip stays further left and exposes `Ark. Key`, `Hearthstone`, and `Housing`.
+21. Temporarily hidden legacy settings controls stay absent from Blizzard Settings while runtime enforces their fixed defaults (`DPS`, `Deaths`, and `Kicks` on, markers leader-only off, sound off, fixed name truncation, legacy 2-column `Travel` grid) until the controls are re-enabled.
 
 ## Architecture Contract Set
 
@@ -97,14 +97,14 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 324 deterministic tests indexed and 327 scenarios across 31 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/roster-panel-layout/status/stats/units/ui/roster-display/taint/tank-helper logic.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 338 deterministic tests indexed and 341 scenarios across 32 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/roster-panel-layout/status/stats/cd-tracker/units/ui/roster-display/taint/tank-helper logic.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiLive                                                                          V.0.9.91 [H][V][M][X]|
+| isiLive                                                                          V.0.9.92 [H][V][M][X]|
 |---------------------------------------------------------------------------------------------------|
-| Spec   Name         Flag Key     iLvl RIO        DPS    M+Managment  Marker    Travel              |
+| Spec   Name         Flag Key     iLvl RIO        DPS Deaths Kicks   M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
 | [Tank] PlayerOne    [ ]  DB +14  633  (+12)3521 321.1K  [Blue]              [Readycheck]          |
 | [Heal] PlayerTwo    [ ]  DAWN+12 629  (+0)3410  287.4K  [Grn]               [Countdown10]         |
@@ -113,6 +113,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 | [DPS]  PlayerFive   [ ]  OFG+11  628  3333      298.2K  [Yel]               [Refresh]             |
 |                                               ... [Circle] [Moon] [Skull] ...                     |
 |                                                                             [Teleport Grid...]    |
+| BR: 2/3 06:20  BL: 05:00                                                                        |
 |---------------------------------------------------------------------------------------------------|
 | Lead: Yes   M+: Active   State: Running   Dungeon: Mythic   Target Dungeon: Ara-Kara +14          |
 +---------------------------------------------------------------------------------------------------+
@@ -139,7 +140,7 @@ Horizontal Mini Mode:
 +-------------------------------------+
 ```
 
-In addition to the main roster frame, `isiLive_ui.lua` can attach an optional shortcut panel left of `GameMenuFrame`, and `isiLive_settings.lua` registers the Blizzard Settings canvas for localized config/state mirrors.
+In addition to the main roster frame, `isiLive_ui.lua` can attach optional tooling and travel panels left of `GameMenuFrame`, and `isiLive_settings.lua` registers the Blizzard Settings canvas for localized config/state mirrors.
 
 ## Current Controller Boundaries
 
@@ -154,8 +155,9 @@ In addition to the main roster frame, `isiLive_ui.lua` can attach an optional sh
 | EventHandlersRuntime | Addon/world/combat/inspect/sync events | Startup, hidden-mode sync, regen recovery for pending visibility/height, inspect dispatch |
 | EventHandlersQueue | LFG queue/listing events | Queue capture, target preservation, joined-key tracking |
 | EventHandlersChallenge | Challenge and ready-check events | Run lifecycle, delayed refresh, rio delta enable, ready-check state |
-| Stats | Challenge/non-challenge party run completion signals plus Blizzard damage-meter session | Bounded last-run DPS snapshots with short delayed-session retry (persistent only for the matching local character, foreign players session-only) |
-| RosterPanel | Roster model and localization | Main table rendering and action button callbacks |
+| Stats | Challenge/non-challenge party run completion signals plus Blizzard damage-meter session | Bounded last-run DPS/Deaths/Kicks snapshots with short delayed-session retry (persistent only for the matching local character, foreign players session-only) |
+| CdTracker | Battle-res and Bloodlust aura scans | Live BRes charges/cooldown and Lust countdown row state |
+| RosterPanel | Roster model and localization | Main table rendering, DPS/Deaths/Kicks columns, CD tracker row, and action button callbacks |
 | SettingsPanel | Locale/CVar/SavedVariable getters plus toggle callbacks | Blizzard Settings canvas, language selector, visible display/behavior/debug toggles, UI/background sliders, default-open layout selector, optional roster column-guide toggle, and temporary legacy-setting suppression |
 | TeleportUI | Season teleport entries and state | Insecure-action teleport button states, deterministic season-slot placement, legacy 2-column travel layout, and cooldown labels |
 

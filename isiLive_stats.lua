@@ -150,6 +150,8 @@ local function CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
         snapshot[key] = {
           dps = dps,
           totalDamage = tonumber(source.totalAmount),
+          deaths = tonumber(source.deathCount),
+          kicks = tonumber(source.interruptCount),
           mapID = tonumber(mapID),
           level = tonumber(level),
           onTime = onTime and true or false,
@@ -208,7 +210,7 @@ function Stats.CreateController(opts)
     return recordedAnyPlayer
   end
 
-  function controller.GetPlayerLastRunDps(name, realm)
+  local function GetPlayerLastRunInfo(name, realm)
     EnsureInitialized()
     if not name or not IsiLiveDB or not IsiLiveDB.stats then
       return nil
@@ -221,10 +223,22 @@ function Stats.CreateController(opts)
         or nil
       info = persistentLastRuns and persistentLastRuns[localPlayerKey] or nil
     end
-    if type(info) ~= "table" then
-      return nil
-    end
-    return tonumber(info.dps)
+    return type(info) == "table" and info or nil
+  end
+
+  function controller.GetPlayerLastRunDps(name, realm)
+    local info = GetPlayerLastRunInfo(name, realm)
+    return info and tonumber(info.dps) or nil
+  end
+
+  function controller.GetPlayerLastRunDeaths(name, realm)
+    local info = GetPlayerLastRunInfo(name, realm)
+    return info and tonumber(info.deaths) or nil
+  end
+
+  function controller.GetPlayerLastRunKicks(name, realm)
+    local info = GetPlayerLastRunInfo(name, realm)
+    return info and tonumber(info.kicks) or nil
   end
 
   return controller

@@ -15,6 +15,7 @@ local PANEL_UI_BUTTON_GAP = 1
 local PANEL_UI_SECTION_BREAK_GAP = 10
 local PANEL_UI_OFFSET_X = -60
 local PANEL_UI_OFFSET_Y = 0
+local SECOND_PANEL_GAP = 10
 local PANEL_UI_PADDING_X = 10
 local PANEL_UI_PADDING_TOP = 10
 local PANEL_UI_PADDING_BOTTOM = 10
@@ -87,7 +88,40 @@ local PANEL_UI_ENTRIES = {
     secureMacroText = "/click GameMenuButtonContinue\n/reload",
   },
 }
+-- Hearthstone toy IDs sourced from TeleportMenu (github.com/Justw8/TeleportMenu)
+local HEARTHSTONE_TOY_IDS = {
+  54452, 64488, 93672, 142542, 162973, 163045, 163206, 165669, 165670,
+  165802, 166746, 166747, 168907, 172179, 188952, 190196, 190237, 193588,
+  200630, 206195, 208704, 209035, 212337, 228940, 235016, 236687, 245970,
+  246565, 257736, 263489, 263933, 265100,
+}
+local housingSecureButton = nil
+local housingDataEventFrame = nil
+local SECOND_PANEL_UI_ENTRIES = {
+  {
+    id = "arkanatine_key",
+    labelKey = "BTN_SECOND_ARKANATINE_KEY",
+    fallbackText = "Ark. Key",
+    icon = "Interface\\Icons\\INV_Misc_Key_14",
+    secureMacroText = "/use Persönlicher Schlüssel zur Arkantine",
+  },
+  {
+    id = "hearthstone",
+    labelKey = "BTN_SECOND_HEARTHSTONE",
+    fallbackText = "Hearthstone",
+    icon = "Interface\\Icons\\INV_Misc_Rune_04",
+    isSecure = true,
+  },
+  {
+    id = "housing_plot",
+    labelKey = "BTN_SECOND_HOUSING",
+    fallbackText = "Housing",
+    icon = "Interface\\Icons\\achievement_guild_buyabuilding",
+    isSecure = true,
+  },
+}
 local panelUIState = nil
+local secondPanelUIState = nil
 local PositionPanelUIButtons
 local ApplyPanelUISecureState
 local panelUISecureRetryFrame
@@ -698,7 +732,9 @@ PositionPanelUIButtons = function(state)
   if type(hostFrame.ClearAllPoints) == "function" then
     hostFrame:ClearAllPoints()
   end
-  hostFrame:SetPoint("TOPRIGHT", gameMenuFrame, "TOPLEFT", PANEL_UI_OFFSET_X, PANEL_UI_OFFSET_Y)
+  local anchorFrame = state.positionAnchorFrame or gameMenuFrame
+  local anchorOffsetX = type(state.positionOffsetX) == "number" and state.positionOffsetX or PANEL_UI_OFFSET_X
+  hostFrame:SetPoint("TOPRIGHT", anchorFrame, "TOPLEFT", anchorOffsetX, PANEL_UI_OFFSET_Y)
   hostFrame:SetSize(panelWidth, panelHeight)
   if gameMenuFrame.IsShown and gameMenuFrame:IsShown() then
     hostFrame:Show()
@@ -728,7 +764,8 @@ PositionPanelUIButtons = function(state)
       header:SetPoint("TOPLEFT", panelFrame, "TOPLEFT", PANEL_UI_PADDING_X, -PANEL_UI_PADDING_TOP)
     end
     if type(header.SetText) == "function" then
-      local headerText = type(L.PANEL_HEADER_SHORTCUTS) == "string" and L.PANEL_HEADER_SHORTCUTS or "Shortcuts"
+      local headerLKey = type(state.headerLKey) == "string" and state.headerLKey or "PANEL_HEADER_SHORTCUTS"
+      local headerText = type(L[headerLKey]) == "string" and L[headerLKey] or "Shortcuts"
       header:SetText(headerText)
     end
     if type(header.Show) == "function" then
@@ -896,6 +933,7 @@ function UI.EnsurePanelUI(opts)
     actions = MergePanelUIActions(opts.isInCombat, actionOverrides),
     isEnabled = opts.isEnabled,
     isInCombat = type(opts.isInCombat) == "function" and opts.isInCombat or nil,
+    headerLKey = "PANEL_HEADER_TOOLING",
     buttons = {},
     buttonsById = {},
     anchor = nil,
@@ -934,8 +972,20 @@ function UI.EnsurePanelUI(opts)
         return
       end
       ApplyPanelUISecureState(state)
-      if state.hostFrame and type(state.hostFrame.Show) == "function" then
-        state.hostFrame:Show()
+      -- Defer Show() one frame to escape the secure SetAttribute call chain
+      -- (ShowUIPanel → SetAttribute). Calling Frame:Show() directly here triggers
+      -- ADDON_ACTION_BLOCKED.
+      local timer = rawget(_G, "C_Timer")
+      local after = type(timer) == "table" and rawget(timer, "After") or nil
+      local function doShow()
+        if state.hostFrame and type(state.hostFrame.Show) == "function" then
+          state.hostFrame:Show()
+        end
+      end
+      if type(after) == "function" then
+        after(0, doShow)
+      else
+        doShow()
       end
     end)
     gameMenuFrame:HookScript("OnHide", function()
@@ -1027,6 +1077,228 @@ function UI.EnsurePanelUI(opts)
 end
 
 UI.EnsureGameMenuMicroButtons = UI.EnsurePanelUI
+
+function UI.EnsureSecondPanelUI(opts)
+  opts = opts or {}
+
+  local gameMenuFrame = opts.gameMenuFrame or rawget(_G, "GameMenuFrame")
+  if type(gameMenuFrame) ~= "table" then
+    return nil
+  end
+
+  local firstPanelState = opts.firstPanelState
+  if type(firstPanelState) ~= "table" or type(firstPanelState.hostFrame) ~= "table" then
+    return nil
+  end
+
+  if type(secondPanelUIState) == "table" and secondPanelUIState.gameMenuFrame == gameMenuFrame then
+    if type(opts.getL) == "function" then
+      secondPanelUIState.getL = opts.getL
+    end
+    secondPanelUIState.isEnabled = opts.isEnabled
+    secondPanelUIState.isInCombat = type(opts.isInCombat) == "function" and opts.isInCombat or nil
+    secondPanelUIState.positionAnchorFrame = firstPanelState.hostFrame
+    ApplyPanelUISecureState(secondPanelUIState)
+    ApplyPanelUILocalization(secondPanelUIState)
+    return secondPanelUIState
+  end
+
+  local state = {
+    gameMenuFrame = gameMenuFrame,
+    getL = type(opts.getL) == "function" and opts.getL or function()
+      return {}
+    end,
+    isEnabled = opts.isEnabled,
+    isInCombat = type(opts.isInCombat) == "function" and opts.isInCombat or nil,
+    positionAnchorFrame = firstPanelState.hostFrame,
+    positionOffsetX = -SECOND_PANEL_GAP,
+    headerLKey = "PANEL_HEADER_TRAVEL",
+    buttons = {},
+    buttonsById = {},
+    anchor = nil,
+  }
+
+  local hostParent = opts.parent or rawget(_G, "UIParent") or gameMenuFrame
+  local frameStrata = type(gameMenuFrame.GetFrameStrata) == "function" and gameMenuFrame:GetFrameStrata() or nil
+  local baseFrameLevel = type(gameMenuFrame.GetFrameLevel) == "function" and gameMenuFrame:GetFrameLevel() or 1
+  state.frameStrata = frameStrata
+  state.baseFrameLevel = baseFrameLevel
+
+  local hostFrame = CreateFrame("Frame", nil, hostParent)
+  if frameStrata ~= nil and type(hostFrame.SetFrameStrata) == "function" then
+    hostFrame:SetFrameStrata(frameStrata)
+  end
+  if type(hostFrame.SetFrameLevel) == "function" then
+    hostFrame:SetFrameLevel(baseFrameLevel + 10)
+  end
+  if type(hostFrame.EnableMouse) == "function" then
+    hostFrame:EnableMouse(true)
+  end
+  state.hostFrame = hostFrame
+  state.buttonWidth, state.buttonHeight = ResolvePanelUIButtonSize(gameMenuFrame)
+
+  local panelFrame = CreateFrame("Frame", nil, hostFrame, "BackdropTemplate")
+  if frameStrata ~= nil and type(panelFrame.SetFrameStrata) == "function" then
+    panelFrame:SetFrameStrata(frameStrata)
+  end
+  if type(panelFrame.SetFrameLevel) == "function" then
+    panelFrame:SetFrameLevel(baseFrameLevel + 10)
+  end
+  ApplyPanelUIBackdrop(panelFrame)
+  state.panelFrame = panelFrame
+
+  if type(gameMenuFrame.HookScript) == "function" then
+    gameMenuFrame:HookScript("OnShow", function()
+      if type(state.isEnabled) == "function" and not state.isEnabled() then
+        return
+      end
+      ApplyPanelUISecureState(state)
+      local timer = rawget(_G, "C_Timer")
+      local after = type(timer) == "table" and rawget(timer, "After") or nil
+      local function doShow()
+        if state.hostFrame and type(state.hostFrame.Show) == "function" then
+          state.hostFrame:Show()
+        end
+      end
+      if type(after) == "function" then
+        after(0, doShow)
+      else
+        doShow()
+      end
+    end)
+    gameMenuFrame:HookScript("OnHide", function()
+      RunAfterGameMenuClose(function()
+        if type(state.gameMenuFrame) == "table" and state.gameMenuFrame.IsShown and state.gameMenuFrame:IsShown() then
+          return
+        end
+        if state.hostFrame and type(state.hostFrame.Hide) == "function" then
+          state.hostFrame:Hide()
+        end
+      end)
+    end)
+  end
+
+  if type(panelFrame.CreateFontString) == "function" then
+    state.shortcutsHeader = panelFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    if type(state.shortcutsHeader.SetTextColor) == "function" then
+      local td = Colors.TEXT_DIM
+      state.shortcutsHeader:SetTextColor(td[1], td[2], td[3], 1)
+    end
+    if type(state.shortcutsHeader.SetJustifyH) == "function" then
+      state.shortcutsHeader:SetJustifyH("LEFT")
+    end
+  end
+
+  if type(panelFrame.CreateTexture) == "function" then
+    state.shortcutsHeaderLine = panelFrame:CreateTexture(nil, "ARTWORK")
+    if type(state.shortcutsHeaderLine.SetHeight) == "function" then
+      state.shortcutsHeaderLine:SetHeight(1)
+    end
+    if type(state.shortcutsHeaderLine.SetColorTexture) == "function" then
+      local ab = Colors.ACCENT_BLUE
+      state.shortcutsHeaderLine:SetColorTexture(ab[1], ab[2], ab[3], 0.3)
+    end
+  end
+
+  for index, entry in ipairs(SECOND_PANEL_UI_ENTRIES) do
+    local isSecureMacro = type(entry.secureMacroText) == "string"
+    local isSecure = isSecureMacro or entry.isSecure == true
+    local buttonTemplate = isSecure and "SecureActionButtonTemplate,BackdropTemplate" or "BackdropTemplate"
+    local buttonParent = isSecure and gameMenuFrame or panelFrame
+    local button = CreatePanelUIButton(
+      buttonParent,
+      frameStrata,
+      baseFrameLevel,
+      10 + index,
+      entry.icon,
+      buttonTemplate,
+      isSecure
+    )
+
+    button._actionId = entry.id
+    button._labelKey = entry.labelKey
+    button._fallbackText = entry.fallbackText
+    button._gapBefore = math.max(0, tonumber(entry.gapBefore) or PANEL_UI_BUTTON_GAP)
+    button._verticalIndex = index
+    button._secureMacroText = entry.secureMacroText
+
+    if (entry.id == "hearthstone" or entry.id == "housing_plot") and type(button.SetAttribute) == "function" then
+      local clickBinding, useOnKeyDown = ResolveSecureClickBinding()
+      if type(button.RegisterForClicks) == "function" then
+        button:RegisterForClicks(clickBinding)
+      end
+      button:SetAttribute("useOnKeyDown", useOnKeyDown)
+    end
+
+    if entry.id == "hearthstone" and type(button.SetAttribute) == "function" then
+      local playerHasToy = rawget(_G, "PlayerHasToy")
+      if type(playerHasToy) == "function" then
+        for _, toyId in ipairs(HEARTHSTONE_TOY_IDS) do
+          if playerHasToy(toyId) then
+            button:SetAttribute("type", "toy")
+            button:SetAttribute("toy", toyId)
+            break
+          end
+        end
+      end
+    elseif entry.id == "housing_plot" and type(button.SetAttribute) == "function" then
+      housingSecureButton = button
+      if not housingDataEventFrame then
+        housingDataEventFrame = CreateFrame("Frame")
+        housingDataEventFrame:SetScript("OnEvent", function(self, event, housingInfo)
+          if event ~= "PLAYER_HOUSE_LIST_UPDATED" then
+            return
+          end
+          self:UnregisterEvent("PLAYER_HOUSE_LIST_UPDATED")
+          local info = type(housingInfo) == "table" and housingInfo[1] or nil
+          local btn = housingSecureButton
+          if type(info) ~= "table" or type(btn) ~= "table" or type(btn.SetAttribute) ~= "function" then
+            return
+          end
+          local inCombat = rawget(_G, "InCombatLockdown")
+          if type(inCombat) == "function" and inCombat() then
+            return
+          end
+          btn:SetAttribute("type", "teleporthome")
+          btn:SetAttribute("house-neighborhood-guid", info.neighborhoodGUID)
+          btn:SetAttribute("house-guid", info.houseGUID)
+          btn:SetAttribute("house-plot-id", info.plotID)
+        end)
+      end
+      housingDataEventFrame:RegisterEvent("PLAYER_HOUSE_LIST_UPDATED")
+      local cHousing = rawget(_G, "C_Housing")
+      if type(cHousing) == "table" and type(cHousing.GetPlayerOwnedHouses) == "function" then
+        pcall(cHousing.GetPlayerOwnedHouses)
+      end
+    elseif not isSecureMacro then
+      button:SetScript("OnClick", function(self)
+        local action = state.actions and state.actions[self._actionId]
+        if type(action) ~= "function" then
+          return
+        end
+        HideGameMenuFrame(state.gameMenuFrame)
+        RunAfterGameMenuClose(action)
+      end)
+    end
+
+    state.buttons[index] = button
+    state.buttonsById[entry.id] = button
+  end
+
+  function state.ApplyLocalization()
+    ApplyPanelUISecureState(state)
+    ApplyPanelUILocalization(state)
+  end
+
+  state.SyncVisibility = function()
+    ApplyPanelUISecureState(state)
+  end
+
+  secondPanelUIState = state
+  ApplyPanelUISecureState(state)
+  ApplyPanelUILocalization(state)
+  return state
+end
 
 local function SavePosition(target)
   if not IsiLiveDB then

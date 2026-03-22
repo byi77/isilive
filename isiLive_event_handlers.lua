@@ -87,6 +87,7 @@ local function BuildContext(opts)
   ctx.captureRioBaselineSnapshot = OptionalFunction(opts.captureRioBaselineSnapshot, function() end)
   ctx.restoreRioBaseline = OptionalFunction(opts.restoreRioBaseline, function() end)
   ctx.enableRioDeltaDisplay = OptionalFunction(opts.enableRioDeltaDisplay, function() end)
+  ctx.updateCdTracker = OptionalFunction(opts.updateCdTracker, function() end)
   ctx.timerAfter = OptionalFunction(opts.timerAfter, nil)
   ctx.getTime = OptionalFunction(opts.getTime, GetTime)
 

@@ -89,6 +89,8 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     getTime = ctx.getTime,
     shareKeysDebounceSeconds = ctx.shareKeysDebounceSeconds,
     getPlayerLastRunDps = ctx.getPlayerLastRunDps,
+    getPlayerLastRunDeaths = ctx.getPlayerLastRunDeaths,
+    getPlayerLastRunKicks = ctx.getPlayerLastRunKicks,
   })
 
   return {
@@ -131,6 +133,8 @@ function ControllerInit.CreateControllers(ctx)
   result.statsController = statsController
   -- Inject stats getters into context for downstream consumers
   ctx.getPlayerLastRunDps = statsController.GetPlayerLastRunDps
+  ctx.getPlayerLastRunDeaths = statsController.GetPlayerLastRunDeaths
+  ctx.getPlayerLastRunKicks = statsController.GetPlayerLastRunKicks
   result.recordRun = statsController.RecordRun
 
   local keySyncResult = CreateKeySyncController(ctx)
