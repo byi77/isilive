@@ -494,10 +494,7 @@ local function ResolveBlizzardTooltipUnit(tooltip, unit, tooltipData, preferTool
   if preferTooltipDataOnly then
     -- Use unitToken from tooltip data directly; avoids UnitTokenFromGUID which returns tainted
     -- strings inside securecallfunction contexts (e.g. SetWorldCursor → SetAttribute).
-    if type(tooltipData) == "table"
-      and type(tooltipData.unitToken) == "string"
-      and tooltipData.unitToken ~= ""
-    then
+    if type(tooltipData) == "table" and type(tooltipData.unitToken) == "string" and tooltipData.unitToken ~= "" then
       return tooltipData.unitToken
     end
     return nil
