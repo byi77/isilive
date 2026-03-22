@@ -71,7 +71,7 @@ local function BuildPortalNavigatorConfig(opts)
     height = tonumber(opts.height) or 240,
     yOffset = tonumber(opts.yOffset) or tonumber(opts.height) or 240,
     frameAlpha = tonumber(opts.frameAlpha) or 1,
-    backgroundAlpha = tonumber(opts.backgroundAlpha) or 0.5,
+    backgroundAlpha = tonumber(opts.backgroundAlpha) or 0.72,
     fontDelta = tonumber(opts.fontDelta) or 10,
     paddingX = tonumber(opts.paddingX) or 24,
     paddingY = tonumber(opts.paddingY) or 14,
@@ -169,6 +169,17 @@ local function CreatePortalNavigatorTitle(frame, config)
   return title
 end
 
+local function CreatePortalNavigatorSeparator(frame)
+  if type(frame.CreateTexture) ~= "function" then
+    return
+  end
+  local sep = frame:CreateTexture(nil, "ARTWORK")
+  sep:SetHeight(1)
+  sep:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -46)
+  sep:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20, -46)
+  sep:SetColorTexture(1, 0.82, 0.25, 0.35)
+end
+
 local PORTAL_NAVIGATOR_SLOT_POINTS = {
   half_left = { point = "TOPLEFT", x = 60, y = -78 },
   left = { point = "LEFT", x = 60, y = -24 },
@@ -189,12 +200,8 @@ local function CreatePortalNavigatorEntry(frame, config, slot)
 
   local pointDef = PORTAL_NAVIGATOR_SLOT_POINTS[slot] or PORTAL_NAVIGATOR_SLOT_POINTS.left
   text:SetPoint(pointDef.point, frame, pointDef.point, pointDef.x, pointDef.y)
-  text:SetTextColor(1, 1, 1)
+  text:SetTextColor(1, 0.92, 0.7)
   return text
-end
-
-local function FormatPortalNavigatorEntryText(destination)
-  return tostring(destination or "")
 end
 
 local function ClearPortalNavigatorEntries(state)
@@ -232,7 +239,7 @@ local function ApplyPortalNavigatorLayout(state, layout)
     local textFrame = state.entries[slot]
     local entry = entryMap[slot]
     if textFrame and entry then
-      textFrame:SetText(FormatPortalNavigatorEntryText(entry.destination))
+      textFrame:SetText(tostring(entry.destination or ""))
     elseif textFrame then
       textFrame:SetText("")
     end
@@ -705,6 +712,7 @@ function Notice.CreatePortalNavigatorNotice(opts)
   local config = BuildPortalNavigatorConfig(opts)
   local frame = CreatePortalNavigatorFrame(config)
   local titleText = CreatePortalNavigatorTitle(frame, config)
+  CreatePortalNavigatorSeparator(frame)
   local closeButton = CreateCenterNoticeCloseButton(frame)
   local entries = {
     half_left = CreatePortalNavigatorEntry(frame, config, "half_left"),

@@ -2355,7 +2355,7 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
       Assert.Equal(bgR, 0.05, "portal navigator background should keep the configured red channel")
       Assert.Equal(bgG, 0.05, "portal navigator background should keep the configured green channel")
       Assert.Equal(bgB, 0.08, "portal navigator background should keep the configured blue channel")
-      Assert.Equal(bgA, 0.5, "portal navigator background should render at 50 percent alpha")
+      Assert.Equal(bgA, 0.72, "portal navigator background should render at the configured alpha")
 
       portalNotice.SetVisible(false)
       Assert.True(not portalNotice.frame:IsShown(), "portal navigator should hide cleanly")
@@ -2430,22 +2430,22 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
       Assert.Equal(
         portalNotice.entries.half_left:GetText(),
         "Grube von Saron",
-        "upper-left portal should show only the destination name"
+        "upper-left portal should show the destination name"
       )
       Assert.Equal(
         portalNotice.entries.left:GetText(),
         "Himmelsnadel",
-        "lower-left portal should show only the destination name"
+        "lower-left portal should show the destination name"
       )
       Assert.Equal(
         portalNotice.entries.right:GetText(),
         "Sitz des Triumvirats",
-        "lower-right portal should show only the destination name"
+        "lower-right portal should show the destination name"
       )
       Assert.Equal(
         portalNotice.entries.half_right:GetText(),
         "Akademie von Algeth'ar",
-        "upper-right portal should show only the destination name"
+        "upper-right portal should show the destination name"
       )
     end)
   end)

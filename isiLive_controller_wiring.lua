@@ -410,11 +410,23 @@ local function BuildEventHandlersDepsFromContext(ctx)
       setReadyCheckActive = ctx.setReadyCheckActive,
       enableRioDeltaDisplay = ctx.enableRioDeltaDisplay,
       setMainFrameHeightSafe = ctx.setMainFrameHeightSafe,
-      -- Late-bound: ctx.UpdateCdTracker is set after event handlers are wired,
-      -- so capture ctx by reference and resolve at call time.
+      -- Late-bound: ctx.UpdateCdTracker / ctx.baselineCdTracker are set after event
+      -- handlers are wired, so capture ctx by reference and resolve at call time.
       updateCdTracker = function()
         if type(ctx.UpdateCdTracker) == "function" then
           ctx.UpdateCdTracker()
+        end
+      end,
+      baselineCdTracker = function(seconds)
+        if type(ctx.baselineCdTracker) == "function" then
+          ctx.baselineCdTracker(seconds)
+        end
+      end,
+      -- Late-bound: ctx.cdTrackerController is set after event handlers are wired.
+      notifyCdTrackerSpellCast = function(spellId)
+        local ctrl = ctx.cdTrackerController
+        if type(ctrl) == "table" and type(ctrl.NotifySpellCast) == "function" then
+          ctrl.NotifySpellCast(spellId)
         end
       end,
     },

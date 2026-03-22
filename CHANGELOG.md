@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-03-23 - Version 0.9.93
+- **Sound / Leader Promotion:**
+  - Plays `sounds/CartoonVoiceBaritone.ogg` (Master channel) when the local player is promoted to group leader via `PARTY_LEADER_CHANGED`.
+  - Sound fires even when the isiLive frame is hidden; uses `PlaySoundFile` directly instead of `SOUNDKIT` constants.
+- **Sound / Bloodlust & Heroism:**
+  - Plays `sounds/BoxingArenaSound.ogg` (Master channel) on Bloodlust / Heroism / Time Warp onset, detected via `CdTracker`.
+  - `CdTracker` gains an `onLustStart` callback and a `SuppressOnset(seconds)` method to prevent false positives from auras briefly disappearing during zone transitions or reloads.
+  - `baselineCdTracker` (calls `SuppressOnset(3)`) is now wired into both `PLAYER_ENTERING_WORLD` and all `ZONE_CHANGED*` / `UPDATE_INSTANCE_INFO` handlers, covering portal traversals that do not trigger a loading screen.
+- **Assets / Git:**
+  - `sounds/` directory added; all sound files ignored by default except the two actively used (`CartoonVoiceBaritone.ogg`, `BoxingArenaSound.ogg`).
+- **UI / Portal Navigator:**
+  - Dungeon name text color changed from plain white to warm cream-gold for better visual harmony with the title.
+  - Background alpha increased from `0.5` to `0.72` for improved readability.
+  - Added a subtle gold separator line below the title to give the overlay more visual structure.
+
 ## 2026-03-22 - Version 0.9.92
 - **Docs / Release Baseline:**
   - Bumped TOC version to `0.9.92`.

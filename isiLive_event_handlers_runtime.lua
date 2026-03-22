@@ -274,6 +274,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandlePlayerEnteringWorldEvent(_self)
+    ctx.baselineCdTracker()
     UpdateTrackedMythicZeroRun(ctx)
     ScheduleBindingStartupRefresh(ctx)
     ctx.sendOwnKeySnapshot(true, "world")
@@ -313,6 +314,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandleInstanceContextChangedEvent(_self)
+    ctx.baselineCdTracker(1)
     UpdateTrackedMythicZeroRun(ctx)
     ctx.updateStatusLine()
     ctx.maybeShowNonMythicDungeonEntryNotice()
@@ -381,6 +383,10 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.updateCdTracker()
   end
 
+  local function HandleUnitSpellcastSucceededEvent(_self, _unit, _castGUID, spellID)
+    ctx.notifyCdTrackerSpellCast(spellID)
+  end
+
   return {
     GROUP_ROSTER_UPDATE = HandleGroupRosterUpdateEvent,
     ADDON_LOADED = HandleAddonLoadedEvent,
@@ -400,5 +406,6 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     SPELL_UPDATE_COOLDOWN = HandleSpellUpdateCooldownEvent,
     SPELL_UPDATE_CHARGES = HandleSpellUpdateChargesEvent,
     UNIT_AURA = HandleUnitAuraEvent,
+    UNIT_SPELLCAST_SUCCEEDED = HandleUnitSpellcastSucceededEvent,
   }
 end

@@ -20,6 +20,11 @@ desktop.ini
 dist/
 build/
 
+# Sounds — only explicitly used files are tracked
+sounds/*
+!sounds/CartoonVoiceBaritone.ogg
+!sounds/BoxingArenaSound.ogg
+
 # Local LuaRocks tree (CI/local tooling)
 .luarocks/
 .claude/settings.local.json

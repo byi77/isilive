@@ -29,12 +29,15 @@ local LUST_SATED_IDS = {
 function CdTracker.CreateController(opts)
   opts = opts or {}
   local getTime = type(opts.getTime) == "function" and opts.getTime or GetTime
+  local onLustStart = type(opts.onLustStart) == "function" and opts.onLustStart or nil
 
   local bresCharges = nil
   local bresMaxCharges = nil
   local bresCooldownRemain = nil
   local lustRemain = nil
   local lustIcon = nil
+  local wasLustActive = false
+  local suppressOnsetUntil = 0
 
   local function ScanBRes()
     local C_Spell_ref = rawget(_G, "C_Spell")
@@ -81,6 +84,11 @@ function CdTracker.CreateController(opts)
       lustRemain = nil
       lustIcon = nil
     end
+    local isLustNowActive = lustRemain ~= nil
+    if not wasLustActive and isLustNowActive and onLustStart and getTime() >= suppressOnsetUntil then
+      onLustStart()
+    end
+    wasLustActive = isLustNowActive
   end
 
   local controller = {}
@@ -106,6 +114,27 @@ function CdTracker.CreateController(opts)
   function controller.Scan()
     ScanBRes()
     ScanLust()
+  end
+
+  -- Suppress lust onset callback for the given number of seconds.
+  -- Call this after zone changes / reloads to avoid false positives
+  -- from auras temporarily disappearing and reappearing.
+  function controller.SuppressOnset(seconds)
+    suppressOnsetUntil = getTime() + (seconds or 3)
+  end
+
+  -- Notify the tracker that a spell was cast (UNIT_SPELLCAST_SUCCEEDED).
+  -- Fires onLustStart immediately for lust spell IDs, bypassing the suppress
+  -- window — an actual spell cast is never a zone-change artefact.
+  -- Sets wasLustActive so the aura-scan path does not fire a duplicate onset.
+  function controller.NotifySpellCast(spellId)
+    if not LUST_SATED_IDS[spellId] then
+      return
+    end
+    if onLustStart then
+      onLustStart()
+    end
+    wasLustActive = true
   end
 
   return controller

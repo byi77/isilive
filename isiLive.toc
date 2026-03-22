@@ -2,7 +2,7 @@
 ## Title: isiLive
 ## Notes: Shows group members with item level and Mythic+ rating.
 ## Author: mematiWoW
-## Version: 0.9.92
+## Version: 0.9.93
 ## SavedVariables: IsiLiveDB
 ## IconTexture: Interface\Icons\INV_Misc_QuestionMark
 realm_language_data.lua

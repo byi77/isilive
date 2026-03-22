@@ -35,16 +35,10 @@ function LeaderWatch.CreateController(opts)
   end
 
   local function PlayLeadTransferSound()
-    if not PlaySound then
+    if type(PlaySoundFile) ~= "function" then
       return
     end
-    if SOUNDKIT and SOUNDKIT.RAID_WARNING then
-      PlaySound(SOUNDKIT.RAID_WARNING, "Master")
-      return
-    end
-    if SOUNDKIT and SOUNDKIT.READY_CHECK then
-      PlaySound(SOUNDKIT.READY_CHECK, "Master")
-    end
+    PlaySoundFile("Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg", "Master")
   end
 
   function controller.UpdateLeaderState(event)
@@ -83,6 +77,12 @@ function LeaderWatch.CreateController(opts)
         return
       end
       if not isMainFrameShown() then
+        if event == "PARTY_LEADER_CHANGED" then
+          local wasGroupLeader = getWasGroupLeader()
+          if wasGroupLeader ~= nil and not wasGroupLeader and isPlayerLeader() then
+            PlayLeadTransferSound()
+          end
+        end
         SyncLeaderStateSilently()
         return
       end
