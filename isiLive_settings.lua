@@ -949,7 +949,7 @@ function SettingsPanel.Create(opts)
   y = BuildDebugSettingsSection(canvas, y, L, config, controls)
 
   local finalYOffset = tonumber(y) or 0
-  local contentHeight = math.max(212, math.ceil((-finalYOffset) + PADDING_TOP))
+  local contentHeight = math.max(212, math.ceil(-finalYOffset + PADDING_TOP))
   if type(canvas.SetHeight) == "function" then
     canvas:SetHeight(contentHeight)
   elseif type(canvas.SetSize) == "function" then

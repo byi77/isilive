@@ -123,6 +123,9 @@ function ConfigBuilders.BuildGateOpts(ctx)
     allowWhenHidden = {
       CHAT_MSG_ADDON = true,
       GROUP_ROSTER_UPDATE = true,
+      ZONE_CHANGED = true,
+      ZONE_CHANGED_INDOORS = true,
+      ZONE_CHANGED_NEW_AREA = true,
     },
   }
 end

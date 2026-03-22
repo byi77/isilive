@@ -618,5 +618,4 @@ function Queue.CaptureQueueJoinCandidate(updatePendingQueueJoin, resolveTeleport
       })
     end
   end
-
 end

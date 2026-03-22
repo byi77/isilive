@@ -247,7 +247,8 @@ local function RunTooltipScenario(WithGlobals, LoadAddonModules, Assert, options
   end
 
   WithGlobals(globals, function()
-    local addon = LoadAddonModules(options.modules or { "isiLive_locale.lua", "isiLive_sync.lua", "isiLive_roster_panel.lua" })
+    local addon =
+      LoadAddonModules(options.modules or { "isiLive_locale.lua", "isiLive_sync.lua", "isiLive_roster_panel.lua" })
     if configureAddon then
       configureAddon(addon)
     end
@@ -446,7 +447,11 @@ local function RegisterBlizzardUnitTooltipLanguageFlagTest(test, Assert, WithGlo
         end,
         getUnitServerLanguage = function(unit, realm)
           Assert.Equal(unit, "mouseover", "Tooltip hook must receive the hovered unit token")
-          Assert.Equal(realm, "Argent Dawn", "Tooltip hook must use the hovered unit realm, not the current player realm")
+          Assert.Equal(
+            realm,
+            "Argent Dawn",
+            "Tooltip hook must use the hovered unit realm, not the current player realm"
+          )
           return "FR"
         end,
       })
@@ -543,7 +548,11 @@ local function RegisterBlizzardUnitTooltipDataProcessorTest(test, Assert, WithGl
       end
       Assert.True(foundLanguage, "Blizzard tooltip should show the server language name")
       Assert.Equal(#tooltipLines, 1, "Blizzard tooltip should append the language line exactly once")
-      Assert.Equal(gameTooltip._isiLiveLanguageFlagUnit, 43049, "TooltipDataProcessor hovers should cache the data instance id")
+      Assert.Equal(
+        gameTooltip._isiLiveLanguageFlagUnit,
+        43049,
+        "TooltipDataProcessor hovers should cache the data instance id"
+      )
 
       if type(gameTooltip.OnTooltipCleared) == "function" then
         gameTooltip:OnTooltipCleared()
@@ -561,59 +570,66 @@ local function RegisterBlizzardUnitTooltipDataProcessorTest(test, Assert, WithGl
 end
 
 local function RegisterBlizzardUnitTooltipDataProcessorSkipTest(test, Assert, WithGlobals, LoadAddonModules)
-  test("Blizzard GameTooltip skips TooltipDataProcessor hovers without a GUID instead of probing the unit token", function()
-    local tooltipLines = {}
-    local gameTooltip = MakeGameTooltip(tooltipLines)
-    gameTooltip.GetUnit = function()
-      error("TooltipDataProcessor hovers without a GUID should not probe the tooltip unit")
-    end
-    local postCallCallbacks = {}
-
-    WithGlobals({
-      GameTooltip = gameTooltip,
-      hooksecurefunc = function()
-        return nil
-      end,
-      TooltipDataProcessor = {
-        AddTooltipPostCall = function(dataType, callback)
-          Assert.Equal(dataType, 1, "TooltipDataProcessor must register the unit tooltip type")
-          table.insert(postCallCallbacks, callback)
-        end,
-      },
-      Enum = {
-        TooltipDataType = {
-          Unit = 1,
-        },
-      },
-      RAID_CLASS_COLORS = {},
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_locale.lua", "isiLive_roster_tooltip.lua" })
-      local registered = addon._RosterInternal.RegisterBlizzardUnitLanguageTooltip({
-        getLanguageTooltipMarkup = function()
-          error("unit hovers without a GUID should not resolve a language")
-        end,
-        getUnitNameAndRealm = function()
-          error("unit hovers without a GUID should not probe the tooltip unit")
-        end,
-        getUnitServerLanguage = function()
-          error("unit hovers without a GUID should not probe the tooltip unit")
-        end,
-      })
-
-      Assert.True(registered, "Blizzard tooltip language hook must register successfully")
-      Assert.Equal(#postCallCallbacks, 1, "TooltipDataProcessor must register exactly one unit post-call")
-
-      for _, callback in ipairs(postCallCallbacks) do
-        callback(gameTooltip, {
-          type = 2,
-          lines = {},
-        })
+  test(
+    "Blizzard GameTooltip skips TooltipDataProcessor hovers without a GUID instead of probing the unit token",
+    function()
+      local tooltipLines = {}
+      local gameTooltip = MakeGameTooltip(tooltipLines)
+      gameTooltip.GetUnit = function()
+        error("TooltipDataProcessor hovers without a GUID should not probe the tooltip unit")
       end
+      local postCallCallbacks = {}
 
-      Assert.Equal(#tooltipLines, 0, "TooltipDataProcessor hovers without GUIDs should not append a language line")
-      Assert.Equal(gameTooltip._isiLiveLanguageFlagUnit, nil, "TooltipDataProcessor hovers without GUIDs should not cache a language key")
-    end)
-  end)
+      WithGlobals({
+        GameTooltip = gameTooltip,
+        hooksecurefunc = function()
+          return nil
+        end,
+        TooltipDataProcessor = {
+          AddTooltipPostCall = function(dataType, callback)
+            Assert.Equal(dataType, 1, "TooltipDataProcessor must register the unit tooltip type")
+            table.insert(postCallCallbacks, callback)
+          end,
+        },
+        Enum = {
+          TooltipDataType = {
+            Unit = 1,
+          },
+        },
+        RAID_CLASS_COLORS = {},
+      }, function()
+        local addon = LoadAddonModules({ "isiLive_locale.lua", "isiLive_roster_tooltip.lua" })
+        local registered = addon._RosterInternal.RegisterBlizzardUnitLanguageTooltip({
+          getLanguageTooltipMarkup = function()
+            error("unit hovers without a GUID should not resolve a language")
+          end,
+          getUnitNameAndRealm = function()
+            error("unit hovers without a GUID should not probe the tooltip unit")
+          end,
+          getUnitServerLanguage = function()
+            error("unit hovers without a GUID should not probe the tooltip unit")
+          end,
+        })
+
+        Assert.True(registered, "Blizzard tooltip language hook must register successfully")
+        Assert.Equal(#postCallCallbacks, 1, "TooltipDataProcessor must register exactly one unit post-call")
+
+        for _, callback in ipairs(postCallCallbacks) do
+          callback(gameTooltip, {
+            type = 2,
+            lines = {},
+          })
+        end
+
+        Assert.Equal(#tooltipLines, 0, "TooltipDataProcessor hovers without GUIDs should not append a language line")
+        Assert.Equal(
+          gameTooltip._isiLiveLanguageFlagUnit,
+          nil,
+          "TooltipDataProcessor hovers without GUIDs should not cache a language key"
+        )
+      end)
+    end
+  )
 end
 
 return function(test, ctx)

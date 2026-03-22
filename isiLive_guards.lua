@@ -72,7 +72,10 @@ local REQUIRED_FUNCTIONS = {
   { path = { "UICommon", "PreparePrivateTooltip" }, message = "isiLive: UICommon.PreparePrivateTooltip missing" },
   { path = { "UICommon", "HidePrivateTooltip" }, message = "isiLive: UICommon.HidePrivateTooltip missing" },
   { path = { "Notice", "CreateCenterNotice" }, message = "isiLive: Notice.CreateCenterNotice missing" },
-  { path = { "Notice", "CreatePortalNavigatorNotice" }, message = "isiLive: Notice.CreatePortalNavigatorNotice missing" },
+  {
+    path = { "Notice", "CreatePortalNavigatorNotice" },
+    message = "isiLive: Notice.CreatePortalNavigatorNotice missing",
+  },
   { path = { "Status", "CreateController" }, message = "isiLive: Status.CreateController missing" },
   { path = { "QueueDebug", "CreateController" }, message = "isiLive: QueueDebug.CreateController missing" },
   { path = { "RuntimeLog", "CreateController" }, message = "isiLive: RuntimeLog.CreateController missing" },

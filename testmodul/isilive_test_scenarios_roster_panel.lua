@@ -2451,7 +2451,7 @@ local function RegisterRosterPanelHiddenSettingDefaultTests(test, Assert, WithGl
       local guides = FindM2ColumnGuides(createdTextures)
       local expectedGuideX = {
         spec = 56,
-        server = 89,
+        server = 93,
         name = 215,
         key = 268,
         ilvl = 304,

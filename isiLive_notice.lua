@@ -21,11 +21,13 @@ local hidePrivateTooltip =
 
 local function BuildCenterNoticeConfig(opts)
   opts = opts or {}
-  local frameName = type(opts.frameName) == "string" and opts.frameName ~= "" and opts.frameName or "isiLiveCenterNotice"
+  local frameName = type(opts.frameName) == "string" and opts.frameName ~= "" and opts.frameName
+    or "isiLiveCenterNotice"
   return {
     parent = opts.parent or UIParent,
     frameName = frameName,
-    teleportButtonName = type(opts.teleportButtonName) == "string" and opts.teleportButtonName ~= ""
+    teleportButtonName = type(opts.teleportButtonName) == "string"
+        and opts.teleportButtonName ~= ""
         and opts.teleportButtonName
       or (frameName .. "TeleportButton"),
     minHeight = tonumber(opts.minHeight) or 70,
@@ -60,8 +62,8 @@ end
 
 local function BuildPortalNavigatorConfig(opts)
   opts = opts or {}
-  local frameName =
-    type(opts.frameName) == "string" and opts.frameName ~= "" and opts.frameName or "isiLivePortalNavigatorNotice"
+  local frameName = type(opts.frameName) == "string" and opts.frameName ~= "" and opts.frameName
+    or "isiLivePortalNavigatorNotice"
   return {
     parent = opts.parent or UIParent,
     frameName = frameName,
@@ -140,7 +142,11 @@ local function IncreaseFontSize(fontString, delta)
   if numericDelta <= 0 then
     return
   end
-  if type(fontString) ~= "table" or type(fontString.GetFont) ~= "function" or type(fontString.SetFont) ~= "function" then
+  if
+    type(fontString) ~= "table"
+    or type(fontString.GetFont) ~= "function"
+    or type(fontString.SetFont) ~= "function"
+  then
     return
   end
 

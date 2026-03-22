@@ -146,7 +146,11 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
     )
 
     Assert.Equal(layout.entries[3].slot, "right", "third portal entry should be right")
-    Assert.Equal(layout.entries[3].direction, BuildLocale().PORTAL_NAVIGATOR_RIGHT, "right entry should use right label")
+    Assert.Equal(
+      layout.entries[3].direction,
+      BuildLocale().PORTAL_NAVIGATOR_RIGHT,
+      "right entry should use right label"
+    )
     Assert.Equal(
       layout.entries[3].destination,
       BuildLocale().PORTAL_NAVIGATOR_TRIUMVIRATE,

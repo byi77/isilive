@@ -302,6 +302,9 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
       isInGroup = function()
         return true
       end,
+      isInPartyInstance = function()
+        return false
+      end,
       getNumGroupMembers = function()
         return 5
       end,
@@ -347,6 +350,9 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
       end,
       isInGroup = function()
         return true
+      end,
+      isInPartyInstance = function()
+        return false
       end,
       getNumGroupMembers = function()
         return 5
@@ -431,37 +437,35 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
     local dispatched = {}
 
     local addon = LoadAddonModules({ "isiLive_events.lua", "isiLive_bootstrap.lua", "isiLive_config_builders.lua" })
-    local gate = addon.Bootstrap.CreateGatedOnEvent(
-      addon.ConfigBuilders.BuildGateOpts({
-        events = addon.Events,
-        onEvent = function(_frame, event, ...)
-          local _ = ...
-          table.insert(dispatched, event)
-        end,
-        onDispatchError = nil,
-        isStopped = function()
-          return false
-        end,
-        isPaused = function()
-          return false
-        end,
-        isTestMode = function()
-          return false
-        end,
-        isInCombat = function()
-          return false
-        end,
-        isInGroup = function()
-          return true
-        end,
-        isInPartyInstance = function()
-          return false
-        end,
-        getActiveChallengeMapID = function()
-          return nil
-        end,
-      })
-    )
+    local gate = addon.Bootstrap.CreateGatedOnEvent(addon.ConfigBuilders.BuildGateOpts({
+      events = addon.Events,
+      onEvent = function(_frame, event, ...)
+        local _ = ...
+        table.insert(dispatched, event)
+      end,
+      onDispatchError = nil,
+      isStopped = function()
+        return false
+      end,
+      isPaused = function()
+        return false
+      end,
+      isTestMode = function()
+        return false
+      end,
+      isInCombat = function()
+        return false
+      end,
+      isInGroup = function()
+        return true
+      end,
+      isInPartyInstance = function()
+        return false
+      end,
+      getActiveChallengeMapID = function()
+        return nil
+      end,
+    }))
 
     local frame = {
       IsShown = function()

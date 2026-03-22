@@ -976,10 +976,7 @@ local function RegisterBlizzardUnitLanguageTooltip(opts)
   local getUnitServerLanguage = opts.getUnitServerLanguage
   local getRealmInfoLib = opts.getRealmInfoLib
   local getLanguageTooltipMarkup = opts.getLanguageTooltipMarkup
-  if
-    type(getUnitNameAndRealm) ~= "function"
-    or type(getUnitServerLanguage) ~= "function"
-  then
+  if type(getUnitNameAndRealm) ~= "function" or type(getUnitServerLanguage) ~= "function" then
     return false
   end
 
