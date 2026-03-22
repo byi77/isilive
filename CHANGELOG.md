@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026-03-21 - Version 0.9.90
+## 2026-03-22 - Version 0.9.90
 - **UI / Sync UX:**
   - Sync payloads now carry freshness metadata (`capturedAt`, `source`) and HELLO also carries the sync protocol version.
   - The roster tooltip shows sync age, source, peer version, and a Shift-only debug block for per-field sync provenance.
@@ -13,6 +13,23 @@
   - The roster panel keeps the `M2` main-horizontal layout as the default open view, shows the status line only in `M`, and removes the combat-logging / DM-reset toggles from the main panel UI.
   - Column guides stay hidden by default and are only shown in `M` and `M2` when explicitly enabled for tuning.
   - Portal buttons keep deterministic season-slot placement, and active-target highlighting remains unchanged.
+- **UI / Portal Navigator:**
+  - New overlay: when the player enters the Timeways portal room, a full-screen `Portal Navigator` notice appears showing the four portal destinations (half-left, left, right, half-right) with their dungeon names; closes via right-click or the X button; respects `Show Timeways Navigator` setting (defaults enabled); retries zone detection for one second if zone text is not yet available.
+  - Zone matching uses Map ID first, then falls back to normalized `GetZoneText` / `GetSubZoneText` / `GetRealZoneText` / `C_Map.GetMapInfo` name matching across all registered portal-room names.
+  - Non-group-member tooltip language flag now resolves correctly when LibRealmInfo is absent: `tooltipData.unitToken` is used as the unit source even in `preferTooltipDataOnly` mode so the static realm-data fallback in `GetUnitServerLanguage` stays reachable.
+- **UI / Flag Icons:**
+  - Flag texture markup corrected from portrait `14:10` to landscape `12:16`, matching the native 16×12 px asset dimensions; flags no longer appear squished.
+  - Flag column (`SERVER_COL`) widened from 14 to 18 px; `NAME_COL_X` shifted +4 to 93 and `NAME_COL_WIDTH` reduced by 4 to 122 to keep the overall layout width unchanged.
+- **UI / Polish:**
+  - Title font reduced from `GameFontHighlightHuge` (~18 px after manual correction) to `GameFontNormalLarge` (~14 px); the manual `GetFont`/`SetFont` correction block is removed.
+  - H-mode button labels (`RC`, `CD`, `CD 0`) are now fully localized: locale keys `BTN_READYCHECK_SHORT`, `BTN_COUNTDOWN10_SHORT`, `BTN_COUNTDOWN_CANCEL_SHORT` added to both `enUS` and `deDE` tables; hardcoded English strings removed from button construction.
+  - Typo fixed in both locale tables: `LEAD_OPTIONS` was `"M+Managment"` → `"M+Management"`.
+- **Code Cleanup:**
+  - Removed 12 dead `RI.H2_*` alias exports from `isiLive_roster_layout.lua` (leftover from the internal H2→M2 rename; no consumer existed).
+  - Portal Navigator `FormatPortalNavigatorEntryText`: unused `direction` parameter removed; function simplified.
+  - Portal Navigator `BuildPortalNavigatorConfig`: removed unused `isInCombat` and `getL` config fields (text is passed as a pre-built layout; no combat gate on the navigator); factory call cleaned up accordingly.
+  - Portal Navigator state fields (`wasInPortalRoom`, `lastPortalNavigatorSignature`, `portalNavigatorRetryToken`, `portalNavigatorRetryScheduledToken`) now explicitly initialized in the state table, consistent with all other state fields.
+  - `restoreRioBaseline` callback was wired into `BuildEventHandlersDepsFromContext` but never forwarded to the EventHandlers config in `ExtendEventHandlersConfig`; the missing assignment is now in place.
 - **Docs + Release Baseline:**
   - Bumped TOC version to `0.9.90`.
   - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `TODO.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.90`.

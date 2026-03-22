@@ -138,6 +138,9 @@ local function CreateFactoryContext(addonName, addonTable)
   end
 
   ctx.GetRealmInfoLib = modules.contextHelpers.CreateRealmInfoGetter()
+  ctx.GetLanguageTooltipMarkup = function(languageTag)
+    return modules.locale.GetLanguageTooltipMarkup(languageTag, ctx.locale)
+  end
   ctx.GetUnitRole = modules.units.GetUnitRole
   ctx.GetUnitClass = modules.units.GetUnitClass
   ctx.TruncateName = modules.units.TruncateName
@@ -146,6 +149,71 @@ local function CreateFactoryContext(addonName, addonTable)
   ctx.GetInspectSpecName = modules.units.GetInspectSpecName
   ctx.GetShortSpecLabel = modules.units.GetShortSpecLabel
   ctx.GetUnitRio = modules.units.GetUnitRio
+  ctx.GetSubZoneText = function()
+    local getSubZoneText = rawget(_G, "GetSubZoneText")
+    if type(getSubZoneText) ~= "function" then
+      return nil
+    end
+    local ok, text = pcall(getSubZoneText)
+    if not ok then
+      return nil
+    end
+    return text
+  end
+  ctx.GetZoneText = function()
+    local getZoneText = rawget(_G, "GetZoneText")
+    if type(getZoneText) ~= "function" then
+      return nil
+    end
+    local ok, text = pcall(getZoneText)
+    if not ok then
+      return nil
+    end
+    return text
+  end
+  ctx.GetRealZoneText = function()
+    local getRealZoneText = rawget(_G, "GetRealZoneText")
+    if type(getRealZoneText) ~= "function" then
+      return nil
+    end
+    local ok, text = pcall(getRealZoneText)
+    if not ok then
+      return nil
+    end
+    return text
+  end
+  ctx.GetPlayerMapID = function()
+    local mapApi = rawget(_G, "C_Map")
+    local getBestMapForUnit = mapApi and rawget(mapApi, "GetBestMapForUnit") or nil
+    if type(getBestMapForUnit) ~= "function" then
+      return nil
+    end
+    local ok, mapID = pcall(getBestMapForUnit, "player")
+    mapID = ok and tonumber(mapID) or nil
+    if not mapID or mapID <= 0 then
+      return nil
+    end
+    return math.floor(mapID)
+  end
+  ctx.GetMapInfoName = function(mapID)
+    local numericMapID = tonumber(mapID)
+    if not numericMapID or numericMapID <= 0 then
+      return nil
+    end
+    local mapApi = rawget(_G, "C_Map")
+    local getMapInfo = mapApi and rawget(mapApi, "GetMapInfo") or nil
+    if type(getMapInfo) ~= "function" then
+      return nil
+    end
+    local ok, mapInfo = pcall(getMapInfo, numericMapID)
+    if not ok or type(mapInfo) ~= "table" then
+      return nil
+    end
+    if type(mapInfo.name) ~= "string" then
+      return nil
+    end
+    return mapInfo.name
+  end
 
   ctx.BuildDummyRoster = function(opts)
     opts = opts or {}
@@ -225,6 +293,11 @@ local function InitializeFactoryFrameBridge(ctx)
     return InCombatLockdown and InCombatLockdown()
   end
 
+  ctx.portalNavigatorNotice = modules.notice.CreatePortalNavigatorNotice({
+    parent = UIParent,
+    frameName = "isiLivePortalNavigatorNotice",
+  })
+
   local frameBridgeContext = modules.frameBridge.CreateContext({
     createCenterNotice = modules.notice.CreateCenterNotice,
     createInviteHint = modules.notice.CreateInviteHint,
@@ -262,6 +335,7 @@ local function InitializeFactoryFrameBridge(ctx)
   ctx.centerNotice = frameBridgeContext.centerNotice
   ctx.centerNoticeFrame = frameBridgeContext.centerNoticeFrame
   ctx.centerNoticeTeleportButton = frameBridgeContext.centerNoticeTeleportButton
+  ctx.portalNavigatorNoticeFrame = ctx.portalNavigatorNotice.frame
   ctx.inviteHint = frameBridgeContext.inviteHint
   ctx.mainUI = frameBridgeContext.mainUI
   ctx.mainFrame = frameBridgeContext.mainFrame
@@ -273,6 +347,12 @@ local function InitializeFactoryFrameBridge(ctx)
   end
   ctx.ShowCenterNotice = function(message, durationSeconds, dungeonName, activityID, showOptions)
     frameBridgeContext.ShowCenterNotice(message, durationSeconds, dungeonName, activityID, showOptions)
+  end
+  ctx.SetPortalNavigatorVisible = function(visible)
+    ctx.portalNavigatorNotice.SetVisible(visible)
+  end
+  ctx.ShowPortalNavigatorNotice = function(layout)
+    ctx.portalNavigatorNotice.Show(layout)
   end
   ctx.ShowInviteHint = function(message, durationSeconds)
     frameBridgeContext.ShowInviteHint(message, durationSeconds)

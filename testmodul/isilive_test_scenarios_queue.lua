@@ -239,6 +239,45 @@ local function RegisterQueueCaptureCoreTests(test, Assert, WithGlobals, LoadAddo
     Assert.Equal(applied.dungeonName, "Floodgate", "resolved activity name must be used for hint text")
     Assert.Equal(applied.priority, 1, "invited (not accepted) should use priority 1")
   end)
+
+  test("Queue capture candidate does not enumerate application list", function()
+    local applied = 0
+    local applicationsLookedUp = 0
+
+    WithGlobals({
+      C_LFGList = {
+        GetActivityInfoTable = function(activityID)
+          if activityID == 311 then
+            return { fullName = "Ara-Kara", mapID = 2660, isMythicPlusActivity = true }
+          end
+          return nil
+        end,
+        GetApplications = function()
+          applicationsLookedUp = applicationsLookedUp + 1
+          error("GetApplications must not be called from the candidate path")
+        end,
+        GetApplicationInfo = function()
+          error("GetApplicationInfo must not be called from the candidate path")
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_queue.lua" })
+      addon.Queue.CaptureQueueJoinCandidate(function(_groupName, _dungeonName, _priority, _activityID)
+        applied = applied + 1
+      end, function(activityID)
+        if activityID == 311 then
+          return 1226485
+        end
+        return nil
+      end, {
+        activityIDs = { 311 },
+        name = "Scan-Free Group",
+      }, "accepted")
+    end)
+
+    Assert.Equal(applied, 1, "candidate path should still capture from event payload")
+    Assert.Equal(applicationsLookedUp, 0, "candidate path must not enumerate application list")
+  end)
 end
 
 local function RegisterQueueCaptureStableIDTests(test, Assert, WithGlobals, LoadAddonModules)

@@ -18,12 +18,10 @@ local NON_CHALLENGE_RUN_CAPTURE_RETRIES = 5
 local NON_CHALLENGE_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
 
 local function ResolveTrackedMythicZeroMapID()
-  if type(GetInstanceInfo) == "function" then
-    local okInstance, _, _, _, _, _, _, rawInstanceMapID = pcall(GetInstanceInfo)
-    local instanceMapID = okInstance and tonumber(rawInstanceMapID) or nil
-    if instanceMapID and instanceMapID > 0 then
-      return math.floor(instanceMapID)
-    end
+  local okInstance, _, _, _, _, _, _, rawInstanceMapID = pcall(GetInstanceInfo)
+  local instanceMapID = okInstance and tonumber(rawInstanceMapID) or nil
+  if instanceMapID and instanceMapID > 0 then
+    return math.floor(instanceMapID)
   end
 
   local mapApi = rawget(_G, "C_Map")
@@ -43,10 +41,6 @@ end
 
 local function GetTrackedMythicZeroState(ctx)
   if ctx.isInChallengeMode() then
-    return false, nil
-  end
-
-  if type(GetInstanceInfo) ~= "function" then
     return false, nil
   end
 
@@ -274,7 +268,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandlePlayerLoginEvent(_self)
-    RegisterSyncPrefixAndBindings(ctx)
+    ApplyBindingStartupRefresh(ctx)
     local playerName, playerRealm = ctx.getUnitNameAndRealm("player")
     ctx.markIsiLiveUser(playerName, playerRealm)
   end
@@ -284,10 +278,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ScheduleBindingStartupRefresh(ctx)
     ctx.sendOwnKeySnapshot(true, "world")
     ctx.maybeShowNonMythicDungeonEntryNotice()
+    ctx.maybeShowPortalNavigatorNotice()
     ctx.updateStatusLine()
     ctx.checkIfEnteredTargetDungeon()
 
-    local inPartyInstance = ctx.isInPartyInstance() and true or false
+    local inPartyInstance = ctx.isInPartyInstance() == true
     local wasInPartyInstance = ctx.wasInPartyInstance
     ctx.wasInPartyInstance = inPartyInstance
     if wasInPartyInstance ~= nil and not wasInPartyInstance and inPartyInstance and not ctx.isInChallengeMode() then
@@ -321,6 +316,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     UpdateTrackedMythicZeroRun(ctx)
     ctx.updateStatusLine()
     ctx.maybeShowNonMythicDungeonEntryNotice()
+    ctx.maybeShowPortalNavigatorNotice()
     ctx.checkIfEnteredTargetDungeon()
     ctx.sendOwnKeySnapshot(false, "zone")
   end
@@ -382,6 +378,8 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     UPDATE_BINDINGS = HandleUpdateBindingsEvent,
     PLAYER_REGEN_ENABLED = HandlePlayerRegenEnabledEvent,
     PLAYER_DIFFICULTY_CHANGED = HandleInstanceContextChangedEvent,
+    ZONE_CHANGED = HandleInstanceContextChangedEvent,
+    ZONE_CHANGED_INDOORS = HandleInstanceContextChangedEvent,
     ZONE_CHANGED_NEW_AREA = HandleInstanceContextChangedEvent,
     UPDATE_INSTANCE_INFO = HandleInstanceContextChangedEvent,
     BAG_UPDATE_DELAYED = HandleOwnedKeyContextEvent,

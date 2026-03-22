@@ -867,6 +867,35 @@ local function RegisterNoticeTaintTests(test, Assert, WithGlobals, LoadAddonModu
       Assert.True(notice.teleportButton.inCombatBlocked, "combat notice path should flag teleport button as blocked")
     end)
   end)
+
+  test("TAINT: portal navigator supports an independent frame name", function()
+    local createdFrames = {}
+
+    WithGlobals({
+      CreateFrame = function(frameType, name, parent, template)
+        return NewRecordedFrame(createdFrames, frameType, name, parent, template)
+      end,
+      UIParent = NewRecordedMainFrame(createdFrames),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+
+      local portalNotice = addon.Notice.CreatePortalNavigatorNotice({
+        parent = UIParent,
+        frameName = "isiLivePortalNavigatorNotice",
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      Assert.Equal(
+        portalNotice.frame._name,
+        "isiLivePortalNavigatorNotice",
+        "portal navigator notice should use its own frame name"
+      )
+      Assert.NotNil(portalNotice.closeButton, "portal navigator notice should still expose a close button")
+      Assert.NotNil(portalNotice.entries, "portal navigator notice should expose entry widgets")
+    end)
+  end)
 end
 
 return function(test, ctx)

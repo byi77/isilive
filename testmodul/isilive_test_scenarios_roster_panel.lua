@@ -1238,6 +1238,10 @@ local function RegisterRosterPanelRowTooltipLocalizedClassTest(test, Assert, Wit
         getLanguageFlagMarkup = function()
           return "|Tflag-de:0|t"
         end,
+        getLanguageTooltipMarkup = function(tag)
+          Assert.Equal(tag, "DE", "Tooltip helper should receive the 2-letter language tag")
+          return "|Tflag-de:0|t Deutsch"
+        end,
         getDungeonShortCode = function()
           return ""
         end,
@@ -1290,7 +1294,7 @@ local function RegisterRosterPanelRowTooltipLocalizedClassTest(test, Assert, Wit
 end
 
 local function RegisterRosterPanelRowTooltipLevelAndLanguageTest(test, Assert, WithGlobals, LoadAddonModules)
-  test("Roster row tooltip shows level and language abbreviation", function()
+  test("Roster row tooltip shows level and language name", function()
     local tooltipLines = {}
     local createdFrames = {}
     local createFrameStub = NewRowTooltipCreateFrameStub(createdFrames, tooltipLines)
@@ -1392,6 +1396,10 @@ local function RegisterRosterPanelRowTooltipLevelAndLanguageTest(test, Assert, W
         getLanguageFlagMarkup = function()
           return "|Tflag-de:0|t"
         end,
+        getLanguageTooltipMarkup = function(tag)
+          Assert.Equal(tag, "DE", "Tooltip helper should receive the 2-letter language tag")
+          return "|Tflag-de:0|t Deutsch"
+        end,
         getDungeonShortCode = function()
           return ""
         end,
@@ -1424,16 +1432,21 @@ local function RegisterRosterPanelRowTooltipLevelAndLanguageTest(test, Assert, W
       Assert.NotNil(rowFrame, "Should find a row frame with OnEnter")
       local foundLevel = false
       local foundLanguage = false
+      local foundLanguageText = false
       for _, line in ipairs(tooltipLines) do
         if line == "Level: 80" then
           foundLevel = true
         end
-        if line == "Lang: DE" then
+        if line == "|Tflag-de:0|t Deutsch" then
           foundLanguage = true
+        end
+        if line:find("Lang:", 1, true) then
+          foundLanguageText = true
         end
       end
       Assert.True(foundLevel, "Tooltip should contain the player level")
-      Assert.True(foundLanguage, "Tooltip should contain the language abbreviation")
+      Assert.True(foundLanguage, "Tooltip should contain the server language name")
+      Assert.False(foundLanguageText, "Tooltip should not show language letters anymore")
     end)
   end)
 
@@ -1541,6 +1554,10 @@ local function RegisterRosterPanelRowTooltipLevelAndLanguageTest(test, Assert, W
         getLanguageFlagMarkup = function()
           return "|Tflag-de:0|t"
         end,
+        getLanguageTooltipMarkup = function(tag)
+          Assert.Equal(tag, "DE", "Tooltip helper should receive the 2-letter language tag")
+          return "|Tflag-de:0|t Deutsch"
+        end,
         getDungeonShortCode = function()
           return ""
         end,
@@ -1573,16 +1590,21 @@ local function RegisterRosterPanelRowTooltipLevelAndLanguageTest(test, Assert, W
       Assert.NotNil(rowFrame, "Should find a row frame with OnEnter")
       local foundLevel = false
       local foundLanguage = false
+      local foundLanguageText = false
       for _, line in ipairs(tooltipLines) do
         if line:find("Level:", 1, true) then
           foundLevel = true
         end
-        if line == "Lang: DE" then
+        if line == "|Tflag-de:0|t Deutsch" then
           foundLanguage = true
+        end
+        if line:find("Lang:", 1, true) then
+          foundLanguageText = true
         end
       end
       Assert.False(foundLevel, "Tooltip must not query level for missing units")
-      Assert.True(foundLanguage, "Tooltip should still show the language abbreviation")
+      Assert.True(foundLanguage, "Tooltip should still show the server language name")
+      Assert.False(foundLanguageText, "Tooltip should not show language letters anymore")
     end)
   end)
 end
@@ -2347,9 +2369,9 @@ local function RegisterRosterPanelHiddenSettingDefaultTests(test, Assert, WithGl
       local dpsHeader = nil
       local rowDps = nil
       for _, fontString in ipairs(createdFontStrings) do
-        if fontString.pointX == 350 and fontString.pointY == -34 then
+        if fontString.pointX == 380 and fontString.pointY == -34 then
           dpsHeader = fontString
-        elseif fontString.pointX == 350 and fontString.pointY ~= -34 then
+        elseif fontString.pointX == 380 and fontString.pointY ~= -34 then
           rowDps = fontString
         end
       end
@@ -2433,8 +2455,8 @@ local function RegisterRosterPanelHiddenSettingDefaultTests(test, Assert, WithGl
         name = 215,
         key = 268,
         ilvl = 304,
-        rio = 348,
-        dps = 390,
+        rio = 378,
+        dps = 420,
       }
 
       for guideKey, expectedX in pairs(expectedGuideX) do

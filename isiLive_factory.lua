@@ -117,12 +117,9 @@ local function FinalizeFactoryRuntime(ctx)
     sendIsiLiveHello = ctx.SendIsiLiveHello,
     autoHideSolo = function()
       local dbRef = rawget(_G, "IsiLiveDB")
-      if ResolveAutoHideSoloEnabled(dbRef) and ctx.mainFrame and ctx.mainFrame:IsShown() then
+      if ResolveAutoHideSoloEnabled(dbRef) and ctx.mainFrame:IsShown() then
         ctx.mainFrame:Hide()
       end
-    end,
-    canApplyRaidMarkers = function()
-      return false
     end,
     unitIsGroupLeader = function(unit)
       if type(unit) ~= "string" or unit == "" then
@@ -255,6 +252,11 @@ local function FinalizeFactoryRuntime(ctx)
           ctx.runtimeLogController.SetEnabled(enabled)
         end
       end,
+      onPortalNavigatorToggle = function(_enabled)
+        if ctx.statusController and type(ctx.statusController.MaybeShowPortalNavigatorNotice) == "function" then
+          ctx.statusController.MaybeShowPortalNavigatorNotice()
+        end
+      end,
       onBgAlphaChange = function(val)
         local uiCommon = ctx.addonTable and ctx.addonTable.UICommon
         if type(uiCommon) == "table" and type(uiCommon.Colors) == "table" then
@@ -263,8 +265,8 @@ local function FinalizeFactoryRuntime(ctx)
         if ctx.mainFrame and type(ctx.mainFrame.SetBackdropColor) == "function" then
           ctx.mainFrame:SetBackdropColor(0, 0, 0, val)
         end
+        local bg = uiCommon and uiCommon.Colors and uiCommon.Colors.BG_PRIMARY or { 0.08, 0.08, 0.12, val }
         if ctx.panelUI and ctx.panelUI.panelFrame and type(ctx.panelUI.panelFrame.SetBackdropColor) == "function" then
-          local bg = uiCommon and uiCommon.Colors and uiCommon.Colors.BG_PRIMARY or { 0.08, 0.08, 0.12, val }
           ctx.panelUI.panelFrame:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
         end
         if
@@ -272,7 +274,6 @@ local function FinalizeFactoryRuntime(ctx)
           and ctx.settingsPanel.canvas
           and type(ctx.settingsPanel.canvas.SetBackdropColor) == "function"
         then
-          local bg = uiCommon and uiCommon.Colors and uiCommon.Colors.BG_PRIMARY or { 0.08, 0.08, 0.12, val }
           ctx.settingsPanel.canvas:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
         end
       end,
@@ -314,9 +315,7 @@ local function FinalizeFactoryRuntime(ctx)
         end
       end,
       onDefaultLayoutModeChange = function(_layoutMode)
-        if type(ctx.RestoreLayoutState) == "function" then
-          ctx.RestoreLayoutState()
-        end
+        ctx.RestoreLayoutState()
       end,
       onNameMaxCharsChange = function(_maxChars)
         if ctx.rosterPanelController and type(ctx.rosterPanelController.RenderRoster) == "function" then

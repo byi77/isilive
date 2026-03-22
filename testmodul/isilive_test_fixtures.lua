@@ -105,6 +105,7 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
     end,
     markIsiLiveUser = function() end,
     maybeShowNonMythicDungeonEntryNotice = function() end,
+    maybeShowPortalNavigatorNotice = function() end,
     checkIfEnteredTargetDungeon = function() end,
     getPendingBindingApply = function()
       return false

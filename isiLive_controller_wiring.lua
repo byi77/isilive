@@ -211,6 +211,9 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     end
     controllers.status.MaybeShowNonMythicDungeonEntryNotice()
   end
+  config.maybeShowPortalNavigatorNotice = function()
+    controllers.status.MaybeShowPortalNavigatorNotice()
+  end
   config.checkIfEnteredTargetDungeon =
     RequireFunction(callbacks.checkIfEnteredTargetDungeon, "callbacks.checkIfEnteredTargetDungeon")
   config.timerAfter = function(seconds, callback)
@@ -296,6 +299,7 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   config.recordRun = type(deps.recordRun) == "function" and deps.recordRun or function() end
   config.getRoster = RequireFunction(state.getRoster, "state.getRoster")
   config.captureRioBaselineSnapshot = callbacks.captureRioBaselineSnapshot
+  config.restoreRioBaseline = callbacks.restoreRioBaseline
   config.enableRioDeltaDisplay = callbacks.enableRioDeltaDisplay
   config.isReadyCheckActive = type(callbacks.isReadyCheckActive) == "function" and callbacks.isReadyCheckActive
     or function()

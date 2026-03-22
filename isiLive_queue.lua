@@ -518,6 +518,8 @@ local function ShouldSkipDuplicateApply(signature)
   return false
 end
 
+-- Explicit helper for callers that deliberately want to rescan the application list.
+-- The automatic candidate path avoids this scan because third-party LFG addons can taint applicant tables.
 function Queue.CaptureQueueJoinFromApplications(updatePendingQueueJoin, resolveTeleportSpellIDByActivityID)
   if not (C_LFGList and C_LFGList.GetApplications and C_LFGList.GetApplicationInfo) then
     return
@@ -617,5 +619,4 @@ function Queue.CaptureQueueJoinCandidate(updatePendingQueueJoin, resolveTeleport
     end
   end
 
-  Queue.CaptureQueueJoinFromApplications(updatePendingQueueJoin, resolveTeleportSpellIDByActivityID)
 end

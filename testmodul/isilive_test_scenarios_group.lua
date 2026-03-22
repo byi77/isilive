@@ -217,6 +217,13 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithG
             CreateCenterNotice = function()
               return {}
             end,
+            CreatePortalNavigatorNotice = function()
+              return {
+                frame = {},
+                SetVisible = function() end,
+                Show = function() end,
+              }
+            end,
             CreateInviteHint = function()
               return {}
             end,
@@ -385,6 +392,13 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithG
           notice = {
             CreateCenterNotice = function()
               return {}
+            end,
+            CreatePortalNavigatorNotice = function()
+              return {
+                frame = {},
+                SetVisible = function() end,
+                Show = function() end,
+              }
             end,
             CreateInviteHint = function()
               return {}
@@ -603,6 +617,7 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
 
     Assert.True(state.mainFrameVisible, "frame must stay visible for raid group (H mode)")
     Assert.Equal(state.raidModeSwitches, 1, "switchToRaidMode must be called exactly once on first raid transition")
+    Assert.Equal(state.uiUpdates, 1, "raid transition must re-render roster into H mode")
     Assert.Equal(#state.prints, 1, "exactly one notification must be printed")
     Assert.True(state.prints[1]:find("Raid") ~= nil, "notification must contain raid message")
   end)

@@ -69,7 +69,9 @@ local EVENT_REGISTRY = {
   { "UPDATE_BINDINGS", true, true, false },
   { "PLAYER_REGEN_ENABLED", true, true, true },
   { "PLAYER_DIFFICULTY_CHANGED", false, false, false },
-  { "ZONE_CHANGED_NEW_AREA", false, false, false },
+  { "ZONE_CHANGED", false, true, false },
+  { "ZONE_CHANGED_INDOORS", false, true, false },
+  { "ZONE_CHANGED_NEW_AREA", false, true, false },
   { "UPDATE_INSTANCE_INFO", false, false, false },
   { "GROUP_ROSTER_UPDATE", false, "cond", false },
   { "LFG_LIST_SEARCH_RESULT_UPDATED", false, false, false },
@@ -118,10 +120,7 @@ function Bootstrap.CreateGatedOnEvent(opts)
   local isTestMode = RequireFunction(opts.isTestMode, "isTestMode")
   local isInCombat = RequireFunction(opts.isInCombat, "isInCombat")
   local isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
-  local isInPartyInstance = type(opts.isInPartyInstance) == "function" and opts.isInPartyInstance
-    or function()
-      return false
-    end
+  local isInPartyInstance = RequireFunction(opts.isInPartyInstance, "isInPartyInstance")
   local getActiveChallengeMapID = RequireFunction(opts.getActiveChallengeMapID, "getActiveChallengeMapID")
   local onDispatchError = type(opts.onDispatchError) == "function" and opts.onDispatchError or nil
 

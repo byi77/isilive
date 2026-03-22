@@ -15,6 +15,33 @@ local LANGUAGE_FLAG_TEXTURE_BY_TAG = {
   RU = "Interface\\AddOns\\isiLive\\media\\flags\\ru",
 }
 
+local LANGUAGE_NAME_BY_LOCALE = {
+  enUS = {
+    CN = "Chinese",
+    DE = "German",
+    EN = "English",
+    ES = "Spanish",
+    FR = "French",
+    IT = "Italian",
+    KR = "Korean",
+    PT = "Portuguese",
+    RU = "Russian",
+    TW = "Taiwanese",
+  },
+  deDE = {
+    CN = "Chinesisch",
+    DE = "Deutsch",
+    EN = "Englisch",
+    ES = "Spanisch",
+    FR = "Französisch",
+    IT = "Italienisch",
+    KR = "Koreanisch",
+    PT = "Portugiesisch",
+    RU = "Russisch",
+    TW = "Taiwanesisch",
+  },
+}
+
 function Locale.ResolveLocaleTag(tag)
   if not tag then
     return "enUS"
@@ -74,7 +101,27 @@ function Locale.GetLanguageFlagMarkup(languageTag)
     -- damit KR/CN/TW-Spieler erkennbare Kürzel statt Fragezeichen sehen.
     return string.format("|cffbfbfbf%s|r", tag)
   end
-  return string.format("|T%s:14:10:0:0|t", texturePath)
+  return string.format("|T%s:12:16:0:0|t", texturePath)
+end
+
+function Locale.GetLanguageDisplayName(languageTag, localeTag)
+  local tag = languageTag and tostring(languageTag):upper() or "??"
+  local displayLocale = Locale.ResolveLocaleTag(localeTag or (rawget(_G, "GetLocale") and GetLocale() or nil))
+  local localeNames = LANGUAGE_NAME_BY_LOCALE[displayLocale] or LANGUAGE_NAME_BY_LOCALE.enUS
+  return localeNames[tag] or tag
+end
+
+function Locale.GetLanguageTooltipMarkup(languageTag, localeTag)
+  local flagMarkup = Locale.GetLanguageFlagMarkup(languageTag)
+  local displayLocale = Locale.ResolveLocaleTag(localeTag or (rawget(_G, "GetLocale") and GetLocale() or nil))
+  local displayName = Locale.GetLanguageDisplayName(languageTag, displayLocale)
+  if displayName == "" then
+    return flagMarkup
+  end
+  if flagMarkup == "" then
+    return displayName
+  end
+  return string.format("%s %s", flagMarkup, displayName)
 end
 
 function Locale.NormalizeRealmLookupKey(realm)

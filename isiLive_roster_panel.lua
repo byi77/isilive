@@ -97,19 +97,19 @@ local CreateModeButton = RI.CreateModeButton
 
 -- Column position constants
 local SPEC_COL_X = 4
-local NAME_COL_X = 89
+local NAME_COL_X = 93
 local SERVER_COL_X = 75
 local KEY_COL_X = 216
 local ILVL_COL_X = 272
 local RIO_COL_X = 308
-local DPS_COL_X = 350
 local SPEC_COL_WIDTH = 52
-local NAME_COL_WIDTH = 126
-local SERVER_COL_WIDTH = 14
+local NAME_COL_WIDTH = 122
+local SERVER_COL_WIDTH = 18
 local KEY_COL_WIDTH = 52
 local ILVL_COL_WIDTH = 32
--- Keep the rating and DPS columns compact enough for 4-digit values.
-local RIO_COL_WIDTH = 40
+-- Leave enough room for long positive RIO deltas like (+999)9999 without clipping.
+local RIO_COL_WIDTH = 70
+local DPS_COL_X = RIO_COL_X + RIO_COL_WIDTH + 2
 local DPS_COL_WIDTH = 40
 local ROLE_BUTTON_X = SPEC_COL_X + SPEC_COL_WIDTH + 4
 
@@ -286,6 +286,7 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
         row.tooltipInfo,
         row.getDungeonShortCode,
         row.getPlayerLastRunDps,
+        row.getLanguageTooltipMarkup,
         row.getL
       )
     then
@@ -718,7 +719,6 @@ local function CreatePanelButtons(mainFrame, deps)
   local readyCheckButton = CreateFlatButton(mainFrame, 120, 24)
   readyCheckButton:SetPoint("TOPRIGHT", -111, -60)
   readyCheckButton._verticalY = -60
-  readyCheckButton._hModeText = "RC"
   readyCheckButton:SetScript("OnClick", function()
     if not isPlayerLeader() then
       return
@@ -733,7 +733,6 @@ local function CreatePanelButtons(mainFrame, deps)
   local countdownButton = CreateFlatButton(mainFrame, 120, 24)
   countdownButton:SetPoint("TOPRIGHT", -111, -90)
   countdownButton._verticalY = -90
-  countdownButton._hModeText = "CD"
   countdownButton:SetScript("OnClick", function()
     if not isPlayerLeader() then
       return
@@ -757,7 +756,6 @@ local function CreatePanelButtons(mainFrame, deps)
   local countdownCancelButton = CreateFlatButton(mainFrame, 120, 24)
   countdownCancelButton:SetPoint("TOPRIGHT", -111, -120)
   countdownCancelButton._verticalY = -120
-  countdownCancelButton._hModeText = "CD 0"
   AttachPanelButtonTooltip(
     deps.tooltipFrame,
     countdownCancelButton,
@@ -848,10 +846,7 @@ local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
 end
 
 local function ConstructPanelUI(mainFrame, uiDeps)
-  local isRaidGroupFn = type(uiDeps.isRaidGroup) == "function" and uiDeps.isRaidGroup
-    or function()
-      return false
-    end
+  local isRaidGroupFn = uiDeps.isRaidGroup
 
   -- Background for visibility
   do
@@ -864,14 +859,8 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     mainFrame:SetWidth(FULL_FRAME_WIDTH)
   end
 
-  local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightHuge")
+  local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   title:SetPoint("TOP", 0, -4)
-  do
-    local fontPath, fontSize, fontFlags = title:GetFont()
-    if fontPath and fontSize then
-      title:SetFont(fontPath, math.max(fontSize - 2, 8), fontFlags)
-    end
-  end
   title:SetTextColor(1, 0.85, 0)
   title:SetShadowOffset(1, -1)
   if type(title.SetShadowColor) == "function" then
@@ -1051,6 +1040,7 @@ local function RenderRosterImpl(state, roster)
     row.tooltipInfo = nil
     row.getDungeonShortCode = nil
     row.getPlayerLastRunDps = nil
+    row.getLanguageTooltipMarkup = nil
     row.getL = nil
     if row.hoverFrame then
       HideRosterHoverTooltip(rosterTooltip)
@@ -1088,12 +1078,9 @@ local function RenderRosterImpl(state, roster)
     end
   end
 
-  -- Temporarily hidden in Settings: keep raid markers visible for all users in runtime.
-  local markersLeaderOnly = (state.uiRef and state.uiRef.forceMarkersLeaderOnly) or FORCE_MARKERS_LEADER_ONLY
   if state.uiRef and state.uiRef.tankButtons and not IsCombatLockdownActive() then
     local isMainHorizontal = IsMainHorizontalLayoutMode(state.uiRef.layoutMode)
-    local isLeader = type(state.uiRef.isPlayerLeader) == "function" and state.uiRef.isPlayerLeader()
-    local showMarkers = not isMainHorizontal and (not markersLeaderOnly or (isLeader and true or false))
+    local showMarkers = not isMainHorizontal
     for _, btn in ipairs(state.uiRef.tankButtons) do
       if showMarkers then
         btn:Show()
@@ -1251,6 +1238,7 @@ local function RenderRosterImpl(state, roster)
     row.tooltipInfo = info
     row.getDungeonShortCode = state.getDungeonShortCode
     row.getPlayerLastRunDps = state.getPlayerLastRunDps
+    row.getLanguageTooltipMarkup = state.getLanguageTooltipMarkup
     row.getL = state.getL
     if row.hoverFrame then
       row.hoverFrame.unit = entry.unit
@@ -1290,6 +1278,21 @@ function RosterPanel.CreateController(opts)
   local truncateName = RequireFunction(opts.truncateName, "truncateName")
   local getShortSpecLabel = RequireFunction(opts.getShortSpecLabel, "getShortSpecLabel")
   local getLanguageFlagMarkup = RequireFunction(opts.getLanguageFlagMarkup, "getLanguageFlagMarkup")
+  local getLanguageTooltipMarkup = type(opts.getLanguageTooltipMarkup) == "function" and opts.getLanguageTooltipMarkup
+    or nil
+  if not getLanguageTooltipMarkup then
+    local localeModule = addonTable and addonTable.Locale
+    if type(localeModule) == "table" and type(localeModule.GetLanguageTooltipMarkup) == "function" then
+      local locale = rawget(_G, "GetLocale") and GetLocale() or nil
+      getLanguageTooltipMarkup = function(languageTag)
+        return localeModule.GetLanguageTooltipMarkup(languageTag, locale)
+      end
+    else
+      getLanguageTooltipMarkup = function(languageTag)
+        return getLanguageFlagMarkup(languageTag)
+      end
+    end
+  end
   local getDungeonShortCode = RequireFunction(opts.getDungeonShortCode, "getDungeonShortCode")
   local getRioDelta = type(opts.getRioDelta) == "function" and opts.getRioDelta or nil
   local getPlayerSyncSummary = type(opts.getPlayerSyncSummary) == "function" and opts.getPlayerSyncSummary or nil
@@ -1378,8 +1381,11 @@ function RosterPanel.CreateController(opts)
     ui.leadOptionsHeader:SetText(L.LEAD_OPTIONS)
     ui.mplusManagementHeader:SetText(L.MPLUS_MANAGEMENT)
     readyCheckButton._fullText = L.BTN_READYCHECK
+    readyCheckButton._hModeText = L.BTN_READYCHECK_SHORT
     countdownButton._fullText = L.BTN_COUNTDOWN10
+    countdownButton._hModeText = L.BTN_COUNTDOWN10_SHORT
     countdownCancelButton._fullText = L.BTN_COUNTDOWN_CANCEL
+    countdownCancelButton._hModeText = L.BTN_COUNTDOWN_CANCEL_SHORT
     shareKeysButton._fullText = L.BTN_SHARE_KEYS
     refreshButton._fullText = L.BTN_REFRESH
     local isH = IsHorizontalCompactLayoutMode(ui and ui.layoutMode)
@@ -1483,6 +1489,7 @@ function RosterPanel.CreateController(opts)
       truncateName = truncateName,
       getShortSpecLabel = getShortSpecLabel,
       getLanguageFlagMarkup = getLanguageFlagMarkup,
+      getLanguageTooltipMarkup = getLanguageTooltipMarkup,
       getDungeonShortCode = getDungeonShortCode,
       getRioDelta = getRioDelta,
       syncMarker = syncMarker,

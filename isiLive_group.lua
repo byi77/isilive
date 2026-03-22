@@ -304,8 +304,8 @@ local function UpdatePartyMembersInRoster(deps, roster)
 end
 
 local function HandleGroupRosterUpdate(deps)
-  local wasInGroupBefore = deps.getWasInGroup() and true or false
-  local inGroupNow = deps.isInGroup() and true or false
+  local wasInGroupBefore = deps.getWasInGroup() == true
+  local inGroupNow = deps.isInGroup() == true
   local joinedNow = inGroupNow and not wasInGroupBefore
   deps.setWasInGroup(inGroupNow)
 
@@ -329,9 +329,10 @@ local function HandleGroupRosterUpdate(deps)
         deps.printFn(L.RAID_GROUP_HIDDEN)
       end
       deps.switchToRaidMode()
+      deps.setMainFrameVisible(true)
+      deps.updateUI()
     end
     deps.setWasRaidGroup(true)
-    deps.setMainFrameVisible(true)
     deps.updateLeaderButtons()
     return
   end

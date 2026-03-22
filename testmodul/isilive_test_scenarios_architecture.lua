@@ -170,6 +170,24 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
       "GROUP_ROSTER_UPDATE = true",
       "ConfigBuilders hidden-gate allowlist must include roster sync"
     )
+    AssertContains(
+      Assert,
+      content,
+      "ZONE_CHANGED = true",
+      "ConfigBuilders hidden-gate allowlist must include portal zone changes"
+    )
+    AssertContains(
+      Assert,
+      content,
+      "ZONE_CHANGED_INDOORS = true",
+      "ConfigBuilders hidden-gate allowlist must include indoor portal zone changes"
+    )
+    AssertContains(
+      Assert,
+      content,
+      "ZONE_CHANGED_NEW_AREA = true",
+      "ConfigBuilders hidden-gate allowlist must include area portal zone changes"
+    )
   end)
 
   test("Architecture root keeps challenge helper guarded and de-duplicates roster trigger helper", function()

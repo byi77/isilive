@@ -26,11 +26,12 @@ local function InitializeFactoryRuntimeHelpers(ctx)
     runtimeState.SetReadyCheckActive(value)
   end
   ctx.IsInPartyInstance = function()
-    if type(GetInstanceInfo) ~= "function" then
-      return false
-    end
     local _, instanceType = GetInstanceInfo()
     return instanceType == "party"
+  end
+  ctx.IsPortalNavigatorEnabled = function()
+    local dbRef = rawget(_G, "IsiLiveDB")
+    return dbRef == nil or dbRef.showPortalNavigator ~= false
   end
   ctx.GetWasInGroup = function()
     return runtimeState.GetWasInGroup()
@@ -57,16 +58,7 @@ local function InitializeFactoryRuntimeHelpers(ctx)
     runtimeState.SetRoster(value)
   end
   ctx.NormalizePlayerKey = function(name, realm)
-    if modules.sync and type(modules.sync.NormalizePlayerKey) == "function" then
-      return modules.sync.NormalizePlayerKey(name, realm)
-    end
-
-    local normalizedName = name and tostring(name) or ""
-    local normalizedRealm = realm and tostring(realm) or ""
-    if normalizedRealm == "" then
-      normalizedRealm = GetRealmName() or ""
-    end
-    return string.lower(normalizedName .. "-" .. normalizedRealm)
+    return modules.sync.NormalizePlayerKey(name, realm)
   end
   ctx.BuildRosterInfoPlayerKey = function(info)
     if type(info) ~= "table" then
@@ -164,13 +156,12 @@ local function InitializeFactoryRuntimeHelpers(ctx)
     end
     return delta
   end
-  ctx.GetPlayerSyncSummary = function(name, realm)
+  ctx.getPlayerSyncSummary = function(name, realm)
     if modules.sync and type(modules.sync.GetPlayerSyncSummary) == "function" then
       return modules.sync.GetPlayerSyncSummary(name, realm)
     end
     return nil
   end
-  ctx.getPlayerSyncSummary = ctx.GetPlayerSyncSummary
   ctx.ResetInspectAll = function()
     ctx.inspectController.ResetAll()
   end
@@ -348,6 +339,7 @@ local function InitializeFactoryPrimaryControllers(ctx)
     end,
     getShortSpecLabel = ctx.GetShortSpecLabel,
     getLanguageFlagMarkup = modules.locale.GetLanguageFlagMarkup,
+    getLanguageTooltipMarkup = ctx.GetLanguageTooltipMarkup,
     getDungeonShortCode = function(mapID)
       local activeLocale = (IsiLiveDB and IsiLiveDB.locale) or ctx.locale
       return modules.teleport.GetDungeonShortCode(mapID, activeLocale)
@@ -522,10 +514,27 @@ local function InitializeFactorySecondaryControllers(ctx)
 
   local statusController = modules.status.CreateController({
     getL = ctx.GetL,
+    getSubZoneText = ctx.GetSubZoneText,
+    getZoneText = ctx.GetZoneText,
+    getRealZoneText = ctx.GetRealZoneText,
+    getPlayerMapID = ctx.GetPlayerMapID,
+    getMapInfoName = ctx.GetMapInfoName,
+    timerAfter = function(seconds, callback)
+      if C_Timer and C_Timer.After then
+        C_Timer.After(seconds, function()
+          pcall(callback)
+        end)
+      end
+    end,
     showCenterNotice = ctx.ShowCenterNotice,
     hideCenterNotice = function()
       ctx.centerNotice.SetVisible(false)
     end,
+    showPortalNavigatorNotice = ctx.ShowPortalNavigatorNotice,
+    hidePortalNavigatorNotice = function()
+      ctx.SetPortalNavigatorVisible(false)
+    end,
+    isPortalNavigatorEnabled = ctx.IsPortalNavigatorEnabled,
     isPlayerLeader = ctx.IsPlayerLeader,
     getTargetDungeonInfo = ctx.GetStatusTargetDungeonInfo,
     hasActiveDungeons = function()
@@ -605,6 +614,16 @@ local function InitializeFactorySecondaryControllers(ctx)
 
   ctx.GetUnitServerLanguage = function(unit, realm)
     return modules.contextHelpers.GetUnitServerLanguage(modules.locale, ctx.GetRealmInfoLib, unit, realm)
+  end
+
+  local rosterTooltip = ctx.addonTable and ctx.addonTable._RosterInternal
+  if type(rosterTooltip) == "table" and type(rosterTooltip.RegisterBlizzardUnitLanguageTooltip) == "function" then
+    rosterTooltip.RegisterBlizzardUnitLanguageTooltip({
+      getUnitNameAndRealm = ctx.GetUnitNameAndRealm,
+      getUnitServerLanguage = ctx.GetUnitServerLanguage,
+      getRealmInfoLib = ctx.GetRealmInfoLib,
+      getLanguageTooltipMarkup = ctx.GetLanguageTooltipMarkup,
+    })
   end
 
   ctx.queueFlowController = modules.queueFlow.CreateController(modules.configBuilders.BuildQueueFlowControllerOpts({

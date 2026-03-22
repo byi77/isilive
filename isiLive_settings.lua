@@ -71,6 +71,7 @@ local function CreateSettingsCheckbox(parent, yOffset, labelText, getter, setter
   label:SetTextColor(tn[1], tn[2], tn[3], 1)
   label:SetPoint("LEFT", check, "RIGHT", 4, 0)
   label:SetText(labelText or "")
+  check.label = label
 
   if type(getter) == "function" then
     check:SetChecked(getter())
@@ -385,6 +386,7 @@ local function ResolveSettingsOptions(opts)
     onMinimapButtonToggle = opts.onMinimapButtonToggle,
     onAutoOpenQueueToggle = opts.onAutoOpenQueueToggle,
     onAutoHideSoloToggle = opts.onAutoHideSoloToggle,
+    onPortalNavigatorToggle = opts.onPortalNavigatorToggle,
     onDefaultLayoutModeChange = opts.onDefaultLayoutModeChange,
     onNameMaxCharsChange = opts.onNameMaxCharsChange,
     onMarkersLeaderOnlyToggle = opts.onMarkersLeaderOnlyToggle,
@@ -741,22 +743,22 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
     )
   end
 
-  controls.columnGuides, yOffset = CreateSettingsCheckbox(
+  controls.portalNavigator, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
-    labels.SETTINGS_ROSTER_COLUMN_GUIDES or "Column Guides",
+    labels.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR or "Show Timeways Navigator",
     function()
       local db = config.getDB()
-      return db.showRosterColumnGuides == true
+      return db.showPortalNavigator ~= false
     end,
     function(checked)
       local db = config.getDB()
-      db.showRosterColumnGuides = checked
-      if type(config.onRosterColumnGuidesToggle) == "function" then
-        config.onRosterColumnGuidesToggle(checked)
+      db.showPortalNavigator = checked
+      if type(config.onPortalNavigatorToggle) == "function" then
+        config.onPortalNavigatorToggle(checked)
       end
     end,
-    "SETTINGS_ROSTER_COLUMN_GUIDES"
+    "SETTINGS_SHOW_TIMEWAYS_NAVIGATOR"
   )
 
   if SHOW_SOUND_ENABLED_SETTING then
@@ -801,16 +803,42 @@ local function BuildDebugSettingsSection(canvas, yOffset, labels, config, contro
     end
   )
 
-  controls.runtimeLog = CreateSettingsCheckbox(canvas, yOffset, labels.SETTINGS_RUNTIME_LOG or "Runtime Log", function()
-    local db = config.getDB()
-    return db.runtimeLogEnabled == true
-  end, function(checked)
-    local db = config.getDB()
-    db.runtimeLogEnabled = checked
-    if type(config.onRuntimeLogToggle) == "function" then
-      config.onRuntimeLogToggle(checked)
+  controls.runtimeLog, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_RUNTIME_LOG or "Runtime Log",
+    function()
+      local db = config.getDB()
+      return db.runtimeLogEnabled == true
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.runtimeLogEnabled = checked
+      if type(config.onRuntimeLogToggle) == "function" then
+        config.onRuntimeLogToggle(checked)
+      end
     end
-  end)
+  )
+
+  controls.columnGuides, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_ROSTER_COLUMN_GUIDES or "Column Guides",
+    function()
+      local db = config.getDB()
+      return db.showRosterColumnGuides == true
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.showRosterColumnGuides = checked
+      if type(config.onRosterColumnGuidesToggle) == "function" then
+        config.onRosterColumnGuidesToggle(checked)
+      end
+    end,
+    "SETTINGS_ROSTER_COLUMN_GUIDES"
+  )
+
+  return yOffset
 end
 
 local function RefreshSettingsControls(controls, config)
@@ -852,6 +880,9 @@ local function RefreshSettingsControls(controls, config)
   if controls.columnGuides then
     controls.columnGuides.label:SetText(freshL.SETTINGS_ROSTER_COLUMN_GUIDES or "Column Guides")
   end
+  if controls.portalNavigator then
+    controls.portalNavigator.label:SetText(freshL.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR or "Show Timeways Navigator")
+  end
   if controls.sound then
     controls.sound.label:SetText(freshL.SETTINGS_SOUND_ENABLED or "Sound Notifications")
   end
@@ -870,6 +901,9 @@ local function RefreshSettingsControls(controls, config)
   controls.runtimeLog.check:SetChecked(db.runtimeLogEnabled == true)
   if controls.columnGuides then
     controls.columnGuides.check:SetChecked(db.showRosterColumnGuides == true)
+  end
+  if controls.portalNavigator then
+    controls.portalNavigator.check:SetChecked(db.showPortalNavigator ~= false)
   end
 
   if controls.showDps then
@@ -912,7 +946,16 @@ function SettingsPanel.Create(opts)
   y = y - SECTION_GAP
   y = BuildBehaviorSettingsSection(canvas, y, L, config, controls)
   y = y - SECTION_GAP
-  BuildDebugSettingsSection(canvas, y, L, config, controls)
+  y = BuildDebugSettingsSection(canvas, y, L, config, controls)
+
+  local finalYOffset = tonumber(y) or 0
+  local contentHeight = math.max(212, math.ceil((-finalYOffset) + PADDING_TOP))
+  if type(canvas.SetHeight) == "function" then
+    canvas:SetHeight(contentHeight)
+  elseif type(canvas.SetSize) == "function" then
+    local currentWidth = type(canvas.GetWidth) == "function" and canvas:GetWidth() or 680
+    canvas:SetSize(currentWidth, contentHeight)
+  end
 
   local category = blizzardSettings.RegisterCanvasLayoutCategory(canvas, "isiLive")
   if type(blizzardSettings.RegisterAddOnCategory) == "function" then

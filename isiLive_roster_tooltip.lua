@@ -486,6 +486,123 @@ local function ResolveTooltipUnitLevel(unit, info)
   return nil
 end
 
+local function ResolveBlizzardTooltipUnit(tooltip, unit, tooltipData, preferTooltipDataOnly)
+  if type(unit) == "string" and unit ~= "" then
+    return unit
+  end
+
+  if preferTooltipDataOnly then
+    -- Still resolve unit from tooltip data so static-realm fallback in getUnitServerLanguage works
+    -- when LibRealmInfo is not available. Skips tooltip:GetUnit() (potentially stale).
+    if type(tooltipData) == "table" then
+      if type(tooltipData.unitToken) == "string" and tooltipData.unitToken ~= "" then
+        return tooltipData.unitToken
+      end
+      local unitTokenFromGUID = rawget(_G, "UnitTokenFromGUID")
+      if type(unitTokenFromGUID) == "function" then
+        local guid = tooltipData.guid
+        if type(guid) ~= "string" then
+          guid = tooltipData.healthGUID
+        end
+        if type(guid) == "string" then
+          local okToken, tok = pcall(unitTokenFromGUID, guid)
+          if okToken and type(tok) == "string" and tok ~= "" then
+            return tok
+          end
+        end
+      end
+    end
+    return nil
+  end
+
+  if type(tooltip) == "table" then
+    local tooltipGetUnit = tooltip.GetUnit
+    if type(tooltipGetUnit) == "function" then
+      local okUnit, tooltipUnit = pcall(tooltipGetUnit, tooltip)
+      if okUnit and type(tooltipUnit) == "string" and tooltipUnit ~= "" then
+        return tooltipUnit
+      end
+    end
+
+    if type(tooltip.unit) == "string" and tooltip.unit ~= "" then
+      return tooltip.unit
+    end
+  end
+
+  if type(tooltipData) == "table" then
+    if type(tooltipData.unitToken) == "string" and tooltipData.unitToken ~= "" then
+      return tooltipData.unitToken
+    end
+
+    local tooltipLines = type(tooltipData.lines) == "table" and tooltipData.lines or nil
+    if tooltipLines then
+      for _, line in ipairs(tooltipLines) do
+        if type(line) == "table" and type(line.unitToken) == "string" and line.unitToken ~= "" then
+          return line.unitToken
+        end
+      end
+    end
+
+    local unitTokenFromGUID = rawget(_G, "UnitTokenFromGUID")
+    if type(unitTokenFromGUID) == "function" then
+      local guid = tooltipData.guid
+      if type(guid) ~= "string" then
+        guid = tooltipData.healthGUID
+      end
+      if guid then
+        local okToken, tooltipUnit = pcall(unitTokenFromGUID, guid)
+        if okToken and type(tooltipUnit) == "string" and tooltipUnit ~= "" then
+          return tooltipUnit
+        end
+      end
+    end
+  end
+
+  return nil
+end
+
+local function ResolveBlizzardTooltipLanguageTagFromTooltipData(tooltipData, getRealmInfoLib)
+  if type(tooltipData) ~= "table" then
+    return nil, nil
+  end
+
+  local guid = tooltipData.guid
+  if type(guid) ~= "string" then
+    guid = tooltipData.healthGUID
+  end
+
+  if type(guid) ~= "string" then
+    return nil, nil
+  end
+
+  local isPlayer = tooltipData.isPlayer
+  if isPlayer == false then
+    return nil, nil
+  end
+
+  local realmInfoLib = type(getRealmInfoLib) == "function" and getRealmInfoLib() or nil
+  if not realmInfoLib or type(realmInfoLib.GetRealmInfoByGUID) ~= "function" then
+    return nil, nil
+  end
+
+  local okRealm, _, _, _, _, realmLocale = pcall(realmInfoLib.GetRealmInfoByGUID, realmInfoLib, guid)
+  if not okRealm or type(realmLocale) ~= "string" or realmLocale == "" then
+    return nil, nil
+  end
+
+  local localeModule = addonTable and addonTable.Locale
+  if type(localeModule) ~= "table" or type(localeModule.LocaleToLanguageTag) ~= "function" then
+    return nil, nil
+  end
+
+  local languageTag = localeModule.LocaleToLanguageTag(realmLocale)
+  if type(languageTag) ~= "string" or languageTag == "" then
+    return nil, nil
+  end
+
+  return languageTag, guid
+end
+
 local ENGLISH_CLASS_NAME_BY_TAG = {
   DEATHKNIGHT = "Death Knight",
   DEMONHUNTER = "Demon Hunter",
@@ -532,6 +649,7 @@ local function ShowRosterInfoTooltip(
   info,
   getDungeonShortCode,
   getPlayerLastRunDps,
+  getLanguageTooltipMarkup,
   getL
 )
   if type(info) ~= "table" then
@@ -574,6 +692,24 @@ local function ShowRosterInfoTooltip(
       and info.language ~= ""
       and tostring(info.language):upper():sub(1, 2)
     or nil
+  local languageTooltipMarkup = nil
+  if languageCode then
+    if type(getLanguageTooltipMarkup) == "function" then
+      local okMarkup, markup = pcall(getLanguageTooltipMarkup, languageCode)
+      if okMarkup and type(markup) == "string" and markup ~= "" then
+        languageTooltipMarkup = markup
+      end
+    end
+    if not languageTooltipMarkup then
+      local localeModule = addonTable and addonTable.Locale
+      if type(localeModule) == "table" and type(localeModule.GetLanguageTooltipMarkup) == "function" then
+        local okLocaleMarkup, localeMarkup = pcall(localeModule.GetLanguageTooltipMarkup, languageCode, nil)
+        if okLocaleMarkup and type(localeMarkup) == "string" and localeMarkup ~= "" then
+          languageTooltipMarkup = localeMarkup
+        end
+      end
+    end
+  end
 
   -- Only show rich tooltip when actual addon-synced data is present beyond name/key
   local hasRichInfo = (type(info.class) == "string" and info.class ~= "")
@@ -617,8 +753,8 @@ local function ShowRosterInfoTooltip(
     if unitLevel then
       tooltip:AddLine("Level: " .. tostring(unitLevel), 0.9, 0.9, 0.9)
     end
-    if languageCode then
-      tooltip:AddLine("Lang: " .. languageCode, 0.9, 0.9, 0.9)
+    if languageTooltipMarkup and languageTooltipMarkup ~= "" then
+      tooltip:AddLine(languageTooltipMarkup, 0.9, 0.9, 0.9)
     end
     if className then
       tooltip:AddLine("Class: " .. className, 0.9, 0.9, 0.9)
@@ -711,3 +847,196 @@ local function ShowRosterInfoTooltip(
   return true
 end
 RI.ShowRosterInfoTooltip = ShowRosterInfoTooltip
+
+local function AppendBlizzardUnitLanguageLine(
+  tooltip,
+  unit,
+  getUnitNameAndRealm,
+  getUnitServerLanguage,
+  getRealmInfoLib,
+  getLanguageTooltipMarkup,
+  tooltipData,
+  preferTooltipDataOnly
+)
+  if type(tooltip) ~= "table" then
+    return false
+  end
+
+  local resolvedUnit = ResolveBlizzardTooltipUnit(tooltip, unit, tooltipData, preferTooltipDataOnly)
+  local languageTag = nil
+  local languageKey = nil
+
+  local tooltipLanguageTag = ResolveBlizzardTooltipLanguageTagFromTooltipData(tooltipData, getRealmInfoLib)
+  if type(tooltipLanguageTag) == "string" and tooltipLanguageTag ~= "" then
+    languageTag = tooltipLanguageTag
+  end
+
+  if not languageTag and type(resolvedUnit) == "string" then
+    local unitExists = rawget(_G, "UnitExists")
+    if type(unitExists) == "function" then
+      local okExists, exists = pcall(unitExists, resolvedUnit)
+      if okExists and exists then
+        local unitIsPlayer = rawget(_G, "UnitIsPlayer")
+        local okPlayer, isPlayer = true, true
+        if type(unitIsPlayer) == "function" then
+          okPlayer, isPlayer = pcall(unitIsPlayer, resolvedUnit)
+        end
+
+        if okPlayer and isPlayer == true then
+          local unitGUIDFn = rawget(_G, "UnitGUID")
+          if type(getRealmInfoLib) == "function" and type(unitGUIDFn) == "function" then
+            local okGuid, unitGUID = pcall(unitGUIDFn, resolvedUnit)
+            if okGuid and type(unitGUID) == "string" then
+              local guidLanguageTag = ResolveBlizzardTooltipLanguageTagFromTooltipData({
+                guid = unitGUID,
+                isPlayer = true,
+              }, getRealmInfoLib)
+              if type(guidLanguageTag) == "string" and guidLanguageTag ~= "" then
+                languageTag = guidLanguageTag
+              end
+            end
+          end
+
+          if not languageTag then
+            if type(getUnitNameAndRealm) ~= "function" or type(getUnitServerLanguage) ~= "function" then
+              return false
+            end
+
+            local okNameRealm, _name, realm = pcall(getUnitNameAndRealm, resolvedUnit)
+            if okNameRealm then
+              local okLanguage, resolvedLanguageTag = pcall(getUnitServerLanguage, resolvedUnit, realm)
+              if okLanguage and type(resolvedLanguageTag) == "string" and resolvedLanguageTag ~= "" then
+                languageTag = resolvedLanguageTag
+                languageKey = resolvedLanguageTag
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  if type(languageTag) ~= "string" or languageTag == "" then
+    return false
+  end
+
+  if preferTooltipDataOnly then
+    local tooltipDataInstanceID = type(tooltipData) == "table" and tonumber(tooltipData.dataInstanceID) or nil
+    languageKey = tooltipDataInstanceID or languageTag
+  elseif languageKey == nil then
+    languageKey = languageTag
+  end
+
+  if tooltip._isiLiveLanguageFlagUnit == languageKey then
+    return false
+  end
+
+  local languageMarkup = nil
+  if type(getLanguageTooltipMarkup) == "function" then
+    local okMarkup, markup = pcall(getLanguageTooltipMarkup, languageTag)
+    if okMarkup and type(markup) == "string" and markup ~= "" then
+      languageMarkup = markup
+    end
+  end
+  if not languageMarkup then
+    local localeModule = addonTable and addonTable.Locale
+    if type(localeModule) == "table" and type(localeModule.GetLanguageTooltipMarkup) == "function" then
+      local okLocaleMarkup, localeMarkup = pcall(localeModule.GetLanguageTooltipMarkup, languageTag, nil)
+      if okLocaleMarkup and type(localeMarkup) == "string" and localeMarkup ~= "" then
+        languageMarkup = localeMarkup
+      end
+    end
+  end
+
+  if not languageMarkup then
+    return false
+  end
+
+  if type(tooltip.AddLine) ~= "function" then
+    return false
+  end
+
+  tooltip._isiLiveLanguageFlagUnit = languageKey
+  if languageMarkup then
+    tooltip:AddLine(languageMarkup, 0.9, 0.9, 0.9)
+  end
+  if type(tooltip.Show) == "function" then
+    tooltip:Show()
+  end
+  return true
+end
+
+local function RegisterBlizzardUnitLanguageTooltip(opts)
+  opts = opts or {}
+  if RI._blizzardUnitLanguageTooltipRegistered == true then
+    return true
+  end
+
+  local getUnitNameAndRealm = opts.getUnitNameAndRealm
+  local getUnitServerLanguage = opts.getUnitServerLanguage
+  local getRealmInfoLib = opts.getRealmInfoLib
+  local getLanguageTooltipMarkup = opts.getLanguageTooltipMarkup
+  if
+    type(getUnitNameAndRealm) ~= "function"
+    or type(getUnitServerLanguage) ~= "function"
+  then
+    return false
+  end
+
+  local gameTooltip = rawget(_G, "GameTooltip")
+  if type(gameTooltip) ~= "table" then
+    return false
+  end
+
+  local hooksecurefunc = rawget(_G, "hooksecurefunc")
+  if type(hooksecurefunc) ~= "function" then
+    return false
+  end
+
+  if type(gameTooltip.HookScript) == "function" then
+    gameTooltip:HookScript("OnTooltipCleared", function(self)
+      self._isiLiveLanguageFlagUnit = nil
+    end)
+  end
+
+  local tooltipDataProcessor = rawget(_G, "TooltipDataProcessor")
+  local tooltipDataType = rawget(_G, "Enum") and Enum.TooltipDataType or nil
+  local registeredTooltipDataProcessor = false
+  if
+    type(tooltipDataProcessor) == "table"
+    and type(tooltipDataProcessor.AddTooltipPostCall) == "function"
+    and type(tooltipDataType) == "table"
+    and tooltipDataType.Unit ~= nil
+  then
+    tooltipDataProcessor.AddTooltipPostCall(tooltipDataType.Unit, function(self, data)
+      AppendBlizzardUnitLanguageLine(
+        self,
+        nil,
+        getUnitNameAndRealm,
+        getUnitServerLanguage,
+        getRealmInfoLib,
+        getLanguageTooltipMarkup,
+        data,
+        true
+      )
+    end)
+    registeredTooltipDataProcessor = true
+  end
+
+  if not registeredTooltipDataProcessor then
+    hooksecurefunc(gameTooltip, "SetUnit", function(self, unit)
+      AppendBlizzardUnitLanguageLine(
+        self,
+        unit,
+        getUnitNameAndRealm,
+        getUnitServerLanguage,
+        getRealmInfoLib,
+        getLanguageTooltipMarkup
+      )
+    end)
+  end
+
+  RI._blizzardUnitLanguageTooltipRegistered = true
+  return true
+end
+RI.RegisterBlizzardUnitLanguageTooltip = RegisterBlizzardUnitLanguageTooltip

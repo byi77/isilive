@@ -18,13 +18,29 @@ end
 local function CreateFontStringStub()
   local fontSize = 14
   return {
-    SetPoint = function() end,
+    SetPoint = function(self, point, relativeTo, relativePoint, x, y)
+      self._point = { point, relativeTo, relativePoint, x or 0, y or 0 }
+    end,
+    GetPoint = function(self)
+      local p = self._point
+      if not p then
+        return nil
+      end
+      return p[1], p[2], p[3], p[4], p[5]
+    end,
     SetJustifyH = function() end,
     SetJustifyV = function() end,
     SetWordWrap = function() end,
     SetNonSpaceWrap = function() end,
-    SetTextColor = function() end,
-    SetText = function() end,
+    SetTextColor = function(self, r, g, b, a)
+      self._textColor = { r, g, b, a }
+    end,
+    SetText = function(self, value)
+      self._text = tostring(value or "")
+    end,
+    GetText = function(self)
+      return self._text
+    end,
     SetWidth = function() end,
     GetStringHeight = function()
       return 20
@@ -178,7 +194,12 @@ local function ApplyFrameMethods(frame)
   frame.StopMovingOrSizing = function(self)
     self._stopMovingCalls = (self._stopMovingCalls or 0) + 1
   end
-  frame.SetAlpha = function() end
+  frame.SetAlpha = function(self, value)
+    self._alpha = tonumber(value) or self._alpha
+  end
+  frame.GetAlpha = function(self)
+    return self._alpha
+  end
   frame.CreateTexture = function()
     return CreateTextureStub()
   end
@@ -218,8 +239,48 @@ local function ApplyFrameMethods(frame)
   frame.SetBackdropColor = function(self, r, g, b, a)
     self._backdropColor = { r, g, b, a }
   end
+  frame.GetBackdropColor = function(self)
+    if not self._backdropColor then
+      return nil
+    end
+    return self._backdropColor[1], self._backdropColor[2], self._backdropColor[3], self._backdropColor[4]
+  end
   frame.SetBackdropBorderColor = function(self, r, g, b, a)
     self._backdropBorderColor = { r, g, b, a }
+  end
+  frame.SetScrollChild = function(self, child)
+    self._scrollChild = child
+  end
+  frame.GetScrollChild = function(self)
+    return self._scrollChild
+  end
+  frame.SetVerticalScroll = function(self, value)
+    self._verticalScroll = tonumber(value) or 0
+  end
+  frame.GetVerticalScroll = function(self)
+    return self._verticalScroll or 0
+  end
+  frame.GetVerticalScrollRange = function(self)
+    local child = self._scrollChild
+    local childHeight = 0
+    if child and type(child.GetHeight) == "function" then
+      childHeight = tonumber(child:GetHeight()) or 0
+    end
+    local height = tonumber(self:GetHeight()) or 0
+    local range = childHeight - height
+    if range < 0 then
+      range = 0
+    end
+    return range
+  end
+  frame.EnableMouseWheel = function(self, enabled)
+    self._mouseWheelEnabled = enabled == true
+  end
+  frame.SetHorizontalScroll = function(self, value)
+    self._horizontalScroll = tonumber(value) or 0
+  end
+  frame.GetHorizontalScroll = function(self)
+    return self._horizontalScroll or 0
   end
   frame.SetOrientation = function(self, value)
     self._orientation = value
@@ -278,6 +339,7 @@ local function BuildCreateFrameStub(opts)
       _frameLevel = 1,
       _width = 680,
       _height = 212,
+      _alpha = 1,
       _attrs = {},
       _startMovingCalls = 0,
       _stopMovingCalls = 0,
@@ -1557,10 +1619,9 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
         0.7,
         "Last Used should stay unselected by default when no saved default layout exists"
       )
+      local onClickM2 = m2Button._scripts and m2Button._scripts.OnClick or nil ---@diagnostic disable-line: need-check-nil, undefined-field
+      local onClickLast = lastUsedButton._scripts and lastUsedButton._scripts.OnClick or nil ---@diagnostic disable-line: need-check-nil, undefined-field
       ---@diagnostic enable: need-check-nil, undefined-field
-
-      local onClickM2 = m2Button._scripts and m2Button._scripts.OnClick or nil
-      local onClickLast = lastUsedButton._scripts and lastUsedButton._scripts.OnClick or nil
       Assert.NotNil(onClickM2, "M2 button should define OnClick")
       Assert.NotNil(onClickLast, "Last Used button should define OnClick")
 
@@ -1655,12 +1716,14 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       end
 
       Assert.NotNil(autoHideCheck, "settings panel should create an auto-hide checkbox")
+      ---@diagnostic disable: need-check-nil, undefined-field
       Assert.True(autoHideCheck:GetChecked(), "auto-hide should default to enabled when no saved value exists")
 
       db.autoHideSolo = false
       panel.Refresh()
 
       Assert.False(autoHideCheck:GetChecked(), "refresh should honor an explicit false override")
+      ---@diagnostic enable: need-check-nil, undefined-field
     end)
   end)
 end
@@ -1735,13 +1798,14 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
       end
 
       Assert.NotNil(guideCheck, "settings panel should create a column-guides checkbox")
+      ---@diagnostic disable: need-check-nil, undefined-field
       Assert.False(guideCheck:GetChecked(), "column guides should default to disabled")
 
       local onClick = guideCheck._scripts and guideCheck._scripts.OnClick or nil
       Assert.NotNil(onClick, "column guides checkbox should define OnClick")
 
       guideCheck:SetChecked(true)
-      onClick(guideCheck)
+      onClick(guideCheck) ---@diagnostic disable-line: need-check-nil
       Assert.True(db.showRosterColumnGuides, "enabling the checkbox should persist the enabled setting")
       Assert.Equal(callbackStates[1], true, "enabling the checkbox should notify the callback")
 
@@ -1749,9 +1813,102 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
       Assert.True(guideCheck:GetChecked(), "refresh should keep the enabled checkbox state")
 
       guideCheck:SetChecked(false)
-      onClick(guideCheck)
+      onClick(guideCheck) ---@diagnostic disable-line: need-check-nil
       Assert.False(db.showRosterColumnGuides, "disabling the checkbox should persist the disabled setting")
       Assert.Equal(callbackStates[2], false, "disabling the checkbox should notify the callback")
+      ---@diagnostic enable: need-check-nil, undefined-field
+    end)
+  end)
+
+  test("Settings panel defaults Timeways Navigator to enabled until the user turns it off", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+    local callbackStates = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_BEHAVIOR = "Behavior",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_UI_SCALE = "UI Scale",
+            SETTINGS_MINIMAP_BUTTON = "Minimap Button",
+            SETTINGS_SYNC_ENABLED = "Addon Sync",
+            SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
+            SETTINGS_AUTO_HIDE_SOLO = "Auto Hide Solo",
+            SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
+            SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
+            SETTINGS_DEFAULT_OPEN_UI_M = "M",
+            SETTINGS_DEFAULT_OPEN_UI_V = "V",
+            SETTINGS_DEFAULT_OPEN_UI_H = "H",
+            SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
+            SETTINGS_ROSTER_COLUMN_GUIDES = "Column Guides",
+            SETTINGS_SHOW_TIMEWAYS_NAVIGATOR = "Show Timeways Navigator",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+        onPortalNavigatorToggle = function(enabled)
+          callbackStates[#callbackStates + 1] = enabled and true or false
+        end,
+      })
+
+      Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
+      Assert.Nil(db.showPortalNavigator, "opening settings should not persist the default portal navigator value")
+
+      local navigatorCheck = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._settingKey == "SETTINGS_SHOW_TIMEWAYS_NAVIGATOR" then
+          navigatorCheck = frame
+          break
+        end
+      end
+
+      Assert.NotNil(navigatorCheck, "settings panel should create a portal navigator checkbox")
+      ---@diagnostic disable: need-check-nil, undefined-field
+      Assert.True(navigatorCheck:GetChecked(), "portal navigator should default to enabled when no saved value exists")
+      Assert.Equal(
+        navigatorCheck.label:GetText(),
+        "Show Timeways Navigator",
+        "portal navigator label should use the English settings text"
+      )
+
+      local onClick = navigatorCheck._scripts and navigatorCheck._scripts.OnClick or nil
+      Assert.NotNil(onClick, "portal navigator checkbox should define OnClick")
+
+      navigatorCheck:SetChecked(false)
+      onClick(navigatorCheck) ---@diagnostic disable-line: need-check-nil
+      Assert.False(db.showPortalNavigator, "disabling the checkbox should persist the disabled setting")
+      Assert.Equal(callbackStates[1], false, "disabling the checkbox should notify the callback")
+
+      panel.Refresh()
+      Assert.False(navigatorCheck:GetChecked(), "refresh should keep the disabled portal navigator state")
+      ---@diagnostic enable: need-check-nil, undefined-field
     end)
   end)
 
@@ -1813,6 +1970,10 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
       })
 
       Assert.NotNil(panel, "settings panel should still be created")
+      Assert.True(
+        panel.canvas:GetHeight() > 540,
+        "settings canvas should grow tall enough to force the Blizzard Settings scrollbar"
+      )
 
       local sliderCount = 0
       local checkboxCount = 0
@@ -1827,16 +1988,16 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
       Assert.Equal(sliderCount, 2, "settings should only expose the background opacity and UI scale sliders")
       Assert.Equal(
         checkboxCount,
-        10,
+        11,
         "settings should hide the legacy DPS, markers, sound, name-length,"
-          .. " and teleport-column controls while keeping column guides visible"
+          .. " and teleport-column controls while keeping column guides and the portal navigator toggle visible"
       )
 
       panel.Refresh()
       Assert.Equal(sliderCount, 2, "refresh should keep the legacy sliders hidden")
       Assert.Equal(
         checkboxCount,
-        10,
+        11,
         "refresh should keep the hidden legacy checkboxes out of the settings UI while preserving column guides"
       )
     end)
@@ -2108,6 +2269,126 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
       Assert.Equal(relativePoint, "CENTER", "reopened center notice should use CENTER relativePoint")
       Assert.Equal(x, 0, "reopened center notice should reset x offset")
       Assert.Equal(y, 0, "reopened center notice should reset y offset")
+    end)
+  end)
+
+  test("Portal navigator notice lays out the four portal labels around the frame", function()
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = BuildCreateFrameStub(),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local portalNotice = Notice.CreatePortalNavigatorNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      local framePoint, frameRelativeTo, frameRelativePoint, frameX, frameY = portalNotice.frame:GetPoint()
+      Assert.Equal(framePoint, "CENTER", "portal navigator frame should stay centered on the horizontal axis")
+      Assert.Equal(frameRelativeTo, UIParent, "portal navigator frame should anchor to UIParent")
+      Assert.Equal(frameRelativePoint, "CENTER", "portal navigator frame should keep center relative point")
+      Assert.Equal(frameX, 0, "portal navigator frame should not drift horizontally")
+      Assert.Equal(frameY, 240, "portal navigator frame should move up by one frame height")
+      Assert.Equal(portalNotice.frame:GetAlpha(), 1, "portal navigator text should stay fully opaque")
+      local bgR, bgG, bgB, bgA = portalNotice.frame:GetBackdropColor()
+      Assert.Equal(bgR, 0.05, "portal navigator background should keep the configured red channel")
+      Assert.Equal(bgG, 0.05, "portal navigator background should keep the configured green channel")
+      Assert.Equal(bgB, 0.08, "portal navigator background should keep the configured blue channel")
+      Assert.Equal(bgA, 0.5, "portal navigator background should render at 50 percent alpha")
+
+      portalNotice.SetVisible(false)
+      Assert.True(not portalNotice.frame:IsShown(), "portal navigator should hide cleanly")
+
+      portalNotice.SetVisible(true)
+      local reopenedFramePoint, reopenedFrameRelativeTo, reopenedFrameRelativePoint, reopenedFrameX, reopenedFrameY =
+        portalNotice.frame:GetPoint()
+      Assert.Equal(reopenedFramePoint, "CENTER", "portal navigator should reopen on the horizontal center")
+      Assert.Equal(reopenedFrameRelativeTo, UIParent, "portal navigator should still anchor to UIParent when reopened")
+      Assert.Equal(reopenedFrameRelativePoint, "CENTER", "portal navigator should reopen with center relative point")
+      Assert.Equal(reopenedFrameX, 0, "portal navigator should not drift horizontally when reopened")
+      Assert.Equal(reopenedFrameY, 240, "portal navigator should reopen at the configured top offset")
+
+      local shown = portalNotice.Show({
+        title = "Portal Navigator",
+        entries = {
+          { slot = "half_left", direction = "Half left", destination = "Grube von Saron" },
+          { slot = "left", direction = "Left", destination = "Himmelsnadel" },
+          { slot = "right", direction = "Right", destination = "Sitz des Triumvirats" },
+          { slot = "half_right", direction = "Half right", destination = "Akademie von Algeth'ar" },
+        },
+      })
+
+      Assert.True(shown, "portal navigator show should accept structured layout")
+      Assert.True(portalNotice.frame:IsShown(), "portal navigator should be visible after show")
+
+      local _, titleFontSize = portalNotice.titleText:GetFont()
+      Assert.Equal(titleFontSize, 24, "portal navigator title should be 10 points larger than the stub baseline")
+
+      for _, slot in ipairs({ "half_left", "left", "right", "half_right" }) do
+        local _, entryFontSize = portalNotice.entries[slot]:GetFont()
+        Assert.Equal(entryFontSize, 24, "portal navigator entries should be 10 points larger than the stub baseline")
+      end
+
+      local titlePoint, titleRelativeTo, titleRelativePoint, titleX, titleY = portalNotice.titleText:GetPoint()
+      Assert.Equal(titlePoint, "TOP", "portal navigator title should anchor at the top center")
+      Assert.Equal(titleRelativeTo, portalNotice.frame, "portal navigator title should anchor to the frame")
+      Assert.Equal(titleRelativePoint, "TOP", "portal navigator title should keep the top relative point")
+      Assert.Equal(titleX, 0, "portal navigator title should stay centered")
+      Assert.Equal(titleY, -12, "portal navigator title should keep the configured top offset")
+
+      local halfLeftPoint, halfLeftRelativeTo, halfLeftRelativePoint, halfLeftX, halfLeftY =
+        portalNotice.entries.half_left:GetPoint()
+      Assert.Equal(halfLeftPoint, "TOPLEFT", "half-left portal should anchor in the upper left quadrant")
+      Assert.Equal(halfLeftRelativeTo, portalNotice.frame, "half-left portal should anchor to the frame")
+      Assert.Equal(halfLeftRelativePoint, "TOPLEFT", "half-left portal should keep the top-left relative point")
+      Assert.Equal(halfLeftX, 60, "half-left portal should use the configured x offset")
+      Assert.Equal(halfLeftY, -78, "half-left portal should use the configured y offset")
+
+      local leftPoint, leftRelativeTo, leftRelativePoint, leftX, leftY = portalNotice.entries.left:GetPoint()
+      Assert.Equal(leftPoint, "LEFT", "left portal should anchor on the left edge")
+      Assert.Equal(leftRelativeTo, portalNotice.frame, "left portal should anchor to the frame")
+      Assert.Equal(leftRelativePoint, "LEFT", "left portal should keep the left relative point")
+      Assert.Equal(leftX, 60, "left portal should use the configured x offset")
+      Assert.Equal(leftY, -24, "left portal should sit lower to separate it from the upper entry")
+
+      local rightPoint, rightRelativeTo, rightRelativePoint, rightX, rightY = portalNotice.entries.right:GetPoint()
+      Assert.Equal(rightPoint, "RIGHT", "right portal should anchor on the right edge")
+      Assert.Equal(rightRelativeTo, portalNotice.frame, "right portal should anchor to the frame")
+      Assert.Equal(rightRelativePoint, "RIGHT", "right portal should keep the right relative point")
+      Assert.Equal(rightX, -60, "right portal should use the configured x offset")
+      Assert.Equal(rightY, -24, "right portal should sit lower to separate it from the upper entry")
+
+      local halfRightPoint, halfRightRelativeTo, halfRightRelativePoint, halfRightX, halfRightY =
+        portalNotice.entries.half_right:GetPoint()
+      Assert.Equal(halfRightPoint, "TOPRIGHT", "half-right portal should anchor in the upper right quadrant")
+      Assert.Equal(halfRightRelativeTo, portalNotice.frame, "half-right portal should anchor to the frame")
+      Assert.Equal(halfRightRelativePoint, "TOPRIGHT", "half-right portal should keep the top-right relative point")
+      Assert.Equal(halfRightX, -60, "half-right portal should use the configured x offset")
+      Assert.Equal(halfRightY, -78, "half-right portal should use the configured y offset")
+
+      Assert.Equal(
+        portalNotice.entries.half_left:GetText(),
+        "Grube von Saron",
+        "upper-left portal should show only the destination name"
+      )
+      Assert.Equal(
+        portalNotice.entries.left:GetText(),
+        "Himmelsnadel",
+        "lower-left portal should show only the destination name"
+      )
+      Assert.Equal(
+        portalNotice.entries.right:GetText(),
+        "Sitz des Triumvirats",
+        "lower-right portal should show only the destination name"
+      )
+      Assert.Equal(
+        portalNotice.entries.half_right:GetText(),
+        "Akademie von Algeth'ar",
+        "upper-right portal should show only the destination name"
+      )
     end)
   end)
 end

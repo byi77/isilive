@@ -34,9 +34,6 @@ local function BuildContext(opts)
 
   ctx.isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
   ctx.isInPartyInstance = OptionalFunction(opts.isInPartyInstance, function()
-    if type(GetInstanceInfo) ~= "function" then
-      return false
-    end
     local ok, _, instanceType = pcall(GetInstanceInfo)
     if not ok then
       return false
@@ -84,6 +81,8 @@ local function BuildContext(opts)
   ctx.markIsiLiveUser = RequireFunction(opts.markIsiLiveUser, "markIsiLiveUser")
   ctx.maybeShowNonMythicDungeonEntryNotice =
     RequireFunction(opts.maybeShowNonMythicDungeonEntryNotice, "maybeShowNonMythicDungeonEntryNotice")
+  ctx.maybeShowPortalNavigatorNotice =
+    RequireFunction(opts.maybeShowPortalNavigatorNotice, "maybeShowPortalNavigatorNotice")
   ctx.checkIfEnteredTargetDungeon = RequireFunction(opts.checkIfEnteredTargetDungeon, "checkIfEnteredTargetDungeon")
   ctx.captureRioBaselineSnapshot = OptionalFunction(opts.captureRioBaselineSnapshot, function() end)
   ctx.restoreRioBaseline = OptionalFunction(opts.restoreRioBaseline, function() end)

@@ -273,6 +273,9 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
     Assert.True(frame:IsEventRegistered("READY_CHECK"), "READY_CHECK must be registered")
     Assert.True(frame:IsEventRegistered("READY_CHECK_CONFIRM"), "READY_CHECK_CONFIRM must be registered")
     Assert.True(frame:IsEventRegistered("READY_CHECK_FINISHED"), "READY_CHECK_FINISHED must be registered")
+    Assert.True(frame:IsEventRegistered("ZONE_CHANGED"), "ZONE_CHANGED must be registered")
+    Assert.True(frame:IsEventRegistered("ZONE_CHANGED_INDOORS"), "ZONE_CHANGED_INDOORS must be registered")
+    Assert.True(frame:IsEventRegistered("ZONE_CHANGED_NEW_AREA"), "ZONE_CHANGED_NEW_AREA must be registered")
   end)
 
   test("Bootstrap gate allows ready check events during combat", function()
@@ -397,6 +400,83 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
     Assert.Equal(dispatched[1], "GROUP_ROSTER_UPDATE", "group-join trigger should pass hidden gate")
     Assert.Equal(dispatched[2], "CHALLENGE_MODE_COMPLETED", "key-end completed trigger should pass hidden gate")
     Assert.Equal(dispatched[3], "CHALLENGE_MODE_RESET", "key-end reset trigger should pass hidden gate")
+  end)
+
+  test("Bootstrap gate allows portal navigator zone events while frame is hidden", function()
+    local dispatched = {}
+
+    local addon = LoadAddonModules({ "isiLive_events.lua", "isiLive_bootstrap.lua" })
+    local gate = CreateBootstrapGate(addon, function(_frame, event, ...)
+      local _ = ...
+      table.insert(dispatched, event)
+    end)
+
+    local frame = {
+      IsShown = function()
+        return false
+      end,
+    }
+
+    gate(frame, "ZONE_CHANGED")
+    gate(frame, "ZONE_CHANGED_INDOORS")
+    gate(frame, "ZONE_CHANGED_NEW_AREA")
+
+    Assert.Equal(#dispatched, 3, "hidden gate must allow portal navigator zone events")
+    Assert.Equal(dispatched[1], "ZONE_CHANGED", "ZONE_CHANGED should pass hidden gate")
+    Assert.Equal(dispatched[2], "ZONE_CHANGED_INDOORS", "ZONE_CHANGED_INDOORS should pass hidden gate")
+    Assert.Equal(dispatched[3], "ZONE_CHANGED_NEW_AREA", "ZONE_CHANGED_NEW_AREA should pass hidden gate")
+  end)
+
+  test("Config builders gate allows portal navigator zone events while frame is hidden", function()
+    local dispatched = {}
+
+    local addon = LoadAddonModules({ "isiLive_events.lua", "isiLive_bootstrap.lua", "isiLive_config_builders.lua" })
+    local gate = addon.Bootstrap.CreateGatedOnEvent(
+      addon.ConfigBuilders.BuildGateOpts({
+        events = addon.Events,
+        onEvent = function(_frame, event, ...)
+          local _ = ...
+          table.insert(dispatched, event)
+        end,
+        onDispatchError = nil,
+        isStopped = function()
+          return false
+        end,
+        isPaused = function()
+          return false
+        end,
+        isTestMode = function()
+          return false
+        end,
+        isInCombat = function()
+          return false
+        end,
+        isInGroup = function()
+          return true
+        end,
+        isInPartyInstance = function()
+          return false
+        end,
+        getActiveChallengeMapID = function()
+          return nil
+        end,
+      })
+    )
+
+    local frame = {
+      IsShown = function()
+        return false
+      end,
+    }
+
+    gate(frame, "ZONE_CHANGED")
+    gate(frame, "ZONE_CHANGED_INDOORS")
+    gate(frame, "ZONE_CHANGED_NEW_AREA")
+
+    Assert.Equal(#dispatched, 3, "config builders gate must allow portal navigator zone events")
+    Assert.Equal(dispatched[1], "ZONE_CHANGED", "config builders gate should pass ZONE_CHANGED")
+    Assert.Equal(dispatched[2], "ZONE_CHANGED_INDOORS", "config builders gate should pass ZONE_CHANGED_INDOORS")
+    Assert.Equal(dispatched[3], "ZONE_CHANGED_NEW_AREA", "config builders gate should pass ZONE_CHANGED_NEW_AREA")
   end)
 
   test("Bootstrap gate blocks hidden group auto-open while inside non-key dungeon", function()

@@ -257,6 +257,25 @@ local function RegisterCombatStartupCVarAndWorldEntryTests(test, Assert, WithGlo
     Assert.Equal(#scheduled, 2, "entering world should only schedule hotkey reapply callbacks")
   end)
 
+  test("Event handlers trigger portal navigator checks on world and zone changes", function()
+    local portalCalls = 0
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      maybeShowPortalNavigatorNotice = function()
+        portalCalls = portalCalls + 1
+      end,
+    })
+
+    controller:Dispatch("PLAYER_ENTERING_WORLD")
+    controller:Dispatch("ZONE_CHANGED")
+    controller:Dispatch("ZONE_CHANGED_INDOORS")
+    controller:Dispatch("ZONE_CHANGED_NEW_AREA")
+    controller:Dispatch("UPDATE_INSTANCE_INFO")
+
+    Assert.Equal(portalCalls, 5, "portal navigator checks should run on world-entry and all zone-change events")
+  end)
+
   test("Event handlers auto-show main frame on dungeon entry after outdoor state", function()
     local showCalls = 0
     local lastVisible = nil

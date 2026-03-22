@@ -29,6 +29,160 @@ local function BuildDungeonContextSignature(instanceType, difficultyID, instance
   }, "|")
 end
 
+local PORTAL_NAVIGATOR_ZONE_NAMES = {
+  jahrhunderschwelle = true,
+  ["die jahrhunderschwelle"] = true,
+  ["millennia's threshold"] = true,
+  timeways = true,
+  ["the timeways"] = true,
+}
+
+local PORTAL_NAVIGATOR_MAP_IDS = {
+  [2266] = true,
+}
+
+local function NormalizeZoneText(value)
+  if type(value) ~= "string" then
+    return nil
+  end
+
+  local normalized = value:gsub("^%s+", ""):gsub("%s+$", "")
+  if normalized == "" then
+    return nil
+  end
+  return string.lower(normalized)
+end
+
+local function SafeCallTextProvider(provider)
+  if type(provider) ~= "function" then
+    return nil
+  end
+
+  local ok, text = pcall(provider)
+  if not ok then
+    return nil
+  end
+  return text
+end
+
+local function SafeCallNumberProvider(provider)
+  if type(provider) ~= "function" then
+    return nil
+  end
+
+  local ok, value = pcall(provider)
+  if not ok then
+    return nil
+  end
+
+  local numericValue = tonumber(value)
+  if not numericValue or numericValue <= 0 then
+    return nil
+  end
+  return math.floor(numericValue)
+end
+
+local function ResolvePortalNavigatorZoneSignature(deps)
+  local playerMapID = SafeCallNumberProvider(deps.getPlayerMapID)
+  if playerMapID and PORTAL_NAVIGATOR_MAP_IDS[playerMapID] then
+    return "map:" .. tostring(playerMapID), true
+  end
+
+  local mapInfoName = nil
+  if playerMapID then
+    mapInfoName = SafeCallTextProvider(function()
+      return deps.getMapInfoName(playerMapID)
+    end)
+  end
+
+  local zoneText = SafeCallTextProvider(deps.getZoneText)
+  local subZoneText = SafeCallTextProvider(deps.getSubZoneText)
+  local realZoneText = SafeCallTextProvider(deps.getRealZoneText)
+  local sawZoneText = false
+
+  local candidates = {}
+  if type(mapInfoName) == "string" then
+    local normalizedMapInfoName = NormalizeZoneText(mapInfoName)
+    if normalizedMapInfoName then
+      sawZoneText = true
+      table.insert(candidates, normalizedMapInfoName)
+    end
+  end
+  if type(zoneText) == "string" then
+    local normalizedZoneText = NormalizeZoneText(zoneText)
+    if normalizedZoneText then
+      sawZoneText = true
+      table.insert(candidates, normalizedZoneText)
+    end
+  end
+  if type(subZoneText) == "string" then
+    local normalizedSubZoneText = NormalizeZoneText(subZoneText)
+    if normalizedSubZoneText then
+      sawZoneText = true
+      table.insert(candidates, normalizedSubZoneText)
+    end
+  end
+  if type(realZoneText) == "string" and realZoneText ~= subZoneText then
+    local normalizedRealZoneText = NormalizeZoneText(realZoneText)
+    if normalizedRealZoneText then
+      sawZoneText = true
+      table.insert(candidates, normalizedRealZoneText)
+    end
+  end
+
+  for _, zoneText in ipairs(candidates) do
+    if PORTAL_NAVIGATOR_ZONE_NAMES[zoneText] then
+      return zoneText, true
+    end
+  end
+
+  return nil, sawZoneText
+end
+
+local function BuildPortalNavigatorLayout(deps)
+  local L = deps.getL()
+  local title = L.PORTAL_NAVIGATOR_TITLE
+  if type(title) ~= "string" or title == "" then
+    return nil
+  end
+  local entries = {
+    {
+      slot = "half_left",
+      direction = L.PORTAL_NAVIGATOR_HALF_LEFT,
+      destination = L.PORTAL_NAVIGATOR_PIT_OF_SARON,
+    },
+    {
+      slot = "left",
+      direction = L.PORTAL_NAVIGATOR_LEFT,
+      destination = L.PORTAL_NAVIGATOR_SKYREACH,
+    },
+    {
+      slot = "right",
+      direction = L.PORTAL_NAVIGATOR_RIGHT,
+      destination = L.PORTAL_NAVIGATOR_TRIUMVIRATE,
+    },
+    {
+      slot = "half_right",
+      direction = L.PORTAL_NAVIGATOR_HALF_RIGHT,
+      destination = L.PORTAL_NAVIGATOR_ALGETHAR,
+    },
+  }
+
+  for _, entry in ipairs(entries) do
+    if type(entry.direction) ~= "string" or entry.direction == "" then
+      return nil
+    end
+    if type(entry.destination) ~= "string" or entry.destination == "" then
+      return nil
+    end
+  end
+
+  return {
+    title = title,
+    entries = entries,
+  }
+end
+
 local function GetAddonStateText(getL, flags)
   flags = flags or {}
   local L = getL()
@@ -161,6 +315,70 @@ local function MaybeShowNonMythicDungeonEntryNotice(state, deps)
   state.lastDungeonContextSignature = dungeonContextSignature
 end
 
+local function MaybeShowPortalNavigatorNotice(state, deps)
+  if type(deps.isPortalNavigatorEnabled) == "function" and deps.isPortalNavigatorEnabled() == false then
+    state.portalNavigatorRetryToken = (state.portalNavigatorRetryToken or 0) + 1
+    state.portalNavigatorRetryScheduledToken = nil
+    if state.wasInPortalRoom == true or state.lastPortalNavigatorSignature ~= nil then
+      deps.hidePortalNavigatorNotice()
+    end
+    state.wasInPortalRoom = false
+    state.lastPortalNavigatorSignature = nil
+    return
+  end
+
+  local zoneSignature, hasZoneText = ResolvePortalNavigatorZoneSignature(deps)
+  if hasZoneText ~= true then
+    if type(deps.timerAfter) == "function" then
+      state.portalNavigatorRetryToken = (state.portalNavigatorRetryToken or 0) + 1
+      local token = state.portalNavigatorRetryToken
+      if state.portalNavigatorRetryScheduledToken ~= token then
+        state.portalNavigatorRetryScheduledToken = token
+        deps.timerAfter(1, function()
+          if state.portalNavigatorRetryScheduledToken ~= token then
+            return
+          end
+          state.portalNavigatorRetryScheduledToken = nil
+          MaybeShowPortalNavigatorNotice(state, deps)
+        end)
+      end
+    end
+    return
+  end
+  local inPortalRoom = zoneSignature ~= nil
+
+  if state.wasInPortalRoom == nil then
+    state.wasInPortalRoom = inPortalRoom
+    state.lastPortalNavigatorSignature = zoneSignature
+    if inPortalRoom then
+      local layout = BuildPortalNavigatorLayout(deps)
+      if layout then
+        deps.showPortalNavigatorNotice(layout)
+      end
+    end
+    return
+  end
+
+  if not inPortalRoom then
+    if state.wasInPortalRoom then
+      deps.hidePortalNavigatorNotice()
+    end
+    state.wasInPortalRoom = false
+    state.lastPortalNavigatorSignature = nil
+    return
+  end
+
+  if (not state.wasInPortalRoom) or state.lastPortalNavigatorSignature ~= zoneSignature then
+    local layout = BuildPortalNavigatorLayout(deps)
+    if layout then
+      deps.showPortalNavigatorNotice(layout)
+    end
+    state.lastPortalNavigatorSignature = zoneSignature
+  end
+
+  state.wasInPortalRoom = true
+end
+
 local function BuildStatusLineText(deps, flags)
   local L = deps.getL()
   local leadText = deps.isPlayerLeader() and L.STATUS_LEAD_YES or L.STATUS_LEAD_NO
@@ -189,9 +407,80 @@ function Status.CreateController(opts)
     getL = opts.getL or function()
       return {}
     end,
+    getSubZoneText = opts.getSubZoneText or function()
+      local getSubZoneText = rawget(_G, "GetSubZoneText")
+      if type(getSubZoneText) ~= "function" then
+        return nil
+      end
+      local ok, text = pcall(getSubZoneText)
+      if not ok then
+        return nil
+      end
+      return text
+    end,
+    getZoneText = opts.getZoneText or function()
+      local getZoneText = rawget(_G, "GetZoneText")
+      if type(getZoneText) ~= "function" then
+        return nil
+      end
+      local ok, text = pcall(getZoneText)
+      if not ok then
+        return nil
+      end
+      return text
+    end,
+    getPlayerMapID = opts.getPlayerMapID or function()
+      local mapApi = rawget(_G, "C_Map")
+      local getBestMapForUnit = mapApi and rawget(mapApi, "GetBestMapForUnit")
+      if type(getBestMapForUnit) ~= "function" then
+        return nil
+      end
+      local ok, mapID = pcall(getBestMapForUnit, "player")
+      mapID = ok and tonumber(mapID) or nil
+      if not mapID or mapID <= 0 then
+        return nil
+      end
+      return math.floor(mapID)
+    end,
+    getMapInfoName = opts.getMapInfoName or function(mapID)
+      local numericMapID = tonumber(mapID)
+      if not numericMapID or numericMapID <= 0 then
+        return nil
+      end
+      local mapApi = rawget(_G, "C_Map")
+      local getMapInfo = mapApi and rawget(mapApi, "GetMapInfo")
+      if type(getMapInfo) ~= "function" then
+        return nil
+      end
+      local ok, mapInfo = pcall(getMapInfo, numericMapID)
+      if not ok or type(mapInfo) ~= "table" then
+        return nil
+      end
+      if type(mapInfo.name) ~= "string" then
+        return nil
+      end
+      return mapInfo.name
+    end,
+    getRealZoneText = opts.getRealZoneText or function()
+      local getRealZoneText = rawget(_G, "GetRealZoneText")
+      if type(getRealZoneText) ~= "function" then
+        return nil
+      end
+      local ok, text = pcall(getRealZoneText)
+      if not ok then
+        return nil
+      end
+      return text
+    end,
     showCenterNotice = opts.showCenterNotice
       or function(_message, _durationSeconds, _dungeonName, _activityID, _showOptions) end,
     hideCenterNotice = opts.hideCenterNotice or function() end,
+    showPortalNavigatorNotice = opts.showPortalNavigatorNotice or function(_message) end,
+    hidePortalNavigatorNotice = opts.hidePortalNavigatorNotice or function() end,
+    isPortalNavigatorEnabled = opts.isPortalNavigatorEnabled or function()
+      return true
+    end,
+    timerAfter = opts.timerAfter or function(_seconds, _callback) end,
     isPlayerLeader = opts.isPlayerLeader or function()
       return false
     end,
@@ -211,6 +500,10 @@ function Status.CreateController(opts)
     nonMythicNoticeToken = 0,
     lastDungeonContextSignature = nil,
     lastAnnouncedNonMythicSignature = nil,
+    wasInPortalRoom = nil,
+    lastPortalNavigatorSignature = nil,
+    portalNavigatorRetryToken = 0,
+    portalNavigatorRetryScheduledToken = nil,
   }
 
   local controller = {}
@@ -225,6 +518,10 @@ function Status.CreateController(opts)
 
   function controller.MaybeShowNonMythicDungeonEntryNotice()
     return MaybeShowNonMythicDungeonEntryNotice(state, deps)
+  end
+
+  function controller.MaybeShowPortalNavigatorNotice()
+    return MaybeShowPortalNavigatorNotice(state, deps)
   end
 
   function controller.BuildStatusLineText(flags)

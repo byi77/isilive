@@ -21,8 +21,13 @@ local hidePrivateTooltip =
 
 local function BuildCenterNoticeConfig(opts)
   opts = opts or {}
+  local frameName = type(opts.frameName) == "string" and opts.frameName ~= "" and opts.frameName or "isiLiveCenterNotice"
   return {
     parent = opts.parent or UIParent,
+    frameName = frameName,
+    teleportButtonName = type(opts.teleportButtonName) == "string" and opts.teleportButtonName ~= ""
+        and opts.teleportButtonName
+      or (frameName .. "TeleportButton"),
     minHeight = tonumber(opts.minHeight) or 70,
     maxHeight = tonumber(opts.maxHeight) or 220,
     paddingX = tonumber(opts.paddingX) or 20,
@@ -53,8 +58,27 @@ local function BuildCenterNoticeConfig(opts)
   }
 end
 
+local function BuildPortalNavigatorConfig(opts)
+  opts = opts or {}
+  local frameName =
+    type(opts.frameName) == "string" and opts.frameName ~= "" and opts.frameName or "isiLivePortalNavigatorNotice"
+  return {
+    parent = opts.parent or UIParent,
+    frameName = frameName,
+    width = tonumber(opts.width) or 760,
+    height = tonumber(opts.height) or 240,
+    yOffset = tonumber(opts.yOffset) or tonumber(opts.height) or 240,
+    frameAlpha = tonumber(opts.frameAlpha) or 1,
+    backgroundAlpha = tonumber(opts.backgroundAlpha) or 0.5,
+    fontDelta = tonumber(opts.fontDelta) or 10,
+    paddingX = tonumber(opts.paddingX) or 24,
+    paddingY = tonumber(opts.paddingY) or 14,
+    entryWidth = tonumber(opts.entryWidth) or 320,
+  }
+end
+
 local function CreateCenterNoticeFrame(config)
-  local frame = CreateFrame("Frame", "isiLiveCenterNotice", config.parent, "BackdropTemplate")
+  local frame = CreateFrame("Frame", config.frameName, config.parent, "BackdropTemplate")
   frame:SetSize(680, config.minHeight)
   frame:SetPoint("CENTER", config.parent, "CENTER", 0, 0)
   frame:SetMovable(true)
@@ -77,6 +101,138 @@ local function CreateCenterNoticeFrame(config)
     end
   end
   return frame
+end
+
+local function CreatePortalNavigatorFrame(config)
+  local frame = CreateFrame("Frame", config.frameName, config.parent, "BackdropTemplate")
+  frame:SetSize(config.width, config.height)
+  frame:SetPoint("CENTER", config.parent, "CENTER", 0, config.yOffset)
+  frame:SetFrameStrata("DIALOG")
+  frame:SetMovable(true)
+  frame:EnableMouse(true)
+  frame:RegisterForDrag("LeftButton")
+  frame:Hide()
+  frame:SetScript("OnDragStart", function(self)
+    self:StartMoving()
+  end)
+  frame:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+  end)
+
+  local UICommon = addonTable and addonTable.UICommon
+  if not (type(UICommon) == "table" and UICommon.ApplyBackdrop and UICommon.ApplyBackdrop(frame, "NOTICE")) then
+    if type(frame.CreateTexture) == "function" then
+      local bg = frame:CreateTexture(nil, "BACKGROUND")
+      bg:SetAllPoints()
+      bg:SetColorTexture(0.05, 0.05, 0.08, config.backgroundAlpha)
+    end
+  elseif type(frame.SetBackdropColor) == "function" then
+    frame:SetBackdropColor(0.05, 0.05, 0.08, config.backgroundAlpha)
+  end
+  if type(frame.SetAlpha) == "function" then
+    frame:SetAlpha(config.frameAlpha)
+  end
+  return frame
+end
+
+local function IncreaseFontSize(fontString, delta)
+  local numericDelta = tonumber(delta) or 0
+  if numericDelta <= 0 then
+    return
+  end
+  if type(fontString) ~= "table" or type(fontString.GetFont) ~= "function" or type(fontString.SetFont) ~= "function" then
+    return
+  end
+
+  local fontPath, fontSize, fontFlags = fontString:GetFont()
+  local numericSize = tonumber(fontSize)
+  if not fontPath or not numericSize then
+    return
+  end
+
+  fontString:SetFont(fontPath, numericSize + numericDelta, fontFlags)
+end
+
+local function CreatePortalNavigatorTitle(frame, config)
+  local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  IncreaseFontSize(title, config.fontDelta)
+  title:SetPoint("TOP", frame, "TOP", 0, -12)
+  title:SetJustifyH("CENTER")
+  title:SetJustifyV("TOP")
+  title:SetTextColor(1, 0.9, 0.45)
+  return title
+end
+
+local PORTAL_NAVIGATOR_SLOT_POINTS = {
+  half_left = { point = "TOPLEFT", x = 60, y = -78 },
+  left = { point = "LEFT", x = 60, y = -24 },
+  right = { point = "RIGHT", x = -60, y = -24 },
+  half_right = { point = "TOPRIGHT", x = -60, y = -78 },
+}
+
+local function CreatePortalNavigatorEntry(frame, config, slot)
+  local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  IncreaseFontSize(text, config.fontDelta)
+  text:SetWidth(config.entryWidth)
+  text:SetJustifyH("CENTER")
+  text:SetJustifyV("MIDDLE")
+  text:SetWordWrap(false)
+  if text.SetNonSpaceWrap then
+    text:SetNonSpaceWrap(false)
+  end
+
+  local pointDef = PORTAL_NAVIGATOR_SLOT_POINTS[slot] or PORTAL_NAVIGATOR_SLOT_POINTS.left
+  text:SetPoint(pointDef.point, frame, pointDef.point, pointDef.x, pointDef.y)
+  text:SetTextColor(1, 1, 1)
+  return text
+end
+
+local function FormatPortalNavigatorEntryText(destination)
+  return tostring(destination or "")
+end
+
+local function ClearPortalNavigatorEntries(state)
+  state.titleText:SetText("")
+  for _, slot in ipairs({ "half_left", "left", "right", "half_right" }) do
+    local entry = state.entries[slot]
+    if entry then
+      entry:SetText("")
+    end
+  end
+end
+
+local function ApplyPortalNavigatorLayout(state, layout)
+  if type(layout) ~= "table" then
+    ClearPortalNavigatorEntries(state)
+    return false
+  end
+
+  local title = type(layout.title) == "string" and layout.title or ""
+  if title == "" then
+    ClearPortalNavigatorEntries(state)
+    return false
+  end
+
+  state.titleText:SetText(title)
+
+  local entryMap = {}
+  for _, entry in ipairs(layout.entries or {}) do
+    if type(entry) == "table" and type(entry.slot) == "string" then
+      entryMap[entry.slot] = entry
+    end
+  end
+
+  for _, slot in ipairs({ "half_left", "left", "right", "half_right" }) do
+    local textFrame = state.entries[slot]
+    local entry = entryMap[slot]
+    if textFrame and entry then
+      textFrame:SetText(FormatPortalNavigatorEntryText(entry.destination))
+    elseif textFrame then
+      textFrame:SetText("")
+    end
+  end
+
+  return true
 end
 
 local function CreateCenterNoticeText(frame, config)
@@ -102,7 +258,7 @@ end
 
 local function CreateCenterNoticeTeleportButton(frame, config)
   -- Use insecure action template so center notice can still be shown/hidden in combat.
-  local button = CreateFrame("Button", "isiLiveCenterNoticeTeleportButton", frame, "InsecureActionButtonTemplate")
+  local button = CreateFrame("Button", config.teleportButtonName, frame, "InsecureActionButtonTemplate")
   button:SetSize(config.buttonHeight, config.buttonHeight)
   button:SetPoint("TOP", frame, "TOP", 0, -(config.paddingY + 26 + config.buttonGap))
   button:Hide()
@@ -499,6 +655,79 @@ function Notice.CreateCenterNotice(opts)
     SetCenterNoticeVisible(state, false)
   end)
   return BuildCenterNoticeController(state)
+end
+
+local function BuildPortalNavigatorController(state)
+  local function ResetPortalNavigatorToConfiguredPosition()
+    state.frame:ClearAllPoints()
+    state.frame:SetPoint("CENTER", state.config.parent, "CENTER", 0, state.config.yOffset)
+  end
+
+  local function SetVisible(visible)
+    if visible then
+      if not state.frame:IsShown() then
+        ResetPortalNavigatorToConfiguredPosition()
+        state.frame:Show()
+      end
+      return
+    end
+    if state.frame:IsShown() then
+      state.frame:Hide()
+    end
+  end
+
+  local function Show(layout)
+    if not ApplyPortalNavigatorLayout(state, layout) then
+      SetVisible(false)
+      return false
+    end
+    SetVisible(true)
+    return true
+  end
+
+  return {
+    frame = state.frame,
+    titleText = state.titleText,
+    entries = state.entries,
+    closeButton = state.closeButton,
+    SetVisible = SetVisible,
+    Show = Show,
+  }
+end
+
+function Notice.CreatePortalNavigatorNotice(opts)
+  local config = BuildPortalNavigatorConfig(opts)
+  local frame = CreatePortalNavigatorFrame(config)
+  local titleText = CreatePortalNavigatorTitle(frame, config)
+  local closeButton = CreateCenterNoticeCloseButton(frame)
+  local entries = {
+    half_left = CreatePortalNavigatorEntry(frame, config, "half_left"),
+    left = CreatePortalNavigatorEntry(frame, config, "left"),
+    right = CreatePortalNavigatorEntry(frame, config, "right"),
+    half_right = CreatePortalNavigatorEntry(frame, config, "half_right"),
+  }
+  local state = {
+    config = config,
+    frame = frame,
+    titleText = titleText,
+    closeButton = closeButton,
+    entries = entries,
+  }
+
+  local function hidePortalNavigator()
+    state.frame:Hide()
+  end
+
+  frame:SetScript("OnMouseUp", function(_, button)
+    if button == "RightButton" then
+      hidePortalNavigator()
+    end
+  end)
+
+  closeButton:SetScript("OnClick", hidePortalNavigator)
+
+  ClearPortalNavigatorEntries(state)
+  return BuildPortalNavigatorController(state)
 end
 
 function Notice.CreateInviteHint(opts)
