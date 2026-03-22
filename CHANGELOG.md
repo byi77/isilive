@@ -8,7 +8,7 @@
 - **UI / Stats / Utility Row:**
   - Roster run stats now include `Deaths` and `Kicks` alongside `DPS`, with matching tooltip lines for completed runs.
   - Added the live cooldown tracker row for `BRes` charges/cooldown and `Bloodlust`/`Heroism`/`Time Warp` countdowns.
-  - The `Esc` menu now also exposes a second travel strip with `Ark. Key`, `Hearthstone`, and `Housing`.
+  - The `Esc` menu now also exposes a second travel strip with `Arkantine`, `Hearthstone`, and `Housing`.
 
 ## 2026-03-22 - Version 0.9.91
 - **Docs / Release Baseline:**

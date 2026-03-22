@@ -129,7 +129,7 @@ local SECOND_PANEL_UI_ENTRIES = {
   {
     id = "arkanatine_key",
     labelKey = "BTN_SECOND_ARKANATINE_KEY",
-    fallbackText = "Ark. Key",
+    fallbackText = "Arkantine",
     icon = "Interface\\Icons\\INV_Misc_Key_14",
     secureMacroText = "/use Persönlicher Schlüssel zur Arkantine",
   },

@@ -136,7 +136,7 @@ Goal: expose the latest completed dungeon DPS/deaths/kicks per player from Blizz
 Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without desynchronizing live CVars or SavedVariables.
 
 1. Trigger A: player opens the WoW `Esc` game menu while `IsiLiveDB.showEscPanel ~= false`.
-2. Result A: addon shows a localized tooling strip left of `GameMenuFrame` with buttons for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button, plus a second travel strip farther left with `Ark. Key`, `Hearthstone`, and `Housing`.
+2. Result A: addon shows a localized tooling strip left of `GameMenuFrame` with buttons for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button, plus a second travel strip farther left with `Arkantine`, `Hearthstone`, and `Housing`.
 3. Action: clicking a tooling-strip shortcut closes the game menu first and then opens the targeted Blizzard panel through the dedicated microbutton/direct opener path; the `ReloadUI` entry instead uses a secure macro path that clicks Blizzard `Continue` and then runs `/reload`.
 4. Combat safety: if combat lockdown blocks secure `ReloadUI` button refreshes (for example click registration or macro attribute updates), addon defers that secure update and retries it on `PLAYER_REGEN_ENABLED` instead of touching the protected button immediately.
 5. Rule: the spellbook shortcut must use spellbook-specific openers and must not route through the talents panel.

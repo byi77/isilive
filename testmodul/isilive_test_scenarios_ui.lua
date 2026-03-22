@@ -811,6 +811,65 @@ local function RegisterGameMenuMicroButtonLayoutTests(test, Assert, WithGlobals,
     end)
   end)
 
+  test("UI attaches ESC travel buttons with localized labels", function()
+    local createFrameStub = BuildCreateFrameStub()
+    local uiParent = {}
+    local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+    local closeButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
+    local gameMenuButtonContinue =
+      createFrameStub("Button", "GameMenuButtonContinue", gameMenuFrame, "GameMenuButtonTemplate")
+    gameMenuFrame.CloseButton = closeButton
+    gameMenuFrame:SetSize(286, 372)
+    gameMenuButtonContinue:SetSize(124, 32)
+
+    WithGlobals({
+      UIParent = uiParent,
+      CreateFrame = createFrameStub,
+      GameMenuFrame = gameMenuFrame,
+      GameMenuButtonContinue = gameMenuButtonContinue,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local firstStrip = UI.EnsurePanelUI({
+        gameMenuFrame = gameMenuFrame,
+        getL = function()
+          return {}
+        end,
+        panelActions = {},
+      })
+      local travelStrip = UI.EnsureSecondPanelUI({
+        gameMenuFrame = gameMenuFrame,
+        firstPanelState = firstStrip,
+        getL = function()
+          return {
+            BTN_SECOND_ARKANATINE_KEY = "Arkantine",
+            BTN_SECOND_HEARTHSTONE = "Ruhestein",
+            BTN_SECOND_HOUSING = "Housing",
+            PANEL_HEADER_TRAVEL = "Reisen",
+          }
+        end,
+      })
+
+      Assert.NotNil(travelStrip, "travel strip should be created after the main ESC panel")
+      Assert.Equal(#travelStrip.buttons, 3, "travel strip should expose three buttons")
+      Assert.Equal(
+        travelStrip.buttonsById.arkanatine_key:GetText(),
+        "Arkantine",
+        "arkanatine key button should use the localized label"
+      )
+      Assert.Equal(
+        travelStrip.buttonsById.hearthstone:GetText(),
+        "Ruhestein",
+        "hearthstone button should use the German label"
+      )
+      Assert.Equal(
+        travelStrip.buttonsById.housing_plot:GetText(),
+        "Housing",
+        "housing button should use the requested label"
+      )
+    end)
+  end)
+
   test("UI game-menu micromenu buttons run configured opener callbacks and close the menu", function()
     local createFrameStub = BuildCreateFrameStub()
     local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
