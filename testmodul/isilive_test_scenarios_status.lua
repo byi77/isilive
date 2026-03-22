@@ -15,7 +15,11 @@ local function BuildLocale()
     PORTAL_NAVIGATOR_TRIUMVIRATE = "Seat of the Triumvirate",
     PORTAL_NAVIGATOR_PIT_OF_SARON = "Pit of Saron",
     PORTAL_NAVIGATOR_ALGETHAR = "Algeth'ar Academy",
-    PORTAL_NAVIGATOR_TEXT = "Portal Navigator\nLeft: Skyreach\nRight: Seat of the Triumvirate\nHalf left: Pit of Saron\nHalf right: Algeth'ar Academy",
+    PORTAL_NAVIGATOR_TEXT = "Portal Navigator\n"
+      .. "Left: Skyreach\n"
+      .. "Right: Seat of the Triumvirate\n"
+      .. "Half left: Pit of Saron\n"
+      .. "Half right: Algeth'ar Academy",
     STATUS_LEAD_YES = "Lead: Yes",
     STATUS_LEAD_NO = "Lead: No",
     STATUS_MPLUS_YES = "M+: Active",

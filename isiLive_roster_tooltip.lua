@@ -902,7 +902,7 @@ local function AppendBlizzardUnitLanguageLine(
               return false
             end
 
-            local okNameRealm, _name, realm = pcall(getUnitNameAndRealm, resolvedUnit)
+            local okNameRealm, _, realm = pcall(getUnitNameAndRealm, resolvedUnit)
             if okNameRealm then
               local okLanguage, resolvedLanguageTag = pcall(getUnitServerLanguage, resolvedUnit, realm)
               if okLanguage and type(resolvedLanguageTag) == "string" and resolvedLanguageTag ~= "" then

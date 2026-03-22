@@ -130,9 +130,9 @@ local function ResolvePortalNavigatorZoneSignature(deps)
     end
   end
 
-  for _, zoneText in ipairs(candidates) do
-    if PORTAL_NAVIGATOR_ZONE_NAMES[zoneText] then
-      return zoneText, true
+  for _, candidateZoneText in ipairs(candidates) do
+    if PORTAL_NAVIGATOR_ZONE_NAMES[candidateZoneText] then
+      return candidateZoneText, true
     end
   end
 

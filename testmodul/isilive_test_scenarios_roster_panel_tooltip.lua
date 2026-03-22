@@ -513,15 +513,15 @@ local function RegisterBlizzardUnitTooltipDataProcessorTest(test, Assert, WithGl
           Assert.Equal(tag, "FR", "Tooltip hook must resolve the 2-letter server language tag")
           return "|Tflag-fr:0|t Französisch"
         end,
-        getUnitNameAndRealm = function(unit)
+        getUnitNameAndRealm = function(_unit)
           error("GUID-only tooltip hovers should not use the unit-token resolver")
         end,
-        getUnitServerLanguage = function(unit, realm)
+        getUnitServerLanguage = function(_unit, _realm)
           error("GUID-only tooltip hovers should not use the unit-token resolver")
         end,
         getRealmInfoLib = function()
           return {
-            GetRealmInfoByGUID = function(self, guid)
+            GetRealmInfoByGUID = function(_self, guid)
               Assert.Equal(guid, "Player-3685-0ABCDEF1", "Tooltip hook must resolve the hovered player GUID")
               return nil, nil, nil, nil, "frFR"
             end,

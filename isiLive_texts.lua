@@ -96,7 +96,11 @@ local LOCALES = {
     PORTAL_NAVIGATOR_TRIUMVIRATE = "Seat of the Triumvirate",
     PORTAL_NAVIGATOR_PIT_OF_SARON = "Pit of Saron",
     PORTAL_NAVIGATOR_ALGETHAR = "Algeth'ar Academy",
-    PORTAL_NAVIGATOR_TEXT = "Portal Navigator\nLeft: Skyreach\nRight: Seat of the Triumvirate\nHalf left: Pit of Saron\nHalf right: Algeth'ar Academy",
+    PORTAL_NAVIGATOR_TEXT = "Portal Navigator\n"
+      .. "Left: Skyreach\n"
+      .. "Right: Seat of the Triumvirate\n"
+      .. "Half left: Pit of Saron\n"
+      .. "Half right: Algeth'ar Academy",
     ERR_STOPPED_TEST = "Addon is stopped (/isilive start). Test mode unavailable.",
     ERR_PAUSED_TEST = "Addon is paused (/isilive resume). Test mode unavailable.",
     TEST_ENABLED = "Test mode enabled (M+ preview).",
@@ -259,7 +263,11 @@ local LOCALES = {
     PORTAL_NAVIGATOR_TRIUMVIRATE = "Sitz des Triumvirats",
     PORTAL_NAVIGATOR_PIT_OF_SARON = "Grube von Saron",
     PORTAL_NAVIGATOR_ALGETHAR = "Akademie von Algeth'ar",
-    PORTAL_NAVIGATOR_TEXT = "Portal-Navigator\nLinks: Himmelsnadel\nRechts: Sitz des Triumvirats\nHalb links: Grube von Saron\nHalb rechts: Akademie von Algeth'ar",
+    PORTAL_NAVIGATOR_TEXT = "Portal-Navigator\n"
+      .. "Links: Himmelsnadel\n"
+      .. "Rechts: Sitz des Triumvirats\n"
+      .. "Halb links: Grube von Saron\n"
+      .. "Halb rechts: Akademie von Algeth'ar",
     ERR_STOPPED_TEST = "Addon ist gestoppt (/isilive start). Testmodus nicht verfuegbar.",
     ERR_PAUSED_TEST = "Addon ist pausiert (/isilive resume). Testmodus nicht verfuegbar.",
     TEST_ENABLED = "Testmodus aktiviert (M+ Vorschau).",

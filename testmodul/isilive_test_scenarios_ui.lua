@@ -1619,9 +1619,8 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
         0.7,
         "Last Used should stay unselected by default when no saved default layout exists"
       )
-      local onClickM2 = m2Button._scripts and m2Button._scripts.OnClick or nil ---@diagnostic disable-line: need-check-nil, undefined-field
-      local onClickLast = lastUsedButton._scripts and lastUsedButton._scripts.OnClick or nil ---@diagnostic disable-line: need-check-nil, undefined-field
-      ---@diagnostic enable: need-check-nil, undefined-field
+      local onClickM2 = (m2Button._scripts and m2Button._scripts.OnClick) or nil
+      local onClickLast = (lastUsedButton._scripts and lastUsedButton._scripts.OnClick) or nil
       Assert.NotNil(onClickM2, "M2 button should define OnClick")
       Assert.NotNil(onClickLast, "Last Used button should define OnClick")
 
