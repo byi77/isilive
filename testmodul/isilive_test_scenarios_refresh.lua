@@ -51,10 +51,10 @@ return function(test, ctx)
       forceRefreshSyncState = function()
         state.syncRefreshes = state.syncRefreshes + 1
       end,
-      sendIsiLiveHello = function(_force)
+      sendIsiLiveHello = function(_force, _source)
         state.hellos = state.hellos + 1
       end,
-      sendOwnKeySnapshot = function(_force)
+      sendOwnKeySnapshot = function(_force, _source)
         state.keySnapshots = state.keySnapshots + 1
       end,
       sendRefreshRequest = function(_force)

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-03-22 - Version 0.9.91
+- **Docs / Release Baseline:**
+  - Bumped TOC version to `0.9.91`.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.91`.
+  - `lua tools/validate_usecases.lua` now validates `324` deterministic tests indexed and `327` scenarios across `31` modules.
+
 ## 2026-03-22 - Version 0.9.90
 - **UI / Sync UX:**
   - Sync payloads now carry freshness metadata (`capturedAt`, `source`) and HELLO also carries the sync protocol version.

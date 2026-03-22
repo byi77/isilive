@@ -492,25 +492,13 @@ local function ResolveBlizzardTooltipUnit(tooltip, unit, tooltipData, preferTool
   end
 
   if preferTooltipDataOnly then
-    -- Still resolve unit from tooltip data so static-realm fallback in getUnitServerLanguage works
-    -- when LibRealmInfo is not available. Skips tooltip:GetUnit() (potentially stale).
-    if type(tooltipData) == "table" then
-      if type(tooltipData.unitToken) == "string" and tooltipData.unitToken ~= "" then
-        return tooltipData.unitToken
-      end
-      local unitTokenFromGUID = rawget(_G, "UnitTokenFromGUID")
-      if type(unitTokenFromGUID) == "function" then
-        local guid = tooltipData.guid
-        if type(guid) ~= "string" then
-          guid = tooltipData.healthGUID
-        end
-        if type(guid) == "string" then
-          local okToken, tok = pcall(unitTokenFromGUID, guid)
-          if okToken and type(tok) == "string" and tok ~= "" then
-            return tok
-          end
-        end
-      end
+    -- Use unitToken from tooltip data directly; avoids UnitTokenFromGUID which returns tainted
+    -- strings inside securecallfunction contexts (e.g. SetWorldCursor → SetAttribute).
+    if type(tooltipData) == "table"
+      and type(tooltipData.unitToken) == "string"
+      and tooltipData.unitToken ~= ""
+    then
+      return tooltipData.unitToken
     end
     return nil
   end
