@@ -1,16 +1,214 @@
 ---@diagnostic disable: undefined-global
+local LoadAddonModules = nil
+local MakeController = nil
+
+local function RegisterCdTrackerLustCallbackTests(test, Assert, WithGlobals)
+  -- onLustStart / SuppressOnset tests
+
+  test("CdTracker fires onLustStart callback on first lust detection", function()
+    local now = 1000
+    local auras = { [2825] = { expirationTime = now + 300, icon = 132114 } }
+    local fired = 0
+    WithGlobals({
+      C_UnitAuras = {
+        GetPlayerAuraBySpellID = function(id)
+          return auras[id]
+        end,
+      },
+    }, function()
+      local ctrl = MakeController({
+        getTime = function()
+          return now
+        end,
+        onLustStart = function()
+          fired = fired + 1
+        end,
+      })
+      ctrl.Scan()
+      Assert.Equal(fired, 1, "onLustStart must fire once when lust appears for the first time")
+      ctrl.Scan()
+      Assert.Equal(fired, 1, "onLustStart must not fire again while lust remains active")
+    end)
+  end)
+
+  test("CdTracker fires onLustStart again after lust drops and reappears", function()
+    local now = 1000
+    local lustActive = true
+    local fired = 0
+    WithGlobals({
+      C_UnitAuras = {
+        GetPlayerAuraBySpellID = function(id)
+          if id == 2825 and lustActive then
+            return { expirationTime = now + 300, icon = 132114 }
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local ctrl = MakeController({
+        getTime = function()
+          return now
+        end,
+        onLustStart = function()
+          fired = fired + 1
+        end,
+      })
+      ctrl.Scan()
+      Assert.Equal(fired, 1, "onLustStart must fire on first detection")
+      lustActive = false
+      ctrl.Scan()
+      Assert.Equal(fired, 1, "onLustStart must not fire when lust drops")
+      lustActive = true
+      ctrl.Scan()
+      Assert.Equal(fired, 2, "onLustStart must fire again when lust reappears after a gap")
+    end)
+  end)
+
+  test("CdTracker SuppressOnset blocks onLustStart within the suppress window", function()
+    local now = 1000
+    local lustActive = false
+    local fired = 0
+    WithGlobals({
+      C_UnitAuras = {
+        GetPlayerAuraBySpellID = function(id)
+          if id == 2825 and lustActive then
+            return { expirationTime = now + 300, icon = 132114 }
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local ctrl = MakeController({
+        getTime = function()
+          return now
+        end,
+        onLustStart = function()
+          fired = fired + 1
+        end,
+      })
+      ctrl.SuppressOnset(3)
+      lustActive = true
+      ctrl.Scan()
+      Assert.Equal(fired, 0, "onLustStart must be suppressed within the 3-second window")
+    end)
+  end)
+
+  test("CdTracker SuppressOnset allows onLustStart after the suppress window expires", function()
+    local now = 1000
+    local lustActive = false
+    local fired = 0
+    WithGlobals({
+      C_UnitAuras = {
+        GetPlayerAuraBySpellID = function(id)
+          if id == 2825 and lustActive then
+            return { expirationTime = now + 300, icon = 132114 }
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local ctrl = MakeController({
+        getTime = function()
+          return now
+        end,
+        onLustStart = function()
+          fired = fired + 1
+        end,
+      })
+      ctrl.SuppressOnset(3)
+      now = 1004
+      lustActive = true
+      ctrl.Scan()
+      Assert.Equal(fired, 1, "onLustStart must fire once the suppress window has expired")
+    end)
+  end)
+
+  -- NotifySpellCast tests
+
+  test("CdTracker NotifySpellCast fires onLustStart for a known lust spell ID", function()
+    WithGlobals({}, function()
+      local fired = 0
+      local ctrl = MakeController({
+        onLustStart = function()
+          fired = fired + 1
+        end,
+      })
+      ctrl.NotifySpellCast(2825) -- Bloodlust
+      Assert.Equal(fired, 1, "onLustStart must fire for a known lust spell ID")
+    end)
+  end)
+
+  test("CdTracker NotifySpellCast ignores unknown spell IDs", function()
+    WithGlobals({}, function()
+      local fired = 0
+      local ctrl = MakeController({
+        onLustStart = function()
+          fired = fired + 1
+        end,
+      })
+      ctrl.NotifySpellCast(12345) -- not a lust spell
+      Assert.Equal(fired, 0, "onLustStart must not fire for an unknown spell ID")
+    end)
+  end)
+
+  test("CdTracker NotifySpellCast fires onLustStart even within the suppress window", function()
+    local now = 1000
+    WithGlobals({}, function()
+      local fired = 0
+      local ctrl = MakeController({
+        getTime = function()
+          return now
+        end,
+        onLustStart = function()
+          fired = fired + 1
+        end,
+      })
+      ctrl.SuppressOnset(3) -- window active until now+3
+      ctrl.NotifySpellCast(32182) -- Heroism bypasses suppress
+      Assert.Equal(fired, 1, "onLustStart must fire via NotifySpellCast even inside the suppress window")
+    end)
+  end)
+
+  test("CdTracker Scan does not double-fire onLustStart after NotifySpellCast", function()
+    local now = 1000
+    local auras = { [2825] = { expirationTime = now + 300, icon = 132114 } }
+    WithGlobals({
+      C_UnitAuras = {
+        GetPlayerAuraBySpellID = function(id)
+          return auras[id]
+        end,
+      },
+    }, function()
+      local fired = 0
+      local ctrl = MakeController({
+        getTime = function()
+          return now
+        end,
+        onLustStart = function()
+          fired = fired + 1
+        end,
+      })
+      ctrl.NotifySpellCast(2825) -- sets wasLustActive = true
+      Assert.Equal(fired, 1, "onLustStart must fire once via NotifySpellCast")
+      ctrl.Scan() -- aura is active, but wasLustActive is already true
+      Assert.Equal(fired, 1, "Scan must not fire onLustStart again after NotifySpellCast already fired it")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
-  local LoadAddonModules = ctx.load_modules
+  LoadAddonModules = ctx.load_modules
 
-  local function MakeController(overrides)
+  MakeController = function(overrides)
     overrides = overrides or {}
     local addon = LoadAddonModules({ "isiLive_cd_tracker.lua" })
     return addon.CdTracker.CreateController({
       getTime = overrides.getTime or function()
         return 0
       end,
+      onLustStart = overrides.onLustStart,
     })
   end
 
@@ -242,205 +440,7 @@ return function(test, ctx)
     end
   )
 
-  -- onLustStart / SuppressOnset tests
-
-  test("CdTracker fires onLustStart callback on first lust detection", function()
-    local now = 1000
-    local auras = { [2825] = { expirationTime = now + 300, icon = 132114 } }
-    local fired = 0
-    WithGlobals({
-      C_UnitAuras = {
-        GetPlayerAuraBySpellID = function(id)
-          return auras[id]
-        end,
-      },
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_cd_tracker.lua" })
-      local ctrl = addon.CdTracker.CreateController({
-        getTime = function()
-          return now
-        end,
-        onLustStart = function()
-          fired = fired + 1
-        end,
-      })
-      ctrl.Scan()
-      Assert.Equal(fired, 1, "onLustStart must fire once when lust appears for the first time")
-      ctrl.Scan()
-      Assert.Equal(fired, 1, "onLustStart must not fire again while lust remains active")
-    end)
-  end)
-
-  test("CdTracker fires onLustStart again after lust drops and reappears", function()
-    local now = 1000
-    local lustActive = true
-    local fired = 0
-    WithGlobals({
-      C_UnitAuras = {
-        GetPlayerAuraBySpellID = function(id)
-          if id == 2825 and lustActive then
-            return { expirationTime = now + 300, icon = 132114 }
-          end
-          return nil
-        end,
-      },
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_cd_tracker.lua" })
-      local ctrl = addon.CdTracker.CreateController({
-        getTime = function()
-          return now
-        end,
-        onLustStart = function()
-          fired = fired + 1
-        end,
-      })
-      ctrl.Scan()
-      Assert.Equal(fired, 1, "onLustStart must fire on first detection")
-      lustActive = false
-      ctrl.Scan()
-      Assert.Equal(fired, 1, "onLustStart must not fire when lust drops")
-      lustActive = true
-      ctrl.Scan()
-      Assert.Equal(fired, 2, "onLustStart must fire again when lust reappears after a gap")
-    end)
-  end)
-
-  test("CdTracker SuppressOnset blocks onLustStart within the suppress window", function()
-    local now = 1000
-    local lustActive = false
-    local fired = 0
-    WithGlobals({
-      C_UnitAuras = {
-        GetPlayerAuraBySpellID = function(id)
-          if id == 2825 and lustActive then
-            return { expirationTime = now + 300, icon = 132114 }
-          end
-          return nil
-        end,
-      },
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_cd_tracker.lua" })
-      local ctrl = addon.CdTracker.CreateController({
-        getTime = function()
-          return now
-        end,
-        onLustStart = function()
-          fired = fired + 1
-        end,
-      })
-      ctrl.SuppressOnset(3)
-      lustActive = true
-      ctrl.Scan()
-      Assert.Equal(fired, 0, "onLustStart must be suppressed within the 3-second window")
-    end)
-  end)
-
-  test("CdTracker SuppressOnset allows onLustStart after the suppress window expires", function()
-    local now = 1000
-    local lustActive = false
-    local fired = 0
-    WithGlobals({
-      C_UnitAuras = {
-        GetPlayerAuraBySpellID = function(id)
-          if id == 2825 and lustActive then
-            return { expirationTime = now + 300, icon = 132114 }
-          end
-          return nil
-        end,
-      },
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_cd_tracker.lua" })
-      local ctrl = addon.CdTracker.CreateController({
-        getTime = function()
-          return now
-        end,
-        onLustStart = function()
-          fired = fired + 1
-        end,
-      })
-      ctrl.SuppressOnset(3)
-      now = 1004
-      lustActive = true
-      ctrl.Scan()
-      Assert.Equal(fired, 1, "onLustStart must fire once the suppress window has expired")
-    end)
-  end)
-
-  -- NotifySpellCast tests
-
-  test("CdTracker NotifySpellCast fires onLustStart for a known lust spell ID", function()
-    WithGlobals({}, function()
-      local addon = LoadAddonModules({ "isiLive_cd_tracker.lua" })
-      local fired = 0
-      local ctrl = addon.CdTracker.CreateController({
-        onLustStart = function()
-          fired = fired + 1
-        end,
-      })
-      ctrl.NotifySpellCast(2825) -- Bloodlust
-      Assert.Equal(fired, 1, "onLustStart must fire for a known lust spell ID")
-    end)
-  end)
-
-  test("CdTracker NotifySpellCast ignores unknown spell IDs", function()
-    WithGlobals({}, function()
-      local addon = LoadAddonModules({ "isiLive_cd_tracker.lua" })
-      local fired = 0
-      local ctrl = addon.CdTracker.CreateController({
-        onLustStart = function()
-          fired = fired + 1
-        end,
-      })
-      ctrl.NotifySpellCast(12345) -- not a lust spell
-      Assert.Equal(fired, 0, "onLustStart must not fire for an unknown spell ID")
-    end)
-  end)
-
-  test("CdTracker NotifySpellCast fires onLustStart even within the suppress window", function()
-    local now = 1000
-    WithGlobals({}, function()
-      local addon = LoadAddonModules({ "isiLive_cd_tracker.lua" })
-      local fired = 0
-      local ctrl = addon.CdTracker.CreateController({
-        getTime = function()
-          return now
-        end,
-        onLustStart = function()
-          fired = fired + 1
-        end,
-      })
-      ctrl.SuppressOnset(3) -- window active until now+3
-      ctrl.NotifySpellCast(32182) -- Heroism — actual cast bypasses suppress
-      Assert.Equal(fired, 1, "onLustStart must fire via NotifySpellCast even inside the suppress window")
-    end)
-  end)
-
-  test("CdTracker Scan does not double-fire onLustStart after NotifySpellCast", function()
-    local now = 1000
-    local auras = { [2825] = { expirationTime = now + 300, icon = 132114 } }
-    WithGlobals({
-      C_UnitAuras = {
-        GetPlayerAuraBySpellID = function(id)
-          return auras[id]
-        end,
-      },
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_cd_tracker.lua" })
-      local fired = 0
-      local ctrl = addon.CdTracker.CreateController({
-        getTime = function()
-          return now
-        end,
-        onLustStart = function()
-          fired = fired + 1
-        end,
-      })
-      ctrl.NotifySpellCast(2825) -- sets wasLustActive = true
-      Assert.Equal(fired, 1, "onLustStart must fire once via NotifySpellCast")
-      ctrl.Scan() -- aura is active, but wasLustActive is already true
-      Assert.Equal(fired, 1, "Scan must not fire onLustStart again after NotifySpellCast already fired it")
-    end)
-  end)
+  RegisterCdTrackerLustCallbackTests(test, Assert, WithGlobals)
 
   test("CdTracker Scan updates BRes and Lust state independently", function()
     local NOW = 500
