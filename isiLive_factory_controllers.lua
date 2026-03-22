@@ -769,8 +769,9 @@ local function InitializeFactorySecondaryControllers(ctx)
     ctx.cdTrackerController = modules.cdTracker.CreateController({
       getTime = GetTime,
       onLustStart = function()
-        if type(PlaySoundFile) == "function" then
-          PlaySoundFile("Interface\\AddOns\\isiLive\\sounds\\BoxingArenaSound.ogg", "Master")
+        local playSoundFile = rawget(_G, "PlaySoundFile")
+        if type(playSoundFile) == "function" then
+          playSoundFile("Interface\\AddOns\\isiLive\\sounds\\BoxingArenaSound.ogg", "Master")
         end
       end,
     })

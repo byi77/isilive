@@ -35,10 +35,11 @@ function LeaderWatch.CreateController(opts)
   end
 
   local function PlayLeadTransferSound()
-    if type(PlaySoundFile) ~= "function" then
+    local playSoundFile = rawget(_G, "PlaySoundFile")
+    if type(playSoundFile) ~= "function" then
       return
     end
-    PlaySoundFile("Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg", "Master")
+    playSoundFile("Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg", "Master")
   end
 
   function controller.UpdateLeaderState(event)
