@@ -870,6 +870,112 @@ local function RegisterGameMenuMicroButtonLayoutTests(test, Assert, WithGlobals,
     end)
   end)
 
+  test("UI hearthstone button falls back to item 6948 when no toy is owned", function()
+    local createFrameStub = BuildCreateFrameStub()
+    local uiParent = {}
+    local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+    local closeButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
+    local gameMenuButtonContinue =
+      createFrameStub("Button", "GameMenuButtonContinue", gameMenuFrame, "GameMenuButtonTemplate")
+    gameMenuFrame.CloseButton = closeButton
+    gameMenuFrame:SetSize(286, 372)
+    gameMenuButtonContinue:SetSize(124, 32)
+
+    WithGlobals({
+      UIParent = uiParent,
+      CreateFrame = createFrameStub,
+      GameMenuFrame = gameMenuFrame,
+      GameMenuButtonContinue = gameMenuButtonContinue,
+      PlayerHasToy = function()
+        return false
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local firstStrip = UI.EnsurePanelUI({
+        gameMenuFrame = gameMenuFrame,
+        getL = function()
+          return {}
+        end,
+        panelActions = {},
+      })
+      local travelStrip = UI.EnsureSecondPanelUI({
+        gameMenuFrame = gameMenuFrame,
+        firstPanelState = firstStrip,
+        getL = function()
+          return {
+            BTN_SECOND_HEARTHSTONE = "Ruhestein",
+            BTN_SECOND_HOUSING = "Housing",
+            PANEL_HEADER_TRAVEL = "Reisen",
+          }
+        end,
+      })
+
+      local btn = travelStrip.buttonsById.hearthstone
+      Assert.Equal(
+        btn:GetAttribute("type"),
+        "item",
+        "hearthstone button should fall back to item type when no toy is owned"
+      )
+      Assert.Equal(
+        btn:GetAttribute("item"),
+        6948,
+        "hearthstone button should fall back to default Hearthstone item 6948"
+      )
+    end)
+  end)
+
+  test("UI hearthstone button uses toy attribute when player owns a hearthstone toy", function()
+    local createFrameStub = BuildCreateFrameStub()
+    local uiParent = {}
+    local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+    local closeButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
+    local gameMenuButtonContinue =
+      createFrameStub("Button", "GameMenuButtonContinue", gameMenuFrame, "GameMenuButtonTemplate")
+    gameMenuFrame.CloseButton = closeButton
+    gameMenuFrame:SetSize(286, 372)
+    gameMenuButtonContinue:SetSize(124, 32)
+
+    WithGlobals({
+      UIParent = uiParent,
+      CreateFrame = createFrameStub,
+      GameMenuFrame = gameMenuFrame,
+      GameMenuButtonContinue = gameMenuButtonContinue,
+      PlayerHasToy = function(toyId)
+        return toyId == 166747 -- Wondrous Wisdomball
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local firstStrip = UI.EnsurePanelUI({
+        gameMenuFrame = gameMenuFrame,
+        getL = function()
+          return {}
+        end,
+        panelActions = {},
+      })
+      local travelStrip = UI.EnsureSecondPanelUI({
+        gameMenuFrame = gameMenuFrame,
+        firstPanelState = firstStrip,
+        getL = function()
+          return {
+            BTN_SECOND_HEARTHSTONE = "Ruhestein",
+            BTN_SECOND_HOUSING = "Housing",
+            PANEL_HEADER_TRAVEL = "Reisen",
+          }
+        end,
+      })
+
+      local btn = travelStrip.buttonsById.hearthstone
+      Assert.Equal(
+        btn:GetAttribute("type"),
+        "toy",
+        "hearthstone button should use toy type when player owns a hearthstone toy"
+      )
+      Assert.Equal(btn:GetAttribute("toy"), 166747, "hearthstone button should set the owned toy ID")
+    end)
+  end)
+
   test("UI game-menu micromenu buttons run configured opener callbacks and close the menu", function()
     local createFrameStub = BuildCreateFrameStub()
     local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
@@ -1259,6 +1365,150 @@ local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGloba
       ---@diagnostic enable: need-check-nil
 
       Assert.Equal(hideCalls, 1, "host frame should hide once the deferred game menu close callback runs")
+    end)
+  end)
+
+  test("UI game-menu deferred host-frame show stays combat-safe until regen", function()
+    local inCombat = false
+    local scheduledCallbacks = {}
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+    local closeButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
+    gameMenuFrame.CloseButton = closeButton
+
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = createFrameStub,
+      GameMenuFrame = gameMenuFrame,
+      C_Timer = {
+        After = function(_delay, callback)
+          table.insert(scheduledCallbacks, callback)
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local strip = UI.EnsurePanelUI({
+        gameMenuFrame = gameMenuFrame,
+        isInCombat = function()
+          return inCombat
+        end,
+      })
+
+      local hostShowCalls = 0
+      local originalHostShow = strip.hostFrame.Show
+      strip.hostFrame.Show = function(self)
+        if inCombat then
+          error("host frame show blocked in combat")
+        end
+        hostShowCalls = hostShowCalls + 1
+        return originalHostShow(self)
+      end
+
+      strip.hostFrame:Hide()
+      gameMenuFrame:Hide()
+
+      local onShow = gameMenuFrame._scripts and gameMenuFrame._scripts.OnShow or nil
+      Assert.NotNil(onShow, "game menu should register an OnShow hook")
+
+      inCombat = true
+      gameMenuFrame:Show()
+      ---@diagnostic disable-next-line: need-check-nil
+      onShow(gameMenuFrame)
+
+      Assert.Equal(#scheduledCallbacks, 1, "host-frame show should still be deferred through C_Timer")
+      local ok, err = pcall(scheduledCallbacks[1])
+      Assert.True(ok, "deferred host-frame show must stay silent in combat: " .. tostring(err))
+      Assert.Equal(hostShowCalls, 0, "deferred combat callback must not call hostFrame:Show directly")
+
+      local retryFrame = FindCombatRetryFrame(createdFrames)
+      Assert.NotNil(retryFrame, "combat host-frame show should rely on the regen retry frame")
+
+      inCombat = false
+      retryFrame = RequireValue(retryFrame, "combat host-frame show should rely on the regen retry frame")
+      retryFrame:FireEvent("PLAYER_REGEN_ENABLED")
+
+      Assert.Equal(hostShowCalls, 1, "host frame should become visible once regen reapplies panel state")
+    end)
+  end)
+
+  test("UI second game-menu panel defers host-frame show safely during combat", function()
+    local inCombat = false
+    local scheduledCallbacks = {}
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+    local closeButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
+    gameMenuFrame.CloseButton = closeButton
+
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = createFrameStub,
+      GameMenuFrame = gameMenuFrame,
+      C_Timer = {
+        After = function(_delay, callback)
+          table.insert(scheduledCallbacks, callback)
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local strip = UI.EnsurePanelUI({
+        gameMenuFrame = gameMenuFrame,
+        isInCombat = function()
+          return inCombat
+        end,
+      })
+      local travelStrip = UI.EnsureSecondPanelUI({
+        gameMenuFrame = gameMenuFrame,
+        firstPanelState = strip,
+        isInCombat = function()
+          return inCombat
+        end,
+        getL = function()
+          return {
+            BTN_SECOND_HEARTHSTONE = "Hearthstone",
+            BTN_SECOND_HOUSING = "Housing",
+            PANEL_HEADER_TRAVEL = "Travel",
+          }
+        end,
+      })
+
+      local hostShowCalls = 0
+      local originalHostShow = travelStrip.hostFrame.Show
+      travelStrip.hostFrame.Show = function(self)
+        if inCombat then
+          error("second host frame show blocked in combat")
+        end
+        hostShowCalls = hostShowCalls + 1
+        return originalHostShow(self)
+      end
+
+      travelStrip.hostFrame:Hide()
+      gameMenuFrame:Hide()
+
+      local onShow = gameMenuFrame._scripts and gameMenuFrame._scripts.OnShow or nil
+      Assert.NotNil(onShow, "game menu should register a shared OnShow hook")
+
+      inCombat = true
+      gameMenuFrame:Show()
+      ---@diagnostic disable-next-line: need-check-nil
+      onShow(gameMenuFrame)
+
+      Assert.True(#scheduledCallbacks >= 2, "both panel hosts should schedule deferred show callbacks")
+      for _, callback in ipairs(scheduledCallbacks) do
+        local ok, err = pcall(callback)
+        Assert.True(ok, "deferred panel show callback must stay silent in combat: " .. tostring(err))
+      end
+      Assert.Equal(hostShowCalls, 0, "travel panel host must not call Show directly during combat")
+
+      local retryFrame = FindCombatRetryFrame(createdFrames)
+      Assert.NotNil(retryFrame, "combat second-panel show should rely on the regen retry frame")
+
+      inCombat = false
+      retryFrame = RequireValue(retryFrame, "combat second-panel show should rely on the regen retry frame")
+      retryFrame:FireEvent("PLAYER_REGEN_ENABLED")
+
+      Assert.Equal(hostShowCalls, 1, "travel panel host should become visible once regen reapplies panel state")
     end)
   end)
 

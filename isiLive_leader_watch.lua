@@ -24,9 +24,14 @@ function LeaderWatch.CreateController(opts)
 
   local controller = {}
 
-  local function SyncLeaderStateSilently()
+  local function GetLeaderState()
     local isLeader = isPlayerLeader()
     local wasGroupLeader = getWasGroupLeader()
+    return isLeader, wasGroupLeader
+  end
+
+  local function SyncLeaderStateSilently()
+    local isLeader, wasGroupLeader = GetLeaderState()
 
     if wasGroupLeader == nil or isLeader ~= wasGroupLeader then
       setWasGroupLeader(isLeader)
@@ -41,9 +46,16 @@ function LeaderWatch.CreateController(opts)
     playSoundFile("Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg", "Master")
   end
 
-  function controller.UpdateLeaderState(event)
-    local isLeader = isPlayerLeader()
-    local wasGroupLeader = getWasGroupLeader()
+  local function HandleLeaderGain(visible)
+    if visible then
+      local L = getL()
+      showCenterNotice(L.LEAD_TRANSFERRED_CENTER, 20)
+    end
+    PlayLeadTransferSound()
+  end
+
+  function controller.UpdateLeaderState(_event)
+    local isLeader, wasGroupLeader = GetLeaderState()
 
     if wasGroupLeader == nil then
       setWasGroupLeader(isLeader)
@@ -53,12 +65,7 @@ function LeaderWatch.CreateController(opts)
     if isLeader ~= wasGroupLeader then
       local L = getL()
       if isLeader then
-        if event == "PARTY_LEADER_CHANGED" then
-          showCenterNotice(L.LEAD_TRANSFERRED_CENTER, 20)
-          PlayLeadTransferSound()
-        else
-          printFn(L.LEAD_GAINED)
-        end
+        HandleLeaderGain(true)
       else
         printFn(L.LEAD_LOST)
       end
@@ -68,7 +75,10 @@ function LeaderWatch.CreateController(opts)
   end
 
   function controller.Start()
+    SyncLeaderStateSilently()
+
     local frame = CreateFrame("Frame")
+    controller.frame = frame
     frame:RegisterEvent("GROUP_ROSTER_UPDATE")
     frame:RegisterEvent("PARTY_LEADER_CHANGED")
     frame:SetScript("OnEvent", function(_, event)
@@ -77,11 +87,9 @@ function LeaderWatch.CreateController(opts)
         return
       end
       if not isMainFrameShown() then
-        if event == "PARTY_LEADER_CHANGED" then
-          local wasGroupLeader = getWasGroupLeader()
-          if wasGroupLeader ~= nil and not wasGroupLeader and isPlayerLeader() then
-            PlayLeadTransferSound()
-          end
+        local isLeader, wasGroupLeader = GetLeaderState()
+        if wasGroupLeader ~= nil and not wasGroupLeader and isLeader then
+          HandleLeaderGain(false)
         end
         SyncLeaderStateSilently()
         return

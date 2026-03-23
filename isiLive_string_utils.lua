@@ -12,7 +12,7 @@ function StringUtils.Trim(value)
   if type(value) ~= "string" then
     return ""
   end
-  return value:gsub("^%s+", ""):gsub("%s+$", "")
+  return (value:gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
 --- Removes all whitespace from a string.
@@ -22,7 +22,7 @@ function StringUtils.StripWhitespace(value)
   if type(value) ~= "string" then
     return ""
   end
-  return value:gsub("%s+", "")
+  return (value:gsub("%s+", ""))
 end
 
 --- Normalizes a realm name by stripping spaces, dashes, dots, parens, and quotes.
@@ -34,5 +34,5 @@ function StringUtils.NormalizeRealmName(realm)
   if type(realm) ~= "string" then
     return ""
   end
-  return realm:gsub("[%s%-%.%(%)'`]", "")
+  return (realm:gsub("[%s%-%.%(%)'`]", ""))
 end

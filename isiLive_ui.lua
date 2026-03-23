@@ -717,6 +717,7 @@ end
 local ApplyPanelUILocalization
 local HideGameMenuFrame
 local RunAfterGameMenuClose
+local SchedulePanelUIHostFrameShow
 
 local function GetPanelUIButtonStackHeight(buttons, buttonHeight)
   if type(buttons) ~= "table" then
@@ -925,6 +926,38 @@ RunAfterGameMenuClose = function(callback)
   callback()
 end
 
+SchedulePanelUIHostFrameShow = function(state)
+  if type(state) ~= "table" then
+    return
+  end
+
+  local function doShow()
+    local gameMenuFrame = state.gameMenuFrame
+    if type(gameMenuFrame) ~= "table" or type(gameMenuFrame.IsShown) ~= "function" or not gameMenuFrame:IsShown() then
+      return
+    end
+
+    if IsPanelUISecureUpdateBlocked(state) then
+      QueuePanelUISecureStateRefresh(state)
+      return
+    end
+
+    local hostFrame = state.hostFrame
+    if type(hostFrame) == "table" and type(hostFrame.Show) == "function" then
+      hostFrame:Show()
+    end
+  end
+
+  local timer = rawget(_G, "C_Timer")
+  local after = type(timer) == "table" and rawget(timer, "After") or nil
+  if type(after) == "function" then
+    after(0, doShow)
+    return
+  end
+
+  doShow()
+end
+
 ApplyPanelUILocalization = function(state)
   if type(state) ~= "table" then
     return
@@ -1011,18 +1044,7 @@ function UI.EnsurePanelUI(opts)
       -- Defer Show() one frame to escape the secure SetAttribute call chain
       -- (ShowUIPanel → SetAttribute). Calling Frame:Show() directly here triggers
       -- ADDON_ACTION_BLOCKED.
-      local timer = rawget(_G, "C_Timer")
-      local after = type(timer) == "table" and rawget(timer, "After") or nil
-      local function doShow()
-        if state.hostFrame and type(state.hostFrame.Show) == "function" then
-          state.hostFrame:Show()
-        end
-      end
-      if type(after) == "function" then
-        after(0, doShow)
-      else
-        doShow()
-      end
+      SchedulePanelUIHostFrameShow(state)
     end)
     gameMenuFrame:HookScript("OnHide", function()
       RunAfterGameMenuClose(function()
@@ -1189,18 +1211,7 @@ function UI.EnsureSecondPanelUI(opts)
         return
       end
       ApplyPanelUISecureState(state)
-      local timer = rawget(_G, "C_Timer")
-      local after = type(timer) == "table" and rawget(timer, "After") or nil
-      local function doShow()
-        if state.hostFrame and type(state.hostFrame.Show) == "function" then
-          state.hostFrame:Show()
-        end
-      end
-      if type(after) == "function" then
-        after(0, doShow)
-      else
-        doShow()
-      end
+      SchedulePanelUIHostFrameShow(state)
     end)
     gameMenuFrame:HookScript("OnHide", function()
       RunAfterGameMenuClose(function()
@@ -1263,14 +1274,21 @@ function UI.EnsureSecondPanelUI(opts)
 
     if entry.id == "hearthstone" and type(button.SetAttribute) == "function" then
       local playerHasToy = rawget(_G, "PlayerHasToy")
+      local foundToy = false
       if type(playerHasToy) == "function" then
         for _, toyId in ipairs(HEARTHSTONE_TOY_IDS) do
           if playerHasToy(toyId) then
             button:SetAttribute("type", "toy")
             button:SetAttribute("toy", toyId)
+            foundToy = true
             break
           end
         end
+      end
+      if not foundToy then
+        -- Fallback to default Hearthstone item (item ID 6948) if no toy found
+        button:SetAttribute("type", "item")
+        button:SetAttribute("item", 6948)
       end
     elseif entry.id == "housing_plot" and type(button.SetAttribute) == "function" then
       housingSecureButton = button

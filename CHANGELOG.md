@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-03-23 - Version 0.9.95
+- **Docs / Release Baseline:**
+  - Bumped TOC version to `0.9.95`.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.95`.
+  - `lua tools/validate_usecases.lua` now validates `416` deterministic tests indexed and `423` scenarios across `37` modules.
+- **Bugfix / Bloodlust Zone Transition:**
+  - `CdTracker` now mirrors `BResLustTracker` more closely by scanning player `HARMFUL` auras via `C_UnitAuras.GetAuraDataByIndex(...)` for lust exhaustion debuffs instead of relying on `GetPlayerAuraBySpellID`.
+  - `UNIT_SPELLCAST_SUCCEEDED` for the local player is now registered so real lust casts can trigger the onset path immediately without waiting for the next ticker/aura pass.
+  - Zone/world transition suppression now treats matching post-transition lust auras as continuations instead of new onsets, preventing false-positive Bloodlust/Heroism/Time Warp sounds on zoning or reload transitions.
+- **Bugfix / Leader Promotion Sound:**
+  - Leader gain detection now reacts to the first observed local leader transition across both `GROUP_ROSTER_UPDATE` and `PARTY_LEADER_CHANGED`, preventing missed promotion sounds when roster updates arrive first.
+- **Bugfix / Esc Menu Combat Safety:**
+  - Deferred game-menu side-panel host-frame `Show()` calls now stay combat-safe and replay through the existing `PLAYER_REGEN_ENABLED` retry path instead of triggering protected `Frame:Show()` calls in combat.
+- **Bugfix / Hearthstone Fallback:**
+  - The `Esc` travel-strip `Hearthstone` button now falls back to the default Hearthstone item (`6948`) when the player owns no Hearthstone toy, instead of leaving the secure button without a usable action.
+- **Tests:**
+  - Added regression coverage for harmful-aura lust scanning, zone-transition lust continuation, local lust spellcast forwarding, leader-promotion event ordering, game-menu combat-safe deferred host-frame shows, and Hearthstone toy/item fallback behavior.
+
 ## 2026-03-23 - Version 0.9.94
 - **M2 Travel Short Codes:**
   - `M2` portal icons now render large localized dungeon short codes directly on the icon while the teleport is ready, so the destination is recognizable without mouseover.

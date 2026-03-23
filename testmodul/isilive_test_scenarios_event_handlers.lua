@@ -1,3 +1,5 @@
+local LUST_ZONE_TRANSITION_SUPPRESS_SECONDS = 3
+
 local function RegisterTargetHandlingTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   test("Event handlers keep target when active listing is inferred", function()
     local entryRef = { value = { activityID = 1001 } }
@@ -255,6 +257,53 @@ local function RegisterCombatStartupCVarAndWorldEntryTests(test, Assert, WithGlo
     Assert.Equal(#keySnapshotForceCalls, 1, "entering world should send one immediate key snapshot")
     Assert.True(keySnapshotForceCalls[1], "immediate entering-world key snapshot must stay forced")
     Assert.Equal(#scheduled, 2, "entering world should only schedule hotkey reapply callbacks")
+  end)
+
+  test("Event handlers keep lust suppression long enough for world and zone transitions", function()
+    local baselineSeconds = {}
+    local updateCalls = 0
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      baselineCdTracker = function(seconds)
+        table.insert(baselineSeconds, seconds)
+      end,
+      updateCdTracker = function()
+        updateCalls = updateCalls + 1
+      end,
+    })
+
+    controller:Dispatch("PLAYER_ENTERING_WORLD")
+    controller:Dispatch("ZONE_CHANGED")
+    controller:Dispatch("ZONE_CHANGED_INDOORS")
+    controller:Dispatch("ZONE_CHANGED_NEW_AREA")
+    controller:Dispatch("UPDATE_INSTANCE_INFO")
+
+    Assert.Equal(#baselineSeconds, 5, "world and zone transitions must reset lust suppression each time")
+    for _, seconds in ipairs(baselineSeconds) do
+      Assert.Equal(
+        seconds,
+        LUST_ZONE_TRANSITION_SUPPRESS_SECONDS,
+        "lust suppression must stay at the BResLustTracker-style warm-up window"
+      )
+    end
+    Assert.Equal(updateCalls, 5, "each suppression reset must trigger an immediate tracker refresh")
+  end)
+
+  test("Event handlers forward player lust spellcasts into the cd tracker", function()
+    local notifiedSpellIDs = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      notifyCdTrackerSpellCast = function(spellID)
+        table.insert(notifiedSpellIDs, spellID)
+      end,
+    })
+
+    controller:Dispatch("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-guid", 2825)
+
+    Assert.Equal(#notifiedSpellIDs, 1, "lust spellcasts must be forwarded to the cd tracker once")
+    Assert.Equal(notifiedSpellIDs[1], 2825, "forwarded lust spellcast must preserve the original spell ID")
   end)
 
   test("Event handlers trigger portal navigator checks on world and zone changes", function()

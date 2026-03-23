@@ -16,6 +16,7 @@ local TRACKED_NON_CHALLENGE_PARTY_DIFFICULTY_IDS = {
 }
 local NON_CHALLENGE_RUN_CAPTURE_RETRIES = 5
 local NON_CHALLENGE_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
+local LUST_ZONE_TRANSITION_SUPPRESS_SECONDS = 3
 
 local function ResolveTrackedMythicZeroMapID()
   local okInstance, _, _, _, _, _, _, rawInstanceMapID = pcall(GetInstanceInfo)
@@ -274,7 +275,8 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandlePlayerEnteringWorldEvent(_self)
-    ctx.baselineCdTracker()
+    ctx.baselineCdTracker(LUST_ZONE_TRANSITION_SUPPRESS_SECONDS)
+    ctx.updateCdTracker()
     UpdateTrackedMythicZeroRun(ctx)
     ScheduleBindingStartupRefresh(ctx)
     ctx.sendOwnKeySnapshot(true, "world")
@@ -314,7 +316,8 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandleInstanceContextChangedEvent(_self)
-    ctx.baselineCdTracker(1)
+    ctx.baselineCdTracker(LUST_ZONE_TRANSITION_SUPPRESS_SECONDS)
+    ctx.updateCdTracker()
     UpdateTrackedMythicZeroRun(ctx)
     ctx.updateStatusLine()
     ctx.maybeShowNonMythicDungeonEntryNotice()

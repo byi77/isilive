@@ -1,7 +1,7 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.92`
-Last updated: `2026-03-22`
+Version baseline: `0.9.95`
+Last updated: `2026-03-23`
 
 ## Actors
 
@@ -139,7 +139,7 @@ Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without d
 1. Trigger A: player opens the WoW `Esc` game menu while `IsiLiveDB.showEscPanel ~= false`.
 2. Result A: addon shows a localized tooling strip left of `GameMenuFrame` with buttons for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button, plus a second travel strip farther left with `Arkantine`, `Hearthstone`, and `Housing`.
 3. Action: clicking a tooling-strip shortcut closes the game menu first and then opens the targeted Blizzard panel through the dedicated microbutton/direct opener path; the `ReloadUI` entry instead uses a secure macro path that clicks Blizzard `Continue` and then runs `/reload`.
-4. Combat safety: if combat lockdown blocks secure `ReloadUI` button refreshes (for example click registration or macro attribute updates), addon defers that secure update and retries it on `PLAYER_REGEN_ENABLED` instead of touching the protected button immediately.
+4. Combat safety: if combat lockdown blocks secure `ReloadUI` button refreshes (for example click registration or macro attribute updates) or deferred `Esc` side-panel host-frame re-shows, addon defers that update and retries it on `PLAYER_REGEN_ENABLED` instead of touching protected UI immediately.
 5. Rule: the spellbook shortcut must use spellbook-specific openers and must not route through the talents panel.
 6. Trigger B: player opens `Settings -> AddOns -> isiLive`.
 7. Result B: Blizzard settings expose language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log`.
@@ -150,10 +150,11 @@ Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without d
 
 Goal: show live BRes and Bloodlust/Heroism/Time Warp timers in the roster panel without guessing.
 
-1. Trigger: the roster panel is visible and the one-second utility ticker fires, or a manual refresh requests a tracker update.
-2. Processing: addon scans `C_Spell.GetSpellCharges` for Battle Resurrection and `C_UnitAuras.GetPlayerAuraBySpellID` for Bloodlust/Heroism/Time Warp variants.
-3. Output: the tracker row shows BRes charges/cooldown plus the current lust icon and remaining time, or `--` when the effect is unavailable.
-4. Success criteria: the row updates deterministically, stays non-negative, and remains stable when the relevant APIs are missing.
+1. Trigger: the roster panel is visible and the one-second utility ticker fires, or a manual refresh / local lust spellcast requests a tracker update.
+2. Processing: addon scans `C_Spell.GetSpellCharges` for Battle Resurrection and iterates player `HARMFUL` auras via `C_UnitAuras.GetAuraDataByIndex("player", index, "HARMFUL")` for Bloodlust/Heroism/Time Warp exhaustion variants.
+3. Rule: zone/world transition suppression must treat a reappearing lust aura with the same active application as a continuation instead of a new onset.
+4. Output: the tracker row shows BRes charges/cooldown plus the current lust icon and remaining time, or `--` when the effect is unavailable.
+5. Success criteria: the row updates deterministically, stays non-negative, and remains stable when the relevant APIs are missing.
 
 ## Non-Functional Rules
 
@@ -171,7 +172,7 @@ Goal: show live BRes and Bloodlust/Heroism/Time Warp timers in the roster panel 
 12. Leaving or being removed from a normal party must keep the current frame visibility state and retain former members as ghost rows until a deterministic prune path occurs.
 13. Manual marking (Tank=Blue, Healer=Green) is available via secure role-icon buttons for all group members without leader restriction in 5-man parties.
 14. Raid-group detection (> 5 members) keeps the addon visible, forces H mode, hides roster rows, prints a localized transition notice once per raid-size transition, and blocks switching back to M/V until party size returns.
-15. The optional `Esc` tooling and travel strips stay localized, close the game menu before opening their targets, and keep `ReloadUI` on a secure macro path (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`; blocked secure refreshes for that button replay on `PLAYER_REGEN_ENABLED` instead of running in combat.
+15. The optional `Esc` tooling and travel strips stay localized, close the game menu before opening their targets, and keep `ReloadUI` on a secure macro path (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`; blocked secure refreshes for that button and blocked deferred strip host-frame re-shows replay on `PLAYER_REGEN_ENABLED` instead of running in combat.
 16. Hidden legacy settings controls remain absent from Blizzard Settings and currently use fixed runtime defaults: `DPS`, `Deaths`, and `Kicks` columns on, markers visible for all, sound off, fixed name truncation, and legacy 2-column `Travel` layout.
 
 Runtime behavior in this document is validated by `tools/validate_usecases.lua`.

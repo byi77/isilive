@@ -92,6 +92,86 @@ return function(test, ctx)
     Assert.True(state.wasGroupLeader, "wasGroupLeader must be initialized")
   end)
 
+  test("LeaderWatch Start initializes cached state so first promotion can play sound", function()
+    local frameScript = nil
+    local soundCalls = 0
+
+    WithGlobals({
+      CreateFrame = function()
+        return {
+          RegisterEvent = function() end,
+          SetScript = function(_, scriptType, script)
+            if scriptType == "OnEvent" then
+              frameScript = script
+            end
+          end,
+        }
+      end,
+      PlaySoundFile = function(path, channel)
+        soundCalls = soundCalls + 1
+        Assert.Equal(
+          path,
+          "Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg",
+          "leader gain must use the transfer sound"
+        )
+        Assert.Equal(channel, "Master", "leader gain must play on the Master channel")
+      end,
+    }, function()
+      local controller, state = BuildLeaderWatchController({
+        wasGroupLeader = nil,
+        isLeader = false,
+      })
+
+      controller.Start()
+      Assert.NotNil(frameScript, "LeaderWatch must register an OnEvent handler when started")
+      Assert.False(state.wasGroupLeader, "Start must initialize cached non-leader state")
+
+      state.isLeader = true
+      frameScript(nil, "PARTY_LEADER_CHANGED")
+
+      Assert.Equal(soundCalls, 1, "first promotion after start must play the leader transfer sound")
+      Assert.Equal(#state.centerNotices, 1, "first promotion after start must still show the center notice")
+      Assert.True(state.wasGroupLeader, "leader promotion must update cached state to true")
+    end)
+  end)
+
+  test("LeaderWatch promotion plays sound when GROUP_ROSTER_UPDATE arrives before PARTY_LEADER_CHANGED", function()
+    local frameScript = nil
+    local soundCalls = 0
+
+    WithGlobals({
+      CreateFrame = function()
+        return {
+          RegisterEvent = function() end,
+          SetScript = function(_, scriptType, script)
+            if scriptType == "OnEvent" then
+              frameScript = script
+            end
+          end,
+        }
+      end,
+      PlaySoundFile = function()
+        soundCalls = soundCalls + 1
+      end,
+    }, function()
+      local controller, state = BuildLeaderWatchController({
+        wasGroupLeader = false,
+        isLeader = false,
+      })
+
+      controller.Start()
+      Assert.NotNil(frameScript, "LeaderWatch must register an OnEvent handler when started")
+
+      state.isLeader = true
+      frameScript(nil, "GROUP_ROSTER_UPDATE")
+      frameScript(nil, "PARTY_LEADER_CHANGED")
+
+      Assert.Equal(soundCalls, 1, "promotion sound must play exactly once even when GROUP_ROSTER_UPDATE wins the race")
+      Assert.Equal(#state.centerNotices, 1, "promotion notice must still show exactly once")
+      Assert.True(state.wasGroupLeader, "leader promotion must update cached state to true")
+    end)
+  end)
+
   test("LeaderWatch silently tracks hidden leader changes and preserves next visible transition", function()
     local frameScript = nil
 
@@ -129,6 +209,45 @@ return function(test, ctx)
       Assert.Equal(#state.prints, 1, "next visible leader loss must still be detected after hidden sync")
       Assert.False(state.wasGroupLeader, "visible transition after hidden sync must update cached leader state")
       Assert.Equal(state.leaderButtonUpdates, 1, "visible transition must refresh leader buttons exactly once")
+    end)
+  end)
+
+  test("LeaderWatch hidden promotion still plays sound when GROUP_ROSTER_UPDATE is first", function()
+    local frameScript = nil
+    local soundCalls = 0
+
+    WithGlobals({
+      CreateFrame = function()
+        return {
+          RegisterEvent = function() end,
+          SetScript = function(_, scriptType, script)
+            if scriptType == "OnEvent" then
+              frameScript = script
+            end
+          end,
+        }
+      end,
+      PlaySoundFile = function()
+        soundCalls = soundCalls + 1
+      end,
+    }, function()
+      local controller, state = BuildLeaderWatchController({
+        wasGroupLeader = false,
+        isLeader = false,
+        mainFrameShown = false,
+      })
+
+      controller.Start()
+      Assert.NotNil(frameScript, "LeaderWatch must register an OnEvent handler when started")
+
+      state.isLeader = true
+      frameScript(nil, "GROUP_ROSTER_UPDATE")
+
+      Assert.Equal(soundCalls, 1, "hidden promotion must still play the leader sound")
+      Assert.Equal(#state.centerNotices, 0, "hidden promotion must not show a center notice")
+      Assert.Equal(#state.prints, 0, "hidden promotion must not print chat output")
+      Assert.Equal(state.leaderButtonUpdates, 0, "hidden promotion must not refresh leader buttons")
+      Assert.True(state.wasGroupLeader, "hidden promotion must still update cached state")
     end)
   end)
 end
