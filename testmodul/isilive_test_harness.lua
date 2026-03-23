@@ -88,10 +88,11 @@ function Harness.LoadAddonModules(files, seedAddonTable)
   for _, universalFile in ipairs(UNIVERSAL_DEPENDENCIES) do
     if not seenFiles[universalFile] then
       seenFiles[universalFile] = true
-      local uChunk, _uErr = loadfile(universalFile)
-      if uChunk then
-        pcall(uChunk, "isiLive", addonTable)
+      local uChunk, uLoadErr = loadfile(universalFile)
+      if not uChunk then
+        Fail(string.format("cannot load universal dep %s: %s", universalFile, tostring(uLoadErr)))
       end
+      pcall(uChunk, "isiLive", addonTable)
     end
   end
 
