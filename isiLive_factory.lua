@@ -10,6 +10,7 @@ local CreateFactoryContext = FI.CreateFactoryContext
 local InitializeFactoryFrameBridge = FI.InitializeFactoryFrameBridge
 local InitializeFactoryRuntimeHelpers = FI.InitializeFactoryRuntimeHelpers
 local InitializeFactoryPrimaryControllers = FI.InitializeFactoryPrimaryControllers
+local InitializeFactoryRefreshAndStatusControllers = FI.InitializeFactoryRefreshAndStatusControllers
 local InitializeFactorySecondaryControllers = FI.InitializeFactorySecondaryControllers
 local CreateFactoryMinimapButton = FI.CreateFactoryMinimapButton
 
@@ -18,6 +19,143 @@ local function ResolveAutoHideSoloEnabled(dbRef)
 end
 
 FI.ResolveAutoHideSoloEnabled = ResolveAutoHideSoloEnabled
+
+local function FinalizeFactorySettings(ctx)
+  local modules = ctx.modules
+
+  if modules.settingsPanel and type(modules.settingsPanel.Create) == "function" then
+    ctx.settingsPanel = modules.settingsPanel.Create({
+      getL = ctx.GetL,
+      setLanguage = ctx.SetLanguage,
+      getCurrentLocale = function()
+        return IsiLiveDB and IsiLiveDB.locale or ctx.locale
+      end,
+      getDB = function()
+        return IsiLiveDB or {}
+      end,
+      onEscPanelToggle = function(enabled)
+        if ctx.panelUI and type(ctx.panelUI.SyncVisibility) == "function" then
+          ctx.panelUI.SyncVisibility()
+        end
+        if ctx.panelUI and ctx.panelUI.hostFrame then
+          if enabled then
+            local gmf = rawget(_G, "GameMenuFrame")
+            if gmf and type(gmf.IsShown) == "function" and gmf:IsShown() then
+              ctx.panelUI.hostFrame:Show()
+            end
+          else
+            ctx.panelUI.hostFrame:Hide()
+          end
+        end
+      end,
+      onQueueDebugToggle = function(enabled)
+        if ctx.queueDebugController and type(ctx.queueDebugController.SetEnabled) == "function" then
+          ctx.queueDebugController.SetEnabled(enabled)
+        end
+      end,
+      onRuntimeLogToggle = function(enabled)
+        if ctx.runtimeLogController and type(ctx.runtimeLogController.SetEnabled) == "function" then
+          ctx.runtimeLogController.SetEnabled(enabled)
+        end
+      end,
+      onPortalNavigatorToggle = function(_enabled)
+        if ctx.statusController and type(ctx.statusController.MaybeShowPortalNavigatorNotice) == "function" then
+          ctx.statusController.MaybeShowPortalNavigatorNotice()
+        end
+      end,
+      onBgAlphaChange = function(val)
+        local uiCommon = ctx.addonTable and ctx.addonTable.UICommon
+        if type(uiCommon) == "table" and type(uiCommon.Colors) == "table" then
+          uiCommon.Colors.BG_PRIMARY[4] = val
+        end
+        if ctx.mainFrame and type(ctx.mainFrame.SetBackdropColor) == "function" then
+          ctx.mainFrame:SetBackdropColor(0, 0, 0, val)
+        end
+        local bg = uiCommon and uiCommon.Colors and uiCommon.Colors.BG_PRIMARY or { 0.08, 0.08, 0.12, val }
+        if ctx.panelUI and ctx.panelUI.panelFrame and type(ctx.panelUI.panelFrame.SetBackdropColor) == "function" then
+          ctx.panelUI.panelFrame:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
+        end
+        if
+          ctx.settingsPanel
+          and ctx.settingsPanel.canvas
+          and type(ctx.settingsPanel.canvas.SetBackdropColor) == "function"
+        then
+          ctx.settingsPanel.canvas:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
+        end
+      end,
+      onUiScaleChange = function(val)
+        if ctx.mainFrame and type(ctx.mainFrame.SetScale) == "function" then
+          ctx.mainFrame:SetScale(val)
+        end
+      end,
+      onSyncToggle = function(_enabled)
+        -- Runtime reads IsiLiveDB.syncEnabled directly; no additional action needed
+      end,
+      onShowDpsColumnToggle = function(_enabled)
+        if ctx.rosterPanelController and type(ctx.rosterPanelController.RenderRoster) == "function" then
+          ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
+        end
+      end,
+      onRosterColumnGuidesToggle = function(_enabled)
+        if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshLayoutState) == "function" then
+          ctx.rosterPanelController.RefreshLayoutState()
+        elseif ctx.rosterPanelController and type(ctx.rosterPanelController.RenderRoster) == "function" then
+          ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
+        end
+      end,
+      onMinimapButtonToggle = function(enabled)
+        if ctx.minimapButton then
+          if enabled then
+            ctx.minimapButton:Show()
+          else
+            ctx.minimapButton:Hide()
+          end
+        end
+      end,
+      onAutoOpenQueueToggle = function(_enabled)
+        -- Runtime reads IsiLiveDB.autoOpenOnQueue directly; no additional action needed
+      end,
+      onAutoHideSoloToggle = function(enabled)
+        if enabled and not IsInGroup() and ctx.mainFrame and ctx.mainFrame:IsShown() then
+          ctx.mainFrame:Hide()
+        end
+      end,
+      onDefaultLayoutModeChange = function(_layoutMode)
+        ctx.RestoreLayoutState()
+      end,
+      onNameMaxCharsChange = function(_maxChars)
+        if ctx.rosterPanelController and type(ctx.rosterPanelController.RenderRoster) == "function" then
+          ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
+        end
+      end,
+      onMarkersLeaderOnlyToggle = function(_enabled)
+        if ctx.rosterPanelController and type(ctx.rosterPanelController.RenderRoster) == "function" then
+          ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
+        end
+      end,
+      onTeleportColumnsChange = function(_columns)
+        if ctx.teleportUIController and type(ctx.teleportUIController.UpdateButtons) == "function" then
+          ctx.teleportUIController.UpdateButtons(ctx.ResolveTeleportSpellID())
+        end
+      end,
+      onSoundToggle = function(_enabled)
+        -- Runtime reads IsiLiveDB.soundEnabled directly; no additional action needed
+      end,
+    })
+  end
+
+  -- Restore saved UI Scale
+  if IsiLiveDB and type(IsiLiveDB.uiScale) == "number" and IsiLiveDB.uiScale ~= 1.0 then
+    if ctx.mainFrame and type(ctx.mainFrame.SetScale) == "function" then
+      ctx.mainFrame:SetScale(IsiLiveDB.uiScale)
+    end
+  end
+
+  -- Minimap Button
+  if IsiLiveDB and IsiLiveDB.showMinimapButton then
+    ctx.minimapButton = CreateFactoryMinimapButton(ctx)
+  end
+end
 
 local function FinalizeFactoryRuntime(ctx)
   local modules = ctx.modules
@@ -217,138 +355,7 @@ local function FinalizeFactoryRuntime(ctx)
   ctx.eventHandlersController = runtimeSetupResult.eventHandlersController
   ctx.Print(string.format(ctx.L.LOADED_HINT, ctx.GetAddonVersionRaw()))
 
-  if modules.settingsPanel and type(modules.settingsPanel.Create) == "function" then
-    ctx.settingsPanel = modules.settingsPanel.Create({
-      getL = ctx.GetL,
-      setLanguage = ctx.SetLanguage,
-      getCurrentLocale = function()
-        return IsiLiveDB and IsiLiveDB.locale or ctx.locale
-      end,
-      getDB = function()
-        return IsiLiveDB or {}
-      end,
-      onEscPanelToggle = function(enabled)
-        if ctx.panelUI and type(ctx.panelUI.SyncVisibility) == "function" then
-          ctx.panelUI.SyncVisibility()
-        end
-        if ctx.panelUI and ctx.panelUI.hostFrame then
-          if enabled then
-            local gmf = rawget(_G, "GameMenuFrame")
-            if gmf and type(gmf.IsShown) == "function" and gmf:IsShown() then
-              ctx.panelUI.hostFrame:Show()
-            end
-          else
-            ctx.panelUI.hostFrame:Hide()
-          end
-        end
-      end,
-      onQueueDebugToggle = function(enabled)
-        if ctx.queueDebugController and type(ctx.queueDebugController.SetEnabled) == "function" then
-          ctx.queueDebugController.SetEnabled(enabled)
-        end
-      end,
-      onRuntimeLogToggle = function(enabled)
-        if ctx.runtimeLogController and type(ctx.runtimeLogController.SetEnabled) == "function" then
-          ctx.runtimeLogController.SetEnabled(enabled)
-        end
-      end,
-      onPortalNavigatorToggle = function(_enabled)
-        if ctx.statusController and type(ctx.statusController.MaybeShowPortalNavigatorNotice) == "function" then
-          ctx.statusController.MaybeShowPortalNavigatorNotice()
-        end
-      end,
-      onBgAlphaChange = function(val)
-        local uiCommon = ctx.addonTable and ctx.addonTable.UICommon
-        if type(uiCommon) == "table" and type(uiCommon.Colors) == "table" then
-          uiCommon.Colors.BG_PRIMARY[4] = val
-        end
-        if ctx.mainFrame and type(ctx.mainFrame.SetBackdropColor) == "function" then
-          ctx.mainFrame:SetBackdropColor(0, 0, 0, val)
-        end
-        local bg = uiCommon and uiCommon.Colors and uiCommon.Colors.BG_PRIMARY or { 0.08, 0.08, 0.12, val }
-        if ctx.panelUI and ctx.panelUI.panelFrame and type(ctx.panelUI.panelFrame.SetBackdropColor) == "function" then
-          ctx.panelUI.panelFrame:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
-        end
-        if
-          ctx.settingsPanel
-          and ctx.settingsPanel.canvas
-          and type(ctx.settingsPanel.canvas.SetBackdropColor) == "function"
-        then
-          ctx.settingsPanel.canvas:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
-        end
-      end,
-      onUiScaleChange = function(val)
-        if ctx.mainFrame and type(ctx.mainFrame.SetScale) == "function" then
-          ctx.mainFrame:SetScale(val)
-        end
-      end,
-      onSyncToggle = function(_enabled)
-        -- Runtime reads IsiLiveDB.syncEnabled directly; no additional action needed
-      end,
-      onShowDpsColumnToggle = function(_enabled)
-        if ctx.rosterPanelController and type(ctx.rosterPanelController.RenderRoster) == "function" then
-          ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
-        end
-      end,
-      onRosterColumnGuidesToggle = function(_enabled)
-        if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshLayoutState) == "function" then
-          ctx.rosterPanelController.RefreshLayoutState()
-        elseif ctx.rosterPanelController and type(ctx.rosterPanelController.RenderRoster) == "function" then
-          ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
-        end
-      end,
-      onMinimapButtonToggle = function(enabled)
-        if ctx.minimapButton then
-          if enabled then
-            ctx.minimapButton:Show()
-          else
-            ctx.minimapButton:Hide()
-          end
-        end
-      end,
-      onAutoOpenQueueToggle = function(_enabled)
-        -- Runtime reads IsiLiveDB.autoOpenOnQueue directly; no additional action needed
-      end,
-      onAutoHideSoloToggle = function(enabled)
-        if enabled and not IsInGroup() and ctx.mainFrame and ctx.mainFrame:IsShown() then
-          ctx.mainFrame:Hide()
-        end
-      end,
-      onDefaultLayoutModeChange = function(_layoutMode)
-        ctx.RestoreLayoutState()
-      end,
-      onNameMaxCharsChange = function(_maxChars)
-        if ctx.rosterPanelController and type(ctx.rosterPanelController.RenderRoster) == "function" then
-          ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
-        end
-      end,
-      onMarkersLeaderOnlyToggle = function(_enabled)
-        if ctx.rosterPanelController and type(ctx.rosterPanelController.RenderRoster) == "function" then
-          ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
-        end
-      end,
-      onTeleportColumnsChange = function(_columns)
-        if ctx.teleportUIController and type(ctx.teleportUIController.UpdateButtons) == "function" then
-          ctx.teleportUIController.UpdateButtons(ctx.ResolveTeleportSpellID())
-        end
-      end,
-      onSoundToggle = function(_enabled)
-        -- Runtime reads IsiLiveDB.soundEnabled directly; no additional action needed
-      end,
-    })
-  end
-
-  -- Restore saved UI Scale
-  if IsiLiveDB and type(IsiLiveDB.uiScale) == "number" and IsiLiveDB.uiScale ~= 1.0 then
-    if ctx.mainFrame and type(ctx.mainFrame.SetScale) == "function" then
-      ctx.mainFrame:SetScale(IsiLiveDB.uiScale)
-    end
-  end
-
-  -- Minimap Button
-  if IsiLiveDB and IsiLiveDB.showMinimapButton then
-    ctx.minimapButton = CreateFactoryMinimapButton(ctx)
-  end
+  FinalizeFactorySettings(ctx)
 end
 
 function Factory.InitializeAddon(addonName, addonTable)
@@ -360,6 +367,7 @@ function Factory.InitializeAddon(addonName, addonTable)
   InitializeFactoryFrameBridge(ctx)
   InitializeFactoryRuntimeHelpers(ctx)
   InitializeFactoryPrimaryControllers(ctx)
+  InitializeFactoryRefreshAndStatusControllers(ctx)
   InitializeFactorySecondaryControllers(ctx)
   FinalizeFactoryRuntime(ctx)
 end

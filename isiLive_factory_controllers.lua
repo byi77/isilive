@@ -457,7 +457,7 @@ local function InitializeFactoryPrimaryControllers(ctx)
 end
 FI.InitializeFactoryPrimaryControllers = InitializeFactoryPrimaryControllers
 
-local function InitializeFactorySecondaryControllers(ctx)
+local function InitializeFactoryRefreshAndStatusControllers(ctx)
   local modules = ctx.modules
   local runtimeState = ctx.runtimeState
 
@@ -645,6 +645,14 @@ local function InitializeFactorySecondaryControllers(ctx)
     ctx.refreshController.RunFullRefresh()
   end)
 
+  ctx.SetProcessingActive = SetProcessingActive
+end
+FI.InitializeFactoryRefreshAndStatusControllers = InitializeFactoryRefreshAndStatusControllers
+
+local function InitializeFactorySecondaryControllers(ctx)
+  local modules = ctx.modules
+  local runtimeState = ctx.runtimeState
+
   ctx.GetUnitServerLanguage = function(unit, realm)
     return modules.contextHelpers.GetUnitServerLanguage(modules.locale, ctx.GetRealmInfoLib, unit, realm)
   end
@@ -785,8 +793,6 @@ local function InitializeFactorySecondaryControllers(ctx)
       return
     end
   end
-
-  ctx.SetProcessingActive = SetProcessingActive
 
   if modules.cdTracker and type(modules.cdTracker.CreateController) == "function" then
     ctx.cdTrackerController = modules.cdTracker.CreateController({
