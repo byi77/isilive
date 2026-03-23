@@ -131,7 +131,15 @@ local SECOND_PANEL_UI_ENTRIES = {
     labelKey = "BTN_SECOND_ARKANATINE_KEY",
     fallbackText = "Arkantine",
     icon = "Interface\\Icons\\INV_Misc_Key_14",
-    secureMacroText = "/use Persönlicher Schlüssel zur Arkantine",
+    -- Item names differ by WoW client locale; resolved at button creation via GetLocale().
+    secureMacroText = function()
+      local getLocale = rawget(_G, "GetLocale")
+      local clientLocale = type(getLocale) == "function" and getLocale() or ""
+      if clientLocale == "deDE" then
+        return "/use Persönlicher Schlüssel zur Arkantine"
+      end
+      return "/use Personal Key to the Arkantine"
+    end,
   },
   {
     id = "hearthstone",
@@ -1229,7 +1237,9 @@ function UI.EnsureSecondPanelUI(opts)
   end
 
   for index, entry in ipairs(SECOND_PANEL_UI_ENTRIES) do
-    local isSecureMacro = type(entry.secureMacroText) == "string"
+    local resolvedMacroText = type(entry.secureMacroText) == "function" and entry.secureMacroText()
+      or entry.secureMacroText
+    local isSecureMacro = type(resolvedMacroText) == "string"
     local isSecure = isSecureMacro or entry.isSecure == true
     local buttonTemplate = isSecure and "SecureActionButtonTemplate,BackdropTemplate" or "BackdropTemplate"
     local buttonParent = isSecure and gameMenuFrame or panelFrame
@@ -1241,7 +1251,7 @@ function UI.EnsureSecondPanelUI(opts)
     button._fallbackText = entry.fallbackText
     button._gapBefore = math.max(0, tonumber(entry.gapBefore) or PANEL_UI_BUTTON_GAP)
     button._verticalIndex = index
-    button._secureMacroText = entry.secureMacroText
+    button._secureMacroText = resolvedMacroText
 
     if (entry.id == "hearthstone" or entry.id == "housing_plot") and type(button.SetAttribute) == "function" then
       local clickBinding, useOnKeyDown = ResolveSecureClickBinding()
@@ -1322,11 +1332,13 @@ function UI.EnsureSecondPanelUI(opts)
 end
 
 local function SavePosition(target)
-  if not IsiLiveDB then
-    IsiLiveDB = {}
+  local db = rawget(_G, "IsiLiveDB")
+  if not db then
+    db = {}
+    IsiLiveDB = db
   end
   local point, _, relativePoint, x, y = target:GetPoint()
-  IsiLiveDB.position = { point = point, relativePoint = relativePoint, x = x, y = y }
+  db.position = { point = point, relativePoint = relativePoint, x = x, y = y }
 end
 
 local function CreateDragHandle(frame)

@@ -6,8 +6,7 @@ local FrameBridge = {}
 addonTable.FrameBridge = FrameBridge
 
 local function RequireFunction(value, name)
-  assert(type(value) == "function", "isiLive: FrameBridge requires " .. name)
-  return value
+  return addonTable.Validators.RequireFunction(value, name, "FrameBridge")
 end
 
 function FrameBridge.CreateContext(opts)

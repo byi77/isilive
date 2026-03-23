@@ -11,12 +11,14 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_runtime_state.lua",
   "testmodul/isilive_test_scenarios_locale.lua",
   "testmodul/isilive_test_scenarios_sync.lua",
+  "testmodul/isilive_test_scenarios_keysync.lua",
   "testmodul/isilive_test_scenarios_guards.lua",
   "testmodul/isilive_test_scenarios_inspect.lua",
   "testmodul/isilive_test_scenarios_test_mode.lua",
   "testmodul/isilive_test_scenarios_leader_watch.lua",
   "testmodul/isilive_test_scenarios_refresh.lua",
   "testmodul/isilive_test_scenarios_commands.lua",
+  "testmodul/isilive_test_scenarios_commands_extended.lua",
   "testmodul/isilive_test_scenarios_runtime_log.lua",
   "testmodul/isilive_test_scenarios_roster.lua",
   "testmodul/isilive_test_scenarios_roster_panel.lua",
@@ -31,6 +33,9 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_roster_display.lua",
   "testmodul/isilive_test_scenarios_taint.lua",
   "testmodul/isilive_test_scenarios_tank_helper.lua",
+  "testmodul/isilive_test_scenarios_validation_helpers.lua",
+  "testmodul/isilive_test_scenarios_string_utils.lua",
+  "testmodul/isilive_test_scenarios_config_builders.lua",
 }
 
 return scenarioFiles

@@ -5,6 +5,7 @@ addonTable = addonTable or {}
 local Sync = {}
 addonTable.Sync = Sync
 local SeasonData = addonTable.SeasonData or {}
+local StringUtils = addonTable.StringUtils
 
 local ISILIVE_SYNC_PREFIX = "ISILIVE"
 local ISILIVE_SYNC_PROTOCOL_VERSION = 2
@@ -13,12 +14,17 @@ local ISILIVE_KEY_COOLDOWN = 5
 local ISILIVE_STATS_COOLDOWN = 5
 local ISILIVE_REFRESH_REQUEST_COOLDOWN = 1
 
--- Hinweis: Die folgenden Variablen sind bewusst auf Modul-Ebene (Singleton).
--- Das Addon hat genau eine aktive Sync-Instanz pro Session. Die Cooldown-Variablen
--- (lastIsiLive*) verhindern Doppelnachrichten addon-weit. isiLiveUsersByKey und
--- keyInfoByPlayerKey sind session-globaler Zustand, der beim Gruppenauflösen via
--- ClearKnownUsers() zurückgesetzt wird (siehe group.lua → HandleNoGroup).
--- Architekturinkonsistenz zum CreateController()-Muster der übrigen Module ist bekannt.
+-- Architecture note: Module-level singleton state (intentional deviation from CreateController pattern).
+--
+-- Rationale: The addon runs exactly one Sync instance per session. Cooldown timestamps
+-- (lastIsiLive*At) are addon-wide send rate-limiters. Payload dedup trackers (last*PayloadSent)
+-- suppress identical re-sends within the same session. User/key/stats/dps/loc lookup tables
+-- (isiLiveUsersByKey, *InfoByPlayerKey) hold received peer data that must survive across
+-- controller re-creations during the same session.
+--
+-- Reset contract: ClearKnownUsers() resets ALL mutable state (cooldowns, dedup trackers,
+-- and lookup tables) and is called by group.lua → HandleNoGroup on group disband.
+-- This ensures a clean slate when the player joins a new group.
 local lastIsiLiveHelloAt = 0
 local lastIsiLiveKeyAt = 0
 local lastIsiLiveStatsAt = 0
@@ -68,8 +74,7 @@ local function GetSyncTimestamp()
 end
 
 local function NormalizeSyncSource(source)
-  local text = source and tostring(source) or ""
-  text = text:lower():gsub("^%s+", ""):gsub("%s+$", "")
+  local text = StringUtils.Trim(source and tostring(source) or ""):lower()
   text = text:gsub("%s+", "_"):gsub("[^%w_%-]", "")
   if text == "" then
     return nil
@@ -98,9 +103,8 @@ local function IsSyncEnabled()
   return not db or db.syncEnabled ~= false
 end
 
--- Hinweis: Diese Normalisierung ist strikter als NormalizeName() in isiLive_stats.lua
--- (entfernt zusätzlich Sonderzeichen aus dem Realm-Namen). Beide müssen konsistent
--- gehalten werden, sonst können Keys bei Realms mit Sonderzeichen divergieren.
+-- Realm-Normalisierung ist identisch mit NormalizeName() in isiLive_stats.lua:
+-- beide entfernen Spaces, Bindestriche, Punkte, Klammern und Apostrophe aus dem Realm.
 function Sync.NormalizePlayerKey(name, realm)
   local n = name and tostring(name) or ""
   local r = realm and tostring(realm) or ""
@@ -112,14 +116,14 @@ function Sync.NormalizePlayerKey(name, realm)
   end
 
   if r == "" then
-    r = GetRealmName() or ""
+    local getRealmName = rawget(_G, "GetRealmName")
+    r = type(getRealmName) == "function" and getRealmName() or ""
   end
 
-  -- Strict normalization:
-  -- Name: remove spaces (shouldn't have any, but safety first)
-  -- Realm: remove spaces, dashes, dots, parens, quotes (matches Locale.NormalizeRealmLookupKey)
-  local n_clean = tostring(n):gsub("%s+", "")
-  local r_clean = tostring(r):gsub("[%s%-%.%(%)'`]", "")
+  -- Strict normalization via shared StringUtils:
+  -- Name: strip all whitespace; Realm: strip spaces/dashes/dots/parens/quotes
+  local n_clean = StringUtils.StripWhitespace(tostring(n))
+  local r_clean = StringUtils.NormalizeRealmName(tostring(r))
   local key = string.lower(n_clean .. "-" .. r_clean)
   return key
 end
@@ -280,6 +284,16 @@ function Sync.ClearKnownUsers()
   statsInfoByPlayerKey = {}
   dpsInfoByPlayerKey = {}
   locInfoByPlayerKey = {}
+  lastIsiLiveHelloAt = 0
+  lastIsiLiveKeyAt = 0
+  lastIsiLiveStatsAt = 0
+  lastIsiLiveDpsAt = 0
+  lastIsiLiveLocAt = 0
+  lastIsiLiveRefreshRequestAt = 0
+  lastKeyPayloadSent = nil
+  lastStatsPayloadSent = nil
+  lastDpsPayloadSent = nil
+  lastLocPayloadSent = nil
 end
 
 function Sync.SetPlayerHelloInfo(name, realm, addonVersion, protocolVersion, capturedAt, source)

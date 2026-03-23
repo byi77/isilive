@@ -6,13 +6,11 @@ local ControllerWiring = {}
 addonTable.ControllerWiring = ControllerWiring
 
 local function RequireFunction(value, name)
-  assert(type(value) == "function", "isiLive: ControllerWiring requires " .. name)
-  return value
+  return addonTable.Validators.RequireFunction(value, name, "ControllerWiring")
 end
 
 local function RequireTable(value, name)
-  assert(type(value) == "table", "isiLive: ControllerWiring requires table " .. name)
-  return value
+  return addonTable.Validators.RequireTable(value, name, "ControllerWiring")
 end
 
 function ControllerWiring.CreateGroupController(groupModule, deps)

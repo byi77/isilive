@@ -19,13 +19,15 @@ function LogBuffer.EnsureSavedTable(key)
   assert(type(key) == "string" and key ~= "", "isiLive: LogBuffer requires non-empty key")
 
   return function()
-    if not IsiLiveDB then
-      IsiLiveDB = {}
+    local db = rawget(_G, "IsiLiveDB")
+    if not db then
+      db = {}
+      IsiLiveDB = db
     end
-    if type(IsiLiveDB[key]) ~= "table" then
-      IsiLiveDB[key] = {}
+    if type(db[key]) ~= "table" then
+      db[key] = {}
     end
-    return IsiLiveDB[key]
+    return db[key]
   end
 end
 

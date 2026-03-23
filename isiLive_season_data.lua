@@ -101,10 +101,8 @@ SeasonData.SEASONS = {
       },
     },
     challengeMapAliases = {},
-    inactivePortalMessageByLocale = {
-      default = "Midnight S1 launches March 18, 2026\nM+ available March 25, 2026",
-      deDE = "Midnight S1 startet am 18.03.2026\nM+ verfügbar ab 25.03.2026",
-    },
+    -- Season is live; no inactive message needed.
+    inactivePortalMessageByLocale = {},
   },
 }
 

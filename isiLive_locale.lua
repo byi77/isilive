@@ -128,9 +128,7 @@ function Locale.NormalizeRealmLookupKey(realm)
   if not realm then
     return ""
   end
-  local key = tostring(realm):lower()
-  key = key:gsub("[%s%-%.%(%)'`]", "")
-  return key
+  return addonTable.StringUtils.NormalizeRealmName(tostring(realm)):lower()
 end
 
 function Locale.GetRealmLocaleFromStaticData(realm)
@@ -158,19 +156,7 @@ function Locale.GetRealmLocaleFromStaticData(realm)
   return nil
 end
 
-local function IsExistingUnit(unit)
-  if type(unit) ~= "string" or unit == "" then
-    return false
-  end
-
-  local unitExists = rawget(_G, "UnitExists")
-  if type(unitExists) ~= "function" then
-    return false
-  end
-
-  local ok, exists = pcall(unitExists, unit)
-  return ok and exists == true
-end
+local IsExistingUnit = addonTable.Validators.IsExistingUnit
 
 function Locale.GetUnitServerLanguage(unit, realm, getRealmInfoLib)
   if not realm or realm == "" then

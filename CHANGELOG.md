@@ -1,5 +1,45 @@
 # Changelog
 
+## 2026-03-23 - Version 0.9.94
+- **Bugfix / Sync Cooldown Reset:**
+  - `Sync.ClearKnownUsers()` now resets all send cooldown timestamps and dedup payloads so the next identical snapshot fires immediately after a group change instead of being silently suppressed.
+- **Bugfix / Realm Normalization:**
+  - `Stats.NormalizeName()` now strips spaces, dashes, dots, parentheses, and quotes from realm names, matching the `Sync.NormalizePlayerKey()` convention. Previously, realm names with special characters (e.g. `Der Rat von Dalaran`) could fail to match between damage-meter sources and roster entries.
+- **Bugfix / Arkantine Locale:**
+  - The `Esc` travel strip `Arkantine` button now resolves the item name by WoW client locale at button creation time (`deDE` → German, all others → English). Previously, the macro was hardcoded to the German item name and would fail on non-German clients.
+- **Bugfix / Highlight Determinism:**
+  - Activity ID selection from multi-activity LFG listings now sorts candidates and picks the smallest ID instead of relying on non-deterministic `pairs()` iteration order.
+- **Code Hardening / rawget Pattern:**
+  - All `IsiLiveDB` global reads now use `rawget(_G, "IsiLiveDB")` consistently across all modules (`stats`, `sync`, `log_buffer`, `queue_debug`, `runtime_log`, `ui`, `factory_controllers`, `event_handlers_challenge`) to avoid triggering `__index` metamethods on `_G`.
+  - `GetRealmName` access in both `isiLive_stats.lua` and `isiLive_sync.lua` switched to `rawget(_G, "GetRealmName")` with type guard, matching the defensive pattern used for all other WoW API globals.
+  - Added nil-guards for `rawget(_G, "IsiLiveDB").stats` access in `isiLive_stats.lua` to prevent nil-index crashes if the call chain is ever reordered.
+- **Code Cleanup / KeySync:**
+  - Extracted `ResolveAverageItemLevel()` as a standalone function in `isiLive_keysync.lua`, eliminating the inline duplication between `C_Item` and legacy `GetAverageItemLevel` fallback paths.
+- **Season Data:**
+  - Cleared the inactive portal message for Midnight Season 1 now that the season is live (`inactivePortalMessageByLocale` is empty).
+- **Tests:**
+  - Added regression test for `Stats.NormalizeName` realm special-character stripping with `Der Rat von Dalaran` (spaces, stripped-variant lookup).
+  - Added regression test for `Sync.ClearKnownUsers` cooldown/dedup reset (identical payload must fire immediately after clear).
+  - New `isilive_test_scenarios_keysync.lua`: 17 dedicated KeySync controller tests covering `MarkIsiLiveUser`, `UnitHasIsiLive`, `RegisterIsiLiveSyncPrefix`, `ResolveActiveKeyOwnerUnit`, `RefreshLocalPlayerKey`, `ForceRefreshSyncState`, `GetOwnedKeystoneSnapshot`, `SendRefreshRequest`, and `ApplyKnownKeyToRosterEntry`.
+  - New `isilive_test_scenarios_commands_extended.lua`: 13 extended commands tests covering `testall` (stopped/paused/running), `tptest`, `tpdebug`, `lead` (yes/no), `bindcheck`, unknown/empty input help, pause/resume while stopped, and `lang enus/dede` aliases.
+  - New `isilive_test_scenarios_config_builders.lua`: 8 config builder tests verifying all 6 `BuildXxxOpts()` functions pass through context fields correctly and do not leak extra fields.
+  - `lua tools/validate_usecases.lua` now validates `401` deterministic tests indexed and `405` scenarios across `37` modules.
+- **Code Modernization / Shared Utilities:**
+  - New `isiLive_validation_helpers.lua`: centralized `RequireFunction`, `RequireTable`, and `IsExistingUnit` — eliminates identical 4–13 line helper copies across 11+ modules.
+  - New `isiLive_string_utils.lua`: centralized `Trim`, `StripWhitespace`, and `NormalizeRealmName` — replaces duplicate inline `gsub` patterns across 6+ modules.
+  - All 11 modules with local `RequireFunction`/`RequireTable` now delegate to `addonTable.Validators`.
+  - `IsExistingUnit` consolidated from 4 identical copies (units, locale, inspect, roster) into one canonical implementation.
+  - Realm normalization in `Sync.NormalizePlayerKey`, `Stats.NormalizeName`, and `Locale.NormalizeRealmLookupKey` now uses `StringUtils.NormalizeRealmName`.
+  - Trim patterns in `Status`, `FactoryControllers`, and `Sync.NormalizeSyncSource` now use `StringUtils.Trim`.
+  - Test harness (`isilive_test_harness.lua`) extended with universal dependency loading for shared utility modules.
+- **Code Modernization / Factory Decomposition:**
+  - Split `InitializeFactoryRuntimeHelpers` (288 lines) into 4 focused sub-functions: `InitializeGameAPIHelpers`, `InitializeRuntimeStateDelegates`, `InitializeRioHelpers`, `InitializeStatusAndOperationalHelpers`.
+- **Code Modernization / Sync Documentation:**
+  - Replaced brief German inline comment with detailed English architecture note explaining the singleton state rationale, reset contract, and relationship to `ClearKnownUsers()`.
+- **Tests:**
+  - New `isilive_test_scenarios_validation_helpers.lua` (8 tests): RequireFunction/RequireTable pass/fail/default, IsExistingUnit nil/missing-API/delegation/pcall-safety.
+  - New `isilive_test_scenarios_string_utils.lua` (7 tests): Trim/StripWhitespace/NormalizeRealmName with edge cases and canonical pattern verification.
+
 ## 2026-03-23 - Version 0.9.93
 - **Sound / Leader Promotion:**
   - Plays `sounds/CartoonVoiceBaritone.ogg` (Master channel) when the local player is promoted to group leader via `PARTY_LEADER_CHANGED`.

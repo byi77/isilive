@@ -6,13 +6,11 @@ local RuntimeSetup = {}
 addonTable.RuntimeSetup = RuntimeSetup
 
 local function RequireFunction(value, name)
-  assert(type(value) == "function", "isiLive: RuntimeSetup requires " .. name)
-  return value
+  return addonTable.Validators.RequireFunction(value, name, "RuntimeSetup")
 end
 
 local function RequireTable(value, name)
-  assert(type(value) == "table", "isiLive: RuntimeSetup requires table " .. name)
-  return value
+  return addonTable.Validators.RequireTable(value, name, "RuntimeSetup")
 end
 
 function RuntimeSetup.Configure(ctx)

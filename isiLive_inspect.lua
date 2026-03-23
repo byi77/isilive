@@ -24,19 +24,7 @@ local function IsGhostRosterUnit(unit, roster)
   return type(roster) == "table" and type(roster[unit]) == "table" and roster[unit].isGhost == true
 end
 
-local function IsExistingUnit(unit)
-  if type(unit) ~= "string" or unit == "" then
-    return false
-  end
-
-  local unitExists = rawget(_G, "UnitExists")
-  if type(unitExists) ~= "function" then
-    return false
-  end
-
-  local ok, exists = pcall(unitExists, unit)
-  return ok and exists == true
-end
+local IsExistingUnit = addonTable.Validators.IsExistingUnit
 
 local function GetUnitGUIDSafe(unit)
   if not IsExistingUnit(unit) then

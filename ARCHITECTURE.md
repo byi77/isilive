@@ -21,7 +21,7 @@ The architecture is event-driven and split into clear runtime layers:
 | Event gate and dispatch | Enforce stop/pause/hidden/test behavior and route lifecycle handlers | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_utils.lua` |
 | Domain logic | Queue parsing, group model, highlight resolution, key sync, refresh, inspect, bounded run stats, cooldown tracker | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua`, `isiLive_cd_tracker.lua` |
 | UI composition | Main frame, roster panel, optional game-menu tooling/travel side panels, Blizzard settings canvas, cooldown tracker row, teleport grid, notices, status line | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_roster_layout.lua`, `isiLive_teleport_ui.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
-| Shared helpers and data | Locale, localized texts, units, season map/spell data, runtime logging, focused config builders, private tooltip/shared UI helpers, centralized backdrop presets | `isiLive_locale.lua`, `isiLive_texts.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_ui_common.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua` |
+| Shared helpers and data | Locale, localized texts, units, season map/spell data, runtime logging, focused config builders, private tooltip/shared UI helpers, centralized backdrop presets, shared validation/string utilities | `isiLive_validation_helpers.lua`, `isiLive_string_utils.lua`, `isiLive_locale.lua`, `isiLive_texts.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_ui_common.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua` |
 
 ## Runtime Flow
 
@@ -97,7 +97,7 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 338 deterministic tests indexed and 341 scenarios across 32 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/roster-panel-layout/status/stats/cd-tracker/units/ui/roster-display/taint/tank-helper logic.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 401 deterministic tests indexed and 405 scenarios across 37 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/keysync/guards/inspect/test-mode/leader-watch/refresh/commands/commands-extended/runtime-log/runtime-state/roster/roster-panel/roster-panel-layout/status/stats/cd-tracker/units/ui/roster-display/taint/tank-helper/validation-helpers/string-utils/config-builders logic.
 
 ## UI Structure (ASCII Sketch)
 

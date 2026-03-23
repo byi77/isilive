@@ -14,7 +14,7 @@ local POST_RUN_CAPTURE_RETRIES = 5
 local POST_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
 
 local function ResetDamageMeterIfAvailable()
-  local damageMeterAPI = _G.C_DamageMeter
+  local damageMeterAPI = rawget(_G, "C_DamageMeter")
   if
     not (
       type(damageMeterAPI) == "table"

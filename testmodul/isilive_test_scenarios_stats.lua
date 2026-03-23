@@ -348,6 +348,54 @@ local function RegisterStatsDamageMeterTests(test, Assert, WithGlobals, LoadAddo
       )
     end)
   end)
+
+  test("Stats NormalizeName strips realm special chars matching NormalizePlayerKey convention", function()
+    local db = { stats = {} }
+
+    WithGlobals({
+      IsiLiveDB = db,
+      -- GetRealmName must match the roster realm so the damage-meter source
+      -- (which carries no realm suffix) resolves to the same normalized key.
+      GetRealmName = function()
+        return "Der Rat von Dalaran"
+      end,
+      C_DamageMeter = {
+        GetCombatSessionFromType = function()
+          return {
+            durationSeconds = 1800,
+            combatSources = {
+              { name = "Player", amountPerSecond = 100000.0, totalAmount = 180000000 },
+            },
+          }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_stats.lua" })
+      local controller = addon.Stats.CreateController({
+        getRoster = function()
+          return {
+            player = { name = "Player", realm = "Der Rat von Dalaran" },
+          }
+        end,
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "Player", "Der Rat von Dalaran"
+          end
+          return nil
+        end,
+      })
+
+      controller.RecordRun(2649, 15, true)
+
+      local dps = controller.GetPlayerLastRunDps("Player", "Der Rat von Dalaran")
+      Assert.NotNil(dps, "DPS must be found for realm with spaces")
+      Assert.Equal(math.floor(dps or 0), 100000, "DPS for special-char realm must match stored snapshot")
+
+      local dpsStripped = controller.GetPlayerLastRunDps("Player", "DerRatvonDalaran")
+      Assert.NotNil(dpsStripped, "DPS must be found via already-stripped realm variant")
+      Assert.Equal(math.floor(dpsStripped or 0), 100000, "stripped realm lookup must resolve to the same entry")
+    end)
+  end)
 end
 
 local function RegisterStatsPersistenceTests(test, Assert, WithGlobals, LoadAddonModules)

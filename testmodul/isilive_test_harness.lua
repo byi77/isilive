@@ -1,6 +1,12 @@
 ---@diagnostic disable: undefined-global
 local Harness = {}
 local Unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+-- Modules loaded before any other module in LoadAddonModules (shared utilities).
+local UNIVERSAL_DEPENDENCIES = {
+  "isiLive_validation_helpers.lua",
+  "isiLive_string_utils.lua",
+}
+
 local IMPLICIT_DEPENDENCIES = {
   ["isiLive_event_handlers.lua"] = {
     "isiLive_event_handlers_queue.lua",
@@ -77,6 +83,18 @@ function Harness.LoadAddonModules(files, seedAddonTable)
   end
 
   local addonTable = seedAddonTable or {}
+
+  -- Load universal dependencies first (shared helpers available to all modules).
+  for _, universalFile in ipairs(UNIVERSAL_DEPENDENCIES) do
+    if not seenFiles[universalFile] then
+      seenFiles[universalFile] = true
+      local uChunk, uErr = loadfile(universalFile)
+      if uChunk then
+        pcall(uChunk, "isiLive", addonTable)
+      end
+    end
+  end
+
   for _, file in ipairs(expandedFiles) do
     local chunk, loadErr = loadfile(file)
     if not chunk then

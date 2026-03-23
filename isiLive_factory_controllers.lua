@@ -4,11 +4,8 @@ moduleAddonTable = moduleAddonTable or {}
 local FI = moduleAddonTable._FactoryInternal or {}
 moduleAddonTable._FactoryInternal = FI
 
-local function InitializeFactoryRuntimeHelpers(ctx)
-  local modules = ctx.modules
-  local runtimeState = ctx.runtimeState
-  local addonTable = ctx.addonTable
-
+-- Sub-function: Game API safe wrappers and instance helpers.
+local function InitializeGameAPIHelpers(ctx, runtimeState)
   ctx.GetActiveChallengeMapID = function()
     if not (C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID) then
       return nil
@@ -33,6 +30,10 @@ local function InitializeFactoryRuntimeHelpers(ctx)
     local dbRef = rawget(_G, "IsiLiveDB")
     return dbRef == nil or dbRef.showPortalNavigator ~= false
   end
+end
+
+-- Sub-function: Runtime state getter/setter delegates.
+local function InitializeRuntimeStateDelegates(ctx, modules, runtimeState)
   ctx.GetWasInGroup = function()
     return runtimeState.GetWasInGroup()
   end
@@ -60,6 +61,10 @@ local function InitializeFactoryRuntimeHelpers(ctx)
   ctx.NormalizePlayerKey = function(name, realm)
     return modules.sync.NormalizePlayerKey(name, realm)
   end
+end
+
+-- Sub-function: Player key resolution and RIO baseline/delta pipeline.
+local function InitializeRioHelpers(ctx, runtimeState)
   ctx.BuildRosterInfoPlayerKey = function(info)
     if type(info) ~= "table" then
       return nil
@@ -156,6 +161,10 @@ local function InitializeFactoryRuntimeHelpers(ctx)
     end
     return delta
   end
+end
+
+-- Sub-function: Status target resolution, dungeon info, and operational helpers.
+local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState, addonTable)
   ctx.getPlayerSyncSummary = function(name, realm)
     if modules.sync and type(modules.sync.GetPlayerSyncSummary) == "function" then
       return modules.sync.GetPlayerSyncSummary(name, realm)
@@ -187,7 +196,7 @@ local function InitializeFactoryRuntimeHelpers(ctx)
     if type(value) ~= "string" then
       return nil
     end
-    local normalized = value:gsub("^%s+", ""):gsub("%s+$", "")
+    local normalized = moduleAddonTable.StringUtils.Trim(value)
     if normalized == "" then
       return nil
     end
@@ -288,9 +297,22 @@ local function InitializeFactoryRuntimeHelpers(ctx)
       return nil
     end
 
-    local activeLocale = (IsiLiveDB and IsiLiveDB.locale) or ctx.locale
+    local db = rawget(_G, "IsiLiveDB")
+    local activeLocale = (db and db.locale) or ctx.locale
     return seasonData.GetInactivePortalMessage(activeLocale)
   end
+end
+
+-- Orchestrator: composes the runtime helper sub-functions above.
+local function InitializeFactoryRuntimeHelpers(ctx)
+  local modules = ctx.modules
+  local runtimeState = ctx.runtimeState
+  local addonTable = ctx.addonTable
+
+  InitializeGameAPIHelpers(ctx, runtimeState)
+  InitializeRuntimeStateDelegates(ctx, modules, runtimeState)
+  InitializeRioHelpers(ctx, runtimeState)
+  InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState, addonTable)
 end
 FI.InitializeFactoryRuntimeHelpers = InitializeFactoryRuntimeHelpers
 
@@ -341,7 +363,8 @@ local function InitializeFactoryPrimaryControllers(ctx)
     getLanguageFlagMarkup = modules.locale.GetLanguageFlagMarkup,
     getLanguageTooltipMarkup = ctx.GetLanguageTooltipMarkup,
     getDungeonShortCode = function(mapID)
-      local activeLocale = (IsiLiveDB and IsiLiveDB.locale) or ctx.locale
+      local db = rawget(_G, "IsiLiveDB")
+      local activeLocale = (db and db.locale) or ctx.locale
       return modules.teleport.GetDungeonShortCode(mapID, activeLocale)
     end,
     getRioDelta = ctx.GetRioDeltaForRosterInfo,

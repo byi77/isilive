@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local Stats = {}
 addonTable.Stats = Stats
+local StringUtils = addonTable.StringUtils
 
 local DAMAGE_METER_TYPE_DAMAGE_DONE = 0
 local DAMAGE_METER_SESSION_TYPE_OVERALL = 0
@@ -23,7 +24,7 @@ local function NormalizeName(name, realm)
   end
   local r = realm and tostring(realm) or ""
   if r == "" then
-    local getRealmName = _G.GetRealmName
+    local getRealmName = rawget(_G, "GetRealmName")
     if type(getRealmName) == "function" then
       local ok, realmName = pcall(getRealmName)
       if ok and type(realmName) == "string" then
@@ -31,15 +32,20 @@ local function NormalizeName(name, realm)
       end
     end
   end
-  return string.lower(n .. "-" .. r)
+  -- Normalize via shared StringUtils (matches Sync.NormalizePlayerKey):
+  local n_clean = StringUtils.StripWhitespace(n)
+  local r_clean = StringUtils.NormalizeRealmName(r)
+  return string.lower(n_clean .. "-" .. r_clean)
 end
 
 local function EnsureStatsTables()
-  if not IsiLiveDB then
-    IsiLiveDB = {}
+  local db = rawget(_G, "IsiLiveDB")
+  if not db then
+    db = {}
+    IsiLiveDB = db
   end
-  if not IsiLiveDB.stats then
-    IsiLiveDB.stats = {}
+  if not db.stats then
+    db.stats = {}
   end
 end
 
@@ -62,7 +68,11 @@ end
 local function MigrateAndPrunePersistentPlayerStats(localPlayerKey)
   EnsureStatsTables()
 
-  local stats = IsiLiveDB.stats
+  local db = rawget(_G, "IsiLiveDB")
+  local stats = db and db.stats
+  if not stats then
+    return
+  end
   local persistentLastRuns = EnsurePlayerLastRunByCharacterTable(stats)
   local legacyLastRuns = type(stats.playerLastRuns) == "table" and stats.playerLastRuns or nil
   if legacyLastRuns and localPlayerKey and type(legacyLastRuns[localPlayerKey]) == "table" then
@@ -204,7 +214,10 @@ function Stats.CreateController(opts)
 
     local selfRun = localPlayerKey and runSnapshot[localPlayerKey] or nil
     if selfRun and localPlayerKey then
-      EnsurePlayerLastRunByCharacterTable(IsiLiveDB.stats)[localPlayerKey] = selfRun
+      local db = rawget(_G, "IsiLiveDB")
+      if db and db.stats then
+        EnsurePlayerLastRunByCharacterTable(db.stats)[localPlayerKey] = selfRun
+      end
     end
 
     return recordedAnyPlayer
@@ -212,14 +225,15 @@ function Stats.CreateController(opts)
 
   local function GetPlayerLastRunInfo(name, realm)
     EnsureInitialized()
-    if not name or not IsiLiveDB or not IsiLiveDB.stats then
+    local db = rawget(_G, "IsiLiveDB")
+    if not name or not db or not db.stats then
       return nil
     end
     local key = NormalizeName(name, realm)
     local info = key and sessionPlayerLastRuns[key] or nil
     if type(info) ~= "table" and key and localPlayerKey and key == localPlayerKey then
-      local persistentLastRuns = type(IsiLiveDB.stats.playerLastRunByCharacter) == "table"
-          and IsiLiveDB.stats.playerLastRunByCharacter
+      local persistentLastRuns = type(db.stats.playerLastRunByCharacter) == "table"
+          and db.stats.playerLastRunByCharacter
         or nil
       info = persistentLastRuns and persistentLastRuns[localPlayerKey] or nil
     end

@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local Status = {}
 addonTable.Status = Status
+local StringUtils = addonTable.StringUtils
 
 local MYTHIC_DIFFICULTY_IDS = {
   [8] = true,
@@ -46,7 +47,7 @@ local function NormalizeZoneText(value)
     return nil
   end
 
-  local normalized = value:gsub("^%s+", ""):gsub("%s+$", "")
+  local normalized = StringUtils.Trim(value)
   if normalized == "" then
     return nil
   end
@@ -216,7 +217,7 @@ local function BuildTargetDungeonText(deps)
   end
 
   local name = tostring(info.name or "")
-  name = name:gsub("^%s+", ""):gsub("%s+$", "")
+  name = StringUtils.Trim(name)
   if name == "" then
     return emptyText
   end

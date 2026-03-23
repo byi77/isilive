@@ -125,8 +125,7 @@ local FORCE_SHOW_DPS_COLUMN = true
 local FORCE_MARKERS_LEADER_ONLY = false
 
 local function RequireFunction(value, name)
-  assert(type(value) == "function", "isiLive: RosterPanel requires " .. name)
-  return value
+  return addonTable.Validators.RequireFunction(value, name, "RosterPanel")
 end
 
 local function SendPartyChatMessage(message)

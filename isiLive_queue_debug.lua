@@ -48,10 +48,12 @@ function QueueDebug.CreateController(opts)
   function controller.SetEnabled(enabled)
     local normalized = enabled and true or false
     queueSetDebugEnabled(normalized)
-    if not IsiLiveDB then
-      IsiLiveDB = {}
+    local db = rawget(_G, "IsiLiveDB")
+    if not db then
+      db = {}
+      IsiLiveDB = db
     end
-    IsiLiveDB.queueDebug = normalized
+    db.queueDebug = normalized
   end
 
   function controller.IsEnabled()
@@ -59,7 +61,8 @@ function QueueDebug.CreateController(opts)
     if moduleState ~= nil then
       return moduleState == true
     end
-    return IsiLiveDB and IsiLiveDB.queueDebug == true
+    local db = rawget(_G, "IsiLiveDB")
+    return db ~= nil and db.queueDebug == true
   end
 
   function controller.ClearLog()

@@ -760,6 +760,41 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
       Assert.Nil(addon.Sync.GetPlayerLocInfo("Peer", "Realm"), "LOC info should be cleared")
     end)
   end)
+
+  test("Sync ClearKnownUsers resets send cooldowns so next identical payload fires immediately", function()
+    local sentMessages = {}
+    local now = 100
+
+    WithGlobals({
+      GetTime = function()
+        return now
+      end,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, { prefix = prefix, message = message, channel = channel })
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      addon.Sync.SendStats({ isVisible = true, specID = 72, ilvl = 615, rio = 3210 })
+      Assert.Equal(#sentMessages, 1, "first send must go through")
+
+      now = 102
+      addon.Sync.SendStats({ isVisible = true, specID = 72, ilvl = 615, rio = 3210 })
+      Assert.Equal(#sentMessages, 1, "identical send within cooldown must be suppressed")
+
+      addon.Sync.ClearKnownUsers()
+      addon.Sync.SendStats({ isVisible = true, specID = 72, ilvl = 615, rio = 3210 })
+      Assert.Equal(#sentMessages, 2, "send after ClearKnownUsers must bypass cooldown and dedup")
+    end)
+  end)
 end
 
 return function(test, ctx)

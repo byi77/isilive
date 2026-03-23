@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.92`.
+Current documented baseline: `0.9.94`.
 
 ## Features
 
@@ -15,7 +15,7 @@ Current documented baseline: `0.9.92`.
 - **Mini Mode:** Three static mode buttons are available next to the close button: `H` switches to the slim horizontal tool layout, `V` switches to the compact vertical palette, and `M` switches back to the main roster view. The active mode is highlighted in gold.
 - **Horizontal Mini Mode:** Shows the compact leader actions `RC`, `CD`, and `CD 0` side by side while M+Marker stays visible as one horizontal marker row. `Share Keys` and `Refresh` stay available only in M/V layouts.
 - **Esc Menu Tooling:** The WoW `Esc` game menu can show a tooling strip left of the default menu, with direct buttons for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button. The `ReloadUI` entry is wired as a secure macro (`/click GameMenuButtonContinue` + `/reload`), mirrors `ActionButtonUseKeyDown`, and defers blocked secure refreshes until `PLAYER_REGEN_ENABLED`.
-- **Esc Travel Strip:** A second strip farther left adds `Arkantine`, `Hearthstone`, and `Housing` buttons.
+- **Esc Travel Strip:** A second strip farther left adds `Arkantine`, `Hearthstone`, and `Housing` buttons. The `Arkantine` button resolves the item name by WoW client locale at button creation time (`deDE` → German, all others → English).
 - **Blizzard Settings Category:** `Settings -> AddOns -> isiLive` exposes localized controls for language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts` (tooling + travel strips), `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log`.
 - **Default Open Layout:** `Default UI on Open` now opens the addon in `M2` by default until the user picks another layout; `Last Used` remains an explicit option.
 - **Roster Column Guides:** Optional debug column guides can be enabled for `M` and `M2` layout tuning and stay off by default.
@@ -100,9 +100,9 @@ Current documented baseline: `0.9.92`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`; explicit local refresh force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.92)
+## Use Case / Logic Baseline (v0.9.94)
 
-Documented on `2026-03-22` as runtime behavior baseline (`0.9.92`) for validation checks.
+Documented on `2026-03-23` as runtime behavior baseline (`0.9.94`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -264,7 +264,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 338 deterministic tests indexed and 341 scenarios across 32 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/guards/inspect/test-mode/leader-watch/refresh/commands/runtime-log/runtime-state/roster/roster-panel/status/stats/cd-tracker/units/ui/roster-display/taint/tank-helper), including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 401 deterministic tests indexed and 405 scenarios across 37 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/keysync/guards/inspect/test-mode/leader-watch/refresh/commands/commands-extended/runtime-log/runtime-state/roster/roster-panel/status/stats/cd-tracker/units/ui/roster-display/taint/tank-helper/validation-helpers/string-utils/config-builders), including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
@@ -318,6 +318,7 @@ Notes:
 - The addon is namespace-based (`local addonName, addonTable = ...`).
 - Do not introduce new globals. `IsiLiveDB` (SavedVariables) is intentionally allowed.
 - LuaLS compatibility baseline: use guarded `rawget(_G, "debug")` access for traceback paths and pass explicit RGB args to `GameTooltip:SetText`.
+- All `IsiLiveDB` reads and WoW API lookups (`GetRealmName`, `C_DamageMeter`, `GetLocale`, etc.) use `rawget(_G, ...)` with type guards to avoid triggering `__index` metamethods on `_G`.
 - `realm_language_data.lua` is intentionally excluded from format/lint (data-only file).
 
 ## CI Quality Gate

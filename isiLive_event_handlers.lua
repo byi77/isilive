@@ -9,8 +9,7 @@ local ChallengeLifecycle = addonTable.EventHandlersChallengeLifecycle
 local RuntimeLifecycle = addonTable.EventHandlersRuntimeLifecycle
 
 local function RequireFunction(value, name)
-  assert(type(value) == "function", "isiLive: EventHandlers requires " .. name)
-  return value
+  return addonTable.Validators.RequireFunction(value, name, "EventHandlers")
 end
 
 local function OptionalFunction(value, fallback)

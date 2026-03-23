@@ -34,6 +34,23 @@ local function GetOwnedKeystoneSnapshot()
   return mapID, level
 end
 
+local function ResolveAverageItemLevel()
+  if C_Item and C_Item.GetAverageItemLevel then
+    local avgIlvl, equippedIlvl = C_Item.GetAverageItemLevel()
+    local resolved = tonumber(equippedIlvl) or tonumber(avgIlvl)
+    if resolved and resolved > 0 then
+      return math.floor(resolved)
+    end
+  elseif GetAverageItemLevel then
+    local avgIlvl, equippedIlvl = GetAverageItemLevel()
+    local resolved = tonumber(equippedIlvl) or tonumber(avgIlvl)
+    if resolved and resolved > 0 then
+      return math.floor(resolved)
+    end
+  end
+  return nil
+end
+
 local function GetOwnedStatsSnapshot(getUnitRio)
   local specID = nil
   if GetSpecialization and GetSpecializationInfo then
@@ -47,22 +64,7 @@ local function GetOwnedStatsSnapshot(getUnitRio)
     end
   end
 
-  local ilvl = nil
-  if C_Item and C_Item.GetAverageItemLevel then
-    local avgIlvl, equippedIlvl = C_Item.GetAverageItemLevel()
-    local resolvedIlvl = tonumber(equippedIlvl) or tonumber(avgIlvl)
-    if resolvedIlvl and resolvedIlvl > 0 then
-      ilvl = math.floor(resolvedIlvl)
-    end
-  elseif GetAverageItemLevel then
-    -- Note: This is an unfortunate copy of the C_Item fallback logic above.
-    -- Kept inline to avoid an extra function call overhead for just 4 lines.
-    local avgIlvl, equippedIlvl = GetAverageItemLevel()
-    local resolvedIlvl = tonumber(equippedIlvl) or tonumber(avgIlvl)
-    if resolvedIlvl and resolvedIlvl > 0 then
-      ilvl = math.floor(resolvedIlvl)
-    end
-  end
+  local ilvl = ResolveAverageItemLevel()
 
   local rio = nil
   if type(getUnitRio) == "function" then

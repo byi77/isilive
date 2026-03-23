@@ -6,8 +6,7 @@ local Bindings = {}
 addonTable.Bindings = Bindings
 
 local function RequireFunction(value, name)
-  assert(type(value) == "function", "isiLive: Bindings requires " .. name)
-  return value
+  return addonTable.Validators.RequireFunction(value, name, "Bindings")
 end
 
 local function CreateHiddenBindingButton(globalName, yOffset, clickHandler)

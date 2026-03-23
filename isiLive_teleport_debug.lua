@@ -6,8 +6,7 @@ local TeleportDebug = {}
 addonTable.TeleportDebug = TeleportDebug
 
 local function RequireFunction(value, name)
-  assert(type(value) == "function", "isiLive: TeleportDebug requires " .. name)
-  return value
+  return addonTable.Validators.RequireFunction(value, name, "TeleportDebug")
 end
 
 local function DumpButtonState(deps, label, button)

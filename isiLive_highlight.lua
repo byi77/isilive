@@ -49,12 +49,16 @@ local function GetNormalizedActiveEntryInfo()
     if not activityID then
       local activityIDsTable = TryGet(r1, "activityIDs", "activities", nil)
       if type(activityIDsTable) == "table" then
+        local sortedIDs = {}
         for _, id in pairs(activityIDsTable) do
           local numID = tonumber(id)
           if numID and numID > 0 then
-            activityID = numID
-            break
+            sortedIDs[#sortedIDs + 1] = numID
           end
+        end
+        table.sort(sortedIDs)
+        if sortedIDs[1] then
+          activityID = sortedIDs[1]
         end
       end
     end

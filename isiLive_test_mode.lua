@@ -6,8 +6,7 @@ local TestMode = {}
 addonTable.TestMode = TestMode
 
 local function RequireFunction(value, name)
-  assert(type(value) == "function", "isiLive: TestMode requires " .. name)
-  return value
+  return addonTable.Validators.RequireFunction(value, name, "TestMode")
 end
 
 local function ApplyDummyRioDeltaPreview(roster)

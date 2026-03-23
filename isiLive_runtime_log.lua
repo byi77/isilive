@@ -29,14 +29,17 @@ function RuntimeLog.CreateController(opts)
   end
 
   function controller.SetEnabled(enabled)
-    if not IsiLiveDB then
-      IsiLiveDB = {}
+    local db = rawget(_G, "IsiLiveDB")
+    if not db then
+      db = {}
+      IsiLiveDB = db
     end
-    IsiLiveDB.runtimeLogEnabled = enabled and true or false
+    db.runtimeLogEnabled = enabled and true or false
   end
 
   function controller.IsEnabled()
-    return IsiLiveDB and IsiLiveDB.runtimeLogEnabled == true
+    local db = rawget(_G, "IsiLiveDB")
+    return db ~= nil and db.runtimeLogEnabled == true
   end
 
   function controller.AppendLog(message)

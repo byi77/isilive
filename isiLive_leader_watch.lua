@@ -6,8 +6,7 @@ local LeaderWatch = {}
 addonTable.LeaderWatch = LeaderWatch
 
 local function RequireFunction(value, name)
-  assert(type(value) == "function", "isiLive: LeaderWatch requires " .. name)
-  return value
+  return addonTable.Validators.RequireFunction(value, name, "LeaderWatch")
 end
 
 function LeaderWatch.CreateController(opts)

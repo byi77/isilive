@@ -6,8 +6,7 @@ local Bootstrap = {}
 addonTable.Bootstrap = Bootstrap
 
 local function RequireFunction(value, name)
-  assert(type(value) == "function", "isiLive: Bootstrap requires " .. name)
-  return value
+  return addonTable.Validators.RequireFunction(value, name, "Bootstrap")
 end
 
 function Bootstrap.RegisterSlashCommands(opts)
