@@ -104,7 +104,7 @@ return function(test, ctx)
         return nil, nil
       end,
       getAddonVersionRaw = overrides.getAddonVersionRaw or function()
-        return "0.9.97"
+        return "0.9.98"
       end,
       getUnitRio = overrides.getUnitRio or function(_unit)
         return nil

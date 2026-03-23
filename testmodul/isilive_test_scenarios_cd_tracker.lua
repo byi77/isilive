@@ -689,6 +689,32 @@ return function(test, ctx)
     end)
   end)
 
+  test("CdTracker ignores non-numeric aura spellId values and still detects later numeric lust aura", function()
+    local NOW = 1000
+    WithGlobals({
+      C_UnitAuras = BuildHarmfulAuraApi(function()
+        return {
+          MakeLustAura(NOW + 50, "57723", 123456),
+          MakeLustAura(NOW + 200, 57723, 132114),
+        }
+      end),
+    }, function()
+      local ctrl = MakeController({
+        getTime = function()
+          return NOW
+        end,
+      })
+      local ok, err = pcall(function()
+        ctrl.Scan()
+      end)
+      Assert.True(ok, "Scan must not fail on non-numeric aura spellId values: " .. tostring(err))
+      local info = ctrl.GetLustInfo()
+      Assert.NotNil(info, "later numeric lust aura must still be detected")
+      Assert.Equal(info.remain, 200, "numeric lust aura must determine the reported remaining time")
+      Assert.Equal(info.icon, 132114, "numeric lust aura must determine the reported icon")
+    end)
+  end)
+
   RegisterCdTrackerLustCallbackTests(test, Assert, WithGlobals)
 
   test("CdTracker Scan updates BRes and Lust state independently", function()

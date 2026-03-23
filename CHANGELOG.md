@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-03-23 - Version 0.9.98
+- **Docs / Release Baseline:**
+  - Bumped TOC version to `0.9.98`.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.98`.
+  - `lua tools/validate_usecases.lua` validates `418` deterministic tests indexed and `425` scenarios across `37` modules.
+- **Bugfix / Bloodlust Aura Scan Type Safety:**
+  - `CdTracker` now accepts only real numeric aura `spellId` values for the harmful-aura lust lookup.
+  - Protected, secret, string, or otherwise non-numeric `spellId` payloads are ignored safely instead of being coerced or used as table keys.
+- **Tests:**
+  - Added regression coverage so mixed invalid/non-numeric `spellId` payloads still allow a later valid lust aura to be detected.
+
 ## 2026-03-23 - Version 0.9.97
 - **Docs / Release Baseline:**
   - Bumped TOC version to `0.9.97`.

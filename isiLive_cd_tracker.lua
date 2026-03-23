@@ -87,10 +87,9 @@ function CdTracker.CreateController(opts)
       local ok, aura = pcall(getAuraDataByIndex, "player", index, "HARMFUL")
       if ok and type(aura) == "table" then
         local spellId = rawget(aura, "spellId")
-        -- spellId may be tainted ("secret") in the WoW secure environment.
-        -- tonumber() strips taint and returns a safe numeric value for table lookup.
-        local safeSpellId = spellId ~= nil and tonumber(spellId) or nil
-        if safeSpellId and LUST_SATED_IDS[safeSpellId] then
+        -- WoW "secret" values are truthy but cannot be used as table keys.
+        -- type() safely identifies them: secret-nil returns "nil", not "number".
+        if type(spellId) == "number" and LUST_SATED_IDS[spellId] then
           local expiry = rawget(aura, "expirationTime")
           local remain = type(expiry) == "number" and math.max(0, expiry - getTime()) or 0
           lustRemain = remain > 0 and remain or nil
