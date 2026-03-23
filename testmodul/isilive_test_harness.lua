@@ -88,7 +88,7 @@ function Harness.LoadAddonModules(files, seedAddonTable)
   for _, universalFile in ipairs(UNIVERSAL_DEPENDENCIES) do
     if not seenFiles[universalFile] then
       seenFiles[universalFile] = true
-      local uChunk, uErr = loadfile(universalFile)
+      local uChunk, _uErr = loadfile(universalFile)
       if uChunk then
         pcall(uChunk, "isiLive", addonTable)
       end
