@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.96`.
+Current documented baseline: `0.9.97`.
 
 ## Features
 
@@ -21,7 +21,7 @@ Current documented baseline: `0.9.96`.
 - **Roster Column Guides:** Optional debug column guides can be enabled for `M` and `M2` layout tuning and stay off by default.
 - **Hidden Legacy Settings Defaults:** `Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`, and `Sound Notifications` are temporarily hidden from Blizzard Settings; runtime keeps fixed live defaults instead (`DPS`, `Deaths`, and `Kicks` on, markers visible for all, sound off, fixed name truncation, legacy 2-column `Travel` grid).
 - **UI Polish Refresh:** The roster panel, private tooltips, invite hint, and center notice now share the same dark framed palette with softer blue hover accents, alternating row shading, and cleaner separators.
-- **Combat Utility Row:** A bottom tracker row shows live `BRes` charges/cooldown plus `Bloodlust`/`Heroism`/`Time Warp` remaining time with spell icons. Lust tracking uses the player's harmful exhaustion aura, ignores protected/invalid aura `spellId` values safely, and survives zone/reload transitions without false-positive restart behavior.
+- **Combat Utility Row:** A bottom tracker row shows live `BRes` charges/cooldown plus `Bloodlust`/`Heroism`/`Time Warp` remaining time with spell icons. Lust tracking uses the player's harmful exhaustion aura, normalizes aura `spellId` values via `tonumber(...)` before lookup, tolerates protected/string-tainted payloads safely, and survives zone/reload transitions without false-positive restart behavior.
 - **Minimap Button:** Optional draggable Minimap button toggles the main window and persists its angle around the minimap.
 - Blizzard Settings only: `Combat Logging` and `DM Reset on Entry` live in `Settings -> AddOns -> isiLive`; the main roster panel no longer shows those toggles.
 - Stable role sorting: `Tank -> Healer -> Damager`
@@ -102,9 +102,9 @@ Current documented baseline: `0.9.96`.
 - Runtime log entries are persisted through SavedVariables when logging is enabled.
 - Sync handshake behavior: `HELLO` recipients send `ACK`; explicit local refresh force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.96)
+## Use Case / Logic Baseline (v0.9.97)
 
-Documented on `2026-03-23` as runtime behavior baseline (`0.9.96`) for validation checks.
+Documented on `2026-03-23` as runtime behavior baseline (`0.9.97`) for validation checks.
 
 
 1. Queue invite -> grouped flow
