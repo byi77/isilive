@@ -159,7 +159,7 @@ In addition to the main roster frame, `isiLive_ui.lua` can attach optional tooli
 | CdTracker | Battle-res and Bloodlust aura scans | Live BRes charges/cooldown and Lust countdown row state |
 | RosterPanel | Roster model and localization | Main table rendering, DPS/Deaths/Kicks columns, CD tracker row, and action button callbacks |
 | SettingsPanel | Locale/CVar/SavedVariable getters plus toggle callbacks | Blizzard Settings canvas, language selector, visible display/behavior/debug toggles, UI/background sliders, default-open layout selector, optional roster column-guide toggle, and temporary legacy-setting suppression |
-| TeleportUI | Season teleport entries and state | Insecure-action teleport button states, deterministic season-slot placement, legacy 2-column travel layout, and cooldown labels |
+| TeleportUI | Season teleport entries and state | Insecure-action teleport button states, deterministic season-slot placement, locale-aware `M2` short-code overlays while ready, and cooldown labels that take precedence while on cooldown |
 
 ## Extension Points
 

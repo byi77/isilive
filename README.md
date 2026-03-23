@@ -28,6 +28,7 @@ Current documented baseline: `0.9.94`.
 - Right-side controls: `Readycheck`, `Countdown10`, `Countdown 0`, `Share Keys`, `Refresh`
 - Right-side headers: `M+Management`, `Marker`, and `Travel`
 - `Travel` teleport grid uses the active-season portal pool in deterministic Midnight Season 1 order, keeps duplicate shared-spell collapse without losing slot order, and currently stays on the legacy 2-column layout
+- In `M2`, ready portal icons show a large localized dungeon short code directly on the icon; the short code hides automatically while the teleport is on cooldown so the cooldown timer stays readable
 - Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
 - Teleport action buttons use `InsecureActionButtonTemplate` so main/notice visibility requests stay combat-safe without protected-frame promotion
 - Players inside the target dungeon are marked with a portal icon in the roster
@@ -47,6 +48,7 @@ Current documented baseline: `0.9.94`.
 - Grouped queue-join announce deduplication is driven by stable queue source IDs (`applicationID`/`searchResultID`/`listingID`), not volatile display text
 - Dungeon teleport controls in center notice + right-side grid
 - Teleport cooldown shown as `HH:MM`
+- Active Midnight Season 1 `M2` short codes currently use `MGT / MAI / NPX / WRS / AA / POS / SOT / SKY` in `enUS` and `TDM / MAI / NPX / WRS / AA / GVS / SDT / HN` in `deDE`
 - Addon-presence marker per roster name (custom blue heart icon plus a compact sync refresh badge when metadata is available)
 - `Share Keys` posts one party-chat line per available member key (`isiLive PartyKeys: Name -> Key`), using Blizzard owned-keystone link payload for the local player when available
 - Spec column uses max-5-char short labels for long localized names (for example `Wiederherstellung -> Resto`, `Vergeltung -> Retri`, `Treffsicherheit -> MM`, `Tierherrschaft -> BM`)

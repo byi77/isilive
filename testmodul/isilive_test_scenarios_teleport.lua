@@ -53,6 +53,36 @@ local function BuildTeleportUICreateFrameStub()
     return texture
   end
 
+  local function CreateFontStringStub()
+    local fontString = {
+      _text = nil,
+      _shown = false,
+    }
+    fontString.SetPoint = function(_self, _point, _relativeTo, _relativePoint, _x, _y) end
+    fontString.SetText = function(self, value)
+      self._text = value
+    end
+    fontString.Hide = function(self)
+      self._shown = false
+    end
+    fontString.Show = function(self)
+      self._shown = true
+    end
+    fontString.SetWidth = function(_self, _width) end
+    fontString.SetJustifyH = function(_self, _value) end
+    fontString.SetJustifyV = function(_self, _value) end
+    fontString.SetWordWrap = function(_self, _value) end
+    fontString.SetNonSpaceWrap = function(_self, _value) end
+    fontString.SetMaxLines = function(_self, _value) end
+    fontString.SetTextColor = function(_self, _r, _g, _b, _a) end
+    fontString.SetShadowColor = function(_self, _r, _g, _b, _a) end
+    fontString.SetShadowOffset = function(_self, _x, _y) end
+    fontString.GetStringHeight = function()
+      return 16
+    end
+    return fontString
+  end
+
   local function CreateAnimationGroupStub()
     local group = { playing = false }
     group.SetLooping = function(_self, _mode) end
@@ -166,25 +196,7 @@ local function BuildTeleportUICreateFrameStub()
       self._shown = false
     end
     frame.CreateFontString = function()
-      local fontString = {
-        _text = nil,
-      }
-      fontString.SetPoint = function() end
-      fontString.SetText = function(self, value)
-        self._text = value
-      end
-      fontString.Hide = function() end
-      fontString.Show = function() end
-      fontString.SetWidth = function() end
-      fontString.SetJustifyH = function() end
-      fontString.SetWordWrap = function() end
-      fontString.SetNonSpaceWrap = function() end
-      fontString.SetMaxLines = function() end
-      fontString.SetTextColor = function() end
-      fontString.GetStringHeight = function()
-        return 16
-      end
-      return fontString
+      return CreateFontStringStub()
     end
 
     table.insert(createdFrames, frame)
@@ -1651,6 +1663,186 @@ local function RegisterTeleportUIHorizontalLayoutTests(test, Assert, WithGlobals
         buttons[8]._point and buttons[8]._point.y or nil,
         42,
         "all M2 portal buttons should share the same row"
+      )
+    end)
+  end)
+
+  test("TeleportUI M2 shows localized dungeon short codes while teleport is ready", function()
+    local createFrameStub = BuildTeleportUICreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
+        "isiLive_teleport_ui.lua",
+      })
+
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = {
+          GetFrameLevel = function()
+            return 10
+          end,
+          GetFrameStrata = function()
+            return "MEDIUM"
+          end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              SetTextColor = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetText = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+        },
+        applySecureSpellToButton = function()
+          return true
+        end,
+        getEntries = function()
+          return {
+            { spellID = 1, mapID = 558, slotIndex = 1 },
+            { spellID = 2, mapID = 560, slotIndex = 2 },
+          }
+        end,
+        getDungeonShortCode = function(mapID)
+          if mapID == 558 then
+            return "TDM"
+          end
+          if mapID == 560 then
+            return "MAI"
+          end
+          return nil
+        end,
+        getEmptyStateText = function()
+          return nil
+        end,
+        getL = function()
+          return {}
+        end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getSpellCooldownSafe = function()
+          return 0, 0, true
+        end,
+        applyCooldownFrameSafe = function() end,
+        getSpellTexture = function()
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+        layoutMode = "compact_main_horizontal",
+      })
+
+      controller.BuildButtons()
+      controller.UpdateButtons(nil)
+      local buttons = controller.GetButtons()
+
+      Assert.Equal(buttons[1].shortCodeText and buttons[1].shortCodeText._text or nil, "TDM", "M2 should show the first localized short code")
+      Assert.True(
+        buttons[1].shortCodeText and buttons[1].shortCodeText._shown or false,
+        "ready teleport should show its M2 short code"
+      )
+      Assert.Equal(buttons[2].shortCodeText and buttons[2].shortCodeText._text or nil, "MAI", "M2 should show the second localized short code")
+      Assert.True(
+        buttons[2].shortCodeText and buttons[2].shortCodeText._shown or false,
+        "all ready teleports in M2 should show their short code"
+      )
+    end)
+  end)
+
+  test("TeleportUI hides M2 dungeon short code overlay while teleport is on cooldown", function()
+    local createFrameStub = BuildTeleportUICreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
+        "isiLive_teleport_ui.lua",
+      })
+
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = {
+          GetFrameLevel = function()
+            return 10
+          end,
+          GetFrameStrata = function()
+            return "MEDIUM"
+          end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              SetTextColor = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetText = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+        },
+        applySecureSpellToButton = function()
+          return true
+        end,
+        getEntries = function()
+          return {
+            { spellID = 1254563, mapID = 559, slotIndex = 1 },
+          }
+        end,
+        getDungeonShortCode = function()
+          return "NPX"
+        end,
+        getEmptyStateText = function()
+          return nil
+        end,
+        getL = function()
+          return {}
+        end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 93
+        end,
+        formatCooldownSeconds = function()
+          return "01:33"
+        end,
+        getSpellCooldownSafe = function()
+          return 10, 93, true
+        end,
+        applyCooldownFrameSafe = function() end,
+        getSpellTexture = function()
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+        layoutMode = "compact_main_horizontal",
+      })
+
+      controller.BuildButtons()
+      controller.UpdateButtons(nil)
+      local button = controller.GetButtons()[1]
+
+      Assert.Equal(button.shortCodeText and button.shortCodeText._text or nil, "", "cooldown overlay should clear the visible short code text")
+      Assert.False(
+        button.shortCodeText and button.shortCodeText._shown or false,
+        "active cooldown should hide the M2 short code overlay"
       )
     end)
   end)

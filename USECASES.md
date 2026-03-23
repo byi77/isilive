@@ -77,8 +77,9 @@ Goal: apply portal cooldown behavior only when the portal cast is actually used.
 3. Processing: cooldown state is read from WoW spell cooldown APIs.
 4. Rule: all dungeon portal casts share the same 8h cooldown window after use.
 5. Rule: visible portal slots stay in deterministic season display order even when multiple dungeons share one teleport spell.
-6. Output: teleport grid shows cooldown time and lock state consistently.
-7. Success criteria: every portal button reflects the shared cooldown without slot drift.
+6. Output: teleport grid shows cooldown time and lock state consistently; in `M2`, ready buttons also show the locale-aware dungeon short code directly on the icon.
+7. Rule: while a teleport is on cooldown, the `M2` short-code overlay is hidden so the cooldown timer remains readable.
+8. Success criteria: every portal button reflects the shared cooldown without slot drift and `M2` keeps destination recognition without requiring mouseover.
 
 ## UC-05 Cooldown Lifecycle
 

@@ -35,6 +35,82 @@ local function IsM2LayoutMode(layoutMode)
   return NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
 end
 
+local function ResolveTeleportButtonShortCode(deps, mapID)
+  if type(deps.getDungeonShortCode) ~= "function" then
+    return nil
+  end
+
+  local shortCode = deps.getDungeonShortCode(mapID)
+  if type(shortCode) ~= "string" or shortCode == "" then
+    return nil
+  end
+
+  return shortCode
+end
+
+local function EnsureTeleportButtonShortCodeLabel(button)
+  if button.shortCodeText or not (button.overlayFrame and button.overlayFrame.CreateFontString) then
+    return button.shortCodeText
+  end
+
+  local label = button.overlayFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  label:SetPoint("CENTER", button, "CENTER", 0, 0)
+  if label.SetJustifyH then
+    label:SetJustifyH("CENTER")
+  end
+  if label.SetJustifyV then
+    label:SetJustifyV("MIDDLE")
+  end
+  if label.SetTextColor then
+    label:SetTextColor(1, 1, 1)
+  end
+  if label.SetShadowColor then
+    label:SetShadowColor(0, 0, 0, 1)
+  end
+  if label.SetShadowOffset then
+    label:SetShadowOffset(1, -1)
+  end
+  if label.SetText then
+    label:SetText("")
+  end
+  if label.Hide then
+    label:Hide()
+  end
+  button.shortCodeText = label
+  return label
+end
+
+local function UpdateTeleportButtonShortCodeLabel(button, deps)
+  local label = EnsureTeleportButtonShortCodeLabel(button)
+  if not label then
+    return
+  end
+
+  local layoutIsM2 = IsM2LayoutMode(deps.layoutMode)
+  local shortCode = button.shortCode or ResolveTeleportButtonShortCode(deps, button.mapID)
+  button.shortCode = shortCode
+
+  local cooldownRemaining = tonumber(button.cooldownRemainingSeconds) or 0
+  local shouldShow = layoutIsM2 and type(shortCode) == "string" and shortCode ~= "" and cooldownRemaining <= 0
+
+  if not shouldShow then
+    if label.SetText then
+      label:SetText("")
+    end
+    if label.Hide then
+      label:Hide()
+    end
+    return
+  end
+
+  if label.SetText then
+    label:SetText(shortCode)
+  end
+  if label.Show then
+    label:Show()
+  end
+end
+
 local function SyncButtonLayer(button, mainFrame, isInCombat)
   if
     not (
@@ -113,6 +189,7 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
   button.spellID = entry.spellID
   button.mapID = entry.mapID
   button.mapName = entry.mapName
+  button.shortCode = ResolveTeleportButtonShortCode(deps, entry.mapID)
   button.defaultIcon = entry.icon or "Interface\\Icons\\INV_Misc_QuestionMark"
   button.isActiveTarget = false
   deps.applySecureSpellToButton(button, entry.spellID)
@@ -148,6 +225,9 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
   button.activeGlow:SetBlendMode("ADD")
   button.activeGlow:SetVertexColor(1, 0.78, 0.08, 0.9)
   button.activeGlow:Hide()
+
+  button.cooldownRemainingSeconds = tonumber(deps.getTeleportCooldownRemaining(button.spellID)) or 0
+  UpdateTeleportButtonShortCodeLabel(button, deps)
 
   button.animGroup = button:CreateAnimationGroup()
   button.animGroup:SetLooping("BOUNCE")
@@ -242,6 +322,9 @@ function TeleportUI.CreateController(opts)
     getSpellTexture = opts.getSpellTexture or function(_spellID)
       return nil
     end,
+    getDungeonShortCode = opts.getDungeonShortCode or function(_mapID)
+      return nil
+    end,
     getEmptyStateText = opts.getEmptyStateText or function()
       return nil
     end,
@@ -276,6 +359,7 @@ function TeleportUI.CreateController(opts)
   local function RelayoutButtons()
     for _, button in ipairs(buttons) do
       ApplyTeleportButtonLayout(button, button.slotIndex, deps.layoutMode)
+      UpdateTeleportButtonShortCodeLabel(button, deps)
     end
   end
 
@@ -419,6 +503,7 @@ function TeleportUI.CreateController(opts)
       local icon = deps.getSpellTexture(button.spellID)
       button.icon:SetTexture(icon or button.defaultIcon or "Interface\\Icons\\INV_Misc_QuestionMark")
       button.isActiveTarget = (resolvedSpellID and button.spellID == resolvedSpellID) and true or false
+      button.cooldownRemainingSeconds = tonumber(deps.getTeleportCooldownRemaining(button.spellID)) or 0
 
       local start, duration, enabled = deps.getSpellCooldownSafe(button.spellID)
       deps.applyCooldownFrameSafe(button.cooldown, start, duration, enabled)
@@ -454,6 +539,8 @@ function TeleportUI.CreateController(opts)
           button:SetScale(1)
         end
       end
+
+      UpdateTeleportButtonShortCodeLabel(button, deps)
     end
     UpdateEmptyState(deps.getEntries())
   end

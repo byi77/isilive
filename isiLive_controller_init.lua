@@ -113,6 +113,7 @@ local function CreateTeleportUIController(ctx)
     getSpellCooldownSafe = ctx.getSpellCooldownSafe,
     applyCooldownFrameSafe = ctx.applyCooldownFrameSafe,
     getSpellTexture = ctx.getSpellTexture,
+    getDungeonShortCode = ctx.getDungeonShortCode,
     getEmptyStateText = ctx.getTeleportEmptyStateText,
     layoutMode = ctx.rosterPanelController
         and type(ctx.rosterPanelController.GetLayoutMode) == "function"

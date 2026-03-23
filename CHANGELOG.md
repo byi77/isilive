@@ -1,6 +1,11 @@
 # Changelog
 
 ## 2026-03-23 - Version 0.9.94
+- **M2 Travel Short Codes:**
+  - `M2` portal icons now render large localized dungeon short codes directly on the icon while the teleport is ready, so the destination is recognizable without mouseover.
+  - The `M2` short-code overlay is hidden whenever the teleport is on cooldown, leaving the cooldown timer unobstructed.
+  - Updated active Midnight Season 1 short codes to favor clearer `M2` readability: `Windrunner Spire` now uses `WRS` (`enUS`/`deDE`) and `Maisara Caverns` now uses `MAI` (`enUS`/`deDE`).
+  - Added deterministic `TeleportUI` coverage for visible `M2` short-code rendering and cooldown-time overlay suppression.
 - **Forward Compat / Blizzard 12.0.1 Cooldown Hotfix:**
   - `SpellUtils.ApplyCooldownFrameSafe` now prefers `SetCooldownFromDurationObject` (the only setter Blizzard guarantees for secret values post-hotfix) over `CooldownFrame_Set` and `SetCooldown`. Feature-detected: works on both current live and post-hotfix clients.
 - **Bugfix / Sync Cooldown Reset:**
