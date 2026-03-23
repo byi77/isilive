@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.95`
+Version baseline: `0.9.96`
 Last updated: `2026-03-23`
 
 ## Purpose
@@ -68,7 +68,7 @@ WoW Event
 19. Raid-size groups force the visible roster panel into H mode, hide roster rows, and suppress duplicate raid-transition notifications until the group leaves raid size again.
 20. The optional game-menu tooling strip closes the menu before opening its target panel; `ReloadUI` is owned by a secure macro button (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`, defers blocked secure refreshes to `PLAYER_REGEN_ENABLED`, while the other entries keep direct opener paths for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, and `Guild`. The secondary travel strip stays further left and exposes `Arkantine`, `Hearthstone`, and `Housing`.
 21. Temporarily hidden legacy settings controls stay absent from Blizzard Settings while runtime enforces their fixed defaults (`DPS`, `Deaths`, and `Kicks` on, markers leader-only off, sound off, fixed name truncation, legacy 2-column `Travel` grid) until the controls are re-enabled.
-22. CdTracker lust onset detection must combine player harmful-aura scanning with direct local lust spellcast signals, and zone/world transition suppression must not treat a continuing lust aura as a new onset.
+22. CdTracker lust onset detection must combine player harmful-aura scanning with direct local lust spellcast signals, ignore protected/invalid aura `spellId` values safely, and zone/world transition suppression must not treat a continuing lust aura as a new onset.
 
 ## Architecture Contract Set
 
@@ -98,12 +98,12 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 416 deterministic tests indexed and 423 scenarios across 37 modules.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 417 deterministic tests indexed and 424 scenarios across 37 modules.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiLive                                                                          V.0.9.95 [H][V][M][X]|
+| isiLive                                                                          V.0.9.96 [H][V][M][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS Deaths Kicks   M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
@@ -157,7 +157,7 @@ In addition to the main roster frame, `isiLive_ui.lua` can attach optional tooli
 | EventHandlersQueue | LFG queue/listing events | Queue capture, target preservation, joined-key tracking |
 | EventHandlersChallenge | Challenge and ready-check events | Run lifecycle, delayed refresh, rio delta enable, ready-check state |
 | Stats | Challenge/non-challenge party run completion signals plus Blizzard damage-meter session | Bounded last-run DPS/Deaths/Kicks snapshots with short delayed-session retry (persistent only for the matching local character, foreign players session-only) |
-| CdTracker | Battle-res charges, harmful lust-aura scans, and local lust spellcasts | Live BRes charges/cooldown and Lust countdown row state with zone-transition-safe onset suppression |
+| CdTracker | Battle-res charges, taint-safe harmful lust-aura scans, and local lust spellcasts | Live BRes charges/cooldown and Lust countdown row state with zone-transition-safe onset suppression |
 | RosterPanel | Roster model and localization | Main table rendering, DPS/Deaths/Kicks columns, CD tracker row, and action button callbacks |
 | SettingsPanel | Locale/CVar/SavedVariable getters plus toggle callbacks | Blizzard Settings canvas, language selector, visible display/behavior/debug toggles, UI/background sliders, default-open layout selector, optional roster column-guide toggle, and temporary legacy-setting suppression |
 | TeleportUI | Season teleport entries and state | Insecure-action teleport button states, deterministic season-slot placement, locale-aware `M2` short-code overlays while ready, and cooldown labels that take precedence while on cooldown |

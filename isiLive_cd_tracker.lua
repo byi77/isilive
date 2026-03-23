@@ -87,7 +87,16 @@ function CdTracker.CreateController(opts)
       local ok, aura = pcall(getAuraDataByIndex, "player", index, "HARMFUL")
       if ok and type(aura) == "table" then
         local spellId = rawget(aura, "spellId")
-        if LUST_SATED_IDS[spellId] then
+        -- spellId may be tainted ("secret") in the WoW secure environment;
+        -- wrap the table lookup in pcall to avoid "table index is secret" errors.
+        local isLustAura = false
+        if spellId ~= nil then
+          local ok2, result = pcall(function()
+            return LUST_SATED_IDS[spellId]
+          end)
+          isLustAura = ok2 and result == true
+        end
+        if isLustAura then
           local expiry = rawget(aura, "expirationTime")
           local remain = type(expiry) == "number" and math.max(0, expiry - getTime()) or 0
           lustRemain = remain > 0 and remain or nil

@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.95`
+Version baseline: `0.9.96`
 Last updated: `2026-03-23`
 
 ## Actors
@@ -152,9 +152,10 @@ Goal: show live BRes and Bloodlust/Heroism/Time Warp timers in the roster panel 
 
 1. Trigger: the roster panel is visible and the one-second utility ticker fires, or a manual refresh / local lust spellcast requests a tracker update.
 2. Processing: addon scans `C_Spell.GetSpellCharges` for Battle Resurrection and iterates player `HARMFUL` auras via `C_UnitAuras.GetAuraDataByIndex("player", index, "HARMFUL")` for Bloodlust/Heroism/Time Warp exhaustion variants.
-3. Rule: zone/world transition suppression must treat a reappearing lust aura with the same active application as a continuation instead of a new onset.
-4. Output: the tracker row shows BRes charges/cooldown plus the current lust icon and remaining time, or `--` when the effect is unavailable.
-5. Success criteria: the row updates deterministically, stays non-negative, and remains stable when the relevant APIs are missing.
+3. Rule: protected or otherwise invalid aura `spellId` values must be ignored safely instead of aborting the full lust scan.
+4. Rule: zone/world transition suppression must treat a reappearing lust aura with the same active application as a continuation instead of a new onset.
+5. Output: the tracker row shows BRes charges/cooldown plus the current lust icon and remaining time, or `--` when the effect is unavailable.
+6. Success criteria: the row updates deterministically, stays non-negative, and remains stable when the relevant APIs are missing.
 
 ## Non-Functional Rules
 

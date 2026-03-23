@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-03-23 - Version 0.9.96
+- **Docs / Release Baseline:**
+  - Bumped TOC version to `0.9.96`.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.96`.
+  - `lua tools/validate_usecases.lua` now validates `417` deterministic tests indexed and `424` scenarios across `37` modules.
+- **Bugfix / Bloodlust Aura Scan Hardening:**
+  - `CdTracker` now protects the lust-debuff `spellId` lookup with `pcall`, so WoW aura payloads with protected/invalid `spellId` values no longer abort the entire harmful-aura scan.
+  - If one aura entry exposes an unusable `spellId`, later valid Bloodlust/Heroism/Time Warp exhaustion auras in the same scan still get detected correctly.
+- **Tests:**
+  - Added regression coverage for invalid/protected aura `spellId` keys so `CdTracker` stays stable and still finds a later valid lust aura.
+
 ## 2026-03-23 - Version 0.9.95
 - **Docs / Release Baseline:**
   - Bumped TOC version to `0.9.95`.
