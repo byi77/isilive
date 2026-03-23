@@ -1750,12 +1750,20 @@ local function RegisterTeleportUIHorizontalLayoutTests(test, Assert, WithGlobals
       controller.UpdateButtons(nil)
       local buttons = controller.GetButtons()
 
-      Assert.Equal(buttons[1].shortCodeText and buttons[1].shortCodeText._text or nil, "TDM", "M2 should show the first localized short code")
+      Assert.Equal(
+        buttons[1].shortCodeText and buttons[1].shortCodeText._text or nil,
+        "TDM",
+        "M2 should show the first localized short code"
+      )
       Assert.True(
         buttons[1].shortCodeText and buttons[1].shortCodeText._shown or false,
         "ready teleport should show its M2 short code"
       )
-      Assert.Equal(buttons[2].shortCodeText and buttons[2].shortCodeText._text or nil, "MAI", "M2 should show the second localized short code")
+      Assert.Equal(
+        buttons[2].shortCodeText and buttons[2].shortCodeText._text or nil,
+        "MAI",
+        "M2 should show the second localized short code"
+      )
       Assert.True(
         buttons[2].shortCodeText and buttons[2].shortCodeText._shown or false,
         "all ready teleports in M2 should show their short code"
@@ -1839,7 +1847,11 @@ local function RegisterTeleportUIHorizontalLayoutTests(test, Assert, WithGlobals
       controller.UpdateButtons(nil)
       local button = controller.GetButtons()[1]
 
-      Assert.Equal(button.shortCodeText and button.shortCodeText._text or nil, "", "cooldown overlay should clear the visible short code text")
+      Assert.Equal(
+        button.shortCodeText and button.shortCodeText._text or nil,
+        "",
+        "cooldown overlay should clear the visible short code text"
+      )
       Assert.False(
         button.shortCodeText and button.shortCodeText._shown or false,
         "active cooldown should hide the M2 short code overlay"
