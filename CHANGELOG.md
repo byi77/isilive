@@ -1,6 +1,8 @@
 # Changelog
 
 ## 2026-03-23 - Version 0.9.94
+- **Forward Compat / Blizzard 12.0.1 Cooldown Hotfix:**
+  - `SpellUtils.ApplyCooldownFrameSafe` now prefers `SetCooldownFromDurationObject` (the only setter Blizzard guarantees for secret values post-hotfix) over `CooldownFrame_Set` and `SetCooldown`. Feature-detected: works on both current live and post-hotfix clients.
 - **Bugfix / Sync Cooldown Reset:**
   - `Sync.ClearKnownUsers()` now resets all send cooldown timestamps and dedup payloads so the next identical snapshot fires immediately after a group change instead of being silently suppressed.
 - **Bugfix / Realm Normalization:**
@@ -23,7 +25,7 @@
   - New `isilive_test_scenarios_keysync.lua`: 17 dedicated KeySync controller tests covering `MarkIsiLiveUser`, `UnitHasIsiLive`, `RegisterIsiLiveSyncPrefix`, `ResolveActiveKeyOwnerUnit`, `RefreshLocalPlayerKey`, `ForceRefreshSyncState`, `GetOwnedKeystoneSnapshot`, `SendRefreshRequest`, and `ApplyKnownKeyToRosterEntry`.
   - New `isilive_test_scenarios_commands_extended.lua`: 13 extended commands tests covering `testall` (stopped/paused/running), `tptest`, `tpdebug`, `lead` (yes/no), `bindcheck`, unknown/empty input help, pause/resume while stopped, and `lang enus/dede` aliases.
   - New `isilive_test_scenarios_config_builders.lua`: 8 config builder tests verifying all 6 `BuildXxxOpts()` functions pass through context fields correctly and do not leak extra fields.
-  - `lua tools/validate_usecases.lua` now validates `401` deterministic tests indexed and `405` scenarios across `37` modules.
+  - `lua tools/validate_usecases.lua` now validates `404` deterministic tests indexed and `408` scenarios across `37` modules.
 - **Code Modernization / Shared Utilities:**
   - New `isiLive_validation_helpers.lua`: centralized `RequireFunction`, `RequireTable`, and `IsExistingUnit` — eliminates identical 4–13 line helper copies across 11+ modules.
   - New `isiLive_string_utils.lua`: centralized `Trim`, `StripWhitespace`, and `NormalizeRealmName` — replaces duplicate inline `gsub` patterns across 6+ modules.

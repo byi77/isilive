@@ -114,6 +114,88 @@ local function RegisterCooldownFrameApplyTests(test, Assert, WithGlobals, LoadAd
     Assert.True(called.isEnabled, "CooldownFrame_Set should receive enabled state")
   end)
 
+  test("Spell utils apply cooldown prefers SetCooldownFromDurationObject when available", function()
+    local durationObjectUsed = false
+    local frame = {
+      SetCooldownFromDurationObject = function(_self, dur)
+        durationObjectUsed = dur
+      end,
+      SetCooldown = function(_self, _start, _duration)
+        error("SetCooldown must not be called when SetCooldownFromDurationObject exists")
+      end,
+    }
+
+    WithGlobals({
+      CreateCooldownDuration = function(start, duration)
+        return { start = start, duration = duration, _isDurationObject = true }
+      end,
+      CooldownFrame_Set = function()
+        error("CooldownFrame_Set must not be called when duration object path works")
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_spell_utils.lua" })
+      addon.SpellUtils.ApplyCooldownFrameSafe(frame, 10, 20, true)
+    end)
+
+    Assert.NotNil(durationObjectUsed, "must use SetCooldownFromDurationObject")
+    Assert.Equal(durationObjectUsed.start, 10, "duration object must carry start time")
+    Assert.Equal(durationObjectUsed.duration, 20, "duration object must carry duration")
+  end)
+
+  test("Spell utils apply cooldown duration object path clears when disabled", function()
+    local durationObjectUsed = false
+    local frame = {
+      SetCooldownFromDurationObject = function(_self, dur)
+        durationObjectUsed = dur
+      end,
+      SetCooldown = function()
+        error("SetCooldown must not be called")
+      end,
+    }
+
+    WithGlobals({
+      CreateCooldownDuration = function(start, duration)
+        return { start = start or 0, duration = duration or 0, _isDurationObject = true }
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_spell_utils.lua" })
+      addon.SpellUtils.ApplyCooldownFrameSafe(frame, 100, 300, false)
+    end)
+
+    Assert.NotNil(durationObjectUsed, "must use duration object for disabled cooldown")
+  end)
+
+  test("Spell utils apply cooldown falls back to legacy when duration object API is missing", function()
+    local called = nil
+    local frame = {
+      SetCooldownFromDurationObject = function(_self, _dur)
+        error("should not be called without CreateCooldownDuration")
+      end,
+      SetCooldown = function(_self, _start, _duration)
+        error("SetCooldown should not be called when CooldownFrame_Set exists")
+      end,
+    }
+
+    WithGlobals({
+      CreateCooldownDuration = nil,
+      CooldownFrame_Set = function(cooldownFrame, startTime, duration, isEnabled)
+        called = {
+          cooldownFrame = cooldownFrame,
+          startTime = startTime,
+          duration = duration,
+          isEnabled = isEnabled,
+        }
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_spell_utils.lua" })
+      addon.SpellUtils.ApplyCooldownFrameSafe(frame, 5, 15, true)
+    end)
+
+    Assert.NotNil(called, "must fall back to CooldownFrame_Set when CreateCooldownDuration is nil")
+    Assert.Equal(called.startTime, 5, "must pass start to legacy path")
+    Assert.Equal(called.duration, 15, "must pass duration to legacy path")
+  end)
+
   test("Spell utils apply cooldown fallback clears frame when disabled", function()
     local appliedStart = nil
     local appliedDuration = nil

@@ -31,7 +31,7 @@ Expected: lint/style/metrics/usecase/rules checks pass.
 
 `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 401 deterministic tests indexed and 405 scenarios across 37 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/keysync/guards/inspect/test-mode/leader-watch/refresh/commands/commands-extended/runtime-log/runtime-state/roster/roster-panel/status/stats/cd-tracker/units/ui/roster-display/taint/tank-helper/validation-helpers/string-utils/config-builders).
+`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 404 deterministic tests indexed and 408 scenarios across 37 modules (architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/keysync/guards/inspect/test-mode/leader-watch/refresh/commands/commands-extended/runtime-log/runtime-state/roster/roster-panel/status/stats/cd-tracker/units/ui/roster-display/taint/tank-helper/validation-helpers/string-utils/config-builders).
 
 Windows note: if metrics fail with missing LuaRocks modules (`lfs`, `luacheck.decoder`, `luacheck.parser`), set `LUA_PATH` and `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running the metrics check.
 

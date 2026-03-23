@@ -97,7 +97,7 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 401 deterministic tests indexed and 405 scenarios across 37 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/keysync/guards/inspect/test-mode/leader-watch/refresh/commands/commands-extended/runtime-log/runtime-state/roster/roster-panel/roster-panel-layout/status/stats/cd-tracker/units/ui/roster-display/taint/tank-helper/validation-helpers/string-utils/config-builders logic.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 404 deterministic tests indexed and 408 scenarios across 37 modules: architecture/queue/highlight/event-handlers/event-handler lifecycles/queue-flow/spell-utils/teleport/group/event-utils/locale/sync/keysync/guards/inspect/test-mode/leader-watch/refresh/commands/commands-extended/runtime-log/runtime-state/roster/roster-panel/roster-panel-layout/status/stats/cd-tracker/units/ui/roster-display/taint/tank-helper/validation-helpers/string-utils/config-builders logic.
 
 ## UI Structure (ASCII Sketch)
 

@@ -44,14 +44,43 @@ function SpellUtils.ApplyCooldownFrameSafe(cooldownFrame, start, duration, enabl
     return
   end
 
+  -- Preferred path: SetCooldownFromDurationObject is the only cooldown setter
+  -- that Blizzard guarantees to work with secret values post-12.0.1 hotfix.
+  -- If it exists and the frame exposes it, use it exclusively.
+  if cooldownFrame.SetCooldownFromDurationObject then
+    if enabled == false or enabled == 0 or not duration or duration <= 0 then
+      local zeroDur = rawget(_G, "CreateCooldownDuration")
+      if type(zeroDur) == "function" then
+        local ok, dur = pcall(zeroDur)
+        if ok and dur then
+          pcall(cooldownFrame.SetCooldownFromDurationObject, cooldownFrame, dur)
+          return
+        end
+      end
+      -- Cannot build a zero duration object — fall through to legacy path.
+    else
+      local createDur = rawget(_G, "CreateCooldownDuration")
+      if type(createDur) == "function" then
+        local ok, dur = pcall(createDur, start, duration)
+        if ok and dur then
+          pcall(cooldownFrame.SetCooldownFromDurationObject, cooldownFrame, dur)
+          return
+        end
+      end
+      -- Duration object creation failed — fall through to legacy path.
+    end
+  end
+
+  -- Legacy path: CooldownFrame_Set (may route through ActionButton_ApplyCooldown).
   local cooldownFrameSet = rawget(_G, "CooldownFrame_Set")
   if type(cooldownFrameSet) == "function" then
     cooldownFrameSet(cooldownFrame, start, duration, enabled)
     return
   end
 
+  -- Last-resort fallback: direct SetCooldown with non-secret values only.
   if cooldownFrame.SetCooldown then
-    if enabled == false or enabled == 0 or duration <= 0 then
+    if enabled == false or enabled == 0 or not duration or duration <= 0 then
       cooldownFrame:SetCooldown(0, 0)
     else
       cooldownFrame:SetCooldown(start or 0, duration or 0)
