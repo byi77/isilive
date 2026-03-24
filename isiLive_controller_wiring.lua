@@ -410,9 +410,9 @@ local function BuildEventHandlersDepsFromContext(ctx)
       setMainFrameHeightSafe = ctx.setMainFrameHeightSafe,
       -- Late-bound: ctx.UpdateCdTracker / ctx.baselineCdTracker are set after event
       -- handlers are wired, so capture ctx by reference and resolve at call time.
-      updateCdTracker = function()
+      updateCdTracker = function(isFullUpdate)
         if type(ctx.UpdateCdTracker) == "function" then
-          ctx.UpdateCdTracker()
+          ctx.UpdateCdTracker(isFullUpdate)
         end
       end,
       baselineCdTracker = function(seconds)

@@ -5,7 +5,6 @@ local CdTracker = {}
 addonTable.CdTracker = CdTracker
 
 local BRES_SPELL_ID = 20484
-local CONTINUED_LUST_EXPIRY_TOLERANCE_SECONDS = 3
 
 -- All Bloodlust / Heroism / Time Warp variant spell IDs that inflict Sated/Exhaustion
 local LUST_SATED_IDS = {
@@ -39,17 +38,9 @@ function CdTracker.CreateController(opts)
   local lustIcon = nil
   local wasLustActive = false
   local suppressOnsetUntil = 0
-  local lastKnownLustExpiration = nil
-  local continuedLustExpectedExpiration = nil
-  -- True when lust was already active at the moment SuppressOnset was called.
-  -- Used as a fallback when lastKnownLustExpiration is nil (lust known only via
-  -- NotifySpellCast) so that the aura re-appearing after a zone transition is
-  -- still recognised as a continuation rather than a new onset.
-  local lustWasActiveWhenSuppressed = false
   -- Gate that blocks onLustStart until SuppressOnset has been called at least once.
-  -- Mirrors BResLustTracker's isInitialized flag: prevents any scan that fires before
-  -- PLAYER_ENTERING_WORLD (ticker, early UNIT_AURA) from triggering the sound.
-  -- skipReadyGate = true bypasses this for unit tests that exercise onset directly.
+  -- Prevents any scan that fires before PLAYER_ENTERING_WORLD (ticker, early UNIT_AURA)
+  -- from triggering the sound. skipReadyGate = true bypasses this for unit tests.
   local ready = opts.skipReadyGate == true
 
   local function ScanBRes()
@@ -72,7 +63,7 @@ function CdTracker.CreateController(opts)
     end
   end
 
-  local function ScanLust()
+  local function ScanLust(isFullUpdate)
     local C_UnitAuras_ref = rawget(_G, "C_UnitAuras")
     local getAuraDataByIndex = type(C_UnitAuras_ref) == "table" and rawget(C_UnitAuras_ref, "GetAuraDataByIndex") or nil
     if type(getAuraDataByIndex) ~= "function" then
@@ -80,9 +71,9 @@ function CdTracker.CreateController(opts)
       lustIcon = nil
       return
     end
-    -- Query each known lust spell ID directly — avoids using tainted aura.spellId as table index.
+    -- Query each aura slot for a known Sated/Exhaustion debuff.
+    -- rawget avoids triggering taint traps on WoW's secure aura objects.
     local found = false
-    local detectedExpiry = nil
     for index = 1, 40 do
       local ok, aura = pcall(getAuraDataByIndex, "player", index, "HARMFUL")
       if ok and type(aura) == "table" then
@@ -94,7 +85,6 @@ function CdTracker.CreateController(opts)
           local remain = type(expiry) == "number" and math.max(0, expiry - getTime()) or 0
           lustRemain = remain > 0 and remain or nil
           lustIcon = rawget(aura, "icon")
-          detectedExpiry = type(expiry) == "number" and expiry or nil
           found = true
           break
         end
@@ -103,40 +93,17 @@ function CdTracker.CreateController(opts)
     if not found then
       lustRemain = nil
       lustIcon = nil
-      if type(lastKnownLustExpiration) == "number" and lastKnownLustExpiration <= getTime() then
-        lastKnownLustExpiration = nil
-      end
-      if
-        type(continuedLustExpectedExpiration) == "number"
-        and continuedLustExpectedExpiration + CONTINUED_LUST_EXPIRY_TOLERANCE_SECONDS <= getTime()
-      then
-        continuedLustExpectedExpiration = nil
-      end
-    elseif type(detectedExpiry) == "number" then
-      lastKnownLustExpiration = detectedExpiry
     end
     local isLustNowActive = lustRemain ~= nil
     if not wasLustActive and isLustNowActive then
-      local isContinuedLust = (
-        type(detectedExpiry) == "number"
-        and type(continuedLustExpectedExpiration) == "number"
-        and math.abs(detectedExpiry - continuedLustExpectedExpiration) <= CONTINUED_LUST_EXPIRY_TOLERANCE_SECONDS
-      )
-        or (lustWasActiveWhenSuppressed and getTime() <= suppressOnsetUntil + CONTINUED_LUST_EXPIRY_TOLERANCE_SECONDS)
-
-      if not isContinuedLust and ready and onLustStart and getTime() >= suppressOnsetUntil then
+      if isFullUpdate then
+        -- WoW is restoring all auras after a zone change or UI reload.
+        -- Mark lust as active without firing the onset callback to avoid false positives.
+        wasLustActive = true
+        return
+      end
+      if ready and onLustStart and getTime() >= suppressOnsetUntil then
         onLustStart()
-        -- Genuine new onset: clear continuation tracking.
-        continuedLustExpectedExpiration = nil
-        lustWasActiveWhenSuppressed = false
-      else
-        -- Suppressed or recognised as continuation.  Keep continuedLustExpectedExpiration
-        -- up to date so a subsequent brief removal + re-appearance of the SAME aura is
-        -- still recognised as a continuation (fixes the case where the first suppressed
-        -- transition would otherwise clear the value and leave later scans unprotected).
-        if type(detectedExpiry) == "number" then
-          continuedLustExpectedExpiration = detectedExpiry
-        end
       end
     end
     wasLustActive = isLustNowActive
@@ -162,35 +129,22 @@ function CdTracker.CreateController(opts)
     return { remain = lustRemain, icon = lustIcon }
   end
 
-  function controller.Scan()
+  -- isFullUpdate: pass true when called from a UNIT_AURA event with isFullUpdate=true
+  -- (zone change / UI reload aura restore). Prevents false onset callbacks.
+  function controller.Scan(isFullUpdate)
     ScanBRes()
-    ScanLust()
+    ScanLust(isFullUpdate)
   end
 
-  -- Suppress lust onset callback for the given number of seconds.
-  -- Call this after zone changes / reloads to avoid false positives
-  -- from auras temporarily disappearing and reappearing.
-  -- Performs an immediate ScanLust() with the suppress window already active so that
-  -- lastKnownLustExpiration is populated before continuedLustExpectedExpiration is seeded —
-  -- this covers the reload case where lastKnownLustExpiration is nil but the Sated aura
-  -- is already present in the client before PLAYER_ENTERING_WORLD fires.
+  -- Suppress lust onset for the given number of seconds.
+  -- Call this on PLAYER_ENTERING_WORLD as a safety net for the ticker window
+  -- between the event and the first UNIT_AURA(isFullUpdate=true) arriving.
+  -- Also performs an immediate full-update scan so that lust already visible
+  -- on reload is captured without triggering the onset callback.
   function controller.SuppressOnset(seconds)
     ready = true
-    suppressOnsetUntil = getTime() + (seconds or 3)
-    -- Capture the pre-scan flag, then scan.  On reload lastKnownLustExpiration is nil;
-    -- scanning here populates it so continuedLustExpectedExpiration is seeded correctly.
-    -- wasActiveBeforeScan catches the case where the aura was active before the zone
-    -- transition but UNIT_AURA removal fired (dropping wasLustActive to false) before
-    -- PLAYER_ENTERING_WORLD; wasLustActive after the scan catches the case where the
-    -- aura is already present when SuppressOnset runs (fresh reload).
-    local wasActiveBeforeScan = wasLustActive
-    ScanLust()
-    lustWasActiveWhenSuppressed = wasActiveBeforeScan or wasLustActive
-    if type(lastKnownLustExpiration) == "number" and lastKnownLustExpiration > getTime() then
-      continuedLustExpectedExpiration = lastKnownLustExpiration
-    else
-      continuedLustExpectedExpiration = nil
-    end
+    suppressOnsetUntil = getTime() + (seconds or 2)
+    ScanLust(true)
   end
 
   -- Notify the tracker that a spell was cast (UNIT_SPELLCAST_SUCCEEDED).
@@ -201,8 +155,6 @@ function CdTracker.CreateController(opts)
     if not LUST_SATED_IDS[spellId] then
       return
     end
-    continuedLustExpectedExpiration = nil
-    lustWasActiveWhenSuppressed = false
     if onLustStart then
       onLustStart()
     end

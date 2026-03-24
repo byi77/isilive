@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-03-24 - Post-0.9.98 Docs Sync
+- **Bugfix / Bloodlust Zone-Reload Onset Guard:**
+  - `UNIT_AURA` now forwards WoW's `isFullUpdate` flag into `CdTracker`, so zone/reload aura restores hydrate the active lust state without replaying the onset callback.
+  - `SuppressOnset` now acts as a short 2-second safety net for early ticker scans before the full aura restore arrives.
+- **Tests / Validation:**
+  - Added regression coverage for `UNIT_AURA.isFullUpdate` forwarding, late full-update aura restores after the suppress window, and reload recovery while lust is already active.
+  - `lua tools/validate_usecases.lua` now validates `422` deterministic tests indexed and `428` scenarios across `37` modules.
+
 ## 2026-03-23 - Version 0.9.98
 - **Docs / Release Baseline:**
   - Bumped TOC version to `0.9.98`.

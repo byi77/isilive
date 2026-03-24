@@ -1,4 +1,4 @@
-local LUST_ZONE_TRANSITION_SUPPRESS_SECONDS = 3
+local LUST_ZONE_TRANSITION_SUPPRESS_SECONDS = 2
 
 local function RegisterTargetHandlingTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   test("Event handlers keep target when active listing is inferred", function()
@@ -304,6 +304,69 @@ local function RegisterCombatStartupCVarAndWorldEntryTests(test, Assert, WithGlo
 
     Assert.Equal(#notifiedSpellIDs, 1, "lust spellcasts must be forwarded to the cd tracker once")
     Assert.Equal(notifiedSpellIDs[1], 2825, "forwarded lust spellcast must preserve the original spell ID")
+  end)
+
+  test("Event handlers forward isFullUpdate=true to cd tracker on zone-change aura restore", function()
+    local cdTrackerCalls = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      updateCdTracker = function(isFullUpdate)
+        table.insert(cdTrackerCalls, isFullUpdate)
+      end,
+    })
+
+    -- WoW fires UNIT_AURA with isFullUpdate=true after a zone change or UI reload
+    controller:Dispatch("UNIT_AURA", "player", { isFullUpdate = true })
+
+    Assert.Equal(#cdTrackerCalls, 1, "UNIT_AURA for player must call updateCdTracker once")
+    Assert.True(
+      cdTrackerCalls[1] == true,
+      "isFullUpdate=true from WoW aura restore must be forwarded as true to the cd tracker"
+    )
+  end)
+
+  test("Event handlers forward isFullUpdate=false to cd tracker on normal aura update", function()
+    local cdTrackerCalls = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      updateCdTracker = function(isFullUpdate)
+        table.insert(cdTrackerCalls, isFullUpdate)
+      end,
+    })
+
+    -- Normal UNIT_AURA: unitAuraUpdateInfo has no isFullUpdate flag
+    controller:Dispatch("UNIT_AURA", "player", {})
+    -- Also test with nil unitAuraUpdateInfo (older WoW API behaviour)
+    controller:Dispatch("UNIT_AURA", "player", nil)
+
+    Assert.Equal(#cdTrackerCalls, 2, "both UNIT_AURA variants must call updateCdTracker")
+    Assert.True(
+      cdTrackerCalls[1] == false,
+      "normal UNIT_AURA without isFullUpdate must forward false to the cd tracker"
+    )
+    Assert.True(
+      cdTrackerCalls[2] == false,
+      "UNIT_AURA with nil aura info must forward false to the cd tracker"
+    )
+  end)
+
+  test("Event handlers ignore UNIT_AURA events for non-player units", function()
+    local cdTrackerCalls = 0
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      updateCdTracker = function()
+        cdTrackerCalls = cdTrackerCalls + 1
+      end,
+    })
+
+    controller:Dispatch("UNIT_AURA", "party1", { isFullUpdate = true })
+    controller:Dispatch("UNIT_AURA", "target", {})
+    controller:Dispatch("UNIT_AURA", "focus", nil)
+
+    Assert.Equal(cdTrackerCalls, 0, "UNIT_AURA for non-player units must not reach the cd tracker")
   end)
 
   test("Event handlers trigger portal navigator checks on world and zone changes", function()

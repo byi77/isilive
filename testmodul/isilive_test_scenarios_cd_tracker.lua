@@ -1,7 +1,7 @@
 ---@diagnostic disable: undefined-global, need-check-nil
 local LoadAddonModules = nil
 local MakeController = nil
-local LUST_ZONE_TRANSITION_SUPPRESS_SECONDS = 3
+local LUST_ZONE_TRANSITION_SUPPRESS_SECONDS = 2
 
 local function BuildHarmfulAuraApi(getAuras)
   return {
@@ -197,17 +197,46 @@ local function RegisterCdTrackerLustCallbackTests(test, Assert, WithGlobals)
     end
   )
 
+  test("CdTracker Scan with isFullUpdate=true does not fire onset when lust appears", function()
+    local now = 1000
+    local lustActive = true
+    local fired = 0
+    WithGlobals({
+      C_UnitAuras = BuildHarmfulAuraApi(function()
+        if lustActive then
+          return { MakeLustAura(now + 300) }
+        end
+        return {}
+      end),
+    }, function()
+      local ctrl = MakeController({
+        getTime = function()
+          return now
+        end,
+        onLustStart = function()
+          fired = fired + 1
+        end,
+      })
+      ctrl.Scan(true) -- isFullUpdate: zone/reload aura restore
+      Assert.Equal(fired, 0, "isFullUpdate scan must not fire onset")
+      Assert.NotNil(ctrl.GetLustInfo(), "lust info must still be populated after isFullUpdate scan")
+      ctrl.Scan(false) -- subsequent normal scan: wasLustActive already true
+      Assert.Equal(fired, 0, "normal scan after isFullUpdate must not fire onset (wasLustActive already set)")
+    end)
+  end)
+
   test(
-    "CdTracker suppress treats delayed return of the same lust expiry as a continuation after zone change",
+    "CdTracker Scan with isFullUpdate=true blocks false positive even after suppress window expires",
     function()
+      -- Slow loading screen: UNIT_AURA(isFullUpdate=true) arrives after the suppress window.
+      -- isFullUpdate must still prevent the false positive regardless of timing.
       local now = 1000
-      local lustActive = true
-      local lustExpiration = 1300
+      local lustActive = false
       local fired = 0
       WithGlobals({
         C_UnitAuras = BuildHarmfulAuraApi(function()
           if lustActive then
-            return { MakeLustAura(lustExpiration) }
+            return { MakeLustAura(now + 300) }
           end
           return {}
         end),
@@ -220,38 +249,21 @@ local function RegisterCdTrackerLustCallbackTests(test, Assert, WithGlobals)
             fired = fired + 1
           end,
         })
-
-        ctrl.Scan()
-        Assert.Equal(fired, 1, "initial lust detection must still fire once")
-
-        lustActive = false
-        now = 1001
-        ctrl.Scan()
-        Assert.Equal(fired, 1, "temporary disappearance before suppression must not fire")
-
         ctrl.SuppressOnset(LUST_ZONE_TRANSITION_SUPPRESS_SECONDS)
-        now = 1002
-        ctrl.Scan()
-        Assert.Equal(fired, 1, "suppressed empty scan must keep the prior lust as a continuation candidate")
-
+        now = 1000 + LUST_ZONE_TRANSITION_SUPPRESS_SECONDS + 5 -- suppress long expired
         lustActive = true
-        now = 1000 + LUST_ZONE_TRANSITION_SUPPRESS_SECONDS + 5
-        ctrl.Scan()
-        Assert.Equal(
-          fired,
-          1,
-          "same lust aura must stay silent even when it becomes readable again after the suppress window"
-        )
+        ctrl.Scan(true) -- UNIT_AURA(isFullUpdate=true) arrives late
+        Assert.Equal(fired, 0, "isFullUpdate must block false positive even after suppress window has expired")
+        ctrl.Scan(false) -- ticker fires after: wasLustActive already true
+        Assert.Equal(fired, 0, "normal scan after late isFullUpdate must not fire onset")
       end)
     end
   )
 
-  test("CdTracker SuppressOnset seeds continuedLustExpectedExpiration via internal scan on reload", function()
-    -- Simulates a reload: wasLustActive=false and lastKnownLustExpiration=nil initially,
-    -- but the Sated aura IS already present when SuppressOnset is called.
-    -- The internal ScanLust inside SuppressOnset must capture the expiry so that a
-    -- subsequent UNIT_AURA removal+re-add after the suppress window is not treated as
-    -- a new onset.
+  test("CdTracker SuppressOnset with active lust blocks onset on reload via internal full scan", function()
+    -- On UI reload the Sated aura is already present when PLAYER_ENTERING_WORLD fires.
+    -- SuppressOnset must capture this state so that a subsequent aura removal+re-add
+    -- from UNIT_AURA does not trigger a false onset.
     local now = 1000
     local lustExpiration = 1600
     local lustActive = true
@@ -273,88 +285,22 @@ local function RegisterCdTrackerLustCallbackTests(test, Assert, WithGlobals)
         end,
       })
 
-      -- PLAYER_ENTERING_WORLD: SuppressOnset runs internal scan, finds Sated, seeds expiry
-      ctrl.SuppressOnset(LUST_ZONE_TRANSITION_SUPPRESS_SECONDS) -- suppressOnsetUntil=1003
+      -- PLAYER_ENTERING_WORLD: SuppressOnset does internal isFullUpdate scan, finds Sated
+      ctrl.SuppressOnset(LUST_ZONE_TRANSITION_SUPPRESS_SECONDS)
+      Assert.Equal(fired, 0, "SuppressOnset internal scan must not fire onset")
 
-      -- Aura briefly removed (e.g. UNIT_AURA removal signal after zone load)
+      -- Aura briefly removed (UNIT_AURA removal signal)
       lustActive = false
-      ctrl.Scan()
-      Assert.Equal(fired, 0, "scan with absent aura during suppress must not fire onset")
+      ctrl.Scan(false)
+      Assert.Equal(fired, 0, "scan with absent aura must not fire onset")
 
-      -- Aura reappears after the suppress window has expired (same expirationTime)
-      now = 1004
+      -- Aura reappears via UNIT_AURA(isFullUpdate=true) after suppress window expires
+      now = 1000 + LUST_ZONE_TRANSITION_SUPPRESS_SECONDS + 2
       lustActive = true
-      ctrl.Scan()
-      Assert.Equal(
-        fired,
-        0,
-        "onLustStart must NOT fire on reload when Sated reappears after suppress window - "
-          .. "internal SuppressOnset scan must have seeded continuedLustExpectedExpiration"
-      )
+      ctrl.Scan(true)
+      Assert.Equal(fired, 0, "isFullUpdate re-appearance after suppress window must not fire onset")
     end)
   end)
-
-  test(
-    "CdTracker suppresses false positive when lust was active at SuppressOnset but lastKnownLustExpiration is nil",
-    function()
-      -- Covers the case where lust was signalled only via NotifySpellCast (no aura scan captured
-      -- an expiry) so lastKnownLustExpiration is nil. The lustWasActiveWhenSuppressed flag must
-      -- still suppress re-onset within suppressOnsetUntil + CONTINUED_LUST_EXPIRY_TOLERANCE_SECONDS.
-      local now = 1000
-      local lustActive = false
-      local fired = 0
-      WithGlobals({
-        C_UnitAuras = BuildHarmfulAuraApi(function()
-          if lustActive then
-            return { MakeLustAura(now + 300) }
-          end
-          return {}
-        end),
-      }, function()
-        local ctrl = MakeController({
-          getTime = function()
-            return now
-          end,
-          onLustStart = function()
-            fired = fired + 1
-          end,
-        })
-
-        -- Lust known only via NotifySpellCast; no aura scan ran, so lastKnownLustExpiration=nil
-        ctrl.NotifySpellCast(2825) -- wasLustActive=true after this
-        Assert.Equal(fired, 1, "NotifySpellCast must fire onLustStart")
-
-        -- PLAYER_ENTERING_WORLD: SuppressOnset called BEFORE the first scan (matches real order).
-        -- wasLustActive=true here, so lustWasActiveWhenSuppressed is captured as true.
-        ctrl.SuppressOnset(LUST_ZONE_TRANSITION_SUPPRESS_SECONDS) -- suppressOnsetUntil=1003
-
-        -- Immediate scan after zone change: aura not yet visible -> wasLustActive drops to false
-        ctrl.Scan()
-        Assert.Equal(fired, 1, "scan with absent aura must not fire onset")
-
-        -- Aura reappears AFTER the 3s suppress window but within the +3s tolerance
-        -- (suppressOnsetUntil=1003, tolerance extends to 1006)
-        now = 1004
-        lustActive = true
-        ctrl.Scan()
-        Assert.Equal(
-          fired,
-          1,
-          "onLustStart must NOT fire when aura reappears after suppress window - "
-            .. "lustWasActiveWhenSuppressed fallback must catch it"
-        )
-
-        -- Flag was cleared in the transition above. A genuinely fresh lust well past the
-        -- extended window must fire the sound.
-        lustActive = false
-        ctrl.Scan() -- lust drops at t=1004
-        now = 1010 -- well past suppressOnsetUntil + tolerance (1006)
-        lustActive = true
-        ctrl.Scan()
-        Assert.Equal(fired, 2, "onLustStart must fire for genuinely new lust after the extended window")
-      end)
-    end
-  )
 
   -- NotifySpellCast tests
 

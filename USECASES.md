@@ -1,7 +1,7 @@
 # isiLive Use Cases
 
 Version baseline: `0.9.98`
-Last updated: `2026-03-23`
+Last updated: `2026-03-24`
 
 ## Actors
 
@@ -150,12 +150,13 @@ Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without d
 
 Goal: show live BRes and Bloodlust/Heroism/Time Warp timers in the roster panel without guessing.
 
-1. Trigger: the roster panel is visible and the one-second utility ticker fires, or a manual refresh / local lust spellcast requests a tracker update.
+1. Trigger: the roster panel is visible and the one-second utility ticker fires, or a manual refresh / local lust spellcast / player `UNIT_AURA` update requests a tracker refresh.
 2. Processing: addon scans `C_Spell.GetSpellCharges` for Battle Resurrection and iterates player `HARMFUL` auras via `C_UnitAuras.GetAuraDataByIndex("player", index, "HARMFUL")` for Bloodlust/Heroism/Time Warp exhaustion variants.
 3. Rule: only numeric aura `spellId` values may participate in the lust lookup; protected, secret, string, or otherwise non-numeric values must be ignored safely without aborting the full lust scan.
-4. Rule: zone/world transition suppression must treat a reappearing lust aura with the same active application as a continuation instead of a new onset.
-5. Output: the tracker row shows BRes charges/cooldown plus the current lust icon and remaining time, or `--` when the effect is unavailable.
-6. Success criteria: the row updates deterministically, stays non-negative, and remains stable when the relevant APIs are missing or mixed-validity aura payloads are encountered.
+4. Rule: `UNIT_AURA` updates with `isFullUpdate=true` after zone/world transitions or UI reloads must hydrate the active lust state without firing a new onset callback.
+5. Rule: `PLAYER_ENTERING_WORLD` may keep only a short 2-second suppress window as a safety net until the full aura-restore event arrives.
+6. Output: the tracker row shows BRes charges/cooldown plus the current lust icon and remaining time, or `--` when the effect is unavailable.
+7. Success criteria: the row updates deterministically, stays non-negative, and remains stable when the relevant APIs are missing, mixed-validity aura payloads are encountered, or zone/reload aura restores arrive late.
 
 ## Non-Functional Rules
 

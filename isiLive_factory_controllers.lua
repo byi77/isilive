@@ -804,14 +804,14 @@ local function InitializeFactorySecondaryControllers(ctx)
         end
       end,
     })
-    ctx.UpdateCdTracker = function()
-      ctx.cdTrackerController.Scan()
+    ctx.UpdateCdTracker = function(isFullUpdate)
+      ctx.cdTrackerController.Scan(isFullUpdate)
       if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
         ctx.rosterPanelController.RefreshCdTracker()
       end
     end
     ctx.baselineCdTracker = function(seconds)
-      ctx.cdTrackerController.SuppressOnset(seconds or 3)
+      ctx.cdTrackerController.SuppressOnset(seconds or 2)
     end
     if ctx.rosterPanelController and type(ctx.rosterPanelController.SetCdController) == "function" then
       ctx.rosterPanelController.SetCdController(ctx.cdTrackerController)

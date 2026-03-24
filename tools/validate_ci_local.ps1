@@ -17,7 +17,7 @@ function Invoke-CheckedCommand($label, $command) {
   }
 }
 
-function Require-Command($name) {
+function Assert-Command($name) {
   $cmd = Get-Command $name -ErrorAction SilentlyContinue
   if (-not $cmd) {
     throw "Required command '$name' was not found in PATH."
@@ -25,7 +25,7 @@ function Require-Command($name) {
   return $cmd.Source
 }
 
-function Apply-LuaRocksEnvironment {
+function Initialize-LuaRocksEnvironment {
   $luarocksPathOutput = & luarocks path
   if ($LASTEXITCODE -ne 0) {
     throw "luarocks path failed with exit code $LASTEXITCODE"
@@ -45,10 +45,10 @@ function Test-LuaModule($moduleName) {
 
 Push-Location (Resolve-Path (Join-Path $PSScriptRoot ".."))
 try {
-  Require-Command "lua" | Out-Null
-  Require-Command "stylua" | Out-Null
-  Require-Command "luacheck" | Out-Null
-  Require-Command "luarocks" | Out-Null
+  Assert-Command "lua" | Out-Null
+  Assert-Command "stylua" | Out-Null
+  Assert-Command "luacheck" | Out-Null
+  Assert-Command "luarocks" | Out-Null
 
   Write-Step "Local toolchain"
   & lua -v
@@ -66,7 +66,7 @@ try {
     Invoke-CheckedCommand "Install LuaRocks dependency: luafilesystem" "luarocks install luafilesystem 1.8.0-1"
   }
 
-  Apply-LuaRocksEnvironment
+  Initialize-LuaRocksEnvironment
 
   if (-not (Test-LuaModule "lfs")) {
     throw "LuaFileSystem ('lfs') is missing for local Lua. Run: luarocks install luafilesystem 1.8.0-1"

@@ -16,7 +16,7 @@ local TRACKED_NON_CHALLENGE_PARTY_DIFFICULTY_IDS = {
 }
 local NON_CHALLENGE_RUN_CAPTURE_RETRIES = 5
 local NON_CHALLENGE_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
-local LUST_ZONE_TRANSITION_SUPPRESS_SECONDS = 3
+local LUST_ZONE_TRANSITION_SUPPRESS_SECONDS = 2
 
 local function ResolveTrackedMythicZeroMapID()
   local okInstance, _, _, _, _, _, _, rawInstanceMapID = pcall(GetInstanceInfo)
@@ -379,11 +379,12 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.updateCdTracker()
   end
 
-  local function HandleUnitAuraEvent(_self, unit)
+  local function HandleUnitAuraEvent(_self, unit, unitAuraUpdateInfo)
     if unit ~= "player" then
       return
     end
-    ctx.updateCdTracker()
+    local isFullUpdate = type(unitAuraUpdateInfo) == "table" and unitAuraUpdateInfo.isFullUpdate == true
+    ctx.updateCdTracker(isFullUpdate)
   end
 
   local function HandleUnitSpellcastSucceededEvent(_self, _unit, _castGUID, spellID)
