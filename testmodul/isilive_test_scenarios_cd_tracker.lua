@@ -225,40 +225,37 @@ local function RegisterCdTrackerLustCallbackTests(test, Assert, WithGlobals)
     end)
   end)
 
-  test(
-    "CdTracker Scan with isFullUpdate=true blocks false positive even after suppress window expires",
-    function()
-      -- Slow loading screen: UNIT_AURA(isFullUpdate=true) arrives after the suppress window.
-      -- isFullUpdate must still prevent the false positive regardless of timing.
-      local now = 1000
-      local lustActive = false
-      local fired = 0
-      WithGlobals({
-        C_UnitAuras = BuildHarmfulAuraApi(function()
-          if lustActive then
-            return { MakeLustAura(now + 300) }
-          end
-          return {}
-        end),
-      }, function()
-        local ctrl = MakeController({
-          getTime = function()
-            return now
-          end,
-          onLustStart = function()
-            fired = fired + 1
-          end,
-        })
-        ctrl.SuppressOnset(LUST_ZONE_TRANSITION_SUPPRESS_SECONDS)
-        now = 1000 + LUST_ZONE_TRANSITION_SUPPRESS_SECONDS + 5 -- suppress long expired
-        lustActive = true
-        ctrl.Scan(true) -- UNIT_AURA(isFullUpdate=true) arrives late
-        Assert.Equal(fired, 0, "isFullUpdate must block false positive even after suppress window has expired")
-        ctrl.Scan(false) -- ticker fires after: wasLustActive already true
-        Assert.Equal(fired, 0, "normal scan after late isFullUpdate must not fire onset")
-      end)
-    end
-  )
+  test("CdTracker Scan with isFullUpdate=true blocks false positive even after suppress window expires", function()
+    -- Slow loading screen: UNIT_AURA(isFullUpdate=true) arrives after the suppress window.
+    -- isFullUpdate must still prevent the false positive regardless of timing.
+    local now = 1000
+    local lustActive = false
+    local fired = 0
+    WithGlobals({
+      C_UnitAuras = BuildHarmfulAuraApi(function()
+        if lustActive then
+          return { MakeLustAura(now + 300) }
+        end
+        return {}
+      end),
+    }, function()
+      local ctrl = MakeController({
+        getTime = function()
+          return now
+        end,
+        onLustStart = function()
+          fired = fired + 1
+        end,
+      })
+      ctrl.SuppressOnset(LUST_ZONE_TRANSITION_SUPPRESS_SECONDS)
+      now = 1000 + LUST_ZONE_TRANSITION_SUPPRESS_SECONDS + 5 -- suppress long expired
+      lustActive = true
+      ctrl.Scan(true) -- UNIT_AURA(isFullUpdate=true) arrives late
+      Assert.Equal(fired, 0, "isFullUpdate must block false positive even after suppress window has expired")
+      ctrl.Scan(false) -- ticker fires after: wasLustActive already true
+      Assert.Equal(fired, 0, "normal scan after late isFullUpdate must not fire onset")
+    end)
+  end)
 
   test("CdTracker SuppressOnset with active lust blocks onset on reload via internal full scan", function()
     -- On UI reload the Sated aura is already present when PLAYER_ENTERING_WORLD fires.

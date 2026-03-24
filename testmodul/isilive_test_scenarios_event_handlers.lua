@@ -346,10 +346,7 @@ local function RegisterCombatStartupCVarAndWorldEntryTests(test, Assert, WithGlo
       cdTrackerCalls[1] == false,
       "normal UNIT_AURA without isFullUpdate must forward false to the cd tracker"
     )
-    Assert.True(
-      cdTrackerCalls[2] == false,
-      "UNIT_AURA with nil aura info must forward false to the cd tracker"
-    )
+    Assert.True(cdTrackerCalls[2] == false, "UNIT_AURA with nil aura info must forward false to the cd tracker")
   end)
 
   test("Event handlers ignore UNIT_AURA events for non-player units", function()

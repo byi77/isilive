@@ -98,7 +98,7 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 422 deterministic tests indexed and 428 scenarios across 37 modules.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 423 deterministic tests indexed and 428 scenarios across 37 modules.
 
 ## UI Structure (ASCII Sketch)
 
