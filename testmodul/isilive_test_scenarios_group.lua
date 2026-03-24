@@ -133,7 +133,7 @@ local function BuildGroupController(loadAddonModules, overrides)
   return controller, state
 end
 
-local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithGlobals)
+local function RegisterGroupJoinLifecycleTests(test, Assert, LoadAddonModules, WithGlobals)
   test("Group join builds roster with player and 4 party members", function()
     local controller, state = BuildGroupController(LoadAddonModules, {
       getNumGroupMembers = function()
@@ -325,7 +325,9 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithG
       Assert.True(frameBridgeCalls[1], "non-queue show request must remain visible")
     end)
   end)
+end
 
+local function RegisterFactoryFrameBridgeRestoreTests(test, Assert, LoadAddonModules, WithGlobals)
   test("Factory frame bridge restores the layout state when the main frame opens", function()
     local frameBridgeCalls = {}
     local restoreCalls = 0
@@ -503,6 +505,11 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithG
       Assert.Equal(restoreCalls, 1, "main frame show should restore the configured layout state")
     end)
   end)
+end
+
+local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithGlobals)
+  RegisterGroupJoinLifecycleTests(test, Assert, LoadAddonModules, WithGlobals)
+  RegisterFactoryFrameBridgeRestoreTests(test, Assert, LoadAddonModules, WithGlobals)
 end
 
 local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModules)

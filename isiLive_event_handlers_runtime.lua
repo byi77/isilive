@@ -16,8 +16,6 @@ local TRACKED_NON_CHALLENGE_PARTY_DIFFICULTY_IDS = {
 }
 local NON_CHALLENGE_RUN_CAPTURE_RETRIES = 5
 local NON_CHALLENGE_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
-local LUST_ZONE_TRANSITION_SUPPRESS_SECONDS = 2
-
 local function ResolveTrackedMythicZeroMapID()
   local okInstance, _, _, _, _, _, _, rawInstanceMapID = pcall(GetInstanceInfo)
   local instanceMapID = okInstance and tonumber(rawInstanceMapID) or nil
@@ -96,10 +94,6 @@ local function HasReliableTrackedMythicZeroRoster(ctx, roster)
   return not ctx.isInGroup()
 end
 
-local function DidRecordRunSucceed(recorded)
-  return recorded ~= false
-end
-
 local RetryTrackedMythicZeroRunCapture
 
 local function ScheduleTrackedMythicZeroRunRetry(ctx, runInfo, retriesRemaining)
@@ -133,7 +127,7 @@ RetryTrackedMythicZeroRunCapture = function(ctx, runInfo, retriesRemaining)
     return false
   end
 
-  local capturedNow = DidRecordRunSucceed(ctx.recordRun(runInfo.mapID, 0, nil, runInfo.rosterSnapshot))
+  local capturedNow = ctx.recordRun(runInfo.mapID, 0, nil, runInfo.rosterSnapshot) ~= false
   if capturedNow then
     ctx.pendingMythicZeroRunCapture = nil
     return true
@@ -242,7 +236,6 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     -- Keep SavedVariables aligned with the hard runtime defaults until the controls return.
     IsiLiveDB.showDpsColumn = true
     IsiLiveDB.markersLeaderOnly = false
-    IsiLiveDB.soundEnabled = false
     if IsiLiveDB.queueDebug == nil then
       IsiLiveDB.queueDebug = false
     end
@@ -275,7 +268,6 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandlePlayerEnteringWorldEvent(_self)
-    ctx.baselineCdTracker(LUST_ZONE_TRANSITION_SUPPRESS_SECONDS)
     ctx.updateCdTracker()
     UpdateTrackedMythicZeroRun(ctx)
     ScheduleBindingStartupRefresh(ctx)
@@ -316,7 +308,6 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandleInstanceContextChangedEvent(_self)
-    ctx.baselineCdTracker(LUST_ZONE_TRANSITION_SUPPRESS_SECONDS)
     ctx.updateCdTracker()
     UpdateTrackedMythicZeroRun(ctx)
     ctx.updateStatusLine()
@@ -379,16 +370,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.updateCdTracker()
   end
 
-  local function HandleUnitAuraEvent(_self, unit, unitAuraUpdateInfo)
+  local function HandleUnitAuraEvent(_self, unit, _unitAuraUpdateInfo)
     if unit ~= "player" then
       return
     end
-    local isFullUpdate = type(unitAuraUpdateInfo) == "table" and unitAuraUpdateInfo.isFullUpdate == true
-    ctx.updateCdTracker(isFullUpdate)
-  end
-
-  local function HandleUnitSpellcastSucceededEvent(_self, _unit, _castGUID, spellID)
-    ctx.notifyCdTrackerSpellCast(spellID)
+    ctx.updateCdTracker()
   end
 
   return {
@@ -410,6 +396,5 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     SPELL_UPDATE_COOLDOWN = HandleSpellUpdateCooldownEvent,
     SPELL_UPDATE_CHARGES = HandleSpellUpdateChargesEvent,
     UNIT_AURA = HandleUnitAuraEvent,
-    UNIT_SPELLCAST_SUCCEEDED = HandleUnitSpellcastSucceededEvent,
   }
 end

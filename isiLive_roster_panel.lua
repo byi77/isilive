@@ -87,6 +87,9 @@ local IsMainHorizontalLayoutMode = RI.IsMainHorizontalLayoutMode
 local GetFrameHeightForLayoutMode = RI.GetFrameHeightForLayoutMode
 local CD_TRACKER_ROW_HEIGHT = RI.CD_TRACKER_ROW_HEIGHT or 20
 local CD_TRACKER_ROW_BOTTOM_OFFSET = RI.CD_TRACKER_ROW_BOTTOM_OFFSET or 20
+local CD_TRACKER_ICON_SIZE = 22
+local CD_TRACKER_TEXT_GAP = 6
+local CD_TRACKER_FONT_SIZE = 14
 local CreateSystemOptionToggles = RI.CreateSystemOptionToggles
 local RefreshSystemOptionToggles = RI.RefreshSystemOptionToggles
 local LayoutSystemOptionToggles = RI.LayoutSystemOptionToggles
@@ -223,13 +226,29 @@ local function BuildKeyAnnouncement(opts)
   return lines
 end
 
+local function ApplyFontStringSize(fontString, size)
+  if fontString == nil then
+    return
+  end
+  if type(fontString.GetFont) ~= "function" or type(fontString.SetFont) ~= "function" then
+    return
+  end
+
+  local fontPath, _, fontFlags = fontString:GetFont()
+  if type(fontPath) ~= "string" or fontPath == "" then
+    return
+  end
+
+  fontString:SetFont(fontPath, size, fontFlags)
+end
+
 local function CreateCdTrackerRow(mainFrame)
   local row = CreateFrame("Frame", nil, mainFrame)
   if type(row.CreateTexture) ~= "function" or type(row.CreateFontString) ~= "function" then
     return nil
   end
   if type(row.SetHeight) == "function" then
-    row:SetHeight(20)
+    row:SetHeight(CD_TRACKER_ROW_HEIGHT)
   end
   if type(row.SetPoint) == "function" then
     row:SetPoint("BOTTOMLEFT", 10, CD_TRACKER_ROW_BOTTOM_OFFSET)
@@ -239,7 +258,7 @@ local function CreateCdTrackerRow(mainFrame)
   -- Both groups centered side by side: [BR_icon][BR_text]  [BL_icon][BL_text]
   row.bresIcon = row:CreateTexture(nil, "OVERLAY")
   if type(row.bresIcon.SetSize) == "function" then
-    row.bresIcon:SetSize(18, 18)
+    row.bresIcon:SetSize(CD_TRACKER_ICON_SIZE, CD_TRACKER_ICON_SIZE)
   end
   if type(row.bresIcon.SetPoint) == "function" then
     row.bresIcon:SetPoint("CENTER", row, "CENTER", -90, 0)
@@ -250,13 +269,14 @@ local function CreateCdTrackerRow(mainFrame)
   row.bresIcon:Hide()
 
   row.bresText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.bresText:SetPoint("LEFT", row.bresIcon, "RIGHT", 5, 0)
+  row.bresText:SetPoint("LEFT", row.bresIcon, "RIGHT", CD_TRACKER_TEXT_GAP, 0)
   row.bresText:SetJustifyH("LEFT")
   row.bresText:SetText("")
+  ApplyFontStringSize(row.bresText, CD_TRACKER_FONT_SIZE)
 
   row.lustIcon = row:CreateTexture(nil, "OVERLAY")
   if type(row.lustIcon.SetSize) == "function" then
-    row.lustIcon:SetSize(18, 18)
+    row.lustIcon:SetSize(CD_TRACKER_ICON_SIZE, CD_TRACKER_ICON_SIZE)
   end
   if type(row.lustIcon.SetPoint) == "function" then
     row.lustIcon:SetPoint("CENTER", row, "CENTER", 20, 0)
@@ -267,9 +287,10 @@ local function CreateCdTrackerRow(mainFrame)
   row.lustIcon:Hide()
 
   row.lustText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.lustText:SetPoint("LEFT", row.lustIcon, "RIGHT", 5, 0)
+  row.lustText:SetPoint("LEFT", row.lustIcon, "RIGHT", CD_TRACKER_TEXT_GAP, 0)
   row.lustText:SetJustifyH("LEFT")
   row.lustText:SetText("")
+  ApplyFontStringSize(row.lustText, CD_TRACKER_FONT_SIZE)
 
   -- Cache spell icons once at creation time to avoid repeated API calls on every refresh.
   local C_Spell_ref = rawget(_G, "C_Spell")

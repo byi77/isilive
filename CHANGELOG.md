@@ -1,12 +1,26 @@
 # Changelog
 
-## 2026-03-24 - Post-0.9.98 Docs Sync
+## 2026-03-24 - Version 0.9.99
+- **Docs / Release Baseline:**
+  - Bumped TOC version to `0.9.99`.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.99`.
+  - `lua tools/validate_usecases.lua` now validates `391` deterministic tests indexed and `395` scenarios across `34` modules.
+- **Maintenance / Test Gate Cleanup:**
+  - Removed dead TeleportUI cosmetic test blocks, deleted empty scenario placeholder modules, and trimmed the scenario manifest to active modules only.
+  - Consolidated slash-command coverage into `isilive_test_scenarios_commands.lua`; the separate extended commands scenario file was removed.
+  - Removed leftover dead roster-panel tooltip/layout test wiring after the cosmetic test cut.
+- **Docs / Behavior Sync:**
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, and `RELEASE.md` to the cleaned validator counts and active scenario manifest.
+  - Clarified that hidden leader promotions still play the transfer sound while suppressing center notice and chat output.
+  - Clarified queue-join docs: there is no separate `Dungeon erkannt` chat line, grouped queue chat is member-only, and hidden `LFG_LIST_*` suppression prevents retroactive queue chat after a missed hidden capture.
+- **Code Cleanup:**
+  - Removed the duplicate `DidRecordRunSucceed` helper from the challenge and non-challenge run-capture paths.
+  - Removed the dead hidden `soundEnabled` setting scaffolding from runtime startup, Blizzard Settings wiring, locale texts, and legacy tests; the unused BL sound file remains in `sounds/` by choice.
 - **Bugfix / Bloodlust Zone-Reload Onset Guard:**
   - `UNIT_AURA` now forwards WoW's `isFullUpdate` flag into `CdTracker`, so zone/reload aura restores hydrate the active lust state without replaying the onset callback.
   - `SuppressOnset` now acts as a short 2-second safety net for early ticker scans before the full aura restore arrives.
 - **Tests / Validation:**
   - Added regression coverage for `UNIT_AURA.isFullUpdate` forwarding, late full-update aura restores after the suppress window, and reload recovery while lust is already active.
-  - `lua tools/validate_usecases.lua` now validates `423` deterministic tests indexed and `428` scenarios across `37` modules.
 
 ## 2026-03-23 - Version 0.9.98
 - **Docs / Release Baseline:**

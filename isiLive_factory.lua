@@ -138,9 +138,6 @@ local function FinalizeFactorySettings(ctx)
           ctx.teleportUIController.UpdateButtons(ctx.ResolveTeleportSpellID())
         end
       end,
-      onSoundToggle = function(_enabled)
-        -- Runtime reads IsiLiveDB.soundEnabled directly; no additional action needed
-      end,
     })
   end
 

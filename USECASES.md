@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.98`
+Version baseline: `0.9.99`
 Last updated: `2026-03-24`
 
 ## Actors
@@ -49,13 +49,14 @@ Goal: detect queue invite/join context and identify the correct dungeon target w
 
 Goal: inform the player and highlight the correct portal cast icon.
 
-1. Trigger: group join is confirmed and target metadata exists.
-2. Processing: addon posts queue/join hint and updates UI state (chat + invite hint, no queue center notice).
+1. Trigger: group join is confirmed, target metadata exists, and player is not the local group leader.
+2. Processing: addon posts one grouped queue/join summary block plus invite hint and updates UI state (chat + invite hint, no queue center notice).
 3. Processing: teleport button matching the resolved target spell is highlighted.
 4. User action: player can click the portal button or move manually to dungeon.
 5. Rule: follow-up negative application status updates must not clear queue target while player is already grouped.
 6. Rule: repeated grouped queue announces are deduplicated by stable queue source IDs (`applicationID`/`searchResultID`/`listingID`) instead of display text.
-7. Success criteria: highlight matches the same resolved dungeon as chat hint and remains stable when group fills to 5 members.
+7. Rule: there is no separate generic `Dungeon erkannt` chat line; persistent target context is carried by `Target Dungeon`.
+8. Success criteria: highlight matches the same resolved dungeon as chat hint/status context and remains stable when group fills to 5 members.
 
 ## UC-03 Enter Exact Target Dungeon
 
@@ -143,7 +144,7 @@ Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without d
 5. Rule: the spellbook shortcut must use spellbook-specific openers and must not route through the talents panel.
 6. Trigger B: player opens `Settings -> AddOns -> isiLive`.
 7. Result B: Blizzard settings expose language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log`.
-8. Rule: settings controls mirror live Blizzard CVars / SavedVariables and apply changes immediately without requiring the main addon window to be visible; changing `Background Opacity` live-updates the main frame, the optional `Esc` tooling and travel strips, and the settings canvas itself. Hidden legacy controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`, `Sound Notifications`) stay out of the settings UI and currently use fixed runtime defaults: `DPS`, `Deaths`, and `Kicks` on, markers visible for all, sound off, fixed name truncation, and legacy 2-column `Travel` layout.
+8. Rule: settings controls mirror live Blizzard CVars / SavedVariables and apply changes immediately without requiring the main addon window to be visible; changing `Background Opacity` live-updates the main frame, the optional `Esc` tooling and travel strips, and the settings canvas itself. Hidden legacy controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`) stay out of the settings UI and currently use fixed runtime defaults: `DPS`, `Deaths`, and `Kicks` on, markers visible for all, fixed name truncation, and legacy 2-column `Travel` layout.
 9. Success criteria: both entry surfaces stay localized, deterministic, and reflect the current config/runtime state.
 
 ## UC-14 Combat Utility Tracker
@@ -163,7 +164,7 @@ Goal: show live BRes and Bloodlust/Heroism/Time Warp timers in the roster panel 
 1. No speculative behavior: unresolved/ambiguous map context must stay unresolved (no name/token fallback guessing).
 2. Combat-protected UI operations must be deferred safely while window dragging stays available, and teleport action buttons must not promote parent frames to protected status.
 3. Leader-only actions must stay disabled for non-leaders.
-4. Hidden mode should halt non-essential processing, suspend queue scanning and permanent polling, keep background roster/addon-message sync active, allow event-driven pre-rendered UI state updates, and only keep required auto-open transitions active.
+4. Hidden mode should halt non-essential processing, suspend queue scanning and permanent polling, keep background roster/addon-message sync active, allow event-driven pre-rendered UI state updates, and only keep required auto-open transitions active; hidden leader promotions still play the transfer sound but suppress center notice/chat output, and hidden `LFG_LIST_*` suppression means missed queue capture is not replayed later as chat on group join.
 5. Blizzard CVar state remains authoritative: `isiLive` only mirrors `advancedCombatLogging` / `damageMeterResetOnNewInstance` in the Blizzard settings canvas and writes them on explicit user clicks; challenge-start Blizzard damage-meter reset still runs when API support exists.
 6. RIO delta display must be deterministic and non-negative (`(+X)` only).
 7. UI visibility toggle (`CTRL+F9`) must stay requestable in combat; if combat lockdown blocks `Show` or `Hide`, the requested state is replayed on `PLAYER_REGEN_ENABLED`. `CHALLENGE_MODE_START` still auto-hides the main window.
@@ -175,7 +176,7 @@ Goal: show live BRes and Bloodlust/Heroism/Time Warp timers in the roster panel 
 13. Manual marking (Tank=Blue, Healer=Green) is available via secure role-icon buttons for all group members without leader restriction in 5-man parties.
 14. Raid-group detection (> 5 members) keeps the addon visible, forces H mode, hides roster rows, prints a localized transition notice once per raid-size transition, and blocks switching back to M/V until party size returns.
 15. The optional `Esc` tooling and travel strips stay localized, close the game menu before opening their targets, and keep `ReloadUI` on a secure macro path (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`; blocked secure refreshes for that button and blocked deferred strip host-frame re-shows replay on `PLAYER_REGEN_ENABLED` instead of running in combat.
-16. Hidden legacy settings controls remain absent from Blizzard Settings and currently use fixed runtime defaults: `DPS`, `Deaths`, and `Kicks` columns on, markers visible for all, sound off, fixed name truncation, and legacy 2-column `Travel` layout.
+16. Hidden legacy settings controls remain absent from Blizzard Settings and currently use fixed runtime defaults: `DPS`, `Deaths`, and `Kicks` columns on, markers visible for all, fixed name truncation, and legacy 2-column `Travel` layout.
 
 Runtime behavior in this document is validated by `tools/validate_usecases.lua`.
 Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules_logic.lua` and also enforced during `tools/validate_usecases.lua`.
@@ -203,6 +204,7 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 | RIO baseline capture and delta preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
 | Last-run DPS/deaths/kicks capture and bounded stats persistence | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
 | Combat utility tracker row | `isiLive_cd_tracker.lua`, `isiLive_factory_controllers.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
+| Leader transfer detection and feedback | `isiLive_leader_watch.lua` |
 | UI actions, role buttons, key sharing button | `isiLive_roster_panel.lua` |
 | Esc tooling/travel strips and Blizzard settings canvas | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_factory.lua`, `isiLive_texts.lua`, `isiLive_ui_common.lua` |
 | Auto-Marker logic (removed/replaced) | `isiLive_group.lua` (cleaned up) |

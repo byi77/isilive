@@ -180,7 +180,6 @@ local LOCALES = {
     SETTINGS_NAME_MAX_CHARS = "Name Length",
     SETTINGS_MARKERS_LEADER_ONLY = "Markers: Leader Only",
     SETTINGS_TELEPORT_COLUMNS = "Teleport Grid Columns",
-    SETTINGS_SOUND_ENABLED = "Sound Notifications",
   },
   deDE = {
     TITLE = "isiLive",
@@ -356,7 +355,6 @@ local LOCALES = {
     SETTINGS_NAME_MAX_CHARS = "Namenslaenge",
     SETTINGS_MARKERS_LEADER_ONLY = "Marker: Nur Gruppenleiter",
     SETTINGS_TELEPORT_COLUMNS = "Teleport-Grid Spalten",
-    SETTINGS_SOUND_ENABLED = "Sound-Benachrichtigungen",
   },
 }
 

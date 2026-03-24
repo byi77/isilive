@@ -42,6 +42,8 @@ local function BuildCommandState(overrides)
     rosterUpdates = 0,
     runtimeLogEnabled = false,
     runtimeLogs = {},
+    tpTestCalls = 0,
+    tpDebugCalls = 0,
     _overrides = overrides or {},
   }
 end
@@ -100,8 +102,12 @@ local function BuildCommandDeps(state, L)
     setLanguage = function(lang)
       state.languageSet = lang
     end,
-    forceTeleportTestTarget = function() end,
-    printTeleportDebug = function() end,
+    forceTeleportTestTarget = function()
+      state.tpTestCalls = state.tpTestCalls + 1
+    end,
+    printTeleportDebug = function()
+      state.tpDebugCalls = state.tpDebugCalls + 1
+    end,
     setQueueDebugEnabled = function() end,
     getQueueDebugEnabled = function()
       return false
@@ -142,6 +148,9 @@ local function BuildCommandExecutor(WithGlobals, LoadAddonModules, overrides)
     end,
     SLASH_ISILIVE1 = nil,
     SlashCmdList = SlashCmdList or {},
+    GetBindingAction = function(_binding, _mode)
+      return nil
+    end,
   }, function()
     local addon = LoadAddonModules({ "isiLive_commands.lua" })
     addon.Commands.RegisterSlashCommands(BuildCommandDeps(state, L))
@@ -150,8 +159,12 @@ local function BuildCommandExecutor(WithGlobals, LoadAddonModules, overrides)
 
   state._execute = function(msg)
     local oldStrtrim = rawget(_G, "strtrim")
+    local oldGetBinding = rawget(_G, "GetBindingAction")
     _G.strtrim = function(s)
       return s:match("^%s*(.-)%s*$")
+    end
+    _G.GetBindingAction = function(_binding, _mode)
+      return nil
     end
     if type(executor) ~= "function" then
       return
@@ -161,6 +174,11 @@ local function BuildCommandExecutor(WithGlobals, LoadAddonModules, overrides)
       _G.strtrim = oldStrtrim
     else
       _G.strtrim = nil
+    end
+    if oldGetBinding then
+      _G.GetBindingAction = oldGetBinding
+    else
+      _G.GetBindingAction = nil
     end
   end
 
@@ -250,6 +268,120 @@ local function RegisterCommandRuntimeLogTests(test, Assert, WithGlobals, LoadAdd
   end)
 end
 
+local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Commands testall blocked when stopped prints error", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state.isStopped = true
+    state._execute("testall")
+    Assert.Equal(state.fullPreviews, 0, "testall must not fire when stopped")
+    Assert.True(#state.prints > 0, "must print error message")
+  end)
+
+  test("Commands testall blocked when paused prints error", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state.isPaused = true
+    state._execute("testall")
+    Assert.Equal(state.fullPreviews, 0, "testall must not fire when paused")
+    Assert.True(#state.prints > 0, "must print error message")
+  end)
+
+  test("Commands testall delegates when running", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("testall")
+    Assert.Equal(state.fullPreviews, 1, "testall must call enterFullDummyPreview")
+  end)
+
+  test("Commands tptest delegates to forceTeleportTestTarget", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("tptest")
+    Assert.Equal(state.tpTestCalls, 1, "tptest must call forceTeleportTestTarget")
+  end)
+
+  test("Commands tpdebug delegates to printTeleportDebug", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("tpdebug")
+    Assert.Equal(state.tpDebugCalls, 1, "tpdebug must call printTeleportDebug")
+  end)
+
+  test("Commands lead shows leader status yes", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules, {
+      isPlayerLeader = function()
+        return true
+      end,
+    })
+    state._execute("lead")
+    Assert.True(state.prints[#state.prints]:find("Lead: Yes") ~= nil, "lead must show Yes when leader")
+  end)
+
+  test("Commands lead shows leader status no", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("lead")
+    Assert.True(state.prints[#state.prints]:find("Lead: No") ~= nil, "lead must show No when not leader")
+  end)
+
+  test("Commands bindcheck prints binding info", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("bindcheck")
+    local foundCtrlF9 = false
+    for _, msg in ipairs(state.prints) do
+      if msg:find("CTRL%-F9") then
+        foundCtrlF9 = true
+      end
+    end
+    Assert.True(foundCtrlF9, "bindcheck must print CTRL-F9 binding info")
+  end)
+
+  test("Commands unknown input prints help", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("xyzgarbage")
+    local foundHeader = false
+    for _, msg in ipairs(state.prints) do
+      if msg:find("Commands:") then
+        foundHeader = true
+      end
+    end
+    Assert.True(foundHeader, "unknown command must print help header")
+  end)
+
+  test("Commands empty input prints help", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("")
+    local foundHeader = false
+    for _, msg in ipairs(state.prints) do
+      if msg:find("Commands:") then
+        foundHeader = true
+      end
+    end
+    Assert.True(foundHeader, "empty command must print help header")
+  end)
+
+  test("Commands pause while stopped prints error", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("stop")
+    local printsBefore = #state.prints
+    state._execute("pause")
+    Assert.True(state.prints[#state.prints]:find("stopped") ~= nil, "pause while stopped must print stopped error")
+    Assert.True(#state.prints > printsBefore, "must print a message")
+  end)
+
+  test("Commands resume while stopped prints error", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("stop")
+    local printsBefore = #state.prints
+    state._execute("resume")
+    Assert.True(state.prints[#state.prints]:find("stopped") ~= nil, "resume while stopped must print stopped error")
+    Assert.True(#state.prints > printsBefore, "must print a message")
+  end)
+
+  test("Commands lang enus and dede aliases work", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("lang enus")
+    Assert.Equal(state.languageSet, "enus", "lang enus must set language")
+    state._execute("lang dede")
+    Assert.Equal(state.languageSet, "dede", "lang dede must set language")
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -257,4 +389,5 @@ return function(test, ctx)
 
   RegisterCommandCoreTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterCommandRuntimeLogTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddonModules)
 end

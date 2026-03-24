@@ -86,7 +86,6 @@ local EVENT_REGISTRY = {
   { "SPELL_UPDATE_COOLDOWN", false, false, false },
   { "SPELL_UPDATE_CHARGES", true, false, false },
   { "UNIT_AURA", true, false, false, "player" },
-  { "UNIT_SPELLCAST_SUCCEEDED", true, false, false, "player" },
   { "READY_CHECK", true, false, false },
   { "READY_CHECK_CONFIRM", true, false, false },
   { "READY_CHECK_FINISHED", true, false, false },

@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.98`
+Version baseline: `0.9.99`
 Last updated: `2026-03-24`
 
 ## Purpose
@@ -42,7 +42,7 @@ WoW Event
 | Running | Full processing active |
 | Paused | Processing blocked except required transitions |
 | Stopped | Addon processing disabled except minimal control paths |
-| Hidden | Window hidden, queue scanning suspended; background addon sync and roster updates continue and may event-drive pre-rendered UI state without polling |
+| Hidden | Window hidden, queue scanning suspended; background addon sync and roster updates continue and may event-drive pre-rendered UI state without polling, but hidden `LFG_LIST_*` gaps do not get replayed later as queue chat |
 | Test/TestAll | Unified full dummy preview mode for UI/testing, including positive RIO delta preview and ghost/leaver row |
 
 ## Deterministic Rule Set
@@ -60,15 +60,16 @@ WoW Event
 11. Completed-run stat capture must tolerate delayed Blizzard damage-meter availability through short deterministic retries for both `M+` and tracked non-challenge party exits (`Normal`/`Heroic`/`Mythic`), feeding the `DPS`/`Deaths`/`Kicks` roster columns.
 12. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
 13. Keep sync handshake resilient: HELLO recipients acknowledge with `ACK`, explicit local refresh force-sends the local `HELLO/KEY/STATS/DPS/LOC` snapshot, and manual `REQSYNC` refresh requests may trigger one hidden `KEY/STATS/DPS/LOC` reply when locally allowed.
-14. In hidden mode, suspend queue scanning and permanent polling; keep background roster/addon-message sync plus required auto-open transitions active, allow event-driven pre-render updates, and permit one forced refresh reply without un-hiding the frame.
+14. In hidden mode, suspend queue scanning and permanent polling; keep background roster/addon-message sync plus required auto-open transitions active, allow event-driven pre-render updates, and permit one forced refresh reply without un-hiding the frame. Fresh grouped joins may still auto-open, but without prior visible queue capture they must not backfill a grouped queue chat summary.
 15. Keep UI action spam guards active for `Refresh` and `Share Keys` (debounce/rate-limit behavior).
 16. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
 17. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures where Blizzard tooltip APIs are still referenced.
 18. Shared `isiLive` tooltip frames own their own text layout and must not route UI hover rendering back through the shared Blizzard `GameTooltip`.
 19. Raid-size groups force the visible roster panel into H mode, hide roster rows, and suppress duplicate raid-transition notifications until the group leaves raid size again.
 20. The optional game-menu tooling strip closes the menu before opening its target panel; `ReloadUI` is owned by a secure macro button (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`, defers blocked secure refreshes to `PLAYER_REGEN_ENABLED`, while the other entries keep direct opener paths for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, and `Guild`. The secondary travel strip stays further left and exposes `Arkantine`, `Hearthstone`, and `Housing`.
-21. Temporarily hidden legacy settings controls stay absent from Blizzard Settings while runtime enforces their fixed defaults (`DPS`, `Deaths`, and `Kicks` on, markers leader-only off, sound off, fixed name truncation, legacy 2-column `Travel` grid) until the controls are re-enabled.
+21. Temporarily hidden legacy settings controls stay absent from Blizzard Settings while runtime enforces their fixed defaults (`DPS`, `Deaths`, and `Kicks` on, markers leader-only off, fixed name truncation, legacy 2-column `Travel` grid) until the controls are re-enabled.
 22. CdTracker lust onset detection must combine player harmful-aura scanning with direct local lust spellcast signals, accept only numeric aura `spellId` values for lookup, ignore protected or otherwise non-numeric values safely, treat `UNIT_AURA(..., { isFullUpdate = true })` restores as non-onset hydration after zone/reload transitions, and use only a short 2-second `PLAYER_ENTERING_WORLD` suppress window as a safety net before the full restore arrives.
+23. Leader promotion/loss detection must compare current local leader state against cached state on both `GROUP_ROSTER_UPDATE` and `PARTY_LEADER_CHANGED`; hidden promotions suppress center notice/chat output but still play the transfer sound.
 
 ## Architecture Contract Set
 
@@ -98,12 +99,12 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 423 deterministic tests indexed and 428 scenarios across 37 modules.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 391 deterministic tests indexed and 395 scenarios across 34 modules.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiLive                                                                          V.0.9.98 [H][V][M][X]|
+| isiLive                                                                          V.0.9.99 [H][V][M][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS Deaths Kicks   M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
@@ -148,16 +149,17 @@ In addition to the main roster frame, `isiLive_ui.lua` can attach optional tooli
 | Controller | Input | Output |
 |---|---|---|
 | RuntimeState | Root orchestration and controller callbacks | Central mutable runtime snapshot (`roster`, queue target, flags, rio baseline, ready-check state, layout/collapse state) |
-| QueueFlow | LFG events and queue snapshots | Joined target metadata |
+| QueueFlow | LFG events and queue snapshots | Pending/joined target metadata, member-only grouped queue chat summary, invite hint, and dedup signature state |
 | Group | Group roster events | Rebuilt roster model, ghost retention/pruning, and lifecycle transitions |
 | Highlight | Active listing and queue target | Active teleport spell and highlight state |
 | KeySync | Sync messages and owned snapshot data | Roster key/stats/dps/location backfill, key ownership, and sync markers |
 | Refresh | User refresh action | Forced local snapshot, groupwide sync request, and inspect refresh pipeline |
 | EventHandlersRuntime | Addon/world/combat/inspect/sync events | Startup, hidden-mode sync, `UNIT_AURA` full-update forwarding for cd tracking, regen recovery for pending visibility/height, inspect dispatch |
-| EventHandlersQueue | LFG queue/listing events | Queue capture, target preservation, joined-key tracking |
+| EventHandlersQueue | LFG queue/listing events | Visible-mode queue capture, target preservation, joined-key tracking |
 | EventHandlersChallenge | Challenge and ready-check events | Run lifecycle, delayed refresh, rio delta enable, ready-check state |
 | Stats | Challenge/non-challenge party run completion signals plus Blizzard damage-meter session | Bounded last-run DPS/Deaths/Kicks snapshots with short delayed-session retry (persistent only for the matching local character, foreign players session-only) |
 | CdTracker | Battle-res charges, numeric-only harmful lust-aura scans, direct lust spellcasts, and `isFullUpdate` aura-restore hydration | Live BRes charges/cooldown and Lust countdown row state with zone-transition-safe onset suppression |
+| LeaderWatch | `GROUP_ROSTER_UPDATE` / `PARTY_LEADER_CHANGED` plus cached leader state | Leader-only button refresh, visible center notice on promotion, and transfer sound feedback even for hidden promotions |
 | RosterPanel | Roster model and localization | Main table rendering, DPS/Deaths/Kicks columns, CD tracker row, and action button callbacks |
 | SettingsPanel | Locale/CVar/SavedVariable getters plus toggle callbacks | Blizzard Settings canvas, language selector, visible display/behavior/debug toggles, UI/background sliders, default-open layout selector, optional roster column-guide toggle, and temporary legacy-setting suppression |
 | TeleportUI | Season teleport entries and state | Insecure-action teleport button states, deterministic season-slot placement, locale-aware `M2` short-code overlays while ready, and cooldown labels that take precedence while on cooldown |

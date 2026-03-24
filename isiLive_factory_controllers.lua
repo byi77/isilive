@@ -797,21 +797,12 @@ local function InitializeFactorySecondaryControllers(ctx)
   if modules.cdTracker and type(modules.cdTracker.CreateController) == "function" then
     ctx.cdTrackerController = modules.cdTracker.CreateController({
       getTime = GetTime,
-      onLustStart = function()
-        local playSoundFile = rawget(_G, "PlaySoundFile")
-        if type(playSoundFile) == "function" then
-          playSoundFile("Interface\\AddOns\\isiLive\\sounds\\BoxingArenaSound.ogg", "Master")
-        end
-      end,
     })
-    ctx.UpdateCdTracker = function(isFullUpdate)
-      ctx.cdTrackerController.Scan(isFullUpdate)
+    ctx.UpdateCdTracker = function()
+      ctx.cdTrackerController.Scan()
       if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
         ctx.rosterPanelController.RefreshCdTracker()
       end
-    end
-    ctx.baselineCdTracker = function(seconds)
-      ctx.cdTrackerController.SuppressOnset(seconds or 2)
     end
     if ctx.rosterPanelController and type(ctx.rosterPanelController.SetCdController) == "function" then
       ctx.rosterPanelController.SetCdController(ctx.cdTrackerController)

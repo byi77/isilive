@@ -1,127 +1,123 @@
 ---@diagnostic disable: undefined-global
-return function(test, ctx)
-  local Assert = ctx.assert
-  local WithGlobals = ctx.with_globals
-  local LoadAddonModules = ctx.load_modules
+local function BuildMockSync()
+  local calls = {}
+  local keyStore = {}
+  local statsStore = {}
+  local dpsStore = {}
+  local locStore = {}
+  local knownUsers = {}
 
-  local function BuildMockSync()
-    local calls = {}
-    local keyStore = {}
-    local statsStore = {}
-    local dpsStore = {}
-    local locStore = {}
-    local knownUsers = {}
+  return {
+    calls = calls,
+    keyStore = keyStore,
+    MarkUser = function(name, realm)
+      table.insert(calls, { fn = "MarkUser", name = name, realm = realm })
+      knownUsers[tostring(name) .. "-" .. tostring(realm)] = true
+    end,
+    IsUnitKnown = function(getUnitNameAndRealm, unit)
+      local name, realm = getUnitNameAndRealm(unit)
+      return knownUsers[tostring(name) .. "-" .. tostring(realm)] == true
+    end,
+    RegisterPrefix = function()
+      table.insert(calls, { fn = "RegisterPrefix" })
+    end,
+    SendHello = function(opts)
+      table.insert(calls, { fn = "SendHello", opts = opts })
+    end,
+    SendKey = function(opts)
+      table.insert(calls, { fn = "SendKey", opts = opts })
+    end,
+    SendStats = function(opts)
+      table.insert(calls, { fn = "SendStats", opts = opts })
+    end,
+    SendDps = function(opts)
+      table.insert(calls, { fn = "SendDps", opts = opts })
+    end,
+    SendLoc = function(opts)
+      table.insert(calls, { fn = "SendLoc", opts = opts })
+    end,
+    SendRefreshRequest = function(opts)
+      table.insert(calls, { fn = "SendRefreshRequest", opts = opts })
+    end,
+    GetPlayerKeyInfo = function(name, realm)
+      return keyStore[tostring(name) .. "-" .. tostring(realm)]
+    end,
+    GetPlayerStatsInfo = function(name, realm)
+      return statsStore[tostring(name) .. "-" .. tostring(realm)]
+    end,
+    GetPlayerDpsInfo = function(name, realm)
+      return dpsStore[tostring(name) .. "-" .. tostring(realm)]
+    end,
+    GetPlayerLocInfo = function(name, realm)
+      return locStore[tostring(name) .. "-" .. tostring(realm)]
+    end,
+    SetPlayerKeyInfo = function(name, realm, mapID, level)
+      keyStore[tostring(name) .. "-" .. tostring(realm)] = { mapID = mapID, level = level }
+    end,
+    SetPlayerStatsInfo = function(name, realm, specID, ilvl, rio)
+      statsStore[tostring(name) .. "-" .. tostring(realm)] = { specID = specID, ilvl = ilvl, rio = rio }
+    end,
+    SetPlayerDpsInfo = function(name, realm, dps)
+      dpsStore[tostring(name) .. "-" .. tostring(realm)] = { dps = dps }
+    end,
+    SetPlayerLocInfo = function(name, realm, mapID)
+      locStore[tostring(name) .. "-" .. tostring(realm)] = { mapID = mapID }
+    end,
+    ClearKnownUsers = function()
+      table.insert(calls, { fn = "ClearKnownUsers" })
+      for k in pairs(knownUsers) do
+        knownUsers[k] = nil
+      end
+      for k in pairs(keyStore) do
+        keyStore[k] = nil
+      end
+      for k in pairs(statsStore) do
+        statsStore[k] = nil
+      end
+      for k in pairs(dpsStore) do
+        dpsStore[k] = nil
+      end
+      for k in pairs(locStore) do
+        locStore[k] = nil
+      end
+    end,
+    GetProtocolVersion = function()
+      return 2
+    end,
+  }
+end
 
-    return {
-      calls = calls,
-      keyStore = keyStore,
-      MarkUser = function(name, realm)
-        table.insert(calls, { fn = "MarkUser", name = name, realm = realm })
-        knownUsers[tostring(name) .. "-" .. tostring(realm)] = true
-      end,
-      IsUnitKnown = function(getUnitNameAndRealm, unit)
-        local name, realm = getUnitNameAndRealm(unit)
-        return knownUsers[tostring(name) .. "-" .. tostring(realm)] == true
-      end,
-      RegisterPrefix = function()
-        table.insert(calls, { fn = "RegisterPrefix" })
-      end,
-      SendHello = function(opts)
-        table.insert(calls, { fn = "SendHello", opts = opts })
-      end,
-      SendKey = function(opts)
-        table.insert(calls, { fn = "SendKey", opts = opts })
-      end,
-      SendStats = function(opts)
-        table.insert(calls, { fn = "SendStats", opts = opts })
-      end,
-      SendDps = function(opts)
-        table.insert(calls, { fn = "SendDps", opts = opts })
-      end,
-      SendLoc = function(opts)
-        table.insert(calls, { fn = "SendLoc", opts = opts })
-      end,
-      SendRefreshRequest = function(opts)
-        table.insert(calls, { fn = "SendRefreshRequest", opts = opts })
-      end,
-      GetPlayerKeyInfo = function(name, realm)
-        return keyStore[tostring(name) .. "-" .. tostring(realm)]
-      end,
-      GetPlayerStatsInfo = function(name, realm)
-        return statsStore[tostring(name) .. "-" .. tostring(realm)]
-      end,
-      GetPlayerDpsInfo = function(name, realm)
-        return dpsStore[tostring(name) .. "-" .. tostring(realm)]
-      end,
-      GetPlayerLocInfo = function(name, realm)
-        return locStore[tostring(name) .. "-" .. tostring(realm)]
-      end,
-      SetPlayerKeyInfo = function(name, realm, mapID, level)
-        keyStore[tostring(name) .. "-" .. tostring(realm)] = { mapID = mapID, level = level }
-      end,
-      SetPlayerStatsInfo = function(name, realm, specID, ilvl, rio)
-        statsStore[tostring(name) .. "-" .. tostring(realm)] = { specID = specID, ilvl = ilvl, rio = rio }
-      end,
-      SetPlayerDpsInfo = function(name, realm, dps)
-        dpsStore[tostring(name) .. "-" .. tostring(realm)] = { dps = dps }
-      end,
-      SetPlayerLocInfo = function(name, realm, mapID)
-        locStore[tostring(name) .. "-" .. tostring(realm)] = { mapID = mapID }
-      end,
-      ClearKnownUsers = function()
-        table.insert(calls, { fn = "ClearKnownUsers" })
-        for k in pairs(knownUsers) do
-          knownUsers[k] = nil
-        end
-        for k in pairs(keyStore) do
-          keyStore[k] = nil
-        end
-        for k in pairs(statsStore) do
-          statsStore[k] = nil
-        end
-        for k in pairs(dpsStore) do
-          dpsStore[k] = nil
-        end
-        for k in pairs(locStore) do
-          locStore[k] = nil
-        end
-      end,
-      GetProtocolVersion = function()
-        return 2
-      end,
-    }
-  end
+local function BuildController(loadAddonModules, sync, overrides)
+  overrides = overrides or {}
+  local addon = loadAddonModules({ "isiLive_keysync.lua" })
+  return addon.KeySync.CreateController({
+    sync = sync,
+    getUnitNameAndRealm = overrides.getUnitNameAndRealm or function(unit)
+      if unit == "player" then
+        return "TestPlayer", "TestRealm"
+      end
+      return nil, nil
+    end,
+    getAddonVersionRaw = overrides.getAddonVersionRaw or function()
+      return "0.9.99"
+    end,
+    getUnitRio = overrides.getUnitRio or function(_unit)
+      return nil
+    end,
+    isFrameVisible = overrides.isFrameVisible or function()
+      return true
+    end,
+    canRespondToRefreshRequest = overrides.canRespondToRefreshRequest or function()
+      return true
+    end,
+    getPlayerLastRunDps = overrides.getPlayerLastRunDps or nil,
+  })
+end
 
-  local function BuildController(sync, overrides)
-    overrides = overrides or {}
-    local addon = LoadAddonModules({ "isiLive_keysync.lua" })
-    return addon.KeySync.CreateController({
-      sync = sync,
-      getUnitNameAndRealm = overrides.getUnitNameAndRealm or function(unit)
-        if unit == "player" then
-          return "TestPlayer", "TestRealm"
-        end
-        return nil, nil
-      end,
-      getAddonVersionRaw = overrides.getAddonVersionRaw or function()
-        return "0.9.98"
-      end,
-      getUnitRio = overrides.getUnitRio or function(_unit)
-        return nil
-      end,
-      isFrameVisible = overrides.isFrameVisible or function()
-        return true
-      end,
-      canRespondToRefreshRequest = overrides.canRespondToRefreshRequest or function()
-        return true
-      end,
-      getPlayerLastRunDps = overrides.getPlayerLastRunDps or nil,
-    })
-  end
-
+local function RegisterKeySyncPresenceTests(test, Assert, LoadAddonModules)
   test("KeySync MarkIsiLiveUser delegates to sync.MarkUser", function()
     local sync = BuildMockSync()
-    local ctrl = BuildController(sync)
+    local ctrl = BuildController(LoadAddonModules, sync)
     ctrl.MarkIsiLiveUser("PlayerA", "RealmA")
     Assert.Equal(#sync.calls, 1, "must call sync exactly once")
     Assert.Equal(sync.calls[1].fn, "MarkUser", "must call MarkUser")
@@ -131,7 +127,7 @@ return function(test, ctx)
 
   test("KeySync UnitHasIsiLive returns true for marked units", function()
     local sync = BuildMockSync()
-    local ctrl = BuildController(sync, {
+    local ctrl = BuildController(LoadAddonModules, sync, {
       getUnitNameAndRealm = function(unit)
         if unit == "player" then
           return "Me", "MyRealm"
@@ -149,7 +145,7 @@ return function(test, ctx)
 
   test("KeySync RegisterIsiLiveSyncPrefix delegates to sync.RegisterPrefix", function()
     local sync = BuildMockSync()
-    local ctrl = BuildController(sync)
+    local ctrl = BuildController(LoadAddonModules, sync)
     ctrl.RegisterIsiLiveSyncPrefix()
     local found = false
     for _, c in ipairs(sync.calls) do
@@ -162,7 +158,7 @@ return function(test, ctx)
 
   test("KeySync ResolveActiveKeyOwnerUnit returns unique key owner", function()
     local sync = BuildMockSync()
-    local ctrl = BuildController(sync)
+    local ctrl = BuildController(LoadAddonModules, sync)
     local roster = {
       player = { name = "Me", realm = "R", keyMapID = 100, keyLevel = 10 },
       party1 = { name = "P1", realm = "R", keyMapID = 200, keyLevel = 12 },
@@ -173,7 +169,7 @@ return function(test, ctx)
 
   test("KeySync ResolveActiveKeyOwnerUnit returns nil for duplicate mapID", function()
     local sync = BuildMockSync()
-    local ctrl = BuildController(sync)
+    local ctrl = BuildController(LoadAddonModules, sync)
     local roster = {
       player = { name = "Me", realm = "R", keyMapID = 200, keyLevel = 10 },
       party1 = { name = "P1", realm = "R", keyMapID = 200, keyLevel = 12 },
@@ -183,7 +179,7 @@ return function(test, ctx)
 
   test("KeySync ResolveActiveKeyOwnerUnit returns nil for unknown mapID", function()
     local sync = BuildMockSync()
-    local ctrl = BuildController(sync)
+    local ctrl = BuildController(LoadAddonModules, sync)
     local roster = {
       player = { name = "Me", realm = "R", keyMapID = 100, keyLevel = 10 },
     }
@@ -192,10 +188,12 @@ return function(test, ctx)
 
   test("KeySync ResolveActiveKeyOwnerUnit returns nil for nil activeJoinedKeyMapID", function()
     local sync = BuildMockSync()
-    local ctrl = BuildController(sync)
+    local ctrl = BuildController(LoadAddonModules, sync)
     Assert.Equal(ctrl.ResolveActiveKeyOwnerUnit({}, nil), nil, "nil mapID must return nil")
   end)
+end
 
+local function RegisterKeySyncOwnedKeyTests(test, Assert, WithGlobals, LoadAddonModules)
   test("KeySync RefreshLocalPlayerKey updates player key from C_MythicPlus", function()
     WithGlobals({
       C_MythicPlus = {
@@ -208,7 +206,7 @@ return function(test, ctx)
       },
     }, function()
       local sync = BuildMockSync()
-      local ctrl = BuildController(sync)
+      local ctrl = BuildController(LoadAddonModules, sync)
       local roster = {
         player = { name = "TestPlayer", realm = "TestRealm", keyMapID = nil, keyLevel = nil },
       }
@@ -231,7 +229,7 @@ return function(test, ctx)
       },
     }, function()
       local sync = BuildMockSync()
-      local ctrl = BuildController(sync)
+      local ctrl = BuildController(LoadAddonModules, sync)
       local roster = {
         player = { name = "TestPlayer", realm = "TestRealm", keyMapID = 250, keyLevel = 14 },
       }
@@ -252,7 +250,7 @@ return function(test, ctx)
       },
     }, function()
       local sync = BuildMockSync()
-      local ctrl = BuildController(sync)
+      local ctrl = BuildController(LoadAddonModules, sync)
       local roster = {
         player = { name = "TestPlayer", realm = "TestRealm", keyMapID = 100, keyLevel = 5, hasIsiLive = true },
         party1 = {
@@ -266,11 +264,9 @@ return function(test, ctx)
         },
       }
       ctrl.ForceRefreshSyncState(roster)
-      -- Player should keep hasIsiLive and get fresh key
       Assert.True(roster.player.hasIsiLive, "player must keep hasIsiLive")
       Assert.Equal(roster.player.keyMapID, 400, "player key must be refreshed")
       Assert.Equal(roster.player.keyLevel, 10, "player level must be refreshed")
-      -- Party member should lose all synced data
       Assert.True(not roster.party1.hasIsiLive, "party member must lose hasIsiLive")
       Assert.Equal(roster.party1.keyMapID, nil, "party member key must be cleared")
       Assert.Equal(roster.party1.syncDps, nil, "party member syncDps must be cleared")
@@ -283,7 +279,7 @@ return function(test, ctx)
       C_MythicPlus = nil,
     }, function()
       local sync = BuildMockSync()
-      local ctrl = BuildController(sync)
+      local ctrl = BuildController(LoadAddonModules, sync)
       local mapID, level = ctrl.GetOwnedKeystoneSnapshot()
       Assert.Equal(mapID, nil, "mapID must be nil without API")
       Assert.Equal(level, nil, "level must be nil without API")
@@ -302,7 +298,7 @@ return function(test, ctx)
       },
     }, function()
       local sync = BuildMockSync()
-      local ctrl = BuildController(sync)
+      local ctrl = BuildController(LoadAddonModules, sync)
       local mapID, level = ctrl.GetOwnedKeystoneSnapshot()
       Assert.Equal(mapID, 375, "must return mapID from API")
       Assert.Equal(level, 15, "must return level from API")
@@ -311,7 +307,7 @@ return function(test, ctx)
 
   test("KeySync SendRefreshRequest delegates to sync", function()
     local sync = BuildMockSync()
-    local ctrl = BuildController(sync)
+    local ctrl = BuildController(LoadAddonModules, sync)
     ctrl.SendRefreshRequest(true)
     local found = false
     for _, c in ipairs(sync.calls) do
@@ -322,7 +318,9 @@ return function(test, ctx)
     end
     Assert.True(found, "must call SendRefreshRequest")
   end)
+end
 
+local function RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, LoadAddonModules)
   test("KeySync ApplyKnownKeyToRosterEntry applies key and stats from sync", function()
     local sync = BuildMockSync()
     WithGlobals({
@@ -333,8 +331,7 @@ return function(test, ctx)
         return nil, nil
       end,
     }, function()
-      local ctrl = BuildController(sync)
-      -- Seed sync data
+      local ctrl = BuildController(LoadAddonModules, sync)
       sync.SetPlayerKeyInfo("PlayerX", "RealmX", 300, 12)
       sync.SetPlayerStatsInfo("PlayerX", "RealmX", 265, 630, 3400)
       sync.SetPlayerDpsInfo("PlayerX", "RealmX", 45000)
@@ -360,7 +357,7 @@ return function(test, ctx)
         return nil, "ShouldNotBeUsed"
       end,
     }, function()
-      local ctrl = BuildController(sync)
+      local ctrl = BuildController(LoadAddonModules, sync)
       sync.SetPlayerStatsInfo("P", "R", 265, 640, 3500)
       local info = { name = "P", realm = "R", spec = "Original", ilvl = 620, rio = 3000, _localSpecFresh = true }
       ctrl.ApplyKnownKeyToRosterEntry(info)
@@ -371,7 +368,17 @@ return function(test, ctx)
 
   test("KeySync ApplyKnownKeyToRosterEntry returns false for nil info", function()
     local sync = BuildMockSync()
-    local ctrl = BuildController(sync)
+    local ctrl = BuildController(LoadAddonModules, sync)
     Assert.Equal(ctrl.ApplyKnownKeyToRosterEntry(nil), false, "nil info must return false")
   end)
+end
+
+return function(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
+
+  RegisterKeySyncPresenceTests(test, Assert, LoadAddonModules)
+  RegisterKeySyncOwnedKeyTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, LoadAddonModules)
 end

@@ -1052,6 +1052,9 @@ function UI.EnsurePanelUI(opts)
           return
         end
         if state.hostFrame and type(state.hostFrame.Hide) == "function" then
+          if InCombatLockdown and InCombatLockdown() then
+            return
+          end
           state.hostFrame:Hide()
         end
       end)
@@ -1219,6 +1222,9 @@ function UI.EnsureSecondPanelUI(opts)
           return
         end
         if state.hostFrame and type(state.hostFrame.Hide) == "function" then
+          if InCombatLockdown and InCombatLockdown() then
+            return
+          end
           state.hostFrame:Hide()
         end
       end)

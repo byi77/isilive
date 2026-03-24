@@ -1,5 +1,3 @@
-local LUST_ZONE_TRANSITION_SUPPRESS_SECONDS = 2
-
 local function RegisterTargetHandlingTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   test("Event handlers keep target when active listing is inferred", function()
     local entryRef = { value = { activityID = 1001 } }
@@ -259,94 +257,21 @@ local function RegisterCombatStartupCVarAndWorldEntryTests(test, Assert, WithGlo
     Assert.Equal(#scheduled, 2, "entering world should only schedule hotkey reapply callbacks")
   end)
 
-  test("Event handlers keep lust suppression long enough for world and zone transitions", function()
-    local baselineSeconds = {}
-    local updateCalls = 0
+  test("Event handlers call updateCdTracker on UNIT_AURA for player", function()
+    local cdTrackerCalls = 0
 
     local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
     local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
-      baselineCdTracker = function(seconds)
-        table.insert(baselineSeconds, seconds)
-      end,
       updateCdTracker = function()
-        updateCalls = updateCalls + 1
+        cdTrackerCalls = cdTrackerCalls + 1
       end,
     })
 
-    controller:Dispatch("PLAYER_ENTERING_WORLD")
-    controller:Dispatch("ZONE_CHANGED")
-    controller:Dispatch("ZONE_CHANGED_INDOORS")
-    controller:Dispatch("ZONE_CHANGED_NEW_AREA")
-    controller:Dispatch("UPDATE_INSTANCE_INFO")
-
-    Assert.Equal(#baselineSeconds, 5, "world and zone transitions must reset lust suppression each time")
-    for _, seconds in ipairs(baselineSeconds) do
-      Assert.Equal(
-        seconds,
-        LUST_ZONE_TRANSITION_SUPPRESS_SECONDS,
-        "lust suppression must stay at the BResLustTracker-style warm-up window"
-      )
-    end
-    Assert.Equal(updateCalls, 5, "each suppression reset must trigger an immediate tracker refresh")
-  end)
-
-  test("Event handlers forward player lust spellcasts into the cd tracker", function()
-    local notifiedSpellIDs = {}
-
-    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
-    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
-      notifyCdTrackerSpellCast = function(spellID)
-        table.insert(notifiedSpellIDs, spellID)
-      end,
-    })
-
-    controller:Dispatch("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-guid", 2825)
-
-    Assert.Equal(#notifiedSpellIDs, 1, "lust spellcasts must be forwarded to the cd tracker once")
-    Assert.Equal(notifiedSpellIDs[1], 2825, "forwarded lust spellcast must preserve the original spell ID")
-  end)
-
-  test("Event handlers forward isFullUpdate=true to cd tracker on zone-change aura restore", function()
-    local cdTrackerCalls = {}
-
-    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
-    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
-      updateCdTracker = function(isFullUpdate)
-        table.insert(cdTrackerCalls, isFullUpdate)
-      end,
-    })
-
-    -- WoW fires UNIT_AURA with isFullUpdate=true after a zone change or UI reload
     controller:Dispatch("UNIT_AURA", "player", { isFullUpdate = true })
-
-    Assert.Equal(#cdTrackerCalls, 1, "UNIT_AURA for player must call updateCdTracker once")
-    Assert.True(
-      cdTrackerCalls[1] == true,
-      "isFullUpdate=true from WoW aura restore must be forwarded as true to the cd tracker"
-    )
-  end)
-
-  test("Event handlers forward isFullUpdate=false to cd tracker on normal aura update", function()
-    local cdTrackerCalls = {}
-
-    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
-    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
-      updateCdTracker = function(isFullUpdate)
-        table.insert(cdTrackerCalls, isFullUpdate)
-      end,
-    })
-
-    -- Normal UNIT_AURA: unitAuraUpdateInfo has no isFullUpdate flag
     controller:Dispatch("UNIT_AURA", "player", {})
-    -- Also test with nil unitAuraUpdateInfo (older WoW API behaviour)
     controller:Dispatch("UNIT_AURA", "player", nil)
 
-    Assert.Equal(#cdTrackerCalls, 2, "both UNIT_AURA variants must call updateCdTracker")
-    Assert.True(
-      cdTrackerCalls[1] == false,
-      "normal UNIT_AURA without isFullUpdate must forward false to the cd tracker"
-    )
-    Assert.True(cdTrackerCalls[2] == false, "UNIT_AURA with nil aura info must forward false to the cd tracker")
+    Assert.Equal(cdTrackerCalls, 3, "all player UNIT_AURA variants must call updateCdTracker")
   end)
 
   test("Event handlers ignore UNIT_AURA events for non-player units", function()
@@ -754,7 +679,6 @@ local function RegisterCombatStartupStateRestoreTests(test, Assert, WithGlobals,
       locale = "enUS",
       showDpsColumn = false,
       markersLeaderOnly = false,
-      soundEnabled = true,
       position = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 },
     }
 
@@ -768,7 +692,6 @@ local function RegisterCombatStartupStateRestoreTests(test, Assert, WithGlobals,
 
     Assert.True(db.showDpsColumn == true, "ADDON_LOADED must force the hidden DPS-column setting on")
     Assert.False(db.markersLeaderOnly == true, "ADDON_LOADED must force the hidden marker setting off")
-    Assert.False(db.soundEnabled == true, "ADDON_LOADED must force the hidden sound setting off")
   end)
 
   test("Event handlers restore runtime log storage and enabled flag on ADDON_LOADED", function()
@@ -883,7 +806,7 @@ local function RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonMo
   RegisterCombatStartupStateRestoreTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
 end
 
-local function RegisterChallengeStartAndDelayTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+local function RegisterChallengeStartAndDelayTests(test, Assert, _WithGlobals, LoadAddonModules, Fixtures)
   test("Event handlers capture RIO baseline snapshot on challenge start", function()
     local captureCalls = 0
 
@@ -915,31 +838,6 @@ local function RegisterChallengeStartAndDelayTests(test, Assert, WithGlobals, Lo
 
     Assert.Equal(hideCalls, 1, "challenge start must call main-frame visibility update exactly once")
     Assert.Equal(lastVisible, false, "challenge start must auto-hide main frame")
-  end)
-
-  test("Event handlers keep hidden sound notifications hard-disabled even when DB enables them", function()
-    local playSoundCalls = 0
-
-    WithGlobals({
-      IsiLiveDB = {
-        soundEnabled = true,
-      },
-      PlaySound = function(_soundID)
-        playSoundCalls = playSoundCalls + 1
-      end,
-      SOUNDKIT = {
-        READY_CHECK = 8960,
-        UI_CHALLENGES_NEW_RECORD = 63127,
-      },
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
-      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {})
-      controller:Dispatch("READY_CHECK")
-      controller:Dispatch("CHALLENGE_MODE_START")
-      controller:Dispatch("CHALLENGE_MODE_COMPLETED")
-    end)
-
-    Assert.Equal(playSoundCalls, 0, "hidden sound setting must keep all event sounds disabled")
   end)
 
   test("Event handlers auto-show main frame on challenge completion while grouped", function()

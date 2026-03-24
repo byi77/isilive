@@ -24,7 +24,6 @@ local SHOW_TELEPORT_COLUMNS_SETTING = false
 -- Temporarily hidden from Settings while live runtime keeps these defaults hard-forced.
 local SHOW_DPS_COLUMN_SETTING = false
 local SHOW_MARKERS_LEADER_ONLY_SETTING = false
-local SHOW_SOUND_ENABLED_SETTING = false
 local DEFAULT_LAYOUT_MODE_EXPANDED = "expanded"
 local DEFAULT_LAYOUT_MODE_COMPACT_VERTICAL = "compact_vertical"
 local DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL = "compact_horizontal"
@@ -392,7 +391,6 @@ local function ResolveSettingsOptions(opts)
     onMarkersLeaderOnlyToggle = opts.onMarkersLeaderOnlyToggle,
     onRosterColumnGuidesToggle = opts.onRosterColumnGuidesToggle,
     onTeleportColumnsChange = opts.onTeleportColumnsChange,
-    onSoundToggle = opts.onSoundToggle,
     onQueueDebugToggle = opts.onQueueDebugToggle,
     onRuntimeLogToggle = opts.onRuntimeLogToggle,
   }
@@ -761,25 +759,6 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
     "SETTINGS_SHOW_TIMEWAYS_NAVIGATOR"
   )
 
-  if SHOW_SOUND_ENABLED_SETTING then
-    controls.sound, yOffset = CreateSettingsCheckbox(
-      canvas,
-      yOffset,
-      labels.SETTINGS_SOUND_ENABLED or "Sound Notifications",
-      function()
-        local db = config.getDB()
-        return db.soundEnabled == true
-      end,
-      function(checked)
-        local db = config.getDB()
-        db.soundEnabled = checked
-        if type(config.onSoundToggle) == "function" then
-          config.onSoundToggle(checked)
-        end
-      end
-    )
-  end
-
   return yOffset
 end
 
@@ -883,10 +862,6 @@ local function RefreshSettingsControls(controls, config)
   if controls.portalNavigator then
     controls.portalNavigator.label:SetText(freshL.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR or "Show Timeways Navigator")
   end
-  if controls.sound then
-    controls.sound.label:SetText(freshL.SETTINGS_SOUND_ENABLED or "Sound Notifications")
-  end
-
   controls.lang.UpdateHighlight()
   controls.combatLog.check:SetChecked(GetCVarEnabled("advancedCombatLogging"))
   controls.dmReset.check:SetChecked(GetCVarEnabled("damageMeterResetOnNewInstance"))
@@ -917,9 +892,6 @@ local function RefreshSettingsControls(controls, config)
   end
   if controls.markers then
     controls.markers.check:SetChecked(db.markersLeaderOnly == true)
-  end
-  if controls.sound then
-    controls.sound.check:SetChecked(db.soundEnabled == true)
   end
 end
 

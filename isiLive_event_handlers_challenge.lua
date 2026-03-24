@@ -49,10 +49,6 @@ local function GetChallengeCompletionInfoSafe()
   return mapID, level, time, onTime
 end
 
-local function DidRecordRunSucceed(recorded)
-  return recorded ~= false
-end
-
 local function ResolveCompletedRunInfo()
   local mapID, level, time, onTime = GetChallengeCompletionInfoSafe()
   if not (mapID and level) then
@@ -121,7 +117,7 @@ TryRecordCompletedRun = function(ctx, runInfo, retriesRemaining)
     return false
   end
 
-  local capturedNow = DidRecordRunSucceed(ctx.recordRun(runInfo.mapID, runInfo.level, runInfo.onTime))
+  local capturedNow = ctx.recordRun(runInfo.mapID, runInfo.level, runInfo.onTime) ~= false
   if capturedNow then
     ctx.lastRecordedRunCaptured = true
     ctx.pendingRecordedRunRetrySignature = nil
