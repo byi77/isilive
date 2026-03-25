@@ -42,8 +42,24 @@ function CdTracker.CreateController(opts)
       bresCharges = nil
       return
     end
-    local ok, charges, maxCharges, _, chargeStart, chargeDuration = pcall(C_Spell_ref.GetSpellCharges, BRES_SPELL_ID)
-    if not ok or not charges then
+    local ok, chargeInfoOrCharges, maxCharges, _, chargeStart, chargeDuration =
+      pcall(C_Spell_ref.GetSpellCharges, BRES_SPELL_ID)
+    if not ok then
+      bresCharges = nil
+      return
+    end
+
+    local charges
+    if type(chargeInfoOrCharges) == "table" then
+      charges = chargeInfoOrCharges.currentCharges
+      maxCharges = chargeInfoOrCharges.maxCharges
+      chargeStart = chargeInfoOrCharges.cooldownStartTime
+      chargeDuration = chargeInfoOrCharges.cooldownDuration
+    else
+      charges = chargeInfoOrCharges
+    end
+
+    if type(charges) ~= "number" or type(maxCharges) ~= "number" then
       bresCharges = nil
       return
     end

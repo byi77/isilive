@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-03-25 - Version 0.9.100 (patch)
+- **Bugfix / BRes Charges API Migration:**
+  - `CdTracker` now unpacks `C_Spell.GetSpellCharges` struct-return (`currentCharges`, `maxCharges`, `cooldownStartTime`, `cooldownDuration`) instead of the removed multi-return signature, fixing the `attempt to compare table with nil` error.
+- **Bugfix / Group Roster Reload Recovery:**
+  - `PLAYER_ENTERING_WORLD` now triggers `handleGroupRosterUpdate()` when the player is already in a group after a UI reload, so the roster panel rebuilds immediately instead of staying blank. Previously the hidden-frame event gate blocked `GROUP_ROSTER_UPDATE` inside party instances, and the `PLAYER_ENTERING_WORLD` handler did not re-scan the group.
+
 ## 2026-03-24 - Version 0.9.99
 - **Docs / Release Baseline:**
   - Bumped TOC version to `0.9.99`.

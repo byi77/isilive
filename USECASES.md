@@ -1,7 +1,7 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.99`
-Last updated: `2026-03-24`
+Version baseline: `0.9.100`
+Last updated: `2026-03-25`
 
 ## Actors
 
@@ -13,7 +13,7 @@ Last updated: `2026-03-24`
 
 1. Addon is loaded and not in `stopped` state.
 2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `midnight_s1` with the live 8-dungeon Midnight Season 1 portal pool).
-3. Relevant UI is visible for queue scanning and rendering; while hidden, addon-message sync and roster updates may still run in the background, UI can be auto-opened by fresh group join, key-end, or real dungeon-entry transition logic, and explicit refresh requests may still trigger one gated hidden sync reply.
+3. Relevant UI is visible for queue scanning and rendering; while hidden, addon-message sync and roster updates may still run in the background, UI can be auto-opened by fresh group join, key-end, real dungeon-entry transition logic, or UI reload while already grouped, and explicit refresh requests may still trigger one gated hidden sync reply.
 4. The optional `Esc` tooling and travel strips are enabled unless the user explicitly disables them in addon settings.
 
 ## Use Case Matrix
@@ -152,7 +152,7 @@ Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without d
 Goal: show live BRes and Bloodlust/Heroism/Time Warp timers in the roster panel without guessing.
 
 1. Trigger: the roster panel is visible and the one-second utility ticker fires, or a manual refresh / local lust spellcast / player `UNIT_AURA` update requests a tracker refresh.
-2. Processing: addon scans `C_Spell.GetSpellCharges` for Battle Resurrection and iterates player `HARMFUL` auras via `C_UnitAuras.GetAuraDataByIndex("player", index, "HARMFUL")` for Bloodlust/Heroism/Time Warp exhaustion variants.
+2. Processing: addon scans `C_Spell.GetSpellCharges` (struct-return: `currentCharges`, `maxCharges`, `cooldownStartTime`, `cooldownDuration`) for Battle Resurrection and iterates player `HARMFUL` auras via `C_UnitAuras.GetAuraDataByIndex("player", index, "HARMFUL")` for Bloodlust/Heroism/Time Warp exhaustion variants.
 3. Rule: only numeric aura `spellId` values may participate in the lust lookup; protected, secret, string, or otherwise non-numeric values must be ignored safely without aborting the full lust scan.
 4. Rule: `UNIT_AURA` updates with `isFullUpdate=true` after zone/world transitions or UI reloads must hydrate the active lust state without firing a new onset callback.
 5. Rule: `PLAYER_ENTERING_WORLD` may keep only a short 2-second suppress window as a safety net until the full aura-restore event arrives.

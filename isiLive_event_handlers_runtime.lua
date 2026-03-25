@@ -280,7 +280,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     local inPartyInstance = ctx.isInPartyInstance() == true
     local wasInPartyInstance = ctx.wasInPartyInstance
     ctx.wasInPartyInstance = inPartyInstance
-    if wasInPartyInstance ~= nil and not wasInPartyInstance and inPartyInstance and not ctx.isInChallengeMode() then
+
+    if wasInPartyInstance == nil and ctx.isInGroup() then
+      -- After a reload, rebuild the roster so the group is shown immediately.
+      ctx.handleGroupRosterUpdate()
+    elseif wasInPartyInstance ~= nil and not wasInPartyInstance and inPartyInstance and not ctx.isInChallengeMode() then
       ctx.setMainFrameVisible(true)
     end
   end
