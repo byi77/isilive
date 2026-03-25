@@ -702,6 +702,7 @@ local function RegisterRosterPanelLeaderInteractionTests(test, Assert, WithGloba
         end,
         updateStatusLine = function() end,
         setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
         buildOrderedRoster = function()
           return {}
         end,
@@ -869,6 +870,7 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
         end,
         updateStatusLine = function() end,
         setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
         buildOrderedRoster = function()
           return { { unit = "party1", info = { name = "Buddy", role = "DAMAGER" } } }
         end,
@@ -969,6 +971,7 @@ local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, Load
         end,
         updateStatusLine = function() end,
         setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
         buildOrderedRoster = function(roster)
           return {
             { unit = "player", info = roster.player },
@@ -1099,6 +1102,7 @@ local function BuildHiddenSettingTestController(addon, createdFontStrings, opts)
     end,
     updateStatusLine = function() end,
     setMainFrameHeightSafe = function() end,
+    setMainFrameWidthSafe = function() end,
     buildOrderedRoster = opts.buildOrderedRoster or function()
       return {}
     end,
@@ -1199,9 +1203,9 @@ local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGl
       local dpsHeader = nil
       local rowDps = nil
       for _, fontString in ipairs(createdFontStrings) do
-        if fontString.pointX == 380 and fontString.pointY == -34 then
+        if fontString.pointX == 390 and fontString.pointY == -34 then
           dpsHeader = fontString
-        elseif fontString.pointX == 380 and fontString.pointY ~= -34 then
+        elseif fontString.pointX == 390 and fontString.pointY ~= -34 then
           rowDps = fontString
         end
       end
@@ -1283,10 +1287,10 @@ local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGl
         spec = 56,
         server = 93,
         name = 215,
-        key = 268,
-        ilvl = 304,
-        rio = 378,
-        dps = 420,
+        key = 278,
+        ilvl = 314,
+        rio = 388,
+        dps = 430,
       }
 
       for guideKey, expectedX in pairs(expectedGuideX) do

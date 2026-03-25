@@ -1519,7 +1519,7 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
             SETTINGS_MINIMAP_BUTTON = "Minimap Button",
             SETTINGS_SYNC_ENABLED = "Addon Sync",
             SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
-            SETTINGS_AUTO_HIDE_SOLO = "Auto Hide Solo",
+            SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
             SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
             SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
             SETTINGS_DEFAULT_OPEN_UI_M = "M",
@@ -1597,7 +1597,7 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
     end)
   end)
 
-  test("Settings panel defaults Auto-Hide when Solo to enabled until the user turns it off", function()
+  test("Settings panel defaults Auto-Close on Key Start / Solo to disabled until the user turns it on", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}
 
@@ -1629,7 +1629,7 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
             SETTINGS_MINIMAP_BUTTON = "Minimap Button",
             SETTINGS_SYNC_ENABLED = "Addon Sync",
             SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
-            SETTINGS_AUTO_HIDE_SOLO = "Auto Hide Solo",
+            SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
             SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
             SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
             SETTINGS_DEFAULT_OPEN_UI_M = "M",
@@ -1650,28 +1650,24 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       })
 
       Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
-      Assert.Nil(db.autoHideSolo, "opening settings should not persist the default auto-hide value")
+      Assert.Nil(db.autoCloseMainFrame, "opening settings should not persist the default auto-close value")
 
-      local autoHideCheck = nil
-      local checkButtonIndex = 0
+      local autoCloseCheck = nil
       for _, frame in ipairs(createdFrames) do
-        if frame._frameType == "CheckButton" then
-          checkButtonIndex = checkButtonIndex + 1
-          if checkButtonIndex == 7 then
-            autoHideCheck = frame
-            break
-          end
+        if frame._settingKey == "SETTINGS_AUTO_CLOSE_MAIN_FRAME" then
+          autoCloseCheck = frame
+          break
         end
       end
 
-      Assert.NotNil(autoHideCheck, "settings panel should create an auto-hide checkbox")
+      Assert.NotNil(autoCloseCheck, "settings panel should create an auto-close checkbox")
       ---@diagnostic disable: need-check-nil, undefined-field
-      Assert.True(autoHideCheck:GetChecked(), "auto-hide should default to enabled when no saved value exists")
+      Assert.False(autoCloseCheck:GetChecked(), "auto-close should default to disabled when no saved value exists")
 
-      db.autoHideSolo = false
+      db.autoCloseMainFrame = true
       panel.Refresh()
 
-      Assert.False(autoHideCheck:GetChecked(), "refresh should honor an explicit false override")
+      Assert.True(autoCloseCheck:GetChecked(), "refresh should honor an explicit true override")
       ---@diagnostic enable: need-check-nil, undefined-field
     end)
   end)
@@ -1711,7 +1707,7 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
             SETTINGS_MINIMAP_BUTTON = "Minimap Button",
             SETTINGS_SYNC_ENABLED = "Addon Sync",
             SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
-            SETTINGS_AUTO_HIDE_SOLO = "Auto Hide Solo",
+            SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
             SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
             SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
             SETTINGS_DEFAULT_OPEN_UI_M = "M",
@@ -1802,7 +1798,7 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
             SETTINGS_MINIMAP_BUTTON = "Minimap Button",
             SETTINGS_SYNC_ENABLED = "Addon Sync",
             SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
-            SETTINGS_AUTO_HIDE_SOLO = "Auto Hide Solo",
+            SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
             SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
             SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
             SETTINGS_DEFAULT_OPEN_UI_M = "M",
@@ -1901,7 +1897,7 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
             SETTINGS_MINIMAP_BUTTON = "Minimap Button",
             SETTINGS_SYNC_ENABLED = "Addon Sync",
             SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
-            SETTINGS_AUTO_HIDE_SOLO = "Auto Hide Solo",
+            SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
             SETTINGS_MARKERS_LEADER_ONLY = "Markers Leader Only",
             SETTINGS_QUEUE_DEBUG = "Queue Debug",
             SETTINGS_RUNTIME_LOG = "Runtime Log",

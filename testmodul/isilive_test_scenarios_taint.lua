@@ -375,6 +375,7 @@ local function BuildRosterPanelController(WithGlobals, LoadAddonModules)
       end,
       updateStatusLine = function() end,
       setMainFrameHeightSafe = function() end,
+      setMainFrameWidthSafe = function() end,
       buildOrderedRoster = function(roster)
         return BuildOrderedRosterFromTable(roster)
       end,

@@ -82,6 +82,10 @@ local function BuildDeps(opts)
     enqueueInspect = opts.enqueueInspect or function(_unit) end,
     sendOwnKeySnapshot = opts.sendOwnKeySnapshot or function(_force) end,
     sendIsiLiveHello = opts.sendIsiLiveHello or function(_force) end,
+    shouldAutoCloseMainFrame = opts.shouldAutoCloseMainFrame or function()
+      return false
+    end,
+    autoCloseMainFrame = opts.autoCloseMainFrame or function() end,
   }
 end
 
@@ -115,9 +119,9 @@ local function HandleNoGroup(deps, wasInGroupBefore)
   deps.updateMPlusTeleportButton()
   deps.updateLeaderButtons()
 
-  -- Auto-hide when solo if enabled
-  if leftGroupNow and type(deps.autoHideSolo) == "function" then
-    deps.autoHideSolo()
+  -- Optional runtime auto-close on solo transition
+  if leftGroupNow and deps.shouldAutoCloseMainFrame() and type(deps.autoCloseMainFrame) == "function" then
+    deps.autoCloseMainFrame()
   end
 end
 

@@ -370,6 +370,9 @@ local function InitializeFactoryFrameBridge(ctx)
   ctx.SetMainFrameHeightSafe = function(height)
     frameBridgeContext.SetMainFrameHeightSafe(height)
   end
+  ctx.SetMainFrameWidthSafe = function(width)
+    frameBridgeContext.SetMainFrameWidthSafe(width)
+  end
   ctx.ToggleMainFrameVisibility = function()
     frameBridgeContext.ToggleMainFrameVisibility()
   end

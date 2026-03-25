@@ -245,6 +245,16 @@ local function ResolveSpecName(specID)
   return specName
 end
 
+local function CanBackfillPendingInspectValue(info, currentValue)
+  if type(info) ~= "table" then
+    return false
+  end
+  if not info._refreshQueued then
+    return true
+  end
+  return currentValue == nil
+end
+
 local function ApplyKnownKeyToRosterEntry(sync, info)
   if type(info) ~= "table" then
     return false
@@ -262,26 +272,36 @@ local function ApplyKnownKeyToRosterEntry(sync, info)
   end
 
   local statsInfo = sync.GetPlayerStatsInfo(info.name, info.realm)
-  if type(statsInfo) == "table" and not info._refreshQueued then
+  if type(statsInfo) == "table" then
     if not info._localSpecFresh and statsInfo.specID then
       local specName = ResolveSpecName(statsInfo.specID)
-      if specName and info.spec ~= specName then
+      if specName and CanBackfillPendingInspectValue(info, info.spec) and info.spec ~= specName then
         info.spec = specName
         changed = true
       end
     end
-    if not info._localIlvlFresh and statsInfo.ilvl and info.ilvl ~= statsInfo.ilvl then
+    if
+      not info._localIlvlFresh
+      and statsInfo.ilvl
+      and CanBackfillPendingInspectValue(info, info.ilvl)
+      and info.ilvl ~= statsInfo.ilvl
+    then
       info.ilvl = statsInfo.ilvl
       changed = true
     end
-    if not info._localRioFresh and statsInfo.rio ~= nil and info.rio ~= statsInfo.rio then
+    if
+      not info._localRioFresh
+      and statsInfo.rio ~= nil
+      and CanBackfillPendingInspectValue(info, info.rio)
+      and info.rio ~= statsInfo.rio
+    then
       info.rio = statsInfo.rio
       changed = true
     end
   end
 
   local dpsInfo = sync.GetPlayerDpsInfo(info.name, info.realm)
-  if type(dpsInfo) == "table" and dpsInfo.dps and not info._refreshQueued then
+  if type(dpsInfo) == "table" and dpsInfo.dps and CanBackfillPendingInspectValue(info, info.syncDps) then
     if not info._localDpsFresh and info.syncDps ~= dpsInfo.dps then
       info.syncDps = dpsInfo.dps
       changed = true

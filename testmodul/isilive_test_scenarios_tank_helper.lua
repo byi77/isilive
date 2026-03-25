@@ -243,6 +243,7 @@ local function RegisterNativeWorldMarkerButtonTests(test, Assert, WithGlobals, L
         end,
         updateStatusLine = function() end,
         setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
         buildOrderedRoster = function()
           return {}
         end,
@@ -369,6 +370,9 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
         updateStatusLine = function() end,
         setMainFrameHeightSafe = function(height)
           mainFrame.height = height
+        end,
+        setMainFrameWidthSafe = function(width)
+          mainFrame.width = width
         end,
         buildOrderedRoster = function()
           return {}
@@ -533,6 +537,9 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
         updateStatusLine = function() end,
         setMainFrameHeightSafe = function(height)
           mainFrame.height = height
+        end,
+        setMainFrameWidthSafe = function(width)
+          mainFrame.width = width
         end,
         buildOrderedRoster = function()
           return {}
@@ -714,6 +721,9 @@ local function RegisterHorizontalModernLayoutTests(test, Assert, WithGlobals, Lo
         updateStatusLine = function() end,
         setMainFrameHeightSafe = function(height)
           mainFrame.height = height
+        end,
+        setMainFrameWidthSafe = function(width)
+          mainFrame.width = width
         end,
         buildOrderedRoster = function()
           return {}

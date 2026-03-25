@@ -12,6 +12,7 @@ local ISILIVE_SYNC_PROTOCOL_VERSION = 2
 local ISILIVE_HELLO_COOLDOWN = 8
 local ISILIVE_KEY_COOLDOWN = 5
 local ISILIVE_STATS_COOLDOWN = 5
+local ISILIVE_TARGET_COOLDOWN = 5
 local ISILIVE_REFRESH_REQUEST_COOLDOWN = 1
 
 -- Architecture note: Module-level singleton state (intentional deviation from CreateController pattern).
@@ -30,17 +31,20 @@ local lastIsiLiveKeyAt = 0
 local lastIsiLiveStatsAt = 0
 local lastIsiLiveDpsAt = 0
 local lastIsiLiveLocAt = 0
+local lastIsiLiveTargetAt = 0
 local lastIsiLiveRefreshRequestAt = 0
 local lastKeyPayloadSent = nil
 local lastStatsPayloadSent = nil
 local lastDpsPayloadSent = nil
 local lastLocPayloadSent = nil
+local lastTargetPayloadSent = nil
 local isiLiveUsersByKey = {}
 local helloInfoByPlayerKey = {}
 local keyInfoByPlayerKey = {}
 local statsInfoByPlayerKey = {}
 local dpsInfoByPlayerKey = {}
 local locInfoByPlayerKey = {}
+local targetInfoByPlayerKey = {}
 
 local function GetSyncTimestamp()
   local getServerTime = rawget(_G, "GetServerTime")
@@ -257,6 +261,47 @@ local function NormalizeLocPayload(mapID, capturedAt, source)
     normalizedSource
 end
 
+local function NormalizeTargetPayload(mapID, level, capturedAt, source)
+  local numericMapID = tonumber(mapID)
+  local numericLevel = tonumber(level)
+  if not numericMapID or numericMapID <= 0 then
+    local normalizedCapturedAt = tonumber(capturedAt)
+    if not normalizedCapturedAt or normalizedCapturedAt <= 0 then
+      normalizedCapturedAt = GetSyncTimestamp() or 0
+    end
+    local normalizedSource = NormalizeSyncSource(source) or "local"
+    return string.format("TARGET:0:0:%d:%s", math.floor(normalizedCapturedAt), normalizedSource),
+      nil,
+      nil,
+      math.floor(normalizedCapturedAt),
+      normalizedSource
+  end
+
+  numericMapID = math.floor(numericMapID)
+  if not numericLevel or numericLevel <= 0 then
+    numericLevel = nil
+  else
+    numericLevel = math.floor(numericLevel)
+  end
+
+  local normalizedCapturedAt = tonumber(capturedAt)
+  if not normalizedCapturedAt or normalizedCapturedAt <= 0 then
+    normalizedCapturedAt = GetSyncTimestamp() or 0
+  end
+  local normalizedSource = NormalizeSyncSource(source) or "local"
+  return string.format(
+    "TARGET:%d:%d:%d:%s",
+    numericMapID,
+    numericLevel or 0,
+    math.floor(normalizedCapturedAt),
+    normalizedSource
+  ),
+    numericMapID,
+    numericLevel,
+    math.floor(normalizedCapturedAt),
+    normalizedSource
+end
+
 function Sync.MarkUser(name, realm)
   local key = Sync.NormalizePlayerKey(name, realm)
   if key and key ~= "" then
@@ -284,16 +329,19 @@ function Sync.ClearKnownUsers()
   statsInfoByPlayerKey = {}
   dpsInfoByPlayerKey = {}
   locInfoByPlayerKey = {}
+  targetInfoByPlayerKey = {}
   lastIsiLiveHelloAt = 0
   lastIsiLiveKeyAt = 0
   lastIsiLiveStatsAt = 0
   lastIsiLiveDpsAt = 0
   lastIsiLiveLocAt = 0
+  lastIsiLiveTargetAt = 0
   lastIsiLiveRefreshRequestAt = 0
   lastKeyPayloadSent = nil
   lastStatsPayloadSent = nil
   lastDpsPayloadSent = nil
   lastLocPayloadSent = nil
+  lastTargetPayloadSent = nil
 end
 
 function Sync.SetPlayerHelloInfo(name, realm, addonVersion, protocolVersion, capturedAt, source)
@@ -502,6 +550,46 @@ function Sync.GetPlayerLocInfo(name, realm)
   return locInfoByPlayerKey[key]
 end
 
+function Sync.SetPlayerTargetInfo(name, realm, mapID, level, capturedAt, source)
+  local key = Sync.NormalizePlayerKey(name, realm)
+  if not key or key == "" then
+    return false
+  end
+
+  local _, numericMapID, numericLevel, normalizedCapturedAt, normalizedSource =
+    NormalizeTargetPayload(mapID, level, capturedAt, source)
+  if not numericMapID then
+    local hadValue = type(targetInfoByPlayerKey[key]) == "table"
+    targetInfoByPlayerKey[key] = nil
+    return hadValue
+  end
+
+  local previous = targetInfoByPlayerKey[key]
+  if previous and previous.mapID == numericMapID and previous.level == numericLevel then
+    previous.capturedAt = normalizedCapturedAt
+    previous.source = normalizedSource
+    previous.receivedAt = GetSyncTimestamp()
+    return false
+  end
+
+  targetInfoByPlayerKey[key] = {
+    mapID = numericMapID,
+    level = numericLevel,
+    capturedAt = normalizedCapturedAt,
+    source = normalizedSource,
+    receivedAt = GetSyncTimestamp(),
+  }
+  return true
+end
+
+function Sync.GetPlayerTargetInfo(name, realm)
+  local key = Sync.NormalizePlayerKey(name, realm)
+  if not key or key == "" then
+    return nil
+  end
+  return targetInfoByPlayerKey[key]
+end
+
 function Sync.GetPlayerSyncSummary(name, realm)
   local key = Sync.NormalizePlayerKey(name, realm)
   if not key or key == "" then
@@ -514,6 +602,7 @@ function Sync.GetPlayerSyncSummary(name, realm)
     { kind = "stats", data = statsInfoByPlayerKey[key] },
     { kind = "dps", data = dpsInfoByPlayerKey[key] },
     { kind = "loc", data = locInfoByPlayerKey[key] },
+    { kind = "target", data = targetInfoByPlayerKey[key] },
   }
 
   local best = nil
@@ -727,6 +816,41 @@ function Sync.SendLoc(opts)
   C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel)
 end
 
+function Sync.SendTarget(opts)
+  if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
+    return
+  end
+  if not IsSyncEnabled() then
+    return
+  end
+  opts = opts or {}
+
+  if opts.isVisible == false and opts.allowHidden ~= true then
+    return
+  end
+
+  local channel = Sync.GetAddonSyncChannel()
+  if not channel then
+    return
+  end
+
+  local payload, numericMapID, numericLevel =
+    NormalizeTargetPayload(opts.mapID, opts.level, opts.capturedAt, opts.source)
+  local dedupePayload = string.format("TARGET:%d:%d", tonumber(numericMapID) or 0, tonumber(numericLevel) or 0)
+  local now = GetTime()
+  if
+    not opts.force
+    and dedupePayload == lastTargetPayloadSent
+    and (now - lastIsiLiveTargetAt) < ISILIVE_TARGET_COOLDOWN
+  then
+    return
+  end
+
+  lastIsiLiveTargetAt = now
+  lastTargetPayloadSent = dedupePayload
+  C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel)
+end
+
 function Sync.SendRefreshRequest(opts)
   if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
     return
@@ -822,6 +946,25 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     end
   end
 
+  local targetUpdated = false
+  if type(message) == "string" and message:find("^TARGET:") then
+    local parts = SplitPayload(message)
+    local mapIDRaw = parts[2]
+    local levelRaw = parts[3]
+    local capturedAtRaw = parts[4]
+    local sourceRaw = parts[5]
+    if mapIDRaw and levelRaw then
+      targetUpdated = Sync.SetPlayerTargetInfo(
+        sender,
+        nil,
+        tonumber(mapIDRaw),
+        tonumber(levelRaw),
+        tonumber(capturedAtRaw),
+        sourceRaw
+      )
+    end
+  end
+
   local peerAddonVersion = nil
   local peerProtocolVersion = nil
   local peerCapturedAt = nil
@@ -847,5 +990,6 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     statsUpdated = statsUpdated and true or false,
     dpsUpdated = dpsUpdated and true or false,
     locUpdated = locUpdated and true or false,
+    targetUpdated = targetUpdated and true or false,
   }
 end

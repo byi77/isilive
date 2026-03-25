@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-03-25 - Version 0.9.101 (patch)
+- **Behavior / Main UI Auto-Close Default:**
+  - The main UI no longer closes automatically by default on `CHALLENGE_MODE_START` or on the transition from group to solo.
+  - Closing stays manual via `X` or `CTRL+F9`.
+  - Blizzard Settings now expose `Auto-Close on Key Start / Solo` so the previous automatic close behavior can be re-enabled explicitly.
+- **Tests / Validation:**
+  - Added Lua regression coverage for the new auto-close option in settings, challenge-start handling, and group-to-solo transition handling.
+  - Updated roster-panel deterministic test fixtures to satisfy the new required `setMainFrameWidthSafe` dependency.
+  - `lua tools/validate_usecases.lua` validates `402` deterministic tests indexed and `406` scenarios across `34` modules.
+- **Docs / Release Baseline:**
+  - Bumped TOC version to `0.9.101`.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.101`.
+
 ## 2026-03-25 - Version 0.9.100 (patch)
 - **Bugfix / BRes Charges API Migration:**
   - `CdTracker` now unpacks `C_Spell.GetSpellCharges` struct-return (`currentCharges`, `maxCharges`, `cooldownStartTime`, `cooldownDuration`) instead of the removed multi-return signature, fixing the `attempt to compare table with nil` error.

@@ -76,7 +76,10 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     enqueueInspect = RequireFunction(deps.enqueueInspect, "enqueueInspect"),
     sendOwnKeySnapshot = RequireFunction(deps.sendOwnKeySnapshot, "sendOwnKeySnapshot"),
     sendIsiLiveHello = RequireFunction(deps.sendIsiLiveHello, "sendIsiLiveHello"),
-    autoHideSolo = deps.autoHideSolo or function() end,
+    shouldAutoCloseMainFrame = deps.shouldAutoCloseMainFrame or function()
+      return false
+    end,
+    autoCloseMainFrame = deps.autoCloseMainFrame or function() end,
   })
 end
 
@@ -126,7 +129,8 @@ local function BuildGroupControllerDepsFromContext(ctx)
     enqueueInspect = ctx.enqueueInspect,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
     sendIsiLiveHello = ctx.sendIsiLiveHello,
-    autoHideSolo = ctx.autoHideSolo,
+    shouldAutoCloseMainFrame = ctx.shouldAutoCloseMainFrame,
+    autoCloseMainFrame = ctx.autoCloseMainFrame,
   }
 end
 
@@ -176,6 +180,10 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
     updateStatusLine = RequireFunction(callbacks.updateStatusLine, "callbacks.updateStatusLine"),
     sendOwnKeySnapshot = RequireFunction(deps.sendOwnKeySnapshot, "sendOwnKeySnapshot"),
+    shouldAutoCloseMainFrame = type(deps.shouldAutoCloseMainFrame) == "function" and deps.shouldAutoCloseMainFrame
+      or function()
+        return false
+      end,
     ensureQueueDebugStorage = RequireFunction(deps.ensureQueueDebugStorage, "ensureQueueDebugStorage"),
     setQueueDebugEnabled = RequireFunction(deps.setQueueDebugEnabled, "setQueueDebugEnabled"),
     ensureRuntimeLogStorage = type(deps.ensureRuntimeLogStorage) == "function" and deps.ensureRuntimeLogStorage
@@ -242,10 +250,14 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   config.getPendingMainFrameHeight = function()
     return refs.mainUI.GetPendingHeight()
   end
+  config.getPendingMainFrameWidth = function()
+    return refs.mainUI.GetPendingWidth()
+  end
   config.getPendingMainFrameVisible = function()
     return refs.mainUI.GetPendingVisible()
   end
   config.setMainFrameHeightSafe = RequireFunction(callbacks.setMainFrameHeightSafe, "callbacks.setMainFrameHeightSafe")
+  config.setMainFrameWidthSafe = RequireFunction(callbacks.setMainFrameWidthSafe, "callbacks.setMainFrameWidthSafe")
   config.tryRestoreCenterNoticeTeleportButton = function()
     local centerNoticeFrame = refs.centerNoticeFrame
     local centerNoticeTeleportButton = refs.centerNoticeTeleportButton
@@ -339,6 +351,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     isNegativeApplicationStatusEvent = ctx.isNegativeApplicationStatusEvent,
     getNormalizedActiveEntryInfo = ctx.getNormalizedActiveEntryInfo,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
+    shouldAutoCloseMainFrame = ctx.shouldAutoCloseMainFrame,
     sendRefreshResponse = ctx.sendRefreshResponse,
     ensureQueueDebugStorage = ctx.ensureQueueDebugStorage,
     setQueueDebugEnabled = ctx.setQueueDebugEnabled,
@@ -408,6 +421,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
       setReadyCheckActive = ctx.setReadyCheckActive,
       enableRioDeltaDisplay = ctx.enableRioDeltaDisplay,
       setMainFrameHeightSafe = ctx.setMainFrameHeightSafe,
+      setMainFrameWidthSafe = ctx.setMainFrameWidthSafe,
       -- Late-bound: ctx.UpdateCdTracker is set after event handlers are wired,
       -- so capture ctx by reference and resolve at call time.
       updateCdTracker = function()

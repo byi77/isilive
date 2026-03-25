@@ -471,6 +471,75 @@ local function RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModul
     end)
   end)
 
+  test("Status target dungeon chat announces grouped key once and resets after target clears", function()
+    local current = {
+      inGroup = false,
+      targetInfo = {
+        name = "Ara-Kara",
+        level = 14,
+      },
+    }
+    local prints = {}
+
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Outside", "none", 0, "Unknown"
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_status.lua" })
+      local controller = addon.Status.CreateController({
+        getL = BuildLocale,
+        isInGroup = function()
+          return current.inGroup
+        end,
+        getTargetDungeonInfo = function()
+          return current.targetInfo
+        end,
+        printFn = function(message)
+          table.insert(prints, tostring(message))
+        end,
+      })
+
+      controller.MaybeAnnounceTargetDungeonChat()
+      Assert.Equal(#prints, 0, "solo target resolution must not write key chat lines")
+
+      current.inGroup = true
+      current.targetInfo = {
+        name = "Ara-Kara",
+      }
+      controller.MaybeAnnounceTargetDungeonChat()
+      Assert.Equal(#prints, 0, "missing key level must stay silent until sync resolves")
+
+      current.targetInfo = {
+        name = "Ara-Kara",
+        level = 14,
+      }
+      controller.MaybeAnnounceTargetDungeonChat()
+      controller.MaybeAnnounceTargetDungeonChat()
+      Assert.Equal(#prints, 1, "identical grouped target must only print once")
+      Assert.Equal(
+        prints[1],
+        "Target Dungeon: Ara-Kara +14",
+        "grouped key chat should use the localized target dungeon text with key level"
+      )
+
+      current.targetInfo = nil
+      controller.MaybeAnnounceTargetDungeonChat()
+
+      current.targetInfo = {
+        name = "Ara-Kara",
+        level = 14,
+      }
+      controller.MaybeAnnounceTargetDungeonChat()
+      Assert.Equal(#prints, 2, "clearing the target must allow a fresh grouped key announce later")
+    end)
+  end)
+
   test("Status line places target dungeon at the end", function()
     WithGlobals({
       GetInstanceInfo = function()
@@ -577,6 +646,148 @@ local function RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModul
   end)
 end
 
+local function BuildFactoryRuntimeHelperContext(initial, LoadAddonModules)
+  local addon = LoadAddonModules({ "isiLive_factory_controllers.lua" }, {
+    _FactoryInternal = {},
+  })
+
+  local state = initial or {}
+  local runtimeState = {
+    GetRoster = function()
+      return state.roster or {}
+    end,
+    GetLatestQueueState = function()
+      return state.latestQueueDungeonName, state.latestQueueActivityID, nil, state.latestQueueMapID
+    end,
+    GetActiveJoinedKeyMapID = function()
+      return state.activeJoinedKeyMapID
+    end,
+  }
+
+  local ctx = {
+    modules = {
+      sync = {
+        NormalizePlayerKey = function(name, realm)
+          return tostring(name or "") .. "-" .. tostring(realm or "")
+        end,
+        GetPlayerTargetInfo = function(name, realm)
+          local targetInfoByPlayer = state.targetInfoByPlayer or {}
+          return targetInfoByPlayer[tostring(name or "") .. "-" .. tostring(realm or "")]
+        end,
+        SendTarget = function(opts)
+          state.sentTargetSnapshots = state.sentTargetSnapshots or {}
+          table.insert(state.sentTargetSnapshots, opts)
+        end,
+      },
+      teleport = {
+        GetTeleportInfoByMapID = function(mapID)
+          local infoByMapID = state.teleportInfoByMapID or {}
+          return infoByMapID[mapID]
+        end,
+      },
+      queue = {
+        GetActivityName = function(activityID)
+          local namesByActivityID = state.activityNamesByActivityID or {}
+          return namesByActivityID[activityID]
+        end,
+      },
+    },
+    runtimeState = runtimeState,
+    addonTable = {},
+    keySyncController = {
+      ResolveActiveKeyOwnerUnit = function(roster, targetMapID)
+        if type(state.resolveActiveKeyOwnerUnit) == "function" then
+          return state.resolveActiveKeyOwnerUnit(roster, targetMapID)
+        end
+        return nil
+      end,
+    },
+    ResolveMapIDByActivityID = function(activityID)
+      local mapIDsByActivityID = state.mapIDsByActivityID or {}
+      return mapIDsByActivityID[activityID]
+    end,
+  }
+
+  addon._FactoryInternal.InitializeFactoryRuntimeHelpers(ctx)
+  return ctx
+end
+
+local function RegisterFactoryTargetContextTests(test, Assert, LoadAddonModules)
+  test("Factory target dungeon stays unresolved without queue or joined-key map context", function()
+    local ctx = BuildFactoryRuntimeHelperContext({
+      roster = {
+        player = { name = "Me", realm = "Realm", keyMapID = 2441, keyLevel = 12 },
+        party1 = { name = "Other", realm = "Realm", keyMapID = 2441, keyLevel = 14 },
+      },
+      teleportInfoByMapID = {
+        [2441] = { mapName = "Ara-Kara" },
+      },
+    }, LoadAddonModules)
+
+    Assert.Nil(ctx.ResolveStatusTargetMapID(), "target map must stay unresolved without queue or joined-key context")
+    Assert.Nil(ctx.GetStatusTargetDungeonInfo(), "target dungeon text must stay unresolved without strict map context")
+  end)
+
+  test("Factory target dungeon omits key level without unique owner resolution", function()
+    local ctx = BuildFactoryRuntimeHelperContext({
+      latestQueueMapID = 2441,
+      latestQueueDungeonName = "Ara-Kara",
+      roster = {
+        player = { name = "Me", realm = "Realm", keyMapID = 2441, keyLevel = 12 },
+      },
+      resolveActiveKeyOwnerUnit = function(_roster, _targetMapID)
+        return nil
+      end,
+    }, LoadAddonModules)
+
+    local info = ctx.GetStatusTargetDungeonInfo()
+    Assert.NotNil(info, "queue-backed target dungeon should still resolve by name")
+    Assert.Equal(info.name, "Ara-Kara", "queue-backed target dungeon should keep the known dungeon name")
+    Assert.Nil(info.level, "target key level must stay unresolved without a uniquely resolved owner")
+  end)
+
+  test("Factory target dungeon resolves from synced exact target context", function()
+    local ctx = BuildFactoryRuntimeHelperContext({
+      roster = {
+        party1 = { name = "Owner", realm = "Realm" },
+      },
+      targetInfoByPlayer = {
+        ["Owner-Realm"] = { mapID = 2441, level = 14 },
+      },
+      teleportInfoByMapID = {
+        [2441] = { mapName = "Ara-Kara" },
+      },
+    }, LoadAddonModules)
+
+    Assert.Equal(
+      ctx.ResolveStatusTargetMapID(),
+      2441,
+      "synced exact target map should resolve without local queue context"
+    )
+
+    local info = ctx.GetStatusTargetDungeonInfo()
+    Assert.NotNil(info, "synced exact target should populate target dungeon info")
+    Assert.Equal(info.name, "Ara-Kara", "synced exact target should resolve the map name")
+    Assert.Equal(info.level, 14, "synced exact target should keep the explicit synced key level")
+  end)
+
+  test("Factory target dungeon stays unresolved on conflicting synced exact targets", function()
+    local ctx = BuildFactoryRuntimeHelperContext({
+      roster = {
+        party1 = { name = "OwnerA", realm = "Realm" },
+        party2 = { name = "OwnerB", realm = "Realm" },
+      },
+      targetInfoByPlayer = {
+        ["OwnerA-Realm"] = { mapID = 2441, level = 14 },
+        ["OwnerB-Realm"] = { mapID = 2662, level = 12 },
+      },
+    }, LoadAddonModules)
+
+    Assert.Nil(ctx.ResolveStatusTargetMapID(), "conflicting synced exact targets must stay unresolved")
+    Assert.Nil(ctx.GetStatusTargetDungeonInfo(), "conflicting synced exact targets must not guess a dungeon name")
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -585,4 +796,5 @@ return function(test, ctx)
   RegisterDungeonDifficultyTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterFactoryTargetContextTests(test, Assert, LoadAddonModules)
 end

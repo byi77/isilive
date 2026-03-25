@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.100`
+Version baseline: `0.9.101`
 Last updated: `2026-03-25`
 
 ## Actors
@@ -143,7 +143,7 @@ Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without d
 4. Combat safety: if combat lockdown blocks secure `ReloadUI` button refreshes (for example click registration or macro attribute updates) or deferred `Esc` side-panel host-frame re-shows, addon defers that update and retries it on `PLAYER_REGEN_ENABLED` instead of touching protected UI immediately.
 5. Rule: the spellbook shortcut must use spellbook-specific openers and must not route through the talents panel.
 6. Trigger B: player opens `Settings -> AddOns -> isiLive`.
-7. Result B: Blizzard settings expose language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Hide when Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log`.
+7. Result B: Blizzard settings expose language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log`.
 8. Rule: settings controls mirror live Blizzard CVars / SavedVariables and apply changes immediately without requiring the main addon window to be visible; changing `Background Opacity` live-updates the main frame, the optional `Esc` tooling and travel strips, and the settings canvas itself. Hidden legacy controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`) stay out of the settings UI and currently use fixed runtime defaults: `DPS`, `Deaths`, and `Kicks` on, markers visible for all, fixed name truncation, and legacy 2-column `Travel` layout.
 9. Success criteria: both entry surfaces stay localized, deterministic, and reflect the current config/runtime state.
 
@@ -167,7 +167,7 @@ Goal: show live BRes and Bloodlust/Heroism/Time Warp timers in the roster panel 
 4. Hidden mode should halt non-essential processing, suspend queue scanning and permanent polling, keep background roster/addon-message sync active, allow event-driven pre-rendered UI state updates, and only keep required auto-open transitions active; hidden leader promotions still play the transfer sound but suppress center notice/chat output, and hidden `LFG_LIST_*` suppression means missed queue capture is not replayed later as chat on group join.
 5. Blizzard CVar state remains authoritative: `isiLive` only mirrors `advancedCombatLogging` / `damageMeterResetOnNewInstance` in the Blizzard settings canvas and writes them on explicit user clicks; challenge-start Blizzard damage-meter reset still runs when API support exists.
 6. RIO delta display must be deterministic and non-negative (`(+X)` only).
-7. UI visibility toggle (`CTRL+F9`) must stay requestable in combat; if combat lockdown blocks `Show` or `Hide`, the requested state is replayed on `PLAYER_REGEN_ENABLED`. `CHALLENGE_MODE_START` still auto-hides the main window.
+7. UI visibility toggle (`CTRL+F9`) must stay requestable in combat; if combat lockdown blocks `Show` or `Hide`, the requested state is replayed on `PLAYER_REGEN_ENABLED`. `CHALLENGE_MODE_START` auto-hides the main window only when the `Auto-Close on Key Start / Solo` option is enabled.
 8. During combat, non-essential event processing is suspended by runtime gate; essential events continue.
 9. Refresh and key-share UI actions must enforce click-spam guards (debounce/rate-limit behavior).
 10. Event-gate dispatch failures must be reported through error callbacks for diagnostics without terminating the gate loop.

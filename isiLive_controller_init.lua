@@ -53,6 +53,7 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     getAddonVersionText = ctx.getAddonVersionText,
     updateStatusLine = ctx.updateStatusLine,
     setMainFrameHeightSafe = ctx.setMainFrameHeightSafe,
+    setMainFrameWidthSafe = ctx.setMainFrameWidthSafe,
     minFrameHeight = ctx.minFrameHeight,
     buildOrderedRoster = ctx.buildOrderedRoster,
     hasFullSync = ctx.hasFullSync,

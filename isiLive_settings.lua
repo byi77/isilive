@@ -384,7 +384,7 @@ local function ResolveSettingsOptions(opts)
     onShowDpsColumnToggle = opts.onShowDpsColumnToggle,
     onMinimapButtonToggle = opts.onMinimapButtonToggle,
     onAutoOpenQueueToggle = opts.onAutoOpenQueueToggle,
-    onAutoHideSoloToggle = opts.onAutoHideSoloToggle,
+    onAutoCloseMainFrameToggle = opts.onAutoCloseMainFrameToggle,
     onPortalNavigatorToggle = opts.onPortalNavigatorToggle,
     onDefaultLayoutModeChange = opts.onDefaultLayoutModeChange,
     onNameMaxCharsChange = opts.onNameMaxCharsChange,
@@ -650,21 +650,22 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
     end
   )
 
-  controls.autoHide, yOffset = CreateSettingsCheckbox(
+  controls.autoCloseMainFrame, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
-    labels.SETTINGS_AUTO_HIDE_SOLO or "Auto-Hide when Solo",
+    labels.SETTINGS_AUTO_CLOSE_MAIN_FRAME or "Auto-Close on Key Start / Solo",
     function()
       local db = config.getDB()
-      return db.autoHideSolo ~= false
+      return db.autoCloseMainFrame == true
     end,
     function(checked)
       local db = config.getDB()
-      db.autoHideSolo = checked
-      if type(config.onAutoHideSoloToggle) == "function" then
-        config.onAutoHideSoloToggle(checked)
+      db.autoCloseMainFrame = checked
+      if type(config.onAutoCloseMainFrameToggle) == "function" then
+        config.onAutoCloseMainFrameToggle(checked)
       end
-    end
+    end,
+    "SETTINGS_AUTO_CLOSE_MAIN_FRAME"
   )
 
   controls.defaultLayout, yOffset = CreateSettingsOptionSelector(
@@ -837,7 +838,7 @@ local function RefreshSettingsControls(controls, config)
   controls.minimapBtn.label:SetText(freshL.SETTINGS_MINIMAP_BUTTON or "Minimap Button")
   controls.sync.label:SetText(freshL.SETTINGS_SYNC_ENABLED or "Addon Sync")
   controls.autoOpen.label:SetText(freshL.SETTINGS_AUTO_OPEN_QUEUE or "Auto-Open on M+ Queue")
-  controls.autoHide.label:SetText(freshL.SETTINGS_AUTO_HIDE_SOLO or "Auto-Hide when Solo")
+  controls.autoCloseMainFrame.label:SetText(freshL.SETTINGS_AUTO_CLOSE_MAIN_FRAME or "Auto-Close on Key Start / Solo")
   if controls.defaultLayout then
     controls.defaultLayout.UpdateHighlight()
   end
@@ -871,7 +872,7 @@ local function RefreshSettingsControls(controls, config)
   controls.minimapBtn.check:SetChecked(db.showMinimapButton == true)
   controls.sync.check:SetChecked(db.syncEnabled ~= false)
   controls.autoOpen.check:SetChecked(db.autoOpenOnQueue ~= false)
-  controls.autoHide.check:SetChecked(db.autoHideSolo ~= false)
+  controls.autoCloseMainFrame.check:SetChecked(db.autoCloseMainFrame == true)
   controls.queueDebug.check:SetChecked(db.queueDebug == true)
   controls.runtimeLog.check:SetChecked(db.runtimeLogEnabled == true)
   if controls.columnGuides then

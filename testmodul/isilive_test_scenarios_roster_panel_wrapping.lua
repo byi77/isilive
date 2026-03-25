@@ -204,6 +204,7 @@ local function RegisterRosterPanelWrappingLayoutTests(test, Assert, WithGlobals,
         end,
         updateStatusLine = function() end,
         setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
         buildOrderedRoster = function()
           return {
             {
@@ -311,6 +312,7 @@ local function RegisterRosterPanelWrappingLayoutTests(test, Assert, WithGlobals,
         end,
         updateStatusLine = function() end,
         setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
         buildOrderedRoster = function()
           return {
             {
@@ -384,7 +386,7 @@ local function RegisterRosterPanelWrappingLayoutTests(test, Assert, WithGlobals,
       Assert.Equal(rowFontStrings[1].width, 52, "spec column should keep compact width budget")
       Assert.Equal(rowFontStrings[2].width, 122, "name column should keep the compact body width budget")
       Assert.Equal(rowFontStrings[3].width, 32, "ilvl column should keep compact width budget without truncation")
-      Assert.Equal(rowFontStrings[4].width, 52, "key column should keep four-letter short-code width budget")
+      Assert.Equal(rowFontStrings[4].width, 62, "key column should fit short-code plus two-digit level (e.g. NPX +10)")
       Assert.Equal(rowFontStrings[5].width, 70, "rio column should fit (+999)9999 without clipping")
       Assert.Equal(rowFontStrings[6].width, 40, "dps column should keep compact width budget")
       Assert.Equal(rowFontStrings[7].width, 30, "deaths column should keep compact width budget")
@@ -433,6 +435,7 @@ local function RegisterRosterPanelWrappingDpsTests(test, Assert, WithGlobals, Lo
         end,
         updateStatusLine = function() end,
         setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
         buildOrderedRoster = function()
           return {
             {

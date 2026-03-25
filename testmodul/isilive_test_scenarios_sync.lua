@@ -243,7 +243,7 @@ local function RegisterStatsSyncTests(test, Assert, WithGlobals, LoadAddonModule
   end)
 end
 
-local function RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonModules)
+local function RegisterSendOwnKeySnapshotTests(test, Assert, WithGlobals, LoadAddonModules)
   test("KeySync SendOwnKeySnapshot publishes key and stats when frame is visible", function()
     local sentMessages = {}
 
@@ -343,7 +343,9 @@ local function RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonMod
       Assert.Equal(info.rio, 3210, "synced rio must backfill roster entry")
     end)
   end)
+end
 
+local function RegisterHiddenRefreshResponseTests(test, Assert, WithGlobals, LoadAddonModules)
   test("KeySync SendRefreshResponse can answer hidden refresh requests outside active M+", function()
     local sentMessages = {}
 
@@ -477,7 +479,9 @@ local function RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonMod
       Assert.Equal(#sentMessages, 0, "blocked refresh responses must not publish sync payloads")
     end)
   end)
+end
 
+local function RegisterInspectFreshnessSyncTests(test, Assert, WithGlobals, LoadAddonModules)
   test("KeySync keeps fresh local inspect stats over synced peer stats", function()
     WithGlobals({
       GetSpecializationInfoByID = function(specID)
@@ -549,6 +553,74 @@ local function RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonMod
       Assert.Equal(pendingInfo.rio, 3300, "pending forced refresh must not be overwritten by sync")
     end)
   end)
+end
+
+local function RegisterPendingFallbackSyncTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("KeySync pending forced refresh backfills missing sync fallback fields while inspect is pending", function()
+    WithGlobals({
+      GetSpecializationInfoByID = function(specID)
+        if specID == 72 then
+          return 72, "Fury"
+        end
+        return nil, nil
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_keysync.lua" })
+      local controller = addon.KeySync.CreateController({
+        sync = addon.Sync,
+        getUnitNameAndRealm = function(_unit)
+          return "Me", "Realm"
+        end,
+        getAddonVersionRaw = function()
+          return "1.0"
+        end,
+        getUnitRio = function(_unit)
+          return nil
+        end,
+        isFrameVisible = function()
+          return true
+        end,
+      })
+
+      addon.Sync.SetPlayerKeyInfo("Peer", "Realm", 2649, 15)
+      addon.Sync.SetPlayerStatsInfo("Peer", "Realm", 72, 615, 3210)
+      addon.Sync.SetPlayerDpsInfo("Peer", "Realm", 250000)
+      addon.Sync.SetPlayerLocInfo("Peer", "Realm", 2649)
+
+      local pendingFallbackInfo = {
+        name = "Peer",
+        realm = "Realm",
+        keyMapID = nil,
+        keyLevel = nil,
+        spec = nil,
+        ilvl = nil,
+        rio = nil,
+        syncDps = nil,
+        syncLocMapID = nil,
+        _refreshQueued = true,
+      }
+
+      local pendingFallbackChanged = controller.ApplyKnownKeyToRosterEntry(pendingFallbackInfo)
+      Assert.True(
+        pendingFallbackChanged,
+        "pending forced refresh should still fill missing sync fallback fields while inspect is pending"
+      )
+      Assert.Equal(pendingFallbackInfo.keyMapID, 2649, "pending sync fallback must still keep key mapID current")
+      Assert.Equal(pendingFallbackInfo.keyLevel, 15, "pending sync fallback must still keep key level current")
+      Assert.Equal(pendingFallbackInfo.spec, "Fury", "pending sync fallback must fill missing spec from sync")
+      Assert.Equal(pendingFallbackInfo.ilvl, 615, "pending sync fallback must fill missing ilvl from sync")
+      Assert.Equal(pendingFallbackInfo.rio, 3210, "pending sync fallback must fill missing rio from sync")
+      Assert.Equal(pendingFallbackInfo.syncDps, 250000, "pending sync fallback must fill missing syncDps")
+      Assert.Equal(pendingFallbackInfo.syncLocMapID, 2649, "pending sync fallback must fill missing syncLocMapID")
+    end)
+  end)
+end
+
+local function RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterSendOwnKeySnapshotTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterHiddenRefreshResponseTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterInspectFreshnessSyncTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterPendingFallbackSyncTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 local function RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonModules)
@@ -673,6 +745,108 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
     end)
   end)
 
+  test("Sync SendTarget respects visibility and deduplicates payloads", function()
+    local sentMessages = {}
+    local now = 100
+
+    WithGlobals({
+      GetTime = function()
+        return now
+      end,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      addon.Sync.SendTarget({
+        isVisible = false,
+        mapID = 2441,
+        level = 14,
+      })
+      Assert.Equal(#sentMessages, 0, "hidden target send must be suppressed")
+
+      addon.Sync.SendTarget({
+        isVisible = true,
+        mapID = 2441,
+        level = 14,
+      })
+      Assert.Equal(#sentMessages, 1, "visible target send must publish one payload")
+      Assert.Equal(sentMessages[1].prefix, "ISILIVE", "target payload must use isiLive prefix")
+      Assert.Equal(
+        sentMessages[1].message,
+        "TARGET:2441:14:100:local",
+        "target payload must encode exact target map, level, and metadata"
+      )
+      Assert.Equal(sentMessages[1].channel, "PARTY", "target payload must use party channel while grouped")
+
+      now = 101
+      addon.Sync.SendTarget({
+        isVisible = true,
+        mapID = 2441,
+        level = 14,
+      })
+      Assert.Equal(#sentMessages, 1, "duplicate target payload within cooldown must be suppressed")
+
+      now = 106
+      addon.Sync.SendTarget({
+        isVisible = true,
+        mapID = 2441,
+        level = nil,
+      })
+      Assert.Equal(#sentMessages, 2, "changed target payload should publish again after cooldown window")
+      Assert.Equal(
+        sentMessages[2].message,
+        "TARGET:2441:0:106:local",
+        "missing level must serialize as exact map without guess"
+      )
+    end)
+  end)
+
+  test("Sync ProcessAddonMessage parses TARGET payload and stores it", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local result = addon.Sync.ProcessAddonMessage("ISILIVE", "TARGET:2441:14", "Peer-Realm", "Me", "Realm")
+      Assert.NotNil(result, "TARGET message must return result")
+      Assert.True(result.targetUpdated, "first TARGET must report update")
+
+      local targetInfo = addon.Sync.GetPlayerTargetInfo("Peer", "Realm")
+      Assert.NotNil(targetInfo, "TARGET info must be stored")
+      Assert.Equal(targetInfo.mapID, 2441, "stored target mapID must match payload")
+      Assert.Equal(targetInfo.level, 14, "stored target level must match payload")
+
+      local dupResult = addon.Sync.ProcessAddonMessage("ISILIVE", "TARGET:2441:14", "Peer-Realm", "Me", "Realm")
+      Assert.False(dupResult.targetUpdated, "duplicate TARGET must not report update")
+    end)
+  end)
+
   test("KeySync ApplyKnownKeyToRosterEntry backfills syncDps and syncLocMapID", function()
     WithGlobals({
       strsplit = function(sep, str, max)
@@ -723,8 +897,8 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
       }
 
       local pendingChanged = controller.ApplyKnownKeyToRosterEntry(pendingInfo)
-      Assert.True(pendingChanged, "pending forced refresh should still backfill LOC data")
-      Assert.Nil(pendingInfo.syncDps, "pending forced refresh must not backfill syncDps")
+      Assert.True(pendingChanged, "pending forced refresh should still backfill missing DPS and LOC fallback data")
+      Assert.Equal(pendingInfo.syncDps, 250000, "pending forced refresh must backfill missing syncDps")
       Assert.Equal(pendingInfo.syncLocMapID, 2649, "pending forced refresh should still backfill syncLocMapID")
 
       local unchanged = controller.ApplyKnownKeyToRosterEntry(info)
@@ -732,7 +906,7 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
     end)
   end)
 
-  test("Sync ClearKnownUsers also clears DPS and LOC caches", function()
+  test("Sync ClearKnownUsers also clears DPS, LOC, and TARGET caches", function()
     WithGlobals({
       strsplit = function(sep, str, max)
         local pos = str:find(sep, 1, true)
@@ -752,12 +926,15 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
 
       addon.Sync.SetPlayerDpsInfo("Peer", "Realm", 100000)
       addon.Sync.SetPlayerLocInfo("Peer", "Realm", 2649)
+      addon.Sync.SetPlayerTargetInfo("Peer", "Realm", 2441, 14)
       Assert.NotNil(addon.Sync.GetPlayerDpsInfo("Peer", "Realm"), "DPS info should exist before clear")
       Assert.NotNil(addon.Sync.GetPlayerLocInfo("Peer", "Realm"), "LOC info should exist before clear")
+      Assert.NotNil(addon.Sync.GetPlayerTargetInfo("Peer", "Realm"), "TARGET info should exist before clear")
 
       addon.Sync.ClearKnownUsers()
       Assert.Nil(addon.Sync.GetPlayerDpsInfo("Peer", "Realm"), "DPS info should be cleared")
       Assert.Nil(addon.Sync.GetPlayerLocInfo("Peer", "Realm"), "LOC info should be cleared")
+      Assert.Nil(addon.Sync.GetPlayerTargetInfo("Peer", "Realm"), "TARGET info should be cleared")
     end)
   end)
 

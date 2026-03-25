@@ -167,7 +167,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     ctx.captureRioBaselineSnapshot()
     ctx.setActiveJoinedKeyMapID(nil)
     ctx.checkIfEnteredTargetDungeon()
-    if not ctx.isRosterCollapsed() then
+    if ctx.shouldAutoCloseMainFrame() and not ctx.isRosterCollapsed() then
       ctx.setMainFrameVisible(false)
     end
     ctx.updateLeaderButtons()

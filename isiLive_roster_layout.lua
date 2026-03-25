@@ -480,7 +480,9 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
     ui.isCollapsed = isCollapsed
   end
 
-  if mainFrame.SetWidth then
+  if type(ui) == "table" and type(ui.setMainFrameWidthSafe) == "function" then
+    ui.setMainFrameWidthSafe(GetFrameWidthForLayoutMode(layoutMode))
+  elseif mainFrame.SetWidth then
     mainFrame:SetWidth(GetFrameWidthForLayoutMode(layoutMode))
   end
   if type(ui) == "table" and type(ui.setMainFrameHeightSafe) == "function" then

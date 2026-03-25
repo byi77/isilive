@@ -1471,6 +1471,22 @@ local function CreateHeightController(frame, isInCombat)
   return SetHeightSafe, GetPendingHeight
 end
 
+local function CreateWidthController(frame, isInCombat)
+  local pendingWidth = nil
+  local function SetWidthSafe(width)
+    if isInCombat() then
+      pendingWidth = width
+      return
+    end
+    pendingWidth = nil
+    frame:SetWidth(width)
+  end
+  local function GetPendingWidth()
+    return pendingWidth
+  end
+  return SetWidthSafe, GetPendingWidth
+end
+
 function UI.CreateMainFrame(opts)
   opts = opts or {}
   local minHeight = tonumber(opts.minHeight) or 236
@@ -1507,6 +1523,7 @@ function UI.CreateMainFrame(opts)
   local SetVisible, ToggleVisibility, GetPendingVisible =
     CreateVisibilityController(frame, onShownInGroup, onShownNoGroup, isInCombat)
   local SetHeightSafe, GetPendingHeight = CreateHeightController(frame, isInCombat)
+  local SetWidthSafe, GetPendingWidth = CreateWidthController(frame, isInCombat)
 
   local function ApplyStoredPosition(pos)
     if not pos then
@@ -1530,5 +1547,7 @@ function UI.CreateMainFrame(opts)
     ApplyStoredPosition = ApplyStoredPosition,
     GetPendingHeight = GetPendingHeight,
     GetPendingVisible = GetPendingVisible,
+    SetWidthSafe = SetWidthSafe,
+    GetPendingWidth = GetPendingWidth,
   }
 end

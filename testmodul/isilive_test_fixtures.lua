@@ -84,6 +84,7 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
     updateLeaderButtons = function() end,
     updateStatusLine = function() end,
     sendOwnKeySnapshot = function(_force) end,
+    sendOwnTargetSnapshot = function(_force, _source, _allowHidden) end,
     ensureQueueDebugStorage = function() end,
     setQueueDebugEnabled = function(_enabled) end,
     ensureRuntimeLogStorage = function() end,
@@ -114,6 +115,10 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
       return nil
     end,
     setMainFrameHeightSafe = function(_height) end,
+    getPendingMainFrameWidth = function()
+      return nil
+    end,
+    setMainFrameWidthSafe = function(_width) end,
     tryRestoreCenterNoticeTeleportButton = function() end,
     handleOwnedKeyRefresh = function() end,
     isMainFrameShown = function()

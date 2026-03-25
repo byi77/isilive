@@ -14,11 +14,11 @@ local InitializeFactoryRefreshAndStatusControllers = FI.InitializeFactoryRefresh
 local InitializeFactorySecondaryControllers = FI.InitializeFactorySecondaryControllers
 local CreateFactoryMinimapButton = FI.CreateFactoryMinimapButton
 
-local function ResolveAutoHideSoloEnabled(dbRef)
-  return dbRef == nil or dbRef.autoHideSolo ~= false
+local function ResolveAutoCloseMainFrameEnabled(dbRef)
+  return type(dbRef) == "table" and dbRef.autoCloseMainFrame == true
 end
 
-FI.ResolveAutoHideSoloEnabled = ResolveAutoHideSoloEnabled
+FI.ResolveAutoCloseMainFrameEnabled = ResolveAutoCloseMainFrameEnabled
 
 local function FinalizeFactorySettings(ctx)
   local modules = ctx.modules
@@ -115,10 +115,8 @@ local function FinalizeFactorySettings(ctx)
       onAutoOpenQueueToggle = function(_enabled)
         -- Runtime reads IsiLiveDB.autoOpenOnQueue directly; no additional action needed
       end,
-      onAutoHideSoloToggle = function(enabled)
-        if enabled and not IsInGroup() and ctx.mainFrame and ctx.mainFrame:IsShown() then
-          ctx.mainFrame:Hide()
-        end
+      onAutoCloseMainFrameToggle = function(_enabled)
+        -- Runtime reads IsiLiveDB.autoCloseMainFrame directly; no additional action needed.
       end,
       onDefaultLayoutModeChange = function(_layoutMode)
         ctx.RestoreLayoutState()
@@ -228,6 +226,7 @@ local function FinalizeFactoryRuntime(ctx)
     announceQueuedGroupJoin = ctx.AnnounceQueuedGroupJoin,
     setMainFrameVisible = ctx.SetMainFrameVisible,
     setMainFrameHeightSafe = ctx.SetMainFrameHeightSafe,
+    setMainFrameWidthSafe = ctx.SetMainFrameWidthSafe,
     updateLeaderButtons = ctx.UpdateLeaderButtons,
     clearLatestQueueTarget = ctx.ClearLatestQueueTarget,
     clearRioBaselineSnapshot = ctx.ClearRioBaselineSnapshot,
@@ -248,12 +247,16 @@ local function FinalizeFactoryRuntime(ctx)
     applyKnownKeyToRosterEntry = ctx.ApplyKnownKeyToRosterEntry,
     enqueueInspect = ctx.EnqueueInspect,
     sendOwnKeySnapshot = ctx.SendOwnKeySnapshot,
+    sendOwnTargetSnapshot = ctx.SendOwnTargetSnapshot,
     sendRefreshResponse = ctx.SendRefreshResponse,
     sendIsiLiveHello = ctx.SendIsiLiveHello,
-    autoHideSolo = function()
+    shouldAutoCloseMainFrame = function()
       local dbRef = rawget(_G, "IsiLiveDB")
-      if ResolveAutoHideSoloEnabled(dbRef) and ctx.mainFrame:IsShown() then
-        ctx.mainFrame:Hide()
+      return ResolveAutoCloseMainFrameEnabled(dbRef)
+    end,
+    autoCloseMainFrame = function()
+      if ctx.mainFrame:IsShown() then
+        ctx.SetMainFrameVisible(false)
       end
     end,
     unitIsGroupLeader = function(unit)

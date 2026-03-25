@@ -98,6 +98,10 @@ function FrameBridge.CreateContext(opts)
     mainUI.SetHeightSafe(height)
   end
 
+  function context.SetMainFrameWidthSafe(width)
+    mainUI.SetWidthSafe(width)
+  end
+
   function context.ToggleMainFrameVisibility()
     mainUI.ToggleVisibility(isInGroup())
   end

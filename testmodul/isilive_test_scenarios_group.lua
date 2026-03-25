@@ -15,6 +15,7 @@ local function BuildGroupState(overrides)
     inspectResets = 0,
     uiUpdates = 0,
     teleportUpdates = overrides.teleportUpdates or 0,
+    autoCloseCalls = 0,
   }
 end
 
@@ -123,6 +124,13 @@ local function BuildGroupControllerOptions(state, overrides)
     end,
     sendOwnKeySnapshot = function(_force) end,
     sendIsiLiveHello = function(_force) end,
+    shouldAutoCloseMainFrame = overrides.shouldAutoCloseMainFrame or function()
+      return false
+    end,
+    autoCloseMainFrame = overrides.autoCloseMainFrame or function()
+      state.autoCloseCalls = state.autoCloseCalls + 1
+      state.mainFrameVisible = false
+    end,
   }
 end
 
@@ -513,19 +521,26 @@ local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithG
 end
 
 local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModules)
-  test("Factory auto-hide when solo defaults to enabled unless explicitly disabled", function()
+  test("Factory auto-close main frame defaults to disabled unless explicitly enabled", function()
     local addon = LoadAddonModules({ "isiLive_factory.lua" }, {
       _FactoryInternal = {},
     })
 
-    local resolveAutoHideSoloEnabled = addon._FactoryInternal and addon._FactoryInternal.ResolveAutoHideSoloEnabled
+    local resolveAutoCloseMainFrameEnabled = addon._FactoryInternal
+        and addon._FactoryInternal.ResolveAutoCloseMainFrameEnabled
       or nil
 
-    Assert.NotNil(resolveAutoHideSoloEnabled, "factory should export the auto-hide default resolver")
-    Assert.True(resolveAutoHideSoloEnabled(nil), "missing saved data should default auto-hide to enabled")
-    Assert.True(resolveAutoHideSoloEnabled({}), "missing saved value should default auto-hide to enabled")
-    Assert.True(resolveAutoHideSoloEnabled({ autoHideSolo = true }), "explicit true should keep auto-hide enabled")
-    Assert.False(resolveAutoHideSoloEnabled({ autoHideSolo = false }), "explicit false should disable auto-hide")
+    Assert.NotNil(resolveAutoCloseMainFrameEnabled, "factory should export the auto-close resolver")
+    Assert.False(resolveAutoCloseMainFrameEnabled(nil), "missing saved data should default auto-close to disabled")
+    Assert.False(resolveAutoCloseMainFrameEnabled({}), "missing saved value should default auto-close to disabled")
+    Assert.True(
+      resolveAutoCloseMainFrameEnabled({ autoCloseMainFrame = true }),
+      "explicit true should enable runtime auto-close"
+    )
+    Assert.False(
+      resolveAutoCloseMainFrameEnabled({ autoCloseMainFrame = false }),
+      "explicit false should keep runtime auto-close disabled"
+    )
   end)
 
   test("Group leave keeps frame state and ghosts former party members", function()
@@ -590,6 +605,33 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
     Assert.True(state.mainFrameVisible, "main frame must stay open after leave when it was visible")
     Assert.Equal(state.inspectResets, 1, "inspect queues must be reset on leave")
     Assert.Equal(state.knownUsersCleared, 1, "known users must be cleared on leave")
+  end)
+
+  test("Group leave auto-close hides frame when option is enabled", function()
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      isInGroup = function()
+        return false
+      end,
+      wasInGroup = true,
+      mainFrameVisible = true,
+      shouldAutoCloseMainFrame = function()
+        return true
+      end,
+    })
+
+    state.roster.player = {
+      name = "Hero",
+      realm = "Realm",
+      hasIsiLive = true,
+      isGhost = false,
+    }
+    state.roster.party1 = { name = "Buddy", realm = "Realm" }
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.False(state.mainFrameVisible, "enabled auto-close must hide the frame on solo transition")
+    Assert.Equal(state.autoCloseCalls, 1, "solo transition must trigger exactly one auto-close callback")
+    Assert.NotNil(state.roster["ghost:Buddy-Realm"], "auto-close must not skip ghost preservation")
   end)
 
   test("Old ghosts are cleared when joining a new group", function()

@@ -231,6 +231,82 @@ local function BuildTargetDungeonText(deps)
   return string.format(template, targetText)
 end
 
+local function ResolveConcreteTargetDungeonInfo(deps)
+  local info = deps.getTargetDungeonInfo and deps.getTargetDungeonInfo() or nil
+  if type(info) ~= "table" then
+    return nil
+  end
+
+  local name = tostring(info.name or "")
+  name = StringUtils.Trim(name)
+  if name == "" then
+    return nil
+  end
+
+  local level = tonumber(info.level)
+  if not level or level <= 0 then
+    level = nil
+  else
+    level = math.floor(level)
+  end
+
+  return {
+    name = name,
+    level = level,
+  }
+end
+
+local function BuildTargetDungeonAnnouncementText(deps, info)
+  if type(info) ~= "table" or type(info.name) ~= "string" then
+    return nil
+  end
+
+  local level = tonumber(info.level)
+  if not level or level <= 0 then
+    return nil
+  end
+
+  local L = deps.getL()
+  local template = L.STATUS_TARGET_DUNGEON_TEXT or "Target Dungeon: %s"
+  return string.format(template, string.format("%s +%d", info.name, math.floor(level)))
+end
+
+local function ResetTargetDungeonChatState(state)
+  state.lastObservedTargetDungeonName = nil
+  state.lastTargetDungeonChatSignature = nil
+end
+
+local function MaybeAnnounceTargetDungeonChat(state, deps)
+  if type(deps.isInGroup) == "function" and deps.isInGroup() ~= true then
+    ResetTargetDungeonChatState(state)
+    return
+  end
+
+  local info = ResolveConcreteTargetDungeonInfo(deps)
+  if type(info) ~= "table" then
+    ResetTargetDungeonChatState(state)
+    return
+  end
+
+  if state.lastObservedTargetDungeonName ~= info.name then
+    state.lastObservedTargetDungeonName = info.name
+    state.lastTargetDungeonChatSignature = nil
+  end
+
+  local announcementText = BuildTargetDungeonAnnouncementText(deps, info)
+  if type(announcementText) ~= "string" or announcementText == "" then
+    return
+  end
+
+  local signature = table.concat({ info.name, tostring(info.level) }, "|")
+  if state.lastTargetDungeonChatSignature == signature then
+    return
+  end
+
+  state.lastTargetDungeonChatSignature = signature
+  deps.printFn(announcementText)
+end
+
 local function GetDungeonDifficultyLabel(getL)
   local L = getL()
   local instanceName, instanceType, difficultyID = GetInstanceInfo()
@@ -485,6 +561,9 @@ function Status.CreateController(opts)
     isPlayerLeader = opts.isPlayerLeader or function()
       return false
     end,
+    isInGroup = opts.isInGroup or function()
+      return false
+    end,
     getTargetDungeonInfo = opts.getTargetDungeonInfo or function()
       return nil
     end,
@@ -494,6 +573,7 @@ function Status.CreateController(opts)
     getActiveSeasonLabel = opts.getActiveSeasonLabel or function()
       return nil
     end,
+    printFn = opts.printFn or print,
   }
 
   local state = {
@@ -505,6 +585,8 @@ function Status.CreateController(opts)
     lastPortalNavigatorSignature = nil,
     portalNavigatorRetryToken = 0,
     portalNavigatorRetryScheduledToken = nil,
+    lastObservedTargetDungeonName = nil,
+    lastTargetDungeonChatSignature = nil,
   }
 
   local controller = {}
@@ -527,6 +609,10 @@ function Status.CreateController(opts)
 
   function controller.BuildStatusLineText(flags)
     return BuildStatusLineText(deps, flags)
+  end
+
+  function controller.MaybeAnnounceTargetDungeonChat()
+    return MaybeAnnounceTargetDungeonChat(state, deps)
   end
 
   return controller

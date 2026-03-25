@@ -152,6 +152,7 @@ local function BuildTooltipController(addon, options)
     end,
     updateStatusLine = function() end,
     setMainFrameHeightSafe = function() end,
+    setMainFrameWidthSafe = function() end,
     buildOrderedRoster = options.buildOrderedRoster or function()
       return { { unit = "party1", info = { name = "Buddy", realm = "Realm", class = "WARRIOR" } } }
     end,

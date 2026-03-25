@@ -105,12 +105,12 @@ local SPEC_COL_X = 4
 local NAME_COL_X = 93
 local SERVER_COL_X = 75
 local KEY_COL_X = 216
-local ILVL_COL_X = 272
-local RIO_COL_X = 308
+local ILVL_COL_X = 282
+local RIO_COL_X = 318
 local SPEC_COL_WIDTH = 52
 local NAME_COL_WIDTH = 122
 local SERVER_COL_WIDTH = 18
-local KEY_COL_WIDTH = 52
+local KEY_COL_WIDTH = 62
 local ILVL_COL_WIDTH = 32
 -- Leave enough room for long positive RIO deltas like (+999)9999 without clipping.
 local RIO_COL_WIDTH = 70
@@ -1103,6 +1103,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     tankButtons = tankButtons,
     tankHeader = tankHeader,
     setMainFrameHeightSafe = uiDeps.setMainFrameHeightSafe,
+    setMainFrameWidthSafe = uiDeps.setMainFrameWidthSafe,
     minFrameHeight = uiDeps.minFrameHeight,
     isPlayerLeader = uiDeps.isPlayerLeader,
     forceMarkersLeaderOnly = FORCE_MARKERS_LEADER_ONLY,
@@ -1500,6 +1501,7 @@ function RosterPanel.CreateController(opts)
   local getAddonVersionText = RequireFunction(opts.getAddonVersionText, "getAddonVersionText")
   local updateStatusLine = RequireFunction(opts.updateStatusLine, "updateStatusLine")
   local setMainFrameHeightSafe = RequireFunction(opts.setMainFrameHeightSafe, "setMainFrameHeightSafe")
+  local setMainFrameWidthSafe = RequireFunction(opts.setMainFrameWidthSafe, "setMainFrameWidthSafe")
   local minFrameHeight = tonumber(opts.minFrameHeight) or DEFAULT_MIN_FRAME_HEIGHT
 
   local buildOrderedRoster = RequireFunction(opts.buildOrderedRoster, "buildOrderedRoster")
@@ -1574,6 +1576,7 @@ function RosterPanel.CreateController(opts)
     getAddonVersionText = getAddonVersionText,
     updateStatusLine = updateStatusLine,
     setMainFrameHeightSafe = setMainFrameHeightSafe,
+    setMainFrameWidthSafe = setMainFrameWidthSafe,
     minFrameHeight = minFrameHeight,
     getRoster = getRoster,
     buildOrderedRoster = buildOrderedRoster,

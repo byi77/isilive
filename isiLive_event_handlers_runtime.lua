@@ -305,6 +305,10 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if pendingMainFrameHeight then
       ctx.setMainFrameHeightSafe(pendingMainFrameHeight)
     end
+    local pendingMainFrameWidth = ctx.getPendingMainFrameWidth()
+    if pendingMainFrameWidth then
+      ctx.setMainFrameWidthSafe(pendingMainFrameWidth)
+    end
     if ctx.isMainFrameShown() then
       ctx.updateMPlusTeleportButton()
       ctx.tryRestoreCenterNoticeTeleportButton()
@@ -349,9 +353,10 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end
     if syncResult.shouldRequestRefresh then
       ctx.sendRefreshResponse()
+      ctx.sendOwnTargetSnapshot(true, "reqsync", true)
     end
 
-    local changed = false
+    local changed = syncResult.targetUpdated == true
     ctx.forEachRosterInfo(function(info)
       if not info.hasIsiLive and ctx.isSyncUserKnown(info.name, info.realm) then
         info.hasIsiLive = true
@@ -362,6 +367,8 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       end
     end)
     if changed then
+      ctx.updateStatusLine()
+      ctx.updateMPlusTeleportButton()
       ctx.updateUI()
     end
   end

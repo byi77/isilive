@@ -154,7 +154,8 @@ local function RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixture
   end)
 
   test("Event handlers process addon sync messages and refresh changed roster", function()
-    local counters = { acks = 0, uiUpdates = 0 }
+    local counters = { acks = 0, uiUpdates = 0, updates = 0 }
+    local statusUpdates = 0
     local roster = {
       { name = "Alpha", realm = "RealmA", hasIsiLive = false },
       { name = "Beta", realm = "RealmB", hasIsiLive = true },
@@ -176,13 +177,44 @@ local function RegisterGroupAndSyncTests(test, Assert, LoadAddonModules, Fixture
       applyKnownKeyToRosterEntry = function(info)
         return info.name == "Beta"
       end,
+      updateStatusLine = function()
+        statusUpdates = statusUpdates + 1
+      end,
     })
 
     controller:Dispatch("CHAT_MSG_ADDON", "ISI_SYNC", "hello", "PARTY", "Alpha-RealmA")
 
     Assert.Equal(counters.acks, 1, "sync payload requiring ack must send ack once")
     Assert.Equal(counters.uiUpdates, 1, "roster changes from sync must refresh UI")
+    Assert.Equal(counters.updates, 1, "sync-driven target changes must refresh teleport highlight state")
+    Assert.Equal(statusUpdates, 1, "sync-driven target changes must refresh statusline state")
     Assert.True(roster[1].hasIsiLive, "known sync user should be marked as isiLive-enabled")
+  end)
+
+  test("Event handlers refresh target-dependent UI when addon sync updates exact target only", function()
+    local counters = { uiUpdates = 0, updates = 0 }
+    local statusUpdates = 0
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+      processAddonMessage = function(_prefix, _message, _sender)
+        return { targetUpdated = true }
+      end,
+      forEachRosterInfo = function(_visitor) end,
+      updateStatusLine = function()
+        statusUpdates = statusUpdates + 1
+      end,
+    })
+
+    controller:Dispatch("CHAT_MSG_ADDON", "ISI_SYNC", "TARGET:2441:14", "PARTY", "Alpha-RealmA")
+
+    Assert.Equal(
+      counters.uiUpdates,
+      1,
+      "exact target sync must trigger one UI refresh even without roster field changes"
+    )
+    Assert.Equal(counters.updates, 1, "exact target sync must refresh teleport highlight state")
+    Assert.Equal(statusUpdates, 1, "exact target sync must refresh statusline state")
   end)
 end
 
@@ -822,12 +854,30 @@ local function RegisterChallengeStartAndDelayTests(test, Assert, _WithGlobals, L
     Assert.Equal(captureCalls, 1, "challenge start must capture one RIO baseline snapshot")
   end)
 
-  test("Event handlers auto-hide main frame on challenge start", function()
+  test("Event handlers do not auto-hide main frame on challenge start by default", function()
+    local hideCalls = 0
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      setMainFrameVisible = function(_visible)
+        hideCalls = hideCalls + 1
+      end,
+    })
+
+    controller:Dispatch("CHALLENGE_MODE_START")
+
+    Assert.Equal(hideCalls, 0, "challenge start must keep the main frame state unchanged by default")
+  end)
+
+  test("Event handlers auto-hide main frame on challenge start when auto-close is enabled", function()
     local hideCalls = 0
     local lastVisible = nil
 
     local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
     local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      shouldAutoCloseMainFrame = function()
+        return true
+      end,
       setMainFrameVisible = function(visible)
         hideCalls = hideCalls + 1
         lastVisible = visible
@@ -836,8 +886,8 @@ local function RegisterChallengeStartAndDelayTests(test, Assert, _WithGlobals, L
 
     controller:Dispatch("CHALLENGE_MODE_START")
 
-    Assert.Equal(hideCalls, 1, "challenge start must call main-frame visibility update exactly once")
-    Assert.Equal(lastVisible, false, "challenge start must auto-hide main frame")
+    Assert.Equal(hideCalls, 1, "enabled auto-close must hide the main frame on challenge start exactly once")
+    Assert.Equal(lastVisible, false, "enabled auto-close must request a hidden main frame")
   end)
 
   test("Event handlers auto-show main frame on challenge completion while grouped", function()
@@ -1032,6 +1082,10 @@ local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fix
       setMainFrameHeightSafe = function(height)
         pendingHeightApplied = height
       end,
+      getPendingMainFrameWidth = function()
+        return nil
+      end,
+      setMainFrameWidthSafe = function(_width) end,
       isMainFrameShown = function()
         return false
       end,
@@ -1177,6 +1231,7 @@ local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fix
 
   test("Event handlers answer refresh requests while frame is hidden", function()
     local counters = { uiUpdates = 0, refreshResponses = 0 }
+    local targetSnapshots = 0
 
     local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
     local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
@@ -1186,11 +1241,17 @@ local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fix
       processAddonMessage = function(_prefix, _message, _sender)
         return { shouldAck = false, shouldRequestRefresh = true }
       end,
+      sendOwnTargetSnapshot = function(force, source, allowHidden)
+        if force and source == "reqsync" and allowHidden == true then
+          targetSnapshots = targetSnapshots + 1
+        end
+      end,
     })
 
     controller:Dispatch("CHAT_MSG_ADDON", "ISI_SYNC", "REQSYNC", "PARTY", "Alpha-RealmA")
 
     Assert.Equal(counters.refreshResponses, 1, "hidden refresh requests must trigger one sync response")
+    Assert.Equal(targetSnapshots, 1, "hidden refresh requests must also trigger one exact target snapshot")
     Assert.Equal(counters.uiUpdates, 0, "answering a hidden refresh request must not force a UI redraw by itself")
   end)
 end

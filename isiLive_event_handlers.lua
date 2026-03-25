@@ -61,9 +61,13 @@ local function BuildContext(opts)
   ctx.updateUI = RequireFunction(opts.updateUI, "updateUI")
 
   ctx.setMainFrameVisible = RequireFunction(opts.setMainFrameVisible, "setMainFrameVisible")
+  ctx.shouldAutoCloseMainFrame = OptionalFunction(opts.shouldAutoCloseMainFrame, function()
+    return false
+  end)
   ctx.updateLeaderButtons = RequireFunction(opts.updateLeaderButtons, "updateLeaderButtons")
   ctx.updateStatusLine = RequireFunction(opts.updateStatusLine, "updateStatusLine")
   ctx.sendOwnKeySnapshot = RequireFunction(opts.sendOwnKeySnapshot, "sendOwnKeySnapshot")
+  ctx.sendOwnTargetSnapshot = OptionalFunction(opts.sendOwnTargetSnapshot, function(_force, _source, _allowHidden) end)
 
   ctx.ensureQueueDebugStorage = RequireFunction(opts.ensureQueueDebugStorage, "ensureQueueDebugStorage")
   ctx.setQueueDebugEnabled = RequireFunction(opts.setQueueDebugEnabled, "setQueueDebugEnabled")
@@ -96,6 +100,8 @@ local function BuildContext(opts)
   end)
   ctx.getPendingMainFrameHeight = RequireFunction(opts.getPendingMainFrameHeight, "getPendingMainFrameHeight")
   ctx.setMainFrameHeightSafe = RequireFunction(opts.setMainFrameHeightSafe, "setMainFrameHeightSafe")
+  ctx.getPendingMainFrameWidth = RequireFunction(opts.getPendingMainFrameWidth, "getPendingMainFrameWidth")
+  ctx.setMainFrameWidthSafe = RequireFunction(opts.setMainFrameWidthSafe, "setMainFrameWidthSafe")
   ctx.tryRestoreCenterNoticeTeleportButton =
     RequireFunction(opts.tryRestoreCenterNoticeTeleportButton, "tryRestoreCenterNoticeTeleportButton")
 

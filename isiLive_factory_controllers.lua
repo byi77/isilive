@@ -216,7 +216,7 @@ local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState,
 
     return normalized
   end
-  ctx.ResolveStatusTargetMapID = function()
+  ctx.ResolveLocalStatusTargetMapID = function()
     local _, latestQueueActivityID, _, latestQueueMapID = runtimeState.GetLatestQueueState()
     local activeMapID = tonumber(runtimeState.GetActiveJoinedKeyMapID())
     if activeMapID and activeMapID > 0 then
@@ -232,6 +232,71 @@ local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState,
       local resolvedMapID = ctx.ResolveMapIDByActivityID(latestQueueActivityID)
       if type(resolvedMapID) == "number" and resolvedMapID > 0 then
         return resolvedMapID
+      end
+    end
+
+    return nil
+  end
+  ctx.ResolveSyncedTargetInfo = function()
+    if not modules.sync or type(modules.sync.GetPlayerTargetInfo) ~= "function" then
+      return nil
+    end
+
+    local resolvedMapID = nil
+    local resolvedLevel = nil
+    local levelConflict = false
+
+    for _, info in pairs(ctx.GetRoster() or {}) do
+      if type(info) == "table" then
+        local targetInfo = modules.sync.GetPlayerTargetInfo(info.name, info.realm)
+        if type(targetInfo) == "table" then
+          local mapID = tonumber(targetInfo.mapID)
+          if mapID and mapID > 0 then
+            mapID = math.floor(mapID)
+            if not resolvedMapID then
+              resolvedMapID = mapID
+            elseif resolvedMapID ~= mapID then
+              return nil
+            end
+
+            local level = tonumber(targetInfo.level)
+            if level and level > 0 then
+              level = math.floor(level)
+              if resolvedLevel == nil then
+                resolvedLevel = level
+              elseif resolvedLevel ~= level then
+                levelConflict = true
+              end
+            end
+          end
+        end
+      end
+    end
+
+    if not resolvedMapID then
+      return nil
+    end
+
+    if levelConflict then
+      resolvedLevel = nil
+    end
+
+    return {
+      mapID = resolvedMapID,
+      level = resolvedLevel,
+    }
+  end
+  ctx.ResolveStatusTargetMapID = function()
+    local localMapID = ctx.ResolveLocalStatusTargetMapID()
+    if localMapID then
+      return localMapID
+    end
+
+    local syncedTargetInfo = ctx.ResolveSyncedTargetInfo and ctx.ResolveSyncedTargetInfo() or nil
+    if type(syncedTargetInfo) == "table" then
+      local syncedMapID = tonumber(syncedTargetInfo.mapID)
+      if syncedMapID and syncedMapID > 0 then
+        return math.floor(syncedMapID)
       end
     end
 
@@ -263,10 +328,10 @@ local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState,
       targetLevel = tonumber(roster[ownerUnit].keyLevel)
     end
 
-    if (not targetLevel or targetLevel <= 0) and targetMapID and type(roster.player) == "table" then
-      local playerInfo = roster.player
-      if tonumber(playerInfo.keyMapID) == targetMapID then
-        targetLevel = tonumber(playerInfo.keyLevel)
+    if not targetLevel or targetLevel <= 0 then
+      local syncedTargetInfo = ctx.ResolveSyncedTargetInfo and ctx.ResolveSyncedTargetInfo() or nil
+      if type(syncedTargetInfo) == "table" and tonumber(syncedTargetInfo.mapID) == tonumber(targetMapID) then
+        targetLevel = tonumber(syncedTargetInfo.level)
       end
     end
 
@@ -278,6 +343,34 @@ local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState,
       name = targetName,
       level = targetLevel,
     }
+  end
+  ctx.SendOwnTargetSnapshot = function(force, source, allowHidden)
+    if not modules.sync or type(modules.sync.SendTarget) ~= "function" then
+      return
+    end
+
+    local targetMapID = ctx.ResolveLocalStatusTargetMapID()
+    local targetLevel = nil
+    if
+      targetMapID
+      and ctx.keySyncController
+      and type(ctx.keySyncController.ResolveActiveKeyOwnerUnit) == "function"
+    then
+      local ownerUnit = ctx.keySyncController.ResolveActiveKeyOwnerUnit(ctx.GetRoster(), targetMapID)
+      local roster = ctx.GetRoster()
+      if ownerUnit and type(roster[ownerUnit]) == "table" then
+        targetLevel = tonumber(roster[ownerUnit].keyLevel)
+      end
+    end
+
+    modules.sync.SendTarget({
+      force = force and true or false,
+      isVisible = ctx.mainFrame and ctx.mainFrame:IsShown() or false,
+      allowHidden = allowHidden and true or false,
+      mapID = targetMapID,
+      level = targetLevel,
+      source = source,
+    })
   end
   ctx.UpdateCountdownCancelButton = function()
     if not ctx.rosterPanelController then
@@ -352,6 +445,7 @@ local function InitializeFactoryPrimaryControllers(ctx)
       end
     end,
     setMainFrameHeightSafe = ctx.SetMainFrameHeightSafe,
+    setMainFrameWidthSafe = ctx.SetMainFrameWidthSafe,
     minFrameHeight = ctx.MIN_FRAME_HEIGHT,
     buildOrderedRoster = modules.roster.BuildOrderedRoster,
     hasFullSync = modules.roster.HasFullSync,
@@ -442,13 +536,27 @@ local function InitializeFactoryPrimaryControllers(ctx)
   end
   ctx.ResolveActiveTeleportSpellID = function()
     local _, latestQueueActivityID, _, latestQueueMapID = ctx.runtimeState.GetLatestQueueState()
-    return ctx.highlightController.ResolveActiveTeleportSpellID(latestQueueActivityID, latestQueueMapID)
+    local effectiveQueueMapID = latestQueueMapID
+    local localTargetMapID = ctx.ResolveLocalStatusTargetMapID and ctx.ResolveLocalStatusTargetMapID() or nil
+    if not localTargetMapID then
+      local syncedTargetInfo = ctx.ResolveSyncedTargetInfo and ctx.ResolveSyncedTargetInfo() or nil
+      if type(syncedTargetInfo) == "table" then
+        effectiveQueueMapID = tonumber(syncedTargetInfo.mapID) or effectiveQueueMapID
+      end
+    end
+
+    return ctx.highlightController.ResolveActiveTeleportSpellID(latestQueueActivityID, effectiveQueueMapID)
   end
   ctx.ResolveJoinedKeyMapID = function(activityID, spellID)
     return ctx.highlightController.ResolveJoinedKeyMapID(activityID, spellID)
   end
   ctx.ResolveActiveKeyOwnerUnit = function()
-    return ctx.keySyncController.ResolveActiveKeyOwnerUnit(ctx.GetRoster(), ctx.runtimeState.GetActiveJoinedKeyMapID())
+    local targetMapID = nil
+    if type(ctx.ResolveStatusTargetMapID) == "function" then
+      targetMapID = ctx.ResolveStatusTargetMapID()
+    end
+
+    return ctx.keySyncController.ResolveActiveKeyOwnerUnit(ctx.GetRoster(), targetMapID)
   end
   ctx.UpdateMPlusTeleportButton = function()
     local resolvedSpellID = ctx.ResolveActiveTeleportSpellID()
@@ -569,6 +677,7 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
     end,
     isPortalNavigatorEnabled = ctx.IsPortalNavigatorEnabled,
     isPlayerLeader = ctx.IsPlayerLeader,
+    isInGroup = IsInGroup,
     getTargetDungeonInfo = ctx.GetStatusTargetDungeonInfo,
     hasActiveDungeons = function()
       local seasonData = ctx.addonTable.SeasonData
@@ -584,6 +693,7 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
       end
       return nil
     end,
+    printFn = ctx.Print,
   })
 
   ctx.statusController = statusController
@@ -594,6 +704,8 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
       isPaused = flags.isPaused,
       isTestMode = flags.isTestMode,
     }))
+    ctx.SendOwnTargetSnapshot(false, "status")
+    statusController.MaybeAnnounceTargetDungeonChat()
   end
 
   local function QueueForceRefreshData()

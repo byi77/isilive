@@ -31,7 +31,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 8. Highlight-Aufloesung darf nur mit eindeutigem activity/map-Kontext arbeiten und kein Gruppen-freies Fallback nutzen.
 9. QueueFlow muss waehrend aktiver Challenge Queue-Events ignorieren und doppelte Updates/Announces unterdruecken.
 10. Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; blockierte Main-UI-Sichtbarkeitswechsel werden gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
-11. In Raid-Groesse bleibt die UI sichtbar, wechselt in den H-Modus; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
+11. In Raid-Groesse bleibt die UI sichtbar, wechselt in den H-Modus; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
 12. Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
 13. Voll-Refresh laeuft nur in erlaubten Zustaenden und muss bei Stop oder aktivem M+ sauber aussetzen.
 14. Slash-Commands muessen State-Zyklen stabil ausfuehren (test/stop/start/pause/resume/lang).
@@ -51,7 +51,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 28. während die ui ausgeblendet ist, laufen roster/addon-sync im hintergrund weiter und dürfen eventgetrieben vor-rendern; queue-scanning und dauerhafte polling-last stoppen jedoch.
 29. teleport-eintraege fuer shared spells bleiben deterministisch sortiert und doppelte grid-eintraege werden entfernt.
 30. falls ein anderer user entdeckt wird welcher auch "isiLive" benutzt, hängen wir hinter seinen Namen ein <3 (blaues herz) an
-31. main ui immer -> auto open beim gruppenbeitritt, autoclose bei key start und auto open bei key ende weiterhin behalten
+31. main ui auto-open bleibt bei gruppenbeitritt und key ende erhalten; automatisches schliessen bei key start ist standardmaessig aus.
 32. verlaesst ein gruppenmitglied die gruppe, bleibt es als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt
 33. spieler, die sich bereits im zieldungeon befinden, werden mit einem portal-icon markiert
 34. waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt
@@ -62,6 +62,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 39. Die Rollensymbole im Roster-Panel sind interaktive Buttons und ermoeglichen per Klick das manuelle Markieren von Tank (Blau) und Heiler (Gruen).
 40. Bei Gruppengroessen > 5 (Raid) wird im Roster-Panel in den H-Modus gewechselt, die Gruppenmitglieder-Zeilen werden ausgeblendet und die Raid-Benachrichtigung nur einmal pro Raid-Uebergang ausgegeben.
 41. API-Aufrufe mit Unit-Tokens muessen `UnitExists` pruefen, bevor sie aufgerufen werden, um Race-Conditions bei Gruppenaenderungen abzufangen.
+42. Die Behavior-Option `Auto-Close bei Key-Start / Solo` ist standardmaessig aus; nur wenn sie aktiv ist, darf die Main-UI bei Key-Start und beim Solo-Uebergang automatisch schliessen.
 
 ## Regelbloecke
 
@@ -129,6 +130,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Highlight joined-key resolver requires activity-based map context
   - Highlight listing resolver requires unique activity map
   - Highlight queue fallback is disabled while not in group
+  - Factory target dungeon stays unresolved without queue or joined-key map context
+  - Factory target dungeon resolves from synced exact target context
+  - Factory target dungeon stays unresolved on conflicting synced exact targets
 
 ### RULE-QUEUEFLOW-CHALLENGE-UND-DEDUP
 - Regelnummer: 9
@@ -151,9 +155,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-GRUPPE-RAID-SICHTBARKEIT
 - Regelnummer: 11
 - Status: aktiv
-- Zusammenfassung: In Raid-Groesse bleibt die UI sichtbar und wechselt in den H-Modus; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
+- Zusammenfassung: In Raid-Groesse bleibt die UI sichtbar und wechselt in den H-Modus; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt. Nur mit aktivierter Auto-Close-Option darf der Solo-Uebergang die Main-UI ausblenden.
 - Erforderliche Tests:
   - Group leave keeps frame state and ghosts former party members
+  - Group leave auto-close hides frame when option is enabled
   - Old ghosts are cleared when joining a new group
   - Raid group switches to H mode, keeps frame visible and prints notification
   - Raid notification prints again after leaving raid-size group
@@ -202,8 +207,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Addon-Sync-Nachrichten muessen rosterrelevante Aenderungen verarbeiten, deduplizieren und refreshen.
 - Erforderliche Tests:
   - Event handlers process addon sync messages and refresh changed roster
+  - Event handlers refresh target-dependent UI when addon sync updates exact target only
   - Sync ProcessAddonMessage handles HELLO, REQSYNC, and KEY payloads
+  - Sync ProcessAddonMessage parses TARGET payload and stores it
   - Sync SetPlayerKeyInfo deduplicates identical key updates
+  - KeySync pending forced refresh backfills missing sync fallback fields while inspect is pending
 
 ### RULE-LEADER-BUTTONS-SICHTBARKEIT
 - Regelnummer: 17
@@ -244,6 +252,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Highlight listing resolver requires unique activity map
   - Highlight joined-key resolver requires activity-based map context
   - Queue does not guess first candidate when no concrete map is available
+  - Factory target dungeon stays unresolved without queue or joined-key map context
+  - Factory target dungeon resolves from synced exact target context
+  - Factory target dungeon stays unresolved on conflicting synced exact targets
 
 ### RULE-TARGET-DUNGEON-CHAT-DEDUP
 - Regelnummer: 22
@@ -251,6 +262,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Es gibt keinen wiederholten Target-Dungeon-Chatspam; bei identischem erkanntem Ziel reicht eine einmalige Ausgabe.
 - Erforderliche Tests:
   - QueueFlow deduplicates repeated grouped announce for same target
+  - Status target dungeon chat announces grouped key once and resets after target clears
 
 ### RULE-UI-STRG-F9-JEDERZEIT
 - Regelnummer: 26
@@ -303,12 +315,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-MAIN-UI-AUTO-OPEN-CLOSE-ZYKLEN
 - Regelnummer: 31
 - Status: aktiv
-- Zusammenfassung: main ui immer -> auto open beim gruppenbeitritt, autoclose bei key start und auto open bei key ende weiterhin behalten
+- Zusammenfassung: Die Main-UI oeffnet weiterhin automatisch bei Gruppenbeitritt und bei Key-Ende. Bei Key-Start darf sie standardmaessig nicht automatisch schliessen; das alte Auto-Close-Verhalten ist nur ueber die Behavior-Option aktivierbar.
 - Erforderliche Tests:
   - Group join builds roster with player and 4 party members
-  - Group leave keeps frame state and ghosts former party members
   - Existing grouped roster updates do not re-open a manually hidden frame
-  - Event handlers auto-hide main frame on challenge start
+  - Event handlers do not auto-hide main frame on challenge start by default
+  - Event handlers auto-hide main frame on challenge start when auto-close is enabled
   - Event handlers auto-show main frame on challenge completion while grouped
 
 ### RULE-ROSTER-GHOST-MEMBER
@@ -419,3 +431,13 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Units GetUnitRole returns NONE for non-existing unit
   - Units GetUnitNameAndRealm returns nil for non-existing unit
+
+### RULE-MAIN-UI-AUTO-CLOSE-OPTION
+- Regelnummer: 42
+- Status: aktiv
+- Zusammenfassung: Die Behavior-Option `Auto-Close bei Key-Start / Solo` ist standardmaessig deaktiviert. Nur wenn `autoCloseMainFrame == true` gesetzt ist, darf die Main-UI bei `CHALLENGE_MODE_START` und beim Wechsel von Gruppe zu Solo automatisch verborgen werden.
+- Erforderliche Tests:
+  - Settings panel defaults Auto-Close on Key Start / Solo to disabled until the user turns it on
+  - Factory auto-close main frame defaults to disabled unless explicitly enabled
+  - Event handlers auto-hide main frame on challenge start when auto-close is enabled
+  - Group leave auto-close hides frame when option is enabled
