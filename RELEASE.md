@@ -31,7 +31,7 @@ Expected: lint/style/metrics/usecase/rules checks pass.
 
 `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 401 scenarios across 34 modules. The rule validators currently index 397 deterministic tests.
+`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 400 scenarios across 34 modules. The rule validators currently index 396 deterministic tests.
 
 Windows note: if metrics fail with missing LuaRocks modules (`lfs`, `luacheck.decoder`, `luacheck.parser`), set `LUA_PATH` and `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running the metrics check.
 
@@ -76,8 +76,8 @@ git push origin isiLive_beta_X.Y.Z
 Example:
 
 ```powershell
-git tag isiLive_release_0.9.99
-git push origin isiLive_release_0.9.99
+git tag isiLive_release_0.9.103
+git push origin isiLive_release_0.9.103
 ```
 
 ## 6) Verify GitHub Actions

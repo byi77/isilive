@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-03-26 - Version 0.9.103 (patch)
+
+- Docs / validation alignment:
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.103`.
+  - Updated the documented deterministic gate counts to `400` scenarios across `34` modules and `396` rule-indexed deterministic tests.
+  - Documented the current queue/runtime wiring shape: `isiLive_config_builders.lua` no longer exposes a dedicated queue-flow builder, and queue-target traceability now points at `isiLive_queue.lua` plus `isiLive_event_handlers_queue.lua`.
+- Release metadata:
+  - Bumped TOC version to `0.9.103`.
+
 ## 2026-03-26 - Version 0.9.102 (patch)
 - **Removed / Queue Dungeon Detection:**
   - Removed queue dungeon recognition and highlighting entirely. Blizzard no longer delivers usable data via `LFG_LIST_APPLICATION_STATUS_UPDATED` or `LFG_LIST_SEARCH_RESULT_UPDATED` at the time of invite/join, making reliable detection impossible without guessing.

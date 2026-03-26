@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.102`.
+Current documented baseline: `0.9.103`.
 
 ## Features
 
@@ -104,9 +104,9 @@ Current documented baseline: `0.9.102`.
 - Runtime log storage is session-only and starts disabled on every login/reload.
 - Sync handshake behavior: `HELLO` recipients send `ACK`; explicit local refresh force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.102)
+## Use Case / Logic Baseline (v0.9.103)
 
-Documented on `2026-03-26` as runtime behavior baseline (`0.9.102`) for validation checks.
+Documented on `2026-03-26` as runtime behavior baseline (`0.9.103`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -219,7 +219,7 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive_event_handlers_challenge.lua`: challenge/ready-check lifecycle handlers
 - `isiLive_controller_wiring.lua`: controller dependency wiring and context-to-controller adapters
 - `isiLive_runtime_setup.lua`: runtime bootstrap assembly for group/event/gate controllers
-- `isiLive_config_builders.lua`: focused builders for refresh, queue-flow, slash commands, gate, and leader watch
+- `isiLive_config_builders.lua`: focused builders for refresh, slash commands, gate, and leader watch
 - `isiLive_commands.lua`: slash command registration/dispatch
 - `isiLive_ui.lua`: main frame/UI construction, optional `Esc`-menu tooling/travel strips, and widget wiring
 - `isiLive_settings.lua`: Blizzard Settings canvas for locale/system/debug toggles
@@ -271,7 +271,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 401 scenarios across 34 modules, while the rule validators currently index 397 deterministic tests, including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 400 scenarios across 34 modules, while the rule validators currently index 396 deterministic tests, including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)

@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.102`
+Version baseline: `0.9.103`
 Last updated: `2026-03-26`
 
 ## Actors
@@ -196,7 +196,7 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 
 | Concern | Files |
 |---|---|
-| Queue detection and target capture | `isiLive_queue.lua`, `isiLive_queue_flow.lua` |
+| Queue detection and target capture | `isiLive_queue.lua`, `isiLive_event_handlers_queue.lua` |
 | Highlight resolution and inside-dungeon suppression | `isiLive_highlight.lua` |
 | Teleport spell mapping and cooldown behavior | `isiLive_teleport.lua`, `isiLive_spell_utils.lua`, `isiLive_teleport_ui.lua` |
 | Group lifecycle and roster rebuild | `isiLive_group.lua`, `isiLive_roster.lua` |

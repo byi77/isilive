@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.102`
+Version baseline: `0.9.103`
 Last updated: `2026-03-26`
 
 ## Purpose
@@ -19,7 +19,7 @@ The architecture is event-driven and split into clear runtime layers:
 |---|---|---|
 | Entry and orchestration | Composition root, runtime state, wiring, controller lifecycle | `isiLive.lua`, `isiLive_runtime_state.lua`, `isiLive_bootstrap.lua`, `isiLive_runtime_setup.lua`, `isiLive_controller_wiring.lua`, `isiLive_factory.lua`, `isiLive_factory_frame_bridge.lua`, `isiLive_factory_controllers.lua` |
 | Event gate and dispatch | Enforce stop/pause/hidden/test behavior and route lifecycle handlers | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_utils.lua` |
-| Domain logic | Queue parsing, group model, highlight resolution, key sync, refresh, inspect, leader transitions, bounded run stats, cooldown tracker | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua`, `isiLive_cd_tracker.lua`, `isiLive_leader_watch.lua` |
+| Domain logic | Queue parsing, group model, highlight resolution, key sync, refresh, inspect, leader transitions, bounded run stats, cooldown tracker | `isiLive_queue.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua`, `isiLive_cd_tracker.lua`, `isiLive_leader_watch.lua` |
 | UI composition | Main frame, roster panel, optional game-menu tooling/travel side panels, Blizzard settings canvas, cooldown tracker row, teleport grid, notices, status line | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_roster_layout.lua`, `isiLive_teleport_ui.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
 | Shared helpers and data | Locale, localized texts, units, season map/spell data, runtime logging, focused config builders, private tooltip/shared UI helpers, centralized backdrop presets, shared validation/string utilities | `isiLive_validation_helpers.lua`, `isiLive_string_utils.lua`, `isiLive_locale.lua`, `isiLive_texts.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_ui_common.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua` |
 
@@ -99,12 +99,12 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 401 scenarios across 34 modules, while the rule validators currently index 397 deterministic tests.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 400 scenarios across 34 modules, while the rule validators currently index 396 deterministic tests.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiLive                                                                         V.0.9.102 [H][V][M][X]|
+| isiLive                                                                         V.0.9.103 [H][V][M][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS Deaths Kicks   M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
@@ -149,7 +149,6 @@ In addition to the main roster frame, `isiLive_ui.lua` can attach optional tooli
 | Controller | Input | Output |
 |---|---|---|
 | RuntimeState | Root orchestration and controller callbacks | Central mutable runtime snapshot (`roster`, queue target, flags, rio baseline, ready-check state, layout/collapse state) |
-| QueueFlow | LFG events and queue snapshots | Pending grouped-join context, member-only grouped queue chat summary, and leader suppression without queue-derived dungeon targeting |
 | Group | Group roster events | Rebuilt roster model, ghost retention/pruning, and lifecycle transitions |
 | Highlight | Active listing and queue target | Active teleport spell and highlight state |
 | KeySync | Sync messages and owned snapshot data | Roster key/stats/dps/location backfill, key ownership, and sync markers |

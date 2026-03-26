@@ -12,7 +12,6 @@ local function BuildFactoryModules(addonTable)
     highlight = addonTable and addonTable.Highlight,
     group = addonTable and addonTable.Group,
     queue = addonTable and addonTable.Queue,
-    queueFlow = addonTable and addonTable.QueueFlow,
     inspect = addonTable and addonTable.Inspect,
     roster = addonTable and addonTable.Roster,
     events = addonTable and addonTable.Events,

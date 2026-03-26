@@ -234,8 +234,6 @@ local function FinalizeFactoryRuntime(ctx)
     getWasGroupLeader = ctx.GetWasGroupLeader,
     getRoster = ctx.GetRoster,
     setRoster = ctx.SetRoster,
-    captureQueueJoinCandidate = ctx.CaptureQueueJoinCandidate,
-    announceQueuedGroupJoin = ctx.AnnounceQueuedGroupJoin,
     setMainFrameVisible = ctx.SetMainFrameVisible,
     setMainFrameHeightSafe = ctx.SetMainFrameHeightSafe,
     setMainFrameWidthSafe = ctx.SetMainFrameWidthSafe,

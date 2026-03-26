@@ -28,19 +28,6 @@ function ConfigBuilders.BuildRefreshControllerOpts(ctx)
   }
 end
 
-function ConfigBuilders.BuildQueueFlowControllerOpts(ctx)
-  return {
-    getL = ctx.getL,
-    getPendingQueueJoinInfo = ctx.getPendingQueueJoinInfo,
-    setPendingQueueJoinInfo = ctx.setPendingQueueJoinInfo,
-    printFn = ctx.printFn,
-    isInChallengeMode = ctx.isInChallengeMode,
-    isInGroup = ctx.isInGroup,
-    isPlayerLeader = ctx.isPlayerLeader,
-    getTimeFn = ctx.getTimeFn,
-  }
-end
-
 function ConfigBuilders.BuildTestModeControllerOpts(ctx)
   return {
     getL = ctx.getL,

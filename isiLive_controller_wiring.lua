@@ -35,11 +35,6 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     setWasGroupLeader = RequireFunction(state.setWasGroupLeader, "state.setWasGroupLeader"),
     getRoster = RequireFunction(state.getRoster, "state.getRoster"),
     setRoster = RequireFunction(state.setRoster, "state.setRoster"),
-    captureQueueJoinCandidate = RequireFunction(
-      callbacks.captureQueueJoinCandidate,
-      "callbacks.captureQueueJoinCandidate"
-    ),
-    announceQueuedGroupJoin = RequireFunction(callbacks.announceQueuedGroupJoin, "callbacks.announceQueuedGroupJoin"),
     setMainFrameVisible = RequireFunction(callbacks.setMainFrameVisible, "callbacks.setMainFrameVisible"),
     switchToRaidMode = callbacks.switchToRaidMode or function() end,
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
@@ -104,8 +99,6 @@ local function BuildGroupControllerDepsFromContext(ctx)
       setRoster = ctx.setRoster,
     },
     callbacks = {
-      captureQueueJoinCandidate = ctx.captureQueueJoinCandidate,
-      announceQueuedGroupJoin = ctx.announceQueuedGroupJoin,
       setMainFrameVisible = ctx.setMainFrameVisible,
       switchToRaidMode = ctx.switchToRaidMode,
       updateLeaderButtons = ctx.updateLeaderButtons,
@@ -168,10 +161,6 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
     updateMPlusTeleportButton = RequireFunction(
       callbacks.updateMPlusTeleportButton,
       "callbacks.updateMPlusTeleportButton"
-    ),
-    captureQueueJoinCandidate = RequireFunction(
-      callbacks.captureQueueJoinCandidate,
-      "callbacks.captureQueueJoinCandidate"
     ),
     getActiveJoinedKeyMapID = RequireFunction(state.getActiveJoinedKeyMapID, "state.getActiveJoinedKeyMapID"),
     setActiveJoinedKeyMapID = RequireFunction(state.setActiveJoinedKeyMapID, "state.setActiveJoinedKeyMapID"),
@@ -406,7 +395,6 @@ local function BuildEventHandlersDepsFromContext(ctx)
       exitTestMode = ctx.exitTestMode,
       clearLatestQueueTarget = ctx.clearLatestQueueTarget,
       updateMPlusTeleportButton = ctx.updateMPlusTeleportButton,
-      captureQueueJoinCandidate = ctx.captureQueueJoinCandidate,
       updateUI = ctx.updateUI,
       setMainFrameVisible = ctx.setMainFrameVisible,
       updateLeaderButtons = ctx.updateLeaderButtons,

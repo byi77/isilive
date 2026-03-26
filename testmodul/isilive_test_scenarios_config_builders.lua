@@ -40,24 +40,6 @@ return function(test, ctx)
     end
   end)
 
-  test("ConfigBuilders BuildQueueFlowControllerOpts passes all fields", function()
-    local builders = LoadBuilders()
-    local ctx_input = {
-      getL = MakeSentinel("getL"),
-      getPendingQueueJoinInfo = MakeSentinel("getPendingQueueJoinInfo"),
-      setPendingQueueJoinInfo = MakeSentinel("setPendingQueueJoinInfo"),
-      printFn = MakeSentinel("printFn"),
-      isInChallengeMode = MakeSentinel("isInChallengeMode"),
-      isInGroup = MakeSentinel("isInGroup"),
-      isPlayerLeader = MakeSentinel("isPlayerLeader"),
-      getTimeFn = MakeSentinel("getTimeFn"),
-    }
-    local result = builders.BuildQueueFlowControllerOpts(ctx_input)
-    for key, val in pairs(ctx_input) do
-      Assert.Equal(result[key], val, "BuildQueueFlowControllerOpts must pass through " .. key)
-    end
-  end)
-
   test("ConfigBuilders BuildTestModeControllerOpts passes all fields", function()
     local builders = LoadBuilders()
     local ctx_input = {

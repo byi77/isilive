@@ -779,28 +779,6 @@ local function InitializeFactorySecondaryControllers(ctx)
     })
   end
 
-  ctx.queueFlowController = modules.queueFlow.CreateController(modules.configBuilders.BuildQueueFlowControllerOpts({
-    getL = ctx.GetL,
-    getPendingQueueJoinInfo = function()
-      return runtimeState.GetPendingQueueJoinInfo()
-    end,
-    setPendingQueueJoinInfo = function(value)
-      runtimeState.SetPendingQueueJoinInfo(value)
-    end,
-    printFn = ctx.Print,
-    isInChallengeMode = ctx.GetActiveChallengeMapID,
-    isInGroup = IsInGroup,
-    isPlayerLeader = ctx.IsPlayerLeader,
-    getTimeFn = GetTime,
-  }))
-
-  ctx.CaptureQueueJoinCandidate = function(...)
-    ctx.queueFlowController.CaptureQueueJoinCandidate(...)
-  end
-  ctx.AnnounceQueuedGroupJoin = function()
-    ctx.queueFlowController.AnnounceQueuedGroupJoin()
-  end
-
   ctx.testModeController = modules.testMode.CreateController(modules.configBuilders.BuildTestModeControllerOpts({
     getL = ctx.GetL,
     printFn = ctx.Print,
