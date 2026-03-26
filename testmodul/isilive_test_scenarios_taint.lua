@@ -762,7 +762,6 @@ local function RegisterRosterPanelRoleButtonTests(test, Assert, WithGlobals, Loa
       "healer role button right click must clear marker"
     )
   end)
-
 end
 
 local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals, LoadAddonModules)
@@ -835,7 +834,7 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
   end)
 
   test("Ready-check dedicated refresh resets spec color after a ready-check rerender", function()
-    local function FindFontStringByText(mainFrameRef, expectedText)
+    local function findFontStringByText(mainFrameRef, expectedText)
       for _, fontString in ipairs(mainFrameRef._fontStrings or {}) do
         if fontString:GetText() == expectedText then
           return fontString
@@ -885,7 +884,7 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
     local roleButton = FindSecureRoleButton(createdFrames, "player")
     Assert.NotNil(roleButton, "tank row should create a secure role button before ready-check refresh")
     Assert.NotNil(
-      FindFontStringByText(mainFrame, "|cffc69b6dProt|r"),
+      findFontStringByText(mainFrame, "|cffc69b6dProt|r"),
       "initial render must show the class-colored spec text"
     )
 
@@ -894,7 +893,7 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
       controller.RenderRoster(roster)
     end)
     Assert.NotNil(
-      FindFontStringByText(mainFrame, "|cff00ff00Prot|r"),
+      findFontStringByText(mainFrame, "|cff00ff00Prot|r"),
       "full rerender during ready check must recolor the spec text"
     )
 
@@ -904,11 +903,10 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
     end)
 
     Assert.NotNil(
-      FindFontStringByText(mainFrame, "|cffc69b6dProt|r"),
+      findFontStringByText(mainFrame, "|cffc69b6dProt|r"),
       "dedicated ready-check refresh must restore the class-colored spec text after ready check ends"
     )
   end)
-
 end
 
 local function RegisterRosterPanelCombatTaintTests(test, Assert, WithGlobals, LoadAddonModules)
