@@ -196,7 +196,8 @@ local function RegisterQueueCaptureCoreTests(test, Assert, WithGlobals, LoadAddo
   end)
 
   test("Queue capture resolves numeric values via search-result info", function()
-    local applied = nil
+    local appliedCapture = { groupName = nil, activityID = nil, dungeonName = nil, priority = nil }
+    local appliedCalled = false
 
     WithGlobals({
       C_LFGList = {
@@ -219,12 +220,11 @@ local function RegisterQueueCaptureCoreTests(test, Assert, WithGlobals, LoadAddo
     }, function()
       local addon = LoadAddonModules({ "isiLive_queue.lua" })
       addon.Queue.CaptureQueueJoinCandidate(function(groupName, dungeonName, priority, activityID)
-        applied = {
-          groupName = groupName,
-          dungeonName = dungeonName,
-          priority = priority,
-          activityID = activityID,
-        }
+        appliedCapture.groupName = groupName
+        appliedCapture.dungeonName = dungeonName
+        appliedCapture.priority = priority
+        appliedCapture.activityID = activityID
+        appliedCalled = true
       end, function(activityID)
         if activityID == 310 then
           return 1216786
@@ -233,11 +233,11 @@ local function RegisterQueueCaptureCoreTests(test, Assert, WithGlobals, LoadAddo
       end, 900, "invited")
     end)
 
-    Assert.NotNil(applied, "numeric search result IDs must resolve to a concrete apply")
-    Assert.Equal(applied.groupName, "Result Group", "resolved search result group name must be used")
-    Assert.Equal(applied.activityID, 310, "resolved activityID must come from search result payload")
-    Assert.Equal(applied.dungeonName, "Floodgate", "resolved activity name must be used for hint text")
-    Assert.Equal(applied.priority, 1, "invited (not accepted) should use priority 1")
+    Assert.Equal(appliedCalled, true, "numeric search result IDs must resolve to a concrete apply")
+    Assert.Equal(appliedCapture.groupName, "Result Group", "resolved search result group name must be used")
+    Assert.Equal(appliedCapture.activityID, 310, "resolved activityID must come from search result payload")
+    Assert.Equal(appliedCapture.dungeonName, "Floodgate", "resolved activity name must be used for hint text")
+    Assert.Equal(appliedCapture.priority, 1, "invited (not accepted) should use priority 1")
   end)
 
   test("Queue capture candidate does not enumerate application list", function()
@@ -282,7 +282,7 @@ end
 
 local function RegisterQueueCaptureStableIDTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Queue capture forwards stable search-result dedup ID", function()
-    local appliedMeta = nil
+    local appliedMeta = { stableQueueEventID = nil }
 
     WithGlobals({
       C_LFGList = {
@@ -326,7 +326,7 @@ local function RegisterQueueCaptureStableIDTests(test, Assert, WithGlobals, Load
   end)
 
   test("Queue application capture forwards stable app dedup ID", function()
-    local appliedMeta = nil
+    local appliedMeta = { stableQueueEventID = nil }
 
     WithGlobals({
       C_LFGList = {

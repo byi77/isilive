@@ -1,7 +1,7 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.101`
-Last updated: `2026-03-25`
+Version baseline: `0.9.102`
+Last updated: `2026-03-26`
 
 ## Actors
 
@@ -35,28 +35,27 @@ Last updated: `2026-03-25`
 | UC-13 | Esc shortcuts and addon settings | Player gets dual Blizzard-UI entry surfaces plus localized config toggles |
 | UC-14 | Combat utility tracker | Live BRes and Bloodlust timers stay visible in the roster panel |
 
-## UC-01 Invite Detection And Target Resolution
+## UC-01 Invite Detection Without Target Guessing
 
-Goal: detect queue invite/join context and identify the correct dungeon target without guessing.
+Goal: detect queue invite/join context without guessing a dungeon target.
 
 1. Trigger: LFG list and queue events arrive while main UI is visible.
-2. Inputs: activity ID, pending status, group metadata, known season map/teleport mapping.
-3. Processing: resolver uses strict `activityID -> mapID -> spellID` mapping only.
-4. Output: `targetMapID`, `targetTeleportSpellID`, and display dungeon name are stored.
-5. Success criteria: one deterministic target is selected, or target remains unset when concrete map context is missing.
+2. Inputs: pending status plus any visible group metadata from the queue payload.
+3. Processing: queue handling stores grouped-join context only; dungeon/teleport resolution from queue payload is disabled.
+4. Output: pending grouped-join context contains at most the captured group name.
+5. Success criteria: grouped queue chat can use captured group context, and no dungeon target is guessed from queue events.
 
-## UC-02 Chat Hint And Teleport Highlight
+## UC-02 Grouped Queue Chat Summary
 
-Goal: inform the player and highlight the correct portal cast icon.
+Goal: inform the player about a grouped queue join without inventing portal or dungeon context.
 
-1. Trigger: group join is confirmed, target metadata exists, and player is not the local group leader.
-2. Processing: addon posts one grouped queue/join summary block plus invite hint and updates UI state (chat + invite hint, no queue center notice).
-3. Processing: teleport button matching the resolved target spell is highlighted.
+1. Trigger: group join is confirmed, grouped queue context exists, and player is not the local group leader.
+2. Processing: addon posts one grouped queue/join summary block in chat only; no invite hint, no queue center notice, and no queue-based teleport highlight are produced.
+3. Processing: queue joins do not update dungeon target state.
 4. User action: player can click the portal button or move manually to dungeon.
-5. Rule: follow-up negative application status updates must not clear queue target while player is already grouped.
-6. Rule: repeated grouped queue announces are deduplicated by stable queue source IDs (`applicationID`/`searchResultID`/`listingID`) instead of display text.
-7. Rule: there is no separate generic `Dungeon erkannt` chat line; persistent target context is carried by `Target Dungeon`.
-8. Success criteria: highlight matches the same resolved dungeon as chat hint/status context and remains stable when group fills to 5 members.
+5. Rule: follow-up negative application status updates must not fabricate or restore queue-based dungeon target context.
+6. Rule: there is no separate generic `Dungeon erkannt` chat line; persistent target context is carried by `Target Dungeon` when available from non-queue sources.
+7. Success criteria: grouped queue chat fires only for valid member joins, stays leader-suppressed, and never creates a guessed dungeon target.
 
 ## UC-03 Enter Exact Target Dungeon
 
@@ -143,7 +142,7 @@ Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without d
 4. Combat safety: if combat lockdown blocks secure `ReloadUI` button refreshes (for example click registration or macro attribute updates) or deferred `Esc` side-panel host-frame re-shows, addon defers that update and retries it on `PLAYER_REGEN_ENABLED` instead of touching protected UI immediately.
 5. Rule: the spellbook shortcut must use spellbook-specific openers and must not route through the talents panel.
 6. Trigger B: player opens `Settings -> AddOns -> isiLive`.
-7. Result B: Blizzard settings expose language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log`.
+7. Result B: Blizzard settings expose language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Queue Debug Log (resets on reload)`, and `Runtime Log (resets on reload)`.
 8. Rule: settings controls mirror live Blizzard CVars / SavedVariables and apply changes immediately without requiring the main addon window to be visible; changing `Background Opacity` live-updates the main frame, the optional `Esc` tooling and travel strips, and the settings canvas itself. Hidden legacy controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`) stay out of the settings UI and currently use fixed runtime defaults: `DPS`, `Deaths`, and `Kicks` on, markers visible for all, fixed name truncation, and legacy 2-column `Travel` layout.
 9. Success criteria: both entry surfaces stay localized, deterministic, and reflect the current config/runtime state.
 

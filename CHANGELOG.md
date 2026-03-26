@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-03-26 - Version 0.9.102 (patch)
+- **Removed / Queue Dungeon Detection:**
+  - Removed queue dungeon recognition and highlighting entirely. Blizzard no longer delivers usable data via `LFG_LIST_APPLICATION_STATUS_UPDATED` or `LFG_LIST_SEARCH_RESULT_UPDATED` at the time of invite/join, making reliable detection impossible without guessing.
+  - Queue join chat output now shows group name only: "Aus Queue beigetreten: [Gruppenname]" — no dungeon name.
+  - `ShowQueueJoinPreview`, `setQueueTargetState`, `UpdatePendingQueueJoin`, `BuildAnnouncementSignature` and the full pending-queue-join-info pipeline removed from `isiLive_queue_flow.lua`.
+  - `showQueueJoinPreview` removed from test mode controller.
+- **Fixed / Hearthstone Button:**
+  - Fallback Hearthstone button (item ID 6948) now sets `"item:6948"` (string) instead of `6948` (number) as the secure attribute, fixing the `C_Item.IsEquippableItem` error from Blizzard's SecureTemplates.
+- **Changed / Administrative Settings:**
+  - Debug section renamed to "Administrativ" (DE) / "Administrative" (EN).
+  - Queue Debug Log and Runtime Log are no longer persisted across sessions — they always start disabled on login/reload. Labels updated to indicate this.
+  - Settings checkboxes for these options now reflect live controller state instead of SavedVariables.
+- **Docs / Release Sync:**
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.102`.
+- **Tests / Validation:**
+  - `lua tools/validate_rules_logic.lua` validates `397` deterministic tests indexed.
+  - `lua tools/validate_usecases.lua` validates `401` scenarios across `34` modules.
+
 ## 2026-03-25 - Version 0.9.101 (patch)
 - **Behavior / Main UI Auto-Close Default:**
   - The main UI no longer closes automatically by default on `CHALLENGE_MODE_START` or on the transition from group to solo.

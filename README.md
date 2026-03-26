@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.101`.
+Current documented baseline: `0.9.102`.
 
 ## Features
 
@@ -16,7 +16,7 @@ Current documented baseline: `0.9.101`.
 - **Horizontal Mini Mode:** Shows the compact leader actions `RC`, `CD`, and `CD 0` side by side while M+Marker stays visible as one horizontal marker row. `Share Keys` and `Refresh` stay available only in M/V layouts.
 - **Esc Menu Tooling:** The WoW `Esc` game menu can show a tooling strip left of the default menu, with direct buttons for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button. The `ReloadUI` entry is wired as a secure macro (`/click GameMenuButtonContinue` + `/reload`), mirrors `ActionButtonUseKeyDown`, and defers blocked secure refreshes plus blocked side-panel re-shows until `PLAYER_REGEN_ENABLED`.
 - **Esc Travel Strip:** A second strip farther left adds `Arkantine`, `Hearthstone`, and `Housing` buttons. The `Arkantine` button resolves the item name by WoW client locale at button creation time (`deDE` → German, all others → English). The `Hearthstone` button uses an owned Hearthstone toy when available and otherwise falls back to the default Hearthstone item (`6948`).
-- **Blizzard Settings Category:** `Settings -> AddOns -> isiLive` exposes localized controls for language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts` (tooling + travel strips), `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log`.
+- **Blizzard Settings Category:** `Settings -> AddOns -> isiLive` exposes localized controls for language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts` (tooling + travel strips), `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Queue Debug Log (resets on reload)`, and `Runtime Log (resets on reload)`.
 - **Default Open Layout:** `Default UI on Open` now opens the addon in `M2` by default until the user picks another layout; `Last Used` remains an explicit option.
 - **Roster Column Guides:** Optional debug column guides can be enabled for `M` and `M2` layout tuning and stay off by default.
 - **Hidden Legacy Settings Defaults:** `Name Length`, `Teleport Grid Columns`, `Show DPS Column`, and `Markers: Leader Only` are temporarily hidden from Blizzard Settings; runtime keeps fixed live defaults instead (`DPS`, `Deaths`, and `Kicks` on, markers visible for all, fixed name truncation, legacy 2-column `Travel` grid).
@@ -30,7 +30,7 @@ Current documented baseline: `0.9.101`.
 - Right-side headers: `M+Management`, `Marker`, and `Travel`
 - `Travel` teleport grid uses the active-season portal pool in deterministic Midnight Season 1 order, keeps duplicate shared-spell collapse without losing slot order, and currently stays on the legacy 2-column layout
 - In `M2`, ready portal icons show a large localized dungeon short code directly on the icon; the short code hides automatically while the teleport is on cooldown so the cooldown timer stays readable
-- Active dungeon teleport is highlighted (pulse/glow) only when you joined a group from queue or are actively hosting your own group
+- Active dungeon teleport is highlighted only from concrete target context (for example active listing host or exact synced target), never from guessed queue-join data
 - Teleport action buttons use `InsecureActionButtonTemplate` so main/notice visibility requests stay combat-safe without protected-frame promotion
 - Players inside the target dungeon are marked with a portal icon in the roster
 - Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale)
@@ -45,8 +45,7 @@ Current documented baseline: `0.9.101`.
 - Private `isiLive` tooltips now use their own wrapped compact layout so longer lines stay inside the tooltip frame
 - Persistent stats stay bounded: only the matching local character's own last-run DPS/Deaths/Kicks are kept in SavedVariables; foreign-player snapshots are session-only
 - CurseForge release packaging excludes PNG screenshot/logo assets via `.pkgmeta`, so repository preview images do not ship inside the addon zip
-- Queue join detection with member-only chat summary + invite hint when queue target metadata was captured before the group join
-- Grouped queue-join announce deduplication is driven by stable queue source IDs (`applicationID`/`searchResultID`/`listingID`), not volatile display text
+- Queue join detection no longer guesses dungeon targets; when visible queue metadata yields a group name, non-leader members get one grouped chat summary after join without invite hint or queue-based teleport highlight
 - Dungeon teleport controls in center notice + right-side grid
 - Teleport cooldown shown as `HH:MM`
 - Active Midnight Season 1 `M2` short codes currently use `MGT / MAI / NPX / WRS / AA / POS / SOT / SKY` in `enUS` and `TDM / MAI / NPX / WRS / AA / GVS / SDT / HN` in `deDE`
@@ -54,7 +53,7 @@ Current documented baseline: `0.9.101`.
 - `Share Keys` posts one party-chat line per available member key (`isiLive PartyKeys: Name -> Key`), using Blizzard owned-keystone link payload for the local player when available
 - Spec column uses max-5-char short labels for long localized names (for example `Wiederherstellung -> Resto`, `Vergeltung -> Retri`, `Treffsicherheit -> MM`, `Tierherrschaft -> BM`)
 - Center notices: left-click drag, right-click dismiss, top-right close button; position resets to center on each open
-- Optional runtime log persisted in `IsiLiveDB.runtimeLog` (enable/disable via slash command; flushed on `/reload`/logout)
+- Optional runtime log is session-only in `IsiLiveDB.runtimeLog`; enable/disable via slash command or settings, and it resets to OFF on login/reload
 - Roster rows support **Right-Click** (Whisper)
 - **Portal Navigator:** When the player enters the Timeways portal room, a full-screen overlay appears showing the four portal destinations (half-left, left, right, half-right) with their dungeon names; closes via right-click or the X button; toggleable via `Show Timeways Navigator` in Blizzard Settings (defaults enabled).
 - Non-Mythic dungeon entry warning with delayed confirmation (larger/blinking persistent notice; right-click dismiss, left-click drag)
@@ -70,7 +69,7 @@ Current documented baseline: `0.9.101`.
 - Auto-open on real dungeon entry (`outside -> party instance`) while not in an active key.
 - `CTRL+F9`: visibility changes can always be requested; if combat lockdown blocks `Show`/`Hide`, the pending open/close is applied on `PLAYER_REGEN_ENABLED`. The close button (X) always hides the frame immediately, even during combat.
 - `UNIT_AURA` full-update payloads after zone changes/reloads refresh the lust tracker state silently; `PLAYER_ENTERING_WORLD` only keeps a 2-second suppress window to cover early ticker scans before the aura restore event arrives.
-- Hidden window mode still blocks queue scanning; if `LFG_LIST_*` capture was missed while hidden, a later group join will not retro-print the queue chat summary. Background data sync (`CHAT_MSG_ADDON`, `GROUP_ROSTER_UPDATE`) may still event-drive pre-rendered roster state so reopen stays immediate without adding polling load.
+- Hidden window mode still blocks queue scanning; if `LFG_LIST_*` capture was missed while hidden, a later group join will not retro-print the grouped queue chat summary. Background data sync (`CHAT_MSG_ADDON`, `GROUP_ROSTER_UPDATE`) may still event-drive pre-rendered roster state so reopen stays immediate without adding polling load.
 - Combat runtime gate suppresses non-essential event processing while in combat; essential events (for example `PLAYER_REGEN_ENABLED` and `CHALLENGE_MODE_*`) still run.
 - Own outbound sync snapshots (`HELLO`/`KEY`/`STATS`/`DPS`/`LOC`) remain visibility-bound, while hidden mode still processes incoming addon sync messages, whisper `ACK`s, and one gated hidden `REQSYNC` reply path so cached roster data and pre-rendered UI state stay current without polling.
 - A manual `Refresh` force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and additionally sends `REQSYNC`; hidden peers may answer with one forced `KEY`/`STATS`/`DPS`/`LOC` reply while staying hidden, but they suppress that reply when locally stopped, paused, or inside an active key.
@@ -86,7 +85,7 @@ Current documented baseline: `0.9.101`.
 - Combat-safe frame updates: pending main-frame visibility, frame-height changes, blocked `Esc` shortcut secure-button refreshes, and blocked `Esc` side-panel re-shows are applied on `PLAYER_REGEN_ENABLED`
 - `Advanced Combat Logging` and `DM Reset on Dungeon Entry` live in Blizzard Settings only.
 - They mirror the live Blizzard CVar state and write only on explicit user clicks.
-- Blizzard `Settings -> AddOns -> isiLive` mirrors locale, those same CVar-backed toggles, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Queue Debug Log`, and `Runtime Log` without forcing the main addon window open.
+- Blizzard `Settings -> AddOns -> isiLive` mirrors locale, those same CVar-backed toggles, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Queue Debug Log (resets on reload)`, and `Runtime Log (resets on reload)` without forcing the main addon window open.
 - Hidden legacy Settings controls stay absent from Blizzard Settings for now and use fixed runtime defaults (`DPS`, `Deaths`, and `Kicks` on, markers visible for all, fixed name truncation, legacy 2-column `Travel` grid).
 - LeaderWatch compares current local leader state against cached state on both `GROUP_ROSTER_UPDATE` and `PARTY_LEADER_CHANGED`; hidden leader changes keep button state synchronized without hidden notice/chat spam, while hidden promotions still play the leader-transfer sound.
 - Disabling `Show ESC Menu Shortcuts` hides the optional `Esc` tooling and travel strips immediately; localization refresh updates both strips and the Blizzard settings canvas.
@@ -102,17 +101,17 @@ Current documented baseline: `0.9.101`.
 - Roster language column shows the flag icon (16×12 px, 4:3 landscape) when a texture exists; for tags without a flag asset (for example `KR`, `CN`, `TW`) it shows a grey text tag instead. The tooltip still shows the 2-letter server language code.
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 - Bottom status line includes current target dungeon context as `Target Dungeon: <Name> [+Level]` (or `Target Dungeon: -` when unresolved); this is the persistent target indicator even when no queue chat summary is emitted.
-- Runtime log entries are persisted through SavedVariables when logging is enabled.
+- Runtime log storage is session-only and starts disabled on every login/reload.
 - Sync handshake behavior: `HELLO` recipients send `ACK`; explicit local refresh force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.101)
+## Use Case / Logic Baseline (v0.9.102)
 
-Documented on `2026-03-25` as runtime behavior baseline (`0.9.101`) for validation checks.
+Documented on `2026-03-26` as runtime behavior baseline (`0.9.102`) for validation checks.
 
 
 1. Queue invite -> grouped flow
-   - Queue/LFG events capture candidate group + dungeon (`LFG_LIST_*`) while main UI is visible.
-   - On confirmed small-group join (`GROUP_ROSTER_UPDATE`), addon prints the queue summary block only for non-leader members, shows invite hint, resolves target dungeon teleport, and highlights the active teleport.
+   - Queue/LFG events capture queue-join context only while main UI is visible; dungeon resolution from queue payload is intentionally disabled.
+   - On confirmed small-group join (`GROUP_ROSTER_UPDATE`), addon prints the queue summary block only for non-leader members and only with group context when one was captured.
    - There is no separate generic `Dungeon erkannt` chat line; the durable target context lives in the `Target Dungeon` status text.
 2. Group roster build and ordering
    - On group update, roster is rebuilt as `player + party1..party4`.
@@ -127,12 +126,13 @@ Documented on `2026-03-25` as runtime behavior baseline (`0.9.101`) for validati
    - `LOC` snapshots share the player's current dungeon map ID; the roster portal icon uses synced location as fallback when local unit map info is unavailable.
    - Active joined key owner is highlighted only when ownership is unambiguous.
 4. Teleport targeting and highlight logic
-    - Active target resolves in strict order: active listing `activityID -> mapID -> spellID`, then latest queue target `mapID -> spellID`.
+    - Queue joins do not create new dungeon target or teleport-highlight context.
+    - Active target resolves from concrete runtime context such as active listing data or exact synced target data.
     - If concrete `mapID` context is missing, target stays unresolved (no name/token guessing).
-    - Highlight is group-bound (no solo highlight), and updates on queue/listing/challenge transitions.
+    - Highlight is group-bound (no solo highlight), and updates on listing/challenge/sync transitions.
     - Exact target map has priority: if activity map is known, highlight clears only on that exact map.
     - Shared-portcast dungeons (for example both Tazavesh wings) are handled as multi-map targets and remain unresolved if map context is ambiguous.
-    - Negative queue application follow-up events do not clear queue-derived target while already grouped (prevents highlight drop when group fills to 5 members).
+    - Negative queue application follow-up events must not invent or rehydrate dungeon target context after a queue join.
 5. Refresh and inspect pipeline
    - `Refresh` triggers a forced local sync wave (`HELLO/KEY/STATS/DPS/LOC`), a groupwide `REQSYNC` hidden-peer reply request, and inspect cache invalidation/requeue.
    - Inspect controller updates `Spec/iLvl/RIO` asynchronously via queue/retry flow and `INSPECT_READY`.
@@ -140,7 +140,7 @@ Documented on `2026-03-25` as runtime behavior baseline (`0.9.101`) for validati
 6. Runtime gating and hidden/sleep behavior
    - Event gate blocks non-required processing in `stopped`, `paused`, and hidden states.
    - Hidden mode keeps transition events active (auto-open) and allows background data sync (`CHAT_MSG_ADDON`, `GROUP_ROSTER_UPDATE`) plus event-driven pre-rendered UI state; grouped non-challenge roster updates stay active even across raid-size transitions, while queue scanning and permanent polling remain suppressed.
-   - Because hidden mode suppresses `LFG_LIST_*`, a fresh grouped join can still auto-open the frame but will not recreate the queue chat summary unless the target had already been captured before hiding.
+   - Because hidden mode suppresses `LFG_LIST_*`, a fresh grouped join can still auto-open the frame but will not recreate the grouped queue chat summary unless context had already been captured before hiding.
    - `CHALLENGE_MODE_START` only hides the UI when `Auto-Close on Key Start / Solo` is enabled; completion/reset still rehydrates group view and refresh flow.
    - Combat-safe UI behavior: teleport action buttons use `InsecureActionButtonTemplate` (to avoid protected-parent show/hide taint), while spell-attribute updates, `Esc` shortcut secure-button refreshes, main-frame visibility, and blocked frame-height changes are restored on `PLAYER_REGEN_ENABLED`.
    - Hidden leader changes are synchronized silently so leader-only button state stays correct on the next visible transition without firing hidden notices/chat output.
@@ -271,7 +271,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 402 deterministic tests indexed and 406 scenarios across 34 modules, including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 401 scenarios across 34 modules, while the rule validators currently index 397 deterministic tests, including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)

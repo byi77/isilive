@@ -1,7 +1,7 @@
 # isiLive Architecture
 
-Version baseline: `0.9.101`
-Last updated: `2026-03-25`
+Version baseline: `0.9.102`
+Last updated: `2026-03-26`
 
 ## Purpose
 
@@ -99,12 +99,12 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 402 deterministic tests indexed and 406 scenarios across 34 modules.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 401 scenarios across 34 modules, while the rule validators currently index 397 deterministic tests.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiLive                                                                         V.0.9.101 [H][V][M][X]|
+| isiLive                                                                         V.0.9.102 [H][V][M][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS Deaths Kicks   M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
@@ -149,13 +149,13 @@ In addition to the main roster frame, `isiLive_ui.lua` can attach optional tooli
 | Controller | Input | Output |
 |---|---|---|
 | RuntimeState | Root orchestration and controller callbacks | Central mutable runtime snapshot (`roster`, queue target, flags, rio baseline, ready-check state, layout/collapse state) |
-| QueueFlow | LFG events and queue snapshots | Pending/joined target metadata, member-only grouped queue chat summary, invite hint, and dedup signature state |
+| QueueFlow | LFG events and queue snapshots | Pending grouped-join context, member-only grouped queue chat summary, and leader suppression without queue-derived dungeon targeting |
 | Group | Group roster events | Rebuilt roster model, ghost retention/pruning, and lifecycle transitions |
 | Highlight | Active listing and queue target | Active teleport spell and highlight state |
 | KeySync | Sync messages and owned snapshot data | Roster key/stats/dps/location backfill, key ownership, and sync markers |
 | Refresh | User refresh action | Forced local snapshot, groupwide sync request, and inspect refresh pipeline |
 | EventHandlersRuntime | Addon/world/combat/inspect/sync events | Startup, hidden-mode sync, `UNIT_AURA` full-update forwarding for cd tracking, regen recovery for pending visibility/height, inspect dispatch |
-| EventHandlersQueue | LFG queue/listing events | Visible-mode queue capture, target preservation, joined-key tracking |
+| EventHandlersQueue | LFG queue/listing events | Visible-mode queue capture, pending-join preservation on negative follow-ups, and joined-key tracking |
 | EventHandlersChallenge | Challenge and ready-check events | Run lifecycle, delayed refresh, rio delta enable, ready-check state |
 | Stats | Challenge/non-challenge party run completion signals plus Blizzard damage-meter session | Bounded last-run DPS/Deaths/Kicks snapshots with short delayed-session retry (persistent only for the matching local character, foreign players session-only) |
 | CdTracker | Battle-res charges via `C_Spell.GetSpellCharges` struct-return, numeric-only harmful lust-aura scans, direct lust spellcasts, and `isFullUpdate` aura-restore hydration | Live BRes charges/cooldown and Lust countdown row state with zone-transition-safe onset suppression |

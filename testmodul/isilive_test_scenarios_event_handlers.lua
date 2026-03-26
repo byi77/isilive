@@ -726,7 +726,7 @@ local function RegisterCombatStartupStateRestoreTests(test, Assert, WithGlobals,
     Assert.False(db.markersLeaderOnly == true, "ADDON_LOADED must force the hidden marker setting off")
   end)
 
-  test("Event handlers restore runtime log storage and enabled flag on ADDON_LOADED", function()
+  test("Event handlers reset runtime log storage and enabled flag on ADDON_LOADED", function()
     local ensureRuntimeLogStorageCalls = 0
     local setRuntimeLogEnabledValue = nil
 
@@ -752,7 +752,7 @@ local function RegisterCombatStartupStateRestoreTests(test, Assert, WithGlobals,
     end)
 
     Assert.Equal(ensureRuntimeLogStorageCalls, 1, "ADDON_LOADED must ensure runtime log storage exactly once")
-    Assert.True(setRuntimeLogEnabledValue == true, "ADDON_LOADED must restore runtime log enabled state from DB")
+    Assert.False(setRuntimeLogEnabledValue == true, "ADDON_LOADED must reset runtime log enabled state to OFF")
   end)
 
   test("Event handlers restore Rio baseline from DB on ADDON_LOADED", function()

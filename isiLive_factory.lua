@@ -48,10 +48,22 @@ local function FinalizeFactorySettings(ctx)
           end
         end
       end,
+      getQueueDebugEnabled = function()
+        if ctx.queueDebugController and type(ctx.queueDebugController.IsEnabled) == "function" then
+          return ctx.queueDebugController.IsEnabled()
+        end
+        return false
+      end,
       onQueueDebugToggle = function(enabled)
         if ctx.queueDebugController and type(ctx.queueDebugController.SetEnabled) == "function" then
           ctx.queueDebugController.SetEnabled(enabled)
         end
+      end,
+      getRuntimeLogEnabled = function()
+        if ctx.runtimeLogController and type(ctx.runtimeLogController.IsEnabled) == "function" then
+          return ctx.runtimeLogController.IsEnabled()
+        end
+        return false
       end,
       onRuntimeLogToggle = function(enabled)
         if ctx.runtimeLogController and type(ctx.runtimeLogController.SetEnabled) == "function" then

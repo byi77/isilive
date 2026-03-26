@@ -769,14 +769,14 @@ local function BuildDebugSettingsSection(canvas, yOffset, labels, config, contro
   controls.queueDebug, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
-    labels.SETTINGS_QUEUE_DEBUG or "Queue Debug Log",
+    labels.SETTINGS_QUEUE_DEBUG or "Queue Debug Log (resets on reload)",
     function()
-      local db = config.getDB()
-      return db.queueDebug == true
+      if type(config.getQueueDebugEnabled) == "function" then
+        return config.getQueueDebugEnabled()
+      end
+      return false
     end,
     function(checked)
-      local db = config.getDB()
-      db.queueDebug = checked
       if type(config.onQueueDebugToggle) == "function" then
         config.onQueueDebugToggle(checked)
       end
@@ -786,14 +786,14 @@ local function BuildDebugSettingsSection(canvas, yOffset, labels, config, contro
   controls.runtimeLog, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
-    labels.SETTINGS_RUNTIME_LOG or "Runtime Log",
+    labels.SETTINGS_RUNTIME_LOG or "Runtime Log (resets on reload)",
     function()
-      local db = config.getDB()
-      return db.runtimeLogEnabled == true
+      if type(config.getRuntimeLogEnabled) == "function" then
+        return config.getRuntimeLogEnabled()
+      end
+      return false
     end,
     function(checked)
-      local db = config.getDB()
-      db.runtimeLogEnabled = checked
       if type(config.onRuntimeLogToggle) == "function" then
         config.onRuntimeLogToggle(checked)
       end
@@ -873,8 +873,12 @@ local function RefreshSettingsControls(controls, config)
   controls.sync.check:SetChecked(db.syncEnabled ~= false)
   controls.autoOpen.check:SetChecked(db.autoOpenOnQueue ~= false)
   controls.autoCloseMainFrame.check:SetChecked(db.autoCloseMainFrame == true)
-  controls.queueDebug.check:SetChecked(db.queueDebug == true)
-  controls.runtimeLog.check:SetChecked(db.runtimeLogEnabled == true)
+  controls.queueDebug.check:SetChecked(
+    type(config.getQueueDebugEnabled) == "function" and config.getQueueDebugEnabled() or false
+  )
+  controls.runtimeLog.check:SetChecked(
+    type(config.getRuntimeLogEnabled) == "function" and config.getRuntimeLogEnabled() or false
+  )
   if controls.columnGuides then
     controls.columnGuides.check:SetChecked(db.showRosterColumnGuides == true)
   end

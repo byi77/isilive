@@ -236,16 +236,13 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     -- Keep SavedVariables aligned with the hard runtime defaults until the controls return.
     IsiLiveDB.showDpsColumn = true
     IsiLiveDB.markersLeaderOnly = false
-    if IsiLiveDB.queueDebug == nil then
-      IsiLiveDB.queueDebug = false
-    end
-    if IsiLiveDB.runtimeLogEnabled == nil then
-      IsiLiveDB.runtimeLogEnabled = false
-    end
+    -- Administrative debug settings are never persisted: always start disabled, user must re-enable each session.
+    IsiLiveDB.queueDebug = false
+    IsiLiveDB.runtimeLogEnabled = false
     ctx.ensureQueueDebugStorage()
-    ctx.setQueueDebugEnabled(IsiLiveDB.queueDebug)
+    ctx.setQueueDebugEnabled(false)
     ctx.ensureRuntimeLogStorage()
-    ctx.setRuntimeLogEnabled(IsiLiveDB.runtimeLogEnabled)
+    ctx.setRuntimeLogEnabled(false)
     ctx.restoreRioBaseline()
 
     local mainFrame = ctx.getMainFrame()

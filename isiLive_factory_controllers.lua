@@ -787,21 +787,7 @@ local function InitializeFactorySecondaryControllers(ctx)
     setPendingQueueJoinInfo = function(value)
       runtimeState.SetPendingQueueJoinInfo(value)
     end,
-    resolveMapIDByActivityID = ctx.ResolveMapIDByActivityID,
-    resolveTeleportSpellIDByMapID = modules.teleport.ResolveTeleportSpellIDByMapID,
-    resolveJoinedKeyMapID = ctx.ResolveJoinedKeyMapID,
-    updateMPlusTeleportButton = ctx.UpdateMPlusTeleportButton,
-    showInviteHint = ctx.ShowInviteHint,
-    updateUI = ctx.UpdateUI,
     printFn = ctx.Print,
-    setQueueTargetState = function(dungeonName, activityID, spellID, joinedKeyMapID, mapID)
-      runtimeState.SetLatestQueueState(dungeonName, activityID, spellID, mapID)
-      runtimeState.SetActiveJoinedKeyMapID(joinedKeyMapID)
-      if ctx.UpdateStatusLine then
-        ctx.UpdateStatusLine()
-      end
-    end,
-    queueCaptureQueueJoinCandidate = modules.queue.CaptureQueueJoinCandidate,
     isInChallengeMode = ctx.GetActiveChallengeMapID,
     isInGroup = IsInGroup,
     isPlayerLeader = ctx.IsPlayerLeader,
@@ -813,9 +799,6 @@ local function InitializeFactorySecondaryControllers(ctx)
   end
   ctx.AnnounceQueuedGroupJoin = function()
     ctx.queueFlowController.AnnounceQueuedGroupJoin()
-  end
-  ctx.ShowQueueJoinPreview = function(groupName, dungeonName, activityID)
-    ctx.queueFlowController.ShowQueueJoinPreview(groupName, dungeonName, activityID)
   end
 
   ctx.testModeController = modules.testMode.CreateController(modules.configBuilders.BuildTestModeControllerOpts({
@@ -829,7 +812,6 @@ local function InitializeFactorySecondaryControllers(ctx)
     updateUI = ctx.UpdateUI,
     updateLeaderButtons = ctx.UpdateLeaderButtons,
     showCenterNotice = ctx.ShowCenterNotice,
-    showQueueJoinPreview = ctx.ShowQueueJoinPreview,
     resetInspectAll = ctx.ResetInspectAll,
     clearLatestQueueState = function()
       runtimeState.ClearLatestQueueTarget({ keepActiveJoinedKey = true })

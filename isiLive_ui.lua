@@ -1294,7 +1294,7 @@ function UI.EnsureSecondPanelUI(opts)
       if not foundToy then
         -- Fallback to default Hearthstone item (item ID 6948) if no toy found
         button:SetAttribute("type", "item")
-        button:SetAttribute("item", 6948)
+        button:SetAttribute("item", "item:6948")
       end
     elseif entry.id == "housing_plot" and type(button.SetAttribute) == "function" then
       housingSecureButton = button

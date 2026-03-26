@@ -54,13 +54,12 @@ local REQUIRED_MODULES = {
 }
 
 local REQUIRED_FUNCTIONS = {
-  { path = { "Queue", "CaptureQueueJoinCandidate" }, message = "isiLive: Queue.CaptureQueueJoinCandidate missing" },
   { path = { "KeySync", "CreateController" }, message = "isiLive: KeySync.CreateController missing" },
   { path = { "Refresh", "CreateController" }, message = "isiLive: Refresh.CreateController missing" },
   { path = { "Highlight", "CreateController" }, message = "isiLive: Highlight.CreateController missing" },
   { path = { "Group", "CreateController" }, message = "isiLive: Group.CreateController missing" },
-  { path = { "Inspect", "CreateController" }, message = "isiLive: Inspect.CreateController missing" },
   { path = { "QueueFlow", "CreateController" }, message = "isiLive: QueueFlow.CreateController missing" },
+  { path = { "Inspect", "CreateController" }, message = "isiLive: Inspect.CreateController missing" },
   { path = { "Roster", "BuildOrderedRoster" }, message = "isiLive: Roster.BuildOrderedRoster missing" },
   { path = { "Events", "CreateGate" }, message = "isiLive: Events.CreateGate missing" },
   { path = { "EventHandlers", "CreateController" }, message = "isiLive: EventHandlers.CreateController missing" },

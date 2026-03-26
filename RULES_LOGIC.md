@@ -137,11 +137,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-QUEUEFLOW-CHALLENGE-UND-DEDUP
 - Regelnummer: 9
 - Status: aktiv
-- Zusammenfassung: QueueFlow muss waehrend aktiver Challenge Queue-Events ignorieren und doppelte Updates/Announces unterdruecken.
+- Zusammenfassung: QueueFlow muss waehrend aktiver Challenge Queue-Events ignorieren.
 - Erforderliche Tests:
   - QueueFlow capture ignores queue events while in challenge mode
-  - QueueFlow update suppresses exact duplicate updates
-  - QueueFlow deduplicates repeated grouped announce for same target
 
 ### RULE-TELEPORT-SECURE-COMBAT-DEFER
 - Regelnummer: 10
@@ -261,7 +259,6 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Es gibt keinen wiederholten Target-Dungeon-Chatspam; bei identischem erkanntem Ziel reicht eine einmalige Ausgabe.
 - Erforderliche Tests:
-  - QueueFlow deduplicates repeated grouped announce for same target
   - Status target dungeon chat announces grouped key once and resets after target clears
 
 ### RULE-UI-STRG-F9-JEDERZEIT

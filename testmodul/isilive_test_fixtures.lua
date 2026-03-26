@@ -163,24 +163,14 @@ end
 function Fixtures.BuildQueueFlowController(queueFlowModule, overrides)
   local state = {
     pending = nil,
-    queueTargets = {},
-    hints = {},
-    centerNotices = {},
     prints = {},
-    uiUpdates = 0,
-    teleportUpdates = 0,
-    captures = 0,
   }
 
   local baseOptions = {
     getL = function()
       return {
         UNKNOWN_GROUP = "Unknown",
-        INVITE_HINT_GROUP = "Group: %s",
-        INVITE_HINT_DUNGEON = "Dungeon: %s",
-        INVITE_HINT_UNKNOWN_DUNGEON = "Dungeon: Unknown",
         JOINED_FROM_QUEUE = "Joined from queue: %s",
-        JOINED_FROM_QUEUE_DUNGEON = "Joined from queue: %s (%s)",
         CHAT_QUEUE_PREFIX = "Queue Join",
       }
     end,
@@ -190,70 +180,8 @@ function Fixtures.BuildQueueFlowController(queueFlowModule, overrides)
     setPendingQueueJoinInfo = function(value)
       state.pending = value
     end,
-    resolveMapIDByActivityID = function(activityID)
-      if activityID == 1001 then
-        return 2441
-      end
-      if activityID == 2001 then
-        return 2662
-      end
-      return nil
-    end,
-    resolveTeleportSpellIDByMapID = function(mapID)
-      if mapID == 2441 or mapID == 2442 then
-        return 367416
-      end
-      if mapID == 2662 then
-        return 445414
-      end
-      return nil
-    end,
-    resolveJoinedKeyMapID = function(activityID, spellID)
-      if activityID == 1001 or spellID == 367416 then
-        return 2441
-      end
-      if activityID == 2001 or spellID == 445414 then
-        return 2662
-      end
-      return nil
-    end,
-    updateMPlusTeleportButton = function()
-      state.teleportUpdates = state.teleportUpdates + 1
-    end,
-    showInviteHint = function(message, duration)
-      table.insert(state.hints, { message = message, duration = duration })
-    end,
-    showCenterNotice = function(message, duration, dungeonName, activityID)
-      table.insert(state.centerNotices, {
-        message = message,
-        duration = duration,
-        dungeonName = dungeonName,
-        activityID = activityID,
-      })
-    end,
-    updateUI = function()
-      state.uiUpdates = state.uiUpdates + 1
-    end,
     printFn = function(message)
       table.insert(state.prints, tostring(message))
-    end,
-    setQueueTargetState = function(dungeonName, activityID, spellID, joinedKeyMapID, mapID)
-      table.insert(state.queueTargets, {
-        dungeonName = dungeonName,
-        activityID = activityID,
-        spellID = spellID,
-        joinedKeyMapID = joinedKeyMapID,
-        mapID = mapID,
-      })
-    end,
-    queueCaptureQueueJoinCandidate = function(updatePendingQueueJoin, strictResolver, ...)
-      state.captures = state.captures + 1
-      local args = { ... }
-      local activityID = args[1]
-      local resolved = strictResolver(activityID)
-      if resolved then
-        updatePendingQueueJoin("Captured Group", "Captured Dungeon", 1, activityID)
-      end
     end,
     isInChallengeMode = function()
       return false

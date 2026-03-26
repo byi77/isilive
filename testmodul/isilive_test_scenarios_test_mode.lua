@@ -71,7 +71,6 @@ local function BuildTestModeController(LoadAddonModules, overrides)
     end,
     updateLeaderButtons = function() end,
     showCenterNotice = function() end,
-    showQueueJoinPreview = function() end,
     resetInspectAll = function() end,
     clearLatestQueueState = function() end,
     updateMPlusTeleportButton = function() end,

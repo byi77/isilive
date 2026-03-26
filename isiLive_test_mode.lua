@@ -44,7 +44,6 @@ local function BuildDeps(opts)
   deps.updateUI = RequireFunction(opts.updateUI, "updateUI")
   deps.updateLeaderButtons = RequireFunction(opts.updateLeaderButtons, "updateLeaderButtons")
   deps.showCenterNotice = RequireFunction(opts.showCenterNotice, "showCenterNotice")
-  deps.showQueueJoinPreview = RequireFunction(opts.showQueueJoinPreview, "showQueueJoinPreview")
   deps.resetInspectAll = RequireFunction(opts.resetInspectAll, "resetInspectAll")
   deps.clearLatestQueueState = RequireFunction(opts.clearLatestQueueState, "clearLatestQueueState")
   deps.updateMPlusTeleportButton = RequireFunction(opts.updateMPlusTeleportButton, "updateMPlusTeleportButton")
@@ -86,7 +85,6 @@ function TestMode.CreateController(opts)
     if shouldAnnounceLeader then
       deps.showCenterNotice(L.LEAD_TRANSFERRED_CENTER, 20)
     end
-    deps.showQueueJoinPreview(L.TESTALL_DUMMY_GROUP, L.TESTALL_DUMMY_DUNGEON)
     if shouldPrintChat then
       deps.printFn(L.CHAT_QUEUE_PREFIX .. " | " .. L.TESTALL_CHAT_ACTIVE)
     end
