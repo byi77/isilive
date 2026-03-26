@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.103`.
+Current documented baseline: `0.9.105`.
 
 ## Features
 
@@ -21,6 +21,7 @@ Current documented baseline: `0.9.103`.
 - **Roster Column Guides:** Optional debug column guides can be enabled for `M` and `M2` layout tuning and stay off by default.
 - **Hidden Legacy Settings Defaults:** `Name Length`, `Teleport Grid Columns`, `Show DPS Column`, and `Markers: Leader Only` are temporarily hidden from Blizzard Settings; runtime keeps fixed live defaults instead (`DPS`, `Deaths`, and `Kicks` on, markers visible for all, fixed name truncation, legacy 2-column `Travel` grid).
 - **Leader Transfer Feedback:** gaining lead while the main UI is visible shows the center notice and plays the transfer sound; hidden promotions still play the sound but suppress the notice/chat output.
+- **Leader Marker:** roster rows for the real local group leader render a Blizzard crown icon; if that player is also a known `isiLive` user, the blue heart stays visible and is rendered before the crown.
 - **UI Polish Refresh:** The roster panel, private tooltips, invite hint, and center notice now share the same dark framed palette with softer blue hover accents, alternating row shading, and cleaner separators.
 - **Combat Utility Row:** A bottom tracker row shows live `BRes` charges/cooldown (via `C_Spell.GetSpellCharges` struct-return) plus `Bloodlust`/`Heroism`/`Time Warp` remaining time with spell icons. Lust tracking uses the player's harmful exhaustion aura, accepts only numeric aura `spellId` values for lookup, ignores protected/non-numeric payloads safely, treats `UNIT_AURA(..., { isFullUpdate = true })` as aura-restore state after zone/reload transitions, and keeps only a short 2-second startup suppress window as a safety net before the full restore arrives.
 - **Minimap Button:** Optional draggable Minimap button toggles the main window and persists its angle around the minimap.
@@ -46,10 +47,11 @@ Current documented baseline: `0.9.103`.
 - Persistent stats stay bounded: only the matching local character's own last-run DPS/Deaths/Kicks are kept in SavedVariables; foreign-player snapshots are session-only
 - CurseForge release packaging excludes PNG screenshot/logo assets via `.pkgmeta`, so repository preview images do not ship inside the addon zip
 - Queue join detection no longer guesses dungeon targets; when visible queue metadata yields a group name, non-leader members get one grouped chat summary after join without invite hint or queue-based teleport highlight
+- Ready-check lifecycle uses a dedicated roster refresh path that updates row coloring without rerunning the generic full render or rewriting secure role-button attributes
 - Dungeon teleport controls in center notice + right-side grid
 - Teleport cooldown shown as `HH:MM`
 - Active Midnight Season 1 `M2` short codes currently use `MGT / MAI / NPX / WRS / AA / POS / SOT / SKY` in `enUS` and `TDM / MAI / NPX / WRS / AA / GVS / SDT / HN` in `deDE`
-- Addon-presence marker per roster name (custom blue heart icon plus a compact sync refresh badge when metadata is available)
+- Addon-presence marker per roster name (custom blue heart icon plus a compact sync refresh badge when metadata is available); real group leaders additionally show a 16x16 crown after the heart
 - `Share Keys` posts one party-chat line per available member key (`isiLive PartyKeys: Name -> Key`), using Blizzard owned-keystone link payload for the local player when available
 - Spec column uses max-5-char short labels for long localized names (for example `Wiederherstellung -> Resto`, `Vergeltung -> Retri`, `Treffsicherheit -> MM`, `Tierherrschaft -> BM`)
 - Center notices: left-click drag, right-click dismiss, top-right close button; position resets to center on each open
@@ -104,9 +106,9 @@ Current documented baseline: `0.9.103`.
 - Runtime log storage is session-only and starts disabled on every login/reload.
 - Sync handshake behavior: `HELLO` recipients send `ACK`; explicit local refresh force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.103)
+## Use Case / Logic Baseline (v0.9.105)
 
-Documented on `2026-03-26` as runtime behavior baseline (`0.9.103`) for validation checks.
+Documented on `2026-03-26` as runtime behavior baseline (`0.9.105`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -117,6 +119,7 @@ Documented on `2026-03-26` as runtime behavior baseline (`0.9.103`) for validati
    - On group update, roster is rebuilt as `player + party1..party4`.
    - Display ordering is stable by role (`TANK -> HEALER -> DAMAGER -> NONE`) and unit priority.
    - Per row data includes `Spec`, `Name`, `Flag`, `Key`, `iLvl`, `RIO`, `DPS`, `Deaths`, `Kicks` and optional run-delta prefix `(+X)`.
+   - Known `isiLive` users show the blue heart marker; real group leaders show a 16x16 crown marker, and synced leaders render `heart -> crown`.
 3. Key sync and key column
    - Own outbound sync snapshots remain visibility-bound, while incoming addon sync messages can still refresh cached roster data during hidden mode.
    - Manual `Refresh` force-sends the local `HELLO` + `KEY/STATS/DPS/LOC` snapshot and also sends `REQSYNC`; hidden peers may answer with one forced `KEY/STATS/DPS/LOC` reply without opening their UI, but only when they are not stopped, paused, or inside an active key.
@@ -271,7 +274,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 400 scenarios across 34 modules, while the rule validators currently index 396 deterministic tests, including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 419 scenarios across 34 modules, while the rule validators currently index 415 deterministic tests, including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)

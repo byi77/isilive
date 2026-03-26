@@ -157,6 +157,10 @@ local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, foll
   RefreshRosterAfterRunStateChange(ctx, frame)
 end
 
+local function RefreshReadyCheckUI(ctx)
+  ctx.refreshReadyCheckUI()
+end
+
 function ChallengeLifecycle.BuildHandlers(ctx)
   local function HandleChallengeModeStart(_self)
     ctx.lastRecordedRunSignature = nil
@@ -200,16 +204,16 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     CHALLENGE_MODE_RESET = HandleChallengeModeCompletedOrReset,
     READY_CHECK = function(_self)
       ctx.setReadyCheckActive(true)
-      ctx.updateUI()
+      RefreshReadyCheckUI(ctx)
     end,
     READY_CHECK_CONFIRM = function(_self)
       if ctx.isReadyCheckActive() then
-        ctx.updateUI()
+        RefreshReadyCheckUI(ctx)
       end
     end,
     READY_CHECK_FINISHED = function(_self)
       ctx.setReadyCheckActive(false)
-      ctx.updateUI()
+      RefreshReadyCheckUI(ctx)
     end,
   }
 end

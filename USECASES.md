@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.103`
+Version baseline: `0.9.105`
 Last updated: `2026-03-26`
 
 ## Actors
@@ -176,6 +176,8 @@ Goal: show live BRes and Bloodlust/Heroism/Time Warp timers in the roster panel 
 14. Raid-group detection (> 5 members) keeps the addon visible, forces H mode, hides roster rows, prints a localized transition notice once per raid-size transition, and blocks switching back to M/V until party size returns.
 15. The optional `Esc` tooling and travel strips stay localized, close the game menu before opening their targets, and keep `ReloadUI` on a secure macro path (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`; blocked secure refreshes for that button and blocked deferred strip host-frame re-shows replay on `PLAYER_REGEN_ENABLED` instead of running in combat.
 16. Hidden legacy settings controls remain absent from Blizzard Settings and currently use fixed runtime defaults: `DPS`, `Deaths`, and `Kicks` columns on, markers visible for all, fixed name truncation, and legacy 2-column `Travel` layout.
+17. Ready-check lifecycle updates must use the dedicated ready-check refresh path so name/spec colors reset deterministically after ready-check rerenders without rewriting secure role-button attributes.
+18. Roster leader markers must mirror the true `UnitIsGroupLeader` state only; leader rows render a 16x16 crown, and if the same row also has the blue `isiLive` heart marker, the order must stay `heart -> crown`.
 
 Runtime behavior in this document is validated by `tools/validate_usecases.lua`.
 Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules_logic.lua` and also enforced during `tools/validate_usecases.lua`.
@@ -199,7 +201,7 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 | Queue detection and target capture | `isiLive_queue.lua`, `isiLive_event_handlers_queue.lua` |
 | Highlight resolution and inside-dungeon suppression | `isiLive_highlight.lua` |
 | Teleport spell mapping and cooldown behavior | `isiLive_teleport.lua`, `isiLive_spell_utils.lua`, `isiLive_teleport_ui.lua` |
-| Group lifecycle and roster rebuild | `isiLive_group.lua`, `isiLive_roster.lua` |
+| Group lifecycle, leader-state mirroring, and roster rebuild | `isiLive_group.lua`, `isiLive_roster.lua` |
 | RIO baseline capture and delta preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
 | Last-run DPS/deaths/kicks capture and bounded stats persistence | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
 | Combat utility tracker row | `isiLive_cd_tracker.lua`, `isiLive_factory_controllers.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |

@@ -15,6 +15,8 @@ local ROLE_ICONS = {
   DAMAGER = CreateRoleIcon("20:39:22:41"),
 }
 
+local LEADER_MARKER = " |TInterface\\GroupFrame\\UI-Group-LeaderIcon:16:16|t"
+
 local function NormalizeDisplayedKeyShortCode(shortCode)
   local text = tostring(shortCode or ""):gsub("%s+", "")
   if text == "" then
@@ -183,6 +185,9 @@ function Roster.BuildDisplayData(info, opts)
   local addonMarker = ""
   if info.hasIsiLive then
     addonMarker = addonMarker .. syncMarker
+  end
+  if info.isLeader then
+    addonMarker = addonMarker .. LEADER_MARKER
   end
   if type(syncSummary) == "table" then
     addonMarker = addonMarker .. syncBadge

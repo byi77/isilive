@@ -656,6 +656,12 @@ local function BuildFactoryRuntimeHelperContext(initial, LoadAddonModules)
     GetRoster = function()
       return state.roster or {}
     end,
+    GetPendingQueueJoinInfo = function()
+      return state.pendingQueueJoinInfo
+    end,
+    SetPendingQueueJoinInfo = function(value)
+      state.pendingQueueJoinInfo = value
+    end,
     GetLatestQueueState = function()
       return state.latestQueueDungeonName, state.latestQueueActivityID, nil, state.latestQueueMapID
     end,
@@ -694,6 +700,20 @@ local function BuildFactoryRuntimeHelperContext(initial, LoadAddonModules)
     },
     runtimeState = runtimeState,
     addonTable = {},
+    GetL = function()
+      return {
+        UNKNOWN_GROUP = "Unknown",
+        JOINED_FROM_QUEUE = "Joined from queue: %s",
+        CHAT_QUEUE_PREFIX = "Queue Join",
+      }
+    end,
+    Print = function(message)
+      state.prints = state.prints or {}
+      table.insert(state.prints, tostring(message))
+    end,
+    IsPlayerLeader = function()
+      return state.isPlayerLeader == true
+    end,
     keySyncController = {
       ResolveActiveKeyOwnerUnit = function(roster, targetMapID)
         if type(state.resolveActiveKeyOwnerUnit) == "function" then
@@ -709,10 +729,278 @@ local function BuildFactoryRuntimeHelperContext(initial, LoadAddonModules)
   }
 
   addon._FactoryInternal.InitializeFactoryRuntimeHelpers(ctx)
-  return ctx
+  return ctx, state
 end
 
-local function RegisterFactoryTargetContextTests(test, Assert, LoadAddonModules)
+local function RegisterFactoryRuntimeQueueTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Factory runtime queue capture ignores queue events while challenge mode is active", function()
+    WithGlobals({
+      IsInGroup = function()
+        return false
+      end,
+      GetTime = function()
+        return 42
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return 507
+        end,
+      },
+    }, function()
+      local ctx, state = BuildFactoryRuntimeHelperContext({}, LoadAddonModules)
+
+      ctx.CaptureQueueJoinCandidate({ groupName = "Queued Group" })
+
+      Assert.Nil(state.pendingQueueJoinInfo, "challenge mode must not capture pending queue join info")
+      Assert.Equal(#(state.prints or {}), 0, "challenge mode capture path must stay silent")
+    end)
+  end)
+
+  test("Factory runtime queue capture stores pending info when not in group", function()
+    WithGlobals({
+      IsInGroup = function()
+        return false
+      end,
+      GetTime = function()
+        return 42
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return nil
+        end,
+      },
+    }, function()
+      local ctx, state = BuildFactoryRuntimeHelperContext({}, LoadAddonModules)
+
+      ctx.CaptureQueueJoinCandidate({ groupName = "Queued Group" })
+
+      Assert.NotNil(state.pendingQueueJoinInfo, "queue capture must store pending queue join info outside a group")
+      Assert.Equal(
+        state.pendingQueueJoinInfo.groupName,
+        "Queued Group",
+        "queue capture must keep the queued group name for the later announce"
+      )
+      Assert.Equal(state.pendingQueueJoinInfo.capturedAt, 42, "queue capture must stamp deterministic capture time")
+    end)
+  end)
+
+  test("Factory runtime queue capture announces immediately when already grouped", function()
+    WithGlobals({
+      IsInGroup = function()
+        return true
+      end,
+      GetTime = function()
+        return 42
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return nil
+        end,
+      },
+    }, function()
+      local ctx, state = BuildFactoryRuntimeHelperContext({
+        pendingQueueJoinInfo = {
+          groupName = "Late Group",
+          capturedAt = 1,
+        },
+      }, LoadAddonModules)
+
+      ctx.CaptureQueueJoinCandidate()
+
+      Assert.Nil(state.pendingQueueJoinInfo, "already-grouped capture must consume pending queue join info immediately")
+      Assert.True(#(state.prints or {}) >= 3, "already-grouped capture must print the queue join summary")
+    end)
+  end)
+
+  test("Factory runtime queue capture resets stale pending info when a new search starts outside a group", function()
+    WithGlobals({
+      IsInGroup = function()
+        return false
+      end,
+      GetTime = function()
+        return 42
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return nil
+        end,
+      },
+    }, function()
+      local ctx, state = BuildFactoryRuntimeHelperContext({
+        pendingQueueJoinInfo = {
+          groupName = "Old Group",
+          capturedAt = 1,
+        },
+      }, LoadAddonModules)
+
+      ctx.CaptureQueueJoinCandidate()
+
+      Assert.Nil(
+        state.pendingQueueJoinInfo,
+        "capture outside a group must clear stale pending queue join info before a new search starts"
+      )
+      Assert.Equal(#(state.prints or {}), 0, "stale pending reset outside a group must stay silent")
+    end)
+  end)
+
+  test("Factory runtime queue announce prints queue joined message for members and clears pending", function()
+    local ctx, state = BuildFactoryRuntimeHelperContext({
+      pendingQueueJoinInfo = {
+        groupName = "Queued Group",
+        capturedAt = 42,
+      },
+    }, LoadAddonModules)
+
+    ctx.AnnounceQueuedGroupJoin()
+
+    Assert.Nil(state.pendingQueueJoinInfo, "member announce path must clear pending queue join info")
+    Assert.True(#(state.prints or {}) >= 3, "member announce path must print the queue join summary")
+  end)
+
+  test("Factory runtime queue announce clears pending for leaders without printing", function()
+    local ctx, state = BuildFactoryRuntimeHelperContext({
+      isPlayerLeader = true,
+      pendingQueueJoinInfo = {
+        groupName = "Queued Group",
+        capturedAt = 42,
+      },
+    }, LoadAddonModules)
+
+    ctx.AnnounceQueuedGroupJoin()
+
+    Assert.Nil(state.pendingQueueJoinInfo, "leader announce path must clear pending queue join info")
+    Assert.Equal(#(state.prints or {}), 0, "leader announce path must not print the queue join summary")
+  end)
+
+  test("Factory runtime queue helpers stay semantically aligned with legacy QueueFlow", function()
+    local queueFlowAddon = LoadAddonModules({ "isiLive_queue_flow.lua" })
+
+    local function BuildComparableResult(initialState, globals, action)
+      local factoryResult
+      local legacyState = {
+        pendingQueueJoinInfo = initialState.pendingQueueJoinInfo,
+        prints = {},
+      }
+
+      WithGlobals(globals, function()
+        local factoryCtx, factoryState = BuildFactoryRuntimeHelperContext(initialState, LoadAddonModules)
+        local queueFlowController = queueFlowAddon.QueueFlow.CreateController({
+          getL = factoryCtx.GetL,
+          getPendingQueueJoinInfo = function()
+            return legacyState.pendingQueueJoinInfo
+          end,
+          setPendingQueueJoinInfo = function(value)
+            legacyState.pendingQueueJoinInfo = value
+          end,
+          printFn = function(message)
+            table.insert(legacyState.prints, tostring(message))
+          end,
+          isInChallengeMode = function()
+            return factoryCtx.GetActiveChallengeMapID() ~= nil
+          end,
+          isInGroup = function()
+            return IsInGroup()
+          end,
+          isPlayerLeader = function()
+            return factoryState.isPlayerLeader == true
+          end,
+          getTimeFn = function()
+            return GetTime()
+          end,
+        })
+
+        factoryResult = {
+          pendingQueueJoinInfo = factoryState.pendingQueueJoinInfo,
+          prints = factoryState.prints or {},
+        }
+
+        action(factoryCtx, queueFlowController)
+
+        factoryResult.pendingQueueJoinInfo = factoryState.pendingQueueJoinInfo
+        factoryResult.prints = factoryState.prints or {}
+      end)
+
+      Assert.Equal(
+        legacyState.pendingQueueJoinInfo and legacyState.pendingQueueJoinInfo.groupName or nil,
+        factoryResult.pendingQueueJoinInfo and factoryResult.pendingQueueJoinInfo.groupName or nil,
+        "legacy QueueFlow and factory helper must keep the same pending group name"
+      )
+      Assert.Equal(
+        legacyState.pendingQueueJoinInfo and legacyState.pendingQueueJoinInfo.capturedAt or nil,
+        factoryResult.pendingQueueJoinInfo and factoryResult.pendingQueueJoinInfo.capturedAt or nil,
+        "legacy QueueFlow and factory helper must keep the same pending capture timestamp"
+      )
+      Assert.Equal(
+        #legacyState.prints,
+        #factoryResult.prints,
+        "legacy QueueFlow and factory helper must emit the same number of queue announce lines"
+      )
+    end
+
+    BuildComparableResult({}, {
+      IsInGroup = function()
+        return false
+      end,
+      GetTime = function()
+        return 42
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return nil
+        end,
+      },
+    }, function(factoryCtx, queueFlowController)
+      factoryCtx.CaptureQueueJoinCandidate({ groupName = "Queued Group" })
+      queueFlowController.CaptureQueueJoinCandidate({ groupName = "Queued Group" })
+    end)
+
+    BuildComparableResult({
+      pendingQueueJoinInfo = {
+        groupName = "Old Group",
+        capturedAt = 1,
+      },
+    }, {
+      IsInGroup = function()
+        return false
+      end,
+      GetTime = function()
+        return 42
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return nil
+        end,
+      },
+    }, function(factoryCtx, queueFlowController)
+      factoryCtx.CaptureQueueJoinCandidate()
+      queueFlowController.CaptureQueueJoinCandidate()
+    end)
+
+    BuildComparableResult({
+      pendingQueueJoinInfo = {
+        groupName = "Queued Group",
+        capturedAt = 42,
+      },
+    }, {
+      IsInGroup = function()
+        return true
+      end,
+      GetTime = function()
+        return 42
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return nil
+        end,
+      },
+    }, function(factoryCtx, queueFlowController)
+      factoryCtx.AnnounceQueuedGroupJoin()
+      queueFlowController.AnnounceQueuedGroupJoin()
+    end)
+  end)
+end
+
+local function RegisterFactoryTargetContextResolutionTests(test, Assert, LoadAddonModules)
   test("Factory target dungeon stays unresolved without queue or joined-key map context", function()
     local ctx = BuildFactoryRuntimeHelperContext({
       roster = {
@@ -796,5 +1084,6 @@ return function(test, ctx)
   RegisterDungeonDifficultyTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModules)
-  RegisterFactoryTargetContextTests(test, Assert, LoadAddonModules)
+  RegisterFactoryRuntimeQueueTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterFactoryTargetContextResolutionTests(test, Assert, LoadAddonModules)
 end

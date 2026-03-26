@@ -73,6 +73,9 @@ local function BuildDeps(opts)
     getUnitRio = opts.getUnitRio or function(_unit)
       return nil
     end,
+    unitIsGroupLeader = opts.unitIsGroupLeader or function(_unit)
+      return false
+    end,
     unitHasIsiLive = opts.unitHasIsiLive or function(_unit)
       return false
     end,
@@ -172,6 +175,7 @@ UpdatePlayerEntry = function(deps, playerEntry, preserveIlvl)
   SetIfNotNil(playerEntry, "role", deps.getUnitRole("player"))
   SetIfNotNil(playerEntry, "keyMapID", ownKeyMapID)
   SetIfNotNil(playerEntry, "keyLevel", ownKeyLevel)
+  playerEntry.isLeader = deps.unitIsGroupLeader("player") == true
   playerEntry.hasIsiLive = true
   playerEntry.isGhost = false
 
@@ -279,6 +283,7 @@ local function UpdatePartyMembersInRoster(deps, roster)
         language = memberLanguage,
         class = memberClass,
         role = deps.getUnitRole(unit),
+        isLeader = deps.unitIsGroupLeader(unit) == true,
         spec = spec,
         ilvl = ilvl,
         rio = rio,

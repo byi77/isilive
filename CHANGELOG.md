@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-03-26 - Version 0.9.105 (patch)
+
+- Queue join / ready-check / taint hardening:
+  - Restored the active queue-join runtime wiring through factory, runtime setup, and controller wiring, and added live-path deterministic coverage for challenge-ignore, pending capture/reset, and grouped announce behavior.
+  - Ready-check lifecycle now uses a dedicated roster refresh path instead of the generic full rerender, resetting name/spec colors cleanly after the ready check and avoiding secure role-button rewrites.
+  - Combat-safe roster layout updates now skip secure button `SetPoint`/`SetSize` mutations during combat, preventing protected-call taint from M2 rerenders.
+- Roster and notice UI polish:
+  - Added a real leader marker in the roster: real group leaders render a 16x16 crown, and synced leaders keep the blue heart before the crown.
+  - Unified center-notice body typography with the portal navigator via a shared helper, so body font and default color now stay aligned on one implementation path.
+- Docs / release baseline:
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.105`.
+  - Updated the documented validator counts to `419` scenarios across `34` modules and `415` rule-indexed deterministic tests.
+- Release metadata:
+  - Bumped TOC version to `0.9.105`.
+
+## 2026-03-26 - Version 0.9.104 (patch)
+
+- Queue join and ready-check hardening:
+  - Documented the active queue-join runtime path as the factory/runtime-wired implementation, with deterministic parity coverage against the legacy `QueueFlow` helper.
+  - Documented the dedicated ready-check refresh path that updates roster colors without rerunning the generic full render or rewriting secure role-button attributes.
+  - Added deterministic coverage that a ready-check rerender resets spec color correctly after the ready check ends.
+- Docs / release baseline:
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.104`.
+  - Updated the documented validator counts to `412` scenarios across `34` modules and `408` rule-indexed deterministic tests.
+- Release metadata:
+  - Bumped TOC version to `0.9.104`.
+
 ## 2026-03-26 - Version 0.9.103 (patch)
 
 - Docs / validation alignment:

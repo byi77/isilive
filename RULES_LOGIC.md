@@ -29,7 +29,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 6. Identische KEY-Sync-Zustaende duerfen keine unnoetigen Folgeupdates erzeugen.
 7. Queue-Capture darf pending/applied Rauschen nicht als neues Ziel behandeln und muss Doppler ignorieren.
 8. Highlight-Aufloesung darf nur mit eindeutigem activity/map-Kontext arbeiten und kein Gruppen-freies Fallback nutzen.
-9. QueueFlow muss waehrend aktiver Challenge Queue-Events ignorieren und doppelte Updates/Announces unterdruecken.
+9. Der aktive Queue-Join-Runtimepfad muss waehrend aktiver Challenge Queue-Events ignorieren und ausserhalb davon Pending-Queue-Infos fuer den Gruppenbeitritts-Announce deterministisch setzen und wieder leeren.
 10. Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; blockierte Main-UI-Sichtbarkeitswechsel werden gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
 11. In Raid-Groesse bleibt die UI sichtbar, wechselt in den H-Modus; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
 12. Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
@@ -54,7 +54,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 31. main ui auto-open bleibt bei gruppenbeitritt und key ende erhalten; automatisches schliessen bei key start ist standardmaessig aus.
 32. verlaesst ein gruppenmitglied die gruppe, bleibt es als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt
 33. spieler, die sich bereits im zieldungeon befinden, werden mit einem portal-icon markiert
-34. waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt
+34. waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt, danach auf die klassenfarbe zurueckgesetzt und ueber einen dedizierten Ready-Check-Refreshpfad aktualisiert, der keine Secure-Rollenbutton-Attribute neu schreibt.
 35. die kompakten roster-datenspalten behalten ihr festes breitenbudget fuer spec, name, ilvl, key, rio, dps und flagge.
 36. roster-kurztexte bleiben kompakt und faktenbasiert: name max 12 zeichen, spec max 5 zeichen mit hunter-kurzlabels `MM`/`BM`, sprache nur flagge, key-code max 4 zeichen und kein numerischer mapID-Fallback.
 37. die wartungsdatei `WARTUNG.md` darf nicht im curseforge-paket landen.
@@ -63,6 +63,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 40. Bei Gruppengroessen > 5 (Raid) wird im Roster-Panel in den H-Modus gewechselt, die Gruppenmitglieder-Zeilen werden ausgeblendet und die Raid-Benachrichtigung nur einmal pro Raid-Uebergang ausgegeben.
 41. API-Aufrufe mit Unit-Tokens muessen `UnitExists` pruefen, bevor sie aufgerufen werden, um Race-Conditions bei Gruppenaenderungen abzufangen.
 42. Die Behavior-Option `Auto-Close bei Key-Start / Solo` ist standardmaessig aus; nur wenn sie aktiv ist, darf die Main-UI bei Key-Start und beim Solo-Uebergang automatisch schliessen.
+43. Der aktuelle Gruppenleiter wird im Roster mit einer 16x16-Krone markiert; bei bekannten isiLive-Nutzern bleibt das blaue Herz zusaetzlich sichtbar und steht vor der Krone.
+44. Alle Center-Meldungen starten mit derselben Portal-Navigator-Basistypografie fuer Body-Text, Schriftgroesse und Standardfarbe.
 
 ## Regelbloecke
 
@@ -137,18 +139,25 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-QUEUEFLOW-CHALLENGE-UND-DEDUP
 - Regelnummer: 9
 - Status: aktiv
-- Zusammenfassung: QueueFlow muss waehrend aktiver Challenge Queue-Events ignorieren.
+- Zusammenfassung: Der aktive Queue-Join-Runtimepfad muss waehrend aktiver Challenge Queue-Events ignorieren und ausserhalb davon Pending-Queue-Infos fuer den Gruppenbeitritts-Announce deterministisch setzen und wieder leeren.
 - Erforderliche Tests:
-  - QueueFlow capture ignores queue events while in challenge mode
+  - Factory runtime queue capture ignores queue events while challenge mode is active
+  - Factory runtime queue capture stores pending info when not in group
+  - Factory runtime queue capture announces immediately when already grouped
+  - Factory runtime queue capture resets stale pending info when a new search starts outside a group
+  - Factory runtime queue announce prints queue joined message for members and clears pending
+  - Factory runtime queue announce clears pending for leaders without printing
+  - Architecture queue join callbacks stay wired through runtime setup and controller wiring
 
 ### RULE-TELEPORT-SECURE-COMBAT-DEFER
 - Regelnummer: 10
 - Status: aktiv
-- Zusammenfassung: Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; direkte Main-UI-Sichtbarkeitswechsel werden bei Kampf-Lockdown gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
+- Zusammenfassung: Secure-Button-Updates und Layout-Mutationen an Secure-Buttons duerfen im Kampf nicht direkt ausgefuehrt werden; direkte Main-UI-Sichtbarkeitswechsel werden bei Kampf-Lockdown gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
 - Erforderliche Tests:
   - Teleport secure button updates are deferred during combat and applied after regen
   - UI game-menu secure button updates are deferred during combat and applied after regen
   - UI direct SetVisible defers during combat and applies after regen
+  - TAINT: M2 roster rerender skips secure tank-helper layout mutations during combat
 
 ### RULE-GRUPPE-RAID-SICHTBARKEIT
 - Regelnummer: 11
@@ -338,10 +347,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-READY-CHECK-INDICATOR
 - Regelnummer: 34
 - Status: aktiv
-- Zusammenfassung: waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt und danach auf die klassenfarbe zurueckgesetzt.
+- Zusammenfassung: waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt und danach auf die klassenfarbe zurueckgesetzt; die Events `READY_CHECK`, `READY_CHECK_CONFIRM` und `READY_CHECK_FINISHED` muessen dafuer den dedizierten Ready-Check-Refreshpfad nutzen, ohne den generischen Voll-Renderpfad zu verwenden oder Secure-Rollenbutton-Attribute neu zu schreiben.
 - Erforderliche Tests:
   - Roster name color follows ready check status colors
   - Roster name color resets to class color after ready check
+  - Ready-check dedicated refresh resets spec color after a ready-check rerender
+  - Event handlers route ready check lifecycle through refreshReadyCheckUI without generic rerender
+  - TAINT: Ready-check refresh preserves secure role button attributes
+  - Architecture ready check refresh stays wired through runtime setup and controller wiring
 
 ### RULE-CODING-KEINE-FALLBACK-KETTEN
 - Regelnummer: 23
@@ -438,3 +451,22 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Factory auto-close main frame defaults to disabled unless explicitly enabled
   - Event handlers auto-hide main frame on challenge start when auto-close is enabled
   - Group leave auto-close hides frame when option is enabled
+
+### RULE-ROSTER-LEADER-CROWN-MARKER
+- Regelnummer: 43
+- Status: aktiv
+- Zusammenfassung: Der Gruppencontroller muss den echten `UnitIsGroupLeader`-Status fuer `player` und `partyN` deterministisch in den Roster-Eintrag spiegeln; die Roster-Anzeige muss fuer genau diese Eintraege eine 16x16-Kronenmarkierung rendern und bei bekannten isiLive-Nutzern das blaue Herz zusaetzlich beibehalten und vor der Krone anordnen.
+- Erforderliche Tests:
+  - Group roster stores current group leader flag for player and party units
+  - Roster display appends crown marker for group leader
+  - Roster display renders blue-heart marker before crown marker for synced leader
+  - Architecture leader marker stays wired through runtime setup and controller wiring
+
+### RULE-CENTER-NOTICE-PORTAL-TYPOGRAFIE
+- Regelnummer: 44
+- Status: aktiv
+- Zusammenfassung: Alle Aufrufe der gemeinsamen `CenterNotice` muessen fuer den Notice-Body denselben Basis-Font wie die Portal-Navigator-Eintraege (`GameFontNormal`) sowie die Standardfarbe `(1, 0.92, 0.7)` verwenden; explizite `fontScale`- und `textColor`-Overrides duerfen nur deterministisch auf dieser Basis aufsetzen.
+- Erforderliche Tests:
+  - Center notice font scale does not grow across repeated notices
+  - Center notice uses portal navigator typography defaults
+  - Architecture center notice and portal entries share the same notice body typography helper

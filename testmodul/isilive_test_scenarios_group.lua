@@ -116,6 +116,9 @@ local function BuildGroupControllerOptions(state, overrides)
     getUnitRio = function(_unit)
       return 3500
     end,
+    unitIsGroupLeader = overrides.unitIsGroupLeader or function(_unit)
+      return false
+    end,
     unitHasIsiLive = function(_unit)
       return false
     end,
@@ -332,6 +335,24 @@ local function RegisterGroupJoinLifecycleTests(test, Assert, LoadAddonModules, W
       Assert.Equal(#frameBridgeCalls, 1, "non-queue show requests must still work when queue auto-open is off")
       Assert.True(frameBridgeCalls[1], "non-queue show request must remain visible")
     end)
+  end)
+
+  test("Group roster stores current group leader flag for player and party units", function()
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function()
+        return 4
+      end,
+      unitIsGroupLeader = function(unit)
+        return unit == "party2"
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.False(state.roster.player.isLeader == true, "player must not be marked as leader when API reports false")
+    Assert.False(state.roster.party1.isLeader == true, "non-leader party member must not be marked as leader")
+    Assert.True(state.roster.party2.isLeader == true, "party leader must be marked on the roster entry")
+    Assert.False(state.roster.party3.isLeader == true, "other party members must remain non-leaders")
   end)
 end
 

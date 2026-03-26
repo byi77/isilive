@@ -50,7 +50,7 @@ local function CaptureQueueJoinCandidate(deps, ...)
     -- positional args: first string that doesn't look like a status is the group name
     local val = args[1]
     local low = string.lower(val)
-    if not (low:find("invite") or low:find("accept") or low:find("applied") or low:find("declin")) then
+    if not (low:find("invite") or low:find("accept") or low == "applied" or low:find("declin")) then
       groupName = val
     end
   end

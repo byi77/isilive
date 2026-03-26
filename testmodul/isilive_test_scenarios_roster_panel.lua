@@ -246,6 +246,86 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
     end)
   end)
 
+  test("Roster display appends crown marker for group leader", function()
+    WithGlobals({
+      GetReadyCheckStatus = function()
+        return nil
+      end,
+      RAID_CLASS_COLORS = {},
+      CreateColor = function()
+        return {
+          GenerateHexColor = function()
+            return "ffffffff"
+          end,
+        }
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster.lua",
+      })
+
+      local displayData = addon.Roster.BuildDisplayData({
+        name = "LeaderPlayer",
+        isLeader = true,
+      }, {})
+
+      Assert.True(
+        displayData.addonMarker:find("UI%-Group%-LeaderIcon", 1) ~= nil,
+        "group leader should receive the crown marker"
+      )
+      Assert.True(
+        displayData.addonMarker:find("UI%-Group%-LeaderIcon:16:16", 1) ~= nil,
+        "group leader crown marker should render at 16x16"
+      )
+    end)
+  end)
+
+  test("Roster display renders blue-heart marker before crown marker for synced leader", function()
+    WithGlobals({
+      GetReadyCheckStatus = function()
+        return nil
+      end,
+      RAID_CLASS_COLORS = {},
+      CreateColor = function()
+        return {
+          GenerateHexColor = function()
+            return "ffffffff"
+          end,
+        }
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster.lua",
+      })
+
+      local displayData = addon.Roster.BuildDisplayData({
+        name = "LeaderPlayer",
+        isLeader = true,
+        hasIsiLive = true,
+      }, {
+        syncMarker = " |TInterface\\AddOns\\isiLive\\media\\heart_sync:12:12|t",
+      })
+
+      Assert.True(
+        displayData.addonMarker:find("UI%-Group%-LeaderIcon", 1) ~= nil,
+        "leader marker must remain visible for synced leaders"
+      )
+      Assert.True(
+        displayData.addonMarker:find("heart_sync", 1, true) ~= nil,
+        "blue-heart marker must remain visible for synced leaders"
+      )
+      local heartPosition = displayData.addonMarker:find("heart_sync", 1, true)
+      local crownPosition = displayData.addonMarker:find("UI%-Group%-LeaderIcon", 1)
+
+      Assert.True(heartPosition ~= nil, "blue-heart marker position must be detectable")
+      Assert.True(crownPosition ~= nil, "crown marker position must be detectable")
+      Assert.True(
+        heartPosition < crownPosition,
+        "blue-heart marker must render before the crown marker for synced leaders"
+      )
+    end)
+  end)
+
   test("Roster display adds a sync badge when sync metadata exists", function()
     WithGlobals({
       GetReadyCheckStatus = function()

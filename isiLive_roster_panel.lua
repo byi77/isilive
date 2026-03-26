@@ -1207,6 +1207,71 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   return ui
 end
 
+local function IsEntryAtTargetDungeon(targetMapID, entry, info)
+  local isAtDungeon = false
+
+  if targetMapID and entry and entry.unit then
+    local mapApi = rawget(_G, "C_Map")
+    local getBestMapForUnit = mapApi and mapApi.GetBestMapForUnit or nil
+    if type(getBestMapForUnit) == "function" then
+      local ok, playerMapID = pcall(getBestMapForUnit, entry.unit)
+      if ok and playerMapID and tonumber(playerMapID) == tonumber(targetMapID) then
+        isAtDungeon = true
+      end
+    end
+  end
+
+  if not isAtDungeon and targetMapID and info and info.syncLocMapID then
+    if tonumber(info.syncLocMapID) == tonumber(targetMapID) then
+      isAtDungeon = true
+    end
+  end
+
+  return isAtDungeon
+end
+
+local function BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID)
+  local info = entry and entry.info or {}
+
+  return state.buildDisplayData(info, {
+    unit = entry and entry.unit or nil,
+    truncateName = state.truncateName,
+    getShortSpecLabel = state.getShortSpecLabel,
+    getLanguageFlagMarkup = state.getLanguageFlagMarkup,
+    getDungeonShortCode = state.getDungeonShortCode,
+    getRioDelta = state.getRioDelta,
+    syncMarker = state.syncMarker,
+    syncBadge = state.syncBadge,
+    syncSummary = state.getPlayerSyncSummary and state.getPlayerSyncSummary(info.name, info.realm) or nil,
+    isReadyCheckActive = isReadyCheckActive,
+    isAtDungeon = IsEntryAtTargetDungeon(targetMapID, entry, info),
+  })
+end
+
+local function ApplyRowNameDisplay(row, displayData)
+  if not row or not row.name or type(row.name.SetText) ~= "function" then
+    return
+  end
+
+  row.name:SetText(
+    (displayData.readyCheckMarkup or "")
+      .. " |c"
+      .. displayData.colorHex
+      .. displayData.displayName
+      .. "|r"
+      .. displayData.atDungeonMarker
+      .. displayData.addonMarker
+  )
+end
+
+local function ApplyRowSpecDisplay(row, displayData)
+  if not row or not row.spec or type(row.spec.SetText) ~= "function" then
+    return
+  end
+
+  row.spec:SetText("|c" .. displayData.colorHex .. displayData.specText .. "|r")
+end
+
 local function RenderRosterImpl(state, roster)
   local memberRows = state.memberRows
   local mainFrame = state.mainFrame
@@ -1334,23 +1399,6 @@ local function RenderRosterImpl(state, roster)
       memberRows[index] = row
     end
 
-    local isAtDungeon = false
-    if targetMapID and entry.unit then
-      local mapApi = rawget(_G, "C_Map")
-      local getBestMapForUnit = mapApi and mapApi.GetBestMapForUnit or nil
-      if type(getBestMapForUnit) == "function" then
-        local ok, playerMapID = pcall(getBestMapForUnit, entry.unit)
-        if ok and playerMapID and tonumber(playerMapID) == tonumber(targetMapID) then
-          isAtDungeon = true
-        end
-      end
-    end
-    if not isAtDungeon and targetMapID and info.syncLocMapID then
-      if tonumber(info.syncLocMapID) == tonumber(targetMapID) then
-        isAtDungeon = true
-      end
-    end
-
     if row.roleButton then
       local role = info.role
       local icon = row.roleButton.icon
@@ -1394,31 +1442,11 @@ local function RenderRosterImpl(state, roster)
       end
     end
 
-    local displayData = state.buildDisplayData(info, {
-      unit = entry.unit,
-      truncateName = state.truncateName,
-      getShortSpecLabel = state.getShortSpecLabel,
-      getLanguageFlagMarkup = state.getLanguageFlagMarkup,
-      getDungeonShortCode = state.getDungeonShortCode,
-      getRioDelta = state.getRioDelta,
-      syncMarker = state.syncMarker,
-      syncBadge = state.syncBadge,
-      syncSummary = state.getPlayerSyncSummary and state.getPlayerSyncSummary(info.name, info.realm) or nil,
-      isReadyCheckActive = isReadyCheckActive,
-      isAtDungeon = isAtDungeon,
-    })
+    local displayData = BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID)
 
-    row.spec:SetText("|c" .. displayData.colorHex .. displayData.specText .. "|r")
+    ApplyRowSpecDisplay(row, displayData)
     -- Skip displayData.roleIconMarkup since we render it as a secure button
-    row.name:SetText(
-      (displayData.readyCheckMarkup or "")
-        .. " |c"
-        .. displayData.colorHex
-        .. displayData.displayName
-        .. "|r"
-        .. displayData.atDungeonMarker
-        .. displayData.addonMarker
-    )
+    ApplyRowNameDisplay(row, displayData)
     row.realm:SetText(displayData.languageDisplay)
     if displayData.keyText ~= "-" and activeKeyOwnerUnit and entry.unit == activeKeyOwnerUnit then
       row.key:SetText("|cffff4040" .. displayData.keyText .. "|r")
@@ -1489,6 +1517,29 @@ local function RenderRosterImpl(state, roster)
 
   if state.uiRef then
     UpdateCollapseState(state.uiRef, layoutMode, mainFrame)
+  end
+end
+
+local function RefreshReadyCheckStateImpl(state, roster)
+  local memberRows = state.memberRows or {}
+  local orderedRoster = state.buildOrderedRoster(roster, state.rolePriority, state.unitPriority)
+  local isReadyCheckActive = state.isReadyCheckActive and state.isReadyCheckActive() or false
+  local targetMapID = state.resolveTargetMapID and state.resolveTargetMapID() or nil
+
+  local index = 1
+  for _, entry in ipairs(orderedRoster) do
+    if index > 5 then
+      break
+    end
+
+    local row = memberRows[index]
+    if row then
+      local displayData = BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID)
+      ApplyRowSpecDisplay(row, displayData)
+      ApplyRowNameDisplay(row, displayData)
+    end
+
+    index = index + 1
   end
 end
 
@@ -1740,6 +1791,26 @@ function RosterPanel.CreateController(opts)
       uiRef = ui,
     }, roster)
     RefreshSystemOptionToggles(ui)
+  end
+
+  function controller.RefreshReadyCheckState(roster)
+    RefreshReadyCheckStateImpl({
+      memberRows = memberRows,
+      buildOrderedRoster = buildOrderedRoster,
+      rolePriority = rolePriority,
+      unitPriority = unitPriority,
+      isReadyCheckActive = isReadyCheckActive,
+      resolveTargetMapID = resolveTargetMapID,
+      buildDisplayData = buildDisplayData,
+      truncateName = truncateName,
+      getShortSpecLabel = getShortSpecLabel,
+      getLanguageFlagMarkup = getLanguageFlagMarkup,
+      getDungeonShortCode = getDungeonShortCode,
+      getRioDelta = getRioDelta,
+      syncMarker = syncMarker,
+      syncBadge = syncBadge,
+      getPlayerSyncSummary = getPlayerSyncSummary,
+    }, roster or getRoster())
   end
 
   function controller.RefreshSystemOptionToggles()

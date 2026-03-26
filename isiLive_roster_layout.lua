@@ -383,10 +383,37 @@ local function ReanchorFrame(frame, point, x, y)
   if not (frame and frame.SetPoint) then
     return
   end
+  local isProtected = false
+  if type(frame.IsProtected) == "function" then
+    local okProtected, protected = pcall(frame.IsProtected, frame)
+    isProtected = okProtected and protected == true
+  elseif frame._template == "SecureActionButtonTemplate" then
+    isProtected = true
+  end
+  if isProtected and IsCombatLockdownActive() then
+    return
+  end
   if frame.ClearAllPoints then
     frame:ClearAllPoints()
   end
   frame:SetPoint(point, x, y)
+end
+
+local function SetFrameSizeSafe(frame, width, height)
+  if not (frame and frame.SetSize) then
+    return
+  end
+  local isProtected = false
+  if type(frame.IsProtected) == "function" then
+    local okProtected, protected = pcall(frame.IsProtected, frame)
+    isProtected = okProtected and protected == true
+  elseif frame._template == "SecureActionButtonTemplate" then
+    isProtected = true
+  end
+  if isProtected and IsCombatLockdownActive() then
+    return
+  end
+  frame:SetSize(width, height)
 end
 
 local function UpdateColumnPositions(ui, layoutMode)
@@ -403,9 +430,7 @@ local function UpdateColumnPositions(ui, layoutMode)
       if isMainHorizontal then
         local markerIndex = tonumber(btn._markerIndex) or 1
         local x = M2_ROW_LEFT_MARGIN + ((markerIndex - 1) * (M2_HELPER_BUTTON_SIZE + M2_HELPER_BUTTON_GAP))
-        if btn.SetSize then
-          btn:SetSize(M2_HELPER_BUTTON_SIZE, M2_HELPER_BUTTON_SIZE)
-        end
+        SetFrameSizeSafe(btn, M2_HELPER_BUTTON_SIZE, M2_HELPER_BUTTON_SIZE)
         ReanchorFrame(btn, "BOTTOMLEFT", x, M2_HELPER_ROW_Y)
       elseif isHorizontal then
         local markerIndex = tonumber(btn._markerIndex) or 1
@@ -504,23 +529,21 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
   -- Management-Buttons in H-Modus verkleinern und M2-Toolbar kompakt nebeneinander setzen
   if isMainHorizontal then
     for _, btn in ipairs(ui.toolbarButtons or {}) do
-      if btn and btn.SetSize then
-        btn:SetSize(M2_TOOLBAR_BUTTON_WIDTH, M2_TOOLBAR_BUTTON_HEIGHT)
-      end
+      SetFrameSizeSafe(btn, M2_TOOLBAR_BUTTON_WIDTH, M2_TOOLBAR_BUTTON_HEIGHT)
       if btn and btn._fullText then
         SetFlatButtonText(btn, btn._fullText)
       end
     end
   else
     for _, btn in ipairs(ui.managementButtons or {}) do
-      if btn and btn.SetSize then
+      if btn then
         if isHorizontal then
-          btn:SetSize(MINI_HORIZONTAL_MANAGEMENT_BTN_WIDTH, MINI_HORIZONTAL_MANAGEMENT_BTN_HEIGHT)
+          SetFrameSizeSafe(btn, MINI_HORIZONTAL_MANAGEMENT_BTN_WIDTH, MINI_HORIZONTAL_MANAGEMENT_BTN_HEIGHT)
           if btn._hModeText then
             SetFlatButtonText(btn, btn._hModeText)
           end
         else
-          btn:SetSize(120, 24)
+          SetFrameSizeSafe(btn, 120, 24)
           if btn._fullText then
             SetFlatButtonText(btn, btn._fullText)
           end
@@ -529,8 +552,8 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
     end
 
     for _, btn in ipairs(ui.columnButtons or {}) do
-      if btn and btn.SetSize then
-        btn:SetSize(120, 24)
+      if btn then
+        SetFrameSizeSafe(btn, 120, 24)
         if btn._fullText then
           SetFlatButtonText(btn, btn._fullText)
         end

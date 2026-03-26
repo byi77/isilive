@@ -19,6 +19,7 @@ local function EnsureEventHandlerCounters(counters)
   counters.exits = counters.exits or 0
   counters.rosterUpdates = counters.rosterUpdates or 0
   counters.uiUpdates = counters.uiUpdates or 0
+  counters.readyCheckRefreshes = counters.readyCheckRefreshes or 0
   counters.pendingSets = counters.pendingSets or 0
   counters.acks = counters.acks or 0
   counters.refreshResponses = counters.refreshResponses or 0
@@ -79,6 +80,9 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
     setActiveJoinedKeyMapID = function(_value) end,
     updateUI = function()
       counters.uiUpdates = counters.uiUpdates + 1
+    end,
+    refreshReadyCheckUI = function()
+      counters.readyCheckRefreshes = counters.readyCheckRefreshes + 1
     end,
     setMainFrameVisible = function(_visible) end,
     updateLeaderButtons = function() end,

@@ -35,6 +35,11 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     setWasGroupLeader = RequireFunction(state.setWasGroupLeader, "state.setWasGroupLeader"),
     getRoster = RequireFunction(state.getRoster, "state.getRoster"),
     setRoster = RequireFunction(state.setRoster, "state.setRoster"),
+    captureQueueJoinCandidate = RequireFunction(
+      callbacks.captureQueueJoinCandidate,
+      "callbacks.captureQueueJoinCandidate"
+    ),
+    announceQueuedGroupJoin = RequireFunction(callbacks.announceQueuedGroupJoin, "callbacks.announceQueuedGroupJoin"),
     setMainFrameVisible = RequireFunction(callbacks.setMainFrameVisible, "callbacks.setMainFrameVisible"),
     switchToRaidMode = callbacks.switchToRaidMode or function() end,
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
@@ -66,6 +71,7 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     getUnitRole = RequireFunction(deps.getUnitRole, "getUnitRole"),
     getPlayerSpecName = RequireFunction(deps.getPlayerSpecName, "getPlayerSpecName"),
     getUnitRio = RequireFunction(deps.getUnitRio, "getUnitRio"),
+    unitIsGroupLeader = RequireFunction(deps.unitIsGroupLeader, "unitIsGroupLeader"),
     unitHasIsiLive = RequireFunction(deps.unitHasIsiLive, "unitHasIsiLive"),
     applyKnownKeyToRosterEntry = RequireFunction(deps.applyKnownKeyToRosterEntry, "applyKnownKeyToRosterEntry"),
     enqueueInspect = RequireFunction(deps.enqueueInspect, "enqueueInspect"),
@@ -99,6 +105,8 @@ local function BuildGroupControllerDepsFromContext(ctx)
       setRoster = ctx.setRoster,
     },
     callbacks = {
+      captureQueueJoinCandidate = ctx.captureQueueJoinCandidate,
+      announceQueuedGroupJoin = ctx.announceQueuedGroupJoin,
       setMainFrameVisible = ctx.setMainFrameVisible,
       switchToRaidMode = ctx.switchToRaidMode,
       updateLeaderButtons = ctx.updateLeaderButtons,
@@ -117,6 +125,7 @@ local function BuildGroupControllerDepsFromContext(ctx)
     getUnitRole = ctx.getUnitRole,
     getPlayerSpecName = ctx.getPlayerSpecName,
     getUnitRio = ctx.getUnitRio,
+    unitIsGroupLeader = ctx.unitIsGroupLeader,
     unitHasIsiLive = ctx.unitHasIsiLive,
     applyKnownKeyToRosterEntry = ctx.applyKnownKeyToRosterEntry,
     enqueueInspect = ctx.enqueueInspect,
@@ -162,9 +171,14 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
       callbacks.updateMPlusTeleportButton,
       "callbacks.updateMPlusTeleportButton"
     ),
+    captureQueueJoinCandidate = RequireFunction(
+      callbacks.captureQueueJoinCandidate,
+      "callbacks.captureQueueJoinCandidate"
+    ),
     getActiveJoinedKeyMapID = RequireFunction(state.getActiveJoinedKeyMapID, "state.getActiveJoinedKeyMapID"),
     setActiveJoinedKeyMapID = RequireFunction(state.setActiveJoinedKeyMapID, "state.setActiveJoinedKeyMapID"),
     updateUI = RequireFunction(callbacks.updateUI, "callbacks.updateUI"),
+    refreshReadyCheckUI = RequireFunction(callbacks.refreshReadyCheckUI, "callbacks.refreshReadyCheckUI"),
     setMainFrameVisible = RequireFunction(callbacks.setMainFrameVisible, "callbacks.setMainFrameVisible"),
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
     updateStatusLine = RequireFunction(callbacks.updateStatusLine, "callbacks.updateStatusLine"),
@@ -395,7 +409,9 @@ local function BuildEventHandlersDepsFromContext(ctx)
       exitTestMode = ctx.exitTestMode,
       clearLatestQueueTarget = ctx.clearLatestQueueTarget,
       updateMPlusTeleportButton = ctx.updateMPlusTeleportButton,
+      captureQueueJoinCandidate = ctx.captureQueueJoinCandidate,
       updateUI = ctx.updateUI,
+      refreshReadyCheckUI = ctx.refreshReadyCheckUI,
       setMainFrameVisible = ctx.setMainFrameVisible,
       updateLeaderButtons = ctx.updateLeaderButtons,
       updateStatusLine = ctx.updateStatusLine,

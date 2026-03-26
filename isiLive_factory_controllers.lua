@@ -189,6 +189,71 @@ local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState,
       ctx.UpdateStatusLine()
     end
   end
+  ctx.AnnounceQueuedGroupJoin = function()
+    local pending = runtimeState.GetPendingQueueJoinInfo()
+    if type(pending) ~= "table" then
+      return
+    end
+
+    if ctx.IsPlayerLeader() then
+      runtimeState.SetPendingQueueJoinInfo(nil)
+      return
+    end
+
+    local L = ctx.GetL()
+    local groupName = pending.groupName or L.UNKNOWN_GROUP
+    local separator = "|cffffffff----------------------------------------|r"
+    ctx.Print(separator)
+    ctx.Print("|cffffffff" .. L.CHAT_QUEUE_PREFIX .. " | " .. string.format(L.JOINED_FROM_QUEUE, groupName) .. "|r")
+    ctx.Print(separator)
+    runtimeState.SetPendingQueueJoinInfo(nil)
+  end
+  ctx.CaptureQueueJoinCandidate = function(...)
+    if ctx.GetActiveChallengeMapID() then
+      return
+    end
+
+    if not IsInGroup() then
+      runtimeState.SetPendingQueueJoinInfo(nil)
+    end
+
+    local args = { ... }
+    local groupName = nil
+    if type(args[1]) == "table" then
+      local data = args[1]
+      groupName = data.groupName or data.name
+    elseif type(args[1]) == "string" then
+      local value = args[1]
+      local low = string.lower(value)
+      if not (low:find("invite") or low:find("accept") or low == "applied" or low:find("declin")) then
+        groupName = value
+      end
+    end
+
+    if groupName == "" then
+      groupName = nil
+    end
+
+    if not runtimeState.GetPendingQueueJoinInfo() then
+      if not groupName then
+        return
+      end
+
+      local capturedAt = nil
+      if type(GetTime) == "function" then
+        capturedAt = GetTime()
+      end
+
+      runtimeState.SetPendingQueueJoinInfo({
+        groupName = groupName,
+        capturedAt = capturedAt,
+      })
+    end
+
+    if IsInGroup() then
+      ctx.AnnounceQueuedGroupJoin()
+    end
+  end
   ctx.RefreshLocalPlayerKey = function()
     return ctx.keySyncController.RefreshLocalPlayerKey(ctx.GetRoster())
   end
@@ -530,6 +595,9 @@ local function InitializeFactoryPrimaryControllers(ctx)
   end
   ctx.UpdateUI = function()
     ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
+  end
+  ctx.RefreshReadyCheckUI = function()
+    ctx.rosterPanelController.RefreshReadyCheckState(ctx.GetRoster())
   end
   ctx.GetNormalizedActiveEntryInfo = function()
     return ctx.highlightController.GetNormalizedActiveEntryInfo()

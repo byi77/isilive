@@ -59,6 +59,7 @@ local function BuildContext(opts)
   ctx.getActiveJoinedKeyMapID = RequireFunction(opts.getActiveJoinedKeyMapID, "getActiveJoinedKeyMapID")
   ctx.setActiveJoinedKeyMapID = RequireFunction(opts.setActiveJoinedKeyMapID, "setActiveJoinedKeyMapID")
   ctx.updateUI = RequireFunction(opts.updateUI, "updateUI")
+  ctx.refreshReadyCheckUI = RequireFunction(opts.refreshReadyCheckUI, "refreshReadyCheckUI")
 
   ctx.setMainFrameVisible = RequireFunction(opts.setMainFrameVisible, "setMainFrameVisible")
   ctx.shouldAutoCloseMainFrame = OptionalFunction(opts.shouldAutoCloseMainFrame, function()

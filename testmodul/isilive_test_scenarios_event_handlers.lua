@@ -1258,7 +1258,7 @@ end
 
 local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   test("Event handlers toggle ready check state and refresh UI on ready check events", function()
-    local counters = { uiUpdates = 0 }
+    local counters = { uiUpdates = 0, readyCheckRefreshes = 0 }
     local readyCheckActive = false
 
     local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
@@ -1273,17 +1273,65 @@ local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAd
 
     controller:Dispatch("READY_CHECK")
     Assert.True(readyCheckActive, "READY_CHECK must mark ready check as active")
-    Assert.Equal(counters.uiUpdates, 1, "READY_CHECK should refresh UI once")
+    Assert.Equal(counters.readyCheckRefreshes, 1, "READY_CHECK should refresh ready-check UI once")
+    Assert.Equal(counters.uiUpdates, 0, "READY_CHECK must not call the generic UI rerender path")
 
     controller:Dispatch("READY_CHECK_CONFIRM", "party1", "ready")
-    Assert.Equal(counters.uiUpdates, 2, "READY_CHECK_CONFIRM should refresh UI while ready check is active")
+    Assert.Equal(
+      counters.readyCheckRefreshes,
+      2,
+      "READY_CHECK_CONFIRM should refresh the dedicated ready-check UI while active"
+    )
+    Assert.Equal(counters.uiUpdates, 0, "READY_CHECK_CONFIRM must not call the generic UI rerender path")
 
     controller:Dispatch("READY_CHECK_FINISHED")
     Assert.False(readyCheckActive, "READY_CHECK_FINISHED must clear ready check state")
-    Assert.Equal(counters.uiUpdates, 3, "READY_CHECK_FINISHED should refresh UI once")
+    Assert.Equal(counters.readyCheckRefreshes, 3, "READY_CHECK_FINISHED should refresh ready-check UI once")
+    Assert.Equal(counters.uiUpdates, 0, "READY_CHECK_FINISHED must not call the generic UI rerender path")
 
     controller:Dispatch("READY_CHECK_CONFIRM", "party1", "ready")
-    Assert.Equal(counters.uiUpdates, 3, "READY_CHECK_CONFIRM should not refresh UI after ready check finished")
+    Assert.Equal(
+      counters.readyCheckRefreshes,
+      3,
+      "READY_CHECK_CONFIRM should not refresh ready-check UI after ready check finished"
+    )
+    Assert.Equal(counters.uiUpdates, 0, "READY_CHECK_CONFIRM after finish must keep the generic UI rerender path idle")
+  end)
+
+  test("Event handlers route ready check lifecycle through refreshReadyCheckUI without generic rerender", function()
+    local counters = { uiUpdates = 0, readyCheckRefreshes = 0 }
+    local readyCheckActive = false
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+      setReadyCheckActive = function(value)
+        readyCheckActive = value and true or false
+      end,
+      isReadyCheckActive = function()
+        return readyCheckActive
+      end,
+      refreshReadyCheckUI = function()
+        counters.readyCheckRefreshes = counters.readyCheckRefreshes + 1
+      end,
+    })
+
+    controller:Dispatch("READY_CHECK")
+    Assert.True(readyCheckActive, "READY_CHECK must mark ready check as active before the ready-check refresh runs")
+    Assert.Equal(counters.readyCheckRefreshes, 1, "READY_CHECK must call refreshReadyCheckUI exactly once")
+    Assert.Equal(counters.uiUpdates, 0, "READY_CHECK must not call updateUI")
+
+    controller:Dispatch("READY_CHECK_CONFIRM", "party1", "ready")
+    Assert.Equal(counters.readyCheckRefreshes, 2, "READY_CHECK_CONFIRM must call refreshReadyCheckUI while active")
+    Assert.Equal(counters.uiUpdates, 0, "READY_CHECK_CONFIRM must not call updateUI")
+
+    controller:Dispatch("READY_CHECK_FINISHED")
+    Assert.False(readyCheckActive, "READY_CHECK_FINISHED must clear ready check state before the refresh runs")
+    Assert.Equal(counters.readyCheckRefreshes, 3, "READY_CHECK_FINISHED must call refreshReadyCheckUI once")
+    Assert.Equal(counters.uiUpdates, 0, "READY_CHECK_FINISHED must not call updateUI")
+
+    controller:Dispatch("READY_CHECK_CONFIRM", "party1", "ready")
+    Assert.Equal(counters.readyCheckRefreshes, 3, "READY_CHECK_CONFIRM after finish must not call refreshReadyCheckUI")
+    Assert.Equal(counters.uiUpdates, 0, "READY_CHECK_CONFIRM after finish must not call updateUI")
   end)
 
   test("Event handlers record completed run only once across completion and reset events", function()

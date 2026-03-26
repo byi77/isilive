@@ -1,3 +1,6 @@
+-- Legacy parity coverage for the unloaded QueueFlow helper module.
+-- Active queue-join runtime coverage lives in isilive_test_scenarios_status.lua.
+
 local function RegisterQueueFlowAnnounceTests(test, Assert, LoadAddonModules, Fixtures)
   test("QueueFlow announce clears pending for leaders without printing", function()
     local addon = LoadAddonModules({ "isiLive_queue_flow.lua" })

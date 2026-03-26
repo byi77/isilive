@@ -15,9 +15,10 @@ local function CreateTextureStub()
   }
 end
 
-local function CreateFontStringStub()
+local function CreateFontStringStub(fontObject)
   local fontSize = 14
   return {
+    _fontObject = fontObject,
     SetPoint = function(self, point, relativeTo, relativePoint, x, y)
       self._point = { point, relativeTo, relativePoint, x or 0, y or 0 }
     end,
@@ -34,6 +35,10 @@ local function CreateFontStringStub()
     SetNonSpaceWrap = function() end,
     SetTextColor = function(self, r, g, b, a)
       self._textColor = { r, g, b, a }
+    end,
+    GetTextColor = function(self)
+      local color = self._textColor or { 1, 1, 1, 1 }
+      return color[1], color[2], color[3], color[4]
     end,
     SetText = function(self, value)
       self._text = tostring(value or "")
@@ -203,8 +208,8 @@ local function ApplyFrameMethods(frame)
   frame.CreateTexture = function()
     return CreateTextureStub()
   end
-  frame.CreateFontString = function()
-    return CreateFontStringStub()
+  frame.CreateFontString = function(_self, _name, _layer, fontObject)
+    return CreateFontStringStub(fontObject)
   end
   frame.RegisterForClicks = function(self, ...)
     self._registeredClicks = { ... }
@@ -2074,10 +2079,45 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
       centerNotice.Show("Default notice", 20, nil, nil, {})
       local _, resetSize = centerNotice.text:GetFont()
 
-      Assert.Equal(baseSize, 14, "font stub baseline should remain stable for regression test")
-      Assert.Equal(firstScaledSize, 18, "first scaled notice should apply configured font scale once")
-      Assert.Equal(secondScaledSize, 18, "repeated scaled notice must not compound font size")
-      Assert.Equal(resetSize, 14, "default notice should reset font size back to baseline")
+      Assert.Equal(baseSize, 24, "center notice should use the portal-navigator typography baseline")
+      Assert.Equal(firstScaledSize, 32, "first scaled notice should apply configured font scale once")
+      Assert.Equal(secondScaledSize, 32, "repeated scaled notice must not compound font size")
+      Assert.Equal(resetSize, 24, "default notice should reset font size back to the portal baseline")
+    end)
+  end)
+
+  test("Center notice uses portal navigator typography defaults", function()
+    local now = 0
+
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = BuildCreateFrameStub(),
+      GetTime = function()
+        return now
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local centerNotice = Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      centerNotice.Show("Typography test", 20, nil, nil, {})
+
+      local _, fontSize = centerNotice.text:GetFont()
+      Assert.Equal(
+        centerNotice.text._fontObject,
+        "GameFontNormal",
+        "center notice body text must use the same font object as portal navigator entries"
+      )
+      Assert.Equal(fontSize, 24, "center notice body text should match the portal navigator font size")
+      local r, g, b = centerNotice.text:GetTextColor()
+      Assert.Equal(r, 1, "center notice should keep the portal navigator red channel")
+      Assert.Equal(g, 0.92, "center notice should keep the portal navigator green channel")
+      Assert.Equal(b, 0.7, "center notice should keep the portal navigator blue channel")
     end)
   end)
 
@@ -2273,6 +2313,11 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
       for _, slot in ipairs({ "half_left", "left", "right", "half_right" }) do
         local _, entryFontSize = portalNotice.entries[slot]:GetFont()
         Assert.Equal(entryFontSize, 24, "portal navigator entries should be 10 points larger than the stub baseline")
+        Assert.Equal(
+          portalNotice.entries[slot]._fontObject,
+          "GameFontNormal",
+          "portal navigator entry text should use GameFontNormal"
+        )
       end
 
       local titlePoint, titleRelativeTo, titleRelativePoint, titleX, titleY = portalNotice.titleText:GetPoint()

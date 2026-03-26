@@ -281,6 +281,181 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
   end)
 end
 
+local function RegisterArchitectureQueueWiringTests(test, Assert)
+  test("Architecture queue join callbacks stay wired through runtime setup and controller wiring", function()
+    local wiringContent = ReadFile("isiLive_controller_wiring.lua")
+    local factoryContent = ReadFile("isiLive_factory.lua")
+    local helpersContent = ReadFile("isiLive_factory_controllers.lua")
+
+    AssertContains(
+      Assert,
+      helpersContent,
+      "ctx.CaptureQueueJoinCandidate = function(...)",
+      "factory runtime helpers must define CaptureQueueJoinCandidate directly"
+    )
+    AssertContains(
+      Assert,
+      helpersContent,
+      "ctx.AnnounceQueuedGroupJoin = function()",
+      "factory runtime helpers must define AnnounceQueuedGroupJoin directly"
+    )
+    AssertContains(
+      Assert,
+      factoryContent,
+      "captureQueueJoinCandidate = ctx.CaptureQueueJoinCandidate,",
+      "Factory runtime setup must forward queue capture callback"
+    )
+    AssertContains(
+      Assert,
+      factoryContent,
+      "announceQueuedGroupJoin = ctx.AnnounceQueuedGroupJoin,",
+      "Factory runtime setup must forward queue announce callback"
+    )
+    AssertContains(
+      Assert,
+      wiringContent,
+      "captureQueueJoinCandidate = RequireFunction(",
+      "ControllerWiring must require queue capture callback for group/event handler wiring"
+    )
+    AssertContains(
+      Assert,
+      wiringContent,
+      "callbacks.captureQueueJoinCandidate",
+      "ControllerWiring must forward queue capture callback into RequireFunction validation"
+    )
+    AssertContains(
+      Assert,
+      wiringContent,
+      "announceQueuedGroupJoin = RequireFunction(",
+      "ControllerWiring must require queue announce callback for group wiring"
+    )
+    AssertContains(
+      Assert,
+      wiringContent,
+      "callbacks.announceQueuedGroupJoin",
+      "ControllerWiring must forward queue announce callback into RequireFunction validation"
+    )
+    AssertContains(
+      Assert,
+      wiringContent,
+      "captureQueueJoinCandidate = ctx.captureQueueJoinCandidate,",
+      "ControllerWiring context builders must pass queue capture callback through"
+    )
+    AssertContains(
+      Assert,
+      wiringContent,
+      "announceQueuedGroupJoin = ctx.announceQueuedGroupJoin,",
+      "ControllerWiring context builders must pass queue announce callback through"
+    )
+  end)
+end
+
+local function RegisterArchitectureReadyCheckWiringTests(test, Assert)
+  test("Architecture ready check refresh stays wired through runtime setup and controller wiring", function()
+    local wiringContent = ReadFile("isiLive_controller_wiring.lua")
+    local factoryContent = ReadFile("isiLive_factory.lua")
+    local helpersContent = ReadFile("isiLive_factory_controllers.lua")
+    local handlersContent = ReadFile("isiLive_event_handlers.lua")
+
+    AssertContains(
+      Assert,
+      helpersContent,
+      "ctx.RefreshReadyCheckUI = function()",
+      "factory runtime helpers must define RefreshReadyCheckUI directly"
+    )
+    AssertContains(
+      Assert,
+      helpersContent,
+      "ctx.rosterPanelController.RefreshReadyCheckState(ctx.GetRoster())",
+      "factory ready-check helper must use the dedicated roster-panel refresh path"
+    )
+    AssertContains(
+      Assert,
+      factoryContent,
+      "refreshReadyCheckUI = ctx.RefreshReadyCheckUI,",
+      "Factory runtime setup must forward ready-check refresh callback"
+    )
+    AssertContains(
+      Assert,
+      wiringContent,
+      'refreshReadyCheckUI = RequireFunction(callbacks.refreshReadyCheckUI, "callbacks.refreshReadyCheckUI")',
+      "ControllerWiring must require ready-check refresh callback for event handlers"
+    )
+    AssertContains(
+      Assert,
+      wiringContent,
+      "refreshReadyCheckUI = ctx.refreshReadyCheckUI,",
+      "ControllerWiring context builder must pass ready-check refresh callback through"
+    )
+    AssertContains(
+      Assert,
+      handlersContent,
+      'ctx.refreshReadyCheckUI = RequireFunction(opts.refreshReadyCheckUI, "refreshReadyCheckUI")',
+      "EventHandlers must require the dedicated ready-check refresh callback"
+    )
+  end)
+end
+
+local function RegisterArchitectureLeaderMarkerWiringTests(test, Assert)
+  test("Architecture leader marker stays wired through runtime setup and controller wiring", function()
+    local wiringContent = ReadFile("isiLive_controller_wiring.lua")
+    local factoryContent = ReadFile("isiLive_factory.lua")
+    local groupContent = ReadFile("isiLive_group.lua")
+
+    AssertContains(
+      Assert,
+      factoryContent,
+      "unitIsGroupLeader = function(unit)",
+      "Factory runtime setup must expose the UnitIsGroupLeader wrapper"
+    )
+    AssertContains(
+      Assert,
+      wiringContent,
+      'unitIsGroupLeader = RequireFunction(deps.unitIsGroupLeader, "unitIsGroupLeader")',
+      "ControllerWiring must require the leader-status callback for group wiring"
+    )
+    AssertContains(
+      Assert,
+      wiringContent,
+      "unitIsGroupLeader = ctx.unitIsGroupLeader,",
+      "ControllerWiring context builder must pass leader-status callback through"
+    )
+    AssertContains(
+      Assert,
+      groupContent,
+      "unitIsGroupLeader = opts.unitIsGroupLeader or function(_unit)",
+      "Group controller must accept the injected leader-status callback"
+    )
+  end)
+end
+
+local function RegisterArchitectureNoticeTypographyTests(test, Assert)
+  test("Architecture center notice and portal entries share the same notice body typography helper", function()
+    local noticeContent = ReadFile("isiLive_notice.lua")
+
+    AssertContains(
+      Assert,
+      noticeContent,
+      "local function CreatePortalStyleBodyText(frame, config)",
+      "Notice module must define a shared portal-style body text helper"
+    )
+    AssertContains(
+      Assert,
+      noticeContent,
+      "local function CreatePortalNavigatorEntry(frame, config, slot)\n"
+        .. "  local text = CreatePortalStyleBodyText(frame, config)",
+      "Notice module must build portal navigator entries from the shared body text helper"
+    )
+    AssertContains(
+      Assert,
+      noticeContent,
+      "local function CreateCenterNoticeText(frame, config)\n"
+        .. "  local text = CreatePortalStyleBodyText(frame, config)",
+      "Notice module must build center notice body text from the shared body text helper"
+    )
+  end)
+end
+
 local function RegisterArchitectureModuleApiTests(test, Assert, LoadAddonModules)
   test("Architecture runtime state exposes shared mutable state API", function()
     local addon = LoadAddonModules({ "isiLive_runtime_state.lua" })
@@ -336,5 +511,9 @@ end
 
 return function(test, ctx)
   RegisterArchitectureSourceBoundaryTests(test, ctx.assert)
+  RegisterArchitectureQueueWiringTests(test, ctx.assert)
+  RegisterArchitectureReadyCheckWiringTests(test, ctx.assert)
+  RegisterArchitectureLeaderMarkerWiringTests(test, ctx.assert)
+  RegisterArchitectureNoticeTypographyTests(test, ctx.assert)
   RegisterArchitectureModuleApiTests(test, ctx.assert, ctx.load_modules)
 end

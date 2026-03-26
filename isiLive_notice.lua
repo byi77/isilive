@@ -36,6 +36,7 @@ local function BuildCenterNoticeConfig(opts)
     paddingY = tonumber(opts.paddingY) or 12,
     buttonHeight = tonumber(opts.buttonHeight) or 36,
     buttonGap = tonumber(opts.buttonGap) or 8,
+    fontDelta = tonumber(opts.fontDelta) or 10,
     isInCombat = opts.isInCombat or function()
       return InCombatLockdown and InCombatLockdown()
     end,
@@ -187,9 +188,15 @@ local PORTAL_NAVIGATOR_SLOT_POINTS = {
   half_right = { point = "TOPRIGHT", x = -60, y = -78 },
 }
 
-local function CreatePortalNavigatorEntry(frame, config, slot)
+local function CreatePortalStyleBodyText(frame, config)
   local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   IncreaseFontSize(text, config.fontDelta)
+  text:SetTextColor(1, 0.92, 0.7)
+  return text
+end
+
+local function CreatePortalNavigatorEntry(frame, config, slot)
+  local text = CreatePortalStyleBodyText(frame, config)
   text:SetWidth(config.entryWidth)
   text:SetJustifyH("CENTER")
   text:SetJustifyV("MIDDLE")
@@ -200,7 +207,6 @@ local function CreatePortalNavigatorEntry(frame, config, slot)
 
   local pointDef = PORTAL_NAVIGATOR_SLOT_POINTS[slot] or PORTAL_NAVIGATOR_SLOT_POINTS.left
   text:SetPoint(pointDef.point, frame, pointDef.point, pointDef.x, pointDef.y)
-  text:SetTextColor(1, 0.92, 0.7)
   return text
 end
 
@@ -249,7 +255,7 @@ local function ApplyPortalNavigatorLayout(state, layout)
 end
 
 local function CreateCenterNoticeText(frame, config)
-  local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
+  local text = CreatePortalStyleBodyText(frame, config)
   text:SetPoint("TOPLEFT", frame, "TOPLEFT", config.paddingX, -config.paddingY)
   text:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -config.paddingX, -config.paddingY)
   text:SetJustifyH("CENTER")
@@ -258,7 +264,6 @@ local function CreateCenterNoticeText(frame, config)
   if text.SetNonSpaceWrap then
     text:SetNonSpaceWrap(true)
   end
-  text:SetTextColor(1, 0.82, 0)
   return text
 end
 
@@ -472,7 +477,7 @@ local function ApplyCenterNoticeTextColor(state, showOptions)
     state.baseTextG = tonumber(showOptions.textColor[2]) or state.baseTextG
     state.baseTextB = tonumber(showOptions.textColor[3]) or state.baseTextB
   else
-    state.baseTextR, state.baseTextG, state.baseTextB = 1, 0.82, 0
+    state.baseTextR, state.baseTextG, state.baseTextB = 1, 0.92, 0.7
   end
   state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB)
 end

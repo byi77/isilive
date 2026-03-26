@@ -73,6 +73,9 @@ local function NewRecordedFontString()
     SetText = function(self, text)
       self.text = text
     end,
+    GetText = function(self)
+      return self.text
+    end,
     SetWordWrap = function() end,
     SetNonSpaceWrap = function() end,
     SetMaxLines = function() end,
@@ -188,6 +191,10 @@ local function NewRecordedFrame(createdFrames, frameType, name, parent, template
     return self._attributes[key]
   end
 
+  function frame:IsProtected()
+    return self._template == "SecureActionButtonTemplate"
+  end
+
   function frame:RegisterEvent(event)
     self._events[event] = true
   end
@@ -254,8 +261,11 @@ local function NewRecordedFrame(createdFrames, frameType, name, parent, template
     return NewRecordedTexture()
   end
 
-  function frame.CreateFontString()
-    return NewRecordedFontString()
+  function frame:CreateFontString()
+    local fontString = NewRecordedFontString()
+    self._fontStrings = self._fontStrings or {}
+    table.insert(self._fontStrings, fontString)
+    return fontString
   end
 
   function frame.CreateAnimationGroup(_self)
@@ -332,13 +342,23 @@ local function BuildRosterDisplayData(info)
   }
 end
 
-local function BuildRosterPanelController(WithGlobals, LoadAddonModules)
+local function BuildRosterPanelController(WithGlobals, LoadAddonModules, overrides)
   local createdFrames = {}
   local addon
+  local mainFrame
+  overrides = overrides or {}
+  local decorateFrame = type(overrides.decorateFrame) == "function" and overrides.decorateFrame or nil
 
   local stubs = {
     CreateFrame = function(frameType, name, parent, template)
-      return NewRecordedFrame(createdFrames, frameType, name, parent, template)
+      local frame = NewRecordedFrame(createdFrames, frameType, name, parent, template)
+      if decorateFrame then
+        local decoratedFrame = decorateFrame(frame, frameType, name, parent, template)
+        if decoratedFrame ~= nil then
+          frame = decoratedFrame
+        end
+      end
+      return frame
     end,
     InCombatLockdown = function()
       return false
@@ -355,6 +375,9 @@ local function BuildRosterPanelController(WithGlobals, LoadAddonModules)
       SetCVar = function() end,
     },
   }
+  for key, value in pairs(overrides.stubs or {}) do
+    stubs[key] = value
+  end
 
   WithGlobals(stubs, function()
     addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
@@ -362,8 +385,9 @@ local function BuildRosterPanelController(WithGlobals, LoadAddonModules)
 
   local controller
   WithGlobals(stubs, function()
-    controller = addon.RosterPanel.CreateController({
-      mainFrame = NewRecordedMainFrame(createdFrames),
+    mainFrame = NewRecordedMainFrame(createdFrames)
+    local controllerOpts = {
+      mainFrame = mainFrame,
       getL = function()
         return {}
       end,
@@ -411,10 +435,14 @@ local function BuildRosterPanelController(WithGlobals, LoadAddonModules)
       isRaidGroup = function()
         return false
       end,
-    })
+    }
+    for key, value in pairs(overrides.opts or {}) do
+      controllerOpts[key] = value
+    end
+    controller = addon.RosterPanel.CreateController(controllerOpts)
   end)
 
-  return controller, createdFrames, stubs
+  return controller, createdFrames, stubs, mainFrame
 end
 
 local function FindSecureRoleButton(createdFrames, unit)
@@ -657,7 +685,7 @@ local function RegisterTeleportTaintTests(test, Assert, WithGlobals, LoadAddonMo
   end)
 end
 
-local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddonModules)
+local function RegisterRosterPanelRoleButtonTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster role icon is a secure action button", function()
     local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules)
 
@@ -735,6 +763,155 @@ local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddo
     )
   end)
 
+end
+
+local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("TAINT: Ready-check refresh preserves secure role button attributes", function()
+    local readyCheckActive = false
+    local roster = {
+      player = { name = "Tank", role = "TANK", class = "WARRIOR" },
+    }
+    local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules, {
+      opts = {
+        buildDisplayData = function(info)
+          return {
+            colorHex = readyCheckActive and "ff00ff00" or "ffffffff",
+            displayName = tostring(info.name or ""),
+            languageDisplay = "",
+            specText = tostring(info.spec or ""),
+            ilvlText = "-",
+            rioText = "-",
+            keyText = "-",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+          }
+        end,
+        getRoster = function()
+          return roster
+        end,
+        isReadyCheckActive = function()
+          return readyCheckActive
+        end,
+      },
+    })
+
+    WithGlobals(stubs, function()
+      controller.RenderRoster(roster)
+    end)
+
+    local roleButton = FindSecureRoleButton(createdFrames, "player")
+    Assert.NotNil(roleButton, "tank row should create a secure role button before ready-check refresh")
+    local type1Before = roleButton:GetAttribute("type1")
+    local type2Before = roleButton:GetAttribute("type2")
+    local macrotext1Before = roleButton:GetAttribute("macrotext1")
+    local macrotext2Before = roleButton:GetAttribute("macrotext2")
+
+    readyCheckActive = true
+    WithGlobals(stubs, function()
+      controller.RefreshReadyCheckState(roster)
+    end)
+
+    Assert.Equal(
+      roleButton:GetAttribute("type1"),
+      type1Before,
+      "ready-check refresh must not rewrite the secure left-click role-button type"
+    )
+    Assert.Equal(
+      roleButton:GetAttribute("type2"),
+      type2Before,
+      "ready-check refresh must not rewrite the secure right-click role-button type"
+    )
+    Assert.Equal(
+      roleButton:GetAttribute("macrotext1"),
+      macrotext1Before,
+      "ready-check refresh must preserve the secure left-click role-button macro"
+    )
+    Assert.Equal(
+      roleButton:GetAttribute("macrotext2"),
+      macrotext2Before,
+      "ready-check refresh must preserve the secure right-click role-button macro"
+    )
+  end)
+
+  test("Ready-check dedicated refresh resets spec color after a ready-check rerender", function()
+    local function FindFontStringByText(mainFrameRef, expectedText)
+      for _, fontString in ipairs(mainFrameRef._fontStrings or {}) do
+        if fontString:GetText() == expectedText then
+          return fontString
+        end
+      end
+      return nil
+    end
+
+    local readyCheckActive = false
+    local roster = {
+      player = {
+        name = "Tank",
+        role = "TANK",
+        class = "WARRIOR",
+        spec = "Prot",
+      },
+    }
+    local controller, createdFrames, stubs, mainFrame = BuildRosterPanelController(WithGlobals, LoadAddonModules, {
+      opts = {
+        buildDisplayData = function(info)
+          return {
+            colorHex = readyCheckActive and "ff00ff00" or "ffc69b6d",
+            displayName = tostring(info.name or ""),
+            languageDisplay = "",
+            specText = tostring(info.spec or ""),
+            ilvlText = "-",
+            rioText = "-",
+            keyText = "-",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+          }
+        end,
+        getRoster = function()
+          return roster
+        end,
+        isReadyCheckActive = function()
+          return readyCheckActive
+        end,
+      },
+    })
+
+    WithGlobals(stubs, function()
+      controller.RenderRoster(roster)
+    end)
+
+    local roleButton = FindSecureRoleButton(createdFrames, "player")
+    Assert.NotNil(roleButton, "tank row should create a secure role button before ready-check refresh")
+    Assert.NotNil(
+      FindFontStringByText(mainFrame, "|cffc69b6dProt|r"),
+      "initial render must show the class-colored spec text"
+    )
+
+    readyCheckActive = true
+    WithGlobals(stubs, function()
+      controller.RenderRoster(roster)
+    end)
+    Assert.NotNil(
+      FindFontStringByText(mainFrame, "|cff00ff00Prot|r"),
+      "full rerender during ready check must recolor the spec text"
+    )
+
+    readyCheckActive = false
+    WithGlobals(stubs, function()
+      controller.RefreshReadyCheckState(roster)
+    end)
+
+    Assert.NotNil(
+      FindFontStringByText(mainFrame, "|cffc69b6dProt|r"),
+      "dedicated ready-check refresh must restore the class-colored spec text after ready check ends"
+    )
+  end)
+
+end
+
+local function RegisterRosterPanelCombatTaintTests(test, Assert, WithGlobals, LoadAddonModules)
   test("TAINT: M+Marker buttons stay secure world-marker buttons and touch no protected globals", function()
     local cleanupTraps = RegisterProtectedApiTraps()
     local ok, err = pcall(function()
@@ -745,6 +922,72 @@ local function RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddo
 
     cleanupTraps()
     Assert.True(ok, "tank helper setup must not touch protected globals: " .. tostring(err))
+  end)
+
+  test("TAINT: M2 roster rerender skips secure tank-helper layout mutations during combat", function()
+    local inCombat = false
+    local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules, {
+      decorateFrame = function(frame, _frameType, _name, _parent, template)
+        if template == "SecureActionButtonTemplate" then
+          local baseSetSize = frame.SetSize
+          local baseSetPoint = frame.SetPoint
+          local baseClearAllPoints = frame.ClearAllPoints
+
+          function frame:SetSize(width, height)
+            if inCombat then
+              error("secure SetSize must not run during combat rerender")
+            end
+            baseSetSize(self, width, height)
+          end
+
+          function frame:SetPoint(...)
+            if inCombat then
+              error("secure SetPoint must not run during combat rerender")
+            end
+            baseSetPoint(self, ...)
+          end
+
+          function frame:ClearAllPoints()
+            if inCombat then
+              error("secure ClearAllPoints must not run during combat rerender")
+            end
+            baseClearAllPoints(self)
+          end
+        end
+
+        return frame
+      end,
+      stubs = {
+        IsiLiveDB = {
+          rosterDefaultLayoutMode = "compact_main_horizontal",
+        },
+      },
+    })
+
+    WithGlobals(stubs, function()
+      controller.RestoreSavedState()
+      controller.RenderRoster({
+        player = { name = "Tank", role = "TANK", class = "WARRIOR" },
+      })
+    end)
+
+    local tankButtons = FindTankHelperButtons(createdFrames)
+    Assert.Equal(#tankButtons, 8, "secure world-marker buttons should exist before combat rerender")
+
+    inCombat = true
+    stubs.InCombatLockdown = function()
+      return true
+    end
+
+    local ok, err = pcall(function()
+      WithGlobals(stubs, function()
+        controller.RenderRoster({
+          player = { name = "Tank", role = "TANK", class = "WARRIOR" },
+        })
+      end)
+    end)
+
+    Assert.True(ok, "combat rerender must not mutate secure tank-helper layout: " .. tostring(err))
   end)
 
   test("TAINT: Collapse click is ignored during combat while secure roster buttons exist", function()
@@ -906,6 +1149,8 @@ return function(test, ctx)
 
   RegisterGroupTaintTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTeleportTaintTests(test, Assert, WithGlobals, LoadAddonModules)
-  RegisterRosterPanelTaintTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelRoleButtonTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelCombatTaintTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterNoticeTaintTests(test, Assert, WithGlobals, LoadAddonModules)
 end
