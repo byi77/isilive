@@ -260,6 +260,9 @@ function RuntimeLifecycle.BuildHandlers(ctx)
 
   local function HandlePlayerLoginEvent(_self)
     ApplyBindingStartupRefresh(ctx)
+    if ctx.shouldShowMainFrameOnStartup() then
+      ctx.setMainFrameVisible(true)
+    end
     local playerName, playerRealm = ctx.getUnitNameAndRealm("player")
     ctx.markIsiLiveUser(playerName, playerRealm)
   end
@@ -307,6 +310,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       ctx.setMainFrameWidthSafe(pendingMainFrameWidth)
     end
     if ctx.isMainFrameShown() then
+      ctx.updateUI()
       ctx.updateMPlusTeleportButton()
       ctx.tryRestoreCenterNoticeTeleportButton()
     end

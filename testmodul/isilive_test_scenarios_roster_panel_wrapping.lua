@@ -272,7 +272,7 @@ local function RegisterRosterPanelWrappingLayoutTests(test, Assert, WithGlobals,
         table.insert(rowFontStrings, createdFontStrings[index])
       end
 
-      Assert.Equal(#rowFontStrings, 9, "one rendered row should create nine member text columns")
+      Assert.Equal(#rowFontStrings, 7, "one rendered row should create seven member text columns")
       for _, fontString in ipairs(rowFontStrings) do
         Assert.False(fontString.wordWrap, "member text columns must disable word wrap")
         Assert.False(fontString.nonSpaceWrap, "member text columns must disable non-space wrap")
@@ -382,16 +382,14 @@ local function RegisterRosterPanelWrappingLayoutTests(test, Assert, WithGlobals,
         table.insert(rowFontStrings, createdFontStrings[index])
       end
 
-      Assert.Equal(#rowFontStrings, 9, "one rendered row should create nine member text columns")
+      Assert.Equal(#rowFontStrings, 7, "one rendered row should create seven member text columns")
       Assert.Equal(rowFontStrings[1].width, 52, "spec column should keep compact width budget")
       Assert.Equal(rowFontStrings[2].width, 122, "name column should keep the compact body width budget")
       Assert.Equal(rowFontStrings[3].width, 32, "ilvl column should keep compact width budget without truncation")
       Assert.Equal(rowFontStrings[4].width, 62, "key column should fit short-code plus two-digit level (e.g. NPX +10)")
       Assert.Equal(rowFontStrings[5].width, 70, "rio column should fit (+999)9999 without clipping")
       Assert.Equal(rowFontStrings[6].width, 40, "dps column should keep compact width budget")
-      Assert.Equal(rowFontStrings[7].width, 30, "deaths column should keep compact width budget")
-      Assert.Equal(rowFontStrings[8].width, 30, "kicks column should keep compact width budget")
-      Assert.Equal(rowFontStrings[9].width, 18, "flag column should keep flag-only width budget")
+      Assert.Equal(rowFontStrings[7].width, 18, "flag column should keep flag-only width budget")
     end)
   end)
 end

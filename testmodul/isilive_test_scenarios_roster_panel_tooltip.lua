@@ -195,6 +195,9 @@ local function BuildTooltipController(addon, options)
     getDungeonShortCode = options.getDungeonShortCode or function()
       return ""
     end,
+    getDungeonName = options.getDungeonName or function()
+      return nil
+    end,
     resolveActiveKeyOwnerUnit = options.resolveActiveKeyOwnerUnit or function()
       return nil
     end,
@@ -404,10 +407,61 @@ local function RegisterRosterPanelRowTooltipSyncDebugTest(test, Assert, WithGlob
   end)
 end
 
+local function RegisterRosterPanelRowTooltipFullKeyNameTest(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster row tooltip shows full dungeon name instead of key short code", function()
+    RunTooltipScenario(WithGlobals, LoadAddonModules, Assert, {
+      controller = {
+        buildOrderedRoster = function()
+          return {
+            {
+              unit = "party1",
+              info = {
+                name = "Buddy",
+                realm = "Realm",
+                class = "MAGE",
+                keyMapID = 558,
+                keyLevel = 12,
+              },
+            },
+          }
+        end,
+        getDungeonShortCode = function(mapID)
+          if mapID == 558 then
+            return "TDM"
+          end
+          return nil
+        end,
+        getDungeonName = function(mapID)
+          if mapID == 558 then
+            return "Terrasse der Magister"
+          end
+          return nil
+        end,
+      },
+    }, function(addon)
+      addon.Sync.SetPlayerHelloInfo("Buddy", "Realm", "0.9.36", 2, 90, "inspect")
+    end, function(_addon, _controller, _rowFrame, tooltipLines)
+      local foundFullName = false
+      local foundShortCode = false
+      for _, line in ipairs(tooltipLines) do
+        if line:find("Key: Terrasse der Magister +12", 1, true) then
+          foundFullName = true
+        end
+        if line:find("Key: TDM +12", 1, true) then
+          foundShortCode = true
+        end
+      end
+      Assert.True(foundFullName, "Tooltip should show the full dungeon name for the key")
+      Assert.False(foundShortCode, "Tooltip should no longer show the dungeon short code in the key line")
+    end)
+  end)
+end
+
 local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipNoHistoryTest(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipDpsTest(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipSyncDebugTest(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelRowTooltipFullKeyNameTest(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 local function RegisterBlizzardUnitTooltipLanguageFlagTest(test, Assert, WithGlobals, LoadAddonModules)

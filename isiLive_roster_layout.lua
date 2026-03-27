@@ -121,8 +121,6 @@ local UI_VISIBILITY_RULES = {
   { "keyHeader", true, false, false, true },
   { "rioHeader", true, false, false, true },
   { "dpsHeader", true, false, false, true },
-  { "deathsHeader", true, false, false, true },
-  { "kicksHeader", true, false, false, true },
   { "cdTrackerRow", false, false, false, true },
   { "statusLine", true, false, false, false },
   { "mplusManagementHeader", true, false, false, false },

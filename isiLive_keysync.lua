@@ -301,11 +301,14 @@ local function ApplyKnownKeyToRosterEntry(sync, info)
   end
 
   local dpsInfo = sync.GetPlayerDpsInfo(info.name, info.realm)
-  if type(dpsInfo) == "table" and dpsInfo.dps and CanBackfillPendingInspectValue(info, info.syncDps) then
-    if not info._localDpsFresh and info.syncDps ~= dpsInfo.dps then
+  if type(dpsInfo) == "table" then
+    if info.syncDps ~= dpsInfo.dps then
       info.syncDps = dpsInfo.dps
       changed = true
     end
+  elseif info.syncDps ~= nil then
+    info.syncDps = nil
+    changed = true
   end
 
   local locInfo = sync.GetPlayerLocInfo(info.name, info.realm)

@@ -1,7 +1,7 @@
 # isiLive Architecture
 
-Version baseline: `0.9.105`
-Last updated: `2026-03-26`
+Version baseline: `0.9.106`
+Last updated: `2026-03-27`
 
 ## Purpose
 
@@ -50,7 +50,7 @@ WoW Event
 1. Resolve dungeon targets only through concrete `activityID -> mapID -> spellID` data.
 2. If `mapID` context is missing or ambiguous, keep target unresolved (no name/token guessing).
 3. Keep leader-only actions explicit and disabled when unauthorized.
-4. Keep combat-safe UI updates deferred when protected operations are blocked; teleport action buttons must not promote parent frames to protected status, and blocked main-frame visibility/height changes plus blocked `Esc` shortcut secure-button refreshes and side-panel host-frame re-shows must replay on `PLAYER_REGEN_ENABLED`.
+4. Keep combat-safe UI updates deferred when protected operations are blocked; teleport action buttons must not promote parent frames to protected status, blocked main-frame visibility/height changes plus blocked `Esc` shortcut secure-button refreshes must replay on `PLAYER_REGEN_ENABLED`, and the mounted `Esc` strips must stay read-only during combat instead of scheduling host-frame re-shows.
 5. Keep teleport-grid button strata/level synchronized with main-frame strata/level.
 6. For shared-portcast spells, prioritize exact activity map matching over spell-only suppression.
 7. Do not clear highlight state from ambiguous shared spell mappings when exact map context is unknown.
@@ -66,7 +66,7 @@ WoW Event
 17. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures where Blizzard tooltip APIs are still referenced.
 18. Shared `isiLive` tooltip frames own their own text layout and must not route UI hover rendering back through the shared Blizzard `GameTooltip`.
 19. Raid-size groups force the visible roster panel into H mode, hide roster rows, and suppress duplicate raid-transition notifications until the group leaves raid size again.
-20. The optional game-menu tooling strip closes the menu before opening its target panel; `ReloadUI` is owned by a secure macro button (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`, defers blocked secure refreshes to `PLAYER_REGEN_ENABLED`, while the other entries keep direct opener paths for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, and `Guild`. The secondary travel strip stays further left and exposes `Arkantine`, `Hearthstone`, and `Housing`.
+20. The optional game-menu tooling strip closes the menu before opening its target panel; `ReloadUI` is owned by a secure macro button (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown` and defers blocked secure refreshes to `PLAYER_REGEN_ENABLED`, while the other entries keep direct opener paths for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, and `Guild`. Both game-menu strips are mounted directly as `GameMenuFrame` children, so combat-open paths do not run overlay `Show`/`Hide` or layout mutations; the secondary travel strip stays further left and exposes `Arkantine`, `Hearthstone`, and `Housing`.
 21. Temporarily hidden legacy settings controls stay absent from Blizzard Settings while runtime enforces their fixed defaults (`DPS`, `Deaths`, and `Kicks` on, markers leader-only off, fixed name truncation, legacy 2-column `Travel` grid) until the controls are re-enabled.
 22. CdTracker lust onset detection must combine player harmful-aura scanning with direct local lust spellcast signals, accept only numeric aura `spellId` values for lookup, ignore protected or otherwise non-numeric values safely, treat `UNIT_AURA(..., { isFullUpdate = true })` restores as non-onset hydration after zone/reload transitions, and use only a short 2-second `PLAYER_ENTERING_WORLD` suppress window as a safety net before the full restore arrives.
 23. Leader promotion/loss detection must compare current local leader state against cached state on both `GROUP_ROSTER_UPDATE` and `PARTY_LEADER_CHANGED`; hidden promotions suppress center notice/chat output but still play the transfer sound.

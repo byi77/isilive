@@ -153,6 +153,7 @@ local function CollectDeterministicTests(scenarioFiles)
       )
     else
       local lineNumber = 0
+      local pendingTestCall = nil
       for line in scenarioFile:lines() do
         lineNumber = lineNumber + 1
         local testName = line:match('^%s*test%(%s*"(.-)"%s*,')
@@ -164,6 +165,12 @@ local function CollectDeterministicTests(scenarioFiles)
         end
         if not testName then
           testName = line:match("^%s*test%.it%(%s*'(.-)'%s*,")
+        end
+        if not testName and pendingTestCall then
+          testName = line:match('^%s*"(.-)"%s*,')
+          if not testName then
+            testName = line:match("^%s*'(.-)'%s*,")
+          end
         end
         if testName and testName ~= "" then
           if testsByName[testName] then
@@ -183,6 +190,14 @@ local function CollectDeterministicTests(scenarioFiles)
               file = scenarioPath,
               line = lineNumber,
             }
+          end
+          pendingTestCall = nil
+        else
+          local opensMultilineTest = line:match("^%s*test%(%s*$") or line:match("^%s*test%.it%(%s*$")
+          if opensMultilineTest then
+            pendingTestCall = true
+          elseif pendingTestCall and not line:match("^%s*$") then
+            pendingTestCall = nil
           end
         end
       end

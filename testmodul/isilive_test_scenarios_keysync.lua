@@ -58,7 +58,12 @@ local function BuildMockSync()
       statsStore[tostring(name) .. "-" .. tostring(realm)] = { specID = specID, ilvl = ilvl, rio = rio }
     end,
     SetPlayerDpsInfo = function(name, realm, dps)
-      dpsStore[tostring(name) .. "-" .. tostring(realm)] = { dps = dps }
+      local key = tostring(name) .. "-" .. tostring(realm)
+      if dps == nil then
+        dpsStore[key] = nil
+        return
+      end
+      dpsStore[key] = { dps = dps }
     end,
     SetPlayerLocInfo = function(name, realm, mapID)
       locStore[tostring(name) .. "-" .. tostring(realm)] = { mapID = mapID }
@@ -371,6 +376,28 @@ local function RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, Load
     local ctrl = BuildController(LoadAddonModules, sync)
     Assert.Equal(ctrl.ApplyKnownKeyToRosterEntry(nil), false, "nil info must return false")
   end)
+
+  test(
+    "KeySync ApplyKnownKeyToRosterEntry clears stale synced DPS fallback fields when sync data disappears",
+    function()
+      local sync = BuildMockSync()
+      local ctrl = BuildController(LoadAddonModules, sync)
+      local info = {
+        name = "PlayerX",
+        realm = "RealmX",
+        syncDps = 45000,
+      }
+
+      sync.SetPlayerDpsInfo("PlayerX", "RealmX", 45000)
+      ctrl.ApplyKnownKeyToRosterEntry(info)
+
+      sync.SetPlayerDpsInfo("PlayerX", "RealmX", nil)
+      local changed = ctrl.ApplyKnownKeyToRosterEntry(info)
+
+      Assert.True(changed, "clearing synced DPS data must report a roster change")
+      Assert.Nil(info.syncDps, "stale syncDps must be cleared when sync data disappears")
+    end
+  )
 end
 
 return function(test, ctx)

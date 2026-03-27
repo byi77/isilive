@@ -11,11 +11,18 @@ local function BuildGroupState(overrides)
     prints = {},
     queued = 0,
     announced = 0,
+    snapshotCalls = 0,
+    snapshotArgs = {},
+    helloCalls = 0,
+    helloArgs = {},
+    refreshRequests = 0,
+    refreshRequestArgs = {},
     knownUsersCleared = 0,
     inspectResets = 0,
     uiUpdates = 0,
     teleportUpdates = overrides.teleportUpdates or 0,
     autoCloseCalls = 0,
+    mainFrameVisibleCalls = {},
   }
 end
 
@@ -62,8 +69,12 @@ local function BuildGroupControllerOptions(state, overrides)
     announceQueuedGroupJoin = function()
       state.announced = state.announced + 1
     end,
-    setMainFrameVisible = function(visible)
+    setMainFrameVisible = overrides.setMainFrameVisible or function(visible, reasonOrOpts)
       state.mainFrameVisible = visible
+      table.insert(state.mainFrameVisibleCalls, {
+        visible = visible,
+        reasonOrOpts = reasonOrOpts,
+      })
     end,
     switchToRaidMode = function()
       state.raidModeSwitches = state.raidModeSwitches + 1
@@ -125,10 +136,31 @@ local function BuildGroupControllerOptions(state, overrides)
     applyKnownKeyToRosterEntry = function(_info)
       return false
     end,
-    sendOwnKeySnapshot = function(_force) end,
-    sendIsiLiveHello = function(_force) end,
+    sendOwnKeySnapshot = overrides.sendOwnKeySnapshot or function(force, source)
+      state.snapshotCalls = state.snapshotCalls + 1
+      table.insert(state.snapshotArgs, {
+        force = force == true,
+        source = source,
+      })
+    end,
+    sendIsiLiveHello = overrides.sendIsiLiveHello or function(force, source)
+      state.helloCalls = state.helloCalls + 1
+      table.insert(state.helloArgs, {
+        force = force == true,
+        source = source,
+      })
+    end,
+    sendRefreshRequest = overrides.sendRefreshRequest or function(force)
+      state.refreshRequests = state.refreshRequests + 1
+      table.insert(state.refreshRequestArgs, {
+        force = force == true,
+      })
+    end,
     shouldAutoCloseMainFrame = overrides.shouldAutoCloseMainFrame or function()
       return false
+    end,
+    getRaidTransitionBehavior = overrides.getRaidTransitionBehavior or function()
+      return "show_h"
     end,
     autoCloseMainFrame = overrides.autoCloseMainFrame or function()
       state.autoCloseCalls = state.autoCloseCalls + 1
@@ -534,6 +566,165 @@ local function RegisterFactoryFrameBridgeRestoreTests(test, Assert, LoadAddonMod
       Assert.Equal(restoreCalls, 1, "main frame show should restore the configured layout state")
     end)
   end)
+
+  test("Factory frame bridge wires GetDungeonName into center notice context", function()
+    local capturedFrameBridgeOpts = nil
+
+    WithGlobals({
+      UIParent = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_factory_frame_bridge.lua" })
+
+      local ctx = {
+        locale = "deDE",
+        modules = {
+          contextHelpers = {
+            CreateRealmInfoGetter = function()
+              return function()
+                return nil
+              end
+            end,
+            GetAddonVersionRaw = function()
+              return "1.0.0"
+            end,
+            GetUnitServerLanguage = function()
+              return "DE"
+            end,
+            BuildDummyRoster = function()
+              return {}
+            end,
+          },
+          frameBridge = {
+            CreateContext = function(opts)
+              capturedFrameBridgeOpts = opts
+              return {
+                centerNotice = {},
+                centerNoticeFrame = {},
+                centerNoticeTeleportButton = {},
+                inviteHint = {},
+                mainUI = {},
+                mainFrame = {},
+                SetCenterNoticeVisible = function() end,
+                UpdateCenterTeleportButtonVisual = function() end,
+                ShowCenterNotice = function() end,
+                ShowInviteHint = function() end,
+                SetMainFrameVisible = function()
+                  return false
+                end,
+                SetMainFrameHeightSafe = function() end,
+                ToggleMainFrameVisibility = function() end,
+              }
+            end,
+          },
+          locale = {},
+          notice = {
+            CreateCenterNotice = function()
+              return {}
+            end,
+            CreatePortalNavigatorNotice = function()
+              return {
+                frame = {},
+                SetVisible = function() end,
+                Show = function() end,
+              }
+            end,
+            CreateInviteHint = function()
+              return {}
+            end,
+          },
+          ui = {
+            CreateMainFrame = function()
+              return {}
+            end,
+          },
+          teleport = {
+            ResolveTeleportSpellIDByActivityID = function() end,
+            ResolveMapIDByActivityID = function() end,
+            ResolveMapIDBySpellID = function() end,
+            ResolveTeleportSpellID = function() end,
+            GetDungeonName = function(mapID, localeTag)
+              if mapID == 558 and localeTag == "enUS" then
+                return "Magisters' Terrace"
+              end
+              if mapID == 558 and localeTag == "deDE" then
+                return "Terrasse der Magister"
+              end
+              return nil
+            end,
+            ApplySecureSpellToButton = function() end,
+          },
+          units = {
+            GetUnitRole = function()
+              return "DAMAGER"
+            end,
+            GetUnitClass = function()
+              return "Warrior", "WARRIOR"
+            end,
+            TruncateName = function(value)
+              return value
+            end,
+            GetUnitNameAndRealm = function()
+              return "TestPlayer", "TestRealm"
+            end,
+            GetPlayerSpecName = function()
+              return nil
+            end,
+            GetInspectSpecName = function()
+              return nil
+            end,
+            GetShortSpecLabel = function(value)
+              return value
+            end,
+            GetUnitRio = function()
+              return nil
+            end,
+          },
+          demo = {
+            BuildDummyRoster = function()
+              return {}
+            end,
+          },
+        },
+        runtimeState = {
+          IsTestAllMode = function()
+            return false
+          end,
+          SetRoster = function() end,
+        },
+        RestoreLayoutState = function() end,
+        EnsureSoloPlayerRoster = function() end,
+        UpdateUI = function() end,
+        UpdateLeaderButtons = function() end,
+        IsSpellKnownSafe = function()
+          return true
+        end,
+        GetTeleportCooldownRemaining = function()
+          return 0
+        end,
+        FormatCooldownSeconds = function(value)
+          return tostring(value or "")
+        end,
+        GetL = function()
+          return {}
+        end,
+        IsInCombat = function()
+          return false
+        end,
+        GetRealmInfoLib = function()
+          return nil
+        end,
+      }
+
+      addon._FactoryInternal.InitializeFactoryFrameBridge(ctx)
+
+      Assert.NotNil(capturedFrameBridgeOpts, "frame bridge context must be created")
+      Assert.Equal(
+        capturedFrameBridgeOpts.getDungeonName and capturedFrameBridgeOpts.getDungeonName(558, "enUS"),
+        "Magisters' Terrace",
+        "factory frame bridge must wire GetDungeonName into the center notice context"
+      )
+    end)
+  end)
 end
 
 local function RegisterGroupLifecycleTests(test, Assert, LoadAddonModules, WithGlobals)
@@ -561,6 +752,51 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
     Assert.False(
       resolveAutoCloseMainFrameEnabled({ autoCloseMainFrame = false }),
       "explicit false should keep runtime auto-close disabled"
+    )
+  end)
+
+  test("Factory startup and key-end auto-open resolvers default to enabled", function()
+    local addon = LoadAddonModules({ "isiLive_factory.lua" }, {
+      _FactoryInternal = {},
+    })
+
+    local internal = addon._FactoryInternal or {}
+    local resolveStartup = internal.ResolveAutoShowMainFrameOnStartupEnabled
+    local resolveKeyEnd = internal.ResolveAutoOpenMainFrameOnKeyEndEnabled
+
+    Assert.NotNil(resolveStartup, "factory should export the startup auto-show resolver")
+    Assert.NotNil(resolveKeyEnd, "factory should export the key-end auto-open resolver")
+    Assert.True(resolveStartup(nil), "missing startup setting should default to enabled")
+    Assert.True(resolveKeyEnd(nil), "missing key-end setting should default to enabled")
+    Assert.False(
+      resolveStartup({ autoShowMainFrameOnStartup = false }),
+      "explicit false should disable startup auto-show"
+    )
+    Assert.False(
+      resolveKeyEnd({ autoOpenMainFrameOnKeyEnd = false }),
+      "explicit false should disable key-end auto-open"
+    )
+  end)
+
+  test("Factory raid behavior resolver defaults to Show + H and preserves supported overrides", function()
+    local addon = LoadAddonModules({ "isiLive_factory.lua" }, {
+      _FactoryInternal = {},
+    })
+
+    local resolveRaidBehavior = addon._FactoryInternal and addon._FactoryInternal.ResolveRaidTransitionBehavior or nil
+
+    Assert.NotNil(resolveRaidBehavior, "factory should export the raid behavior resolver")
+    Assert.Equal(resolveRaidBehavior(nil), "show_h", "missing raid behavior should default to Show + H")
+    Assert.Equal(resolveRaidBehavior({}), "show_h", "missing raid behavior field should default to Show + H")
+    Assert.Equal(
+      resolveRaidBehavior({ raidTransitionBehavior = "show_keep" }),
+      "show_keep",
+      "supported Show + Keep override should be preserved"
+    )
+    Assert.Equal(
+      resolveRaidBehavior({ raidTransitionBehavior = "preserve" }),
+      "preserve",
+      "supported Keep State override should be preserved"
     )
   end)
 
@@ -692,6 +928,77 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
     Assert.True(state.prints[1]:find("Raid") ~= nil, "notification must contain raid message")
   end)
 
+  test("Raid auto-open suppresses self-triggered show callbacks during first raid transition", function()
+    local controller, state
+    local controllerRef = nil
+    controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function()
+        return 6
+      end,
+      setMainFrameVisible = function(visible, reasonOrOpts)
+        state.mainFrameVisible = visible
+        table.insert(state.mainFrameVisibleCalls, {
+          visible = visible,
+          reasonOrOpts = reasonOrOpts,
+        })
+        local opts = type(reasonOrOpts) == "table" and reasonOrOpts or {}
+        if visible and opts.skipShowCallbacks ~= true and controllerRef then
+          controllerRef.HandleGroupRosterUpdate()
+        end
+      end,
+    })
+    controllerRef = controller
+
+    controller.HandleGroupRosterUpdate()
+
+    local firstCall = state.mainFrameVisibleCalls[1]
+    Assert.NotNil(firstCall, "raid auto-open should still issue a show request")
+    Assert.True(
+      type(firstCall.reasonOrOpts) == "table" and firstCall.reasonOrOpts.skipShowCallbacks == true,
+      "raid auto-open must suppress follow-up show callbacks during the transition"
+    )
+    Assert.Equal(state.raidModeSwitches, 1, "raid transition must still switch to H mode exactly once")
+    Assert.Equal(#state.prints, 1, "raid transition notice must still print exactly once")
+  end)
+
+  test("Raid behavior Show + Keep opens the frame without forcing H mode", function()
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function()
+        return 6
+      end,
+      mainFrameVisible = false,
+      getRaidTransitionBehavior = function()
+        return "show_keep"
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.True(state.mainFrameVisible, "Show + Keep should still open the frame on raid transition")
+    Assert.Equal(state.raidModeSwitches, 0, "Show + Keep must not force H mode")
+    Assert.Equal(state.uiUpdates, 1, "Show + Keep should still refresh the UI once")
+    Assert.Equal(#state.prints, 1, "Show + Keep should still print the raid transition notice once")
+  end)
+
+  test("Raid behavior Keep State preserves hidden frame and current layout", function()
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function()
+        return 6
+      end,
+      mainFrameVisible = false,
+      getRaidTransitionBehavior = function()
+        return "preserve"
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.False(state.mainFrameVisible, "Keep State must preserve a hidden frame on raid transition")
+    Assert.Equal(state.raidModeSwitches, 0, "Keep State must not force H mode")
+    Assert.Equal(state.uiUpdates, 1, "Keep State should still refresh the UI once")
+    Assert.Equal(#state.prints, 1, "Keep State should still print the raid transition notice once")
+  end)
+
   test("Raid notification prints again after leaving raid-size group", function()
     local members = 6
     local controller, state = BuildGroupController(LoadAddonModules, {
@@ -718,6 +1025,54 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
 
     Assert.Equal(state.queued, 1, "queue capture must fire on first join")
     Assert.Equal(state.announced, 1, "queue announce must fire on first join")
+  end)
+
+  test("First group join auto-open suppresses recursive join side effects", function()
+    local controller, state
+    local controllerRef = nil
+    controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = false,
+      setMainFrameVisible = function(visible, reasonOrOpts)
+        state.mainFrameVisible = visible
+        table.insert(state.mainFrameVisibleCalls, {
+          visible = visible,
+          reasonOrOpts = reasonOrOpts,
+        })
+        local opts = type(reasonOrOpts) == "table" and reasonOrOpts or {}
+        if visible and opts.skipShowCallbacks ~= true and controllerRef then
+          controllerRef.HandleGroupRosterUpdate()
+        end
+      end,
+    })
+    controllerRef = controller
+
+    controller.HandleGroupRosterUpdate()
+
+    local firstCall = state.mainFrameVisibleCalls[1]
+    Assert.NotNil(firstCall, "first join should still issue a frame show request")
+    Assert.True(
+      type(firstCall.reasonOrOpts) == "table" and firstCall.reasonOrOpts.skipShowCallbacks == true,
+      "first join auto-open must suppress follow-up show callbacks"
+    )
+    Assert.Equal(
+      type(firstCall.reasonOrOpts) == "table" and firstCall.reasonOrOpts.reason or nil,
+      "queue",
+      "first join auto-open must preserve queue reason metadata"
+    )
+    Assert.Equal(state.queued, 1, "first join queue capture must still run exactly once")
+    Assert.Equal(state.announced, 1, "first join queue announce must still run exactly once")
+    Assert.Equal(state.snapshotCalls, 1, "first join key snapshot must still send exactly once")
+    Assert.Equal(state.helloCalls, 1, "first join hello must still send exactly once")
+    Assert.Equal(state.refreshRequests, 1, "first join must request one forced peer sync refresh")
+    Assert.True(
+      state.snapshotArgs[1] and state.snapshotArgs[1].force == true,
+      "first join key snapshot must bypass sync cooldowns"
+    )
+    Assert.True(state.helloArgs[1] and state.helloArgs[1].force == true, "first join hello must bypass sync cooldowns")
+    Assert.True(
+      state.refreshRequestArgs[1] and state.refreshRequestArgs[1].force == true,
+      "first join peer sync request must bypass request cooldowns"
+    )
   end)
 end
 

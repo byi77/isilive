@@ -111,6 +111,9 @@ end
 
 local function ApplyFrameMethods(frame)
   frame.SetSize = function(self, width, height)
+    if self._simulateProtectedFrames and self._isProtected and self._isInCombat() then
+      error("ADDON_ACTION_BLOCKED: protected frame size update blocked in combat")
+    end
     self._width = tonumber(width) or self._width
     self._height = tonumber(height) or self._height
   end
@@ -124,6 +127,9 @@ local function ApplyFrameMethods(frame)
     return self._height
   end
   frame.SetPoint = function(self, point, relativeTo, relativePoint, x, y)
+    if self._simulateProtectedFrames and self._isProtected and self._isInCombat() then
+      error("ADDON_ACTION_BLOCKED: protected frame point update blocked in combat")
+    end
     self._point = { point, relativeTo, relativePoint, x or 0, y or 0 }
   end
   frame.GetPoint = function(self)
@@ -131,10 +137,16 @@ local function ApplyFrameMethods(frame)
     return p[1], p[2], p[3], p[4], p[5]
   end
   frame.ClearAllPoints = function(self)
+    if self._simulateProtectedFrames and self._isProtected and self._isInCombat() then
+      error("ADDON_ACTION_BLOCKED: protected frame point clear blocked in combat")
+    end
     self._point = nil
   end
   frame.SetMovable = function() end
   frame.EnableMouse = function(self, enabled)
+    if self._simulateProtectedFrames and self._isProtected and self._isInCombat() then
+      error("ADDON_ACTION_BLOCKED: protected frame mouse enable blocked in combat")
+    end
     self._mouseEnabled = enabled == true
   end
   frame.RegisterForDrag = function() end
@@ -188,6 +200,9 @@ local function ApplyFrameMethods(frame)
     self._shown = true
   end
   frame.Hide = function(self)
+    if self._simulateProtectedFrames and self._isProtected and self._isInCombat() then
+      error("ADDON_ACTION_BLOCKED: protected frame hide blocked in combat")
+    end
     self._shown = false
   end
   frame.IsShown = function(self)
@@ -200,6 +215,9 @@ local function ApplyFrameMethods(frame)
     self._stopMovingCalls = (self._stopMovingCalls or 0) + 1
   end
   frame.SetAlpha = function(self, value)
+    if self._simulateProtectedFrames and self._isProtected and self._isInCombat() then
+      error("ADDON_ACTION_BLOCKED: protected frame alpha update blocked in combat")
+    end
     self._alpha = tonumber(value) or self._alpha
   end
   frame.GetAlpha = function(self)
@@ -355,6 +373,10 @@ local function BuildCreateFrameStub(opts)
       _isProtected = false,
     }
 
+    if simulateProtectedFrames and type(parent) == "table" and parent._isProtected == true then
+      frame._isProtected = true
+    end
+
     if
       simulateProtectedFrames
       and type(template) == "string"
@@ -372,7 +394,7 @@ local function BuildCreateFrameStub(opts)
   return CreateFrameStub, createdFrames
 end
 
-local function RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
+local function RegisterMainFrameCombatVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
   test("UI toggle defers closing frame during combat and applies after regen", function()
     local inCombat = false
     local shownInGroupCalls = 0
@@ -470,7 +492,9 @@ local function RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadA
       Assert.True(mainUI.frame:IsShown(), "frame should open after combat ends and pending is applied")
     end)
   end)
+end
 
+local function RegisterFrameBridgeVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Frame bridge direct SetMainFrameVisible triggers show callbacks on successful open", function()
     local visible = false
     local inGroup = true
@@ -566,6 +590,272 @@ local function RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadA
       Assert.True(didSoloShow, "direct solo show should report a successful visibility change")
       Assert.Equal(groupShownCalls, 1, "group callback should not run again for solo open")
       Assert.Equal(soloShownCalls, 1, "solo show callback should run when not in a group")
+    end)
+  end)
+
+  test("Frame bridge can open without running show callbacks when layout restore must be skipped", function()
+    local visible = false
+    local groupShownCalls = 0
+
+    WithGlobals({
+      UIParent = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_frame_bridge.lua" })
+      local FrameBridge = RequireValue(addon.FrameBridge, "FrameBridge module should load")
+
+      local context = FrameBridge.CreateContext({
+        createCenterNotice = function()
+          return {
+            frame = {},
+            teleportButton = {},
+            SetVisible = function() end,
+            UpdateTeleportButtonVisual = function() end,
+            Show = function() end,
+          }
+        end,
+        createInviteHint = function()
+          return {
+            Show = function() end,
+          }
+        end,
+        createMainFrame = function(_opts)
+          return {
+            frame = {
+              IsShown = function()
+                return visible
+              end,
+            },
+            SetVisible = function(wantVisible)
+              if wantVisible then
+                if visible then
+                  return false
+                end
+                visible = true
+                return true
+              end
+              visible = false
+              return true
+            end,
+            SetHeightSafe = function() end,
+            ToggleVisibility = function() end,
+            GetPendingVisible = function()
+              return nil
+            end,
+          }
+        end,
+        isInGroup = function()
+          return true
+        end,
+        onShownInGroup = function()
+          groupShownCalls = groupShownCalls + 1
+        end,
+        onShownNoGroup = function() end,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellID = function()
+          return nil
+        end,
+        applySecureSpellToButton = function() end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return nil
+        end,
+        formatCooldownSeconds = function(value)
+          return tostring(value or "")
+        end,
+        getL = function()
+          return {}
+        end,
+      })
+
+      local didShow = context.SetMainFrameVisible(true, {
+        skipShowCallbacks = true,
+      })
+      Assert.True(didShow, "show should still open the frame")
+      Assert.Equal(groupShownCalls, 0, "skipShowCallbacks must suppress restore/show callbacks")
+    end)
+  end)
+
+  test("Frame bridge center notice strips dungeon context from runtime calls", function()
+    local shownMessage = nil
+    local shownDuration = nil
+    local shownDungeonName = "sentinel"
+    local shownActivityID = "sentinel"
+    local shownOptions = nil
+
+    WithGlobals({
+      UIParent = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_frame_bridge.lua" })
+      local FrameBridge = RequireValue(addon.FrameBridge, "FrameBridge module should load")
+
+      local context = FrameBridge.CreateContext({
+        createCenterNotice = function()
+          return {
+            frame = {},
+            teleportButton = {},
+            SetVisible = function() end,
+            UpdateTeleportButtonVisual = function() end,
+            Show = function(message, durationSeconds, dungeonName, activityID, showOptions)
+              shownMessage = message
+              shownDuration = durationSeconds
+              shownDungeonName = dungeonName
+              shownActivityID = activityID
+              shownOptions = showOptions
+            end,
+          }
+        end,
+        createInviteHint = function()
+          return {
+            Show = function() end,
+          }
+        end,
+        createMainFrame = function(_opts)
+          return {
+            frame = {},
+            SetVisible = function()
+              return false
+            end,
+            SetHeightSafe = function() end,
+            SetWidthSafe = function() end,
+            ToggleVisibility = function() end,
+          }
+        end,
+        isInGroup = function()
+          return false
+        end,
+        onShownInGroup = function() end,
+        onShownNoGroup = function() end,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellID = function()
+          return nil
+        end,
+        applySecureSpellToButton = function() end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function(value)
+          return tostring(value or "")
+        end,
+        getL = function()
+          return {}
+        end,
+      })
+
+      local showOptions = { persistent = true }
+      context.ShowCenterNotice("Queue joined", 20, "The Dawnbreaker", 2662, showOptions)
+
+      Assert.Equal(shownMessage, "Queue joined", "frame bridge should still forward the center notice message")
+      Assert.Equal(shownDuration, 20, "frame bridge should still forward the notice duration")
+      Assert.Nil(shownDungeonName, "runtime center notice should not receive dungeon detection context")
+      Assert.Nil(shownActivityID, "runtime center notice should not receive activity context")
+      Assert.Equal(shownOptions, showOptions, "frame bridge should forward generic notice options unchanged")
+    end)
+  end)
+
+  test("Frame bridge preserves skipShowCallbacks across deferred combat opens", function()
+    local visible = false
+    local pendingVisible = nil
+    local inCombat = true
+    local groupShownCalls = 0
+
+    WithGlobals({
+      UIParent = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_frame_bridge.lua" })
+      local FrameBridge = RequireValue(addon.FrameBridge, "FrameBridge module should load")
+
+      local context = FrameBridge.CreateContext({
+        createCenterNotice = function()
+          return {
+            frame = {},
+            teleportButton = {},
+            SetVisible = function() end,
+            UpdateTeleportButtonVisual = function() end,
+            Show = function() end,
+          }
+        end,
+        createInviteHint = function()
+          return {
+            Show = function() end,
+          }
+        end,
+        createMainFrame = function(_opts)
+          return {
+            frame = {
+              IsShown = function()
+                return visible
+              end,
+            },
+            SetVisible = function(wantVisible)
+              if inCombat then
+                pendingVisible = wantVisible and true or false
+                return false
+              end
+              pendingVisible = nil
+              if wantVisible then
+                if visible then
+                  return false
+                end
+                visible = true
+                return true
+              end
+              visible = false
+              return true
+            end,
+            SetHeightSafe = function() end,
+            ToggleVisibility = function() end,
+            GetPendingVisible = function()
+              return pendingVisible
+            end,
+          }
+        end,
+        isInGroup = function()
+          return true
+        end,
+        onShownInGroup = function()
+          groupShownCalls = groupShownCalls + 1
+        end,
+        onShownNoGroup = function() end,
+        isInCombat = function()
+          return inCombat
+        end,
+        resolveTeleportSpellID = function()
+          return nil
+        end,
+        applySecureSpellToButton = function() end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return nil
+        end,
+        formatCooldownSeconds = function(value)
+          return tostring(value or "")
+        end,
+        getL = function()
+          return {}
+        end,
+      })
+
+      local queuedShow = context.SetMainFrameVisible(true, {
+        skipShowCallbacks = true,
+      })
+      Assert.False(queuedShow, "combat show should stay deferred")
+      Assert.Equal(groupShownCalls, 0, "deferred show must not fire callbacks while queued")
+
+      inCombat = false
+      local appliedShow = context.SetMainFrameVisible(true)
+      Assert.True(appliedShow, "queued show should open after combat")
+      Assert.Equal(groupShownCalls, 0, "deferred skipShowCallbacks must also suppress the later open callback")
     end)
   end)
 
@@ -919,7 +1209,7 @@ local function RegisterGameMenuReloadButtonTests(test, Assert, WithGlobals, Load
     end)
   end)
 
-  test("UI game-menu reload button keeps host frame insecure under protected-frame simulation", function()
+  test("UI game-menu panel stays mounted as GameMenuFrame child while reload button remains secure", function()
     local inCombat = false
     local createFrameStub = BuildCreateFrameStub({
       simulateProtectedFrames = true,
@@ -928,6 +1218,7 @@ local function RegisterGameMenuReloadButtonTests(test, Assert, WithGlobals, Load
       end,
     })
     local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+    gameMenuFrame._isProtected = true
     local closeButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
     gameMenuFrame.CloseButton = closeButton
 
@@ -945,32 +1236,27 @@ local function RegisterGameMenuReloadButtonTests(test, Assert, WithGlobals, Load
         end,
       })
 
-      Assert.False(strip.hostFrame._isProtected, "external host frame should stay insecure")
-      Assert.False(strip.panelFrame._isProtected, "external panel frame should stay insecure")
+      Assert.True(
+        strip.panelFrame._parent == gameMenuFrame,
+        "panel frame should be mounted directly under GameMenuFrame"
+      )
+      Assert.True(strip.hostFrame == strip.panelFrame, "host frame alias should point to the mounted panel frame")
+      Assert.True(strip.panelFrame._isProtected, "panel frame should inherit protected GameMenuFrame parentage")
       Assert.True(strip.buttonsById.reloadui._isProtected, "reload button itself should remain secure")
     end)
   end)
 end
 
 local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("UI game-menu hides the host frame after close via deferred callback", function()
+  test("UI game-menu panels rely on parent visibility instead of deferred host callbacks", function()
     local createFrameStub = BuildCreateFrameStub()
-    local uiParent = {}
     local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
     local closeButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
     gameMenuFrame.CloseButton = closeButton
-    local scheduledCallback = nil
-    local hideCalls = 0
 
     WithGlobals({
-      UIParent = uiParent,
       CreateFrame = createFrameStub,
       GameMenuFrame = gameMenuFrame,
-      C_Timer = {
-        After = function(_delay, callback)
-          scheduledCallback = callback
-        end,
-      },
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
       local UI = RequireValue(addon.UI, "UI module should load")
@@ -978,125 +1264,100 @@ local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGloba
         gameMenuFrame = gameMenuFrame,
       })
 
-      strip.hostFrame.Hide = function()
-        hideCalls = hideCalls + 1
-      end
-
       local onHide = gameMenuFrame._scripts and gameMenuFrame._scripts.OnHide or nil
-      Assert.NotNil(onHide, "game menu should register an OnHide hook")
-
-      ---@diagnostic disable: need-check-nil
-      gameMenuFrame:Show()
-      onHide(gameMenuFrame)
-      ---@diagnostic enable: need-check-nil
-
-      Assert.Equal(hideCalls, 0, "host frame should not hide synchronously inside the GameMenuFrame OnHide hook")
-      Assert.NotNil(scheduledCallback, "host frame hide should be deferred after game menu close")
-
-      ---@diagnostic disable: need-check-nil
-      gameMenuFrame:Show()
-      scheduledCallback()
-      ---@diagnostic enable: need-check-nil
-
-      Assert.Equal(hideCalls, 0, "reopened game menu should not hide the host frame when a stale close callback fires")
-
-      scheduledCallback = nil
-      gameMenuFrame:Hide()
-      ---@diagnostic disable: need-check-nil
-      onHide(gameMenuFrame)
-      ---@diagnostic enable: need-check-nil
-
-      Assert.NotNil(scheduledCallback, "host frame hide should be scheduled when the game menu actually closes")
-
-      ---@diagnostic disable: need-check-nil
-      scheduledCallback()
-      ---@diagnostic enable: need-check-nil
-
-      Assert.Equal(hideCalls, 1, "host frame should hide once the deferred game menu close callback runs")
+      Assert.Nil(onHide, "game menu should not need an OnHide hook for mounted panel children")
+      Assert.True(
+        strip.panelFrame:IsShown(),
+        "mounted panel should stay shown and inherit visibility from GameMenuFrame"
+      )
     end)
   end)
 
-  test("UI game-menu deferred host-frame show stays combat-safe until regen", function()
-    local inCombat = false
-    local scheduledCallbacks = {}
-    local createFrameStub, createdFrames = BuildCreateFrameStub()
-    local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
-    local closeButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
-    gameMenuFrame.CloseButton = closeButton
-
-    WithGlobals({
-      UIParent = {},
-      CreateFrame = createFrameStub,
-      GameMenuFrame = gameMenuFrame,
-      C_Timer = {
-        After = function(_delay, callback)
-          table.insert(scheduledCallbacks, callback)
-        end,
-      },
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
-      local UI = RequireValue(addon.UI, "UI module should load")
-      local strip = UI.EnsurePanelUI({
-        gameMenuFrame = gameMenuFrame,
+  test(
+    "UI game-menu first combat open keeps mounted panel visible while insecure shortcuts are combat-blocked",
+    function()
+      local inCombat = false
+      local createFrameStub, createdFrames = BuildCreateFrameStub({
+        simulateProtectedFrames = true,
         isInCombat = function()
           return inCombat
         end,
       })
+      local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+      gameMenuFrame._isProtected = true
+      local closeButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
+      gameMenuFrame.CloseButton = closeButton
 
-      local hostShowCalls = 0
-      local originalHostShow = strip.hostFrame.Show
-      strip.hostFrame.Show = function(self)
-        if inCombat then
-          error("host frame show blocked in combat")
-        end
-        hostShowCalls = hostShowCalls + 1
-        return originalHostShow(self)
-      end
+      WithGlobals({
+        CreateFrame = createFrameStub,
+        GameMenuFrame = gameMenuFrame,
+      }, function()
+        local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+        local UI = RequireValue(addon.UI, "UI module should load")
+        local professionsActionCalls = 0
+        local strip = UI.EnsurePanelUI({
+          gameMenuFrame = gameMenuFrame,
+          isInCombat = function()
+            return inCombat
+          end,
+          panelActions = {
+            professions = function()
+              professionsActionCalls = professionsActionCalls + 1
+            end,
+          },
+        })
+        local panelFrame = RequireValue(strip.panelFrame, "panel frame should exist")
+        local professionsButton = RequireValue(strip.buttonsById.professions, "profession shortcut should exist")
+        gameMenuFrame:Hide()
 
-      strip.hostFrame:Hide()
-      gameMenuFrame:Hide()
+        local onShow = gameMenuFrame._scripts and gameMenuFrame._scripts.OnShow or nil
+        Assert.NotNil(onShow, "game menu should register an OnShow hook")
 
-      local onShow = gameMenuFrame._scripts and gameMenuFrame._scripts.OnShow or nil
-      Assert.NotNil(onShow, "game menu should register an OnShow hook")
+        inCombat = true
+        gameMenuFrame._shown = true
+        local okShow, errShow = pcall(function()
+          ---@diagnostic disable-next-line: need-check-nil
+          onShow(gameMenuFrame)
+        end)
 
-      inCombat = true
-      gameMenuFrame:Show()
-      ---@diagnostic disable-next-line: need-check-nil
-      onShow(gameMenuFrame)
+        Assert.True(okShow, "combat game-menu OnShow should stay mutation-free: " .. tostring(errShow))
+        Assert.True(panelFrame:IsShown(), "mounted panel should stay shown through the first combat open")
+        Assert.True(professionsButton:IsShown(), "insecure shortcut button should stay visible during combat")
+        local onClick = professionsButton._scripts and professionsButton._scripts.OnClick or nil
+        Assert.NotNil(onClick, "profession shortcut should keep an OnClick handler")
+        onClick(professionsButton)
+        Assert.Equal(professionsActionCalls, 0, "insecure shortcut action should no-op during combat")
 
-      Assert.Equal(#scheduledCallbacks, 1, "host-frame show should still be deferred through C_Timer")
-      local ok, err = pcall(scheduledCallbacks[1])
-      Assert.True(ok, "deferred host-frame show must stay silent in combat: " .. tostring(err))
-      Assert.Equal(hostShowCalls, 0, "deferred combat callback must not call hostFrame:Show directly")
+        local retryFrame = FindCombatRetryFrame(createdFrames)
+        Assert.NotNil(retryFrame, "combat secure refresh should rely on the regen retry frame")
 
-      local retryFrame = FindCombatRetryFrame(createdFrames)
-      Assert.NotNil(retryFrame, "combat host-frame show should rely on the regen retry frame")
+        inCombat = false
+        retryFrame = RequireValue(retryFrame, "combat secure refresh should rely on the regen retry frame")
+        retryFrame:FireEvent("PLAYER_REGEN_ENABLED")
 
-      inCombat = false
-      retryFrame = RequireValue(retryFrame, "combat host-frame show should rely on the regen retry frame")
-      retryFrame:FireEvent("PLAYER_REGEN_ENABLED")
+        Assert.True(panelFrame:IsShown(), "mounted panel should remain visible after regen")
+        onClick(professionsButton)
+        Assert.Equal(professionsActionCalls, 1, "insecure shortcut action should execute again after combat")
+      end)
+    end
+  )
 
-      Assert.Equal(hostShowCalls, 1, "host frame should become visible once regen reapplies panel state")
-    end)
-  end)
-
-  test("UI second game-menu panel defers host-frame show safely during combat", function()
+  test("UI second game-menu panel also stays visible during combat", function()
     local inCombat = false
-    local scheduledCallbacks = {}
-    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local createFrameStub, createdFrames = BuildCreateFrameStub({
+      simulateProtectedFrames = true,
+      isInCombat = function()
+        return inCombat
+      end,
+    })
     local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+    gameMenuFrame._isProtected = true
     local closeButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
     gameMenuFrame.CloseButton = closeButton
 
     WithGlobals({
-      UIParent = {},
       CreateFrame = createFrameStub,
       GameMenuFrame = gameMenuFrame,
-      C_Timer = {
-        After = function(_delay, callback)
-          table.insert(scheduledCallbacks, callback)
-        end,
-      },
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
       local UI = RequireValue(addon.UI, "UI module should load")
@@ -1120,34 +1381,25 @@ local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGloba
           }
         end,
       })
-
-      local hostShowCalls = 0
-      local originalHostShow = travelStrip.hostFrame.Show
-      travelStrip.hostFrame.Show = function(self)
-        if inCombat then
-          error("second host frame show blocked in combat")
-        end
-        hostShowCalls = hostShowCalls + 1
-        return originalHostShow(self)
-      end
-
-      travelStrip.hostFrame:Hide()
+      local travelPanel = RequireValue(travelStrip.panelFrame, "travel panel frame should exist")
       gameMenuFrame:Hide()
 
       local onShow = gameMenuFrame._scripts and gameMenuFrame._scripts.OnShow or nil
       Assert.NotNil(onShow, "game menu should register a shared OnShow hook")
 
       inCombat = true
-      gameMenuFrame:Show()
-      ---@diagnostic disable-next-line: need-check-nil
-      onShow(gameMenuFrame)
+      gameMenuFrame._shown = true
+      local okShow, errShow = pcall(function()
+        ---@diagnostic disable-next-line: need-check-nil
+        onShow(gameMenuFrame)
+      end)
 
-      Assert.True(#scheduledCallbacks >= 2, "both panel hosts should schedule deferred show callbacks")
-      for _, callback in ipairs(scheduledCallbacks) do
-        local ok, err = pcall(callback)
-        Assert.True(ok, "deferred panel show callback must stay silent in combat: " .. tostring(err))
-      end
-      Assert.Equal(hostShowCalls, 0, "travel panel host must not call Show directly during combat")
+      Assert.True(okShow, "combat game-menu OnShow should keep the second panel mounted: " .. tostring(errShow))
+      Assert.True(travelPanel:IsShown(), "second panel should remain visible through the combat open")
+      Assert.True(
+        travelStrip.buttonsById.hearthstone:IsShown(),
+        "second-panel button should stay visible during combat"
+      )
 
       local retryFrame = FindCombatRetryFrame(createdFrames)
       Assert.NotNil(retryFrame, "combat second-panel show should rely on the regen retry frame")
@@ -1156,7 +1408,7 @@ local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGloba
       retryFrame = RequireValue(retryFrame, "combat second-panel show should rely on the regen retry frame")
       retryFrame:FireEvent("PLAYER_REGEN_ENABLED")
 
-      Assert.Equal(hostShowCalls, 1, "travel panel host should become visible once regen reapplies panel state")
+      Assert.True(travelPanel:IsShown(), "second panel should remain visible after regen")
     end)
   end)
 
@@ -1676,6 +1928,110 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       ---@diagnostic enable: need-check-nil, undefined-field
     end)
   end)
+
+  test("Settings panel defaults Login / Reload auto-show and Key-End auto-open to enabled", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+    local startupToggleStates = {}
+    local keyEndToggleStates = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_BEHAVIOR = "Behavior",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_UI_SCALE = "UI Scale",
+            SETTINGS_MINIMAP_BUTTON = "Minimap Button",
+            SETTINGS_SYNC_ENABLED = "Addon Sync",
+            SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
+            SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
+            SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP = "Show on Login / Reload",
+            SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END = "Auto Open on Key End",
+            SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
+            SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
+            SETTINGS_DEFAULT_OPEN_UI_M = "M",
+            SETTINGS_DEFAULT_OPEN_UI_V = "V",
+            SETTINGS_DEFAULT_OPEN_UI_H = "H",
+            SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR = "Raid Behavior",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_H = "Show + H",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_KEEP = "Show + Keep",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_PRESERVE = "Keep State",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+        onAutoShowMainFrameOnStartupToggle = function(enabled)
+          startupToggleStates[#startupToggleStates + 1] = enabled and true or false
+        end,
+        onAutoOpenMainFrameOnKeyEndToggle = function(enabled)
+          keyEndToggleStates[#keyEndToggleStates + 1] = enabled and true or false
+        end,
+      })
+
+      Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
+      Assert.Nil(db.autoShowMainFrameOnStartup, "opening settings should not persist the default startup auto-show")
+      Assert.Nil(db.autoOpenMainFrameOnKeyEnd, "opening settings should not persist the default key-end auto-open")
+
+      local startupCheck = nil
+      local keyEndCheck = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._settingKey == "SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP" then
+          startupCheck = frame
+        elseif frame._settingKey == "SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END" then
+          keyEndCheck = frame
+        end
+      end
+
+      Assert.NotNil(startupCheck, "settings panel should create a startup auto-show checkbox")
+      Assert.NotNil(keyEndCheck, "settings panel should create a key-end auto-open checkbox")
+      ---@diagnostic disable: need-check-nil, undefined-field
+      Assert.True(startupCheck:GetChecked(), "startup auto-show should default to enabled")
+      Assert.True(keyEndCheck:GetChecked(), "key-end auto-open should default to enabled")
+
+      local onClickStartup = startupCheck._scripts and startupCheck._scripts.OnClick or nil
+      local onClickKeyEnd = keyEndCheck._scripts and keyEndCheck._scripts.OnClick or nil
+      Assert.NotNil(onClickStartup, "startup checkbox should define OnClick")
+      Assert.NotNil(onClickKeyEnd, "key-end checkbox should define OnClick")
+
+      startupCheck:SetChecked(false)
+      onClickStartup(startupCheck) ---@diagnostic disable-line: need-check-nil
+      keyEndCheck:SetChecked(false)
+      onClickKeyEnd(keyEndCheck) ---@diagnostic disable-line: need-check-nil
+
+      Assert.False(db.autoShowMainFrameOnStartup, "disabling startup auto-show should persist false")
+      Assert.False(db.autoOpenMainFrameOnKeyEnd, "disabling key-end auto-open should persist false")
+      Assert.Equal(startupToggleStates[1], false, "startup checkbox should notify its callback")
+      Assert.Equal(keyEndToggleStates[1], false, "key-end checkbox should notify its callback")
+      ---@diagnostic enable: need-check-nil, undefined-field
+    end)
+  end)
 end
 
 local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, LoadAddonModules)
@@ -1862,6 +2218,99 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
     end)
   end)
 
+  test("Settings panel defaults Raid behavior to Show + H and persists user choice", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+    local raidBehaviorChanges = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_BEHAVIOR = "Behavior",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_UI_SCALE = "UI Scale",
+            SETTINGS_MINIMAP_BUTTON = "Minimap Button",
+            SETTINGS_SYNC_ENABLED = "Addon Sync",
+            SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
+            SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
+            SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP = "Show on Login / Reload",
+            SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END = "Auto Open on Key End",
+            SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
+            SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
+            SETTINGS_DEFAULT_OPEN_UI_M = "M",
+            SETTINGS_DEFAULT_OPEN_UI_V = "V",
+            SETTINGS_DEFAULT_OPEN_UI_H = "H",
+            SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR = "Raid Behavior",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_H = "Show + H",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_KEEP = "Show + Keep",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_PRESERVE = "Keep State",
+            SETTINGS_ROSTER_COLUMN_GUIDES = "Column Guides",
+            SETTINGS_SHOW_TIMEWAYS_NAVIGATOR = "Show Timeways Navigator",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+        onRaidTransitionBehaviorChange = function(value)
+          raidBehaviorChanges[#raidBehaviorChanges + 1] = value
+        end,
+      })
+
+      Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
+      Assert.Nil(db.raidTransitionBehavior, "opening settings should not persist the default raid behavior")
+
+      local showHButton = nil
+      local preserveButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._optionValue == "show_h" then
+          showHButton = frame
+        elseif frame._optionValue == "preserve" then
+          preserveButton = frame
+        end
+      end
+
+      Assert.NotNil(showHButton, "settings panel should create a Show + H raid-behavior button")
+      Assert.NotNil(preserveButton, "settings panel should create a Keep State raid-behavior button")
+      ---@diagnostic disable: need-check-nil, undefined-field
+      Assert.Equal(showHButton._backdropColor[4], 0.25, "Show + H should be highlighted by default")
+      Assert.Equal(preserveButton._backdropColor[4], 0.7, "Keep State should stay unselected by default")
+
+      local onClickPreserve = preserveButton._scripts and preserveButton._scripts.OnClick or nil
+      Assert.NotNil(onClickPreserve, "raid-behavior button should define OnClick")
+      onClickPreserve(preserveButton, "LeftButton") ---@diagnostic disable-line: need-check-nil
+
+      Assert.Equal(db.raidTransitionBehavior, "preserve", "choosing Keep State should persist the preserved mode")
+      Assert.Equal(raidBehaviorChanges[1], "preserve", "raid behavior selector should notify the callback")
+      ---@diagnostic enable: need-check-nil, undefined-field
+    end)
+  end)
+
   test("Settings panel hides disabled legacy display and behavior controls", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {
@@ -1903,6 +2352,12 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
             SETTINGS_SYNC_ENABLED = "Addon Sync",
             SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
             SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
+            SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP = "Show on Login / Reload",
+            SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END = "Auto Open on Key End",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR = "Raid Behavior",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_H = "Show + H",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_KEEP = "Show + Keep",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_PRESERVE = "Keep State",
             SETTINGS_MARKERS_LEADER_ONLY = "Markers Leader Only",
             SETTINGS_QUEUE_DEBUG = "Queue Debug",
             SETTINGS_RUNTIME_LOG = "Runtime Log",
@@ -1918,34 +2373,49 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
       })
 
       Assert.NotNil(panel, "settings panel should still be created")
+      Assert.NotNil(panel.scrollFrame, "settings panel should expose a scroll frame for overflowing content")
+      Assert.NotNil(panel.content, "settings panel should expose a scroll child for overflowing content")
+      Assert.Equal(
+        panel.scrollFrame:GetScrollChild(),
+        panel.content,
+        "settings scroll frame should be wired to the content child"
+      )
       Assert.True(
-        panel.canvas:GetHeight() > 540,
-        "settings canvas should grow tall enough to force the Blizzard Settings scrollbar"
+        panel.content:GetHeight() > panel.scrollFrame:GetHeight(),
+        "settings content should exceed the viewport height so the lower controls remain reachable via scrolling"
+      )
+      Assert.True(
+        panel.scrollFrame:GetVerticalScrollRange() > 0,
+        "settings scroll frame should expose a positive scroll range when content overflows"
       )
 
       local sliderCount = 0
       local checkboxCount = 0
+      local scrollFrameCount = 0
       for _, frame in ipairs(createdFrames) do
         if frame._frameType == "Slider" then
           sliderCount = sliderCount + 1
         elseif frame._frameType == "CheckButton" then
           checkboxCount = checkboxCount + 1
+        elseif frame._frameType == "ScrollFrame" then
+          scrollFrameCount = scrollFrameCount + 1
         end
       end
 
+      Assert.Equal(scrollFrameCount, 1, "settings should allocate exactly one content scroll frame")
       Assert.Equal(sliderCount, 2, "settings should only expose the background opacity and UI scale sliders")
       Assert.Equal(
         checkboxCount,
-        11,
+        13,
         "settings should hide the legacy DPS, markers, sound, name-length,"
-          .. " and teleport-column controls while keeping column guides and the portal navigator toggle visible"
+          .. " and teleport-column controls while keeping the new startup/key-end toggles plus column guides"
       )
 
       panel.Refresh()
       Assert.Equal(sliderCount, 2, "refresh should keep the legacy sliders hidden")
       Assert.Equal(
         checkboxCount,
-        11,
+        13,
         "refresh should keep the hidden legacy checkboxes out of the settings UI while preserving column guides"
       )
     end)
@@ -2163,6 +2633,18 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
         resolveTeleportSpellID = function()
           return 12345
         end,
+        resolveMapIDBySpellID = function(spellID)
+          if spellID == 12345 then
+            return 558
+          end
+          return nil
+        end,
+        resolveMapIDByActivityID = function(activityID)
+          if activityID == 999 then
+            return 558
+          end
+          return nil
+        end,
         applySecureSpellToButton = function() end,
         isSpellKnown = function()
           return true
@@ -2173,14 +2655,24 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
         formatCooldownSeconds = function()
           return ""
         end,
+        getDungeonName = function(mapID, localeTag)
+          if mapID == 558 and localeTag == "enUS" then
+            return "Magisters' Terrace"
+          end
+          if mapID == 558 then
+            return "Terrasse der Magister"
+          end
+          return nil
+        end,
         getL = function()
           return {
             TOOLTIP_TELEPORT_CAST = "Cast",
+            TOOLTIP_TELEPORT_READY = "Ready",
           }
         end,
       })
 
-      centerNotice.ConfigureTeleportButton("Test Dungeon", 999)
+      centerNotice.ConfigureTeleportButton("Terrasse der Magister", 999)
       local onEnter = centerNotice.teleportButton._scripts and centerNotice.teleportButton._scripts.OnEnter or nil
       Assert.NotNil(onEnter, "center notice teleport button should define tooltip OnEnter")
       ---@diagnostic disable: need-check-nil
@@ -2202,7 +2694,115 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
         "ANCHOR_TOP",
         "center notice tooltip must stay top-anchored"
       )
+      local lines = rawget(privateTooltipFrame, "_isiLiveTooltipLines") or {}
+      Assert.Equal(
+        lines[1] and lines[1]._text or nil,
+        "Terrasse der Magister",
+        "center notice tooltip title should stay localized"
+      )
+      Assert.Equal(
+        lines[2] and lines[2]._text or nil,
+        "Magisters' Terrace",
+        "center notice tooltip should add the English name below the title"
+      )
       Assert.Equal(sharedTooltipCalls, 0, "center notice tooltip should not use the shared Blizzard GameTooltip")
+    end)
+  end)
+
+  test("Center notice tooltip prefers exact activity map over shared spell fallback", function()
+    local now = 0
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = createFrameStub,
+      GetTime = function()
+        return now
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local centerNotice = Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellID = function()
+          return 367416
+        end,
+        resolveMapIDBySpellID = function(spellID)
+          if spellID == 367416 then
+            return 2441
+          end
+          return nil
+        end,
+        resolveMapIDByActivityID = function(activityID)
+          if activityID == 999 then
+            return 2442
+          end
+          return nil
+        end,
+        applySecureSpellToButton = function() end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getDungeonName = function(mapID, localeTag)
+          if mapID == 2442 and localeTag == "enUS" then
+            return "Tazavesh: Streets of Wonder"
+          end
+          if mapID == 2442 then
+            return "Tazavesh: Straßen der Wunder"
+          end
+          if mapID == 2441 and localeTag == "enUS" then
+            return "Tazavesh: So'leah's Gambit"
+          end
+          if mapID == 2441 then
+            return "Tazavesh: So'leahs Schachzug"
+          end
+          return nil
+        end,
+        getL = function()
+          return {
+            TOOLTIP_TELEPORT_CAST = "Cast",
+            TOOLTIP_TELEPORT_READY = "Ready",
+          }
+        end,
+      })
+
+      centerNotice.ConfigureTeleportButton("Tazavesh: Straßen der Wunder", 999)
+      local onEnter = centerNotice.teleportButton._scripts and centerNotice.teleportButton._scripts.OnEnter or nil
+      Assert.NotNil(onEnter, "center notice teleport button should define tooltip OnEnter")
+      ---@diagnostic disable: need-check-nil
+      onEnter(centerNotice.teleportButton)
+      ---@diagnostic enable: need-check-nil
+
+      local privateTooltip = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._isIsiLiveTooltip == true then
+          privateTooltip = frame
+          break
+        end
+      end
+
+      Assert.NotNil(privateTooltip, "center notice should allocate a private tooltip frame")
+      local privateTooltipFrame = RequireValue(privateTooltip, "center notice should allocate a private tooltip frame")
+      local lines = rawget(privateTooltipFrame, "_isiLiveTooltipLines") or {}
+      Assert.Equal(
+        lines[1] and lines[1]._text or nil,
+        "Tazavesh: Straßen der Wunder",
+        "center notice tooltip title should keep the concrete localized activity dungeon"
+      )
+      Assert.Equal(
+        lines[2] and lines[2]._text or nil,
+        "Tazavesh: Streets of Wonder",
+        "center notice tooltip subtitle must use the exact activity map instead of the shared spell fallback"
+      )
     end)
   end)
 end
@@ -2386,7 +2986,8 @@ return function(test, ctx)
   local WithGlobals = RequireValue(ctx.with_globals, "UI scenario ctx.with_globals should exist")
   local LoadAddonModules = RequireValue(ctx.load_modules, "UI scenario ctx.load_modules should exist")
 
-  RegisterMainFrameVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterMainFrameCombatVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterFrameBridgeVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterMainFrameInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGameMenuMicroButtonTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonModules)

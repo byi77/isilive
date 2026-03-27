@@ -182,7 +182,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
   local function HandleChallengeModeCompletedOrReset(frame)
     TryRecordCompletedRun(ctx, ResolveCompletedRunInfo(), POST_RUN_CAPTURE_RETRIES)
 
-    if ctx.isInGroup() then
+    if ctx.isInGroup() and ctx.shouldAutoOpenMainFrameOnKeyEnd() then
       ctx.setMainFrameVisible(true)
     end
     RefreshRosterAfterRunStateChange(ctx, frame)

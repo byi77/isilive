@@ -18,7 +18,31 @@ local function ResolveAutoCloseMainFrameEnabled(dbRef)
   return type(dbRef) == "table" and dbRef.autoCloseMainFrame == true
 end
 
+local function ResolveAutoShowMainFrameOnStartupEnabled(dbRef)
+  return not (type(dbRef) == "table" and dbRef.autoShowMainFrameOnStartup == false)
+end
+
+local function ResolveAutoOpenMainFrameOnKeyEndEnabled(dbRef)
+  return not (type(dbRef) == "table" and dbRef.autoOpenMainFrameOnKeyEnd == false)
+end
+
+local function ResolveRaidTransitionBehavior(dbRef)
+  if type(dbRef) ~= "table" then
+    return "show_h"
+  end
+
+  local behavior = dbRef.raidTransitionBehavior
+  if behavior == "show_keep" or behavior == "preserve" then
+    return behavior
+  end
+
+  return "show_h"
+end
+
 FI.ResolveAutoCloseMainFrameEnabled = ResolveAutoCloseMainFrameEnabled
+FI.ResolveAutoShowMainFrameOnStartupEnabled = ResolveAutoShowMainFrameOnStartupEnabled
+FI.ResolveAutoOpenMainFrameOnKeyEndEnabled = ResolveAutoOpenMainFrameOnKeyEndEnabled
+FI.ResolveRaidTransitionBehavior = ResolveRaidTransitionBehavior
 
 local function FinalizeFactorySettings(ctx)
   local modules = ctx.modules
@@ -33,19 +57,12 @@ local function FinalizeFactorySettings(ctx)
       getDB = function()
         return IsiLiveDB or {}
       end,
-      onEscPanelToggle = function(enabled)
+      onEscPanelToggle = function(_enabled)
         if ctx.panelUI and type(ctx.panelUI.SyncVisibility) == "function" then
           ctx.panelUI.SyncVisibility()
         end
-        if ctx.panelUI and ctx.panelUI.hostFrame then
-          if enabled then
-            local gmf = rawget(_G, "GameMenuFrame")
-            if gmf and type(gmf.IsShown) == "function" and gmf:IsShown() then
-              ctx.panelUI.hostFrame:Show()
-            end
-          else
-            ctx.panelUI.hostFrame:Hide()
-          end
+        if ctx.secondPanelUI and type(ctx.secondPanelUI.SyncVisibility) == "function" then
+          ctx.secondPanelUI.SyncVisibility()
         end
       end,
       getQueueDebugEnabled = function()
@@ -129,6 +146,15 @@ local function FinalizeFactorySettings(ctx)
       end,
       onAutoCloseMainFrameToggle = function(_enabled)
         -- Runtime reads IsiLiveDB.autoCloseMainFrame directly; no additional action needed.
+      end,
+      onAutoShowMainFrameOnStartupToggle = function(_enabled)
+        -- Runtime reads IsiLiveDB.autoShowMainFrameOnStartup directly; no additional action needed.
+      end,
+      onAutoOpenMainFrameOnKeyEndToggle = function(_enabled)
+        -- Runtime reads IsiLiveDB.autoOpenMainFrameOnKeyEnd directly; no additional action needed.
+      end,
+      onRaidTransitionBehaviorChange = function(_behavior)
+        -- Runtime reads IsiLiveDB.raidTransitionBehavior directly; no additional action needed.
       end,
       onDefaultLayoutModeChange = function(_layoutMode)
         ctx.RestoreLayoutState()
@@ -260,12 +286,25 @@ local function FinalizeFactoryRuntime(ctx)
     applyKnownKeyToRosterEntry = ctx.ApplyKnownKeyToRosterEntry,
     enqueueInspect = ctx.EnqueueInspect,
     sendOwnKeySnapshot = ctx.SendOwnKeySnapshot,
+    sendRefreshRequest = ctx.SendRefreshRequest,
     sendOwnTargetSnapshot = ctx.SendOwnTargetSnapshot,
     sendRefreshResponse = ctx.SendRefreshResponse,
     sendIsiLiveHello = ctx.SendIsiLiveHello,
     shouldAutoCloseMainFrame = function()
       local dbRef = rawget(_G, "IsiLiveDB")
       return ResolveAutoCloseMainFrameEnabled(dbRef)
+    end,
+    shouldShowMainFrameOnStartup = function()
+      local dbRef = rawget(_G, "IsiLiveDB")
+      return ResolveAutoShowMainFrameOnStartupEnabled(dbRef)
+    end,
+    shouldAutoOpenMainFrameOnKeyEnd = function()
+      local dbRef = rawget(_G, "IsiLiveDB")
+      return ResolveAutoOpenMainFrameOnKeyEndEnabled(dbRef)
+    end,
+    getRaidTransitionBehavior = function()
+      local dbRef = rawget(_G, "IsiLiveDB")
+      return ResolveRaidTransitionBehavior(dbRef)
     end,
     autoCloseMainFrame = function()
       if ctx.mainFrame:IsShown() then

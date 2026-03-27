@@ -31,7 +31,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 8. Highlight-Aufloesung darf nur mit eindeutigem activity/map-Kontext arbeiten und kein Gruppen-freies Fallback nutzen.
 9. Der aktive Queue-Join-Runtimepfad muss waehrend aktiver Challenge Queue-Events ignorieren und ausserhalb davon Pending-Queue-Infos fuer den Gruppenbeitritts-Announce deterministisch setzen und wieder leeren.
 10. Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; blockierte Main-UI-Sichtbarkeitswechsel werden gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
-11. In Raid-Groesse bleibt die UI sichtbar, wechselt in den H-Modus; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
+11. In Raid-Groesse folgt das Main-UI-Verhalten der konfigurierten Raid-Option (`show_h`, `show_keep`, `preserve`); beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
 12. Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
 13. Voll-Refresh laeuft nur in erlaubten Zustaenden und muss bei Stop oder aktivem M+ sauber aussetzen.
 14. Slash-Commands muessen State-Zyklen stabil ausfuehren (test/stop/start/pause/resume/lang).
@@ -51,7 +51,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 28. während die ui ausgeblendet ist, laufen roster/addon-sync im hintergrund weiter und dürfen eventgetrieben vor-rendern; queue-scanning und dauerhafte polling-last stoppen jedoch.
 29. teleport-eintraege fuer shared spells bleiben deterministisch sortiert und doppelte grid-eintraege werden entfernt.
 30. falls ein anderer user entdeckt wird welcher auch "isiLive" benutzt, hängen wir hinter seinen Namen ein <3 (blaues herz) an
-31. main ui auto-open bleibt bei gruppenbeitritt und key ende erhalten; automatisches schliessen bei key start ist standardmaessig aus.
+31. main ui auto-open bleibt bei gruppenbeitritt erhalten; key-ende auto-open ist standardmaessig an, aber abschaltbar; automatisches schliessen bei key start ist standardmaessig aus.
 32. verlaesst ein gruppenmitglied die gruppe, bleibt es als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt
 33. spieler, die sich bereits im zieldungeon befinden, werden mit einem portal-icon markiert
 34. waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt, danach auf die klassenfarbe zurueckgesetzt und ueber einen dedizierten Ready-Check-Refreshpfad aktualisiert, der keine Secure-Rollenbutton-Attribute neu schreibt.
@@ -60,11 +60,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 37. die wartungsdatei `WARTUNG.md` darf nicht im curseforge-paket landen.
 38. `WARTUNG.md` muss die verpflichtende wartungskette fuer den wiedereinstieg nennen: `CHANGELOG.md`, `TODO.md`, `TODO_RENAME.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `AGENTS.md`, `README.md`, `RELEASE.md`, `USECASES.md`, `ARCHITECTURE.md`.
 39. Die Rollensymbole im Roster-Panel sind interaktive Buttons und ermoeglichen per Klick das manuelle Markieren von Tank (Blau) und Heiler (Gruen).
-40. Bei Gruppengroessen > 5 (Raid) wird im Roster-Panel in den H-Modus gewechselt, die Gruppenmitglieder-Zeilen werden ausgeblendet und die Raid-Benachrichtigung nur einmal pro Raid-Uebergang ausgegeben.
+40. Bei Gruppengroessen > 5 (Raid) werden die Gruppenmitglieder-Zeilen ausgeblendet und die Raid-Benachrichtigung nur einmal pro Raid-Uebergang ausgegeben; ein erzwungener H-Modus erfolgt nur im Raid-Verhalten `show_h`.
 41. API-Aufrufe mit Unit-Tokens muessen `UnitExists` pruefen, bevor sie aufgerufen werden, um Race-Conditions bei Gruppenaenderungen abzufangen.
 42. Die Behavior-Option `Auto-Close bei Key-Start / Solo` ist standardmaessig aus; nur wenn sie aktiv ist, darf die Main-UI bei Key-Start und beim Solo-Uebergang automatisch schliessen.
 43. Der aktuelle Gruppenleiter wird im Roster mit einer 16x16-Krone markiert; bei bekannten isiLive-Nutzern bleibt das blaue Herz zusaetzlich sichtbar und steht vor der Krone.
 44. Alle Center-Meldungen starten mit derselben Portal-Navigator-Basistypografie fuer Body-Text, Schriftgroesse und Standardfarbe.
+45. Beim Login oder UI-Reload wird die Main-UI standardmaessig eingeblendet, bleibt aber ueber die Startup-Option abschaltbar.
+46. Manuelle Layout-Umschaltungen der Main-UI duerfen auch im Kampf angefordert werden; direkte Mutationen an Secure-Kindern bleiben dabei ausgesetzt und werden spaetestens bei `PLAYER_REGEN_ENABLED` ueber den sichtbaren UI-Refresh nachgezogen.
+47. Die ESC-Panel-Overlays muessen im Kampf als bereits gemountete `GameMenuFrame`-Kinder sichtbar bleiben; waehrend Kampf-Lockdown sind an ihnen keine Show/Hide- oder Layout-Mutationen erlaubt, unsichere Shortcuts bleiben sichtbar, duerfen ihre Aktion aber erst ausserhalb des Kampfes ausfuehren.
+48. Der isiLive-Last-Run-Sync transportiert nur den belastbar verifizierten `DPS`-Wert eines Snapshots; das Roster nutzt `syncDps` nur als Fallback, wenn lokal kein Last-Run-DPS vorliegt.
 
 ## Regelbloecke
 
@@ -162,12 +166,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-GRUPPE-RAID-SICHTBARKEIT
 - Regelnummer: 11
 - Status: aktiv
-- Zusammenfassung: In Raid-Groesse bleibt die UI sichtbar und wechselt in den H-Modus; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt. Nur mit aktivierter Auto-Close-Option darf der Solo-Uebergang die Main-UI ausblenden.
+- Zusammenfassung: In Raid-Groesse richtet sich das Main-UI-Verhalten nach `raidTransitionBehavior`: `show_h` oeffnet sichtbar im H-Modus, `show_keep` oeffnet sichtbar ohne erzwungenen Layoutwechsel, `preserve` behaelt Sichtbarkeit und Layout unveraendert. Beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt. Nur mit aktivierter Auto-Close-Option darf der Solo-Uebergang die Main-UI ausblenden.
 - Erforderliche Tests:
   - Group leave keeps frame state and ghosts former party members
   - Group leave auto-close hides frame when option is enabled
   - Old ghosts are cleared when joining a new group
   - Raid group switches to H mode, keeps frame visible and prints notification
+  - Raid behavior Show + Keep opens the frame without forcing H mode
+  - Raid behavior Keep State preserves hidden frame and current layout
   - Raid notification prints again after leaving raid-size group
 
 ### RULE-LOCALE-SYMMETRIE-FALLBACK
@@ -321,13 +327,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-MAIN-UI-AUTO-OPEN-CLOSE-ZYKLEN
 - Regelnummer: 31
 - Status: aktiv
-- Zusammenfassung: Die Main-UI oeffnet weiterhin automatisch bei Gruppenbeitritt und bei Key-Ende. Bei Key-Start darf sie standardmaessig nicht automatisch schliessen; das alte Auto-Close-Verhalten ist nur ueber die Behavior-Option aktivierbar.
+- Zusammenfassung: Die Main-UI oeffnet weiterhin automatisch bei Gruppenbeitritt. Bei Key-Ende bleibt Auto-Open standardmaessig aktiv, muss aber ueber die Behavior-Option abschaltbar sein. Bei Key-Start darf sie standardmaessig nicht automatisch schliessen; das alte Auto-Close-Verhalten ist nur ueber die Behavior-Option aktivierbar.
 - Erforderliche Tests:
   - Group join builds roster with player and 4 party members
   - Existing grouped roster updates do not re-open a manually hidden frame
   - Event handlers do not auto-hide main frame on challenge start by default
   - Event handlers auto-hide main frame on challenge start when auto-close is enabled
   - Event handlers auto-show main frame on challenge completion while grouped
+  - Event handlers skip auto-show on challenge completion when key-end setting is disabled
+  - Settings panel defaults Login / Reload auto-show and Key-End auto-open to enabled
 
 ### RULE-ROSTER-GHOST-MEMBER
 - Regelnummer: 32
@@ -430,9 +438,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-RAID-NOTICE
 - Regelnummer: 40
 - Status: aktiv
-- Zusammenfassung: Bei Gruppengroessen > 5 (Raid) wird im Roster-Panel in den H-Modus gewechselt, die Gruppenmitglieder-Zeilen werden ausgeblendet und die Raid-Benachrichtigung nur einmal pro Raid-Uebergang ausgegeben.
+- Zusammenfassung: Bei Gruppengroessen > 5 (Raid) werden im Roster-Panel die Gruppenmitglieder-Zeilen ausgeblendet und die Raid-Benachrichtigung nur einmal pro Raid-Uebergang ausgegeben; nur `raidTransitionBehavior == show_h` erzwingt zusaetzlich den H-Modus.
 - Erforderliche Tests:
   - Raid group switches to H mode, keeps frame visible and prints notification
+  - Raid behavior Show + Keep opens the frame without forcing H mode
+  - Raid behavior Keep State preserves hidden frame and current layout
+  - Settings panel defaults Raid behavior to Show + H and persists user choice
 
 ### RULE-UNIT-EXISTS-GUARD
 - Regelnummer: 41
@@ -470,3 +481,41 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Center notice font scale does not grow across repeated notices
   - Center notice uses portal navigator typography defaults
   - Architecture center notice and portal entries share the same notice body typography helper
+
+### RULE-MAIN-UI-STARTUP-AUTO-SHOW
+- Regelnummer: 45
+- Status: aktiv
+- Zusammenfassung: Beim `PLAYER_LOGIN` wird die Main-UI standardmaessig eingeblendet, damit Login und UI-Reload sichtbar starten; mit deaktivierter Behavior-Option `autoShowMainFrameOnStartup == false` muss dieser Auto-Show-Pfad ausbleiben.
+- Erforderliche Tests:
+  - Event handlers auto-show main frame on PLAYER_LOGIN for startup login and reload
+  - Event handlers skip PLAYER_LOGIN auto-show when startup setting is disabled
+  - Settings panel defaults Login / Reload auto-show and Key-End auto-open to enabled
+
+### RULE-MAIN-UI-LAYOUT-SWITCH-IN-COMBAT
+- Regelnummer: 46
+- Status: aktiv
+- Zusammenfassung: Ein manueller Klick auf einen Layout-Button (`M2`, `H`, `V`, `M`) muss den gewuenschten `layoutMode` auch waehrend Kampf-Lockdown sofort uebernehmen duerfen. Direkte Show/Hide- oder Layout-Mutationen an Secure-Kindern bleiben im Kampf weiterhin unterbunden; sobald `PLAYER_REGEN_ENABLED` eintritt und die Main-UI sichtbar ist, muss genau ein normaler UI-Refresh laufen, damit die sichtbaren Secure-Kinder den bereits gesetzten `layoutMode` deterministisch nachziehen.
+- Erforderliche Tests:
+  - TAINT: Collapse click switches layout during combat while secure roster buttons exist
+  - TAINT: Horizontal collapse click switches layout during combat while secure roster buttons exist
+  - Event handlers rerender visible UI on regen after combat-safe layout changes
+
+### RULE-ESC-PANEL-COMBAT-MOUNT
+- Regelnummer: 47
+- Status: aktiv
+- Zusammenfassung: Die ESC-Panel-Overlays muessen als direkte, vorab erzeugte Kinder von `GameMenuFrame` gemountet bleiben. Waehrend Kampf-Lockdown duerfen weder `OnShow` noch nachgelagerte Callback-Pfade an diesen Overlays `Show`, `Hide`, `ClearAllPoints`, `SetPoint`, `SetSize`, `EnableMouse` oder `SetAlpha` ausfuehren. Unsichere ESC-Shortcuts bleiben sichtbar, duerfen ihre Aktion im Kampf aber nicht ausfuehren; Secure-Button-Refreshes bleiben bis `PLAYER_REGEN_ENABLED` verzoegert.
+- Erforderliche Tests:
+  - UI game-menu panel stays mounted as GameMenuFrame child while reload button remains secure
+  - UI game-menu panels rely on parent visibility instead of deferred host callbacks
+  - UI game-menu first combat open keeps mounted panel visible while insecure shortcuts are combat-blocked
+  - UI second game-menu panel also stays visible during combat
+  - UI game-menu secure button updates are deferred during combat and applied after regen
+
+### RULE-SYNC-LAST-RUN-METRIKEN
+- Regelnummer: 48
+- Status: aktiv
+- Zusammenfassung: Der Sync-Pfad fuer Last-Run-Metriken nutzt weiterhin den `DPS`-Nachrichtentyp als rueckwaertskompatiblen Transportkanal, transportiert darin aber nur den belastbar verifizierten `DPS`-Wert. Beim Backfill ins Roster darf nur `syncDps` angezeigt werden, wenn lokal noch kein Last-Run-DPS vorliegt.
+- Erforderliche Tests:
+  - Sync ProcessAddonMessage parses DPS payload and stores it
+  - KeySync ApplyKnownKeyToRosterEntry backfills syncDps and syncLocMapID
+  - KeySync ApplyKnownKeyToRosterEntry clears stale synced DPS fallback fields when sync data disappears

@@ -100,6 +100,28 @@ SeasonData.SEASONS = {
         [161] = "HN",
       },
     },
+    namesByLocale = {
+      enUS = {
+        [557] = "Windrunner Spire",
+        [558] = "Magisters' Terrace",
+        [559] = "Nexus-Point Xenas",
+        [560] = "Maisara Caverns",
+        [402] = "Algeth'ar Academy",
+        [556] = "Pit of Saron",
+        [239] = "Seat of the Triumvirate",
+        [161] = "Skyreach",
+      },
+      deDE = {
+        [557] = "Windlaeuferspitze",
+        [558] = "Terrasse der Magister",
+        [559] = "Nexus-Punkt Xenas",
+        [560] = "Maisara-Hoehlen",
+        [402] = "Akademie von Algeth'ar",
+        [556] = "Grube von Saron",
+        [239] = "Sitz des Triumvirats",
+        [161] = "Himmelsnadel",
+      },
+    },
     challengeMapAliases = {},
     -- Season is live; no inactive message needed.
     inactivePortalMessageByLocale = {},
@@ -421,6 +443,37 @@ function SeasonData.GetDungeonShortCode(mapID, localeTag, seasonID)
 
   local defaultShortCodes = SeasonData.GetShortCodes("default", seasonID)
   return defaultShortCodes[numericMapID]
+end
+
+function SeasonData.GetDungeonName(mapID, localeTag, seasonID)
+  local numericMapID = SeasonData.NormalizeMapID(mapID, seasonID)
+  if not numericMapID then
+    return nil
+  end
+
+  local season = SeasonData.GetSeasonConfig(seasonID)
+  if type(season) ~= "table" then
+    return nil
+  end
+
+  local byLocale = season.namesByLocale or {}
+  local localeKey = NormalizeLocaleTag(localeTag)
+  if localeKey ~= "default" and type(byLocale[localeKey]) == "table" then
+    local localizedName = byLocale[localeKey][numericMapID]
+    if type(localizedName) == "string" and localizedName ~= "" then
+      return localizedName
+    end
+  end
+
+  local defaultNames = byLocale.enUS
+  if type(defaultNames) == "table" then
+    local defaultName = defaultNames[numericMapID]
+    if type(defaultName) == "string" and defaultName ~= "" then
+      return defaultName
+    end
+  end
+
+  return nil
 end
 
 function SeasonData.GetInactivePortalMessage(localeTag, seasonID)

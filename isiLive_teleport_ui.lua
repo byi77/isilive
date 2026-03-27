@@ -257,6 +257,10 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
     local hasMapName = type(self.mapName) == "string" and self.mapName ~= ""
     if hasMapName then
       tooltip:SetText(self.mapName, 1, 1, 1)
+      local englishMapName = type(deps.getDungeonName) == "function" and deps.getDungeonName(self.mapID, "enUS") or nil
+      if type(englishMapName) == "string" and englishMapName ~= "" and englishMapName ~= self.mapName then
+        tooltip:AddLine(englishMapName, 1, 1, 1, true)
+      end
     end
     if self.spellID and deps.isSpellKnown(self.spellID) then
       if not hasMapName then
@@ -323,6 +327,9 @@ function TeleportUI.CreateController(opts)
       return nil
     end,
     getDungeonShortCode = opts.getDungeonShortCode or function(_mapID)
+      return nil
+    end,
+    getDungeonName = opts.getDungeonName or function(_mapID, _localeTag)
       return nil
     end,
     getEmptyStateText = opts.getEmptyStateText or function()

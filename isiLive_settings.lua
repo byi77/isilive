@@ -19,6 +19,8 @@ local LANG_BUTTON_WIDTH = 90
 local LANG_BUTTON_HEIGHT = 22
 local SLIDER_WIDTH = 180
 local SLIDER_HEIGHT = 16
+local SETTINGS_SCROLL_STEP = 32
+local SETTINGS_CONTENT_WIDTH = 700
 local SHOW_NAME_MAX_CHARS_SETTING = false
 local SHOW_TELEPORT_COLUMNS_SETTING = false
 -- Temporarily hidden from Settings while live runtime keeps these defaults hard-forced.
@@ -30,6 +32,9 @@ local DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL = "compact_horizontal"
 local DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = "compact_main_horizontal"
 local DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL_2_LEGACY = "compact_horizontal_2"
 local DEFAULT_LAYOUT_MODE_LAST_USED = "last_used"
+local RAID_TRANSITION_BEHAVIOR_SHOW_H = "show_h"
+local RAID_TRANSITION_BEHAVIOR_SHOW_KEEP = "show_keep"
+local RAID_TRANSITION_BEHAVIOR_PRESERVE = "preserve"
 
 local function ApplySettingsBackdrop(frame)
   if type(ApplyBackdrop) == "function" then
@@ -261,6 +266,22 @@ local function NormalizeStoredLayoutMode(layoutMode)
   return nil
 end
 
+local function NormalizeStoredRaidTransitionBehavior(behavior)
+  if behavior == nil or behavior == false or behavior == "" then
+    return RAID_TRANSITION_BEHAVIOR_SHOW_H
+  end
+
+  if
+    behavior == RAID_TRANSITION_BEHAVIOR_SHOW_H
+    or behavior == RAID_TRANSITION_BEHAVIOR_SHOW_KEEP
+    or behavior == RAID_TRANSITION_BEHAVIOR_PRESERVE
+  then
+    return behavior
+  end
+
+  return RAID_TRANSITION_BEHAVIOR_SHOW_H
+end
+
 local function CreateSettingsOptionSelector(
   parent,
   yOffset,
@@ -269,7 +290,8 @@ local function CreateSettingsOptionSelector(
   options,
   getLabels,
   getter,
-  setter
+  setter,
+  normalizeValue
 )
   local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   local tn = Colors.TEXT_NORMAL or { 0.85, 0.85, 0.9 }
@@ -329,7 +351,9 @@ local function CreateSettingsOptionSelector(
       end
       local freshL = type(getLabels) == "function" and getLabels() or {}
       label:SetText((freshL and freshL[labelKey]) or fallbackLabel or "")
-      local selectedMode = NormalizeStoredLayoutMode(type(getter) == "function" and getter() or nil)
+      local selectedMode = type(normalizeValue) == "function"
+          and normalizeValue(type(getter) == "function" and getter() or nil)
+        or (type(getter) == "function" and getter() or nil)
       for _, btn in ipairs(buttons) do
         local btnText = freshL and freshL[btn._optionLabelKey] or btn._optionFallback or ""
         if btn.label and type(btn.label.SetText) == "function" then
@@ -346,7 +370,9 @@ local function CreateSettingsOptionSelector(
   local function UpdateHighlight()
     local freshL = type(getLabels) == "function" and getLabels() or {}
     label:SetText((freshL and freshL[labelKey]) or fallbackLabel or "")
-    local selectedMode = NormalizeStoredLayoutMode(type(getter) == "function" and getter() or nil)
+    local selectedMode = type(normalizeValue) == "function"
+        and normalizeValue(type(getter) == "function" and getter() or nil)
+      or (type(getter) == "function" and getter() or nil)
     for _, button in ipairs(buttons) do
       local buttonText = freshL and freshL[button._optionLabelKey] or button._optionFallback or ""
       if button.label and type(button.label.SetText) == "function" then
@@ -385,6 +411,9 @@ local function ResolveSettingsOptions(opts)
     onMinimapButtonToggle = opts.onMinimapButtonToggle,
     onAutoOpenQueueToggle = opts.onAutoOpenQueueToggle,
     onAutoCloseMainFrameToggle = opts.onAutoCloseMainFrameToggle,
+    onAutoShowMainFrameOnStartupToggle = opts.onAutoShowMainFrameOnStartupToggle,
+    onAutoOpenMainFrameOnKeyEndToggle = opts.onAutoOpenMainFrameOnKeyEndToggle,
+    onRaidTransitionBehaviorChange = opts.onRaidTransitionBehaviorChange,
     onPortalNavigatorToggle = opts.onPortalNavigatorToggle,
     onDefaultLayoutModeChange = opts.onDefaultLayoutModeChange,
     onNameMaxCharsChange = opts.onNameMaxCharsChange,
@@ -433,6 +462,62 @@ local function BuildGeneralSettingsSection(canvas, yOffset, labels, config, cont
     config.setLanguage
   )
 
+  controls.defaultLayout, yOffset = CreateSettingsOptionSelector(
+    canvas,
+    yOffset,
+    "SETTINGS_DEFAULT_OPEN_UI",
+    labels.SETTINGS_DEFAULT_OPEN_UI or "Default UI on Open",
+    {
+      {
+        value = DEFAULT_LAYOUT_MODE_LAST_USED,
+        labelKey = "SETTINGS_DEFAULT_OPEN_UI_LAST",
+        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_LAST or "Last Used",
+        width = 78,
+      },
+      {
+        value = DEFAULT_LAYOUT_MODE_EXPANDED,
+        labelKey = "SETTINGS_DEFAULT_OPEN_UI_M",
+        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_M or "M",
+        width = 34,
+      },
+      {
+        value = DEFAULT_LAYOUT_MODE_COMPACT_VERTICAL,
+        labelKey = "SETTINGS_DEFAULT_OPEN_UI_V",
+        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_V or "V",
+        width = 34,
+      },
+      {
+        value = DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL,
+        labelKey = "SETTINGS_DEFAULT_OPEN_UI_H",
+        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_H or "H",
+        width = 34,
+      },
+      {
+        value = DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL,
+        labelKey = "SETTINGS_DEFAULT_OPEN_UI_M2",
+        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_M2 or "M2",
+        width = 40,
+      },
+    },
+    config.getL,
+    function()
+      local db = config.getDB()
+      return NormalizeStoredLayoutMode(db.rosterDefaultLayoutMode)
+    end,
+    function(mode)
+      local db = config.getDB()
+      db.rosterDefaultLayoutMode = NormalizeStoredLayoutMode(mode)
+      if type(config.onDefaultLayoutModeChange) == "function" then
+        local callbackMode = db.rosterDefaultLayoutMode
+        if callbackMode == DEFAULT_LAYOUT_MODE_LAST_USED then
+          callbackMode = nil
+        end
+        config.onDefaultLayoutModeChange(callbackMode)
+      end
+    end,
+    NormalizeStoredLayoutMode
+  )
+
   controls.combatLog, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
@@ -472,6 +557,24 @@ local function BuildGeneralSettingsSection(canvas, yOffset, labels, config, cont
         config.onEscPanelToggle(checked)
       end
     end
+  )
+
+  controls.portalNavigator, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR or "Show Timeways Navigator",
+    function()
+      local db = config.getDB()
+      return db.showPortalNavigator ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.showPortalNavigator = checked
+      if type(config.onPortalNavigatorToggle) == "function" then
+        config.onPortalNavigatorToggle(checked)
+      end
+    end,
+    "SETTINGS_SHOW_TIMEWAYS_NAVIGATOR"
   )
 
   controls.bgAlpha, yOffset = CreateSettingsSlider(
@@ -668,59 +771,80 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
     "SETTINGS_AUTO_CLOSE_MAIN_FRAME"
   )
 
-  controls.defaultLayout, yOffset = CreateSettingsOptionSelector(
+  controls.autoShowStartup, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
-    "SETTINGS_DEFAULT_OPEN_UI",
-    labels.SETTINGS_DEFAULT_OPEN_UI or "Default UI on Open",
+    labels.SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP or "Show on Login / Reload",
+    function()
+      local db = config.getDB()
+      return db.autoShowMainFrameOnStartup ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.autoShowMainFrameOnStartup = checked
+      if type(config.onAutoShowMainFrameOnStartupToggle) == "function" then
+        config.onAutoShowMainFrameOnStartupToggle(checked)
+      end
+    end,
+    "SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP"
+  )
+
+  controls.autoOpenKeyEnd, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END or "Auto-Open on Key End",
+    function()
+      local db = config.getDB()
+      return db.autoOpenMainFrameOnKeyEnd ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.autoOpenMainFrameOnKeyEnd = checked
+      if type(config.onAutoOpenMainFrameOnKeyEndToggle) == "function" then
+        config.onAutoOpenMainFrameOnKeyEndToggle(checked)
+      end
+    end,
+    "SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END"
+  )
+
+  controls.raidBehavior, yOffset = CreateSettingsOptionSelector(
+    canvas,
+    yOffset,
+    "SETTINGS_RAID_TRANSITION_BEHAVIOR",
+    labels.SETTINGS_RAID_TRANSITION_BEHAVIOR or "Raid Behavior",
     {
       {
-        value = DEFAULT_LAYOUT_MODE_LAST_USED,
-        labelKey = "SETTINGS_DEFAULT_OPEN_UI_LAST",
-        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_LAST or "Last Used",
-        width = 78,
+        value = RAID_TRANSITION_BEHAVIOR_SHOW_H,
+        labelKey = "SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_H",
+        fallback = labels.SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_H or "Show + H",
+        width = 96,
       },
       {
-        value = DEFAULT_LAYOUT_MODE_EXPANDED,
-        labelKey = "SETTINGS_DEFAULT_OPEN_UI_M",
-        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_M or "M",
-        width = 34,
+        value = RAID_TRANSITION_BEHAVIOR_SHOW_KEEP,
+        labelKey = "SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_KEEP",
+        fallback = labels.SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_KEEP or "Show + Keep",
+        width = 128,
       },
       {
-        value = DEFAULT_LAYOUT_MODE_COMPACT_VERTICAL,
-        labelKey = "SETTINGS_DEFAULT_OPEN_UI_V",
-        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_V or "V",
-        width = 34,
-      },
-      {
-        value = DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL,
-        labelKey = "SETTINGS_DEFAULT_OPEN_UI_H",
-        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_H or "H",
-        width = 34,
-      },
-      {
-        value = DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL,
-        labelKey = "SETTINGS_DEFAULT_OPEN_UI_M2",
-        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_M2 or "M2",
-        width = 40,
+        value = RAID_TRANSITION_BEHAVIOR_PRESERVE,
+        labelKey = "SETTINGS_RAID_TRANSITION_BEHAVIOR_PRESERVE",
+        fallback = labels.SETTINGS_RAID_TRANSITION_BEHAVIOR_PRESERVE or "Keep State",
+        width = 116,
       },
     },
     config.getL,
     function()
       local db = config.getDB()
-      return NormalizeStoredLayoutMode(db.rosterDefaultLayoutMode)
+      return NormalizeStoredRaidTransitionBehavior(db.raidTransitionBehavior)
     end,
-    function(mode)
+    function(behavior)
       local db = config.getDB()
-      db.rosterDefaultLayoutMode = NormalizeStoredLayoutMode(mode)
-      if type(config.onDefaultLayoutModeChange) == "function" then
-        local callbackMode = db.rosterDefaultLayoutMode
-        if callbackMode == DEFAULT_LAYOUT_MODE_LAST_USED then
-          callbackMode = nil
-        end
-        config.onDefaultLayoutModeChange(callbackMode)
+      db.raidTransitionBehavior = NormalizeStoredRaidTransitionBehavior(behavior)
+      if type(config.onRaidTransitionBehaviorChange) == "function" then
+        config.onRaidTransitionBehaviorChange(db.raidTransitionBehavior)
       end
-    end
+    end,
+    NormalizeStoredRaidTransitionBehavior
   )
 
   if SHOW_MARKERS_LEADER_ONLY_SETTING then
@@ -741,24 +865,6 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
       end
     )
   end
-
-  controls.portalNavigator, yOffset = CreateSettingsCheckbox(
-    canvas,
-    yOffset,
-    labels.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR or "Show Timeways Navigator",
-    function()
-      local db = config.getDB()
-      return db.showPortalNavigator ~= false
-    end,
-    function(checked)
-      local db = config.getDB()
-      db.showPortalNavigator = checked
-      if type(config.onPortalNavigatorToggle) == "function" then
-        config.onPortalNavigatorToggle(checked)
-      end
-    end,
-    "SETTINGS_SHOW_TIMEWAYS_NAVIGATOR"
-  )
 
   return yOffset
 end
@@ -839,6 +945,11 @@ local function RefreshSettingsControls(controls, config)
   controls.sync.label:SetText(freshL.SETTINGS_SYNC_ENABLED or "Addon Sync")
   controls.autoOpen.label:SetText(freshL.SETTINGS_AUTO_OPEN_QUEUE or "Auto-Open on M+ Queue")
   controls.autoCloseMainFrame.label:SetText(freshL.SETTINGS_AUTO_CLOSE_MAIN_FRAME or "Auto-Close on Key Start / Solo")
+  controls.autoShowStartup.label:SetText(freshL.SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP or "Show on Login / Reload")
+  controls.autoOpenKeyEnd.label:SetText(freshL.SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END or "Auto-Open on Key End")
+  if controls.raidBehavior then
+    controls.raidBehavior.UpdateHighlight()
+  end
   if controls.defaultLayout then
     controls.defaultLayout.UpdateHighlight()
   end
@@ -873,6 +984,8 @@ local function RefreshSettingsControls(controls, config)
   controls.sync.check:SetChecked(db.syncEnabled ~= false)
   controls.autoOpen.check:SetChecked(db.autoOpenOnQueue ~= false)
   controls.autoCloseMainFrame.check:SetChecked(db.autoCloseMainFrame == true)
+  controls.autoShowStartup.check:SetChecked(db.autoShowMainFrameOnStartup ~= false)
+  controls.autoOpenKeyEnd.check:SetChecked(db.autoOpenMainFrameOnKeyEnd ~= false)
   controls.queueDebug.check:SetChecked(
     type(config.getQueueDebugEnabled) == "function" and config.getQueueDebugEnabled() or false
   )
@@ -910,28 +1023,64 @@ function SettingsPanel.Create(opts)
 
   local canvas = CreateFrame("Frame", nil, rawget(_G, "UIParent"), "BackdropTemplate")
   ApplySettingsBackdrop(canvas)
+  local scrollFrame = CreateFrame("ScrollFrame", nil, canvas, "UIPanelScrollFrameTemplate")
+  scrollFrame:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X, -PADDING_TOP)
+  scrollFrame:SetPoint("BOTTOMRIGHT", canvas, "BOTTOMRIGHT", -PADDING_X, PADDING_TOP)
+  if type(scrollFrame.EnableMouseWheel) == "function" then
+    scrollFrame:EnableMouseWheel(true)
+  end
+
+  local content = CreateFrame("Frame", nil, scrollFrame)
+  content:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, 0)
+  if type(content.SetWidth) == "function" then
+    content:SetWidth(SETTINGS_CONTENT_WIDTH)
+  elseif type(content.SetSize) == "function" then
+    content:SetSize(SETTINGS_CONTENT_WIDTH, 1)
+  end
+  if type(scrollFrame.SetScrollChild) == "function" then
+    scrollFrame:SetScrollChild(content)
+  end
+
+  if type(scrollFrame.SetScript) == "function" then
+    scrollFrame:SetScript("OnMouseWheel", function(self, delta)
+      local currentScroll = type(self.GetVerticalScroll) == "function" and (self:GetVerticalScroll() or 0) or 0
+      local maxScroll = type(self.GetVerticalScrollRange) == "function" and (self:GetVerticalScrollRange() or 0) or 0
+      local nextScroll = currentScroll - ((tonumber(delta) or 0) * SETTINGS_SCROLL_STEP)
+      if nextScroll < 0 then
+        nextScroll = 0
+      elseif nextScroll > maxScroll then
+        nextScroll = maxScroll
+      end
+      if type(self.SetVerticalScroll) == "function" then
+        self:SetVerticalScroll(nextScroll)
+      end
+    end)
+  end
 
   local L = config.getL()
   local controls = {}
 
-  CreateSettingsTitle(canvas)
+  CreateSettingsTitle(content)
 
   local y = -PADDING_TOP - 30
-  y = BuildGeneralSettingsSection(canvas, y, L, config, controls)
+  y = BuildGeneralSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
-  y = BuildDisplaySettingsSection(canvas, y, L, config, controls)
+  y = BuildDisplaySettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
-  y = BuildBehaviorSettingsSection(canvas, y, L, config, controls)
+  y = BuildBehaviorSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
-  y = BuildDebugSettingsSection(canvas, y, L, config, controls)
+  y = BuildDebugSettingsSection(content, y, L, config, controls)
 
   local finalYOffset = tonumber(y) or 0
   local contentHeight = math.max(212, math.ceil(-finalYOffset + PADDING_TOP))
-  if type(canvas.SetHeight) == "function" then
-    canvas:SetHeight(contentHeight)
-  elseif type(canvas.SetSize) == "function" then
-    local currentWidth = type(canvas.GetWidth) == "function" and canvas:GetWidth() or 680
-    canvas:SetSize(currentWidth, contentHeight)
+  local contentWidth = type(content.GetWidth) == "function" and content:GetWidth() or SETTINGS_CONTENT_WIDTH
+  if type(content.SetSize) == "function" then
+    content:SetSize(contentWidth, contentHeight)
+  elseif type(content.SetHeight) == "function" then
+    content:SetHeight(contentHeight)
+  end
+  if type(scrollFrame.UpdateScrollChildRect) == "function" then
+    scrollFrame:UpdateScrollChildRect()
   end
 
   local category = blizzardSettings.RegisterCanvasLayoutCategory(canvas, "isiLive")
@@ -946,6 +1095,8 @@ function SettingsPanel.Create(opts)
   return {
     category = category,
     canvas = canvas,
+    scrollFrame = scrollFrame,
+    content = content,
     Refresh = Refresh,
   }
 end

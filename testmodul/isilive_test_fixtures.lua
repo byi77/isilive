@@ -85,6 +85,12 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
       counters.readyCheckRefreshes = counters.readyCheckRefreshes + 1
     end,
     setMainFrameVisible = function(_visible) end,
+    shouldShowMainFrameOnStartup = function()
+      return true
+    end,
+    shouldAutoOpenMainFrameOnKeyEnd = function()
+      return true
+    end,
     updateLeaderButtons = function() end,
     updateStatusLine = function() end,
     sendOwnKeySnapshot = function(_force) end,

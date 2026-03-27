@@ -988,7 +988,7 @@ local function RegisterRosterPanelCombatTaintTests(test, Assert, WithGlobals, Lo
     Assert.True(ok, "combat rerender must not mutate secure tank-helper layout: " .. tostring(err))
   end)
 
-  test("TAINT: Collapse click is ignored during combat while secure roster buttons exist", function()
+  test("TAINT: Collapse click switches layout during combat while secure roster buttons exist", function()
     local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules)
 
     WithGlobals(stubs, function()
@@ -1016,10 +1016,10 @@ local function RegisterRosterPanelCombatTaintTests(test, Assert, WithGlobals, Lo
     end)
 
     Assert.True(ok, "combat collapse click must not crash on secure child buttons: " .. tostring(err))
-    Assert.False(controller.IsCollapsed(), "combat collapse click must be ignored")
+    Assert.True(controller.IsCollapsed(), "combat collapse click should switch to the requested compact layout")
   end)
 
-  test("TAINT: Horizontal collapse click is ignored during combat while secure roster buttons exist", function()
+  test("TAINT: Horizontal collapse click switches layout during combat while secure roster buttons exist", function()
     local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules)
 
     WithGlobals(stubs, function()
@@ -1047,7 +1047,10 @@ local function RegisterRosterPanelCombatTaintTests(test, Assert, WithGlobals, Lo
     end)
 
     Assert.True(ok, "combat horizontal collapse click must not crash on secure child buttons: " .. tostring(err))
-    Assert.False(controller.IsCollapsed(), "combat horizontal collapse click must be ignored")
+    Assert.True(
+      controller.IsCollapsed(),
+      "combat horizontal collapse click should switch to the requested compact layout"
+    )
   end)
 end
 

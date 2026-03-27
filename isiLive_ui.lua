@@ -432,6 +432,23 @@ local function SyncPanelUISecureButtonVisibility(state)
   ClearQueuedPanelUISecureState(state)
 end
 
+local function SyncPanelUIButtonInteractivity(state)
+  if type(state) ~= "table" then
+    return
+  end
+
+  for _, button in ipairs(state.buttons or {}) do
+    if button._isSecurePanelAction ~= true then
+      if type(button.EnableMouse) == "function" then
+        button:EnableMouse(true)
+      end
+      if type(button.SetAlpha) == "function" then
+        button:SetAlpha(1)
+      end
+    end
+  end
+end
+
 local function CreatePanelUIButton(
   parent,
   frameStrata,
@@ -717,7 +734,6 @@ end
 local ApplyPanelUILocalization
 local HideGameMenuFrame
 local RunAfterGameMenuClose
-local SchedulePanelUIHostFrameShow
 
 local function GetPanelUIButtonStackHeight(buttons, buttonHeight)
   if type(buttons) ~= "table" then
@@ -739,15 +755,15 @@ local function GetPanelUIButtonStackHeight(buttons, buttonHeight)
   return totalHeight
 end
 
-PositionPanelUIButtons = function(state)
+PositionPanelUIButtons = function(state, opts)
   if type(state) ~= "table" then
     return
   end
+  opts = opts or {}
 
   local gameMenuFrame = state.gameMenuFrame
-  local hostFrame = state.hostFrame
   local panelFrame = state.panelFrame
-  if type(gameMenuFrame) ~= "table" or type(hostFrame) ~= "table" then
+  if type(gameMenuFrame) ~= "table" or type(panelFrame) ~= "table" then
     return
   end
   local buttonWidth, buttonHeight = ResolvePanelUIButtonSize(gameMenuFrame)
@@ -763,32 +779,32 @@ PositionPanelUIButtons = function(state)
   state.buttonHeight = buttonHeight
   state.panelWidth = panelWidth
   state.panelHeight = panelHeight
+  local secureUpdatesBlocked = IsPanelUISecureUpdateBlocked(state)
+
+  if secureUpdatesBlocked then
+    QueuePanelUISecureStateRefresh(state)
+    return
+  end
 
   state.anchor = ResolvePanelUICloseAnchor(gameMenuFrame)
 
-  if type(hostFrame.ClearAllPoints) == "function" then
-    hostFrame:ClearAllPoints()
-  end
   local anchorFrame = state.positionAnchorFrame or gameMenuFrame
   local anchorOffsetX = type(state.positionOffsetX) == "number" and state.positionOffsetX or PANEL_UI_OFFSET_X
-  hostFrame:SetPoint("TOPRIGHT", anchorFrame, "TOPLEFT", anchorOffsetX, PANEL_UI_OFFSET_Y)
-  hostFrame:SetSize(panelWidth, panelHeight)
-  if gameMenuFrame.IsShown and gameMenuFrame:IsShown() then
-    hostFrame:Show()
-  else
-    hostFrame:Hide()
+  if type(panelFrame.ClearAllPoints) == "function" then
+    panelFrame:ClearAllPoints()
   end
-
-  if type(panelFrame) == "table" then
-    if type(panelFrame.ClearAllPoints) == "function" then
-      panelFrame:ClearAllPoints()
+  if type(panelFrame.SetPoint) == "function" then
+    panelFrame:SetPoint("TOPRIGHT", anchorFrame, "TOPLEFT", anchorOffsetX, PANEL_UI_OFFSET_Y)
+  end
+  if type(panelFrame.SetSize) == "function" then
+    panelFrame:SetSize(panelWidth, panelHeight)
+  end
+  if IsPanelUIEnabled(state) then
+    if type(panelFrame.Show) == "function" then
+      panelFrame:Show()
     end
-    if type(panelFrame.SetPoint) == "function" then
-      panelFrame:SetPoint("TOPLEFT", hostFrame, "TOPLEFT", 0, 0)
-    end
-    if type(panelFrame.SetSize) == "function" then
-      panelFrame:SetSize(panelWidth, panelHeight)
-    end
+  elseif type(panelFrame.Hide) == "function" then
+    panelFrame:Hide()
   end
 
   local L = type(state.getL) == "function" and state.getL() or {}
@@ -840,12 +856,14 @@ PositionPanelUIButtons = function(state)
     PANEL_UI_PADDING_TOP
     + (hasShortcutsHeader and (PANEL_UI_SECTION_HEADER_HEIGHT + PANEL_UI_SECTION_HEADER_GAP) or 0)
   )
-  local secureUpdatesBlocked = IsPanelUISecureUpdateBlocked(state)
   local needsSecureRetry = false
 
   local previousButton = nil
   for _, button in ipairs(buttons) do
-    if IsPanelUISecureMacroButton(button) and secureUpdatesBlocked then
+    local skipProtectedLayout = secureUpdatesBlocked
+      and opts.allowSecureButtonMutations ~= true
+      and button._isSecurePanelAction == true
+    if skipProtectedLayout then
       needsSecureRetry = true
     else
       if type(button.SetSize) == "function" then
@@ -859,7 +877,7 @@ PositionPanelUIButtons = function(state)
         local gapBefore = math.max(0, tonumber(button._gapBefore) or PANEL_UI_BUTTON_GAP)
         button:SetPoint("TOP", previousButton, "BOTTOM", 0, -gapBefore)
       else
-        button:SetPoint("TOP", panelFrame or hostFrame, "TOP", 0, firstButtonTopOffset)
+        button:SetPoint("TOP", panelFrame, "TOP", 0, firstButtonTopOffset)
       end
     end
 
@@ -886,6 +904,7 @@ ApplyPanelUISecureState = function(state, force)
   PositionPanelUIButtons(state)
   RefreshPanelUISecureButtons(state)
   SyncPanelUISecureButtonVisibility(state)
+  SyncPanelUIButtonInteractivity(state)
   ClearQueuedPanelUISecureState(state)
   return true
 end
@@ -924,38 +943,6 @@ RunAfterGameMenuClose = function(callback)
   end
 
   callback()
-end
-
-SchedulePanelUIHostFrameShow = function(state)
-  if type(state) ~= "table" then
-    return
-  end
-
-  local function doShow()
-    local gameMenuFrame = state.gameMenuFrame
-    if type(gameMenuFrame) ~= "table" or type(gameMenuFrame.IsShown) ~= "function" or not gameMenuFrame:IsShown() then
-      return
-    end
-
-    if IsPanelUISecureUpdateBlocked(state) then
-      QueuePanelUISecureStateRefresh(state)
-      return
-    end
-
-    local hostFrame = state.hostFrame
-    if type(hostFrame) == "table" and type(hostFrame.Show) == "function" then
-      hostFrame:Show()
-    end
-  end
-
-  local timer = rawget(_G, "C_Timer")
-  local after = type(timer) == "table" and rawget(timer, "After") or nil
-  if type(after) == "function" then
-    after(0, doShow)
-    return
-  end
-
-  doShow()
 end
 
 ApplyPanelUILocalization = function(state)
@@ -1008,31 +995,23 @@ function UI.EnsurePanelUI(opts)
     anchor = nil,
   }
 
-  local hostParent = opts.parent or rawget(_G, "UIParent") or gameMenuFrame
   local frameStrata = type(gameMenuFrame.GetFrameStrata) == "function" and gameMenuFrame:GetFrameStrata() or nil
   local baseFrameLevel = type(gameMenuFrame.GetFrameLevel) == "function" and gameMenuFrame:GetFrameLevel() or 1
   state.frameStrata = frameStrata
   state.baseFrameLevel = baseFrameLevel
-  local hostFrame = CreateFrame("Frame", nil, hostParent)
-  if frameStrata ~= nil and type(hostFrame.SetFrameStrata) == "function" then
-    hostFrame:SetFrameStrata(frameStrata)
-  end
-  if type(hostFrame.SetFrameLevel) == "function" then
-    hostFrame:SetFrameLevel(baseFrameLevel + 10)
-  end
-  if type(hostFrame.EnableMouse) == "function" then
-    hostFrame:EnableMouse(true)
-  end
-  state.hostFrame = hostFrame
   state.buttonWidth, state.buttonHeight = ResolvePanelUIButtonSize(gameMenuFrame)
-  local panelFrame = CreateFrame("Frame", nil, hostFrame, "BackdropTemplate")
+  local panelFrame = CreateFrame("Frame", nil, gameMenuFrame, "BackdropTemplate")
   if frameStrata ~= nil and type(panelFrame.SetFrameStrata) == "function" then
     panelFrame:SetFrameStrata(frameStrata)
   end
   if type(panelFrame.SetFrameLevel) == "function" then
     panelFrame:SetFrameLevel(baseFrameLevel + 10)
   end
+  if type(panelFrame.EnableMouse) == "function" then
+    panelFrame:EnableMouse(true)
+  end
   ApplyPanelUIBackdrop(panelFrame)
+  state.hostFrame = panelFrame
   state.panelFrame = panelFrame
 
   if type(gameMenuFrame.HookScript) == "function" then
@@ -1041,23 +1020,6 @@ function UI.EnsurePanelUI(opts)
         return
       end
       ApplyPanelUISecureState(state)
-      -- Defer Show() one frame to escape the secure SetAttribute call chain
-      -- (ShowUIPanel → SetAttribute). Calling Frame:Show() directly here triggers
-      -- ADDON_ACTION_BLOCKED.
-      SchedulePanelUIHostFrameShow(state)
-    end)
-    gameMenuFrame:HookScript("OnHide", function()
-      RunAfterGameMenuClose(function()
-        if type(state.gameMenuFrame) == "table" and state.gameMenuFrame.IsShown and state.gameMenuFrame:IsShown() then
-          return
-        end
-        if state.hostFrame and type(state.hostFrame.Hide) == "function" then
-          if InCombatLockdown and InCombatLockdown() then
-            return
-          end
-          state.hostFrame:Hide()
-        end
-      end)
     end)
   end
 
@@ -1103,11 +1065,15 @@ function UI.EnsurePanelUI(opts)
     button._gapBefore = math.max(0, tonumber(entry.gapBefore) or PANEL_UI_BUTTON_GAP)
     button._verticalIndex = index
     button._secureMacroText = entry.secureMacroText
+    button._isSecurePanelAction = type(entry.secureMacroText) == "string"
 
     if type(entry.secureMacroText) == "string" and type(button.SetAttribute) == "function" then
       button._secureMacroText = entry.secureMacroText
     else
       button:SetScript("OnClick", function(self)
+        if type(state.isInCombat) == "function" and state.isInCombat() == true then
+          return
+        end
         local action = state.actions[self._actionId]
         if type(action) ~= "function" then
           return
@@ -1148,7 +1114,7 @@ function UI.EnsureSecondPanelUI(opts)
   end
 
   local firstPanelState = opts.firstPanelState
-  if type(firstPanelState) ~= "table" or type(firstPanelState.hostFrame) ~= "table" then
+  if type(firstPanelState) ~= "table" or type(firstPanelState.panelFrame) ~= "table" then
     return nil
   end
 
@@ -1158,7 +1124,7 @@ function UI.EnsureSecondPanelUI(opts)
     end
     secondPanelUIState.isEnabled = opts.isEnabled
     secondPanelUIState.isInCombat = type(opts.isInCombat) == "function" and opts.isInCombat or nil
-    secondPanelUIState.positionAnchorFrame = firstPanelState.hostFrame
+    secondPanelUIState.positionAnchorFrame = firstPanelState.panelFrame
     ApplyPanelUISecureState(secondPanelUIState)
     ApplyPanelUILocalization(secondPanelUIState)
     return secondPanelUIState
@@ -1171,7 +1137,7 @@ function UI.EnsureSecondPanelUI(opts)
     end,
     isEnabled = opts.isEnabled,
     isInCombat = type(opts.isInCombat) == "function" and opts.isInCombat or nil,
-    positionAnchorFrame = firstPanelState.hostFrame,
+    positionAnchorFrame = firstPanelState.panelFrame,
     positionOffsetX = -SECOND_PANEL_GAP,
     headerLKey = "PANEL_HEADER_TRAVEL",
     buttons = {},
@@ -1179,33 +1145,25 @@ function UI.EnsureSecondPanelUI(opts)
     anchor = nil,
   }
 
-  local hostParent = opts.parent or rawget(_G, "UIParent") or gameMenuFrame
   local frameStrata = type(gameMenuFrame.GetFrameStrata) == "function" and gameMenuFrame:GetFrameStrata() or nil
   local baseFrameLevel = type(gameMenuFrame.GetFrameLevel) == "function" and gameMenuFrame:GetFrameLevel() or 1
   state.frameStrata = frameStrata
   state.baseFrameLevel = baseFrameLevel
 
-  local hostFrame = CreateFrame("Frame", nil, hostParent)
-  if frameStrata ~= nil and type(hostFrame.SetFrameStrata) == "function" then
-    hostFrame:SetFrameStrata(frameStrata)
-  end
-  if type(hostFrame.SetFrameLevel) == "function" then
-    hostFrame:SetFrameLevel(baseFrameLevel + 10)
-  end
-  if type(hostFrame.EnableMouse) == "function" then
-    hostFrame:EnableMouse(true)
-  end
-  state.hostFrame = hostFrame
   state.buttonWidth, state.buttonHeight = ResolvePanelUIButtonSize(gameMenuFrame)
 
-  local panelFrame = CreateFrame("Frame", nil, hostFrame, "BackdropTemplate")
+  local panelFrame = CreateFrame("Frame", nil, gameMenuFrame, "BackdropTemplate")
   if frameStrata ~= nil and type(panelFrame.SetFrameStrata) == "function" then
     panelFrame:SetFrameStrata(frameStrata)
   end
   if type(panelFrame.SetFrameLevel) == "function" then
     panelFrame:SetFrameLevel(baseFrameLevel + 10)
   end
+  if type(panelFrame.EnableMouse) == "function" then
+    panelFrame:EnableMouse(true)
+  end
   ApplyPanelUIBackdrop(panelFrame)
+  state.hostFrame = panelFrame
   state.panelFrame = panelFrame
 
   if type(gameMenuFrame.HookScript) == "function" then
@@ -1214,20 +1172,6 @@ function UI.EnsureSecondPanelUI(opts)
         return
       end
       ApplyPanelUISecureState(state)
-      SchedulePanelUIHostFrameShow(state)
-    end)
-    gameMenuFrame:HookScript("OnHide", function()
-      RunAfterGameMenuClose(function()
-        if type(state.gameMenuFrame) == "table" and state.gameMenuFrame.IsShown and state.gameMenuFrame:IsShown() then
-          return
-        end
-        if state.hostFrame and type(state.hostFrame.Hide) == "function" then
-          if InCombatLockdown and InCombatLockdown() then
-            return
-          end
-          state.hostFrame:Hide()
-        end
-      end)
     end)
   end
 
@@ -1269,6 +1213,7 @@ function UI.EnsureSecondPanelUI(opts)
     button._gapBefore = math.max(0, tonumber(entry.gapBefore) or PANEL_UI_BUTTON_GAP)
     button._verticalIndex = index
     button._secureMacroText = resolvedMacroText
+    button._isSecurePanelAction = isSecure
 
     if (entry.id == "hearthstone" or entry.id == "housing_plot") and type(button.SetAttribute) == "function" then
       local clickBinding, useOnKeyDown = ResolveSecureClickBinding()
@@ -1327,6 +1272,9 @@ function UI.EnsureSecondPanelUI(opts)
       end
     elseif not isSecureMacro then
       button:SetScript("OnClick", function(self)
+        if type(state.isInCombat) == "function" and state.isInCombat() == true then
+          return
+        end
         local action = state.actions and state.actions[self._actionId]
         if type(action) ~= "function" then
           return

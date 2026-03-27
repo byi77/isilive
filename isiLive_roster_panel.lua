@@ -116,10 +116,6 @@ local ILVL_COL_WIDTH = 32
 local RIO_COL_WIDTH = 70
 local DPS_COL_X = RIO_COL_X + RIO_COL_WIDTH + 2
 local DPS_COL_WIDTH = 40
-local DEATHS_COL_X = DPS_COL_X + DPS_COL_WIDTH + 2
-local DEATHS_COL_WIDTH = 30
-local KICKS_COL_X = DEATHS_COL_X + DEATHS_COL_WIDTH + 2
-local KICKS_COL_WIDTH = 30
 local ROLE_BUTTON_X = SPEC_COL_X + SPEC_COL_WIDTH + 4
 
 -- These settings are temporarily hidden from Blizzard Settings.
@@ -387,9 +383,9 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
 
   row.hoverFrame = CreateFrame("Frame", nil, mainFrame)
   row.hoverFrame:SetPoint("TOPLEFT", 4, yOffset + 2)
-  -- Hover-Bereich endet an der rechten Kante der Kicks-Spalte (KICKS_COL_X + KICKS_COL_WIDTH).
+  -- Hover-Bereich endet an der rechten Kante der DPS-Spalte.
   -- Die Buttons (Readycheck, Countdown etc.) rechts davon lösen den Tooltip nicht aus.
-  row.hoverFrame:SetWidth(KICKS_COL_X + KICKS_COL_WIDTH - 4)
+  row.hoverFrame:SetWidth(DPS_COL_X + DPS_COL_WIDTH - 4)
   row.hoverFrame:SetHeight(16)
   if row.hoverFrame.EnableMouse then
     row.hoverFrame:EnableMouse(true)
@@ -432,11 +428,10 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
         row.unit,
         row.tooltipInfo,
         row.getDungeonShortCode,
+        row.getDungeonName,
         row.getPlayerLastRunDps,
         row.getLanguageTooltipMarkup,
-        row.getL,
-        row.getPlayerLastRunDeaths,
-        row.getPlayerLastRunKicks
+        row.getL
       )
     then
       ShowRosterNameFallbackTooltip(rosterTooltip, row.hoverFrame, row.tooltipName, row.tooltipRealm)
@@ -506,18 +501,6 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   row.dps:SetJustifyH("RIGHT")
   DisableFontStringWrapping(row.dps)
 
-  row.deaths = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  row.deaths:SetPoint("TOPLEFT", DEATHS_COL_X, yOffset)
-  row.deaths:SetWidth(DEATHS_COL_WIDTH)
-  row.deaths:SetJustifyH("RIGHT")
-  DisableFontStringWrapping(row.deaths)
-
-  row.kicks = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  row.kicks:SetPoint("TOPLEFT", KICKS_COL_X, yOffset)
-  row.kicks:SetWidth(KICKS_COL_WIDTH)
-  row.kicks:SetJustifyH("RIGHT")
-  DisableFontStringWrapping(row.kicks)
-
   row.realm = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.realm:SetPoint("TOPLEFT", SERVER_COL_X, yOffset)
   row.realm:SetWidth(SERVER_COL_WIDTH)
@@ -553,27 +536,58 @@ local function CreateFlatButton(parent, width, height)
   end
   button._flatLabel = label
 
+  local function ApplyDefaultVisual(self)
+    if type(self.SetBackdropColor) == "function" then
+      local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
+      self:SetBackdropColor(bgSec[1], bgSec[2], bgSec[3], bgSec[4])
+    end
+    if type(self.SetBackdropBorderColor) == "function" then
+      local ab = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
+      self:SetBackdropBorderColor(ab[1], ab[2], ab[3], 0.45)
+    end
+  end
+
+  local function ApplyHoverVisual(self)
+    if type(self.SetBackdropColor) == "function" then
+      self:SetBackdropColor(0.18, 0.18, 0.26, 0.8)
+    end
+    if type(self.SetBackdropBorderColor) == "function" then
+      local ab = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
+      self:SetBackdropBorderColor(ab[1], ab[2], ab[3], 0.6)
+    end
+  end
+
+  local function ApplyPressedVisual(self)
+    if type(self.SetBackdropColor) == "function" then
+      self:SetBackdropColor(0.08, 0.08, 0.12, 0.95)
+    end
+    if type(self.SetBackdropBorderColor) == "function" then
+      local ab = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
+      self:SetBackdropBorderColor(ab[1], ab[2], ab[3], 0.9)
+    end
+  end
+
   if type(button.HookScript) == "function" then
     button:HookScript("OnEnter", function(self)
-      if type(self.SetBackdropColor) == "function" then
-        self:SetBackdropColor(0.18, 0.18, 0.26, 0.8)
-      end
-      if type(self.SetBackdropBorderColor) == "function" then
-        local ab = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
-        self:SetBackdropBorderColor(ab[1], ab[2], ab[3], 0.6)
-      end
+      ApplyHoverVisual(self)
     end)
     button:HookScript("OnLeave", function(self)
-      if type(self.SetBackdropColor) == "function" then
-        local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
-        self:SetBackdropColor(bgSec[1], bgSec[2], bgSec[3], bgSec[4])
-      end
-      if type(self.SetBackdropBorderColor) == "function" then
-        local bd = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
-        self:SetBackdropBorderColor(bd[1], bd[2], bd[3], bd[4])
+      ApplyDefaultVisual(self)
+    end)
+    button:HookScript("OnMouseDown", function(self)
+      ApplyPressedVisual(self)
+    end)
+    button:HookScript("OnMouseUp", function(self)
+      local isMouseOver = type(self.IsMouseOver) == "function" and self:IsMouseOver()
+      if isMouseOver then
+        ApplyHoverVisual(self)
+      else
+        ApplyDefaultVisual(self)
       end
     end)
   end
+
+  ApplyDefaultVisual(button)
 
   return button
 end
@@ -659,34 +673,6 @@ local function CreatePanelHeaders(mainFrame)
     dpsHeader:SetMaxLines(1)
   end
 
-  local deathsHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  deathsHeader:SetPoint("TOPLEFT", DEATHS_COL_X, -34)
-  deathsHeader:SetWidth(DEATHS_COL_WIDTH)
-  deathsHeader:SetJustifyH("RIGHT")
-  if deathsHeader.SetWordWrap then
-    deathsHeader:SetWordWrap(false)
-  end
-  if deathsHeader.SetNonSpaceWrap then
-    deathsHeader:SetNonSpaceWrap(false)
-  end
-  if deathsHeader.SetMaxLines then
-    deathsHeader:SetMaxLines(1)
-  end
-
-  local kicksHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  kicksHeader:SetPoint("TOPLEFT", KICKS_COL_X, -34)
-  kicksHeader:SetWidth(KICKS_COL_WIDTH)
-  kicksHeader:SetJustifyH("RIGHT")
-  if kicksHeader.SetWordWrap then
-    kicksHeader:SetWordWrap(false)
-  end
-  if kicksHeader.SetNonSpaceWrap then
-    kicksHeader:SetNonSpaceWrap(false)
-  end
-  if kicksHeader.SetMaxLines then
-    kicksHeader:SetMaxLines(1)
-  end
-
   local leadOptionsHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   leadOptionsHeader:SetPoint("TOPRIGHT", -111, -34)
   leadOptionsHeader:SetWidth(120)
@@ -735,8 +721,6 @@ local function CreatePanelHeaders(mainFrame)
     keyHeader = keyHeader,
     rioHeader = rioHeader,
     dpsHeader = dpsHeader,
-    deathsHeader = deathsHeader,
-    kicksHeader = kicksHeader,
     leadOptionsHeader = leadOptionsHeader,
     mplusManagementHeader = mplusManagementHeader,
     headerSepLeft = headerSepLeft,
@@ -753,8 +737,6 @@ local function CreateM2ColumnGuides(mainFrame)
     { key = "ilvl", x = ILVL_COL_X + ILVL_COL_WIDTH },
     { key = "rio", x = RIO_COL_X + RIO_COL_WIDTH },
     { key = "dps", x = DPS_COL_X + DPS_COL_WIDTH },
-    { key = "deaths", x = DEATHS_COL_X + DEATHS_COL_WIDTH },
-    { key = "kicks", x = KICKS_COL_X + KICKS_COL_WIDTH },
   }
 
   local guides = {}
@@ -1174,10 +1156,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   }
   for _, def in ipairs(modeButtonDefs) do
     local target = def.target
-    local btn = CreateModeButton(mainFrame, def.xOffset, def.label, target, function()
-      if IsCombatLockdownActive() then
-        return
-      end
+    local function ApplyRequestedLayoutMode()
       if isRaidGroupFn() and target ~= LAYOUT_MODE_COMPACT_HORIZONTAL then
         return
       end
@@ -1188,6 +1167,9 @@ local function ConstructPanelUI(mainFrame, uiDeps)
       UpdateCollapseState(ui, target, mainFrame)
       NotifyCollapseChanged(ui, ui.isCollapsed)
       NotifyLayoutChanged(ui, ui.layoutMode)
+    end
+    local btn = CreateModeButton(mainFrame, def.xOffset, def.label, target, function()
+      ApplyRequestedLayoutMode()
     end, def.width)
     AttachModeButtonTooltip(
       panelTooltip,
@@ -1295,18 +1277,13 @@ local function RenderRosterImpl(state, roster)
     row.ilvl:SetText("")
     row.rio:SetText("")
     row.dps:SetText("")
-    row.deaths:SetText("")
-    row.deaths:Hide()
-    row.kicks:SetText("")
-    row.kicks:Hide()
     row.unit = nil
     row.tooltipName = nil
     row.tooltipRealm = nil
     row.tooltipInfo = nil
     row.getDungeonShortCode = nil
+    row.getDungeonName = nil
     row.getPlayerLastRunDps = nil
-    row.getPlayerLastRunDeaths = nil
-    row.getPlayerLastRunKicks = nil
     row.getLanguageTooltipMarkup = nil
     row.getL = nil
     if row.hoverFrame then
@@ -1349,8 +1326,6 @@ local function RenderRosterImpl(state, roster)
       end
     end
     setHeaderVisible("dpsHeader", showDpsColumn)
-    setHeaderVisible("deathsHeader", showDpsColumn)
-    setHeaderVisible("kicksHeader", showDpsColumn)
   end
 
   if state.uiRef and state.uiRef.tankButtons and not IsCombatLockdownActive() then
@@ -1470,31 +1445,13 @@ local function RenderRosterImpl(state, roster)
       row.dps:SetText("")
       row.dps:Hide()
     end
-    if showDps then
-      local deathsVal = type(state.getPlayerLastRunDeaths) == "function"
-          and state.getPlayerLastRunDeaths(info.name, info.realm)
-        or nil
-      row.deaths:SetText(deathsVal ~= nil and tostring(deathsVal) or "-")
-      row.deaths:Show()
-      local kicksVal = type(state.getPlayerLastRunKicks) == "function"
-          and state.getPlayerLastRunKicks(info.name, info.realm)
-        or nil
-      row.kicks:SetText(kicksVal ~= nil and tostring(kicksVal) or "-")
-      row.kicks:Show()
-    else
-      row.deaths:SetText("")
-      row.deaths:Hide()
-      row.kicks:SetText("")
-      row.kicks:Hide()
-    end
     row.unit = entry.unit
     row.tooltipName = info and info.name or nil
     row.tooltipRealm = info and info.realm or nil
     row.tooltipInfo = info
     row.getDungeonShortCode = state.getDungeonShortCode
+    row.getDungeonName = state.getDungeonName
     row.getPlayerLastRunDps = state.getPlayerLastRunDps
-    row.getPlayerLastRunDeaths = state.getPlayerLastRunDeaths
-    row.getPlayerLastRunKicks = state.getPlayerLastRunKicks
     row.getLanguageTooltipMarkup = state.getLanguageTooltipMarkup
     row.getL = state.getL
     if row.hoverFrame then
@@ -1576,6 +1533,7 @@ function RosterPanel.CreateController(opts)
     end
   end
   local getDungeonShortCode = RequireFunction(opts.getDungeonShortCode, "getDungeonShortCode")
+  local getDungeonName = type(opts.getDungeonName) == "function" and opts.getDungeonName or nil
   local getRioDelta = type(opts.getRioDelta) == "function" and opts.getRioDelta or nil
   local getPlayerSyncSummary = type(opts.getPlayerSyncSummary) == "function" and opts.getPlayerSyncSummary or nil
   local resolveActiveKeyOwnerUnit = RequireFunction(opts.resolveActiveKeyOwnerUnit, "resolveActiveKeyOwnerUnit")
@@ -1614,8 +1572,6 @@ function RosterPanel.CreateController(opts)
     shareKeysDebounceSeconds = 0
   end
   local getPlayerLastRunDps = type(opts.getPlayerLastRunDps) == "function" and opts.getPlayerLastRunDps or nil
-  local getPlayerLastRunDeaths = type(opts.getPlayerLastRunDeaths) == "function" and opts.getPlayerLastRunDeaths or nil
-  local getPlayerLastRunKicks = type(opts.getPlayerLastRunKicks) == "function" and opts.getPlayerLastRunKicks or nil
   local showRosterColumnGuides = type(opts.showRosterColumnGuides) == "function" and opts.showRosterColumnGuides
     or function()
       return false
@@ -1663,8 +1619,6 @@ function RosterPanel.CreateController(opts)
     ui.ilvlHeader:SetText(L.COL_ILVL)
     ui.rioHeader:SetText(L.COL_RIO)
     ui.dpsHeader:SetText(L.COL_DPS)
-    ui.deathsHeader:SetText(L.COL_DEATHS)
-    ui.kicksHeader:SetText(L.COL_KICKS)
     ui.leadOptionsHeader:SetText(L.LEAD_OPTIONS)
     ui.mplusManagementHeader:SetText(L.MPLUS_MANAGEMENT)
     readyCheckButton._fullText = L.BTN_READYCHECK
@@ -1778,13 +1732,12 @@ function RosterPanel.CreateController(opts)
       getLanguageFlagMarkup = getLanguageFlagMarkup,
       getLanguageTooltipMarkup = getLanguageTooltipMarkup,
       getDungeonShortCode = getDungeonShortCode,
+      getDungeonName = getDungeonName,
       getRioDelta = getRioDelta,
       syncMarker = syncMarker,
       syncBadge = syncBadge,
       getPlayerSyncSummary = getPlayerSyncSummary,
       getPlayerLastRunDps = getPlayerLastRunDps,
-      getPlayerLastRunDeaths = getPlayerLastRunDeaths,
-      getPlayerLastRunKicks = getPlayerLastRunKicks,
       getL = getL,
       isRaidGroup = isRaidGroup,
       raidNoticeLabel = ui.raidNoticeLabel,
@@ -1806,6 +1759,7 @@ function RosterPanel.CreateController(opts)
       getShortSpecLabel = getShortSpecLabel,
       getLanguageFlagMarkup = getLanguageFlagMarkup,
       getDungeonShortCode = getDungeonShortCode,
+      getDungeonName = getDungeonName,
       getRioDelta = getRioDelta,
       syncMarker = syncMarker,
       syncBadge = syncBadge,

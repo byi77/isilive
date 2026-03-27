@@ -77,6 +77,10 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     enqueueInspect = RequireFunction(deps.enqueueInspect, "enqueueInspect"),
     sendOwnKeySnapshot = RequireFunction(deps.sendOwnKeySnapshot, "sendOwnKeySnapshot"),
     sendIsiLiveHello = RequireFunction(deps.sendIsiLiveHello, "sendIsiLiveHello"),
+    sendRefreshRequest = RequireFunction(deps.sendRefreshRequest, "sendRefreshRequest"),
+    getRaidTransitionBehavior = deps.getRaidTransitionBehavior or function()
+      return "show_h"
+    end,
     shouldAutoCloseMainFrame = deps.shouldAutoCloseMainFrame or function()
       return false
     end,
@@ -131,6 +135,8 @@ local function BuildGroupControllerDepsFromContext(ctx)
     enqueueInspect = ctx.enqueueInspect,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
     sendIsiLiveHello = ctx.sendIsiLiveHello,
+    sendRefreshRequest = ctx.sendRefreshRequest,
+    getRaidTransitionBehavior = ctx.getRaidTransitionBehavior,
     shouldAutoCloseMainFrame = ctx.shouldAutoCloseMainFrame,
     autoCloseMainFrame = ctx.autoCloseMainFrame,
   }
@@ -180,6 +186,16 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
     updateUI = RequireFunction(callbacks.updateUI, "callbacks.updateUI"),
     refreshReadyCheckUI = RequireFunction(callbacks.refreshReadyCheckUI, "callbacks.refreshReadyCheckUI"),
     setMainFrameVisible = RequireFunction(callbacks.setMainFrameVisible, "callbacks.setMainFrameVisible"),
+    shouldShowMainFrameOnStartup = type(deps.shouldShowMainFrameOnStartup) == "function"
+        and deps.shouldShowMainFrameOnStartup
+      or function()
+        return true
+      end,
+    shouldAutoOpenMainFrameOnKeyEnd = type(deps.shouldAutoOpenMainFrameOnKeyEnd) == "function"
+        and deps.shouldAutoOpenMainFrameOnKeyEnd
+      or function()
+        return true
+      end,
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
     updateStatusLine = RequireFunction(callbacks.updateStatusLine, "callbacks.updateStatusLine"),
     sendOwnKeySnapshot = RequireFunction(deps.sendOwnKeySnapshot, "sendOwnKeySnapshot"),
@@ -354,6 +370,8 @@ local function BuildEventHandlersDepsFromContext(ctx)
     isNegativeApplicationStatusEvent = ctx.isNegativeApplicationStatusEvent,
     getNormalizedActiveEntryInfo = ctx.getNormalizedActiveEntryInfo,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
+    shouldShowMainFrameOnStartup = ctx.shouldShowMainFrameOnStartup,
+    shouldAutoOpenMainFrameOnKeyEnd = ctx.shouldAutoOpenMainFrameOnKeyEnd,
     shouldAutoCloseMainFrame = ctx.shouldAutoCloseMainFrame,
     sendRefreshResponse = ctx.sendRefreshResponse,
     ensureQueueDebugStorage = ctx.ensureQueueDebugStorage,

@@ -18,7 +18,6 @@ local preparePrivateTooltip = assert(
 )
 local hidePrivateTooltip =
   assert(addonTable.UICommon and addonTable.UICommon.HidePrivateTooltip, "isiLive: UICommon.HidePrivateTooltip missing")
-
 local function BuildCenterNoticeConfig(opts)
   opts = opts or {}
   local frameName = type(opts.frameName) == "string" and opts.frameName ~= "" and opts.frameName
@@ -43,6 +42,12 @@ local function BuildCenterNoticeConfig(opts)
     resolveTeleportSpellID = opts.resolveTeleportSpellID or function(_activityID, _dungeonName)
       return nil
     end,
+    resolveMapIDBySpellID = opts.resolveMapIDBySpellID or function(_spellID)
+      return nil
+    end,
+    resolveMapIDByActivityID = opts.resolveMapIDByActivityID or function(_activityID)
+      return nil
+    end,
     applySecureSpellToButton = opts.applySecureSpellToButton or function(_button, _spellID)
       return false
     end,
@@ -54,6 +59,9 @@ local function BuildCenterNoticeConfig(opts)
     end,
     formatCooldownSeconds = opts.formatCooldownSeconds or function(sec)
       return tostring(sec or 0)
+    end,
+    getDungeonName = opts.getDungeonName or function(_mapID, _localeTag)
+      return nil
     end,
     getL = opts.getL or function()
       return {}
@@ -406,6 +414,7 @@ local function ClearCenterNoticeTeleportButton(state)
   SetCenterNoticeTeleportButtonVisible(state, false)
   state.pendingTeleportButtonOffsetY = nil
   state.teleportButton.spellID = nil
+  state.teleportButton.mapID = nil
   state.teleportButton.dungeonName = nil
   state.teleportButton.inCombatBlocked = false
   SetCenterNoticeTeleportButtonMouseEnabled(state, true)
@@ -428,9 +437,16 @@ local function ConfigureCenterNoticeTeleportButton(state, dungeonName, activityI
     ClearCenterNoticeTeleportButton(state)
     return false
   end
+  local mapID
+  if numericActivityID then
+    mapID = state.config.resolveMapIDByActivityID(numericActivityID)
+  else
+    mapID = state.config.resolveMapIDBySpellID(spellID)
+  end
 
   if state.config.isInCombat() then
     state.teleportButton.spellID = spellID
+    state.teleportButton.mapID = tonumber(mapID)
     state.teleportButton.dungeonName = hasDungeonName and dungeonName or nil
     state.teleportButton.inCombatBlocked = true
     SetCenterNoticeTeleportButtonMouseEnabled(state, false)
@@ -441,6 +457,7 @@ local function ConfigureCenterNoticeTeleportButton(state, dungeonName, activityI
 
   state.config.applySecureSpellToButton(state.teleportButton, spellID)
   state.teleportButton.spellID = spellID
+  state.teleportButton.mapID = tonumber(mapID)
   state.teleportButton.dungeonName = hasDungeonName and dungeonName or nil
   state.teleportButton.inCombatBlocked = false
   SetCenterNoticeTeleportButtonMouseEnabled(state, true)
@@ -529,6 +546,17 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
     elseif self.spellID and state.config.isSpellKnown(self.spellID) then
       if type(self.dungeonName) == "string" and self.dungeonName ~= "" then
         tooltip:SetText(self.dungeonName, 1, 1, 1)
+        local englishDungeonName = nil
+        if type(self.mapID) == "number" then
+          englishDungeonName = state.config.getDungeonName(self.mapID, "enUS")
+        end
+        if
+          type(englishDungeonName) == "string"
+          and englishDungeonName ~= ""
+          and englishDungeonName ~= self.dungeonName
+        then
+          tooltip:AddLine(englishDungeonName, 1, 1, 1, true)
+        end
       else
         tooltip:SetSpellByID(self.spellID)
       end

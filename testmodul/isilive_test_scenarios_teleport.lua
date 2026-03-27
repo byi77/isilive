@@ -404,6 +404,30 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
       )
     end)
   end)
+
+  test("Teleport returns locale-specific full dungeon names for deDE and enUS", function()
+    local createFrameStub = BuildCreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_season_data.lua",
+        "isiLive_teleport.lua",
+      })
+
+      Assert.Equal(
+        addon.Teleport.GetDungeonName(558, "deDE"),
+        "Terrasse der Magister",
+        "deDE should resolve the localized full dungeon name"
+      )
+      Assert.Equal(
+        addon.Teleport.GetDungeonName(558, "enUS"),
+        "Magisters' Terrace",
+        "enUS should resolve the English full dungeon name"
+      )
+    end)
+  end)
 end
 
 local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, LoadAddonModules)
@@ -1344,6 +1368,111 @@ local function RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, Load
         "third button should start the second row one slot below"
       )
       Assert.Equal(buttons[4]._point and buttons[4]._point.y or nil, -92, "fourth button should stay on the second row")
+    end)
+  end)
+
+  test("TeleportUI tooltip shows English dungeon name below the localized title", function()
+    local createFrameStub, createdFrames = BuildTeleportUICreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      UIParent = {},
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
+        "isiLive_teleport_ui.lua",
+      })
+
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = {
+          GetFrameLevel = function()
+            return 10
+          end,
+          GetFrameStrata = function()
+            return "MEDIUM"
+          end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              SetTextColor = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetText = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+        },
+        applySecureSpellToButton = function()
+          return true
+        end,
+        getEntries = function()
+          return {
+            { spellID = 1, mapID = 558, mapName = "Terrasse der Magister", slotIndex = 1 },
+          }
+        end,
+        getEmptyStateText = function()
+          return nil
+        end,
+        getL = function()
+          return {
+            TOOLTIP_TELEPORT_READY = "Ready",
+          }
+        end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getSpellCooldownSafe = function()
+          return 0, 0, true
+        end,
+        applyCooldownFrameSafe = function() end,
+        getSpellTexture = function()
+          return nil
+        end,
+        getDungeonName = function(mapID, localeTag)
+          if mapID == 558 and localeTag == "enUS" then
+            return "Magisters' Terrace"
+          end
+          if mapID == 558 then
+            return "Terrasse der Magister"
+          end
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      controller.BuildButtons()
+      local button = controller.GetButtons()[1]
+      Assert.NotNil(button, "TeleportUI should build one teleport button")
+      local onEnter = button._scripts and button._scripts.OnEnter or nil
+      Assert.NotNil(onEnter, "Teleport button should define an OnEnter handler")
+      onEnter(button)
+
+      local privateTooltip = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._isIsiLiveTooltip == true then
+          privateTooltip = frame
+        end
+      end
+
+      Assert.NotNil(privateTooltip, "TeleportUI should allocate a private tooltip frame")
+      local lines = privateTooltip._isiLiveTooltipLines or {}
+      Assert.Equal(lines[1] and lines[1]._text or nil, "Terrasse der Magister", "Tooltip title should stay localized")
+      Assert.Equal(
+        lines[2] and lines[2]._text or nil,
+        "Magisters' Terrace",
+        "Tooltip should add the English name on the next line"
+      )
     end)
   end)
 end

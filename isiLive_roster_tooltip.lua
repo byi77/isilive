@@ -633,11 +633,10 @@ local function ShowRosterInfoTooltip(
   unit,
   info,
   getDungeonShortCode,
+  getDungeonName,
   getPlayerLastRunDps,
   getLanguageTooltipMarkup,
-  getL,
-  getPlayerLastRunDeaths,
-  getPlayerLastRunKicks
+  getL
 )
   if type(info) ~= "table" then
     return false
@@ -813,11 +812,14 @@ local function ShowRosterInfoTooltip(
     local keyMapID = tonumber(info.keyMapID)
     local keyLevel = tonumber(info.keyLevel)
     if keyMapID and keyMapID > 0 and keyLevel and keyLevel > 0 then
-      local shortCode = type(getDungeonShortCode) == "function" and getDungeonShortCode(keyMapID) or nil
-      if type(shortCode) ~= "string" or shortCode == "" then
-        shortCode = "?"
+      local dungeonName = type(getDungeonName) == "function" and getDungeonName(keyMapID) or nil
+      if type(dungeonName) ~= "string" or dungeonName == "" then
+        dungeonName = type(getDungeonShortCode) == "function" and getDungeonShortCode(keyMapID) or nil
       end
-      tooltip:AddLine(string.format("Key: %s +%d", tostring(shortCode), keyLevel), 1, 0.85, 0)
+      if type(dungeonName) ~= "string" or dungeonName == "" then
+        dungeonName = "?"
+      end
+      tooltip:AddLine(string.format("Key: %s +%d", tostring(dungeonName), keyLevel), 1, 0.85, 0)
     end
 
     local L = type(getL) == "function" and getL() or {}
@@ -825,18 +827,6 @@ local function ShowRosterInfoTooltip(
       local label = type(L.TOOLTIP_LAST_RUN_DPS) == "string" and L.TOOLTIP_LAST_RUN_DPS or "Last run DPS: %s"
       local formattedDps = FormatCompactTooltipNumber(lastRunDps) or tostring(math.floor(lastRunDps + 0.5))
       tooltip:AddLine(string.format(label, formattedDps), 0.4, 0.8, 1)
-    end
-    local lastRunDeaths = type(getPlayerLastRunDeaths) == "function" and getPlayerLastRunDeaths(info.name, info.realm)
-      or nil
-    if lastRunDeaths ~= nil then
-      local label = type(L.TOOLTIP_LAST_RUN_DEATHS) == "string" and L.TOOLTIP_LAST_RUN_DEATHS or "Last run deaths: %s"
-      tooltip:AddLine(string.format(label, tostring(lastRunDeaths)), 0.4, 0.8, 1)
-    end
-    local lastRunKicks = type(getPlayerLastRunKicks) == "function" and getPlayerLastRunKicks(info.name, info.realm)
-      or nil
-    if lastRunKicks ~= nil then
-      local label = type(L.TOOLTIP_LAST_RUN_KICKS) == "string" and L.TOOLTIP_LAST_RUN_KICKS or "Last run kicks: %s"
-      tooltip:AddLine(string.format(label, tostring(lastRunKicks)), 0.4, 0.8, 1)
     end
   end
 

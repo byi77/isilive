@@ -554,6 +554,11 @@ local function InitializeFactoryPrimaryControllers(ctx)
       end
       return nil
     end,
+    getDungeonName = function(mapID, localeTag)
+      local db = rawget(_G, "IsiLiveDB")
+      local activeLocale = (db and db.locale) or ctx.locale
+      return modules.teleport.GetDungeonName(mapID, localeTag or activeLocale)
+    end,
     getTime = GetTime,
     shareKeysDebounceSeconds = 1,
   })

@@ -26,6 +26,18 @@ function FrameBridge.CreateContext(opts)
     RequireFunction(opts.getTeleportCooldownRemaining, "getTeleportCooldownRemaining")
   local formatCooldownSeconds = RequireFunction(opts.formatCooldownSeconds, "formatCooldownSeconds")
   local getL = RequireFunction(opts.getL, "getL")
+  local resolveMapIDBySpellID = type(opts.resolveMapIDBySpellID) == "function" and opts.resolveMapIDBySpellID
+    or function(_spellID)
+      return nil
+    end
+  local resolveMapIDByActivityID = type(opts.resolveMapIDByActivityID) == "function" and opts.resolveMapIDByActivityID
+    or function(_activityID)
+      return nil
+    end
+  local getDungeonName = type(opts.getDungeonName) == "function" and opts.getDungeonName
+    or function(_mapID, _localeTag)
+      return nil
+    end
 
   local centerNotice = createCenterNotice({
     parent = opts.parent,
@@ -37,10 +49,13 @@ function FrameBridge.CreateContext(opts)
     buttonGap = tonumber(opts.centerNoticeButtonGap) or 8,
     isInCombat = isInCombat,
     resolveTeleportSpellID = resolveTeleportSpellID,
+    resolveMapIDBySpellID = resolveMapIDBySpellID,
+    resolveMapIDByActivityID = resolveMapIDByActivityID,
     applySecureSpellToButton = applySecureSpellToButton,
     isSpellKnown = isSpellKnown,
     getTeleportCooldownRemaining = getTeleportCooldownRemaining,
     formatCooldownSeconds = formatCooldownSeconds,
+    getDungeonName = getDungeonName,
     getL = getL,
   })
 
@@ -65,6 +80,7 @@ function FrameBridge.CreateContext(opts)
     mainUI = mainUI,
     mainFrame = mainUI.frame,
   }
+  local suppressNextShowCallbacks = false
 
   function context.SetCenterNoticeVisible(visible)
     centerNotice.SetVisible(visible)
@@ -74,22 +90,32 @@ function FrameBridge.CreateContext(opts)
     centerNotice.UpdateTeleportButtonVisual(spellID, isEnabled, inCombatBlocked)
   end
 
-  function context.ShowCenterNotice(message, durationSeconds, dungeonName, activityID, showOptions)
-    centerNotice.Show(message, durationSeconds, dungeonName, activityID, showOptions)
+  function context.ShowCenterNotice(message, durationSeconds, _dungeonName, _activityID, showOptions)
+    centerNotice.Show(message, durationSeconds, nil, nil, showOptions)
   end
 
   function context.ShowInviteHint(message, durationSeconds)
     inviteHint.Show(message, durationSeconds)
   end
 
-  function context.SetMainFrameVisible(visible)
+  function context.SetMainFrameVisible(visible, showOpts)
+    showOpts = type(showOpts) == "table" and showOpts or {}
     local didShow = mainUI.SetVisible(visible)
     if visible and didShow == true then
+      if suppressNextShowCallbacks or showOpts.skipShowCallbacks == true then
+        suppressNextShowCallbacks = false
+        return didShow
+      end
       if isInGroup() then
         onShownInGroup()
       else
         onShownNoGroup()
       end
+    elseif visible and showOpts.skipShowCallbacks == true then
+      local pendingVisible = type(mainUI.GetPendingVisible) == "function" and mainUI.GetPendingVisible() or nil
+      suppressNextShowCallbacks = pendingVisible == true
+    elseif not visible then
+      suppressNextShowCallbacks = false
     end
     return didShow
   end

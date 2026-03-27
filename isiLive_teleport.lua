@@ -213,13 +213,7 @@ function Teleport.GetTeleportInfoByMapID(mapID)
     icon = "Interface\\Icons\\INV_Misc_QuestionMark"
   end
 
-  local mapName = nil
-  if C_ChallengeMode and C_ChallengeMode.GetMapUIInfo then
-    local resolvedMapName = C_ChallengeMode.GetMapUIInfo(numericMapID)
-    if type(resolvedMapName) == "string" and resolvedMapName ~= "" then
-      mapName = resolvedMapName
-    end
-  end
+  local mapName = Teleport.GetDungeonName and Teleport.GetDungeonName(numericMapID) or nil
   return {
     mapID = numericMapID,
     mapName = mapName,
@@ -243,6 +237,57 @@ function Teleport.GetDungeonShortCode(mapID, localeTag)
 
   if type(shortCode) == "string" and shortCode ~= "" then
     return shortCode
+  end
+
+  return nil
+end
+
+function Teleport.GetDungeonName(mapID, localeTag)
+  local numericMapID = tonumber(mapID)
+  if type(SeasonData.NormalizeMapID) == "function" then
+    numericMapID = SeasonData.NormalizeMapID(numericMapID)
+  end
+  if not numericMapID then
+    return nil
+  end
+
+  local resolvedLocale = localeTag
+  if resolvedLocale == nil or resolvedLocale == "" then
+    local getLocale = rawget(_G, "GetLocale")
+    if type(getLocale) == "function" then
+      local okLocale, currentLocale = pcall(getLocale)
+      if okLocale and type(currentLocale) == "string" and currentLocale ~= "" then
+        resolvedLocale = currentLocale
+      end
+    end
+  end
+
+  local dungeonName = nil
+  if type(SeasonData.GetDungeonName) == "function" then
+    dungeonName = SeasonData.GetDungeonName(numericMapID, resolvedLocale)
+  end
+  if type(dungeonName) == "string" and dungeonName ~= "" then
+    return dungeonName
+  end
+
+  local getLocale = rawget(_G, "GetLocale")
+  local currentLocale = nil
+  if type(getLocale) == "function" then
+    local okLocale, locale = pcall(getLocale)
+    if okLocale and type(locale) == "string" and locale ~= "" then
+      currentLocale = locale
+    end
+  end
+
+  if
+    (resolvedLocale == nil or resolvedLocale == "" or resolvedLocale == currentLocale)
+    and C_ChallengeMode
+    and C_ChallengeMode.GetMapUIInfo
+  then
+    local okName, localizedName = pcall(C_ChallengeMode.GetMapUIInfo, numericMapID)
+    if okName and type(localizedName) == "string" and localizedName ~= "" then
+      return localizedName
+    end
   end
 
   return nil

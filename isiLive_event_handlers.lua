@@ -65,6 +65,12 @@ local function BuildContext(opts)
   ctx.shouldAutoCloseMainFrame = OptionalFunction(opts.shouldAutoCloseMainFrame, function()
     return false
   end)
+  ctx.shouldShowMainFrameOnStartup = OptionalFunction(opts.shouldShowMainFrameOnStartup, function()
+    return true
+  end)
+  ctx.shouldAutoOpenMainFrameOnKeyEnd = OptionalFunction(opts.shouldAutoOpenMainFrameOnKeyEnd, function()
+    return true
+  end)
   ctx.updateLeaderButtons = RequireFunction(opts.updateLeaderButtons, "updateLeaderButtons")
   ctx.updateStatusLine = RequireFunction(opts.updateStatusLine, "updateStatusLine")
   ctx.sendOwnKeySnapshot = RequireFunction(opts.sendOwnKeySnapshot, "sendOwnKeySnapshot")

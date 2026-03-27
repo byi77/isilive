@@ -287,7 +287,13 @@ local function InitializeFactoryFrameBridge(ctx)
 
   ctx.ResolveTeleportSpellIDByActivityID = modules.teleport.ResolveTeleportSpellIDByActivityID
   ctx.ResolveMapIDByActivityID = modules.teleport.ResolveMapIDByActivityID
+  ctx.ResolveMapIDBySpellID = modules.teleport.ResolveMapIDBySpellID
   ctx.ResolveTeleportSpellID = modules.teleport.ResolveTeleportSpellID
+  ctx.GetDungeonName = function(mapID, localeTag)
+    local db = rawget(_G, "IsiLiveDB")
+    local activeLocale = (db and db.locale) or ctx.locale
+    return modules.teleport.GetDungeonName(mapID, localeTag or activeLocale)
+  end
   ctx.ApplySecureSpellToButton = modules.teleport.ApplySecureSpellToButton
   ctx.IsInCombat = function()
     return InCombatLockdown and InCombatLockdown()
@@ -325,10 +331,13 @@ local function InitializeFactoryFrameBridge(ctx)
       ctx.UpdateLeaderButtons()
     end,
     resolveTeleportSpellID = ctx.ResolveTeleportSpellID,
+    resolveMapIDBySpellID = ctx.ResolveMapIDBySpellID,
+    resolveMapIDByActivityID = ctx.ResolveMapIDByActivityID,
     applySecureSpellToButton = ctx.ApplySecureSpellToButton,
     isSpellKnown = ctx.IsSpellKnownSafe,
     getTeleportCooldownRemaining = ctx.GetTeleportCooldownRemaining,
     formatCooldownSeconds = ctx.FormatCooldownSeconds,
+    getDungeonName = ctx.GetDungeonName,
     getL = ctx.GetL,
   })
 
@@ -357,14 +366,16 @@ local function InitializeFactoryFrameBridge(ctx)
   ctx.ShowInviteHint = function(message, durationSeconds)
     frameBridgeContext.ShowInviteHint(message, durationSeconds)
   end
-  ctx.SetMainFrameVisible = function(visible, reason)
+  ctx.SetMainFrameVisible = function(visible, reasonOrOpts)
+    local opts = type(reasonOrOpts) == "table" and reasonOrOpts or {}
+    local reason = type(reasonOrOpts) == "string" and reasonOrOpts or opts.reason
     if visible and reason == "queue" then
       local dbRef = rawget(_G, "IsiLiveDB")
       if dbRef and dbRef.autoOpenOnQueue == false then
         return false
       end
     end
-    return frameBridgeContext.SetMainFrameVisible(visible)
+    return frameBridgeContext.SetMainFrameVisible(visible, opts)
   end
   ctx.SetMainFrameHeightSafe = function(height)
     frameBridgeContext.SetMainFrameHeightSafe(height)

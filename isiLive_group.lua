@@ -85,8 +85,12 @@ local function BuildDeps(opts)
     enqueueInspect = opts.enqueueInspect or function(_unit) end,
     sendOwnKeySnapshot = opts.sendOwnKeySnapshot or function(_force) end,
     sendIsiLiveHello = opts.sendIsiLiveHello or function(_force) end,
+    sendRefreshRequest = opts.sendRefreshRequest or function(_force) end,
     shouldAutoCloseMainFrame = opts.shouldAutoCloseMainFrame or function()
       return false
+    end,
+    getRaidTransitionBehavior = opts.getRaidTransitionBehavior or function()
+      return "show_h"
     end,
     autoCloseMainFrame = opts.autoCloseMainFrame or function() end,
   }
@@ -334,11 +338,20 @@ local function HandleGroupRosterUpdate(deps)
   if numMembers > 5 then
     if not wasRaidGroupBefore then
       local L = deps.getL()
+      local raidTransitionBehavior = deps.getRaidTransitionBehavior()
       if L.RAID_GROUP_HIDDEN then
         deps.printFn(L.RAID_GROUP_HIDDEN)
       end
-      deps.switchToRaidMode()
-      deps.setMainFrameVisible(true)
+      if raidTransitionBehavior == "show_h" then
+        deps.switchToRaidMode()
+        deps.setMainFrameVisible(true, {
+          skipShowCallbacks = true,
+        })
+      elseif raidTransitionBehavior == "show_keep" then
+        deps.setMainFrameVisible(true, {
+          skipShowCallbacks = true,
+        })
+      end
       deps.updateUI()
     end
     deps.setWasRaidGroup(true)
@@ -349,7 +362,10 @@ local function HandleGroupRosterUpdate(deps)
   deps.setWasRaidGroup(false)
   if joinedNow then
     deps.setRoster({})
-    deps.setMainFrameVisible(true, "queue")
+    deps.setMainFrameVisible(true, {
+      reason = "queue",
+      skipShowCallbacks = true,
+    })
     deps.captureQueueJoinCandidate()
     deps.announceQueuedGroupJoin()
   end
@@ -360,10 +376,13 @@ local function HandleGroupRosterUpdate(deps)
   AddPlayerToRoster(deps, roster)
   UpdatePartyMembersInRoster(deps, roster)
 
-  deps.sendOwnKeySnapshot(false, "group")
+  deps.sendOwnKeySnapshot(joinedNow, "group")
   deps.updateUI()
   deps.updateLeaderButtons()
-  deps.sendIsiLiveHello(false, "group")
+  deps.sendIsiLiveHello(joinedNow, "group")
+  if joinedNow then
+    deps.sendRefreshRequest(true)
+  end
 end
 
 function Group.CreateController(opts)

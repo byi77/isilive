@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-03-27 - Version 0.9.106 (patch)
+
+- Group join / sync refresh:
+  - A real first group join now forces the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`, so roster data refreshes immediately after an invite accept instead of waiting for a manual `Refresh` click.
+  - Added deterministic coverage that the first join path bypasses normal sync cooldowns and still avoids recursive auto-open side effects.
+- Run snapshot / roster sync cleanup:
+  - Removed unreliable `Deaths` and `Kicks` collection, transport, roster fallback, and tooltip rendering; last-run sync is now explicitly `DPS`-only.
+  - Updated rules, docs, and deterministic coverage to reflect the verified `DPS`-only contract.
+- Center notice / dungeon detection:
+  - Removed dungeon/activity detection context from the runtime center-notice path; the visible right-side teleport grid remains unchanged.
+  - Hardened the rules validator so multiline `test(` declarations remain indexable after `stylua` formatting.
+- Esc menu taint hardening:
+  - Reworked the optional `Esc` tooling and travel strips so both panels are mounted directly as prebuilt `GameMenuFrame` children instead of relying on a deferred external host-frame show/hide path.
+  - During combat lockdown, the strip layout path is now strictly read-only: no `Show`, `Hide`, `ClearAllPoints`, `SetPoint`, `SetSize`, `EnableMouse`, or `SetAlpha` mutations run on the mounted overlays, insecure shortcut clicks no-op in combat, and secure refreshes stay queued until `PLAYER_REGEN_ENABLED`.
+  - Added deterministic regression coverage for first combat-open visibility, parent-mounted panel ownership, and the absence of deferred host callbacks.
+- Docs / release baseline:
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.106`.
+  - Updated the documented validator counts to `432` scenarios across `34` modules and `428` rule-indexed deterministic tests.
+- Release metadata:
+  - Bumped TOC version to `0.9.106`.
+
 ## 2026-03-26 - Version 0.9.105 (patch)
 
 - Queue join / ready-check / taint hardening:

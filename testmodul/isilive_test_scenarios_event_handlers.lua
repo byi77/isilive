@@ -289,6 +289,42 @@ local function RegisterCombatStartupCVarAndWorldEntryTests(test, Assert, WithGlo
     Assert.Equal(#scheduled, 2, "entering world should only schedule hotkey reapply callbacks")
   end)
 
+  test("Event handlers auto-show main frame on PLAYER_LOGIN for startup login and reload", function()
+    local showCalls = 0
+    local lastVisible = nil
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      setMainFrameVisible = function(visible)
+        showCalls = showCalls + 1
+        lastVisible = visible
+      end,
+    })
+
+    controller:Dispatch("PLAYER_LOGIN")
+
+    Assert.Equal(showCalls, 1, "PLAYER_LOGIN must request one startup auto-open")
+    Assert.True(lastVisible == true, "PLAYER_LOGIN startup auto-open must show the main frame")
+  end)
+
+  test("Event handlers skip PLAYER_LOGIN auto-show when startup setting is disabled", function()
+    local showCalls = 0
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      shouldShowMainFrameOnStartup = function()
+        return false
+      end,
+      setMainFrameVisible = function(_visible)
+        showCalls = showCalls + 1
+      end,
+    })
+
+    controller:Dispatch("PLAYER_LOGIN")
+
+    Assert.Equal(showCalls, 0, "disabled startup auto-show must not request a frame open on PLAYER_LOGIN")
+  end)
+
   test("Event handlers call updateCdTracker on UNIT_AURA for player", function()
     local cdTrackerCalls = 0
 
@@ -911,6 +947,24 @@ local function RegisterChallengeStartAndDelayTests(test, Assert, _WithGlobals, L
     Assert.Equal(lastVisible, true, "challenge completion must auto-show main frame while grouped")
   end)
 
+  test("Event handlers skip auto-show on challenge completion when key-end setting is disabled", function()
+    local showCalls = 0
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      shouldAutoOpenMainFrameOnKeyEnd = function()
+        return false
+      end,
+      setMainFrameVisible = function(_visible)
+        showCalls = showCalls + 1
+      end,
+    })
+
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+
+    Assert.Equal(showCalls, 0, "disabled key-end auto-open must not request a frame open on completion")
+  end)
+
   test("Event handlers enable RIO delta only after delayed post-run refresh", function()
     local enableCalls = 0
     local refreshCalls = 0
@@ -1197,6 +1251,23 @@ local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fix
 
     Assert.Equal(teleportRefreshCalls, 1, "visible regen must refresh teleport UI")
     Assert.Equal(restoreButtonCalls, 1, "visible regen must restore center notice teleport button")
+  end)
+
+  test("Event handlers rerender visible UI on regen after combat-safe layout changes", function()
+    local counters = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+      isMainFrameShown = function()
+        return true
+      end,
+      updateMPlusTeleportButton = function() end,
+      tryRestoreCenterNoticeTeleportButton = function() end,
+    })
+
+    controller:Dispatch("PLAYER_REGEN_ENABLED")
+
+    Assert.Equal(counters.uiUpdates, 1, "visible regen must rerender the main UI once")
   end)
 
   test("Event handlers pre-render UI for hidden addon sync updates", function()
