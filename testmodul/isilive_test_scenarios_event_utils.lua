@@ -535,11 +535,7 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
       "CHALLENGE_MODE_MAPS_UPDATE",
       "config builders gate should pass CHALLENGE_MODE_MAPS_UPDATE"
     )
-    Assert.Equal(
-      dispatched[3],
-      "PLAYER_EQUIPMENT_CHANGED",
-      "config builders gate should pass PLAYER_EQUIPMENT_CHANGED"
-    )
+    Assert.Equal(dispatched[3], "PLAYER_EQUIPMENT_CHANGED", "config builders gate should pass PLAYER_EQUIPMENT_CHANGED")
     Assert.Equal(
       dispatched[4],
       "PLAYER_SPECIALIZATION_CHANGED",

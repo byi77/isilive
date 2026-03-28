@@ -149,18 +149,10 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
           return now
         end,
       })
-      Assert.Equal(
-        displayDataHeld.colorHex,
-        "ffc69b6d",
-        "Declined hold should keep class-colored text"
-      )
+      Assert.Equal(displayDataHeld.colorHex, "ffc69b6d", "Declined hold should keep class-colored text")
       Assert.NotNil(displayDataHeld.readyCheckBackgroundColor, "Declined hold should keep the row background active")
       Assert.Equal(displayDataHeld.readyCheckStatus, "notready", "Declined hold should keep the not-ready row state")
-      Assert.Equal(
-        displayDataHeld.readyCheckMarkup,
-        "",
-        "Declined hold should not prepend the waiting icon"
-      )
+      Assert.Equal(displayDataHeld.readyCheckMarkup, "", "Declined hold should not prepend the waiting icon")
 
       -- 4. Once the hold expires, the row returns to normal
       now = now + 21
@@ -176,11 +168,7 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
       })
       Assert.Equal(displayDataExpired.colorHex, "ffc69b6d", "Expired declined hold should keep class-colored text")
       Assert.Nil(displayDataExpired.readyCheckBackgroundColor, "Expired declined hold should clear the row background")
-      Assert.Equal(
-        displayDataExpired.readyCheckMarkup,
-        "",
-        "Expired declined hold should not show waiting markup"
-      )
+      Assert.Equal(displayDataExpired.readyCheckMarkup, "", "Expired declined hold should not show waiting markup")
     end)
   end)
 

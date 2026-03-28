@@ -435,11 +435,7 @@ local function RegisterSendOwnKeySnapshotTests(test, Assert, WithGlobals, LoadAd
         "second hidden background payload must send STATS"
       )
       Assert.Equal(sentMessages[3].message, "LOC:503:100:zone", "third hidden background payload must send LOC")
-      Assert.Equal(
-        sentMessages[4].message,
-        "KEY:2649:16:100:zone",
-        "changed key state must resend only KEY"
-      )
+      Assert.Equal(sentMessages[4].message, "KEY:2649:16:100:zone", "changed key state must resend only KEY")
     end)
   end)
 end

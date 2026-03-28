@@ -33,9 +33,9 @@ function RuntimeState.CreateController(opts)
     isTestMode = NormalizeBoolean(opts.isTestMode),
     isTestAllMode = NormalizeBoolean(opts.isTestAllMode),
     isReadyCheckActive = NormalizeBoolean(opts.isReadyCheckActive),
-    readyCheckDeclinedUntilByUnit = type(opts.readyCheckDeclinedUntilByUnit) == "table"
-        and CopyTableShallow(opts.readyCheckDeclinedUntilByUnit)
-      or {},
+    readyCheckDeclinedUntilByUnit = type(opts.readyCheckDeclinedUntilByUnit) == "table" and CopyTableShallow(
+      opts.readyCheckDeclinedUntilByUnit
+    ) or {},
     wasGroupLeader = opts.wasGroupLeader,
     wasInGroup = NormalizeBoolean(opts.wasInGroup),
     wasRaidGroup = NormalizeBoolean(opts.wasRaidGroup),

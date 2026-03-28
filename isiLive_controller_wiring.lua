@@ -338,13 +338,13 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     end
   config.setReadyCheckActive = type(callbacks.setReadyCheckActive) == "function" and callbacks.setReadyCheckActive
     or function(_value) end
-  config.getReadyCheckDeclinedUntil =
-    type(state.getReadyCheckDeclinedUntil) == "function" and state.getReadyCheckDeclinedUntil
+  config.getReadyCheckDeclinedUntil = type(state.getReadyCheckDeclinedUntil) == "function"
+      and state.getReadyCheckDeclinedUntil
     or function(_unit)
       return nil
     end
-  config.setReadyCheckDeclinedUntil =
-    type(state.setReadyCheckDeclinedUntil) == "function" and state.setReadyCheckDeclinedUntil
+  config.setReadyCheckDeclinedUntil = type(state.setReadyCheckDeclinedUntil) == "function"
+      and state.setReadyCheckDeclinedUntil
     or function(_unit, _value) end
   config.clearAllReadyCheckDeclined = type(state.clearAllReadyCheckDeclined) == "function"
       and state.clearAllReadyCheckDeclined
