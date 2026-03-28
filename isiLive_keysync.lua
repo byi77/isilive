@@ -227,49 +227,12 @@ local function SendRefreshResponse(
     return false
   end
 
-  local mapID, level = GetOwnedKeystoneSnapshot()
-  sync.SendKey({
+  SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, {
     force = true,
-    isVisible = isFrameVisible(),
-    allowHidden = true,
-    mapID = mapID,
-    level = level,
     source = "reqsync",
-  })
-
-  local specID, ilvl, rio = GetOwnedStatsSnapshot(getUnitRio)
-  sync.SendStats({
-    force = true,
-    isVisible = isFrameVisible(),
     allowHidden = true,
-    specID = specID,
-    ilvl = ilvl,
-    rio = rio,
-    source = "reqsync",
-  })
-
-  local dps = nil
-  if type(getPlayerLastRunDps) == "function" and type(getUnitNameAndRealm) == "function" then
-    local name, realm = getUnitNameAndRealm("player")
-    if name then
-      dps = getPlayerLastRunDps(name, realm)
-    end
-  end
-  sync.SendDps({
-    force = true,
-    isVisible = isFrameVisible(),
-    allowHidden = true,
-    dps = dps,
-    source = "reqsync",
-  })
-
-  local locMapID = GetOwnedLocMapID()
-  sync.SendLoc({
-    force = true,
-    isVisible = isFrameVisible(),
-    allowHidden = true,
-    mapID = locMapID,
-    source = "reqsync",
+    onlyIfChanged = false,
+    includeDps = true,
   })
   return true
 end

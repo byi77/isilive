@@ -431,99 +431,6 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
 end
 
 local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Teleport legacy Season3 wrappers mirror generic resolver outputs", function()
-    local createFrameStub = BuildCreateFrameStub()
-
-    WithGlobals({
-      CreateFrame = createFrameStub,
-      C_LFGList = {
-        GetActivityInfoTable = function(activityID)
-          if activityID == 9901 then
-            return { mapID = 2662 }
-          end
-          return nil
-        end,
-      },
-    }, function()
-      local addon = LoadAddonModules({
-        "isiLive_season_data.lua",
-        "isiLive_teleport.lua",
-      })
-      addon.SeasonData.SEASONS.test_season = {
-        mapToTeleport = {
-          [2649] = 445444,
-          [2830] = 1237215,
-          [2287] = 354465,
-          [2773] = 1216786,
-          [2660] = 445417,
-          [2441] = 367416,
-          [2442] = 367416,
-          [2662] = 445414,
-        },
-        displayOrder = { 2287, 2441, 2442, 2649, 2660, 2662, 2773, 2830 },
-        shortCodesByLocale = {
-          default = {
-            [2649] = "PSF",
-            [2830] = "EDA",
-            [2287] = "HOA",
-            [2773] = "OFG",
-            [2660] = "AK",
-            [2441] = "TAZ",
-            [2442] = "TAZ",
-            [2662] = "DB",
-          },
-          deDE = {
-            [2649] = "PRI",
-            [2830] = "BIO",
-            [2287] = "HDS",
-            [2773] = "SCH",
-            [2660] = "AK",
-            [2441] = "TAZ",
-            [2442] = "TAZ",
-            [2662] = "MB",
-          },
-        },
-        challengeMapAliases = {
-          [378] = 2287,
-          [391] = 2441,
-          [392] = 2441,
-          [499] = 2649,
-          [503] = 2660,
-          [505] = 2662,
-          [525] = 2773,
-          [542] = 2830,
-        },
-      }
-      ActivateSeasonOrFail(Assert, addon, "test_season")
-
-      Assert.Equal(
-        addon.Teleport.ResolveSeason3MapIDByActivityID(9901),
-        addon.Teleport.ResolveMapIDByActivityID(9901),
-        "legacy activity->map wrapper should mirror generic resolver"
-      )
-      Assert.Equal(
-        addon.Teleport.ResolveSeason3TeleportSpellIDByActivityID(9901),
-        addon.Teleport.ResolveTeleportSpellIDByActivityID(9901),
-        "legacy activity->spell wrapper should mirror generic resolver"
-      )
-      Assert.Equal(
-        addon.Teleport.ResolveSeason3TeleportSpellIDByMapID(2662),
-        addon.Teleport.ResolveTeleportSpellIDByMapID(2662),
-        "legacy map->spell wrapper should mirror generic resolver"
-      )
-      Assert.Equal(
-        addon.Teleport.GetSeason3DungeonShortCode(2662, "enUS"),
-        addon.Teleport.GetDungeonShortCode(2662, "enUS"),
-        "legacy short-code wrapper should mirror generic resolver"
-      )
-      Assert.Equal(
-        #addon.Teleport.BuildSeason3TeleportEntries(),
-        #addon.Teleport.BuildTeleportEntries(),
-        "legacy entry builder should mirror generic resolver"
-      )
-    end)
-  end)
-
   test("Teleport resolves challenge-map IDs by static alias list before short-code rendering", function()
     local createFrameStub = BuildCreateFrameStub()
 
@@ -1456,7 +1363,7 @@ local function RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, Load
       Assert.NotNil(button, "TeleportUI should build one teleport button")
       local onEnter = button._scripts and button._scripts.OnEnter or nil
       Assert.NotNil(onEnter, "Teleport button should define an OnEnter handler")
-      onEnter(button)
+      if onEnter then onEnter(button) end
 
       local privateTooltip = nil
       for _, frame in ipairs(createdFrames) do
@@ -1466,7 +1373,7 @@ local function RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, Load
       end
 
       Assert.NotNil(privateTooltip, "TeleportUI should allocate a private tooltip frame")
-      local lines = privateTooltip._isiLiveTooltipLines or {}
+      local lines = privateTooltip and privateTooltip._isiLiveTooltipLines or {}
       Assert.Equal(lines[1] and lines[1]._text or nil, "Terrasse der Magister", "Tooltip title should stay localized")
       Assert.Equal(
         lines[2] and lines[2]._text or nil,

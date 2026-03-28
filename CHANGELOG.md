@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-03-28 - Version 0.9.109 (patch)
+
+- Code cleanup / dead code removal:
+  - `SendRefreshResponse` now delegates to `SendOwnStateSnapshot` instead of duplicating the send logic.
+  - `READY_CHECK_CONFIRM` no longer triggers a UI refresh when the `unit` parameter is invalid.
+  - Removed `Teleport.ResetActivityCaches()` (unused export).
+  - Removed 9 Season 3 legacy wrapper functions from `isiLive_teleport.lua` and their associated tests.
+  - Removed `SeasonData.IsSeasonReady()` (unused export, superseded by `GetSeasonReadiness`).
+- Docs / release baseline:
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.109`.
+- Release metadata:
+  - Bumped TOC version to `0.9.109`.
+
 ## 2026-03-28 - Version 0.9.108 (patch)
 
 - Roster ghost ordering:

@@ -258,16 +258,16 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     end,
     READY_CHECK_CONFIRM = function(_self, unit, status)
       if ctx.isReadyCheckActive() then
-        local declinedUnits = ctx.readyCheckDeclinedUnits or {}
-        ctx.readyCheckDeclinedUnits = declinedUnits
         if type(unit) == "string" and unit ~= "" then
+          local declinedUnits = ctx.readyCheckDeclinedUnits or {}
+          ctx.readyCheckDeclinedUnits = declinedUnits
           if status == "notready" then
             declinedUnits[unit] = true
           else
             declinedUnits[unit] = nil
           end
+          RefreshReadyCheckUI(ctx)
         end
-        RefreshReadyCheckUI(ctx)
       end
     end,
     READY_CHECK_FINISHED = function(_self)

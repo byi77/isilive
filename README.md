@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.108`.
+Current documented baseline: `0.9.109`.
 
 ## Features
 
@@ -106,9 +106,9 @@ Current documented baseline: `0.9.108`.
 - Runtime log storage is session-only and starts disabled on every login/reload.
 - Sync handshake behavior: `HELLO` recipients send `ACK`; explicit local refresh force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.108)
+## Use Case / Logic Baseline (v0.9.109)
 
-Documented on `2026-03-28` as runtime behavior baseline (`0.9.108`) for validation checks.
+Documented on `2026-03-28` as runtime behavior baseline (`0.9.109`) for validation checks.
 
 
 1. Queue invite -> grouped flow

@@ -312,11 +312,6 @@ function SeasonData.GetSeasonReadiness(seasonID)
   }
 end
 
-function SeasonData.IsSeasonReady(seasonID)
-  local readiness = SeasonData.GetSeasonReadiness(seasonID)
-  return readiness.isReady == true
-end
-
 function SeasonData.HasActiveDungeons(seasonID)
   local mapToTeleport = SeasonData.GetMapToTeleport(seasonID)
   return next(mapToTeleport) ~= nil

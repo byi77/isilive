@@ -28,10 +28,6 @@ local function ClearTable(t)
   end
 end
 
-function Teleport.ResetActivityCaches()
-  ClearTable(ACTIVITY_TO_TELEPORT_CACHE)
-  ClearTable(ACTIVITY_TO_MAP_CACHE)
-end
 
 local combatRetryFrame = CreateFrame("Frame")
 combatRetryFrame:SetScript("OnEvent", function(self, event)
@@ -414,39 +410,3 @@ function Teleport.BuildTeleportEntries()
   return entries
 end
 
--- Legacy Season3 wrappers kept for compatibility with older tests/callers.
-function Teleport.ResolveSeason3MapIDByActivityID(activityID)
-  return Teleport.ResolveMapIDByActivityID(activityID)
-end
-
-function Teleport.ResolveSeason3TeleportSpellIDByActivityID(activityID)
-  return Teleport.ResolveTeleportSpellIDByActivityID(activityID)
-end
-
-function Teleport.ResolveSeason3TeleportSpellIDByMapID(mapID)
-  return Teleport.ResolveTeleportSpellIDByMapID(mapID)
-end
-
-function Teleport.ResolveSeason3MapIDBySpellID(spellID)
-  return Teleport.ResolveMapIDBySpellID(spellID)
-end
-
-function Teleport.ResolveSeason3MapIDsBySpellID(spellID)
-  return Teleport.ResolveMapIDsBySpellID(spellID)
-end
-
-function Teleport.GetSeason3TeleportInfoByMapID(mapID)
-  return Teleport.GetTeleportInfoByMapID(mapID)
-end
-
-function Teleport.GetSeason3DungeonShortCode(mapID, localeTag)
-  return Teleport.GetDungeonShortCode(mapID, localeTag)
-end
-
-function Teleport.ResolveSeason3TeleportSpellID(activityID, dungeonName)
-  return Teleport.ResolveTeleportSpellID(activityID, dungeonName)
-end
-
-function Teleport.BuildSeason3TeleportEntries()
-  return Teleport.BuildTeleportEntries()
-end

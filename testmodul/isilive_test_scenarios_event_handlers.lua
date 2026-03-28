@@ -1495,6 +1495,7 @@ local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAd
     Assert.Equal(declinedUntilByUnit.party1, 120, "declined ready-check unit should stay marked for 20 seconds")
     Assert.Nil(declinedUntilByUnit.party2, "ready unit must not receive a declined hold")
     Assert.Equal(scheduledDelay, 20, "declined ready-check hold should schedule one 20-second cleanup refresh")
+    Assert.NotNil(scheduledCallback, "declined ready-check hold must schedule a cleanup callback")
     Assert.Equal(counters.readyCheckRefreshes, 4, "finish path should still refresh the dedicated ready-check UI")
     Assert.Equal(counters.uiUpdates, 0, "declined ready-check hold must not use generic updateUI")
 
