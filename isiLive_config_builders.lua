@@ -18,6 +18,7 @@ function ConfigBuilders.BuildRefreshControllerOpts(ctx)
     forceRefreshSyncState = ctx.forceRefreshSyncState,
     sendIsiLiveHello = ctx.sendIsiLiveHello,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
+    sendOwnBackgroundSnapshot = ctx.sendOwnBackgroundSnapshot,
     sendRefreshRequest = ctx.sendRefreshRequest,
     queueForceRefreshData = ctx.queueForceRefreshData,
     updateUI = ctx.updateUI,
@@ -104,6 +105,10 @@ function ConfigBuilders.BuildGateOpts(ctx)
       ZONE_CHANGED = true,
       ZONE_CHANGED_INDOORS = true,
       ZONE_CHANGED_NEW_AREA = true,
+      BAG_UPDATE_DELAYED = true,
+      CHALLENGE_MODE_MAPS_UPDATE = true,
+      PLAYER_EQUIPMENT_CHANGED = true,
+      PLAYER_SPECIALIZATION_CHANGED = true,
     },
   }
 end

@@ -62,6 +62,24 @@ local function RegisterRuntimeStateTests(test, Assert, LoadAddonModules)
     Assert.False(state.IsRioDeltaDisplayEnabled(), "ClearRioBaseline should disable delta flag")
     Assert.Nil(next(state.GetRioBaselineByPlayerKey()), "ClearRioBaseline should clear baseline table")
   end)
+
+  test("RuntimeState tracks ready-check declined hold expiry per unit", function()
+    local addon = LoadAddonModules({ "isiLive_runtime_state.lua" })
+    local state = addon.RuntimeState.CreateController({
+      readyCheckDeclinedUntilByUnit = {
+        party1 = 120,
+      },
+    })
+
+    Assert.Equal(state.GetReadyCheckDeclinedUntil("party1"), 120, "initial declined hold should be readable by unit")
+    state.SetReadyCheckDeclinedUntil("party2", 140)
+    Assert.Equal(state.GetReadyCheckDeclinedUntil("party2"), 140, "SetReadyCheckDeclinedUntil should store expiry")
+    Assert.False(state.ClearExpiredReadyCheckDeclined(119), "pre-expiry cleanup should not change state")
+    Assert.True(state.ClearExpiredReadyCheckDeclined(120), "expiry cleanup should report a state change")
+    Assert.Nil(state.GetReadyCheckDeclinedUntil("party1"), "expired hold should be cleared by cleanup")
+    state.ClearAllReadyCheckDeclined()
+    Assert.Nil(state.GetReadyCheckDeclinedUntil("party2"), "ClearAllReadyCheckDeclined should wipe remaining holds")
+  end)
 end
 
 return function(test, ctx)

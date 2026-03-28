@@ -23,6 +23,7 @@ function Refresh.CreateController(opts)
   local forceRefreshSyncState = opts.forceRefreshSyncState or function() end
   local sendIsiLiveHello = opts.sendIsiLiveHello or function(_force, _source) end
   local sendOwnKeySnapshot = opts.sendOwnKeySnapshot or function(_force, _source) end
+  local sendOwnBackgroundSnapshot = opts.sendOwnBackgroundSnapshot or function(_source) end
   local sendRefreshRequest = opts.sendRefreshRequest or function(_force) end
   local queueForceRefreshData = opts.queueForceRefreshData or function() end
   local updateUI = opts.updateUI or function() end
@@ -91,7 +92,7 @@ function Refresh.CreateController(opts)
     if changed then
       updateUI()
     end
-    sendOwnKeySnapshot(false, "owned-key-refresh")
+    sendOwnBackgroundSnapshot("owned-key-refresh")
     return changed
   end
 

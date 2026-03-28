@@ -74,6 +74,7 @@ local function BuildContext(opts)
   ctx.updateLeaderButtons = RequireFunction(opts.updateLeaderButtons, "updateLeaderButtons")
   ctx.updateStatusLine = RequireFunction(opts.updateStatusLine, "updateStatusLine")
   ctx.sendOwnKeySnapshot = RequireFunction(opts.sendOwnKeySnapshot, "sendOwnKeySnapshot")
+  ctx.sendOwnBackgroundSnapshot = RequireFunction(opts.sendOwnBackgroundSnapshot, "sendOwnBackgroundSnapshot")
   ctx.sendOwnTargetSnapshot = OptionalFunction(opts.sendOwnTargetSnapshot, function(_force, _source, _allowHidden) end)
 
   ctx.ensureQueueDebugStorage = RequireFunction(opts.ensureQueueDebugStorage, "ensureQueueDebugStorage")
@@ -129,6 +130,14 @@ local function BuildContext(opts)
   end)
   ctx.setReadyCheckActive = OptionalFunction(opts.setReadyCheckActive, function(_value) end)
   ctx.isReadyCheckActive = OptionalFunction(opts.isReadyCheckActive, function()
+    return false
+  end)
+  ctx.getReadyCheckDeclinedUntil = OptionalFunction(opts.getReadyCheckDeclinedUntil, function(_unit)
+    return nil
+  end)
+  ctx.setReadyCheckDeclinedUntil = OptionalFunction(opts.setReadyCheckDeclinedUntil, function(_unit, _value) end)
+  ctx.clearAllReadyCheckDeclined = OptionalFunction(opts.clearAllReadyCheckDeclined, function() end)
+  ctx.clearExpiredReadyCheckDeclined = OptionalFunction(opts.clearExpiredReadyCheckDeclined, function(_now)
     return false
   end)
   ctx.lastRecordedRunSignature = nil

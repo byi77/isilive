@@ -25,6 +25,7 @@ local function CreateKeySyncController(ctx)
     sendRefreshRequest = controller.SendRefreshRequest,
     getOwnedKeystoneSnapshot = controller.GetOwnedKeystoneSnapshot,
     sendOwnKeySnapshot = controller.SendOwnKeySnapshot,
+    sendOwnBackgroundSnapshot = controller.SendOwnBackgroundSnapshot,
     sendRefreshResponse = controller.SendRefreshResponse,
     applyKnownKeyToRosterEntry = controller.ApplyKnownKeyToRosterEntry,
   }
@@ -69,6 +70,7 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     resolveActiveKeyOwnerUnit = ctx.resolveActiveKeyOwnerUnit,
     resolveTargetMapID = ctx.resolveTargetMapID,
     isReadyCheckActive = ctx.isReadyCheckActive,
+    getReadyCheckDeclinedUntil = ctx.getReadyCheckDeclinedUntil,
     getRoster = ctx.getRoster,
     isInGroup = ctx.isInGroup,
     isRaidGroup = ctx.isRaidGroup,

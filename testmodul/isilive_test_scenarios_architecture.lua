@@ -188,6 +188,30 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
       "ZONE_CHANGED_NEW_AREA = true",
       "ConfigBuilders hidden-gate allowlist must include area portal zone changes"
     )
+    AssertContains(
+      Assert,
+      content,
+      "BAG_UPDATE_DELAYED = true",
+      "ConfigBuilders hidden-gate allowlist must include hidden owned-key change events"
+    )
+    AssertContains(
+      Assert,
+      content,
+      "CHALLENGE_MODE_MAPS_UPDATE = true",
+      "ConfigBuilders hidden-gate allowlist must include hidden keystone-map updates"
+    )
+    AssertContains(
+      Assert,
+      content,
+      "PLAYER_EQUIPMENT_CHANGED = true",
+      "ConfigBuilders hidden-gate allowlist must include hidden equipment change updates"
+    )
+    AssertContains(
+      Assert,
+      content,
+      "PLAYER_SPECIALIZATION_CHANGED = true",
+      "ConfigBuilders hidden-gate allowlist must include hidden specialization change updates"
+    )
   end)
 
   test("Architecture root keeps challenge helper guarded and de-duplicates roster trigger helper", function()

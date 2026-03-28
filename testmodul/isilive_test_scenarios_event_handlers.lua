@@ -1325,6 +1325,46 @@ local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fix
     Assert.Equal(targetSnapshots, 1, "hidden refresh requests must also trigger one exact target snapshot")
     Assert.Equal(counters.uiUpdates, 0, "answering a hidden refresh request must not force a UI redraw by itself")
   end)
+
+  test("Event handlers send sparse background snapshot on hidden zone changes", function()
+    local counters = { uiUpdates = 0 }
+    local backgroundSources = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+      isMainFrameShown = function()
+        return false
+      end,
+      sendOwnBackgroundSnapshot = function(source)
+        table.insert(backgroundSources, source)
+      end,
+    })
+
+    controller:Dispatch("ZONE_CHANGED")
+
+    Assert.Equal(#backgroundSources, 1, "hidden zone changes must trigger one sparse background snapshot")
+    Assert.Equal(backgroundSources[1], "zone", "hidden zone changes must use the zone sync source")
+  end)
+
+  test("Event handlers send sparse background snapshot only for player-owned state changes", function()
+    local counters = { uiUpdates = 0 }
+    local backgroundSources = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+      sendOwnBackgroundSnapshot = function(source)
+        table.insert(backgroundSources, source)
+      end,
+    })
+
+    controller:Dispatch("PLAYER_SPECIALIZATION_CHANGED", "party1")
+    controller:Dispatch("PLAYER_SPECIALIZATION_CHANGED", "player")
+    controller:Dispatch("PLAYER_EQUIPMENT_CHANGED", 16, true)
+
+    Assert.Equal(#backgroundSources, 2, "only local player state changes must trigger sparse background sync")
+    Assert.Equal(backgroundSources[1], "player-state", "player specialization changes must use player-state sync")
+    Assert.Equal(backgroundSources[2], "player-state", "player equipment changes must use player-state sync")
+  end)
 end
 
 local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
@@ -1403,6 +1443,67 @@ local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAd
     controller:Dispatch("READY_CHECK_CONFIRM", "party1", "ready")
     Assert.Equal(counters.readyCheckRefreshes, 3, "READY_CHECK_CONFIRM after finish must not call refreshReadyCheckUI")
     Assert.Equal(counters.uiUpdates, 0, "READY_CHECK_CONFIRM after finish must not call updateUI")
+  end)
+
+  test("Event handlers keep declined ready-check rows red for 20 seconds after finish", function()
+    local counters = { uiUpdates = 0, readyCheckRefreshes = 0 }
+    local readyCheckActive = false
+    local now = 100
+    local declinedUntilByUnit = {}
+    local scheduledDelay = nil
+    local scheduledCallback = nil
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+      setReadyCheckActive = function(value)
+        readyCheckActive = value and true or false
+      end,
+      isReadyCheckActive = function()
+        return readyCheckActive
+      end,
+      getTime = function()
+        return now
+      end,
+      setReadyCheckDeclinedUntil = function(unit, value)
+        declinedUntilByUnit[unit] = value
+      end,
+      clearAllReadyCheckDeclined = function()
+        declinedUntilByUnit = {}
+      end,
+      clearExpiredReadyCheckDeclined = function(currentTime)
+        local changed = false
+        for unit, untilTime in pairs(declinedUntilByUnit) do
+          if untilTime <= currentTime then
+            declinedUntilByUnit[unit] = nil
+            changed = true
+          end
+        end
+        return changed
+      end,
+      timerAfter = function(delaySeconds, callback)
+        scheduledDelay = delaySeconds
+        scheduledCallback = callback
+      end,
+    })
+
+    controller:Dispatch("READY_CHECK")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party1", "notready")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party2", "ready")
+    controller:Dispatch("READY_CHECK_FINISHED")
+
+    Assert.False(readyCheckActive, "READY_CHECK_FINISHED must clear ready check state")
+    Assert.Equal(declinedUntilByUnit.party1, 120, "declined ready-check unit should stay marked for 20 seconds")
+    Assert.Nil(declinedUntilByUnit.party2, "ready unit must not receive a declined hold")
+    Assert.Equal(scheduledDelay, 20, "declined ready-check hold should schedule one 20-second cleanup refresh")
+    Assert.Equal(counters.readyCheckRefreshes, 4, "finish path should still refresh the dedicated ready-check UI")
+    Assert.Equal(counters.uiUpdates, 0, "declined ready-check hold must not use generic updateUI")
+
+    now = 120
+    scheduledCallback()
+
+    Assert.Nil(declinedUntilByUnit.party1, "declined ready-check hold should clear after the timer expires")
+    Assert.Equal(counters.readyCheckRefreshes, 5, "timer expiry should trigger one more dedicated ready-check refresh")
+    Assert.Equal(counters.uiUpdates, 0, "timer expiry must not use generic updateUI")
   end)
 
   test("Event handlers record completed run only once across completion and reset events", function()

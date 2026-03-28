@@ -271,7 +271,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.updateCdTracker()
     UpdateTrackedMythicZeroRun(ctx)
     ScheduleBindingStartupRefresh(ctx)
-    ctx.sendOwnKeySnapshot(true, "world")
+    ctx.sendOwnKeySnapshot(true, "world", not ctx.isMainFrameShown())
     ctx.maybeShowNonMythicDungeonEntryNotice()
     ctx.maybeShowPortalNavigatorNotice()
     ctx.updateStatusLine()
@@ -323,7 +323,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.maybeShowNonMythicDungeonEntryNotice()
     ctx.maybeShowPortalNavigatorNotice()
     ctx.checkIfEnteredTargetDungeon()
-    ctx.sendOwnKeySnapshot(false, "zone")
+    ctx.sendOwnBackgroundSnapshot("zone")
   end
 
   local function HandleOwnedKeyContextEvent(_self)
@@ -331,6 +331,17 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.handleOwnedKeyRefresh()
     ctx.maybeShowNonMythicDungeonEntryNotice()
     ctx.checkIfEnteredTargetDungeon()
+  end
+
+  local function HandlePlayerSpecializationChangedEvent(_self, unit)
+    if unit ~= nil and unit ~= "player" then
+      return
+    end
+    ctx.sendOwnBackgroundSnapshot("player-state")
+  end
+
+  local function HandlePlayerEquipmentChangedEvent(_self)
+    ctx.sendOwnBackgroundSnapshot("player-state")
   end
 
   local function HandleInspectReadyEvent(_self, guid)
@@ -403,6 +414,8 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     UPDATE_INSTANCE_INFO = HandleInstanceContextChangedEvent,
     BAG_UPDATE_DELAYED = HandleOwnedKeyContextEvent,
     CHALLENGE_MODE_MAPS_UPDATE = HandleOwnedKeyContextEvent,
+    PLAYER_EQUIPMENT_CHANGED = HandlePlayerEquipmentChangedEvent,
+    PLAYER_SPECIALIZATION_CHANGED = HandlePlayerSpecializationChangedEvent,
     INSPECT_READY = HandleInspectReadyEvent,
     CHAT_MSG_ADDON = HandleChatMsgAddonEvent,
     SPELL_UPDATE_COOLDOWN = HandleSpellUpdateCooldownEvent,

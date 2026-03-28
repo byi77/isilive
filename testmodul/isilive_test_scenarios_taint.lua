@@ -31,7 +31,9 @@ end
 local function NewRecordedTexture()
   return {
     SetAllPoints = function() end,
-    SetColorTexture = function() end,
+    SetColorTexture = function(self, ...)
+      self.color = { ... }
+    end,
     SetHeight = function() end,
     SetPoint = function() end,
     SetTexture = function(self, texture)
@@ -258,7 +260,10 @@ local function NewRecordedFrame(createdFrames, frameType, name, parent, template
   end
 
   function frame.CreateTexture()
-    return NewRecordedTexture()
+    local texture = NewRecordedTexture()
+    frame._textures = frame._textures or {}
+    table.insert(frame._textures, texture)
+    return texture
   end
 
   function frame:CreateFontString()
@@ -339,6 +344,7 @@ local function BuildRosterDisplayData(info)
     addonMarker = "",
     atDungeonMarker = "",
     readyCheckMarkup = "",
+    readyCheckBackgroundColor = nil,
   }
 end
 
@@ -790,7 +796,7 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
           return roster
         end,
         isReadyCheckActive = function()
-          return readyCheckActive
+          return false
         end,
       },
     })
@@ -833,17 +839,8 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
     )
   end)
 
-  test("Ready-check dedicated refresh resets spec color after a ready-check rerender", function()
-    local function findFontStringByText(mainFrameRef, expectedText)
-      for _, fontString in ipairs(mainFrameRef._fontStrings or {}) do
-        if fontString:GetText() == expectedText then
-          return fontString
-        end
-      end
-      return nil
-    end
-
-    local readyCheckActive = false
+  test("Ready-check dedicated refresh clears declined row background after hold expiry", function()
+    local readyCheckHoldActive = false
     local roster = {
       player = {
         name = "Tank",
@@ -852,11 +849,11 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
         spec = "Prot",
       },
     }
-    local controller, createdFrames, stubs, mainFrame = BuildRosterPanelController(WithGlobals, LoadAddonModules, {
+    local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules, {
       opts = {
         buildDisplayData = function(info)
           return {
-            colorHex = readyCheckActive and "ff00ff00" or "ffc69b6d",
+            colorHex = "ffc69b6d",
             displayName = tostring(info.name or ""),
             languageDisplay = "",
             specText = tostring(info.spec or ""),
@@ -866,13 +863,14 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
             addonMarker = "",
             atDungeonMarker = "",
             readyCheckMarkup = "",
+            readyCheckBackgroundColor = readyCheckHoldActive and { 0.48, 0.12, 0.12, 0.34 } or nil,
           }
         end,
         getRoster = function()
           return roster
         end,
         isReadyCheckActive = function()
-          return readyCheckActive
+          return false
         end,
       },
     })
@@ -883,28 +881,34 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
 
     local roleButton = FindSecureRoleButton(createdFrames, "player")
     Assert.NotNil(roleButton, "tank row should create a secure role button before ready-check refresh")
-    Assert.NotNil(
-      findFontStringByText(mainFrame, "|cffc69b6dProt|r"),
-      "initial render must show the class-colored spec text"
-    )
+    local readyCheckBackground = nil
+    for _, frame in ipairs(createdFrames) do
+      if frame.OnEnter ~= nil and type(frame._textures) == "table" and frame._textures[1] ~= nil then
+        readyCheckBackground = frame._textures[1]
+        break
+      end
+    end
+    Assert.NotNil(readyCheckBackground, "roster row should create a dedicated ready-check background texture")
+    Assert.True(readyCheckBackground.hidden == true, "initial render should keep the ready-check row background hidden")
 
-    readyCheckActive = true
+    readyCheckHoldActive = true
     WithGlobals(stubs, function()
       controller.RenderRoster(roster)
     end)
-    Assert.NotNil(
-      findFontStringByText(mainFrame, "|cff00ff00Prot|r"),
-      "full rerender during ready check must recolor the spec text"
-    )
+    Assert.Equal(readyCheckBackground.color[1], 0.48, "declined hold should tint the row background red")
+    Assert.Equal(readyCheckBackground.color[2], 0.12, "declined hold should tint the row background red")
+    Assert.Equal(readyCheckBackground.color[3], 0.12, "declined hold should tint the row background red")
+    Assert.Equal(readyCheckBackground.color[4], 0.34, "declined hold should tint the row background red")
+    Assert.True(readyCheckBackground.hidden ~= true, "declined hold should show the row background")
 
-    readyCheckActive = false
+    readyCheckHoldActive = false
     WithGlobals(stubs, function()
       controller.RefreshReadyCheckState(roster)
     end)
 
-    Assert.NotNil(
-      findFontStringByText(mainFrame, "|cffc69b6dProt|r"),
-      "dedicated ready-check refresh must restore the class-colored spec text after ready check ends"
+    Assert.True(
+      readyCheckBackground.hidden == true,
+      "dedicated ready-check refresh must clear the row background after declined hold expiry"
     )
   end)
 end

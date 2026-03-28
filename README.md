@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.106`.
+Current documented baseline: `0.9.108`.
 
 ## Features
 
@@ -42,12 +42,12 @@ Current documented baseline: `0.9.106`.
 - `Key` column keeps `Shortcut +Level` on one line (no row-wrap bleed into next member line)
 - `RIO` column can show per-run delta as `(+X)RIO` (non-negative only; never minus)
 - Run snapshot column shows the latest completed-run Blizzard damage-meter snapshot for the current roster as `DPS` when an exact player match exists
-- Roster tooltip adds `Level`, `Lang`, localized `Last run DPS`, sync age/source/version, and a Shift-only provenance debug block
+- Roster tooltip adds `Level`, `Lang`, localized `Last run DPS`, sync interval/source/version, and a Shift-only provenance debug block
 - Private `isiLive` tooltips now use their own wrapped compact layout so longer lines stay inside the tooltip frame
 - Persistent stats stay bounded: only the matching local character's own last-run DPS is kept in SavedVariables; foreign-player snapshots are session-only
 - CurseForge release packaging excludes PNG screenshot/logo assets via `.pkgmeta`, so repository preview images do not ship inside the addon zip
 - Queue join detection no longer guesses dungeon targets; when visible queue metadata yields a group name, non-leader members get one grouped chat summary after join without invite hint or queue-based teleport highlight
-- Ready-check lifecycle uses a dedicated roster refresh path that updates row coloring without rerunning the generic full render or rewriting secure role-button attributes
+- Ready-check lifecycle uses a dedicated roster refresh path that colors roster row backgrounds without rerunning the generic full render or rewriting secure role-button attributes; waiting rows show a sandglass and explicit declines stay red for 20 seconds after the ready check ends
 - Dungeon teleport controls in the right-side grid
 - Teleport cooldown shown as `HH:MM`
 - Active Midnight Season 1 `M2` short codes currently use `MGT / MAI / NPX / WRS / AA / POS / SOT / SKY` in `enUS` and `TDM / MAI / NPX / WRS / AA / GVS / SDT / HN` in `deDE`
@@ -80,7 +80,7 @@ Current documented baseline: `0.9.106`.
 - Roster control buttons and teleport grid buttons use isolated `isiLive` tooltip frames instead of the shared Blizzard `GameTooltip`
 - When the roster table is hidden in compact layouts, the hidden row hover/click hitboxes are also disabled so invisible rows do not keep catching tooltip or whisper interactions.
 - Teleport grid buttons inherit main-frame strata/level to avoid overlay conflicts with external UI panels
-- Ghost members: players leaving the group remain visible (greyed out) across slot shifts and even after party leave/disband; ghost rows are pruned deterministically on rejoin, fresh group join, full-group rebuild, or reload.
+- Ghost members: players leaving the group remain visible (greyed out) across slot shifts and even after party leave/disband; ghost rows are pruned deterministically on rejoin, fresh group join, full-group rebuild, or reload, and visible active group members are always rendered before persisted ghosts.
 - `CTRL+ALT+F9`, `/isilive test`, and `/isilive testall` now enter the same full dummy preview path, including a visible ghost/leaver row and positive dummy RIO delta preview; preview refresh rebuilds fresh dummy copies each time.
 - Smart self-update: automatically broadcasts a full sync snapshot (`KEY`/`STATS`/`DPS`/`LOC`) when the player's own iLvl, RIO, or Spec changes.
 - Teleport grid action buttons are intentionally `InsecureActionButtonTemplate` so main-frame visibility does not promote their parents to protected frames
@@ -106,9 +106,9 @@ Current documented baseline: `0.9.106`.
 - Runtime log storage is session-only and starts disabled on every login/reload.
 - Sync handshake behavior: `HELLO` recipients send `ACK`; explicit local refresh force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.106)
+## Use Case / Logic Baseline (v0.9.108)
 
-Documented on `2026-03-27` as runtime behavior baseline (`0.9.106`) for validation checks.
+Documented on `2026-03-28` as runtime behavior baseline (`0.9.108`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -117,7 +117,7 @@ Documented on `2026-03-27` as runtime behavior baseline (`0.9.106`) for validati
    - There is no separate generic `Dungeon erkannt` chat line; the durable target context lives in the `Target Dungeon` status text.
 2. Group roster build and ordering
    - On group update, roster is rebuilt as `player + party1..party4`.
-   - Display ordering is stable by role (`TANK -> HEALER -> DAMAGER -> NONE`) and unit priority.
+   - Display ordering is stable by active-vs-ghost state first, then role (`TANK -> HEALER -> DAMAGER -> NONE`), then unit priority.
    - Per row data includes `Spec`, `Name`, `Flag`, `Key`, `iLvl`, `RIO`, `DPS` and optional run-delta prefix `(+X)`.
    - Known `isiLive` users show the blue heart marker; real group leaders show a 16x16 crown marker, and synced leaders render `heart -> crown`.
 3. Key sync and key column
@@ -147,7 +147,7 @@ Documented on `2026-03-27` as runtime behavior baseline (`0.9.106`) for validati
    - `CHALLENGE_MODE_START` only hides the UI when `Auto-Close on Key Start / Solo` is enabled; completion/reset still rehydrates group view and refresh flow.
    - Combat-safe UI behavior: teleport grid action buttons use `InsecureActionButtonTemplate` (to avoid protected-parent show/hide taint), while spell-attribute updates, `Esc` shortcut secure-button refreshes, main-frame visibility, and blocked frame-height changes are restored on `PLAYER_REGEN_ENABLED`.
    - Hidden leader changes are synchronized silently so leader-only button state stays correct on the next visible transition without firing hidden notices/chat output.
-   - Leaving or getting removed from a normal party keeps the current frame visibility state and converts former party members into ghost rows instead of clearing the roster immediately.
+   - Leaving or getting removed from a normal party keeps the current frame visibility state and converts former party members into ghost rows instead of clearing the roster immediately; active members must still remain visible ahead of persisted ghosts.
 7. Post-run stats snapshot behavior
    - `M+` run-end events (`CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET`) record the latest Blizzard damage-meter overall session for exact roster matches and retry briefly if the session is still empty on the first event.
    - Non-challenge snapshots are recorded when leaving tracked `Normal`/`Heroic`/`Mythic` party dungeons, use the roster frozen on dungeon entry so late leavers still match, and also retry briefly if the damage-meter session is not ready yet.

@@ -286,6 +286,7 @@ local function FinalizeFactoryRuntime(ctx)
     applyKnownKeyToRosterEntry = ctx.ApplyKnownKeyToRosterEntry,
     enqueueInspect = ctx.EnqueueInspect,
     sendOwnKeySnapshot = ctx.SendOwnKeySnapshot,
+    sendOwnBackgroundSnapshot = ctx.SendOwnBackgroundSnapshot,
     sendRefreshRequest = ctx.SendRefreshRequest,
     sendOwnTargetSnapshot = ctx.SendOwnTargetSnapshot,
     sendRefreshResponse = ctx.SendRefreshResponse,

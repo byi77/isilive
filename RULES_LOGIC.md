@@ -302,6 +302,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Event handlers pre-render UI for hidden addon sync updates
   - Event handlers process addon sync messages and refresh changed roster
   - Event handlers answer refresh requests while frame is hidden
+  - Event handlers send sparse background snapshot on hidden zone changes
+  - Event handlers send sparse background snapshot only for player-owned state changes
+  - Refresh HandleOwnedKeyRefresh sends sparse background snapshot
+  - KeySync SendOwnBackgroundSnapshot publishes sparse hidden changes without DPS spam
+  - Config builders gate allows sparse local change events while frame is hidden
   - KeySync SendRefreshResponse can answer hidden refresh requests outside active M+
   - KeySync SendRefreshResponse skips while paused, stopped, or active M+
   - Bootstrap gate keeps hidden auto-open triggers for group join and key end
@@ -340,10 +345,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-GHOST-MEMBER
 - Regelnummer: 32
 - Status: aktiv
-- Zusammenfassung: verlaesst ein gruppenmitglied die gruppe, bleibt es als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt.
+- Zusammenfassung: verlaesst ein gruppenmitglied die gruppe, bleibt es als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt. Solche Geister duerfen bei der sichtbaren Roster-Sortierung niemals aktive Gruppenmitglieder verdraengen; aktive Eintraege muessen immer vor Geistern gerendert werden.
 - Erforderliche Tests:
   - Group member leaving becomes ghost
   - Ghost is removed and data restored when player rejoins
+  - Roster panel keeps active members visible ahead of persisted ghosts
 
 ### RULE-ROSTER-AT-DUNGEON-MARKER
 - Regelnummer: 33
@@ -355,12 +361,13 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-READY-CHECK-INDICATOR
 - Regelnummer: 34
 - Status: aktiv
-- Zusammenfassung: waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt und danach auf die klassenfarbe zurueckgesetzt; die Events `READY_CHECK`, `READY_CHECK_CONFIRM` und `READY_CHECK_FINISHED` muessen dafuer den dedizierten Ready-Check-Refreshpfad nutzen, ohne den generischen Voll-Renderpfad zu verwenden oder Secure-Rollenbutton-Attribute neu zu schreiben.
+- Zusammenfassung: waehrend eines ready-checks bleibt die schrift in der roster-zeile bei ihrer normalen farbe; stattdessen wird der zeilenhintergrund entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt, wartende spieler erhalten zusaetzlich eine sanduhr vor dem namen, explizit abgelehnte spieler bleiben nach `READY_CHECK_FINISHED` noch 20 sekunden rot markiert und danach verschwindet diese sonderdarstellung wieder; die Events `READY_CHECK`, `READY_CHECK_CONFIRM` und `READY_CHECK_FINISHED` muessen dafuer den dedizierten Ready-Check-Refreshpfad nutzen, ohne den generischen Voll-Renderpfad zu verwenden oder Secure-Rollenbutton-Attribute neu zu schreiben.
 - Erforderliche Tests:
-  - Roster name color follows ready check status colors
-  - Roster name color resets to class color after ready check
-  - Ready-check dedicated refresh resets spec color after a ready-check rerender
+  - Roster ready check uses row backgrounds and waiting icon without recoloring text
+  - Roster declined ready check stays red for 20 seconds after finish
+  - Ready-check dedicated refresh clears declined row background after hold expiry
   - Event handlers route ready check lifecycle through refreshReadyCheckUI without generic rerender
+  - Event handlers keep declined ready-check rows red for 20 seconds after finish
   - TAINT: Ready-check refresh preserves secure role button attributes
   - Architecture ready check refresh stays wired through runtime setup and controller wiring
 

@@ -414,6 +414,10 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
     altBg:SetColorTexture(1, 1, 1, 0.03)
   end
 
+  row.readyCheckBackground = row.hoverFrame:CreateTexture(nil, "BACKGROUND", nil, 0)
+  row.readyCheckBackground:SetAllPoints()
+  row.readyCheckBackground:Hide()
+
   row.highlight = row.hoverFrame:CreateTexture(nil, "BACKGROUND")
   row.highlight:SetAllPoints()
   row.highlight:SetColorTexture(0.3, 0.65, 1, 0.08)
@@ -1226,6 +1230,8 @@ local function BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID
     syncBadge = state.syncBadge,
     syncSummary = state.getPlayerSyncSummary and state.getPlayerSyncSummary(info.name, info.realm) or nil,
     isReadyCheckActive = isReadyCheckActive,
+    getReadyCheckDeclinedUntil = state.getReadyCheckDeclinedUntil,
+    getTime = state.getTime,
     isAtDungeon = IsEntryAtTargetDungeon(targetMapID, entry, info),
   })
 end
@@ -1252,6 +1258,21 @@ local function ApplyRowSpecDisplay(row, displayData)
   end
 
   row.spec:SetText("|c" .. displayData.colorHex .. displayData.specText .. "|r")
+end
+
+local function ApplyRowReadyCheckDisplay(row, displayData)
+  local background = row and row.readyCheckBackground or nil
+  local color = displayData and displayData.readyCheckBackgroundColor or nil
+  if not background then
+    return
+  end
+
+  if type(color) == "table" and #color >= 4 then
+    background:SetColorTexture(color[1], color[2], color[3], color[4])
+    background:Show()
+  else
+    background:Hide()
+  end
 end
 
 local function RenderRosterImpl(state, roster)
@@ -1290,6 +1311,9 @@ local function RenderRosterImpl(state, roster)
       HideRosterHoverTooltip(rosterTooltip)
       row.hoverFrame.unit = nil
       row.hoverFrame:Hide()
+    end
+    if row.readyCheckBackground then
+      row.readyCheckBackground:Hide()
     end
     if row.roleButton and not IsCombatLockdownActive() then
       row.roleButton:Hide()
@@ -1419,6 +1443,7 @@ local function RenderRosterImpl(state, roster)
 
     local displayData = BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID)
 
+    ApplyRowReadyCheckDisplay(row, displayData)
     ApplyRowSpecDisplay(row, displayData)
     -- Skip displayData.roleIconMarkup since we render it as a secure button
     ApplyRowNameDisplay(row, displayData)
@@ -1492,6 +1517,7 @@ local function RefreshReadyCheckStateImpl(state, roster)
     local row = memberRows[index]
     if row then
       local displayData = BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID)
+      ApplyRowReadyCheckDisplay(row, displayData)
       ApplyRowSpecDisplay(row, displayData)
       ApplyRowNameDisplay(row, displayData)
     end
@@ -1539,6 +1565,9 @@ function RosterPanel.CreateController(opts)
   local resolveActiveKeyOwnerUnit = RequireFunction(opts.resolveActiveKeyOwnerUnit, "resolveActiveKeyOwnerUnit")
   local getRoster = RequireFunction(opts.getRoster, "getRoster")
   local isReadyCheckActive = type(opts.isReadyCheckActive) == "function" and opts.isReadyCheckActive or nil
+  local getReadyCheckDeclinedUntil = type(opts.getReadyCheckDeclinedUntil) == "function"
+      and opts.getReadyCheckDeclinedUntil
+    or nil
   local resolveTargetMapID = type(opts.resolveTargetMapID) == "function" and opts.resolveTargetMapID or nil
   local isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
   local isRaidGroup = type(opts.isRaidGroup) == "function" and opts.isRaidGroup or function()
@@ -1738,6 +1767,8 @@ function RosterPanel.CreateController(opts)
       syncBadge = syncBadge,
       getPlayerSyncSummary = getPlayerSyncSummary,
       getPlayerLastRunDps = getPlayerLastRunDps,
+      getReadyCheckDeclinedUntil = getReadyCheckDeclinedUntil,
+      getTime = getTime,
       getL = getL,
       isRaidGroup = isRaidGroup,
       raidNoticeLabel = ui.raidNoticeLabel,
@@ -1764,6 +1795,8 @@ function RosterPanel.CreateController(opts)
       syncMarker = syncMarker,
       syncBadge = syncBadge,
       getPlayerSyncSummary = getPlayerSyncSummary,
+      getReadyCheckDeclinedUntil = getReadyCheckDeclinedUntil,
+      getTime = getTime,
     }, roster or getRoster())
   end
 

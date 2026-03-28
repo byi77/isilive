@@ -837,7 +837,7 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
       _localDpsFresh = true,
     }
     local playerEntry = state.roster.player
-    state.roster.party1 = { name = "Buddy", realm = "Realm" }
+    state.roster.party1 = { name = "Buddy", realm = "Realm", isLeader = true }
 
     controller.HandleGroupRosterUpdate()
 
@@ -858,6 +858,7 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
     Assert.Nil(state.roster.party1, "active party1 slot must be cleared after leave")
     Assert.NotNil(state.roster["ghost:Buddy-Realm"], "party1 must become a ghost")
     Assert.True(state.roster["ghost:Buddy-Realm"].isGhost, "party1 ghost flag must be set")
+    Assert.False(state.roster["ghost:Buddy-Realm"].isLeader == true, "party1 ghost must not keep leader crown state")
     Assert.Nil(state.roster["ghost:Hero-Realm"], "local player must not become a ghost on leave")
     Assert.True(state.mainFrameVisible, "main frame must stay open after leave when it was visible")
     Assert.Equal(state.inspectResets, 1, "inspect queues must be reset on leave")
@@ -1249,6 +1250,7 @@ local function RegisterGroupGhostShiftTests(test, Assert, LoadAddonModules)
     Assert.Nil(state.roster.party1, "party1 slot should be cleared")
     Assert.NotNil(state.roster["ghost:Member-Realm"], "ghost entry should be created")
     Assert.True(state.roster["ghost:Member-Realm"].isGhost, "ghost flag should be set")
+    Assert.False(state.roster["ghost:Member-Realm"].isLeader == true, "ghost entry must not retain leader state")
 
     -- Member rejoins (or slot filled)
     members = 2

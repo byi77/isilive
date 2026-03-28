@@ -12,6 +12,7 @@ local POST_RUN_FOLLOWUP_REFRESH_DELAY_SECONDS = 6
 local POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS = 2
 local POST_RUN_CAPTURE_RETRIES = 5
 local POST_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
+local READY_CHECK_DECLINED_HOLD_SECONDS = 20
 
 local function ResetDamageMeterIfAvailable()
   local damageMeterAPI = rawget(_G, "C_DamageMeter")
@@ -161,12 +162,60 @@ local function RefreshReadyCheckUI(ctx)
   ctx.refreshReadyCheckUI()
 end
 
+local function ResetReadyCheckDeclinedTracking(ctx)
+  ctx.readyCheckDeclinedUnits = {}
+  ctx.clearAllReadyCheckDeclined()
+  ctx.readyCheckDeclinedHoldUntil = nil
+end
+
+local function ScheduleReadyCheckDeclinedClear(ctx, holdUntil)
+  if not ctx.timerAfter or not holdUntil then
+    return
+  end
+
+  local now = tonumber(ctx.getTime and ctx.getTime()) or 0
+  local delaySeconds = math.max(0, holdUntil - now)
+  ctx.readyCheckDeclinedHoldUntil = holdUntil
+  ctx.timerAfter(delaySeconds, function()
+    if ctx.readyCheckDeclinedHoldUntil ~= holdUntil then
+      return
+    end
+
+    ctx.readyCheckDeclinedHoldUntil = nil
+    if ctx.clearExpiredReadyCheckDeclined(tonumber(ctx.getTime and ctx.getTime()) or holdUntil) then
+      RefreshReadyCheckUI(ctx)
+    end
+  end)
+end
+
+local function PromoteDeclinedReadyCheckUnitsToHold(ctx)
+  local declinedUnits = ctx.readyCheckDeclinedUnits or {}
+  local hasDeclined = false
+  local holdUntil = (tonumber(ctx.getTime and ctx.getTime()) or 0) + READY_CHECK_DECLINED_HOLD_SECONDS
+
+  ctx.clearAllReadyCheckDeclined()
+  for unit, isDeclined in pairs(declinedUnits) do
+    if isDeclined == true then
+      ctx.setReadyCheckDeclinedUntil(unit, holdUntil)
+      hasDeclined = true
+    end
+  end
+  ctx.readyCheckDeclinedUnits = {}
+
+  if hasDeclined then
+    ScheduleReadyCheckDeclinedClear(ctx, holdUntil)
+  else
+    ctx.readyCheckDeclinedHoldUntil = nil
+  end
+end
+
 function ChallengeLifecycle.BuildHandlers(ctx)
   local function HandleChallengeModeStart(_self)
     ctx.lastRecordedRunSignature = nil
     ctx.lastRecordedRunCaptured = false
     ctx.pendingRecordedRunRetrySignature = nil
     ctx.setReadyCheckActive(false)
+    ResetReadyCheckDeclinedTracking(ctx)
     ResetDamageMeterIfAvailable()
     ctx.captureRioBaselineSnapshot()
     ctx.setActiveJoinedKeyMapID(nil)
@@ -187,7 +236,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     end
     RefreshRosterAfterRunStateChange(ctx, frame)
     ctx.updateStatusLine()
-    ctx.sendOwnKeySnapshot(true, "challenge")
+    ctx.sendOwnKeySnapshot(true, "challenge", not ctx.isMainFrameShown())
     if ctx.timerAfter then
       ctx.timerAfter(POST_RUN_REFRESH_INITIAL_DELAY_SECONDS, function()
         RunDelayedPostChallengeRefresh(ctx, frame, POST_RUN_REFRESH_RETRIES, POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS)
@@ -204,15 +253,26 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     CHALLENGE_MODE_RESET = HandleChallengeModeCompletedOrReset,
     READY_CHECK = function(_self)
       ctx.setReadyCheckActive(true)
+      ResetReadyCheckDeclinedTracking(ctx)
       RefreshReadyCheckUI(ctx)
     end,
-    READY_CHECK_CONFIRM = function(_self)
+    READY_CHECK_CONFIRM = function(_self, unit, status)
       if ctx.isReadyCheckActive() then
+        local declinedUnits = ctx.readyCheckDeclinedUnits or {}
+        ctx.readyCheckDeclinedUnits = declinedUnits
+        if type(unit) == "string" and unit ~= "" then
+          if status == "notready" then
+            declinedUnits[unit] = true
+          else
+            declinedUnits[unit] = nil
+          end
+        end
         RefreshReadyCheckUI(ctx)
       end
     end,
     READY_CHECK_FINISHED = function(_self)
       ctx.setReadyCheckActive(false)
+      PromoteDeclinedReadyCheckUnitsToHold(ctx)
       RefreshReadyCheckUI(ctx)
     end,
   }

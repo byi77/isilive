@@ -1,5 +1,5 @@
 local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Roster name color follows ready check status colors", function()
+  test("Roster ready check uses row backgrounds and waiting icon without recoloring text", function()
     local readyCheckStatusByUnit = {}
 
     WithGlobals({
@@ -32,26 +32,53 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
         unit = "player",
         isReadyCheckActive = true,
       })
-      Assert.Equal(readyData.colorHex, "ff00ff00", "Ready status should color name green")
+      Assert.Equal(readyData.colorHex, "ffc69b6d", "Ready status must keep class-colored text")
+      Assert.Equal(readyData.readyCheckStatus, "ready", "Ready status should be exposed for background rendering")
+      Assert.Equal(readyData.readyCheckBackgroundColor[1], 0.08, "Ready status should tint row background green")
+      Assert.Equal(readyData.readyCheckBackgroundColor[2], 0.42, "Ready status should tint row background green")
+      Assert.Equal(readyData.readyCheckBackgroundColor[3], 0.14, "Ready status should tint row background green")
+      Assert.Equal(readyData.readyCheckBackgroundColor[4], 0.35, "Ready status should tint row background green")
+      Assert.Equal(readyData.readyCheckMarkup, "", "Ready status should not prepend waiting markup")
 
       readyCheckStatusByUnit.player = "notready"
       local notReadyData = addon.Roster.BuildDisplayData(info, {
         unit = "player",
         isReadyCheckActive = true,
       })
-      Assert.Equal(notReadyData.colorHex, "ffff0000", "Not-ready status should color name red")
+      Assert.Equal(notReadyData.colorHex, "ffc69b6d", "Not-ready status must keep class-colored text")
+      Assert.Equal(
+        notReadyData.readyCheckStatus,
+        "notready",
+        "Not-ready status should be exposed for background rendering"
+      )
+      Assert.Equal(notReadyData.readyCheckBackgroundColor[1], 0.48, "Not-ready status should tint row background red")
+      Assert.Equal(notReadyData.readyCheckBackgroundColor[2], 0.12, "Not-ready status should tint row background red")
+      Assert.Equal(notReadyData.readyCheckBackgroundColor[3], 0.12, "Not-ready status should tint row background red")
+      Assert.Equal(notReadyData.readyCheckBackgroundColor[4], 0.34, "Not-ready status should tint row background red")
+      Assert.Equal(notReadyData.readyCheckMarkup, "", "Not-ready status should not prepend waiting markup")
 
       readyCheckStatusByUnit.player = "waiting"
       local waitingData = addon.Roster.BuildDisplayData(info, {
         unit = "player",
         isReadyCheckActive = true,
       })
-      Assert.Equal(waitingData.colorHex, "ffffff00", "Waiting status should color name yellow")
+      Assert.Equal(waitingData.colorHex, "ffc69b6d", "Waiting status must keep class-colored text")
+      Assert.Equal(waitingData.readyCheckStatus, "waiting", "Waiting status should be exposed for background rendering")
+      Assert.Equal(waitingData.readyCheckBackgroundColor[1], 0.55, "Waiting status should tint row background yellow")
+      Assert.Equal(waitingData.readyCheckBackgroundColor[2], 0.4, "Waiting status should tint row background yellow")
+      Assert.Equal(waitingData.readyCheckBackgroundColor[3], 0.08, "Waiting status should tint row background yellow")
+      Assert.Equal(waitingData.readyCheckBackgroundColor[4], 0.32, "Waiting status should tint row background yellow")
+      Assert.True(
+        waitingData.readyCheckMarkup:find("ReadyCheck%-Waiting", 1) ~= nil,
+        "Waiting status should prepend the waiting icon markup"
+      )
     end)
   end)
 
-  test("Roster name color resets to class color after ready check", function()
+  test("Roster declined ready check stays red for 20 seconds after finish", function()
     local readyCheckStatusByUnit = {}
+    local readyCheckDeclinedUntilByUnit = {}
+    local now = 100
     local roster = {
       player = {
         name = "TestPlayer",
@@ -83,23 +110,77 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
       local displayDataInitial = addon.Roster.BuildDisplayData(roster.player, {
         unit = "player",
         isReadyCheckActive = false,
+        getReadyCheckDeclinedUntil = function(unit)
+          return readyCheckDeclinedUntilByUnit[unit]
+        end,
+        getTime = function()
+          return now
+        end,
       })
       Assert.Equal(displayDataInitial.colorHex, "ffc69b6d", "Initial color should be warrior class color")
+      Assert.Nil(displayDataInitial.readyCheckBackgroundColor, "Initial state should not tint the row background")
+      Assert.Equal(displayDataInitial.readyCheckMarkup, "", "Initial state should not prepend waiting markup")
 
-      -- 2. Ready check active, status 'ready': green
+      -- 2. Ready check active, status 'ready': background tint only
       readyCheckStatusByUnit.player = "ready"
       local displayDataReady = addon.Roster.BuildDisplayData(roster.player, {
         unit = "player",
         isReadyCheckActive = true,
+        getReadyCheckDeclinedUntil = function(unit)
+          return readyCheckDeclinedUntilByUnit[unit]
+        end,
+        getTime = function()
+          return now
+        end,
       })
-      Assert.Equal(displayDataReady.colorHex, "ff00ff00", "Ready status should color name green")
+      Assert.Equal(displayDataReady.colorHex, "ffc69b6d", "Ready state should keep class-colored text")
+      Assert.NotNil(displayDataReady.readyCheckBackgroundColor, "Ready state should tint the row background")
 
-      -- 3. Ready check finished: back to class color
-      local displayDataFinished = addon.Roster.BuildDisplayData(roster.player, {
+      -- 3. After an explicit decline, the finished row stays red for 20 seconds
+      readyCheckStatusByUnit.player = nil
+      readyCheckDeclinedUntilByUnit.player = now + 20
+      local displayDataHeld = addon.Roster.BuildDisplayData(roster.player, {
         unit = "player",
         isReadyCheckActive = false,
+        getReadyCheckDeclinedUntil = function(unit)
+          return readyCheckDeclinedUntilByUnit[unit]
+        end,
+        getTime = function()
+          return now
+        end,
       })
-      Assert.Equal(displayDataFinished.colorHex, "ffc69b6d", "After ready check, color should reset to class color")
+      Assert.Equal(
+        displayDataHeld.colorHex,
+        "ffc69b6d",
+        "Declined hold should keep class-colored text"
+      )
+      Assert.NotNil(displayDataHeld.readyCheckBackgroundColor, "Declined hold should keep the row background active")
+      Assert.Equal(displayDataHeld.readyCheckStatus, "notready", "Declined hold should keep the not-ready row state")
+      Assert.Equal(
+        displayDataHeld.readyCheckMarkup,
+        "",
+        "Declined hold should not prepend the waiting icon"
+      )
+
+      -- 4. Once the hold expires, the row returns to normal
+      now = now + 21
+      local displayDataExpired = addon.Roster.BuildDisplayData(roster.player, {
+        unit = "player",
+        isReadyCheckActive = false,
+        getReadyCheckDeclinedUntil = function(unit)
+          return readyCheckDeclinedUntilByUnit[unit]
+        end,
+        getTime = function()
+          return now
+        end,
+      })
+      Assert.Equal(displayDataExpired.colorHex, "ffc69b6d", "Expired declined hold should keep class-colored text")
+      Assert.Nil(displayDataExpired.readyCheckBackgroundColor, "Expired declined hold should clear the row background")
+      Assert.Equal(
+        displayDataExpired.readyCheckMarkup,
+        "",
+        "Expired declined hold should not show waiting markup"
+      )
     end)
   end)
 
@@ -1223,6 +1304,102 @@ local function BuildHiddenSettingTestController(addon, createdFontStrings, opts)
 end
 
 local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster panel keeps active members visible ahead of persisted ghosts", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster.lua",
+        "isiLive_roster_panel.lua",
+      })
+
+      local roster = {
+        player = { name = "Player", role = "DAMAGER" },
+        party1 = { name = "Bircan", role = "DAMAGER" },
+        party2 = { name = "Zidane", role = "DAMAGER" },
+        party3 = { name = "Kurshad", role = "DAMAGER" },
+        ["ghost:OldTank-Realm"] = { name = "OldTank", role = "TANK", isGhost = true },
+        ["ghost:OldHeal-Realm"] = { name = "OldHeal", role = "HEALER", isGhost = true },
+      }
+
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings, {
+        buildOrderedRoster = function(currentRoster, rolePriority, unitPriority)
+          return addon.Roster.BuildOrderedRoster(currentRoster, rolePriority, unitPriority)
+        end,
+        buildDisplayData = function(info)
+          return {
+            colorHex = info.isGhost and "ff808080" or "ffffffff",
+            displayName = info.name,
+            languageDisplay = "",
+            specText = "-",
+            ilvlText = "-",
+            rioText = "-",
+            keyText = "-",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        rolePriority = {
+          TANK = 1,
+          HEALER = 2,
+          DAMAGER = 3,
+          NONE = 4,
+        },
+        unitPriority = {
+          player = 1,
+          party1 = 2,
+          party2 = 3,
+          party3 = 4,
+          party4 = 5,
+        },
+      })
+
+      controller.RenderRoster(roster)
+
+      local visibleRowNames = {}
+      for _, fontString in ipairs(createdFontStrings) do
+        if
+          fontString.pointX == 93
+          and fontString.pointY ~= -34
+          and type(fontString.text) == "string"
+          and fontString.text ~= ""
+        then
+          table.insert(visibleRowNames, fontString.text)
+        end
+      end
+
+      Assert.Equal(#visibleRowNames, 5, "roster should still render only five visible rows")
+      Assert.True(visibleRowNames[1]:find("Player", 1, true) ~= nil, "player should stay visible before ghosts")
+      Assert.True(visibleRowNames[2]:find("Bircan", 1, true) ~= nil, "first active party member should stay visible")
+      Assert.True(visibleRowNames[3]:find("Zidane", 1, true) ~= nil, "second active party member should stay visible")
+      Assert.True(visibleRowNames[4]:find("Kurshad", 1, true) ~= nil, "active members must not be pushed out by ghosts")
+      Assert.True(
+        visibleRowNames[5]:find("OldTank", 1, true) ~= nil,
+        "a persisted ghost may consume only leftover row budget"
+      )
+      for _, rowText in ipairs(visibleRowNames) do
+        Assert.False(
+          rowText:find("OldHeal", 1, true) ~= nil,
+          "extra ghosts must stay behind all active members when the row budget is exhausted"
+        )
+      end
+    end)
+  end)
+
   test("Roster panel keeps hidden DPS setting hard-enabled even when DB disables it", function()
     local createdFrames = {}
     local createdFontStrings = {}

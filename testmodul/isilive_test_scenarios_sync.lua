@@ -343,6 +343,105 @@ local function RegisterSendOwnKeySnapshotTests(test, Assert, WithGlobals, LoadAd
       Assert.Equal(info.rio, 3210, "synced rio must backfill roster entry")
     end)
   end)
+
+  test("KeySync SendOwnBackgroundSnapshot publishes sparse hidden changes without DPS spam", function()
+    local sentMessages = {}
+    local keyLevel = 15
+    local keyMapID = 2649
+
+    WithGlobals({
+      GetTime = function()
+        return 100
+      end,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+        end,
+      },
+      C_MythicPlus = {
+        GetOwnedKeystoneLevel = function()
+          return keyLevel
+        end,
+        GetOwnedKeystoneChallengeMapID = function()
+          return keyMapID
+        end,
+      },
+      GetSpecialization = function()
+        return 1
+      end,
+      GetSpecializationInfo = function(index)
+        if index == 1 then
+          return 72, "Fury"
+        end
+        return nil
+      end,
+      C_Item = {
+        GetAverageItemLevel = function()
+          return 611.4, 615.2
+        end,
+      },
+      GetInstanceInfo = function()
+        return "Dungeon", "party"
+      end,
+      C_Map = {
+        GetBestMapForUnit = function(unit)
+          if unit == "player" then
+            return 503
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_keysync.lua" })
+      local controller = addon.KeySync.CreateController({
+        sync = addon.Sync,
+        getUnitNameAndRealm = function(_unit)
+          return "Me", "Realm"
+        end,
+        getAddonVersionRaw = function()
+          return "1.0"
+        end,
+        getUnitRio = function(_unit)
+          return 3210
+        end,
+        getPlayerLastRunDps = function(_name, _realm)
+          return 777
+        end,
+        isFrameVisible = function()
+          return false
+        end,
+      })
+
+      controller.SendOwnBackgroundSnapshot("zone")
+      controller.SendOwnBackgroundSnapshot("zone")
+      keyLevel = 16
+      controller.SendOwnBackgroundSnapshot("zone")
+
+      Assert.Equal(#sentMessages, 4, "hidden sparse background sync must only send changed buckets")
+      Assert.Equal(sentMessages[1].message, "KEY:2649:15:100:zone", "first hidden background payload must send KEY")
+      Assert.Equal(
+        sentMessages[2].message,
+        "STATS:72:615:3210:100:zone",
+        "second hidden background payload must send STATS"
+      )
+      Assert.Equal(sentMessages[3].message, "LOC:503:100:zone", "third hidden background payload must send LOC")
+      Assert.Equal(
+        sentMessages[4].message,
+        "KEY:2649:16:100:zone",
+        "changed key state must resend only KEY"
+      )
+    end)
+  end)
 end
 
 local function RegisterHiddenRefreshResponseTests(test, Assert, WithGlobals, LoadAddonModules)
@@ -679,6 +778,18 @@ local function RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonM
         addon.Sync.ProcessAddonMessage("WRONGPREFIX", "HELLO:1.0", "Someone-Realm", "MyPlayer", "Realm")
       Assert.Nil(wrongPrefix, "wrong prefix must return nil")
     end)
+  end)
+
+  test("Sync GetPlayerSyncSummary exposes the latest observed sync interval", function()
+    local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+    addon.Sync.SetPlayerHelloInfo("Peer", "Realm", "0.9.36", 2, 80, "zone")
+    addon.Sync.SetPlayerHelloInfo("Peer", "Realm", "0.9.36", 2, 95, "zone")
+
+    local summary = addon.Sync.GetPlayerSyncSummary("Peer", "Realm")
+    Assert.NotNil(summary, "sync summary must exist after HELLO packets")
+    Assert.Equal(summary.kind, "hello", "latest summary kind must match the updated HELLO bucket")
+    Assert.Equal(summary.intervalSeconds, 15, "summary must expose the previous-to-current sync interval")
   end)
 end
 

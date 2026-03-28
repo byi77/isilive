@@ -22,6 +22,18 @@ local function InitializeGameAPIHelpers(ctx, runtimeState)
   ctx.SetReadyCheckActive = function(value)
     runtimeState.SetReadyCheckActive(value)
   end
+  ctx.GetReadyCheckDeclinedUntil = function(unit)
+    return runtimeState.GetReadyCheckDeclinedUntil(unit)
+  end
+  ctx.SetReadyCheckDeclinedUntil = function(unit, value)
+    runtimeState.SetReadyCheckDeclinedUntil(unit, value)
+  end
+  ctx.ClearAllReadyCheckDeclined = function()
+    runtimeState.ClearAllReadyCheckDeclined()
+  end
+  ctx.ClearExpiredReadyCheckDeclined = function(now)
+    return runtimeState.ClearExpiredReadyCheckDeclined(now)
+  end
   ctx.IsInPartyInstance = function()
     local _, instanceType = GetInstanceInfo()
     return instanceType == "party"
@@ -539,6 +551,9 @@ local function InitializeFactoryPrimaryControllers(ctx)
     isReadyCheckActive = function()
       return ctx.IsReadyCheckActive()
     end,
+    getReadyCheckDeclinedUntil = function(unit)
+      return ctx.GetReadyCheckDeclinedUntil(unit)
+    end,
     getRoster = ctx.GetRoster,
     applySecureSpellToButton = ctx.ApplySecureSpellToButton,
     getEntries = modules.teleport.BuildTeleportEntries,
@@ -571,6 +586,7 @@ local function InitializeFactoryPrimaryControllers(ctx)
   ctx.SendRefreshRequest = initResult.sendRefreshRequest
   ctx.GetOwnedKeystoneSnapshot = initResult.getOwnedKeystoneSnapshot
   ctx.SendOwnKeySnapshot = initResult.sendOwnKeySnapshot
+  ctx.SendOwnBackgroundSnapshot = initResult.sendOwnBackgroundSnapshot
   ctx.SendRefreshResponse = initResult.sendRefreshResponse
   ctx.ApplyKnownKeyToRosterEntry = initResult.applyKnownKeyToRosterEntry
   ctx.RecordRun = initResult.recordRun
@@ -817,6 +833,7 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
     forceRefreshSyncState = ForceRefreshSyncState,
     sendIsiLiveHello = ctx.SendIsiLiveHello,
     sendOwnKeySnapshot = ctx.SendOwnKeySnapshot,
+    sendOwnBackgroundSnapshot = ctx.SendOwnBackgroundSnapshot,
     sendRefreshRequest = ctx.SendRefreshRequest,
     queueForceRefreshData = QueueForceRefreshData,
     updateUI = ctx.UpdateUI,

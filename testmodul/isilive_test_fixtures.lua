@@ -94,6 +94,7 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
     updateLeaderButtons = function() end,
     updateStatusLine = function() end,
     sendOwnKeySnapshot = function(_force) end,
+    sendOwnBackgroundSnapshot = function(_source) end,
     sendOwnTargetSnapshot = function(_force, _source, _allowHidden) end,
     ensureQueueDebugStorage = function() end,
     setQueueDebugEnabled = function(_enabled) end,
@@ -157,6 +158,14 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
     runFullRefresh = function() end,
     getRoster = function()
       return {}
+    end,
+    getReadyCheckDeclinedUntil = function(_unit)
+      return nil
+    end,
+    setReadyCheckDeclinedUntil = function(_unit, _value) end,
+    clearAllReadyCheckDeclined = function() end,
+    clearExpiredReadyCheckDeclined = function(_now)
+      return false
     end,
     restoreRioBaseline = function() end,
   }

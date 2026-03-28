@@ -33,6 +33,9 @@ function RuntimeState.CreateController(opts)
     isTestMode = NormalizeBoolean(opts.isTestMode),
     isTestAllMode = NormalizeBoolean(opts.isTestAllMode),
     isReadyCheckActive = NormalizeBoolean(opts.isReadyCheckActive),
+    readyCheckDeclinedUntilByUnit = type(opts.readyCheckDeclinedUntilByUnit) == "table"
+        and CopyTableShallow(opts.readyCheckDeclinedUntilByUnit)
+      or {},
     wasGroupLeader = opts.wasGroupLeader,
     wasInGroup = NormalizeBoolean(opts.wasInGroup),
     wasRaidGroup = NormalizeBoolean(opts.wasRaidGroup),
@@ -158,6 +161,43 @@ function RuntimeState.CreateController(opts)
     state.isReadyCheckActive = NormalizeBoolean(value)
   end
 
+  function controller.GetReadyCheckDeclinedUntil(unit)
+    if type(unit) ~= "string" or unit == "" then
+      return nil
+    end
+    return state.readyCheckDeclinedUntilByUnit[unit]
+  end
+
+  function controller.SetReadyCheckDeclinedUntil(unit, value)
+    if type(unit) ~= "string" or unit == "" then
+      return
+    end
+
+    local numericValue = tonumber(value)
+    if numericValue and numericValue > 0 then
+      state.readyCheckDeclinedUntilByUnit[unit] = numericValue
+    else
+      state.readyCheckDeclinedUntilByUnit[unit] = nil
+    end
+  end
+
+  function controller.ClearAllReadyCheckDeclined()
+    state.readyCheckDeclinedUntilByUnit = {}
+  end
+
+  function controller.ClearExpiredReadyCheckDeclined(now)
+    local changed = false
+    local numericNow = tonumber(now) or 0
+    for unit, untilTime in pairs(state.readyCheckDeclinedUntilByUnit) do
+      local numericUntil = tonumber(untilTime)
+      if numericUntil == nil or numericUntil <= numericNow then
+        state.readyCheckDeclinedUntilByUnit[unit] = nil
+        changed = true
+      end
+    end
+    return changed
+  end
+
   function controller.GetWasInGroup()
     return state.wasInGroup
   end
@@ -227,6 +267,7 @@ function RuntimeState.CreateController(opts)
       isTestMode = state.isTestMode,
       isTestAllMode = state.isTestAllMode,
       isReadyCheckActive = state.isReadyCheckActive,
+      readyCheckDeclinedUntilByUnit = CopyTableShallow(state.readyCheckDeclinedUntilByUnit),
       wasGroupLeader = state.wasGroupLeader,
       wasInGroup = state.wasInGroup,
       wasRaidGroup = state.wasRaidGroup,

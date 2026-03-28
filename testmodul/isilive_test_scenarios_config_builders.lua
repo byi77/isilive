@@ -26,6 +26,7 @@ return function(test, ctx)
       forceRefreshSyncState = MakeSentinel("forceRefreshSyncState"),
       sendIsiLiveHello = MakeSentinel("sendIsiLiveHello"),
       sendOwnKeySnapshot = MakeSentinel("sendOwnKeySnapshot"),
+      sendOwnBackgroundSnapshot = MakeSentinel("sendOwnBackgroundSnapshot"),
       sendRefreshRequest = MakeSentinel("sendRefreshRequest"),
       queueForceRefreshData = MakeSentinel("queueForceRefreshData"),
       updateUI = MakeSentinel("updateUI"),
@@ -145,6 +146,19 @@ return function(test, ctx)
     Assert.True(result.allowWhenHidden.ZONE_CHANGED == true, "must allow ZONE_CHANGED when hidden")
     Assert.True(result.allowWhenHidden.ZONE_CHANGED_INDOORS == true, "must allow ZONE_CHANGED_INDOORS when hidden")
     Assert.True(result.allowWhenHidden.ZONE_CHANGED_NEW_AREA == true, "must allow ZONE_CHANGED_NEW_AREA when hidden")
+    Assert.True(result.allowWhenHidden.BAG_UPDATE_DELAYED == true, "must allow BAG_UPDATE_DELAYED when hidden")
+    Assert.True(
+      result.allowWhenHidden.CHALLENGE_MODE_MAPS_UPDATE == true,
+      "must allow CHALLENGE_MODE_MAPS_UPDATE when hidden"
+    )
+    Assert.True(
+      result.allowWhenHidden.PLAYER_EQUIPMENT_CHANGED == true,
+      "must allow PLAYER_EQUIPMENT_CHANGED when hidden"
+    )
+    Assert.True(
+      result.allowWhenHidden.PLAYER_SPECIALIZATION_CHANGED == true,
+      "must allow PLAYER_SPECIALIZATION_CHANGED when hidden"
+    )
   end)
 
   test("ConfigBuilders BuildGateOpts does not leak extra ctx fields", function()

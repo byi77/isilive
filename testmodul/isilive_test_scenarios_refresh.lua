@@ -15,6 +15,7 @@ return function(test, ctx)
       queueRefreshes = 0,
       uiUpdates = 0,
       keyRefreshes = 0,
+      backgroundSnapshots = 0,
       demoRefreshes = 0,
     }
 
@@ -56,6 +57,9 @@ return function(test, ctx)
       end,
       sendOwnKeySnapshot = function(_force, _source)
         state.keySnapshots = state.keySnapshots + 1
+      end,
+      sendOwnBackgroundSnapshot = function(_source)
+        state.backgroundSnapshots = (state.backgroundSnapshots or 0) + 1
       end,
       sendRefreshRequest = function(_force)
         state.refreshRequests = state.refreshRequests + 1
@@ -171,5 +175,19 @@ return function(test, ctx)
     Assert.False(secondResult, "second refresh inside debounce window must be ignored")
     Assert.True(thirdResult, "refresh after debounce window should run again")
     Assert.Equal(state.syncRefreshes, 2, "only first and third refresh should execute refresh actions")
+  end)
+
+  test("Refresh HandleOwnedKeyRefresh sends sparse background snapshot", function()
+    local controller, state = BuildRefreshController({
+      keyChanged = true,
+    })
+
+    local changed = controller.HandleOwnedKeyRefresh()
+
+    Assert.True(changed, "HandleOwnedKeyRefresh must return the local key change result")
+    Assert.Equal(state.keyRefreshes, 1, "HandleOwnedKeyRefresh must refresh the local key exactly once")
+    Assert.Equal(state.uiUpdates, 1, "local key changes must still refresh the UI once")
+    Assert.Equal(state.backgroundSnapshots, 1, "HandleOwnedKeyRefresh must send one sparse background snapshot")
+    Assert.Equal(state.keySnapshots, 0, "HandleOwnedKeyRefresh must not send a full snapshot anymore")
   end)
 end

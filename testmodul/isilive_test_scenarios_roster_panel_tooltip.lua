@@ -305,18 +305,19 @@ local function RegisterRosterPanelRowTooltipDpsTest(test, Assert, WithGlobals, L
         end,
       },
     }, function(addon)
+      addon.Sync.SetPlayerHelloInfo("Buddy", "Realm", "0.9.36", 2, 80, "inspect")
       addon.Sync.SetPlayerHelloInfo("Buddy", "Realm", "0.9.36", 2, 90, "inspect")
     end, function(_addon, _controller, _rowFrame, tooltipLines)
       local foundDps = false
-      local foundSyncAge = false
+      local foundSyncInterval = false
       local foundSyncSource = false
       local foundSyncVersion = false
       for _, line in ipairs(tooltipLines) do
         if line:find("Last run DPS: 321.1K", 1, true) then
           foundDps = true
         end
-        if line:find("Sync age: 10s", 1, true) then
-          foundSyncAge = true
+        if line:find("Sync interval: 10s", 1, true) then
+          foundSyncInterval = true
         end
         if line:find("Source: inspect", 1, true) then
           foundSyncSource = true
@@ -326,7 +327,7 @@ local function RegisterRosterPanelRowTooltipDpsTest(test, Assert, WithGlobals, L
         end
       end
       Assert.True(foundDps, "Tooltip should contain abbreviated last-run DPS")
-      Assert.True(foundSyncAge, "Tooltip should contain sync age")
+      Assert.True(foundSyncInterval, "Tooltip should contain sync interval")
       Assert.True(foundSyncSource, "Tooltip should contain sync source")
       Assert.True(foundSyncVersion, "Tooltip should contain peer version info")
     end)

@@ -1,7 +1,7 @@
 # isiLive Architecture
 
-Version baseline: `0.9.106`
-Last updated: `2026-03-27`
+Version baseline: `0.9.108`
+Last updated: `2026-03-28`
 
 ## Purpose
 
@@ -57,7 +57,7 @@ WoW Event
 8. Do not clear queue-derived target on negative application follow-up events while already grouped.
 9. Mirror Blizzard CVar state for `advancedCombatLogging` and `damageMeterResetOnNewInstance` in the Blizzard settings canvas, write only on explicit user toggle clicks, and still trigger Blizzard damage-meter reset on challenge start when API support exists.
 10. Capture per-player RIO baseline on challenge start and enable delta rendering only after delayed post-run refresh; delta is always shown as non-negative `(+X)` prefix.
-11. Completed-run stat capture must tolerate delayed Blizzard damage-meter availability through short deterministic retries for both `M+` and tracked non-challenge party exits (`Normal`/`Heroic`/`Mythic`), feeding the `DPS`/`Deaths`/`Kicks` roster columns.
+11. Completed-run stat capture must tolerate delayed Blizzard damage-meter availability through short deterministic retries for both `M+` and tracked non-challenge party exits (`Normal`/`Heroic`/`Mythic`), feeding the `DPS` roster column only.
 12. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
 13. Keep sync handshake resilient: HELLO recipients acknowledge with `ACK`, explicit local refresh force-sends the local `HELLO/KEY/STATS/DPS/LOC` snapshot, and manual `REQSYNC` refresh requests may trigger one hidden `KEY/STATS/DPS/LOC` reply when locally allowed.
 14. In hidden mode, suspend queue scanning and permanent polling; keep background roster/addon-message sync plus required auto-open transitions active, allow event-driven pre-render updates, and permit one forced refresh reply without un-hiding the frame. Fresh grouped joins may still auto-open, but without prior visible queue capture they must not backfill a grouped queue chat summary. After a UI reload while already grouped, `PLAYER_ENTERING_WORLD` must trigger a full group-roster rebuild so the roster panel re-appears immediately, even inside party instances where the hidden-frame event gate would otherwise block `GROUP_ROSTER_UPDATE`.
@@ -67,11 +67,12 @@ WoW Event
 18. Shared `isiLive` tooltip frames own their own text layout and must not route UI hover rendering back through the shared Blizzard `GameTooltip`.
 19. Raid-size groups force the visible roster panel into H mode, hide roster rows, and suppress duplicate raid-transition notifications until the group leaves raid size again.
 20. The optional game-menu tooling strip closes the menu before opening its target panel; `ReloadUI` is owned by a secure macro button (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown` and defers blocked secure refreshes to `PLAYER_REGEN_ENABLED`, while the other entries keep direct opener paths for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, and `Guild`. Both game-menu strips are mounted directly as `GameMenuFrame` children, so combat-open paths do not run overlay `Show`/`Hide` or layout mutations; the secondary travel strip stays further left and exposes `Arkantine`, `Hearthstone`, and `Housing`.
-21. Temporarily hidden legacy settings controls stay absent from Blizzard Settings while runtime enforces their fixed defaults (`DPS`, `Deaths`, and `Kicks` on, markers leader-only off, fixed name truncation, legacy 2-column `Travel` grid) until the controls are re-enabled.
+21. Temporarily hidden legacy settings controls stay absent from Blizzard Settings while runtime enforces their fixed defaults (`DPS` on, markers leader-only off, fixed name truncation, legacy 2-column `Travel` grid) until the controls are re-enabled.
 22. CdTracker lust onset detection must combine player harmful-aura scanning with direct local lust spellcast signals, accept only numeric aura `spellId` values for lookup, ignore protected or otherwise non-numeric values safely, treat `UNIT_AURA(..., { isFullUpdate = true })` restores as non-onset hydration after zone/reload transitions, and use only a short 2-second `PLAYER_ENTERING_WORLD` suppress window as a safety net before the full restore arrives.
 23. Leader promotion/loss detection must compare current local leader state against cached state on both `GROUP_ROSTER_UPDATE` and `PARTY_LEADER_CHANGED`; hidden promotions suppress center notice/chat output but still play the transfer sound.
-24. Ready-check lifecycle events must go through a dedicated roster refresh path that reapplies ready-check-dependent row text colors without rerunning the generic roster full render or touching secure role-button attributes.
+24. Ready-check lifecycle events must go through a dedicated roster refresh path that reapplies ready-check-dependent row background state, waiting sandglass markers, and the 20-second declined hold without rerunning the generic roster full render or touching secure role-button attributes.
 25. Roster leader markers must be derived only from mirrored `UnitIsGroupLeader` state; the roster display renders a 16x16 crown for those rows, and synced leaders keep the blue heart before the crown.
+26. Persisted ghost rows may remain in non-full groups, but roster ordering must keep all active members ahead of ghosts so visible 5-row clipping never hides a current group member behind stale leavers.
 
 ## Architecture Contract Set
 
@@ -101,14 +102,14 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 419 scenarios across 34 modules, while the rule validators currently index 415 deterministic tests.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 449 scenarios across 34 modules, while the rule validators currently index 449 deterministic tests.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
 | isiLive                                                                         V.0.9.105 [H][V][M][X]|
 |---------------------------------------------------------------------------------------------------|
-| Spec   Name         Flag Key     iLvl RIO        DPS Deaths Kicks   M+Managment  Marker    Travel  |
+| Spec   Name         Flag Key     iLvl RIO        DPS                M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
 | [Tank] PlayerOne    [ ]  DB +14  633  (+12)3521 321.1K  [Blue]              [Readycheck]          |
 | [Heal] PlayerTwo    [ ]  DAWN+12 629  (+0)3410  287.4K  [Grn]               [Countdown10]         |
@@ -157,11 +158,11 @@ In addition to the main roster frame, `isiLive_ui.lua` can attach optional tooli
 | Refresh | User refresh action | Forced local snapshot, groupwide sync request, and inspect refresh pipeline |
 | EventHandlersRuntime | Addon/world/combat/inspect/sync events | Startup, hidden-mode sync, `UNIT_AURA` full-update forwarding for cd tracking, regen recovery for pending visibility/height, inspect dispatch |
 | EventHandlersQueue | LFG queue/listing events | Visible-mode queue capture, pending-join preservation on negative follow-ups, and joined-key tracking |
-| EventHandlersChallenge | Challenge and ready-check events | Run lifecycle, delayed refresh, rio delta enable, ready-check state, and dedicated ready-check UI refresh routing |
-| Stats | Challenge/non-challenge party run completion signals plus Blizzard damage-meter session | Bounded last-run DPS/Deaths/Kicks snapshots with short delayed-session retry (persistent only for the matching local character, foreign players session-only) |
+| EventHandlersChallenge | Challenge and ready-check events | Run lifecycle, delayed refresh, rio delta enable, ready-check state, declined-hold tracking, and dedicated ready-check UI refresh routing |
+| Stats | Challenge/non-challenge party run completion signals plus Blizzard damage-meter session | Bounded last-run DPS snapshots with short delayed-session retry (persistent only for the matching local character, foreign players session-only) |
 | CdTracker | Battle-res charges via `C_Spell.GetSpellCharges` struct-return, numeric-only harmful lust-aura scans, direct lust spellcasts, and `isFullUpdate` aura-restore hydration | Live BRes charges/cooldown and Lust countdown row state with zone-transition-safe onset suppression |
 | LeaderWatch | `GROUP_ROSTER_UPDATE` / `PARTY_LEADER_CHANGED` plus cached leader state | Leader-only button refresh, visible center notice on promotion, and transfer sound feedback even for hidden promotions |
-| RosterPanel | Roster model and localization | Main table rendering, 16x16 leader crown plus synced-heart marker ordering, dedicated ready-check row-color refresh, DPS/Deaths/Kicks columns, CD tracker row, and action button callbacks |
+| RosterPanel | Roster model and localization | Main table rendering, active-before-ghost row ordering under the 5-row budget, 16x16 leader crown plus synced-heart marker ordering, dedicated ready-check row-background refresh with waiting sandglass and declined hold, DPS column, CD tracker row, and action button callbacks |
 | SettingsPanel | Locale/CVar/SavedVariable getters plus toggle callbacks | Blizzard Settings canvas, language selector, visible display/behavior/debug toggles, UI/background sliders, default-open layout selector, optional roster column-guide toggle, and temporary legacy-setting suppression |
 | TeleportUI | Season teleport entries and state | Insecure-action teleport button states, deterministic season-slot placement, locale-aware `M2` short-code overlays while ready, and cooldown labels that take precedence while on cooldown |
 

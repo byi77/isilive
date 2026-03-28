@@ -483,6 +483,70 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
     Assert.Equal(dispatched[3], "ZONE_CHANGED_NEW_AREA", "config builders gate should pass ZONE_CHANGED_NEW_AREA")
   end)
 
+  test("Config builders gate allows sparse local change events while frame is hidden", function()
+    local dispatched = {}
+
+    local addon = LoadAddonModules({ "isiLive_events.lua", "isiLive_bootstrap.lua", "isiLive_config_builders.lua" })
+    local gate = addon.Bootstrap.CreateGatedOnEvent(addon.ConfigBuilders.BuildGateOpts({
+      events = addon.Events,
+      onEvent = function(_frame, event, ...)
+        local _ = ...
+        table.insert(dispatched, event)
+      end,
+      onDispatchError = nil,
+      isStopped = function()
+        return false
+      end,
+      isPaused = function()
+        return false
+      end,
+      isTestMode = function()
+        return false
+      end,
+      isInCombat = function()
+        return false
+      end,
+      isInGroup = function()
+        return true
+      end,
+      isInPartyInstance = function()
+        return false
+      end,
+      getActiveChallengeMapID = function()
+        return nil
+      end,
+    }))
+
+    local frame = {
+      IsShown = function()
+        return false
+      end,
+    }
+
+    gate(frame, "BAG_UPDATE_DELAYED")
+    gate(frame, "CHALLENGE_MODE_MAPS_UPDATE")
+    gate(frame, "PLAYER_EQUIPMENT_CHANGED", 16, true)
+    gate(frame, "PLAYER_SPECIALIZATION_CHANGED", "player")
+
+    Assert.Equal(#dispatched, 4, "config builders gate must allow sparse hidden local change events")
+    Assert.Equal(dispatched[1], "BAG_UPDATE_DELAYED", "config builders gate should pass BAG_UPDATE_DELAYED")
+    Assert.Equal(
+      dispatched[2],
+      "CHALLENGE_MODE_MAPS_UPDATE",
+      "config builders gate should pass CHALLENGE_MODE_MAPS_UPDATE"
+    )
+    Assert.Equal(
+      dispatched[3],
+      "PLAYER_EQUIPMENT_CHANGED",
+      "config builders gate should pass PLAYER_EQUIPMENT_CHANGED"
+    )
+    Assert.Equal(
+      dispatched[4],
+      "PLAYER_SPECIALIZATION_CHANGED",
+      "config builders gate should pass PLAYER_SPECIALIZATION_CHANGED"
+    )
+  end)
+
   test("Bootstrap gate blocks hidden group auto-open while inside non-key dungeon", function()
     local dispatched = {}
 

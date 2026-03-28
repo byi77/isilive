@@ -199,6 +199,7 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
     updateStatusLine = RequireFunction(callbacks.updateStatusLine, "callbacks.updateStatusLine"),
     sendOwnKeySnapshot = RequireFunction(deps.sendOwnKeySnapshot, "sendOwnKeySnapshot"),
+    sendOwnBackgroundSnapshot = RequireFunction(deps.sendOwnBackgroundSnapshot, "sendOwnBackgroundSnapshot"),
     shouldAutoCloseMainFrame = type(deps.shouldAutoCloseMainFrame) == "function" and deps.shouldAutoCloseMainFrame
       or function()
         return false
@@ -337,6 +338,22 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     end
   config.setReadyCheckActive = type(callbacks.setReadyCheckActive) == "function" and callbacks.setReadyCheckActive
     or function(_value) end
+  config.getReadyCheckDeclinedUntil =
+    type(state.getReadyCheckDeclinedUntil) == "function" and state.getReadyCheckDeclinedUntil
+    or function(_unit)
+      return nil
+    end
+  config.setReadyCheckDeclinedUntil =
+    type(state.setReadyCheckDeclinedUntil) == "function" and state.setReadyCheckDeclinedUntil
+    or function(_unit, _value) end
+  config.clearAllReadyCheckDeclined = type(state.clearAllReadyCheckDeclined) == "function"
+      and state.clearAllReadyCheckDeclined
+    or function() end
+  config.clearExpiredReadyCheckDeclined = type(state.clearExpiredReadyCheckDeclined) == "function"
+      and state.clearExpiredReadyCheckDeclined
+    or function(_now)
+      return false
+    end
   if type(deps.getTime) == "function" then
     config.getTime = deps.getTime
   end
@@ -370,6 +387,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     isNegativeApplicationStatusEvent = ctx.isNegativeApplicationStatusEvent,
     getNormalizedActiveEntryInfo = ctx.getNormalizedActiveEntryInfo,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
+    sendOwnBackgroundSnapshot = ctx.sendOwnBackgroundSnapshot,
     shouldShowMainFrameOnStartup = ctx.shouldShowMainFrameOnStartup,
     shouldAutoOpenMainFrameOnKeyEnd = ctx.shouldAutoOpenMainFrameOnKeyEnd,
     shouldAutoCloseMainFrame = ctx.shouldAutoCloseMainFrame,
@@ -408,6 +426,10 @@ local function BuildEventHandlersDepsFromContext(ctx)
       setActiveJoinedKeyMapID = ctx.setActiveJoinedKeyMapID,
       getPendingBindingApply = ctx.getPendingBindingApply,
       getRoster = ctx.getRoster,
+      getReadyCheckDeclinedUntil = ctx.GetReadyCheckDeclinedUntil,
+      setReadyCheckDeclinedUntil = ctx.SetReadyCheckDeclinedUntil,
+      clearAllReadyCheckDeclined = ctx.ClearAllReadyCheckDeclined,
+      clearExpiredReadyCheckDeclined = ctx.ClearExpiredReadyCheckDeclined,
     },
     refs = {
       mainFrame = ctx.mainFrame,

@@ -344,6 +344,30 @@ function Sync.ClearKnownUsers()
   lastTargetPayloadSent = nil
 end
 
+local function GetEntrySyncStamp(entry)
+  if type(entry) ~= "table" then
+    return nil
+  end
+
+  local capturedAt = tonumber(entry.capturedAt)
+  local receivedAt = tonumber(entry.receivedAt)
+  return capturedAt or receivedAt
+end
+
+local function SetEntryPreviousSyncStamp(entry, previousStamp)
+  if type(entry) ~= "table" then
+    return
+  end
+
+  previousStamp = tonumber(previousStamp)
+  local nextStamp = GetEntrySyncStamp(entry)
+  if previousStamp and nextStamp and nextStamp >= previousStamp then
+    entry.previousSyncStamp = previousStamp
+  else
+    entry.previousSyncStamp = nil
+  end
+end
+
 function Sync.SetPlayerHelloInfo(name, realm, addonVersion, protocolVersion, capturedAt, source)
   local key = Sync.NormalizePlayerKey(name, realm)
   if not key or key == "" then
@@ -357,6 +381,7 @@ function Sync.SetPlayerHelloInfo(name, realm, addonVersion, protocolVersion, cap
   end
   local normalizedSource = NormalizeSyncSource(source) or "local"
   local previous = helloInfoByPlayerKey[key]
+  local previousStamp = GetEntrySyncStamp(previous)
   local nextValue = {
     addonVersion = type(addonVersion) == "string" and addonVersion or tostring(addonVersion or "?"),
     protocolVersion = normalizedProtocolVersion,
@@ -364,6 +389,7 @@ function Sync.SetPlayerHelloInfo(name, realm, addonVersion, protocolVersion, cap
     source = normalizedSource,
     receivedAt = GetSyncTimestamp(),
   }
+  SetEntryPreviousSyncStamp(nextValue, previousStamp)
 
   if previous then
     previous.addonVersion = nextValue.addonVersion
@@ -371,6 +397,7 @@ function Sync.SetPlayerHelloInfo(name, realm, addonVersion, protocolVersion, cap
     previous.capturedAt = nextValue.capturedAt
     previous.source = nextValue.source
     previous.receivedAt = nextValue.receivedAt
+    SetEntryPreviousSyncStamp(previous, previousStamp)
     return false
   end
 
@@ -395,6 +422,7 @@ function Sync.SetPlayerKeyInfo(name, realm, mapID, level, capturedAt, source)
   local _, numericMapID, numericLevel, normalizedCapturedAt, normalizedSource =
     NormalizeKeyPayload(mapID, level, capturedAt, source)
   local previous = keyInfoByPlayerKey[key]
+  local previousStamp = GetEntrySyncStamp(previous)
   if not numericMapID or not numericLevel then
     local hadValue = type(previous) == "table"
     keyInfoByPlayerKey[key] = nil
@@ -405,16 +433,19 @@ function Sync.SetPlayerKeyInfo(name, realm, mapID, level, capturedAt, source)
     previous.capturedAt = normalizedCapturedAt
     previous.source = normalizedSource
     previous.receivedAt = GetSyncTimestamp()
+    SetEntryPreviousSyncStamp(previous, previousStamp)
     return false
   end
 
-  keyInfoByPlayerKey[key] = {
+  local nextValue = {
     mapID = numericMapID,
     level = numericLevel,
     capturedAt = normalizedCapturedAt,
     source = normalizedSource,
     receivedAt = GetSyncTimestamp(),
   }
+  SetEntryPreviousSyncStamp(nextValue, previousStamp)
+  keyInfoByPlayerKey[key] = nextValue
   return true
 end
 
@@ -434,6 +465,8 @@ function Sync.SetPlayerStatsInfo(name, realm, specID, ilvl, rio, capturedAt, sou
 
   local _, numericSpecID, numericIlvl, numericRio, normalizedCapturedAt, normalizedSource =
     NormalizeStatsPayload(specID, ilvl, rio, capturedAt, source)
+  local previous = statsInfoByPlayerKey[key]
+  local previousStamp = GetEntrySyncStamp(previous)
   local nextValue = {
     specID = numericSpecID > 0 and numericSpecID or nil,
     ilvl = numericIlvl > 0 and numericIlvl or nil,
@@ -442,6 +475,7 @@ function Sync.SetPlayerStatsInfo(name, realm, specID, ilvl, rio, capturedAt, sou
     source = normalizedSource,
     receivedAt = GetSyncTimestamp(),
   }
+  SetEntryPreviousSyncStamp(nextValue, previousStamp)
 
   if nextValue.specID == nil and nextValue.ilvl == nil and nextValue.rio == nil then
     local hadValue = type(statsInfoByPlayerKey[key]) == "table"
@@ -449,7 +483,6 @@ function Sync.SetPlayerStatsInfo(name, realm, specID, ilvl, rio, capturedAt, sou
     return hadValue
   end
 
-  local previous = statsInfoByPlayerKey[key]
   if
     previous
     and previous.specID == nextValue.specID
@@ -459,6 +492,7 @@ function Sync.SetPlayerStatsInfo(name, realm, specID, ilvl, rio, capturedAt, sou
     previous.capturedAt = nextValue.capturedAt
     previous.source = nextValue.source
     previous.receivedAt = nextValue.receivedAt
+    SetEntryPreviousSyncStamp(previous, previousStamp)
     return false
   end
 
@@ -481,26 +515,30 @@ function Sync.SetPlayerDpsInfo(name, realm, dps, capturedAt, source)
   end
 
   local _, numericDps, normalizedCapturedAt, normalizedSource = NormalizeDpsPayload(dps, capturedAt, source)
+  local previous = dpsInfoByPlayerKey[key]
+  local previousStamp = GetEntrySyncStamp(previous)
   if not numericDps or numericDps <= 0 then
     local hadValue = type(dpsInfoByPlayerKey[key]) == "table"
     dpsInfoByPlayerKey[key] = nil
     return hadValue
   end
 
-  local previous = dpsInfoByPlayerKey[key]
   if previous and previous.dps == numericDps then
     previous.capturedAt = normalizedCapturedAt
     previous.source = normalizedSource
     previous.receivedAt = GetSyncTimestamp()
+    SetEntryPreviousSyncStamp(previous, previousStamp)
     return false
   end
 
-  dpsInfoByPlayerKey[key] = {
+  local nextValue = {
     dps = numericDps,
     capturedAt = normalizedCapturedAt,
     source = normalizedSource,
     receivedAt = GetSyncTimestamp(),
   }
+  SetEntryPreviousSyncStamp(nextValue, previousStamp)
+  dpsInfoByPlayerKey[key] = nextValue
   return true
 end
 
@@ -519,26 +557,30 @@ function Sync.SetPlayerLocInfo(name, realm, mapID, capturedAt, source)
   end
 
   local _, numericMapID, normalizedCapturedAt, normalizedSource = NormalizeLocPayload(mapID, capturedAt, source)
+  local previous = locInfoByPlayerKey[key]
+  local previousStamp = GetEntrySyncStamp(previous)
   if not numericMapID then
     local hadValue = type(locInfoByPlayerKey[key]) == "table"
     locInfoByPlayerKey[key] = nil
     return hadValue
   end
 
-  local previous = locInfoByPlayerKey[key]
   if previous and previous.mapID == numericMapID then
     previous.capturedAt = normalizedCapturedAt
     previous.source = normalizedSource
     previous.receivedAt = GetSyncTimestamp()
+    SetEntryPreviousSyncStamp(previous, previousStamp)
     return false
   end
 
-  locInfoByPlayerKey[key] = {
+  local nextValue = {
     mapID = numericMapID,
     capturedAt = normalizedCapturedAt,
     source = normalizedSource,
     receivedAt = GetSyncTimestamp(),
   }
+  SetEntryPreviousSyncStamp(nextValue, previousStamp)
+  locInfoByPlayerKey[key] = nextValue
   return true
 end
 
@@ -558,27 +600,31 @@ function Sync.SetPlayerTargetInfo(name, realm, mapID, level, capturedAt, source)
 
   local _, numericMapID, numericLevel, normalizedCapturedAt, normalizedSource =
     NormalizeTargetPayload(mapID, level, capturedAt, source)
+  local previous = targetInfoByPlayerKey[key]
+  local previousStamp = GetEntrySyncStamp(previous)
   if not numericMapID then
     local hadValue = type(targetInfoByPlayerKey[key]) == "table"
     targetInfoByPlayerKey[key] = nil
     return hadValue
   end
 
-  local previous = targetInfoByPlayerKey[key]
   if previous and previous.mapID == numericMapID and previous.level == numericLevel then
     previous.capturedAt = normalizedCapturedAt
     previous.source = normalizedSource
     previous.receivedAt = GetSyncTimestamp()
+    SetEntryPreviousSyncStamp(previous, previousStamp)
     return false
   end
 
-  targetInfoByPlayerKey[key] = {
+  local nextValue = {
     mapID = numericMapID,
     level = numericLevel,
     capturedAt = normalizedCapturedAt,
     source = normalizedSource,
     receivedAt = GetSyncTimestamp(),
   }
+  SetEntryPreviousSyncStamp(nextValue, previousStamp)
+  targetInfoByPlayerKey[key] = nextValue
   return true
 end
 
@@ -611,12 +657,16 @@ function Sync.GetPlayerSyncSummary(name, realm)
     if type(data) == "table" then
       local capturedAt = tonumber(data.capturedAt)
       local receivedAt = tonumber(data.receivedAt)
+      local previousSyncStamp = tonumber(data.previousSyncStamp)
       local sortStamp = capturedAt or receivedAt
       if sortStamp then
         local summary = {
           kind = candidate.kind,
           capturedAt = capturedAt,
           receivedAt = receivedAt,
+          previousSyncStamp = previousSyncStamp,
+          intervalSeconds = previousSyncStamp and sortStamp >= previousSyncStamp and (sortStamp - previousSyncStamp)
+            or nil,
           source = data.source,
           addonVersion = data.addonVersion,
           protocolVersion = data.protocolVersion,
@@ -711,6 +761,9 @@ function Sync.SendKey(opts)
   local payload, numericMapID, numericLevel = NormalizeKeyPayload(opts.mapID, opts.level, opts.capturedAt, opts.source)
   local dedupePayload = string.format("KEY:%d:%d", tonumber(numericMapID) or 0, tonumber(numericLevel) or 0)
   local now = GetTime()
+  if not opts.force and opts.onlyIfChanged == true and dedupePayload == lastKeyPayloadSent then
+    return
+  end
   if not opts.force and dedupePayload == lastKeyPayloadSent and (now - lastIsiLiveKeyAt) < ISILIVE_KEY_COOLDOWN then
     return
   end
@@ -743,6 +796,9 @@ function Sync.SendStats(opts)
   local dedupePayload =
     string.format("STATS:%d:%d:%d", tonumber(numericSpecID) or 0, tonumber(numericIlvl) or 0, tonumber(numericRio) or 0)
   local now = GetTime()
+  if not opts.force and opts.onlyIfChanged == true and dedupePayload == lastStatsPayloadSent then
+    return
+  end
   if
     not opts.force
     and dedupePayload == lastStatsPayloadSent
@@ -777,6 +833,9 @@ function Sync.SendDps(opts)
   local payload, numericDps = NormalizeDpsPayload(opts.dps, opts.capturedAt, opts.source)
   local dedupePayload = string.format("DPS:%d", tonumber(numericDps) or 0)
   local now = GetTime()
+  if not opts.force and opts.onlyIfChanged == true and dedupePayload == lastDpsPayloadSent then
+    return
+  end
   if not opts.force and dedupePayload == lastDpsPayloadSent and (now - lastIsiLiveDpsAt) < ISILIVE_STATS_COOLDOWN then
     return
   end
@@ -807,6 +866,9 @@ function Sync.SendLoc(opts)
   local payload, numericMapID = NormalizeLocPayload(opts.mapID, opts.capturedAt, opts.source)
   local dedupePayload = string.format("LOC:%d", tonumber(numericMapID) or 0)
   local now = GetTime()
+  if not opts.force and opts.onlyIfChanged == true and dedupePayload == lastLocPayloadSent then
+    return
+  end
   if not opts.force and dedupePayload == lastLocPayloadSent and (now - lastIsiLiveLocAt) < ISILIVE_STATS_COOLDOWN then
     return
   end

@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-03-28 - Version 0.9.108 (patch)
+
+- Roster ghost ordering:
+  - Persisted ghost rows no longer consume visible roster slots ahead of active group members.
+  - The visible 5-row roster budget now guarantees active entries render before ghosts, so stale leavers cannot hide a current party member.
+  - Added deterministic panel coverage for the exact `4 active + 2 ghosts` clipping case.
+- Docs / release baseline:
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.108`.
+  - Documented the new active-before-ghost roster guarantee across user docs and architecture docs.
+  - Updated the documented validator counts to `449` scenarios across `34` modules and `449` rule-indexed deterministic tests.
+- Release metadata:
+  - Bumped TOC version to `0.9.108`.
+
+## 2026-03-27 - Version 0.9.107 (patch)
+
+- Ready-check UX:
+  - Explicit `notready` answers now stay red for 20 seconds after `READY_CHECK_FINISHED` instead of clearing immediately.
+  - Added deterministic coverage for runtime-state declined-hold tracking, event-handler timer cleanup, roster rendering during the hold window, and the dedicated post-hold refresh path.
+- Docs / release baseline:
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.107`.
+  - Corrected ready-check documentation from text-color wording to row-background + waiting sandglass + 20-second declined hold behavior.
+  - Removed stale `Deaths`/`Kicks` references from architecture docs and updated documented validator counts to `448` scenarios across `34` modules and `448` rule-indexed deterministic tests.
+- Release metadata:
+  - Bumped TOC version to `0.9.107`.
+
 ## 2026-03-27 - Version 0.9.106 (patch)
 
 - Group join / sync refresh:

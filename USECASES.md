@@ -1,7 +1,7 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.106`
-Last updated: `2026-03-27`
+Version baseline: `0.9.108`
+Last updated: `2026-03-28`
 
 ## Actors
 
@@ -171,12 +171,12 @@ Goal: show live BRes and Bloodlust/Heroism/Time Warp timers in the roster panel 
 9. Refresh and key-share UI actions must enforce click-spam guards (debounce/rate-limit behavior).
 10. Event-gate dispatch failures must be reported through error callbacks for diagnostics without terminating the gate loop.
 11. Persistent stats storage must stay bounded: no persistent foreign-player run history and no persistent `Runs together` cache.
-12. Leaving or being removed from a normal party must keep the current frame visibility state and retain former members as ghost rows until a deterministic prune path occurs.
+12. Leaving or being removed from a normal party must keep the current frame visibility state and retain former members as ghost rows until a deterministic prune path occurs; active members must still remain visible ahead of persisted ghosts.
 13. Manual marking (Tank=Blue, Healer=Green) is available via secure role-icon buttons for all group members without leader restriction in 5-man parties.
 14. Raid-group detection (> 5 members) keeps the addon visible, forces H mode, hides roster rows, prints a localized transition notice once per raid-size transition, and blocks switching back to M/V until party size returns.
 15. The optional `Esc` tooling and travel strips stay localized, close the game menu before opening their targets, and keep `ReloadUI` on a secure macro path (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`; blocked secure refreshes for that button replay on `PLAYER_REGEN_ENABLED`, while both strips remain pre-mounted `GameMenuFrame` children and therefore run no deferred host-frame re-show path in combat.
 16. Hidden legacy settings controls remain absent from Blizzard Settings and currently use fixed runtime defaults: `DPS` column on, markers visible for all, fixed name truncation, and legacy 2-column `Travel` layout.
-17. Ready-check lifecycle updates must use the dedicated ready-check refresh path so name/spec colors reset deterministically after ready-check rerenders without rewriting secure role-button attributes.
+17. Ready-check lifecycle updates must use the dedicated ready-check refresh path so row-background state, waiting sandglass markers, and the 20-second declined hold reset deterministically without rewriting secure role-button attributes.
 18. Roster leader markers must mirror the true `UnitIsGroupLeader` state only; leader rows render a 16x16 crown, and if the same row also has the blue `isiLive` heart marker, the order must stay `heart -> crown`.
 
 Runtime behavior in this document is validated by `tools/validate_usecases.lua`.

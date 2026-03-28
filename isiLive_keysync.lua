@@ -93,34 +93,6 @@ local function SendRefreshRequest(sync, force)
   })
 end
 
-local function SendOwnStatsSnapshot(sync, isFrameVisible, getUnitRio, force, source)
-  local specID, ilvl, rio = GetOwnedStatsSnapshot(getUnitRio)
-  sync.SendStats({
-    force = force and true or false,
-    isVisible = isFrameVisible(),
-    specID = specID,
-    ilvl = ilvl,
-    rio = rio,
-    source = source,
-  })
-end
-
-local function SendOwnDpsSnapshot(sync, isFrameVisible, getPlayerLastRunDps, getUnitNameAndRealm, force, source)
-  local dps = nil
-  if type(getPlayerLastRunDps) == "function" and type(getUnitNameAndRealm) == "function" then
-    local name, realm = getUnitNameAndRealm("player")
-    if name then
-      dps = getPlayerLastRunDps(name, realm)
-    end
-  end
-  sync.SendDps({
-    force = force and true or false,
-    isVisible = isFrameVisible(),
-    dps = dps,
-    source = source,
-  })
-end
-
 local function GetOwnedLocMapID()
   if not GetInstanceInfo then
     return nil
@@ -142,12 +114,64 @@ local function GetOwnedLocMapID()
   return math.floor(mapID)
 end
 
-local function SendOwnLocSnapshot(sync, isFrameVisible, force, source)
-  local mapID = GetOwnedLocMapID()
-  sync.SendLoc({
-    force = force and true or false,
-    isVisible = isFrameVisible(),
+local function SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, opts)
+  opts = opts or {}
+
+  local isVisible = isFrameVisible()
+  local force = opts.force and true or false
+  local source = opts.source
+  local allowHidden = opts.allowHidden == true
+  local onlyIfChanged = opts.onlyIfChanged == true
+  local includeDps = opts.includeDps ~= false
+
+  local mapID, level = GetOwnedKeystoneSnapshot()
+  sync.SendKey({
+    force = force,
+    isVisible = isVisible,
+    allowHidden = allowHidden,
+    onlyIfChanged = onlyIfChanged,
     mapID = mapID,
+    level = level,
+    source = source,
+  })
+
+  local specID, ilvl, rio = GetOwnedStatsSnapshot(getUnitRio)
+  sync.SendStats({
+    force = force,
+    isVisible = isVisible,
+    allowHidden = allowHidden,
+    onlyIfChanged = onlyIfChanged,
+    specID = specID,
+    ilvl = ilvl,
+    rio = rio,
+    source = source,
+  })
+
+  if includeDps then
+    local dps = nil
+    if type(getPlayerLastRunDps) == "function" and type(getUnitNameAndRealm) == "function" then
+      local name, realm = getUnitNameAndRealm("player")
+      if name then
+        dps = getPlayerLastRunDps(name, realm)
+      end
+    end
+    sync.SendDps({
+      force = force,
+      isVisible = isVisible,
+      allowHidden = allowHidden,
+      onlyIfChanged = onlyIfChanged,
+      dps = dps,
+      source = source,
+    })
+  end
+
+  local locMapID = GetOwnedLocMapID()
+  sync.SendLoc({
+    force = force,
+    isVisible = isVisible,
+    allowHidden = allowHidden,
+    onlyIfChanged = onlyIfChanged,
+    mapID = locMapID,
     source = source,
   })
 end
@@ -159,19 +183,36 @@ local function SendOwnKeySnapshot(
   getPlayerLastRunDps,
   getUnitNameAndRealm,
   force,
+  source,
+  allowHidden,
+  onlyIfChanged,
+  includeDps
+)
+  SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, {
+    force = force,
+    source = source,
+    allowHidden = allowHidden,
+    onlyIfChanged = onlyIfChanged,
+    includeDps = includeDps,
+  })
+end
+
+local function SendOwnBackgroundSnapshot(
+  sync,
+  isFrameVisible,
+  getUnitRio,
+  getPlayerLastRunDps,
+  getUnitNameAndRealm,
   source
 )
-  local mapID, level = GetOwnedKeystoneSnapshot()
-  sync.SendKey({
-    force = force and true or false,
-    isVisible = isFrameVisible(),
-    mapID = mapID,
-    level = level,
+  local visible = isFrameVisible()
+  SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, {
+    force = false,
     source = source,
+    allowHidden = not visible,
+    onlyIfChanged = not visible,
+    includeDps = visible,
   })
-  SendOwnStatsSnapshot(sync, isFrameVisible, getUnitRio, force, source)
-  SendOwnDpsSnapshot(sync, isFrameVisible, getPlayerLastRunDps, getUnitNameAndRealm, force, source)
-  SendOwnLocSnapshot(sync, isFrameVisible, force, source)
 end
 
 local function SendRefreshResponse(
@@ -467,8 +508,23 @@ function KeySync.CreateController(opts)
     return GetOwnedKeystoneSnapshot()
   end
 
-  function controller.SendOwnKeySnapshot(force, source)
-    SendOwnKeySnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, force, source)
+  function controller.SendOwnKeySnapshot(force, source, allowHidden, onlyIfChanged, includeDps)
+    SendOwnKeySnapshot(
+      sync,
+      isFrameVisible,
+      getUnitRio,
+      getPlayerLastRunDps,
+      getUnitNameAndRealm,
+      force,
+      source,
+      allowHidden,
+      onlyIfChanged,
+      includeDps
+    )
+  end
+
+  function controller.SendOwnBackgroundSnapshot(source)
+    SendOwnBackgroundSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, source)
   end
 
   function controller.SendRefreshResponse()

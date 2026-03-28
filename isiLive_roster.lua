@@ -16,6 +16,12 @@ local ROLE_ICONS = {
 }
 
 local LEADER_MARKER = " |TInterface\\GroupFrame\\UI-Group-LeaderIcon:16:16|t"
+local READY_CHECK_WAITING_MARKUP = "|TInterface\\RAIDFRAME\\ReadyCheck-Waiting:14:14:0:0|t "
+local READY_CHECK_BACKGROUND_COLORS = {
+  ready = { 0.08, 0.42, 0.14, 0.35 },
+  notready = { 0.48, 0.12, 0.12, 0.34 },
+  waiting = { 0.55, 0.4, 0.08, 0.32 },
+}
 
 local function NormalizeDisplayedKeyShortCode(shortCode)
   local text = tostring(shortCode or ""):gsub("%s+", "")
@@ -87,6 +93,11 @@ function Roster.BuildOrderedRoster(roster, rolePriority, unitPriority)
   end
 
   table.sort(orderedRoster, function(a, b)
+    local ghostA = a.info.isGhost == true
+    local ghostB = b.info.isGhost == true
+    if ghostA ~= ghostB then
+      return not ghostA
+    end
     local roleA = rolePriority[a.info.role or "NONE"] or rolePriority.NONE or 99
     local roleB = rolePriority[b.info.role or "NONE"] or rolePriority.NONE or 99
     if roleA ~= roleB then
@@ -126,6 +137,8 @@ function Roster.BuildDisplayData(info, opts)
   local syncBadge = opts.syncBadge or ""
   local syncSummary = opts.syncSummary
   local isReadyCheckActive = opts.isReadyCheckActive
+  local getReadyCheckDeclinedUntil = opts.getReadyCheckDeclinedUntil
+  local getTime = opts.getTime
 
   local isOffline = not info.isGhost and unit and not IsUnitConnectedSafe(unit)
 
@@ -138,15 +151,26 @@ function Roster.BuildDisplayData(info, opts)
     colorHex = BuildColorHexSafe(classColor.r, classColor.g, classColor.b)
   end
 
+  local readyCheckStatus = nil
+  local readyCheckBackgroundColor = nil
+  local readyCheckMarkup = ""
+  local declinedUntil = nil
+  if type(getReadyCheckDeclinedUntil) == "function" and unit then
+    declinedUntil = tonumber(getReadyCheckDeclinedUntil(unit))
+  end
+  local now = type(getTime) == "function" and tonumber(getTime()) or nil
   if not isOffline and not info.isGhost and isReadyCheckActive and unit then
     local status = GetReadyCheckStatusSafe(unit)
-    if status == "ready" then
-      colorHex = "ff00ff00" -- Green
-    elseif status == "notready" then
-      colorHex = "ffff0000" -- Red
-    elseif status == "waiting" then
-      colorHex = "ffffff00" -- Yellow
+    if READY_CHECK_BACKGROUND_COLORS[status] then
+      readyCheckStatus = status
+      readyCheckBackgroundColor = READY_CHECK_BACKGROUND_COLORS[status]
+      if status == "waiting" then
+        readyCheckMarkup = READY_CHECK_WAITING_MARKUP
+      end
     end
+  elseif not isOffline and not info.isGhost and declinedUntil and now and declinedUntil > now then
+    readyCheckStatus = "notready"
+    readyCheckBackgroundColor = READY_CHECK_BACKGROUND_COLORS.notready
   end
 
   local displayName = info.name or ""
@@ -206,5 +230,8 @@ function Roster.BuildDisplayData(info, opts)
     addonMarker = addonMarker,
     atDungeonMarker = atDungeonMarker,
     roleIconMarkup = roleIconMarkup,
+    readyCheckStatus = readyCheckStatus,
+    readyCheckBackgroundColor = readyCheckBackgroundColor,
+    readyCheckMarkup = readyCheckMarkup,
   }
 end

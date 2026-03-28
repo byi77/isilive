@@ -115,6 +115,7 @@ local function HandleNoGroup(deps, wasInGroupBefore)
     for unit, info in pairs(roster) do
       if unit ~= "player" then
         info.isGhost = true
+        info.isLeader = false
         local key = "ghost:" .. (info.name or "Unknown") .. "-" .. (info.realm or "")
         newRoster[key] = info
       end
@@ -239,6 +240,7 @@ local function UpdatePartyMembersInRoster(deps, roster)
 
   for _, conversion in ipairs(ghostConversions) do
     conversion.info.isGhost = true
+    conversion.info.isLeader = false
     roster[conversion.ghostKey] = conversion.info
     roster[conversion.partyUnit] = nil
   end

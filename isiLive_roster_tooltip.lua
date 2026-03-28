@@ -755,14 +755,13 @@ local function ShowRosterInfoTooltip(
     end
     if syncSummary then
       local L = type(getL) == "function" and getL() or {}
-      local ageLabel = type(L.TOOLTIP_SYNC_FRESHNESS) == "string" and L.TOOLTIP_SYNC_FRESHNESS or "Sync age: %s"
+      local intervalLabel = type(L.TOOLTIP_SYNC_FRESHNESS) == "string" and L.TOOLTIP_SYNC_FRESHNESS
+        or "Sync interval: %s"
       local sourceLabel = type(L.TOOLTIP_SYNC_SOURCE) == "string" and L.TOOLTIP_SYNC_SOURCE or "Source: %s"
-      local syncStamp = tonumber(syncSummary.capturedAt) or tonumber(syncSummary.receivedAt)
-      local currentStamp = GetCurrentSyncTimestamp()
-      local ageSeconds = syncStamp and currentStamp and currentStamp >= syncStamp and (currentStamp - syncStamp) or nil
-      local ageText = ageSeconds and FormatSyncAge(ageSeconds) or nil
-      if ageText then
-        tooltip:AddLine(string.format(ageLabel, ageText), 0.4, 0.8, 1)
+      local intervalSeconds = tonumber(syncSummary.intervalSeconds)
+      local intervalText = intervalSeconds and FormatSyncAge(intervalSeconds) or nil
+      if intervalText then
+        tooltip:AddLine(string.format(intervalLabel, intervalText), 0.4, 0.8, 1)
       end
       if type(syncSummary.source) == "string" and syncSummary.source ~= "" then
         tooltip:AddLine(string.format(sourceLabel, syncSummary.source), 0.4, 0.8, 1)
