@@ -28,7 +28,6 @@ local function ClearTable(t)
   end
 end
 
-
 local combatRetryFrame = CreateFrame("Frame")
 combatRetryFrame:SetScript("OnEvent", function(self, event)
   if event == "PLAYER_REGEN_ENABLED" then
@@ -409,4 +408,3 @@ function Teleport.BuildTeleportEntries()
 
   return entries
 end
-

@@ -1363,7 +1363,9 @@ local function RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, Load
       Assert.NotNil(button, "TeleportUI should build one teleport button")
       local onEnter = button._scripts and button._scripts.OnEnter or nil
       Assert.NotNil(onEnter, "Teleport button should define an OnEnter handler")
-      if onEnter then onEnter(button) end
+      if onEnter then
+        onEnter(button)
+      end
 
       local privateTooltip = nil
       for _, frame in ipairs(createdFrames) do
