@@ -410,6 +410,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Roster display shows flag only without language letters
   - Roster display clamps key short code to four letters
   - Roster display falls back to '?' for numeric-only key short codes
+  - Teleport active Midnight Season 1 uses shared short codes for enUS and deDE
 
 ### RULE-WARTUNGSDATEI-NICHT-IM-PAKET
 - Regelnummer: 37

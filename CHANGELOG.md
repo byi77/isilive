@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-03-29 - Version 0.9.110 (patch)
+
+- Active Midnight Season 1 dungeon labels:
+  - Corrected the localized `deDE` dungeon names to `Windlaeuferturm`, `Terrasse der Magister`, `Nexuspunkt Xenas`, `Maisarakavernen`, `Akademie von Algeth'ar`, `Grube von Saron`, `Sitz des Triumvirats`, and `Die Himmelsnadel`.
+  - Unified the active Midnight Season 1 short codes for both `enUS` and `deDE` to `WRS / MT / NPX / MC / AA / POS / SOT / SR`.
+  - Added deterministic coverage for the active-season short code baseline and the corrected `deDE` full-name baseline.
+- Docs / release baseline:
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.110`.
+  - Updated the documented validator counts to `450` scenarios across `34` modules and `450` rule-indexed deterministic tests.
+- Release metadata:
+  - Bumped TOC version to `0.9.110`.
+
 ## 2026-03-28 - Version 0.9.109 (patch)
 
 - Code cleanup / dead code removal:

@@ -428,6 +428,75 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
       )
     end)
   end)
+
+  test("Teleport active Midnight Season 1 uses shared short codes for enUS and deDE", function()
+    local createFrameStub = BuildCreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_season_data.lua",
+        "isiLive_teleport.lua",
+      })
+
+      local expectedShortCodes = {
+        [557] = "WRS",
+        [558] = "MT",
+        [559] = "NPX",
+        [560] = "MC",
+        [402] = "AA",
+        [556] = "POS",
+        [239] = "SOT",
+        [161] = "SR",
+      }
+
+      for mapID, expectedShortCode in pairs(expectedShortCodes) do
+        Assert.Equal(
+          addon.Teleport.GetDungeonShortCode(mapID, "enUS"),
+          expectedShortCode,
+          string.format("enUS short code for map %d should match the active season baseline", mapID)
+        )
+        Assert.Equal(
+          addon.Teleport.GetDungeonShortCode(mapID, "deDE"),
+          expectedShortCode,
+          string.format("deDE short code for map %d should match the active season baseline", mapID)
+        )
+      end
+    end)
+  end)
+
+  test("Teleport active Midnight Season 1 resolves corrected deDE dungeon names", function()
+    local createFrameStub = BuildCreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_season_data.lua",
+        "isiLive_teleport.lua",
+      })
+
+      local expectedNames = {
+        [557] = "Windlaeuferturm",
+        [558] = "Terrasse der Magister",
+        [559] = "Nexuspunkt Xenas",
+        [560] = "Maisarakavernen",
+        [402] = "Akademie von Algeth'ar",
+        [556] = "Grube von Saron",
+        [239] = "Sitz des Triumvirats",
+        [161] = "Die Himmelsnadel",
+      }
+
+      for mapID, expectedName in pairs(expectedNames) do
+        Assert.Equal(
+          addon.Teleport.GetDungeonName(mapID, "deDE"),
+          expectedName,
+          string.format("deDE dungeon name for map %d should match the corrected active season baseline", mapID)
+        )
+      end
+    end)
+  end)
 end
 
 local function RegisterTeleportResolverAliasTests(test, Assert, WithGlobals, LoadAddonModules)

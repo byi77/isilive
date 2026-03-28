@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.109`.
+Current documented baseline: `0.9.110`.
 
 ## Features
 
@@ -50,7 +50,7 @@ Current documented baseline: `0.9.109`.
 - Ready-check lifecycle uses a dedicated roster refresh path that colors roster row backgrounds without rerunning the generic full render or rewriting secure role-button attributes; waiting rows show a sandglass and explicit declines stay red for 20 seconds after the ready check ends
 - Dungeon teleport controls in the right-side grid
 - Teleport cooldown shown as `HH:MM`
-- Active Midnight Season 1 `M2` short codes currently use `MGT / MAI / NPX / WRS / AA / POS / SOT / SKY` in `enUS` and `TDM / MAI / NPX / WRS / AA / GVS / SDT / HN` in `deDE`
+- Active Midnight Season 1 `M2` short codes currently use `WRS / MT / NPX / MC / AA / POS / SOT / SR` in both `enUS` and `deDE`
 - Addon-presence marker per roster name (custom blue heart icon plus a compact sync refresh badge when metadata is available); real group leaders additionally show a 16x16 crown after the heart
 - `Share Keys` posts one party-chat line per available member key (`isiLive PartyKeys: Name -> Key`), using Blizzard owned-keystone link payload for the local player when available
 - Spec column uses max-5-char short labels for long localized names (for example `Wiederherstellung -> Resto`, `Vergeltung -> Retri`, `Treffsicherheit -> MM`, `Tierherrschaft -> BM`)
@@ -106,9 +106,9 @@ Current documented baseline: `0.9.109`.
 - Runtime log storage is session-only and starts disabled on every login/reload.
 - Sync handshake behavior: `HELLO` recipients send `ACK`; explicit local refresh force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.109)
+## Use Case / Logic Baseline (v0.9.110)
 
-Documented on `2026-03-28` as runtime behavior baseline (`0.9.109`) for validation checks.
+Documented on `2026-03-29` as runtime behavior baseline (`0.9.110`) for validation checks.
 
 
 1. Queue invite -> grouped flow
