@@ -1098,8 +1098,8 @@ local function InitializeFactorySecondaryControllers(ctx)
             force = true,
           })
         end
-        if ctx.UpdateUI then
-          ctx.UpdateUI()
+        if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKickColumn) == "function" then
+          ctx.rosterPanelController.RefreshKickColumn()
         end
       end,
     })
@@ -1109,6 +1109,7 @@ local function InitializeFactorySecondaryControllers(ctx)
     castFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
     castFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
     castFrame:RegisterEvent("SPELLS_CHANGED")
+    castFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
     castFrame:SetScript("OnEvent", function(_, event, unit, _, spellID)
       if event == "UNIT_SPELLCAST_SUCCEEDED" then
         if unit ~= "player" then
@@ -1122,14 +1123,14 @@ local function InitializeFactorySecondaryControllers(ctx)
         if ctx.kickTrackerController then
           ctx.kickTrackerController.CacheCooldown()
         end
-      elseif event == "SPELLS_CHANGED" then
+      elseif event == "SPELLS_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED" then
         if ctx.kickTrackerController then
           ctx.kickTrackerController.ResolveSpellID()
         end
       end
     end)
 
-    -- Ticker: check expiry every 0.5s and push state to sync store.
+    -- Ticker: scan own kick state + refresh kick column every 1s.
     local C_Timer_ref = rawget(_G, "C_Timer")
     if type(C_Timer_ref) == "table" and type(C_Timer_ref.NewTicker) == "function" then
       C_Timer_ref.NewTicker(1.0, function()
@@ -1140,17 +1141,18 @@ local function InitializeFactorySecondaryControllers(ctx)
             local selfRealm = GetRealmName and GetRealmName() or nil
             if selfName and selfName ~= "" then
               local info = ctx.kickTrackerController.GetKickInfo()
-              local changed = modules.sync.SetPlayerKickInfo(selfName, selfRealm, info.onCooldown, info.cooldownRemain)
-              if (changed or info.onCooldown) and ctx.UpdateUI then
-                ctx.UpdateUI()
-              end
+              modules.sync.SetPlayerKickInfo(selfName, selfRealm, info.onCooldown, info.cooldownRemain)
               -- Broadcast kick state to group members every tick while on CD,
               -- and once on state change (ready/cooldown transition).
-              if (changed or info.onCooldown) and type(modules.sync.SendKick) == "function" then
+              if info.onCooldown and type(modules.sync.SendKick) == "function" then
                 modules.sync.SendKick({ onCooldown = info.onCooldown, cooldownRemain = info.cooldownRemain })
               end
             end
           end
+        end
+        -- Refresh only the kick column in the roster (lightweight, no full re-render).
+        if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKickColumn) == "function" then
+          ctx.rosterPanelController.RefreshKickColumn()
         end
       end)
     end

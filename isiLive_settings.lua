@@ -807,6 +807,36 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
     "SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END"
   )
 
+  controls.soundLeadEnabled, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_SOUND_LEAD_ENABLED or "Sound: Lead Transfer",
+    function()
+      local db = config.getDB()
+      return db.soundLeadEnabled ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.soundLeadEnabled = checked
+    end,
+    "SETTINGS_SOUND_LEAD_ENABLED"
+  )
+
+  controls.soundGroupJoinEnabled, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_SOUND_GROUP_JOIN_ENABLED or "Sound: Group Join",
+    function()
+      local db = config.getDB()
+      return db.soundGroupJoinEnabled == true
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.soundGroupJoinEnabled = checked
+    end,
+    "SETTINGS_SOUND_GROUP_JOIN_ENABLED"
+  )
+
   controls.raidBehavior, yOffset = CreateSettingsOptionSelector(
     canvas,
     yOffset,
@@ -974,6 +1004,12 @@ local function RefreshSettingsControls(controls, config)
   if controls.portalNavigator then
     controls.portalNavigator.label:SetText(freshL.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR or "Show Timeways Navigator")
   end
+  if controls.soundLeadEnabled then
+    controls.soundLeadEnabled.label:SetText(freshL.SETTINGS_SOUND_LEAD_ENABLED or "Sound: Lead Transfer")
+  end
+  if controls.soundGroupJoinEnabled then
+    controls.soundGroupJoinEnabled.label:SetText(freshL.SETTINGS_SOUND_GROUP_JOIN_ENABLED or "Sound: Group Join")
+  end
   controls.lang.UpdateHighlight()
   controls.combatLog.check:SetChecked(GetCVarEnabled("advancedCombatLogging"))
   controls.dmReset.check:SetChecked(GetCVarEnabled("damageMeterResetOnNewInstance"))
@@ -997,6 +1033,12 @@ local function RefreshSettingsControls(controls, config)
   end
   if controls.portalNavigator then
     controls.portalNavigator.check:SetChecked(db.showPortalNavigator ~= false)
+  end
+  if controls.soundLeadEnabled then
+    controls.soundLeadEnabled.check:SetChecked(db.soundLeadEnabled ~= false)
+  end
+  if controls.soundGroupJoinEnabled then
+    controls.soundGroupJoinEnabled.check:SetChecked(db.soundGroupJoinEnabled == true)
   end
 
   if controls.showDps then

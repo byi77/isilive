@@ -7,7 +7,7 @@ addonTable.Texts = Texts
 
 local LOCALES = {
   enUS = {
-    TITLE = "isiLive v0.9.113",
+    TITLE = "isiLive v0.9.114",
     TITLE_HINT = "Open/Close CTRL-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
@@ -183,9 +183,11 @@ local LOCALES = {
     SETTINGS_NAME_MAX_CHARS = "Name Length",
     SETTINGS_MARKERS_LEADER_ONLY = "Markers: Leader Only",
     SETTINGS_TELEPORT_COLUMNS = "Teleport Grid Columns",
+    SETTINGS_SOUND_LEAD_ENABLED = "Sound: Lead Transfer",
+    SETTINGS_SOUND_GROUP_JOIN_ENABLED = "Sound: Group Join",
   },
   deDE = {
-    TITLE = "isiLive v0.9.113",
+    TITLE = "isiLive v0.9.114",
     TITLE_HINT = "Öffnen/Schliessen STRG-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
@@ -361,6 +363,8 @@ local LOCALES = {
     SETTINGS_NAME_MAX_CHARS = "Namenslaenge",
     SETTINGS_MARKERS_LEADER_ONLY = "Marker: Nur Gruppenleiter",
     SETTINGS_TELEPORT_COLUMNS = "Teleport-Grid Spalten",
+    SETTINGS_SOUND_LEAD_ENABLED = "Sound: Lead-Uebergabe",
+    SETTINGS_SOUND_GROUP_JOIN_ENABLED = "Sound: Gruppe beigetreten",
   },
 }
 

@@ -39,6 +39,10 @@ function LeaderWatch.CreateController(opts)
   end
 
   local function PlayLeadTransferSound()
+    local db = rawget(_G, "IsiLiveDB")
+    if db and db.soundLeadEnabled == false then
+      return
+    end
     local playSoundFile = rawget(_G, "PlaySoundFile")
     if type(playSoundFile) ~= "function" then
       return

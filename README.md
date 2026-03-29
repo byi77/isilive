@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.113`.
+Current documented baseline: `0.9.114`.
 
 ## Features
 
@@ -16,15 +16,16 @@ Current documented baseline: `0.9.113`.
 - **Horizontal Mini Mode:** Shows the compact leader actions `RC`, `CD`, and `CD 0` side by side while M+Marker stays visible as one horizontal marker row. `Share Keys` and `Re-Sync` stay available only in M/V layouts.
 - **Esc Menu Tooling:** The WoW `Esc` game menu can show a tooling strip left of the default menu, with direct buttons for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button. The `ReloadUI` entry is wired as a secure macro (`/click GameMenuButtonContinue` + `/reload`), mirrors `ActionButtonUseKeyDown`, and defers blocked secure refreshes until `PLAYER_REGEN_ENABLED`; both `Esc` strips are pre-mounted `GameMenuFrame` children, so combat no longer relies on deferred side-panel re-shows.
 - **Esc Travel Strip:** A second strip farther left adds `Arkantine`, `Hearthstone`, and `Housing` buttons. The `Arkantine` button resolves the item name by WoW client locale at button creation time (`deDE` → German, all others → English). The `Hearthstone` button uses an owned Hearthstone toy when available and otherwise falls back to the default Hearthstone item (`6948`).
-- **Blizzard Settings Category:** `Settings -> AddOns -> isiLive` exposes localized controls for language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts` (tooling + travel strips), `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Queue Debug Log (resets on reload)`, and `Runtime Log (resets on reload)`.
+- **Blizzard Settings Category:** `Settings -> AddOns -> isiLive` exposes localized controls for language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts` (tooling + travel strips), `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Sound: Lead Transfer`, `Sound: Group Join`, `Queue Debug Log (resets on reload)`, and `Runtime Log (resets on reload)`.
 - **Default Open Layout:** `Default UI on Open` now opens the addon in `M2` by default until the user picks another layout; `Last Used` remains an explicit option.
 - **Roster Column Guides:** Optional debug column guides can be enabled for `M` and `M2` layout tuning and stay off by default.
 - **Hidden Legacy Settings Defaults:** `Name Length`, `Teleport Grid Columns`, `Show DPS Column`, and `Markers: Leader Only` are temporarily hidden from Blizzard Settings; runtime keeps fixed live defaults instead (`DPS` on, markers visible for all, fixed name truncation, legacy 2-column `Travel` grid).
-- **Leader Transfer Feedback:** gaining lead while the main UI is visible shows the center notice and plays the transfer sound; hidden promotions still play the sound but suppress the notice/chat output.
+- **Leader Transfer Feedback:** gaining lead while the main UI is visible shows the center notice and plays the transfer sound; hidden promotions still play the sound but suppress the notice/chat output. `Sound: Lead Transfer` defaults to enabled and can be disabled in Blizzard Settings.
+- **Group Join Feedback:** first real small-group joins can play an optional join sound via `Sound: Group Join`; the toggle defaults to off until the user enables it.
 - **Leader Marker:** roster rows for the real local group leader render a Blizzard crown icon; if that player is also a known `isiLive` user, the blue heart stays visible and is rendered before the crown.
 - **UI Polish Refresh:** The roster panel, private tooltips, invite hint, and center notice now share the same dark framed palette with softer blue hover accents, alternating row shading, and cleaner separators.
 - **Combat Utility Row:** A bottom tracker row shows live `BRes` charges/cooldown (via `C_Spell.GetSpellCharges` struct-return), `Bloodlust`/`Heroism`/`Time Warp` remaining time with spell icons, and active Mythic+ timer cutoffs for `+3`, `+2`, `+1` plus death-penalty loss. While a key is running, the one-second utility ticker also rerenders the panel so those cutoff timers visibly count down live. Lust tracking uses the player's harmful exhaustion aura, accepts only numeric aura `spellId` values for lookup, ignores protected/non-numeric payloads safely, treats `UNIT_AURA(..., { isFullUpdate = true })` as aura-restore state after zone/reload transitions, and keeps only a short 2-second startup suppress window as a safety net before the full restore arrives.
-- **Kick Cooldown Sync:** The roster `Kick` column shows the synced interrupt state for party members as `ready` or remaining cooldown seconds, based on the player's spec-specific interrupt spell and local cooldown tracking.
+- **Kick Cooldown Sync:** The roster `Kick` column shows the synced interrupt state for party members as `ready` or remaining cooldown seconds, based on the player's spec-specific interrupt spell and local cooldown tracking. Interrupt tracking now re-resolves immediately on spec changes and refreshes the kick column without forcing a full roster rerender.
 - **Minimap Button:** Optional draggable Minimap button toggles the main window and persists its angle around the minimap.
 - Blizzard Settings only: `Combat Logging` and `DM Reset on Entry` live in `Settings -> AddOns -> isiLive`; the main roster panel no longer shows those toggles.
 - Stable role sorting: `Tank -> Healer -> Damager`
@@ -68,6 +69,8 @@ Current documented baseline: `0.9.113`.
 - Auto-open on real fresh small-group join
 - `Default UI on Open` defaults to `M2` until the user changes it in settings.
 - `Auto-Close on Key Start / Solo` defaults to disabled until the user turns it on.
+- `Sound: Lead Transfer` defaults to enabled.
+- `Sound: Group Join` defaults to disabled until the user enables it.
 - Without that option, runtime transitions do not auto-close the main window; key start and solo transitions only auto-close when the option is enabled.
 - Auto-open on key end (`CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET`) while grouped.
 - Auto-open on real dungeon entry (`outside -> party instance`) while not in an active key.
@@ -89,9 +92,9 @@ Current documented baseline: `0.9.113`.
 - Combat-safe frame updates: pending main-frame visibility, frame-height changes, and blocked `Esc` shortcut secure-button refreshes are applied on `PLAYER_REGEN_ENABLED`; mounted `Esc` strips stay visible through their protected parent and insecure shortcut clicks no-op during combat instead of mutating panel layout.
 - `Advanced Combat Logging` and `DM Reset on Dungeon Entry` live in Blizzard Settings only.
 - They mirror the live Blizzard CVar state and write only on explicit user clicks.
-- Blizzard `Settings -> AddOns -> isiLive` mirrors locale, those same CVar-backed toggles, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Queue Debug Log (resets on reload)`, and `Runtime Log (resets on reload)` without forcing the main addon window open.
+- Blizzard `Settings -> AddOns -> isiLive` mirrors locale, those same CVar-backed toggles, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Sound: Lead Transfer`, `Sound: Group Join`, `Queue Debug Log (resets on reload)`, and `Runtime Log (resets on reload)` without forcing the main addon window open.
 - Hidden legacy Settings controls stay absent from Blizzard Settings for now and use fixed runtime defaults (`DPS` on, markers visible for all, fixed name truncation, legacy 2-column `Travel` grid).
-- LeaderWatch compares current local leader state against cached state on both `GROUP_ROSTER_UPDATE` and `PARTY_LEADER_CHANGED`; hidden leader changes keep button state synchronized without hidden notice/chat spam, while hidden promotions still play the leader-transfer sound.
+- LeaderWatch compares current local leader state against cached state on both `GROUP_ROSTER_UPDATE` and `PARTY_LEADER_CHANGED`; hidden leader changes keep button state synchronized without hidden notice/chat spam, while hidden promotions still play the leader-transfer sound unless the user disables it in settings.
 - Disabling `Show ESC Menu Shortcuts` hides the optional `Esc` tooling and travel strips immediately; localization refresh updates both strips and the Blizzard settings canvas.
 - The toggle row keeps a fixed gap between adjacent labels.
 - Blizzard damage meter is also manually reset on `CHALLENGE_MODE_START` when `C_DamageMeter` API support is available.
@@ -108,9 +111,9 @@ Current documented baseline: `0.9.113`.
 - Runtime log storage is session-only and starts disabled on every login/reload.
 - Sync handshake behavior: `HELLO` recipients send `ACK`; explicit local refresh force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.113)
+## Use Case / Logic Baseline (v0.9.114)
 
-Documented on `2026-03-29` as runtime behavior baseline (`0.9.113`) for validation checks.
+Documented on `2026-03-29` as runtime behavior baseline (`0.9.114`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -279,7 +282,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 452 scenarios across 34 modules, while the rule validators currently index 452 deterministic tests, including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 457 scenarios across 34 modules, while the rule validators currently index 457 deterministic tests, including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)

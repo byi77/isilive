@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.113`
+Version baseline: `0.9.114`
 Last updated: `2026-03-29`
 
 ## Purpose
@@ -102,12 +102,12 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 452 scenarios across 34 modules, while the rule validators currently index 452 deterministic tests.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 457 scenarios across 34 modules, while the rule validators currently index 457 deterministic tests.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiLive                                                 v0.9.113 Open/Close CTRL-F9 [H][V][M][M2][X]|
+| isiLive                                                 v0.9.114 Open/Close CTRL-F9 [H][V][M][M2][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS                M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
@@ -161,9 +161,9 @@ In addition to the main roster frame, `isiLive_ui.lua` can attach optional tooli
 | EventHandlersChallenge | Challenge and ready-check events | Run lifecycle, delayed refresh, rio delta enable, ready-check state, declined-hold tracking, and dedicated ready-check UI refresh routing |
 | Stats | Challenge/non-challenge party run completion signals plus Blizzard damage-meter session | Bounded last-run DPS snapshots with short delayed-session retry (persistent only for the matching local character, foreign players session-only) |
 | CdTracker | Battle-res charges via `C_Spell.GetSpellCharges` struct-return, numeric-only harmful lust-aura scans, direct lust spellcasts, and `isFullUpdate` aura-restore hydration | Live BRes charges/cooldown and Lust countdown row state with zone-transition-safe onset suppression |
-| LeaderWatch | `GROUP_ROSTER_UPDATE` / `PARTY_LEADER_CHANGED` plus cached leader state | Leader-only button refresh, visible center notice on promotion, and transfer sound feedback even for hidden promotions |
-| RosterPanel | Roster model and localization | Main table rendering, active-before-ghost row ordering under the 5-row budget, 16x16 leader crown plus synced-heart marker ordering, dedicated ready-check row-background refresh with waiting sandglass and declined hold, DPS column, CD tracker row, and action button callbacks |
-| SettingsPanel | Locale/CVar/SavedVariable getters plus toggle callbacks | Blizzard Settings canvas, language selector, visible display/behavior/debug toggles, UI/background sliders, default-open layout selector, optional roster column-guide toggle, and temporary legacy-setting suppression |
+| LeaderWatch | `GROUP_ROSTER_UPDATE` / `PARTY_LEADER_CHANGED` plus cached leader state | Leader-only button refresh, visible center notice on promotion, and transfer sound feedback even for hidden promotions unless the user disables it |
+| RosterPanel | Roster model and localization | Main table rendering, active-before-ghost row ordering under the 5-row budget, 16x16 leader crown plus synced-heart marker ordering, dedicated ready-check row-background refresh with waiting sandglass and declined hold, DPS column, dedicated kick-column refresh path, CD tracker row, and action button callbacks |
+| SettingsPanel | Locale/CVar/SavedVariable getters plus toggle callbacks | Blizzard Settings canvas, language selector, visible display/behavior/debug toggles, UI/background sliders, default-open layout selector, optional roster column-guide toggle, sound toggles for leader-transfer/group-join feedback, and temporary legacy-setting suppression |
 | TeleportUI | Season teleport entries and state | Insecure-action teleport button states, deterministic season-slot placement, locale-aware `M2` short-code overlays while ready, and cooldown labels that take precedence while on cooldown |
 
 ## Extension Points

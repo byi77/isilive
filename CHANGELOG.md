@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-03-29 - Version 0.9.114 (patch)
+
+- Audio settings and group lifecycle:
+  - Added localized Blizzard Settings toggles for `Sound: Lead Transfer` and `Sound: Group Join`.
+  - Leader-transfer promotions still show the visible notice, but the sound can now be disabled explicitly; the new group-join sound hook stays off by default until the user enables it.
+- Kick tracker refresh path:
+  - Kick cooldown updates now refresh only the dedicated roster `Kick` column instead of forcing a full UI rerender.
+  - Kick spell resolution now also refreshes on `PLAYER_SPECIALIZATION_CHANGED`, so spec swaps update the tracked interrupt immediately.
+- Tests / docs / release baseline:
+  - Added deterministic coverage for the new sound toggles, the optional first-group-join callback, the disabled leader-sound path, and the lightweight kick-refresh wiring.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.114`.
+  - Validator baseline is now `457` scenarios across `34` modules and `457` rule-indexed deterministic tests.
+- Release metadata:
+  - Bumped TOC/version strings to `0.9.114`.
+
 ## 2026-03-29 - Version 0.9.113 (patch)
 
 - Combat utility refresh:

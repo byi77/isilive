@@ -2037,6 +2037,25 @@ function RosterPanel.CreateController(opts)
     RefreshSystemOptionToggles(ui)
   end
 
+  function controller.RefreshKickColumn()
+    for _, row in pairs(memberRows) do
+      if row.kick and row.tooltipInfo then
+        local info = row.tooltipInfo
+        if type(applyKnownKeyToRosterEntry) == "function" then
+          applyKnownKeyToRosterEntry(info)
+        end
+        if info.syncKickOnCooldown == true then
+          local secs = math.ceil(info.syncKickRemain or 0)
+          row.kick:SetText(string.format("|cffff4040%ds|r", secs))
+        elseif info.syncKickOnCooldown == false then
+          row.kick:SetText("|cff44ff44ready|r")
+        else
+          row.kick:SetText("|cff666666-|r")
+        end
+      end
+    end
+  end
+
   function controller.SetCdController(ctrl)
     cdController = ctrl
   end

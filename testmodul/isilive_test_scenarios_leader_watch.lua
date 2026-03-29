@@ -250,4 +250,43 @@ return function(test, ctx)
       Assert.True(state.wasGroupLeader, "hidden promotion must still update cached state")
     end)
   end)
+
+  test("LeaderWatch suppresses transfer sound when the setting is disabled", function()
+    local frameScript = nil
+    local soundCalls = 0
+
+    WithGlobals({
+      IsiLiveDB = {
+        soundLeadEnabled = false,
+      },
+      CreateFrame = function()
+        return {
+          RegisterEvent = function() end,
+          SetScript = function(_, scriptType, script)
+            if scriptType == "OnEvent" then
+              frameScript = script
+            end
+          end,
+        }
+      end,
+      PlaySoundFile = function()
+        soundCalls = soundCalls + 1
+      end,
+    }, function()
+      local controller, state = BuildLeaderWatchController({
+        wasGroupLeader = false,
+        isLeader = false,
+      })
+
+      controller.Start()
+      Assert.NotNil(frameScript, "LeaderWatch must register an OnEvent handler when started")
+
+      state.isLeader = true
+      frameScript(nil, "PARTY_LEADER_CHANGED")
+
+      Assert.Equal(soundCalls, 0, "disabled leader-transfer sound must not play")
+      Assert.Equal(#state.centerNotices, 1, "visible promotion must still show the center notice")
+      Assert.True(state.wasGroupLeader, "leader promotion must still update cached leader state")
+    end)
+  end)
 end

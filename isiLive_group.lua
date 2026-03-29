@@ -86,6 +86,7 @@ local function BuildDeps(opts)
     sendOwnKeySnapshot = opts.sendOwnKeySnapshot or function(_force) end,
     sendIsiLiveHello = opts.sendIsiLiveHello or function(_force) end,
     sendRefreshRequest = opts.sendRefreshRequest or function(_force) end,
+    onGroupJoined = opts.onGroupJoined or function() end,
     timerAfter = opts.timerAfter or function(_, cb)
       cb()
     end,
@@ -373,6 +374,7 @@ local function HandleGroupRosterUpdate(deps)
     })
     deps.captureQueueJoinCandidate()
     deps.announceQueuedGroupJoin()
+    deps.onGroupJoined()
   end
 
   local roster = deps.getRoster()

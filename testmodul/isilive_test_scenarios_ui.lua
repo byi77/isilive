@@ -2351,6 +2351,104 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
       ---@diagnostic enable: need-check-nil, undefined-field
     end)
   end)
+end
+
+local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Settings panel exposes lead-transfer and group-join sound toggles with the intended defaults", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_BEHAVIOR = "Behavior",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_UI_SCALE = "UI Scale",
+            SETTINGS_MINIMAP_BUTTON = "Minimap Button",
+            SETTINGS_SYNC_ENABLED = "Addon Sync",
+            SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
+            SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
+            SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP = "Show on Login / Reload",
+            SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END = "Auto Open on Key End",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR = "Raid Behavior",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_H = "Show + H",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_KEEP = "Show + Keep",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_PRESERVE = "Keep State",
+            SETTINGS_ROSTER_COLUMN_GUIDES = "Column Guides",
+            SETTINGS_SHOW_TIMEWAYS_NAVIGATOR = "Show Timeways Navigator",
+            SETTINGS_SOUND_LEAD_ENABLED = "Sound: Lead Transfer",
+            SETTINGS_SOUND_GROUP_JOIN_ENABLED = "Sound: Group Join",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+      })
+
+      Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
+      Assert.Nil(db.soundLeadEnabled, "opening settings should not persist the default leader-sound state")
+      Assert.Nil(db.soundGroupJoinEnabled, "opening settings should not persist the default group-join sound state")
+
+      local leadSoundCheck = nil
+      local groupJoinSoundCheck = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._settingKey == "SETTINGS_SOUND_LEAD_ENABLED" then
+          leadSoundCheck = frame
+        elseif frame._settingKey == "SETTINGS_SOUND_GROUP_JOIN_ENABLED" then
+          groupJoinSoundCheck = frame
+        end
+      end
+
+      Assert.NotNil(leadSoundCheck, "settings panel should create a leader-transfer sound checkbox")
+      Assert.NotNil(groupJoinSoundCheck, "settings panel should create a group-join sound checkbox")
+      ---@diagnostic disable: need-check-nil, undefined-field
+      Assert.True(leadSoundCheck:GetChecked(), "leader-transfer sound should default to enabled")
+      Assert.False(groupJoinSoundCheck:GetChecked(), "group-join sound should default to disabled")
+
+      local onClickLead = leadSoundCheck._scripts and leadSoundCheck._scripts.OnClick or nil
+      local onClickJoin = groupJoinSoundCheck._scripts and groupJoinSoundCheck._scripts.OnClick or nil
+      Assert.NotNil(onClickLead, "leader-transfer sound checkbox should define OnClick")
+      Assert.NotNil(onClickJoin, "group-join sound checkbox should define OnClick")
+
+      leadSoundCheck:SetChecked(false)
+      onClickLead(leadSoundCheck) ---@diagnostic disable-line: need-check-nil
+      groupJoinSoundCheck:SetChecked(true)
+      onClickJoin(groupJoinSoundCheck) ---@diagnostic disable-line: need-check-nil
+
+      Assert.False(db.soundLeadEnabled, "disabling leader-transfer sound should persist false")
+      Assert.True(db.soundGroupJoinEnabled, "enabling group-join sound should persist true")
+
+      panel.Refresh()
+      Assert.False(leadSoundCheck:GetChecked(), "refresh should keep the disabled leader-transfer sound state")
+      Assert.True(groupJoinSoundCheck:GetChecked(), "refresh should keep the enabled group-join sound state")
+      ---@diagnostic enable: need-check-nil, undefined-field
+    end)
+  end)
 
   test("Settings panel hides disabled legacy display and behavior controls", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
@@ -2447,17 +2545,18 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
       Assert.Equal(sliderCount, 2, "settings should only expose the background opacity and UI scale sliders")
       Assert.Equal(
         checkboxCount,
-        13,
-        "settings should hide the legacy DPS, markers, sound, name-length,"
-          .. " and teleport-column controls while keeping the new startup/key-end toggles plus column guides"
+        15,
+        "settings should hide only the legacy DPS, markers, name-length,"
+          .. " and teleport-column controls while keeping the startup/key-end, navigator, and sound toggles visible"
       )
 
       panel.Refresh()
       Assert.Equal(sliderCount, 2, "refresh should keep the legacy sliders hidden")
       Assert.Equal(
         checkboxCount,
-        13,
-        "refresh should keep the hidden legacy checkboxes out of the settings UI while preserving column guides"
+        15,
+        "refresh should keep the hidden legacy checkboxes out of the settings UI"
+          .. " while preserving the visible sound toggles"
       )
     end)
   end)
@@ -3033,6 +3132,7 @@ return function(test, ctx)
   RegisterGameMenuMicroButtonTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, LoadAddonModules)
 end

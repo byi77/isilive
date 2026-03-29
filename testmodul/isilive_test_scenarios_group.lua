@@ -17,6 +17,7 @@ local function BuildGroupState(overrides)
     helloArgs = {},
     refreshRequests = 0,
     refreshRequestArgs = {},
+    groupJoinedCalls = 0,
     knownUsersCleared = 0,
     inspectResets = 0,
     uiUpdates = 0,
@@ -155,6 +156,9 @@ local function BuildGroupControllerOptions(state, overrides)
       table.insert(state.refreshRequestArgs, {
         force = force == true,
       })
+    end,
+    onGroupJoined = overrides.onGroupJoined or function()
+      state.groupJoinedCalls = state.groupJoinedCalls + 1
     end,
     shouldAutoCloseMainFrame = overrides.shouldAutoCloseMainFrame or function()
       return false
@@ -1026,6 +1030,17 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
 
     Assert.Equal(state.queued, 1, "queue capture must fire on first join")
     Assert.Equal(state.announced, 1, "queue announce must fire on first join")
+  end)
+
+  test("First group join fires the optional join callback exactly once", function()
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = false,
+    })
+
+    controller.HandleGroupRosterUpdate()
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(state.groupJoinedCalls, 1, "first join callback must fire once and not repeat on later roster updates")
   end)
 
   test("First group join auto-open suppresses recursive join side effects", function()

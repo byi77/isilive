@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.113`
+Version baseline: `0.9.114`
 Last updated: `2026-03-29`
 
 ## Actors
@@ -32,7 +32,7 @@ Last updated: `2026-03-29`
 | UC-10 | Raid H-mode transition | Raid-size groups keep the addon visible in H mode while roster rows stay hidden |
 | UC-11 | M+Marker World Markers | Vertical bar of 8 secure world-marker buttons for immediate place/clear |
 | UC-12 | Roster Panel Mini Mode | Collapse toggle hides roster list and `Travel`, while keeping compact Marker and management tools visible |
-| UC-13 | Esc shortcuts and addon settings | Player gets dual Blizzard-UI entry surfaces plus localized config toggles |
+| UC-13 | Esc shortcuts and addon settings | Player gets dual Blizzard-UI entry surfaces plus localized config toggles and sound preferences |
 | UC-14 | Combat utility tracker | Live BRes, lust, Mythic+ timer, and synced interrupt state stay visible in the roster panel |
 
 ## UC-01 Invite Detection Without Target Guessing
@@ -143,7 +143,7 @@ Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without d
 4. Combat safety: if combat lockdown blocks secure `ReloadUI` button refreshes (for example click registration or macro attribute updates), addon defers that update and retries it on `PLAYER_REGEN_ENABLED`; the mounted `Esc` strips themselves stay read-only in combat, remain visible through `GameMenuFrame`, and insecure shortcut clicks become no-ops instead of mutating overlay layout.
 5. Rule: the spellbook shortcut must use spellbook-specific openers and must not route through the talents panel.
 6. Trigger B: player opens `Settings -> AddOns -> isiLive`.
-7. Result B: Blizzard settings expose language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Queue Debug Log (resets on reload)`, and `Runtime Log (resets on reload)`.
+7. Result B: Blizzard settings expose language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Sound: Lead Transfer`, `Sound: Group Join`, `Queue Debug Log (resets on reload)`, and `Runtime Log (resets on reload)`.
 8. Rule: settings controls mirror live Blizzard CVars / SavedVariables and apply changes immediately without requiring the main addon window to be visible; changing `Background Opacity` live-updates the main frame, the optional `Esc` tooling and travel strips, and the settings canvas itself. Hidden legacy controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`) stay out of the settings UI and currently use fixed runtime defaults: `DPS` on, markers visible for all, fixed name truncation, and legacy 2-column `Travel` layout.
 9. Success criteria: both entry surfaces stay localized, deterministic, and reflect the current config/runtime state.
 

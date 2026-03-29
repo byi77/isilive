@@ -476,6 +476,74 @@ local function RegisterArchitectureLeaderMarkerWiringTests(test, Assert)
   end)
 end
 
+local function RegisterArchitectureAudioAndKickWiringTests(test, Assert)
+  test("Architecture group-join sound hook stays local to controller wiring", function()
+    local wiringContent = ReadFile("isiLive_controller_wiring.lua")
+    local groupContent = ReadFile("isiLive_group.lua")
+
+    AssertContains(
+      Assert,
+      groupContent,
+      "onGroupJoined = opts.onGroupJoined or function() end,",
+      "Group controller must accept the optional group-join callback"
+    )
+    AssertContains(
+      Assert,
+      groupContent,
+      "deps.onGroupJoined()",
+      "Group controller must invoke the group-join callback on the first real join"
+    )
+    AssertContains(
+      Assert,
+      wiringContent,
+      "onGroupJoined = function()",
+      "ControllerWiring must own the concrete group-join sound hook"
+    )
+    AssertContains(
+      Assert,
+      wiringContent,
+      "db.soundGroupJoinEnabled ~= true",
+      "ControllerWiring group-join sound hook must default to disabled until explicitly enabled"
+    )
+    AssertContains(
+      Assert,
+      wiringContent,
+      'playSoundFile("Interface\\\\AddOns\\\\isiLive\\\\sounds\\\\SynthChord.ogg", "Master")',
+      "ControllerWiring group-join sound hook must use the SynthChord asset on the Master channel"
+    )
+  end)
+
+  test("Architecture kick tracker uses lightweight kick-column refresh hooks", function()
+    local helpersContent = ReadFile("isiLive_factory_controllers.lua")
+    local rosterPanelContent = ReadFile("isiLive_roster_panel.lua")
+
+    AssertContains(
+      Assert,
+      helpersContent,
+      'castFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")',
+      "factory kick tracking must refresh spell resolution on specialization changes"
+    )
+    AssertContains(
+      Assert,
+      helpersContent,
+      "ctx.rosterPanelController.RefreshKickColumn()",
+      "factory kick tracking must use the dedicated roster kick refresh path"
+    )
+    AssertContains(
+      Assert,
+      rosterPanelContent,
+      "function controller.RefreshKickColumn()",
+      "RosterPanel must expose a dedicated kick-column refresh helper"
+    )
+    AssertContains(
+      Assert,
+      rosterPanelContent,
+      'row.kick:SetText("|cff44ff44ready|r")',
+      "RosterPanel kick refresh helper must render the ready state in green"
+    )
+  end)
+end
+
 local function RegisterArchitectureNoticeTypographyTests(test, Assert)
   test("Architecture center notice and portal entries share the same notice body typography helper", function()
     local noticeContent = ReadFile("isiLive_notice.lua")
@@ -561,6 +629,7 @@ return function(test, ctx)
   RegisterArchitectureQueueWiringTests(test, ctx.assert)
   RegisterArchitectureReadyCheckWiringTests(test, ctx.assert)
   RegisterArchitectureLeaderMarkerWiringTests(test, ctx.assert)
+  RegisterArchitectureAudioAndKickWiringTests(test, ctx.assert)
   RegisterArchitectureNoticeTypographyTests(test, ctx.assert)
   RegisterArchitectureModuleApiTests(test, ctx.assert, ctx.load_modules)
 end
