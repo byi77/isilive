@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.110`
+Version baseline: `0.9.111`
 Last updated: `2026-03-29`
 
 ## Actors
@@ -33,7 +33,7 @@ Last updated: `2026-03-29`
 | UC-11 | M+Marker World Markers | Vertical bar of 8 secure world-marker buttons for immediate place/clear |
 | UC-12 | Roster Panel Mini Mode | Collapse toggle hides roster list and `Travel`, while keeping compact Marker and management tools visible |
 | UC-13 | Esc shortcuts and addon settings | Player gets dual Blizzard-UI entry surfaces plus localized config toggles |
-| UC-14 | Combat utility tracker | Live BRes and Bloodlust timers stay visible in the roster panel |
+| UC-14 | Combat utility tracker | Live BRes, lust, Mythic+ timer, and synced interrupt state stay visible in the roster panel |
 
 ## UC-01 Invite Detection Without Target Guessing
 
@@ -148,15 +148,16 @@ Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without d
 
 ## UC-14 Combat Utility Tracker
 
-Goal: show live BRes and Bloodlust/Heroism/Time Warp timers in the roster panel without guessing.
+Goal: show live BRes, Bloodlust/Heroism/Time Warp, active Mythic+ timer cutoffs, and synced interrupt cooldown state in the roster panel without guessing.
 
 1. Trigger: the roster panel is visible and the one-second utility ticker fires, or a manual refresh / local lust spellcast / player `UNIT_AURA` update requests a tracker refresh.
 2. Processing: addon scans `C_Spell.GetSpellCharges` (struct-return: `currentCharges`, `maxCharges`, `cooldownStartTime`, `cooldownDuration`) for Battle Resurrection and iterates player `HARMFUL` auras via `C_UnitAuras.GetAuraDataByIndex("player", index, "HARMFUL")` for Bloodlust/Heroism/Time Warp exhaustion variants.
 3. Rule: only numeric aura `spellId` values may participate in the lust lookup; protected, secret, string, or otherwise non-numeric values must be ignored safely without aborting the full lust scan.
 4. Rule: `UNIT_AURA` updates with `isFullUpdate=true` after zone/world transitions or UI reloads must hydrate the active lust state without firing a new onset callback.
 5. Rule: `PLAYER_ENTERING_WORLD` may keep only a short 2-second suppress window as a safety net until the full aura-restore event arrives.
-6. Output: the tracker row shows BRes charges/cooldown plus the current lust icon and remaining time, or `--` when the effect is unavailable.
-7. Success criteria: the row updates deterministically, stays non-negative, and remains stable when the relevant APIs are missing, mixed-validity aura payloads are encountered, or zone/reload aura restores arrive late.
+6. Output: the tracker row shows BRes charges/cooldown, the current lust icon and remaining time, plus active `+3/+2/+1` timer cutoffs and death-penalty loss, or `--` when data is unavailable.
+7. Output: roster rows additionally show synced interrupt status in the `Kick` column as `ready` or remaining cooldown seconds.
+8. Success criteria: the row and `Kick` column update deterministically, stay non-negative, and remain stable when the relevant APIs are missing, mixed-validity aura payloads are encountered, or zone/reload aura restores arrive late.
 
 ## Non-Functional Rules
 
@@ -192,7 +193,7 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 8. UC-10: raid-size H-mode transition, visible-frame behavior, and duplicate-notice suppression.
 9. UC-11/UC-12: Secure world-marker button configuration for M+Marker and compact-layout visibility logic for M/V/H mode switching.
 10. Taint hardening: deferred secure attribute writes, deferred `Esc` shortcut secure-button refreshes, insecure teleport-grid actions, and combat-safe collapse handling.
-11. UC-13/UC-14: game-menu tooling/travel strips, localization, close-then-open behavior, deferred secure reload-button refresh, direct opener fallback selection, settings-canvas state mirroring/background-opacity behavior, and live BRes/Bloodlust countdown rendering.
+11. UC-13/UC-14: game-menu tooling/travel strips, localization, close-then-open behavior, deferred secure reload-button refresh, direct opener fallback selection, settings-canvas state mirroring/background-opacity behavior, live BRes/Bloodlust/M+ timer rendering, and synced interrupt cooldown display.
 
 ## Traceability To Source Files
 
@@ -204,7 +205,7 @@ Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules
 | Group lifecycle, leader-state mirroring, and roster rebuild | `isiLive_group.lua`, `isiLive_roster.lua` |
 | RIO baseline capture and delta preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
 | Last-run DPS capture and bounded stats persistence | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
-| Combat utility tracker row | `isiLive_cd_tracker.lua`, `isiLive_factory_controllers.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
+| Combat utility tracker row and kick state | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_controllers.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
 | Leader transfer detection and feedback | `isiLive_leader_watch.lua` |
 | UI actions, role buttons, key sharing button | `isiLive_roster_panel.lua` |
 | Esc tooling/travel strips and Blizzard settings canvas | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_factory.lua`, `isiLive_texts.lua`, `isiLive_ui_common.lua` |

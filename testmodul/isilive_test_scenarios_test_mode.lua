@@ -297,8 +297,18 @@ local function RegisterDemoRosterTests(test, Assert, WithGlobals, LoadAddonModul
         end,
       })
 
+      local ghostUnit = nil
+      for unit, info in pairs(firstRoster) do
+        if info and info.isGhost then
+          ghostUnit = unit
+          break
+        end
+      end
+
+      Assert.NotNil(ghostUnit, "full preview rebuild test must include a ghost member")
+
       firstRoster.party1.rio = 9999
-      firstRoster["ghost:Kurshad-Antonidas"].rio = 1111
+      firstRoster[ghostUnit].rio = 1111
 
       local secondRoster = addon.Demo.BuildDummyRoster({
         previewVariant = "full",
@@ -311,7 +321,8 @@ local function RegisterDemoRosterTests(test, Assert, WithGlobals, LoadAddonModul
       })
 
       Assert.True(secondRoster.party1.rio ~= 9999, "rebuild must not reuse mutated active member tables")
-      Assert.True(secondRoster["ghost:Kurshad-Antonidas"].rio ~= 1111, "rebuild must not reuse mutated ghost tables")
+      Assert.NotNil(secondRoster[ghostUnit], "rebuild must recreate the ghost member")
+      Assert.True(secondRoster[ghostUnit].rio ~= 1111, "rebuild must not reuse mutated ghost tables")
     end)
   end)
 

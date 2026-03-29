@@ -111,6 +111,9 @@ RI.LAYOUT_MODE_CONFIG = LAYOUT_MODE_CONFIG
 -- M = EXPANDED, V = COMPACT_VERTICAL, H = COMPACT_HORIZONTAL, M2 = COMPACT_MAIN_HORIZONTAL
 local UI_VISIBILITY_RULES = {
   { "title", true, false, false, true },
+  { "titleSep", true, false, false, true },
+  { "titleVersion", true, false, false, true },
+  { "titleHint", true, false, false, true },
   { "headerSepLeft", true, false, false, true },
   { "headerSepRight", true, false, false, true },
   { "versionLine", true, false, false, true },
@@ -121,6 +124,7 @@ local UI_VISIBILITY_RULES = {
   { "keyHeader", true, false, false, true },
   { "rioHeader", true, false, false, true },
   { "dpsHeader", true, false, false, true },
+  { "kickHeader", true, false, false, true },
   { "cdTrackerRow", false, false, false, true },
   { "statusLine", true, false, false, false },
   { "mplusManagementHeader", true, false, false, false },
@@ -622,6 +626,7 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
       SetVisible(row.key, show)
       SetVisible(row.rio, show)
       SetVisible(row.dps, show)
+      SetVisible(row.kick, show)
       SetVisible(row.realm, show)
       if row.roleButton and not IsCombatLockdownActive() then
         SetVisible(row.roleButton, show and row.unit ~= nil)

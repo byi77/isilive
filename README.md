@@ -4,11 +4,11 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.110`.
+Current documented baseline: `0.9.111`.
 
 ## Features
 
-- Group roster table with columns: `Spec`, `Name`, `Flag`, `Key`, `iLvl`, `RIO`, `DPS`
+- Group roster table with columns: `Spec`, `Name`, `Flag`, `Key`, `iLvl`, `RIO`, `DPS`, `Kick`
 - Raid-size groups (`>5` members) automatically switch the visible addon window into H mode, keep roster rows hidden, and print a localized transition notice
 - Interactive Role Icons: Click the role icon in the roster to securely mark Tank (**Blue Square**) or Healer (**Green Triangle**).
 - **M+Marker:** Expanded view uses a vertical bar of 8 world marker buttons (`Square`, `Triangle`, `Diamond`, `Cross`, `Star`, `Circle`, `Moon`, `Skull`) with native secure world-marker actions; the horizontal mini layout arranges the same icons in one slim row and restores the vertical stack correctly when expanded again.
@@ -23,7 +23,8 @@ Current documented baseline: `0.9.110`.
 - **Leader Transfer Feedback:** gaining lead while the main UI is visible shows the center notice and plays the transfer sound; hidden promotions still play the sound but suppress the notice/chat output.
 - **Leader Marker:** roster rows for the real local group leader render a Blizzard crown icon; if that player is also a known `isiLive` user, the blue heart stays visible and is rendered before the crown.
 - **UI Polish Refresh:** The roster panel, private tooltips, invite hint, and center notice now share the same dark framed palette with softer blue hover accents, alternating row shading, and cleaner separators.
-- **Combat Utility Row:** A bottom tracker row shows live `BRes` charges/cooldown (via `C_Spell.GetSpellCharges` struct-return) plus `Bloodlust`/`Heroism`/`Time Warp` remaining time with spell icons. Lust tracking uses the player's harmful exhaustion aura, accepts only numeric aura `spellId` values for lookup, ignores protected/non-numeric payloads safely, treats `UNIT_AURA(..., { isFullUpdate = true })` as aura-restore state after zone/reload transitions, and keeps only a short 2-second startup suppress window as a safety net before the full restore arrives.
+- **Combat Utility Row:** A bottom tracker row shows live `BRes` charges/cooldown (via `C_Spell.GetSpellCharges` struct-return), `Bloodlust`/`Heroism`/`Time Warp` remaining time with spell icons, and active Mythic+ timer cutoffs for `+3`, `+2`, `+1` plus death-penalty loss. Lust tracking uses the player's harmful exhaustion aura, accepts only numeric aura `spellId` values for lookup, ignores protected/non-numeric payloads safely, treats `UNIT_AURA(..., { isFullUpdate = true })` as aura-restore state after zone/reload transitions, and keeps only a short 2-second startup suppress window as a safety net before the full restore arrives.
+- **Kick Cooldown Sync:** The roster `Kick` column shows the synced interrupt state for party members as `ready` or remaining cooldown seconds, based on the player's spec-specific interrupt spell and local cooldown tracking.
 - **Minimap Button:** Optional draggable Minimap button toggles the main window and persists its angle around the minimap.
 - Blizzard Settings only: `Combat Logging` and `DM Reset on Entry` live in `Settings -> AddOns -> isiLive`; the main roster panel no longer shows those toggles.
 - Stable role sorting: `Tank -> Healer -> Damager`
@@ -59,7 +60,7 @@ Current documented baseline: `0.9.110`.
 - Roster rows support **Right-Click** (Whisper)
 - **Portal Navigator:** When the player enters the Timeways portal room, a full-screen overlay appears showing the four portal destinations (half-left, left, right, half-right) with their dungeon names; closes via right-click or the X button; toggleable via `Show Timeways Navigator` in Blizzard Settings (defaults enabled).
 - Non-Mythic dungeon entry warning with delayed confirmation (larger/blinking persistent notice; right-click dismiss, left-click drag)
-- Top-right version label in main window (`V.x.y.z`)
+- Top-right title bar in `M`/`M2` shows the addon version plus the localized hotkey hint (`Open/Close CTRL-F9` / `Öffnen/Schliessen STRG-F9`); compact `H`/`V` layouts hide that title block entirely
 
 ## Behavior
 
@@ -69,7 +70,7 @@ Current documented baseline: `0.9.110`.
 - Without that option, runtime transitions do not auto-close the main window; key start and solo transitions only auto-close when the option is enabled.
 - Auto-open on key end (`CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET`) while grouped.
 - Auto-open on real dungeon entry (`outside -> party instance`) while not in an active key.
-- `CTRL+F9`: visibility changes can always be requested; if combat lockdown blocks `Show`/`Hide`, the pending open/close is applied on `PLAYER_REGEN_ENABLED`. The close button (X) always hides the frame immediately, even during combat.
+- `CTRL+F9`: visibility changes can always be requested; if combat lockdown blocks `Show`/`Hide`, the pending open/close is applied on `PLAYER_REGEN_ENABLED`. The title bar in `M`/`M2` also shows this hint directly, and the close button (X) always hides the frame immediately, even during combat.
 - `UNIT_AURA` full-update payloads after zone changes/reloads refresh the lust tracker state silently; `PLAYER_ENTERING_WORLD` only keeps a 2-second suppress window to cover early ticker scans before the aura restore event arrives.
 - Hidden window mode still blocks queue scanning; if `LFG_LIST_*` capture was missed while hidden, a later group join will not retro-print the grouped queue chat summary. Background data sync (`CHAT_MSG_ADDON`, `GROUP_ROSTER_UPDATE`) may still event-drive pre-rendered roster state so reopen stays immediate without adding polling load.
 - Combat runtime gate suppresses non-essential event processing while in combat; essential events (for example `PLAYER_REGEN_ENABLED` and `CHALLENGE_MODE_*`) still run.
@@ -106,9 +107,9 @@ Current documented baseline: `0.9.110`.
 - Runtime log storage is session-only and starts disabled on every login/reload.
 - Sync handshake behavior: `HELLO` recipients send `ACK`; explicit local refresh force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.110)
+## Use Case / Logic Baseline (v0.9.111)
 
-Documented on `2026-03-29` as runtime behavior baseline (`0.9.110`) for validation checks.
+Documented on `2026-03-29` as runtime behavior baseline (`0.9.111`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -202,6 +203,8 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive_sync.lua`: addon sync (`HELLO`/`ACK`/`KEY`/`STATS`/`DPS`/`LOC`) and user detection
 - `isiLive_stats.lua`: bounded last-run DPS snapshot storage (persistent only for the matching local character; foreign players session-only)
 - `isiLive_cd_tracker.lua`: live `BRes`/`Bloodlust` countdown controller for the roster utility row
+- `isiLive_mplus_timer.lua`: active Mythic+ timer/death tracker feeding the utility row cutoffs and death-loss display
+- `isiLive_kick_tracker.lua`: spec-aware interrupt cooldown tracker used for the roster `Kick` column and sync broadcast
 - `isiLive_leader_watch.lua`: leader-transfer detection via cached-state comparison, leader-only button state sync, and promotion sound/notice handling
 - `isiLive_keysync.lua`: key-sync controller (sync snapshot sends, cache apply, active key owner resolver)
 - `isiLive_refresh.lua`: refresh controller (forced full refresh flow incl. `HELLO/KEY/STATS/DPS/LOC` + inspect requeue)
@@ -214,7 +217,7 @@ Developer debug (hidden command, not listed in in-game help):
 - `isiLive_inspect.lua`: inspect queue/retry/cache controller
 - `isiLive_roster.lua`: roster ordering + display-data builders
 - `isiLive_roster_tooltip.lua`: isolated roster tooltip rendering for sync and last-run stats
-- `isiLive_roster_panel.lua`: main roster table, action buttons, run-stat columns, and CD tracker row
+- `isiLive_roster_panel.lua`: main roster table, action buttons, run-stat columns, `Kick` column, and combat utility row
 - `isiLive_events.lua`: event gate wrapper for stop/pause/test/hidden states
 - `isiLive_event_handlers.lua`: runtime event-handler aggregator (`OnEvent` routing targets)
 - `isiLive_event_handlers_runtime.lua`: addon/world/combat/inspect/sync lifecycle handlers

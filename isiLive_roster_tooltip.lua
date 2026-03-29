@@ -771,10 +771,33 @@ local function ShowRosterInfoTooltip(
       local L = type(getL) == "function" and getL() or {}
       local versionLabel = type(L.TOOLTIP_SYNC_VERSION) == "string" and L.TOOLTIP_SYNC_VERSION
         or "Peer version: %s (p%d)"
+      local versionText = nil
       local protocolVersion = tonumber(syncHelloInfo.protocolVersion)
-        or tonumber(syncSummary and syncSummary.protocolVersion)
-        or 0
-      tooltip:AddLine(string.format(versionLabel, syncHelloInfo.addonVersion, protocolVersion), 0.65, 0.85, 1)
+      if protocolVersion then
+        local okFormatted, formatted = pcall(
+          string.format,
+          versionLabel,
+          syncHelloInfo.addonVersion,
+          math.floor(protocolVersion)
+        )
+        if okFormatted and type(formatted) == "string" and formatted ~= "" then
+          versionText = formatted
+        end
+      end
+      if not versionText then
+        local okFormatted, formatted = pcall(string.format, versionLabel, syncHelloInfo.addonVersion)
+        if okFormatted and type(formatted) == "string" and formatted ~= "" then
+          versionText = formatted
+        end
+      end
+      if not versionText then
+        if protocolVersion then
+          versionText = string.format("Peer version: %s (p%d)", syncHelloInfo.addonVersion, math.floor(protocolVersion))
+        else
+          versionText = string.format("Peer version: %s", syncHelloInfo.addonVersion)
+        end
+      end
+      tooltip:AddLine(versionText, 0.65, 0.85, 1)
     end
     if syncDebugEnabled then
       local L = type(getL) == "function" and getL() or {}

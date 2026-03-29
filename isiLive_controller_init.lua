@@ -164,10 +164,21 @@ function ControllerInit.CreateControllers(ctx)
     if type(result.rosterPanelController.SetLayoutChangedHandler) == "function" then
       result.rosterPanelController.SetLayoutChangedHandler(function(layoutMode)
         result.teleportUIController.SetLayoutMode(layoutMode)
+        if ctx.mainUI and type(ctx.mainUI.SetDragGripVisible) == "function" then
+          ctx.mainUI.SetDragGripVisible(
+            layoutMode ~= "compact_vertical" and layoutMode ~= "compact_horizontal"
+          )
+        end
       end)
     end
     if type(result.rosterPanelController.GetLayoutMode) == "function" then
-      result.teleportUIController.SetLayoutMode(result.rosterPanelController.GetLayoutMode())
+      local currentLayoutMode = result.rosterPanelController.GetLayoutMode()
+      result.teleportUIController.SetLayoutMode(currentLayoutMode)
+      if ctx.mainUI and type(ctx.mainUI.SetDragGripVisible) == "function" then
+        ctx.mainUI.SetDragGripVisible(
+          currentLayoutMode ~= "compact_vertical" and currentLayoutMode ~= "compact_horizontal"
+        )
+      end
     end
     result.teleportUIController.SetVisible(not result.rosterPanelController.IsCollapsed())
   end

@@ -87,9 +87,9 @@ local IsMainHorizontalLayoutMode = RI.IsMainHorizontalLayoutMode
 local GetFrameHeightForLayoutMode = RI.GetFrameHeightForLayoutMode
 local CD_TRACKER_ROW_HEIGHT = RI.CD_TRACKER_ROW_HEIGHT or 20
 local CD_TRACKER_ROW_BOTTOM_OFFSET = RI.CD_TRACKER_ROW_BOTTOM_OFFSET or 20
-local CD_TRACKER_ICON_SIZE = 22
+local CD_TRACKER_ICON_SIZE = 16
 local CD_TRACKER_TEXT_GAP = 6
-local CD_TRACKER_FONT_SIZE = 14
+local CD_TRACKER_FONT_SIZE = 12
 local CreateSystemOptionToggles = RI.CreateSystemOptionToggles
 local RefreshSystemOptionToggles = RI.RefreshSystemOptionToggles
 local LayoutSystemOptionToggles = RI.LayoutSystemOptionToggles
@@ -116,6 +116,8 @@ local ILVL_COL_WIDTH = 32
 local RIO_COL_WIDTH = 70
 local DPS_COL_X = RIO_COL_X + RIO_COL_WIDTH + 2
 local DPS_COL_WIDTH = 40
+local KICK_COL_X = DPS_COL_X + DPS_COL_WIDTH + 4
+local KICK_COL_WIDTH = 58
 local ROLE_BUTTON_X = SPEC_COL_X + SPEC_COL_WIDTH + 4
 
 -- These settings are temporarily hidden from Blizzard Settings.
@@ -162,7 +164,9 @@ local function TryGetOwnedKeystoneLink(getOwnedKeystoneLink, keyLevel)
     return nil
   end
 
+  -- Support both formats: old (mapID:0:level:...) and new Midnight (mapID:level)
   local linkLevel = tonumber(string.match(ownedLink, "|Hkeystone:%d+:%d+:(%-?%d+):") or "")
+    or tonumber(string.match(ownedLink, "|Hkeystone:%d+:(%d+)") or "")
   local expectedLevel = tonumber(keyLevel)
   if linkLevel and expectedLevel and linkLevel ~= math.floor(expectedLevel) then
     return nil
@@ -239,6 +243,7 @@ local function ApplyFontStringSize(fontString, size)
 end
 
 local function CreateCdTrackerRow(mainFrame)
+  local UICommon = addonTable.UICommon or {}
   local row = CreateFrame("Frame", nil, mainFrame)
   if type(row.CreateTexture) ~= "function" or type(row.CreateFontString) ~= "function" then
     return nil
@@ -251,38 +256,54 @@ local function CreateCdTrackerRow(mainFrame)
     row:SetPoint("BOTTOMRIGHT", -10, CD_TRACKER_ROW_BOTTOM_OFFSET)
   end
 
-  -- Both groups centered side by side: [BR_icon][BR_text]  [BL_icon][BL_text]
-  row.bresIcon = row:CreateTexture(nil, "OVERLAY")
+  -- BR/BL box: left-aligned, framed together
+  local cdBox = CreateFrame("Frame", nil, row, "BackdropTemplate")
+  if type(cdBox.SetHeight) == "function" then
+    cdBox:SetHeight(CD_TRACKER_ROW_HEIGHT)
+  end
+  if type(cdBox.SetPoint) == "function" then
+    cdBox:SetPoint("LEFT", row, "LEFT", 0, 0)
+  end
+  if type(cdBox.SetWidth) == "function" then
+    cdBox:SetWidth(170)
+  end
+  if type(UICommon.ApplyBackdrop) == "function" then
+    UICommon.ApplyBackdrop(cdBox, "CD_BOX")
+  end
+  row.cdBox = cdBox
+
+  -- BR icon + text inside cdBox
+  row.bresIcon = cdBox:CreateTexture(nil, "OVERLAY")
   if type(row.bresIcon.SetSize) == "function" then
     row.bresIcon:SetSize(CD_TRACKER_ICON_SIZE, CD_TRACKER_ICON_SIZE)
   end
   if type(row.bresIcon.SetPoint) == "function" then
-    row.bresIcon:SetPoint("CENTER", row, "CENTER", -90, 0)
+    row.bresIcon:SetPoint("LEFT", cdBox, "LEFT", 6, 0)
   end
   if type(row.bresIcon.SetTexCoord) == "function" then
     row.bresIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   end
   row.bresIcon:Hide()
 
-  row.bresText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  row.bresText = cdBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   row.bresText:SetPoint("LEFT", row.bresIcon, "RIGHT", CD_TRACKER_TEXT_GAP, 0)
   row.bresText:SetJustifyH("LEFT")
   row.bresText:SetText("")
   ApplyFontStringSize(row.bresText, CD_TRACKER_FONT_SIZE)
 
-  row.lustIcon = row:CreateTexture(nil, "OVERLAY")
+  row.lustIcon = cdBox:CreateTexture(nil, "OVERLAY")
   if type(row.lustIcon.SetSize) == "function" then
     row.lustIcon:SetSize(CD_TRACKER_ICON_SIZE, CD_TRACKER_ICON_SIZE)
   end
   if type(row.lustIcon.SetPoint) == "function" then
-    row.lustIcon:SetPoint("CENTER", row, "CENTER", 20, 0)
+    row.lustIcon:SetPoint("LEFT", row.bresText, "RIGHT", 12, 0)
   end
   if type(row.lustIcon.SetTexCoord) == "function" then
     row.lustIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   end
   row.lustIcon:Hide()
 
-  row.lustText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  row.lustText = cdBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   row.lustText:SetPoint("LEFT", row.lustIcon, "RIGHT", CD_TRACKER_TEXT_GAP, 0)
   row.lustText:SetJustifyH("LEFT")
   row.lustText:SetText("")
@@ -304,11 +325,83 @@ local function CreateCdTrackerRow(mainFrame)
     end
   end
 
+  -- M+ timer box: right of cdBox, framed with blue accent
+  local mplusBox = CreateFrame("Frame", nil, row, "BackdropTemplate")
+  if type(mplusBox.SetHeight) == "function" then
+    mplusBox:SetHeight(CD_TRACKER_ROW_HEIGHT)
+  end
+  if type(mplusBox.SetPoint) == "function" then
+    mplusBox:SetPoint("LEFT", cdBox, "RIGHT", 6, 0)
+  end
+  if type(mplusBox.SetWidth) == "function" then
+    mplusBox:SetWidth(305)
+  end
+  if type(UICommon.ApplyBackdrop) == "function" then
+    UICommon.ApplyBackdrop(mplusBox, "MPLUS_BOX")
+  end
+  mplusBox:Hide()
+  row.mplusBox = mplusBox
+
+  -- +3 label
+  row.mp3Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  row.mp3Text:SetPoint("LEFT", mplusBox, "LEFT", 8, 0)
+  row.mp3Text:SetWidth(58)
+  row.mp3Text:SetJustifyH("LEFT")
+  row.mp3Text:SetText("+3: --")
+  ApplyFontStringSize(row.mp3Text, CD_TRACKER_FONT_SIZE)
+
+  -- +2 label
+  row.mp2Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  row.mp2Text:SetPoint("LEFT", mplusBox, "LEFT", 74, 0)
+  row.mp2Text:SetWidth(58)
+  row.mp2Text:SetJustifyH("LEFT")
+  row.mp2Text:SetText("+2: --")
+  ApplyFontStringSize(row.mp2Text, CD_TRACKER_FONT_SIZE)
+
+  -- +1 label
+  row.mp1Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  row.mp1Text:SetPoint("LEFT", mplusBox, "LEFT", 140, 0)
+  row.mp1Text:SetWidth(58)
+  row.mp1Text:SetJustifyH("LEFT")
+  row.mp1Text:SetText("+1: --")
+  ApplyFontStringSize(row.mp1Text, CD_TRACKER_FONT_SIZE)
+
+  -- death icon + label
+  row.mpDeathIcon = mplusBox:CreateTexture(nil, "OVERLAY")
+  if type(row.mpDeathIcon.SetSize) == "function" then
+    row.mpDeathIcon:SetSize(12, 12)
+  end
+  if type(row.mpDeathIcon.SetPoint) == "function" then
+    row.mpDeathIcon:SetPoint("LEFT", mplusBox, "LEFT", 206, 0)
+  end
+  if type(row.mpDeathIcon.SetTexture) == "function" then
+    row.mpDeathIcon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_8")
+  end
+
+  row.mpDeathText = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  row.mpDeathText:SetPoint("LEFT", row.mpDeathIcon, "RIGHT", 4, 0)
+  row.mpDeathText:SetJustifyH("LEFT")
+  row.mpDeathText:SetText("")
+  ApplyFontStringSize(row.mpDeathText, CD_TRACKER_FONT_SIZE)
+
   return row
 end
 
+local function FormatMplusTime(seconds)
+  local abs = math.abs(seconds)
+  local m = math.floor(abs / 60)
+  local s = math.floor(abs % 60)
+  return string.format("%d:%02d", m, s)
+end
+
+local function SetFontStringTextColorSafe(fontString, r, g, b)
+  if fontString and type(fontString.SetTextColor) == "function" then
+    fontString:SetTextColor(r, g, b)
+  end
+end
+
 local function UpdateCdTrackerRow(row, cdController)
-  if not row or not cdController then
+  if not row then
     return
   end
 
@@ -317,7 +410,7 @@ local function UpdateCdTrackerRow(row, cdController)
     if row._bresIconReady then
       row.bresIcon:Show()
     end
-    local bres = cdController.GetBResInfo()
+    local bres = cdController and cdController.GetBResInfo()
     if bres then
       local charges = bres.charges or 0
       local maxCharges = bres.maxCharges or 0
@@ -338,7 +431,7 @@ local function UpdateCdTrackerRow(row, cdController)
   -- Use the aura's own icon when lust is active (covers Heroism, Time Warp variants),
   -- fall back to the cached Bloodlust icon when inactive.
   do
-    local lust = cdController.GetLustInfo()
+    local lust = cdController and cdController.GetLustInfo()
     if lust and lust.remain and lust.remain > 0 then
       if lust.icon then
         row.lustIcon:SetTexture(lust.icon)
@@ -359,6 +452,68 @@ local function UpdateCdTrackerRow(row, cdController)
       row.lustText:SetText("BL: --")
     end
   end
+
+  -- M+ timer box
+  if row.mplusBox then
+    local MplusTimer = addonTable.MplusTimer
+    local data = type(MplusTimer) == "table" and type(MplusTimer.GetTimerData) == "function"
+      and MplusTimer.GetTimerData()
+      or nil
+
+    row.mplusBox:Show()
+
+    if data and (data.running or data.completed) then
+      -- +3
+      if data.timeRemaining3 >= 0 then
+        SetFontStringTextColorSafe(row.mp3Text, 0.4, 1.0, 0.4)
+        row.mp3Text:SetText("+3: " .. FormatMplusTime(data.timeRemaining3))
+      else
+        SetFontStringTextColorSafe(row.mp3Text, 0.5, 0.5, 0.5)
+        row.mp3Text:SetText("+3: --")
+      end
+
+      -- +2
+      if data.timeRemaining2 >= 0 then
+        SetFontStringTextColorSafe(row.mp2Text, 1.0, 0.85, 0.1)
+        row.mp2Text:SetText("+2: " .. FormatMplusTime(data.timeRemaining2))
+      else
+        SetFontStringTextColorSafe(row.mp2Text, 0.5, 0.5, 0.5)
+        row.mp2Text:SetText("+2: --")
+      end
+
+      -- +1: weiß wenn Zeit da, rot wenn überschritten
+      if data.timeRemaining1 >= 0 then
+        SetFontStringTextColorSafe(row.mp1Text, 1.0, 1.0, 1.0)
+        row.mp1Text:SetText("+1: " .. FormatMplusTime(data.timeRemaining1))
+      else
+        SetFontStringTextColorSafe(row.mp1Text, 1.0, 0.2, 0.2)
+        row.mp1Text:SetText("+1: -" .. FormatMplusTime(data.timeRemaining1))
+      end
+
+      -- Tode
+      if data.deaths and data.deaths > 0 then
+        local deathStr
+        if data.deathTimeLost and data.deathTimeLost > 0 then
+          deathStr = string.format("|cffff6060%d (+%ds)|r", data.deaths, data.deathTimeLost)
+        else
+          deathStr = string.format("|cffff6060%d|r", data.deaths)
+        end
+        row.mpDeathText:SetText(deathStr)
+      else
+        row.mpDeathText:SetText("")
+      end
+    else
+      -- kein Key aktiv: alles mit -- anzeigen
+      SetFontStringTextColorSafe(row.mp3Text, 0.4, 0.4, 0.5)
+      row.mp3Text:SetText("+3: --")
+      SetFontStringTextColorSafe(row.mp2Text, 0.4, 0.4, 0.5)
+      row.mp2Text:SetText("+2: --")
+      SetFontStringTextColorSafe(row.mp1Text, 0.4, 0.4, 0.5)
+      row.mp1Text:SetText("+1: --")
+      SetFontStringTextColorSafe(row.mpDeathText, 0.4, 0.4, 0.5)
+      row.mpDeathText:SetText("--")
+    end
+  end
 end
 
 local function CreateStatusLine(mainFrame)
@@ -369,13 +524,6 @@ local function CreateStatusLine(mainFrame)
   return statusLine
 end
 
-local function CreateVersionLine(mainFrame, getAddonVersionText)
-  local versionLine = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  versionLine:SetPoint("BOTTOMRIGHT", -10, 6)
-  versionLine:SetJustifyH("RIGHT")
-  versionLine:SetText(getAddonVersionText())
-  return versionLine
-end
 
 local function CreateMemberRow(mainFrame, index, rosterTooltip)
   local yOffset = -52 - (index - 1) * 16
@@ -504,6 +652,12 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   row.dps:SetWidth(DPS_COL_WIDTH)
   row.dps:SetJustifyH("RIGHT")
   DisableFontStringWrapping(row.dps)
+
+  row.kick = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  row.kick:SetPoint("TOPLEFT", KICK_COL_X, yOffset)
+  row.kick:SetWidth(KICK_COL_WIDTH)
+  row.kick:SetJustifyH("RIGHT")
+  DisableFontStringWrapping(row.kick)
 
   row.realm = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.realm:SetPoint("TOPLEFT", SERVER_COL_X, yOffset)
@@ -677,6 +831,11 @@ local function CreatePanelHeaders(mainFrame)
     dpsHeader:SetMaxLines(1)
   end
 
+  local kickHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  kickHeader:SetPoint("TOPLEFT", KICK_COL_X, -34)
+  kickHeader:SetWidth(KICK_COL_WIDTH)
+  kickHeader:SetJustifyH("RIGHT")
+
   local leadOptionsHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   leadOptionsHeader:SetPoint("TOPRIGHT", -111, -34)
   leadOptionsHeader:SetWidth(120)
@@ -725,6 +884,7 @@ local function CreatePanelHeaders(mainFrame)
     keyHeader = keyHeader,
     rioHeader = rioHeader,
     dpsHeader = dpsHeader,
+    kickHeader = kickHeader,
     leadOptionsHeader = leadOptionsHeader,
     mplusManagementHeader = mplusManagementHeader,
     headerSepLeft = headerSepLeft,
@@ -1039,12 +1199,43 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   end
 
   local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-  title:SetPoint("TOP", 0, -4)
+  title:SetPoint("TOPLEFT", 10, -4)
+  title:SetJustifyH("LEFT")
   title:SetTextColor(1, 0.85, 0)
   title:SetShadowOffset(1, -1)
   if type(title.SetShadowColor) == "function" then
     title:SetShadowColor(0, 0, 0, 0.8)
   end
+  ApplyFontStringSize(title, 14)
+
+  local titleSep = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  titleSep:SetPoint("LEFT", title, "RIGHT", 5, 0)
+  titleSep:SetTextColor(0.35, 0.35, 0.40)
+  titleSep:SetShadowOffset(0, 0)
+  titleSep:SetText("·")
+  ApplyFontStringSize(titleSep, 10)
+
+  local titleVersion = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  titleVersion:SetPoint("LEFT", titleSep, "RIGHT", 5, -1)
+  titleVersion:SetTextColor(0.55, 0.75, 1.0)
+  if type(titleVersion.SetShadowOffset) == "function" then
+    titleVersion:SetShadowOffset(1, -1)
+  end
+  if type(titleVersion.SetShadowColor) == "function" then
+    titleVersion:SetShadowColor(0, 0, 0, 0.9)
+  end
+  ApplyFontStringSize(titleVersion, 9)
+
+  local titleHint = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  titleHint:SetPoint("LEFT", titleVersion, "RIGHT", 8, 0)
+  titleHint:SetTextColor(0.82, 0.74, 0.42)
+  if type(titleHint.SetShadowOffset) == "function" then
+    titleHint:SetShadowOffset(1, -1)
+  end
+  if type(titleHint.SetShadowColor) == "function" then
+    titleHint:SetShadowColor(0, 0, 0, 0.9)
+  end
+  ApplyFontStringSize(titleHint, 8)
 
   local headers = CreatePanelHeaders(mainFrame)
   local m2ColumnGuides = CreateM2ColumnGuides(mainFrame)
@@ -1065,8 +1256,6 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   local cdTrackerRow = CreateCdTrackerRow(mainFrame)
   local statusLine = CreateStatusLine(mainFrame)
   local optionToggles = CreateSystemOptionToggles(mainFrame)
-  local versionLine = CreateVersionLine(mainFrame, uiDeps.getAddonVersionText)
-
   local raidNoticeLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   raidNoticeLabel:SetPoint("TOP", 0, -100)
   local frameWidth = type(mainFrame.GetWidth) == "function" and mainFrame:GetWidth() or 400
@@ -1080,9 +1269,11 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     panelTooltip = panelTooltip,
     rosterTooltip = rosterTooltip,
     title = title,
+    titleSep = titleSep,
     cdTrackerRow = cdTrackerRow,
     statusLine = statusLine,
-    versionLine = versionLine,
+    titleVersion = titleVersion,
+    titleHint = titleHint,
     raidNoticeLabel = raidNoticeLabel,
     m2ColumnGuides = m2ColumnGuides,
     showRosterColumnGuides = uiDeps.showRosterColumnGuides,
@@ -1298,6 +1489,9 @@ local function RenderRosterImpl(state, roster)
     row.ilvl:SetText("")
     row.rio:SetText("")
     row.dps:SetText("")
+    if row.kick then
+      row.kick:SetText("")
+    end
     row.unit = nil
     row.tooltipName = nil
     row.tooltipRealm = nil
@@ -1350,6 +1544,7 @@ local function RenderRosterImpl(state, roster)
       end
     end
     setHeaderVisible("dpsHeader", showDpsColumn)
+    setHeaderVisible("kickHeader", showDpsColumn)
   end
 
   if state.uiRef and state.uiRef.tankButtons and not IsCombatLockdownActive() then
@@ -1470,6 +1665,20 @@ local function RenderRosterImpl(state, roster)
       row.dps:SetText("")
       row.dps:Hide()
     end
+    if row.kick then
+      -- Refresh kick sync state from cache before rendering.
+      if type(state.applyKnownKeyToRosterEntry) == "function" then
+        state.applyKnownKeyToRosterEntry(info)
+      end
+      if info.syncKickOnCooldown == true then
+        local secs = math.ceil(info.syncKickRemain or 0)
+        row.kick:SetText(string.format("|cffff4040%ds|r", secs))
+      elseif info.syncKickOnCooldown == false then
+        row.kick:SetText("|cff44ff44ready|r")
+      else
+        row.kick:SetText("|cff666666-|r")
+      end
+    end
     row.unit = entry.unit
     row.tooltipName = info and info.name or nil
     row.tooltipRealm = info and info.realm or nil
@@ -1583,11 +1792,23 @@ function RosterPanel.CreateController(opts)
   local getOwnedKeystoneLink = type(opts.getOwnedKeystoneLink) == "function" and opts.getOwnedKeystoneLink
     or function()
       local mythicPlusApi = rawget(_G, "C_MythicPlus")
-      local linkFn = mythicPlusApi and mythicPlusApi.GetOwnedKeystoneLink
+      if not mythicPlusApi then return nil end
+      -- Try native API first (may not exist in all seasons).
+      local linkFn = mythicPlusApi.GetOwnedKeystoneLink
       if type(linkFn) == "function" then
-        return linkFn()
+        local ok, link = pcall(linkFn)
+        if ok and type(link) == "string" and link ~= "" then
+          return link
+        end
       end
-      return nil
+      -- Fallback: build keystone link from owned level + mapID.
+      local okLevel, level = pcall(mythicPlusApi.GetOwnedKeystoneLevel)
+      local okMapID, mapID = pcall(mythicPlusApi.GetOwnedKeystoneChallengeMapID)
+      if not okLevel or not okMapID then return nil end
+      level = tonumber(level)
+      mapID = tonumber(mapID)
+      if not level or level <= 0 or not mapID or mapID <= 0 then return nil end
+      return string.format("|Hkeystone:%d:%d|h[Keystone]|h", mapID, level)
     end
   local getTime = type(opts.getTime) == "function" and opts.getTime
     or function()
@@ -1635,12 +1856,21 @@ function RosterPanel.CreateController(opts)
   local countdownCancelButton = ui.countdownCancelButton
 
   local memberRows = {}
+  local cdController = nil
 
   local controller = {}
 
   function controller.ApplyLocalization()
     local L = getL()
-    ui.title:SetText(L.TITLE)
+    local fullTitle = tostring(L.TITLE or "isiLive")
+    local titleName, titleVer = fullTitle:match("^(.-)%s+(v[%d%.]+)$")
+    ui.title:SetText(titleName or fullTitle)
+    if ui.titleVersion then
+      ui.titleVersion:SetText(titleVer or "")
+    end
+    if ui.titleHint then
+      ui.titleHint:SetText(tostring(L.TITLE_HINT or ""))
+    end
     ui.specHeader:SetText(L.COL_SPEC)
     ui.nameHeader:SetText(L.COL_NAME)
     ui.serverHeader:SetText(L.COL_LANGUAGE)
@@ -1648,6 +1878,9 @@ function RosterPanel.CreateController(opts)
     ui.ilvlHeader:SetText(L.COL_ILVL)
     ui.rioHeader:SetText(L.COL_RIO)
     ui.dpsHeader:SetText(L.COL_DPS)
+    if ui.kickHeader then
+      ui.kickHeader:SetText("Kick")
+    end
     ui.leadOptionsHeader:SetText(L.LEAD_OPTIONS)
     ui.mplusManagementHeader:SetText(L.MPLUS_MANAGEMENT)
     readyCheckButton._fullText = L.BTN_READYCHECK
@@ -1773,8 +2006,10 @@ function RosterPanel.CreateController(opts)
       isRaidGroup = isRaidGroup,
       raidNoticeLabel = ui.raidNoticeLabel,
       uiRef = ui,
+      applyKnownKeyToRosterEntry = applyKnownKeyToRosterEntry,
     }, roster)
     RefreshSystemOptionToggles(ui)
+    UpdateCdTrackerRow(ui.cdTrackerRow, cdController)
   end
 
   function controller.RefreshReadyCheckState(roster)
@@ -1803,8 +2038,6 @@ function RosterPanel.CreateController(opts)
   function controller.RefreshSystemOptionToggles()
     RefreshSystemOptionToggles(ui)
   end
-
-  local cdController = nil
 
   function controller.SetCdController(ctrl)
     cdController = ctrl

@@ -5,6 +5,7 @@ return function(test, ctx)
   test("ControllerInit wires getDungeonName into the roster panel controller", function()
     local capturedRosterOpts = nil
     local capturedTeleportOpts = nil
+    local dragGripVisible = nil
 
     local addon = LoadAddonModules({ "isiLive_controller_init.lua" })
     local result = addon.ControllerInit.CreateControllers({
@@ -116,6 +117,11 @@ return function(test, ctx)
       end,
       resolveTeleportSpellIDByMapID = function() end,
       resolveMapIDByActivityID = function() end,
+      mainUI = {
+        SetDragGripVisible = function(visible)
+          dragGripVisible = visible
+        end,
+      },
       mainFrame = {},
       getL = function()
         return {}
@@ -209,5 +215,6 @@ return function(test, ctx)
       "Akademie von Algeth'ar",
       "controller init must pass getDungeonName through to the teleport UI controller"
     )
+    Assert.True(dragGripVisible, "expanded layout should keep drag grip lines visible")
   end)
 end

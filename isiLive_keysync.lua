@@ -263,6 +263,9 @@ local function ApplyKnownKeyToRosterEntry(sync, info)
   if type(info) ~= "table" then
     return false
   end
+  if info.isDemoEntry then
+    return false
+  end
 
   local changed = false
 
@@ -322,6 +325,19 @@ local function ApplyKnownKeyToRosterEntry(sync, info)
       info.syncLocMapID = newLocMapID
       changed = true
     end
+  end
+
+  local kickInfo = type(sync.GetPlayerKickInfo) == "function" and sync.GetPlayerKickInfo(info.name, info.realm)
+  if type(kickInfo) == "table" then
+    if info.syncKickOnCooldown ~= kickInfo.onCooldown or info.syncKickRemain ~= kickInfo.cooldownRemain then
+      info.syncKickOnCooldown = kickInfo.onCooldown
+      info.syncKickRemain = kickInfo.cooldownRemain
+      changed = true
+    end
+  elseif info.syncKickOnCooldown ~= nil then
+    info.syncKickOnCooldown = nil
+    info.syncKickRemain = nil
+    changed = true
   end
 
   return changed

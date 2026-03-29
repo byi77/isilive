@@ -53,6 +53,8 @@ local function BuildDeps(opts)
   deps.captureRioBaselineSnapshot = opts.captureRioBaselineSnapshot or function() end
   deps.clearRioBaselineSnapshot = opts.clearRioBaselineSnapshot or function() end
   deps.enableRioDeltaDisplay = opts.enableRioDeltaDisplay or function() end
+  deps.setDemoTimerData = opts.setDemoTimerData or function() end
+  deps.clearDemoTimerData = opts.clearDemoTimerData or function() end
 
   assert(type(deps.printFn) == "function", "isiLive: TestMode requires printFn")
   assert(type(deps.captureRioBaselineSnapshot) == "function", "isiLive: TestMode requires captureRioBaselineSnapshot")
@@ -78,6 +80,7 @@ function TestMode.CreateController(opts)
     deps.captureRioBaselineSnapshot()
     ApplyDummyRioDeltaPreview(dummyRoster)
     deps.enableRioDeltaDisplay()
+    deps.setDemoTimerData()
     deps.setMainFrameVisible(true)
     deps.updateUI()
     deps.updateLeaderButtons()
@@ -120,6 +123,7 @@ function TestMode.CreateController(opts)
     })
     deps.printFn(L.TEST_DISABLED)
     deps.clearRioBaselineSnapshot()
+    deps.clearDemoTimerData()
     deps.setRoster({})
     deps.resetInspectAll()
     deps.clearLatestQueueState()

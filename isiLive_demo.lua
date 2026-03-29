@@ -9,64 +9,78 @@ local SeasonData = addonTable.SeasonData or {}
 
 local DUMMY_MEMBERS = {
   tank = {
-    name = "Atabey",
+    name = "Stormbreaker",
     realm = "Blackmoore",
     language = "EN",
     class = "DRUID",
     role = "TANK",
     spec = "Wachter",
-    ilvl = 166,
-    rio = 3850,
-    keyMapID = 2649,
-    keyLevel = 15,
+    ilvl = 272,
+    rio = 3120,
+    keyMapID = 559, -- Nexus-Point Xenas
+    keyLevel = 10,
+    syncKickOnCooldown = false,
+    isDemoEntry = true,
   },
   healer = {
-    name = "Nisan",
+    name = "Velindra",
     realm = "Hyjal",
     language = "FR",
     class = "PRIEST",
     role = "HEALER",
     spec = "Holy",
-    ilvl = 169,
-    rio = 3810,
-    keyMapID = 2287,
-    keyLevel = 13,
+    ilvl = 268,
+    rio = 2980,
+    keyMapID = 560, -- Maisara Caverns
+    keyLevel = 9,
+    isDemoEntry = true,
   },
   dd1 = {
-    name = "PumperDPS",
+    name = "Zephyrax",
     realm = "Kazzak",
     language = "ES",
     class = "MAGE",
     role = "DAMAGER",
     spec = "Frost",
-    ilvl = 170,
-    rio = 3955,
-    keyMapID = 2773,
-    keyLevel = 16,
+    ilvl = 275,
+    rio = 3210,
+    keyMapID = 557, -- Windrunner Spire
+    keyLevel = 11,
+    syncKickOnCooldown = true,
+    syncKickRemain = 14,
+    syncDps = 148000,
+    isDemoEntry = true,
   },
   dd2 = {
-    name = "Bircan",
+    name = "Thornwall",
     realm = "Blackhand",
     language = "IT",
     class = "PALADIN",
     role = "DAMAGER",
     spec = "Retri",
-    ilvl = 164,
-    rio = 3780,
-    keyMapID = 2660,
-    keyLevel = 12,
+    ilvl = 269,
+    rio = 2870,
+    keyMapID = 558, -- Magisters' Terrace
+    keyLevel = 8,
+    syncKickOnCooldown = false,
+    syncDps = 152000,
+    isDemoEntry = true,
   },
   dd3 = {
-    name = "Kurshad",
+    name = "Ravencast",
     realm = "Antonidas",
     language = "PT",
     class = "HUNTER",
     role = "DAMAGER",
     spec = "Marksmanship",
-    ilvl = 164,
-    rio = 3890,
-    keyMapID = 2441,
-    keyLevel = 14,
+    ilvl = 271,
+    rio = 3050,
+    keyMapID = 402, -- Algeth'ar Academy
+    keyLevel = 10,
+    syncKickOnCooldown = true,
+    syncKickRemain = 6,
+    syncDps = 145000,
+    isDemoEntry = true,
   },
 }
 
@@ -269,6 +283,42 @@ function Demo.BuildDummyRoster(opts)
   }
 
   local fill = BuildFillMembers(playerRole, DUMMY_MEMBERS)
+
+  -- Avoid showing a dummy with the same class as the player.
+  -- Replacement pool: classes not already used by other dummies.
+  local usedClasses = { [playerClass or ""] = true }
+  for _, member in ipairs(fill) do
+    usedClasses[member.class] = true
+  end
+  local CLASS_FALLBACKS = {
+    { class = "WARRIOR",    name = "Ironclad",   role = "DAMAGER", spec = "Arms",         syncDps = 149000, syncKickOnCooldown = false },
+    { class = "ROGUE",      name = "Shadowstep", role = "DAMAGER", spec = "Assassination", syncDps = 153000, syncKickOnCooldown = true, syncKickRemain = 9 },
+    { class = "DEATHKNIGHT",name = "Frostmourne",role = "DAMAGER", spec = "Frost",         syncDps = 147000, syncKickOnCooldown = false },
+    { class = "MONK",       name = "Serenova",   role = "DAMAGER", spec = "Windwalker",    syncDps = 150000, syncKickOnCooldown = false },
+    { class = "DEMONHUNTER",name = "Felstrike",  role = "DAMAGER", spec = "Havoc",         syncDps = 154000, syncKickOnCooldown = true, syncKickRemain = 3 },
+    { class = "SHAMAN",     name = "Stormbind",  role = "DAMAGER", spec = "Enhancement",   syncDps = 146000, syncKickOnCooldown = false },
+    { class = "EVOKER",     name = "Ashwing",    role = "DAMAGER", spec = "Devastation",   syncDps = 151000, syncKickOnCooldown = false },
+  }
+  for i, member in ipairs(fill) do
+    if playerClass and member.class == playerClass then
+      for _, fb in ipairs(CLASS_FALLBACKS) do
+        if not usedClasses[fb.class] then
+          local replacement = CopyRosterEntry(member)
+          replacement.class = fb.class
+          replacement.name = fb.name
+          replacement.role = fb.role
+          replacement.spec = fb.spec
+          replacement.syncDps = fb.syncDps
+          replacement.syncKickOnCooldown = fb.syncKickOnCooldown
+          replacement.syncKickRemain = fb.syncKickRemain
+          usedClasses[fb.class] = true
+          fill[i] = replacement
+          break
+        end
+      end
+    end
+  end
+
   local activeSlots = includeGhostMember and 3 or 4
   for i = 1, math.min(activeSlots, #fill) do
     roster["party" .. i] = CopyRosterEntry(fill[i])

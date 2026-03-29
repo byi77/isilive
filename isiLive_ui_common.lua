@@ -103,6 +103,16 @@ UICommon.BACKDROP_PRESETS = {
     backdrop = BACKDROP_BG_ONLY,
     bgColor = UICommon.Colors.BG_SECONDARY,
   },
+  CD_BOX = {
+    backdrop = BACKDROP_FLAT_BUTTON,
+    bgColor = { 0.10, 0.10, 0.16, 0.80 },
+    borderColor = { 0.30, 0.30, 0.45, 0.70 },
+  },
+  MPLUS_BOX = {
+    backdrop = BACKDROP_FLAT_BUTTON,
+    bgColor = { 0.06, 0.10, 0.18, 0.85 },
+    borderColor = { 0.20, 0.50, 0.90, 0.60 },
+  },
 }
 
 function UICommon.ApplyBackdrop(frame, presetName)

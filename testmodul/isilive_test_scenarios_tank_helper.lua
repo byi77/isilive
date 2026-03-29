@@ -33,10 +33,22 @@ local function NewRecordedFontString(createdFontStrings)
     pointY = nil,
   }
 
-  function fontString:SetPoint(point, x, y)
+  function fontString:SetPoint(point, ...)
+    local args = { ... }
     self.point = point
-    self.pointX = x
-    self.pointY = y
+    if #args >= 4 then
+      self.pointX = args[3]
+      self.pointY = args[4]
+    elseif #args >= 2 then
+      self.pointX = args[1]
+      self.pointY = args[2]
+    elseif #args == 1 then
+      self.pointX = args[1]
+      self.pointY = nil
+    else
+      self.pointX = nil
+      self.pointY = nil
+    end
   end
   function fontString:ClearAllPoints()
     self.point = nil
@@ -439,10 +451,12 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     local horizontalCollapseButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_horizontal")
     Assert.NotNil(collapseButton, "Collapse button should exist")
     Assert.NotNil(horizontalCollapseButton, "Horizontal collapse button should exist")
-    local titleFontString = FindFontStringByPoint(createdFontStrings, "TOP", 0, -4)
-    local versionFontString = FindFontStringByPoint(createdFontStrings, "BOTTOMRIGHT", -10, 6)
+    local titleFontString = FindFontStringByPoint(createdFontStrings, "TOPLEFT", 10, -4)
+    local versionFontString = FindFontStringByPoint(createdFontStrings, "LEFT", 5, -1)
+    local titleHintFontString = FindFontStringByPoint(createdFontStrings, "LEFT", 8, 0)
     Assert.NotNil(titleFontString, "Title font string should exist")
     Assert.NotNil(versionFontString, "Version font string should exist")
+    Assert.NotNil(titleHintFontString, "Title hint font string should exist")
     ---@diagnostic disable: need-check-nil, undefined-field
     Assert.Equal(
       collapseButton._collapseButtonLabel,
@@ -492,6 +506,7 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     )
     Assert.True(titleFontString.hidden, "Title should be hidden in vertical mini mode")
     Assert.True(versionFontString.hidden, "Version line should be hidden in vertical mini mode")
+    Assert.True(titleHintFontString.hidden, "Title hint should be hidden in vertical mini mode")
     Assert.Equal(collapseButton._collapseButtonLabel, "V", "V mode button keeps static V label")
     Assert.Equal(
       horizontalCollapseButton._collapseButtonLabel,
@@ -596,9 +611,15 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     local collapseButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_vertical")
     local horizontalButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_horizontal")
     local expandedButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "expanded")
+    local titleSeparator = FindFontStringByPoint(createdFontStrings, "LEFT", 5, 0)
+    local titleVersion = FindFontStringByPoint(createdFontStrings, "LEFT", 5, -1)
+    local titleHint = FindFontStringByPoint(createdFontStrings, "LEFT", 8, 0)
     Assert.NotNil(collapseButton, "Vertical collapse button should exist")
     Assert.NotNil(horizontalButton, "Horizontal collapse button should exist")
     Assert.NotNil(expandedButton, "Expanded mode button should exist")
+    Assert.NotNil(titleSeparator, "Title separator should exist")
+    Assert.NotNil(titleVersion, "Title version should exist")
+    Assert.NotNil(titleHint, "Title hint should exist")
     ---@diagnostic disable: need-check-nil
     Assert.Equal(horizontalButton._collapseButtonLabel, "H", "H mode button has static H label in expanded mode")
 
@@ -639,6 +660,9 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     Assert.Equal(managementButtons[1].width, 60, "Management buttons resize to compact width in H mode")
     Assert.Equal(horizontalButton._collapseButtonLabel, "H", "H mode button keeps static H label in horizontal mode")
     Assert.Equal(collapseButton._collapseButtonLabel, "V", "V mode button keeps static V label in horizontal mode")
+    Assert.True(titleSeparator.hidden, "Title separator should be hidden in horizontal mini mode")
+    Assert.True(titleVersion.hidden, "Title version should be hidden in horizontal mini mode")
+    Assert.True(titleHint.hidden, "Title hint should be hidden in horizontal mini mode")
     Assert.True(
       helperButtons[1].pointX < helperButtons[#helperButtons].pointX,
       "Helper icons should spread horizontally"

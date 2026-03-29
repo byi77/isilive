@@ -111,9 +111,22 @@ function CdTracker.CreateController(opts)
     end
   end
 
+  local demoOverride = nil
+
   local controller = {}
 
+  function controller.SetDemoData(data)
+    demoOverride = data
+  end
+
+  function controller.ClearDemoData()
+    demoOverride = nil
+  end
+
   function controller.GetBResInfo()
+    if demoOverride then
+      return demoOverride.bres
+    end
     if bresCharges == nil then
       return nil
     end
@@ -125,6 +138,9 @@ function CdTracker.CreateController(opts)
   end
 
   function controller.GetLustInfo()
+    if demoOverride then
+      return demoOverride.lust
+    end
     if lustRemain == nil then
       return nil
     end

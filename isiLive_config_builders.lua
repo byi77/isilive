@@ -50,6 +50,8 @@ function ConfigBuilders.BuildTestModeControllerOpts(ctx)
     captureRioBaselineSnapshot = ctx.captureRioBaselineSnapshot,
     clearRioBaselineSnapshot = ctx.clearRioBaselineSnapshot,
     enableRioDeltaDisplay = ctx.enableRioDeltaDisplay,
+    setDemoTimerData = ctx.setDemoTimerData,
+    clearDemoTimerData = ctx.clearDemoTimerData,
   }
 end
 

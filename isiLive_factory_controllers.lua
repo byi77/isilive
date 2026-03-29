@@ -509,6 +509,7 @@ local function InitializeFactoryPrimaryControllers(ctx)
     resolveMapIDByActivityID = modules.teleport.ResolveMapIDByActivityID,
     resolveMapIDBySpellID = modules.teleport.ResolveMapIDBySpellID,
     resolveMapIDsBySpellID = modules.teleport.ResolveMapIDsBySpellID,
+    mainUI = ctx.mainUI,
     mainFrame = ctx.mainFrame,
     getL = ctx.GetL,
     isPlayerLeader = ctx.IsPlayerLeader,
@@ -887,6 +888,50 @@ local function InitializeFactorySecondaryControllers(ctx)
     captureRioBaselineSnapshot = ctx.CaptureRioBaselineSnapshot,
     clearRioBaselineSnapshot = ctx.ClearRioBaselineSnapshot,
     enableRioDeltaDisplay = ctx.EnableRioDeltaDisplay,
+    setDemoTimerData = function()
+      local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
+      if type(MplusTimer) == "table" and type(MplusTimer.SetDemoData) == "function" then
+        MplusTimer.SetDemoData({
+          running = true,
+          completed = false,
+          timer = 780,
+          timeLimit = 1800,
+          keyLevel = 15,
+          timeRemaining1 = 1020,
+          timeRemaining2 = 660,
+          timeRemaining3 = 300,
+          deaths = 2,
+          deathTimeLost = 8,
+        })
+      end
+      -- cdTrackerController is created after testModeController, so always defer.
+      local C_Timer_ref = rawget(_G, "C_Timer")
+      if type(C_Timer_ref) == "table" and type(C_Timer_ref.After) == "function" then
+        C_Timer_ref.After(0.2, function()
+          if ctx.cdTrackerController and type(ctx.cdTrackerController.SetDemoData) == "function" then
+            ctx.cdTrackerController.SetDemoData({
+              bres = { charges = 0, maxCharges = 1, cooldownRemain = 112 },
+              lust = { remain = 23, icon = nil },
+            })
+          end
+          if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
+            ctx.rosterPanelController.RefreshCdTracker()
+          end
+        end)
+      end
+    end,
+    clearDemoTimerData = function()
+      local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
+      if type(MplusTimer) == "table" and type(MplusTimer.ClearDemoData) == "function" then
+        MplusTimer.ClearDemoData()
+      end
+      if ctx.cdTrackerController and type(ctx.cdTrackerController.ClearDemoData) == "function" then
+        ctx.cdTrackerController.ClearDemoData()
+      end
+      if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
+        ctx.rosterPanelController.RefreshCdTracker()
+      end
+    end,
     updateMPlusTeleportButton = ctx.UpdateMPlusTeleportButton,
     setCenterNoticeVisible = ctx.SetCenterNoticeVisible,
     hideInviteHint = function()
@@ -974,6 +1019,74 @@ local function InitializeFactorySecondaryControllers(ctx)
     if type(C_Timer_ref) == "table" and type(C_Timer_ref.NewTicker) == "function" then
       C_Timer_ref.NewTicker(1.0, function()
         ctx.UpdateCdTracker()
+      end)
+    end
+  end
+
+  local kickTrackerModule = ctx.addonTable and ctx.addonTable.KickTracker
+  if kickTrackerModule and type(kickTrackerModule.CreateController) == "function" then
+    ctx.kickTrackerController = kickTrackerModule.CreateController({
+      getTime = GetTime,
+      onCooldownChanged = function(onCooldown, cooldownRemain)
+        if modules.sync and type(modules.sync.SendKick) == "function" then
+          modules.sync.SendKick({
+            onCooldown = onCooldown,
+            cooldownRemain = cooldownRemain,
+            force = true,
+          })
+        end
+        if ctx.UpdateUI then
+          ctx.UpdateUI()
+        end
+      end,
+    })
+    -- Event frame: UNIT_SPELLCAST_SUCCEEDED for player is untainted (BliZzi confirmed).
+    local castFrame = CreateFrame("Frame")
+    castFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+    castFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+    castFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    castFrame:RegisterEvent("SPELLS_CHANGED")
+    castFrame:SetScript("OnEvent", function(_, event, unit, _, spellID)
+      if event == "UNIT_SPELLCAST_SUCCEEDED" then
+        if unit ~= "player" then return end
+        if ctx.kickTrackerController then
+          ctx.kickTrackerController.OnPlayerCast(spellID)
+        end
+      elseif event == "SPELL_UPDATE_COOLDOWN" or event == "PLAYER_REGEN_ENABLED" then
+        -- Cache real CD outside of combat (talent reductions).
+        if ctx.kickTrackerController then
+          ctx.kickTrackerController.CacheCooldown()
+        end
+      elseif event == "SPELLS_CHANGED" then
+        if ctx.kickTrackerController then
+          ctx.kickTrackerController.ResolveSpellID()
+        end
+      end
+    end)
+
+    -- Ticker: check expiry every 0.5s and push state to sync store.
+    local C_Timer_ref = rawget(_G, "C_Timer")
+    if type(C_Timer_ref) == "table" and type(C_Timer_ref.NewTicker) == "function" then
+      C_Timer_ref.NewTicker(1.0, function()
+        if ctx.kickTrackerController then
+          ctx.kickTrackerController.Scan()
+          if modules.sync and type(modules.sync.SetPlayerKickInfo) == "function" then
+            local selfName = UnitName and UnitName("player") or nil
+            local selfRealm = GetRealmName and GetRealmName() or nil
+            if selfName and selfName ~= "" then
+              local info = ctx.kickTrackerController.GetKickInfo()
+              local changed = modules.sync.SetPlayerKickInfo(selfName, selfRealm, info.onCooldown, info.cooldownRemain)
+              if (changed or info.onCooldown) and ctx.UpdateUI then
+                ctx.UpdateUI()
+              end
+              -- Broadcast kick state to group members every tick while on CD,
+              -- and once on state change (ready/cooldown transition).
+              if (changed or info.onCooldown) and type(modules.sync.SendKick) == "function" then
+                modules.sync.SendKick({ onCooldown = info.onCooldown, cooldownRemain = info.cooldownRemain })
+              end
+            end
+          end
+        end
       end)
     end
   end

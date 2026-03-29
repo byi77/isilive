@@ -32,6 +32,7 @@ local lastIsiLiveStatsAt = 0
 local lastIsiLiveDpsAt = 0
 local lastIsiLiveLocAt = 0
 local lastIsiLiveTargetAt = 0
+local lastIsiLiveKickAt = 0
 local lastIsiLiveRefreshRequestAt = 0
 local lastKeyPayloadSent = nil
 local lastStatsPayloadSent = nil
@@ -45,6 +46,7 @@ local statsInfoByPlayerKey = {}
 local dpsInfoByPlayerKey = {}
 local locInfoByPlayerKey = {}
 local targetInfoByPlayerKey = {}
+local kickInfoByPlayerKey = {}
 
 local function GetSyncTimestamp()
   local getServerTime = rawget(_G, "GetServerTime")
@@ -336,6 +338,7 @@ function Sync.ClearKnownUsers()
   lastIsiLiveDpsAt = 0
   lastIsiLiveLocAt = 0
   lastIsiLiveTargetAt = 0
+  lastIsiLiveKickAt = 0
   lastIsiLiveRefreshRequestAt = 0
   lastKeyPayloadSent = nil
   lastStatsPayloadSent = nil
@@ -548,6 +551,32 @@ function Sync.GetPlayerDpsInfo(name, realm)
     return nil
   end
   return dpsInfoByPlayerKey[key]
+end
+
+function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capturedAt)
+  local key = Sync.NormalizePlayerKey(name, realm)
+  if not key or key == "" then
+    return false
+  end
+  local now = GetSyncTimestamp()
+  local prev = kickInfoByPlayerKey[key]
+  local newOnCooldown = onCooldown == true
+  local changed = not prev or prev.onCooldown ~= newOnCooldown
+  kickInfoByPlayerKey[key] = {
+    onCooldown = newOnCooldown,
+    cooldownRemain = tonumber(cooldownRemain) or 0,
+    capturedAt = tonumber(capturedAt) or now,
+    receivedAt = now,
+  }
+  return changed
+end
+
+function Sync.GetPlayerKickInfo(name, realm)
+  local key = Sync.NormalizePlayerKey(name, realm)
+  if not key or key == "" then
+    return nil
+  end
+  return kickInfoByPlayerKey[key]
 end
 
 function Sync.SetPlayerLocInfo(name, realm, mapID, capturedAt, source)
@@ -845,6 +874,30 @@ function Sync.SendDps(opts)
   C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel)
 end
 
+function Sync.SendKick(opts)
+  if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
+    return
+  end
+  if not IsSyncEnabled() then
+    return
+  end
+  opts = opts or {}
+  local channel = Sync.GetAddonSyncChannel()
+  if not channel then
+    return
+  end
+  local onCooldown = opts.onCooldown == true and 1 or 0
+  local remain = math.floor(tonumber(opts.cooldownRemain) or 0)
+  local now = GetTime()
+  local payload = string.format("KICK:%d:%d", onCooldown, remain)
+  if not opts.force and payload == (Sync._lastKickPayloadSent) and (now - lastIsiLiveKickAt) < 2 then
+    return
+  end
+  lastIsiLiveKickAt = now
+  Sync._lastKickPayloadSent = payload
+  C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel)
+end
+
 function Sync.SendLoc(opts)
   if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
     return
@@ -1008,6 +1061,21 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     end
   end
 
+  local kickUpdated = false
+  if type(message) == "string" and message:find("^KICK:") then
+    local parts = SplitPayload(message)
+    local onCooldownRaw = parts[2]
+    local remainRaw = parts[3]
+    if onCooldownRaw then
+      kickUpdated = Sync.SetPlayerKickInfo(
+        sender, nil,
+        tonumber(onCooldownRaw) == 1,
+        tonumber(remainRaw) or 0,
+        nil
+      )
+    end
+  end
+
   local targetUpdated = false
   if type(message) == "string" and message:find("^TARGET:") then
     local parts = SplitPayload(message)
@@ -1053,5 +1121,6 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     dpsUpdated = dpsUpdated and true or false,
     locUpdated = locUpdated and true or false,
     targetUpdated = targetUpdated and true or false,
+    kickUpdated = kickUpdated and true or false,
   }
 end

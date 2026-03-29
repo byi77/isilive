@@ -1,5 +1,6 @@
 local function CreateTextureStub()
   return {
+    hidden = false,
     SetAllPoints = function() end,
     SetHeight = function() end,
     SetWidth = function() end,
@@ -10,8 +11,12 @@ local function CreateTextureStub()
     SetTexCoord = function() end,
     SetBlendMode = function() end,
     SetVertexColor = function() end,
-    Hide = function() end,
-    Show = function() end,
+    Hide = function(self)
+      self.hidden = true
+    end,
+    Show = function(self)
+      self.hidden = false
+    end,
   }
 end
 
@@ -915,6 +920,42 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
       Assert.Equal(mainUI.frame._startMovingCalls, 1, "combat drag start should still call StartMoving")
       Assert.Equal(mainUI.frame._stopMovingCalls, 1, "combat drag stop should still call StopMovingOrSizing")
       Assert.NotNil(IsiLiveDB.position, "drag stop should persist main-frame position")
+    end)
+  end)
+
+  test("UI drag grip lines can be hidden without disabling the drag handle", function()
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = BuildCreateFrameStub(),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local mainUI = UI.CreateMainFrame({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      Assert.NotNil(mainUI.dragHandle, "main UI should expose the drag handle")
+      Assert.Equal(#(mainUI.dragHandle._grips or {}), 3, "drag handle should create three grip lines")
+
+      mainUI.SetDragGripVisible(false)
+      Assert.False(mainUI.dragHandle._gripVisible, "drag grip should be flagged hidden")
+      for _, grip in ipairs(mainUI.dragHandle._grips or {}) do
+        Assert.True(grip.hidden == true, "all drag grip lines should hide together")
+      end
+
+      local onDragStart = mainUI.dragHandle._scripts and mainUI.dragHandle._scripts.OnDragStart or nil
+      local onDragStop = mainUI.dragHandle._scripts and mainUI.dragHandle._scripts.OnDragStop or nil
+      Assert.NotNil(onDragStart, "drag handle should still define OnDragStart")
+      Assert.NotNil(onDragStop, "drag handle should still define OnDragStop")
+
+      onDragStart(mainUI.dragHandle)
+      onDragStop(mainUI.dragHandle)
+
+      Assert.Equal(mainUI.frame._startMovingCalls, 1, "hidden grip lines must not disable dragging")
+      Assert.Equal(mainUI.frame._stopMovingCalls, 1, "hidden grip lines must not disable drag stop")
     end)
   end)
 

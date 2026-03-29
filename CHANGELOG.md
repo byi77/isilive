@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-03-29 - Version 0.9.111 (patch)
+
+- Main window title bar:
+  - Added a small localized hotkey hint next to the version label: `Open/Close CTRL-F9` / `Öffnen/Schliessen STRG-F9`.
+  - Compact `H` and `V` layouts now hide the title/version block completely, including the drag-grip lines, while drag-to-move still stays available.
+- Roster combat info:
+  - Added the `Kick` roster column with synced interrupt cooldown state (`ready` / remaining seconds) for party members.
+  - Expanded the bottom combat utility area to include Mythic+ timer cutoffs (`+3/+2/+1`) and death-penalty tracking alongside `BRes` and lust timers.
+  - Added the new runtime modules `isiLive_kick_tracker.lua` and `isiLive_mplus_timer.lua` and wired them into controller/bootstrap flow.
+- Tooltip / demo / sync polish:
+  - Peer version tooltip formatting now stays stable with protocol suffixes (`pN`) across locale overrides.
+  - Demo full-preview rebuild tests now resolve ghost rows from the generated dataset instead of depending on a stale hardcoded dummy identity.
+- Docs / release baseline:
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.111`.
+  - Updated the documented validator counts to `451` scenarios across `34` modules and `451` rule-indexed deterministic tests.
+- Release metadata:
+  - Bumped TOC/version strings to `0.9.111`.
+
 ## 2026-03-29 - Version 0.9.110 (patch)
 
 - Active Midnight Season 1 dungeon labels:

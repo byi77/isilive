@@ -1315,6 +1315,8 @@ end
 
 local function CreateDragHandle(frame)
   local dragHandle = CreateFrame("Frame", nil, frame)
+  dragHandle._grips = {}
+  dragHandle._gripVisible = true
   dragHandle:SetPoint("TOPLEFT", 0, 0)
   dragHandle:SetPoint("TOPRIGHT", 0, 0)
   dragHandle:SetHeight(26)
@@ -1342,6 +1344,22 @@ local function CreateDragHandle(frame)
       end
       if type(grip.SetColorTexture) == "function" then
         grip:SetColorTexture(gripColor[1], gripColor[2], gripColor[3], 0.3)
+      end
+      table.insert(dragHandle._grips, grip)
+    end
+  end
+
+  function dragHandle:SetGripVisible(visible)
+    self._gripVisible = visible ~= false
+    for _, grip in ipairs(self._grips or {}) do
+      if self._gripVisible then
+        if type(grip.Show) == "function" then
+          grip:Show()
+        end
+      else
+        if type(grip.Hide) == "function" then
+          grip:Hide()
+        end
       end
     end
   end
@@ -1489,6 +1507,7 @@ function UI.CreateMainFrame(opts)
   return {
     frame = frame,
     closeButton = closeButton,
+    dragHandle = dragHandle,
     SetVisible = SetVisible,
     SetHeightSafe = SetHeightSafe,
     ToggleVisibility = ToggleVisibility,
@@ -1497,5 +1516,10 @@ function UI.CreateMainFrame(opts)
     GetPendingVisible = GetPendingVisible,
     SetWidthSafe = SetWidthSafe,
     GetPendingWidth = GetPendingWidth,
+    SetDragGripVisible = function(visible)
+      if dragHandle and type(dragHandle.SetGripVisible) == "function" then
+        dragHandle:SetGripVisible(visible)
+      end
+    end,
   }
 end
