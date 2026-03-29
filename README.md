@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.115`.
+Current documented baseline: `0.9.116`.
 
 ## Features
 
@@ -25,7 +25,7 @@ Current documented baseline: `0.9.115`.
 - **Leader Marker:** roster rows for the real local group leader render a Blizzard crown icon; if that player is also a known `isiLive` user, the blue heart stays visible and is rendered before the crown.
 - **UI Polish Refresh:** The roster panel, private tooltips, invite hint, and center notice now share the same dark framed palette with softer blue hover accents, alternating row shading, and cleaner separators.
 - **Combat Utility Row:** A bottom tracker row shows live `BRes` charges/cooldown (via `C_Spell.GetSpellCharges` struct-return), `Bloodlust`/`Heroism`/`Time Warp` remaining time with spell icons, and active Mythic+ timer cutoffs for `+3`, `+2`, `+1` plus death-penalty loss. While a key is running, the one-second utility ticker also rerenders the panel so those cutoff timers visibly count down live. Lust tracking uses the player's harmful exhaustion aura, accepts only numeric aura `spellId` values for lookup, ignores protected/non-numeric payloads safely, treats `UNIT_AURA(..., { isFullUpdate = true })` as aura-restore state after zone/reload transitions, and keeps only a short 2-second startup suppress window as a safety net before the full restore arrives.
-- **Kick Cooldown Sync:** The roster `Kick` column shows the synced interrupt state for party members as `ready` or remaining cooldown seconds, based on the player's spec-specific interrupt spell and local cooldown tracking. Interrupt tracking now re-resolves immediately on spec changes and refreshes the kick column without forcing a full roster rerender.
+- **Kick Cooldown Sync:** The roster `Kick` column shows the synced interrupt state for party members as `ready` or remaining cooldown seconds, based on the player's spec-specific interrupt spell and local cooldown tracking. Sync now interpolates remote remaining cooldown smoothly between packets, keeps a short ready rebroadcast tail after cooldown end for delivery stability, shows `-` instead of a transient `0s` flicker, and still re-resolves immediately on spec changes.
 - **Minimap Button:** Optional draggable Minimap button toggles the main window and persists its angle around the minimap.
 - Blizzard Settings only: `Combat Logging` and `DM Reset on Entry` live in `Settings -> AddOns -> isiLive`; the main roster panel no longer shows those toggles.
 - Stable role sorting: `Tank -> Healer -> Damager`
@@ -109,11 +109,11 @@ Current documented baseline: `0.9.115`.
 - On addon load, chat shows current version and open hint (`Press CTRL+F9 to open`)
 - Bottom status line includes current target dungeon context as `Target Dungeon: <Name> [+Level]` (or `Target Dungeon: -` when unresolved); this is the persistent target indicator even when no queue chat summary is emitted.
 - Runtime log storage is session-only and starts disabled on every login/reload.
-- Sync handshake behavior: `HELLO` recipients send `ACK`; explicit local refresh force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
+- Sync handshake behavior: `HELLO` recipients send `ACK` and immediately answer with the full local `KEY`/`STATS`/`DPS`/`LOC` snapshot plus current kick state; explicit local refresh still force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.115)
+## Use Case / Logic Baseline (v0.9.116)
 
-Documented on `2026-03-29` as runtime behavior baseline (`0.9.115`) for validation checks.
+Documented on `2026-03-29` as runtime behavior baseline (`0.9.116`) for validation checks.
 
 
 1. Queue invite -> grouped flow

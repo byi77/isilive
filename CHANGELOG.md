@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-03-29 - Version 0.9.116 (patch)
+
+- Kick sync reliability overhaul (BlizzInterrupt-style):
+  - Ticker interval reduced from 1.0 s to 0.5 s for more responsive cooldown updates.
+  - Receive timestamp stored alongside `cooldownRemain` so the roster `Kick` column counts down smoothly between sync packets via linear interpolation.
+  - After a cooldown expires the ticker continues broadcasting the ready state for 3 extra seconds to guarantee delivery to all peers.
+  - `KICK:0:0` payload is now sent as `math.ceil` to prevent a premature ready frame at sub-second remain.
+  - Rate limit tightened to 1 s minimum between identical payloads.
+  - Roster `Kick` column shows `-` instead of `0s` while the final packet is still in-flight, eliminating false red flicker.
+- Hello / full-state sync on peer discovery:
+  - When a new peer sends a HELLO the addon now immediately replies with the complete local state: key, stats, DPS, location, and kick (ready/cooldown), so the first roster render for that peer is already complete.
+- Kick tracker correctness:
+  - Changing specialization to a class with a different interrupt spell now immediately clears the old cooldown rather than leaving a stale timer running.
+  - `ClearKnownUsers` now also clears the kick-info cache (`kickInfoByPlayerKey`), preventing ghost kick data after group resets.
+- Docs / release baseline:
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `CHANGELOG.md`, `isiLive_texts.lua`, and `isiLive.toc` to `0.9.116`.
+  - Validator baseline remains `460` scenarios across `34` modules and `460` rule-indexed deterministic tests.
+- Release metadata:
+  - Bumped TOC/version strings to `0.9.116`.
+
 ## 2026-03-29 - Version 0.9.115 (patch)
 
 - Distributed `Share Keys` flow:

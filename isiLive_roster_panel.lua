@@ -1759,7 +1759,11 @@ local function RenderRosterImpl(state, roster)
       end
       if info.syncKickOnCooldown == true then
         local secs = math.ceil(info.syncKickRemain or 0)
-        row.kick:SetText(string.format("|cffff4040%ds|r", secs))
+        if secs > 0 then
+          row.kick:SetText(string.format("|cffff4040%ds|r", secs))
+        else
+          row.kick:SetText("|cff666666-|r")
+        end
       elseif info.syncKickOnCooldown == false then
         row.kick:SetText("|cff44ff44ready|r")
       else
@@ -2157,7 +2161,11 @@ function RosterPanel.CreateController(opts)
         end
         if info.syncKickOnCooldown == true then
           local secs = math.ceil(info.syncKickRemain or 0)
-          row.kick:SetText(string.format("|cffff4040%ds|r", secs))
+          if secs > 0 then
+            row.kick:SetText(string.format("|cffff4040%ds|r", secs))
+          else
+            row.kick:SetText("|cff666666-|r")
+          end
         elseif info.syncKickOnCooldown == false then
           row.kick:SetText("|cff44ff44ready|r")
         else

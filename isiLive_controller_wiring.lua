@@ -472,6 +472,20 @@ local function BuildEventHandlersDepsFromContext(ctx)
     getTime = ctx.getTime,
     recordRun = ctx.recordRun,
     applyKnownKeyToRosterEntry = ctx.applyKnownKeyToRosterEntry,
+    sendOwnKickState = function()
+      local kickCtrl = ctx.kickTrackerController
+      if not kickCtrl then
+        return
+      end
+      local info = kickCtrl.GetKickInfo()
+      if type(info) ~= "table" then
+        return
+      end
+      local sync = ctx.sync
+      if sync and type(sync.SendKick) == "function" then
+        sync.SendKick({ onCooldown = info.onCooldown, cooldownRemain = info.cooldownRemain, force = true })
+      end
+    end,
     runFullRefresh = function()
       if ctx.refreshController then
         return ctx.refreshController.RunFullRefresh()

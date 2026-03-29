@@ -1500,7 +1500,6 @@ function UI.CreateMainFrame(opts)
   end
 
   closeButton:SetScript("OnClick", function()
-    -- Always hide immediately, even during combat (normal frames allow Hide)
     frame:Hide()
   end)
 

@@ -1094,6 +1094,7 @@ local function InitializeFactorySecondaryControllers(ctx)
 
   local kickTrackerModule = ctx.addonTable and ctx.addonTable.KickTracker
   if kickTrackerModule and type(kickTrackerModule.CreateController) == "function" then
+    local kickReadyBroadcastUntil = 0
     ctx.kickTrackerController = kickTrackerModule.CreateController({
       getTime = GetTime,
       onCooldownChanged = function(onCooldown, cooldownRemain)
@@ -1103,6 +1104,10 @@ local function InitializeFactorySecondaryControllers(ctx)
             cooldownRemain = cooldownRemain,
             force = true,
           })
+        end
+        -- When transitioning to ready, keep broadcasting for 3s to ensure delivery.
+        if not onCooldown then
+          kickReadyBroadcastUntil = GetTime() + 3
         end
         if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKickColumn) == "function" then
           ctx.rosterPanelController.RefreshKickColumn()
@@ -1136,10 +1141,10 @@ local function InitializeFactorySecondaryControllers(ctx)
       end
     end)
 
-    -- Ticker: scan own kick state + refresh kick column every 1s.
+    -- Ticker: scan own kick state + refresh kick column every 0.5s.
     local C_Timer_ref = rawget(_G, "C_Timer")
     if type(C_Timer_ref) == "table" and type(C_Timer_ref.NewTicker) == "function" then
-      C_Timer_ref.NewTicker(1.0, function()
+      C_Timer_ref.NewTicker(0.5, function()
         if ctx.kickTrackerController then
           ctx.kickTrackerController.Scan()
           if modules.sync and type(modules.sync.SetPlayerKickInfo) == "function" then
@@ -1149,8 +1154,9 @@ local function InitializeFactorySecondaryControllers(ctx)
               local info = ctx.kickTrackerController.GetKickInfo()
               modules.sync.SetPlayerKickInfo(selfName, selfRealm, info.onCooldown, info.cooldownRemain)
               -- Broadcast kick state to group members every tick while on CD,
-              -- and once on state change (ready/cooldown transition).
-              if info.onCooldown and type(modules.sync.SendKick) == "function" then
+              -- and for 3s after transitioning to ready (ensures delivery).
+              local now = GetTime()
+              if (info.onCooldown or now < kickReadyBroadcastUntil) and type(modules.sync.SendKick) == "function" then
                 modules.sync.SendKick({ onCooldown = info.onCooldown, cooldownRemain = info.cooldownRemain })
               end
             end

@@ -362,6 +362,10 @@ function RuntimeLifecycle.BuildHandlers(ctx)
 
     if syncResult.shouldAck then
       ctx.sendAck(syncResult.sender)
+      -- New peer detected: send full state (key, stats, dps, loc) + kick immediately.
+      ctx.sendRefreshResponse()
+      ctx.sendOwnTargetSnapshot(true, "hello", true)
+      ctx.sendOwnKickState()
     end
     if syncResult.shouldRequestRefresh then
       ctx.sendRefreshResponse()

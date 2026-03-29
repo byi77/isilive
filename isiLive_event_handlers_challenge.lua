@@ -179,7 +179,6 @@ local function ScheduleReadyCheckDeclinedClear(ctx, holdUntil)
     if ctx.readyCheckDeclinedHoldUntil ~= holdUntil then
       return
     end
-
     ctx.readyCheckDeclinedHoldUntil = nil
     if ctx.clearExpiredReadyCheckDeclined(tonumber(ctx.getTime and ctx.getTime()) or holdUntil) then
       RefreshReadyCheckUI(ctx)
@@ -193,6 +192,7 @@ local function PromoteDeclinedReadyCheckUnitsToHold(ctx)
   local holdUntil = (tonumber(ctx.getTime and ctx.getTime()) or 0) + READY_CHECK_DECLINED_HOLD_SECONDS
 
   ctx.clearAllReadyCheckDeclined()
+
   for unit, isDeclined in pairs(declinedUnits) do
     if isDeclined == true then
       ctx.setReadyCheckDeclinedUntil(unit, holdUntil)
@@ -270,7 +270,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
         end
       end
     end,
-    READY_CHECK_FINISHED = function(_self)
+    READY_CHECK_FINISHED = function()
       ctx.setReadyCheckActive(false)
       PromoteDeclinedReadyCheckUnitsToHold(ctx)
       RefreshReadyCheckUI(ctx)

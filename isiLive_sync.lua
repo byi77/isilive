@@ -890,10 +890,10 @@ function Sync.SendKick(opts)
     return
   end
   local onCooldown = opts.onCooldown == true and 1 or 0
-  local remain = math.floor(tonumber(opts.cooldownRemain) or 0)
+  local remain = math.ceil(tonumber(opts.cooldownRemain) or 0)
   local now = GetTime()
   local payload = string.format("KICK:%d:%d", onCooldown, remain)
-  if not opts.force and payload == Sync._lastKickPayloadSent and (now - lastIsiLiveKickAt) < 2 then
+  if not opts.force and payload == Sync._lastKickPayloadSent and (now - lastIsiLiveKickAt) < 1 then
     return
   end
   lastIsiLiveKickAt = now
