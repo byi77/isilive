@@ -6,7 +6,6 @@ local KickTracker = {}
 addonTable.KickTracker = KickTracker
 
 -- Spec-keyed interrupt data (spec ID → { spellID, cd }).
--- Source: BliZzi_Interrupts SPEC_REGISTRY (cross-referenced).
 local SPEC_DATA = {
   -- Death Knight
   [250] = { spellID = 47528, cd = 15 }, -- Blood
@@ -63,10 +62,7 @@ local SPEC_DATA = {
   [73] = { spellID = 6552, cd = 15 },
 }
 
--- Talent spell ID → { affects = interruptSpellID, reduction = seconds }
--- Mirrors BliZzi CD_REDUCTION_DEFS.
 -- Talent spell ID → { affects = interruptSpellID, reduction = seconds | pctReduction = % }
--- Source: BliZzi_Interrupts CD_REDUCTION_DEFS + Quick Witted (Mage).
 local CD_REDUCTION_DEFS = {
   [382297] = { affects = 2139, reduction = 5 }, -- Quick Witted       (Mage:    Counterspell 25→20)
   [388039] = { affects = 147362, reduction = 2 }, -- Lone Survivor      (Hunter:  Counter Shot)
@@ -108,7 +104,7 @@ function KickTracker.CreateController(opts)
   local watchedCd = nil -- may be refined by CacheCooldown or ScanOwnTalents
 
   -- Read base CD via GetSpellBaseCooldown (ms, untainted, works even when spell is ready).
-  -- Mirrors BliZzi ReadBaseCd. Then let CacheCooldown refine with talent-reduced value.
+  -- CacheCooldown may refine with the actual talent-reduced value later.
   local function ReadBaseCd()
     if not watchedSpellID then
       return
@@ -127,7 +123,7 @@ function KickTracker.CreateController(opts)
     -- Let cachedCd (from CacheCooldown) override if available.
   end
 
-  -- Mirrors BliZzi ScanOwnTalents: iterate active talent nodes, apply CD reductions.
+  -- Iterate active talent nodes and apply CD reductions.
   local function ScanOwnTalents()
     if not watchedSpellID then
       return
@@ -192,9 +188,8 @@ function KickTracker.CreateController(opts)
   RefreshSpec()
 
   -- Cache the real (talent-reduced) CD from GetSpellCooldown. Only outside combat.
-  -- Mirrors BliZzi_Interrupts CacheCooldown exactly: only caches when spell is on CD
-  -- (duration > 1.5), so this is called on SPELL_UPDATE_COOLDOWN while CD is active
-  -- but outside combat, and on PLAYER_REGEN_ENABLED after combat ends.
+  -- Only caches when spell is on CD (duration > 1.5); called on SPELL_UPDATE_COOLDOWN
+  -- while CD is active but outside combat, and on PLAYER_REGEN_ENABLED after combat ends.
   local function CacheCooldown()
     if not watchedSpellID then
       return

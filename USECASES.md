@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.112`
+Version baseline: `0.9.113`
 Last updated: `2026-03-29`
 
 ## Actors
@@ -156,9 +156,10 @@ Goal: show live BRes, Bloodlust/Heroism/Time Warp, active Mythic+ timer cutoffs,
 3. Rule: only numeric aura `spellId` values may participate in the lust lookup; protected, secret, string, or otherwise non-numeric values must be ignored safely without aborting the full lust scan.
 4. Rule: `UNIT_AURA` updates with `isFullUpdate=true` after zone/world transitions or UI reloads must hydrate the active lust state without firing a new onset callback.
 5. Rule: `PLAYER_ENTERING_WORLD` may keep only a short 2-second suppress window as a safety net until the full aura-restore event arrives.
-6. Output: the tracker row shows BRes charges/cooldown, the current lust icon and remaining time, plus active `+3/+2/+1` timer cutoffs and death-penalty loss, or `--` when data is unavailable.
-7. Output: roster rows additionally show synced interrupt status in the `Kick` column as `ready` or remaining cooldown seconds.
-8. Success criteria: the row and `Kick` column update deterministically, stay non-negative, and remain stable when the relevant APIs are missing, mixed-validity aura payloads are encountered, or zone/reload aura restores arrive late.
+6. Processing: while an active Mythic+ timer is running, the same one-second utility ticker must also trigger a full panel rerender so the visible `+3/+2/+1` cutoffs count down live.
+7. Output: the tracker row shows BRes charges/cooldown, the current lust icon and remaining time, plus active `+3/+2/+1` timer cutoffs and death-penalty loss, or `--` when data is unavailable.
+8. Output: roster rows additionally show synced interrupt status in the `Kick` column as `ready` or remaining cooldown seconds.
+9. Success criteria: the row and `Kick` column update deterministically, stay non-negative, and remain stable when the relevant APIs are missing, mixed-validity aura payloads are encountered, or zone/reload aura restores arrive late.
 
 ## Non-Functional Rules
 

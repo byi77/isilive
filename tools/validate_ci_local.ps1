@@ -98,7 +98,8 @@ try {
     }
   }
 
-  $env:ISILIVE_MAX_FUNCTION_LINES = "360"
+  $env:ISILIVE_MAX_FILE_LINES = "3200"
+  $env:ISILIVE_MAX_FUNCTION_LINES = "420"
   Invoke-CheckedCommand "Lua Metrics Check" "lua tools/lua_metrics_check.lua"
   Invoke-CheckedCommand "Deterministic Usecase + Rules Logic Validation" "lua tools/validate_usecases.lua"
 

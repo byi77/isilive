@@ -44,7 +44,7 @@ Fuer groessere Wartung oder Release-Vorbereitung immer komplett:
 ```powershell
 stylua --check .
 luacheck --exclude-files ".luarocks/**" -- .
-lua tools/lua_metrics_check.lua
+ISILIVE_MAX_FILE_LINES=3200 ISILIVE_MAX_FUNCTION_LINES=420 lua tools/lua_metrics_check.lua
 lua tools/validate_rules_logic.lua
 lua tools/validate_architecture_rules.lua
 lua tools/validate_usecases.lua

@@ -237,6 +237,29 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     )
   end)
 
+  test("Architecture combat utility ticker rerenders UI while Mythic+ timer is active", function()
+    local content = ReadFile("isiLive_factory_controllers.lua")
+
+    AssertContains(
+      Assert,
+      content,
+      "local timerData = MplusTimer.GetTimerData()",
+      "factory secondary controllers must read MplusTimer state during utility refreshes"
+    )
+    AssertContains(
+      Assert,
+      content,
+      "if timerData and timerData.running then",
+      "factory secondary controllers must gate the extra rerender on an active Mythic+ timer"
+    )
+    AssertContains(
+      Assert,
+      content,
+      "ctx.UpdateUI()",
+      "factory secondary controllers must rerender the UI when the Mythic+ timer is active"
+    )
+  end)
+
   test("Architecture root omits removed auto-mark state from runtime setup and roster panel wiring", function()
     local content = ReadFile("isiLive_factory.lua")
 

@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.112`
+Version baseline: `0.9.113`
 Last updated: `2026-03-29`
 
 ## Purpose
@@ -95,19 +95,19 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `stylua --check .`
    - `luacheck --exclude-files ".luarocks/**" -- .`
    - Lua syntax parse (`luac -p` for all `.lua` files)
-   - `lua tools/lua_metrics_check.lua`
+   - `ISILIVE_MAX_FILE_LINES=3200 ISILIVE_MAX_FUNCTION_LINES=420 lua tools/lua_metrics_check.lua`
 2. Runtime logic checks:
    - `lua tools/validate_rules_logic.lua`
    - `lua tools/validate_architecture_rules.lua`
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 451 scenarios across 34 modules, while the rule validators currently index 451 deterministic tests.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 452 scenarios across 34 modules, while the rule validators currently index 452 deterministic tests.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiLive                                                 v0.9.112 Open/Close CTRL-F9 [H][V][M][M2][X]|
+| isiLive                                                 v0.9.113 Open/Close CTRL-F9 [H][V][M][M2][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS                M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|

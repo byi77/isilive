@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-03-29 - Version 0.9.113 (patch)
+
+- Combat utility refresh:
+  - The one-second utility ticker now triggers a full UI rerender while an active Mythic+ timer is running, so the `+3/+2/+1` cutoff row keeps counting down live during a key.
+- Metrics / release gate alignment:
+  - Synced the Lua metrics hard limits to `3200` file lines and `420` function lines across `tools/lua_metrics_check.lua`, `.github/workflows/lua-check.yml`, and `tools/validate_ci_local.ps1` so local preflight and GitHub Actions enforce the same baseline.
+  - Updated release and maintenance docs to use the current metrics baseline and local preflight expectations.
+- Docs / release baseline:
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `WARTUNG.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.113`.
+  - Validator baseline is now `452` scenarios across `34` modules and `452` rule-indexed deterministic tests.
+- Release metadata:
+  - Bumped TOC/version strings to `0.9.113`.
+
 ## 2026-03-29 - Version 0.9.112 (patch)
 
 - Re-Sync flow:

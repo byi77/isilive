@@ -7,7 +7,7 @@ addonTable.Texts = Texts
 
 local LOCALES = {
   enUS = {
-    TITLE = "isiLive v0.9.112",
+    TITLE = "isiLive v0.9.113",
     TITLE_HINT = "Open/Close CTRL-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
@@ -185,7 +185,7 @@ local LOCALES = {
     SETTINGS_TELEPORT_COLUMNS = "Teleport Grid Columns",
   },
   deDE = {
-    TITLE = "isiLive v0.9.112",
+    TITLE = "isiLive v0.9.113",
     TITLE_HINT = "Öffnen/Schliessen STRG-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Name",

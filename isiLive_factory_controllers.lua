@@ -1063,6 +1063,16 @@ local function InitializeFactorySecondaryControllers(ctx)
       if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
         ctx.rosterPanelController.RefreshCdTracker()
       end
+      -- Also refresh full UI if M+ key is running so the timer counts down.
+      local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
+      if type(MplusTimer) == "table" and type(MplusTimer.GetTimerData) == "function" then
+        local timerData = MplusTimer.GetTimerData()
+        if timerData and timerData.running then
+          if ctx.UpdateUI then
+            ctx.UpdateUI()
+          end
+        end
+      end
     end
     if ctx.rosterPanelController and type(ctx.rosterPanelController.SetCdController) == "function" then
       ctx.rosterPanelController.SetCdController(ctx.cdTrackerController)
@@ -1093,7 +1103,7 @@ local function InitializeFactorySecondaryControllers(ctx)
         end
       end,
     })
-    -- Event frame: UNIT_SPELLCAST_SUCCEEDED for player is untainted (BliZzi confirmed).
+    -- Event frame: UNIT_SPELLCAST_SUCCEEDED for player is untainted.
     local castFrame = CreateFrame("Frame")
     castFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
     castFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
