@@ -841,11 +841,54 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
     refreshLocalPlayerKey = ctx.RefreshLocalPlayerKey,
     getActiveChallengeMapID = ctx.GetActiveChallengeMapID,
     getTime = GetTime,
-    refreshDebounceSeconds = 1,
+    refreshDebounceSeconds = 10,
   }))
 
+  local RESYNC_COOLDOWN = 10
+  local resyncCooldownEnd = 0
+  local resyncTicker = nil
+
+  local RI = ctx.addonTable and ctx.addonTable._RosterInternal or {}
+  local setFlatButtonText = type(RI.SetFlatButtonText) == "function" and RI.SetFlatButtonText
+    or function(btn, text) if btn and btn.SetText then btn:SetText(text) end end
+
+  local function UpdateResyncButton()
+    local btn = ctx.refreshButton
+    if not btn then return end
+    local now = GetTime and GetTime() or 0
+    local remaining = math.ceil(resyncCooldownEnd - now)
+    if remaining > 0 then
+      btn:SetEnabled(false)
+      btn:SetAlpha(0.5)
+      local label = btn._baseText or btn._fullText or "Re-Sync"
+      btn._baseText = label
+      local cooldownText = string.format("%s (%ds)", label, remaining)
+      btn._fullText = cooldownText
+      setFlatButtonText(btn, cooldownText)
+    else
+      btn:SetEnabled(true)
+      btn:SetAlpha(1.0)
+      if btn._baseText then
+        btn._fullText = btn._baseText
+        btn._baseText = nil
+      end
+      local label = btn._fullText or "Re-Sync"
+      setFlatButtonText(btn, label)
+      if resyncTicker then
+        resyncTicker:Cancel()
+        resyncTicker = nil
+      end
+    end
+  end
+
   ctx.refreshButton:SetScript("OnClick", function()
+    local now = GetTime and GetTime() or 0
+    if now < resyncCooldownEnd then return end
     ctx.refreshController.RunFullRefresh()
+    resyncCooldownEnd = now + RESYNC_COOLDOWN
+    if resyncTicker then resyncTicker:Cancel() end
+    resyncTicker = C_Timer.NewTicker(1.0, UpdateResyncButton, RESYNC_COOLDOWN)
+    UpdateResyncButton()
   end)
 
   ctx.SetProcessingActive = SetProcessingActive

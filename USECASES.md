@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.111`
+Version baseline: `0.9.112`
 Last updated: `2026-03-29`
 
 ## Actors
@@ -100,6 +100,7 @@ Goal: allow user to post current party keys quickly.
 3. Sync relation: explicit local refresh force-sends the local `HELLO` + `KEY/STATS/DPS/LOC` snapshot and broadcasts `REQSYNC`; hidden peers may answer that request once with forced `KEY/STATS/DPS/LOC` while locally allowed.
 4. Output: one message per key owner is sent to `PARTY`, with local print fallback on send failure.
 5. Rule: `Share Keys` button clicks are debounced to suppress rapid duplicate chat output.
+6. Related action: the adjacent `Re-Sync` button forces the hidden-peer sync handshake and then stays on a visible `10s` cooldown.
 6. Success criteria: each available member key appears as its own deterministic chat line (`isiLive PartyKeys: Name -> Key`), with owned-keystone hyperlink payload for the local player when available.
 
 ## UC-07 RIO Delta Visibility
@@ -169,7 +170,7 @@ Goal: show live BRes, Bloodlust/Heroism/Time Warp, active Mythic+ timer cutoffs,
 6. RIO delta display must be deterministic and non-negative (`(+X)` only).
 7. UI visibility toggle (`CTRL+F9`) must stay requestable in combat; if combat lockdown blocks `Show` or `Hide`, the requested state is replayed on `PLAYER_REGEN_ENABLED`. `CHALLENGE_MODE_START` auto-hides the main window only when the `Auto-Close on Key Start / Solo` option is enabled.
 8. During combat, non-essential event processing is suspended by runtime gate; essential events continue.
-9. Refresh and key-share UI actions must enforce click-spam guards (debounce/rate-limit behavior).
+9. Re-Sync and key-share UI actions must enforce click-spam guards (debounce/rate-limit behavior).
 10. Event-gate dispatch failures must be reported through error callbacks for diagnostics without terminating the gate loop.
 11. Persistent stats storage must stay bounded: no persistent foreign-player run history and no persistent `Runs together` cache.
 12. Leaving or being removed from a normal party must keep the current frame visibility state and retain former members as ghost rows until a deterministic prune path occurs; active members must still remain visible ahead of persisted ghosts.

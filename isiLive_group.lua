@@ -86,6 +86,7 @@ local function BuildDeps(opts)
     sendOwnKeySnapshot = opts.sendOwnKeySnapshot or function(_force) end,
     sendIsiLiveHello = opts.sendIsiLiveHello or function(_force) end,
     sendRefreshRequest = opts.sendRefreshRequest or function(_force) end,
+    timerAfter = opts.timerAfter or function(_, cb) cb() end,
     shouldAutoCloseMainFrame = opts.shouldAutoCloseMainFrame or function()
       return false
     end,
@@ -383,7 +384,10 @@ local function HandleGroupRosterUpdate(deps)
   deps.updateLeaderButtons()
   deps.sendIsiLiveHello(joinedNow, "group")
   if joinedNow then
-    deps.sendRefreshRequest(true)
+    -- Delay to ensure IsInGroup() has settled before sending addon messages.
+    deps.timerAfter(0.5, function()
+      deps.sendRefreshRequest(true)
+    end)
   end
 end
 

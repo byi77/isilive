@@ -1208,15 +1208,8 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   end
   ApplyFontStringSize(title, 14)
 
-  local titleSep = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  titleSep:SetPoint("LEFT", title, "RIGHT", 5, 0)
-  titleSep:SetTextColor(0.35, 0.35, 0.40)
-  titleSep:SetShadowOffset(0, 0)
-  titleSep:SetText("·")
-  ApplyFontStringSize(titleSep, 10)
-
   local titleVersion = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  titleVersion:SetPoint("LEFT", titleSep, "RIGHT", 5, -1)
+  titleVersion:SetPoint("LEFT", title, "RIGHT", 5, -1)
   titleVersion:SetTextColor(0.55, 0.75, 1.0)
   if type(titleVersion.SetShadowOffset) == "function" then
     titleVersion:SetShadowOffset(1, -1)
@@ -1269,7 +1262,6 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     panelTooltip = panelTooltip,
     rosterTooltip = rosterTooltip,
     title = title,
-    titleSep = titleSep,
     cdTrackerRow = cdTrackerRow,
     statusLine = statusLine,
     titleVersion = titleVersion,

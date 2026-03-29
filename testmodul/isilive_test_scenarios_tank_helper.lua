@@ -611,13 +611,11 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     local collapseButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_vertical")
     local horizontalButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_horizontal")
     local expandedButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "expanded")
-    local titleSeparator = FindFontStringByPoint(createdFontStrings, "LEFT", 5, 0)
     local titleVersion = FindFontStringByPoint(createdFontStrings, "LEFT", 5, -1)
     local titleHint = FindFontStringByPoint(createdFontStrings, "LEFT", 8, 0)
     Assert.NotNil(collapseButton, "Vertical collapse button should exist")
     Assert.NotNil(horizontalButton, "Horizontal collapse button should exist")
     Assert.NotNil(expandedButton, "Expanded mode button should exist")
-    Assert.NotNil(titleSeparator, "Title separator should exist")
     Assert.NotNil(titleVersion, "Title version should exist")
     Assert.NotNil(titleHint, "Title hint should exist")
     ---@diagnostic disable: need-check-nil
@@ -660,7 +658,6 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     Assert.Equal(managementButtons[1].width, 60, "Management buttons resize to compact width in H mode")
     Assert.Equal(horizontalButton._collapseButtonLabel, "H", "H mode button keeps static H label in horizontal mode")
     Assert.Equal(collapseButton._collapseButtonLabel, "V", "V mode button keeps static V label in horizontal mode")
-    Assert.True(titleSeparator.hidden, "Title separator should be hidden in horizontal mini mode")
     Assert.True(titleVersion.hidden, "Title version should be hidden in horizontal mini mode")
     Assert.True(titleHint.hidden, "Title hint should be hidden in horizontal mini mode")
     Assert.True(

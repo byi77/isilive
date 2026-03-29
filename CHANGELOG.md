@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-03-29 - Version 0.9.112 (patch)
+
+- Re-Sync flow:
+  - Renamed the user-facing `Refresh` button to `Re-Sync` in both locales.
+  - Increased the manual re-sync guard to `10` seconds and show the remaining cooldown directly on the button label while the action is blocked.
+  - Real first-group joins now delay the forced `REQSYNC` trigger by `0.5s` so group state has settled before addon sync messages are sent.
+- Main window title bar:
+  - Removed the extra separator dot between title and version/hotkey hint; the compact header now renders as one cleaner title block.
+  - Updated the compact-layout test/layout wiring so the simplified title head stays hidden correctly in `H` mode.
+- Docs / release baseline:
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.112`.
+  - Validator baseline remains `451` scenarios across `34` modules and `451` rule-indexed deterministic tests.
+- Release metadata:
+  - Bumped TOC/version strings to `0.9.112`.
+
 ## 2026-03-29 - Version 0.9.111 (patch)
 
 - Main window title bar:

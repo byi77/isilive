@@ -111,7 +111,6 @@ RI.LAYOUT_MODE_CONFIG = LAYOUT_MODE_CONFIG
 -- M = EXPANDED, V = COMPACT_VERTICAL, H = COMPACT_HORIZONTAL, M2 = COMPACT_MAIN_HORIZONTAL
 local UI_VISIBILITY_RULES = {
   { "title", true, false, false, true },
-  { "titleSep", true, false, false, true },
   { "titleVersion", true, false, false, true },
   { "titleHint", true, false, false, true },
   { "headerSepLeft", true, false, false, true },

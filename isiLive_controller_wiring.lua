@@ -136,6 +136,11 @@ local function BuildGroupControllerDepsFromContext(ctx)
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
     sendIsiLiveHello = ctx.sendIsiLiveHello,
     sendRefreshRequest = ctx.sendRefreshRequest,
+    timerAfter = function(seconds, callback)
+      if C_Timer and C_Timer.After then
+        C_Timer.After(seconds, function() pcall(callback) end)
+      end
+    end,
     getRaidTransitionBehavior = ctx.getRaidTransitionBehavior,
     shouldAutoCloseMainFrame = ctx.shouldAutoCloseMainFrame,
     autoCloseMainFrame = ctx.autoCloseMainFrame,

@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.111`
+Version baseline: `0.9.112`
 Last updated: `2026-03-29`
 
 ## Purpose
@@ -61,7 +61,7 @@ WoW Event
 12. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
 13. Keep sync handshake resilient: HELLO recipients acknowledge with `ACK`, explicit local refresh force-sends the local `HELLO/KEY/STATS/DPS/LOC` snapshot, and manual `REQSYNC` refresh requests may trigger one hidden `KEY/STATS/DPS/LOC` reply when locally allowed.
 14. In hidden mode, suspend queue scanning and permanent polling; keep background roster/addon-message sync plus required auto-open transitions active, allow event-driven pre-render updates, and permit one forced refresh reply without un-hiding the frame. Fresh grouped joins may still auto-open, but without prior visible queue capture they must not backfill a grouped queue chat summary. After a UI reload while already grouped, `PLAYER_ENTERING_WORLD` must trigger a full group-roster rebuild so the roster panel re-appears immediately, even inside party instances where the hidden-frame event gate would otherwise block `GROUP_ROSTER_UPDATE`.
-15. Keep UI action spam guards active for `Refresh` and `Share Keys` (debounce/rate-limit behavior).
+15. Keep UI action spam guards active for `Re-Sync` and `Share Keys` (debounce/rate-limit behavior); the manual re-sync button currently uses a visible 10-second cooldown state.
 16. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
 17. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures where Blizzard tooltip APIs are still referenced.
 18. Shared `isiLive` tooltip frames own their own text layout and must not route UI hover rendering back through the shared Blizzard `GameTooltip`.
@@ -107,7 +107,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiLive                                                v0.9.111  Open/Close CTRL-F9 [H][V][M][M2][X]|
+| isiLive                                                 v0.9.112 Open/Close CTRL-F9 [H][V][M][M2][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS                M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
@@ -115,7 +115,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 | [Heal] PlayerTwo    [ ]  DAWN+12 629  (+0)3410  287.4K  [Grn]               [Countdown10]         |
 | [DPS]  PlayerThree  [ ]  -       631  3377      -       [Purp]              [Countdown 0]         |
 | [DPS]  PlayerFour   [ ]  AK +10  626  3290      301.8K  [Red]               [Share Keys]          |
-| [DPS]  PlayerFive   [ ]  OFG+11  628  3333      298.2K  [Yel]               [Refresh]             |
+| [DPS]  PlayerFive   [ ]  OFG+11  628  3333      298.2K  [Yel]               [Re-Sync]             |
 |                                               ... [Circle] [Moon] [Skull] ...                     |
 |                                                                             [Teleport Grid...]    |
 | BR: 2/3 06:20  BL: 05:00                                                                        |
@@ -132,7 +132,7 @@ Collapsed / Vertical Mini Mode:
 | [Countdown10]               [Green]                             |
 | [Countdown 0]               [Purple]                            |
 | [Share Keys]                [Red]                               |
-| [Refresh]                   [Yellow]                            |
+| [Re-Sync]                   [Yellow]                            |
 | [... Circle / Moon / Skull stay stacked below in mini mode ...] |
 +----------------------------------------------------------------+
 
@@ -155,7 +155,7 @@ In addition to the main roster frame, `isiLive_ui.lua` can attach optional tooli
 | Group | Group roster events | Rebuilt roster model, mirrored local leader state per roster entry, ghost retention/pruning, and lifecycle transitions |
 | Highlight | Active listing and queue target | Active teleport spell and highlight state |
 | KeySync | Sync messages and owned snapshot data | Roster key/stats/dps/location backfill, key ownership, and sync markers |
-| Refresh | User refresh action | Forced local snapshot, groupwide sync request, and inspect refresh pipeline |
+| Re-Sync | User refresh action | Forced local snapshot, groupwide sync request, inspect refresh pipeline, and a visible 10s cooldown |
 | EventHandlersRuntime | Addon/world/combat/inspect/sync events | Startup, hidden-mode sync, `UNIT_AURA` full-update forwarding for cd tracking, regen recovery for pending visibility/height, inspect dispatch |
 | EventHandlersQueue | LFG queue/listing events | Visible-mode queue capture, pending-join preservation on negative follow-ups, and joined-key tracking |
 | EventHandlersChallenge | Challenge and ready-check events | Run lifecycle, delayed refresh, rio delta enable, ready-check state, declined-hold tracking, and dedicated ready-check UI refresh routing |
