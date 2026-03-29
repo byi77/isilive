@@ -322,14 +322,14 @@ local function RegisterRosterPanelRowTooltipDpsTest(test, Assert, WithGlobals, L
         if line:find("Source: inspect", 1, true) then
           foundSyncSource = true
         end
-        if line:find("Peer version: 0.9.36 (p2)", 1, true) then
+        if line:find("Client version: 0.9.36", 1, true) then
           foundSyncVersion = true
         end
       end
       Assert.True(foundDps, "Tooltip should contain abbreviated last-run DPS")
       Assert.True(foundSyncInterval, "Tooltip should contain sync interval")
       Assert.True(foundSyncSource, "Tooltip should contain sync source")
-      Assert.True(foundSyncVersion, "Tooltip should contain peer version info")
+      Assert.True(foundSyncVersion, "Tooltip should contain client version info")
     end)
   end)
 end

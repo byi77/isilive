@@ -576,7 +576,13 @@ local function InitializeFactoryPrimaryControllers(ctx)
       return modules.teleport.GetDungeonName(mapID, localeTag or activeLocale)
     end,
     getTime = GetTime,
-    shareKeysDebounceSeconds = 1,
+    shareKeysDebounceSeconds = 30,
+    sendShareKeysRequest = function()
+      modules.sync.SendShareKeysRequest()
+    end,
+    isSyncUserKnown = function(name, realm)
+      return modules.sync.IsUserKnown(name, realm)
+    end,
   })
 
   ctx.keySyncController = initResult.keySyncController

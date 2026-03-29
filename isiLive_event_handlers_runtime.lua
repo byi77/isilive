@@ -367,6 +367,9 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       ctx.sendRefreshResponse()
       ctx.sendOwnTargetSnapshot(true, "reqsync", true)
     end
+    if syncResult.shouldShareKeys then
+      ctx.sendOwnKeystoneToChat()
+    end
 
     local changed = syncResult.targetUpdated == true
     ctx.forEachRosterInfo(function(info)

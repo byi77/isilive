@@ -769,29 +769,10 @@ local function ShowRosterInfoTooltip(
     end
     if syncHelloInfo and type(syncHelloInfo.addonVersion) == "string" and syncHelloInfo.addonVersion ~= "" then
       local L = type(getL) == "function" and getL() or {}
-      local versionLabel = type(L.TOOLTIP_SYNC_VERSION) == "string" and L.TOOLTIP_SYNC_VERSION
-        or "Peer version: %s (p%d)"
-      local versionText = nil
-      local protocolVersion = tonumber(syncHelloInfo.protocolVersion)
-      if protocolVersion then
-        local okFormatted, formatted =
-          pcall(string.format, versionLabel, syncHelloInfo.addonVersion, math.floor(protocolVersion))
-        if okFormatted and type(formatted) == "string" and formatted ~= "" then
-          versionText = formatted
-        end
-      end
-      if not versionText then
-        local okFormatted, formatted = pcall(string.format, versionLabel, syncHelloInfo.addonVersion)
-        if okFormatted and type(formatted) == "string" and formatted ~= "" then
-          versionText = formatted
-        end
-      end
-      if not versionText then
-        if protocolVersion then
-          versionText = string.format("Peer version: %s (p%d)", syncHelloInfo.addonVersion, math.floor(protocolVersion))
-        else
-          versionText = string.format("Peer version: %s", syncHelloInfo.addonVersion)
-        end
+      local versionLabel = type(L.TOOLTIP_SYNC_VERSION) == "string" and L.TOOLTIP_SYNC_VERSION or "Client version: %s"
+      local okFormatted, versionText = pcall(string.format, versionLabel, syncHelloInfo.addonVersion)
+      if not okFormatted or type(versionText) ~= "string" or versionText == "" then
+        versionText = string.format("Client version: %s", syncHelloInfo.addonVersion)
       end
       tooltip:AddLine(versionText, 0.65, 0.85, 1)
     end

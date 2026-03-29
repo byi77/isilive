@@ -174,12 +174,25 @@ function KickTracker.CreateController(opts)
     end
   end
 
+  local function SetCooldown(active, endTime)
+    onCooldown = active
+    cdEndTime = endTime or 0
+    cooldownRemain = active and math.max(0, cdEndTime - getTime()) or 0
+    if onCooldownChanged then
+      onCooldownChanged(onCooldown, cooldownRemain, watchedSpellID)
+    end
+  end
+
   local function RefreshSpec()
     local prevSpellID = watchedSpellID
     specData = ResolveSpecData()
     watchedSpellID = specData and specData.spellID or nil
     if watchedSpellID ~= prevSpellID then
       watchedCd = specData and specData.cd or nil
+      -- Clear any active cooldown from the previous spec's spell.
+      if onCooldown then
+        SetCooldown(false, 0)
+      end
       ReadBaseCd()
       ScanOwnTalents()
     end
@@ -233,15 +246,6 @@ function KickTracker.CreateController(opts)
 
   -- Called outside combat when CD ends: compute real talent-reduced duration from
   CacheCooldown()
-
-  local function SetCooldown(active, endTime)
-    onCooldown = active
-    cdEndTime = endTime or 0
-    cooldownRemain = active and math.max(0, cdEndTime - getTime()) or 0
-    if onCooldownChanged then
-      onCooldownChanged(onCooldown, cooldownRemain, watchedSpellID)
-    end
-  end
 
   local controller = {}
 

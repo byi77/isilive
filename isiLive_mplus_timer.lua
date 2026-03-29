@@ -23,9 +23,10 @@ local function OnUpdate()
   if not state.running then
     return
   end
-  local ok, elapsed = pcall(GetWorldElapsedTime, 1)
-  if ok and type(elapsed) == "number" then
-    state.timer = elapsed
+  -- GetWorldElapsedTime returns (timerType, elapsedTime, ...) — use select(2, ...) for elapsed
+  local ok, _, elapsedTime = pcall(GetWorldElapsedTime, 1)
+  if ok and type(elapsedTime) == "number" then
+    state.timer = elapsedTime
   end
 end
 

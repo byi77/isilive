@@ -409,6 +409,53 @@ local function BuildEventHandlersDepsFromContext(ctx)
     shouldAutoOpenMainFrameOnKeyEnd = ctx.shouldAutoOpenMainFrameOnKeyEnd,
     shouldAutoCloseMainFrame = ctx.shouldAutoCloseMainFrame,
     sendRefreshResponse = ctx.sendRefreshResponse,
+    sendOwnKeystoneToChat = function()
+      local now = GetTime()
+      if ctx._lastKeystoneChatAt and (now - ctx._lastKeystoneChatAt) < 30 then
+        return
+      end
+      local roster = ctx.getRoster and ctx.getRoster()
+      local playerInfo = roster and roster.player
+      if type(playerInfo) ~= "table" then
+        return
+      end
+      local keyLevel = tonumber(playerInfo.keyLevel)
+      local keyMapID = tonumber(playerInfo.keyMapID)
+      if not keyLevel or keyLevel <= 0 or not keyMapID or keyMapID <= 0 then
+        return
+      end
+      -- Try clickable keystone link, reject bare "[Keystone]" without dungeon name
+      local mythicPlusApi = rawget(_G, "C_MythicPlus")
+      local keyLink = nil
+      if mythicPlusApi and type(mythicPlusApi.GetOwnedKeystoneLink) == "function" then
+        local ok, result = pcall(mythicPlusApi.GetOwnedKeystoneLink)
+        if
+          ok
+          and type(result) == "string"
+          and result:find("|Hkeystone:", 1, true)
+          and not result:find("^|Hkeystone:[^|]+|h%[Keystone%]|h$")
+        then
+          keyLink = result
+        end
+      end
+      if not keyLink then
+        local db = rawget(_G, "IsiLiveDB")
+        local activeLocale = (db and db.locale) or ctx.locale
+        local short = ctx.modules
+            and ctx.modules.teleport
+            and ctx.modules.teleport.GetDungeonShortCode(keyMapID, activeLocale)
+          or tostring(keyMapID)
+        keyLink = string.format("%s +%d", short, keyLevel)
+      end
+      local L = ctx.GetL and ctx.GetL()
+      local announcePrefix = L and tostring(L.ANNOUNCE_PREFIX or "PartyKeys:"):gsub("%s+", "") or "PartyKeys:"
+      local line = string.format("[isiLive] %s %s", announcePrefix, keyLink)
+      local sendChatMessage = rawget(_G, "SendChatMessage")
+      if type(sendChatMessage) == "function" and ctx.isInGroup and ctx.isInGroup() then
+        pcall(sendChatMessage, line, "PARTY")
+        ctx._lastKeystoneChatAt = now
+      end
+    end,
     ensureQueueDebugStorage = ctx.ensureQueueDebugStorage,
     setQueueDebugEnabled = ctx.setQueueDebugEnabled,
     ensureRuntimeLogStorage = ctx.ensureRuntimeLogStorage,

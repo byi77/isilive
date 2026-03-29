@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-03-29 - Version 0.9.115 (patch)
+
+- Distributed `Share Keys` flow:
+  - `Share Keys` now posts the local player's own keystone to party chat immediately and then broadcasts a lightweight `SHAREKEYS` addon message so other `isiLive` users can post their own key line as well.
+  - The `Share Keys` button now shows a visible `30s` cooldown in its label while blocked, matching the chat anti-spam guard.
+  - Owned-keystone fallback links now include the dungeon name instead of a bare `[Keystone]` placeholder when the native Blizzard link is unavailable or incomplete.
+- Sync / roster data polish:
+  - Sync now clears stale kick-cache data on full known-user resets and stores receive timestamps so remote interrupt cooldowns in the roster `Kick` column can count down smoothly between sync updates.
+  - Sync tooltips now show `Client version: x.y.z` / `Client-Version: x.y.z` without the protocol suffix.
+- Combat utility / runtime fixes:
+  - The Mythic+ timer now reads the correct elapsed-time return value from `GetWorldElapsedTime`, so the live `+3/+2/+1` cutoffs advance correctly during active keys.
+  - Interrupt tracking now clears the old watched cooldown immediately when the player changes specialization to a different interrupt spell.
+  - Kept ready-check finish behavior aligned with the active ready-check rule contract: the live ready-check state still ends immediately on finish, while explicit declines continue to linger for 20 seconds.
+- Tests / docs / release baseline:
+  - Added deterministic coverage for `SHAREKEYS` sync handling, hidden-mode key-share replies, the updated share-keys button wiring, and the simplified client-version tooltip text.
+  - Synced `README.md`, `USECASES.md`, `ARCHITECTURE.md`, `RELEASE.md`, `CHANGELOG.md`, and `isiLive.toc` to `0.9.115`.
+  - Validator baseline is now `460` scenarios across `34` modules and `460` rule-indexed deterministic tests.
+- Release metadata:
+  - Bumped TOC/version strings to `0.9.115`.
+
 ## 2026-03-29 - Version 0.9.114 (patch)
 
 - Audio settings and group lifecycle:

@@ -1326,6 +1326,30 @@ local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fix
     Assert.Equal(counters.uiUpdates, 0, "answering a hidden refresh request must not force a UI redraw by itself")
   end)
 
+  test("Event handlers answer SHAREKEYS requests while frame is hidden", function()
+    local counters = { uiUpdates = 0, refreshResponses = 0 }
+    local keystoneChatShares = 0
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+      isMainFrameShown = function()
+        return false
+      end,
+      processAddonMessage = function(_prefix, _message, _sender)
+        return { shouldAck = false, shouldShareKeys = true }
+      end,
+      sendOwnKeystoneToChat = function()
+        keystoneChatShares = keystoneChatShares + 1
+      end,
+    })
+
+    controller:Dispatch("CHAT_MSG_ADDON", "ISI_SYNC", "SHAREKEYS", "PARTY", "Alpha-RealmA")
+
+    Assert.Equal(keystoneChatShares, 1, "hidden SHAREKEYS must trigger one own-key chat announcement")
+    Assert.Equal(counters.refreshResponses, 0, "SHAREKEYS must not trigger a refresh response")
+    Assert.Equal(counters.uiUpdates, 0, "hidden SHAREKEYS must not force a UI redraw by itself")
+  end)
+
   test("Event handlers send sparse background snapshot on hidden zone changes", function()
     local counters = { uiUpdates = 0 }
     local backgroundSources = {}

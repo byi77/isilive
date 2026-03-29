@@ -13,7 +13,6 @@ local POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS = 2
 local POST_RUN_CAPTURE_RETRIES = 5
 local POST_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
 local READY_CHECK_DECLINED_HOLD_SECONDS = 20
-
 local function ResetDamageMeterIfAvailable()
   local damageMeterAPI = rawget(_G, "C_DamageMeter")
   if
@@ -252,6 +251,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     CHALLENGE_MODE_COMPLETED = HandleChallengeModeCompletedOrReset,
     CHALLENGE_MODE_RESET = HandleChallengeModeCompletedOrReset,
     READY_CHECK = function(_self)
+      ctx._readyCheckLingerSeq = (ctx._readyCheckLingerSeq or 0) + 1
       ctx.setReadyCheckActive(true)
       ResetReadyCheckDeclinedTracking(ctx)
       RefreshReadyCheckUI(ctx)

@@ -1083,6 +1083,7 @@ local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, Load
     local createdFrames = {}
     local createdFontStrings = {}
     local sentMessages = {}
+    local shareKeyRequests = 0
     local currentTime = 100
 
     WithGlobals({
@@ -1183,6 +1184,9 @@ local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, Load
           return currentTime
         end,
         shareKeysDebounceSeconds = 1,
+        sendShareKeysRequest = function()
+          shareKeyRequests = shareKeyRequests + 1
+        end,
       })
 
       controller.RenderRoster({
@@ -1208,11 +1212,13 @@ local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, Load
       shareKeysButton.OnClick()
       Assert.Equal(#sentMessages, 1, "rapid repeated share-keys clicks should be debounced")
       Assert.Equal(sentMessages[1].channel, "PARTY", "share-keys should announce to party chat")
+      Assert.Equal(shareKeyRequests, 1, "share-keys should send one sync request on the first click")
 
       currentTime = 101.5
       shareKeysButton.OnClick()
       ---@diagnostic enable: need-check-nil, undefined-field
       Assert.Equal(#sentMessages, 2, "share-keys click should fire again after debounce window")
+      Assert.Equal(shareKeyRequests, 2, "share-keys should send another sync request after the debounce window")
     end)
   end)
 end

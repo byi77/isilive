@@ -134,8 +134,11 @@ local function SendPartyChatMessage(message)
     return false
   end
 
-  local sendChatMessage = C_ChatInfo and C_ChatInfo.SendChatMessage or nil
-
+  local sendChatMessage = rawget(_G, "SendChatMessage")
+  if type(sendChatMessage) ~= "function" then
+    local chatInfo = rawget(_G, "C_ChatInfo")
+    sendChatMessage = type(chatInfo) == "table" and chatInfo.SendChatMessage or nil
+  end
   if type(sendChatMessage) == "function" then
     local ok = pcall(sendChatMessage, message, "PARTY")
     if ok then
@@ -151,79 +154,39 @@ local function BuildKeystoneLinkText(shortCode, keyLevel)
   return string.format("%s +%d", tostring(shortCode or "?"), level)
 end
 
-local function TryGetOwnedKeystoneLink(getOwnedKeystoneLink, keyLevel)
-  if type(getOwnedKeystoneLink) ~= "function" then
-    return nil
-  end
-
-  local ok, ownedLink = pcall(getOwnedKeystoneLink)
-  if not ok or type(ownedLink) ~= "string" or ownedLink == "" then
-    return nil
-  end
-  if ownedLink:find("|Hkeystone:", 1, true) == nil then
-    return nil
-  end
-
-  -- Support both formats: old (mapID:0:level:...) and new Midnight (mapID:level)
-  local linkLevel = tonumber(string.match(ownedLink, "|Hkeystone:%d+:%d+:(%-?%d+):") or "")
-    or tonumber(string.match(ownedLink, "|Hkeystone:%d+:(%d+)") or "")
-  local expectedLevel = tonumber(keyLevel)
-  if linkLevel and expectedLevel and linkLevel ~= math.floor(expectedLevel) then
-    return nil
-  end
-
-  return ownedLink
-end
-
-local function BuildKeyAnnouncement(opts)
-  local L = opts.getL()
+local function BuildOwnKeyAnnounceLine(opts)
   local roster = opts.getRoster()
-  local buildOrderedRoster = opts.buildOrderedRoster
-  local rolePriority = opts.rolePriority
-  local unitPriority = opts.unitPriority
-  local getDungeonShortCode = opts.getDungeonShortCode
-  local applyKnownKeyToRosterEntry = opts.applyKnownKeyToRosterEntry
-  local getOwnedKeystoneLink = opts.getOwnedKeystoneLink
-  local lines = {}
-  local ordered = buildOrderedRoster(roster, rolePriority, unitPriority)
-  for _, entry in ipairs(ordered) do
-    local info = entry.info
-    if type(info) == "table" then
-      local currentMapID = tonumber(info.keyMapID)
-      local currentLevel = tonumber(info.keyLevel)
-      local hasCurrentKey = currentMapID and currentMapID > 0 and currentLevel and currentLevel > 0
+  local playerInfo = roster and roster.player
+  if type(playerInfo) ~= "table" then
+    return nil
+  end
+  local keyMapID = tonumber(playerInfo.keyMapID)
+  local keyLevel = tonumber(playerInfo.keyLevel)
+  if not keyMapID or keyMapID <= 0 or not keyLevel or keyLevel <= 0 then
+    return nil
+  end
 
-      if type(applyKnownKeyToRosterEntry) == "function" then
-        -- Only backfill missing keys from sync cache.
-        -- Never overwrite already-visible key data with empty cache state.
-        if not hasCurrentKey then
-          applyKnownKeyToRosterEntry(info)
-        end
-      end
-
-      local keyMapID = tonumber(info.keyMapID)
-      local keyLevel = tonumber(info.keyLevel)
-      if keyMapID and keyMapID > 0 and keyLevel and keyLevel > 0 then
-        local short = getDungeonShortCode(keyMapID)
-        local announcePrefix = tostring(L.ANNOUNCE_PREFIX or "PartyKeys:")
-        announcePrefix = announcePrefix:gsub("%s+", "")
-        local prefixText = string.format("%s %s", tostring(L.TITLE or "isiLive"), announcePrefix)
-        local nameText = tostring(info.name or "?")
-        local keyText = BuildKeystoneLinkText(short, keyLevel)
-        local keyLink = nil
-        if entry.unit == "player" then
-          keyLink = TryGetOwnedKeystoneLink(getOwnedKeystoneLink, keyLevel)
-        end
-        table.insert(lines, string.format("%s %s -> %s", prefixText, nameText, tostring(keyLink or keyText)))
-      end
+  -- Try clickable keystone link first, fall back to plain text
+  local keyLink = nil
+  if type(opts.getOwnedKeystoneLink) == "function" then
+    local ok, ownedLink = pcall(opts.getOwnedKeystoneLink)
+    if
+      ok
+      and type(ownedLink) == "string"
+      and ownedLink:find("|Hkeystone:", 1, true)
+      and not ownedLink:find("^|Hkeystone:[^|]+|h%[Keystone%]|h$")
+    then
+      keyLink = ownedLink
     end
   end
-
-  if #lines == 0 then
-    return nil
+  if not keyLink then
+    local short = opts.getDungeonShortCode(keyMapID)
+    keyLink = BuildKeystoneLinkText(short, keyLevel)
   end
 
-  return lines
+  local L = opts.getL()
+  local announcePrefix = tostring(L.ANNOUNCE_PREFIX or "PartyKeys:"):gsub("%s+", "")
+  return string.format("[isiLive] %s %s", announcePrefix, keyLink)
 end
 
 local function ApplyFontStringSize(fontString, size)
@@ -342,28 +305,121 @@ local function CreateCdTrackerRow(mainFrame)
   mplusBox:Hide()
   row.mplusBox = mplusBox
 
-  -- +3 label
+  -- +3 badge icon (16x12 colored frame with "+3" label) + timer text
+  do
+    local badge = CreateFrame("Frame", nil, mplusBox)
+    badge:SetSize(16, 12)
+    badge:SetPoint("LEFT", mplusBox, "LEFT", 8, 0)
+    local bg = badge:CreateTexture(nil, "BACKGROUND")
+    if type(bg.SetAllPoints) == "function" then
+      bg:SetAllPoints(badge)
+    end
+    if type(bg.SetTexture) == "function" then
+      bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+    end
+    if type(bg.SetVertexColor) == "function" then
+      bg:SetVertexColor(0.15, 0.45, 0.15)
+    end
+    local label = badge:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    if type(label.SetAllPoints) == "function" then
+      label:SetAllPoints(badge)
+    end
+    if type(label.SetJustifyH) == "function" then
+      label:SetJustifyH("CENTER")
+    end
+    if type(label.SetJustifyV) == "function" then
+      label:SetJustifyV("MIDDLE")
+    end
+    if type(label.SetText) == "function" then
+      label:SetText("|cff44ff44+3|r")
+    end
+    ApplyFontStringSize(label, CD_TRACKER_FONT_SIZE)
+    row.mp3Icon = badge
+  end
+
   row.mp3Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.mp3Text:SetPoint("LEFT", mplusBox, "LEFT", 8, 0)
-  row.mp3Text:SetWidth(58)
+  row.mp3Text:SetPoint("LEFT", mplusBox, "LEFT", 28, 0)
+  row.mp3Text:SetWidth(40)
   row.mp3Text:SetJustifyH("LEFT")
-  row.mp3Text:SetText("+3: --")
+  row.mp3Text:SetText("--:--")
   ApplyFontStringSize(row.mp3Text, CD_TRACKER_FONT_SIZE)
 
-  -- +2 label
+  -- +2 badge icon (16x12 colored frame with "+2" label) + timer text
+  do
+    local badge = CreateFrame("Frame", nil, mplusBox)
+    badge:SetSize(16, 12)
+    badge:SetPoint("LEFT", mplusBox, "LEFT", 74, 0)
+    local bg = badge:CreateTexture(nil, "BACKGROUND")
+    if type(bg.SetAllPoints) == "function" then
+      bg:SetAllPoints(badge)
+    end
+    if type(bg.SetTexture) == "function" then
+      bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+    end
+    if type(bg.SetVertexColor) == "function" then
+      bg:SetVertexColor(0.45, 0.38, 0.05)
+    end
+    local label = badge:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    if type(label.SetAllPoints) == "function" then
+      label:SetAllPoints(badge)
+    end
+    if type(label.SetJustifyH) == "function" then
+      label:SetJustifyH("CENTER")
+    end
+    if type(label.SetJustifyV) == "function" then
+      label:SetJustifyV("MIDDLE")
+    end
+    if type(label.SetText) == "function" then
+      label:SetText("|cffffd91a+2|r")
+    end
+    ApplyFontStringSize(label, CD_TRACKER_FONT_SIZE)
+    row.mp2Icon = badge
+  end
+
   row.mp2Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.mp2Text:SetPoint("LEFT", mplusBox, "LEFT", 74, 0)
-  row.mp2Text:SetWidth(58)
+  row.mp2Text:SetPoint("LEFT", mplusBox, "LEFT", 94, 0)
+  row.mp2Text:SetWidth(40)
   row.mp2Text:SetJustifyH("LEFT")
-  row.mp2Text:SetText("+2: --")
+  row.mp2Text:SetText("--:--")
   ApplyFontStringSize(row.mp2Text, CD_TRACKER_FONT_SIZE)
 
-  -- +1 label
+  -- +1 badge icon (16x12 colored frame with "+1" label) + timer text
+  do
+    local badge = CreateFrame("Frame", nil, mplusBox)
+    badge:SetSize(16, 12)
+    badge:SetPoint("LEFT", mplusBox, "LEFT", 140, 0)
+    local bg = badge:CreateTexture(nil, "BACKGROUND")
+    if type(bg.SetAllPoints) == "function" then
+      bg:SetAllPoints(badge)
+    end
+    if type(bg.SetTexture) == "function" then
+      bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+    end
+    if type(bg.SetVertexColor) == "function" then
+      bg:SetVertexColor(0.3, 0.3, 0.3)
+    end
+    local label = badge:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    if type(label.SetAllPoints) == "function" then
+      label:SetAllPoints(badge)
+    end
+    if type(label.SetJustifyH) == "function" then
+      label:SetJustifyH("CENTER")
+    end
+    if type(label.SetJustifyV) == "function" then
+      label:SetJustifyV("MIDDLE")
+    end
+    if type(label.SetText) == "function" then
+      label:SetText("|cffdddddd+1|r")
+    end
+    ApplyFontStringSize(label, CD_TRACKER_FONT_SIZE)
+    row.mp1Icon = badge
+  end
+
   row.mp1Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.mp1Text:SetPoint("LEFT", mplusBox, "LEFT", 140, 0)
-  row.mp1Text:SetWidth(58)
+  row.mp1Text:SetPoint("LEFT", mplusBox, "LEFT", 160, 0)
+  row.mp1Text:SetWidth(40)
   row.mp1Text:SetJustifyH("LEFT")
-  row.mp1Text:SetText("+1: --")
+  row.mp1Text:SetText("--:--")
   ApplyFontStringSize(row.mp1Text, CD_TRACKER_FONT_SIZE)
 
   -- death icon + label
@@ -467,28 +523,28 @@ local function UpdateCdTrackerRow(row, cdController)
       -- +3
       if data.timeRemaining3 >= 0 then
         SetFontStringTextColorSafe(row.mp3Text, 0.4, 1.0, 0.4)
-        row.mp3Text:SetText("+3: " .. FormatMplusTime(data.timeRemaining3))
+        row.mp3Text:SetText(FormatMplusTime(data.timeRemaining3))
       else
         SetFontStringTextColorSafe(row.mp3Text, 0.5, 0.5, 0.5)
-        row.mp3Text:SetText("+3: --")
+        row.mp3Text:SetText("--:--")
       end
 
       -- +2
       if data.timeRemaining2 >= 0 then
         SetFontStringTextColorSafe(row.mp2Text, 1.0, 0.85, 0.1)
-        row.mp2Text:SetText("+2: " .. FormatMplusTime(data.timeRemaining2))
+        row.mp2Text:SetText(FormatMplusTime(data.timeRemaining2))
       else
         SetFontStringTextColorSafe(row.mp2Text, 0.5, 0.5, 0.5)
-        row.mp2Text:SetText("+2: --")
+        row.mp2Text:SetText("--:--")
       end
 
-      -- +1: weiß wenn Zeit da, rot wenn überschritten
+      -- +1: white when time remains, red when exceeded
       if data.timeRemaining1 >= 0 then
         SetFontStringTextColorSafe(row.mp1Text, 1.0, 1.0, 1.0)
-        row.mp1Text:SetText("+1: " .. FormatMplusTime(data.timeRemaining1))
+        row.mp1Text:SetText(FormatMplusTime(data.timeRemaining1))
       else
         SetFontStringTextColorSafe(row.mp1Text, 1.0, 0.2, 0.2)
-        row.mp1Text:SetText("+1: -" .. FormatMplusTime(data.timeRemaining1))
+        row.mp1Text:SetText("-" .. FormatMplusTime(data.timeRemaining1))
       end
 
       -- Tode
@@ -504,13 +560,13 @@ local function UpdateCdTrackerRow(row, cdController)
         row.mpDeathText:SetText("")
       end
     else
-      -- kein Key aktiv: alles mit -- anzeigen
+      -- no active key: show --:-- for all
       SetFontStringTextColorSafe(row.mp3Text, 0.4, 0.4, 0.5)
-      row.mp3Text:SetText("+3: --")
+      row.mp3Text:SetText("--:--")
       SetFontStringTextColorSafe(row.mp2Text, 0.4, 0.4, 0.5)
-      row.mp2Text:SetText("+2: --")
+      row.mp2Text:SetText("--:--")
       SetFontStringTextColorSafe(row.mp1Text, 0.4, 0.4, 0.5)
-      row.mp1Text:SetText("+1: --")
+      row.mp1Text:SetText("--:--")
       SetFontStringTextColorSafe(row.mpDeathText, 0.4, 0.4, 0.5)
       row.mpDeathText:SetText("--")
     end
@@ -1009,10 +1065,53 @@ local function CreateShareKeysButton(mainFrame, deps)
   button:SetPoint("TOPRIGHT", -111, -150)
   button._verticalY = -150
   local lastShareKeysClickAt = nil
+  local countdownTicker = nil
   local debounceSeconds = tonumber(deps.shareKeysDebounceSeconds) or 0
   if debounceSeconds < 0 then
     debounceSeconds = 0
   end
+
+  local function UpdateShareKeysButton(cooldownEnd)
+    local now = type(deps.getTime) == "function" and tonumber(deps.getTime()) or 0
+    local remaining = math.ceil(cooldownEnd - now)
+    if remaining > 0 then
+      button:SetEnabled(false)
+      button:SetAlpha(0.5)
+      local label = button._baseText or button._fullText or ""
+      button._baseText = label
+      local cooldownText = string.format("%s (%ds)", label, remaining)
+      button._fullText = cooldownText
+      SetFlatButtonText(button, cooldownText)
+    else
+      button:SetEnabled(true)
+      button:SetAlpha(1.0)
+      if button._baseText then
+        button._fullText = button._baseText
+        button._baseText = nil
+      end
+      SetFlatButtonText(button, button._fullText or "")
+      if countdownTicker then
+        countdownTicker:Cancel()
+        countdownTicker = nil
+      end
+    end
+  end
+
+  local function StartCooldownDisplay(cooldownEnd)
+    if countdownTicker then
+      countdownTicker:Cancel()
+      countdownTicker = nil
+    end
+    local C_Timer_ref = rawget(_G, "C_Timer")
+    if not C_Timer_ref or type(C_Timer_ref.NewTicker) ~= "function" then
+      return
+    end
+    countdownTicker = C_Timer_ref.NewTicker(1.0, function()
+      UpdateShareKeysButton(cooldownEnd)
+    end, debounceSeconds)
+    UpdateShareKeysButton(cooldownEnd)
+  end
+
   button:SetScript("OnClick", function()
     local now = type(deps.getTime) == "function" and tonumber(deps.getTime()) or nil
     if now and debounceSeconds > 0 and lastShareKeysClickAt and (now - lastShareKeysClickAt) < debounceSeconds then
@@ -1020,31 +1119,27 @@ local function CreateShareKeysButton(mainFrame, deps)
     end
     if now then
       lastShareKeysClickAt = now
+      StartCooldownDisplay(now + debounceSeconds)
     end
 
-    local lines = BuildKeyAnnouncement({
+    -- Post own key directly, then trigger all other isiLive group members to post theirs
+    local ownLine = BuildOwnKeyAnnounceLine({
       getL = deps.getL,
       getRoster = deps.getRoster,
-      buildOrderedRoster = deps.buildOrderedRoster,
-      rolePriority = deps.rolePriority,
-      unitPriority = deps.unitPriority,
       getDungeonShortCode = deps.getDungeonShortCode,
-      applyKnownKeyToRosterEntry = deps.applyKnownKeyToRosterEntry,
       getOwnedKeystoneLink = deps.getOwnedKeystoneLink,
     })
-    if not lines then
-      return
-    end
-    if deps.isInGroup() then
-      for _, line in ipairs(lines) do
-        if not SendPartyChatMessage(line) then
-          print(line)
+    if ownLine then
+      if deps.isInGroup() then
+        if not SendPartyChatMessage(ownLine) then
+          print(ownLine)
         end
+      else
+        print(ownLine)
       end
-    else
-      for _, line in ipairs(lines) do
-        print(line)
-      end
+    end
+    if deps.isInGroup() and type(deps.sendShareKeysRequest) == "function" then
+      deps.sendShareKeysRequest()
     end
   end)
   AttachPanelButtonTooltip(deps.tooltipFrame, button, deps.getL, "BTN_SHARE_KEYS", "TOOLTIP_ANNOUNCE_KEYS", nil)
@@ -1787,11 +1882,18 @@ function RosterPanel.CreateController(opts)
       if not mythicPlusApi then
         return nil
       end
-      -- Try native API first (may not exist in all seasons).
+      -- Try native API first (may not exist in all seasons), but only if it returns a
+      -- complete link with dungeon name (not just bare "[Keystone]").
       local linkFn = mythicPlusApi.GetOwnedKeystoneLink
       if type(linkFn) == "function" then
         local ok, link = pcall(linkFn)
-        if ok and type(link) == "string" and link ~= "" then
+        if
+          ok
+          and type(link) == "string"
+          and link ~= ""
+          and link:find("|Hkeystone:", 1, true)
+          and not link:find("^|Hkeystone:[^|]+|h%[Keystone%]|h$")
+        then
           return link
         end
       end
@@ -1806,7 +1908,14 @@ function RosterPanel.CreateController(opts)
       if not level or level <= 0 or not mapID or mapID <= 0 then
         return nil
       end
-      return string.format("|Hkeystone:%d:%d|h[Keystone]|h", mapID, level)
+      local dungeonName = ""
+      if C_ChallengeMode and type(C_ChallengeMode.GetMapUIInfo) == "function" then
+        local ok, name = pcall(C_ChallengeMode.GetMapUIInfo, mapID)
+        if ok and type(name) == "string" and name ~= "" then
+          dungeonName = ": " .. name
+        end
+      end
+      return string.format("|Hkeystone:%d:%d|h[Keystone%s +%d]|h", mapID, level, dungeonName, level)
     end
   local getTime = type(opts.getTime) == "function" and opts.getTime
     or function()
@@ -1819,6 +1928,7 @@ function RosterPanel.CreateController(opts)
   if shareKeysDebounceSeconds < 0 then
     shareKeysDebounceSeconds = 0
   end
+  local sendShareKeysRequest = type(opts.sendShareKeysRequest) == "function" and opts.sendShareKeysRequest or nil
   local getPlayerLastRunDps = type(opts.getPlayerLastRunDps) == "function" and opts.getPlayerLastRunDps or nil
   local showRosterColumnGuides = type(opts.showRosterColumnGuides) == "function" and opts.showRosterColumnGuides
     or function()
@@ -1843,6 +1953,7 @@ function RosterPanel.CreateController(opts)
     isInGroup = isInGroup,
     getTime = getTime,
     shareKeysDebounceSeconds = shareKeysDebounceSeconds,
+    sendShareKeysRequest = sendShareKeysRequest,
     isRaidGroup = isRaidGroup,
     showRosterColumnGuides = showRosterColumnGuides,
   })

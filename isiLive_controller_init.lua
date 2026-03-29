@@ -93,6 +93,8 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     getTime = ctx.getTime,
     shareKeysDebounceSeconds = ctx.shareKeysDebounceSeconds,
     getPlayerLastRunDps = ctx.getPlayerLastRunDps,
+    sendShareKeysRequest = ctx.sendShareKeysRequest,
+    isSyncUserKnown = ctx.isSyncUserKnown,
   })
 
   return {

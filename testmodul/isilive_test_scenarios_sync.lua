@@ -776,6 +776,36 @@ local function RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonM
     end)
   end)
 
+  test("Sync ProcessAddonMessage handles SHAREKEYS payloads", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str:sub(1, pos - 1)
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local shareKeysResult =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "SHAREKEYS", "OtherPlayer-OtherRealm", "MyPlayer", "Realm")
+
+      Assert.NotNil(shareKeysResult, "SHAREKEYS must return result")
+      Assert.True(
+        shareKeysResult.shouldShareKeys,
+        "SHAREKEYS from different player must request a key-share announcement"
+      )
+      Assert.False(shareKeysResult.shouldRequestRefresh, "SHAREKEYS must not request a refresh response")
+    end)
+  end)
+
   test("Sync GetPlayerSyncSummary exposes the latest observed sync interval", function()
     local addon = LoadAddonModules({ "isiLive_sync.lua" })
 
@@ -786,6 +816,35 @@ local function RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonM
     Assert.NotNil(summary, "sync summary must exist after HELLO packets")
     Assert.Equal(summary.kind, "hello", "latest summary kind must match the updated HELLO bucket")
     Assert.Equal(summary.intervalSeconds, 15, "summary must expose the previous-to-current sync interval")
+  end)
+
+  test("Sync SendShareKeysRequest publishes SHAREKEYS to the addon sync channel", function()
+    local sentMessages = {}
+
+    WithGlobals({
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      addon.Sync.SendShareKeysRequest()
+
+      Assert.Equal(#sentMessages, 1, "share-keys request should publish one addon message")
+      Assert.Equal(sentMessages[1].message, "SHAREKEYS", "share-keys request must use SHAREKEYS payload")
+    end)
   end)
 end
 

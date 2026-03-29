@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.114`
+Version baseline: `0.9.115`
 Last updated: `2026-03-29`
 
 ## Purpose
@@ -61,7 +61,7 @@ WoW Event
 12. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
 13. Keep sync handshake resilient: HELLO recipients acknowledge with `ACK`, explicit local refresh force-sends the local `HELLO/KEY/STATS/DPS/LOC` snapshot, and manual `REQSYNC` refresh requests may trigger one hidden `KEY/STATS/DPS/LOC` reply when locally allowed.
 14. In hidden mode, suspend queue scanning and permanent polling; keep background roster/addon-message sync plus required auto-open transitions active, allow event-driven pre-render updates, and permit one forced refresh reply without un-hiding the frame. Fresh grouped joins may still auto-open, but without prior visible queue capture they must not backfill a grouped queue chat summary. After a UI reload while already grouped, `PLAYER_ENTERING_WORLD` must trigger a full group-roster rebuild so the roster panel re-appears immediately, even inside party instances where the hidden-frame event gate would otherwise block `GROUP_ROSTER_UPDATE`.
-15. Keep UI action spam guards active for `Re-Sync` and `Share Keys` (debounce/rate-limit behavior); the manual re-sync button currently uses a visible 10-second cooldown state.
+15. Keep UI action spam guards active for `Re-Sync` and `Share Keys` (debounce/rate-limit behavior); the manual re-sync button currently uses a visible 10-second cooldown state, and `Share Keys` uses a visible 30-second cooldown state while blocked.
 16. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
 17. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures where Blizzard tooltip APIs are still referenced.
 18. Shared `isiLive` tooltip frames own their own text layout and must not route UI hover rendering back through the shared Blizzard `GameTooltip`.
@@ -102,12 +102,12 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 457 scenarios across 34 modules, while the rule validators currently index 457 deterministic tests.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 460 scenarios across 34 modules, while the rule validators currently index 460 deterministic tests.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiLive                                                 v0.9.114 Open/Close CTRL-F9 [H][V][M][M2][X]|
+| isiLive                                                 v0.9.115 Open/Close CTRL-F9 [H][V][M][M2][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS                M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
@@ -156,6 +156,7 @@ In addition to the main roster frame, `isiLive_ui.lua` can attach optional tooli
 | Highlight | Active listing and queue target | Active teleport spell and highlight state |
 | KeySync | Sync messages and owned snapshot data | Roster key/stats/dps/location backfill, key ownership, and sync markers |
 | Re-Sync | User refresh action | Forced local snapshot, groupwide sync request, inspect refresh pipeline, and a visible 10s cooldown |
+| Share Keys | User chat/share action | Immediate own-key party post, groupwide `SHAREKEYS` request to peers, and a visible 30s cooldown |
 | EventHandlersRuntime | Addon/world/combat/inspect/sync events | Startup, hidden-mode sync, `UNIT_AURA` full-update forwarding for cd tracking, regen recovery for pending visibility/height, inspect dispatch |
 | EventHandlersQueue | LFG queue/listing events | Visible-mode queue capture, pending-join preservation on negative follow-ups, and joined-key tracking |
 | EventHandlersChallenge | Challenge and ready-check events | Run lifecycle, delayed refresh, rio delta enable, ready-check state, declined-hold tracking, and dedicated ready-check UI refresh routing |

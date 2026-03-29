@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.114`.
+Current documented baseline: `0.9.115`.
 
 ## Features
 
@@ -55,7 +55,7 @@ Current documented baseline: `0.9.114`.
 - Teleport cooldown shown as `HH:MM`
 - Active Midnight Season 1 `M2` short codes currently use `WRS / MT / NPX / MC / AA / POS / SOT / SR` in both `enUS` and `deDE`
 - Addon-presence marker per roster name (custom blue heart icon plus a compact sync refresh badge when metadata is available); real group leaders additionally show a 16x16 crown after the heart
-- `Share Keys` posts one party-chat line per available member key (`isiLive PartyKeys: Name -> Key`), using Blizzard owned-keystone link payload for the local player when available
+- `Share Keys` posts the local player's own party-chat key line immediately and then asks other `isiLive` peers to post theirs via addon sync; the button shows a visible `30s` cooldown while blocked
 - Spec column uses max-5-char short labels for long localized names (for example `Wiederherstellung -> Resto`, `Vergeltung -> Retri`, `Treffsicherheit -> MM`, `Tierherrschaft -> BM`)
 - Center notices: left-click drag, right-click dismiss, top-right close button; position resets to center on each open
 - Optional runtime log is session-only in `IsiLiveDB.runtimeLog`; enable/disable via slash command or settings, and it resets to OFF on login/reload
@@ -111,9 +111,9 @@ Current documented baseline: `0.9.114`.
 - Runtime log storage is session-only and starts disabled on every login/reload.
 - Sync handshake behavior: `HELLO` recipients send `ACK`; explicit local refresh force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.114)
+## Use Case / Logic Baseline (v0.9.115)
 
-Documented on `2026-03-29` as runtime behavior baseline (`0.9.114`) for validation checks.
+Documented on `2026-03-29` as runtime behavior baseline (`0.9.115`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -282,7 +282,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 457 scenarios across 34 modules, while the rule validators currently index 457 deterministic tests, including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 460 scenarios across 34 modules, while the rule validators currently index 460 deterministic tests, including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)

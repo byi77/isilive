@@ -332,6 +332,7 @@ function Sync.ClearKnownUsers()
   dpsInfoByPlayerKey = {}
   locInfoByPlayerKey = {}
   targetInfoByPlayerKey = {}
+  kickInfoByPlayerKey = {}
   lastIsiLiveHelloAt = 0
   lastIsiLiveKeyAt = 0
   lastIsiLiveStatsAt = 0
@@ -562,11 +563,13 @@ function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capture
   local prev = kickInfoByPlayerKey[key]
   local newOnCooldown = onCooldown == true
   local changed = not prev or prev.onCooldown ~= newOnCooldown
+  local getTime = rawget(_G, "GetTime")
   kickInfoByPlayerKey[key] = {
     onCooldown = newOnCooldown,
     cooldownRemain = tonumber(cooldownRemain) or 0,
     capturedAt = tonumber(capturedAt) or now,
     receivedAt = now,
+    receivedAtGetTime = type(getTime) == "function" and getTime() or nil,
   }
   return changed
 end
@@ -989,6 +992,20 @@ function Sync.SendRefreshRequest(opts)
   C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, "REQSYNC", channel)
 end
 
+function Sync.SendShareKeysRequest()
+  if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
+    return
+  end
+  if not IsSyncEnabled() then
+    return
+  end
+  local channel = Sync.GetAddonSyncChannel()
+  if not channel then
+    return
+  end
+  C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, "SHAREKEYS", channel)
+end
+
 function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm)
   if prefix ~= ISILIVE_SYNC_PREFIX then
     return nil
@@ -1004,6 +1021,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
   local isHelloMessage = type(message) == "string" and message:find("^HELLO:")
   local shouldAck = isHelloMessage and senderKey ~= selfKey
   local shouldRequestRefresh = type(message) == "string" and message == "REQSYNC" and senderKey ~= selfKey
+  local shouldShareKeys = type(message) == "string" and message == "SHAREKEYS" and senderKey ~= selfKey
   local keyUpdated = false
 
   if type(message) == "string" and message:find("^KEY:") then
@@ -1117,5 +1135,6 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     locUpdated = locUpdated and true or false,
     targetUpdated = targetUpdated and true or false,
     kickUpdated = kickUpdated and true or false,
+    shouldShareKeys = shouldShareKeys and true or false,
   }
 end

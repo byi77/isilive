@@ -329,9 +329,20 @@ local function ApplyKnownKeyToRosterEntry(sync, info)
 
   local kickInfo = type(sync.GetPlayerKickInfo) == "function" and sync.GetPlayerKickInfo(info.name, info.realm)
   if type(kickInfo) == "table" then
-    if info.syncKickOnCooldown ~= kickInfo.onCooldown or info.syncKickRemain ~= kickInfo.cooldownRemain then
+    local interpolatedRemain = kickInfo.cooldownRemain
+    if kickInfo.onCooldown and kickInfo.receivedAtGetTime then
+      local getTime = rawget(_G, "GetTime")
+      if type(getTime) == "function" then
+        local elapsed = getTime() - kickInfo.receivedAtGetTime
+        interpolatedRemain = math.max(0, kickInfo.cooldownRemain - elapsed)
+      end
+    end
+    if
+      info.syncKickOnCooldown ~= kickInfo.onCooldown
+      or math.abs((info.syncKickRemain or 0) - interpolatedRemain) > 0.05
+    then
       info.syncKickOnCooldown = kickInfo.onCooldown
-      info.syncKickRemain = kickInfo.cooldownRemain
+      info.syncKickRemain = interpolatedRemain
       changed = true
     end
   elseif info.syncKickOnCooldown ~= nil then

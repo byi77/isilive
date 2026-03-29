@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.114`
+Version baseline: `0.9.115`
 Last updated: `2026-03-29`
 
 ## Actors
@@ -96,12 +96,12 @@ Goal: support both normal cooldown expiry and dungeon-finish reset.
 Goal: allow user to post current party keys quickly.
 
 1. Trigger: user clicks `Share Keys` button in right control stack.
-2. Processing: addon builds ordered roster key summary from known keys.
-3. Sync relation: explicit local refresh force-sends the local `HELLO` + `KEY/STATS/DPS/LOC` snapshot and broadcasts `REQSYNC`; hidden peers may answer that request once with forced `KEY/STATS/DPS/LOC` while locally allowed.
-4. Output: one message per key owner is sent to `PARTY`, with local print fallback on send failure.
-5. Rule: `Share Keys` button clicks are debounced to suppress rapid duplicate chat output.
+2. Processing: addon posts the local player's own key line immediately, preferring the Blizzard owned-keystone hyperlink and falling back to a localized dungeon short code plus level.
+3. Processing: addon then broadcasts `SHAREKEYS` over the addon sync channel so other `isiLive` peers can post their own local key line without requiring a full `Re-Sync`.
+4. Output: one local-player key line is sent to `PARTY` immediately, with local print fallback on send failure; additional peer lines may follow from responding group members.
+5. Rule: `Share Keys` button clicks are debounced to suppress rapid duplicate chat output and show a visible `30s` cooldown in the button label while blocked.
 6. Related action: the adjacent `Re-Sync` button forces the hidden-peer sync handshake and then stays on a visible `10s` cooldown.
-6. Success criteria: each available member key appears as its own deterministic chat line (`isiLive PartyKeys: Name -> Key`), with owned-keystone hyperlink payload for the local player when available.
+7. Success criteria: the initiating user always gets the local owned keystone line first, and peer responses remain distributed per sender instead of being rebuilt from cached remote roster data.
 
 ## UC-07 RIO Delta Visibility
 
