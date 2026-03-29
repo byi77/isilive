@@ -16,7 +16,7 @@ local state = {
   deathTimeLost = 0,
 }
 
-local tickFrame = nil
+local tickFrame
 
 -- Called every 0.1s while the key is running
 local function OnUpdate()

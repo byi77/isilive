@@ -43,6 +43,7 @@ return {
         "UnitName",
         "UnitGUID",
         "GetTime",
+        "GetWorldElapsedTime",
         "InCombatLockdown",
         "IsAddOnLoaded",
         "GetAddOnMetadata",
