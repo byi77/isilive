@@ -291,13 +291,64 @@ function Demo.BuildDummyRoster(opts)
     usedClasses[member.class] = true
   end
   local CLASS_FALLBACKS = {
-    { class = "WARRIOR",    name = "Ironclad",   role = "DAMAGER", spec = "Arms",         syncDps = 149000, syncKickOnCooldown = false },
-    { class = "ROGUE",      name = "Shadowstep", role = "DAMAGER", spec = "Assassination", syncDps = 153000, syncKickOnCooldown = true, syncKickRemain = 9 },
-    { class = "DEATHKNIGHT",name = "Frostmourne",role = "DAMAGER", spec = "Frost",         syncDps = 147000, syncKickOnCooldown = false },
-    { class = "MONK",       name = "Serenova",   role = "DAMAGER", spec = "Windwalker",    syncDps = 150000, syncKickOnCooldown = false },
-    { class = "DEMONHUNTER",name = "Felstrike",  role = "DAMAGER", spec = "Havoc",         syncDps = 154000, syncKickOnCooldown = true, syncKickRemain = 3 },
-    { class = "SHAMAN",     name = "Stormbind",  role = "DAMAGER", spec = "Enhancement",   syncDps = 146000, syncKickOnCooldown = false },
-    { class = "EVOKER",     name = "Ashwing",    role = "DAMAGER", spec = "Devastation",   syncDps = 151000, syncKickOnCooldown = false },
+    {
+      class = "WARRIOR",
+      name = "Ironclad",
+      role = "DAMAGER",
+      spec = "Arms",
+      syncDps = 149000,
+      syncKickOnCooldown = false,
+    },
+    {
+      class = "ROGUE",
+      name = "Shadowstep",
+      role = "DAMAGER",
+      spec = "Assassination",
+      syncDps = 153000,
+      syncKickOnCooldown = true,
+      syncKickRemain = 9,
+    },
+    {
+      class = "DEATHKNIGHT",
+      name = "Frostmourne",
+      role = "DAMAGER",
+      spec = "Frost",
+      syncDps = 147000,
+      syncKickOnCooldown = false,
+    },
+    {
+      class = "MONK",
+      name = "Serenova",
+      role = "DAMAGER",
+      spec = "Windwalker",
+      syncDps = 150000,
+      syncKickOnCooldown = false,
+    },
+    {
+      class = "DEMONHUNTER",
+      name = "Felstrike",
+      role = "DAMAGER",
+      spec = "Havoc",
+      syncDps = 154000,
+      syncKickOnCooldown = true,
+      syncKickRemain = 3,
+    },
+    {
+      class = "SHAMAN",
+      name = "Stormbind",
+      role = "DAMAGER",
+      spec = "Enhancement",
+      syncDps = 146000,
+      syncKickOnCooldown = false,
+    },
+    {
+      class = "EVOKER",
+      name = "Ashwing",
+      role = "DAMAGER",
+      spec = "Devastation",
+      syncDps = 151000,
+      syncKickOnCooldown = false,
+    },
   }
   for i, member in ipairs(fill) do
     if playerClass and member.class == playerClass then

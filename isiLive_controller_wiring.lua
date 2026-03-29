@@ -138,7 +138,9 @@ local function BuildGroupControllerDepsFromContext(ctx)
     sendRefreshRequest = ctx.sendRefreshRequest,
     timerAfter = function(seconds, callback)
       if C_Timer and C_Timer.After then
-        C_Timer.After(seconds, function() pcall(callback) end)
+        C_Timer.After(seconds, function()
+          pcall(callback)
+        end)
       end
     end,
     getRaidTransitionBehavior = ctx.getRaidTransitionBehavior,

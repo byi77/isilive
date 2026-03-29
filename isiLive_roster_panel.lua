@@ -456,8 +456,9 @@ local function UpdateCdTrackerRow(row, cdController)
   -- M+ timer box
   if row.mplusBox then
     local MplusTimer = addonTable.MplusTimer
-    local data = type(MplusTimer) == "table" and type(MplusTimer.GetTimerData) == "function"
-      and MplusTimer.GetTimerData()
+    local data = type(MplusTimer) == "table"
+        and type(MplusTimer.GetTimerData) == "function"
+        and MplusTimer.GetTimerData()
       or nil
 
     row.mplusBox:Show()
@@ -523,7 +524,6 @@ local function CreateStatusLine(mainFrame)
   statusLine:SetText("")
   return statusLine
 end
-
 
 local function CreateMemberRow(mainFrame, index, rosterTooltip)
   local yOffset = -52 - (index - 1) * 16
@@ -1784,7 +1784,9 @@ function RosterPanel.CreateController(opts)
   local getOwnedKeystoneLink = type(opts.getOwnedKeystoneLink) == "function" and opts.getOwnedKeystoneLink
     or function()
       local mythicPlusApi = rawget(_G, "C_MythicPlus")
-      if not mythicPlusApi then return nil end
+      if not mythicPlusApi then
+        return nil
+      end
       -- Try native API first (may not exist in all seasons).
       local linkFn = mythicPlusApi.GetOwnedKeystoneLink
       if type(linkFn) == "function" then
@@ -1796,10 +1798,14 @@ function RosterPanel.CreateController(opts)
       -- Fallback: build keystone link from owned level + mapID.
       local okLevel, level = pcall(mythicPlusApi.GetOwnedKeystoneLevel)
       local okMapID, mapID = pcall(mythicPlusApi.GetOwnedKeystoneChallengeMapID)
-      if not okLevel or not okMapID then return nil end
+      if not okLevel or not okMapID then
+        return nil
+      end
       level = tonumber(level)
       mapID = tonumber(mapID)
-      if not level or level <= 0 or not mapID or mapID <= 0 then return nil end
+      if not level or level <= 0 or not mapID or mapID <= 0 then
+        return nil
+      end
       return string.format("|Hkeystone:%d:%d|h[Keystone]|h", mapID, level)
     end
   local getTime = type(opts.getTime) == "function" and opts.getTime

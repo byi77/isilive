@@ -850,11 +850,17 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
 
   local RI = ctx.addonTable and ctx.addonTable._RosterInternal or {}
   local setFlatButtonText = type(RI.SetFlatButtonText) == "function" and RI.SetFlatButtonText
-    or function(btn, text) if btn and btn.SetText then btn:SetText(text) end end
+    or function(btn, text)
+      if btn and btn.SetText then
+        btn:SetText(text)
+      end
+    end
 
   local function UpdateResyncButton()
     local btn = ctx.refreshButton
-    if not btn then return end
+    if not btn then
+      return
+    end
     local now = GetTime and GetTime() or 0
     local remaining = math.ceil(resyncCooldownEnd - now)
     if remaining > 0 then
@@ -883,10 +889,14 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
 
   ctx.refreshButton:SetScript("OnClick", function()
     local now = GetTime and GetTime() or 0
-    if now < resyncCooldownEnd then return end
+    if now < resyncCooldownEnd then
+      return
+    end
     ctx.refreshController.RunFullRefresh()
     resyncCooldownEnd = now + RESYNC_COOLDOWN
-    if resyncTicker then resyncTicker:Cancel() end
+    if resyncTicker then
+      resyncTicker:Cancel()
+    end
     resyncTicker = C_Timer.NewTicker(1.0, UpdateResyncButton, RESYNC_COOLDOWN)
     UpdateResyncButton()
   end)
@@ -1091,7 +1101,9 @@ local function InitializeFactorySecondaryControllers(ctx)
     castFrame:RegisterEvent("SPELLS_CHANGED")
     castFrame:SetScript("OnEvent", function(_, event, unit, _, spellID)
       if event == "UNIT_SPELLCAST_SUCCEEDED" then
-        if unit ~= "player" then return end
+        if unit ~= "player" then
+          return
+        end
         if ctx.kickTrackerController then
           ctx.kickTrackerController.OnPlayerCast(spellID)
         end

@@ -774,12 +774,8 @@ local function ShowRosterInfoTooltip(
       local versionText = nil
       local protocolVersion = tonumber(syncHelloInfo.protocolVersion)
       if protocolVersion then
-        local okFormatted, formatted = pcall(
-          string.format,
-          versionLabel,
-          syncHelloInfo.addonVersion,
-          math.floor(protocolVersion)
-        )
+        local okFormatted, formatted =
+          pcall(string.format, versionLabel, syncHelloInfo.addonVersion, math.floor(protocolVersion))
         if okFormatted and type(formatted) == "string" and formatted ~= "" then
           versionText = formatted
         end

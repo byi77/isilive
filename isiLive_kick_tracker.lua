@@ -13,14 +13,14 @@ local SPEC_DATA = {
   [251] = { spellID = 47528, cd = 15 }, -- Frost
   [252] = { spellID = 47528, cd = 15 }, -- Unholy
   -- Demon Hunter
-  [577]  = { spellID = 183752, cd = 15 },
-  [581]  = { spellID = 183752, cd = 15 },
+  [577] = { spellID = 183752, cd = 15 },
+  [581] = { spellID = 183752, cd = 15 },
   [1480] = { spellID = 183752, cd = 15 },
   -- Druid
-  [102] = { spellID = 78675,  cd = 60 }, -- Balance: Solar Beam
+  [102] = { spellID = 78675, cd = 60 }, -- Balance: Solar Beam
   [103] = { spellID = 106839, cd = 15 }, -- Feral: Skull Bash
   [104] = { spellID = 106839, cd = 15 }, -- Guardian: Skull Bash
-  [105] = nil,                           -- Restoration: no interrupt
+  [105] = nil, -- Restoration: no interrupt
   -- Evoker
   [1467] = { spellID = 351338, cd = 20 },
   [1468] = { spellID = 351338, cd = 20 },
@@ -38,13 +38,13 @@ local SPEC_DATA = {
   [269] = { spellID = 116705, cd = 15 },
   [270] = { spellID = 116705, cd = 15 },
   -- Paladin
-  [65] = nil,                            -- Holy: no interrupt
-  [66] = { spellID = 96231, cd = 15 },   -- Prot
-  [70] = { spellID = 96231, cd = 15 },   -- Ret
+  [65] = nil, -- Holy: no interrupt
+  [66] = { spellID = 96231, cd = 15 }, -- Prot
+  [70] = { spellID = 96231, cd = 15 }, -- Ret
   -- Priest
-  [256] = nil,                           -- Discipline
-  [257] = nil,                           -- Holy
-  [258] = { spellID = 15487, cd = 30 },  -- Shadow: Silence
+  [256] = nil, -- Discipline
+  [257] = nil, -- Holy
+  [258] = { spellID = 15487, cd = 30 }, -- Shadow: Silence
   -- Rogue
   [259] = { spellID = 1766, cd = 15 },
   [260] = { spellID = 1766, cd = 15 },
@@ -55,7 +55,7 @@ local SPEC_DATA = {
   [264] = { spellID = 57994, cd = 30 }, -- Resto: 30s
   -- Warlock
   [265] = { spellID = 19647, cd = 24 },
-  [266] = nil,                           -- Demo: Axe Toss (pet, skip)
+  [266] = nil, -- Demo: Axe Toss (pet, skip)
   [267] = { spellID = 19647, cd = 24 },
   -- Warrior
   [71] = { spellID = 6552, cd = 15 },
@@ -68,10 +68,10 @@ local SPEC_DATA = {
 -- Talent spell ID → { affects = interruptSpellID, reduction = seconds | pctReduction = % }
 -- Source: BliZzi_Interrupts CD_REDUCTION_DEFS + Quick Witted (Mage).
 local CD_REDUCTION_DEFS = {
-  [382297] = { affects = 2139,   reduction = 5  }, -- Quick Witted       (Mage:    Counterspell 25→20)
-  [388039] = { affects = 147362, reduction = 2  }, -- Lone Survivor      (Hunter:  Counter Shot)
+  [382297] = { affects = 2139, reduction = 5 }, -- Quick Witted       (Mage:    Counterspell 25→20)
+  [388039] = { affects = 147362, reduction = 2 }, -- Lone Survivor      (Hunter:  Counter Shot)
   [412713] = { affects = 351338, pctReduction = 10 }, -- Interwoven Threads (Evoker:  Quell)
-  [391271] = { affects = 6552,   pctReduction = 10 }, -- Seasoned Soldier   (Warrior: Pummel)
+  [391271] = { affects = 6552, pctReduction = 10 }, -- Seasoned Soldier   (Warrior: Pummel)
 }
 
 local function ResolveSpecData()
@@ -81,9 +81,13 @@ local function ResolveSpecData()
     return nil
   end
   local specIndex = GetSpecialization_ref()
-  if not specIndex then return nil end
+  if not specIndex then
+    return nil
+  end
   local ok, specID = pcall(GetSpecializationInfo_ref, specIndex)
-  if not ok or type(specID) ~= "number" then return nil end
+  if not ok or type(specID) ~= "number" then
+    return nil
+  end
   return SPEC_DATA[specID]
 end
 
@@ -101,14 +105,18 @@ function KickTracker.CreateController(opts)
   local cdEndTime = 0
   local cooldownRemain = 0
   local watchedSpellID = nil
-  local watchedCd = nil  -- may be refined by CacheCooldown or ScanOwnTalents
+  local watchedCd = nil -- may be refined by CacheCooldown or ScanOwnTalents
 
   -- Read base CD via GetSpellBaseCooldown (ms, untainted, works even when spell is ready).
   -- Mirrors BliZzi ReadBaseCd. Then let CacheCooldown refine with talent-reduced value.
   local function ReadBaseCd()
-    if not watchedSpellID then return end
+    if not watchedSpellID then
+      return
+    end
     local GetSpellBaseCooldown_ref = rawget(_G, "GetSpellBaseCooldown")
-    if type(GetSpellBaseCooldown_ref) ~= "function" then return end
+    if type(GetSpellBaseCooldown_ref) ~= "function" then
+      return
+    end
     local ok, ms = pcall(GetSpellBaseCooldown_ref, watchedSpellID)
     if ok and ms then
       local clean = tonumber(string.format("%.0f", ms))
@@ -121,17 +129,29 @@ function KickTracker.CreateController(opts)
 
   -- Mirrors BliZzi ScanOwnTalents: iterate active talent nodes, apply CD reductions.
   local function ScanOwnTalents()
-    if not watchedSpellID then return end
+    if not watchedSpellID then
+      return
+    end
     local C_ClassTalents_ref = rawget(_G, "C_ClassTalents")
-    if type(C_ClassTalents_ref) ~= "table" then return end
+    if type(C_ClassTalents_ref) ~= "table" then
+      return
+    end
     local ok0, cid = pcall(C_ClassTalents_ref.GetActiveConfigID)
-    if not ok0 or not cid then return end
+    if not ok0 or not cid then
+      return
+    end
     local C_Traits_ref = rawget(_G, "C_Traits")
-    if type(C_Traits_ref) ~= "table" then return end
+    if type(C_Traits_ref) ~= "table" then
+      return
+    end
     local ok1, cfg = pcall(C_Traits_ref.GetConfigInfo, cid)
-    if not ok1 or not cfg or not cfg.treeIDs or #cfg.treeIDs == 0 then return end
+    if not ok1 or not cfg or not cfg.treeIDs or #cfg.treeIDs == 0 then
+      return
+    end
     local ok2, nodes = pcall(C_Traits_ref.GetTreeNodes, cfg.treeIDs[1])
-    if not ok2 or not nodes then return end
+    if not ok2 or not nodes then
+      return
+    end
     for _, nodeID in ipairs(nodes) do
       local ok3, node = pcall(C_Traits_ref.GetNodeInfo, cid, nodeID)
       if ok3 and node and node.activeEntry and node.activeRank and node.activeRank > 0 then
@@ -176,18 +196,32 @@ function KickTracker.CreateController(opts)
   -- (duration > 1.5), so this is called on SPELL_UPDATE_COOLDOWN while CD is active
   -- but outside combat, and on PLAYER_REGEN_ENABLED after combat ends.
   local function CacheCooldown()
-    if not watchedSpellID then return end
+    if not watchedSpellID then
+      return
+    end
     local InCombatLockdown_ref = rawget(_G, "InCombatLockdown")
-    if type(InCombatLockdown_ref) == "function" and InCombatLockdown_ref() then return end
+    if type(InCombatLockdown_ref) == "function" and InCombatLockdown_ref() then
+      return
+    end
     local C_Spell_ref = rawget(_G, "C_Spell")
-    if type(C_Spell_ref) ~= "table" then return end
+    if type(C_Spell_ref) ~= "table" then
+      return
+    end
     local ok, info = pcall(C_Spell_ref.GetSpellCooldown, watchedSpellID)
-    if not ok or not info then return end
-    local ok2, dur = pcall(function() return info.duration end)
-    if not ok2 or not dur then return end
+    if not ok or not info then
+      return
+    end
+    local ok2, dur = pcall(function()
+      return info.duration
+    end)
+    if not ok2 or not dur then
+      return
+    end
     -- Strip taint: tostring in its own pcall, then tonumber on the resulting string.
     local ok3, durStr = pcall(tostring, dur)
-    if not ok3 or not durStr then return end
+    if not ok3 or not durStr then
+      return
+    end
     local clean = tonumber(durStr)
     if clean and clean > 1.5 then
       watchedCd = clean
@@ -219,13 +253,14 @@ function KickTracker.CreateController(opts)
   -- Called from UNIT_SPELLCAST_SUCCEEDED for "player" (untainted event handler context).
   -- castCd: real CD duration read in the same untainted event handler, may be nil.
   function controller.OnPlayerCast(spellID)
-    if not watchedSpellID then RefreshSpec() end
+    if not watchedSpellID then
+      RefreshSpec()
+    end
     if watchedSpellID and spellID == watchedSpellID then
       local cd = watchedCd or 15
       SetCooldown(true, getTime() + cd)
     end
   end
-
 
   -- Called on SPELL_UPDATE_COOLDOWN and PLAYER_REGEN_ENABLED to refresh cached CD.
   function controller.CacheCooldown()
@@ -241,7 +276,9 @@ function KickTracker.CreateController(opts)
 
   -- Called every 0.5s from ticker to detect expiry.
   function controller.Scan()
-    if not watchedSpellID then RefreshSpec() end
+    if not watchedSpellID then
+      RefreshSpec()
+    end
     if onCooldown and cdEndTime > 0 then
       local now = getTime()
       if now >= cdEndTime then

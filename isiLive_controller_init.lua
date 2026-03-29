@@ -165,9 +165,7 @@ function ControllerInit.CreateControllers(ctx)
       result.rosterPanelController.SetLayoutChangedHandler(function(layoutMode)
         result.teleportUIController.SetLayoutMode(layoutMode)
         if ctx.mainUI and type(ctx.mainUI.SetDragGripVisible) == "function" then
-          ctx.mainUI.SetDragGripVisible(
-            layoutMode ~= "compact_vertical" and layoutMode ~= "compact_horizontal"
-          )
+          ctx.mainUI.SetDragGripVisible(layoutMode ~= "compact_vertical" and layoutMode ~= "compact_horizontal")
         end
       end)
     end

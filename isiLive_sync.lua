@@ -890,7 +890,7 @@ function Sync.SendKick(opts)
   local remain = math.floor(tonumber(opts.cooldownRemain) or 0)
   local now = GetTime()
   local payload = string.format("KICK:%d:%d", onCooldown, remain)
-  if not opts.force and payload == (Sync._lastKickPayloadSent) and (now - lastIsiLiveKickAt) < 2 then
+  if not opts.force and payload == Sync._lastKickPayloadSent and (now - lastIsiLiveKickAt) < 2 then
     return
   end
   lastIsiLiveKickAt = now
@@ -1067,12 +1067,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     local onCooldownRaw = parts[2]
     local remainRaw = parts[3]
     if onCooldownRaw then
-      kickUpdated = Sync.SetPlayerKickInfo(
-        sender, nil,
-        tonumber(onCooldownRaw) == 1,
-        tonumber(remainRaw) or 0,
-        nil
-      )
+      kickUpdated = Sync.SetPlayerKickInfo(sender, nil, tonumber(onCooldownRaw) == 1, tonumber(remainRaw) or 0, nil)
     end
   end
 
