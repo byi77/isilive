@@ -390,7 +390,8 @@ local function CreateSettingsOptionSelector(
     label = label,
     buttons = buttons,
     UpdateHighlight = UpdateHighlight,
-  }, yOffset - (labelOnTop and LINE_HEIGHT * 2 or LINE_HEIGHT)
+  },
+    yOffset - (labelOnTop and LINE_HEIGHT * 2 or LINE_HEIGHT)
 end
 
 local function ResolveSettingsOptions(opts)
