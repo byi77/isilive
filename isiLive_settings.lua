@@ -291,7 +291,8 @@ local function CreateSettingsOptionSelector(
   getLabels,
   getter,
   setter,
-  normalizeValue
+  normalizeValue,
+  labelOnTop
 )
   local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   local tn = Colors.TEXT_NORMAL or { 0.85, 0.85, 0.9 }
@@ -300,7 +301,8 @@ local function CreateSettingsOptionSelector(
   label:SetText(fallbackLabel or "")
 
   local buttons = {}
-  local buttonX = PADDING_X + 160
+  local buttonX = labelOnTop and PADDING_X or (PADDING_X + 160)
+  local buttonYOffset = labelOnTop and (yOffset - LINE_HEIGHT + 4) or yOffset
   local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
   local acBlue = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
   local borderDefault = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
@@ -333,7 +335,7 @@ local function CreateSettingsOptionSelector(
     local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
     local buttonWidth = tonumber(option.width) or 40
     button:SetSize(buttonWidth, LANG_BUTTON_HEIGHT)
-    button:SetPoint("TOPLEFT", parent, "TOPLEFT", buttonX, yOffset - 1)
+    button:SetPoint("TOPLEFT", parent, "TOPLEFT", buttonX, buttonYOffset - 1)
     if type(button.SetBackdrop) == "function" then
       button:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
     end
@@ -388,7 +390,7 @@ local function CreateSettingsOptionSelector(
     label = label,
     buttons = buttons,
     UpdateHighlight = UpdateHighlight,
-  }, yOffset - LINE_HEIGHT
+  }, yOffset - (labelOnTop and LINE_HEIGHT * 2 or LINE_HEIGHT)
 end
 
 local function ResolveSettingsOptions(opts)
@@ -516,7 +518,8 @@ local function BuildGeneralSettingsSection(canvas, yOffset, labels, config, cont
         config.onDefaultLayoutModeChange(callbackMode)
       end
     end,
-    NormalizeStoredLayoutMode
+    NormalizeStoredLayoutMode,
+    true
   )
 
   controls.combatLog, yOffset = CreateSettingsCheckbox(
@@ -893,7 +896,8 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
         config.onRaidTransitionBehaviorChange(db.raidTransitionBehavior)
       end
     end,
-    NormalizeStoredRaidTransitionBehavior
+    NormalizeStoredRaidTransitionBehavior,
+    true
   )
 
   if SHOW_MARKERS_LEADER_ONLY_SETTING then
