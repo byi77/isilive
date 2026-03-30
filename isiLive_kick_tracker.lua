@@ -142,6 +142,7 @@ function KickTracker.CreateController(opts)
   local watchedSpellID = nil
   local watchedCastUnit = "player"
   local watchedCd = nil -- may be refined by CacheCooldown or ScanOwnTalents
+  local talentScanDirty = true -- invalidated on spec/talent change, cleared after ScanOwnTalents
 
   local function SpellAppearsAvailable(spellID)
     if type(spellID) ~= "number" then
@@ -218,7 +219,11 @@ function KickTracker.CreateController(opts)
   end
 
   -- Iterate active talent nodes and apply CD reductions.
+  -- Skipped if talentScanDirty is false (cache still valid).
   local function ScanOwnTalents()
+    if not talentScanDirty then
+      return
+    end
     if not watchedSpellID then
       return
     end
@@ -266,6 +271,7 @@ function KickTracker.CreateController(opts)
         end
       end
     end
+    talentScanDirty = false
   end
 
   local function SetCooldown(active, endTime)
@@ -286,6 +292,7 @@ function KickTracker.CreateController(opts)
     watchedSpellID = activeSpellData and activeSpellData.spellID or nil
     if watchedSpellID ~= prevSpellID or watchedCastUnit ~= prevCastUnit then
       watchedCd = activeSpellData and activeSpellData.cd or nil
+      talentScanDirty = true
       -- Clear any active cooldown from the previous spec's spell.
       if onCooldown then
         SetCooldown(false, 0)
@@ -339,7 +346,6 @@ function KickTracker.CreateController(opts)
     end
   end
 
-  -- Called outside combat when CD ends: compute real talent-reduced duration from
   CacheCooldown()
 
   local controller = {}
@@ -375,6 +381,7 @@ function KickTracker.CreateController(opts)
 
   -- Called on SPELLS_CHANGED / PLAYER_SPECIALIZATION_CHANGED.
   function controller.ResolveSpellID()
+    talentScanDirty = true
     RefreshSpec()
     CacheCooldown()
     return watchedSpellID

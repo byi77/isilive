@@ -214,10 +214,15 @@ end
 
 local COMBAT_FADE_DURATION = 0.4
 local COMBAT_FADE_TICK = 0.05
+local activeFadeTicker = nil
 
 local function AnimateMainFrameAlpha(mainFrame, targetAlpha)
   if not mainFrame or type(mainFrame.SetAlpha) ~= "function" then
     return
+  end
+  if activeFadeTicker then
+    activeFadeTicker:Cancel()
+    activeFadeTicker = nil
   end
   local currentAlpha = mainFrame:GetAlpha()
   if math.abs(currentAlpha - targetAlpha) < 0.01 then
@@ -227,13 +232,12 @@ local function AnimateMainFrameAlpha(mainFrame, targetAlpha)
   local steps = math.max(1, math.floor(COMBAT_FADE_DURATION / COMBAT_FADE_TICK))
   local delta = (targetAlpha - currentAlpha) / steps
   local stepsDone = 0
-  local ticker
-  ticker = C_Timer.NewTicker(COMBAT_FADE_TICK, function()
+  activeFadeTicker = C_Timer.NewTicker(COMBAT_FADE_TICK, function()
     stepsDone = stepsDone + 1
     local newAlpha = currentAlpha + delta * stepsDone
     if stepsDone >= steps then
       mainFrame:SetAlpha(targetAlpha)
-      ticker:Cancel()
+      activeFadeTicker = nil
     else
       mainFrame:SetAlpha(newAlpha)
     end
@@ -241,8 +245,26 @@ local function AnimateMainFrameAlpha(mainFrame, targetAlpha)
 end
 
 local function IsCombatFadeLayout(layoutMode)
-  return layoutMode == "compact_main_horizontal" -- M2
-    or layoutMode == "expanded" -- M
+  local RI = addonTable._RosterInternal or {}
+  return layoutMode == (RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or "compact_main_horizontal")
+    or layoutMode == (RI.LAYOUT_MODE_EXPANDED or "expanded")
+end
+
+local function ApplyCombatFade(ctx, targetAlpha)
+  local db = rawget(_G, "IsiLiveDB")
+  if not db or db.combatFadeMM == false then
+    return
+  end
+  local RI = addonTable._RosterInternal or {}
+  local fallbackLayout = RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or "compact_main_horizontal"
+  local layoutMode = db.defaultLayoutMode or fallbackLayout
+  if not IsCombatFadeLayout(layoutMode) then
+    return
+  end
+  local mainFrame = type(ctx.getMainFrame) == "function" and ctx.getMainFrame()
+  if mainFrame and mainFrame:IsShown() then
+    AnimateMainFrameAlpha(mainFrame, targetAlpha)
+  end
 end
 
 function RuntimeLifecycle.BuildHandlers(ctx)
@@ -327,18 +349,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandlePlayerRegenDisabledEvent(_self)
-    local db = rawget(_G, "IsiLiveDB")
-    if not db or db.combatFadeMM == false then
-      return
-    end
-    local layoutMode = db.defaultLayoutMode or "compact_main_horizontal"
-    if not IsCombatFadeLayout(layoutMode) then
-      return
-    end
-    local mainFrame = type(ctx.getMainFrame) == "function" and ctx.getMainFrame()
-    if mainFrame and mainFrame:IsShown() then
-      AnimateMainFrameAlpha(mainFrame, 0)
-    end
+    ApplyCombatFade(ctx, 0)
   end
 
   local function HandlePlayerRegenEnabledEvent(_self)
@@ -349,18 +360,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if pendingVisible ~= nil then
       ctx.setMainFrameVisible(pendingVisible)
     end
-    do
-      local db = rawget(_G, "IsiLiveDB")
-      if db and db.combatFadeMM ~= false then
-        local layoutMode = db.defaultLayoutMode or "compact_main_horizontal"
-        if IsCombatFadeLayout(layoutMode) then
-          local mainFrame = type(ctx.getMainFrame) == "function" and ctx.getMainFrame()
-          if mainFrame and mainFrame:IsShown() then
-            AnimateMainFrameAlpha(mainFrame, 1)
-          end
-        end
-      end
-    end
+    ApplyCombatFade(ctx, 1)
     local pendingMainFrameHeight = ctx.getPendingMainFrameHeight()
     if pendingMainFrameHeight then
       ctx.setMainFrameHeightSafe(pendingMainFrameHeight)
