@@ -1,7 +1,7 @@
 # isiLive Architecture
 
 Version baseline: `0.9.116`
-Last updated: `2026-03-29`
+Last updated: `2026-03-30`
 
 ## Purpose
 
@@ -59,9 +59,9 @@ WoW Event
 10. Capture per-player RIO baseline on challenge start and enable delta rendering only after delayed post-run refresh; delta is always shown as non-negative `(+X)` prefix.
 11. Completed-run stat capture must tolerate delayed Blizzard damage-meter availability through short deterministic retries for both `M+` and tracked non-challenge party exits (`Normal`/`Heroic`/`Mythic`), feeding the `DPS` roster column only.
 12. Keep post-run refresh/delta pipeline active when challenge completion/reset events fire while the main window is hidden.
-13. Keep sync handshake resilient: HELLO recipients acknowledge with `ACK`, immediately answer with the full local `KEY/STATS/DPS/LOC` snapshot plus current kick state, explicit local refresh force-sends the full local snapshot, and manual `REQSYNC` refresh requests trigger one hidden reply (all buckets: `KEY`, `STATS`, `DPS`, `LOC`, `TARGET`, `KICK`) unless the client is stopped or paused — active Mythic+ runs no longer suppress the reply.
+13. Keep sync handshake resilient: HELLO recipients acknowledge with `ACK`, immediately answer with the full local `KEY/STATS/DPS/LOC` snapshot plus current kick state, explicit local refresh force-sends the full local snapshot, and manual `REQSYNC` refresh requests trigger one hidden reply (all buckets: `KEY`, `STATS`, `DPS`, `LOC`, `TARGET`, `KICK`) unless the client is stopped or paused — active Mythic+ runs no longer suppress the reply. `DPS` is always included in background snapshots regardless of frame visibility so peers receive current run stats even while the main window is hidden.
 14. In hidden mode, suspend queue scanning and permanent polling; keep background roster/addon-message sync plus required auto-open transitions active, allow event-driven pre-render updates, and permit one forced refresh reply without un-hiding the frame. Fresh grouped joins may still auto-open, but without prior visible queue capture they must not backfill a grouped queue chat summary. After a UI reload while already grouped, `PLAYER_ENTERING_WORLD` must trigger a full group-roster rebuild so the roster panel re-appears immediately, even inside party instances where the hidden-frame event gate would otherwise block `GROUP_ROSTER_UPDATE`.
-15. Keep UI action spam guards active for `Re-Sync` and `Share Keys` (debounce/rate-limit behavior); the manual re-sync button currently uses a visible 10-second cooldown state, and `Share Keys` uses a visible 30-second cooldown state while blocked.
+15. Keep UI action spam guards active for `Re-Sync` and `Share Keys` (debounce/rate-limit behavior); the manual re-sync button currently uses a visible 10-second cooldown state, and `Share Keys` uses a visible 30-second cooldown state while blocked. When any isiLive peer's `SHAREKEYS` message is received, the local `Share Keys` button is locked for 30 s via `TriggerRemoteCooldown` on all receiving clients; an already-running local cooldown is never reset by the remote signal.
 16. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
 17. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures where Blizzard tooltip APIs are still referenced.
 18. Shared `isiLive` tooltip frames own their own text layout and must not route UI hover rendering back through the shared Blizzard `GameTooltip`.
@@ -102,7 +102,7 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 460 scenarios across 34 modules, while the rule validators currently index 460 deterministic tests.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 470 scenarios across 34 modules, while the rule validators currently index 470 deterministic tests.
 
 ## UI Structure (ASCII Sketch)
 

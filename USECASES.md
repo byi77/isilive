@@ -1,7 +1,7 @@
 # isiLive Use Cases
 
 Version baseline: `0.9.116`
-Last updated: `2026-03-29`
+Last updated: `2026-03-30`
 
 ## Actors
 
@@ -159,8 +159,10 @@ Goal: show live BRes, Bloodlust/Heroism/Time Warp, active Mythic+ timer cutoffs,
 5. Rule: `PLAYER_ENTERING_WORLD` may keep only a short 2-second suppress window as a safety net until the full aura-restore event arrives.
 6. Processing: while an active Mythic+ timer is running, the same one-second utility ticker must also trigger a full panel rerender so the visible `+3/+2/+1` cutoffs count down live.
 7. Output: the tracker row shows BRes charges/cooldown, the current lust icon and remaining time, plus active `+3/+2/+1` timer cutoffs and death-penalty loss, or `--` when data is unavailable.
-8. Output: roster rows additionally show synced interrupt status in the `Kick` column as `ready` or remaining cooldown seconds.
-9. Success criteria: the row and `Kick` column update deterministically, stay non-negative, and remain stable when the relevant APIs are missing, mixed-validity aura payloads are encountered, or zone/reload aura restores arrive late.
+8. Output: roster rows additionally show synced interrupt status in the `Kick` column: `ready` (green) when available, remaining cooldown seconds (red) while on cooldown, or `-` (grey) when the spec has no interrupt or the pet interrupt is currently unavailable (e.g. Demonology Warlock without a summoned pet).
+9. Processing: interrupt state is tracked locally via `KickTracker`; pet-based interrupts (Warlock Affliction/Destruction `Spell Lock`, Demonology `Axe Toss`/`Spell Lock`) track the pet cast unit separately so the cooldown starts only when the pet actually casts, not the player.
+10. Rule: synced `hasKick = false` (no-interrupt spec) must render as `-` in the `Kick` column, not as `0s` or `ready`, and must be transmitted as `KICK:-1:0` so peers can distinguish it from a ready interrupt.
+11. Success criteria: the row and `Kick` column update deterministically, stay non-negative, and remain stable when the relevant APIs are missing, mixed-validity aura payloads are encountered, or zone/reload aura restores arrive late.
 
 ## Non-Functional Rules
 
@@ -185,6 +187,7 @@ Goal: show live BRes, Bloodlust/Heroism/Time Warp, active Mythic+ timer cutoffs,
 
 Runtime behavior in this document is validated by `tools/validate_usecases.lua`.
 Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules_logic.lua` and also enforced during `tools/validate_usecases.lua`.
+Current validator baseline: `470` scenarios across `34` modules.
 
 1. UC-01/UC-02: strict queue target resolution and queue highlight behavior without speculative fallback.
 2. UC-03: exact-map suppression and shared-portcast ambiguity handling.

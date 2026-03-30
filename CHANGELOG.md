@@ -11,7 +11,18 @@
   - `SendKick` encodes a no-interrupt state as `onCooldown = -1` in the `KICK:` payload when `hasKick` is `false`, letting peers distinguish "no interrupt available for this spec" from "kick is on cooldown".
   - `ProcessAddonMessage` parses the `-1` sentinel and stores `hasKick = false` via `SetPlayerKickInfo`.
   - `ApplyKnownKeyToRosterEntry` in `isiLive_keysync.lua` propagates `syncHasKick` to roster entries; `SetKickCellText` in the roster panel renders `-` when `syncHasKick == false`.
+- Kick-tracker pet-interrupt support:
+  - Warlock Affliction and Destruction now track the Felguard/Felhunter `Spell Lock` (ID 19647, 24 s) via pet-cast unit tracking.
+  - Warlock Demonology prefers `Axe Toss` (ID 89766, 30 s) when available; falls back to `Spell Lock`; shows `-` in the `Kick` column when neither pet interrupt is castable (`requireAvailability`).
+  - Demon Hunter Devourer spec (ID 1480) added to the interrupt table (Disrupt, 15 s).
+  - `UNIT_SPELLCAST_SUCCEEDED` now monitors the `pet` unit in addition to `player`; `UNIT_PET` triggers a spec-recheck when the active pet changes.
+  - `SyncOwnKickState` extracted to a shared helper, unifying cooldown-change callbacks, spec-change broadcasts, and ticker-driven state updates.
+- Background sync improvements:
+  - `DPS` is now always included in background snapshots regardless of frame visibility, so peers always receive the latest run stats even while the main window is hidden.
+  - `TARGET` snapshots now auto-set `allowHidden = true` whenever the local frame is not visible, ensuring hidden-client target data reaches peers on refresh.
 - RULES_LOGIC.md: rule 28 updated (active-M+ block removed, all sync buckets listed explicitly), rule 53 added (Share-Keys spam guard propagation).
+- Tests: validator baseline raised from 460 to 470 scenarios; new coverage added for pet-interrupt specs, no-interrupt state transport, Share-Keys remote lockdown, and SHAREKEYS hidden-client handling.
+- Fix: luacheck unused-parameter warning in `onCooldownChanged` callback (`cooldownRemain` → `_cooldownRemain`) after kick-state sync was moved into `SyncOwnKickState`.
 
 ## 2026-03-29 - Version 0.9.116 (patch)
 
