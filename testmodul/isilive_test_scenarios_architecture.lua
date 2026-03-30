@@ -508,8 +508,8 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert)
     AssertContains(
       Assert,
       wiringContent,
-      'playSoundFile("Interface\\\\AddOns\\\\isiLive\\\\sounds\\\\SynthChord.ogg", "Master")',
-      "ControllerWiring group-join sound hook must use the SynthChord asset on the Master channel"
+      'SoundUtils.Play("Interface\\\\AddOns\\\\isiLive\\\\sounds\\\\SynthChord.ogg")',
+      "ControllerWiring group-join sound hook must use SoundUtils.Play with the SynthChord asset"
     )
   end)
 

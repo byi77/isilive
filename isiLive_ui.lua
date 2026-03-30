@@ -1418,7 +1418,11 @@ local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup,
     return pendingVisible
   end
 
-  return SetVisible, ToggleVisibility, GetPendingVisible
+  local function ClearPendingVisible()
+    pendingVisible = nil
+  end
+
+  return SetVisible, ToggleVisibility, GetPendingVisible, ClearPendingVisible
 end
 
 local function CreateHeightController(frame, isInCombat)
@@ -1486,7 +1490,7 @@ function UI.CreateMainFrame(opts)
     frameLevel = dragHandle:GetFrameLevel() + 2,
   })
 
-  local SetVisible, ToggleVisibility, GetPendingVisible =
+  local SetVisible, ToggleVisibility, GetPendingVisible, ClearPendingVisible =
     CreateVisibilityController(frame, onShownInGroup, onShownNoGroup, isInCombat)
   local SetHeightSafe, GetPendingHeight = CreateHeightController(frame, isInCombat)
   local SetWidthSafe, GetPendingWidth = CreateWidthController(frame, isInCombat)
@@ -1500,7 +1504,8 @@ function UI.CreateMainFrame(opts)
   end
 
   closeButton:SetScript("OnClick", function()
-    SetVisible(false)
+    frame:Hide()
+    ClearPendingVisible()
   end)
 
   return {

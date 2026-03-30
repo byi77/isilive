@@ -262,7 +262,7 @@ local function ApplyCombatFade(ctx, targetAlpha)
     return
   end
   local mainFrame = type(ctx.getMainFrame) == "function" and ctx.getMainFrame()
-  if mainFrame and mainFrame:IsShown() then
+  if mainFrame and type(mainFrame.IsShown) == "function" and mainFrame:IsShown() then
     AnimateMainFrameAlpha(mainFrame, targetAlpha)
   end
 end

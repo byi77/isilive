@@ -15,7 +15,7 @@ return function(test, ctx)
       mainFrameShown = overrides.mainFrameShown ~= false,
     }
 
-    local addon = LoadAddonModules({ "isiLive_leader_watch.lua" })
+    local addon = LoadAddonModules({ "isiLive_sound_utils.lua", "isiLive_leader_watch.lua" })
     local controller = addon.LeaderWatch.CreateController({
       isPlayerLeader = function()
         return state.isLeader
@@ -114,7 +114,7 @@ return function(test, ctx)
           "Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg",
           "leader gain must use the transfer sound"
         )
-        Assert.Equal(channel, "Master", "leader gain must play on the Master channel")
+        Assert.Equal(channel, "SFX", "leader gain must play on the SFX channel")
       end,
     }, function()
       local controller, state = BuildLeaderWatchController({
