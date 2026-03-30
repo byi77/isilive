@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2026-03-30 - Version 0.9.117 (patch)
 
 - `canRespondToRefreshRequest` gate simplified: the active-M+ (`GetActiveChallengeMapID`) block has been removed, so hidden clients now answer incoming `REQSYNC` refresh requests even during an active Mythic+ run; only stopped and paused states still suppress replies.
 - Share-Keys remote cooldown propagation:

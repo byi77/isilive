@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.116`
+Version baseline: `0.9.117`
 Last updated: `2026-03-30`
 
 ## Purpose
@@ -107,7 +107,7 @@ Local release-grade validation is intentionally split into static and runtime ga
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiLive                                                 v0.9.116 Open/Close CTRL-F9 [H][V][M][M2][X]|
+| isiLive                                                 v0.9.117 Open/Close CTRL-F9 [H][V][M][M2][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS                M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
