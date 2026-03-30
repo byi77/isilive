@@ -370,12 +370,16 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if syncResult.shouldRequestRefresh then
       ctx.sendRefreshResponse()
       ctx.sendOwnTargetSnapshot(true, "reqsync", true)
+      ctx.sendOwnKickState()
     end
     if syncResult.shouldShareKeys then
       ctx.sendOwnKeystoneToChat()
+      if type(ctx.triggerShareKeysCooldown) == "function" then
+        ctx.triggerShareKeysCooldown()
+      end
     end
 
-    local changed = syncResult.targetUpdated == true
+    local changed = syncResult.targetUpdated == true or syncResult.kickUpdated == true
     ctx.forEachRosterInfo(function(info)
       if not info.hasIsiLive and ctx.isSyncUserKnown(info.name, info.realm) then
         info.hasIsiLive = true

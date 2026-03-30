@@ -427,21 +427,22 @@ local function RegisterSendOwnKeySnapshotTests(test, Assert, WithGlobals, LoadAd
       keyLevel = 16
       controller.SendOwnBackgroundSnapshot("zone")
 
-      Assert.Equal(#sentMessages, 4, "hidden sparse background sync must only send changed buckets")
+      Assert.Equal(#sentMessages, 5, "hidden sparse background sync must send all changed sync buckets once")
       Assert.Equal(sentMessages[1].message, "KEY:2649:15:100:zone", "first hidden background payload must send KEY")
       Assert.Equal(
         sentMessages[2].message,
         "STATS:72:615:3210:100:zone",
         "second hidden background payload must send STATS"
       )
-      Assert.Equal(sentMessages[3].message, "LOC:503:100:zone", "third hidden background payload must send LOC")
-      Assert.Equal(sentMessages[4].message, "KEY:2649:16:100:zone", "changed key state must resend only KEY")
+      Assert.Equal(sentMessages[3].message, "DPS:777:100:zone", "third hidden background payload must send DPS")
+      Assert.Equal(sentMessages[4].message, "LOC:503:100:zone", "fourth hidden background payload must send LOC")
+      Assert.Equal(sentMessages[5].message, "KEY:2649:16:100:zone", "changed key state must resend only KEY")
     end)
   end)
 end
 
 local function RegisterHiddenRefreshResponseTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("KeySync SendRefreshResponse can answer hidden refresh requests outside active M+", function()
+  test("KeySync SendRefreshResponse can answer hidden refresh requests", function()
     local sentMessages = {}
 
     WithGlobals({
@@ -525,7 +526,7 @@ local function RegisterHiddenRefreshResponseTests(test, Assert, WithGlobals, Loa
     end)
   end)
 
-  test("KeySync SendRefreshResponse skips while paused, stopped, or active M+", function()
+  test("KeySync SendRefreshResponse skips while paused or stopped", function()
     local sentMessages = {}
 
     WithGlobals({
@@ -945,11 +946,24 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
       Assert.Equal(#sentMessages, 0, "hidden target send must be suppressed")
 
       addon.Sync.SendTarget({
+        isVisible = false,
+        allowHidden = true,
+        mapID = 2441,
+        level = 14,
+      })
+      Assert.Equal(#sentMessages, 1, "hidden target send must publish when full hidden sync explicitly allows it")
+      Assert.Equal(
+        sentMessages[1].message,
+        "TARGET:2441:14:100:local",
+        "hidden full-sync target payload must still encode exact target map, level, and metadata"
+      )
+
+      addon.Sync.SendTarget({
         isVisible = true,
         mapID = 2441,
         level = 14,
       })
-      Assert.Equal(#sentMessages, 1, "visible target send must publish one payload")
+      Assert.Equal(#sentMessages, 1, "duplicate visible target payload must stay deduplicated after hidden full-sync send")
       Assert.Equal(sentMessages[1].prefix, "ISILIVE", "target payload must use isiLive prefix")
       Assert.Equal(
         sentMessages[1].message,
@@ -978,6 +992,61 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
         "TARGET:2441:0:106:local",
         "missing level must serialize as exact map without guess"
       )
+    end)
+  end)
+
+  test("Sync SendKick encodes no-interrupt state and deduplicates payloads", function()
+    local sentMessages = {}
+    local now = 100
+
+    WithGlobals({
+      GetTime = function()
+        return now
+      end,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      addon.Sync.SendKick({
+        hasKick = false,
+        onCooldown = false,
+        cooldownRemain = 0,
+      })
+      Assert.Equal(#sentMessages, 1, "no-interrupt kick state must publish once")
+      Assert.Equal(sentMessages[1].message, "KICK:-1:0", "no-interrupt state must serialize distinctly from ready")
+
+      now = 100.5
+      addon.Sync.SendKick({
+        hasKick = false,
+        onCooldown = false,
+        cooldownRemain = 0,
+      })
+      Assert.Equal(#sentMessages, 1, "duplicate no-interrupt kick payload within cooldown must be suppressed")
+
+      now = 101.5
+      addon.Sync.SendKick({
+        hasKick = true,
+        onCooldown = true,
+        cooldownRemain = 2.1,
+      })
+      Assert.Equal(#sentMessages, 2, "changed kick state after cooldown window must publish again")
+      Assert.Equal(sentMessages[2].message, "KICK:1:3", "cooldown kick state must ceil remaining seconds")
+      Assert.Equal(sentMessages[2].prefix, "ISILIVE", "kick payload must use isiLive prefix")
+      Assert.Equal(sentMessages[2].channel, "PARTY", "kick payload must use grouped sync channel")
     end)
   end)
 
@@ -1010,6 +1079,39 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
 
       local dupResult = addon.Sync.ProcessAddonMessage("ISILIVE", "TARGET:2441:14", "Peer-Realm", "Me", "Realm")
       Assert.False(dupResult.targetUpdated, "duplicate TARGET must not report update")
+    end)
+  end)
+
+  test("Sync ProcessAddonMessage parses KICK payloads with no-interrupt state", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local unavailableResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:-1:0", "Peer-Realm", "Me", "Realm")
+      Assert.NotNil(unavailableResult, "KICK message must return result")
+      Assert.True(unavailableResult.kickUpdated, "first KICK no-interrupt payload must report update")
+
+      local kickInfo = addon.Sync.GetPlayerKickInfo("Peer", "Realm")
+      Assert.NotNil(kickInfo, "KICK info must be stored")
+      Assert.False(kickInfo.hasKick, "no-interrupt payload must preserve hasKick=false")
+      Assert.False(kickInfo.onCooldown, "no-interrupt payload must not mark the spell on cooldown")
+      Assert.Equal(kickInfo.cooldownRemain, 0, "no-interrupt payload must store zero remaining cooldown")
+
+      local duplicateResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:-1:0", "Peer-Realm", "Me", "Realm")
+      Assert.False(duplicateResult.kickUpdated, "duplicate no-interrupt KICK must not report update")
     end)
   end)
 

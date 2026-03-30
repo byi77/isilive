@@ -13,7 +13,7 @@ Last updated: `2026-03-29`
 
 1. Addon is loaded and not in `stopped` state.
 2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `midnight_s1` with the live 8-dungeon Midnight Season 1 portal pool).
-3. Relevant UI is visible for queue scanning and rendering; while hidden, addon-message sync and roster updates may still run in the background, UI can be auto-opened by fresh group join, key-end, real dungeon-entry transition logic, or UI reload while already grouped, and explicit refresh requests may still trigger one gated hidden sync reply.
+3. Relevant UI is visible for queue scanning and rendering; while hidden, addon-message sync and roster updates may still run in the background, UI can be auto-opened by fresh group join, key-end, real dungeon-entry transition logic, or UI reload while already grouped, and explicit refresh requests may still trigger one gated hidden sync reply (including during an active Mythic+ run — only stopped or paused state suppresses the reply).
 4. The optional `Esc` tooling and travel strips are enabled unless the user explicitly disables them in addon settings.
 
 ## Use Case Matrix
@@ -100,6 +100,7 @@ Goal: allow user to post current party keys quickly.
 3. Processing: addon then broadcasts `SHAREKEYS` over the addon sync channel so other `isiLive` peers can post their own local key line without requiring a full `Re-Sync`.
 4. Output: one local-player key line is sent to `PARTY` immediately, with local print fallback on send failure; additional peer lines may follow from responding group members.
 5. Rule: `Share Keys` button clicks are debounced to suppress rapid duplicate chat output and show a visible `30s` cooldown in the button label while blocked.
+5a. Rule: when a client receives an incoming `SHAREKEYS` sync message, the local `Share Keys` button is also locked for `30s` via `TriggerRemoteCooldown`; an already-running local cooldown is not reset by the remote signal.
 6. Related action: the adjacent `Re-Sync` button forces the hidden-peer sync handshake and then stays on a visible `10s` cooldown.
 7. Success criteria: the initiating user always gets the local owned keystone line first, and peer responses remain distributed per sender instead of being rebuilt from cached remote roster data.
 

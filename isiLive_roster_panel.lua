@@ -822,6 +822,13 @@ local function AttachControllerAccessors(controller, deps)
   function controller.SetCountdownCancelText(text)
     SetFlatButtonText(deps.countdownCancelButton, tostring(text or ""))
   end
+
+  function controller.TriggerShareKeysCooldown()
+    local btn = deps.shareKeysButton
+    if btn and type(btn.TriggerRemoteCooldown) == "function" then
+      btn.TriggerRemoteCooldown()
+    end
+  end
 end
 
 local function CreatePanelHeaders(mainFrame)
@@ -1110,6 +1117,18 @@ local function CreateShareKeysButton(mainFrame, deps)
       UpdateShareKeysButton(cooldownEnd)
     end, debounceSeconds)
     UpdateShareKeysButton(cooldownEnd)
+  end
+
+  function button.TriggerRemoteCooldown()
+    local now = type(deps.getTime) == "function" and tonumber(deps.getTime()) or nil
+    if not now or debounceSeconds <= 0 then
+      return
+    end
+    if lastShareKeysClickAt and (now - lastShareKeysClickAt) < debounceSeconds then
+      return
+    end
+    lastShareKeysClickAt = now
+    StartCooldownDisplay(now + debounceSeconds)
   end
 
   button:SetScript("OnClick", function()
@@ -1553,6 +1572,30 @@ local function ApplyRowReadyCheckDisplay(row, displayData)
   end
 end
 
+local function SetKickCellText(cell, info)
+  if not cell then
+    return
+  end
+  if type(info) ~= "table" or info.syncHasKick == false then
+    cell:SetText("|cff666666-|r")
+    return
+  end
+  if info.syncKickOnCooldown == true then
+    local secs = math.ceil(info.syncKickRemain or 0)
+    if secs > 0 then
+      cell:SetText(string.format("|cffff4040%ds|r", secs))
+    else
+      cell:SetText("|cff666666-|r")
+    end
+    return
+  end
+  if info.syncKickOnCooldown == false then
+    cell:SetText("|cff44ff44ready|r")
+    return
+  end
+  cell:SetText("|cff666666-|r")
+end
+
 local function RenderRosterImpl(state, roster)
   local memberRows = state.memberRows
   local mainFrame = state.mainFrame
@@ -1757,18 +1800,7 @@ local function RenderRosterImpl(state, roster)
       if type(state.applyKnownKeyToRosterEntry) == "function" then
         state.applyKnownKeyToRosterEntry(info)
       end
-      if info.syncKickOnCooldown == true then
-        local secs = math.ceil(info.syncKickRemain or 0)
-        if secs > 0 then
-          row.kick:SetText(string.format("|cffff4040%ds|r", secs))
-        else
-          row.kick:SetText("|cff666666-|r")
-        end
-      elseif info.syncKickOnCooldown == false then
-        row.kick:SetText("|cff44ff44ready|r")
-      else
-        row.kick:SetText("|cff666666-|r")
-      end
+      SetKickCellText(row.kick, info)
     end
     row.unit = entry.unit
     row.tooltipName = info and info.name or nil
@@ -2159,18 +2191,7 @@ function RosterPanel.CreateController(opts)
         if type(applyKnownKeyToRosterEntry) == "function" then
           applyKnownKeyToRosterEntry(info)
         end
-        if info.syncKickOnCooldown == true then
-          local secs = math.ceil(info.syncKickRemain or 0)
-          if secs > 0 then
-            row.kick:SetText(string.format("|cffff4040%ds|r", secs))
-          else
-            row.kick:SetText("|cff666666-|r")
-          end
-        elseif info.syncKickOnCooldown == false then
-          row.kick:SetText("|cff44ff44ready|r")
-        else
-          row.kick:SetText("|cff666666-|r")
-        end
+        SetKickCellText(row.kick, info)
       end
     end
   end
@@ -2187,6 +2208,7 @@ function RosterPanel.CreateController(opts)
     refreshButton = refreshButton,
     countdownCancelButton = countdownCancelButton,
     statusLine = ui.statusLine,
+    shareKeysButton = shareKeysButton,
   })
 
   return controller

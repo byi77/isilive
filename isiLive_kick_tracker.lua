@@ -37,7 +37,7 @@ local SPEC_DATA = {
   [269] = { spellID = 116705, cd = 15 },
   [270] = { spellID = 116705, cd = 15 },
   -- Paladin
-  [65] = nil, -- Holy: no interrupt
+  [65] = { spellID = 96231, cd = 15 }, -- Holy: Rebuke
   [66] = { spellID = 96231, cd = 15 }, -- Prot
   [70] = { spellID = 96231, cd = 15 }, -- Ret
   -- Priest
@@ -53,9 +53,28 @@ local SPEC_DATA = {
   [263] = { spellID = 57994, cd = 12 },
   [264] = { spellID = 57994, cd = 30 }, -- Resto: 30s
   -- Warlock
-  [265] = { spellID = 19647, cd = 24 },
-  [266] = nil, -- Demo: Axe Toss (pet, skip)
-  [267] = { spellID = 19647, cd = 24 },
+  [265] = {
+    castUnit = "pet",
+    requireAvailability = true,
+    spells = {
+      { spellID = 19647, cd = 24 }, -- Spell Lock
+    },
+  },
+  [266] = {
+    castUnit = "pet",
+    requireAvailability = true,
+    spells = {
+      { spellID = 89766, cd = 30 }, -- Axe Toss
+      { spellID = 19647, cd = 24 }, -- Spell Lock (e.g. Fel Ravager path)
+    },
+  },
+  [267] = {
+    castUnit = "pet",
+    requireAvailability = true,
+    spells = {
+      { spellID = 19647, cd = 24 }, -- Spell Lock
+    },
+  },
   -- Warrior
   [71] = { spellID = 6552, cd = 15 },
   [72] = { spellID = 6552, cd = 15 },
@@ -84,7 +103,27 @@ local function ResolveSpecData()
   if not ok or type(specID) ~= "number" then
     return nil
   end
-  return SPEC_DATA[specID]
+  local specData = SPEC_DATA[specID]
+  if type(specData) ~= "table" then
+    return nil
+  end
+  if type(specData.spellID) == "number" then
+    return {
+      castUnit = "player",
+      requireAvailability = false,
+      spells = {
+        { spellID = specData.spellID, cd = specData.cd },
+      },
+    }
+  end
+  if type(specData.spells) ~= "table" then
+    return nil
+  end
+  return {
+    castUnit = specData.castUnit == "pet" and "pet" or "player",
+    requireAvailability = specData.requireAvailability == true,
+    spells = specData.spells,
+  }
 end
 
 -- Read actual cooldown duration via C_Spell.GetSpellCooldown.
@@ -101,7 +140,62 @@ function KickTracker.CreateController(opts)
   local cdEndTime = 0
   local cooldownRemain = 0
   local watchedSpellID = nil
+  local watchedCastUnit = "player"
   local watchedCd = nil -- may be refined by CacheCooldown or ScanOwnTalents
+
+  local function SpellAppearsAvailable(spellID)
+    if type(spellID) ~= "number" then
+      return false
+    end
+
+    local GetSpellBaseCooldown_ref = rawget(_G, "GetSpellBaseCooldown")
+    if type(GetSpellBaseCooldown_ref) == "function" then
+      local ok, ms = pcall(GetSpellBaseCooldown_ref, spellID)
+      if ok and tonumber(ms) and tonumber(ms) > 0 then
+        return true
+      end
+    end
+
+    local C_Spell_ref = rawget(_G, "C_Spell")
+    if type(C_Spell_ref) == "table" and type(C_Spell_ref.GetSpellCooldown) == "function" then
+      local ok, info = pcall(C_Spell_ref.GetSpellCooldown, spellID)
+      if ok and info ~= nil then
+        return true
+      end
+    end
+
+    return false
+  end
+
+  local function GetSpellDataByID(spellID)
+    if type(specData) ~= "table" or type(specData.spells) ~= "table" then
+      return nil
+    end
+    for _, spellData in ipairs(specData.spells) do
+      if type(spellData) == "table" and spellData.spellID == spellID then
+        return spellData
+      end
+    end
+    return nil
+  end
+
+  local function ResolveActiveSpellData()
+    if type(specData) ~= "table" or type(specData.spells) ~= "table" then
+      return nil
+    end
+
+    for _, spellData in ipairs(specData.spells) do
+      if type(spellData) == "table" and SpellAppearsAvailable(spellData.spellID) then
+        return spellData
+      end
+    end
+
+    if specData.requireAvailability == true then
+      return nil
+    end
+
+    return specData.spells[1]
+  end
 
   -- Read base CD via GetSpellBaseCooldown (ms, untainted, works even when spell is ready).
   -- CacheCooldown may refine with the actual talent-reduced value later.
@@ -185,16 +279,21 @@ function KickTracker.CreateController(opts)
 
   local function RefreshSpec()
     local prevSpellID = watchedSpellID
+    local prevCastUnit = watchedCastUnit
     specData = ResolveSpecData()
-    watchedSpellID = specData and specData.spellID or nil
-    if watchedSpellID ~= prevSpellID then
-      watchedCd = specData and specData.cd or nil
+    watchedCastUnit = specData and specData.castUnit or "player"
+    local activeSpellData = ResolveActiveSpellData()
+    watchedSpellID = activeSpellData and activeSpellData.spellID or nil
+    if watchedSpellID ~= prevSpellID or watchedCastUnit ~= prevCastUnit then
+      watchedCd = activeSpellData and activeSpellData.cd or nil
       -- Clear any active cooldown from the previous spec's spell.
       if onCooldown then
         SetCooldown(false, 0)
       end
-      ReadBaseCd()
-      ScanOwnTalents()
+      if watchedSpellID then
+        ReadBaseCd()
+        ScanOwnTalents()
+      end
     end
   end
 
@@ -249,13 +348,23 @@ function KickTracker.CreateController(opts)
 
   local controller = {}
 
-  -- Called from UNIT_SPELLCAST_SUCCEEDED for "player" (untainted event handler context).
-  -- castCd: real CD duration read in the same untainted event handler, may be nil.
-  function controller.OnPlayerCast(spellID)
+  -- Called from UNIT_SPELLCAST_SUCCEEDED for the tracked unit (player or pet).
+  function controller.OnCast(unit, spellID)
     if not watchedSpellID then
       RefreshSpec()
     end
-    if watchedSpellID and spellID == watchedSpellID then
+    if unit ~= watchedCastUnit then
+      return
+    end
+
+    local spellData = GetSpellDataByID(spellID)
+    if not spellData then
+      return
+    end
+
+    watchedSpellID = spellData.spellID
+    watchedCd = spellData.cd or watchedCd
+    if watchedSpellID then
       local cd = watchedCd or 15
       SetCooldown(true, getTime() + cd)
     end

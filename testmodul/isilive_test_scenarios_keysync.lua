@@ -5,6 +5,7 @@ local function BuildMockSync()
   local statsStore = {}
   local dpsStore = {}
   local locStore = {}
+  local kickStore = {}
   local knownUsers = {}
 
   return {
@@ -51,6 +52,9 @@ local function BuildMockSync()
     GetPlayerLocInfo = function(name, realm)
       return locStore[tostring(name) .. "-" .. tostring(realm)]
     end,
+    GetPlayerKickInfo = function(name, realm)
+      return kickStore[tostring(name) .. "-" .. tostring(realm)]
+    end,
     SetPlayerKeyInfo = function(name, realm, mapID, level)
       keyStore[tostring(name) .. "-" .. tostring(realm)] = { mapID = mapID, level = level }
     end,
@@ -68,6 +72,13 @@ local function BuildMockSync()
     SetPlayerLocInfo = function(name, realm, mapID)
       locStore[tostring(name) .. "-" .. tostring(realm)] = { mapID = mapID }
     end,
+    SetPlayerKickInfo = function(name, realm, onCooldown, cooldownRemain, _capturedAt, hasKick)
+      kickStore[tostring(name) .. "-" .. tostring(realm)] = {
+        hasKick = hasKick ~= false,
+        onCooldown = onCooldown == true,
+        cooldownRemain = tonumber(cooldownRemain) or 0,
+      }
+    end,
     ClearKnownUsers = function()
       table.insert(calls, { fn = "ClearKnownUsers" })
       for k in pairs(knownUsers) do
@@ -84,6 +95,9 @@ local function BuildMockSync()
       end
       for k in pairs(locStore) do
         locStore[k] = nil
+      end
+      for k in pairs(kickStore) do
+        kickStore[k] = nil
       end
     end,
     GetProtocolVersion = function()
@@ -341,6 +355,7 @@ local function RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, Load
       sync.SetPlayerStatsInfo("PlayerX", "RealmX", 265, 630, 3400)
       sync.SetPlayerDpsInfo("PlayerX", "RealmX", 45000)
       sync.SetPlayerLocInfo("PlayerX", "RealmX", 300)
+      sync.SetPlayerKickInfo("PlayerX", "RealmX", true, 9, nil, true)
 
       local info = { name = "PlayerX", realm = "RealmX" }
       local changed = ctrl.ApplyKnownKeyToRosterEntry(info)
@@ -352,6 +367,9 @@ local function RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, Load
       Assert.Equal(info.rio, 3400, "rio must be applied")
       Assert.Equal(info.syncDps, 45000, "syncDps must be applied")
       Assert.Equal(info.syncLocMapID, 300, "syncLocMapID must be applied")
+      Assert.True(info.syncHasKick, "sync kick availability must be applied")
+      Assert.True(info.syncKickOnCooldown, "sync kick cooldown state must be applied")
+      Assert.Equal(info.syncKickRemain, 9, "sync kick remaining cooldown must be applied")
     end)
   end)
 
@@ -398,6 +416,26 @@ local function RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, Load
       Assert.Nil(info.syncDps, "stale syncDps must be cleared when sync data disappears")
     end
   )
+
+  test("KeySync ApplyKnownKeyToRosterEntry preserves synced no-interrupt state", function()
+    local sync = BuildMockSync()
+    local ctrl = BuildController(LoadAddonModules, sync)
+    local info = {
+      name = "PlayerX",
+      realm = "RealmX",
+      syncHasKick = true,
+      syncKickOnCooldown = true,
+      syncKickRemain = 4,
+    }
+
+    sync.SetPlayerKickInfo("PlayerX", "RealmX", false, 0, nil, false)
+    local changed = ctrl.ApplyKnownKeyToRosterEntry(info)
+
+    Assert.True(changed, "switching to no-interrupt sync state must report a roster change")
+    Assert.False(info.syncHasKick, "no-interrupt sync state must be preserved on the roster entry")
+    Assert.Nil(info.syncKickOnCooldown, "no-interrupt sync state must clear cooldown marker")
+    Assert.Nil(info.syncKickRemain, "no-interrupt sync state must clear cooldown remaining seconds")
+  end)
 end
 
 return function(test, ctx)

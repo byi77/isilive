@@ -526,6 +526,18 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert)
     AssertContains(
       Assert,
       helpersContent,
+      'castFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player", "pet")',
+      "factory kick tracking must also watch pet interrupt casts"
+    )
+    AssertContains(
+      Assert,
+      helpersContent,
+      'castFrame:RegisterUnitEvent("UNIT_PET", "player")',
+      "factory kick tracking must refresh interrupt availability when the player's pet changes"
+    )
+    AssertContains(
+      Assert,
+      helpersContent,
       "ctx.rosterPanelController.RefreshKickColumn()",
       "factory kick tracking must use the dedicated roster kick refresh path"
     )
@@ -538,7 +550,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert)
     AssertContains(
       Assert,
       rosterPanelContent,
-      'row.kick:SetText("|cff44ff44ready|r")',
+      'cell:SetText("|cff44ff44ready|r")',
       "RosterPanel kick refresh helper must render the ready state in green"
     )
   end)

@@ -48,7 +48,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 25. der rio delta kann niemals negativ sein also zb. -15, der kann nur 0 oder höher sein.
 26. die ui kann jederzeit mit STRG+F9 geöffnet und geschlossen werden, auch infight
 27. das schliessen der ui ist jederzeit anforderbar, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9; blockierte hide-wechsel werden bei `PLAYER_REGEN_ENABLED` nachgezogen
-28. während die ui ausgeblendet ist, laufen roster/addon-sync im hintergrund weiter und dürfen eventgetrieben vor-rendern; queue-scanning und dauerhafte polling-last stoppen jedoch.
+28. während die ui ausgeblendet ist, laufen roster/addon-sync im hintergrund weiter und dürfen eventgetrieben vor-rendern; queue-scanning und sonstige dauerhafte polling-last stoppen jedoch, der kick-sync bleibt fuer isiLive-gruppenmitglieder aktiv.
 29. teleport-eintraege fuer shared spells bleiben deterministisch sortiert und doppelte grid-eintraege werden entfernt.
 30. falls ein anderer user entdeckt wird welcher auch "isiLive" benutzt, hängen wir hinter seinen Namen ein <3 (blaues herz) an
 31. main ui auto-open bleibt bei gruppenbeitritt erhalten; key-ende auto-open ist standardmaessig an, aber abschaltbar; automatisches schliessen bei key start ist standardmaessig aus.
@@ -69,6 +69,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 46. Manuelle Layout-Umschaltungen der Main-UI duerfen auch im Kampf angefordert werden; direkte Mutationen an Secure-Kindern bleiben dabei ausgesetzt und werden spaetestens bei `PLAYER_REGEN_ENABLED` ueber den sichtbaren UI-Refresh nachgezogen.
 47. Die ESC-Panel-Overlays muessen im Kampf als bereits gemountete `GameMenuFrame`-Kinder sichtbar bleiben; waehrend Kampf-Lockdown sind an ihnen keine Show/Hide- oder Layout-Mutationen erlaubt, unsichere Shortcuts bleiben sichtbar, duerfen ihre Aktion aber erst ausserhalb des Kampfes ausfuehren.
 48. Der isiLive-Last-Run-Sync transportiert nur den belastbar verifizierten `DPS`-Wert eines Snapshots; das Roster nutzt `syncDps` nur als Fallback, wenn lokal kein Last-Run-DPS vorliegt.
+49. Der Kick-Tracker bildet den aktuell verfuegbaren Interrupt der aktuellen Spezialisierung ab; Holy Paladin nutzt `Rebuke`, Devourer Demon Hunter nutzt `Disrupt`, und verfuegbare pet-basierte Warlock-Interrupts zaehlen als eigener Kick.
+50. Die Kicks-Spalte zeigt fuer den lokalen Spieler und fuer isiLive-Gruppenmitglieder den aktuellen Kick-Status an; `ready` ist gruen, laufende Cooldowns zeigen rote Restsekunden, `-` steht fuer keinen verfuegbaren Kick oder fehlenden isiLive-Sync, und aktive Kick-Statusaenderungen werden spaetestens einmal pro Sekunde synchronisiert.
+51. Bei ausgeblendeter UI bleibt der komplette isiLive-Gruppensync aktiv; nur nicht-sync-bezogenes Polling wie Queue-Scanning bleibt deaktiviert.
+52. Hidden-Clients senden weiterhin alle gruppenrelevanten isiLive-Sync-Buckets einschliesslich `KEY`, `STATS`, `DPS`, `LOC`, `TARGET` und `KICK`; sichtbarkeitsabhängige Unterdrückung ist nur ohne explizite Hidden-Freigabe erlaubt.
+53. Der Share-Keys-Button ist 30 Sekunden gegen Spam gesperrt; die Sperre gilt lokal nach eigenem Klick und wird auf allen anderen isiLive-Clients ausgeloest, sobald ein eingehender SHAREKEYS-Sync empfangen wird. Ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt.
 
 ## Regelbloecke
 
@@ -222,8 +227,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Event handlers process addon sync messages and refresh changed roster
   - Event handlers refresh target-dependent UI when addon sync updates exact target only
   - Sync ProcessAddonMessage handles HELLO, REQSYNC, and KEY payloads
+  - Sync ProcessAddonMessage parses KICK payloads with no-interrupt state
   - Sync ProcessAddonMessage parses TARGET payload and stores it
   - Sync SetPlayerKeyInfo deduplicates identical key updates
+  - KeySync ApplyKnownKeyToRosterEntry preserves synced no-interrupt state
   - KeySync pending forced refresh backfills missing sync fallback fields while inspect is pending
 
 ### RULE-LEADER-BUTTONS-SICHTBARKEIT
@@ -295,20 +302,22 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-HIDDEN-SPARFLAMME
 - Regelnummer: 28
 - Status: aktiv
-- Zusammenfassung: waehrend die ui ausgeblendet ist, laeuft der daten-sync (roster/addon-msgs) im hintergrund weiter und darf eventgetrieben ui-zustand vor-rendern; queue-scanning und dauerhafte polling-last bleiben jedoch aus. Ein expliziter Refresh-Request darf Hidden-Clients genau eine forciert eventgetriebene KEY/STATS-Antwort entlocken; gestoppte, pausierte oder aktive M+-Runs antworten dabei nicht.
+- Zusammenfassung: waehrend die ui ausgeblendet ist, laeuft der daten-sync (roster/addon-msgs) im hintergrund weiter und darf eventgetrieben ui-zustand vor-rendern; queue-scanning und sonstige dauerhafte polling-last bleiben aus. Der Kick-Sync fuer isiLive-Gruppenmitglieder bleibt davon ausgenommen und darf weiterlaufen, damit ausgeblendete Clients keine Kick-Nachteile erzeugen. Ein expliziter Refresh-Request darf Hidden-Clients genau eine forciert eventgetriebene Antwort entlocken (alle Sync-Buckets: KEY, STATS, DPS, LOC, TARGET, KICK); gestoppte oder pausierte Runs antworten dabei nicht.
 - Erforderliche Tests:
   - Bootstrap gate allows sync events while frame is hidden if configured
   - Hidden grouped roster updates keep pre-rendered UI fresh
   - Event handlers pre-render UI for hidden addon sync updates
   - Event handlers process addon sync messages and refresh changed roster
   - Event handlers answer refresh requests while frame is hidden
+  - Architecture kick tracker uses lightweight kick-column refresh hooks
+  - Sync SendKick encodes no-interrupt state and deduplicates payloads
   - Event handlers send sparse background snapshot on hidden zone changes
   - Event handlers send sparse background snapshot only for player-owned state changes
   - Refresh HandleOwnedKeyRefresh sends sparse background snapshot
   - KeySync SendOwnBackgroundSnapshot publishes sparse hidden changes without DPS spam
   - Config builders gate allows sparse local change events while frame is hidden
-  - KeySync SendRefreshResponse can answer hidden refresh requests outside active M+
-  - KeySync SendRefreshResponse skips while paused, stopped, or active M+
+  - KeySync SendRefreshResponse can answer hidden refresh requests
+  - KeySync SendRefreshResponse skips while paused or stopped
   - Bootstrap gate keeps hidden auto-open triggers for group join and key end
   - Event handlers run regen teleport refresh when frame is visible
 
@@ -527,3 +536,59 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Sync ProcessAddonMessage parses DPS payload and stores it
   - KeySync ApplyKnownKeyToRosterEntry backfills syncDps and syncLocMapID
   - KeySync ApplyKnownKeyToRosterEntry clears stale synced DPS fallback fields when sync data disappears
+
+### RULE-KICKTRACKER-PERSOENLICHER-INTERRUPT
+- Regelnummer: 49
+- Status: aktiv
+- Zusammenfassung: Der Kick-Tracker bildet den aktuell verfuegbaren Interrupt der aktuellen Spezialisierung ab. Holy Paladin muss `Rebuke` aufloesen, Devourer Demon Hunter muss `Disrupt` aufloesen, und Warlock-Spezialisierungen muessen verfuegbare pet-basierte Interrupts als eigenen Kick behandeln; ohne verfuegbaren Pet-Interrupt bleibt kein aufloesbarer Kick uebrig.
+- Erforderliche Tests:
+  - KickTracker resolves Holy Paladin to Rebuke
+  - KickTracker resolves Warlock pet-based Spell Lock for Affliction and Destruction
+  - KickTracker resolves Demonology Warlock pet interrupt when available
+  - KickTracker shows no kick when Warlock pet interrupt is unavailable
+  - KickTracker resolves Devourer Demon Hunter to Disrupt
+
+### RULE-KICK-UI-UND-SYNC
+- Regelnummer: 50
+- Status: aktiv
+- Zusammenfassung: Die Kicks-Spalte zeigt fuer den lokalen Spieler und fuer isiLive-Gruppenmitglieder den aktuellen Kick-Status an: benutzbar ergibt `ready` in Gruen, laufender Cooldown ergibt rote Restsekunden, und ohne verfuegbaren Kick oder ohne isiLive-Sync bleibt `-`. Kick-Statusaenderungen und aktive Cooldowns muessen spaetestens einmal pro Sekunde an isiLive-Gruppenmitglieder synchronisiert werden; wenn ein `ready`-Paket verloren geht, muss der periodische Sync wieder auf `ready` konvergieren.
+- Erforderliche Tests:
+  - Architecture kick tracker uses lightweight kick-column refresh hooks
+  - KickTracker tracks pet-based Warlock interrupt cooldown from pet casts
+  - Sync SendKick encodes no-interrupt state and deduplicates payloads
+  - Event handlers answer refresh requests while frame is hidden
+
+### RULE-UI-HIDDEN-VOLLER-GRUPPENSYNC
+- Regelnummer: 51
+- Status: aktiv
+- Zusammenfassung: Wenn die Main-UI ausgeblendet ist, bleibt der komplette isiLive-Gruppensync fuer aktuelle Gruppenmitglieder aktiv. Hidden-Clients muessen weiterhin eingehende Sync-Nachrichten empfangen und verarbeiten sowie ausgehende Sync-Zustaende fuer Gruppe und Kick senden duerfen; nur nicht-sync-bezogenes Polling wie Queue-Scanning bleibt deaktiviert.
+- Erforderliche Tests:
+  - Bootstrap gate allows sync events while frame is hidden if configured
+  - Config builders gate allows sparse local change events while frame is hidden
+  - Event handlers pre-render UI for hidden addon sync updates
+  - Event handlers process addon sync messages and refresh changed roster
+  - Event handlers answer refresh requests while frame is hidden
+  - Event handlers send sparse background snapshot on hidden zone changes
+  - Event handlers send sparse background snapshot only for player-owned state changes
+  - KeySync SendOwnBackgroundSnapshot publishes sparse hidden changes without DPS spam
+  - KeySync SendRefreshResponse can answer hidden refresh requests
+  - Architecture kick tracker uses lightweight kick-column refresh hooks
+
+### RULE-HIDDEN-SYNC-BUCKETS-VOLLSTAENDIG
+- Regelnummer: 52
+- Status: aktiv
+- Zusammenfassung: Hidden-Clients duerfen sichtbarkeitsabhaengige Sync-Unterdrueckung nur ohne explizite Hidden-Freigabe anwenden. Fuer gruppenrelevante Hidden-Sync-Pfade muessen weiterhin alle Buckets `KEY`, `STATS`, `DPS`, `LOC`, `TARGET` und `KICK` gesendet werden koennen.
+- Erforderliche Tests:
+  - KeySync SendOwnBackgroundSnapshot publishes sparse hidden changes without DPS spam
+  - Sync SendTarget respects visibility and deduplicates payloads
+  - Event handlers answer refresh requests while frame is hidden
+  - Architecture kick tracker uses lightweight kick-column refresh hooks
+
+### RULE-SHAREKEYS-SPAMSCHUTZ
+- Regelnummer: 53
+- Status: aktiv
+- Zusammenfassung: Der Share-Keys-Button ist 30 Sekunden gegen Spam gesperrt. Die Sperre wird lokal nach eigenem Klick gesetzt und zusaetzlich auf allen anderen isiLive-Clients ausgeloest, sobald ein eingehender SHAREKEYS-Sync empfangen wird. Ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt.
+- Erforderliche Tests:
+  - Roster panel share keys button debounces rapid clicks
+  - Roster panel share keys button locks on remote SHAREKEYS signal
+  - Event handlers answer SHAREKEYS requests while frame is hidden

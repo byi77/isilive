@@ -96,6 +96,7 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
     sendOwnKeySnapshot = function(_force) end,
     sendOwnBackgroundSnapshot = function(_source) end,
     sendOwnTargetSnapshot = function(_force, _source, _allowHidden) end,
+    sendOwnKickState = function() end,
     ensureQueueDebugStorage = function() end,
     setQueueDebugEnabled = function(_enabled) end,
     ensureRuntimeLogStorage = function() end,

@@ -426,6 +426,7 @@ local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState,
       return
     end
 
+    local isVisible = ctx.mainFrame and ctx.mainFrame:IsShown() or false
     local targetMapID = ctx.ResolveLocalStatusTargetMapID()
     local targetLevel = nil
     if
@@ -442,8 +443,8 @@ local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState,
 
     modules.sync.SendTarget({
       force = force and true or false,
-      isVisible = ctx.mainFrame and ctx.mainFrame:IsShown() or false,
-      allowHidden = allowHidden and true or false,
+      isVisible = isVisible,
+      allowHidden = (allowHidden and true or false) or not isVisible,
       mapID = targetMapID,
       level = targetLevel,
       source = source,
@@ -502,7 +503,7 @@ local function InitializeFactoryPrimaryControllers(ctx)
       return ctx.mainFrame and ctx.mainFrame:IsShown()
     end,
     canRespondToRefreshRequest = function()
-      return not ctx.runtimeState.IsStopped() and not ctx.runtimeState.IsPaused() and not ctx.GetActiveChallengeMapID()
+      return not ctx.runtimeState.IsStopped() and not ctx.runtimeState.IsPaused()
     end,
     resolveTeleportSpellID = ctx.ResolveTeleportSpellID,
     resolveTeleportSpellIDByMapID = modules.teleport.ResolveTeleportSpellIDByMapID,
@@ -602,6 +603,7 @@ local function InitializeFactoryPrimaryControllers(ctx)
   ctx.refreshButton = initResult.refreshButton
   ctx.countdownCancelButton = initResult.countdownCancelButton
   ctx.statusLine = initResult.statusLine
+  ctx.TriggerShareKeysCooldown = initResult.triggerShareKeysCooldown
   ctx.teleportUIController = initResult.teleportUIController
   ctx.mplusTeleportButtons = initResult.mplusTeleportButtons
   ctx.UpdateLeaderButtons = function()
@@ -800,7 +802,7 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
       isPaused = flags.isPaused,
       isTestMode = flags.isTestMode,
     }))
-    ctx.SendOwnTargetSnapshot(false, "status")
+    ctx.SendOwnTargetSnapshot(false, "status", true)
     statusController.MaybeAnnounceTargetDungeonChat()
   end
 
@@ -1095,48 +1097,78 @@ local function InitializeFactorySecondaryControllers(ctx)
   local kickTrackerModule = ctx.addonTable and ctx.addonTable.KickTracker
   if kickTrackerModule and type(kickTrackerModule.CreateController) == "function" then
     local kickReadyBroadcastUntil = 0
+    local function SyncOwnKickState(force)
+      if not ctx.kickTrackerController then
+        return
+      end
+      local info = ctx.kickTrackerController.GetKickInfo()
+      if type(info) ~= "table" then
+        return
+      end
+      local hasKick = type(info.spellID) == "number" and info.spellID > 0
+      if modules.sync and type(modules.sync.SetPlayerKickInfo) == "function" then
+        local selfName = UnitName and UnitName("player") or nil
+        local selfRealm = GetRealmName and GetRealmName() or nil
+        if selfName and selfName ~= "" then
+          modules.sync.SetPlayerKickInfo(selfName, selfRealm, info.onCooldown, info.cooldownRemain, nil, hasKick)
+        end
+      end
+      if
+        modules.sync
+        and type(modules.sync.SendKick) == "function"
+        and (force == true or info.onCooldown or GetTime() < kickReadyBroadcastUntil)
+      then
+        modules.sync.SendKick({
+          hasKick = hasKick,
+          onCooldown = info.onCooldown,
+          cooldownRemain = info.cooldownRemain,
+          force = force == true,
+        })
+      end
+    end
     ctx.kickTrackerController = kickTrackerModule.CreateController({
       getTime = GetTime,
       onCooldownChanged = function(onCooldown, cooldownRemain)
-        if modules.sync and type(modules.sync.SendKick) == "function" then
-          modules.sync.SendKick({
-            onCooldown = onCooldown,
-            cooldownRemain = cooldownRemain,
-            force = true,
-          })
-        end
         -- When transitioning to ready, keep broadcasting for 3s to ensure delivery.
         if not onCooldown then
           kickReadyBroadcastUntil = GetTime() + 3
         end
+        SyncOwnKickState(true)
         if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKickColumn) == "function" then
           ctx.rosterPanelController.RefreshKickColumn()
         end
       end,
     })
-    -- Event frame: UNIT_SPELLCAST_SUCCEEDED for player is untainted.
+    -- Event frame: UNIT_SPELLCAST_SUCCEEDED for player/pet is untainted.
     local castFrame = CreateFrame("Frame")
-    castFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+    castFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player", "pet")
     castFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
     castFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
     castFrame:RegisterEvent("SPELLS_CHANGED")
     castFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+    castFrame:RegisterUnitEvent("UNIT_PET", "player")
     castFrame:SetScript("OnEvent", function(_, event, unit, _, spellID)
       if event == "UNIT_SPELLCAST_SUCCEEDED" then
-        if unit ~= "player" then
-          return
-        end
         if ctx.kickTrackerController then
-          ctx.kickTrackerController.OnPlayerCast(spellID)
+          ctx.kickTrackerController.OnCast(unit, spellID)
         end
       elseif event == "SPELL_UPDATE_COOLDOWN" or event == "PLAYER_REGEN_ENABLED" then
         -- Cache real CD outside of combat (talent reductions).
         if ctx.kickTrackerController then
           ctx.kickTrackerController.CacheCooldown()
         end
-      elseif event == "SPELLS_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED" then
+      elseif event == "SPELLS_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "UNIT_PET" then
         if ctx.kickTrackerController then
-          ctx.kickTrackerController.ResolveSpellID()
+          local previousInfo = ctx.kickTrackerController.GetKickInfo()
+          local previousSpellID = type(previousInfo) == "table" and previousInfo.spellID or nil
+          local nextSpellID = ctx.kickTrackerController.ResolveSpellID()
+          if previousSpellID ~= nextSpellID then
+            kickReadyBroadcastUntil = GetTime() + 3
+            SyncOwnKickState(true)
+            if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKickColumn) == "function" then
+              ctx.rosterPanelController.RefreshKickColumn()
+            end
+          end
         end
       end
     end)
@@ -1147,20 +1179,7 @@ local function InitializeFactorySecondaryControllers(ctx)
       C_Timer_ref.NewTicker(0.5, function()
         if ctx.kickTrackerController then
           ctx.kickTrackerController.Scan()
-          if modules.sync and type(modules.sync.SetPlayerKickInfo) == "function" then
-            local selfName = UnitName and UnitName("player") or nil
-            local selfRealm = GetRealmName and GetRealmName() or nil
-            if selfName and selfName ~= "" then
-              local info = ctx.kickTrackerController.GetKickInfo()
-              modules.sync.SetPlayerKickInfo(selfName, selfRealm, info.onCooldown, info.cooldownRemain)
-              -- Broadcast kick state to group members every tick while on CD,
-              -- and for 3s after transitioning to ready (ensures delivery).
-              local now = GetTime()
-              if (info.onCooldown or now < kickReadyBroadcastUntil) and type(modules.sync.SendKick) == "function" then
-                modules.sync.SendKick({ onCooldown = info.onCooldown, cooldownRemain = info.cooldownRemain })
-              end
-            end
-          end
+          SyncOwnKickState(false)
         end
         -- Refresh only the kick column in the roster (lightweight, no full re-render).
         if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKickColumn) == "function" then

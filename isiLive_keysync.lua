@@ -211,7 +211,7 @@ local function SendOwnBackgroundSnapshot(
     source = source,
     allowHidden = not visible,
     onlyIfChanged = not visible,
-    includeDps = visible,
+    includeDps = true,
   })
 end
 
@@ -329,23 +329,36 @@ local function ApplyKnownKeyToRosterEntry(sync, info)
 
   local kickInfo = type(sync.GetPlayerKickInfo) == "function" and sync.GetPlayerKickInfo(info.name, info.realm)
   if type(kickInfo) == "table" then
-    local interpolatedRemain = kickInfo.cooldownRemain
-    if kickInfo.onCooldown and kickInfo.receivedAtGetTime then
-      local getTime = rawget(_G, "GetTime")
-      if type(getTime) == "function" then
-        local elapsed = getTime() - kickInfo.receivedAtGetTime
-        interpolatedRemain = math.max(0, kickInfo.cooldownRemain - elapsed)
+    local hasKick = kickInfo.hasKick ~= false
+    if not hasKick then
+      if info.syncHasKick ~= false or info.syncKickOnCooldown ~= nil or info.syncKickRemain ~= nil then
+        info.syncHasKick = false
+        info.syncKickOnCooldown = nil
+        info.syncKickRemain = nil
+        changed = true
+      end
+    else
+      local interpolatedRemain = kickInfo.cooldownRemain
+      if kickInfo.onCooldown and kickInfo.receivedAtGetTime then
+        local getTime = rawget(_G, "GetTime")
+        if type(getTime) == "function" then
+          local elapsed = getTime() - kickInfo.receivedAtGetTime
+          interpolatedRemain = math.max(0, kickInfo.cooldownRemain - elapsed)
+        end
+      end
+      if
+        info.syncHasKick ~= true
+        or info.syncKickOnCooldown ~= kickInfo.onCooldown
+        or math.abs((info.syncKickRemain or 0) - interpolatedRemain) > 0.05
+      then
+        info.syncHasKick = true
+        info.syncKickOnCooldown = kickInfo.onCooldown
+        info.syncKickRemain = interpolatedRemain
+        changed = true
       end
     end
-    if
-      info.syncKickOnCooldown ~= kickInfo.onCooldown
-      or math.abs((info.syncKickRemain or 0) - interpolatedRemain) > 0.05
-    then
-      info.syncKickOnCooldown = kickInfo.onCooldown
-      info.syncKickRemain = interpolatedRemain
-      changed = true
-    end
-  elseif info.syncKickOnCooldown ~= nil then
+  elseif info.syncHasKick ~= nil or info.syncKickOnCooldown ~= nil or info.syncKickRemain ~= nil then
+    info.syncHasKick = nil
     info.syncKickOnCooldown = nil
     info.syncKickRemain = nil
     changed = true

@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- `canRespondToRefreshRequest` gate simplified: the active-M+ (`GetActiveChallengeMapID`) block has been removed, so hidden clients now answer incoming `REQSYNC` refresh requests even during an active Mythic+ run; only stopped and paused states still suppress replies.
+- Share-Keys remote cooldown propagation:
+  - When a client receives an incoming `SHAREKEYS` sync message it now calls `TriggerRemoteCooldown` on the local `Share Keys` button, locking the button for 30 s on all peer clients as well as on the initiating client (guarded: an already-running local cooldown is not reset).
+  - `TriggerShareKeysCooldown` accessor plumbed from `RosterPanel` controller through `isiLive_factory_controllers.lua` and `isiLive_controller_wiring.lua` into the runtime event handler.
+  - `sendOwnKickState` is now called alongside `sendOwnTargetSnapshot` when answering a refresh request, so responding clients include up-to-date kick state in their reply.
+- Kick-tracker no-interrupt state transport:
+  - `SendKick` encodes a no-interrupt state as `onCooldown = -1` in the `KICK:` payload when `hasKick` is `false`, letting peers distinguish "no interrupt available for this spec" from "kick is on cooldown".
+  - `ProcessAddonMessage` parses the `-1` sentinel and stores `hasKick = false` via `SetPlayerKickInfo`.
+  - `ApplyKnownKeyToRosterEntry` in `isiLive_keysync.lua` propagates `syncHasKick` to roster entries; `SetKickCellText` in the roster panel renders `-` when `syncHasKick == false`.
+- RULES_LOGIC.md: rule 28 updated (active-M+ block removed, all sync buckets listed explicitly), rule 53 added (Share-Keys spam guard propagation).
+
 ## 2026-03-29 - Version 0.9.116 (patch)
 
 - Kick sync reliability overhaul (BlizzInterrupt-style):

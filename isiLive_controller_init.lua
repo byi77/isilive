@@ -102,6 +102,9 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     refreshButton = controller.GetRefreshButton(),
     countdownCancelButton = controller.GetCountdownCancelButton(),
     statusLine = controller.GetStatusLine(),
+    triggerShareKeysCooldown = function()
+      controller.TriggerShareKeysCooldown()
+    end,
   }
 end
 

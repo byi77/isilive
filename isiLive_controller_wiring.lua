@@ -409,6 +409,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     shouldAutoOpenMainFrameOnKeyEnd = ctx.shouldAutoOpenMainFrameOnKeyEnd,
     shouldAutoCloseMainFrame = ctx.shouldAutoCloseMainFrame,
     sendRefreshResponse = ctx.sendRefreshResponse,
+    triggerShareKeysCooldown = ctx.TriggerShareKeysCooldown,
     sendOwnKeystoneToChat = function()
       local now = GetTime()
       if ctx._lastKeystoneChatAt and (now - ctx._lastKeystoneChatAt) < 30 then
@@ -483,7 +484,12 @@ local function BuildEventHandlersDepsFromContext(ctx)
       end
       local sync = ctx.sync
       if sync and type(sync.SendKick) == "function" then
-        sync.SendKick({ onCooldown = info.onCooldown, cooldownRemain = info.cooldownRemain, force = true })
+        sync.SendKick({
+          hasKick = type(info.spellID) == "number" and info.spellID > 0,
+          onCooldown = info.onCooldown,
+          cooldownRemain = info.cooldownRemain,
+          force = true,
+        })
       end
     end,
     runFullRefresh = function()

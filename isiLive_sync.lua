@@ -554,7 +554,7 @@ function Sync.GetPlayerDpsInfo(name, realm)
   return dpsInfoByPlayerKey[key]
 end
 
-function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capturedAt)
+function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capturedAt, hasKick)
   local key = Sync.NormalizePlayerKey(name, realm)
   if not key or key == "" then
     return false
@@ -562,11 +562,13 @@ function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capture
   local now = GetSyncTimestamp()
   local prev = kickInfoByPlayerKey[key]
   local newOnCooldown = onCooldown == true
-  local changed = not prev or prev.onCooldown ~= newOnCooldown
+  local newHasKick = hasKick ~= false
+  local changed = not prev or prev.onCooldown ~= newOnCooldown or prev.hasKick ~= newHasKick
   local getTime = rawget(_G, "GetTime")
   kickInfoByPlayerKey[key] = {
+    hasKick = newHasKick,
     onCooldown = newOnCooldown,
-    cooldownRemain = tonumber(cooldownRemain) or 0,
+    cooldownRemain = newHasKick and (tonumber(cooldownRemain) or 0) or 0,
     capturedAt = tonumber(capturedAt) or now,
     receivedAt = now,
     receivedAtGetTime = type(getTime) == "function" and getTime() or nil,
@@ -889,8 +891,9 @@ function Sync.SendKick(opts)
   if not channel then
     return
   end
-  local onCooldown = opts.onCooldown == true and 1 or 0
-  local remain = math.ceil(tonumber(opts.cooldownRemain) or 0)
+  local hasKick = opts.hasKick ~= false
+  local onCooldown = hasKick and (opts.onCooldown == true and 1 or 0) or -1
+  local remain = hasKick and math.ceil(tonumber(opts.cooldownRemain) or 0) or 0
   local now = GetTime()
   local payload = string.format("KICK:%d:%d", onCooldown, remain)
   if not opts.force and payload == Sync._lastKickPayloadSent and (now - lastIsiLiveKickAt) < 1 then
@@ -1085,7 +1088,10 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     local onCooldownRaw = parts[2]
     local remainRaw = parts[3]
     if onCooldownRaw then
-      kickUpdated = Sync.SetPlayerKickInfo(sender, nil, tonumber(onCooldownRaw) == 1, tonumber(remainRaw) or 0, nil)
+      local numericState = tonumber(onCooldownRaw)
+      local hasKick = numericState ~= -1
+      kickUpdated =
+        Sync.SetPlayerKickInfo(sender, nil, numericState == 1, tonumber(remainRaw) or 0, nil, hasKick)
     end
   end
 
