@@ -7,7 +7,7 @@ addonTable.Texts = Texts
 
 local LOCALES = {
   enUS = {
-    TITLE = "isiLive v0.9.117",
+    TITLE = "isiLive v0.9.118",
     TITLE_HINT = "Open/Close CTRL-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
@@ -188,7 +188,7 @@ local LOCALES = {
     SETTINGS_SOUND_GROUP_JOIN_ENABLED = "Sound alert when someone joins group",
   },
   deDE = {
-    TITLE = "isiLive v0.9.117",
+    TITLE = "isiLive v0.9.118",
     TITLE_HINT = "Öffnen/Schliessen STRG-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Name",

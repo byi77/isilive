@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.117`
+Version baseline: `0.9.118`
 Last updated: `2026-03-30`
 
 ## Purpose

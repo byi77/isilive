@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-03-30 - Version 0.9.118 (patch)
+
+- Kick-state sync: add 15s heartbeat broadcast so peers that reload or join late always see up-to-date interrupt ready/cooldown state instead of a stale dash.
+- Settings: option-selector labels for "Default Layout on Open" and "Raid Transition Behavior" now render above the buttons to prevent overlap with long label text.
+- Combat fade (M/M2): fix ticker conflict — existing fade animation is now cancelled before starting a new one; extract shared `ApplyCombatFade` helper; use RI layout constants instead of magic strings.
+- Kick tracker: cache `ScanOwnTalents` result via `talentScanDirty` flag; invalidated on spec/talent change — avoids full talent-tree traversal on every cast.
+- UI close button: `frame:Hide()` is now called directly (combat-safe) so the frame closes immediately even during combat.
+- Sound: all sounds now routed through `SoundUtils` module on the SFX channel with 1s spam protection.
+- Group join sound: new `onMemberJoinedGroup` callback detects when other players join the group (not just the local player).
+- Column guides: wired `showRosterColumnGuides` into `CreateRosterPanelController`.
+
 ## 2026-03-30 - Version 0.9.117 (patch)
 
 - `canRespondToRefreshRequest` gate simplified: the active-M+ (`GetActiveChallengeMapID`) block has been removed, so hidden clients now answer incoming `REQSYNC` refresh requests even during an active Mythic+ run; only stopped and paused states still suppress replies.
