@@ -1096,7 +1096,9 @@ local function InitializeFactorySecondaryControllers(ctx)
 
   local kickTrackerModule = ctx.addonTable and ctx.addonTable.KickTracker
   if kickTrackerModule and type(kickTrackerModule.CreateController) == "function" then
+    local KICK_HEARTBEAT_INTERVAL = 30
     local kickReadyBroadcastUntil = 0
+    local kickHeartbeatAt = 0
     local function SyncOwnKickState(force)
       if not ctx.kickTrackerController then
         return
@@ -1113,16 +1115,21 @@ local function InitializeFactorySecondaryControllers(ctx)
           modules.sync.SetPlayerKickInfo(selfName, selfRealm, info.onCooldown, info.cooldownRemain, nil, hasKick)
         end
       end
+      local now = GetTime()
+      local heartbeatDue = now >= kickHeartbeatAt
+      if heartbeatDue then
+        kickHeartbeatAt = now + KICK_HEARTBEAT_INTERVAL
+      end
       if
         modules.sync
         and type(modules.sync.SendKick) == "function"
-        and (force == true or info.onCooldown or GetTime() < kickReadyBroadcastUntil)
+        and (force == true or info.onCooldown or now < kickReadyBroadcastUntil or heartbeatDue)
       then
         modules.sync.SendKick({
           hasKick = hasKick,
           onCooldown = info.onCooldown,
           cooldownRemain = info.cooldownRemain,
-          force = force == true,
+          force = force == true or heartbeatDue,
         })
       end
     end
