@@ -10,7 +10,7 @@ UICommon.DEFAULT_BG_ALPHA = 0.50
 UICommon.Colors = {
   BG_PRIMARY = { 0.08, 0.08, 0.12, UICommon.DEFAULT_BG_ALPHA },
   BG_SECONDARY = { 0.12, 0.12, 0.18, 0.7 },
-  BORDER_DEFAULT = { 0.25, 0.25, 0.35, 0.5 },
+  BORDER_DEFAULT = { 0.35, 0.35, 0.50, 0.65 },
   ACCENT_GOLD = { 1, 0.82, 0 },
   ACCENT_BLUE = { 0.3, 0.65, 1 },
   TEXT_NORMAL = { 0.85, 0.85, 0.9 },
@@ -27,31 +27,11 @@ function UICommon.GetBackgroundAlpha()
   return UICommon.DEFAULT_BG_ALPHA
 end
 
-local BACKDROP_STANDARD = {
+local BACKDROP_PANEL = {
   bgFile = "Interface\\Buttons\\WHITE8X8",
-  edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-  tile = true,
-  tileSize = 16,
-  edgeSize = 8,
-  insets = { left = 2, right = 2, top = 2, bottom = 2 },
-}
-
-local BACKDROP_DETAIL = {
-  bgFile = "Interface\\Buttons\\WHITE8X8",
-  edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-  tile = true,
-  tileSize = 16,
-  edgeSize = 12,
-  insets = { left = 3, right = 3, top = 3, bottom = 3 },
-}
-
-local BACKDROP_MAIN_FRAME = {
-  bgFile = "Interface\\Buttons\\WHITE8X8",
-  edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-  tile = true,
-  tileSize = 32,
-  edgeSize = 16,
-  insets = { left = 4, right = 4, top = 4, bottom = 4 },
+  edgeFile = "Interface\\Buttons\\WHITE8X8",
+  edgeSize = 1,
+  insets = { left = 1, right = 1, top = 1, bottom = 1 },
 }
 
 local BACKDROP_FLAT_BUTTON = {
@@ -67,7 +47,7 @@ local BACKDROP_BG_ONLY = {
 
 UICommon.BACKDROP_PRESETS = {
   PRIMARY = {
-    backdrop = BACKDROP_STANDARD,
+    backdrop = BACKDROP_PANEL,
     bgColor = function()
       local bg = UICommon.Colors.BG_PRIMARY
       return bg[1], bg[2], bg[3], UICommon.GetBackgroundAlpha()
@@ -75,23 +55,24 @@ UICommon.BACKDROP_PRESETS = {
     borderColor = UICommon.Colors.BORDER_DEFAULT,
   },
   MAIN_FRAME = {
-    backdrop = BACKDROP_MAIN_FRAME,
+    backdrop = BACKDROP_PANEL,
     bgColor = function()
       return 0, 0, 0, UICommon.GetBackgroundAlpha()
     end,
+    borderColor = { 0.3, 0.65, 1, 0.25 },
   },
   NOTICE = {
-    backdrop = BACKDROP_STANDARD,
+    backdrop = BACKDROP_PANEL,
     bgColor = { 0.05, 0.05, 0.08, 0.75 },
-    borderColor = { 1, 0.82, 0, 0.2 },
+    borderColor = { 1, 0.82, 0, 0.45 },
   },
   TOOLTIP = {
-    backdrop = BACKDROP_DETAIL,
+    backdrop = BACKDROP_PANEL,
     bgColor = { 0, 0, 0, 0.92 },
     borderColor = UICommon.Colors.BORDER_DEFAULT,
   },
   CLOSE_BUTTON = {
-    backdrop = BACKDROP_DETAIL,
+    backdrop = BACKDROP_PANEL,
     bgColor = { 0, 0, 0, 0.85 },
   },
   FLAT_BUTTON = {
