@@ -2547,7 +2547,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         checkboxCount,
         16,
         "settings should hide only the legacy DPS, markers, name-length,"
-          .. " and teleport-column controls while keeping the startup/key-end, navigator, sound, and combat-fade toggles visible"
+          .. " and teleport-column controls while keeping the startup/key-end, navigator, sound,"
+          .. " and combat-fade toggles visible"
       )
 
       panel.Refresh()
