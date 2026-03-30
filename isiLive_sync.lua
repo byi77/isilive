@@ -1090,8 +1090,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     if onCooldownRaw then
       local numericState = tonumber(onCooldownRaw)
       local hasKick = numericState ~= -1
-      kickUpdated =
-        Sync.SetPlayerKickInfo(sender, nil, numericState == 1, tonumber(remainRaw) or 0, nil, hasKick)
+      kickUpdated = Sync.SetPlayerKickInfo(sender, nil, numericState == 1, tonumber(remainRaw) or 0, nil, hasKick)
     end
   end
 

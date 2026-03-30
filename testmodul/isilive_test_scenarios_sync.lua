@@ -963,7 +963,11 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
         mapID = 2441,
         level = 14,
       })
-      Assert.Equal(#sentMessages, 1, "duplicate visible target payload must stay deduplicated after hidden full-sync send")
+      Assert.Equal(
+        #sentMessages,
+        1,
+        "duplicate visible target payload must stay deduplicated after hidden full-sync send"
+      )
       Assert.Equal(sentMessages[1].prefix, "ISILIVE", "target payload must use isiLive prefix")
       Assert.Equal(
         sentMessages[1].message,
