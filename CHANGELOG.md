@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-03-30 - Version 0.9.119 (patch)
+
+- Keys teilen: fix clients not posting their keystone to party chat — `ctx.getRoster` was nil (typo: should be `ctx.GetRoster`), causing `sendOwnKeystoneToChat` to silently return early on all remote clients.
+
 ## 2026-03-30 - Version 0.9.118 (patch)
 
 - Kick-state sync: add 15s heartbeat broadcast so peers that reload or join late always see up-to-date interrupt ready/cooldown state instead of a stale dash.

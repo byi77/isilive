@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.118`.
+Current documented baseline: `0.9.119`.
 
 ## Features
 
