@@ -951,7 +951,9 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
       Assert.NotNil(onDragStart, "drag handle should still define OnDragStart")
       Assert.NotNil(onDragStop, "drag handle should still define OnDragStop")
 
+      ---@diagnostic disable-next-line: need-check-nil
       onDragStart(mainUI.dragHandle)
+      ---@diagnostic disable-next-line: need-check-nil
       onDragStop(mainUI.dragHandle)
 
       Assert.Equal(mainUI.frame._startMovingCalls, 1, "hidden grip lines must not disable dragging")
@@ -1366,6 +1368,7 @@ local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGloba
         Assert.True(professionsButton:IsShown(), "insecure shortcut button should stay visible during combat")
         local onClick = professionsButton._scripts and professionsButton._scripts.OnClick or nil
         Assert.NotNil(onClick, "profession shortcut should keep an OnClick handler")
+        ---@diagnostic disable-next-line: need-check-nil
         onClick(professionsButton)
         Assert.Equal(professionsActionCalls, 0, "insecure shortcut action should no-op during combat")
 
@@ -1377,6 +1380,7 @@ local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGloba
         retryFrame:FireEvent("PLAYER_REGEN_ENABLED")
 
         Assert.True(panelFrame:IsShown(), "mounted panel should remain visible after regen")
+        ---@diagnostic disable-next-line: need-check-nil
         onClick(professionsButton)
         Assert.Equal(professionsActionCalls, 1, "insecure shortcut action should execute again after combat")
       end)
