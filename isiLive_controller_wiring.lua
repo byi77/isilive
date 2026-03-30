@@ -413,7 +413,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
       if ctx._lastKeystoneChatAt and (now - ctx._lastKeystoneChatAt) < 30 then
         return
       end
-      local roster = ctx.getRoster and ctx.getRoster()
+      local roster = ctx.GetRoster and ctx.GetRoster()
       local playerInfo = roster and roster.player
       if type(playerInfo) ~= "table" then
         return
