@@ -1128,7 +1128,7 @@ local function InitializeFactorySecondaryControllers(ctx)
     end
     ctx.kickTrackerController = kickTrackerModule.CreateController({
       getTime = GetTime,
-      onCooldownChanged = function(onCooldown, cooldownRemain)
+      onCooldownChanged = function(onCooldown, _cooldownRemain)
         -- When transitioning to ready, keep broadcasting for 3s to ensure delivery.
         if not onCooldown then
           kickReadyBroadcastUntil = GetTime() + 3
