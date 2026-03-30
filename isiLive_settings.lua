@@ -411,6 +411,7 @@ local function ResolveSettingsOptions(opts)
     onMinimapButtonToggle = opts.onMinimapButtonToggle,
     onAutoOpenQueueToggle = opts.onAutoOpenQueueToggle,
     onAutoCloseMainFrameToggle = opts.onAutoCloseMainFrameToggle,
+    onCombatFadeMMToggle = opts.onCombatFadeMMToggle,
     onAutoShowMainFrameOnStartupToggle = opts.onAutoShowMainFrameOnStartupToggle,
     onAutoOpenMainFrameOnKeyEndToggle = opts.onAutoOpenMainFrameOnKeyEndToggle,
     onRaidTransitionBehaviorChange = opts.onRaidTransitionBehaviorChange,
@@ -771,6 +772,24 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
     "SETTINGS_AUTO_CLOSE_MAIN_FRAME"
   )
 
+  controls.combatFadeMM, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_COMBAT_FADE_MM or "Fade out in Combat (M / M2 only)",
+    function()
+      local db = config.getDB()
+      return db.combatFadeMM ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.combatFadeMM = checked
+      if type(config.onCombatFadeMMToggle) == "function" then
+        config.onCombatFadeMMToggle(checked)
+      end
+    end,
+    "SETTINGS_COMBAT_FADE_MM"
+  )
+
   controls.autoShowStartup, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
@@ -975,6 +994,7 @@ local function RefreshSettingsControls(controls, config)
   controls.sync.label:SetText(freshL.SETTINGS_SYNC_ENABLED or "Addon Sync")
   controls.autoOpen.label:SetText(freshL.SETTINGS_AUTO_OPEN_QUEUE or "Auto-Open on M+ Queue")
   controls.autoCloseMainFrame.label:SetText(freshL.SETTINGS_AUTO_CLOSE_MAIN_FRAME or "Auto-Close on Key Start / Solo")
+  controls.combatFadeMM.label:SetText(freshL.SETTINGS_COMBAT_FADE_MM or "Fade out in Combat (M / M2 only)")
   controls.autoShowStartup.label:SetText(freshL.SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP or "Show on Login / Reload")
   controls.autoOpenKeyEnd.label:SetText(freshL.SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END or "Auto-Open on Key End")
   if controls.raidBehavior then
@@ -1020,6 +1040,7 @@ local function RefreshSettingsControls(controls, config)
   controls.sync.check:SetChecked(db.syncEnabled ~= false)
   controls.autoOpen.check:SetChecked(db.autoOpenOnQueue ~= false)
   controls.autoCloseMainFrame.check:SetChecked(db.autoCloseMainFrame == true)
+  controls.combatFadeMM.check:SetChecked(db.combatFadeMM ~= false)
   controls.autoShowStartup.check:SetChecked(db.autoShowMainFrameOnStartup ~= false)
   controls.autoOpenKeyEnd.check:SetChecked(db.autoOpenMainFrameOnKeyEnd ~= false)
   controls.queueDebug.check:SetChecked(

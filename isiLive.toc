@@ -7,6 +7,7 @@
 ## IconTexture: Interface\Icons\INV_Misc_QuestionMark
 isiLive_validation_helpers.lua
 isiLive_string_utils.lua
+isiLive_sound_utils.lua
 realm_language_data.lua
 isiLive_locale.lua
 isiLive_texts.lua

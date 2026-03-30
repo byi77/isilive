@@ -83,7 +83,7 @@ local SPEC_DATA = {
 
 -- Talent spell ID → { affects = interruptSpellID, reduction = seconds | pctReduction = % }
 local CD_REDUCTION_DEFS = {
-  [382297] = { affects = 2139, reduction = 5 }, -- Quick Witted       (Mage:    Counterspell 25→20)
+  [382297] = { affects = 2139, reduction = 5 }, -- Geistesgegenwärtig (Mage:    Counterspell 25→20)
   [388039] = { affects = 147362, reduction = 2 }, -- Lone Survivor      (Hunter:  Counter Shot)
   [412713] = { affects = 351338, pctReduction = 10 }, -- Interwoven Threads (Evoker:  Quell)
   [391271] = { affects = 6552, pctReduction = 10 }, -- Seasoned Soldier   (Warrior: Pummel)
@@ -306,10 +306,6 @@ function KickTracker.CreateController(opts)
     if not watchedSpellID then
       return
     end
-    local InCombatLockdown_ref = rawget(_G, "InCombatLockdown")
-    if type(InCombatLockdown_ref) == "function" and InCombatLockdown_ref() then
-      return
-    end
     local C_Spell_ref = rawget(_G, "C_Spell")
     if type(C_Spell_ref) ~= "table" then
       return
@@ -363,7 +359,9 @@ function KickTracker.CreateController(opts)
     end
 
     watchedSpellID = spellData.spellID
-    watchedCd = spellData.cd or watchedCd
+    watchedCd = watchedCd or spellData.cd
+    ReadBaseCd()
+    ScanOwnTalents()
     if watchedSpellID then
       local cd = watchedCd or 15
       SetCooldown(true, getTime() + cd)

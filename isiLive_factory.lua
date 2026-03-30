@@ -147,6 +147,9 @@ local function FinalizeFactorySettings(ctx)
       onAutoCloseMainFrameToggle = function(_enabled)
         -- Runtime reads IsiLiveDB.autoCloseMainFrame directly; no additional action needed.
       end,
+      onCombatFadeMMToggle = function(_enabled)
+        -- Runtime reads IsiLiveDB.combatFadeMM directly; no additional action needed.
+      end,
       onAutoShowMainFrameOnStartupToggle = function(_enabled)
         -- Runtime reads IsiLiveDB.autoShowMainFrameOnStartup directly; no additional action needed.
       end,

@@ -67,6 +67,7 @@ local EVENT_REGISTRY = {
   { "PLAYER_ENTERING_WORLD", true, true, false },
   { "UPDATE_BINDINGS", true, true, false },
   { "PLAYER_REGEN_ENABLED", true, true, true },
+  { "PLAYER_REGEN_DISABLED", true, true, true },
   { "PLAYER_DIFFICULTY_CHANGED", false, false, false },
   { "ZONE_CHANGED", false, true, false },
   { "ZONE_CHANGED_INDOORS", false, true, false },

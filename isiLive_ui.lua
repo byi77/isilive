@@ -1500,7 +1500,7 @@ function UI.CreateMainFrame(opts)
   end
 
   closeButton:SetScript("OnClick", function()
-    frame:Hide()
+    SetVisible(false)
   end)
 
   return {

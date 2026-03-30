@@ -87,6 +87,7 @@ local function BuildDeps(opts)
     sendIsiLiveHello = opts.sendIsiLiveHello or function(_force) end,
     sendRefreshRequest = opts.sendRefreshRequest or function(_force) end,
     onGroupJoined = opts.onGroupJoined or function() end,
+    onMemberJoinedGroup = opts.onMemberJoinedGroup or function() end,
     timerAfter = opts.timerAfter or function(_, cb)
       cb()
     end,
@@ -204,7 +205,7 @@ local function AddPlayerToRoster(deps, roster)
   deps.enqueueInspect("player")
 end
 
-local function UpdatePartyMembersInRoster(deps, roster)
+local function UpdatePartyMembersInRoster(deps, roster, callbacks)
   -- 1. Identify current group members to protect them from ghosting
   local currentMemberKeys = {}
   local unreadablePartySlots = {}
@@ -308,8 +309,13 @@ local function UpdatePartyMembersInRoster(deps, roster)
         _localDpsFresh = localDpsFresh,
       }
 
-      -- If we pulled data from a ghost slot (resurrected player), clear the ghost entry
+      -- Fire sound if this is a genuinely new member (not seen before, not a ghost resurrection)
       local ghostKey = "ghost:" .. memberName .. "-" .. (memberRealm or "")
+      if not existing and not roster[ghostKey] and callbacks and type(callbacks.onMemberJoinedGroup) == "function" then
+        callbacks.onMemberJoinedGroup()
+      end
+
+      -- If we pulled data from a ghost slot (resurrected player), clear the ghost entry
       if roster[ghostKey] then
         roster[ghostKey] = nil
       end
@@ -381,7 +387,7 @@ local function HandleGroupRosterUpdate(deps)
   deps.resetInspectQueues()
 
   AddPlayerToRoster(deps, roster)
-  UpdatePartyMembersInRoster(deps, roster)
+  UpdatePartyMembersInRoster(deps, roster, joinedNow and nil or deps)
 
   deps.sendOwnKeySnapshot(joinedNow, "group")
   deps.updateUI()

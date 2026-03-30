@@ -297,7 +297,7 @@ local function CreateCdTrackerRow(mainFrame)
     mplusBox:SetPoint("LEFT", cdBox, "RIGHT", 6, 0)
   end
   if type(mplusBox.SetWidth) == "function" then
-    mplusBox:SetWidth(305)
+    mplusBox:SetWidth(295)
   end
   if type(UICommon.ApplyBackdrop) == "function" then
     UICommon.ApplyBackdrop(mplusBox, "MPLUS_BOX")
@@ -305,11 +305,33 @@ local function CreateCdTrackerRow(mainFrame)
   mplusBox:Hide()
   row.mplusBox = mplusBox
 
+  -- M+ label + stopwatch icon badge
+  do
+    local badge = CreateFrame("Frame", nil, mplusBox)
+    badge:SetSize(16, 12)
+    badge:SetPoint("LEFT", mplusBox, "LEFT", 6, 0)
+    local label = badge:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    if type(label.SetPoint) == "function" then
+      label:SetPoint("LEFT", badge, "LEFT", 0, 0)
+    end
+    if type(label.SetJustifyH) == "function" then
+      label:SetJustifyH("LEFT")
+    end
+    if type(label.SetJustifyV) == "function" then
+      label:SetJustifyV("MIDDLE")
+    end
+    if type(label.SetText) == "function" then
+      label:SetText("|cffffd700M+|r")
+    end
+    ApplyFontStringSize(label, CD_TRACKER_FONT_SIZE)
+    row.mplusLabel = badge
+  end
+
   -- +3 badge icon (16x12 colored frame with "+3" label) + timer text
   do
     local badge = CreateFrame("Frame", nil, mplusBox)
     badge:SetSize(16, 12)
-    badge:SetPoint("LEFT", mplusBox, "LEFT", 8, 0)
+    badge:SetPoint("LEFT", mplusBox, "LEFT", 32, 0)
     local bg = badge:CreateTexture(nil, "BACKGROUND")
     if type(bg.SetAllPoints) == "function" then
       bg:SetAllPoints(badge)
@@ -338,8 +360,8 @@ local function CreateCdTrackerRow(mainFrame)
   end
 
   row.mp3Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.mp3Text:SetPoint("LEFT", mplusBox, "LEFT", 28, 0)
-  row.mp3Text:SetWidth(40)
+  row.mp3Text:SetPoint("LEFT", mplusBox, "LEFT", 50, 0)
+  row.mp3Text:SetWidth(36)
   row.mp3Text:SetJustifyH("LEFT")
   row.mp3Text:SetText("--:--")
   ApplyFontStringSize(row.mp3Text, CD_TRACKER_FONT_SIZE)
@@ -348,7 +370,7 @@ local function CreateCdTrackerRow(mainFrame)
   do
     local badge = CreateFrame("Frame", nil, mplusBox)
     badge:SetSize(16, 12)
-    badge:SetPoint("LEFT", mplusBox, "LEFT", 74, 0)
+    badge:SetPoint("LEFT", mplusBox, "LEFT", 90, 0)
     local bg = badge:CreateTexture(nil, "BACKGROUND")
     if type(bg.SetAllPoints) == "function" then
       bg:SetAllPoints(badge)
@@ -377,8 +399,8 @@ local function CreateCdTrackerRow(mainFrame)
   end
 
   row.mp2Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.mp2Text:SetPoint("LEFT", mplusBox, "LEFT", 94, 0)
-  row.mp2Text:SetWidth(40)
+  row.mp2Text:SetPoint("LEFT", mplusBox, "LEFT", 108, 0)
+  row.mp2Text:SetWidth(36)
   row.mp2Text:SetJustifyH("LEFT")
   row.mp2Text:SetText("--:--")
   ApplyFontStringSize(row.mp2Text, CD_TRACKER_FONT_SIZE)
@@ -387,7 +409,7 @@ local function CreateCdTrackerRow(mainFrame)
   do
     local badge = CreateFrame("Frame", nil, mplusBox)
     badge:SetSize(16, 12)
-    badge:SetPoint("LEFT", mplusBox, "LEFT", 140, 0)
+    badge:SetPoint("LEFT", mplusBox, "LEFT", 148, 0)
     local bg = badge:CreateTexture(nil, "BACKGROUND")
     if type(bg.SetAllPoints) == "function" then
       bg:SetAllPoints(badge)
@@ -416,8 +438,8 @@ local function CreateCdTrackerRow(mainFrame)
   end
 
   row.mp1Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.mp1Text:SetPoint("LEFT", mplusBox, "LEFT", 160, 0)
-  row.mp1Text:SetWidth(40)
+  row.mp1Text:SetPoint("LEFT", mplusBox, "LEFT", 166, 0)
+  row.mp1Text:SetWidth(36)
   row.mp1Text:SetJustifyH("LEFT")
   row.mp1Text:SetText("--:--")
   ApplyFontStringSize(row.mp1Text, CD_TRACKER_FONT_SIZE)

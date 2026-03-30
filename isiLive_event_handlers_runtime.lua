@@ -212,6 +212,39 @@ local function RegisterSyncPrefixAndBindings(ctx)
   ApplyBindingStartupRefresh(ctx)
 end
 
+local COMBAT_FADE_DURATION = 0.4
+local COMBAT_FADE_TICK = 0.05
+
+local function AnimateMainFrameAlpha(mainFrame, targetAlpha)
+  if not mainFrame or type(mainFrame.SetAlpha) ~= "function" then
+    return
+  end
+  local currentAlpha = mainFrame:GetAlpha()
+  if math.abs(currentAlpha - targetAlpha) < 0.01 then
+    mainFrame:SetAlpha(targetAlpha)
+    return
+  end
+  local steps = math.max(1, math.floor(COMBAT_FADE_DURATION / COMBAT_FADE_TICK))
+  local delta = (targetAlpha - currentAlpha) / steps
+  local stepsDone = 0
+  local ticker
+  ticker = C_Timer.NewTicker(COMBAT_FADE_TICK, function()
+    stepsDone = stepsDone + 1
+    local newAlpha = currentAlpha + delta * stepsDone
+    if stepsDone >= steps then
+      mainFrame:SetAlpha(targetAlpha)
+      ticker:Cancel()
+    else
+      mainFrame:SetAlpha(newAlpha)
+    end
+  end, steps)
+end
+
+local function IsCombatFadeLayout(layoutMode)
+  return layoutMode == "compact_main_horizontal" -- M2
+    or layoutMode == "expanded" -- M
+end
+
 function RuntimeLifecycle.BuildHandlers(ctx)
   local function HandleGroupRosterUpdateEvent(_self)
     if ctx.isInGroup() and (ctx.isTestMode() or ctx.isTestAllMode()) then
@@ -293,6 +326,21 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.applyHotkeyBindings()
   end
 
+  local function HandlePlayerRegenDisabledEvent(_self)
+    local db = rawget(_G, "IsiLiveDB")
+    if not db or db.combatFadeMM == false then
+      return
+    end
+    local layoutMode = db.defaultLayoutMode or "compact_main_horizontal"
+    if not IsCombatFadeLayout(layoutMode) then
+      return
+    end
+    local mainFrame = type(ctx.getMainFrame) == "function" and ctx.getMainFrame()
+    if mainFrame and mainFrame:IsShown() then
+      AnimateMainFrameAlpha(mainFrame, 0)
+    end
+  end
+
   local function HandlePlayerRegenEnabledEvent(_self)
     if ctx.getPendingBindingApply() then
       ctx.applyHotkeyBindings()
@@ -300,6 +348,18 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     local pendingVisible = ctx.getPendingMainFrameVisible and ctx.getPendingMainFrameVisible()
     if pendingVisible ~= nil then
       ctx.setMainFrameVisible(pendingVisible)
+    end
+    do
+      local db = rawget(_G, "IsiLiveDB")
+      if db and db.combatFadeMM ~= false then
+        local layoutMode = db.defaultLayoutMode or "compact_main_horizontal"
+        if IsCombatFadeLayout(layoutMode) then
+          local mainFrame = type(ctx.getMainFrame) == "function" and ctx.getMainFrame()
+          if mainFrame and mainFrame:IsShown() then
+            AnimateMainFrameAlpha(mainFrame, 1)
+          end
+        end
+      end
     end
     local pendingMainFrameHeight = ctx.getPendingMainFrameHeight()
     if pendingMainFrameHeight then
@@ -418,6 +478,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     PLAYER_ENTERING_WORLD = HandlePlayerEnteringWorldEvent,
     UPDATE_BINDINGS = HandleUpdateBindingsEvent,
     PLAYER_REGEN_ENABLED = HandlePlayerRegenEnabledEvent,
+    PLAYER_REGEN_DISABLED = HandlePlayerRegenDisabledEvent,
     PLAYER_DIFFICULTY_CHANGED = HandleInstanceContextChangedEvent,
     ZONE_CHANGED = HandleInstanceContextChangedEvent,
     ZONE_CHANGED_INDOORS = HandleInstanceContextChangedEvent,
