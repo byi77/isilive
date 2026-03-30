@@ -1096,7 +1096,7 @@ local function InitializeFactorySecondaryControllers(ctx)
 
   local kickTrackerModule = ctx.addonTable and ctx.addonTable.KickTracker
   if kickTrackerModule and type(kickTrackerModule.CreateController) == "function" then
-    local KICK_HEARTBEAT_INTERVAL = 30
+    local KICK_HEARTBEAT_INTERVAL = 15
     local kickReadyBroadcastUntil = 0
     local kickHeartbeatAt = 0
     local function SyncOwnKickState(force)
