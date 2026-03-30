@@ -28,3 +28,4 @@ sounds/*
 # Local LuaRocks tree (CI/local tooling)
 .luarocks/
 .claude/settings.local.json
+TODO.md
