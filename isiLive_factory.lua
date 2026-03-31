@@ -418,6 +418,7 @@ local function FinalizeFactoryRuntime(ctx)
     runtimeLogController = ctx.runtimeLogController,
     recordRun = ctx.RecordRun,
     addonName = ctx.addonName,
+    resetDB = ctx.resetDB,
   })
 
   ctx.eventHandlersController = runtimeSetupResult.eventHandlersController
