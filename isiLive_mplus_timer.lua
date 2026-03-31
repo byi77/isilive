@@ -17,6 +17,7 @@ local state = {
 }
 
 local tickFrame
+local tickAccum = 0
 
 -- Called every 0.1s while the key is running
 local function OnUpdate()
@@ -154,4 +155,3 @@ eventFrame:SetScript("OnEvent", function(_, event)
 end)
 
 tickFrame = CreateFrame("Frame")
-local tickAccum = 0
