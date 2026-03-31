@@ -414,8 +414,8 @@ local function FinalizeFactoryRuntime(ctx)
   FinalizeFactorySettings(ctx)
 end
 
-function Factory.InitializeAddon(addonName, addonTable)
-  local ctx = CreateFactoryContext(addonName, addonTable)
+function Factory.InitializeAddon(addonName, tbl)
+  local ctx = CreateFactoryContext(addonName, tbl)
   if not ctx then
     return
   end

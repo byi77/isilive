@@ -4,59 +4,59 @@ addonTable = addonTable or {}
 local FI = addonTable._FactoryInternal or {}
 addonTable._FactoryInternal = FI
 
-local function BuildFactoryModules(addonTable)
+local function BuildFactoryModules(tbl)
   return {
-    sync = addonTable and addonTable.Sync,
-    keySync = addonTable and addonTable.KeySync,
-    refresh = addonTable and addonTable.Refresh,
-    highlight = addonTable and addonTable.Highlight,
-    group = addonTable and addonTable.Group,
-    queue = addonTable and addonTable.Queue,
-    inspect = addonTable and addonTable.Inspect,
-    roster = addonTable and addonTable.Roster,
-    events = addonTable and addonTable.Events,
-    eventHandlers = addonTable and addonTable.EventHandlers,
-    commands = addonTable and addonTable.Commands,
-    locale = addonTable and addonTable.Locale,
-    texts = addonTable and addonTable.Texts,
-    ui = addonTable and addonTable.UI,
-    teleport = addonTable and addonTable.Teleport,
-    teleportUI = addonTable and addonTable.TeleportUI,
-    teleportDebug = addonTable and addonTable.TeleportDebug,
-    notice = addonTable and addonTable.Notice,
-    status = addonTable and addonTable.Status,
-    units = addonTable and addonTable.Units,
-    demo = addonTable and addonTable.Demo,
-    testMode = addonTable and addonTable.TestMode,
-    queueDebug = addonTable and addonTable.QueueDebug,
-    runtimeLog = addonTable and addonTable.RuntimeLog,
-    rosterPanel = addonTable and addonTable.RosterPanel,
-    spellUtils = addonTable and addonTable.SpellUtils,
-    cdTracker = addonTable and addonTable.CdTracker,
-    bindings = addonTable and addonTable.Bindings,
-    eventUtils = addonTable and addonTable.EventUtils,
-    bootstrap = addonTable and addonTable.Bootstrap,
-    controllerWiring = addonTable and addonTable.ControllerWiring,
-    leaderWatch = addonTable and addonTable.LeaderWatch,
-    configBuilders = addonTable and addonTable.ConfigBuilders,
-    frameBridge = addonTable and addonTable.FrameBridge,
-    contextHelpers = addonTable and addonTable.ContextHelpers,
-    runtimeSetup = addonTable and addonTable.RuntimeSetup,
-    controllerInit = addonTable and addonTable.ControllerInit,
-    guards = addonTable and addonTable.Guards,
-    stats = addonTable and addonTable.Stats,
-    runtimeState = addonTable and addonTable.RuntimeState,
-    settingsPanel = addonTable and addonTable.SettingsPanel,
+    sync = tbl and tbl.Sync,
+    keySync = tbl and tbl.KeySync,
+    refresh = tbl and tbl.Refresh,
+    highlight = tbl and tbl.Highlight,
+    group = tbl and tbl.Group,
+    queue = tbl and tbl.Queue,
+    inspect = tbl and tbl.Inspect,
+    roster = tbl and tbl.Roster,
+    events = tbl and tbl.Events,
+    eventHandlers = tbl and tbl.EventHandlers,
+    commands = tbl and tbl.Commands,
+    locale = tbl and tbl.Locale,
+    texts = tbl and tbl.Texts,
+    ui = tbl and tbl.UI,
+    teleport = tbl and tbl.Teleport,
+    teleportUI = tbl and tbl.TeleportUI,
+    teleportDebug = tbl and tbl.TeleportDebug,
+    notice = tbl and tbl.Notice,
+    status = tbl and tbl.Status,
+    units = tbl and tbl.Units,
+    demo = tbl and tbl.Demo,
+    testMode = tbl and tbl.TestMode,
+    queueDebug = tbl and tbl.QueueDebug,
+    runtimeLog = tbl and tbl.RuntimeLog,
+    rosterPanel = tbl and tbl.RosterPanel,
+    spellUtils = tbl and tbl.SpellUtils,
+    cdTracker = tbl and tbl.CdTracker,
+    bindings = tbl and tbl.Bindings,
+    eventUtils = tbl and tbl.EventUtils,
+    bootstrap = tbl and tbl.Bootstrap,
+    controllerWiring = tbl and tbl.ControllerWiring,
+    leaderWatch = tbl and tbl.LeaderWatch,
+    configBuilders = tbl and tbl.ConfigBuilders,
+    frameBridge = tbl and tbl.FrameBridge,
+    contextHelpers = tbl and tbl.ContextHelpers,
+    runtimeSetup = tbl and tbl.RuntimeSetup,
+    controllerInit = tbl and tbl.ControllerInit,
+    guards = tbl and tbl.Guards,
+    stats = tbl and tbl.Stats,
+    runtimeState = tbl and tbl.RuntimeState,
+    settingsPanel = tbl and tbl.SettingsPanel,
   }
 end
 FI.BuildFactoryModules = BuildFactoryModules
 
-local function CreateFactoryContext(addonName, addonTable)
-  local modules = BuildFactoryModules(addonTable)
+local function CreateFactoryContext(addonName, tbl)
+  local modules = BuildFactoryModules(tbl)
   local isiLiveRuntimeState = modules.runtimeState
   local ctx = {
     addonName = addonName,
-    addonTable = addonTable,
+    addonTable = tbl,
     modules = modules,
     INSPECT_TIMEOUT = 2,
     RETRY_INTERVAL = 5,
@@ -82,7 +82,7 @@ local function CreateFactoryContext(addonName, addonTable)
     return nil
   end
 
-  local guardsOk, guardsErr = pcall(modules.guards.Validate, addonTable)
+  local guardsOk, guardsErr = pcall(modules.guards.Validate, tbl)
   if not guardsOk then
     print("|cffff0000isiLive: " .. tostring(guardsErr) .. "|r")
     return nil
