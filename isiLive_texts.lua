@@ -7,7 +7,7 @@ addonTable.Texts = Texts
 
 local LOCALES = {
   enUS = {
-    TITLE = "isiLive v0.9.119",
+    TITLE = "isiLive v0.9.120",
     TITLE_HINT = "Open/Close CTRL-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
@@ -186,9 +186,12 @@ local LOCALES = {
     SETTINGS_TELEPORT_COLUMNS = "Teleport portal grid columns",
     SETTINGS_SOUND_LEAD_ENABLED = "Sound alert on lead transfer",
     SETTINGS_SOUND_GROUP_JOIN_ENABLED = "Sound alert when someone joins group",
+    SETTINGS_RESET_DB = "Reset All Settings",
+    RESET_DB_DONE = "Settings reset. Reloading UI...",
+    HELP_RESET = "  /isilive reset  - Reset all settings to default",
   },
   deDE = {
-    TITLE = "isiLive v0.9.119",
+    TITLE = "isiLive v0.9.120",
     TITLE_HINT = "Öffnen/Schliessen STRG-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
@@ -367,6 +370,9 @@ local LOCALES = {
     SETTINGS_TELEPORT_COLUMNS = "Spaltenanzahl im Teleport-Portal-Raster",
     SETTINGS_SOUND_LEAD_ENABLED = "Sound-Hinweis bei Lead-Uebergabe",
     SETTINGS_SOUND_GROUP_JOIN_ENABLED = "Sound-Hinweis wenn jemand der Gruppe beitritt",
+    SETTINGS_RESET_DB = "Alle Einstellungen zuruecksetzen",
+    RESET_DB_DONE = "Einstellungen zurueckgesetzt. UI wird neu geladen...",
+    HELP_RESET = "  /isilive reset  - Alle Einstellungen auf Standard zuruecksetzen",
   },
 }
 

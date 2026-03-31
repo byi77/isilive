@@ -47,6 +47,15 @@ FI.ResolveRaidTransitionBehavior = ResolveRaidTransitionBehavior
 local function FinalizeFactorySettings(ctx)
   local modules = ctx.modules
 
+  ctx.resetDB = function()
+    local reloadUI = rawget(_G, "ReloadUI")
+    IsiLiveDB = nil
+    ctx.Print((ctx.GetL() or {}).RESET_DB_DONE or "Settings reset. Reloading UI...")
+    if type(reloadUI) == "function" then
+      reloadUI()
+    end
+  end
+
   if modules.settingsPanel and type(modules.settingsPanel.Create) == "function" then
     ctx.settingsPanel = modules.settingsPanel.Create({
       getL = ctx.GetL,
@@ -176,6 +185,9 @@ local function FinalizeFactorySettings(ctx)
         if ctx.teleportUIController and type(ctx.teleportUIController.UpdateButtons) == "function" then
           ctx.teleportUIController.UpdateButtons(ctx.ResolveTeleportSpellID())
         end
+      end,
+      onResetDB = function()
+        ctx.resetDB()
       end,
     })
   end

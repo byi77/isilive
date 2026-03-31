@@ -31,6 +31,7 @@ function Bootstrap.RegisterSlashCommands(opts)
     assert(opts.queueDebugController, "isiLive: Bootstrap.RegisterSlashCommands requires queueDebugController")
   local runtimeLogController =
     assert(opts.runtimeLogController, "isiLive: Bootstrap.RegisterSlashCommands requires runtimeLogController")
+  local resetDB = RequireFunction(opts.resetDB, "resetDB")
 
   commands.RegisterSlashCommands({
     printFn = printFn,
@@ -56,6 +57,7 @@ function Bootstrap.RegisterSlashCommands(opts)
     clearRuntimeLog = runtimeLogController.ClearLog,
     getRuntimeLogCount = runtimeLogController.GetLogCount,
     getRuntimeLogTail = runtimeLogController.GetLogTail,
+    resetDB = resetDB,
   })
 end
 

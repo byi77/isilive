@@ -49,6 +49,7 @@ local function BuildDeps(opts)
     getRuntimeLogTail = opts.getRuntimeLogTail or function(_limit)
       return {}
     end,
+    resetDB = opts.resetDB or function() end,
   }
 end
 
@@ -66,6 +67,7 @@ local function PrintHelp(printFn, L)
   printFn(L.HELP_RESUME)
   printFn(L.HELP_STOP)
   printFn(L.HELP_START)
+  printFn(L.HELP_RESET)
 end
 
 local ARG_ON = { on = true, ["1"] = true, ["true"] = true }
@@ -282,6 +284,11 @@ local function TryHandleUtilityCommands(ctx, cmd)
     return true
   end
 
+  if cmd == "reset" then
+    ctx.resetDB()
+    return true
+  end
+
   return false
 end
 
@@ -310,7 +317,7 @@ function Commands.RegisterSlashCommands(opts)
   local deps = BuildDeps(opts)
 
   SLASH_ISILIVE1 = "/isilive"
-  SLASH_ISILIVE2 = "/isk"
+  SLASH_ISILIVE2 = "/il"
   SlashCmdList["ISILIVE"] = function(msg)
     ExecuteSlashCommand(deps, msg)
   end
