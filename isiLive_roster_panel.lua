@@ -609,8 +609,8 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
 
   row.hoverFrame = CreateFrame("Frame", nil, mainFrame)
   row.hoverFrame:SetPoint("TOPLEFT", 4, yOffset + 2)
-  -- Hover-Bereich endet an der rechten Kante der DPS-Spalte.
-  -- Die Buttons (Readycheck, Countdown etc.) rechts davon lösen den Tooltip nicht aus.
+  -- Hover area ends at the right edge of the DPS column.
+  -- Buttons (ready check, countdown, etc.) to the right of it do not trigger the tooltip.
   row.hoverFrame:SetWidth(DPS_COL_X + DPS_COL_WIDTH - 4)
   row.hoverFrame:SetHeight(16)
   if row.hoverFrame.EnableMouse then
@@ -1266,8 +1266,8 @@ local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
   local size = HELPER_BUTTON_SIZE
   local gap = 2
 
-  -- Position: Rechts von der DPS-Spalte, direkt links von M+Travel.
-  -- M+Marker und M+Managment sind gegenüber der alten Anordnung getauscht.
+  -- Position: right of the DPS column, directly left of M+Travel.
+  -- M+Marker and M+Management are swapped compared to the old layout.
   local xPos = HELPER_COLUMN_X
 
   for i, marker in ipairs(markers) do
@@ -1284,7 +1284,7 @@ local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
       btn:SetAttribute("type1", "worldmarker") -- Left click: setzen
       btn:SetAttribute("marker1", marker.id)
       btn:SetAttribute("action1", "set")
-      btn:SetAttribute("type2", "worldmarker") -- Right click: löschen
+      btn:SetAttribute("type2", "worldmarker") -- Right click: remove
       btn:SetAttribute("marker2", marker.id)
       btn:SetAttribute("action2", "clear")
     end

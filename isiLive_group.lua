@@ -138,9 +138,9 @@ local function HandleNoGroup(deps, wasInGroupBefore)
   end
 end
 
--- Ghosts werden nur entfernt, wenn die Gruppe voll besetzt ist (5 aktive Mitglieder).
--- Bei weniger als 5 aktiven Mitgliedern bleiben Ghosts als sichtbare Historie erhalten.
--- Intentionelles Design: Eine 4er-Gruppe soll frühere Zusammensetzungen noch zeigen.
+-- Ghosts are only removed when the group is full (5 active members).
+-- With fewer than 5 active members ghosts are kept as visible history.
+-- Intentional design: a 4-person group should still show previous compositions.
 local function PruneGhosts(roster)
   local activeCount = 0
   local ghosts = {}

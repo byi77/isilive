@@ -275,8 +275,8 @@ function Inspect.CreateController(config)
   controller.retryInterval = tonumber(config and config.retryInterval) or 5
   controller.inspectDelay = tonumber(config and config.inspectDelay) or 1
 
-  -- Lokale Variable statt öffentlichem Controller-Feld, um versehentliches
-  -- Überschreiben von außen zu verhindern.
+  -- Local variable instead of a public controller field to prevent accidental
+  -- external overwrites.
   local sendOwnKeySnapshot = type(config and config.sendOwnKeySnapshot) == "function" and config.sendOwnKeySnapshot
     or nil
 

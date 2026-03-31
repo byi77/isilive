@@ -26,9 +26,9 @@ function Events.CreateGate(config)
       return false
     end
   local allowInCombat = config.allowInCombat or {}
-  -- shouldAllowInCombat: Erweiterungspunkt für Caller die einzelne Events
-  -- auch mitten im Kampf erlauben wollen. Kein aktueller Caller nutzt das,
-  -- der Fallback gibt immer false zurück.
+  -- shouldAllowInCombat: extension point for callers that want to allow
+  -- individual events even during combat. No current caller uses this;
+  -- the fallback always returns false.
   local shouldAllowInCombat = config.shouldAllowInCombat
     or function(_frame, _event, ...) -- luacheck: ignore 212
       return false

@@ -163,16 +163,10 @@ function Bootstrap.RegisterMainFrameEvents(mainFrame)
 
   for _, entry in ipairs(EVENT_REGISTRY) do
     local unitFilter = entry[5]
-    if unitFilter then
-      if type(mainFrame.RegisterUnitEvent) == "function" then
-        mainFrame:RegisterUnitEvent(entry[1], unitFilter)
-      elseif type(mainFrame.RegisterEvent) == "function" then
-        mainFrame:RegisterEvent(entry[1])
-      end
-    else
-      if type(mainFrame.RegisterEvent) == "function" then
-        mainFrame:RegisterEvent(entry[1])
-      end
+    if unitFilter and type(mainFrame.RegisterUnitEvent) == "function" then
+      mainFrame:RegisterUnitEvent(entry[1], unitFilter)
+    elseif type(mainFrame.RegisterEvent) == "function" then
+      mainFrame:RegisterEvent(entry[1])
     end
   end
 end
@@ -185,9 +179,9 @@ function Bootstrap.BindMainFrameScripts(mainFrame, opts)
   local onShow = RequireFunction(opts.onShow, "onShow")
   local onHide = RequireFunction(opts.onHide, "onHide")
 
-  -- onEvent ist bewusst optional: das OnEvent-Script wird normalerweise
-  -- separat durch Bootstrap.CreateGatedOnEvent() gesetzt.
-  -- Wird es dennoch übergeben, muss es eine Funktion sein.
+  -- onEvent is intentionally optional: the OnEvent script is normally
+  -- set separately via Bootstrap.CreateGatedOnEvent().
+  -- If passed anyway, it must be a function.
   if onEvent ~= nil then
     assert(type(onEvent) == "function", "isiLive: Bootstrap.BindMainFrameScripts – onEvent must be a function")
     mainFrame:SetScript("OnEvent", onEvent)

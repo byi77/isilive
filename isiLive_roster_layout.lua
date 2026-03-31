@@ -98,7 +98,7 @@ RI.SYSTEM_OPTION_TOGGLE_GAP = SYSTEM_OPTION_TOGGLE_GAP
 RI.CD_TRACKER_ROW_HEIGHT = CD_TRACKER_ROW_HEIGHT
 RI.CD_TRACKER_ROW_BOTTOM_OFFSET = CD_TRACKER_ROW_BOTTOM_OFFSET
 
--- Descriptor pro Layout-Modus: Breite und Label für den Mode-Button
+-- Descriptor per layout mode: width and label for the mode button
 local LAYOUT_MODE_CONFIG = {
   [LAYOUT_MODE_EXPANDED] = { width = FULL_FRAME_WIDTH, label = "M" },
   [LAYOUT_MODE_COMPACT_VERTICAL] = { width = MINI_FRAME_WIDTH, label = "V" },
@@ -337,11 +337,7 @@ local function AttachSystemOptionToggleWatcher(mainFrame, ui)
   local elapsedSinceRefresh = 0
 
   watcher:SetScript("OnUpdate", function(_, elapsed)
-    local isShown = true
-    if type(mainFrame) == "table" and type(mainFrame.IsShown) == "function" then
-      isShown = mainFrame:IsShown()
-    end
-    if not isShown then
+    if not mainFrame:IsShown() then
       elapsedSinceRefresh = 0
       return
     end
@@ -652,14 +648,14 @@ local function NotifyLayoutChanged(ui, layoutMode)
 end
 RI.NotifyLayoutChanged = NotifyLayoutChanged
 
--- Erstellt einen der vier statischen Mode-Buttons.
--- _modeTarget und _collapseLayoutMode identifizieren den Button für Tests.
--- Aktiv/Inaktiv-Zustand wird per Textfarbe in UpdateCollapseState gesetzt.
+-- Creates one of the four static mode buttons.
+-- _modeTarget and _collapseLayoutMode identify the button for tests.
+-- Active/inactive state is set via text color in UpdateCollapseState.
 local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onClick, buttonWidth)
   local btn = CreateFrame("Button", nil, mainFrame)
   btn:SetSize(tonumber(buttonWidth) or 20, 20)
   btn:SetPoint("TOPRIGHT", xOffset, -2)
-  -- DragHandle liegt auf mainFrame:GetFrameLevel() + 100; Button muss darüber liegen.
+  -- DragHandle sits at mainFrame:GetFrameLevel() + 100; button must be above it.
   if btn.SetFrameLevel and mainFrame.GetFrameLevel then
     btn:SetFrameLevel(mainFrame:GetFrameLevel() + 102)
   end
@@ -688,8 +684,8 @@ local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onCli
   end
   btn._modeTarget = modeTarget
   btn._modeLabel = modeLabel
-  btn._collapseButtonLabel = modeLabel -- statisch; für Test-Kompatibilität
-  btn._collapseLayoutMode = modeTarget -- für FindFrameByProperty in Tests
+  btn._collapseButtonLabel = modeLabel -- static; for test compatibility
+  btn._collapseLayoutMode = modeTarget -- for FindFrameByProperty in tests
   btn:SetScript("OnClick", onClick)
   return btn
 end

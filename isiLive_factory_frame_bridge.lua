@@ -1,8 +1,8 @@
-local _, moduleAddonTable = ...
-moduleAddonTable = moduleAddonTable or {}
+local _, addonTable = ...
+addonTable = addonTable or {}
 
-local FI = moduleAddonTable._FactoryInternal or {}
-moduleAddonTable._FactoryInternal = FI
+local FI = addonTable._FactoryInternal or {}
+addonTable._FactoryInternal = FI
 
 local function BuildFactoryModules(addonTable)
   return {

@@ -46,7 +46,7 @@ function LogBuffer.Append(logs, timestamp, message, maxEntries)
 
   table.insert(logs, string.format("%s %s", tostring(timestamp), LogBuffer.SanitizeMessage(message)))
 
-  -- Overflow: Einträge nach vorne schieben (O(n) statt O(n²) via table.remove)
+  -- Overflow: shift entries forward (O(n) instead of O(n²) via table.remove)
   local overflow = #logs - cap
   if overflow > 0 then
     local newLen = #logs - overflow

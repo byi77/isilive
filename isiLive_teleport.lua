@@ -6,6 +6,7 @@ local Teleport = {}
 addonTable.Teleport = Teleport
 
 local SeasonData = addonTable.SeasonData or {}
+local SpellUtils = addonTable.SpellUtils
 
 local function GetMapToTeleport()
   if type(SeasonData.GetMapToTeleport) == "function" then
@@ -39,28 +40,6 @@ combatRetryFrame:SetScript("OnEvent", function(self, event)
   end
 end)
 
-local function IsSpellKnownByID(spellID)
-  if not spellID then
-    return false
-  end
-
-  if C_SpellBook and C_SpellBook.IsSpellKnownOrOverridesKnown then
-    local ok, known = pcall(C_SpellBook.IsSpellKnownOrOverridesKnown, spellID)
-    if ok and known == true then
-      return true
-    end
-  end
-
-  if C_SpellBook and C_SpellBook.IsSpellKnown then
-    local ok, known = pcall(C_SpellBook.IsSpellKnown, spellID)
-    if ok and known == true then
-      return true
-    end
-  end
-
-  return false
-end
-
 local function ResolveMappedSpellID(mapID)
   local mapToTeleport = GetMapToTeleport()
   local mapped = mapToTeleport[mapID]
@@ -77,7 +56,7 @@ local function ResolveMappedSpellID(mapID)
         if not firstCandidate then
           firstCandidate = spellID
         end
-        if IsSpellKnownByID(spellID) then
+        if SpellUtils.IsSpellKnownSafe(spellID) then
           return spellID
         end
       end

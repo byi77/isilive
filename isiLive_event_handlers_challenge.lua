@@ -135,18 +135,8 @@ local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, foll
   end
 
   local refreshed = ctx.runFullRefresh() ~= false
-  if refreshed then
-    ctx.enableRioDeltaDisplay()
-    RefreshRosterAfterRunStateChange(ctx, frame)
-    if followUpRefreshesRemaining > 0 and ctx.timerAfter then
-      ctx.timerAfter(POST_RUN_FOLLOWUP_REFRESH_DELAY_SECONDS, function()
-        RunDelayedPostChallengeRefresh(ctx, frame, 0, followUpRefreshesRemaining - 1)
-      end)
-    end
-    return
-  end
 
-  if retriesRemaining > 0 and ctx.timerAfter then
+  if not refreshed and retriesRemaining > 0 and ctx.timerAfter then
     ctx.timerAfter(POST_RUN_REFRESH_RETRY_DELAY_SECONDS, function()
       RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining - 1, followUpRefreshesRemaining)
     end)
@@ -155,6 +145,12 @@ local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, foll
 
   ctx.enableRioDeltaDisplay()
   RefreshRosterAfterRunStateChange(ctx, frame)
+
+  if refreshed and followUpRefreshesRemaining > 0 and ctx.timerAfter then
+    ctx.timerAfter(POST_RUN_FOLLOWUP_REFRESH_DELAY_SECONDS, function()
+      RunDelayedPostChallengeRefresh(ctx, frame, 0, followUpRefreshesRemaining - 1)
+    end)
+  end
 end
 
 local function RefreshReadyCheckUI(ctx)

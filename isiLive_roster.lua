@@ -35,7 +35,7 @@ local function NormalizeDisplayedKeyShortCode(shortCode)
 end
 
 local function BuildColorHexSafe(r, g, b)
-  local createColor = _G.CreateColor
+  local createColor = rawget(_G, "CreateColor")
   if type(createColor) == "function" then
     local okColor, color = pcall(createColor, r, g, b)
     if okColor and type(color) == "table" and type(color.GenerateHexColor) == "function" then
@@ -53,7 +53,7 @@ local function BuildColorHexSafe(r, g, b)
 end
 
 local function GetReadyCheckStatusSafe(unit)
-  local getReadyCheckStatus = _G.GetReadyCheckStatus
+  local getReadyCheckStatus = rawget(_G, "GetReadyCheckStatus")
   if type(getReadyCheckStatus) ~= "function" then
     return nil
   end

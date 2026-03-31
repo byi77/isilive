@@ -75,11 +75,20 @@ local function StartTimer()
   state.deathTimeLost = 0
   state.running = true
   state.completed = false
+  tickFrame:SetScript("OnUpdate", function(_, elapsed)
+    tickAccum = tickAccum + elapsed
+    if tickAccum >= 0.1 then
+      tickAccum = 0
+      OnUpdate()
+    end
+  end)
 end
 
 local function StopTimer(completed)
   state.running = false
   state.completed = completed == true
+  tickFrame:SetScript("OnUpdate", nil)
+  tickAccum = 0
 end
 
 local function UpdateDeaths()
@@ -144,13 +153,5 @@ eventFrame:SetScript("OnEvent", function(_, event)
   end
 end)
 
--- OnUpdate tick frame (always registered, cheap when not running)
 tickFrame = CreateFrame("Frame")
 local tickAccum = 0
-tickFrame:SetScript("OnUpdate", function(_, elapsed)
-  tickAccum = tickAccum + elapsed
-  if tickAccum >= 0.1 then
-    tickAccum = 0
-    OnUpdate()
-  end
-end)

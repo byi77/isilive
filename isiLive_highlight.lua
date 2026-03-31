@@ -9,9 +9,9 @@ local function TryGet(obj, key1, key2, key3)
   if not obj then
     return nil
   end
-  -- rawget(obj, nil) ist in Standard-Lua ein Fehler → Keys explizit prüfen.
-  -- Wert wird direkt zurückgegeben (nil-Check statt Wahrheitswert), damit
-  -- auch false korrekt propagiert wird (z. B. active=false bei inaktivem Eintrag).
+  -- rawget(obj, nil) is an error in standard Lua → check keys explicitly.
+  -- Return the value directly (nil check instead of truthiness) so that
+  -- false is correctly propagated (e.g. active=false on an inactive entry).
   if key1 ~= nil then
     local v = rawget(obj, key1)
     if v ~= nil then

@@ -395,8 +395,8 @@ local function ForceRefreshSyncState(sync, getUnitNameAndRealm, roster)
   local playerName, playerRealm = getUnitNameAndRealm("player")
   sync.MarkUser(playerName, playerRealm)
 
-  -- Nicht-Spieler-Einträge werden gecleart; der Spieler-Eintrag wird danach
-  -- direkt auf den aktuellen Keystone gesetzt und braucht keinen Zwischenclear.
+  -- Non-player entries are cleared; the player entry is then set directly
+  -- to the current keystone and does not need an intermediate clear.
   for unit, info in pairs(roster) do
     if type(info) == "table" then
       info.hasIsiLive = (unit == "player")

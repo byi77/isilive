@@ -358,7 +358,7 @@ local function MaybeShowNonMythicDungeonEntryNotice(state, deps)
       if token ~= state.nonMythicNoticeToken then
         return
       end
-      -- GetDungeonDifficultyLabel einmal aufrufen und alle 6 Rückgabewerte entpacken.
+      -- Call GetDungeonDifficultyLabel once and unpack all 6 return values.
       local cText, cMythic, cInDungeon, cInstanceType, cDifficultyID, cInstanceName =
         GetDungeonDifficultyLabel(deps.getL)
       if not cInDungeon or cMythic then

@@ -68,6 +68,9 @@ local function PrintHelp(printFn, L)
   printFn(L.HELP_START)
 end
 
+local ARG_ON  = { on = true, ["1"] = true, ["true"] = true }
+local ARG_OFF = { off = true, ["0"] = true, ["false"] = true }
+
 -- Generic handler for debug log sub-commands (shared by "log" and "qdebug").
 -- cfg fields: prefix, label, extraOn (table), extraOff (table),
 --             getEnabled, setEnabled, clearLog, getCount, getTail, usageStr
@@ -78,12 +81,12 @@ local function HandleDebugLogCommand(ctx, cmd, cfg)
     return
   end
 
-  if arg == "on" or arg == "1" or arg == "true" or (cfg.extraOn and cfg.extraOn[arg]) then
+  if ARG_ON[arg] or (cfg.extraOn and cfg.extraOn[arg]) then
     cfg.setEnabled(true)
     ctx.printFn(cfg.label .. ": ON")
     return
   end
-  if arg == "off" or arg == "0" or arg == "false" or (cfg.extraOff and cfg.extraOff[arg]) then
+  if ARG_OFF[arg] or (cfg.extraOff and cfg.extraOff[arg]) then
     cfg.setEnabled(false)
     ctx.printFn(cfg.label .. ": OFF")
     return

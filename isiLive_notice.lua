@@ -622,13 +622,16 @@ local function AttachCenterNoticeFrameScripts(state)
       end
     end
 
-    if state.isBlinking and state.frame:IsShown() then
-      state.blinkTime = state.blinkTime + (elapsed or 0)
-      local wave = (math.sin(state.blinkTime * 3) + 1) * 0.5
-      local alpha = 0.65 + (wave * 0.35)
-      state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, alpha)
-    elseif state.frame:IsShown() then
-      state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, 1)
+    local isShown = state.frame:IsShown()
+    if isShown then
+      if state.isBlinking then
+        state.blinkTime = state.blinkTime + (elapsed or 0)
+        local wave = (math.sin(state.blinkTime * 3) + 1) * 0.5
+        local alpha = 0.65 + (wave * 0.35)
+        state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, alpha)
+      else
+        state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, 1)
+      end
     end
 
     if not state.isPersistent and GetTime() >= state.endsAt then

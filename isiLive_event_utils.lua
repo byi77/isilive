@@ -5,17 +5,26 @@ addonTable = addonTable or {}
 local EventUtils = {}
 addonTable.EventUtils = EventUtils
 
+local NEGATIVE_STATUS_KEYWORDS = { "declin", "cancel", "failed", "timeout" }
+
+local function ContainsNegativeKeyword(text)
+  for _, keyword in ipairs(NEGATIVE_STATUS_KEYWORDS) do
+    if text:find(keyword) then
+      return true
+    end
+  end
+  return false
+end
+
 function EventUtils.IsNegativeApplicationStatusValue(value)
   if type(value) == "string" then
-    local low = string.lower(value)
-    if low:find("declin") or low:find("cancel") or low:find("failed") or low:find("timeout") then
+    if ContainsNegativeKeyword(string.lower(value)) then
       return true
     end
   elseif type(value) == "number" and Enum and Enum.LFGListApplicationStatus then
     for key, enumValue in pairs(Enum.LFGListApplicationStatus) do
       if enumValue == value then
-        local keyText = string.lower(tostring(key))
-        if keyText:find("declin") or keyText:find("cancel") or keyText:find("failed") or keyText:find("timeout") then
+        if ContainsNegativeKeyword(string.lower(tostring(key))) then
           return true
         end
       end

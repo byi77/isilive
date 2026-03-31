@@ -43,7 +43,7 @@ local SPEC_SHORT_LABELS = {
   ["bewahrung"] = "Prese",
   ["verwustung-evoker"] = "Devas",
   ["augmentation"] = "Aug",
-  ["starkung"] = "Aug", -- DE: Augmentation Evoker (NormalizeSpecKey konvertiert ä→a)
+  ["starkung"] = "Aug", -- DE: Augmentation Evoker (NormalizeSpecKey converts ä→a)
 
   -- English short labels (mostly 5 chars)
   ["restoration"] = "Resto",
@@ -156,8 +156,8 @@ function Units.TruncateName(name, maxChars)
 
   if string.len(name) > maxChars then
     local truncated = string.sub(name, 1, maxChars)
-    -- Continuation-Bytes (0x80–0xBF) am Schnittrand zurückrollen,
-    -- damit kein beschädigtes UTF-8 entsteht.
+    -- Roll back continuation bytes (0x80–0xBF) at the cut boundary
+    -- to avoid producing malformed UTF-8.
     while #truncated > 0 and truncated:byte(#truncated) >= 0x80 and truncated:byte(#truncated) <= 0xBF do
       truncated = string.sub(truncated, 1, #truncated - 1)
     end
