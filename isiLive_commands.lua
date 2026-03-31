@@ -68,7 +68,7 @@ local function PrintHelp(printFn, L)
   printFn(L.HELP_START)
 end
 
-local ARG_ON  = { on = true, ["1"] = true, ["true"] = true }
+local ARG_ON = { on = true, ["1"] = true, ["true"] = true }
 local ARG_OFF = { off = true, ["0"] = true, ["false"] = true }
 
 -- Generic handler for debug log sub-commands (shared by "log" and "qdebug").

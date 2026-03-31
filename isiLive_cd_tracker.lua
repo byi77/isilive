@@ -98,7 +98,9 @@ function CdTracker.CreateController(opts)
         if isMatch then
           local expiry = rawget(aura, "expirationTime")
           local remain = type(expiry) == "number" and math.max(0, expiry - getTime()) or 0
-          if remain > 0 then lustRemain = remain end
+          if remain > 0 then
+            lustRemain = remain
+          end
           lustIcon = rawget(aura, "icon")
           found = true
           break

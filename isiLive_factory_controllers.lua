@@ -176,7 +176,7 @@ local function InitializeRioHelpers(ctx, runtimeState)
 end
 
 -- Sub-function: Status target resolution, dungeon info, and operational helpers.
-local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState, addonTable)
+local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState)
   ctx.getPlayerSyncSummary = function(name, realm)
     if modules.sync and type(modules.sync.GetPlayerSyncSummary) == "function" then
       return modules.sync.GetPlayerSyncSummary(name, realm)
@@ -478,12 +478,10 @@ end
 local function InitializeFactoryRuntimeHelpers(ctx)
   local modules = ctx.modules
   local runtimeState = ctx.runtimeState
-  local addonTable = ctx.addonTable
-
   InitializeGameAPIHelpers(ctx, runtimeState)
   InitializeRuntimeStateDelegates(ctx, modules, runtimeState)
   InitializeRioHelpers(ctx, runtimeState)
-  InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState, addonTable)
+  InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState)
 end
 FI.InitializeFactoryRuntimeHelpers = InitializeFactoryRuntimeHelpers
 
