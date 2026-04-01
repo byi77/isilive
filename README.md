@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.122`.
+Current documented baseline: `0.9.123`.
 
 ## Features
 
@@ -111,9 +111,9 @@ Current documented baseline: `0.9.122`.
 - Runtime log storage is session-only and starts disabled on every login/reload.
 - Sync handshake behavior: `HELLO` recipients send `ACK` and immediately answer with the full local `KEY`/`STATS`/`DPS`/`LOC` snapshot plus current kick state; explicit local refresh still force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.122)
+## Use Case / Logic Baseline (v0.9.123)
 
-Documented on `2026-04-01` as runtime behavior baseline (`0.9.122`) for validation checks.
+Documented on `2026-04-02` as runtime behavior baseline (`0.9.123`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -358,10 +358,13 @@ Enable the repository hook path:
 - `git config core.hooksPath .githooks`
 
 Then `pre-commit` will run:
+- `tools/sync_release_baseline.ps1` to mirror the version from `isiLive.toc` into the documented baseline files and UI title
 - `stylua --check .`
 - `luacheck --exclude-files ".luarocks/**" -- .`
 - `lua tools/lua_metrics_check.lua`
 - `lua tools/validate_usecases.lua`
+
+The sync helper treats `isiLive.toc` as the source of truth. If you raise the release version there, the hook keeps `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `isiLive_texts.lua` aligned automatically before the commit is created.
 
 ## CurseForge Auto Publish
 

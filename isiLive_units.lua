@@ -97,6 +97,49 @@ end
 
 local IsExistingUnit = addonTable.Validators.IsExistingUnit
 
+local function Utf8Sub(text, startChar, endChar)
+  local startIndex = math.max(1, tonumber(startChar) or 1)
+  local finishIndex = math.max(startIndex, tonumber(endChar) or startIndex)
+  local length = #text
+  local charIndex = 0
+  local byteIndex = 1
+  local startByte = nil
+
+  while byteIndex <= length do
+    charIndex = charIndex + 1
+    if charIndex == startIndex then
+      startByte = byteIndex
+    end
+
+    local b1 = text:byte(byteIndex)
+    local step = 1
+    if b1 and b1 < 0x80 then
+      step = 1
+    elseif b1 and b1 >= 0xC2 and b1 <= 0xDF then
+      step = 2
+    elseif b1 and b1 >= 0xE0 and b1 <= 0xEF then
+      step = 3
+    elseif b1 and b1 >= 0xF0 and b1 <= 0xF4 then
+      step = 4
+    end
+
+    if charIndex == finishIndex then
+      if not startByte then
+        return ""
+      end
+      return text:sub(startByte, byteIndex + step - 1)
+    end
+
+    byteIndex = byteIndex + step
+  end
+
+  if not startByte then
+    return ""
+  end
+
+  return text:sub(startByte)
+end
+
 function Units.GetUnitRole(unit)
   if not IsExistingUnit(unit) then
     return "NONE"
@@ -155,13 +198,7 @@ function Units.TruncateName(name, maxChars)
   end
 
   if string.len(name) > maxChars then
-    local truncated = string.sub(name, 1, maxChars)
-    -- Roll back continuation bytes (0x80–0xBF) at the cut boundary
-    -- to avoid producing malformed UTF-8.
-    while #truncated > 0 and truncated:byte(#truncated) >= 0x80 and truncated:byte(#truncated) <= 0xBF do
-      truncated = string.sub(truncated, 1, #truncated - 1)
-    end
-    return #truncated > 0 and truncated or string.sub(name, 1, maxChars)
+    return Utf8Sub(name, 1, maxChars)
   end
   return name
 end

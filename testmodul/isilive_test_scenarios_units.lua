@@ -129,5 +129,17 @@ return function(test, ctx)
         end
       end)
     end)
+
+    test.it("Units TruncateName keeps Cyrillic characters intact", function()
+      WithGlobals({}, function()
+        local addon = LoadAddonModules({ "isiLive_units.lua" })
+        local Units = addon.Units
+
+        local input = string.rep("А", 13)
+        local expected = string.rep("А", 12)
+
+        Assert.Equal(expected, Units.TruncateName(input, 12), "UTF-8 truncation must not split Cyrillic characters")
+      end)
+    end)
   end)
 end

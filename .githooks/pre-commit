@@ -5,6 +5,18 @@ set -e
 echo "Running pre-commit checks..."
 
 if command -v powershell >/dev/null 2>&1; then
+  if ! powershell -ExecutionPolicy Bypass -File tools/sync_release_baseline.ps1; then
+    echo "pre-commit: release baseline sync failed."
+    exit 1
+  fi
+elif command -v pwsh >/dev/null 2>&1; then
+  if ! pwsh -File tools/sync_release_baseline.ps1; then
+    echo "pre-commit: release baseline sync failed."
+    exit 1
+  fi
+fi
+
+if command -v powershell >/dev/null 2>&1; then
   if ! powershell -ExecutionPolicy Bypass -File tools/validate_ci_local.ps1; then
     echo "pre-commit: local CI preflight failed."
     exit 1

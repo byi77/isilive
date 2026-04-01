@@ -7,7 +7,7 @@ addonTable.Texts = Texts
 
 local LOCALES = {
   enUS = {
-    TITLE = "isiLive v0.9.122",
+    TITLE = "isiLive v0.9.123",
     TITLE_HINT = "Open/Close CTRL-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
@@ -189,7 +189,7 @@ local LOCALES = {
     HELP_RESET = "  /isilive reset  - Reset all settings to default",
   },
   deDE = {
-    TITLE = "isiLive v0.9.122",
+    TITLE = "isiLive v0.9.123",
     TITLE_HINT = "Öffnen/Schliessen STRG-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Name",

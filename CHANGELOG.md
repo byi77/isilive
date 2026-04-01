@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-04-02 - Version 0.9.123 (patch)
+
+- Docs / release baseline:
+  - Raised README, architecture, use-case, and TOC baselines to `0.9.123`.
+  - Updated the UI title string to `v0.9.123` through the release baseline sync.
+
 ## 2026-04-01 - Version 0.9.122 (patch)
 
 - Docs / release baseline:

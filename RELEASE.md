@@ -6,6 +6,7 @@ This is the canonical release flow for `isiLive` (repository/tag prefix remains 
 
 1. Update TOC version in `isiLive.toc`:
    - `## Version: x.y.z`
+   - With the optional git hook enabled, the matching documented baselines and title string are synced automatically from the TOC version before commit.
 2. Add a new entry at the top of `CHANGELOG.md`.
    - For `0.9.99`, note both the docs baseline bump and the post-baseline cleanup state so `CHANGELOG.md` and the docs reflect the current branch accurately.
 3. Update `README.md` for user-visible behavior/layout changes.
