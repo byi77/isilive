@@ -426,6 +426,7 @@ local function ResolveSettingsOptions(opts)
     onTeleportColumnsChange = opts.onTeleportColumnsChange,
     onQueueDebugToggle = opts.onQueueDebugToggle,
     onRuntimeLogToggle = opts.onRuntimeLogToggle,
+    onResetDB = opts.onResetDB,
   }
 end
 
@@ -981,6 +982,24 @@ local function BuildDebugSettingsSection(canvas, yOffset, labels, config, contro
   return yOffset
 end
 
+local function BuildResetSection(canvas, yOffset, labels, config, controls)
+  local RESET_BUTTON_WIDTH = 200
+  local RESET_BUTTON_HEIGHT = 24
+
+  local btn = CreateFrame("Button", nil, canvas, "UIPanelButtonTemplate")
+  btn:SetSize(RESET_BUTTON_WIDTH, RESET_BUTTON_HEIGHT)
+  btn:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X, yOffset)
+  btn:SetText(labels.SETTINGS_RESET_DB or "Reset All Settings")
+  btn:SetScript("OnClick", function()
+    if type(config.onResetDB) == "function" then
+      config.onResetDB()
+    end
+  end)
+
+  controls.resetDBBtn = btn
+  return yOffset - RESET_BUTTON_HEIGHT - LINE_HEIGHT
+end
+
 local function RefreshSettingsControls(controls, config)
   local freshL = config.getL()
   local db = config.getDB()
@@ -1138,6 +1157,8 @@ function SettingsPanel.Create(opts)
   y = BuildBehaviorSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
   y = BuildDebugSettingsSection(content, y, L, config, controls)
+  y = y - SECTION_GAP
+  y = BuildResetSection(content, y, L, config, controls)
 
   local finalYOffset = tonumber(y) or 0
   local contentHeight = math.max(212, math.ceil(-finalYOffset + PADDING_TOP))

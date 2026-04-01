@@ -86,6 +86,7 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
     teleportDebugController = ctx.teleportDebugController,
     queueDebugController = ctx.queueDebugController,
     runtimeLogController = ctx.runtimeLogController,
+    resetDB = ctx.resetDB,
   }
 end
 

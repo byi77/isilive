@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-03-31 - Version 0.9.120 (patch)
+
+- Slash command: `/isk` renamed to `/il` (shorter alias for `/isilive`).
+- New command `/il reset` (also `/isilive reset`): wipes `IsiLiveDB` and triggers `ReloadUI()` to restore all settings to their defaults.
+- Settings panel: new "Reset All Settings" button at the bottom of the settings page, equivalent to `/il reset`.
+
 ## 2026-03-30 - Version 0.9.119 (patch)
 
 - Keys teilen: fix clients not posting their keystone to party chat — `ctx.getRoster` was nil (typo: should be `ctx.GetRoster`), causing `sendOwnKeystoneToChat` to silently return early on all remote clients.

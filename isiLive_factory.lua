@@ -177,6 +177,9 @@ local function FinalizeFactorySettings(ctx)
           ctx.teleportUIController.UpdateButtons(ctx.ResolveTeleportSpellID())
         end
       end,
+      onResetDB = function()
+        ctx.resetDB()
+      end,
     })
   end
 
@@ -215,6 +218,15 @@ local function FinalizeFactoryRuntime(ctx)
         return
       end
       ctx.inspectController.OnUpdate()
+    end
+  end
+
+  ctx.resetDB = function()
+    local reloadUI = rawget(_G, "ReloadUI")
+    IsiLiveDB = nil
+    ctx.Print((ctx.GetL() or {}).RESET_DB_DONE or "Settings reset. Reloading UI...")
+    if type(reloadUI) == "function" then
+      reloadUI()
     end
   end
 
@@ -406,6 +418,7 @@ local function FinalizeFactoryRuntime(ctx)
     runtimeLogController = ctx.runtimeLogController,
     recordRun = ctx.RecordRun,
     addonName = ctx.addonName,
+    resetDB = ctx.resetDB,
   })
 
   ctx.eventHandlersController = runtimeSetupResult.eventHandlersController
@@ -414,8 +427,8 @@ local function FinalizeFactoryRuntime(ctx)
   FinalizeFactorySettings(ctx)
 end
 
-function Factory.InitializeAddon(addonName, addonTable)
-  local ctx = CreateFactoryContext(addonName, addonTable)
+function Factory.InitializeAddon(addonName, tbl)
+  local ctx = CreateFactoryContext(addonName, tbl)
   if not ctx then
     return
   end
