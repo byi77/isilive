@@ -32,9 +32,7 @@ local DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL = "compact_horizontal"
 local DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = "compact_main_horizontal"
 local DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL_2_LEGACY = "compact_horizontal_2"
 local DEFAULT_LAYOUT_MODE_LAST_USED = "last_used"
-local RAID_TRANSITION_BEHAVIOR_SHOW_H = "show_h"
-local RAID_TRANSITION_BEHAVIOR_SHOW_KEEP = "show_keep"
-local RAID_TRANSITION_BEHAVIOR_PRESERVE = "preserve"
+local RAID_TRANSITION_BEHAVIOR_HIDE = "hide"
 
 local function ApplySettingsBackdrop(frame)
   if type(ApplyBackdrop) == "function" then
@@ -268,18 +266,10 @@ end
 
 local function NormalizeStoredRaidTransitionBehavior(behavior)
   if behavior == nil or behavior == false or behavior == "" then
-    return RAID_TRANSITION_BEHAVIOR_SHOW_H
+    return RAID_TRANSITION_BEHAVIOR_HIDE
   end
 
-  if
-    behavior == RAID_TRANSITION_BEHAVIOR_SHOW_H
-    or behavior == RAID_TRANSITION_BEHAVIOR_SHOW_KEEP
-    or behavior == RAID_TRANSITION_BEHAVIOR_PRESERVE
-  then
-    return behavior
-  end
-
-  return RAID_TRANSITION_BEHAVIOR_SHOW_H
+  return RAID_TRANSITION_BEHAVIOR_HIDE
 end
 
 local function CreateSettingsOptionSelector(
@@ -868,22 +858,10 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
     labels.SETTINGS_RAID_TRANSITION_BEHAVIOR or "Raid Behavior",
     {
       {
-        value = RAID_TRANSITION_BEHAVIOR_SHOW_H,
-        labelKey = "SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_H",
-        fallback = labels.SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_H or "Show + H",
+        value = RAID_TRANSITION_BEHAVIOR_HIDE,
+        labelKey = "SETTINGS_RAID_TRANSITION_BEHAVIOR_HIDE",
+        fallback = labels.SETTINGS_RAID_TRANSITION_BEHAVIOR_HIDE or "Raid Off",
         width = 96,
-      },
-      {
-        value = RAID_TRANSITION_BEHAVIOR_SHOW_KEEP,
-        labelKey = "SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_KEEP",
-        fallback = labels.SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_KEEP or "Show + Keep",
-        width = 128,
-      },
-      {
-        value = RAID_TRANSITION_BEHAVIOR_PRESERVE,
-        labelKey = "SETTINGS_RAID_TRANSITION_BEHAVIOR_PRESERVE",
-        fallback = labels.SETTINGS_RAID_TRANSITION_BEHAVIOR_PRESERVE or "Keep State",
-        width = 116,
       },
     },
     config.getL,

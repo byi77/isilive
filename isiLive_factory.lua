@@ -28,15 +28,10 @@ end
 
 local function ResolveRaidTransitionBehavior(dbRef)
   if type(dbRef) ~= "table" then
-    return "show_h"
+    return "hide"
   end
 
-  local behavior = dbRef.raidTransitionBehavior
-  if behavior == "show_keep" or behavior == "preserve" then
-    return behavior
-  end
-
-  return "show_h"
+  return "hide"
 end
 
 FI.ResolveAutoCloseMainFrameEnabled = ResolveAutoCloseMainFrameEnabled
@@ -270,7 +265,7 @@ local function FinalizeFactoryRuntime(ctx)
     setWasRaidGroup = ctx.SetWasRaidGroup,
     isRosterCollapsed = ctx.IsRosterCollapsed,
     switchToRaidMode = ctx.SwitchToRaidMode,
-    isRaidGroup = ctx.GetWasRaidGroup,
+    isRaidGroup = ctx.IsRaidGroup,
     setWasGroupLeader = ctx.SetWasGroupLeader,
     getWasGroupLeader = ctx.GetWasGroupLeader,
     getRoster = ctx.GetRoster,
@@ -283,6 +278,9 @@ local function FinalizeFactoryRuntime(ctx)
     updateLeaderButtons = ctx.UpdateLeaderButtons,
     clearLatestQueueTarget = ctx.ClearLatestQueueTarget,
     clearRioBaselineSnapshot = ctx.ClearRioBaselineSnapshot,
+    clearPendingQueueJoinInfo = function()
+      runtimeState.SetPendingQueueJoinInfo(nil)
+    end,
     resetInspectAll = ctx.ResetInspectAll,
     resetInspectQueues = ctx.ResetInspectQueues,
     updateUI = ctx.UpdateUI,

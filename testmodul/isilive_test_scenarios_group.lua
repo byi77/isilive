@@ -82,6 +82,7 @@ local function BuildGroupControllerOptions(state, overrides)
     end,
     updateLeaderButtons = function() end,
     clearLatestQueueTarget = function() end,
+    clearPendingQueueJoinInfo = function() end,
     clearKnownUsers = function()
       state.knownUsersCleared = state.knownUsersCleared + 1
     end,
@@ -164,7 +165,7 @@ local function BuildGroupControllerOptions(state, overrides)
       return false
     end,
     getRaidTransitionBehavior = overrides.getRaidTransitionBehavior or function()
-      return "show_h"
+      return "hide"
     end,
     autoCloseMainFrame = overrides.autoCloseMainFrame or function()
       state.autoCloseCalls = state.autoCloseCalls + 1
@@ -722,8 +723,12 @@ local function RegisterFactoryFrameBridgeRestoreTests(test, Assert, LoadAddonMod
       addon._FactoryInternal.InitializeFactoryFrameBridge(ctx)
 
       Assert.NotNil(capturedFrameBridgeOpts, "frame bridge context must be created")
+      local getDungeonName = capturedFrameBridgeOpts and capturedFrameBridgeOpts.getDungeonName or nil
+      if getDungeonName == nil then
+        error("factory frame bridge must wire GetDungeonName into the center notice context")
+      end
       Assert.Equal(
-        capturedFrameBridgeOpts.getDungeonName and capturedFrameBridgeOpts.getDungeonName(558, "enUS"),
+        getDungeonName(558, "enUS"),
         "Magisters' Terrace",
         "factory frame bridge must wire GetDungeonName into the center notice context"
       )
@@ -747,14 +752,15 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
       or nil
 
     Assert.NotNil(resolveAutoCloseMainFrameEnabled, "factory should export the auto-close resolver")
-    Assert.False(resolveAutoCloseMainFrameEnabled(nil), "missing saved data should default auto-close to disabled")
-    Assert.False(resolveAutoCloseMainFrameEnabled({}), "missing saved value should default auto-close to disabled")
-    Assert.True(
-      resolveAutoCloseMainFrameEnabled({ autoCloseMainFrame = true }),
-      "explicit true should enable runtime auto-close"
-    )
+    local resolveAutoClose = resolveAutoCloseMainFrameEnabled
+    if resolveAutoClose == nil then
+      error("factory should export the auto-close resolver")
+    end
+    Assert.False(resolveAutoClose(nil), "missing saved data should default auto-close to disabled")
+    Assert.False(resolveAutoClose({}), "missing saved value should default auto-close to disabled")
+    Assert.True(resolveAutoClose({ autoCloseMainFrame = true }), "explicit true should enable runtime auto-close")
     Assert.False(
-      resolveAutoCloseMainFrameEnabled({ autoCloseMainFrame = false }),
+      resolveAutoClose({ autoCloseMainFrame = false }),
       "explicit false should keep runtime auto-close disabled"
     )
   end)
@@ -782,7 +788,7 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
     )
   end)
 
-  test("Factory raid behavior resolver defaults to Show + H and preserves supported overrides", function()
+  test("Factory raid behavior resolver defaults to raid off and normalizes legacy values", function()
     local addon = LoadAddonModules({ "isiLive_factory.lua" }, {
       _FactoryInternal = {},
     })
@@ -790,17 +796,26 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
     local resolveRaidBehavior = addon._FactoryInternal and addon._FactoryInternal.ResolveRaidTransitionBehavior or nil
 
     Assert.NotNil(resolveRaidBehavior, "factory should export the raid behavior resolver")
-    Assert.Equal(resolveRaidBehavior(nil), "show_h", "missing raid behavior should default to Show + H")
-    Assert.Equal(resolveRaidBehavior({}), "show_h", "missing raid behavior field should default to Show + H")
+    local resolveRaid = resolveRaidBehavior
+    if resolveRaid == nil then
+      error("factory should export the raid behavior resolver")
+    end
+    Assert.Equal(resolveRaid(nil), "hide", "missing raid behavior should default to raid off")
+    Assert.Equal(resolveRaid({}), "hide", "missing raid behavior field should default to raid off")
     Assert.Equal(
-      resolveRaidBehavior({ raidTransitionBehavior = "show_keep" }),
-      "show_keep",
-      "supported Show + Keep override should be preserved"
+      resolveRaid({ raidTransitionBehavior = "show_h" }),
+      "hide",
+      "legacy raid behavior must normalize to raid off"
     )
     Assert.Equal(
-      resolveRaidBehavior({ raidTransitionBehavior = "preserve" }),
-      "preserve",
-      "supported Keep State override should be preserved"
+      resolveRaid({ raidTransitionBehavior = "show_keep" }),
+      "hide",
+      "legacy raid behavior must normalize to raid off"
+    )
+    Assert.Equal(
+      resolveRaid({ raidTransitionBehavior = "preserve" }),
+      "hide",
+      "legacy raid behavior must normalize to raid off"
     )
   end)
 
@@ -916,7 +931,7 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
     Assert.NotNil(state.roster.party1, "party1 should be in roster")
   end)
 
-  test("Raid group switches to H mode, keeps frame visible and prints notification", function()
+  test("Raid group hides the UI and suppresses background processing", function()
     local controller, state = BuildGroupController(LoadAddonModules, {
       getNumGroupMembers = function()
         return 6
@@ -924,101 +939,13 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
     })
 
     controller.HandleGroupRosterUpdate()
-    controller.HandleGroupRosterUpdate()
 
-    Assert.True(state.mainFrameVisible, "frame must stay visible for raid group (H mode)")
-    Assert.Equal(state.raidModeSwitches, 1, "switchToRaidMode must be called exactly once on first raid transition")
-    Assert.Equal(state.uiUpdates, 1, "raid transition must re-render roster into H mode")
-    Assert.Equal(#state.prints, 1, "exactly one notification must be printed")
-    Assert.True(state.prints[1]:find("Raid") ~= nil, "notification must contain raid message")
-  end)
-
-  test("Raid auto-open suppresses self-triggered show callbacks during first raid transition", function()
-    local controller, state
-    local controllerRef = nil
-    controller, state = BuildGroupController(LoadAddonModules, {
-      getNumGroupMembers = function()
-        return 6
-      end,
-      setMainFrameVisible = function(visible, reasonOrOpts)
-        state.mainFrameVisible = visible
-        table.insert(state.mainFrameVisibleCalls, {
-          visible = visible,
-          reasonOrOpts = reasonOrOpts,
-        })
-        local opts = type(reasonOrOpts) == "table" and reasonOrOpts or {}
-        if visible and opts.skipShowCallbacks ~= true and controllerRef then
-          controllerRef.HandleGroupRosterUpdate()
-        end
-      end,
-    })
-    controllerRef = controller
-
-    controller.HandleGroupRosterUpdate()
-
-    local firstCall = state.mainFrameVisibleCalls[1]
-    Assert.NotNil(firstCall, "raid auto-open should still issue a show request")
-    Assert.True(
-      type(firstCall.reasonOrOpts) == "table" and firstCall.reasonOrOpts.skipShowCallbacks == true,
-      "raid auto-open must suppress follow-up show callbacks during the transition"
-    )
-    Assert.Equal(state.raidModeSwitches, 1, "raid transition must still switch to H mode exactly once")
-    Assert.Equal(#state.prints, 1, "raid transition notice must still print exactly once")
-  end)
-
-  test("Raid behavior Show + Keep opens the frame without forcing H mode", function()
-    local controller, state = BuildGroupController(LoadAddonModules, {
-      getNumGroupMembers = function()
-        return 6
-      end,
-      mainFrameVisible = false,
-      getRaidTransitionBehavior = function()
-        return "show_keep"
-      end,
-    })
-
-    controller.HandleGroupRosterUpdate()
-
-    Assert.True(state.mainFrameVisible, "Show + Keep should still open the frame on raid transition")
-    Assert.Equal(state.raidModeSwitches, 0, "Show + Keep must not force H mode")
-    Assert.Equal(state.uiUpdates, 1, "Show + Keep should still refresh the UI once")
-    Assert.Equal(#state.prints, 1, "Show + Keep should still print the raid transition notice once")
-  end)
-
-  test("Raid behavior Keep State preserves hidden frame and current layout", function()
-    local controller, state = BuildGroupController(LoadAddonModules, {
-      getNumGroupMembers = function()
-        return 6
-      end,
-      mainFrameVisible = false,
-      getRaidTransitionBehavior = function()
-        return "preserve"
-      end,
-    })
-
-    controller.HandleGroupRosterUpdate()
-
-    Assert.False(state.mainFrameVisible, "Keep State must preserve a hidden frame on raid transition")
-    Assert.Equal(state.raidModeSwitches, 0, "Keep State must not force H mode")
-    Assert.Equal(state.uiUpdates, 1, "Keep State should still refresh the UI once")
-    Assert.Equal(#state.prints, 1, "Keep State should still print the raid transition notice once")
-  end)
-
-  test("Raid notification prints again after leaving raid-size group", function()
-    local members = 6
-    local controller, state = BuildGroupController(LoadAddonModules, {
-      getNumGroupMembers = function()
-        return members
-      end,
-    })
-
-    controller.HandleGroupRosterUpdate()
-    members = 5
-    controller.HandleGroupRosterUpdate()
-    members = 6
-    controller.HandleGroupRosterUpdate()
-
-    Assert.Equal(#state.prints, 2, "raid notification should print again on fresh transition to raid size")
+    Assert.False(state.mainFrameVisible, "raid transition must hide the main frame")
+    Assert.Equal(#state.mainFrameVisibleCalls, 1, "raid transition should issue one hide request")
+    Assert.False(state.mainFrameVisibleCalls[1].visible, "raid transition should hide instead of opening")
+    Assert.Equal(state.raidModeSwitches, 0, "raid transition must not switch to H mode")
+    Assert.Equal(state.uiUpdates, 0, "raid transition must not rerender the roster")
+    Assert.Equal(#state.prints, 0, "raid transition must not print a raid notice")
   end)
 
   test("First group join fires queue capture and announce", function()

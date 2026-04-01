@@ -47,6 +47,9 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     clearRioBaselineSnapshot = type(callbacks.clearRioBaselineSnapshot) == "function"
         and callbacks.clearRioBaselineSnapshot
       or function() end,
+    clearPendingQueueJoinInfo = type(callbacks.clearPendingQueueJoinInfo) == "function"
+        and callbacks.clearPendingQueueJoinInfo
+      or function() end,
     clearKnownUsers = function()
       local sync = modules.sync
       if sync and sync.ClearKnownUsers then
@@ -79,7 +82,7 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     sendIsiLiveHello = RequireFunction(deps.sendIsiLiveHello, "sendIsiLiveHello"),
     sendRefreshRequest = RequireFunction(deps.sendRefreshRequest, "sendRefreshRequest"),
     getRaidTransitionBehavior = deps.getRaidTransitionBehavior or function()
-      return "show_h"
+      return "hide"
     end,
     shouldAutoCloseMainFrame = deps.shouldAutoCloseMainFrame or function()
       return false
@@ -116,6 +119,7 @@ local function BuildGroupControllerDepsFromContext(ctx)
       updateLeaderButtons = ctx.updateLeaderButtons,
       clearLatestQueueTarget = ctx.clearLatestQueueTarget,
       clearRioBaselineSnapshot = ctx.clearRioBaselineSnapshot,
+      clearPendingQueueJoinInfo = ctx.clearPendingQueueJoinInfo,
       resetInspectAll = ctx.resetInspectAll,
       resetInspectQueues = ctx.resetInspectQueues,
       updateUI = ctx.updateUI,
@@ -170,6 +174,9 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
     resolveLocaleTag = RequireFunction(deps.resolveLocaleTag, "resolveLocaleTag"),
     setLocaleTable = RequireFunction(deps.setLocaleTable, "setLocaleTable"),
     isInGroup = RequireFunction(deps.isInGroup, "isInGroup"),
+    isRaidGroup = type(deps.isRaidGroup) == "function" and deps.isRaidGroup or function()
+      return false
+    end,
     isTestMode = RequireFunction(state.isTestMode, "state.isTestMode"),
     isTestAllMode = RequireFunction(state.isTestAllMode, "state.isTestAllMode"),
     exitTestMode = RequireFunction(callbacks.exitTestMode, "callbacks.exitTestMode"),
@@ -399,6 +406,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     setLocaleTable = ctx.setLocaleTable,
     isInGroup = ctx.isInGroup,
     isInChallengeMode = ctx.isInChallengeMode,
+    isRaidGroup = ctx.isRaidGroup,
     isNegativeApplicationStatusEvent = ctx.isNegativeApplicationStatusEvent,
     getNormalizedActiveEntryInfo = ctx.getNormalizedActiveEntryInfo,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,

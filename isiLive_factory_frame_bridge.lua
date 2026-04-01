@@ -149,6 +149,28 @@ local function CreateFactoryContext(addonName, tbl)
   ctx.GetInspectSpecName = modules.units.GetInspectSpecName
   ctx.GetShortSpecLabel = modules.units.GetShortSpecLabel
   ctx.GetUnitRio = modules.units.GetUnitRio
+  ctx.GetNumGroupMembers = function()
+    local getNumGroupMembers = rawget(_G, "GetNumGroupMembers")
+    if type(getNumGroupMembers) ~= "function" then
+      return 0
+    end
+    local ok, groupMembers = pcall(getNumGroupMembers)
+    groupMembers = ok and tonumber(groupMembers) or nil
+    if not groupMembers then
+      return 0
+    end
+    return math.max(0, math.floor(groupMembers))
+  end
+  ctx.IsRaidGroup = function()
+    local isInRaid = rawget(_G, "IsInRaid")
+    if type(isInRaid) == "function" then
+      local ok, raid = pcall(isInRaid)
+      if ok and raid == true then
+        return true
+      end
+    end
+    return IsInGroup() and ctx.GetNumGroupMembers() > 5
+  end
   ctx.GetSubZoneText = function()
     local getSubZoneText = rawget(_G, "GetSubZoneText")
     if type(getSubZoneText) ~= "function" then
@@ -313,6 +335,7 @@ local function InitializeFactoryFrameBridge(ctx)
     mainFrameMinHeight = ctx.MIN_FRAME_HEIGHT,
     isInGroup = IsInGroup,
     isInCombat = ctx.IsInCombat,
+    isRaidGroup = ctx.IsRaidGroup,
     onShownInGroup = function()
       if type(ctx.RestoreLayoutState) == "function" then
         ctx.RestoreLayoutState()

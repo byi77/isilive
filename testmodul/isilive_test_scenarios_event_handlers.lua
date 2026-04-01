@@ -1275,6 +1275,81 @@ local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fix
     Assert.Equal(counters.uiUpdates, 1, "visible regen must rerender the main UI once")
   end)
 
+  test("Event handlers suppress background processing while raid mode is active", function()
+    local counters = {
+      groupUpdates = 0,
+      uiUpdates = 0,
+      backgroundSnapshots = 0,
+      teleportUpdates = 0,
+      chatProcessed = 0,
+    }
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+      isRaidGroup = function()
+        return true
+      end,
+      handleGroupRosterUpdate = function()
+        counters.groupUpdates = counters.groupUpdates + 1
+      end,
+      updateUI = function()
+        counters.uiUpdates = counters.uiUpdates + 1
+      end,
+      updateMPlusTeleportButton = function()
+        counters.teleportUpdates = counters.teleportUpdates + 1
+      end,
+      sendOwnBackgroundSnapshot = function()
+        counters.backgroundSnapshots = counters.backgroundSnapshots + 1
+      end,
+      processAddonMessage = function()
+        counters.chatProcessed = counters.chatProcessed + 1
+        return { shouldAck = true }
+      end,
+      getPendingMainFrameVisible = function()
+        return nil
+      end,
+      getPendingMainFrameHeight = function()
+        return nil
+      end,
+      getPendingMainFrameWidth = function()
+        return nil
+      end,
+      isMainFrameShown = function()
+        return false
+      end,
+      tryRestoreCenterNoticeTeleportButton = function() end,
+      updateCdTracker = function()
+        counters.backgroundSnapshots = counters.backgroundSnapshots + 1
+      end,
+      updateStatusLine = function()
+        counters.backgroundSnapshots = counters.backgroundSnapshots + 1
+      end,
+      maybeShowNonMythicDungeonEntryNotice = function()
+        counters.backgroundSnapshots = counters.backgroundSnapshots + 1
+      end,
+      maybeShowPortalNavigatorNotice = function()
+        counters.backgroundSnapshots = counters.backgroundSnapshots + 1
+      end,
+      checkIfEnteredTargetDungeon = function()
+        counters.backgroundSnapshots = counters.backgroundSnapshots + 1
+      end,
+    })
+
+    controller:Dispatch("PLAYER_LOGIN")
+    controller:Dispatch("PLAYER_ENTERING_WORLD")
+    controller:Dispatch("PLAYER_SPECIALIZATION_CHANGED", "player")
+    controller:Dispatch("PLAYER_EQUIPMENT_CHANGED")
+    controller:Dispatch("SPELL_UPDATE_COOLDOWN")
+    controller:Dispatch("CHAT_MSG_ADDON", "ISI_SYNC", "REQSYNC", "PARTY", "Alpha")
+    controller:Dispatch("GROUP_ROSTER_UPDATE")
+
+    Assert.Equal(counters.groupUpdates, 1, "raid mode must still route roster updates so raid exit can be detected")
+    Assert.Equal(counters.uiUpdates, 0, "raid mode must not rerender the UI")
+    Assert.Equal(counters.teleportUpdates, 0, "raid mode must not refresh teleport buttons")
+    Assert.Equal(counters.chatProcessed, 0, "raid mode must not process addon sync traffic")
+    Assert.Equal(counters.backgroundSnapshots, 0, "raid mode must not run background refresh hooks")
+  end)
+
   test("Event handlers pre-render UI for hidden addon sync updates", function()
     local counters = { uiUpdates = 0 }
     local roster = {
@@ -1539,7 +1614,11 @@ local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAd
     Assert.Equal(counters.uiUpdates, 0, "declined ready-check hold must not use generic updateUI")
 
     now = 120
-    scheduledCallback()
+    local cleanupCallback = scheduledCallback
+    if cleanupCallback == nil then
+      error("declined ready-check hold must schedule a cleanup callback")
+    end
+    cleanupCallback()
 
     Assert.Nil(declinedUntilByUnit.party1, "declined ready-check hold should clear after the timer expires")
     Assert.Equal(counters.readyCheckRefreshes, 5, "timer expiry should trigger one more dedicated ready-check refresh")

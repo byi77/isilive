@@ -19,6 +19,9 @@ function FrameBridge.CreateContext(opts)
   local onShownInGroup = RequireFunction(opts.onShownInGroup, "onShownInGroup")
   local onShownNoGroup = RequireFunction(opts.onShownNoGroup, "onShownNoGroup")
   local isInCombat = RequireFunction(opts.isInCombat, "isInCombat")
+  local isRaidGroup = type(opts.isRaidGroup) == "function" and opts.isRaidGroup or function()
+    return false
+  end
   local resolveTeleportSpellID = RequireFunction(opts.resolveTeleportSpellID, "resolveTeleportSpellID")
   local applySecureSpellToButton = RequireFunction(opts.applySecureSpellToButton, "applySecureSpellToButton")
   local isSpellKnown = RequireFunction(opts.isSpellKnown, "isSpellKnown")
@@ -68,6 +71,7 @@ function FrameBridge.CreateContext(opts)
     minHeight = tonumber(opts.mainFrameMinHeight) or 212,
     parent = opts.parent,
     isInCombat = isInCombat,
+    isRaidGroup = isRaidGroup,
     onShownInGroup = onShownInGroup,
     onShownNoGroup = onShownNoGroup,
   })
@@ -80,7 +84,6 @@ function FrameBridge.CreateContext(opts)
     mainUI = mainUI,
     mainFrame = mainUI.frame,
   }
-  local suppressNextShowCallbacks = false
 
   function context.SetCenterNoticeVisible(visible)
     centerNotice.SetVisible(visible)
@@ -100,10 +103,12 @@ function FrameBridge.CreateContext(opts)
 
   function context.SetMainFrameVisible(visible, showOpts)
     showOpts = type(showOpts) == "table" and showOpts or {}
+    if visible and type(isRaidGroup) == "function" and isRaidGroup() then
+      return false
+    end
     local didShow = mainUI.SetVisible(visible)
     if visible and didShow == true then
-      if suppressNextShowCallbacks or showOpts.skipShowCallbacks == true then
-        suppressNextShowCallbacks = false
+      if showOpts.skipShowCallbacks == true then
         return didShow
       end
       if isInGroup() then
@@ -111,11 +116,6 @@ function FrameBridge.CreateContext(opts)
       else
         onShownNoGroup()
       end
-    elseif visible and showOpts.skipShowCallbacks == true then
-      local pendingVisible = type(mainUI.GetPendingVisible) == "function" and mainUI.GetPendingVisible() or nil
-      suppressNextShowCallbacks = pendingVisible == true
-    elseif not visible then
-      suppressNextShowCallbacks = false
     end
     return didShow
   end
@@ -129,6 +129,9 @@ function FrameBridge.CreateContext(opts)
   end
 
   function context.ToggleMainFrameVisibility()
+    if type(isRaidGroup) == "function" and isRaidGroup() and not mainUI.frame:IsShown() then
+      return
+    end
     mainUI.ToggleVisibility(isInGroup())
   end
 

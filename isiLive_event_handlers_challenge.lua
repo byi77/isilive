@@ -204,8 +204,15 @@ local function PromoteDeclinedReadyCheckUnitsToHold(ctx)
   end
 end
 
+local function IsRaidModeActive(ctx)
+  return type(ctx.isRaidGroup) == "function" and ctx.isRaidGroup() == true
+end
+
 function ChallengeLifecycle.BuildHandlers(ctx)
   local function HandleChallengeModeStart(_self)
+    if IsRaidModeActive(ctx) then
+      return
+    end
     ctx.lastRecordedRunSignature = nil
     ctx.lastRecordedRunCaptured = false
     ctx.pendingRecordedRunRetrySignature = nil
@@ -224,6 +231,9 @@ function ChallengeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandleChallengeModeCompletedOrReset(frame)
+    if IsRaidModeActive(ctx) then
+      return
+    end
     TryRecordCompletedRun(ctx, ResolveCompletedRunInfo(), POST_RUN_CAPTURE_RETRIES)
 
     if ctx.isInGroup() and ctx.shouldAutoOpenMainFrameOnKeyEnd() then
@@ -247,12 +257,18 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     CHALLENGE_MODE_COMPLETED = HandleChallengeModeCompletedOrReset,
     CHALLENGE_MODE_RESET = HandleChallengeModeCompletedOrReset,
     READY_CHECK = function(_self)
+      if IsRaidModeActive(ctx) then
+        return
+      end
       ctx._readyCheckLingerSeq = (ctx._readyCheckLingerSeq or 0) + 1
       ctx.setReadyCheckActive(true)
       ResetReadyCheckDeclinedTracking(ctx)
       RefreshReadyCheckUI(ctx)
     end,
     READY_CHECK_CONFIRM = function(_self, unit, status)
+      if IsRaidModeActive(ctx) then
+        return
+      end
       if ctx.isReadyCheckActive() then
         if type(unit) == "string" and unit ~= "" then
           local declinedUnits = ctx.readyCheckDeclinedUnits or {}
@@ -267,6 +283,9 @@ function ChallengeLifecycle.BuildHandlers(ctx)
       end
     end,
     READY_CHECK_FINISHED = function()
+      if IsRaidModeActive(ctx) then
+        return
+      end
       ctx.setReadyCheckActive(false)
       PromoteDeclinedReadyCheckUnitsToHold(ctx)
       RefreshReadyCheckUI(ctx)

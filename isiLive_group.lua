@@ -50,6 +50,7 @@ local function BuildDeps(opts)
     resetInspectQueues = opts.resetInspectQueues or function() end,
     updateUI = opts.updateUI or function() end,
     updateMPlusTeleportButton = opts.updateMPlusTeleportButton or function() end,
+    clearPendingQueueJoinInfo = opts.clearPendingQueueJoinInfo or function() end,
     getUnitNameAndRealm = opts.getUnitNameAndRealm or function(_unit)
       return nil, nil
     end,
@@ -95,7 +96,7 @@ local function BuildDeps(opts)
       return false
     end,
     getRaidTransitionBehavior = opts.getRaidTransitionBehavior or function()
-      return "show_h"
+      return "hide"
     end,
     autoCloseMainFrame = opts.autoCloseMainFrame or function() end,
   }
@@ -349,25 +350,18 @@ local function HandleGroupRosterUpdate(deps)
   local wasRaidGroupBefore = deps.getWasRaidGroup() and true or false
   if numMembers > 5 then
     if not wasRaidGroupBefore then
-      local L = deps.getL()
-      local raidTransitionBehavior = deps.getRaidTransitionBehavior()
-      if L.RAID_GROUP_HIDDEN then
-        deps.printFn(L.RAID_GROUP_HIDDEN)
-      end
-      if raidTransitionBehavior == "show_h" then
-        deps.switchToRaidMode()
-        deps.setMainFrameVisible(true, {
-          skipShowCallbacks = true,
-        })
-      elseif raidTransitionBehavior == "show_keep" then
-        deps.setMainFrameVisible(true, {
-          skipShowCallbacks = true,
-        })
-      end
-      deps.updateUI()
+      deps.clearPendingQueueJoinInfo()
+      deps.clearLatestQueueTarget()
+      deps.clearRioBaselineSnapshot()
+      deps.resetInspectAll()
+      deps.resetInspectQueues()
+      deps.setRoster({})
     end
     deps.setWasRaidGroup(true)
-    deps.updateLeaderButtons()
+    deps.setMainFrameVisible(false, {
+      reason = "raid",
+      skipShowCallbacks = true,
+    })
     return
   end
 

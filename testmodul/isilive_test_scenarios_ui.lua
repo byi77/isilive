@@ -684,6 +684,91 @@ local function RegisterFrameBridgeVisibilityTests(test, Assert, WithGlobals, Loa
     end)
   end)
 
+  test("Frame bridge blocks show requests while raid mode is active", function()
+    local visible = false
+    local groupShownCalls = 0
+
+    WithGlobals({
+      UIParent = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_frame_bridge.lua" })
+      local FrameBridge = RequireValue(addon.FrameBridge, "FrameBridge module should load")
+
+      local context = FrameBridge.CreateContext({
+        createCenterNotice = function()
+          return {
+            frame = {},
+            teleportButton = {},
+            SetVisible = function() end,
+            UpdateTeleportButtonVisual = function() end,
+            Show = function() end,
+          }
+        end,
+        createInviteHint = function()
+          return {
+            Show = function() end,
+          }
+        end,
+        createMainFrame = function(_opts)
+          return {
+            frame = {
+              IsShown = function()
+                return visible
+              end,
+            },
+            SetVisible = function(wantVisible)
+              if wantVisible then
+                visible = true
+                return true
+              end
+              visible = false
+              return true
+            end,
+            SetHeightSafe = function() end,
+            ToggleVisibility = function() end,
+            GetPendingVisible = function()
+              return nil
+            end,
+          }
+        end,
+        isInGroup = function()
+          return true
+        end,
+        isRaidGroup = function()
+          return true
+        end,
+        onShownInGroup = function()
+          groupShownCalls = groupShownCalls + 1
+        end,
+        onShownNoGroup = function() end,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellID = function()
+          return nil
+        end,
+        applySecureSpellToButton = function() end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return nil
+        end,
+        formatCooldownSeconds = function(value)
+          return tostring(value or "")
+        end,
+        getL = function()
+          return {}
+        end,
+      })
+
+      local didShow = context.SetMainFrameVisible(true)
+      Assert.False(didShow, "raid mode must reject frame opens")
+      Assert.False(visible, "raid mode must keep the frame hidden")
+      Assert.Equal(groupShownCalls, 0, "raid mode must not run group show callbacks")
+    end)
+  end)
+
   test("Frame bridge center notice strips dungeon context from runtime calls", function()
     local shownMessage = nil
     local shownDuration = nil
@@ -766,7 +851,7 @@ local function RegisterFrameBridgeVisibilityTests(test, Assert, WithGlobals, Loa
     end)
   end)
 
-  test("Frame bridge preserves skipShowCallbacks across deferred combat opens", function()
+  test("Frame bridge deferred combat opens still run show callbacks after regen", function()
     local visible = false
     local pendingVisible = nil
     local inCombat = true
@@ -860,7 +945,7 @@ local function RegisterFrameBridgeVisibilityTests(test, Assert, WithGlobals, Loa
       inCombat = false
       local appliedShow = context.SetMainFrameVisible(true)
       Assert.True(appliedShow, "queued show should open after combat")
-      Assert.Equal(groupShownCalls, 0, "deferred skipShowCallbacks must also suppress the later open callback")
+      Assert.Equal(groupShownCalls, 1, "deferred show should still run the group callback after combat")
     end)
   end)
 
@@ -2018,9 +2103,7 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
             SETTINGS_DEFAULT_OPEN_UI_H = "H",
             SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
             SETTINGS_RAID_TRANSITION_BEHAVIOR = "Raid Behavior",
-            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_H = "Show + H",
-            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_KEEP = "Show + Keep",
-            SETTINGS_RAID_TRANSITION_BEHAVIOR_PRESERVE = "Keep State",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_HIDE = "Raid Off",
             SETTINGS_QUEUE_DEBUG = "Queue Debug",
             SETTINGS_RUNTIME_LOG = "Runtime Log",
           }
@@ -2263,7 +2346,7 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
     end)
   end)
 
-  test("Settings panel defaults Raid behavior to Show + H and persists user choice", function()
+  test("Settings panel defaults Raid behavior to Raid Off and persists user choice", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}
     local raidBehaviorChanges = {}
@@ -2306,9 +2389,7 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
             SETTINGS_DEFAULT_OPEN_UI_H = "H",
             SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
             SETTINGS_RAID_TRANSITION_BEHAVIOR = "Raid Behavior",
-            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_H = "Show + H",
-            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_KEEP = "Show + Keep",
-            SETTINGS_RAID_TRANSITION_BEHAVIOR_PRESERVE = "Keep State",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_HIDE = "Raid Off",
             SETTINGS_ROSTER_COLUMN_GUIDES = "Column Guides",
             SETTINGS_SHOW_TIMEWAYS_NAVIGATOR = "Show Timeways Navigator",
             SETTINGS_QUEUE_DEBUG = "Queue Debug",
@@ -2330,28 +2411,23 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
       Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
       Assert.Nil(db.raidTransitionBehavior, "opening settings should not persist the default raid behavior")
 
-      local showHButton = nil
-      local preserveButton = nil
+      local hideButton = nil
       for _, frame in ipairs(createdFrames) do
-        if frame._optionValue == "show_h" then
-          showHButton = frame
-        elseif frame._optionValue == "preserve" then
-          preserveButton = frame
+        if frame._optionValue == "hide" then
+          hideButton = frame
         end
       end
 
-      Assert.NotNil(showHButton, "settings panel should create a Show + H raid-behavior button")
-      Assert.NotNil(preserveButton, "settings panel should create a Keep State raid-behavior button")
+      Assert.NotNil(hideButton, "settings panel should create a Raid Off raid-behavior button")
       ---@diagnostic disable: need-check-nil, undefined-field
-      Assert.Equal(showHButton._backdropColor[4], 0.25, "Show + H should be highlighted by default")
-      Assert.Equal(preserveButton._backdropColor[4], 0.7, "Keep State should stay unselected by default")
+      Assert.Equal(hideButton._backdropColor[4], 0.25, "Raid Off should be highlighted by default")
 
-      local onClickPreserve = preserveButton._scripts and preserveButton._scripts.OnClick or nil
-      Assert.NotNil(onClickPreserve, "raid-behavior button should define OnClick")
-      onClickPreserve(preserveButton, "LeftButton") ---@diagnostic disable-line: need-check-nil
+      local onClickHide = hideButton._scripts and hideButton._scripts.OnClick or nil
+      Assert.NotNil(onClickHide, "raid-behavior button should define OnClick")
+      onClickHide(hideButton, "LeftButton") ---@diagnostic disable-line: need-check-nil
 
-      Assert.Equal(db.raidTransitionBehavior, "preserve", "choosing Keep State should persist the preserved mode")
-      Assert.Equal(raidBehaviorChanges[1], "preserve", "raid behavior selector should notify the callback")
+      Assert.Equal(db.raidTransitionBehavior, "hide", "choosing Raid Off should persist the disabled mode")
+      Assert.Equal(raidBehaviorChanges[1], "hide", "raid behavior selector should notify the callback")
       ---@diagnostic enable: need-check-nil, undefined-field
     end)
   end)
@@ -2394,9 +2470,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
             SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP = "Show on Login / Reload",
             SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END = "Auto Open on Key End",
             SETTINGS_RAID_TRANSITION_BEHAVIOR = "Raid Behavior",
-            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_H = "Show + H",
-            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_KEEP = "Show + Keep",
-            SETTINGS_RAID_TRANSITION_BEHAVIOR_PRESERVE = "Keep State",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_HIDE = "Raid Off",
             SETTINGS_ROSTER_COLUMN_GUIDES = "Column Guides",
             SETTINGS_SHOW_TIMEWAYS_NAVIGATOR = "Show Timeways Navigator",
             SETTINGS_SOUND_LEAD_ENABLED = "Sound: Lead Transfer",
@@ -2498,9 +2572,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
             SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP = "Show on Login / Reload",
             SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END = "Auto Open on Key End",
             SETTINGS_RAID_TRANSITION_BEHAVIOR = "Raid Behavior",
-            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_H = "Show + H",
-            SETTINGS_RAID_TRANSITION_BEHAVIOR_SHOW_KEEP = "Show + Keep",
-            SETTINGS_RAID_TRANSITION_BEHAVIOR_PRESERVE = "Keep State",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_HIDE = "Raid Off",
             SETTINGS_MARKERS_LEADER_ONLY = "Markers Leader Only",
             SETTINGS_QUEUE_DEBUG = "Queue Debug",
             SETTINGS_RUNTIME_LOG = "Runtime Log",

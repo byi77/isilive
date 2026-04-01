@@ -1367,10 +1367,13 @@ local function CreateDragHandle(frame)
   return dragHandle
 end
 
-local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup, isInCombat)
+local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup, isInCombat, isRaidGroup)
   local pendingVisible = nil
 
   local function SetVisible(visible)
+    if visible and isRaidGroup and isRaidGroup() then
+      return false
+    end
     if isInCombat and isInCombat() then
       pendingVisible = visible and true or false
       return false
@@ -1393,6 +1396,13 @@ local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup,
   end
 
   local function ToggleVisibility(isInGroup)
+    if isRaidGroup and isRaidGroup() then
+      if frame:IsShown() then
+        SetVisible(false)
+      end
+      return
+    end
+
     if isInCombat and isInCombat() then
       local wantVisible = not frame:IsShown()
       pendingVisible = wantVisible
@@ -1464,6 +1474,9 @@ function UI.CreateMainFrame(opts)
   local isInCombat = opts.isInCombat or function()
     return InCombatLockdown and InCombatLockdown()
   end
+  local isRaidGroup = opts.isRaidGroup or function()
+    return false
+  end
   local onShownInGroup = opts.onShownInGroup or function() end
   local onShownNoGroup = opts.onShownNoGroup or function() end
 
@@ -1491,7 +1504,7 @@ function UI.CreateMainFrame(opts)
   })
 
   local SetVisible, ToggleVisibility, GetPendingVisible, ClearPendingVisible =
-    CreateVisibilityController(frame, onShownInGroup, onShownNoGroup, isInCombat)
+    CreateVisibilityController(frame, onShownInGroup, onShownNoGroup, isInCombat, isRaidGroup)
   local SetHeightSafe, GetPendingHeight = CreateHeightController(frame, isInCombat)
   local SetWidthSafe, GetPendingWidth = CreateWidthController(frame, isInCombat)
 

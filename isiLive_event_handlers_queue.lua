@@ -61,10 +61,14 @@ local function ShouldPreservePendingQueueJoinInfoOnNegativeStatus(ctx)
   return (now - capturedAt) <= NEGATIVE_STATUS_PENDING_GRACE_SECONDS
 end
 
+local function IsRaidModeActive(ctx)
+  return type(ctx.isRaidGroup) == "function" and ctx.isRaidGroup() == true
+end
+
 function QueueLifecycle.BuildHandlers(ctx)
   return {
     LFG_LIST_APPLICATION_STATUS_UPDATED = function(_self, ...)
-      if ctx.isInChallengeMode() then
+      if ctx.isInChallengeMode() or IsRaidModeActive(ctx) then
         return
       end
       if ctx.isTestMode() or ctx.isTestAllMode() then
@@ -84,13 +88,13 @@ function QueueLifecycle.BuildHandlers(ctx)
       ctx.captureQueueJoinCandidate(...)
     end,
     LFG_LIST_SEARCH_RESULT_UPDATED = function(_self, ...)
-      if ctx.isInChallengeMode() then
+      if ctx.isInChallengeMode() or IsRaidModeActive(ctx) then
         return
       end
       ctx.captureQueueJoinCandidate(...)
     end,
     LFG_LIST_ACTIVE_ENTRY_UPDATE = function(_self)
-      if ctx.isInChallengeMode() then
+      if ctx.isInChallengeMode() or IsRaidModeActive(ctx) then
         return
       end
       local entryInfo = ctx.getNormalizedActiveEntryInfo()

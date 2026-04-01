@@ -22,7 +22,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ## Regeluebersicht
 
 1. Queue-Zielaufloesung darf ohne konkreten map/activity-Kontext niemals raten.
-2. Die UI muss per STRG-F9 in jedem Zustand toggelbar bleiben; blockierte Show/Hide-Wechsel werden im Kampf gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
+2. Die UI muss per STRG-F9 in allen Nicht-Raid-Zustaenden toggelbar bleiben; im Raid bleibt die Main-UI aus. Blockierte Show/Hide-Wechsel werden im Kampf gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
 3. Negative Queue-Folgeevents duerfen ein bereits gruppiertes Ziel nicht unerwartet loeschen.
 4. RIO-Delta darf erst nach erfolgreichem verzoegertem Post-Run-Refresh aktiviert werden.
 5. Teleport-Ziel darf ohne Activity-Kontext nicht per Name geraten werden.
@@ -30,8 +30,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 7. Queue-Capture darf pending/applied Rauschen nicht als neues Ziel behandeln und muss Doppler ignorieren.
 8. Highlight-Aufloesung darf nur mit eindeutigem activity/map-Kontext arbeiten und kein Gruppen-freies Fallback nutzen.
 9. Der aktive Queue-Join-Runtimepfad muss waehrend aktiver Challenge Queue-Events ignorieren und ausserhalb davon Pending-Queue-Infos fuer den Gruppenbeitritts-Announce deterministisch setzen und wieder leeren.
-10. Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; blockierte Main-UI-Sichtbarkeitswechsel werden gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
-11. In Raid-Groesse folgt das Main-UI-Verhalten der konfigurierten Raid-Option (`show_h`, `show_keep`, `preserve`); beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
+10. Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; blockierte Main-UI-Sichtbarkeitswechsel werden ausser im Raid gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
+11. In Raid-Groesse wird die Main-UI sofort ausgeblendet, die Raid-Option wird auf `hide` normalisiert und es laeuft weder UI- noch Hintergrund-Sync weiter; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
 12. Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
 13. Voll-Refresh laeuft nur in erlaubten Zustaenden und muss bei Stop oder aktivem M+ sauber aussetzen.
 14. Slash-Commands muessen State-Zyklen stabil ausfuehren (test/stop/start/pause/resume/lang).
@@ -46,12 +46,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 23. coding: KEINE fallbacks von fallbacks
 24. coding: kein raten, schätzen oder herbeizaubern von aussagen. fakten zählen! robust und qualitativ hochwertig bleiben!
 25. der rio delta kann niemals negativ sein also zb. -15, der kann nur 0 oder höher sein.
-26. die ui kann jederzeit mit STRG+F9 geöffnet und geschlossen werden, auch infight
-27. das schliessen der ui ist jederzeit anforderbar, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9; blockierte hide-wechsel werden bei `PLAYER_REGEN_ENABLED` nachgezogen
-28. während die ui ausgeblendet ist, laufen roster/addon-sync im hintergrund weiter und dürfen eventgetrieben vor-rendern; queue-scanning und sonstige dauerhafte polling-last stoppen jedoch, der kick-sync bleibt fuer isiLive-gruppenmitglieder aktiv.
+26. die ui kann in allen Nicht-Raid-Zustaenden mit STRG+F9 geöffnet und geschlossen werden; im raid bleibt sie aus
+27. das schliessen der ui ist jederzeit anforderbar, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9; ausser im Raidmodus bleiben blockierte hide-wechsel bis `PLAYER_REGEN_ENABLED` gependelt und werden dann nachgezogen
+28. während die ui ausgeblendet ist, laufen roster/addon-sync im hintergrund weiter und dürfen eventgetrieben vor-rendern; queue-scanning und sonstige dauerhafte polling-last stoppen jedoch, der kick-sync bleibt fuer isiLive-gruppenmitglieder aktiv. Im Raid sind UI und Hintergrund-Sync komplett aus.
 29. teleport-eintraege fuer shared spells bleiben deterministisch sortiert und doppelte grid-eintraege werden entfernt.
 30. falls ein anderer user entdeckt wird welcher auch "isiLive" benutzt, hängen wir hinter seinen Namen ein <3 (blaues herz) an
-31. main ui auto-open bleibt bei gruppenbeitritt erhalten; key-ende auto-open ist standardmaessig an, aber abschaltbar; automatisches schliessen bei key start ist standardmaessig aus.
+31. main ui auto-open bleibt bei gruppenbeitritt erhalten, ausser im Raidmodus; key-ende auto-open ist standardmaessig an, aber abschaltbar; automatisches schliessen bei key start ist standardmaessig aus.
 32. verlaesst ein gruppenmitglied die gruppe, bleibt es als "geist" (ausgegraut) in der liste, bis der slot neu besetzt wird oder ein reload erfolgt
 33. spieler, die sich bereits im zieldungeon befinden, werden mit einem portal-icon markiert
 34. waehrend eines ready-checks wird der name jedes spielers entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt, danach auf die klassenfarbe zurueckgesetzt und ueber einen dedizierten Ready-Check-Refreshpfad aktualisiert, der keine Secure-Rollenbutton-Attribute neu schreibt.
@@ -60,19 +60,19 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 37. die wartungsdatei `WARTUNG.md` darf nicht im curseforge-paket landen.
 38. `WARTUNG.md` muss die verpflichtende wartungskette fuer den wiedereinstieg nennen: `CHANGELOG.md`, `TODO.md`, `TODO_RENAME.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `AGENTS.md`, `README.md`, `RELEASE.md`, `USECASES.md`, `ARCHITECTURE.md`.
 39. Die Rollensymbole im Roster-Panel sind interaktive Buttons und ermoeglichen per Klick das manuelle Markieren von Tank (Blau) und Heiler (Gruen).
-40. Bei Gruppengroessen > 5 (Raid) werden die Gruppenmitglieder-Zeilen ausgeblendet und die Raid-Benachrichtigung nur einmal pro Raid-Uebergang ausgegeben; ein erzwungener H-Modus erfolgt nur im Raid-Verhalten `show_h`.
+40. Bei Gruppengroessen > 5 (Raid) wird die Main-UI sofort ausgeblendet, es wird keine Raid-Benachrichtigung ausgegeben und kein H-Modus erzwungen; Hintergrundverarbeitung fuer Raid ist aus.
 41. API-Aufrufe mit Unit-Tokens muessen `UnitExists` pruefen, bevor sie aufgerufen werden, um Race-Conditions bei Gruppenaenderungen abzufangen.
 42. Die Behavior-Option `Auto-Close bei Key-Start / Solo` ist standardmaessig aus; nur wenn sie aktiv ist, darf die Main-UI bei Key-Start und beim Solo-Uebergang automatisch schliessen.
 43. Der aktuelle Gruppenleiter wird im Roster mit einer 16x16-Krone markiert; bei bekannten isiLive-Nutzern bleibt das blaue Herz zusaetzlich sichtbar und steht vor der Krone.
 44. Alle Center-Meldungen starten mit derselben Portal-Navigator-Basistypografie fuer Body-Text, Schriftgroesse und Standardfarbe.
-45. Beim Login oder UI-Reload wird die Main-UI standardmaessig eingeblendet, bleibt aber ueber die Startup-Option abschaltbar.
-46. Manuelle Layout-Umschaltungen der Main-UI duerfen auch im Kampf angefordert werden; direkte Mutationen an Secure-Kindern bleiben dabei ausgesetzt und werden spaetestens bei `PLAYER_REGEN_ENABLED` ueber den sichtbaren UI-Refresh nachgezogen.
+45. Beim Login oder UI-Reload wird die Main-UI standardmaessig eingeblendet, ausser im Raidmodus; die Startup-Option kann diesen Auto-Show-Pfad weiterhin abschalten.
+46. Manuelle Layout-Umschaltungen der Main-UI duerfen auch im Kampf angefordert werden, ausser im Raidmodus; direkte Mutationen an Secure-Kindern bleiben dabei ausgesetzt und werden spaetestens bei `PLAYER_REGEN_ENABLED` ueber den sichtbaren UI-Refresh nachgezogen.
 47. Die ESC-Panel-Overlays muessen im Kampf als bereits gemountete `GameMenuFrame`-Kinder sichtbar bleiben; waehrend Kampf-Lockdown sind an ihnen keine Show/Hide- oder Layout-Mutationen erlaubt, unsichere Shortcuts bleiben sichtbar, duerfen ihre Aktion aber erst ausserhalb des Kampfes ausfuehren.
 48. Der isiLive-Last-Run-Sync transportiert nur den belastbar verifizierten `DPS`-Wert eines Snapshots; das Roster nutzt `syncDps` nur als Fallback, wenn lokal kein Last-Run-DPS vorliegt.
 49. Der Kick-Tracker bildet den aktuell verfuegbaren Interrupt der aktuellen Spezialisierung ab; Holy Paladin nutzt `Rebuke`, Devourer Demon Hunter nutzt `Disrupt`, und verfuegbare pet-basierte Warlock-Interrupts zaehlen als eigener Kick.
 50. Die Kicks-Spalte zeigt fuer den lokalen Spieler und fuer isiLive-Gruppenmitglieder den aktuellen Kick-Status an; `ready` ist gruen, laufende Cooldowns zeigen rote Restsekunden, `-` steht fuer keinen verfuegbaren Kick oder fehlenden isiLive-Sync, und aktive Kick-Statusaenderungen werden spaetestens einmal pro Sekunde synchronisiert.
-51. Bei ausgeblendeter UI bleibt der komplette isiLive-Gruppensync aktiv; nur nicht-sync-bezogenes Polling wie Queue-Scanning bleibt deaktiviert.
-52. Hidden-Clients senden weiterhin alle gruppenrelevanten isiLive-Sync-Buckets einschliesslich `KEY`, `STATS`, `DPS`, `LOC`, `TARGET` und `KICK`; sichtbarkeitsabhängige Unterdrückung ist nur ohne explizite Hidden-Freigabe erlaubt.
+51. Bei ausgeblendeter UI bleibt der komplette isiLive-Gruppensync aktiv; nur nicht-sync-bezogenes Polling wie Queue-Scanning bleibt deaktiviert. Im Raid ist diese Hintergrundverarbeitung komplett aus.
+52. Hidden-Clients senden weiterhin alle gruppenrelevanten isiLive-Sync-Buckets einschliesslich `KEY`, `STATS`, `DPS`, `LOC`, `TARGET` und `KICK`; sichtbarkeitsabhängige Unterdrückung ist nur ohne explizite Hidden-Freigabe erlaubt. Im Raid ist das deaktiviert.
 53. Der Share-Keys-Button ist 30 Sekunden gegen Spam gesperrt; die Sperre gilt lokal nach eigenem Klick und wird auf allen anderen isiLive-Clients ausgeloest, sobald ein eingehender SHAREKEYS-Sync empfangen wird. Ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt.
 
 ## Regelbloecke
@@ -89,7 +89,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-HOTKEY-KAMPF-TOGGLE
 - Regelnummer: 2
 - Status: aktiv
-- Zusammenfassung: Die UI muss per STRG-F9 in jedem Zustand toggelbar bleiben; wenn Kampf-Lockdown `Show` oder `Hide` blockiert, wird die angeforderte Sichtbarkeit bei `PLAYER_REGEN_ENABLED` deterministisch nachgezogen.
+- Zusammenfassung: Die UI muss per STRG-F9 in allen Nicht-Raid-Zustaenden toggelbar bleiben; im Raid bleibt die Main-UI aus. Wenn Kampf-Lockdown `Show` oder `Hide` blockiert, wird die angeforderte Sichtbarkeit bei `PLAYER_REGEN_ENABLED` deterministisch nachgezogen.
 - Erforderliche Tests:
   - UI toggle defers closing frame during combat and applies after regen
   - UI toggle defers opening frame during combat and applies after regen
@@ -171,15 +171,16 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-GRUPPE-RAID-SICHTBARKEIT
 - Regelnummer: 11
 - Status: aktiv
-- Zusammenfassung: In Raid-Groesse richtet sich das Main-UI-Verhalten nach `raidTransitionBehavior`: `show_h` oeffnet sichtbar im H-Modus, `show_keep` oeffnet sichtbar ohne erzwungenen Layoutwechsel, `preserve` behaelt Sichtbarkeit und Layout unveraendert. Beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt. Nur mit aktivierter Auto-Close-Option darf der Solo-Uebergang die Main-UI ausblenden.
+- Zusammenfassung: In Raid-Groesse wird die Main-UI sofort ausgeblendet, die Raid-Option wird auf `hide` normalisiert und es laeuft weder UI- noch Hintergrund-Sync weiter; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt. Nur mit aktivierter Auto-Close-Option darf der Solo-Uebergang die Main-UI ausblenden.
 - Erforderliche Tests:
   - Group leave keeps frame state and ghosts former party members
   - Group leave auto-close hides frame when option is enabled
   - Old ghosts are cleared when joining a new group
-  - Raid group switches to H mode, keeps frame visible and prints notification
-  - Raid behavior Show + Keep opens the frame without forcing H mode
-  - Raid behavior Keep State preserves hidden frame and current layout
-  - Raid notification prints again after leaving raid-size group
+  - Raid group hides the UI and suppresses background processing
+  - Frame bridge blocks show requests while raid mode is active
+  - Event handlers suppress background processing while raid mode is active
+  - Settings panel defaults Raid behavior to Raid Off and persists user choice
+  - Factory raid behavior resolver defaults to raid off and normalizes legacy values
 
 ### RULE-LOCALE-SYMMETRIE-FALLBACK
 - Regelnummer: 12
@@ -294,7 +295,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-SCHLIESSEN-X-ODER-HOTKEY
 - Regelnummer: 27
 - Status: aktiv
-- Zusammenfassung: das schliessen der ui ist jederzeit anforderbar, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9; falls Kampf-Lockdown das Ausblenden blockiert, wird es bei `PLAYER_REGEN_ENABLED` deterministisch nachgezogen.
+- Zusammenfassung: das schliessen der ui ist jederzeit anforderbar, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9; ausser im Raidmodus bleibt die UI aus und falls Kampf-Lockdown das Ausblenden blockiert, wird es bei `PLAYER_REGEN_ENABLED` deterministisch nachgezogen.
 - Erforderliche Tests:
   - UI close button hides frame directly
   - UI toggle defers closing frame during combat and applies after regen
@@ -302,7 +303,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-HIDDEN-SPARFLAMME
 - Regelnummer: 28
 - Status: aktiv
-- Zusammenfassung: waehrend die ui ausgeblendet ist, laeuft der daten-sync (roster/addon-msgs) im hintergrund weiter und darf eventgetrieben ui-zustand vor-rendern; queue-scanning und sonstige dauerhafte polling-last bleiben aus. Der Kick-Sync fuer isiLive-Gruppenmitglieder bleibt davon ausgenommen und darf weiterlaufen, damit ausgeblendete Clients keine Kick-Nachteile erzeugen. Ein expliziter Refresh-Request darf Hidden-Clients genau eine forciert eventgetriebene Antwort entlocken (alle Sync-Buckets: KEY, STATS, DPS, LOC, TARGET, KICK); gestoppte oder pausierte Runs antworten dabei nicht.
+- Zusammenfassung: waehrend die ui ausgeblendet ist, laeuft der daten-sync (roster/addon-msgs) im hintergrund weiter und darf eventgetrieben ui-zustand vor-rendern; queue-scanning und sonstige dauerhafte polling-last bleiben aus. Der Kick-Sync fuer isiLive-Gruppenmitglieder bleibt davon ausgenommen und darf weiterlaufen, damit ausgeblendete Clients keine Kick-Nachteile erzeugen. Ein expliziter Refresh-Request darf Hidden-Clients genau eine forciert eventgetriebene Antwort entlocken (alle Sync-Buckets: KEY, STATS, DPS, LOC, TARGET, KICK); gestoppte oder pausierte Runs antworten dabei nicht. Im Raid sind UI und Hintergrund-Sync komplett aus.
 - Erforderliche Tests:
   - Bootstrap gate allows sync events while frame is hidden if configured
   - Hidden grouped roster updates keep pre-rendered UI fresh
@@ -455,12 +456,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-RAID-NOTICE
 - Regelnummer: 40
 - Status: aktiv
-- Zusammenfassung: Bei Gruppengroessen > 5 (Raid) werden im Roster-Panel die Gruppenmitglieder-Zeilen ausgeblendet und die Raid-Benachrichtigung nur einmal pro Raid-Uebergang ausgegeben; nur `raidTransitionBehavior == show_h` erzwingt zusaetzlich den H-Modus.
+- Zusammenfassung: Bei Gruppengroessen > 5 (Raid) wird die Main-UI sofort ausgeblendet, es wird keine Raid-Benachrichtigung ausgegeben und kein H-Modus erzwungen; Hintergrundverarbeitung fuer Raid ist aus.
 - Erforderliche Tests:
-  - Raid group switches to H mode, keeps frame visible and prints notification
-  - Raid behavior Show + Keep opens the frame without forcing H mode
-  - Raid behavior Keep State preserves hidden frame and current layout
-  - Settings panel defaults Raid behavior to Show + H and persists user choice
+  - Raid group hides the UI and suppresses background processing
+  - Factory raid behavior resolver defaults to raid off and normalizes legacy values
 
 ### RULE-UNIT-EXISTS-GUARD
 - Regelnummer: 41
@@ -502,7 +501,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-MAIN-UI-STARTUP-AUTO-SHOW
 - Regelnummer: 45
 - Status: aktiv
-- Zusammenfassung: Beim `PLAYER_LOGIN` wird die Main-UI standardmaessig eingeblendet, damit Login und UI-Reload sichtbar starten; mit deaktivierter Behavior-Option `autoShowMainFrameOnStartup == false` muss dieser Auto-Show-Pfad ausbleiben.
+- Zusammenfassung: Beim `PLAYER_LOGIN` wird die Main-UI standardmaessig eingeblendet, ausser im Raidmodus, damit Login und UI-Reload sichtbar starten; mit deaktivierter Behavior-Option `autoShowMainFrameOnStartup == false` muss dieser Auto-Show-Pfad ausbleiben.
 - Erforderliche Tests:
   - Event handlers auto-show main frame on PLAYER_LOGIN for startup login and reload
   - Event handlers skip PLAYER_LOGIN auto-show when startup setting is disabled
@@ -511,7 +510,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-MAIN-UI-LAYOUT-SWITCH-IN-COMBAT
 - Regelnummer: 46
 - Status: aktiv
-- Zusammenfassung: Ein manueller Klick auf einen Layout-Button (`M2`, `H`, `V`, `M`) muss den gewuenschten `layoutMode` auch waehrend Kampf-Lockdown sofort uebernehmen duerfen. Direkte Show/Hide- oder Layout-Mutationen an Secure-Kindern bleiben im Kampf weiterhin unterbunden; sobald `PLAYER_REGEN_ENABLED` eintritt und die Main-UI sichtbar ist, muss genau ein normaler UI-Refresh laufen, damit die sichtbaren Secure-Kinder den bereits gesetzten `layoutMode` deterministisch nachziehen.
+- Zusammenfassung: Ein manueller Klick auf einen Layout-Button (`M2`, `H`, `V`, `M`) muss den gewuenschten `layoutMode` auch waehrend Kampf-Lockdown sofort uebernehmen duerfen, ausser im Raidmodus. Direkte Show/Hide- oder Layout-Mutationen an Secure-Kindern bleiben im Kampf weiterhin unterbunden; sobald `PLAYER_REGEN_ENABLED` eintritt und die Main-UI sichtbar ist, muss genau ein normaler UI-Refresh laufen, damit die sichtbaren Secure-Kinder den bereits gesetzten `layoutMode` deterministisch nachziehen.
 - Erforderliche Tests:
   - TAINT: Collapse click switches layout during combat while secure roster buttons exist
   - TAINT: Horizontal collapse click switches layout during combat while secure roster buttons exist
@@ -561,7 +560,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-HIDDEN-VOLLER-GRUPPENSYNC
 - Regelnummer: 51
 - Status: aktiv
-- Zusammenfassung: Wenn die Main-UI ausgeblendet ist, bleibt der komplette isiLive-Gruppensync fuer aktuelle Gruppenmitglieder aktiv. Hidden-Clients muessen weiterhin eingehende Sync-Nachrichten empfangen und verarbeiten sowie ausgehende Sync-Zustaende fuer Gruppe und Kick senden duerfen; nur nicht-sync-bezogenes Polling wie Queue-Scanning bleibt deaktiviert.
+- Zusammenfassung: Wenn die Main-UI ausgeblendet ist, bleibt der komplette isiLive-Gruppensync fuer aktuelle Gruppenmitglieder aktiv. Hidden-Clients muessen weiterhin eingehende Sync-Nachrichten empfangen und verarbeiten sowie ausgehende Sync-Zustaende fuer Gruppe und Kick senden duerfen; nur nicht-sync-bezogenes Polling wie Queue-Scanning bleibt deaktiviert. Im Raid ist diese Hintergrundverarbeitung komplett aus.
 - Erforderliche Tests:
   - Bootstrap gate allows sync events while frame is hidden if configured
   - Config builders gate allows sparse local change events while frame is hidden
@@ -577,7 +576,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-HIDDEN-SYNC-BUCKETS-VOLLSTAENDIG
 - Regelnummer: 52
 - Status: aktiv
-- Zusammenfassung: Hidden-Clients duerfen sichtbarkeitsabhaengige Sync-Unterdrueckung nur ohne explizite Hidden-Freigabe anwenden. Fuer gruppenrelevante Hidden-Sync-Pfade muessen weiterhin alle Buckets `KEY`, `STATS`, `DPS`, `LOC`, `TARGET` und `KICK` gesendet werden koennen.
+- Zusammenfassung: Hidden-Clients duerfen sichtbarkeitsabhaengige Sync-Unterdrueckung nur ohne explizite Hidden-Freigabe anwenden. Fuer gruppenrelevante Hidden-Sync-Pfade muessen weiterhin alle Buckets `KEY`, `STATS`, `DPS`, `LOC`, `TARGET` und `KICK` gesendet werden koennen. Im Raid ist das deaktiviert.
 - Erforderliche Tests:
   - KeySync SendOwnBackgroundSnapshot publishes sparse hidden changes without DPS spam
   - Sync SendTarget respects visibility and deduplicates payloads

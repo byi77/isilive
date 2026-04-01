@@ -216,6 +216,10 @@ local COMBAT_FADE_DURATION = 0.4
 local COMBAT_FADE_TICK = 0.05
 local activeFadeTicker = nil
 
+local function IsRaidModeActive(ctx)
+  return type(ctx.isRaidGroup) == "function" and ctx.isRaidGroup() == true
+end
+
 local function AnimateMainFrameAlpha(mainFrame, targetAlpha)
   if not mainFrame or type(mainFrame.SetAlpha) ~= "function" then
     return
@@ -315,7 +319,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
 
   local function HandlePlayerLoginEvent(_self)
     ApplyBindingStartupRefresh(ctx)
-    if ctx.shouldShowMainFrameOnStartup() then
+    if not IsRaidModeActive(ctx) and ctx.shouldShowMainFrameOnStartup() then
       ctx.setMainFrameVisible(true)
     end
     local playerName, playerRealm = ctx.getUnitNameAndRealm("player")
@@ -323,6 +327,10 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandlePlayerEnteringWorldEvent(_self)
+    if IsRaidModeActive(ctx) then
+      ctx.wasInPartyInstance = ctx.isInPartyInstance() == true
+      return
+    end
     ctx.updateCdTracker()
     UpdateTrackedMythicZeroRun(ctx)
     ScheduleBindingStartupRefresh(ctx)
@@ -358,9 +366,16 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end
     local pendingVisible = ctx.getPendingMainFrameVisible and ctx.getPendingMainFrameVisible()
     if pendingVisible ~= nil then
-      ctx.setMainFrameVisible(pendingVisible)
+      if IsRaidModeActive(ctx) then
+        ctx.setMainFrameVisible(false)
+      else
+        ctx.setMainFrameVisible(pendingVisible)
+      end
     end
     ApplyCombatFade(ctx, 1)
+    if IsRaidModeActive(ctx) then
+      return
+    end
     local pendingMainFrameHeight = ctx.getPendingMainFrameHeight()
     if pendingMainFrameHeight then
       ctx.setMainFrameHeightSafe(pendingMainFrameHeight)
@@ -377,6 +392,9 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandleInstanceContextChangedEvent(_self)
+    if IsRaidModeActive(ctx) then
+      return
+    end
     ctx.updateCdTracker()
     UpdateTrackedMythicZeroRun(ctx)
     ctx.updateStatusLine()
@@ -387,6 +405,9 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandleOwnedKeyContextEvent(_self)
+    if IsRaidModeActive(ctx) then
+      return
+    end
     ctx.updateStatusLine()
     ctx.handleOwnedKeyRefresh()
     ctx.maybeShowNonMythicDungeonEntryNotice()
@@ -397,14 +418,23 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if unit ~= nil and unit ~= "player" then
       return
     end
+    if IsRaidModeActive(ctx) then
+      return
+    end
     ctx.sendOwnBackgroundSnapshot("player-state")
   end
 
   local function HandlePlayerEquipmentChangedEvent(_self)
+    if IsRaidModeActive(ctx) then
+      return
+    end
     ctx.sendOwnBackgroundSnapshot("player-state")
   end
 
   local function HandleInspectReadyEvent(_self, guid)
+    if IsRaidModeActive(ctx) then
+      return
+    end
     if not ctx.isMainFrameShown() then
       return
     end
@@ -415,6 +445,9 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandleChatMsgAddonEvent(_self, prefix, message, _channel, sender)
+    if IsRaidModeActive(ctx) then
+      return
+    end
     local syncResult = ctx.processAddonMessage(prefix, message, sender)
     if not syncResult then
       return
@@ -457,15 +490,24 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandleSpellUpdateCooldownEvent(_self)
+    if IsRaidModeActive(ctx) then
+      return
+    end
     ctx.updateMPlusTeleportButton()
   end
 
   local function HandleSpellUpdateChargesEvent(_self)
+    if IsRaidModeActive(ctx) then
+      return
+    end
     ctx.updateCdTracker()
   end
 
   local function HandleUnitAuraEvent(_self, unit, _unitAuraUpdateInfo)
     if unit ~= "player" then
+      return
+    end
+    if IsRaidModeActive(ctx) then
       return
     end
     ctx.updateCdTracker()

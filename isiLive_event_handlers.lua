@@ -32,6 +32,9 @@ local function BuildContext(opts)
   ctx.isRosterCollapsed = RequireFunction(opts.isRosterCollapsed, "isRosterCollapsed")
 
   ctx.isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
+  ctx.isRaidGroup = OptionalFunction(opts.isRaidGroup, function()
+    return false
+  end)
   ctx.isInPartyInstance = OptionalFunction(opts.isInPartyInstance, function()
     local ok, _, instanceType = pcall(GetInstanceInfo)
     if not ok then
