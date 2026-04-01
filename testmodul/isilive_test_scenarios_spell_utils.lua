@@ -129,10 +129,11 @@ local function RegisterCooldownFrameApplyTests(test, Assert, WithGlobals, LoadAd
     end)
 
     Assert.NotNil(called, "CooldownFrame_Set should be called when available")
-    Assert.Equal(called.cooldownFrame, frame, "CooldownFrame_Set should receive original frame")
-    Assert.Equal(called.startTime, 11, "CooldownFrame_Set should receive start time")
-    Assert.Equal(called.duration, 22, "CooldownFrame_Set should receive duration")
-    Assert.True(called.isEnabled, "CooldownFrame_Set should receive enabled state")
+    local recorded = called or {}
+    Assert.Equal(recorded["cooldownFrame"], frame, "CooldownFrame_Set should receive original frame")
+    Assert.Equal(recorded["startTime"], 11, "CooldownFrame_Set should receive start time")
+    Assert.Equal(recorded["duration"], 22, "CooldownFrame_Set should receive duration")
+    Assert.True(recorded["isEnabled"], "CooldownFrame_Set should receive enabled state")
   end)
 
   test("Spell utils apply cooldown prefers SetCooldownFromDurationObject when available", function()
@@ -159,8 +160,9 @@ local function RegisterCooldownFrameApplyTests(test, Assert, WithGlobals, LoadAd
     end)
 
     Assert.NotNil(durationObjectUsed, "must use SetCooldownFromDurationObject")
-    Assert.Equal(durationObjectUsed.start, 10, "duration object must carry start time")
-    Assert.Equal(durationObjectUsed.duration, 20, "duration object must carry duration")
+    local durationObject = durationObjectUsed or {}
+    Assert.Equal(durationObject["start"], 10, "duration object must carry start time")
+    Assert.Equal(durationObject["duration"], 20, "duration object must carry duration")
   end)
 
   test("Spell utils apply cooldown duration object path clears when disabled", function()
@@ -213,8 +215,9 @@ local function RegisterCooldownFrameApplyTests(test, Assert, WithGlobals, LoadAd
     end)
 
     Assert.NotNil(called, "must fall back to CooldownFrame_Set when CreateCooldownDuration is nil")
-    Assert.Equal(called.startTime, 5, "must pass start to legacy path")
-    Assert.Equal(called.duration, 15, "must pass duration to legacy path")
+    local recorded = called or {}
+    Assert.Equal(recorded["startTime"], 5, "must pass start to legacy path")
+    Assert.Equal(recorded["duration"], 15, "must pass duration to legacy path")
   end)
 
   test("Spell utils apply cooldown fallback clears frame when disabled", function()
