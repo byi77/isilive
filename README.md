@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.121`.
+Current documented baseline: `0.9.122`.
 
 ## Features
 
@@ -111,9 +111,9 @@ Current documented baseline: `0.9.121`.
 - Runtime log storage is session-only and starts disabled on every login/reload.
 - Sync handshake behavior: `HELLO` recipients send `ACK` and immediately answer with the full local `KEY`/`STATS`/`DPS`/`LOC` snapshot plus current kick state; explicit local refresh still force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.121)
+## Use Case / Logic Baseline (v0.9.122)
 
-Documented on `2026-04-01` as runtime behavior baseline (`0.9.121`) for validation checks.
+Documented on `2026-04-01` as runtime behavior baseline (`0.9.122`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -282,7 +282,7 @@ Developer debug (hidden command, not listed in in-game help):
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 471 scenarios across 36 modules, while the rule validators currently index 471 deterministic tests, including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 472 scenarios across 36 modules, while the rule validators currently index 472 deterministic tests, including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
