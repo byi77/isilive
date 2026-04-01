@@ -85,13 +85,13 @@ local function PrintTeleportDebug(deps)
   local resolvedSpellID = deps.resolveActiveTeleportSpellID()
   local resolvedKnown = resolvedSpellID and deps.isSpellKnownSafe(resolvedSpellID) or false
   local resolvedCooldown = resolvedSpellID and deps.getTeleportCooldownRemaining(resolvedSpellID) or 0
-  local resolvedStart = nil
   local resolvedDuration = nil
-  local resolvedEnabled = nil
   local resolvedCooldownType = "ready"
   if resolvedSpellID then
-    resolvedStart, resolvedDuration, resolvedEnabled = deps.getSpellCooldownSafe(resolvedSpellID)
-    if resolvedEnabled == false
+    local resolvedStart, resolvedDurationLocal, resolvedEnabled = deps.getSpellCooldownSafe(resolvedSpellID)
+    resolvedDuration = resolvedDurationLocal
+    if
+      resolvedEnabled == false
       or resolvedEnabled == 0
       or not resolvedDuration
       or resolvedDuration <= 0
@@ -108,7 +108,8 @@ local function PrintTeleportDebug(deps)
 
   deps.printFn(
     string.format(
-      "TP target dungeon=%s activityID=%s mapID=%s queueSpellID=%s resolvedSpellID=%s known=%s cd=%s cdType=%s rawDuration=%s inCombat=%s",
+      "TP target dungeon=%s activityID=%s mapID=%s queueSpellID=%s resolvedSpellID=%s known=%s cd=%s cdType=%s "
+        .. "rawDuration=%s inCombat=%s",
       tostring(latestQueueDungeonName),
       tostring(latestQueueActivityID),
       tostring(latestQueueMapID),

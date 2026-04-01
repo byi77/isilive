@@ -1346,7 +1346,9 @@ local function RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, Load
       Assert.Equal(buttons[4]._point and buttons[4]._point.y or nil, -92, "fourth button should stay on the second row")
     end)
   end)
+end
 
+local function RegisterTeleportUIVisualTests(test, Assert, WithGlobals, LoadAddonModules)
   test("TeleportUI tooltip shows English dungeon name below the localized title", function()
     local createFrameStub, createdFrames = BuildTeleportUICreateFrameStub()
 
@@ -1651,6 +1653,7 @@ end
 
 local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTeleportUIVisualTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 return function(test, ctx)
