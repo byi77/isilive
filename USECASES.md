@@ -1,7 +1,7 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.119`
-Last updated: `2026-03-30`
+Version baseline: `0.9.121`
+Last updated: `2026-04-01`
 
 ## Actors
 
@@ -14,7 +14,8 @@ Last updated: `2026-03-30`
 1. Addon is loaded and not in `stopped` state.
 2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `midnight_s1` with the live 8-dungeon Midnight Season 1 portal pool).
 3. Relevant UI is visible for queue scanning and rendering; while hidden, addon-message sync and roster updates may still run in the background, UI can be auto-opened by fresh group join, key-end, real dungeon-entry transition logic, or UI reload while already grouped, and explicit refresh requests may still trigger one gated hidden sync reply (including during an active Mythic+ run — only stopped or paused state suppresses the reply).
-4. The optional `Esc` tooling and travel strips are enabled unless the user explicitly disables them in addon settings.
+4. Raid-size groups are a separate hard-off state: UI is off and background processing is disabled.
+5. The optional `Esc` tooling and travel strips are enabled unless the user explicitly disables them in addon settings.
 
 ## Use Case Matrix
 
@@ -29,7 +30,7 @@ Last updated: `2026-03-30`
 | UC-07 | RIO delta visibility | Per-run RIO delta is shown as non-negative `(+X)` prefix |
 | UC-08 | Post-run stats snapshot | Latest dungeon DPS per player is read from Blizzard damage meter and shown in roster + tooltip |
 | UC-09 | Manual Role Marker Buttons | Tank/Healer role icons are secure buttons to set raid markers |
-| UC-10 | Raid H-mode transition | Raid-size groups keep the addon visible in H mode while roster rows stay hidden |
+| UC-10 | Raid zero-process transition | Raid-size groups hide the addon UI and suppress background processing |
 | UC-11 | M+Marker World Markers | Vertical bar of 8 secure world-marker buttons for immediate place/clear |
 | UC-12 | Roster Panel Mini Mode | Collapse toggle hides roster list and `Travel`, while keeping compact Marker and management tools visible |
 | UC-13 | Esc shortcuts and addon settings | Player gets dual Blizzard-UI entry surfaces plus localized config toggles and sound preferences |
@@ -179,7 +180,7 @@ Goal: show live BRes, Bloodlust/Heroism/Time Warp, active Mythic+ timer cutoffs,
 11. Persistent stats storage must stay bounded: no persistent foreign-player run history and no persistent `Runs together` cache.
 12. Leaving or being removed from a normal party must keep the current frame visibility state and retain former members as ghost rows until a deterministic prune path occurs; active members must still remain visible ahead of persisted ghosts.
 13. Manual marking (Tank=Blue, Healer=Green) is available via secure role-icon buttons for all group members without leader restriction in 5-man parties.
-14. Raid-group detection (> 5 members) keeps the addon visible, forces H mode, hides roster rows, prints a localized transition notice once per raid-size transition, and blocks switching back to M/V until party size returns.
+14. Raid-group detection (> 5 members) hides the addon UI, suppresses background processing, prints no raid transition notice, and blocks switching back to M/V until party size returns.
 15. The optional `Esc` tooling and travel strips stay localized, close the game menu before opening their targets, and keep `ReloadUI` on a secure macro path (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`; blocked secure refreshes for that button replay on `PLAYER_REGEN_ENABLED`, while both strips remain pre-mounted `GameMenuFrame` children and therefore run no deferred host-frame re-show path in combat.
 16. Hidden legacy settings controls remain absent from Blizzard Settings and currently use fixed runtime defaults: `DPS` column on, markers visible for all, fixed name truncation, and legacy 2-column `Travel` layout.
 17. Ready-check lifecycle updates must use the dedicated ready-check refresh path so row-background state, waiting sandglass markers, and the 20-second declined hold reset deterministically without rewriting secure role-button attributes.
@@ -187,7 +188,7 @@ Goal: show live BRes, Bloodlust/Heroism/Time Warp, active Mythic+ timer cutoffs,
 
 Runtime behavior in this document is validated by `tools/validate_usecases.lua`.
 Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules_logic.lua` and also enforced during `tools/validate_usecases.lua`.
-Current validator baseline: `470` scenarios across `34` modules.
+Current validator baseline: `471` scenarios across `35` modules.
 
 1. UC-01/UC-02: strict queue target resolution and queue highlight behavior without speculative fallback.
 2. UC-03: exact-map suppression and shared-portcast ambiguity handling.
@@ -196,7 +197,7 @@ Current validator baseline: `470` scenarios across `34` modules.
 5. UC-07: challenge-start baseline capture and roster `(+X)RIO` rendering rules (including non-negative clamp).
 6. UC-08: post-run stats snapshot capture for `M+` and tracked non-challenge party exits, bounded persistence, and tooltip/roster rendering.
 7. UC-09: Manual Role Marker secure button configuration.
-8. UC-10: raid-size H-mode transition, visible-frame behavior, and duplicate-notice suppression.
+8. UC-10: raid-size zero-process behavior, hidden UI suppression, and no raid-notice output.
 9. UC-11/UC-12: Secure world-marker button configuration for M+Marker and compact-layout visibility logic for M/V/H mode switching.
 10. Taint hardening: deferred secure attribute writes, deferred `Esc` shortcut secure-button refreshes, insecure teleport-grid actions, and combat-safe collapse handling.
 11. UC-13/UC-14: game-menu tooling/travel strips, localization, close-then-open behavior, deferred secure reload-button refresh, direct opener fallback selection, settings-canvas state mirroring/background-opacity behavior, live BRes/Bloodlust/M+ timer rendering, and synced interrupt cooldown display.

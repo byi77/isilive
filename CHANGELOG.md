@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-04-01 - Version 0.9.121 (patch)
+
+- Docs / release baseline:
+  - Raised README, architecture, use-case, and TOC baselines to `0.9.121`.
+  - Documented the raid hard-off behavior: raid-size groups now hide the UI and suppress background processing instead of forcing H mode.
+
 ## 2026-03-31 - Version 0.9.120 (patch)
 
 - Slash command: `/isk` renamed to `/il` (shorter alias for `/isilive`).

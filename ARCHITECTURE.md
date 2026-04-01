@@ -1,7 +1,7 @@
 # isiLive Architecture
 
-Version baseline: `0.9.119`
-Last updated: `2026-03-30`
+Version baseline: `0.9.121`
+Last updated: `2026-04-01`
 
 ## Purpose
 
@@ -42,7 +42,7 @@ WoW Event
 | Running | Full processing active |
 | Paused | Processing blocked except required transitions |
 | Stopped | Addon processing disabled except minimal control paths |
-| Hidden | Window hidden, queue scanning suspended; background addon sync and roster updates continue and may event-drive pre-rendered UI state without polling, but hidden `LFG_LIST_*` gaps do not get replayed later as queue chat |
+| Hidden | Window hidden, queue scanning suspended; background addon sync and roster updates continue and may event-drive pre-rendered UI state without polling, but hidden `LFG_LIST_*` gaps do not get replayed later as queue chat. Raid-size groups are a separate hard-off state that hide the UI and suspend background sync instead of following hidden-mode keep-alive behavior. |
 | Test/TestAll | Unified full dummy preview mode for UI/testing, including positive RIO delta preview and ghost/leaver row |
 
 ## Deterministic Rule Set
@@ -65,7 +65,7 @@ WoW Event
 16. Keep event-gate dispatch resilient: runtime handler errors must be reported and must not break the gate loop.
 17. Keep LuaLS compatibility in shared helpers: guard `_G.debug` access and use explicit color signatures where Blizzard tooltip APIs are still referenced.
 18. Shared `isiLive` tooltip frames own their own text layout and must not route UI hover rendering back through the shared Blizzard `GameTooltip`.
-19. Raid-size groups force the visible roster panel into H mode, hide roster rows, and suppress duplicate raid-transition notifications until the group leaves raid size again.
+19. Raid-size groups hide the visible roster panel, suspend background sync, and suppress duplicate raid-transition notifications by keeping the addon in a hard-off state until the group leaves raid size again.
 20. The optional game-menu tooling strip closes the menu before opening its target panel; `ReloadUI` is owned by a secure macro button (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown` and defers blocked secure refreshes to `PLAYER_REGEN_ENABLED`, while the other entries keep direct opener paths for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, and `Guild`. Both game-menu strips are mounted directly as `GameMenuFrame` children, so combat-open paths do not run overlay `Show`/`Hide` or layout mutations; the secondary travel strip stays further left and exposes `Arkantine`, `Hearthstone`, and `Housing`.
 21. Temporarily hidden legacy settings controls stay absent from Blizzard Settings while runtime enforces their fixed defaults (`DPS` on, markers leader-only off, fixed name truncation, legacy 2-column `Travel` grid) until the controls are re-enabled.
 22. CdTracker lust onset detection must combine player harmful-aura scanning with direct local lust spellcast signals, accept only numeric aura `spellId` values for lookup, ignore protected or otherwise non-numeric values safely, treat `UNIT_AURA(..., { isFullUpdate = true })` restores as non-onset hydration after zone/reload transitions, and use only a short 2-second `PLAYER_ENTERING_WORLD` suppress window as a safety net before the full restore arrives.
@@ -102,12 +102,12 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 470 scenarios across 34 modules, while the rule validators currently index 470 deterministic tests.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 471 scenarios across 35 modules, while the rule validators currently index 471 deterministic tests.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiLive                                                 v0.9.117 Open/Close CTRL-F9 [H][V][M][M2][X]|
+| isiLive                                                 v0.9.121 Open/Close CTRL-F9 [H][V][M][M2][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS                M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
