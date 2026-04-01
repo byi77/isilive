@@ -6,6 +6,7 @@ desktop.ini
 # Editor
 .vscode/*
 !.vscode/tasks.json
+.claude/
 .idea/
 *.code-workspace
 
@@ -28,5 +29,4 @@ sounds/*
 
 # Local LuaRocks tree (CI/local tooling)
 .luarocks/
-.claude/settings.local.json
 TODO.md

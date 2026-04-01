@@ -15,6 +15,7 @@ ignore:
   - .luarocks
   - .gitignore
   - ARCHITECTURE.md
+  - ARCHITECTURE_RULES.md
   - USECASES.md
   - README.md
   - RELEASE.md
@@ -24,11 +25,14 @@ ignore:
   - RULES.md
   - RULES_LOGIC.md
   - AGENTS.md
+  - CLAUDE.md
   - LICENSE
   - tools
   - testmodul
+  - luacheck_output.txt
   - isiLive.png
   - isiLive_H_ui.png
+  - isiLive_M2_ui.png
   - isiLive_M_ui.png
   - isiLive_V_ui.png
   - isiLive_screenshot.png
