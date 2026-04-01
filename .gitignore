@@ -6,7 +6,9 @@ desktop.ini
 # Editor
 .vscode/*
 !.vscode/tasks.json
-.claude/
+.claude/*
+!.claude/README.md
+!.claude/settings.example.json
 .idea/
 *.code-workspace
 
