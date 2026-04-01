@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local SpellUtils = {}
 addonTable.SpellUtils = SpellUtils
+local TELEPORT_MEANINGFUL_COOLDOWN_MIN_SECONDS = 2
 
 function SpellUtils.GetSpellCooldownSafe(spellID)
   if not spellID or not (C_Spell and C_Spell.GetSpellCooldown) then
@@ -108,7 +109,7 @@ function SpellUtils.IsSpellKnownSafe(spellID)
   -- Fallback: If the spell has a duration > 2s (ignoring GCD), it must be known/active.
   -- This fixes highlighting disappearing when the spell is on cooldown.
   local _, duration = SpellUtils.GetSpellCooldownSafe(spellID)
-  if duration and duration > 2 then
+  if duration and duration > TELEPORT_MEANINGFUL_COOLDOWN_MIN_SECONDS then
     return true
   end
 
@@ -118,6 +119,9 @@ end
 function SpellUtils.GetTeleportCooldownRemaining(spellID)
   local start, duration, enabled = SpellUtils.GetSpellCooldownSafe(spellID)
   if enabled == false or enabled == 0 then
+    return 0
+  end
+  if duration <= TELEPORT_MEANINGFUL_COOLDOWN_MIN_SECONDS then
     return 0
   end
   if duration <= 0 or start <= 0 then

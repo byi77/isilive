@@ -82,6 +82,27 @@ local function RegisterSpellKnownAndCooldownTests(test, Assert, WithGlobals, Loa
       Assert.Equal(expired, 0, "expired cooldown should clamp to zero remaining")
     end)
   end)
+
+  test("Spell utils ignore global cooldown for teleport remaining", function()
+    WithGlobals({
+      C_Spell = {
+        GetSpellCooldown = function(_spellID)
+          return {
+            startTime = 100,
+            duration = 1.5,
+            isEnabled = true,
+          }
+        end,
+      },
+      GetTime = function()
+        return 100.2
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_spell_utils.lua" })
+      local remaining = addon.SpellUtils.GetTeleportCooldownRemaining(777)
+      Assert.Equal(remaining, 0, "global cooldown must not count as a teleport cooldown")
+    end)
+  end)
 end
 
 local function RegisterCooldownFrameApplyTests(test, Assert, WithGlobals, LoadAddonModules)

@@ -512,8 +512,12 @@ function TeleportUI.CreateController(opts)
       button.isActiveTarget = (resolvedSpellID and button.spellID == resolvedSpellID) and true or false
       button.cooldownRemainingSeconds = tonumber(deps.getTeleportCooldownRemaining(button.spellID)) or 0
 
-      local start, duration, enabled = deps.getSpellCooldownSafe(button.spellID)
-      deps.applyCooldownFrameSafe(button.cooldown, start, duration, enabled)
+      if button.cooldownRemainingSeconds > 0 then
+        local start, duration, enabled = deps.getSpellCooldownSafe(button.spellID)
+        deps.applyCooldownFrameSafe(button.cooldown, start, duration, enabled)
+      else
+        deps.applyCooldownFrameSafe(button.cooldown, 0, 0, false)
+      end
 
       -- Logic: Show active border even if spell is not known (locked),
       -- so the user knows which dungeon is the current target.

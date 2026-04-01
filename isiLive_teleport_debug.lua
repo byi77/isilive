@@ -5,6 +5,8 @@ addonTable = addonTable or {}
 local TeleportDebug = {}
 addonTable.TeleportDebug = TeleportDebug
 
+local TELEPORT_MEANINGFUL_COOLDOWN_MIN_SECONDS = 2
+
 local function RequireFunction(value, name)
   return addonTable.Validators.RequireFunction(value, name, "TeleportDebug")
 end
@@ -19,9 +21,22 @@ local function DumpButtonState(deps, label, button)
   local spellID = button.spellID
   local known = spellID and deps.isSpellKnownSafe(spellID) or false
   local cooldown = spellID and deps.getTeleportCooldownRemaining(spellID) or 0
+  local cooldownType = "ready"
+  local rawCooldown = nil
+  if spellID then
+    local start, duration, enabled = deps.getSpellCooldownSafe(spellID)
+    rawCooldown = duration
+    if enabled == false or enabled == 0 or not duration or duration <= 0 or not start or start <= 0 then
+      cooldownType = "ready"
+    elseif duration <= TELEPORT_MEANINGFUL_COOLDOWN_MIN_SECONDS then
+      cooldownType = "gcd"
+    else
+      cooldownType = "teleport"
+    end
+  end
   deps.printFn(
     string.format(
-      "%s shown=%s spellID=%s attr(type=%s spell=%s) known=%s cd=%s active=%s map=%s",
+      "%s shown=%s spellID=%s attr(type=%s spell=%s) known=%s cd=%s cdType=%s rawDuration=%s active=%s map=%s",
       label,
       tostring(button:IsShown()),
       tostring(spellID),
@@ -29,6 +44,8 @@ local function DumpButtonState(deps, label, button)
       tostring(attrSpell),
       tostring(known),
       deps.formatCooldownSeconds(cooldown),
+      tostring(cooldownType),
+      tostring(rawCooldown),
       tostring(button.isActiveTarget == true),
       tostring(button.mapName)
     )
@@ -68,10 +85,30 @@ local function PrintTeleportDebug(deps)
   local resolvedSpellID = deps.resolveActiveTeleportSpellID()
   local resolvedKnown = resolvedSpellID and deps.isSpellKnownSafe(resolvedSpellID) or false
   local resolvedCooldown = resolvedSpellID and deps.getTeleportCooldownRemaining(resolvedSpellID) or 0
+  local resolvedStart = nil
+  local resolvedDuration = nil
+  local resolvedEnabled = nil
+  local resolvedCooldownType = "ready"
+  if resolvedSpellID then
+    resolvedStart, resolvedDuration, resolvedEnabled = deps.getSpellCooldownSafe(resolvedSpellID)
+    if resolvedEnabled == false
+      or resolvedEnabled == 0
+      or not resolvedDuration
+      or resolvedDuration <= 0
+      or not resolvedStart
+      or resolvedStart <= 0
+    then
+      resolvedCooldownType = "ready"
+    elseif resolvedDuration <= TELEPORT_MEANINGFUL_COOLDOWN_MIN_SECONDS then
+      resolvedCooldownType = "gcd"
+    else
+      resolvedCooldownType = "teleport"
+    end
+  end
 
   deps.printFn(
     string.format(
-      "TP target dungeon=%s activityID=%s mapID=%s queueSpellID=%s resolvedSpellID=%s known=%s cd=%s inCombat=%s",
+      "TP target dungeon=%s activityID=%s mapID=%s queueSpellID=%s resolvedSpellID=%s known=%s cd=%s cdType=%s rawDuration=%s inCombat=%s",
       tostring(latestQueueDungeonName),
       tostring(latestQueueActivityID),
       tostring(latestQueueMapID),
@@ -79,6 +116,8 @@ local function PrintTeleportDebug(deps)
       tostring(resolvedSpellID),
       tostring(resolvedKnown),
       deps.formatCooldownSeconds(resolvedCooldown),
+      tostring(resolvedCooldownType),
+      tostring(resolvedDuration),
       tostring(InCombatLockdown and InCombatLockdown())
     )
   )
@@ -138,6 +177,7 @@ function TeleportDebug.CreateController(opts)
     resolveActiveTeleportSpellID = RequireFunction(opts.resolveActiveTeleportSpellID, "resolveActiveTeleportSpellID"),
     isSpellKnownSafe = RequireFunction(opts.isSpellKnownSafe, "isSpellKnownSafe"),
     getTeleportCooldownRemaining = RequireFunction(opts.getTeleportCooldownRemaining, "getTeleportCooldownRemaining"),
+    getSpellCooldownSafe = RequireFunction(opts.getSpellCooldownSafe, "getSpellCooldownSafe"),
     formatCooldownSeconds = RequireFunction(opts.formatCooldownSeconds, "formatCooldownSeconds"),
     getLatestQueueState = RequireFunction(opts.getLatestQueueState, "getLatestQueueState"),
     resolveMapIDByActivityID = RequireFunction(opts.resolveMapIDByActivityID, "resolveMapIDByActivityID"),
@@ -161,6 +201,7 @@ function TeleportDebug.CreateController(opts)
 
   assert(type(deps.printFn) == "function", "isiLive: TeleportDebug requires printFn")
   assert(type(deps.getL) == "function", "isiLive: TeleportDebug requires getL")
+  assert(type(deps.getSpellCooldownSafe) == "function", "isiLive: TeleportDebug requires getSpellCooldownSafe")
 
   local controller = {}
 

@@ -1453,6 +1453,200 @@ local function RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, Load
       )
     end)
   end)
+
+  test("TeleportUI keeps M2 short-code overlay visible during global cooldown", function()
+    local createFrameStub = BuildTeleportUICreateFrameStub()
+    local appliedCooldowns = {}
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
+        "isiLive_teleport_ui.lua",
+      })
+
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = {
+          GetFrameLevel = function()
+            return 10
+          end,
+          GetFrameStrata = function()
+            return "MEDIUM"
+          end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              SetTextColor = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetText = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+        },
+        layoutMode = "compact_main_horizontal",
+        applySecureSpellToButton = function()
+          return true
+        end,
+        getEntries = function()
+          return {
+            { spellID = 12345, mapID = 558, slotIndex = 1 },
+          }
+        end,
+        getEmptyStateText = function()
+          return nil
+        end,
+        getL = function()
+          return {}
+        end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getSpellCooldownSafe = function()
+          return 100, 1.5, true
+        end,
+        applyCooldownFrameSafe = function(_frame, start, duration, enabled)
+          table.insert(appliedCooldowns, {
+            start = start,
+            duration = duration,
+            enabled = enabled,
+          })
+        end,
+        getSpellTexture = function()
+          return nil
+        end,
+        getDungeonShortCode = function(mapID)
+          if mapID == 558 then
+            return "MT"
+          end
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      controller.BuildButtons()
+      controller.UpdateButtons(nil)
+
+      local button = controller.GetButtons()[1]
+      Assert.NotNil(button, "TeleportUI should build one M2 button")
+      Assert.NotNil(button.shortCodeText, "M2 button should create a short-code font string")
+      Assert.True(button.shortCodeText._shown, "short-code overlay must stay visible during pure GCD")
+      Assert.Equal(button.shortCodeText._text, "MT", "short-code overlay should keep the dungeon code")
+      Assert.Equal(#appliedCooldowns, 1, "button update should still refresh the cooldown frame once")
+      Assert.Equal(appliedCooldowns[1].start, 0, "pure GCD should clear the visible cooldown swipe")
+      Assert.Equal(appliedCooldowns[1].duration, 0, "pure GCD should clear the visible cooldown swipe duration")
+      Assert.False(appliedCooldowns[1].enabled, "pure GCD should disable the cooldown frame for portal buttons")
+    end)
+  end)
+
+  test("Teleport debug output labels short cooldowns as GCD", function()
+    local prints = {}
+
+    WithGlobals({
+      InCombatLockdown = function()
+        return false
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_teleport_debug.lua" })
+      local controller = addon.TeleportDebug.CreateController({
+        printFn = function(msg)
+          prints[#prints + 1] = tostring(msg)
+        end,
+        getL = function()
+          return {}
+        end,
+        updateMPlusTeleportButton = function() end,
+        resolveActiveTeleportSpellID = function()
+          return 12345
+        end,
+        isSpellKnownSafe = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        getSpellCooldownSafe = function()
+          return 100, 1.5, true
+        end,
+        formatCooldownSeconds = function(value)
+          return tostring(value or 0)
+        end,
+        getLatestQueueState = function()
+          return "Dungeon", 999, 12345, 558
+        end,
+        resolveMapIDByActivityID = function(activityID)
+          if activityID == 999 then
+            return 558
+          end
+          return nil
+        end,
+        resolveTeleportSpellIDByActivityID = function()
+          return 12345
+        end,
+        resolveTeleportSpellIDByMapID = function(mapID)
+          if mapID == 558 then
+            return 12345
+          end
+          return nil
+        end,
+        getNormalizedActiveEntryInfo = function()
+          return { active = true, activityID = 999, mapID = 558 }
+        end,
+        getCenterNoticeTeleportButton = function()
+          return {
+            IsShown = function()
+              return true
+            end,
+            GetAttribute = function(_self, key)
+              if key == "type" then
+                return "spell"
+              end
+              if key == "spell" then
+                return 12345
+              end
+              return nil
+            end,
+            spellID = 12345,
+            mapName = "Terrasse der Magister",
+            isActiveTarget = true,
+          }
+        end,
+        getMplusTeleportButtons = function()
+          return {}
+        end,
+        showCenterNotice = function() end,
+        setLatestQueueState = function() end,
+      })
+
+      controller.PrintTeleportDebug()
+
+      local foundGcd = false
+      local foundRaw = false
+      for _, line in ipairs(prints) do
+        if line:find("cdType=gcd", 1, true) then
+          foundGcd = true
+        end
+        if line:find("rawDuration=1.5", 1, true) then
+          foundRaw = true
+        end
+      end
+
+      Assert.True(foundGcd, "debug output must label short cooldowns as GCD")
+      Assert.True(foundRaw, "debug output must expose the raw short cooldown duration")
+    end)
+  end)
 end
 
 local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModules)

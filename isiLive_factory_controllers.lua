@@ -672,6 +672,7 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
     resolveActiveTeleportSpellID = ctx.ResolveActiveTeleportSpellID,
     isSpellKnownSafe = ctx.IsSpellKnownSafe,
     getTeleportCooldownRemaining = ctx.GetTeleportCooldownRemaining,
+    getSpellCooldownSafe = ctx.GetSpellCooldownSafe,
     formatCooldownSeconds = ctx.FormatCooldownSeconds,
     getLatestQueueState = function()
       return runtimeState.GetLatestQueueState()
