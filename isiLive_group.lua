@@ -54,14 +54,16 @@ local function BuildDeps(opts)
     getUnitRole = opts.getUnitRole or function() return nil end,
     getPlayerSpecName = opts.getPlayerSpecName or function() return nil end,
     getUnitRio = opts.getUnitRio or function() return nil end,
-    unitIsGroupLeader = opts.unitIsGroupLeader or falsefn,
+    unitIsGroupLeader = opts.unitIsGroupLeader or function(_unit)
+      return false
+    end,
     unitHasIsiLive = opts.unitHasIsiLive or falsefn,
     applyKnownKeyToRosterEntry = opts.applyKnownKeyToRosterEntry or falsefn,
     enqueueInspect = opts.enqueueInspect or emptyfn,
     sendOwnKeySnapshot = opts.sendOwnKeySnapshot or emptyfn,
     sendIsiLiveHello = opts.sendIsiLiveHello or emptyfn,
     sendRefreshRequest = opts.sendRefreshRequest or emptyfn,
-    onGroupJoined = opts.onGroupJoined or emptyfn,
+    onGroupJoined = opts.onGroupJoined or function() end,
     onMemberJoinedGroup = opts.onMemberJoinedGroup or emptyfn,
     timerAfter = opts.timerAfter or function(_, cb) cb() end,
     shouldAutoCloseMainFrame = opts.shouldAutoCloseMainFrame or falsefn,

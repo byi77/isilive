@@ -187,17 +187,27 @@ function KickTracker.CreateController(opts)
     if specData.castUnit == "pet" then
       local UnitExists_ref = rawget(_G, "UnitExists")
       if type(UnitExists_ref) ~= "function" then
-        return specData.requireAvailability == true and nil or specData.spells[1]
+        return nil
       end
       local ok, exists = pcall(UnitExists_ref, "pet")
       if not ok or not exists then
-        return specData.requireAvailability == true and nil or specData.spells[1]
+        return nil
       end
     end
 
     for _, spellData in ipairs(specData.spells) do
-      if type(spellData) == "table" and SpellAppearsAvailable(spellData.spellID) then
-        return spellData
+      if type(spellData) == "table" then
+        if specData.requireAvailability == true then
+          local GetSpellBaseCooldown_ref = rawget(_G, "GetSpellBaseCooldown")
+          if type(GetSpellBaseCooldown_ref) == "function" then
+            local ok, ms = pcall(GetSpellBaseCooldown_ref, spellData.spellID)
+            if ok and tonumber(ms) and tonumber(ms) > 0 then
+              return spellData
+            end
+          end
+        elseif SpellAppearsAvailable(spellData.spellID) then
+          return spellData
+        end
       end
     end
 
