@@ -49,29 +49,27 @@ function Queue.SetDebugLogger(logger)
   end
 end
 
-function Queue.GetActivityName(activityID)
+local function GetActivityInfoTable(activityID)
   if not activityID or not (C_LFGList and C_LFGList.GetActivityInfoTable) then
     return nil
   end
-
   local ok, info = pcall(C_LFGList.GetActivityInfoTable, activityID)
-  if ok and type(info) == "table" then
-    return rawget(info, "fullName") or rawget(info, "shortName") or rawget(info, "activityName")
-  end
+  return (ok and type(info) == "table") and info or nil
+end
 
-  return nil
+function Queue.GetActivityName(activityID)
+  local info = GetActivityInfoTable(activityID)
+  if not info then
+    return nil
+  end
+  return rawget(info, "fullName") or rawget(info, "shortName") or rawget(info, "activityName")
 end
 
 local function HasConcreteActivityMap(activityID)
-  if not activityID or not (C_LFGList and C_LFGList.GetActivityInfoTable) then
+  local info = GetActivityInfoTable(activityID)
+  if not info then
     return false
   end
-
-  local ok, info = pcall(C_LFGList.GetActivityInfoTable, activityID)
-  if not ok or type(info) ~= "table" then
-    return false
-  end
-
   local mapID = tonumber(rawget(info, "mapID") or rawget(info, "mapId"))
   return mapID and mapID > 0
 end

@@ -79,7 +79,7 @@ end
 
 local function SendIsiLiveHello(sync, isFrameVisible, getAddonVersionRaw, force, source)
   sync.SendHello({
-    force = force and true or false,
+    force = not not force,
     isVisible = isFrameVisible(),
     version = getAddonVersionRaw(),
     protocolVersion = type(sync.GetProtocolVersion) == "function" and sync.GetProtocolVersion() or nil,
@@ -89,7 +89,7 @@ end
 
 local function SendRefreshRequest(sync, force)
   sync.SendRefreshRequest({
-    force = force and true or false,
+    force = not not force,
   })
 end
 
@@ -118,7 +118,7 @@ local function SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerL
   opts = opts or {}
 
   local isVisible = isFrameVisible()
-  local force = opts.force and true or false
+  local force = not not opts.force
   local source = opts.source
   local allowHidden = opts.allowHidden == true
   local onlyIfChanged = opts.onlyIfChanged == true
@@ -176,44 +176,6 @@ local function SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerL
   })
 end
 
-local function SendOwnKeySnapshot(
-  sync,
-  isFrameVisible,
-  getUnitRio,
-  getPlayerLastRunDps,
-  getUnitNameAndRealm,
-  force,
-  source,
-  allowHidden,
-  onlyIfChanged,
-  includeDps
-)
-  SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, {
-    force = force,
-    source = source,
-    allowHidden = allowHidden,
-    onlyIfChanged = onlyIfChanged,
-    includeDps = includeDps,
-  })
-end
-
-local function SendOwnBackgroundSnapshot(
-  sync,
-  isFrameVisible,
-  getUnitRio,
-  getPlayerLastRunDps,
-  getUnitNameAndRealm,
-  source
-)
-  local visible = isFrameVisible()
-  SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, {
-    force = false,
-    source = source,
-    allowHidden = not visible,
-    onlyIfChanged = not visible,
-    includeDps = true,
-  })
-end
 
 local function SendRefreshResponse(
   sync,
@@ -512,22 +474,24 @@ function KeySync.CreateController(opts)
   end
 
   function controller.SendOwnKeySnapshot(force, source, allowHidden, onlyIfChanged, includeDps)
-    SendOwnKeySnapshot(
-      sync,
-      isFrameVisible,
-      getUnitRio,
-      getPlayerLastRunDps,
-      getUnitNameAndRealm,
-      force,
-      source,
-      allowHidden,
-      onlyIfChanged,
-      includeDps
-    )
+    SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, {
+      force = force,
+      source = source,
+      allowHidden = allowHidden,
+      onlyIfChanged = onlyIfChanged,
+      includeDps = includeDps,
+    })
   end
 
   function controller.SendOwnBackgroundSnapshot(source)
-    SendOwnBackgroundSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, source)
+    local visible = isFrameVisible()
+    SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerLastRunDps, getUnitNameAndRealm, {
+      force = false,
+      source = source,
+      allowHidden = not visible,
+      onlyIfChanged = not visible,
+      includeDps = true,
+    })
   end
 
   function controller.SendRefreshResponse()

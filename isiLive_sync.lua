@@ -24,8 +24,8 @@ local ISILIVE_REFRESH_REQUEST_COOLDOWN = 1
 -- controller re-creations during the same session.
 --
 -- Reset contract: ClearKnownUsers() resets ALL mutable state (cooldowns, dedup trackers,
--- and lookup tables) and is called by group.lua → HandleNoGroup on group disband.
--- This ensures a clean slate when the player joins a new group.
+-- and lookup tables) and is called by isiLive_controller_wiring.lua and isiLive_keysync.lua
+-- on group disband. This ensures a clean slate when the player joins a new group.
 local lastIsiLiveHelloAt = 0
 local lastIsiLiveKeyAt = 0
 local lastIsiLiveStatsAt = 0

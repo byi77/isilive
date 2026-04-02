@@ -5,6 +5,10 @@ addonTable = addonTable or {}
 local RuntimeLifecycle = {}
 addonTable.EventHandlersRuntimeLifecycle = RuntimeLifecycle
 
+local function GetDB()
+  return rawget(_G, "IsiLiveDB")
+end
+
 local TRACKED_NON_CHALLENGE_PARTY_DIFFICULTY_IDS = {
   [1] = true,
   [2] = true,
@@ -255,7 +259,7 @@ local function IsCombatFadeLayout(layoutMode)
 end
 
 local function ApplyCombatFade(ctx, targetAlpha)
-  local db = rawget(_G, "IsiLiveDB")
+  local db = GetDB()
   if not db or db.combatFadeMM == false then
     return
   end

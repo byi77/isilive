@@ -5,49 +5,37 @@ addonTable = addonTable or {}
 local Group = {}
 addonTable.Group = Group
 
+local function falsefn() return false end
+local function nilpairfn() return nil, nil end
+local function emptyfn() end
+
 local function BuildDeps(opts)
   opts = opts or {}
 
   return {
     printFn = opts.printFn or print,
-    getL = opts.getL or function()
-      return {}
-    end,
-    isRosterCollapsed = opts.isRosterCollapsed or function()
-      return false
-    end,
-    isInGroup = opts.isInGroup or function()
-      return false
-    end,
-    getNumGroupMembers = opts.getNumGroupMembers or function()
-      return 0
-    end,
-    getActiveChallengeMapID = opts.getActiveChallengeMapID or function()
-      return nil
-    end,
-    getWasInGroup = opts.getWasInGroup or function()
-      return false
-    end,
-    setWasInGroup = opts.setWasInGroup or function(_value) end,
-    getWasRaidGroup = opts.getWasRaidGroup or function()
-      return false
-    end,
-    setWasRaidGroup = opts.setWasRaidGroup or function(_value) end,
-    setWasGroupLeader = opts.setWasGroupLeader or function(_value) end,
-    getRoster = opts.getRoster or function()
-      return {}
-    end,
-    setRoster = opts.setRoster or function(_value) end,
-    captureQueueJoinCandidate = opts.captureQueueJoinCandidate or function() end,
-    announceQueuedGroupJoin = opts.announceQueuedGroupJoin or function() end,
-    setMainFrameVisible = opts.setMainFrameVisible or function(_visible) end,
-    switchToRaidMode = opts.switchToRaidMode or function() end,
-    updateLeaderButtons = opts.updateLeaderButtons or function() end,
-    clearLatestQueueTarget = opts.clearLatestQueueTarget or function() end,
-    clearRioBaselineSnapshot = opts.clearRioBaselineSnapshot or function() end,
-    clearKnownUsers = opts.clearKnownUsers or function() end,
-    resetInspectAll = opts.resetInspectAll or function() end,
-    resetInspectQueues = opts.resetInspectQueues or function() end,
+    getL = opts.getL or function() return {} end,
+    isRosterCollapsed = opts.isRosterCollapsed or falsefn,
+    isInGroup = opts.isInGroup or falsefn,
+    getNumGroupMembers = opts.getNumGroupMembers or function() return 0 end,
+    getActiveChallengeMapID = opts.getActiveChallengeMapID or function() return nil end,
+    getWasInGroup = opts.getWasInGroup or falsefn,
+    setWasInGroup = opts.setWasInGroup or emptyfn,
+    getWasRaidGroup = opts.getWasRaidGroup or falsefn,
+    setWasRaidGroup = opts.setWasRaidGroup or emptyfn,
+    setWasGroupLeader = opts.setWasGroupLeader or emptyfn,
+    getRoster = opts.getRoster or function() return {} end,
+    setRoster = opts.setRoster or emptyfn,
+    captureQueueJoinCandidate = opts.captureQueueJoinCandidate or emptyfn,
+    announceQueuedGroupJoin = opts.announceQueuedGroupJoin or emptyfn,
+    setMainFrameVisible = opts.setMainFrameVisible or emptyfn,
+    switchToRaidMode = opts.switchToRaidMode or emptyfn,
+    updateLeaderButtons = opts.updateLeaderButtons or emptyfn,
+    clearLatestQueueTarget = opts.clearLatestQueueTarget or emptyfn,
+    clearRioBaselineSnapshot = opts.clearRioBaselineSnapshot or emptyfn,
+    clearKnownUsers = opts.clearKnownUsers or emptyfn,
+    resetInspectAll = opts.resetInspectAll or emptyfn,
+    resetInspectQueues = opts.resetInspectQueues or emptyfn,
     updateUI = opts.updateUI or function() end,
     updateMPlusTeleportButton = opts.updateMPlusTeleportButton or function() end,
     clearPendingQueueJoinInfo = opts.clearPendingQueueJoinInfo or function() end,
@@ -60,46 +48,36 @@ local function BuildDeps(opts)
     getUnitServerLanguage = opts.getUnitServerLanguage or function(_unit, _realm)
       return "??"
     end,
-    getOwnedKeystoneSnapshot = opts.getOwnedKeystoneSnapshot or function()
-      return nil, nil
-    end,
-    markIsiLiveUser = opts.markIsiLiveUser or function(_name, _realm) end,
-    setPlayerKeyInfo = opts.setPlayerKeyInfo or function(_name, _realm, _mapID, _level) end,
-    getUnitRole = opts.getUnitRole or function(_unit)
-      return nil
-    end,
-    getPlayerSpecName = opts.getPlayerSpecName or function()
-      return nil
-    end,
-    getUnitRio = opts.getUnitRio or function(_unit)
-      return nil
-    end,
-    unitIsGroupLeader = opts.unitIsGroupLeader or function(_unit)
-      return false
-    end,
-    unitHasIsiLive = opts.unitHasIsiLive or function(_unit)
-      return false
-    end,
-    applyKnownKeyToRosterEntry = opts.applyKnownKeyToRosterEntry or function(_info)
-      return false
-    end,
-    enqueueInspect = opts.enqueueInspect or function(_unit) end,
-    sendOwnKeySnapshot = opts.sendOwnKeySnapshot or function(_force) end,
-    sendIsiLiveHello = opts.sendIsiLiveHello or function(_force) end,
-    sendRefreshRequest = opts.sendRefreshRequest or function(_force) end,
-    onGroupJoined = opts.onGroupJoined or function() end,
-    onMemberJoinedGroup = opts.onMemberJoinedGroup or function() end,
-    timerAfter = opts.timerAfter or function(_, cb)
-      cb()
-    end,
-    shouldAutoCloseMainFrame = opts.shouldAutoCloseMainFrame or function()
-      return false
-    end,
-    getRaidTransitionBehavior = opts.getRaidTransitionBehavior or function()
-      return "hide"
-    end,
-    autoCloseMainFrame = opts.autoCloseMainFrame or function() end,
+    getOwnedKeystoneSnapshot = opts.getOwnedKeystoneSnapshot or nilpairfn,
+    markIsiLiveUser = opts.markIsiLiveUser or emptyfn,
+    setPlayerKeyInfo = opts.setPlayerKeyInfo or emptyfn,
+    getUnitRole = opts.getUnitRole or function() return nil end,
+    getPlayerSpecName = opts.getPlayerSpecName or function() return nil end,
+    getUnitRio = opts.getUnitRio or function() return nil end,
+    unitIsGroupLeader = opts.unitIsGroupLeader or falsefn,
+    unitHasIsiLive = opts.unitHasIsiLive or falsefn,
+    applyKnownKeyToRosterEntry = opts.applyKnownKeyToRosterEntry or falsefn,
+    enqueueInspect = opts.enqueueInspect or emptyfn,
+    sendOwnKeySnapshot = opts.sendOwnKeySnapshot or emptyfn,
+    sendIsiLiveHello = opts.sendIsiLiveHello or emptyfn,
+    sendRefreshRequest = opts.sendRefreshRequest or emptyfn,
+    onGroupJoined = opts.onGroupJoined or emptyfn,
+    onMemberJoinedGroup = opts.onMemberJoinedGroup or emptyfn,
+    timerAfter = opts.timerAfter or function(_, cb) cb() end,
+    shouldAutoCloseMainFrame = opts.shouldAutoCloseMainFrame or falsefn,
+    getRaidTransitionBehavior = opts.getRaidTransitionBehavior or function() return "hide" end,
+    autoCloseMainFrame = opts.autoCloseMainFrame or emptyfn,
   }
+end
+
+local GHOST_KEY_PREFIX = "ghost:"
+
+local function MemberKey(name, realm)
+  return (name or "Unknown") .. "-" .. (realm or "")
+end
+
+local function GhostKey(name, realm)
+  return GHOST_KEY_PREFIX .. MemberKey(name, realm)
 end
 
 local SetIfNotNil
@@ -122,8 +100,7 @@ local function HandleNoGroup(deps, wasInGroupBefore)
       if unit ~= "player" then
         info.isGhost = true
         info.isLeader = false
-        local key = "ghost:" .. (info.name or "Unknown") .. "-" .. (info.realm or "")
-        newRoster[key] = info
+        newRoster[GhostKey(info.name, info.realm)] = info
       end
     end
     deps.setRoster(newRoster)
@@ -139,7 +116,7 @@ local function HandleNoGroup(deps, wasInGroupBefore)
   end
 end
 
--- Ghosts are only removed when the group is full (5 active members).
+-- Ghosts are only removed when the group has 5 or more active members.
 -- With fewer than 5 active members ghosts are kept as visible history.
 -- Intentional design: a 4-person group should still show previous compositions.
 local function PruneGhosts(roster)
@@ -212,7 +189,7 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
   local unreadablePartySlots = {}
   local name, realm = deps.getUnitNameAndRealm("player")
   if name then
-    currentMemberKeys[name .. "-" .. (realm or "")] = true
+    currentMemberKeys[MemberKey(name, realm)] = true
   end
 
   local members = deps.getNumGroupMembers()
@@ -220,7 +197,7 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
     local unit = "party" .. i
     local memberName, memberRealm = deps.getUnitNameAndRealm(unit)
     if memberName then
-      currentMemberKeys[memberName .. "-" .. (memberRealm or "")] = true
+      currentMemberKeys[MemberKey(memberName, memberRealm)] = true
     else
       -- A transient UnitExists race should not turn a still-occupied slot into a ghost.
       unreadablePartySlots[unit] = true
@@ -232,11 +209,11 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
   for unit, info in pairs(roster) do
     if unit ~= "player" and string.find(unit, "^party") and not info.isGhost then
       if not unreadablePartySlots[unit] then
-        local key = info.name .. "-" .. (info.realm or "")
+        local key = MemberKey(info.name, info.realm)
         if not currentMemberKeys[key] then
           table.insert(ghostConversions, {
             partyUnit = unit,
-            ghostKey = "ghost:" .. key,
+            ghostKey = GhostKey(info.name, info.realm),
             info = info,
           })
         end
@@ -257,7 +234,7 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
   local slotsToClear = {}
   for unit, info in pairs(roster) do
     if info.name then
-      existingDataByName[info.name .. "-" .. (info.realm or "")] = info
+      existingDataByName[MemberKey(info.name, info.realm)] = info
     end
     -- Clear all party slots to avoid duplicates/stale entries when group shrinks or shifts
     if string.find(unit, "^party") and not unreadablePartySlots[unit] then
@@ -276,7 +253,7 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
       local memberLanguage = deps.getUnitServerLanguage(unit, memberRealm)
 
       -- Try to find existing data for this PLAYER, not just this SLOT
-      local existing = existingDataByName[memberName .. "-" .. (memberRealm or "")]
+      local existing = existingDataByName[MemberKey(memberName, memberRealm)]
 
       local keyMapID = existing and existing.keyMapID
       local keyLevel = existing and existing.keyLevel
@@ -311,7 +288,7 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
       }
 
       -- Fire sound if this is a genuinely new member (not seen before, not a ghost resurrection)
-      local ghostKey = "ghost:" .. memberName .. "-" .. (memberRealm or "")
+      local ghostKey = GhostKey(memberName, memberRealm)
       if not existing and not roster[ghostKey] and callbacks and type(callbacks.onMemberJoinedGroup) == "function" then
         callbacks.onMemberJoinedGroup()
       end

@@ -1106,7 +1106,7 @@ local function InitializeFactorySecondaryControllers(ctx)
       if type(info) ~= "table" then
         return
       end
-      local hasKick = type(info.spellID) == "number" and info.spellID > 0
+      local hasKick = info.hasKick
       if modules.sync and type(modules.sync.SetPlayerKickInfo) == "function" then
         local selfName = UnitName and UnitName("player") or nil
         local selfRealm = GetRealmName and GetRealmName() or nil

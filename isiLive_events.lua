@@ -71,11 +71,11 @@ function Events.CreateGate(config)
       return
     end
 
-    if isInCombat() and not allowInCombat[event] and not shouldAllowInCombat(frame, event, ...) then
+    if isInCombat() and not (allowInCombat[event] or shouldAllowInCombat(frame, event, ...)) then
       return
     end
 
-    if not frame:IsShown() and not allowWhenHidden[event] and not shouldAllowWhenHidden(frame, event, ...) then
+    if not frame:IsShown() and not (allowWhenHidden[event] or shouldAllowWhenHidden(frame, event, ...)) then
       return
     end
 

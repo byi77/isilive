@@ -491,7 +491,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
       local sync = ctx.sync
       if sync and type(sync.SendKick) == "function" then
         sync.SendKick({
-          hasKick = type(info.spellID) == "number" and info.spellID > 0,
+          hasKick = info.hasKick,
           onCooldown = info.onCooldown,
           cooldownRemain = info.cooldownRemain,
           force = true,

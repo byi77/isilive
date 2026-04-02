@@ -5,17 +5,25 @@ addonTable = addonTable or {}
 local RosterPanel = {}
 addonTable.RosterPanel = RosterPanel
 
--- Imports from _RosterInternal (set by roster_tooltip.lua and roster_layout.lua)
+-- Imports from _RosterInternal (set by roster_tooltip.lua and roster_layout.lua).
+-- Load-order dependency: isiLive_roster_tooltip.lua and isiLive_roster_layout.lua
+-- must appear before this file in isiLive.toc (currently lines 49-50 vs 53).
+-- All imports below carry hardcoded fallbacks so a load-order mistake fails
+-- gracefully rather than with a nil-dereference crash.
 local RI = addonTable._RosterInternal or {}
+
+local function GetDB()
+  return rawget(_G, "IsiLiveDB")
+end
 
 -- Tooltip imports
 local DisableFontStringWrapping = RI.DisableFontStringWrapping or function(_fs) end
-local CreateRosterHoverTooltip = RI.CreateRosterHoverTooltip
-local HideRosterHoverTooltip = RI.HideRosterHoverTooltip
-local AnchorRosterHoverTooltip = RI.AnchorRosterHoverTooltip
-local FormatCompactTooltipNumber = RI.FormatCompactTooltipNumber
-local ShowRosterNameFallbackTooltip = RI.ShowRosterNameFallbackTooltip
-local ShowRosterInfoTooltip = RI.ShowRosterInfoTooltip
+local CreateRosterHoverTooltip = RI.CreateRosterHoverTooltip or function() return nil end
+local HideRosterHoverTooltip = RI.HideRosterHoverTooltip or function() end
+local AnchorRosterHoverTooltip = RI.AnchorRosterHoverTooltip or function() end
+local FormatCompactTooltipNumber = RI.FormatCompactTooltipNumber or function(n) return tostring(n or 0) end
+local ShowRosterNameFallbackTooltip = RI.ShowRosterNameFallbackTooltip or function() end
+local ShowRosterInfoTooltip = RI.ShowRosterInfoTooltip or function() end
 
 -- Layout imports
 local LAYOUT_MODE_EXPANDED = RI.LAYOUT_MODE_EXPANDED or "expanded"
@@ -23,6 +31,7 @@ local LAYOUT_MODE_COMPACT_VERTICAL = RI.LAYOUT_MODE_COMPACT_VERTICAL or "compact
 local LAYOUT_MODE_COMPACT_HORIZONTAL = RI.LAYOUT_MODE_COMPACT_HORIZONTAL or "compact_horizontal"
 local LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or "compact_main_horizontal"
 local DEFAULT_LAYOUT_MODE_LAST_USED = "last_used"
+local LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL_LEGACY = "compact_horizontal_2"
 local FULL_FRAME_WIDTH = RI.FULL_FRAME_WIDTH or 755
 local HELPER_BUTTON_SIZE = RI.HELPER_BUTTON_SIZE or 18
 local HELPER_COLUMN_X = RI.HELPER_COLUMN_X or -111
@@ -38,13 +47,13 @@ local NormalizeLayoutMode = RI.NormalizeLayoutMode
     if mode == LAYOUT_MODE_COMPACT_HORIZONTAL then
       return LAYOUT_MODE_COMPACT_HORIZONTAL
     end
-    if mode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or mode == "compact_horizontal_2" then
+    if mode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or mode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL_LEGACY then
       return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
     end
     return LAYOUT_MODE_EXPANDED
   end
 local function ResolveConfiguredDefaultOpenLayoutMode()
-  local db = rawget(_G, "IsiLiveDB")
+  local db = GetDB()
   if type(db) ~= "table" then
     return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
   end
@@ -58,7 +67,7 @@ local function ResolveConfiguredDefaultOpenLayoutMode()
     return DEFAULT_LAYOUT_MODE_LAST_USED
   end
 
-  if layoutMode == "compact_horizontal_2" then
+  if layoutMode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL_LEGACY then
     return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
   end
 
@@ -1484,8 +1493,9 @@ local function ConstructPanelUI(mainFrame, uiDeps)
         return
       end
       ui.layoutMode = target
-      if IsiLiveDB then
-        IsiLiveDB.rosterLayoutMode = target
+      local db = GetDB()
+      if db then
+        db.rosterLayoutMode = target
       end
       UpdateCollapseState(ui, target, mainFrame)
       NotifyCollapseChanged(ui, ui.isCollapsed)
@@ -2084,7 +2094,7 @@ function RosterPanel.CreateController(opts)
   function controller.RestoreSavedState()
     local savedLayoutMode = ResolveConfiguredDefaultOpenLayoutMode()
     if savedLayoutMode == DEFAULT_LAYOUT_MODE_LAST_USED then
-      local db = rawget(_G, "IsiLiveDB")
+      local db = GetDB()
       local lastUsedLayoutMode = type(db) == "table" and db.rosterLayoutMode or nil
       if lastUsedLayoutMode == nil or lastUsedLayoutMode == false or lastUsedLayoutMode == "" then
         savedLayoutMode = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
@@ -2092,11 +2102,12 @@ function RosterPanel.CreateController(opts)
         savedLayoutMode = lastUsedLayoutMode
       end
     end
+    local db = GetDB()
     if savedLayoutMode == nil then
-      savedLayoutMode = IsiLiveDB and IsiLiveDB.rosterLayoutMode or nil
+      savedLayoutMode = db and db.rosterLayoutMode or nil
     end
-    if savedLayoutMode == nil and IsiLiveDB and IsiLiveDB.rosterCollapsed ~= nil then
-      savedLayoutMode = IsiLiveDB.rosterCollapsed and LAYOUT_MODE_COMPACT_VERTICAL or LAYOUT_MODE_EXPANDED
+    if savedLayoutMode == nil and db and db.rosterCollapsed ~= nil then
+      savedLayoutMode = db.rosterCollapsed and LAYOUT_MODE_COMPACT_VERTICAL or LAYOUT_MODE_EXPANDED
     end
     if savedLayoutMode ~= nil then
       ui.layoutMode = NormalizeLayoutMode(savedLayoutMode)

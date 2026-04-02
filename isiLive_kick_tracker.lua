@@ -128,7 +128,6 @@ end
 
 -- Read actual cooldown duration via C_Spell.GetSpellCooldown.
 -- Safe to call from C_Timer.After callbacks (untainted context).
--- Pass requireOutOfCombat=true to skip during combat lockdown.
 
 function KickTracker.CreateController(opts)
   opts = opts or {}
@@ -141,7 +140,7 @@ function KickTracker.CreateController(opts)
   local cooldownRemain = 0
   local watchedSpellID = nil
   local watchedCastUnit = "player"
-  local watchedCd = nil -- may be refined by CacheCooldown or ScanOwnTalents
+  local watchedCd = nil -- pipeline: SPEC_DATA -> ReadBaseCd -> ScanOwnTalents -> CacheCooldown (each may override)
   local talentScanDirty = true -- invalidated on spec/talent change, cleared after ScanOwnTalents
 
   local function SpellAppearsAvailable(spellID)
@@ -183,6 +182,17 @@ function KickTracker.CreateController(opts)
   local function ResolveActiveSpellData()
     if type(specData) ~= "table" or type(specData.spells) ~= "table" then
       return nil
+    end
+
+    if specData.castUnit == "pet" then
+      local UnitExists_ref = rawget(_G, "UnitExists")
+      if type(UnitExists_ref) ~= "function" then
+        return specData.requireAvailability == true and nil or specData.spells[1]
+      end
+      local ok, exists = pcall(UnitExists_ref, "pet")
+      if not ok or not exists then
+        return specData.requireAvailability == true and nil or specData.spells[1]
+      end
     end
 
     for _, spellData in ipairs(specData.spells) do
@@ -313,6 +323,13 @@ function KickTracker.CreateController(opts)
     if not watchedSpellID then
       return
     end
+    local InCombatLockdown_ref = rawget(_G, "InCombatLockdown")
+    if type(InCombatLockdown_ref) == "function" then
+      local ok, locked = pcall(InCombatLockdown_ref)
+      if ok and locked then
+        return
+      end
+    end
     local C_Spell_ref = rawget(_G, "C_Spell")
     if type(C_Spell_ref) ~= "table" then
       return
@@ -334,12 +351,13 @@ function KickTracker.CreateController(opts)
     end
     local clean = tonumber(durStr)
     if clean and clean > 1.5 then
+      local prevCd = watchedCd
       watchedCd = clean
-      -- Only correct cdEndTime if CD was just started (remaining ≈ full duration).
+      -- Only correct cdEndTime if CD was just started (remaining ≈ prevCd, both directions).
       -- Do NOT reset cdEndTime mid-CD (duration is always the full CD, not remaining).
       if onCooldown and cdEndTime > 0 then
         local remaining = cdEndTime - getTime()
-        if remaining > 0 and remaining > clean - 1 and math.abs(remaining - clean) > 1 then
+        if remaining > 0 and math.abs(remaining - clean) > 1 and prevCd and math.abs(remaining - prevCd) <= 1 then
           cdEndTime = getTime() + clean
         end
       end
@@ -368,10 +386,8 @@ function KickTracker.CreateController(opts)
     watchedCd = watchedCd or spellData.cd
     ReadBaseCd()
     ScanOwnTalents()
-    if watchedSpellID then
-      local cd = watchedCd or 15
-      SetCooldown(true, getTime() + cd)
-    end
+    local cd = watchedCd or 15
+    SetCooldown(true, getTime() + cd)
   end
 
   -- Called on SPELL_UPDATE_COOLDOWN and PLAYER_REGEN_ENABLED to refresh cached CD.
@@ -403,13 +419,12 @@ function KickTracker.CreateController(opts)
   end
 
   function controller.GetKickInfo()
-    if onCooldown and cdEndTime > 0 then
-      cooldownRemain = math.max(0, cdEndTime - getTime())
-    end
+    local remain = (onCooldown and cdEndTime > 0) and math.max(0, cdEndTime - getTime()) or 0
     return {
       spellID = watchedSpellID,
+      hasKick = watchedSpellID ~= nil,
       onCooldown = onCooldown,
-      cooldownRemain = cooldownRemain,
+      cooldownRemain = remain,
     }
   end
 

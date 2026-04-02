@@ -225,16 +225,16 @@ function Teleport.GetDungeonName(mapID, localeTag)
     return nil
   end
 
-  local resolvedLocale = localeTag
-  if resolvedLocale == nil or resolvedLocale == "" then
-    local getLocale = rawget(_G, "GetLocale")
-    if type(getLocale) == "function" then
-      local okLocale, currentLocale = pcall(getLocale)
-      if okLocale and type(currentLocale) == "string" and currentLocale ~= "" then
-        resolvedLocale = currentLocale
-      end
+  local currentLocale = nil
+  local getLocale = rawget(_G, "GetLocale")
+  if type(getLocale) == "function" then
+    local ok, locale = pcall(getLocale)
+    if ok and type(locale) == "string" and locale ~= "" then
+      currentLocale = locale
     end
   end
+
+  local resolvedLocale = (localeTag ~= nil and localeTag ~= "") and localeTag or currentLocale
 
   local dungeonName = nil
   if type(SeasonData.GetDungeonName) == "function" then
@@ -242,15 +242,6 @@ function Teleport.GetDungeonName(mapID, localeTag)
   end
   if type(dungeonName) == "string" and dungeonName ~= "" then
     return dungeonName
-  end
-
-  local getLocale = rawget(_G, "GetLocale")
-  local currentLocale = nil
-  if type(getLocale) == "function" then
-    local okLocale, locale = pcall(getLocale)
-    if okLocale and type(locale) == "string" and locale ~= "" then
-      currentLocale = locale
-    end
   end
 
   if
