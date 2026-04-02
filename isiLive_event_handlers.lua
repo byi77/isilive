@@ -138,6 +138,14 @@ local function BuildContext(opts)
   ctx.isReadyCheckActive = OptionalFunction(opts.isReadyCheckActive, function()
     return false
   end)
+  ctx.getReadyCheckReadyUntil = OptionalFunction(opts.getReadyCheckReadyUntil, function(_unit)
+    return nil
+  end)
+  ctx.setReadyCheckReadyUntil = OptionalFunction(opts.setReadyCheckReadyUntil, function(_unit, _value) end)
+  ctx.clearAllReadyCheckReady = OptionalFunction(opts.clearAllReadyCheckReady, function() end)
+  ctx.clearExpiredReadyCheckReady = OptionalFunction(opts.clearExpiredReadyCheckReady, function(_now)
+    return false
+  end)
   ctx.getReadyCheckDeclinedUntil = OptionalFunction(opts.getReadyCheckDeclinedUntil, function(_unit)
     return nil
   end)

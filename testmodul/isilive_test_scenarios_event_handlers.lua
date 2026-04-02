@@ -1485,6 +1485,10 @@ local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAd
   test("Event handlers toggle ready check state and refresh UI on ready check events", function()
     local counters = { uiUpdates = 0, readyCheckRefreshes = 0 }
     local readyCheckActive = false
+    local now = 100
+    local readyUntilByUnit = {}
+    local scheduledDelay = nil
+    local scheduledCallback = nil
 
     local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
     local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
@@ -1493,6 +1497,29 @@ local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAd
       end,
       isReadyCheckActive = function()
         return readyCheckActive
+      end,
+      getTime = function()
+        return now
+      end,
+      setReadyCheckReadyUntil = function(unit, value)
+        readyUntilByUnit[unit] = value
+      end,
+      clearAllReadyCheckReady = function()
+        readyUntilByUnit = {}
+      end,
+      clearExpiredReadyCheckReady = function(currentTime)
+        local changed = false
+        for unit, untilTime in pairs(readyUntilByUnit) do
+          if untilTime <= currentTime then
+            readyUntilByUnit[unit] = nil
+            changed = true
+          end
+        end
+        return changed
+      end,
+      timerAfter = function(delaySeconds, callback)
+        scheduledDelay = delaySeconds
+        scheduledCallback = callback
       end,
     })
 
@@ -1513,19 +1540,41 @@ local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAd
     Assert.False(readyCheckActive, "READY_CHECK_FINISHED must clear ready check state")
     Assert.Equal(counters.readyCheckRefreshes, 3, "READY_CHECK_FINISHED should refresh ready-check UI once")
     Assert.Equal(counters.uiUpdates, 0, "READY_CHECK_FINISHED must not call the generic UI rerender path")
+    Assert.Equal(readyUntilByUnit.party1, 120, "READY_CHECK_FINISHED should keep ready unit green for 20 seconds")
+    Assert.Equal(scheduledDelay, 20, "READY_CHECK_FINISHED should schedule a 20-second ready hold cleanup")
+    Assert.NotNil(scheduledCallback, "READY_CHECK_FINISHED should schedule a ready-hold cleanup callback")
 
+    now = 121
     controller:Dispatch("READY_CHECK_CONFIRM", "party1", "ready")
     Assert.Equal(
       counters.readyCheckRefreshes,
-      3,
-      "READY_CHECK_CONFIRM should not refresh ready-check UI after ready check finished"
+      4,
+      "READY_CHECK_CONFIRM should still refresh ready-check UI after ready check finished"
     )
     Assert.Equal(counters.uiUpdates, 0, "READY_CHECK_CONFIRM after finish must keep the generic UI rerender path idle")
+    Assert.Equal(readyUntilByUnit.party1, 141, "late ready confirm should refresh its 20-second hold")
+    Assert.Equal(scheduledDelay, 20, "late ready confirm should schedule a 20-second cleanup")
+    Assert.NotNil(scheduledCallback, "late ready confirm should schedule a cleanup callback")
+
+    now = 141
+    local cleanupCallback = scheduledCallback
+    if cleanupCallback == nil then
+      error("late ready confirm should schedule a cleanup callback")
+    end
+    cleanupCallback()
+
+    Assert.Nil(readyUntilByUnit.party1, "late ready confirm hold should clear after the timer expires")
+    Assert.Equal(counters.readyCheckRefreshes, 5, "ready-hold expiry should trigger one more ready-check refresh")
+    Assert.Equal(counters.uiUpdates, 0, "ready-hold expiry must not call the generic UI rerender path")
   end)
 
   test("Event handlers route ready check lifecycle through refreshReadyCheckUI without generic rerender", function()
     local counters = { uiUpdates = 0, readyCheckRefreshes = 0 }
     local readyCheckActive = false
+    local now = 100
+    local declinedUntilByUnit = {}
+    local scheduledDelay = nil
+    local scheduledCallback = nil
 
     local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
     local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
@@ -1534,6 +1583,29 @@ local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAd
       end,
       isReadyCheckActive = function()
         return readyCheckActive
+      end,
+      getTime = function()
+        return now
+      end,
+      setReadyCheckDeclinedUntil = function(unit, value)
+        declinedUntilByUnit[unit] = value
+      end,
+      clearAllReadyCheckDeclined = function()
+        declinedUntilByUnit = {}
+      end,
+      clearExpiredReadyCheckDeclined = function(currentTime)
+        local changed = false
+        for unit, untilTime in pairs(declinedUntilByUnit) do
+          if untilTime <= currentTime then
+            declinedUntilByUnit[unit] = nil
+            changed = true
+          end
+        end
+        return changed
+      end,
+      timerAfter = function(delaySeconds, callback)
+        scheduledDelay = delaySeconds
+        scheduledCallback = callback
       end,
       refreshReadyCheckUI = function()
         counters.readyCheckRefreshes = counters.readyCheckRefreshes + 1
@@ -1545,7 +1617,7 @@ local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAd
     Assert.Equal(counters.readyCheckRefreshes, 1, "READY_CHECK must call refreshReadyCheckUI exactly once")
     Assert.Equal(counters.uiUpdates, 0, "READY_CHECK must not call updateUI")
 
-    controller:Dispatch("READY_CHECK_CONFIRM", "party1", "ready")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party1", "notready")
     Assert.Equal(counters.readyCheckRefreshes, 2, "READY_CHECK_CONFIRM must call refreshReadyCheckUI while active")
     Assert.Equal(counters.uiUpdates, 0, "READY_CHECK_CONFIRM must not call updateUI")
 
@@ -1553,10 +1625,32 @@ local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAd
     Assert.False(readyCheckActive, "READY_CHECK_FINISHED must clear ready check state before the refresh runs")
     Assert.Equal(counters.readyCheckRefreshes, 3, "READY_CHECK_FINISHED must call refreshReadyCheckUI once")
     Assert.Equal(counters.uiUpdates, 0, "READY_CHECK_FINISHED must not call updateUI")
+    Assert.Equal(declinedUntilByUnit.party1, 120, "declined ready-check unit should stay marked for 20 seconds")
+    Assert.Equal(scheduledDelay, 20, "declined ready-check hold should schedule one 20-second cleanup refresh")
+    Assert.NotNil(scheduledCallback, "declined ready-check hold must schedule a cleanup callback")
 
-    controller:Dispatch("READY_CHECK_CONFIRM", "party1", "ready")
-    Assert.Equal(counters.readyCheckRefreshes, 3, "READY_CHECK_CONFIRM after finish must not call refreshReadyCheckUI")
-    Assert.Equal(counters.uiUpdates, 0, "READY_CHECK_CONFIRM after finish must not call updateUI")
+    now = 121
+    controller:Dispatch("READY_CHECK_CONFIRM", "party1", "notready")
+    Assert.Equal(
+      counters.readyCheckRefreshes,
+      4,
+      "late READY_CHECK_CONFIRM notready should still call refreshReadyCheckUI after finish"
+    )
+    Assert.Equal(counters.uiUpdates, 0, "late READY_CHECK_CONFIRM notready must not call updateUI")
+    Assert.Equal(declinedUntilByUnit.party1, 141, "late declined ready-check unit should refresh its 20-second hold")
+    Assert.Equal(scheduledDelay, 20, "late declined ready-check hold should schedule one 20-second cleanup refresh")
+    Assert.NotNil(scheduledCallback, "late declined ready-check hold must schedule a cleanup callback")
+
+    now = 141
+    local cleanupCallback = scheduledCallback
+    if cleanupCallback == nil then
+      error("late declined ready-check hold must schedule a cleanup callback")
+    end
+    cleanupCallback()
+
+    Assert.Nil(declinedUntilByUnit.party1, "late declined ready-check hold should clear after the timer expires")
+    Assert.Equal(counters.readyCheckRefreshes, 5, "timer expiry should trigger one more dedicated ready-check refresh")
+    Assert.Equal(counters.uiUpdates, 0, "timer expiry must not call updateUI")
   end)
 
   test("Event handlers keep declined ready-check rows red for 20 seconds after finish", function()
@@ -1622,6 +1716,70 @@ local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAd
 
     Assert.Nil(declinedUntilByUnit.party1, "declined ready-check hold should clear after the timer expires")
     Assert.Equal(counters.readyCheckRefreshes, 5, "timer expiry should trigger one more dedicated ready-check refresh")
+    Assert.Equal(counters.uiUpdates, 0, "timer expiry must not use generic updateUI")
+  end)
+
+  test("Event handlers keep ready-check rows green for 20 seconds after finish", function()
+    local counters = { uiUpdates = 0, readyCheckRefreshes = 0 }
+    local readyCheckActive = false
+    local now = 100
+    local readyUntilByUnit = {}
+    local scheduledDelay = nil
+    local scheduledCallback = nil
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+      setReadyCheckActive = function(value)
+        readyCheckActive = value and true or false
+      end,
+      isReadyCheckActive = function()
+        return readyCheckActive
+      end,
+      getTime = function()
+        return now
+      end,
+      setReadyCheckReadyUntil = function(unit, value)
+        readyUntilByUnit[unit] = value
+      end,
+      clearAllReadyCheckReady = function()
+        readyUntilByUnit = {}
+      end,
+      clearExpiredReadyCheckReady = function(currentTime)
+        local changed = false
+        for unit, untilTime in pairs(readyUntilByUnit) do
+          if untilTime <= currentTime then
+            readyUntilByUnit[unit] = nil
+            changed = true
+          end
+        end
+        return changed
+      end,
+      timerAfter = function(delaySeconds, callback)
+        scheduledDelay = delaySeconds
+        scheduledCallback = callback
+      end,
+    })
+
+    controller:Dispatch("READY_CHECK")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party2", "ready")
+    controller:Dispatch("READY_CHECK_FINISHED")
+
+    Assert.False(readyCheckActive, "READY_CHECK_FINISHED must clear ready check state")
+    Assert.Equal(readyUntilByUnit.party2, 120, "ready ready-check unit should stay marked for 20 seconds")
+    Assert.Equal(scheduledDelay, 20, "ready ready-check hold should schedule one 20-second cleanup refresh")
+    Assert.NotNil(scheduledCallback, "ready ready-check hold must schedule a cleanup callback")
+    Assert.Equal(counters.readyCheckRefreshes, 3, "finish path should still refresh the dedicated ready-check UI")
+    Assert.Equal(counters.uiUpdates, 0, "ready ready-check hold must not use generic updateUI")
+
+    now = 120
+    local cleanupCallback = scheduledCallback
+    if cleanupCallback == nil then
+      error("ready ready-check hold must schedule a cleanup callback")
+    end
+    cleanupCallback()
+
+    Assert.Nil(readyUntilByUnit.party2, "ready ready-check hold should clear after the timer expires")
+    Assert.Equal(counters.readyCheckRefreshes, 4, "timer expiry should trigger one more dedicated ready-check refresh")
     Assert.Equal(counters.uiUpdates, 0, "timer expiry must not use generic updateUI")
   end)
 

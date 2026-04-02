@@ -371,12 +371,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-READY-CHECK-INDICATOR
 - Regelnummer: 34
 - Status: aktiv
-- Zusammenfassung: waehrend eines ready-checks bleibt die schrift in der roster-zeile bei ihrer normalen farbe; stattdessen wird der zeilenhintergrund entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt, wartende spieler erhalten zusaetzlich eine sanduhr vor dem namen, explizit abgelehnte spieler bleiben nach `READY_CHECK_FINISHED` noch 20 sekunden rot markiert und danach verschwindet diese sonderdarstellung wieder; die Events `READY_CHECK`, `READY_CHECK_CONFIRM` und `READY_CHECK_FINISHED` muessen dafuer den dedizierten Ready-Check-Refreshpfad nutzen, ohne den generischen Voll-Renderpfad zu verwenden oder Secure-Rollenbutton-Attribute neu zu schreiben.
+- Zusammenfassung: waehrend eines ready-checks bleibt die schrift in der roster-zeile bei ihrer normalen farbe; stattdessen wird der zeilenhintergrund entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt, wartende spieler erhalten zusaetzlich eine sanduhr vor dem namen, explizit bereit- und abgelehnte spieler bleiben nach `READY_CHECK_FINISHED` jeweils noch 20 sekunden in ihrer statusfarbe markiert und danach verschwindet diese sonderdarstellung wieder; die Events `READY_CHECK`, `READY_CHECK_CONFIRM` und `READY_CHECK_FINISHED` muessen dafuer den dedizierten Ready-Check-Refreshpfad nutzen, ohne den generischen Voll-Renderpfad zu verwenden oder Secure-Rollenbutton-Attribute neu zu schreiben.
 - Erforderliche Tests:
   - Roster ready check uses row backgrounds and waiting icon without recoloring text
+  - Roster ready check stays green for 20 seconds after finish
   - Roster declined ready check stays red for 20 seconds after finish
   - Ready-check dedicated refresh clears declined row background after hold expiry
   - Event handlers route ready check lifecycle through refreshReadyCheckUI without generic rerender
+  - Event handlers keep ready-check rows green for 20 seconds after finish
   - Event handlers keep declined ready-check rows red for 20 seconds after finish
   - TAINT: Ready-check refresh preserves secure role button attributes
   - Architecture ready check refresh stays wired through runtime setup and controller wiring

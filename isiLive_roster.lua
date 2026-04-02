@@ -16,9 +16,9 @@ local ROLE_ICONS = {
 }
 
 local LEADER_MARKER = " |TInterface\\GroupFrame\\UI-Group-LeaderIcon:16:16|t"
-local READY_CHECK_WAITING_MARKUP = "|TInterface\\RAIDFRAME\\ReadyCheck-Waiting:14:14:0:0|t "
+local READY_CHECK_WAITING_MARKUP = "|TInterface\\RAIDFRAME\\ReadyCheck-Waiting:16:16:0:0|t "
 local READY_CHECK_BACKGROUND_COLORS = {
-  ready = { 0.08, 0.42, 0.14, 0.35 },
+  ready = { 0.08, 0.5, 0.16, 0.42 },
   notready = { 0.48, 0.12, 0.12, 0.34 },
   waiting = { 0.55, 0.4, 0.08, 0.32 },
 }
@@ -137,6 +137,7 @@ function Roster.BuildDisplayData(info, opts)
   local syncBadge = opts.syncBadge or ""
   local syncSummary = opts.syncSummary
   local isReadyCheckActive = opts.isReadyCheckActive
+  local getReadyCheckReadyUntil = opts.getReadyCheckReadyUntil
   local getReadyCheckDeclinedUntil = opts.getReadyCheckDeclinedUntil
   local getTime = opts.getTime
 
@@ -154,7 +155,11 @@ function Roster.BuildDisplayData(info, opts)
   local readyCheckStatus = nil
   local readyCheckBackgroundColor = nil
   local readyCheckMarkup = ""
+  local readyUntil = nil
   local declinedUntil = nil
+  if type(getReadyCheckReadyUntil) == "function" and unit then
+    readyUntil = tonumber(getReadyCheckReadyUntil(unit))
+  end
   if type(getReadyCheckDeclinedUntil) == "function" and unit then
     declinedUntil = tonumber(getReadyCheckDeclinedUntil(unit))
   end
@@ -168,6 +173,9 @@ function Roster.BuildDisplayData(info, opts)
         readyCheckMarkup = READY_CHECK_WAITING_MARKUP
       end
     end
+  elseif not isOffline and not info.isGhost and readyUntil and now and readyUntil > now then
+    readyCheckStatus = "ready"
+    readyCheckBackgroundColor = READY_CHECK_BACKGROUND_COLORS.ready
   elseif not isOffline and not info.isGhost and declinedUntil and now and declinedUntil > now then
     readyCheckStatus = "notready"
     readyCheckBackgroundColor = READY_CHECK_BACKGROUND_COLORS.notready

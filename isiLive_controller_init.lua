@@ -70,6 +70,7 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     resolveActiveKeyOwnerUnit = ctx.resolveActiveKeyOwnerUnit,
     resolveTargetMapID = ctx.resolveTargetMapID,
     isReadyCheckActive = ctx.isReadyCheckActive,
+    getReadyCheckReadyUntil = ctx.getReadyCheckReadyUntil,
     getReadyCheckDeclinedUntil = ctx.getReadyCheckDeclinedUntil,
     getRoster = ctx.getRoster,
     isInGroup = ctx.isInGroup,

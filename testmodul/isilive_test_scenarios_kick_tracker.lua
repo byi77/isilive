@@ -39,20 +39,20 @@ return function(test, ctx)
         GetSpecialization = function()
           return 1
         end,
-      GetSpecializationInfo = function(index)
-        if index == 1 then
-          return specID
-        end
-        return nil
-      end,
-      UnitExists = function(unit)
-        return unit == "pet"
-      end,
-      GetSpellBaseCooldown = function(spellID)
-        if spellID == 19647 then
-          return 24000
-        end
-        return 0
+        GetSpecializationInfo = function(index)
+          if index == 1 then
+            return specID
+          end
+          return nil
+        end,
+        UnitExists = function(unit)
+          return unit == "pet"
+        end,
+        GetSpellBaseCooldown = function(spellID)
+          if spellID == 19647 then
+            return 24000
+          end
+          return 0
         end,
       }, function()
         local addon = LoadAddonModules({ "isiLive_kick_tracker.lua" })
@@ -117,7 +117,7 @@ return function(test, ctx)
         end
         return nil
       end,
-      UnitExists = function(unit)
+      UnitExists = function(_)
         return false
       end,
       GetSpellBaseCooldown = function(_spellID)

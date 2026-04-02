@@ -176,7 +176,6 @@ local function SendOwnStateSnapshot(sync, isFrameVisible, getUnitRio, getPlayerL
   })
 end
 
-
 local function SendRefreshResponse(
   sync,
   isFrameVisible,

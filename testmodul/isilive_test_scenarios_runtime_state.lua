@@ -63,21 +63,32 @@ local function RegisterRuntimeStateTests(test, Assert, LoadAddonModules)
     Assert.Nil(next(state.GetRioBaselineByPlayerKey()), "ClearRioBaseline should clear baseline table")
   end)
 
-  test("RuntimeState tracks ready-check declined hold expiry per unit", function()
+  test("RuntimeState tracks ready-check hold expiry per unit", function()
     local addon = LoadAddonModules({ "isiLive_runtime_state.lua" })
     local state = addon.RuntimeState.CreateController({
+      readyCheckReadyUntilByUnit = {
+        party1 = 130,
+      },
       readyCheckDeclinedUntilByUnit = {
         party1 = 120,
       },
     })
 
+    Assert.Equal(state.GetReadyCheckReadyUntil("party1"), 130, "initial ready hold should be readable by unit")
     Assert.Equal(state.GetReadyCheckDeclinedUntil("party1"), 120, "initial declined hold should be readable by unit")
+    state.SetReadyCheckReadyUntil("party2", 150)
     state.SetReadyCheckDeclinedUntil("party2", 140)
+    Assert.Equal(state.GetReadyCheckReadyUntil("party2"), 150, "SetReadyCheckReadyUntil should store expiry")
     Assert.Equal(state.GetReadyCheckDeclinedUntil("party2"), 140, "SetReadyCheckDeclinedUntil should store expiry")
+    Assert.False(state.ClearExpiredReadyCheckReady(129), "pre-expiry ready cleanup should not change state")
+    Assert.True(state.ClearExpiredReadyCheckReady(130), "ready expiry cleanup should report a state change")
+    Assert.Nil(state.GetReadyCheckReadyUntil("party1"), "expired ready hold should be cleared by cleanup")
     Assert.False(state.ClearExpiredReadyCheckDeclined(119), "pre-expiry cleanup should not change state")
     Assert.True(state.ClearExpiredReadyCheckDeclined(120), "expiry cleanup should report a state change")
     Assert.Nil(state.GetReadyCheckDeclinedUntil("party1"), "expired hold should be cleared by cleanup")
+    state.ClearAllReadyCheckReady()
     state.ClearAllReadyCheckDeclined()
+    Assert.Nil(state.GetReadyCheckReadyUntil("party2"), "ClearAllReadyCheckReady should wipe remaining ready holds")
     Assert.Nil(state.GetReadyCheckDeclinedUntil("party2"), "ClearAllReadyCheckDeclined should wipe remaining holds")
   end)
 end

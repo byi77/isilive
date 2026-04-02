@@ -583,6 +583,166 @@ local function RegisterArchitectureNoticeTypographyTests(test, Assert)
   end)
 end
 
+local function RegisterArchitectureWorkflowTests(test, Assert)
+  test("Architecture GitHub Lua Check workflow keeps CI validation steps wired", function()
+    local workflowContent = ReadFile(".github/workflows/lua-check.yml")
+
+    AssertContains(Assert, workflowContent, "name: Lua Check", "workflow must keep the Lua Check name")
+    AssertContains(
+      Assert,
+      workflowContent,
+      'branches: ["main"]',
+      "workflow must run on push and pull_request against main"
+    )
+    AssertContains(
+      Assert,
+      workflowContent,
+      "uses: JohnnyMorganz/stylua-action@v4",
+      "workflow must keep the StyLua check step"
+    )
+    AssertContains(
+      Assert,
+      workflowContent,
+      'luacheck --exclude-files ".luarocks/**" -- .',
+      "workflow must keep the luacheck step"
+    )
+    AssertContains(
+      Assert,
+      workflowContent,
+      "lua tools/lua_metrics_check.lua",
+      "workflow must keep the Lua metrics step"
+    )
+    AssertContains(
+      Assert,
+      workflowContent,
+      "lua tools/validate_usecases.lua",
+      "workflow must keep deterministic usecase and rules validation"
+    )
+    AssertContains(Assert, workflowContent, "Lua Syntax Check", "workflow must keep the syntax validation step")
+  end)
+
+  test("Architecture local CI preflight mirrors the GitHub Lua Check workflow", function()
+    local workflowContent = ReadFile(".github/workflows/lua-check.yml")
+    local localPreflightContent = ReadFile("tools/validate_ci_local.ps1")
+    local luacheckShimContent = ReadFile("tools/luacheck.cmd")
+
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      'Invoke-CheckedCommand "StyLua (check)" "stylua --check ."',
+      "local preflight must run the same StyLua check as the workflow"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      '$env:PATH = "$PSScriptRoot;$env:PATH"',
+      "local preflight must prefer the repo-local luacheck shim over the LuaRocks script"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      "function Invoke-LuaRocksCommand($label, $name, [string[]]$arguments) {",
+      "local preflight must route LuaRocks tools through an explicit launcher"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      'Invoke-LuaRocksCommand "Luacheck" "luacheck" @("--exclude-files", ".luarocks/**", "--", ".")',
+      "local preflight must run luacheck through the launcher instead of invoking the bare script"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      'Write-Step "Lua Syntax Check"',
+      "local preflight must keep the same Lua syntax check phase as the workflow"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      'Invoke-CheckedCommand "Lua Metrics Check" "lua tools/lua_metrics_check.lua"',
+      "local preflight must run the same Lua metrics check as the workflow"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      'Invoke-CheckedCommand "Deterministic Usecase + Rules Logic Validation" "lua tools/validate_usecases.lua"',
+      "local preflight must run the same deterministic validation step as the workflow"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      'Write-Host "Local CI preflight passed."',
+      "local preflight must report success after all workflow-equivalent checks finish"
+    )
+    AssertContains(
+      Assert,
+      workflowContent,
+      "Lua Metrics Check",
+      "workflow must still define the metrics step that the local preflight mirrors"
+    )
+    AssertContains(
+      Assert,
+      luacheckShimContent,
+      'set "LUACHECK_SCRIPT=%APPDATA%\\luarocks\\bin\\luacheck"',
+      "repo-local luacheck shim must resolve the LuaRocks script explicitly"
+    )
+    AssertContains(
+      Assert,
+      luacheckShimContent,
+      'lua "%LUACHECK_SCRIPT%" %*',
+      "repo-local luacheck shim must launch the LuaRocks script through lua"
+    )
+  end)
+
+  test("Architecture local CI wrapper forwards directly into the preflight script", function()
+    local wrapperContent = ReadFile("tools/run_local_ci.ps1")
+
+    AssertContains(Assert, wrapperContent, "param(", "local CI wrapper must accept the same optional install switch")
+    AssertContains(
+      Assert,
+      wrapperContent,
+      "[switch]$InstallLuaRocksDeps",
+      "local CI wrapper must forward the optional LuaRocks installation flag"
+    )
+    AssertContains(
+      Assert,
+      wrapperContent,
+      'Join-Path $PSScriptRoot "validate_ci_local.ps1"',
+      "local CI wrapper must target the validated preflight script"
+    )
+    AssertContains(
+      Assert,
+      wrapperContent,
+      "& $scriptPath @PSBoundParameters",
+      "local CI wrapper must delegate execution without adding parallel logic"
+    )
+  end)
+
+  test("Architecture local CI shorthand wrapper forwards into the local CI wrapper", function()
+    local shortcutContent = ReadFile("tools/check.ps1")
+
+    AssertContains(Assert, shortcutContent, "param(", "local CI shortcut must accept the install switch")
+    AssertContains(
+      Assert,
+      shortcutContent,
+      "[switch]$InstallLuaRocksDeps",
+      "local CI shortcut must forward the optional LuaRocks installation flag"
+    )
+    AssertContains(
+      Assert,
+      shortcutContent,
+      'Join-Path $PSScriptRoot "run_local_ci.ps1"',
+      "local CI shortcut must target the local CI wrapper"
+    )
+    AssertContains(
+      Assert,
+      shortcutContent,
+      "& $scriptPath @PSBoundParameters",
+      "local CI shortcut must delegate execution without adding parallel logic"
+    )
+  end)
+end
+
 local function RegisterArchitectureModuleApiTests(test, Assert, LoadAddonModules)
   test("Architecture runtime state exposes shared mutable state API", function()
     local addon = LoadAddonModules({ "isiLive_runtime_state.lua" })
@@ -643,5 +803,6 @@ return function(test, ctx)
   RegisterArchitectureLeaderMarkerWiringTests(test, ctx.assert)
   RegisterArchitectureAudioAndKickWiringTests(test, ctx.assert)
   RegisterArchitectureNoticeTypographyTests(test, ctx.assert)
+  RegisterArchitectureWorkflowTests(test, ctx.assert)
   RegisterArchitectureModuleApiTests(test, ctx.assert, ctx.load_modules)
 end

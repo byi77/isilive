@@ -5,8 +5,12 @@ addonTable = addonTable or {}
 local Group = {}
 addonTable.Group = Group
 
-local function falsefn() return false end
-local function nilpairfn() return nil, nil end
+local function falsefn()
+  return false
+end
+local function nilpairfn()
+  return nil, nil
+end
 local function emptyfn() end
 
 local function BuildDeps(opts)
@@ -14,17 +18,25 @@ local function BuildDeps(opts)
 
   return {
     printFn = opts.printFn or print,
-    getL = opts.getL or function() return {} end,
+    getL = opts.getL or function()
+      return {}
+    end,
     isRosterCollapsed = opts.isRosterCollapsed or falsefn,
     isInGroup = opts.isInGroup or falsefn,
-    getNumGroupMembers = opts.getNumGroupMembers or function() return 0 end,
-    getActiveChallengeMapID = opts.getActiveChallengeMapID or function() return nil end,
+    getNumGroupMembers = opts.getNumGroupMembers or function()
+      return 0
+    end,
+    getActiveChallengeMapID = opts.getActiveChallengeMapID or function()
+      return nil
+    end,
     getWasInGroup = opts.getWasInGroup or falsefn,
     setWasInGroup = opts.setWasInGroup or emptyfn,
     getWasRaidGroup = opts.getWasRaidGroup or falsefn,
     setWasRaidGroup = opts.setWasRaidGroup or emptyfn,
     setWasGroupLeader = opts.setWasGroupLeader or emptyfn,
-    getRoster = opts.getRoster or function() return {} end,
+    getRoster = opts.getRoster or function()
+      return {}
+    end,
     setRoster = opts.setRoster or emptyfn,
     captureQueueJoinCandidate = opts.captureQueueJoinCandidate or emptyfn,
     announceQueuedGroupJoin = opts.announceQueuedGroupJoin or emptyfn,
@@ -51,9 +63,15 @@ local function BuildDeps(opts)
     getOwnedKeystoneSnapshot = opts.getOwnedKeystoneSnapshot or nilpairfn,
     markIsiLiveUser = opts.markIsiLiveUser or emptyfn,
     setPlayerKeyInfo = opts.setPlayerKeyInfo or emptyfn,
-    getUnitRole = opts.getUnitRole or function() return nil end,
-    getPlayerSpecName = opts.getPlayerSpecName or function() return nil end,
-    getUnitRio = opts.getUnitRio or function() return nil end,
+    getUnitRole = opts.getUnitRole or function()
+      return nil
+    end,
+    getPlayerSpecName = opts.getPlayerSpecName or function()
+      return nil
+    end,
+    getUnitRio = opts.getUnitRio or function()
+      return nil
+    end,
     unitIsGroupLeader = opts.unitIsGroupLeader or function(_unit)
       return false
     end,
@@ -65,9 +83,13 @@ local function BuildDeps(opts)
     sendRefreshRequest = opts.sendRefreshRequest or emptyfn,
     onGroupJoined = opts.onGroupJoined or function() end,
     onMemberJoinedGroup = opts.onMemberJoinedGroup or emptyfn,
-    timerAfter = opts.timerAfter or function(_, cb) cb() end,
+    timerAfter = opts.timerAfter or function(_, cb)
+      cb()
+    end,
     shouldAutoCloseMainFrame = opts.shouldAutoCloseMainFrame or falsefn,
-    getRaidTransitionBehavior = opts.getRaidTransitionBehavior or function() return "hide" end,
+    getRaidTransitionBehavior = opts.getRaidTransitionBehavior or function()
+      return "hide"
+    end,
     autoCloseMainFrame = opts.autoCloseMainFrame or emptyfn,
   }
 end

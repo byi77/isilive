@@ -22,6 +22,18 @@ local function InitializeGameAPIHelpers(ctx, runtimeState)
   ctx.SetReadyCheckActive = function(value)
     runtimeState.SetReadyCheckActive(value)
   end
+  ctx.GetReadyCheckReadyUntil = function(unit)
+    return runtimeState.GetReadyCheckReadyUntil(unit)
+  end
+  ctx.SetReadyCheckReadyUntil = function(unit, value)
+    runtimeState.SetReadyCheckReadyUntil(unit, value)
+  end
+  ctx.ClearAllReadyCheckReady = function()
+    runtimeState.ClearAllReadyCheckReady()
+  end
+  ctx.ClearExpiredReadyCheckReady = function(now)
+    return runtimeState.ClearExpiredReadyCheckReady(now)
+  end
   ctx.GetReadyCheckDeclinedUntil = function(unit)
     return runtimeState.GetReadyCheckDeclinedUntil(unit)
   end
@@ -550,6 +562,9 @@ local function InitializeFactoryPrimaryControllers(ctx)
     end,
     isReadyCheckActive = function()
       return ctx.IsReadyCheckActive()
+    end,
+    getReadyCheckReadyUntil = function(unit)
+      return ctx.GetReadyCheckReadyUntil(unit)
     end,
     getReadyCheckDeclinedUntil = function(unit)
       return ctx.GetReadyCheckDeclinedUntil(unit)

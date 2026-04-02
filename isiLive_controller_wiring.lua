@@ -360,6 +360,19 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     end
   config.setReadyCheckActive = type(callbacks.setReadyCheckActive) == "function" and callbacks.setReadyCheckActive
     or function(_value) end
+  config.getReadyCheckReadyUntil = type(state.getReadyCheckReadyUntil) == "function" and state.getReadyCheckReadyUntil
+    or function(_unit)
+      return nil
+    end
+  config.setReadyCheckReadyUntil = type(state.setReadyCheckReadyUntil) == "function" and state.setReadyCheckReadyUntil
+    or function(_unit, _value) end
+  config.clearAllReadyCheckReady = type(state.clearAllReadyCheckReady) == "function" and state.clearAllReadyCheckReady
+    or function() end
+  config.clearExpiredReadyCheckReady = type(state.clearExpiredReadyCheckReady) == "function"
+      and state.clearExpiredReadyCheckReady
+    or function(_now)
+      return false
+    end
   config.getReadyCheckDeclinedUntil = type(state.getReadyCheckDeclinedUntil) == "function"
       and state.getReadyCheckDeclinedUntil
     or function(_unit)
@@ -516,9 +529,13 @@ local function BuildEventHandlersDepsFromContext(ctx)
       setActiveJoinedKeyMapID = ctx.setActiveJoinedKeyMapID,
       getPendingBindingApply = ctx.getPendingBindingApply,
       getRoster = ctx.getRoster,
+      getReadyCheckReadyUntil = ctx.GetReadyCheckReadyUntil,
       getReadyCheckDeclinedUntil = ctx.GetReadyCheckDeclinedUntil,
       setReadyCheckDeclinedUntil = ctx.SetReadyCheckDeclinedUntil,
+      setReadyCheckReadyUntil = ctx.SetReadyCheckReadyUntil,
+      clearAllReadyCheckReady = ctx.ClearAllReadyCheckReady,
       clearAllReadyCheckDeclined = ctx.ClearAllReadyCheckDeclined,
+      clearExpiredReadyCheckReady = ctx.ClearExpiredReadyCheckReady,
       clearExpiredReadyCheckDeclined = ctx.ClearExpiredReadyCheckDeclined,
     },
     refs = {

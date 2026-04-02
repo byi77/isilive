@@ -18,10 +18,14 @@ end
 
 -- Tooltip imports
 local DisableFontStringWrapping = RI.DisableFontStringWrapping or function(_fs) end
-local CreateRosterHoverTooltip = RI.CreateRosterHoverTooltip or function() return nil end
+local CreateRosterHoverTooltip = RI.CreateRosterHoverTooltip or function()
+  return nil
+end
 local HideRosterHoverTooltip = RI.HideRosterHoverTooltip or function() end
 local AnchorRosterHoverTooltip = RI.AnchorRosterHoverTooltip or function() end
-local FormatCompactTooltipNumber = RI.FormatCompactTooltipNumber or function(n) return tostring(n or 0) end
+local FormatCompactTooltipNumber = RI.FormatCompactTooltipNumber or function(n)
+  return tostring(n or 0)
+end
 local ShowRosterNameFallbackTooltip = RI.ShowRosterNameFallbackTooltip or function() end
 local ShowRosterInfoTooltip = RI.ShowRosterInfoTooltip or function() end
 
@@ -618,9 +622,9 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
 
   row.hoverFrame = CreateFrame("Frame", nil, mainFrame)
   row.hoverFrame:SetPoint("TOPLEFT", 4, yOffset + 2)
-  -- Hover area ends at the right edge of the DPS column.
-  -- Buttons (ready check, countdown, etc.) to the right of it do not trigger the tooltip.
-  row.hoverFrame:SetWidth(DPS_COL_X + DPS_COL_WIDTH - 4)
+  -- Hover/background area now extends through the Kick column.
+  -- Management buttons stay further right and remain outside this area.
+  row.hoverFrame:SetWidth(KICK_COL_X + KICK_COL_WIDTH - 4)
   row.hoverFrame:SetHeight(16)
   if row.hoverFrame.EnableMouse then
     row.hoverFrame:EnableMouse(true)
@@ -1559,6 +1563,7 @@ local function BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID
     syncBadge = state.syncBadge,
     syncSummary = state.getPlayerSyncSummary and state.getPlayerSyncSummary(info.name, info.realm) or nil,
     isReadyCheckActive = isReadyCheckActive,
+    getReadyCheckReadyUntil = state.getReadyCheckReadyUntil,
     getReadyCheckDeclinedUntil = state.getReadyCheckDeclinedUntil,
     getTime = state.getTime,
     isAtDungeon = IsEntryAtTargetDungeon(targetMapID, entry, info),
@@ -1929,6 +1934,8 @@ function RosterPanel.CreateController(opts)
   local resolveActiveKeyOwnerUnit = RequireFunction(opts.resolveActiveKeyOwnerUnit, "resolveActiveKeyOwnerUnit")
   local getRoster = RequireFunction(opts.getRoster, "getRoster")
   local isReadyCheckActive = type(opts.isReadyCheckActive) == "function" and opts.isReadyCheckActive or nil
+  local getReadyCheckReadyUntil = type(opts.getReadyCheckReadyUntil) == "function" and opts.getReadyCheckReadyUntil
+    or nil
   local getReadyCheckDeclinedUntil = type(opts.getReadyCheckDeclinedUntil) == "function"
       and opts.getReadyCheckDeclinedUntil
     or nil
@@ -2178,6 +2185,7 @@ function RosterPanel.CreateController(opts)
       syncBadge = syncBadge,
       getPlayerSyncSummary = getPlayerSyncSummary,
       getPlayerLastRunDps = getPlayerLastRunDps,
+      getReadyCheckReadyUntil = getReadyCheckReadyUntil,
       getReadyCheckDeclinedUntil = getReadyCheckDeclinedUntil,
       getTime = getTime,
       getL = getL,
@@ -2208,6 +2216,7 @@ function RosterPanel.CreateController(opts)
       syncMarker = syncMarker,
       syncBadge = syncBadge,
       getPlayerSyncSummary = getPlayerSyncSummary,
+      getReadyCheckReadyUntil = getReadyCheckReadyUntil,
       getReadyCheckDeclinedUntil = getReadyCheckDeclinedUntil,
       getTime = getTime,
     }, roster or getRoster())

@@ -35,9 +35,9 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
       Assert.Equal(readyData.colorHex, "ffc69b6d", "Ready status must keep class-colored text")
       Assert.Equal(readyData.readyCheckStatus, "ready", "Ready status should be exposed for background rendering")
       Assert.Equal(readyData.readyCheckBackgroundColor[1], 0.08, "Ready status should tint row background green")
-      Assert.Equal(readyData.readyCheckBackgroundColor[2], 0.42, "Ready status should tint row background green")
-      Assert.Equal(readyData.readyCheckBackgroundColor[3], 0.14, "Ready status should tint row background green")
-      Assert.Equal(readyData.readyCheckBackgroundColor[4], 0.35, "Ready status should tint row background green")
+      Assert.Equal(readyData.readyCheckBackgroundColor[2], 0.5, "Ready status should tint row background green")
+      Assert.Equal(readyData.readyCheckBackgroundColor[3], 0.16, "Ready status should tint row background green")
+      Assert.Equal(readyData.readyCheckBackgroundColor[4], 0.42, "Ready status should tint row background green")
       Assert.Equal(readyData.readyCheckMarkup, "", "Ready status should not prepend waiting markup")
 
       readyCheckStatusByUnit.player = "notready"
@@ -69,7 +69,7 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
       Assert.Equal(waitingData.readyCheckBackgroundColor[3], 0.08, "Waiting status should tint row background yellow")
       Assert.Equal(waitingData.readyCheckBackgroundColor[4], 0.32, "Waiting status should tint row background yellow")
       Assert.True(
-        waitingData.readyCheckMarkup:find("ReadyCheck%-Waiting", 1) ~= nil,
+        waitingData.readyCheckMarkup:find("ReadyCheck%-Waiting:16:16", 1) ~= nil,
         "Waiting status should prepend the waiting icon markup"
       )
     end)
@@ -169,6 +169,100 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
       Assert.Equal(displayDataExpired.colorHex, "ffc69b6d", "Expired declined hold should keep class-colored text")
       Assert.Nil(displayDataExpired.readyCheckBackgroundColor, "Expired declined hold should clear the row background")
       Assert.Equal(displayDataExpired.readyCheckMarkup, "", "Expired declined hold should not show waiting markup")
+    end)
+  end)
+
+  test("Roster ready check stays green for 20 seconds after finish", function()
+    local readyCheckStatusByUnit = {}
+    local readyCheckReadyUntilByUnit = {}
+    local now = 100
+    local roster = {
+      player = {
+        name = "TestPlayer",
+        class = "WARRIOR",
+        role = "DAMAGER",
+      },
+    }
+
+    WithGlobals({
+      GetReadyCheckStatus = function(unit)
+        return readyCheckStatusByUnit[unit]
+      end,
+      RAID_CLASS_COLORS = {
+        WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
+      },
+      CreateColor = function(r, g, b)
+        return {
+          GenerateHexColor = function()
+            return string.format("ff%02x%02x%02x", math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+          end,
+        }
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster.lua",
+      })
+
+      local displayDataInitial = addon.Roster.BuildDisplayData(roster.player, {
+        unit = "player",
+        isReadyCheckActive = false,
+        getReadyCheckReadyUntil = function(unit)
+          return readyCheckReadyUntilByUnit[unit]
+        end,
+        getTime = function()
+          return now
+        end,
+      })
+      Assert.Equal(displayDataInitial.colorHex, "ffc69b6d", "Initial color should be warrior class color")
+      Assert.Nil(displayDataInitial.readyCheckBackgroundColor, "Initial state should not tint the row background")
+      Assert.Equal(displayDataInitial.readyCheckMarkup, "", "Initial state should not prepend waiting markup")
+
+      readyCheckStatusByUnit.player = "ready"
+      local displayDataActive = addon.Roster.BuildDisplayData(roster.player, {
+        unit = "player",
+        isReadyCheckActive = true,
+        getReadyCheckReadyUntil = function(unit)
+          return readyCheckReadyUntilByUnit[unit]
+        end,
+        getTime = function()
+          return now
+        end,
+      })
+      Assert.Equal(displayDataActive.colorHex, "ffc69b6d", "Active ready state should keep class-colored text")
+      Assert.NotNil(displayDataActive.readyCheckBackgroundColor, "Active ready state should tint the row background")
+      Assert.Equal(displayDataActive.readyCheckStatus, "ready", "Active ready state should report ready status")
+
+      readyCheckStatusByUnit.player = nil
+      readyCheckReadyUntilByUnit.player = now + 20
+      local displayDataHeld = addon.Roster.BuildDisplayData(roster.player, {
+        unit = "player",
+        isReadyCheckActive = false,
+        getReadyCheckReadyUntil = function(unit)
+          return readyCheckReadyUntilByUnit[unit]
+        end,
+        getTime = function()
+          return now
+        end,
+      })
+      Assert.Equal(displayDataHeld.colorHex, "ffc69b6d", "Ready hold should keep class-colored text")
+      Assert.NotNil(displayDataHeld.readyCheckBackgroundColor, "Ready hold should keep the row background active")
+      Assert.Equal(displayDataHeld.readyCheckStatus, "ready", "Ready hold should keep the ready row state")
+      Assert.Equal(displayDataHeld.readyCheckMarkup, "", "Ready hold should not prepend waiting markup")
+
+      now = now + 21
+      local displayDataExpired = addon.Roster.BuildDisplayData(roster.player, {
+        unit = "player",
+        isReadyCheckActive = false,
+        getReadyCheckReadyUntil = function(unit)
+          return readyCheckReadyUntilByUnit[unit]
+        end,
+        getTime = function()
+          return now
+        end,
+      })
+      Assert.Equal(displayDataExpired.colorHex, "ffc69b6d", "Expired ready hold should keep class-colored text")
+      Assert.Nil(displayDataExpired.readyCheckBackgroundColor, "Expired ready hold should clear the row background")
+      Assert.Equal(displayDataExpired.readyCheckMarkup, "", "Expired ready hold should not show waiting markup")
     end)
   end)
 

@@ -33,6 +33,9 @@ function RuntimeState.CreateController(opts)
     isTestMode = NormalizeBoolean(opts.isTestMode),
     isTestAllMode = NormalizeBoolean(opts.isTestAllMode),
     isReadyCheckActive = NormalizeBoolean(opts.isReadyCheckActive),
+    readyCheckReadyUntilByUnit = type(opts.readyCheckReadyUntilByUnit) == "table" and CopyTableShallow(
+      opts.readyCheckReadyUntilByUnit
+    ) or {},
     readyCheckDeclinedUntilByUnit = type(opts.readyCheckDeclinedUntilByUnit) == "table" and CopyTableShallow(
       opts.readyCheckDeclinedUntilByUnit
     ) or {},
@@ -168,6 +171,13 @@ function RuntimeState.CreateController(opts)
     return state.readyCheckDeclinedUntilByUnit[unit]
   end
 
+  function controller.GetReadyCheckReadyUntil(unit)
+    if type(unit) ~= "string" or unit == "" then
+      return nil
+    end
+    return state.readyCheckReadyUntilByUnit[unit]
+  end
+
   function controller.SetReadyCheckDeclinedUntil(unit, value)
     if type(unit) ~= "string" or unit == "" then
       return
@@ -181,8 +191,25 @@ function RuntimeState.CreateController(opts)
     end
   end
 
+  function controller.SetReadyCheckReadyUntil(unit, value)
+    if type(unit) ~= "string" or unit == "" then
+      return
+    end
+
+    local numericValue = tonumber(value)
+    if numericValue and numericValue > 0 then
+      state.readyCheckReadyUntilByUnit[unit] = numericValue
+    else
+      state.readyCheckReadyUntilByUnit[unit] = nil
+    end
+  end
+
   function controller.ClearAllReadyCheckDeclined()
     state.readyCheckDeclinedUntilByUnit = {}
+  end
+
+  function controller.ClearAllReadyCheckReady()
+    state.readyCheckReadyUntilByUnit = {}
   end
 
   function controller.ClearExpiredReadyCheckDeclined(now)
@@ -192,6 +219,19 @@ function RuntimeState.CreateController(opts)
       local numericUntil = tonumber(untilTime)
       if numericUntil == nil or numericUntil <= numericNow then
         state.readyCheckDeclinedUntilByUnit[unit] = nil
+        changed = true
+      end
+    end
+    return changed
+  end
+
+  function controller.ClearExpiredReadyCheckReady(now)
+    local changed = false
+    local numericNow = tonumber(now) or 0
+    for unit, untilTime in pairs(state.readyCheckReadyUntilByUnit) do
+      local numericUntil = tonumber(untilTime)
+      if numericUntil == nil or numericUntil <= numericNow then
+        state.readyCheckReadyUntilByUnit[unit] = nil
         changed = true
       end
     end
@@ -267,6 +307,7 @@ function RuntimeState.CreateController(opts)
       isTestMode = state.isTestMode,
       isTestAllMode = state.isTestAllMode,
       isReadyCheckActive = state.isReadyCheckActive,
+      readyCheckReadyUntilByUnit = CopyTableShallow(state.readyCheckReadyUntilByUnit),
       readyCheckDeclinedUntilByUnit = CopyTableShallow(state.readyCheckDeclinedUntilByUnit),
       wasGroupLeader = state.wasGroupLeader,
       wasInGroup = state.wasInGroup,

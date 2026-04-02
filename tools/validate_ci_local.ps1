@@ -17,6 +17,24 @@ function Invoke-CheckedCommand($label, $command) {
   }
 }
 
+function Invoke-LuaRocksCommand($label, $name, [string[]]$arguments) {
+  Write-Step $label
+
+  $command = Get-Command $name -ErrorAction Stop
+  $path = $command.Source
+  $extension = [System.IO.Path]::GetExtension($path)
+
+  if ([string]::IsNullOrEmpty($extension)) {
+    & lua $path @arguments
+  } else {
+    & $path @arguments
+  }
+
+  if ($LASTEXITCODE -ne 0) {
+    throw "$label failed with exit code $LASTEXITCODE"
+  }
+}
+
 function Assert-Command($name) {
   $cmd = Get-Command $name -ErrorAction SilentlyContinue
   if (-not $cmd) {
@@ -45,6 +63,8 @@ function Test-LuaModule($moduleName) {
 
 Push-Location (Resolve-Path (Join-Path $PSScriptRoot ".."))
 try {
+  $env:PATH = "$PSScriptRoot;$env:PATH"
+
   Assert-Command "lua" | Out-Null
   Assert-Command "stylua" | Out-Null
   Assert-Command "luacheck" | Out-Null
@@ -73,7 +93,7 @@ try {
   }
 
   Invoke-CheckedCommand "StyLua (check)" "stylua --check ."
-  Invoke-CheckedCommand "Luacheck" 'luacheck --exclude-files ".luarocks/**" -- .'
+  Invoke-LuaRocksCommand "Luacheck" "luacheck" @("--exclude-files", ".luarocks/**", "--", ".")
 
   Write-Step "Lua Syntax Check"
   $luaFiles = Get-ChildItem -Recurse -File -Filter *.lua | Where-Object {

@@ -158,28 +158,98 @@ local function RefreshReadyCheckUI(ctx)
 end
 
 local function ResetReadyCheckDeclinedTracking(ctx)
+  ctx.readyCheckReadyUnits = {}
   ctx.readyCheckDeclinedUnits = {}
+  ctx.clearAllReadyCheckReady()
   ctx.clearAllReadyCheckDeclined()
-  ctx.readyCheckDeclinedHoldUntil = nil
+  ctx.readyCheckHoldUntil = nil
 end
 
-local function ScheduleReadyCheckDeclinedClear(ctx, holdUntil)
+local ScheduleReadyCheckHoldClear
+
+local function GetReadyCheckHoldUntil(ctx)
+  local holdUntil = tonumber(ctx.readyCheckHoldUntil)
+  local now = tonumber(ctx.getTime and ctx.getTime()) or 0
+  if holdUntil and holdUntil > now then
+    return holdUntil
+  end
+
+  return now + READY_CHECK_DECLINED_HOLD_SECONDS
+end
+
+local function MarkReadyCheckUnit(ctx, unit, setUntilFn)
+  if type(unit) ~= "string" or unit == "" then
+    return false
+  end
+
+  local numericHoldUntil = GetReadyCheckHoldUntil(ctx)
+  if numericHoldUntil <= 0 then
+    return false
+  end
+
+  local now = tonumber(ctx.getTime and ctx.getTime()) or 0
+  local currentHoldUntil = tonumber(ctx.readyCheckHoldUntil) or 0
+  setUntilFn(unit, numericHoldUntil)
+  if not currentHoldUntil or currentHoldUntil <= now then
+    ScheduleReadyCheckHoldClear(ctx, numericHoldUntil)
+  end
+  RefreshReadyCheckUI(ctx)
+  return true
+end
+
+local function MarkReadyCheckDeclinedUnit(ctx, unit)
+  return MarkReadyCheckUnit(ctx, unit, ctx.setReadyCheckDeclinedUntil)
+end
+
+local function MarkReadyCheckReadyUnit(ctx, unit)
+  return MarkReadyCheckUnit(ctx, unit, ctx.setReadyCheckReadyUntil)
+end
+
+ScheduleReadyCheckHoldClear = function(ctx, holdUntil)
   if not ctx.timerAfter or not holdUntil then
     return
   end
 
   local now = tonumber(ctx.getTime and ctx.getTime()) or 0
   local delaySeconds = math.max(0, holdUntil - now)
-  ctx.readyCheckDeclinedHoldUntil = holdUntil
+  ctx.readyCheckHoldUntil = holdUntil
   ctx.timerAfter(delaySeconds, function()
-    if ctx.readyCheckDeclinedHoldUntil ~= holdUntil then
+    if ctx.readyCheckHoldUntil ~= holdUntil then
       return
     end
-    ctx.readyCheckDeclinedHoldUntil = nil
-    if ctx.clearExpiredReadyCheckDeclined(tonumber(ctx.getTime and ctx.getTime()) or holdUntil) then
+    ctx.readyCheckHoldUntil = nil
+    local currentTime = tonumber(ctx.getTime and ctx.getTime()) or holdUntil
+    local changed = false
+    if ctx.clearExpiredReadyCheckReady(currentTime) then
+      changed = true
+    end
+    if ctx.clearExpiredReadyCheckDeclined(currentTime) then
+      changed = true
+    end
+    if changed then
       RefreshReadyCheckUI(ctx)
     end
   end)
+end
+
+local function PromoteReadyCheckReadyUnitsToHold(ctx)
+  local readyUnits = ctx.readyCheckReadyUnits or {}
+  local hasReady = false
+  local holdUntil = (tonumber(ctx.getTime and ctx.getTime()) or 0) + READY_CHECK_DECLINED_HOLD_SECONDS
+
+  ctx.clearAllReadyCheckReady()
+
+  for unit, isReady in pairs(readyUnits) do
+    if isReady == true then
+      ctx.setReadyCheckReadyUntil(unit, holdUntil)
+      hasReady = true
+    end
+  end
+  ctx.readyCheckReadyUnits = {}
+
+  if hasReady then
+    ScheduleReadyCheckHoldClear(ctx, holdUntil)
+  end
 end
 
 local function PromoteDeclinedReadyCheckUnitsToHold(ctx)
@@ -198,9 +268,7 @@ local function PromoteDeclinedReadyCheckUnitsToHold(ctx)
   ctx.readyCheckDeclinedUnits = {}
 
   if hasDeclined then
-    ScheduleReadyCheckDeclinedClear(ctx, holdUntil)
-  else
-    ctx.readyCheckDeclinedHoldUntil = nil
+    ScheduleReadyCheckHoldClear(ctx, holdUntil)
   end
 end
 
@@ -269,17 +337,48 @@ function ChallengeLifecycle.BuildHandlers(ctx)
       if IsRaidModeActive(ctx) then
         return
       end
-      if ctx.isReadyCheckActive() then
-        if type(unit) == "string" and unit ~= "" then
+      if type(unit) ~= "string" or unit == "" then
+        return
+      end
+
+      if status == "notready" then
+        if ctx.isReadyCheckActive() then
+          local readyUnits = ctx.readyCheckReadyUnits or {}
+          ctx.readyCheckReadyUnits = readyUnits
+          readyUnits[unit] = nil
           local declinedUnits = ctx.readyCheckDeclinedUnits or {}
           ctx.readyCheckDeclinedUnits = declinedUnits
-          if status == "notready" then
-            declinedUnits[unit] = true
-          else
-            declinedUnits[unit] = nil
-          end
+          declinedUnits[unit] = true
           RefreshReadyCheckUI(ctx)
+        else
+          MarkReadyCheckDeclinedUnit(ctx, unit)
         end
+        return
+      end
+
+      if status == "ready" then
+        if ctx.isReadyCheckActive() then
+          local declinedUnits = ctx.readyCheckDeclinedUnits or {}
+          ctx.readyCheckDeclinedUnits = declinedUnits
+          declinedUnits[unit] = nil
+          local readyUnits = ctx.readyCheckReadyUnits or {}
+          ctx.readyCheckReadyUnits = readyUnits
+          readyUnits[unit] = true
+          RefreshReadyCheckUI(ctx)
+        else
+          MarkReadyCheckReadyUnit(ctx, unit)
+        end
+        return
+      end
+
+      if ctx.isReadyCheckActive() then
+        local readyUnits = ctx.readyCheckReadyUnits or {}
+        ctx.readyCheckReadyUnits = readyUnits
+        readyUnits[unit] = nil
+        local declinedUnits = ctx.readyCheckDeclinedUnits or {}
+        ctx.readyCheckDeclinedUnits = declinedUnits
+        declinedUnits[unit] = nil
+        RefreshReadyCheckUI(ctx)
       end
     end,
     READY_CHECK_FINISHED = function()
@@ -287,6 +386,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
         return
       end
       ctx.setReadyCheckActive(false)
+      PromoteReadyCheckReadyUnitsToHold(ctx)
       PromoteDeclinedReadyCheckUnitsToHold(ctx)
       RefreshReadyCheckUI(ctx)
     end,

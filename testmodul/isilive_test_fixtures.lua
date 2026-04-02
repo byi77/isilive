@@ -163,8 +163,16 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
     getReadyCheckDeclinedUntil = function(_unit)
       return nil
     end,
+    getReadyCheckReadyUntil = function(_unit)
+      return nil
+    end,
+    setReadyCheckReadyUntil = function(_unit, _value) end,
     setReadyCheckDeclinedUntil = function(_unit, _value) end,
+    clearAllReadyCheckReady = function() end,
     clearAllReadyCheckDeclined = function() end,
+    clearExpiredReadyCheckReady = function(_now)
+      return false
+    end,
     clearExpiredReadyCheckDeclined = function(_now)
       return false
     end,
