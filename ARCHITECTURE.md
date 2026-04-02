@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.126`
+Version baseline: `0.9.127`
 Last updated: `2026-04-02`
 
 ## Purpose
@@ -110,7 +110,7 @@ The local `tools/check.ps1` / `tools/check.cmd` wrappers are the preferred entry
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiLive                                                 v0.9.126 Open/Close CTRL-F9 [H][V][M][M2][X]|
+| isiLive                                                 v0.9.127 Open/Close CTRL-F9 [H][V][M][M2][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS                M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|

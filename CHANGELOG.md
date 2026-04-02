@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-04-02 - Version 0.9.127 (patch)
+
+- Keystone chat output:
+  - Share-Keys now builds a deterministic keystone hyperlink from the owned map ID and level instead of forwarding a foreign item hyperlink.
+  - Tooltip helper fallbacks now accept varargs so the roster panel stays diagnostics-clean while still tolerating missing internal helpers.
+- Docs / release baseline:
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `isiLive.toc` to `0.9.127`.
+
 ## 2026-04-02 - Tooling: local CI wrappers
 
 - Added `tools/check.ps1`, `tools/check.cmd`, and `tools/run_local_ci.ps1` as short local entrypoints for the full CI preflight.
