@@ -22,13 +22,13 @@ local DisableFontStringWrapping = RI.DisableFontStringWrapping or function(_fs) 
 local CreateRosterHoverTooltip = RI.CreateRosterHoverTooltip or function()
   return nil
 end
-local HideRosterHoverTooltip = RI.HideRosterHoverTooltip or function() end
-local AnchorRosterHoverTooltip = RI.AnchorRosterHoverTooltip or function() end
+local HideRosterHoverTooltip = RI.HideRosterHoverTooltip or function(...) end
+local AnchorRosterHoverTooltip = RI.AnchorRosterHoverTooltip or function(...) end
 local FormatCompactTooltipNumber = RI.FormatCompactTooltipNumber or function(n)
   return tostring(n or 0)
 end
-local ShowRosterNameFallbackTooltip = RI.ShowRosterNameFallbackTooltip or function() end
-local ShowRosterInfoTooltip = RI.ShowRosterInfoTooltip or function() end
+local ShowRosterNameFallbackTooltip = RI.ShowRosterNameFallbackTooltip or function(...) end
+local ShowRosterInfoTooltip = RI.ShowRosterInfoTooltip or function(...) end
 
 -- Layout imports
 local LAYOUT_MODE_EXPANDED = RI.LAYOUT_MODE_EXPANDED or "expanded"
