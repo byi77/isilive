@@ -238,6 +238,10 @@ function RuntimeState.CreateController(opts)
     return changed
   end
 
+  function controller.HasReadyCheckHold()
+    return next(state.readyCheckReadyUntilByUnit) ~= nil or next(state.readyCheckDeclinedUntilByUnit) ~= nil
+  end
+
   function controller.GetWasInGroup()
     return state.wasInGroup
   end

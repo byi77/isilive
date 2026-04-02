@@ -91,6 +91,24 @@ local function RegisterRuntimeStateTests(test, Assert, LoadAddonModules)
     Assert.Nil(state.GetReadyCheckReadyUntil("party2"), "ClearAllReadyCheckReady should wipe remaining ready holds")
     Assert.Nil(state.GetReadyCheckDeclinedUntil("party2"), "ClearAllReadyCheckDeclined should wipe remaining holds")
   end)
+
+  test("RuntimeState reports ready-check hold presence while any unit is marked", function()
+    local addon = LoadAddonModules({ "isiLive_runtime_state.lua" })
+    local state = addon.RuntimeState.CreateController({
+      readyCheckReadyUntilByUnit = {
+        party1 = 130,
+      },
+    })
+
+    Assert.True(state.HasReadyCheckHold(), "ready hold should be reported while any ready unit remains")
+    state.ClearAllReadyCheckReady()
+    Assert.False(state.HasReadyCheckHold(), "ready hold should clear once all ready units are removed")
+
+    state.SetReadyCheckDeclinedUntil("party2", 140)
+    Assert.True(state.HasReadyCheckHold(), "declined hold should be reported while any declined unit remains")
+    state.ClearAllReadyCheckDeclined()
+    Assert.False(state.HasReadyCheckHold(), "declined hold should clear once all declined units are removed")
+  end)
 end
 
 return function(test, ctx)

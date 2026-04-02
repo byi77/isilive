@@ -1085,6 +1085,16 @@ local function InitializeFactorySecondaryControllers(ctx)
       if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
         ctx.rosterPanelController.RefreshCdTracker()
       end
+      if
+        runtimeState
+        and type(runtimeState.IsReadyCheckActive) == "function"
+        and type(runtimeState.HasReadyCheckHold) == "function"
+        and (runtimeState.IsReadyCheckActive() or runtimeState.HasReadyCheckHold())
+        and ctx.rosterPanelController
+        and type(ctx.rosterPanelController.RefreshReadyCheckState) == "function"
+      then
+        ctx.rosterPanelController.RefreshReadyCheckState(ctx.GetRoster())
+      end
       -- Also refresh full UI if M+ key is running so the timer counts down.
       local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
       if type(MplusTimer) == "table" and type(MplusTimer.GetTimerData) == "function" then
