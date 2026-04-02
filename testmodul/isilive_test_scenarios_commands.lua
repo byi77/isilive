@@ -343,6 +343,24 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
     Assert.True(foundHeader, "unknown command must print help header")
   end)
 
+  test("Commands help lists only public commands", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("")
+
+    local expected = {
+      "Commands:",
+      "/isilive testall",
+      "/isilive log",
+      "/isilive stop",
+      "/isilive start",
+    }
+
+    Assert.Equal(#state.prints, #expected, "help must only print the public command list")
+    for index, line in ipairs(expected) do
+      Assert.True(state.prints[index] == line, "help line " .. tostring(index) .. " must match the public list")
+    end
+  end)
+
   test("Commands empty input prints help", function()
     local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
     state._execute("")

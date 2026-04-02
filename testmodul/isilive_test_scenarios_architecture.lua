@@ -741,6 +741,23 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       "local CI shortcut must delegate execution without adding parallel logic"
     )
   end)
+
+  test("Architecture local CI cmd wrapper forwards into the PowerShell shortcut", function()
+    local cmdWrapperContent = ReadFile("tools/check.cmd")
+
+    AssertContains(
+      Assert,
+      cmdWrapperContent,
+      'powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0check.ps1" %*',
+      "cmd wrapper must launch the PowerShell shortcut with forwarded args"
+    )
+    AssertContains(
+      Assert,
+      cmdWrapperContent,
+      "exit /b %ERRORLEVEL%",
+      "cmd wrapper must forward the exit code from the PowerShell shortcut"
+    )
+  end)
 end
 
 local function RegisterArchitectureModuleApiTests(test, Assert, LoadAddonModules)

@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.123`.
+Current documented baseline: `0.9.124`.
 
 ## Features
 
@@ -111,9 +111,9 @@ Current documented baseline: `0.9.123`.
 - Runtime log storage is session-only and starts disabled on every login/reload.
 - Sync handshake behavior: `HELLO` recipients send `ACK` and immediately answer with the full local `KEY`/`STATS`/`DPS`/`LOC` snapshot plus current kick state; explicit local refresh still force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.123)
+## Use Case / Logic Baseline (v0.9.124)
 
-Documented on `2026-04-02` as runtime behavior baseline (`0.9.123`) for validation checks.
+Documented on `2026-04-02` as runtime behavior baseline (`0.9.124`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -172,21 +172,13 @@ Documented on `2026-04-02` as runtime behavior baseline (`0.9.123`) for validati
 
 ## Slash Commands
 
-- `/isilive test`
+Public commands shown in the in-game help:
 - `/isilive testall`
-- `/isilive tptest`
-- `/isilive tpdebug`
 - `/isilive log [on|off|start|stop|status|clear|tail [n]]`
-- `/isilive lead`
-- `/isilive lang [en|de]`
-- `/isilive pause`
-- `/isilive resume`
 - `/isilive stop`
 - `/isilive start`
-- `/isilive bindcheck`
 
-Developer debug (hidden command, not listed in in-game help):
-- `/isilive qdebug [on|off|status|clear|tail [n]]`
+Additional maintenance/debug commands remain available for compatibility, but they are intentionally omitted from the normal help output.
 
 ## Files
 
@@ -269,20 +261,22 @@ Developer debug (hidden command, not listed in in-game help):
 - GitHub Action (on push/PR to `main`): `stylua --check .`, `luacheck --exclude-files ".luarocks/**" -- .`, Lua syntax check, Lua metrics check (`ISILIVE_MAX_FILE_LINES=3200 ISILIVE_MAX_FUNCTION_LINES=420 lua tools/lua_metrics_check.lua`), and deterministic usecase/rules gate (`lua tools/validate_usecases.lua`).
 - Local release-grade checks:
   - `stylua --check .`
-  - `luacheck --exclude-files ".luarocks/**" -- .`
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File tools/check.ps1`
+  - `cmd /c tools\check.cmd`
   - `ISILIVE_MAX_FILE_LINES=3200 ISILIVE_MAX_FUNCTION_LINES=420 lua tools/lua_metrics_check.lua`
   - `lua tools/validate_rules_logic.lua`
   - `lua tools/validate_architecture_rules.lua`
   - `lua tools/validate_usecases.lua`
-  - Windows preflight mirroring the GitHub workflow as closely as possible: `powershell -ExecutionPolicy Bypass -File tools/validate_ci_local.ps1`
+  - Windows preflight mirroring the GitHub workflow as closely as possible: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/check.ps1`
+  - Shortcut chain: `tools/check.ps1` -> `tools/run_local_ci.ps1` -> `tools/validate_ci_local.ps1`
   - Metrics defaults: file `warn>1200` / `hard>3200`, function `warn>120` / `hard>420` (override via `ISILIVE_WARN_FILE_LINES`, `ISILIVE_MAX_FILE_LINES`, `ISILIVE_WARN_FUNCTION_LINES`, `ISILIVE_MAX_FUNCTION_LINES`)
-  - Windows note: if metrics cannot find LuaRocks modules (`lfs`/`luacheck.*`), set `LUA_PATH` + `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running.
+  - Windows note: if metrics cannot find LuaRocks modules (`lfs`/`luacheck.*`), set `LUA_PATH` + `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running. The repo-local `luacheck.cmd` shim avoids the Windows app-chooser dialog.
 
 ## Deterministic Usecase Gate
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 472 scenarios across 36 modules, while the rule validators currently index 472 deterministic tests, including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 481 scenarios across 36 modules, while the rule validators currently index 481 deterministic tests, including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)
@@ -326,7 +320,8 @@ Prerequisites:
 Local checks:
 - `stylua .` (format)
 - `stylua --check .` (CI check)
-- `luacheck --exclude-files ".luarocks/**" -- .` (lint)
+- `powershell -NoProfile -ExecutionPolicy Bypass -File tools/check.ps1` (full local preflight)
+- `cmd /c tools\check.cmd` (full local preflight from cmd.exe)
 - `lua tools/lua_metrics_check.lua` (file/function size metrics)
 - `lua tools/validate_rules_logic.lua` (active rule/test mapping gate)
 - `lua tools/validate_architecture_rules.lua` (active architecture-rule/test mapping gate)
@@ -360,9 +355,11 @@ Enable the repository hook path:
 Then `pre-commit` will run:
 - `tools/sync_release_baseline.ps1` to mirror the version from `isiLive.toc` into the documented baseline files and UI title
 - `stylua --check .`
-- `luacheck --exclude-files ".luarocks/**" -- .`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File tools/check.ps1`
 - `lua tools/lua_metrics_check.lua`
 - `lua tools/validate_usecases.lua`
+
+For a one-command local preflight, use `tools/check.ps1` or `tools/check.cmd`; both route through the same validation chain and keep the Windows `luacheck` shim in play.
 
 The sync helper treats `isiLive.toc` as the source of truth. If you raise the release version there, the hook keeps `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `isiLive_texts.lua` aligned automatically before the commit is created.
 

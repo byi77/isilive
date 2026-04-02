@@ -21,7 +21,7 @@ Run before committing:
 
 ```powershell
 stylua --check .
-luacheck --exclude-files ".luarocks/**" -- .
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/check.ps1
 ISILIVE_MAX_FILE_LINES=3200 ISILIVE_MAX_FUNCTION_LINES=420 lua tools/lua_metrics_check.lua
 lua tools/validate_rules_logic.lua
 lua tools/validate_architecture_rules.lua
@@ -29,6 +29,8 @@ lua tools/validate_usecases.lua
 ```
 
 Expected: lint/style/metrics/usecase/rules checks pass.
+
+The `tools/check.ps1` and `tools/check.cmd` wrappers run the full local preflight through the repo-local `luacheck.cmd` shim, which avoids the Windows app-chooser dialog that appears when the bare LuaRocks `luacheck` script is invoked directly.
 
 `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.

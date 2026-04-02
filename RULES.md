@@ -38,7 +38,8 @@
 ## Validation
 - Run all local quality gates before release commits:
 - `stylua --check .`
-- `luacheck --exclude-files ".luarocks/**" -- .`
+- `powershell -NoProfile -ExecutionPolicy Bypass -File tools/check.ps1`
+- `cmd /c tools\check.cmd`
 - Lua syntax parse for all `.lua` files (`luac -p`)
 - `lua tools/lua_metrics_check.lua`
 - `lua tools/validate_rules_logic.lua`
@@ -53,6 +54,7 @@
 - If a change touches behavior covered by an active rule, update code, deterministic tests, and the rule-to-test mapping in the same change.
 - If a deterministic test name changes, update every active `Erforderliche Tests` reference immediately so the rule gate stays valid.
 - If a gate fails, fix root cause and rerun the full gate set (no partial-pass release).
+- The preferred local entrypoint for the static lint gate is `tools/check.ps1` (or `tools/check.cmd`); it keeps the Windows `luacheck` shim active and avoids the app-selection dialog.
 
 ## Release Hygiene
 - Bump version in `isiLive.toc` for functional changes.

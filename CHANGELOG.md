@@ -1,10 +1,17 @@
 # Changelog
 
-## 2026-04-02 - Version 0.9.123 (patch)
+## 2026-04-02 - Tooling: local CI wrappers
+
+- Added `tools/check.ps1`, `tools/check.cmd`, and `tools/run_local_ci.ps1` as short local entrypoints for the full CI preflight.
+- Added a repo-local `tools/luacheck.cmd` shim so Windows uses `lua` to launch the LuaRocks `luacheck` script and no longer opens the "choose an app" dialog.
+- Updated the local CI documentation to point at the wrapper chain instead of the bare LuaRocks script.
+
+## 2026-04-02 - Version 0.9.124 (patch)
 
 - Docs / release baseline:
-  - Raised README, architecture, use-case, and TOC baselines to `0.9.123`.
-  - Updated the UI title string to `v0.9.123` through the release baseline sync.
+  - Reduced the normal `/isilive` help output to `testall`, `log`, `start`, and `stop`.
+  - Raised README, architecture, use-case, and TOC baselines to `0.9.124`.
+  - Updated the UI title string to `v0.9.124` through the release baseline sync.
 
 ## 2026-04-01 - Version 0.9.122 (patch)
 

@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.123`
+Version baseline: `0.9.124`
 Last updated: `2026-04-02`
 
 ## Actors
@@ -188,7 +188,7 @@ Goal: show live BRes, Bloodlust/Heroism/Time Warp, active Mythic+ timer cutoffs,
 
 Runtime behavior in this document is validated by `tools/validate_usecases.lua`.
 Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules_logic.lua` and also enforced during `tools/validate_usecases.lua`.
-Current validator baseline: `472` scenarios across `36` modules.
+Current validator baseline: `481` scenarios across `36` modules.
 
 1. UC-01/UC-02: strict queue target resolution and queue highlight behavior without speculative fallback.
 2. UC-03: exact-map suppression and shared-portcast ambiguity handling.

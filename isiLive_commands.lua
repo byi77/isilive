@@ -55,19 +55,10 @@ end
 
 local function PrintHelp(printFn, L)
   printFn(L.HELP_HEADER)
-  printFn(L.HELP_LEAD)
-  printFn(L.HELP_TEST)
   printFn(L.HELP_TESTALL)
-  printFn(L.HELP_TPTEST)
-  printFn(L.HELP_TPDEBUG)
   printFn(L.HELP_LOG)
-  printFn(L.HELP_BINDCHECK)
-  printFn(L.HELP_LANG)
-  printFn(L.HELP_PAUSE)
-  printFn(L.HELP_RESUME)
   printFn(L.HELP_STOP)
   printFn(L.HELP_START)
-  printFn(L.HELP_RESET)
 end
 
 local ARG_ON = { on = true, ["1"] = true, ["true"] = true }
