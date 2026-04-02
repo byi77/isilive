@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.124`.
+Current documented baseline: `0.9.126`.
 
 ## Features
 
@@ -48,7 +48,7 @@ Current documented baseline: `0.9.124`.
 - Roster tooltip adds `Level`, `Lang`, localized `Last run DPS`, sync interval/source/version, and a Shift-only provenance debug block
 - Private `isiLive` tooltips now use their own wrapped compact layout so longer lines stay inside the tooltip frame
 - Persistent stats stay bounded: only the matching local character's own last-run DPS is kept in SavedVariables; foreign-player snapshots are session-only
-- CurseForge release packaging excludes PNG screenshot/logo assets via `.pkgmeta`, so repository preview images do not ship inside the addon zip
+- CurseForge release packaging excludes PNG screenshot/logo assets, the full `CHANGELOG.md`, and the `.claude/` helper directory via `.pkgmeta`, so repository preview images, the long changelog, and editor helper files do not ship inside the addon zip
 - Queue join detection no longer guesses dungeon targets; when visible queue metadata yields a group name, non-leader members get one grouped chat summary after join without invite hint or queue-based teleport highlight
 - Ready-check lifecycle uses a dedicated roster refresh path that colors roster row backgrounds without rerunning the generic full render or rewriting secure role-button attributes; waiting rows show a sandglass and explicit declines stay red for 20 seconds after the ready check ends
 - Dungeon teleport controls in the right-side grid
@@ -111,9 +111,9 @@ Current documented baseline: `0.9.124`.
 - Runtime log storage is session-only and starts disabled on every login/reload.
 - Sync handshake behavior: `HELLO` recipients send `ACK` and immediately answer with the full local `KEY`/`STATS`/`DPS`/`LOC` snapshot plus current kick state; explicit local refresh still force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.124)
+## Use Case / Logic Baseline (v0.9.126)
 
-Documented on `2026-04-02` as runtime behavior baseline (`0.9.124`) for validation checks.
+Documented on `2026-04-02` as runtime behavior baseline (`0.9.126`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -235,6 +235,7 @@ Additional maintenance/debug commands remain available for compatibility, but th
 - `testmodul/isilive_test_*.lua`: modular offline simulation scenarios + harness for queue/highlight/event/cooldown/cd-tracker/teleport/group/sync/locale/commands/guards logic (dev-only, not packaged)
 - `realm_language_data.lua`: Blizzard EU realm locale mapping (including UTF-8 Russian realm names)
 - `CHANGELOG.md`: release notes
+- `CHANGELOG_RELEASE.md`: tiny CurseForge release-note stub linking back to the repository changelog
 - `RELEASE.md`: release runbook
 - `RULES.md`: project/versioning rules
 - `WARTUNG.md`: long-break maintenance runbook (dev-only, not packaged)
@@ -276,7 +277,7 @@ Additional maintenance/debug commands remain available for compatibility, but th
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 481 scenarios across 36 modules, while the rule validators currently index 481 deterministic tests, including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 482 scenarios across 36 modules, while the rule validators currently index 482 deterministic tests, including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)

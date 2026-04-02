@@ -6,6 +6,17 @@
 - Added a repo-local `tools/luacheck.cmd` shim so Windows uses `lua` to launch the LuaRocks `luacheck` script and no longer opens the "choose an app" dialog.
 - Updated the local CI documentation to point at the wrapper chain instead of the bare LuaRocks script.
 
+## 2026-04-02 - Version 0.9.126 (patch)
+
+- Release packaging:
+  - Excluded the `.claude/` helper directory from the CurseForge package.
+
+## 2026-04-02 - Version 0.9.125 (patch)
+
+- Release packaging:
+  - Replaced the packaged changelog with a tiny release-note stub that links back to the repository changelog.
+  - Excluded the full `CHANGELOG.md` from the CurseForge package to save zip size.
+
 ## 2026-04-02 - Version 0.9.124 (patch)
 
 - Docs / release baseline:

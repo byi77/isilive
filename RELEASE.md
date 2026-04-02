@@ -14,6 +14,7 @@ This is the canonical release flow for `isiLive` (repository/tag prefix remains 
 5. If runtime flow or UI behavior changed, update `ARCHITECTURE.md` and `USECASES.md`.
 6. If UI labels changed, verify `README.md` and `ARCHITECTURE.md` use the current button text.
 7. If maintenance/runbook expectations changed, sync `WARTUNG.md` and keep `.pkgmeta` packaging ignores aligned.
+   Keep the full `CHANGELOG.md` out of the CurseForge zip and use the short `CHANGELOG_RELEASE.md` stub instead.
 
 ## 2) Local Quality Gate
 
@@ -34,7 +35,7 @@ The `tools/check.ps1` and `tools/check.cmd` wrappers run the full local prefligh
 
 `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 472 scenarios across 36 modules. The rule validators currently index 472 deterministic tests.
+`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 483 scenarios across 36 modules. The rule validators currently index 483 deterministic tests.
 
 Windows note: if metrics fail with missing LuaRocks modules (`lfs`, `luacheck.decoder`, `luacheck.parser`), set `LUA_PATH` and `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running the metrics check. Use the same release thresholds locally as CI: `ISILIVE_MAX_FILE_LINES=3200` and `ISILIVE_MAX_FUNCTION_LINES=420`.
 
@@ -126,7 +127,7 @@ git push origin :refs/tags/isiLive_release_X.Y.Z
 
 - Release tagging is intentionally separated from the normal `main` push so CI can fail safely before CurseForge packaging is triggered.
 - CI already excludes `.luarocks/` from lint/syntax checks.
-- Packaging ignores non-user files via `.pkgmeta` (including `.github/`, docs like `README.md`/`ARCHITECTURE.md`/`USECASES.md`/`WARTUNG.md`/`TODO_RENAME.md`, dev-only folders `tools/` + `testmodul/`, and PNG screenshots/logo assets).
+- Packaging ignores non-user files via `.pkgmeta` (including `.github/`, `.claude/`, docs like `README.md`/`ARCHITECTURE.md`/`USECASES.md`/`WARTUNG.md`/`TODO_RENAME.md`/`CHANGELOG.md`, dev-only folders `tools/` + `testmodul/`, and PNG screenshots/logo assets). The CurseForge file notes use the short `CHANGELOG_RELEASE.md` stub instead of shipping the full repository changelog.
 - If VS Code diagnostics look stale, run:
   - `Developer: Reload Window`
   - `Lua: Restart Language Server`

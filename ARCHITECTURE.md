@@ -1,6 +1,6 @@
 # isiLive Architecture
 
-Version baseline: `0.9.124`
+Version baseline: `0.9.126`
 Last updated: `2026-04-02`
 
 ## Purpose
@@ -103,14 +103,14 @@ Local release-grade validation is intentionally split into static and runtime ga
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
 4. `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then covers 481 scenarios across 36 modules, while the rule validators currently index 481 deterministic tests.
+5. `tools/validate_usecases.lua` runs both validators first and then covers 483 scenarios across 36 modules, while the rule validators currently index 483 deterministic tests.
 
 The local `tools/check.ps1` / `tools/check.cmd` wrappers are the preferred entrypoint for the static gate because they route `luacheck` through the repo-local Windows shim instead of invoking the LuaRocks script directly.
 
 ## UI Structure (ASCII Sketch)
 
 ```text
-| isiLive                                                 v0.9.124 Open/Close CTRL-F9 [H][V][M][M2][X]|
+| isiLive                                                 v0.9.126 Open/Close CTRL-F9 [H][V][M][M2][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS                M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|

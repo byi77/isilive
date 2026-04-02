@@ -312,6 +312,30 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     AssertContains(Assert, content, "  - WARTUNG.md", ".pkgmeta must exclude WARTUNG.md from CurseForge packaging")
   end)
 
+  test("Architecture pkgmeta excludes the full CHANGELOG from release packaging and uses a short link stub", function()
+    local content = ReadFile(".pkgmeta")
+    local changelogStub = ReadFile("CHANGELOG_RELEASE.md")
+
+    AssertContains(
+      Assert,
+      content,
+      "filename: CHANGELOG_RELEASE.md",
+      ".pkgmeta must use the short changelog stub for release notes"
+    )
+    AssertContains(
+      Assert,
+      content,
+      "  - CHANGELOG.md",
+      ".pkgmeta must exclude the full CHANGELOG.md from CurseForge packaging"
+    )
+    AssertContains(
+      Assert,
+      changelogStub,
+      "https://github.com/byi77/isilive/blob/main/CHANGELOG.md",
+      "release changelog stub must point back to the repository changelog"
+    )
+  end)
+
   test("Architecture WARTUNG runbook references the required maintenance document chain", function()
     local content = ReadFile("WARTUNG.md")
 
