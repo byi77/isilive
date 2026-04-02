@@ -53,8 +53,8 @@ return function(test, ctx)
     local addon = LoadAddonModules({ "isiLive_texts.lua" })
     local locales = addon.Texts.GetLocaleTables()
 
-    Assert.Equal(locales.enUS.TITLE, "isiLive v0.9.126", "enUS title must show the current release version")
-    Assert.Equal(locales.deDE.TITLE, "isiLive v0.9.126", "deDE title must show the current release version")
+    Assert.Equal(locales.enUS.TITLE, "isiLive v0.9.127", "enUS title must show the current release version")
+    Assert.Equal(locales.deDE.TITLE, "isiLive v0.9.127", "deDE title must show the current release version")
   end)
 
   test("Locale tag resolver returns enUS as default fallback", function()
