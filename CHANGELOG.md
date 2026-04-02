@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-04-02 - Version 0.9.128 (patch)
+
+- Docs / release baseline:
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `isiLive.toc` to `0.9.128`.
+  - Updated the runtime-visible addon title string to `v0.9.128`.
+
 ## 2026-04-02 - Version 0.9.127 (patch)
 
 - Keystone chat output:

@@ -1,6 +1,6 @@
 # isiLive Use Cases
 
-Version baseline: `0.9.127`
+Version baseline: `0.9.128`
 Last updated: `2026-04-02`
 
 ## Actors
