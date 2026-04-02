@@ -1172,150 +1172,7 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
   end)
 end
 
-local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Roster panel share keys button debounces rapid clicks", function()
-    local createdFrames = {}
-    local createdFontStrings = {}
-    local sentMessages = {}
-    local shareKeyRequests = 0
-    local currentTime = 100
-
-    WithGlobals({
-      CreateFrame = function()
-        return NewRecordedFrame(createdFrames, createdFontStrings)
-      end,
-      GameTooltip = {
-        SetOwner = function() end,
-        SetText = function() end,
-        AddLine = function() end,
-        Show = function() end,
-        Hide = function() end,
-      },
-      C_ChatInfo = {
-        SendChatMessage = function(text, channel)
-          table.insert(sentMessages, {
-            text = text,
-            channel = channel,
-          })
-        end,
-      },
-      print = function() end,
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
-      local controller = addon.RosterPanel.CreateController({
-        mainFrame = NewRecordedMainFrame(createdFontStrings),
-        getL = function()
-          return {}
-        end,
-        isPlayerLeader = function()
-          return true
-        end,
-        getAddonVersionText = function()
-          return ""
-        end,
-        updateStatusLine = function() end,
-        setMainFrameHeightSafe = function() end,
-        setMainFrameWidthSafe = function() end,
-        buildOrderedRoster = function(roster)
-          return {
-            { unit = "player", info = roster.player },
-          }
-        end,
-        hasFullSync = function()
-          return false
-        end,
-        buildDisplayData = function()
-          return {
-            colorHex = "ffffffff",
-            displayName = "Self",
-            languageDisplay = "EN",
-            specText = "",
-            ilvlText = "",
-            rioText = "",
-            keyText = "DB +10",
-            addonMarker = "",
-            atDungeonMarker = "",
-            readyCheckMarkup = "",
-            roleIconMarkup = "",
-          }
-        end,
-        truncateName = function(text)
-          return text
-        end,
-        getShortSpecLabel = function(text)
-          return text
-        end,
-        getLanguageFlagMarkup = function()
-          return ""
-        end,
-        getDungeonShortCode = function()
-          return "DB"
-        end,
-        resolveActiveKeyOwnerUnit = function()
-          return nil
-        end,
-        getRoster = function()
-          return {
-            player = {
-              name = "Self",
-              role = "DAMAGER",
-              keyMapID = 2441,
-              keyLevel = 10,
-            },
-          }
-        end,
-        isInGroup = function()
-          return true
-        end,
-        rolePriority = {
-          DAMAGER = 1,
-          NONE = 2,
-        },
-        unitPriority = {
-          player = 1,
-        },
-        getTime = function()
-          return currentTime
-        end,
-        shareKeysDebounceSeconds = 1,
-        sendShareKeysRequest = function()
-          shareKeyRequests = shareKeyRequests + 1
-        end,
-      })
-
-      controller.RenderRoster({
-        player = {
-          name = "Self",
-          role = "DAMAGER",
-          keyMapID = 2441,
-          keyLevel = 10,
-        },
-      })
-
-      local shareKeysButton = nil
-      for _, frame in ipairs(createdFrames) do
-        if frame.pointY == -150 then
-          shareKeysButton = frame
-          break
-        end
-      end
-
-      Assert.NotNil(shareKeysButton, "share-keys button should exist")
-      ---@diagnostic disable: need-check-nil, undefined-field
-      shareKeysButton.OnClick()
-      shareKeysButton.OnClick()
-      Assert.Equal(#sentMessages, 1, "rapid repeated share-keys clicks should be debounced")
-      Assert.Equal(sentMessages[1].channel, "PARTY", "share-keys should announce to party chat")
-      Assert.Equal(shareKeyRequests, 1, "share-keys should send one sync request on the first click")
-
-      currentTime = 101.5
-      shareKeysButton.OnClick()
-      ---@diagnostic enable: need-check-nil, undefined-field
-      Assert.Equal(#sentMessages, 2, "share-keys click should fire again after debounce window")
-      Assert.Equal(shareKeyRequests, 2, "share-keys should send another sync request after the debounce window")
-    end)
-  end)
-
+local function RegisterRosterPanelShareKeysLinkTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster panel share keys button builds a deterministic keystone link", function()
     local createdFrames = {}
     local createdFontStrings = {}
@@ -1472,6 +1329,151 @@ local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, Load
         "share-keys must not forward a foreign item hyperlink"
       )
       Assert.Equal(shareKeyRequests, 1, "share-keys should still broadcast the sync request")
+    end)
+  end)
+end
+
+local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster panel share keys button debounces rapid clicks", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local sentMessages = {}
+    local shareKeyRequests = 0
+    local currentTime = 100
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      C_ChatInfo = {
+        SendChatMessage = function(text, channel)
+          table.insert(sentMessages, {
+            text = text,
+            channel = channel,
+          })
+        end,
+      },
+      print = function() end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = NewRecordedMainFrame(createdFontStrings),
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
+        buildOrderedRoster = function(roster)
+          return {
+            { unit = "player", info = roster.player },
+          }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Self",
+            languageDisplay = "EN",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "DB +10",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return "DB"
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {
+            player = {
+              name = "Self",
+              role = "DAMAGER",
+              keyMapID = 2441,
+              keyLevel = 10,
+            },
+          }
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {
+          DAMAGER = 1,
+          NONE = 2,
+        },
+        unitPriority = {
+          player = 1,
+        },
+        getTime = function()
+          return currentTime
+        end,
+        shareKeysDebounceSeconds = 1,
+        sendShareKeysRequest = function()
+          shareKeyRequests = shareKeyRequests + 1
+        end,
+      })
+
+      controller.RenderRoster({
+        player = {
+          name = "Self",
+          role = "DAMAGER",
+          keyMapID = 2441,
+          keyLevel = 10,
+        },
+      })
+
+      local shareKeysButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame.pointY == -150 then
+          shareKeysButton = frame
+          break
+        end
+      end
+
+      Assert.NotNil(shareKeysButton, "share-keys button should exist")
+      ---@diagnostic disable: need-check-nil, undefined-field
+      shareKeysButton.OnClick()
+      shareKeysButton.OnClick()
+      Assert.Equal(#sentMessages, 1, "rapid repeated share-keys clicks should be debounced")
+      Assert.Equal(sentMessages[1].channel, "PARTY", "share-keys should announce to party chat")
+      Assert.Equal(shareKeyRequests, 1, "share-keys should send one sync request on the first click")
+
+      currentTime = 101.5
+      shareKeysButton.OnClick()
+      ---@diagnostic enable: need-check-nil, undefined-field
+      Assert.Equal(#sentMessages, 2, "share-keys click should fire again after debounce window")
+      Assert.Equal(shareKeyRequests, 2, "share-keys should send another sync request after the debounce window")
     end)
   end)
 
@@ -1833,9 +1835,12 @@ local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGl
       end
 
       Assert.NotNil(dpsHeader, "DPS header should exist")
+      ---@diagnostic disable-next-line: need-check-nil, undefined-field
       Assert.True(dpsHeader:IsShown(), "hidden settings must keep the DPS header visible")
       Assert.NotNil(rowDps, "row DPS cell should exist")
+      ---@diagnostic disable-next-line: need-check-nil, undefined-field
       Assert.True(rowDps:IsShown(), "hidden settings must keep row DPS values visible")
+      ---@diagnostic disable-next-line: need-check-nil, undefined-field
       Assert.Equal(rowDps.text, "-", "row DPS cell should still render the placeholder value")
     end)
   end)
@@ -2000,7 +2005,9 @@ local function RegisterRosterPanelMainLayoutVisibilityTests(test, Assert, WithGl
 
       Assert.NotNil(combatLoggingToggle, "combat logging toggle should exist in the main panel")
       Assert.NotNil(damageMeterResetToggle, "damage-meter reset toggle should exist in the main panel")
+      ---@diagnostic disable-next-line: need-check-nil, undefined-field
       Assert.False(combatLoggingToggle:IsShown(), "combat logging toggle should stay hidden in the main panel")
+      ---@diagnostic disable-next-line: need-check-nil, undefined-field
       Assert.False(damageMeterResetToggle:IsShown(), "DM reset toggle should stay hidden in the main panel")
     end)
   end)
@@ -2116,6 +2123,7 @@ end
 local function RegisterRosterPanelInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelLeaderInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelShareKeysLinkTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 

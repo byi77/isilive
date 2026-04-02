@@ -79,10 +79,5 @@ function ContextHelpers.BuildKeystoneChatLink(mapID, level)
 
   local dungeonLabel = dungeonName and string.format("Keystone: %s +%d", dungeonName, numericLevel)
     or string.format("Keystone +%d", numericLevel)
-  return string.format(
-    "|cffa335ee|Hkeystone:180653:%d:%d:0:0:0:0|h[%s]|h|r",
-    numericMapID,
-    numericLevel,
-    dungeonLabel
-  )
+  return string.format("|cffa335ee|Hkeystone:180653:%d:%d:0:0:0:0|h[%s]|h|r", numericMapID, numericLevel, dungeonLabel)
 end
