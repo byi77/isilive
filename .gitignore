@@ -32,3 +32,4 @@ sounds/*
 # Local LuaRocks tree (CI/local tooling)
 .luarocks/
 TODO.md
+!TODO.md
