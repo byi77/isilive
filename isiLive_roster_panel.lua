@@ -11,6 +11,7 @@ addonTable.RosterPanel = RosterPanel
 -- All imports below carry hardcoded fallbacks so a load-order mistake fails
 -- gracefully rather than with a nil-dereference crash.
 local RI = addonTable._RosterInternal or {}
+local ContextHelpers = addonTable.ContextHelpers or {}
 
 local function GetDB()
   return rawget(_G, "IsiLiveDB")
@@ -179,19 +180,7 @@ local function BuildOwnKeyAnnounceLine(opts)
     return nil
   end
 
-  -- Try clickable keystone link first, fall back to plain text
-  local keyLink = nil
-  if type(opts.getOwnedKeystoneLink) == "function" then
-    local ok, ownedLink = pcall(opts.getOwnedKeystoneLink)
-    if
-      ok
-      and type(ownedLink) == "string"
-      and ownedLink:find("|Hkeystone:", 1, true)
-      and not ownedLink:find("^|Hkeystone:[^|]+|h%[Keystone%]|h$")
-    then
-      keyLink = ownedLink
-    end
-  end
+  local keyLink = ContextHelpers.BuildKeystoneChatLink(keyMapID, keyLevel)
   if not keyLink then
     local short = opts.getDungeonShortCode(keyMapID)
     keyLink = BuildKeystoneLinkText(short, keyLevel)
@@ -1181,7 +1170,6 @@ local function CreateShareKeysButton(mainFrame, deps)
       getL = deps.getL,
       getRoster = deps.getRoster,
       getDungeonShortCode = deps.getDungeonShortCode,
-      getOwnedKeystoneLink = deps.getOwnedKeystoneLink,
     })
     if ownLine then
       if deps.isInGroup() then
@@ -1951,47 +1939,6 @@ function RosterPanel.CreateController(opts)
   local applyKnownKeyToRosterEntry = type(opts.applyKnownKeyToRosterEntry) == "function"
       and opts.applyKnownKeyToRosterEntry
     or nil
-  local getOwnedKeystoneLink = type(opts.getOwnedKeystoneLink) == "function" and opts.getOwnedKeystoneLink
-    or function()
-      local mythicPlusApi = rawget(_G, "C_MythicPlus")
-      if not mythicPlusApi then
-        return nil
-      end
-      -- Try native API first (may not exist in all seasons), but only if it returns a
-      -- complete link with dungeon name (not just bare "[Keystone]").
-      local linkFn = mythicPlusApi.GetOwnedKeystoneLink
-      if type(linkFn) == "function" then
-        local ok, link = pcall(linkFn)
-        if
-          ok
-          and type(link) == "string"
-          and link ~= ""
-          and link:find("|Hkeystone:", 1, true)
-          and not link:find("^|Hkeystone:[^|]+|h%[Keystone%]|h$")
-        then
-          return link
-        end
-      end
-      -- Fallback: build keystone link from owned level + mapID.
-      local okLevel, level = pcall(mythicPlusApi.GetOwnedKeystoneLevel)
-      local okMapID, mapID = pcall(mythicPlusApi.GetOwnedKeystoneChallengeMapID)
-      if not okLevel or not okMapID then
-        return nil
-      end
-      level = tonumber(level)
-      mapID = tonumber(mapID)
-      if not level or level <= 0 or not mapID or mapID <= 0 then
-        return nil
-      end
-      local dungeonName = ""
-      if C_ChallengeMode and type(C_ChallengeMode.GetMapUIInfo) == "function" then
-        local ok, name = pcall(C_ChallengeMode.GetMapUIInfo, mapID)
-        if ok and type(name) == "string" and name ~= "" then
-          dungeonName = ": " .. name
-        end
-      end
-      return string.format("|Hkeystone:%d:%d|h[Keystone%s +%d]|h", mapID, level, dungeonName, level)
-    end
   local getTime = type(opts.getTime) == "function" and opts.getTime
     or function()
       if type(GetTime) == "function" then
@@ -2024,7 +1971,6 @@ function RosterPanel.CreateController(opts)
     unitPriority = unitPriority,
     getDungeonShortCode = getDungeonShortCode,
     applyKnownKeyToRosterEntry = applyKnownKeyToRosterEntry,
-    getOwnedKeystoneLink = getOwnedKeystoneLink,
     isInGroup = isInGroup,
     getTime = getTime,
     shareKeysDebounceSeconds = shareKeysDebounceSeconds,

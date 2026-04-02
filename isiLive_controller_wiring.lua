@@ -13,6 +13,8 @@ local function RequireTable(value, name)
   return addonTable.Validators.RequireTable(value, name, "ControllerWiring")
 end
 
+local ContextHelpers = addonTable.ContextHelpers or {}
+
 function ControllerWiring.CreateGroupController(groupModule, deps)
   assert(groupModule, "isiLive: ControllerWiring.CreateGroupController requires groupModule")
   deps = deps or {}
@@ -444,20 +446,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
       if not keyLevel or keyLevel <= 0 or not keyMapID or keyMapID <= 0 then
         return
       end
-      -- Try clickable keystone link, reject bare "[Keystone]" without dungeon name
-      local mythicPlusApi = rawget(_G, "C_MythicPlus")
-      local keyLink = nil
-      if mythicPlusApi and type(mythicPlusApi.GetOwnedKeystoneLink) == "function" then
-        local ok, result = pcall(mythicPlusApi.GetOwnedKeystoneLink)
-        if
-          ok
-          and type(result) == "string"
-          and result:find("|Hkeystone:", 1, true)
-          and not result:find("^|Hkeystone:[^|]+|h%[Keystone%]|h$")
-        then
-          keyLink = result
-        end
-      end
+      local keyLink = ContextHelpers.BuildKeystoneChatLink(keyMapID, keyLevel)
       if not keyLink then
         local db = rawget(_G, "IsiLiveDB")
         local activeLocale = (db and db.locale) or ctx.locale

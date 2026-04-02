@@ -5,6 +5,7 @@ local Unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table,
 local UNIVERSAL_DEPENDENCIES = {
   "isiLive_validation_helpers.lua",
   "isiLive_string_utils.lua",
+  "isiLive_context_helpers.lua",
 }
 
 local IMPLICIT_DEPENDENCIES = {

@@ -1316,6 +1316,165 @@ local function RegisterRosterPanelShareKeysTests(test, Assert, WithGlobals, Load
     end)
   end)
 
+  test("Roster panel share keys button builds a deterministic keystone link", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local sentMessages = {}
+    local shareKeyRequests = 0
+    local currentTime = 300
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      C_ChallengeMode = {
+        GetMapUIInfo = function(mapID)
+          if mapID == 2662 then
+            return "Mists of Tirna Scithe"
+          end
+          return nil
+        end,
+      },
+      C_MythicPlus = {
+        GetOwnedKeystoneLink = function()
+          return "|Hitem:19019|h[Thunderfury, Blessed Blade of the Windseeker]|h"
+        end,
+      },
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      C_ChatInfo = {
+        SendChatMessage = function(text, channel)
+          table.insert(sentMessages, {
+            text = text,
+            channel = channel,
+          })
+        end,
+      },
+      print = function() end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = NewRecordedMainFrame(createdFontStrings),
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
+        buildOrderedRoster = function(roster)
+          return {
+            { unit = "player", info = roster.player },
+          }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Self",
+            languageDisplay = "EN",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "DB +10",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return "DB"
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {
+            player = {
+              name = "Self",
+              role = "DAMAGER",
+              keyMapID = 2662,
+              keyLevel = 10,
+            },
+          }
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {
+          DAMAGER = 1,
+          NONE = 2,
+        },
+        unitPriority = {
+          player = 1,
+        },
+        getTime = function()
+          return currentTime
+        end,
+        shareKeysDebounceSeconds = 1,
+        sendShareKeysRequest = function()
+          shareKeyRequests = shareKeyRequests + 1
+        end,
+      })
+
+      controller.RenderRoster({
+        player = {
+          name = "Self",
+          role = "DAMAGER",
+          keyMapID = 2662,
+          keyLevel = 10,
+        },
+      })
+
+      local shareKeysButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame.pointY == -150 then
+          shareKeysButton = frame
+          break
+        end
+      end
+
+      Assert.NotNil(shareKeysButton, "share-keys button should exist")
+      ---@diagnostic disable: need-check-nil, undefined-field
+      shareKeysButton.OnClick()
+      ---@diagnostic enable: need-check-nil, undefined-field
+
+      Assert.Equal(#sentMessages, 1, "share-keys should emit one chat message")
+      Assert.Equal(sentMessages[1].channel, "PARTY", "share-keys should still announce to party chat")
+      Assert.True(
+        sentMessages[1].text:find("|Hkeystone:180653:2662:10:0:0:0:0|h", 1, true) ~= nil,
+        "share-keys must build a full keystone hyperlink from the owned map ID and level"
+      )
+      Assert.True(
+        sentMessages[1].text:find("|Hitem:", 1, true) == nil,
+        "share-keys must not forward a foreign item hyperlink"
+      )
+      Assert.Equal(shareKeyRequests, 1, "share-keys should still broadcast the sync request")
+    end)
+  end)
+
   test("Roster panel share keys button locks on remote SHAREKEYS signal", function()
     local createdFrames = {}
     local createdFontStrings = {}
