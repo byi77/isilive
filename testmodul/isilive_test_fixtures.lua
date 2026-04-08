@@ -93,6 +93,7 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
     end,
     updateLeaderButtons = function() end,
     updateStatusLine = function() end,
+    sendIsiLiveHello = function(_force, _source) end,
     sendOwnKeySnapshot = function(_force) end,
     sendOwnBackgroundSnapshot = function(_source) end,
     sendOwnTargetSnapshot = function(_force, _source, _allowHidden) end,
