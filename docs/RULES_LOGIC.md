@@ -314,7 +314,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Sync SendKick encodes no-interrupt state and deduplicates payloads
   - Event handlers send sparse background snapshot on hidden zone changes
   - Event handlers send sparse background snapshot only for player-owned state changes
-  - Refresh HandleOwnedKeyRefresh sends sparse background snapshot
+  - Refresh HandleOwnedKeyRefresh sends force snapshot when key changed
+  - Refresh HandleOwnedKeyRefresh sends background snapshot when key unchanged
+  - Refresh HandleOwnedKeyRefresh sends force snapshot when post-challenge flag is set
   - KeySync SendOwnBackgroundSnapshot publishes sparse hidden changes without DPS spam
   - Config builders gate allows sparse local change events while frame is hidden
   - KeySync SendRefreshResponse can answer hidden refresh requests
