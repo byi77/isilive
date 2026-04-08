@@ -427,6 +427,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     isRaidGroup = ctx.isRaidGroup,
     isNegativeApplicationStatusEvent = ctx.isNegativeApplicationStatusEvent,
     getNormalizedActiveEntryInfo = ctx.getNormalizedActiveEntryInfo,
+    sendIsiLiveHello = ctx.sendIsiLiveHello,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
     sendOwnBackgroundSnapshot = ctx.sendOwnBackgroundSnapshot,
     shouldShowMainFrameOnStartup = ctx.shouldShowMainFrameOnStartup,
