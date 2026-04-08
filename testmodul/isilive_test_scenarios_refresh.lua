@@ -177,7 +177,7 @@ return function(test, ctx)
     Assert.Equal(state.syncRefreshes, 2, "only first and third refresh should execute refresh actions")
   end)
 
-  test("Refresh HandleOwnedKeyRefresh sends sparse background snapshot", function()
+  test("Refresh HandleOwnedKeyRefresh sends force snapshot when key changed", function()
     local controller, state = BuildRefreshController({
       keyChanged = true,
     })
@@ -187,7 +187,38 @@ return function(test, ctx)
     Assert.True(changed, "HandleOwnedKeyRefresh must return the local key change result")
     Assert.Equal(state.keyRefreshes, 1, "HandleOwnedKeyRefresh must refresh the local key exactly once")
     Assert.Equal(state.uiUpdates, 1, "local key changes must still refresh the UI once")
-    Assert.Equal(state.backgroundSnapshots, 1, "HandleOwnedKeyRefresh must send one sparse background snapshot")
-    Assert.Equal(state.keySnapshots, 0, "HandleOwnedKeyRefresh must not send a full snapshot anymore")
+    Assert.Equal(state.keySnapshots, 1, "HandleOwnedKeyRefresh must send a forced snapshot when key changed")
+    Assert.Equal(
+      state.backgroundSnapshots,
+      0,
+      "HandleOwnedKeyRefresh must not send background snapshot when key changed"
+    )
+  end)
+
+  test("Refresh HandleOwnedKeyRefresh sends background snapshot when key unchanged", function()
+    local controller, state = BuildRefreshController({
+      keyChanged = false,
+    })
+
+    local changed = controller.HandleOwnedKeyRefresh()
+
+    Assert.False(changed, "HandleOwnedKeyRefresh must return false when key did not change")
+    Assert.Equal(state.keyRefreshes, 1, "HandleOwnedKeyRefresh must refresh the local key exactly once")
+    Assert.Equal(state.uiUpdates, 0, "no UI update when key did not change")
+    Assert.Equal(state.backgroundSnapshots, 1, "HandleOwnedKeyRefresh must send background snapshot when key unchanged")
+    Assert.Equal(state.keySnapshots, 0, "HandleOwnedKeyRefresh must not send forced snapshot when key unchanged")
+  end)
+
+  test("Refresh HandleOwnedKeyRefresh sends force snapshot when post-challenge flag is set", function()
+    local controller, state = BuildRefreshController({
+      keyChanged = false,
+    })
+
+    controller.NotifyPostChallengeSync()
+    local changed = controller.HandleOwnedKeyRefresh()
+
+    Assert.False(changed, "key did not change")
+    Assert.Equal(state.keySnapshots, 1, "must send forced snapshot when post-challenge flag is set")
+    Assert.Equal(state.backgroundSnapshots, 0, "must not send background snapshot when post-challenge flag is set")
   end)
 end
