@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-04-08 - Version 0.9.133 (fix)
+
+- Fix client version tooltip not showing for peers on older addon versions:
+  - `sendIsiLiveHello` was missing from `BuildEventHandlersBaseConfig` — addon crashed on startup.
+  - `sendIsiLiveHello` also missing from `BuildEventHandlersDepsFromContext` (secondary path).
+  - Both HELLO and REQSYNC response paths now send a forced HELLO before the full state snapshot, so peers on older versions reliably receive and store the version info.
+- Fix post-challenge full sync (key, stats, DPS, loc):
+  - `NotifyPostChallengeSync()` flag consumed in `HandleOwnedKeyRefresh` — fires forced snapshot when `BAG_UPDATE_DELAYED`/`CHALLENGE_MODE_MAPS_UPDATE` arrives after key end.
+  - When key level changed: forced snapshot instead of background snapshot.
+  - When key unchanged but post-challenge flag set: forced snapshot.
+
 ## 2026-04-08 - Version 0.9.132 (fix)
 
 - Key sync after Mythic+ run:
