@@ -264,8 +264,8 @@ end
 
 local function CreateCenterNoticeText(frame, config)
   local text = CreatePortalStyleBodyText(frame, config)
-  text:SetPoint("LEFT", frame, "LEFT", config.paddingX, 0)
-  text:SetPoint("RIGHT", frame, "RIGHT", -config.paddingX, 0)
+  text:SetPoint("TOPLEFT", frame, "TOPLEFT", config.paddingX, -config.paddingY)
+  text:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -config.paddingX, config.paddingY)
   text:SetJustifyH("CENTER")
   text:SetJustifyV("MIDDLE")
   text:SetWordWrap(true)
