@@ -358,7 +358,21 @@ RI.AttachSystemOptionToggleWatcher = AttachSystemOptionToggleWatcher
 -- Shared small utility also used by UpdateCollapseState
 local function SetFlatButtonText(btn, text)
   if type(btn) == "table" and btn._flatLabel and btn._flatLabel.SetText then
-    btn._flatLabel:SetText(tostring(text or ""))
+    local label = btn._flatLabel
+    label:SetText(tostring(text or ""))
+    -- Clamp the label to the button width so long translations never overflow.
+    if type(btn.GetWidth) == "function" and type(label.SetWidth) == "function" then
+      local w = btn:GetWidth()
+      if w and w > 4 then
+        label:SetWidth(w - 4)
+      end
+    end
+    if type(label.SetWordWrap) == "function" then
+      label:SetWordWrap(false)
+    end
+    if type(label.SetNonSpaceWrap) == "function" then
+      label:SetNonSpaceWrap(false)
+    end
   end
   if type(btn) == "table" and type(btn.SetText) == "function" then
     btn:SetText(tostring(text or ""))

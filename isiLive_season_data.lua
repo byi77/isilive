@@ -16,16 +16,13 @@ local function NormalizeLocaleTag(localeTag)
   if not localeTag then
     return "default"
   end
-
-  local normalized = tostring(localeTag):gsub("%-", ""):lower()
-  if normalized == "de" or normalized == "dede" then
-    return "deDE"
+  local resolved = addonTable.Languages.ResolveTag(localeTag)
+  -- ResolveTag returns "enUS" for unknown tags; map that to "default" so callers
+  -- fall through to the locale-neutral shortcode/name table.
+  if resolved == "enUS" then
+    return "default"
   end
-  if normalized == "en" or normalized == "enus" or normalized == "engb" then
-    return "enUS"
-  end
-
-  return "default"
+  return resolved
 end
 
 local function NormalizeMapIDInput(mapID)

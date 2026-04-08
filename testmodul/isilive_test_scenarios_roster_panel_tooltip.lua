@@ -251,8 +251,10 @@ local function RunTooltipScenario(WithGlobals, LoadAddonModules, Assert, options
   end
 
   WithGlobals(globals, function()
-    local addon =
-      LoadAddonModules(options.modules or { "isiLive_locale.lua", "isiLive_sync.lua", "isiLive_roster_panel.lua" })
+    local addon = LoadAddonModules(
+      options.modules
+        or { "isiLive_languages.lua", "isiLive_locale.lua", "isiLive_sync.lua", "isiLive_roster_panel.lua" }
+    )
     if configureAddon then
       configureAddon(addon)
     end
@@ -491,7 +493,7 @@ local function RegisterBlizzardUnitTooltipLanguageFlagTest(test, Assert, WithGlo
       end,
       RAID_CLASS_COLORS = {},
     }, function()
-      local addon = LoadAddonModules({ "isiLive_locale.lua", "isiLive_roster_tooltip.lua" })
+      local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua", "isiLive_roster_tooltip.lua" })
       local registered = addon._RosterInternal.RegisterBlizzardUnitLanguageTooltip({
         getLanguageTooltipMarkup = function(tag)
           Assert.Equal(tag, "FR", "Tooltip hook must resolve the 2-letter server language tag")
@@ -563,7 +565,7 @@ local function RegisterBlizzardUnitTooltipDataProcessorTest(test, Assert, WithGl
       },
       RAID_CLASS_COLORS = {},
     }, function()
-      local addon = LoadAddonModules({ "isiLive_locale.lua", "isiLive_roster_tooltip.lua" })
+      local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua", "isiLive_roster_tooltip.lua" })
       local registered = addon._RosterInternal.RegisterBlizzardUnitLanguageTooltip({
         getLanguageTooltipMarkup = function(tag)
           Assert.Equal(tag, "FR", "Tooltip hook must resolve the 2-letter server language tag")
@@ -654,7 +656,7 @@ local function RegisterBlizzardUnitTooltipDataProcessorSkipTest(test, Assert, Wi
         },
         RAID_CLASS_COLORS = {},
       }, function()
-        local addon = LoadAddonModules({ "isiLive_locale.lua", "isiLive_roster_tooltip.lua" })
+        local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua", "isiLive_roster_tooltip.lua" })
         local registered = addon._RosterInternal.RegisterBlizzardUnitLanguageTooltip({
           getLanguageTooltipMarkup = function()
             error("unit hovers without a GUID should not resolve a language")

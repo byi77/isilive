@@ -238,7 +238,7 @@ local function TryHandleInfoCommands(ctx, L, cmd)
 
   if cmd:find("^lang") == 1 then
     local arg = cmd:match("^lang%s+(%S+)$")
-    if arg == "en" or arg == "de" or arg == "enus" or arg == "dede" then
+    if arg and addonTable.Languages.IsSupported(arg) then
       ctx.setLanguage(arg)
     else
       ctx.printFn(L.LANG_USAGE)

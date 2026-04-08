@@ -25,6 +25,66 @@ return function(test, ctx)
     end
   end)
 
+  test("All enUS keys exist in frFR locale", function()
+    local addon = LoadAddonModules({ "isiLive_texts.lua" })
+    local locales = addon.Texts.GetLocaleTables()
+
+    Assert.NotNil(locales.frFR, "frFR locale must exist")
+
+    for key, _ in pairs(locales.enUS) do
+      Assert.NotNil(locales.frFR[key], "frFR must have key: " .. tostring(key))
+    end
+  end)
+
+  test("All frFR keys exist in enUS locale", function()
+    local addon = LoadAddonModules({ "isiLive_texts.lua" })
+    local locales = addon.Texts.GetLocaleTables()
+
+    for key, _ in pairs(locales.frFR) do
+      Assert.NotNil(locales.enUS[key], "enUS must have key: " .. tostring(key))
+    end
+  end)
+
+  test("All enUS keys exist in esES locale", function()
+    local addon = LoadAddonModules({ "isiLive_texts.lua" })
+    local locales = addon.Texts.GetLocaleTables()
+
+    Assert.NotNil(locales.esES, "esES locale must exist")
+
+    for key, _ in pairs(locales.enUS) do
+      Assert.NotNil(locales.esES[key], "esES must have key: " .. tostring(key))
+    end
+  end)
+
+  test("All esES keys exist in enUS locale", function()
+    local addon = LoadAddonModules({ "isiLive_texts.lua" })
+    local locales = addon.Texts.GetLocaleTables()
+
+    for key, _ in pairs(locales.esES) do
+      Assert.NotNil(locales.enUS[key], "enUS must have key: " .. tostring(key))
+    end
+  end)
+
+  test("All enUS keys exist in ptBR locale", function()
+    local addon = LoadAddonModules({ "isiLive_texts.lua" })
+    local locales = addon.Texts.GetLocaleTables()
+
+    Assert.NotNil(locales.ptBR, "ptBR locale must exist")
+
+    for key, _ in pairs(locales.enUS) do
+      Assert.NotNil(locales.ptBR[key], "ptBR must have key: " .. tostring(key))
+    end
+  end)
+
+  test("All ptBR keys exist in enUS locale", function()
+    local addon = LoadAddonModules({ "isiLive_texts.lua" })
+    local locales = addon.Texts.GetLocaleTables()
+
+    for key, _ in pairs(locales.ptBR) do
+      Assert.NotNil(locales.enUS[key], "enUS must have key: " .. tostring(key))
+    end
+  end)
+
   test("LOADED_HINT contains format placeholder in both locales", function()
     local addon = LoadAddonModules({ "isiLive_texts.lua" })
     local locales = addon.Texts.GetLocaleTables()
@@ -58,13 +118,19 @@ return function(test, ctx)
   end)
 
   test("Locale tag resolver returns enUS as default fallback", function()
-    local addon = LoadAddonModules({ "isiLive_locale.lua" })
+    local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua" })
 
     Assert.Equal(addon.Locale.ResolveLocaleTag(nil), "enUS", "nil tag must default to enUS")
-    Assert.Equal(addon.Locale.ResolveLocaleTag("fr"), "enUS", "unsupported tag must fallback to enUS")
+    Assert.Equal(addon.Locale.ResolveLocaleTag("fr"), "frFR", "fr tag must resolve to frFR")
+    Assert.Equal(addon.Locale.ResolveLocaleTag("frfr"), "frFR", "frfr tag must resolve to frFR")
     Assert.Equal(addon.Locale.ResolveLocaleTag("de"), "deDE", "de tag must resolve to deDE")
     Assert.Equal(addon.Locale.ResolveLocaleTag("dede"), "deDE", "dede tag must resolve to deDE")
     Assert.Equal(addon.Locale.ResolveLocaleTag("en"), "enUS", "en tag must resolve to enUS")
+    Assert.Equal(addon.Locale.ResolveLocaleTag("es"), "esES", "es tag must resolve to esES")
+    Assert.Equal(addon.Locale.ResolveLocaleTag("eses"), "esES", "eses tag must resolve to esES")
+    Assert.Equal(addon.Locale.ResolveLocaleTag("pt"), "ptBR", "pt tag must resolve to ptBR")
+    Assert.Equal(addon.Locale.ResolveLocaleTag("ptbr"), "ptBR", "ptbr tag must resolve to ptBR")
+    Assert.Equal(addon.Locale.ResolveLocaleTag("xx"), "enUS", "unsupported tag must fallback to enUS")
   end)
 
   test("Locale GetUnitServerLanguage skips missing units without UnitGUID or UnitIsUnit", function()
@@ -79,7 +145,7 @@ return function(test, ctx)
         error("UnitIsUnit must not be called for missing units")
       end,
     }, function()
-      local addon = LoadAddonModules({ "isiLive_locale.lua" })
+      local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua" })
       local language = addon.Locale.GetUnitServerLanguage("party1", "TestRealm", function()
         return nil
       end)

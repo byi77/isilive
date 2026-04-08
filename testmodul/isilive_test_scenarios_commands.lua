@@ -10,7 +10,7 @@ local function BuildCommandLocale()
     HELP_TPDEBUG = "/isilive tpdebug",
     HELP_LOG = "/isilive log",
     HELP_BINDCHECK = "/isilive bindcheck",
-    HELP_LANG = "/isilive lang [en|de]",
+    HELP_LANG = "/isilive lang [en|de|fr|es|pt]",
     HELP_PAUSE = "/isilive pause",
     HELP_RESUME = "/isilive resume",
     HELP_STOP = "/isilive stop",
@@ -24,7 +24,7 @@ local function BuildCommandLocale()
     ERR_PAUSED_TEST = "Addon is paused.",
     LEAD_STATUS_YES = "Lead: Yes",
     LEAD_STATUS_NO = "Lead: No",
-    LANG_USAGE = "Usage: /isilive lang [en|de]",
+    LANG_USAGE = "Usage: /isilive lang [en|de|fr|es|pt]",
   }
 end
 

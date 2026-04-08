@@ -1038,7 +1038,17 @@ local function InitializeFactorySecondaryControllers(ctx)
       IsiLiveDB.locale = resolved
     end
     ctx.ApplyLocalizationToUI()
-    ctx.Print(resolved == "deDE" and ctx.L.LANG_SET_DE or ctx.L.LANG_SET_EN)
+    local langMsgKey = "LANG_SET_EN"
+    if resolved == "deDE" then
+      langMsgKey = "LANG_SET_DE"
+    elseif resolved == "frFR" then
+      langMsgKey = "LANG_SET_FR"
+    elseif resolved == "esES" then
+      langMsgKey = "LANG_SET_ES"
+    elseif resolved == "ptBR" then
+      langMsgKey = "LANG_SET_PT"
+    end
+    ctx.Print(ctx.L[langMsgKey])
   end
   ctx.SetLocaleTable = function(value)
     ctx.L = value

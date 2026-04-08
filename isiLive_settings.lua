@@ -180,67 +180,76 @@ local function CreateLanguageSelector(parent, yOffset, labelText, getCurrentLoca
   label:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset - 3)
   label:SetText(labelText or "")
 
-  local btnEn = CreateFrame("Button", nil, parent, "BackdropTemplate")
-  btnEn:SetSize(LANG_BUTTON_WIDTH, LANG_BUTTON_HEIGHT)
-  btnEn:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X + 120, yOffset - 1)
-  if type(btnEn.SetBackdrop) == "function" then
-    btnEn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
-  end
-
-  local labelEn = btnEn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  labelEn:SetPoint("CENTER", 0, 0)
-  labelEn:SetText("English")
-
-  local btnDe = CreateFrame("Button", nil, parent, "BackdropTemplate")
-  btnDe:SetSize(LANG_BUTTON_WIDTH, LANG_BUTTON_HEIGHT)
-  btnDe:SetPoint("LEFT", btnEn, "RIGHT", 2, 0)
-  if type(btnDe.SetBackdrop) == "function" then
-    btnDe:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
-  end
-
-  local labelDe = btnDe:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  labelDe:SetPoint("CENTER", 0, 0)
-  labelDe:SetText("Deutsch")
-
   local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
   local acBlue = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
 
+  local supported = addonTable.Languages and addonTable.Languages.SUPPORTED or {}
+  local buttons = {}
+  local prevBtn = nil
+
+  for _, lang in ipairs(supported) do
+    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    btn:SetSize(LANG_BUTTON_WIDTH, LANG_BUTTON_HEIGHT)
+    if prevBtn then
+      btn:SetPoint("LEFT", prevBtn, "RIGHT", 2, 0)
+    else
+      btn:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X + 120, yOffset - 1)
+    end
+    if type(btn.SetBackdrop) == "function" then
+      btn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
+    end
+    local lbl = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    lbl:SetPoint("CENTER", 0, 0)
+    lbl:SetWidth(LANG_BUTTON_WIDTH - 4)
+    if type(lbl.SetWordWrap) == "function" then
+      lbl:SetWordWrap(false)
+    end
+    if type(lbl.SetNonSpaceWrap) == "function" then
+      lbl:SetNonSpaceWrap(false)
+    end
+    lbl:SetText(lang.buttonLabel)
+
+    local tag = lang.tag
+    btn:SetScript("OnClick", function()
+      if type(setLanguage) == "function" then
+        setLanguage(tag)
+      end
+      -- UpdateHighlight is defined below; forward reference via closure is safe
+      -- because OnClick fires after the function is created.
+    end)
+
+    buttons[#buttons + 1] = { btn = btn, tag = tag }
+    prevBtn = btn
+  end
+
   local function UpdateHighlight()
     local current = type(getCurrentLocale) == "function" and getCurrentLocale() or "enUS"
-    local isEN = current == "enUS" or current == "en"
-    if type(btnEn.SetBackdropColor) == "function" then
-      if isEN then
-        btnEn:SetBackdropColor(acBlue[1], acBlue[2], acBlue[3], 0.25)
-      else
-        btnEn:SetBackdropColor(bgSec[1], bgSec[2], bgSec[3], bgSec[4])
-      end
-    end
-    if type(btnDe.SetBackdropColor) == "function" then
-      if not isEN then
-        btnDe:SetBackdropColor(acBlue[1], acBlue[2], acBlue[3], 0.25)
-      else
-        btnDe:SetBackdropColor(bgSec[1], bgSec[2], bgSec[3], bgSec[4])
+    local resolved = addonTable.Languages and addonTable.Languages.ResolveTag(current) or current
+    for _, entry in ipairs(buttons) do
+      if type(entry.btn.SetBackdropColor) == "function" then
+        if entry.tag == resolved then
+          entry.btn:SetBackdropColor(acBlue[1], acBlue[2], acBlue[3], 0.25)
+        else
+          entry.btn:SetBackdropColor(bgSec[1], bgSec[2], bgSec[3], bgSec[4])
+        end
       end
     end
   end
 
-  btnEn:SetScript("OnClick", function()
-    if type(setLanguage) == "function" then
-      setLanguage("en")
-    end
-    UpdateHighlight()
-  end)
-
-  btnDe:SetScript("OnClick", function()
-    if type(setLanguage) == "function" then
-      setLanguage("de")
-    end
-    UpdateHighlight()
-  end)
+  -- Wire UpdateHighlight into each button's OnClick now that the function exists.
+  for _, entry in ipairs(buttons) do
+    local existingScript = entry.btn:GetScript("OnClick")
+    entry.btn:SetScript("OnClick", function()
+      if existingScript then
+        existingScript()
+      end
+      UpdateHighlight()
+    end)
+  end
 
   UpdateHighlight()
 
-  return { label = label, btnEn = btnEn, btnDe = btnDe, UpdateHighlight = UpdateHighlight }, yOffset - LINE_HEIGHT
+  return { label = label, buttons = buttons, UpdateHighlight = UpdateHighlight }, yOffset - LINE_HEIGHT
 end
 
 local function NormalizeStoredLayoutMode(layoutMode)

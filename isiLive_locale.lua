@@ -40,17 +40,46 @@ local LANGUAGE_NAME_BY_LOCALE = {
     RU = "Russisch",
     TW = "Taiwanesisch",
   },
+  frFR = {
+    CN = "Chinois",
+    DE = "Allemand",
+    EN = "Anglais",
+    ES = "Espagnol",
+    FR = "Français",
+    IT = "Italien",
+    KR = "Coréen",
+    PT = "Portugais",
+    RU = "Russe",
+    TW = "Taïwanais",
+  },
+  esES = {
+    CN = "Chino",
+    DE = "Alemán",
+    EN = "Inglés",
+    ES = "Español",
+    FR = "Francés",
+    IT = "Italiano",
+    KR = "Coreano",
+    PT = "Portugués",
+    RU = "Ruso",
+    TW = "Taiwanés",
+  },
+  ptBR = {
+    CN = "Chinês",
+    DE = "Alemão",
+    EN = "Inglês",
+    ES = "Espanhol",
+    FR = "Francês",
+    IT = "Italiano",
+    KR = "Coreano",
+    PT = "Português",
+    RU = "Russo",
+    TW = "Taiwanês",
+  },
 }
 
 function Locale.ResolveLocaleTag(tag)
-  if not tag then
-    return "enUS"
-  end
-  local normalized = string.lower(tostring(tag))
-  if normalized == "de" or normalized == "dede" then
-    return "deDE"
-  end
-  return "enUS"
+  return addonTable.Languages.ResolveTag(tag)
 end
 
 function Locale.LocaleToLanguageTag(localeTag)

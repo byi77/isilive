@@ -22,6 +22,11 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_factory_frame_bridge.lua",
     "isiLive_factory_controllers.lua",
   },
+  -- isiLive_languages.lua must be loaded before any module that calls
+  -- addonTable.Languages (locale, commands, season_data).
+  ["isiLive_locale.lua"] = { "isiLive_languages.lua" },
+  ["isiLive_commands.lua"] = { "isiLive_languages.lua" },
+  ["isiLive_season_data.lua"] = { "isiLive_languages.lua" },
 }
 
 local function Fail(message)
