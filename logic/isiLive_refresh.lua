@@ -54,6 +54,7 @@ function Refresh.CreateController(opts)
     refreshDebounceSeconds = 0
   end
   local lastRefreshAt = nil
+  local pendingPostChallengeSync = false
 
   local controller = {}
 
@@ -87,12 +88,21 @@ function Refresh.CreateController(opts)
     return true
   end
 
+  function controller.NotifyPostChallengeSync()
+    pendingPostChallengeSync = true
+  end
+
   function controller.HandleOwnedKeyRefresh()
     local changed = refreshLocalPlayerKey()
     if changed then
       updateUI()
     end
-    sendOwnBackgroundSnapshot("owned-key-refresh")
+    if pendingPostChallengeSync or changed then
+      pendingPostChallengeSync = false
+      sendOwnKeySnapshot(true, "post-challenge")
+    else
+      sendOwnBackgroundSnapshot("owned-key-refresh")
+    end
     return changed
   end
 

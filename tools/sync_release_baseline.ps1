@@ -48,7 +48,7 @@ $changed = Update-TrackedFile "README.md" {
   return $next
 } -or $changed
 
-$changed = Update-TrackedFile "ARCHITECTURE.md" {
+$changed = Update-TrackedFile "docs/ARCHITECTURE.md" {
   param($text)
   $next = $text
   $next = $next -replace '(?m)^(Version baseline:\s*)`[^`]+`$', ('${1}' + '`' + $version + '`')
@@ -57,7 +57,7 @@ $changed = Update-TrackedFile "ARCHITECTURE.md" {
   return $next
 } -or $changed
 
-$changed = Update-TrackedFile "USECASES.md" {
+$changed = Update-TrackedFile "docs/USECASES.md" {
   param($text)
   $next = $text
   $next = $next -replace '(?m)^(Version baseline:\s*)`[^`]+`$', ('${1}' + '`' + $version + '`')
@@ -65,7 +65,7 @@ $changed = Update-TrackedFile "USECASES.md" {
   return $next
 } -or $changed
 
-$changed = Update-TrackedFile "isiLive_texts.lua" {
+$changed = Update-TrackedFile "locale/isiLive_texts.lua" {
   param($text)
   $next = $text
   $next = $next -replace '(?m)^(\s*TITLE = "isiLive v)\d+\.\d+\.\d+(",)$', ('${1}' + $version + '${2}')

@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-04-08 - Version 0.9.132 (fix)
+
+- Key sync after Mythic+ run:
+  - Full force-sync (key, stats, DPS, location) to all peers after a run ends, not just key.
+  - `NotifyPostChallengeSync()` flag set on `CHALLENGE_MODE_COMPLETED`; consumed in `HandleOwnedKeyRefresh` when `BAG_UPDATE_DELAYED` / `CHALLENGE_MODE_MAPS_UPDATE` fires and WoW has updated the key.
+  - Previously force-sync fired on `CHALLENGE_MODE_COMPLETED` before the API had the new key level; now always fires at the correct time regardless of key level change.
+
+## 2026-04-08 - Version 0.9.131 (patch)
+
+- Restructure: all Lua source files moved into subdirectories (`core/`, `ui/`, `logic/`, `locale/`, `factory/`, `game/`); doc files moved to `docs/`.
+- UI: Center notice text vertically centered in frame (`TOPLEFT`→`BOTTOMRIGHT` anchor so `JustifyV MIDDLE` is effective).
+- `sync_release_baseline.ps1` updated to new doc and locale paths.
+
+## 2026-04-08 - Version 0.9.130 (patch)
+
+- Minimap button:
+  - Always created hidden at file-load time; shown/hidden on `PLAYER_LOGIN` once `IsiLiveDB` is available (mimics LibDBIcon pattern).
+  - Right-click opens the Blizzard settings panel for isiLive directly.
+- Roster panel: title bar now reads version from `C_AddOns.GetAddOnMetadata` at runtime instead of a hardcoded string.
+
 ## 2026-04-08 - Version 0.9.129 (feature)
 
 - Multilanguage support:

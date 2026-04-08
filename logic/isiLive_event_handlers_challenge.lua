@@ -309,7 +309,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     end
     RefreshRosterAfterRunStateChange(ctx, frame)
     ctx.updateStatusLine()
-    ctx.sendOwnKeySnapshot(true, "challenge", not ctx.isMainFrameShown())
+    ctx.notifyPostChallengeSync()
     if ctx.timerAfter then
       ctx.timerAfter(POST_RUN_REFRESH_INITIAL_DELAY_SECONDS, function()
         RunDelayedPostChallengeRefresh(ctx, frame, POST_RUN_REFRESH_RETRIES, POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS)

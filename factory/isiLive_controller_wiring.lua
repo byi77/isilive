@@ -318,6 +318,9 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   config.handleOwnedKeyRefresh = function()
     controllers.refresh.HandleOwnedKeyRefresh()
   end
+  config.notifyPostChallengeSync = function()
+    controllers.refresh.NotifyPostChallengeSync()
+  end
   config.isMainFrameShown = function()
     return refs.mainFrame:IsShown()
   end

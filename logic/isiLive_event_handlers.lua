@@ -78,6 +78,7 @@ local function BuildContext(opts)
   ctx.updateStatusLine = RequireFunction(opts.updateStatusLine, "updateStatusLine")
   ctx.sendOwnKeySnapshot = RequireFunction(opts.sendOwnKeySnapshot, "sendOwnKeySnapshot")
   ctx.sendOwnBackgroundSnapshot = RequireFunction(opts.sendOwnBackgroundSnapshot, "sendOwnBackgroundSnapshot")
+  ctx.sendIsiLiveHello = RequireFunction(opts.sendIsiLiveHello, "sendIsiLiveHello")
   ctx.sendOwnTargetSnapshot = OptionalFunction(opts.sendOwnTargetSnapshot, function(_force, _source, _allowHidden) end)
 
   ctx.ensureQueueDebugStorage = RequireFunction(opts.ensureQueueDebugStorage, "ensureQueueDebugStorage")
@@ -117,6 +118,7 @@ local function BuildContext(opts)
     RequireFunction(opts.tryRestoreCenterNoticeTeleportButton, "tryRestoreCenterNoticeTeleportButton")
 
   ctx.handleOwnedKeyRefresh = RequireFunction(opts.handleOwnedKeyRefresh, "handleOwnedKeyRefresh")
+  ctx.notifyPostChallengeSync = RequireFunction(opts.notifyPostChallengeSync, "notifyPostChallengeSync")
   ctx.isMainFrameShown = RequireFunction(opts.isMainFrameShown, "isMainFrameShown")
   ctx.onInspectReady = RequireFunction(opts.onInspectReady, "onInspectReady")
 
