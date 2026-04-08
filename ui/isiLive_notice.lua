@@ -264,10 +264,10 @@ end
 
 local function CreateCenterNoticeText(frame, config)
   local text = CreatePortalStyleBodyText(frame, config)
-  text:SetPoint("TOPLEFT", frame, "TOPLEFT", config.paddingX, -config.paddingY)
-  text:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -config.paddingX, -config.paddingY)
+  text:SetPoint("LEFT", frame, "LEFT", config.paddingX, 0)
+  text:SetPoint("RIGHT", frame, "RIGHT", -config.paddingX, 0)
   text:SetJustifyH("CENTER")
-  text:SetJustifyV("TOP")
+  text:SetJustifyV("MIDDLE")
   text:SetWordWrap(true)
   if text.SetNonSpaceWrap then
     text:SetNonSpaceWrap(true)
@@ -512,12 +512,6 @@ local function ShowCenterNotice(state, message, durationSeconds, dungeonName, ac
   state.text:SetText(message)
   state.text:SetWidth(state.frame:GetWidth() - (state.config.paddingX * 2))
   local textHeight = state.text:GetStringHeight() or 0
-  if hasTeleportButton then
-    SetCenterNoticeTeleportButtonAnchor(
-      state,
-      -(state.config.paddingY + math.ceil(textHeight) + state.config.buttonGap)
-    )
-  end
 
   local extraHeight = hasTeleportButton and (state.config.buttonHeight + state.config.buttonGap) or 0
   local frameHeight = math.min(
@@ -525,6 +519,12 @@ local function ShowCenterNotice(state, message, durationSeconds, dungeonName, ac
     math.max(state.config.minHeight, math.ceil(textHeight + (state.config.paddingY * 2) + extraHeight))
   )
   state.frame:SetHeight(frameHeight)
+
+  if hasTeleportButton then
+    -- Place button below center: half text height down + gap
+    local textOffsetDown = math.ceil(textHeight / 2) + state.config.buttonGap
+    SetCenterNoticeTeleportButtonAnchor(state, -textOffsetDown)
+  end
   state.endsAt = state.isPersistent and math.huge or (GetTime() + (durationSeconds or 20))
   SetCenterNoticeVisible(state, true)
 end
