@@ -14,17 +14,10 @@ ignore:
   - .styluaignore
   - .luarocks
   - .gitignore
-  - CHANGELOG.md
-  - ARCHITECTURE.md
-  - ARCHITECTURE_RULES.md
-  - USECASES.md
+  - docs
   - README.md
-  - RELEASE.md
-  - WARTUNG.md
   - TODO.md
   - TODO_RENAME.md
-  - RULES.md
-  - RULES_LOGIC.md
   - AGENTS.md
   - CLAUDE.md
   - LICENSE

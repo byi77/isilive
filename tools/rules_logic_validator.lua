@@ -432,7 +432,7 @@ end
 
 function Validator.Run(opts)
   opts = opts or {}
-  local rulesPath = opts.rulesPath or "RULES_LOGIC.md"
+  local rulesPath = opts.rulesPath or "docs/RULES_LOGIC.md"
   local scenarioFiles = opts.scenarioFiles or {}
   local printFn = type(opts.printFn) == "function" and opts.printFn or print
   local errors = {}

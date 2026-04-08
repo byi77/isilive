@@ -1,13 +1,86 @@
 local ioLib = rawget(_G, "io")
 
+local FILE_PATHS = {
+  ["isiLive_validation_helpers.lua"] = "core/isiLive_validation_helpers.lua",
+  ["isiLive_string_utils.lua"] = "core/isiLive_string_utils.lua",
+  ["isiLive_sound_utils.lua"] = "core/isiLive_sound_utils.lua",
+  ["isiLive_event_utils.lua"] = "core/isiLive_event_utils.lua",
+  ["isiLive_runtime_state.lua"] = "core/isiLive_runtime_state.lua",
+  ["isiLive_bootstrap.lua"] = "core/isiLive_bootstrap.lua",
+  ["isiLive_context_helpers.lua"] = "core/isiLive_context_helpers.lua",
+  ["isiLive_runtime_setup.lua"] = "core/isiLive_runtime_setup.lua",
+  ["isiLive_log_buffer.lua"] = "core/isiLive_log_buffer.lua",
+  ["isiLive_runtime_log.lua"] = "core/isiLive_runtime_log.lua",
+  ["isiLive_guards.lua"] = "core/isiLive_guards.lua",
+  ["realm_language_data.lua"] = "locale/realm_language_data.lua",
+  ["isiLive_languages.lua"] = "locale/isiLive_languages.lua",
+  ["isiLive_locale.lua"] = "locale/isiLive_locale.lua",
+  ["isiLive_texts.lua"] = "locale/isiLive_texts.lua",
+  ["isiLive_spell_utils.lua"] = "game/isiLive_spell_utils.lua",
+  ["isiLive_cd_tracker.lua"] = "game/isiLive_cd_tracker.lua",
+  ["isiLive_season_data.lua"] = "game/isiLive_season_data.lua",
+  ["isiLive_teleport.lua"] = "game/isiLive_teleport.lua",
+  ["isiLive_teleport_debug.lua"] = "ui/isiLive_teleport_debug.lua",
+  ["isiLive_units.lua"] = "game/isiLive_units.lua",
+  ["isiLive_mplus_timer.lua"] = "game/isiLive_mplus_timer.lua",
+  ["isiLive_kick_tracker.lua"] = "game/isiLive_kick_tracker.lua",
+  ["isiLive_bindings.lua"] = "ui/isiLive_bindings.lua",
+  ["isiLive_ui_common.lua"] = "ui/isiLive_ui_common.lua",
+  ["isiLive_teleport_ui.lua"] = "ui/isiLive_teleport_ui.lua",
+  ["isiLive_notice.lua"] = "ui/isiLive_notice.lua",
+  ["isiLive_status.lua"] = "ui/isiLive_status.lua",
+  ["isiLive_roster.lua"] = "ui/isiLive_roster.lua",
+  ["isiLive_roster_tooltip.lua"] = "ui/isiLive_roster_tooltip.lua",
+  ["isiLive_roster_layout.lua"] = "ui/isiLive_roster_layout.lua",
+  ["isiLive_roster_panel.lua"] = "ui/isiLive_roster_panel.lua",
+  ["isiLive_ui.lua"] = "ui/isiLive_ui.lua",
+  ["isiLive_settings.lua"] = "ui/isiLive_settings.lua",
+  ["isiLive_leader_watch.lua"] = "logic/isiLive_leader_watch.lua",
+  ["isiLive_demo.lua"] = "logic/isiLive_demo.lua",
+  ["isiLive_test_mode.lua"] = "logic/isiLive_test_mode.lua",
+  ["isiLive_sync.lua"] = "logic/isiLive_sync.lua",
+  ["isiLive_keysync.lua"] = "logic/isiLive_keysync.lua",
+  ["isiLive_refresh.lua"] = "logic/isiLive_refresh.lua",
+  ["isiLive_highlight.lua"] = "logic/isiLive_highlight.lua",
+  ["isiLive_group.lua"] = "logic/isiLive_group.lua",
+  ["isiLive_queue.lua"] = "logic/isiLive_queue.lua",
+  ["isiLive_queue_debug.lua"] = "logic/isiLive_queue_debug.lua",
+  ["isiLive_queue_flow.lua"] = "logic/isiLive_queue_flow.lua",
+  ["isiLive_stats.lua"] = "logic/isiLive_stats.lua",
+  ["isiLive_inspect.lua"] = "logic/isiLive_inspect.lua",
+  ["isiLive_events.lua"] = "logic/isiLive_events.lua",
+  ["isiLive_event_handlers_queue.lua"] = "logic/isiLive_event_handlers_queue.lua",
+  ["isiLive_event_handlers_challenge.lua"] = "logic/isiLive_event_handlers_challenge.lua",
+  ["isiLive_event_handlers_runtime.lua"] = "logic/isiLive_event_handlers_runtime.lua",
+  ["isiLive_event_handlers.lua"] = "logic/isiLive_event_handlers.lua",
+  ["isiLive_commands.lua"] = "logic/isiLive_commands.lua",
+  ["isiLive_controller_wiring.lua"] = "factory/isiLive_controller_wiring.lua",
+  ["isiLive_config_builders.lua"] = "factory/isiLive_config_builders.lua",
+  ["isiLive_frame_bridge.lua"] = "factory/isiLive_frame_bridge.lua",
+  ["isiLive_controller_init.lua"] = "factory/isiLive_controller_init.lua",
+  ["isiLive_factory_frame_bridge.lua"] = "factory/isiLive_factory_frame_bridge.lua",
+  ["isiLive_factory_controllers.lua"] = "factory/isiLive_factory_controllers.lua",
+  ["isiLive_factory.lua"] = "factory/isiLive_factory.lua",
+  ["ARCHITECTURE.md"] = "docs/ARCHITECTURE.md",
+  ["ARCHITECTURE_RULES.md"] = "docs/ARCHITECTURE_RULES.md",
+  ["CHANGELOG.md"] = "docs/CHANGELOG.md",
+  ["CHANGELOG_RELEASE.md"] = "CHANGELOG_RELEASE.md",
+  ["RELEASE.md"] = "docs/RELEASE.md",
+  ["RULES.md"] = "docs/RULES.md",
+  ["RULES_LOGIC.md"] = "docs/RULES_LOGIC.md",
+  ["USECASES.md"] = "docs/USECASES.md",
+  ["WARTUNG.md"] = "docs/WARTUNG.md",
+}
+
 local function ReadFile(path)
   if type(ioLib) ~= "table" or type(ioLib.open) ~= "function" then
     error("io library unavailable for architecture source checks")
   end
 
-  local file, openErr = ioLib.open(path, "rb")
+  local resolved = FILE_PATHS[path] or path
+  local file, openErr = ioLib.open(resolved, "rb")
   if not file then
-    error(string.format("cannot read %s: %s", tostring(path), tostring(openErr)))
+    error(string.format("cannot read %s: %s", tostring(resolved), tostring(openErr)))
   end
 
   local content = file:read("*a")
@@ -309,7 +382,7 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
   test("Architecture pkgmeta excludes WARTUNG maintenance doc from release package", function()
     local content = ReadFile(".pkgmeta")
 
-    AssertContains(Assert, content, "  - WARTUNG.md", ".pkgmeta must exclude WARTUNG.md from CurseForge packaging")
+    AssertContains(Assert, content, "  - docs", ".pkgmeta must exclude the docs/ folder (contains WARTUNG.md) from CurseForge packaging")
   end)
 
   test("Architecture pkgmeta excludes the full CHANGELOG from release packaging and uses a short link stub", function()
@@ -325,8 +398,8 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     AssertContains(
       Assert,
       content,
-      "  - CHANGELOG.md",
-      ".pkgmeta must exclude the full CHANGELOG.md from CurseForge packaging"
+      "  - docs",
+      ".pkgmeta must exclude the docs/ folder (contains CHANGELOG.md) from CurseForge packaging"
     )
     AssertContains(
       Assert,

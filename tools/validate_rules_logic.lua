@@ -20,7 +20,7 @@ if type(scenarioFiles) ~= "table" then
 end
 
 local ok = RulesLogicValidator.Run({
-  rulesPath = "RULES_LOGIC.md",
+  rulesPath = "docs/RULES_LOGIC.md",
   scenarioFiles = scenarioFiles,
   printFn = print,
 })

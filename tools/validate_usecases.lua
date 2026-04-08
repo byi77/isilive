@@ -49,7 +49,7 @@ if type(scenarioFiles) ~= "table" then
 end
 
 local rulesOk = RulesLogicValidator.Run({
-  rulesPath = "RULES_LOGIC.md",
+  rulesPath = "docs/RULES_LOGIC.md",
   scenarioFiles = scenarioFiles,
   printFn = print,
 })
@@ -58,7 +58,7 @@ if not rulesOk then
 end
 
 local architectureRulesOk = ArchitectureRulesValidator.Run({
-  rulesPath = "ARCHITECTURE_RULES.md",
+  rulesPath = "docs/ARCHITECTURE_RULES.md",
   scenarioFiles = scenarioFiles,
   printFn = print,
 })
