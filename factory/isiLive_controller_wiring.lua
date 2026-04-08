@@ -222,6 +222,7 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
       end,
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
     updateStatusLine = RequireFunction(callbacks.updateStatusLine, "callbacks.updateStatusLine"),
+    sendIsiLiveHello = RequireFunction(deps.sendIsiLiveHello, "sendIsiLiveHello"),
     sendOwnKeySnapshot = RequireFunction(deps.sendOwnKeySnapshot, "sendOwnKeySnapshot"),
     sendOwnBackgroundSnapshot = RequireFunction(deps.sendOwnBackgroundSnapshot, "sendOwnBackgroundSnapshot"),
     shouldAutoCloseMainFrame = type(deps.shouldAutoCloseMainFrame) == "function" and deps.shouldAutoCloseMainFrame
