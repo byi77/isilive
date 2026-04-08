@@ -382,7 +382,12 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
   test("Architecture pkgmeta excludes WARTUNG maintenance doc from release package", function()
     local content = ReadFile(".pkgmeta")
 
-    AssertContains(Assert, content, "  - docs", ".pkgmeta must exclude the docs/ folder (contains WARTUNG.md) from CurseForge packaging")
+    AssertContains(
+      Assert,
+      content,
+      "  - docs",
+      ".pkgmeta must exclude the docs/ folder (contains WARTUNG.md) from CurseForge packaging"
+    )
   end)
 
   test("Architecture pkgmeta excludes the full CHANGELOG from release packaging and uses a short link stub", function()
