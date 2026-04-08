@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-04-08 - Version 0.9.129 (feature)
+
+- Multilanguage support:
+  - Added French (`frFR`), Spanish (`esES`), and Portuguese (`ptBR`) UI languages.
+  - Introduced `isiLive_languages.lua` as single source of truth for all supported languages (`Languages.SUPPORTED`, `Languages.ResolveTag`, `Languages.IsSupported`).
+  - Language selector in Settings now built dynamically from `Languages.SUPPORTED` — no hardcoded button list.
+  - `ResolveLocaleTag` in `isiLive_locale.lua` and `NormalizeLocaleTag` in `isiLive_season_data.lua` delegate to `Languages.ResolveTag`.
+  - Button text clamping added to `SetFlatButtonText` and language selector buttons to prevent overflow on 120×24px action buttons.
+  - All BTN_* keys for new languages kept ≤14 characters.
+- Docs:
+  - Added "Adding a new UI language" and "Button text length" sections to `CLAUDE.md`.
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `isiLive.toc` to `0.9.129`.
+
 ## 2026-04-02 - Version 0.9.128 (patch)
 
 - Docs / release baseline:
