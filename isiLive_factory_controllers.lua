@@ -1302,8 +1302,16 @@ local function CreateFactoryMinimapButton(ctx)
     end
   end)
 
-  btn:SetScript("OnClick", function()
-    if ctx.ToggleMainFrameVisibility then
+  btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+  btn:SetScript("OnClick", function(_, mouseButton)
+    if mouseButton == "RightButton" then
+      local blizzardSettings = rawget(_G, "Settings")
+      if type(blizzardSettings) == "table" and type(blizzardSettings.OpenToCategory) == "function" then
+        if ctx.settingsPanel and ctx.settingsPanel.category then
+          blizzardSettings.OpenToCategory(ctx.settingsPanel.category.ID)
+        end
+      end
+    elseif ctx.ToggleMainFrameVisibility then
       ctx.ToggleMainFrameVisibility()
     end
   end)
@@ -1312,7 +1320,8 @@ local function CreateFactoryMinimapButton(ctx)
     if GameTooltip then
       GameTooltip:SetOwner(self, "ANCHOR_LEFT")
       GameTooltip:AddLine("isiLive")
-      GameTooltip:AddLine("Click to toggle window", 0.8, 0.8, 0.8)
+      GameTooltip:AddLine("Left-click to toggle window", 0.8, 0.8, 0.8)
+      GameTooltip:AddLine("Right-click to open settings", 0.8, 0.8, 0.8)
       GameTooltip:Show()
     end
   end)
@@ -1320,6 +1329,20 @@ local function CreateFactoryMinimapButton(ctx)
     local GameTooltip = rawget(_G, "GameTooltip")
     if GameTooltip then
       GameTooltip:Hide()
+    end
+  end)
+
+  -- Apply visibility on PLAYER_LOGIN when SavedVariables are available.
+  -- Mimics LibDBIcon pattern: register once, then show/hide based on db setting.
+  local loginFrame = CreateFrame("Frame")
+  loginFrame:RegisterEvent("PLAYER_LOGIN")
+  loginFrame:SetScript("OnEvent", function(self)
+    self:UnregisterEvent("PLAYER_LOGIN")
+    local savedDb = rawget(_G, "IsiLiveDB")
+    if savedDb and savedDb.showMinimapButton then
+      btn:Show()
+    else
+      btn:Hide()
     end
   end)
 

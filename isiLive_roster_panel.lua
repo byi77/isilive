@@ -306,9 +306,7 @@ local function CreateCdTrackerRow(mainFrame)
   end
   if type(mplusBox.SetPoint) == "function" then
     mplusBox:SetPoint("LEFT", cdBox, "RIGHT", 6, 0)
-  end
-  if type(mplusBox.SetWidth) == "function" then
-    mplusBox:SetWidth(295)
+    mplusBox:SetPoint("RIGHT", row, "RIGHT", 0, 0)
   end
   if type(UICommon.ApplyBackdrop) == "function" then
     UICommon.ApplyBackdrop(mplusBox, "MPLUS_BOX")
@@ -933,7 +931,7 @@ local function CreatePanelHeaders(mainFrame)
   kickHeader:SetJustifyH("RIGHT")
 
   local leadOptionsHeader = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  leadOptionsHeader:SetPoint("TOPRIGHT", -111, -34)
+  leadOptionsHeader:SetPoint("TOPRIGHT", -10, -34)
   leadOptionsHeader:SetWidth(120)
   leadOptionsHeader:SetJustifyH("CENTER")
 
@@ -1102,7 +1100,7 @@ end
 
 local function CreateShareKeysButton(mainFrame, deps)
   local button = CreateFlatButton(mainFrame, 120, 24)
-  button:SetPoint("TOPRIGHT", -111, -150)
+  button:SetPoint("TOPRIGHT", -10, -150)
   button._verticalY = -150
   local lastShareKeysClickAt = nil
   local countdownTicker = nil
@@ -1202,7 +1200,7 @@ local function CreatePanelButtons(mainFrame, deps)
   local isPlayerLeader = deps.isPlayerLeader
 
   local readyCheckButton = CreateFlatButton(mainFrame, 120, 24)
-  readyCheckButton:SetPoint("TOPRIGHT", -111, -60)
+  readyCheckButton:SetPoint("TOPRIGHT", -10, -60)
   readyCheckButton._verticalY = -60
   readyCheckButton:SetScript("OnClick", function()
     if not isPlayerLeader() then
@@ -1216,7 +1214,7 @@ local function CreatePanelButtons(mainFrame, deps)
   AttachPanelButtonTooltip(deps.tooltipFrame, readyCheckButton, getL, "BTN_READYCHECK", "TOOLTIP_READY", isPlayerLeader)
 
   local countdownButton = CreateFlatButton(mainFrame, 120, 24)
-  countdownButton:SetPoint("TOPRIGHT", -111, -90)
+  countdownButton:SetPoint("TOPRIGHT", -10, -90)
   countdownButton._verticalY = -90
   countdownButton:SetScript("OnClick", function()
     if not isPlayerLeader() then
@@ -1232,14 +1230,14 @@ local function CreatePanelButtons(mainFrame, deps)
   AttachPanelButtonTooltip(deps.tooltipFrame, countdownButton, getL, "BTN_COUNTDOWN10", "TOOLTIP_CD10", isPlayerLeader)
 
   local refreshButton = CreateFlatButton(mainFrame, 120, 24)
-  refreshButton:SetPoint("TOPRIGHT", -111, -180)
+  refreshButton:SetPoint("TOPRIGHT", -10, -180)
   refreshButton._verticalY = -180
   AttachPanelButtonTooltip(deps.tooltipFrame, refreshButton, getL, "BTN_REFRESH", "TOOLTIP_REFRESH", nil)
 
   local shareKeysButton = CreateShareKeysButton(mainFrame, deps)
 
   local countdownCancelButton = CreateFlatButton(mainFrame, 120, 24)
-  countdownCancelButton:SetPoint("TOPRIGHT", -111, -120)
+  countdownCancelButton:SetPoint("TOPRIGHT", -10, -120)
   countdownCancelButton._verticalY = -120
   AttachPanelButtonTooltip(
     deps.tooltipFrame,
@@ -2001,11 +1999,15 @@ function RosterPanel.CreateController(opts)
 
   function controller.ApplyLocalization()
     local L = getL()
-    local fullTitle = tostring(L.TITLE or "isiLive")
-    local titleName, titleVer = fullTitle:match("^(.-)%s+(v[%d%.]+)$")
-    ui.title:SetText(titleName or fullTitle)
+    local titleName = tostring(L.TITLE or "isiLive")
+    local addonVer = rawget(_G, "C_AddOns")
+        and type(C_AddOns.GetAddOnMetadata) == "function"
+        and C_AddOns.GetAddOnMetadata("isiLive", "Version")
+      or nil
+    local titleVer = addonVer and ("v" .. addonVer) or ""
+    ui.title:SetText(titleName)
     if ui.titleVersion then
-      ui.titleVersion:SetText(titleVer or "")
+      ui.titleVersion:SetText(titleVer)
     end
     if ui.titleHint then
       ui.titleHint:SetText(tostring(L.TITLE_HINT or ""))

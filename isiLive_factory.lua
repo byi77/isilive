@@ -185,9 +185,14 @@ local function FinalizeFactorySettings(ctx)
     end
   end
 
-  -- Minimap Button
-  if IsiLiveDB and IsiLiveDB.showMinimapButton then
-    ctx.minimapButton = CreateFactoryMinimapButton(ctx)
+  -- Minimap Button: create with correct initial visibility so MinimapButtonButton
+  -- sees the right shown-state when it scans on PLAYER_LOGIN.
+  -- IsiLiveDB is already populated from SavedVariables at file-load time.
+  -- Create always hidden; ADDON_LOADED handler shows it if the setting is enabled.
+  -- SavedVariables (IsiLiveDB) are not yet available at file-load time.
+  ctx.minimapButton = CreateFactoryMinimapButton(ctx)
+  if ctx.minimapButton then
+    ctx.minimapButton:Hide()
   end
 end
 

@@ -1,8 +1,8 @@
 ## Interface: 120001
-## Title: isiLive v0.9.129
+## Title: isiLive v0.9.130
 ## Notes: Shows group members with item level and Mythic+ rating. Raid groups hide the UI and stop background processing.
 ## Author: mematiWoW
-## Version: 0.9.129
+## Version: 0.9.130
 ## SavedVariables: IsiLiveDB
 ## IconTexture: Interface\Icons\INV_Misc_QuestionMark
 isiLive_validation_helpers.lua

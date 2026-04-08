@@ -7,7 +7,7 @@ addonTable.Texts = Texts
 
 local LOCALES = {
   enUS = {
-    TITLE = "isiLive v0.9.128",
+    TITLE = "isiLive",
     TITLE_HINT = "Open/Close CTRL-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
@@ -192,7 +192,7 @@ local LOCALES = {
     HELP_RESET = "  /isilive reset  - Reset all settings to default",
   },
   deDE = {
-    TITLE = "isiLive v0.9.128",
+    TITLE = "isiLive",
     TITLE_HINT = "Öffnen/Schliessen STRG-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
@@ -377,7 +377,7 @@ local LOCALES = {
     HELP_RESET = "  /isilive reset  - Alle Einstellungen auf Standard zuruecksetzen",
   },
   frFR = {
-    TITLE = "isiLive v0.9.128",
+    TITLE = "isiLive",
     TITLE_HINT = "Ouvrir/Fermer CTRL-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Nom",
@@ -562,7 +562,7 @@ local LOCALES = {
     LANG_SET_FR = "Langue définie sur le français.",
   },
   esES = {
-    TITLE = "isiLive v0.9.128",
+    TITLE = "isiLive",
     TITLE_HINT = "Abrir/Cerrar CTRL-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Nombre",
@@ -747,7 +747,7 @@ local LOCALES = {
     HELP_RESET = "  /isilive reset  - Restablecer todos los ajustes por defecto",
   },
   ptBR = {
-    TITLE = "isiLive v0.9.128",
+    TITLE = "isiLive",
     TITLE_HINT = "Abrir/Fechar CTRL-F9",
     COL_SPEC = "Spec",
     COL_NAME = "Nome",

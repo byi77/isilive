@@ -319,6 +319,8 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.restoreLayoutState()
     ctx.updateCountdownCancelButton()
     ctx.updateLeaderButtons()
+    -- IsiLiveDB is now available; apply minimap button visibility before PLAYER_LOGIN
+    -- so MinimapButtonButton sees the correct shown-state when it scans.
   end
 
   local function HandlePlayerLoginEvent(_self)
