@@ -1333,7 +1333,6 @@ end
 
 local BETA_ISSUES_URL = "https://github.com/byi77/isilive/issues"
 
-
 local function CreateBetaTitleButton(mainFrame, titleVersion, getL)
   local btn = CreateFrame("Button", nil, mainFrame)
   btn:SetSize(40, 16)
@@ -1346,7 +1345,6 @@ local function CreateBetaTitleButton(mainFrame, titleVersion, getL)
   lbl:SetAllPoints()
   lbl:SetText("BETA")
   lbl:SetTextColor(1, 0.55, 0.1)
-
 
   btn:SetScript("OnEnter", function(self)
     local GameTooltip = rawget(_G, "GameTooltip")

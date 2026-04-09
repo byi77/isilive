@@ -474,11 +474,11 @@ local function BuildGeneralSettingsSection(canvas, yOffset, labels, config, cont
     "SETTINGS_DEFAULT_OPEN_UI",
     labels.SETTINGS_DEFAULT_OPEN_UI or "Default UI on Open",
     {
-    {
-      value = DEFAULT_LAYOUT_MODE_LAST_USED,
-      labelKey = "SETTINGS_DEFAULT_OPEN_UI_LAST",
-      fallback = labels.SETTINGS_DEFAULT_OPEN_UI_LAST or "Last Used",
-      width = 78,
+      {
+        value = DEFAULT_LAYOUT_MODE_LAST_USED,
+        labelKey = "SETTINGS_DEFAULT_OPEN_UI_LAST",
+        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_LAST or "Last Used",
+        width = 78,
       },
       {
         value = DEFAULT_LAYOUT_MODE_COMPACT_VERTICAL,

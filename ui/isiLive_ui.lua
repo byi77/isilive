@@ -1332,7 +1332,6 @@ local function CreateDragHandle(frame)
     SavePosition(frame)
   end)
 
-
   function dragHandle:SetGripVisible(visible)
     self._gripVisible = visible ~= false
     for _, grip in ipairs(self._grips or {}) do
