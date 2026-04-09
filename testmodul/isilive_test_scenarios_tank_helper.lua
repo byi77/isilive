@@ -610,12 +610,14 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
 
     local collapseButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_vertical")
     local horizontalButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_horizontal")
+    local m2Button = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_main_horizontal")
     local expandedButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "expanded")
     local titleVersion = FindFontStringByPoint(createdFontStrings, "LEFT", 5, -1)
     local titleHint = FindFontStringByPoint(createdFontStrings, "LEFT", 8, 0)
     Assert.NotNil(collapseButton, "Vertical collapse button should exist")
     Assert.NotNil(horizontalButton, "Horizontal collapse button should exist")
-    Assert.NotNil(expandedButton, "Expanded mode button should exist")
+    Assert.NotNil(m2Button, "M2 mode button should exist")
+    Assert.Nil(expandedButton, "Expanded mode button should stay hidden from the title bar")
     Assert.NotNil(titleVersion, "Title version should exist")
     Assert.NotNil(titleHint, "Title hint should exist")
     ---@diagnostic disable: need-check-nil
@@ -665,25 +667,18 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
       "Helper icons should spread horizontally"
     )
 
-    expandedButton.OnClick()
+    m2Button.OnClick()
 
-    Assert.Equal(
-      helperButtons[1].pointX,
-      -111,
-      "Helper buttons should restore the compact expanded tool column after leaving horizontal mode"
-    )
-    Assert.Equal(
-      helperButtons[1].pointY,
-      -60,
-      "Helper buttons should restore their original vertical stack after leaving horizontal mode"
-    )
-    Assert.Equal(helperButtons[2].pointY, -80, "Second helper button should restore its own original Y slot")
-    Assert.Equal(managementButtons[1].width, 120, "Management buttons restore full width after leaving H mode")
+    Assert.Equal(mainFrame.width, 500, "Leaving H through M2 should switch into the visible main layout")
+    Assert.Equal(mainFrame.height, 244, "Leaving H through M2 should restore the modern main-layout height")
+    Assert.Equal(managementButtons[1].width, 92, "Leaving H through M2 should restore the M2 button widths")
     Assert.Equal(
       horizontalButton._collapseButtonLabel,
       "H",
       "H mode button keeps static H label after leaving horizontal mode"
     )
+    Assert.True(titleVersion.hidden ~= true, "Title version should be visible again in M2 mode")
+    Assert.True(titleHint.hidden ~= true, "Title hint should be visible again in M2 mode")
     ---@diagnostic enable: need-check-nil
   end)
 end

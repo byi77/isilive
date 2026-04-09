@@ -66,7 +66,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 43. Der aktuelle Gruppenleiter wird im Roster mit einer 16x16-Krone markiert; bei bekannten isiLive-Nutzern bleibt das blaue Herz zusaetzlich sichtbar und steht vor der Krone.
 44. Alle Center-Meldungen starten mit derselben Portal-Navigator-Basistypografie fuer Body-Text, Schriftgroesse und Standardfarbe.
 45. Beim Login oder UI-Reload wird die Main-UI standardmaessig eingeblendet, ausser im Raidmodus; die Startup-Option kann diesen Auto-Show-Pfad weiterhin abschalten.
-46. Manuelle Layout-Umschaltungen der Main-UI duerfen auch im Kampf angefordert werden, ausser im Raidmodus; direkte Mutationen an Secure-Kindern bleiben dabei ausgesetzt und werden spaetestens bei `PLAYER_REGEN_ENABLED` ueber den sichtbaren UI-Refresh nachgezogen.
+46. Die sichtbaren Layout-Umschaltungen der Main-UI (`M2`, `H`, `V`) duerfen auch im Kampf angefordert werden, ausser im Raidmodus; der Expanded-Modus `M` bleibt implementiert, ist aber in Titelleiste und Settings nicht mehr umschaltbar. Direkte Mutationen an Secure-Kindern bleiben dabei ausgesetzt und werden spaetestens bei `PLAYER_REGEN_ENABLED` ueber den sichtbaren UI-Refresh nachgezogen.
 47. Die ESC-Panel-Overlays muessen im Kampf als bereits gemountete `GameMenuFrame`-Kinder sichtbar bleiben; waehrend Kampf-Lockdown sind an ihnen keine Show/Hide- oder Layout-Mutationen erlaubt, unsichere Shortcuts bleiben sichtbar, duerfen ihre Aktion aber erst ausserhalb des Kampfes ausfuehren.
 48. Der isiLive-Last-Run-Sync transportiert nur den belastbar verifizierten `DPS`-Wert eines Snapshots; das Roster nutzt `syncDps` nur als Fallback, wenn lokal kein Last-Run-DPS vorliegt.
 49. Der Kick-Tracker bildet den aktuell verfuegbaren Interrupt der aktuellen Spezialisierung ab; Holy Paladin nutzt `Rebuke`, Devourer Demon Hunter nutzt `Disrupt`, und verfuegbare pet-basierte Warlock-Interrupts zaehlen als eigener Kick.
@@ -518,11 +518,13 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-MAIN-UI-LAYOUT-SWITCH-IN-COMBAT
 - Regelnummer: 46
 - Status: aktiv
-- Zusammenfassung: Ein manueller Klick auf einen Layout-Button (`M2`, `H`, `V`, `M`) muss den gewuenschten `layoutMode` auch waehrend Kampf-Lockdown sofort uebernehmen duerfen, ausser im Raidmodus. Direkte Show/Hide- oder Layout-Mutationen an Secure-Kindern bleiben im Kampf weiterhin unterbunden; sobald `PLAYER_REGEN_ENABLED` eintritt und die Main-UI sichtbar ist, muss genau ein normaler UI-Refresh laufen, damit die sichtbaren Secure-Kinder den bereits gesetzten `layoutMode` deterministisch nachziehen.
+- Zusammenfassung: Ein manueller Klick auf einen sichtbaren Layout-Button (`M2`, `H`, `V`) muss den gewuenschten `layoutMode` auch waehrend Kampf-Lockdown sofort uebernehmen duerfen, ausser im Raidmodus. Der Expanded-Modus `M` bleibt intern implementiert, ist aber ueber Titelleiste und Settings nicht mehr user-seitig umschaltbar; alte persistierte `expanded`-Defaults muessen auf einen sichtbaren Layoutwert normalisiert werden. Direkte Show/Hide- oder Layout-Mutationen an Secure-Kindern bleiben im Kampf weiterhin unterbunden; sobald `PLAYER_REGEN_ENABLED` eintritt und die Main-UI sichtbar ist, muss genau ein normaler UI-Refresh laufen, damit die sichtbaren Secure-Kinder den bereits gesetzten `layoutMode` deterministisch nachziehen.
 - Erforderliche Tests:
   - TAINT: Collapse click switches layout during combat while secure roster buttons exist
   - TAINT: Horizontal collapse click switches layout during combat while secure roster buttons exist
   - Event handlers rerender visible UI on regen after combat-safe layout changes
+  - Horizontal mini mode arranges management buttons and helper icons in slim rows
+  - Settings panel normalizes persisted expanded default layout to M2
 
 ### RULE-ESC-PANEL-COMBAT-MOUNT
 - Regelnummer: 47

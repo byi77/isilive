@@ -1668,16 +1668,20 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
       Assert.Nil(db.rosterDefaultLayoutMode, "default layout should stay unset until the user chooses one")
 
+      local expandedButton = nil
       local m2Button = nil
       local lastUsedButton = nil
       for _, frame in ipairs(createdFrames) do
-        if frame._optionValue == "compact_main_horizontal" then
+        if frame._optionValue == "expanded" then
+          expandedButton = frame
+        elseif frame._optionValue == "compact_main_horizontal" then
           m2Button = frame
         elseif frame._optionValue == "last_used" and frame._optionLabelKey == "SETTINGS_DEFAULT_OPEN_UI_LAST" then
           lastUsedButton = frame
         end
       end
 
+      Assert.Nil(expandedButton, "settings panel should hide the expanded default-layout option")
       Assert.NotNil(m2Button, "settings panel should create an M2 default-layout button")
       Assert.NotNil(lastUsedButton, "settings panel should create a last-used default-layout button")
       ---@diagnostic disable: need-check-nil, undefined-field
@@ -1715,6 +1719,102 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
         defaultLayoutChanges[2],
         false,
         "clicking Last Used should notify the callback with a nil layout mode"
+      )
+    end)
+  end)
+
+  test("Settings panel normalizes persisted expanded default layout to M2", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {
+      rosterDefaultLayoutMode = "expanded",
+    }
+    local defaultLayoutChanges = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_BEHAVIOR = "Behavior",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_UI_SCALE = "UI Scale",
+            SETTINGS_MINIMAP_BUTTON = "Minimap Button",
+            SETTINGS_SYNC_ENABLED = "Addon Sync",
+            SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
+            SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
+            SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
+            SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
+            SETTINGS_DEFAULT_OPEN_UI_V = "V",
+            SETTINGS_DEFAULT_OPEN_UI_H = "H",
+            SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+        onDefaultLayoutModeChange = function(mode)
+          defaultLayoutChanges[#defaultLayoutChanges + 1] = mode or false
+        end,
+      })
+
+      Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
+
+      local expandedButton = nil
+      local m2Button = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._optionValue == "expanded" then
+          expandedButton = frame
+        elseif frame._optionValue == "compact_main_horizontal" then
+          m2Button = frame
+        end
+      end
+
+      Assert.Nil(expandedButton, "settings panel should not expose the expanded layout option")
+      Assert.NotNil(m2Button, "settings panel should still expose the M2 layout option")
+      ---@diagnostic disable: need-check-nil, undefined-field
+      Assert.Equal(
+        m2Button._backdropColor[4],
+        0.25,
+        "persisted expanded defaults should be normalized onto the visible M2 option"
+      )
+
+      local onClickM2 = (m2Button._scripts and m2Button._scripts.OnClick) or nil
+      Assert.NotNil(onClickM2, "M2 button should define OnClick")
+      onClickM2(m2Button, "LeftButton")
+      ---@diagnostic enable: need-check-nil, undefined-field
+
+      Assert.Equal(
+        db.rosterDefaultLayoutMode,
+        "compact_main_horizontal",
+        "saving the normalized visible option should persist M2 instead of expanded"
+      )
+      Assert.Equal(
+        defaultLayoutChanges[1],
+        "compact_main_horizontal",
+        "callback should receive the normalized visible layout mode"
       )
     end)
   end)
