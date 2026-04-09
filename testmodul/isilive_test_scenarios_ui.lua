@@ -339,6 +339,12 @@ local function ApplyFrameMethods(frame)
   frame.CreateAnimationGroup = function(_self)
     return CreateAnimationGroupStub()
   end
+  frame.SetAutoFocus = function(self, value)
+    self._autoFocus = value == true
+  end
+  frame.SetCursorPosition = function() end
+  frame.HighlightText = function() end
+  frame.ClearFocus = function() end
 end
 
 local function BuildCreateFrameStub(opts)
@@ -758,7 +764,7 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
       })
 
       Assert.NotNil(mainUI.dragHandle, "main UI should expose the drag handle")
-      Assert.Equal(#(mainUI.dragHandle._grips or {}), 3, "drag handle should create three grip lines")
+      Assert.Equal(#(mainUI.dragHandle._grips or {}), 0, "drag handle should have no decorative grip lines")
 
       mainUI.SetDragGripVisible(false)
       Assert.False(mainUI.dragHandle._gripVisible, "drag grip should be flagged hidden")

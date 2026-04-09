@@ -1057,6 +1057,10 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
           SetAlpha = function() end,
           EnableMouse = function() end,
           RegisterForClicks = function() end,
+          GetFrameLevel = function()
+            return 1
+          end,
+          SetFrameLevel = function() end,
           SetScript = function(self, script, handler)
             self[script] = handler
           end,
@@ -1079,9 +1083,12 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
           CreateFontString = function()
             return {
               SetPoint = function() end,
+              SetAllPoints = function() end,
+              ClearAllPoints = function() end,
               SetJustifyH = function() end,
               SetWidth = function() end,
               SetText = function() end,
+              SetTextColor = function() end,
               SetWordWrap = function() end,
               SetNonSpaceWrap = function() end,
               SetMaxLines = function() end,
