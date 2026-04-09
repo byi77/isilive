@@ -1332,22 +1332,6 @@ local function CreateDragHandle(frame)
     SavePosition(frame)
   end)
 
-  if type(dragHandle.CreateTexture) == "function" then
-    local gripColor = Colors.TEXT_DIM
-    for i = 0, 2 do
-      local grip = dragHandle:CreateTexture(nil, "ARTWORK")
-      if type(grip.SetSize) == "function" then
-        grip:SetSize(20, 1)
-      end
-      if type(grip.SetPoint) == "function" then
-        grip:SetPoint("CENTER", dragHandle, "CENTER", 0, (1 - i) * 3)
-      end
-      if type(grip.SetColorTexture) == "function" then
-        grip:SetColorTexture(gripColor[1], gripColor[2], gripColor[3], 0.3)
-      end
-      table.insert(dragHandle._grips, grip)
-    end
-  end
 
   function dragHandle:SetGripVisible(visible)
     self._gripVisible = visible ~= false

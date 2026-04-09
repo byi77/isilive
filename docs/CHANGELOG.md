@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-04-10 - Version 0.9.139 (patch)
+
+- Title bar UI polish:
+  - Added `BETA` label in M2 title bar (after version string, hover tooltip shows beta notice + GitHub issues URL).
+  - `BETA` label is only visible in M2 layout; hidden in H and V.
+  - Settings panel: added Beta section at the top (above language selector) with notice text and copyable GitHub issues URL.
+  - Removed decorative grip lines from the drag handle in the title bar.
+  - Adjusted title bar font sizes: version string 12px, BETA label 12px, open/close hint 10px.
+  - Fixed anchor chain so version, BETA, and open/close hint are all vertically aligned.
+- Docs / release baseline:
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `isiLive.toc` to `0.9.139`.
+
 ## 2026-04-09 - Version 0.9.138 (patch)
 
 - LibKeystone compatibility:

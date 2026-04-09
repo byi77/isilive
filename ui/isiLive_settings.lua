@@ -259,12 +259,14 @@ local function NormalizeStoredLayoutMode(layoutMode)
   if layoutMode == DEFAULT_LAYOUT_MODE_LAST_USED then
     return DEFAULT_LAYOUT_MODE_LAST_USED
   end
+  if layoutMode == DEFAULT_LAYOUT_MODE_EXPANDED then
+    return DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+  end
   if layoutMode == DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL_2_LEGACY then
     return DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
   end
   if
-    layoutMode == DEFAULT_LAYOUT_MODE_EXPANDED
-    or layoutMode == DEFAULT_LAYOUT_MODE_COMPACT_VERTICAL
+    layoutMode == DEFAULT_LAYOUT_MODE_COMPACT_VERTICAL
     or layoutMode == DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL
     or layoutMode == DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
   then
@@ -472,17 +474,11 @@ local function BuildGeneralSettingsSection(canvas, yOffset, labels, config, cont
     "SETTINGS_DEFAULT_OPEN_UI",
     labels.SETTINGS_DEFAULT_OPEN_UI or "Default UI on Open",
     {
-      {
-        value = DEFAULT_LAYOUT_MODE_LAST_USED,
-        labelKey = "SETTINGS_DEFAULT_OPEN_UI_LAST",
-        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_LAST or "Last Used",
-        width = 78,
-      },
-      {
-        value = DEFAULT_LAYOUT_MODE_EXPANDED,
-        labelKey = "SETTINGS_DEFAULT_OPEN_UI_M",
-        fallback = labels.SETTINGS_DEFAULT_OPEN_UI_M or "M",
-        width = 34,
+    {
+      value = DEFAULT_LAYOUT_MODE_LAST_USED,
+      labelKey = "SETTINGS_DEFAULT_OPEN_UI_LAST",
+      fallback = labels.SETTINGS_DEFAULT_OPEN_UI_LAST or "Last Used",
+      width = 78,
       },
       {
         value = DEFAULT_LAYOUT_MODE_COMPACT_VERTICAL,
@@ -779,7 +775,7 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
   controls.combatFadeMM, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
-    labels.SETTINGS_COMBAT_FADE_MM or "Fade out in Combat (M / M2 only)",
+    labels.SETTINGS_COMBAT_FADE_MM or "Fade out in Combat (M2 only)",
     function()
       local db = config.getDB()
       return db.combatFadeMM ~= false
@@ -987,6 +983,37 @@ local function BuildResetSection(canvas, yOffset, labels, config, controls)
   return yOffset - RESET_BUTTON_HEIGHT - LINE_HEIGHT
 end
 
+local BETA_ISSUES_URL = "https://github.com/byi77/isilive/issues"
+
+local function BuildBetaSection(canvas, yOffset, labels, controls)
+  controls.betaHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_BETA_NOTICE or "Beta")
+
+  local noticeText = canvas:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  noticeText:SetTextColor(1, 0.75, 0.2, 1)
+  noticeText:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X, yOffset - 4)
+  noticeText:SetJustifyH("LEFT")
+  noticeText:SetText(labels.BETA_NOTICE_TEXT or "This addon is in BETA status. Please report bugs at:")
+  controls.betaNoticeText = noticeText
+
+  yOffset = yOffset - LINE_HEIGHT
+
+  local urlBox = CreateFrame("EditBox", nil, canvas, "InputBoxTemplate")
+  urlBox:SetSize(400, 20)
+  urlBox:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X + 6, yOffset - 4)
+  urlBox:SetAutoFocus(false)
+  urlBox:SetText(BETA_ISSUES_URL)
+  urlBox:SetCursorPosition(0)
+  urlBox:SetScript("OnEscapePressed", function(self)
+    self:ClearFocus()
+  end)
+  urlBox:SetScript("OnEditFocusGained", function(self)
+    self:HighlightText()
+  end)
+  controls.betaUrlBox = urlBox
+
+  return yOffset - LINE_HEIGHT
+end
+
 local function RefreshSettingsControls(controls, config)
   local freshL = config.getL()
   local db = config.getDB()
@@ -1005,7 +1032,7 @@ local function RefreshSettingsControls(controls, config)
   controls.sync.label:SetText(freshL.SETTINGS_SYNC_ENABLED or "Addon Sync")
   controls.autoOpen.label:SetText(freshL.SETTINGS_AUTO_OPEN_QUEUE or "Auto-Open on M+ Queue")
   controls.autoCloseMainFrame.label:SetText(freshL.SETTINGS_AUTO_CLOSE_MAIN_FRAME or "Auto-Close on Key Start / Solo")
-  controls.combatFadeMM.label:SetText(freshL.SETTINGS_COMBAT_FADE_MM or "Fade out in Combat (M / M2 only)")
+  controls.combatFadeMM.label:SetText(freshL.SETTINGS_COMBAT_FADE_MM or "Fade out in Combat (M2 only)")
   controls.autoShowStartup.label:SetText(freshL.SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP or "Show on Login / Reload")
   controls.autoOpenKeyEnd.label:SetText(freshL.SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END or "Auto-Open on Key End")
   if controls.raidBehavior then
@@ -1085,6 +1112,12 @@ local function RefreshSettingsControls(controls, config)
   if controls.markers then
     controls.markers.check:SetChecked(db.markersLeaderOnly == true)
   end
+  if controls.betaHeader then
+    controls.betaHeader:SetText(freshL.SETTINGS_BETA_NOTICE or "Beta")
+  end
+  if controls.betaNoticeText then
+    controls.betaNoticeText:SetText(freshL.BETA_NOTICE_TEXT or "This addon is in BETA status. Please report bugs at:")
+  end
 end
 
 function SettingsPanel.Create(opts)
@@ -1137,6 +1170,8 @@ function SettingsPanel.Create(opts)
   CreateSettingsTitle(content)
 
   local y = -PADDING_TOP - 30
+  y = BuildBetaSection(content, y, L, controls)
+  y = y - SECTION_GAP
   y = BuildGeneralSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
   y = BuildDisplaySettingsSection(content, y, L, config, controls)

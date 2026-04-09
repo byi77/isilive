@@ -81,13 +81,16 @@ local function ResolveConfiguredDefaultOpenLayoutMode()
     return DEFAULT_LAYOUT_MODE_LAST_USED
   end
 
+  if layoutMode == LAYOUT_MODE_EXPANDED then
+    return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+  end
+
   if layoutMode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL_LEGACY then
     return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
   end
 
   if
-    layoutMode == LAYOUT_MODE_EXPANDED
-    or layoutMode == LAYOUT_MODE_COMPACT_VERTICAL
+    layoutMode == LAYOUT_MODE_COMPACT_VERTICAL
     or layoutMode == LAYOUT_MODE_COMPACT_HORIZONTAL
     or layoutMode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
   then
@@ -1328,6 +1331,43 @@ local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
   return buttons, header
 end
 
+local BETA_ISSUES_URL = "https://github.com/byi77/isilive/issues"
+
+
+local function CreateBetaTitleButton(mainFrame, titleVersion, getL)
+  local btn = CreateFrame("Button", nil, mainFrame)
+  btn:SetSize(40, 16)
+  btn:SetPoint("LEFT", titleVersion, "RIGHT", 4, 0)
+  btn:SetFrameLevel((mainFrame:GetFrameLevel() or 1) + 110)
+  btn:EnableMouse(true)
+  btn:RegisterForClicks("LeftButtonUp")
+
+  local lbl = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  lbl:SetAllPoints()
+  lbl:SetText("BETA")
+  lbl:SetTextColor(1, 0.55, 0.1)
+
+
+  btn:SetScript("OnEnter", function(self)
+    local GameTooltip = rawget(_G, "GameTooltip")
+    if GameTooltip then
+      local L = type(getL) == "function" and getL() or {}
+      GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+      GameTooltip:AddLine(L.BETA_NOTICE_TEXT or "This addon is in BETA status. Please report bugs at:")
+      GameTooltip:AddLine(BETA_ISSUES_URL, 0.4, 0.8, 1)
+      GameTooltip:Show()
+    end
+  end)
+  btn:SetScript("OnLeave", function()
+    local GameTooltip = rawget(_G, "GameTooltip")
+    if GameTooltip then
+      GameTooltip:Hide()
+    end
+  end)
+
+  return btn
+end
+
 local function ConstructPanelUI(mainFrame, uiDeps)
   local isRaidGroupFn = uiDeps.isRaidGroup
 
@@ -1353,7 +1393,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   ApplyFontStringSize(title, 14)
 
   local titleVersion = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  titleVersion:SetPoint("LEFT", title, "RIGHT", 5, -1)
+  titleVersion:SetPoint("LEFT", title, "RIGHT", 5, 0)
   titleVersion:SetTextColor(0.55, 0.75, 1.0)
   if type(titleVersion.SetShadowOffset) == "function" then
     titleVersion:SetShadowOffset(1, -1)
@@ -1361,7 +1401,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   if type(titleVersion.SetShadowColor) == "function" then
     titleVersion:SetShadowColor(0, 0, 0, 0.9)
   end
-  ApplyFontStringSize(titleVersion, 9)
+  ApplyFontStringSize(titleVersion, 12)
 
   local titleHint = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   titleHint:SetPoint("LEFT", titleVersion, "RIGHT", 8, 0)
@@ -1372,7 +1412,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   if type(titleHint.SetShadowColor) == "function" then
     titleHint:SetShadowColor(0, 0, 0, 0.9)
   end
-  ApplyFontStringSize(titleHint, 8)
+  ApplyFontStringSize(titleHint, 10)
 
   local headers = CreatePanelHeaders(mainFrame)
   local m2ColumnGuides = CreateM2ColumnGuides(mainFrame)
@@ -1380,6 +1420,9 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   local getL = type(uiDeps.getL) == "function" and uiDeps.getL or function()
     return {}
   end
+  local betaButton = CreateBetaTitleButton(mainFrame, titleVersion, getL)
+  titleHint:ClearAllPoints()
+  titleHint:SetPoint("LEFT", betaButton, "RIGHT", 8, 0)
   local L = getL()
   local buttonDeps = {}
   for key, value in pairs(uiDeps) do
@@ -1410,6 +1453,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     statusLine = statusLine,
     titleVersion = titleVersion,
     titleHint = titleHint,
+    betaButton = betaButton,
     raidNoticeLabel = raidNoticeLabel,
     m2ColumnGuides = m2ColumnGuides,
     showRosterColumnGuides = uiDeps.showRosterColumnGuides,
@@ -1449,14 +1493,14 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     ui.refreshButton,
   }
 
-  -- Vier statische Mode-Buttons [M2][H][V][M] von links nach rechts oben-rechts.
+  -- Drei statische Mode-Buttons [M2][H][V] von links nach rechts oben-rechts.
   -- Jeder Button setzt den Modus direkt; aktiver Modus wird gold hervorgehoben.
   ui.layoutMode = LAYOUT_MODE_EXPANDED
   ui.isCollapsed = false
   ui.modeButtons = {}
   local modeButtonDefs = {
     {
-      xOffset = -88,
+      xOffset = -68,
       label = "M2",
       target = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL,
       width = 24,
@@ -1464,25 +1508,18 @@ local function ConstructPanelUI(mainFrame, uiDeps)
       descriptionFallback = L.MODE_LAYOUT_M2 or "Main horizontal layout.",
     },
     {
-      xOffset = -64,
+      xOffset = -44,
       label = "H",
       target = LAYOUT_MODE_COMPACT_HORIZONTAL,
       descriptionKey = "MODE_LAYOUT_H",
       descriptionFallback = L.MODE_LAYOUT_H or "Compact horizontal layout.",
     },
     {
-      xOffset = -44,
+      xOffset = -24,
       label = "V",
       target = LAYOUT_MODE_COMPACT_VERTICAL,
       descriptionKey = "MODE_LAYOUT_V",
       descriptionFallback = L.MODE_LAYOUT_V or "Compact vertical layout.",
-    },
-    {
-      xOffset = -24,
-      label = "M",
-      target = LAYOUT_MODE_EXPANDED,
-      descriptionKey = "MODE_LAYOUT_M",
-      descriptionFallback = L.MODE_LAYOUT_M or "Expanded main layout.",
     },
   }
   for _, def in ipairs(modeButtonDefs) do
@@ -2085,6 +2122,8 @@ function RosterPanel.CreateController(opts)
       local lastUsedLayoutMode = type(db) == "table" and db.rosterLayoutMode or nil
       if lastUsedLayoutMode == nil or lastUsedLayoutMode == false or lastUsedLayoutMode == "" then
         savedLayoutMode = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+      elseif lastUsedLayoutMode == LAYOUT_MODE_EXPANDED then
+        savedLayoutMode = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
       else
         savedLayoutMode = lastUsedLayoutMode
       end
@@ -2094,7 +2133,7 @@ function RosterPanel.CreateController(opts)
       savedLayoutMode = db and db.rosterLayoutMode or nil
     end
     if savedLayoutMode == nil and db and db.rosterCollapsed ~= nil then
-      savedLayoutMode = db.rosterCollapsed and LAYOUT_MODE_COMPACT_VERTICAL or LAYOUT_MODE_EXPANDED
+      savedLayoutMode = db.rosterCollapsed and LAYOUT_MODE_COMPACT_VERTICAL or LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
     end
     if savedLayoutMode ~= nil then
       ui.layoutMode = NormalizeLayoutMode(savedLayoutMode)

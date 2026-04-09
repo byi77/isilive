@@ -603,6 +603,8 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
     end
   end
 
+  SetVisible(ui.betaButton, isMainHorizontal)
+
   -- Sichtbarkeit nach deklarativer Tabelle: Spalten 2/3/4/5 = M/V/H/M2
   local modeCol = isMainHorizontal and 5 or (isHorizontal and 4 or (isCollapsed and 3 or 2))
   for _, rule in ipairs(UI_VISIBILITY_RULES) do

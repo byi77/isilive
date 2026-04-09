@@ -1,7 +1,7 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.138`
-Zuletzt aktualisiert: `2026-04-09`
+Versionsbasis: `0.9.139`
+Zuletzt aktualisiert: `2026-04-10`
 
 ## Zweck
 
@@ -103,14 +103,14 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 522 Szenarien ueber 38 Module ab; die Regelvalidatoren indizieren aktuell 522 deterministische Tests.
+5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 523 Szenarien ueber 38 Module ab; die Regelvalidatoren indizieren aktuell 523 deterministische Tests.
 
 Die lokalen Wrapper `tools/check.ps1` und `tools/check.cmd` sind der bevorzugte Einstiegspunkt fuer das statische Gate, weil sie `luacheck` ueber den repo-lokalen Windows-Shim routen, statt direkt das LuaRocks-Script aufzurufen.
 
 ## UI-Struktur (ASCII-Skizze)
 
 ```text
-| isiLive                                                 v0.9.138 Open/Close CTRL-F9 [H][V][M][M2][X]|
+| isiLive                                          v0.9.139 BETA Open/Close CTRL-F9 [M2][H][V][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS                M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
