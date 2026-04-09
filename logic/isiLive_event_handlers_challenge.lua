@@ -64,6 +64,17 @@ local function ResolveCompletedRunInfo()
 end
 
 local TryRecordCompletedRun
+local IsRaidModeActive
+
+local function GetPendingPostChallengeRefresh(ctx)
+  return type(ctx.getPendingPostChallengeRefresh) == "function" and ctx.getPendingPostChallengeRefresh() or nil
+end
+
+local function SetPendingPostChallengeRefresh(ctx, value)
+  if type(ctx.setPendingPostChallengeRefresh) == "function" then
+    ctx.setPendingPostChallengeRefresh(value)
+  end
+end
 
 local function ScheduleCompletedRunRetry(ctx, runInfo, retriesRemaining)
   if
@@ -129,6 +140,16 @@ TryRecordCompletedRun = function(ctx, runInfo, retriesRemaining)
 end
 
 local function RunDelayedPostChallengeRefresh(ctx, frame, retriesRemaining, followUpRefreshesRemaining)
+  if IsRaidModeActive(ctx) then
+    SetPendingPostChallengeRefresh(ctx, {
+      frame = frame,
+      retriesRemaining = retriesRemaining,
+      followUpRefreshesRemaining = followUpRefreshesRemaining,
+    })
+    return
+  end
+
+  SetPendingPostChallengeRefresh(ctx, nil)
   if not ctx.isInGroup() then
     ctx.enableRioDeltaDisplay()
     return
@@ -272,8 +293,24 @@ local function PromoteDeclinedReadyCheckUnitsToHold(ctx)
   end
 end
 
-local function IsRaidModeActive(ctx)
+IsRaidModeActive = function(ctx)
   return type(ctx.isRaidGroup) == "function" and ctx.isRaidGroup() == true
+end
+
+function ChallengeLifecycle.ResumeDeferredPostChallengeRefresh(ctx, frame)
+  local pending = GetPendingPostChallengeRefresh(ctx)
+  if type(pending) ~= "table" or IsRaidModeActive(ctx) then
+    return false
+  end
+
+  SetPendingPostChallengeRefresh(ctx, nil)
+  RunDelayedPostChallengeRefresh(
+    ctx,
+    pending.frame or frame,
+    pending.retriesRemaining or POST_RUN_REFRESH_RETRIES,
+    pending.followUpRefreshesRemaining or POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS
+  )
+  return true
 end
 
 function ChallengeLifecycle.BuildHandlers(ctx)
@@ -281,6 +318,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     if IsRaidModeActive(ctx) then
       return
     end
+    SetPendingPostChallengeRefresh(ctx, nil)
     ctx.lastRecordedRunSignature = nil
     ctx.lastRecordedRunCaptured = false
     ctx.pendingRecordedRunRetrySignature = nil

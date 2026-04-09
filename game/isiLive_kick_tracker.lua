@@ -4,6 +4,12 @@ addonTable = addonTable or {}
 
 local KickTracker = {}
 addonTable.KickTracker = KickTracker
+local MEANINGFUL_KICK_COOLDOWN_MIN_SECONDS = 1.5
+local NO_INTERRUPT_SPEC_IDS = {
+  [105] = true,
+  [256] = true,
+  [257] = true,
+}
 
 -- Spec-keyed interrupt data (spec ID → { spellID, cd }).
 local SPEC_DATA = {
@@ -93,22 +99,45 @@ local function ResolveSpecData()
   local GetSpecialization_ref = rawget(_G, "GetSpecialization")
   local GetSpecializationInfo_ref = rawget(_G, "GetSpecializationInfo")
   if type(GetSpecialization_ref) ~= "function" or type(GetSpecializationInfo_ref) ~= "function" then
-    return nil
+    return {
+      availabilityResolved = false,
+      hasKick = false,
+    }
   end
   local specIndex = GetSpecialization_ref()
   if not specIndex then
-    return nil
+    return {
+      availabilityResolved = false,
+      hasKick = false,
+    }
   end
   local ok, specID = pcall(GetSpecializationInfo_ref, specIndex)
   if not ok or type(specID) ~= "number" then
-    return nil
+    return {
+      availabilityResolved = false,
+      hasKick = false,
+    }
+  end
+  if NO_INTERRUPT_SPEC_IDS[specID] == true then
+    return {
+      availabilityResolved = true,
+      hasKick = false,
+      castUnit = "player",
+      requireAvailability = false,
+      spells = {},
+    }
   end
   local specData = SPEC_DATA[specID]
   if type(specData) ~= "table" then
-    return nil
+    return {
+      availabilityResolved = false,
+      hasKick = false,
+    }
   end
   if type(specData.spellID) == "number" then
     return {
+      availabilityResolved = true,
+      hasKick = true,
       castUnit = "player",
       requireAvailability = false,
       spells = {
@@ -117,12 +146,236 @@ local function ResolveSpecData()
     }
   end
   if type(specData.spells) ~= "table" then
-    return nil
+    return {
+      availabilityResolved = false,
+      hasKick = false,
+    }
   end
   return {
+    availabilityResolved = true,
+    hasKick = true,
     castUnit = specData.castUnit == "pet" and "pet" or "player",
     requireAvailability = specData.requireAvailability == true,
     spells = specData.spells,
+  }
+end
+
+local function ReadCooldownField(info, key)
+  if type(info) ~= "table" then
+    return nil, false
+  end
+
+  local ok, value = pcall(function()
+    return info[key]
+  end)
+  if not ok then
+    return nil, false
+  end
+
+  local isSecretValue = rawget(_G, "issecretvalue")
+  if type(isSecretValue) == "function" then
+    local okSecret, isSecret = pcall(isSecretValue, value)
+    if okSecret and isSecret then
+      return nil, false
+    end
+  end
+
+  if value == nil then
+    return nil, false
+  end
+  return value, true
+end
+
+local function ResolveAvailabilityState(spellID)
+  if type(spellID) ~= "number" then
+    return "unresolved"
+  end
+
+  local resolved = false
+
+  local GetSpellBaseCooldown_ref = rawget(_G, "GetSpellBaseCooldown")
+  if type(GetSpellBaseCooldown_ref) == "function" then
+    local ok, ms = pcall(GetSpellBaseCooldown_ref, spellID)
+    if ok then
+      resolved = true
+      if tonumber(ms) and tonumber(ms) > 0 then
+        return "available"
+      end
+    end
+  end
+
+  local C_Spell_ref = rawget(_G, "C_Spell")
+  if type(C_Spell_ref) == "table" and type(C_Spell_ref.GetSpellCooldown) == "function" then
+    local ok, info = pcall(C_Spell_ref.GetSpellCooldown, spellID)
+    if ok then
+      resolved = true
+      if type(info) == "table" then
+        return "available"
+      end
+    end
+  end
+
+  if resolved then
+    return "unavailable"
+  end
+
+  return "unresolved"
+end
+
+local function GetSpellDataByID(specData, spellID)
+  if type(specData) ~= "table" or type(specData.spells) ~= "table" then
+    return nil
+  end
+  for _, spellData in ipairs(specData.spells) do
+    if type(spellData) == "table" and spellData.spellID == spellID then
+      return spellData
+    end
+  end
+  return nil
+end
+
+local function ResolveActiveSpellData(specData)
+  if type(specData) ~= "table" or specData.availabilityResolved ~= true then
+    return {
+      availabilityResolved = false,
+      hasKick = false,
+      castUnit = "player",
+      spellData = nil,
+    }
+  end
+
+  local castUnit = specData.castUnit == "pet" and "pet" or "player"
+  if specData.hasKick ~= true then
+    return {
+      availabilityResolved = true,
+      hasKick = false,
+      castUnit = castUnit,
+      spellData = nil,
+    }
+  end
+
+  if castUnit == "pet" then
+    local UnitExists_ref = rawget(_G, "UnitExists")
+    if type(UnitExists_ref) ~= "function" then
+      return {
+        availabilityResolved = false,
+        hasKick = false,
+        castUnit = castUnit,
+        spellData = nil,
+      }
+    end
+    local ok, exists = pcall(UnitExists_ref, "pet")
+    if not ok then
+      return {
+        availabilityResolved = false,
+        hasKick = false,
+        castUnit = castUnit,
+        spellData = nil,
+      }
+    end
+    if exists ~= true then
+      return {
+        availabilityResolved = true,
+        hasKick = false,
+        castUnit = castUnit,
+        spellData = nil,
+      }
+    end
+  end
+
+  if specData.requireAvailability ~= true then
+    return {
+      availabilityResolved = true,
+      hasKick = true,
+      castUnit = castUnit,
+      spellData = specData.spells[1],
+    }
+  end
+
+  local sawUnresolved = false
+  for _, spellData in ipairs(specData.spells) do
+    if type(spellData) == "table" then
+      local availabilityState = ResolveAvailabilityState(spellData.spellID)
+      if availabilityState == "available" then
+        return {
+          availabilityResolved = true,
+          hasKick = true,
+          castUnit = castUnit,
+          spellData = spellData,
+        }
+      end
+      if availabilityState == "unresolved" then
+        sawUnresolved = true
+      end
+    end
+  end
+
+  if sawUnresolved then
+    return {
+      availabilityResolved = false,
+      hasKick = false,
+      castUnit = castUnit,
+      spellData = nil,
+    }
+  end
+
+  return {
+    availabilityResolved = true,
+    hasKick = false,
+    castUnit = castUnit,
+    spellData = nil,
+  }
+end
+
+local function ReadExactCooldownStateForSpell(spellID)
+  if type(spellID) ~= "number" then
+    return nil
+  end
+
+  local C_Spell_ref = rawget(_G, "C_Spell")
+  if type(C_Spell_ref) ~= "table" or type(C_Spell_ref.GetSpellCooldown) ~= "function" then
+    return nil
+  end
+
+  local ok, info = pcall(C_Spell_ref.GetSpellCooldown, spellID)
+  if not ok or type(info) ~= "table" then
+    return nil
+  end
+
+  local startRaw, hasStart = ReadCooldownField(info, "startTime")
+  local durationRaw, hasDuration = ReadCooldownField(info, "duration")
+  local enabledRaw, hasEnabled = ReadCooldownField(info, "isEnabled")
+  if not hasStart or not hasDuration or not hasEnabled then
+    return nil
+  end
+
+  local start = tonumber(startRaw)
+  local duration = tonumber(durationRaw)
+  if start == nil or duration == nil then
+    return nil
+  end
+
+  local enabled
+  if enabledRaw == true or enabledRaw == false then
+    enabled = enabledRaw
+  elseif type(enabledRaw) == "number" then
+    enabled = enabledRaw ~= 0
+  else
+    return nil
+  end
+
+  if enabled == false or start <= 0 or duration <= MEANINGFUL_KICK_COOLDOWN_MIN_SECONDS then
+    return {
+      active = false,
+      endTime = 0,
+      cooldownDuration = duration,
+    }
+  end
+
+  return {
+    active = true,
+    endTime = start + duration,
+    cooldownDuration = duration,
   }
 end
 
@@ -135,6 +388,8 @@ function KickTracker.CreateController(opts)
   local onCooldownChanged = type(opts.onCooldownChanged) == "function" and opts.onCooldownChanged or nil
 
   local specData = nil
+  local availabilityResolved = false
+  local hasKickAvailable = false
   local onCooldown = false
   local cdEndTime = 0
   local cooldownRemain = 0
@@ -142,85 +397,72 @@ function KickTracker.CreateController(opts)
   local watchedCastUnit = "player"
   local watchedCd = nil -- pipeline: SPEC_DATA -> ReadBaseCd -> ScanOwnTalents -> CacheCooldown (each may override)
   local talentScanDirty = true -- invalidated on spec/talent change, cleared after ScanOwnTalents
+  local ReadBaseCd
+  local ScanOwnTalents
+  local SetCooldown
 
-  local function SpellAppearsAvailable(spellID)
-    if type(spellID) ~= "number" then
-      return false
+  local function ClearResolvedKickState()
+    watchedSpellID = nil
+    watchedCd = nil
+    hasKickAvailable = false
+    talentScanDirty = true
+    if onCooldown then
+      SetCooldown(false, 0)
+      return
     end
-
-    local GetSpellBaseCooldown_ref = rawget(_G, "GetSpellBaseCooldown")
-    if type(GetSpellBaseCooldown_ref) == "function" then
-      local ok, ms = pcall(GetSpellBaseCooldown_ref, spellID)
-      if ok and tonumber(ms) and tonumber(ms) > 0 then
-        return true
-      end
-    end
-
-    local C_Spell_ref = rawget(_G, "C_Spell")
-    if type(C_Spell_ref) == "table" and type(C_Spell_ref.GetSpellCooldown) == "function" then
-      local ok, info = pcall(C_Spell_ref.GetSpellCooldown, spellID)
-      if ok and info ~= nil then
-        return true
-      end
-    end
-
-    return false
+    cdEndTime = 0
+    cooldownRemain = 0
   end
 
-  local function GetSpellDataByID(spellID)
-    if type(specData) ~= "table" or type(specData.spells) ~= "table" then
-      return nil
+  local function ApplyResolvedKickState(activeSpellData)
+    local nextSpellID = type(activeSpellData) == "table" and activeSpellData.spellID or nil
+    local nextCastUnit = specData and specData.castUnit or "player"
+    local stateChanged = watchedSpellID ~= nextSpellID
+      or watchedCastUnit ~= nextCastUnit
+      or availabilityResolved ~= true
+      or hasKickAvailable ~= true
+    watchedCastUnit = nextCastUnit
+    availabilityResolved = true
+    hasKickAvailable = true
+    if not stateChanged then
+      return
     end
-    for _, spellData in ipairs(specData.spells) do
-      if type(spellData) == "table" and spellData.spellID == spellID then
-        return spellData
-      end
+
+    watchedSpellID = nextSpellID
+    watchedCd = activeSpellData and activeSpellData.cd or nil
+    talentScanDirty = true
+    if onCooldown then
+      SetCooldown(false, 0)
     end
-    return nil
+    if watchedSpellID then
+      ReadBaseCd()
+      ScanOwnTalents()
+    end
   end
 
-  local function ResolveActiveSpellData()
-    if type(specData) ~= "table" or type(specData.spells) ~= "table" then
-      return nil
+  local function RefreshSpec()
+    specData = ResolveSpecData()
+    local activeResolution = ResolveActiveSpellData(specData)
+
+    watchedCastUnit = type(activeResolution) == "table" and activeResolution.castUnit or "player"
+    if type(activeResolution) ~= "table" or activeResolution.availabilityResolved ~= true then
+      availabilityResolved = false
+      ClearResolvedKickState()
+      return
     end
 
-    if specData.castUnit == "pet" then
-      local UnitExists_ref = rawget(_G, "UnitExists")
-      if type(UnitExists_ref) ~= "function" then
-        return nil
-      end
-      local ok, exists = pcall(UnitExists_ref, "pet")
-      if not ok or not exists then
-        return nil
-      end
+    if activeResolution.hasKick ~= true then
+      availabilityResolved = true
+      ClearResolvedKickState()
+      return
     end
 
-    for _, spellData in ipairs(specData.spells) do
-      if type(spellData) == "table" then
-        if specData.requireAvailability == true then
-          local GetSpellBaseCooldown_ref = rawget(_G, "GetSpellBaseCooldown")
-          if type(GetSpellBaseCooldown_ref) == "function" then
-            local ok, ms = pcall(GetSpellBaseCooldown_ref, spellData.spellID)
-            if ok and tonumber(ms) and tonumber(ms) > 0 then
-              return spellData
-            end
-          end
-        elseif SpellAppearsAvailable(spellData.spellID) then
-          return spellData
-        end
-      end
-    end
-
-    if specData.requireAvailability == true then
-      return nil
-    end
-
-    return specData.spells[1]
+    ApplyResolvedKickState(activeResolution.spellData)
   end
 
   -- Read base CD via GetSpellBaseCooldown (ms, untainted, works even when spell is ready).
   -- CacheCooldown may refine with the actual talent-reduced value later.
-  local function ReadBaseCd()
+  ReadBaseCd = function()
     if not watchedSpellID then
       return
     end
@@ -240,7 +482,7 @@ function KickTracker.CreateController(opts)
 
   -- Iterate active talent nodes and apply CD reductions.
   -- Skipped if talentScanDirty is false (cache still valid).
-  local function ScanOwnTalents()
+  ScanOwnTalents = function()
     if not talentScanDirty then
       return
     end
@@ -294,7 +536,7 @@ function KickTracker.CreateController(opts)
     talentScanDirty = false
   end
 
-  local function SetCooldown(active, endTime)
+  SetCooldown = function(active, endTime)
     onCooldown = active
     cdEndTime = endTime or 0
     cooldownRemain = active and math.max(0, cdEndTime - getTime()) or 0
@@ -303,75 +545,65 @@ function KickTracker.CreateController(opts)
     end
   end
 
-  local function RefreshSpec()
-    local prevSpellID = watchedSpellID
-    local prevCastUnit = watchedCastUnit
-    specData = ResolveSpecData()
-    watchedCastUnit = specData and specData.castUnit or "player"
-    local activeSpellData = ResolveActiveSpellData()
-    watchedSpellID = activeSpellData and activeSpellData.spellID or nil
-    if watchedSpellID ~= prevSpellID or watchedCastUnit ~= prevCastUnit then
-      watchedCd = activeSpellData and activeSpellData.cd or nil
-      talentScanDirty = true
-      -- Clear any active cooldown from the previous spec's spell.
+  local function ApplyCooldownState(active, endTime)
+    local nextEndTime = active and tonumber(endTime) or 0
+    if not active or not nextEndTime or nextEndTime <= 0 then
       if onCooldown then
         SetCooldown(false, 0)
+        return true
       end
-      if watchedSpellID then
-        ReadBaseCd()
-        ScanOwnTalents()
-      end
+      cdEndTime = 0
+      cooldownRemain = 0
+      return false
     end
+
+    local remain = math.max(0, nextEndTime - getTime())
+    if remain <= 0 then
+      if onCooldown then
+        SetCooldown(false, 0)
+        return true
+      end
+      cdEndTime = 0
+      cooldownRemain = 0
+      return false
+    end
+
+    if onCooldown and math.abs((cdEndTime or 0) - nextEndTime) <= 0.05 then
+      cdEndTime = nextEndTime
+      cooldownRemain = remain
+      return false
+    end
+
+    SetCooldown(true, nextEndTime)
+    return true
+  end
+
+  local function ReadExactCooldownState()
+    return ReadExactCooldownStateForSpell(watchedSpellID)
   end
 
   RefreshSpec()
 
-  -- Cache the real (talent-reduced) CD from GetSpellCooldown. Only outside combat.
-  -- Only caches when spell is on CD (duration > 1.5); called on SPELL_UPDATE_COOLDOWN
-  -- while CD is active but outside combat, and on PLAYER_REGEN_ENABLED after combat ends.
+  -- Read exact cooldown state from Blizzard spell cooldown data.
+  -- This path must never guess a live cooldown when a cast event was missed.
   local function CacheCooldown()
-    if not watchedSpellID then
-      return
+    if availabilityResolved ~= true or hasKickAvailable ~= true or not watchedSpellID then
+      return false
     end
-    local InCombatLockdown_ref = rawget(_G, "InCombatLockdown")
-    if type(InCombatLockdown_ref) == "function" then
-      local ok, locked = pcall(InCombatLockdown_ref)
-      if ok and locked then
-        return
-      end
+    local exactState = ReadExactCooldownState()
+    if not exactState then
+      return false
     end
-    local C_Spell_ref = rawget(_G, "C_Spell")
-    if type(C_Spell_ref) ~= "table" then
-      return
+
+    if
+      type(exactState.cooldownDuration) == "number"
+      and exactState.cooldownDuration > MEANINGFUL_KICK_COOLDOWN_MIN_SECONDS
+    then
+      watchedCd = exactState.cooldownDuration
     end
-    local ok, info = pcall(C_Spell_ref.GetSpellCooldown, watchedSpellID)
-    if not ok or not info then
-      return
-    end
-    local ok2, dur = pcall(function()
-      return info.duration
-    end)
-    if not ok2 or not dur then
-      return
-    end
-    -- Strip taint: tostring in its own pcall, then tonumber on the resulting string.
-    local ok3, durStr = pcall(tostring, dur)
-    if not ok3 or not durStr then
-      return
-    end
-    local clean = tonumber(durStr)
-    if clean and clean > 1.5 then
-      local prevCd = watchedCd
-      watchedCd = clean
-      -- Only correct cdEndTime if CD was just started (remaining ≈ prevCd, both directions).
-      -- Do NOT reset cdEndTime mid-CD (duration is always the full CD, not remaining).
-      if onCooldown and cdEndTime > 0 then
-        local remaining = cdEndTime - getTime()
-        if remaining > 0 and math.abs(remaining - clean) > 1 and prevCd and math.abs(remaining - prevCd) <= 1 then
-          cdEndTime = getTime() + clean
-        end
-      end
-    end
+
+    ApplyCooldownState(exactState.active, exactState.endTime)
+    return true
   end
 
   CacheCooldown()
@@ -384,12 +616,12 @@ function KickTracker.CreateController(opts)
       RefreshSpec()
     end
     if unit ~= watchedCastUnit then
-      return
+      return false
     end
 
-    local spellData = GetSpellDataByID(spellID)
+    local spellData = GetSpellDataByID(specData, spellID)
     if not spellData then
-      return
+      return false
     end
 
     watchedSpellID = spellData.spellID
@@ -398,19 +630,27 @@ function KickTracker.CreateController(opts)
     ScanOwnTalents()
     local cd = watchedCd or 15
     SetCooldown(true, getTime() + cd)
+    return true
   end
 
   -- Called on SPELL_UPDATE_COOLDOWN and PLAYER_REGEN_ENABLED to refresh cached CD.
   function controller.CacheCooldown()
-    CacheCooldown()
+    return CacheCooldown()
   end
 
-  -- Called on SPELLS_CHANGED / PLAYER_SPECIALIZATION_CHANGED.
-  function controller.ResolveSpellID()
+  function controller.ResolveKickState()
     talentScanDirty = true
     RefreshSpec()
-    CacheCooldown()
-    return watchedSpellID
+    local exactStateKnown = CacheCooldown()
+    local info = controller.GetKickInfo()
+    return {
+      spellID = info.spellID,
+      hasKick = info.hasKick == true,
+      availabilityResolved = info.availabilityResolved == true,
+      onCooldown = info.onCooldown == true,
+      cooldownRemain = info.cooldownRemain or 0,
+      exactCooldownKnown = info.availabilityResolved == true and info.hasKick == true and exactStateKnown == true,
+    }
   end
 
   -- Called every 0.5s from ticker to detect expiry.
@@ -429,11 +669,13 @@ function KickTracker.CreateController(opts)
   end
 
   function controller.GetKickInfo()
-    local remain = (onCooldown and cdEndTime > 0) and math.max(0, cdEndTime - getTime()) or 0
+    local hasKick = availabilityResolved == true and hasKickAvailable == true and watchedSpellID ~= nil
+    local remain = hasKick and (onCooldown and cdEndTime > 0) and math.max(0, cdEndTime - getTime()) or 0
     return {
-      spellID = watchedSpellID,
-      hasKick = watchedSpellID ~= nil,
-      onCooldown = onCooldown,
+      spellID = hasKick and watchedSpellID or nil,
+      hasKick = hasKick,
+      availabilityResolved = availabilityResolved == true,
+      onCooldown = hasKick and onCooldown or false,
       cooldownRemain = remain,
     }
   end

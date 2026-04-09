@@ -108,6 +108,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Event handlers enable RIO delta only after delayed post-run refresh
   - Event handlers retry post-run refresh when first delayed attempt is blocked
+  - Event handlers defer post-run refresh while raid mode is active and resume after raid exit
 
 ### RULE-TELEPORT-KEIN-NAME-GUESSING
 - Regelnummer: 5
@@ -141,9 +142,6 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Highlight joined-key resolver requires activity-based map context
   - Highlight listing resolver requires unique activity map
   - Highlight queue fallback is disabled while not in group
-  - Factory target dungeon stays unresolved without queue or joined-key map context
-  - Factory target dungeon resolves from synced exact target context
-  - Factory target dungeon stays unresolved on conflicting synced exact targets
 
 ### RULE-QUEUEFLOW-CHALLENGE-UND-DEDUP
 - Regelnummer: 9
@@ -177,6 +175,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Group leave auto-close hides frame when option is enabled
   - Old ghosts are cleared when joining a new group
   - Raid group hides the UI and suppresses background processing
+  - Factory raid kick tracker suppresses sync until raid ends and then recovers
   - Frame bridge blocks show requests while raid mode is active
   - Event handlers suppress background processing while raid mode is active
   - Settings panel defaults Raid behavior to Raid Off and persists user choice
@@ -272,10 +271,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Highlight listing resolver requires unique activity map
   - Highlight joined-key resolver requires activity-based map context
-  - Queue does not guess first candidate when no concrete map is available
-  - Factory target dungeon stays unresolved without queue or joined-key map context
-  - Factory target dungeon resolves from synced exact target context
-  - Factory target dungeon stays unresolved on conflicting synced exact targets
+  - Highlight queue fallback is disabled while not in group
 
 ### RULE-TARGET-DUNGEON-CHAT-DEDUP
 - Regelnummer: 22
@@ -323,6 +319,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - KeySync SendRefreshResponse skips while paused or stopped
   - Bootstrap gate keeps hidden auto-open triggers for group join and key end
   - Event handlers run regen teleport refresh when frame is visible
+  - Factory hidden CD ticker skips polling while frame is hidden
+  - Factory hidden explicit CD refresh keeps pre-rendered state current
+  - Factory hidden kick ticker keeps syncing while frame is hidden
+  - Roster panel first visible render rescans cd tracker after hidden mode
+  - Roster panel visible render does not rescan cd tracker after an explicit cd refresh
 
 ### RULE-PORTAL-ICONS-STABILE-SLOTS
 - Regelnummer: 29
@@ -459,8 +460,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-ROSTER-RAID-NOTICE
 - Regelnummer: 40
-- Status: aktiv
-- Zusammenfassung: Bei Gruppengroessen > 5 (Raid) wird die Main-UI sofort ausgeblendet, es wird keine Raid-Benachrichtigung ausgegeben und kein H-Modus erzwungen; Hintergrundverarbeitung fuer Raid ist aus.
+- Status: veraltet
+- Zusammenfassung: Duplikat zu Regel 11; bei Gruppengroessen > 5 (Raid) wird die Main-UI sofort ausgeblendet, es wird keine Raid-Benachrichtigung ausgegeben und kein H-Modus erzwungen; Hintergrundverarbeitung fuer Raid ist aus.
 - Erforderliche Tests:
   - Raid group hides the UI and suppresses background processing
   - Factory raid behavior resolver defaults to raid off and normalizes legacy values
@@ -554,12 +555,23 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-KICK-UI-UND-SYNC
 - Regelnummer: 50
 - Status: aktiv
-- Zusammenfassung: Die Kicks-Spalte zeigt fuer den lokalen Spieler und fuer isiLive-Gruppenmitglieder den aktuellen Kick-Status an: benutzbar ergibt `ready` in Gruen, laufender Cooldown ergibt rote Restsekunden, und ohne verfuegbaren Kick oder ohne isiLive-Sync bleibt `-`. Kick-Statusaenderungen und aktive Cooldowns muessen spaetestens einmal pro Sekunde an isiLive-Gruppenmitglieder synchronisiert werden; wenn ein `ready`-Paket verloren geht, muss der periodische Sync wieder auf `ready` konvergieren.
+- Zusammenfassung: Die Kicks-Spalte zeigt fuer den lokalen Spieler und fuer isiLive-Gruppenmitglieder den aktuellen Kick-Status an: benutzbar ergibt `ready` in Gruen, laufender Cooldown ergibt rote Restsekunden, und ohne verfuegbaren Kick oder ohne isiLive-Sync bleibt `-`. Kick-Statusaenderungen und aktive Cooldowns muessen spaetestens einmal pro Sekunde an isiLive-Gruppenmitglieder synchronisiert werden; wenn ein `ready`-Paket verloren geht, muss der periodische Sync wieder auf `ready` konvergieren. Ein laufender Kick-Cooldown darf nur aus beobachtetem Cast oder aus exakten Blizzard-Cooldown-Daten abgeleitet werden; ohne belastbare Live-Daten darf kein Cooldown geraten werden. Malformed KICK-Payloads werden fail-closed verworfen und duerfen keinen synthetischen Kick-Zustand erzeugen. Nach Raid-Hard-off bleibt der Kick-Status unresolved und ungesendet, bis exakte Blizzard-Cooldown-Daten, ein danach neu beobachteter Kick-Cast oder ein danach exakt aufgeloester `kein Kick verfuegbar`-Zustand ihn wieder belastbar belegen; beliebige andere Casts duerfen diese Suppression nicht aufheben. `kein Kick verfuegbar` und `unresolved` sind getrennte Zustaende; ein `spellID == nil` darf nur dann als exakter No-Kick-Zustand synchronisiert werden, wenn die Kick-Verfuegbarkeit selbst eindeutig aufgeloest wurde. Nach `ClearKnownUsers()` darf ein identischer lokaler Kick-Status beim naechsten Sendeversuch nicht von altem Dedup- oder Cooldown-Zustand unterdrueckt werden.
 - Erforderliche Tests:
   - Architecture kick tracker uses lightweight kick-column refresh hooks
   - KickTracker tracks pet-based Warlock interrupt cooldown from pet casts
+  - KickTracker reconstructs active cooldown from Blizzard cooldown data without guessing
+  - KickTracker keeps observed active cooldown when Blizzard cooldown fields are unreadable
   - Sync SendKick encodes no-interrupt state and deduplicates payloads
+  - Sync SendKick rejects malformed kick payload inputs without guessing
+  - Sync ClearKnownUsers resets kick send cooldowns so next identical payload fires immediately
+  - Sync ProcessAddonMessage rejects malformed KICK payloads without inventing a state
   - Event handlers answer refresh requests while frame is hidden
+  - Factory explicit kick sync reply uses recovered cooldown state instead of stale ready state
+  - Factory post-raid kick reply stays unresolved until exact recovery succeeds
+  - Factory post-raid kick recovery sends exact no-kick state when spell is unavailable
+  - Factory post-raid unresolved kick availability does not invent a no-kick state
+  - Factory post-raid kick recovery emits exactly one sync after exact cooldown change
+  - Factory post-raid unrelated cast keeps kick state unresolved until the tracked kick is observed
 
 ### RULE-UI-HIDDEN-VOLLER-GRUPPENSYNC
 - Regelnummer: 51
@@ -595,3 +607,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Roster panel share keys button debounces rapid clicks
   - Roster panel share keys button locks on remote SHAREKEYS signal
   - Event handlers answer SHAREKEYS requests while frame is hidden
+
+### RULE-NO-GUESS-LAUFZEITAUFLOESUNG
+- Regelnummer: 54
+- Status: aktiv
+- Zusammenfassung: Wenn fuer eine Runtime-Aufloesung keine eindeutige, belastbare Quelle vorliegt, muss das Ergebnis unresolved bleiben. Fehlende oder mehrdeutige Laufzeitdaten duerfen nicht durch spekulative Fallbacks, Namens-/Token-Raten, heuristische Standardwerte oder synthetische Cooldown-/Map-Zustaende ersetzt werden. Eindeutige Aufloesungen duerfen nur aus beobachteten Live-Daten, explizit persistierten verifizierten Daten oder eindeutig bestimmten Runtime-Zusammenhaengen entstehen.
+- Erforderliche Tests:
+  - Factory target dungeon stays unresolved without queue or joined-key map context
+  - Factory target dungeon resolves from synced exact target context
+  - Factory target dungeon stays unresolved on conflicting synced exact targets
+  - Teleport does not resolve by dungeon name without activityID
+  - Teleport keeps activity unresolved when mapID is missing and retries unresolved lookups
+  - Teleport short-code resolver keeps unknown maps unresolved instead of showing map ids

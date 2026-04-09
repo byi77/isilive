@@ -1,17 +1,33 @@
 # AGENTS
 
-## Mandatory Rule Contract Source
+## Verbindliche Regelquelle
 
-- Read `RULES_LOGIC.md` before implementing runtime behavior changes.
-- Treat every rule block with `Status: active` as a hard contract.
-- If code changes affect an active rule, update deterministic tests and rule-to-test mappings in the same change.
-- `RULES_LOGIC.md` is maintained in German; preserve German wording in that file.
-- Keep `RULES_LOGIC.md` append-only in user entry order (no forced sorting/reordering of rule blocks).
-- Allow duplicate draft ideas temporarily; surface duplicate summary text as warnings and clarify/merge only with user confirmation.
-- After every change to `RULES_LOGIC.md`, review each new/changed sentence, rewrite it into precise machine-checkable intent, and ask the user follow-up questions if meaning is ambiguous.
+- Lies vor Runtime-Verhaltensaenderungen immer zuerst `RULES_LOGIC.md`.
+- Behandle jeden Regelblock mit `Status: active` als harten Vertrag.
+- Wenn Codeaenderungen eine aktive Regel beruehren, aktualisiere im selben Change die deterministischen Tests und die Regel-zu-Test-Zuordnung.
+- `RULES_LOGIC.md` wird auf Deutsch gepflegt; die deutsche Formulierung in dieser Datei ist zu erhalten.
+- Halte `RULES_LOGIC.md` append-only in der Reihenfolge der Benutzereingaben; keine erzwungene Sortierung und kein Umordnen bestehender Regelbloecke.
+- Vorlaeufig doppelte Entwurfsideen sind erlaubt; doppelte Zusammenfassungen als Warnung sichtbar machen und erst nach Bestaetigung durch den User zusammenfuehren oder bereinigen.
+- Nach jeder Aenderung an `RULES_LOGIC.md` pruefe jeden neuen oder geaenderten Satz, formuliere daraus eine praezise maschinenpruefbare Intention und frage den User nach, wenn die Bedeutung nicht eindeutig ist.
 
-## Mandatory Validation
+## Sprachregel Fuer Dokus
 
-- Run `lua tools/validate_usecases.lua` before finalizing.
-- `tools/validate_usecases.lua` includes rules-logic validation and deterministic runtime scenario validation.
-- If validation fails, do not proceed until the failure is resolved.
+- `README.md` sowie alle Changelog-Dateien bleiben Englisch.
+- Alle anderen gepflegten Projektdokumente werden auf Deutsch gehalten.
+- Neue Dokus, Regeltexte und Runbooks folgen derselben Sprachregel.
+
+## No-Guess-Vertrag
+
+- Niemals raten.
+- Niemals spekulative Fallbacks bauen.
+- Wenn ein Zustand, Wert oder Zusammenhang nicht direkt aus einer belastbaren Quelle stammt, gilt er als unbekannt und bleibt unresolved.
+- Unbekannte oder mehrdeutige Daten duerfen nicht als wahrscheinlich behandelt, interpoliert, synthetisiert oder heuristisch ersetzt werden.
+- Erlaubte Quellen sind nur beobachtete Live-Daten, explizit persistierte verifizierte Daten oder eindeutig dokumentierte Benutzerentscheidungen.
+- Wenn eine belastbare Quelle fehlt, stoppe, benenne die Luecke konkret und frage den User gezielt nach der fehlenden Entscheidung oder Quelle.
+- Wo keine verifizierbare Quelle existiert, ist fail-closed Pflicht: kein Guess, kein stiller Default, kein "best effort".
+
+## Verbindliche Validierung
+
+- Fuehre vor dem Finalisieren immer `lua tools/validate_usecases.lua` aus.
+- `tools/validate_usecases.lua` enthaelt die Rule-Logic-Validierung und die deterministische Runtime-Szenario-Validierung.
+- Wenn die Validierung fehlschlaegt, wird nicht abgeschlossen, bis die Ursache behoben ist.

@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-04-09 - Version 0.9.135 (patch)
+
+- KICK / No-Guess hardening:
+  - `Sync.SendKick()` and `Sync.SetPlayerKickInfo()` now reject malformed or incomplete KICK inputs instead of inventing a kick state.
+  - `ProcessAddonMessage()` now discards malformed `KICK` payloads fail-closed, so no guess is written into the roster cache from broken peer data.
+  - Added deterministic regressions for malformed outbound `SendKick` inputs and malformed inbound `KICK` payloads; the kick test suite now covers the explicit no-guess contract.
+- Docs / release baseline:
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RULES.md`, `WARTUNG.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.135`.
+  - Validator baseline is now documented as 514 scenarios across 37 modules, with 514 deterministic tests indexed by the rule validators.
+
+## 2026-04-09 - Version 0.9.134 (patch)
+
+- Hidden / raid runtime hardening:
+  - The dedicated kick tracker now does nothing in raid, including its separate cast frame and ticker paths, and resumes cleanly only after raid exit.
+  - Explicit `HELLO`/`REQSYNC` kick replies now use the same guarded recovery path, and post-raid kick recovery may resume only from exact state: observed kick casts, exact Blizzard cooldown data, or an exact `no kick` resolution, never from guesses.
+  - If post-raid kick recovery still cannot verify an exact available-kick state, the kick column stays unresolved and no kick sync packet is sent until exact cooldown data or a new observed kick cast becomes available; unrelated casts do not lift suppression.
+  - Kick availability is now modeled with an explicit split between `unresolved` and exact `no kick`; `spellID == nil` alone no longer collapses those states.
+  - Unreadable or protected Blizzard cooldown payloads no longer clear an already observed local kick cooldown; exact recovery fails closed instead of guessing `ready`.
+  - Successful post-raid kick recovery now emits exactly one recovered kick sync packet and one visible kick-column refresh, even when the cooldown refresh path reports a state change during recovery.
+  - `Sync.ClearKnownUsers()` now also resets the `KICK` dedup/rate-limit state so the next identical local kick payload is not suppressed by stale sender state.
+  - Deferred post-run refresh state now lives in `RuntimeState` instead of ad-hoc handler context fields, and runtime resume on `GROUP_ROSTER_UPDATE` reads that state through the shared RuntimeState API.
+  - Hidden mode no longer keeps the utility/CD polling ticker alive; explicit event-driven tracker refresh still runs, and reopening the UI marks the utility tracker dirty so the first visible roster render performs exactly one fresh utility rescan.
+  - Delayed post-run refresh no longer leaks through raid hard-off; if the callback becomes due in raid, it is deferred and resumes on the next roster update after raid exit.
+- Docs / release baseline:
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RULES.md`, `WARTUNG.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.134`.
+  - Validator baseline is now documented as 510 scenarios across 37 modules, with 510 deterministic tests indexed by the rule validators.
+
 ## 2026-04-08 - Version 0.9.133 (fix)
 
 - Fix client version tooltip not showing for peers on older addon versions:

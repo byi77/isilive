@@ -340,6 +340,9 @@ local function InitializeFactoryFrameBridge(ctx)
       if type(ctx.RestoreLayoutState) == "function" then
         ctx.RestoreLayoutState()
       end
+      if ctx.rosterPanelController and type(ctx.rosterPanelController.MarkCdTrackerDirty) == "function" then
+        ctx.rosterPanelController.MarkCdTrackerDirty()
+      end
       local onEventHandler = ctx.mainFrame and ctx.mainFrame:GetScript("OnEvent")
       if onEventHandler then
         onEventHandler(ctx.mainFrame, "GROUP_ROSTER_UPDATE")
@@ -348,6 +351,9 @@ local function InitializeFactoryFrameBridge(ctx)
     onShownNoGroup = function()
       if type(ctx.RestoreLayoutState) == "function" then
         ctx.RestoreLayoutState()
+      end
+      if ctx.rosterPanelController and type(ctx.rosterPanelController.MarkCdTrackerDirty) == "function" then
+        ctx.rosterPanelController.MarkCdTrackerDirty()
       end
       ctx.EnsureSoloPlayerRoster()
       ctx.UpdateUI()

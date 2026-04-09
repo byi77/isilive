@@ -7,7 +7,6 @@ local function BuildGroupState(overrides)
     wasRaidGroup = overrides.wasRaidGroup or false,
     roster = {},
     mainFrameVisible = overrides.mainFrameVisible or false,
-    raidModeSwitches = 0,
     prints = {},
     queued = 0,
     announced = 0,
@@ -76,9 +75,6 @@ local function BuildGroupControllerOptions(state, overrides)
         visible = visible,
         reasonOrOpts = reasonOrOpts,
       })
-    end,
-    switchToRaidMode = function()
-      state.raidModeSwitches = state.raidModeSwitches + 1
     end,
     updateLeaderButtons = function() end,
     clearLatestQueueTarget = function() end,
@@ -396,6 +392,7 @@ end
 local function RegisterFactoryFrameBridgeRestoreTests(test, Assert, LoadAddonModules, WithGlobals)
   test("Factory frame bridge restores the layout state when the main frame opens", function()
     local frameBridgeCalls = {}
+    local markCdTrackerDirtyCalls = 0
     local restoreCalls = 0
 
     WithGlobals({
@@ -544,6 +541,11 @@ local function RegisterFactoryFrameBridgeRestoreTests(test, Assert, LoadAddonMod
         end,
         UpdateUI = function() end,
         UpdateLeaderButtons = function() end,
+        rosterPanelController = {
+          MarkCdTrackerDirty = function()
+            markCdTrackerDirtyCalls = markCdTrackerDirtyCalls + 1
+          end,
+        },
         IsSpellKnownSafe = function()
           return true
         end,
@@ -568,6 +570,11 @@ local function RegisterFactoryFrameBridgeRestoreTests(test, Assert, LoadAddonMod
       ctx.SetMainFrameVisible(true)
 
       Assert.Equal(#frameBridgeCalls, 1, "main frame should be shown once")
+      Assert.Equal(
+        markCdTrackerDirtyCalls,
+        1,
+        "main frame show should mark the utility tracker dirty for one fresh visible rescan"
+      )
       Assert.Equal(restoreCalls, 1, "main frame show should restore the configured layout state")
     end)
   end)
@@ -943,7 +950,6 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
     Assert.False(state.mainFrameVisible, "raid transition must hide the main frame")
     Assert.Equal(#state.mainFrameVisibleCalls, 1, "raid transition should issue one hide request")
     Assert.False(state.mainFrameVisibleCalls[1].visible, "raid transition should hide instead of opening")
-    Assert.Equal(state.raidModeSwitches, 0, "raid transition must not switch to H mode")
     Assert.Equal(state.uiUpdates, 0, "raid transition must not rerender the roster")
     Assert.Equal(#state.prints, 0, "raid transition must not print a raid notice")
   end)
@@ -1151,6 +1157,34 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
     controller.HandleGroupRosterUpdate()
 
     Assert.Equal(state.knownUsersCleared, 1, "known users cache must be cleared on group leave")
+  end)
+
+  test("Raid exit clears known isiLive users before resync", function()
+    local sentSnapshots = 0
+    local snapshotArgs = {}
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      wasRaidGroup = true,
+      getNumGroupMembers = function()
+        return 5
+      end,
+      sendOwnKeySnapshot = function(force, source)
+        sentSnapshots = sentSnapshots + 1
+        table.insert(snapshotArgs, {
+          force = force == true,
+          source = source,
+        })
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(state.knownUsersCleared, 1, "known users cache must be cleared when leaving raid")
+    Assert.Equal(sentSnapshots, 1, "raid exit must still resync once after cache reset")
+    Assert.True(
+      snapshotArgs[1] and snapshotArgs[1].force == false,
+      "raid exit resync should use the normal non-forced snapshot path"
+    )
   end)
 end
 

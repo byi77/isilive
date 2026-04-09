@@ -998,7 +998,9 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
       )
     end)
   end)
+end
 
+local function RegisterKickSyncTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Sync SendKick encodes no-interrupt state and deduplicates payloads", function()
     local sentMessages = {}
     local now = 100
@@ -1051,6 +1053,53 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
       Assert.Equal(sentMessages[2].message, "KICK:1:3", "cooldown kick state must ceil remaining seconds")
       Assert.Equal(sentMessages[2].prefix, "ISILIVE", "kick payload must use isiLive prefix")
       Assert.Equal(sentMessages[2].channel, "PARTY", "kick payload must use grouped sync channel")
+
+      now = 102.5
+      addon.Sync.SendKick({
+        onCooldown = false,
+        cooldownRemain = 0,
+      })
+      Assert.Equal(#sentMessages, 2, "kick send without explicit hasKick must be rejected")
+    end)
+  end)
+
+  test("Sync SendKick rejects malformed kick payload inputs without guessing", function()
+    local sentMessages = {}
+    local now = 200
+
+    WithGlobals({
+      GetTime = function()
+        return now
+      end,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      addon.Sync.SendKick({
+        hasKick = true,
+        onCooldown = true,
+      })
+      Assert.Equal(#sentMessages, 0, "kick send without explicit remain must be rejected")
+
+      addon.Sync.SendKick({
+        hasKick = true,
+        cooldownRemain = 5,
+      })
+      Assert.Equal(#sentMessages, 0, "kick send without explicit cooldown state must be rejected")
     end)
   end)
 
@@ -1116,6 +1165,34 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
 
       local duplicateResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:-1:0", "Peer-Realm", "Me", "Realm")
       Assert.False(duplicateResult.kickUpdated, "duplicate no-interrupt KICK must not report update")
+    end)
+  end)
+
+  test("Sync ProcessAddonMessage rejects malformed KICK payloads without inventing a state", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local invalidStateResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:bogus:0", "Peer-Realm", "Me", "Realm")
+      Assert.False(invalidStateResult.kickUpdated, "invalid KICK state must be rejected without inventing a payload")
+      Assert.Nil(addon.Sync.GetPlayerKickInfo("Peer", "Realm"), "invalid KICK state must not store any kick info")
+
+      local invalidRemainResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:1:bogus", "Peer-Realm", "Me", "Realm")
+      Assert.False(invalidRemainResult.kickUpdated, "invalid KICK remain must be rejected without inventing a payload")
+      Assert.Nil(addon.Sync.GetPlayerKickInfo("Peer", "Realm"), "invalid KICK remain must not store any kick info")
     end)
   end)
 
@@ -1209,7 +1286,9 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
       Assert.Nil(addon.Sync.GetPlayerTargetInfo("Peer", "Realm"), "TARGET info should be cleared")
     end)
   end)
+end
 
+local function RegisterSyncResetTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Sync ClearKnownUsers resets send cooldowns so next identical payload fires immediately", function()
     local sentMessages = {}
     local now = 100
@@ -1244,6 +1323,41 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
       Assert.Equal(#sentMessages, 2, "send after ClearKnownUsers must bypass cooldown and dedup")
     end)
   end)
+
+  test("Sync ClearKnownUsers resets kick send cooldowns so next identical payload fires immediately", function()
+    local sentMessages = {}
+    local now = 100
+
+    WithGlobals({
+      GetTime = function()
+        return now
+      end,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, { prefix = prefix, message = message, channel = channel })
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      addon.Sync.SendKick({ hasKick = true, onCooldown = false, cooldownRemain = 0 })
+      Assert.Equal(#sentMessages, 1, "first kick send must go through")
+
+      now = 100.5
+      addon.Sync.SendKick({ hasKick = true, onCooldown = false, cooldownRemain = 0 })
+      Assert.Equal(#sentMessages, 1, "identical kick send within cooldown must be suppressed")
+
+      addon.Sync.ClearKnownUsers()
+      addon.Sync.SendKick({ hasKick = true, onCooldown = false, cooldownRemain = 0 })
+      Assert.Equal(#sentMessages, 2, "kick send after ClearKnownUsers must bypass cooldown and dedup")
+    end)
+  end)
 end
 
 return function(test, ctx)
@@ -1257,4 +1371,6 @@ return function(test, ctx)
   RegisterKeySyncStatsTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterKickSyncTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterSyncResetTests(test, Assert, WithGlobals, LoadAddonModules)
 end

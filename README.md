@@ -4,7 +4,7 @@
 Internal Lua file/module namespace remains `isiLive_*` for compatibility.
 
 Compatibility target: WoW `12.0+` only.
-Current documented baseline: `0.9.133`.
+Current documented baseline: `0.9.135`.
 
 ## Features
 
@@ -24,8 +24,8 @@ Current documented baseline: `0.9.133`.
 - **Group Join Feedback:** first real small-group joins can play an optional join sound via `Sound: Group Join`; the toggle defaults to off until the user enables it.
 - **Leader Marker:** roster rows for the real local group leader render a Blizzard crown icon; if that player is also a known `isiLive` user, the blue heart stays visible and is rendered before the crown.
 - **UI Polish Refresh:** The roster panel, private tooltips, invite hint, and center notice now share the same dark framed palette with softer blue hover accents, alternating row shading, and cleaner separators.
-- **Combat Utility Row:** A bottom tracker row shows live `BRes` charges/cooldown (via `C_Spell.GetSpellCharges` struct-return), `Bloodlust`/`Heroism`/`Time Warp` remaining time with spell icons, and active Mythic+ timer cutoffs for `+3`, `+2`, `+1` plus death-penalty loss. While a key is running, the one-second utility ticker also rerenders the panel so those cutoff timers visibly count down live. Lust tracking uses the player's harmful exhaustion aura, accepts only numeric aura `spellId` values for lookup, ignores protected/non-numeric payloads safely, treats `UNIT_AURA(..., { isFullUpdate = true })` as aura-restore state after zone/reload transitions, and keeps only a short 2-second startup suppress window as a safety net before the full restore arrives.
-- **Kick Cooldown Sync:** The roster `Kick` column shows the synced interrupt state for party members as `ready` or remaining cooldown seconds, based on the player's spec-specific interrupt spell and local cooldown tracking. Sync now interpolates remote remaining cooldown smoothly between packets, keeps a short ready rebroadcast tail after cooldown end for delivery stability, shows `-` instead of a transient `0s` flicker, and still re-resolves immediately on spec changes.
+- **Combat Utility Row:** A bottom tracker row shows live `BRes` charges/cooldown (via `C_Spell.GetSpellCharges` struct-return), `Bloodlust`/`Heroism`/`Time Warp` remaining time with spell icons, and active Mythic+ timer cutoffs for `+3`, `+2`, `+1` plus death-penalty loss. While the panel is visible and a key is running, the one-second utility ticker rerenders the panel so those cutoff timers visibly count down live. Hidden mode no longer keeps that utility poller alive; instead, event-driven tracker refresh stays active, and reopening the UI marks the utility tracker dirty so the first visible roster render performs exactly one fresh rescan before drawing the row. Lust tracking uses the player's harmful exhaustion aura, accepts only numeric aura `spellId` values for lookup, ignores protected/non-numeric payloads safely, treats `UNIT_AURA(..., { isFullUpdate = true })` as aura-restore state after zone/reload transitions, and keeps only a short 2-second startup suppress window as a safety net before the full restore arrives.
+- **Kick Cooldown Sync:** The roster `Kick` column shows the synced interrupt state for party members as `ready` or remaining cooldown seconds, based on the player's spec-specific interrupt spell and local cooldown tracking. Sync now interpolates remote remaining cooldown smoothly between packets, keeps a short ready rebroadcast tail after cooldown end for delivery stability, shows `-` instead of a transient `0s` flicker, and still re-resolves immediately on spec changes. Hidden clients keep the dedicated kick keep-alive active for party peers, while raid-size hard-off suspends all kick activity until raid ends. If local kick tracking was suppressed during raid hard-off, recovery may resume only from exact state: either an exact `no kick` result, an observed post-raid kick cast, or exact Blizzard cooldown API data. Unrelated casts do not lift suppression, and if proof for an available kick is still missing after raid exit, the kick state stays unresolved and unsent. Malformed KICK payloads are rejected fail-closed instead of inventing a state. No kick cooldown is ever guessed.
 - **Minimap Button:** Optional draggable Minimap button toggles the main window and persists its angle around the minimap.
 - Blizzard Settings only: `Combat Logging` and `DM Reset on Entry` live in `Settings -> AddOns -> isiLive`; the main roster panel no longer shows those toggles.
 - Stable role sorting: `Tank -> Healer -> Damager`
@@ -38,7 +38,7 @@ Current documented baseline: `0.9.133`.
 - Players inside the target dungeon are marked with a portal icon in the roster
 - Group key visibility via addon sync: members with `isiLive` share key as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale)
 - Visible-window peer sync between `isiLive` users can also backfill remote `Spec`, `iLvl`, `RIO`, `DPS`, and dungeon location without inspect range; fresh local inspect data keeps priority once available
-- Manual `Re-Sync` force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and also broadcasts `REQSYNC`, so hidden `isiLive` peers can answer once with a forced `KEY`/`STATS`/`DPS`/`LOC` reply when they are not stopped, paused, or inside an active Mythic+ run
+- Manual `Re-Sync` force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and also broadcasts `REQSYNC`, so hidden `isiLive` peers can answer once with a forced reply (`KEY`, `STATS`, `DPS`, `LOC`, `TARGET`, `KICK`) when they are not stopped or paused
 - The `Re-Sync` button is hard-guarded for `10` seconds after use and shows the remaining cooldown directly in its label while disabled
 - Key mapping normalizes active-season challenge-map IDs to canonical season map IDs before short-code rendering
 - Season scope is open via `ACTIVE_SEASON_ID`; current active season is `midnight_s1` with all 8 Midnight Season 1 portals mapped live
@@ -76,10 +76,10 @@ Current documented baseline: `0.9.133`.
 - Auto-open on real dungeon entry (`outside -> party instance`) while not in an active key.
 - `CTRL+F9`: visibility changes can always be requested; if combat lockdown blocks `Show`/`Hide`, the pending open/close is applied on `PLAYER_REGEN_ENABLED`. The title bar in `M`/`M2` also shows this hint directly, and the close button (X) always hides the frame immediately, even during combat.
 - `UNIT_AURA` full-update payloads after zone changes/reloads refresh the lust tracker state silently; `PLAYER_ENTERING_WORLD` only keeps a 2-second suppress window to cover early ticker scans before the aura restore event arrives.
-- Hidden window mode still blocks queue scanning; if `LFG_LIST_*` capture was missed while hidden, a later group join will not retro-print the grouped queue chat summary. Background data sync (`CHAT_MSG_ADDON`, `GROUP_ROSTER_UPDATE`) may still event-drive pre-rendered roster state so reopen stays immediate without adding polling load.
+- Hidden window mode still blocks queue scanning; if `LFG_LIST_*` capture was missed while hidden, a later group join will not retro-print the grouped queue chat summary. Background data sync (`CHAT_MSG_ADDON`, `GROUP_ROSTER_UPDATE`) may still event-drive pre-rendered roster state so reopen stays immediate without adding polling load, the dedicated kick keep-alive remains active for party peers, and raid-size groups still override all of this with full hard-off behavior.
 - Combat runtime gate suppresses non-essential event processing while in combat; essential events (for example `PLAYER_REGEN_ENABLED` and `CHALLENGE_MODE_*`) still run.
 - Own outbound sync snapshots (`HELLO`/`KEY`/`STATS`/`DPS`/`LOC`) remain visibility-bound, while hidden mode still processes incoming addon sync messages, whisper `ACK`s, and one gated hidden `REQSYNC` reply path so cached roster data and pre-rendered UI state stay current without polling.
-- A manual `Re-Sync` force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and additionally sends `REQSYNC`; hidden peers may answer with one forced `KEY`/`STATS`/`DPS`/`LOC` reply while staying hidden, but they suppress that reply when locally stopped, paused, or inside an active key.
+- A manual `Re-Sync` force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and additionally sends `REQSYNC`; hidden peers may answer with one forced reply (`KEY`, `STATS`, `DPS`, `LOC`, `TARGET`, `KICK`) while staying hidden, but they suppress that reply when locally stopped or paused.
 - Main window is movable via left drag in every mode; top drag handle stays above overlays for reliable dragging
 - Roster member row hover uses an isolated `isiLive` tooltip instead of the shared Blizzard `GameTooltip`, with `Name-Realm` fallback when no synced details are available
 - Roster control buttons and teleport grid buttons use isolated `isiLive` tooltip frames instead of the shared Blizzard `GameTooltip`
@@ -111,9 +111,9 @@ Current documented baseline: `0.9.133`.
 - Runtime log storage is session-only and starts disabled on every login/reload.
 - Sync handshake behavior: `HELLO` recipients send `ACK` and immediately answer with the full local `KEY`/`STATS`/`DPS`/`LOC` snapshot plus current kick state; explicit local refresh still force-sends the local `HELLO` + `KEY`/`STATS`/`DPS`/`LOC` snapshot and broadcasts `REQSYNC`; visibility-bound snapshots keep cached `KEY`/`STATS`/`DPS`/`LOC` data current.
 
-## Use Case / Logic Baseline (v0.9.133)
+## Use Case / Logic Baseline (v0.9.135)
 
-Documented on `2026-04-08` as runtime behavior baseline (`0.9.133`) for validation checks.
+Documented on `2026-04-09` as runtime behavior baseline (`0.9.135`) for validation checks.
 
 
 1. Queue invite -> grouped flow
@@ -127,7 +127,7 @@ Documented on `2026-04-08` as runtime behavior baseline (`0.9.133`) for validati
    - Known `isiLive` users show the blue heart marker; real group leaders show a 16x16 crown marker, and synced leaders render `heart -> crown`.
 3. Key sync and key column
    - Own outbound sync snapshots remain visibility-bound, while incoming addon sync messages can still refresh cached roster data during hidden mode.
-   - Manual `Re-Sync` force-sends the local `HELLO` + `KEY/STATS/DPS/LOC` snapshot and also sends `REQSYNC`; hidden peers may answer with one forced `KEY/STATS/DPS/LOC` reply without opening their UI, but only when they are not stopped, paused, or inside an active key.
+   - Manual `Re-Sync` force-sends the local `HELLO` + `KEY/STATS/DPS/LOC` snapshot and also sends `REQSYNC`; hidden peers may answer with one forced reply (`KEY/STATS/DPS/LOC/TARGET/KICK`) without opening their UI, but only when they are not stopped or paused.
    - `KEY:<mapID>:<level>` snapshots populate roster key text as `Shortcut +Level` (for example `DB +14` / `MB +14` depending on locale).
    - `STATS` snapshots can backfill remote `Spec/iLvl/RIO` without inspect range; once fresh local inspect data exists for a field, that local value keeps priority over later sync backfill.
    - `DPS` snapshots share the local player's last-run DPS; the roster DPS column falls back to synced DPS when local damage-meter data is unavailable.
@@ -277,7 +277,7 @@ Additional maintenance/debug commands remain available for compatibility, but th
 
 `tools/validate_rules_logic.lua` validates active runtime rule contracts from `RULES_LOGIC.md` against deterministic test names.
 `tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 483 scenarios across 36 modules, while the rule validators currently index 483 deterministic tests, including:
+5. `tools/validate_usecases.lua` runs both validators first and then executes a modular deterministic runtime/structure gate (`testmodul/isilive_test_*.lua`) with 514 scenarios across 37 modules, while the rule validators currently index 514 deterministic tests, including:
 - architecture guardrails for composition-root ownership, lifecycle aggregation, runtime-state centralization, context-based controller wiring, and focused config builders
 - queue candidate resolution priority (concrete teleport mapping over generic candidates)
 - shared-portcast highlight behavior (queue + active listing exact-map suppression)

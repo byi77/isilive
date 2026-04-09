@@ -1,24 +1,27 @@
-# Release Runbook
+# Freigabe-Runbook
 
-This is the canonical release flow for `isiLive` (repository/tag prefix remains `isiLive_*`).
+Dies ist der verbindliche Release-Ablauf fuer `isiLive` (Repository- und Tag-Praefix bleiben `isiLive_*`).
 
-## 1) Update Version + Docs
+## 1) Version und Dokus aktualisieren
 
-1. Update TOC version in `isiLive.toc`:
+1. TOC-Version in `isiLive.toc` aktualisieren:
    - `## Version: x.y.z`
-   - With the optional git hook enabled, the matching documented baselines and title string are synced automatically from the TOC version before commit.
-2. Add a new entry at the top of `CHANGELOG.md`.
-   - For `0.9.99`, note both the docs baseline bump and the post-baseline cleanup state so `CHANGELOG.md` and the docs reflect the current branch accurately.
-3. Update `README.md` for user-visible behavior/layout changes.
-4. If season data was touched, verify docs explicitly state active `ACTIVE_SEASON_ID` and prepared-next season status (`README.md` + `CHANGELOG.md`).
-5. If runtime flow or UI behavior changed, update `ARCHITECTURE.md` and `USECASES.md`.
-6. If UI labels changed, verify `README.md` and `ARCHITECTURE.md` use the current button text.
-7. If maintenance/runbook expectations changed, sync `WARTUNG.md` and keep `.pkgmeta` packaging ignores aligned.
-   Keep the full `CHANGELOG.md` out of the CurseForge zip and use the short `CHANGELOG_RELEASE.md` stub instead.
+   - Wenn der optionale Git-Hook aktiv ist, werden die passenden dokumentierten Baselines und der Titelstring vor dem Commit automatisch aus der TOC-Version synchronisiert.
+2. Einen neuen Eintrag oben in `CHANGELOG.md` anlegen.
+   - Fuer `0.9.99` sowohl den Docs-Baseline-Bump als auch den Stand der Post-Baseline-Bereinigung notieren, damit `CHANGELOG.md` und die Dokus den Branch korrekt widerspiegeln.
+3. `README.md` fuer user-visible Verhaltens- oder Layoutaenderungen aktualisieren.
+4. Wenn Season-Daten angefasst wurden, muessen die Dokus die aktive `ACTIVE_SEASON_ID` und den Vorbereitungsstand der naechsten Season explizit nennen (`README.md` und `CHANGELOG.md`).
+5. Wenn Runtime-Flow oder UI-Verhalten geaendert wurden, `ARCHITECTURE.md` und `USECASES.md` aktualisieren; wenn kurze Engineering-Regeln oder Wartungserwartungen betroffen sind, auch `RULES.md` und `WARTUNG.md` synchronisieren.
+6. Wenn UI-Labels geaendert wurden, pruefen, dass `README.md` und `ARCHITECTURE.md` die aktuellen Buttontexte verwenden.
+7. Wenn Wartungs- oder Runbook-Erwartungen geaendert wurden, `WARTUNG.md` synchronisieren und die Packaging-Ignores in `.pkgmeta` abgestimmt halten.
+   Das vollstaendige `CHANGELOG.md` bleibt aus dem CurseForge-Zip draussen; stattdessen wird der kurze Stub `CHANGELOG_RELEASE.md` verwendet.
+8. Sprachregel fuer Dokus einhalten:
+   - `README.md` und die Changelog-Dateien bleiben Englisch.
+   - Alle anderen gepflegten Projektdokumente bleiben Deutsch.
 
-## 2) Local Quality Gate
+## 2) Lokales Quality Gate
 
-Run before committing:
+Vor dem Commit ausfuehren:
 
 ```powershell
 stylua --check .
@@ -29,17 +32,17 @@ lua tools/validate_architecture_rules.lua
 lua tools/validate_usecases.lua
 ```
 
-Expected: lint/style/metrics/usecase/rules checks pass.
+Erwartung: Lint, Style, Metrics, Usecase- und Rule-Checks sind gruen.
 
-The `tools/check.ps1` and `tools/check.cmd` wrappers run the full local preflight through the repo-local `luacheck.cmd` shim, which avoids the Windows app-chooser dialog that appears when the bare LuaRocks `luacheck` script is invoked directly.
+Die Wrapper `tools/check.ps1` und `tools/check.cmd` fuehren den vollen lokalen Preflight ueber den repo-lokalen `luacheck.cmd`-Shim aus und vermeiden so den Windows-App-Auswahldialog, der beim direkten Aufruf des LuaRocks-`luacheck`-Scripts auftaucht.
 
-`tools/validate_rules_logic.lua` validates active contracts from `RULES_LOGIC.md` against deterministic test names.
-`tools/validate_architecture_rules.lua` validates active architecture contracts from `ARCHITECTURE_RULES.md` against deterministic test names.
-`tools/validate_usecases.lua` is mandatory for release gating, runs both rule validators first, and then validates 483 scenarios across 36 modules. The rule validators currently index 483 deterministic tests.
+`tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
+`tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
+`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach 514 Szenarien ueber 37 Module. Die Regelvalidatoren indizieren aktuell 514 deterministische Tests.
 
-Windows note: if metrics fail with missing LuaRocks modules (`lfs`, `luacheck.decoder`, `luacheck.parser`), set `LUA_PATH` and `LUA_CPATH` to your LuaRocks `share/lua/5.4` and `lib/lua/5.4` paths before running the metrics check. Use the same release thresholds locally as CI: `ISILIVE_MAX_FILE_LINES=3200` and `ISILIVE_MAX_FUNCTION_LINES=420`.
+Windows-Hinweis: Wenn Metrics mit fehlenden LuaRocks-Modulen (`lfs`, `luacheck.decoder`, `luacheck.parser`) scheitern, `LUA_PATH` und `LUA_CPATH` auf die LuaRocks-Pfade `share/lua/5.4` und `lib/lua/5.4` setzen, bevor der Metrics-Check laeuft. Lokal gelten dieselben Release-Schwellen wie in CI: `ISILIVE_MAX_FILE_LINES=3200` und `ISILIVE_MAX_FUNCTION_LINES=420`.
 
-## 3) Commit + Push
+## 3) Commit und Push
 
 ```powershell
 git add -A
@@ -47,28 +50,28 @@ git commit -m "Bump version to x.y.z"
 git push origin main
 ```
 
-## 4) Wait For Green Main CI
+## 4) Auf gruene Main-CI warten
 
-Do not create a release tag while the pushed `main` commit is still pending or red in GitHub Actions.
+Kein Release-Tag erstellen, solange der gepushte `main`-Commit in GitHub Actions noch pending oder rot ist.
 
-Required:
+Pflicht:
 
-1. Open the `Lua Check` run for the exact pushed `main` commit.
-2. Wait until it is green.
-3. Only then continue with stable or pre-release tagging.
+1. Den `Lua Check`-Run fuer genau den gepushten `main`-Commit oeffnen.
+2. Warten, bis er gruen ist.
+3. Erst dann mit Stable- oder Pre-Release-Tagging weitermachen.
 
-This order is mandatory after the archived accidental `0.9.70` release package.
+Diese Reihenfolge ist nach dem archivierten versehentlichen `0.9.70`-Release-Paket verbindlich.
 
-## 5) Create Release Tag
+## 5) Release-Tag erstellen
 
-Stable tag format used by `Release` workflow:
+Stable-Tag-Format fuer den `Release`-Workflow:
 
 ```powershell
 git tag isiLive_release_X.Y.Z
 git push origin isiLive_release_X.Y.Z
 ```
 
-Pre-release tag formats used by `Pre-Release (Alpha/Beta)` workflow:
+Pre-Release-Tag-Formate fuer den Workflow `Pre-Release (Alpha/Beta)`:
 
 ```powershell
 git tag isiLive_alpha_X.Y.Z
@@ -77,57 +80,57 @@ git tag isiLive_beta_X.Y.Z
 git push origin isiLive_beta_X.Y.Z
 ```
 
-Example:
+Beispiel:
 
 ```powershell
 git tag isiLive_release_0.9.117
 git push origin isiLive_release_0.9.117
 ```
 
-## 6) Verify GitHub Actions
+## 6) GitHub Actions pruefen
 
-Check Actions tab:
+Im Actions-Tab pruefen:
 
-1. `Lua Check` (quality-gate) must pass.
-2. `Release` workflow should trigger only for `isiLive_release_*`.
-3. `Pre-Release (Alpha/Beta)` should trigger only for `isiLive_alpha_*` / `isiLive_beta_*`.
+1. `Lua Check` als Quality Gate muss erfolgreich sein.
+2. Der `Release`-Workflow darf nur fuer `isiLive_release_*` triggern.
+3. `Pre-Release (Alpha/Beta)` darf nur fuer `isiLive_alpha_*` und `isiLive_beta_*` triggern.
 
-## 7) Verify CurseForge Package
+## 7) CurseForge-Paket pruefen
 
-After `Release` succeeds, verify on CurseForge:
+Nach erfolgreichem `Release` auf CurseForge pruefen:
 
-1. New file exists for the release tag.
-2. Version shown matches TOC version.
-3. Changelog/release notes look correct.
-4. If the release was a mistake, archive/remove the CurseForge artifact there explicitly; Git tag cleanup alone is not enough.
+1. Eine neue Datei fuer den Release-Tag ist vorhanden.
+2. Die angezeigte Version entspricht der TOC-Version.
+3. Changelog und Release Notes sehen korrekt aus.
+4. Wenn der Release ein Fehler war, das CurseForge-Artefakt dort explizit archivieren oder entfernen; Git-Tag-Cleanup allein reicht nicht.
 
-## 8) Roll Back An Accidental Release
+## 8) Einen versehentlichen Release zurueckrollen
 
-If a stable or pre-release tag was pushed too early:
+Wenn ein Stable- oder Pre-Release-Tag zu frueh gepusht wurde:
 
-1. Archive/remove the created package on CurseForge.
-2. Delete the local Git tag.
-3. Delete the remote Git tag.
-4. Fix the underlying issue on `main`.
-5. Wait for a green `Lua Check` on the corrected `main` commit before creating a new release tag.
+1. Das erzeugte Paket auf CurseForge archivieren oder entfernen.
+2. Den lokalen Git-Tag loeschen.
+3. Den Remote-Git-Tag loeschen.
+4. Das zugrunde liegende Problem auf `main` beheben.
+5. Auf einen grünen `Lua Check` fuer den korrigierten `main`-Commit warten, bevor ein neuer Release-Tag erstellt wird.
 
-Example remote tag deletion:
+Beispiel fuer das Loeschen eines Remote-Tags:
 
 ```powershell
 git tag -d isiLive_release_X.Y.Z
 git push origin :refs/tags/isiLive_release_X.Y.Z
 ```
 
-## 9) Wago Publish
+## 9) Wago-Publish
 
-- No automated Wago publish workflow is configured in this repository.
-- Publish/update on Wago manually after CurseForge/GitHub release is confirmed.
+- In diesem Repository ist kein automatischer Wago-Publish-Workflow konfiguriert.
+- Auf Wago manuell veroeffentlichen oder aktualisieren, nachdem CurseForge/GitHub-Release bestaetigt ist.
 
-## Notes
+## Hinweise
 
-- Release tagging is intentionally separated from the normal `main` push so CI can fail safely before CurseForge packaging is triggered.
-- CI already excludes `.luarocks/` from lint/syntax checks.
-- Packaging ignores non-user files via `.pkgmeta` (including `.github/`, `.claude/`, docs like `README.md`/`ARCHITECTURE.md`/`USECASES.md`/`WARTUNG.md`/`TODO_RENAME.md`/`CHANGELOG.md`, dev-only folders `tools/` + `testmodul/`, and PNG screenshots/logo assets). The CurseForge file notes use the short `CHANGELOG_RELEASE.md` stub instead of shipping the full repository changelog.
-- If VS Code diagnostics look stale, run:
+- Release-Tagging ist absichtlich vom normalen `main`-Push getrennt, damit CI noch sicher fehlschlagen kann, bevor CurseForge-Pakete gebaut werden.
+- CI schliesst `.luarocks/` bereits aus Lint- und Syntax-Checks aus.
+- Packaging ignoriert Nicht-Nutzer-Dateien ueber `.pkgmeta`, einschliesslich `.github/`, `.claude/`, Dokus wie `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `WARTUNG.md`, `TODO_RENAME.md`, `CHANGELOG.md`, Dev-only-Ordnern `tools/` und `testmodul/` sowie PNG-Screenshots/Logos. Die CurseForge-Dateinotizen verwenden den kurzen Stub `CHANGELOG_RELEASE.md`, nicht das volle Repository-Changelog.
+- Wenn VS-Code-Diagnostics veraltet wirken, ausfuehren:
   - `Developer: Reload Window`
   - `Lua: Restart Language Server`

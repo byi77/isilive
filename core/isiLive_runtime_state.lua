@@ -28,6 +28,9 @@ function RuntimeState.CreateController(opts)
     latestQueueActivityID = opts.latestQueueActivityID,
     latestQueueTeleportSpellID = opts.latestQueueTeleportSpellID,
     latestQueueMapID = opts.latestQueueMapID,
+    pendingPostChallengeRefresh = type(opts.pendingPostChallengeRefresh) == "table" and CopyTableShallow(
+      opts.pendingPostChallengeRefresh
+    ) or nil,
     isStopped = NormalizeBoolean(opts.isStopped),
     isPaused = NormalizeBoolean(opts.isPaused),
     isTestMode = NormalizeBoolean(opts.isTestMode),
@@ -109,6 +112,21 @@ function RuntimeState.CreateController(opts)
     if clearOpts.keepActiveJoinedKey ~= true then
       state.activeJoinedKeyMapID = nil
     end
+  end
+
+  function controller.GetPendingPostChallengeRefresh()
+    if type(state.pendingPostChallengeRefresh) ~= "table" then
+      return nil
+    end
+    return CopyTableShallow(state.pendingPostChallengeRefresh)
+  end
+
+  function controller.SetPendingPostChallengeRefresh(value)
+    if type(value) ~= "table" then
+      state.pendingPostChallengeRefresh = nil
+      return
+    end
+    state.pendingPostChallengeRefresh = CopyTableShallow(value)
   end
 
   function controller.IsStopped()
@@ -306,6 +324,9 @@ function RuntimeState.CreateController(opts)
       latestQueueActivityID = state.latestQueueActivityID,
       latestQueueTeleportSpellID = state.latestQueueTeleportSpellID,
       latestQueueMapID = state.latestQueueMapID,
+      pendingPostChallengeRefresh = type(state.pendingPostChallengeRefresh) == "table" and CopyTableShallow(
+        state.pendingPostChallengeRefresh
+      ) or nil,
       isStopped = state.isStopped,
       isPaused = state.isPaused,
       isTestMode = state.isTestMode,

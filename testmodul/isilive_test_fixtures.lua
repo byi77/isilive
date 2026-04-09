@@ -27,6 +27,7 @@ local function EnsureEventHandlerCounters(counters)
 end
 
 local function BuildEventHandlersBaseOptions(entryRef, counters)
+  local pendingPostChallengeRefresh = nil
   return {
     addonName = "isiLive",
     defaultLocale = "enUS",
@@ -64,6 +65,12 @@ local function BuildEventHandlersBaseOptions(entryRef, counters)
     end,
     setPendingQueueJoinInfo = function(_value)
       counters.pendingSets = counters.pendingSets + 1
+    end,
+    getPendingPostChallengeRefresh = function()
+      return pendingPostChallengeRefresh
+    end,
+    setPendingPostChallengeRefresh = function(value)
+      pendingPostChallengeRefresh = value
     end,
     clearLatestQueueTarget = function()
       counters.clears = counters.clears + 1

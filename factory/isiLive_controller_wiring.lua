@@ -43,7 +43,6 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     ),
     announceQueuedGroupJoin = RequireFunction(callbacks.announceQueuedGroupJoin, "callbacks.announceQueuedGroupJoin"),
     setMainFrameVisible = RequireFunction(callbacks.setMainFrameVisible, "callbacks.setMainFrameVisible"),
-    switchToRaidMode = callbacks.switchToRaidMode or function() end,
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
     clearLatestQueueTarget = RequireFunction(callbacks.clearLatestQueueTarget, "callbacks.clearLatestQueueTarget"),
     clearRioBaselineSnapshot = type(callbacks.clearRioBaselineSnapshot) == "function"
@@ -117,7 +116,6 @@ local function BuildGroupControllerDepsFromContext(ctx)
       captureQueueJoinCandidate = ctx.captureQueueJoinCandidate,
       announceQueuedGroupJoin = ctx.announceQueuedGroupJoin,
       setMainFrameVisible = ctx.setMainFrameVisible,
-      switchToRaidMode = ctx.switchToRaidMode,
       updateLeaderButtons = ctx.updateLeaderButtons,
       clearLatestQueueTarget = ctx.clearLatestQueueTarget,
       clearRioBaselineSnapshot = ctx.clearRioBaselineSnapshot,
@@ -196,6 +194,15 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
         return nil
       end,
     setPendingQueueJoinInfo = RequireFunction(state.setPendingQueueJoinInfo, "state.setPendingQueueJoinInfo"),
+    getPendingPostChallengeRefresh = type(state.getPendingPostChallengeRefresh) == "function"
+        and state.getPendingPostChallengeRefresh
+      or function()
+        return nil
+      end,
+    setPendingPostChallengeRefresh = RequireFunction(
+      state.setPendingPostChallengeRefresh,
+      "state.setPendingPostChallengeRefresh"
+    ),
     clearLatestQueueTarget = RequireFunction(callbacks.clearLatestQueueTarget, "callbacks.clearLatestQueueTarget"),
     updateMPlusTeleportButton = RequireFunction(
       callbacks.updateMPlusTeleportButton,
@@ -486,25 +493,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     getTime = ctx.getTime,
     recordRun = ctx.recordRun,
     applyKnownKeyToRosterEntry = ctx.applyKnownKeyToRosterEntry,
-    sendOwnKickState = function()
-      local kickCtrl = ctx.kickTrackerController
-      if not kickCtrl then
-        return
-      end
-      local info = kickCtrl.GetKickInfo()
-      if type(info) ~= "table" then
-        return
-      end
-      local sync = ctx.sync
-      if sync and type(sync.SendKick) == "function" then
-        sync.SendKick({
-          hasKick = info.hasKick,
-          onCooldown = info.onCooldown,
-          cooldownRemain = info.cooldownRemain,
-          force = true,
-        })
-      end
-    end,
+    sendOwnKickState = ctx.sendOwnKickState,
     runFullRefresh = function()
       if ctx.refreshController then
         return ctx.refreshController.RunFullRefresh()
@@ -519,6 +508,8 @@ local function BuildEventHandlersDepsFromContext(ctx)
       isTestAllMode = ctx.isTestAllMode,
       getPendingQueueJoinInfo = ctx.getPendingQueueJoinInfo,
       setPendingQueueJoinInfo = ctx.setPendingQueueJoinInfo,
+      getPendingPostChallengeRefresh = ctx.getPendingPostChallengeRefresh,
+      setPendingPostChallengeRefresh = ctx.setPendingPostChallengeRefresh,
       getActiveJoinedKeyMapID = ctx.getActiveJoinedKeyMapID,
       setActiveJoinedKeyMapID = ctx.setActiveJoinedKeyMapID,
       getPendingBindingApply = ctx.getPendingBindingApply,

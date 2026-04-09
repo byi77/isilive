@@ -17,6 +17,7 @@ Arbeite immer in dieser Reihenfolge:
    - Rename ist aktuell fuer `nach v0.9.71` geplant
 4. `RULES_LOGIC.md` lesen:
    - aktive Regeln sind harte Runtime-Vertraege
+   - besonders wichtig: No Guess, KICK-Hard-off und Rate-Limit-Vertraege niemals nur implizit ableiten
 5. `ARCHITECTURE_RULES.md` lesen:
    - aktive Architekturregeln sind ebenfalls Gate-relevant
 6. `AGENTS.md` lesen:
@@ -163,18 +164,25 @@ Pruefen:
 - `isiLive_bootstrap.lua`
 - `isiLive_config_builders.lua`
 - `isiLive_event_handlers_runtime.lua`
+- `isiLive_event_handlers_challenge.lua`
+- `isiLive_factory_controllers.lua`
+- `isiLive_roster_panel.lua`
 - `isiLive_leader_watch.lua`
 
 Aktueller Soll-Zustand:
 - Hidden stoppt Queue-Scanning und dauerhafte Polling-Last
 - `CHAT_MSG_ADDON` und `GROUP_ROSTER_UPDATE` duerfen weiterlaufen
 - eventgetriebenes Vor-Rendern der UI ist erlaubt
+- der dedizierte Kick-Keep-Alive darf hidden fuer Gruppenmitglieder weiterlaufen
+- der Utility/CD-Poller darf hidden nicht dauerhaft laufen; beim erneuten Anzeigen markiert die Show-Logik den Tracker dirty, und der erste sichtbare Render zieht genau einen frischen CD-Scan
 - Leader-State wird hidden still synchronisiert
 - hidden gibt es keine Notice-/Chat-Ausgabe fuer Leader-Transfers
+- verzoegerter Post-Run-Refresh darf im Raid nicht laufen; er muss nach Raid-Ende sauber wieder aufgenommen werden
 
 Nicht versehentlich zurueckbauen auf:
 - "alles hidden komplett aus"
 - oder das Gegenteil: permanente Hidden-CPU-Last / Polling
+- oder "Raid verhaelt sich nur wie Hidden" statt echtem Hard-Off
 
 ## 5) Wenn UI oder Runtime geaendert wurde, diese Dateien mitziehen
 

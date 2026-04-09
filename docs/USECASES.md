@@ -1,221 +1,223 @@
-# isiLive Use Cases
+# isiLive Anwendungsfaelle
 
-Version baseline: `0.9.133`
-Last updated: `2026-04-08`
+Versionsbasis: `0.9.135`
+Zuletzt aktualisiert: `2026-04-09`
 
-## Actors
+## Akteure
 
-1. Player (group leader or member).
-2. isiLive addon runtime (internal namespace: `isiLive_*`).
-3. WoW APIs and events.
+1. Spieler (Gruppenleiter oder Mitglied).
+2. isiLive-Addon-Runtime (interner Namespace: `isiLive_*`).
+3. WoW-APIs und Events.
 
-## Preconditions
+## Voraussetzungen
 
-1. Addon is loaded and not in `stopped` state.
-2. Season dataset is selected by `ACTIVE_SEASON_ID` (currently `midnight_s1` with the live 8-dungeon Midnight Season 1 portal pool).
-3. Relevant UI is visible for queue scanning and rendering; while hidden, addon-message sync and roster updates may still run in the background, UI can be auto-opened by fresh group join, key-end, real dungeon-entry transition logic, or UI reload while already grouped, and explicit refresh requests may still trigger one gated hidden sync reply (including during an active Mythic+ run — only stopped or paused state suppresses the reply).
-4. Raid-size groups are a separate hard-off state: UI is off and background processing is disabled.
-5. The optional `Esc` tooling and travel strips are enabled unless the user explicitly disables them in addon settings.
+1. Das Addon ist geladen und nicht im Zustand `stopped`.
+2. Das Season-Dataset wird ueber `ACTIVE_SEASON_ID` ausgewaehlt; aktuell `midnight_s1` mit dem live 8-Dungeon-Midnight-Season-1-Portalpool.
+3. Die relevante UI ist fuer Queue-Scanning und Rendering sichtbar; waehrend hidden duerfen Addon-Message-Sync und Roster-Updates im Hintergrund weiterlaufen, die UI darf durch frischen Gruppenjoin, Key-Ende, echten Dungeon-Entry-Transition-Flow oder UI-Reload waehrend bestehender Gruppe auto-openen, und explizite Refresh-Requests duerfen genau eine hidden Sync-Reply triggern, auch waehrend eines aktiven Mythic+-Runs; nur stopped oder paused unterdruecken diese Reply.
+4. Raid-Gruppen sind ein eigener Hard-off-Zustand: UI aus und Background-Processing aus.
+5. Die optionalen `Esc`-Tooling- und Travel-Strips sind aktiv, solange der User sie nicht explizit in den Addon-Settings deaktiviert.
 
-## Use Case Matrix
+## Usecase-Matrix
 
-| ID | Title | Primary result |
+| ID | Titel | Primaeres Ergebnis |
 |---|---|---|
-| UC-01 | Invite detection and target resolution | Correct dungeon target is resolved deterministically |
-| UC-02 | Chat hint and teleport highlight | User gets chat/info hint and sees correct portal highlight |
-| UC-03 | Enter exact target dungeon | Highlight turns off immediately on exact target entry |
-| UC-04 | Use portal cast | All portal casts receive 8h cooldown behavior |
-| UC-05 | Cooldown lifecycle | Cooldown expires naturally or resets after dungeon finish |
-| UC-06 | Share keys action | Group keys are announced in party chat via button |
-| UC-07 | RIO delta visibility | Per-run RIO delta is shown as non-negative `(+X)` prefix |
-| UC-08 | Post-run stats snapshot | Latest dungeon DPS per player is read from Blizzard damage meter and shown in roster + tooltip |
-| UC-09 | Manual Role Marker Buttons | Tank/Healer role icons are secure buttons to set raid markers |
-| UC-10 | Raid zero-process transition | Raid-size groups hide the addon UI and suppress background processing |
-| UC-11 | M+Marker World Markers | Vertical bar of 8 secure world-marker buttons for immediate place/clear |
-| UC-12 | Roster Panel Mini Mode | Collapse toggle hides roster list and `Travel`, while keeping compact Marker and management tools visible |
-| UC-13 | Esc shortcuts and addon settings | Player gets dual Blizzard-UI entry surfaces plus localized config toggles and sound preferences |
-| UC-14 | Combat utility tracker | Live BRes, lust, Mythic+ timer, and synced interrupt state stay visible in the roster panel |
+| UC-01 | Invite-Erkennung und Target-Aufloesung | Das korrekte Dungeon-Ziel wird deterministisch aufgeloest |
+| UC-02 | Chat-Hinweis und Teleport-Highlight | Der User bekommt einen Chat-/Info-Hinweis und sieht das korrekte Portal-Highlight |
+| UC-03 | Exaktes Ziel-Dungeon betreten | Das Highlight geht sofort aus, wenn das exakte Ziel betreten wird |
+| UC-04 | Portal-Cast benutzen | Alle Portal-Casts bekommen das 8h-Cooldown-Verhalten |
+| UC-05 | Cooldown-Lifecycle | Cooldown laeuft natuerlich ab oder wird nach Dungeon-Ende zurueckgesetzt |
+| UC-06 | Share-Keys-Aktion | Gruppen-Keys werden ueber einen Button im Party-Chat angekuendigt |
+| UC-07 | RIO-Delta-Sichtbarkeit | Pro-Run-RIO-Delta wird als nicht-negatives Praefix `(+X)` angezeigt |
+| UC-08 | Post-Run-Stats-Snapshot | Letzte Dungeon-DPS pro Spieler werden aus dem Blizzard-Damage-Meter gelesen und in Roster plus Tooltip gezeigt |
+| UC-09 | Manuelle Rollen-Marker-Buttons | Tank-/Heiler-Rollenicons sind Secure Buttons zum Setzen von Raid-Markern |
+| UC-10 | Raid-Zero-Process-Transition | Raid-Gruppen blenden die Addon-UI aus und unterdruecken Background-Processing |
+| UC-11 | M+Marker World Marker | Vertikaler Balken mit 8 sicheren World-Marker-Buttons fuer direktes Place/Clear |
+| UC-12 | Roster-Panel Mini Mode | Collapse-Toggle blendet Roster-Liste und `Travel` aus, waehrend kompakte Marker- und Management-Tools sichtbar bleiben |
+| UC-13 | Esc-Shortcuts und Addon-Settings | Der User bekommt zwei Blizzard-UI-Einstiegsflaechen plus lokalisierte Config-Toggles und Sound-Praferenzen |
+| UC-14 | Combat-Utility-Tracker | Live-BRes, Lust, Mythic+-Timer und gesyncter Interrupt-State bleiben im Roster-Panel sichtbar |
 
-## UC-01 Invite Detection Without Target Guessing
+## UC-01 Invite-Erkennung ohne Target-Guessing
 
-Goal: detect queue invite/join context without guessing a dungeon target.
+Ziel: Queue-Invite- und Join-Kontext erkennen, ohne ein Dungeon-Ziel zu raten.
 
-1. Trigger: LFG list and queue events arrive while main UI is visible.
-2. Inputs: pending status plus any visible group metadata from the queue payload.
-3. Processing: queue handling stores grouped-join context only; dungeon/teleport resolution from queue payload is disabled.
-4. Output: pending grouped-join context contains at most the captured group name.
-5. Success criteria: grouped queue chat can use captured group context, and no dungeon target is guessed from queue events.
+1. Trigger: LFG-List- und Queue-Events treffen ein, waehrend die Main-UI sichtbar ist.
+2. Inputs: Pending-Status plus eventuell sichtbare Gruppenmetadaten aus dem Queue-Payload.
+3. Verarbeitung: Das Queue-Handling speichert nur den Kontext fuer einen gruppierten Join; Dungeon- oder Teleport-Aufloesung aus Queue-Payloads ist deaktiviert.
+4. Output: Der Pending-Kontext fuer den gruppierten Join enthaelt hoechstens den erfassten Gruppennamen.
+5. Erfolgskriterium: Der gruppierte Queue-Chat kann den erfassten Gruppenkontext nutzen, und aus Queue-Events wird kein Dungeon-Ziel geraten.
 
-## UC-02 Grouped Queue Chat Summary
+## UC-02 Gruppierte Queue-Chat-Zusammenfassung
 
-Goal: inform the player about a grouped queue join without inventing portal or dungeon context.
+Ziel: Den User ueber einen gruppierten Queue-Join informieren, ohne Portal- oder Dungeon-Kontext zu erfinden.
 
-1. Trigger: group join is confirmed, grouped queue context exists, and player is not the local group leader.
-2. Processing: addon posts one grouped queue/join summary block in chat only; no invite hint, no queue center notice, and no queue-based teleport highlight are produced.
-3. Processing: queue joins do not update dungeon target state.
-4. User action: player can click the portal button or move manually to dungeon.
-5. Rule: follow-up negative application status updates must not fabricate or restore queue-based dungeon target context.
-6. Rule: there is no separate generic `Dungeon erkannt` chat line; persistent target context is carried by `Target Dungeon` when available from non-queue sources.
-7. Success criteria: grouped queue chat fires only for valid member joins, stays leader-suppressed, and never creates a guessed dungeon target.
+1. Trigger: Gruppenjoin ist bestaetigt, gruppierter Queue-Kontext ist vorhanden, und der Spieler ist nicht der lokale Gruppenleiter.
+2. Verarbeitung: Das Addon schreibt genau einen gruppierten Queue-/Join-Zusammenfassungsblock in den Chat; Invite-Hint, Queue-Center-Notice und queue-basiertes Teleport-Highlight werden dabei nicht erzeugt.
+3. Verarbeitung: Queue-Joins aktualisieren den Dungeon-Target-State nicht.
+4. Benutzeraktion: Der Spieler kann den Portal-Button klicken oder manuell ins Dungeon gehen.
+5. Regel: Negative Application-Status-Follow-ups duerfen queue-basierten Dungeon-Kontext weder erfinden noch wiederherstellen.
+6. Regel: Es gibt keine separate generische Chat-Zeile `Dungeon erkannt`; persistenter Target-Kontext lebt in `Target Dungeon`, wenn er aus nicht-Queue-Quellen verfuegbar ist.
+7. Erfolgskriterium: Gruppierter Queue-Chat feuert nur fuer gueltige Mitglieder-Joins, bleibt leader-suppressed und erzeugt nie ein geratenes Dungeon-Ziel.
 
-## UC-03 Enter Exact Target Dungeon
+## UC-03 Exaktes Target-Dungeon betreten
 
-Goal: remove highlight as soon as the player is in the exact dungeon target.
+Ziel: Das Highlight sofort entfernen, sobald sich der Spieler im exakten Ziel-Dungeon befindet.
 
-1. Trigger: zone/instance change events indicate current dungeon map.
-2. Processing: current map is matched against active target map.
-3. Rule: if exact target map is known and current map equals that map, highlight is turned off immediately.
-4. Rule: for shared portcasts (for example Tazavesh streets/gambit), spell-only suppression must not clear ambiguously when multiple maps are mapped.
-5. Rule: spell-only suppression is allowed only when mapping resolves to exactly one target map.
-6. Success criteria: no active highlight while already inside the exact targeted dungeon, and no premature clear on sibling shared-portcast maps.
+1. Trigger: Zone- oder Instance-Change-Events melden die aktuelle Dungeon-Map.
+2. Verarbeitung: Die aktuelle Map wird mit der aktiven Ziel-Map abgeglichen.
+3. Regel: Wenn die exakte Ziel-Map bekannt ist und die aktuelle Map identisch ist, wird das Highlight sofort ausgeschaltet.
+4. Regel: Bei Shared-Portcasts wie Tazavesh Streets/Gambit darf spell-only-Suppression nicht mehrdeutig leeren, solange mehrere Maps auf denselben Spell gemappt sind.
+5. Regel: Spell-only-Suppression ist nur erlaubt, wenn das Mapping genau eine Ziel-Map aufloest.
+6. Erfolgskriterium: Kein aktives Highlight, waehrend man bereits im exakten Ziel-Dungeon ist, und kein zu fruehes Clear auf sibling Shared-Portcast-Maps.
 
-## UC-04 Use Portal Cast
+## UC-04 Portal-Cast benutzen
 
-Goal: apply portal cooldown behavior only when the portal cast is actually used.
+Ziel: Das Portal-Cooldown-Verhalten nur dann anwenden, wenn der Portal-Cast tatsaechlich benutzt wurde.
 
-1. Trigger: player clicks portal button and cast succeeds.
-2. Processing: portal action buttons use `InsecureActionButtonTemplate` so parent frame show/hide remains combat-toggleable.
-3. Processing: cooldown state is read from WoW spell cooldown APIs.
-4. Rule: all dungeon portal casts share the same 8h cooldown window after use.
-5. Rule: visible portal slots stay in deterministic season display order even when multiple dungeons share one teleport spell.
-6. Output: teleport grid shows cooldown time and lock state consistently; in `M2`, ready buttons also show the locale-aware dungeon short code directly on the icon.
-7. Rule: while a teleport is on cooldown, the `M2` short-code overlay is hidden so the cooldown timer remains readable.
-8. Success criteria: every portal button reflects the shared cooldown without slot drift and `M2` keeps destination recognition without requiring mouseover.
+1. Trigger: Der Spieler klickt einen Portal-Button und der Cast ist erfolgreich.
+2. Verarbeitung: Portal-Action-Buttons verwenden `InsecureActionButtonTemplate`, damit Show/Hide des Parent-Frames combat-togglebar bleibt.
+3. Verarbeitung: Der Cooldown-State wird aus den WoW-Spell-Cooldown-APIs gelesen.
+4. Regel: Alle Dungeon-Portal-Casts teilen sich nach Benutzung dasselbe 8h-Cooldown-Fenster.
+5. Regel: Sichtbare Portal-Slots bleiben in deterministischer Season-Display-Reihenfolge, auch wenn mehrere Dungeons denselben Teleport-Spell nutzen.
+6. Output: Das Teleport-Grid zeigt Cooldown-Zeit und Lock-State konsistent; in `M2` zeigen ready Buttons zusaetzlich den locale-aware Dungeon-Short-Code direkt auf dem Icon.
+7. Regel: Solange ein Teleport auf Cooldown ist, wird das `M2`-Short-Code-Overlay versteckt, damit der Cooldown-Timer lesbar bleibt.
+8. Erfolgskriterium: Jeder Portal-Button spiegelt den gemeinsamen Cooldown ohne Slot-Drift wider, und `M2` behaelt die Zielerkennung ohne Mouseover.
 
-## UC-05 Cooldown Lifecycle
+## UC-05 Cooldown-Lifecycle
 
-Goal: support both normal cooldown expiry and dungeon-finish reset.
+Ziel: Sowohl natuerliches Cooldown-Ende als auch Dungeon-Finish-Reset unterstuetzen.
 
-1. Trigger A: cooldown timer naturally reaches zero.
-2. Result A: portal casts return to ready state.
-3. Trigger B: dungeon completion/reset flow emits completion signals.
-4. Result B: cooldown can be reset according to completion logic.
-5. Success criteria: cooldown state converges to ready in both supported paths.
+1. Trigger A: Der Cooldown-Timer erreicht natuerlich null.
+2. Ergebnis A: Portal-Casts kehren in den ready-Zustand zurueck.
+3. Trigger B: Dungeon-Completion- oder Reset-Flow erzeugt Completion-Signale.
+4. Ergebnis B: Der Cooldown kann entsprechend der Completion-Logik zurueckgesetzt werden.
+5. Erfolgskriterium: Der Cooldown-State konvergiert in beiden unterstuetzten Pfaden wieder zu ready.
 
-## UC-06 Share Keys Action
+## UC-06 Share-Keys-Aktion
 
-Goal: allow user to post current party keys quickly.
+Ziel: Dem User erlauben, aktuelle Party-Keys schnell zu posten.
 
-1. Trigger: user clicks `Share Keys` button in right control stack.
-2. Processing: addon posts the local player's own key line immediately, preferring the Blizzard owned-keystone hyperlink and falling back to a localized dungeon short code plus level.
-3. Processing: addon then broadcasts `SHAREKEYS` over the addon sync channel so other `isiLive` peers can post their own local key line without requiring a full `Re-Sync`.
-4. Output: one local-player key line is sent to `PARTY` immediately, with local print fallback on send failure; additional peer lines may follow from responding group members.
-5. Rule: `Share Keys` button clicks are debounced to suppress rapid duplicate chat output and show a visible `30s` cooldown in the button label while blocked.
-5a. Rule: when a client receives an incoming `SHAREKEYS` sync message, the local `Share Keys` button is also locked for `30s` via `TriggerRemoteCooldown`; an already-running local cooldown is not reset by the remote signal.
-6. Related action: the adjacent `Re-Sync` button forces the hidden-peer sync handshake and then stays on a visible `10s` cooldown.
-7. Success criteria: the initiating user always gets the local owned keystone line first, and peer responses remain distributed per sender instead of being rebuilt from cached remote roster data.
+1. Trigger: Der User klickt den Button `Share Keys` im rechten Kontrollstapel.
+2. Verarbeitung: Das Addon postet sofort die Key-Zeile des lokalen Spielers, bevorzugt mit Blizzard-Owned-Keystone-Hyperlink und als Fallback mit lokalisiertem Dungeon-Short-Code plus Level.
+3. Verarbeitung: Danach broadcastet das Addon `SHAREKEYS` ueber den Addon-Sync-Channel, damit andere `isiLive`-Peers ihre eigene lokale Key-Zeile posten koennen, ohne einen vollen `Re-Sync` zu brauchen.
+4. Output: Eine lokale Key-Zeile geht sofort an `PARTY`; bei Sendefehler gibt es einen lokalen Print-Fallback. Weitere Peer-Zeilen duerfen danach von antwortenden Gruppenmitgliedern folgen.
+5. Regel: `Share Keys`-Button-Klicks werden entprellt, um schnelle doppelte Chat-Ausgaben zu vermeiden, und der Button zeigt waehrend der Sperre sichtbar `30s` Cooldown.
+5a. Regel: Wenn ein Client eine eingehende `SHAREKEYS`-Sync-Message erhaelt, wird der lokale `Share Keys`-Button ebenfalls ueber `TriggerRemoteCooldown` fuer `30s` gesperrt; ein bereits laufender lokaler Cooldown wird nicht zurueckgesetzt.
+6. Verwandte Aktion: Der danebenliegende `Re-Sync`-Button erzwingt den Hidden-Peer-Sync-Handshake und bleibt danach sichtbar `10s` auf Cooldown.
+7. Erfolgskriterium: Der ausloesende User bekommt immer zuerst die eigene Owned-Keystone-Zeile, und Peer-Antworten bleiben senderverteilt statt aus gecachten Remote-Roster-Daten rekonstruiert zu werden.
 
-## UC-07 RIO Delta Visibility
+## UC-07 RIO-Delta-Sichtbarkeit
 
-Goal: show pre/post-run rating change per player in roster without negative display noise.
+Ziel: Rating-Aenderungen vor und nach einem Run pro Spieler im Roster zeigen, ohne negatives Anzeige-Rauschen.
 
-1. Trigger: `CHALLENGE_MODE_START` fires while roster is available.
-2. Processing: addon captures baseline RIO per normalized player identity.
-3. Trigger: `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` schedules delayed post-run refresh.
-4. Processing: delta display is enabled only after the delayed refresh path succeeds (retry if still blocked by transient challenge-state timing), including when the completion/reset event was received while main window is hidden.
-5. Trigger: roster is rendered after rating updates.
-6. Output: RIO column shows `(+X)RIO` when baseline+current values exist.
-7. Rule: delta is clamped to non-negative values (`+0` minimum); no minus rendering.
-8. Rule: test modes (`/isilive test`, `/isilive testall`) use the same full dummy preview path, including visible positive dummy delta preview and a ghost/leaver row.
-9. Success criteria: display is stable per player across unit-slot changes and never shows negative delta.
+1. Trigger: `CHALLENGE_MODE_START` feuert, waehrend ein Roster verfuegbar ist.
+2. Verarbeitung: Das Addon erfasst eine RIO-Baseline pro normalisierter Spieleridentitaet.
+3. Trigger: `CHALLENGE_MODE_COMPLETED` oder `CHALLENGE_MODE_RESET` planen einen delayed Post-Run-Refresh.
+4. Verarbeitung: Die Delta-Anzeige wird erst aktiviert, nachdem der delayed Refresh-Pfad erfolgreich war; wenn er durch transientes Challenge-State-Timing blockiert ist, wird retryt. Das gilt auch, wenn Completion oder Reset eingetroffen sind, waehrend das Main-Window hidden war. Wenn vor Ausfuehrung des delayed Callbacks Raid-Hard-off aktiv wird, wird der Refresh verschoben und erst nach Raid-Ende fortgesetzt.
+5. Trigger: Das Roster wird nach Rating-Updates gerendert.
+6. Output: Die `RIO`-Spalte zeigt `(+X)RIO`, wenn Baseline und aktueller Wert vorhanden sind.
+7. Regel: Delta wird auf nicht-negative Werte geklemmt; Minimum ist `+0`, Minus-Rendering ist verboten.
+8. Regel: Testmodi (`/isilive test`, `/isilive testall`) verwenden denselben Full-Dummy-Preview-Pfad, inklusive sichtbarem positivem Dummy-Delta und einer Ghost-/Leaver-Zeile.
+9. Erfolgskriterium: Die Anzeige bleibt pro Spieler ueber Unit-Slot-Wechsel stabil und zeigt niemals ein negatives Delta.
 
-## UC-08 Post-Run Stats Snapshot
+## UC-08 Post-Run-Stats-Snapshot
 
-Goal: expose the latest completed dungeon DPS per player from Blizzard damage meter without guessing or layout churn, while keeping persistent storage bounded.
+Ziel: Die letzte abgeschlossene Dungeon-DPS pro Spieler aus dem Blizzard-Damage-Meter ohne Guessing und ohne Layout-Churn verfuegbar machen, waehrend persistente Speicherung begrenzt bleibt.
 
-1. Trigger: `CHALLENGE_MODE_COMPLETED` / `CHALLENGE_MODE_RESET` records a completed `M+` run, and leaving a tracked non-challenge party dungeon (`Normal`/`Heroic`/`Mythic`) records a non-key run snapshot.
-2. Processing: addon reads the Blizzard `C_DamageMeter` overall run session when `combatSources` are available.
-3. Processing: if the first post-run read is still empty because Blizzard has not finalized the session yet, addon retries briefly on a short deterministic timer instead of permanently accepting an empty snapshot.
-4. Processing: non-challenge matching uses the roster snapshot frozen on dungeon entry so later group leavers still remain matchable at dungeon exit.
-5. Processing: addon matches damage-meter source names deterministically against the current roster or frozen roster snapshot and keeps only exact player matches.
-6. Storage: foreign-player stats snapshots stay runtime-only for the current session; persistent storage keeps only the matching local character's own last-run snapshot fields.
-7. Output: the roster shows a dedicated `DPS` column and hovering a roster row shows a localized `Last run DPS` line for players with currently available stored values.
-8. Output: the tooltip also shows `Level` and `Lang` without re-expanding the roster layout.
-9. UI rule: roster/button/teleport hover uses isolated `isiLive` tooltip frames with wrapped compact text layout instead of the shared Blizzard `GameTooltip`.
-10. Rule: if the Blizzard damage meter API/session is unavailable or a player has no exact source match, no stats lines are shown.
-11. Success criteria: roster and tooltip show the latest dungeon stats for matching roster players in-session, keep only the local player's own snapshot persistently, and stay empty for unresolved players instead of guessing.
+1. Trigger: `CHALLENGE_MODE_COMPLETED` oder `CHALLENGE_MODE_RESET` zeichnen einen abgeschlossenen `M+`-Run auf; das Verlassen eines verfolgten Non-Challenge-Party-Dungeons (`Normal`, `Heroic`, `Mythic`) zeichnet einen Non-Key-Run-Snapshot auf.
+2. Verarbeitung: Das Addon liest die Blizzard-`C_DamageMeter`-Overall-Run-Session, wenn `combatSources` verfuegbar sind.
+3. Verarbeitung: Wenn der erste Post-Run-Read noch leer ist, weil Blizzard die Session noch nicht finalisiert hat, wird kurz auf einem deterministischen Timer retryt, statt einen leeren Snapshot dauerhaft zu akzeptieren.
+4. Verarbeitung: Non-Challenge-Matching nutzt den auf Dungeon-Entry eingefrorenen Roster-Snapshot, damit spaetere Gruppenleaver am Dungeon-Ausgang weiterhin matchbar bleiben.
+5. Verarbeitung: Damage-Meter-Source-Namen werden deterministisch gegen das aktuelle Roster oder den eingefrorenen Roster-Snapshot gematcht; behalten werden nur exakte Spielermatches.
+6. Speicherung: Foreign-Player-Stats-Snapshots bleiben runtime-only fuer die aktuelle Session; persistent gespeichert werden nur die Last-Run-Snapshot-Felder des passenden lokalen Charakters.
+7. Output: Das Roster zeigt eine eigene `DPS`-Spalte, und beim Hover ueber eine Roster-Zeile zeigt der Tooltip eine lokalisierte Zeile `Last run DPS`, wenn fuer diesen Spieler aktuell Werte vorhanden sind.
+8. Output: Der Tooltip zeigt ausserdem `Level` und `Lang`, ohne das Roster-Layout erneut aufzuspannen.
+9. UI-Regel: Hover ueber Roster, Buttons und Teleports nutzt isolierte `isiLive`-Tooltip-Frames mit kompakter, umbrochener Textdarstellung statt des geteilten Blizzard-`GameTooltip`.
+10. Regel: Wenn Blizzard-Damage-Meter-API oder Session nicht verfuegbar sind oder fuer einen Spieler kein exakter Source-Match existiert, werden keine Stats-Zeilen gezeigt.
+11. Erfolgskriterium: Roster und Tooltip zeigen in der Session die letzten Dungeon-Stats fuer passende Roster-Spieler, behalten persistent nur den Snapshot des passenden lokalen Charakters und bleiben fuer unresolved Spieler leer statt zu raten.
 
-## UC-13 Esc Shortcuts And Addon Settings
+## UC-13 Esc-Shortcuts und Addon-Settings
 
-Goal: expose fast Blizzard-panel shortcuts and localized addon toggles without desynchronizing live CVars or SavedVariables.
+Ziel: Schnelle Blizzard-Panel-Shortcuts und lokalisierte Addon-Toggles anbieten, ohne live CVars oder SavedVariables zu desynchronisieren.
 
-1. Trigger A: player opens the WoW `Esc` game menu while `IsiLiveDB.showEscPanel ~= false`.
-2. Result A: addon shows a localized tooling strip left of `GameMenuFrame` with buttons for `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild`, and a separated `ReloadUI` button, plus a second travel strip farther left with `Arkantine`, `Hearthstone`, and `Housing`.
-3. Action: clicking a tooling-strip shortcut closes the game menu first and then opens the targeted Blizzard panel through the dedicated microbutton/direct opener path; the `ReloadUI` entry instead uses a secure macro path that clicks Blizzard `Continue` and then runs `/reload`.
-4. Combat safety: if combat lockdown blocks secure `ReloadUI` button refreshes (for example click registration or macro attribute updates), addon defers that update and retries it on `PLAYER_REGEN_ENABLED`; the mounted `Esc` strips themselves stay read-only in combat, remain visible through `GameMenuFrame`, and insecure shortcut clicks become no-ops instead of mutating overlay layout.
-5. Rule: the spellbook shortcut must use spellbook-specific openers and must not route through the talents panel.
-6. Trigger B: player opens `Settings -> AddOns -> isiLive`.
-7. Result B: Blizzard settings expose language, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Sound: Lead Transfer`, `Sound: Group Join`, `Queue Debug Log (resets on reload)`, and `Runtime Log (resets on reload)`.
-8. Rule: settings controls mirror live Blizzard CVars / SavedVariables and apply changes immediately without requiring the main addon window to be visible; changing `Background Opacity` live-updates the main frame, the optional `Esc` tooling and travel strips, and the settings canvas itself. Hidden legacy controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`) stay out of the settings UI and currently use fixed runtime defaults: `DPS` on, markers visible for all, fixed name truncation, and legacy 2-column `Travel` layout.
-9. Success criteria: both entry surfaces stay localized, deterministic, and reflect the current config/runtime state.
+1. Trigger A: Der Spieler oeffnet das WoW-`Esc`-Game-Menu, waehrend `IsiLiveDB.showEscPanel ~= false`.
+2. Ergebnis A: Das Addon zeigt links von `GameMenuFrame` einen lokalisierten Tooling-Strip mit Buttons fuer `Professions`, `Talents`, `Spells`, `Achievements`, `Quests`, `Dungeons`, `Journal`, `Collections`, `Guild` und einen abgesetzten `ReloadUI`-Button, plus einen zweiten Travel-Strip weiter links mit `Arkantine`, `Hearthstone` und `Housing`.
+3. Aktion: Ein Klick auf einen Tooling-Shortcut schliesst zuerst das Game-Menu und oeffnet dann das Zielpanel ueber den dedizierten Microbutton- oder Direct-Opener-Pfad; `ReloadUI` nutzt stattdessen einen Secure-Macro-Pfad, der Blizzard-`Continue` klickt und dann `/reload` ausfuehrt.
+4. Combat-Sicherheit: Wenn Combat-Lockdown Secure-`ReloadUI`-Button-Refreshes blockiert, zum Beispiel Click-Registration oder Macro-Attribute-Updates, verschiebt das Addon diese Aktualisierung und wiederholt sie auf `PLAYER_REGEN_ENABLED`. Die gemounteten `Esc`-Strips selbst bleiben im Combat read-only, bleiben ueber `GameMenuFrame` sichtbar und machen aus insecure Shortcut-Klicks No-Ops statt Overlay-Layout zu mutieren.
+5. Regel: Der Spellbook-Shortcut muss spellbook-spezifische Opener nutzen und darf nicht ueber das Talents-Panel routen.
+6. Trigger B: Der Spieler oeffnet `Settings -> AddOns -> isiLive`.
+7. Ergebnis B: Blizzard Settings zeigen Sprache, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Sound: Lead Transfer`, `Sound: Group Join`, `Queue Debug Log (resets on reload)` und `Runtime Log (resets on reload)`.
+8. Regel: Settings-Controls spiegeln live Blizzard-CVars und SavedVariables und wenden Aenderungen sofort an, ohne dass das Main-Addon-Fenster sichtbar sein muss; eine Aenderung von `Background Opacity` aktualisiert live den Main-Frame, die optionalen `Esc`-Tooling- und Travel-Strips und den Settings-Canvas. Hidden Legacy-Controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`) bleiben aus der Settings-UI draussen und nutzen derzeit feste Runtime-Defaults: `DPS` an, Marker fuer alle sichtbar, feste Namenstrunkierung und Legacy-`Travel`-Layout mit 2 Spalten.
+9. Erfolgskriterium: Beide Einstiegspunkte bleiben lokalisiert, deterministisch und spiegeln den aktuellen Config- und Runtime-State.
 
-## UC-14 Combat Utility Tracker
+## UC-14 Combat-Utility-Tracker
 
-Goal: show live BRes, Bloodlust/Heroism/Time Warp, active Mythic+ timer cutoffs, and synced interrupt cooldown state in the roster panel without guessing.
+Ziel: Live-BRes, Bloodlust/Heroism/Time Warp, aktive Mythic+-Timer-Cutoffs und gesyncten Interrupt-Cooldown-State im Roster-Panel zeigen, ohne zu raten.
 
-1. Trigger: the roster panel is visible and the one-second utility ticker fires, or a manual refresh / local lust spellcast / player `UNIT_AURA` update requests a tracker refresh.
-2. Processing: addon scans `C_Spell.GetSpellCharges` (struct-return: `currentCharges`, `maxCharges`, `cooldownStartTime`, `cooldownDuration`) for Battle Resurrection and iterates player `HARMFUL` auras via `C_UnitAuras.GetAuraDataByIndex("player", index, "HARMFUL")` for Bloodlust/Heroism/Time Warp exhaustion variants.
-3. Rule: only numeric aura `spellId` values may participate in the lust lookup; protected, secret, string, or otherwise non-numeric values must be ignored safely without aborting the full lust scan.
-4. Rule: `UNIT_AURA` updates with `isFullUpdate=true` after zone/world transitions or UI reloads must hydrate the active lust state without firing a new onset callback.
-5. Rule: `PLAYER_ENTERING_WORLD` may keep only a short 2-second suppress window as a safety net until the full aura-restore event arrives.
-6. Processing: while an active Mythic+ timer is running, the same one-second utility ticker must also trigger a full panel rerender so the visible `+3/+2/+1` cutoffs count down live.
-7. Output: the tracker row shows BRes charges/cooldown, the current lust icon and remaining time, plus active `+3/+2/+1` timer cutoffs and death-penalty loss, or `--` when data is unavailable.
-8. Output: roster rows additionally show synced interrupt status in the `Kick` column: `ready` (green) when available, remaining cooldown seconds (red) while on cooldown, or `-` (grey) when the spec has no interrupt or the pet interrupt is currently unavailable (e.g. Demonology Warlock without a summoned pet).
-9. Processing: interrupt state is tracked locally via `KickTracker`; pet-based interrupts (Warlock Affliction/Destruction `Spell Lock`, Demonology `Axe Toss`/`Spell Lock`) track the pet cast unit separately so the cooldown starts only when the pet actually casts, not the player.
-10. Rule: synced `hasKick = false` (no-interrupt spec) must render as `-` in the `Kick` column, not as `0s` or `ready`, and must be transmitted as `KICK:-1:0` so peers can distinguish it from a ready interrupt.
-11. Success criteria: the row and `Kick` column update deterministically, stay non-negative, and remain stable when the relevant APIs are missing, mixed-validity aura payloads are encountered, or zone/reload aura restores arrive late.
+1. Trigger: Das Roster-Panel ist sichtbar und der One-Second-Utility-Ticker feuert, oder ein manueller Refresh, ein lokaler Lust-Spellcast oder ein `UNIT_AURA`-Update des Spielers verlangt einen Tracker-Refresh, oder die UI wird erneut sichtbar, waehrend der Utility-Tracker aus dem Hidden-Modus als dirty markiert ist.
+2. Verarbeitung: Das Addon scannt `C_Spell.GetSpellCharges` mit Struct-Return (`currentCharges`, `maxCharges`, `cooldownStartTime`, `cooldownDuration`) fuer Battle Resurrection und iteriert die `HARMFUL`-Auren des Spielers ueber `C_UnitAuras.GetAuraDataByIndex("player", index, "HARMFUL")` fuer die Erschoepfungsvarianten von Bloodlust, Heroism und Time Warp.
+3. Regel: Nur numerische Aura-`spellId`-Werte duerfen am Lust-Lookup teilnehmen; geschuetzte, geheime, String- oder sonstige nicht-numerische Werte muessen sicher ignoriert werden, ohne den gesamten Lust-Scan abzubrechen.
+4. Regel: `UNIT_AURA`-Updates mit `isFullUpdate=true` nach Zone-/World-Transitions oder UI-Reloads muessen den aktiven Lust-State hydrieren, ohne einen neuen Onset-Callback auszufeuern.
+5. Regel: `PLAYER_ENTERING_WORLD` darf nur ein kurzes 2-Sekunden-Suppress-Fenster als Sicherheitsnetz bis zum Full-Aura-Restore-Event behalten.
+6. Verarbeitung: Solange ein aktiver Mythic+-Timer laeuft und das Roster-Panel sichtbar ist, muss derselbe One-Second-Utility-Ticker auch einen Vollrender des Panels ausloesen, damit die sichtbaren `+3/+2/+1`-Cutoffs live herunterzaehlen; Hidden-Modus darf diesen Utility-Poller nicht weiterlaufen lassen, und beim erneuten Oeffnen der UI darf genau ein frischer Utility-Rescan nur auf dem ersten sichtbaren Render nach Dirty-Markierung stattfinden.
+7. Output: Die Tracker-Zeile zeigt BRes-Charges/Cooldown, das aktuelle Lust-Icon samt Restzeit sowie aktive `+3/+2/+1`-Timer-Cutoffs und Death-Penalty-Loss, oder `--`, wenn Daten fehlen.
+8. Output: Roster-Zeilen zeigen zusaetzlich gesyncten Interrupt-Status in der `Kick`-Spalte: `ready` in Gruen, wenn verfuegbar, rote Restsekunden waehrend Cooldown und `-` in Grau, wenn die Spec keinen Interrupt hat oder der Pet-Interrupt aktuell nicht verfuegbar ist, zum Beispiel Demonology Warlock ohne Pet.
+9. Verarbeitung: Interrupt-State wird lokal ueber `KickTracker` verfolgt; pet-basierte Interrupts fuer Warlock Affliction/Destruction (`Spell Lock`) und Demonology (`Axe Toss`/`Spell Lock`) tracken die Pet-Cast-Unit getrennt, damit der Cooldown nur startet, wenn das Pet wirklich castet und nicht der Spieler.
+10. Regel: Gesynctes `hasKick = false` fuer No-Interrupt-Specs muss in der `Kick`-Spalte als `-` gerendert werden, nicht als `0s` oder `ready`, und als `KICK:-1:0` uebertragen werden, damit Peers es von einem ready Interrupt unterscheiden koennen.
+11. Regel: Ein lokaler Kick-Cooldown darf nur durch beobachteten Interrupt-Cast oder exakte Blizzard-Cooldown-API-Daten in den laufenden Zustand wechseln; wenn keine dieser Quellen einen aktiven Cooldown belegt, darf das Addon keinen synthetischen oder geratenen Cooldown erzeugen.
+12. Regel: Wenn Raid-Hard-off lokales Kick-Tracking unterdrueckt, darf Kick-Sync erst wieder aufgenommen werden, nachdem exakte Blizzard-Cooldown-Daten, ein neu beobachteter Post-Raid-Interrupt-Cast oder eine exakte `no kick`-Aufloesung den Zustand erneut belastbar hergestellt haben; malformed KICK-Payloads werden fail-closed verworfen, fremde Casts duerfen die Suppression nicht aufheben, und solange kein exakter Zustand vorhanden ist, bleibt der Kick-State unresolved und unsent.
+13. Erfolgskriterium: Die Zeile und die `Kick`-Spalte aktualisieren deterministisch, bleiben nicht-negativ und verhalten sich stabil, wenn relevante APIs fehlen, gemischte Aura-Payloads mit valider und invalider Datenform auftreten oder Zone-/Reload-Aura-Restores spaet eintreffen; beim erneuten Oeffnen nach Hidden-Modus muss der aktuelle Utility-Zeilenstate sofort sichtbar sein.
 
-## Non-Functional Rules
+## Nichtfunktionale Regeln
 
-1. No speculative behavior: unresolved/ambiguous map context must stay unresolved (no name/token fallback guessing).
-2. Combat-protected UI operations must be deferred safely while window dragging stays available, and teleport action buttons must not promote parent frames to protected status.
-3. Leader-only actions must stay disabled for non-leaders.
-4. Hidden mode should halt non-essential processing, suspend queue scanning and permanent polling, keep background roster/addon-message sync active, allow event-driven pre-rendered UI state updates, and only keep required auto-open transitions active; hidden leader promotions still play the transfer sound but suppress center notice/chat output, and hidden `LFG_LIST_*` suppression means missed queue capture is not replayed later as chat on group join.
-5. Blizzard CVar state remains authoritative: `isiLive` only mirrors `advancedCombatLogging` / `damageMeterResetOnNewInstance` in the Blizzard settings canvas and writes them on explicit user clicks; challenge-start Blizzard damage-meter reset still runs when API support exists.
-6. RIO delta display must be deterministic and non-negative (`(+X)` only).
-7. UI visibility toggle (`CTRL+F9`) must stay requestable in combat; if combat lockdown blocks `Show` or `Hide`, the requested state is replayed on `PLAYER_REGEN_ENABLED`. `CHALLENGE_MODE_START` auto-hides the main window only when the `Auto-Close on Key Start / Solo` option is enabled.
-8. During combat, non-essential event processing is suspended by runtime gate; essential events continue.
-9. Re-Sync and key-share UI actions must enforce click-spam guards (debounce/rate-limit behavior).
-10. Event-gate dispatch failures must be reported through error callbacks for diagnostics without terminating the gate loop.
-11. Persistent stats storage must stay bounded: no persistent foreign-player run history and no persistent `Runs together` cache.
-12. Leaving or being removed from a normal party must keep the current frame visibility state and retain former members as ghost rows until a deterministic prune path occurs; active members must still remain visible ahead of persisted ghosts.
-13. Manual marking (Tank=Blue, Healer=Green) is available via secure role-icon buttons for all group members without leader restriction in 5-man parties.
-14. Raid-group detection (> 5 members) hides the addon UI, suppresses background processing, prints no raid transition notice, and blocks switching back to M/V until party size returns.
-15. The optional `Esc` tooling and travel strips stay localized, close the game menu before opening their targets, and keep `ReloadUI` on a secure macro path (`/click GameMenuButtonContinue` + `/reload`) that mirrors `ActionButtonUseKeyDown`; blocked secure refreshes for that button replay on `PLAYER_REGEN_ENABLED`, while both strips remain pre-mounted `GameMenuFrame` children and therefore run no deferred host-frame re-show path in combat.
-16. Hidden legacy settings controls remain absent from Blizzard Settings and currently use fixed runtime defaults: `DPS` column on, markers visible for all, fixed name truncation, and legacy 2-column `Travel` layout.
-17. Ready-check lifecycle updates must use the dedicated ready-check refresh path so row-background state, waiting sandglass markers, and the 20-second declined hold reset deterministically without rewriting secure role-button attributes.
-18. Roster leader markers must mirror the true `UnitIsGroupLeader` state only; leader rows render a 16x16 crown, and if the same row also has the blue `isiLive` heart marker, the order must stay `heart -> crown`.
+1. Kein spekulatives Verhalten: unresolved oder mehrdeutiger Map-Kontext bleibt unresolved; kein Name-/Token-Fallback-Guessing.
+2. Combat-protected UI-Operationen werden sicher verschoben, waehrend Fensterverschieben moeglich bleibt; Teleport-Action-Buttons duerfen Parent-Frames nicht auf protected promoten.
+3. Leader-only-Aktionen bleiben fuer Nicht-Leader deaktiviert.
+4. Hidden-Modus soll nicht-essentielle Verarbeitung anhalten, Queue-Scanning und permanentes Polling unterdruecken, Background-Roster- und Addon-Message-Sync aktiv halten, eventgetriebene Pre-Rendered-UI-State-Updates erlauben und nur erforderliche Auto-Open-Transitions aktiv halten; das dedizierte Party-Kick-Keep-Alive bleibt hidden aktiv, hidden Leader-Promotions spielen weiterhin den Transfer-Sound, unterdruecken aber Center-Notice und Chat-Output, und hidden `LFG_LIST_*`-Suppression bedeutet, dass verpasste Queue-Capture spaeter beim Gruppenjoin nicht als Chat nachgereicht wird.
+5. Blizzard-CVar-State bleibt autoritativ: `isiLive` spiegelt `advancedCombatLogging` und `damageMeterResetOnNewInstance` nur im Blizzard-Settings-Canvas und schreibt sie nur auf explizite User-Klicks; der Blizzard-Damage-Meter-Reset auf Challenge-Start bleibt aktiv, wenn API-Support existiert.
+6. RIO-Delta-Rendering muss deterministisch und nicht-negativ bleiben; nur `(+X)`.
+7. UI-Visibility-Toggle ueber `CTRL+F9` muss auch im Combat anforderbar bleiben; wenn Combat-Lockdown `Show` oder `Hide` blockiert, wird der angeforderte Zustand auf `PLAYER_REGEN_ENABLED` wiederholt. `CHALLENGE_MODE_START` auto-hidet das Main-Window nur, wenn `Auto-Close on Key Start / Solo` aktiviert ist.
+8. Während Combat ist nicht-essentielle Event-Verarbeitung durch das Runtime-Gate suspendiert; essentielle Events laufen weiter.
+9. Re-Sync- und Key-Share-UI-Aktionen muessen Click-Spam-Guards erzwingen.
+10. Event-Gate-Dispatch-Fehler muessen ueber Error-Callbacks fuer Diagnostik gemeldet werden, ohne den Gate-Loop zu terminieren.
+11. Persistente Stats-Speicherung bleibt begrenzt: keine persistente History fremder Spieler und kein persistenter `Runs together`-Cache.
+12. Das Verlassen oder Entferntwerden aus einer normalen Party muss den aktuellen Frame-Visibility-State behalten und ehemalige Mitglieder als Ghost-Zeilen halten, bis ein deterministischer Prune-Pfad eintritt; aktive Mitglieder muessen dabei weiterhin vor persistierten Ghosts sichtbar bleiben.
+13. Manuelles Markieren, Tank blau und Heiler gruen, ist ueber sichere Rollenicon-Buttons fuer alle Gruppenmitglieder in 5er-Gruppen ohne Leader-Beschraenkung verfuegbar.
+14. Raid-Gruppenerkennung bei mehr als 5 Mitgliedern blendet die Addon-UI aus, unterdrueckt Background-Processing einschliesslich hidden Kick-Keep-Alive und delayed Post-Run-Refresh-Ausfuehrung, gibt keine Raid-Transition-Notice aus und blockiert das Zurueckschalten auf M/V, bis die Gruppengroesse wieder Party ist.
+15. Die optionalen `Esc`-Tooling- und Travel-Strips bleiben lokalisiert, schliessen das Game-Menu vor dem Oeffnen ihrer Ziele und halten `ReloadUI` auf einem Secure-Macro-Pfad (`/click GameMenuButtonContinue` + `/reload`), der `ActionButtonUseKeyDown` spiegelt; blockierte Secure-Refreshes fuer diesen Button werden auf `PLAYER_REGEN_ENABLED` wiederholt, waehrend beide Strips als vorab gemountete `GameMenuFrame`-Kinder keinen deferred Host-Frame-Re-Show-Pfad im Combat ausfuehren.
+16. Hidden Legacy-Settings-Controls bleiben aus den Blizzard Settings entfernt und nutzen aktuell feste Runtime-Defaults: `DPS`-Spalte an, Marker fuer alle sichtbar, feste Namenstrunkierung und Legacy-`Travel`-Grid mit 2 Spalten.
+17. Ready-Check-Lifecycle-Updates muessen den dedizierten Ready-Check-Refresh-Pfad nutzen, damit Row-Background-State, Waiting-Sandglass-Marker und der 20-Sekunden-Declined-Hold deterministisch zurueckgesetzt werden, ohne Secure-Role-Button-Attribute neu zu schreiben.
+18. Roster-Leader-Marker muessen den echten `UnitIsGroupLeader`-State spiegeln; Leader-Zeilen bekommen eine 16x16-Krone, und wenn dieselbe Zeile auch den blauen `isiLive`-Heart-Marker hat, bleibt die Reihenfolge `heart -> crown`.
 
-Runtime behavior in this document is validated by `tools/validate_usecases.lua`.
-Active rule contracts in `RULES_LOGIC.md` are validated by `tools/validate_rules_logic.lua` and also enforced during `tools/validate_usecases.lua`.
-Current validator baseline: `483` scenarios across `36` modules.
+Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
+Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
+Aktuelle Validator-Baseline: `510` Szenarien ueber `37` Module.
 
-1. UC-01/UC-02: strict queue target resolution and queue highlight behavior without speculative fallback.
-2. UC-03: exact-map suppression and shared-portcast ambiguity handling.
-3. UC-04/UC-05: cooldown recognition/format behavior and state handling.
-4. Event consistency: target clear behavior under API shape variants, grouped negative-application follow-up events, and protected API errors.
-5. UC-07: challenge-start baseline capture and roster `(+X)RIO` rendering rules (including non-negative clamp).
-6. UC-08: post-run stats snapshot capture for `M+` and tracked non-challenge party exits, bounded persistence, and tooltip/roster rendering.
-7. UC-09: Manual Role Marker secure button configuration.
-8. UC-10: raid-size zero-process behavior, hidden UI suppression, and no raid-notice output.
-9. UC-11/UC-12: Secure world-marker button configuration for M+Marker and compact-layout visibility logic for M/V/H mode switching.
-10. Taint hardening: deferred secure attribute writes, deferred `Esc` shortcut secure-button refreshes, insecure teleport-grid actions, and combat-safe collapse handling.
-11. UC-13/UC-14: game-menu tooling/travel strips, localization, close-then-open behavior, deferred secure reload-button refresh, direct opener fallback selection, settings-canvas state mirroring/background-opacity behavior, live BRes/Bloodlust/M+ timer rendering, and synced interrupt cooldown display.
+1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
+2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
+3. UC-04 und UC-05: Cooldown-Erkennung, Formatverhalten und State-Behandlung.
+4. Event-Konsistenz: Target-Clear-Verhalten unter API-Shape-Varianten, gruppierte negative Application-Follow-ups und geschuetzte API-Fehler.
+5. UC-07: Challenge-Start-Baseline-Capture und `(+X)RIO`-Rendering im Roster inklusive non-negativer Clamp.
+6. UC-08: Post-Run-Stats-Snapshot-Capture fuer `M+` und verfolgte Non-Challenge-Party-Exits, begrenzte Persistenz sowie Tooltip- und Roster-Rendering.
+7. UC-09: Secure-Button-Konfiguration der manuellen Role-Marker.
+8. UC-10: Raid-Size-Zero-Process-Verhalten, hidden UI-Suppression und kein Raid-Notice-Output.
+9. UC-11 und UC-12: Secure-World-Marker-Button-Konfiguration fuer M+Marker und Compact-Layout-Visibility-Logik fuer M/V/H.
+10. Taint-Hardening: verschobene Secure-Attribute-Writes, verschobene `Esc`-Shortcut-Secure-Button-Refreshes, insecure Teleport-Grid-Aktionen und combat-sicheres Collapse-Handling.
+11. UC-13 und UC-14: Game-Menu-Tooling-/Travel-Strips, Lokalisierung, Close-then-Open-Verhalten, verschobener Secure-Reload-Button-Refresh, Direct-Opener-Fallback-Auswahl, Settings-Canvas-State-Mirroring, Background-Opacity-Verhalten, Live-BRes-/Bloodlust-/M+-Timer-Rendering und gesyncte Interrupt-Cooldown-Anzeige.
 
-## Traceability To Source Files
+## Rueckverfolgbarkeit zu Quelldateien
 
-| Concern | Files |
+| Thema | Dateien |
 |---|---|
-| Queue detection and target capture | `isiLive_queue.lua`, `isiLive_event_handlers_queue.lua` |
-| Highlight resolution and inside-dungeon suppression | `isiLive_highlight.lua` |
-| Teleport spell mapping and cooldown behavior | `isiLive_teleport.lua`, `isiLive_spell_utils.lua`, `isiLive_teleport_ui.lua` |
-| Group lifecycle, leader-state mirroring, and roster rebuild | `isiLive_group.lua`, `isiLive_roster.lua` |
-| RIO baseline capture and delta preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
-| Last-run DPS capture and bounded stats persistence | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
-| Combat utility tracker row and kick state | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_controllers.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
-| Leader transfer detection and feedback | `isiLive_leader_watch.lua` |
-| UI actions, role buttons, key sharing button | `isiLive_roster_panel.lua` |
-| Esc tooling/travel strips and Blizzard settings canvas | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_factory.lua`, `isiLive_texts.lua`, `isiLive_ui_common.lua` |
-| Auto-Marker logic (removed/replaced) | `isiLive_group.lua` (cleaned up) |
-| Raid-size H-mode UI | `isiLive_roster_panel.lua`, `isiLive_group.lua` |
-| Event routing and gating | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua` |
+| Queue-Erkennung und Target-Capture | `isiLive_queue.lua`, `isiLive_event_handlers_queue.lua` |
+| Highlight-Aufloesung und Inside-Dungeon-Suppression | `isiLive_highlight.lua` |
+| Teleport-Spell-Mapping und Cooldown-Verhalten | `isiLive_teleport.lua`, `isiLive_spell_utils.lua`, `isiLive_teleport_ui.lua` |
+| Gruppen-Lifecycle, Leader-State-Mirroring und Roster-Rebuild | `isiLive_group.lua`, `isiLive_roster.lua` |
+| RIO-Baseline-Capture und Delta-Preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
+| Last-Run-DPS-Capture und begrenzte Stats-Persistenz | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
+| Combat-Utility-Tracker-Zeile und Kick-State | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_controllers.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
+| Leader-Transfer-Erkennung und Feedback | `isiLive_leader_watch.lua` |
+| UI-Aktionen, Rollen-Buttons, Key-Share-Button | `isiLive_roster_panel.lua` |
+| Esc-Tooling-/Travel-Strips und Blizzard-Settings-Canvas | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_factory.lua`, `isiLive_texts.lua`, `isiLive_ui_common.lua` |
+| Auto-Marker-Logik, entfernt oder ersetzt | `isiLive_group.lua` nach Bereinigung |
+| Raid-Size-H-Mode-UI | `isiLive_roster_panel.lua`, `isiLive_group.lua` |
+| Event-Routing und Gate | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua` |

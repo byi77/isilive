@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local RuntimeLifecycle = {}
 addonTable.EventHandlersRuntimeLifecycle = RuntimeLifecycle
+local ChallengeLifecycle = addonTable.EventHandlersChallengeLifecycle
 
 local function GetDB()
   return rawget(_G, "IsiLiveDB")
@@ -276,13 +277,19 @@ local function ApplyCombatFade(ctx, targetAlpha)
 end
 
 function RuntimeLifecycle.BuildHandlers(ctx)
-  local function HandleGroupRosterUpdateEvent(_self)
+  local function HandleGroupRosterUpdateEvent(frame)
     if ctx.isInGroup() and (ctx.isTestMode() or ctx.isTestAllMode()) then
       ctx.exitTestMode()
       return
     end
 
     ctx.handleGroupRosterUpdate()
+    if
+      type(ChallengeLifecycle) == "table"
+      and type(ChallengeLifecycle.ResumeDeferredPostChallengeRefresh) == "function"
+    then
+      ChallengeLifecycle.ResumeDeferredPostChallengeRefresh(ctx, frame)
+    end
     CaptureTrackedMythicZeroRosterSnapshotIfPending(ctx)
   end
 

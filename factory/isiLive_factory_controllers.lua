@@ -628,11 +628,6 @@ local function InitializeFactoryPrimaryControllers(ctx)
     end
     return ctx.rosterPanelController.IsCollapsed()
   end
-  ctx.SwitchToRaidMode = function()
-    if ctx.rosterPanelController then
-      ctx.rosterPanelController.SwitchToRaidMode()
-    end
-  end
   ctx.RestoreLayoutState = function()
     ctx.rosterPanelController.RestoreSavedState()
   end
@@ -927,10 +922,7 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
 end
 FI.InitializeFactoryRefreshAndStatusControllers = InitializeFactoryRefreshAndStatusControllers
 
-local function InitializeFactorySecondaryControllers(ctx)
-  local modules = ctx.modules
-  local runtimeState = ctx.runtimeState
-
+local function RegisterBlizzardUnitLanguageTooltip(ctx, modules)
   ctx.GetUnitServerLanguage = function(unit, realm)
     return modules.contextHelpers.GetUnitServerLanguage(modules.locale, ctx.GetRealmInfoLib, unit, realm)
   end
@@ -944,7 +936,9 @@ local function InitializeFactorySecondaryControllers(ctx)
       getLanguageTooltipMarkup = ctx.GetLanguageTooltipMarkup,
     })
   end
+end
 
+local function InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runtimeState)
   ctx.testModeController = modules.testMode.CreateController(modules.configBuilders.BuildTestModeControllerOpts({
     getL = ctx.GetL,
     printFn = ctx.Print,
@@ -1030,7 +1024,9 @@ local function InitializeFactorySecondaryControllers(ctx)
     onToggleTestMode = ctx.ToggleStandardTestMode,
   })
   ctx.ApplyHotkeyBindings()
+end
 
+local function InitializeFactorySecondaryRuntimeMethods(ctx, modules)
   ctx.SetLanguage = function(tag)
     local resolved = modules.locale.ResolveLocaleTag(tag)
     ctx.L = ctx.locales[resolved] or ctx.locales.enUS
@@ -1085,150 +1081,336 @@ local function InitializeFactorySecondaryControllers(ctx)
       return
     end
   end
+end
 
-  if modules.cdTracker and type(modules.cdTracker.CreateController) == "function" then
-    ctx.cdTrackerController = modules.cdTracker.CreateController({
-      getTime = GetTime,
-    })
-    ctx.UpdateCdTracker = function()
-      ctx.cdTrackerController.Scan()
-      if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
-        ctx.rosterPanelController.RefreshCdTracker()
-      end
-      if
-        runtimeState
-        and type(runtimeState.IsReadyCheckActive) == "function"
-        and type(runtimeState.HasReadyCheckHold) == "function"
-        and (runtimeState.IsReadyCheckActive() or runtimeState.HasReadyCheckHold())
-        and ctx.rosterPanelController
-        and type(ctx.rosterPanelController.RefreshReadyCheckState) == "function"
-      then
-        ctx.rosterPanelController.RefreshReadyCheckState(ctx.GetRoster())
-      end
-      -- Also refresh full UI if M+ key is running so the timer counts down.
-      local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
-      if type(MplusTimer) == "table" and type(MplusTimer.GetTimerData) == "function" then
-        local timerData = MplusTimer.GetTimerData()
-        if timerData and timerData.running then
-          if ctx.UpdateUI then
-            ctx.UpdateUI()
-          end
-        end
-      end
-    end
-    if ctx.rosterPanelController and type(ctx.rosterPanelController.SetCdController) == "function" then
-      ctx.rosterPanelController.SetCdController(ctx.cdTrackerController)
-    end
-    -- Ticker: scan + UI refresh every second for countdown timers (BL remaining time).
-    local C_Timer_ref = rawget(_G, "C_Timer")
-    if type(C_Timer_ref) == "table" and type(C_Timer_ref.NewTicker) == "function" then
-      C_Timer_ref.NewTicker(1.0, function()
-        ctx.UpdateCdTracker()
-      end)
-    end
+local function InitializeFactorySecondaryCdTracker(
+  ctx,
+  modules,
+  runtimeState,
+  getTime,
+  IsMainFrameShown,
+  IsRaidModeActive
+)
+  if not (modules.cdTracker and type(modules.cdTracker.CreateController) == "function") then
+    return
   end
 
-  local kickTrackerModule = ctx.addonTable and ctx.addonTable.KickTracker
-  if kickTrackerModule and type(kickTrackerModule.CreateController) == "function" then
-    local KICK_HEARTBEAT_INTERVAL = 15
-    local kickReadyBroadcastUntil = 0
-    local kickHeartbeatAt = 0
-    local function SyncOwnKickState(force)
-      if not ctx.kickTrackerController then
-        return
-      end
-      local info = ctx.kickTrackerController.GetKickInfo()
-      if type(info) ~= "table" then
-        return
-      end
-      local hasKick = info.hasKick
-      if modules.sync and type(modules.sync.SetPlayerKickInfo) == "function" then
-        local selfName = UnitName and UnitName("player") or nil
-        local selfRealm = GetRealmName and GetRealmName() or nil
-        if selfName and selfName ~= "" then
-          modules.sync.SetPlayerKickInfo(selfName, selfRealm, info.onCooldown, info.cooldownRemain, nil, hasKick)
+  ctx.cdTrackerController = modules.cdTracker.CreateController({
+    getTime = getTime,
+  })
+  ctx.UpdateCdTracker = function()
+    if IsRaidModeActive() then
+      return
+    end
+    ctx.cdTrackerController.Scan()
+    if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
+      ctx.rosterPanelController.RefreshCdTracker()
+    end
+    if
+      runtimeState
+      and type(runtimeState.IsReadyCheckActive) == "function"
+      and type(runtimeState.HasReadyCheckHold) == "function"
+      and (runtimeState.IsReadyCheckActive() or runtimeState.HasReadyCheckHold())
+      and ctx.rosterPanelController
+      and type(ctx.rosterPanelController.RefreshReadyCheckState) == "function"
+    then
+      ctx.rosterPanelController.RefreshReadyCheckState(ctx.GetRoster())
+    end
+    -- Also refresh full UI if M+ key is running so the timer counts down.
+    local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
+    if type(MplusTimer) == "table" and type(MplusTimer.GetTimerData) == "function" then
+      local timerData = MplusTimer.GetTimerData()
+      if timerData and timerData.running then
+        if ctx.UpdateUI then
+          ctx.UpdateUI()
         end
-      end
-      local now = GetTime()
-      local heartbeatDue = now >= kickHeartbeatAt
-      if heartbeatDue then
-        kickHeartbeatAt = now + KICK_HEARTBEAT_INTERVAL
-      end
-      if
-        modules.sync
-        and type(modules.sync.SendKick) == "function"
-        and (force == true or info.onCooldown or now < kickReadyBroadcastUntil or heartbeatDue)
-      then
-        modules.sync.SendKick({
-          hasKick = hasKick,
-          onCooldown = info.onCooldown,
-          cooldownRemain = info.cooldownRemain,
-          force = force == true or heartbeatDue,
-        })
       end
     end
-    ctx.kickTrackerController = kickTrackerModule.CreateController({
-      getTime = GetTime,
-      onCooldownChanged = function(onCooldown, _cooldownRemain)
-        -- When transitioning to ready, keep broadcasting for 3s to ensure delivery.
-        if not onCooldown then
-          kickReadyBroadcastUntil = GetTime() + 3
-        end
-        SyncOwnKickState(true)
-        if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKickColumn) == "function" then
-          ctx.rosterPanelController.RefreshKickColumn()
-        end
-      end,
-    })
-    -- Event frame: UNIT_SPELLCAST_SUCCEEDED for player/pet is untainted.
-    local castFrame = CreateFrame("Frame")
-    castFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player", "pet")
-    castFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
-    castFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-    castFrame:RegisterEvent("SPELLS_CHANGED")
-    castFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
-    castFrame:RegisterUnitEvent("UNIT_PET", "player")
-    castFrame:SetScript("OnEvent", function(_, event, unit, _, spellID)
-      if event == "UNIT_SPELLCAST_SUCCEEDED" then
-        if ctx.kickTrackerController then
-          ctx.kickTrackerController.OnCast(unit, spellID)
-        end
-      elseif event == "SPELL_UPDATE_COOLDOWN" or event == "PLAYER_REGEN_ENABLED" then
-        -- Cache real CD outside of combat (talent reductions).
-        if ctx.kickTrackerController then
-          ctx.kickTrackerController.CacheCooldown()
-        end
-      elseif event == "SPELLS_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "UNIT_PET" then
-        if ctx.kickTrackerController then
-          local previousInfo = ctx.kickTrackerController.GetKickInfo()
-          local previousSpellID = type(previousInfo) == "table" and previousInfo.spellID or nil
-          local nextSpellID = ctx.kickTrackerController.ResolveSpellID()
-          if previousSpellID ~= nextSpellID then
-            kickReadyBroadcastUntil = GetTime() + 3
-            SyncOwnKickState(true)
-            if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKickColumn) == "function" then
-              ctx.rosterPanelController.RefreshKickColumn()
-            end
-          end
-        end
+  end
+  if ctx.rosterPanelController and type(ctx.rosterPanelController.SetCdController) == "function" then
+    ctx.rosterPanelController.SetCdController(ctx.cdTrackerController)
+  end
+  -- Ticker: scan + UI refresh every second for countdown timers (BL remaining time).
+  local C_Timer_ref = rawget(_G, "C_Timer")
+  if type(C_Timer_ref) == "table" and type(C_Timer_ref.NewTicker) == "function" then
+    C_Timer_ref.NewTicker(1.0, function()
+      if not IsMainFrameShown() then
+        return
       end
+      ctx.UpdateCdTracker()
     end)
+  end
+end
 
-    -- Ticker: scan own kick state + refresh kick column every 0.5s.
-    local C_Timer_ref = rawget(_G, "C_Timer")
-    if type(C_Timer_ref) == "table" and type(C_Timer_ref.NewTicker) == "function" then
-      C_Timer_ref.NewTicker(0.5, function()
-        if ctx.kickTrackerController then
-          ctx.kickTrackerController.Scan()
-          SyncOwnKickState(false)
-        end
-        -- Refresh only the kick column in the roster (lightweight, no full re-render).
-        if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKickColumn) == "function" then
-          ctx.rosterPanelController.RefreshKickColumn()
-        end
-      end)
+local function InitializeFactorySecondaryKickTracker(
+  ctx,
+  modules,
+  getTime,
+  getUnitName,
+  getRealmName,
+  IsMainFrameShown,
+  IsRaidModeActive
+)
+  local kickTrackerModule = ctx.addonTable and ctx.addonTable.KickTracker
+  if not (kickTrackerModule and type(kickTrackerModule.CreateController) == "function") then
+    return
+  end
+
+  local KICK_HEARTBEAT_INTERVAL = 15
+  local kickReadyBroadcastUntil = 0
+  local kickHeartbeatAt = 0
+  local kickTrackerSuppressedByRaid = false
+  local kickTrackerRecoveryInProgress = false
+
+  local function ClearOwnKickSyncCache()
+    if not (modules.sync and type(modules.sync.ClearPlayerKickInfo) == "function") then
+      return false
+    end
+    local selfName = getUnitName and getUnitName("player") or nil
+    local selfRealm = getRealmName and getRealmName() or nil
+    if not selfName or selfName == "" then
+      return false
+    end
+    return modules.sync.ClearPlayerKickInfo(selfName, selfRealm)
+  end
+
+  local function EnterRaidKickSuppression()
+    kickTrackerSuppressedByRaid = true
+    ClearOwnKickSyncCache()
+  end
+
+  local function RefreshKickColumnIfVisible()
+    if
+      IsMainFrameShown()
+      and ctx.rosterPanelController
+      and type(ctx.rosterPanelController.RefreshKickColumn) == "function"
+    then
+      ctx.rosterPanelController.RefreshKickColumn()
     end
   end
+
+  local function SyncOwnKickState(force)
+    if IsRaidModeActive() then
+      EnterRaidKickSuppression()
+      return false
+    end
+    if kickTrackerSuppressedByRaid then
+      return false
+    end
+    if not ctx.kickTrackerController then
+      return false
+    end
+    local info = ctx.kickTrackerController.GetKickInfo()
+    if type(info) ~= "table" or info.availabilityResolved ~= true then
+      ClearOwnKickSyncCache()
+      return false
+    end
+    local hasKick = info.hasKick
+    if modules.sync and type(modules.sync.SetPlayerKickInfo) == "function" then
+      local selfName = getUnitName and getUnitName("player") or nil
+      local selfRealm = getRealmName and getRealmName() or nil
+      if selfName and selfName ~= "" then
+        modules.sync.SetPlayerKickInfo(selfName, selfRealm, info.onCooldown, info.cooldownRemain, nil, hasKick)
+      end
+    end
+    local now = getTime()
+    local heartbeatDue = now >= kickHeartbeatAt
+    if heartbeatDue then
+      kickHeartbeatAt = now + KICK_HEARTBEAT_INTERVAL
+    end
+    if
+      modules.sync
+      and type(modules.sync.SendKick) == "function"
+      and (force == true or info.onCooldown or now < kickReadyBroadcastUntil or heartbeatDue)
+    then
+      modules.sync.SendKick({
+        hasKick = hasKick,
+        onCooldown = info.onCooldown,
+        cooldownRemain = info.cooldownRemain,
+        force = force == true or heartbeatDue,
+      })
+    end
+    return true
+  end
+
+  local function RecoverKickTrackerAfterRaid()
+    if not kickTrackerSuppressedByRaid or not ctx.kickTrackerController then
+      return false
+    end
+    kickTrackerRecoveryInProgress = true
+    local resolvedState = ctx.kickTrackerController.ResolveKickState()
+    kickTrackerRecoveryInProgress = false
+    if type(resolvedState) ~= "table" or resolvedState.availabilityResolved ~= true then
+      ClearOwnKickSyncCache()
+      RefreshKickColumnIfVisible()
+      return false
+    end
+    if resolvedState.hasKick ~= true then
+      kickTrackerSuppressedByRaid = false
+      SyncOwnKickState(true)
+      RefreshKickColumnIfVisible()
+      return true
+    end
+    if resolvedState.exactCooldownKnown ~= true then
+      ClearOwnKickSyncCache()
+      RefreshKickColumnIfVisible()
+      return false
+    end
+    kickTrackerSuppressedByRaid = false
+    SyncOwnKickState(true)
+    RefreshKickColumnIfVisible()
+    return true
+  end
+
+  ctx.kickTrackerController = kickTrackerModule.CreateController({
+    getTime = getTime,
+    onCooldownChanged = function(onCooldown, _cooldownRemain)
+      if IsRaidModeActive() then
+        EnterRaidKickSuppression()
+        return
+      end
+      if kickTrackerRecoveryInProgress or kickTrackerSuppressedByRaid then
+        return
+      end
+      -- When transitioning to ready, keep broadcasting for 3s to ensure delivery.
+      if not onCooldown then
+        kickReadyBroadcastUntil = getTime() + 3
+      end
+      SyncOwnKickState(true)
+      RefreshKickColumnIfVisible()
+    end,
+  })
+  ctx.SendOwnKickState = function(force)
+    if IsRaidModeActive() then
+      EnterRaidKickSuppression()
+      return false
+    end
+    if not ctx.kickTrackerController then
+      return false
+    end
+    if kickTrackerSuppressedByRaid then
+      return RecoverKickTrackerAfterRaid()
+    end
+
+    return SyncOwnKickState(force ~= false)
+  end
+
+  -- Event frame: UNIT_SPELLCAST_SUCCEEDED for player/pet is untainted.
+  local castFrame = CreateFrame("Frame")
+  castFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player", "pet")
+  castFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+  castFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+  castFrame:RegisterEvent("SPELLS_CHANGED")
+  castFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+  castFrame:RegisterUnitEvent("UNIT_PET", "player")
+  castFrame:SetScript("OnEvent", function(_, event, unit, _, spellID)
+    if IsRaidModeActive() then
+      EnterRaidKickSuppression()
+      return
+    end
+
+    if event == "UNIT_SPELLCAST_SUCCEEDED" then
+      if ctx.kickTrackerController then
+        local observedKick = ctx.kickTrackerController.OnCast(unit, spellID) == true
+        if kickTrackerSuppressedByRaid then
+          if observedKick then
+            kickTrackerSuppressedByRaid = false
+            SyncOwnKickState(true)
+            RefreshKickColumnIfVisible()
+          end
+          return
+        end
+      end
+      return
+    end
+
+    local recoveredFromRaid = RecoverKickTrackerAfterRaid()
+    if kickTrackerSuppressedByRaid or recoveredFromRaid then
+      return
+    end
+
+    if event == "SPELL_UPDATE_COOLDOWN" or event == "PLAYER_REGEN_ENABLED" then
+      -- Cache real CD outside of combat (talent reductions).
+      if ctx.kickTrackerController then
+        ctx.kickTrackerController.CacheCooldown()
+      end
+    elseif event == "SPELLS_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "UNIT_PET" then
+      if ctx.kickTrackerController then
+        local previousInfo = ctx.kickTrackerController.GetKickInfo()
+        local resolvedState = ctx.kickTrackerController.ResolveKickState()
+        local previousSpellID = type(previousInfo) == "table" and previousInfo.spellID or nil
+        local previousAvailabilityResolved = type(previousInfo) == "table" and previousInfo.availabilityResolved == true
+        local previousHasKick = type(previousInfo) == "table" and previousInfo.hasKick == true
+        local nextSpellID = type(resolvedState) == "table" and resolvedState.spellID or nil
+        if type(resolvedState) ~= "table" or resolvedState.availabilityResolved ~= true then
+          ClearOwnKickSyncCache()
+          RefreshKickColumnIfVisible()
+          return
+        end
+        if
+          previousAvailabilityResolved ~= true
+          or previousHasKick ~= (resolvedState.hasKick == true)
+          or previousSpellID ~= nextSpellID
+        then
+          kickReadyBroadcastUntil = getTime() + 3
+          SyncOwnKickState(true)
+          RefreshKickColumnIfVisible()
+        end
+      end
+    end
+  end)
+
+  -- Ticker: scan own kick state + refresh kick column every 0.5s.
+  local C_Timer_ref = rawget(_G, "C_Timer")
+  if type(C_Timer_ref) == "table" and type(C_Timer_ref.NewTicker) == "function" then
+    C_Timer_ref.NewTicker(0.5, function()
+      if IsRaidModeActive() then
+        EnterRaidKickSuppression()
+        return
+      end
+
+      local recoveredFromRaid = RecoverKickTrackerAfterRaid()
+      if kickTrackerSuppressedByRaid or recoveredFromRaid then
+        return
+      end
+      if ctx.kickTrackerController then
+        ctx.kickTrackerController.Scan()
+        SyncOwnKickState(false)
+      end
+      -- Hidden mode keeps kick sync alive for peers but avoids polling-driven UI updates.
+      RefreshKickColumnIfVisible()
+    end)
+  end
+end
+
+local function InitializeFactorySecondaryControllers(ctx)
+  local modules = ctx.modules
+  local runtimeState = ctx.runtimeState
+  local getTime = GetTime
+  local getUnitName = UnitName
+  local getRealmName = GetRealmName
+
+  local function IsMainFrameShown()
+    return ctx.mainFrame and type(ctx.mainFrame.IsShown) == "function" and ctx.mainFrame:IsShown() == true
+  end
+
+  local function IsRaidModeActive()
+    return type(ctx.IsRaidGroup) == "function" and ctx.IsRaidGroup() == true
+  end
+
+  RegisterBlizzardUnitLanguageTooltip(ctx, modules)
+  InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runtimeState)
+  InitializeFactorySecondaryRuntimeMethods(ctx, modules)
+  InitializeFactorySecondaryCdTracker(ctx, modules, runtimeState, getTime, IsMainFrameShown, IsRaidModeActive)
+  InitializeFactorySecondaryKickTracker(
+    ctx,
+    modules,
+    getTime,
+    getUnitName,
+    getRealmName,
+    IsMainFrameShown,
+    IsRaidModeActive
+  )
 end
 FI.InitializeFactorySecondaryControllers = InitializeFactorySecondaryControllers
 

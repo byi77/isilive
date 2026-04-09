@@ -1815,6 +1815,64 @@ local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAd
   end)
 end
 
+local function RegisterChallengeRaidResumeTests(test, Assert, LoadAddonModules, Fixtures)
+  test("Event handlers defer post-run refresh while raid mode is active and resume after raid exit", function()
+    local delayedCallback = nil
+    local raidActive = false
+    local refreshCalls = 0
+    local enableCalls = 0
+    local rosterUpdates = 0
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      timerAfter = function(seconds, callback)
+        if seconds == 5 then
+          delayedCallback = callback
+        end
+      end,
+      isRaidGroup = function()
+        return raidActive
+      end,
+      handleGroupRosterUpdate = function()
+        rosterUpdates = rosterUpdates + 1
+      end,
+      runFullRefresh = function()
+        refreshCalls = refreshCalls + 1
+        return true
+      end,
+      enableRioDeltaDisplay = function()
+        enableCalls = enableCalls + 1
+      end,
+    })
+
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+
+    Assert.NotNil(delayedCallback, "challenge completion must still schedule a delayed post-run refresh")
+    if type(delayedCallback) ~= "function" then
+      return
+    end
+
+    raidActive = true
+    delayedCallback()
+
+    Assert.Equal(refreshCalls, 0, "delayed post-run refresh must not run while raid mode is active")
+    Assert.Equal(enableCalls, 0, "RIO delta must stay disabled while the delayed refresh is deferred in raid")
+
+    controller:Dispatch("GROUP_ROSTER_UPDATE")
+
+    Assert.Equal(rosterUpdates, 1, "raid mode must still route roster updates while refresh is deferred")
+    Assert.Equal(refreshCalls, 0, "raid roster updates must not resume the deferred post-run refresh yet")
+    Assert.Equal(enableCalls, 0, "raid roster updates must not enable RIO delta yet")
+
+    raidActive = false
+    controller:Dispatch("GROUP_ROSTER_UPDATE")
+
+    Assert.Equal(rosterUpdates, 2, "raid exit detection must still flow through GROUP_ROSTER_UPDATE")
+    Assert.Equal(refreshCalls, 1, "first roster update after raid exit must resume the deferred post-run refresh")
+    Assert.Equal(enableCalls, 1, "RIO delta must enable after the resumed post-run refresh succeeds")
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -1827,6 +1885,7 @@ return function(test, ctx)
   RegisterCombatStartupTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   RegisterChallengeStartAndDelayTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   RegisterChallengeRetryTests(test, Assert, LoadAddonModules, Fixtures)
+  RegisterChallengeRaidResumeTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fixtures)
   RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
 end

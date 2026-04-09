@@ -41,7 +41,6 @@ local function BuildDeps(opts)
     captureQueueJoinCandidate = opts.captureQueueJoinCandidate or emptyfn,
     announceQueuedGroupJoin = opts.announceQueuedGroupJoin or emptyfn,
     setMainFrameVisible = opts.setMainFrameVisible or emptyfn,
-    switchToRaidMode = opts.switchToRaidMode or emptyfn,
     updateLeaderButtons = opts.updateLeaderButtons or emptyfn,
     clearLatestQueueTarget = opts.clearLatestQueueTarget or emptyfn,
     clearRioBaselineSnapshot = opts.clearRioBaselineSnapshot or emptyfn,
@@ -367,6 +366,9 @@ local function HandleGroupRosterUpdate(deps)
   end
 
   deps.setWasRaidGroup(false)
+  if wasRaidGroupBefore then
+    deps.clearKnownUsers()
+  end
   if joinedNow then
     deps.setRoster({})
     deps.setMainFrameVisible(true, {

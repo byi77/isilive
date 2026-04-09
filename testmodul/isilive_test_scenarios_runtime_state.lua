@@ -47,6 +47,58 @@ local function RegisterRuntimeStateTests(test, Assert, LoadAddonModules)
     Assert.Equal(state.GetActiveJoinedKeyMapID(), 2441, "keepActiveJoinedKey must preserve joined key map id")
   end)
 
+  test("RuntimeState stores deferred post-challenge refresh state via dedicated API", function()
+    local addon = LoadAddonModules({ "isiLive_runtime_state.lua" })
+    local state = addon.RuntimeState.CreateController()
+
+    state.SetPendingPostChallengeRefresh({
+      frame = "frameRef",
+      retriesRemaining = 2,
+      followUpRefreshesRemaining = 1,
+    })
+
+    local pending = state.GetPendingPostChallengeRefresh()
+    Assert.NotNil(pending, "deferred post-challenge refresh state must be readable after storing it")
+    Assert.Equal(pending.frame, "frameRef", "stored deferred refresh must preserve the frame reference")
+    Assert.Equal(pending.retriesRemaining, 2, "stored deferred refresh must preserve retry count")
+    Assert.Equal(pending.followUpRefreshesRemaining, 1, "stored deferred refresh must preserve follow-up refresh count")
+
+    state.SetPendingPostChallengeRefresh(nil)
+    Assert.Nil(state.GetPendingPostChallengeRefresh(), "clearing deferred post-challenge state must remove it")
+  end)
+
+  test("RuntimeState snapshot includes deferred post-challenge refresh state", function()
+    local addon = LoadAddonModules({ "isiLive_runtime_state.lua" })
+    local state = addon.RuntimeState.CreateController()
+
+    state.SetPendingPostChallengeRefresh({
+      frame = "frameRef",
+      retriesRemaining = 4,
+      followUpRefreshesRemaining = 2,
+    })
+
+    local snapshot = state.GetSnapshot()
+    Assert.NotNil(
+      snapshot.pendingPostChallengeRefresh,
+      "runtime snapshot must include deferred post-challenge refresh state"
+    )
+    Assert.Equal(
+      snapshot.pendingPostChallengeRefresh.frame,
+      "frameRef",
+      "snapshot must preserve deferred frame reference"
+    )
+    Assert.Equal(
+      snapshot.pendingPostChallengeRefresh.retriesRemaining,
+      4,
+      "snapshot must preserve deferred retry count"
+    )
+    Assert.Equal(
+      snapshot.pendingPostChallengeRefresh.followUpRefreshesRemaining,
+      2,
+      "snapshot must preserve deferred follow-up refresh count"
+    )
+  end)
+
   test("RuntimeState rio baseline clear resets snapshot and delta flags", function()
     local addon = LoadAddonModules({ "isiLive_runtime_state.lua" })
     local state = addon.RuntimeState.CreateController({

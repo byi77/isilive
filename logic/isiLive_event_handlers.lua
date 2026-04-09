@@ -56,6 +56,10 @@ local function BuildContext(opts)
   ctx.getPendingQueueJoinInfo = OptionalFunction(opts.getPendingQueueJoinInfo, function()
     return nil
   end)
+  ctx.setPendingPostChallengeRefresh = OptionalFunction(opts.setPendingPostChallengeRefresh, function(_value) end)
+  ctx.getPendingPostChallengeRefresh = OptionalFunction(opts.getPendingPostChallengeRefresh, function()
+    return nil
+  end)
   ctx.clearLatestQueueTarget = RequireFunction(opts.clearLatestQueueTarget, "clearLatestQueueTarget")
   ctx.updateMPlusTeleportButton = RequireFunction(opts.updateMPlusTeleportButton, "updateMPlusTeleportButton")
   ctx.captureQueueJoinCandidate = RequireFunction(opts.captureQueueJoinCandidate, "captureQueueJoinCandidate")

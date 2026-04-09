@@ -1994,6 +1994,29 @@ function RosterPanel.CreateController(opts)
 
   local memberRows = {}
   local cdController = nil
+  local cdTrackerNeedsVisibleRescan = true
+
+  local function IsMainFrameShown()
+    return type(mainFrame.IsShown) == "function" and mainFrame:IsShown() == true
+  end
+
+  local function MarkCdTrackerDirty()
+    cdTrackerNeedsVisibleRescan = true
+  end
+
+  local function MaybeRescanCdTrackerForVisibleRender()
+    if not cdController or type(cdController.Scan) ~= "function" then
+      return
+    end
+    if not IsMainFrameShown() then
+      MarkCdTrackerDirty()
+      return
+    end
+    if cdTrackerNeedsVisibleRescan then
+      cdController.Scan()
+      cdTrackerNeedsVisibleRescan = false
+    end
+  end
 
   local controller = {}
 
@@ -2087,15 +2110,6 @@ function RosterPanel.CreateController(opts)
     end
   end
 
-  function controller.SwitchToRaidMode()
-    if not IsHorizontalCompactLayoutMode(ui.layoutMode) then
-      ui.layoutMode = LAYOUT_MODE_COMPACT_HORIZONTAL
-      UpdateCollapseState(ui, LAYOUT_MODE_COMPACT_HORIZONTAL, mainFrame)
-      NotifyCollapseChanged(ui, ui.isCollapsed)
-      NotifyLayoutChanged(ui, ui.layoutMode)
-    end
-  end
-
   function controller.SetCollapseChangedHandler(handler)
     ui.onCollapseChanged = type(handler) == "function" and handler or nil
   end
@@ -2117,6 +2131,7 @@ function RosterPanel.CreateController(opts)
   end
 
   function controller.RenderRoster(roster)
+    MaybeRescanCdTrackerForVisibleRender()
     RenderRosterImpl({
       memberRows = memberRows,
       mainFrame = mainFrame,
@@ -2197,10 +2212,16 @@ function RosterPanel.CreateController(opts)
 
   function controller.SetCdController(ctrl)
     cdController = ctrl
+    MarkCdTrackerDirty()
   end
 
   function controller.RefreshCdTracker()
+    cdTrackerNeedsVisibleRescan = false
     UpdateCdTrackerRow(ui.cdTrackerRow, cdController)
+  end
+
+  function controller.MarkCdTrackerDirty()
+    MarkCdTrackerDirty()
   end
 
   AttachControllerAccessors(controller, {

@@ -867,7 +867,8 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
   return frame
 end
 
-local function NewRecordedMainFrame(createdFontStrings, createdTextures)
+local function NewRecordedMainFrame(createdFontStrings, createdTextures, opts)
+  opts = opts or {}
   createdTextures = createdTextures or {}
   local mainFrame = {
     width = 0,
@@ -888,6 +889,10 @@ local function NewRecordedMainFrame(createdFontStrings, createdTextures)
     return self._frameLevel
   end
   function mainFrame.IsShown()
+    local shownState = opts.mainFrameShownState
+    if type(shownState) == "table" then
+      return shownState.value == true
+    end
     return true
   end
   function mainFrame.CreateFontString()
@@ -1599,7 +1604,9 @@ end
 local function BuildHiddenSettingTestController(addon, createdFontStrings, opts)
   opts = opts or {}
   return addon.RosterPanel.CreateController({
-    mainFrame = NewRecordedMainFrame(createdFontStrings, opts.createdTextures),
+    mainFrame = NewRecordedMainFrame(createdFontStrings, opts.createdTextures, {
+      mainFrameShownState = opts.mainFrameShownState,
+    }),
     getL = function()
       return {
         TITLE = "isiLive",
@@ -1884,6 +1891,96 @@ local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGl
     end)
   end)
 
+  test("Roster panel first visible render rescans cd tracker after hidden mode", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local mainFrameShownState = { value = false }
+    local cdScans = 0
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings, {
+        mainFrameShownState = mainFrameShownState,
+      })
+
+      controller.SetCdController({
+        Scan = function()
+          cdScans = cdScans + 1
+        end,
+        GetBResInfo = function()
+          return nil
+        end,
+        GetLustInfo = function()
+          return nil
+        end,
+      })
+
+      controller.RenderRoster({})
+      Assert.Equal(cdScans, 0, "hidden pre-render must not rescan the local CD tracker")
+
+      mainFrameShownState.value = true
+      controller.MarkCdTrackerDirty()
+      controller.RenderRoster({})
+      controller.RenderRoster({})
+    end)
+
+    Assert.Equal(cdScans, 1, "first visible render after hidden mode must rescan the CD tracker exactly once")
+  end)
+
+  test("Roster panel visible render does not rescan cd tracker after an explicit cd refresh", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local cdScans = 0
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings)
+
+      controller.SetCdController({
+        Scan = function()
+          cdScans = cdScans + 1
+        end,
+        GetBResInfo = function()
+          return nil
+        end,
+        GetLustInfo = function()
+          return nil
+        end,
+      })
+
+      controller.RefreshCdTracker()
+      controller.RenderRoster({})
+    end)
+
+    Assert.Equal(
+      cdScans,
+      0,
+      "visible render must not rescan immediately after an explicit CD refresh already updated the row"
+    )
+  end)
+
   test("Roster panel keeps column guides disabled until the setting is enabled", function()
     local createdFrames = {}
     local createdFontStrings = {}
@@ -1938,12 +2035,6 @@ local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGl
 
       for guideKey, _ in pairs(expectedGuideX) do
         Assert.True(guides[guideKey]:IsShown(), "column guides should stay visible in M2 when enabled")
-      end
-
-      controller.SwitchToRaidMode()
-
-      for guideKey, _ in pairs(expectedGuideX) do
-        Assert.False(guides[guideKey]:IsShown(), "column guides should hide again when leaving the main layout family")
       end
     end)
   end)

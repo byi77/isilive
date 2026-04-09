@@ -139,6 +139,47 @@ return function(test, ctx)
     Assert.Equal(info.cooldownRemain, 0, "missing pet interrupt must keep zero cooldown")
   end)
 
+  test("KickTracker keeps unresolved kick availability distinct from exact no-kick", function()
+    local controller = nil
+    WithGlobals({
+      GetSpecialization = function()
+        return 1
+      end,
+      GetSpecializationInfo = function(index)
+        if index == 1 then
+          return 9999
+        end
+        return nil
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_kick_tracker.lua" })
+      controller = addon.KickTracker.CreateController({
+        getTime = function()
+          return 100
+        end,
+      })
+    end)
+
+    local info = controller.GetKickInfo()
+    local resolvedState = controller.ResolveKickState()
+    Assert.NotNil(info, "kick info table must still exist for unresolved kick availability")
+    Assert.False(
+      info.availabilityResolved,
+      "unknown specialization mapping must stay unresolved instead of becoming no-kick"
+    )
+    Assert.False(info.hasKick, "unresolved kick availability must not expose a kick")
+    Assert.Nil(info.spellID, "unresolved kick availability must not invent a spellID")
+    Assert.False(
+      resolvedState.availabilityResolved,
+      "ResolveKickState must preserve unresolved kick availability for unknown specializations"
+    )
+    Assert.False(resolvedState.hasKick, "unresolved kick availability must not become an exact no-kick state")
+    Assert.False(
+      resolvedState.exactCooldownKnown,
+      "unresolved kick availability must not claim exact cooldown recovery"
+    )
+  end)
+
   test("KickTracker tracks pet-based Warlock interrupt cooldown from pet casts", function()
     local now = 100
     local controller = nil
@@ -204,5 +245,124 @@ return function(test, ctx)
     Assert.NotNil(info, "kick info must exist for Devourer Demon Hunter")
     Assert.Equal(info.spellID, 183752, "Devourer Demon Hunter must map to Disrupt")
     Assert.False(info.onCooldown, "fresh Devourer interrupt must start ready")
+  end)
+
+  test("KickTracker reconstructs active cooldown from Blizzard cooldown data without guessing", function()
+    local now = 100
+    local controller = nil
+
+    WithGlobals({
+      GetSpecialization = function()
+        return 1
+      end,
+      GetSpecializationInfo = function(index)
+        if index == 1 then
+          return 71
+        end
+        return nil
+      end,
+      GetSpellBaseCooldown = function(spellID)
+        if spellID == 6552 then
+          return 15000
+        end
+        return 0
+      end,
+      InCombatLockdown = function()
+        return true
+      end,
+      C_Spell = {
+        GetSpellCooldown = function(spellID)
+          if spellID == 6552 then
+            return {
+              startTime = 94,
+              duration = 15,
+              isEnabled = true,
+            }
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_kick_tracker.lua" })
+      controller = addon.KickTracker.CreateController({
+        getTime = function()
+          return now
+        end,
+      })
+    end)
+
+    local info = controller.GetKickInfo()
+    Assert.NotNil(info, "kick info must exist when Blizzard cooldown data is available")
+    Assert.Equal(info.spellID, 6552, "Warrior interrupt must still resolve to Pummel")
+    Assert.True(info.onCooldown, "active Blizzard cooldown data must restore a running kick cooldown")
+    Assert.Equal(info.cooldownRemain, 9, "reconstructed kick cooldown must use Blizzard start/duration data exactly")
+  end)
+
+  test("KickTracker keeps observed active cooldown when Blizzard cooldown fields are unreadable", function()
+    local now = 100
+    local controller = nil
+    local secretValue = {}
+    local cooldownPayload = {
+      startTime = 0,
+      duration = 0,
+      isEnabled = true,
+    }
+
+    WithGlobals({
+      GetSpecialization = function()
+        return 1
+      end,
+      GetSpecializationInfo = function(index)
+        if index == 1 then
+          return 71
+        end
+        return nil
+      end,
+      GetSpellBaseCooldown = function(spellID)
+        if spellID == 6552 then
+          return 15000
+        end
+        return 0
+      end,
+      issecretvalue = function(value)
+        return value == secretValue
+      end,
+      C_Spell = {
+        GetSpellCooldown = function(spellID)
+          if spellID == 6552 then
+            return cooldownPayload
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_kick_tracker.lua" })
+      controller = addon.KickTracker.CreateController({
+        getTime = function()
+          return now
+        end,
+      })
+    end)
+
+    controller.OnCast("player", 6552)
+    local observedInfo = controller.GetKickInfo()
+    Assert.True(observedInfo.onCooldown, "observed player casts must establish a local active cooldown")
+    Assert.Equal(observedInfo.cooldownRemain, 15, "observed kick casts must keep the configured cooldown remain")
+
+    cooldownPayload = {
+      startTime = secretValue,
+      duration = secretValue,
+      isEnabled = true,
+    }
+
+    local exactStateKnown = controller.CacheCooldown()
+    local refreshedInfo = controller.GetKickInfo()
+    Assert.False(exactStateKnown, "unreadable Blizzard cooldown payloads must not be treated as exact kick state")
+    Assert.True(refreshedInfo.onCooldown, "unreadable cooldown payloads must not clear an already observed active kick")
+    Assert.Equal(
+      refreshedInfo.cooldownRemain,
+      15,
+      "unreadable cooldown payloads must preserve the observed cooldown remain instead of guessing ready"
+    )
   end)
 end

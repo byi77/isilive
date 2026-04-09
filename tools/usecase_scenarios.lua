@@ -35,6 +35,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_validation_helpers.lua",
   "testmodul/isilive_test_scenarios_string_utils.lua",
   "testmodul/isilive_test_scenarios_config_builders.lua",
+  "testmodul/isilive_test_scenarios_factory_secondary.lua",
 }
 
 return scenarioFiles

@@ -875,6 +875,16 @@ local function RegisterArchitectureModuleApiTests(test, Assert, LoadAddonModules
     Assert.Equal(type(state.SetActiveJoinedKeyMapID), "function", "RuntimeState must expose SetActiveJoinedKeyMapID")
     Assert.Equal(type(state.GetLatestQueueState), "function", "RuntimeState must expose GetLatestQueueState")
     Assert.Equal(type(state.ClearLatestQueueTarget), "function", "RuntimeState must expose ClearLatestQueueTarget")
+    Assert.Equal(
+      type(state.GetPendingPostChallengeRefresh),
+      "function",
+      "RuntimeState must expose GetPendingPostChallengeRefresh"
+    )
+    Assert.Equal(
+      type(state.SetPendingPostChallengeRefresh),
+      "function",
+      "RuntimeState must expose SetPendingPostChallengeRefresh"
+    )
     Assert.Equal(type(state.IsReadyCheckActive), "function", "RuntimeState must expose IsReadyCheckActive")
     Assert.Equal(type(state.SetReadyCheckActive), "function", "RuntimeState must expose SetReadyCheckActive")
     Assert.Nil(state.GetAutoMarkEnabled, "RuntimeState must not expose removed GetAutoMarkEnabled state")
