@@ -40,6 +40,10 @@ local function NewRowTooltipCreateFrameStub(createdFrames, tooltipLines, tooltip
     f.SetAlpha = function() end
     f.EnableMouse = function() end
     f.RegisterForClicks = function() end
+    f.GetFrameLevel = function()
+      return 1
+    end
+    f.SetFrameLevel = function() end
     f.SetScript = function(self, script, handler)
       self[script] = handler
     end
@@ -57,8 +61,11 @@ local function NewRowTooltipCreateFrameStub(createdFrames, tooltipLines, tooltip
       local fontString = {
         text = "",
         SetPoint = function() end,
+        SetAllPoints = function() end,
+        ClearAllPoints = function() end,
         SetJustifyH = function() end,
         SetWidth = function() end,
+        SetTextColor = function() end,
         SetText = function(self, text)
           self.text = tostring(text or "")
           if f._isIsiLiveTooltip == true then
@@ -109,6 +116,8 @@ local function NewTooltipMainFrameStub()
     CreateFontString = function()
       return {
         SetPoint = function() end,
+        SetAllPoints = function() end,
+        ClearAllPoints = function() end,
         SetWidth = function() end,
         SetJustifyH = function() end,
         GetFont = function()
