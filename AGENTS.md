@@ -6,7 +6,7 @@
 - Behandle jeden Regelblock mit `Status: aktiv` als harten Vertrag.
 - Wenn Codeaenderungen eine aktive Regel beruehren, aktualisiere im selben Change die deterministischen Tests und die Regel-zu-Test-Zuordnung (Pflichtfeld `Erforderliche Tests:` im jeweiligen Detailblock in `docs/RULES_LOGIC.md`).
 - `docs/RULES_LOGIC.md` wird auf Deutsch gepflegt; die deutsche Formulierung in dieser Datei ist zu erhalten.
-- Halte `docs/RULES_LOGIC.md` append-only in der Reihenfolge der Benutzereingaben; keine erzwungene Sortierung und kein Umordnen bestehender Regelb loecke.
+- Halte `docs/RULES_LOGIC.md` append-only in der Reihenfolge der Benutzereingaben; keine erzwungene Sortierung und kein Umordnen bestehender Regelbloecke.
 - Vorlaeufig doppelte Entwurfsideen sind erlaubt, wenn eine Regel noch im Status `entwurf` ist und noch nicht konsolidiert wurde; doppelte Zusammenfassungen als Warnung sichtbar machen und erst nach Bestaetigung durch den User zusammenfuehren oder bereinigen.
 - Nach jeder Aenderung an `docs/RULES_LOGIC.md` pruefe jeden neuen oder geaenderten Satz, formuliere daraus eine praezise maschinenpruefbare Intention und frage den User nach, wenn die Bedeutung nicht eindeutig ist.
 

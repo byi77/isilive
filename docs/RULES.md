@@ -54,7 +54,7 @@
 - `lua tools/validate_usecases.lua`
 - Erzwingbare Usecase- und Runtime-Vertraege liegen in `RULES_LOGIC.md` mit stabilen `RULE-ID`-Bloecken.
 - Erzwingbare Architekturvertraege liegen in `ARCHITECTURE_RULES.md` mit stabilen `RULE-ID`-Bloecken.
-- Nur produktiv erzwungene Vertraege werden als `Status: active` markiert und jeweils auf exakte deterministische Testnamen gemappt.
+- Nur produktiv erzwungene Vertraege werden als `Status: aktiv` markiert und jeweils auf exakte deterministische Testnamen gemappt.
 - Fuer Verhaltensfixes wird deterministische Abdeckung in `tools/validate_usecases.lua` hinzugefuegt oder aktualisiert.
 - Aktive Runtime-Regeln sind immer Teil des Pflicht-Gates ueber `lua tools/validate_usecases.lua`; Runtime-Aenderungen werden nicht ohne gruene Rule- und Usecase-Validierung gemergt.
 - Aktive Architekturregeln sind ebenfalls Teil des Pflicht-Gates ueber `lua tools/validate_usecases.lua`; strukturelle Refactors werden nicht ohne gruene Architektur-, Rule- und Usecase-Validierung gemergt.
