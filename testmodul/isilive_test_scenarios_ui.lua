@@ -1818,7 +1818,9 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       )
     end)
   end)
+end
 
+local function RegisterSettingsPanelBehaviorTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Settings panel defaults Auto-Close on Key Start / Solo to disabled until the user turns it on", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}
@@ -3043,6 +3045,7 @@ return function(test, ctx)
   RegisterMainFrameInteractionTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGameMenuMicroButtonTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterSettingsPanelBehaviorTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
