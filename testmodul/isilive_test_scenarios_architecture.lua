@@ -409,7 +409,7 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     AssertContains(
       Assert,
       changelogStub,
-      "https://github.com/byi77/isilive/blob/main/CHANGELOG.md",
+      "https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md",
       "release changelog stub must point back to the repository changelog"
     )
   end)
