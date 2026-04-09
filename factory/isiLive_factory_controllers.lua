@@ -181,7 +181,7 @@ local function InitializeRioHelpers(ctx, runtimeState)
 
     local delta = math.floor(currentRio) - baselineRio
     if delta < 0 then
-      return nil
+      return 0
     end
     return delta
   end
