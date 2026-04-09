@@ -17,7 +17,6 @@ ignore:
   - docs
   - README.md
   - TODO.md
-  - TODO_RENAME.md
   - AGENTS.md
   - CLAUDE.md
   - LICENSE

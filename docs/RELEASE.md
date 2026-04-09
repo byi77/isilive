@@ -38,7 +38,7 @@ Die Wrapper `tools/check.ps1` und `tools/check.cmd` fuehren den vollen lokalen P
 
 `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach 514 Szenarien ueber 37 Module. Die Regelvalidatoren indizieren aktuell 514 deterministische Tests.
+`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach 515 Szenarien ueber 38 Module. Die Regelvalidatoren indizieren aktuell 515 deterministische Tests.
 
 Windows-Hinweis: Wenn Metrics mit fehlenden LuaRocks-Modulen (`lfs`, `luacheck.decoder`, `luacheck.parser`) scheitern, `LUA_PATH` und `LUA_CPATH` auf die LuaRocks-Pfade `share/lua/5.4` und `lib/lua/5.4` setzen, bevor der Metrics-Check laeuft. Lokal gelten dieselben Release-Schwellen wie in CI: `ISILIVE_MAX_FILE_LINES=3200` und `ISILIVE_MAX_FUNCTION_LINES=420`.
 
@@ -130,7 +130,7 @@ git push origin :refs/tags/isiLive_release_X.Y.Z
 
 - Release-Tagging ist absichtlich vom normalen `main`-Push getrennt, damit CI noch sicher fehlschlagen kann, bevor CurseForge-Pakete gebaut werden.
 - CI schliesst `.luarocks/` bereits aus Lint- und Syntax-Checks aus.
-- Packaging ignoriert Nicht-Nutzer-Dateien ueber `.pkgmeta`, einschliesslich `.github/`, `.claude/`, Dokus wie `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `WARTUNG.md`, `TODO_RENAME.md`, `CHANGELOG.md`, Dev-only-Ordnern `tools/` und `testmodul/` sowie PNG-Screenshots/Logos. Die CurseForge-Dateinotizen verwenden den kurzen Stub `CHANGELOG_RELEASE.md`, nicht das volle Repository-Changelog.
+- Packaging ignoriert Nicht-Nutzer-Dateien ueber `.pkgmeta`, einschliesslich `.github/`, `.claude/`, Dokus wie `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `WARTUNG.md`, `CHANGELOG.md`, Dev-only-Ordnern `tools/` und `testmodul/` sowie PNG-Screenshots/Logos. Die CurseForge-Dateinotizen verwenden den kurzen Stub `CHANGELOG_RELEASE.md`, nicht das volle Repository-Changelog.
 - Wenn VS-Code-Diagnostics veraltet wirken, ausfuehren:
   - `Developer: Reload Window`
   - `Lua: Restart Language Server`

@@ -14,6 +14,7 @@
 
 Alle gepflegten Projektdokumente liegen unter `docs/`:
 
+- `docs/RULES.md` — allgemeine Coding-, Versionierungs- und Doku-Regeln (nicht Gate-geprueft, ergaenzt RULES_LOGIC.md)
 - `docs/RULES_LOGIC.md` — verbindliche Regelquelle, Gate-geprueft
 - `docs/ARCHITECTURE.md` — Architekturueberblick
 - `docs/ARCHITECTURE_RULES.md` — Architekturvertraege

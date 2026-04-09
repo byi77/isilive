@@ -419,7 +419,6 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
 
     AssertContains(Assert, content, "CHANGELOG.md", "WARTUNG.md must reference CHANGELOG.md")
     AssertContains(Assert, content, "TODO.md", "WARTUNG.md must reference TODO.md")
-    AssertContains(Assert, content, "TODO_RENAME.md", "WARTUNG.md must reference TODO_RENAME.md")
     AssertContains(Assert, content, "RULES_LOGIC.md", "WARTUNG.md must reference RULES_LOGIC.md")
     AssertContains(Assert, content, "ARCHITECTURE_RULES.md", "WARTUNG.md must reference ARCHITECTURE_RULES.md")
     AssertContains(Assert, content, "AGENTS.md", "WARTUNG.md must reference AGENTS.md")

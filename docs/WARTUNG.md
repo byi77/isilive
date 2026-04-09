@@ -13,23 +13,21 @@ Arbeite immer in dieser Reihenfolge:
 2. `TODO.md` lesen:
    - offene Nachzuegler
    - Doku-/Release-Sync
-3. `TODO_RENAME.md` lesen:
-   - Rename ist aktuell fuer `nach v0.9.71` geplant
-4. `RULES_LOGIC.md` lesen:
+3. `RULES_LOGIC.md` lesen:
    - aktive Regeln sind harte Runtime-Vertraege
    - besonders wichtig: No Guess, KICK-Hard-off und Rate-Limit-Vertraege niemals nur implizit ableiten
-5. `ARCHITECTURE_RULES.md` lesen:
+4. `ARCHITECTURE_RULES.md` lesen:
    - aktive Architekturregeln sind ebenfalls Gate-relevant
-6. `AGENTS.md` lesen:
+5. `AGENTS.md` lesen:
    - Workflow-/Gate-Pflichten nicht vergessen
-7. `README.md` lesen:
+6. `README.md` lesen:
    - aktueller Produkt- und Verhaltensstand fuer Nutzer
-8. `RELEASE.md` lesen:
+7. `RELEASE.md` lesen:
    - offizieller Release-Ablauf und Freigabe-Gates
    - Release-Tag erst nach gruenem `Lua Check` auf `main`
-9. `USECASES.md` lesen:
+8. `USECASES.md` lesen:
    - deterministische Laufzeit- und Validierungsbasis
-10. `ARCHITECTURE.md` lesen:
+9. `ARCHITECTURE.md` lesen:
    - aktueller Struktur- und Wiring-Stand
 
 ## 2) Pflicht-Gates vor jeder echten Aenderung
@@ -211,27 +209,7 @@ Dann immer:
 4. `USECASES.md` pruefen, falls Verhalten sichtbar anders ist
 5. `lua tools/validate_usecases.lua` laufen lassen
 
-## 7) Wenn der Rename wieder Thema wird
-
-Datei:
-- `TODO_RENAME.md`
-
-Aktueller Stand:
-- Hardcut geplant nach `v0.9.71`
-- der erste `0.9.70`-Releaseversuch wurde archiviert; vor dem naechsten echten Stable-Tag `0.9.71` den Rename-Plan nochmal gegen den realen Release-Stand pruefen
-
-Dann zusaetzlich pruefen:
-- Addon-Ordner
-- TOC-Name
-- SavedVariables-Name
-- Sync-Prefix
-- Slash-Commands
-- Release-Tag-Praefixe
-- `.pkgmeta`
-
-Nicht teilweise umbenennen. Entweder Hardcut komplett oder gar nicht.
-
-## 8) Ingame-Smoke nach groesseren Aenderungen
+## 7) Ingame-Smoke nach groesseren Aenderungen
 
 Mindestens das testen:
 
@@ -244,15 +222,14 @@ Mindestens das testen:
 7. Key-Anzeige zeigt echte Shortcodes, keine `228`/`277`-Zahlen
 8. Tooltip zeigt `Level`, `Lang`, `Last run DPS`
 
-## 9) Wenn du nur 20 Minuten hast
+## 8) Wenn du nur 20 Minuten hast
 
 Dann genau das:
 
 1. `CHANGELOG.md` oben lesen
 2. `TODO.md` lesen
-3. `TODO_RENAME.md` lesen
-4. `lua tools/validate_usecases.lua`
-5. `isiLive_season_data.lua` auf aktive Season pruefen
-6. `isiLive.toc` auf aktuelle WoW-Interface-Version pruefen
+3. `lua tools/validate_usecases.lua`
+4. `isiLive_season_data.lua` auf aktive Season pruefen
+5. `isiLive.toc` auf aktuelle WoW-Interface-Version pruefen
 
 Wenn einer dieser Punkte rot ist, nicht blind releasen.
