@@ -679,6 +679,7 @@ local function NewRecordedFontString(createdFontStrings)
   function fontString.SetWidth(self, value)
     self.width = value
   end
+  function fontString.SetAllPoints() end
   function fontString.SetJustifyH() end
   function fontString.GetFont()
     return "font", 10, ""
