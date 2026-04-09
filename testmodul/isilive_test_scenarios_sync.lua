@@ -807,6 +807,98 @@ local function RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonM
     end)
   end)
 
+  test("Sync ProcessAddonMessage handles LibKeystone requests and payloads", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str:sub(1, pos - 1)
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local requestResult =
+        addon.Sync.ProcessAddonMessage("LibKS", "R", "OtherPlayer-OtherRealm", "MyPlayer", "Realm", "PARTY")
+      Assert.NotNil(requestResult, "LibKeystone request must return result")
+      Assert.True(
+        requestResult.shouldReplyLibKeystone,
+        "LibKeystone request from a different player must request one party-key reply"
+      )
+
+      local selfRequestResult =
+        addon.Sync.ProcessAddonMessage("LibKS", "R", "MyPlayer-Realm", "MyPlayer", "Realm", "PARTY")
+      Assert.NotNil(selfRequestResult, "self LibKeystone request must still return a result")
+      Assert.False(selfRequestResult.shouldReplyLibKeystone, "self LibKeystone request must not trigger a reply")
+
+      local payloadResult =
+        addon.Sync.ProcessAddonMessage("LibKS", "15,2649,3210", "OtherPlayer-OtherRealm", "MyPlayer", "Realm", "PARTY")
+      Assert.NotNil(payloadResult, "LibKeystone payload must return result")
+      Assert.True(payloadResult.keyUpdated, "first LibKeystone key payload must report update")
+      Assert.True(payloadResult.statsUpdated, "first LibKeystone rating payload must report update")
+
+      local keyInfo = addon.Sync.GetPlayerKeyInfo("OtherPlayer", "OtherRealm")
+      Assert.NotNil(keyInfo, "LibKeystone key payload must be stored in the shared key cache")
+      Assert.Equal(keyInfo.mapID, 2649, "LibKeystone payload must store the synced key map")
+      Assert.Equal(keyInfo.level, 15, "LibKeystone payload must store the synced key level")
+      Assert.Equal(keyInfo.source, "libks", "LibKeystone payload must tag the shared source")
+
+      local statsInfo = addon.Sync.GetPlayerStatsInfo("OtherPlayer", "OtherRealm")
+      Assert.NotNil(statsInfo, "LibKeystone rating payload must be stored in the shared stats cache")
+      Assert.Equal(statsInfo.rio, 3210, "LibKeystone payload must store the synced rio")
+      Assert.Equal(statsInfo.source, "libks", "LibKeystone stats must tag the shared source")
+
+      local duplicateResult =
+        addon.Sync.ProcessAddonMessage("LibKS", "15,2649,3210", "OtherPlayer-OtherRealm", "MyPlayer", "Realm", "PARTY")
+      Assert.False(duplicateResult.keyUpdated, "duplicate LibKeystone key payload must be deduplicated")
+      Assert.False(duplicateResult.statsUpdated, "duplicate LibKeystone stats payload must be deduplicated")
+
+      local guildResult =
+        addon.Sync.ProcessAddonMessage("LibKS", "15,2649,3210", "Guildie-OtherRealm", "MyPlayer", "Realm", "GUILD")
+      Assert.Nil(guildResult, "guild LibKeystone payloads must stay ignored for party roster sync")
+    end)
+  end)
+
+  test("Sync ProcessAddonMessage keeps richer isiLive stats when LibKeystone only refreshes rio", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str:sub(1, pos - 1)
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      addon.Sync.SetPlayerStatsInfo("OtherPlayer", "OtherRealm", 72, 615, 3000, nil, "isilive")
+      local result =
+        addon.Sync.ProcessAddonMessage("LibKS", "15,2649,3210", "OtherPlayer-OtherRealm", "MyPlayer", "Realm", "PARTY")
+
+      Assert.NotNil(result, "LibKeystone payload must still return a result")
+      Assert.True(result.statsUpdated, "changed rio from LibKeystone must still report a stats update")
+
+      local statsInfo = addon.Sync.GetPlayerStatsInfo("OtherPlayer", "OtherRealm")
+      Assert.NotNil(statsInfo, "merged stats must remain stored")
+      Assert.Equal(statsInfo.specID, 72, "LibKeystone payload must preserve richer synced spec data")
+      Assert.Equal(statsInfo.ilvl, 615, "LibKeystone payload must preserve richer synced ilvl data")
+      Assert.Equal(statsInfo.rio, 3210, "LibKeystone payload must refresh the rio field")
+    end)
+  end)
+
   test("Sync GetPlayerSyncSummary exposes the latest observed sync interval", function()
     local addon = LoadAddonModules({ "isiLive_sync.lua" })
 
@@ -845,6 +937,86 @@ local function RegisterProcessMessageTests(test, Assert, WithGlobals, LoadAddonM
 
       Assert.Equal(#sentMessages, 1, "share-keys request should publish one addon message")
       Assert.Equal(sentMessages[1].message, "SHAREKEYS", "share-keys request must use SHAREKEYS payload")
+    end)
+  end)
+
+  test("Sync SendLibKeystoneRequest publishes one party request", function()
+    local sentMessages = {}
+    local now = 100
+
+    WithGlobals({
+      GetTime = function()
+        return now
+      end,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local firstSent = addon.Sync.SendLibKeystoneRequest()
+      Assert.True(firstSent, "LibKeystone request should send while grouped")
+      Assert.Equal(#sentMessages, 1, "LibKeystone request should publish exactly one addon message")
+      Assert.Equal(sentMessages[1].prefix, "LibKS", "LibKeystone request must use the LibKS prefix")
+      Assert.Equal(sentMessages[1].message, "R", "LibKeystone request must use the request payload")
+      Assert.Equal(sentMessages[1].channel, "PARTY", "LibKeystone request must use the party channel")
+
+      now = 101
+      local secondSent = addon.Sync.SendLibKeystoneRequest()
+      Assert.False(secondSent, "LibKeystone request should respect the throttle window")
+      Assert.Equal(#sentMessages, 1, "throttled LibKeystone request must not send again")
+
+      now = 104
+      local forcedSent = addon.Sync.SendLibKeystoneRequest({ force = true })
+      Assert.True(forcedSent, "forced LibKeystone request should bypass the throttle window")
+      Assert.Equal(#sentMessages, 2, "forced LibKeystone request must send again")
+    end)
+  end)
+
+  test("Sync SendLibKeystonePartyData publishes current key and rio to party", function()
+    local sentMessages = {}
+
+    WithGlobals({
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local sent = addon.Sync.SendLibKeystonePartyData({
+        mapID = 505,
+        level = 17,
+        rio = 3333,
+      })
+      Assert.True(sent, "LibKeystone party data should send while grouped")
+      Assert.Equal(#sentMessages, 1, "LibKeystone party data should publish exactly one addon message")
+      Assert.Equal(sentMessages[1].prefix, "LibKS", "LibKeystone party data must use the LibKS prefix")
+      Assert.Equal(sentMessages[1].message, "17,505,3333", "LibKeystone party data must encode level, map, and rio")
+      Assert.Equal(sentMessages[1].channel, "PARTY", "LibKeystone party data must use the party channel")
     end)
   end)
 end

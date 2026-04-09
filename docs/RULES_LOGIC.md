@@ -228,6 +228,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Event handlers process addon sync messages and refresh changed roster
   - Event handlers refresh target-dependent UI when addon sync updates exact target only
   - Sync ProcessAddonMessage handles HELLO, REQSYNC, and KEY payloads
+  - Sync ProcessAddonMessage handles LibKeystone requests and payloads
+  - Sync ProcessAddonMessage keeps richer isiLive stats when LibKeystone only refreshes rio
   - Sync ProcessAddonMessage parses KICK payloads with no-interrupt state
   - Sync ProcessAddonMessage parses TARGET payload and stores it
   - Sync SetPlayerKeyInfo deduplicates identical key updates
@@ -584,6 +586,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Config builders gate allows sparse local change events while frame is hidden
   - Event handlers pre-render UI for hidden addon sync updates
   - Event handlers process addon sync messages and refresh changed roster
+  - Event handlers answer LibKeystone requests while frame is hidden
   - Event handlers answer refresh requests while frame is hidden
   - Event handlers send sparse background snapshot on hidden zone changes
   - Event handlers send sparse background snapshot only for player-owned state changes

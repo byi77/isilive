@@ -40,6 +40,13 @@ local function BuildMockSync()
     SendRefreshRequest = function(opts)
       table.insert(calls, { fn = "SendRefreshRequest", opts = opts })
     end,
+    SendLibKeystoneRequest = function(opts)
+      table.insert(calls, { fn = "SendLibKeystoneRequest", opts = opts })
+    end,
+    SendLibKeystonePartyData = function(opts)
+      table.insert(calls, { fn = "SendLibKeystonePartyData", opts = opts })
+      return true
+    end,
     GetPlayerKeyInfo = function(name, realm)
       return keyStore[tostring(name) .. "-" .. tostring(realm)]
     end,
@@ -324,18 +331,61 @@ local function RegisterKeySyncOwnedKeyTests(test, Assert, WithGlobals, LoadAddon
     end)
   end)
 
-  test("KeySync SendRefreshRequest delegates to sync", function()
+  test("KeySync SendRefreshRequest delegates to sync and LibKeystone request", function()
     local sync = BuildMockSync()
     local ctrl = BuildController(LoadAddonModules, sync)
     ctrl.SendRefreshRequest(true)
-    local found = false
+    local refreshFound = false
+    local libKeystoneFound = false
     for _, c in ipairs(sync.calls) do
       if c.fn == "SendRefreshRequest" then
-        found = true
+        refreshFound = true
         Assert.True(c.opts.force, "must pass force flag")
+      elseif c.fn == "SendLibKeystoneRequest" then
+        libKeystoneFound = true
+        Assert.True(c.opts.force, "LibKeystone request must receive the same force flag")
       end
     end
-    Assert.True(found, "must call SendRefreshRequest")
+    Assert.True(refreshFound, "must call SendRefreshRequest")
+    Assert.True(libKeystoneFound, "must also request LibKeystone party data")
+  end)
+
+  test("KeySync SendLibKeystonePartyData delegates current key and rio to sync", function()
+    local sync = BuildMockSync()
+    WithGlobals({
+      C_MythicPlus = {
+        GetOwnedKeystoneLevel = function()
+          return 17
+        end,
+        GetOwnedKeystoneChallengeMapID = function()
+          return 505
+        end,
+      },
+    }, function()
+      local ctrl = BuildController(LoadAddonModules, sync, {
+        getUnitRio = function(unit)
+          if unit == "player" then
+            return 3333
+          end
+          return nil
+        end,
+      })
+
+      local sent = ctrl.SendLibKeystonePartyData(true)
+
+      Assert.True(sent, "LibKeystone party send should report success from sync")
+      local found = false
+      for _, c in ipairs(sync.calls) do
+        if c.fn == "SendLibKeystonePartyData" then
+          found = true
+          Assert.True(c.opts.force, "LibKeystone party data must pass through the force flag")
+          Assert.Equal(c.opts.mapID, 505, "LibKeystone party data must use the current key map")
+          Assert.Equal(c.opts.level, 17, "LibKeystone party data must use the current key level")
+          Assert.Equal(c.opts.rio, 3333, "LibKeystone party data must include the current rio")
+        end
+      end
+      Assert.True(found, "must call SendLibKeystonePartyData")
+    end)
   end)
 end
 

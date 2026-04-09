@@ -23,6 +23,7 @@ local function CreateKeySyncController(ctx)
     registerIsiLiveSyncPrefix = controller.RegisterIsiLiveSyncPrefix,
     sendIsiLiveHello = controller.SendIsiLiveHello,
     sendRefreshRequest = controller.SendRefreshRequest,
+    sendLibKeystonePartyData = controller.SendLibKeystonePartyData,
     getOwnedKeystoneSnapshot = controller.GetOwnedKeystoneSnapshot,
     sendOwnKeySnapshot = controller.SendOwnKeySnapshot,
     sendOwnBackgroundSnapshot = controller.SendOwnBackgroundSnapshot,

@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.137`
+Versionsbasis: `0.9.138`
 Zuletzt aktualisiert: `2026-04-09`
 
 ## Akteure
@@ -13,9 +13,10 @@ Zuletzt aktualisiert: `2026-04-09`
 
 1. Das Addon ist geladen und nicht im Zustand `stopped`.
 2. Das Season-Dataset wird ueber `ACTIVE_SEASON_ID` ausgewaehlt; aktuell `midnight_s1` mit dem live 8-Dungeon-Midnight-Season-1-Portalpool.
-3. Die relevante UI ist fuer Queue-Scanning und Rendering sichtbar; waehrend hidden duerfen Addon-Message-Sync und Roster-Updates im Hintergrund weiterlaufen, die UI darf durch frischen Gruppenjoin, Key-Ende, echten Dungeon-Entry-Transition-Flow oder UI-Reload waehrend bestehender Gruppe auto-openen, und explizite Refresh-Requests duerfen genau eine hidden Sync-Reply triggern, auch waehrend eines aktiven Mythic+-Runs; nur stopped oder paused unterdruecken diese Reply.
-4. Raid-Gruppen sind ein eigener Hard-off-Zustand: UI aus und Background-Processing aus.
-5. Die optionalen `Esc`-Tooling- und Travel-Strips sind aktiv, solange der User sie nicht explizit in den Addon-Settings deaktiviert.
+3. Die relevante UI ist fuer Queue-Scanning und Rendering sichtbar; waehrend hidden duerfen Addon-Message-Sync und Roster-Updates im Hintergrund weiterlaufen, die UI darf durch frischen Gruppenjoin, Key-Ende, echten Dungeon-Entry-Transition-Flow oder UI-Reload waehrend bestehender Gruppe auto-openen, und explizite Refresh-Requests duerfen genau eine hidden Sync-Reply triggern, auch waehrend eines aktiven Mythic+-Runs; derselbe Refresh-Pfad darf zusaetzlich genau eine `LibKS`-Party-Anfrage an kompatible Nicht-`isiLive`-Peers senden. Nur stopped oder paused unterdruecken die hidden `isiLive`-Reply.
+4. Nicht-`isiLive`-Spieler koennen nur dann `Key` und `RIO` beitragen, wenn auf ihrer Seite ein kompatibles `LibKeystone`-sprechendes Addon laeuft; ohne sendenden Addon-Code bleiben diese Daten unresolved.
+5. Raid-Gruppen sind ein eigener Hard-off-Zustand: UI aus und Background-Processing aus.
+6. Die optionalen `Esc`-Tooling- und Travel-Strips sind aktiv, solange der User sie nicht explizit in den Addon-Settings deaktiviert.
 
 ## Usecase-Matrix
 
@@ -102,7 +103,7 @@ Ziel: Dem User erlauben, aktuelle Party-Keys schnell zu posten.
 4. Output: Eine lokale Key-Zeile geht sofort an `PARTY`; bei Sendefehler gibt es einen lokalen Print-Fallback. Weitere Peer-Zeilen duerfen danach von antwortenden Gruppenmitgliedern folgen.
 5. Regel: `Share Keys`-Button-Klicks werden entprellt, um schnelle doppelte Chat-Ausgaben zu vermeiden, und der Button zeigt waehrend der Sperre sichtbar `30s` Cooldown.
 5a. Regel: Wenn ein Client eine eingehende `SHAREKEYS`-Sync-Message erhaelt, wird der lokale `Share Keys`-Button ebenfalls ueber `TriggerRemoteCooldown` fuer `30s` gesperrt; ein bereits laufender lokaler Cooldown wird nicht zurueckgesetzt.
-6. Verwandte Aktion: Der danebenliegende `Re-Sync`-Button erzwingt den Hidden-Peer-Sync-Handshake und bleibt danach sichtbar `10s` auf Cooldown.
+6. Verwandte Aktion: Der danebenliegende `Re-Sync`-Button erzwingt den Hidden-Peer-Sync-Handshake, sendet zusaetzlich eine `LibKS`-Party-Anfrage fuer kompatible Nicht-`isiLive`-Peers und bleibt danach sichtbar `10s` auf Cooldown.
 7. Erfolgskriterium: Der ausloesende User bekommt immer zuerst die eigene Owned-Keystone-Zeile, und Peer-Antworten bleiben senderverteilt statt aus gecachten Remote-Roster-Daten rekonstruiert zu werden.
 
 ## UC-07 RIO-Delta-Sichtbarkeit
@@ -190,7 +191,7 @@ Ziel: Live-BRes, Bloodlust/Heroism/Time Warp, aktive Mythic+-Timer-Cutoffs und g
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `515` Szenarien ueber `38` Module.
+Aktuelle Validator-Baseline: `522` Szenarien ueber `38` Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
@@ -214,7 +215,7 @@ Aktuelle Validator-Baseline: `515` Szenarien ueber `38` Module.
 | Gruppen-Lifecycle, Leader-State-Mirroring und Roster-Rebuild | `isiLive_group.lua`, `isiLive_roster.lua` |
 | RIO-Baseline-Capture und Delta-Preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
 | Last-Run-DPS-Capture und begrenzte Stats-Persistenz | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
-| Combat-Utility-Tracker-Zeile und Kick-State | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_controllers.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
+| Combat-Utility-Tracker-Zeile, Kick-State und LibKeystone-Key-Interop | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_controllers.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
 | Leader-Transfer-Erkennung und Feedback | `isiLive_leader_watch.lua` |
 | UI-Aktionen, Rollen-Buttons, Key-Share-Button | `isiLive_roster_panel.lua` |
 | Esc-Tooling-/Travel-Strips und Blizzard-Settings-Canvas | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_factory.lua`, `isiLive_texts.lua`, `isiLive_ui_common.lua` |

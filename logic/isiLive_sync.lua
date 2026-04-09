@@ -8,12 +8,15 @@ local SeasonData = addonTable.SeasonData or {}
 local StringUtils = addonTable.StringUtils
 
 local ISILIVE_SYNC_PREFIX = "ISILIVE"
+local LIBKEYSTONE_SYNC_PREFIX = "LibKS"
+local LIBKEYSTONE_SOURCE = "libks"
 local ISILIVE_SYNC_PROTOCOL_VERSION = 2
 local ISILIVE_HELLO_COOLDOWN = 8
 local ISILIVE_KEY_COOLDOWN = 5
 local ISILIVE_STATS_COOLDOWN = 5
 local ISILIVE_TARGET_COOLDOWN = 5
 local ISILIVE_REFRESH_REQUEST_COOLDOWN = 1
+local LIBKEYSTONE_REQUEST_COOLDOWN = 3
 
 -- Architecture note: Module-level singleton state (intentional deviation from CreateController pattern).
 --
@@ -34,6 +37,7 @@ local lastIsiLiveLocAt = 0
 local lastIsiLiveTargetAt = 0
 local lastIsiLiveKickAt = 0
 local lastIsiLiveRefreshRequestAt = 0
+local lastLibKeystoneRequestAt = 0
 local lastKeyPayloadSent = nil
 local lastStatsPayloadSent = nil
 local lastDpsPayloadSent = nil
@@ -342,6 +346,7 @@ function Sync.ClearKnownUsers()
   lastIsiLiveTargetAt = 0
   lastIsiLiveKickAt = 0
   lastIsiLiveRefreshRequestAt = 0
+  lastLibKeystoneRequestAt = 0
   lastKeyPayloadSent = nil
   lastStatsPayloadSent = nil
   lastDpsPayloadSent = nil
@@ -765,6 +770,7 @@ end
 function Sync.RegisterPrefix()
   if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then
     pcall(C_ChatInfo.RegisterAddonMessagePrefix, ISILIVE_SYNC_PREFIX)
+    pcall(C_ChatInfo.RegisterAddonMessagePrefix, LIBKEYSTONE_SYNC_PREFIX)
   end
 end
 
@@ -1039,6 +1045,77 @@ function Sync.SendRefreshRequest(opts)
   C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, "REQSYNC", channel)
 end
 
+function Sync.SendLibKeystoneRequest(opts)
+  if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
+    return false
+  end
+  if not IsSyncEnabled() then
+    return false
+  end
+  opts = opts or {}
+
+  if IsInRaid and IsInRaid() then
+    return false
+  end
+  if not (IsInGroup and IsInGroup()) then
+    return false
+  end
+
+  local now = GetTime()
+  if not opts.force and (now - lastLibKeystoneRequestAt) < LIBKEYSTONE_REQUEST_COOLDOWN then
+    return false
+  end
+
+  lastLibKeystoneRequestAt = now
+  C_ChatInfo.SendAddonMessage(LIBKEYSTONE_SYNC_PREFIX, "R", "PARTY")
+  return true
+end
+
+function Sync.SendLibKeystonePartyData(opts)
+  if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
+    return false
+  end
+  if not IsSyncEnabled() then
+    return false
+  end
+  opts = opts or {}
+
+  if IsInRaid and IsInRaid() then
+    return false
+  end
+  if not (IsInGroup and IsInGroup()) then
+    return false
+  end
+
+  local numericLevel = tonumber(opts.level)
+  local numericMapID = tonumber(opts.mapID)
+  if type(SeasonData.NormalizeMapID) == "function" then
+    numericMapID = SeasonData.NormalizeMapID(numericMapID)
+  end
+
+  if not numericLevel or numericLevel <= 0 or not numericMapID or numericMapID <= 0 then
+    numericLevel = 0
+    numericMapID = 0
+  else
+    numericLevel = math.floor(numericLevel)
+    numericMapID = math.floor(numericMapID)
+  end
+
+  local numericRio = tonumber(opts.rio)
+  if numericRio == nil or numericRio < 0 then
+    numericRio = 0
+  else
+    numericRio = math.floor(numericRio)
+  end
+
+  C_ChatInfo.SendAddonMessage(
+    LIBKEYSTONE_SYNC_PREFIX,
+    string.format("%d,%d,%d", numericLevel, numericMapID, numericRio),
+    "PARTY"
+  )
+  return true
+end
+
 function Sync.SendShareKeysRequest()
   if not (C_ChatInfo and C_ChatInfo.SendAddonMessage) then
     return
@@ -1053,7 +1130,62 @@ function Sync.SendShareKeysRequest()
   C_ChatInfo.SendAddonMessage(ISILIVE_SYNC_PREFIX, "SHAREKEYS", channel)
 end
 
-function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm)
+local function ProcessLibKeystoneMessage(message, sender, localName, localRealm, channel)
+  if type(sender) ~= "string" or sender == "" then
+    return nil
+  end
+  if channel ~= nil and channel ~= "PARTY" then
+    return nil
+  end
+
+  local senderKey = Sync.NormalizePlayerKey(sender)
+  local selfKey = Sync.NormalizePlayerKey(localName, localRealm)
+  if type(message) == "string" and message == "R" then
+    return {
+      sender = sender,
+      shouldReplyLibKeystone = senderKey ~= selfKey,
+    }
+  end
+
+  local levelRaw, mapIDRaw, ratingRaw = nil, nil, nil
+  if type(message) == "string" then
+    levelRaw, mapIDRaw, ratingRaw = string.match(message, "^(-?%d+),(-?%d+),(%d+)$")
+  end
+  if not levelRaw or not mapIDRaw or not ratingRaw then
+    return nil
+  end
+
+  local keyLevel = tonumber(levelRaw)
+  local keyMapID = tonumber(mapIDRaw)
+  local playerRating = tonumber(ratingRaw)
+  if playerRating == nil or playerRating < 0 then
+    return nil
+  end
+
+  local keyUpdated = Sync.SetPlayerKeyInfo(sender, nil, keyMapID, keyLevel, nil, LIBKEYSTONE_SOURCE)
+  local previousStats = Sync.GetPlayerStatsInfo(sender, nil)
+  local statsUpdated = Sync.SetPlayerStatsInfo(
+    sender,
+    nil,
+    previousStats and previousStats.specID or nil,
+    previousStats and previousStats.ilvl or nil,
+    playerRating,
+    nil,
+    LIBKEYSTONE_SOURCE
+  )
+
+  return {
+    sender = sender,
+    keyUpdated = keyUpdated and true or false,
+    statsUpdated = statsUpdated and true or false,
+    shouldReplyLibKeystone = false,
+  }
+end
+
+function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm, channel)
+  if prefix == LIBKEYSTONE_SYNC_PREFIX then
+    return ProcessLibKeystoneMessage(message, sender, localName, localRealm, channel)
+  end
   if prefix ~= ISILIVE_SYNC_PREFIX then
     return nil
   end

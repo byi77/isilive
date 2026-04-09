@@ -309,6 +309,7 @@ local function FinalizeFactoryRuntime(ctx)
     sendOwnKickState = ctx.SendOwnKickState,
     sendRefreshResponse = ctx.SendRefreshResponse,
     sendIsiLiveHello = ctx.SendIsiLiveHello,
+    sendLibKeystonePartyData = ctx.SendLibKeystonePartyData,
     shouldAutoCloseMainFrame = function()
       local dbRef = rawget(_G, "IsiLiveDB")
       return ResolveAutoCloseMainFrameEnabled(dbRef)

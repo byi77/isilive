@@ -230,6 +230,10 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
     updateStatusLine = RequireFunction(callbacks.updateStatusLine, "callbacks.updateStatusLine"),
     sendIsiLiveHello = RequireFunction(deps.sendIsiLiveHello, "sendIsiLiveHello"),
+    sendLibKeystonePartyData = type(deps.sendLibKeystonePartyData) == "function" and deps.sendLibKeystonePartyData
+      or function(_force)
+        return false
+      end,
     sendOwnKeySnapshot = RequireFunction(deps.sendOwnKeySnapshot, "sendOwnKeySnapshot"),
     sendOwnBackgroundSnapshot = RequireFunction(deps.sendOwnBackgroundSnapshot, "sendOwnBackgroundSnapshot"),
     shouldAutoCloseMainFrame = type(deps.shouldAutoCloseMainFrame) == "function" and deps.shouldAutoCloseMainFrame
@@ -341,9 +345,9 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
       deps.getPlayerSpecName
     )
   end
-  config.processAddonMessage = function(prefix, message, sender)
+  config.processAddonMessage = function(prefix, message, sender, channel)
     local localName, localRealm = deps.getUnitNameAndRealm("player")
-    return modules.sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm)
+    return modules.sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm, channel)
   end
   config.sendAck = function(sender)
     if C_ChatInfo and C_ChatInfo.SendAddonMessage and type(sender) == "string" and sender ~= "" then
@@ -436,6 +440,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     isNegativeApplicationStatusEvent = ctx.isNegativeApplicationStatusEvent,
     getNormalizedActiveEntryInfo = ctx.getNormalizedActiveEntryInfo,
     sendIsiLiveHello = ctx.sendIsiLiveHello,
+    sendLibKeystonePartyData = ctx.sendLibKeystonePartyData,
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
     sendOwnBackgroundSnapshot = ctx.sendOwnBackgroundSnapshot,
     shouldShowMainFrameOnStartup = ctx.shouldShowMainFrameOnStartup,

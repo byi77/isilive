@@ -605,6 +605,7 @@ local function InitializeFactoryPrimaryControllers(ctx)
   ctx.RegisterIsiLiveSyncPrefix = initResult.registerIsiLiveSyncPrefix
   ctx.SendIsiLiveHello = initResult.sendIsiLiveHello
   ctx.SendRefreshRequest = initResult.sendRefreshRequest
+  ctx.SendLibKeystonePartyData = initResult.sendLibKeystonePartyData
   ctx.GetOwnedKeystoneSnapshot = initResult.getOwnedKeystoneSnapshot
   ctx.SendOwnKeySnapshot = initResult.sendOwnKeySnapshot
   ctx.SendOwnBackgroundSnapshot = initResult.sendOwnBackgroundSnapshot

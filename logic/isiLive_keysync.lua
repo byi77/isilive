@@ -91,6 +91,26 @@ local function SendRefreshRequest(sync, force)
   sync.SendRefreshRequest({
     force = not not force,
   })
+  if type(sync.SendLibKeystoneRequest) == "function" then
+    sync.SendLibKeystoneRequest({
+      force = not not force,
+    })
+  end
+end
+
+local function SendLibKeystonePartyData(sync, getUnitRio, force)
+  if type(sync.SendLibKeystonePartyData) ~= "function" then
+    return false
+  end
+
+  local mapID, level = GetOwnedKeystoneSnapshot()
+  local _, _, rio = GetOwnedStatsSnapshot(getUnitRio)
+  return sync.SendLibKeystonePartyData({
+    force = not not force,
+    mapID = mapID,
+    level = level,
+    rio = rio,
+  })
 end
 
 local function GetOwnedLocMapID()
@@ -440,6 +460,8 @@ function KeySync.CreateController(opts)
   assert(type(sync.SendDps) == "function", "isiLive: KeySync requires sync.SendDps")
   assert(type(sync.SendLoc) == "function", "isiLive: KeySync requires sync.SendLoc")
   assert(type(sync.SendRefreshRequest) == "function", "isiLive: KeySync requires sync.SendRefreshRequest")
+  assert(type(sync.SendLibKeystoneRequest) == "function", "isiLive: KeySync requires sync.SendLibKeystoneRequest")
+  assert(type(sync.SendLibKeystonePartyData) == "function", "isiLive: KeySync requires sync.SendLibKeystonePartyData")
   assert(type(sync.GetPlayerKeyInfo) == "function", "isiLive: KeySync requires sync.GetPlayerKeyInfo")
   assert(type(sync.GetPlayerStatsInfo) == "function", "isiLive: KeySync requires sync.GetPlayerStatsInfo")
   assert(type(sync.GetPlayerDpsInfo) == "function", "isiLive: KeySync requires sync.GetPlayerDpsInfo")
@@ -466,6 +488,10 @@ function KeySync.CreateController(opts)
 
   function controller.SendRefreshRequest(force)
     SendRefreshRequest(sync, force)
+  end
+
+  function controller.SendLibKeystonePartyData(force)
+    return SendLibKeystonePartyData(sync, getUnitRio, force)
   end
 
   function controller.GetOwnedKeystoneSnapshot()

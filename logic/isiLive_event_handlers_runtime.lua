@@ -457,15 +457,18 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end
   end
 
-  local function HandleChatMsgAddonEvent(_self, prefix, message, _channel, sender)
+  local function HandleChatMsgAddonEvent(_self, prefix, message, channel, sender)
     if IsRaidModeActive(ctx) then
       return
     end
-    local syncResult = ctx.processAddonMessage(prefix, message, sender)
+    local syncResult = ctx.processAddonMessage(prefix, message, sender, channel)
     if not syncResult then
       return
     end
 
+    if syncResult.shouldReplyLibKeystone then
+      ctx.sendLibKeystonePartyData(true)
+    end
     if syncResult.shouldAck then
       ctx.sendAck(syncResult.sender)
       -- New peer detected: send hello + full state (key, stats, dps, loc) + kick immediately.

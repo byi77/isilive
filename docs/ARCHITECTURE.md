@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.137`
+Versionsbasis: `0.9.138`
 Zuletzt aktualisiert: `2026-04-09`
 
 ## Zweck
@@ -59,7 +59,7 @@ WoW Event
 10. Pro Spieler wird auf Challenge-Start ein RIO-Baseline-Snapshot erfasst; Delta-Rendering wird erst nach erfolgreichem delayed Post-Run-Refresh aktiviert und bleibt immer nicht-negativ mit Praefix `(+X)`.
 11. Completed-Run-Stats muessen verzoegerte Blizzard-Damage-Meter-Verfuegbarkeit ueber kurze deterministische Retries tolerieren, sowohl fuer `M+` als auch fuer verfolgte Non-Challenge-Party-Exits (`Normal`, `Heroic`, `Mythic`); gespeist wird nur die `DPS`-Roster-Spalte.
 12. Post-Run-Refresh- und Delta-Pipeline bleibt aktiv, wenn Challenge-Completion-/Reset-Events eintreffen, waehrend das Main-Window hidden ist; der delayed Post-Run-Refresh wird jedoch waehrend Raid-Hard-off verschoben und erst nach erkanntem Raid-Ende fortgesetzt.
-13. Der Sync-Handshake bleibt robust: `HELLO`-Empfaenger bestaetigen mit `ACK`, antworten sofort mit dem vollstaendigen lokalen Snapshot `KEY/STATS/DPS/LOC` plus aktuellem Kick-State, explizite lokale Refreshes force-senden das lokale `HELLO` plus `KEY/STATS/DPS/LOC`, und manuelle `REQSYNC`-Refresh-Requests triggern genau eine hidden Reply fuer alle Buckets (`KEY`, `STATS`, `DPS`, `LOC`, `TARGET`, `KICK`), solange der Client nicht stopped oder paused ist. `DPS` ist in Background-Snapshots immer enthalten, unabhaengig von der Frame-Sichtbarkeit, damit Peers aktuelle Run-Stats auch hidden erhalten.
+13. Der Sync-Handshake bleibt robust: `HELLO`-Empfaenger bestaetigen mit `ACK`, antworten sofort mit dem vollstaendigen lokalen Snapshot `KEY/STATS/DPS/LOC` plus aktuellem Kick-State, explizite lokale Refreshes force-senden das lokale `HELLO` plus `KEY/STATS/DPS/LOC`, und manuelle `REQSYNC`-Refresh-Requests triggern genau eine hidden Reply fuer alle Buckets (`KEY`, `STATS`, `DPS`, `LOC`, `TARGET`, `KICK`), solange der Client nicht stopped oder paused ist. Derselbe Refresh-Pfad sendet zusaetzlich genau eine `LibKS`-Party-Anfrage fuer kompatible Nicht-`isiLive`-Peers. Eingehende `LibKS`-Requests duerfen genau eine Party-Antwort mit lokalem `level,mapID,rio` ausloesen; eingehende `LibKS`-Payloads duerfen nur `Key` und `RIO` aktualisieren und bereits reichere `isiLive`-`Spec/iLvl`-Daten nicht degradieren. `DPS` ist in Background-Snapshots immer enthalten, unabhaengig von der Frame-Sichtbarkeit, damit Peers aktuelle Run-Stats auch hidden erhalten.
 14. Im Hidden-Modus sind Queue-Scanning und permanentes Polling ausgesetzt, mit Ausnahme des dedizierten Kick-Keep-Alive fuer Party-Peers; Background-Roster-/Addon-Message-Sync, erforderliche Auto-Open-Transitions, eventgetriebene Pre-Render-Updates und genau eine erzwungene Refresh-Reply ohne Unhide bleiben aktiv. Frische Gruppenjoins duerfen zwar auto-open ausloesen, duerfen aber ohne vorherige sichtbare Queue-Capture keine Queue-Chat-Zusammenfassung nachliefern. Nach einem UI-Reload waehrend man bereits gruppiert ist, muss `PLAYER_ENTERING_WORLD` einen vollstaendigen Group-Roster-Rebuild triggern, damit das Roster-Panel sofort wieder erscheint, selbst in Party-Instanzen, in denen das Hidden-Frame-Gate sonst `GROUP_ROSTER_UPDATE` blockieren wuerde; beim erneuten Oeffnen der UI wird ausserdem der Utility-Tracker als dirty markiert, damit der erste sichtbare Render genau einen frischen Utility-Rescan vor dem Zeichnen ausfuehrt.
 15. UI-Aktion-Spam-Guards fuer `Re-Sync` und `Share Keys` bleiben aktiv; der manuelle Re-Sync-Button verwendet sichtbar 10 Sekunden Cooldown, `Share Keys` 30 Sekunden. Wenn ein `SHAREKEYS`-Sync von irgendeinem isiLive-Peer eingeht, wird der lokale `Share Keys`-Button auf allen empfangenden Clients ueber `TriggerRemoteCooldown` fuer 30 Sekunden gesperrt; ein bereits laufender lokaler Cooldown wird dadurch nicht zurueckgesetzt.
 16. Event-Gate-Dispatch bleibt robust: Fehler in Runtime-Handlern muessen gemeldet werden und duerfen den Gate-Loop nicht brechen.
@@ -103,14 +103,14 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 515 Szenarien ueber 38 Module ab; die Regelvalidatoren indizieren aktuell 515 deterministische Tests.
+5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 522 Szenarien ueber 38 Module ab; die Regelvalidatoren indizieren aktuell 522 deterministische Tests.
 
 Die lokalen Wrapper `tools/check.ps1` und `tools/check.cmd` sind der bevorzugte Einstiegspunkt fuer das statische Gate, weil sie `luacheck` ueber den repo-lokalen Windows-Shim routen, statt direkt das LuaRocks-Script aufzurufen.
 
 ## UI-Struktur (ASCII-Skizze)
 
 ```text
-| isiLive                                                 v0.9.137 Open/Close CTRL-F9 [H][V][M][M2][X]|
+| isiLive                                                 v0.9.138 Open/Close CTRL-F9 [H][V][M][M2][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS                M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
@@ -157,10 +157,10 @@ Zusaetzlich zum Main-Roster-Frame kann `isiLive_ui.lua` optionale Tooling- und T
 | RuntimeState | Root-Orchestrierung und Controller-Callbacks | Zentraler mutierbarer Runtime-Snapshot (`roster`, Queue-Target, Flags, RIO-Baseline, Ready-Check-State, Layout-/Collapse-State) |
 | Group | Group-Roster-Events | Neu aufgebautes Roster-Modell, gespiegelter lokaler Leader-State pro Roster-Eintrag, Ghost-Retention/Pruning und Lifecycle-Transitions |
 | Highlight | Aktive Listings und Queue-Target | Aktiver Teleport-Spell und Highlight-State |
-| KeySync | Sync-Messages und Owned-Snapshot-Daten | Roster-Backfill fuer Key/Stats/DPS/Location, Key-Ownership und Sync-Marker |
-| Re-Sync | User-Refresh-Aktion | Erzwungener lokaler Snapshot, gruppenweiter Sync-Request, Inspect-Refresh-Pipeline und sichtbarer 10s-Cooldown |
+| KeySync | Sync-Messages, `LibKS`-Party-Messages und Owned-Snapshot-Daten | Roster-Backfill fuer Key/Stats/DPS/Location, `LibKeystone`-Party-Interop fuer Key/RIO, Key-Ownership und Sync-Marker |
+| Re-Sync | User-Refresh-Aktion | Erzwungener lokaler Snapshot, gruppenweiter Sync-Request, zusaetzliche `LibKS`-Party-Anfrage fuer kompatible Nicht-`isiLive`-Peers, Inspect-Refresh-Pipeline und sichtbarer 10s-Cooldown |
 | Share Keys | User-Chat-/Share-Aktion | Sofortiger eigener Key-Post in Party, gruppenweiter `SHAREKEYS`-Request an Peers, sichtbarer 30s lokaler Cooldown und remote getriggerter 30s-Cooldown-Lock auf allen Peer-Clients, die `SHAREKEYS` empfangen; ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt |
-| EventHandlersRuntime | Addon-, World-, Combat-, Inspect- und Sync-Events | Startup, Hidden-Mode-Sync, sofortige Full-State-Reply auf neues Peer-`HELLO`, Forwarding von `UNIT_AURA`-Full-Updates fuer den CdTracker, Regen-Recovery fuer pending Visibility/Height und Inspect-Dispatch |
+| EventHandlersRuntime | Addon-, World-, Combat-, Inspect- und Sync-Events | Startup, Hidden-Mode-Sync, sofortige Full-State-Reply auf neues Peer-`HELLO`, hidden `LibKS`-Party-Antworten auf Requests, Forwarding von `UNIT_AURA`-Full-Updates fuer den CdTracker, Regen-Recovery fuer pending Visibility/Height und Inspect-Dispatch |
 | EventHandlersQueue | LFG-Queue-/Listing-Events | Sichtbare Queue-Capture, Erhalt von Pending-Join-Kontext auf negativen Follow-ups und Joined-Key-Tracking |
 | EventHandlersChallenge | Challenge- und Ready-Check-Events | Run-Lifecycle, delayed Refresh, Raid-deferred Post-Run-Refresh-Resume, RIO-Delta-Aktivierung, Ready-Check-State, Declined-Hold-Tracking und dedizierter Ready-Check-UI-Refresh-Dispatch |
 | Stats | Completion-Signale fuer Challenge- und Non-Challenge-Party-Runs plus Blizzard-Damage-Meter-Session | Begrenzte Last-Run-DPS-Snapshots mit kurzem Delayed-Session-Retry; persistent nur fuer den passenden lokalen Character, fuer fremde Spieler nur sessionweit |

@@ -1411,6 +1411,34 @@ local function RegisterHiddenFrameRegenTests(test, Assert, LoadAddonModules, Fix
     Assert.Equal(counters.uiUpdates, 0, "answering a hidden refresh request must not force a UI redraw by itself")
   end)
 
+  test("Event handlers answer LibKeystone requests while frame is hidden", function()
+    local counters = { uiUpdates = 0, refreshResponses = 0 }
+    local libKeystoneReplies = 0
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+      isMainFrameShown = function()
+        return false
+      end,
+      processAddonMessage = function(_prefix, _message, _sender, _channel)
+        return { shouldReplyLibKeystone = true }
+      end,
+      sendLibKeystonePartyData = function(force)
+        if force == true then
+          libKeystoneReplies = libKeystoneReplies + 1
+          return true
+        end
+        return false
+      end,
+    })
+
+    controller:Dispatch("CHAT_MSG_ADDON", "LibKS", "R", "PARTY", "Alpha-RealmA")
+
+    Assert.Equal(libKeystoneReplies, 1, "hidden LibKeystone requests must trigger one party-key reply")
+    Assert.Equal(counters.refreshResponses, 0, "LibKeystone requests must not trigger isiLive refresh replies")
+    Assert.Equal(counters.uiUpdates, 0, "answering a hidden LibKeystone request must not force a UI redraw")
+  end)
+
   test("Event handlers answer SHAREKEYS requests while frame is hidden", function()
     local counters = { uiUpdates = 0, refreshResponses = 0 }
     local keystoneChatShares = 0

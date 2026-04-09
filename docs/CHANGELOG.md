@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-04-09 - Version 0.9.138 (patch)
+
+- LibKeystone compatibility:
+  - `isiLive` now registers and handles the `LibKS` addon-message prefix in party groups.
+  - Manual `Re-Sync` now also sends one `LibKS` party request so compatible non-`isiLive` addons can answer with `level,mapID,rio`.
+  - Incoming `LibKS` payloads now backfill party-member `Key` and `RIO`, while preserving richer `isiLive` `Spec`/`iLvl` data when it already exists.
+  - Hidden clients now answer incoming `LibKS` requests with one party payload containing the local key and rating.
+  - Added deterministic coverage for `LibKS` request/reply handling, hidden-party replies, request throttling, and KeySync delegation.
+- Docs / release baseline:
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `isiLive.toc` to `0.9.138`.
+  - Validator baseline is now documented as 522 scenarios across 38 modules, with 522 deterministic tests indexed by the rule validators.
+
 ## 2026-04-09 - Version 0.9.137 (patch)
 
 - KICK / No-Guess hardening:

@@ -83,6 +83,9 @@ local function BuildContext(opts)
   ctx.sendOwnKeySnapshot = RequireFunction(opts.sendOwnKeySnapshot, "sendOwnKeySnapshot")
   ctx.sendOwnBackgroundSnapshot = RequireFunction(opts.sendOwnBackgroundSnapshot, "sendOwnBackgroundSnapshot")
   ctx.sendIsiLiveHello = RequireFunction(opts.sendIsiLiveHello, "sendIsiLiveHello")
+  ctx.sendLibKeystonePartyData = OptionalFunction(opts.sendLibKeystonePartyData, function(_force)
+    return false
+  end)
   ctx.sendOwnTargetSnapshot = OptionalFunction(opts.sendOwnTargetSnapshot, function(_force, _source, _allowHidden) end)
 
   ctx.ensureQueueDebugStorage = RequireFunction(opts.ensureQueueDebugStorage, "ensureQueueDebugStorage")
