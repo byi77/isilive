@@ -1168,6 +1168,38 @@ local function RegisterKickSyncTests(test, Assert, WithGlobals, LoadAddonModules
     end)
   end)
 
+  test("Sync ProcessAddonMessage reports kick updates when remaining cooldown changes", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local firstResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:1:8", "Peer-Realm", "Me", "Realm")
+      Assert.True(firstResult.kickUpdated, "first active KICK payload must report update")
+
+      local secondResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:1:7", "Peer-Realm", "Me", "Realm")
+      Assert.True(secondResult.kickUpdated, "changed remaining cooldown must report update")
+
+      local kickInfo = addon.Sync.GetPlayerKickInfo("Peer", "Realm")
+      Assert.NotNil(kickInfo, "active KICK info must be stored")
+      Assert.True(kickInfo.hasKick, "active KICK payload must preserve hasKick=true")
+      Assert.True(kickInfo.onCooldown, "active KICK payload must preserve cooldown state")
+      Assert.Equal(kickInfo.cooldownRemain, 7, "updated remaining cooldown must be stored")
+    end)
+  end)
+
   test("Sync ProcessAddonMessage rejects malformed KICK payloads without inventing a state", function()
     WithGlobals({
       strsplit = function(sep, str, max)

@@ -1,14 +1,15 @@
 # Changelog
 
-## 2026-04-09 - Version 0.9.135 (patch)
+## 2026-04-09 - Version 0.9.137 (patch)
 
 - KICK / No-Guess hardening:
   - `Sync.SendKick()` and `Sync.SetPlayerKickInfo()` now reject malformed or incomplete KICK inputs instead of inventing a kick state.
   - `ProcessAddonMessage()` now discards malformed `KICK` payloads fail-closed, so no guess is written into the roster cache from broken peer data.
-  - Added deterministic regressions for malformed outbound `SendKick` inputs and malformed inbound `KICK` payloads; the kick test suite now covers the explicit no-guess contract.
+  - `ProcessAddonMessage()` now also treats changing remaining kick cooldown as a visible sync update, so the roster countdown keeps moving when the sender refreshes the payload.
+  - Added deterministic regressions for malformed outbound `SendKick` inputs, malformed inbound `KICK` payloads, and remaining-cooldown updates; the kick test suite now covers the explicit no-guess contract and the countdown refresh path.
 - Docs / release baseline:
-  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RULES.md`, `WARTUNG.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.135`.
-  - Validator baseline is now documented as 514 scenarios across 37 modules, with 514 deterministic tests indexed by the rule validators.
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RULES.md`, `WARTUNG.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.137`.
+  - Validator baseline is now documented as 516 scenarios across 38 modules, with 516 deterministic tests indexed by the rule validators.
 
 ## 2026-04-09 - Version 0.9.134 (patch)
 

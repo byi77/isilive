@@ -565,6 +565,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Sync SendKick encodes no-interrupt state and deduplicates payloads
   - Sync SendKick rejects malformed kick payload inputs without guessing
   - Sync ClearKnownUsers resets kick send cooldowns so next identical payload fires immediately
+  - Sync ProcessAddonMessage reports kick updates when remaining cooldown changes
   - Sync ProcessAddonMessage rejects malformed KICK payloads without inventing a state
   - Event handlers answer refresh requests while frame is hidden
   - Factory explicit kick sync reply uses recovered cooldown state instead of stale ready state

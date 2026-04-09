@@ -579,7 +579,9 @@ function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capture
   elseif newOnCooldown then
     return false
   end
-  local changed = not prev or prev.onCooldown ~= newOnCooldown or prev.hasKick ~= newHasKick
+  local prevRemain = tonumber(prev and prev.cooldownRemain) or 0
+  local remainChanged = newHasKick and newOnCooldown and math.abs(prevRemain - numericRemain) > 0.05
+  local changed = not prev or prev.onCooldown ~= newOnCooldown or prev.hasKick ~= newHasKick or remainChanged
   local getTime = rawget(_G, "GetTime")
   kickInfoByPlayerKey[key] = {
     hasKick = newHasKick,
