@@ -612,12 +612,12 @@ local function CreateKillTrackRow(mainFrame)
   local UICommon = addonTable.UICommon or {}
   local row = CreateFrame("Frame", nil, mainFrame)
   row:SetHeight(CD_TRACKER_ROW_HEIGHT)
-  row:SetPoint("BOTTOMLEFT",  10, KILLTRACK_ROW_BOTTOM_OFFSET)
+  row:SetPoint("BOTTOMLEFT", 10, KILLTRACK_ROW_BOTTOM_OFFSET)
   row:SetPoint("BOTTOMRIGHT", -10, KILLTRACK_ROW_BOTTOM_OFFSET)
 
   local box = CreateFrame("Frame", nil, row, "BackdropTemplate")
   box:SetHeight(CD_TRACKER_ROW_HEIGHT)
-  box:SetPoint("LEFT",  row, "LEFT",  0, 0)
+  box:SetPoint("LEFT", row, "LEFT", 0, 0)
   box:SetPoint("RIGHT", row, "RIGHT", 0, 0)
   if type(UICommon.ApplyBackdrop) == "function" then
     UICommon.ApplyBackdrop(box, "CD_BOX")
@@ -641,7 +641,7 @@ local function CreateKillTrackRow(mainFrame)
 
   -- bar container stretches between label and percent text
   local barContainer = CreateFrame("Frame", nil, box)
-  barContainer:SetPoint("LEFT",  box, "LEFT",  94, 0)
+  barContainer:SetPoint("LEFT", box, "LEFT", 94, 0)
   barContainer:SetPoint("RIGHT", box, "RIGHT", -122, 0)
   barContainer:SetHeight(8)
 
@@ -651,7 +651,7 @@ local function CreateKillTrackRow(mainFrame)
   barBg:SetVertexColor(0.12, 0.12, 0.12)
 
   local barFill = barContainer:CreateTexture(nil, "ARTWORK")
-  barFill:SetPoint("TOPLEFT",    barContainer, "TOPLEFT",    0, 0)
+  barFill:SetPoint("TOPLEFT", barContainer, "TOPLEFT", 0, 0)
   barFill:SetPoint("BOTTOMLEFT", barContainer, "BOTTOMLEFT", 0, 0)
   barFill:SetWidth(1)
   barFill:SetTexture("Interface\\Buttons\\WHITE8X8")
@@ -660,7 +660,7 @@ local function CreateKillTrackRow(mainFrame)
 
   -- pull prediction bar segment (hellblau, rechts an barFill angehängt)
   local barPull = barContainer:CreateTexture(nil, "ARTWORK")
-  barPull:SetPoint("TOPLEFT",    barFill, "TOPRIGHT",    0, 0)
+  barPull:SetPoint("TOPLEFT", barFill, "TOPRIGHT", 0, 0)
   barPull:SetPoint("BOTTOMLEFT", barFill, "BOTTOMRIGHT", 0, 0)
   barPull:SetWidth(1)
   barPull:SetTexture("Interface\\Buttons\\WHITE8X8")
@@ -676,26 +676,25 @@ local function CreateKillTrackRow(mainFrame)
   ApplyFontStringSize(pctText, CD_TRACKER_FONT_SIZE)
 
   row.killTrackBarContainer = barContainer
-  row.killTrackBarFill      = barFill
-  row.killTrackBarPull      = barPull
-  row.killTrackPctText      = pctText
-  row.killTrackPullText     = pullText
+  row.killTrackBarFill = barFill
+  row.killTrackBarPull = barPull
+  row.killTrackPctText = pctText
+  row.killTrackPullText = pullText
   return row
 end
 
 local function UpdateKillTrackRow(row)
-  if not row then return end
+  if not row then
+    return
+  end
   local KillTrack = addonTable.KillTrack
-  local data = type(KillTrack) == "table"
-      and type(KillTrack.GetData) == "function"
-      and KillTrack.GetData()
-    or nil
+  local data = type(KillTrack) == "table" and type(KillTrack.GetData) == "function" and KillTrack.GetData() or nil
 
   local barContainer = row.killTrackBarContainer
-  local barFill      = row.killTrackBarFill
-  local barPull      = row.killTrackBarPull
-  local pctText      = row.killTrackPctText
-  local pullText     = row.killTrackPullText
+  local barFill = row.killTrackBarFill
+  local barPull = row.killTrackBarPull
+  local pctText = row.killTrackPctText
+  local pullText = row.killTrackPullText
 
   if data and data.active then
     local pct = math.max(0, math.min(data.percent, 100))
@@ -725,7 +724,9 @@ local function UpdateKillTrackRow(row)
         local pw = math.floor(w * pullPct / 100 + 0.5)
         -- clamp so fill+pull doesn't exceed container width
         local fw = barFill and (type(barFill.GetWidth) == "function" and barFill:GetWidth() or 0) or 0
-        if fw + pw > w then pw = math.max(1, w - fw) end
+        if fw + pw > w then
+          pw = math.max(1, w - fw)
+        end
         barPull:SetWidth(math.max(1, pw))
         barPull:Show()
       else
@@ -745,8 +746,12 @@ local function UpdateKillTrackRow(row)
       end
     end
   else
-    if barFill then barFill:Hide() end
-    if barPull then barPull:Hide() end
+    if barFill then
+      barFill:Hide()
+    end
+    if barPull then
+      barPull:Hide()
+    end
     if pctText then
       pctText:SetText("--,--")
       pctText:SetTextColor(0.4, 0.4, 0.5)
