@@ -120,6 +120,18 @@ local function NewRecordedFrame(createdFrames, createdFontStrings, frameType, na
     self.width = width
     self.height = height
   end
+  function frame:SetWidth(value)
+    self.width = value
+  end
+  function frame:SetHeight(value)
+    self.height = value
+  end
+  function frame:GetWidth()
+    return self.width or 0
+  end
+  function frame:GetHeight()
+    return self.height or 0
+  end
   function frame:SetPoint(point, ...)
     local args = { ... }
     self.point = point
