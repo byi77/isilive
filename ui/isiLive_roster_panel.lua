@@ -139,7 +139,6 @@ local NAME_COL_WIDTH = 122
 local SERVER_COL_WIDTH = 18
 local KEY_COL_WIDTH = 62
 local ILVL_COL_WIDTH = 32
--- Leave enough room for long positive RIO deltas like (+999)9999 without clipping.
 local RIO_COL_WIDTH = 70
 local DPS_COL_X = RIO_COL_X + RIO_COL_WIDTH + 2
 local DPS_COL_WIDTH = 40

@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-04-10 - Version 0.9.144 (patch)
+
+- Roster layout rollback:
+  - Reverted the temporary RIO-width experiment and restored the compact roster column budget.
+  - Restored the M2 frame width and the associated layout/test expectations to the previous stable state.
+- Docs / release baseline:
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `isiLive.toc` to `0.9.144`.
+
+## 2026-04-10 - Version 0.9.143 (patch)
+
+- Kick event routing fix:
+  - The kick tracker no longer registers a separate kick frame during addon initialization.
+  - `UNIT_SPELLCAST_SUCCEEDED`, `UNIT_PET`, `SPELLS_CHANGED`, and `COMBAT_LOG_EVENT_UNFILTERED` now flow through the main event dispatcher, which avoids the protected `Frame:RegisterEvent()` call that could fire in tainted init contexts.
+  - Updated the affected deterministic factory and architecture regressions to match the main-dispatcher wiring.
+- Docs / release baseline:
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RULES_LOGIC.md`, and `isiLive.toc` to `0.9.143`.
+
 ## 2026-04-10 - Version 0.9.142 (feature)
 
 - Kick column icon display:
