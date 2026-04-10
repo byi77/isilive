@@ -111,8 +111,9 @@ local IsMainHorizontalLayoutMode = RI.IsMainHorizontalLayoutMode
     return false
   end
 local GetFrameHeightForLayoutMode = RI.GetFrameHeightForLayoutMode
-local CD_TRACKER_ROW_HEIGHT = RI.CD_TRACKER_ROW_HEIGHT or 20
-local CD_TRACKER_ROW_BOTTOM_OFFSET = RI.CD_TRACKER_ROW_BOTTOM_OFFSET or 20
+local CD_TRACKER_ROW_HEIGHT = RI.CD_TRACKER_ROW_HEIGHT or 24
+local CD_TRACKER_ROW_BOTTOM_OFFSET = RI.CD_TRACKER_ROW_BOTTOM_OFFSET or 40
+local KILLTRACK_ROW_BOTTOM_OFFSET = 12
 local CD_TRACKER_ICON_SIZE = 16
 local CD_TRACKER_TEXT_GAP = 6
 local CD_TRACKER_FONT_SIZE = 12
@@ -603,6 +604,155 @@ local function UpdateCdTrackerRow(row, cdController)
       row.mp1Text:SetText("--:--")
       SetFontStringTextColorSafe(row.mpDeathText, 0.4, 0.4, 0.5)
       row.mpDeathText:SetText("--")
+    end
+  end
+end
+
+local function CreateKillTrackRow(mainFrame)
+  local UICommon = addonTable.UICommon or {}
+  local row = CreateFrame("Frame", nil, mainFrame)
+  row:SetHeight(CD_TRACKER_ROW_HEIGHT)
+  row:SetPoint("BOTTOMLEFT",  10, KILLTRACK_ROW_BOTTOM_OFFSET)
+  row:SetPoint("BOTTOMRIGHT", -10, KILLTRACK_ROW_BOTTOM_OFFSET)
+
+  local box = CreateFrame("Frame", nil, row, "BackdropTemplate")
+  box:SetHeight(CD_TRACKER_ROW_HEIGHT)
+  box:SetPoint("LEFT",  row, "LEFT",  0, 0)
+  box:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+  if type(UICommon.ApplyBackdrop) == "function" then
+    UICommon.ApplyBackdrop(box, "CD_BOX")
+  end
+
+  -- "M+Killtracker" label
+  local label = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  label:SetPoint("LEFT", box, "LEFT", 6, 0)
+  label:SetWidth(84)
+  label:SetJustifyH("LEFT")
+  label:SetText("|cff888888M+Killtracker|r")
+  ApplyFontStringSize(label, CD_TRACKER_FONT_SIZE)
+
+  -- pull preview text (shows +X,XX% during active combat)
+  local pullText = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  pullText:SetPoint("RIGHT", box, "RIGHT", -66, 0)
+  pullText:SetWidth(54)
+  pullText:SetJustifyH("RIGHT")
+  pullText:SetText("")
+  ApplyFontStringSize(pullText, CD_TRACKER_FONT_SIZE)
+
+  -- bar container stretches between label and percent text
+  local barContainer = CreateFrame("Frame", nil, box)
+  barContainer:SetPoint("LEFT",  box, "LEFT",  94, 0)
+  barContainer:SetPoint("RIGHT", box, "RIGHT", -122, 0)
+  barContainer:SetHeight(8)
+
+  local barBg = barContainer:CreateTexture(nil, "BACKGROUND")
+  barBg:SetAllPoints(barContainer)
+  barBg:SetTexture("Interface\\Buttons\\WHITE8X8")
+  barBg:SetVertexColor(0.12, 0.12, 0.12)
+
+  local barFill = barContainer:CreateTexture(nil, "ARTWORK")
+  barFill:SetPoint("TOPLEFT",    barContainer, "TOPLEFT",    0, 0)
+  barFill:SetPoint("BOTTOMLEFT", barContainer, "BOTTOMLEFT", 0, 0)
+  barFill:SetWidth(1)
+  barFill:SetTexture("Interface\\Buttons\\WHITE8X8")
+  barFill:SetVertexColor(0.2, 0.75, 0.35)
+  barFill:Hide()
+
+  -- pull prediction bar segment (hellblau, rechts an barFill angehängt)
+  local barPull = barContainer:CreateTexture(nil, "ARTWORK")
+  barPull:SetPoint("TOPLEFT",    barFill, "TOPRIGHT",    0, 0)
+  barPull:SetPoint("BOTTOMLEFT", barFill, "BOTTOMRIGHT", 0, 0)
+  barPull:SetWidth(1)
+  barPull:SetTexture("Interface\\Buttons\\WHITE8X8")
+  barPull:SetVertexColor(0.4, 0.7, 1.0, 0.7)
+  barPull:Hide()
+
+  -- percent text
+  local pctText = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  pctText:SetPoint("RIGHT", box, "RIGHT", -6, 0)
+  pctText:SetWidth(58)
+  pctText:SetJustifyH("RIGHT")
+  pctText:SetText("--,--")
+  ApplyFontStringSize(pctText, CD_TRACKER_FONT_SIZE)
+
+  row.killTrackBarContainer = barContainer
+  row.killTrackBarFill      = barFill
+  row.killTrackBarPull      = barPull
+  row.killTrackPctText      = pctText
+  row.killTrackPullText     = pullText
+  return row
+end
+
+local function UpdateKillTrackRow(row)
+  if not row then return end
+  local KillTrack = addonTable.KillTrack
+  local data = type(KillTrack) == "table"
+      and type(KillTrack.GetData) == "function"
+      and KillTrack.GetData()
+    or nil
+
+  local barContainer = row.killTrackBarContainer
+  local barFill      = row.killTrackBarFill
+  local barPull      = row.killTrackBarPull
+  local pctText      = row.killTrackPctText
+  local pullText     = row.killTrackPullText
+
+  if data and data.active then
+    local pct = math.max(0, math.min(data.percent, 100))
+    local r, g, b
+    if pct < 80 then
+      r, g, b = 0.2, 0.75, 0.35
+    elseif pct < 95 then
+      r, g, b = 0.9, 0.75, 0.1
+    else
+      r, g, b = 0.9, 0.3, 0.15
+    end
+    local w = type(barContainer.GetWidth) == "function" and barContainer:GetWidth() or 0
+    if barFill then
+      local fw = math.floor(w * pct / 100 + 0.5)
+      if fw > 0 then
+        barFill:SetWidth(fw)
+        barFill:SetVertexColor(r, g, b)
+        barFill:Show()
+      else
+        barFill:Hide()
+      end
+    end
+    -- pull prediction bar segment
+    local pullPct = (data.inCombat and type(data.pullPercent) == "number") and data.pullPercent or 0
+    if barPull then
+      if data.inCombat and pullPct > 0 and w > 0 then
+        local pw = math.floor(w * pullPct / 100 + 0.5)
+        -- clamp so fill+pull doesn't exceed container width
+        local fw = barFill and (type(barFill.GetWidth) == "function" and barFill:GetWidth() or 0) or 0
+        if fw + pw > w then pw = math.max(1, w - fw) end
+        barPull:SetWidth(math.max(1, pw))
+        barPull:Show()
+      else
+        barPull:Hide()
+      end
+    end
+    if pctText then
+      pctText:SetText(string.format("%.2f%%", pct):gsub("%.", ","))
+      pctText:SetTextColor(r, g, b)
+    end
+    if pullText then
+      if data.inCombat and pullPct > 0 then
+        pullText:SetText("+" .. string.format("%.2f%%", pullPct):gsub("%.", ","))
+        pullText:SetTextColor(0.6, 0.85, 1.0)
+      else
+        pullText:SetText("")
+      end
+    end
+  else
+    if barFill then barFill:Hide() end
+    if barPull then barPull:Hide() end
+    if pctText then
+      pctText:SetText("--,--")
+      pctText:SetTextColor(0.4, 0.4, 0.5)
+    end
+    if pullText then
+      pullText:SetText("")
     end
   end
 end
@@ -1432,6 +1582,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   local tankButtons, tankHeader = CreateTankHelperButtons(mainFrame, panelTooltip, uiDeps.getL)
 
   local cdTrackerRow = CreateCdTrackerRow(mainFrame)
+  local killTrackRow = CreateKillTrackRow(mainFrame)
   local statusLine = CreateStatusLine(mainFrame)
   local optionToggles = CreateSystemOptionToggles(mainFrame)
   local raidNoticeLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -1448,6 +1599,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     rosterTooltip = rosterTooltip,
     title = title,
     cdTrackerRow = cdTrackerRow,
+    killTrackRow = killTrackRow,
     statusLine = statusLine,
     titleVersion = titleVersion,
     titleHint = titleHint,
@@ -1891,7 +2043,7 @@ local function RenderRosterImpl(state, roster)
   shareKeysButton:SetEnabled(hasAnyKey)
   shareKeysButton:SetAlpha(hasAnyKey and 1 or 0.45)
 
-  local cdTrackerExtra = IsMainHorizontalLayoutMode(layoutMode) and CD_TRACKER_ROW_HEIGHT or 0
+  local cdTrackerExtra = IsMainHorizontalLayoutMode(layoutMode) and (CD_TRACKER_ROW_HEIGHT + 28) or 0
   local desiredHeight = isCollapsed and GetFrameHeightForLayoutMode(layoutMode, minFrameHeight)
     or math.max(minFrameHeight, 45 + index * 16) + cdTrackerExtra
   setMainFrameHeightSafe(desiredHeight)
@@ -2205,6 +2357,7 @@ function RosterPanel.CreateController(opts)
     }, roster)
     RefreshSystemOptionToggles(ui)
     UpdateCdTrackerRow(ui.cdTrackerRow, cdController)
+    UpdateKillTrackRow(ui.killTrackRow)
   end
 
   function controller.RefreshReadyCheckState(roster)
@@ -2255,6 +2408,7 @@ function RosterPanel.CreateController(opts)
   function controller.RefreshCdTracker()
     cdTrackerNeedsVisibleRescan = false
     UpdateCdTrackerRow(ui.cdTrackerRow, cdController)
+    UpdateKillTrackRow(ui.killTrackRow)
   end
 
   function controller.MarkCdTrackerDirty()

@@ -32,8 +32,8 @@ local MINI_HORIZONTAL_HELPER_GAP = 2
 local DEFAULT_MIN_FRAME_HEIGHT = 236
 local MINI_MAIN_HORIZONTAL_MIN_HEIGHT = DEFAULT_MIN_FRAME_HEIGHT + MINI_MAIN_HORIZONTAL_EXTRA_HEIGHT
 local M2_ROW_LEFT_MARGIN = 10
-local M2_MANAGEMENT_ROW_Y = 80
-local M2_TELEPORT_ROW_Y = 42
+local M2_MANAGEMENT_ROW_Y = 108
+local M2_TELEPORT_ROW_Y = 70
 local M2_HELPER_ROW_Y = 14
 local M2_TOOLBAR_BUTTON_WIDTH = 92
 local M2_TOOLBAR_BUTTON_HEIGHT = 22
@@ -49,7 +49,7 @@ local SYSTEM_OPTION_TOGGLE_LEFT_MARGIN = 10
 local SYSTEM_OPTION_TOGGLE_BOTTOM_OFFSET = 24
 local SYSTEM_OPTION_TOGGLE_GAP = 18
 local CD_TRACKER_ROW_HEIGHT = 24
-local CD_TRACKER_ROW_BOTTOM_OFFSET = 12
+local CD_TRACKER_ROW_BOTTOM_OFFSET = 40
 
 RI.LAYOUT_MODE_EXPANDED = LAYOUT_MODE_EXPANDED
 RI.LAYOUT_MODE_COMPACT_VERTICAL = LAYOUT_MODE_COMPACT_VERTICAL
@@ -125,6 +125,7 @@ local UI_VISIBILITY_RULES = {
   { "dpsHeader", true, false, false, true },
   { "kickHeader", true, false, false, true },
   { "cdTrackerRow", false, false, false, true },
+  { "killTrackRow", false, false, false, true },
   { "statusLine", true, false, false, false },
   { "mplusManagementHeader", true, false, false, false },
   { "shareKeysButton", true, true, false, true },
@@ -187,7 +188,7 @@ local function GetFrameHeightForLayoutMode(layoutMode, minFrameHeight)
     return MINI_HORIZONTAL_FRAME_HEIGHT
   end
   if NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL then
-    return math.max(tonumber(minFrameHeight) or DEFAULT_MIN_FRAME_HEIGHT, MINI_MAIN_HORIZONTAL_MIN_HEIGHT)
+    return math.max(tonumber(minFrameHeight) or DEFAULT_MIN_FRAME_HEIGHT, MINI_MAIN_HORIZONTAL_MIN_HEIGHT) + 28
   end
   return tonumber(minFrameHeight) or DEFAULT_MIN_FRAME_HEIGHT
 end

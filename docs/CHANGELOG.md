@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-04-10 - Version 0.9.140 (feature)
+
+- M+ Killtracker row added to M2 layout:
+  - New bottom row in M2 shows Enemy Forces percentage as a progress bar with colour coding: green (<80%), yellow (<95%), red (≥95%).
+  - Displays `--,--` when no key is active; switches to `00,00%` immediately on key start and resets to `--,--` on key end or reset.
+  - Pull prediction: during active combat the row shows the forces delta gained in the current pull as `+X,XX%` text and as a second light-blue bar segment appended to the right of the main fill bar.
+  - Pull prediction uses a scenario-quantity delta approach (combat-start snapshot vs. current quantity) — the only method that works in Midnight M+ where all NPC identification APIs return secret values inside the instance.
+  - Demo mode shows `47,34%` with `+3,21%` pull preview.
+  - Row label: `M+Killtracker` (grey, left-anchored).
+  - Data source: `game/isiLive_killtrack.lua` — reads `C_ScenarioInfo.GetScenarioStepInfo()` weighted-progress criterion; reacts to `CHALLENGE_MODE_START/COMPLETED/RESET`, `SCENARIO_CRITERIA_UPDATE`, `PLAYER_ENTERING_WORLD`, `PLAYER_REGEN_DISABLED/ENABLED`.
+  - M2 frame height extended by 28px to accommodate the new row; management, teleport and CD-tracker rows each shifted up by 28px.
+- Docs / release baseline:
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `isiLive.toc` to `0.9.140`.
+
 ## 2026-04-10 - Version 0.9.139 (patch)
 
 - Title bar UI polish:

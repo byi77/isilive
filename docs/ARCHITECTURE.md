@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.139`
+Versionsbasis: `0.9.140`
 Zuletzt aktualisiert: `2026-04-10`
 
 ## Zweck
@@ -19,7 +19,7 @@ Die Architektur ist eventgetrieben und in klare Runtime-Schichten aufgeteilt:
 |---|---|---|
 | Einstieg und Orchestrierung | Composition Root, Runtime-State, Wiring, Controller-Lifecycle, Keybindings, Modulguards | `isiLive.lua`, `isiLive_runtime_state.lua`, `isiLive_bootstrap.lua`, `isiLive_runtime_setup.lua`, `isiLive_controller_wiring.lua`, `isiLive_controller_init.lua`, `isiLive_factory.lua`, `isiLive_factory_frame_bridge.lua`, `isiLive_factory_controllers.lua`, `isiLive_frame_bridge.lua`, `isiLive_context_helpers.lua`, `isiLive_guards.lua`, `isiLive_bindings.lua` |
 | Event-Gate und Dispatch | Stop/Pause/Hidden/Test erzwingen, Lifecycle-Handler routen, Slash-Commands dispatchen | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_utils.lua`, `isiLive_commands.lua` |
-| Fachlogik | Queue-Parsing und Join-Flow, Gruppenmodell, Highlight-Aufloesung, Key-Sync, Refresh, Inspect, Leader-Transitions, begrenzte Run-Stats, Cooldown-/Interrupt-Tracking, per-Spec-Kick-Daten, Mythic+-Timer-State | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua`, `isiLive_cd_tracker.lua`, `isiLive_kick_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_leader_watch.lua` |
+| Fachlogik | Queue-Parsing und Join-Flow, Gruppenmodell, Highlight-Aufloesung, Key-Sync, Refresh, Inspect, Leader-Transitions, begrenzte Run-Stats, Cooldown-/Interrupt-Tracking, per-Spec-Kick-Daten, Mythic+-Timer-State, Enemy-Forces-Tracking und Pull-Prediction | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua`, `isiLive_cd_tracker.lua`, `isiLive_kick_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_killtrack.lua`, `isiLive_leader_watch.lua` |
 | UI-Komposition | Main-Frame, Roster-Zeilenmarkup, Roster-Panel, optionale Game-Menu-Tooling-/Travel-Panels, Blizzard-Settings-Canvas, Combat-Utility-Zeile, Teleport-Grid und Debug-Navigator, Notices, Statuszeile | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_roster.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_roster_layout.lua`, `isiLive_teleport_ui.lua`, `isiLive_teleport_debug.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
 | Gemeinsame Helfer und Daten | Locale, lokalisierte Texte, Units, Realm-Sprachdaten, Season-Map-/Spell-Daten, sichere Spell-Cooldown-Wrapper, Runtime-Logging, fokussierte Config-Builder, private Tooltip-/UI-Helfer, zentrale Backdrop-Presets, gemeinsame Validierungs-/String-Helfer, Debug-Helfer, Demo-/Test-Helfer | `isiLive_validation_helpers.lua`, `isiLive_string_utils.lua`, `isiLive_spell_utils.lua`, `isiLive_locale.lua`, `isiLive_texts.lua`, `realm_language_data.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_ui_common.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua`, `isiLive_queue_debug.lua`, `isiLive_demo.lua`, `isiLive_test_mode.lua` |
 
@@ -73,6 +73,7 @@ WoW Event
 24. Ready-Check-Lifecycle-Events muessen ueber einen dedizierten Roster-Refresh-Pfad laufen, der row-background-State, Waiting-Sandglass-Marker und den 20-Sekunden-Declined-Hold erneut anlegt, ohne den generischen Vollrender des Rosters erneut auszufuehren oder Secure-Role-Button-Attribute anzufassen.
 25. Roster-Leader-Marker werden ausschliesslich aus dem gespiegelten `UnitIsGroupLeader`-State abgeleitet; das Roster rendert fuer diese Zeilen eine 16x16-Krone, und bei gesyncten Leadern bleibt die blaue Heart-Markierung vor der Krone.
 26. Persistierte Ghost-Zeilen duerfen in nicht-vollen Gruppen bestehen bleiben, aber die Roster-Sortierung muss immer alle aktiven Mitglieder vor Ghosts halten, damit das sichtbare 5-Zeilen-Clipping nie ein aktuelles Gruppenmitglied hinter stale Leavern versteckt.
+27. KillTrack-Pull-Prediction darf niemals NPC-Identifikations-APIs (GUID, Fingerprint, Name-Lookup) verwenden, um Mob-Force-Werte zu bestimmen. In Midnight M+ liefern alle NPC-ID-APIs innerhalb der Instanz Secret Values. Der einzig zulaessige Ansatz ist der Scenario-Quantity-Delta: rawCount bei Combat-Start als Baseline speichern, waehrend Combat den Zuwachs aus SCENARIO_CRITERIA_UPDATE verfolgen. Kein Guessing von Force-Werten aus NPC-Datenbanken.
 
 ## Architektur-Vertragssatz
 

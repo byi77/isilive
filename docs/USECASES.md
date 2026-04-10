@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.139`
+Versionsbasis: `0.9.140`
 Zuletzt aktualisiert: `2026-04-10`
 
 ## Akteure
@@ -36,6 +36,7 @@ Zuletzt aktualisiert: `2026-04-10`
 | UC-12 | Roster-Panel Mini Mode | Collapse-Toggle blendet Roster-Liste und `Travel` aus, waehrend kompakte Marker- und Management-Tools sichtbar bleiben |
 | UC-13 | Esc-Shortcuts und Addon-Settings | Der User bekommt zwei Blizzard-UI-Einstiegsflaechen plus lokalisierte Config-Toggles und Sound-Praferenzen |
 | UC-14 | Combat-Utility-Tracker | Live-BRes, Lust, Mythic+-Timer und gesyncter Interrupt-State bleiben im Roster-Panel sichtbar |
+| UC-15 | M+ Killtracker und Pull-Prediction | Enemy-Forces-Prozentsatz und Pull-Delta werden als Fortschrittsbalken mit Pull-Preview im M2-Layout angezeigt |
 
 ## UC-01 Invite-Erkennung ohne Target-Guessing
 
@@ -204,6 +205,20 @@ Aktuelle Validator-Baseline: `523` Szenarien ueber `38` Module.
 9. UC-11 und UC-12: Secure-World-Marker-Button-Konfiguration fuer M+Marker und Compact-Layout-Visibility-Logik fuer M/V/H.
 10. Taint-Hardening: verschobene Secure-Attribute-Writes, verschobene `Esc`-Shortcut-Secure-Button-Refreshes, insecure Teleport-Grid-Aktionen und combat-sicheres Collapse-Handling.
 11. UC-13 und UC-14: Game-Menu-Tooling-/Travel-Strips, Lokalisierung, Close-then-Open-Verhalten, verschobener Secure-Reload-Button-Refresh, Direct-Opener-Fallback-Auswahl, Settings-Canvas-State-Mirroring, Background-Opacity-Verhalten, Live-BRes-/Bloodlust-/M+-Timer-Rendering und gesyncte Interrupt-Cooldown-Anzeige.
+12. UC-15: Enemy-Forces-Lesen via `C_ScenarioInfo`, Scenario-Quantity-Delta fuer Pull-Prediction, Combat-State-Snapshot, Bar-Rendering mit Pull-Segment, Demo-Mode-Integration.
+
+## UC-15 M+ Killtracker und Pull-Prediction
+
+Ziel: Enemy-Forces-Fortschritt und Pull-Delta im M2-Layout permanent anzeigen.
+
+1. Trigger: `CHALLENGE_MODE_START` aktiviert den Tracker; `SCENARIO_CRITERIA_UPDATE` aktualisiert den Prozentwert laufend.
+2. Anzeige: Fortschrittsbalken im M2-Layout zeigt den aktuellen EF-Prozentsatz farbkodiert (gruen/gelb/rot); bei inaktivem Key zeigt der Text `--,--`.
+3. Pull-Prediction-Trigger: `PLAYER_REGEN_DISABLED` speichert `rawCount` als Baseline fuer diesen Pull.
+4. Pull-Prediction-Update: Jedes `SCENARIO_CRITERIA_UPDATE` waehrend Combat berechnet `gained = rawCount - startRawCount` und zeigt den Delta als `+X,XX%` und als hellblauen Bar-Segment rechts am Hauptbalken.
+5. Pull-Prediction-Ende: `PLAYER_REGEN_ENABLED` loescht den Delta nach 0,5s Verzoegerung (um das letzte `SCENARIO_CRITERIA_UPDATE` abzuwarten).
+6. Key-Ende: `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` setzt alle Werte sofort auf Ausgangszustand zurueck.
+7. Regel: NPC-Identifikations-APIs (GUID, Fingerprint, NPC-ID) werden nie verwendet — sie liefern in Midnight-M+-Instanzen Secret Values.
+8. Erfolgskriterium: EF-Prozentsatz und Pull-Delta sind stets konsistent mit dem `C_ScenarioInfo`-State; kein Guessing von Force-Werten.
 
 ## Rueckverfolgbarkeit zu Quelldateien
 
@@ -216,6 +231,7 @@ Aktuelle Validator-Baseline: `523` Szenarien ueber `38` Module.
 | RIO-Baseline-Capture und Delta-Preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
 | Last-Run-DPS-Capture und begrenzte Stats-Persistenz | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
 | Combat-Utility-Tracker-Zeile, Kick-State und LibKeystone-Key-Interop | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_controllers.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
+| M+ Killtracker und Pull-Prediction | `isiLive_killtrack.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_layout.lua`, `isiLive_factory_controllers.lua` |
 | Leader-Transfer-Erkennung und Feedback | `isiLive_leader_watch.lua` |
 | UI-Aktionen, Rollen-Buttons, Key-Share-Button | `isiLive_roster_panel.lua` |
 | Esc-Tooling-/Travel-Strips und Blizzard-Settings-Canvas | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_factory.lua`, `isiLive_texts.lua`, `isiLive_ui_common.lua` |
