@@ -976,7 +976,14 @@ local function InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runti
       end
       local KillTrack = ctx.addonTable and ctx.addonTable.KillTrack
       if type(KillTrack) == "table" and type(KillTrack.SetDemoData) == "function" then
-        KillTrack.SetDemoData({ active = true, percent = 47.34, rawCount = 0, total = 0, inCombat = true, pullPercent = 3.21 })
+        KillTrack.SetDemoData({
+          active = true,
+          percent = 47.34,
+          rawCount = 0,
+          total = 0,
+          inCombat = true,
+          pullPercent = 3.21,
+        })
       end
       -- cdTrackerController is created after testModeController, so always defer.
       local C_Timer_ref = rawget(_G, "C_Timer")
