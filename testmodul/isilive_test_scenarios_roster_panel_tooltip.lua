@@ -50,15 +50,21 @@ local function NewRowTooltipCreateFrameStub(createdFrames, tooltipLines, tooltip
     f.CreateTexture = function()
       return {
         SetAllPoints = function() end,
-        SetColorTexture = function() end,
-        SetTexture = function() end,
-        SetVertexColor = function() end,
+        SetPoint = function() end,
+        SetWidth = function() end,
         GetWidth = function()
           return 0
         end,
+        SetHeight = function() end,
+        SetColorTexture = function() end,
+        SetTexture = function() end,
+        SetVertexColor = function() end,
         SetTexCoord = function() end,
         Hide = function() end,
         Show = function() end,
+        IsShown = function()
+          return false
+        end,
       }
     end
     f.CreateFontString = function()
@@ -143,15 +149,22 @@ local function NewTooltipMainFrameStub()
     end,
     CreateTexture = function()
       return {
+        SetAllPoints = function() end,
         SetHeight = function() end,
         SetPoint = function() end,
-        SetColorTexture = function() end,
-        SetTexture = function() end,
-        SetVertexColor = function() end,
+        SetWidth = function() end,
         GetWidth = function()
           return 0
         end,
+        SetColorTexture = function() end,
+        SetTexture = function() end,
+        SetVertexColor = function() end,
         SetTexCoord = function() end,
+        Hide = function() end,
+        Show = function() end,
+        IsShown = function()
+          return false
+        end,
       }
     end,
   }

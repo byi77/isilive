@@ -35,6 +35,10 @@ local function NewRecordedTexture()
       self.color = { ... }
     end,
     SetHeight = function() end,
+    SetWidth = function() end,
+    GetWidth = function()
+      return 0
+    end,
     SetPoint = function() end,
     SetTexture = function(self, texture)
       self.texture = texture
@@ -53,6 +57,9 @@ local function NewRecordedTexture()
     end,
     Show = function(self)
       self.hidden = false
+    end,
+    IsShown = function(self)
+      return not self.hidden
     end,
   }
 end
