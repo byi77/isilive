@@ -55,6 +55,11 @@ local function NewRecordedFontString(createdFontStrings)
     self.pointX = nil
     self.pointY = nil
   end
+  function fontString:SetAllPoints()
+    self.point = "ALL"
+    self.pointX = nil
+    self.pointY = nil
+  end
   function fontString:Hide()
     self.hidden = true
   end
@@ -145,6 +150,12 @@ local function NewRecordedFrame(createdFrames, createdFontStrings, frameType, na
   end
   function frame.EnableMouse(_self) end
   function frame.RegisterForClicks(_self) end
+  function frame:SetFrameLevel(value)
+    self._frameLevel = value
+  end
+  function frame:GetFrameLevel()
+    return self._frameLevel or 1
+  end
   function frame:SetShown(shown)
     self._shown = shown and true or false
   end
@@ -452,7 +463,7 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     Assert.NotNil(collapseButton, "Collapse button should exist")
     Assert.NotNil(horizontalCollapseButton, "Horizontal collapse button should exist")
     local titleFontString = FindFontStringByPoint(createdFontStrings, "TOPLEFT", 10, -4)
-    local versionFontString = FindFontStringByPoint(createdFontStrings, "LEFT", 5, -1)
+    local versionFontString = FindFontStringByPoint(createdFontStrings, "LEFT", 5, 0)
     local titleHintFontString = FindFontStringByPoint(createdFontStrings, "LEFT", 8, 0)
     Assert.NotNil(titleFontString, "Title font string should exist")
     Assert.NotNil(versionFontString, "Version font string should exist")
@@ -612,7 +623,7 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     local horizontalButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_horizontal")
     local m2Button = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_main_horizontal")
     local expandedButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "expanded")
-    local titleVersion = FindFontStringByPoint(createdFontStrings, "LEFT", 5, -1)
+    local titleVersion = FindFontStringByPoint(createdFontStrings, "LEFT", 5, 0)
     local titleHint = FindFontStringByPoint(createdFontStrings, "LEFT", 8, 0)
     Assert.NotNil(collapseButton, "Vertical collapse button should exist")
     Assert.NotNil(horizontalButton, "Horizontal collapse button should exist")

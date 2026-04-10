@@ -113,6 +113,9 @@ local function NewTooltipMainFrameStub()
   return {
     SetBackdrop = function() end,
     SetBackdropColor = function() end,
+    GetFrameLevel = function()
+      return 1
+    end,
     CreateFontString = function()
       return {
         SetPoint = function() end,

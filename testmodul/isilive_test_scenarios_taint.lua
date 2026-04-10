@@ -60,6 +60,7 @@ end
 local function NewRecordedFontString()
   return {
     SetPoint = function() end,
+    SetAllPoints = function() end,
     ClearAllPoints = function() end,
     SetWidth = function(self, width)
       self.width = width

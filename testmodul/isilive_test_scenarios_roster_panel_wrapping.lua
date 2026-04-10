@@ -7,6 +7,8 @@ local function NewRecordedFontString(createdFontStrings)
   }
 
   function fontString.SetPoint() end
+  function fontString.SetAllPoints() end
+  function fontString.ClearAllPoints() end
   function fontString.Hide() end
   function fontString.Show() end
   function fontString.SetWidth(self, value)
