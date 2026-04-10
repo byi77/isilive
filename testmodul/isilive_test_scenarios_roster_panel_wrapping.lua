@@ -124,10 +124,18 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
       SetColorTexture = function() end,
       SetTexture = function() end,
       SetTexCoord = function() end,
-      Hide = function() end,
-      Show = function() end,
+      SetVertexColor = function() end,
       SetHeight = function() end,
       SetPoint = function() end,
+      SetWidth = function() end,
+      GetWidth = function()
+        return 0
+      end,
+      Hide = function() end,
+      Show = function() end,
+      IsShown = function()
+        return false
+      end,
     }
   end
   function frame.CreateFontString()
@@ -164,11 +172,22 @@ local function NewRecordedMainFrame(createdFontStrings)
   end
   function mainFrame.CreateTexture()
     return {
+      SetAllPoints = function() end,
       SetHeight = function() end,
       SetPoint = function() end,
+      SetWidth = function() end,
+      GetWidth = function()
+        return 0
+      end,
       SetColorTexture = function() end,
       SetTexture = function() end,
       SetTexCoord = function() end,
+      SetVertexColor = function() end,
+      Hide = function() end,
+      Show = function() end,
+      IsShown = function()
+        return false
+      end,
     }
   end
 

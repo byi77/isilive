@@ -745,6 +745,12 @@ local function NewRecordedTexture(createdTextures)
   function texture.SetTexture(self, value)
     self.texture = value
   end
+  function texture.SetVertexColor(self, r, g, b, a)
+    self.vertexColor = { r, g, b, a }
+  end
+  function texture.GetWidth(self)
+    return self.width or 0
+  end
   function texture.SetTexCoord(self, ...)
     self.texCoord = { ... }
   end
@@ -1076,6 +1082,12 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
               SetColorTexture = function() end,
               SetTexture = function() end,
               SetTexCoord = function() end,
+              SetVertexColor = function() end,
+              SetPoint = function() end,
+              SetWidth = function() end,
+              GetWidth = function()
+                return 0
+              end,
               Hide = function() end,
               Show = function() end,
             }

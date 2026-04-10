@@ -6,17 +6,27 @@ local function NewRecordedTexture()
     SetColorTexture = function() end,
     SetHeight = function() end,
     SetPoint = function() end,
+    SetWidth = function() end,
+    GetWidth = function()
+      return 0
+    end,
     SetTexture = function(self, texture)
       self.texture = texture
     end,
     SetTexCoord = function(self, ...)
       self.texCoord = { ... }
     end,
+    SetVertexColor = function(self, ...)
+      self.vertexColor = { ... }
+    end,
     Hide = function(self)
       self.hidden = true
     end,
     Show = function(self)
       self.hidden = false
+    end,
+    IsShown = function(self)
+      return not self.hidden
     end,
   }
 end
@@ -200,7 +210,24 @@ local function NewRecordedMainFrame(createdFontStrings)
     return NewRecordedFontString(createdFontStrings)
   end
   function mainFrame.CreateTexture(_self)
-    return { SetHeight = function() end, SetPoint = function() end, SetColorTexture = function() end }
+    return {
+      SetAllPoints = function() end,
+      SetHeight = function() end,
+      SetPoint = function() end,
+      SetWidth = function() end,
+      GetWidth = function()
+        return 0
+      end,
+      SetColorTexture = function() end,
+      SetTexture = function() end,
+      SetTexCoord = function() end,
+      SetVertexColor = function() end,
+      Hide = function() end,
+      Show = function() end,
+      IsShown = function()
+        return false
+      end,
+    }
   end
   function mainFrame:SetWidth(w)
     self.width = w

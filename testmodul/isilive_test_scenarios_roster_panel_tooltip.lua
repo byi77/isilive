@@ -52,6 +52,10 @@ local function NewRowTooltipCreateFrameStub(createdFrames, tooltipLines, tooltip
         SetAllPoints = function() end,
         SetColorTexture = function() end,
         SetTexture = function() end,
+        SetVertexColor = function() end,
+        GetWidth = function()
+          return 0
+        end,
         SetTexCoord = function() end,
         Hide = function() end,
         Show = function() end,
@@ -143,6 +147,10 @@ local function NewTooltipMainFrameStub()
         SetPoint = function() end,
         SetColorTexture = function() end,
         SetTexture = function() end,
+        SetVertexColor = function() end,
+        GetWidth = function()
+          return 0
+        end,
         SetTexCoord = function() end,
       }
     end,
