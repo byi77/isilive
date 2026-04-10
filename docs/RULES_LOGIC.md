@@ -652,7 +652,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - KickTracker keeps observed active cooldown when Blizzard cooldown fields are unreadable
   - Sync SendKick encodes no-interrupt state and deduplicates payloads
   - Sync ProcessAddonMessage parses KICK payloads with slot lists
-  - Factory kick tracker forwards combat-log miss events to the kick tracker
+  - Factory kick tracker refreshes kick state on pet changes
 
 ### RULE-KICKTRACKER-MULTISLOT-ENTWURF
 - Regelnummer: 56

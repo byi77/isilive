@@ -1189,9 +1189,9 @@ local function InitializeFactorySecondaryKickTracker(
   local kickTrackerSuppressedByRaid = false
   local kickTrackerRecoveryInProgress = false
   local getCombatLogEventInfo = type(ctx.GetCombatLogEventInfo) == "function" and ctx.GetCombatLogEventInfo or nil
-  local isInCombatLockdown = rawget(_G, "InCombatLockdown")
   local cachedSelfName = nil
   local cachedSelfRealm = nil
+  ctx.GetCombatLogEventInfo = getCombatLogEventInfo
 
   local function ResolveOwnPlayerIdentity()
     if type(getUnitNameAndRealm) == "function" then
@@ -1349,37 +1349,66 @@ local function InitializeFactorySecondaryKickTracker(
     return SyncOwnKickState(force ~= false)
   end
 
-  local function HandleKickFrameEvent(_, event, unit, _, spellID)
+  local function RefreshKickState()
+    if not ctx.kickTrackerController then
+      return
+    end
+
+    local previousInfo = ctx.kickTrackerController.GetKickInfo and ctx.kickTrackerController.GetKickInfo() or nil
+    local resolvedState = ctx.kickTrackerController.ResolveKickState and ctx.kickTrackerController.ResolveKickState()
+    local previousSpellID = type(previousInfo) == "table" and previousInfo.spellID or nil
+    local previousAvailabilityResolved = type(previousInfo) == "table" and previousInfo.availabilityResolved == true
+    local previousHasKick = type(previousInfo) == "table" and previousInfo.hasKick == true
+    local nextSpellID = type(resolvedState) == "table" and resolvedState.spellID or nil
+    if type(resolvedState) ~= "table" or resolvedState.availabilityResolved ~= true then
+      ClearOwnKickSyncCache()
+      RefreshKickColumnIfVisible()
+      return
+    end
+    if
+      previousAvailabilityResolved ~= true
+      or previousHasKick ~= (resolvedState.hasKick == true)
+      or previousSpellID ~= nextSpellID
+    then
+      kickReadyBroadcastUntil = getTime() + 3
+      SyncOwnKickState(true)
+      RefreshKickColumnIfVisible()
+    end
+  end
+
+  ctx.RefreshKickState = RefreshKickState
+  ctx.CacheKickCooldown = function()
+    if ctx.kickTrackerController and type(ctx.kickTrackerController.CacheCooldown) == "function" then
+      ctx.kickTrackerController.CacheCooldown()
+    end
+  end
+
+  ctx.HandleKickCastSucceeded = function(unit, spellID)
     if IsRaidModeActive() then
       EnterRaidKickSuppression()
       return
     end
+    if not ctx.kickTrackerController then
+      return
+    end
 
-    if event == "UNIT_SPELLCAST_SUCCEEDED" then
-      if ctx.kickTrackerController then
-        local observedKick = ctx.kickTrackerController.OnCast(unit, spellID) == true
-        if kickTrackerSuppressedByRaid then
-          if observedKick then
-            kickTrackerSuppressedByRaid = false
-            SyncOwnKickState(true)
-            RefreshKickColumnIfVisible()
-          end
-          return
-        end
+    local observedKick = ctx.kickTrackerController.OnCast(unit, spellID) == true
+    if kickTrackerSuppressedByRaid then
+      if observedKick then
+        kickTrackerSuppressedByRaid = false
+        SyncOwnKickState(true)
+        RefreshKickColumnIfVisible()
       end
       return
-    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-      if ctx.kickTrackerController and type(ctx.kickTrackerController.OnCombatLogEvent) == "function" then
-        local CombatLogGetCurrentEventInfo_ref = getCombatLogEventInfo or rawget(_G, "CombatLogGetCurrentEventInfo")
-        if type(CombatLogGetCurrentEventInfo_ref) == "function" then
-          local timestamp, subevent, _, sourceGUID, _, _, _, _, _, _, _, combatSpellID, _, _, missType =
-            CombatLogGetCurrentEventInfo_ref()
-          ctx.kickTrackerController.OnCombatLogEvent(timestamp, subevent, sourceGUID, combatSpellID, missType)
-          if type(ctx.RecordKickCombatLogEvent) == "function" then
-            ctx.RecordKickCombatLogEvent(timestamp, subevent, sourceGUID, combatSpellID, missType, ctx.GetRoster())
-          end
-        end
-      end
+    end
+  end
+
+  ctx.HandleKickPetChanged = function(unit)
+    if unit ~= "player" then
+      return
+    end
+    if IsRaidModeActive() then
+      EnterRaidKickSuppression()
       return
     end
 
@@ -1388,61 +1417,7 @@ local function InitializeFactorySecondaryKickTracker(
       return
     end
 
-    if event == "SPELL_UPDATE_COOLDOWN" or event == "PLAYER_REGEN_ENABLED" then
-      -- Cache real CD outside of combat (talent reductions).
-      if ctx.kickTrackerController then
-        ctx.kickTrackerController.CacheCooldown()
-      end
-    elseif event == "SPELLS_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "UNIT_PET" then
-      if ctx.kickTrackerController then
-        local previousInfo = ctx.kickTrackerController.GetKickInfo()
-        local resolvedState = ctx.kickTrackerController.ResolveKickState()
-        local previousSpellID = type(previousInfo) == "table" and previousInfo.spellID or nil
-        local previousAvailabilityResolved = type(previousInfo) == "table" and previousInfo.availabilityResolved == true
-        local previousHasKick = type(previousInfo) == "table" and previousInfo.hasKick == true
-        local nextSpellID = type(resolvedState) == "table" and resolvedState.spellID or nil
-        if type(resolvedState) ~= "table" or resolvedState.availabilityResolved ~= true then
-          ClearOwnKickSyncCache()
-          RefreshKickColumnIfVisible()
-          return
-        end
-        if
-          previousAvailabilityResolved ~= true
-          or previousHasKick ~= (resolvedState.hasKick == true)
-          or previousSpellID ~= nextSpellID
-        then
-          kickReadyBroadcastUntil = getTime() + 3
-          SyncOwnKickState(true)
-          RefreshKickColumnIfVisible()
-        end
-      end
-    end
-  end
-
-  -- Event frame: UNIT_SPELLCAST_SUCCEEDED for player/pet is untainted.
-  local castFrame = CreateFrame("Frame")
-  castFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player", "pet")
-  castFrame:RegisterUnitEvent("UNIT_PET", "player")
-  castFrame:SetScript("OnEvent", HandleKickFrameEvent)
-
-  -- Regular event frame: combat log and cooldown/spec refreshes stay separate from unit events.
-  local kickEventFrame = CreateFrame("Frame")
-  kickEventFrame:SetScript("OnEvent", HandleKickFrameEvent)
-  local function RegisterKickEventFrame()
-    if kickEventFrame._kickEventsRegistered == true then
-      return
-    end
-    kickEventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    kickEventFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
-    kickEventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-    kickEventFrame:RegisterEvent("SPELLS_CHANGED")
-    kickEventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
-    kickEventFrame._kickEventsRegistered = true
-  end
-  if type(isInCombatLockdown) == "function" and isInCombatLockdown() then
-    ctx.registerDeferredKickEvents = RegisterKickEventFrame
-  else
-    RegisterKickEventFrame()
+    RefreshKickState()
   end
 
   -- Ticker: scan own kick state + refresh kick column every 0.5s.

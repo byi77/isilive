@@ -615,6 +615,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert)
   end)
 
   test("Architecture kick tracker uses lightweight kick-column refresh hooks", function()
+    local bootstrapContent = ReadFile("isiLive_bootstrap.lua")
     local helpersContent = ReadFile("isiLive_factory_controllers.lua")
     local kickTrackerContent = ReadFile("isiLive_kick_tracker.lua")
     local rosterPanelContent = ReadFile("isiLive_roster_panel.lua")
@@ -622,26 +623,38 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert)
     AssertContains(
       Assert,
       helpersContent,
-      'kickEventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")',
-      "factory kick tracking must refresh spell resolution on specialization changes on the regular event frame"
+      "ctx.RefreshKickState = RefreshKickState",
+      "factory kick tracking must expose a direct kick-resolution refresh hook"
+    )
+    AssertContains(
+      Assert,
+      bootstrapContent,
+      "COMBAT_LOG_EVENT_UNFILTERED",
+      "bootstrap must register combat-log events on the main event registry"
+    )
+    AssertContains(
+      Assert,
+      bootstrapContent,
+      "SPELLS_CHANGED",
+      "bootstrap must register spell-change events for kick resolution refreshes"
     )
     AssertContains(
       Assert,
       helpersContent,
-      'castFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player", "pet")',
-      "factory kick tracking must also watch pet interrupt casts"
+      "ctx.HandleKickCastSucceeded = function(unit, spellID)",
+      "factory kick tracking must expose a cast-success hook for the main dispatcher"
     )
     AssertContains(
       Assert,
-      helpersContent,
-      'castFrame:RegisterUnitEvent("UNIT_PET", "player")',
-      "factory kick tracking must refresh interrupt availability when the player's pet changes"
+      bootstrapContent,
+      "UNIT_SPELLCAST_SUCCEEDED",
+      "bootstrap must register kick cast-success events on the main event registry"
     )
     AssertContains(
       Assert,
-      helpersContent,
-      'kickEventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")',
-      "factory kick tracking must also forward combat-log miss events on a separate event frame"
+      bootstrapContent,
+      "UNIT_PET",
+      "bootstrap must register pet-change events on the main event registry"
     )
     AssertContains(
       Assert,

@@ -207,6 +207,14 @@ local function BuildFactorySecondaryTestContext(state, initial, addon)
       IsShown = function()
         return state.mainFrameShown == true
       end,
+      registeredEvents = {},
+      registeredUnitEvents = {},
+      RegisterEvent = function(self, event)
+        self.registeredEvents[event] = true
+      end,
+      RegisterUnitEvent = function(self, event, ...)
+        self.registeredUnitEvents[event] = { ... }
+      end,
     },
     rosterPanelController = {
       RefreshCdTracker = function()
@@ -634,12 +642,9 @@ local function RegisterFactorySecondaryVisibilityTests(test, Assert, WithGlobals
 
     local ticker = FindTicker(state.tickers, 0.5)
     Assert.NotNil(ticker, "secondary controller init must register the kick ticker")
-    local castFrame = state.createdFrames[1]
-    Assert.NotNil(castFrame, "kick tracker init must create a dedicated cast frame")
-    Assert.NotNil(castFrame.scripts.OnEvent, "kick cast frame must register an OnEvent handler")
 
     ticker.callback()
-    castFrame.scripts.OnEvent(castFrame, "UNIT_SPELLCAST_SUCCEEDED", "player", nil, 6552)
+    state.ctx.HandleKickCastSucceeded("player", 6552)
 
     Assert.Equal(#state.sentKick, 0, "raid mode must suppress outgoing kick sync")
     Assert.Nil(state.lastSetKickInfo, "raid mode must not mutate the local kick sync cache")
@@ -889,14 +894,11 @@ local function RegisterFactorySecondaryKickRecoveryTests(test, Assert, WithGloba
 
     local ticker = FindTicker(state.tickers, 0.5)
     Assert.NotNil(ticker, "secondary controller init must register the kick ticker")
-    local castFrame = state.createdFrames[1]
-    Assert.NotNil(castFrame, "kick tracker init must create a dedicated cast frame")
-    Assert.NotNil(castFrame.scripts.OnEvent, "kick cast frame must register an OnEvent handler")
 
     ticker.callback()
     state.isRaidGroup = false
 
-    castFrame.scripts.OnEvent(castFrame, "UNIT_SPELLCAST_SUCCEEDED", "player", nil, 133)
+    state.ctx.HandleKickCastSucceeded("player", 133)
     Assert.Equal(state.kickOnCastCalls or 0, 1, "post-raid unrelated casts must still reach the kick tracker")
     Assert.Equal(#state.sentKick, 0, "unrelated post-raid casts must not resume stale kick sync")
     Assert.Equal(
@@ -913,7 +915,7 @@ local function RegisterFactorySecondaryKickRecoveryTests(test, Assert, WithGloba
     )
     Assert.Equal(#state.sentKick, 0, "unresolved post-raid state must stay unsent after unrelated casts")
 
-    castFrame.scripts.OnEvent(castFrame, "UNIT_SPELLCAST_SUCCEEDED", "player", nil, 6552)
+    state.ctx.HandleKickCastSucceeded("player", 6552)
     Assert.Equal(
       state.kickOnCastCooldownChangedCallbacks or 0,
       1,
@@ -928,7 +930,7 @@ local function RegisterFactorySecondaryKickRecoveryTests(test, Assert, WithGloba
     )
   end)
 
-  test("Factory kick tracker forwards combat-log miss events to the kick tracker", function()
+  test("Factory kick tracker refreshes kick state on pet changes", function()
     local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
       mainFrameShown = true,
       isRaidGroup = false,
@@ -957,25 +959,9 @@ local function RegisterFactorySecondaryKickRecoveryTests(test, Assert, WithGloba
       },
     })
 
-    local castFrame = state.createdFrames[1]
-    local kickEventFrame = state.createdFrames[2]
-    Assert.NotNil(castFrame, "kick tracker init must create a dedicated cast frame")
-    Assert.NotNil(kickEventFrame, "kick tracker init must create a dedicated combat-log frame")
-    Assert.Equal(
-      kickEventFrame.registeredEvents["COMBAT_LOG_EVENT_UNFILTERED"],
-      true,
-      "kick tracker must listen for combat-log miss events on the dedicated event frame"
-    )
-    Assert.NotNil(castFrame.scripts.OnEvent, "kick tracker cast frame must register an OnEvent handler")
-    Assert.NotNil(kickEventFrame.scripts.OnEvent, "kick tracker event frame must register an OnEvent handler")
-
-    kickEventFrame.scripts.OnEvent(kickEventFrame, "COMBAT_LOG_EVENT_UNFILTERED")
-
-    Assert.Equal(state.kickCombatLogCalls or 0, 1, "combat-log miss events must be forwarded exactly once")
-    Assert.NotNil(state.lastKickCombatLogEvent, "forwarded combat-log event must be captured by the kick tracker")
-    Assert.Equal(state.lastKickCombatLogEvent.subevent, "SPELL_MISSED", "combat-log subevent must be forwarded")
-    Assert.Equal(state.lastKickCombatLogEvent.spellID, 96231, "combat-log spellID must be forwarded exactly")
-    Assert.Equal(state.lastKickCombatLogEvent.missType, "IMMUNE", "combat-log miss type must be forwarded exactly")
+    state.ctx.HandleKickPetChanged("player")
+    Assert.Equal(state.kickResolveCalls or 0, 1, "pet changes must refresh kick resolution")
+    Assert.Equal(state.kickCacheCalls or 0, 1, "pet changes must refresh kick cooldown data")
   end)
 end
 

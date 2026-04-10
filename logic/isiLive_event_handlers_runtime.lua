@@ -437,10 +437,8 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if ctx.getPendingBindingApply() then
       ctx.applyHotkeyBindings()
     end
-    if type(ctx.registerDeferredKickEvents) == "function" then
-      local registerDeferredKickEvents = ctx.registerDeferredKickEvents
-      ctx.registerDeferredKickEvents = nil
-      registerDeferredKickEvents()
+    if type(ctx.CacheKickCooldown) == "function" then
+      ctx.CacheKickCooldown()
     end
     local pendingVisible = ctx.getPendingMainFrameVisible and ctx.getPendingMainFrameVisible()
     if pendingVisible ~= nil then
@@ -500,6 +498,15 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       return
     end
     ctx.sendOwnBackgroundSnapshot("player-state")
+    if type(ctx.RefreshKickState) == "function" then
+      ctx.RefreshKickState()
+    end
+  end
+
+  local function HandleSpellsChangedEvent(_self)
+    if type(ctx.RefreshKickState) == "function" then
+      ctx.RefreshKickState()
+    end
   end
 
   local function HandlePlayerEquipmentChangedEvent(_self)
@@ -577,6 +584,55 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       return
     end
     ctx.updateMPlusTeleportButton()
+    if type(ctx.CacheKickCooldown) == "function" then
+      ctx.CacheKickCooldown()
+    end
+  end
+
+  local function HandleUnitSpellcastSucceededEvent(_self, unit, _, spellID)
+    if IsRaidModeActive(ctx) then
+      return
+    end
+    if type(ctx.HandleKickCastSucceeded) == "function" then
+      ctx.HandleKickCastSucceeded(unit, spellID)
+    end
+  end
+
+  local function HandleUnitPetEvent(_self, unit)
+    if unit ~= "player" then
+      return
+    end
+    if IsRaidModeActive(ctx) then
+      return
+    end
+    if type(ctx.HandleKickPetChanged) == "function" then
+      ctx.HandleKickPetChanged(unit)
+    end
+  end
+
+  local function HandleCombatLogEvent(_self)
+    if IsRaidModeActive(ctx) then
+      return
+    end
+    if not ctx.kickTrackerController or type(ctx.kickTrackerController.OnCombatLogEvent) ~= "function" then
+      return
+    end
+
+    local getCombatLogEventInfo = type(ctx.getCombatLogEventInfo) == "function" and ctx.getCombatLogEventInfo
+      or rawget(_G, "CombatLogGetCurrentEventInfo")
+    if type(getCombatLogEventInfo) ~= "function" then
+      return
+    end
+
+    local timestamp, subevent, _, sourceGUID, _, _, _, _, _, _, _, spellID, _, _, missType = getCombatLogEventInfo()
+    if subevent ~= "SPELL_MISSED" and subevent ~= "SPELL_CAST_FAILED" then
+      return
+    end
+
+    ctx.kickTrackerController.OnCombatLogEvent(timestamp, subevent, sourceGUID, spellID, missType)
+    if type(ctx.recordKickCombatLogEvent) == "function" then
+      ctx.recordKickCombatLogEvent(timestamp, subevent, sourceGUID, spellID, missType)
+    end
   end
 
   local function HandleSpellUpdateChargesEvent(_self)
@@ -609,6 +665,10 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ZONE_CHANGED_INDOORS = HandleInstanceContextChangedEvent,
     ZONE_CHANGED_NEW_AREA = HandleInstanceContextChangedEvent,
     UPDATE_INSTANCE_INFO = HandleInstanceContextChangedEvent,
+    SPELLS_CHANGED = HandleSpellsChangedEvent,
+    UNIT_SPELLCAST_SUCCEEDED = HandleUnitSpellcastSucceededEvent,
+    UNIT_PET = HandleUnitPetEvent,
+    COMBAT_LOG_EVENT_UNFILTERED = HandleCombatLogEvent,
     BAG_UPDATE_DELAYED = HandleOwnedKeyContextEvent,
     CHALLENGE_MODE_MAPS_UPDATE = HandleOwnedKeyContextEvent,
     PLAYER_EQUIPMENT_CHANGED = HandlePlayerEquipmentChangedEvent,

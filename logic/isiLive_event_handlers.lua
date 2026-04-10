@@ -110,6 +110,15 @@ local function BuildContext(opts)
   ctx.restoreRioBaseline = OptionalFunction(opts.restoreRioBaseline, function() end)
   ctx.enableRioDeltaDisplay = OptionalFunction(opts.enableRioDeltaDisplay, function() end)
   ctx.updateCdTracker = OptionalFunction(opts.updateCdTracker, function() end)
+  ctx.kickTrackerController = opts.kickTrackerController
+  ctx.HandleKickCastSucceeded = OptionalFunction(opts.HandleKickCastSucceeded, function() end)
+  ctx.HandleKickPetChanged = OptionalFunction(opts.HandleKickPetChanged, function() end)
+  ctx.RefreshKickState = OptionalFunction(opts.RefreshKickState, function() end)
+  ctx.CacheKickCooldown = OptionalFunction(opts.CacheKickCooldown, function() end)
+  ctx.getCombatLogEventInfo = OptionalFunction(opts.getCombatLogEventInfo, function()
+    return nil
+  end)
+  ctx.recordKickCombatLogEvent = OptionalFunction(opts.recordKickCombatLogEvent, function() end)
   ctx.timerAfter = OptionalFunction(opts.timerAfter, nil)
   ctx.getTime = OptionalFunction(opts.getTime, GetTime)
 
