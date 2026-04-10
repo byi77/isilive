@@ -720,7 +720,7 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     m2Button.OnClick()
 
     Assert.Equal(mainFrame.width, 500, "Leaving H through M2 should switch into the visible main layout")
-    Assert.Equal(mainFrame.height, 244, "Leaving H through M2 should restore the modern main-layout height")
+    Assert.Equal(mainFrame.height, 272, "Leaving H through M2 should restore the modern main-layout height")
     Assert.Equal(managementButtons[1].width, 92, "Leaving H through M2 should restore the M2 button widths")
     Assert.Equal(
       horizontalButton._collapseButtonLabel,
@@ -868,7 +868,7 @@ local function RegisterHorizontalModernLayoutTests(test, Assert, WithGlobals, Lo
     end)
 
     Assert.Equal(mainFrame.width, 500, "M2 mode should use the widened modern frame")
-    Assert.Equal(mainFrame.height, 244, "M2 mode should keep the roster compact and leave room for the action rows")
+    Assert.Equal(mainFrame.height, 272, "M2 mode should keep the roster compact and leave room for the action rows")
     Assert.Equal(m2Button._collapseButtonLabel, "M2", "M2 mode button should keep its static label")
     Assert.Equal(#toolbarButtons, 5, "M2 mode should keep all action buttons in one horizontal row")
     Assert.Equal(toolbarButtons[1].point, "BOTTOMLEFT", "M2 action row should anchor from the bottom-left")
