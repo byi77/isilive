@@ -806,6 +806,8 @@ local function RegisterHorizontalModernLayoutTests(test, Assert, WithGlobals, Lo
 
     local m2Button = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_main_horizontal")
     Assert.NotNil(m2Button, "M2 collapse button should exist")
+    assert(m2Button ~= nil)
+    ---@cast m2Button { OnClick: fun(), _collapseButtonLabel: string }
 
     local toolbarButtons = {}
     local markerButtons = {}
@@ -848,6 +850,8 @@ local function RegisterHorizontalModernLayoutTests(test, Assert, WithGlobals, Lo
       end
     end
     Assert.NotNil(tankHeaderFontString, "M2 marker header should exist")
+    assert(tankHeaderFontString ~= nil)
+    ---@cast tankHeaderFontString { hidden: boolean }
     Assert.True(tankHeaderFontString.hidden, "M2 marker header should be hidden entirely")
   end)
 end

@@ -808,6 +808,7 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
 
     local roleButton = FindSecureRoleButton(createdFrames, "player")
     Assert.NotNil(roleButton, "tank row should create a secure role button before ready-check refresh")
+    assert(roleButton ~= nil)
     local type1Before = roleButton:GetAttribute("type1")
     local type2Before = roleButton:GetAttribute("type2")
     local macrotext1Before = roleButton:GetAttribute("macrotext1")
@@ -898,6 +899,10 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
     end
     Assert.NotNil(readyCheckHoverFrame, "roster row should create a dedicated hover frame")
     Assert.NotNil(readyCheckBackground, "roster row should create a dedicated ready-check background texture")
+    assert(readyCheckHoverFrame ~= nil)
+    assert(readyCheckBackground ~= nil)
+    ---@cast readyCheckHoverFrame { width: number }
+    ---@cast readyCheckBackground { hidden: boolean, color: number[] }
     Assert.Equal(readyCheckHoverFrame.width, 488, "ready-check hover background must span through the Kick column")
     Assert.True(readyCheckBackground.hidden == true, "initial render should keep the ready-check row background hidden")
 
