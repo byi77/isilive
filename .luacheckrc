@@ -62,6 +62,7 @@ return {
         "RAID_CLASS_COLORS",
 
         "C_ChallengeMode",
+        "C_ScenarioInfo",
         "C_ChatInfo",
         "C_LFGList",
         "C_PaperDollInfo",
