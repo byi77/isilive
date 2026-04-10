@@ -37,6 +37,7 @@ Erwartung: Lint, Style, Metrics, Usecase- und Rule-Checks sind gruen.
 Die Wrapper `tools/check.ps1` und `tools/check.cmd` fuehren den vollen lokalen Preflight ueber den repo-lokalen `luacheck.cmd`-Shim aus und vermeiden so den Windows-App-Auswahldialog, der beim direkten Aufruf des LuaRocks-`luacheck`-Scripts auftaucht.
 
 `tools/validate_release_trigger.ps1` prueft die Release- und Pre-Release-Triggerlogik lokal. Fuer einen Dry-Run ohne GitHub-API-Check `CHECK_TAG_EXISTS=false` setzen und die passenden `EVENT_NAME`, `REF` bzw. `MANUAL_*`-Variablen uebergeben.
+Die GitHub-Workflows checken das Repository vor der Trigger-Pruefung aus, damit `tools/validate_release_trigger.ps1` und die lokalen Release-Checks im Workflow-Kontext auf die echten Dateien zugreifen koennen.
 
 `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.

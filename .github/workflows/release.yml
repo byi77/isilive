@@ -23,6 +23,8 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Validate Release Trigger
         env:
           EVENT_NAME: ${{ github.event_name }}
