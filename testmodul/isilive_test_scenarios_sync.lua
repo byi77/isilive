@@ -1296,7 +1296,7 @@ local function RegisterKickSyncTests(test, Assert, WithGlobals, LoadAddonModules
         cooldownRemain = 0,
       })
       Assert.Equal(#sentMessages, 1, "no-interrupt kick state must publish once")
-      Assert.Equal(sentMessages[1].message, "KICK:-1:0", "no-interrupt state must serialize distinctly from ready")
+      Assert.Equal(sentMessages[1].message, "KICK:-1:0:0", "no-interrupt state must serialize distinctly from ready")
 
       now = 100.5
       addon.Sync.SendKick({
@@ -1313,7 +1313,11 @@ local function RegisterKickSyncTests(test, Assert, WithGlobals, LoadAddonModules
         cooldownRemain = 2.1,
       })
       Assert.Equal(#sentMessages, 2, "changed kick state after cooldown window must publish again")
-      Assert.Equal(sentMessages[2].message, "KICK:1:3", "cooldown kick state must ceil remaining seconds")
+      Assert.Equal(
+        sentMessages[2].message,
+        "KICK:1:3:1:1:3",
+        "cooldown kick state must ceil remaining seconds and carry one slot"
+      )
       Assert.Equal(sentMessages[2].prefix, "ISILIVE", "kick payload must use isiLive prefix")
       Assert.Equal(sentMessages[2].channel, "PARTY", "kick payload must use grouped sync channel")
 
@@ -1323,6 +1327,47 @@ local function RegisterKickSyncTests(test, Assert, WithGlobals, LoadAddonModules
         cooldownRemain = 0,
       })
       Assert.Equal(#sentMessages, 2, "kick send without explicit hasKick must be rejected")
+    end)
+  end)
+
+  test("Sync SendKick encodes kick slot lists when multiple slots are provided", function()
+    local sentMessages = {}
+    local now = 300
+
+    WithGlobals({
+      GetTime = function()
+        return now
+      end,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      addon.Sync.SendKick({
+        hasKick = true,
+        onCooldown = false,
+        cooldownRemain = 0,
+        kickSlots = {
+          { onCooldown = false, cooldownRemain = 0 },
+          { onCooldown = true, cooldownRemain = 4.2 },
+        },
+      })
+
+      Assert.Equal(#sentMessages, 1, "kick slot payload must publish once")
+      Assert.Equal(sentMessages[1].message, "KICK:0:0:2:0:0:1:5", "kick slot payload must include both slot states")
     end)
   end)
 
@@ -1398,7 +1443,7 @@ local function RegisterKickSyncTests(test, Assert, WithGlobals, LoadAddonModules
     end)
   end)
 
-  test("Sync ProcessAddonMessage parses KICK payloads with no-interrupt state", function()
+  test("Sync ProcessAddonMessage parses KICK payloads with slot lists", function()
     WithGlobals({
       strsplit = function(sep, str, max)
         local pos = str:find(sep, 1, true)
@@ -1416,7 +1461,7 @@ local function RegisterKickSyncTests(test, Assert, WithGlobals, LoadAddonModules
     }, function()
       local addon = LoadAddonModules({ "isiLive_sync.lua" })
 
-      local unavailableResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:-1:0", "Peer-Realm", "Me", "Realm")
+      local unavailableResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:-1:0:0", "Peer-Realm", "Me", "Realm")
       Assert.NotNil(unavailableResult, "KICK message must return result")
       Assert.True(unavailableResult.kickUpdated, "first KICK no-interrupt payload must report update")
 
@@ -1425,9 +1470,22 @@ local function RegisterKickSyncTests(test, Assert, WithGlobals, LoadAddonModules
       Assert.False(kickInfo.hasKick, "no-interrupt payload must preserve hasKick=false")
       Assert.False(kickInfo.onCooldown, "no-interrupt payload must not mark the spell on cooldown")
       Assert.Equal(kickInfo.cooldownRemain, 0, "no-interrupt payload must store zero remaining cooldown")
+      Assert.NotNil(kickInfo.kickSlots, "no-interrupt payload must preserve an empty slot list")
+      Assert.Equal(#kickInfo.kickSlots, 0, "no-interrupt payload must keep zero kick slots")
 
-      local duplicateResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:-1:0", "Peer-Realm", "Me", "Realm")
-      Assert.False(duplicateResult.kickUpdated, "duplicate no-interrupt KICK must not report update")
+      local slotListResult =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:0:0:2:0:0:1:4", "Peer-Realm", "Me", "Realm")
+      Assert.True(slotListResult.kickUpdated, "slot-list KICK payload must report update")
+
+      local slotListInfo = addon.Sync.GetPlayerKickInfo("Peer", "Realm")
+      Assert.NotNil(slotListInfo.kickSlots, "slot-list payload must preserve the kick slots")
+      Assert.Equal(#slotListInfo.kickSlots, 2, "slot-list payload must keep multiple kick slots")
+      Assert.False(slotListInfo.kickSlots[1].onCooldown, "first slot-list kick slot must stay ready")
+      Assert.True(slotListInfo.kickSlots[2].onCooldown, "second slot-list kick slot must stay on cooldown")
+
+      local duplicateResult =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:0:0:2:0:0:1:4", "Peer-Realm", "Me", "Realm")
+      Assert.False(duplicateResult.kickUpdated, "duplicate slot-list KICK must not report update")
     end)
   end)
 
@@ -1449,10 +1507,10 @@ local function RegisterKickSyncTests(test, Assert, WithGlobals, LoadAddonModules
     }, function()
       local addon = LoadAddonModules({ "isiLive_sync.lua" })
 
-      local firstResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:1:8", "Peer-Realm", "Me", "Realm")
+      local firstResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:1:8:2:1:8:0:0", "Peer-Realm", "Me", "Realm")
       Assert.True(firstResult.kickUpdated, "first active KICK payload must report update")
 
-      local secondResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:1:7", "Peer-Realm", "Me", "Realm")
+      local secondResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:1:7:2:1:7:0:0", "Peer-Realm", "Me", "Realm")
       Assert.True(secondResult.kickUpdated, "changed remaining cooldown must report update")
 
       local kickInfo = addon.Sync.GetPlayerKickInfo("Peer", "Realm")
@@ -1460,6 +1518,10 @@ local function RegisterKickSyncTests(test, Assert, WithGlobals, LoadAddonModules
       Assert.True(kickInfo.hasKick, "active KICK payload must preserve hasKick=true")
       Assert.True(kickInfo.onCooldown, "active KICK payload must preserve cooldown state")
       Assert.Equal(kickInfo.cooldownRemain, 7, "updated remaining cooldown must be stored")
+      Assert.NotNil(kickInfo.kickSlots, "active KICK payload must preserve kick slots")
+      Assert.Equal(#kickInfo.kickSlots, 2, "active KICK payload must preserve multiple slots")
+      Assert.True(kickInfo.kickSlots[1].onCooldown, "first active KICK slot must stay on cooldown")
+      Assert.False(kickInfo.kickSlots[2].onCooldown, "second active KICK slot must stay ready")
     end)
   end)
 
@@ -1488,6 +1550,17 @@ local function RegisterKickSyncTests(test, Assert, WithGlobals, LoadAddonModules
       local invalidRemainResult = addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:1:bogus", "Peer-Realm", "Me", "Realm")
       Assert.False(invalidRemainResult.kickUpdated, "invalid KICK remain must be rejected without inventing a payload")
       Assert.Nil(addon.Sync.GetPlayerKickInfo("Peer", "Realm"), "invalid KICK remain must not store any kick info")
+
+      local malformedSlotResult =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "KICK:1:5:2:0:0:1", "Peer-Realm", "Me", "Realm")
+      Assert.False(
+        malformedSlotResult.kickUpdated,
+        "malformed multi-slot KICK payload must be rejected without inventing a payload"
+      )
+      Assert.Nil(
+        addon.Sync.GetPlayerKickInfo("Peer", "Realm"),
+        "malformed multi-slot KICK payload must not store any kick info"
+      )
     end)
   end)
 

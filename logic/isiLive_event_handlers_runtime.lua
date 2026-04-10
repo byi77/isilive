@@ -336,6 +336,51 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       mainFrame:ClearAllPoints()
       mainFrame:SetPoint(pos.point, UIParent, pos.relativePoint, pos.x, pos.y)
     end
+    -- Restore UI scale and background opacity from SavedVariables.
+    -- This must happen here (ADDON_LOADED) because IsiLiveDB is nil at file-load time.
+    -- On first ever load (flag absent), write the default once so subsequent sessions
+    -- preserve whatever the user has changed it to.
+    if IsiLiveDB.bgAlphaInitialized ~= true then
+      IsiLiveDB.bgAlpha = addonTable.UICommon and addonTable.UICommon.DEFAULT_BG_ALPHA or 0.50
+      IsiLiveDB.bgAlphaInitialized = true
+    end
+    if IsiLiveDB.uiScaleInitialized ~= true then
+      IsiLiveDB.uiScale = 1.0
+      IsiLiveDB.uiScaleInitialized = true
+    end
+    if mainFrame then
+      if type(IsiLiveDB.uiScale) == "number" and type(mainFrame.SetScale) == "function" then
+        mainFrame:SetScale(IsiLiveDB.uiScale)
+      end
+      if type(IsiLiveDB.bgAlpha) == "number" then
+        if type(mainFrame.SetBackdropColor) == "function" then
+          mainFrame:SetBackdropColor(0, 0, 0, IsiLiveDB.bgAlpha)
+        end
+        local uiCommon = addonTable.UICommon
+        if
+          type(uiCommon) == "table"
+          and type(uiCommon.Colors) == "table"
+          and type(uiCommon.Colors.BG_PRIMARY) == "table"
+        then
+          uiCommon.Colors.BG_PRIMARY[4] = IsiLiveDB.bgAlpha
+        end
+        if ctx.panelUI and ctx.panelUI.panelFrame and type(ctx.panelUI.panelFrame.SetBackdropColor) == "function" then
+          local bg = uiCommon and uiCommon.Colors and uiCommon.Colors.BG_PRIMARY
+            or { 0.08, 0.08, 0.12, IsiLiveDB.bgAlpha }
+          ctx.panelUI.panelFrame:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
+        end
+        if
+          ctx.settingsPanel
+          and ctx.settingsPanel.canvas
+          and type(ctx.settingsPanel.canvas.SetBackdropColor) == "function"
+        then
+          local bg = uiCommon and uiCommon.Colors and uiCommon.Colors.BG_PRIMARY
+            or { 0.08, 0.08, 0.12, IsiLiveDB.bgAlpha }
+          ctx.settingsPanel.canvas:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
+        end
+      end
+    end
+
     RegisterSyncPrefixAndBindings(ctx)
     ctx.applyLocalizationToUI()
     ctx.restoreLayoutState()
@@ -391,6 +436,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   local function HandlePlayerRegenEnabledEvent(_self)
     if ctx.getPendingBindingApply() then
       ctx.applyHotkeyBindings()
+    end
+    if type(ctx.registerDeferredKickEvents) == "function" then
+      local registerDeferredKickEvents = ctx.registerDeferredKickEvents
+      ctx.registerDeferredKickEvents = nil
+      registerDeferredKickEvents()
     end
     local pendingVisible = ctx.getPendingMainFrameVisible and ctx.getPendingMainFrameVisible()
     if pendingVisible ~= nil then

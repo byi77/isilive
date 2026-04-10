@@ -1,11 +1,29 @@
 # Changelog
 
+## 2026-04-10 - Version 0.9.142 (feature)
+
+- Kick column icon display:
+  - Kick status is now shown as a coloured icon (green = ready, red = on cooldown, grey = unknown/no kick) instead of text.
+  - When on cooldown, the icon darkens and a countdown number overlays it (no "s" suffix, font size 8).
+  - Icons anchor right-aligned under the Kick header. Multi-slot ready for future dual-kick specs.
+- Counterspell base cooldown corrected from 25s to 20s in `SPEC_DATA`.
+- Title bar: removed "Öffnen/Schliessen STRG-F9" hint text.
+- Test mode auto-exit: closing the UI via X-button or CTRL-F9 now automatically exits test mode if active.
+- Settings persistence: background opacity and UI scale are now written to `IsiLiveDB` on first load with their defaults; subsequent sessions preserve user-changed values instead of always resetting.
+
 ## 2026-04-10 - Version 0.9.141 (patch)
 
 - Rule 41 / UnitExists guard fixes:
   - Added explicit `UnitExists("player")` guards before runtime `GetBestMapForUnit("player")` lookups in highlight, hidden sync, tracked M0 runtime handling, factory target-dungeon checks, and frame-bridge player-map helpers.
   - Reworked the factory kick-sync path to reuse the last verified local player identity so stale local kick cache entries are still cleared fail-closed during transient `UnitExists` races.
   - Added deterministic call-site coverage for the guarded player-map lookup paths and cached kick-identity cleanup.
+- Kick tracker combat-log failure diagnostics:
+  - `KickTracker` now records deterministic failed-kick signals from matching combat-log miss events for the currently tracked interrupt without changing the live cooldown contract.
+  - The factory kick tracker forwards `COMBAT_LOG_EVENT_UNFILTERED` into the kick tracker so the local failure signal can be observed deterministically in tests.
+  - Added deterministic regressions for the local failed-kick signal and the factory combat-log forwarding path.
+- Slot-based kick display:
+  - The kick tracker now exposes slot lists for resolved interrupts, the sync layer transports the slot data alongside the legacy kick fields, and the roster Kick column renders green/red point markers instead of the previous `ready` text fallback.
+  - Added deterministic regressions for slot transport, slot application, and the roster point rendering path.
 - Docs / release baseline:
   - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RULES_LOGIC.md`, `WARTUNG.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.141`.
 
@@ -210,7 +228,7 @@
 
 ## 2026-03-29 - Version 0.9.116 (patch)
 
-- Kick sync reliability overhaul (BlizzInterrupt-style):
+- Kick sync reliability overhaul:
   - Ticker interval reduced from 1.0 s to 0.5 s for more responsive cooldown updates.
   - Receive timestamp stored alongside `cooldownRemain` so the roster `Kick` column counts down smoothly between sync packets via linear interpolation.
   - After a cooldown expires the ticker continues broadcasting the ready state for 3 extra seconds to guarantee delivery to all peers.

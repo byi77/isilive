@@ -635,6 +635,7 @@ local function ShowRosterInfoTooltip(
   getDungeonShortCode,
   getDungeonName,
   getPlayerLastRunDps,
+  getPlayerKickStats,
   getLanguageTooltipMarkup,
   getL
 )
@@ -647,6 +648,7 @@ local function ShowRosterInfoTooltip(
   end
 
   local lastRunDps = type(getPlayerLastRunDps) == "function" and getPlayerLastRunDps(info.name, info.realm) or nil
+  local kickStats = type(getPlayerKickStats) == "function" and getPlayerKickStats(info.name, info.realm) or nil
   local syncModule = addonTable.Sync
   local syncSummary = type(syncModule) == "table"
       and type(syncModule.GetPlayerSyncSummary) == "function"
@@ -752,6 +754,14 @@ local function ShowRosterInfoTooltip(
     end
     if info.rio then
       tooltip:AddLine("Rio: " .. tostring(math.floor(tonumber(info.rio) or 0)), 0.9, 0.9, 0.9)
+    end
+    if type(kickStats) == "table" then
+      local kicks = math.max(0, math.floor(tonumber(kickStats.kicks) or 0))
+      local failed = math.max(0, math.floor(tonumber(kickStats.failed) or 0))
+      local missed = math.max(0, math.floor(tonumber(kickStats.missed) or 0))
+      if kicks > 0 or failed > 0 or missed > 0 then
+        tooltip:AddLine(string.format("Kick stats: %d total, %d failed, %d missed", kicks, failed, missed), 0.4, 0.8, 1)
+      end
     end
     if syncSummary then
       local L = type(getL) == "function" and getL() or {}

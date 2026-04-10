@@ -29,13 +29,13 @@ local PANEL_UI_ENTRIES = {
     id = "professions",
     labelKey = "BTN_GAMEMENU_PROFESSIONS",
     fallbackText = "Professions",
-    icon = "Interface\\Icons\\Trade_Engineering",
+    icon = "atlas:UI-HUD-MicroMenu-Professions-Up",
   },
   {
     id = "talents",
     labelKey = "BTN_GAMEMENU_TALENTS",
     fallbackText = "Talents",
-    icon = "Interface\\Icons\\Ability_Marksmanship",
+    icon = "atlas:UI-HUD-MicroMenu-SpecTalents-Up",
   },
   {
     id = "spellbook",
@@ -47,37 +47,37 @@ local PANEL_UI_ENTRIES = {
     id = "achievements",
     labelKey = "BTN_GAMEMENU_ACHIEVEMENTS",
     fallbackText = "Achievements",
-    icon = "Interface\\Icons\\Achievement_Boss_CThun",
+    icon = "atlas:UI-HUD-MicroMenu-Achievements-Up",
   },
   {
     id = "quests",
     labelKey = "BTN_GAMEMENU_QUESTS",
     fallbackText = "Quests",
-    icon = "Interface\\Icons\\INV_Misc_Map_01",
+    icon = "atlas:UI-HUD-MicroMenu-Questlog-Up",
   },
   {
     id = "dungeons",
     labelKey = "BTN_GAMEMENU_DUNGEONS",
     fallbackText = "Dungeons",
-    icon = "Interface\\Icons\\INV_Misc_Key_04",
+    icon = "atlas:UI-HUD-MicroMenu-Groupfinder-Up",
   },
   {
     id = "journal",
     labelKey = "BTN_GAMEMENU_JOURNAL",
     fallbackText = "Journal",
-    icon = "Interface\\Icons\\INV_Misc_Book_11",
+    icon = "atlas:UI-HUD-MicroMenu-AdventureGuide-Up",
   },
   {
     id = "collections",
     labelKey = "BTN_GAMEMENU_COLLECTIONS",
     fallbackText = "Collections",
-    icon = "Interface\\Icons\\MountJournalPortrait",
+    icon = "atlas:UI-HUD-MicroMenu-Collections-Up",
   },
   {
     id = "guild",
     labelKey = "BTN_GAMEMENU_GUILD",
     fallbackText = "Guild",
-    icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01",
+    icon = "atlas:UI-HUD-MicroMenu-GuildCommunities-Up",
   },
   {
     id = "reloadui",
@@ -152,7 +152,7 @@ local SECOND_PANEL_UI_ENTRIES = {
     id = "housing_plot",
     labelKey = "BTN_SECOND_HOUSING",
     fallbackText = "Housing",
-    icon = "Interface\\Icons\\achievement_guild_buyabuilding",
+    icon = "atlas:UI-HUD-MicroMenu-Housing-Up",
     isSecure = true,
   },
 }
@@ -491,11 +491,18 @@ local function CreatePanelUIButton(
     if type(icon.SetPoint) == "function" then
       icon:SetPoint("LEFT", PANEL_UI_ICON_PADDING, 0)
     end
-    if type(icon.SetTexCoord) == "function" then
-      icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    end
-    if type(icon.SetTexture) == "function" then
-      icon:SetTexture(iconPath)
+    local atlasName = type(iconPath) == "string" and iconPath:match("^atlas:(.+)$")
+    if atlasName then
+      if type(icon.SetAtlas) == "function" then
+        icon:SetAtlas(atlasName)
+      end
+    else
+      if type(icon.SetTexCoord) == "function" then
+        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+      end
+      if type(icon.SetTexture) == "function" then
+        icon:SetTexture(iconPath)
+      end
     end
     button._panelIcon = icon
   end

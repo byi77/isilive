@@ -612,6 +612,8 @@ local function InitializeFactoryPrimaryControllers(ctx)
   ctx.SendRefreshResponse = initResult.sendRefreshResponse
   ctx.ApplyKnownKeyToRosterEntry = initResult.applyKnownKeyToRosterEntry
   ctx.RecordRun = initResult.recordRun
+  ctx.RecordKickCombatLogEvent = initResult.recordKickCombatLogEvent
+  ctx.ResetKickStats = initResult.resetKickStats
   ctx.highlightController = initResult.highlightController
   ctx.rosterPanelController = initResult.rosterPanelController
   ctx.refreshButton = initResult.refreshButton
@@ -1186,6 +1188,8 @@ local function InitializeFactorySecondaryKickTracker(
   local kickHeartbeatAt = 0
   local kickTrackerSuppressedByRaid = false
   local kickTrackerRecoveryInProgress = false
+  local getCombatLogEventInfo = type(ctx.GetCombatLogEventInfo) == "function" and ctx.GetCombatLogEventInfo or nil
+  local isInCombatLockdown = rawget(_G, "InCombatLockdown")
   local cachedSelfName = nil
   local cachedSelfRealm = nil
 
@@ -1251,7 +1255,15 @@ local function InitializeFactorySecondaryKickTracker(
     if modules.sync and type(modules.sync.SetPlayerKickInfo) == "function" then
       local selfName, selfRealm = ResolveOwnPlayerIdentity()
       if selfName and selfName ~= "" then
-        modules.sync.SetPlayerKickInfo(selfName, selfRealm, info.onCooldown, info.cooldownRemain, nil, hasKick)
+        modules.sync.SetPlayerKickInfo(
+          selfName,
+          selfRealm,
+          info.onCooldown,
+          info.cooldownRemain,
+          nil,
+          hasKick,
+          info.kickSlots
+        )
       end
     end
     local now = getTime()
@@ -1268,6 +1280,7 @@ local function InitializeFactorySecondaryKickTracker(
         hasKick = hasKick,
         onCooldown = info.onCooldown,
         cooldownRemain = info.cooldownRemain,
+        kickSlots = info.kickSlots,
         force = force == true or heartbeatDue,
       })
     end
@@ -1336,15 +1349,7 @@ local function InitializeFactorySecondaryKickTracker(
     return SyncOwnKickState(force ~= false)
   end
 
-  -- Event frame: UNIT_SPELLCAST_SUCCEEDED for player/pet is untainted.
-  local castFrame = CreateFrame("Frame")
-  castFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player", "pet")
-  castFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
-  castFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-  castFrame:RegisterEvent("SPELLS_CHANGED")
-  castFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
-  castFrame:RegisterUnitEvent("UNIT_PET", "player")
-  castFrame:SetScript("OnEvent", function(_, event, unit, _, spellID)
+  local function HandleKickFrameEvent(_, event, unit, _, spellID)
     if IsRaidModeActive() then
       EnterRaidKickSuppression()
       return
@@ -1360,6 +1365,19 @@ local function InitializeFactorySecondaryKickTracker(
             RefreshKickColumnIfVisible()
           end
           return
+        end
+      end
+      return
+    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
+      if ctx.kickTrackerController and type(ctx.kickTrackerController.OnCombatLogEvent) == "function" then
+        local CombatLogGetCurrentEventInfo_ref = getCombatLogEventInfo or rawget(_G, "CombatLogGetCurrentEventInfo")
+        if type(CombatLogGetCurrentEventInfo_ref) == "function" then
+          local timestamp, subevent, _, sourceGUID, _, _, _, _, _, _, _, combatSpellID, _, _, missType =
+            CombatLogGetCurrentEventInfo_ref()
+          ctx.kickTrackerController.OnCombatLogEvent(timestamp, subevent, sourceGUID, combatSpellID, missType)
+          if type(ctx.RecordKickCombatLogEvent) == "function" then
+            ctx.RecordKickCombatLogEvent(timestamp, subevent, sourceGUID, combatSpellID, missType, ctx.GetRoster())
+          end
         end
       end
       return
@@ -1399,7 +1417,33 @@ local function InitializeFactorySecondaryKickTracker(
         end
       end
     end
-  end)
+  end
+
+  -- Event frame: UNIT_SPELLCAST_SUCCEEDED for player/pet is untainted.
+  local castFrame = CreateFrame("Frame")
+  castFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player", "pet")
+  castFrame:RegisterUnitEvent("UNIT_PET", "player")
+  castFrame:SetScript("OnEvent", HandleKickFrameEvent)
+
+  -- Regular event frame: combat log and cooldown/spec refreshes stay separate from unit events.
+  local kickEventFrame = CreateFrame("Frame")
+  kickEventFrame:SetScript("OnEvent", HandleKickFrameEvent)
+  local function RegisterKickEventFrame()
+    if kickEventFrame._kickEventsRegistered == true then
+      return
+    end
+    kickEventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    kickEventFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+    kickEventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    kickEventFrame:RegisterEvent("SPELLS_CHANGED")
+    kickEventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+    kickEventFrame._kickEventsRegistered = true
+  end
+  if type(isInCombatLockdown) == "function" and isInCombatLockdown() then
+    ctx.registerDeferredKickEvents = RegisterKickEventFrame
+  else
+    RegisterKickEventFrame()
+  end
 
   -- Ticker: scan own kick state + refresh kick column every 0.5s.
   local C_Timer_ref = rawget(_G, "C_Timer")
@@ -1438,9 +1482,11 @@ local function InitializeFactorySecondaryControllers(ctx)
   end
 
   RegisterBlizzardUnitLanguageTooltip(ctx, modules)
-  InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runtimeState)
   InitializeFactorySecondaryRuntimeMethods(ctx, modules)
   InitializeFactorySecondaryCdTracker(ctx, modules, runtimeState, getTime, IsMainFrameShown, IsRaidModeActive)
+  -- KickTracker must be initialized before TestModeAndBindings because SetOverrideBindingClick
+  -- (called inside ApplyHotkeyBindings) taints the execution context, and RegisterEvent is
+  -- forbidden in a tainted context.
   InitializeFactorySecondaryKickTracker(
     ctx,
     modules,
@@ -1449,6 +1495,7 @@ local function InitializeFactorySecondaryControllers(ctx)
     IsMainFrameShown,
     IsRaidModeActive
   )
+  InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runtimeState)
 end
 FI.InitializeFactorySecondaryControllers = InitializeFactorySecondaryControllers
 

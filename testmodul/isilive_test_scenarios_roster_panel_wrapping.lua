@@ -410,8 +410,7 @@ local function RegisterRosterPanelWrappingLayoutTests(test, Assert, WithGlobals,
       Assert.Equal(rowFontStrings[4].width, 62, "key column should fit short-code plus two-digit level (e.g. NPX +10)")
       Assert.Equal(rowFontStrings[5].width, 70, "rio column should fit (+999)9999 without clipping")
       Assert.Equal(rowFontStrings[6].width, 40, "dps column should keep compact width budget")
-      Assert.Equal(rowFontStrings[7].width, 58, "kick column should keep compact width budget")
-      Assert.Equal(rowFontStrings[8].width, 18, "flag column should keep flag-only width budget")
+      Assert.Equal(rowFontStrings[7].width, 18, "flag column should keep flag-only width budget")
     end)
   end)
 end

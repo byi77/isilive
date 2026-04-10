@@ -10,6 +10,7 @@ local NO_INTERRUPT_SPEC_IDS = {
   [256] = true,
   [257] = true,
 }
+local FAILED_KICK_SIGNAL_WINDOW_SECONDS = 4
 
 -- Spec-keyed interrupt data (spec ID → { spellID, cd }).
 local SPEC_DATA = {
@@ -35,9 +36,9 @@ local SPEC_DATA = {
   [254] = { spellID = 147362, cd = 24 }, -- MM: Counter Shot
   [255] = { spellID = 187707, cd = 15 }, -- Survival: Muzzle
   -- Mage
-  [62] = { spellID = 2139, cd = 25 },
-  [63] = { spellID = 2139, cd = 25 },
-  [64] = { spellID = 2139, cd = 25 },
+  [62] = { spellID = 2139, cd = 20 },
+  [63] = { spellID = 2139, cd = 20 },
+  [64] = { spellID = 2139, cd = 20 },
   -- Monk
   [268] = { spellID = 116705, cd = 15 },
   [269] = { spellID = 116705, cd = 15 },
@@ -184,6 +185,18 @@ local function ReadCooldownField(info, key)
     return nil, false
   end
   return value, true
+end
+
+local function ResolveUnitGUID(unit)
+  local UnitGUID_ref = rawget(_G, "UnitGUID")
+  if type(UnitGUID_ref) ~= "function" then
+    return nil
+  end
+  local ok, guid = pcall(UnitGUID_ref, unit)
+  if not ok or type(guid) ~= "string" or guid == "" then
+    return nil
+  end
+  return guid
 end
 
 local function ResolveAvailabilityState(spellID)
@@ -395,6 +408,11 @@ function KickTracker.CreateController(opts)
   local cooldownRemain = 0
   local watchedSpellID = nil
   local watchedCastUnit = "player"
+  local watchedCasterGUID = nil
+  local lastCastAt = nil
+  local lastFailedKickAt = nil
+  local lastFailedKickSpellID = nil
+  local lastFailedKickMissType = nil
   local watchedCd = nil -- pipeline: SPEC_DATA -> ReadBaseCd -> ScanOwnTalents -> CacheCooldown (each may override)
   local talentScanDirty = true -- invalidated on spec/talent change, cleared after ScanOwnTalents
   local ReadBaseCd
@@ -403,6 +421,11 @@ function KickTracker.CreateController(opts)
 
   local function ClearResolvedKickState()
     watchedSpellID = nil
+    watchedCasterGUID = nil
+    lastCastAt = nil
+    lastFailedKickAt = nil
+    lastFailedKickSpellID = nil
+    lastFailedKickMissType = nil
     watchedCd = nil
     hasKickAvailable = false
     talentScanDirty = true
@@ -626,10 +649,47 @@ function KickTracker.CreateController(opts)
 
     watchedSpellID = spellData.spellID
     watchedCd = watchedCd or spellData.cd
+    watchedCasterGUID = ResolveUnitGUID(unit)
+    lastCastAt = getTime()
+    lastFailedKickAt = nil
+    lastFailedKickSpellID = nil
+    lastFailedKickMissType = nil
     ReadBaseCd()
     ScanOwnTalents()
     local cd = watchedCd or 15
     SetCooldown(true, getTime() + cd)
+    return true
+  end
+
+  function controller.OnCombatLogEvent(timestamp, subevent, sourceGUID, spellID, missType)
+    if availabilityResolved ~= true or hasKickAvailable ~= true or not watchedSpellID then
+      return false
+    end
+    if type(timestamp) ~= "number" or type(subevent) ~= "string" then
+      return false
+    end
+    if sourceGUID == nil or sourceGUID ~= watchedCasterGUID then
+      return false
+    end
+    if spellID ~= watchedSpellID then
+      return false
+    end
+    if subevent ~= "SPELL_MISSED" and subevent ~= "SPELL_CAST_FAILED" then
+      return false
+    end
+    if subevent == "SPELL_MISSED" and (type(missType) ~= "string" or missType == "") then
+      return false
+    end
+    if type(lastCastAt) == "number" then
+      local elapsed = timestamp - lastCastAt
+      if elapsed < -0.1 or elapsed > FAILED_KICK_SIGNAL_WINDOW_SECONDS then
+        return false
+      end
+    end
+
+    lastFailedKickAt = timestamp
+    lastFailedKickSpellID = spellID
+    lastFailedKickMissType = subevent == "SPELL_MISSED" and missType or "CAST_FAILED"
     return true
   end
 
@@ -649,6 +709,7 @@ function KickTracker.CreateController(opts)
       availabilityResolved = info.availabilityResolved == true,
       onCooldown = info.onCooldown == true,
       cooldownRemain = info.cooldownRemain or 0,
+      kickSlots = info.kickSlots,
       exactCooldownKnown = info.availabilityResolved == true and info.hasKick == true and exactStateKnown == true,
     }
   end
@@ -671,12 +732,30 @@ function KickTracker.CreateController(opts)
   function controller.GetKickInfo()
     local hasKick = availabilityResolved == true and hasKickAvailable == true and watchedSpellID ~= nil
     local remain = hasKick and (onCooldown and cdEndTime > 0) and math.max(0, cdEndTime - getTime()) or 0
+    local kickSlots = nil
+    if availabilityResolved == true then
+      kickSlots = {}
+      if hasKick then
+        kickSlots[1] = {
+          spellID = watchedSpellID,
+          hasKick = true,
+          availabilityResolved = true,
+          onCooldown = onCooldown == true,
+          cooldownRemain = remain,
+        }
+      end
+    end
     return {
       spellID = hasKick and watchedSpellID or nil,
       hasKick = hasKick,
       availabilityResolved = availabilityResolved == true,
       onCooldown = hasKick and onCooldown or false,
       cooldownRemain = remain,
+      totalCd = watchedCd,
+      kickSlots = kickSlots,
+      lastFailedKickAt = lastFailedKickAt,
+      lastFailedKickSpellID = lastFailedKickSpellID,
+      lastFailedKickMissType = lastFailedKickMissType,
     }
   end
 

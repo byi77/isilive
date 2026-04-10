@@ -1,3 +1,4 @@
+---@diagnostic disable: need-check-nil
 local function FindTicker(tickers, interval)
   for _, ticker in ipairs(tickers or {}) do
     if ticker.interval == interval then
@@ -135,6 +136,27 @@ local function BuildFactorySecondaryTestContext(state, initial, addon)
       end
       return nil, nil
     end,
+    GetCombatLogEventInfo = function()
+      if type(initial.combatLogEventInfo) == "table" then
+        local info = initial.combatLogEventInfo
+        return info[1],
+          info[2],
+          info[3],
+          info[4],
+          info[5],
+          info[6],
+          info[7],
+          info[8],
+          info[9],
+          info[10],
+          info[11],
+          info[12],
+          info[13],
+          info[14],
+          info[15]
+      end
+      return nil
+    end,
     GetRealmInfoLib = function()
       return nil
     end,
@@ -267,6 +289,27 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
     GetRealmName = function()
       return state.playerRealm
     end,
+    CombatLogGetCurrentEventInfo = function()
+      if type(initial.combatLogEventInfo) == "table" then
+        local info = initial.combatLogEventInfo
+        return info[1],
+          info[2],
+          info[3],
+          info[4],
+          info[5],
+          info[6],
+          info[7],
+          info[8],
+          info[9],
+          info[10],
+          info[11],
+          info[12],
+          info[13],
+          info[14],
+          info[15]
+      end
+      return nil
+    end,
     IsiLiveDB = {},
     C_ChallengeMode = {
       GetActiveChallengeMapID = function()
@@ -350,6 +393,20 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
             end
             return success
           end
+          local function OnCombatLogEvent(timestamp, subevent, sourceGUID, spellID, missType)
+            state.kickCombatLogCalls = (state.kickCombatLogCalls or 0) + 1
+            state.lastKickCombatLogEvent = {
+              timestamp = timestamp,
+              subevent = subevent,
+              sourceGUID = sourceGUID,
+              spellID = spellID,
+              missType = missType,
+            }
+            if type(initial.onKickCombatLogEvent) == "function" then
+              return initial.onKickCombatLogEvent(kickInfo, state, timestamp, subevent, sourceGUID, spellID, missType)
+            end
+            return false
+          end
           return {
             OnCast = function(unit, spellID)
               state.kickOnCastCalls = (state.kickOnCastCalls or 0) + 1
@@ -376,6 +433,7 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
               end
               return observedKick
             end,
+            OnCombatLogEvent = OnCombatLogEvent,
             CacheCooldown = CacheCooldown,
             ResolveKickState = function()
               state.kickResolveCalls = (state.kickResolveCalls or 0) + 1
@@ -868,6 +926,56 @@ local function RegisterFactorySecondaryKickRecoveryTests(test, Assert, WithGloba
       15,
       "the restored kick sync packet must carry the observed cooldown remain"
     )
+  end)
+
+  test("Factory kick tracker forwards combat-log miss events to the kick tracker", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mainFrameShown = true,
+      isRaidGroup = false,
+      kickInfo = {
+        spellID = 96231,
+        hasKick = true,
+        onCooldown = true,
+        cooldownRemain = 11,
+      },
+      combatLogEventInfo = {
+        100.25,
+        "SPELL_MISSED",
+        false,
+        "Player-123",
+        "Player",
+        0,
+        0,
+        nil,
+        nil,
+        nil,
+        nil,
+        96231,
+        "Rebuke",
+        2,
+        "IMMUNE",
+      },
+    })
+
+    local castFrame = state.createdFrames[1]
+    local kickEventFrame = state.createdFrames[2]
+    Assert.NotNil(castFrame, "kick tracker init must create a dedicated cast frame")
+    Assert.NotNil(kickEventFrame, "kick tracker init must create a dedicated combat-log frame")
+    Assert.Equal(
+      kickEventFrame.registeredEvents["COMBAT_LOG_EVENT_UNFILTERED"],
+      true,
+      "kick tracker must listen for combat-log miss events on the dedicated event frame"
+    )
+    Assert.NotNil(castFrame.scripts.OnEvent, "kick tracker cast frame must register an OnEvent handler")
+    Assert.NotNil(kickEventFrame.scripts.OnEvent, "kick tracker event frame must register an OnEvent handler")
+
+    kickEventFrame.scripts.OnEvent(kickEventFrame, "COMBAT_LOG_EVENT_UNFILTERED")
+
+    Assert.Equal(state.kickCombatLogCalls or 0, 1, "combat-log miss events must be forwarded exactly once")
+    Assert.NotNil(state.lastKickCombatLogEvent, "forwarded combat-log event must be captured by the kick tracker")
+    Assert.Equal(state.lastKickCombatLogEvent.subevent, "SPELL_MISSED", "combat-log subevent must be forwarded")
+    Assert.Equal(state.lastKickCombatLogEvent.spellID, 96231, "combat-log spellID must be forwarded exactly")
+    Assert.Equal(state.lastKickCombatLogEvent.missType, "IMMUNE", "combat-log miss type must be forwarded exactly")
   end)
 end
 

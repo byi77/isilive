@@ -128,6 +128,10 @@ function FrameBridge.CreateContext(opts)
     mainUI.SetWidthSafe(width)
   end
 
+  function context.IsMainFrameVisible()
+    return mainUI.frame:IsShown() == true
+  end
+
   function context.ToggleMainFrameVisibility()
     if type(isRaidGroup) == "function" and isRaidGroup() and not mainUI.frame:IsShown() then
       return

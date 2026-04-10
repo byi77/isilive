@@ -616,13 +616,14 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert)
 
   test("Architecture kick tracker uses lightweight kick-column refresh hooks", function()
     local helpersContent = ReadFile("isiLive_factory_controllers.lua")
+    local kickTrackerContent = ReadFile("isiLive_kick_tracker.lua")
     local rosterPanelContent = ReadFile("isiLive_roster_panel.lua")
 
     AssertContains(
       Assert,
       helpersContent,
-      'castFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")',
-      "factory kick tracking must refresh spell resolution on specialization changes"
+      'kickEventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")',
+      "factory kick tracking must refresh spell resolution on specialization changes on the regular event frame"
     )
     AssertContains(
       Assert,
@@ -639,6 +640,18 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert)
     AssertContains(
       Assert,
       helpersContent,
+      'kickEventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")',
+      "factory kick tracking must also forward combat-log miss events on a separate event frame"
+    )
+    AssertContains(
+      Assert,
+      kickTrackerContent,
+      "function controller.OnCombatLogEvent(",
+      "kick tracker must expose a deterministic combat-log failure handler"
+    )
+    AssertContains(
+      Assert,
+      helpersContent,
       "ctx.rosterPanelController.RefreshKickColumn()",
       "factory kick tracking must use the dedicated roster kick refresh path"
     )
@@ -651,8 +664,8 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert)
     AssertContains(
       Assert,
       rosterPanelContent,
-      'cell:SetText("|cff44ff44ready|r")',
-      "RosterPanel kick refresh helper must render the ready state in green"
+      "_kickIcons = {}",
+      "RosterPanel kick refresh helper must render slot points as compact icons"
     )
   end)
 end

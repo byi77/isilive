@@ -319,6 +319,9 @@ function ChallengeLifecycle.BuildHandlers(ctx)
       return
     end
     SetPendingPostChallengeRefresh(ctx, nil)
+    if type(ctx.resetKickStats) == "function" then
+      ctx.resetKickStats()
+    end
     ctx.lastRecordedRunSignature = nil
     ctx.lastRecordedRunCaptured = false
     ctx.pendingRecordedRunRetrySignature = nil

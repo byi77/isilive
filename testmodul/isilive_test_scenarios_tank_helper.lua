@@ -503,10 +503,8 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     Assert.NotNil(horizontalCollapseButton, "Horizontal collapse button should exist")
     local titleFontString = FindFontStringByPoint(createdFontStrings, "TOPLEFT", 10, -4)
     local versionFontString = FindFontStringByPoint(createdFontStrings, "LEFT", 5, 0)
-    local titleHintFontString = FindFontStringByPoint(createdFontStrings, "LEFT", 8, 0)
     Assert.NotNil(titleFontString, "Title font string should exist")
     Assert.NotNil(versionFontString, "Version font string should exist")
-    Assert.NotNil(titleHintFontString, "Title hint font string should exist")
     ---@diagnostic disable: need-check-nil, undefined-field
     Assert.Equal(
       collapseButton._collapseButtonLabel,
@@ -556,7 +554,6 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     )
     Assert.True(titleFontString.hidden, "Title should be hidden in vertical mini mode")
     Assert.True(versionFontString.hidden, "Version line should be hidden in vertical mini mode")
-    Assert.True(titleHintFontString.hidden, "Title hint should be hidden in vertical mini mode")
     Assert.Equal(collapseButton._collapseButtonLabel, "V", "V mode button keeps static V label")
     Assert.Equal(
       horizontalCollapseButton._collapseButtonLabel,
@@ -663,13 +660,11 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     local m2Button = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_main_horizontal")
     local expandedButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "expanded")
     local titleVersion = FindFontStringByPoint(createdFontStrings, "LEFT", 5, 0)
-    local titleHint = FindFontStringByPoint(createdFontStrings, "LEFT", 8, 0)
     Assert.NotNil(collapseButton, "Vertical collapse button should exist")
     Assert.NotNil(horizontalButton, "Horizontal collapse button should exist")
     Assert.NotNil(m2Button, "M2 mode button should exist")
     Assert.Nil(expandedButton, "Expanded mode button should stay hidden from the title bar")
     Assert.NotNil(titleVersion, "Title version should exist")
-    Assert.NotNil(titleHint, "Title hint should exist")
     ---@diagnostic disable: need-check-nil
     Assert.Equal(horizontalButton._collapseButtonLabel, "H", "H mode button has static H label in expanded mode")
 
@@ -711,7 +706,6 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     Assert.Equal(horizontalButton._collapseButtonLabel, "H", "H mode button keeps static H label in horizontal mode")
     Assert.Equal(collapseButton._collapseButtonLabel, "V", "V mode button keeps static V label in horizontal mode")
     Assert.True(titleVersion.hidden, "Title version should be hidden in horizontal mini mode")
-    Assert.True(titleHint.hidden, "Title hint should be hidden in horizontal mini mode")
     Assert.True(
       helperButtons[1].pointX < helperButtons[#helperButtons].pointX,
       "Helper icons should spread horizontally"
@@ -728,7 +722,6 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
       "H mode button keeps static H label after leaving horizontal mode"
     )
     Assert.True(titleVersion.hidden ~= true, "Title version should be visible again in M2 mode")
-    Assert.True(titleHint.hidden ~= true, "Title hint should be visible again in M2 mode")
     ---@diagnostic enable: need-check-nil
   end)
 end

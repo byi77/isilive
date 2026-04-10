@@ -528,8 +528,96 @@ local function RegisterStatsPersistenceTests(test, Assert, WithGlobals, LoadAddo
   end)
 end
 
+local function RegisterStatsKickCountTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Stats controller records kick counts from combat-log events and persists them at run end", function()
+    local db = { stats = {} }
+    local roster = {
+      party1 = {
+        name = "Buddy",
+        realm = "Realm",
+        spellID = 96231,
+      },
+    }
+
+    WithGlobals({
+      IsiLiveDB = db,
+      UnitExists = function(unit)
+        return unit == "party1"
+      end,
+      UnitGUID = function(unit)
+        if unit == "party1" then
+          return "Player-123"
+        end
+        return nil
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_stats.lua" })
+      local controller = addon.Stats.CreateController({
+        getRoster = function()
+          return roster
+        end,
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "Me", "Realm"
+          end
+          return nil
+        end,
+        isInChallengeMode = function()
+          return true
+        end,
+      })
+
+      Assert.True(
+        controller.RecordKickCombatLogEvent(100, "SPELL_INTERRUPT", "Player-123", 96231, nil, roster),
+        "successful interrupt events must be counted"
+      )
+      Assert.True(
+        controller.RecordKickCombatLogEvent(101, "SPELL_MISSED", "Player-123", 96231, "IMMUNE", roster),
+        "missed interrupt events must be counted"
+      )
+      Assert.True(
+        controller.RecordKickCombatLogEvent(102, "SPELL_CAST_FAILED", "Player-123", 96231, nil, roster),
+        "failed interrupt events must be counted"
+      )
+
+      local liveStats = controller.GetPlayerKickStats("Buddy", "Realm")
+      Assert.NotNil(liveStats, "live kick stats must exist after combat-log events")
+      Assert.Equal(liveStats.kicks, 1, "successful kicks must be counted")
+      Assert.Equal(liveStats.failed, 1, "failed kicks must be counted")
+      Assert.Equal(liveStats.missed, 1, "missed kicks must be counted")
+
+      controller.RecordRun(2662, 10, true)
+
+      local persistedController = addon.Stats.CreateController({
+        getRoster = function()
+          return roster
+        end,
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "Me", "Realm"
+          end
+          return nil
+        end,
+        isInChallengeMode = function()
+          return false
+        end,
+      })
+
+      local persistedStats = persistedController.GetPlayerKickStats("Buddy", "Realm")
+      Assert.NotNil(persistedStats, "persisted kick stats must be available after the run ends")
+      Assert.Equal(persistedStats.kicks, 1, "persisted successful kicks must survive the run end")
+      Assert.Equal(persistedStats.failed, 1, "persisted failed kicks must survive the run end")
+      Assert.Equal(persistedStats.missed, 1, "persisted missed kicks must survive the run end")
+    end)
+  end)
+end
+
 local function RegisterStatsTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterStatsPruningTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterStatsKickCountTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterStatsDamageMeterTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterStatsPersistenceTests(test, Assert, WithGlobals, LoadAddonModules)
 end

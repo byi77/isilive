@@ -145,6 +145,9 @@ local DPS_COL_X = RIO_COL_X + RIO_COL_WIDTH + 2
 local DPS_COL_WIDTH = 40
 local KICK_COL_X = DPS_COL_X + DPS_COL_WIDTH + 4
 local KICK_COL_WIDTH = 58
+local KICK_ICON_SIZE = 12
+local KICK_ICON_GAP = 4
+local KICK_ICON_TEXTURE = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_2"
 local ROLE_BUTTON_X = SPEC_COL_X + SPEC_COL_WIDTH + 4
 
 -- These settings are temporarily hidden from Blizzard Settings.
@@ -816,6 +819,13 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   row.highlight:SetColorTexture(0.3, 0.65, 1, 0.08)
   row.highlight:Hide()
 
+  row.kickCdBar = row.hoverFrame:CreateTexture(nil, "BACKGROUND", nil, 1)
+  row.kickCdBar:SetPoint("TOPLEFT", row.hoverFrame, "TOPLEFT", 0, 0)
+  row.kickCdBar:SetPoint("BOTTOMLEFT", row.hoverFrame, "BOTTOMLEFT", 0, 0)
+  row.kickCdBar:SetColorTexture(0.85, 0.15, 0.15, 0.35)
+  row.kickCdBar:SetWidth(1)
+  row.kickCdBar:Hide()
+
   row.hoverFrame:SetScript("OnEnter", function()
     row.highlight:Show()
     if
@@ -827,6 +837,7 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
         row.getDungeonShortCode,
         row.getDungeonName,
         row.getPlayerLastRunDps,
+        row.getPlayerKickStats,
         row.getLanguageTooltipMarkup,
         row.getL
       )
@@ -898,11 +909,10 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   row.dps:SetJustifyH("RIGHT")
   DisableFontStringWrapping(row.dps)
 
-  row.kick = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  row.kick = CreateFrame("Frame", nil, mainFrame)
   row.kick:SetPoint("TOPLEFT", KICK_COL_X, yOffset)
-  row.kick:SetWidth(KICK_COL_WIDTH)
-  row.kick:SetJustifyH("RIGHT")
-  DisableFontStringWrapping(row.kick)
+  row.kick:SetSize(KICK_COL_WIDTH, CD_TRACKER_ROW_HEIGHT)
+  row.kick._kickIcons = {}
 
   row.realm = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.realm:SetPoint("TOPLEFT", SERVER_COL_X, yOffset)
@@ -1556,17 +1566,6 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   end
   ApplyFontStringSize(titleVersion, 12)
 
-  local titleHint = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  titleHint:SetPoint("LEFT", titleVersion, "RIGHT", 8, 0)
-  titleHint:SetTextColor(0.82, 0.74, 0.42)
-  if type(titleHint.SetShadowOffset) == "function" then
-    titleHint:SetShadowOffset(1, -1)
-  end
-  if type(titleHint.SetShadowColor) == "function" then
-    titleHint:SetShadowColor(0, 0, 0, 0.9)
-  end
-  ApplyFontStringSize(titleHint, 10)
-
   local headers = CreatePanelHeaders(mainFrame)
   local m2ColumnGuides = CreateM2ColumnGuides(mainFrame)
   local panelTooltip = CreateRosterHoverTooltip(mainFrame)
@@ -1574,8 +1573,6 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     return {}
   end
   local betaButton = CreateBetaTitleButton(mainFrame, titleVersion, getL)
-  titleHint:ClearAllPoints()
-  titleHint:SetPoint("LEFT", betaButton, "RIGHT", 8, 0)
   local L = getL()
   local buttonDeps = {}
   for key, value in pairs(uiDeps) do
@@ -1607,7 +1604,6 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     killTrackRow = killTrackRow,
     statusLine = statusLine,
     titleVersion = titleVersion,
-    titleHint = titleHint,
     betaButton = betaButton,
     raidNoticeLabel = raidNoticeLabel,
     m2ColumnGuides = m2ColumnGuides,
@@ -1796,28 +1792,217 @@ local function ApplyRowReadyCheckDisplay(row, displayData)
   end
 end
 
+local function NormalizeKickSlots(info)
+  if type(info) ~= "table" then
+    return nil
+  end
+
+  if info.syncHasKick == false then
+    return {}
+  end
+
+  local kickSlots = info.syncKickSlots
+  if type(kickSlots) == "table" and #kickSlots > 0 then
+    return kickSlots
+  end
+
+  if info.syncHasKick ~= true then
+    return nil
+  end
+
+  if info.syncKickOnCooldown ~= true and info.syncKickOnCooldown ~= false then
+    return nil
+  end
+
+  return {
+    {
+      hasKick = true,
+      availabilityResolved = true,
+      onCooldown = info.syncKickOnCooldown == true,
+      cooldownRemain = tonumber(info.syncKickRemain) or 0,
+    },
+  }
+end
+
+local function NormalizeKickCellSlots(info)
+  local kickSlots = NormalizeKickSlots(info)
+  if type(kickSlots) == "table" and #kickSlots > 0 then
+    return kickSlots
+  end
+
+  return {
+    {
+      hasKick = false,
+      availabilityResolved = false,
+      onCooldown = false,
+      cooldownRemain = 0,
+    },
+  }
+end
+
+local function GetKickSlotColor(slot)
+  if type(slot) ~= "table" then
+    return 0.55, 0.55, 0.55, 1
+  end
+
+  if slot.hasKick == false or slot.availabilityResolved == false then
+    return 0.55, 0.55, 0.55, 1
+  end
+
+  if slot.onCooldown == true then
+    return 1, 0.25, 0.25, 1
+  end
+
+  if slot.onCooldown == false then
+    return 0.27, 1, 0.27, 1
+  end
+
+  return 0.55, 0.55, 0.55, 1
+end
+
+local function EnsureKickIcon(cell, index)
+  if type(cell) ~= "table" then
+    return nil
+  end
+
+  local icons = cell._kickIcons
+  if type(icons) ~= "table" then
+    icons = {}
+    cell._kickIcons = icons
+  end
+
+  local slot = icons[index]
+  if not slot then
+    slot = {}
+    if type(cell.CreateTexture) == "function" then
+      local icon = cell:CreateTexture(nil, "OVERLAY")
+      if type(icon.SetSize) == "function" then
+        icon:SetSize(KICK_ICON_SIZE, KICK_ICON_SIZE)
+      end
+      if type(icon.SetTexture) == "function" then
+        icon:SetTexture(KICK_ICON_TEXTURE)
+      end
+      slot.icon = icon
+    end
+    if type(cell.CreateFontString) == "function" then
+      local label = cell:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+      if type(label.SetFont) == "function" then
+        label:SetFont(label:GetFont() or "Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
+      end
+      if type(label.SetJustifyH) == "function" then
+        label:SetJustifyH("CENTER")
+      end
+      DisableFontStringWrapping(label)
+      slot.cdLabel = label
+    end
+    icons[index] = slot
+  end
+
+  return slot
+end
+
 local function SetKickCellText(cell, info)
   if not cell then
     return
   end
-  if type(info) ~= "table" or info.syncHasKick == false then
-    cell:SetText("|cff666666-|r")
+
+  local kickSlots = NormalizeKickCellSlots(info)
+  if type(kickSlots) ~= "table" or #kickSlots == 0 then
     return
   end
-  if info.syncKickOnCooldown == true then
-    local secs = math.ceil(info.syncKickRemain or 0)
-    if secs > 0 then
-      cell:SetText(string.format("|cffff4040%ds|r", secs))
-    else
-      cell:SetText("|cff666666-|r")
+
+  local slots = cell._kickIcons or {}
+  for index, kickSlot in ipairs(kickSlots) do
+    local slot = EnsureKickIcon(cell, index)
+    if slot then
+      local xOffset = -((index - 1) * (KICK_ICON_SIZE + KICK_ICON_GAP))
+      local icon = slot.icon
+      local cdLabel = slot.cdLabel
+
+      if icon then
+        if type(icon.ClearAllPoints) == "function" then
+          icon:ClearAllPoints()
+        end
+        if type(icon.SetPoint) == "function" then
+          icon:SetPoint("RIGHT", cell, "RIGHT", xOffset, 6)
+        end
+        local r, g, b, a = GetKickSlotColor(kickSlot)
+        if kickSlot.onCooldown == true then
+          -- darken icon when on cooldown
+          if type(icon.SetVertexColor) == "function" then
+            icon:SetVertexColor(r * 0.4, g * 0.4, b * 0.4, 1)
+          end
+        else
+          if type(icon.SetVertexColor) == "function" then
+            icon:SetVertexColor(r, g, b, a)
+          end
+        end
+        if type(icon.Show) == "function" then
+          icon:Show()
+        end
+      end
+
+      if cdLabel then
+        if type(cdLabel.ClearAllPoints) == "function" then
+          cdLabel:ClearAllPoints()
+        end
+        if kickSlot.onCooldown == true and (kickSlot.cooldownRemain or 0) > 0 then
+          local secs = math.ceil(kickSlot.cooldownRemain)
+          if type(cdLabel.SetPoint) == "function" then
+            cdLabel:SetPoint("RIGHT", cell, "RIGHT", xOffset, 6)
+          end
+          if type(cdLabel.SetText) == "function" then
+            cdLabel:SetText(secs)
+          end
+          if type(cdLabel.SetTextColor) == "function" then
+            cdLabel:SetTextColor(1, 0.8, 0.2, 1)
+          end
+          if type(cdLabel.Show) == "function" then
+            cdLabel:Show()
+          end
+        else
+          if type(cdLabel.Hide) == "function" then
+            cdLabel:Hide()
+          end
+        end
+      end
     end
+  end
+
+  for index = #kickSlots + 1, #slots do
+    local slot = slots[index]
+    if type(slot) == "table" then
+      if slot.icon and type(slot.icon.Hide) == "function" then
+        slot.icon:Hide()
+      end
+      if slot.cdLabel and type(slot.cdLabel.Hide) == "function" then
+        slot.cdLabel:Hide()
+      end
+    end
+  end
+end
+
+local function SetRowKickCdBar(row, kickSlots, totalCd)
+  local bar = row and row.kickCdBar
+  if not bar then
     return
   end
-  if info.syncKickOnCooldown == false then
-    cell:SetText("|cff44ff44ready|r")
-    return
+  local slot = type(kickSlots) == "table" and kickSlots[1] or nil
+  if slot and slot.onCooldown == true and (slot.cooldownRemain or 0) > 0 and (totalCd or 0) > 0 then
+    local fraction = math.min(1, slot.cooldownRemain / totalCd)
+    local maxWidth = type(row.hoverFrame.GetWidth) == "function" and row.hoverFrame:GetWidth() or 0
+    local barWidth = math.max(1, math.floor(maxWidth * fraction))
+    if type(bar.SetWidth) == "function" then
+      bar:SetWidth(barWidth)
+    end
+    if type(bar.Show) == "function" then
+      bar:Show()
+    end
+  else
+    if type(bar.Hide) == "function" then
+      bar:Hide()
+    end
   end
-  cell:SetText("|cff666666-|r")
 end
 
 local function RenderRosterImpl(state, roster)
@@ -1844,8 +2029,9 @@ local function RenderRosterImpl(state, roster)
     row.rio:SetText("")
     row.dps:SetText("")
     if row.kick then
-      row.kick:SetText("")
+      SetKickCellText(row.kick, { syncHasKick = false })
     end
+    SetRowKickCdBar(row, nil, nil)
     row.unit = nil
     row.tooltipName = nil
     row.tooltipRealm = nil
@@ -2033,6 +2219,7 @@ local function RenderRosterImpl(state, roster)
     row.getDungeonShortCode = state.getDungeonShortCode
     row.getDungeonName = state.getDungeonName
     row.getPlayerLastRunDps = state.getPlayerLastRunDps
+    row.getPlayerKickStats = state.getPlayerKickStats
     row.getLanguageTooltipMarkup = state.getLanguageTooltipMarkup
     row.getL = state.getL
     if row.hoverFrame then
@@ -2151,6 +2338,8 @@ function RosterPanel.CreateController(opts)
   end
   local sendShareKeysRequest = type(opts.sendShareKeysRequest) == "function" and opts.sendShareKeysRequest or nil
   local getPlayerLastRunDps = type(opts.getPlayerLastRunDps) == "function" and opts.getPlayerLastRunDps or nil
+  local getPlayerKickStats = type(opts.getPlayerKickStats) == "function" and opts.getPlayerKickStats or nil
+  local getLocalKickInfo = type(opts.getLocalKickInfo) == "function" and opts.getLocalKickInfo or nil
   local showRosterColumnGuides = type(opts.showRosterColumnGuides) == "function" and opts.showRosterColumnGuides
     or function()
       return false
@@ -2223,9 +2412,6 @@ function RosterPanel.CreateController(opts)
     ui.title:SetText(titleName)
     if ui.titleVersion then
       ui.titleVersion:SetText(titleVer)
-    end
-    if ui.titleHint then
-      ui.titleHint:SetText(tostring(L.TITLE_HINT or ""))
     end
     ui.specHeader:SetText(L.COL_SPEC)
     ui.nameHeader:SetText(L.COL_NAME)
@@ -2351,6 +2537,7 @@ function RosterPanel.CreateController(opts)
       syncBadge = syncBadge,
       getPlayerSyncSummary = getPlayerSyncSummary,
       getPlayerLastRunDps = getPlayerLastRunDps,
+      getPlayerKickStats = getPlayerKickStats,
       getReadyCheckReadyUntil = getReadyCheckReadyUntil,
       getReadyCheckDeclinedUntil = getReadyCheckDeclinedUntil,
       getTime = getTime,
@@ -2394,6 +2581,7 @@ function RosterPanel.CreateController(opts)
   end
 
   function controller.RefreshKickColumn()
+    local localKickInfo = type(getLocalKickInfo) == "function" and getLocalKickInfo() or nil
     for _, row in pairs(memberRows) do
       if row.kick and row.tooltipInfo then
         local info = row.tooltipInfo
@@ -2401,6 +2589,9 @@ function RosterPanel.CreateController(opts)
           applyKnownKeyToRosterEntry(info)
         end
         SetKickCellText(row.kick, info)
+        if row.unit == "player" and localKickInfo then
+          SetRowKickCdBar(row, localKickInfo.kickSlots, localKickInfo.totalCd)
+        end
       end
     end
   end

@@ -79,11 +79,12 @@ local function BuildMockSync()
     SetPlayerLocInfo = function(name, realm, mapID)
       locStore[tostring(name) .. "-" .. tostring(realm)] = { mapID = mapID }
     end,
-    SetPlayerKickInfo = function(name, realm, onCooldown, cooldownRemain, _capturedAt, hasKick)
+    SetPlayerKickInfo = function(name, realm, onCooldown, cooldownRemain, _capturedAt, hasKick, kickSlots)
       kickStore[tostring(name) .. "-" .. tostring(realm)] = {
         hasKick = hasKick ~= false,
         onCooldown = onCooldown == true,
         cooldownRemain = tonumber(cooldownRemain) or 0,
+        kickSlots = kickSlots,
       }
     end,
     ClearKnownUsers = function()
@@ -390,7 +391,7 @@ local function RegisterKeySyncOwnedKeyTests(test, Assert, WithGlobals, LoadAddon
 end
 
 local function RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("KeySync ApplyKnownKeyToRosterEntry applies key and stats from sync", function()
+  test("KeySync ApplyKnownKeyToRosterEntry applies sync kick slot lists", function()
     local sync = BuildMockSync()
     WithGlobals({
       GetSpecializationInfoByID = function(specID)
@@ -405,7 +406,10 @@ local function RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, Load
       sync.SetPlayerStatsInfo("PlayerX", "RealmX", 265, 630, 3400)
       sync.SetPlayerDpsInfo("PlayerX", "RealmX", 45000)
       sync.SetPlayerLocInfo("PlayerX", "RealmX", 300)
-      sync.SetPlayerKickInfo("PlayerX", "RealmX", true, 9, nil, true)
+      sync.SetPlayerKickInfo("PlayerX", "RealmX", true, 9, nil, true, {
+        { onCooldown = false, cooldownRemain = 0 },
+        { onCooldown = true, cooldownRemain = 9 },
+      })
 
       local info = { name = "PlayerX", realm = "RealmX" }
       local changed = ctrl.ApplyKnownKeyToRosterEntry(info)
@@ -420,6 +424,10 @@ local function RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, Load
       Assert.True(info.syncHasKick, "sync kick availability must be applied")
       Assert.True(info.syncKickOnCooldown, "sync kick cooldown state must be applied")
       Assert.Equal(info.syncKickRemain, 9, "sync kick remaining cooldown must be applied")
+      Assert.NotNil(info.syncKickSlots, "sync kick slot list must be applied")
+      Assert.Equal(#info.syncKickSlots, 2, "sync kick slot list must preserve multiple slots")
+      Assert.False(info.syncKickSlots[1].onCooldown, "first sync kick slot must stay ready")
+      Assert.True(info.syncKickSlots[2].onCooldown, "second sync kick slot must stay on cooldown")
     end)
   end)
 
@@ -485,6 +493,7 @@ local function RegisterKeySyncApplyKnownKeyTests(test, Assert, WithGlobals, Load
     Assert.False(info.syncHasKick, "no-interrupt sync state must be preserved on the roster entry")
     Assert.Nil(info.syncKickOnCooldown, "no-interrupt sync state must clear cooldown marker")
     Assert.Nil(info.syncKickRemain, "no-interrupt sync state must clear cooldown remaining seconds")
+    Assert.Nil(info.syncKickSlots, "no-interrupt sync state must clear kick slots")
   end)
 end
 

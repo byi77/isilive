@@ -422,6 +422,10 @@ local function InitializeFactoryFrameBridge(ctx)
   end
   ctx.ToggleMainFrameVisibility = function()
     frameBridgeContext.ToggleMainFrameVisibility()
+    local isNowVisible = frameBridgeContext.IsMainFrameVisible and frameBridgeContext.IsMainFrameVisible()
+    if not isNowVisible and type(ctx.ExitTestMode) == "function" then
+      ctx.ExitTestMode()
+    end
   end
   ctx.inspectLoopTimer = 0
 end

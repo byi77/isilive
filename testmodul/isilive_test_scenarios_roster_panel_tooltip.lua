@@ -243,6 +243,7 @@ local function BuildTooltipController(addon, options)
     rolePriority = options.rolePriority or {},
     unitPriority = options.unitPriority or {},
     getPlayerLastRunDps = options.getPlayerLastRunDps,
+    getPlayerKickStats = options.getPlayerKickStats,
   })
 end
 
@@ -365,6 +366,35 @@ local function RegisterRosterPanelRowTooltipDpsTest(test, Assert, WithGlobals, L
       Assert.True(foundSyncInterval, "Tooltip should contain sync interval")
       Assert.True(foundSyncSource, "Tooltip should contain sync source")
       Assert.True(foundSyncVersion, "Tooltip should contain client version info")
+    end)
+  end)
+end
+
+local function RegisterRosterPanelRowTooltipKickStatsTest(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster row tooltip shows kick counts and failed or missed kicks", function()
+    RunTooltipScenario(WithGlobals, LoadAddonModules, Assert, {
+      controller = {
+        getPlayerKickStats = function(name, realm)
+          if name == "Buddy" and realm == "Realm" then
+            return {
+              kicks = 5,
+              failed = 1,
+              missed = 2,
+            }
+          end
+          return nil
+        end,
+      },
+    }, function(addon)
+      addon.Sync.SetPlayerHelloInfo("Buddy", "Realm", "0.9.36", 2, 90, "inspect")
+    end, function(_addon, _controller, _rowFrame, tooltipLines)
+      local foundKickStats = false
+      for _, line in ipairs(tooltipLines) do
+        if line:find("Kick stats: 5 total, 1 failed, 2 missed", 1, true) then
+          foundKickStats = true
+        end
+      end
+      Assert.True(foundKickStats, "Tooltip should contain kick counts and failed or missed counts")
     end)
   end)
 end
@@ -496,6 +526,7 @@ end
 local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipNoHistoryTest(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipDpsTest(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelRowTooltipKickStatsTest(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipSyncDebugTest(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipFullKeyNameTest(test, Assert, WithGlobals, LoadAddonModules)
 end
