@@ -100,6 +100,16 @@ local function GetNormalizedActiveEntryInfo()
   return entry
 end
 
+local function IsExistingPlayerUnit()
+  local unitExists = rawget(_G, "UnitExists")
+  if type(unitExists) ~= "function" then
+    return false
+  end
+
+  local ok, exists = pcall(unitExists, "player")
+  return ok and exists == true
+end
+
 local function ResolveCurrentMapID()
   if C_ChallengeMode and C_ChallengeMode.GetActiveChallengeMapID then
     local challengeMapID = C_ChallengeMode.GetActiveChallengeMapID()
@@ -108,7 +118,7 @@ local function ResolveCurrentMapID()
     end
   end
 
-  if C_Map and C_Map.GetBestMapForUnit then
+  if IsExistingPlayerUnit() and C_Map and C_Map.GetBestMapForUnit then
     local mapID = C_Map.GetBestMapForUnit("player")
     if type(mapID) == "number" and mapID > 0 then
       return mapID

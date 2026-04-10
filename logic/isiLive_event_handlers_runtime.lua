@@ -21,11 +21,26 @@ local TRACKED_NON_CHALLENGE_PARTY_DIFFICULTY_IDS = {
 }
 local NON_CHALLENGE_RUN_CAPTURE_RETRIES = 5
 local NON_CHALLENGE_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
+
+local function IsExistingPlayerUnit()
+  local unitExists = rawget(_G, "UnitExists")
+  if type(unitExists) ~= "function" then
+    return false
+  end
+
+  local ok, exists = pcall(unitExists, "player")
+  return ok and exists == true
+end
+
 local function ResolveTrackedMythicZeroMapID()
   local okInstance, _, _, _, _, _, _, rawInstanceMapID = pcall(GetInstanceInfo)
   local instanceMapID = okInstance and tonumber(rawInstanceMapID) or nil
   if instanceMapID and instanceMapID > 0 then
     return math.floor(instanceMapID)
+  end
+
+  if not IsExistingPlayerUnit() then
+    return nil
   end
 
   local mapApi = rawget(_G, "C_Map")

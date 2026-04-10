@@ -1068,6 +1068,16 @@ local function InitializeFactorySecondaryRuntimeMethods(ctx, modules)
   ctx.EnqueueInspect = function(unit)
     ctx.inspectController.EnqueueInspect(unit, ctx.GetRoster())
   end
+  local function IsExistingPlayerUnit()
+    local unitExists = rawget(_G, "UnitExists")
+    if type(unitExists) ~= "function" then
+      return false
+    end
+
+    local ok, exists = pcall(unitExists, "player")
+    return ok and exists == true
+  end
+
   ctx.CheckIfEnteredTargetDungeon = function()
     local targetMapID = ctx.ResolveStatusTargetMapID()
     if not targetMapID then
@@ -1081,7 +1091,7 @@ local function InitializeFactorySecondaryRuntimeMethods(ctx, modules)
         currentMapID = challengeMapID
       end
     end
-    if not currentMapID and C_Map and C_Map.GetBestMapForUnit then
+    if not currentMapID and IsExistingPlayerUnit() and C_Map and C_Map.GetBestMapForUnit then
       local mapID = C_Map.GetBestMapForUnit("player")
       if type(mapID) == "number" and mapID > 0 then
         currentMapID = mapID
@@ -1162,8 +1172,7 @@ local function InitializeFactorySecondaryKickTracker(
   ctx,
   modules,
   getTime,
-  getUnitName,
-  getRealmName,
+  getUnitNameAndRealm,
   IsMainFrameShown,
   IsRaidModeActive
 )
@@ -1177,13 +1186,30 @@ local function InitializeFactorySecondaryKickTracker(
   local kickHeartbeatAt = 0
   local kickTrackerSuppressedByRaid = false
   local kickTrackerRecoveryInProgress = false
+  local cachedSelfName = nil
+  local cachedSelfRealm = nil
+
+  local function ResolveOwnPlayerIdentity()
+    if type(getUnitNameAndRealm) == "function" then
+      local selfName, selfRealm = getUnitNameAndRealm("player")
+      if type(selfName) == "string" and selfName ~= "" then
+        cachedSelfName = selfName
+        cachedSelfRealm = selfRealm
+      end
+    end
+
+    if type(cachedSelfName) ~= "string" or cachedSelfName == "" then
+      return nil, nil
+    end
+
+    return cachedSelfName, cachedSelfRealm
+  end
 
   local function ClearOwnKickSyncCache()
     if not (modules.sync and type(modules.sync.ClearPlayerKickInfo) == "function") then
       return false
     end
-    local selfName = getUnitName and getUnitName("player") or nil
-    local selfRealm = getRealmName and getRealmName() or nil
+    local selfName, selfRealm = ResolveOwnPlayerIdentity()
     if not selfName or selfName == "" then
       return false
     end
@@ -1223,8 +1249,7 @@ local function InitializeFactorySecondaryKickTracker(
     end
     local hasKick = info.hasKick
     if modules.sync and type(modules.sync.SetPlayerKickInfo) == "function" then
-      local selfName = getUnitName and getUnitName("player") or nil
-      local selfRealm = getRealmName and getRealmName() or nil
+      local selfName, selfRealm = ResolveOwnPlayerIdentity()
       if selfName and selfName ~= "" then
         modules.sync.SetPlayerKickInfo(selfName, selfRealm, info.onCooldown, info.cooldownRemain, nil, hasKick)
       end
@@ -1403,8 +1428,6 @@ local function InitializeFactorySecondaryControllers(ctx)
   local modules = ctx.modules
   local runtimeState = ctx.runtimeState
   local getTime = GetTime
-  local getUnitName = UnitName
-  local getRealmName = GetRealmName
 
   local function IsMainFrameShown()
     return ctx.mainFrame and type(ctx.mainFrame.IsShown) == "function" and ctx.mainFrame:IsShown() == true
@@ -1422,8 +1445,7 @@ local function InitializeFactorySecondaryControllers(ctx)
     ctx,
     modules,
     getTime,
-    getUnitName,
-    getRealmName,
+    ctx.GetUnitNameAndRealm,
     IsMainFrameShown,
     IsRaidModeActive
   )

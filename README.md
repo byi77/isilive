@@ -3,7 +3,7 @@
 WoW Mythic+ group helper addon focused on pre-key group overview and in-key tracking.
 
 Compatibility: WoW `12.0+` only.
-Current version: `0.9.140`.
+Current version: `0.9.141`.
 
 ---
 

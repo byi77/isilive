@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.140`
+Versionsbasis: `0.9.141`
 Zuletzt aktualisiert: `2026-04-10`
 
 ## Zweck
@@ -111,7 +111,7 @@ Die lokalen Wrapper `tools/check.ps1` und `tools/check.cmd` sind der bevorzugte 
 ## UI-Struktur (ASCII-Skizze)
 
 ```text
-| isiLive                                          v0.9.139 BETA Open/Close CTRL-F9 [M2][H][V][X]|
+| isiLive                                          v0.9.141 BETA Open/Close CTRL-F9 [M2][H][V][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS                M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
@@ -122,14 +122,14 @@ Die lokalen Wrapper `tools/check.ps1` und `tools/check.cmd` sind der bevorzugte 
 | [DPS]  PlayerFive   [ ]  OFG+11  628  3333      298.2K  [Yel]               [Re-Sync]             |
 |                                               ... [Circle] [Moon] [Skull] ...                     |
 |                                                                             [Teleport Grid...]    |
-| BR: 2/3 06:20  BL: 05:00                                                                        |
+| BR: 2/3 06:20  BL: 05:00                               M+Killtracker: 47,34% (+3,21%)            |
 |---------------------------------------------------------------------------------------------------|
 | Lead: Yes   M+: Active   State: Running   Dungeon: Mythic   Target Dungeon: Ara-Kara +14          |
 +---------------------------------------------------------------------------------------------------+
 
 Collapsed / Vertical Mini Mode:
 
-|                                          [H][V][M][X]|
+|                                       [M2][H][V][X]|
 |----------------------------------------------------------------|
 | M+Managment                 Marker                              |
 | [Readycheck]                [Blue]                              |
@@ -142,7 +142,7 @@ Collapsed / Vertical Mini Mode:
 
 Horizontal Mini Mode:
 
-|                                      [H][V][M][X]|
+|                                   [M2][H][V][X]|
 |---------------------------------------------------|
 | [CD 0] [CD] [RC]                                  |
 | [Blue][Green][Purple][Red][Yel][Cir][Moo][Sku]    |

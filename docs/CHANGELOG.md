@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-04-10 - Version 0.9.141 (patch)
+
+- Rule 41 / UnitExists guard fixes:
+  - Added explicit `UnitExists("player")` guards before runtime `GetBestMapForUnit("player")` lookups in highlight, hidden sync, tracked M0 runtime handling, factory target-dungeon checks, and frame-bridge player-map helpers.
+  - Reworked the factory kick-sync path to reuse the last verified local player identity so stale local kick cache entries are still cleared fail-closed during transient `UnitExists` races.
+  - Added deterministic call-site coverage for the guarded player-map lookup paths and cached kick-identity cleanup.
+- Docs / release baseline:
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RULES_LOGIC.md`, `WARTUNG.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.141`.
+
 ## 2026-04-10 - Version 0.9.140 (feature)
 
 - M+ Killtracker row added to M2 layout:

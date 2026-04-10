@@ -36,9 +36,11 @@ Erwartung: Lint, Style, Metrics, Usecase- und Rule-Checks sind gruen.
 
 Die Wrapper `tools/check.ps1` und `tools/check.cmd` fuehren den vollen lokalen Preflight ueber den repo-lokalen `luacheck.cmd`-Shim aus und vermeiden so den Windows-App-Auswahldialog, der beim direkten Aufruf des LuaRocks-`luacheck`-Scripts auftaucht.
 
+`tools/validate_release_trigger.ps1` prueft die Release- und Pre-Release-Triggerlogik lokal. Fuer einen Dry-Run ohne GitHub-API-Check `CHECK_TAG_EXISTS=false` setzen und die passenden `EVENT_NAME`, `REF` bzw. `MANUAL_*`-Variablen uebergeben.
+
 `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach 516 Szenarien ueber 38 Module. Die Regelvalidatoren indizieren aktuell 516 deterministische Tests.
+`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach 523 Szenarien ueber 38 Module. Die Regelvalidatoren indizieren aktuell 523 deterministische Tests.
 
 Windows-Hinweis: Wenn Metrics mit fehlenden LuaRocks-Modulen (`lfs`, `luacheck.decoder`, `luacheck.parser`) scheitern, `LUA_PATH` und `LUA_CPATH` auf die LuaRocks-Pfade `share/lua/5.4` und `lib/lua/5.4` setzen, bevor der Metrics-Check laeuft. Lokal gelten dieselben Release-Schwellen wie in CI: `ISILIVE_MAX_FILE_LINES=3200` und `ISILIVE_MAX_FUNCTION_LINES=420`.
 

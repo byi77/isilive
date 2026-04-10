@@ -205,6 +205,14 @@ local function CreateFactoryContext(addonName, tbl)
     return text
   end
   ctx.GetPlayerMapID = function()
+    local unitExists = rawget(_G, "UnitExists")
+    if type(unitExists) ~= "function" then
+      return nil
+    end
+    local okExists, exists = pcall(unitExists, "player")
+    if not okExists or not exists then
+      return nil
+    end
     local mapApi = rawget(_G, "C_Map")
     local getBestMapForUnit = mapApi and rawget(mapApi, "GetBestMapForUnit") or nil
     if type(getBestMapForUnit) ~= "function" then

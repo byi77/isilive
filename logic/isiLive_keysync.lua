@@ -113,12 +113,25 @@ local function SendLibKeystonePartyData(sync, getUnitRio, force)
   })
 end
 
+local function IsExistingPlayerUnit()
+  local unitExists = rawget(_G, "UnitExists")
+  if type(unitExists) ~= "function" then
+    return false
+  end
+
+  local ok, exists = pcall(unitExists, "player")
+  return ok and exists == true
+end
+
 local function GetOwnedLocMapID()
   if not GetInstanceInfo then
     return nil
   end
   local ok, _, instanceType = pcall(GetInstanceInfo)
   if not ok or instanceType ~= "party" then
+    return nil
+  end
+  if not IsExistingPlayerUnit() then
     return nil
   end
   local mapApi = rawget(_G, "C_Map")

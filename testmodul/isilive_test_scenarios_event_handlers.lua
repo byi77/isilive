@@ -430,6 +430,9 @@ local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, 
       GetInstanceInfo = function()
         return "The Dawnbreaker", current.instanceType, current.difficultyID, "Mythic"
       end,
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
       C_Map = {
         GetBestMapForUnit = function(unit)
           if unit == "player" then
@@ -493,6 +496,9 @@ local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, 
       GetInstanceInfo = function()
         return "Priory of the Sacred Flame", current.instanceType, current.difficultyID, "Normal"
       end,
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
       C_Map = {
         GetBestMapForUnit = function(unit)
           if unit == "player" then
@@ -549,6 +555,9 @@ local function RegisterCombatStartupM0EdgeCaseTests(test, Assert, WithGlobals, L
     WithGlobals({
       GetInstanceInfo = function()
         return "Tracked Dungeon", current.instanceType, current.difficultyID, "Mythic"
+      end,
+      UnitExists = function(unit)
+        return unit == "player"
       end,
       C_Map = {
         GetBestMapForUnit = function(unit)
@@ -623,6 +632,9 @@ local function RegisterCombatStartupM0EdgeCaseTests(test, Assert, WithGlobals, L
       GetInstanceInfo = function()
         return "Tracked Dungeon", current.instanceType, current.difficultyID, "Mythic"
       end,
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
       C_Map = {
         GetBestMapForUnit = function(unit)
           if unit == "player" then
@@ -691,6 +703,9 @@ local function RegisterCombatStartupM0EdgeCaseTests(test, Assert, WithGlobals, L
       GetInstanceInfo = function()
         return "Tracked Dungeon", current.instanceType, current.difficultyID, "Mythic"
       end,
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
       C_Map = {
         GetBestMapForUnit = function(unit)
           if unit == "player" then
@@ -738,6 +753,36 @@ local function RegisterCombatStartupM0EdgeCaseTests(test, Assert, WithGlobals, L
     scheduled[3].callback()
 
     Assert.Equal(captureAttempts, 2, "scheduled M0 retry should attempt run capture again")
+  end)
+
+  test("Event handlers tracked M0 map lookup skips player map lookup when player unit is missing", function()
+    local mapCalls = 0
+
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Tracked Dungeon", "party", 23, "Mythic"
+      end,
+      UnitExists = function(_unit)
+        return false
+      end,
+      C_Map = {
+        GetBestMapForUnit = function(_unit)
+          mapCalls = mapCalls + 1
+          error("GetBestMapForUnit must not run when player unit is missing")
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        getRoster = function()
+          return {}
+        end,
+      })
+
+      controller:Dispatch("PLAYER_ENTERING_WORLD")
+    end)
+
+    Assert.Equal(mapCalls, 0, "tracked M0 startup must skip player map lookup when UnitExists is false")
   end)
 end
 

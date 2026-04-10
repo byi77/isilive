@@ -147,7 +147,7 @@ Pruefen:
 
 Aktueller Soll-Zustand:
 - Name max 12 Zeichen
-- Spec max 6 Zeichen
+- Spec max 5 Zeichen
 - Sprache nur Flagge
 - Key-Code max 4 Zeichen
 - kein numerischer `mapID`-Fallback im Key

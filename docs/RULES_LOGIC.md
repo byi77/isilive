@@ -476,6 +476,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Units GetUnitRole returns NONE for non-existing unit
   - Units GetUnitNameAndRealm returns nil for non-existing unit
+  - Highlight current map resolver skips player map lookup when player unit is missing
+  - Factory target-dungeon entry check skips player map lookup when player unit is missing
+  - Factory kick sync cache uses cached player identity when player unit is missing
+  - Event handlers tracked M0 map lookup skips player map lookup when player unit is missing
+  - KeySync owned location lookup skips player map lookup when player unit is missing
 
 ### RULE-MAIN-UI-AUTO-CLOSE-OPTION
 - Regelnummer: 42

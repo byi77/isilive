@@ -251,6 +251,9 @@ local function RegisterSendOwnKeySnapshotTests(test, Assert, WithGlobals, LoadAd
       GetTime = function()
         return 100
       end,
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
       IsInGroup = function(_category)
         return true
       end,
@@ -353,6 +356,9 @@ local function RegisterSendOwnKeySnapshotTests(test, Assert, WithGlobals, LoadAd
       GetTime = function()
         return 100
       end,
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
       IsInGroup = function(_category)
         return true
       end,
@@ -438,6 +444,91 @@ local function RegisterSendOwnKeySnapshotTests(test, Assert, WithGlobals, LoadAd
       Assert.Equal(sentMessages[4].message, "LOC:503:100:zone", "fourth hidden background payload must send LOC")
       Assert.Equal(sentMessages[5].message, "KEY:2649:16:100:zone", "changed key state must resend only KEY")
     end)
+  end)
+
+  test("KeySync owned location lookup skips player map lookup when player unit is missing", function()
+    local sentMessages = {}
+    local mapCalls = 0
+
+    WithGlobals({
+      GetTime = function()
+        return 100
+      end,
+      UnitExists = function(_unit)
+        return false
+      end,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+        end,
+      },
+      C_MythicPlus = {
+        GetOwnedKeystoneLevel = function()
+          return 15
+        end,
+        GetOwnedKeystoneChallengeMapID = function()
+          return 2649
+        end,
+      },
+      GetSpecialization = function()
+        return 1
+      end,
+      GetSpecializationInfo = function(index)
+        if index == 1 then
+          return 72, "Fury"
+        end
+        return nil
+      end,
+      C_Item = {
+        GetAverageItemLevel = function()
+          return 611.4, 615.2
+        end,
+      },
+      GetInstanceInfo = function()
+        return "Dungeon", "party"
+      end,
+      C_Map = {
+        GetBestMapForUnit = function(_unit)
+          mapCalls = mapCalls + 1
+          error("GetBestMapForUnit must not run when player unit is missing")
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua", "isiLive_keysync.lua" })
+      local controller = addon.KeySync.CreateController({
+        sync = addon.Sync,
+        getUnitNameAndRealm = function(_unit)
+          return "Me", "Realm"
+        end,
+        getAddonVersionRaw = function()
+          return "1.0"
+        end,
+        getUnitRio = function(_unit)
+          return 3210
+        end,
+        getPlayerLastRunDps = function(_name, _realm)
+          return 777
+        end,
+        isFrameVisible = function()
+          return false
+        end,
+      })
+
+      controller.SendOwnBackgroundSnapshot("zone")
+    end)
+
+    Assert.Equal(mapCalls, 0, "hidden background sync must skip player map lookup when UnitExists is false")
+    Assert.Equal(sentMessages[4].message, "LOC:0:100:zone", "missing player unit must keep LOC unresolved")
   end)
 end
 

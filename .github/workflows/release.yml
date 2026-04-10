@@ -31,46 +31,7 @@ jobs:
           MANUAL_TAG: ${{ github.event.inputs.release_tag }}
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          if [ "${EVENT_NAME}" = "push" ]; then
-            case "${REF}" in
-              refs/tags/isiLive_release_*) ;;
-              *)
-                echo "Blocked: only refs/tags/isiLive_release_* may trigger release."
-                exit 1
-                ;;
-            esac
-          elif [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
-            if [ "${MANUAL_CONFIRM}" != "true" ]; then
-              echo "Blocked: confirm_release must be true for manual release."
-              exit 1
-            fi
-            case "${MANUAL_TAG}" in
-              isiLive_release_*) ;;
-              *)
-                echo "Blocked: release_tag must start with isiLive_release_."
-                exit 1
-                ;;
-            esac
-            tag_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/git/ref/tags/${MANUAL_TAG}"
-            body_file="$(mktemp)"
-            code="$(curl -sS -o "${body_file}" -w "%{http_code}" \
-              -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-              -H "Accept: application/vnd.github+json" \
-              "${tag_url}")"
-            if [ "${code}" -ne 200 ]; then
-              echo "Blocked: manual release_tag does not exist in repo (${MANUAL_TAG})."
-              echo "GitHub API response code: ${code}"
-              cat "${body_file}"
-              rm -f "${body_file}"
-              exit 1
-            fi
-            rm -f "${body_file}"
-          else
-            echo "Blocked: unsupported event ${EVENT_NAME}."
-            exit 1
-          fi
+        run: pwsh -File tools/validate_release_trigger.ps1 -Mode release
       - name: Trigger CurseForge Auto-Packager
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}

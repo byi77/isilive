@@ -34,6 +34,9 @@ local function RegisterHighlightActiveAndQueueTests(test, Assert, WithGlobals, L
     local activeEntry = nil
 
     WithGlobals({
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
       C_ChallengeMode = {
         GetActiveChallengeMapID = function()
           return nil
@@ -68,6 +71,9 @@ local function RegisterHighlightActiveAndQueueTests(test, Assert, WithGlobals, L
     local currentMapID = nil
 
     WithGlobals({
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
       C_ChallengeMode = {
         GetActiveChallengeMapID = function()
           return nil
@@ -168,6 +174,9 @@ local function RegisterHighlightNormalizationTests(test, Assert, WithGlobals, Lo
 
   test("Highlight queue fallback is disabled while not in group", function()
     WithGlobals({
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
       C_ChallengeMode = {
         GetActiveChallengeMapID = function()
           return nil
@@ -194,6 +203,43 @@ local function RegisterHighlightNormalizationTests(test, Assert, WithGlobals, Lo
       local spellID = controller.ResolveActiveTeleportSpellID(1001, nil)
       Assert.Nil(spellID, "queue-derived highlight should be blocked while player is not in group")
     end)
+  end)
+
+  test("Highlight current map resolver skips player map lookup when player unit is missing", function()
+    local mapCalls = 0
+
+    WithGlobals({
+      UnitExists = function(_unit)
+        return false
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return nil
+        end,
+      },
+      C_Map = {
+        GetBestMapForUnit = function(_unit)
+          mapCalls = mapCalls + 1
+          error("GetBestMapForUnit must not run when player unit is missing")
+        end,
+      },
+      C_LFGList = {
+        GetActiveEntryInfo = function()
+          return {
+            active = true,
+            mapID = 2442,
+          }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_highlight.lua" })
+      local controller = BuildHighlightController(addon)
+
+      local spellID = controller.ResolveActiveTeleportSpellID(nil, nil)
+      Assert.Equal(spellID, 367416, "missing player unit must keep current-map context unresolved")
+    end)
+
+    Assert.Equal(mapCalls, 0, "highlight must not query player map when UnitExists is false")
   end)
 end
 
