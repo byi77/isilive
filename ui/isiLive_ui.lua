@@ -1208,8 +1208,15 @@ function UI.EnsureSecondPanelUI(opts)
     local isSecure = isSecureMacro or entry.isSecure == true
     local buttonTemplate = isSecure and "SecureActionButtonTemplate,BackdropTemplate" or "BackdropTemplate"
     local buttonParent = isSecure and gameMenuFrame or panelFrame
-    local button =
-      CreatePanelUIButton(buttonParent, frameStrata, baseFrameLevel, 10 + index, entry.iconAtlas or entry.icon, buttonTemplate, isSecure)
+    local button = CreatePanelUIButton(
+      buttonParent,
+      frameStrata,
+      baseFrameLevel,
+      10 + index,
+      entry.iconAtlas or entry.icon,
+      buttonTemplate,
+      isSecure
+    )
 
     button._actionId = entry.id
     button._labelKey = entry.labelKey
