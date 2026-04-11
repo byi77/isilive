@@ -1516,8 +1516,11 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     mainFrame:SetWidth(FULL_FRAME_WIDTH)
   end
 
+  -- All three title elements share the same Y so they sit on one horizontal line.
+  local TITLE_Y = -10
+
   local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-  title:SetPoint("TOPLEFT", 10, -4)
+  title:SetPoint("TOPLEFT", 10, TITLE_Y)
   title:SetJustifyH("LEFT")
   title:SetTextColor(1, 0.85, 0)
   title:SetShadowOffset(1, -1)
@@ -1535,18 +1538,18 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   if type(titleVersion.SetShadowColor) == "function" then
     titleVersion:SetShadowColor(0, 0, 0, 0.9)
   end
-  ApplyFontStringSize(titleVersion, 9)
+  ApplyFontStringSize(titleVersion, 14)
 
   local titleHint = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  titleHint:SetPoint("LEFT", titleVersion, "RIGHT", 8, 0)
-  titleHint:SetTextColor(0.82, 0.74, 0.42)
+  titleHint:SetPoint("LEFT", titleVersion, "RIGHT", 6, 0)
+  titleHint:SetTextColor(0.45, 0.85, 0.45)
   if type(titleHint.SetShadowOffset) == "function" then
     titleHint:SetShadowOffset(1, -1)
   end
   if type(titleHint.SetShadowColor) == "function" then
     titleHint:SetShadowColor(0, 0, 0, 0.9)
   end
-  ApplyFontStringSize(titleHint, 8)
+  ApplyFontStringSize(titleHint, 14)
 
   local headers = CreatePanelHeaders(mainFrame)
   local m2ColumnGuides = CreateM2ColumnGuides(mainFrame)

@@ -8,7 +8,7 @@ addonTable.Texts = Texts
 local LOCALES = {
   enUS = {
     TITLE = "isiLive",
-    TITLE_HINT = "Open/Close CTRL-F9",
+    TITLE_HINT = "BETA",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
     COL_LANGUAGE = "",
@@ -200,7 +200,7 @@ local LOCALES = {
   },
   deDE = {
     TITLE = "isiLive",
-    TITLE_HINT = "Öffnen/Schliessen STRG-F9",
+    TITLE_HINT = "BETA",
     COL_SPEC = "Spec",
     COL_NAME = "Name",
     COL_LANGUAGE = "",
@@ -392,7 +392,7 @@ local LOCALES = {
   },
   frFR = {
     TITLE = "isiLive",
-    TITLE_HINT = "Ouvrir/Fermer CTRL-F9",
+    TITLE_HINT = "BETA",
     COL_SPEC = "Spec",
     COL_NAME = "Nom",
     COL_LANGUAGE = "",
@@ -584,7 +584,7 @@ local LOCALES = {
   },
   esES = {
     TITLE = "isiLive",
-    TITLE_HINT = "Abrir/Cerrar CTRL-F9",
+    TITLE_HINT = "BETA",
     COL_SPEC = "Spec",
     COL_NAME = "Nombre",
     COL_LANGUAGE = "",
@@ -776,7 +776,7 @@ local LOCALES = {
   },
   ptBR = {
     TITLE = "isiLive",
-    TITLE_HINT = "Abrir/Fechar CTRL-F9",
+    TITLE_HINT = "BETA",
     COL_SPEC = "Spec",
     COL_NAME = "Nome",
     COL_LANGUAGE = "",
@@ -968,7 +968,7 @@ local LOCALES = {
   },
   itIT = {
     TITLE = "isiLive",
-    TITLE_HINT = "Apri/Chiudi CTRL-F9",
+    TITLE_HINT = "BETA",
     COL_SPEC = "Spec",
     COL_NAME = "Nome",
     COL_LANGUAGE = "",
@@ -1160,7 +1160,7 @@ local LOCALES = {
   },
   ruRU = {
     TITLE = "isiLive",
-    TITLE_HINT = "Открыть/Закрыть CTRL-F9",
+    TITLE_HINT = "BETA",
     COL_SPEC = "Spec",
     COL_NAME = "Имя",
     COL_LANGUAGE = "",
@@ -1352,7 +1352,7 @@ local LOCALES = {
   },
   trTR = {
     TITLE = "isiLive",
-    TITLE_HINT = "Aç/Kapat CTRL-F9",
+    TITLE_HINT = "BETA",
     COL_SPEC = "Spec",
     COL_NAME = "İsim",
     COL_LANGUAGE = "",

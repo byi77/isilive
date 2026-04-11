@@ -375,6 +375,11 @@ local function HandleGroupRosterUpdate(deps)
       reason = "queue",
       skipShowCallbacks = true,
     })
+    -- Pre-sync leader state so PARTY_LEADER_CHANGED does not trigger a
+    -- "you are now leader" notification when the player created the group.
+    if deps.unitIsGroupLeader("player") then
+      deps.setWasGroupLeader(true)
+    end
     deps.captureQueueJoinCandidate()
     deps.announceQueuedGroupJoin()
     deps.onGroupJoined()

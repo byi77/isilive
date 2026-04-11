@@ -3,7 +3,7 @@
 WoW Mythic+ group helper addon focused on pre-key group overview and in-key tracking.
 
 Compatibility: WoW `12.0+` only.
-Current version: `0.9.145`.
+Current version: `0.9.147`.
 
 ---
 
@@ -51,6 +51,7 @@ Current version: `0.9.145`.
 - Cooldown shown as `HH:MM`; active dungeon highlighted from concrete target context only
 - Short code rendered on icon when portal is ready; hidden during cooldown
 - Portal targets highlighted only from active listing or exact synced target data — never guessed
+- **LFG detection:** when the player accepts an LFG group invite or creates their own LFG queue listing, the matching portal icon is highlighted automatically (gold border + glow animation); highlight clears when the queue is cancelled, the group dissolves, or the key starts
 
 ### Addon Sync
 
@@ -87,7 +88,7 @@ Language, Advanced Combat Logging, DM Reset on Dungeon Entry, Show ESC Menu Shor
 | Key | Action |
 |---|---|
 | `CTRL+F9` | Toggle main window |
-| `CTRL+ALT+F9` | Toggle test/demo mode |
+| `CTRL+ALT+F9` | Toggle demo mode (activates/deactivates without closing the UI; deactivation restores real group state) |
 
 ## Slash Commands
 

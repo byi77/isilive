@@ -1037,10 +1037,20 @@ local function InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runti
   ctx.ToggleStandardTestMode = function()
     ctx.testModeController.ToggleStandardTestMode()
   end
+  ctx.ToggleDemoMode = function()
+    local wasTestMode = runtimeState.IsTestMode() or runtimeState.IsTestAllMode()
+    ctx.testModeController.ToggleDemoMode()
+    -- After demo exit, pretend we just left a group so HandleNoGroup rebuilds
+    -- the player entry correctly even when the player is solo.
+    if wasTestMode then
+      ctx.SetWasInGroup(true)
+      ctx.TriggerGroupRosterUpdate()
+    end
+  end
 
   ctx.bindingController = modules.bindings.CreateController({
     onToggleMainFrame = ctx.ToggleMainFrameVisibility,
-    onToggleTestMode = ctx.ToggleStandardTestMode,
+    onToggleTestMode = ctx.ToggleDemoMode,
   })
   ctx.ApplyHotkeyBindings()
 end

@@ -157,5 +157,37 @@ function TestMode.CreateController(opts)
     controller.EnterFullDummyPreview()
   end
 
+  -- Toggles demo mode without closing the visualisation.
+  -- Deactivating loads the real group state via triggerGroupRosterUpdate.
+  function controller.ToggleDemoMode()
+    local state = deps.getState()
+    local L = deps.getL()
+    if state.isStopped then
+      deps.printFn(L.ERR_STOPPED_TEST)
+      return
+    end
+    if state.isPaused then
+      deps.printFn(L.ERR_PAUSED_TEST)
+      return
+    end
+
+    if state.isTestMode or state.isTestAllMode then
+      deps.setState({ isTestMode = false, isTestAllMode = false })
+      deps.printFn(L.TEST_DISABLED)
+      deps.clearRioBaselineSnapshot()
+      deps.clearDemoTimerData()
+      deps.setRoster({})
+      deps.resetInspectAll()
+      deps.clearLatestQueueState()
+      deps.updateLeaderButtons()
+      deps.setCenterNoticeVisible(false)
+      deps.hideInviteHint()
+      return
+    end
+
+    deps.printFn(L.TEST_ENABLED)
+    controller.EnterFullDummyPreview()
+  end
+
   return controller
 end

@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-04-11 - Version 0.9.147 (feature)
+
+- **LFG dungeon detection:**
+  - New module `game/isiLive_lfg_detect.lua` detects which dungeon the player received an LFG group invite for, or which dungeon they queued for via their own active LFG listing.
+  - Detection uses a static `activityID → mapID` map as the primary (fast) path, with API name lookup and locale-aware keyword matching as fallbacks.
+  - Keyword matching supports both `enUS` and `deDE` dungeon names (including umlauts and typographic apostrophes); other locales fall through to the API name path.
+  - Detected dungeon is announced in chat as `[isiLive] Invite erkannt: <name>` or `[isiLive] Queue erkannt: <name>`.
+  - The corresponding portal icon in the Teleport Grid is highlighted (active border + glow animation) as long as the queue or accepted invite is active.
+  - Highlight clears automatically when: the player cancels the queue, leaves the group before the key starts, the key starts (`CHALLENGE_MODE_START`), or the group dissolves (`GROUP_ROSTER_UPDATE` with `not IsInGroup()`).
+  - A 5-second polling ticker (`C_Timer.NewTicker`) re-checks the active LFG listing in case events are missed.
+  - Public accessor: `addonTable.LFGDetect.GetDetectedMapID()`.
+  - `UpdateMPlusTeleportButton` falls back to `LFGDetect` when no active teleport spell is resolved.
+
+- **Demo mode toggle (CTRL-ALT-F9) improved:**
+  - `CTRL-ALT-F9` now toggles the demo mode on/off **without closing the visualisation** when deactivating.
+  - Deactivating restores the real group state via a full roster update (`triggerGroupRosterUpdate`), including correct solo-player entry reconstruction.
+  - Previously the hotkey called `ToggleStandardTestMode` which closed the frame on exit; it now calls the dedicated `ToggleDemoMode`.
+
+- **Leader notification suppressed on own group creation:**
+  - When the local player creates a group and is immediately the leader, the "you are now leader" notification and sound no longer fire.
+  - Fix: `wasGroupLeader` is pre-synced to `true` in `HandleGroupRosterUpdate` when `joinedNow == true` and `unitIsGroupLeader("player") == true`, so `PARTY_LEADER_CHANGED` sees no state change.
+
+- **Title bar updated:**
+  - `TITLE_HINT` text changed from locale-specific "Open/Close CTRL-F9" strings to the uniform label `BETA` across all 8 supported languages.
+  - All three title elements (`isiLive`, version, badge) now share the same font size (14) and a common Y anchor for pixel-accurate horizontal alignment.
+  - BETA badge colour: green (`0.45, 0.85, 0.45`).
+
+- **LSP setup:**
+  - `.vscode/settings.json` `Lua.workspace.library` path changed from `~\\.vscode\\…` to the fully expanded absolute path so lua-language-server resolves the `ketho.wow-api` annotations correctly on Windows.
+
 ## 2026-04-11 - Version 0.9.146 (patch)
 
 - ESC-menu shortcut buttons: icons upgraded from static `Interface\\Icons\\*` textures to MicroMenu atlas entries (`UI-HUD-MicroMenu-*-Up`) for Professions, Talents, Achievements, Quests, Dungeons, Journal, Collections, Guild, and Housing. Spellbook, ReloadUI, Hearthstone, and Arkantine key retain their existing icon paths (no matching MicroMenu atlas).

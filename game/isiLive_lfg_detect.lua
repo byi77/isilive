@@ -247,6 +247,15 @@ end
 -- Own queue detection (active listing + 5s poll)
 -- ---------------------------------------------------------------------------
 
+local function ClearDetectedState()
+  if detectedMapID ~= nil or lastQueueMapID ~= nil then
+    detectedMapID = nil
+    lastQueueMapID = nil
+    pendingInvites = {}
+    TriggerHighlightUpdate()
+  end
+end
+
 local function CheckActiveGroup()
   local C_LFGList_ref = rawget(_G, "C_LFGList")
   if type(C_LFGList_ref) ~= "table" or type(C_LFGList_ref.GetActiveEntryInfo) ~= "function" then
@@ -255,10 +264,8 @@ local function CheckActiveGroup()
 
   local ok, info = pcall(C_LFGList_ref.GetActiveEntryInfo)
   if not ok or not info then
-    -- No active listing
-    if lastQueueMapID ~= nil then
-      lastQueueMapID = nil
-    end
+    -- No active listing — clear all state
+    ClearDetectedState()
     return
   end
 
@@ -295,6 +302,7 @@ frame:RegisterEvent("PLAYER_LOGIN")
 frame:RegisterEvent("LFG_LIST_APPLICATION_STATUS_UPDATED")
 frame:RegisterEvent("LFG_LIST_ACTIVE_ENTRY_UPDATE")
 frame:RegisterEvent("CHALLENGE_MODE_START")
+frame:RegisterEvent("GROUP_ROSTER_UPDATE")
 
 frame:SetScript("OnEvent", function(_self, event, ...)
   if event == "PLAYER_LOGIN" then
@@ -307,10 +315,14 @@ frame:SetScript("OnEvent", function(_self, event, ...)
     HandleApplicationStatus(searchResultID, newStatus)
   elseif event == "LFG_LIST_ACTIVE_ENTRY_UPDATE" then
     CheckActiveGroup()
+  elseif event == "GROUP_ROSTER_UPDATE" then
+    -- If no longer in a group, clear highlight
+    local isInGroup = rawget(_G, "IsInGroup")
+    if type(isInGroup) == "function" and not isInGroup() then
+      ClearDetectedState()
+    end
   elseif event == "CHALLENGE_MODE_START" then
     -- Key started — clear state, no longer relevant
-    pendingInvites = {}
-    lastQueueMapID = nil
-    detectedMapID = nil
+    ClearDetectedState()
   end
 end)
