@@ -26,6 +26,7 @@ core/isiLive_context_helpers.lua
 core/isiLive_runtime_setup.lua
 factory/isiLive_controller_init.lua
 game/isiLive_season_data.lua
+game/isiLive_lfg_detect.lua
 ui/isiLive_ui_common.lua
 game/isiLive_teleport.lua
 ui/isiLive_teleport_ui.lua
