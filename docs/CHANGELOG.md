@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-04-11 - Version 0.9.145 (patch)
+
+- Documentation sync:
+  - Bumped `README.md`, `ARCHITECTURE.md`, `USECASES.md`, `RELEASE.md`, and `isiLive.toc` to `0.9.145`.
+  - Updated the local validator baseline to `525` scenarios / tests.
+
 ## 2026-04-10 - Version 0.9.144 (patch)
 
 - Roster layout rollback:
