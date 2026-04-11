@@ -467,11 +467,13 @@ local function BuildEventHandlersDepsFromContext(ctx)
       if not keyLink then
         local db = rawget(_G, "IsiLiveDB")
         local activeLocale = (db and db.locale) or ctx.locale
-        local short = ctx.modules
-            and ctx.modules.teleport
-            and ctx.modules.teleport.GetDungeonShortCode(keyMapID, activeLocale)
-          or tostring(keyMapID)
-        keyLink = ContextHelpers.BuildClickableKeystoneLink(keyMapID, keyLevel, string.format("%s +%d", short, keyLevel))
+        local short = (
+          ctx.modules
+          and ctx.modules.teleport
+          and ctx.modules.teleport.GetDungeonShortCode(keyMapID, activeLocale)
+        ) or tostring(keyMapID)
+        keyLink =
+          ContextHelpers.BuildClickableKeystoneLink(keyMapID, keyLevel, string.format("%s +%d", short, keyLevel))
       end
       local L = ctx.GetL and ctx.GetL()
       local announcePrefix = L and tostring(L.ANNOUNCE_PREFIX or "PartyKeys:"):gsub("%s+", "") or "PartyKeys:"
