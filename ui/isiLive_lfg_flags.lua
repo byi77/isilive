@@ -4,7 +4,7 @@ addonTable = addonTable or {}
 local LFGFlags = {}
 addonTable.LFGFlags = LFGFlags
 
-local FLAG_WIDTH  = 16
+local FLAG_WIDTH = 16
 local FLAG_HEIGHT = 12
 
 -- Injected via Register().
@@ -24,16 +24,22 @@ local hooked = setmetatable({}, { __mode = "k" })
 -- -------------------------------------------------------------------------
 
 local function SplitNameRealm(fullName)
-  if not fullName then return nil, nil end
+  if not fullName then
+    return nil, nil
+  end
   local name, realm = fullName:match("^(.+)-(.+)$")
   return name or fullName, realm
 end
 
 local function GetTagForResult(resultID)
   local cached = resultTagCache[resultID]
-  if cached ~= nil then return cached or nil end
+  if cached ~= nil then
+    return cached or nil
+  end
   local C_LFGList_ref = rawget(_G, "C_LFGList")
-  if type(C_LFGList_ref) ~= "table" then return nil end
+  if type(C_LFGList_ref) ~= "table" then
+    return nil
+  end
   local ok, info = pcall(C_LFGList_ref.GetSearchResultInfo, resultID)
   if not ok or not info then
     resultTagCache[resultID] = false
@@ -72,7 +78,9 @@ end
 -- -------------------------------------------------------------------------
 
 local function EnsureFlagTexture(button)
-  if button._isiFlagTex then return button._isiFlagTex end
+  if button._isiFlagTex then
+    return button._isiFlagTex
+  end
   local tex = button:CreateTexture(nil, "OVERLAY")
   tex:SetSize(FLAG_WIDTH, FLAG_HEIGHT)
 
@@ -102,7 +110,6 @@ local function ApplyFlagToButton(button, resultID)
   end
 end
 
-
 -- -------------------------------------------------------------------------
 -- Hooking search-result buttons
 -- -------------------------------------------------------------------------
@@ -113,9 +120,13 @@ local function UpdateButton(button)
 end
 
 local function HookButton(button)
-  if not button or hooked[button] then return end
+  if not button or hooked[button] then
+    return
+  end
   hooked[button] = true
-  button:HookScript("OnEnter", function(self) UpdateButton(self) end)
+  button:HookScript("OnEnter", function(self)
+    UpdateButton(self)
+  end)
   UpdateButton(button)
 end
 
@@ -137,18 +148,13 @@ end
 
 function LFGFlags.HookSearchPanel()
   local LFGListFrameRef = rawget(_G, "LFGListFrame")
-  if not LFGListFrameRef
-    or not LFGListFrameRef.SearchPanel
-    or not LFGListFrameRef.SearchPanel.ScrollBox
-  then
+  if not LFGListFrameRef or not LFGListFrameRef.SearchPanel or not LFGListFrameRef.SearchPanel.ScrollBox then
     return
   end
   local searchBox = LFGListFrameRef.SearchPanel.ScrollBox
 
   local ScrollBoxUtil_ref = rawget(_G, "ScrollBoxUtil")
-  if type(ScrollBoxUtil_ref) == "table"
-    and type(ScrollBoxUtil_ref.OnViewFramesChanged) == "function"
-  then
+  if type(ScrollBoxUtil_ref) == "table" and type(ScrollBoxUtil_ref.OnViewFramesChanged) == "function" then
     ScrollBoxUtil_ref:OnViewFramesChanged(searchBox, HookButtons)
     if type(ScrollBoxUtil_ref.OnViewScrollChanged) == "function" then
       ScrollBoxUtil_ref:OnViewScrollChanged(searchBox, RefreshAll)
@@ -174,15 +180,16 @@ function LFGFlags.HookSearchPanel()
   end)
 
   -- Extra trigger: update the specific button when Blizzard activates it.
-  pcall(hooksecurefunc, "LFGListUtil_SetSearchEntryTooltip",
-    function(_, resultID)
-      if not resultID then return end
-      for btn in pairs(hooked) do
-        if rawget(btn, "resultID") == resultID then
-          ApplyFlagToButton(btn, resultID)
-        end
+  pcall(hooksecurefunc, "LFGListUtil_SetSearchEntryTooltip", function(_, resultID)
+    if not resultID then
+      return
+    end
+    for btn in pairs(hooked) do
+      if rawget(btn, "resultID") == resultID then
+        ApplyFlagToButton(btn, resultID)
       end
-    end)
+    end
+  end)
 end
 
 -- -------------------------------------------------------------------------
@@ -206,7 +213,9 @@ function LFGFlags.SetEnabled(enabled)
 end
 
 function LFGFlags.Register(deps)
-  if type(deps) ~= "table" then return end
+  if type(deps) ~= "table" then
+    return
+  end
 
   local localeModule = deps.localeModule
   getRealmInfoLib = deps.getRealmInfoLib
@@ -231,7 +240,9 @@ function LFGFlags.Register(deps)
     local eventFrame = CreateFrame("Frame")
     eventFrame:RegisterEvent("ADDON_LOADED")
     eventFrame:SetScript("OnEvent", function(self, _, name)
-      if name ~= "Blizzard_LFGList" then return end
+      if name ~= "Blizzard_LFGList" then
+        return
+      end
       self:UnregisterEvent("ADDON_LOADED")
       LFGFlags.HookSearchPanel()
     end)

@@ -1074,7 +1074,13 @@ local function InitializeFactorySecondaryRuntimeMethods(ctx, modules)
         currentMapID = challengeMapID
       end
     end
-    if not currentMapID and C_Map and C_Map.GetBestMapForUnit and type(UnitExists) == "function" and UnitExists("player") then
+    if
+      not currentMapID
+      and C_Map
+      and C_Map.GetBestMapForUnit
+      and type(UnitExists) == "function"
+      and UnitExists("player")
+    then
       local mapID = C_Map.GetBestMapForUnit("player")
       if type(mapID) == "number" and mapID > 0 then
         currentMapID = mapID
