@@ -456,7 +456,7 @@ local function BuildRosterPanelController(WithGlobals, LoadAddonModules, overrid
     controller = addon.RosterPanel.CreateController(controllerOpts)
   end)
 
-  return controller, createdFrames, stubs, mainFrame
+  return controller, createdFrames, stubs, mainFrame, addon
 end
 
 local function FindSecureRoleButton(createdFrames, unit)
@@ -860,7 +860,7 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
     }
     local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules, {
       opts = {
-        buildDisplayData = function(info)
+        buildDisplayData = function(info, opts)
           return {
             colorHex = "ffc69b6d",
             displayName = tostring(info.name or ""),
@@ -880,6 +880,12 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
         end,
         isReadyCheckActive = function()
           return false
+        end,
+        getReadyCheckDeclinedUntil = function()
+          return readyCheckHoldActive and 120 or nil
+        end,
+        getTime = function()
+          return 100
         end,
       },
     })

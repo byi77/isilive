@@ -2037,7 +2037,6 @@ local function RenderRosterImpl(state, roster)
 
     local displayData = BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID, true)
 
-    ApplyRowReadyCheckDisplay(row, displayData)
     ApplyRowSpecDisplay(row, displayData)
     -- Skip displayData.roleIconMarkup since we render it as a secure button
     ApplyRowNameDisplay(row, displayData)
