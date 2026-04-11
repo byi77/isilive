@@ -29,13 +29,13 @@ local PANEL_UI_ENTRIES = {
     id = "professions",
     labelKey = "BTN_GAMEMENU_PROFESSIONS",
     fallbackText = "Professions",
-    icon = "Interface\\Icons\\Trade_Engineering",
+    iconAtlas = "UI-HUD-MicroMenu-Professions-Up",
   },
   {
     id = "talents",
     labelKey = "BTN_GAMEMENU_TALENTS",
     fallbackText = "Talents",
-    icon = "Interface\\Icons\\Ability_Marksmanship",
+    iconAtlas = "UI-HUD-MicroMenu-SpecTalents-Up",
   },
   {
     id = "spellbook",
@@ -47,37 +47,37 @@ local PANEL_UI_ENTRIES = {
     id = "achievements",
     labelKey = "BTN_GAMEMENU_ACHIEVEMENTS",
     fallbackText = "Achievements",
-    icon = "Interface\\Icons\\Achievement_Boss_CThun",
+    iconAtlas = "UI-HUD-MicroMenu-Achievements-Up",
   },
   {
     id = "quests",
     labelKey = "BTN_GAMEMENU_QUESTS",
     fallbackText = "Quests",
-    icon = "Interface\\Icons\\INV_Misc_Map_01",
+    iconAtlas = "UI-HUD-MicroMenu-Questlog-Up",
   },
   {
     id = "dungeons",
     labelKey = "BTN_GAMEMENU_DUNGEONS",
     fallbackText = "Dungeons",
-    icon = "Interface\\Icons\\INV_Misc_Key_04",
+    iconAtlas = "UI-HUD-MicroMenu-Groupfinder-Up",
   },
   {
     id = "journal",
     labelKey = "BTN_GAMEMENU_JOURNAL",
     fallbackText = "Journal",
-    icon = "Interface\\Icons\\INV_Misc_Book_11",
+    iconAtlas = "UI-HUD-MicroMenu-AdventureGuide-Up",
   },
   {
     id = "collections",
     labelKey = "BTN_GAMEMENU_COLLECTIONS",
     fallbackText = "Collections",
-    icon = "Interface\\Icons\\MountJournalPortrait",
+    iconAtlas = "UI-HUD-MicroMenu-Collections-Up",
   },
   {
     id = "guild",
     labelKey = "BTN_GAMEMENU_GUILD",
     fallbackText = "Guild",
-    icon = "Interface\\Icons\\INV_Shirt_GuildTabard_01",
+    iconAtlas = "UI-HUD-MicroMenu-GuildCommunities-Up",
   },
   {
     id = "reloadui",
@@ -152,7 +152,7 @@ local SECOND_PANEL_UI_ENTRIES = {
     id = "housing_plot",
     labelKey = "BTN_SECOND_HOUSING",
     fallbackText = "Housing",
-    icon = "Interface\\Icons\\achievement_guild_buyabuilding",
+    iconAtlas = "UI-HUD-MicroMenu-Housing-Up",
     isSecure = true,
   },
 }
@@ -454,10 +454,12 @@ local function CreatePanelUIButton(
   frameStrata,
   baseFrameLevel,
   frameLevelOffset,
-  iconPath,
+  iconSpec,
   buttonTemplate,
   skipInitialClickRegistration
 )
+  -- iconSpec is either an atlas name (no backslash) or a full "Interface\\..." texture path
+  local isAtlas = type(iconSpec) == "string" and not iconSpec:find("\\", 1, true)
   local button = CreateFrame("Button", nil, parent, buttonTemplate or "BackdropTemplate")
   ApplyBackdrop(button, "BUTTON_BG")
   if type(button.EnableMouse) == "function" then
@@ -473,7 +475,7 @@ local function CreatePanelUIButton(
     button:SetFrameLevel(baseFrameLevel + frameLevelOffset)
   end
 
-  if iconPath and type(button.CreateTexture) == "function" then
+  if iconSpec and type(button.CreateTexture) == "function" then
     local iconBorder = button:CreateTexture(nil, "ARTWORK", nil, -1)
     if type(iconBorder.SetSize) == "function" then
       iconBorder:SetSize(PANEL_UI_ICON_SIZE + 2, PANEL_UI_ICON_SIZE + 2)
@@ -491,18 +493,20 @@ local function CreatePanelUIButton(
     if type(icon.SetPoint) == "function" then
       icon:SetPoint("LEFT", PANEL_UI_ICON_PADDING, 0)
     end
-    if type(icon.SetTexCoord) == "function" then
-      icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    end
-    if type(icon.SetTexture) == "function" then
-      icon:SetTexture(iconPath)
+    if isAtlas and type(icon.SetAtlas) == "function" then
+      icon:SetAtlas(iconSpec)
+    elseif type(icon.SetTexture) == "function" then
+      if type(icon.SetTexCoord) == "function" then
+        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+      end
+      icon:SetTexture(iconSpec)
     end
     button._panelIcon = icon
   end
 
   if type(button.CreateFontString) == "function" then
     local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    local textOffsetX = iconPath and ((PANEL_UI_ICON_PADDING * 2) + PANEL_UI_ICON_SIZE) or PANEL_UI_ICON_PADDING
+    local textOffsetX = iconSpec and ((PANEL_UI_ICON_PADDING * 2) + PANEL_UI_ICON_SIZE) or PANEL_UI_ICON_PADDING
     if type(label.SetPoint) == "function" then
       label:SetPoint("LEFT", textOffsetX, 0)
     end
@@ -1054,7 +1058,7 @@ function UI.EnsurePanelUI(opts)
       frameStrata,
       baseFrameLevel,
       10 + index,
-      entry.icon,
+      entry.iconAtlas or entry.icon,
       buttonTemplate,
       type(entry.secureMacroText) == "string"
     )
@@ -1205,7 +1209,7 @@ function UI.EnsureSecondPanelUI(opts)
     local buttonTemplate = isSecure and "SecureActionButtonTemplate,BackdropTemplate" or "BackdropTemplate"
     local buttonParent = isSecure and gameMenuFrame or panelFrame
     local button =
-      CreatePanelUIButton(buttonParent, frameStrata, baseFrameLevel, 10 + index, entry.icon, buttonTemplate, isSecure)
+      CreatePanelUIButton(buttonParent, frameStrata, baseFrameLevel, 10 + index, entry.iconAtlas or entry.icon, buttonTemplate, isSecure)
 
     button._actionId = entry.id
     button._labelKey = entry.labelKey

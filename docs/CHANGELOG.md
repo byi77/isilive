@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-04-11 - Version 0.9.146 (patch)
+
+- ESC-menu shortcut buttons: icons upgraded from static `Interface\\Icons\\*` textures to MicroMenu atlas entries (`UI-HUD-MicroMenu-*-Up`) for Professions, Talents, Achievements, Quests, Dungeons, Journal, Collections, Guild, and Housing. Spellbook, ReloadUI, Hearthstone, and Arkantine key retain their existing icon paths (no matching MicroMenu atlas).
+- Fixed label overlap with icon on buttons that use an atlas icon: `textOffsetX` now accounts for `iconAtlas` in addition to `iconPath`.
+- `CreatePanelUIButton` accepts an `iconAtlas` parameter; when set, `SetAtlas` is used instead of `SetTexture`/`SetTexCoord`.
+
 ## 2026-04-11 - Version 0.9.145 (patch)
 
 - Documentation sync:

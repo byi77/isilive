@@ -201,13 +201,6 @@ local function FinalizeFactorySettings(ctx)
     end
   end
 
-  -- Restore saved UI Scale
-  if IsiLiveDB and type(IsiLiveDB.uiScale) == "number" and IsiLiveDB.uiScale ~= 1.0 then
-    if ctx.mainFrame and type(ctx.mainFrame.SetScale) == "function" then
-      ctx.mainFrame:SetScale(IsiLiveDB.uiScale)
-    end
-  end
-
   -- Minimap Button: create with correct initial visibility so MinimapButtonButton
   -- sees the right shown-state when it scans on PLAYER_LOGIN.
   -- IsiLiveDB is already populated from SavedVariables at file-load time.
