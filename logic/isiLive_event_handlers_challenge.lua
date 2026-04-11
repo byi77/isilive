@@ -70,6 +70,47 @@ local function GetPendingPostChallengeRefresh(ctx)
   return type(ctx.getPendingPostChallengeRefresh) == "function" and ctx.getPendingPostChallengeRefresh() or nil
 end
 
+local function CountReadyCheckUnits(units)
+  local count = 0
+  for _, isMarked in pairs(units or {}) do
+    if isMarked == true then
+      count = count + 1
+    end
+  end
+  return count
+end
+
+local function LogReadyCheckTrace(ctx, eventName, unit, status, extra)
+  local logRuntimeTrace = type(ctx.logRuntimeTrace) == "function" and ctx.logRuntimeTrace or nil
+  if not logRuntimeTrace then
+    return
+  end
+
+  local now = tonumber(ctx.getTime and ctx.getTime()) or 0
+  local active = ctx.isReadyCheckActive and ctx.isReadyCheckActive() == true
+  local holdUntil = tonumber(ctx.readyCheckHoldUntil) or 0
+  local parts = {
+    string.format("event=%s", tostring(eventName)),
+    string.format("now=%s", tostring(now)),
+    string.format("active=%s", tostring(active)),
+    string.format("hold=%s", holdUntil > 0 and tostring(holdUntil) or "nil"),
+    string.format("ready=%d", CountReadyCheckUnits(ctx.readyCheckReadyUnits)),
+    string.format("declined=%d", CountReadyCheckUnits(ctx.readyCheckDeclinedUnits)),
+  }
+
+  if type(unit) == "string" and unit ~= "" then
+    parts[#parts + 1] = string.format("unit=%s", unit)
+  end
+  if type(status) == "string" and status ~= "" then
+    parts[#parts + 1] = string.format("status=%s", status)
+  end
+  if type(extra) == "string" and extra ~= "" then
+    parts[#parts + 1] = extra
+  end
+
+  logRuntimeTrace("[READYCHECK] " .. table.concat(parts, " "))
+end
+
 local function SetPendingPostChallengeRefresh(ctx, value)
   if type(ctx.setPendingPostChallengeRefresh) == "function" then
     ctx.setPendingPostChallengeRefresh(value)
@@ -214,6 +255,7 @@ local function MarkReadyCheckUnit(ctx, unit, setUntilFn)
   if not currentHoldUntil or currentHoldUntil <= now then
     ScheduleReadyCheckHoldClear(ctx, numericHoldUntil)
   end
+  LogReadyCheckTrace(ctx, "CONFIRM_HOLD", unit, nil, string.format("hold=%s", tostring(numericHoldUntil)))
   RefreshReadyCheckUI(ctx)
   return true
 end
@@ -247,6 +289,7 @@ ScheduleReadyCheckHoldClear = function(ctx, holdUntil)
     if ctx.clearExpiredReadyCheckDeclined(currentTime) then
       changed = true
     end
+    LogReadyCheckTrace(ctx, "HOLD_CLEAR", nil, nil, string.format("changed=%s", tostring(changed)))
     if changed then
       RefreshReadyCheckUI(ctx)
     end
@@ -372,6 +415,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
       ctx._readyCheckLingerSeq = (ctx._readyCheckLingerSeq or 0) + 1
       ctx.setReadyCheckActive(true)
       ResetReadyCheckDeclinedTracking(ctx)
+      LogReadyCheckTrace(ctx, "READY_CHECK", nil, nil, "reset=1")
       RefreshReadyCheckUI(ctx)
     end,
     READY_CHECK_CONFIRM = function(_self, unit, status)
@@ -390,6 +434,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
           local declinedUnits = ctx.readyCheckDeclinedUnits or {}
           ctx.readyCheckDeclinedUnits = declinedUnits
           declinedUnits[unit] = true
+          LogReadyCheckTrace(ctx, "READY_CHECK_CONFIRM", unit, status, "active=1")
           RefreshReadyCheckUI(ctx)
         else
           MarkReadyCheckDeclinedUnit(ctx, unit)
@@ -405,6 +450,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
           local readyUnits = ctx.readyCheckReadyUnits or {}
           ctx.readyCheckReadyUnits = readyUnits
           readyUnits[unit] = true
+          LogReadyCheckTrace(ctx, "READY_CHECK_CONFIRM", unit, status, "active=1")
           RefreshReadyCheckUI(ctx)
         else
           MarkReadyCheckReadyUnit(ctx, unit)
@@ -419,6 +465,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
         local declinedUnits = ctx.readyCheckDeclinedUnits or {}
         ctx.readyCheckDeclinedUnits = declinedUnits
         declinedUnits[unit] = nil
+        LogReadyCheckTrace(ctx, "READY_CHECK_CONFIRM", unit, status, "active=1")
         RefreshReadyCheckUI(ctx)
       end
     end,
@@ -426,6 +473,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
       if IsRaidModeActive(ctx) then
         return
       end
+      LogReadyCheckTrace(ctx, "READY_CHECK_FINISHED", nil, nil, "promote_hold=1")
       ctx.setReadyCheckActive(false)
       PromoteReadyCheckReadyUnitsToHold(ctx)
       PromoteDeclinedReadyCheckUnitsToHold(ctx)

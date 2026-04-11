@@ -488,6 +488,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     setQueueDebugEnabled = ctx.setQueueDebugEnabled,
     ensureRuntimeLogStorage = ctx.ensureRuntimeLogStorage,
     setRuntimeLogEnabled = ctx.setRuntimeLogEnabled,
+    logRuntimeTrace = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil,
     registerIsiLiveSyncPrefix = ctx.registerIsiLiveSyncPrefix,
     applyHotkeyBindings = ctx.applyHotkeyBindings,
     startBindingWatchdog = ctx.startBindingWatchdog,

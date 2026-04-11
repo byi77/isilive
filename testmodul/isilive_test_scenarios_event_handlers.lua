@@ -1641,6 +1641,75 @@ local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAd
     Assert.Equal(counters.uiUpdates, 0, "ready-hold expiry must not call the generic UI rerender path")
   end)
 
+  test("Event handlers write ready check trace entries when runtime logging is available", function()
+    local counters = { uiUpdates = 0, readyCheckRefreshes = 0 }
+    local readyCheckActive = false
+    local now = 100
+    local readyUntilByUnit = {}
+    local scheduledCallback = nil
+    local logEntries = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+      setReadyCheckActive = function(value)
+        readyCheckActive = value and true or false
+      end,
+      isReadyCheckActive = function()
+        return readyCheckActive
+      end,
+      getTime = function()
+        return now
+      end,
+      setReadyCheckReadyUntil = function(unit, value)
+        readyUntilByUnit[unit] = value
+      end,
+      clearAllReadyCheckReady = function()
+        readyUntilByUnit = {}
+      end,
+      clearExpiredReadyCheckReady = function(currentTime)
+        local changed = false
+        for unit, untilTime in pairs(readyUntilByUnit) do
+          if untilTime <= currentTime then
+            readyUntilByUnit[unit] = nil
+            changed = true
+          end
+        end
+        return changed
+      end,
+      timerAfter = function(_delaySeconds, callback)
+        scheduledCallback = callback
+      end,
+      logRuntimeTrace = function(message)
+        table.insert(logEntries, message)
+      end,
+    })
+
+    controller:Dispatch("READY_CHECK")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party1", "ready")
+    controller:Dispatch("READY_CHECK_FINISHED")
+
+    Assert.Equal(#logEntries, 3, "ready check lifecycle should emit three trace entries before cleanup")
+    Assert.True(logEntries[1]:find("event=READY_CHECK", 1, true) ~= nil, "first trace entry must record READY_CHECK")
+    Assert.True(
+      logEntries[2]:find("event=READY_CHECK_CONFIRM", 1, true) ~= nil,
+      "second trace entry must record READY_CHECK_CONFIRM"
+    )
+    Assert.True(
+      logEntries[3]:find("event=READY_CHECK_FINISHED", 1, true) ~= nil,
+      "third trace entry must record READY_CHECK_FINISHED"
+    )
+
+    now = 120
+    local cleanupCallback = scheduledCallback
+    if cleanupCallback == nil then
+      error("ready check trace test must schedule a cleanup callback")
+    end
+    cleanupCallback()
+
+    Assert.Equal(#logEntries, 4, "cleanup callback should append a hold-clear trace entry")
+    Assert.True(logEntries[4]:find("event=HOLD_CLEAR", 1, true) ~= nil, "cleanup trace must record HOLD_CLEAR")
+  end)
+
   test("Event handlers route ready check lifecycle through refreshReadyCheckUI without generic rerender", function()
     local counters = { uiUpdates = 0, readyCheckRefreshes = 0 }
     local readyCheckActive = false
