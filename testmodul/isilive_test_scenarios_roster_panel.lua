@@ -1,3 +1,5 @@
+local RegisterRosterRenderReadyCheckReapplyTest
+
 local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster ready check uses row backgrounds and waiting icon without recoloring text", function()
     local readyCheckStatusByUnit = {}
@@ -266,410 +268,7 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
     end)
   end)
 
-  test("Roster render re-applies ready-check background during hold after a normal roster update", function()
-    local readyCheckReadyUntilByUnit = {}
-    local now = 100
-    local createdFrames = {}
-    local createdFontStrings = {}
-    local createdTextures = {}
-    local function NewMiniFrame()
-      local frame = {
-        enabled = nil,
-        alpha = nil,
-        pointX = nil,
-        pointY = nil,
-        checked = false,
-        attributes = {},
-        _shown = true,
-        _frameStrata = "MEDIUM",
-        _frameLevel = 1,
-      }
-
-      function frame.SetSize() end
-      function frame.SetHeight() end
-      function frame.SetWidth() end
-      function frame.SetPoint(self, ...)
-        local numericArgs = {}
-        for index = 1, select("#", ...) do
-          local value = select(index, ...)
-          if type(value) == "number" then
-            table.insert(numericArgs, value)
-          end
-        end
-        if #numericArgs >= 2 then
-          self.pointX = numericArgs[#numericArgs - 1]
-          self.pointY = numericArgs[#numericArgs]
-        elseif #numericArgs == 1 then
-          self.pointX = 0
-          self.pointY = numericArgs[1]
-        end
-      end
-      function frame.SetScript(self, script, handler)
-        self[script] = handler
-      end
-      function frame.SetText(self, text)
-        self.text = text
-      end
-      function frame.SetEnabled(self, value)
-        self.enabled = value and true or false
-      end
-      function frame.SetAlpha(self, value)
-        self.alpha = value
-      end
-      function frame.SetChecked(self, value)
-        self.checked = value and true or false
-      end
-      function frame.GetChecked(self)
-        return self.checked
-      end
-      function frame.SetAttribute(self, key, value)
-        self.attributes[key] = value
-      end
-      function frame.GetAttribute(self, key)
-        return self.attributes[key]
-      end
-      function frame.EnableMouse() end
-      function frame.RegisterForClicks() end
-      function frame.Hide(self)
-        self._shown = false
-      end
-      function frame.Show(self)
-        self._shown = true
-      end
-      function frame.SetShown(self, value)
-        self._shown = value and true or false
-      end
-      function frame.IsShown(self)
-        return self._shown
-      end
-      function frame.SetNormalTexture(self, value)
-        self.normalTexture = value
-      end
-      function frame.SetPushedTexture(self, value)
-        self.pushedTexture = value
-      end
-      function frame.SetHighlightTexture(self, value)
-        self.highlightTexture = value
-      end
-      function frame.SetFrameStrata(self, value)
-        self._frameStrata = value
-      end
-      function frame.GetFrameStrata(self)
-        return self._frameStrata
-      end
-      function frame.SetFrameLevel(self, value)
-        self._frameLevel = value
-      end
-      function frame.GetFrameLevel(self)
-        return self._frameLevel
-      end
-      function frame.CreateTexture()
-        local texture = {
-          _shown = true,
-        }
-        function texture.SetPoint() end
-        function texture.SetWidth() end
-        function texture.SetHeight() end
-        function texture.SetAllPoints(self)
-          self.allPoints = true
-        end
-        function texture.SetColorTexture(self, r, g, b, a)
-          self.color = { r, g, b, a }
-        end
-        function texture.SetTexture(self, value)
-          self.texture = value
-        end
-        function texture.SetTexCoord() end
-        function texture.Hide(self)
-          self._shown = false
-        end
-        function texture.Show(self)
-          self._shown = true
-        end
-        table.insert(createdTextures, texture)
-        return texture
-      end
-      function frame.CreateFontString()
-        local fontString = {
-          text = "",
-          _shown = true,
-        }
-        function fontString.SetText(self, value)
-          self.text = value
-        end
-        function fontString.SetPoint() end
-        function fontString.SetWidth(self, value)
-          self.width = value
-        end
-        function fontString.SetJustifyH() end
-        function fontString.SetTextColor() end
-        function fontString.SetShadowOffset() end
-        function fontString.SetShadowColor() end
-        function fontString.SetFont() end
-        function fontString.GetFont()
-          return "font", 10, ""
-        end
-        function fontString.SetWordWrap() end
-        function fontString.Hide(self)
-          self._shown = false
-        end
-        function fontString.Show(self)
-          self._shown = true
-        end
-        function fontString.IsShown(self)
-          return self._shown
-        end
-        table.insert(createdFontStrings, fontString)
-        return fontString
-      end
-
-      table.insert(createdFrames, frame)
-      return frame
-    end
-    local mainFrame = {
-      width = 0,
-      _frameStrata = "MEDIUM",
-      _frameLevel = 1,
-    }
-
-    function mainFrame.SetWidth(self, value)
-      self.width = value
-    end
-    function mainFrame.GetFrameStrata(self)
-      return self._frameStrata
-    end
-    function mainFrame.GetFrameLevel(self)
-      return self._frameLevel
-    end
-    function mainFrame.IsShown()
-      return true
-    end
-    function mainFrame.CreateFontString()
-      local fontString = {
-        text = "",
-        _shown = true,
-      }
-      function fontString.SetText(self, value)
-        self.text = value
-      end
-      function fontString.SetPoint() end
-      function fontString.SetWidth(self, value)
-        self.width = value
-      end
-      function fontString.SetJustifyH() end
-      function fontString.SetTextColor() end
-      function fontString.SetShadowOffset() end
-      function fontString.SetShadowColor() end
-      function fontString.SetFont() end
-      function fontString.GetFont()
-        return "font", 10, ""
-      end
-      function fontString.SetWordWrap() end
-      function fontString.Hide(self)
-        self._shown = false
-      end
-      function fontString.Show(self)
-        self._shown = true
-      end
-      function fontString.IsShown(self)
-        return self._shown
-      end
-      table.insert(createdFontStrings, fontString)
-      return fontString
-    end
-    function mainFrame.CreateTexture()
-      local texture = {
-        _shown = true,
-      }
-      function texture.SetPoint() end
-      function texture.SetWidth() end
-      function texture.SetHeight() end
-      function texture.SetAllPoints(self)
-        self.allPoints = true
-      end
-      function texture.SetColorTexture(self, r, g, b, a)
-        self.color = { r, g, b, a }
-      end
-      function texture.SetTexture(self, value)
-        self.texture = value
-      end
-      function texture.SetTexCoord() end
-      function texture.Hide(self)
-        self._shown = false
-      end
-      function texture.Show(self)
-        self._shown = true
-      end
-      table.insert(createdTextures, texture)
-      return texture
-    end
-
-    WithGlobals({
-      GetReadyCheckStatus = function()
-        return nil
-      end,
-      RAID_CLASS_COLORS = {
-        WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
-      },
-      CreateColor = function(r, g, b)
-        return {
-          GenerateHexColor = function()
-            return string.format("ff%02x%02x%02x", math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
-          end,
-        }
-      end,
-      CreateFrame = function()
-        return NewMiniFrame()
-      end,
-      GameTooltip = {
-        SetOwner = function() end,
-        SetText = function() end,
-        AddLine = function() end,
-        Show = function() end,
-        Hide = function() end,
-      },
-      C_ChatInfo = { SendChatMessage = function() end },
-      print = function() end,
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_roster_panel.lua", "isiLive_roster.lua" })
-      local controller = addon.RosterPanel.CreateController({
-        mainFrame = mainFrame,
-        getL = function()
-          return {
-            TITLE = "isiLive",
-            COL_SPEC = "Spec",
-            COL_NAME = "Name",
-            COL_LANGUAGE = "Lang",
-            COL_KEY = "Key",
-            COL_ILVL = "iLvl",
-            COL_RIO = "RIO",
-            COL_DPS = "DPS",
-            LEAD_OPTIONS = "Lead",
-            MPLUS_MANAGEMENT = "M+",
-            BTN_READYCHECK = "Readycheck",
-            BTN_COUNTDOWN10 = "Countdown10",
-            BTN_COUNTDOWN_CANCEL = "Countdown 0",
-            BTN_REFRESH = "Refresh",
-            BTN_SHARE_KEYS = "Share",
-          }
-        end,
-        isPlayerLeader = function()
-          return true
-        end,
-        getAddonVersionText = function()
-          return ""
-        end,
-        updateStatusLine = function() end,
-        setMainFrameHeightSafe = function() end,
-        setMainFrameWidthSafe = function() end,
-        minFrameHeight = 236,
-        buildOrderedRoster = function(currentRoster, _rolePriority, _unitPriority)
-          return {
-            {
-              unit = "player",
-              info = currentRoster and currentRoster.player or {},
-            },
-          }
-        end,
-        hasFullSync = function()
-          return false
-        end,
-        buildDisplayData = function(info, opts)
-          return addon.Roster.BuildDisplayData(info, opts)
-        end,
-        truncateName = function(text)
-          return text
-        end,
-        getShortSpecLabel = function(text)
-          return text
-        end,
-        getLanguageFlagMarkup = function()
-          return ""
-        end,
-        getLanguageTooltipMarkup = function()
-          return ""
-        end,
-        getDungeonShortCode = function()
-          return "DB"
-        end,
-        getDungeonName = function()
-          return "Dungeon"
-        end,
-        getRioDelta = function()
-          return nil
-        end,
-        getPlayerSyncSummary = function()
-          return nil
-        end,
-        resolveActiveKeyOwnerUnit = function()
-          return nil
-        end,
-        resolveTargetMapID = function()
-          return nil
-        end,
-        isReadyCheckActive = function()
-          return false
-        end,
-        getReadyCheckReadyUntil = function(unit)
-          return readyCheckReadyUntilByUnit[unit]
-        end,
-        getReadyCheckDeclinedUntil = function()
-          return nil
-        end,
-        getRoster = function()
-          return {
-            player = {
-              name = "TestPlayer",
-              class = "WARRIOR",
-              role = "DAMAGER",
-            },
-          }
-        end,
-        isInGroup = function()
-          return true
-        end,
-        isRaidGroup = function()
-          return false
-        end,
-        rolePriority = {
-          TANK = 1,
-          HEALER = 2,
-          DAMAGER = 3,
-          NONE = 4,
-        },
-        unitPriority = {
-          player = 1,
-        },
-        getTime = function()
-          return now
-        end,
-        shareKeysDebounceSeconds = 1,
-        sendShareKeysRequest = function() end,
-      })
-
-      readyCheckReadyUntilByUnit.player = now + 20
-      controller.RenderRoster({
-        player = {
-          name = "TestPlayer",
-          class = "WARRIOR",
-          role = "DAMAGER",
-        },
-      })
-
-      local foundReadyBackground = false
-      for _, texture in ipairs(createdTextures) do
-        if texture.color and texture.color[1] == 0.08 and texture.color[2] == 0.5 and texture.color[3] == 0.16 then
-          foundReadyBackground = true
-          break
-        end
-      end
-
-      Assert.True(
-        foundReadyBackground,
-        "normal roster refresh during ready-check hold must re-apply the green background"
-      )
-    end)
-  end)
+  RegisterRosterRenderReadyCheckReapplyTest(test, Assert, WithGlobals, LoadAddonModules)
 
   test("Roster shows at-dungeon marker when unit map matches target", function()
     local roster = { party1 = { name = "Member" } }
@@ -2211,6 +1810,19 @@ local function BuildHiddenSettingTestController(addon, createdFontStrings, opts)
     buildDisplayData = opts.buildDisplayData or function()
       return {}
     end,
+    isReadyCheckActive = opts.isReadyCheckActive,
+    getReadyCheckReadyUntil = opts.getReadyCheckReadyUntil,
+    getReadyCheckDeclinedUntil = opts.getReadyCheckDeclinedUntil,
+    getTime = opts.getTime,
+    resolveTargetMapID = opts.resolveTargetMapID,
+    getRioDelta = opts.getRioDelta,
+    getPlayerSyncSummary = opts.getPlayerSyncSummary,
+    getDungeonName = opts.getDungeonName,
+    getLanguageTooltipMarkup = opts.getLanguageTooltipMarkup,
+    isRaidGroup = opts.isRaidGroup,
+    applyKnownKeyToRosterEntry = opts.applyKnownKeyToRosterEntry,
+    syncMarker = opts.syncMarker,
+    syncBadge = opts.syncBadge,
     truncateName = function(text)
       return text
     end,
@@ -2239,6 +1851,102 @@ local function BuildHiddenSettingTestController(addon, createdFontStrings, opts)
     rolePriority = opts.rolePriority or {},
     unitPriority = opts.unitPriority or {},
   })
+end
+
+RegisterRosterRenderReadyCheckReapplyTest = function(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster render re-applies ready-check background during hold after a normal roster update", function()
+    local readyCheckReadyUntilByUnit = {}
+    local now = 100
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local createdTextures = {}
+
+    WithGlobals({
+      GetReadyCheckStatus = function()
+        return nil
+      end,
+      RAID_CLASS_COLORS = {
+        WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
+      },
+      CreateColor = function(r, g, b)
+        return {
+          GenerateHexColor = function()
+            return string.format("ff%02x%02x%02x", math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+          end,
+        }
+      end,
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      C_ChatInfo = { SendChatMessage = function() end },
+      print = function() end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua", "isiLive_roster.lua" })
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings, {
+        createdTextures = createdTextures,
+        buildOrderedRoster = function(currentRoster)
+          return {
+            {
+              unit = "player",
+              info = currentRoster and currentRoster.player or {},
+            },
+          }
+        end,
+        buildDisplayData = function(info, opts)
+          return addon.Roster.BuildDisplayData(info, opts)
+        end,
+        isReadyCheckActive = function()
+          return false
+        end,
+        getReadyCheckReadyUntil = function(unit)
+          return readyCheckReadyUntilByUnit[unit]
+        end,
+        getReadyCheckDeclinedUntil = function()
+          return nil
+        end,
+        getTime = function()
+          return now
+        end,
+      })
+
+      readyCheckReadyUntilByUnit.player = now + 20
+      controller.RenderRoster({
+        player = {
+          name = "TestPlayer",
+          class = "WARRIOR",
+          role = "DAMAGER",
+        },
+      })
+
+      local foundReadyBackground = false
+      for _, frame in ipairs(createdFrames) do
+        local textures = rawget(frame, "_textures")
+        if type(textures) == "table" then
+          for _, texture in ipairs(textures) do
+            if texture.color and texture.color[1] == 0.08 and texture.color[2] == 0.5 and texture.color[3] == 0.16 then
+              foundReadyBackground = true
+              break
+            end
+          end
+        end
+        if foundReadyBackground then
+          break
+        end
+      end
+
+      Assert.True(
+        foundReadyBackground,
+        "normal roster refresh during ready-check hold must re-apply the green background"
+      )
+    end)
+  end)
 end
 
 local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGlobals, LoadAddonModules)
