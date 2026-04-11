@@ -2,13 +2,15 @@
 
 ## Readycheck-Balken verschwinden zu schnell
 
-- Problem: Die gruen/roten Readycheck-Balken verschwinden nach dem `READY_CHECK_FINISHED` oder kurz danach immer noch zu schnell.
-- Beobachtung: Im UI sieht man die Farbbalken nur sehr kurz, obwohl der Hold laut Logik 20 Sekunden halten soll.
+- Status: Der Renderpfad ist jetzt getrennt, der normale Roster-Render setzt den Readycheck-Hintergrund nicht mehr selbst.
+- Problem: Im Spiel muss noch verifiziert werden, ob der dedizierte Readycheck-Refresh den Hold-Zustand nach `READY_CHECK_FINISHED` wirklich bis zum Ablauf sichtbar haelt.
 - Erwartung: Nach einem Readycheck sollen `ready` und `notready` als Hintergrundfarbe fuer die volle Hold-Zeit sichtbar bleiben.
-- Vermutung: Ein spaeterer Refresh pflegt den Hold-State nicht mehr konsistent an die Rosterzeilen durch oder ueberschreibt ihn mit einem neutralen Render.
-- Bisheriger Ansatz: Der 1-Sekunden-Ticker reassertet den Readycheck-State bereits, aber das Verhalten ist ingame noch nicht stabil genug.
-- Naechster Schritt: Mit einem gezielten Live-Trace die genaue Stelle finden, an der der Hintergrund vor Ablauf der Hold-Zeit neutralisiert wird.
-- Wichtiger Rahmen: Keine grosse Umbaustelle starten, zuerst den konkreten Ueberschreiber identifizieren.
+- Live-Trace-Plan:
+  - `READY_CHECK` und `READY_CHECK_CONFIRM` mit Zeitstempel, `readyCheckActive`, `readyUntil`, `declinedUntil` und betroffener Unit loggen.
+  - Direkt nach `READY_CHECK_FINISHED` den naechsten Ausloeser von `RefreshReadyCheckState()` oder `RenderRoster()` protokollieren.
+  - Den Zustand kurz vor Ablauf der 20 Sekunden und direkt nach dem Timer-Cleanup vergleichen.
+  - Falls der Hintergrund vorher verschwindet, den exakten Event- oder Timer-Ausloeser identifizieren, statt einen pauschalen Umbau zu machen.
+- Wichtiger Rahmen: Keine grosse Umbaustelle starten, zuerst den konkreten Live-Ueberschreiber oder Timerpfad identifizieren.
 
 ## Share-Keys in Gruppe: sichtbarer Post/linkbarer Key nicht robust
 

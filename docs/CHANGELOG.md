@@ -6,6 +6,7 @@
   - Normal roster refreshes now re-apply the ready-check background during the hold window instead of letting a full roster render clear it implicitly.
   - The ready-check dedicated refresh path remains the canonical place for row background, waiting marker, and hold-state reapplication.
   - Added deterministic coverage for the normal-render reapply path and the hold-expiry cleanup path.
+  - The remaining verification step is now an in-game live trace for the exact event or timer that still neutralizes the background in the user's setup.
 
 - **Documentation / release sync:**
   - Bumped `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `isiLive.toc` to `0.9.148`.
