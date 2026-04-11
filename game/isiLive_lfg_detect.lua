@@ -151,6 +151,12 @@ end
 local pendingInvites = {}
 -- mapID of the last detected own queue listing (nil = no active listing)
 local lastQueueMapID = nil
+-- mapID currently highlighted (invite accepted or own queue) — nil = none
+local detectedMapID = nil
+
+function LFGDetect.GetDetectedMapID()
+  return detectedMapID
+end
 
 -- ---------------------------------------------------------------------------
 -- Invite detection
@@ -196,11 +202,20 @@ local function OnInvited(searchResultID)
   end
 end
 
+local function TriggerHighlightUpdate()
+  local ctx = addonTable._factoryCtx
+  if type(ctx) == "table" and type(ctx.UpdateMPlusTeleportButton) == "function" then
+    ctx.UpdateMPlusTeleportButton()
+  end
+end
+
 local function OnInviteAccepted(searchResultID)
   local mapID = pendingInvites[searchResultID]
   if mapID then
+    detectedMapID = mapID
     Print("Invite erkannt: " .. GetDungeonName(mapID))
     pendingInvites = {}
+    TriggerHighlightUpdate()
   end
 end
 
@@ -261,9 +276,13 @@ local function CheckActiveGroup()
 
   if mapID and mapID ~= lastQueueMapID then
     lastQueueMapID = mapID
+    detectedMapID = mapID
     Print("Queue erkannt: " .. GetDungeonName(mapID))
+    TriggerHighlightUpdate()
   elseif not mapID and lastQueueMapID ~= nil then
     lastQueueMapID = nil
+    detectedMapID = nil
+    TriggerHighlightUpdate()
   end
 end
 
@@ -292,5 +311,6 @@ frame:SetScript("OnEvent", function(_self, event, ...)
     -- Key started — clear state, no longer relevant
     pendingInvites = {}
     lastQueueMapID = nil
+    detectedMapID = nil
   end
 end)

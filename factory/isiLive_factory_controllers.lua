@@ -667,6 +667,16 @@ local function InitializeFactoryPrimaryControllers(ctx)
   end
   ctx.UpdateMPlusTeleportButton = function()
     local resolvedSpellID = ctx.ResolveActiveTeleportSpellID()
+    if not resolvedSpellID then
+      local lfgDetect = addonTable.LFGDetect
+      local detectedMapID = type(lfgDetect) == "table"
+          and type(lfgDetect.GetDetectedMapID) == "function"
+          and lfgDetect.GetDetectedMapID()
+        or nil
+      if detectedMapID then
+        resolvedSpellID = modules.teleport.ResolveTeleportSpellIDByMapID(detectedMapID)
+      end
+    end
     ctx.teleportUIController.UpdateButtons(resolvedSpellID)
   end
 end

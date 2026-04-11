@@ -457,6 +457,7 @@ function Factory.InitializeAddon(addonName, tbl)
     return
   end
 
+  tbl._factoryCtx = ctx
   InitializeFactoryFrameBridge(ctx)
   InitializeFactoryRuntimeHelpers(ctx)
   InitializeFactoryPrimaryControllers(ctx)
