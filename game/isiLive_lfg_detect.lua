@@ -25,12 +25,13 @@ local ACTIVITY_TO_MAP = {
   [1160] = 402, -- Algeth'ar Academy
 }
 
--- Normalise a string for keyword matching: lowercase, collapse whitespace.
--- We do NOT strip non-ASCII characters — Blizzard names contain umlauts and
--- typographic apostrophes which must survive for matching.
+-- Normalise a string for keyword matching: lowercase, strip non-word chars,
+-- collapse whitespace. Stripping non-ASCII avoids broken multibyte sequences
+-- from tainted/locale LFG API strings (same approach as LFGTeleportButtonMidnight).
 local function Norm(s)
   local ok, result = pcall(function()
     s = (s or ""):lower()
+    s = s:gsub("[^%a%d%'%s]", " ")
     s = s:gsub("%s+", " ")
     s = s:gsub("^%s", ""):gsub("%s$", "")
     return s
@@ -316,10 +317,28 @@ frame:SetScript("OnEvent", function(_self, event, ...)
   elseif event == "LFG_LIST_ACTIVE_ENTRY_UPDATE" then
     CheckActiveGroup()
   elseif event == "GROUP_ROSTER_UPDATE" then
-    -- If no longer in a group, clear highlight
     local isInGroup = rawget(_G, "IsInGroup")
-    if type(isInGroup) == "function" and not isInGroup() then
+    local isInRaid = rawget(_G, "IsInRaid")
+    local inGroup = (type(isInGroup) == "function" and isInGroup())
+        or (type(isInRaid) == "function" and isInRaid())
+    if not inGroup then
+      -- Left all groups — reset state so button reappears for the next party
       ClearDetectedState()
+      return
+    end
+    -- Joined a group: if we have a pending invite but detectedMapID was not set
+    -- yet (e.g. inviteaccepted fired before GROUP_ROSTER_UPDATE settled),
+    -- apply it now.
+    if not detectedMapID then
+      local resultID, mapID = next(pendingInvites)
+      if resultID and mapID then
+        detectedMapID = mapID
+        Print("Invite erkannt: " .. GetDungeonName(mapID))
+        pendingInvites = {}
+        TriggerHighlightUpdate()
+      else
+        CheckActiveGroup()
+      end
     end
   elseif event == "CHALLENGE_MODE_START" then
     -- Key started — clear state, no longer relevant

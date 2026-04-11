@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-04-11 - Version 0.9.149 (patch)
+
+- **LFG dungeon detection fix (`isiLive_lfg_detect.lua`):**
+  - `GROUP_ROSTER_UPDATE` handler rewritten after LFGTeleportButtonMidnight: when not in any group → clear state and return; when in group and `detectedMapID` is nil → apply pending invite or call `CheckActiveGroup()`. Fixes the race condition where the event fired while the LFG group was still assembling, causing a false `ClearDetectedState()` that wiped the highlight immediately after it was set.
+  - `Norm()` now strips non-alphanumeric characters (except `'` and whitespace) before keyword matching, matching LFGTeleportButtonMidnight's approach and guarding against broken multibyte sequences from tainted/locale LFG API strings.
+  - `IsInRaid()` added alongside `IsInGroup()` in the group-presence check, consistent with LFGTeleportButtonMidnight.
+
 ## 2026-04-11 - Version 0.9.148 (patch)
 
 - **Readycheck render split:**
