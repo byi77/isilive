@@ -319,8 +319,7 @@ frame:SetScript("OnEvent", function(_self, event, ...)
   elseif event == "GROUP_ROSTER_UPDATE" then
     local isInGroup = rawget(_G, "IsInGroup")
     local isInRaid = rawget(_G, "IsInRaid")
-    local inGroup = (type(isInGroup) == "function" and isInGroup())
-        or (type(isInRaid) == "function" and isInRaid())
+    local inGroup = (type(isInGroup) == "function" and isInGroup()) or (type(isInRaid) == "function" and isInRaid())
     if not inGroup then
       -- Left all groups — reset state so button reappears for the next party
       ClearDetectedState()
