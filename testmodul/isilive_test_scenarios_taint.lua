@@ -860,7 +860,7 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
     }
     local controller, createdFrames, stubs = BuildRosterPanelController(WithGlobals, LoadAddonModules, {
       opts = {
-        buildDisplayData = function(info, opts)
+        buildDisplayData = function(info, _opts)
           return {
             colorHex = "ffc69b6d",
             displayName = tostring(info.name or ""),
