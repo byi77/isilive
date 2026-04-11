@@ -14,6 +14,9 @@ Languages.SUPPORTED = {
   { tag = "frFR", cmdAliases = { "fr", "frfr" }, buttonLabel = "Français" },
   { tag = "esES", cmdAliases = { "es", "eses", "esmx" }, buttonLabel = "Español" },
   { tag = "ptBR", cmdAliases = { "pt", "ptbr", "ptpt" }, buttonLabel = "Português" },
+  { tag = "itIT", cmdAliases = { "it", "itit" }, buttonLabel = "Italiano" },
+  { tag = "ruRU", cmdAliases = { "ru", "ruru" }, buttonLabel = "Русский" },
+  { tag = "trTR", cmdAliases = { "tr", "trtr" }, buttonLabel = "Türkçe" },
 }
 
 -- Resolves a user-supplied tag (e.g. "de", "deDE", "fr") to a canonical locale tag

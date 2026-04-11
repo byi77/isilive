@@ -173,6 +173,8 @@ local function CreateSettingsSlider(parent, yOffset, labelText, minVal, maxVal, 
     yOffset - LINE_HEIGHT
 end
 
+local LANG_BUTTONS_PER_ROW = 5
+
 local function CreateLanguageSelector(parent, yOffset, labelText, getCurrentLocale, setLanguage)
   local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   local tn = Colors.TEXT_NORMAL or { 0.85, 0.85, 0.9 }
@@ -185,15 +187,18 @@ local function CreateLanguageSelector(parent, yOffset, labelText, getCurrentLoca
 
   local supported = addonTable.Languages and addonTable.Languages.SUPPORTED or {}
   local buttons = {}
-  local prevBtn = nil
+  local rowIndex = 0
 
-  for _, lang in ipairs(supported) do
+  for i, lang in ipairs(supported) do
     local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
     btn:SetSize(LANG_BUTTON_WIDTH, LANG_BUTTON_HEIGHT)
-    if prevBtn then
-      btn:SetPoint("LEFT", prevBtn, "RIGHT", 2, 0)
+    local posInRow = (i - 1) % LANG_BUTTONS_PER_ROW
+    if posInRow == 0 then
+      -- First button in this row: anchor to top-left, offset by row number
+      local rowY = yOffset - 1 - (math.floor((i - 1) / LANG_BUTTONS_PER_ROW) * (LANG_BUTTON_HEIGHT + 3))
+      btn:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X + 120, rowY)
     else
-      btn:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X + 120, yOffset - 1)
+      btn:SetPoint("LEFT", buttons[#buttons].btn, "RIGHT", 2, 0)
     end
     if type(btn.SetBackdrop) == "function" then
       btn:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
@@ -219,8 +224,11 @@ local function CreateLanguageSelector(parent, yOffset, labelText, getCurrentLoca
     end)
 
     buttons[#buttons + 1] = { btn = btn, tag = tag }
-    prevBtn = btn
+    rowIndex = math.floor((i - 1) / LANG_BUTTONS_PER_ROW)
   end
+
+  local numRows = rowIndex + 1
+  local totalHeight = numRows * LINE_HEIGHT
 
   local function UpdateHighlight()
     local current = type(getCurrentLocale) == "function" and getCurrentLocale() or "enUS"
@@ -249,7 +257,7 @@ local function CreateLanguageSelector(parent, yOffset, labelText, getCurrentLoca
 
   UpdateHighlight()
 
-  return { label = label, buttons = buttons, UpdateHighlight = UpdateHighlight }, yOffset - LINE_HEIGHT
+  return { label = label, buttons = buttons, UpdateHighlight = UpdateHighlight }, yOffset - totalHeight
 end
 
 local function NormalizeStoredLayoutMode(layoutMode)
@@ -427,6 +435,8 @@ local function ResolveSettingsOptions(opts)
     onTeleportColumnsChange = opts.onTeleportColumnsChange,
     onQueueDebugToggle = opts.onQueueDebugToggle,
     onRuntimeLogToggle = opts.onRuntimeLogToggle,
+    onLfgFlagsToggle = opts.onLfgFlagsToggle,
+    onTooltipFlagsToggle = opts.onTooltipFlagsToggle,
     onResetDB = opts.onResetDB,
   }
 end
@@ -711,6 +721,42 @@ local function BuildDisplaySettingsSection(canvas, yOffset, labels, config, cont
         config.onMinimapButtonToggle(checked)
       end
     end
+  )
+
+  controls.lfgFlags, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_LFG_FLAGS or "Group Finder: Language Flags",
+    function()
+      local db = config.getDB()
+      return db.lfgFlagsEnabled ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.lfgFlagsEnabled = checked
+      if type(config.onLfgFlagsToggle) == "function" then
+        config.onLfgFlagsToggle(checked)
+      end
+    end,
+    "SETTINGS_LFG_FLAGS"
+  )
+
+  controls.tooltipFlags, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_TOOLTIP_FLAGS or "Tooltip: Language Flags",
+    function()
+      local db = config.getDB()
+      return db.tooltipFlagsEnabled ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.tooltipFlagsEnabled = checked
+      if type(config.onTooltipFlagsToggle) == "function" then
+        config.onTooltipFlagsToggle(checked)
+      end
+    end,
+    "SETTINGS_TOOLTIP_FLAGS"
   )
 
   return yOffset
@@ -1098,6 +1144,14 @@ local function RefreshSettingsControls(controls, config)
   end
   if controls.soundGroupJoinEnabled then
     controls.soundGroupJoinEnabled.check:SetChecked(db.soundGroupJoinEnabled == true)
+  end
+  if controls.lfgFlags then
+    controls.lfgFlags.label:SetText(freshL.SETTINGS_LFG_FLAGS or "Group Finder: Language Flags")
+    controls.lfgFlags.check:SetChecked(db.lfgFlagsEnabled ~= false)
+  end
+  if controls.tooltipFlags then
+    controls.tooltipFlags.label:SetText(freshL.SETTINGS_TOOLTIP_FLAGS or "Tooltip: Language Flags")
+    controls.tooltipFlags.check:SetChecked(db.tooltipFlagsEnabled ~= false)
   end
 
   if controls.showDps then

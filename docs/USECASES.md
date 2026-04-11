@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.144`
-Zuletzt aktualisiert: `2026-04-10`
+Versionsbasis: `0.9.138`
+Zuletzt aktualisiert: `2026-04-09`
 
 ## Akteure
 
@@ -36,7 +36,6 @@ Zuletzt aktualisiert: `2026-04-10`
 | UC-12 | Roster-Panel Mini Mode | Collapse-Toggle blendet Roster-Liste und `Travel` aus, waehrend kompakte Marker- und Management-Tools sichtbar bleiben |
 | UC-13 | Esc-Shortcuts und Addon-Settings | Der User bekommt zwei Blizzard-UI-Einstiegsflaechen plus lokalisierte Config-Toggles und Sound-Praferenzen |
 | UC-14 | Combat-Utility-Tracker | Live-BRes, Lust, Mythic+-Timer und gesyncter Interrupt-State bleiben im Roster-Panel sichtbar |
-| UC-15 | M+ Killtracker und Pull-Prediction | Enemy-Forces-Prozentsatz und Pull-Delta werden als Fortschrittsbalken mit Pull-Preview im M2-Layout angezeigt |
 
 ## UC-01 Invite-Erkennung ohne Target-Guessing
 
@@ -147,8 +146,8 @@ Ziel: Schnelle Blizzard-Panel-Shortcuts und lokalisierte Addon-Toggles anbieten,
 4. Combat-Sicherheit: Wenn Combat-Lockdown Secure-`ReloadUI`-Button-Refreshes blockiert, zum Beispiel Click-Registration oder Macro-Attribute-Updates, verschiebt das Addon diese Aktualisierung und wiederholt sie auf `PLAYER_REGEN_ENABLED`. Die gemounteten `Esc`-Strips selbst bleiben im Combat read-only, bleiben ueber `GameMenuFrame` sichtbar und machen aus insecure Shortcut-Klicks No-Ops statt Overlay-Layout zu mutieren.
 5. Regel: Der Spellbook-Shortcut muss spellbook-spezifische Opener nutzen und darf nicht ueber das Talents-Panel routen.
 6. Trigger B: Der Spieler oeffnet `Settings -> AddOns -> isiLive`.
-7. Ergebnis B: Blizzard Settings zeigen Sprache, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Sound: Lead Transfer`, `Sound: Group Join`, `Queue Debug Log (resets on reload)` und `Runtime Log (resets on reload)`. Der Default-Layout-Selector bietet dabei nur die sichtbaren Layouts `Last Used`, `V`, `H` und `M2`; `M` bleibt intern, ist aber nicht mehr user-seitig waehlbar.
-8. Regel: Settings-Controls spiegeln live Blizzard-CVars und SavedVariables und wenden Aenderungen sofort an, ohne dass das Main-Addon-Fenster sichtbar sein muss; eine Aenderung von `Background Opacity` aktualisiert live den Main-Frame, die optionalen `Esc`-Tooling- und Travel-Strips und den Settings-Canvas. Hidden Legacy-Controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`) bleiben aus der Settings-UI draussen und nutzen derzeit feste Runtime-Defaults: `DPS` an, Marker fuer alle sichtbar, feste Namenstrunkierung und Legacy-`Travel`-Layout mit 2 Spalten. Persistierte `expanded`-Layoutwerte werden fuer den sichtbaren Default-Selector auf `M2` normalisiert.
+7. Ergebnis B: Blizzard Settings zeigen Sprache, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Background Opacity`, `UI Scale`, `Default UI on Open`, `Minimap Button`, `Addon Sync`, `Auto-Open on M+ Queue`, `Auto-Close on Key Start / Solo`, `Column Guides`, `Sound: Lead Transfer`, `Sound: Group Join`, `Queue Debug Log (resets on reload)` und `Runtime Log (resets on reload)`.
+8. Regel: Settings-Controls spiegeln live Blizzard-CVars und SavedVariables und wenden Aenderungen sofort an, ohne dass das Main-Addon-Fenster sichtbar sein muss; eine Aenderung von `Background Opacity` aktualisiert live den Main-Frame, die optionalen `Esc`-Tooling- und Travel-Strips und den Settings-Canvas. Hidden Legacy-Controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`) bleiben aus der Settings-UI draussen und nutzen derzeit feste Runtime-Defaults: `DPS` an, Marker fuer alle sichtbar, feste Namenstrunkierung und Legacy-`Travel`-Layout mit 2 Spalten.
 9. Erfolgskriterium: Beide Einstiegspunkte bleiben lokalisiert, deterministisch und spiegeln den aktuellen Config- und Runtime-State.
 
 ## UC-14 Combat-Utility-Tracker
@@ -162,9 +161,9 @@ Ziel: Live-BRes, Bloodlust/Heroism/Time Warp, aktive Mythic+-Timer-Cutoffs und g
 5. Regel: `PLAYER_ENTERING_WORLD` darf nur ein kurzes 2-Sekunden-Suppress-Fenster als Sicherheitsnetz bis zum Full-Aura-Restore-Event behalten.
 6. Verarbeitung: Solange ein aktiver Mythic+-Timer laeuft und das Roster-Panel sichtbar ist, muss derselbe One-Second-Utility-Ticker auch einen Vollrender des Panels ausloesen, damit die sichtbaren `+3/+2/+1`-Cutoffs live herunterzaehlen; Hidden-Modus darf diesen Utility-Poller nicht weiterlaufen lassen, und beim erneuten Oeffnen der UI darf genau ein frischer Utility-Rescan nur auf dem ersten sichtbaren Render nach Dirty-Markierung stattfinden.
 7. Output: Die Tracker-Zeile zeigt BRes-Charges/Cooldown, das aktuelle Lust-Icon samt Restzeit sowie aktive `+3/+2/+1`-Timer-Cutoffs und Death-Penalty-Loss, oder `--`, wenn Daten fehlen.
-8. Output: Roster-Zeilen zeigen zusaetzlich gesyncten Interrupt-Status in der `Kick`-Spalte als Slot-Punkte: verifizierte Kick-Slots erscheinen gruen, Cooldown-Slots rot mit Restsekunden und `-` in Grau, wenn die Spec keinen Interrupt hat oder kein belastbarer Sync vorliegt, zum Beispiel Demonology Warlock ohne Pet.
-9. Verarbeitung: Interrupt-State wird lokal ueber `KickTracker` als Slot-Liste verfolgt; pet-basierte Interrupts fuer Warlock Affliction/Destruction (`Spell Lock`) und Demonology (`Axe Toss`/`Spell Lock`) tracken die Pet-Cast-Unit getrennt, damit der Cooldown nur startet, wenn das Pet wirklich castet und nicht der Spieler.
-10. Regel: Gesynctes `hasKick = false` fuer No-Interrupt-Specs muss in der `Kick`-Spalte als `-` gerendert werden, nicht als `0s` oder `ready`, und als `KICK:-1:0:0` uebertragen werden, damit Peers es von einem verfuegbaren Interrupt unterscheiden koennen.
+8. Output: Roster-Zeilen zeigen zusaetzlich gesyncten Interrupt-Status in der `Kick`-Spalte: `ready` in Gruen, wenn verfuegbar, rote Restsekunden waehrend Cooldown und `-` in Grau, wenn die Spec keinen Interrupt hat oder der Pet-Interrupt aktuell nicht verfuegbar ist, zum Beispiel Demonology Warlock ohne Pet.
+9. Verarbeitung: Interrupt-State wird lokal ueber `KickTracker` verfolgt; pet-basierte Interrupts fuer Warlock Affliction/Destruction (`Spell Lock`) und Demonology (`Axe Toss`/`Spell Lock`) tracken die Pet-Cast-Unit getrennt, damit der Cooldown nur startet, wenn das Pet wirklich castet und nicht der Spieler.
+10. Regel: Gesynctes `hasKick = false` fuer No-Interrupt-Specs muss in der `Kick`-Spalte als `-` gerendert werden, nicht als `0s` oder `ready`, und als `KICK:-1:0` uebertragen werden, damit Peers es von einem ready Interrupt unterscheiden koennen.
 11. Regel: Ein lokaler Kick-Cooldown darf nur durch beobachteten Interrupt-Cast oder exakte Blizzard-Cooldown-API-Daten in den laufenden Zustand wechseln; wenn keine dieser Quellen einen aktiven Cooldown belegt, darf das Addon keinen synthetischen oder geratenen Cooldown erzeugen.
 12. Regel: Wenn Raid-Hard-off lokales Kick-Tracking unterdrueckt, darf Kick-Sync erst wieder aufgenommen werden, nachdem exakte Blizzard-Cooldown-Daten, ein neu beobachteter Post-Raid-Interrupt-Cast oder eine exakte `no kick`-Aufloesung den Zustand erneut belastbar hergestellt haben; malformed KICK-Payloads werden fail-closed verworfen, fremde Casts duerfen die Suppression nicht aufheben, und solange kein exakter Zustand vorhanden ist, bleibt der Kick-State unresolved und unsent.
 13. Erfolgskriterium: Die Zeile und die `Kick`-Spalte aktualisieren deterministisch, bleiben nicht-negativ und verhalten sich stabil, wenn relevante APIs fehlen, gemischte Aura-Payloads mit valider und invalider Datenform auftreten oder Zone-/Reload-Aura-Restores spaet eintreffen; beim erneuten Oeffnen nach Hidden-Modus muss der aktuelle Utility-Zeilenstate sofort sichtbar sein.
@@ -192,7 +191,7 @@ Ziel: Live-BRes, Bloodlust/Heroism/Time Warp, aktive Mythic+-Timer-Cutoffs und g
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `523` Szenarien ueber `38` Module.
+Aktuelle Validator-Baseline: `522` Szenarien ueber `38` Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
@@ -205,20 +204,6 @@ Aktuelle Validator-Baseline: `523` Szenarien ueber `38` Module.
 9. UC-11 und UC-12: Secure-World-Marker-Button-Konfiguration fuer M+Marker und Compact-Layout-Visibility-Logik fuer M/V/H.
 10. Taint-Hardening: verschobene Secure-Attribute-Writes, verschobene `Esc`-Shortcut-Secure-Button-Refreshes, insecure Teleport-Grid-Aktionen und combat-sicheres Collapse-Handling.
 11. UC-13 und UC-14: Game-Menu-Tooling-/Travel-Strips, Lokalisierung, Close-then-Open-Verhalten, verschobener Secure-Reload-Button-Refresh, Direct-Opener-Fallback-Auswahl, Settings-Canvas-State-Mirroring, Background-Opacity-Verhalten, Live-BRes-/Bloodlust-/M+-Timer-Rendering und gesyncte Interrupt-Cooldown-Anzeige.
-12. UC-15: Enemy-Forces-Lesen via `C_ScenarioInfo`, Scenario-Quantity-Delta fuer Pull-Prediction, Combat-State-Snapshot, Bar-Rendering mit Pull-Segment, Demo-Mode-Integration.
-
-## UC-15 M+ Killtracker und Pull-Prediction
-
-Ziel: Enemy-Forces-Fortschritt und Pull-Delta im M2-Layout permanent anzeigen.
-
-1. Trigger: `CHALLENGE_MODE_START` aktiviert den Tracker; `SCENARIO_CRITERIA_UPDATE` aktualisiert den Prozentwert laufend.
-2. Anzeige: Fortschrittsbalken im M2-Layout zeigt den aktuellen EF-Prozentsatz farbkodiert (gruen/gelb/rot); bei inaktivem Key zeigt der Text `--,--`.
-3. Pull-Prediction-Trigger: `PLAYER_REGEN_DISABLED` speichert `rawCount` als Baseline fuer diesen Pull.
-4. Pull-Prediction-Update: Jedes `SCENARIO_CRITERIA_UPDATE` waehrend Combat berechnet `gained = rawCount - startRawCount` und zeigt den Delta als `+X,XX%` und als hellblauen Bar-Segment rechts am Hauptbalken.
-5. Pull-Prediction-Ende: `PLAYER_REGEN_ENABLED` loescht den Delta nach 0,5s Verzoegerung (um das letzte `SCENARIO_CRITERIA_UPDATE` abzuwarten).
-6. Key-Ende: `CHALLENGE_MODE_COMPLETED`/`CHALLENGE_MODE_RESET` setzt alle Werte sofort auf Ausgangszustand zurueck.
-7. Regel: NPC-Identifikations-APIs (GUID, Fingerprint, NPC-ID) werden nie verwendet — sie liefern in Midnight-M+-Instanzen Secret Values.
-8. Erfolgskriterium: EF-Prozentsatz und Pull-Delta sind stets konsistent mit dem `C_ScenarioInfo`-State; kein Guessing von Force-Werten.
 
 ## Rueckverfolgbarkeit zu Quelldateien
 
@@ -231,7 +216,6 @@ Ziel: Enemy-Forces-Fortschritt und Pull-Delta im M2-Layout permanent anzeigen.
 | RIO-Baseline-Capture und Delta-Preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
 | Last-Run-DPS-Capture und begrenzte Stats-Persistenz | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
 | Combat-Utility-Tracker-Zeile, Kick-State und LibKeystone-Key-Interop | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_controllers.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
-| M+ Killtracker und Pull-Prediction | `isiLive_killtrack.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_layout.lua`, `isiLive_factory_controllers.lua` |
 | Leader-Transfer-Erkennung und Feedback | `isiLive_leader_watch.lua` |
 | UI-Aktionen, Rollen-Buttons, Key-Share-Button | `isiLive_roster_panel.lua` |
 | Esc-Tooling-/Travel-Strips und Blizzard-Settings-Canvas | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_factory.lua`, `isiLive_texts.lua`, `isiLive_ui_common.lua` |

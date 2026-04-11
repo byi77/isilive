@@ -561,61 +561,7 @@ function Sync.GetPlayerDpsInfo(name, realm)
   return dpsInfoByPlayerKey[key]
 end
 
-local function NormalizeKickSlots(kickSlots)
-  if kickSlots == nil then
-    return nil
-  end
-  if type(kickSlots) ~= "table" then
-    return false
-  end
-
-  local normalized = {}
-  for _, slot in ipairs(kickSlots) do
-    if type(slot) ~= "table" then
-      return false
-    end
-    local slotOnCooldown = slot.onCooldown
-    if slotOnCooldown ~= true and slotOnCooldown ~= false then
-      return false
-    end
-    local slotRemain = tonumber(slot.cooldownRemain)
-    if slotRemain == nil or slotRemain < 0 then
-      return false
-    end
-    normalized[#normalized + 1] = {
-      onCooldown = slotOnCooldown == true,
-      cooldownRemain = slotOnCooldown == true and slotRemain or 0,
-    }
-  end
-  return normalized
-end
-
-local function BuildLegacyKickSlots(onCooldown, cooldownRemain, hasKick)
-  if hasKick ~= true then
-    return {}
-  end
-  return {
-    {
-      onCooldown = onCooldown == true,
-      cooldownRemain = onCooldown == true and math.max(0, tonumber(cooldownRemain) or 0) or 0,
-    },
-  }
-end
-
-local function KickSlotsSignature(kickSlots)
-  if type(kickSlots) ~= "table" then
-    return ""
-  end
-
-  local parts = {}
-  for _, slot in ipairs(kickSlots) do
-    parts[#parts + 1] =
-      string.format("%d:%d", slot.onCooldown == true and 1 or 0, math.ceil(tonumber(slot.cooldownRemain) or 0))
-  end
-  return table.concat(parts, "|")
-end
-
-function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capturedAt, hasKick, kickSlots)
+function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capturedAt, hasKick)
   local key = Sync.NormalizePlayerKey(name, realm)
   if not key or key == "" then
     return false
@@ -631,13 +577,6 @@ function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capture
   local newOnCooldown = onCooldown == true
   local newHasKick = hasKick == true
   local numericRemain = tonumber(cooldownRemain)
-  local normalizedSlots = NormalizeKickSlots(kickSlots)
-  if normalizedSlots == false then
-    return false
-  end
-  if normalizedSlots == nil then
-    normalizedSlots = BuildLegacyKickSlots(newOnCooldown, numericRemain or 0, newHasKick)
-  end
   if newHasKick then
     if numericRemain == nil or numericRemain < 0 then
       return false
@@ -645,36 +584,14 @@ function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capture
   elseif newOnCooldown then
     return false
   end
-  if newHasKick ~= true and #normalizedSlots > 0 then
-    return false
-  end
-  if newHasKick == true and #normalizedSlots == 0 then
-    return false
-  end
-  ---@diagnostic disable-next-line: need-check-nil
-  local primarySlot = normalizedSlots[1]
-  if primarySlot then
-    newOnCooldown = primarySlot.onCooldown == true
-    numericRemain = tonumber(primarySlot.cooldownRemain) or 0
-  else
-    newOnCooldown = false
-    numericRemain = 0
-  end
   local prevRemain = tonumber(prev and prev.cooldownRemain) or 0
-  local prevSlotsSignature = KickSlotsSignature(prev and prev.kickSlots or nil)
-  local nextSlotsSignature = KickSlotsSignature(normalizedSlots)
   local remainChanged = newHasKick and newOnCooldown and math.abs(prevRemain - numericRemain) > 0.05
-  local changed = not prev
-    or prev.onCooldown ~= newOnCooldown
-    or prev.hasKick ~= newHasKick
-    or prevSlotsSignature ~= nextSlotsSignature
-    or remainChanged
+  local changed = not prev or prev.onCooldown ~= newOnCooldown or prev.hasKick ~= newHasKick or remainChanged
   local getTime = rawget(_G, "GetTime")
   kickInfoByPlayerKey[key] = {
     hasKick = newHasKick,
     onCooldown = newOnCooldown,
     cooldownRemain = newHasKick and numericRemain or 0,
-    kickSlots = normalizedSlots,
     capturedAt = tonumber(capturedAt) or now,
     receivedAt = now,
     receivedAtGetTime = type(getTime) == "function" and getTime() or nil,
@@ -1024,35 +941,11 @@ function Sync.SendKick(opts)
   elseif onCooldown == true then
     return
   end
-  local normalizedSlots = NormalizeKickSlots(opts.kickSlots)
-  if normalizedSlots == false then
-    return
-  end
-  if normalizedSlots == nil then
-    normalizedSlots = BuildLegacyKickSlots(onCooldown, cooldownRemain, hasKick)
-  end
-  if hasKick == true and #normalizedSlots == 0 then
-    return
-  end
-  if hasKick ~= true and #normalizedSlots > 0 then
-    return
-  end
-  ---@diagnostic disable-next-line: need-check-nil
-  local primarySlot = normalizedSlots[1]
-  if primarySlot then
-    onCooldown = primarySlot.onCooldown == true
-    cooldownRemain = tonumber(primarySlot.cooldownRemain) or 0
-  end
   local encodedHasKick = hasKick == true
   local encodedOnCooldown = encodedHasKick and (onCooldown == true and 1 or 0) or -1
   local remain = encodedHasKick and math.ceil(cooldownRemain) or 0
   local now = GetTime()
-  local payloadParts = { string.format("KICK:%d:%d:%d", encodedOnCooldown, remain, #normalizedSlots) }
-  for _, slot in ipairs(normalizedSlots) do
-    payloadParts[#payloadParts + 1] = tostring(slot.onCooldown == true and 1 or 0)
-    payloadParts[#payloadParts + 1] = tostring(math.ceil(tonumber(slot.cooldownRemain) or 0))
-  end
-  local payload = table.concat(payloadParts, ":")
+  local payload = string.format("KICK:%d:%d", encodedOnCooldown, remain)
   if not opts.force and payload == lastKickPayloadSent and (now - lastIsiLiveKickAt) < 1 then
     return
   end
@@ -1370,53 +1263,13 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     local parts = SplitPayload(message)
     local onCooldownRaw = parts[2]
     local remainRaw = parts[3]
-    local slotCountRaw = parts[4]
-    local slotPayloadValid = true
     if onCooldownRaw ~= nil and remainRaw ~= nil then
       local numericState = tonumber(onCooldownRaw)
       local numericRemain = tonumber(remainRaw)
       if numericState == -1 or numericState == 0 or numericState == 1 then
         if numericRemain ~= nil and numericRemain >= 0 then
           local hasKick = numericState ~= -1
-          local kickSlots = nil
-          if slotCountRaw ~= nil then
-            local slotCount = tonumber(slotCountRaw)
-            if slotCount == nil or slotCount < 0 then
-              slotPayloadValid = false
-            elseif slotCount > 0 then
-              kickSlots = {}
-              local partIndex = 5
-              local parsedSlots = 0
-              while parsedSlots < slotCount do
-                local slotStateRaw = parts[partIndex]
-                local slotRemainRaw = parts[partIndex + 1]
-                if slotStateRaw == nil or slotRemainRaw == nil then
-                  slotPayloadValid = false
-                  break
-                end
-                local slotState = tonumber(slotStateRaw)
-                local slotRemain = tonumber(slotRemainRaw)
-                if (slotState ~= 0 and slotState ~= 1) or slotRemain == nil or slotRemain < 0 then
-                  slotPayloadValid = false
-                  break
-                end
-                kickSlots[#kickSlots + 1] = {
-                  onCooldown = slotState == 1,
-                  cooldownRemain = slotState == 1 and slotRemain or 0,
-                }
-                parsedSlots = parsedSlots + 1
-                partIndex = partIndex + 2
-              end
-              if slotPayloadValid and #kickSlots ~= slotCount then
-                slotPayloadValid = false
-              end
-            else
-              kickSlots = {}
-            end
-          end
-          if slotPayloadValid then
-            kickUpdated = Sync.SetPlayerKickInfo(sender, nil, numericState == 1, numericRemain, nil, hasKick, kickSlots)
-          end
+          kickUpdated = Sync.SetPlayerKickInfo(sender, nil, numericState == 1, numericRemain, nil, hasKick)
         end
       end
     end

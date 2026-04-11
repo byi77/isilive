@@ -66,17 +66,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 43. Der aktuelle Gruppenleiter wird im Roster mit einer 16x16-Krone markiert; bei bekannten isiLive-Nutzern bleibt das blaue Herz zusaetzlich sichtbar und steht vor der Krone.
 44. Alle Center-Meldungen starten mit derselben Portal-Navigator-Basistypografie fuer Body-Text, Schriftgroesse und Standardfarbe.
 45. Beim Login oder UI-Reload wird die Main-UI standardmaessig eingeblendet, ausser im Raidmodus; die Startup-Option kann diesen Auto-Show-Pfad weiterhin abschalten.
-46. Die sichtbaren Layout-Umschaltungen der Main-UI (`M2`, `H`, `V`) duerfen auch im Kampf angefordert werden, ausser im Raidmodus; der Expanded-Modus `M` bleibt implementiert, ist aber in Titelleiste und Settings nicht mehr umschaltbar. Direkte Mutationen an Secure-Kindern bleiben dabei ausgesetzt und werden spaetestens bei `PLAYER_REGEN_ENABLED` ueber den sichtbaren UI-Refresh nachgezogen.
+46. Manuelle Layout-Umschaltungen der Main-UI duerfen auch im Kampf angefordert werden, ausser im Raidmodus; direkte Mutationen an Secure-Kindern bleiben dabei ausgesetzt und werden spaetestens bei `PLAYER_REGEN_ENABLED` ueber den sichtbaren UI-Refresh nachgezogen.
 47. Die ESC-Panel-Overlays muessen im Kampf als bereits gemountete `GameMenuFrame`-Kinder sichtbar bleiben; waehrend Kampf-Lockdown sind an ihnen keine Show/Hide- oder Layout-Mutationen erlaubt, unsichere Shortcuts bleiben sichtbar, duerfen ihre Aktion aber erst ausserhalb des Kampfes ausfuehren.
 48. Der isiLive-Last-Run-Sync transportiert nur den belastbar verifizierten `DPS`-Wert eines Snapshots; das Roster nutzt `syncDps` nur als Fallback, wenn lokal kein Last-Run-DPS vorliegt.
 49. Der Kick-Tracker bildet den aktuell verfuegbaren Interrupt der aktuellen Spezialisierung ab; Holy Paladin nutzt `Rebuke`, Devourer Demon Hunter nutzt `Disrupt`, und verfuegbare pet-basierte Warlock-Interrupts zaehlen als eigener Kick.
-50. Die Kicks-Spalte zeigt fuer den lokalen Spieler und fuer isiLive-Gruppenmitglieder den aktuellen Kick-Status slotbasiert an; verifizierte Kick-Slots erscheinen als gruene Punkte, Cooldown-Slots als rote Punkte mit Restsekunden, `-` steht fuer keinen verfuegbaren Kick oder fehlenden isiLive-Sync, und aktive Kick-Statusaenderungen werden spaetestens einmal pro Sekunde synchronisiert.
+50. Die Kicks-Spalte zeigt fuer den lokalen Spieler und fuer isiLive-Gruppenmitglieder den aktuellen Kick-Status an; `ready` ist gruen, laufende Cooldowns zeigen rote Restsekunden, `-` steht fuer keinen verfuegbaren Kick oder fehlenden isiLive-Sync, und aktive Kick-Statusaenderungen werden spaetestens einmal pro Sekunde synchronisiert.
 51. Bei ausgeblendeter UI bleibt der komplette isiLive-Gruppensync aktiv; nur nicht-sync-bezogenes Polling wie Queue-Scanning bleibt deaktiviert. Im Raid ist diese Hintergrundverarbeitung komplett aus.
 52. Hidden-Clients senden weiterhin alle gruppenrelevanten isiLive-Sync-Buckets einschliesslich `KEY`, `STATS`, `DPS`, `LOC`, `TARGET` und `KICK`; sichtbarkeitsabhängige Unterdrückung ist nur ohne explizite Hidden-Freigabe erlaubt. Im Raid ist das deaktiviert.
 53. Der Share-Keys-Button ist 30 Sekunden gegen Spam gesperrt; die Sperre gilt lokal nach eigenem Klick und wird auf allen anderen isiLive-Clients ausgeloest, sobald ein eingehender SHAREKEYS-Sync empfangen wird. Ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt.
 54. Wenn fuer eine Runtime-Aufloesung keine eindeutige, belastbare Quelle vorliegt, muss das Ergebnis unresolved bleiben; fehlende oder mehrdeutige Laufzeitdaten duerfen nicht durch spekulative Fallbacks, Namens-/Token-Raten, heuristische Standardwerte oder synthetische Zustaende ersetzt werden.
-55. Die Kick-Erweiterung bleibt vollstaendig live-datengetrieben; neue Interrupt-Faelle, Pet-Abdeckung und Failed-Kick-Signale duerfen nur innerhalb der vorhandenen Kick-Vertragsbasis und nur mit expliziten Regeln sowie deterministischen Tests eingefuehrt werden.
-56. Der Kick-Tracker soll pro Unit ein deterministisches Multi-Slot-Modell fuer Kick-Quellen fuehren; jede belastbar aufgeloeste Kick-Quelle wird als eigener Slot dargestellt, mehrere verfuegbare Kicks zeigen mehrere grune Punkte, ein Slot auf Cooldown zeigt rot, und ein ready-Text-Fallback wird fuer diese Ansicht nicht mehr verwendet.
 
 ## Regelbloecke
 
@@ -232,7 +230,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Sync ProcessAddonMessage handles HELLO, REQSYNC, and KEY payloads
   - Sync ProcessAddonMessage handles LibKeystone requests and payloads
   - Sync ProcessAddonMessage keeps richer isiLive stats when LibKeystone only refreshes rio
-  - Sync ProcessAddonMessage parses KICK payloads with slot lists
+  - Sync ProcessAddonMessage parses KICK payloads with no-interrupt state
   - Sync ProcessAddonMessage parses TARGET payload and stores it
   - Sync SetPlayerKeyInfo deduplicates identical key updates
   - KeySync ApplyKnownKeyToRosterEntry preserves synced no-interrupt state
@@ -478,11 +476,6 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Units GetUnitRole returns NONE for non-existing unit
   - Units GetUnitNameAndRealm returns nil for non-existing unit
-  - Highlight current map resolver skips player map lookup when player unit is missing
-  - Factory target-dungeon entry check skips player map lookup when player unit is missing
-  - Factory kick sync cache uses cached player identity when player unit is missing
-  - Event handlers tracked M0 map lookup skips player map lookup when player unit is missing
-  - KeySync owned location lookup skips player map lookup when player unit is missing
 
 ### RULE-MAIN-UI-AUTO-CLOSE-OPTION
 - Regelnummer: 42
@@ -525,13 +518,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-MAIN-UI-LAYOUT-SWITCH-IN-COMBAT
 - Regelnummer: 46
 - Status: aktiv
-- Zusammenfassung: Ein manueller Klick auf einen sichtbaren Layout-Button (`M2`, `H`, `V`) muss den gewuenschten `layoutMode` auch waehrend Kampf-Lockdown sofort uebernehmen duerfen, ausser im Raidmodus. Der Expanded-Modus `M` bleibt intern implementiert, ist aber ueber Titelleiste und Settings nicht mehr user-seitig umschaltbar; alte persistierte `expanded`-Defaults muessen auf einen sichtbaren Layoutwert normalisiert werden. Direkte Show/Hide- oder Layout-Mutationen an Secure-Kindern bleiben im Kampf weiterhin unterbunden; sobald `PLAYER_REGEN_ENABLED` eintritt und die Main-UI sichtbar ist, muss genau ein normaler UI-Refresh laufen, damit die sichtbaren Secure-Kinder den bereits gesetzten `layoutMode` deterministisch nachziehen.
+- Zusammenfassung: Ein manueller Klick auf einen Layout-Button (`M2`, `H`, `V`, `M`) muss den gewuenschten `layoutMode` auch waehrend Kampf-Lockdown sofort uebernehmen duerfen, ausser im Raidmodus. Direkte Show/Hide- oder Layout-Mutationen an Secure-Kindern bleiben im Kampf weiterhin unterbunden; sobald `PLAYER_REGEN_ENABLED` eintritt und die Main-UI sichtbar ist, muss genau ein normaler UI-Refresh laufen, damit die sichtbaren Secure-Kinder den bereits gesetzten `layoutMode` deterministisch nachziehen.
 - Erforderliche Tests:
   - TAINT: Collapse click switches layout during combat while secure roster buttons exist
   - TAINT: Horizontal collapse click switches layout during combat while secure roster buttons exist
   - Event handlers rerender visible UI on regen after combat-safe layout changes
-  - Horizontal mini mode arranges management buttons and helper icons in slim rows
-  - Settings panel normalizes persisted expanded default layout to M2
 
 ### RULE-ESC-PANEL-COMBAT-MOUNT
 - Regelnummer: 47
@@ -567,21 +558,17 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-KICK-UI-UND-SYNC
 - Regelnummer: 50
 - Status: aktiv
-- Zusammenfassung: Die Kicks-Spalte zeigt fuer den lokalen Spieler und fuer isiLive-Gruppenmitglieder den aktuellen Kick-Status slotbasiert an: verifizierte Kick-Slots erscheinen als gruene Kreise, laufende Cooldowns als rote Kreise mit Restsekunden, und ohne verfuegbaren Kick oder ohne isiLive-Sync erscheint ein grauer Kreis. Kick-Statusaenderungen und aktive Cooldowns muessen spaetestens einmal pro Sekunde an isiLive-Gruppenmitglieder synchronisiert werden; wenn ein Kick-Paket verloren geht, muss der periodische Sync wieder auf den exakten Slot-Zustand konvergieren. Ein laufender Kick-Cooldown darf nur aus beobachtetem Cast oder aus exakten Blizzard-Cooldown-Daten abgeleitet werden; ohne belastbare Live-Daten darf kein Cooldown geraten werden. Malformed KICK-Payloads werden fail-closed verworfen und duerfen keinen synthetischen Kick-Zustand erzeugen. Nach Raid-Hard-off bleibt der Kick-Status unresolved und ungesendet, bis exakte Blizzard-Cooldown-Daten, ein danach neu beobachteter Kick-Cast oder ein danach exakt aufgeloester `kein Kick verfuegbar`-Zustand ihn wieder belastbar belegen; beliebige andere Casts duerfen diese Suppression nicht aufheben. `kein Kick verfuegbar` und `unresolved` sind getrennte Zustaende; ein `spellID == nil` darf nur dann als exakter No-Kick-Zustand synchronisiert werden, wenn die Kick-Verfuegbarkeit selbst eindeutig aufgeloest wurde. Nach `ClearKnownUsers()` darf ein identischer lokaler Kick-Status beim naechsten Sendeversuch nicht von altem Dedup- oder Cooldown-Zustand unterdrueckt werden.
+- Zusammenfassung: Die Kicks-Spalte zeigt fuer den lokalen Spieler und fuer isiLive-Gruppenmitglieder den aktuellen Kick-Status an: benutzbar ergibt `ready` in Gruen, laufender Cooldown ergibt rote Restsekunden, und ohne verfuegbaren Kick oder ohne isiLive-Sync bleibt `-`. Kick-Statusaenderungen und aktive Cooldowns muessen spaetestens einmal pro Sekunde an isiLive-Gruppenmitglieder synchronisiert werden; wenn ein `ready`-Paket verloren geht, muss der periodische Sync wieder auf `ready` konvergieren. Ein laufender Kick-Cooldown darf nur aus beobachtetem Cast oder aus exakten Blizzard-Cooldown-Daten abgeleitet werden; ohne belastbare Live-Daten darf kein Cooldown geraten werden. Malformed KICK-Payloads werden fail-closed verworfen und duerfen keinen synthetischen Kick-Zustand erzeugen. Nach Raid-Hard-off bleibt der Kick-Status unresolved und ungesendet, bis exakte Blizzard-Cooldown-Daten, ein danach neu beobachteter Kick-Cast oder ein danach exakt aufgeloester `kein Kick verfuegbar`-Zustand ihn wieder belastbar belegen; beliebige andere Casts duerfen diese Suppression nicht aufheben. `kein Kick verfuegbar` und `unresolved` sind getrennte Zustaende; ein `spellID == nil` darf nur dann als exakter No-Kick-Zustand synchronisiert werden, wenn die Kick-Verfuegbarkeit selbst eindeutig aufgeloest wurde. Nach `ClearKnownUsers()` darf ein identischer lokaler Kick-Status beim naechsten Sendeversuch nicht von altem Dedup- oder Cooldown-Zustand unterdrueckt werden.
 - Erforderliche Tests:
   - Architecture kick tracker uses lightweight kick-column refresh hooks
-  - KickTracker exposes resolved kick slots for ready state
   - KickTracker tracks pet-based Warlock interrupt cooldown from pet casts
   - KickTracker reconstructs active cooldown from Blizzard cooldown data without guessing
   - KickTracker keeps observed active cooldown when Blizzard cooldown fields are unreadable
   - Sync SendKick encodes no-interrupt state and deduplicates payloads
-  - Sync SendKick encodes kick slot lists when multiple slots are provided
   - Sync SendKick rejects malformed kick payload inputs without guessing
   - Sync ClearKnownUsers resets kick send cooldowns so next identical payload fires immediately
   - Sync ProcessAddonMessage reports kick updates when remaining cooldown changes
-  - Sync ProcessAddonMessage parses KICK payloads with slot lists
   - Sync ProcessAddonMessage rejects malformed KICK payloads without inventing a state
-  - KeySync ApplyKnownKeyToRosterEntry applies sync kick slot lists
   - Event handlers answer refresh requests while frame is hidden
   - Factory explicit kick sync reply uses recovered cooldown state instead of stale ready state
   - Factory post-raid kick reply stays unresolved until exact recovery succeeds
@@ -589,7 +576,6 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Factory post-raid unresolved kick availability does not invent a no-kick state
   - Factory post-raid kick recovery emits exactly one sync after exact cooldown change
   - Factory post-raid unrelated cast keeps kick state unresolved until the tracked kick is observed
-  - Roster panel renders kick slots as colored points
 
 ### RULE-UI-HIDDEN-VOLLER-GRUPPENSYNC
 - Regelnummer: 51
@@ -638,24 +624,3 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Teleport does not resolve by dungeon name without activityID
   - Teleport keeps activity unresolved when mapID is missing and retries unresolved lookups
   - Teleport short-code resolver keeps unknown maps unresolved instead of showing map ids
-
-### RULE-KICKTRACKER-ERWEITERTE-ABDECKUNG
-- Regelnummer: 55
-- Status: aktiv
-- Zusammenfassung: Die Kick-Erweiterung bleibt vollstaendig live-datengetrieben; neue Interrupt-Faelle, Pet-Abdeckung und Failed-Kick-Signale duerfen nur innerhalb der vorhandenen Kick-Vertragsbasis und nur mit expliziten Regeln sowie deterministischen Tests eingefuehrt werden.
-- Erforderliche Tests:
-  - KickTracker resolves Warlock pet-based Spell Lock for Affliction and Destruction
-  - KickTracker resolves Demonology Warlock pet interrupt when available
-  - KickTracker tracks pet-based Warlock interrupt cooldown from pet casts
-  - KickTracker records failed kick signals from combat-log miss events
-  - KickTracker reconstructs active cooldown from Blizzard cooldown data without guessing
-  - KickTracker keeps observed active cooldown when Blizzard cooldown fields are unreadable
-  - Sync SendKick encodes no-interrupt state and deduplicates payloads
-  - Sync ProcessAddonMessage parses KICK payloads with slot lists
-  - Factory kick tracker refreshes kick state on pet changes
-
-### RULE-KICKTRACKER-MULTISLOT-ENTWURF
-- Regelnummer: 56
-- Status: entwurf
-- Zusammenfassung: Der Kick-Tracker soll pro Unit ein deterministisches Multi-Slot-Modell fuer Kick-Quellen fuehren; jede belastbar aufgeloeste Kick-Quelle wird als eigener Slot dargestellt, mehrere verfuegbare Kicks zeigen mehrere grune Punkte, ein Slot auf Cooldown zeigt rot, und ein ready-Text-Fallback wird fuer diese Ansicht nicht mehr verwendet.
-- Erforderliche Tests:

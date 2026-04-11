@@ -21,17 +21,6 @@ local TRACKED_NON_CHALLENGE_PARTY_DIFFICULTY_IDS = {
 }
 local NON_CHALLENGE_RUN_CAPTURE_RETRIES = 5
 local NON_CHALLENGE_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
-
-local function IsExistingPlayerUnit()
-  local unitExists = rawget(_G, "UnitExists")
-  if type(unitExists) ~= "function" then
-    return false
-  end
-
-  local ok, exists = pcall(unitExists, "player")
-  return ok and exists == true
-end
-
 local function ResolveTrackedMythicZeroMapID()
   local okInstance, _, _, _, _, _, _, rawInstanceMapID = pcall(GetInstanceInfo)
   local instanceMapID = okInstance and tonumber(rawInstanceMapID) or nil
@@ -39,13 +28,9 @@ local function ResolveTrackedMythicZeroMapID()
     return math.floor(instanceMapID)
   end
 
-  if not IsExistingPlayerUnit() then
-    return nil
-  end
-
   local mapApi = rawget(_G, "C_Map")
   local getBestMapForUnit = mapApi and rawget(mapApi, "GetBestMapForUnit") or nil
-  if type(getBestMapForUnit) ~= "function" then
+  if type(getBestMapForUnit) ~= "function" or type(UnitExists) ~= "function" or not UnitExists("player") then
     return nil
   end
 
@@ -336,51 +321,6 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       mainFrame:ClearAllPoints()
       mainFrame:SetPoint(pos.point, UIParent, pos.relativePoint, pos.x, pos.y)
     end
-    -- Restore UI scale and background opacity from SavedVariables.
-    -- This must happen here (ADDON_LOADED) because IsiLiveDB is nil at file-load time.
-    -- On first ever load (flag absent), write the default once so subsequent sessions
-    -- preserve whatever the user has changed it to.
-    if IsiLiveDB.bgAlphaInitialized ~= true then
-      IsiLiveDB.bgAlpha = addonTable.UICommon and addonTable.UICommon.DEFAULT_BG_ALPHA or 0.50
-      IsiLiveDB.bgAlphaInitialized = true
-    end
-    if IsiLiveDB.uiScaleInitialized ~= true then
-      IsiLiveDB.uiScale = 1.0
-      IsiLiveDB.uiScaleInitialized = true
-    end
-    if mainFrame then
-      if type(IsiLiveDB.uiScale) == "number" and type(mainFrame.SetScale) == "function" then
-        mainFrame:SetScale(IsiLiveDB.uiScale)
-      end
-      if type(IsiLiveDB.bgAlpha) == "number" then
-        if type(mainFrame.SetBackdropColor) == "function" then
-          mainFrame:SetBackdropColor(0, 0, 0, IsiLiveDB.bgAlpha)
-        end
-        local uiCommon = addonTable.UICommon
-        if
-          type(uiCommon) == "table"
-          and type(uiCommon.Colors) == "table"
-          and type(uiCommon.Colors.BG_PRIMARY) == "table"
-        then
-          uiCommon.Colors.BG_PRIMARY[4] = IsiLiveDB.bgAlpha
-        end
-        if ctx.panelUI and ctx.panelUI.panelFrame and type(ctx.panelUI.panelFrame.SetBackdropColor) == "function" then
-          local bg = uiCommon and uiCommon.Colors and uiCommon.Colors.BG_PRIMARY
-            or { 0.08, 0.08, 0.12, IsiLiveDB.bgAlpha }
-          ctx.panelUI.panelFrame:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
-        end
-        if
-          ctx.settingsPanel
-          and ctx.settingsPanel.canvas
-          and type(ctx.settingsPanel.canvas.SetBackdropColor) == "function"
-        then
-          local bg = uiCommon and uiCommon.Colors and uiCommon.Colors.BG_PRIMARY
-            or { 0.08, 0.08, 0.12, IsiLiveDB.bgAlpha }
-          ctx.settingsPanel.canvas:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
-        end
-      end
-    end
-
     RegisterSyncPrefixAndBindings(ctx)
     ctx.applyLocalizationToUI()
     ctx.restoreLayoutState()
@@ -436,9 +376,6 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   local function HandlePlayerRegenEnabledEvent(_self)
     if ctx.getPendingBindingApply() then
       ctx.applyHotkeyBindings()
-    end
-    if type(ctx.CacheKickCooldown) == "function" then
-      ctx.CacheKickCooldown()
     end
     local pendingVisible = ctx.getPendingMainFrameVisible and ctx.getPendingMainFrameVisible()
     if pendingVisible ~= nil then
@@ -498,15 +435,6 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       return
     end
     ctx.sendOwnBackgroundSnapshot("player-state")
-    if type(ctx.RefreshKickState) == "function" then
-      ctx.RefreshKickState()
-    end
-  end
-
-  local function HandleSpellsChangedEvent(_self)
-    if type(ctx.RefreshKickState) == "function" then
-      ctx.RefreshKickState()
-    end
   end
 
   local function HandlePlayerEquipmentChangedEvent(_self)
@@ -584,55 +512,6 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       return
     end
     ctx.updateMPlusTeleportButton()
-    if type(ctx.CacheKickCooldown) == "function" then
-      ctx.CacheKickCooldown()
-    end
-  end
-
-  local function HandleUnitSpellcastSucceededEvent(_self, unit, _, spellID)
-    if IsRaidModeActive(ctx) then
-      return
-    end
-    if type(ctx.HandleKickCastSucceeded) == "function" then
-      ctx.HandleKickCastSucceeded(unit, spellID)
-    end
-  end
-
-  local function HandleUnitPetEvent(_self, unit)
-    if unit ~= "player" then
-      return
-    end
-    if IsRaidModeActive(ctx) then
-      return
-    end
-    if type(ctx.HandleKickPetChanged) == "function" then
-      ctx.HandleKickPetChanged(unit)
-    end
-  end
-
-  local function HandleCombatLogEvent(_self)
-    if IsRaidModeActive(ctx) then
-      return
-    end
-    if not ctx.kickTrackerController or type(ctx.kickTrackerController.OnCombatLogEvent) ~= "function" then
-      return
-    end
-
-    local getCombatLogEventInfo = type(ctx.getCombatLogEventInfo) == "function" and ctx.getCombatLogEventInfo
-      or rawget(_G, "CombatLogGetCurrentEventInfo")
-    if type(getCombatLogEventInfo) ~= "function" then
-      return
-    end
-
-    local timestamp, subevent, _, sourceGUID, _, _, _, _, _, _, _, spellID, _, _, missType = getCombatLogEventInfo()
-    if subevent ~= "SPELL_MISSED" and subevent ~= "SPELL_CAST_FAILED" then
-      return
-    end
-
-    ctx.kickTrackerController.OnCombatLogEvent(timestamp, subevent, sourceGUID, spellID, missType)
-    if type(ctx.recordKickCombatLogEvent) == "function" then
-      ctx.recordKickCombatLogEvent(timestamp, subevent, sourceGUID, spellID, missType)
-    end
   end
 
   local function HandleSpellUpdateChargesEvent(_self)
@@ -665,10 +544,6 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ZONE_CHANGED_INDOORS = HandleInstanceContextChangedEvent,
     ZONE_CHANGED_NEW_AREA = HandleInstanceContextChangedEvent,
     UPDATE_INSTANCE_INFO = HandleInstanceContextChangedEvent,
-    SPELLS_CHANGED = HandleSpellsChangedEvent,
-    UNIT_SPELLCAST_SUCCEEDED = HandleUnitSpellcastSucceededEvent,
-    UNIT_PET = HandleUnitPetEvent,
-    COMBAT_LOG_EVENT_UNFILTERED = HandleCombatLogEvent,
     BAG_UPDATE_DELAYED = HandleOwnedKeyContextEvent,
     CHALLENGE_MODE_MAPS_UPDATE = HandleOwnedKeyContextEvent,
     PLAYER_EQUIPMENT_CHANGED = HandlePlayerEquipmentChangedEvent,

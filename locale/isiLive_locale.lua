@@ -13,6 +13,7 @@ local LANGUAGE_FLAG_TEXTURE_BY_TAG = {
   IT = "Interface\\AddOns\\isiLive\\media\\flags\\it",
   PT = "Interface\\AddOns\\isiLive\\media\\flags\\pt",
   RU = "Interface\\AddOns\\isiLive\\media\\flags\\ru",
+  TR = "Interface\\AddOns\\isiLive\\media\\flags\\tr",
 }
 
 local LANGUAGE_NAME_BY_LOCALE = {
@@ -26,6 +27,7 @@ local LANGUAGE_NAME_BY_LOCALE = {
     KR = "Korean",
     PT = "Portuguese",
     RU = "Russian",
+    TR = "Turkish",
     TW = "Taiwanese",
   },
   deDE = {
@@ -38,6 +40,7 @@ local LANGUAGE_NAME_BY_LOCALE = {
     KR = "Koreanisch",
     PT = "Portugiesisch",
     RU = "Russisch",
+    TR = "Türkisch",
     TW = "Taiwanesisch",
   },
   frFR = {
@@ -50,6 +53,7 @@ local LANGUAGE_NAME_BY_LOCALE = {
     KR = "Coréen",
     PT = "Portugais",
     RU = "Russe",
+    TR = "Turc",
     TW = "Taïwanais",
   },
   esES = {
@@ -62,6 +66,7 @@ local LANGUAGE_NAME_BY_LOCALE = {
     KR = "Coreano",
     PT = "Portugués",
     RU = "Ruso",
+    TR = "Turco",
     TW = "Taiwanés",
   },
   ptBR = {
@@ -74,7 +79,47 @@ local LANGUAGE_NAME_BY_LOCALE = {
     KR = "Coreano",
     PT = "Português",
     RU = "Russo",
+    TR = "Turco",
     TW = "Taiwanês",
+  },
+  itIT = {
+    CN = "Cinese",
+    DE = "Tedesco",
+    EN = "Inglese",
+    ES = "Spagnolo",
+    FR = "Francese",
+    IT = "Italiano",
+    KR = "Coreano",
+    PT = "Portoghese",
+    RU = "Russo",
+    TR = "Turco",
+    TW = "Taiwanese",
+  },
+  ruRU = {
+    CN = "Китайский",
+    DE = "Немецкий",
+    EN = "Английский",
+    ES = "Испанский",
+    FR = "Французский",
+    IT = "Итальянский",
+    KR = "Корейский",
+    PT = "Португальский",
+    RU = "Русский",
+    TR = "Турецкий",
+    TW = "Тайваньский",
+  },
+  trTR = {
+    CN = "Çince",
+    DE = "Almanca",
+    EN = "İngilizce",
+    ES = "İspanyolca",
+    FR = "Fransızca",
+    IT = "İtalyanca",
+    KR = "Korece",
+    PT = "Portekizce",
+    RU = "Rusça",
+    TR = "Türkçe",
+    TW = "Tayvan Çincesi",
   },
 }
 
@@ -105,6 +150,9 @@ function Locale.LocaleToLanguageTag(localeTag)
   if normalized == "itit" then
     return "IT"
   end
+  if normalized == "trtr" then
+    return "TR"
+  end
   if normalized == "ptbr" or normalized == "ptpt" then
     return "PT"
   end
@@ -120,6 +168,11 @@ function Locale.LocaleToLanguageTag(localeTag)
     return "TW"
   end
   return "??"
+end
+
+function Locale.GetLanguageFlagTexturePath(languageTag)
+  local tag = languageTag and tostring(languageTag):upper() or "??"
+  return LANGUAGE_FLAG_TEXTURE_BY_TAG[tag]
 end
 
 function Locale.GetLanguageFlagMarkup(languageTag)

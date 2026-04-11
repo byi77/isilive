@@ -88,11 +88,7 @@ local EVENT_REGISTRY = {
   { "CHALLENGE_MODE_MAPS_UPDATE", false, true, false },
   { "PLAYER_EQUIPMENT_CHANGED", false, true, false },
   { "PLAYER_SPECIALIZATION_CHANGED", false, true, false },
-  { "SPELLS_CHANGED", false, true, false },
   { "SPELL_UPDATE_COOLDOWN", false, false, false },
-  { "UNIT_SPELLCAST_SUCCEEDED", true, true, false, { "player", "pet" } },
-  { "UNIT_PET", true, true, false, "player" },
-  { "COMBAT_LOG_EVENT_UNFILTERED", true, true, false },
   { "SPELL_UPDATE_CHARGES", true, false, false },
   { "UNIT_AURA", true, false, false, "player" },
   { "READY_CHECK", true, false, false },
@@ -164,19 +160,19 @@ function Bootstrap.CreateGatedOnEvent(opts)
   })
 end
 
-function Bootstrap.RegisterMainFrameEvents(mainFrame)
-  assert(mainFrame, "isiLive: Bootstrap.RegisterMainFrameEvents requires mainFrame")
+function Bootstrap.RegisterDispatcherEvents(eventFrame)
+  assert(eventFrame, "isiLive: Bootstrap.RegisterDispatcherEvents requires eventFrame")
 
   for _, entry in ipairs(EVENT_REGISTRY) do
     local unitFilter = entry[5]
-    if unitFilter and type(mainFrame.RegisterUnitEvent) == "function" then
+    if unitFilter and type(eventFrame.RegisterUnitEvent) == "function" then
       if type(unitFilter) == "table" then
-        mainFrame:RegisterUnitEvent(entry[1], unpack(unitFilter))
+        eventFrame:RegisterUnitEvent(entry[1], unpack(unitFilter))
       else
-        mainFrame:RegisterUnitEvent(entry[1], unitFilter)
+        eventFrame:RegisterUnitEvent(entry[1], unitFilter)
       end
-    elseif type(mainFrame.RegisterEvent) == "function" then
-      mainFrame:RegisterEvent(entry[1])
+    elseif type(eventFrame.RegisterEvent) == "function" then
+      eventFrame:RegisterEvent(entry[1])
     end
   end
 end

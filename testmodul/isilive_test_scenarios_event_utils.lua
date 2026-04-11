@@ -268,7 +268,7 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
       end,
     }
 
-    addon.Bootstrap.RegisterMainFrameEvents(frame)
+    addon.Bootstrap.RegisterDispatcherEvents(frame)
 
     Assert.True(frame:IsEventRegistered("READY_CHECK"), "READY_CHECK must be registered")
     Assert.True(frame:IsEventRegistered("READY_CHECK_CONFIRM"), "READY_CHECK_CONFIRM must be registered")

@@ -501,7 +501,6 @@ local function BuildEventHandlersDepsFromContext(ctx)
     HandleKickPetChanged = ctx.HandleKickPetChanged,
     RefreshKickState = ctx.RefreshKickState,
     CacheKickCooldown = ctx.CacheKickCooldown,
-    recordKickCombatLogEvent = ctx.RecordKickCombatLogEvent,
     getTime = ctx.getTime,
     recordRun = ctx.recordRun,
     applyKnownKeyToRosterEntry = ctx.applyKnownKeyToRosterEntry,

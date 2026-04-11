@@ -1,5 +1,9 @@
----@diagnostic disable: undefined-global, need-check-nil, undefined-field
-local function RegisterKickTrackerCoreTests(test, Assert, WithGlobals, LoadAddonModules)
+---@diagnostic disable: undefined-global
+return function(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
+
   test("KickTracker resolves Holy Paladin to Rebuke", function()
     local controller = nil
     WithGlobals({
@@ -25,37 +29,6 @@ local function RegisterKickTrackerCoreTests(test, Assert, WithGlobals, LoadAddon
     Assert.NotNil(info, "kick info must exist for Holy Paladin")
     Assert.Equal(info.spellID, 96231, "Holy Paladin must map to Rebuke")
     Assert.False(info.onCooldown, "fresh Holy Paladin interrupt must start ready")
-    Assert.NotNil(info.kickSlots, "Holy Paladin kick info must expose a slot list")
-    Assert.Equal(#info.kickSlots, 1, "Holy Paladin kick info must expose one resolved slot")
-    Assert.False(info.kickSlots[1].onCooldown, "Holy Paladin kick slot must start ready")
-  end)
-
-  test("KickTracker exposes resolved kick slots for ready state", function()
-    local controller = nil
-    WithGlobals({
-      GetSpecialization = function()
-        return 1
-      end,
-      GetSpecializationInfo = function(index)
-        if index == 1 then
-          return 65
-        end
-        return nil
-      end,
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_kick_tracker.lua" })
-      controller = addon.KickTracker.CreateController({
-        getTime = function()
-          return 100
-        end,
-      })
-    end)
-
-    local info = controller.GetKickInfo()
-    Assert.NotNil(info.kickSlots, "ready kick state must expose kick slots")
-    Assert.Equal(#info.kickSlots, 1, "ready kick state must expose exactly one slot for the current interrupt")
-    Assert.False(info.kickSlots[1].onCooldown, "ready kick slot must be marked as available")
-    Assert.Equal(info.kickSlots[1].cooldownRemain, 0, "ready kick slot must report zero remaining cooldown")
   end)
 
   test("KickTracker resolves Warlock pet-based Spell Lock for Affliction and Destruction", function()
@@ -247,51 +220,6 @@ local function RegisterKickTrackerCoreTests(test, Assert, WithGlobals, LoadAddon
     end)
   end)
 
-  test("KickTracker records failed kick signals from combat-log miss events", function()
-    local now = 100
-    local controller = nil
-    WithGlobals({
-      GetSpecialization = function()
-        return 1
-      end,
-      GetSpecializationInfo = function(index)
-        if index == 1 then
-          return 65
-        end
-        return nil
-      end,
-      UnitGUID = function(unit)
-        if unit == "player" then
-          return "Player-123"
-        end
-        return nil
-      end,
-      GetSpellBaseCooldown = function(spellID)
-        if spellID == 96231 then
-          return 15000
-        end
-        return 0
-      end,
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_kick_tracker.lua" })
-      controller = addon.KickTracker.CreateController({
-        getTime = function()
-          return now
-        end,
-      })
-      controller.OnCast("player", 96231)
-      local recorded = controller.OnCombatLogEvent(now + 0.25, "SPELL_MISSED", "Player-123", 96231, "IMMUNE")
-      Assert.True(recorded, "matching combat-log miss events must record a failed kick signal")
-    end)
-
-    local info = controller.GetKickInfo()
-    Assert.NotNil(info.lastFailedKickAt, "failed kick signals must store the event timestamp")
-    Assert.Equal(info.lastFailedKickSpellID, 96231, "failed kick signals must keep the tracked interrupt spellID")
-    Assert.Equal(info.lastFailedKickMissType, "IMMUNE", "failed kick signals must preserve the combat-log miss type")
-    Assert.True(info.onCooldown, "failed kick signals must not clear the tracked interrupt cooldown")
-    Assert.Equal(info.cooldownRemain, 15, "failed kick signals must not alter the observed cooldown remain")
-  end)
-
   test("KickTracker resolves Devourer Demon Hunter to Disrupt", function()
     local controller = nil
     WithGlobals({
@@ -318,9 +246,7 @@ local function RegisterKickTrackerCoreTests(test, Assert, WithGlobals, LoadAddon
     Assert.Equal(info.spellID, 183752, "Devourer Demon Hunter must map to Disrupt")
     Assert.False(info.onCooldown, "fresh Devourer interrupt must start ready")
   end)
-end
 
-local function RegisterKickTrackerCooldownStateTests(test, Assert, WithGlobals, LoadAddonModules)
   test("KickTracker reconstructs active cooldown from Blizzard cooldown data without guessing", function()
     local now = 100
     local controller = nil
@@ -439,9 +365,4 @@ local function RegisterKickTrackerCooldownStateTests(test, Assert, WithGlobals, 
       "unreadable cooldown payloads must preserve the observed cooldown remain instead of guessing ready"
     )
   end)
-end
-
-return function(test, ctx)
-  RegisterKickTrackerCoreTests(test, ctx.assert, ctx.with_globals, ctx.load_modules)
-  RegisterKickTrackerCooldownStateTests(test, ctx.assert, ctx.with_globals, ctx.load_modules)
 end

@@ -107,7 +107,7 @@ local REQUIRED_FUNCTIONS = {
   },
   { path = { "Bootstrap", "RegisterSlashCommands" }, message = "isiLive: Bootstrap.RegisterSlashCommands missing" },
   { path = { "Bootstrap", "CreateGatedOnEvent" }, message = "isiLive: Bootstrap.CreateGatedOnEvent missing" },
-  { path = { "Bootstrap", "RegisterMainFrameEvents" }, message = "isiLive: Bootstrap.RegisterMainFrameEvents missing" },
+  { path = { "Bootstrap", "RegisterDispatcherEvents" }, message = "isiLive: Bootstrap.RegisterDispatcherEvents missing" },
   { path = { "Bootstrap", "BindMainFrameScripts" }, message = "isiLive: Bootstrap.BindMainFrameScripts missing" },
   {
     path = { "ControllerWiring", "CreateGroupController" },

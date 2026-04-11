@@ -113,25 +113,12 @@ local function SendLibKeystonePartyData(sync, getUnitRio, force)
   })
 end
 
-local function IsExistingPlayerUnit()
-  local unitExists = rawget(_G, "UnitExists")
-  if type(unitExists) ~= "function" then
-    return false
-  end
-
-  local ok, exists = pcall(unitExists, "player")
-  return ok and exists == true
-end
-
 local function GetOwnedLocMapID()
   if not GetInstanceInfo then
     return nil
   end
   local ok, _, instanceType = pcall(GetInstanceInfo)
   if not ok or instanceType ~= "party" then
-    return nil
-  end
-  if not IsExistingPlayerUnit() then
     return nil
   end
   local mapApi = rawget(_G, "C_Map")
@@ -253,21 +240,6 @@ local function CanBackfillPendingInspectValue(info, currentValue)
   return currentValue == nil
 end
 
-local function KickSlotsSignature(kickSlots)
-  if type(kickSlots) ~= "table" then
-    return ""
-  end
-
-  local parts = {}
-  for _, slot in ipairs(kickSlots) do
-    if type(slot) == "table" then
-      parts[#parts + 1] =
-        string.format("%d:%d", slot.onCooldown == true and 1 or 0, math.ceil(tonumber(slot.cooldownRemain) or 0))
-    end
-  end
-  return table.concat(parts, "|")
-end
-
 local function ApplyKnownKeyToRosterEntry(sync, info)
   if type(info) ~= "table" then
     return false
@@ -340,16 +312,10 @@ local function ApplyKnownKeyToRosterEntry(sync, info)
   if type(kickInfo) == "table" then
     local hasKick = kickInfo.hasKick ~= false
     if not hasKick then
-      if
-        info.syncHasKick ~= false
-        or info.syncKickOnCooldown ~= nil
-        or info.syncKickRemain ~= nil
-        or info.syncKickSlots ~= nil
-      then
+      if info.syncHasKick ~= false or info.syncKickOnCooldown ~= nil or info.syncKickRemain ~= nil then
         info.syncHasKick = false
         info.syncKickOnCooldown = nil
         info.syncKickRemain = nil
-        info.syncKickSlots = nil
         changed = true
       end
     else
@@ -365,25 +331,17 @@ local function ApplyKnownKeyToRosterEntry(sync, info)
         info.syncHasKick ~= true
         or info.syncKickOnCooldown ~= kickInfo.onCooldown
         or math.abs((info.syncKickRemain or 0) - interpolatedRemain) > 0.05
-        or KickSlotsSignature(info.syncKickSlots) ~= KickSlotsSignature(kickInfo.kickSlots)
       then
         info.syncHasKick = true
         info.syncKickOnCooldown = kickInfo.onCooldown
         info.syncKickRemain = interpolatedRemain
-        info.syncKickSlots = kickInfo.kickSlots
         changed = true
       end
     end
-  elseif
-    info.syncHasKick ~= nil
-    or info.syncKickOnCooldown ~= nil
-    or info.syncKickRemain ~= nil
-    or info.syncKickSlots ~= nil
-  then
+  elseif info.syncHasKick ~= nil or info.syncKickOnCooldown ~= nil or info.syncKickRemain ~= nil then
     info.syncHasKick = nil
     info.syncKickOnCooldown = nil
     info.syncKickRemain = nil
-    info.syncKickSlots = nil
     changed = true
   end
 

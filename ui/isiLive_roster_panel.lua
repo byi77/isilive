@@ -81,16 +81,13 @@ local function ResolveConfiguredDefaultOpenLayoutMode()
     return DEFAULT_LAYOUT_MODE_LAST_USED
   end
 
-  if layoutMode == LAYOUT_MODE_EXPANDED then
-    return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
-  end
-
   if layoutMode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL_LEGACY then
     return LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
   end
 
   if
-    layoutMode == LAYOUT_MODE_COMPACT_VERTICAL
+    layoutMode == LAYOUT_MODE_EXPANDED
+    or layoutMode == LAYOUT_MODE_COMPACT_VERTICAL
     or layoutMode == LAYOUT_MODE_COMPACT_HORIZONTAL
     or layoutMode == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
   then
@@ -111,8 +108,8 @@ local IsMainHorizontalLayoutMode = RI.IsMainHorizontalLayoutMode
     return false
   end
 local GetFrameHeightForLayoutMode = RI.GetFrameHeightForLayoutMode
-local CD_TRACKER_ROW_HEIGHT = RI.CD_TRACKER_ROW_HEIGHT or 24
-local CD_TRACKER_ROW_BOTTOM_OFFSET = RI.CD_TRACKER_ROW_BOTTOM_OFFSET or 40
+local CD_TRACKER_ROW_HEIGHT = RI.CD_TRACKER_ROW_HEIGHT or 20
+local CD_TRACKER_ROW_BOTTOM_OFFSET = RI.CD_TRACKER_ROW_BOTTOM_OFFSET or 20
 local KILLTRACK_ROW_BOTTOM_OFFSET = 12
 local CD_TRACKER_ICON_SIZE = 16
 local CD_TRACKER_TEXT_GAP = 6
@@ -139,14 +136,13 @@ local NAME_COL_WIDTH = 122
 local SERVER_COL_WIDTH = 18
 local KEY_COL_WIDTH = 62
 local ILVL_COL_WIDTH = 32
+-- Leave enough room for long positive RIO deltas like (+999)9999 without clipping.
 local RIO_COL_WIDTH = 70
 local DPS_COL_X = RIO_COL_X + RIO_COL_WIDTH + 2
 local DPS_COL_WIDTH = 40
 local KICK_COL_X = DPS_COL_X + DPS_COL_WIDTH + 4
 local KICK_COL_WIDTH = 58
-local KICK_ICON_SIZE = 12
-local KICK_ICON_GAP = 4
-local KICK_ICON_TEXTURE = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_2"
+local KICK_HOVER_WIDTH = 58
 local ROLE_BUTTON_X = SPEC_COL_X + SPEC_COL_WIDTH + 4
 
 -- These settings are temporarily hidden from Blizzard Settings.
@@ -625,7 +621,6 @@ local function CreateKillTrackRow(mainFrame)
     UICommon.ApplyBackdrop(box, "CD_BOX")
   end
 
-  -- "M+Killtracker" label
   local label = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   label:SetPoint("LEFT", box, "LEFT", 6, 0)
   label:SetWidth(84)
@@ -633,7 +628,6 @@ local function CreateKillTrackRow(mainFrame)
   label:SetText("|cff888888M+Killtracker|r")
   ApplyFontStringSize(label, CD_TRACKER_FONT_SIZE)
 
-  -- pull preview text (shows +X,XX% during active combat)
   local pullText = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   pullText:SetPoint("RIGHT", box, "RIGHT", -66, 0)
   pullText:SetWidth(54)
@@ -641,7 +635,6 @@ local function CreateKillTrackRow(mainFrame)
   pullText:SetText("")
   ApplyFontStringSize(pullText, CD_TRACKER_FONT_SIZE)
 
-  -- bar container stretches between label and percent text
   local barContainer = CreateFrame("Frame", nil, box)
   barContainer:SetPoint("LEFT", box, "LEFT", 94, 0)
   barContainer:SetPoint("RIGHT", box, "RIGHT", -122, 0)
@@ -650,26 +643,42 @@ local function CreateKillTrackRow(mainFrame)
   local barBg = barContainer:CreateTexture(nil, "BACKGROUND")
   barBg:SetAllPoints(barContainer)
   barBg:SetTexture("Interface\\Buttons\\WHITE8X8")
-  barBg:SetVertexColor(0.12, 0.12, 0.12)
+  if type(barBg.SetVertexColor) == "function" then
+    barBg:SetVertexColor(0.12, 0.12, 0.12)
+  end
 
   local barFill = barContainer:CreateTexture(nil, "ARTWORK")
-  barFill:SetPoint("TOPLEFT", barContainer, "TOPLEFT", 0, 0)
-  barFill:SetPoint("BOTTOMLEFT", barContainer, "BOTTOMLEFT", 0, 0)
-  barFill:SetWidth(1)
-  barFill:SetTexture("Interface\\Buttons\\WHITE8X8")
-  barFill:SetVertexColor(0.2, 0.75, 0.35)
+  if type(barFill.SetPoint) == "function" then
+    barFill:SetPoint("TOPLEFT", barContainer, "TOPLEFT", 0, 0)
+    barFill:SetPoint("BOTTOMLEFT", barContainer, "BOTTOMLEFT", 0, 0)
+  end
+  if type(barFill.SetWidth) == "function" then
+    barFill:SetWidth(1)
+  end
+  if type(barFill.SetTexture) == "function" then
+    barFill:SetTexture("Interface\\Buttons\\WHITE8X8")
+  end
+  if type(barFill.SetVertexColor) == "function" then
+    barFill:SetVertexColor(0.2, 0.75, 0.35)
+  end
   barFill:Hide()
 
-  -- pull prediction bar segment (hellblau, rechts an barFill angehängt)
   local barPull = barContainer:CreateTexture(nil, "ARTWORK")
-  barPull:SetPoint("TOPLEFT", barFill, "TOPRIGHT", 0, 0)
-  barPull:SetPoint("BOTTOMLEFT", barFill, "BOTTOMRIGHT", 0, 0)
-  barPull:SetWidth(1)
-  barPull:SetTexture("Interface\\Buttons\\WHITE8X8")
-  barPull:SetVertexColor(0.4, 0.7, 1.0, 0.7)
+  if type(barPull.SetPoint) == "function" then
+    barPull:SetPoint("TOPLEFT", barFill, "TOPRIGHT", 0, 0)
+    barPull:SetPoint("BOTTOMLEFT", barFill, "BOTTOMRIGHT", 0, 0)
+  end
+  if type(barPull.SetWidth) == "function" then
+    barPull:SetWidth(1)
+  end
+  if type(barPull.SetTexture) == "function" then
+    barPull:SetTexture("Interface\\Buttons\\WHITE8X8")
+  end
+  if type(barPull.SetVertexColor) == "function" then
+    barPull:SetVertexColor(0.4, 0.7, 1.0, 0.7)
+  end
   barPull:Hide()
 
-  -- percent text
   local pctText = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   pctText:SetPoint("RIGHT", box, "RIGHT", -6, 0)
   pctText:SetWidth(58)
@@ -689,6 +698,7 @@ local function UpdateKillTrackRow(row)
   if not row then
     return
   end
+
   local KillTrack = addonTable.KillTrack
   local data = type(KillTrack) == "table" and type(KillTrack.GetData) == "function" and KillTrack.GetData() or nil
 
@@ -719,12 +729,10 @@ local function UpdateKillTrackRow(row)
         barFill:Hide()
       end
     end
-    -- pull prediction bar segment
     local pullPct = (data.inCombat and type(data.pullPercent) == "number") and data.pullPercent or 0
     if barPull then
       if data.inCombat and pullPct > 0 and w > 0 then
         local pw = math.floor(w * pullPct / 100 + 0.5)
-        -- clamp so fill+pull doesn't exceed container width
         local fw = barFill and (type(barFill.GetWidth) == "function" and barFill:GetWidth() or 0) or 0
         if fw + pw > w then
           pw = math.max(1, w - fw)
@@ -737,12 +745,16 @@ local function UpdateKillTrackRow(row)
     end
     if pctText then
       pctText:SetText(string.format("%.2f%%", pct):gsub("%.", ","))
-      pctText:SetTextColor(r, g, b)
+      if type(pctText.SetTextColor) == "function" then
+        pctText:SetTextColor(r, g, b)
+      end
     end
     if pullText then
       if data.inCombat and pullPct > 0 then
         pullText:SetText("+" .. string.format("%.2f%%", pullPct):gsub("%.", ","))
-        pullText:SetTextColor(0.6, 0.85, 1.0)
+        if type(pullText.SetTextColor) == "function" then
+          pullText:SetTextColor(0.6, 0.85, 1.0)
+        end
       else
         pullText:SetText("")
       end
@@ -756,7 +768,9 @@ local function UpdateKillTrackRow(row)
     end
     if pctText then
       pctText:SetText("--,--")
-      pctText:SetTextColor(0.4, 0.4, 0.5)
+      if type(pctText.SetTextColor) == "function" then
+        pctText:SetTextColor(0.4, 0.4, 0.5)
+      end
     end
     if pullText then
       pullText:SetText("")
@@ -780,7 +794,7 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   row.hoverFrame:SetPoint("TOPLEFT", 4, yOffset + 2)
   -- Hover/background area now extends through the Kick column.
   -- Management buttons stay further right and remain outside this area.
-  row.hoverFrame:SetWidth(KICK_COL_X + KICK_COL_WIDTH - 4)
+  row.hoverFrame:SetWidth(KICK_COL_X + KICK_HOVER_WIDTH - 4)
   row.hoverFrame:SetHeight(16)
   if row.hoverFrame.EnableMouse then
     row.hoverFrame:EnableMouse(true)
@@ -818,13 +832,6 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   row.highlight:SetColorTexture(0.3, 0.65, 1, 0.08)
   row.highlight:Hide()
 
-  row.kickCdBar = row.hoverFrame:CreateTexture(nil, "BACKGROUND", nil, 1)
-  row.kickCdBar:SetPoint("TOPLEFT", row.hoverFrame, "TOPLEFT", 0, 0)
-  row.kickCdBar:SetPoint("BOTTOMLEFT", row.hoverFrame, "BOTTOMLEFT", 0, 0)
-  row.kickCdBar:SetColorTexture(0.85, 0.15, 0.15, 0.35)
-  row.kickCdBar:SetWidth(1)
-  row.kickCdBar:Hide()
-
   row.hoverFrame:SetScript("OnEnter", function()
     row.highlight:Show()
     if
@@ -836,7 +843,6 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
         row.getDungeonShortCode,
         row.getDungeonName,
         row.getPlayerLastRunDps,
-        row.getPlayerKickStats,
         row.getLanguageTooltipMarkup,
         row.getL
       )
@@ -908,10 +914,11 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip)
   row.dps:SetJustifyH("RIGHT")
   DisableFontStringWrapping(row.dps)
 
-  row.kick = CreateFrame("Frame", nil, mainFrame)
+  row.kick = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.kick:SetPoint("TOPLEFT", KICK_COL_X, yOffset)
-  row.kick:SetSize(KICK_COL_WIDTH, CD_TRACKER_ROW_HEIGHT)
-  row.kick._kickIcons = {}
+  row.kick:SetWidth(KICK_COL_WIDTH)
+  row.kick:SetJustifyH("RIGHT")
+  DisableFontStringWrapping(row.kick)
 
   row.realm = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.realm:SetPoint("TOPLEFT", SERVER_COL_X, yOffset)
@@ -1495,41 +1502,6 @@ local function CreateTankHelperButtons(mainFrame, tooltipFrame, getL)
   return buttons, header
 end
 
-local BETA_ISSUES_URL = "https://github.com/byi77/isilive/issues"
-
-local function CreateBetaTitleButton(mainFrame, titleVersion, getL)
-  local btn = CreateFrame("Button", nil, mainFrame)
-  btn:SetSize(40, 16)
-  btn:SetPoint("LEFT", titleVersion, "RIGHT", 4, 0)
-  btn:SetFrameLevel((mainFrame:GetFrameLevel() or 1) + 110)
-  btn:EnableMouse(true)
-  btn:RegisterForClicks("LeftButtonUp")
-
-  local lbl = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  lbl:SetAllPoints()
-  lbl:SetText("BETA")
-  lbl:SetTextColor(1, 0.55, 0.1)
-
-  btn:SetScript("OnEnter", function(self)
-    local GameTooltip = rawget(_G, "GameTooltip")
-    if GameTooltip then
-      local L = type(getL) == "function" and getL() or {}
-      GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-      GameTooltip:AddLine(L.BETA_NOTICE_TEXT or "This addon is in BETA status. Please report bugs at:")
-      GameTooltip:AddLine(BETA_ISSUES_URL, 0.4, 0.8, 1)
-      GameTooltip:Show()
-    end
-  end)
-  btn:SetScript("OnLeave", function()
-    local GameTooltip = rawget(_G, "GameTooltip")
-    if GameTooltip then
-      GameTooltip:Hide()
-    end
-  end)
-
-  return btn
-end
-
 local function ConstructPanelUI(mainFrame, uiDeps)
   local isRaidGroupFn = uiDeps.isRaidGroup
 
@@ -1563,7 +1535,18 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   if type(titleVersion.SetShadowColor) == "function" then
     titleVersion:SetShadowColor(0, 0, 0, 0.9)
   end
-  ApplyFontStringSize(titleVersion, 12)
+  ApplyFontStringSize(titleVersion, 9)
+
+  local titleHint = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  titleHint:SetPoint("LEFT", titleVersion, "RIGHT", 8, 0)
+  titleHint:SetTextColor(0.82, 0.74, 0.42)
+  if type(titleHint.SetShadowOffset) == "function" then
+    titleHint:SetShadowOffset(1, -1)
+  end
+  if type(titleHint.SetShadowColor) == "function" then
+    titleHint:SetShadowColor(0, 0, 0, 0.9)
+  end
+  ApplyFontStringSize(titleHint, 8)
 
   local headers = CreatePanelHeaders(mainFrame)
   local m2ColumnGuides = CreateM2ColumnGuides(mainFrame)
@@ -1571,7 +1554,6 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   local getL = type(uiDeps.getL) == "function" and uiDeps.getL or function()
     return {}
   end
-  local betaButton = CreateBetaTitleButton(mainFrame, titleVersion, getL)
   local L = getL()
   local buttonDeps = {}
   for key, value in pairs(uiDeps) do
@@ -1603,7 +1585,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     killTrackRow = killTrackRow,
     statusLine = statusLine,
     titleVersion = titleVersion,
-    betaButton = betaButton,
+    titleHint = titleHint,
     raidNoticeLabel = raidNoticeLabel,
     m2ColumnGuides = m2ColumnGuides,
     showRosterColumnGuides = uiDeps.showRosterColumnGuides,
@@ -1650,7 +1632,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   ui.modeButtons = {}
   local modeButtonDefs = {
     {
-      xOffset = -68,
+      xOffset = -88,
       label = "M2",
       target = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL,
       width = 24,
@@ -1658,14 +1640,14 @@ local function ConstructPanelUI(mainFrame, uiDeps)
       descriptionFallback = L.MODE_LAYOUT_M2 or "Main horizontal layout.",
     },
     {
-      xOffset = -44,
+      xOffset = -64,
       label = "H",
       target = LAYOUT_MODE_COMPACT_HORIZONTAL,
       descriptionKey = "MODE_LAYOUT_H",
       descriptionFallback = L.MODE_LAYOUT_H or "Compact horizontal layout.",
     },
     {
-      xOffset = -24,
+      xOffset = -44,
       label = "V",
       target = LAYOUT_MODE_COMPACT_VERTICAL,
       descriptionKey = "MODE_LAYOUT_V",
@@ -1791,217 +1773,28 @@ local function ApplyRowReadyCheckDisplay(row, displayData)
   end
 end
 
-local function NormalizeKickSlots(info)
-  if type(info) ~= "table" then
-    return nil
-  end
-
-  if info.syncHasKick == false then
-    return {}
-  end
-
-  local kickSlots = info.syncKickSlots
-  if type(kickSlots) == "table" and #kickSlots > 0 then
-    return kickSlots
-  end
-
-  if info.syncHasKick ~= true then
-    return nil
-  end
-
-  if info.syncKickOnCooldown ~= true and info.syncKickOnCooldown ~= false then
-    return nil
-  end
-
-  return {
-    {
-      hasKick = true,
-      availabilityResolved = true,
-      onCooldown = info.syncKickOnCooldown == true,
-      cooldownRemain = tonumber(info.syncKickRemain) or 0,
-    },
-  }
-end
-
-local function NormalizeKickCellSlots(info)
-  local kickSlots = NormalizeKickSlots(info)
-  if type(kickSlots) == "table" and #kickSlots > 0 then
-    return kickSlots
-  end
-
-  return {
-    {
-      hasKick = false,
-      availabilityResolved = false,
-      onCooldown = false,
-      cooldownRemain = 0,
-    },
-  }
-end
-
-local function GetKickSlotColor(slot)
-  if type(slot) ~= "table" then
-    return 0.55, 0.55, 0.55, 1
-  end
-
-  if slot.hasKick == false or slot.availabilityResolved == false then
-    return 0.55, 0.55, 0.55, 1
-  end
-
-  if slot.onCooldown == true then
-    return 1, 0.25, 0.25, 1
-  end
-
-  if slot.onCooldown == false then
-    return 0.27, 1, 0.27, 1
-  end
-
-  return 0.55, 0.55, 0.55, 1
-end
-
-local function EnsureKickIcon(cell, index)
-  if type(cell) ~= "table" then
-    return nil
-  end
-
-  local icons = cell._kickIcons
-  if type(icons) ~= "table" then
-    icons = {}
-    cell._kickIcons = icons
-  end
-
-  local slot = icons[index]
-  if not slot then
-    slot = {}
-    if type(cell.CreateTexture) == "function" then
-      local icon = cell:CreateTexture(nil, "OVERLAY")
-      if type(icon.SetSize) == "function" then
-        icon:SetSize(KICK_ICON_SIZE, KICK_ICON_SIZE)
-      end
-      if type(icon.SetTexture) == "function" then
-        icon:SetTexture(KICK_ICON_TEXTURE)
-      end
-      slot.icon = icon
-    end
-    if type(cell.CreateFontString) == "function" then
-      local label = cell:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-      if type(label.SetFont) == "function" then
-        label:SetFont(label:GetFont() or "Fonts\\FRIZQT__.TTF", 8, "OUTLINE")
-      end
-      if type(label.SetJustifyH) == "function" then
-        label:SetJustifyH("CENTER")
-      end
-      DisableFontStringWrapping(label)
-      slot.cdLabel = label
-    end
-    icons[index] = slot
-  end
-
-  return slot
-end
-
 local function SetKickCellText(cell, info)
   if not cell then
     return
   end
-
-  local kickSlots = NormalizeKickCellSlots(info)
-  if type(kickSlots) ~= "table" or #kickSlots == 0 then
+  if type(info) ~= "table" or info.syncHasKick == false then
+    cell:SetText("|cff666666-|r")
     return
   end
-
-  local slots = cell._kickIcons or {}
-  for index, kickSlot in ipairs(kickSlots) do
-    local slot = EnsureKickIcon(cell, index)
-    if slot then
-      local xOffset = -((index - 1) * (KICK_ICON_SIZE + KICK_ICON_GAP))
-      local icon = slot.icon
-      local cdLabel = slot.cdLabel
-
-      if icon then
-        if type(icon.ClearAllPoints) == "function" then
-          icon:ClearAllPoints()
-        end
-        if type(icon.SetPoint) == "function" then
-          icon:SetPoint("RIGHT", cell, "RIGHT", xOffset, 6)
-        end
-        local r, g, b, a = GetKickSlotColor(kickSlot)
-        if kickSlot.onCooldown == true then
-          -- darken icon when on cooldown
-          if type(icon.SetVertexColor) == "function" then
-            icon:SetVertexColor(r * 0.4, g * 0.4, b * 0.4, 1)
-          end
-        else
-          if type(icon.SetVertexColor) == "function" then
-            icon:SetVertexColor(r, g, b, a)
-          end
-        end
-        if type(icon.Show) == "function" then
-          icon:Show()
-        end
-      end
-
-      if cdLabel then
-        if type(cdLabel.ClearAllPoints) == "function" then
-          cdLabel:ClearAllPoints()
-        end
-        if kickSlot.onCooldown == true and (kickSlot.cooldownRemain or 0) > 0 then
-          local secs = math.ceil(kickSlot.cooldownRemain)
-          if type(cdLabel.SetPoint) == "function" then
-            cdLabel:SetPoint("RIGHT", cell, "RIGHT", xOffset, 6)
-          end
-          if type(cdLabel.SetText) == "function" then
-            cdLabel:SetText(secs)
-          end
-          if type(cdLabel.SetTextColor) == "function" then
-            cdLabel:SetTextColor(1, 0.8, 0.2, 1)
-          end
-          if type(cdLabel.Show) == "function" then
-            cdLabel:Show()
-          end
-        else
-          if type(cdLabel.Hide) == "function" then
-            cdLabel:Hide()
-          end
-        end
-      end
+  if info.syncKickOnCooldown == true then
+    local secs = math.ceil(info.syncKickRemain or 0)
+    if secs > 0 then
+      cell:SetText(string.format("|cffff4040%ds|r", secs))
+    else
+      cell:SetText("|cff666666-|r")
     end
-  end
-
-  for index = #kickSlots + 1, #slots do
-    local slot = slots[index]
-    if type(slot) == "table" then
-      if slot.icon and type(slot.icon.Hide) == "function" then
-        slot.icon:Hide()
-      end
-      if slot.cdLabel and type(slot.cdLabel.Hide) == "function" then
-        slot.cdLabel:Hide()
-      end
-    end
-  end
-end
-
-local function SetRowKickCdBar(row, kickSlots, totalCd)
-  local bar = row and row.kickCdBar
-  if not bar then
     return
   end
-  local slot = type(kickSlots) == "table" and kickSlots[1] or nil
-  if slot and slot.onCooldown == true and (slot.cooldownRemain or 0) > 0 and (totalCd or 0) > 0 then
-    local fraction = math.min(1, slot.cooldownRemain / totalCd)
-    local maxWidth = type(row.hoverFrame.GetWidth) == "function" and row.hoverFrame:GetWidth() or 0
-    local barWidth = math.max(1, math.floor(maxWidth * fraction))
-    if type(bar.SetWidth) == "function" then
-      bar:SetWidth(barWidth)
-    end
-    if type(bar.Show) == "function" then
-      bar:Show()
-    end
-  else
-    if type(bar.Hide) == "function" then
-      bar:Hide()
-    end
+  if info.syncKickOnCooldown == false then
+    cell:SetText("|cff44ff44ready|r")
+    return
   end
+  cell:SetText("|cff666666-|r")
 end
 
 local function RenderRosterImpl(state, roster)
@@ -2028,9 +1821,8 @@ local function RenderRosterImpl(state, roster)
     row.rio:SetText("")
     row.dps:SetText("")
     if row.kick then
-      SetKickCellText(row.kick, { syncHasKick = false })
+      row.kick:SetText("")
     end
-    SetRowKickCdBar(row, nil, nil)
     row.unit = nil
     row.tooltipName = nil
     row.tooltipRealm = nil
@@ -2218,7 +2010,6 @@ local function RenderRosterImpl(state, roster)
     row.getDungeonShortCode = state.getDungeonShortCode
     row.getDungeonName = state.getDungeonName
     row.getPlayerLastRunDps = state.getPlayerLastRunDps
-    row.getPlayerKickStats = state.getPlayerKickStats
     row.getLanguageTooltipMarkup = state.getLanguageTooltipMarkup
     row.getL = state.getL
     if row.hoverFrame then
@@ -2234,7 +2025,7 @@ local function RenderRosterImpl(state, roster)
   shareKeysButton:SetEnabled(hasAnyKey)
   shareKeysButton:SetAlpha(hasAnyKey and 1 or 0.45)
 
-  local cdTrackerExtra = IsMainHorizontalLayoutMode(layoutMode) and (CD_TRACKER_ROW_HEIGHT + 28) or 0
+  local cdTrackerExtra = IsMainHorizontalLayoutMode(layoutMode) and CD_TRACKER_ROW_HEIGHT or 0
   local desiredHeight = isCollapsed and GetFrameHeightForLayoutMode(layoutMode, minFrameHeight)
     or math.max(minFrameHeight, 45 + index * 16) + cdTrackerExtra
   setMainFrameHeightSafe(desiredHeight)
@@ -2337,8 +2128,6 @@ function RosterPanel.CreateController(opts)
   end
   local sendShareKeysRequest = type(opts.sendShareKeysRequest) == "function" and opts.sendShareKeysRequest or nil
   local getPlayerLastRunDps = type(opts.getPlayerLastRunDps) == "function" and opts.getPlayerLastRunDps or nil
-  local getPlayerKickStats = type(opts.getPlayerKickStats) == "function" and opts.getPlayerKickStats or nil
-  local getLocalKickInfo = type(opts.getLocalKickInfo) == "function" and opts.getLocalKickInfo or nil
   local showRosterColumnGuides = type(opts.showRosterColumnGuides) == "function" and opts.showRosterColumnGuides
     or function()
       return false
@@ -2412,6 +2201,9 @@ function RosterPanel.CreateController(opts)
     if ui.titleVersion then
       ui.titleVersion:SetText(titleVer)
     end
+    if ui.titleHint then
+      ui.titleHint:SetText(tostring(L.TITLE_HINT or ""))
+    end
     ui.specHeader:SetText(L.COL_SPEC)
     ui.nameHeader:SetText(L.COL_NAME)
     ui.serverHeader:SetText(L.COL_LANGUAGE)
@@ -2462,8 +2254,6 @@ function RosterPanel.CreateController(opts)
       local lastUsedLayoutMode = type(db) == "table" and db.rosterLayoutMode or nil
       if lastUsedLayoutMode == nil or lastUsedLayoutMode == false or lastUsedLayoutMode == "" then
         savedLayoutMode = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
-      elseif lastUsedLayoutMode == LAYOUT_MODE_EXPANDED then
-        savedLayoutMode = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
       else
         savedLayoutMode = lastUsedLayoutMode
       end
@@ -2473,7 +2263,7 @@ function RosterPanel.CreateController(opts)
       savedLayoutMode = db and db.rosterLayoutMode or nil
     end
     if savedLayoutMode == nil and db and db.rosterCollapsed ~= nil then
-      savedLayoutMode = db.rosterCollapsed and LAYOUT_MODE_COMPACT_VERTICAL or LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
+      savedLayoutMode = db.rosterCollapsed and LAYOUT_MODE_COMPACT_VERTICAL or LAYOUT_MODE_EXPANDED
     end
     if savedLayoutMode ~= nil then
       ui.layoutMode = NormalizeLayoutMode(savedLayoutMode)
@@ -2536,7 +2326,6 @@ function RosterPanel.CreateController(opts)
       syncBadge = syncBadge,
       getPlayerSyncSummary = getPlayerSyncSummary,
       getPlayerLastRunDps = getPlayerLastRunDps,
-      getPlayerKickStats = getPlayerKickStats,
       getReadyCheckReadyUntil = getReadyCheckReadyUntil,
       getReadyCheckDeclinedUntil = getReadyCheckDeclinedUntil,
       getTime = getTime,
@@ -2580,7 +2369,6 @@ function RosterPanel.CreateController(opts)
   end
 
   function controller.RefreshKickColumn()
-    local localKickInfo = type(getLocalKickInfo) == "function" and getLocalKickInfo() or nil
     for _, row in pairs(memberRows) do
       if row.kick and row.tooltipInfo then
         local info = row.tooltipInfo
@@ -2588,9 +2376,6 @@ function RosterPanel.CreateController(opts)
           applyKnownKeyToRosterEntry(info)
         end
         SetKickCellText(row.kick, info)
-        if row.unit == "player" and localKickInfo then
-          SetRowKickCdBar(row, localKickInfo.kickSlots, localKickInfo.totalCd)
-        end
       end
     end
   end
@@ -2603,6 +2388,9 @@ function RosterPanel.CreateController(opts)
   function controller.RefreshCdTracker()
     cdTrackerNeedsVisibleRescan = false
     UpdateCdTrackerRow(ui.cdTrackerRow, cdController)
+  end
+
+  function controller.RefreshKillTrackRow()
     UpdateKillTrackRow(ui.killTrackRow)
   end
 

@@ -615,52 +615,26 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert)
   end)
 
   test("Architecture kick tracker uses lightweight kick-column refresh hooks", function()
-    local bootstrapContent = ReadFile("isiLive_bootstrap.lua")
     local helpersContent = ReadFile("isiLive_factory_controllers.lua")
-    local kickTrackerContent = ReadFile("isiLive_kick_tracker.lua")
     local rosterPanelContent = ReadFile("isiLive_roster_panel.lua")
 
     AssertContains(
       Assert,
       helpersContent,
-      "ctx.RefreshKickState = RefreshKickState",
-      "factory kick tracking must expose a direct kick-resolution refresh hook"
-    )
-    AssertContains(
-      Assert,
-      bootstrapContent,
-      "COMBAT_LOG_EVENT_UNFILTERED",
-      "bootstrap must register combat-log events on the main event registry"
-    )
-    AssertContains(
-      Assert,
-      bootstrapContent,
-      "SPELLS_CHANGED",
-      "bootstrap must register spell-change events for kick resolution refreshes"
+      'castFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")',
+      "factory kick tracking must refresh spell resolution on specialization changes"
     )
     AssertContains(
       Assert,
       helpersContent,
-      "ctx.HandleKickCastSucceeded = function(unit, spellID)",
-      "factory kick tracking must expose a cast-success hook for the main dispatcher"
+      'castFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player", "pet")',
+      "factory kick tracking must also watch pet interrupt casts"
     )
     AssertContains(
       Assert,
-      bootstrapContent,
-      "UNIT_SPELLCAST_SUCCEEDED",
-      "bootstrap must register kick cast-success events on the main event registry"
-    )
-    AssertContains(
-      Assert,
-      bootstrapContent,
-      "UNIT_PET",
-      "bootstrap must register pet-change events on the main event registry"
-    )
-    AssertContains(
-      Assert,
-      kickTrackerContent,
-      "function controller.OnCombatLogEvent(",
-      "kick tracker must expose a deterministic combat-log failure handler"
+      helpersContent,
+      'castFrame:RegisterUnitEvent("UNIT_PET", "player")',
+      "factory kick tracking must refresh interrupt availability when the player's pet changes"
     )
     AssertContains(
       Assert,
@@ -677,8 +651,8 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert)
     AssertContains(
       Assert,
       rosterPanelContent,
-      "_kickIcons = {}",
-      "RosterPanel kick refresh helper must render slot points as compact icons"
+      'cell:SetText("|cff44ff44ready|r")',
+      "RosterPanel kick refresh helper must render the ready state in green"
     )
   end)
 end

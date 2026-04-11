@@ -679,8 +679,6 @@ local function NewRecordedFontString(createdFontStrings)
   function fontString.SetWidth(self, value)
     self.width = value
   end
-  function fontString.SetAllPoints() end
-  function fontString.ClearAllPoints() end
   function fontString.SetJustifyH() end
   function fontString.GetFont()
     return "font", 10, ""
@@ -744,12 +742,6 @@ local function NewRecordedTexture(createdTextures)
   end
   function texture.SetTexture(self, value)
     self.texture = value
-  end
-  function texture.SetVertexColor(self, r, g, b, a)
-    self.vertexColor = { r, g, b, a }
-  end
-  function texture.GetWidth(self)
-    return self.width or 0
   end
   function texture.SetTexCoord(self, ...)
     self.texCoord = { ... }
@@ -1063,10 +1055,6 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
           SetAlpha = function() end,
           EnableMouse = function() end,
           RegisterForClicks = function() end,
-          GetFrameLevel = function()
-            return 1
-          end,
-          SetFrameLevel = function() end,
           SetScript = function(self, script, handler)
             self[script] = handler
           end,
@@ -1082,12 +1070,6 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
               SetColorTexture = function() end,
               SetTexture = function() end,
               SetTexCoord = function() end,
-              SetVertexColor = function() end,
-              SetPoint = function() end,
-              SetWidth = function() end,
-              GetWidth = function()
-                return 0
-              end,
               Hide = function() end,
               Show = function() end,
             }
@@ -1095,12 +1077,9 @@ local function RegisterRosterPanelRowInteractionTests(test, Assert, WithGlobals,
           CreateFontString = function()
             return {
               SetPoint = function() end,
-              SetAllPoints = function() end,
-              ClearAllPoints = function() end,
               SetJustifyH = function() end,
               SetWidth = function() end,
               SetText = function() end,
-              SetTextColor = function() end,
               SetWordWrap = function() end,
               SetNonSpaceWrap = function() end,
               SetMaxLines = function() end,
@@ -1794,6 +1773,7 @@ local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGl
       end
     end)
   end)
+
   test("Roster panel keeps hidden DPS setting hard-enabled even when DB disables it", function()
     local createdFrames = {}
     local createdFontStrings = {}
@@ -2060,131 +2040,6 @@ local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGl
   end)
 end
 
-local function RegisterRosterPanelHiddenKickDisplayTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Roster panel renders kick slots as colored points", function()
-    local createdFrames = {}
-    local createdFontStrings = {}
-    local createdTextures = {}
-
-    WithGlobals({
-      CreateFrame = function()
-        return NewRecordedFrame(createdFrames, createdFontStrings)
-      end,
-      GameTooltip = {
-        SetOwner = function() end,
-        SetText = function() end,
-        AddLine = function() end,
-        Show = function() end,
-        Hide = function() end,
-      },
-    }, function()
-      local addon = LoadAddonModules({
-        "isiLive_roster.lua",
-        "isiLive_roster_panel.lua",
-      })
-
-      local roster = {
-        party1 = {
-          name = "Buddy",
-          role = "DAMAGER",
-          syncHasKick = true,
-          syncKickSlots = {
-            { onCooldown = false, cooldownRemain = 0 },
-            { onCooldown = true, cooldownRemain = 7 },
-          },
-        },
-        party2 = {
-          name = "Helper",
-          role = "DAMAGER",
-          syncHasKick = false,
-        },
-      }
-
-      local controller = BuildHiddenSettingTestController(addon, createdFontStrings, {
-        createdTextures = createdTextures,
-        buildOrderedRoster = function(currentRoster)
-          return {
-            {
-              unit = "party1",
-              info = currentRoster.party1,
-            },
-            {
-              unit = "party2",
-              info = currentRoster.party2,
-            },
-          }
-        end,
-        buildDisplayData = function(info)
-          return {
-            colorHex = "ffffffff",
-            displayName = info.name,
-            languageDisplay = "",
-            specText = "-",
-            ilvlText = "-",
-            rioText = "-",
-            keyText = "-",
-            addonMarker = "",
-            atDungeonMarker = "",
-            readyCheckMarkup = "",
-            roleIconMarkup = "",
-          }
-        end,
-        rolePriority = {
-          DAMAGER = 1,
-        },
-        unitPriority = {
-          party1 = 1,
-        },
-      })
-
-      controller.RenderRoster(roster)
-
-      local kickCells = {}
-      for _, frame in ipairs(createdFrames) do
-        if frame.pointX == 434 and frame.pointY ~= -34 and type(frame._kickIcons) == "table" then
-          kickCells[#kickCells + 1] = frame
-        end
-      end
-
-      Assert.True(#kickCells >= 2, "kick cells should exist for both roster members")
-      local readyCell = nil
-      local grayCell = nil
-      for _, frame in ipairs(kickCells) do
-        if #frame._kickIcons >= 2 then
-          readyCell = frame
-        elseif #frame._kickIcons == 1 then
-          grayCell = frame
-        end
-      end
-
-      Assert.NotNil(readyCell, "kick cell with multiple slots should exist")
-      Assert.NotNil(grayCell, "kick cell with no kick should exist")
-      ---@diagnostic disable: need-check-nil, undefined-field
-      Assert.NotNil(readyCell._kickIcons[1], "ready kick slot should create the first circle icon")
-      Assert.NotNil(readyCell._kickIcons[2], "cooldown kick slot should create the second circle icon")
-      Assert.True(
-        readyCell._kickIcons[1].icon.vertexColor[1] < readyCell._kickIcons[2].icon.vertexColor[1],
-        "ready circle should be greener than the cooldown circle"
-      )
-      Assert.True(
-        readyCell._kickIcons[1].icon.vertexColor[2] > readyCell._kickIcons[2].icon.vertexColor[2],
-        "ready circle should have more green than the cooldown circle"
-      )
-      Assert.Equal(
-        readyCell._kickIcons[1].icon.texture,
-        "Interface\\TargetingFrame\\UI-RaidTargetingIcon_2",
-        "kick circles must use the shared round icon texture"
-      )
-      Assert.True(
-        grayCell._kickIcons[1].icon.vertexColor[1] == grayCell._kickIcons[1].icon.vertexColor[2]
-          and grayCell._kickIcons[1].icon.vertexColor[2] == grayCell._kickIcons[1].icon.vertexColor[3],
-        "missing kick state should render as a gray circle"
-      )
-      ---@diagnostic enable: need-check-nil, undefined-field
-    end)
-  end)
-end
-
 local function RegisterRosterPanelMainLayoutVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster panel keeps the status line only in the main M layout", function()
     local createdFrames = {}
@@ -2352,7 +2207,6 @@ end
 
 local function RegisterRosterPanelHiddenSettingDefaultTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGlobals, LoadAddonModules)
-  RegisterRosterPanelHiddenKickDisplayTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelMainLayoutVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRestoreDefaultLayoutTests(test, Assert, WithGlobals, LoadAddonModules)
 end

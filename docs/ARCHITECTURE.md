@@ -1,7 +1,7 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.144`
-Zuletzt aktualisiert: `2026-04-10`
+Versionsbasis: `0.9.138`
+Zuletzt aktualisiert: `2026-04-09`
 
 ## Zweck
 
@@ -19,7 +19,7 @@ Die Architektur ist eventgetrieben und in klare Runtime-Schichten aufgeteilt:
 |---|---|---|
 | Einstieg und Orchestrierung | Composition Root, Runtime-State, Wiring, Controller-Lifecycle, Keybindings, Modulguards | `isiLive.lua`, `isiLive_runtime_state.lua`, `isiLive_bootstrap.lua`, `isiLive_runtime_setup.lua`, `isiLive_controller_wiring.lua`, `isiLive_controller_init.lua`, `isiLive_factory.lua`, `isiLive_factory_frame_bridge.lua`, `isiLive_factory_controllers.lua`, `isiLive_frame_bridge.lua`, `isiLive_context_helpers.lua`, `isiLive_guards.lua`, `isiLive_bindings.lua` |
 | Event-Gate und Dispatch | Stop/Pause/Hidden/Test erzwingen, Lifecycle-Handler routen, Slash-Commands dispatchen | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_utils.lua`, `isiLive_commands.lua` |
-| Fachlogik | Queue-Parsing und Join-Flow, Gruppenmodell, Highlight-Aufloesung, Key-Sync, Refresh, Inspect, Leader-Transitions, begrenzte Run-Stats, Cooldown-/Interrupt-Tracking, per-Spec-Kick-Daten, Mythic+-Timer-State, Enemy-Forces-Tracking und Pull-Prediction | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua`, `isiLive_cd_tracker.lua`, `isiLive_kick_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_killtrack.lua`, `isiLive_leader_watch.lua` |
+| Fachlogik | Queue-Parsing und Join-Flow, Gruppenmodell, Highlight-Aufloesung, Key-Sync, Refresh, Inspect, Leader-Transitions, begrenzte Run-Stats, Cooldown-/Interrupt-Tracking, per-Spec-Kick-Daten, Mythic+-Timer-State | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua`, `isiLive_cd_tracker.lua`, `isiLive_kick_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_leader_watch.lua` |
 | UI-Komposition | Main-Frame, Roster-Zeilenmarkup, Roster-Panel, optionale Game-Menu-Tooling-/Travel-Panels, Blizzard-Settings-Canvas, Combat-Utility-Zeile, Teleport-Grid und Debug-Navigator, Notices, Statuszeile | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_roster.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_roster_layout.lua`, `isiLive_teleport_ui.lua`, `isiLive_teleport_debug.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
 | Gemeinsame Helfer und Daten | Locale, lokalisierte Texte, Units, Realm-Sprachdaten, Season-Map-/Spell-Daten, sichere Spell-Cooldown-Wrapper, Runtime-Logging, fokussierte Config-Builder, private Tooltip-/UI-Helfer, zentrale Backdrop-Presets, gemeinsame Validierungs-/String-Helfer, Debug-Helfer, Demo-/Test-Helfer | `isiLive_validation_helpers.lua`, `isiLive_string_utils.lua`, `isiLive_spell_utils.lua`, `isiLive_locale.lua`, `isiLive_texts.lua`, `realm_language_data.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_ui_common.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua`, `isiLive_queue_debug.lua`, `isiLive_demo.lua`, `isiLive_test_mode.lua` |
 
@@ -73,7 +73,6 @@ WoW Event
 24. Ready-Check-Lifecycle-Events muessen ueber einen dedizierten Roster-Refresh-Pfad laufen, der row-background-State, Waiting-Sandglass-Marker und den 20-Sekunden-Declined-Hold erneut anlegt, ohne den generischen Vollrender des Rosters erneut auszufuehren oder Secure-Role-Button-Attribute anzufassen.
 25. Roster-Leader-Marker werden ausschliesslich aus dem gespiegelten `UnitIsGroupLeader`-State abgeleitet; das Roster rendert fuer diese Zeilen eine 16x16-Krone, und bei gesyncten Leadern bleibt die blaue Heart-Markierung vor der Krone.
 26. Persistierte Ghost-Zeilen duerfen in nicht-vollen Gruppen bestehen bleiben, aber die Roster-Sortierung muss immer alle aktiven Mitglieder vor Ghosts halten, damit das sichtbare 5-Zeilen-Clipping nie ein aktuelles Gruppenmitglied hinter stale Leavern versteckt.
-27. KillTrack-Pull-Prediction darf niemals NPC-Identifikations-APIs (GUID, Fingerprint, Name-Lookup) verwenden, um Mob-Force-Werte zu bestimmen. In Midnight M+ liefern alle NPC-ID-APIs innerhalb der Instanz Secret Values. Der einzig zulaessige Ansatz ist der Scenario-Quantity-Delta: rawCount bei Combat-Start als Baseline speichern, waehrend Combat den Zuwachs aus SCENARIO_CRITERIA_UPDATE verfolgen. Kein Guessing von Force-Werten aus NPC-Datenbanken.
 
 ## Architektur-Vertragssatz
 
@@ -104,14 +103,14 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 523 Szenarien ueber 38 Module ab; die Regelvalidatoren indizieren aktuell 523 deterministische Tests.
+5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 522 Szenarien ueber 38 Module ab; die Regelvalidatoren indizieren aktuell 522 deterministische Tests.
 
 Die lokalen Wrapper `tools/check.ps1` und `tools/check.cmd` sind der bevorzugte Einstiegspunkt fuer das statische Gate, weil sie `luacheck` ueber den repo-lokalen Windows-Shim routen, statt direkt das LuaRocks-Script aufzurufen.
 
 ## UI-Struktur (ASCII-Skizze)
 
 ```text
-| isiLive                                          v0.9.144 BETA Open/Close CTRL-F9 [M2][H][V][X]|
+| isiLive                                                 v0.9.138 Open/Close CTRL-F9 [H][V][M][M2][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS                M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|
@@ -122,14 +121,14 @@ Die lokalen Wrapper `tools/check.ps1` und `tools/check.cmd` sind der bevorzugte 
 | [DPS]  PlayerFive   [ ]  OFG+11  628  3333      298.2K  [Yel]               [Re-Sync]             |
 |                                               ... [Circle] [Moon] [Skull] ...                     |
 |                                                                             [Teleport Grid...]    |
-| BR: 2/3 06:20  BL: 05:00                               M+Killtracker: 47,34% (+3,21%)            |
+| BR: 2/3 06:20  BL: 05:00                                                                        |
 |---------------------------------------------------------------------------------------------------|
 | Lead: Yes   M+: Active   State: Running   Dungeon: Mythic   Target Dungeon: Ara-Kara +14          |
 +---------------------------------------------------------------------------------------------------+
 
 Collapsed / Vertical Mini Mode:
 
-|                                       [M2][H][V][X]|
+|                                          [H][V][M][X]|
 |----------------------------------------------------------------|
 | M+Managment                 Marker                              |
 | [Readycheck]                [Blue]                              |
@@ -142,7 +141,7 @@ Collapsed / Vertical Mini Mode:
 
 Horizontal Mini Mode:
 
-|                                   [M2][H][V][X]|
+|                                      [H][V][M][X]|
 |---------------------------------------------------|
 | [CD 0] [CD] [RC]                                  |
 | [Blue][Green][Purple][Red][Yel][Cir][Moo][Sku]    |
@@ -166,9 +165,9 @@ Zusaetzlich zum Main-Roster-Frame kann `isiLive_ui.lua` optionale Tooling- und T
 | EventHandlersChallenge | Challenge- und Ready-Check-Events | Run-Lifecycle, delayed Refresh, Raid-deferred Post-Run-Refresh-Resume, RIO-Delta-Aktivierung, Ready-Check-State, Declined-Hold-Tracking und dedizierter Ready-Check-UI-Refresh-Dispatch |
 | Stats | Completion-Signale fuer Challenge- und Non-Challenge-Party-Runs plus Blizzard-Damage-Meter-Session | Begrenzte Last-Run-DPS-Snapshots mit kurzem Delayed-Session-Retry; persistent nur fuer den passenden lokalen Character, fuer fremde Spieler nur sessionweit |
 | CdTracker | Battle-Res-Charges ueber `C_Spell.GetSpellCharges` mit Struct-Return, numerische Harmful-Lust-Aura-Scans, direkte lokale Lust-Spellcasts und `isFullUpdate`-Aura-Restore-Hydration | Live-Zeilenstate fuer BRes-Charges/Cooldown und Lust-Countdown mit zone-transition-sicherer Onset-Suppression |
-| KickTracker | Spec-ID-Lookup, Spec-Change-Benachrichtigungen und lokaler Kick-State-Sync; slotbasierte Kick-Quelle pro Unit; Pet-Interrupt-Support fuer Warlock (`Spell Lock` 24s / `Axe Toss` 30s) und Devourer Demon Hunter; Combat-Log-gestuetzte Failed-Kick-Signale fuer den aktuell beobachteten Interrupt | Per-Spec-Interrupt-Spell-ID und exakter Cooldown-State; stale Cooldowns werden bei Spec-Wechsel sofort geloescht; wenn Raid-Hard-off lokales Tracking unterdrueckt hat, darf Recovery nur aus exaktem Zustand fortgesetzt werden: exakte Blizzard-Cooldown-Daten, ein neu beobachteter Post-Raid-Kick-Cast oder eine exakte `no kick`-Aufloesung; malformed KICK-Payloads werden fail-closed verworfen; fremde Casts duerfen die Suppression nicht aufheben; hidden Kick-Keep-Alive-Sync fuer Party-Peers; Raid-Hard-off unterdrueckt jede Kick-Aktivitaet bis Raid-Ende; der Kick-State wird slotbasiert an den Sync weitergereicht fuer das Kick-Spalten-Rendering im Roster |
+| KickTracker | Spec-ID-Lookup, Spec-Change-Benachrichtigungen und lokaler Kick-State-Sync; Pet-Interrupt-Support fuer Warlock (`Spell Lock` 24s / `Axe Toss` 30s) und Devourer Demon Hunter | Per-Spec-Interrupt-Spell-ID und exakter Cooldown-State; stale Cooldowns werden bei Spec-Wechsel sofort geloescht; wenn Raid-Hard-off lokales Tracking unterdrueckt hat, darf Recovery nur aus exaktem Zustand fortgesetzt werden: exakte Blizzard-Cooldown-Daten, ein neu beobachteter Post-Raid-Kick-Cast oder eine exakte `no kick`-Aufloesung; malformed KICK-Payloads werden fail-closed verworfen; fremde Casts duerfen die Suppression nicht aufheben; hidden Kick-Keep-Alive-Sync fuer Party-Peers; Raid-Hard-off unterdrueckt jede Kick-Aktivitaet bis Raid-Ende; der Kick-State wird an den Sync weitergereicht fuer das Kick-Spalten-Rendering im Roster |
 | LeaderWatch | `GROUP_ROSTER_UPDATE` / `PARTY_LEADER_CHANGED` plus gecachter Leader-State | Refresh fuer Leader-only-Buttons, sichtbare Center-Notice bei Promotion und Transfer-Sound-Feedback auch fuer hidden Promotions, sofern der User es nicht deaktiviert |
-| RosterPanel | Roster-Modell und Lokalisierung | Main-Table-Rendering, aktive-vor-Ghost-Zeilenordnung unter dem 5-Zeilen-Budget, 16x16-Leader-Krone plus gesyncte Heart-Marker-Reihenfolge, dedizierter Ready-Check-Row-Background-Refresh mit Waiting-Sandglass und Declined-Hold, DPS-Spalte, dedizierter Kick-Column-Refresh-Pfad mit Slot-Punkt-Rendering, dirty-on-show-Utility-Rescan nur auf dem ersten sichtbaren Roster-Render und Action-Button-Callbacks |
+| RosterPanel | Roster-Modell und Lokalisierung | Main-Table-Rendering, aktive-vor-Ghost-Zeilenordnung unter dem 5-Zeilen-Budget, 16x16-Leader-Krone plus gesyncte Heart-Marker-Reihenfolge, dedizierter Ready-Check-Row-Background-Refresh mit Waiting-Sandglass und Declined-Hold, DPS-Spalte, dedizierter Kick-Column-Refresh-Pfad, dirty-on-show-Utility-Rescan nur auf dem ersten sichtbaren Roster-Render und Action-Button-Callbacks |
 | SettingsPanel | Locale-, CVar- und SavedVariable-Getter plus Toggle-Callbacks | Blizzard-Settings-Canvas, Sprachwaehler, sichtbare Display-/Behavior-/Debug-Toggles, Slider fuer UI und Hintergrund, Selektor fuer Default-Open-Layout, optionaler Roster-Column-Guide-Toggle, Sound-Toggles fuer Leader-Transfer und Group-Join sowie temporaere Unterdrueckung von Legacy-Settings |
 | TeleportUI | Season-Teleport-Eintraege und State | Insecure-Action-Teleport-Button-State, deterministische Season-Slot-Platzierung, locale-aware `M2`-Short-Code-Overlays im ready-Zustand und Cooldown-Labels mit Prioritaet solange Cooldown aktiv ist |
 

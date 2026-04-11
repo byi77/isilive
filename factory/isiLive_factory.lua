@@ -172,10 +172,40 @@ local function FinalizeFactorySettings(ctx)
           ctx.teleportUIController.UpdateButtons(ctx.ResolveTeleportSpellID())
         end
       end,
+      onLfgFlagsToggle = function(enabled)
+        local lfgFlags = ctx.addonTable and ctx.addonTable.LFGFlags
+        if type(lfgFlags) == "table" and type(lfgFlags.SetEnabled) == "function" then
+          lfgFlags.SetEnabled(enabled)
+        end
+      end,
+      onTooltipFlagsToggle = function(enabled)
+        local rosterInternal = ctx.addonTable and ctx.addonTable._RosterInternal
+        if type(rosterInternal) == "table" and type(rosterInternal.SetTooltipFlagsEnabled) == "function" then
+          rosterInternal.SetTooltipFlagsEnabled(enabled)
+        end
+      end,
       onResetDB = function()
         ctx.resetDB()
       end,
     })
+
+    -- Apply initial DB values for flag features.
+    local db = IsiLiveDB or {}
+    local lfgFlags = ctx.addonTable and ctx.addonTable.LFGFlags
+    if type(lfgFlags) == "table" and type(lfgFlags.SetEnabled) == "function" then
+      lfgFlags.SetEnabled(db.lfgFlagsEnabled ~= false)
+    end
+    local rosterInternal = ctx.addonTable and ctx.addonTable._RosterInternal
+    if type(rosterInternal) == "table" and type(rosterInternal.SetTooltipFlagsEnabled) == "function" then
+      rosterInternal.SetTooltipFlagsEnabled(db.tooltipFlagsEnabled ~= false)
+    end
+  end
+
+  -- Restore saved UI Scale
+  if IsiLiveDB and type(IsiLiveDB.uiScale) == "number" and IsiLiveDB.uiScale ~= 1.0 then
+    if ctx.mainFrame and type(ctx.mainFrame.SetScale) == "function" then
+      ctx.mainFrame:SetScale(IsiLiveDB.uiScale)
+    end
   end
 
   -- Minimap Button: create with correct initial visibility so MinimapButtonButton
@@ -223,7 +253,9 @@ local function FinalizeFactoryRuntime(ctx)
     end
   end
 
-  modules.bootstrap.RegisterMainFrameEvents(ctx.mainFrame)
+  ctx.eventFrame = CreateFrame("Frame")
+  ctx.eventFrame:SetScript("OnEvent", ctx.OnEvent)
+  modules.bootstrap.RegisterDispatcherEvents(ctx.eventFrame)
   modules.bootstrap.BindMainFrameScripts(ctx.mainFrame, {
     onShow = function()
       ctx.SetProcessingActive(true)

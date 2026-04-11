@@ -48,6 +48,7 @@ core/isiLive_runtime_log.lua
 logic/isiLive_inspect.lua
 ui/isiLive_roster.lua
 ui/isiLive_roster_tooltip.lua
+ui/isiLive_lfg_flags.lua
 ui/isiLive_roster_layout.lua
 game/isiLive_mplus_timer.lua
 game/isiLive_killtrack.lua

@@ -612,8 +612,6 @@ local function InitializeFactoryPrimaryControllers(ctx)
   ctx.SendRefreshResponse = initResult.sendRefreshResponse
   ctx.ApplyKnownKeyToRosterEntry = initResult.applyKnownKeyToRosterEntry
   ctx.RecordRun = initResult.recordRun
-  ctx.RecordKickCombatLogEvent = initResult.recordKickCombatLogEvent
-  ctx.ResetKickStats = initResult.resetKickStats
   ctx.highlightController = initResult.highlightController
   ctx.rosterPanelController = initResult.rosterPanelController
   ctx.refreshButton = initResult.refreshButton
@@ -939,6 +937,14 @@ local function RegisterBlizzardUnitLanguageTooltip(ctx, modules)
       getLanguageTooltipMarkup = ctx.GetLanguageTooltipMarkup,
     })
   end
+
+  local lfgFlags = ctx.addonTable and ctx.addonTable.LFGFlags
+  if type(lfgFlags) == "table" and type(lfgFlags.Register) == "function" then
+    lfgFlags.Register({
+      getRealmInfoLib = ctx.GetRealmInfoLib,
+      localeModule = modules.locale,
+    })
+  end
 end
 
 local function InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runtimeState)
@@ -976,17 +982,6 @@ local function InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runti
           deathTimeLost = 8,
         })
       end
-      local KillTrack = ctx.addonTable and ctx.addonTable.KillTrack
-      if type(KillTrack) == "table" and type(KillTrack.SetDemoData) == "function" then
-        KillTrack.SetDemoData({
-          active = true,
-          percent = 47.34,
-          rawCount = 0,
-          total = 0,
-          inCombat = true,
-          pullPercent = 3.21,
-        })
-      end
       -- cdTrackerController is created after testModeController, so always defer.
       local C_Timer_ref = rawget(_G, "C_Timer")
       if type(C_Timer_ref) == "table" and type(C_Timer_ref.After) == "function" then
@@ -1010,10 +1005,6 @@ local function InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runti
       end
       if ctx.cdTrackerController and type(ctx.cdTrackerController.ClearDemoData) == "function" then
         ctx.cdTrackerController.ClearDemoData()
-      end
-      local KillTrack = ctx.addonTable and ctx.addonTable.KillTrack
-      if type(KillTrack) == "table" and type(KillTrack.ClearDemoData) == "function" then
-        KillTrack.ClearDemoData()
       end
       if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
         ctx.rosterPanelController.RefreshCdTracker()
@@ -1070,16 +1061,6 @@ local function InitializeFactorySecondaryRuntimeMethods(ctx, modules)
   ctx.EnqueueInspect = function(unit)
     ctx.inspectController.EnqueueInspect(unit, ctx.GetRoster())
   end
-  local function IsExistingPlayerUnit()
-    local unitExists = rawget(_G, "UnitExists")
-    if type(unitExists) ~= "function" then
-      return false
-    end
-
-    local ok, exists = pcall(unitExists, "player")
-    return ok and exists == true
-  end
-
   ctx.CheckIfEnteredTargetDungeon = function()
     local targetMapID = ctx.ResolveStatusTargetMapID()
     if not targetMapID then
@@ -1093,7 +1074,7 @@ local function InitializeFactorySecondaryRuntimeMethods(ctx, modules)
         currentMapID = challengeMapID
       end
     end
-    if not currentMapID and IsExistingPlayerUnit() and C_Map and C_Map.GetBestMapForUnit then
+    if not currentMapID and C_Map and C_Map.GetBestMapForUnit and type(UnitExists) == "function" and UnitExists("player") then
       local mapID = C_Map.GetBestMapForUnit("player")
       if type(mapID) == "number" and mapID > 0 then
         currentMapID = mapID
@@ -1174,7 +1155,8 @@ local function InitializeFactorySecondaryKickTracker(
   ctx,
   modules,
   getTime,
-  getUnitNameAndRealm,
+  getUnitName,
+  getRealmName,
   IsMainFrameShown,
   IsRaidModeActive
 )
@@ -1188,32 +1170,13 @@ local function InitializeFactorySecondaryKickTracker(
   local kickHeartbeatAt = 0
   local kickTrackerSuppressedByRaid = false
   local kickTrackerRecoveryInProgress = false
-  local getCombatLogEventInfo = type(ctx.GetCombatLogEventInfo) == "function" and ctx.GetCombatLogEventInfo or nil
-  local cachedSelfName = nil
-  local cachedSelfRealm = nil
-  ctx.GetCombatLogEventInfo = getCombatLogEventInfo
-
-  local function ResolveOwnPlayerIdentity()
-    if type(getUnitNameAndRealm) == "function" then
-      local selfName, selfRealm = getUnitNameAndRealm("player")
-      if type(selfName) == "string" and selfName ~= "" then
-        cachedSelfName = selfName
-        cachedSelfRealm = selfRealm
-      end
-    end
-
-    if type(cachedSelfName) ~= "string" or cachedSelfName == "" then
-      return nil, nil
-    end
-
-    return cachedSelfName, cachedSelfRealm
-  end
 
   local function ClearOwnKickSyncCache()
     if not (modules.sync and type(modules.sync.ClearPlayerKickInfo) == "function") then
       return false
     end
-    local selfName, selfRealm = ResolveOwnPlayerIdentity()
+    local selfName = getUnitName and getUnitName("player") or nil
+    local selfRealm = getRealmName and getRealmName() or nil
     if not selfName or selfName == "" then
       return false
     end
@@ -1253,17 +1216,10 @@ local function InitializeFactorySecondaryKickTracker(
     end
     local hasKick = info.hasKick
     if modules.sync and type(modules.sync.SetPlayerKickInfo) == "function" then
-      local selfName, selfRealm = ResolveOwnPlayerIdentity()
+      local selfName = getUnitName and getUnitName("player") or nil
+      local selfRealm = getRealmName and getRealmName() or nil
       if selfName and selfName ~= "" then
-        modules.sync.SetPlayerKickInfo(
-          selfName,
-          selfRealm,
-          info.onCooldown,
-          info.cooldownRemain,
-          nil,
-          hasKick,
-          info.kickSlots
-        )
+        modules.sync.SetPlayerKickInfo(selfName, selfRealm, info.onCooldown, info.cooldownRemain, nil, hasKick)
       end
     end
     local now = getTime()
@@ -1280,7 +1236,6 @@ local function InitializeFactorySecondaryKickTracker(
         hasKick = hasKick,
         onCooldown = info.onCooldown,
         cooldownRemain = info.cooldownRemain,
-        kickSlots = info.kickSlots,
         force = force == true or heartbeatDue,
       })
     end
@@ -1349,66 +1304,32 @@ local function InitializeFactorySecondaryKickTracker(
     return SyncOwnKickState(force ~= false)
   end
 
-  local function RefreshKickState()
-    if not ctx.kickTrackerController then
-      return
-    end
-
-    local previousInfo = ctx.kickTrackerController.GetKickInfo and ctx.kickTrackerController.GetKickInfo() or nil
-    local resolvedState = ctx.kickTrackerController.ResolveKickState and ctx.kickTrackerController.ResolveKickState()
-    local previousSpellID = type(previousInfo) == "table" and previousInfo.spellID or nil
-    local previousAvailabilityResolved = type(previousInfo) == "table" and previousInfo.availabilityResolved == true
-    local previousHasKick = type(previousInfo) == "table" and previousInfo.hasKick == true
-    local nextSpellID = type(resolvedState) == "table" and resolvedState.spellID or nil
-    if type(resolvedState) ~= "table" or resolvedState.availabilityResolved ~= true then
-      ClearOwnKickSyncCache()
-      RefreshKickColumnIfVisible()
-      return
-    end
-    if
-      previousAvailabilityResolved ~= true
-      or previousHasKick ~= (resolvedState.hasKick == true)
-      or previousSpellID ~= nextSpellID
-    then
-      kickReadyBroadcastUntil = getTime() + 3
-      SyncOwnKickState(true)
-      RefreshKickColumnIfVisible()
-    end
-  end
-
-  ctx.RefreshKickState = RefreshKickState
-  ctx.CacheKickCooldown = function()
-    if ctx.kickTrackerController and type(ctx.kickTrackerController.CacheCooldown) == "function" then
-      ctx.kickTrackerController.CacheCooldown()
-    end
-  end
-
-  ctx.HandleKickCastSucceeded = function(unit, spellID)
+  -- Event frame: UNIT_SPELLCAST_SUCCEEDED for player/pet is untainted.
+  local castFrame = CreateFrame("Frame")
+  castFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player", "pet")
+  castFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+  castFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+  castFrame:RegisterEvent("SPELLS_CHANGED")
+  castFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+  castFrame:RegisterUnitEvent("UNIT_PET", "player")
+  castFrame:SetScript("OnEvent", function(_, event, unit, _, spellID)
     if IsRaidModeActive() then
       EnterRaidKickSuppression()
       return
     end
-    if not ctx.kickTrackerController then
-      return
-    end
 
-    local observedKick = ctx.kickTrackerController.OnCast(unit, spellID) == true
-    if kickTrackerSuppressedByRaid then
-      if observedKick then
-        kickTrackerSuppressedByRaid = false
-        SyncOwnKickState(true)
-        RefreshKickColumnIfVisible()
+    if event == "UNIT_SPELLCAST_SUCCEEDED" then
+      if ctx.kickTrackerController then
+        local observedKick = ctx.kickTrackerController.OnCast(unit, spellID) == true
+        if kickTrackerSuppressedByRaid then
+          if observedKick then
+            kickTrackerSuppressedByRaid = false
+            SyncOwnKickState(true)
+            RefreshKickColumnIfVisible()
+          end
+          return
+        end
       end
-      return
-    end
-  end
-
-  ctx.HandleKickPetChanged = function(unit)
-    if unit ~= "player" then
-      return
-    end
-    if IsRaidModeActive() then
-      EnterRaidKickSuppression()
       return
     end
 
@@ -1417,8 +1338,36 @@ local function InitializeFactorySecondaryKickTracker(
       return
     end
 
-    RefreshKickState()
-  end
+    if event == "SPELL_UPDATE_COOLDOWN" or event == "PLAYER_REGEN_ENABLED" then
+      -- Cache real CD outside of combat (talent reductions).
+      if ctx.kickTrackerController then
+        ctx.kickTrackerController.CacheCooldown()
+      end
+    elseif event == "SPELLS_CHANGED" or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "UNIT_PET" then
+      if ctx.kickTrackerController then
+        local previousInfo = ctx.kickTrackerController.GetKickInfo()
+        local resolvedState = ctx.kickTrackerController.ResolveKickState()
+        local previousSpellID = type(previousInfo) == "table" and previousInfo.spellID or nil
+        local previousAvailabilityResolved = type(previousInfo) == "table" and previousInfo.availabilityResolved == true
+        local previousHasKick = type(previousInfo) == "table" and previousInfo.hasKick == true
+        local nextSpellID = type(resolvedState) == "table" and resolvedState.spellID or nil
+        if type(resolvedState) ~= "table" or resolvedState.availabilityResolved ~= true then
+          ClearOwnKickSyncCache()
+          RefreshKickColumnIfVisible()
+          return
+        end
+        if
+          previousAvailabilityResolved ~= true
+          or previousHasKick ~= (resolvedState.hasKick == true)
+          or previousSpellID ~= nextSpellID
+        then
+          kickReadyBroadcastUntil = getTime() + 3
+          SyncOwnKickState(true)
+          RefreshKickColumnIfVisible()
+        end
+      end
+    end
+  end)
 
   -- Ticker: scan own kick state + refresh kick column every 0.5s.
   local C_Timer_ref = rawget(_G, "C_Timer")
@@ -1447,6 +1396,8 @@ local function InitializeFactorySecondaryControllers(ctx)
   local modules = ctx.modules
   local runtimeState = ctx.runtimeState
   local getTime = GetTime
+  local getUnitName = UnitName
+  local getRealmName = GetRealmName
 
   local function IsMainFrameShown()
     return ctx.mainFrame and type(ctx.mainFrame.IsShown) == "function" and ctx.mainFrame:IsShown() == true
@@ -1457,20 +1408,18 @@ local function InitializeFactorySecondaryControllers(ctx)
   end
 
   RegisterBlizzardUnitLanguageTooltip(ctx, modules)
+  InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runtimeState)
   InitializeFactorySecondaryRuntimeMethods(ctx, modules)
   InitializeFactorySecondaryCdTracker(ctx, modules, runtimeState, getTime, IsMainFrameShown, IsRaidModeActive)
-  -- KickTracker must be initialized before TestModeAndBindings because SetOverrideBindingClick
-  -- (called inside ApplyHotkeyBindings) taints the execution context, and RegisterEvent is
-  -- forbidden in a tainted context.
   InitializeFactorySecondaryKickTracker(
     ctx,
     modules,
     getTime,
-    ctx.GetUnitNameAndRealm,
+    getUnitName,
+    getRealmName,
     IsMainFrameShown,
     IsRaidModeActive
   )
-  InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runtimeState)
 end
 FI.InitializeFactorySecondaryControllers = InitializeFactorySecondaryControllers
 

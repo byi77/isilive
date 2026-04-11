@@ -44,7 +44,6 @@ local function CreateStatsController(ctx)
   return ctx.statsModule.CreateController({
     getRoster = ctx.getRoster,
     getUnitNameAndRealm = ctx.getUnitNameAndRealm,
-    isInChallengeMode = ctx.isInChallengeMode,
   })
 end
 
@@ -69,8 +68,6 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     getDungeonName = ctx.getDungeonName,
     getRioDelta = ctx.getRioDelta,
     getPlayerSyncSummary = ctx.getPlayerSyncSummary,
-    getPlayerKickStats = ctx.getPlayerKickStats,
-    getLocalKickInfo = ctx.getLocalKickInfo,
     resolveActiveKeyOwnerUnit = ctx.resolveActiveKeyOwnerUnit,
     resolveTargetMapID = ctx.resolveTargetMapID,
     isReadyCheckActive = ctx.isReadyCheckActive,
@@ -151,15 +148,6 @@ function ControllerInit.CreateControllers(ctx)
   result.statsController = statsController
   -- Inject stats getters into context for downstream consumers
   ctx.getPlayerLastRunDps = statsController.GetPlayerLastRunDps
-  ctx.getPlayerKickStats = statsController.GetPlayerKickStats
-  ctx.getLocalKickInfo = function()
-    if ctx.kickTrackerController and type(ctx.kickTrackerController.GetKickInfo) == "function" then
-      return ctx.kickTrackerController.GetKickInfo()
-    end
-    return nil
-  end
-  ctx.recordKickCombatLogEvent = statsController.RecordKickCombatLogEvent
-  ctx.resetKickStats = statsController.ResetKickStats
   result.recordRun = statsController.RecordRun
 
   local keySyncResult = CreateKeySyncController(ctx)
