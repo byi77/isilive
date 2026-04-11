@@ -176,6 +176,7 @@ Aktueller Soll-Zustand:
 - Leader-State wird hidden still synchronisiert
 - hidden gibt es keine Notice-/Chat-Ausgabe fuer Leader-Transfers
 - verzoegerter Post-Run-Refresh darf im Raid nicht laufen; er muss nach Raid-Ende sauber wieder aufgenommen werden
+- lokale LuaLS-/VS-Code-Konfiguration wie `.luarc.json` bleibt developer-spezifisch, kann absolute Pfade enthalten und gehoert nicht ins Repo; falls die Datei existiert, muss sie in `.gitignore` stehen
 
 Nicht versehentlich zurueckbauen auf:
 - "alles hidden komplett aus"

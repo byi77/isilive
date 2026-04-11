@@ -11,6 +11,7 @@ desktop.ini
 !.claude/settings.example.json
 .idea/
 *.code-workspace
+.luarc.json
 
 # Lua/WoW temp or backup files
 *.bak
