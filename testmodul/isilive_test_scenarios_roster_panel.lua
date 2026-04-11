@@ -563,7 +563,7 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
         setMainFrameHeightSafe = function() end,
         setMainFrameWidthSafe = function() end,
         minFrameHeight = 236,
-        buildOrderedRoster = function(currentRoster, rolePriority, unitPriority)
+        buildOrderedRoster = function(currentRoster, _rolePriority, _unitPriority)
           return {
             {
               unit = "player",

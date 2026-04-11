@@ -1850,6 +1850,30 @@ local function RenderRosterImpl(state, roster)
   local setMainFrameHeightSafe = state.setMainFrameHeightSafe
   local minFrameHeight = state.minFrameHeight
   local raidNoticeLabel = state.raidNoticeLabel
+  local buildOrderedRoster = state.buildOrderedRoster
+  local rolePriority = state.rolePriority
+  local unitPriority = state.unitPriority
+  local resolveActiveKeyOwnerUnit = state.resolveActiveKeyOwnerUnit
+  local isReadyCheckActive = state.isReadyCheckActive and state.isReadyCheckActive() or false
+  local resolveTargetMapID = state.resolveTargetMapID
+  local buildDisplayData = state.buildDisplayData
+  local truncateName = state.truncateName
+  local getShortSpecLabel = state.getShortSpecLabel
+  local getLanguageFlagMarkup = state.getLanguageFlagMarkup
+  local getLanguageTooltipMarkup = state.getLanguageTooltipMarkup
+  local getDungeonShortCode = state.getDungeonShortCode
+  local getDungeonName = state.getDungeonName
+  local getRioDelta = state.getRioDelta
+  local syncMarker = state.syncMarker
+  local syncBadge = state.syncBadge
+  local getPlayerSyncSummary = state.getPlayerSyncSummary
+  local getPlayerLastRunDps = state.getPlayerLastRunDps
+  local getReadyCheckReadyUntil = state.getReadyCheckReadyUntil
+  local getReadyCheckDeclinedUntil = state.getReadyCheckDeclinedUntil
+  local getTime = state.getTime
+  local getL = state.getL
+  local isRaidGroup = state.isRaidGroup
+  local applyKnownKeyToRosterEntry = state.applyKnownKeyToRosterEntry
 
   if state.uiRef then
     state.uiRef.memberRows = memberRows
@@ -1891,7 +1915,7 @@ local function RenderRosterImpl(state, roster)
   end
 
   -- If in a raid group, clear rows and skip roster render (H mode shows the tool buttons)
-  if state.isRaidGroup and state.isRaidGroup() then
+  if isRaidGroup and isRaidGroup() then
     for _, row in pairs(memberRows) do
       ClearMemberRow(row)
     end
@@ -1947,10 +1971,9 @@ local function RenderRosterImpl(state, roster)
   end
 
   local index = 1
-  local orderedRoster = state.buildOrderedRoster(roster, state.rolePriority, state.unitPriority)
-  local activeKeyOwnerUnit = state.resolveActiveKeyOwnerUnit()
-  local isReadyCheckActive = state.isReadyCheckActive and state.isReadyCheckActive() or false
-  local targetMapID = state.resolveTargetMapID and state.resolveTargetMapID() or nil
+  local orderedRoster = buildOrderedRoster(roster, rolePriority, unitPriority)
+  local activeKeyOwnerUnit = resolveActiveKeyOwnerUnit and resolveActiveKeyOwnerUnit() or nil
+  local targetMapID = resolveTargetMapID and resolveTargetMapID() or nil
   local hasAnyKey = false
 
   for _, entry in ipairs(orderedRoster) do
@@ -2029,8 +2052,8 @@ local function RenderRosterImpl(state, roster)
     local showDps = FORCE_SHOW_DPS_COLUMN
     if showDps then
       local dpsText = "-"
-      if type(state.getPlayerLastRunDps) == "function" then
-        dpsText = FormatCompactTooltipNumber(state.getPlayerLastRunDps(info.name, info.realm)) or "-"
+      if type(getPlayerLastRunDps) == "function" then
+        dpsText = FormatCompactTooltipNumber(getPlayerLastRunDps(info.name, info.realm)) or "-"
       end
       if dpsText == "-" and info.syncDps and info.syncDps > 0 then
         dpsText = FormatCompactTooltipNumber(info.syncDps) or "-"
@@ -2043,8 +2066,8 @@ local function RenderRosterImpl(state, roster)
     end
     if row.kick then
       -- Refresh kick sync state from cache before rendering.
-      if type(state.applyKnownKeyToRosterEntry) == "function" then
-        state.applyKnownKeyToRosterEntry(info)
+      if type(applyKnownKeyToRosterEntry) == "function" then
+        applyKnownKeyToRosterEntry(info)
       end
       SetKickCellText(row.kick, info)
     end
@@ -2052,11 +2075,11 @@ local function RenderRosterImpl(state, roster)
     row.tooltipName = info and info.name or nil
     row.tooltipRealm = info and info.realm or nil
     row.tooltipInfo = info
-    row.getDungeonShortCode = state.getDungeonShortCode
-    row.getDungeonName = state.getDungeonName
-    row.getPlayerLastRunDps = state.getPlayerLastRunDps
-    row.getLanguageTooltipMarkup = state.getLanguageTooltipMarkup
-    row.getL = state.getL
+    row.getDungeonShortCode = getDungeonShortCode
+    row.getDungeonName = getDungeonName
+    row.getPlayerLastRunDps = getPlayerLastRunDps
+    row.getLanguageTooltipMarkup = getLanguageTooltipMarkup
+    row.getL = getL
     if row.hoverFrame then
       row.hoverFrame.unit = entry.unit
       row.hoverFrame:Show()
