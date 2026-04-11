@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-04-11 - Version 0.9.148 (patch)
+
+- **Readycheck render split:**
+  - Normal roster refreshes now re-apply the ready-check background during the hold window instead of letting a full roster render clear it implicitly.
+  - The ready-check dedicated refresh path remains the canonical place for row background, waiting marker, and hold-state reapplication.
+  - Added deterministic coverage for the normal-render reapply path and the hold-expiry cleanup path.
+
+- **Documentation / release sync:**
+  - Bumped `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `isiLive.toc` to `0.9.148`.
+  - Updated the local validator baseline to `527` scenarios / tests.
+
 ## 2026-04-11 - Version 0.9.147 (feature)
 
 - **LFG dungeon detection:**
@@ -17,6 +28,10 @@
   - `CTRL-ALT-F9` now toggles the demo mode on/off **without closing the visualisation** when deactivating.
   - Deactivating restores the real group state via a full roster update (`triggerGroupRosterUpdate`), including correct solo-player entry reconstruction.
   - Previously the hotkey called `ToggleStandardTestMode` which closed the frame on exit; it now calls the dedicated `ToggleDemoMode`.
+
+- **Share Keys fallback hardened:**
+  - The local Share Keys announcement keeps the keystone message clickable even when the owned-link API is unavailable.
+  - The fallback still posts the dungeon short code and level, but now wraps it in a deterministic keystone hyperlink instead of plain text.
 
 - **Leader notification suppressed on own group creation:**
   - When the local player creates a group and is immediately the leader, the "you are now leader" notification and sound no longer fire.

@@ -366,6 +366,7 @@ local function InitializeFactoryFrameBridge(ctx)
       ctx.EnsureSoloPlayerRoster()
       ctx.UpdateUI()
       ctx.UpdateLeaderButtons()
+      ctx.UpdateMPlusTeleportButton()
     end,
     resolveTeleportSpellID = ctx.ResolveTeleportSpellID,
     resolveMapIDBySpellID = ctx.ResolveMapIDBySpellID,

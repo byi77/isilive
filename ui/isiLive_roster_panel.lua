@@ -179,6 +179,15 @@ local function BuildKeystoneLinkText(shortCode, keyLevel)
   return string.format("%s +%d", tostring(shortCode or "?"), level)
 end
 
+local function BuildClickableKeystoneFallback(keyMapID, keyLevel, shortCode)
+  local label = BuildKeystoneLinkText(shortCode, keyLevel)
+  local keyLink = ContextHelpers.BuildClickableKeystoneLink(keyMapID, keyLevel, label)
+  if keyLink then
+    return keyLink
+  end
+  return label
+end
+
 local function BuildOwnKeyAnnounceLine(opts)
   local roster = opts.getRoster()
   local playerInfo = roster and roster.player
@@ -194,7 +203,7 @@ local function BuildOwnKeyAnnounceLine(opts)
   local keyLink = ContextHelpers.BuildKeystoneChatLink(keyMapID, keyLevel)
   if not keyLink then
     local short = opts.getDungeonShortCode(keyMapID)
-    keyLink = BuildKeystoneLinkText(short, keyLevel)
+    keyLink = BuildClickableKeystoneFallback(keyMapID, keyLevel, short)
   end
 
   local L = opts.getL()
@@ -1716,8 +1725,9 @@ local function IsEntryAtTargetDungeon(targetMapID, entry, info)
   return isAtDungeon
 end
 
-local function BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID)
+local function BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID, includeReadyCheckDecorations)
   local info = entry and entry.info or {}
+  local shouldIncludeReadyCheckDecorations = includeReadyCheckDecorations == true
 
   return state.buildDisplayData(info, {
     unit = entry and entry.unit or nil,
@@ -1729,10 +1739,10 @@ local function BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID
     syncMarker = state.syncMarker,
     syncBadge = state.syncBadge,
     syncSummary = state.getPlayerSyncSummary and state.getPlayerSyncSummary(info.name, info.realm) or nil,
-    isReadyCheckActive = isReadyCheckActive,
-    getReadyCheckReadyUntil = state.getReadyCheckReadyUntil,
-    getReadyCheckDeclinedUntil = state.getReadyCheckDeclinedUntil,
-    getTime = state.getTime,
+    isReadyCheckActive = shouldIncludeReadyCheckDecorations and isReadyCheckActive or nil,
+    getReadyCheckReadyUntil = shouldIncludeReadyCheckDecorations and state.getReadyCheckReadyUntil or nil,
+    getReadyCheckDeclinedUntil = shouldIncludeReadyCheckDecorations and state.getReadyCheckDeclinedUntil or nil,
+    getTime = shouldIncludeReadyCheckDecorations and state.getTime or nil,
     isAtDungeon = IsEntryAtTargetDungeon(targetMapID, entry, info),
   })
 end
@@ -1776,6 +1786,36 @@ local function ApplyRowReadyCheckDisplay(row, displayData)
   end
 end
 
+local function HasReadyCheckHoldInRoster(state, roster)
+  local buildOrderedRoster = type(state.buildOrderedRoster) == "function" and state.buildOrderedRoster or nil
+  local getReadyCheckReadyUntil = type(state.getReadyCheckReadyUntil) == "function" and state.getReadyCheckReadyUntil
+    or nil
+  local getReadyCheckDeclinedUntil = type(state.getReadyCheckDeclinedUntil) == "function"
+      and state.getReadyCheckDeclinedUntil
+    or nil
+  local getTime = type(state.getTime) == "function" and state.getTime or nil
+  local now = type(getTime) == "function" and tonumber(getTime()) or nil
+  if not now or not buildOrderedRoster then
+    return false
+  end
+
+  for _, entry in ipairs(buildOrderedRoster(roster, state.rolePriority, state.unitPriority)) do
+    local unit = entry and entry.unit or nil
+    if type(unit) == "string" and unit ~= "" then
+      local readyUntil = getReadyCheckReadyUntil and tonumber(getReadyCheckReadyUntil(unit)) or nil
+      if readyUntil and readyUntil > now then
+        return true
+      end
+      local declinedUntil = getReadyCheckDeclinedUntil and tonumber(getReadyCheckDeclinedUntil(unit)) or nil
+      if declinedUntil and declinedUntil > now then
+        return true
+      end
+    end
+  end
+
+  return false
+end
+
 local function SetKickCellText(cell, info)
   if not cell then
     return
@@ -1799,6 +1839,8 @@ local function SetKickCellText(cell, info)
   end
   cell:SetText("|cff666666-|r")
 end
+
+local RefreshReadyCheckStateImpl
 
 local function RenderRosterImpl(state, roster)
   local memberRows = state.memberRows
@@ -1970,7 +2012,7 @@ local function RenderRosterImpl(state, roster)
       end
     end
 
-    local displayData = BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID)
+    local displayData = BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID, true)
 
     ApplyRowReadyCheckDisplay(row, displayData)
     ApplyRowSpecDisplay(row, displayData)
@@ -2025,6 +2067,30 @@ local function RenderRosterImpl(state, roster)
     index = index + 1
   end
 
+  if isReadyCheckActive or HasReadyCheckHoldInRoster(state, roster) then
+    RefreshReadyCheckStateImpl({
+      memberRows = memberRows,
+      buildOrderedRoster = buildOrderedRoster,
+      rolePriority = rolePriority,
+      unitPriority = unitPriority,
+      isReadyCheckActive = isReadyCheckActive,
+      resolveTargetMapID = resolveTargetMapID,
+      buildDisplayData = buildDisplayData,
+      truncateName = truncateName,
+      getShortSpecLabel = getShortSpecLabel,
+      getLanguageFlagMarkup = getLanguageFlagMarkup,
+      getDungeonShortCode = getDungeonShortCode,
+      getDungeonName = getDungeonName,
+      getRioDelta = getRioDelta,
+      syncMarker = syncMarker,
+      syncBadge = syncBadge,
+      getPlayerSyncSummary = getPlayerSyncSummary,
+      getReadyCheckReadyUntil = getReadyCheckReadyUntil,
+      getReadyCheckDeclinedUntil = getReadyCheckDeclinedUntil,
+      getTime = getTime,
+    }, roster)
+  end
+
   shareKeysButton:SetEnabled(hasAnyKey)
   shareKeysButton:SetAlpha(hasAnyKey and 1 or 0.45)
 
@@ -2038,9 +2104,13 @@ local function RenderRosterImpl(state, roster)
   end
 end
 
-local function RefreshReadyCheckStateImpl(state, roster)
+RefreshReadyCheckStateImpl = function(state, roster)
+  local buildOrderedRoster = type(state.buildOrderedRoster) == "function" and state.buildOrderedRoster or nil
+  if not buildOrderedRoster then
+    return
+  end
   local memberRows = state.memberRows or {}
-  local orderedRoster = state.buildOrderedRoster(roster, state.rolePriority, state.unitPriority)
+  local orderedRoster = buildOrderedRoster(roster, state.rolePriority, state.unitPriority)
   local isReadyCheckActive = state.isReadyCheckActive and state.isReadyCheckActive() or false
   local targetMapID = state.resolveTargetMapID and state.resolveTargetMapID() or nil
 
@@ -2052,7 +2122,7 @@ local function RefreshReadyCheckStateImpl(state, roster)
 
     local row = memberRows[index]
     if row then
-      local displayData = BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID)
+      local displayData = BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID, true)
       ApplyRowReadyCheckDisplay(row, displayData)
       ApplyRowSpecDisplay(row, displayData)
       ApplyRowNameDisplay(row, displayData)

@@ -266,6 +266,411 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
     end)
   end)
 
+  test("Roster render re-applies ready-check background during hold after a normal roster update", function()
+    local readyCheckReadyUntilByUnit = {}
+    local now = 100
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local createdTextures = {}
+    local function NewMiniFrame()
+      local frame = {
+        enabled = nil,
+        alpha = nil,
+        pointX = nil,
+        pointY = nil,
+        checked = false,
+        attributes = {},
+        _shown = true,
+        _frameStrata = "MEDIUM",
+        _frameLevel = 1,
+      }
+
+      function frame.SetSize() end
+      function frame.SetHeight() end
+      function frame.SetWidth() end
+      function frame.SetPoint(self, ...)
+        local numericArgs = {}
+        for index = 1, select("#", ...) do
+          local value = select(index, ...)
+          if type(value) == "number" then
+            table.insert(numericArgs, value)
+          end
+        end
+        if #numericArgs >= 2 then
+          self.pointX = numericArgs[#numericArgs - 1]
+          self.pointY = numericArgs[#numericArgs]
+        elseif #numericArgs == 1 then
+          self.pointX = 0
+          self.pointY = numericArgs[1]
+        end
+      end
+      function frame.SetScript(self, script, handler)
+        self[script] = handler
+      end
+      function frame.SetText(self, text)
+        self.text = text
+      end
+      function frame.SetEnabled(self, value)
+        self.enabled = value and true or false
+      end
+      function frame.SetAlpha(self, value)
+        self.alpha = value
+      end
+      function frame.SetChecked(self, value)
+        self.checked = value and true or false
+      end
+      function frame.GetChecked(self)
+        return self.checked
+      end
+      function frame.SetAttribute(self, key, value)
+        self.attributes[key] = value
+      end
+      function frame.GetAttribute(self, key)
+        return self.attributes[key]
+      end
+      function frame.EnableMouse() end
+      function frame.RegisterForClicks() end
+      function frame.Hide(self)
+        self._shown = false
+      end
+      function frame.Show(self)
+        self._shown = true
+      end
+      function frame.SetShown(self, value)
+        self._shown = value and true or false
+      end
+      function frame.IsShown(self)
+        return self._shown
+      end
+      function frame.SetNormalTexture(self, value)
+        self.normalTexture = value
+      end
+      function frame.SetPushedTexture(self, value)
+        self.pushedTexture = value
+      end
+      function frame.SetHighlightTexture(self, value)
+        self.highlightTexture = value
+      end
+      function frame.SetFrameStrata(self, value)
+        self._frameStrata = value
+      end
+      function frame.GetFrameStrata(self)
+        return self._frameStrata
+      end
+      function frame.SetFrameLevel(self, value)
+        self._frameLevel = value
+      end
+      function frame.GetFrameLevel(self)
+        return self._frameLevel
+      end
+      function frame.CreateTexture()
+        local texture = {
+          _shown = true,
+        }
+        function texture.SetPoint() end
+        function texture.SetWidth() end
+        function texture.SetHeight() end
+        function texture.SetAllPoints(self)
+          self.allPoints = true
+        end
+        function texture.SetColorTexture(self, r, g, b, a)
+          self.color = { r, g, b, a }
+        end
+        function texture.SetTexture(self, value)
+          self.texture = value
+        end
+        function texture.SetTexCoord() end
+        function texture.Hide(self)
+          self._shown = false
+        end
+        function texture.Show(self)
+          self._shown = true
+        end
+        table.insert(createdTextures, texture)
+        return texture
+      end
+      function frame.CreateFontString()
+        local fontString = {
+          text = "",
+          _shown = true,
+        }
+        function fontString.SetText(self, value)
+          self.text = value
+        end
+        function fontString.SetPoint() end
+        function fontString.SetWidth(self, value)
+          self.width = value
+        end
+        function fontString.SetJustifyH() end
+        function fontString.SetTextColor() end
+        function fontString.SetShadowOffset() end
+        function fontString.SetShadowColor() end
+        function fontString.SetFont() end
+        function fontString.GetFont()
+          return "font", 10, ""
+        end
+        function fontString.SetWordWrap() end
+        function fontString.Hide(self)
+          self._shown = false
+        end
+        function fontString.Show(self)
+          self._shown = true
+        end
+        function fontString.IsShown(self)
+          return self._shown
+        end
+        table.insert(createdFontStrings, fontString)
+        return fontString
+      end
+
+      table.insert(createdFrames, frame)
+      return frame
+    end
+    local mainFrame = {
+      width = 0,
+      _frameStrata = "MEDIUM",
+      _frameLevel = 1,
+    }
+
+    function mainFrame.SetWidth(self, value)
+      self.width = value
+    end
+    function mainFrame.GetFrameStrata(self)
+      return self._frameStrata
+    end
+    function mainFrame.GetFrameLevel(self)
+      return self._frameLevel
+    end
+    function mainFrame.IsShown()
+      return true
+    end
+    function mainFrame.CreateFontString()
+      local fontString = {
+        text = "",
+        _shown = true,
+      }
+      function fontString.SetText(self, value)
+        self.text = value
+      end
+      function fontString.SetPoint() end
+      function fontString.SetWidth(self, value)
+        self.width = value
+      end
+      function fontString.SetJustifyH() end
+      function fontString.SetTextColor() end
+      function fontString.SetShadowOffset() end
+      function fontString.SetShadowColor() end
+      function fontString.SetFont() end
+      function fontString.GetFont()
+        return "font", 10, ""
+      end
+      function fontString.SetWordWrap() end
+      function fontString.Hide(self)
+        self._shown = false
+      end
+      function fontString.Show(self)
+        self._shown = true
+      end
+      function fontString.IsShown(self)
+        return self._shown
+      end
+      table.insert(createdFontStrings, fontString)
+      return fontString
+    end
+    function mainFrame.CreateTexture()
+      local texture = {
+        _shown = true,
+      }
+      function texture.SetPoint() end
+      function texture.SetWidth() end
+      function texture.SetHeight() end
+      function texture.SetAllPoints(self)
+        self.allPoints = true
+      end
+      function texture.SetColorTexture(self, r, g, b, a)
+        self.color = { r, g, b, a }
+      end
+      function texture.SetTexture(self, value)
+        self.texture = value
+      end
+      function texture.SetTexCoord() end
+      function texture.Hide(self)
+        self._shown = false
+      end
+      function texture.Show(self)
+        self._shown = true
+      end
+      table.insert(createdTextures, texture)
+      return texture
+    end
+
+    WithGlobals({
+      GetReadyCheckStatus = function()
+        return nil
+      end,
+      RAID_CLASS_COLORS = {
+        WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
+      },
+      CreateColor = function(r, g, b)
+        return {
+          GenerateHexColor = function()
+            return string.format("ff%02x%02x%02x", math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+          end,
+        }
+      end,
+      CreateFrame = function()
+        return NewMiniFrame()
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      C_ChatInfo = { SendChatMessage = function() end },
+      print = function() end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua", "isiLive_roster.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = mainFrame,
+        getL = function()
+          return {
+            TITLE = "isiLive",
+            COL_SPEC = "Spec",
+            COL_NAME = "Name",
+            COL_LANGUAGE = "Lang",
+            COL_KEY = "Key",
+            COL_ILVL = "iLvl",
+            COL_RIO = "RIO",
+            COL_DPS = "DPS",
+            LEAD_OPTIONS = "Lead",
+            MPLUS_MANAGEMENT = "M+",
+            BTN_READYCHECK = "Readycheck",
+            BTN_COUNTDOWN10 = "Countdown10",
+            BTN_COUNTDOWN_CANCEL = "Countdown 0",
+            BTN_REFRESH = "Refresh",
+            BTN_SHARE_KEYS = "Share",
+          }
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
+        minFrameHeight = 236,
+        buildOrderedRoster = function(currentRoster, rolePriority, unitPriority)
+          return {
+            {
+              unit = "player",
+              info = currentRoster and currentRoster.player or {},
+            },
+          }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function(info, opts)
+          return addon.Roster.BuildDisplayData(info, opts)
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getLanguageTooltipMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return "DB"
+        end,
+        getDungeonName = function()
+          return "Dungeon"
+        end,
+        getRioDelta = function()
+          return nil
+        end,
+        getPlayerSyncSummary = function()
+          return nil
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        resolveTargetMapID = function()
+          return nil
+        end,
+        isReadyCheckActive = function()
+          return false
+        end,
+        getReadyCheckReadyUntil = function(unit)
+          return readyCheckReadyUntilByUnit[unit]
+        end,
+        getReadyCheckDeclinedUntil = function()
+          return nil
+        end,
+        getRoster = function()
+          return {
+            player = {
+              name = "TestPlayer",
+              class = "WARRIOR",
+              role = "DAMAGER",
+            },
+          }
+        end,
+        isInGroup = function()
+          return true
+        end,
+        isRaidGroup = function()
+          return false
+        end,
+        rolePriority = {
+          TANK = 1,
+          HEALER = 2,
+          DAMAGER = 3,
+          NONE = 4,
+        },
+        unitPriority = {
+          player = 1,
+        },
+        getTime = function()
+          return now
+        end,
+        shareKeysDebounceSeconds = 1,
+        sendShareKeysRequest = function() end,
+      })
+
+      readyCheckReadyUntilByUnit.player = now + 20
+      controller.RenderRoster({
+        player = {
+          name = "TestPlayer",
+          class = "WARRIOR",
+          role = "DAMAGER",
+        },
+      })
+
+      local foundReadyBackground = false
+      for _, texture in ipairs(createdTextures) do
+        if texture.color and texture.color[1] == 0.08 and texture.color[2] == 0.5 and texture.color[3] == 0.16 then
+          foundReadyBackground = true
+          break
+        end
+      end
+
+      Assert.True(
+        foundReadyBackground,
+        "normal roster refresh during ready-check hold must re-apply the green background"
+      )
+    end)
+  end)
+
   test("Roster shows at-dungeon marker when unit map matches target", function()
     local roster = { party1 = { name = "Member" } }
 
@@ -1334,6 +1739,165 @@ local function RegisterRosterPanelShareKeysLinkTests(test, Assert, WithGlobals, 
         "share-keys must not forward a foreign item hyperlink"
       )
       Assert.Equal(shareKeyRequests, 1, "share-keys should still broadcast the sync request")
+    end)
+  end)
+
+  test("Roster panel share keys button keeps the fallback keystone message clickable", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local sentMessages = {}
+    local shareKeyRequests = 0
+    local currentTime = 300
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      C_ChallengeMode = {
+        GetMapUIInfo = function()
+          return nil
+        end,
+      },
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      C_ChatInfo = {
+        SendChatMessage = function(text, channel)
+          table.insert(sentMessages, {
+            text = text,
+            channel = channel,
+          })
+        end,
+      },
+      print = function() end,
+    }, function()
+      local addon = LoadAddonModules({
+        "core/isiLive_context_helpers.lua",
+        "isiLive_roster_panel.lua",
+      })
+
+      addon.ContextHelpers.BuildKeystoneChatLink = function()
+        return nil
+      end
+
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = NewRecordedMainFrame(createdFontStrings),
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
+        buildOrderedRoster = function(roster)
+          return {
+            { unit = "player", info = roster.player },
+          }
+        end,
+        hasFullSync = function()
+          return false
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Self",
+            languageDisplay = "EN",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "DB +10",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return "DB"
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {
+            player = {
+              name = "Self",
+              role = "DAMAGER",
+              keyMapID = 2662,
+              keyLevel = 10,
+            },
+          }
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {
+          DAMAGER = 1,
+          NONE = 2,
+        },
+        unitPriority = {
+          player = 1,
+        },
+        getTime = function()
+          return currentTime
+        end,
+        shareKeysDebounceSeconds = 1,
+        sendShareKeysRequest = function()
+          shareKeyRequests = shareKeyRequests + 1
+        end,
+      })
+
+      controller.RenderRoster({
+        player = {
+          name = "Self",
+          role = "DAMAGER",
+          keyMapID = 2662,
+          keyLevel = 10,
+        },
+      })
+
+      local shareKeysButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame.pointY == -150 then
+          shareKeysButton = frame
+          break
+        end
+      end
+
+      Assert.NotNil(shareKeysButton, "share-keys button should exist")
+      ---@diagnostic disable: need-check-nil, undefined-field
+      shareKeysButton.OnClick()
+      ---@diagnostic enable: need-check-nil, undefined-field
+
+      Assert.Equal(#sentMessages, 1, "share-keys should still emit one chat message")
+      Assert.Equal(sentMessages[1].channel, "PARTY", "fallback share-keys message should still announce to party chat")
+      Assert.True(
+        sentMessages[1].text:find("|Hkeystone:180653:2662:10:0:0:0:0|h", 1, true) ~= nil,
+        "fallback share-keys message must remain clickable"
+      )
+      Assert.True(
+        sentMessages[1].text:find("DB +10", 1, true) ~= nil,
+        "fallback share-keys message should still carry the dungeon short code label"
+      )
+      Assert.Equal(shareKeyRequests, 1, "fallback share-keys flow should still broadcast the sync request")
     end)
   end)
 end

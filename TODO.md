@@ -13,6 +13,7 @@
 ## Share-Keys in Gruppe: sichtbarer Post/linkbarer Key nicht robust
 
 - Problem: Der Button `Keys teilen` funktioniert im Gruppenkontext nicht robust. Im Ausgangsfehler passierte fuer den Nutzer sichtbar gar nichts; spaeter liess sich der sichtbare Chat-Post nur mit Klartext stabil erzwingen, dann war der Key aber nicht mehr anklickbar.
+- Zwischenstand: Der lokale Fallback erzeugt jetzt wieder einen klickbaren Keystone-Link, auch wenn die Owned-Link-API ausfaellt. Der Live-Fall mit fehlender Sichtbarkeit im Gruppenchat bleibt als separates Repro-Thema offen, falls er auf dem Zielclient noch auftritt.
 - Erwartung: Ein Klick auf `Keys teilen` soll in der Gruppe den eigenen Key sichtbar im Gruppenchat posten und idealerweise als echter anklickbarer Keystone-Link erscheinen.
 - Harter Sender-Befund aus dem Runtime-Trace:
   - Klickpfad lief an: `click inGroup=true ownLine=present`

@@ -471,7 +471,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
             and ctx.modules.teleport
             and ctx.modules.teleport.GetDungeonShortCode(keyMapID, activeLocale)
           or tostring(keyMapID)
-        keyLink = string.format("%s +%d", short, keyLevel)
+        keyLink = ContextHelpers.BuildClickableKeystoneLink(keyMapID, keyLevel, string.format("%s +%d", short, keyLevel))
       end
       local L = ctx.GetL and ctx.GetL()
       local announcePrefix = L and tostring(L.ANNOUNCE_PREFIX or "PartyKeys:"):gsub("%s+", "") or "PartyKeys:"

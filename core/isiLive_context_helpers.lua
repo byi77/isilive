@@ -81,3 +81,18 @@ function ContextHelpers.BuildKeystoneChatLink(mapID, level)
     or string.format("Keystone +%d", numericLevel)
   return string.format("|cffa335ee|Hkeystone:180653:%d:%d:0:0:0:0|h[%s]|h|r", numericMapID, numericLevel, dungeonLabel)
 end
+
+function ContextHelpers.BuildClickableKeystoneLink(mapID, level, label)
+  local numericMapID = math.floor(tonumber(mapID) or 0)
+  local numericLevel = math.floor(tonumber(level) or 0)
+  if numericMapID <= 0 or numericLevel <= 0 then
+    return nil
+  end
+
+  local linkLabel = tostring(label or ""):gsub("^%s+", ""):gsub("%s+$", "")
+  if linkLabel == "" then
+    linkLabel = string.format("Keystone +%d", numericLevel)
+  end
+
+  return string.format("|cffa335ee|Hkeystone:180653:%d:%d:0:0:0:0|h[%s]|h|r", numericMapID, numericLevel, linkLabel)
+end

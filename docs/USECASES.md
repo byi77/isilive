@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.145`
+Versionsbasis: `0.9.148`
 Zuletzt aktualisiert: `2026-04-11`
 
 ## Akteure
@@ -98,7 +98,7 @@ Ziel: Sowohl natuerliches Cooldown-Ende als auch Dungeon-Finish-Reset unterstuet
 Ziel: Dem User erlauben, aktuelle Party-Keys schnell zu posten.
 
 1. Trigger: Der User klickt den Button `Share Keys` im rechten Kontrollstapel.
-2. Verarbeitung: Das Addon postet sofort die Key-Zeile des lokalen Spielers, bevorzugt mit Blizzard-Owned-Keystone-Hyperlink und als Fallback mit lokalisiertem Dungeon-Short-Code plus Level.
+2. Verarbeitung: Das Addon postet sofort die Key-Zeile des lokalen Spielers, bevorzugt mit Blizzard-Owned-Keystone-Hyperlink und als Fallback mit lokalisiertem Dungeon-Short-Code plus Level; der Fallback bleibt dabei anklickbar.
 3. Verarbeitung: Danach broadcastet das Addon `SHAREKEYS` ueber den Addon-Sync-Channel, damit andere `isiLive`-Peers ihre eigene lokale Key-Zeile posten koennen, ohne einen vollen `Re-Sync` zu brauchen.
 4. Output: Eine lokale Key-Zeile geht sofort an `PARTY`; bei Sendefehler gibt es einen lokalen Print-Fallback. Weitere Peer-Zeilen duerfen danach von antwortenden Gruppenmitgliedern folgen.
 5. Regel: `Share Keys`-Button-Klicks werden entprellt, um schnelle doppelte Chat-Ausgaben zu vermeiden, und der Button zeigt waehrend der Sperre sichtbar `30s` Cooldown.
@@ -191,7 +191,7 @@ Ziel: Live-BRes, Bloodlust/Heroism/Time Warp, aktive Mythic+-Timer-Cutoffs und g
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `525` Szenarien ueber `38` Module.
+Aktuelle Validator-Baseline: `527` Szenarien ueber `38` Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
