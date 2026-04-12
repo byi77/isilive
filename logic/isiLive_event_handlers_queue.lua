@@ -82,7 +82,7 @@ function QueueLifecycle.BuildHandlers(ctx)
         if not HasActiveListing(entryInfo) and not ctx.isInGroup() then
           ctx.clearLatestQueueTarget()
         end
-        ctx.updateMPlusTeleportButton()
+        ctx.updateMPlusTeleportButton("queue")
         return
       end
       ctx.captureQueueJoinCandidate(...)
@@ -106,7 +106,7 @@ function QueueLifecycle.BuildHandlers(ctx)
         ctx.setActiveJoinedKeyMapID(nil)
       end
       ctx.setPendingQueueJoinInfo(nil)
-      ctx.updateMPlusTeleportButton()
+      ctx.updateMPlusTeleportButton("queue")
       if hadActiveJoinedKey and not ctx.getActiveJoinedKeyMapID() then
         ctx.updateUI()
       end

@@ -1540,16 +1540,205 @@ local function RegisterTeleportUIVisualTests(test, Assert, WithGlobals, LoadAddo
 
       controller.BuildButtons()
       controller.UpdateButtons(nil)
+      controller.UpdateButtons(1)
 
       local button = controller.GetButtons()[1]
       Assert.NotNil(button, "TeleportUI should build one M2 button")
       Assert.NotNil(button.shortCodeText, "M2 button should create a short-code font string")
       Assert.True(button.shortCodeText._shown, "short-code overlay must stay visible during pure GCD")
       Assert.Equal(button.shortCodeText._text, "MT", "short-code overlay should keep the dungeon code")
-      Assert.Equal(#appliedCooldowns, 1, "button update should still refresh the cooldown frame once")
+      Assert.Equal(#appliedCooldowns, 2, "button update should refresh the cooldown frame for both state transitions")
       Assert.Equal(appliedCooldowns[1].start, 0, "pure GCD should clear the visible cooldown swipe")
       Assert.Equal(appliedCooldowns[1].duration, 0, "pure GCD should clear the visible cooldown swipe duration")
       Assert.False(appliedCooldowns[1].enabled, "pure GCD should disable the cooldown frame for portal buttons")
+    end)
+  end)
+
+  test("TeleportUI plays the portal sound once when the active target changes", function()
+    local createFrameStub = BuildTeleportUICreateFrameStub()
+    local soundCalls = 0
+    local playedSound = nil
+    local playedChannel = nil
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      PlaySoundFile = function(path, channel)
+        soundCalls = soundCalls + 1
+        playedSound = path
+        playedChannel = channel
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
+        "isiLive_teleport_ui.lua",
+      })
+
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = {
+          GetFrameLevel = function()
+            return 10
+          end,
+          GetFrameStrata = function()
+            return "MEDIUM"
+          end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              SetJustifyV = function() end,
+              SetTextColor = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetText = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+        },
+        layoutMode = "compact_main_horizontal",
+        applySecureSpellToButton = function()
+          return true
+        end,
+        getEntries = function()
+          return {
+            { spellID = 12345, mapID = 558, slotIndex = 1 },
+          }
+        end,
+        getEmptyStateText = function()
+          return nil
+        end,
+        getL = function()
+          return {}
+        end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getSpellCooldownSafe = function()
+          return 100, 1.5, true
+        end,
+        applyCooldownFrameSafe = function() end,
+        getSpellTexture = function()
+          return nil
+        end,
+        getDungeonShortCode = function(mapID)
+          if mapID == 558 then
+            return "MT"
+          end
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      controller.BuildButtons()
+      controller.UpdateButtons(nil)
+      controller.UpdateButtons(12345)
+
+      Assert.Equal(soundCalls, 1, "activating a portal target should play the portal sound once")
+      Assert.Equal(
+        playedSound,
+        "Interface\\AddOns\\isiLive\\sounds\\Portal.ogg",
+        "activating a portal target should use the Portal asset"
+      )
+      Assert.Equal(playedChannel, "SFX", "activating a portal target should use the SFX channel")
+    end)
+  end)
+end
+
+local function RegisterTeleportUIAudioAndDebugTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("TeleportUI suppresses portal sound for queue-driven active target refreshes", function()
+    local createFrameStub = BuildTeleportUICreateFrameStub()
+    local soundCalls = 0
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      PlaySoundFile = function()
+        soundCalls = soundCalls + 1
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
+        "isiLive_teleport_ui.lua",
+      })
+
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = {
+          GetFrameLevel = function()
+            return 10
+          end,
+          GetFrameStrata = function()
+            return "MEDIUM"
+          end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              SetJustifyV = function() end,
+              SetTextColor = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetText = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+        },
+        layoutMode = "compact_main_horizontal",
+        applySecureSpellToButton = function()
+          return true
+        end,
+        getEntries = function()
+          return {
+            { spellID = 12345, mapID = 558, slotIndex = 1 },
+          }
+        end,
+        getEmptyStateText = function()
+          return nil
+        end,
+        getL = function()
+          return {}
+        end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getSpellCooldownSafe = function()
+          return 0, 0, false
+        end,
+        applyCooldownFrameSafe = function() end,
+        getSpellTexture = function()
+          return nil
+        end,
+        getDungeonShortCode = function(mapID)
+          if mapID == 558 then
+            return "MT"
+          end
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      controller.BuildButtons()
+      controller.UpdateButtons(nil, "queue")
+      controller.UpdateButtons(12345, "queue")
+
+      Assert.Equal(soundCalls, 0, "queue-driven target refreshes must not play the portal sound")
     end)
   end)
 
@@ -1654,6 +1843,7 @@ end
 local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTeleportUIVisualTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTeleportUIAudioAndDebugTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 return function(test, ctx)

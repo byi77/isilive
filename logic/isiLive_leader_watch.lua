@@ -39,11 +39,14 @@ function LeaderWatch.CreateController(opts)
   end
 
   local function PlayLeadTransferSound()
-    local db = rawget(_G, "IsiLiveDB")
-    if db and db.soundLeadEnabled == false then
+    local soundUtils = addonTable.SoundUtils
+    if type(soundUtils) == "table" and type(soundUtils.PlayKey) == "function" then
+      soundUtils.PlayKey("leader_transfer")
       return
     end
-    addonTable.SoundUtils.Play("Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg")
+    if type(soundUtils) == "table" and type(soundUtils.Play) == "function" then
+      soundUtils.Play("Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg")
+    end
   end
 
   local function HandleLeaderGain(visible)

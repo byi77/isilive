@@ -665,7 +665,7 @@ local function InitializeFactoryPrimaryControllers(ctx)
 
     return ctx.keySyncController.ResolveActiveKeyOwnerUnit(ctx.GetRoster(), targetMapID)
   end
-  ctx.UpdateMPlusTeleportButton = function()
+  ctx.UpdateMPlusTeleportButton = function(soundContext)
     local resolvedSpellID = ctx.ResolveActiveTeleportSpellID()
     if not resolvedSpellID then
       local lfgDetect = addonTable.LFGDetect
@@ -677,7 +677,7 @@ local function InitializeFactoryPrimaryControllers(ctx)
         resolvedSpellID = modules.teleport.ResolveTeleportSpellIDByMapID(detectedMapID)
       end
     end
-    ctx.teleportUIController.UpdateButtons(resolvedSpellID)
+    ctx.teleportUIController.UpdateButtons(resolvedSpellID, soundContext)
   end
 end
 FI.InitializeFactoryPrimaryControllers = InitializeFactoryPrimaryControllers

@@ -18,6 +18,21 @@ local preparePrivateTooltip = assert(
 )
 local hidePrivateTooltip =
   assert(addonTable.UICommon and addonTable.UICommon.HidePrivateTooltip, "isiLive: UICommon.HidePrivateTooltip missing")
+local function PlayPortalAvailableSound()
+  local soundUtils = addonTable.SoundUtils
+  if type(soundUtils) == "table" and type(soundUtils.PlayPortalAvailable) == "function" then
+    soundUtils.PlayPortalAvailable()
+    return
+  end
+  if type(soundUtils) == "table" and type(soundUtils.Play) == "function" then
+    soundUtils.Play("Interface\\AddOns\\isiLive\\sounds\\Portal.ogg")
+    return
+  end
+  local playSoundFile = rawget(_G, "PlaySoundFile")
+  if type(playSoundFile) == "function" then
+    playSoundFile("Interface\\AddOns\\isiLive\\sounds\\Portal.ogg", "SFX")
+  end
+end
 local function BuildCenterNoticeConfig(opts)
   opts = opts or {}
   local frameName = type(opts.frameName) == "string" and opts.frameName ~= "" and opts.frameName
@@ -291,6 +306,7 @@ local function CreateCenterNoticeTeleportButton(frame, config)
   button:EnableMouse(true)
   button.spellID = nil
   button.inCombatBlocked = false
+  button.lastPortalSoundSpellID = nil
   button:RegisterForClicks("AnyDown", "AnyUp")
   button:SetFrameStrata("HIGH")
   button:SetFrameLevel(frame:GetFrameLevel() + 10)
@@ -417,6 +433,7 @@ local function ClearCenterNoticeTeleportButton(state)
   state.teleportButton.mapID = nil
   state.teleportButton.dungeonName = nil
   state.teleportButton.inCombatBlocked = false
+  state.teleportButton.lastPortalSoundSpellID = nil
   SetCenterNoticeTeleportButtonMouseEnabled(state, true)
 end
 
@@ -443,6 +460,11 @@ local function ConfigureCenterNoticeTeleportButton(state, dungeonName, activityI
   else
     mapID = state.config.resolveMapIDBySpellID(spellID)
   end
+
+  if state.teleportButton.lastPortalSoundSpellID ~= spellID then
+    PlayPortalAvailableSound()
+  end
+  state.teleportButton.lastPortalSoundSpellID = spellID
 
   if state.config.isInCombat() then
     state.teleportButton.spellID = spellID

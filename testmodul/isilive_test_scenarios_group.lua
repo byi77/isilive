@@ -17,6 +17,7 @@ local function BuildGroupState(overrides)
     refreshRequests = 0,
     refreshRequestArgs = {},
     groupJoinedCalls = 0,
+    memberJoinedCalls = 0,
     knownUsersCleared = 0,
     inspectResets = 0,
     uiUpdates = 0,
@@ -156,6 +157,9 @@ local function BuildGroupControllerOptions(state, overrides)
     end,
     onGroupJoined = overrides.onGroupJoined or function()
       state.groupJoinedCalls = state.groupJoinedCalls + 1
+    end,
+    onMemberJoinedGroup = overrides.onMemberJoinedGroup or function()
+      state.memberJoinedCalls = state.memberJoinedCalls + 1
     end,
     shouldAutoCloseMainFrame = overrides.shouldAutoCloseMainFrame or function()
       return false
@@ -963,6 +967,7 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
 
     Assert.Equal(state.queued, 1, "queue capture must fire on first join")
     Assert.Equal(state.announced, 1, "queue announce must fire on first join")
+    Assert.Equal(state.memberJoinedCalls, 4, "first join should notify every newly seen party member")
   end)
 
   test("First group join fires the optional join callback exactly once", function()

@@ -36,7 +36,9 @@ local function CreateFontStringStub(fontObject)
     end,
     SetJustifyH = function() end,
     SetJustifyV = function() end,
-    SetWordWrap = function() end,
+    SetWordWrap = function(self, value)
+      self._wordWrap = value == true
+    end,
     SetNonSpaceWrap = function() end,
     SetTextColor = function(self, r, g, b, a)
       self._textColor = { r, g, b, a }
@@ -51,9 +53,26 @@ local function CreateFontStringStub(fontObject)
     GetText = function(self)
       return self._text
     end,
-    SetWidth = function() end,
-    GetStringHeight = function()
-      return 20
+    SetWidth = function(self, width)
+      self._width = tonumber(width) or self._width
+    end,
+    GetStringHeight = function(self)
+      local text = tostring(self._text or "")
+      if text == "" then
+        return 20
+      end
+      if self._wordWrap ~= true then
+        return 20
+      end
+
+      local width = tonumber(self._width) or 0
+      if width <= 0 then
+        return 20
+      end
+
+      local estimatedCharsPerLine = math.max(12, math.floor(width / 7))
+      local lineCount = math.max(1, math.ceil(#text / estimatedCharsPerLine))
+      return lineCount * 16
     end,
     GetFont = function()
       return "Fonts\\FRIZQT__.TTF", fontSize, ""
@@ -237,8 +256,13 @@ local function ApplyFrameMethods(frame)
   frame.CreateTexture = function()
     return CreateTextureStub()
   end
-  frame.CreateFontString = function(_self, _name, _layer, fontObject)
-    return CreateFontStringStub(fontObject)
+  frame.CreateFontString = function(self, _name, _layer, fontObject)
+    local fontString = CreateFontStringStub(fontObject)
+    if type(self) == "table" then
+      self._fontStrings = self._fontStrings or {}
+      table.insert(self._fontStrings, fontString)
+    end
+    return fontString
   end
   frame.RegisterForClicks = function(self, ...)
     self._registeredClicks = { ... }
@@ -2575,8 +2599,10 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
             SETTINGS_RAID_TRANSITION_BEHAVIOR_HIDE = "Raid Off",
             SETTINGS_ROSTER_COLUMN_GUIDES = "Column Guides",
             SETTINGS_SHOW_TIMEWAYS_NAVIGATOR = "Show Timeways Navigator",
+            SETTINGS_SECTION_SOUNDS = "Sounds",
             SETTINGS_SOUND_LEAD_ENABLED = "Sound: Lead Transfer",
             SETTINGS_SOUND_GROUP_JOIN_ENABLED = "Sound: Group Join",
+            SETTINGS_SOUND_PORTAL_AVAILABLE = "Sound: Portal Available",
             SETTINGS_QUEUE_DEBUG = "Queue Debug",
             SETTINGS_RUNTIME_LOG = "Runtime Log",
           }
@@ -2593,41 +2619,182 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
       Assert.Nil(db.soundLeadEnabled, "opening settings should not persist the default leader-sound state")
       Assert.Nil(db.soundGroupJoinEnabled, "opening settings should not persist the default group-join sound state")
+      Assert.Nil(db.soundPortalAvailableEnabled, "opening settings should not persist the default portal sound state")
 
+      local soundSectionHeader = nil
       local leadSoundCheck = nil
       local groupJoinSoundCheck = nil
+      local portalSoundCheck = nil
       for _, frame in ipairs(createdFrames) do
+        if frame._sectionKey == "SETTINGS_SECTION_SOUNDS" then
+          soundSectionHeader = frame
+        end
         if frame._settingKey == "SETTINGS_SOUND_LEAD_ENABLED" then
           leadSoundCheck = frame
         elseif frame._settingKey == "SETTINGS_SOUND_GROUP_JOIN_ENABLED" then
           groupJoinSoundCheck = frame
+        elseif frame._settingKey == "SETTINGS_SOUND_PORTAL_AVAILABLE" then
+          portalSoundCheck = frame
         end
       end
 
+      Assert.NotNil(soundSectionHeader, "settings panel should create a dedicated sounds section")
       Assert.NotNil(leadSoundCheck, "settings panel should create a leader-transfer sound checkbox")
       Assert.NotNil(groupJoinSoundCheck, "settings panel should create a group-join sound checkbox")
+      Assert.NotNil(portalSoundCheck, "settings panel should create a portal sound checkbox")
       ---@diagnostic disable: need-check-nil, undefined-field
       Assert.True(leadSoundCheck:GetChecked(), "leader-transfer sound should default to enabled")
       Assert.False(groupJoinSoundCheck:GetChecked(), "group-join sound should default to disabled")
+      Assert.True(portalSoundCheck:GetChecked(), "portal sound should default to enabled")
 
       local onClickLead = leadSoundCheck._scripts and leadSoundCheck._scripts.OnClick or nil
       local onClickJoin = groupJoinSoundCheck._scripts and groupJoinSoundCheck._scripts.OnClick or nil
+      local onClickPortal = portalSoundCheck._scripts and portalSoundCheck._scripts.OnClick or nil
       Assert.NotNil(onClickLead, "leader-transfer sound checkbox should define OnClick")
       Assert.NotNil(onClickJoin, "group-join sound checkbox should define OnClick")
+      Assert.NotNil(onClickPortal, "portal sound checkbox should define OnClick")
 
       leadSoundCheck:SetChecked(false)
       onClickLead(leadSoundCheck) ---@diagnostic disable-line: need-check-nil
       groupJoinSoundCheck:SetChecked(true)
       onClickJoin(groupJoinSoundCheck) ---@diagnostic disable-line: need-check-nil
+      portalSoundCheck:SetChecked(false)
+      onClickPortal(portalSoundCheck) ---@diagnostic disable-line: need-check-nil
 
       Assert.False(db.soundLeadEnabled, "disabling leader-transfer sound should persist false")
       Assert.True(db.soundGroupJoinEnabled, "enabling group-join sound should persist true")
+      Assert.False(db.soundPortalAvailableEnabled, "disabling portal sound should persist false")
 
       panel.Refresh()
       Assert.False(leadSoundCheck:GetChecked(), "refresh should keep the disabled leader-transfer sound state")
       Assert.True(groupJoinSoundCheck:GetChecked(), "refresh should keep the enabled group-join sound state")
+      Assert.False(portalSoundCheck:GetChecked(), "refresh should keep the disabled portal sound state")
       ---@diagnostic enable: need-check-nil, undefined-field
     end)
+  end)
+
+  test("Settings panel expands layout height for wrapped intro and hint text", function()
+    local function BuildPanelHeight(textSet)
+      local createFrameStub = BuildCreateFrameStub()
+      local db = {}
+      local panel = nil
+
+      WithGlobals({
+        UIParent = {},
+        IsiLiveDB = db,
+        CreateFrame = createFrameStub,
+        Settings = {
+          RegisterCanvasLayoutCategory = function(canvas, name)
+            return { canvas = canvas, name = name }
+          end,
+          RegisterAddOnCategory = function() end,
+        },
+      }, function()
+        local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+        panel = addon.SettingsPanel.Create({
+          getL = function()
+            return textSet
+          end,
+          getCurrentLocale = function()
+            return "enUS"
+          end,
+          setLanguage = function() end,
+          getDB = function()
+            return db
+          end,
+        })
+      end)
+
+      return RequireValue(panel, "settings panel should exist").content:GetHeight()
+    end
+
+    local shortHeight = BuildPanelHeight({
+      SETTINGS_SECTION_GENERAL = "General",
+      SETTINGS_SECTION_GENERAL_HINT = "Short general hint.",
+      SETTINGS_SECTION_DISPLAY = "Display",
+      SETTINGS_SECTION_DISPLAY_HINT = "Short display hint.",
+      SETTINGS_SECTION_BEHAVIOR = "Behavior",
+      SETTINGS_SECTION_BEHAVIOR_HINT = "Short behavior hint.",
+      SETTINGS_SECTION_SOUNDS = "Sounds",
+      SETTINGS_SECTION_SOUNDS_HINT = "Short sounds hint.",
+      SETTINGS_SECTION_DEBUG = "Debug",
+      SETTINGS_SECTION_DEBUG_HINT = "Short debug hint.",
+      SETTINGS_SECTION_RESET_HINT = "Short reset hint.",
+      SETTINGS_PAGE_HINT = "Short intro.",
+      SETTINGS_BETA_NOTICE = "Beta",
+      BETA_NOTICE_TEXT = "Short beta notice.",
+      SETTINGS_LANGUAGE = "Language",
+      SETTINGS_COMBAT_LOGGING = "Combat Logging",
+      SETTINGS_DM_RESET = "DM Reset",
+      SETTINGS_ESC_PANEL = "ESC Panel",
+      SETTINGS_BG_ALPHA = "Background Opacity",
+      SETTINGS_UI_SCALE = "UI Scale",
+      SETTINGS_MINIMAP_BUTTON = "Minimap Button",
+      SETTINGS_SYNC_ENABLED = "Addon Sync",
+      SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
+      SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
+      SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP = "Show on Login / Reload",
+      SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END = "Auto Open on Key End",
+      SETTINGS_RAID_TRANSITION_BEHAVIOR = "Raid Behavior",
+      SETTINGS_RAID_TRANSITION_BEHAVIOR_HIDE = "Raid Off",
+      SETTINGS_ROSTER_COLUMN_GUIDES = "Column Guides",
+      SETTINGS_SHOW_TIMEWAYS_NAVIGATOR = "Show Timeways Navigator",
+      SETTINGS_SOUND_LEAD_ENABLED = "Sound: Lead Transfer",
+      SETTINGS_SOUND_GROUP_JOIN_ENABLED = "Sound: Group Join",
+      SETTINGS_SOUND_PORTAL_AVAILABLE = "Sound: Portal Available",
+      SETTINGS_QUEUE_DEBUG = "Queue Debug",
+      SETTINGS_RUNTIME_LOG = "Runtime Log",
+    })
+    local longHeight = BuildPanelHeight({
+      SETTINGS_SECTION_GENERAL = "General",
+      SETTINGS_SECTION_GENERAL_HINT = "This is a much longer general section hint "
+        .. "that wraps across multiple lines and should increase the layout height.",
+      SETTINGS_SECTION_DISPLAY = "Display",
+      SETTINGS_SECTION_DISPLAY_HINT = "This display hint is intentionally long so "
+        .. "the wrapped helper has to measure a taller block of text in the settings page.",
+      SETTINGS_SECTION_BEHAVIOR = "Behavior",
+      SETTINGS_SECTION_BEHAVIOR_HINT = "This behavior hint is intentionally long so "
+        .. "the wrapped helper has to measure a taller block of text in the settings page.",
+      SETTINGS_SECTION_SOUNDS = "Sounds",
+      SETTINGS_SECTION_SOUNDS_HINT = "This sounds hint is intentionally long so "
+        .. "the wrapped helper has to measure a taller block of text in the settings page.",
+      SETTINGS_SECTION_DEBUG = "Debug",
+      SETTINGS_SECTION_DEBUG_HINT = "This debug hint is intentionally long so "
+        .. "the wrapped helper has to measure a taller block of text in the settings page.",
+      SETTINGS_SECTION_RESET_HINT = "This reset hint is intentionally long so "
+        .. "the wrapped helper has to measure a taller block of text in the settings page.",
+      SETTINGS_PAGE_HINT = "This is a much longer intro text for the settings page "
+        .. "that should wrap and reserve additional vertical space before the first section starts.",
+      SETTINGS_BETA_NOTICE = "Beta",
+      BETA_NOTICE_TEXT = "This beta notice text is intentionally much longer so it "
+        .. "wraps and increases the height of the beta block above the URL fields.",
+      SETTINGS_LANGUAGE = "Language",
+      SETTINGS_COMBAT_LOGGING = "Combat Logging",
+      SETTINGS_DM_RESET = "DM Reset",
+      SETTINGS_ESC_PANEL = "ESC Panel",
+      SETTINGS_BG_ALPHA = "Background Opacity",
+      SETTINGS_UI_SCALE = "UI Scale",
+      SETTINGS_MINIMAP_BUTTON = "Minimap Button",
+      SETTINGS_SYNC_ENABLED = "Addon Sync",
+      SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
+      SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
+      SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP = "Show on Login / Reload",
+      SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END = "Auto Open on Key End",
+      SETTINGS_RAID_TRANSITION_BEHAVIOR = "Raid Behavior",
+      SETTINGS_RAID_TRANSITION_BEHAVIOR_HIDE = "Raid Off",
+      SETTINGS_ROSTER_COLUMN_GUIDES = "Column Guides",
+      SETTINGS_SHOW_TIMEWAYS_NAVIGATOR = "Show Timeways Navigator",
+      SETTINGS_SOUND_LEAD_ENABLED = "Sound: Lead Transfer",
+      SETTINGS_SOUND_GROUP_JOIN_ENABLED = "Sound: Group Join",
+      SETTINGS_SOUND_PORTAL_AVAILABLE = "Sound: Portal Available",
+      SETTINGS_QUEUE_DEBUG = "Queue Debug",
+      SETTINGS_RUNTIME_LOG = "Runtime Log",
+    })
+
+    Assert.True(
+      longHeight > shortHeight,
+      "wrapped settings hints must increase the total content height when texts become longer"
+    )
   end)
 
   test("Settings panel hides disabled legacy display and behavior controls", function()
@@ -2723,7 +2890,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 2, "settings should only expose the background opacity and UI scale sliders")
       Assert.Equal(
         checkboxCount,
-        19,
+        20,
         "settings should hide only the legacy DPS, markers, name-length,"
           .. " and teleport-column controls while keeping the startup/key-end, navigator, sound,"
           .. " and combat-fade toggles visible"
@@ -2733,7 +2900,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 2, "refresh should keep the legacy sliders hidden")
       Assert.Equal(
         checkboxCount,
-        19,
+        20,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
           .. " while preserving the visible sound and combat-fade toggles"
       )

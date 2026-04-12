@@ -312,7 +312,11 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
 
       -- Fire sound if this is a genuinely new member (not seen before, not a ghost resurrection)
       local ghostKey = GhostKey(memberName, memberRealm)
-      if not existing and not roster[ghostKey] and callbacks and type(callbacks.onMemberJoinedGroup) == "function" then
+      local shouldPlayJoinSound = false
+      if callbacks and type(callbacks.onMemberJoinedGroup) == "function" then
+        shouldPlayJoinSound = not existing or existing.isGhost == true
+      end
+      if shouldPlayJoinSound then
         callbacks.onMemberJoinedGroup()
       end
 

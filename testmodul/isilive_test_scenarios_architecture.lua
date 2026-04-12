@@ -414,6 +414,15 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     )
   end)
 
+  test("Architecture pkgmeta keeps sound assets packaged for CurseForge release", function()
+    local content = ReadFile(".pkgmeta")
+
+    Assert.False(
+      content:find("sounds", 1, true) ~= nil,
+      ".pkgmeta must not ignore the sounds/ folder because release audio assets are shipped with the addon"
+    )
+  end)
+
   test("Architecture WARTUNG runbook references the required maintenance document chain", function()
     local content = ReadFile("WARTUNG.md")
 
@@ -577,10 +586,11 @@ local function RegisterArchitectureLeaderMarkerWiringTests(test, Assert)
   end)
 end
 
-local function RegisterArchitectureAudioAndKickWiringTests(test, Assert)
+local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Architecture group-join sound hook stays local to controller wiring", function()
     local wiringContent = ReadFile("isiLive_controller_wiring.lua")
     local groupContent = ReadFile("isiLive_group.lua")
+    local leaderWatchContent = ReadFile("isiLive_leader_watch.lua")
 
     AssertContains(
       Assert,
@@ -596,6 +606,12 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert)
     )
     AssertContains(
       Assert,
+      leaderWatchContent,
+      'PlayKey("leader_transfer")',
+      "LeaderWatch must route leader transfer audio through the registry key"
+    )
+    AssertContains(
+      Assert,
       wiringContent,
       "onGroupJoined = function()",
       "ControllerWiring must own the concrete group-join sound hook"
@@ -603,15 +619,119 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert)
     AssertContains(
       Assert,
       wiringContent,
-      "db.soundGroupJoinEnabled ~= true",
-      "ControllerWiring group-join sound hook must default to disabled until explicitly enabled"
+      "PlayGroupJoin()",
+      "ControllerWiring group-join sound hook must use the dedicated SynthChord helper"
     )
-    AssertContains(
-      Assert,
-      wiringContent,
-      'SoundUtils.Play("Interface\\\\AddOns\\\\isiLive\\\\sounds\\\\SynthChord.ogg")',
-      "ControllerWiring group-join sound hook must use SoundUtils.Play with the SynthChord asset"
-    )
+
+    local playCalls = 0
+    local playedPath = nil
+    local playedChannel = nil
+    local now = 0
+    local db = {}
+    WithGlobals({
+      IsiLiveDB = db,
+      GetTime = function()
+        return now
+      end,
+      PlaySoundFile = function(path, channel)
+        playCalls = playCalls + 1
+        playedPath = path
+        playedChannel = channel
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
+      Assert.NotNil(addon.SoundUtils, "sound utils module should load")
+      Assert.NotNil(addon.SoundUtils.Registry, "sound utils should expose a sound registry")
+      Assert.NotNil(addon.SoundUtils.SettingsOrder, "sound utils should expose a stable settings order")
+      Assert.NotNil(addon.SoundUtils.GetEntry, "sound utils should expose a registry lookup helper")
+      Assert.NotNil(addon.SoundUtils.HasKey, "sound utils should expose a registry presence helper")
+      Assert.NotNil(addon.SoundUtils.IsEnabled, "sound utils should expose an enabled-state helper")
+      Assert.NotNil(addon.SoundUtils.PlayKey, "sound utils should expose a key-based play helper")
+      Assert.True(addon.SoundUtils.HasKey("leader_transfer"), "sound registry should include the leader-transfer key")
+      Assert.True(addon.SoundUtils.HasKey("group_join"), "sound registry should include the group-join key")
+      Assert.True(addon.SoundUtils.HasKey("portal_available"), "sound registry should include the portal key")
+      local leaderEntry = addon.SoundUtils.GetEntry("leader_transfer")
+      Assert.NotNil(leaderEntry, "leader-transfer entry should exist")
+      Assert.Equal(
+        leaderEntry.file,
+        "Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg",
+        "leader-transfer entry should point at the transfer asset"
+      )
+      Assert.True(leaderEntry.defaultEnabled, "leader-transfer sound should default to enabled")
+      Assert.Equal(
+        leaderEntry.settingKey,
+        "soundLeadEnabled",
+        "leader-transfer sound should map to the lead-enabled setting key"
+      )
+      Assert.True(
+        addon.SoundUtils.IsEnabled("leader_transfer"),
+        "leader-transfer sound should be enabled by default when no DB override exists"
+      )
+      local groupEntry = addon.SoundUtils.GetEntry("group_join")
+      Assert.NotNil(groupEntry, "group-join entry should exist")
+      Assert.Equal(
+        groupEntry.settingKey,
+        "soundGroupJoinEnabled",
+        "group-join sound should map to the group-join setting key"
+      )
+      Assert.False(
+        addon.SoundUtils.IsEnabled("group_join"),
+        "group-join sound should remain disabled by default when no DB override exists"
+      )
+      local portalEntry = addon.SoundUtils.GetEntry("portal_available")
+      Assert.NotNil(portalEntry, "portal sound entry should exist")
+      Assert.Equal(
+        portalEntry.settingKey,
+        "soundPortalAvailableEnabled",
+        "portal sound should map to the portal-enabled setting key"
+      )
+      Assert.True(
+        addon.SoundUtils.IsEnabled("portal_available"),
+        "portal sound should default to enabled when no DB override exists"
+      )
+      Assert.NotNil(addon.SoundUtils.PlayGroupJoin, "sound utils should expose a dedicated group-join sound helper")
+      Assert.NotNil(addon.SoundUtils.PlayPortalAvailable, "sound utils should expose a dedicated portal sound helper")
+      addon.SoundUtils.PlayKey("leader_transfer")
+      Assert.Equal(playCalls, 1, "leader-transfer sound helper should play exactly once")
+      Assert.Equal(
+        playedPath,
+        "Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg",
+        "leader-transfer sound helper should use the transfer asset"
+      )
+      Assert.Equal(playedChannel, "SFX", "leader-transfer sound helper should use the SFX channel")
+      db.soundGroupJoinEnabled = true
+      addon.SoundUtils.PlayGroupJoin()
+      Assert.Equal(playCalls, 2, "group-join sound helper should play exactly once after the leader sound")
+      Assert.Equal(
+        playedPath,
+        "Interface\\AddOns\\isiLive\\sounds\\SynthChord.ogg",
+        "group-join sound helper should use the SynthChord asset"
+      )
+      Assert.Equal(playedChannel, "SFX", "group-join sound helper should use the SFX channel")
+      addon.SoundUtils.PlayPortalAvailable()
+      Assert.Equal(playCalls, 3, "portal sound helper should play exactly once after the group sound")
+      Assert.Equal(
+        playedPath,
+        "Interface\\AddOns\\isiLive\\sounds\\Portal.ogg",
+        "portal sound helper should use the Portal asset"
+      )
+      Assert.Equal(playedChannel, "SFX", "portal sound helper should use the SFX channel")
+
+      db.soundLeadEnabled = false
+      db.soundGroupJoinEnabled = true
+      db.soundPortalAvailableEnabled = false
+      now = 2
+      playCalls = 0
+      addon.SoundUtils.PlayKey("leader_transfer")
+      addon.SoundUtils.PlayGroupJoin()
+      addon.SoundUtils.PlayPortalAvailable()
+      Assert.Equal(playCalls, 1, "only the enabled group-join sound should play when settings are toggled")
+      Assert.Equal(
+        playedPath,
+        "Interface\\AddOns\\isiLive\\sounds\\SynthChord.ogg",
+        "enabled group-join sound should remain the only played asset"
+      )
+    end)
   end)
 
   test("Architecture kick tracker uses lightweight kick-column refresh hooks", function()
@@ -929,7 +1049,7 @@ return function(test, ctx)
   RegisterArchitectureQueueWiringTests(test, ctx.assert)
   RegisterArchitectureReadyCheckWiringTests(test, ctx.assert)
   RegisterArchitectureLeaderMarkerWiringTests(test, ctx.assert)
-  RegisterArchitectureAudioAndKickWiringTests(test, ctx.assert)
+  RegisterArchitectureAudioAndKickWiringTests(test, ctx.assert, ctx.with_globals, ctx.load_modules)
   RegisterArchitectureNoticeTypographyTests(test, ctx.assert)
   RegisterArchitectureWorkflowTests(test, ctx.assert)
   RegisterArchitectureModuleApiTests(test, ctx.assert, ctx.load_modules)

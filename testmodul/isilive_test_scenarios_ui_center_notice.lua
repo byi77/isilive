@@ -568,10 +568,18 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
     local now = 0
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local sharedTooltipCalls = 0
+    local soundCalls = 0
+    local playedSound = nil
+    local playedChannel = nil
 
     WithGlobals({
       UIParent = {},
       CreateFrame = createFrameStub,
+      PlaySoundFile = function(path, channel)
+        soundCalls = soundCalls + 1
+        playedSound = path
+        playedChannel = channel
+      end,
       GetTime = function()
         return now
       end,
@@ -646,6 +654,13 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
       })
 
       centerNotice.ConfigureTeleportButton("Terrasse der Magister", 999)
+      Assert.Equal(soundCalls, 1, "center notice should play the portal sound when a teleport becomes available")
+      Assert.Equal(
+        playedSound,
+        "Interface\\AddOns\\isiLive\\sounds\\Portal.ogg",
+        "center notice should use the Portal asset when a teleport becomes available"
+      )
+      Assert.Equal(playedChannel, "SFX", "center notice should use the SFX channel for portal sounds")
       local onEnter = centerNotice.teleportButton._scripts and centerNotice.teleportButton._scripts.OnEnter or nil
       Assert.NotNil(onEnter, "center notice teleport button should define tooltip OnEnter")
       ---@diagnostic disable: need-check-nil

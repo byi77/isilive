@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-04-12 - Version 0.9.151 (patch)
+
+- **Sound settings and settings refresh:**
+  - Moved the built-in sound toggles into a dedicated `Sounds` section in Blizzard Settings and added the portal-ready toggle alongside lead transfer and group join.
+  - Centralized the three built-in sounds through the shared sound registry so enable-state resolution stays deterministic and switchable from one source of truth.
+  - Refreshed the Settings page with a short intro and per-section hint lines so the layout reads more clearly and is easier to scan.
+
+- **Documentation / release sync:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `isiLive.toc` to version `0.9.151`.
+  - Kept the validator baseline aligned with the current deterministic scenario count.
+
 ## 2026-04-12 - Version 0.9.150 (patch)
 
 - **Main-frame lock and tooltip localization:**
@@ -8,7 +19,6 @@
   - Added `/isilive resetui` to recenter the main window and restore UI scale / background opacity defaults when it is dragged off-screen.
   - The Settings button for `/isilive resetui` now shows the default values as a separate hint line and asks for confirmation before applying the reset.
   - Added localized tooltips for the main close button and lock button, including the CTRL+F9 reopen hint on the close button.
-
 - **Documentation / release sync:**
   - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `RELEASE.md` to the current UI and validator baseline state.
   - Updated the local validator baseline references to `536` scenarios / tests over `39` modules.

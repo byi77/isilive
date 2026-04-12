@@ -12,7 +12,7 @@ local ApplyBackdrop = addonTable.UICommon and addonTable.UICommon.ApplyBackdrop
 local PADDING_X = 16
 local PADDING_TOP = 16
 local LINE_HEIGHT = 28
-local SECTION_GAP = 16
+local SECTION_GAP = 22
 local HEADER_HEIGHT = 20
 local HEADER_LINE_GAP = 4
 local LANG_BUTTON_WIDTH = 90
@@ -21,6 +21,7 @@ local SLIDER_WIDTH = 180
 local SLIDER_HEIGHT = 16
 local SETTINGS_SCROLL_STEP = 32
 local SETTINGS_CONTENT_WIDTH = 700
+local CHECKBOX_LABEL_WIDTH = SETTINGS_CONTENT_WIDTH - (PADDING_X * 2) - 28
 local SHOW_NAME_MAX_CHARS_SETTING = false
 local SHOW_TELEPORT_COLUMNS_SETTING = false
 -- Temporarily hidden from Settings while live runtime keeps these defaults hard-forced.
@@ -185,16 +186,61 @@ local function CreateSectionHeader(parent, yOffset, text)
   header:SetText(text or "")
 
   local line = parent:CreateTexture(nil, "ARTWORK")
-  line:SetHeight(1)
+  line:SetHeight(2)
   line:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset - HEADER_HEIGHT)
   line:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PADDING_X, yOffset - HEADER_HEIGHT)
   local ab = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
-  line:SetColorTexture(ab[1], ab[2], ab[3], 0.3)
+  line:SetColorTexture(ab[1], ab[2], ab[3], 0.42)
 
   return header, yOffset - HEADER_HEIGHT - HEADER_LINE_GAP
 end
 
-local function CreateSettingsCheckbox(parent, yOffset, labelText, getter, setter, settingKey)
+local function MeasureWrappedTextHeight(textRegion, fallbackHeight, padding)
+  local height = tonumber(fallbackHeight) or 0
+  local measured = nil
+  if type(textRegion) == "table" and type(textRegion.GetStringHeight) == "function" then
+    measured = tonumber(textRegion:GetStringHeight())
+  end
+  if measured and measured > 0 then
+    height = math.max(height, math.ceil(measured) + (tonumber(padding) or 0))
+  end
+  return height
+end
+
+local function CreateSettingsIntro(parent, yOffset, text)
+  local intro = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
+  intro:SetTextColor(td[1], td[2], td[3], 1)
+  intro:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset)
+  intro:SetWidth(math.max(240, SETTINGS_CONTENT_WIDTH - (PADDING_X * 2)))
+  intro:SetJustifyH("LEFT")
+  if type(intro.SetWordWrap) == "function" then
+    intro:SetWordWrap(true)
+  end
+  intro:SetText(text or "")
+  local height = MeasureWrappedTextHeight(intro, 28, 8)
+
+  return intro, yOffset - height
+end
+
+local function CreateSectionNote(parent, yOffset, text)
+  local note = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
+  note:SetTextColor(td[1], td[2], td[3], 1)
+  note:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset)
+  note:SetWidth(math.max(120, SETTINGS_CONTENT_WIDTH - (PADDING_X * 2)))
+  note:SetJustifyH("LEFT")
+  if type(note.SetWordWrap) == "function" then
+    note:SetWordWrap(true)
+  end
+  note:SetText(text or "")
+  local height = MeasureWrappedTextHeight(note, 16, 6)
+
+  return note, yOffset - height
+end
+
+local function CreateSettingsCheckbox(parent, yOffset, labelText, getter, setter, settingKey, options)
+  options = type(options) == "table" and options or {}
   local check = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
   check:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset)
   if type(check.SetSize) == "function" then
@@ -208,6 +254,16 @@ local function CreateSettingsCheckbox(parent, yOffset, labelText, getter, setter
   local tn = Colors.TEXT_NORMAL or { 0.85, 0.85, 0.9 }
   label:SetTextColor(tn[1], tn[2], tn[3], 1)
   label:SetPoint("LEFT", check, "RIGHT", 4, 0)
+  local labelWidth = tonumber(options.width) or CHECKBOX_LABEL_WIDTH
+  if type(label.SetWidth) == "function" and labelWidth and labelWidth > 0 then
+    label:SetWidth(labelWidth)
+  end
+  if type(label.SetJustifyH) == "function" then
+    label:SetJustifyH(type(options.justifyH) == "string" and options.justifyH or "LEFT")
+  end
+  if type(label.SetWordWrap) == "function" and options.wordWrap ~= false then
+    label:SetWordWrap(true)
+  end
   label:SetText(labelText or "")
   check.label = label
 
@@ -221,7 +277,14 @@ local function CreateSettingsCheckbox(parent, yOffset, labelText, getter, setter
     end
   end)
 
-  return { check = check, label = label }, yOffset - LINE_HEIGHT
+  local rowHeight = tonumber(options.rowHeight) or LINE_HEIGHT
+  if options.rowHeight == nil and type(label.GetStringHeight) == "function" then
+    local textHeight = tonumber(label:GetStringHeight()) or 0
+    if textHeight > 0 then
+      rowHeight = math.max(rowHeight, math.ceil(textHeight) + 8)
+    end
+  end
+  return { check = check, label = label }, yOffset - rowHeight
 end
 
 local function CreateSettingsSlider(
@@ -387,10 +450,25 @@ local function CreateSettingsActionButton(parent, yOffset, labelText, width, onC
     if type(label.SetJustifyH) == "function" then
       label:SetJustifyH("CENTER")
     end
+    if type(label.SetWordWrap) == "function" then
+      label:SetWordWrap(true)
+    end
   end
   label:SetTextColor(tn[1], tn[2], tn[3], 1)
   label:SetText(labelText or "")
   button.label = label
+
+  local labelHeight = 0
+  if type(label.GetStringHeight) == "function" then
+    labelHeight = tonumber(label:GetStringHeight()) or 0
+  end
+  if labelHeight > 0 then
+    local desiredHeight = math.ceil(labelHeight) + (hasSubtitle and 18 or 14)
+    if desiredHeight > buttonHeight then
+      buttonHeight = desiredHeight
+      button:SetSize(buttonWidth, buttonHeight)
+    end
+  end
 
   local subtitle = nil
   if hasSubtitle then
@@ -772,6 +850,14 @@ end
 
 local function BuildGeneralSettingsSection(canvas, yOffset, labels, config, controls)
   controls.generalHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_SECTION_GENERAL or "General")
+  controls.generalHint, yOffset = CreateSectionNote(
+    canvas,
+    yOffset,
+    labels.SETTINGS_SECTION_GENERAL_HINT or "Language, startup behavior, and utility links."
+  )
+  if controls.generalHint then
+    controls.generalHint._sectionKey = "SETTINGS_SECTION_GENERAL"
+  end
 
   controls.lang, yOffset = CreateLanguageSelector(
     canvas,
@@ -896,6 +982,11 @@ end
 
 local function BuildDisplaySettingsSection(canvas, yOffset, labels, config, controls)
   controls.displayHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_SECTION_DISPLAY or "Display")
+  controls.displayHint, yOffset =
+    CreateSectionNote(canvas, yOffset, labels.SETTINGS_SECTION_DISPLAY_HINT or "Scale, opacity, and UI recovery tools.")
+  if controls.displayHint then
+    controls.displayHint._sectionKey = "SETTINGS_SECTION_DISPLAY"
+  end
 
   controls.uiScale, yOffset = CreateSettingsSlider(
     canvas,
@@ -1111,6 +1202,14 @@ end
 local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, controls)
   controls.behaviorHeader, yOffset =
     CreateSectionHeader(canvas, yOffset, labels.SETTINGS_SECTION_BEHAVIOR or "Behavior")
+  controls.behaviorHint, yOffset = CreateSectionNote(
+    canvas,
+    yOffset,
+    labels.SETTINGS_SECTION_BEHAVIOR_HINT or "Sync, auto-open, combat, and raid handling."
+  )
+  if controls.behaviorHint then
+    controls.behaviorHint._sectionKey = "SETTINGS_SECTION_BEHAVIOR"
+  end
 
   controls.sync, yOffset = CreateSettingsCheckbox(
     canvas,
@@ -1236,36 +1335,6 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
     "SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END"
   )
 
-  controls.soundLeadEnabled, yOffset = CreateSettingsCheckbox(
-    canvas,
-    yOffset,
-    labels.SETTINGS_SOUND_LEAD_ENABLED or "Sound: Lead Transfer",
-    function()
-      local db = config.getDB()
-      return db.soundLeadEnabled ~= false
-    end,
-    function(checked)
-      local db = config.getDB()
-      db.soundLeadEnabled = checked
-    end,
-    "SETTINGS_SOUND_LEAD_ENABLED"
-  )
-
-  controls.soundGroupJoinEnabled, yOffset = CreateSettingsCheckbox(
-    canvas,
-    yOffset,
-    labels.SETTINGS_SOUND_GROUP_JOIN_ENABLED or "Sound: Group Join",
-    function()
-      local db = config.getDB()
-      return db.soundGroupJoinEnabled == true
-    end,
-    function(checked)
-      local db = config.getDB()
-      db.soundGroupJoinEnabled = checked
-    end,
-    "SETTINGS_SOUND_GROUP_JOIN_ENABLED"
-  )
-
   controls.raidBehavior, yOffset = CreateSettingsOptionSelector(
     canvas,
     yOffset,
@@ -1317,8 +1386,110 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
   return yOffset
 end
 
+local SOUND_SETTING_FALLBACKS = {
+  leader_transfer = {
+    labelKey = "SETTINGS_SOUND_LEAD_ENABLED",
+    labelFallback = "Sound: Lead Transfer",
+    settingKey = "soundLeadEnabled",
+    defaultEnabled = true,
+  },
+  group_join = {
+    labelKey = "SETTINGS_SOUND_GROUP_JOIN_ENABLED",
+    labelFallback = "Sound: Group Join",
+    settingKey = "soundGroupJoinEnabled",
+    defaultEnabled = false,
+  },
+  portal_available = {
+    labelKey = "SETTINGS_SOUND_PORTAL_AVAILABLE",
+    labelFallback = "Sound: Portal Available",
+    settingKey = "soundPortalAvailableEnabled",
+    defaultEnabled = true,
+  },
+}
+
+local function GetSoundSettingEntries()
+  local soundUtils = addonTable.SoundUtils
+  local registry = type(soundUtils) == "table" and type(soundUtils.Registry) == "table" and soundUtils.Registry or nil
+  local order = type(soundUtils) == "table" and type(soundUtils.SettingsOrder) == "table" and soundUtils.SettingsOrder
+    or { "leader_transfer", "group_join", "portal_available" }
+  local entries = {}
+
+  for _, key in ipairs(order) do
+    local entry = registry and registry[key] or nil
+    local fallback = SOUND_SETTING_FALLBACKS[key] or {}
+    entries[#entries + 1] = {
+      key = key,
+      labelKey = type(entry) == "table" and entry.labelKey or fallback.labelKey,
+      labelFallback = type(entry) == "table" and entry.labelFallback or fallback.labelFallback,
+      settingKey = type(entry) == "table" and entry.settingKey or fallback.settingKey,
+      defaultEnabled = type(entry) == "table" and entry.defaultEnabled or fallback.defaultEnabled,
+    }
+  end
+
+  return entries
+end
+
+local function BuildSoundSettingsSection(canvas, yOffset, labels, config, controls)
+  controls.soundHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_SECTION_SOUNDS or "Sounds")
+  if controls.soundHeader then
+    controls.soundHeader._sectionKey = "SETTINGS_SECTION_SOUNDS"
+  end
+
+  controls.soundHint, yOffset =
+    CreateSectionNote(canvas, yOffset, labels.SETTINGS_SECTION_SOUNDS_HINT or "Toggle the built-in audio cues.")
+  if controls.soundHint then
+    controls.soundHint._sectionKey = "SETTINGS_SECTION_SOUNDS"
+  end
+
+  controls.soundChecks = controls.soundChecks or {}
+
+  for _, entry in ipairs(GetSoundSettingEntries()) do
+    local checkbox, nextY = CreateSettingsCheckbox(
+      canvas,
+      yOffset,
+      labels[entry.labelKey] or entry.labelFallback or entry.labelKey or entry.key or "Sound",
+      function()
+        local db = config.getDB()
+        local settingKey = entry.settingKey
+        if type(settingKey) == "string" and settingKey ~= "" then
+          local stored = db[settingKey]
+          if stored ~= nil then
+            return stored == true
+          end
+        end
+        return entry.defaultEnabled ~= false
+      end,
+      function(checked)
+        local db = config.getDB()
+        local settingKey = entry.settingKey
+        if type(settingKey) == "string" and settingKey ~= "" then
+          db[settingKey] = checked
+        end
+      end,
+      entry.labelKey
+    )
+
+    if checkbox and checkbox.check then
+      checkbox.check._sectionKey = "SETTINGS_SECTION_SOUNDS"
+      checkbox.check._soundKey = entry.key
+    end
+    controls.soundChecks[entry.key] = checkbox
+    yOffset = nextY
+  end
+
+  return yOffset
+end
+
 local function BuildDebugSettingsSection(canvas, yOffset, labels, config, controls)
   controls.debugHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_SECTION_DEBUG or "Debug")
+  controls.debugHint, yOffset = CreateSectionNote(
+    canvas,
+    yOffset,
+    labels.SETTINGS_SECTION_DEBUG_HINT or "Logs reset on reload and help with support."
+  )
+  if controls.debugHint then
+    controls.debugHint._sectionKey = "SETTINGS_SECTION_DEBUG"
+  end
 
   controls.queueDebug, yOffset = CreateSettingsCheckbox(
     canvas,
@@ -1376,11 +1547,19 @@ local function BuildDebugSettingsSection(canvas, yOffset, labels, config, contro
 end
 
 local function BuildResetSection(canvas, yOffset, labels, config, controls)
+  controls.resetHint, yOffset = CreateSectionNote(
+    canvas,
+    yOffset,
+    labels.SETTINGS_SECTION_RESET_HINT or "Use these actions to restore the frame or all settings."
+  )
+  if controls.resetHint then
+    controls.resetHint._sectionKey = "SETTINGS_SECTION_RESET"
+  end
   controls.resetDBBtn, yOffset = CreateSettingsActionButton(
     canvas,
     yOffset,
     labels.SETTINGS_RESET_DB or "Reset All Settings",
-    260,
+    320,
     function()
       if type(config.onResetDB) == "function" then
         config.onResetDB()
@@ -1404,14 +1583,18 @@ local function BuildBetaSection(canvas, yOffset, labels, controls)
   noticeText:SetTextColor(1, 0.75, 0.2, 1)
   noticeText:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X, yOffset - 4)
   noticeText:SetJustifyH("LEFT")
+  noticeText:SetWidth(math.max(240, SETTINGS_CONTENT_WIDTH - (PADDING_X * 2)))
+  if type(noticeText.SetWordWrap) == "function" then
+    noticeText:SetWordWrap(true)
+  end
   noticeText:SetText(labels.BETA_NOTICE_TEXT or "This addon is in BETA status. Please report bugs at:")
   controls.betaNoticeText = noticeText
 
-  yOffset = yOffset - LINE_HEIGHT
+  yOffset = yOffset - MeasureWrappedTextHeight(noticeText, LINE_HEIGHT, 6)
 
   local function CreateBetaUrlBox(text, offsetY)
     local urlBox = CreateFrame("EditBox", nil, canvas, "InputBoxTemplate")
-    urlBox:SetSize(400, 20)
+    urlBox:SetSize(SETTINGS_CONTENT_WIDTH - (PADDING_X * 2) - 12, 20)
     urlBox:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X + 6, offsetY - 4)
     urlBox:SetAutoFocus(false)
     urlBox:SetText(text)
@@ -1426,7 +1609,7 @@ local function BuildBetaSection(canvas, yOffset, labels, controls)
   end
 
   local urlBox = CreateFrame("EditBox", nil, canvas, "InputBoxTemplate")
-  urlBox:SetSize(400, 20)
+  urlBox:SetSize(SETTINGS_CONTENT_WIDTH - (PADDING_X * 2) - 12, 20)
   urlBox:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X + 6, yOffset - 4)
   urlBox:SetAutoFocus(false)
   urlBox:SetText(BETA_ISSUES_URL)
@@ -1451,10 +1634,37 @@ local function RefreshSettingsControls(controls, config)
   local freshL = config.getL()
   local db = config.getDB()
 
+  if controls.introText then
+    controls.introText:SetText(
+      freshL.SETTINGS_PAGE_HINT or "Use the sections below to tune layout, behavior, and audio cues."
+    )
+  end
   controls.generalHeader:SetText(freshL.SETTINGS_SECTION_GENERAL or "General")
+  if controls.generalHint then
+    controls.generalHint:SetText(
+      freshL.SETTINGS_SECTION_GENERAL_HINT or "Language, startup behavior, and utility links."
+    )
+  end
   controls.displayHeader:SetText(freshL.SETTINGS_SECTION_DISPLAY or "Display")
+  if controls.displayHint then
+    controls.displayHint:SetText(freshL.SETTINGS_SECTION_DISPLAY_HINT or "Scale, opacity, and UI recovery tools.")
+  end
   controls.behaviorHeader:SetText(freshL.SETTINGS_SECTION_BEHAVIOR or "Behavior")
+  if controls.behaviorHint then
+    controls.behaviorHint:SetText(
+      freshL.SETTINGS_SECTION_BEHAVIOR_HINT or "Sync, auto-open, combat, and raid handling."
+    )
+  end
+  if controls.soundHeader then
+    controls.soundHeader:SetText(freshL.SETTINGS_SECTION_SOUNDS or "Sounds")
+  end
+  if controls.soundHint then
+    controls.soundHint:SetText(freshL.SETTINGS_SECTION_SOUNDS_HINT or "Toggle the built-in audio cues.")
+  end
   controls.debugHeader:SetText(freshL.SETTINGS_SECTION_DEBUG or "Debug")
+  if controls.debugHint then
+    controls.debugHint:SetText(freshL.SETTINGS_SECTION_DEBUG_HINT or "Logs reset on reload and help with support.")
+  end
   controls.lang.label:SetText(freshL.SETTINGS_LANGUAGE or "Language")
   controls.combatLog.label:SetText(freshL.SETTINGS_COMBAT_LOGGING or "Advanced Combat Logging")
   controls.dmReset.label:SetText(freshL.SETTINGS_DM_RESET or "DM Reset on Dungeon Entry")
@@ -1507,14 +1717,29 @@ local function RefreshSettingsControls(controls, config)
   if controls.resetDBBtn then
     controls.resetDBBtn.label:SetText(freshL.SETTINGS_RESET_DB or "Reset All Settings")
   end
+  if controls.resetHint then
+    controls.resetHint:SetText(
+      freshL.SETTINGS_SECTION_RESET_HINT or "Use these actions to restore the frame or all settings."
+    )
+  end
   if controls.portalNavigator then
     controls.portalNavigator.label:SetText(freshL.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR or "Show Timeways Navigator")
   end
-  if controls.soundLeadEnabled then
-    controls.soundLeadEnabled.label:SetText(freshL.SETTINGS_SOUND_LEAD_ENABLED or "Sound: Lead Transfer")
-  end
-  if controls.soundGroupJoinEnabled then
-    controls.soundGroupJoinEnabled.label:SetText(freshL.SETTINGS_SOUND_GROUP_JOIN_ENABLED or "Sound: Group Join")
+  if controls.soundChecks then
+    for _, entry in ipairs(GetSoundSettingEntries()) do
+      local soundControl = controls.soundChecks[entry.key]
+      if soundControl then
+        local fallback = SOUND_SETTING_FALLBACKS[entry.key] or {}
+        soundControl.label:SetText(
+          freshL[entry.labelKey]
+            or fallback.labelFallback
+            or fallback.labelKey
+            or entry.labelKey
+            or entry.key
+            or "Sound"
+        )
+      end
+    end
   end
   controls.lang.UpdateHighlight()
   controls.combatLog.check:SetChecked(GetCVarEnabled("advancedCombatLogging"))
@@ -1542,11 +1767,19 @@ local function RefreshSettingsControls(controls, config)
   if controls.portalNavigator then
     controls.portalNavigator.check:SetChecked(db.showPortalNavigator ~= false)
   end
-  if controls.soundLeadEnabled then
-    controls.soundLeadEnabled.check:SetChecked(db.soundLeadEnabled ~= false)
-  end
-  if controls.soundGroupJoinEnabled then
-    controls.soundGroupJoinEnabled.check:SetChecked(db.soundGroupJoinEnabled == true)
+  if controls.soundChecks then
+    for _, entry in ipairs(GetSoundSettingEntries()) do
+      local soundControl = controls.soundChecks[entry.key]
+      if soundControl then
+        local settingKey = entry.settingKey
+        local defaultEnabled = entry.defaultEnabled ~= false
+        local nextValue = defaultEnabled
+        if type(settingKey) == "string" and settingKey ~= "" and db[settingKey] ~= nil then
+          nextValue = db[settingKey] == true
+        end
+        soundControl.check:SetChecked(nextValue)
+      end
+    end
   end
   if controls.lfgFlags then
     controls.lfgFlags.label:SetText(freshL.SETTINGS_LFG_FLAGS or "Group Finder: Language Flags")
@@ -1627,6 +1860,11 @@ function SettingsPanel.Create(opts)
   CreateSettingsTitle(content)
 
   local y = -PADDING_TOP - 30
+  controls.introText, y = CreateSettingsIntro(
+    content,
+    y,
+    L.SETTINGS_PAGE_HINT or "Use the sections below to tune layout, behavior, and audio cues."
+  )
   y = BuildBetaSection(content, y, L, controls)
   y = y - SECTION_GAP
   y = BuildGeneralSettingsSection(content, y, L, config, controls)
@@ -1634,6 +1872,8 @@ function SettingsPanel.Create(opts)
   y = BuildDisplaySettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
   y = BuildBehaviorSettingsSection(content, y, L, config, controls)
+  y = y - SECTION_GAP
+  y = BuildSoundSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
   y = BuildDebugSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP

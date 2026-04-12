@@ -149,11 +149,14 @@ local function BuildGroupControllerDepsFromContext(ctx)
     end,
     onGroupJoined = function() end,
     onMemberJoinedGroup = function()
-      local db = rawget(_G, "IsiLiveDB")
-      if not db or db.soundGroupJoinEnabled ~= true then
+      local soundUtils = addonTable.SoundUtils
+      if type(soundUtils) == "table" and type(soundUtils.PlayGroupJoin) == "function" then
+        soundUtils.PlayGroupJoin()
         return
       end
-      addonTable.SoundUtils.Play("Interface\\AddOns\\isiLive\\sounds\\SynthChord.ogg")
+      if type(soundUtils) == "table" and type(soundUtils.Play) == "function" then
+        soundUtils.Play("Interface\\AddOns\\isiLive\\sounds\\SynthChord.ogg")
+      end
     end,
     getRaidTransitionBehavior = ctx.getRaidTransitionBehavior,
     shouldAutoCloseMainFrame = ctx.shouldAutoCloseMainFrame,

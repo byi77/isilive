@@ -275,6 +275,7 @@ local function RegisterCombatStartupCVarAndWorldEntryTests(test, Assert, WithGlo
 
   test("Event handlers send one forced key snapshot on PLAYER_ENTERING_WORLD", function()
     local keySnapshotForceCalls = {}
+    local kickSnapshotForceCalls = {}
     local scheduled = {}
 
     local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
@@ -285,13 +286,46 @@ local function RegisterCombatStartupCVarAndWorldEntryTests(test, Assert, WithGlo
       sendOwnKeySnapshot = function(force)
         table.insert(keySnapshotForceCalls, force == true)
       end,
+      sendOwnKickState = function(force)
+        table.insert(kickSnapshotForceCalls, force == true)
+      end,
     })
 
     controller:Dispatch("PLAYER_ENTERING_WORLD")
 
     Assert.Equal(#keySnapshotForceCalls, 1, "entering world should send one immediate key snapshot")
     Assert.True(keySnapshotForceCalls[1], "immediate entering-world key snapshot must stay forced")
+    Assert.Equal(#kickSnapshotForceCalls, 1, "entering world should send one immediate kick snapshot")
+    Assert.True(kickSnapshotForceCalls[1], "immediate entering-world kick snapshot must stay forced")
     Assert.Equal(#scheduled, 2, "entering world should only schedule hotkey reapply callbacks")
+  end)
+
+  test("Event handlers force kick snapshot on PLAYER_ENTERING_WORLD independent of specialization", function()
+    local kickSnapshotForceCalls = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      GetSpecialization = function()
+        return 1
+      end,
+      GetSpecializationInfo = function(index)
+        if index == 1 then
+          return 71
+        end
+        return nil
+      end,
+      sendOwnKickState = function(force)
+        table.insert(kickSnapshotForceCalls, force == true)
+      end,
+    })
+
+    controller:Dispatch("PLAYER_ENTERING_WORLD")
+
+    Assert.Equal(#kickSnapshotForceCalls, 1, "entering world must force one kick snapshot regardless of specialization")
+    Assert.True(
+      kickSnapshotForceCalls[1],
+      "entering-world kick snapshot must stay forced for non-hunter interrupt specs"
+    )
   end)
 
   test("Event handlers auto-show main frame on PLAYER_LOGIN for startup login and reload", function()

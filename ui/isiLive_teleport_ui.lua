@@ -15,6 +15,25 @@ local preparePrivateTooltip = assert(
 )
 local hidePrivateTooltip =
   assert(addonTable.UICommon and addonTable.UICommon.HidePrivateTooltip, "isiLive: UICommon.HidePrivateTooltip missing")
+local function PlayPortalAvailableSound()
+  local soundUtils = addonTable.SoundUtils
+  if type(soundUtils) == "table" and type(soundUtils.PlayPortalAvailable) == "function" then
+    soundUtils.PlayPortalAvailable()
+    return
+  end
+  if type(soundUtils) == "table" and type(soundUtils.Play) == "function" then
+    soundUtils.Play("Interface\\AddOns\\isiLive\\sounds\\Portal.ogg")
+    return
+  end
+  local playSoundFile = rawget(_G, "PlaySoundFile")
+  if type(playSoundFile) == "function" then
+    playSoundFile("Interface\\AddOns\\isiLive\\sounds\\Portal.ogg", "SFX")
+  end
+end
+
+local function ShouldSuppressPortalSound(soundContext)
+  return soundContext == "queue"
+end
 
 local LAYOUT_MODE_EXPANDED = RI.LAYOUT_MODE_EXPANDED or "expanded"
 local LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or "compact_main_horizontal"
@@ -195,6 +214,8 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
   button.shortCode = ResolveTeleportButtonShortCode(deps, entry.mapID)
   button.defaultIcon = entry.icon or "Interface\\Icons\\INV_Misc_QuestionMark"
   button.isActiveTarget = false
+  button._lastObservedActiveTarget = false
+  button._portalSoundPrimed = false
   deps.applySecureSpellToButton(button, entry.spellID)
 
   button.icon = button:CreateTexture(nil, "ARTWORK")
@@ -495,7 +516,7 @@ function TeleportUI.CreateController(opts)
     ApplyVisibility()
   end
 
-  function controller.UpdateButtons(resolvedSpellID)
+  function controller.UpdateButtons(resolvedSpellID, soundContext)
     if not isVisible then
       ApplyVisibility()
       return
@@ -512,6 +533,7 @@ function TeleportUI.CreateController(opts)
       local known = deps.isSpellKnown(button.spellID)
       local icon = deps.getSpellTexture(button.spellID)
       button.icon:SetTexture(icon or button.defaultIcon or "Interface\\Icons\\INV_Misc_QuestionMark")
+      local wasActiveTarget = button._lastObservedActiveTarget == true
       button.isActiveTarget = (resolvedSpellID and button.spellID == resolvedSpellID) and true or false
       button.cooldownRemainingSeconds = tonumber(deps.getTeleportCooldownRemaining(button.spellID)) or 0
 
@@ -553,6 +575,17 @@ function TeleportUI.CreateController(opts)
           button:SetScale(1)
         end
       end
+
+      if
+        button._portalSoundPrimed
+        and not wasActiveTarget
+        and button.isActiveTarget
+        and not ShouldSuppressPortalSound(soundContext)
+      then
+        PlayPortalAvailableSound()
+      end
+      button._portalSoundPrimed = true
+      button._lastObservedActiveTarget = button.isActiveTarget and true or false
 
       UpdateTeleportButtonShortCodeLabel(button, deps)
     end
