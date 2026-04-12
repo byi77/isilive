@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-04-12 - Version 0.9.150 (patch)
+
+- **Main-frame lock and tooltip localization:**
+  - Added a top-right lock toggle in the main UI to prevent accidental dragging, backed by the `Lock main frame position` Blizzard setting.
+  - Added `/isilive lock` and `/isilive unlock` as direct slash-command controls for the same saved lock state.
+  - Added `/isilive resetui` to recenter the main window and restore UI scale / background opacity defaults when it is dragged off-screen.
+  - The Settings button for `/isilive resetui` now shows the default values as a separate hint line and asks for confirmation before applying the reset.
+  - Added localized tooltips for the main close button and lock button, including the CTRL+F9 reopen hint on the close button.
+
+- **Documentation / release sync:**
+  - Synced `README.md`, `ARCHITECTURE.md`, `USECASES.md`, and `RELEASE.md` to the current UI and validator baseline state.
+  - Updated the local validator baseline references to `536` scenarios / tests over `39` modules.
+
 ## 2026-04-11 - Version 0.9.149 (patch)
 
 - **LFG dungeon detection fix (`isiLive_lfg_detect.lua`):**

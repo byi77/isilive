@@ -70,6 +70,9 @@ function ConfigBuilders.BuildLeaderWatchControllerOpts(ctx)
 end
 
 function ConfigBuilders.BuildSlashCommandsOpts(ctx)
+  local uiCommon = addonTable.UICommon
+  local defaultBgAlpha = uiCommon and uiCommon.DEFAULT_BG_ALPHA or 0.50
+
   return {
     commands = ctx.commands,
     printFn = ctx.printFn,
@@ -80,6 +83,70 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
     toggleStandardTestMode = ctx.toggleStandardTestMode,
     enterFullDummyPreview = ctx.enterFullDummyPreview,
     setMainFrameVisible = ctx.setMainFrameVisible,
+    getMainFrameLocked = function()
+      local mainUI = ctx.mainUI
+      if mainUI and type(mainUI.GetDragLocked) == "function" then
+        return mainUI.GetDragLocked() == true
+      end
+      local db = rawget(_G, "IsiLiveDB")
+      return not (type(db) == "table" and db.lockMainFramePosition == false)
+    end,
+    setMainFrameLocked = function(locked)
+      local nextLocked = locked == true
+      local db = rawget(_G, "IsiLiveDB")
+      if not db then
+        db = {}
+        IsiLiveDB = db
+      end
+      db.lockMainFramePosition = nextLocked
+      local mainUI = ctx.mainUI
+      if mainUI and type(mainUI.SetDragLocked) == "function" then
+        mainUI.SetDragLocked(nextLocked)
+      end
+    end,
+    resetMainFramePosition = function()
+      local db = rawget(_G, "IsiLiveDB")
+      if not db then
+        db = {}
+        IsiLiveDB = db
+      end
+      db.uiScale = 1.0
+      db.bgAlpha = defaultBgAlpha
+
+      local mainFrame = ctx.mainFrame
+      if mainFrame and type(mainFrame.SetScale) == "function" then
+        mainFrame:SetScale(1.0)
+      end
+
+      local mainUI = ctx.mainUI
+      if mainUI and type(mainUI.ResetPosition) == "function" then
+        mainUI.ResetPosition()
+      end
+
+      if mainFrame and type(mainFrame.SetBackdropColor) == "function" then
+        mainFrame:SetBackdropColor(0, 0, 0, defaultBgAlpha)
+      end
+
+      local colors = uiCommon and uiCommon.Colors
+      if type(colors) == "table" and type(colors.BG_PRIMARY) == "table" then
+        colors.BG_PRIMARY[4] = defaultBgAlpha
+      end
+
+      local bg = colors and colors.BG_PRIMARY or { 0.08, 0.08, 0.12, defaultBgAlpha }
+      if ctx.panelUI and ctx.panelUI.panelFrame and type(ctx.panelUI.panelFrame.SetBackdropColor) == "function" then
+        ctx.panelUI.panelFrame:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
+      end
+      if
+        ctx.settingsPanel
+        and ctx.settingsPanel.canvas
+        and type(ctx.settingsPanel.canvas.SetBackdropColor) == "function"
+      then
+        ctx.settingsPanel.canvas:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
+      end
+      if ctx.settingsPanel and type(ctx.settingsPanel.Refresh) == "function" then
+        ctx.settingsPanel.Refresh()
+      end
+    end,
     updateLeaderButtons = ctx.updateLeaderButtons,
     isPlayerLeader = ctx.isPlayerLeader,
     setLanguage = ctx.setLanguage,

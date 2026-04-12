@@ -19,6 +19,28 @@ UICommon.Colors = {
   ROW_ALT = { 1, 1, 1, 0.03 },
 }
 
+function UICommon.GetLocalizedText(key, fallback)
+  if type(key) ~= "string" or key == "" then
+    return fallback or ""
+  end
+
+  local textTables = addonTable.Texts
+      and type(addonTable.Texts.GetLocaleTables) == "function"
+      and addonTable.Texts.GetLocaleTables()
+    or nil
+  local getLocale = rawget(_G, "GetLocale")
+  local localeKey = type(getLocale) == "function" and getLocale() or "enUS"
+  local labels = type(textTables) == "table" and (textTables[localeKey] or textTables.enUS) or nil
+  if type(labels) == "table" then
+    local value = labels[key]
+    if type(value) == "string" and value ~= "" then
+      return value
+    end
+  end
+
+  return fallback or ""
+end
+
 function UICommon.GetBackgroundAlpha()
   local db = rawget(_G, "IsiLiveDB")
   if type(db) == "table" and type(db.bgAlpha) == "number" then
@@ -375,17 +397,37 @@ local function CreateCloseButtonLabel(button)
   return label
 end
 
-local function AttachCloseButtonVisualStates(button, label)
+local function AttachCloseButtonVisualStates(button, label, opts)
   if not label then
     return
   end
 
+  opts = opts or {}
+  local titleText = UICommon.GetLocalizedText(opts.tooltipTitleKey, opts.tooltipTitle or "")
+  local bodyText = UICommon.GetLocalizedText(opts.tooltipBodyKey, opts.tooltipBody or "")
+  local anchor = type(opts.tooltipAnchor) == "string" and opts.tooltipAnchor or "ANCHOR_LEFT"
+
   button:SetScript("OnEnter", function()
     label:SetTextColor(1, 0.35, 0.35, 1)
+    local tooltip = rawget(_G, "GameTooltip")
+    if tooltip and type(tooltip.SetOwner) == "function" and (titleText ~= "" or bodyText ~= "") then
+      tooltip:SetOwner(button, anchor)
+      if titleText ~= "" then
+        tooltip:AddLine(titleText)
+      end
+      if bodyText ~= "" then
+        tooltip:AddLine(bodyText, 0.8, 0.8, 0.8)
+      end
+      tooltip:Show()
+    end
   end)
 
   button:SetScript("OnLeave", function()
     label:SetTextColor(1, 0.2, 0.2, 1)
+    local tooltip = rawget(_G, "GameTooltip")
+    if tooltip and type(tooltip.Hide) == "function" then
+      tooltip:Hide()
+    end
   end)
 
   button:SetScript("OnMouseDown", function()
@@ -418,7 +460,13 @@ function UICommon.CreateRedCloseButton(parent, opts)
 
   ApplyCloseButtonBackdrop(button)
   local label = CreateCloseButtonLabel(button)
-  AttachCloseButtonVisualStates(button, label)
+  AttachCloseButtonVisualStates(button, label, {
+    tooltipTitleKey = opts.tooltipTitleKey,
+    tooltipTitle = opts.tooltipTitle,
+    tooltipBodyKey = opts.tooltipBodyKey,
+    tooltipBody = opts.tooltipBody,
+    tooltipAnchor = opts.tooltipAnchor,
+  })
 
   return button
 end

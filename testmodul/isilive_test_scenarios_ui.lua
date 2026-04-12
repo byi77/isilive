@@ -192,6 +192,12 @@ local function ApplyFrameMethods(frame)
   frame.GetText = function(self)
     return self._text
   end
+  frame.SetBackdropColor = function(self, r, g, b, a)
+    self._backdropColor = { r, g, b, a }
+  end
+  frame.SetBackdropBorderColor = function(self, r, g, b, a)
+    self._backdropBorderColor = { r, g, b, a }
+  end
   frame.SetChecked = function(self, value)
     self._checked = value == true
   end
@@ -731,6 +737,9 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
         isInCombat = function()
           return inCombat
         end,
+        isDragLocked = function()
+          return false
+        end,
       })
 
       local onDragStart = mainUI.frame._scripts and mainUI.frame._scripts.OnDragStart or nil
@@ -759,6 +768,9 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
       local mainUI = UI.CreateMainFrame({
         parent = UIParent,
         isInCombat = function()
+          return false
+        end,
+        isDragLocked = function()
           return false
         end,
       })
@@ -1518,6 +1530,168 @@ local function RegisterGameMenuMicroButtonTests(test, Assert, WithGlobals, LoadA
   RegisterGameMenuDefaultOpenerTests(test, Assert, WithGlobals, LoadAddonModules)
 end
 
+local function RegisterSettingsPanelResetActionTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Settings panel exposes resetui action and styles Reset all Settings like the other buttons", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+    local resetUiCalls = 0
+    local resetDbCalls = 0
+    local lastPopupName = nil
+    local staticPopupDialogs = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      StaticPopupDialogs = staticPopupDialogs,
+      StaticPopup_Show = function(name)
+        lastPopupName = name
+      end,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_BEHAVIOR = "Behavior",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_UI_SCALE = "UI Scale",
+            SETTINGS_RESET_UI_POSITION = "Reset UI position (/isilive resetui)",
+            SETTINGS_RESET_UI_POSITION_HINT = "Default: position center, UI scale 100%, background opacity 50%",
+            SETTINGS_MINIMAP_BUTTON = "Minimap Button",
+            SETTINGS_SYNC_ENABLED = "Addon Sync",
+            SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
+            SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
+            SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
+            SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
+            SETTINGS_DEFAULT_OPEN_UI_M = "M",
+            SETTINGS_DEFAULT_OPEN_UI_V = "V",
+            SETTINGS_DEFAULT_OPEN_UI_H = "H",
+            SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
+            SETTINGS_MARKERS_LEADER_ONLY = "Markers Leader Only",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
+            SETTINGS_RESET_DB = "Reset All Settings",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+        onResetMainFramePosition = function()
+          resetUiCalls = resetUiCalls + 1
+        end,
+        onResetDB = function()
+          resetDbCalls = resetDbCalls + 1
+        end,
+      })
+
+      Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
+
+      local resetUiButton = nil
+      local resetDbButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._settingKey == "SETTINGS_RESET_UI_POSITION" then
+          resetUiButton = frame
+        elseif frame._settingKey == "SETTINGS_RESET_DB" then
+          resetDbButton = frame
+        end
+      end
+
+      Assert.NotNil(resetUiButton, "settings panel should create a resetui action button in the display section")
+      Assert.NotNil(resetDbButton, "settings panel should create a reset all settings button")
+      ---@diagnostic disable: need-check-nil, undefined-field
+      Assert.Equal(
+        resetUiButton.label:GetText(),
+        "Reset UI position (/isilive resetui)",
+        "resetui button should use the localized display label"
+      )
+      Assert.Equal(
+        resetUiButton.label:GetText(),
+        "Reset UI position (/isilive resetui)",
+        "resetui button should keep its clickable label"
+      )
+      Assert.NotNil(resetUiButton.hint, "resetui hint should exist under the button")
+      Assert.Equal(
+        resetUiButton.hint:GetText(),
+        "Default: position center, UI scale 100%, background opacity 50%",
+        "resetui button should explain the default values"
+      )
+      Assert.Equal(
+        resetDbButton.label:GetText(),
+        "Reset All Settings",
+        "reset all settings button should keep its label"
+      )
+      Assert.NotNil(resetUiButton.hoverGlow, "resetui button should expose a hover glow for clickable feedback")
+      Assert.NotNil(
+        resetDbButton.hoverGlow,
+        "reset all settings button should expose a hover glow for clickable feedback"
+      )
+      Assert.NotNil(resetDbButton._backdropColor, "reset all settings button should use the styled backdrop")
+      Assert.NotNil(
+        resetDbButton._backdropBorderColor,
+        "reset all settings button should use the styled backdrop border"
+      )
+      Assert.False(
+        resetDbButton._template == "UIPanelButtonTemplate",
+        "reset all settings button should no longer use the legacy UIPanelButtonTemplate"
+      )
+      local onClickResetUi = resetUiButton._scripts and resetUiButton._scripts.OnClick or nil
+      local onClickResetDb = resetDbButton._scripts and resetDbButton._scripts.OnClick or nil
+      local onEnterResetDb = resetDbButton._scripts and resetDbButton._scripts.OnEnter or nil
+      local onLeaveResetDb = resetDbButton._scripts and resetDbButton._scripts.OnLeave or nil
+      Assert.NotNil(onClickResetUi, "resetui button should define OnClick")
+      Assert.NotNil(onClickResetDb, "reset all settings button should define OnClick")
+      Assert.NotNil(onEnterResetDb, "reset all settings button should define OnEnter")
+      Assert.NotNil(onLeaveResetDb, "reset all settings button should define OnLeave")
+
+      onEnterResetDb(resetDbButton)
+      Assert.NotNil(
+        resetDbButton._backdropColor,
+        "hover should keep the reset all settings button visually highlighted"
+      )
+      onLeaveResetDb(resetDbButton)
+      Assert.NotNil(resetDbButton._backdropColor, "leave should restore the reset all settings button backdrop")
+
+      onClickResetUi(resetUiButton, "LeftButton")
+      Assert.Equal(resetUiCalls, 0, "resetui button should wait for confirmation before calling the reset helper")
+      Assert.NotNil(lastPopupName, "resetui button should open a confirmation popup")
+      Assert.NotNil(staticPopupDialogs[lastPopupName], "resetui confirmation popup should be registered")
+      staticPopupDialogs[lastPopupName].OnCancel()
+      Assert.Equal(resetUiCalls, 0, "resetui cancel should abort the reset helper")
+
+      onClickResetDb(resetDbButton, "LeftButton")
+      Assert.Equal(
+        resetDbCalls,
+        0,
+        "reset all settings button should wait for confirmation before calling the DB reset"
+      )
+      Assert.NotNil(lastPopupName, "reset all settings button should open a confirmation popup")
+      Assert.NotNil(staticPopupDialogs[lastPopupName], "reset all settings confirmation popup should be registered")
+      staticPopupDialogs[lastPopupName].OnAccept()
+      ---@diagnostic enable: need-check-nil, undefined-field
+
+      Assert.Equal(resetUiCalls, 0, "resetui cancel should not call the reset-main-frame callback")
+      Assert.Equal(resetDbCalls, 1, "reset all settings button should call the DB reset callback once")
+    end)
+  end)
+end
+
 local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonModules)
   test("UICommon background alpha defaults to 50 percent and honors saved override", function()
     WithGlobals({
@@ -1585,7 +1759,7 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
 
       local slider = nil
       for _, frame in ipairs(createdFrames) do
-        if frame._frameType == "Slider" then
+        if frame._frameType == "Slider" and frame._settingKey == "SETTINGS_BG_ALPHA" then
           slider = frame
           break
         end
@@ -1610,6 +1784,8 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       Assert.Equal(bgAlphaChanges, 1, "user changes should fire exactly one callback")
     end)
   end)
+
+  RegisterSettingsPanelResetActionTests(test, Assert, WithGlobals, LoadAddonModules)
 
   test("Settings panel lets the user choose the default layout on open", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
@@ -1899,6 +2075,89 @@ local function RegisterSettingsPanelBehaviorTests(test, Assert, WithGlobals, Loa
 
       Assert.True(autoCloseCheck:GetChecked(), "refresh should honor an explicit true override")
       ---@diagnostic enable: need-check-nil, undefined-field
+    end)
+  end)
+
+  test("Settings panel defaults combat fade to disabled until the user turns it on", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_BEHAVIOR = "Behavior",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_UI_SCALE = "UI Scale",
+            SETTINGS_MINIMAP_BUTTON = "Minimap Button",
+            SETTINGS_SYNC_ENABLED = "Addon Sync",
+            SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
+            SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
+            SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
+            SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
+            SETTINGS_DEFAULT_OPEN_UI_M = "M",
+            SETTINGS_DEFAULT_OPEN_UI_V = "V",
+            SETTINGS_DEFAULT_OPEN_UI_H = "H",
+            SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
+            SETTINGS_COMBAT_FADE_MM = "Fade out in Combat (M2 only)",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+      })
+
+      Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
+      Assert.Nil(db.combatFadeMM, "opening settings should not persist the combat fade default")
+
+      local combatFadeCheck = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._settingKey == "SETTINGS_COMBAT_FADE_MM" then
+          combatFadeCheck = frame
+          break
+        end
+      end
+
+      Assert.NotNil(combatFadeCheck, "settings panel should create a combat fade checkbox")
+      ---@diagnostic disable: need-check-nil, undefined-field
+      Assert.False(combatFadeCheck:GetChecked(), "combat fade should default to disabled when no saved value exists")
+
+      panel.Refresh()
+
+      Assert.Nil(db.combatFadeMM, "refresh should not persist the combat fade default")
+
+      combatFadeCheck:SetChecked(true)
+      local onClick = combatFadeCheck._scripts and combatFadeCheck._scripts.OnClick or nil
+      Assert.NotNil(onClick, "combat fade checkbox should define OnClick")
+      onClick(combatFadeCheck)
+      ---@diagnostic enable: need-check-nil, undefined-field
+
+      Assert.True(db.combatFadeMM, "user enabling combat fade should be persisted")
+      Assert.True(combatFadeCheck:GetChecked(), "user enabling combat fade should keep the checkbox checked")
     end)
   end)
 
@@ -2464,7 +2723,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 2, "settings should only expose the background opacity and UI scale sliders")
       Assert.Equal(
         checkboxCount,
-        18,
+        19,
         "settings should hide only the legacy DPS, markers, name-length,"
           .. " and teleport-column controls while keeping the startup/key-end, navigator, sound,"
           .. " and combat-fade toggles visible"
@@ -2474,7 +2733,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 2, "refresh should keep the legacy sliders hidden")
       Assert.Equal(
         checkboxCount,
-        18,
+        19,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
           .. " while preserving the visible sound and combat-fade toggles"
       )
@@ -2482,561 +2741,208 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
   end)
 end
 
-local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Center notice close button hides center notice directly", function()
-    local now = 0
-
-    WithGlobals({
-      UIParent = {},
-      CreateFrame = BuildCreateFrameStub(),
-      GetTime = function()
-        return now
-      end,
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local Notice = RequireValue(addon.Notice, "Notice module should load")
-      local centerNotice = Notice.CreateCenterNotice({
-        parent = UIParent,
-        isInCombat = function()
-          return false
-        end,
-      })
-
-      centerNotice.Show("Test notice", 20, nil, nil, {})
-      Assert.True(centerNotice.frame:IsShown(), "center notice should be visible before close button click")
-      Assert.NotNil(centerNotice.closeButton, "center notice should expose close button")
-
-      local onClick = centerNotice.closeButton._scripts and centerNotice.closeButton._scripts.OnClick or nil
-      Assert.NotNil(onClick, "center notice close button should define OnClick handler")
-      ---@diagnostic disable: need-check-nil
-      onClick(centerNotice.closeButton, "LeftButton")
-      ---@diagnostic enable: need-check-nil
-
-      Assert.False(centerNotice.frame:IsShown(), "center notice close button should hide notice frame")
-    end)
-  end)
-
-  test("Center notice close button also closes during combat", function()
-    local now = 0
-    local inCombat = false
-
-    WithGlobals({
-      UIParent = {},
-      CreateFrame = BuildCreateFrameStub(),
-      GetTime = function()
-        return now
-      end,
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local Notice = RequireValue(addon.Notice, "Notice module should load")
-      local centerNotice = Notice.CreateCenterNotice({
-        parent = UIParent,
-        isInCombat = function()
-          return inCombat
-        end,
-      })
-
-      centerNotice.Show("Combat close test", 20, nil, nil, {})
-      Assert.True(centerNotice.frame:IsShown(), "center notice should be visible before combat close test")
-
-      inCombat = true
-      local onClick = centerNotice.closeButton._scripts and centerNotice.closeButton._scripts.OnClick or nil
-      Assert.NotNil(onClick, "center notice close button should define OnClick handler")
-      ---@diagnostic disable: need-check-nil
-      onClick(centerNotice.closeButton, "LeftButton")
-      ---@diagnostic enable: need-check-nil
-
-      Assert.False(centerNotice.frame:IsShown(), "center notice close in combat should hide notice frame immediately")
-    end)
-  end)
-
-  test("Center notice can open during combat without pending delay", function()
-    local now = 0
-    local inCombat = true
-    local createFrameStub = BuildCreateFrameStub({
-      simulateProtectedFrames = true,
-      isInCombat = function()
-        return inCombat
-      end,
-    })
-
-    WithGlobals({
-      UIParent = {},
-      CreateFrame = createFrameStub,
-      GetTime = function()
-        return now
-      end,
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local Notice = RequireValue(addon.Notice, "Notice module should load")
-      local centerNotice = Notice.CreateCenterNotice({
-        parent = UIParent,
-        isInCombat = function()
-          return inCombat
-        end,
-      })
-
-      centerNotice.Show("Combat open test", 20, nil, nil, {})
-
-      Assert.True(centerNotice.frame:IsShown(), "center notice should open during combat")
-    end)
-  end)
-
-  test("Center notice font scale does not grow across repeated notices", function()
-    local now = 0
-
-    WithGlobals({
-      UIParent = {},
-      CreateFrame = BuildCreateFrameStub(),
-      GetTime = function()
-        return now
-      end,
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local Notice = RequireValue(addon.Notice, "Notice module should load")
-      local centerNotice = Notice.CreateCenterNotice({
-        parent = UIParent,
-        isInCombat = function()
-          return false
-        end,
-      })
-
-      local _, baseSize = centerNotice.text:GetFont()
-      centerNotice.Show("Scaled notice 1", 20, nil, nil, { fontScale = 1.35 })
-      local _, firstScaledSize = centerNotice.text:GetFont()
-      centerNotice.Show("Scaled notice 2", 20, nil, nil, { fontScale = 1.35 })
-      local _, secondScaledSize = centerNotice.text:GetFont()
-      centerNotice.Show("Default notice", 20, nil, nil, {})
-      local _, resetSize = centerNotice.text:GetFont()
-
-      Assert.Equal(baseSize, 24, "center notice should use the portal-navigator typography baseline")
-      Assert.Equal(firstScaledSize, 32, "first scaled notice should apply configured font scale once")
-      Assert.Equal(secondScaledSize, 32, "repeated scaled notice must not compound font size")
-      Assert.Equal(resetSize, 24, "default notice should reset font size back to the portal baseline")
-    end)
-  end)
-
-  test("Center notice uses portal navigator typography defaults", function()
-    local now = 0
-
-    WithGlobals({
-      UIParent = {},
-      CreateFrame = BuildCreateFrameStub(),
-      GetTime = function()
-        return now
-      end,
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local Notice = RequireValue(addon.Notice, "Notice module should load")
-      local centerNotice = Notice.CreateCenterNotice({
-        parent = UIParent,
-        isInCombat = function()
-          return false
-        end,
-      })
-
-      centerNotice.Show("Typography test", 20, nil, nil, {})
-
-      local _, fontSize = centerNotice.text:GetFont()
-      Assert.Equal(
-        centerNotice.text._fontObject,
-        "GameFontNormal",
-        "center notice body text must use the same font object as portal navigator entries"
-      )
-      Assert.Equal(fontSize, 24, "center notice body text should match the portal navigator font size")
-      local r, g, b = centerNotice.text:GetTextColor()
-      Assert.Equal(r, 1, "center notice should keep the portal navigator red channel")
-      Assert.Equal(g, 0.92, "center notice should keep the portal navigator green channel")
-      Assert.Equal(b, 0.7, "center notice should keep the portal navigator blue channel")
-    end)
-  end)
-
-  test("Center notice teleport button uses isolated top-anchored tooltip", function()
-    local now = 0
+local function RegisterMainFrameLockTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Settings panel defaults main frame position lock to enabled and persists unlocks", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
-    local sharedTooltipCalls = 0
+    local db = {}
 
     WithGlobals({
       UIParent = {},
+      IsiLiveDB = db,
       CreateFrame = createFrameStub,
-      GetTime = function()
-        return now
-      end,
-      GameTooltip = {
-        SetOwner = function()
-          sharedTooltipCalls = sharedTooltipCalls + 1
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
         end,
-        SetText = function()
-          sharedTooltipCalls = sharedTooltipCalls + 1
-        end,
-        AddLine = function()
-          sharedTooltipCalls = sharedTooltipCalls + 1
-        end,
-        SetSpellByID = function()
-          sharedTooltipCalls = sharedTooltipCalls + 1
-        end,
-        Show = function()
-          sharedTooltipCalls = sharedTooltipCalls + 1
-        end,
-        Hide = function()
-          sharedTooltipCalls = sharedTooltipCalls + 1
-        end,
+        RegisterAddOnCategory = function() end,
       },
     }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local Notice = RequireValue(addon.Notice, "Notice module should load")
-      local centerNotice = Notice.CreateCenterNotice({
-        parent = UIParent,
-        isInCombat = function()
-          return false
-        end,
-        resolveTeleportSpellID = function()
-          return 12345
-        end,
-        resolveMapIDBySpellID = function(spellID)
-          if spellID == 12345 then
-            return 558
-          end
-          return nil
-        end,
-        resolveMapIDByActivityID = function(activityID)
-          if activityID == 999 then
-            return 558
-          end
-          return nil
-        end,
-        applySecureSpellToButton = function() end,
-        isSpellKnown = function()
-          return true
-        end,
-        getTeleportCooldownRemaining = function()
-          return 0
-        end,
-        formatCooldownSeconds = function()
-          return ""
-        end,
-        getDungeonName = function(mapID, localeTag)
-          if mapID == 558 and localeTag == "enUS" then
-            return "Magisters' Terrace"
-          end
-          if mapID == 558 then
-            return "Terrasse der Magister"
-          end
-          return nil
-        end,
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
         getL = function()
           return {
-            TOOLTIP_TELEPORT_CAST = "Cast",
-            TOOLTIP_TELEPORT_READY = "Ready",
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_BEHAVIOR = "Behavior",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LOCK_MAIN_FRAME_POSITION = "Lock main frame position",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_UI_SCALE = "UI Scale",
+            SETTINGS_MINIMAP_BUTTON = "Minimap Button",
+            SETTINGS_SYNC_ENABLED = "Addon Sync",
+            SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
+            SETTINGS_AUTO_CLOSE_MAIN_FRAME = "Auto Close Main Frame",
+            SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP = "Show on Login / Reload",
+            SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END = "Auto Open on Key End",
+            SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
+            SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
+            SETTINGS_DEFAULT_OPEN_UI_M = "M",
+            SETTINGS_DEFAULT_OPEN_UI_V = "V",
+            SETTINGS_DEFAULT_OPEN_UI_H = "H",
+            SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR = "Raid Behavior",
+            SETTINGS_RAID_TRANSITION_BEHAVIOR_HIDE = "Raid Off",
+            SETTINGS_ROSTER_COLUMN_GUIDES = "Column Guides",
+            SETTINGS_SHOW_TIMEWAYS_NAVIGATOR = "Show Timeways Navigator",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
           }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
         end,
       })
 
-      centerNotice.ConfigureTeleportButton("Terrasse der Magister", 999)
-      local onEnter = centerNotice.teleportButton._scripts and centerNotice.teleportButton._scripts.OnEnter or nil
-      Assert.NotNil(onEnter, "center notice teleport button should define tooltip OnEnter")
-      ---@diagnostic disable: need-check-nil
-      onEnter(centerNotice.teleportButton)
-      ---@diagnostic enable: need-check-nil
+      Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
 
-      local privateTooltip = nil
+      local lockCheck = nil
       for _, frame in ipairs(createdFrames) do
-        if frame._isIsiLiveTooltip == true then
-          privateTooltip = frame
+        if frame._settingKey == "SETTINGS_LOCK_MAIN_FRAME_POSITION" then
+          lockCheck = frame
           break
         end
       end
 
-      Assert.NotNil(privateTooltip, "center notice should allocate a private tooltip frame")
-      local privateTooltipFrame = RequireValue(privateTooltip, "center notice should allocate a private tooltip frame")
-      Assert.Equal(
-        rawget(privateTooltipFrame, "_isiLiveTooltipAnchor"),
-        "ANCHOR_TOP",
-        "center notice tooltip must stay top-anchored"
-      )
-      local lines = rawget(privateTooltipFrame, "_isiLiveTooltipLines") or {}
-      Assert.Equal(
-        lines[1] and lines[1]._text or nil,
-        "Terrasse der Magister",
-        "center notice tooltip title should stay localized"
-      )
-      Assert.Equal(
-        lines[2] and lines[2]._text or nil,
-        "Magisters' Terrace",
-        "center notice tooltip should add the English name below the title"
-      )
-      Assert.Equal(sharedTooltipCalls, 0, "center notice tooltip should not use the shared Blizzard GameTooltip")
+      Assert.NotNil(lockCheck, "settings panel should create the drag-lock checkbox")
+      ---@diagnostic disable: need-check-nil, undefined-field
+      Assert.True(lockCheck:GetChecked(), "main frame position lock should default to enabled")
+
+      local onClick = lockCheck._scripts and lockCheck._scripts.OnClick or nil
+      Assert.NotNil(onClick, "main frame position lock checkbox should define OnClick")
+      lockCheck:SetChecked(false)
+      onClick(lockCheck) ---@diagnostic disable-line: need-check-nil
+      Assert.False(db.lockMainFramePosition, "unlocking the checkbox should persist false")
+      ---@diagnostic enable: need-check-nil, undefined-field
     end)
   end)
 
-  test("Center notice tooltip prefers exact activity map over shared spell fallback", function()
-    local now = 0
-    local createFrameStub, createdFrames = BuildCreateFrameStub()
+  test("UI main frame drag lock blocks accidental movement until unlocked", function()
+    local createFrameStub = BuildCreateFrameStub()
 
     WithGlobals({
       UIParent = {},
-      CreateFrame = createFrameStub,
-      GetTime = function()
-        return now
-      end,
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local Notice = RequireValue(addon.Notice, "Notice module should load")
-      local centerNotice = Notice.CreateCenterNotice({
-        parent = UIParent,
-        isInCombat = function()
-          return false
-        end,
-        resolveTeleportSpellID = function()
-          return 367416
-        end,
-        resolveMapIDBySpellID = function(spellID)
-          if spellID == 367416 then
-            return 2441
-          end
-          return nil
-        end,
-        resolveMapIDByActivityID = function(activityID)
-          if activityID == 999 then
-            return 2442
-          end
-          return nil
-        end,
-        applySecureSpellToButton = function() end,
-        isSpellKnown = function()
-          return true
-        end,
-        getTeleportCooldownRemaining = function()
-          return 0
-        end,
-        formatCooldownSeconds = function()
-          return ""
-        end,
-        getDungeonName = function(mapID, localeTag)
-          if mapID == 2442 and localeTag == "enUS" then
-            return "Tazavesh: Streets of Wonder"
-          end
-          if mapID == 2442 then
-            return "Tazavesh: Straßen der Wunder"
-          end
-          if mapID == 2441 and localeTag == "enUS" then
-            return "Tazavesh: So'leah's Gambit"
-          end
-          if mapID == 2441 then
-            return "Tazavesh: So'leahs Schachzug"
-          end
-          return nil
-        end,
-        getL = function()
-          return {
-            TOOLTIP_TELEPORT_CAST = "Cast",
-            TOOLTIP_TELEPORT_READY = "Ready",
-          }
-        end,
-      })
-
-      centerNotice.ConfigureTeleportButton("Tazavesh: Straßen der Wunder", 999)
-      local onEnter = centerNotice.teleportButton._scripts and centerNotice.teleportButton._scripts.OnEnter or nil
-      Assert.NotNil(onEnter, "center notice teleport button should define tooltip OnEnter")
-      ---@diagnostic disable: need-check-nil
-      onEnter(centerNotice.teleportButton)
-      ---@diagnostic enable: need-check-nil
-
-      local privateTooltip = nil
-      for _, frame in ipairs(createdFrames) do
-        if frame._isIsiLiveTooltip == true then
-          privateTooltip = frame
-          break
-        end
-      end
-
-      Assert.NotNil(privateTooltip, "center notice should allocate a private tooltip frame")
-      local privateTooltipFrame = RequireValue(privateTooltip, "center notice should allocate a private tooltip frame")
-      local lines = rawget(privateTooltipFrame, "_isiLiveTooltipLines") or {}
-      Assert.Equal(
-        lines[1] and lines[1]._text or nil,
-        "Tazavesh: Straßen der Wunder",
-        "center notice tooltip title should keep the concrete localized activity dungeon"
-      )
-      Assert.Equal(
-        lines[2] and lines[2]._text or nil,
-        "Tazavesh: Streets of Wonder",
-        "center notice tooltip subtitle must use the exact activity map instead of the shared spell fallback"
-      )
-    end)
-  end)
-end
-
-local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, LoadAddonModules)
-  test("Center notice drag stays non-persistent and resets to center on next open", function()
-    local now = 0
-
-    WithGlobals({
-      UIParent = {},
-      CreateFrame = BuildCreateFrameStub(),
       IsiLiveDB = {},
-      GetTime = function()
-        return now
-      end,
+      CreateFrame = createFrameStub,
     }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local Notice = RequireValue(addon.Notice, "Notice module should load")
-      local centerNotice = Notice.CreateCenterNotice({
-        parent = UIParent,
-        isInCombat = function()
-          return true
-        end,
-      })
-
-      local onDragStart = centerNotice.frame._scripts and centerNotice.frame._scripts.OnDragStart or nil
-      local onDragStop = centerNotice.frame._scripts and centerNotice.frame._scripts.OnDragStop or nil
-      Assert.NotNil(onDragStart, "center notice should define an OnDragStart handler")
-      Assert.NotNil(onDragStop, "center notice should define an OnDragStop handler")
-
-      centerNotice.Show("Drag test", 20, nil, nil, {})
-      centerNotice.frame:SetPoint("CENTER", UIParent, "CENTER", 12, -34)
-      ---@diagnostic disable: need-check-nil
-      onDragStart(centerNotice.frame)
-      onDragStop(centerNotice.frame)
-      ---@diagnostic enable: need-check-nil
-
-      Assert.Equal(centerNotice.frame._startMovingCalls, 1, "center notice drag start should call StartMoving")
-      Assert.Equal(centerNotice.frame._stopMovingCalls, 1, "center notice drag stop should call StopMovingOrSizing")
-      Assert.Nil(IsiLiveDB.centerNoticePosition, "center notice drag must not persist position in DB")
-
-      centerNotice.SetVisible(false)
-      centerNotice.Show("Reopen test", 20, nil, nil, {})
-
-      local point, _, relativePoint, x, y = centerNotice.frame:GetPoint()
-      Assert.Equal(point, "CENTER", "reopened center notice should use CENTER point")
-      Assert.Equal(relativePoint, "CENTER", "reopened center notice should use CENTER relativePoint")
-      Assert.Equal(x, 0, "reopened center notice should reset x offset")
-      Assert.Equal(y, 0, "reopened center notice should reset y offset")
-    end)
-  end)
-
-  test("Portal navigator notice lays out the four portal labels around the frame", function()
-    WithGlobals({
-      UIParent = {},
-      CreateFrame = BuildCreateFrameStub(),
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
-      local Notice = RequireValue(addon.Notice, "Notice module should load")
-      local portalNotice = Notice.CreatePortalNavigatorNotice({
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local mainUI = UI.CreateMainFrame({
         parent = UIParent,
         isInCombat = function()
           return false
         end,
+        isDragLocked = function()
+          return true
+        end,
       })
 
-      local framePoint, frameRelativeTo, frameRelativePoint, frameX, frameY = portalNotice.frame:GetPoint()
-      Assert.Equal(framePoint, "CENTER", "portal navigator frame should stay centered on the horizontal axis")
-      Assert.Equal(frameRelativeTo, UIParent, "portal navigator frame should anchor to UIParent")
-      Assert.Equal(frameRelativePoint, "CENTER", "portal navigator frame should keep center relative point")
-      Assert.Equal(frameX, 0, "portal navigator frame should not drift horizontally")
-      Assert.Equal(frameY, 240, "portal navigator frame should move up by one frame height")
-      Assert.Equal(portalNotice.frame:GetAlpha(), 1, "portal navigator text should stay fully opaque")
-      local bgR, bgG, bgB, bgA = portalNotice.frame:GetBackdropColor()
-      Assert.Equal(bgR, 0.05, "portal navigator background should keep the configured red channel")
-      Assert.Equal(bgG, 0.05, "portal navigator background should keep the configured green channel")
-      Assert.Equal(bgB, 0.08, "portal navigator background should keep the configured blue channel")
-      Assert.Equal(bgA, 0.72, "portal navigator background should render at the configured alpha")
+      Assert.True(mainUI.GetDragLocked(), "main UI should start locked")
+      local onDragStart = mainUI.frame._scripts and mainUI.frame._scripts.OnDragStart or nil
+      local onDragStop = mainUI.frame._scripts and mainUI.frame._scripts.OnDragStop or nil
+      Assert.NotNil(onDragStart, "main UI should define an OnDragStart handler")
+      Assert.NotNil(onDragStop, "main UI should define an OnDragStop handler")
 
-      portalNotice.SetVisible(false)
-      Assert.True(not portalNotice.frame:IsShown(), "portal navigator should hide cleanly")
+      ---@diagnostic disable: need-check-nil
+      onDragStart(mainUI.frame)
+      onDragStop(mainUI.frame)
+      ---@diagnostic enable: need-check-nil
 
-      portalNotice.SetVisible(true)
-      local reopenedFramePoint, reopenedFrameRelativeTo, reopenedFrameRelativePoint, reopenedFrameX, reopenedFrameY =
-        portalNotice.frame:GetPoint()
-      Assert.Equal(reopenedFramePoint, "CENTER", "portal navigator should reopen on the horizontal center")
-      Assert.Equal(reopenedFrameRelativeTo, UIParent, "portal navigator should still anchor to UIParent when reopened")
-      Assert.Equal(reopenedFrameRelativePoint, "CENTER", "portal navigator should reopen with center relative point")
-      Assert.Equal(reopenedFrameX, 0, "portal navigator should not drift horizontally when reopened")
-      Assert.Equal(reopenedFrameY, 240, "portal navigator should reopen at the configured top offset")
+      Assert.Equal(mainUI.frame._startMovingCalls, 0, "locked frame should ignore drag start")
+      Assert.Equal(mainUI.frame._stopMovingCalls, 0, "locked frame should ignore drag stop")
 
-      local shown = portalNotice.Show({
-        title = "Portal Navigator",
-        entries = {
-          { slot = "half_left", direction = "Half left", destination = "Grube von Saron" },
-          { slot = "left", direction = "Left", destination = "Himmelsnadel" },
-          { slot = "right", direction = "Right", destination = "Sitz des Triumvirats" },
-          { slot = "half_right", direction = "Half right", destination = "Akademie von Algeth'ar" },
-        },
+      mainUI.SetDragLocked(false)
+      ---@diagnostic disable: need-check-nil
+      onDragStart(mainUI.frame)
+      onDragStop(mainUI.frame)
+      ---@diagnostic enable: need-check-nil
+
+      Assert.Equal(mainUI.frame._startMovingCalls, 1, "unlocked frame should start moving")
+      Assert.Equal(mainUI.frame._stopMovingCalls, 1, "unlocked frame should stop moving")
+      Assert.NotNil(IsiLiveDB.position, "unlocked drag should persist the position")
+    end)
+  end)
+
+  test("UI main frame lock button toggles the drag lock state", function()
+    local createFrameStub = BuildCreateFrameStub()
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = {},
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local mainUI = UI.CreateMainFrame({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        isDragLocked = function()
+          return true
+        end,
       })
 
-      Assert.True(shown, "portal navigator show should accept structured layout")
-      Assert.True(portalNotice.frame:IsShown(), "portal navigator should be visible after show")
+      Assert.NotNil(mainUI.lockButton, "main UI should expose the lock button")
+      Assert.True(mainUI.GetDragLocked(), "main UI should start locked")
+      Assert.True(mainUI.lockButton._isLocked, "lock button should reflect the initial locked state")
 
-      local _, titleFontSize = portalNotice.titleText:GetFont()
-      Assert.Equal(titleFontSize, 24, "portal navigator title should be 10 points larger than the stub baseline")
+      local onClick = mainUI.lockButton._scripts and mainUI.lockButton._scripts.OnClick or nil
+      Assert.NotNil(onClick, "lock button should define OnClick")
+      ---@diagnostic disable: need-check-nil
+      onClick(mainUI.lockButton, "LeftButton")
+      ---@diagnostic enable: need-check-nil
 
-      for _, slot in ipairs({ "half_left", "left", "right", "half_right" }) do
-        local _, entryFontSize = portalNotice.entries[slot]:GetFont()
-        Assert.Equal(entryFontSize, 24, "portal navigator entries should be 10 points larger than the stub baseline")
-        Assert.Equal(
-          portalNotice.entries[slot]._fontObject,
-          "GameFontNormal",
-          "portal navigator entry text should use GameFontNormal"
-        )
-      end
+      Assert.False(mainUI.GetDragLocked(), "first click should unlock the frame")
+      Assert.False(mainUI.lockButton._isLocked, "lock button should reflect the unlocked state")
 
-      local titlePoint, titleRelativeTo, titleRelativePoint, titleX, titleY = portalNotice.titleText:GetPoint()
-      Assert.Equal(titlePoint, "TOP", "portal navigator title should anchor at the top center")
-      Assert.Equal(titleRelativeTo, portalNotice.frame, "portal navigator title should anchor to the frame")
-      Assert.Equal(titleRelativePoint, "TOP", "portal navigator title should keep the top relative point")
-      Assert.Equal(titleX, 0, "portal navigator title should stay centered")
-      Assert.Equal(titleY, -12, "portal navigator title should keep the configured top offset")
+      ---@diagnostic disable: need-check-nil
+      onClick(mainUI.lockButton, "LeftButton")
+      ---@diagnostic enable: need-check-nil
+      Assert.True(mainUI.GetDragLocked(), "second click should lock the frame again")
+      Assert.True(mainUI.lockButton._isLocked, "lock button should reflect the relocked state")
+    end)
+  end)
 
-      local halfLeftPoint, halfLeftRelativeTo, halfLeftRelativePoint, halfLeftX, halfLeftY =
-        portalNotice.entries.half_left:GetPoint()
-      Assert.Equal(halfLeftPoint, "TOPLEFT", "half-left portal should anchor in the upper left quadrant")
-      Assert.Equal(halfLeftRelativeTo, portalNotice.frame, "half-left portal should anchor to the frame")
-      Assert.Equal(halfLeftRelativePoint, "TOPLEFT", "half-left portal should keep the top-left relative point")
-      Assert.Equal(halfLeftX, 60, "half-left portal should use the configured x offset")
-      Assert.Equal(halfLeftY, -78, "half-left portal should use the configured y offset")
+  test("UI main frame reset position recenters the frame", function()
+    local createFrameStub = BuildCreateFrameStub()
 
-      local leftPoint, leftRelativeTo, leftRelativePoint, leftX, leftY = portalNotice.entries.left:GetPoint()
-      Assert.Equal(leftPoint, "LEFT", "left portal should anchor on the left edge")
-      Assert.Equal(leftRelativeTo, portalNotice.frame, "left portal should anchor to the frame")
-      Assert.Equal(leftRelativePoint, "LEFT", "left portal should keep the left relative point")
-      Assert.Equal(leftX, 60, "left portal should use the configured x offset")
-      Assert.Equal(leftY, -24, "left portal should sit lower to separate it from the upper entry")
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = {},
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local mainUI = UI.CreateMainFrame({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        isDragLocked = function()
+          return false
+        end,
+      })
 
-      local rightPoint, rightRelativeTo, rightRelativePoint, rightX, rightY = portalNotice.entries.right:GetPoint()
-      Assert.Equal(rightPoint, "RIGHT", "right portal should anchor on the right edge")
-      Assert.Equal(rightRelativeTo, portalNotice.frame, "right portal should anchor to the frame")
-      Assert.Equal(rightRelativePoint, "RIGHT", "right portal should keep the right relative point")
-      Assert.Equal(rightX, -60, "right portal should use the configured x offset")
-      Assert.Equal(rightY, -24, "right portal should sit lower to separate it from the upper entry")
+      Assert.NotNil(mainUI.ResetPosition, "main UI should expose a reset-position helper")
+      mainUI.frame:ClearAllPoints()
+      mainUI.frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 120, -80)
 
-      local halfRightPoint, halfRightRelativeTo, halfRightRelativePoint, halfRightX, halfRightY =
-        portalNotice.entries.half_right:GetPoint()
-      Assert.Equal(halfRightPoint, "TOPRIGHT", "half-right portal should anchor in the upper right quadrant")
-      Assert.Equal(halfRightRelativeTo, portalNotice.frame, "half-right portal should anchor to the frame")
-      Assert.Equal(halfRightRelativePoint, "TOPRIGHT", "half-right portal should keep the top-right relative point")
-      Assert.Equal(halfRightX, -60, "half-right portal should use the configured x offset")
-      Assert.Equal(halfRightY, -78, "half-right portal should use the configured y offset")
+      mainUI.ResetPosition()
 
-      Assert.Equal(
-        portalNotice.entries.half_left:GetText(),
-        "Grube von Saron",
-        "upper-left portal should show the destination name"
-      )
-      Assert.Equal(
-        portalNotice.entries.left:GetText(),
-        "Himmelsnadel",
-        "lower-left portal should show the destination name"
-      )
-      Assert.Equal(
-        portalNotice.entries.right:GetText(),
-        "Sitz des Triumvirats",
-        "lower-right portal should show the destination name"
-      )
-      Assert.Equal(
-        portalNotice.entries.half_right:GetText(),
-        "Akademie von Algeth'ar",
-        "upper-right portal should show the destination name"
-      )
+      local pos = IsiLiveDB.position
+      Assert.NotNil(pos, "reset position should persist a saved position")
+      Assert.Equal(pos.point, "CENTER", "reset position should center the frame")
+      Assert.Equal(pos.relativePoint, "CENTER", "reset position should anchor to the center")
+      Assert.Equal(pos.x, 0, "reset position should clear horizontal offset")
+      Assert.Equal(pos.y, 0, "reset position should clear vertical offset")
     end)
   end)
 end
@@ -3054,6 +2960,5 @@ return function(test, ctx)
   RegisterSettingsPanelBehaviorTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobals, LoadAddonModules)
-  RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, LoadAddonModules)
-  RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterMainFrameLockTests(test, Assert, WithGlobals, LoadAddonModules)
 end

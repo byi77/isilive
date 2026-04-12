@@ -1,7 +1,7 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.148`
-Zuletzt aktualisiert: `2026-04-11`
+Versionsbasis: `0.9.150`
+Zuletzt aktualisiert: `2026-04-12`
 
 ## Zweck
 
@@ -20,7 +20,7 @@ Die Architektur ist eventgetrieben und in klare Runtime-Schichten aufgeteilt:
 | Einstieg und Orchestrierung | Composition Root, Runtime-State, Wiring, Controller-Lifecycle, Keybindings, Modulguards | `isiLive.lua`, `isiLive_runtime_state.lua`, `isiLive_bootstrap.lua`, `isiLive_runtime_setup.lua`, `isiLive_controller_wiring.lua`, `isiLive_controller_init.lua`, `isiLive_factory.lua`, `isiLive_factory_frame_bridge.lua`, `isiLive_factory_controllers.lua`, `isiLive_frame_bridge.lua`, `isiLive_context_helpers.lua`, `isiLive_guards.lua`, `isiLive_bindings.lua` |
 | Event-Gate und Dispatch | Stop/Pause/Hidden/Test erzwingen, Lifecycle-Handler routen, Slash-Commands dispatchen | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_utils.lua`, `isiLive_commands.lua` |
 | Fachlogik | Queue-Parsing und Join-Flow, Gruppenmodell, Highlight-Aufloesung, Key-Sync, Refresh, Inspect, Leader-Transitions, begrenzte Run-Stats, Cooldown-/Interrupt-Tracking, per-Spec-Kick-Daten, Mythic+-Timer-State | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua`, `isiLive_cd_tracker.lua`, `isiLive_kick_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_leader_watch.lua` |
-| UI-Komposition | Main-Frame, Roster-Zeilenmarkup, Roster-Panel, optionale Game-Menu-Tooling-/Travel-Panels, Blizzard-Settings-Canvas, Combat-Utility-Zeile, Teleport-Grid und Debug-Navigator, Notices, Statuszeile | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_roster.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_roster_layout.lua`, `isiLive_teleport_ui.lua`, `isiLive_teleport_debug.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
+| UI-Komposition | Main-Frame mit Close-/Lock-/Reset-Controls und Reset-Bestaetigung, Roster-Zeilenmarkup, Roster-Panel, optionale Game-Menu-Tooling-/Travel-Panels, Blizzard-Settings-Canvas, Combat-Utility-Zeile, Teleport-Grid und Debug-Navigator, Notices, Statuszeile | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_roster.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_roster_layout.lua`, `isiLive_teleport_ui.lua`, `isiLive_teleport_debug.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
 | Gemeinsame Helfer und Daten | Locale, lokalisierte Texte, Units, Realm-Sprachdaten, Season-Map-/Spell-Daten, sichere Spell-Cooldown-Wrapper, Runtime-Logging, fokussierte Config-Builder, private Tooltip-/UI-Helfer, zentrale Backdrop-Presets, gemeinsame Validierungs-/String-Helfer, Debug-Helfer, Demo-/Test-Helfer | `isiLive_validation_helpers.lua`, `isiLive_string_utils.lua`, `isiLive_spell_utils.lua`, `isiLive_locale.lua`, `isiLive_texts.lua`, `realm_language_data.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_ui_common.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua`, `isiLive_queue_debug.lua`, `isiLive_demo.lua`, `isiLive_test_mode.lua` |
 
 ## Runtime-Flow
@@ -103,14 +103,14 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 527 Szenarien ueber 38 Module ab; die Regelvalidatoren indizieren aktuell 527 deterministische Tests.
+5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 536 Szenarien ueber 39 Module ab; die Regelvalidatoren indizieren aktuell 536 deterministische Tests.
 
 Die lokalen Wrapper `tools/check.ps1` und `tools/check.cmd` sind der bevorzugte Einstiegspunkt fuer das statische Gate, weil sie `luacheck` ueber den repo-lokalen Windows-Shim routen, statt direkt das LuaRocks-Script aufzurufen.
 
 ## UI-Struktur (ASCII-Skizze)
 
 ```text
-| isiLive                                                 v0.9.148 Open/Close CTRL-F9 [H][V][M][M2][X]|
+| isiLive                                                 v0.9.150 Open/Close CTRL-F9 [H][V][M][M2][L][X]|
 |---------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO        DPS                M+Managment  Marker    Travel  |
 |---------------------------------------------------------------------------------------------------|

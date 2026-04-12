@@ -21,6 +21,9 @@ function Bootstrap.RegisterSlashCommands(opts)
   local toggleStandardTestMode = RequireFunction(opts.toggleStandardTestMode, "toggleStandardTestMode")
   local enterFullDummyPreview = RequireFunction(opts.enterFullDummyPreview, "enterFullDummyPreview")
   local setMainFrameVisible = RequireFunction(opts.setMainFrameVisible, "setMainFrameVisible")
+  local getMainFrameLocked = RequireFunction(opts.getMainFrameLocked, "getMainFrameLocked")
+  local setMainFrameLocked = RequireFunction(opts.setMainFrameLocked, "setMainFrameLocked")
+  local resetMainFramePosition = RequireFunction(opts.resetMainFramePosition, "resetMainFramePosition")
   local updateLeaderButtons = RequireFunction(opts.updateLeaderButtons, "updateLeaderButtons")
   local isPlayerLeader = RequireFunction(opts.isPlayerLeader, "isPlayerLeader")
   local setLanguage = RequireFunction(opts.setLanguage, "setLanguage")
@@ -42,6 +45,9 @@ function Bootstrap.RegisterSlashCommands(opts)
     toggleStandardTestMode = toggleStandardTestMode,
     enterFullDummyPreview = enterFullDummyPreview,
     setMainFrameVisible = setMainFrameVisible,
+    getMainFrameLocked = getMainFrameLocked,
+    setMainFrameLocked = setMainFrameLocked,
+    resetMainFramePosition = resetMainFramePosition,
     updateLeaderButtons = updateLeaderButtons,
     isPlayerLeader = isPlayerLeader,
     setLanguage = setLanguage,

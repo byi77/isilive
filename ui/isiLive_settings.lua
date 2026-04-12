@@ -40,6 +40,142 @@ local function ApplySettingsBackdrop(frame)
   end
 end
 
+local RESET_CONFIRM_POPUP_PREFIX = "ISILIVE_CONFIRM_RESET_ACTION_"
+local pendingResetConfirmActions = {}
+local YES_TEXT = rawget(_G, "YES") or "Yes"
+local NO_TEXT = rawget(_G, "NO") or "No"
+
+local function StyleResetConfirmPopup(dialog)
+  if type(dialog) ~= "table" then
+    return
+  end
+
+  if type(ApplyBackdrop) == "function" then
+    ApplyBackdrop(dialog, "NOTICE")
+  end
+
+  if type(dialog.SetMovable) == "function" then
+    dialog:SetMovable(false)
+  end
+  if type(dialog.SetResizable) == "function" then
+    dialog:SetResizable(false)
+  end
+
+  if dialog.text and type(dialog.text.SetTextColor) == "function" then
+    local tn = Colors.TEXT_NORMAL or { 0.85, 0.85, 0.9 }
+    dialog.text:SetTextColor(tn[1], tn[2], tn[3], 1)
+    if type(dialog.text.SetWordWrap) == "function" then
+      dialog.text:SetWordWrap(true)
+    end
+  end
+
+  local accent = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
+  local gold = Colors.ACCENT_GOLD or { 1, 0.82, 0 }
+  local buttons = { dialog.button1, dialog.button2 }
+  for index, button in ipairs(buttons) do
+    if type(button) == "table" then
+      if type(button.SetSize) == "function" then
+        button:SetSize(96, 22)
+      end
+      if type(button.SetBackdrop) == "function" then
+        button:SetBackdrop({
+          bgFile = "Interface\\Buttons\\WHITE8X8",
+          edgeFile = "Interface\\Buttons\\WHITE8X8",
+          edgeSize = 1,
+          insets = { left = 0, right = 0, top = 0, bottom = 0 },
+        })
+        button:SetBackdropColor(0.12, 0.12, 0.18, 0.95)
+        button:SetBackdropBorderColor(accent[1], accent[2], accent[3], 0.45)
+      elseif type(ApplyBackdrop) == "function" then
+        ApplyBackdrop(button, "FLAT_BUTTON")
+      end
+
+      if button._isiLiveHoverGlow == nil and type(button.CreateTexture) == "function" then
+        local glow = button:CreateTexture(nil, "BACKGROUND", nil, -1)
+        if type(glow.SetAllPoints) == "function" then
+          glow:SetAllPoints()
+        end
+        if type(glow.SetColorTexture) == "function" then
+          glow:SetColorTexture(accent[1], accent[2], accent[3], 0.12)
+        end
+        if type(glow.Hide) == "function" then
+          glow:Hide()
+        end
+        button._isiLiveHoverGlow = glow
+      end
+
+      local text = button.GetText and button:GetText() or (index == 1 and YES_TEXT or NO_TEXT)
+      if type(button.SetText) == "function" then
+        button:SetText(text)
+      end
+      if type(button.SetScript) == "function" then
+        button:SetScript("OnEnter", function(self)
+          if type(self.SetBackdropBorderColor) == "function" then
+            self:SetBackdropBorderColor(gold[1], gold[2], gold[3], 0.85)
+          end
+          if self._isiLiveHoverGlow and type(self._isiLiveHoverGlow.Show) == "function" then
+            self._isiLiveHoverGlow:Show()
+          end
+        end)
+        button:SetScript("OnLeave", function(self)
+          if type(self.SetBackdropBorderColor) == "function" then
+            self:SetBackdropBorderColor(accent[1], accent[2], accent[3], 0.45)
+          end
+          if self._isiLiveHoverGlow and type(self._isiLiveHoverGlow.Hide) == "function" then
+            self._isiLiveHoverGlow:Hide()
+          end
+        end)
+      end
+    end
+  end
+end
+
+local function ShowResetConfirmation(dialogKey, confirmText, onAccept)
+  local popupName = RESET_CONFIRM_POPUP_PREFIX .. tostring(dialogKey or "DEFAULT")
+  local dialogs = rawget(_G, "StaticPopupDialogs")
+  local showPopup = rawget(_G, "StaticPopup_Show")
+  if type(dialogs) ~= "table" or type(showPopup) ~= "function" then
+    if type(onAccept) == "function" then
+      onAccept()
+    end
+    return
+  end
+
+  local dialog = dialogs[popupName]
+  if not dialog then
+    dialogs[popupName] = {
+      text = confirmText or "Do you really want to reset?",
+      button1 = YES_TEXT,
+      button2 = NO_TEXT,
+      timeout = 0,
+      whileDead = 1,
+      hideOnEscape = 1,
+      preferredIndex = 3,
+      OnShow = function(self)
+        StyleResetConfirmPopup(self)
+      end,
+      OnAccept = function()
+        local action = pendingResetConfirmActions[popupName]
+        pendingResetConfirmActions[popupName] = nil
+        if type(action) == "function" then
+          action()
+        end
+      end,
+      OnCancel = function()
+        pendingResetConfirmActions[popupName] = nil
+      end,
+      OnHide = function()
+        pendingResetConfirmActions[popupName] = nil
+      end,
+    }
+  else
+    dialog.text = confirmText or dialog.text
+  end
+
+  pendingResetConfirmActions[popupName] = onAccept
+  showPopup(popupName)
+end
+
 local function CreateSectionHeader(parent, yOffset, text)
   local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
@@ -88,7 +224,18 @@ local function CreateSettingsCheckbox(parent, yOffset, labelText, getter, setter
   return { check = check, label = label }, yOffset - LINE_HEIGHT
 end
 
-local function CreateSettingsSlider(parent, yOffset, labelText, minVal, maxVal, step, getter, setter, formatFunc)
+local function CreateSettingsSlider(
+  parent,
+  yOffset,
+  labelText,
+  minVal,
+  maxVal,
+  step,
+  getter,
+  setter,
+  formatFunc,
+  settingKey
+)
   local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   local tn = Colors.TEXT_NORMAL or { 0.85, 0.85, 0.9 }
   label:SetTextColor(tn[1], tn[2], tn[3], 1)
@@ -102,6 +249,9 @@ local function CreateSettingsSlider(parent, yOffset, labelText, minVal, maxVal, 
   slider:SetMinMaxValues(minVal, maxVal)
   slider:SetValueStep(step)
   slider:SetObeyStepOnDrag(true)
+  if type(settingKey) == "string" and settingKey ~= "" then
+    slider._settingKey = settingKey
+  end
 
   if type(slider.SetBackdrop) == "function" then
     slider:SetBackdrop({
@@ -171,6 +321,157 @@ local function CreateSettingsSlider(parent, yOffset, labelText, minVal, maxVal, 
     SetValueSilently = SetValueSilently,
   },
     yOffset - LINE_HEIGHT
+end
+
+local function CreateSettingsActionButton(parent, yOffset, labelText, width, onClick, settingKey, subtitleText)
+  local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
+  local buttonWidth = tonumber(width) or 200
+  local hasSubtitle = type(subtitleText) == "string" and subtitleText ~= ""
+  local confirmText = nil
+  if type(settingKey) == "table" then
+    confirmText = settingKey.confirmText
+    settingKey = settingKey.settingKey
+  end
+  local buttonHeight = hasSubtitle and 40 or 30
+  button:SetSize(buttonWidth, buttonHeight)
+  button:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset)
+  if type(settingKey) == "string" and settingKey ~= "" then
+    button._settingKey = settingKey
+  end
+
+  if type(button.SetBackdrop) == "function" then
+    button:SetBackdrop({
+      bgFile = "Interface\\Buttons\\WHITE8X8",
+      edgeFile = "Interface\\Buttons\\WHITE8X8",
+      edgeSize = 1,
+      insets = { left = 0, right = 0, top = 0, bottom = 0 },
+    })
+    local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
+    button:SetBackdropColor(bgSec[1], bgSec[2], bgSec[3], bgSec[4])
+    local bd = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
+    button:SetBackdropBorderColor(bd[1], bd[2], bd[3], bd[4])
+  end
+
+  local hoverGlow = button:CreateTexture(nil, "BACKGROUND", nil, -1)
+  if type(hoverGlow.SetAllPoints) == "function" then
+    hoverGlow:SetAllPoints()
+  end
+  if type(hoverGlow.SetColorTexture) == "function" then
+    local acBlue = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
+    hoverGlow:SetColorTexture(acBlue[1], acBlue[2], acBlue[3], 0.16)
+  end
+  if type(hoverGlow.Hide) == "function" then
+    hoverGlow:Hide()
+  end
+  button.hoverGlow = hoverGlow
+
+  local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  local tn = Colors.TEXT_NORMAL or { 0.85, 0.85, 0.9 }
+  local hoverLabelColor = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
+  if hasSubtitle then
+    label:SetPoint("TOPLEFT", button, "TOPLEFT", 8, -6)
+    if type(label.SetWidth) == "function" then
+      label:SetWidth(buttonWidth - 16)
+    end
+    if type(label.SetJustifyH) == "function" then
+      label:SetJustifyH("CENTER")
+    end
+    if type(label.SetWordWrap) == "function" then
+      label:SetWordWrap(true)
+    end
+  else
+    label:SetPoint("CENTER", 0, 0)
+    if type(label.SetWidth) == "function" then
+      label:SetWidth(buttonWidth - 12)
+    end
+    if type(label.SetJustifyH) == "function" then
+      label:SetJustifyH("CENTER")
+    end
+  end
+  label:SetTextColor(tn[1], tn[2], tn[3], 1)
+  label:SetText(labelText or "")
+  button.label = label
+
+  local subtitle = nil
+  if hasSubtitle then
+    subtitle = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
+    subtitle:SetTextColor(td[1], td[2], td[3], 1)
+    subtitle:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 8, 5)
+    if type(subtitle.SetWidth) == "function" then
+      subtitle:SetWidth(buttonWidth - 16)
+    end
+    if type(subtitle.SetJustifyH) == "function" then
+      subtitle:SetJustifyH("CENTER")
+    end
+    if type(subtitle.SetWordWrap) == "function" then
+      subtitle:SetWordWrap(true)
+    end
+    subtitle:SetText(subtitleText)
+  end
+  button.subtitle = subtitle
+
+  local function SetHoverState(isHover)
+    local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
+    local bd = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
+    if isHover then
+      if type(button.SetBackdropColor) == "function" then
+        button:SetBackdropColor(0.14, 0.14, 0.20, 0.92)
+      end
+      if type(button.SetBackdropBorderColor) == "function" then
+        button:SetBackdropBorderColor(hoverLabelColor[1], hoverLabelColor[2], hoverLabelColor[3], 0.95)
+      end
+      if type(label.SetTextColor) == "function" then
+        label:SetTextColor(1, 1, 1, 1)
+      end
+      if subtitle and type(subtitle.SetTextColor) == "function" then
+        subtitle:SetTextColor(0.88, 0.92, 1, 1)
+      end
+      if hoverGlow and type(hoverGlow.Show) == "function" then
+        hoverGlow:Show()
+      end
+    else
+      if type(button.SetBackdropColor) == "function" then
+        button:SetBackdropColor(bgSec[1], bgSec[2], bgSec[3], bgSec[4])
+      end
+      if type(button.SetBackdropBorderColor) == "function" then
+        button:SetBackdropBorderColor(bd[1], bd[2], bd[3], bd[4])
+      end
+      if type(label.SetTextColor) == "function" then
+        label:SetTextColor(tn[1], tn[2], tn[3], 1)
+      end
+      if subtitle and type(subtitle.SetTextColor) == "function" then
+        local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
+        subtitle:SetTextColor(td[1], td[2], td[3], 1)
+      end
+      if hoverGlow and type(hoverGlow.Hide) == "function" then
+        hoverGlow:Hide()
+      end
+    end
+  end
+
+  button:SetScript("OnEnter", function()
+    SetHoverState(true)
+  end)
+  button:SetScript("OnLeave", function()
+    SetHoverState(false)
+  end)
+
+  button:SetScript("OnClick", function()
+    if type(onClick) == "function" then
+      if type(confirmText) == "string" and confirmText ~= "" then
+        ShowResetConfirmation(settingKey, confirmText, onClick)
+      else
+        onClick()
+      end
+    end
+  end)
+
+  return {
+    button = button,
+    label = label,
+    subtitle = subtitle,
+  }, yOffset - buttonHeight - LINE_HEIGHT
 end
 
 local LANG_BUTTONS_PER_ROW = 5
@@ -423,6 +724,7 @@ local function ResolveSettingsOptions(opts)
     onMinimapButtonToggle = opts.onMinimapButtonToggle,
     onAutoOpenQueueToggle = opts.onAutoOpenQueueToggle,
     onAutoCloseMainFrameToggle = opts.onAutoCloseMainFrameToggle,
+    onMainFramePositionLockToggle = opts.onMainFramePositionLockToggle,
     onCombatFadeMMToggle = opts.onCombatFadeMMToggle,
     onAutoShowMainFrameOnStartupToggle = opts.onAutoShowMainFrameOnStartupToggle,
     onAutoOpenMainFrameOnKeyEndToggle = opts.onAutoOpenMainFrameOnKeyEndToggle,
@@ -438,6 +740,7 @@ local function ResolveSettingsOptions(opts)
     onLfgFlagsToggle = opts.onLfgFlagsToggle,
     onTooltipFlagsToggle = opts.onTooltipFlagsToggle,
     onResetDB = opts.onResetDB,
+    onResetMainFramePosition = opts.onResetMainFramePosition,
   }
 end
 
@@ -588,26 +891,6 @@ local function BuildGeneralSettingsSection(canvas, yOffset, labels, config, cont
     "SETTINGS_SHOW_TIMEWAYS_NAVIGATOR"
   )
 
-  controls.bgAlpha, yOffset = CreateSettingsSlider(
-    canvas,
-    yOffset,
-    labels.SETTINGS_BG_ALPHA or "Background Opacity",
-    0.3,
-    1.0,
-    0.05,
-    function()
-      local db = config.getDB()
-      return type(db.bgAlpha) == "number" and db.bgAlpha or DEFAULT_BG_ALPHA
-    end,
-    function(val)
-      local db = config.getDB()
-      db.bgAlpha = val
-      if type(config.onBgAlphaChange) == "function" then
-        config.onBgAlphaChange(val)
-      end
-    end
-  )
-
   return yOffset
 end
 
@@ -634,8 +917,71 @@ local function BuildDisplaySettingsSection(canvas, yOffset, labels, config, cont
     end,
     function(val)
       return string.format("%.0f%%", val * 100)
-    end
+    end,
+    "SETTINGS_UI_SCALE"
   )
+
+  controls.bgAlpha, yOffset = CreateSettingsSlider(
+    canvas,
+    yOffset,
+    labels.SETTINGS_BG_ALPHA or "Background Opacity",
+    0.3,
+    1.0,
+    0.05,
+    function()
+      local db = config.getDB()
+      return type(db.bgAlpha) == "number" and db.bgAlpha or DEFAULT_BG_ALPHA
+    end,
+    function(val)
+      local db = config.getDB()
+      db.bgAlpha = val
+      if type(config.onBgAlphaChange) == "function" then
+        config.onBgAlphaChange(val)
+      end
+    end,
+    function(val)
+      return string.format("%.0f%%", val * 100)
+    end,
+    "SETTINGS_BG_ALPHA"
+  )
+
+  controls.resetUiBtn, yOffset = CreateSettingsActionButton(
+    canvas,
+    yOffset,
+    labels.SETTINGS_RESET_UI_POSITION or "/isilive resetui",
+    320,
+    function()
+      if type(config.onResetMainFramePosition) == "function" then
+        config.onResetMainFramePosition()
+      end
+    end,
+    {
+      settingKey = "SETTINGS_RESET_UI_POSITION",
+      confirmText = labels.SETTINGS_RESET_CONFIRM_TEXT or "Willst du wirklich zurücksetzen?",
+    },
+    nil
+  )
+
+  local resetUiHint = canvas:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
+  resetUiHint:SetTextColor(td[1], td[2], td[3], 1)
+  resetUiHint:SetPoint("TOPLEFT", controls.resetUiBtn.button, "BOTTOMLEFT", 8, -4)
+  resetUiHint:SetWidth(304)
+  resetUiHint:SetJustifyH("CENTER")
+  if type(resetUiHint.SetWordWrap) == "function" then
+    resetUiHint:SetWordWrap(true)
+  end
+  resetUiHint:SetText(
+    labels.SETTINGS_RESET_UI_POSITION_HINT or "Default: position center, UI scale 100%, background opacity 50%"
+  )
+  controls.resetUiHint = resetUiHint
+  if controls.resetUiBtn then
+    controls.resetUiBtn.hint = resetUiHint
+    if controls.resetUiBtn.button then
+      controls.resetUiBtn.button.hint = resetUiHint
+    end
+  end
+  yOffset = yOffset - 18
 
   if SHOW_DPS_COLUMN_SETTING then
     controls.showDps, yOffset = CreateSettingsCheckbox(
@@ -818,13 +1164,31 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
     "SETTINGS_AUTO_CLOSE_MAIN_FRAME"
   )
 
+  controls.lockMainFramePosition, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_LOCK_MAIN_FRAME_POSITION or "Lock main frame position",
+    function()
+      local db = config.getDB()
+      return db.lockMainFramePosition ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.lockMainFramePosition = checked
+      if type(config.onMainFramePositionLockToggle) == "function" then
+        config.onMainFramePositionLockToggle(checked)
+      end
+    end,
+    "SETTINGS_LOCK_MAIN_FRAME_POSITION"
+  )
+
   controls.combatFadeMM, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
     labels.SETTINGS_COMBAT_FADE_MM or "Fade out in Combat (M2 only)",
     function()
       local db = config.getDB()
-      return db.combatFadeMM ~= false
+      return db.combatFadeMM == true
     end,
     function(checked)
       local db = config.getDB()
@@ -1012,21 +1376,23 @@ local function BuildDebugSettingsSection(canvas, yOffset, labels, config, contro
 end
 
 local function BuildResetSection(canvas, yOffset, labels, config, controls)
-  local RESET_BUTTON_WIDTH = 200
-  local RESET_BUTTON_HEIGHT = 24
+  controls.resetDBBtn, yOffset = CreateSettingsActionButton(
+    canvas,
+    yOffset,
+    labels.SETTINGS_RESET_DB or "Reset All Settings",
+    260,
+    function()
+      if type(config.onResetDB) == "function" then
+        config.onResetDB()
+      end
+    end,
+    {
+      settingKey = "SETTINGS_RESET_DB",
+      confirmText = labels.SETTINGS_RESET_CONFIRM_TEXT or "Willst du wirklich zurücksetzen?",
+    }
+  )
 
-  local btn = CreateFrame("Button", nil, canvas, "UIPanelButtonTemplate")
-  btn:SetSize(RESET_BUTTON_WIDTH, RESET_BUTTON_HEIGHT)
-  btn:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X, yOffset)
-  btn:SetText(labels.SETTINGS_RESET_DB or "Reset All Settings")
-  btn:SetScript("OnClick", function()
-    if type(config.onResetDB) == "function" then
-      config.onResetDB()
-    end
-  end)
-
-  controls.resetDBBtn = btn
-  return yOffset - RESET_BUTTON_HEIGHT - LINE_HEIGHT
+  return yOffset
 end
 
 local BETA_ISSUES_URL = "https://github.com/byi77/isilive/issues"
@@ -1043,6 +1409,22 @@ local function BuildBetaSection(canvas, yOffset, labels, controls)
 
   yOffset = yOffset - LINE_HEIGHT
 
+  local function CreateBetaUrlBox(text, offsetY)
+    local urlBox = CreateFrame("EditBox", nil, canvas, "InputBoxTemplate")
+    urlBox:SetSize(400, 20)
+    urlBox:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X + 6, offsetY - 4)
+    urlBox:SetAutoFocus(false)
+    urlBox:SetText(text)
+    urlBox:SetCursorPosition(0)
+    urlBox:SetScript("OnEscapePressed", function(self)
+      self:ClearFocus()
+    end)
+    urlBox:SetScript("OnEditFocusGained", function(self)
+      self:HighlightText()
+    end)
+    return urlBox
+  end
+
   local urlBox = CreateFrame("EditBox", nil, canvas, "InputBoxTemplate")
   urlBox:SetSize(400, 20)
   urlBox:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X + 6, yOffset - 4)
@@ -1056,6 +1438,11 @@ local function BuildBetaSection(canvas, yOffset, labels, controls)
     self:HighlightText()
   end)
   controls.betaUrlBox = urlBox
+
+  yOffset = yOffset - LINE_HEIGHT
+
+  local betaCommentsUrl = "https://www.curseforge.com/wow/addons/isilive/comments"
+  controls.betaCommentsUrlBox = CreateBetaUrlBox(betaCommentsUrl, yOffset)
 
   return yOffset - LINE_HEIGHT
 end
@@ -1074,10 +1461,22 @@ local function RefreshSettingsControls(controls, config)
   controls.escPanel.label:SetText(freshL.SETTINGS_ESC_PANEL or "Show ESC Menu Shortcuts")
   controls.bgAlpha.label:SetText(freshL.SETTINGS_BG_ALPHA or "Background Opacity")
   controls.uiScale.label:SetText(freshL.SETTINGS_UI_SCALE or "UI Scale")
+  if controls.resetUiBtn then
+    controls.resetUiBtn.label:SetText(freshL.SETTINGS_RESET_UI_POSITION or "/isilive resetui")
+  end
+  if controls.resetUiHint then
+    controls.resetUiHint:SetText(
+      freshL.SETTINGS_RESET_UI_POSITION_HINT or "Default: position center, UI scale 100%, background opacity 50%"
+    )
+    if type(controls.resetUiHint.SetWidth) == "function" then
+      controls.resetUiHint:SetWidth(304)
+    end
+  end
   controls.minimapBtn.label:SetText(freshL.SETTINGS_MINIMAP_BUTTON or "Minimap Button")
   controls.sync.label:SetText(freshL.SETTINGS_SYNC_ENABLED or "Addon Sync")
   controls.autoOpen.label:SetText(freshL.SETTINGS_AUTO_OPEN_QUEUE or "Auto-Open on M+ Queue")
   controls.autoCloseMainFrame.label:SetText(freshL.SETTINGS_AUTO_CLOSE_MAIN_FRAME or "Auto-Close on Key Start / Solo")
+  controls.lockMainFramePosition.label:SetText(freshL.SETTINGS_LOCK_MAIN_FRAME_POSITION or "Lock main frame position")
   controls.combatFadeMM.label:SetText(freshL.SETTINGS_COMBAT_FADE_MM or "Fade out in Combat (M2 only)")
   controls.autoShowStartup.label:SetText(freshL.SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP or "Show on Login / Reload")
   controls.autoOpenKeyEnd.label:SetText(freshL.SETTINGS_AUTO_OPEN_MAIN_FRAME_ON_KEY_END or "Auto-Open on Key End")
@@ -1105,6 +1504,9 @@ local function RefreshSettingsControls(controls, config)
   if controls.columnGuides then
     controls.columnGuides.label:SetText(freshL.SETTINGS_ROSTER_COLUMN_GUIDES or "Column Guides")
   end
+  if controls.resetDBBtn then
+    controls.resetDBBtn.label:SetText(freshL.SETTINGS_RESET_DB or "Reset All Settings")
+  end
   if controls.portalNavigator then
     controls.portalNavigator.label:SetText(freshL.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR or "Show Timeways Navigator")
   end
@@ -1124,7 +1526,8 @@ local function RefreshSettingsControls(controls, config)
   controls.sync.check:SetChecked(db.syncEnabled ~= false)
   controls.autoOpen.check:SetChecked(db.autoOpenOnQueue ~= false)
   controls.autoCloseMainFrame.check:SetChecked(db.autoCloseMainFrame == true)
-  controls.combatFadeMM.check:SetChecked(db.combatFadeMM ~= false)
+  controls.lockMainFramePosition.check:SetChecked(db.lockMainFramePosition ~= false)
+  controls.combatFadeMM.check:SetChecked(db.combatFadeMM == true)
   controls.autoShowStartup.check:SetChecked(db.autoShowMainFrameOnStartup ~= false)
   controls.autoOpenKeyEnd.check:SetChecked(db.autoOpenMainFrameOnKeyEnd ~= false)
   controls.queueDebug.check:SetChecked(

@@ -9,6 +9,9 @@ local function BuildCommandLocale()
     HELP_TPTEST = "/isilive tptest",
     HELP_TPDEBUG = "/isilive tpdebug",
     HELP_LOG = "/isilive log",
+    HELP_LOCK = "/isilive lock",
+    HELP_UNLOCK = "/isilive unlock",
+    HELP_RESETUI = "/isilive resetui",
     HELP_BINDCHECK = "/isilive bindcheck",
     HELP_LANG = "/isilive lang [en|de|fr|es|pt]",
     HELP_PAUSE = "/isilive pause",
@@ -24,6 +27,9 @@ local function BuildCommandLocale()
     ERR_PAUSED_TEST = "Addon is paused.",
     LEAD_STATUS_YES = "Lead: Yes",
     LEAD_STATUS_NO = "Lead: No",
+    LOCKED = "Main frame position locked.",
+    UNLOCKED = "Main frame position unlocked.",
+    RESETUI_DONE = "Main frame reset to defaults and centered.",
     LANG_USAGE = "Usage: /isilive lang [en|de|fr|es|pt]",
   }
 end
@@ -42,6 +48,10 @@ local function BuildCommandState(overrides)
     rosterUpdates = 0,
     runtimeLogEnabled = false,
     runtimeLogs = {},
+    lockMainFramePosition = true,
+    uiScale = 1.25,
+    bgAlpha = 0.73,
+    resetMainFramePositionCalls = 0,
     tpTestCalls = 0,
     tpDebugCalls = 0,
     _overrides = overrides or {},
@@ -94,6 +104,17 @@ local function BuildCommandDeps(state, L)
     end,
     setMainFrameVisible = function(visible)
       state.mainFrameVisible = visible
+    end,
+    getMainFrameLocked = function()
+      return state.lockMainFramePosition ~= false
+    end,
+    setMainFrameLocked = function(locked)
+      state.lockMainFramePosition = locked == true
+    end,
+    resetMainFramePosition = function()
+      state.resetMainFramePositionCalls = state.resetMainFramePositionCalls + 1
+      state.uiScale = 1.0
+      state.bgAlpha = 0.50
     end,
     updateLeaderButtons = function() end,
     isPlayerLeader = overrides.isPlayerLeader or function()
@@ -351,6 +372,9 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
       "Commands:",
       "/isilive testall",
       "/isilive log",
+      "/isilive lock",
+      "/isilive unlock",
+      "/isilive resetui",
       "/isilive stop",
       "/isilive start",
     }
@@ -397,6 +421,30 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
     Assert.Equal(state.languageSet, "enus", "lang enus must set language")
     state._execute("lang dede")
     Assert.Equal(state.languageSet, "dede", "lang dede must set language")
+  end)
+
+  test("Commands lock and unlock update main frame lock state", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+
+    state.lockMainFramePosition = false
+    state._execute("lock")
+    Assert.True(state.lockMainFramePosition, "lock must enable the main frame position lock")
+    Assert.True(state.prints[#state.prints]:find("locked") ~= nil, "lock must print locked feedback")
+
+    state._execute("unlock")
+    Assert.False(state.lockMainFramePosition, "unlock must disable the main frame position lock")
+    Assert.True(state.prints[#state.prints]:find("unlocked") ~= nil, "unlock must print unlocked feedback")
+  end)
+
+  test("Commands resetui restores main frame defaults", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+
+    state._execute("resetui")
+    Assert.Equal(state.resetMainFramePositionCalls, 1, "resetui must call the main frame reset helper")
+    Assert.Equal(state.uiScale, 1.0, "resetui must restore the UI scale default")
+    Assert.Equal(state.bgAlpha, 0.50, "resetui must restore the background opacity default")
+    Assert.True(state.prints[#state.prints]:find("defaults") ~= nil, "resetui must print a defaults confirmation")
+    Assert.True(state.prints[#state.prints]:find("center") ~= nil, "resetui must print a center confirmation")
   end)
 end
 

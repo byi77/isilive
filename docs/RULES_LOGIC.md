@@ -75,6 +75,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 52. Hidden-Clients senden weiterhin alle gruppenrelevanten isiLive-Sync-Buckets einschliesslich `KEY`, `STATS`, `DPS`, `LOC`, `TARGET` und `KICK`; sichtbarkeitsabhängige Unterdrückung ist nur ohne explizite Hidden-Freigabe erlaubt. Im Raid ist das deaktiviert.
 53. Der Share-Keys-Button ist 30 Sekunden gegen Spam gesperrt; die Sperre gilt lokal nach eigenem Klick und wird auf allen anderen isiLive-Clients ausgeloest, sobald ein eingehender SHAREKEYS-Sync empfangen wird. Ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt.
 54. Wenn fuer eine Runtime-Aufloesung keine eindeutige, belastbare Quelle vorliegt, muss das Ergebnis unresolved bleiben; fehlende oder mehrdeutige Laufzeitdaten duerfen nicht durch spekulative Fallbacks, Namens-/Token-Raten, heuristische Standardwerte oder synthetische Zustaende ersetzt werden.
+55. Die Main-UI kann ueber `lockMainFramePosition` gesperrt werden; bei aktivem Lock duerfen Frame und Drag-Handle keinen Positions-Drag starten und die gespeicherte Position bleibt unveraendert.
 
 ## Regelbloecke
 
@@ -624,3 +625,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Teleport does not resolve by dungeon name without activityID
   - Teleport keeps activity unresolved when mapID is missing and retries unresolved lookups
   - Teleport short-code resolver keeps unknown maps unresolved instead of showing map ids
+
+### RULE-MAIN-UI-POSITION-LOCK
+- Regelnummer: 55
+- Status: aktiv
+- Zusammenfassung: Die Main-UI kann ueber `lockMainFramePosition` oder die Slash-Commands `/isilive lock`, `/isilive unlock` und `/isilive resetui` gesperrt, entsperrt oder wieder auf die Bildschirmmitte zentriert werden; `resetui` setzt zusaetzlich die UI-Skalierung und die Hintergrund-Deckkraft auf ihre Default-Werte zurueck, zeigt den Default-Hinweis als separate Textzeile unter dem Button und fragt die Aktion vor dem Reset noch einmal bestaetigend ab. Bei aktivem Lock duerfen Frame und Drag-Handle keinen Positions-Drag starten und die gespeicherte Position bleibt unveraendert.
+- Erforderliche Tests:
+  - Settings panel defaults main frame position lock to enabled and persists unlocks
+  - UI main frame drag lock blocks accidental movement until unlocked
+  - UI main frame lock button toggles the drag lock state
+  - Commands lock and unlock update main frame lock state
+  - Commands resetui restores main frame defaults

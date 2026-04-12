@@ -262,6 +262,10 @@ local function CreateFactoryContext(addonName, tbl)
     })
   end
 
+  ctx.ResolveMainFramePositionLockEnabled = function(dbRef)
+    return not (type(dbRef) == "table" and dbRef.lockMainFramePosition == false)
+  end
+
   return ctx
 end
 FI.CreateFactoryContext = CreateFactoryContext
@@ -341,6 +345,10 @@ local function InitializeFactoryFrameBridge(ctx)
     parent = UIParent,
     mainFrameGlobalName = "isiLiveMainFrame",
     mainFrameMinHeight = ctx.MIN_FRAME_HEIGHT,
+    isMainFrameDragLocked = function()
+      local db = rawget(_G, "IsiLiveDB")
+      return ctx.ResolveMainFramePositionLockEnabled(db)
+    end,
     isInGroup = IsInGroup,
     isInCombat = ctx.IsInCombat,
     isRaidGroup = ctx.IsRaidGroup,

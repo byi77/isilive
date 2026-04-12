@@ -20,6 +20,11 @@ local function BuildDeps(opts)
     toggleStandardTestMode = opts.toggleStandardTestMode or function() end,
     enterFullDummyPreview = opts.enterFullDummyPreview or function() end,
     setMainFrameVisible = opts.setMainFrameVisible or function(_visible) end,
+    getMainFrameLocked = opts.getMainFrameLocked or function()
+      return true
+    end,
+    setMainFrameLocked = opts.setMainFrameLocked or function(_locked) end,
+    resetMainFramePosition = opts.resetMainFramePosition or function() end,
     updateLeaderButtons = opts.updateLeaderButtons or function() end,
     isPlayerLeader = opts.isPlayerLeader or function()
       return false
@@ -57,6 +62,9 @@ local function PrintHelp(printFn, L)
   printFn(L.HELP_HEADER)
   printFn(L.HELP_TESTALL)
   printFn(L.HELP_LOG)
+  printFn(L.HELP_LOCK)
+  printFn(L.HELP_UNLOCK)
+  printFn(L.HELP_RESETUI)
   printFn(L.HELP_STOP)
   printFn(L.HELP_START)
 end
@@ -230,6 +238,28 @@ local function TryHandleStateCommands(ctx, L, state, cmd)
   return false
 end
 
+local function TryHandleLockCommands(ctx, L, cmd)
+  if cmd == "lock" then
+    ctx.setMainFrameLocked(true)
+    ctx.printFn(L.LOCKED)
+    return true
+  end
+
+  if cmd == "unlock" then
+    ctx.setMainFrameLocked(false)
+    ctx.printFn(L.UNLOCKED)
+    return true
+  end
+
+  if cmd == "resetui" then
+    ctx.resetMainFramePosition()
+    ctx.printFn(L.RESETUI_DONE)
+    return true
+  end
+
+  return false
+end
+
 local function TryHandleInfoCommands(ctx, L, cmd)
   if cmd == "lead" then
     ctx.printFn(ctx.isPlayerLeader() and L.LEAD_STATUS_YES or L.LEAD_STATUS_NO)
@@ -292,6 +322,9 @@ local function ExecuteSlashCommand(ctx, msg)
     return
   end
   if TryHandleStateCommands(ctx, L, state, cmd) then
+    return
+  end
+  if TryHandleLockCommands(ctx, L, cmd) then
     return
   end
   if TryHandleInfoCommands(ctx, L, cmd) then

@@ -1,8 +1,8 @@
 ## Interface: 120001
-## Title: isiLive v0.9.149
+## Title: isiLive v0.9.150
 ## Notes: M+ Dungeon and Group Managment
 ## Author: mematiWoW
-## Version: 0.9.149
+## Version: 0.9.150
 ## SavedVariables: IsiLiveDB
 ## IconTexture: Interface\Icons\INV_Misc_QuestionMark
 core/isiLive_validation_helpers.lua

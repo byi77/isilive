@@ -72,6 +72,9 @@ function FrameBridge.CreateContext(opts)
     parent = opts.parent,
     isInCombat = isInCombat,
     isRaidGroup = isRaidGroup,
+    isDragLocked = type(opts.isMainFrameDragLocked) == "function" and opts.isMainFrameDragLocked or function()
+      return true
+    end,
     onShownInGroup = onShownInGroup,
     onShownNoGroup = onShownNoGroup,
   })

@@ -26,6 +26,10 @@ local function ResolveAutoOpenMainFrameOnKeyEndEnabled(dbRef)
   return not (type(dbRef) == "table" and dbRef.autoOpenMainFrameOnKeyEnd == false)
 end
 
+local function ResolveMainFramePositionLockEnabled(dbRef)
+  return not (type(dbRef) == "table" and dbRef.lockMainFramePosition == false)
+end
+
 local function ResolveRaidTransitionBehavior(dbRef)
   if type(dbRef) ~= "table" then
     return "hide"
@@ -34,9 +38,52 @@ local function ResolveRaidTransitionBehavior(dbRef)
   return "hide"
 end
 
+local function ResetMainFrameDefaults(ctx)
+  local uiCommon = ctx.addonTable and ctx.addonTable.UICommon
+  local defaultBgAlpha = uiCommon and uiCommon.DEFAULT_BG_ALPHA or 0.50
+  local db = IsiLiveDB or {}
+  db.uiScale = 1.0
+  db.bgAlpha = defaultBgAlpha
+  IsiLiveDB = db
+
+  local mainFrame = ctx.mainFrame
+  if mainFrame and type(mainFrame.SetScale) == "function" then
+    mainFrame:SetScale(1.0)
+  end
+  if mainFrame and type(mainFrame.SetBackdropColor) == "function" then
+    mainFrame:SetBackdropColor(0, 0, 0, defaultBgAlpha)
+  end
+
+  local mainUI = ctx.mainUI
+  if mainUI and type(mainUI.ResetPosition) == "function" then
+    mainUI.ResetPosition()
+  end
+
+  local colors = uiCommon and uiCommon.Colors
+  if type(colors) == "table" and type(colors.BG_PRIMARY) == "table" then
+    colors.BG_PRIMARY[4] = defaultBgAlpha
+  end
+
+  local bg = colors and colors.BG_PRIMARY or { 0.08, 0.08, 0.12, defaultBgAlpha }
+  if ctx.panelUI and ctx.panelUI.panelFrame and type(ctx.panelUI.panelFrame.SetBackdropColor) == "function" then
+    ctx.panelUI.panelFrame:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
+  end
+  if
+    ctx.settingsPanel
+    and ctx.settingsPanel.canvas
+    and type(ctx.settingsPanel.canvas.SetBackdropColor) == "function"
+  then
+    ctx.settingsPanel.canvas:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
+  end
+  if ctx.settingsPanel and type(ctx.settingsPanel.Refresh) == "function" then
+    ctx.settingsPanel.Refresh()
+  end
+end
+
 FI.ResolveAutoCloseMainFrameEnabled = ResolveAutoCloseMainFrameEnabled
 FI.ResolveAutoShowMainFrameOnStartupEnabled = ResolveAutoShowMainFrameOnStartupEnabled
 FI.ResolveAutoOpenMainFrameOnKeyEndEnabled = ResolveAutoOpenMainFrameOnKeyEndEnabled
+FI.ResolveMainFramePositionLockEnabled = ResolveMainFramePositionLockEnabled
 FI.ResolveRaidTransitionBehavior = ResolveRaidTransitionBehavior
 
 local function FinalizeFactorySettings(ctx)
@@ -141,6 +188,14 @@ local function FinalizeFactorySettings(ctx)
       end,
       onAutoCloseMainFrameToggle = function(_enabled)
         -- Runtime reads IsiLiveDB.autoCloseMainFrame directly; no additional action needed.
+      end,
+      onMainFramePositionLockToggle = function(enabled)
+        if ctx.mainUI and type(ctx.mainUI.SetDragLocked) == "function" then
+          ctx.mainUI.SetDragLocked(enabled)
+        end
+      end,
+      onResetMainFramePosition = function()
+        ResetMainFrameDefaults(ctx)
       end,
       onCombatFadeMMToggle = function(_enabled)
         -- Runtime reads IsiLiveDB.combatFadeMM directly; no additional action needed.

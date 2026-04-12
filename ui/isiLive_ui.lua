@@ -9,6 +9,8 @@ local createRedCloseButton = assert(
   "isiLive: UICommon.CreateRedCloseButton missing"
 )
 local Colors = addonTable.UICommon.Colors or {}
+local GetLocalizedText =
+  assert(addonTable.UICommon and addonTable.UICommon.GetLocalizedText, "isiLive: UICommon.GetLocalizedText missing")
 local DEFAULT_GAME_MENU_BUTTON_WIDTH = 120
 local DEFAULT_GAME_MENU_BUTTON_HEIGHT = 30
 local PANEL_UI_BUTTON_GAP = 1
@@ -1324,7 +1326,7 @@ local function SavePosition(target)
   db.position = { point = point, relativePoint = relativePoint, x = x, y = y }
 end
 
-local function CreateDragHandle(frame)
+local function CreateDragHandle(frame, isDragLocked, beginDrag, endDrag)
   local dragHandle = CreateFrame("Frame", nil, frame)
   dragHandle._grips = {}
   dragHandle._gripVisible = true
@@ -1336,9 +1338,20 @@ local function CreateDragHandle(frame)
   dragHandle:EnableMouse(true)
   dragHandle:RegisterForDrag("LeftButton")
   dragHandle:SetScript("OnDragStart", function()
+    if type(isDragLocked) == "function" and isDragLocked() then
+      return
+    end
+    if type(beginDrag) == "function" then
+      beginDrag()
+      return
+    end
     frame:StartMoving()
   end)
   dragHandle:SetScript("OnDragStop", function()
+    if type(endDrag) == "function" then
+      endDrag()
+      return
+    end
     frame:StopMovingOrSizing()
     SavePosition(frame)
   end)
@@ -1359,6 +1372,76 @@ local function CreateDragHandle(frame)
   end
 
   return dragHandle
+end
+
+local function CreateDragLockButton(frame, dragHandle, getDragLocked, setDragLocked)
+  local button = CreateFrame("Button", nil, frame, "BackdropTemplate")
+  button:SetSize(20, 20)
+  button:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -24, -2)
+  button:SetFrameStrata(frame:GetFrameStrata())
+  button:SetFrameLevel(dragHandle:GetFrameLevel() + 3)
+  button:EnableMouse(true)
+  button:RegisterForClicks("LeftButtonUp")
+
+  local tooltipTitle = GetLocalizedText("TOOLTIP_LOCK_MAIN_FRAME_POSITION", "Lock main frame position")
+  local tooltipBody = GetLocalizedText("TOOLTIP_LOCK_MAIN_FRAME_POSITION_HINT", "Left-click to toggle.")
+
+  if type(ApplyBackdrop) == "function" then
+    ApplyBackdrop(button, "CLOSE_BUTTON")
+  end
+
+  local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+  label:SetPoint("CENTER", button, "CENTER", 0, -1)
+  label:SetText("L")
+
+  local function UpdateVisual()
+    local locked = type(getDragLocked) == "function" and getDragLocked() == true
+    button._isLocked = locked
+    if locked then
+      label:SetTextColor(1, 0.85, 0.2, 1)
+    else
+      label:SetTextColor(0.75, 0.9, 1, 1)
+    end
+  end
+
+  button:SetScript("OnEnter", function()
+    local tooltip = rawget(_G, "GameTooltip")
+    if tooltip and type(tooltip.SetOwner) == "function" then
+      tooltip:SetOwner(button, "ANCHOR_LEFT")
+      tooltip:AddLine(tooltipTitle)
+      tooltip:AddLine(tooltipBody, 0.8, 0.8, 0.8)
+      tooltip:Show()
+    end
+    if type(button.SetBackdropColor) == "function" then
+      button:SetBackdropColor(0.14, 0.14, 0.20, 0.7)
+    end
+  end)
+  button:SetScript("OnLeave", function()
+    local tooltip = rawget(_G, "GameTooltip")
+    if tooltip and type(tooltip.Hide) == "function" then
+      tooltip:Hide()
+    end
+    if type(button.SetBackdropColor) == "function" then
+      button:SetBackdropColor(0, 0, 0, 0.85)
+    end
+  end)
+  button:SetScript("OnClick", function()
+    if type(setDragLocked) == "function" then
+      local nextLocked = not (type(getDragLocked) == "function" and getDragLocked() == true)
+      local db = rawget(_G, "IsiLiveDB")
+      if not db then
+        db = {}
+        IsiLiveDB = db
+      end
+      db.lockMainFramePosition = nextLocked
+      setDragLocked(nextLocked)
+    end
+  end)
+
+  button.UpdateVisual = UpdateVisual
+  UpdateVisual()
+
+  return button
 end
 
 local function CreateVisibilityController(frame, onShownInGroup, onShownNoGroup, isInCombat, isRaidGroup)
@@ -1471,6 +1554,9 @@ function UI.CreateMainFrame(opts)
   local isRaidGroup = opts.isRaidGroup or function()
     return false
   end
+  local isDragLocked = opts.isDragLocked or function()
+    return true
+  end
   local onShownInGroup = opts.onShownInGroup or function() end
   local onShownNoGroup = opts.onShownNoGroup or function() end
 
@@ -1479,23 +1565,88 @@ function UI.CreateMainFrame(opts)
   frame:SetPoint("CENTER")
   frame:SetMovable(true)
   frame:EnableMouse(true)
-  frame:RegisterForDrag("LeftButton")
-  frame:SetScript("OnDragStart", function(self)
-    self:StartMoving()
-  end)
   frame:Hide()
 
-  frame:SetScript("OnDragStop", function(self)
-    self:StopMovingOrSizing()
-    SavePosition(self)
+  local dragLocked = isDragLocked() == true
+  local dragActive = false
+  local lockButton = nil
+
+  local function BeginDrag()
+    if dragLocked then
+      return
+    end
+    dragActive = true
+    frame:StartMoving()
+  end
+
+  local function EndDrag()
+    if not dragActive then
+      return
+    end
+    dragActive = false
+    frame:StopMovingOrSizing()
+    SavePosition(frame)
+  end
+
+  frame:RegisterForDrag("LeftButton")
+  frame:SetScript("OnDragStart", function()
+    if dragLocked then
+      return
+    end
+    BeginDrag()
+  end)
+  frame:SetScript("OnDragStop", function()
+    EndDrag()
   end)
 
-  local dragHandle = CreateDragHandle(frame)
+  local dragHandle = CreateDragHandle(frame, function()
+    return dragLocked
+  end, BeginDrag, EndDrag)
+
+  local function SetDragLocked(locked)
+    dragLocked = locked == true
+    frame:SetMovable(not dragLocked)
+    if frame.RegisterForDrag and frame.UnregisterForDrag then
+      if dragLocked then
+        frame:UnregisterForDrag("LeftButton")
+      else
+        frame:RegisterForDrag("LeftButton")
+      end
+    end
+    if dragHandle and type(dragHandle.EnableMouse) == "function" then
+      dragHandle:EnableMouse(not dragLocked)
+    end
+    if dragHandle and dragHandle.RegisterForDrag and dragHandle.UnregisterForDrag then
+      if dragLocked then
+        dragHandle:UnregisterForDrag("LeftButton")
+      else
+        dragHandle:RegisterForDrag("LeftButton")
+      end
+    end
+    if dragLocked and dragActive then
+      dragActive = false
+      frame:StopMovingOrSizing()
+      SavePosition(frame)
+    end
+    if lockButton and type(lockButton.UpdateVisual) == "function" then
+      lockButton:UpdateVisual()
+    end
+  end
 
   local closeButton = createRedCloseButton(frame, {
     point = { "TOPRIGHT", frame, "TOPRIGHT", -2, -2 },
     frameLevel = dragHandle:GetFrameLevel() + 2,
+    tooltipTitleKey = "TOOLTIP_HIDE_ISILIVE",
+    tooltipBodyKey = "TOOLTIP_HIDE_ISILIVE_HINT",
+    tooltipTitle = "Hide isiLive",
+    tooltipBody = "to re-open Press CTRL+F9",
   })
+
+  lockButton = CreateDragLockButton(frame, dragHandle, function()
+    return dragLocked
+  end, SetDragLocked)
+
+  SetDragLocked(dragLocked)
 
   local SetVisible, ToggleVisibility, GetPendingVisible, ClearPendingVisible =
     CreateVisibilityController(frame, onShownInGroup, onShownNoGroup, isInCombat, isRaidGroup)
@@ -1510,6 +1661,12 @@ function UI.CreateMainFrame(opts)
     frame:SetPoint(pos.point, parent, pos.relativePoint, pos.x, pos.y)
   end
 
+  local function ResetPosition()
+    frame:ClearAllPoints()
+    frame:SetPoint("CENTER", parent, "CENTER", 0, 0)
+    SavePosition(frame)
+  end
+
   closeButton:SetScript("OnClick", function()
     frame:Hide()
     ClearPendingVisible()
@@ -1518,15 +1675,21 @@ function UI.CreateMainFrame(opts)
   return {
     frame = frame,
     closeButton = closeButton,
+    lockButton = lockButton,
     dragHandle = dragHandle,
     SetVisible = SetVisible,
     SetHeightSafe = SetHeightSafe,
     ToggleVisibility = ToggleVisibility,
     ApplyStoredPosition = ApplyStoredPosition,
+    ResetPosition = ResetPosition,
     GetPendingHeight = GetPendingHeight,
     GetPendingVisible = GetPendingVisible,
     SetWidthSafe = SetWidthSafe,
     GetPendingWidth = GetPendingWidth,
+    SetDragLocked = SetDragLocked,
+    GetDragLocked = function()
+      return dragLocked
+    end,
     SetDragGripVisible = function(visible)
       if dragHandle and type(dragHandle.SetGripVisible) == "function" then
         dragHandle:SetGripVisible(visible)

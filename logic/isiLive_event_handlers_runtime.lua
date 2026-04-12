@@ -261,7 +261,7 @@ end
 
 local function ApplyCombatFade(ctx, targetAlpha)
   local db = GetDB()
-  if not db or db.combatFadeMM == false then
+  if not db or db.combatFadeMM ~= true then
     return
   end
   local RI = addonTable._RosterInternal or {}
@@ -320,6 +320,9 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if mainFrame and mainFrame.ClearAllPoints and mainFrame.SetPoint then
       mainFrame:ClearAllPoints()
       mainFrame:SetPoint(pos.point, UIParent, pos.relativePoint, pos.x, pos.y)
+    end
+    if ctx.mainUI and type(ctx.mainUI.SetDragLocked) == "function" then
+      ctx.mainUI.SetDragLocked(IsiLiveDB.lockMainFramePosition ~= false)
     end
     -- Restore UI scale and background opacity from SavedVariables.
     -- This must happen here (ADDON_LOADED) because IsiLiveDB is nil at file-load time.

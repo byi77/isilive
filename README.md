@@ -3,7 +3,7 @@
 WoW Mythic+ group helper addon focused on pre-key group overview and in-key tracking.
 
 Compatibility: WoW `12.0+` only.
-Current version: `0.9.148`.
+Current version: `0.9.150`.
 
 ---
 
@@ -23,6 +23,7 @@ Current version: `0.9.148`.
 - **H** — slim horizontal tool strip with compact leader buttons
 - **V** — compact vertical palette with markers and management only
 - `CTRL+F9` toggles the main window; the title bar in M2 shows this hint directly
+- The top-right lock button prevents accidental dragging; it mirrors `Lock main frame position`
 - Active mode button is highlighted in gold; mode persists via `Default UI on Open`
 
 ### M+ Utility Row (M2 only)
@@ -73,7 +74,7 @@ Current version: `0.9.148`.
 
 ### Blizzard Settings (`Settings → AddOns → isiLive`)
 
-Language, Advanced Combat Logging, DM Reset on Dungeon Entry, Show ESC Menu Shortcuts, Background Opacity, UI Scale, Default UI on Open, Minimap Button, Addon Sync, Auto-Open on M+ Queue, Auto-Close on Key Start / Solo, Column Guides, Sound: Lead Transfer, Sound: Group Join, Queue Debug Log, Runtime Log
+Language, Advanced Combat Logging, DM Reset on Dungeon Entry, Show ESC Menu Shortcuts, Background Opacity, UI Scale, Default UI on Open, Lock main frame position, Minimap Button, Addon Sync, Auto-Open on M+ Queue, Auto-Close on Key Start / Solo, Column Guides, Sound: Lead Transfer, Sound: Group Join, Queue Debug Log, Runtime Log
 
 ### Auto-Behaviour
 
@@ -95,9 +96,15 @@ Language, Advanced Combat Logging, DM Reset on Dungeon Entry, Show ESC Menu Shor
 ```
 /isilive testall
 /isilive log [on|off|clear|tail [n]]
+/isilive lock
+/isilive unlock
+/isilive resetui
 /isilive stop
 /isilive start
 ```
+
+`/isilive resetui` recenters the main frame and restores the UI scale and background opacity defaults.
+The matching settings button shows the default values as a separate hint line and asks for confirmation before resetting.
 
 ---
 
