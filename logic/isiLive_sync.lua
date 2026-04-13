@@ -943,7 +943,14 @@ function Sync.SendKick(opts)
   end
   local encodedHasKick = hasKick == true
   local encodedOnCooldown = encodedHasKick and (onCooldown == true and 1 or 0) or -1
-  local remain = encodedHasKick and math.ceil(cooldownRemain) or 0
+  local remain = 0
+  if encodedHasKick then
+    local remainValue = cooldownRemain
+    if remainValue == nil then
+      return
+    end
+    remain = math.ceil(remainValue)
+  end
   local now = GetTime()
   local payload = string.format("KICK:%d:%d", encodedOnCooldown, remain)
   if not opts.force and payload == lastKickPayloadSent and (now - lastIsiLiveKickAt) < 1 then

@@ -3,7 +3,9 @@ return function(test, ctx)
   local LoadAddonModules = ctx.load_modules
 
   test("ControllerInit wires getDungeonName into the roster panel controller", function()
+    ---@type { getDungeonName: fun(id: number): string }|nil
     local capturedRosterOpts = nil
+    ---@type { getDungeonName: fun(id: number, locale: string): string }|nil
     local capturedTeleportOpts = nil
     local dragGripVisible = nil
 
@@ -206,18 +208,26 @@ return function(test, ctx)
     })
 
     Assert.NotNil(result.rosterPanelController, "controller init should create the roster panel controller")
-    Assert.NotNil(capturedRosterOpts, "roster panel controller should receive an options table")
-    Assert.Equal(
-      capturedRosterOpts.getDungeonName and capturedRosterOpts.getDungeonName(402),
-      "Akademie von Algeth'ar",
-      "controller init must pass getDungeonName through to the roster panel controller"
-    )
-    Assert.NotNil(capturedTeleportOpts, "teleport UI controller should receive an options table")
-    Assert.Equal(
-      capturedTeleportOpts.getDungeonName and capturedTeleportOpts.getDungeonName(558, "enUS"),
-      "Akademie von Algeth'ar",
-      "controller init must pass getDungeonName through to the teleport UI controller"
-    )
+    local rosterOpts = capturedRosterOpts
+    Assert.NotNil(rosterOpts, "roster panel controller should receive an options table")
+    if rosterOpts ~= nil then
+      local rosterGetDungeonName = rosterOpts.getDungeonName
+      Assert.Equal(
+        rosterGetDungeonName(402),
+        "Akademie von Algeth'ar",
+        "controller init must pass getDungeonName through to the roster panel controller"
+      )
+    end
+    local teleportOpts = capturedTeleportOpts
+    Assert.NotNil(teleportOpts, "teleport UI controller should receive an options table")
+    if teleportOpts ~= nil then
+      local teleportGetDungeonName = teleportOpts.getDungeonName
+      Assert.Equal(
+        teleportGetDungeonName(558, "enUS"),
+        "Akademie von Algeth'ar",
+        "controller init must pass getDungeonName through to the teleport UI controller"
+      )
+    end
     Assert.True(dragGripVisible, "expanded layout should keep drag grip lines visible")
   end)
 end

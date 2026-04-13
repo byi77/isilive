@@ -220,6 +220,7 @@ local function RegisterEventGateTests(test, Assert, LoadAddonModules)
   end)
 
   test("Events gate preserves nil-containing varargs for dispatch", function()
+    ---@type { count: integer, values: table<number, any> }|nil
     local captured = nil
 
     local addon = LoadAddonModules({ "isiLive_events.lua" })
@@ -253,11 +254,14 @@ local function RegisterEventGateTests(test, Assert, LoadAddonModules)
 
     gate(frame, "GROUP_ROSTER_UPDATE", "first", nil, "third")
 
-    Assert.NotNil(captured, "dispatch must be called")
-    Assert.Equal(captured.count, 3, "dispatch must receive all vararg positions including nil holes")
-    Assert.Equal(captured.values[1], "first", "first argument must stay intact")
-    Assert.Equal(captured.values[2], nil, "second argument must remain nil")
-    Assert.Equal(captured.values[3], "third", "third argument after nil hole must be preserved")
+    local capturedResult = captured
+    Assert.NotNil(capturedResult, "dispatch must be called")
+    if capturedResult ~= nil then
+      Assert.Equal(capturedResult.count, 3, "dispatch must receive all vararg positions including nil holes")
+      Assert.Equal(capturedResult.values[1], "first", "first argument must stay intact")
+      Assert.Equal(capturedResult.values[2], nil, "second argument must remain nil")
+      Assert.Equal(capturedResult.values[3], "third", "third argument after nil hole must be preserved")
+    end
   end)
 end
 

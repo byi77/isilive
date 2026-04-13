@@ -205,8 +205,9 @@ local function LayoutTooltipLines(tooltip)
       local lineHeight = 16
       if type(line) == "table" and type(line.GetStringHeight) == "function" then
         local ok, measuredHeight = pcall(line.GetStringHeight, line)
-        if ok and tonumber(measuredHeight) and tonumber(measuredHeight) > 0 then
-          lineHeight = math.max(tonumber(measuredHeight), 14)
+        local measuredHeightValue = tonumber(measuredHeight)
+        if ok and measuredHeightValue and measuredHeightValue > 0 then
+          lineHeight = math.max(measuredHeightValue, 14)
         end
       end
       tooltipHeight = tooltipHeight + lineHeight
@@ -254,8 +255,9 @@ local function PositionPrivateTooltip(tooltip)
     local scale = 1
     if type(tooltipParent) == "table" and type(tooltipParent.GetEffectiveScale) == "function" then
       local ok, tooltipScale = pcall(tooltipParent.GetEffectiveScale, tooltipParent)
-      if ok and tonumber(tooltipScale) and tonumber(tooltipScale) > 0 then
-        scale = tonumber(tooltipScale)
+      local tooltipScaleValue = tonumber(tooltipScale)
+      if ok and tooltipScaleValue and tooltipScaleValue > 0 then
+        scale = tooltipScaleValue
       end
     end
 

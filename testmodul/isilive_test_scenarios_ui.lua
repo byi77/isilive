@@ -211,12 +211,6 @@ local function ApplyFrameMethods(frame)
   frame.GetText = function(self)
     return self._text
   end
-  frame.SetBackdropColor = function(self, r, g, b, a)
-    self._backdropColor = { r, g, b, a }
-  end
-  frame.SetBackdropBorderColor = function(self, r, g, b, a)
-    self._backdropBorderColor = { r, g, b, a }
-  end
   frame.SetChecked = function(self, value)
     self._checked = value == true
   end

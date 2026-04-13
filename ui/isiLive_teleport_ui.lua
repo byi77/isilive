@@ -377,6 +377,7 @@ function TeleportUI.CreateController(opts)
 
   local controller = {}
   local buttons = {}
+  ---@type table|nil
   local emptyStateLabel = nil
   local isVisible = true
   deps.tooltip = createPrivateTooltip(mainFrame)
@@ -394,35 +395,52 @@ function TeleportUI.CreateController(opts)
     end
 
     emptyStateLabel = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    emptyStateLabel:SetPoint("TOPRIGHT", 0, -58)
-    emptyStateLabel:SetWidth(116)
-    emptyStateLabel:SetJustifyH("RIGHT")
-    if emptyStateLabel.SetTextColor then
-      emptyStateLabel:SetTextColor(1, 0.82, 0.18)
+    ---@type table|nil
+    local label = emptyStateLabel
+    if type(label) ~= "table" then
+      return
     end
-    if emptyStateLabel.SetWordWrap then
-      emptyStateLabel:SetWordWrap(true)
+    if type(label.SetPoint) == "function" then
+      label:SetPoint("TOPRIGHT", 0, -58)
     end
-    if emptyStateLabel.SetNonSpaceWrap then
-      emptyStateLabel:SetNonSpaceWrap(true)
+    if type(label.SetWidth) == "function" then
+      label:SetWidth(116)
     end
-    if emptyStateLabel.SetText then
-      emptyStateLabel:SetText("")
+    if type(label.SetJustifyH) == "function" then
+      label:SetJustifyH("RIGHT")
     end
-    if emptyStateLabel.Hide then
-      emptyStateLabel:Hide()
+    if type(label.SetTextColor) == "function" then
+      label:SetTextColor(1, 0.82, 0.18)
+    end
+    if type(label.SetWordWrap) == "function" then
+      label:SetWordWrap(true)
+    end
+    if type(label.SetNonSpaceWrap) == "function" then
+      label:SetNonSpaceWrap(true)
+    end
+    if type(label.SetText) == "function" then
+      label:SetText("")
+    end
+    if type(label.Hide) == "function" then
+      label:Hide()
     end
   end
 
   local function UpdateEmptyState(entries)
     EnsureEmptyStateLabel()
-    if not emptyStateLabel then
+    ---@type table|nil
+    local label = emptyStateLabel
+    if type(label) ~= "table" then
       return
     end
 
     if not isVisible then
-      emptyStateLabel:SetText("")
-      emptyStateLabel:Hide()
+      if type(label.SetText) == "function" then
+        label:SetText("")
+      end
+      if type(label.Hide) == "function" then
+        label:Hide()
+      end
       return
     end
 
@@ -433,13 +451,21 @@ function TeleportUI.CreateController(opts)
     end
 
     if type(emptyText) == "string" and emptyText ~= "" then
-      emptyStateLabel:SetText(emptyText)
-      emptyStateLabel:Show()
+      if type(label.SetText) == "function" then
+        label:SetText(emptyText)
+      end
+      if type(label.Show) == "function" then
+        label:Show()
+      end
       return
     end
 
-    emptyStateLabel:SetText("")
-    emptyStateLabel:Hide()
+    if type(label.SetText) == "function" then
+      label:SetText("")
+    end
+    if type(label.Hide) == "function" then
+      label:Hide()
+    end
   end
 
   local function HideExistingButtons()

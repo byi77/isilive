@@ -5,7 +5,10 @@ addonTable = addonTable or {}
 local Events = {}
 addonTable.Events = Events
 
-local unpackFn = (type(table) == "table" and type(table.unpack) == "function") and table.unpack or unpack
+local unpackFn = rawget(table, "unpack")
+if type(unpackFn) ~= "function" then
+  unpackFn = unpack
+end
 
 function Events.CreateGate(config)
   config = config or {}

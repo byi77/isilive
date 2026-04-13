@@ -1109,12 +1109,7 @@ local function InitializeFactorySecondaryRuntimeMethods(ctx, modules)
         currentMapID = challengeMapID
       end
     end
-    if
-      not currentMapID
-      and C_Map
-      and C_Map.GetBestMapForUnit
-      and type(UnitExists) == "function"
-    then
+    if not currentMapID and C_Map and C_Map.GetBestMapForUnit and type(UnitExists) == "function" then
       local okUnit, playerExists = pcall(UnitExists, "player")
       if okUnit and playerExists then
         local mapID = C_Map.GetBestMapForUnit("player")
