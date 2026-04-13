@@ -38,6 +38,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_config_builders.lua",
   "testmodul/isilive_test_scenarios_factory_secondary.lua",
   "testmodul/isilive_test_scenarios_controller_init.lua",
+  "testmodul/isilive_test_scenarios_lfg_detect.lua",
 }
 
 return scenarioFiles

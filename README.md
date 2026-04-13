@@ -53,7 +53,7 @@ Current version: `0.9.151`.
 - Short code rendered on icon when portal is ready; hidden during cooldown
 - Portal targets highlighted only from active listing or exact synced target data — never guessed
 - Portal-ready feedback uses `sounds/Portal.ogg` once when a teleport target becomes available
-- **LFG detection:** when the player accepts an LFG group invite or creates their own LFG queue listing, the matching portal icon is highlighted automatically (gold border + glow animation); highlight clears when the queue is cancelled, the group dissolves, or the key starts
+- **LFG detection:** when the player accepts an LFG group invite or creates their own LFG queue listing, the matching portal icon is highlighted automatically (gold border + glow animation); the invite/listing notice is locale-aware and emitted once per recognized target change; highlight clears when the queue is cancelled, the group dissolves, or the key starts
 
 ### Addon Sync
 

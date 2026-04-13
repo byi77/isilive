@@ -16,18 +16,12 @@ local preparePrivateTooltip = assert(
 local hidePrivateTooltip =
   assert(addonTable.UICommon and addonTable.UICommon.HidePrivateTooltip, "isiLive: UICommon.HidePrivateTooltip missing")
 local function PlayPortalAvailableSound()
+  -- SoundUtils is always loaded before TeleportUI; PlayPortalAvailable applies
+  -- the soundPortalAvailableEnabled setting and spam-protection internally.
+  -- The former fallback paths bypassed both checks and are removed (MINOR-2).
   local soundUtils = addonTable.SoundUtils
   if type(soundUtils) == "table" and type(soundUtils.PlayPortalAvailable) == "function" then
     soundUtils.PlayPortalAvailable()
-    return
-  end
-  if type(soundUtils) == "table" and type(soundUtils.Play) == "function" then
-    soundUtils.Play("Interface\\AddOns\\isiLive\\sounds\\Portal.ogg")
-    return
-  end
-  local playSoundFile = rawget(_G, "PlaySoundFile")
-  if type(playSoundFile) == "function" then
-    playSoundFile("Interface\\AddOns\\isiLive\\sounds\\Portal.ogg", "SFX")
   end
 end
 

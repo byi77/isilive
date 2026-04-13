@@ -31,6 +31,7 @@ local FILE_PATHS = {
   ["isiLive_units.lua"] = "game/isiLive_units.lua",
   ["isiLive_mplus_timer.lua"] = "game/isiLive_mplus_timer.lua",
   ["isiLive_kick_tracker.lua"] = "game/isiLive_kick_tracker.lua",
+  ["isiLive_lfg_detect.lua"] = "game/isiLive_lfg_detect.lua",
   -- ui
   ["isiLive_bindings.lua"] = "ui/isiLive_bindings.lua",
   ["isiLive_ui_common.lua"] = "ui/isiLive_ui_common.lua",
@@ -98,6 +99,9 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_factory_frame_bridge.lua",
     "isiLive_factory_controllers.lua",
   },
+  -- isiLive_sound_utils.lua must be loaded before isiLive_teleport_ui.lua because
+  -- PlayPortalAvailableSound delegates to addonTable.SoundUtils at runtime.
+  ["isiLive_teleport_ui.lua"] = { "isiLive_sound_utils.lua" },
   -- isiLive_languages.lua must be loaded before any module that calls
   -- addonTable.Languages (locale, commands, season_data).
   ["isiLive_locale.lua"] = { "isiLive_languages.lua" },

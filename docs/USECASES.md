@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
 Versionsbasis: `0.9.151`
-Zuletzt aktualisiert: `2026-04-12`
+Zuletzt aktualisiert: `2026-04-13`
 
 ## Akteure
 
@@ -36,6 +36,7 @@ Zuletzt aktualisiert: `2026-04-12`
 | UC-12 | Roster-Panel Mini Mode | Collapse-Toggle blendet Roster-Liste und `Travel` aus, waehrend kompakte Marker- und Management-Tools sichtbar bleiben |
 | UC-13 | Esc-Shortcuts und Addon-Settings | Der User bekommt zwei Blizzard-UI-Einstiegsflaechen plus lokalisierte Config-Toggles und eine dedizierte Sounds-Sektion |
 | UC-14 | Combat-Utility-Tracker | Live-BRes, Lust, Mythic+-Timer und gesyncter Interrupt-State bleiben im Roster-Panel sichtbar |
+| UC-15 | LFG-Detektion und Portal-Highlight | LFG-Einladungen und eigene Listings loesen lokalisierte Hinweise und das passende Portal-Highlight deterministisch aus |
 
 ## UC-01 Invite-Erkennung ohne Target-Guessing
 
@@ -169,6 +170,17 @@ Ziel: Live-BRes, Bloodlust/Heroism/Time Warp, aktive Mythic+-Timer-Cutoffs und g
 12. Regel: Wenn Raid-Hard-off lokales Kick-Tracking unterdrueckt, darf Kick-Sync erst wieder aufgenommen werden, nachdem exakte Blizzard-Cooldown-Daten, ein neu beobachteter Post-Raid-Interrupt-Cast oder eine exakte `no kick`-Aufloesung den Zustand erneut belastbar hergestellt haben; malformed KICK-Payloads werden fail-closed verworfen, fremde Casts duerfen die Suppression nicht aufheben, und solange kein exakter Zustand vorhanden ist, bleibt der Kick-State unresolved und unsent.
 13. Erfolgskriterium: Die Zeile und die `Kick`-Spalte aktualisieren deterministisch, bleiben nicht-negativ und verhalten sich stabil, wenn relevante APIs fehlen, gemischte Aura-Payloads mit valider und invalider Datenform auftreten oder Zone-/Reload-Aura-Restores spaet eintreffen; beim erneuten Oeffnen nach Hidden-Modus muss der aktuelle Utility-Zeilenstate sofort sichtbar sein.
 
+## UC-15 LFG-Detektion und Portal-Highlight
+
+Ziel: LFG-Einladungen und eigene Listings sollen das Portal-Highlight und die Chat-Hinweise deterministisch ausloesen, ohne Pending-Invite-Races oder Sprach-Fallbacks.
+
+1. Trigger: `LFG_LIST_APPLICATION_STATUS_UPDATED` meldet `invited` oder `inviteaccepted`, oder `LFG_LIST_ACTIVE_ENTRY_UPDATE` meldet eine eigene aktive Listing-Info.
+2. Verarbeitung: Der Status wird kleingeschrieben normalisiert; die Activity-zu-Map-Aufloesung nutzt die statische Tabelle als ersten Pfad und darf nur bei fehlender Aktivitaet auf Namensmatching zurueckfallen.
+3. Verarbeitung: Die Chatmeldung wird ueber die locale-injizierte Texttabelle ausgegeben; Pending-Invites bleiben bis zum finalen Join oder zum Full-Reset erhalten.
+4. Regel: Eine eigene Queue-/Listing-Detektion triggert das Portal-Highlight ueber den injizierten Callback; Portal-Sound bleibt fuer Queue-getriebene Updates unterdrueckt.
+5. Regel: `GROUP_ROSTER_UPDATE` ohne Gruppe sowie `CHALLENGE_MODE_START` loeschen den gesamten LFG-Zustand inklusive pending invites.
+6. Erfolgskriterium: Erkennungen erscheinen einmalig und lokalisiert, late `inviteaccepted`-Events bleiben korrekt aufloesbar, und identische Listing-Updates erzeugen keinen inkonsistenten Highlight-State.
+
 ## Nichtfunktionale Regeln
 
 1. Kein spekulatives Verhalten: unresolved oder mehrdeutiger Map-Kontext bleibt unresolved; kein Name-/Token-Fallback-Guessing.
@@ -192,7 +204,7 @@ Ziel: Live-BRes, Bloodlust/Heroism/Time Warp, aktive Mythic+-Timer-Cutoffs und g
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `537` Szenarien ueber `39` Module.
+Aktuelle Validator-Baseline: `556` Szenarien ueber `40` Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
@@ -205,12 +217,14 @@ Aktuelle Validator-Baseline: `537` Szenarien ueber `39` Module.
 9. UC-11 und UC-12: Secure-World-Marker-Button-Konfiguration fuer M+Marker und Compact-Layout-Visibility-Logik fuer M/V/H.
 10. Taint-Hardening: verschobene Secure-Attribute-Writes, verschobene `Esc`-Shortcut-Secure-Button-Refreshes, insecure Teleport-Grid-Aktionen und combat-sicheres Collapse-Handling.
 11. UC-13 und UC-14: Game-Menu-Tooling-/Travel-Strips, Lokalisierung, Close-then-Open-Verhalten, verschobener Secure-Reload-Button-Refresh, Direct-Opener-Fallback-Auswahl, Settings-Canvas-State-Mirroring, Background-Opacity-Verhalten, Live-BRes-/Bloodlust-/M+-Timer-Rendering und gesyncte Interrupt-Cooldown-Anzeige.
+12. UC-15: LFG-Detektion, locale-aware Chat-Hinweise, pending-invite Race-Hardening und Highlight-Dispatch.
 
 ## Rueckverfolgbarkeit zu Quelldateien
 
 | Thema | Dateien |
 |---|---|
 | Queue-Erkennung und Target-Capture | `isiLive_queue.lua`, `isiLive_event_handlers_queue.lua` |
+| LFG-Detektion, Chat-Hinweise und Highlight-Dispatch | `isiLive_lfg_detect.lua`, `isiLive_factory_controllers.lua`, `isiLive_texts.lua`, `isiLive_teleport_ui.lua` |
 | Highlight-Aufloesung und Inside-Dungeon-Suppression | `isiLive_highlight.lua` |
 | Teleport-Spell-Mapping und Cooldown-Verhalten | `isiLive_teleport.lua`, `isiLive_spell_utils.lua`, `isiLive_teleport_ui.lua` |
 | Gruppen-Lifecycle, Leader-State-Mirroring und Roster-Rebuild | `isiLive_group.lua`, `isiLive_roster.lua` |

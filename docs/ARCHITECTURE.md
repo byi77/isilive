@@ -1,7 +1,7 @@
 # isiLive Architektur
 
 Versionsbasis: `0.9.151`
-Zuletzt aktualisiert: `2026-04-12`
+Zuletzt aktualisiert: `2026-04-13`
 
 ## Zweck
 
@@ -19,7 +19,7 @@ Die Architektur ist eventgetrieben und in klare Runtime-Schichten aufgeteilt:
 |---|---|---|
 | Einstieg und Orchestrierung | Composition Root, Runtime-State, Wiring, Controller-Lifecycle, Keybindings, Modulguards | `isiLive.lua`, `isiLive_runtime_state.lua`, `isiLive_bootstrap.lua`, `isiLive_runtime_setup.lua`, `isiLive_controller_wiring.lua`, `isiLive_controller_init.lua`, `isiLive_factory.lua`, `isiLive_factory_frame_bridge.lua`, `isiLive_factory_controllers.lua`, `isiLive_frame_bridge.lua`, `isiLive_context_helpers.lua`, `isiLive_guards.lua`, `isiLive_bindings.lua` |
 | Event-Gate und Dispatch | Stop/Pause/Hidden/Test erzwingen, Lifecycle-Handler routen, Slash-Commands dispatchen | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_utils.lua`, `isiLive_commands.lua` |
-| Fachlogik | Queue-Parsing und Join-Flow, Gruppenmodell, Highlight-Aufloesung, Key-Sync, Refresh, Inspect, Leader-Transitions, begrenzte Run-Stats, Cooldown-/Interrupt-Tracking, per-Spec-Kick-Daten, Mythic+-Timer-State | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua`, `isiLive_cd_tracker.lua`, `isiLive_kick_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_leader_watch.lua` |
+| Fachlogik | Queue-Parsing und Join-Flow, LFG-Invite-/Listing-Detektion, Gruppenmodell, Highlight-Aufloesung, Key-Sync, Refresh, Inspect, Leader-Transitions, begrenzte Run-Stats, Cooldown-/Interrupt-Tracking, per-Spec-Kick-Daten, Mythic+-Timer-State | `isiLive_queue.lua`, `isiLive_queue_flow.lua`, `isiLive_lfg_detect.lua`, `isiLive_group.lua`, `isiLive_highlight.lua`, `isiLive_keysync.lua`, `isiLive_refresh.lua`, `isiLive_inspect.lua`, `isiLive_sync.lua`, `isiLive_stats.lua`, `isiLive_cd_tracker.lua`, `isiLive_kick_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_leader_watch.lua` |
 | UI-Komposition | Main-Frame mit Close-/Lock-/Reset-Controls und Reset-Bestaetigung, Roster-Zeilenmarkup, Roster-Panel, optionale Game-Menu-Tooling-/Travel-Panels, Blizzard-Settings-Canvas, Combat-Utility-Zeile, Teleport-Grid und Debug-Navigator, Notices, Statuszeile | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_roster.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua`, `isiLive_roster_layout.lua`, `isiLive_teleport_ui.lua`, `isiLive_teleport_debug.lua`, `isiLive_notice.lua`, `isiLive_status.lua` |
 | Gemeinsame Helfer und Daten | Locale, lokalisierte Texte, Units, Realm-Sprachdaten, Season-Map-/Spell-Daten, sichere Spell-Cooldown-Wrapper, Runtime-Logging, fokussierte Config-Builder, private Tooltip-/UI-Helfer, zentrale Backdrop-Presets, gemeinsame Validierungs-/String-Helfer, zentraler Sound-Registry-/Playback-Helfer, Debug-Helfer, Demo-/Test-Helfer | `isiLive_validation_helpers.lua`, `isiLive_string_utils.lua`, `isiLive_spell_utils.lua`, `isiLive_sound_utils.lua`, `isiLive_locale.lua`, `isiLive_texts.lua`, `realm_language_data.lua`, `isiLive_units.lua`, `isiLive_season_data.lua`, `isiLive_teleport.lua`, `isiLive_ui_common.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua`, `isiLive_queue_debug.lua`, `isiLive_demo.lua`, `isiLive_test_mode.lua` |
 
@@ -30,7 +30,7 @@ WoW Event
   -> Event Gate (stopped/paused/hidden/test checks)
   -> Event Handler Aggregator
   -> Lifecycle Handler (runtime/queue/challenge)
-  -> Domain Controllers (queue/group/highlight/sync/inspect/refresh/stats/cd-tracker/kick-tracker)
+  -> Domain Controllers (queue/group/lfg-detect/highlight/sync/inspect/refresh/stats/cd-tracker/kick-tracker)
   -> Runtime State Update
   -> UI Controllers Render
 ```
@@ -103,7 +103,7 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 537 Szenarien ueber 39 Module ab; die Regelvalidatoren indizieren aktuell 537 deterministische Tests.
+5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 556 Szenarien ueber 40 Module ab; die Regelvalidatoren indizieren aktuell 556 deterministische Tests.
 
 Die lokalen Wrapper `tools/check.ps1` und `tools/check.cmd` sind der bevorzugte Einstiegspunkt fuer das statische Gate, weil sie `luacheck` ueber den repo-lokalen Windows-Shim routen, statt direkt das LuaRocks-Script aufzurufen.
 
@@ -162,6 +162,7 @@ Zusaetzlich zum Main-Roster-Frame kann `isiLive_ui.lua` optionale Tooling- und T
 | Share Keys | User-Chat-/Share-Aktion | Sofortiger eigener Key-Post in Party, gruppenweiter `SHAREKEYS`-Request an Peers, sichtbarer 30s lokaler Cooldown und remote getriggerter 30s-Cooldown-Lock auf allen Peer-Clients, die `SHAREKEYS` empfangen; ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt; der lokale Fallback bleibt auch ohne Owned-Link-API klickbar |
 | EventHandlersRuntime | Addon-, World-, Combat-, Inspect- und Sync-Events | Startup, Hidden-Mode-Sync, sofortige Full-State-Reply auf neues Peer-`HELLO`, hidden `LibKS`-Party-Antworten auf Requests, Forwarding von `UNIT_AURA`-Full-Updates fuer den CdTracker, Regen-Recovery fuer pending Visibility/Height und Inspect-Dispatch |
 | EventHandlersQueue | LFG-Queue-/Listing-Events | Sichtbare Queue-Capture, Erhalt von Pending-Join-Kontext auf negativen Follow-ups und Joined-Key-Tracking |
+| LFGDetect | LFG-Queue-/Invite-Events | Locale-aware Invite-/Listing-Hinweise, statische Activity-zu-Map-Aufloesung, Highlight-Dispatch ueber injected Callback und Full-Reset bei Group leave / Challenge start |
 | EventHandlersChallenge | Challenge- und Ready-Check-Events | Run-Lifecycle, delayed Refresh, Raid-deferred Post-Run-Refresh-Resume, RIO-Delta-Aktivierung, Ready-Check-State, Declined-Hold-Tracking und dedizierter Ready-Check-UI-Refresh-Dispatch |
 | Stats | Completion-Signale fuer Challenge- und Non-Challenge-Party-Runs plus Blizzard-Damage-Meter-Session | Begrenzte Last-Run-DPS-Snapshots mit kurzem Delayed-Session-Retry; persistent nur fuer den passenden lokalen Character, fuer fremde Spieler nur sessionweit |
 | CdTracker | Battle-Res-Charges ueber `C_Spell.GetSpellCharges` mit Struct-Return, numerische Harmful-Lust-Aura-Scans, direkte lokale Lust-Spellcasts und `isFullUpdate`-Aura-Restore-Hydration | Live-Zeilenstate fuer BRes-Charges/Cooldown und Lust-Countdown mit zone-transition-sicherer Onset-Suppression |

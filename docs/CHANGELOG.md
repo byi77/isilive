@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-04-13 - Version 0.9.151 (patch)
+
+- **LFG detection hardening:**
+  - Injected the highlight callback and locale getter into `isiLive_lfg_detect.lua` so the game-layer module no longer needs direct `_factoryCtx` access or hardcoded chat strings.
+  - Normalized invite/listing status handling, preserved pending invites across the active-entry ticker race, and cleared the full LFG state on group leave or `CHALLENGE_MODE_START`.
+  - Added deterministic `LFGDetect` scenario coverage and registered the new module in the usecase harness.
+
+- **Documentation / release sync:**
+  - Synced `README.md`, `ARCHITECTURE.md`, and `USECASES.md` to the current runtime state.
+  - Updated the validator baseline references to `556` scenarios / tests over `40` modules.
+
 ## 2026-04-12 - Version 0.9.151 (patch)
 
 - **Sound settings and settings refresh:**

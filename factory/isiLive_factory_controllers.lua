@@ -679,6 +679,19 @@ local function InitializeFactoryPrimaryControllers(ctx)
     end
     ctx.teleportUIController.UpdateButtons(resolvedSpellID, soundContext)
   end
+
+  -- ARCH-1 fix: inject UpdateMPlusTeleportButton into LFGDetect so the game-layer
+  -- module no longer needs to reach into _factoryCtx directly.
+  -- MINOR-1 fix: inject locale getter so chat messages follow the player's locale.
+  local lfgDetect = addonTable.LFGDetect
+  if type(lfgDetect) == "table" then
+    if type(lfgDetect.SetHighlightCallback) == "function" then
+      lfgDetect.SetHighlightCallback(ctx.UpdateMPlusTeleportButton)
+    end
+    if type(lfgDetect.SetLocaleGetter) == "function" then
+      lfgDetect.SetLocaleGetter(ctx.GetL)
+    end
+  end
 end
 FI.InitializeFactoryPrimaryControllers = InitializeFactoryPrimaryControllers
 

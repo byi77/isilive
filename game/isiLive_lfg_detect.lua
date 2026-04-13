@@ -12,8 +12,12 @@ addonTable = addonTable or {}
 local LFGDetect = {}
 addonTable.LFGDetect = LFGDetect
 
--- Static map: LFG activity ID -> challenge map ID (our mapID convention).
--- Activity IDs are the numeric identifiers Blizzard assigns to LFG activities.
+-- Static map: LFG activity ID -> challenge map ID for all active-season dungeons.
+-- Primary fast path: zero-latency, no API call, taint-safe.
+-- The LFG API (C_LFGList.GetActivityInfoTable) can return tainted/secret values
+-- during raid state or when the API cache is cold (first event after login).
+-- The static map guarantees a correct answer even in those edge cases.
+-- New season: add entries here AND in SeasonData.mapToTeleport — both must stay in sync.
 local ACTIVITY_TO_MAP = {
   [1542] = 557, -- Windrunner Spire
   [182] = 161, -- Skyreach
@@ -27,7 +31,7 @@ local ACTIVITY_TO_MAP = {
 
 -- Normalise a string for keyword matching: lowercase, strip non-word chars,
 -- collapse whitespace. Stripping non-ASCII avoids broken multibyte sequences
--- from tainted/locale LFG API strings (same approach as LFGTeleportButtonMidnight).
+-- from tainted/locale LFG API strings.
 local function Norm(s)
   local ok, result = pcall(function()
     s = (s or ""):lower()
@@ -68,7 +72,10 @@ local function MatchMapIDFromName(name)
   return nil
 end
 
--- Resolve mapID from a single activityID: static map first, then API name fallback.
+-- Resolve mapID from a single activityID.
+-- Resolution order:
+--   1. ACTIVITY_TO_MAP  — static, zero-latency, taint-safe (primary)
+--   2. Name-based keyword matching — fallback for activity stubs without a mapID field
 local function MapIDFromActivityID(activityID)
   if not activityID then
     return nil
@@ -78,12 +85,12 @@ local function MapIDFromActivityID(activityID)
     return nil
   end
 
-  -- 1. Static map (fast path)
+  -- 1. Static map: fast, taint-safe, reliable even when the API cache is cold
   if ACTIVITY_TO_MAP[numID] then
     return ACTIVITY_TO_MAP[numID]
   end
 
-  -- 2. API name fallback
+  -- 2. Name-based keyword fallback (handles activity stubs without a mapID field)
   local C_LFGList_ref = rawget(_G, "C_LFGList")
   if type(C_LFGList_ref) ~= "table" then
     return nil
@@ -155,8 +162,25 @@ local lastQueueMapID = nil
 -- mapID currently highlighted (invite accepted or own queue) — nil = none
 local detectedMapID = nil
 
+-- Injected by the factory after UpdateMPlusTeleportButton is available.
+-- Replaces the previous direct _factoryCtx access (ARCH-1 fix).
+local highlightCallback = nil
+
+-- Injected by the factory so chat messages follow the player's locale setting.
+-- MINOR-1 fix: removes hardcoded German strings.
+local localeGetter = nil
+
 function LFGDetect.GetDetectedMapID()
   return detectedMapID
+end
+
+-- Called once from InitializeFactoryPrimaryControllers to wire the callbacks.
+function LFGDetect.SetHighlightCallback(fn)
+  highlightCallback = type(fn) == "function" and fn or nil
+end
+
+function LFGDetect.SetLocaleGetter(fn)
+  localeGetter = type(fn) == "function" and fn or nil
 end
 
 -- ---------------------------------------------------------------------------
@@ -203,10 +227,11 @@ local function OnInvited(searchResultID)
   end
 end
 
-local function TriggerHighlightUpdate()
-  local ctx = addonTable._factoryCtx
-  if type(ctx) == "table" and type(ctx.UpdateMPlusTeleportButton) == "function" then
-    ctx.UpdateMPlusTeleportButton()
+-- BUG-1 fix: soundContext propagated so own-queue updates suppress the portal sound.
+-- ARCH-1 fix: uses the injected highlightCallback instead of reaching into _factoryCtx.
+local function TriggerHighlightUpdate(soundContext)
+  if type(highlightCallback) == "function" then
+    highlightCallback(soundContext)
   end
 end
 
@@ -214,9 +239,10 @@ local function OnInviteAccepted(searchResultID)
   local mapID = pendingInvites[searchResultID]
   if mapID then
     detectedMapID = mapID
-    Print("Invite erkannt: " .. GetDungeonName(mapID))
+    local L = localeGetter and localeGetter() or {}
+    Print(string.format(L.LFG_DETECT_INVITE or "LFG invite detected: %s", GetDungeonName(mapID)))
     pendingInvites = {}
-    TriggerHighlightUpdate()
+    TriggerHighlightUpdate() -- no soundContext: portal sound is intended for accepted invites
   end
 end
 
@@ -235,11 +261,14 @@ local NEGATIVE_STATUSES = {
 }
 
 local function HandleApplicationStatus(searchResultID, newStatus)
-  if newStatus == "invited" then
+  -- BUG-3 fix: normalize to lowercase so casing variations from the Blizzard API
+  -- ("Invited", "InviteAccepted", …) are handled the same as the lowercase form.
+  local normalizedStatus = type(newStatus) == "string" and string.lower(newStatus) or ""
+  if normalizedStatus == "invited" then
     OnInvited(searchResultID)
-  elseif newStatus == "inviteaccepted" then
+  elseif normalizedStatus == "inviteaccepted" then
     OnInviteAccepted(searchResultID)
-  elseif NEGATIVE_STATUSES[newStatus] then
+  elseif NEGATIVE_STATUSES[normalizedStatus] then
     OnInviteDeclined(searchResultID)
   end
 end
@@ -248,12 +277,34 @@ end
 -- Own queue detection (active listing + 5s poll)
 -- ---------------------------------------------------------------------------
 
+-- BUG-2 fix: pendingInvites is NOT cleared here. The 5s ticker calls CheckActiveGroup
+-- which calls ClearDetectedState when no active listing exists. If a player received
+-- an invite (no own listing) and the ticker fires before they accept, pendingInvites
+-- must survive so OnInviteAccepted can still resolve the mapID.
+-- pendingInvites is only cleared in ClearAllState (group-leave / key-start).
+--
+-- BUG-LFG-4 fix: only clear state that the queue-listing path owns.
+-- lastQueueMapID is set exclusively by CheckActiveGroup when an active listing is
+-- found. Invite-set detectedMapID (lastQueueMapID == nil) must survive the 5s ticker
+-- so the portal highlight stays active until the player enters the dungeon or leaves
+-- the group (both handled by ClearAllState).
 local function ClearDetectedState()
-  if detectedMapID ~= nil or lastQueueMapID ~= nil then
+  if lastQueueMapID ~= nil then
     detectedMapID = nil
     lastQueueMapID = nil
-    pendingInvites = {}
-    TriggerHighlightUpdate()
+    TriggerHighlightUpdate("queue")
+  end
+end
+
+-- Full reset: called on group-leave and challenge-start where pending invite state
+-- is no longer relevant.
+local function ClearAllState()
+  local hadState = detectedMapID ~= nil or lastQueueMapID ~= nil or next(pendingInvites) ~= nil
+  detectedMapID = nil
+  lastQueueMapID = nil
+  pendingInvites = {}
+  if hadState then
+    TriggerHighlightUpdate("queue")
   end
 end
 
@@ -285,12 +336,13 @@ local function CheckActiveGroup()
   if mapID and mapID ~= lastQueueMapID then
     lastQueueMapID = mapID
     detectedMapID = mapID
-    Print("Queue erkannt: " .. GetDungeonName(mapID))
-    TriggerHighlightUpdate()
+    local L = localeGetter and localeGetter() or {}
+    Print(string.format(L.LFG_DETECT_QUEUE or "LFG listing detected: %s", GetDungeonName(mapID)))
+    TriggerHighlightUpdate("queue") -- BUG-1: own listing → suppress portal sound
   elseif not mapID and lastQueueMapID ~= nil then
     lastQueueMapID = nil
     detectedMapID = nil
-    TriggerHighlightUpdate()
+    TriggerHighlightUpdate("queue")
   end
 end
 
@@ -321,8 +373,8 @@ frame:SetScript("OnEvent", function(_self, event, ...)
     local isInRaid = rawget(_G, "IsInRaid")
     local inGroup = (type(isInGroup) == "function" and isInGroup()) or (type(isInRaid) == "function" and isInRaid())
     if not inGroup then
-      -- Left all groups — reset state so button reappears for the next party
-      ClearDetectedState()
+      -- Left all groups — full reset including pending invites
+      ClearAllState()
       return
     end
     -- Joined a group: if we have a pending invite but detectedMapID was not set
@@ -332,15 +384,16 @@ frame:SetScript("OnEvent", function(_self, event, ...)
       local resultID, mapID = next(pendingInvites)
       if resultID and mapID then
         detectedMapID = mapID
-        Print("Invite erkannt: " .. GetDungeonName(mapID))
+        local L = localeGetter and localeGetter() or {}
+    Print(string.format(L.LFG_DETECT_INVITE or "LFG invite detected: %s", GetDungeonName(mapID)))
         pendingInvites = {}
-        TriggerHighlightUpdate()
+        TriggerHighlightUpdate() -- no soundContext: portal sound intended here
       else
         CheckActiveGroup()
       end
     end
   elseif event == "CHALLENGE_MODE_START" then
-    -- Key started — clear state, no longer relevant
-    ClearDetectedState()
+    -- Key started — full reset, invite state no longer relevant
+    ClearAllState()
   end
 end)
