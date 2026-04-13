@@ -177,11 +177,10 @@ function Stats.CreateController(opts)
   local getRoster = opts.getRoster
   local getUnitNameAndRealm = opts.getUnitNameAndRealm
 
-  -- localPlayerKey und Migration werden bewusst lazy initialisiert:
-  -- Stats.CreateController() wird zur Lua-Ladezeit aufgerufen, bevor
-  -- ADDON_LOADED feuert. Zu diesem Zeitpunkt existiert die Spielereinheit
-  -- noch nicht sicher (UnitExists("player") kann false liefern) und die
-  -- SavedVariables (IsiLiveDB) sind noch nicht wiederhergestellt.
+  -- localPlayerKey and migration are intentionally lazy-initialized:
+  -- Stats.CreateController() runs at Lua load time, before ADDON_LOADED fires.
+  -- At that point the player unit may not exist yet (UnitExists("player") can
+  -- return false) and SavedVariables (IsiLiveDB) are not yet restored.
   local localPlayerKey = nil
   local initialized = false
   local sessionPlayerLastRuns = {}

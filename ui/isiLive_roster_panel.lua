@@ -1624,7 +1624,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     ui.countdownButton,
     ui.countdownCancelButton,
   }
-  -- Buttons die immer am leadX verankert bleiben (nicht in H-Modus sichtbar)
+  -- Buttons that always stay anchored at leadX (not visible in H mode)
   ui.columnButtons = {
     ui.shareKeysButton,
     ui.refreshButton,
@@ -1637,8 +1637,8 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     ui.refreshButton,
   }
 
-  -- Drei statische Mode-Buttons [M2][H][V] von links nach rechts oben-rechts.
-  -- Jeder Button setzt den Modus direkt; aktiver Modus wird gold hervorgehoben.
+  -- Three static mode buttons [M2][H][V] laid out left-to-right at the top-right.
+  -- Each button sets the mode directly; the active mode is highlighted gold.
   ui.layoutMode = LAYOUT_MODE_EXPANDED
   ui.isCollapsed = false
   ui.modeButtons = {}

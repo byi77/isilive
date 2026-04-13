@@ -67,8 +67,8 @@ function Bootstrap.RegisterSlashCommands(opts)
   })
 end
 
--- Deklarative Event-Registry: { event, combat, hidden, test }
--- hidden = true (statisch erlaubt), "cond" (per Callback), false (gesperrt)
+-- Declarative event registry: { event, combat, hidden, test }
+-- hidden = true (always allowed), "cond" (via callback), false (blocked)
 local EVENT_REGISTRY = {
   { "ADDON_LOADED", true, true, true },
   { "PLAYER_LOGIN", true, true, false },

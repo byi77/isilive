@@ -465,9 +465,9 @@ local function UpdateColumnPositions(ui, layoutMode)
     end
   end
 
-  -- In H-Modus: alle Management-Buttons nebeneinander (rechts nach links)
-  -- In M2-Modus: Management-/Toolbar-Reihe unten links, Portal- und Marker-Reihen darunter
-  -- In M/V-Modus: jeder Button an seiner vertikalen Position in der Spalte
+  -- In H mode: all management buttons side by side (right to left)
+  -- In M2 mode: management/toolbar row bottom-left, portal and marker rows below
+  -- In M/V mode: each button at its vertical position in the column
   if isMainHorizontal then
     for index, btn in ipairs(ui.toolbarButtons or managementButtons) do
       if btn and btn.GetPoint then
@@ -538,7 +538,7 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
     end
   end
 
-  -- Management-Buttons in H-Modus verkleinern und M2-Toolbar kompakt nebeneinander setzen
+  -- Shrink management buttons in H mode and arrange M2 toolbar compactly side by side
   if isMainHorizontal then
     for _, btn in ipairs(ui.toolbarButtons or {}) do
       SetFrameSizeSafe(btn, M2_TOOLBAR_BUTTON_WIDTH, M2_TOOLBAR_BUTTON_HEIGHT)

@@ -114,8 +114,8 @@ local function IsSyncEnabled()
   return not db or db.syncEnabled ~= false
 end
 
--- Realm-Normalisierung ist identisch mit NormalizeName() in isiLive_stats.lua:
--- beide entfernen Spaces, Bindestriche, Punkte, Klammern und Apostrophe aus dem Realm.
+-- Realm normalization is identical to NormalizeName() in isiLive_stats.lua:
+-- both strip spaces, dashes, dots, parens, and quotes from the realm.
 function Sync.NormalizePlayerKey(name, realm)
   local n = name and tostring(name) or ""
   local r = realm and tostring(realm) or ""

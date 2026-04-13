@@ -218,6 +218,47 @@ local function RegisterEventGateTests(test, Assert, LoadAddonModules)
       "error payload must include root error context"
     )
   end)
+
+  test("Events gate preserves nil-containing varargs for dispatch", function()
+    local captured = nil
+
+    local addon = LoadAddonModules({ "isiLive_events.lua" })
+    local gate = addon.Events.CreateGate({
+      dispatch = function(_frame, _event, ...)
+        captured = {
+          count = select("#", ...),
+          values = { ... },
+        }
+      end,
+      onDispatchError = function(_frame, _event, _err) end,
+      isStopped = function()
+        return false
+      end,
+      isPaused = function()
+        return false
+      end,
+      isTestMode = function()
+        return false
+      end,
+      isInCombat = function()
+        return false
+      end,
+    })
+
+    local frame = {
+      IsShown = function()
+        return true
+      end,
+    }
+
+    gate(frame, "GROUP_ROSTER_UPDATE", "first", nil, "third")
+
+    Assert.NotNil(captured, "dispatch must be called")
+    Assert.Equal(captured.count, 3, "dispatch must receive all vararg positions including nil holes")
+    Assert.Equal(captured.values[1], "first", "first argument must stay intact")
+    Assert.Equal(captured.values[2], nil, "second argument must remain nil")
+    Assert.Equal(captured.values[3], "third", "third argument after nil hole must be preserved")
+  end)
 end
 
 local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)

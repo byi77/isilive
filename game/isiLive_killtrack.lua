@@ -40,8 +40,8 @@ local function FindEnemyForcesCriteria()
     return nil
   end
   for i = 1, stepInfo.numCriteria do
-    local cInfo = C_ScenarioInfo.GetCriteriaInfo(i)
-    if cInfo and cInfo.isWeightedProgress then
+    local okCrit, cInfo = pcall(C_ScenarioInfo.GetCriteriaInfo, i)
+    if okCrit and cInfo and cInfo.isWeightedProgress then
       return cInfo
     end
   end

@@ -938,7 +938,9 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
     if resyncTicker then
       resyncTicker:Cancel()
     end
-    resyncTicker = C_Timer.NewTicker(1.0, UpdateResyncButton, RESYNC_COOLDOWN)
+    if C_Timer and C_Timer.NewTicker then
+      resyncTicker = C_Timer.NewTicker(1.0, UpdateResyncButton, RESYNC_COOLDOWN)
+    end
     UpdateResyncButton()
   end)
 
@@ -1112,11 +1114,13 @@ local function InitializeFactorySecondaryRuntimeMethods(ctx, modules)
       and C_Map
       and C_Map.GetBestMapForUnit
       and type(UnitExists) == "function"
-      and UnitExists("player")
     then
-      local mapID = C_Map.GetBestMapForUnit("player")
-      if type(mapID) == "number" and mapID > 0 then
-        currentMapID = mapID
+      local okUnit, playerExists = pcall(UnitExists, "player")
+      if okUnit and playerExists then
+        local mapID = C_Map.GetBestMapForUnit("player")
+        if type(mapID) == "number" and mapID > 0 then
+          currentMapID = mapID
+        end
       end
     end
     if not currentMapID then

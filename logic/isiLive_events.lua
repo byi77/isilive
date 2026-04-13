@@ -5,6 +5,8 @@ addonTable = addonTable or {}
 local Events = {}
 addonTable.Events = Events
 
+local unpackFn = (type(table) == "table" and type(table.unpack) == "function") and table.unpack or unpack
+
 function Events.CreateGate(config)
   config = config or {}
   local dispatch = config.dispatch or function(_frame, _event, ...) end -- luacheck: ignore 212
@@ -44,9 +46,10 @@ function Events.CreateGate(config)
       return
     end
 
+    local argCount = select("#", ...)
     local args = { ... }
     local ok, err = xpcall(function()
-      dispatch(frame, event, unpack(args))
+      dispatch(frame, event, unpackFn(args, 1, argCount))
     end, function(runtimeErr)
       local msg = tostring(runtimeErr)
       local debugLib = rawget(_G, "debug")

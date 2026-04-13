@@ -21,9 +21,8 @@ local function GetOwnedKeystoneSnapshot()
 
   level = tonumber(level)
   mapID = tonumber(mapID)
-  -- NormalizeMapID hier beim Lesen anwenden; sync.lua NormalizeKeyPayload
-  -- wendet es nochmals an (idempotent), um eingehende Nachrichten einheitlich
-  -- zu normalisieren.
+  -- Apply NormalizeMapID on read; sync.lua NormalizeKeyPayload applies it again
+  -- (idempotent) to normalize incoming messages uniformly.
   if type(SeasonData.NormalizeMapID) == "function" then
     mapID = SeasonData.NormalizeMapID(mapID)
   end

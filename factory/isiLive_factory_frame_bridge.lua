@@ -131,7 +131,11 @@ local function CreateFactoryContext(addonName, tbl)
       return true
     end
     local unitExists = rawget(_G, "UnitExists")
-    if type(unitExists) ~= "function" or not unitExists("player") then
+    if type(unitExists) ~= "function" then
+      return false
+    end
+    local okUnit, playerExists = pcall(unitExists, "player")
+    if not (okUnit and playerExists) then
       return false
     end
     return IsInGroup() and UnitIsGroupLeader("player")

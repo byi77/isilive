@@ -30,7 +30,11 @@ local function ResolveTrackedMythicZeroMapID()
 
   local mapApi = rawget(_G, "C_Map")
   local getBestMapForUnit = mapApi and rawget(mapApi, "GetBestMapForUnit") or nil
-  if type(getBestMapForUnit) ~= "function" or type(UnitExists) ~= "function" or not UnitExists("player") then
+  if type(getBestMapForUnit) ~= "function" or type(UnitExists) ~= "function" then
+    return nil
+  end
+  local okUnit, unitExists = pcall(UnitExists, "player")
+  if not (okUnit and unitExists) then
     return nil
   end
 
