@@ -26,7 +26,7 @@ local function PlayPortalAvailableSound()
 end
 
 local function ShouldSuppressPortalSound(soundContext)
-  return soundContext == "queue"
+  return soundContext == "queue" or soundContext == "invite"
 end
 
 local LAYOUT_MODE_EXPANDED = RI.LAYOUT_MODE_EXPANDED or "expanded"

@@ -1742,6 +1742,94 @@ local function RegisterTeleportUIAudioAndDebugTests(test, Assert, WithGlobals, L
     end)
   end)
 
+  test("TeleportUI suppresses portal sound for invite-driven active target refreshes", function()
+    local createFrameStub = BuildTeleportUICreateFrameStub()
+    local soundCalls = 0
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      PlaySoundFile = function()
+        soundCalls = soundCalls + 1
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
+        "isiLive_teleport_ui.lua",
+      })
+
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = {
+          GetFrameLevel = function()
+            return 10
+          end,
+          GetFrameStrata = function()
+            return "MEDIUM"
+          end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              SetJustifyV = function() end,
+              SetTextColor = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetText = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+        },
+        layoutMode = "compact_main_horizontal",
+        applySecureSpellToButton = function()
+          return true
+        end,
+        getEntries = function()
+          return {
+            { spellID = 12345, mapID = 558, slotIndex = 1 },
+          }
+        end,
+        getEmptyStateText = function()
+          return nil
+        end,
+        getL = function()
+          return {}
+        end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getSpellCooldownSafe = function()
+          return 0, 0, false
+        end,
+        applyCooldownFrameSafe = function() end,
+        getSpellTexture = function()
+          return nil
+        end,
+        getDungeonShortCode = function(mapID)
+          if mapID == 558 then
+            return "MT"
+          end
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      controller.BuildButtons()
+      controller.UpdateButtons(nil, "invite")
+      controller.UpdateButtons(12345, "invite")
+
+      Assert.Equal(soundCalls, 0, "invite-driven target refreshes must not play the portal sound")
+    end)
+  end)
+
   test("Teleport debug output labels short cooldowns as GCD", function()
     local prints = {}
 

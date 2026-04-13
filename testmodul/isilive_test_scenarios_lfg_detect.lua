@@ -98,8 +98,8 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
     end)
   end)
 
-  test("LFGDetect resolves mapID from dungeon name keyword when activityID is unknown", function()
-    -- activityID 9999 is not in ACTIVITY_TO_MAP; name keyword fallback must fire.
+  test("LFGDetect keeps unknown invite activity unresolved instead of guessing from dungeon name", function()
+    -- activityID 9999 is not in ACTIVITY_TO_MAP; name text must not be used as a fallback.
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
@@ -110,11 +110,16 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
 
     WithGlobals(globals, function()
       local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+      local callbackCount = 0
+      addon.LFGDetect.SetHighlightCallback(function()
+        callbackCount = callbackCount + 1
+      end)
 
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "name keyword 'windrunner' must resolve to mapID 557")
+      Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "unknown activityID must stay unresolved without name fallback")
+      Assert.Equal(callbackCount, 0, "unresolved invite must not trigger a highlight update")
     end)
   end)
 
@@ -182,10 +187,8 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
   -- Invite callback behavior (BUG-1, ARCH-1)
   -- ---------------------------------------------------------------------------
 
-  test("LFGDetect invite accepted sets detectedMapID and callback fires on key start", function()
-    -- TriggerHighlightUpdate() with nil soundContext is called on invite accept.
-    -- Verify the invite flow sets detectedMapID, then confirm the callback mechanism
-    -- works by firing CHALLENGE_MODE_START (ClearAllState â†’ TriggerHighlightUpdate(\"queue\"))."
+  test("LFGDetect exact invite stays pending until inviteaccepted and then highlights without sound", function()
+    -- Incoming invites must stay pending until the exact activity data is confirmed.
     local callbackSoundContexts = {}
 
     local globals, fire = BuildLFGDetectEnv({
@@ -201,16 +204,26 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
       end)
 
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
+
+      Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "invite must stay pending until inviteaccepted")
+      Assert.Equal(#callbackSoundContexts, 0, "pending invite must not trigger a highlight update yet")
+
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "invite accept must set detectedMapID to 557")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "inviteaccepted must set detectedMapID from the pending invite")
+      Assert.Equal(#callbackSoundContexts, 1, "highlight callback must fire once on inviteaccepted")
+      Assert.Equal(
+        callbackSoundContexts[1],
+        "invite",
+        "inviteaccepted callback must use soundContext='invite' to suppress portal sound"
+      )
 
       -- Key start clears all state and fires TriggerHighlightUpdate("queue")
       fire("CHALLENGE_MODE_START")
 
       Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "CHALLENGE_MODE_START must clear detectedMapID")
-      Assert.Equal(#callbackSoundContexts, 1, "highlight callback must fire on state clear")
-      Assert.Equal(callbackSoundContexts[1], "queue", "state-clear callback must pass soundContext='queue'")
+      Assert.Equal(#callbackSoundContexts, 2, "state clear must trigger a second callback")
+      Assert.Equal(callbackSoundContexts[2], "queue", "state-clear callback must pass soundContext='queue'")
     end)
   end)
 
@@ -242,6 +255,27 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
         "queue",
         "own-listing callback must pass soundContext='queue' to suppress portal sound"
       )
+    end)
+  end)
+
+  test("LFGDetect active listing stays unresolved when only dungeon name text is available", function()
+    local globals, fire = BuildLFGDetectEnv({
+      globals = {
+        C_LFGList = BuildC_LFGList({}, { activityID = 9999, name = "Windrunner Spire" }),
+      },
+    })
+
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+      local callbackCount = 0
+      addon.LFGDetect.SetHighlightCallback(function()
+        callbackCount = callbackCount + 1
+      end)
+
+      fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
+
+      Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "active listing must stay unresolved without exact activity mapping")
+      Assert.Equal(callbackCount, 0, "unresolved active listing must not trigger a highlight update")
     end)
   end)
 

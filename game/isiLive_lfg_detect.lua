@@ -29,53 +29,10 @@ local ACTIVITY_TO_MAP = {
   [1160] = 402, -- Algeth'ar Academy
 }
 
--- Normalise a string for keyword matching: lowercase, strip non-word chars,
--- collapse whitespace. Stripping non-ASCII avoids broken multibyte sequences
--- from tainted/locale LFG API strings.
-local function Norm(s)
-  local ok, result = pcall(function()
-    s = (s or ""):lower()
-    s = s:gsub("[^%a%d%'%s]", " ")
-    s = s:gsub("%s+", " ")
-    s = s:gsub("^%s", ""):gsub("%s$", "")
-    return s
-  end)
-  return ok and result or ""
-end
-
--- Keyword triggers per mapID — fallback when activity ID lookup fails.
--- Use short ASCII substrings that appear in both enUS and deDE names,
--- plus locale-specific variants where needed.
-local MAP_TRIGGERS = {
-  [557] = { "windrunner", "spire", "windl" }, -- "Windrunner Spire" / "Windläuferturm"
-  [558] = { "magister", "terrace" }, -- "Magisters' Terrace" / "Terrasse der Magister"
-  [559] = { "nexus", "xenas" }, -- "Nexus-Point Xenas" / "Nexuspunkt Xenas"
-  [560] = { "maisara", "caverns", "kavernen" }, -- "Maisara Caverns" / "Maisarakavernen"
-  [402] = { "algethar", "algeth", "academy", "akademie" }, -- "Algeth'ar Academy" / "Akademie von Algeth'ar"
-  [556] = { "saron", "pit" }, -- "Pit of Saron" / "Grube von Saron"
-  [239] = { "triumvirate", "triumvirats" }, -- "Seat of the Triumvirate" / "Sitz des Triumvirats"
-  [161] = { "skyreach", "himmelsnadel" }, -- "Skyreach" / "Die Himmelsnadel"
-}
-
-local function MatchMapIDFromName(name)
-  local n = Norm(name)
-  if n == "" then
-    return nil
-  end
-  for mapID, triggers in pairs(MAP_TRIGGERS) do
-    for _, trig in ipairs(triggers) do
-      if n:find(trig, 1, true) then
-        return mapID
-      end
-    end
-  end
-  return nil
-end
-
 -- Resolve mapID from a single activityID.
 -- Resolution order:
 --   1. ACTIVITY_TO_MAP  — static, zero-latency, taint-safe (primary)
---   2. Name-based keyword matching — fallback for activity stubs without a mapID field
+--   2. unresolved       — if no exact mapping exists, no guess is made
 local function MapIDFromActivityID(activityID)
   if not activityID then
     return nil
@@ -88,32 +45,6 @@ local function MapIDFromActivityID(activityID)
   -- 1. Static map: fast, taint-safe, reliable even when the API cache is cold
   if ACTIVITY_TO_MAP[numID] then
     return ACTIVITY_TO_MAP[numID]
-  end
-
-  -- 2. Name-based keyword fallback (handles activity stubs without a mapID field)
-  local C_LFGList_ref = rawget(_G, "C_LFGList")
-  if type(C_LFGList_ref) ~= "table" then
-    return nil
-  end
-
-  local fullName = nil
-  if type(C_LFGList_ref.GetActivityFullName) == "function" then
-    local ok, result = pcall(C_LFGList_ref.GetActivityFullName, numID)
-    if ok then
-      fullName = result
-    end
-  end
-  if not fullName or fullName == "" then
-    if type(C_LFGList_ref.GetActivityInfoTable) == "function" then
-      local ok, info = pcall(C_LFGList_ref.GetActivityInfoTable, numID)
-      if ok and type(info) == "table" then
-        fullName = info.fullName or info.shortName
-      end
-    end
-  end
-
-  if type(fullName) == "string" and fullName ~= "" then
-    return MatchMapIDFromName(fullName)
   end
 
   return nil
@@ -159,7 +90,7 @@ end
 local pendingInvites = {}
 -- mapID of the last detected own queue listing (nil = no active listing)
 local lastQueueMapID = nil
--- mapID currently highlighted (invite accepted or own queue) — nil = none
+-- mapID currently highlighted (invite or accepted invite, or own queue) — nil = none
 local detectedMapID = nil
 
 -- Injected by the factory after UpdateMPlusTeleportButton is available.
@@ -169,6 +100,7 @@ local highlightCallback = nil
 -- Injected by the factory so chat messages follow the player's locale setting.
 -- MINOR-1 fix: removes hardcoded German strings.
 local localeGetter = nil
+local TriggerHighlightUpdate = nil
 
 function LFGDetect.GetDetectedMapID()
   return detectedMapID
@@ -213,23 +145,14 @@ local function OnInvited(searchResultID)
     mapID = MapIDFromActivityID(info.activityID)
   end
 
-  -- Name fallback
-  if not mapID and type(info) == "table" then
-    local listName = info.name or ""
-    if listName == "" then
-      listName = (info.comment or "") .. " " .. (info.voiceChat or "")
-    end
-    mapID = MatchMapIDFromName(listName)
-  end
-
   if mapID then
     pendingInvites[searchResultID] = mapID
   end
 end
 
--- BUG-1 fix: soundContext propagated so own-queue updates suppress the portal sound.
+-- BUG-1 fix: soundContext propagated so own-queue and invite updates suppress the portal sound.
 -- ARCH-1 fix: uses the injected highlightCallback instead of reaching into _factoryCtx.
-local function TriggerHighlightUpdate(soundContext)
+TriggerHighlightUpdate = function(soundContext)
   if type(highlightCallback) == "function" then
     highlightCallback(soundContext)
   end
@@ -238,16 +161,23 @@ end
 local function OnInviteAccepted(searchResultID)
   local mapID = pendingInvites[searchResultID]
   if mapID then
-    detectedMapID = mapID
-    local L = localeGetter and localeGetter() or {}
-    Print(string.format(L.LFG_DETECT_INVITE or "LFG invite detected: %s", GetDungeonName(mapID)))
-    pendingInvites = {}
-    TriggerHighlightUpdate() -- no soundContext: portal sound is intended for accepted invites
+    pendingInvites[searchResultID] = nil
+    if detectedMapID ~= mapID then
+      detectedMapID = mapID
+      local L = localeGetter and localeGetter() or {}
+      Print(string.format(L.LFG_DETECT_INVITE or "LFG invite detected: %s", GetDungeonName(mapID)))
+      TriggerHighlightUpdate("invite")
+    end
   end
 end
 
 local function OnInviteDeclined(searchResultID)
+  local mapID = pendingInvites[searchResultID]
   pendingInvites[searchResultID] = nil
+  if mapID and detectedMapID == mapID then
+    detectedMapID = nil
+    TriggerHighlightUpdate("queue")
+  end
 end
 
 local NEGATIVE_STATUSES = {
@@ -329,9 +259,6 @@ local function CheckActiveGroup()
   if not mapID and info.activityID then
     mapID = MapIDFromActivityID(info.activityID)
   end
-  if not mapID and type(info.name) == "string" then
-    mapID = MatchMapIDFromName(info.name)
-  end
 
   if mapID and mapID ~= lastQueueMapID then
     lastQueueMapID = mapID
@@ -384,10 +311,10 @@ frame:SetScript("OnEvent", function(_self, event, ...)
       local resultID, mapID = next(pendingInvites)
       if resultID and mapID then
         detectedMapID = mapID
+        pendingInvites[resultID] = nil
         local L = localeGetter and localeGetter() or {}
         Print(string.format(L.LFG_DETECT_INVITE or "LFG invite detected: %s", GetDungeonName(mapID)))
-        pendingInvites = {}
-        TriggerHighlightUpdate() -- no soundContext: portal sound intended here
+        TriggerHighlightUpdate("invite")
       else
         CheckActiveGroup()
       end

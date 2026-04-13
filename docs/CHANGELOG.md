@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-04-13 - Version 0.9.153 (patch)
+
+- **No-guess LFG hardening:**
+  - Removed dungeon-name and token-based fallback resolution from `isiLive_lfg_detect.lua` so invite and listing detection now stays unresolved unless exact activity data is available.
+  - Moved invite state to a pending-confirmation flow and kept the portal highlight/sound dispatch deterministic on the exact confirmation path.
+  - Updated the deterministic LFG coverage and rule-to-test mapping to enforce the fail-closed no-guess contract.
+
+## 2026-04-13 - Version 0.9.152 (patch)
+
+- **LFG invite highlight fix:**
+  - Incoming LFG invites now stay pending until the exact activity data is confirmed; the matching portal icon highlights on `inviteaccepted` instead of guessing from dungeon names.
+  - Portal sounds are suppressed for invite-driven and queue-driven target refreshes; the sound remains reserved for actual active-target changes.
+  - Updated the deterministic LFG and TeleportUI coverage to lock in the invite-silent highlight path and the fail-closed no-guess flow.
+  - Updated the validator baseline references to `559` scenarios / tests over `40` modules.
+
 ## 2026-04-13 - Version 0.9.151 (patch)
 
 - **LFG detection hardening:**

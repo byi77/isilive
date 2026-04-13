@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.151`
+Versionsbasis: `0.9.153`
 Zuletzt aktualisiert: `2026-04-13`
 
 ## Akteure
@@ -175,11 +175,11 @@ Ziel: Live-BRes, Bloodlust/Heroism/Time Warp, aktive Mythic+-Timer-Cutoffs und g
 Ziel: LFG-Einladungen und eigene Listings sollen das Portal-Highlight und die Chat-Hinweise deterministisch ausloesen, ohne Pending-Invite-Races oder Sprach-Fallbacks.
 
 1. Trigger: `LFG_LIST_APPLICATION_STATUS_UPDATED` meldet `invited` oder `inviteaccepted`, oder `LFG_LIST_ACTIVE_ENTRY_UPDATE` meldet eine eigene aktive Listing-Info.
-2. Verarbeitung: Der Status wird kleingeschrieben normalisiert; die Activity-zu-Map-Aufloesung nutzt die statische Tabelle als ersten Pfad und darf nur bei fehlender Aktivitaet auf Namensmatching zurueckfallen.
-3. Verarbeitung: Die Chatmeldung wird ueber die locale-injizierte Texttabelle ausgegeben; Pending-Invites bleiben bis zum finalen Join oder zum Full-Reset erhalten.
-4. Regel: Eine eigene Queue-/Listing-Detektion triggert das Portal-Highlight ueber den injizierten Callback; Portal-Sound bleibt fuer Queue-getriebene Updates unterdrueckt.
+2. Verarbeitung: Der Status wird kleingeschrieben normalisiert; die Activity-zu-Map-Aufloesung nutzt nur exakte Aktivitaetsdaten. Namen, Tokens oder andere heuristische Fallbacks bleiben unresolved.
+3. Verarbeitung: Der Invite-Kontext bleibt bis zur exakten Bestaetigung per `inviteaccepted` pending; danach wird der erkannte Dungeon-Zielzustand gesetzt und das Portal-Highlight ohne Sound aktiviert. Die locale-injizierte Chatmeldung bleibt an den Invite-/Join-Confirm-Pfad gebunden.
+4. Regel: Eine eigene Queue-/Listing-Detektion triggert das Portal-Highlight ueber den injizierten Callback; Portal-Sound bleibt fuer Queue- und Invite-getriebene Updates unterdrueckt.
 5. Regel: `GROUP_ROSTER_UPDATE` ohne Gruppe sowie `CHALLENGE_MODE_START` loeschen den gesamten LFG-Zustand inklusive pending invites.
-6. Erfolgskriterium: Erkennungen erscheinen einmalig und lokalisiert, late `inviteaccepted`-Events bleiben korrekt aufloesbar, und identische Listing-Updates erzeugen keinen inkonsistenten Highlight-State.
+6. Erfolgskriterium: Erkennungen erscheinen einmalig und lokalisiert, late `inviteaccepted`-Events bleiben korrekt aufloesbar, identische Listing-Updates erzeugen keinen inkonsistenten Highlight-State, und unbekannte Namen werden nie als Dungeon-Ziel geraten.
 
 ## Nichtfunktionale Regeln
 
@@ -204,7 +204,7 @@ Ziel: LFG-Einladungen und eigene Listings sollen das Portal-Highlight und die Ch
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `556` Szenarien ueber `40` Module.
+Aktuelle Validator-Baseline: `559` Szenarien ueber `40` Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
@@ -217,7 +217,7 @@ Aktuelle Validator-Baseline: `556` Szenarien ueber `40` Module.
 9. UC-11 und UC-12: Secure-World-Marker-Button-Konfiguration fuer M+Marker und Compact-Layout-Visibility-Logik fuer M/V/H.
 10. Taint-Hardening: verschobene Secure-Attribute-Writes, verschobene `Esc`-Shortcut-Secure-Button-Refreshes, insecure Teleport-Grid-Aktionen und combat-sicheres Collapse-Handling.
 11. UC-13 und UC-14: Game-Menu-Tooling-/Travel-Strips, Lokalisierung, Close-then-Open-Verhalten, verschobener Secure-Reload-Button-Refresh, Direct-Opener-Fallback-Auswahl, Settings-Canvas-State-Mirroring, Background-Opacity-Verhalten, Live-BRes-/Bloodlust-/M+-Timer-Rendering und gesyncte Interrupt-Cooldown-Anzeige.
-12. UC-15: LFG-Detektion, locale-aware Chat-Hinweise, pending-invite Race-Hardening und Highlight-Dispatch.
+12. UC-15: LFG-Detektion ohne Name-Fallbacks, locale-aware Chat-Hinweise, pending-invite Race-Hardening und Highlight-Dispatch.
 
 ## Rueckverfolgbarkeit zu Quelldateien
 
