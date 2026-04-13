@@ -100,7 +100,7 @@ local highlightCallback = nil
 -- Injected by the factory so chat messages follow the player's locale setting.
 -- MINOR-1 fix: removes hardcoded German strings.
 local localeGetter = nil
-local TriggerHighlightUpdate = nil
+local TriggerHighlightUpdate
 
 function LFGDetect.GetDetectedMapID()
   return detectedMapID
