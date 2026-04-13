@@ -16,6 +16,10 @@
   - Transliterated locale strings with in-game rendering issues to ASCII across `deDE`, `frFR`, `esES`, `ptBR`, `itIT`, `ruRU`, and `trTR`.
   - Kept the deterministic validation green after the text-only changes (`lua tools/validate_usecases.lua`: `557 passed, 0 failed`).
 
+- **Workflow formatting fix:**
+  - Normalized the touched Lua files to Unix line endings and re-ran the local CI preflight so the GitHub Actions `Lua Check` workflow no longer fails on `StyLua`.
+  - Verified the full local gate again after the formatter pass (`tools/validate_ci_local.ps1` passed, along with `lua tools/validate_usecases.lua`).
+
 ## 2026-04-12 - Version 0.9.151 (patch)
 
 - **Sound settings and settings refresh:**

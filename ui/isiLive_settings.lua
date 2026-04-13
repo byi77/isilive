@@ -1685,7 +1685,9 @@ local function RefreshSettingsControls(controls, config)
   controls.minimapBtn.label:SetText(freshL.SETTINGS_MINIMAP_BUTTON or "Minimap Button")
   controls.sync.label:SetText(freshL.SETTINGS_SYNC_ENABLED or "Addon Sync")
   controls.autoOpen.label:SetText(freshL.SETTINGS_AUTO_OPEN_QUEUE or "Auto-Open on M+ Queue")
-  controls.autoCloseMainFrame.label:SetText(freshL.SETTINGS_AUTO_CLOSE_MAIN_FRAME or "Auto-close when key starts or when going solo")
+  controls.autoCloseMainFrame.label:SetText(
+    freshL.SETTINGS_AUTO_CLOSE_MAIN_FRAME or "Auto-close when key starts or when going solo"
+  )
   controls.lockMainFramePosition.label:SetText(freshL.SETTINGS_LOCK_MAIN_FRAME_POSITION or "Lock main frame position")
   controls.combatFadeMM.label:SetText(freshL.SETTINGS_COMBAT_FADE_MM or "Fade out in Combat (M2 only)")
   controls.autoShowStartup.label:SetText(freshL.SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP or "Show on Login / Reload")
