@@ -210,7 +210,11 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
 
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "inviteaccepted must set detectedMapID from the pending invite")
+      Assert.Equal(
+        addon.LFGDetect.GetDetectedMapID(),
+        557,
+        "inviteaccepted must set detectedMapID from the pending invite"
+      )
       Assert.Equal(#callbackSoundContexts, 1, "highlight callback must fire once on inviteaccepted")
       Assert.Equal(
         callbackSoundContexts[1],
@@ -274,7 +278,10 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
 
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
 
-      Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "active listing must stay unresolved without exact activity mapping")
+      Assert.Nil(
+        addon.LFGDetect.GetDetectedMapID(),
+        "active listing must stay unresolved without exact activity mapping"
+      )
       Assert.Equal(callbackCount, 0, "unresolved active listing must not trigger a highlight update")
     end)
   end)
