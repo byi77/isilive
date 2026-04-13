@@ -1,84 +1,79 @@
 ---@diagnostic disable: undefined-global
-return function(test, ctx)
+
+-- Builds the minimal WoW global stubs needed to load isiLive_lfg_detect.lua.
+-- Returns a fire(event, ...) helper that invokes the captured OnEvent handler.
+local function BuildLFGDetectEnv(overrides)
+  overrides = overrides or {}
+
+  local onEvent = nil
+  local prints = {}
+
+  local globals = {
+    CreateFrame = function()
+      return {
+        RegisterEvent = function() end,
+        SetScript = function(_, scriptType, fn)
+          if scriptType == "OnEvent" then
+            onEvent = fn
+          end
+        end,
+      }
+    end,
+    C_Timer = {
+      -- Suppress the 5s ticker so tests control when CheckActiveGroup runs.
+      NewTicker = function() end,
+    },
+    DEFAULT_CHAT_FRAME = {
+      AddMessage = function(_, msg)
+        table.insert(prints, tostring(msg))
+      end,
+    },
+    IsInGroup = overrides.IsInGroup or function()
+      return false
+    end,
+    IsInRaid = overrides.IsInRaid or function()
+      return false
+    end,
+  }
+
+  -- Merge any extra globals the caller needs.
+  if overrides.globals then
+    for k, v in pairs(overrides.globals) do
+      globals[k] = v
+    end
+  end
+
+  return globals, function(event, ...)
+    if onEvent then
+      onEvent(nil, event, ...)
+    end
+  end, prints
+end
+
+-- Builds a minimal C_LFGList stub for invite scenarios.
+-- searchResults maps searchResultID -> info table returned by GetSearchResultInfo.
+local function BuildC_LFGList(searchResults, activeEntry)
+  searchResults = searchResults or {}
+  return {
+    GetSearchResultInfo = function(id)
+      return searchResults[id]
+    end,
+    GetActiveEntryInfo = function()
+      return activeEntry
+    end,
+    GetActivityFullName = function(_activityID)
+      return nil
+    end,
+    GetActivityInfoTable = function(_activityID)
+      return nil
+    end,
+  }
+end
+
+local function RegisterLFGDetectResolutionTests(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
   local WithGlobals = ctx.with_globals
-
-  -- ---------------------------------------------------------------------------
-  -- Shared helpers
-  -- ---------------------------------------------------------------------------
-
-  -- Builds the minimal WoW global stubs needed to load isiLive_lfg_detect.lua.
-  -- Returns a fire(event, ...) helper that invokes the captured OnEvent handler.
-  local function BuildLFGDetectEnv(overrides)
-    overrides = overrides or {}
-
-    local onEvent = nil
-    local prints = {}
-
-    local globals = {
-      CreateFrame = function()
-        return {
-          RegisterEvent = function() end,
-          SetScript = function(_, scriptType, fn)
-            if scriptType == "OnEvent" then
-              onEvent = fn
-            end
-          end,
-        }
-      end,
-      C_Timer = {
-        -- Suppress the 5s ticker so tests control when CheckActiveGroup runs.
-        NewTicker = function() end,
-      },
-      DEFAULT_CHAT_FRAME = {
-        AddMessage = function(_, msg)
-          table.insert(prints, tostring(msg))
-        end,
-      },
-      IsInGroup = overrides.IsInGroup or function()
-        return false
-      end,
-      IsInRaid = overrides.IsInRaid or function()
-        return false
-      end,
-    }
-
-    -- Merge any extra globals the caller needs.
-    if overrides.globals then
-      for k, v in pairs(overrides.globals) do
-        globals[k] = v
-      end
-    end
-
-    return globals,
-      function(event, ...)
-        if onEvent then
-          onEvent(nil, event, ...)
-        end
-      end,
-      prints
-  end
-
-  -- Builds a minimal C_LFGList stub for invite scenarios.
-  -- searchResults maps searchResultID -> info table returned by GetSearchResultInfo.
-  local function BuildC_LFGList(searchResults, activeEntry)
-    searchResults = searchResults or {}
-    return {
-      GetSearchResultInfo = function(id)
-        return searchResults[id]
-      end,
-      GetActiveEntryInfo = function()
-        return activeEntry
-      end,
-      GetActivityFullName = function(_activityID)
-        return nil
-      end,
-      GetActivityInfoTable = function(_activityID)
-        return nil
-      end,
-    }
-  end
 
   -- ---------------------------------------------------------------------------
   -- Activity-ID resolution
@@ -176,7 +171,7 @@ return function(test, ctx)
 
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "declined")
-      -- inviteaccepted arrives after decline — pendingInvites is empty, must be no-op
+      -- inviteaccepted arrives after decline â€” pendingInvites is empty, must be no-op
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
 
       Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "declined invite must not produce a detectedMapID")
@@ -190,7 +185,7 @@ return function(test, ctx)
   test("LFGDetect invite accepted sets detectedMapID and callback fires on key start", function()
     -- TriggerHighlightUpdate() with nil soundContext is called on invite accept.
     -- Verify the invite flow sets detectedMapID, then confirm the callback mechanism
-    -- works by firing CHALLENGE_MODE_START (ClearAllState → TriggerHighlightUpdate("queue")).
+    -- works by firing CHALLENGE_MODE_START (ClearAllState â†’ TriggerHighlightUpdate(\"queue\"))."
     local callbackSoundContexts = {}
 
     local globals, fire = BuildLFGDetectEnv({
@@ -272,6 +267,12 @@ return function(test, ctx)
       Assert.Equal(#lfgPrints, 1, "identical mapID must print only once (Rule 22 chat dedup)")
     end)
   end)
+end
+
+local function RegisterLFGDetectQueueStateTests(test, ctx)
+  local Assert = ctx.assert
+  local LoadAddonModules = ctx.load_modules
+  local WithGlobals = ctx.with_globals
 
   -- ---------------------------------------------------------------------------
   -- pendingInvites survive ticker (BUG-2)
@@ -368,6 +369,12 @@ return function(test, ctx)
       Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "queue-set detectedMapID must be cleared when listing is removed")
     end)
   end)
+end
+
+local function RegisterLFGDetectResetAndLocaleTests(test, ctx)
+  local Assert = ctx.assert
+  local LoadAddonModules = ctx.load_modules
+  local WithGlobals = ctx.with_globals
 
   -- ---------------------------------------------------------------------------
   -- ClearAllState paths
@@ -495,4 +502,10 @@ return function(test, ctx)
       Assert.True(found, "localized invite message must appear in chat output")
     end)
   end)
+end
+
+return function(test, ctx)
+  RegisterLFGDetectResolutionTests(test, ctx)
+  RegisterLFGDetectQueueStateTests(test, ctx)
+  RegisterLFGDetectResetAndLocaleTests(test, ctx)
 end
