@@ -11,6 +11,11 @@
   - Synced `README.md`, `ARCHITECTURE.md`, and `USECASES.md` to the current runtime state.
   - Updated the validator baseline references to `556` scenarios / tests over `40` modules.
 
+- **Locale and UI text cleanup:**
+  - Standardized the German UI copy for clearer terminology while keeping established add-on labels such as `M+`, `Lead`, `UI`, and `SavedVariables` intact.
+  - Transliterated locale strings with in-game rendering issues to ASCII across `deDE`, `frFR`, `esES`, `ptBR`, `itIT`, `ruRU`, and `trTR`.
+  - Kept the deterministic validation green after the text-only changes (`lua tools/validate_usecases.lua`: `557 passed, 0 failed`).
+
 ## 2026-04-12 - Version 0.9.151 (patch)
 
 - **Sound settings and settings refresh:**
@@ -89,7 +94,7 @@
 
 ## 2026-04-11 - Version 0.9.146 (patch)
 
-- ESC-menu shortcut buttons: icons upgraded from static `Interface\\Icons\\*` textures to MicroMenu atlas entries (`UI-HUD-MicroMenu-*-Up`) for Professions, Talents, Achievements, Quests, Dungeons, Journal, Collections, Guild, and Housing. Spellbook, ReloadUI, Hearthstone, and Arkantine key retain their existing icon paths (no matching MicroMenu atlas).
+- ESC-menu shortcut buttons: icons upgraded from static `Interface\\Icons\\*` textures to MicroMenu atlas entries (`UI-HUD-MicroMenu-*-Up`) for Professions, Talents, Achievements, Quests, Dungeons, Journal, Collections, Guild, and Housing. The Spellbook, ReloadUI, Hearthstone, and Arkantine buttons retain their existing icon paths (no matching MicroMenu atlas).
 - Fixed label overlap with icon on buttons that use an atlas icon: `textOffsetX` now accounts for `iconAtlas` in addition to `iconPath`.
 - `CreatePanelUIButton` accepts an `iconAtlas` parameter; when set, `SetAtlas` is used instead of `SetTexture`/`SetTexCoord`.
 

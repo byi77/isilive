@@ -30,7 +30,7 @@ local function BuildLocale()
     STATUS_STATE_RUNNING = "State: Running",
     STATUS_STATE_PAUSED = "State: Paused",
     STATUS_STATE_STOPPED = "State: Stopped",
-    STATUS_STATE_TEST = "State: Test",
+    STATUS_STATE_TEST = "State: Test Mode",
     DUNGEON_DIFF_TEXT = "Dungeon: %s",
   }
 end

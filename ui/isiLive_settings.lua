@@ -933,7 +933,7 @@ local function BuildGeneralSettingsSection(canvas, yOffset, labels, config, cont
   controls.dmReset, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
-    labels.SETTINGS_DM_RESET or "DM Reset on Dungeon Entry",
+    labels.SETTINGS_DM_RESET or "Reset Blizzard Damage Meter on dungeon entry",
     function()
       return GetCVarEnabled("damageMeterResetOnNewInstance")
     end,
@@ -1048,7 +1048,7 @@ local function BuildDisplaySettingsSection(canvas, yOffset, labels, config, cont
     end,
     {
       settingKey = "SETTINGS_RESET_UI_POSITION",
-      confirmText = labels.SETTINGS_RESET_CONFIRM_TEXT or "Willst du wirklich zurücksetzen?",
+      confirmText = labels.SETTINGS_RESET_CONFIRM_TEXT or "Willst du wirklich zuruecksetzen?",
     },
     nil
   )
@@ -1248,7 +1248,7 @@ local function BuildBehaviorSettingsSection(canvas, yOffset, labels, config, con
   controls.autoCloseMainFrame, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
-    labels.SETTINGS_AUTO_CLOSE_MAIN_FRAME or "Auto-Close on Key Start / Solo",
+    labels.SETTINGS_AUTO_CLOSE_MAIN_FRAME or "Auto-close when key starts or when going solo",
     function()
       local db = config.getDB()
       return db.autoCloseMainFrame == true
@@ -1567,7 +1567,7 @@ local function BuildResetSection(canvas, yOffset, labels, config, controls)
     end,
     {
       settingKey = "SETTINGS_RESET_DB",
-      confirmText = labels.SETTINGS_RESET_CONFIRM_TEXT or "Willst du wirklich zurücksetzen?",
+      confirmText = labels.SETTINGS_RESET_CONFIRM_TEXT or "Willst du wirklich zuruecksetzen?",
     }
   )
 
@@ -1667,7 +1667,7 @@ local function RefreshSettingsControls(controls, config)
   end
   controls.lang.label:SetText(freshL.SETTINGS_LANGUAGE or "Language")
   controls.combatLog.label:SetText(freshL.SETTINGS_COMBAT_LOGGING or "Advanced Combat Logging")
-  controls.dmReset.label:SetText(freshL.SETTINGS_DM_RESET or "DM Reset on Dungeon Entry")
+  controls.dmReset.label:SetText(freshL.SETTINGS_DM_RESET or "Reset Blizzard Damage Meter on dungeon entry")
   controls.escPanel.label:SetText(freshL.SETTINGS_ESC_PANEL or "Show ESC Menu Shortcuts")
   controls.bgAlpha.label:SetText(freshL.SETTINGS_BG_ALPHA or "Background Opacity")
   controls.uiScale.label:SetText(freshL.SETTINGS_UI_SCALE or "UI Scale")
@@ -1685,7 +1685,7 @@ local function RefreshSettingsControls(controls, config)
   controls.minimapBtn.label:SetText(freshL.SETTINGS_MINIMAP_BUTTON or "Minimap Button")
   controls.sync.label:SetText(freshL.SETTINGS_SYNC_ENABLED or "Addon Sync")
   controls.autoOpen.label:SetText(freshL.SETTINGS_AUTO_OPEN_QUEUE or "Auto-Open on M+ Queue")
-  controls.autoCloseMainFrame.label:SetText(freshL.SETTINGS_AUTO_CLOSE_MAIN_FRAME or "Auto-Close on Key Start / Solo")
+  controls.autoCloseMainFrame.label:SetText(freshL.SETTINGS_AUTO_CLOSE_MAIN_FRAME or "Auto-close when key starts or when going solo")
   controls.lockMainFramePosition.label:SetText(freshL.SETTINGS_LOCK_MAIN_FRAME_POSITION or "Lock main frame position")
   controls.combatFadeMM.label:SetText(freshL.SETTINGS_COMBAT_FADE_MM or "Fade out in Combat (M2 only)")
   controls.autoShowStartup.label:SetText(freshL.SETTINGS_AUTO_SHOW_MAIN_FRAME_ON_STARTUP or "Show on Login / Reload")

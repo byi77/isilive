@@ -42,7 +42,7 @@ local PANEL_UI_ENTRIES = {
   {
     id = "spellbook",
     labelKey = "BTN_GAMEMENU_SPELLBOOK",
-    fallbackText = "Spells",
+    fallbackText = "Spellbook",
     icon = "Interface\\Icons\\INV_Misc_Book_09",
   },
   {
@@ -138,7 +138,7 @@ local SECOND_PANEL_UI_ENTRIES = {
       local getLocale = rawget(_G, "GetLocale")
       local clientLocale = type(getLocale) == "function" and getLocale() or ""
       if clientLocale == "deDE" then
-        return "/use Persönlicher Schlüssel zur Arkantine"
+        return "/use Persoenlicher Schluessel zur Arkantine"
       end
       return "/use Personal Key to the Arkantine"
     end,
@@ -1639,7 +1639,7 @@ function UI.CreateMainFrame(opts)
     tooltipTitleKey = "TOOLTIP_HIDE_ISILIVE",
     tooltipBodyKey = "TOOLTIP_HIDE_ISILIVE_HINT",
     tooltipTitle = "Hide isiLive",
-    tooltipBody = "to re-open Press CTRL+F9",
+    tooltipBody = "Press CTRL+F9 to re-open",
   })
 
   lockButton = CreateDragLockButton(frame, dragHandle, function()

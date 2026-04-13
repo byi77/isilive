@@ -12,10 +12,10 @@ Current version: `0.9.151`.
 ### Group Roster
 
 - Roster table with columns: `Spec`, `Name`, `Flag`, `Key`, `iLvl`, `RIO`, `DPS`, `Kick`
-- Stable role sort: Tank → Healer → Damager
+- Stable role sort: Tank → Healer → Damage Dealer
 - Addon-presence marker (blue heart) per member; group leaders show an additional crown icon
 - Ghost rows: players who leave remain visible (greyed out) until the next roster rebuild
-- Right-click a roster row to Whisper
+- Right-click a roster row to whisper
 
 ### Layouts
 
@@ -79,7 +79,7 @@ Language, Advanced Combat Logging, DM Reset on Dungeon Entry, Show ESC Menu Shor
 
 ### Auto-Behaviour
 
-- Auto-open on real small-group join, key end, and dungeon entry while grouped
+- Auto-open when joining a real small group, on key end, and on dungeon entry while grouped
 - Raid-size groups (`>5` members) hide the UI and stop all background processing
 - `Auto-Close on Key Start / Solo` defaults to disabled
 
