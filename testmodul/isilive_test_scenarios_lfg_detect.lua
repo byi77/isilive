@@ -51,11 +51,13 @@ return function(test, ctx)
       end
     end
 
-    return globals, function(event, ...)
-      if onEvent then
-        onEvent(nil, event, ...)
-      end
-    end, prints
+    return globals,
+      function(event, ...)
+        if onEvent then
+          onEvent(nil, event, ...)
+        end
+      end,
+      prints
   end
 
   -- Builds a minimal C_LFGList stub for invite scenarios.
@@ -240,7 +242,11 @@ return function(test, ctx)
 
       Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "own listing must set detectedMapID")
       Assert.Equal(#callbackSoundContexts, 1, "highlight callback must fire once")
-      Assert.Equal(callbackSoundContexts[1], "queue", "own-listing callback must pass soundContext='queue' to suppress portal sound")
+      Assert.Equal(
+        callbackSoundContexts[1],
+        "queue",
+        "own-listing callback must pass soundContext='queue' to suppress portal sound"
+      )
     end)
   end)
 
@@ -287,7 +293,11 @@ return function(test, ctx)
       -- Now inviteaccepted arrives after the tick
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "pendingInvites must survive CheckActiveGroup so late inviteaccepted still resolves")
+      Assert.Equal(
+        addon.LFGDetect.GetDetectedMapID(),
+        557,
+        "pendingInvites must survive CheckActiveGroup so late inviteaccepted still resolves"
+      )
     end)
   end)
 
@@ -312,7 +322,11 @@ return function(test, ctx)
       -- Simulate the 5s ticker: no active listing found
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE") -- GetActiveEntryInfo returns nil
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "invite-set detectedMapID must survive CheckActiveGroup (BUG-LFG-4 guard)")
+      Assert.Equal(
+        addon.LFGDetect.GetDetectedMapID(),
+        557,
+        "invite-set detectedMapID must survive CheckActiveGroup (BUG-LFG-4 guard)"
+      )
     end)
   end)
 
@@ -326,10 +340,18 @@ return function(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = {
-          GetSearchResultInfo = function() return nil end,
-          GetActiveEntryInfo = function() return activeEntry end,
-          GetActivityFullName = function() return nil end,
-          GetActivityInfoTable = function() return nil end,
+          GetSearchResultInfo = function()
+            return nil
+          end,
+          GetActiveEntryInfo = function()
+            return activeEntry
+          end,
+          GetActivityFullName = function()
+            return nil
+          end,
+          GetActivityInfoTable = function()
+            return nil
+          end,
         },
       },
     })
@@ -376,7 +398,10 @@ return function(test, ctx)
       -- pendingInvites must be gone: late inviteaccepted must not set detectedMapID
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
 
-      Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "group leave must clear all state; late inviteaccepted must not resurrect detectedMapID")
+      Assert.Nil(
+        addon.LFGDetect.GetDetectedMapID(),
+        "group leave must clear all state; late inviteaccepted must not resurrect detectedMapID"
+      )
     end)
   end)
 
@@ -423,7 +448,11 @@ return function(test, ctx)
       -- GROUP_ROSTER_UPDATE fires before inviteaccepted (race condition path)
       fire("GROUP_ROSTER_UPDATE")
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "GROUP_ROSTER_UPDATE fallback must apply pendingInvites when detectedMapID is unset")
+      Assert.Equal(
+        addon.LFGDetect.GetDetectedMapID(),
+        557,
+        "GROUP_ROSTER_UPDATE fallback must apply pendingInvites when detectedMapID is unset"
+      )
     end)
   end)
 

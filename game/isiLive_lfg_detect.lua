@@ -385,7 +385,7 @@ frame:SetScript("OnEvent", function(_self, event, ...)
       if resultID and mapID then
         detectedMapID = mapID
         local L = localeGetter and localeGetter() or {}
-    Print(string.format(L.LFG_DETECT_INVITE or "LFG invite detected: %s", GetDungeonName(mapID)))
+        Print(string.format(L.LFG_DETECT_INVITE or "LFG invite detected: %s", GetDungeonName(mapID)))
         pendingInvites = {}
         TriggerHighlightUpdate() -- no soundContext: portal sound intended here
       else
