@@ -819,15 +819,10 @@ function SettingsControls.CreateSettingsDropdownSelector(
   dropdownButton._label = label
   dropdownButton.description = description
   dropdownButton:SetSize(buttonWidth, buttonHeight)
-  dropdownButton:SetPoint(
-    "TOPLEFT",
-    parent,
-    "TOPLEFT",
-    labelOnTop and PADDING_X or INLINE_CONTROL_X,
-    labelOnTop
-        and GetStackedControlYOffset(yOffset, labelBlockHeight, descriptionBlockHeight, description ~= nil)
-      or yOffset
-  )
+  local dropdownYOffset = labelOnTop
+      and GetStackedControlYOffset(yOffset, labelBlockHeight, descriptionBlockHeight, description ~= nil)
+    or yOffset
+  dropdownButton:SetPoint("TOPLEFT", parent, "TOPLEFT", labelOnTop and PADDING_X or INLINE_CONTROL_X, dropdownYOffset)
 
   if type(dropdownButton.SetBackdrop) == "function" then
     dropdownButton:SetBackdrop({
