@@ -2,16 +2,17 @@
 # Comprehensive gate before every push:
 #   * stylua --check + luacheck (already in pre-commit, re-run for safety)
 #   * Lua syntax check on every .lua file
-#   * 14 static-analysis gates (locale-drift, dead-locale-keys, format-string
-#     consistency, secret-value guards, WoW 12.0 API compliance, button label
-#     length, sound channel, chat color safety, addon-message size, TOC list,
-#     hardcoded strings, M+ forces DB lifetime, lua_metrics_check)
-#   * 11 lifecycle simulators
-#   * validate_usecases (1380 unit tests)
+#   * static-analysis gates (locale-drift, dead-locale-keys,
+#     format-string consistency, secret-value guards, WoW API compliance,
+#     button label length, sound channel, chat color safety,
+#     addon-message size, TOC list, hardcoded strings,
+#     M+ forces DB lifetime, lua_metrics_check)
+#   * lifecycle simulators
+#   * validate_usecases test suite
 #
 # Mirrors the GitHub Actions workflow (`.github/workflows/lua-check.yml`),
-# so a green pre-push effectively guarantees a green CI. Bypass with
-# `git push --no-verify` if absolutely necessary.
+# so a green pre-push usually guarantees a green CI.
+# Bypass with `git push --no-verify` if absolutely necessary.
 
 set -e
 
@@ -29,6 +30,6 @@ if command -v powershell >/dev/null 2>&1; then
   exec powershell -NoProfile -ExecutionPolicy Bypass -File tools/run_local_ci.ps1
 fi
 
-echo "pre-push: PowerShell (pwsh / powershell.exe / powershell) not found." >&2
-echo "Install PowerShell 7+ or skip with 'git push --no-verify'." >&2
-exit 1
+echo "pre-push: PowerShell not found (pwsh / powershell.exe / powershell)." >&2
+echo "Skipping local CI preflight. GitHub Actions CI will still validate the push." >&2
+exit 0
