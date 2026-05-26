@@ -100,6 +100,13 @@ local function GetRowHeight(label, description, fallbackLabelHeight)
   return math.max(LINE_HEIGHT, labelHeight + 8)
 end
 
+local function GetStackedControlYOffset(yOffset, labelHeight, descriptionHeight, hasDescription)
+  if hasDescription then
+    return yOffset - labelHeight - descriptionHeight - 14
+  end
+  return yOffset - labelHeight - 8
+end
+
 function SettingsControls.CreateSettingsIntro(parent, yOffset, text)
   local intro = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
@@ -612,7 +619,7 @@ function SettingsControls.CreateSettingsOptionSelector(
   local labelBlockHeight = GetTextBlockHeight(label, labelOnTop and 20 or LINE_HEIGHT)
   local descriptionBlockHeight = description and GetTextBlockHeight(description, 16) or 0
   local buttonYOffset = labelOnTop
-      and (description and (yOffset - labelBlockHeight - descriptionBlockHeight - 14) or (yOffset - labelBlockHeight - 8))
+      and GetStackedControlYOffset(yOffset, labelBlockHeight, descriptionBlockHeight, description ~= nil)
     or yOffset
   local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
   local acBlue = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
@@ -818,7 +825,7 @@ function SettingsControls.CreateSettingsDropdownSelector(
     "TOPLEFT",
     labelOnTop and PADDING_X or INLINE_CONTROL_X,
     labelOnTop
-        and (description and (yOffset - labelBlockHeight - descriptionBlockHeight - 14) or (yOffset - labelBlockHeight - 8))
+        and GetStackedControlYOffset(yOffset, labelBlockHeight, descriptionBlockHeight, description ~= nil)
       or yOffset
   )
 
