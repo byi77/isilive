@@ -4,6 +4,16 @@ return {
   std = "lua51+wow_isiLive",
 
   files = {
+    ["locale/isiLive_texts.lua"] = {
+      ignore = {
+        "631", -- locale strings are translation data and may exceed the code line budget
+      },
+    },
+    ["locale\\isiLive_texts.lua"] = {
+      ignore = {
+        "631",
+      },
+    },
     ["testmodul/"] = {
       ignore = {
         "212", -- unused argument (mock stubs intentionally match real method signatures)

@@ -83,7 +83,8 @@ return function(test, ctx)
       SETTINGS_ESC_PANEL = "Show ESC shortcuts",
       SETTINGS_ESC_PANEL_DESC = "Adds isiLive's shortcut panel to the ESC menu for quick access.",
       SETTINGS_SHOW_TIMEWAYS_NAVIGATOR = "Show Timeways navigator",
-      SETTINGS_SHOW_TIMEWAYS_NAVIGATOR_DESC = "Shows the Timeways portal navigator when a known target dungeon can be resolved.",
+      SETTINGS_SHOW_TIMEWAYS_NAVIGATOR_DESC = "Shows the Timeways portal navigator when a known target dungeon "
+        .. "can be resolved.",
       SETTINGS_HEARTHSTONE_SELECT = "Hearthstone Selection",
       SETTINGS_HEARTHSTONE_SELECT_DESC = "Choose which Hearthstone the ESC menu shortcut should use.",
       SETTINGS_UI_SCALE = "Main interface scale with intentionally wrapped label",
@@ -93,7 +94,8 @@ return function(test, ctx)
       SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Show class bonuses",
       SETTINGS_LFG_GROUP_BONUSES_DESC = "Marks relevant class bonuses on groups and applicants.",
       SETTINGS_SYNC_ENABLED = "Addon Sync",
-      SETTINGS_SYNC_ENABLED_DESC = "Shares key, roster, target, DPS, location, and kick data with isiLive group members.",
+      SETTINGS_SYNC_ENABLED_DESC = "Shares key, roster, target, DPS, location, and kick data "
+        .. "with isiLive group members.",
       SETTINGS_MPLUS_FORCES_DISPLAY_MODE = "Display mode",
       SETTINGS_MPLUS_FORCES_DISPLAY_MODE_DESC = "Chooses where Mythic+ enemy forces progress is shown.",
       SETTINGS_SOUND_LEAD_ENABLED = "Sound: Lead Transfer",
