@@ -808,6 +808,86 @@ RegisterCenterNoticeTeleportTooltipTests = function(test, Assert, WithGlobals, L
       )
     end)
   end)
+
+  test("Center notice teleport button resolves directly from verified mapID", function()
+    local createFrameStub = BuildCreateFrameStub()
+    local appliedSpellID = nil
+
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = createFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local centerNotice = addon.Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellID = function()
+          error("activity resolver must not run for verified mapID")
+        end,
+        resolveTeleportSpellIDByMapID = function(mapID)
+          Assert.Equal(mapID, 559, "verified mapID must be forwarded to the map resolver")
+          return 12345
+        end,
+        applySecureSpellToButton = function(_button, spellID)
+          appliedSpellID = spellID
+        end,
+        isSpellKnown = function()
+          return true
+        end,
+      })
+
+      local configured = centerNotice.ConfigureTeleportButton("Demo-Zieldungeon", nil, 559)
+
+      Assert.True(configured, "verified mapID must configure the center notice teleport button")
+      Assert.Equal(appliedSpellID, 12345, "map resolver spellID must be applied to the button")
+      Assert.Equal(centerNotice.teleportButton.mapID, 559, "button must retain the verified mapID")
+    end)
+  end)
+
+  test("Center notice teleport button prioritizes verified mapID over unresolved activityID", function()
+    local createFrameStub = BuildCreateFrameStub()
+    local appliedSpellID = nil
+
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = createFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local centerNotice = addon.Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellID = function()
+          error("activity resolver must not block a verified mapID portal")
+        end,
+        resolveTeleportSpellIDByMapID = function(mapID)
+          Assert.Equal(mapID, 559, "verified mapID must be preferred over activityID")
+          return 12345
+        end,
+        applySecureSpellToButton = function(_button, spellID)
+          appliedSpellID = spellID
+        end,
+        isSpellKnown = function()
+          return true
+        end,
+      })
+
+      local configured = centerNotice.ConfigureTeleportButton("Demo-Zieldungeon", 777, 559)
+
+      Assert.True(configured, "verified mapID must keep the center notice teleport button available")
+      Assert.Equal(appliedSpellID, 12345, "map resolver spellID must be applied even when activityID is present")
+      Assert.Equal(centerNotice.teleportButton.mapID, 559, "button must retain the verified mapID")
+    end)
+  end)
 end
 
 local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, LoadAddonModules)

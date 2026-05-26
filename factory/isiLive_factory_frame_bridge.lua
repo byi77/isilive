@@ -378,6 +378,7 @@ local function InitializeFactoryFrameBridge(ctx)
   end
 
   ctx.ResolveTeleportSpellIDByActivityID = modules.teleport.ResolveTeleportSpellIDByActivityID
+  ctx.ResolveTeleportSpellIDByMapID = modules.teleport.ResolveTeleportSpellIDByMapID
   ctx.ResolveMapIDByActivityID = modules.teleport.ResolveMapIDByActivityID
   ctx.ResolveMapIDBySpellID = modules.teleport.ResolveMapIDBySpellID
   ctx.ResolveTeleportSpellID = modules.teleport.ResolveTeleportSpellID
@@ -436,6 +437,7 @@ local function InitializeFactoryFrameBridge(ctx)
       ctx.UpdateMPlusTeleportButton()
     end,
     resolveTeleportSpellID = ctx.ResolveTeleportSpellID,
+    resolveTeleportSpellIDByMapID = ctx.ResolveTeleportSpellIDByMapID,
     resolveMapIDBySpellID = ctx.ResolveMapIDBySpellID,
     resolveMapIDByActivityID = ctx.ResolveMapIDByActivityID,
     applySecureSpellToButton = ctx.ApplySecureSpellToButton,
@@ -469,6 +471,11 @@ local function InitializeFactoryFrameBridge(ctx)
     frameBridgeContext.UpdateCenterTeleportButtonVisual(spellID, isEnabled, inCombatBlocked)
   end
   ctx.ShowCenterNotice = function(message, durationSeconds, dungeonName, activityID, showOptions)
+    local hasMapID = type(showOptions) == "table" and tonumber(showOptions.teleportMapID) ~= nil
+    if (type(dungeonName) == "string" and dungeonName ~= "") or tonumber(activityID) or hasMapID then
+      ctx.centerNotice.Show(message, durationSeconds, dungeonName, activityID, showOptions)
+      return
+    end
     frameBridgeContext.ShowCenterNotice(message, durationSeconds, dungeonName, activityID, showOptions)
   end
   ctx.SetPortalNavigatorVisible = function(visible)

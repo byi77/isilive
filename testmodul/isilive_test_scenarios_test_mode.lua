@@ -16,6 +16,9 @@ local function BuildTestModeController(LoadAddonModules, overrides)
     clearRioBaselineCalls = 0,
     setDemoTimerDataCalls = 0,
     clearDemoTimerDataCalls = 0,
+    setDemoFeatureDataCalls = 0,
+    clearDemoFeatureDataCalls = 0,
+    eventOrder = {},
     buildDummyRosterCalls = 0,
     lastBuildDummyRosterOpts = nil,
   }
@@ -72,7 +75,9 @@ local function BuildTestModeController(LoadAddonModules, overrides)
       state.uiUpdates = state.uiUpdates + 1
     end,
     updateLeaderButtons = function() end,
-    showCenterNotice = function() end,
+    showCenterNotice = function()
+      table.insert(state.eventOrder, "center")
+    end,
     resetInspectAll = function() end,
     clearLatestQueueState = function() end,
     updateMPlusTeleportButton = function() end,
@@ -93,6 +98,13 @@ local function BuildTestModeController(LoadAddonModules, overrides)
     clearDemoTimerData = function()
       state.clearDemoTimerDataCalls = state.clearDemoTimerDataCalls + 1
     end,
+    setDemoFeatureData = function()
+      state.setDemoFeatureDataCalls = state.setDemoFeatureDataCalls + 1
+      table.insert(state.eventOrder, "demo_features")
+    end,
+    clearDemoFeatureData = function()
+      state.clearDemoFeatureDataCalls = state.clearDemoFeatureDataCalls + 1
+    end,
   })
 
   return controller, state
@@ -109,6 +121,12 @@ local function RegisterTestModeToggleTests(test, Assert, LoadAddonModules)
     Assert.Equal(state.uiUpdates, 1, "UI must update on enter")
     Assert.Equal(state.captureRioBaselineCalls, 1, "test-mode enter must capture one RIO baseline snapshot")
     Assert.Equal(state.setDemoTimerDataCalls, 1, "test-mode enter must enable demo module data")
+    Assert.Equal(state.setDemoFeatureDataCalls, 1, "test-mode enter must enable demo feature surfaces")
+    Assert.Equal(
+      table.concat(state.eventOrder, ","),
+      "center,demo_features",
+      "demo feature center notice must be applied after the leader preview notice"
+    )
     Assert.Equal(state.lastBuildDummyRosterOpts.previewVariant, "full", "standard toggle must request full preview")
     Assert.NotNil(state.roster["ghost:DummyLeaver-Realm"], "standard toggle must include a ghost member")
     Assert.Equal(state.roster.player.rio, 1015, "test-mode preview should apply visible positive RIO delta")
@@ -118,6 +136,7 @@ local function RegisterTestModeToggleTests(test, Assert, LoadAddonModules)
     Assert.False(state.mainFrameVisible, "frame must be hidden after exit")
     Assert.Equal(state.clearRioBaselineCalls, 1, "test-mode exit must clear RIO baseline snapshot")
     Assert.Equal(state.clearDemoTimerDataCalls, 1, "test-mode exit must clear demo module data")
+    Assert.Equal(state.clearDemoFeatureDataCalls, 1, "test-mode exit must clear demo feature surfaces")
   end)
 
   test("TestMode full dummy preview sets testall state", function()
@@ -136,6 +155,7 @@ local function RegisterTestModeToggleTests(test, Assert, LoadAddonModules)
     Assert.NotNil(state.roster["ghost:DummyLeaver-Realm"], "testall preview must include a ghost member")
     Assert.Equal(state.captureRioBaselineCalls, 1, "testall preview must capture one RIO baseline snapshot")
     Assert.Equal(state.setDemoTimerDataCalls, 1, "testall preview must enable demo module data")
+    Assert.Equal(state.setDemoFeatureDataCalls, 1, "testall preview must enable demo feature surfaces")
     Assert.Equal(state.roster.party1.rio, 2012, "testall preview should apply visible positive RIO delta")
   end)
 
@@ -178,6 +198,7 @@ local function RegisterTestModeToggleTests(test, Assert, LoadAddonModules)
     Assert.Equal(state.buildDummyRosterCalls, 2, "refresh must rebuild the preview roster from scratch")
     Assert.Equal(state.captureRioBaselineCalls, 2, "refresh must capture a fresh RIO baseline snapshot")
     Assert.Equal(state.setDemoTimerDataCalls, 2, "refresh must restore demo module data")
+    Assert.Equal(state.setDemoFeatureDataCalls, 2, "refresh must restore demo feature surfaces")
     Assert.Equal(state.roster.player.rio, 1015, "refresh must rebuild the dummy roster instead of reusing mutated rows")
     Assert.NotNil(state.roster["ghost:DummyLeaver-Realm"], "refresh must restore the ghost member for unified preview")
   end)
@@ -507,6 +528,8 @@ local function RegisterDemoModeBranchTests(test, Assert, LoadAddonModules)
         enableRioDeltaDisplay = function() end,
         setDemoTimerData = function() end,
         clearDemoTimerData = function() end,
+        setDemoFeatureData = function() end,
+        clearDemoFeatureData = function() end,
       })
 
       controller.ToggleDemoMode()

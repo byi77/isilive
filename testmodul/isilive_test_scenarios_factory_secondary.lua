@@ -203,10 +203,16 @@ local function BuildControllerContext(state, addon, initial)
               if type(opts.setDemoTimerData) == "function" then
                 opts.setDemoTimerData()
               end
+              if type(opts.setDemoFeatureData) == "function" then
+                opts.setDemoFeatureData()
+              end
             end,
             ExitTestMode = function()
               if type(opts.clearDemoTimerData) == "function" then
                 opts.clearDemoTimerData()
+              end
+              if type(opts.clearDemoFeatureData) == "function" then
+                opts.clearDemoFeatureData()
               end
             end,
             ToggleStandardTestMode = function() end,
@@ -326,6 +332,21 @@ local function BuildControllerContext(state, addon, initial)
     GetL = function()
       return {
         LANG_SET_EN = "Language set",
+        INVITE_ACCEPTED_NOTICE_TITLE = "Invite accepted",
+        INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON = "Dungeon:",
+        INVITE_ACCEPTED_NOTICE_LABEL_GROUP = "Group:",
+        INVITE_ACCEPTED_NOTICE_LABEL_ROLE = "Role:",
+        INVITE_ACCEPTED_NOTICE_TELEPORT_HEADER = "Teleport:",
+        PORTAL_NAVIGATOR_TITLE = "Navigator",
+        PORTAL_NAVIGATOR_HALF_LEFT = "Half-left",
+        PORTAL_NAVIGATOR_LEFT = "Left",
+        PORTAL_NAVIGATOR_RIGHT = "Right",
+        PORTAL_NAVIGATOR_HALF_RIGHT = "Half-right",
+        PORTAL_NAVIGATOR_PIT_OF_SARON = "Pit",
+        PORTAL_NAVIGATOR_SKYREACH = "Sky",
+        PORTAL_NAVIGATOR_TRIUMVIRATE = "Seat",
+        PORTAL_NAVIGATOR_ALGETHAR = "AA",
+        ROLE_NAME_DAMAGE = "Damage",
       }
     end,
     GetRealmInfoLib = function()
@@ -345,13 +366,28 @@ local function BuildControllerContext(state, addon, initial)
       state.uiUpdates = (state.uiUpdates or 0) + 1
     end,
     UpdateLeaderButtons = function() end,
-    ShowCenterNotice = function() end,
+    ShowCenterNotice = function(message, durationSeconds, dungeonName, activityID, opts)
+      state.centerNotice = {
+        message = message,
+        durationSeconds = durationSeconds,
+        dungeonName = dungeonName,
+        activityID = activityID,
+        opts = opts,
+      }
+    end,
     ResetInspectAll = function() end,
     CaptureRioBaselineSnapshot = function() end,
     ClearRioBaselineSnapshot = function() end,
     EnableRioDeltaDisplay = function() end,
     UpdateMPlusTeleportButton = function() end,
     SetCenterNoticeVisible = function() end,
+    SetPortalNavigatorVisible = function(visible)
+      state.portalNavigatorVisible = visible
+    end,
+    ShowPortalNavigatorNotice = function(layout)
+      state.portalNavigatorLayout = layout
+      state.portalNavigatorVisible = true
+    end,
     inviteHint = {
       frame = {
         Hide = function() end,
@@ -458,8 +494,49 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
         SetDebugLogger = function() end,
       },
       MobNameplate = {
+        SetEnabled = function(enabled)
+          state.mobNameplateEnabled = enabled
+        end,
+        SetFormat = function(format)
+          state.mobNameplateFormat = format
+        end,
+        SetAppearance = function(appearance)
+          state.mobNameplateAppearance = appearance
+        end,
+        SetTestMode = function(enabled, percent)
+          state.mobNameplateTestMode = enabled
+          state.mobNameplateTestPercent = percent
+        end,
         RefreshAll = function()
           state.mobNameplateRefreshes = (state.mobNameplateRefreshes or 0) + 1
+        end,
+      },
+      MobTooltip = {
+        SetEnabled = function(enabled)
+          state.mobTooltipEnabled = enabled
+        end,
+      },
+      LFGFlags = {
+        SetEnabled = function(enabled)
+          state.lfgFlagsEnabled = enabled
+        end,
+        SetGroupBonusesEnabled = function(enabled)
+          state.lfgGroupBonusesEnabled = enabled
+        end,
+      },
+      StatsBox = {
+        SetDemoData = function(data)
+          state.statsBoxDemoData = data
+        end,
+        ClearDemoData = function()
+          state.statsBoxDemoData = nil
+          state.statsBoxDemoCleared = (state.statsBoxDemoCleared or 0) + 1
+        end,
+        SetEnabled = function(enabled)
+          state.statsBoxEnabled = enabled
+        end,
+        ApplySettings = function()
+          state.statsBoxApplySettings = (state.statsBoxApplySettings or 0) + 1
         end,
       },
       SoundUtils = {
@@ -498,18 +575,35 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.True(state.killTrackDemoData.active, "kill-track demo data must be active")
     Assert.Equal(state.killTrackDemoData.percent, 47.34, "kill-track demo percent must match the preview value")
     Assert.NotNil(state.latestQueueState, "test mode must populate a demo target dungeon context")
-    Assert.Equal(state.latestQueueState.dungeonName, "Demo-Zieldungeon", "demo target dungeon name must be explicit")
+    Assert.Equal(state.latestQueueState.dungeonName, "Nexus-Point Xenas", "demo target dungeon name must be explicit")
     Assert.Equal(state.latestQueueState.mapID, 559, "demo target dungeon map must match kill-track preview map")
 
     Assert.NotNil(state.afterCallbacks, "test mode must defer CD tracker demo data until controller creation")
     state.afterCallbacks[1]()
     Assert.NotNil(state.cdTrackerDemoData, "test mode must populate combat cooldown demo data")
+    Assert.NotNil(state.statsBoxDemoData, "test mode must populate stats-box demo data")
+    Assert.True(state.statsBoxEnabled == true, "test mode must enable the stats box surface")
+    Assert.True(state.lfgFlagsEnabled == true, "test mode must enable LFG language flags")
+    Assert.True(state.lfgGroupBonusesEnabled == true, "test mode must enable LFG group-bonus markers")
+    Assert.True(state.mobTooltipEnabled == true, "test mode must enable M+ forces tooltip demo surface")
+    Assert.True(state.mobNameplateTestMode == true, "test mode must enable nameplate forces demo mode")
+    Assert.Equal(state.mobNameplateTestPercent, "12.34", "nameplate demo percent must be explicit")
+    Assert.Nil(state.mobNameplateFormat, "nameplate demo must not override the user's percent format settings")
+    Assert.Nil(state.mobNameplateAppearance, "nameplate demo must not override the user's appearance settings")
+    Assert.NotNil(state.portalNavigatorLayout, "test mode must show the portal navigator demo")
+    Assert.NotNil(state.centerNotice, "test mode must show the accepted-invite center notice demo")
+    Assert.Equal(state.centerNotice.dungeonName, "Nexus-Point Xenas", "center notice demo must use the demo target")
+    Assert.Equal(state.centerNotice.opts.teleportMapID, 559, "center notice demo must configure a verified map portal")
 
     state.ctx.ExitTestMode()
     Assert.Nil(state.mplusDemoData, "test mode exit must clear M+ timer demo data")
     Assert.Nil(state.killTrackDemoData, "test mode exit must clear kill-track demo data")
     Assert.Equal(state.mplusDemoCleared, 1, "M+ timer demo data must be cleared once")
     Assert.Equal(state.killTrackDemoCleared, 1, "kill-track demo data must be cleared once")
+    Assert.Nil(state.statsBoxDemoData, "test mode exit must clear stats-box demo data")
+    Assert.Equal(state.statsBoxDemoCleared, 1, "stats-box demo data must be cleared once")
+    Assert.False(state.mobNameplateTestMode, "test mode exit must disable nameplate forces demo mode")
+    Assert.False(state.portalNavigatorVisible, "test mode exit must hide the portal navigator demo")
   end)
 end
 

@@ -77,7 +77,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 54. Wenn fuer eine Runtime-Aufloesung keine eindeutige, belastbare Quelle vorliegt, muss das Ergebnis unresolved bleiben; fehlende oder mehrdeutige Laufzeitdaten duerfen nicht durch spekulative Fallbacks, Namens-/Token-Raten, heuristische Standardwerte oder synthetische Zustaende ersetzt werden.
 55. Die Main-UI kann ueber `lockMainFramePosition` gesperrt werden; bei aktivem Lock duerfen Frame und Drag-Handle keinen Positions-Drag starten und die gespeicherte Position bleibt unveraendert.
 56. Runtime-Log-Eintraege werden nur bei aktivem Runtime-Logging geschrieben; jeder Eintrag traegt eine stabile Sequenznummer und einen praezisen Zeitstempel, `[TAG] action`-Nachrichten werden zu `[TAG] event=action` normalisiert, teure Formatierung und Trace-Builder duerfen bei ausgeschaltetem Log oder deaktivierter Deep-Stufe nicht laufen, und der Logspeicher muss seine Tail-Reihenfolge und sein Cap auch bei grossen Log-, Sync- und Roster-Bursts behalten.
-57. Der Ingame-Testmodus muss die aktuellen Demo-Daten fuer M+-Timer, Combat-CDs, den unteren M+-Forces-Tracker und Multi-Kick-Tooltip-Extras setzen und beim Verlassen wieder bereinigen.
+57. Der Ingame-Testmodus muss die aktuellen Demo-Daten fuer M+-Timer, Combat-CDs, den unteren M+-Forces-Tracker, Multi-Kick-Tooltip-Extras, Statsbox, Portal-Navigator, Centerbox-Portal, M+-Forces-Nameplates/-Tooltip und LFG-Bonusmarker setzen und beim Verlassen wieder bereinigen.
 58. Nach `CHALLENGE_MODE_COMPLETED` bleibt der M+-Timer-Snapshot eingefroren bis zum naechsten `PLAYER_ENTERING_WORLD`; dieser muss den Snapshot vollstaendig wegraeumen, damit die Timer-Box ueber Reload/Relog/neuen Key hinweg nicht mit veralteten Werten stehen bleibt. Ein PEW waehrend eines laufenden Keys darf den Timer nicht stoppen.
 59. Der untere M+-Killtracker zeigt vor Key-Start verifizierte Ziel-Dungeon-Daten aus der Target-Dungeon-Aufloesung rechtsbuendig an; eine Keystufe wird nur bei positiver numerischer Aufloesung ergaenzt. Ab Key-Start wechselt er zur Prozentanzeige zurueck; waehrend aktiver Prozentdaten darf der verifizierte Dungeonname linksbuendig als helles Outline-Label mit dunkler Hinterlegung auf dem Prozentbalken sichtbar bleiben.
 60. Der M+-Killtracker muss den sichtbaren Gesamtfortschritt am Kampfende und ueber seinen aktiven Refresh-Ticker aus den Live-Scenario-Daten aktualisieren, damit abgeschlossene Pulls nicht erst beim naechsten Kampf sichtbar werden.
@@ -724,6 +724,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - KeySync RegisterVerifiedSyncAliasForRoster fails closed for ambiguous same-realm candidates
   - SpellUtils.GetTeleportCooldownRemaining normalizes wrapped portal cooldown start times
   - TeleportUI applies visible cooldown frame from normalized remaining time
+  - factory_controllers: RenderAcceptedInviteNotice uses verified mapID when activityID is missing
   - AcceptedInviteNotice does not replay after challenge start
   - AcceptedInviteNotice does not replay via GROUP_ROSTER_UPDATE recovery after ClearAllState
   - LI.BuildSearchResultMemberBonuses resolves German Verstärkung only for Evoker
@@ -770,10 +771,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-TESTMODE-DEMO-MODULE-VOLLSTAENDIG
 - Regelnummer: 57
 - Status: aktiv
-- Zusammenfassung: Der Ingame-Testmodus muss beim Aktivieren die Demo-Daten fuer M+-Timer, Combat-CDs und den unteren M+-Forces-Tracker setzen, beim Deaktivieren wieder loeschen und im Dummy-Roster Multi-Kick-Extras fuer den Tooltip-Preview bereitstellen.
+- Zusammenfassung: Der Ingame-Testmodus muss beim Aktivieren die Demo-Daten fuer M+-Timer, Combat-CDs, den unteren M+-Forces-Tracker, Statsbox, Portal-Navigator, Centerbox-Portal, M+-Forces-Nameplates/-Tooltip und LFG-Bonusmarker setzen, beim Deaktivieren wieder loeschen und im Dummy-Roster Multi-Kick-Extras fuer den Tooltip-Preview bereitstellen. Demo-Feature-Schalter duerfen nur temporaer fuer die Vorschau gesetzt werden und muessen die vorherigen User-Settings danach wiederherstellen. Die Nameplate-Demo darf die Nutzer-Settings fuer Prozentformat, Position, Schriftgroesse und Offsets nicht ueberschreiben. Wenn die Centerbox einen verifizierten mapID-Kontext und einen Activity-Kontext erhaelt, muss der Portalbutton den mapID-Kontext priorisieren.
 - Erforderliche Tests:
   - Factory test mode populates timer, cooldown and kill-track demo data
   - Demo dummy roster exposes multi-kick extras for tooltip preview
+  - StatsBox uses explicit demo rows only while demo data is set
+  - Center notice teleport button resolves directly from verified mapID
+  - Center notice teleport button prioritizes verified mapID over unresolved activityID
+  - factory_frame_bridge: Initialize forwards map teleport resolver to center notice
 
 ### RULE-MPLUS-TIMER-PEW-RESET
 - Regelnummer: 58
@@ -851,7 +856,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-STATS-BOX-LIVE-QUELLE
 - Regelnummer: 65
 - Status: aktiv
-- Zusammenfassung: Die eigenstaendige Spieler-Stats-Box darf Attribute, Combat-Ratings und Prozentwerte nur anzeigen, wenn der jeweilige Wert direkt aus einer erfolgreichen Blizzard-Live-API-Lesung stammt; fehlende API-Werte bleiben unsichtbar und werden nicht durch Default-, Cache- oder Guess-Werte ersetzt. Als Secret Value markierte API-Werte duerfen fuer die Anzeige nur direkt per `string.format` in Text gewandelt werden; Lua-Arithmetik, `tonumber` oder Vergleiche auf diesen Secret Values sind verboten. Bei Klassen mit eindeutigem Primärstat wird dieser ueber den live gelesenen Klassentoken bestimmt; bei Hybridklassen wird der Primärstat nur bei exakt gelesener Spezialisierungs-ID angezeigt. Sichtbare Stat-Labels sind feste englische Kurzlabels ohne Locale-Varianten. Stat-Labels, Werte und Prozentwerte stehen rechtsbuendig, sichtbare Stats nutzen eine feste Blizzard-like Farbpalette, alle sichtbaren Texte nutzen einen kontrastreichen dunklen Schatten ohne Outline, und die Werte-Spalte darf bei drei- und vierstelligen Zahlen nicht unter ihre kompakte Mindestbreite schrumpfen, damit die Prozent-Spalte nicht zeilenweise verschoben wird. Die Prozent-Spalte darf nicht unter ihre kompakte Mindestbreite fuer `(999.99%)` schrumpfen, damit Prozentwerte ueber `100.00%` keinen Zeilenumbruch erzeugen. Die Box ist rahmenlos, standardmaessig aus, nur bei `statsBoxEnabled=true` sichtbar, ueber `statsBoxLocked` gegen Positions-Drag sperrbar, ihre Hintergrund-Deckkraft ist ueber `statsBoxBgAlpha` separat steuerbar, ihre Schriftgroesse und Box-Geometrie sind ueber `statsBoxFontSizeOffset` von `-3` bis `+3` relativ zum Default `0` gemeinsam steuerbar, ihr Hintergrund passt sich an die tatsaechlich gerenderten sichtbaren Textgrenzen an, als Secret Value maskierte FontString-Breitenmessungen duerfen nicht ausgewertet werden und nutzen stattdessen die letzte verifizierte Messung oder kompakte feste Spaltenbreiten, und ihre gespeicherte Position liegt in `statsBoxPosition` ohne die Main-UI-Position zu veraendern.
+- Zusammenfassung: Die eigenstaendige Spieler-Stats-Box darf Attribute, Combat-Ratings und Prozentwerte ausserhalb des expliziten Ingame-Demomodus nur anzeigen, wenn der jeweilige Wert direkt aus einer erfolgreichen Blizzard-Live-API-Lesung stammt; fehlende API-Werte bleiben unsichtbar und werden nicht durch Default-, Cache- oder Guess-Werte ersetzt. Der Ingame-Demomodus darf ausdruecklich markierte Demo-Zeilen anzeigen, muss diese beim Verlassen wieder entfernen und danach zur Live-API-Sammlung zurueckkehren. Als Secret Value markierte API-Werte duerfen fuer die Anzeige nur direkt per `string.format` in Text gewandelt werden; Lua-Arithmetik, `tonumber` oder Vergleiche auf diesen Secret Values sind verboten. Bei Klassen mit eindeutigem Primärstat wird dieser ueber den live gelesenen Klassentoken bestimmt; bei Hybridklassen wird der Primärstat nur bei exakt gelesener Spezialisierungs-ID angezeigt. Sichtbare Stat-Labels sind feste englische Kurzlabels ohne Locale-Varianten. Stat-Labels, Werte und Prozentwerte stehen rechtsbuendig, sichtbare Stats nutzen eine feste Blizzard-like Farbpalette, alle sichtbaren Texte nutzen einen kontrastreichen dunklen Schatten ohne Outline, und die Werte-Spalte darf bei drei- und vierstelligen Zahlen nicht unter ihre kompakte Mindestbreite schrumpfen, damit die Prozent-Spalte nicht zeilenweise verschoben wird. Die Prozent-Spalte darf nicht unter ihre kompakte Mindestbreite fuer `(999.99%)` schrumpfen, damit Prozentwerte ueber `100.00%` keinen Zeilenumbruch erzeugen. Die Box ist rahmenlos, standardmaessig aus, nur bei `statsBoxEnabled=true` sichtbar, ueber `statsBoxLocked` gegen Positions-Drag sperrbar, ihre Hintergrund-Deckkraft ist ueber `statsBoxBgAlpha` separat steuerbar, ihre Schriftgroesse und Box-Geometrie sind ueber `statsBoxFontSizeOffset` von `-3` bis `+3` relativ zum Default `0` gemeinsam steuerbar, ihr Hintergrund passt sich an die tatsaechlich gerenderten sichtbaren Textgrenzen an, als Secret Value maskierte FontString-Breitenmessungen duerfen nicht ausgewertet werden und nutzen stattdessen die letzte verifizierte Messung oder kompakte feste Spaltenbreiten, und ihre gespeicherte Position liegt in `statsBoxPosition` ohne die Main-UI-Position zu veraendern.
 - Erforderliche Tests:
   - StatsBox renders class primary stat and directly observed secondary values
   - StatsBox resolves hybrid primary stat only from exact specialization
@@ -870,6 +875,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - StatsBox reads haste percent from player spell haste
   - StatsBox applies Blizzard-like fixed stat colors
   - StatsBox formats secret API values without arithmetic
+  - StatsBox uses explicit demo rows only while demo data is set
 
 ### RULE-MOVABLE-UI-SCREEN-CLAMP
 - Regelnummer: 66

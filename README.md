@@ -4,7 +4,7 @@
 
 - **For:** M+ players in pre-made groups and LFG runs
 - **WoW version:** `12.0+` (Midnight) only
-- **Current version:** `0.9.280`
+- **Current version:** `0.9.281`
 - **Active season:** `midnight_s1` — 8 dungeons (Wing, MT, NPX, MC, AA, POS, SOT, SR)
 
 ---
@@ -209,7 +209,7 @@ You can turn either announce off in the settings. Non-isiLive group members won'
 
 ### Pre-key group view
 
-When you get an LFG invite, the matching portal highlights and the chat tells you which dungeon and level you joined — so you know before loading in. The bottom M+ killtracker mirrors that verified target as a right-aligned dungeon + key-level label until the key starts.
+When you get an LFG invite, the matching portal highlights and the center notice includes a clickable portal button from the verified listing activity. The chat tells you which dungeon and level you joined, and the bottom M+ killtracker mirrors that verified target as a right-aligned dungeon + key-level label until the key starts.
 
 ### Group Finder class-bonus hints
 
@@ -233,7 +233,7 @@ If the group breaks up or someone disconnects, their data stays visible as a gre
 | Key | Action |
 |---|---|
 | `Ctrl + F9` | Toggle the main window |
-| `Ctrl + Alt + F9` | Toggle demo mode (for testing without a group) |
+| `Ctrl + Alt + F9` | Toggle demo mode with full preview surfaces (for testing without a group) |
 
 ## Slash commands
 
@@ -243,7 +243,7 @@ If the group breaks up or someone disconnects, their data stays visible as a gre
 /isilive lock         — lock window position
 /isilive unlock       — unlock window position
 /isilive resetui      — recenter window and reset scale + opacity (asks for confirmation)
-/isilive testall      — full preview mode with dummy data
+/isilive testall      — full preview mode with dummy data and demo UI surfaces
 /isilive log on|off   — enable/disable runtime trace log
 /isilive log tail 50  — print the last 50 log entries
 /isilive log clear    — clear the log buffer

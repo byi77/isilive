@@ -64,6 +64,9 @@ local function BuildCenterNoticeConfig(opts)
     resolveTeleportSpellID = opts.resolveTeleportSpellID or function(_activityID, _dungeonName)
       return nil
     end,
+    resolveTeleportSpellIDByMapID = opts.resolveTeleportSpellIDByMapID or function(_mapID)
+      return nil
+    end,
     resolveMapIDBySpellID = opts.resolveMapIDBySpellID or function(_spellID)
       return nil
     end,
@@ -550,33 +553,46 @@ local function ClearCenterNoticeTeleportButton(state)
   SetCenterNoticeTeleportButtonMouseEnabled(state, true)
 end
 
-local function ConfigureCenterNoticeTeleportButton(state, dungeonName, activityID)
+local function ConfigureCenterNoticeTeleportButton(state, dungeonName, activityID, mapID)
   local hasDungeonName = type(dungeonName) == "string" and dungeonName ~= ""
   local numericActivityID = tonumber(activityID)
   if numericActivityID and numericActivityID <= 0 then
     numericActivityID = nil
   end
+  local numericMapID = tonumber(mapID)
+  if numericMapID and numericMapID <= 0 then
+    numericMapID = nil
+  end
 
-  if not hasDungeonName and not numericActivityID then
+  if not hasDungeonName and not numericActivityID and not numericMapID then
     ClearCenterNoticeTeleportButton(state)
     return false
   end
 
-  local spellID = state.config.resolveTeleportSpellID(numericActivityID, hasDungeonName and dungeonName or nil)
+  local spellID
+  if numericMapID then
+    spellID = state.config.resolveTeleportSpellIDByMapID(numericMapID)
+  elseif numericActivityID then
+    spellID = state.config.resolveTeleportSpellID(numericActivityID, hasDungeonName and dungeonName or nil)
+  else
+    spellID = state.config.resolveTeleportSpellID(nil, hasDungeonName and dungeonName or nil)
+  end
   if not spellID then
     ClearCenterNoticeTeleportButton(state)
     return false
   end
-  local mapID
-  if numericActivityID then
-    mapID = state.config.resolveMapIDByActivityID(numericActivityID)
+  local resolvedMapID
+  if numericMapID then
+    resolvedMapID = numericMapID
+  elseif numericActivityID then
+    resolvedMapID = state.config.resolveMapIDByActivityID(numericActivityID)
   else
-    mapID = state.config.resolveMapIDBySpellID(spellID)
+    resolvedMapID = state.config.resolveMapIDBySpellID(spellID)
   end
 
   if state.config.isInCombat() then
     state.teleportButton.spellID = spellID
-    state.teleportButton.mapID = tonumber(mapID)
+    state.teleportButton.mapID = tonumber(resolvedMapID)
     state.teleportButton.dungeonName = hasDungeonName and dungeonName or nil
     state.teleportButton.inCombatBlocked = true
     SetCenterNoticeTeleportButtonMouseEnabled(state, false)
@@ -587,7 +603,7 @@ local function ConfigureCenterNoticeTeleportButton(state, dungeonName, activityI
 
   state.config.applySecureSpellToButton(state.teleportButton, spellID)
   state.teleportButton.spellID = spellID
-  state.teleportButton.mapID = tonumber(mapID)
+  state.teleportButton.mapID = tonumber(resolvedMapID)
   state.teleportButton.dungeonName = hasDungeonName and dungeonName or nil
   state.teleportButton.inCombatBlocked = false
   SetCenterNoticeTeleportButtonMouseEnabled(state, true)
@@ -838,7 +854,8 @@ local function ShowCenterNotice(state, message, durationSeconds, dungeonName, ac
   local hasRich = (type(showOptions.title) == "string" and showOptions.title ~= "")
     or (type(showOptions.fields) == "table" and #showOptions.fields > 0)
 
-  local hasTeleportButton = ConfigureCenterNoticeTeleportButton(state, dungeonName, activityID)
+  local hasTeleportButton =
+    ConfigureCenterNoticeTeleportButton(state, dungeonName, activityID, showOptions.teleportMapID)
 
   if hasRich then
     -- Rich mode replaces sublines and the body text. Hide them explicitly so
@@ -1006,8 +1023,8 @@ local function BuildCenterNoticeController(state)
     ShowCenterNotice(state, message, durationSeconds, dungeonName, activityID, showOptions)
   end
 
-  local function ConfigureTeleportButton(dungeonName, activityID)
-    return ConfigureCenterNoticeTeleportButton(state, dungeonName, activityID)
+  local function ConfigureTeleportButton(dungeonName, activityID, mapID)
+    return ConfigureCenterNoticeTeleportButton(state, dungeonName, activityID, mapID)
   end
 
   local function UpdateTeleportButtonVisual(spellID, isEnabled, inCombatBlocked)

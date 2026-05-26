@@ -671,4 +671,23 @@ return function(test, ctx)
       Assert.Equal(box.lines[2].percent._text, "(25.48%)", "secret percent should be formatted directly for SetText")
     end)
   end)
+
+  test("StatsBox uses explicit demo rows only while demo data is set", function()
+    WithGlobals({}, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      addon.StatsBox.SetDemoData({
+        { key = "strength", label = "Str", value = 4210 },
+        { key = "crit", label = "Crit", value = 1824, percent = 24.85 },
+      })
+
+      local rows = addon.StatsBox.CollectPlayerStats({})
+      Assert.Equal(#rows, 2, "demo stats must replace live API collection")
+      Assert.Equal(rows[1].label, "Str", "demo primary stat label must be carried")
+      Assert.Equal(rows[2].percent, 24.85, "demo percent must be carried")
+
+      addon.StatsBox.ClearDemoData()
+      local liveRows = addon.StatsBox.CollectPlayerStats({})
+      Assert.Equal(#liveRows, 0, "clearing demo data must restore live API collection")
+    end)
+  end)
 end

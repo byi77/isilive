@@ -386,6 +386,101 @@ local function Register(test, ctx)
     Assert.Equal(factoryCtx.GetL(), factoryCtx.L, "GetL must return the attached locale reference")
   end)
 
+  test("factory_frame_bridge: Initialize forwards map teleport resolver to center notice", function()
+    local globals = BuildDefaultGlobals({
+      globals = {
+        UIParent = {},
+      },
+    })
+    local addonTable
+    local capturedOpts
+    local mapResolver = function(mapID)
+      return mapID == 559 and 1254563 or nil
+    end
+
+    ctx.with_globals(globals, function()
+      addonTable = ctx.load_modules({ "isiLive_factory_frame_bridge.lua" })
+      local factoryCtx = {
+        modules = {
+          contextHelpers = {},
+          teleport = {
+            ResolveTeleportSpellIDByActivityID = function() end,
+            ResolveTeleportSpellIDByMapID = mapResolver,
+            ResolveMapIDByActivityID = function() end,
+            ResolveMapIDBySpellID = function() end,
+            ResolveTeleportSpellID = function() end,
+            GetDungeonName = function() end,
+            ApplySecureSpellToButton = function() end,
+          },
+          notice = {
+            CreatePortalNavigatorNotice = function()
+              return {
+                frame = {},
+                SetVisible = function() end,
+                Show = function() end,
+              }
+            end,
+            CreateCenterNotice = function() end,
+            CreateInviteHint = function() end,
+          },
+          ui = {
+            CreateMainFrame = function() end,
+          },
+          frameBridge = {
+            CreateContext = function(opts)
+              capturedOpts = opts
+              return {
+                centerNotice = { Show = function() end },
+                centerNoticeFrame = {},
+                centerNoticeTeleportButton = {},
+                inviteHint = {},
+                mainUI = {},
+                mainFrame = {},
+                SetCenterNoticeVisible = function() end,
+                UpdateCenterTeleportButtonVisual = function() end,
+                ShowCenterNotice = function() end,
+                ShowInviteHint = function() end,
+                SetMainFrameVisible = function() end,
+              }
+            end,
+          },
+        },
+        MIN_FRAME_HEIGHT = 236,
+        locale = "enUS",
+        GetL = function()
+          return {}
+        end,
+        IsRaidGroup = function()
+          return false
+        end,
+        ResolveMainFramePositionLockEnabled = function()
+          return true
+        end,
+        IsSpellKnownSafe = function()
+          return true
+        end,
+        GetTeleportCooldownRemaining = function()
+          return 0
+        end,
+        FormatCooldownSeconds = function()
+          return ""
+        end,
+      }
+
+      addonTable._FactoryInternal.InitializeFactoryFrameBridge(factoryCtx)
+      Assert.Equal(
+        factoryCtx.ResolveTeleportSpellIDByMapID,
+        mapResolver,
+        "factory context must retain the map teleport resolver"
+      )
+      Assert.Equal(
+        capturedOpts.resolveTeleportSpellIDByMapID,
+        mapResolver,
+        "center notice must receive the verified mapID teleport resolver"
+      )
+    end)
+  end)
+
   test("factory_frame_bridge: Print prefixes isiLive and feeds runtime log when available", function()
     local globals, prints = BuildDefaultGlobals()
     local logLines = {}

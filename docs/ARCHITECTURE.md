@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.280`
+Versionsbasis: `0.9.281`
 Zuletzt aktualisiert: `2026-05-26`
 
 ## Zweck
@@ -196,7 +196,7 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 1883 Szenarien ueber die aktuell registrierten Module (siehe `tools/usecase_scenarios.lua`) ab; die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
+5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 1888 Szenarien ueber die aktuell registrierten Module (siehe `tools/usecase_scenarios.lua`) ab; die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
    Zusaetzlich laeuft der gleiche Validator-Lauf in CI unter `luacov` (`lua -lluacov tools/validate_usecases.lua`), damit `tools/coverage_summary.lua` die Line-Coverage pro Schicht in das GitHub-Actions-Step-Summary schreibt und der vollstaendige `luacov.report.out` als Artefakt hochgeladen wird.
    Baseline (`2026-04-22`, Commit nach Coverage-Einfuehrung): **78.62% Gesamt-Line-Coverage** ueber 19487 Produktionszeilen. Per-Schicht: `locale/` 97%, `logic/` 84%, `core/` 82%, `game/` 81%, `ui/` 79%, `factory/` 47%. Die `factory/`-Luecke ist erwartet (Composition-Root-Code, der ohne Blizzard-API-Context schwer isoliert testbar ist) und bildet den konkreten naechsten Schwerpunkt fuer UI-nahe Test-Erweiterungen.
 6. Der M+-Forces-DB-Refresh laeuft automatisch ueber `.github/workflows/sync-mplus-forces.yml` (Donnerstag 06:00 UTC plus `workflow_dispatch`): Clone MDT → `tools/sync_mdt_forces.lua` → voller CI-Preflight (stylua, luacheck, syntax, metrics, locale drift, lifetime, Nameplate-Key-Start-Simulator, SavedVariables-Reload-Simulator, Key-Start-Lifecycle-Simulator, usecases) → Commit + Push nach `main`. Ohne Diff im DB-File laeuft der Workflow still durch ohne Commit.
@@ -206,7 +206,7 @@ Die lokalen Wrapper `tools/check.ps1` und `tools/check.cmd` sind der bevorzugte 
 ## UI-Struktur (ASCII-Skizze)
 
 ```text
-| isiLive                                                 v0.9.280 Open/Close CTRL-F9 [H][V][M][M+][L][X]            |
+| isiLive                                                 v0.9.281 Open/Close CTRL-F9 [H][V][M][M+][L][X]            |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -257,7 +257,7 @@ Zusaetzlich zum Main-Roster-Frame aus `isiLive_ui_main_frame.lua` kann `isiLive_
 | Share Keys | User-Chat-/Share-Aktion | Sofortiger eigener Key-Post in den passenden Gruppenchat, gruppenweiter `SHAREKEYS`-Request an Peers, sichtbarer 30s lokaler Cooldown nur nach erfolgreichem Gruppenchat-Post oder erfolgreich dispatchtem Sync-Request und remote getriggerter 30s-Cooldown-Lock auf jedem Peer-Client mit eingehendem `SHAREKEYS`-Pfad, unabhaengig davon, ob dieser Client einen eigenen Gruppenchat-Post ausloesen kann; ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt; der lokale Fallback bleibt auch ohne Owned-Link-API klickbar |
 | EventHandlersRuntime | Addon-, World-, Combat-, Inspect- und Sync-Events | Startup, Hidden-Mode-Sync, sofortige Full-State-Reply auf neues Peer-`HELLO`, hidden `LibKS`-Party-Antworten auf Requests, eingehender Beschwoerungs-Sound ueber `CONFIRM_SUMMON` und pending `INCOMING_SUMMON_CHANGED` fuer `player`, Forwarding von `UNIT_AURA`-Full-Updates fuer den CdTracker, Regen-Recovery fuer pending Visibility/Height und Inspect-Dispatch |
 | EventHandlersQueue | LFG-Queue-/Listing-Events | Sichtbare Queue-Capture, Erhalt von Pending-Join-Kontext auf negativen Follow-ups und Joined-Key-Tracking |
-| LFGDetect | LFG-Queue-/Invite-Events | Locale-aware Invite-/Listing-Hinweise, statische Activity-zu-Map-Aufloesung, Prioritaet fuer lokalen konkreten LFG-Map-Kontext vor peer-synced Zielkontext, Highlight-Dispatch ueber injected Callback und Full-Reset bei Group leave mit Notice-Replay-Sperre ab Challenge start |
+| LFGDetect | LFG-Queue-/Invite-Events | Locale-aware Invite-/Listing-Hinweise, statische Activity-zu-Map-Aufloesung, Prioritaet fuer lokalen konkreten LFG-Map-Kontext vor peer-synced Zielkontext, Highlight-Dispatch ueber injected Callback, Center-Notice-Portalbutton nur aus verifizierter Activity- oder Map-ID und Full-Reset bei Group leave mit Notice-Replay-Sperre ab Challenge start |
 | EventHandlersChallenge | Challenge- und Ready-Check-Events | Run-Lifecycle, delayed Refresh, Raid-deferred Post-Run-Refresh-Resume, RIO-Delta-Aktivierung, Ready-Check-State, Hold-Tracking fuer `ready` sowie fuer explizit/unbeantwortet `notready` und dedizierter Ready-Check-UI-Refresh-Dispatch |
 | Stats | Completion-Signale fuer Challenge- und Non-Challenge-Party-Runs plus Blizzard-Damage-Meter-Session | Begrenzte Last-Run-DPS-Snapshots mit kurzem Delayed-Session-Retry; persistent nur fuer den passenden lokalen Character, fuer fremde Spieler nur sessionweit |
 | CdTracker | Battle-Res-Charges ueber `C_Spell.GetSpellCharges` mit Struct-Return, numerische Harmful-Lust-Aura-Scans, direkte lokale Lust-Spellcasts und `isFullUpdate`-Aura-Restore-Hydration | Live-Zeilenstate fuer BRes-Charges/Cooldown und Lust-Countdown mit zone-transition-sicherer Onset-Suppression |

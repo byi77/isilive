@@ -27,6 +27,7 @@ local BOTTOM_PADDING = 6
 local COLUMN_GAP = 8
 local VALUE_PERCENT_GAP = 6
 local VALUE_ONLY_RIGHT_OFFSET = -(RIGHT_PADDING + PERCENT_COLUMN_WIDTH + VALUE_PERCENT_GAP)
+local demoRows = nil
 
 local STAT_STRENGTH = 1
 local STAT_AGILITY = 2
@@ -346,6 +347,19 @@ end
 
 function StatsBox.CollectPlayerStats(opts)
   opts = opts or {}
+  if type(demoRows) == "table" then
+    local rows = {}
+    for index, row in ipairs(demoRows) do
+      rows[index] = {
+        key = row.key,
+        label = row.label,
+        value = row.value,
+        percent = row.percent,
+      }
+    end
+    return rows
+  end
+
   local rows = {}
   local primaryRow = BuildPrimaryStatRow(opts)
   if primaryRow then
@@ -827,6 +841,16 @@ function StatsBox.ApplySettings()
   if StatsBox.instance and type(StatsBox.instance.ApplySettings) == "function" then
     StatsBox.instance.ApplySettings()
   end
+end
+
+function StatsBox.SetDemoData(rows)
+  demoRows = type(rows) == "table" and rows or nil
+  StatsBox.ApplySettings()
+end
+
+function StatsBox.ClearDemoData()
+  demoRows = nil
+  StatsBox.ApplySettings()
 end
 
 StatsBox.instance = StatsBox.Create()

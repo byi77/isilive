@@ -884,15 +884,27 @@ local function RenderAcceptedInviteNotice(ctx, modules, payload)
 
   local mapName = ResolveAcceptedInviteDungeonName(ctx, modules, payload.mapID)
   local fields = BuildAcceptedInviteFields(ctx, mapName, payload)
+  local activityID = tonumber(payload.activityID)
+  if activityID and activityID <= 0 then
+    activityID = nil
+  end
+  local mapID = tonumber(payload.mapID)
+  if mapID and mapID <= 0 then
+    mapID = nil
+  end
+  local hasTeleportContext = activityID ~= nil or mapID ~= nil
+  local teleportLabel = hasTeleportContext and (L.INVITE_ACCEPTED_NOTICE_TELEPORT_HEADER or "Teleport to dungeon:")
+    or nil
 
-  -- dungeonName / activityID are passed as nil on purpose: the main M+ UI
-  -- already highlights the matching teleport button, so a second teleport
-  -- button inside the notice would be visual redundancy. ConfigureCenter-
-  -- NoticeTeleportButton early-returns false when both are nil — the button
-  -- and its surrounding header label are then not rendered.
-  ctx.ShowCenterNotice(nil, nil, nil, nil, {
+  -- Forward the accepted listing map/activity context into the center notice
+  -- so the embedded teleport button uses the same strict map/activity -> spell
+  -- resolver as the highlighted M+ portal row. Without verified context the
+  -- notice stays informational and no name-based fallback is attempted.
+  ctx.ShowCenterNotice(nil, nil, hasTeleportContext and mapName or nil, activityID, {
     title = L.INVITE_ACCEPTED_NOTICE_TITLE or "isiLive - Invite accepted",
     fields = fields,
+    teleportLabel = teleportLabel,
+    teleportMapID = mapID,
     -- Compact card width: narrower than the default 680px legacy banner so
     -- the layout reads as a focused info card rather than a full-width header.
     frameWidth = 540,
@@ -1821,6 +1833,263 @@ local function RegisterBlizzardUnitLanguageTooltip(ctx, modules)
   end
 end
 
+local DEMO_FEATURE_NIL = {}
+local DEMO_FEATURE_TARGET_DUNGEON_NAME = "Nexus-Point Xenas"
+local DEMO_FEATURE_TARGET_MAP_ID = 559
+local DEMO_FEATURE_DB_KEYS = {
+  "statsBoxEnabled",
+  "statsBoxBgAlpha",
+  "statsBoxFontSizeOffset",
+  "lfgFlagsEnabled",
+  "lfgGroupBonusesEnabled",
+  "mobNameplateEnabled",
+  "mplusForcesEstimate",
+  "mobNameplateShowPercent",
+  "mobNameplateShowRemaining",
+  "mobNameplateFontSize",
+  "mobNameplatePosition",
+  "mobNameplateXOffset",
+  "mobNameplateYOffset",
+}
+
+local function CaptureDemoFeatureSnapshot(db)
+  local snapshot = {}
+  for _, key in ipairs(DEMO_FEATURE_DB_KEYS) do
+    local value = db[key]
+    if value == nil then
+      snapshot[key] = DEMO_FEATURE_NIL
+    else
+      snapshot[key] = value
+    end
+  end
+  return snapshot
+end
+
+local function RestoreDemoFeatureSnapshot(db, snapshot)
+  for _, key in ipairs(DEMO_FEATURE_DB_KEYS) do
+    local value = snapshot[key]
+    if value == DEMO_FEATURE_NIL then
+      db[key] = nil
+    elseif value ~= nil then
+      db[key] = value
+    end
+  end
+end
+
+local function ApplyDemoFeatureDbOverrides(ctx)
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) ~= "table" then
+    return nil
+  end
+
+  if type(ctx._demoFeatureSnapshot) ~= "table" then
+    ctx._demoFeatureSnapshot = CaptureDemoFeatureSnapshot(db)
+  end
+
+  db.statsBoxEnabled = true
+  db.statsBoxBgAlpha = 0.35
+  db.statsBoxFontSizeOffset = 1
+  db.lfgFlagsEnabled = true
+  db.lfgGroupBonusesEnabled = true
+  db.mobNameplateEnabled = true
+  db.mplusForcesEstimate = true
+
+  return db
+end
+
+local function ApplyDemoStatsBox(ctx)
+  local statsBox = ctx.addonTable and ctx.addonTable.StatsBox
+  if type(statsBox) ~= "table" then
+    return
+  end
+
+  if type(statsBox.SetDemoData) == "function" then
+    statsBox.SetDemoData({
+      { key = "strength", label = "Str", value = 4210 },
+      { key = "crit", label = "Crit", value = 1824, percent = 24.85 },
+      { key = "haste", label = "Haste", value = 1492, percent = 18.42 },
+      { key = "mastery", label = "Mast", value = 2108, percent = 37.66 },
+      { key = "versatility", label = "Vers", value = 1154, percent = 14.12 },
+      { key = "speed", label = "Speed", value = 326, percent = 6.44 },
+    })
+  end
+  if type(statsBox.SetEnabled) == "function" then
+    statsBox.SetEnabled(true)
+  end
+end
+
+local function ApplyDemoLfgFlags(ctx)
+  local lfgFlags = ctx.addonTable and ctx.addonTable.LFGFlags
+  if type(lfgFlags) ~= "table" then
+    return
+  end
+
+  if type(lfgFlags.SetEnabled) == "function" then
+    lfgFlags.SetEnabled(true)
+  end
+  if type(lfgFlags.SetGroupBonusesEnabled) == "function" then
+    lfgFlags.SetGroupBonusesEnabled(true)
+  end
+end
+
+local function ApplyDemoMobForces(ctx)
+  local mobTooltip = ctx.addonTable and ctx.addonTable.MobTooltip
+  if type(mobTooltip) == "table" and type(mobTooltip.SetEnabled) == "function" then
+    mobTooltip.SetEnabled(true)
+  end
+
+  local mobNameplate = ctx.addonTable and ctx.addonTable.MobNameplate
+  if type(mobNameplate) ~= "table" then
+    return
+  end
+
+  if type(mobNameplate.SetTestMode) == "function" then
+    mobNameplate.SetTestMode(true, "12.34")
+  elseif type(mobNameplate.SetEnabled) == "function" then
+    mobNameplate.SetEnabled(true)
+  end
+end
+
+local function ShowDemoPortalNavigator(ctx, L)
+  if type(ctx.ShowPortalNavigatorNotice) ~= "function" then
+    return
+  end
+
+  ctx.ShowPortalNavigatorNotice({
+    title = L.PORTAL_NAVIGATOR_TITLE or "Timeways Portal Navigator",
+    entries = {
+      {
+        slot = "half_left",
+        direction = L.PORTAL_NAVIGATOR_HALF_LEFT or "Half-left",
+        destination = L.PORTAL_NAVIGATOR_PIT_OF_SARON or "Pit of Saron",
+      },
+      {
+        slot = "left",
+        direction = L.PORTAL_NAVIGATOR_LEFT or "Left",
+        destination = L.PORTAL_NAVIGATOR_SKYREACH or "Skyreach",
+      },
+      {
+        slot = "right",
+        direction = L.PORTAL_NAVIGATOR_RIGHT or "Right",
+        destination = L.PORTAL_NAVIGATOR_TRIUMVIRATE or "Seat of the Triumvirate",
+      },
+      {
+        slot = "half_right",
+        direction = L.PORTAL_NAVIGATOR_HALF_RIGHT or "Half-right",
+        destination = L.PORTAL_NAVIGATOR_ALGETHAR or "Algeth'ar Academy",
+      },
+    },
+  })
+end
+
+local function ShowDemoAcceptedInviteNotice(ctx, L)
+  if type(ctx.ShowCenterNotice) ~= "function" then
+    return
+  end
+
+  ctx.ShowCenterNotice(nil, nil, DEMO_FEATURE_TARGET_DUNGEON_NAME, nil, {
+    title = L.INVITE_ACCEPTED_NOTICE_TITLE or "isiLive - Invite accepted",
+    fields = {
+      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:", value = "Nexus-Point Xenas +15" },
+      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Group:", value = "+15 Demo Preview" },
+      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_ROLE or "Role:", value = L.ROLE_NAME_DAMAGE or "Damage" },
+    },
+    teleportLabel = L.INVITE_ACCEPTED_NOTICE_TELEPORT_HEADER or "Teleport to dungeon:",
+    teleportMapID = DEMO_FEATURE_TARGET_MAP_ID,
+    frameWidth = 540,
+    persistent = true,
+  })
+end
+
+local function ApplyDemoFeatureData(ctx)
+  ApplyDemoFeatureDbOverrides(ctx)
+  ApplyDemoStatsBox(ctx)
+  ApplyDemoLfgFlags(ctx)
+  ApplyDemoMobForces(ctx)
+
+  local L = ctx.GetL and ctx.GetL() or {}
+  ShowDemoPortalNavigator(ctx, L)
+  ShowDemoAcceptedInviteNotice(ctx, L)
+end
+
+local function RestoreDemoStatsBox(ctx)
+  local statsBox = ctx.addonTable and ctx.addonTable.StatsBox
+  if type(statsBox) ~= "table" then
+    return
+  end
+
+  if type(statsBox.ClearDemoData) == "function" then
+    statsBox.ClearDemoData()
+  end
+  if type(statsBox.ApplySettings) == "function" then
+    statsBox.ApplySettings()
+  end
+end
+
+local function RestoreDemoMobForces(ctx, db)
+  local mobTooltip = ctx.addonTable and ctx.addonTable.MobTooltip
+  if type(mobTooltip) == "table" and type(mobTooltip.SetEnabled) == "function" then
+    mobTooltip.SetEnabled(type(db) == "table" and db.mplusForcesEstimate == true)
+  end
+
+  local mobNameplate = ctx.addonTable and ctx.addonTable.MobNameplate
+  if type(mobNameplate) ~= "table" then
+    return
+  end
+
+  if type(mobNameplate.SetTestMode) == "function" then
+    mobNameplate.SetTestMode(false)
+  end
+  if type(mobNameplate.SetFormat) == "function" then
+    mobNameplate.SetFormat({
+      showPercent = type(db) ~= "table" or db.mobNameplateShowPercent ~= false,
+      showRemaining = type(db) ~= "table" or db.mobNameplateShowRemaining ~= false,
+    })
+  end
+  if type(mobNameplate.SetAppearance) == "function" then
+    mobNameplate.SetAppearance({
+      fontSize = type(db) == "table" and tonumber(db.mobNameplateFontSize) or 14,
+      position = type(db) == "table" and db.mobNameplatePosition or "RIGHT",
+      xOffset = type(db) == "table" and tonumber(db.mobNameplateXOffset) or 0,
+      yOffset = type(db) == "table" and tonumber(db.mobNameplateYOffset) or 0,
+    })
+  end
+  if type(mobNameplate.SetEnabled) == "function" then
+    mobNameplate.SetEnabled(type(db) == "table" and db.mobNameplateEnabled == true)
+  end
+end
+
+local function RestoreDemoLfgFlags(ctx, db)
+  local lfgFlags = ctx.addonTable and ctx.addonTable.LFGFlags
+  if type(lfgFlags) ~= "table" then
+    return
+  end
+
+  if type(lfgFlags.SetEnabled) == "function" then
+    lfgFlags.SetEnabled(type(db) ~= "table" or db.lfgFlagsEnabled ~= false)
+  end
+  if type(lfgFlags.SetGroupBonusesEnabled) == "function" then
+    lfgFlags.SetGroupBonusesEnabled(type(db) ~= "table" or db.lfgGroupBonusesEnabled ~= false)
+  end
+end
+
+local function ClearDemoFeatureData(ctx)
+  local db = rawget(_G, "IsiLiveDB")
+  local snapshot = ctx._demoFeatureSnapshot
+  if type(db) == "table" and type(snapshot) == "table" then
+    RestoreDemoFeatureSnapshot(db, snapshot)
+  end
+  ctx._demoFeatureSnapshot = nil
+
+  RestoreDemoStatsBox(ctx)
+  RestoreDemoLfgFlags(ctx, db)
+  RestoreDemoMobForces(ctx, db)
+
+  if type(ctx.SetPortalNavigatorVisible) == "function" then
+    ctx.SetPortalNavigatorVisible(false)
+  end
+end
+
 local function InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runtimeState)
   ctx.testModeController = modules.testMode.CreateController(modules.configBuilders.BuildTestModeControllerOpts({
     getL = ctx.GetL,
@@ -1857,7 +2126,7 @@ local function InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runti
         })
       end
       if type(runtimeState.SetLatestQueueState) == "function" then
-        runtimeState.SetLatestQueueState("Demo-Zieldungeon", nil, nil, 559)
+        runtimeState.SetLatestQueueState(DEMO_FEATURE_TARGET_DUNGEON_NAME, nil, nil, DEMO_FEATURE_TARGET_MAP_ID)
       end
       local KillTrack = ctx.addonTable and ctx.addonTable.KillTrack
       if type(KillTrack) == "table" and type(KillTrack.SetDemoData) == "function" then
@@ -1866,7 +2135,7 @@ local function InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runti
           percent = 47.34,
           rawCount = 204,
           total = 431,
-          mapID = 559,
+          mapID = DEMO_FEATURE_TARGET_MAP_ID,
           inCombat = true,
           pullPercent = 3.21,
         })
@@ -1902,6 +2171,12 @@ local function InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runti
       if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
         ctx.rosterPanelController.RefreshCdTracker()
       end
+    end,
+    setDemoFeatureData = function()
+      ApplyDemoFeatureData(ctx)
+    end,
+    clearDemoFeatureData = function()
+      ClearDemoFeatureData(ctx)
     end,
     updateMPlusTeleportButton = ctx.UpdateMPlusTeleportButton,
     setCenterNoticeVisible = ctx.SetCenterNoticeVisible,

@@ -974,17 +974,45 @@ return function(test, ctx)
     Assert.Equal(captured.unit, nil, "ShowCenterNotice unit arg must be nil (center notice)")
     Assert.Nil(captured.holdTime, "ShowCenterNotice hold time must be nil (persistent until right-click)")
     Assert.True(captured.opts.persistent == true, "opts.persistent must be true (no auto-hide)")
-    Assert.Nil(captured.mapName, "mapName arg must be nil so no second teleport button renders in the notice")
-    Assert.Nil(captured.activityID, "activityID arg must be nil so no second teleport button renders in the notice")
+    Assert.Equal(captured.mapName, "Halls", "mapName arg must configure the embedded notice teleport button")
+    Assert.Equal(captured.activityID, 1234, "activityID arg must configure the embedded notice teleport button")
+    Assert.Equal(captured.opts.teleportMapID, 559, "verified mapID must configure the embedded notice portal")
     Assert.Equal(captured.opts.title, "isiLive - Invite-DE", "opts.title must come from the locale table")
-    Assert.Nil(
-      captured.opts.teleportLabel,
-      "opts.teleportLabel must not be set — the M+ UI already highlights the destination"
-    )
+    Assert.Equal(captured.opts.teleportLabel, "TP-DE:", "opts.teleportLabel must come from the locale table")
     Assert.Equal(captured.opts.frameWidth, 540, "opts.frameWidth must be the compact 540px card width")
     Assert.Equal(#captured.opts.fields, 4, "opts.fields must contain dungeon + group + comment + role rows")
     Assert.Equal(captured.opts.fields[1].value, "Halls +12", "dungeon row must carry the resolved mapName + level")
     Assert.Equal(captured.opts.fields[4].value, "Heal-DE", "role row must reflect HEALER -> ROLE_NAME_HEALER")
+  end)
+
+  test("factory_controllers: RenderAcceptedInviteNotice uses verified mapID when activityID is missing", function()
+    local addon = Load()
+    local render = addon._FactoryInternal.RenderAcceptedInviteNotice
+    local captured
+    local c = BuildAcceptedInviteCtx({
+      ShowCenterNotice = function(_unit, _holdTime, mapName, activityID, opts)
+        captured = {
+          mapName = mapName,
+          activityID = activityID,
+          opts = opts,
+        }
+      end,
+    })
+    local modules = {
+      teleport = {
+        GetTeleportInfoByMapID = function()
+          return { mapName = "Halls" }
+        end,
+      },
+    }
+
+    render(c, modules, { mapID = 559, level = 12 })
+
+    Assert.NotNil(captured, "ShowCenterNotice must still render the accepted-invite info card")
+    Assert.Equal(captured.mapName, "Halls", "verified mapID may forward dungeonName into teleport configuration")
+    Assert.Nil(captured.activityID, "missing activityID must remain unresolved")
+    Assert.Equal(captured.opts.teleportMapID, 559, "verified mapID must configure the teleport resolver")
+    Assert.Equal(captured.opts.teleportLabel, "TP-DE:", "verified mapID should render the teleport header")
   end)
 
   test("factory_controllers: direct-push persists accepted target for killtracker refresh", function()

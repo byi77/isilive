@@ -1,9 +1,48 @@
 # Changelog
 
-## 2026-05-26 - Version 0.9.280 (patch)
+## 2026-05-26 - Version 0.9.281 (patch)
 
-Improves Settings readability by moving option descriptions below their
-controls instead of placing them inline.
+Improves Settings readability and expands demo mode into a full logical preview
+of the current feature surfaces.
+
+### Demo Mode
+
+[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua),
+[logic/isiLive_test_mode.lua](../logic/isiLive_test_mode.lua),
+[ui/isiLive_stats_box.lua](../ui/isiLive_stats_box.lua),
+[testmodul/isilive_test_scenarios_factory_secondary.lua](../testmodul/isilive_test_scenarios_factory_secondary.lua),
+[testmodul/isilive_test_scenarios_stats_box.lua](../testmodul/isilive_test_scenarios_stats_box.lua),
+[testmodul/isilive_test_scenarios_test_mode.lua](../testmodul/isilive_test_scenarios_test_mode.lua):
+
+- Demo/test mode now enables the current preview surfaces together: M+ timer,
+  combat cooldowns, bottom forces tracker, Statsbox, Portal Navigator,
+  accepted-invite center notice with portal, M+ forces nameplate/tooltip demo,
+  and Group Finder bonus markers.
+- Demo feature toggles are temporary: entering demo mode snapshots user
+  settings, applies demo-only overrides, and leaving demo mode restores the
+  previous values, including unset fields.
+- The nameplate forces demo no longer overrides the user's percent format,
+  position, font size, or offsets while previewing demo values.
+- Statsbox can render explicit demo rows only while demo mode supplies them;
+  clearing demo mode returns collection to the live Blizzard API path.
+
+### LFG Accepted Invite Notice
+
+[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua),
+[factory/isiLive_factory_frame_bridge.lua](../factory/isiLive_factory_frame_bridge.lua),
+[ui/isiLive_notice.lua](../ui/isiLive_notice.lua),
+[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
+[testmodul/isilive_test_scenarios_factory_controllers_helpers.lua](../testmodul/isilive_test_scenarios_factory_controllers_helpers.lua):
+
+- The accepted M+ invite center notice now includes the same verified target
+  dungeon as a clickable portal button when the accepted LFG listing supplies a
+  concrete activity or map ID.
+- The embedded portal button uses the strict activity/map-to-spell resolver;
+  listings without a verified context still render the info card without
+  inventing a teleport target.
+- When both activity and verified map context are present, the center notice
+  now resolves the portal button from the verified map first so unresolved
+  activity data cannot hide a valid portal.
 
 ### Settings
 
@@ -44,8 +83,8 @@ controls instead of placing them inline.
 [docs/RELEASE.md](RELEASE.md),
 [docs/USECASES.md](USECASES.md):
 
-- Bumped the TOC and documented baselines to `0.9.280`.
-- Updated the validator baseline to `1883` scenarios.
+- Bumped the TOC and documented baselines to `0.9.281`.
+- Updated the validator baseline to `1888` scenarios.
 
 ## 2026-05-25 - Version 0.9.278 (patch)
 

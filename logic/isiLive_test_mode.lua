@@ -55,11 +55,15 @@ local function BuildDeps(opts)
   deps.enableRioDeltaDisplay = opts.enableRioDeltaDisplay or function() end
   deps.setDemoTimerData = opts.setDemoTimerData or function() end
   deps.clearDemoTimerData = opts.clearDemoTimerData or function() end
+  deps.setDemoFeatureData = opts.setDemoFeatureData or function() end
+  deps.clearDemoFeatureData = opts.clearDemoFeatureData or function() end
 
   assert(type(deps.printFn) == "function", "isiLive: TestMode requires printFn")
   assert(type(deps.captureRioBaselineSnapshot) == "function", "isiLive: TestMode requires captureRioBaselineSnapshot")
   assert(type(deps.clearRioBaselineSnapshot) == "function", "isiLive: TestMode requires clearRioBaselineSnapshot")
   assert(type(deps.enableRioDeltaDisplay) == "function", "isiLive: TestMode requires enableRioDeltaDisplay")
+  assert(type(deps.setDemoFeatureData) == "function", "isiLive: TestMode requires setDemoFeatureData")
+  assert(type(deps.clearDemoFeatureData) == "function", "isiLive: TestMode requires clearDemoFeatureData")
   return deps
 end
 
@@ -81,13 +85,14 @@ function TestMode.CreateController(opts)
     ApplyDummyRioDeltaPreview(dummyRoster)
     deps.enableRioDeltaDisplay()
     deps.setDemoTimerData()
+    if shouldAnnounceLeader then
+      deps.showCenterNotice(L.LEAD_TRANSFERRED_CENTER, 20)
+    end
+    deps.setDemoFeatureData()
     deps.setMainFrameVisible(true)
     deps.updateUI()
     deps.updateLeaderButtons()
 
-    if shouldAnnounceLeader then
-      deps.showCenterNotice(L.LEAD_TRANSFERRED_CENTER, 20)
-    end
     if shouldPrintChat then
       deps.printFn(L.CHAT_QUEUE_PREFIX .. " | " .. L.TESTALL_CHAT_ACTIVE)
     end
@@ -124,6 +129,7 @@ function TestMode.CreateController(opts)
     deps.printFn(L.TEST_DISABLED)
     deps.clearRioBaselineSnapshot()
     deps.clearDemoTimerData()
+    deps.clearDemoFeatureData()
     deps.setRoster({})
     deps.resetInspectAll()
     deps.clearLatestQueueState()
@@ -180,6 +186,7 @@ function TestMode.CreateController(opts)
       deps.printFn(L.TEST_DISABLED)
       deps.clearRioBaselineSnapshot()
       deps.clearDemoTimerData()
+      deps.clearDemoFeatureData()
       deps.setRoster({})
       deps.resetInspectAll()
       deps.clearLatestQueueState()

@@ -59,6 +59,8 @@ function ConfigBuilders.BuildTestModeControllerOpts(ctx)
     enableRioDeltaDisplay = ctx.enableRioDeltaDisplay,
     setDemoTimerData = ctx.setDemoTimerData,
     clearDemoTimerData = ctx.clearDemoTimerData,
+    setDemoFeatureData = ctx.setDemoFeatureData,
+    clearDemoFeatureData = ctx.clearDemoFeatureData,
   }
 end
 

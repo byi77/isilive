@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.280`
-Zuletzt aktualisiert: `2026-05-25`
+Versionsbasis: `0.9.281`
+Zuletzt aktualisiert: `2026-05-26`
 
 ## Akteure
 
@@ -128,7 +128,7 @@ Ziel: Rating-Aenderungen vor und nach einem Run pro Spieler im Roster zeigen, oh
 5. Trigger: Das Roster wird nach Rating-Updates gerendert.
 6. Output: Die `RIO`-Spalte zeigt `(+X)RIO`, wenn Baseline und aktueller Wert vorhanden sind.
 7. Regel: Delta wird auf nicht-negative Werte geklemmt; Minimum ist `+0`, Minus-Rendering ist verboten.
-8. Regel: Testmodi (`/isilive test`, `/isilive testall`) verwenden denselben Full-Dummy-Preview-Pfad, inklusive sichtbarem positivem Dummy-Delta, einer Ghost-/Leaver-Zeile, Demo-Daten fuer M+-Timer, Combat-CDs und den unteren M+-Forces-Tracker.
+8. Regel: Testmodi (`/isilive test`, `/isilive testall`) verwenden denselben Full-Dummy-Preview-Pfad, inklusive sichtbarem positivem Dummy-Delta, einer Ghost-/Leaver-Zeile, Demo-Daten fuer M+-Timer, Combat-CDs, unteren M+-Forces-Tracker, Statsbox, Portal-Navigator, Centerbox-Portal, M+-Forces-Nameplates/-Tooltip und LFG-Bonusmarker. Demo-Feature-Schalter werden nur temporaer gesetzt und beim Verlassen auf die vorherigen User-Settings zurueckgesetzt.
 9. Erfolgskriterium: Die Anzeige bleibt pro Spieler ueber Unit-Slot-Wechsel stabil und zeigt niemals ein negatives Delta.
 
 ## UC-08 Post-Run-Stats-Snapshot
@@ -203,8 +203,9 @@ Ziel: LFG-Einladungen und eigene Listings sollen das Portal-Highlight und die Ch
 2. Verarbeitung: Der Status wird kleingeschrieben normalisiert; die Activity-zu-Map-Aufloesung nutzt nur exakte Aktivitaetsdaten. Namen, Tokens oder andere heuristische Fallbacks bleiben unresolved.
 3. Verarbeitung: Der Invite-Kontext bleibt bis zur exakten Bestaetigung per `inviteaccepted` pending; danach wird der erkannte Dungeon-Zielzustand gesetzt und das Portal-Highlight ohne Sound aktiviert. Wenn LFGDetect bereits einen konkreten lokalen Map-Kontext hat, wird dieser an den gemeinsamen Highlight-Resolver weitergereicht und hat Vorrang vor peer-synced Highlight-Quellen. Die locale-injizierte Chatmeldung bleibt an den Invite-/Join-Confirm-Pfad gebunden.
 4. Regel: Eine eigene Queue-/Listing-Detektion triggert das Portal-Highlight ueber den injizierten Callback; Portal-Sound bleibt fuer Queue- und Invite-getriebene Updates unterdrueckt.
-5. Regel: `GROUP_ROSTER_UPDATE` ohne Gruppe loescht den gesamten LFG-Zustand inklusive pending invites, aber nur beim echten Gruppenende (`GetNumGroupMembers() == 0`); `CHALLENGE_MODE_START` und die aktive Challenge-Map allein loeschen den Invite-Zustand nicht mehr, sondern erst der echte Dungeon-Eintritt ueber den finalen Map-Check.
-6. Erfolgskriterium: Erkennungen erscheinen einmalig und lokalisiert, late `inviteaccepted`-Events bleiben korrekt aufloesbar, identische Listing-Updates erzeugen keinen inkonsistenten Highlight-State, und unbekannte Namen werden nie als Dungeon-Ziel geraten.
+5. Anzeige: Die Centerbox fuer eine angenommene M+-Einladung zeigt den verifizierten Dungeon und, wenn der akzeptierte LFG-Kontext eine konkrete `activityID` oder `mapID` liefert, einen klickbaren Portal-Button ueber denselben strikten Activity-/Map-Resolver.
+6. Regel: `GROUP_ROSTER_UPDATE` ohne Gruppe loescht den gesamten LFG-Zustand inklusive pending invites, aber nur beim echten Gruppenende (`GetNumGroupMembers() == 0`); `CHALLENGE_MODE_START` und die aktive Challenge-Map allein loeschen den Invite-Zustand nicht mehr, sondern erst der echte Dungeon-Eintritt ueber den finalen Map-Check.
+7. Erfolgskriterium: Erkennungen erscheinen einmalig und lokalisiert, late `inviteaccepted`-Events bleiben korrekt aufloesbar, identische Listing-Updates erzeugen keinen inkonsistenten Highlight-State, und unbekannte Namen werden nie als Dungeon-Ziel geraten.
 
 ## UC-16 BR- und Bloodlust-Gruppen-Announce im Mythic+
 
@@ -340,7 +341,7 @@ Ziel: Eine optionale, eigenstaendige Spieler-Stats-Box zeigt live gelesene Prim√
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `1883` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `1888` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
@@ -353,7 +354,7 @@ Aktuelle Validator-Baseline: `1883` Szenarien ueber die in `tools/usecase_scenar
 9. UC-11 und UC-12: Secure-World-Marker-Button-Konfiguration fuer M+Marker und Compact-Layout-Visibility-Logik fuer M/V/H.
 10. Taint-Hardening: verschobene Secure-Attribute-Writes, verschobene `Esc`-Shortcut-Secure-Button-Refreshes, insecure Teleport-Grid-Aktionen und combat-sicheres Collapse-Handling.
 11. UC-13 und UC-14: Game-Menu-Tooling-/Travel-/Mounts-/Addons-Strips, Ruhestein-Auswahl, VIP-Gast-Sound-Schalter, Lokalisierung inklusive ruRU-Font-Override, Close-then-Open-Verhalten, verschobener Secure-Reload-Button-Refresh, sichere Mount-Macro-Shortcuts, Direct-Opener-Fallback-Auswahl, Settings-Canvas-State-Mirroring, Background-Opacity-Verhalten, Live-BRes-/Bloodlust-/M+-Timer-Rendering, M+-Killtracker-Live-Refresh und gesyncte Interrupt-Cooldown-Anzeige.
-12. UC-15: LFG-Detektion ohne Name-Fallbacks, locale-aware Chat-Hinweise, pending-invite Race-Hardening, konkrete lokale LFG-Map-Prioritaet und Highlight-Dispatch.
+12. UC-15: LFG-Detektion ohne Name-Fallbacks, locale-aware Chat-Hinweise, pending-invite Race-Hardening, konkrete lokale LFG-Map-Prioritaet, Highlight-Dispatch und Centerbox-Portalbutton aus verifiziertem Activity-/Map-Kontext.
 13. UC-24: Gruppensuche-Klassenbonus-Hinweise ohne Guessing, mit Spielerprofil-Relevanz, Utility-Ausschluss fuer kompakte Marker, nicht-stapelnder Buffzaehlung und Blizzard-Default-kompatibler Suchergebnisposition.
 13. UC-16: BR-/Lust-Self-Cast-Filter gegen 12.0-Secret-Value-Spam, 3s-`sourceGUID|spellID`-Dedup, Toggle-Gating, ChatThrottleLib-Routing via `BRLUST`-Addon-Message, Receiver-Dispatch in lokalisierten Template-Zeilen und Drop-On-Unknown-Kind.
 14. UC-17: Mob-Tooltip-Forces-Rendering nur bei aktiver Challenge-Map-ID mit passendem NPC-Dataset, Per-Tooltip-Dedup gegen `TooltipDataProcessor`-Rerender und `SetEnabled(false)`-Gate.

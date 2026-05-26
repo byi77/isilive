@@ -24,6 +24,11 @@ function FrameBridge.CreateContext(opts)
     return false
   end
   local resolveTeleportSpellID = RequireFunction(opts.resolveTeleportSpellID, "resolveTeleportSpellID")
+  local resolveTeleportSpellIDByMapID = type(opts.resolveTeleportSpellIDByMapID) == "function"
+      and opts.resolveTeleportSpellIDByMapID
+    or function(_mapID)
+      return nil
+    end
   local applySecureSpellToButton = RequireFunction(opts.applySecureSpellToButton, "applySecureSpellToButton")
   local isSpellKnown = RequireFunction(opts.isSpellKnown, "isSpellKnown")
   local getTeleportCooldownRemaining =
@@ -53,6 +58,7 @@ function FrameBridge.CreateContext(opts)
     buttonGap = tonumber(opts.centerNoticeButtonGap) or 8,
     isInCombat = isInCombat,
     resolveTeleportSpellID = resolveTeleportSpellID,
+    resolveTeleportSpellIDByMapID = resolveTeleportSpellIDByMapID,
     resolveMapIDBySpellID = resolveMapIDBySpellID,
     resolveMapIDByActivityID = resolveMapIDByActivityID,
     applySecureSpellToButton = applySecureSpellToButton,
