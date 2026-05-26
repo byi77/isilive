@@ -146,6 +146,11 @@ try {
   Invoke-CheckedCommand "Keystone-Link Bag-Scan Lifecycle Simulator" "lua tools/simulate_keystone_link_bag_scan_lifecycle.lua"
   Invoke-CheckedCommand "Reload-Storm Simulator" "lua tools/simulate_reload_storm.lua"
   Invoke-CheckedCommand "Key-Completion Lifecycle Simulator" "lua tools/simulate_key_completion_lifecycle.lua"
+  Invoke-CheckedCommand "Multi-Peer Convergence Simulator" "lua tools/simulate_multi_peer_convergence.lua"
+  Invoke-CheckedCommand "Cross-Realm Realm-Suffix Simulator" "lua tools/simulate_cross_realm_realm_suffix.lua"
+  Invoke-CheckedCommand "Version-Skew Simulator" "lua tools/simulate_version_skew.lua"
+  Invoke-CheckedCommand "Combat-Lockdown Defer-and-Replay Simulator" "lua tools/simulate_combat_lockdown_settings.lua"
+  Invoke-CheckedCommand "Role-Marker Macro Simulator" "lua tools/simulate_role_marker_macro.lua"
   Invoke-CheckedCommand "Deterministic Usecase + Rules Logic Validation" "lua tools/validate_usecases.lua"
 
   Write-Host ""

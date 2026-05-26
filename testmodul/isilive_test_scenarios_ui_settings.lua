@@ -274,165 +274,172 @@ local function RegisterSettingsPanelResetActionTests(test, Assert, WithGlobals, 
     end)
   end)
 
-  test("Settings panel exposes resetui action and styles Reset all Settings like the other buttons", function()
-    local createFrameStub, createdFrames = BuildCreateFrameStub()
-    local db = {}
-    local resetUiCalls = 0
-    local resetDbCalls = 0
-    local lastPopupName = nil
-    local staticPopupDialogs = {}
+  test(
+    "Settings panel exposes resetui action in reset section and styles Reset all Settings like the other buttons",
+    function()
+      local createFrameStub, createdFrames = BuildCreateFrameStub()
+      local db = {}
+      local resetUiCalls = 0
+      local resetDbCalls = 0
+      local lastPopupName = nil
+      local staticPopupDialogs = {}
 
-    WithGlobals({
-      UIParent = {},
-      IsiLiveDB = db,
-      CreateFrame = createFrameStub,
-      StaticPopupDialogs = staticPopupDialogs,
-      StaticPopup_Show = function(name)
-        lastPopupName = name
-      end,
-      Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
+      WithGlobals({
+        UIParent = {},
+        IsiLiveDB = db,
+        CreateFrame = createFrameStub,
+        StaticPopupDialogs = staticPopupDialogs,
+        StaticPopup_Show = function(name)
+          lastPopupName = name
         end,
-        RegisterAddOnCategory = function() end,
-      },
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
-      local panel = addon.SettingsPanel.Create({
-        getL = function()
-          return {
-            SETTINGS_SECTION_GENERAL = "General",
-            SETTINGS_SECTION_BEHAVIOR = "Behavior",
-            SETTINGS_SECTION_DISPLAY = "Display",
-            SETTINGS_SECTION_DEBUG = "Debug",
-            SETTINGS_LANGUAGE = "Language",
-            SETTINGS_COMBAT_LOGGING = "Combat Logging",
-            SETTINGS_DM_RESET = "DM Reset",
-            SETTINGS_ESC_PANEL = "ESC Panel",
-            SETTINGS_BG_ALPHA = "Background Opacity",
-            SETTINGS_UI_SCALE = "UI Scale",
-            SETTINGS_RESET_UI_POSITION = "Reset UI position (/isilive resetui)",
-            SETTINGS_RESET_UI_POSITION_HINT = "Default: position center, UI scale 100%, background opacity 50%",
-            SETTINGS_MINIMAP_BUTTON = "Minimap Button",
-            SETTINGS_SYNC_ENABLED = "Addon Sync",
-            SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
-            SETTINGS_AUTO_CLOSE_ON_KEY_START = "Auto Close On Key Start",
-            SETTINGS_AUTO_CLOSE_ON_SOLO_CHANGE = "Auto Close On Solo Change",
-            SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
-            SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
-            SETTINGS_DEFAULT_OPEN_UI_V = "V",
-            SETTINGS_DEFAULT_OPEN_UI_H = "H",
-            SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
-            SETTINGS_QUEUE_DEBUG = "Queue Debug",
-            SETTINGS_RUNTIME_LOG = "Runtime Log",
-            SETTINGS_RESET_DB = "Reset All Settings",
-          }
-        end,
-        getCurrentLocale = function()
-          return "enUS"
-        end,
-        setLanguage = function() end,
-        getDB = function()
-          return db
-        end,
-        onResetMainFramePosition = function()
-          resetUiCalls = resetUiCalls + 1
-        end,
-        onResetDB = function()
-          resetDbCalls = resetDbCalls + 1
-        end,
-      })
+        Settings = {
+          RegisterCanvasLayoutCategory = function(canvas, name)
+            return { canvas = canvas, name = name }
+          end,
+          RegisterAddOnCategory = function() end,
+        },
+      }, function()
+        local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+        local panel = addon.SettingsPanel.Create({
+          getL = function()
+            return {
+              SETTINGS_SECTION_GENERAL = "General",
+              SETTINGS_SECTION_BEHAVIOR = "Behavior",
+              SETTINGS_SECTION_DISPLAY = "Display",
+              SETTINGS_SECTION_DEBUG = "Debug",
+              SETTINGS_LANGUAGE = "Language",
+              SETTINGS_COMBAT_LOGGING = "Combat Logging",
+              SETTINGS_DM_RESET = "DM Reset",
+              SETTINGS_ESC_PANEL = "ESC Panel",
+              SETTINGS_BG_ALPHA = "Background Opacity",
+              SETTINGS_UI_SCALE = "UI Scale",
+              SETTINGS_RESET_UI_POSITION = "Reset UI position (/isilive resetui)",
+              SETTINGS_RESET_UI_POSITION_HINT = "Default: position center, UI scale 100%, background opacity 50%",
+              SETTINGS_MINIMAP_BUTTON = "Minimap Button",
+              SETTINGS_SYNC_ENABLED = "Addon Sync",
+              SETTINGS_AUTO_OPEN_QUEUE = "Auto Open Queue",
+              SETTINGS_AUTO_CLOSE_ON_KEY_START = "Auto Close On Key Start",
+              SETTINGS_AUTO_CLOSE_ON_SOLO_CHANGE = "Auto Close On Solo Change",
+              SETTINGS_DEFAULT_OPEN_UI = "Default UI on Open",
+              SETTINGS_DEFAULT_OPEN_UI_LAST = "Last Used",
+              SETTINGS_DEFAULT_OPEN_UI_V = "V",
+              SETTINGS_DEFAULT_OPEN_UI_H = "H",
+              SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
+              SETTINGS_QUEUE_DEBUG = "Queue Debug",
+              SETTINGS_RUNTIME_LOG = "Runtime Log",
+              SETTINGS_RESET_DB = "Reset All Settings",
+            }
+          end,
+          getCurrentLocale = function()
+            return "enUS"
+          end,
+          setLanguage = function() end,
+          getDB = function()
+            return db
+          end,
+          onResetMainFramePosition = function()
+            resetUiCalls = resetUiCalls + 1
+          end,
+          onResetDB = function()
+            resetDbCalls = resetDbCalls + 1
+          end,
+        })
 
-      Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
+        Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
 
-      local resetUiButton = nil
-      local resetDbButton = nil
-      for _, frame in ipairs(createdFrames) do
-        if frame._settingKey == "SETTINGS_RESET_UI_POSITION" then
-          resetUiButton = frame
-        elseif frame._settingKey == "SETTINGS_RESET_DB" then
-          resetDbButton = frame
+        local resetUiButton = nil
+        local resetDbButton = nil
+        for _, frame in ipairs(createdFrames) do
+          if frame._settingKey == "SETTINGS_RESET_UI_POSITION" then
+            resetUiButton = frame
+          elseif frame._settingKey == "SETTINGS_RESET_DB" then
+            resetDbButton = frame
+          end
         end
-      end
 
-      resetUiButton =
-        Assert.NotNil(resetUiButton, "settings panel should create a resetui action button in the display section")
-      resetDbButton = Assert.NotNil(resetDbButton, "settings panel should create a reset all settings button")
-      ---@diagnostic disable: undefined-field
-      Assert.Equal(
-        resetUiButton.label:GetText(),
-        "Reset UI position (/isilive resetui)",
-        "resetui button should use the localized display label"
-      )
-      Assert.Equal(
-        resetUiButton.label:GetText(),
-        "Reset UI position (/isilive resetui)",
-        "resetui button should keep its clickable label"
-      )
-      Assert.NotNil(resetUiButton.hint, "resetui hint should exist under the button")
-      Assert.Equal(
-        resetUiButton.hint:GetText(),
-        "Default: position center, UI scale 100%, background opacity 50%",
-        "resetui button should explain the default values"
-      )
-      Assert.Equal(
-        resetDbButton.label:GetText(),
-        "Reset All Settings",
-        "reset all settings button should keep its label"
-      )
-      Assert.NotNil(resetUiButton.hoverGlow, "resetui button should expose a hover glow for clickable feedback")
-      Assert.NotNil(
-        resetDbButton.hoverGlow,
-        "reset all settings button should expose a hover glow for clickable feedback"
-      )
-      Assert.NotNil(resetDbButton._backdropColor, "reset all settings button should use the styled backdrop")
-      Assert.NotNil(
-        resetDbButton._backdropBorderColor,
-        "reset all settings button should use the styled backdrop border"
-      )
-      Assert.False(
-        resetDbButton._template == "UIPanelButtonTemplate",
-        "reset all settings button should no longer use the legacy UIPanelButtonTemplate"
-      )
-      local onClickResetUi = resetUiButton._scripts and resetUiButton._scripts.OnClick or nil
-      local onClickResetDb = resetDbButton._scripts and resetDbButton._scripts.OnClick or nil
-      local onEnterResetDb = resetDbButton._scripts and resetDbButton._scripts.OnEnter or nil
-      local onLeaveResetDb = resetDbButton._scripts and resetDbButton._scripts.OnLeave or nil
-      onClickResetUi = Assert.NotNil(onClickResetUi, "resetui button should define OnClick")
-      onClickResetDb = Assert.NotNil(onClickResetDb, "reset all settings button should define OnClick")
-      onEnterResetDb = Assert.NotNil(onEnterResetDb, "reset all settings button should define OnEnter")
-      onLeaveResetDb = Assert.NotNil(onLeaveResetDb, "reset all settings button should define OnLeave")
+        resetUiButton =
+          Assert.NotNil(resetUiButton, "settings panel should create a resetui action button in the reset section")
+        resetDbButton = Assert.NotNil(resetDbButton, "settings panel should create a reset all settings button")
+        ---@diagnostic disable: undefined-field
+        Assert.Equal(
+          resetUiButton.label:GetText(),
+          "Reset UI position (/isilive resetui)",
+          "resetui button should use the localized display label"
+        )
+        Assert.Equal(
+          resetUiButton.label:GetText(),
+          "Reset UI position (/isilive resetui)",
+          "resetui button should keep its clickable label"
+        )
+        Assert.NotNil(resetUiButton.hint, "resetui hint should exist under the button")
+        Assert.Equal(
+          resetUiButton.hint:GetText(),
+          "Default: position center, UI scale 100%, background opacity 50%",
+          "resetui button should explain the default values"
+        )
+        Assert.Equal(
+          resetDbButton.label:GetText(),
+          "Reset All Settings",
+          "reset all settings button should keep its label"
+        )
+        Assert.NotNil(resetUiButton.hoverGlow, "resetui button should expose a hover glow for clickable feedback")
+        Assert.True(
+          resetUiButton._point[5] > resetDbButton._point[5],
+          "resetui action should sit above reset-all inside the administrative reset area"
+        )
+        Assert.NotNil(
+          resetDbButton.hoverGlow,
+          "reset all settings button should expose a hover glow for clickable feedback"
+        )
+        Assert.NotNil(resetDbButton._backdropColor, "reset all settings button should use the styled backdrop")
+        Assert.NotNil(
+          resetDbButton._backdropBorderColor,
+          "reset all settings button should use the styled backdrop border"
+        )
+        Assert.False(
+          resetDbButton._template == "UIPanelButtonTemplate",
+          "reset all settings button should no longer use the legacy UIPanelButtonTemplate"
+        )
+        local onClickResetUi = resetUiButton._scripts and resetUiButton._scripts.OnClick or nil
+        local onClickResetDb = resetDbButton._scripts and resetDbButton._scripts.OnClick or nil
+        local onEnterResetDb = resetDbButton._scripts and resetDbButton._scripts.OnEnter or nil
+        local onLeaveResetDb = resetDbButton._scripts and resetDbButton._scripts.OnLeave or nil
+        onClickResetUi = Assert.NotNil(onClickResetUi, "resetui button should define OnClick")
+        onClickResetDb = Assert.NotNil(onClickResetDb, "reset all settings button should define OnClick")
+        onEnterResetDb = Assert.NotNil(onEnterResetDb, "reset all settings button should define OnEnter")
+        onLeaveResetDb = Assert.NotNil(onLeaveResetDb, "reset all settings button should define OnLeave")
 
-      onEnterResetDb(resetDbButton)
-      Assert.NotNil(
-        resetDbButton._backdropColor,
-        "hover should keep the reset all settings button visually highlighted"
-      )
-      onLeaveResetDb(resetDbButton)
-      Assert.NotNil(resetDbButton._backdropColor, "leave should restore the reset all settings button backdrop")
+        onEnterResetDb(resetDbButton)
+        Assert.NotNil(
+          resetDbButton._backdropColor,
+          "hover should keep the reset all settings button visually highlighted"
+        )
+        onLeaveResetDb(resetDbButton)
+        Assert.NotNil(resetDbButton._backdropColor, "leave should restore the reset all settings button backdrop")
 
-      onClickResetUi(resetUiButton, "LeftButton")
-      Assert.Equal(resetUiCalls, 0, "resetui button should wait for confirmation before calling the reset helper")
-      Assert.NotNil(lastPopupName, "resetui button should open a confirmation popup")
-      Assert.NotNil(staticPopupDialogs[lastPopupName], "resetui confirmation popup should be registered")
-      staticPopupDialogs[lastPopupName].OnCancel()
-      Assert.Equal(resetUiCalls, 0, "resetui cancel should abort the reset helper")
+        onClickResetUi(resetUiButton, "LeftButton")
+        Assert.Equal(resetUiCalls, 0, "resetui button should wait for confirmation before calling the reset helper")
+        Assert.NotNil(lastPopupName, "resetui button should open a confirmation popup")
+        Assert.NotNil(staticPopupDialogs[lastPopupName], "resetui confirmation popup should be registered")
+        staticPopupDialogs[lastPopupName].OnCancel()
+        Assert.Equal(resetUiCalls, 0, "resetui cancel should abort the reset helper")
 
-      onClickResetDb(resetDbButton, "LeftButton")
-      Assert.Equal(
-        resetDbCalls,
-        0,
-        "reset all settings button should wait for confirmation before calling the DB reset"
-      )
-      Assert.NotNil(lastPopupName, "reset all settings button should open a confirmation popup")
-      Assert.NotNil(staticPopupDialogs[lastPopupName], "reset all settings confirmation popup should be registered")
-      staticPopupDialogs[lastPopupName].OnAccept()
-      ---@diagnostic enable: undefined-field
+        onClickResetDb(resetDbButton, "LeftButton")
+        Assert.Equal(
+          resetDbCalls,
+          0,
+          "reset all settings button should wait for confirmation before calling the DB reset"
+        )
+        Assert.NotNil(lastPopupName, "reset all settings button should open a confirmation popup")
+        Assert.NotNil(staticPopupDialogs[lastPopupName], "reset all settings confirmation popup should be registered")
+        staticPopupDialogs[lastPopupName].OnAccept()
+        ---@diagnostic enable: undefined-field
 
-      Assert.Equal(resetUiCalls, 0, "resetui cancel should not call the reset-main-frame callback")
-      Assert.Equal(resetDbCalls, 1, "reset all settings button should call the DB reset callback once")
-    end)
-  end)
+        Assert.Equal(resetUiCalls, 0, "resetui cancel should not call the reset-main-frame callback")
+        Assert.Equal(resetDbCalls, 1, "reset all settings button should call the DB reset callback once")
+      end)
+    end
+  )
 end
 
 local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonModules)

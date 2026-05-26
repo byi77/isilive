@@ -4,14 +4,12 @@ addonTable = addonTable or {}
 local SettingsSections = {}
 addonTable.SettingsSections = SettingsSections
 
-local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
 local DEFAULT_BG_ALPHA = addonTable.UICommon and addonTable.UICommon.DEFAULT_BG_ALPHA or 0.50
 
 local CreateSectionHeader = addonTable.SettingsControls.CreateSectionHeader
 local CreateSectionNote = addonTable.SettingsControls.CreateSectionNote
 local CreateSettingsCheckbox = addonTable.SettingsControls.CreateSettingsCheckbox
 local CreateSettingsSlider = addonTable.SettingsControls.CreateSettingsSlider
-local CreateSettingsActionButton = addonTable.SettingsControls.CreateSettingsActionButton
 local CreateLanguageSelector = addonTable.SettingsControls.CreateLanguageSelector
 local CreateSettingsOptionSelector = addonTable.SettingsControls.CreateSettingsOptionSelector
 local CreateSettingsDropdownSelector = addonTable.SettingsControls.CreateSettingsDropdownSelector
@@ -24,19 +22,21 @@ local DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL = "compact_horizontal"
 local DEFAULT_LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = "compact_main_horizontal"
 local DEFAULT_LAYOUT_MODE_COMPACT_HORIZONTAL_2_LEGACY = "compact_horizontal_2"
 local DEFAULT_LAYOUT_MODE_LAST_USED = "last_used"
-local DISPLAY_CHECKBOX_LABEL_WIDTH = 260
+local DISPLAY_CHECKBOX_LABEL_WIDTH = 640
 local DISPLAY_CHECKBOX_DESCRIPTION_WIDTH = 620
 
-local function CheckboxDescriptionOptions(descriptionText)
+local function SettingDescriptionOptions(descriptionText, extra)
+  extra = type(extra) == "table" and extra or {}
   return {
-    width = DISPLAY_CHECKBOX_LABEL_WIDTH,
+    width = extra.width or DISPLAY_CHECKBOX_LABEL_WIDTH,
+    descriptionKey = extra.descriptionKey,
     descriptionText = descriptionText,
     descriptionWidth = DISPLAY_CHECKBOX_DESCRIPTION_WIDTH,
     descriptionWordWrap = true,
   }
 end
 
-local function SetCheckboxDescription(control, text)
+local function SetControlDescription(control, text)
   if
     type(control) == "table"
     and type(control.description) == "table"
@@ -46,6 +46,9 @@ local function SetCheckboxDescription(control, text)
   end
 end
 
+local CheckboxDescriptionOptions = SettingDescriptionOptions
+local SetCheckboxDescription = SetControlDescription
+
 local STATS_BOX_SETTING_LABELS = {
   enUS = {
     enabled = "Show player stats box",
@@ -54,10 +57,10 @@ local STATS_BOX_SETTING_LABELS = {
     fontSize = "Stats box font size",
   },
   deDE = {
-    enabled = "Spielerwerte-Box anzeigen",
-    locked = "Position der Spielerwerte-Box sperren",
-    alpha = "Hintergrund-Deckkraft der Spielerwerte-Box",
-    fontSize = "Schriftgroesse der Spielerwerte-Box",
+    enabled = "Statsbox anzeigen",
+    locked = "Position der Statsbox sperren",
+    alpha = "Hintergrund-Deckkraft der Statsbox",
+    fontSize = "Schriftgroesse der Statsbox",
   },
 }
 
@@ -158,7 +161,8 @@ function SettingsSections.BuildGeneralSection(canvas, yOffset, labels, config, c
     yOffset,
     labels.SETTINGS_LANGUAGE or "Language",
     config.getCurrentLocale,
-    config.setLanguage
+    config.setLanguage,
+    SettingDescriptionOptions(labels.SETTINGS_LANGUAGE_DESC or "Changes the isiLive addon language.")
   )
 
   controls.defaultLayout, yOffset = CreateSettingsOptionSelector(
@@ -209,7 +213,11 @@ function SettingsSections.BuildGeneralSection(canvas, yOffset, labels, config, c
       end
     end,
     NormalizeStoredLayoutMode,
-    true
+    true,
+    SettingDescriptionOptions(
+      labels.SETTINGS_DEFAULT_OPEN_UI_DESC or "Chooses which main layout opens when isiLive is shown.",
+      { descriptionKey = "SETTINGS_DEFAULT_OPEN_UI_DESC" }
+    )
   )
 
   controls.combatLog, yOffset = CreateSettingsCheckbox(
@@ -221,7 +229,11 @@ function SettingsSections.BuildGeneralSection(canvas, yOffset, labels, config, c
     end,
     function(checked)
       SetCVarEnabled("advancedCombatLogging", checked)
-    end
+    end,
+    "SETTINGS_COMBAT_LOGGING",
+    CheckboxDescriptionOptions(
+      labels.SETTINGS_COMBAT_LOGGING_DESC or "Enables Blizzard's advanced combat log for external log analysis."
+    )
   )
 
   controls.dmReset, yOffset = CreateSettingsCheckbox(
@@ -233,7 +245,11 @@ function SettingsSections.BuildGeneralSection(canvas, yOffset, labels, config, c
     end,
     function(checked)
       SetCVarEnabled("damageMeterResetOnNewInstance", checked)
-    end
+    end,
+    "SETTINGS_DM_RESET",
+    CheckboxDescriptionOptions(
+      labels.SETTINGS_DM_RESET_DESC or "Clears Blizzard's built-in damage meter when you enter a new dungeon."
+    )
   )
 
   controls.escPanel, yOffset = CreateSettingsCheckbox(
@@ -250,7 +266,11 @@ function SettingsSections.BuildGeneralSection(canvas, yOffset, labels, config, c
       if type(config.onEscPanelToggle) == "function" then
         config.onEscPanelToggle(checked)
       end
-    end
+    end,
+    "SETTINGS_ESC_PANEL",
+    CheckboxDescriptionOptions(
+      labels.SETTINGS_ESC_PANEL_DESC or "Adds isiLive's shortcut panel to the ESC menu for quick access."
+    )
   )
 
   controls.portalNavigator, yOffset = CreateSettingsCheckbox(
@@ -268,7 +288,11 @@ function SettingsSections.BuildGeneralSection(canvas, yOffset, labels, config, c
         config.onPortalNavigatorToggle(checked)
       end
     end,
-    "SETTINGS_SHOW_TIMEWAYS_NAVIGATOR"
+    "SETTINGS_SHOW_TIMEWAYS_NAVIGATOR",
+    CheckboxDescriptionOptions(
+      labels.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR_DESC
+        or "Shows the Timeways portal navigator when a known target dungeon can be resolved."
+    )
   )
 
   controls.hearthstoneSelect, yOffset = CreateSettingsDropdownSelector(
@@ -288,7 +312,16 @@ function SettingsSections.BuildGeneralSection(canvas, yOffset, labels, config, c
       if type(config.onHearthstoneChoiceChange) == "function" then
         config.onHearthstoneChoiceChange()
       end
-    end
+    end,
+    nil,
+    false,
+    {
+      descriptionKey = "SETTINGS_HEARTHSTONE_SELECT_DESC",
+      descriptionText = labels.SETTINGS_HEARTHSTONE_SELECT_DESC
+        or "Choose which Hearthstone the ESC menu shortcut should use.",
+      descriptionWidth = DISPLAY_CHECKBOX_DESCRIPTION_WIDTH,
+      descriptionWordWrap = true,
+    }
   )
 
   return yOffset
@@ -323,7 +356,8 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
     function(val)
       return string.format("%.0f%%", val * 100)
     end,
-    "SETTINGS_UI_SCALE"
+    "SETTINGS_UI_SCALE",
+    SettingDescriptionOptions(labels.SETTINGS_UI_SCALE_DESC or "Scales the main isiLive interface.")
   )
 
   controls.bgAlpha, yOffset = CreateSettingsSlider(
@@ -347,7 +381,8 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
     function(val)
       return string.format("%.0f%%", val * 100)
     end,
-    "SETTINGS_BG_ALPHA"
+    "SETTINGS_BG_ALPHA",
+    SettingDescriptionOptions(labels.SETTINGS_BG_ALPHA_DESC or "Adjusts the background opacity of the main window.")
   )
 
   controls.statsBoxEnabled, yOffset = CreateSettingsCheckbox(
@@ -365,7 +400,10 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
         config.onStatsBoxToggle(checked)
       end
     end,
-    "SETTINGS_STATS_BOX_ENABLED"
+    "SETTINGS_STATS_BOX_ENABLED",
+    CheckboxDescriptionOptions(
+      labels.SETTINGS_STATS_BOX_ENABLED_DESC or "Shows a separate movable box with your live player stats."
+    )
   )
 
   controls.statsBoxLocked, yOffset = CreateSettingsCheckbox(
@@ -383,7 +421,8 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
         config.onStatsBoxLockToggle(db.statsBoxLocked)
       end
     end,
-    "SETTINGS_STATS_BOX_LOCKED"
+    "SETTINGS_STATS_BOX_LOCKED",
+    CheckboxDescriptionOptions(labels.SETTINGS_STATS_BOX_LOCKED_DESC or "Prevents dragging the player stats box.")
   )
 
   controls.statsBoxBgAlpha, yOffset = CreateSettingsSlider(
@@ -407,7 +446,10 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
     function(val)
       return string.format("%.0f%%", val * 100)
     end,
-    "SETTINGS_STATS_BOX_BG_ALPHA"
+    "SETTINGS_STATS_BOX_BG_ALPHA",
+    SettingDescriptionOptions(
+      labels.SETTINGS_STATS_BOX_BG_ALPHA_DESC or "Adjusts the player stats box background opacity."
+    )
   )
 
   controls.statsBoxFontSizeOffset, yOffset = CreateSettingsSlider(
@@ -435,46 +477,11 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
       end
       return tostring(math.floor(val + 0.5))
     end,
-    "SETTINGS_STATS_BOX_FONT_SIZE_OFFSET"
+    "SETTINGS_STATS_BOX_FONT_SIZE_OFFSET",
+    SettingDescriptionOptions(
+      labels.SETTINGS_STATS_BOX_FONT_SIZE_OFFSET_DESC or "Adjusts the player stats box text size."
+    )
   )
-
-  controls.resetUiBtn, yOffset = CreateSettingsActionButton(
-    canvas,
-    yOffset,
-    labels.SETTINGS_RESET_UI_POSITION or "/isilive resetui",
-    320,
-    function()
-      if type(config.onResetMainFramePosition) == "function" then
-        config.onResetMainFramePosition()
-      end
-    end,
-    {
-      settingKey = "SETTINGS_RESET_UI_POSITION",
-      confirmText = labels.SETTINGS_RESET_CONFIRM_TEXT or "Do you really want to reset?",
-    },
-    nil
-  )
-
-  local resetUiHint = canvas:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
-  resetUiHint:SetTextColor(td[1], td[2], td[3], 1)
-  resetUiHint:SetPoint("TOPLEFT", controls.resetUiBtn.button, "BOTTOMLEFT", 8, -4)
-  resetUiHint:SetWidth(304)
-  resetUiHint:SetJustifyH("CENTER")
-  if type(resetUiHint.SetWordWrap) == "function" then
-    resetUiHint:SetWordWrap(true)
-  end
-  resetUiHint:SetText(
-    labels.SETTINGS_RESET_UI_POSITION_HINT or "Default: position center, UI scale 100%, background opacity 50%"
-  )
-  controls.resetUiHint = resetUiHint
-  if controls.resetUiBtn then
-    controls.resetUiBtn.hint = resetUiHint
-    if controls.resetUiBtn.button then
-      controls.resetUiBtn.button.hint = resetUiHint
-    end
-  end
-  yOffset = yOffset - 18
 
   if SHOW_NAME_MAX_CHARS_SETTING then
     controls.nameMaxChars, yOffset = CreateSettingsSlider(
@@ -497,7 +504,9 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
       end,
       function(val)
         return string.format("%.0f", val)
-      end
+      end,
+      "SETTINGS_NAME_MAX_CHARS",
+      SettingDescriptionOptions(labels.SETTINGS_NAME_MAX_CHARS_DESC or "Limits the displayed roster name length.")
     )
   end
 
@@ -522,7 +531,11 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
       end,
       function(val)
         return string.format("%.0f", val)
-      end
+      end,
+      "SETTINGS_TELEPORT_COLUMNS",
+      SettingDescriptionOptions(
+        labels.SETTINGS_TELEPORT_COLUMNS_DESC or "Sets the number of columns in the teleport portal grid."
+      )
     )
   end
 
@@ -655,28 +668,50 @@ function SettingsSections.RefreshGeneralControls(controls, labels, db, config)
   )
   if controls.lang then
     controls.lang.label:SetText(labels.SETTINGS_LANGUAGE or "Language")
+    SetControlDescription(controls.lang, labels.SETTINGS_LANGUAGE_DESC or "Changes the isiLive addon language.")
     controls.lang.UpdateHighlight()
   end
   if controls.combatLog then
     controls.combatLog.label:SetText(labels.SETTINGS_COMBAT_LOGGING or "Advanced Combat Logging")
+    SetCheckboxDescription(
+      controls.combatLog,
+      labels.SETTINGS_COMBAT_LOGGING_DESC or "Enables Blizzard's advanced combat log for external log analysis."
+    )
     controls.combatLog.check:SetChecked(GetCVarEnabled("advancedCombatLogging"))
   end
   if controls.dmReset then
     controls.dmReset.label:SetText(labels.SETTINGS_DM_RESET or "Reset Blizzard Damage Meter on dungeon entry")
+    SetCheckboxDescription(
+      controls.dmReset,
+      labels.SETTINGS_DM_RESET_DESC or "Clears Blizzard's built-in damage meter when you enter a new dungeon."
+    )
     controls.dmReset.check:SetChecked(GetCVarEnabled("damageMeterResetOnNewInstance"))
   end
   if controls.escPanel then
     controls.escPanel.label:SetText(labels.SETTINGS_ESC_PANEL or "Show ESC Menu Shortcuts")
+    SetCheckboxDescription(
+      controls.escPanel,
+      labels.SETTINGS_ESC_PANEL_DESC or "Adds isiLive's shortcut panel to the ESC menu for quick access."
+    )
     controls.escPanel.check:SetChecked(db.showEscPanel ~= false)
   end
   if controls.portalNavigator then
     controls.portalNavigator.label:SetText(labels.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR or "Show Timeways Navigator")
+    SetCheckboxDescription(
+      controls.portalNavigator,
+      labels.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR_DESC
+        or "Shows the Timeways portal navigator when a known target dungeon can be resolved."
+    )
     controls.portalNavigator.check:SetChecked(db.showPortalNavigator ~= false)
   end
   if controls.hearthstoneSelect then
     controls.hearthstoneSelect.UpdateOptions(BuildHearthstoneSettingsOptions(config, labels))
   end
   if controls.defaultLayout then
+    SetControlDescription(
+      controls.defaultLayout,
+      labels.SETTINGS_DEFAULT_OPEN_UI_DESC or "Chooses which main layout opens when isiLive is shown."
+    )
     controls.defaultLayout.UpdateHighlight()
   end
 end
@@ -694,40 +729,50 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
 
   if controls.bgAlpha then
     controls.bgAlpha.label:SetText(labels.SETTINGS_BG_ALPHA or "Background Opacity")
+    SetControlDescription(
+      controls.bgAlpha,
+      labels.SETTINGS_BG_ALPHA_DESC or "Adjusts the background opacity of the main window."
+    )
     controls.bgAlpha.SetValueSilently(type(db.bgAlpha) == "number" and db.bgAlpha or DEFAULT_BG_ALPHA)
   end
   if controls.statsBoxEnabled and controls.statsBoxEnabled.label then
     controls.statsBoxEnabled.label:SetText(GetStatsBoxSettingLabel(config, "enabled")) -- i18n-ok
+    SetControlDescription(
+      controls.statsBoxEnabled,
+      labels.SETTINGS_STATS_BOX_ENABLED_DESC or "Shows a separate movable box with your live player stats."
+    )
     controls.statsBoxEnabled.check:SetChecked(db.statsBoxEnabled == true)
   end
   if controls.statsBoxLocked and controls.statsBoxLocked.label then
     controls.statsBoxLocked.label:SetText(GetStatsBoxSettingLabel(config, "locked")) -- i18n-ok
+    SetControlDescription(
+      controls.statsBoxLocked,
+      labels.SETTINGS_STATS_BOX_LOCKED_DESC or "Prevents dragging the player stats box."
+    )
     controls.statsBoxLocked.check:SetChecked(db.statsBoxLocked == true)
   end
   if controls.statsBoxBgAlpha and controls.statsBoxBgAlpha.label then
     controls.statsBoxBgAlpha.label:SetText(GetStatsBoxSettingLabel(config, "alpha")) -- i18n-ok
+    SetControlDescription(
+      controls.statsBoxBgAlpha,
+      labels.SETTINGS_STATS_BOX_BG_ALPHA_DESC or "Adjusts the player stats box background opacity."
+    )
     controls.statsBoxBgAlpha.SetValueSilently(type(db.statsBoxBgAlpha) == "number" and db.statsBoxBgAlpha or 0)
   end
   if controls.statsBoxFontSizeOffset and controls.statsBoxFontSizeOffset.label then
     controls.statsBoxFontSizeOffset.label:SetText(GetStatsBoxSettingLabel(config, "fontSize")) -- i18n-ok
+    SetControlDescription(
+      controls.statsBoxFontSizeOffset,
+      labels.SETTINGS_STATS_BOX_FONT_SIZE_OFFSET_DESC or "Adjusts the player stats box text size."
+    )
     controls.statsBoxFontSizeOffset.SetValueSilently(
       type(db.statsBoxFontSizeOffset) == "number" and db.statsBoxFontSizeOffset or 0
     )
   end
   if controls.uiScale then
     controls.uiScale.label:SetText(labels.SETTINGS_UI_SCALE or "UI Scale")
+    SetControlDescription(controls.uiScale, labels.SETTINGS_UI_SCALE_DESC or "Scales the main isiLive interface.")
     controls.uiScale.SetValueSilently(type(db.uiScale) == "number" and db.uiScale or 1.0)
-  end
-  if controls.resetUiBtn then
-    controls.resetUiBtn.label:SetText(labels.SETTINGS_RESET_UI_POSITION or "/isilive resetui")
-  end
-  if controls.resetUiHint then
-    controls.resetUiHint:SetText(
-      labels.SETTINGS_RESET_UI_POSITION_HINT or "Default: position center, UI scale 100%, background opacity 50%"
-    )
-    if type(controls.resetUiHint.SetWidth) == "function" then
-      controls.resetUiHint:SetWidth(304)
-    end
   end
   if controls.minimapBtn then
     controls.minimapBtn.label:SetText(labels.SETTINGS_MINIMAP_BUTTON or "Minimap Button")
@@ -739,10 +784,18 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
   end
   if controls.nameMaxChars then
     controls.nameMaxChars.label:SetText(labels.SETTINGS_NAME_MAX_CHARS or "Name Length")
+    SetControlDescription(
+      controls.nameMaxChars,
+      labels.SETTINGS_NAME_MAX_CHARS_DESC or "Limits the displayed roster name length."
+    )
     controls.nameMaxChars.SetValueSilently(type(db.nameMaxChars) == "number" and db.nameMaxChars or 10)
   end
   if controls.tpColumns then
     controls.tpColumns.label:SetText(labels.SETTINGS_TELEPORT_COLUMNS or "Teleport Grid Columns")
+    SetControlDescription(
+      controls.tpColumns,
+      labels.SETTINGS_TELEPORT_COLUMNS_DESC or "Sets the number of columns in the teleport portal grid."
+    )
     controls.tpColumns.SetValueSilently(type(db.teleportColumns) == "number" and db.teleportColumns or 4)
   end
   if controls.lfgFlags then

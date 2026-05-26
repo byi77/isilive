@@ -7,6 +7,7 @@ addonTable.SettingsNameplates = SettingsNameplates
 local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
 local PADDING_X = 16
 local LINE_HEIGHT = 28
+local DESCRIPTION_WIDTH = 620
 
 local CreateSectionHeader = addonTable.SettingsControls.CreateSectionHeader
 local CreateSectionNote = addonTable.SettingsControls.CreateSectionNote
@@ -15,6 +16,15 @@ local CreateSettingsSlider = addonTable.SettingsControls.CreateSettingsSlider
 local CreateSettingsOptionSelector = addonTable.SettingsControls.CreateSettingsOptionSelector
 
 local NAMEPLATE_POSITIONS = { "LEFT", "RIGHT", "TOP", "BOTTOM" }
+
+local function DescriptionOptions(descriptionText, descriptionKey)
+  return {
+    descriptionKey = descriptionKey,
+    descriptionText = descriptionText,
+    descriptionWidth = DESCRIPTION_WIDTH,
+    descriptionWordWrap = true,
+  }
+end
 
 local function NormalizeNameplatePosition(val)
   if type(val) == "string" then
@@ -152,7 +162,11 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
       end
     end,
     NormalizeMplusForcesMode,
-    true
+    true,
+    DescriptionOptions(
+      labels.SETTINGS_MPLUS_FORCES_DISPLAY_MODE_DESC or "Chooses where Mythic+ enemy forces progress is shown.",
+      "SETTINGS_MPLUS_FORCES_DISPLAY_MODE_DESC"
+    )
   )
 
   controls.nameplateShowPercent, yOffset = CreateSettingsCheckbox(
@@ -172,7 +186,11 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
         controls.nameplatePreviewUpdate()
       end
     end,
-    "SETTINGS_NAMEPLATE_SHOW_PERCENT"
+    "SETTINGS_NAMEPLATE_SHOW_PERCENT",
+    DescriptionOptions(
+      labels.SETTINGS_NAMEPLATE_SHOW_PERCENT_DESC or "Shows each mob's contribution as a percentage.",
+      "SETTINGS_NAMEPLATE_SHOW_PERCENT_DESC"
+    )
   )
 
   controls.nameplateShowRemaining, yOffset = CreateSettingsCheckbox(
@@ -192,7 +210,12 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
         controls.nameplatePreviewUpdate()
       end
     end,
-    "SETTINGS_NAMEPLATE_SHOW_REMAINING"
+    "SETTINGS_NAMEPLATE_SHOW_REMAINING",
+    DescriptionOptions(
+      labels.SETTINGS_NAMEPLATE_SHOW_REMAINING_DESC
+        or "Adds the remaining enemy forces needed when live dungeon data is available.",
+      "SETTINGS_NAMEPLATE_SHOW_REMAINING_DESC"
+    )
   )
 
   controls.nameplateFontSize, yOffset = CreateSettingsSlider(
@@ -218,7 +241,11 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
     function(val)
       return string.format("%d", val)
     end,
-    "SETTINGS_NAMEPLATE_FONT_SIZE"
+    "SETTINGS_NAMEPLATE_FONT_SIZE",
+    DescriptionOptions(
+      labels.SETTINGS_NAMEPLATE_FONT_SIZE_DESC or "Adjusts the enemy forces text size on nameplates.",
+      "SETTINGS_NAMEPLATE_FONT_SIZE_DESC"
+    )
   )
 
   controls.nameplatePosition, yOffset = CreateSettingsOptionSelector(
@@ -267,7 +294,11 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
       end
     end,
     NormalizeNameplatePosition,
-    true
+    true,
+    DescriptionOptions(
+      labels.SETTINGS_NAMEPLATE_POSITION_DESC or "Places the enemy forces text around each nameplate.",
+      "SETTINGS_NAMEPLATE_POSITION_DESC"
+    )
   )
 
   controls.nameplateXOffset, yOffset = CreateSettingsSlider(
@@ -293,7 +324,11 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
     function(val)
       return string.format("%d", val)
     end,
-    "SETTINGS_NAMEPLATE_X_OFFSET"
+    "SETTINGS_NAMEPLATE_X_OFFSET",
+    DescriptionOptions(
+      labels.SETTINGS_NAMEPLATE_X_OFFSET_DESC or "Moves the nameplate enemy forces text horizontally.",
+      "SETTINGS_NAMEPLATE_X_OFFSET_DESC"
+    )
   )
 
   controls.nameplateYOffset, yOffset = CreateSettingsSlider(
@@ -319,7 +354,11 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
     function(val)
       return string.format("%d", val)
     end,
-    "SETTINGS_NAMEPLATE_Y_OFFSET"
+    "SETTINGS_NAMEPLATE_Y_OFFSET",
+    DescriptionOptions(
+      labels.SETTINGS_NAMEPLATE_Y_OFFSET_DESC or "Moves the nameplate enemy forces text vertically.",
+      "SETTINGS_NAMEPLATE_Y_OFFSET_DESC"
+    )
   )
 
   yOffset = yOffset - 4

@@ -48,7 +48,9 @@ local function CreateFontStringStub(fontObject)
     SetWordWrap = function(self, value)
       self._wordWrap = value == true
     end,
-    SetNonSpaceWrap = function() end,
+    SetNonSpaceWrap = function(self, value)
+      self._nonSpaceWrap = value == true
+    end,
     SetTextColor = function(self, r, g, b, a)
       self._textColor = { r, g, b, a }
     end,

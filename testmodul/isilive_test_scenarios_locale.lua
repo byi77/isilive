@@ -260,6 +260,33 @@ return function(test, ctx)
     end
   end)
 
+  test("German settings stats-box descriptions are localized", function()
+    local addon = LoadAddonModules({ "isiLive_texts.lua" })
+    local locales = addon.Texts.GetLocaleTables()
+    local deDE = locales.deDE or {}
+
+    Assert.Equal(
+      deDE.SETTINGS_STATS_BOX_ENABLED_DESC,
+      "Zeigt eine separate verschiebbare Statsbox mit deinen Echtzeit-Spielerwerten.",
+      "deDE stats-box enabled description must not fall back to English"
+    )
+    Assert.Equal(
+      deDE.SETTINGS_STATS_BOX_LOCKED_DESC,
+      "Verhindert das Ziehen der Statsbox.",
+      "deDE stats-box lock description must not fall back to English"
+    )
+    Assert.Equal(
+      deDE.SETTINGS_STATS_BOX_BG_ALPHA_DESC,
+      "Passt die Hintergrund-Deckkraft der Statsbox an.",
+      "deDE stats-box opacity description must not fall back to English"
+    )
+    Assert.Equal(
+      deDE.SETTINGS_STATS_BOX_FONT_SIZE_OFFSET_DESC,
+      "Passt die Textgroesse der Statsbox an.",
+      "deDE stats-box font-size description must not fall back to English"
+    )
+  end)
+
   test("Full-width action button labels exist for fitted rendering", function()
     local addon = LoadAddonModules({ "isiLive_texts.lua" })
     local locales = addon.Texts.GetLocaleTables()

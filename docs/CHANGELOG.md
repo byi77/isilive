@@ -1,20 +1,39 @@
 # Changelog
 
-## 2026-05-25 - Version 0.9.279 (patch)
+## 2026-05-26 - Version 0.9.280 (patch)
 
 Improves Settings readability by moving option descriptions below their
-checkbox labels instead of placing them inline.
+controls instead of placing them inline.
 
 ### Settings
 
 [ui/isiLive_settings_controls.lua](../ui/isiLive_settings_controls.lua),
 [ui/isiLive_settings_sections.lua](../ui/isiLive_settings_sections.lua),
+[ui/isiLive_settings_behavior.lua](../ui/isiLive_settings_behavior.lua),
+[ui/isiLive_settings_nameplates.lua](../ui/isiLive_settings_nameplates.lua),
+[ui/isiLive_settings_sound.lua](../ui/isiLive_settings_sound.lua),
+[ui/isiLive_settings_support.lua](../ui/isiLive_settings_support.lua),
+[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
 [testmodul/isilive_test_scenarios_ui_settings_descriptions.lua](../testmodul/isilive_test_scenarios_ui_settings_descriptions.lua):
 
-- Settings checkbox descriptions now render below the option row with a wider
-  wrapping text region, matching the clearer layout used by section notes.
-- The display-section description test now verifies the below-option anchor,
-  readable width, word wrapping, and locale refresh behavior.
+- Settings descriptions now render below every option row with a wider
+  wrapping text region, including checkboxes, sliders, dropdowns, and option
+  selectors.
+- Settings labels now use controlled row wrapping across checkboxes, sliders,
+  dropdowns, and option selectors, with long words allowed to break inside the
+  available settings width instead of overflowing.
+- Wrapped slider, dropdown, and option labels now reserve their measured height
+  before rendering descriptions, preventing label and description overlap.
+- The reset UI position action moved from Display into the administrative reset
+  area with the other recovery actions.
+- All settings sections now carry translation-ready description keys. German
+  text is localized; all other locales carry English placeholders.
+- Stats-box settings descriptions now use locale keys as well, so German
+  Settings no longer fall back to English text there.
+- German Settings now name the player stats controls `Statsbox`.
+- The settings description test now verifies below-option anchors, readable
+  width, label and description wrapping, locale refresh behavior, and all
+  supported control types.
 
 ### Release Metadata
 
@@ -25,8 +44,8 @@ checkbox labels instead of placing them inline.
 [docs/RELEASE.md](RELEASE.md),
 [docs/USECASES.md](USECASES.md):
 
-- Bumped the TOC and documented baselines to `0.9.279`.
-- Kept the validator baseline at `1882` scenarios.
+- Bumped the TOC and documented baselines to `0.9.280`.
+- Updated the validator baseline to `1883` scenarios.
 
 ## 2026-05-25 - Version 0.9.278 (patch)
 

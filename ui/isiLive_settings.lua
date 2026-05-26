@@ -106,6 +106,11 @@ local function RefreshSettingsControls(controls, config)
       control:SetText(freshL[key] or fallback)
     end
   end
+  local function SetDescription(control, key, fallback)
+    if type(control) == "table" and control.description and type(control.description.SetText) == "function" then
+      control.description:SetText(freshL[key] or fallback or "")
+    end
+  end
 
   SetLocalizedText(
     controls.introText,
@@ -134,10 +139,20 @@ local function RefreshSettingsControls(controls, config)
   end
   if controls.nameplateShowPercent then
     controls.nameplateShowPercent.label:SetText(freshL.SETTINGS_NAMEPLATE_SHOW_PERCENT or "Show percentage")
+    SetDescription(
+      controls.nameplateShowPercent,
+      "SETTINGS_NAMEPLATE_SHOW_PERCENT_DESC",
+      "Shows each mob's contribution as a percentage."
+    )
     controls.nameplateShowPercent.check:SetChecked(db.mobNameplateShowPercent ~= false)
   end
   if controls.nameplateShowRemaining then
     controls.nameplateShowRemaining.label:SetText(freshL.SETTINGS_NAMEPLATE_SHOW_REMAINING or "Show remaining needed")
+    SetDescription(
+      controls.nameplateShowRemaining,
+      "SETTINGS_NAMEPLATE_SHOW_REMAINING_DESC",
+      "Adds the remaining enemy forces needed when live dungeon data is available."
+    )
     controls.nameplateShowRemaining.check:SetChecked(db.mobNameplateShowRemaining ~= false)
   end
   if controls.nameplatePosition and type(controls.nameplatePosition.UpdateHighlight) == "function" then
@@ -145,14 +160,29 @@ local function RefreshSettingsControls(controls, config)
   end
   if controls.nameplateFontSize then
     controls.nameplateFontSize.label:SetText(freshL.SETTINGS_NAMEPLATE_FONT_SIZE or "Font size")
+    SetDescription(
+      controls.nameplateFontSize,
+      "SETTINGS_NAMEPLATE_FONT_SIZE_DESC",
+      "Adjusts the enemy forces text size on nameplates."
+    )
     controls.nameplateFontSize.SetValueSilently(tonumber(db.mobNameplateFontSize) or 14)
   end
   if controls.nameplateXOffset then
     controls.nameplateXOffset.label:SetText(freshL.SETTINGS_NAMEPLATE_X_OFFSET or "X offset")
+    SetDescription(
+      controls.nameplateXOffset,
+      "SETTINGS_NAMEPLATE_X_OFFSET_DESC",
+      "Moves the nameplate enemy forces text horizontally."
+    )
     controls.nameplateXOffset.SetValueSilently(tonumber(db.mobNameplateXOffset) or 0)
   end
   if controls.nameplateYOffset then
     controls.nameplateYOffset.label:SetText(freshL.SETTINGS_NAMEPLATE_Y_OFFSET or "Y offset")
+    SetDescription(
+      controls.nameplateYOffset,
+      "SETTINGS_NAMEPLATE_Y_OFFSET_DESC",
+      "Moves the nameplate enemy forces text vertically."
+    )
     controls.nameplateYOffset.SetValueSilently(tonumber(db.mobNameplateYOffset) or 0)
   end
   if controls.nameplatePreviewLabel then

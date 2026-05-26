@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 local SettingsSupport = {}
 addonTable.SettingsSupport = SettingsSupport
 
+local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
 local CreateSectionHeader = addonTable.SettingsControls.CreateSectionHeader
 local MeasureWrappedTextHeight = addonTable.SettingsControls.MeasureWrappedTextHeight
 local CreateSectionNote = addonTable.SettingsControls.CreateSectionNote
@@ -13,12 +14,53 @@ local CreateSettingsActionButton = addonTable.SettingsControls.CreateSettingsAct
 local PADDING_X = 16
 local LINE_HEIGHT = 28
 local SETTINGS_CONTENT_WIDTH = 700
+local DESCRIPTION_WIDTH = 620
 local BETA_ISSUES_URL = "https://github.com/byi77/isilive/issues"
 
 local function SetLocalizedText(control, labels, key, fallback)
   if control and type(control.SetText) == "function" then
     control:SetText(labels[key] or fallback)
   end
+end
+
+local function DescriptionOptions(descriptionText)
+  return {
+    descriptionText = descriptionText,
+    descriptionWidth = DESCRIPTION_WIDTH,
+    descriptionWordWrap = true,
+  }
+end
+
+local function SetDescription(control, text)
+  if type(control) == "table" and control.description and type(control.description.SetText) == "function" then
+    control.description:SetText(text or "")
+  end
+end
+
+local function AttachResetUiHint(canvas, control, labels)
+  if type(control) ~= "table" or type(control.button) ~= "table" then
+    return nil
+  end
+
+  local resetUiHint = canvas:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
+  resetUiHint:SetTextColor(td[1], td[2], td[3], 1)
+  resetUiHint:SetPoint("TOPLEFT", control.button, "BOTTOMLEFT", 8, -4)
+  resetUiHint:SetWidth(304)
+  resetUiHint:SetJustifyH("CENTER")
+  if type(resetUiHint.SetWordWrap) == "function" then
+    resetUiHint:SetWordWrap(true)
+  end
+  if type(resetUiHint.SetNonSpaceWrap) == "function" then
+    resetUiHint:SetNonSpaceWrap(true)
+  end
+  resetUiHint:SetText(
+    labels.SETTINGS_RESET_UI_POSITION_HINT or "Default: position center, UI scale 100%, background opacity 50%"
+  )
+  control.hint = resetUiHint
+  control.button.hint = resetUiHint
+
+  return resetUiHint
 end
 
 function SettingsSupport.BuildChatSection(canvas, yOffset, labels, config, controls)
@@ -49,7 +91,10 @@ function SettingsSupport.BuildChatSection(canvas, yOffset, labels, config, contr
       local db = config.getDB()
       db.chatAnnounceBR = checked
     end,
-    "SETTINGS_CHAT_BR_ANNOUNCE"
+    "SETTINGS_CHAT_BR_ANNOUNCE",
+    DescriptionOptions(
+      labels.SETTINGS_CHAT_BR_ANNOUNCE_DESC or "Announces Battle Resurrection usage in party chat during Mythic+ runs."
+    )
   )
 
   controls.chatAnnounceLust, yOffset = CreateSettingsCheckbox(
@@ -64,7 +109,10 @@ function SettingsSupport.BuildChatSection(canvas, yOffset, labels, config, contr
       local db = config.getDB()
       db.chatAnnounceLust = checked
     end,
-    "SETTINGS_CHAT_LUST_ANNOUNCE"
+    "SETTINGS_CHAT_LUST_ANNOUNCE",
+    DescriptionOptions(
+      labels.SETTINGS_CHAT_LUST_ANNOUNCE_DESC or "Announces Bloodlust casts in party chat during Mythic+ runs."
+    )
   )
 
   return yOffset
@@ -96,7 +144,8 @@ function SettingsSupport.BuildDebugSection(canvas, yOffset, labels, config, cont
         config.onQueueDebugToggle(checked)
       end
     end,
-    "SETTINGS_QUEUE_DEBUG"
+    "SETTINGS_QUEUE_DEBUG",
+    DescriptionOptions(labels.SETTINGS_QUEUE_DEBUG_DESC or "Records queue detection events until the next UI reload.")
   )
 
   controls.clearQueueDebugBtn, yOffset = CreateSettingsActionButton(
@@ -128,7 +177,10 @@ function SettingsSupport.BuildDebugSection(canvas, yOffset, labels, config, cont
         config.onRuntimeLogToggle(checked)
       end
     end,
-    "SETTINGS_RUNTIME_LOG"
+    "SETTINGS_RUNTIME_LOG",
+    DescriptionOptions(
+      labels.SETTINGS_RUNTIME_LOG_DESC or "Records runtime diagnostic events until the next UI reload."
+    )
   )
 
   controls.clearRuntimeLogBtn, yOffset = CreateSettingsActionButton(
@@ -160,7 +212,8 @@ function SettingsSupport.BuildDebugSection(canvas, yOffset, labels, config, cont
         config.onRosterColumnGuidesToggle(checked)
       end
     end,
-    "SETTINGS_ROSTER_COLUMN_GUIDES"
+    "SETTINGS_ROSTER_COLUMN_GUIDES",
+    DescriptionOptions(labels.SETTINGS_ROSTER_COLUMN_GUIDES_DESC or "Shows guide lines between compact roster columns.")
   )
 
   return yOffset
@@ -175,6 +228,24 @@ function SettingsSupport.BuildResetSection(canvas, yOffset, labels, config, cont
   if controls.resetHint then
     controls.resetHint._sectionKey = "SETTINGS_SECTION_RESET"
   end
+  controls.resetUiBtn, yOffset = CreateSettingsActionButton(
+    canvas,
+    yOffset,
+    labels.SETTINGS_RESET_UI_POSITION or "/isilive resetui",
+    320,
+    function()
+      if type(config.onResetMainFramePosition) == "function" then
+        config.onResetMainFramePosition()
+      end
+    end,
+    {
+      settingKey = "SETTINGS_RESET_UI_POSITION",
+      confirmText = labels.SETTINGS_RESET_CONFIRM_TEXT or "Do you really want to reset?",
+    }
+  )
+  controls.resetUiHint = AttachResetUiHint(canvas, controls.resetUiBtn, labels)
+  yOffset = yOffset - 18
+
   controls.resetDBBtn, yOffset = CreateSettingsActionButton(
     canvas,
     yOffset,
@@ -258,11 +329,19 @@ function SettingsSupport.RefreshControls(controls, labels, db, config)
   )
   if controls.chatAnnounceBR and controls.chatAnnounceBR.label then
     controls.chatAnnounceBR.label:SetText(labels.SETTINGS_CHAT_BR_ANNOUNCE or "Chat: Announce Battle Res usage in M+")
+    SetDescription(
+      controls.chatAnnounceBR,
+      labels.SETTINGS_CHAT_BR_ANNOUNCE_DESC or "Announces Battle Resurrection usage in party chat during Mythic+ runs."
+    )
     controls.chatAnnounceBR.check:SetChecked(db.chatAnnounceBR ~= false)
   end
   if controls.chatAnnounceLust and controls.chatAnnounceLust.label then
     controls.chatAnnounceLust.label:SetText(
       labels.SETTINGS_CHAT_LUST_ANNOUNCE or "Chat: Announce Bloodlust casts in M+"
+    )
+    SetDescription(
+      controls.chatAnnounceLust,
+      labels.SETTINGS_CHAT_LUST_ANNOUNCE_DESC or "Announces Bloodlust casts in party chat during Mythic+ runs."
     )
     controls.chatAnnounceLust.check:SetChecked(db.chatAnnounceLust ~= false)
   end
@@ -275,12 +354,20 @@ function SettingsSupport.RefreshControls(controls, labels, db, config)
   end
   if controls.queueDebug then
     controls.queueDebug.label:SetText(labels.SETTINGS_QUEUE_DEBUG or "Queue Debug Log")
+    SetDescription(
+      controls.queueDebug,
+      labels.SETTINGS_QUEUE_DEBUG_DESC or "Records queue detection events until the next UI reload."
+    )
     controls.queueDebug.check:SetChecked(
       type(config.getQueueDebugEnabled) == "function" and config.getQueueDebugEnabled() or false
     )
   end
   if controls.runtimeLog then
     controls.runtimeLog.label:SetText(labels.SETTINGS_RUNTIME_LOG or "Runtime Log")
+    SetDescription(
+      controls.runtimeLog,
+      labels.SETTINGS_RUNTIME_LOG_DESC or "Records runtime diagnostic events until the next UI reload."
+    )
     controls.runtimeLog.check:SetChecked(
       type(config.getRuntimeLogEnabled) == "function" and config.getRuntimeLogEnabled() or false
     )
@@ -293,11 +380,26 @@ function SettingsSupport.RefreshControls(controls, labels, db, config)
   end
   if controls.columnGuides then
     controls.columnGuides.label:SetText(labels.SETTINGS_ROSTER_COLUMN_GUIDES or "Column Guides")
+    SetDescription(
+      controls.columnGuides,
+      labels.SETTINGS_ROSTER_COLUMN_GUIDES_DESC or "Shows guide lines between compact roster columns."
+    )
     controls.columnGuides.check:SetChecked(db.showRosterColumnGuides == true)
   end
 
   if controls.resetDBBtn then
     controls.resetDBBtn.label:SetText(labels.SETTINGS_RESET_DB or "Reset All Settings")
+  end
+  if controls.resetUiBtn then
+    controls.resetUiBtn.label:SetText(labels.SETTINGS_RESET_UI_POSITION or "/isilive resetui")
+  end
+  if controls.resetUiHint then
+    controls.resetUiHint:SetText(
+      labels.SETTINGS_RESET_UI_POSITION_HINT or "Default: position center, UI scale 100%, background opacity 50%"
+    )
+    if type(controls.resetUiHint.SetWidth) == "function" then
+      controls.resetUiHint:SetWidth(304)
+    end
   end
   if controls.resetHint then
     controls.resetHint:SetText(

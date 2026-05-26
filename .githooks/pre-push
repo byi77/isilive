@@ -31,5 +31,5 @@ if command -v powershell >/dev/null 2>&1; then
 fi
 
 echo "pre-push: PowerShell not found (pwsh / powershell.exe / powershell)." >&2
-echo "Skipping local CI preflight. GitHub Actions CI will still validate the push." >&2
-exit 0
+echo "Install PowerShell 7+ or skip explicitly with 'git push --no-verify'." >&2
+exit 1

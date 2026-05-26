@@ -26,7 +26,28 @@ local SLIDER_HEIGHT = 16
 local SETTINGS_CONTENT_WIDTH = 700
 local SLIDER_LABEL_WIDTH = 150
 local CHECKBOX_LABEL_WIDTH = SETTINGS_CONTENT_WIDTH - (PADDING_X * 2) - 28
+local FULL_ROW_TEXT_WIDTH = SETTINGS_CONTENT_WIDTH - (PADDING_X * 2)
+local INLINE_CONTROL_X = PADDING_X + 160
+local INLINE_CONTROL_WIDTH = SETTINGS_CONTENT_WIDTH - INLINE_CONTROL_X - PADDING_X
 local LANG_BUTTONS_PER_ROW = 5
+
+local function ConfigureWrappingText(region, width, wordWrap)
+  if type(region) ~= "table" then
+    return
+  end
+  if type(region.SetWidth) == "function" and tonumber(width) and tonumber(width) > 0 then
+    region:SetWidth(width)
+  end
+  if type(region.SetJustifyH) == "function" then
+    region:SetJustifyH("LEFT")
+  end
+  if type(region.SetWordWrap) == "function" then
+    region:SetWordWrap(wordWrap ~= false)
+  end
+  if type(region.SetNonSpaceWrap) == "function" then
+    region:SetNonSpaceWrap(wordWrap ~= false)
+  end
+end
 
 function SettingsControls.CreateSectionHeader(parent, yOffset, text)
   local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -54,6 +75,29 @@ function SettingsControls.MeasureWrappedTextHeight(textRegion, fallbackHeight, p
     height = math.max(height, math.ceil(measured) + (tonumber(padding) or 0))
   end
   return height
+end
+
+local function GetTextBlockHeight(textRegion, fallbackHeight)
+  local height = tonumber(fallbackHeight) or LINE_HEIGHT
+  if type(textRegion) == "table" and type(textRegion.GetStringHeight) == "function" then
+    local measured = tonumber(textRegion:GetStringHeight())
+    if measured and measured > 0 then
+      height = math.max(height, math.ceil(measured))
+    end
+  end
+  return height
+end
+
+local function GetDescriptionTopYOffset(yOffset, label, fallbackLabelHeight)
+  return yOffset - GetTextBlockHeight(label, fallbackLabelHeight) - 8
+end
+
+local function GetRowHeight(label, description, fallbackLabelHeight)
+  local labelHeight = GetTextBlockHeight(label, fallbackLabelHeight)
+  if description then
+    return labelHeight + GetTextBlockHeight(description, 16) + 14
+  end
+  return math.max(LINE_HEIGHT, labelHeight + 8)
 end
 
 function SettingsControls.CreateSettingsIntro(parent, yOffset, text)
@@ -101,14 +145,9 @@ function SettingsControls.CreateSettingsCheckbox(parent, yOffset, labelText, get
   label:SetTextColor(tn[1], tn[2], tn[3], 1)
   label:SetPoint("LEFT", check, "RIGHT", 4, 0)
   local labelWidth = tonumber(options.width) or CHECKBOX_LABEL_WIDTH
-  if type(label.SetWidth) == "function" and labelWidth and labelWidth > 0 then
-    label:SetWidth(labelWidth)
-  end
-  if type(label.SetJustifyH) == "function" then
-    label:SetJustifyH(type(options.justifyH) == "string" and options.justifyH or "LEFT")
-  end
-  if type(label.SetWordWrap) == "function" and options.wordWrap ~= false then
-    label:SetWordWrap(true)
+  ConfigureWrappingText(label, labelWidth, options.wordWrap ~= false)
+  if type(options.justifyH) == "string" and type(label.SetJustifyH) == "function" then
+    label:SetJustifyH(options.justifyH)
   end
   label:SetText(labelText or "")
   check.label = label
@@ -118,19 +157,11 @@ function SettingsControls.CreateSettingsCheckbox(parent, yOffset, labelText, get
     description = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
     description:SetTextColor(td[1], td[2], td[3], 1)
-    description:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset - LINE_HEIGHT + 4)
     local descriptionWidth = tonumber(options.descriptionWidth)
       or math.max(120, SETTINGS_CONTENT_WIDTH - (PADDING_X * 2))
-    if type(description.SetWidth) == "function" then
-      description:SetWidth(descriptionWidth)
-    end
-    if type(description.SetJustifyH) == "function" then
-      description:SetJustifyH("LEFT")
-    end
-    if type(description.SetWordWrap) == "function" then
-      description:SetWordWrap(options.descriptionWordWrap ~= false)
-    end
+    ConfigureWrappingText(description, descriptionWidth, options.descriptionWordWrap ~= false)
     description:SetText(descriptionText)
+    description:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, GetDescriptionTopYOffset(yOffset, label, 24))
     check.description = description
   end
   if type(getter) == "function" then
@@ -149,10 +180,7 @@ function SettingsControls.CreateSettingsCheckbox(parent, yOffset, labelText, get
     end
   end
   if options.rowHeight == nil and description and type(description.GetStringHeight) == "function" then
-    local descriptionHeight = tonumber(description:GetStringHeight()) or 0
-    if descriptionHeight > 0 then
-      rowHeight = math.max(rowHeight, LINE_HEIGHT + math.ceil(descriptionHeight) + 6)
-    end
+    rowHeight = math.max(rowHeight, GetRowHeight(label, description, 24))
   end
   return { check = check, label = label, description = description }, yOffset - rowHeight
 end
@@ -167,25 +195,20 @@ function SettingsControls.CreateSettingsSlider(
   getter,
   setter,
   formatFunc,
-  settingKey
+  settingKey,
+  controlOptions
 )
+  controlOptions = type(controlOptions) == "table" and controlOptions or {}
   local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   local tn = Colors.TEXT_NORMAL or { 0.85, 0.85, 0.9 }
   label:SetTextColor(tn[1], tn[2], tn[3], 1)
   label:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset - 3)
   label:SetText(labelText or "")
-  if type(label.SetWidth) == "function" then
-    label:SetWidth(SLIDER_LABEL_WIDTH)
-  end
-  if type(label.SetJustifyH) == "function" then
-    label:SetJustifyH("LEFT")
-  end
-  if type(label.SetWordWrap) == "function" then
-    label:SetWordWrap(true)
-  end
+  ConfigureWrappingText(label, SLIDER_LABEL_WIDTH, true)
   local slider = CreateFrame("Slider", nil, parent, "BackdropTemplate")
   slider:SetSize(SLIDER_WIDTH, SLIDER_HEIGHT)
   slider:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X + 160, yOffset - 2)
+  slider.label = label
   slider:SetOrientation("HORIZONTAL")
   slider:SetMinMaxValues(minVal, maxVal)
   slider:SetValueStep(step)
@@ -219,6 +242,19 @@ function SettingsControls.CreateSettingsSlider(
   local valueLabel = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   valueLabel:SetTextColor(tn[1], tn[2], tn[3], 1)
   valueLabel:SetPoint("LEFT", slider, "RIGHT", 8, 0)
+  local description = nil
+  local descriptionText = type(controlOptions.descriptionText) == "string" and controlOptions.descriptionText or nil
+  if descriptionText and descriptionText ~= "" then
+    description = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
+    description:SetTextColor(td[1], td[2], td[3], 1)
+    local descriptionWidth = tonumber(controlOptions.descriptionWidth)
+      or math.max(120, SETTINGS_CONTENT_WIDTH - (PADDING_X * 2))
+    ConfigureWrappingText(description, descriptionWidth, controlOptions.descriptionWordWrap ~= false)
+    description:SetText(descriptionText)
+    description:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, GetDescriptionTopYOffset(yOffset, label, 20))
+    slider.description = description
+  end
   local suppressValueChanged = false
   local function UpdateValueLabel(val)
     if type(formatFunc) == "function" then
@@ -257,11 +293,15 @@ function SettingsControls.CreateSettingsSlider(
       rowHeight = math.max(rowHeight, math.ceil(textHeight) + 8)
     end
   end
+  if description and type(description.GetStringHeight) == "function" then
+    rowHeight = math.max(rowHeight, GetRowHeight(label, description, 20))
+  end
 
   return {
     label = label,
     slider = slider,
     valueLabel = valueLabel,
+    description = description,
     UpdateValueLabel = UpdateValueLabel,
     SetValueSilently = SetValueSilently,
   },
@@ -323,25 +363,15 @@ function SettingsControls.CreateSettingsActionButton(
   local hoverLabelColor = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
   if hasSubtitle then
     label:SetPoint("TOPLEFT", button, "TOPLEFT", 8, -6)
-    if type(label.SetWidth) == "function" then
-      label:SetWidth(buttonWidth - 16)
-    end
+    ConfigureWrappingText(label, buttonWidth - 16, true)
     if type(label.SetJustifyH) == "function" then
       label:SetJustifyH("CENTER")
-    end
-    if type(label.SetWordWrap) == "function" then
-      label:SetWordWrap(true)
     end
   else
     label:SetPoint("CENTER", 0, 0)
-    if type(label.SetWidth) == "function" then
-      label:SetWidth(buttonWidth - 12)
-    end
+    ConfigureWrappingText(label, buttonWidth - 12, true)
     if type(label.SetJustifyH) == "function" then
       label:SetJustifyH("CENTER")
-    end
-    if type(label.SetWordWrap) == "function" then
-      label:SetWordWrap(true)
     end
   end
   label:SetTextColor(tn[1], tn[2], tn[3], 1)
@@ -366,14 +396,9 @@ function SettingsControls.CreateSettingsActionButton(
     local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
     subtitle:SetTextColor(td[1], td[2], td[3], 1)
     subtitle:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 8, 5)
-    if type(subtitle.SetWidth) == "function" then
-      subtitle:SetWidth(buttonWidth - 16)
-    end
+    ConfigureWrappingText(subtitle, buttonWidth - 16, true)
     if type(subtitle.SetJustifyH) == "function" then
       subtitle:SetJustifyH("CENTER")
-    end
-    if type(subtitle.SetWordWrap) == "function" then
-      subtitle:SetWordWrap(true)
     end
     subtitle:SetText(subtitleText)
   end
@@ -442,12 +467,34 @@ function SettingsControls.CreateSettingsActionButton(
   }, yOffset - buttonHeight - LINE_HEIGHT
 end
 
-function SettingsControls.CreateLanguageSelector(parent, yOffset, labelText, getCurrentLocale, setLanguage)
+function SettingsControls.CreateLanguageSelector(
+  parent,
+  yOffset,
+  labelText,
+  getCurrentLocale,
+  setLanguage,
+  controlOptions
+)
+  controlOptions = type(controlOptions) == "table" and controlOptions or {}
   local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   local tn = Colors.TEXT_NORMAL or { 0.85, 0.85, 0.9 }
   label:SetTextColor(tn[1], tn[2], tn[3], 1)
   label:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset - 3)
   label:SetText(labelText or "")
+  local description = nil
+  local descriptionText = type(controlOptions.descriptionText) == "string" and controlOptions.descriptionText or nil
+  if descriptionText and descriptionText ~= "" then
+    description = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
+    description:SetTextColor(td[1], td[2], td[3], 1)
+    ConfigureWrappingText(
+      description,
+      tonumber(controlOptions.descriptionWidth) or math.max(120, FULL_ROW_TEXT_WIDTH),
+      controlOptions.descriptionWordWrap ~= false
+    )
+    description:SetText(descriptionText)
+    description:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, GetDescriptionTopYOffset(yOffset, label, 20))
+  end
 
   local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
   local acBlue = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
@@ -461,7 +508,8 @@ function SettingsControls.CreateLanguageSelector(parent, yOffset, labelText, get
     btn:SetSize(LANG_BUTTON_WIDTH, LANG_BUTTON_HEIGHT)
     local posInRow = (i - 1) % LANG_BUTTONS_PER_ROW
     if posInRow == 0 then
-      local rowY = yOffset - 1 - (math.floor((i - 1) / LANG_BUTTONS_PER_ROW) * (LANG_BUTTON_HEIGHT + 3))
+      local rowYOffset = description and (GetRowHeight(label, description, 20) - LINE_HEIGHT + 5) or 0
+      local rowY = yOffset - 1 - rowYOffset - (math.floor((i - 1) / LANG_BUTTONS_PER_ROW) * (LANG_BUTTON_HEIGHT + 3))
       btn:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X + 120, rowY)
     else
       btn:SetPoint("LEFT", buttons[#buttons].btn, "RIGHT", 2, 0)
@@ -492,7 +540,8 @@ function SettingsControls.CreateLanguageSelector(parent, yOffset, labelText, get
   end
 
   local numRows = rowIndex + 1
-  local totalHeight = numRows * LINE_HEIGHT
+  local totalHeight = (numRows * LINE_HEIGHT)
+    + (description and GetRowHeight(label, description, 20) - LINE_HEIGHT or 0)
 
   local function UpdateHighlight()
     local current = type(getCurrentLocale) == "function" and getCurrentLocale() or "enUS"
@@ -520,7 +569,8 @@ function SettingsControls.CreateLanguageSelector(parent, yOffset, labelText, get
 
   UpdateHighlight()
 
-  return { label = label, buttons = buttons, UpdateHighlight = UpdateHighlight }, yOffset - totalHeight
+  return { label = label, description = description, buttons = buttons, UpdateHighlight = UpdateHighlight },
+    yOffset - totalHeight
 end
 
 function SettingsControls.CreateSettingsOptionSelector(
@@ -533,28 +583,43 @@ function SettingsControls.CreateSettingsOptionSelector(
   getter,
   setter,
   normalizeValue,
-  labelOnTop
+  labelOnTop,
+  controlOptions
 )
+  controlOptions = type(controlOptions) == "table" and controlOptions or {}
   local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   local tn = Colors.TEXT_NORMAL or { 0.85, 0.85, 0.9 }
   label:SetTextColor(tn[1], tn[2], tn[3], 1)
   label:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset - 3)
-  if labelOnTop and type(label.SetWidth) == "function" then
-    label:SetWidth(math.max(240, SETTINGS_CONTENT_WIDTH - (PADDING_X * 2)))
-  end
-  if labelOnTop and type(label.SetWordWrap) == "function" then
-    label:SetWordWrap(false)
-  end
+  ConfigureWrappingText(label, labelOnTop and math.max(240, FULL_ROW_TEXT_WIDTH) or SLIDER_LABEL_WIDTH, true)
   label:SetText(fallbackLabel or "")
 
+  local description = nil
+  local descriptionText = type(controlOptions.descriptionText) == "string" and controlOptions.descriptionText or nil
+  if descriptionText and descriptionText ~= "" then
+    description = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
+    description:SetTextColor(td[1], td[2], td[3], 1)
+    local descriptionWidth = tonumber(controlOptions.descriptionWidth)
+      or math.max(120, SETTINGS_CONTENT_WIDTH - (PADDING_X * 2))
+    ConfigureWrappingText(description, descriptionWidth, controlOptions.descriptionWordWrap ~= false)
+    description:SetText(descriptionText)
+    description:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, GetDescriptionTopYOffset(yOffset, label, 20))
+  end
+
   local buttons = {}
-  local buttonX = labelOnTop and PADDING_X or (PADDING_X + 160)
-  local buttonYOffset = labelOnTop and (yOffset - LINE_HEIGHT - 6) or yOffset
+  local buttonX = labelOnTop and PADDING_X or INLINE_CONTROL_X
+  local labelBlockHeight = GetTextBlockHeight(label, labelOnTop and 20 or LINE_HEIGHT)
+  local descriptionBlockHeight = description and GetTextBlockHeight(description, 16) or 0
+  local buttonYOffset = labelOnTop
+      and (description and (yOffset - labelBlockHeight - descriptionBlockHeight - 14) or (yOffset - labelBlockHeight - 8))
+    or yOffset
   local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
   local acBlue = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
   local borderDefault = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
   local buttonPadding = 22
   local currentOptions = {}
+  local buttonRowCount = 1
 
   local function ResolveButtonWidth(button)
     local minWidth = tonumber(button._optionMinWidth) or 40
@@ -569,18 +634,25 @@ function SettingsControls.CreateSettingsOptionSelector(
   end
 
   local function UpdateButtonLayout()
-    local x = labelOnTop and PADDING_X or (PADDING_X + 160)
+    local x = labelOnTop and PADDING_X or INLINE_CONTROL_X
+    local row = 0
+    local maxRight = PADDING_X + FULL_ROW_TEXT_WIDTH
     for _, button in ipairs(buttons) do
       local width = ResolveButtonWidth(button)
+      if x > PADDING_X and x + width > maxRight then
+        x = PADDING_X
+        row = row + 1
+      end
       if type(button.SetSize) == "function" then
         button:SetSize(width, LANG_BUTTON_HEIGHT)
       end
       if type(button.ClearAllPoints) == "function" then
         button:ClearAllPoints()
       end
-      button:SetPoint("TOPLEFT", parent, "TOPLEFT", x, buttonYOffset - 1)
+      button:SetPoint("TOPLEFT", parent, "TOPLEFT", x, buttonYOffset - 1 - (row * (LANG_BUTTON_HEIGHT + 4)))
       x = x + width + 4
     end
+    buttonRowCount = row + 1
   end
 
   local function ApplyButtonStyle(button, selected)
@@ -610,6 +682,10 @@ function SettingsControls.CreateSettingsOptionSelector(
   local function UpdateHighlight()
     local freshL = type(getLabels) == "function" and getLabels() or {}
     label:SetText((freshL and freshL[labelKey]) or fallbackLabel or "")
+    if description and type(description.SetText) == "function" then
+      local freshDescription = freshL and freshL[controlOptions.descriptionKey] or controlOptions.descriptionText or ""
+      description:SetText(freshDescription)
+    end
     local selectedMode = type(normalizeValue) == "function"
         and normalizeValue(type(getter) == "function" and getter() or nil)
       or (type(getter) == "function" and getter() or nil)
@@ -633,6 +709,10 @@ function SettingsControls.CreateSettingsOptionSelector(
 
     local buttonLabel = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     buttonLabel:SetPoint("CENTER", 0, 0)
+    ConfigureWrappingText(buttonLabel, math.max(28, buttonWidth - 8), false)
+    if type(buttonLabel.SetJustifyH) == "function" then
+      buttonLabel:SetJustifyH("CENTER")
+    end
     button.label = buttonLabel
     button._optionValue = option.value
     button._optionLabelKey = option.labelKey
@@ -661,7 +741,7 @@ function SettingsControls.CreateSettingsOptionSelector(
       end
     end
     buttons = {}
-    buttonX = labelOnTop and PADDING_X or (PADDING_X + 160)
+    buttonX = labelOnTop and PADDING_X or INLINE_CONTROL_X
     for _, option in ipairs(currentOptions) do
       local button = CreateOptionButton(option)
       button:SetPoint("TOPLEFT", parent, "TOPLEFT", buttonX, buttonYOffset - 1)
@@ -673,13 +753,19 @@ function SettingsControls.CreateSettingsOptionSelector(
 
   UpdateOptions(options)
 
+  local buttonRowsHeight = math.max(1, buttonRowCount) * (LANG_BUTTON_HEIGHT + 4)
+  local totalHeight = labelOnTop
+      and (labelBlockHeight + (description and descriptionBlockHeight + 8 or 0) + buttonRowsHeight + 10)
+    or math.max(description and (LINE_HEIGHT * 2) or LINE_HEIGHT, buttonRowsHeight + 4)
+
   return {
     label = label,
     buttons = buttons,
+    description = description,
     UpdateHighlight = UpdateHighlight,
     UpdateOptions = UpdateOptions,
   },
-    yOffset - (labelOnTop and (LINE_HEIGHT * 2 + 8) or LINE_HEIGHT)
+    yOffset - totalHeight
 end
 
 function SettingsControls.CreateSettingsDropdownSelector(
@@ -692,33 +778,48 @@ function SettingsControls.CreateSettingsDropdownSelector(
   getter,
   setter,
   normalizeValue,
-  labelOnTop
+  labelOnTop,
+  controlOptions
 )
+  controlOptions = type(controlOptions) == "table" and controlOptions or {}
   local label = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   local tn = Colors.TEXT_NORMAL or { 0.85, 0.85, 0.9 }
   label:SetTextColor(tn[1], tn[2], tn[3], 1)
   label:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset - 3)
-  if labelOnTop and type(label.SetWidth) == "function" then
-    label:SetWidth(math.max(240, SETTINGS_CONTENT_WIDTH - (PADDING_X * 2)))
-  end
-  if labelOnTop and type(label.SetWordWrap) == "function" then
-    label:SetWordWrap(false)
-  end
+  ConfigureWrappingText(label, labelOnTop and math.max(240, FULL_ROW_TEXT_WIDTH) or SLIDER_LABEL_WIDTH, true)
   local initialLabels = type(getLabels) == "function" and getLabels() or {}
   label:SetText((initialLabels and initialLabels[labelKey]) or fallbackLabel or "")
 
-  local buttonWidth = 380
+  local description = nil
+  local descriptionText = type(controlOptions.descriptionText) == "string" and controlOptions.descriptionText or nil
+  if descriptionText and descriptionText ~= "" then
+    description = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
+    description:SetTextColor(td[1], td[2], td[3], 1)
+    local descriptionWidth = tonumber(controlOptions.descriptionWidth)
+      or math.max(120, SETTINGS_CONTENT_WIDTH - (PADDING_X * 2))
+    ConfigureWrappingText(description, descriptionWidth, controlOptions.descriptionWordWrap ~= false)
+    description:SetText(descriptionText)
+    description:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, GetDescriptionTopYOffset(yOffset, label, 20))
+  end
+
+  local buttonWidth = math.min(420, INLINE_CONTROL_WIDTH)
   local buttonHeight = 24
+  local labelBlockHeight = GetTextBlockHeight(label, labelOnTop and 20 or LINE_HEIGHT)
+  local descriptionBlockHeight = description and GetTextBlockHeight(description, 16) or 0
   local dropdownButton = CreateFrame("Button", nil, parent, "BackdropTemplate")
   dropdownButton._settingKey = labelKey
   dropdownButton._label = label
+  dropdownButton.description = description
   dropdownButton:SetSize(buttonWidth, buttonHeight)
   dropdownButton:SetPoint(
     "TOPLEFT",
     parent,
     "TOPLEFT",
-    labelOnTop and PADDING_X or (PADDING_X + 160),
-    labelOnTop and (yOffset - LINE_HEIGHT - 6) or yOffset
+    labelOnTop and PADDING_X or INLINE_CONTROL_X,
+    labelOnTop
+        and (description and (yOffset - labelBlockHeight - descriptionBlockHeight - 14) or (yOffset - labelBlockHeight - 8))
+      or yOffset
   )
 
   if type(dropdownButton.SetBackdrop) == "function" then
@@ -738,6 +839,7 @@ function SettingsControls.CreateSettingsDropdownSelector(
   dropdownLabel:SetPoint("LEFT", dropdownButton, "LEFT", 8, 0)
   dropdownLabel:SetPoint("RIGHT", dropdownButton, "RIGHT", -24, 0)
   dropdownLabel:SetJustifyH("LEFT")
+  ConfigureWrappingText(dropdownLabel, buttonWidth - 32, false)
   dropdownLabel:SetTextColor(tn[1], tn[2], tn[3], 1)
   dropdownLabel:SetText(fallbackLabel or "")
   dropdownButton._dropdownLabel = dropdownLabel
@@ -797,6 +899,10 @@ function SettingsControls.CreateSettingsDropdownSelector(
   local function RefreshDropdown()
     labelsCache = type(getLabels) == "function" and getLabels() or {}
     label:SetText((labelsCache and labelsCache[labelKey]) or fallbackLabel or "")
+    if description then
+      local descriptionKey = controlOptions.descriptionKey
+      description:SetText((descriptionKey and labelsCache and labelsCache[descriptionKey]) or descriptionText or "")
+    end
     local selectedValue = GetSelectedValue()
     local selectedText = fallbackLabel or ""
     for _, option in ipairs(currentOptions) do
@@ -848,6 +954,7 @@ function SettingsControls.CreateSettingsDropdownSelector(
         btnLabel:SetPoint("LEFT", btn, "LEFT", 8, 0)
         btnLabel:SetPoint("RIGHT", btn, "RIGHT", -8, 0)
         btnLabel:SetJustifyH("LEFT")
+        ConfigureWrappingText(btnLabel, buttonWidth - 16, false)
         if type(btnLabel.SetTextColor) == "function" then
           btnLabel:SetTextColor(tn[1], tn[2], tn[3], 1)
         end
@@ -920,11 +1027,19 @@ function SettingsControls.CreateSettingsDropdownSelector(
   dropdownButton._options = currentOptions
   RefreshDropdown()
 
+  local dropdownRowHeight = labelOnTop
+      and (labelBlockHeight + (description and descriptionBlockHeight + 8 or 0) + buttonHeight + 10)
+    or math.max(
+      LINE_HEIGHT,
+      description and (LINE_HEIGHT + math.ceil(tonumber(description:GetStringHeight()) or 0) + 6) or 0
+    )
+
   return {
     label = label,
+    description = description,
     button = dropdownButton,
     UpdateHighlight = RefreshDropdown,
     UpdateOptions = UpdateOptions,
   },
-    yOffset - (labelOnTop and (LINE_HEIGHT * 2 + 8) or LINE_HEIGHT)
+    yOffset - dropdownRowHeight
 end

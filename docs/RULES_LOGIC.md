@@ -219,6 +219,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Locale hearthstone settings strings are localized per supported language
   - Settings hearthstone selector shows English toy names for non-German addon locales
   - Settings hearthstone selector uses client-localized toy names for German addon locale
+  - German settings stats-box descriptions are localized
   - LI.BuildBonusSuffix localizes class bonuses and keeps German text for deDE only
   - LI.ApplyGroupBonusTooltipLines matches exact member lines without a German or English section header
 

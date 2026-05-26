@@ -2,9 +2,9 @@
 # Fast gate for every commit:
 #   * stylua --check       — formatting
 #   * luacheck             — lint
-#   * validate_usecases    — 1380 unit tests
+#   * validate_usecases    — deterministic usecase suite
 #
-# The full gate (all 11 simulators + static-analysis gates + metrics)
+# The full gate (lifecycle simulators + static-analysis gates + metrics)
 # runs in pre-push instead, so iteration commits stay snappy. To run
 # the full gate manually, invoke `pwsh tools/run_local_ci.ps1`. To
 # bypass any hook for a single commit, use `git commit --no-verify`.
@@ -44,7 +44,7 @@ if ! luacheck --exclude-files ".luarocks/**" -- .; then
   exit 1
 fi
 
-echo "==> validate_usecases (1380 deterministic unit tests)"
+echo "==> validate_usecases"
 if ! lua tools/validate_usecases.lua; then
   echo "pre-commit: usecase / rules-logic validation failed." >&2
   exit 1
