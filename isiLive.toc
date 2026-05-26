@@ -1,6 +1,6 @@
 ## Interface: 120005
 ## Title: isi|cff1e90ffLive|r
-## Notes: M+ Dungeon and Group Managment
+## Notes: M+ Dungeon and Group Management
 ## Author: mematiWoW
 ## Version: 0.9.279
 ## SavedVariables: IsiLiveDB
