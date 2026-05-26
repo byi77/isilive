@@ -9,6 +9,25 @@
 
 ---
 
+## License and Source Attribution
+
+isiLive uses an MIT-based license with an additional source-attribution requirement.
+
+You may use, modify, redistribute, and include substantial parts of this project in other projects.
+
+If you do so, visible credit to the original GitHub source is required:
+
+https://github.com/byi77/isilive
+
+### Recommended CurseForge / Wago attribution text
+
+```text
+Source attribution required when redistributing or reusing substantial code:
+https://github.com/byi77/isilive
+```
+
+---
+
 ## What it does
 
 When you join a group, isiLive opens a single window with everything you want to see before and during a key:
