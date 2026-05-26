@@ -320,14 +320,16 @@ local function CreatePanelButtons(mainFrame, deps)
     readyCheckButton:SetAttribute("type1", "macro")
     readyCheckButton:SetAttribute("macrotext1", "/readycheck")
   end
-  readyCheckButton:SetScript("OnClick", function()
-    if not isPlayerLeader() then
-      return
-    end
-    if type(deps.logRuntimeTrace) == "function" then
-      deps.logRuntimeTrace("[UI] btn_click name=readycheck")
-    end
-  end)
+  if type(readyCheckButton.HookScript) == "function" then
+    readyCheckButton:HookScript("OnClick", function()
+      if not isPlayerLeader() then
+        return
+      end
+      if type(deps.logRuntimeTrace) == "function" then
+        deps.logRuntimeTrace("[UI] btn_click name=readycheck")
+      end
+    end)
+  end
   AttachPanelButtonTooltip(deps.tooltipFrame, readyCheckButton, getL, "BTN_READYCHECK", "TOOLTIP_READY", isPlayerLeader)
 
   local countdownButton = CreateFlatButton(mainFrame, 120, 24)

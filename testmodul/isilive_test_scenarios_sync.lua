@@ -1076,6 +1076,71 @@ local function RegisterProcessMessageReceiveTests(test, Assert, WithGlobals, Loa
     end)
   end)
 
+  test("Sync ProcessAddonMessage handles SHAREKEYS from UTF-8 sender names", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str:sub(1, pos - 1)
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local umlautResult =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "SHAREKEYS", "Kürshad-Blackmoore", "Pinto", "Malfurion")
+      local cyrillicResult =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "SHAREKEYS", "Кирилл-Гордунни", "Pinto", "Malfurion")
+
+      Assert.NotNil(umlautResult, "UTF-8 umlaut SHAREKEYS sender must return a result")
+      Assert.True(umlautResult.shouldShareKeys, "UTF-8 umlaut sender must trigger share-keys response")
+      Assert.NotNil(cyrillicResult, "Cyrillic SHAREKEYS sender must return a result")
+      Assert.True(cyrillicResult.shouldShareKeys, "Cyrillic sender must trigger share-keys response")
+    end)
+  end)
+
+  test("Sync ProcessAddonMessage suppresses SHAREKEYS self-echo for UTF-8 names", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str:sub(1, pos - 1)
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local umlautResult =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "SHAREKEYS", "Kürshad-Blackmoore", "Kürshad", "Blackmoore")
+      local cyrillicResult = addon.Sync.ProcessAddonMessage(
+        "ISILIVE",
+        "SHAREKEYS",
+        "Кирилл-Гордунни",
+        "Кирилл",
+        "Гордунни"
+      )
+
+      Assert.NotNil(umlautResult, "UTF-8 umlaut self-echo must return a result")
+      Assert.False(umlautResult.shouldShareKeys, "UTF-8 umlaut self-echo must not trigger a response")
+      Assert.NotNil(cyrillicResult, "Cyrillic self-echo must return a result")
+      Assert.False(cyrillicResult.shouldShareKeys, "Cyrillic self-echo must not trigger a response")
+    end)
+  end)
+
   test("Sync ProcessAddonMessage handles LibKeystone requests and payloads", function()
     WithGlobals({
       strsplit = function(sep, str, max)

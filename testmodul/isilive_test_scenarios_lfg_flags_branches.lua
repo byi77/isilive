@@ -175,6 +175,38 @@ local function StripColors(text)
 end
 
 local BONUS_MARKUP = "|TInterface\\AddOns\\isiLive\\media\\heart_bonus_green:12:12|t"
+local BONUS_TEXTURE = "Interface\\AddOns\\isiLive\\media\\heart_bonus_green"
+
+local function NewTextureStub()
+  local tex = {
+    _shown = false,
+  }
+  function tex.SetSize(self, w, h)
+    self._size = { w, h }
+  end
+  function tex.SetPoint(self, ...)
+    self._point = { ... }
+  end
+  function tex.ClearAllPoints(self)
+    self._point = nil
+  end
+  function tex.SetTexture(self, path)
+    self._texture = path
+  end
+  function tex.SetTexCoord(self, ...)
+    self._texCoord = { ... }
+  end
+  function tex.SetVertexColor(self, ...)
+    self._vertexColor = { ... }
+  end
+  function tex.Show(self)
+    self._shown = true
+  end
+  function tex.Hide(self)
+    self._shown = false
+  end
+  return tex
+end
 
 local function NewFontStringStub()
   local fs = {
@@ -1221,6 +1253,7 @@ return function(test, ctx)
       })
       WithGlobals(globals, function()
         local addon = LoadBonusModules(LoadAddonModules)
+        local createdTextures = {}
         local member = {
           memberIdx = 1,
           Name = NewFontStringStub(),
@@ -1228,26 +1261,27 @@ return function(test, ctx)
           CreateFontString = function()
             return NewFontStringStub()
           end,
+          CreateTexture = function()
+            local tex = NewTextureStub()
+            table.insert(createdTextures, tex)
+            return tex
+          end,
         }
 
         addon._LFGFlagsInternal.ApplyApplicantBonusToMemberFrame(member, 51, 1)
-        Assert.NotNil(member._isiLiveBonusBadge, "applicant member frame must get a bonus badge font string")
-        Assert.Equal(
-          member._isiLiveBonusBadge._text,
-          BONUS_MARKUP,
-          "Hunter applicant must render one relevant bonus marker"
-        )
-        Assert.True(member._isiLiveBonusBadge._shown == true, "badge must be shown after applying a bonus")
-        Assert.True(member._isiLiveBonusBadge._point[2] == member.RoleIcon, "badge must anchor next to the role icon")
-        Assert.Equal(member._isiLiveBonusBadge._point[3], "RIGHT", "badge must anchor from the role icon's right edge")
-        Assert.Equal(member._isiLiveBonusBadge._width, 54, "badge must keep enough width for up to four markers")
+        Assert.NotNil(member._isiLiveBonusBadgeIcons, "applicant member frame must get bonus marker textures")
+        local icon = member._isiLiveBonusBadgeIcons[1]
+        Assert.NotNil(icon, "Hunter applicant must create one visible marker texture")
+        Assert.Equal(icon._texture, BONUS_TEXTURE, "applicant marker must use the green heart texture")
+        Assert.True(icon._shown == true, "badge texture must be shown after applying a bonus")
+        Assert.True(icon._point[2] == member.RoleIcon, "badge texture must anchor next to the role icon")
+        Assert.Equal(icon._point[3], "RIGHT", "badge texture must anchor from the role icon's right edge")
+        Assert.Equal(icon._size[1], 12, "applicant marker texture must use the compact marker width")
+        Assert.Equal(icon._size[2], 12, "applicant marker texture must use the compact marker height")
+        Assert.True(createdTextures[2]._shown == false, "unused marker texture slots must stay hidden")
 
         addon.LFGFlags.SetGroupBonusesEnabled(false)
-        Assert.Equal(member._isiLiveBonusBadge._text, "", "disabling class bonuses must clear known applicant badges")
-        Assert.True(
-          member._isiLiveBonusBadge._shown == false,
-          "disabling class bonuses must hide known applicant badges"
-        )
+        Assert.True(icon._shown == false, "disabling class bonuses must hide known applicant marker textures")
       end)
     end
   )

@@ -1,5 +1,56 @@
 # Changelog
 
+## 2026-05-26 - Version 0.9.282 (patch)
+
+Fixes two in-game UI regressions found during the 0.9.281 test pass and adds
+deterministic Unicode coverage for Share Keys sender handling.
+
+### Ready Check
+
+[ui/isiLive_roster_panel.lua](../ui/isiLive_roster_panel.lua),
+[testmodul/isilive_test_scenarios_roster_panel.lua](../testmodul/isilive_test_scenarios_roster_panel.lua),
+[docs/RULES_LOGIC.md](RULES_LOGIC.md):
+
+- The Readycheck button now keeps Blizzard's secure macro click handler intact;
+  isiLive logging hooks onto the click instead of replacing the secure
+  `OnClick` script. Countdown buttons remain regular Lua actions.
+
+### LFG Group Bonus Indicators
+
+[ui/isiLive_lfg_flags.lua](../ui/isiLive_lfg_flags.lua),
+[testmodul/isilive_test_scenarios_lfg_flags_branches.lua](../testmodul/isilive_test_scenarios_lfg_flags_branches.lua),
+[docs/RULES_LOGIC.md](RULES_LOGIC.md):
+
+- Applicant member rows now render class-bonus hearts as real green texture
+  markers next to the role icon instead of FontString texture markup, avoiding
+  distorted or white glyphs on recycled Blizzard applicant rows.
+
+### Share Keys
+
+[logic/isiLive_sync.lua](../logic/isiLive_sync.lua),
+[testmodul/isilive_test_scenarios_sync.lua](../testmodul/isilive_test_scenarios_sync.lua),
+[docs/RULES_LOGIC.md](RULES_LOGIC.md):
+
+- Added regression coverage proving `SHAREKEYS` requests from UTF-8 sender names
+  such as `Kürshad-Blackmoore` and Cyrillic `Name-Realm` pairs trigger the same
+  response path as ASCII senders.
+- Added matching self-echo coverage so non-ASCII local player names still
+  suppress their own echoed `SHAREKEYS` payload without guessing aliases.
+- Confirmed the observed `K?rshad` runtime-log text is SavedVariables log
+  sanitization only; the raw sender bytes remain intact for sync parsing.
+
+### Release Metadata
+
+[isiLive.toc](../isiLive.toc),
+[README.md](../README.md),
+[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
+[docs/ARCHITECTURE.md](ARCHITECTURE.md),
+[docs/RELEASE.md](RELEASE.md),
+[docs/USECASES.md](USECASES.md):
+
+- Bumped the TOC and documented baselines to `0.9.282`.
+- Updated the validator baseline to `1890` scenarios.
+
 ## 2026-05-26 - Version 0.9.281 (patch)
 
 Improves Settings readability and expands demo mode into a full logical preview

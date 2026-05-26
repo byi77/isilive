@@ -37,7 +37,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 14. Slash-Commands muessen State-Zyklen stabil ausfuehren (test/stop/start/pause/resume/lang).
 15. Roster-RIO-Delta bleibt nicht-negativ und im Prefix-Format, inklusive unit-basiertem Live-Update.
 16. Addon-Sync-Nachrichten muessen rosterrelevante Aenderungen verarbeiten, deduplizieren und refreshen.
-17. Die Buttons `Readycheck`, `Countdown10` und `Countdown 0` sind fuer Nicht-Leader deaktiviert und optisch abgedimmt.
+17. Die Buttons `Readycheck`, `Countdown10` und `Countdown 0` sind fuer Nicht-Leader deaktiviert und optisch abgedimmt; der Readycheck-Button muss seinen Secure-Macro-OnClick behalten.
 18. Voll-Refresh wird waehrend aktivem M+-Run nicht ausgefuehrt.
 19. Die Aktionen `Share Keys` und `Refresh` sind gegen Klick-Spam geschuetzt (Debounce/Rate-Limit).
 20. In den Gruppenmitglieder-Zeilen ist kein Zeilenumbruch erlaubt.
@@ -88,7 +88,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 65. Die eigenstaendige Spieler-Stats-Box zeigt den Primärstat klassen- beziehungsweise spezialisierungsgenau, zeigt nur direkt aus Blizzard-Live-APIs gelesene Werte, haelt ihre Werte-Spalte auch bei drei- und vierstelligen Zahlen stabil, haelt ihre Prozent-Spalte breit genug fuer `(999.99%)`, ist rahmenlos, standardmaessig aus, ueber Settings einschaltbar und gegen Positions-Drag sperrbar, und speichert ihre Position getrennt von der Main-UI.
 66. Alle frei verschiebbaren isiLive-Fenster muessen an den WoW-Sichtbereich geklemmt sein, sodass ihre Raender beim Ziehen nicht ausserhalb des WoW-Fensters verschwinden.
 67. Das ESC-Addons-Panel darf Shortcut-Buttons fuer Addons anzeigen, die installiert und auf dem aktuellen Charakter aktiviert sind; beim Klick muss ein noch nicht geladenes externes Ziel-Addon verifiziert geladen werden, bevor dessen registrierter Slash-Alias ausgefuehrt wird. Der isiLive-eigene Shortcut darf stattdessen direkt die isiLive-Settings oeffnen und darf keinen Self-Load versuchen.
-68. Die LFG-Klassenbonus-Herzchen zaehlen nur relevante, nicht stapelnde Gruppenboni; Utility-Effekte wie PI, BL, BR, Devotion Aura und Atrophic Poison erzeugen keine Herzchen.
+68. Die LFG-Klassenbonus-Herzchen zaehlen nur relevante, nicht stapelnde Gruppenboni; Utility-Effekte wie PI, BL, BR, Devotion Aura und Atrophic Poison erzeugen keine Herzchen, und Applicant-Zeilen rendern diese Herzchen als grüne Texturmarker neben dem Rollensymbol.
 
 ## Regelbloecke
 
@@ -273,7 +273,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-LEADER-BUTTONS-SICHTBARKEIT
 - Regelnummer: 17
 - Status: aktiv
-- Zusammenfassung: Die Buttons `Readycheck`, `Countdown10` und `Countdown 0` sind fuer Nicht-Leader deaktiviert und optisch abgedimmt.
+- Zusammenfassung: Die Buttons `Readycheck`, `Countdown10` und `Countdown 0` sind fuer Nicht-Leader deaktiviert und optisch abgedimmt. Der Readycheck-Button muss als Secure-Macro-Button mit `/readycheck` konfiguriert bleiben und darf den Secure-Action-OnClick nicht durch einen normalen Lua-Clickhandler ersetzen.
 - Erforderliche Tests:
   - Roster panel leader-only buttons disable when player is not leader
   - Roster panel ready-check button uses a secure macro action
@@ -686,6 +686,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Sync SendShareKeysRequest returns false when addon message dispatch fails
   - Sync routes send through ChatThrottleLib with correct priority per message type
   - Sync ProcessAddonMessage handles SHAREKEYS payloads
+  - Sync ProcessAddonMessage handles SHAREKEYS from UTF-8 sender names
+  - Sync ProcessAddonMessage suppresses SHAREKEYS self-echo for UTF-8 names
   - ControllerWiring sendOwnKeystoneToChat uses ContextHelpers loaded after wiring
   - ControllerWiring SHAREKEYS send and receive paths use the same real payload
   - Event handlers answer SHAREKEYS requests while frame is hidden
@@ -905,9 +907,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-LFG-KLASSENBONUS-HERZCHEN-NICHT-STAPELND
 - Regelnummer: 68
 - Status: aktiv
-- Zusammenfassung: Die LFG-Klassenbonus-Herzchen duerfen nur relevante nicht-Utility-Gruppenboni zaehlen, die fuer den eingeloggten Spieler wirksam sind. Gleiche nicht stapelnde Buffs zaehlen pro Suchergebnis nur einmal, auch wenn mehrere Gruppenmitglieder denselben Buff liefern. Utility-Effekte wie PI, BL, BR, Devotion Aura und Atrophic Poison duerfen in Tooltips sichtbar bleiben, erzeugen aber keine Herzchen.
+- Zusammenfassung: Die LFG-Klassenbonus-Herzchen duerfen nur relevante nicht-Utility-Gruppenboni zaehlen, die fuer den eingeloggten Spieler wirksam sind. Gleiche nicht stapelnde Buffs zaehlen pro Suchergebnis nur einmal, auch wenn mehrere Gruppenmitglieder denselben Buff liefern. Utility-Effekte wie PI, BL, BR, Devotion Aura und Atrophic Poison duerfen in Tooltips sichtbar bleiben, erzeugen aber keine Herzchen. Applicant-Zeilen muessen relevante Herzchen als grüne Texturmarker direkt neben dem Rollensymbol rendern.
 - Erforderliche Tests:
   - LI.BuildApplicantBonusBadge treats Devotion Aura and Atrophic Poison as utility
   - LI.BuildSearchResultBonusBadge counts relevant non-utility bonuses as markers
   - LI.BuildSearchResultBonusBadge counts each non-stacking bonus only once
+  - LI.ApplyApplicantBonusToMemberFrame writes applicant bonus markers next to the role badge and clears them
   - LI.BuildApplicantBonusMarkerBadge ignores applicant utility bonuses

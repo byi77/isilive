@@ -1101,6 +1101,7 @@ local function RegisterRosterPanelLeaderInteractionTests(test, Assert, WithGloba
         "/readycheck",
         "ready-check macro must use Blizzard's secure slash command"
       )
+      Assert.Nil(readyCheckButton.OnClick, "ready-check button must not replace the secure action OnClick script")
 
       if type(readyCheckButton.OnClick) == "function" then
         readyCheckButton.OnClick(readyCheckButton)

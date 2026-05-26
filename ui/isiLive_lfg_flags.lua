@@ -17,8 +17,11 @@ local CLASS_BONUS_UTILITY_COLOR = "|cffffd100"
 local CLASS_BONUS_RESET_COLOR = "|r"
 local APPLICANT_BONUS_TEXT_COLOR = { 0.20, 1.00, 0.20, 1.00 }
 local APPLICANT_BONUS_MAJOR_COLOR = { 1.00, 0.82, 0.00, 1.00 }
-local SEARCH_RESULT_BONUS_MARKUP = "|TInterface\\AddOns\\isiLive\\media\\heart_bonus_green:12:12|t"
+local SEARCH_RESULT_BONUS_TEXTURE = "Interface\\AddOns\\isiLive\\media\\heart_bonus_green"
+local SEARCH_RESULT_BONUS_MARKUP = "|T" .. SEARCH_RESULT_BONUS_TEXTURE .. ":12:12|t"
 local SEARCH_RESULT_BONUS_MAX_MARKERS = 4
+local APPLICANT_BONUS_ICON_SIZE = 12
+local APPLICANT_BONUS_ICON_GAP = 1
 local SEARCH_RESULT_FLAG_X = 2
 local SEARCH_RESULT_FLAG_Y = 10
 local SEARCH_RESULT_FLAG_ACTIVITY_NAME_OFFSET_Y = -2
@@ -598,16 +601,24 @@ local function BuildApplicantBonusBadge(classToken, specID, profile)
   return nil
 end
 
-local function BuildApplicantBonusMarkerBadge(classToken, specID, profile)
+local function CountApplicantBonusMarkers(classToken, specID, profile)
   local bonuses = BuildBonusList(classToken, specID)
   if type(bonuses) ~= "table" or next(bonuses) == nil then
-    return nil
+    return 0
   end
   local relevantBonusCount = 0
   for _, bonus in ipairs(bonuses) do
     if type(bonus) == "table" and bonus.kind ~= "utility" and IsBonusRelevantForPlayer(bonus, profile) == true then
       relevantBonusCount = relevantBonusCount + 1
     end
+  end
+  return math.min(SEARCH_RESULT_BONUS_MAX_MARKERS, relevantBonusCount)
+end
+
+local function BuildApplicantBonusMarkerBadge(classToken, specID, profile)
+  local relevantBonusCount = CountApplicantBonusMarkers(classToken, specID, profile)
+  if relevantBonusCount <= 0 then
+    return nil
   end
   return BuildSearchResultBonusBadgeText(relevantBonusCount), APPLICANT_BONUS_TEXT_COLOR
 end
@@ -907,13 +918,16 @@ end
 
 local function BuildSingleApplicantMemberBadge(applicantID, memberIndex)
   if not lfgGroupBonusesEnabled then
-    return nil
+    return nil, nil, 0
   end
   local member = applicantID and memberIndex and ReadApplicantMemberInfo(applicantID, memberIndex) or nil
   if not member then
-    return nil
+    return nil, nil, 0
   end
-  return BuildApplicantBonusMarkerBadge(member.classToken, member.specID, ResolvePlayerBonusProfile())
+  local profile = ResolvePlayerBonusProfile()
+  return BuildApplicantBonusMarkerBadge(member.classToken, member.specID, profile),
+    APPLICANT_BONUS_TEXT_COLOR,
+    CountApplicantBonusMarkers(member.classToken, member.specID, profile)
 end
 
 local function StripColorCodes(text)
@@ -1291,19 +1305,19 @@ local function AnchorApplicantBonusBadge(member, badgeText)
   badgeText:SetPoint("LEFT", member, "LEFT", 104, 0)
 end
 
-local function ApplyApplicantBonusToMemberFrame(member, applicantID, memberIndex)
-  if type(member) ~= "table" then
+local function HideApplicantBonusIcons(member)
+  if type(member) ~= "table" or type(member._isiLiveBonusBadgeIcons) ~= "table" then
     return
   end
-  hookedApplicantMembers[member] = true
-  applicantID = ReadPositiveNumber(applicantID)
-  memberIndex = ReadPositiveNumber(memberIndex or rawget(member, "memberIdx"))
-  local badge, badgeColor
-  if applicantID and memberIndex then
-    badge, badgeColor = BuildSingleApplicantMemberBadge(applicantID, memberIndex)
+  for _, icon in ipairs(member._isiLiveBonusBadgeIcons) do
+    if type(icon) == "table" and type(icon.Hide) == "function" then
+      icon:Hide()
+    end
   end
-  local nameText = rawget(member, "Name")
-  if type(nameText) ~= "table" or type(nameText.GetText) ~= "function" or type(nameText.SetText) ~= "function" then
+end
+
+local function ClearApplicantBonusMarker(member)
+  if type(member) ~= "table" then
     return
   end
   if member._isiLiveBonusText and type(member._isiLiveBonusText.SetText) == "function" then
@@ -1312,19 +1326,95 @@ local function ApplyApplicantBonusToMemberFrame(member, applicantID, memberIndex
       member._isiLiveBonusText:Hide()
     end
   end
+  if member._isiLiveBonusBadge and type(member._isiLiveBonusBadge.SetText) == "function" then
+    member._isiLiveBonusBadge:SetText("")
+    if type(member._isiLiveBonusBadge.Hide) == "function" then
+      member._isiLiveBonusBadge:Hide()
+    end
+  end
+  HideApplicantBonusIcons(member)
+end
+
+local function AnchorApplicantBonusIcon(member, icon, index)
+  if type(member) ~= "table" or type(icon) ~= "table" or type(icon.SetPoint) ~= "function" then
+    return
+  end
+  if type(icon.ClearAllPoints) == "function" then
+    icon:ClearAllPoints()
+  end
+  if index and index > 1 and type(member._isiLiveBonusBadgeIcons) == "table" then
+    local previousIcon = member._isiLiveBonusBadgeIcons[index - 1]
+    if type(previousIcon) == "table" then
+      icon:SetPoint("LEFT", previousIcon, "RIGHT", APPLICANT_BONUS_ICON_GAP, 0)
+      return
+    end
+  end
+  local roleAnchor = ResolveApplicantRoleAnchor(member)
+  if roleAnchor then
+    icon:SetPoint("LEFT", roleAnchor, "RIGHT", 3, 0)
+    return
+  end
+  icon:SetPoint("LEFT", member, "LEFT", 104, 0)
+end
+
+local function ApplyApplicantBonusIconMarkers(member, markerCount)
+  markerCount = math.min(SEARCH_RESULT_BONUS_MAX_MARKERS, math.floor(tonumber(markerCount) or 0))
+  if markerCount <= 0 or type(member) ~= "table" or type(member.CreateTexture) ~= "function" then
+    return false
+  end
+  member._isiLiveBonusBadgeIcons = member._isiLiveBonusBadgeIcons or {}
+  for index = 1, SEARCH_RESULT_BONUS_MAX_MARKERS do
+    local icon = member._isiLiveBonusBadgeIcons[index]
+    if type(icon) ~= "table" then
+      icon = member:CreateTexture(nil, "OVERLAY")
+      member._isiLiveBonusBadgeIcons[index] = icon
+    end
+    if type(icon) == "table" then
+      if type(icon.SetSize) == "function" then
+        icon:SetSize(APPLICANT_BONUS_ICON_SIZE, APPLICANT_BONUS_ICON_SIZE)
+      end
+      if type(icon.SetTexture) == "function" then
+        icon:SetTexture(SEARCH_RESULT_BONUS_TEXTURE)
+      end
+      if type(icon.SetTexCoord) == "function" then
+        icon:SetTexCoord(0, 1, 0, 1)
+      end
+      if type(icon.SetVertexColor) == "function" then
+        icon:SetVertexColor(1, 1, 1, 1)
+      end
+      AnchorApplicantBonusIcon(member, icon, index)
+      if index <= markerCount then
+        if type(icon.Show) == "function" then
+          icon:Show()
+        end
+      elseif type(icon.Hide) == "function" then
+        icon:Hide()
+      end
+    end
+  end
+  return true
+end
+
+local function ApplyApplicantBonusToMemberFrame(member, applicantID, memberIndex)
+  if type(member) ~= "table" then
+    return
+  end
+  hookedApplicantMembers[member] = true
+  applicantID = ReadPositiveNumber(applicantID)
+  memberIndex = ReadPositiveNumber(memberIndex or rawget(member, "memberIdx"))
+  local badge, badgeColor, markerCount
+  if applicantID and memberIndex then
+    badge, badgeColor, markerCount = BuildSingleApplicantMemberBadge(applicantID, memberIndex)
+  end
+  local nameText = rawget(member, "Name")
+  if type(nameText) ~= "table" or type(nameText.GetText) ~= "function" or type(nameText.SetText) ~= "function" then
+    return
+  end
+  ClearApplicantBonusMarker(member)
   if not badge then
-    if member._isiLiveBonusText and type(member._isiLiveBonusText.SetText) == "function" then
-      member._isiLiveBonusText:SetText("")
-      if type(member._isiLiveBonusText.Hide) == "function" then
-        member._isiLiveBonusText:Hide()
-      end
-    end
-    if member._isiLiveBonusBadge and type(member._isiLiveBonusBadge.SetText) == "function" then
-      member._isiLiveBonusBadge:SetText("")
-      if type(member._isiLiveBonusBadge.Hide) == "function" then
-        member._isiLiveBonusBadge:Hide()
-      end
-    end
+    return
+  end
+  if ApplyApplicantBonusIconMarkers(member, markerCount) then
     return
   end
   if not member._isiLiveBonusBadge and type(member.CreateFontString) == "function" then
@@ -1910,18 +2000,7 @@ function LFGFlags.SetGroupBonusesEnabled(enabled)
     return
   end
   for member in pairs(hookedApplicantMembers) do
-    if member._isiLiveBonusBadge and type(member._isiLiveBonusBadge.SetText) == "function" then
-      member._isiLiveBonusBadge:SetText("")
-      if type(member._isiLiveBonusBadge.Hide) == "function" then
-        member._isiLiveBonusBadge:Hide()
-      end
-    end
-    if member._isiLiveBonusText and type(member._isiLiveBonusText.SetText) == "function" then
-      member._isiLiveBonusText:SetText("")
-      if type(member._isiLiveBonusText.Hide) == "function" then
-        member._isiLiveBonusText:Hide()
-      end
-    end
+    ClearApplicantBonusMarker(member)
   end
 end
 
