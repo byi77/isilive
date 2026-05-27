@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-05-27 - Version 0.9.283 (patch)
+
+### Ready Check
+
+[ui/isiLive_roster_panel.lua](../ui/isiLive_roster_panel.lua),
+[testmodul/isilive_test_scenarios_roster_panel.lua](../testmodul/isilive_test_scenarios_roster_panel.lua),
+[docs/RULES_LOGIC.md](RULES_LOGIC.md):
+
+- Hardened the Readycheck secure macro button by wiring `/readycheck` on the
+  default, left-click, and right-click secure attributes and registering both
+  mouse-up and mouse-down clicks.
+
+### Release Metadata
+
+[isiLive.toc](../isiLive.toc),
+[README.md](../README.md),
+[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
+[docs/ARCHITECTURE.md](ARCHITECTURE.md),
+[docs/RELEASE.md](RELEASE.md),
+[docs/USECASES.md](USECASES.md):
+
+- Bumped the TOC and documented baselines to `0.9.283`.
+- Confirmed the validator baseline remains `1890` scenarios.
+
 ## 2026-05-26 - Version 0.9.282 (patch)
 
 Fixes two in-game UI regressions found during the 0.9.281 test pass and adds

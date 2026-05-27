@@ -824,7 +824,9 @@ local function NewRecordedFrame(createdFrames, createdFontStrings)
     return self.attributes[key]
   end
   function frame.EnableMouse() end
-  function frame.RegisterForClicks() end
+  function frame.RegisterForClicks(self, ...)
+    self.registeredClicks = { ... }
+  end
   function frame.Hide(self)
     self._shown = false
   end
@@ -1095,12 +1097,26 @@ local function RegisterRosterPanelLeaderInteractionTests(test, Assert, WithGloba
         "SecureActionButtonTemplate,BackdropTemplate",
         "ready-check button must be a secure action button"
       )
+      Assert.Equal(readyCheckButton.attributes.type, "macro", "ready-check default click must execute a macro")
+      Assert.Equal(
+        readyCheckButton.attributes.macrotext,
+        "/readycheck",
+        "ready-check default macro must use Blizzard's secure slash command"
+      )
       Assert.Equal(readyCheckButton.attributes.type1, "macro", "ready-check left click must execute a macro")
       Assert.Equal(
         readyCheckButton.attributes.macrotext1,
         "/readycheck",
         "ready-check macro must use Blizzard's secure slash command"
       )
+      Assert.Equal(readyCheckButton.attributes.type2, "macro", "ready-check right click must execute a macro")
+      Assert.Equal(
+        readyCheckButton.attributes.macrotext2,
+        "/readycheck",
+        "ready-check right-click macro must use Blizzard's secure slash command"
+      )
+      Assert.Equal(readyCheckButton.registeredClicks[1], "AnyUp", "ready-check must accept mouse-up clicks")
+      Assert.Equal(readyCheckButton.registeredClicks[2], "AnyDown", "ready-check must accept mouse-down clicks")
       Assert.Nil(readyCheckButton.OnClick, "ready-check button must not replace the secure action OnClick script")
 
       if type(readyCheckButton.OnClick) == "function" then

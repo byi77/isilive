@@ -273,7 +273,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-LEADER-BUTTONS-SICHTBARKEIT
 - Regelnummer: 17
 - Status: aktiv
-- Zusammenfassung: Die Buttons `Readycheck`, `Countdown10` und `Countdown 0` sind fuer Nicht-Leader deaktiviert und optisch abgedimmt. Der Readycheck-Button muss als Secure-Macro-Button mit `/readycheck` konfiguriert bleiben und darf den Secure-Action-OnClick nicht durch einen normalen Lua-Clickhandler ersetzen.
+- Zusammenfassung: Die Buttons `Readycheck`, `Countdown10` und `Countdown 0` sind fuer Nicht-Leader deaktiviert und optisch abgedimmt. Der Readycheck-Button muss als Secure-Macro-Button mit `/readycheck` fuer Default-, Links- und Rechtsklick konfiguriert bleiben, Mouse-Up- und Mouse-Down-Klicks registrieren und darf den Secure-Action-OnClick nicht durch einen normalen Lua-Clickhandler ersetzen.
 - Erforderliche Tests:
   - Roster panel leader-only buttons disable when player is not leader
   - Roster panel ready-check button uses a secure macro action

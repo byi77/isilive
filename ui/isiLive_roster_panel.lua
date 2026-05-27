@@ -316,9 +316,16 @@ local function CreatePanelButtons(mainFrame, deps)
   local readyCheckButton = CreateFlatButton(mainFrame, 120, 24, "SecureActionButtonTemplate,BackdropTemplate")
   readyCheckButton:SetPoint("TOPRIGHT", -10, -60)
   readyCheckButton._verticalY = -60
+  if type(readyCheckButton.RegisterForClicks) == "function" then
+    readyCheckButton:RegisterForClicks("AnyUp", "AnyDown")
+  end
   if type(readyCheckButton.SetAttribute) == "function" then
+    readyCheckButton:SetAttribute("type", "macro")
+    readyCheckButton:SetAttribute("macrotext", "/readycheck")
     readyCheckButton:SetAttribute("type1", "macro")
     readyCheckButton:SetAttribute("macrotext1", "/readycheck")
+    readyCheckButton:SetAttribute("type2", "macro")
+    readyCheckButton:SetAttribute("macrotext2", "/readycheck")
   end
   if type(readyCheckButton.HookScript) == "function" then
     readyCheckButton:HookScript("OnClick", function()
