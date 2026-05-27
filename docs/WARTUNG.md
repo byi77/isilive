@@ -222,6 +222,52 @@ Typische Ursachen fuer Brueche:
 - MDT-Clone schlaegt im Workflow fehl → Auto-Refresh bleibt still, Lifetime-Gate wird irgendwann rot.
 - Season-Wechsel → `SEASON_TO_MDT_DIR` in `sync_mdt_forces.lua` erweitern, Default-`SEASON_DEFAULT` umstellen.
 
+### 3.9 Gruppensuche-Buff-Rating-Herzchen
+
+Pruefen:
+- `ui/isiLive_lfg_flags.lua`
+- `ui/isiLive_settings_sections.lua`
+- `locale/isiLive_texts.lua`
+- `core/isiLive_db_schema.lua`
+- `testmodul/isilive_test_scenarios_lfg_flags*.lua`
+- `testmodul/isilive_test_scenarios_ui_settings*.lua`
+- `testmodul/isilive_test_scenarios_locale.lua`
+
+Aktueller Soll-Zustand:
+- `lfgGroupBonusesEnabled` ist ein SavedVariable-Schemafeld mit Default `true`.
+- Suchergebniszeilen und Bewerberzeilen zeigen nur relevante, nicht stapelnde Nicht-Utility-Boni als gruene Marker.
+- Battle Res, Bloodlust, Power Infusion, Devotion Aura, Atrophic Poison und vergleichbare Utility-Hinweise duerfen im Tooltip erscheinen, zaehlen aber nicht fuer die kompakten Marker.
+- Settings-Beschreibung und sichtbare Marker verwenden `Interface\AddOns\isiLive\media\heart_bonus_green`; Font-Herz-Glyphen sind fuer dieses Feature nicht stabil genug.
+- Die Settings-Beschreibung erklaert untereinander 1/2/3/4 Herzchen als einen, zwei, drei beziehungsweise vier oder mehr relevante Buffs.
+- `SetGroupBonusesEnabled(false)` leert Suchergebnis-Caches und sichtbare Bewerbermarker.
+
+Typische Ursachen fuer Brueche:
+- Ein neuer Bonus wird als Utility oder als stapelnder Gruppenbuff falsch einsortiert → Markerzahl wird irrefuehrend.
+- Eine Locale-Beschreibung nutzt ein rohes Herzzeichen statt `heart_bonus_green` → Darstellung driftet zwischen Fonts/Clients.
+- Ein Settings-Schalter schreibt nur DB, ruft aber nicht den Live-Callback → Anzeige aendert sich erst nach Reload.
+
+### 3.10 Lokalisierung und Uebersetzungs-PRs
+
+Pruefen:
+- `locale/isiLive_languages.lua`
+- `locale/isiLive_locale.lua`
+- `locale/isiLive_texts.lua`
+- `tools/check_locale_drift.lua`
+- `testmodul/isilive_test_scenarios_locale.lua`
+- `docs/CHANGELOG.md`
+
+Aktueller Soll-Zustand:
+- Beim Programmieren werden neue Texte mindestens in Englisch und Deutsch gepflegt.
+- Weitere vorbereitete Locales duerfen bewusst englischen Fallback behalten, bis sie nachbearbeitet werden.
+- Hilfreiche Uebersetzungs-PRs werden angenommen, wenn sie technisch zum aktuellen UI- und Regelvertrag passen; der User wird im Changelog bedankt.
+- `Locale.LocaleToLanguageTag` ist tooltip-hotpath-sicher: statischer Lookup, kein Iterieren ueber `Languages.SUPPORTED` beim Hover.
+- `koKR`, `zhCN` und `zhTW` bleiben display-only Flag-Tags ohne vollstaendige UI-Sprache.
+
+Typische Ursachen fuer Brueche:
+- Ein PR uebersetzt eine vorbereitete Locale, aber die aktuellen UI-Begriffe oder Texturvertraege werden nicht angepasst → Uebersetzung erst kompatibel machen, dann uebernehmen.
+- Neue Keys werden nur in enUS gesetzt → Locale-Drift-Gate wird rot.
+- Locale-Flag-Aufloesung wird wieder lazy aus der Sprachliste gebaut → Tooltip-Hover kann erneut `script ran too long` ausloesen.
+
 ## 4) Dinge, die bewusst so gebaut sind und nicht versehentlich rueckgaengig gemacht werden duerfen
 
 ### 4.1 Kein Raten
@@ -332,6 +378,7 @@ Wichtig:
 - bei neuen aktiven Regeln immer Testnamen im selben Change ergaenzen
 - ein geloeschter Git-Tag loescht kein bereits erzeugtes CurseForge-Paket; das muss dort separat archiviert/entfernt werden
 - `.pkgmeta` haelt PNG-Screenshots, Logo-Dateien, die grosse `CHANGELOG.md` und die `.claude/`-Helper aus dem CurseForge-Paket raus; die Release-Notiz nutzt stattdessen `CHANGELOG_RELEASE.md` als kurzen Link-Hinweis auf das Repo
+- `CHANGELOG_RELEASE.md` ist kurz, aber nicht leer: bei user-visible Features gehoeren 3-5 Release-Highlights hinein.
 
 ## 6) Wenn die Season gewechselt oder Dungeon-Daten angefasst wurden
 
@@ -355,6 +402,9 @@ Mindestens das testen:
 6. M0 betreten, Gruppe teilweise aufloesen, Dungeon verlassen -> DPS bleibt ueber frozen roster matchbar
 7. Key-Anzeige zeigt echte Shortcodes, keine `228`/`277`-Zahlen
 8. Tooltip zeigt `Level`, `Lang`, `Last run DPS`
+9. LFG-Suchergebnis und Bewerberzeile zeigen Buff-Rating-Herzchen nur, wenn der Settings-Schalter aktiv ist
+10. Settings-Beschreibung fuer `Group Finder: Buff rating hearts` nutzt gruene Texturbeispiele untereinander
+11. Readycheck-Button funktioniert als Leader und bleibt fuer Nicht-Leader optisch deaktiviert
 
 ## 8) Wenn du nur 20 Minuten hast
 

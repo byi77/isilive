@@ -13,9 +13,11 @@ Dies ist der verbindliche Release-Ablauf fuer `isiLive` (Repository- und Tag-Pra
 4. Wenn Season-Daten angefasst wurden, muessen die Dokus die aktive `ACTIVE_SEASON_ID` und den Vorbereitungsstand der naechsten Season explizit nennen (`README.md` und `CHANGELOG.md`).
 5. Wenn Runtime-Flow oder UI-Verhalten geaendert wurden, `ARCHITECTURE.md` und `USECASES.md` aktualisieren; wenn kurze Engineering-Regeln oder Wartungserwartungen betroffen sind, auch `RULES.md` und `WARTUNG.md` synchronisieren.
 6. Wenn UI-Labels geaendert wurden, pruefen, dass `README.md` und `ARCHITECTURE.md` die aktuellen Buttontexte verwenden.
-7. Wenn Wartungs- oder Runbook-Erwartungen geaendert wurden, `WARTUNG.md` synchronisieren und die Packaging-Ignores in `.pkgmeta` abgestimmt halten.
+7. Wenn lokalisierte Texte geaendert wurden, sicherstellen, dass neue produktive Texte mindestens enUS/deDE haben, vorbereitete weitere Locales bewusst englische Fallbacks oder nachbearbeitete Uebersetzungen tragen und externe Uebersetzungshelfer im `CHANGELOG.md` bedankt werden.
+8. Wenn Wartungs- oder Runbook-Erwartungen geaendert wurden, `WARTUNG.md` synchronisieren und die Packaging-Ignores in `.pkgmeta` abgestimmt halten.
    Das vollstaendige `CHANGELOG.md` bleibt aus dem CurseForge-Zip draussen; stattdessen wird der kurze Stub `CHANGELOG_RELEASE.md` verwendet.
-8. Sprachregel fuer Dokus einhalten:
+9. `CHANGELOG_RELEASE.md` mit einer kurzen user-facing Zusammenfassung der aktuellen Version aktualisieren; der Stub ist die Release-Notiz im Paket und darf nicht nur bei der Versionsnummer stehen bleiben, wenn sichtbare Features geaendert wurden.
+10. Sprachregel fuer Dokus einhalten:
    - `README.md` und die Changelog-Dateien bleiben Englisch.
    - Alle anderen gepflegten Projektdokumente bleiben Deutsch.
 
@@ -132,6 +134,7 @@ git push origin :refs/tags/isiLive_release_X.Y.Z
 ## Hinweise
 
 - Release-Tagging ist absichtlich vom normalen `main`-Push getrennt, damit CI noch sicher fehlschlagen kann, bevor CurseForge-Pakete gebaut werden.
+- Ein TOC-/Doku-Bump auf `main` ist noch kein CurseForge-Release. CurseForge wird erst durch einen passenden Release- oder Pre-Release-Tag beziehungsweise einen explizit bestaetigten Workflow-Dispatch getriggert.
 - CI schliesst `.luarocks/` bereits aus Lint- und Syntax-Checks aus.
 - Packaging ignoriert Nicht-Nutzer-Dateien ueber `.pkgmeta`, einschliesslich `.github/`, `.claude/`, dem kompletten `docs/`-Ordner (mit `ARCHITECTURE.md`, `USECASES.md`, `WARTUNG.md`, `RULES.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `RELEASE.md`, `CHANGELOG.md`), dem Root-`README.md`, `AGENTS.md`, `CLAUDE.md`, den Dev-only-Ordnern `tools/` und `testmodul/` sowie PNG-Screenshots/Logos. Die CurseForge-Dateinotizen verwenden den kurzen Stub `CHANGELOG_RELEASE.md`, nicht das volle Repository-Changelog.
 - Wenn VS-Code-Diagnostics veraltet wirken, ausfuehren:

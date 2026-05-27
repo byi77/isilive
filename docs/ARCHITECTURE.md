@@ -1,7 +1,7 @@
 # isiLive Architektur
 
 Versionsbasis: `0.9.284`
-Zuletzt aktualisiert: `2026-05-26`
+Zuletzt aktualisiert: `2026-05-27`
 
 ## Zweck
 
@@ -66,6 +66,12 @@ WoW Event
   `statsBoxFontSizeOffset`, `statsBoxPosition`) sind normale Schemafelder mit
   Defaults und Range-/Positionsvalidierung; die Box-Position bleibt getrennt
   von der Main-UI-Position.
+- Die LFG-Anzeigefelder `lfgFlagsEnabled`, `lfgGroupBonusesEnabled` und
+  `tooltipFlagsEnabled` sind Schemafelder mit Default `true`. Der Factory-Load
+  spiegelt sie unmittelbar in `LFGFlags.SetEnabled`,
+  `LFGFlags.SetGroupBonusesEnabled` und den Roster-Tooltip-Flag-Gate, damit
+  Settings-UI, SavedVariables und Live-Hooks nach Reload denselben Zustand
+  nutzen.
 
 **Versionierte Migrationen:** `db.__schemaVersion` stempelt die zuletzt angewendete Schema-Version. `MIGRATIONS[N]` haelt Step-Funktionen fuer Uebergaenge alter -> neuer Form (Renames, Removals, Type-Changes). Beim Bump von z.B. v0.9.222 auf v0.9.223 fuegt man:
 
@@ -149,6 +155,8 @@ Jeder Step laeuft genau einmal pro User; `db.__schemaVersion` wird nach erfolgre
 28. Frei verschiebbare isiLive-Fenster (Main-UI, Stats-Box, Center-Notice, Portal-Navigator) sind an den WoW-Sichtbereich geklemmt; der Minimap-Button bleibt auf seine Minimap-Kreis-Draglogik beschraenkt.
 29. Die Ruhestein-Auswahl speichert `hearthstoneChoice` als Schemafeld, aktualisiert die Settings-Liste bei `TOYS_UPDATED` und `GET_ITEM_INFO_RECEIVED`, zeigt im deutschen Addon-Locale client-lokalisierte Namen und in allen anderen Addon-Sprachen die verifizierten englischen Namen. Der Travel-Button nutzt nur Default-Item, random owned oder konkret besessene Toy-IDs; Secure-Attribut-Updates werden im Combat oder waehrend aktivem Keydown verschoben.
 30. VIP-Mount-Sound-Schalter persistieren als `vipAstralAurochsSoundMuted`, `vipGrandExpeditionYakSoundMuted` und `vipGildedBrutosaurSoundMuted`; `isiLive_sound_utils.lua` ist Owner der Datei-ID-Sets und wendet `MuteSoundFile`/`UnmuteSoundFile` beim Laden sowie bei Settings-Aenderungen an.
+31. Locale-Tag-zu-Sprachflaggen-Aufloesung ist ein statischer Lookup in `isiLive_locale.lua`. Tooltip-Hotpaths duerfen nicht ueber `Languages.SUPPORTED` iterieren oder Alias-Maps lazy pro Hover aufbauen.
+32. Die Gruppensuche-Buff-Rating-Anzeige nutzt fuer kompakte Marker und Settings-Beschreibungen die Textur `media/heart_bonus_green`; Font-Herz-Glyphen sind fuer dieses Feature nicht Teil des stabilen UI-Vertrags.
 
 ## Architektur-Vertragssatz
 
@@ -265,10 +273,11 @@ Zusaetzlich zum Main-Roster-Frame aus `isiLive_ui_main_frame.lua` kann `isiLive_
 | KickTracker | Spec-ID-Lookup, Spec-Change-Benachrichtigungen und lokaler Kick-State-Sync; Pet-Interrupt-Support fuer Warlock (`Spell Lock` 24s / `Axe Toss` 30s) und Devourer Demon Hunter | Per-Spec-Interrupt-Spell-ID und exakter Cooldown-State; stale Cooldowns werden bei Spec-Wechsel sofort geloescht; wenn Raid-Hard-off lokales Tracking unterdrueckt hat, darf Recovery nur aus exaktem Zustand fortgesetzt werden: exakte Blizzard-Cooldown-Daten, ein neu beobachteter Post-Raid-Kick-Cast oder eine exakte `no kick`-Aufloesung; malformed KICK-Payloads werden fail-closed verworfen; fremde Casts duerfen die Suppression nicht aufheben; hidden Kick-Keep-Alive-Sync fuer Party-Peers; Raid-Hard-off unterdrueckt jede Kick-Aktivitaet bis Raid-Ende; der Kick-State wird an den Sync weitergereicht fuer das Kick-Spalten-Rendering im Roster |
 | LeaderWatch | `GROUP_ROSTER_UPDATE` / `PARTY_LEADER_CHANGED` plus gecachter Leader-State | Refresh fuer Leader-only-Buttons, sichtbare Center-Notice bei Promotion und Transfer-Sound-Feedback auch fuer hidden Promotions, sofern der User es nicht deaktiviert |
 | RosterPanel | Roster-Modell und Lokalisierung | Main-Table-Rendering, aktive-vor-Ghost-Zeilenordnung unter dem 5-Zeilen-Budget, 16x16-Leader-Krone plus gesyncte Heart-Marker-Reihenfolge, dedizierter Ready-Check-Row-Background-Refresh mit Waiting-Sandglass und 20-Sekunden-Hold fuer `ready` sowie fuer explizit/unbeantwortet `notready`, DPS-Spalte, dedizierter Kick-Column-Refresh-Pfad, dirty-on-show-Utility-Rescan nur auf dem ersten sichtbaren Roster-Render und Action-Button-Callbacks |
-| SettingsPanel | Locale-, CVar- und SavedVariable-Getter plus Toggle-Callbacks | Blizzard-Settings-Canvas, Sprachwaehler, sichtbare Display-/Behavior-/Sounds-/Debug-Toggles inklusive Lead-Transfer, volle Gruppe, eingehende Beschwoerung, vorbereitete Kampfeswiederbelebung und Kampfrausch, Slider fuer UI und Hintergrund, Selektor fuer Default-Open-Layout, optionaler Roster-Column-Guide-Toggle sowie temporaere Unterdrueckung von Legacy-Settings |
+| SettingsPanel | Locale-, CVar- und SavedVariable-Getter plus Toggle-Callbacks | Blizzard-Settings-Canvas, Sprachwaehler, sichtbare Display-/Behavior-/Sounds-/Debug-Toggles inklusive Lead-Transfer, volle Gruppe, eingehende Beschwoerung, vorbereitete Kampfeswiederbelebung und Kampfrausch, Slider fuer UI und Hintergrund, Selektor fuer Default-Open-Layout, optionale Statsbox- und Nameplate-Controls, Gruppensuche-Sprachflaggen, default-aktive Buff-Rating-Herzchen mit untereinander stehenden `media/heart_bonus_green`-Beispielzeilen, optionaler Roster-Column-Guide-Toggle sowie temporaere Unterdrueckung von Legacy-Settings |
 | TeleportUI | Season-Teleport-Eintraege und State | Insecure-Action-Teleport-Button-State, deterministische Season-Slot-Platzierung, locale-aware `M+`-Short-Code-Overlays im ready-Zustand, visuelles Highlight ohne Portal-Sound bei neu verfuegbaren Teleport-Zielen und Cooldown-Labels mit Prioritaet solange Cooldown aktiv ist |
 | CombatEvents | `UNIT_SPELLCAST_SUCCEEDED` fuer `unit == "player"`, aktiver `C_ChallengeMode.GetActiveChallengeMapID()`, BR-/Lust-Spell-ID-Tabellen und `chatAnnounceBR` / `chatAnnounceLust`-Toggles | Self-Cast-Filter gegen 12.0-Secret-Value-Spam anderer Spieler, 3s-Dedup-Fenster pro `sourceGUID\|spellID`, lokaler Chat-Print via `COMBAT_CHAT_BR_USED` / `COMBAT_CHAT_LUST_STARTED` und Addon-Message-Broadcast via `Sync.SendCombatAnnounce` (Payload `BRLUST:<KIND>:<caster>:<spellID>`, Prioritaet `NORMAL`); `Reset()` auf `CHALLENGE_MODE_START` / `CHALLENGE_MODE_COMPLETED` loescht die Dedup-Map |
 | MobTooltip | `TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, ...)` plus aktiver `C_ChallengeMode`-Map-ID und der geladene `MPlusForces.byNpcId` / `MPlusForces.dungeonTotal`-Index | Eine zusaetzliche Tooltip-Zeile `Forces: %.2f%% (+%d)` fuer Mobs mit passendem `npcID` und `mapID == activeMapID`; `OnTooltipCleared`-Hook verhindert Doppelzeilen bei Tooltip-Rerender; `SetEnabled(false)` gated das Rendering komplett |
+| LFGFlags | Blizzard-LFG-Suchergebnis-/Bewerberzeilen, Locale- und Realm-Sprachdaten, lokale Spielerprofil-Aufloesung | Sprachflaggen, Suchergebnis-Bonusmarker, Bewerber-Bonusmarker und Tooltip-Bonuszeilen. `SetGroupBonusesEnabled(false)` leert Cache und sichtbare Marker; die kompakte Bewertung zaehlt nur relevante nicht stapelnde Nicht-Utility-Boni. |
 
 ## Erweiterungspunkte
 
@@ -278,3 +287,5 @@ Zusaetzlich zum Main-Roster-Frame aus `isiLive_ui_main_frame.lua` kann `isiLive_
 4. Neue Combat-Signale (zum Beispiel zusaetzliche Chat-Ansagen in M+) werden in `isiLive_combat_events.lua` registriert, nutzen denselben Self-Cast-Filter plus `sourceGUID\|spellID`-Dedup und verwenden fuer die Gruppen-Verteilung `Sync.SendCombatAnnounce` mit neuer `BRLUST`-kompatibler Payload-Kennung, damit die 12.0-`ADDON_ACTION_FORBIDDEN`-Regression nicht ueber `SendChatMessage` zurueckkommt.
 5. Neue Addon-Message-Typen werden ueber `DispatchAddonMessage(prefix, payload, channel, priority)` gesendet, damit ChatThrottleLib-Prioritaet, CPS-Budget und der Raw-Fallback automatisch greifen; die Prioritaet folgt dem bestehenden Schema (`ALERT` fuer zeitkritische Coordination-Nachrichten und schnellen User-Fanout wie `SHAREKEYS`, `NORMAL` fuer Standard-Key-/Handshake-Payloads, `BULK` fuer Metriken).
 6. Neue M+-Forces-Daten (Mob-Counts, Dungeon-Totals) gehen ueber den Generator `tools/sync_mdt_forces.lua` in `data/isiLive_mplus_forces.lua`; das Lifetime-Gate `tools/check_mplus_db_lifetime.lua` und der wochenweise Workflow halten den Datensatz aktuell und bricht einen Release mit abgelaufenem `expiresAt`. Zusaetzliche Tooltip-Annotationen fuer aktive M+-Runs gehen ueber `isiLive_mob_tooltip.lua` und nutzen den bestehenden `TooltipDataProcessor`-Post-Call-Pfad.
+7. Neue lokalisierte Texte werden beim Programmieren auf Englisch und Deutsch gepflegt. Weitere vorbereitete Locales duerfen englischen Fallback behalten, bis eine nachbearbeitete Uebersetzung vorliegt; hilfreiche Uebersetzungs-PRs werden technisch an die aktuellen UI-Vertraege angepasst und im Changelog bedankt.
+8. Neue LFG-Zeilenmarker oder Settings-Erklaerungen fuer das Buff-Rating muessen dieselbe `media/heart_bonus_green`-Textur nutzen, damit Darstellung, Dokumentation und deterministische Tests nicht auseinanderlaufen.

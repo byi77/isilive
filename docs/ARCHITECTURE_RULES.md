@@ -4,6 +4,10 @@ Diese Datei beschreibt verbindliche Strukturregeln fuer den aktuellen Modulzusch
 Im Gegensatz zu `RULES_LOGIC.md` geht es hier nicht um Runtime-Verhalten, sondern um
 stabile Architekturgrenzen, die ueber deterministische Strukturtests geprueft werden.
 
+Aktueller Dokumentationsstand: `0.9.284`. Die aktuellen 0.9.284-Aenderungen
+haben keine neue Architekturregel erfordert; sie bleiben innerhalb der bereits
+aktiven Split-, CI- und Secure-Mutation-Vertraege.
+
 ## Schreibformat
 
 1. Oben steht eine nummerierte `Regeluebersicht` mit je einem Kurzsatz pro Regel.

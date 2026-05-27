@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
 Versionsbasis: `0.9.284`
-Zuletzt aktualisiert: `2026-05-26`
+Zuletzt aktualisiert: `2026-05-27`
 
 ## Akteure
 
@@ -17,6 +17,7 @@ Zuletzt aktualisiert: `2026-05-26`
 4. Nicht-`isiLive`-Spieler koennen nur dann `Key` und `RIO` beitragen, wenn auf ihrer Seite ein kompatibles `LibKeystone`-sprechendes Addon laeuft; ohne sendenden Addon-Code bleiben diese Daten unresolved.
 5. Raid-Gruppen sind ein eigener Hard-off-Zustand: UI aus und Background-Processing aus.
 6. Die optionalen `Esc`-Tooling-, Travel-, Mounts- und Addons-Strips sind aktiv, solange der User sie nicht explizit in den Addon-Settings deaktiviert.
+7. Die Addon-Sprache kommt aus der Lokalisierungstabelle. Neue produktive Texte werden in Deutsch und Englisch gepflegt; vorbereitete weitere Locales duerfen englischen Fallback oder nachbearbeitete Community-Uebersetzungen tragen.
 
 ## Usecase-Matrix
 
@@ -234,9 +235,11 @@ Ziel: Der Spieler soll in der Blizzard-Gruppensuche schnell erkennen, ob eine Gr
 4. Regel: Battle Res, Bloodlust, Power Infusion, Devotion Aura, Atrophic Poison und aehnliche Utility-Hinweise duerfen in Tooltip-Details erscheinen, zaehlen aber nicht als kompakte gruene Suchergebnis-Marker.
 5. Anzeige: Suchergebniszeilen zeigen bis zu vier gruene Herzmarker rechtsbuendig innerhalb der Blizzard-Zeile und unabhaengig davon, ob ein Drittanbieter-Addon zusaetzliche Klassenbadges zeichnet. Die Settings-Option `Group Finder: Buff rating hearts` ist standardmaessig aktiv, kann diese Marker und die zugehoerigen Bonus-Tooltip-Ergaenzungen ausschalten und beschreibt mit untereinander stehenden fix grossen Herz-Textur-Beispielzeilen, dass 1/2/3/4 Herzen einen, zwei, drei beziehungsweise vier oder mehr relevante Buffs bedeuten.
 6. Anzeige: Gleiche nicht stapelnde Boni zaehlen pro Suchergebnis nur einmal, auch wenn mehrere Gruppenmitglieder denselben Buff liefern.
-7. Anzeige: Bewerberzeilen zeigen die Marker neben dem Rollenbadge. Suchergebnis-Tooltips ergaenzen passende Mitgliedszeilen mit lokalisierten Bonusdetails; beim Programmieren werden Deutsch und Englisch gepflegt, weitere vorbereitete Locales duerfen bis zur Nachbearbeitung englische Fallback-Texte verwenden oder nachbearbeitete Uebersetzungen tragen.
-8. Ausnahme: Zeilen mit `Beförderung angeboten` beziehungsweise dessen lokalisierter Spielstil-Anzeige zeigen keine kompakten Suchergebnis-Marker.
-9. Erfolgskriterium: Relevante nicht-Utility-Boni sind sichtbar, irrelevante oder unbekannte Boni bleiben ausgeblendet, doppelte Buffquellen erhoehen die Markerzahl nicht, und fehlende Drittanbieter-Badges entfernen die Marker nicht aus der Blizzard-Default-Anzeige.
+7. Texturvertrag: Kompakte Marker und Settings-Beispiele nutzen `Interface\AddOns\isiLive\media\heart_bonus_green`; instabile Font-Herz-Glyphen sind fuer dieses Feature nicht zulaessig.
+8. Anzeige: Bewerberzeilen zeigen die Marker neben dem Rollenbadge. Suchergebnis-Tooltips ergaenzen passende Mitgliedszeilen mit lokalisierten Bonusdetails; beim Programmieren werden Deutsch und Englisch gepflegt, weitere vorbereitete Locales duerfen bis zur Nachbearbeitung englische Fallback-Texte verwenden oder nachbearbeitete Uebersetzungen tragen.
+9. Uebersetzungsregel: Community-PRs fuer vorbereitete Locales werden angenommen, wenn sie mit den aktuellen UI- und Regelvertraegen kompatibel gemacht werden koennen; der einreichende User wird im Changelog bedankt.
+10. Ausnahme: Zeilen mit `Beförderung angeboten` beziehungsweise dessen lokalisierter Spielstil-Anzeige zeigen keine kompakten Suchergebnis-Marker.
+11. Erfolgskriterium: Relevante nicht-Utility-Boni sind sichtbar, irrelevante oder unbekannte Boni bleiben ausgeblendet, doppelte Buffquellen erhoehen die Markerzahl nicht, und fehlende Drittanbieter-Badges entfernen die Marker nicht aus der Blizzard-Default-Anzeige.
 
 ## UC-17 Mob-Tooltip mit Forces-Anteil im Mythic+
 
@@ -336,8 +339,9 @@ Ziel: Eine optionale, eigenstaendige Spieler-Stats-Box zeigt live gelesene Prim�
 14. Raid-Gruppenerkennung bei mehr als 5 Mitgliedern blendet die Addon-UI aus, unterdrueckt Background-Processing einschliesslich hidden Kick-Keep-Alive und delayed Post-Run-Refresh-Ausfuehrung, gibt keine Raid-Transition-Notice aus und blockiert das Zurueckschalten auf M/V, bis die Gruppengroesse wieder Party ist.
 15. Die optionalen `Esc`-Tooling-, Travel-, Mounts- und Addons-Strips bleiben lokalisiert, schliessen das Game-Menu vor dem Oeffnen ihrer Ziele und halten `ReloadUI` auf einem Secure-Macro-Pfad (`/click GameMenuButtonContinue` + `/reload`), der `ActionButtonUseKeyDown` spiegelt; blockierte Secure-Refreshes fuer diesen Button und sichere Mount-Macro-Buttons werden auf `PLAYER_REGEN_ENABLED` wiederholt, waehrend die Strips als vorab gemountete `GameMenuFrame`-Kinder keinen deferred Host-Frame-Re-Show-Pfad im Combat ausfuehren. Externe Addon-Shortcuts bleiben an verifizierte Addon-Installation, Aktivierung, optionales Load-on-Demand-Laden und registrierte Slash-Aliase gebunden, fuehren den verifizierten Handler direkt aus und nutzen keinen Chat-Edit-Fallback; der isiLive-Shortcut oeffnet direkt die Settings.
 16. Hidden Legacy-Settings-Controls bleiben aus den Blizzard Settings entfernt und nutzen aktuell feste Runtime-Defaults: `DPS`-Spalte an, Marker fuer alle sichtbar, feste Namenstrunkierung und Legacy-`Travel`-Grid mit 2 Spalten.
-17. Ready-Check-Lifecycle-Updates muessen den dedizierten Ready-Check-Refresh-Pfad nutzen, damit Row-Background-State, Waiting-Sandglass-Marker sowie der 20-Sekunden-Hold fuer `ready` und fuer explizit/unbeantwortet `notready` deterministisch zurueckgesetzt werden, ohne Secure-Role-Button-Attribute neu zu schreiben.
-18. Roster-Leader-Marker muessen den echten `UnitIsGroupLeader`-State spiegeln; Leader-Zeilen bekommen eine 16x16-Krone, und wenn dieselbe Zeile auch den blauen `isiLive`-Heart-Marker hat, bleibt die Reihenfolge `heart -> crown`.
+17. Ready-Check-Lifecycle-Updates muessen den dedizierten Ready-Check-Refresh-Pfad nutzen, damit Row-Background-State, Waiting-Sandglass-Marker sowie der 20-Sekunden-Hold fuer `ready` und fuer explizit/unbeantwortet `notready` deterministisch zurueckgesetzt werden, ohne Secure-Role-Button-Attribute neu zu schreiben. Der Readycheck-Button bleibt ein Secure-Macro-Button fuer `/readycheck`; Lua-Click-Logging darf diesen Secure-OnClick nicht ersetzen.
+18. Locale-Tag-zu-Sprachflaggen-Aufloesung muss tooltip-hotpath-sicher aus einer statischen Lookup-Tabelle erfolgen. Ein Tooltip-Hover darf nicht `Languages.SUPPORTED` iterieren oder die Alias-Map lazy neu aufbauen.
+19. Roster-Leader-Marker muessen den echten `UnitIsGroupLeader`-State spiegeln; Leader-Zeilen bekommen eine 16x16-Krone, und wenn dieselbe Zeile auch den blauen `isiLive`-Heart-Marker hat, bleibt die Reihenfolge `heart -> crown`.
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
@@ -355,9 +359,9 @@ Aktuelle Validator-Baseline: `1892` Szenarien ueber die in `tools/usecase_scenar
 10. Taint-Hardening: verschobene Secure-Attribute-Writes, verschobene `Esc`-Shortcut-Secure-Button-Refreshes, insecure Teleport-Grid-Aktionen und combat-sicheres Collapse-Handling.
 11. UC-13 und UC-14: Game-Menu-Tooling-/Travel-/Mounts-/Addons-Strips, Ruhestein-Auswahl, VIP-Gast-Sound-Schalter, Lokalisierung inklusive ruRU-Font-Override, Close-then-Open-Verhalten, verschobener Secure-Reload-Button-Refresh, sichere Mount-Macro-Shortcuts, Direct-Opener-Fallback-Auswahl, Settings-Canvas-State-Mirroring, Background-Opacity-Verhalten, Live-BRes-/Bloodlust-/M+-Timer-Rendering, M+-Killtracker-Live-Refresh und gesyncte Interrupt-Cooldown-Anzeige.
 12. UC-15: LFG-Detektion ohne Name-Fallbacks, locale-aware Chat-Hinweise, pending-invite Race-Hardening, konkrete lokale LFG-Map-Prioritaet, Highlight-Dispatch und Centerbox-Portalbutton aus verifiziertem Activity-/Map-Kontext.
-13. UC-24: Gruppensuche-Klassenbonus-Hinweise ohne Guessing, mit Spielerprofil-Relevanz, Utility-Ausschluss fuer kompakte Marker, nicht-stapelnder Buffzaehlung und Blizzard-Default-kompatibler Suchergebnisposition.
-13. UC-16: BR-/Lust-Self-Cast-Filter gegen 12.0-Secret-Value-Spam, 3s-`sourceGUID|spellID`-Dedup, Toggle-Gating, ChatThrottleLib-Routing via `BRLUST`-Addon-Message, Receiver-Dispatch in lokalisierten Template-Zeilen und Drop-On-Unknown-Kind.
-14. UC-17: Mob-Tooltip-Forces-Rendering nur bei aktiver Challenge-Map-ID mit passendem NPC-Dataset, Per-Tooltip-Dedup gegen `TooltipDataProcessor`-Rerender und `SetEnabled(false)`-Gate.
+13. UC-24: Gruppensuche-Buff-Rating-Herzchen ohne Guessing, mit Spielerprofil-Relevanz, Utility-Ausschluss fuer kompakte Marker, nicht-stapelnder Buffzaehlung, Blizzard-Default-kompatibler Suchergebnisposition, default-aktivem Settings-Schalter, `media/heart_bonus_green`-Texturvertrag sowie vorbereiteten Locale-Fallbacks inklusive akzeptierter Community-Uebersetzungen.
+14. UC-16: BR-/Lust-Self-Cast-Filter gegen 12.0-Secret-Value-Spam, 3s-`sourceGUID|spellID`-Dedup, Toggle-Gating, ChatThrottleLib-Routing via `BRLUST`-Addon-Message, Receiver-Dispatch in lokalisierten Template-Zeilen und Drop-On-Unknown-Kind.
+15. UC-17: Mob-Tooltip-Forces-Rendering nur bei aktiver Challenge-Map-ID mit passendem NPC-Dataset, Per-Tooltip-Dedup gegen `TooltipDataProcessor`-Rerender und `SetEnabled(false)`-Gate.
 
 ## Rueckverfolgbarkeit zu Quelldateien
 
@@ -379,3 +383,4 @@ Aktuelle Validator-Baseline: `1892` Szenarien ueber die in `tools/usecase_scenar
 | Event-Routing und Gate | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua` |
 | BR-/Lust-Combat-Announce und Addon-Message-Routing | `isiLive_combat_events.lua`, `isiLive_sync.lua` (`SendCombatAnnounce`, `ProcessAddonMessage.BRLUST`), `isiLive_event_handlers_runtime.lua` (`HandleChatMsgAddonEvent`), `isiLive_factory_controllers.lua` (`FormatDisplayName`, `broadcastCombatAnnounce`), `isiLive_texts.lua` (`COMBAT_CHAT_BR_USED`, `COMBAT_CHAT_LUST_STARTED`, `SETTINGS_SECTION_CHAT`, `SETTINGS_CHAT_BR_ANNOUNCE`, `SETTINGS_CHAT_LUST_ANNOUNCE`), `libs/ChatThrottleLib/ChatThrottleLib.lua` |
 | Mob-Tooltip-Forces-Anreicherung | `isiLive_mob_tooltip.lua`, `data/isiLive_mplus_forces.lua`, `tools/sync_mdt_forces.lua`, `tools/check_mplus_db_lifetime.lua`, `.github/workflows/sync-mplus-forces.yml` |
+| Gruppensuche-Buff-Rating und Sprachflaggen | `isiLive_lfg_flags.lua`, `isiLive_locale.lua`, `isiLive_texts.lua`, `isiLive_settings_sections.lua`, `isiLive_db_schema.lua` |

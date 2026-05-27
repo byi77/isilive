@@ -43,7 +43,7 @@ When you join a group, isiLive opens a single window with everything you want to
 - Default-on **forces overlay on every enemy nameplate** during a key — shows what each individual mob contributes plus the verified remaining count needed to finish enemy forces
 - Forces info on the **mouseover tooltip** for any mob in a key
 - Optional independent **player stats box** with live primary/secondary stats, short English labels, and separate opacity/font/lock controls
-- Optional **Group Finder class-bonus hints** for applicant and search-result rows, shown only when the listed class/spec offers a relevant non-stacking group bonus for your current character
+- Optional **Group Finder buff-rating hearts** for applicant and search-result rows, shown only when the listed class/spec offers a relevant non-stacking group bonus for your current character
 
 Everything syncs automatically between group members who run isiLive — no manual import, no `/say` spam.
 
@@ -215,9 +215,9 @@ When you get an LFG invite, the matching portal highlights and the center notice
 
 Optional Group Finder hints help you scan applicant and search-result rows for useful class buffs before you join or accept someone:
 
-- Search results show compact green heart markers inside the Blizzard row, independent of third-party class-badge addons
+- Search results show compact green heart texture markers inside the Blizzard row, independent of third-party class-badge addons
 - Applicant rows show the same markers next to the role badge when the applicant offers a relevant non-utility group bonus
-- The settings description shows the examples on separate fixed-size green heart texture lines
+- The settings description shows the examples on separate fixed-size green heart texture lines using `media/heart_bonus_green`
 - 1 heart means one useful non-stacking buff, 2 hearts means two, 3 hearts means three, and 4 hearts means four or more
 - Search-result tooltips add localized bonus text per listed class/spec
 - Duplicate non-stacking buffs count once per search result, so two players with the same class buff do not create extra markers
@@ -262,6 +262,13 @@ Open via **Escape → AddOns → isiLive**. Everything takes effect immediately.
 - **Nameplates** — enable forces overlay, font size, position, percent toggle
 - **Chat Announcements** — announce Battle Res / announce Bloodlust
 - **Administrative** — queue debug log, runtime log (both reset on reload, for support), plus dedicated **Clear Queue Debug Log** / **Clear Runtime Log** buttons in the panel for one-click log purge without using the slash command
+
+### Languages and translations
+
+- User-facing text is localized through the locale tables.
+- New built-in text is maintained in English and German first.
+- Other prepared locales may temporarily use English fallback text until a translator updates them.
+- Community translation pull requests are welcome; accepted translators are credited in the changelog.
 
 ### Auto-open defaults
 

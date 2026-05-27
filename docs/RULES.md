@@ -28,6 +28,7 @@
 - Beim Programmieren werden neue Texte mindestens auf Englisch und Deutsch gepflegt; vorbereitete weitere Locales duerfen bis zur Nachbearbeitung englische Fallbacks behalten.
 - Hilfreiche Uebersetzungs-PRs fuer vorbereitete Locales werden dankend integriert, sofern sie technisch mit den aktuellen UI-/Regelvertraegen kompatibel gemacht werden.
 - Externe Uebersetzungshelfer werden im Changelog dankend erwaehnt.
+- Locale-Tag-zu-Sprachflaggen-Aufloesung muss auf Tooltip-Hotpaths ueber konstante Lookups laufen; kein Lazy-Aufbau durch Iteration der Sprachliste beim Hover.
 
 ## Performance
 - Keine Arbeit in `OnUpdate`, ausser sie ist strikt noetig.
@@ -37,6 +38,7 @@
 - `README.md` wird bei jeder user-visible Verhaltensaenderung aktualisiert.
 - Beispiele und Slash-Commands bleiben synchron mit dem Code.
 - Aktive UI-Labels in den Dokus bleiben synchron zu den Lokalisierungskeys, zum Beispiel Feature-Liste in `README.md` und ASCII-Skizze in `ARCHITECTURE.md`.
+- UI-Beschreibungen mit Buff-Rating-Herzchen verwenden in Doku und Locale-Texten `media/heart_bonus_green`; Font-Herz-Glyphen werden dafuer nicht dokumentiert.
 - Das dokumentierte Roster-Format bleibt synchron zur Runtime, insbesondere das `RIO`-Deltaformat `(+X)RIO` ohne negative Werte.
 - `CHANGELOG.md` wird bei jeder funktionalen oder Code-Aenderung aktualisiert.
 - Changelog-Eintraege tragen immer ein explizites Datum im Format `YYYY-MM-DD`.
@@ -68,6 +70,7 @@
 
 ## Release-Hygiene
 - Bei funktionalen Aenderungen wird die Version in `isiLive.toc` hochgezogen.
+- `CHANGELOG_RELEASE.md` bleibt ein kurzer, user-facing Release-Stub fuer CurseForge/Wago und wird bei sichtbaren Features ebenfalls aktualisiert.
 - Nach Aenderungen wird geprueft, dass das Addon ohne Lua-Fehler laedt.
 
 ## Versionierung

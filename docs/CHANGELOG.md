@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Documentation
+
+[README.md](../README.md),
+[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
+[docs/ARCHITECTURE.md](ARCHITECTURE.md),
+[docs/ARCHITECTURE_RULES.md](ARCHITECTURE_RULES.md),
+[docs/RELEASE.md](RELEASE.md),
+[docs/RULES.md](RULES.md),
+[docs/USECASES.md](USECASES.md),
+[docs/WARTUNG.md](WARTUNG.md):
+
+- Synchronized the full documentation set with the 0.9.284 feature baseline,
+  including Group Finder buff-rating hearts, translation handling, tooltip
+  hotpath locale lookup, Ready Check secure macro hardening, and release notes.
+
 ## 2026-05-27 - Version 0.9.284 (patch)
 
 ### Settings
