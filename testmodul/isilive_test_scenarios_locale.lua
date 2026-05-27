@@ -411,6 +411,22 @@ return function(test, ctx)
     Assert.Equal(addon.Locale.LocaleToLanguageTag("kokr"), "KR", "extra locale 'kokr' must resolve to 'KR'")
   end)
 
+  test("Languages ResolveTag accepts canonical tags and dashed aliases", function()
+    local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua" })
+    Assert.Equal(addon.Languages.ResolveTag("frFR"), "frFR", "canonical supported locale must resolve directly")
+    Assert.Equal(addon.Languages.ResolveTag("de-DE"), "deDE", "dashed supported locale must normalize")
+    Assert.Equal(addon.Languages.ResolveTag("unknown"), "enUS", "unknown locale must fall back to enUS")
+  end)
+
+  test("Languages IsSupported distinguishes supported aliases and unknown tags", function()
+    local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua" })
+    Assert.False(addon.Languages.IsSupported(nil), "nil must not be reported as supported")
+    Assert.True(addon.Languages.IsSupported("de"), "command alias must be supported")
+    Assert.True(addon.Languages.IsSupported("deDE"), "canonical locale must be supported")
+    Assert.True(addon.Languages.IsSupported("pt-BR"), "dashed locale must be supported")
+    Assert.False(addon.Languages.IsSupported("zhCN"), "unprepared locale must not be supported")
+  end)
+
   test("Locale.LocaleToLanguageTag resolves from static lookup without iterating supported languages", function()
     local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua" })
     addon.Languages.SUPPORTED = setmetatable({}, {

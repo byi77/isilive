@@ -1260,7 +1260,14 @@ return function(test, ctx)
           "onEscPanelToggle",
           "onQueueDebugToggle",
           "onRuntimeLogToggle",
+          "onClearRuntimeLog",
+          "onClearQueueDebugLog",
           "onPortalNavigatorToggle",
+          "onHearthstoneChoiceChange",
+          "onStatsBoxToggle",
+          "onStatsBoxLockToggle",
+          "onStatsBoxBgAlphaChange",
+          "onStatsBoxFontSizeOffsetChange",
           "onSyncToggle",
           "onRosterColumnGuidesToggle",
           "onMinimapButtonToggle",
@@ -1275,6 +1282,7 @@ return function(test, ctx)
           "onNameMaxCharsChange",
           "onTeleportColumnsChange",
           "onLfgFlagsToggle",
+          "onLfgGroupBonusesToggle",
           "onTooltipFlagsToggle",
           "onMplusForcesToggle",
           "onMobNameplateChange",
@@ -1286,6 +1294,8 @@ return function(test, ctx)
           onTeleportColumnsChange = 4,
           onDefaultLayoutModeChange = "compact_horizontal",
           onRaidTransitionBehaviorChange = "hide",
+          onStatsBoxBgAlphaChange = 0.5,
+          onStatsBoxFontSizeOffsetChange = 1,
         }
         for _, name in ipairs(settingsCallbacks) do
           local cb = capturedSettingsOpts[name]

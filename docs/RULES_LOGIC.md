@@ -924,6 +924,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Nach einem LFG-Gruppenbeitritt muss die Accepted-Invite-Centerbox mit Portalbutton auch dann erscheinen duerfen, wenn kein `LFG_LIST_APPLICATION_STATUS_UPDATED=inviteaccepted` beim Accepted-Invite-Pfad angekommen ist, aber bereits ein verifizierter lokaler Ziel-Dungeon-Kontext (`ResolveLocalStatusTargetMapID` plus Status-Dungeon-Info) vorliegt. Die Fallback-Centerbox darf keinen Dungeon, keine Keystufe, kein Gruppenlabel und keinen Portalbutton raten; ohne verifizierte lokale Ziel-Map bleibt sie stumm. Wenn die direkte Accepted-Invite-Centerbox bereits aus dem `inviteaccepted`-Pfad gerendert wurde, darf der Gruppenbeitritt keine zweite Centerbox fuer denselben Join erzeugen.
 - Erforderliche Tests:
+  - ControllerWiring CreateGroupControllerFromContext forwards group-joined callback
   - factory_controllers: ShowJoinedTargetNotice renders from verified local target when accept event is missing
   - factory_controllers: ShowJoinedTargetNotice stays silent without verified local target
   - factory_controllers: ShowJoinedTargetNotice suppresses duplicate after direct accepted notice

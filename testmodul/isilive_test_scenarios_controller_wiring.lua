@@ -186,6 +186,21 @@ return function(test, ctx)
     Assert.Equal(callbackCalls, 1, "onMemberJoinedGroup must be forwarded to Group.CreateController")
   end)
 
+  test("ControllerWiring forwards group-joined callback into the group controller", function()
+    local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" })
+    local callbackCalls = 0
+    local deps = makeMinimalDeps()
+    deps.callbacks.onGroupJoined = function()
+      callbackCalls = callbackCalls + 1
+    end
+    local groupModule, getOpts = captureGroupModuleOpts()
+    addon.ControllerWiring.CreateGroupController(groupModule, deps)
+
+    getOpts().onGroupJoined()
+
+    Assert.Equal(callbackCalls, 1, "onGroupJoined must be forwarded to Group.CreateController")
+  end)
+
   test("ControllerWiring optional clearRioBaselineSnapshot uses no-op default when absent", function()
     local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" })
     local deps = makeMinimalDeps()
@@ -267,5 +282,63 @@ return function(test, ctx)
 
     getOpts().clearKnownUsers()
     Assert.True(clearCalled, "CreateGroupControllerFromContext must wire sync.ClearKnownUsers through clearKnownUsers")
+  end)
+
+  test("ControllerWiring CreateGroupControllerFromContext forwards group-joined callback", function()
+    local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" })
+    local callbackCalls = 0
+    local syncStub = {
+      ClearKnownUsers = noop,
+      SetPlayerKeyInfo = noop,
+    }
+
+    local wireCtx = {
+      sync = syncStub,
+      printFn = noop,
+      getL = noop,
+      isInGroup = noop,
+      getNumGroupMembers = noop,
+      getActiveChallengeMapID = noop,
+      getUnitNameAndRealm = noop,
+      getUnitClass = noop,
+      getUnitServerLanguage = noop,
+      getOwnedKeystoneSnapshot = noop,
+      markIsiLiveUser = noop,
+      getUnitRole = noop,
+      getPlayerSpecName = noop,
+      getUnitRio = noop,
+      unitIsGroupLeader = noop,
+      unitHasIsiLive = noop,
+      applyKnownKeyToRosterEntry = noop,
+      enqueueInspect = noop,
+      sendOwnKeySnapshot = noop,
+      sendIsiLiveHello = noop,
+      sendRefreshRequest = noop,
+      getWasInGroup = noop,
+      setWasInGroup = noop,
+      getWasRaidGroup = noop,
+      setWasRaidGroup = noop,
+      setWasGroupLeader = noop,
+      getRoster = noop,
+      setRoster = noop,
+      captureQueueJoinCandidate = noop,
+      announceQueuedGroupJoin = noop,
+      onGroupJoined = function()
+        callbackCalls = callbackCalls + 1
+      end,
+      setMainFrameVisible = noop,
+      updateLeaderButtons = noop,
+      clearLatestQueueTarget = noop,
+      resetInspectAll = noop,
+      resetInspectQueues = noop,
+      updateUI = noop,
+      updateMPlusTeleportButton = noop,
+    }
+
+    local groupModule, getOpts = captureGroupModuleOpts()
+    addon.ControllerWiring.CreateGroupControllerFromContext(groupModule, wireCtx)
+
+    getOpts().onGroupJoined()
+    Assert.Equal(callbackCalls, 1, "context group-join callback must survive ControllerWiring")
   end)
 end

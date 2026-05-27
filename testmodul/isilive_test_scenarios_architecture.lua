@@ -920,14 +920,14 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
     AssertContains(
       Assert,
       wiringContent,
-      "onGroupJoined = function()",
-      "ControllerWiring must own the concrete group-join sound hook"
+      "onGroupJoined = ctx.onGroupJoined,",
+      "ControllerWiring must pass the group-joined callback through"
     )
     AssertContains(
       Assert,
       wiringContent,
       "PlayGroupJoin()",
-      "ControllerWiring group-join sound hook must use the dedicated SynthChord helper"
+      "ControllerWiring member-join sound hook must use the dedicated SynthChord helper"
     )
 
     local playCalls = 0

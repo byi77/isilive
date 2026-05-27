@@ -75,6 +75,7 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
       "callbacks.captureQueueJoinCandidate"
     ),
     announceQueuedGroupJoin = RequireFunction(callbacks.announceQueuedGroupJoin, "callbacks.announceQueuedGroupJoin"),
+    onGroupJoined = type(callbacks.onGroupJoined) == "function" and callbacks.onGroupJoined or function() end,
     onMemberJoinedGroup = type(callbacks.onMemberJoinedGroup) == "function" and callbacks.onMemberJoinedGroup
       or function() end,
     setMainFrameVisible = RequireFunction(callbacks.setMainFrameVisible, "callbacks.setMainFrameVisible"),
@@ -170,6 +171,7 @@ local function BuildGroupControllerDepsFromContext(ctx)
     callbacks = {
       captureQueueJoinCandidate = ctx.captureQueueJoinCandidate,
       announceQueuedGroupJoin = ctx.announceQueuedGroupJoin,
+      onGroupJoined = ctx.onGroupJoined,
       onMemberJoinedGroup = function()
         local soundUtils = addonTable.SoundUtils
         if type(soundUtils) == "table" and type(soundUtils.PlayGroupJoin) == "function" then
