@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+## 2026-05-27 - Version 0.9.284 (patch)
+
+### Settings
+
+[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
+[ui/isiLive_settings_sections.lua](../ui/isiLive_settings_sections.lua),
+[testmodul/isilive_test_scenarios_ui_settings.lua](../testmodul/isilive_test_scenarios_ui_settings.lua),
+[testmodul/isilive_test_scenarios_locale.lua](../testmodul/isilive_test_scenarios_locale.lua),
+[docs/RULES_LOGIC.md](RULES_LOGIC.md):
+
+- Renamed the LFG class-bonus setting to **Group Finder: Buff rating hearts**,
+  kept it enabled by default, and expanded the description to explain the
+  1/2/3/4-heart rating.
+- The setting description now shows fixed-size green heart texture examples on
+  separate lines for the one-, two-, three-, and four-plus-buff states.
+- Added German strings for deDE, kept English fallback text for prepared
+  locales by default, and accepted post-edited translations such as ruRU.
+- Integrated the ruRU translation help from @Hubbotu with thanks, adapted to
+  the current fixed-size `media/heart_bonus_green` buff-rating description.
+- Made locale-to-language flag resolution use a static lookup so roster
+  tooltips cannot spend time rebuilding the locale map during hover rendering.
+- Updated the validator baseline to `1892` scenarios.
+
 ## 2026-05-27 - Version 0.9.283 (patch)
 
 ### Ready Check

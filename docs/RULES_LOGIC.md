@@ -88,7 +88,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 65. Die eigenstaendige Spieler-Stats-Box zeigt den Primärstat klassen- beziehungsweise spezialisierungsgenau, zeigt nur direkt aus Blizzard-Live-APIs gelesene Werte, haelt ihre Werte-Spalte auch bei drei- und vierstelligen Zahlen stabil, haelt ihre Prozent-Spalte breit genug fuer `(999.99%)`, ist rahmenlos, standardmaessig aus, ueber Settings einschaltbar und gegen Positions-Drag sperrbar, und speichert ihre Position getrennt von der Main-UI.
 66. Alle frei verschiebbaren isiLive-Fenster muessen an den WoW-Sichtbereich geklemmt sein, sodass ihre Raender beim Ziehen nicht ausserhalb des WoW-Fensters verschwinden.
 67. Das ESC-Addons-Panel darf Shortcut-Buttons fuer Addons anzeigen, die installiert und auf dem aktuellen Charakter aktiviert sind; beim Klick muss ein noch nicht geladenes externes Ziel-Addon verifiziert geladen werden, bevor dessen registrierter Slash-Alias ausgefuehrt wird. Der isiLive-eigene Shortcut darf stattdessen direkt die isiLive-Settings oeffnen und darf keinen Self-Load versuchen.
-68. Die LFG-Klassenbonus-Herzchen zaehlen nur relevante, nicht stapelnde Gruppenboni; Utility-Effekte wie PI, BL, BR, Devotion Aura und Atrophic Poison erzeugen keine Herzchen, und Applicant-Zeilen rendern diese Herzchen als grüne Texturmarker neben dem Rollensymbol.
+68. Die LFG-Klassenbonus-Herzchen zaehlen nur relevante, nicht stapelnde Gruppenboni; Utility-Effekte wie PI, BL, BR, Devotion Aura und Atrophic Poison erzeugen keine Herzchen, und Applicant-Zeilen rendern diese Herzchen als grüne Texturmarker neben dem Rollensymbol. Der Settings-Schalter ist standardmaessig aktiv, kann die Buff-Rating-Herzchen ein- und ausschalten und beschreibt mit untereinander stehenden Herz-Textur-Beispielzeilen, dass 1/2/3/4 Herzchen einen, zwei, drei beziehungsweise vier oder mehr relevante Buffs bedeuten. Beim Programmieren werden Deutsch und Englisch gepflegt; weitere vorbereitete Locales duerfen bis zur Nachbearbeitung englischen Fallback verwenden oder nachbearbeitete Uebersetzungen tragen.
 
 ## Regelbloecke
 
@@ -210,11 +210,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-LOCALE-SYMMETRIE-FALLBACK
 - Regelnummer: 12
 - Status: aktiv
-- Zusammenfassung: Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
+- Zusammenfassung: Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS. Die Umwandlung von Locale-Tags in Sprachflaggen-Tags muss tooltip-hotpath-tauglich ueber eine konstante Lookup-Tabelle laufen und darf nicht pro Tooltip-Aufruf die unterstuetzten Sprachen iterieren.
 - Erforderliche Tests:
   - All enUS keys exist in deDE locale
   - All deDE keys exist in enUS locale
   - Locale tag resolver returns enUS as default fallback
+  - Locale.LocaleToLanguageTag resolves from static lookup without iterating supported languages
   - Settings panel refresh localizes behavior auto and raid notes
   - Locale hearthstone settings strings are localized per supported language
   - Settings hearthstone selector shows English toy names for non-German addon locales
@@ -907,10 +908,13 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-LFG-KLASSENBONUS-HERZCHEN-NICHT-STAPELND
 - Regelnummer: 68
 - Status: aktiv
-- Zusammenfassung: Die LFG-Klassenbonus-Herzchen duerfen nur relevante nicht-Utility-Gruppenboni zaehlen, die fuer den eingeloggten Spieler wirksam sind. Gleiche nicht stapelnde Buffs zaehlen pro Suchergebnis nur einmal, auch wenn mehrere Gruppenmitglieder denselben Buff liefern. Utility-Effekte wie PI, BL, BR, Devotion Aura und Atrophic Poison duerfen in Tooltips sichtbar bleiben, erzeugen aber keine Herzchen. Applicant-Zeilen muessen relevante Herzchen als grüne Texturmarker direkt neben dem Rollensymbol rendern.
+- Zusammenfassung: Die LFG-Klassenbonus-Herzchen duerfen nur relevante nicht-Utility-Gruppenboni zaehlen, die fuer den eingeloggten Spieler wirksam sind. Gleiche nicht stapelnde Buffs zaehlen pro Suchergebnis nur einmal, auch wenn mehrere Gruppenmitglieder denselben Buff liefern. Utility-Effekte wie PI, BL, BR, Devotion Aura und Atrophic Poison duerfen in Tooltips sichtbar bleiben, erzeugen aber keine Herzchen. Applicant-Zeilen muessen relevante Herzchen als grüne Texturmarker direkt neben dem Rollensymbol rendern. Der Settings-Schalter fuer die Buff-Rating-Herzchen ist standardmaessig aktiv, kann die Anzeige ein- und ausschalten und muss lokalisiert mit untereinander stehenden fix grossen Herz-Textur-Beispielzeilen erklaeren, dass 1/2/3/4 Herzchen einen, zwei, drei beziehungsweise vier oder mehr relevante Buffs bedeuten. Beim Programmieren werden Deutsch und Englisch gepflegt; weitere vorbereitete Locales duerfen bis zur Nachbearbeitung englischen Fallback verwenden oder nachbearbeitete Uebersetzungen tragen. Jede Locale-Beschreibung muss `media/heart_bonus_green` als Textur verwenden und darf keine instabilen Font-Herz-Glyphen verwenden.
 - Erforderliche Tests:
   - LI.BuildApplicantBonusBadge treats Devotion Aura and Atrophic Poison as utility
   - LI.BuildSearchResultBonusBadge counts relevant non-utility bonuses as markers
   - LI.BuildSearchResultBonusBadge counts each non-stacking bonus only once
   - LI.ApplyApplicantBonusToMemberFrame writes applicant bonus markers next to the role badge and clears them
   - LI.BuildApplicantBonusMarkerBadge ignores applicant utility bonuses
+  - Settings LFG group-bonus checkbox persists and invokes live toggle callback
+  - Settings display checkboxes render descriptions below options and refresh localized text
+  - Locale LFG group-bonus settings strings support prepared fallbacks and post-edited translations

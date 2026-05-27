@@ -4,6 +4,25 @@ addonTable = addonTable or {}
 local SettingsSections = {}
 addonTable.SettingsSections = SettingsSections
 
+local LFG_GROUP_BONUS_HEART_ICON = "|TInterface\\AddOns\\isiLive\\media\\heart_bonus_green:10:10:0:0|t"
+local FALLBACK_LFG_GROUP_BONUSES_DESC = "Shows green hearts for relevant non-stacking class buffs:\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = one useful buff\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = two useful buffs\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = three useful buffs\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = four or more useful buffs\n"
+  .. "Utility stays tooltip-only: BL, BR, PI, Devotion Aura,\n"
+  .. "Atrophic Poison."
+
 local DEFAULT_BG_ALPHA = addonTable.UICommon and addonTable.UICommon.DEFAULT_BG_ALPHA or 0.50
 
 local CreateSectionHeader = addonTable.SettingsControls.CreateSectionHeader
@@ -580,7 +599,7 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
   controls.lfgGroupBonuses, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
-    labels.SETTINGS_LFG_GROUP_BONUSES or "Group Finder: Show class bonuses",
+    labels.SETTINGS_LFG_GROUP_BONUSES or "Group Finder: Buff rating hearts",
     function()
       local db = config.getDB()
       return db.lfgGroupBonusesEnabled ~= false
@@ -593,9 +612,7 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
       end
     end,
     "SETTINGS_LFG_GROUP_BONUSES",
-    CheckboxDescriptionOptions(
-      labels.SETTINGS_LFG_GROUP_BONUSES_DESC or "Marks relevant class bonuses on groups and applicants."
-    )
+    CheckboxDescriptionOptions(labels.SETTINGS_LFG_GROUP_BONUSES_DESC or FALLBACK_LFG_GROUP_BONUSES_DESC)
   )
 
   controls.tooltipFlags, yOffset = CreateSettingsCheckbox(
@@ -807,10 +824,10 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
     controls.lfgFlags.check:SetChecked(db.lfgFlagsEnabled ~= false)
   end
   if controls.lfgGroupBonuses then
-    controls.lfgGroupBonuses.label:SetText(labels.SETTINGS_LFG_GROUP_BONUSES or "Group Finder: Show class bonuses")
+    controls.lfgGroupBonuses.label:SetText(labels.SETTINGS_LFG_GROUP_BONUSES or "Group Finder: Buff rating hearts")
     SetCheckboxDescription(
       controls.lfgGroupBonuses,
-      labels.SETTINGS_LFG_GROUP_BONUSES_DESC or "Marks relevant class bonuses on groups and applicants."
+      labels.SETTINGS_LFG_GROUP_BONUSES_DESC or FALLBACK_LFG_GROUP_BONUSES_DESC
     )
     controls.lfgGroupBonuses.check:SetChecked(db.lfgGroupBonusesEnabled ~= false)
   end

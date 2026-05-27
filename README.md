@@ -4,7 +4,7 @@
 
 - **For:** M+ players in pre-made groups and LFG runs
 - **WoW version:** `12.0+` (Midnight) only
-- **Current version:** `0.9.283`
+- **Current version:** `0.9.284`
 - **Active season:** `midnight_s1` — 8 dungeons (Wing, MT, NPX, MC, AA, POS, SOT, SR)
 
 ---
@@ -215,12 +215,14 @@ When you get an LFG invite, the matching portal highlights and the center notice
 
 Optional Group Finder hints help you scan applicant and search-result rows for useful class buffs before you join or accept someone:
 
-- Search results show compact green bonus markers inside the Blizzard row, independent of third-party class-badge addons
-- Applicant rows show the same marker next to the role badge when the applicant offers a relevant non-utility group bonus
+- Search results show compact green heart markers inside the Blizzard row, independent of third-party class-badge addons
+- Applicant rows show the same markers next to the role badge when the applicant offers a relevant non-utility group bonus
+- The settings description shows the examples on separate fixed-size green heart texture lines
+- 1 heart means one useful non-stacking buff, 2 hearts means two, 3 hearts means three, and 4 hearts means four or more
 - Search-result tooltips add localized bonus text per listed class/spec
 - Duplicate non-stacking buffs count once per search result, so two players with the same class buff do not create extra markers
 - Battle Res, Bloodlust, PI, Devotion Aura, Atrophic Poison, and other utility notes can appear in tooltips, but they do not count toward the compact green marker score
-- The setting lives under **Display -> Group Finder: Show class bonuses**
+- The setting lives under **Display -> Group Finder: Buff rating hearts** and is enabled by default
 
 ### Ghost rows after wipes / reloads
 

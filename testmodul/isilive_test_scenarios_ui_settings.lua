@@ -2798,7 +2798,7 @@ local function RegisterSettingsPanelNameplateRoundtripTests(test, Assert, WithGl
 
   test("Settings LFG group-bonus checkbox persists and invokes live toggle callback", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
-    local db = { lfgGroupBonusesEnabled = true }
+    local db = {}
     local toggleCalls = {}
     WithGlobals({
       UIParent = {},
@@ -2824,6 +2824,7 @@ local function RegisterSettingsPanelNameplateRoundtripTests(test, Assert, WithGl
         "LFG group-bonus checkbox must exist"
       )
       ---@diagnostic disable: undefined-field
+      Assert.True(check:GetChecked(), "LFG group-bonus checkbox must default to enabled when DB value is missing")
       check:SetChecked(false)
       local onClick = Assert.NotNil(check._scripts.OnClick, "checkbox must define OnClick")
       onClick(check)

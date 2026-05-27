@@ -56,6 +56,25 @@ local function FindFontStringByText(panel, text)
   return nil
 end
 
+local LFG_GROUP_BONUS_HEART_ICON = "|TInterface\\AddOns\\isiLive\\media\\heart_bonus_green:10:10:0:0|t"
+local LFG_GROUP_BONUSES_DESC_EN = "Shows green hearts for relevant non-stacking class buffs:\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = one useful buff\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = two useful buffs\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = three useful buffs\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = four or more useful buffs\n"
+  .. "Utility stays tooltip-only: BL, BR, PI, Devotion Aura,\n"
+  .. "Atrophic Poison."
+
 return function(test, ctx)
   local Assert = RequireValue(ctx.assert, "UI settings descriptions scenario ctx.assert should exist")
   local WithGlobals = RequireValue(ctx.with_globals, "UI settings descriptions scenario ctx.with_globals should exist")
@@ -91,8 +110,8 @@ return function(test, ctx)
       SETTINGS_UI_SCALE_DESC = "Scales the main isiLive interface.",
       SETTINGS_MINIMAP_BUTTON = "Show minimap button",
       SETTINGS_MINIMAP_BUTTON_DESC = "Shows the isiLive minimap button.",
-      SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Show class bonuses",
-      SETTINGS_LFG_GROUP_BONUSES_DESC = "Marks relevant class bonuses on groups and applicants.",
+      SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Buff rating hearts",
+      SETTINGS_LFG_GROUP_BONUSES_DESC = LFG_GROUP_BONUSES_DESC_EN,
       SETTINGS_SYNC_ENABLED = "Addon Sync",
       SETTINGS_SYNC_ENABLED_DESC = "Shares key, roster, target, DPS, location, and kick data "
         .. "with isiLive group members.",
@@ -216,8 +235,17 @@ return function(test, ctx)
       )
       Assert.Equal(
         bonusCheck.description._text,
-        "Marks relevant class bonuses on groups and applicants.",
-        "LFG group-bonus description must use localized text"
+        LFG_GROUP_BONUSES_DESC_EN,
+        "LFG group-bonus description must explain the heart rating"
+      )
+      local oneHeart = LFG_GROUP_BONUS_HEART_ICON
+      local twoHearts = oneHeart .. oneHeart
+      local fourHearts = twoHearts .. twoHearts
+      Assert.True(
+        bonusCheck.description._text:find(oneHeart, 1, true) ~= nil
+          and bonusCheck.description._text:find(twoHearts, 1, true) ~= nil
+          and bonusCheck.description._text:find(fourHearts, 1, true) ~= nil,
+        "LFG group-bonus description must render one through four fixed-size texture examples"
       )
       Assert.Equal(
         uiScaleSlider.description._text,

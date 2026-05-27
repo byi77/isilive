@@ -25,6 +25,9 @@
 ## Lokalisierung
 - Alle user-facing Texte laufen ueber die Lokalisierungstabelle.
 - Nicht unterstuetzte Locales fallen auf Englisch zurueck.
+- Beim Programmieren werden neue Texte mindestens auf Englisch und Deutsch gepflegt; vorbereitete weitere Locales duerfen bis zur Nachbearbeitung englische Fallbacks behalten.
+- Hilfreiche Uebersetzungs-PRs fuer vorbereitete Locales werden dankend integriert, sofern sie technisch mit den aktuellen UI-/Regelvertraegen kompatibel gemacht werden.
+- Externe Uebersetzungshelfer werden im Changelog dankend erwaehnt.
 
 ## Performance
 - Keine Arbeit in `OnUpdate`, ausser sie ist strikt noetig.

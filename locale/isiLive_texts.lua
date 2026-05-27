@@ -5,6 +5,61 @@ addonTable = addonTable or {}
 local Texts = {}
 addonTable.Texts = Texts
 
+local LFG_GROUP_BONUS_HEART_ICON = "|TInterface\\AddOns\\isiLive\\media\\heart_bonus_green:10:10:0:0|t"
+local LFG_GROUP_BONUSES_DESC_EN = "Shows green hearts for relevant non-stacking class buffs:\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = one useful buff\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = two useful buffs\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = three useful buffs\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = four or more useful buffs\n"
+  .. "Utility stays tooltip-only: BL, BR, PI, Devotion Aura,\n"
+  .. "Atrophic Poison."
+
+local LFG_GROUP_BONUSES_DESC_DE = "Zeigt gruene Herzen fuer relevante, nicht stapelnde Klassenbuffs:\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = ein nuetzlicher Buff\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = zwei nuetzliche Buffs\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = drei nuetzliche Buffs\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = vier oder mehr nuetzliche Buffs\n"
+  .. "Utility bleibt nur im Tooltip: BL, BR, PI, Aura der Hingabe,\n"
+  .. "Atrophisches Gift."
+
+local LFG_GROUP_BONUSES_DESC_RU = "Показывает зеленые сердца для полезных нестакующихся классовых баффов:\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = один полезный бафф\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = два полезных баффа\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = три полезных баффа\n"
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. LFG_GROUP_BONUS_HEART_ICON
+  .. " = четыре или больше полезных баффов\n"
+  .. "Utility остается только в подсказках: БЛ, БР, ПИ,\n"
+  .. "Аура благочестия, Атрофический яд."
+
 local LOCALES = {
   enUS = {
     TITLE = "isiLive",
@@ -318,8 +373,8 @@ local LOCALES = {
     COMBAT_CHAT_LUST_STARTED = "%s started Bloodlust",
     SETTINGS_LFG_FLAGS = "Group Finder: Show language flags",
     SETTINGS_LFG_FLAGS_DESC = "Shows leader language flags in Group Finder rows.",
-    SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Show class bonuses",
-    SETTINGS_LFG_GROUP_BONUSES_DESC = "Marks relevant class bonuses on groups and applicants.",
+    SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Buff rating hearts",
+    SETTINGS_LFG_GROUP_BONUSES_DESC = LFG_GROUP_BONUSES_DESC_EN,
     LFG_BONUS_TOOLTIP_FMT = "isiLive Bonus: %s",
     LFG_BONUS_BR = "BR",
     LFG_BONUS_BL = "BL",
@@ -683,8 +738,8 @@ local LOCALES = {
     COMBAT_CHAT_LUST_STARTED = "%s hat Kampfrausch gestartet",
     SETTINGS_LFG_FLAGS = "Gruppensuche: Sprachflaggen anzeigen",
     SETTINGS_LFG_FLAGS_DESC = "Zeigt die Sprache des Gruppenleiters in Gruppensuche-Zeilen.",
-    SETTINGS_LFG_GROUP_BONUSES = "Gruppensuche: Klassenboni anzeigen",
-    SETTINGS_LFG_GROUP_BONUSES_DESC = "Markiert relevante Klassenboni bei Gruppen und Bewerbern.",
+    SETTINGS_LFG_GROUP_BONUSES = "Gruppensuche: Buff-Rating-Herzen",
+    SETTINGS_LFG_GROUP_BONUSES_DESC = LFG_GROUP_BONUSES_DESC_DE,
     LFG_BONUS_TOOLTIP_FMT = "isiLive Bonus: %s",
     LFG_BONUS_BR = "BR",
     LFG_BONUS_BL = "BL",
@@ -1048,8 +1103,8 @@ local LOCALES = {
     COMBAT_CHAT_LUST_STARTED = "%s a lance Bloodlust",
     SETTINGS_LFG_FLAGS = "Recherche de groupe : afficher les drapeaux de langue",
     SETTINGS_LFG_FLAGS_DESC = "Shows leader language flags in Group Finder rows.",
-    SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Show class bonuses",
-    SETTINGS_LFG_GROUP_BONUSES_DESC = "Marks relevant class bonuses on groups and applicants.",
+    SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Buff rating hearts",
+    SETTINGS_LFG_GROUP_BONUSES_DESC = LFG_GROUP_BONUSES_DESC_EN,
     LFG_BONUS_TOOLTIP_FMT = "isiLive Bonus: %s",
     LFG_BONUS_BR = "BR",
     LFG_BONUS_BL = "BL",
@@ -1413,8 +1468,8 @@ local LOCALES = {
     COMBAT_CHAT_LUST_STARTED = "%s lanzo Bloodlust",
     SETTINGS_LFG_FLAGS = "Buscador de grupos: mostrar banderas de idioma",
     SETTINGS_LFG_FLAGS_DESC = "Shows leader language flags in Group Finder rows.",
-    SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Show class bonuses",
-    SETTINGS_LFG_GROUP_BONUSES_DESC = "Marks relevant class bonuses on groups and applicants.",
+    SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Buff rating hearts",
+    SETTINGS_LFG_GROUP_BONUSES_DESC = LFG_GROUP_BONUSES_DESC_EN,
     LFG_BONUS_TOOLTIP_FMT = "isiLive Bonus: %s",
     LFG_BONUS_BR = "BR",
     LFG_BONUS_BL = "BL",
@@ -1778,8 +1833,8 @@ local LOCALES = {
     COMBAT_CHAT_LUST_STARTED = "%s iniciou Bloodlust",
     SETTINGS_LFG_FLAGS = "Buscador de grupo: exibir bandeiras de idioma",
     SETTINGS_LFG_FLAGS_DESC = "Shows leader language flags in Group Finder rows.",
-    SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Show class bonuses",
-    SETTINGS_LFG_GROUP_BONUSES_DESC = "Marks relevant class bonuses on groups and applicants.",
+    SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Buff rating hearts",
+    SETTINGS_LFG_GROUP_BONUSES_DESC = LFG_GROUP_BONUSES_DESC_EN,
     LFG_BONUS_TOOLTIP_FMT = "isiLive Bonus: %s",
     LFG_BONUS_BR = "BR",
     LFG_BONUS_BL = "BL",
@@ -2143,8 +2198,8 @@ local LOCALES = {
     COMBAT_CHAT_LUST_STARTED = "%s ha avviato Bloodlust",
     SETTINGS_LFG_FLAGS = "Cerca gruppo: mostra bandiere lingua",
     SETTINGS_LFG_FLAGS_DESC = "Shows leader language flags in Group Finder rows.",
-    SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Show class bonuses",
-    SETTINGS_LFG_GROUP_BONUSES_DESC = "Marks relevant class bonuses on groups and applicants.",
+    SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Buff rating hearts",
+    SETTINGS_LFG_GROUP_BONUSES_DESC = LFG_GROUP_BONUSES_DESC_EN,
     LFG_BONUS_TOOLTIP_FMT = "isiLive Bonus: %s",
     LFG_BONUS_BR = "BR",
     LFG_BONUS_BL = "BL",
@@ -2364,7 +2419,7 @@ local LOCALES = {
     INVITE_HINT_GROUP = "Группа: %s",
     INVITE_HINT_UNKNOWN_DUNGEON = "Неизвестное подземелье",
     SETTINGS_INVITE_HINT_ENABLED = "Подсказка приглашения ЛФГ",
-    SETTINGS_INVITE_HINT_ENABLED_DESC = "Shows dungeon and group details when an LFG invite arrives.",
+    SETTINGS_INVITE_HINT_ENABLED_DESC = "Показывает сведения о подземелье и группе при получении приглашения в ЛФГ.",
     INVITE_ACCEPTED_NOTICE_TITLE = "isiLive - Приглашение принято",
     INVITE_ACCEPTED_RAID_NOTICE_TITLE = "isiLive - Приглашение в рейд принято",
     INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON = "Подземелье:",
@@ -2378,7 +2433,7 @@ local LOCALES = {
     ROLE_NAME_HEALER = "Лекарь",
     ROLE_NAME_DAMAGE = "Боец",
     SETTINGS_ACCEPTED_INVITE_NOTICE_ENABLED = "Уведомление о принятом приглашении",
-    SETTINGS_ACCEPTED_INVITE_NOTICE_ENABLED_DESC = "Opens a compact reminder after accepting an invite.",
+    SETTINGS_ACCEPTED_INVITE_NOTICE_ENABLED_DESC = "Открывает компактное напоминание после принятия приглашения.",
     INVITE_LIST_TITLE = "Открытые приглашения ЛФГ",
     INVITE_LIST_ACCEPT = "Принять",
     INVITE_LIST_DECLINE = "Отклонить",
@@ -2453,7 +2508,7 @@ local LOCALES = {
     SETTINGS_SYNC_ENABLED = "Синхронизировать данные с другими пользователями isiLive в группе",
     SETTINGS_SYNC_ENABLED_DESC = "Shares key, roster, target, DPS, location, and kick data with isiLive group members.",
     SETTINGS_MINIMAP_BUTTON = "Показывать кнопку на миникарте",
-    SETTINGS_MINIMAP_BUTTON_DESC = "Shows the isiLive minimap button.",
+    SETTINGS_MINIMAP_BUTTON_DESC = "Показывает кнопку isiLive у мини-карты.",
     SETTINGS_AUTO_OPEN_QUEUE = "Автоматически открывать при входе в очередь М+",
     SETTINGS_AUTO_OPEN_QUEUE_DESC = "Opens isiLive automatically when you join a Mythic+ Group Finder queue.",
     SETTINGS_AUTO_CLOSE_ON_KEY_START = "Автоматически закрывать при старте ключа",
@@ -2508,27 +2563,27 @@ local LOCALES = {
     COMBAT_CHAT_BR_USED = "%s использует БР",
     COMBAT_CHAT_LUST_STARTED = "%s использует Жажду крови",
     SETTINGS_LFG_FLAGS = "Поиск группы: показывать флаги языков",
-    SETTINGS_LFG_FLAGS_DESC = "Shows leader language flags in Group Finder rows.",
-    SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Show class bonuses",
-    SETTINGS_LFG_GROUP_BONUSES_DESC = "Marks relevant class bonuses on groups and applicants.",
-    LFG_BONUS_TOOLTIP_FMT = "isiLive Bonus: %s",
-    LFG_BONUS_BR = "BR",
-    LFG_BONUS_BL = "BL",
-    LFG_BONUS_HS = "HS",
-    LFG_BONUS_PI = "PI",
-    LFG_BONUS_VERSA = "+3% Versa",
-    LFG_BONUS_MAGIC = "+3% Magic",
-    LFG_BONUS_DMG = "+3% Dmg taken",
-    LFG_BONUS_INT = "+3% Int",
-    LFG_BONUS_PHYSICAL = "+5% Physical",
-    LFG_BONUS_STAMINA = "+5% Stamina",
-    LFG_BONUS_ENEMY_DMG = "-3% Enemy Dmg",
-    LFG_BONUS_DEVOTION = "-3% Dmg taken",
-    LFG_BONUS_MASTERY = "+2% Mastery",
-    LFG_BONUS_AP = "+5% AP",
-    LFG_BONUS_EBON_MIGHT = "+Ebon Might",
+    SETTINGS_LFG_FLAGS_DESC = "Показывает флаги языка лидера в строках Поиска группы.",
+    SETTINGS_LFG_GROUP_BONUSES = "Поиск группы: Buff-Rating сердца",
+    SETTINGS_LFG_GROUP_BONUSES_DESC = LFG_GROUP_BONUSES_DESC_RU,
+    LFG_BONUS_TOOLTIP_FMT = "Бонус isiLive: %s",
+    LFG_BONUS_BR = "БР",
+    LFG_BONUS_BL = "БЛ",
+    LFG_BONUS_HS = "СС",
+    LFG_BONUS_PI = "ПИ",
+    LFG_BONUS_VERSA = "+3% универс.",
+    LFG_BONUS_MAGIC = "+3% маг. урона",
+    LFG_BONUS_DMG = "+3% получ. урона",
+    LFG_BONUS_INT = "+3% интелл.",
+    LFG_BONUS_PHYSICAL = "+5% физ. урона",
+    LFG_BONUS_STAMINA = "+5% вынослив.",
+    LFG_BONUS_ENEMY_DMG = "-3% урона врагов",
+    LFG_BONUS_DEVOTION = "-3% получ. урона",
+    LFG_BONUS_MASTERY = "+2% искусности",
+    LFG_BONUS_AP = "+5% силы атаки",
+    LFG_BONUS_EBON_MIGHT = "+Черная мощь",
     SETTINGS_TOOLTIP_FLAGS = "Подсказка: показывать флаги языков",
-    SETTINGS_TOOLTIP_FLAGS_DESC = "Shows language flags in player tooltips.",
+    SETTINGS_TOOLTIP_FLAGS_DESC = "Показывает флаги языка во всплывающих подсказках игроков.",
     SETTINGS_SECTION_NAMEPLATES = "Индикаторы здоровья",
     SETTINGS_SECTION_NAMEPLATES_HINT = "Отображение прогресса вражеских сил прямо на индикаторах "
       .. "(неймплейтах) в Эпохальном+ режиме.",
@@ -2875,8 +2930,8 @@ local LOCALES = {
     COMBAT_CHAT_LUST_STARTED = "%s Bloodlust baslatti",
     SETTINGS_LFG_FLAGS = "Grup Bul: dil bayraklarini goster",
     SETTINGS_LFG_FLAGS_DESC = "Shows leader language flags in Group Finder rows.",
-    SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Show class bonuses",
-    SETTINGS_LFG_GROUP_BONUSES_DESC = "Marks relevant class bonuses on groups and applicants.",
+    SETTINGS_LFG_GROUP_BONUSES = "Group Finder: Buff rating hearts",
+    SETTINGS_LFG_GROUP_BONUSES_DESC = LFG_GROUP_BONUSES_DESC_EN,
     LFG_BONUS_TOOLTIP_FMT = "isiLive Bonus: %s",
     LFG_BONUS_BR = "BR",
     LFG_BONUS_BL = "BL",

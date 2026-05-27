@@ -141,30 +141,38 @@ local EXTRA_LOCALE_TO_LANGUAGE_TAG = {
   zhtw = "TW",
 }
 
-local localeToLanguageTagCache
+local LOCALE_TO_LANGUAGE_TAG = {
+  de = "DE",
+  dede = "DE",
+  en = "EN",
+  engb = "EN",
+  enus = "EN",
+  es = "ES",
+  eses = "ES",
+  esmx = "ES",
+  fr = "FR",
+  frfr = "FR",
+  it = "IT",
+  itit = "IT",
+  pt = "PT",
+  ptbr = "PT",
+  ptpt = "PT",
+  ru = "RU",
+  ruru = "RU",
+  tr = "TR",
+  trtr = "TR",
+}
 
-local function BuildLocaleToLanguageTagTable()
-  local map = {}
-  for _, lang in ipairs(addonTable.Languages.SUPPORTED) do
-    local twoLetter = lang.tag:sub(1, 2):upper()
-    map[lang.tag:lower()] = twoLetter
-    for _, alias in ipairs(lang.cmdAliases) do
-      map[alias] = twoLetter
-    end
-  end
-  for alias, twoLetter in pairs(EXTRA_LOCALE_TO_LANGUAGE_TAG) do
-    map[alias] = twoLetter
-  end
-  return map
+for alias, twoLetter in pairs(EXTRA_LOCALE_TO_LANGUAGE_TAG) do
+  LOCALE_TO_LANGUAGE_TAG[alias] = twoLetter
 end
 
 function Locale.LocaleToLanguageTag(localeTag)
   if not localeTag then
     return "??"
   end
-  localeToLanguageTagCache = localeToLanguageTagCache or BuildLocaleToLanguageTagTable()
   local normalized = tostring(localeTag):gsub("%-", ""):lower()
-  return localeToLanguageTagCache[normalized] or "??"
+  return LOCALE_TO_LANGUAGE_TAG[normalized] or "??"
 end
 
 function Locale.GetLanguageFlagTexturePath(languageTag)

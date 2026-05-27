@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.283`
+Versionsbasis: `0.9.284`
 Zuletzt aktualisiert: `2026-05-26`
 
 ## Akteure
@@ -159,7 +159,7 @@ Ziel: Schnelle Blizzard-Panel-Shortcuts und lokalisierte Addon-Toggles anbieten,
 6. Trigger B: Der Spieler oeffnet `Settings -> AddOns -> isiLive`.
 7. Ergebnis B: Blizzard Settings zeigen — gruppiert in sechs Sektionen plus Reset und Beta-Hinweis:
    - **General**: Sprache, `Default UI on Open`, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Show Timeways Navigator`, `Hearthstone Selection`.
-   - **Display**: `UI Scale`, `Background Opacity`, `/isilive resetui`-Button, `Minimap Button`, Spieler-Stats-Box mit Enable-, Lock-, Hintergrund-Deckkraft- und Schriftgroessen-Offset-Control, `Group Finder: Language Flags`, `Group Finder: Show class bonuses`, `Tooltip: Language Flags`, `LFG invite hint`, `Accepted-invite notice`.
+   - **Display**: `UI Scale`, `Background Opacity`, `/isilive resetui`-Button, `Minimap Button`, Spieler-Stats-Box mit Enable-, Lock-, Hintergrund-Deckkraft- und Schriftgroessen-Offset-Control, `Group Finder: Language Flags`, `Group Finder: Buff rating hearts`, `Tooltip: Language Flags`, `LFG invite hint`, `Accepted-invite notice`.
    - **Nameplates**: 3-Modi-Selector `Off / Tooltip / Nameplate` fuer den M+-Forces-Overlay, plus `Show percentage`, `Show remaining needed`, `Font size`, `Position`, `X offset`, `Y offset` und ein Live-Preview.
    - **Behavior**: `Addon Sync`, `Lock main frame position`, `Fade out in Combat (M2 only)`, gefolgt vom Auto-Show/Hide-Block mit Erklaerung (`Show on Login / Reload`, `Auto-Open on M+ Queue`, `Auto-Open on Key End`, `Auto-close when key starts`, `Auto-close when leaving the group`), und einem statischen Raid-Behavior-Hinweis statt einem 1-Optionen-Selector.
    - **Sounds**: `Sound: Lead Transfer`, `Sound: Full Group`, `Sound: Incoming Summon`, `Sound: Battle Res`, `Sound: Bloodlust`, VIP-Gast-Sound-Schalter fuer Astral Aurochs, Grand Expedition Yak und Trader's Gilded Brutosaur. Eingehende Beschwoerungen des lokalen Spielers spielen den Summon-Sound ueber den klassischen `CONFIRM_SUMMON`-Pfad und ueber den statusbasierten `INCOMING_SUMMON_CHANGED`-Pfad nur bei `Enum.SummonStatus.Pending`.
@@ -232,9 +232,9 @@ Ziel: Der Spieler soll in der Blizzard-Gruppensuche schnell erkennen, ob eine Gr
 2. Verarbeitung: Das Addon liest nur die von Blizzard bereitgestellten Klassen-/Spezialisierungsdaten fuer die sichtbare Zeile beziehungsweise den sichtbaren Tooltip. Nicht aufloesbare Klassen oder Spezialisierungen bleiben unresolved.
 3. Verarbeitung: Die Relevanz wird gegen das live aufgeloeste Spielerprofil bewertet. Staerke-, Beweglichkeits- und Intelligenzboni, physischer und magischer Schadensbonus sowie Ausdauer-, Meisterschafts-, Versa- und Schadensreduktionsboni zaehlen nur, wenn sie fuer den lokalen Charakter relevant sind.
 4. Regel: Battle Res, Bloodlust, Power Infusion, Devotion Aura, Atrophic Poison und aehnliche Utility-Hinweise duerfen in Tooltip-Details erscheinen, zaehlen aber nicht als kompakte gruene Suchergebnis-Marker.
-5. Anzeige: Suchergebniszeilen zeigen bis zu vier gruene Herzmarker rechtsbuendig innerhalb der Blizzard-Zeile und unabhaengig davon, ob ein Drittanbieter-Addon zusaetzliche Klassenbadges zeichnet.
+5. Anzeige: Suchergebniszeilen zeigen bis zu vier gruene Herzmarker rechtsbuendig innerhalb der Blizzard-Zeile und unabhaengig davon, ob ein Drittanbieter-Addon zusaetzliche Klassenbadges zeichnet. Die Settings-Option `Group Finder: Buff rating hearts` ist standardmaessig aktiv, kann diese Marker und die zugehoerigen Bonus-Tooltip-Ergaenzungen ausschalten und beschreibt mit untereinander stehenden fix grossen Herz-Textur-Beispielzeilen, dass 1/2/3/4 Herzen einen, zwei, drei beziehungsweise vier oder mehr relevante Buffs bedeuten.
 6. Anzeige: Gleiche nicht stapelnde Boni zaehlen pro Suchergebnis nur einmal, auch wenn mehrere Gruppenmitglieder denselben Buff liefern.
-7. Anzeige: Bewerberzeilen zeigen die Marker neben dem Rollenbadge. Suchergebnis-Tooltips ergaenzen passende Mitgliedszeilen mit lokalisierten Bonusdetails; deutsches Addon-Locale nutzt deutsche Begriffe, alle anderen vorbereiteten Locales nutzen englische Texte.
+7. Anzeige: Bewerberzeilen zeigen die Marker neben dem Rollenbadge. Suchergebnis-Tooltips ergaenzen passende Mitgliedszeilen mit lokalisierten Bonusdetails; beim Programmieren werden Deutsch und Englisch gepflegt, weitere vorbereitete Locales duerfen bis zur Nachbearbeitung englische Fallback-Texte verwenden oder nachbearbeitete Uebersetzungen tragen.
 8. Ausnahme: Zeilen mit `Beförderung angeboten` beziehungsweise dessen lokalisierter Spielstil-Anzeige zeigen keine kompakten Suchergebnis-Marker.
 9. Erfolgskriterium: Relevante nicht-Utility-Boni sind sichtbar, irrelevante oder unbekannte Boni bleiben ausgeblendet, doppelte Buffquellen erhoehen die Markerzahl nicht, und fehlende Drittanbieter-Badges entfernen die Marker nicht aus der Blizzard-Default-Anzeige.
 
@@ -341,7 +341,7 @@ Ziel: Eine optionale, eigenstaendige Spieler-Stats-Box zeigt live gelesene Prim�
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `1890` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `1892` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.

@@ -287,6 +287,57 @@ return function(test, ctx)
     )
   end)
 
+  test("Locale LFG group-bonus settings strings support prepared fallbacks and post-edited translations", function()
+    local addon = LoadAddonModules({ "isiLive_texts.lua" })
+    local locales = addon.Texts.GetLocaleTables()
+    local enUS = locales.enUS or {}
+    local deDE = locales.deDE or {}
+    local ruRU = locales.ruRU or {}
+
+    Assert.Equal(
+      enUS.SETTINGS_LFG_GROUP_BONUSES,
+      "Group Finder: Buff rating hearts",
+      "enUS LFG group-bonus setting label must describe the heart rating"
+    )
+    Assert.True(
+      type(enUS.SETTINGS_LFG_GROUP_BONUSES_DESC) == "string"
+        and enUS.SETTINGS_LFG_GROUP_BONUSES_DESC:find("heart_bonus_green:10:10", 1, true) ~= nil
+        and enUS.SETTINGS_LFG_GROUP_BONUSES_DESC:find("Atrophic Poison.", 1, true) ~= nil,
+      "enUS LFG group-bonus setting description must show fixed-size green heart texture examples"
+    )
+    Assert.Equal(
+      deDE.SETTINGS_LFG_GROUP_BONUSES,
+      "Gruppensuche: Buff-Rating-Herzen",
+      "deDE LFG group-bonus setting label must be German"
+    )
+    Assert.True(
+      type(deDE.SETTINGS_LFG_GROUP_BONUSES_DESC) == "string"
+        and deDE.SETTINGS_LFG_GROUP_BONUSES_DESC:find("heart_bonus_green:10:10", 1, true) ~= nil
+        and deDE.SETTINGS_LFG_GROUP_BONUSES_DESC:find("Atrophisches Gift", 1, true) ~= nil,
+      "deDE LFG group-bonus setting description must show fixed-size green heart texture examples in German"
+    )
+    for localeName, localeTable in pairs(locales) do
+      Assert.True(
+        type(localeTable.SETTINGS_LFG_GROUP_BONUSES) == "string" and localeTable.SETTINGS_LFG_GROUP_BONUSES ~= "",
+        localeName .. " LFG group-bonus setting label must be prepared"
+      )
+      Assert.True(
+        type(localeTable.SETTINGS_LFG_GROUP_BONUSES_DESC) == "string"
+          and localeTable.SETTINGS_LFG_GROUP_BONUSES_DESC:find("heart_bonus_green:10:10", 1, true) ~= nil,
+        localeName .. " LFG group-bonus setting description must use fixed-size green heart textures"
+      )
+      Assert.True(
+        localeTable.SETTINGS_LFG_GROUP_BONUSES_DESC:find("♥", 1, true) == nil,
+        localeName .. " LFG group-bonus setting description must not use unstable font heart glyphs"
+      )
+    end
+    Assert.True(
+      type(ruRU.SETTINGS_LFG_GROUP_BONUSES_DESC) == "string"
+        and ruRU.SETTINGS_LFG_GROUP_BONUSES_DESC:find("Атрофический яд", 1, true) ~= nil,
+      "ruRU post-edited LFG group-bonus setting description must be accepted"
+    )
+  end)
+
   test("Full-width action button labels exist for fitted rendering", function()
     local addon = LoadAddonModules({ "isiLive_texts.lua" })
     local locales = addon.Texts.GetLocaleTables()
@@ -360,6 +411,19 @@ return function(test, ctx)
     Assert.Equal(addon.Locale.LocaleToLanguageTag("de-DE"), "DE", "dash-separated locale must normalize")
     Assert.Equal(addon.Locale.LocaleToLanguageTag("en"), "EN", "alias 'en' must resolve to 'EN'")
     Assert.Equal(addon.Locale.LocaleToLanguageTag("kokr"), "KR", "extra locale 'kokr' must resolve to 'KR'")
+  end)
+
+  test("Locale.LocaleToLanguageTag resolves from static lookup without iterating supported languages", function()
+    local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua" })
+    addon.Languages.SUPPORTED = setmetatable({}, {
+      __index = function()
+        error("LocaleToLanguageTag must not iterate supported languages on the tooltip hot path")
+      end,
+    })
+
+    Assert.Equal(addon.Locale.LocaleToLanguageTag("deDE"), "DE", "canonical deDE must resolve from static lookup")
+    Assert.Equal(addon.Locale.LocaleToLanguageTag("ru-RU"), "RU", "dashed ruRU must resolve from static lookup")
+    Assert.Equal(addon.Locale.LocaleToLanguageTag("zhCN"), "CN", "extra locale must resolve from static lookup")
   end)
 
   test("Locale.GetLanguageFlagTexturePath returns nil for unknown languages", function()
