@@ -34,7 +34,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 11. In Raid-Groesse wird die Main-UI sofort ausgeblendet, die Raid-Option wird auf `hide` normalisiert und es laeuft weder UI- noch Hintergrund-Sync weiter; beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt.
 12. Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
 13. Voll-Refresh laeuft nur in erlaubten Zustaenden und muss bei Stop oder aktivem M+ sauber aussetzen.
-14. Slash-Commands muessen State-Zyklen stabil ausfuehren (test/stop/start/pause/resume/lang).
+14. Slash-Commands muessen oeffentliche Hilfe, Admin-Hilfe und die verbleibenden State-Zyklen stabil ausfuehren.
 15. Roster-RIO-Delta bleibt nicht-negativ und im Prefix-Format, inklusive unit-basiertem Live-Update.
 16. Addon-Sync-Nachrichten muessen rosterrelevante Aenderungen verarbeiten, deduplizieren und refreshen.
 17. Die Buttons `Readycheck`, `Countdown10` und `Countdown 0` sind fuer Nicht-Leader deaktiviert und optisch abgedimmt; der Readycheck-Button muss seinen Secure-Macro-OnClick behalten.
@@ -89,6 +89,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 66. Alle frei verschiebbaren isiLive-Fenster muessen an den WoW-Sichtbereich geklemmt sein, sodass ihre Raender beim Ziehen nicht ausserhalb des WoW-Fensters verschwinden.
 67. Das ESC-Addons-Panel darf Shortcut-Buttons fuer Addons anzeigen, die installiert und auf dem aktuellen Charakter aktiviert sind; beim Klick muss ein noch nicht geladenes externes Ziel-Addon verifiziert geladen werden, bevor dessen registrierter Slash-Alias ausgefuehrt wird. Der isiLive-eigene Shortcut darf stattdessen direkt die isiLive-Settings oeffnen und darf keinen Self-Load versuchen.
 68. Die LFG-Klassenbonus-Herzchen zaehlen nur relevante, nicht stapelnde Gruppenboni; Utility-Effekte wie PI, BL, BR, Devotion Aura und Atrophic Poison erzeugen keine Herzchen, und Applicant-Zeilen rendern diese Herzchen als grüne Texturmarker neben dem Rollensymbol. Der Settings-Schalter ist standardmaessig aktiv, kann die Buff-Rating-Herzchen ein- und ausschalten und beschreibt mit untereinander stehenden Herz-Textur-Beispielzeilen, dass 1/2/3/4 Herzchen einen, zwei, drei beziehungsweise vier oder mehr relevante Buffs bedeuten. Beim Programmieren werden Deutsch und Englisch gepflegt; weitere vorbereitete Locales duerfen bis zur Nachbearbeitung englischen Fallback verwenden oder nachbearbeitete Uebersetzungen tragen.
+69. Wenn nach einem LFG-Gruppenbeitritt kein `inviteaccepted`-Event beim Accepted-Invite-Pfad angekommen ist, darf die Centerbox nur aus einem bereits verifizierten lokalen Ziel-Dungeon-Kontext gerendert werden und muss ohne diesen Kontext stumm bleiben.
 
 ## Regelbloecke
 
@@ -236,12 +237,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-COMMANDS-STATE-ZYKLEN
 - Regelnummer: 14
 - Status: aktiv
-- Zusammenfassung: Slash-Commands muessen State-Zyklen stabil ausfuehren (test/stop/start/pause/resume/lang).
+- Zusammenfassung: Slash-Commands muessen die oeffentliche Hilfe und die getrennte Admin-Hilfe stabil ausfuehren. Entfernte Legacy-Commands wie `test`, `pause`, `resume`, `lead`, `stop`, `start` und `lang` duerfen nicht mehr als Spezialbefehle ausgefuehrt werden.
 - Erforderliche Tests:
-  - Commands routes test command to toggle
-  - Commands stop/start cycle works correctly
-  - Commands pause/resume cycle works correctly
-  - Commands lang sets language for valid args
+  - Commands help lists only public commands
+  - Commands admin input prints admin command list
+  - Commands removed legacy commands fall back to public help
 
 ### RULE-ROSTER-RIO-DELTA-FORMAT
 - Regelnummer: 15
@@ -918,3 +918,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Settings LFG group-bonus checkbox persists and invokes live toggle callback
   - Settings display checkboxes render descriptions below options and refresh localized text
   - Locale LFG group-bonus settings strings support prepared fallbacks and post-edited translations
+
+### RULE-LFG-GRUPPENBEITRITT-CENTERBOX-VERIFIZIERT
+- Regelnummer: 69
+- Status: aktiv
+- Zusammenfassung: Nach einem LFG-Gruppenbeitritt muss die Accepted-Invite-Centerbox mit Portalbutton auch dann erscheinen duerfen, wenn kein `LFG_LIST_APPLICATION_STATUS_UPDATED=inviteaccepted` beim Accepted-Invite-Pfad angekommen ist, aber bereits ein verifizierter lokaler Ziel-Dungeon-Kontext (`ResolveLocalStatusTargetMapID` plus Status-Dungeon-Info) vorliegt. Die Fallback-Centerbox darf keinen Dungeon, keine Keystufe, kein Gruppenlabel und keinen Portalbutton raten; ohne verifizierte lokale Ziel-Map bleibt sie stumm. Wenn die direkte Accepted-Invite-Centerbox bereits aus dem `inviteaccepted`-Pfad gerendert wurde, darf der Gruppenbeitritt keine zweite Centerbox fuer denselben Join erzeugen.
+- Erforderliche Tests:
+  - factory_controllers: ShowJoinedTargetNotice renders from verified local target when accept event is missing
+  - factory_controllers: ShowJoinedTargetNotice stays silent without verified local target
+  - factory_controllers: ShowJoinedTargetNotice suppresses duplicate after direct accepted notice

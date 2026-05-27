@@ -3,36 +3,30 @@
 local function BuildCommandLocale()
   return {
     HELP_HEADER = "Commands:",
-    HELP_LEAD = "/isilive lead",
-    HELP_TEST = "/isilive test",
+    HELP_HELP = "/isilive help",
+    HELP_ADMIN = "/isilive admin",
+    ADMIN_HEADER = "Admin commands:",
     HELP_TESTALL = "/isilive testall",
     HELP_TPTEST = "/isilive tptest",
     HELP_TPDEBUG = "/isilive tpdebug",
     HELP_LOG = "/isilive log",
     HELP_QDEBUG = "/isilive qdebug",
+    HELP_ERRORLOG = "/isilive errorlog",
     HELP_LOCK = "/isilive lock",
     HELP_UNLOCK = "/isilive unlock",
     HELP_RESETUI = "/isilive resetui",
     HELP_SETTINGS = "/isilive settings",
     HELP_BINDCHECK = "/isilive bindcheck",
-    HELP_LANG = "/isilive lang [en|de|fr|es|pt]",
-    HELP_PAUSE = "/isilive pause",
-    HELP_RESUME = "/isilive resume",
-    HELP_STOP = "/isilive stop",
-    HELP_START = "/isilive start",
+    HELP_NPTEST = "/isilive nptest",
+    HELP_NPSTATE = "/isilive npstate",
+    HELP_RESET = "/isilive reset",
     STOPPED = "Addon manually stopped.",
-    PAUSED = "Addon paused.",
-    RESUMED = "Addon resumed.",
     STARTED = "Addon started.",
-    ERR_STOPPED_USE_START = "Addon is stopped. Use /isilive start.",
     ERR_STOPPED_TEST = "Addon is stopped.",
     ERR_PAUSED_TEST = "Addon is paused.",
-    LEAD_STATUS_YES = "Lead: Yes",
-    LEAD_STATUS_NO = "Lead: No",
     LOCKED = "Main frame position locked.",
     UNLOCKED = "Main frame position unlocked.",
     RESETUI_DONE = "Main frame reset to defaults and centered.",
-    LANG_USAGE = "Usage: /isilive lang [en|de|fr|es|pt]",
   }
 end
 
@@ -244,48 +238,6 @@ local function BuildCommandExecutor(WithGlobals, LoadAddonModules, overrides)
 end
 
 local function RegisterCommandCoreTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Commands routes test command to toggle", function()
-    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
-    state._execute("test")
-    Assert.Equal(state.testToggles, 1, "test command must trigger toggle")
-  end)
-
-  test("Commands stop/start cycle works correctly", function()
-    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
-
-    state._execute("stop")
-    Assert.True(state.isStopped, "stop must set isStopped")
-    Assert.False(state.mainFrameVisible, "stop must hide frame")
-
-    state._execute("start")
-    Assert.False(state.isStopped, "start must clear isStopped")
-    Assert.Equal(state.rosterUpdates, 1, "start must trigger roster update")
-  end)
-
-  test("Commands pause/resume cycle works correctly", function()
-    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
-
-    state._execute("pause")
-    Assert.True(state.isPaused, "pause must set isPaused")
-
-    state._execute("resume")
-    Assert.False(state.isPaused, "resume must clear isPaused")
-    Assert.Equal(state.rosterUpdates, 1, "resume must trigger roster update")
-  end)
-
-  test("Commands lang sets language for valid args", function()
-    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
-
-    state._execute("lang de")
-    Assert.Equal(state.languageSet, "de", "lang de must set German")
-
-    state._execute("lang en")
-    Assert.Equal(state.languageSet, "en", "lang en must set English")
-
-    state._execute("lang xx")
-    Assert.Equal(state.languageSet, "en", "invalid lang must not change from last valid")
-    Assert.True(#state.prints > 0, "invalid lang must print usage")
-  end)
 end
 
 local function RegisterCommandRuntimeLogTests(test, Assert, WithGlobals, LoadAddonModules)
@@ -380,22 +332,6 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
     Assert.Equal(state.tpDebugCalls, 1, "tpdebug must call printTeleportDebug")
   end)
 
-  test("Commands lead shows leader status yes", function()
-    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules, {
-      isPlayerLeader = function()
-        return true
-      end,
-    })
-    state._execute("lead")
-    Assert.True(state.prints[#state.prints]:find("Lead: Yes") ~= nil, "lead must show Yes when leader")
-  end)
-
-  test("Commands lead shows leader status no", function()
-    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
-    state._execute("lead")
-    Assert.True(state.prints[#state.prints]:find("Lead: No") ~= nil, "lead must show No when not leader")
-  end)
-
   test("Commands bindcheck prints binding info", function()
     local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
     state._execute("bindcheck")
@@ -426,23 +362,12 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
 
     local expected = {
       "Commands:",
-      "/isilive test",
-      "/isilive testall",
-      "/isilive tptest",
-      "/isilive tpdebug",
-      "/isilive log",
-      "/isilive qdebug",
+      "/isilive help",
       "/isilive lock",
       "/isilive unlock",
       "/isilive resetui",
       "/isilive settings",
-      "/isilive bindcheck",
-      "/isilive pause",
-      "/isilive resume",
-      "/isilive stop",
-      "/isilive start",
-      "/isilive lead",
-      "/isilive lang [en|de|fr|es|pt]",
+      "/isilive admin",
     }
 
     Assert.Equal(#state.prints, #expected, "help must only print the public command list")
@@ -463,36 +388,58 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
     Assert.True(foundHeader, "empty command must print help header")
   end)
 
+  test("Commands help input prints help", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("help")
+    local foundHeader = false
+    for _, msg in ipairs(state.prints) do
+      if msg:find("Commands:") then
+        foundHeader = true
+      end
+    end
+    Assert.True(foundHeader, "help command must print help header")
+  end)
+
+  test("Commands admin input prints admin command list", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("admin")
+
+    local expected = {
+      "Admin commands:",
+      "/isilive testall",
+      "/isilive log",
+      "/isilive qdebug",
+      "/isilive errorlog",
+      "/isilive bindcheck",
+      "/isilive tptest",
+      "/isilive tpdebug",
+      "/isilive nptest",
+      "/isilive npstate",
+      "/isilive reset",
+    }
+
+    Assert.Equal(#state.prints, #expected, "admin help must print only the admin command list")
+    for index, line in ipairs(expected) do
+      Assert.True(state.prints[index] == line, "admin help line " .. tostring(index) .. " must match")
+    end
+  end)
+
+  test("Commands removed legacy commands fall back to public help", function()
+    local removed = { "test", "pause", "resume", "lead", "stop", "start", "lang", "lang de" }
+    for _, cmd in ipairs(removed) do
+      local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+      state._execute(cmd)
+      Assert.Equal(state.prints[1], "Commands:", "removed command " .. cmd .. " must print public help")
+      Assert.Equal(state.testToggles, 0, "removed test command must not toggle test mode")
+      Assert.False(state.isPaused, "removed pause command must not set paused state")
+      Assert.Equal(state.rosterUpdates, 0, "removed command " .. cmd .. " must not trigger roster updates")
+    end
+  end)
+
   test("Commands settings opens the settings panel", function()
     local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
     state._execute("settings")
     Assert.Equal(state.openSettingsCalls, 1, "settings command must call the settings opener")
-  end)
-
-  test("Commands pause while stopped prints error", function()
-    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
-    state._execute("stop")
-    local printsBefore = #state.prints
-    state._execute("pause")
-    Assert.True(state.prints[#state.prints]:find("stopped") ~= nil, "pause while stopped must print stopped error")
-    Assert.True(#state.prints > printsBefore, "must print a message")
-  end)
-
-  test("Commands resume while stopped prints error", function()
-    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
-    state._execute("stop")
-    local printsBefore = #state.prints
-    state._execute("resume")
-    Assert.True(state.prints[#state.prints]:find("stopped") ~= nil, "resume while stopped must print stopped error")
-    Assert.True(#state.prints > printsBefore, "must print a message")
-  end)
-
-  test("Commands lang enus and dede aliases work", function()
-    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
-    state._execute("lang enus")
-    Assert.Equal(state.languageSet, "enus", "lang enus must set language")
-    state._execute("lang dede")
-    Assert.Equal(state.languageSet, "dede", "lang dede must set language")
   end)
 
   test("Commands lock and unlock update main frame lock state", function()
@@ -605,7 +552,7 @@ end
 
 -- Branch-coverage tests targeting the rarely-exercised command handlers:
 -- /isilive log watch (with and without trace-chat-frame integration), filtered
--- tail, qdebug-watch-not-supported, /isilive reset, /isilive nptest, /isilive
+-- tail, qdebug-watch-removal, /isilive reset, /isilive nptest, /isilive
 -- npstate, log-tail clamp boundaries, and the logRuntimeTracef trace hook.
 local function RegisterCommandBranchCoverageTests(test, Assert, WithGlobals, LoadAddonModules)
   -- Variant of BuildCommandExecutor that lets tests inject extra deps (watch
@@ -723,12 +670,12 @@ local function RegisterCommandBranchCoverageTests(test, Assert, WithGlobals, Loa
     Assert.NotNil(findPrint(state, "watch OFF"), "watch OFF message must be printed")
   end)
 
-  test("Commands qdebug watch reports unsupported because qdebug does not register a watch callback", function()
+  test("Commands qdebug watch is no longer accepted as a special subcommand", function()
     local state = BuildExecutorWithExtras({})
     state._execute("qdebug watch")
     Assert.NotNil(
-      findPrint(state, "watch not supported"),
-      "qdebug must report watch-not-supported (qdebug has no setWatchFn wiring)"
+      findPrint(state, "Usage: /isilive qdebug"),
+      "qdebug watch must fall back to the qdebug usage line"
     )
   end)
 
@@ -830,10 +777,10 @@ local function RegisterCommandBranchCoverageTests(test, Assert, WithGlobals, Loa
         table.insert(traces, string.format(fmt, ...))
       end,
     })
-    state._execute("test")
+    state._execute("help")
     local found = false
     for _, line in ipairs(traces) do
-      if line:find("[CMD] execute cmd=test", 1, true) then
+      if line:find("[CMD] execute cmd=help", 1, true) then
         found = true
         break
       end

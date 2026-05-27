@@ -29,7 +29,6 @@ local function BuildDeps(opts)
     isPlayerLeader = opts.isPlayerLeader or function()
       return false
     end,
-    setLanguage = opts.setLanguage or function(_language) end,
     forceTeleportTestTarget = opts.forceTeleportTestTarget or function() end,
     printTeleportDebug = opts.printTeleportDebug or function() end,
     setQueueDebugEnabled = opts.setQueueDebugEnabled or function(_enabled) end,
@@ -100,33 +99,43 @@ end
 -- Keep in sync when adding a new slash command.
 local HELP_KEYS = {
   "HELP_HEADER",
-  "HELP_TEST",
-  "HELP_TESTALL",
-  "HELP_TPTEST",
-  "HELP_TPDEBUG",
-  "HELP_LOG",
-  "HELP_QDEBUG",
+  "HELP_HELP",
   "HELP_LOCK",
   "HELP_UNLOCK",
   "HELP_RESETUI",
   "HELP_SETTINGS",
+  "HELP_ADMIN",
+}
+
+local ADMIN_HELP_KEYS = {
+  "ADMIN_HEADER",
+  "HELP_TESTALL",
+  "HELP_LOG",
+  "HELP_QDEBUG",
+  "HELP_ERRORLOG",
   "HELP_BINDCHECK",
-  "HELP_PAUSE",
-  "HELP_RESUME",
-  "HELP_STOP",
-  "HELP_START",
-  "HELP_LEAD",
-  "HELP_LANG",
+  "HELP_TPTEST",
+  "HELP_TPDEBUG",
+  "HELP_NPTEST",
+  "HELP_NPSTATE",
   "HELP_RESET",
 }
 
-local function PrintHelp(printFn, L)
-  for _, key in ipairs(HELP_KEYS) do
+local function PrintHelpByKeys(printFn, L, keys)
+  for _, key in ipairs(keys) do
     local line = L[key]
     if type(line) == "string" and line ~= "" then
       printFn(line)
     end
   end
+end
+
+local function PrintHelp(printFn, L)
+  PrintHelpByKeys(printFn, L, HELP_KEYS)
+end
+
+local function PrintAdminHelp(printFn, L)
+  PrintHelpByKeys(printFn, L, ADMIN_HELP_KEYS)
 end
 
 local ARG_ON = { on = true, ["1"] = true, ["true"] = true }
@@ -216,11 +225,7 @@ local function HandleDebugLogCommand(ctx, cmd, cfg)
     return
   end
 
-  if arg == "watch" then
-    if not cfg.setWatchFn then
-      ctx.printFn(cfg.label .. ": watch not supported")
-      return
-    end
+  if arg == "watch" and cfg.setWatchFn then
     if cfg.getWatchActive and cfg.getWatchActive() then
       cfg.setWatchFn(nil)
       if cfg.closeTraceChatFrame then
@@ -363,11 +368,6 @@ local function HandleBindCheck(printFn)
 end
 
 local function TryHandleTestCommands(ctx, L, state, cmd)
-  if cmd == "test" then
-    ctx.toggleStandardTestMode()
-    return true
-  end
-
   if cmd == "testall" then
     if state.isStopped then
       ctx.printFn(L.ERR_STOPPED_TEST)
@@ -385,65 +385,6 @@ local function TryHandleTestCommands(ctx, L, state, cmd)
 end
 
 local function TryHandleStateCommands(ctx, L, state, cmd)
-  if cmd == "stop" then
-    ctx.setState({
-      isStopped = true,
-      isPaused = false,
-      isTestMode = false,
-      isTestAllMode = false,
-      wasGroupLeader = nil,
-    })
-    ctx.setMainFrameVisible(false)
-    ctx.updateLeaderButtons()
-    ctx.printFn(L.STOPPED)
-    return true
-  end
-
-  if cmd == "pause" then
-    if state.isStopped then
-      ctx.printFn(L.ERR_STOPPED_USE_START)
-      return true
-    end
-    ctx.setState({
-      isPaused = true,
-      isTestMode = false,
-      isTestAllMode = false,
-    })
-    ctx.setMainFrameVisible(false)
-    ctx.updateLeaderButtons()
-    ctx.printFn(L.PAUSED)
-    return true
-  end
-
-  if cmd == "resume" then
-    if state.isStopped then
-      ctx.printFn(L.ERR_STOPPED_USE_START)
-      return true
-    end
-    ctx.setState({
-      isPaused = false,
-      isTestMode = false,
-      isTestAllMode = false,
-    })
-    ctx.updateLeaderButtons()
-    ctx.printFn(L.RESUMED)
-    ctx.triggerGroupRosterUpdate()
-    return true
-  end
-
-  if cmd == "start" then
-    ctx.setState({
-      isStopped = false,
-      isPaused = false,
-      isTestMode = false,
-      isTestAllMode = false,
-    })
-    ctx.updateLeaderButtons()
-    ctx.printFn(L.STARTED)
-    ctx.triggerGroupRosterUpdate()
-    return true
-  end
-
   return false
 end
 
@@ -470,21 +411,6 @@ local function TryHandleLockCommands(ctx, L, cmd)
 end
 
 local function TryHandleInfoCommands(ctx, L, cmd)
-  if cmd == "lead" then
-    ctx.printFn(ctx.isPlayerLeader() and L.LEAD_STATUS_YES or L.LEAD_STATUS_NO)
-    return true
-  end
-
-  if cmd:find("^lang") == 1 then
-    local arg = cmd:match("^lang%s+(%S+)$")
-    if arg and addonTable.Languages.IsSupported(arg) then
-      ctx.setLanguage(arg)
-    else
-      ctx.printFn(L.LANG_USAGE)
-    end
-    return true
-  end
-
   return false
 end
 
@@ -563,6 +489,16 @@ local function ExecuteSlashCommand(ctx, msg)
   local cmd = string.lower(TrimWhitespace(msg))
   if ctx.logRuntimeTracef then
     ctx.logRuntimeTracef("[CMD] execute cmd=%s", tostring(cmd))
+  end
+
+  if cmd == "" or cmd == "help" then
+    PrintHelp(ctx.printFn, L)
+    return
+  end
+
+  if cmd == "admin" then
+    PrintAdminHelp(ctx.printFn, L)
+    return
   end
 
   if TryHandleTestCommands(ctx, L, state, cmd) then

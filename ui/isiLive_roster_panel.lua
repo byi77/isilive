@@ -475,7 +475,6 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     titleHint = titleHint,
     raidNoticeLabel = raidNoticeLabel,
     m2ColumnGuides = m2ColumnGuides,
-    showRosterColumnGuides = uiDeps.showRosterColumnGuides,
     tankButtons = tankButtons,
     tankHeader = tankHeader,
     setMainFrameHeightSafe = uiDeps.setMainFrameHeightSafe,
@@ -671,11 +670,6 @@ function RosterPanel.CreateController(opts)
   local isInChallengeMode = type(opts.isInChallengeMode) == "function" and opts.isInChallengeMode or nil
   local logRuntimeTrace = type(opts.logRuntimeTrace) == "function" and opts.logRuntimeTrace or nil
   local logRuntimeTraceDeep = type(opts.logRuntimeTraceDeep) == "function" and opts.logRuntimeTraceDeep or nil
-  local showRosterColumnGuides = type(opts.showRosterColumnGuides) == "function" and opts.showRosterColumnGuides
-    or function()
-      return false
-    end
-
   local ui = ConstructPanelUI(mainFrame, {
     getL = getL,
     isPlayerLeader = isPlayerLeader,
@@ -696,7 +690,6 @@ function RosterPanel.CreateController(opts)
     shareKeysDebounceSeconds = shareKeysDebounceSeconds,
     sendShareKeysRequest = sendShareKeysRequest,
     isRaidGroup = isRaidGroup,
-    showRosterColumnGuides = showRosterColumnGuides,
     logRuntimeTrace = logRuntimeTrace,
   })
 

@@ -197,25 +197,6 @@ function SettingsSupport.BuildDebugSection(canvas, yOffset, labels, config, cont
     nil
   )
 
-  controls.columnGuides, yOffset = CreateSettingsCheckbox(
-    canvas,
-    yOffset,
-    labels.SETTINGS_ROSTER_COLUMN_GUIDES or "Column Guides",
-    function()
-      local db = config.getDB()
-      return db.showRosterColumnGuides == true
-    end,
-    function(checked)
-      local db = config.getDB()
-      db.showRosterColumnGuides = checked
-      if type(config.onRosterColumnGuidesToggle) == "function" then
-        config.onRosterColumnGuidesToggle(checked)
-      end
-    end,
-    "SETTINGS_ROSTER_COLUMN_GUIDES",
-    DescriptionOptions(labels.SETTINGS_ROSTER_COLUMN_GUIDES_DESC or "Shows guide lines between compact roster columns.")
-  )
-
   return yOffset
 end
 
@@ -378,15 +359,6 @@ function SettingsSupport.RefreshControls(controls, labels, db, config)
   if controls.clearRuntimeLogBtn and controls.clearRuntimeLogBtn.label then
     controls.clearRuntimeLogBtn.label:SetText(labels.SETTINGS_RUNTIME_LOG_CLEAR or "Clear Runtime Log")
   end
-  if controls.columnGuides then
-    controls.columnGuides.label:SetText(labels.SETTINGS_ROSTER_COLUMN_GUIDES or "Column Guides")
-    SetDescription(
-      controls.columnGuides,
-      labels.SETTINGS_ROSTER_COLUMN_GUIDES_DESC or "Shows guide lines between compact roster columns."
-    )
-    controls.columnGuides.check:SetChecked(db.showRosterColumnGuides == true)
-  end
-
   if controls.resetDBBtn then
     controls.resetDBBtn.label:SetText(labels.SETTINGS_RESET_DB or "Reset All Settings")
   end

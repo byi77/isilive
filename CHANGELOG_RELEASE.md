@@ -3,10 +3,10 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.284`.
+Current release: `0.9.285`.
 
 Highlights:
-- Added default-on Group Finder buff-rating hearts with fixed-size green heart texture examples in Settings.
-- Accepted ruRU translation help from @Hubbotu and documented the translation workflow.
-- Fixed locale-to-language flag resolution on tooltip hot paths.
-- Hardened the Ready Check secure macro button.
+- Added a verified group-join fallback for the accepted-invite center notice so the portal button can still appear when Blizzard does not deliver the expected `inviteaccepted` status event.
+- Split normal `/isilive help` from administrative/support commands via `/isilive admin`.
+- Removed the obsolete roster column-guide setting and ignore stale saved guide data.
+- Updated deterministic coverage for kick extra cooldown expiry and the new center-notice fallback.

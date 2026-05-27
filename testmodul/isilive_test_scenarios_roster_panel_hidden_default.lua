@@ -205,7 +205,7 @@ local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGl
     )
   end)
 
-  test("Roster panel keeps column guides disabled until the setting is enabled", function()
+  test("Roster panel keeps column guides hidden even when stale saved data is present", function()
     local createdFrames = {}
     local createdFontStrings = {}
     local createdTextures = {}
@@ -252,13 +252,13 @@ local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGl
       controller.RefreshLayoutState()
 
       for guideKey, _ in pairs(expectedGuideX) do
-        Assert.True(guides[guideKey]:IsShown(), "column guides should be visible in the main layout when enabled")
+        Assert.False(guides[guideKey]:IsShown(), "stale column-guide saved data must not show guides")
       end
 
       controller.RestoreSavedState()
 
       for guideKey, _ in pairs(expectedGuideX) do
-        Assert.True(guides[guideKey]:IsShown(), "column guides should stay visible in M2 when enabled")
+        Assert.False(guides[guideKey]:IsShown(), "stale column-guide saved data must stay ignored in M2")
       end
     end)
   end)

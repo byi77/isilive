@@ -4,7 +4,7 @@
 
 - **For:** M+ players in pre-made groups and LFG runs
 - **WoW version:** `12.0+` (Midnight) only
-- **Current version:** `0.9.284`
+- **Current version:** `0.9.285`
 - **Active season:** `midnight_s1` — 8 dungeons (Wing, MT, NPX, MC, AA, POS, SOT, SR)
 
 ---
@@ -240,16 +240,17 @@ If the group breaks up or someone disconnects, their data stays visible as a gre
 ## Slash commands
 
 ```
-/isilive start        — enable the addon
-/isilive stop         — disable (no processing, no sync)
+/isilive help         — show normal user commands
+/isilive admin        — show administrative / support commands
+/isilive settings     — open the settings panel
 /isilive lock         — lock window position
 /isilive unlock       — unlock window position
 /isilive resetui      — recenter window and reset scale + opacity (asks for confirmation)
-/isilive testall      — full preview mode with dummy data and demo UI surfaces
-/isilive log on|off   — enable/disable runtime trace log
-/isilive log tail 50  — print the last 50 log entries
-/isilive log clear    — clear the log buffer
 ```
+
+Administrative commands shown by `/isilive admin` include the full preview mode,
+runtime / queue / Lua error logs, teleport and nameplate diagnostics, and
+binding checks. They are intentionally kept out of the normal help list.
 
 ## Settings
 

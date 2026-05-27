@@ -918,6 +918,41 @@ local function RenderAcceptedInviteNotice(ctx, modules, payload)
   })
 end
 
+local function ShowJoinedTargetNotice(ctx, modules)
+  if type(ctx) ~= "table" then
+    return
+  end
+  if ctx.acceptedInviteNoticeRenderedForCurrentJoin == true then
+    ctx.acceptedInviteNoticeRenderedForCurrentJoin = false
+    return
+  end
+  if type(ctx.ResolveLocalStatusTargetMapID) ~= "function" or type(ctx.GetStatusTargetDungeonInfo) ~= "function" then
+    return
+  end
+
+  local mapID = tonumber(ctx.ResolveLocalStatusTargetMapID())
+  if not mapID or mapID <= 0 then
+    return
+  end
+
+  local targetInfo = ctx.GetStatusTargetDungeonInfo()
+  if type(targetInfo) ~= "table" or type(targetInfo.name) ~= "string" or targetInfo.name == "" then
+    return
+  end
+
+  local activityID = nil
+  if ctx.runtimeState and type(ctx.runtimeState.GetLatestQueueState) == "function" then
+    local _, latestQueueActivityID = ctx.runtimeState.GetLatestQueueState()
+    activityID = latestQueueActivityID
+  end
+
+  RenderAcceptedInviteNotice(ctx, modules, {
+    mapID = math.floor(mapID),
+    activityID = activityID,
+    level = targetInfo.level,
+  })
+end
+
 -- Raid mirror of BuildAcceptedInviteFields. No level field (Raid listings have
 -- no keystone level), no teleport button (no Raid teleport spells), but the
 -- group title / description / player role rows stay so the player sees the
@@ -972,6 +1007,7 @@ FI.ResolveAcceptedInviteRoleName = ResolveAcceptedInviteRoleName
 FI.ResolveAcceptedInviteDungeonName = ResolveAcceptedInviteDungeonName
 FI.BuildAcceptedInviteFields = BuildAcceptedInviteFields
 FI.RenderAcceptedInviteNotice = RenderAcceptedInviteNotice
+FI.ShowJoinedTargetNotice = ShowJoinedTargetNotice
 FI.BuildAcceptedRaidInviteFields = BuildAcceptedRaidInviteFields
 FI.RenderAcceptedRaidInviteNotice = RenderAcceptedRaidInviteNotice
 
@@ -989,6 +1025,7 @@ local function WireAcceptedInviteNoticeCallbacks(ctx, modules, lfgDetect)
   end
   if type(lfgDetect.SetAcceptedInviteNoticeCallback) == "function" then
     lfgDetect.SetAcceptedInviteNoticeCallback(function(payload)
+      ctx.acceptedInviteNoticeRenderedForCurrentJoin = true
       RenderAcceptedInviteNotice(ctx, modules, payload)
     end)
   end
@@ -1402,6 +1439,9 @@ local function InitializeFactoryPrimaryControllers(ctx)
     -- Raid-only mirror is wired in the same helper so the M+ pipeline stays
     -- untouched for Raid invites.
     WireAcceptedInviteNoticeCallbacks(ctx, modules, lfgDetect)
+  end
+  ctx.ShowJoinedTargetNotice = function()
+    ShowJoinedTargetNotice(ctx, modules)
   end
 
   InitializeInviteControllers(ctx, modules)

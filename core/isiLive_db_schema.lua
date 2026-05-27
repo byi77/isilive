@@ -156,7 +156,6 @@ local SCHEMA = {
     default = "compact_main_horizontal",
     enum = { "last_used", "expanded", "compact_vertical", "compact_horizontal", "compact_main_horizontal" },
   },
-  showRosterColumnGuides = { type = "boolean", default = false },
   nameMaxChars = { type = "number", default = 10, min = 5, max = 20 },
   teleportColumns = { type = "number", default = 4, min = 2, max = 6 },
 

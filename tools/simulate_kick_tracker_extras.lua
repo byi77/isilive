@@ -76,6 +76,7 @@ end
 local model = {
   now = 1000,
   playerClass = "PALADIN", -- has Rebuke (primary) + Avenger's Shield (extra)
+  specID = 66, -- Protection Paladin: primary Rebuke, verified Avenger's Shield extra
   sentMessages = {},
 }
 
@@ -90,15 +91,21 @@ local function buildGlobals()
       end
       return nil, nil
     end,
-    -- KickTracker probes these on init/refresh; returning nil keeps watchedSpellID
-    -- nil so OnCast routes everything down the extras branch.
+    -- KickTracker probes these on init/refresh; resolve Protection Paladin so
+    -- Avenger's Shield is tested as a verified extra, not as unresolved-spec guesswork.
     GetSpecialization = function()
+      return model.specID and 1 or nil
+    end,
+    GetSpecializationInfo = function(index)
+      if index == 1 then
+        return model.specID
+      end
       return nil
     end,
-    GetSpecializationInfo = function()
-      return nil
-    end,
-    GetSpellBaseCooldown = function()
+    GetSpellBaseCooldown = function(spellID)
+      if spellID == 96231 then
+        return 15000
+      end
       return nil
     end,
     -- Sync needs these:
@@ -200,8 +207,8 @@ end
 -- ----------------------------------------------------------------------
 -- Phase 1: OnCast(extra spellID) populates the extras map.
 -- For Prot Pala the primary is Rebuke (96231); Avenger's Shield (31935)
--- is the extra. With watchedSpellID nil (no spec resolved), OnCast still
--- recognises 31935 as a class-interrupt-list entry and records it.
+-- is the extra. The simulator resolves the spec explicitly, matching the
+-- fail-closed runtime contract for unknown specs.
 -- ----------------------------------------------------------------------
 local function ScenarioExtraOnCastPopulates()
   print("\n========== Scenario 1: OnCast(extra) populates extras map ==========")

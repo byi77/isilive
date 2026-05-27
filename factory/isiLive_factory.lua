@@ -492,6 +492,11 @@ local function BuildRuntimeSetupGroupContext(ctx, runtimeState)
     clearPendingQueueJoinInfo = function()
       runtimeState.SetPendingQueueJoinInfo(nil)
     end,
+    onGroupJoined = function()
+      if type(ctx.ShowJoinedTargetNotice) == "function" then
+        ctx.ShowJoinedTargetNotice()
+      end
+    end,
     resetInspectAll = ctx.ResetInspectAll,
     resetInspectQueues = ctx.ResetInspectQueues,
     updateUI = ctx.UpdateUI,

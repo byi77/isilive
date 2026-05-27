@@ -739,9 +739,8 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
   end
 
   if ui.m2ColumnGuides then
-    local showColumnGuides = type(ui.showRosterColumnGuides) == "function" and ui.showRosterColumnGuides() or false
     for _, guide in ipairs(ui.m2ColumnGuides) do
-      SetVisible(guide, showColumnGuides and not isCollapsed)
+      SetVisible(guide, false)
     end
   end
 

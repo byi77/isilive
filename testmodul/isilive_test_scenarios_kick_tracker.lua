@@ -769,8 +769,12 @@ local function RegisterMultiKickExtrasTests(test, Assert, WithGlobals, LoadAddon
     kickController.OnCast("player", 31935)
     Assert.NotNil(kickController.GetKickInfo().extras[31935], "extra must exist right after cast")
 
+    clock = clock + 15
+    kickController.Scan()
+    Assert.NotNil(kickController.GetKickInfo().extras[31935], "extra must remain before its cooldown expires")
+
     -- Advance clock past the 30s Avenger's Shield CD.
-    clock = clock + 35
+    clock = clock + 20
     kickController.Scan()
     local info = kickController.GetKickInfo()
     Assert.Equal(info.extras, nil, "expired extras must be removed by Scan")

@@ -2,20 +2,61 @@
 
 ## Unreleased
 
-### Documentation
+## 2026-05-27 - Version 0.9.285 (patch)
 
+### LFG / Center Notice
+
+[factory/isiLive_factory.lua](../factory/isiLive_factory.lua),
+[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua),
+[testmodul/isilive_test_scenarios_factory_controllers_helpers.lua](../testmodul/isilive_test_scenarios_factory_controllers_helpers.lua),
+[docs/RULES_LOGIC.md](RULES_LOGIC.md):
+
+- Added a verified group-join fallback for the accepted-invite center notice so
+  the dungeon summary and clickable portal button still render when Blizzard
+  does not deliver the expected direct LFG invite-accepted callback.
+- The fallback only uses the verified local queue target and stays silent
+  without a resolved target, keeping the no-guess contract intact.
+- Direct invite-accepted rendering suppresses the group-join fallback for that
+  join cycle so the center notice cannot be shown twice.
+
+### Commands / Settings
+
+[logic/isiLive_commands.lua](../logic/isiLive_commands.lua),
+[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
+[core/isiLive_db_schema.lua](../core/isiLive_db_schema.lua),
+[ui/isiLive_settings_support.lua](../ui/isiLive_settings_support.lua),
+[ui/isiLive_roster_panel.lua](../ui/isiLive_roster_panel.lua),
+[testmodul/isilive_test_scenarios_commands.lua](../testmodul/isilive_test_scenarios_commands.lua),
+[testmodul/isilive_test_scenarios_locale.lua](../testmodul/isilive_test_scenarios_locale.lua),
+[testmodul/isilive_test_scenarios_ui_settings.lua](../testmodul/isilive_test_scenarios_ui_settings.lua):
+
+- Split the public slash-command surface into normal help and an explicit
+  `/isilive admin` support surface for diagnostic and preview commands.
+- Removed obsolete public command entries for runtime start/stop/pause/resume,
+  language switching, legacy test mode, and lead-transfer helpers.
+- Removed the obsolete roster column-guide setting from schema, settings UI,
+  locale strings, and tests. Stale saved values are ignored.
+
+### Kick Tracker
+
+[tools/simulate_kick_tracker_extras.lua](../tools/simulate_kick_tracker_extras.lua),
+[testmodul/isilive_test_scenarios_kick_tracker.lua](../testmodul/isilive_test_scenarios_kick_tracker.lua):
+
+- Tightened deterministic coverage for Protection Paladin Avenger's Shield as
+  an extra interrupt source and its cooldown-expiry cleanup path.
+
+### Release Metadata
+
+[isiLive.toc](../isiLive.toc),
 [README.md](../README.md),
 [CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
 [docs/ARCHITECTURE.md](ARCHITECTURE.md),
 [docs/ARCHITECTURE_RULES.md](ARCHITECTURE_RULES.md),
 [docs/RELEASE.md](RELEASE.md),
-[docs/RULES.md](RULES.md),
-[docs/USECASES.md](USECASES.md),
-[docs/WARTUNG.md](WARTUNG.md):
+[docs/USECASES.md](USECASES.md):
 
-- Synchronized the full documentation set with the 0.9.284 feature baseline,
-  including Group Finder buff-rating hearts, translation handling, tooltip
-  hotpath locale lookup, Ready Check secure macro hardening, and release notes.
+- Bumped the TOC and documented baselines to `0.9.285`.
+- Updated the release validation baseline to `1889` scenarios.
 
 ## 2026-05-27 - Version 0.9.284 (patch)
 

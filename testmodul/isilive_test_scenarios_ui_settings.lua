@@ -1545,10 +1545,9 @@ local function RegisterSettingsPanelBehaviorTests(test, Assert, WithGlobals, Loa
 end
 
 local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Settings panel keeps column guides disabled by default and lets the user enable them", function()
+  test("Settings panel does not expose the removed roster column guides option", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}
-    local callbackStates = {}
 
     WithGlobals({
       UIParent = {},
@@ -1585,7 +1584,6 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
             SETTINGS_DEFAULT_OPEN_UI_V = "V",
             SETTINGS_DEFAULT_OPEN_UI_H = "H",
             SETTINGS_DEFAULT_OPEN_UI_M2 = "M2",
-            SETTINGS_ROSTER_COLUMN_GUIDES = "Column Guides",
             SETTINGS_QUEUE_DEBUG = "Queue Debug",
             SETTINGS_RUNTIME_LOG = "Runtime Log",
           }
@@ -1597,13 +1595,9 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
         getDB = function()
           return db
         end,
-        onRosterColumnGuidesToggle = function(enabled)
-          callbackStates[#callbackStates + 1] = enabled and true or false
-        end,
       })
 
       Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
-      Assert.Nil(db.showRosterColumnGuides, "column guides should stay unset until the user chooses them")
 
       local guideCheck = nil
       for _, frame in ipairs(createdFrames) do
@@ -1613,26 +1607,9 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
         end
       end
 
-      guideCheck = Assert.NotNil(guideCheck, "settings panel should create a column-guides checkbox")
-      ---@diagnostic disable: undefined-field
-      Assert.False(guideCheck:GetChecked(), "column guides should default to disabled")
-
-      local onClick = guideCheck._scripts and guideCheck._scripts.OnClick or nil
-      onClick = Assert.NotNil(onClick, "column guides checkbox should define OnClick")
-
-      guideCheck:SetChecked(true)
-      onClick(guideCheck)
-      Assert.True(db.showRosterColumnGuides, "enabling the checkbox should persist the enabled setting")
-      Assert.Equal(callbackStates[1], true, "enabling the checkbox should notify the callback")
-
+      Assert.Nil(guideCheck, "settings panel must not create a column-guides checkbox")
       panel.Refresh()
-      Assert.True(guideCheck:GetChecked(), "refresh should keep the enabled checkbox state")
-
-      guideCheck:SetChecked(false)
-      onClick(guideCheck)
-      Assert.False(db.showRosterColumnGuides, "disabling the checkbox should persist the disabled setting")
-      Assert.Equal(callbackStates[2], false, "disabling the checkbox should notify the callback")
-      ---@diagnostic enable: undefined-field
+      Assert.Nil(db.showRosterColumnGuides, "removed setting must not be written by settings refresh")
     end)
   end)
 
@@ -2407,7 +2384,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       )
       Assert.Equal(
         checkboxCount,
-        35,
+        34,
         "settings should hide only the legacy name-length"
           .. " and teleport-column controls while keeping the startup/key-end, navigator, sound,"
           .. " chat-announce, combat-fade, nameplate-subtoggle,"
@@ -2420,7 +2397,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 7, "refresh should keep the stats-box and nameplate sliders visible")
       Assert.Equal(
         checkboxCount,
-        35,
+        34,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
           .. " while preserving the visible sound, chat-announce, combat-fade, nameplate-subtoggle,"
           .. " accepted-invite-notice, LFG class-bonus, stats-box toggles, VIP sound toggles,"
