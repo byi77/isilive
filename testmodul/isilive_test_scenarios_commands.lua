@@ -20,8 +20,6 @@ local function BuildCommandLocale()
     HELP_NPTEST = "/isilive nptest",
     HELP_NPSTATE = "/isilive npstate",
     HELP_RESET = "/isilive reset",
-    STOPPED = "Addon manually stopped.",
-    STARTED = "Addon started.",
     ERR_STOPPED_TEST = "Addon is stopped.",
     ERR_PAUSED_TEST = "Addon is paused.",
     LOCKED = "Main frame position locked.",
