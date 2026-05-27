@@ -1019,53 +1019,56 @@ return function(test, ctx)
     Assert.Equal(captured.opts.teleportLabel, "TP-DE:", "verified mapID should render the teleport header")
   end)
 
-  test("factory_controllers: ShowJoinedTargetNotice renders from verified local target when accept event is missing", function()
-    local addon = Load()
-    local show = addon._FactoryInternal.ShowJoinedTargetNotice
-    local call
-    local c = BuildAcceptedInviteCtx({
-      GetUnitRole = function()
-        return "DAMAGER"
-      end,
-      ShowCenterNotice = function(message, duration, dungeonName, activityID, showOptions)
-        call = {
-          message = message,
-          duration = duration,
-          dungeonName = dungeonName,
-          activityID = activityID,
-          showOptions = showOptions,
-        }
-      end,
-      ResolveLocalStatusTargetMapID = function()
-        return 559
-      end,
-      GetStatusTargetDungeonInfo = function()
-        return { name = "Nexuspunkt Xenas", level = 17 }
-      end,
-      runtimeState = {
-        GetLatestQueueState = function()
-          return "Nexuspunkt Xenas", 1768, nil, 559
+  test(
+    "factory_controllers: ShowJoinedTargetNotice renders from verified local target when accept event is missing",
+    function()
+      local addon = Load()
+      local show = addon._FactoryInternal.ShowJoinedTargetNotice
+      local call
+      local c = BuildAcceptedInviteCtx({
+        GetUnitRole = function()
+          return "DAMAGER"
         end,
-      },
-    })
-    local modules = {
-      teleport = {
-        GetTeleportInfoByMapID = function(mapID)
-          Assert.Equal(mapID, 559, "joined-target notice must use the verified local target map")
-          return { mapName = "Nexuspunkt Xenas" }
+        ShowCenterNotice = function(message, duration, dungeonName, activityID, showOptions)
+          call = {
+            message = message,
+            duration = duration,
+            dungeonName = dungeonName,
+            activityID = activityID,
+            showOptions = showOptions,
+          }
         end,
-      },
-    }
+        ResolveLocalStatusTargetMapID = function()
+          return 559
+        end,
+        GetStatusTargetDungeonInfo = function()
+          return { name = "Nexuspunkt Xenas", level = 17 }
+        end,
+        runtimeState = {
+          GetLatestQueueState = function()
+            return "Nexuspunkt Xenas", 1768, nil, 559
+          end,
+        },
+      })
+      local modules = {
+        teleport = {
+          GetTeleportInfoByMapID = function(mapID)
+            Assert.Equal(mapID, 559, "joined-target notice must use the verified local target map")
+            return { mapName = "Nexuspunkt Xenas" }
+          end,
+        },
+      }
 
-    show(c, modules)
+      show(c, modules)
 
-    Assert.NotNil(call, "joined-target fallback must render a center notice")
-    Assert.Equal(call.dungeonName, "Nexuspunkt Xenas", "center notice must carry the verified target name")
-    Assert.Equal(call.activityID, 1768, "center notice must carry the latest verified activity ID")
-    Assert.Equal(call.showOptions.teleportMapID, 559, "portal button must resolve from verified mapID")
-    Assert.Equal(call.showOptions.fields[1].value, "Nexuspunkt Xenas +17", "dungeon row must include the known level")
-    Assert.Equal(call.showOptions.fields[2].value, "DD-DE", "role row must still use the live player role")
-  end)
+      Assert.NotNil(call, "joined-target fallback must render a center notice")
+      Assert.Equal(call.dungeonName, "Nexuspunkt Xenas", "center notice must carry the verified target name")
+      Assert.Equal(call.activityID, 1768, "center notice must carry the latest verified activity ID")
+      Assert.Equal(call.showOptions.teleportMapID, 559, "portal button must resolve from verified mapID")
+      Assert.Equal(call.showOptions.fields[1].value, "Nexuspunkt Xenas +17", "dungeon row must include the known level")
+      Assert.Equal(call.showOptions.fields[2].value, "DD-DE", "role row must still use the live player role")
+    end
+  )
 
   test("factory_controllers: ShowJoinedTargetNotice stays silent without verified local target", function()
     local addon = Load()

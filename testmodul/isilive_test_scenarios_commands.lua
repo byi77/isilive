@@ -237,8 +237,7 @@ local function BuildCommandExecutor(WithGlobals, LoadAddonModules, overrides)
   return state
 end
 
-local function RegisterCommandCoreTests(test, Assert, WithGlobals, LoadAddonModules)
-end
+local function RegisterCommandCoreTests(test, Assert, WithGlobals, LoadAddonModules) end
 
 local function RegisterCommandRuntimeLogTests(test, Assert, WithGlobals, LoadAddonModules)
   test("Commands runtime log toggle and status output work", function()
@@ -673,10 +672,7 @@ local function RegisterCommandBranchCoverageTests(test, Assert, WithGlobals, Loa
   test("Commands qdebug watch is no longer accepted as a special subcommand", function()
     local state = BuildExecutorWithExtras({})
     state._execute("qdebug watch")
-    Assert.NotNil(
-      findPrint(state, "Usage: /isilive qdebug"),
-      "qdebug watch must fall back to the qdebug usage line"
-    )
+    Assert.NotNil(findPrint(state, "Usage: /isilive qdebug"), "qdebug watch must fall back to the qdebug usage line")
   end)
 
   test("Commands log tail with tag filter delegates to getFilteredTail and renders filter header", function()
