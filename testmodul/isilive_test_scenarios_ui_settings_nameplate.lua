@@ -393,12 +393,11 @@ local function RegisterSettingsPanelNameplateRoundtripTests(test, Assert, WithGl
     end)
   end)
 end
-
-
 return function(test, ctx)
   local Assert = RequireValue(ctx.assert, "UI settings nameplate scenario ctx.assert should exist")
   local WithGlobals = RequireValue(ctx.with_globals, "UI settings nameplate scenario ctx.with_globals should exist")
-  local LoadAddonModules = RequireValue(ctx.load_modules, "UI settings nameplate scenario ctx.load_modules should exist")
+  local LoadAddonModules =
+    RequireValue(ctx.load_modules, "UI settings nameplate scenario ctx.load_modules should exist")
 
   RegisterSettingsPanelNameplateRoundtripTests(test, Assert, WithGlobals, LoadAddonModules)
 end
