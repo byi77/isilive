@@ -76,7 +76,6 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_roster_tooltip.lua",
   "testmodul/isilive_test_scenarios_controller_init.lua",
   "testmodul/isilive_test_scenarios_lfg_detect.lua",
-  "testmodul/isilive_test_scenarios_invites.lua",
   "testmodul/isilive_test_scenarios_lfg_flags.lua",
   "testmodul/isilive_test_scenarios_stress.lua",
   "testmodul/isilive_test_scenarios_roster_layout.lua",

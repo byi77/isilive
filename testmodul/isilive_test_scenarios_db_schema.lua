@@ -34,7 +34,7 @@ return function(test, ctx)
     Assert.Equal(db.autoCloseOnKeyStart, false, "key-start auto-close default false")
     Assert.Equal(db.autoCloseOnSoloChange, false, "solo-change auto-close default false")
     Assert.Equal(db.locale, "enUS", "locale default")
-    Assert.Nil(db.inviteListEnabled, "disabled invite-list feature must not create a DB default")
+    Assert.Nil(db.inviteListEnabled, "removed invite-list feature must not create a DB default")
   end)
 
   test("DBSchema.Sanitize stamps __schemaVersion on first run", function()
@@ -334,7 +334,7 @@ return function(test, ctx)
     -- Runtime-only fields are intentionally excluded.
     Assert.Equal(known.queueDebug, nil, "queueDebug is runtime-only, must NOT be in schema")
     Assert.Equal(known.runtimeLogEnabled, nil, "runtimeLogEnabled is runtime-only, must NOT be in schema")
-    Assert.Equal(known.inviteListEnabled, nil, "disabled invite-list setting must NOT be in schema")
+    Assert.Equal(known.inviteListEnabled, nil, "removed invite-list setting must NOT be in schema")
   end)
 
   test("DBSchema.GetSchemaVersion returns the current LATEST_SCHEMA_VERSION", function()

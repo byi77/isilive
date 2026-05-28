@@ -2057,6 +2057,31 @@ local function RegisterArchitectureLoadOrderTests(test, Assert)
       end
     end
   end)
+
+  test("Architecture removed LFG invite list modules stay absent from TOC and harness", function()
+    local tocContent = ReadFile("isiLive.toc")
+    local harnessContent = ReadFile("testmodul/isilive_test_harness.lua")
+    local guardsContent = ReadFile("isiLive_guards.lua")
+
+    for _, fileName in ipairs({ "isiLive_invites.lua", "isiLive_invite_list.lua" }) do
+      Assert.Nil(tocContent:find(fileName, 1, true), fileName .. " must stay out of isiLive.toc")
+      Assert.Nil(harnessContent:find(fileName, 1, true), fileName .. " must stay out of test harness FILE_PATHS")
+      Assert.Nil(guardsContent:find(fileName, 1, true), fileName .. " must stay out of required module guards")
+    end
+
+    local removedPaths = {
+      "logic/isiLive_invites.lua",
+      "ui/isiLive_invite_list.lua",
+      "testmodul/isilive_test_scenarios_invites.lua",
+    }
+    for _, path in ipairs(removedPaths) do
+      local file = ioLib.open(path, "rb")
+      if file then
+        file:close()
+      end
+      Assert.Nil(file, path .. " must not exist after removing the abandoned invite-list feature")
+    end
+  end)
 end
 
 return function(test, ctx)

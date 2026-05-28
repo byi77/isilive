@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.285`
+Versionsbasis: `0.9.286`
 Zuletzt aktualisiert: `2026-05-27`
 
 ## Akteure
@@ -44,7 +44,7 @@ Zuletzt aktualisiert: `2026-05-27`
 | UC-19 | (reserviert / nicht vergeben) | Nummer ausgelassen; nicht neu belegen, damit bereits referenzierte Test-/Commit-Querverweise stabil bleiben |
 | UC-20 | Clear-Log-Buttons im Settings-Debug | Zwei dedizierte Action-Buttons in Settings -> Debug leeren Runtime-Log und Queue-Debug-Log ohne Slash-Command |
 | UC-21 | Multi-Kick-Extras im Roster-Tooltip | Zusaetzliche Interrupt-Spells einer Klasse (Prot Pala Avenger's Shield) werden separat vom Primary getrackt, ueber den Sync-Pfad an Peers verteilt und im Hover-Tooltip angezeigt |
-| UC-22 | LFG-Invite-Liste deaktiviert | Die experimentelle offene Premade-LFG-Invite-Liste bleibt ohne Settings, SavedVariable und Runtime-Wiring deaktiviert |
+| UC-22 | LFG-Invite-Liste entfernt | Die verworfene offene Premade-LFG-Invite-Liste hat keine Module, keine Settings, keine SavedVariable und kein Runtime-Wiring |
 | UC-23 | Spieler-Stats-Box | Eine optionale, eigenstaendige Stats-Box zeigt live gelesene Spielerwerte ohne Guessing und bleibt unabhaengig von den Main-UI-Layouts verschiebbar |
 | UC-24 | Gruppensuche-Klassenbonus-Hinweise | Bewerber- und Suchergebniszeilen zeigen relevante nicht-Utility-Gruppenboni kompakt an und ergaenzen Tooltips mit lokalisierten Bonusdetails |
 
@@ -296,16 +296,17 @@ Ziel: Klassen mit mehreren Interrupt-Spells (Prot Paladin via Avenger's-Shield-T
 9. Bekannter Constraint: Demonology Warlock Inner Demons (Felguard + Felhunter parallel, beide casten ihren eigenen Interrupt-Spell) wird aktuell **nicht** als Multi-Kick gehandhabt, weil `Spell Lock 19647` in `SPEC_DATA[266].spells` als alternativer Primary fuer den Pet-Switch-Fall (Felhunter ohne Felguard) gelistet ist. Den Array auf einen Spell zu reduzieren wuerde den Pet-Switch-Pfad brechen. Dokumentiert als Future-Work.
 10. Erfolgskriterium: Im aktiven Mythic+-Run zeigt der Roster-Hover-Tooltip eines Prot Paladin mit Avenger's-Shield-Talent zwei separate Cooldowns (Rebuke in der `Kick`-Spalte und Avenger's Shield im Tooltip-Extras-Block) ohne dass der primary-Cooldown durch den Avenger's-Shield-Cast gestoert wird; Peers ohne Talent-Kick sehen weder Header noch Extras-Zeilen.
 
-## UC-22 LFG-Invite-Liste deaktiviert
+## UC-22 LFG-Invite-Liste entfernt
 
-Ziel: Die experimentelle offene Premade-LFG-Invite-Liste bleibt deaktiviert, bis eine belastbare Live-Quelle fuer parallele Blizzard-LFG-Invites nachgewiesen ist.
+Ziel: Die verworfene offene Premade-LFG-Invite-Liste ist vollstaendig aus dem Addon entfernt.
 
 1. Settings: Es gibt kein sichtbares Settings-Control fuer eine LFG-Invite-Liste.
 2. Persistenz: `inviteListEnabled` ist kein bekanntes SavedVariable-Schemafeld und wird bei frischer DB nicht als Default erzeugt.
-3. Runtime-Wiring: Die Factory erzeugt keinen Invite-Listen-Controller und kein Invite-Listen-UI-Wiring.
-4. Event-Verhalten: `LFG_LIST_APPLICATION_STATUS_UPDATED` wird nicht an einen Invite-Listenpfad weitergeleitet; die bestehende sichtbare LFGDetect-/Queue-Verarbeitung fuer positive Status-Events bleibt aktiv.
-5. Hidden-Verhalten: Hidden bleibt `LFG_LIST_APPLICATION_STATUS_UPDATED` fuer Queue- und Invite-Listenverarbeitung blockiert.
-6. Erfolgskriterium: User sehen keine experimentelle Extra-Liste, koennen sie nicht aktivieren, und fehlende oder mehrdeutige LFG-Invite-Daten erzeugen keinen neuen UI-Pfad.
+3. Module: Es gibt kein `logic/isiLive_invites.lua`, kein `ui/isiLive_invite_list.lua` und keinen TOC-Eintrag fuer diese Dateien.
+4. Runtime-Wiring: Die Factory erzeugt keinen Invite-Listen-Controller und kein Invite-Listen-UI-Wiring.
+5. Event-Verhalten: `LFG_LIST_APPLICATION_STATUS_UPDATED` wird nicht an einen Invite-Listenpfad weitergeleitet; die bestehende sichtbare LFGDetect-/Queue-Verarbeitung fuer positive Status-Events bleibt aktiv.
+6. Hidden-Verhalten: Hidden bleibt `LFG_LIST_APPLICATION_STATUS_UPDATED` fuer Queue- und Invite-Listenverarbeitung blockiert.
+7. Erfolgskriterium: User sehen keine experimentelle Extra-Liste, koennen sie nicht aktivieren, und fehlende oder mehrdeutige LFG-Invite-Daten erzeugen keinen neuen UI-Pfad.
 
 ## UC-23 Spieler-Stats-Box
 
@@ -346,7 +347,7 @@ Ziel: Eine optionale, eigenstaendige Spieler-Stats-Box zeigt live gelesene Prim√
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `1892` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `1877` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
@@ -369,7 +370,7 @@ Aktuelle Validator-Baseline: `1892` Szenarien ueber die in `tools/usecase_scenar
 | Thema | Dateien |
 |---|---|
 | Queue-Erkennung und Target-Capture | `isiLive_queue.lua`, `isiLive_event_handlers_queue.lua` |
-| LFG-Detektion, Chat-Hinweise, deaktivierte Invite-Liste und Highlight-Dispatch | `isiLive_lfg_detect.lua`, `isiLive_invites.lua`, `isiLive_invite_list.lua`, `isiLive_factory_controllers.lua`, `isiLive_texts.lua`, `isiLive_teleport_ui.lua` |
+| LFG-Detektion, Chat-Hinweise und Highlight-Dispatch | `isiLive_lfg_detect.lua`, `isiLive_factory_controllers.lua`, `isiLive_texts.lua`, `isiLive_teleport_ui.lua` |
 | Highlight-Aufloesung und Inside-Dungeon-Suppression | `isiLive_highlight.lua` |
 | Teleport-Spell-Mapping und Cooldown-Verhalten | `isiLive_teleport.lua`, `isiLive_spell_utils.lua`, `isiLive_teleport_ui.lua` |
 | Gruppen-Lifecycle, Leader-State-Mirroring und Roster-Rebuild | `isiLive_group.lua`, `isiLive_roster.lua` |

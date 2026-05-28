@@ -1705,7 +1705,7 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
     end)
   end)
 
-  test("Settings panel keeps the disabled LFG invite list out of the UI", function()
+  test("Settings panel keeps the removed LFG invite list out of the UI", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}
 
@@ -1758,7 +1758,7 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
       })
 
       Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
-      Assert.Nil(db.inviteListEnabled, "disabled invite list must not create a saved value")
+      Assert.Nil(db.inviteListEnabled, "removed invite list must not create a saved value")
 
       local inviteListCheck = nil
       for _, frame in ipairs(createdFrames) do
@@ -1768,9 +1768,9 @@ local function RegisterSettingsPanelAdvancedTests(test, Assert, WithGlobals, Loa
         end
       end
 
-      Assert.Nil(inviteListCheck, "disabled invite-list feature must not create a settings checkbox")
+      Assert.Nil(inviteListCheck, "removed invite-list feature must not create a settings checkbox")
       panel.Refresh()
-      Assert.Nil(db.inviteListEnabled, "refresh must not create disabled invite-list setting")
+      Assert.Nil(db.inviteListEnabled, "refresh must not create removed invite-list setting")
     end)
   end)
 

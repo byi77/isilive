@@ -179,7 +179,7 @@ return function(test, ctx)
       opts.allowWhenHidden.LFG_LIST_APPLICATION_STATUS_UPDATED,
       "hidden LFG status must stay blocked while invite-list feature is disabled"
     )
-    Assert.Nil(opts.shouldAllowWhenHidden, "disabled invite-list feature must not install a hidden gate callback")
+    Assert.Nil(opts.shouldAllowWhenHidden, "removed invite-list feature must not install a hidden gate callback")
   end)
 
   test("ConfigBuilders BuildGateOpts does not leak extra ctx fields", function()

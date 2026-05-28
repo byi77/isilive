@@ -161,12 +161,12 @@ return function(test, ctx)
     Assert.Equal(counters.exits, 1, "test-all mode must be exited")
   end)
 
-  test("APPLICATION_STATUS_UPDATED does not forward disabled invite-list handling", function()
+  test("APPLICATION_STATUS_UPDATED does not forward removed invite-list handling", function()
     local handlers, counters = LoadHandlers()
 
     handlers.LFG_LIST_APPLICATION_STATUS_UPDATED(nil, 7, "invited")
 
-    Assert.Equal(#counters.inviteEvents, 0, "disabled invite-list feature must not receive status events")
+    Assert.Equal(#counters.inviteEvents, 0, "removed invite-list feature must not receive status events")
     Assert.Equal(#counters.lfgEvents, 1, "regular LFGDetect handling must stay active")
     Assert.Equal(counters.captures, 1, "regular queue capture must stay active for positive statuses")
   end)

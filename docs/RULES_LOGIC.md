@@ -81,7 +81,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 58. Nach `CHALLENGE_MODE_COMPLETED` bleibt der M+-Timer-Snapshot eingefroren bis zum naechsten `PLAYER_ENTERING_WORLD`; dieser muss den Snapshot vollstaendig wegraeumen, damit die Timer-Box ueber Reload/Relog/neuen Key hinweg nicht mit veralteten Werten stehen bleibt. Ein PEW waehrend eines laufenden Keys darf den Timer nicht stoppen.
 59. Der untere M+-Killtracker zeigt vor Key-Start verifizierte Ziel-Dungeon-Daten aus der Target-Dungeon-Aufloesung rechtsbuendig an; eine Keystufe wird nur bei positiver numerischer Aufloesung ergaenzt. Ab Key-Start wechselt er zur Prozentanzeige zurueck; waehrend aktiver Prozentdaten darf der verifizierte Dungeonname linksbuendig als helles Outline-Label mit dunkler Hinterlegung auf dem Prozentbalken sichtbar bleiben.
 60. Der M+-Killtracker muss den sichtbaren Gesamtfortschritt am Kampfende und ueber seinen aktiven Refresh-Ticker aus den Live-Scenario-Daten aktualisieren, damit abgeschlossene Pulls nicht erst beim naechsten Kampf sichtbar werden.
-61. Die experimentelle LFG-Invite-Liste bleibt deaktiviert: Es gibt kein Settings-Control, kein SavedVariable-Feld und kein Runtime-Wiring; `LFG_LIST_APPLICATION_STATUS_UPDATED` darf keine Invite-Listenverarbeitung ausloesen.
+61. Die verworfene LFG-Invite-Liste bleibt entfernt: Es gibt kein Modul, keinen TOC-Eintrag, kein Settings-Control, kein SavedVariable-Feld und kein Runtime-Wiring; `LFG_LIST_APPLICATION_STATUS_UPDATED` darf keine Invite-Listenverarbeitung ausloesen.
 62. Bei aktivierter Addon-Sprache `ruRU` muessen lokalisierte Hauptfenster-Texte und gefittete Button-Labels einen kyrillisch-faehigen Font verwenden, unabhaengig vom WoW-Client-Locale.
 63. Die M+Marker-Leiste muss native SecureActionButton-Worldmarker-Attribute verwenden, ihre sicheren Klickflaechen ueber konkurrierenden UI-Sibling-Frames halten und darf keine geschuetzten Marker-APIs direkt aufrufen.
 64. Ein Reload-Roster-Mirror darf verifizierte Gruppenanzeigedaten und den verifizierten aktuellen Gruppen-Ziel-Key nur wiederherstellen, wenn die aktuelle Gruppensignatur exakt zur gespeicherten Signatur passt; Kick-Zustaende werden daraus nicht wiederhergestellt.
@@ -819,13 +819,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-LFG-INVITE-LISTE-KEIN-GUESSING
 - Regelnummer: 61
 - Status: aktiv
-- Zusammenfassung: Die experimentelle LFG-Invite-Liste bleibt deaktiviert. Es gibt kein Settings-Control, kein SavedVariable-Feld und kein Runtime-Wiring. `LFG_LIST_APPLICATION_STATUS_UPDATED` darf keine Invite-Listenverarbeitung ausloesen; die bestehende LFGDetect-/Queue-Verarbeitung fuer sichtbare, positive Status-Events bleibt davon unberuehrt.
+- Zusammenfassung: Die verworfene LFG-Invite-Liste bleibt entfernt. Es gibt kein Invite-Listen-Modul, keinen TOC-Eintrag, kein Settings-Control, kein SavedVariable-Feld und kein Runtime-Wiring. `LFG_LIST_APPLICATION_STATUS_UPDATED` darf keine Invite-Listenverarbeitung ausloesen; die bestehende LFGDetect-/Queue-Verarbeitung fuer sichtbare, positive Status-Events bleibt davon unberuehrt.
 - Erforderliche Tests:
   - DBSchema.Sanitize fills all defaults on an empty db
   - DBSchema.GetKnownFieldNames includes core persistent fields
-  - Settings panel keeps the disabled LFG invite list out of the UI
+  - Settings panel keeps the removed LFG invite list out of the UI
+  - Architecture removed LFG invite list modules stay absent from TOC and harness
   - ConfigBuilders hidden gate keeps LFG status blocked
-  - APPLICATION_STATUS_UPDATED does not forward disabled invite-list handling
+  - APPLICATION_STATUS_UPDATED does not forward removed invite-list handling
 
 ### RULE-RURU-KYRILLISCHER-UI-FONT
 - Regelnummer: 62

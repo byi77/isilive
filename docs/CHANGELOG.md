@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2026-05-28 - Version 0.9.286 (patch)
+
+### LFG
+
+[docs/RULES_LOGIC.md](RULES_LOGIC.md),
+[docs/USECASES.md](USECASES.md),
+[docs/ARCHITECTURE.md](ARCHITECTURE.md):
+
+- Removed the abandoned experimental LFG invite-list modules
+  (`logic/isiLive_invites.lua`, `ui/isiLive_invite_list.lua`), TOC entries,
+  guards, locale strings, and obsolete scenario file.
+- Kept the active LFGDetect invite/accepted-notice path intact and added
+  architecture coverage that the removed invite-list modules stay absent.
+- Updated the current release-gate scenario baseline to `1877` scenarios.
+
 ## 2026-05-27 - Version 0.9.285 (patch)
 
 ### LFG / Center Notice
