@@ -1266,6 +1266,7 @@ return function(test, ctx)
           "onStatsBoxLockToggle",
           "onStatsBoxBgAlphaChange",
           "onStatsBoxFontSizeOffsetChange",
+          "onStatsBoxOptionsChange",
           "onSyncToggle",
           "onRosterColumnGuidesToggle",
           "onMinimapButtonToggle",

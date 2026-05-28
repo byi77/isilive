@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.286`
-Zuletzt aktualisiert: `2026-05-27`
+Versionsbasis: `0.9.287`
+Zuletzt aktualisiert: `2026-05-28`
 
 ## Akteure
 
@@ -129,7 +129,7 @@ Ziel: Rating-Aenderungen vor und nach einem Run pro Spieler im Roster zeigen, oh
 5. Trigger: Das Roster wird nach Rating-Updates gerendert.
 6. Output: Die `RIO`-Spalte zeigt `(+X)RIO`, wenn Baseline und aktueller Wert vorhanden sind.
 7. Regel: Delta wird auf nicht-negative Werte geklemmt; Minimum ist `+0`, Minus-Rendering ist verboten.
-8. Regel: Der Admin-Testmodus (`/isilive testall`) verwendet den Full-Dummy-Preview-Pfad, inklusive sichtbarem positivem Dummy-Delta, einer Ghost-/Leaver-Zeile, Demo-Daten fuer M+-Timer, Combat-CDs, unteren M+-Forces-Tracker, Statsbox, Portal-Navigator, Centerbox-Portal, M+-Forces-Nameplates/-Tooltip und LFG-Bonusmarker. Demo-Feature-Schalter werden nur temporaer gesetzt und beim Verlassen auf die vorherigen User-Settings zurueckgesetzt.
+8. Regel: Der Admin-Testmodus (`/isilive testall`) verwendet den Full-Dummy-Preview-Pfad, inklusive sichtbarem positivem Dummy-Delta, einer Ghost-/Leaver-Zeile, Demo-Daten fuer M+-Timer, Combat-CDs, unteren M+-Forces-Tracker, Statsbox, Portal-Navigator, Centerbox-Portal, M+-Forces-Nameplates/-Tooltip und LFG-Bonusmarker. Demo-Feature-Schalter einschliesslich `Accepted-invite notice` und `Group-join target notice` werden nur temporaer gesetzt und beim Verlassen auf die vorherigen User-Settings zurueckgesetzt.
 9. Erfolgskriterium: Die Anzeige bleibt pro Spieler ueber Unit-Slot-Wechsel stabil und zeigt niemals ein negatives Delta.
 
 ## UC-08 Post-Run-Stats-Snapshot
@@ -158,15 +158,16 @@ Ziel: Schnelle Blizzard-Panel-Shortcuts und lokalisierte Addon-Toggles anbieten,
 4. Combat-Sicherheit: Wenn Combat-Lockdown Secure-`ReloadUI`-Button-Refreshes oder sichere Mount-Button-Attribute blockiert, zum Beispiel Click-Registration oder Macro-Attribute-Updates, verschiebt das Addon diese Aktualisierung und wiederholt sie auf `PLAYER_REGEN_ENABLED`. Die gemounteten `Esc`-Strips selbst bleiben im Combat read-only, bleiben ueber `GameMenuFrame` sichtbar und machen aus insecure Shortcut-Klicks No-Ops statt Overlay-Layout zu mutieren.
 5. Regel: Der Spellbook-Shortcut muss spellbook-spezifische Opener nutzen und darf nicht ueber das Talents-Panel routen.
 6. Trigger B: Der Spieler oeffnet `Settings -> AddOns -> isiLive`.
-7. Ergebnis B: Blizzard Settings zeigen — gruppiert in sechs Sektionen plus Reset und Beta-Hinweis:
+7. Ergebnis B: Blizzard Settings zeigen — gruppiert in eigene Hauptsektionen plus Reset und Beta-Hinweis:
    - **General**: Sprache, `Default UI on Open`, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Show Timeways Navigator`, `Hearthstone Selection`.
-   - **Display**: `UI Scale`, `Background Opacity`, `/isilive resetui`-Button, `Minimap Button`, Spieler-Stats-Box mit Enable-, Lock-, Hintergrund-Deckkraft- und Schriftgroessen-Offset-Control, `Group Finder: Language Flags`, `Group Finder: Buff rating hearts`, `Tooltip: Language Flags`, `LFG invite hint`, `Accepted-invite notice`.
+   - **Display**: `UI Scale`, `Background Opacity`, Spieler-Stats-Box mit Enable-, Lock-, Hintergrund-Deckkraft-, Schriftgroessen-Offset-, Zahlenmodus- und Detailzeilen-Control fuer Leech, Speed, Haltbarkeit, Ausdauer und Vermeidung, `Minimap Button`, `Group Finder: Language Flags`, `Group Finder: Buff rating hearts`, `Tooltip: Language Flags`, `LFG invite hint`, `Accepted-invite notice`, `Group-join target notice`.
    - **Nameplates**: 3-Modi-Selector `Off / Tooltip / Nameplate` fuer den M+-Forces-Overlay, plus `Show percentage`, `Show remaining needed`, `Font size`, `Position`, `X offset`, `Y offset` und ein Live-Preview.
    - **Behavior**: `Addon Sync`, `Lock main frame position`, `Fade out in Combat (M2 only)`, gefolgt vom Auto-Show/Hide-Block mit Erklaerung (`Show on Login / Reload`, `Auto-Open on M+ Queue`, `Auto-Open on Key End`, `Auto-close when key starts`, `Auto-close when leaving the group`), und einem statischen Raid-Behavior-Hinweis statt einem 1-Optionen-Selector.
    - **Sounds**: `Sound: Lead Transfer`, `Sound: Full Group`, `Sound: Incoming Summon`, `Sound: Battle Res`, `Sound: Bloodlust`, VIP-Gast-Sound-Schalter fuer Astral Aurochs, Grand Expedition Yak und Trader's Gilded Brutosaur. Eingehende Beschwoerungen des lokalen Spielers spielen den Summon-Sound ueber den klassischen `CONFIRM_SUMMON`-Pfad und ueber den statusbasierten `INCOMING_SUMMON_CHANGED`-Pfad nur bei `Enum.SummonStatus.Pending`.
    - **Chat Announcements**: `Chat: Announce Battle Res usage in M+`, `Chat: Announce Bloodlust casts in M+`.
    - **Debug**: `Queue Debug Log (resets on reload)`, `Clear Queue Debug Log`, `Runtime Log (resets on reload)`, `Clear Runtime Log`.
-   - **Reset All Settings** plus Beta-Hinweis mit Issue-Tracker-Link.
+   - **Reset-Aktionen**: `/isilive resetui` und `Reset All Settings`, jeweils mit Bestaetigung.
+   - **Beta-Hinweis** mit Issue-Tracker- und CurseForge-Kommentar-Link.
 8. Regel: Settings-Controls spiegeln live Blizzard-CVars und SavedVariables und wenden Aenderungen sofort an, ohne dass das Main-Addon-Fenster sichtbar sein muss; eine Aenderung von `Background Opacity` aktualisiert live den Main-Frame, die optionalen `Esc`-Tooling-, Travel-, Mounts- und Addons-Strips und den Settings-Canvas. Der neue `Lock main frame position`-Schalter, der Top-right-Lock-Button sowie die Slash-Commands `/isilive lock`, `/isilive unlock` und `/isilive resetui` spiegeln denselben gespeicherten Lock-State und verhindern unabsichtliches Verschieben der Haupt-UI; `resetui` setzt Position, UI-Skalierung und Hintergrund-Deckkraft wieder auf ihre Default-Werte zurueck und zeigt den Default-Hinweis als separate Textzeile unter dem Button, bevor eine Reset-Bestaetigung abgefragt wird. Hidden Legacy-Controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`) bleiben aus der Settings-UI draussen und nutzen derzeit feste Runtime-Defaults: `DPS` an, Marker fuer alle sichtbar, feste Namenstrunkierung und Legacy-`Travel`-Layout mit 2 Spalten.
 9. Regel: Die Ruhestein-Auswahl bietet `random-owned`, den Standard-Ruhestein `item:6948` und nur konkret besessene Ruhestein-Toys an. Die Liste aktualisiert sich bei `TOYS_UPDATED` und `GET_ITEM_INFO_RECEIVED`, zeigt im deutschen Addon-Locale client-lokalisierte Namen und in allen anderen Addon-Sprachen die verifizierten englischen Namen. Nicht verifizierte oder nicht besessene Toy-Ziele bleiben verborgen statt als numerischer Fallback angezeigt zu werden.
 10. Regel: Der `Esc`-Travel-Ruhestein-Button wendet die gespeicherte Auswahl auf seinen sicheren Action-Button an. Wenn Combat-Lockdown oder ein aktiver Keydown sichere Attribut-Updates blockiert, wird die Aktualisierung verschoben und auf dem naechsten erlaubten Refresh wiederholt.
@@ -205,7 +206,7 @@ Ziel: LFG-Einladungen und eigene Listings sollen das Portal-Highlight und die Ch
 3. Verarbeitung: Der Invite-Kontext bleibt bis zur exakten Bestaetigung per `inviteaccepted` pending; danach wird der erkannte Dungeon-Zielzustand gesetzt und das Portal-Highlight ohne Sound aktiviert. Wenn LFGDetect bereits einen konkreten lokalen Map-Kontext hat, wird dieser an den gemeinsamen Highlight-Resolver weitergereicht und hat Vorrang vor peer-synced Highlight-Quellen. Die locale-injizierte Chatmeldung bleibt an den Invite-/Join-Confirm-Pfad gebunden.
 4. Regel: Eine eigene Queue-/Listing-Detektion triggert das Portal-Highlight ueber den injizierten Callback; Portal-Sound bleibt fuer Queue- und Invite-getriebene Updates unterdrueckt.
 5. Anzeige: Die Centerbox fuer eine angenommene M+-Einladung zeigt den verifizierten Dungeon und, wenn der akzeptierte LFG-Kontext eine konkrete `activityID` oder `mapID` liefert, einen klickbaren Portal-Button ueber denselben strikten Activity-/Map-Resolver.
-6. Fallback: Wenn beim Gruppenbeitritt kein direktes `inviteaccepted` beim Accepted-Invite-Pfad angekommen ist, darf dieselbe Centerbox nur aus `ResolveLocalStatusTargetMapID` plus vorhandener Status-Dungeon-Info gerendert werden. Ohne diesen verifizierten lokalen Zielkontext bleibt der Fallback stumm; wenn die direkte Accepted-Invite-Centerbox bereits gerendert wurde, erzeugt der Gruppenbeitritt keine zweite Centerbox fuer denselben Join.
+6. Fallback: Wenn beim Gruppenbeitritt kein direktes `inviteaccepted` beim Accepted-Invite-Pfad angekommen ist, darf dieselbe Centerbox nur bei aktiviertem `Group-join target notice` aus `ResolveLocalStatusTargetMapID` plus vorhandener Status-Dungeon-Info gerendert werden. Ohne diesen verifizierten lokalen Zielkontext oder bei deaktiviertem Gruppenbeitritts-Zielhinweis bleibt der Fallback stumm; `Accepted-invite notice` und `Group-join target notice` sind getrennt schaltbar. Wenn die direkte Accepted-Invite-Centerbox bereits gerendert wurde, erzeugt der Gruppenbeitritt keine zweite Centerbox fuer denselben Join.
 7. Regel: `GROUP_ROSTER_UPDATE` ohne Gruppe loescht den gesamten LFG-Zustand inklusive pending invites, aber nur beim echten Gruppenende (`GetNumGroupMembers() == 0`); `CHALLENGE_MODE_START` und die aktive Challenge-Map allein loeschen den Invite-Zustand nicht mehr, sondern erst der echte Dungeon-Eintritt ueber den finalen Map-Check.
 8. Erfolgskriterium: Erkennungen erscheinen einmalig und lokalisiert, late `inviteaccepted`-Events bleiben korrekt aufloesbar, identische Listing-Updates erzeugen keinen inkonsistenten Highlight-State, und unbekannte Namen werden nie als Dungeon-Ziel geraten.
 
@@ -317,8 +318,8 @@ Ziel: Eine optionale, eigenstaendige Spieler-Stats-Box zeigt live gelesene Prim�
 3. Verarbeitung: Die Box liest Attribute ueber `UnitStat`, Combat-Ratings ueber die verfuegbaren Rating-APIs und Prozentwerte ueber direkt verfuegbare Blizzard-Live-APIs. Fehlende Werte erzeugen keine Zeile.
 4. Regel: Secret Values duerfen fuer die Anzeige nur direkt via `string.format` in Text gewandelt werden; Lua-Arithmetik, `tonumber` oder Vergleiche auf diesen Werten sind verboten.
 5. Regel: Klassen mit eindeutigem Primärstat nutzen den live gelesenen Klassentoken; Hybridklassen zeigen den Primärstat nur, wenn die Spezialisierungs-ID exakt live gelesen wurde. Ohne belastbare Quelle bleibt die Primärstat-Zeile unsichtbar.
-6. Darstellung: Sichtbare Labels sind feste englische Kurzlabels (`Str`, `Agi`, `Int`, `Crit`, `Haste`, `Mast`, `Vers`, `Leech`, `Speed`). Labels, Werte und Prozentwerte sind rechtsbuendig, die Werte-Spalte behaelt fuer drei- und vierstellige Zahlen eine stabile kompakte Mindestbreite, die Prozent-Spalte bleibt breit genug fuer `(999.99%)`, und alle sichtbaren Texte nutzen feste Blizzard-like Farben sowie einen dunklen Textschatten ohne Outline.
-7. Settings: Der User kann die Box ein-/ausschalten, sperren, die Hintergrund-Deckkraft separat setzen und die Schriftgroesse inklusive Box-Geometrie ueber einen relativen Offset von `-3` bis `+3` anpassen.
+6. Darstellung: Sichtbare Labels sind feste englische Kurzlabels (`Str`, `Agi`, `Int`, `Crit`, `Haste`, `Mast`, `Vers`, `Leech`, `Speed`, `Dur`, `Avoid`). Labels, Werte und Prozentwerte sind rechtsbuendig, die Werte-Spalte behaelt fuer drei- und vierstellige Zahlen eine stabile kompakte Mindestbreite, die Prozent-Spalte bleibt breit genug fuer `(999.99%)`, und alle sichtbaren Texte nutzen feste Blizzard-like Farben sowie einen dunklen Textschatten ohne Outline.
+7. Settings: Der User kann die Box ein-/ausschalten, sperren, die Hintergrund-Deckkraft separat setzen, die Schriftgroesse inklusive Box-Geometrie ueber einen relativen Offset von `-3` bis `+3` anpassen, den Zahlenmodus auf Werte+Prozente, nur Werte oder nur Prozente setzen und Leech, Speed, Haltbarkeit, Ausdauer sowie Vermeidung einzeln ausblenden.
 8. Position: Die Box speichert ihre Position in `statsBoxPosition` und aendert die Main-UI-Position nicht.
 9. Screen-Clamp: Beim Ziehen bleibt die Stats-Box wie Main-UI, Center-Notice und Portal-Navigator am WoW-Sichtbereich geklemmt; der Fensterrand kann nicht ausserhalb des WoW-Fensters verschwinden.
 10. Erfolgskriterium: Die Box zeigt nur verifizierte Live-Werte, bleibt layout-unabhaengig bedienbar und kann nicht ausserhalb des WoW-Fensters gezogen werden.
@@ -347,7 +348,7 @@ Ziel: Eine optionale, eigenstaendige Spieler-Stats-Box zeigt live gelesene Prim�
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `1877` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `1892` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.

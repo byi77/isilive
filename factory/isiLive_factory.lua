@@ -198,6 +198,12 @@ local function FinalizeFactorySettings(ctx)
           statsBox.SetFontSizeOffset(offset)
         end
       end,
+      onStatsBoxOptionsChange = function()
+        local statsBox = ctx.addonTable and ctx.addonTable.StatsBox
+        if type(statsBox) == "table" and type(statsBox.ApplySettings) == "function" then
+          statsBox.ApplySettings()
+        end
+      end,
       onUiScaleChange = function(val)
         local logf = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil
         if logf then

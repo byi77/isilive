@@ -12,7 +12,7 @@ local function BuildLocale()
     DUNGEON_DIFF_RAID_UNKNOWN = "Raid",
     NON_MYTHIC_ENTERED = "Warning: Entered non-Mythic dungeon (%s).",
     RAID_ENTERED = "Entered raid: %s",
-    PORTAL_NAVIGATOR_TITLE = "Portal Navigator",
+    PORTAL_NAVIGATOR_TITLE = "isiLive - Portal Navigator",
     PORTAL_NAVIGATOR_HALF_LEFT = "Half left",
     PORTAL_NAVIGATOR_LEFT = "Left",
     PORTAL_NAVIGATOR_RIGHT = "Right",
@@ -21,7 +21,7 @@ local function BuildLocale()
     PORTAL_NAVIGATOR_TRIUMVIRATE = "Seat of the Triumvirate",
     PORTAL_NAVIGATOR_PIT_OF_SARON = "Pit of Saron",
     PORTAL_NAVIGATOR_ALGETHAR = "Algeth'ar Academy",
-    PORTAL_NAVIGATOR_TEXT = "Portal Navigator\n"
+    PORTAL_NAVIGATOR_TEXT = "isiLive - Portal Navigator\n"
       .. "Left: Skyreach\n"
       .. "Right: Seat of the Triumvirate\n"
       .. "Half left: Pit of Saron\n"

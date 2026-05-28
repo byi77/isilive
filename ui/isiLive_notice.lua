@@ -19,6 +19,9 @@ local preparePrivateTooltip = assert(
 local hidePrivateTooltip =
   assert(addonTable.UICommon and addonTable.UICommon.HidePrivateTooltip, "isiLive: UICommon.HidePrivateTooltip missing")
 
+local NOTICE_TITLE_COLOR_R, NOTICE_TITLE_COLOR_G, NOTICE_TITLE_COLOR_B = 1, 0.9, 0.45
+local NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B = 1, 0.82, 0.25
+
 -- Sandbox-safe GetTime read: WoW always exposes the global, but the test
 -- _G can omit it. Falling back to 0 keeps endsAt arithmetic numeric on a
 -- mocked _G; in WoW the function path is always taken.
@@ -54,7 +57,7 @@ local function BuildCenterNoticeConfig(opts)
     maxHeight = tonumber(opts.maxHeight) or 220,
     paddingX = tonumber(opts.paddingX) or 20,
     paddingY = tonumber(opts.paddingY) or 12,
-    buttonHeight = tonumber(opts.buttonHeight) or 36,
+    buttonHeight = tonumber(opts.buttonHeight) or 56,
     buttonGap = tonumber(opts.buttonGap) or 8,
     fontDelta = tonumber(opts.fontDelta) or 10,
     isInCombat = opts.isInCombat or function()
@@ -102,8 +105,8 @@ local function BuildPortalNavigatorConfig(opts)
     parent = opts.parent or UIParent,
     frameName = frameName,
     width = tonumber(opts.width) or 760,
-    height = tonumber(opts.height) or 240,
-    yOffset = tonumber(opts.yOffset) or tonumber(opts.height) or 240,
+    height = tonumber(opts.height) or 195,
+    yOffset = tonumber(opts.yOffset) or 210,
     frameAlpha = tonumber(opts.frameAlpha) or 1,
     backgroundAlpha = tonumber(opts.backgroundAlpha) or 0.72,
     fontDelta = tonumber(opts.fontDelta) or 10,
@@ -201,7 +204,7 @@ local function CreatePortalNavigatorTitle(frame, config)
   title:SetPoint("TOP", frame, "TOP", 0, -12)
   title:SetJustifyH("CENTER")
   title:SetJustifyV("TOP")
-  title:SetTextColor(1, 0.9, 0.45)
+  title:SetTextColor(NOTICE_TITLE_COLOR_R, NOTICE_TITLE_COLOR_G, NOTICE_TITLE_COLOR_B)
   return title
 end
 
@@ -213,13 +216,13 @@ local function CreatePortalNavigatorSeparator(frame)
   sep:SetHeight(1)
   sep:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -46)
   sep:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20, -46)
-  sep:SetColorTexture(1, 0.82, 0.25, 0.35)
+  sep:SetColorTexture(NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B, 0.35)
 end
 
 local PORTAL_NAVIGATOR_SLOT_POINTS = {
   half_left = { point = "TOPLEFT", x = 60, y = -78 },
-  left = { point = "LEFT", x = 60, y = -24 },
-  right = { point = "RIGHT", x = -60, y = -24 },
+  left = { point = "TOPLEFT", x = 60, y = -138 },
+  right = { point = "TOPRIGHT", x = -60, y = -138 },
   half_right = { point = "TOPRIGHT", x = -60, y = -78 },
 }
 
@@ -316,7 +319,7 @@ local function CreateCenterNoticeSubline(frame, config, position)
   end
   if position == "top" then
     -- Warm gold for "Joined" / status banners — matches PortalNavigator title color.
-    subline:SetTextColor(1, 0.82, 0.25)
+    subline:SetTextColor(NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B)
   else
     -- Muted grey for secondary context (group name, etc.).
     subline:SetTextColor(0.7, 0.7, 0.7)
@@ -341,9 +344,7 @@ local function CreateCenterNoticeTitle(frame, config)
   if title.SetNonSpaceWrap then
     title:SetNonSpaceWrap(false)
   end
-  -- Warm orange-red so the title reads as the dominant header while staying
-  -- distinct from the gold accent used on labels and the separator.
-  title:SetTextColor(1, 0.45, 0.2)
+  title:SetTextColor(NOTICE_TITLE_COLOR_R, NOTICE_TITLE_COLOR_G, NOTICE_TITLE_COLOR_B)
   title:Hide()
   return title
 end
@@ -356,13 +357,15 @@ local function CreateCenterNoticeTitleSeparator(frame)
   sep:SetHeight(1)
   -- Soft gold tint at 35% alpha — matches the PortalNavigator separator so
   -- the visual language across notice variants stays consistent.
-  sep:SetColorTexture(1, 0.82, 0.25, 0.35)
+  sep:SetColorTexture(NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B, 0.35)
   sep:Hide()
   return sep
 end
 
 local FIELD_LABEL_WIDTH = 130
 local MAX_FIELD_ROWS = 4
+local RICH_TELEPORT_BUTTON_SIZE = 64
+local RICH_TELEPORT_BUTTON_RIGHT_INSET = 72
 
 local function CreateCenterNoticeFieldRow(frame, config)
   local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -374,7 +377,7 @@ local function CreateCenterNoticeFieldRow(frame, config)
     label:SetNonSpaceWrap(false)
   end
   -- Gold accent for labels (Dungeon: / Gruppe: / ...).
-  label:SetTextColor(1, 0.82, 0.25)
+  label:SetTextColor(NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B)
   label:SetWidth(FIELD_LABEL_WIDTH)
   label:Hide()
 
@@ -403,7 +406,7 @@ local function CreateCenterNoticeTeleportHeader(frame, config)
   if header.SetNonSpaceWrap then
     header:SetNonSpaceWrap(false)
   end
-  header:SetTextColor(1, 0.82, 0.25)
+  header:SetTextColor(NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B)
   header:Hide()
   return header
 end
@@ -532,20 +535,48 @@ local function SetCenterNoticeTeleportButtonMouseEnabled(state, enabled)
   state.teleportButton:EnableMouse(shouldEnableMouse)
 end
 
-local function SetCenterNoticeTeleportButtonAnchor(state, yOffset)
+local function SetCenterNoticeTeleportButtonAnchor(state, yOffset, point, relativePoint, xOffset)
   if state.config.isInCombat() then
-    state.pendingTeleportButtonOffsetY = yOffset
+    state.pendingTeleportButtonAnchor = {
+      point = point or "TOP",
+      relativePoint = relativePoint or "TOP",
+      xOffset = tonumber(xOffset) or 0,
+      yOffset = yOffset,
+    }
     return
   end
 
-  state.pendingTeleportButtonOffsetY = nil
+  state.pendingTeleportButtonAnchor = nil
   state.teleportButton:ClearAllPoints()
-  state.teleportButton:SetPoint("TOP", state.frame, "TOP", 0, yOffset)
+  state.teleportButton:SetPoint(point or "TOP", state.frame, relativePoint or "TOP", tonumber(xOffset) or 0, yOffset)
+end
+
+local function SetCenterNoticeTeleportButtonSize(state, size)
+  local buttonSize = math.max(1, tonumber(size) or state.config.buttonHeight)
+  if state.config.isInCombat() then
+    state.pendingTeleportButtonSize = buttonSize
+    return
+  end
+
+  state.pendingTeleportButtonSize = nil
+  state.teleportButton:SetSize(buttonSize, buttonSize)
+  if state.teleportButton.icon and type(state.teleportButton.icon.ClearAllPoints) == "function" then
+    state.teleportButton.icon:ClearAllPoints()
+    state.teleportButton.icon:SetPoint("TOPLEFT", state.teleportButton, "TOPLEFT", 0, 0)
+    state.teleportButton.icon:SetPoint("BOTTOMRIGHT", state.teleportButton, "BOTTOMRIGHT", 0, 0)
+  end
+  if state.teleportButton.overlay and type(state.teleportButton.overlay.ClearAllPoints) == "function" then
+    state.teleportButton.overlay:ClearAllPoints()
+    state.teleportButton.overlay:SetPoint("TOPLEFT", state.teleportButton, "TOPLEFT", 0, 0)
+    state.teleportButton.overlay:SetPoint("BOTTOMRIGHT", state.teleportButton, "BOTTOMRIGHT", 0, 0)
+  end
 end
 
 local function ClearCenterNoticeTeleportButton(state)
   SetCenterNoticeTeleportButtonVisible(state, false)
-  state.pendingTeleportButtonOffsetY = nil
+  state.pendingTeleportButtonAnchor = nil
+  state.pendingTeleportButtonSize = nil
+  SetCenterNoticeTeleportButtonSize(state, state.config.buttonHeight)
   state.teleportButton.spellID = nil
   state.teleportButton.mapID = nil
   state.teleportButton.dungeonName = nil
@@ -674,6 +705,7 @@ local function ApplyLegacyCenterNoticeLayout(state, message, hasTeleportButton)
   state.frame:SetHeight(frameHeight)
 
   if hasTeleportButton then
+    SetCenterNoticeTeleportButtonSize(state, state.config.buttonHeight)
     -- Place button below center: half text height down + gap
     local textOffsetDown = math.ceil(textHeight / 2) + state.config.buttonGap
     SetCenterNoticeTeleportButtonAnchor(state, -textOffsetDown)
@@ -717,6 +749,7 @@ local function ApplyCenterNoticeStackLayout(state, message, hasSublineTop, hasSu
   state.frame:SetHeight(frameHeight)
 
   if hasTeleportButton then
+    SetCenterNoticeTeleportButtonSize(state, state.config.buttonHeight)
     local buttonOffset = stackHeight + state.config.buttonGap
     SetCenterNoticeTeleportButtonAnchor(state, -buttonOffset)
   end
@@ -747,10 +780,10 @@ local function HideRichCenterNoticeElements(state)
   end
 end
 
--- Rich info-card layout: [paddingY] [title] [separator] [gap] [field rows]
--- [gap] [teleportHeader] [buttonGap] [teleportButton] [paddingY]. Used by the
--- post-accept invite notice; the regular text body is hidden in this mode
--- because the field rows carry the structured payload instead.
+-- Rich info-card layout: structured text stays left/center while the teleport
+-- button sits larger in the free right-side action area. Used by the post-accept
+-- invite notice; the regular text body is hidden in this mode because the field
+-- rows carry the structured payload instead.
 local function ApplyCenterNoticeRichLayout(state, payload, hasTeleportButton)
   local innerWidth = state.frame:GetWidth() - (state.config.paddingX * 2)
   local paddingX = state.config.paddingX
@@ -820,15 +853,26 @@ local function ApplyCenterNoticeRichLayout(state, payload, hasTeleportButton)
     cursorY = cursorY + (state.teleportHeader:GetStringHeight() or 0) + lineGap
   end
 
-  local buttonExtraHeight = hasTeleportButton and (state.config.buttonHeight + state.config.buttonGap) or 0
+  local richButtonSize = RICH_TELEPORT_BUTTON_SIZE
+  local richButtonCenterY = -(paddingY + 76)
+  local richButtonRequiredHeight = hasTeleportButton
+      and math.abs(richButtonCenterY) + math.ceil(richButtonSize / 2) + paddingY
+    or 0
   local frameHeight = math.min(
     state.config.maxHeight,
-    math.max(state.config.minHeight, math.ceil(cursorY + paddingY + buttonExtraHeight))
+    math.max(state.config.minHeight, richButtonRequiredHeight, math.ceil(cursorY + paddingY))
   )
   state.frame:SetHeight(frameHeight)
 
   if hasTeleportButton then
-    SetCenterNoticeTeleportButtonAnchor(state, -(cursorY + state.config.buttonGap))
+    SetCenterNoticeTeleportButtonSize(state, richButtonSize)
+    SetCenterNoticeTeleportButtonAnchor(
+      state,
+      richButtonCenterY,
+      "CENTER",
+      "TOPRIGHT",
+      -RICH_TELEPORT_BUTTON_RIGHT_INSET
+    )
   end
 end
 
@@ -977,8 +1021,12 @@ local function ApplyPendingCenterNoticeTeleportButtonState(state)
   if state.config.isInCombat() then
     return
   end
-  if state.pendingTeleportButtonOffsetY ~= nil then
-    SetCenterNoticeTeleportButtonAnchor(state, state.pendingTeleportButtonOffsetY)
+  if state.pendingTeleportButtonAnchor ~= nil then
+    local anchor = state.pendingTeleportButtonAnchor
+    SetCenterNoticeTeleportButtonAnchor(state, anchor.yOffset, anchor.point, anchor.relativePoint, anchor.xOffset)
+  end
+  if state.pendingTeleportButtonSize ~= nil then
+    SetCenterNoticeTeleportButtonSize(state, state.pendingTeleportButtonSize)
   end
   if state.pendingTeleportButtonMouseEnabled ~= nil then
     SetCenterNoticeTeleportButtonMouseEnabled(state, state.pendingTeleportButtonMouseEnabled)
@@ -1094,7 +1142,7 @@ function Notice.CreateCenterNotice(opts)
     baseFontSize = tonumber(baseFontSize),
     baseFontFlags = baseFontFlags,
     pendingTeleportButtonMouseEnabled = nil,
-    pendingTeleportButtonOffsetY = nil,
+    pendingTeleportButtonAnchor = nil,
     pendingTeleportButtonVisible = nil,
   }
 

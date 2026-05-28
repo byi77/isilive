@@ -384,7 +384,7 @@ local function TryHandleTestCommands(ctx, L, state, cmd)
   return false
 end
 
-local function TryHandleStateCommands()
+local function TryHandleStateCommands(_ctx, _L, _state, _cmd)
   return false
 end
 
@@ -410,7 +410,7 @@ local function TryHandleLockCommands(ctx, L, cmd)
   return false
 end
 
-local function TryHandleInfoCommands()
+local function TryHandleInfoCommands(_ctx, _L, _cmd)
   return false
 end
 

@@ -39,7 +39,7 @@ local function BuildGlobalsEnv(state)
     GetRealmName = function()
       return "Realm"
     end,
-    IsiLiveDB = {},
+    IsiLiveDB = state.db,
     CreateFrame = function()
       local frame = {
         scripts = {},
@@ -336,7 +336,6 @@ local function BuildControllerContext(state, addon, initial)
         INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON = "Dungeon:",
         INVITE_ACCEPTED_NOTICE_LABEL_GROUP = "Group:",
         INVITE_ACCEPTED_NOTICE_LABEL_ROLE = "Role:",
-        INVITE_ACCEPTED_NOTICE_TELEPORT_HEADER = "Teleport:",
         PORTAL_NAVIGATOR_TITLE = "Navigator",
         PORTAL_NAVIGATOR_HALF_LEFT = "Half-left",
         PORTAL_NAVIGATOR_LEFT = "Left",
@@ -456,6 +455,7 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
     roster = initial.roster or {
       player = { name = "Player", realm = "Realm" },
     },
+    db = initial.db or {},
   }
 
   local kickInfo = BuildDefaultKickInfo(initial)
@@ -582,6 +582,12 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     state.afterCallbacks[1]()
     Assert.NotNil(state.cdTrackerDemoData, "test mode must populate combat cooldown demo data")
     Assert.NotNil(state.statsBoxDemoData, "test mode must populate stats-box demo data")
+    Assert.Equal(state.statsBoxDemoData[2].key, "stamina", "stats-box demo data must include stamina")
+    Assert.Equal(state.statsBoxDemoData[7].key, "leech", "stats-box demo data must include Leech")
+    Assert.Equal(state.statsBoxDemoData[7].percent, 3.27, "stats-box Leech demo percent must be explicit")
+    Assert.Equal(state.statsBoxDemoData[8].key, "speed", "stats-box Speed demo row must remain after Leech")
+    Assert.Equal(state.statsBoxDemoData[9].key, "durability", "stats-box demo data must include durability")
+    Assert.Equal(state.statsBoxDemoData[10].key, "avoidance", "stats-box demo data must include avoidance")
     Assert.True(state.statsBoxEnabled == true, "test mode must enable the stats box surface")
     Assert.True(state.lfgFlagsEnabled == true, "test mode must enable LFG language flags")
     Assert.True(state.lfgGroupBonusesEnabled == true, "test mode must enable LFG group-bonus markers")
@@ -594,6 +600,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.NotNil(state.centerNotice, "test mode must show the accepted-invite center notice demo")
     Assert.Equal(state.centerNotice.dungeonName, "Nexus-Point Xenas", "center notice demo must use the demo target")
     Assert.Equal(state.centerNotice.opts.teleportMapID, 559, "center notice demo must configure a verified map portal")
+    Assert.Nil(state.centerNotice.opts.teleportLabel, "center notice demo must omit the redundant teleport header")
 
     state.ctx.ExitTestMode()
     Assert.Nil(state.mplusDemoData, "test mode exit must clear M+ timer demo data")
@@ -604,6 +611,47 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Equal(state.statsBoxDemoCleared, 1, "stats-box demo data must be cleared once")
     Assert.False(state.mobNameplateTestMode, "test mode exit must disable nameplate forces demo mode")
     Assert.False(state.portalNavigatorVisible, "test mode exit must hide the portal navigator demo")
+  end)
+
+  test("Factory test mode does not resize the stats box font setting", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mainFrameShown = true,
+      db = {
+        statsBoxFontSizeOffset = -2,
+      },
+    })
+
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.ctx.EnterFullDummyPreview()
+    end)
+
+    Assert.Equal(state.db.statsBoxFontSizeOffset, -2, "demo mode must not override the stats-box font size")
+
+    state.ctx.ExitTestMode()
+    Assert.Equal(state.db.statsBoxFontSizeOffset, -2, "demo exit must preserve the user's stats-box font size")
+  end)
+
+  test("Factory test mode temporarily enables notice demo settings", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mainFrameShown = true,
+      db = {
+        acceptedInviteNoticeEnabled = false,
+        groupJoinNoticeEnabled = false,
+      },
+    })
+
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.ctx.EnterFullDummyPreview()
+    end)
+
+    Assert.True(state.db.acceptedInviteNoticeEnabled, "demo mode must enable accepted-invite notice preview")
+    Assert.True(state.db.groupJoinNoticeEnabled, "demo mode must enable group-join target notice preview")
+
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.ctx.ExitTestMode()
+    end)
+    Assert.False(state.db.acceptedInviteNoticeEnabled, "demo exit must restore accepted-invite notice setting")
+    Assert.False(state.db.groupJoinNoticeEnabled, "demo exit must restore group-join target notice setting")
   end)
 end
 

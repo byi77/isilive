@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 2026-05-28 - Version 0.9.286 (patch)
+## 2026-05-28 - Version 0.9.287 (patch)
 
 ### LFG
 
@@ -15,7 +15,43 @@
   guards, locale strings, and obsolete scenario file.
 - Kept the active LFGDetect invite/accepted-notice path intact and added
   architecture coverage that the removed invite-list modules stay absent.
-- Updated the current release-gate scenario baseline to `1877` scenarios.
+- Enlarged the accepted-invite centerbox portal button, moved it into the
+  right-side action area, and removed the redundant teleport header text plus
+  its unused locale key.
+- Added a separate `Group-join target notice` setting for the verified
+  group-join fallback center notice, independent from `Accepted-invite notice`.
+- Tightened the Portal Navigator window height and anchored both portal rows
+  from the top so the notice no longer carries excessive empty space at the
+  bottom.
+- Added the active headline-title rule: Center Notice and Portal Navigator
+  titles must start with `isiLive - ` and render in the shared warm gold
+  title color.
+- Added Leech to the StatsBox demo rows so enabling demo mode no longer hides
+  that stat while preview data is active.
+- Stopped the StatsBox demo preview from overriding the user's font-size
+  offset, so enabling demo mode no longer scales the box larger.
+- Demo mode now temporarily enables both `Accepted-invite notice` and
+  `Group-join target notice` so both notice previews remain visible even when
+  the user's normal settings are disabled, then restores those settings on
+  demo exit.
+- Added StatsBox detail settings for Leech, Speed, Durability, Stamina, and
+  Avoidance, plus a display mode for values and percentages together or each on
+  its own.
+- The StatsBox now reads Stamina, Durability, and Avoidance from direct live
+  APIs only; percent-only mode hides rows without a verified percent instead of
+  inventing one.
+- Added subtle one-pixel child-group separators inside the settings panel while
+  keeping the existing blue separators for major topic changes.
+- Removed the StatsBox-internal separator again so the StatsBox base controls
+  and detail controls read as one coherent block.
+- Fixed the Settings language selector layout so the language buttons sit below
+  the description text instead of overlapping it.
+- Made Settings section headers larger and more dominant with the shared warm
+  gold title color.
+- Documented the next thematic Settings ordering for General, ESC menu,
+  Display subgroups, Behavior, Nameplates, Sounds, Chat, and Administrative
+  actions.
+- Updated the current release-gate scenario baseline to `1892` scenarios.
 
 ## 2026-05-27 - Version 0.9.285 (patch)
 

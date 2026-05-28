@@ -572,6 +572,196 @@ return function(test, ctx)
     end)
   end)
 
+  test("StatsBox renders stamina durability and avoidance from direct APIs", function()
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = {
+        statsBoxEnabled = true,
+        statsBoxShowStamina = true,
+        statsBoxShowAvoidance = true,
+      },
+      CreateFrame = BuildCreateFrameStub(),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local rows = addon.StatsBox.CollectPlayerStats({
+        UnitStat = function(_unit, statIndex)
+          if statIndex == 2 then
+            return 0, 515
+          end
+          if statIndex == 3 then
+            return 0, 6812
+          end
+          return nil
+        end,
+        UnitClass = function()
+          return "Hunter", "HUNTER"
+        end,
+        GetInventoryItemDurability = function(slot)
+          if slot == 1 then
+            return 80, 100
+          end
+          if slot == 2 then
+            return 20, 50
+          end
+          return nil, nil
+        end,
+        GetCombatRating = function(ratingID)
+          if ratingID == 40 then
+            return 412
+          end
+          return nil
+        end,
+        GetCombatRatingBonus = function(ratingID)
+          if ratingID == 40 then
+            return 5.18
+          end
+          return nil
+        end,
+        CR_AVOIDANCE = 40,
+      })
+
+      local found = {}
+      for _, row in ipairs(rows) do
+        found[row.key] = row
+      end
+
+      Assert.Equal(found.stamina.value, 6812, "stamina must come from UnitStat(3)")
+      Assert.Equal(found.durability.valueText, "100", "durability must show the summed current durability")
+      Assert.True(
+        math.abs(found.durability.percent - ((100 / 150) * 100)) < 0.0001,
+        "durability percent must come from summed durability"
+      )
+      Assert.Equal(found.avoidance.value, 412, "avoidance value must come from GetCombatRating(CR_AVOIDANCE)")
+      Assert.Equal(found.avoidance.percent, 5.18, "avoidance percent must come from GetCombatRatingBonus(CR_AVOIDANCE)")
+    end)
+  end)
+
+  test("StatsBox optional row toggles suppress configured rows", function()
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = {
+        statsBoxEnabled = true,
+        statsBoxShowLeech = false,
+        statsBoxShowSpeed = false,
+        statsBoxShowDurability = false,
+        statsBoxShowStamina = false,
+        statsBoxShowAvoidance = false,
+      },
+      CreateFrame = BuildCreateFrameStub(),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local rows = addon.StatsBox.CollectPlayerStats({
+        UnitStat = function(_unit, statIndex)
+          if statIndex == 3 then
+            return 0, 6812
+          end
+          return nil
+        end,
+        GetCombatRating = function(_ratingID)
+          return 123
+        end,
+        GetCombatRatingBonus = function(_ratingID)
+          return 7.5
+        end,
+        GetInventoryItemDurability = function()
+          return 10, 10
+        end,
+        CR_LIFESTEAL = 1,
+        CR_SPEED = 2,
+        CR_AVOIDANCE = 3,
+      })
+
+      for _, row in ipairs(rows) do
+        Assert.True(row.key ~= "stamina", "disabled stamina row must stay hidden")
+        Assert.True(row.key ~= "leech", "disabled leech row must stay hidden")
+        Assert.True(row.key ~= "speed", "disabled speed row must stay hidden")
+        Assert.True(row.key ~= "durability", "disabled durability row must stay hidden")
+        Assert.True(row.key ~= "avoidance", "disabled avoidance row must stay hidden")
+      end
+    end)
+  end)
+
+  test("StatsBox optional row defaults show leech speed and durability only", function()
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = {
+        statsBoxEnabled = true,
+      },
+      CreateFrame = BuildCreateFrameStub(),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local rows = addon.StatsBox.CollectPlayerStats({
+        UnitStat = function(_unit, statIndex)
+          if statIndex == 3 then
+            return 0, 6812
+          end
+          return nil
+        end,
+        GetCombatRating = function(ratingID)
+          return ratingID * 10
+        end,
+        GetCombatRatingBonus = function(ratingID)
+          return ratingID
+        end,
+        GetInventoryItemDurability = function(slot)
+          if slot == 1 then
+            return 10, 20
+          end
+          return nil, nil
+        end,
+        CR_LIFESTEAL = 1,
+        CR_SPEED = 2,
+        CR_AVOIDANCE = 3,
+      })
+
+      local found = {}
+      for _, row in ipairs(rows) do
+        found[row.key] = row
+      end
+
+      Assert.NotNil(found.leech, "leech must be enabled by default")
+      Assert.NotNil(found.speed, "speed must be enabled by default")
+      Assert.NotNil(found.durability, "durability must be enabled by default")
+      Assert.Nil(found.stamina, "stamina must be disabled by default")
+      Assert.Nil(found.avoidance, "avoidance must be disabled by default")
+    end)
+  end)
+
+  test("StatsBox display mode renders values only or percentages only", function()
+    local createFrameStub = BuildCreateFrameStub()
+    local db = {
+      statsBoxEnabled = true,
+      statsBoxDisplayMode = "percent",
+    }
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          return {
+            { key = "strength", label = "Str", value = 4210 },
+            { key = "crit", label = "Crit", value = 1824, percent = 24.85 },
+          }
+        end,
+      })
+
+      Assert.Equal(box.lines[1].label._text, "Crit", "percent-only mode must skip rows without percent")
+      Assert.Equal(box.lines[1].value._text, "", "percent-only mode must hide the value text")
+      Assert.Equal(box.lines[1].percent._text, "(24.85%)", "percent-only mode must keep percent text visible")
+
+      db.statsBoxDisplayMode = "value"
+      box.ApplySettings()
+      Assert.Equal(box.lines[1].label._text, "Str", "value-only mode should render rows with values")
+      Assert.Equal(box.lines[1].value._text, "4210", "value-only mode must keep value text visible")
+      Assert.Equal(box.lines[1].percent._text, "", "value-only mode must hide percent text")
+    end)
+  end)
+
   test("StatsBox applies Blizzard-like fixed stat colors", function()
     WithGlobals({
       UIParent = {},
@@ -641,7 +831,10 @@ return function(test, ctx)
         UnitClass = function()
           return "Warrior", "WARRIOR"
         end,
-        UnitStat = function()
+        UnitStat = function(_unit, statIndex)
+          if statIndex ~= 1 then
+            return nil
+          end
           return nil, secretPrimary
         end,
         GetCombatRating = function(ratingID)

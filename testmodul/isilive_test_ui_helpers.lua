@@ -2,11 +2,23 @@ local function CreateTextureStub()
   return {
     hidden = false,
     SetAllPoints = function() end,
-    SetHeight = function() end,
-    SetWidth = function() end,
-    SetSize = function() end,
-    SetPoint = function() end,
-    SetColorTexture = function() end,
+    SetHeight = function(self, height)
+      self._height = tonumber(height) or height
+    end,
+    SetWidth = function(self, width)
+      self._width = tonumber(width) or width
+    end,
+    SetSize = function(self, width, height)
+      self._width = tonumber(width) or width
+      self._height = tonumber(height) or height
+    end,
+    SetPoint = function(self, ...)
+      self._points = self._points or {}
+      table.insert(self._points, { ... })
+    end,
+    SetColorTexture = function(self, ...)
+      self._color = { ... }
+    end,
     SetTexture = function(self, texture)
       self._texture = texture
     end,
@@ -283,8 +295,13 @@ local function ApplyFrameMethods(frame)
   frame.GetAlpha = function(self)
     return self._alpha
   end
-  frame.CreateTexture = function()
-    return CreateTextureStub()
+  frame.CreateTexture = function(self)
+    local texture = CreateTextureStub()
+    if type(self) == "table" then
+      self._textures = self._textures or {}
+      table.insert(self._textures, texture)
+    end
+    return texture
   end
   frame.CreateFontString = function(self, _name, _layer, fontObject)
     local fontString = CreateFontStringStub(fontObject)

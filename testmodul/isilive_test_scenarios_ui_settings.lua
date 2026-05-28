@@ -610,6 +610,290 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
     end)
   end)
 
+  test("Settings panel exposes stats box detail checkboxes and display mode", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {
+      statsBoxDisplayMode = "value",
+      statsBoxShowLeech = true,
+      statsBoxShowSpeed = false,
+      statsBoxShowDurability = true,
+      statsBoxShowStamina = true,
+      statsBoxShowAvoidance = true,
+    }
+    local optionChanges = 0
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
+            SETTINGS_STATS_BOX_DISPLAY_MODE = "Stats box numbers",
+            SETTINGS_STATS_BOX_DISPLAY_MODE_BOTH = "Values + percentages",
+            SETTINGS_STATS_BOX_DISPLAY_MODE_VALUE = "Values only",
+            SETTINGS_STATS_BOX_DISPLAY_MODE_PERCENT = "Percentages only",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+        onStatsBoxOptionsChange = function()
+          optionChanges = optionChanges + 1
+        end,
+      })
+
+      Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
+
+      local checks = {}
+      local percentButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._frameType == "CheckButton" and type(frame._settingKey) == "string" then
+          checks[frame._settingKey] = frame
+        end
+        if frame._frameType == "Button" and frame._optionValue == "percent" then
+          percentButton = frame
+        end
+      end
+
+      Assert.NotNil(checks.SETTINGS_STATS_BOX_SHOW_LEECH, "stats-box details should include Leech checkbox")
+      Assert.NotNil(checks.SETTINGS_STATS_BOX_SHOW_SPEED, "stats-box details should include Speed checkbox")
+      Assert.NotNil(checks.SETTINGS_STATS_BOX_SHOW_DURABILITY, "stats-box details should include durability checkbox")
+      Assert.NotNil(checks.SETTINGS_STATS_BOX_SHOW_STAMINA, "stats-box details should include stamina checkbox")
+      Assert.NotNil(checks.SETTINGS_STATS_BOX_SHOW_AVOIDANCE, "stats-box details should include avoidance checkbox")
+      Assert.False(checks.SETTINGS_STATS_BOX_SHOW_SPEED:GetChecked(), "Speed checkbox should reflect disabled DB state")
+
+      checks.SETTINGS_STATS_BOX_SHOW_SPEED:SetChecked(true)
+      checks.SETTINGS_STATS_BOX_SHOW_SPEED._scripts.OnClick(checks.SETTINGS_STATS_BOX_SHOW_SPEED)
+      Assert.True(db.statsBoxShowSpeed, "checking Speed should persist true to DB")
+      Assert.Equal(optionChanges, 1, "checking one stats-box detail should refresh the live stats box")
+
+      percentButton = Assert.NotNil(percentButton, "stats-box display mode should expose a percent option")
+      percentButton._scripts.OnClick(percentButton)
+      Assert.Equal(db.statsBoxDisplayMode, "percent", "percent mode button should persist the display mode")
+      Assert.Equal(optionChanges, 2, "changing display mode should refresh the live stats box")
+    end)
+  end)
+
+  test("Settings display section separates child groups with thin non-blue lines", function()
+    local createFrameStub = BuildCreateFrameStub()
+    local db = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" }, {
+        UICommon = {
+          Colors = {
+            TEXT_DIM = { 0.5, 0.5, 0.6 },
+            TEXT_NORMAL = { 0.85, 0.85, 0.9 },
+            ACCENT_BLUE = { 0.1, 0.2, 0.8 },
+            BORDER_DEFAULT = { 0.2, 0.22, 0.28, 0.5 },
+          },
+        },
+      })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+      })
+
+      local textures = Assert.NotNil(panel.content, "settings panel should expose content")._textures or {}
+      local childSeparators = 0
+      local sectionSeparators = 0
+      for _, texture in ipairs(textures) do
+        if texture._isiLiveSettingsSeparator == "child" then
+          childSeparators = childSeparators + 1
+          Assert.Equal(texture._height, 1, "child separator must be a thin one-pixel line")
+          Assert.Equal(texture._color[1], 0.35, "child separator should use the subtle border color")
+          Assert.Equal(texture._color[4], 0.28, "child separator should stay visually lighter than section lines")
+        elseif texture._isiLiveSettingsSeparator == "section" then
+          sectionSeparators = sectionSeparators + 1
+          Assert.Equal(texture._height, 2, "section separator should keep the existing heavier blue line")
+          Assert.Equal(texture._color[1], 0.3, "section separator should keep the accent-blue red channel")
+          Assert.Equal(texture._color[4], 0.42, "section separator should keep the existing blue alpha")
+        end
+      end
+
+      Assert.True(childSeparators >= 2, "display settings should separate distinct child groups with thin lines")
+      Assert.True(sectionSeparators >= 2, "main settings topics should keep their blue section separators")
+    end)
+  end)
+
+  test("Settings section headers use the dominant gold title style", function()
+    local createFrameStub = BuildCreateFrameStub()
+    local db = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+      })
+
+      local generalHeader = nil
+      for _, fontString in ipairs(panel.content._fontStrings or {}) do
+        if fontString:GetText() == "General" then
+          generalHeader = fontString
+          break
+        end
+      end
+
+      generalHeader = Assert.NotNil(generalHeader, "settings panel should render the General section header")
+      Assert.Equal(generalHeader._fontObject, "GameFontNormal", "section headers should use the larger title font")
+      local r, g, b, a = generalHeader:GetTextColor()
+      Assert.Equal(r, 1, "section headers should use the shared warm-gold red channel")
+      Assert.Equal(g, 0.82, "section headers should use the shared warm-gold green channel")
+      Assert.Equal(b, 0, "section headers should use the shared warm-gold blue channel")
+      Assert.Equal(a, 1, "section headers should be fully opaque")
+    end)
+  end)
+
+  test("Settings language buttons sit below the language description", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_languages.lua", "isiLive_settings.lua" })
+      local panel = addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_GENERAL = "General",
+            SETTINGS_SECTION_DISPLAY = "Display",
+            SETTINGS_SECTION_DEBUG = "Debug",
+            SETTINGS_LANGUAGE = "Language",
+            SETTINGS_LANGUAGE_DESC = "Changes the isiLive addon language.",
+            SETTINGS_COMBAT_LOGGING = "Combat Logging",
+            SETTINGS_DM_RESET = "DM Reset",
+            SETTINGS_ESC_PANEL = "ESC Panel",
+            SETTINGS_BG_ALPHA = "Background Opacity",
+            SETTINGS_QUEUE_DEBUG = "Queue Debug",
+            SETTINGS_RUNTIME_LOG = "Runtime Log",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+      })
+
+      local description = nil
+      for _, fontString in ipairs(panel.content._fontStrings or {}) do
+        if fontString:GetText() == "Changes the isiLive addon language." then
+          description = fontString
+          break
+        end
+      end
+
+      local firstLanguageButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._frameType == "Button" and frame._languageTag == "enUS" then
+          firstLanguageButton = frame
+          break
+        end
+      end
+
+      description = Assert.NotNil(description, "language description should be rendered")
+      firstLanguageButton = Assert.NotNil(firstLanguageButton, "English language button should be rendered")
+      local descriptionBottom = description._point[5] - description:GetStringHeight()
+      Assert.True(
+        firstLanguageButton._point[5] <= descriptionBottom - 4,
+        "language buttons must be placed below the description text"
+      )
+      Assert.Equal(firstLanguageButton._point[4], 16, "language buttons must start at the settings row left edge")
+    end)
+  end)
+
   test("Settings panel lets the user choose the default layout on open", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}
@@ -2384,11 +2668,11 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       )
       Assert.Equal(
         checkboxCount,
-        34,
+        40,
         "settings should hide only the legacy name-length"
           .. " and teleport-column controls while keeping the startup/key-end, navigator, sound,"
           .. " chat-announce, combat-fade, nameplate-subtoggle,"
-          .. " accepted-invite-notice, LFG class-bonus, stats-box toggles, VIP sound toggles,"
+          .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows, VIP sound toggles,"
           .. " and the two auto-close split checkboxes visible"
           .. " (M+ forces tooltip/nameplate toggles replaced by a single 3-way display-mode selector)"
       )
@@ -2397,10 +2681,10 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 7, "refresh should keep the stats-box and nameplate sliders visible")
       Assert.Equal(
         checkboxCount,
-        34,
+        40,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
           .. " while preserving the visible sound, chat-announce, combat-fade, nameplate-subtoggle,"
-          .. " accepted-invite-notice, LFG class-bonus, stats-box toggles, VIP sound toggles,"
+          .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows, VIP sound toggles,"
           .. " and the two auto-close split checkboxes"
       )
     end)

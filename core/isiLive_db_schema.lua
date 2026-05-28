@@ -126,6 +126,12 @@ local SCHEMA = {
   statsBoxLocked = { type = "boolean", default = false },
   statsBoxBgAlpha = { type = "number", default = 0.0, min = 0.0, max = 1.0 },
   statsBoxFontSizeOffset = { type = "number", default = 0, min = -3, max = 3 },
+  statsBoxDisplayMode = { type = "string", default = "both", enum = { "both", "value", "percent" } },
+  statsBoxShowLeech = { type = "boolean", default = true },
+  statsBoxShowSpeed = { type = "boolean", default = true },
+  statsBoxShowDurability = { type = "boolean", default = true },
+  statsBoxShowStamina = { type = "boolean", default = false },
+  statsBoxShowAvoidance = { type = "boolean", default = false },
 
   -- Locale + addon-level toggles.
   locale = { type = "string", default = "enUS" },
@@ -174,6 +180,7 @@ local SCHEMA = {
   tooltipFlagsEnabled = { type = "boolean", default = true },
   inviteHintEnabled = { type = "boolean", default = true },
   acceptedInviteNoticeEnabled = { type = "boolean", default = true },
+  groupJoinNoticeEnabled = { type = "boolean", default = true },
 
   -- Mob nameplate / forces overlay.
   mobNameplateEnabled = { type = "boolean", default = true },

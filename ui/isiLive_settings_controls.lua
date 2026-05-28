@@ -17,8 +17,8 @@ local ShowResetConfirmation = addonTable.SettingsReset
 
 local PADDING_X = 16
 local LINE_HEIGHT = 28
-local HEADER_HEIGHT = 20
-local HEADER_LINE_GAP = 4
+local HEADER_HEIGHT = 24
+local HEADER_LINE_GAP = 6
 local LANG_BUTTON_WIDTH = 90
 local LANG_BUTTON_HEIGHT = 22
 local SLIDER_WIDTH = 180
@@ -50,9 +50,9 @@ local function ConfigureWrappingText(region, width, wordWrap)
 end
 
 function SettingsControls.CreateSectionHeader(parent, yOffset, text)
-  local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  local td = Colors.TEXT_DIM or { 0.5, 0.5, 0.6 }
-  header:SetTextColor(td[1], td[2], td[3], 1)
+  local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  local gold = Colors.ACCENT_GOLD or { 1, 0.82, 0 }
+  header:SetTextColor(gold[1], gold[2], gold[3], 1)
   header:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset)
   header:SetJustifyH("LEFT")
   header:SetText(text or "")
@@ -62,7 +62,19 @@ function SettingsControls.CreateSectionHeader(parent, yOffset, text)
   line:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PADDING_X, yOffset - HEADER_HEIGHT)
   local ab = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
   line:SetColorTexture(ab[1], ab[2], ab[3], 0.42)
+  line._isiLiveSettingsSeparator = "section"
   return header, yOffset - HEADER_HEIGHT - HEADER_LINE_GAP
+end
+
+function SettingsControls.CreateChildSeparator(parent, yOffset)
+  local line = parent:CreateTexture(nil, "ARTWORK")
+  line:SetHeight(1)
+  line:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset - 5)
+  line:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PADDING_X, yOffset - 5)
+  local bd = Colors.BORDER_DEFAULT or { 0.25, 0.25, 0.35, 0.5 }
+  line:SetColorTexture(bd[1], bd[2], bd[3], 0.28)
+  line._isiLiveSettingsSeparator = "child"
+  return line, yOffset - 14
 end
 
 function SettingsControls.MeasureWrappedTextHeight(textRegion, fallbackHeight, padding)
@@ -509,15 +521,23 @@ function SettingsControls.CreateLanguageSelector(
   local supported = addonTable.Languages and addonTable.Languages.SUPPORTED or {}
   local buttons = {}
   local rowIndex = 0
+  local labelBlockHeight = GetTextBlockHeight(label, 20)
+  local descriptionBlockHeight = description and GetTextBlockHeight(description, 16) or 0
+  local buttonRowGap = 3
+  local buttonStartY = yOffset - 1
+  if description then
+    buttonStartY = yOffset - labelBlockHeight - 8 - descriptionBlockHeight - 6
+  end
 
   for i, lang in ipairs(supported) do
     local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
     btn:SetSize(LANG_BUTTON_WIDTH, LANG_BUTTON_HEIGHT)
+    btn._settingKey = "SETTINGS_LANGUAGE"
+    btn._languageTag = lang.tag
     local posInRow = (i - 1) % LANG_BUTTONS_PER_ROW
     if posInRow == 0 then
-      local rowYOffset = description and (GetRowHeight(label, description, 20) - LINE_HEIGHT + 5) or 0
-      local rowY = yOffset - 1 - rowYOffset - (math.floor((i - 1) / LANG_BUTTONS_PER_ROW) * (LANG_BUTTON_HEIGHT + 3))
-      btn:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X + 120, rowY)
+      local rowY = buttonStartY - (math.floor((i - 1) / LANG_BUTTONS_PER_ROW) * (LANG_BUTTON_HEIGHT + buttonRowGap))
+      btn:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, rowY)
     else
       btn:SetPoint("LEFT", buttons[#buttons].btn, "RIGHT", 2, 0)
     end
@@ -547,8 +567,9 @@ function SettingsControls.CreateLanguageSelector(
   end
 
   local numRows = rowIndex + 1
-  local totalHeight = (numRows * LINE_HEIGHT)
-    + (description and GetRowHeight(label, description, 20) - LINE_HEIGHT or 0)
+  local buttonRowsHeight = (numRows * LANG_BUTTON_HEIGHT) + math.max(0, numRows - 1) * buttonRowGap
+  local totalHeight = description and (labelBlockHeight + 8 + descriptionBlockHeight + 6 + buttonRowsHeight + 8)
+    or math.max(LINE_HEIGHT, buttonRowsHeight + 4)
 
   local function UpdateHighlight()
     local current = type(getCurrentLocale) == "function" and getCurrentLocale() or "enUS"
@@ -565,7 +586,7 @@ function SettingsControls.CreateLanguageSelector(
   end
 
   for _, entry in ipairs(buttons) do
-    local existingScript = entry.btn:GetScript("OnClick")
+    local existingScript = type(entry.btn.GetScript) == "function" and entry.btn:GetScript("OnClick") or nil
     entry.btn:SetScript("OnClick", function()
       if existingScript then
         existingScript()

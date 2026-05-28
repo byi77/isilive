@@ -65,6 +65,7 @@ local function ResolveSettingsOptions(opts)
     onStatsBoxLockToggle = opts.onStatsBoxLockToggle,
     onStatsBoxBgAlphaChange = opts.onStatsBoxBgAlphaChange,
     onStatsBoxFontSizeOffsetChange = opts.onStatsBoxFontSizeOffsetChange,
+    onStatsBoxOptionsChange = opts.onStatsBoxOptionsChange,
     onUiScaleChange = opts.onUiScaleChange,
     onSyncToggle = opts.onSyncToggle,
     onMinimapButtonToggle = opts.onMinimapButtonToggle,

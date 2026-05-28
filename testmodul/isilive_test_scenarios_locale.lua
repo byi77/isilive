@@ -147,6 +147,27 @@ return function(test, ctx)
     Assert.Equal(locales.deDE.TITLE, "isiLive", "deDE TITLE must be present")
   end)
 
+  test("Locale center-notice titles use isiLive prefix in every locale", function()
+    local addon = LoadAddonModules({ "isiLive_texts.lua" })
+    local locales = addon.Texts.GetLocaleTables()
+    local titleKeys = {
+      "PORTAL_NAVIGATOR_TITLE",
+      "INVITE_ACCEPTED_NOTICE_TITLE",
+      "INVITE_ACCEPTED_RAID_NOTICE_TITLE",
+    }
+
+    for localeName, localeTable in pairs(locales) do
+      for _, key in ipairs(titleKeys) do
+        local value = localeTable[key]
+        Assert.Equal(type(value), "string", localeName .. "." .. key .. " must be a string title")
+        Assert.True(
+          value:find("isiLive - ", 1, true) == 1,
+          localeName .. "." .. key .. ' must start with "isiLive - ": ' .. tostring(value)
+        )
+      end
+    end
+  end)
+
   test("Locale tag resolver returns enUS as default fallback", function()
     local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua" })
 
@@ -283,6 +304,13 @@ return function(test, ctx)
       "Passt die Textgroesse der Statsbox an.",
       "deDE stats-box font-size description must not fall back to English"
     )
+    Assert.Equal(
+      deDE.SETTINGS_STATS_BOX_DISPLAY_MODE_DESC,
+      "Waehlt, ob die Statsbox Werte, Prozente oder beides anzeigt.",
+      "deDE stats-box display-mode description must not fall back to English"
+    )
+    Assert.Equal(deDE.SETTINGS_STATS_BOX_SHOW_DURABILITY, "Haltbarkeit", "deDE durability setting label")
+    Assert.Equal(deDE.SETTINGS_STATS_BOX_SHOW_STAMINA, "Ausdauer", "deDE stamina setting label")
   end)
 
   test("Locale LFG group-bonus settings strings support prepared fallbacks and post-edited translations", function()

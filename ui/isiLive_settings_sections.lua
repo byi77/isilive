@@ -26,6 +26,7 @@ local FALLBACK_LFG_GROUP_BONUSES_DESC = "Shows green hearts for relevant non-sta
 local DEFAULT_BG_ALPHA = addonTable.UICommon and addonTable.UICommon.DEFAULT_BG_ALPHA or 0.50
 
 local CreateSectionHeader = addonTable.SettingsControls.CreateSectionHeader
+local CreateChildSeparator = addonTable.SettingsControls.CreateChildSeparator
 local CreateSectionNote = addonTable.SettingsControls.CreateSectionNote
 local CreateSettingsCheckbox = addonTable.SettingsControls.CreateSettingsCheckbox
 local CreateSettingsSlider = addonTable.SettingsControls.CreateSettingsSlider
@@ -74,12 +75,83 @@ local STATS_BOX_SETTING_LABELS = {
     locked = "Lock player stats box position",
     alpha = "Stats box background opacity",
     fontSize = "Stats box font size",
+    displayMode = "Stats box numbers",
+    leech = "Leech",
+    speed = "Speed",
+    durability = "Durability",
+    stamina = "Stamina",
+    avoidance = "Avoidance",
   },
   deDE = {
     enabled = "Statsbox anzeigen",
     locked = "Position der Statsbox sperren",
     alpha = "Hintergrund-Deckkraft der Statsbox",
     fontSize = "Schriftgroesse der Statsbox",
+    displayMode = "Statsbox-Zahlen",
+    leech = "Leech",
+    speed = "Speed",
+    durability = "Haltbarkeit",
+    stamina = "Ausdauer",
+    avoidance = "Vermeidung",
+  },
+}
+
+local STATS_BOX_DISPLAY_MODE_OPTIONS = {
+  {
+    value = "both",
+    labelKey = "SETTINGS_STATS_BOX_DISPLAY_MODE_BOTH",
+    fallback = "Values + percentages",
+    width = 142,
+  },
+  {
+    value = "value",
+    labelKey = "SETTINGS_STATS_BOX_DISPLAY_MODE_VALUE",
+    fallback = "Values only",
+    width = 94,
+  },
+  {
+    value = "percent",
+    labelKey = "SETTINGS_STATS_BOX_DISPLAY_MODE_PERCENT",
+    fallback = "Percentages only",
+    width = 122,
+  },
+}
+
+local STATS_BOX_OPTIONAL_ROWS = {
+  {
+    control = "statsBoxShowLeech",
+    field = "statsBoxShowLeech",
+    labelKey = "leech",
+    settingKey = "SETTINGS_STATS_BOX_SHOW_LEECH",
+    default = true,
+  },
+  {
+    control = "statsBoxShowSpeed",
+    field = "statsBoxShowSpeed",
+    labelKey = "speed",
+    settingKey = "SETTINGS_STATS_BOX_SHOW_SPEED",
+    default = true,
+  },
+  {
+    control = "statsBoxShowDurability",
+    field = "statsBoxShowDurability",
+    labelKey = "durability",
+    settingKey = "SETTINGS_STATS_BOX_SHOW_DURABILITY",
+    default = true,
+  },
+  {
+    control = "statsBoxShowStamina",
+    field = "statsBoxShowStamina",
+    labelKey = "stamina",
+    settingKey = "SETTINGS_STATS_BOX_SHOW_STAMINA",
+    default = false,
+  },
+  {
+    control = "statsBoxShowAvoidance",
+    field = "statsBoxShowAvoidance",
+    labelKey = "avoidance",
+    settingKey = "SETTINGS_STATS_BOX_SHOW_AVOIDANCE",
+    default = false,
   },
 }
 
@@ -140,6 +212,19 @@ end
 local function GetStatsBoxSettingLabel(config, key)
   local labels = STATS_BOX_SETTING_LABELS[ResolveSettingsLocale(config)] or STATS_BOX_SETTING_LABELS.enUS
   return labels[key] or STATS_BOX_SETTING_LABELS.enUS[key] or key
+end
+
+local function NormalizeStatsBoxDisplayMode(mode)
+  if mode == "value" or mode == "percent" or mode == "both" then
+    return mode
+  end
+  return "both"
+end
+
+local function NotifyStatsBoxOptionsChanged(config)
+  if type(config.onStatsBoxOptionsChange) == "function" then
+    config.onStatsBoxOptionsChange()
+  end
 end
 
 local function GetCVarEnabled(name)
@@ -404,6 +489,8 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
     SettingDescriptionOptions(labels.SETTINGS_BG_ALPHA_DESC or "Adjusts the background opacity of the main window.")
   )
 
+  controls.statsBoxSeparator, yOffset = CreateChildSeparator(canvas, yOffset)
+
   controls.statsBoxEnabled, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
@@ -501,6 +588,55 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
       labels.SETTINGS_STATS_BOX_FONT_SIZE_OFFSET_DESC or "Adjusts the player stats box text size."
     )
   )
+
+  controls.statsBoxDisplayMode, yOffset = CreateSettingsOptionSelector(
+    canvas,
+    yOffset,
+    "SETTINGS_STATS_BOX_DISPLAY_MODE",
+    GetStatsBoxSettingLabel(config, "displayMode"),
+    STATS_BOX_DISPLAY_MODE_OPTIONS,
+    config.getL,
+    function()
+      local db = config.getDB()
+      return NormalizeStatsBoxDisplayMode(db.statsBoxDisplayMode)
+    end,
+    function(mode)
+      local db = config.getDB()
+      db.statsBoxDisplayMode = NormalizeStatsBoxDisplayMode(mode)
+      NotifyStatsBoxOptionsChanged(config)
+    end,
+    NormalizeStatsBoxDisplayMode,
+    true,
+    SettingDescriptionOptions(
+      labels.SETTINGS_STATS_BOX_DISPLAY_MODE_DESC
+        or "Chooses whether the stats box shows stat values, percentages, or both.",
+      { descriptionKey = "SETTINGS_STATS_BOX_DISPLAY_MODE_DESC" }
+    )
+  )
+
+  for _, option in ipairs(STATS_BOX_OPTIONAL_ROWS) do
+    controls[option.control], yOffset = CreateSettingsCheckbox(
+      canvas,
+      yOffset,
+      GetStatsBoxSettingLabel(config, option.labelKey),
+      function()
+        local db = config.getDB()
+        local value = db[option.field]
+        if value == nil then
+          return option.default == true
+        end
+        return value == true
+      end,
+      function(checked)
+        local db = config.getDB()
+        db[option.field] = checked == true
+        NotifyStatsBoxOptionsChanged(config)
+      end,
+      option.settingKey
+    )
+  end
+
+  controls.displayExtrasSeparator, yOffset = CreateChildSeparator(canvas, yOffset)
 
   if SHOW_NAME_MAX_CHARS_SETTING then
     controls.nameMaxChars, yOffset = CreateSettingsSlider(
@@ -670,6 +806,25 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
     )
   )
 
+  controls.groupJoinNotice, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_GROUP_JOIN_NOTICE_ENABLED or "Group-join target notice",
+    function()
+      local db = config.getDB()
+      return db.groupJoinNoticeEnabled ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.groupJoinNoticeEnabled = checked
+    end,
+    "SETTINGS_GROUP_JOIN_NOTICE_ENABLED",
+    CheckboxDescriptionOptions(
+      labels.SETTINGS_GROUP_JOIN_NOTICE_ENABLED_DESC
+        or "Shows the compact dungeon reminder when joining a group after an invite."
+    )
+  )
+
   return yOffset
 end
 
@@ -786,6 +941,26 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
       type(db.statsBoxFontSizeOffset) == "number" and db.statsBoxFontSizeOffset or 0
     )
   end
+  if controls.statsBoxDisplayMode then
+    SetControlDescription(
+      controls.statsBoxDisplayMode,
+      labels.SETTINGS_STATS_BOX_DISPLAY_MODE_DESC
+        or "Chooses whether the stats box shows stat values, percentages, or both."
+    )
+    controls.statsBoxDisplayMode.UpdateHighlight()
+  end
+  for _, option in ipairs(STATS_BOX_OPTIONAL_ROWS) do
+    local control = controls[option.control]
+    if control and control.label then
+      control.label:SetText(GetStatsBoxSettingLabel(config, option.labelKey)) -- i18n-ok
+      local value = db[option.field]
+      if value == nil then
+        control.check:SetChecked(option.default == true)
+      else
+        control.check:SetChecked(value == true)
+      end
+    end
+  end
   if controls.uiScale then
     controls.uiScale.label:SetText(labels.SETTINGS_UI_SCALE or "UI Scale")
     SetControlDescription(controls.uiScale, labels.SETTINGS_UI_SCALE_DESC or "Scales the main isiLive interface.")
@@ -856,5 +1031,14 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
       labels.SETTINGS_ACCEPTED_INVITE_NOTICE_ENABLED_DESC or "Opens a compact reminder after accepting an invite."
     )
     controls.acceptedInviteNotice.check:SetChecked(db.acceptedInviteNoticeEnabled ~= false)
+  end
+  if controls.groupJoinNotice then
+    controls.groupJoinNotice.label:SetText(labels.SETTINGS_GROUP_JOIN_NOTICE_ENABLED or "Group-join target notice")
+    SetCheckboxDescription(
+      controls.groupJoinNotice,
+      labels.SETTINGS_GROUP_JOIN_NOTICE_ENABLED_DESC
+        or "Shows the compact dungeon reminder when joining a group after an invite."
+    )
+    controls.groupJoinNotice.check:SetChecked(db.groupJoinNoticeEnabled ~= false)
   end
 end

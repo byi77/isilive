@@ -716,7 +716,6 @@ return function(test, ctx)
           INVITE_ACCEPTED_NOTICE_LABEL_ROLE = "Rolle-DE:",
           INVITE_ACCEPTED_NOTICE_TITLE = "isiLive - Invite-DE",
           INVITE_ACCEPTED_RAID_NOTICE_TITLE = "isiLive - Raid-Invite-DE",
-          INVITE_ACCEPTED_NOTICE_TELEPORT_HEADER = "TP-DE:",
         }
       end,
       GetUnitRole = overrides.GetUnitRole,
@@ -982,7 +981,7 @@ return function(test, ctx)
     Assert.Equal(captured.activityID, 1234, "activityID arg must configure the embedded notice teleport button")
     Assert.Equal(captured.opts.teleportMapID, 559, "verified mapID must configure the embedded notice portal")
     Assert.Equal(captured.opts.title, "isiLive - Invite-DE", "opts.title must come from the locale table")
-    Assert.Equal(captured.opts.teleportLabel, "TP-DE:", "opts.teleportLabel must come from the locale table")
+    Assert.Nil(captured.opts.teleportLabel, "accepted invite notice should not render a redundant teleport header")
     Assert.Equal(captured.opts.frameWidth, 540, "opts.frameWidth must be the compact 540px card width")
     Assert.Equal(#captured.opts.fields, 4, "opts.fields must contain dungeon + group + comment + role rows")
     Assert.Equal(captured.opts.fields[1].value, "Halls +12", "dungeon row must carry the resolved mapName + level")
@@ -1016,7 +1015,7 @@ return function(test, ctx)
     Assert.Equal(captured.mapName, "Halls", "verified mapID may forward dungeonName into teleport configuration")
     Assert.Nil(captured.activityID, "missing activityID must remain unresolved")
     Assert.Equal(captured.opts.teleportMapID, 559, "verified mapID must configure the teleport resolver")
-    Assert.Equal(captured.opts.teleportLabel, "TP-DE:", "verified mapID should render the teleport header")
+    Assert.Nil(captured.opts.teleportLabel, "verified mapID should not add a redundant teleport header")
   end)
 
   test(
@@ -1089,6 +1088,56 @@ return function(test, ctx)
     show(c, {})
 
     Assert.Equal(calls, 0, "missing local target map must not produce an invite notice")
+  end)
+
+  test("factory_controllers: ShowJoinedTargetNotice ignores accepted invite notice setting", function()
+    local addon = Load()
+    local show = addon._FactoryInternal.ShowJoinedTargetNotice
+    local calls = 0
+    local c = BuildAcceptedInviteCtx({
+      ShowCenterNotice = function()
+        calls = calls + 1
+      end,
+      ResolveLocalStatusTargetMapID = function()
+        return 559
+      end,
+      GetStatusTargetDungeonInfo = function()
+        return { name = "Nexuspunkt Xenas", level = 17 }
+      end,
+    })
+
+    WithGlobals({
+      IsiLiveDB = { acceptedInviteNoticeEnabled = false, groupJoinNoticeEnabled = true },
+    }, function()
+      show(c, {})
+    end)
+
+    Assert.Equal(calls, 1, "accepted-invite notice setting must not suppress the group-join fallback")
+  end)
+
+  test("factory_controllers: ShowJoinedTargetNotice respects group join notice setting", function()
+    local addon = Load()
+    local show = addon._FactoryInternal.ShowJoinedTargetNotice
+    local calls = 0
+    local c = BuildAcceptedInviteCtx({
+      ShowCenterNotice = function()
+        calls = calls + 1
+      end,
+      ResolveLocalStatusTargetMapID = function()
+        return 559
+      end,
+      GetStatusTargetDungeonInfo = function()
+        return { name = "Nexuspunkt Xenas", level = 17 }
+      end,
+    })
+
+    WithGlobals({
+      IsiLiveDB = { groupJoinNoticeEnabled = false },
+    }, function()
+      show(c, {})
+    end)
+
+    Assert.Equal(calls, 0, "disabled group-join notice setting must suppress the group-join fallback")
   end)
 
   test("factory_controllers: ShowJoinedTargetNotice suppresses duplicate after direct accepted notice", function()

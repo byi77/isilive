@@ -71,24 +71,30 @@ local LABELS = {
   strength = "Str",
   agility = "Agi",
   intellect = "Int",
+  stamina = "Stam",
   crit = "Crit",
   haste = "Haste",
   mastery = "Mast",
   versatility = "Vers",
   leech = "Leech",
   speed = "Speed",
+  durability = "Dur",
+  avoidance = "Avoid",
 }
 
 local COLORS = {
   strength = { 1.00, 0.82, 0.00, 1 },
   agility = { 1.00, 0.82, 0.00, 1 },
   intellect = { 1.00, 0.82, 0.00, 1 },
+  stamina = { 0.95, 0.95, 0.92, 1 },
   crit = { 1.00, 0.25, 0.25, 1 },
   haste = { 0.00, 0.44, 0.87, 1 },
   mastery = { 0.10, 1.00, 0.10, 1 },
   versatility = { 0.64, 0.21, 0.93, 1 },
   leech = { 1.00, 0.50, 0.00, 1 },
   speed = { 1.00, 0.82, 0.00, 1 },
+  durability = { 0.25, 0.85, 1.00, 1 },
+  avoidance = { 0.95, 0.95, 0.92, 1 },
 }
 
 local function GetDB()
@@ -133,6 +139,37 @@ local function ResolveFontSizeOffset()
     return 3
   end
   return math.floor(offset + 0.5)
+end
+
+local function ResolveDisplayMode()
+  local db = GetDB()
+  local mode = type(db) == "table" and db.statsBoxDisplayMode or nil
+  if mode == "value" or mode == "percent" or mode == "both" then
+    return mode
+  end
+  return "both"
+end
+
+local function ResolveOptionalRowEnabled(key)
+  local db = GetDB()
+  local option = ({
+    leech = { field = "statsBoxShowLeech", default = true },
+    speed = { field = "statsBoxShowSpeed", default = true },
+    durability = { field = "statsBoxShowDurability", default = true },
+    stamina = { field = "statsBoxShowStamina", default = false },
+    avoidance = { field = "statsBoxShowAvoidance", default = false },
+  })[key]
+  if not option then
+    return true
+  end
+  if type(db) ~= "table" then
+    return option.default == true
+  end
+  local value = db[option.field]
+  if value == nil then
+    return option.default == true
+  end
+  return value == true
 end
 
 local function ScaleDimension(value, scale)
@@ -270,6 +307,37 @@ local function ReadNoArgNumber(fnName, opts)
   return ReadDisplayNumber(value, false)
 end
 
+local function ReadDurabilityRow(opts)
+  if not ResolveOptionalRowEnabled("durability") then
+    return nil
+  end
+  local getInventoryItemDurability = opts.GetInventoryItemDurability or rawget(_G, "GetInventoryItemDurability")
+  if type(getInventoryItemDurability) ~= "function" then
+    return nil
+  end
+
+  local currentTotal = 0
+  local maxTotal = 0
+  for slot = 1, 19 do
+    local ok, current, maximum = pcall(getInventoryItemDurability, slot)
+    current = ok and ReadPlainNumber(current) or nil
+    maximum = ok and ReadPlainNumber(maximum) or nil
+    if current and maximum and maximum > 0 then
+      currentTotal = currentTotal + current
+      maxTotal = maxTotal + maximum
+    end
+  end
+  if maxTotal <= 0 then
+    return nil
+  end
+  return {
+    key = "durability",
+    label = ResolveLabel("durability"),
+    valueText = string.format("%d", currentTotal),
+    percent = (currentTotal / maxTotal) * 100,
+  }
+end
+
 local function ReadPlayerSpellHaste(opts)
   local unitSpellHaste = opts.UnitSpellHaste or rawget(_G, "UnitSpellHaste")
   if type(unitSpellHaste) ~= "function" then
@@ -354,6 +422,7 @@ function StatsBox.CollectPlayerStats(opts)
         key = row.key,
         label = row.label,
         value = row.value,
+        valueText = row.valueText,
         percent = row.percent,
       }
     end
@@ -364,6 +433,16 @@ function StatsBox.CollectPlayerStats(opts)
   local primaryRow = BuildPrimaryStatRow(opts)
   if primaryRow then
     rows[#rows + 1] = primaryRow
+  end
+  if ResolveOptionalRowEnabled("stamina") then
+    local staminaValue = ReadUnitStat(3, opts)
+    if staminaValue ~= nil then
+      rows[#rows + 1] = {
+        key = "stamina",
+        label = ResolveLabel("stamina"),
+        value = staminaValue,
+      }
+    end
   end
 
   local secondaryRows = {
@@ -394,14 +473,14 @@ function StatsBox.CollectPlayerStats(opts)
     {
       key = "leech",
       label = ResolveLabel("leech"),
-      value = ReadCombatRating("CR_LIFESTEAL", opts),
-      percent = ReadCombatRatingBonus("CR_LIFESTEAL", opts),
+      value = ResolveOptionalRowEnabled("leech") and ReadCombatRating("CR_LIFESTEAL", opts) or nil,
+      percent = ResolveOptionalRowEnabled("leech") and ReadCombatRatingBonus("CR_LIFESTEAL", opts) or nil,
     },
     {
       key = "speed",
       label = ResolveLabel("speed"),
-      value = ReadCombatRating("CR_SPEED", opts),
-      percent = ReadCombatRatingBonus("CR_SPEED", opts),
+      value = ResolveOptionalRowEnabled("speed") and ReadCombatRating("CR_SPEED", opts) or nil,
+      percent = ResolveOptionalRowEnabled("speed") and ReadCombatRatingBonus("CR_SPEED", opts) or nil,
     },
   }
 
@@ -410,12 +489,30 @@ function StatsBox.CollectPlayerStats(opts)
       rows[#rows + 1] = row
     end
   end
+  local durabilityRow = ReadDurabilityRow(opts)
+  if durabilityRow then
+    rows[#rows + 1] = durabilityRow
+  end
+  if ResolveOptionalRowEnabled("avoidance") then
+    local avoidanceValue = ReadCombatRating("CR_AVOIDANCE", opts)
+    if avoidanceValue ~= nil then
+      rows[#rows + 1] = {
+        key = "avoidance",
+        label = ResolveLabel("avoidance"),
+        value = avoidanceValue,
+        percent = ReadCombatRatingBonus("CR_AVOIDANCE", opts),
+      }
+    end
+  end
   return rows
 end
 
-local function FormatInteger(value)
+local function FormatValue(value)
   if value == nil then
     return nil
+  end
+  if type(value) == "string" then
+    return value
   end
   local ok, formatted = pcall(string.format, "%d", value)
   if not ok then
@@ -425,7 +522,10 @@ local function FormatInteger(value)
 end
 
 local function FormatRow(row)
-  return FormatInteger(row.value), FormatPercent(row.percent)
+  local mode = ResolveDisplayMode()
+  local valueText = mode ~= "percent" and (row.valueText or FormatValue(row.value)) or nil
+  local percentText = mode ~= "value" and FormatPercent(row.percent) or nil
+  return valueText, percentText
 end
 
 local function MeasureFontStringWidth(fontString)
@@ -558,16 +658,32 @@ end
 
 local ApplyLayout
 
+local function ResolveRenderableRow(rows, sourceIndex)
+  while type(rows) == "table" and sourceIndex <= #rows do
+    local row = rows[sourceIndex]
+    if row then
+      local valueText, percentText = FormatRow(row)
+      if valueText ~= nil or percentText ~= nil then
+        return row, valueText, percentText, sourceIndex + 1
+      end
+    end
+    sourceIndex = sourceIndex + 1
+  end
+  return nil, nil, nil, sourceIndex
+end
+
 local function RenderRows(state, rows)
+  rows = type(rows) == "table" and rows or {}
   local layout = state.baseLayout or ResolveLayout()
   local visibleCount = 0
+  local sourceIndex = 1
   for index, rowFrame in ipairs(state.lines) do
-    local row = rows[index]
-    if row then
+    local row, valueText, percentText, nextSourceIndex = ResolveRenderableRow(rows, sourceIndex)
+    sourceIndex = nextSourceIndex
+    if row and (valueText ~= nil or percentText ~= nil) then
       visibleCount = index
       rowFrame.label:SetText(row.label)
-      local valueText, percentText = FormatRow(row)
-      rowFrame.value:SetText(valueText)
+      rowFrame.value:SetText(valueText or "")
       local c = COLORS[row.key] or COLORS.strength
       rowFrame.label:SetTextColor(c[1], c[2], c[3], c[4])
       rowFrame.value:SetTextColor(c[1], c[2], c[3], c[4])
@@ -678,7 +794,7 @@ function StatsBox.Create(opts)
     collectStats = opts.collectStats or StatsBox.CollectPlayerStats,
   }
 
-  for index = 1, 9 do
+  for index = 1, 10 do
     local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     label:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -6 - ((index - 1) * LINE_HEIGHT))
     label:SetWidth(LABEL_COLUMN_WIDTH)

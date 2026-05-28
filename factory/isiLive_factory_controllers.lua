@@ -870,14 +870,33 @@ local function BuildAcceptedInviteFields(ctx, mapName, payload)
   return fields
 end
 
+local function IsAcceptedInviteNoticeEnabled()
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) ~= "table" then
+    return true
+  end
+  return db.acceptedInviteNoticeEnabled ~= false
+end
+
+local function IsGroupJoinNoticeEnabled()
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) ~= "table" then
+    return true
+  end
+  return db.groupJoinNoticeEnabled ~= false
+end
+
 -- Builds the acceptedInviteNotice payload renderer. Extracted so the wiring
 -- block in InitializeFactoryPrimaryControllers stays under the function-line
 -- metrics gate. Pulls ALL data from the supplied payload (the pendingInvites
 -- snapshot of the accepted searchResultID); never reads roster/sync state.
 -- payload.level may legitimately be nil when the LFG group title carries no
 -- "+N" marker; we render the dungeon row without "+N" rather than guess.
-local function RenderAcceptedInviteNotice(ctx, modules, payload)
+local function RenderAcceptedInviteNotice(ctx, modules, payload, useAcceptedNoticeGate)
   if type(payload) ~= "table" or type(ctx.ShowCenterNotice) ~= "function" then
+    return
+  end
+  if useAcceptedNoticeGate ~= false and not IsAcceptedInviteNoticeEnabled() then
     return
   end
   local L = ctx.GetL and ctx.GetL() or {}
@@ -893,8 +912,6 @@ local function RenderAcceptedInviteNotice(ctx, modules, payload)
     mapID = nil
   end
   local hasTeleportContext = activityID ~= nil or mapID ~= nil
-  local teleportLabel = hasTeleportContext and (L.INVITE_ACCEPTED_NOTICE_TELEPORT_HEADER or "Teleport to dungeon:")
-    or nil
 
   -- Forward the accepted listing map/activity context into the center notice
   -- so the embedded teleport button uses the same strict map/activity -> spell
@@ -903,7 +920,6 @@ local function RenderAcceptedInviteNotice(ctx, modules, payload)
   ctx.ShowCenterNotice(nil, nil, hasTeleportContext and mapName or nil, activityID, {
     title = L.INVITE_ACCEPTED_NOTICE_TITLE or "isiLive - Invite accepted",
     fields = fields,
-    teleportLabel = teleportLabel,
     teleportMapID = mapID,
     -- Compact card width: narrower than the default 680px legacy banner so
     -- the layout reads as a focused info card rather than a full-width header.
@@ -929,6 +945,9 @@ local function ShowJoinedTargetNotice(ctx, modules)
   if type(ctx.ResolveLocalStatusTargetMapID) ~= "function" or type(ctx.GetStatusTargetDungeonInfo) ~= "function" then
     return
   end
+  if not IsGroupJoinNoticeEnabled() then
+    return
+  end
 
   local mapID = tonumber(ctx.ResolveLocalStatusTargetMapID())
   if not mapID or mapID <= 0 then
@@ -950,7 +969,7 @@ local function ShowJoinedTargetNotice(ctx, modules)
     mapID = math.floor(mapID),
     activityID = activityID,
     level = targetInfo.level,
-  })
+  }, false)
 end
 
 -- Raid mirror of BuildAcceptedInviteFields. No level field (Raid listings have
@@ -987,6 +1006,9 @@ local function RenderAcceptedRaidInviteNotice(ctx, modules, payload)
   if type(payload) ~= "table" or type(ctx.ShowCenterNotice) ~= "function" then
     return
   end
+  if not IsAcceptedInviteNoticeEnabled() then
+    return
+  end
   local L = ctx.GetL and ctx.GetL() or {}
   local mapName = ResolveAcceptedInviteDungeonName(ctx, modules, payload.mapID)
   local fields = BuildAcceptedRaidInviteFields(ctx, mapName, payload)
@@ -1017,11 +1039,7 @@ FI.RenderAcceptedRaidInviteNotice = RenderAcceptedRaidInviteNotice
 -- identical to inline wiring.
 local function WireAcceptedInviteNoticeCallbacks(ctx, modules, lfgDetect)
   local function noticeEnabled()
-    local db = rawget(_G, "IsiLiveDB")
-    if type(db) ~= "table" then
-      return true
-    end
-    return db.acceptedInviteNoticeEnabled ~= false
+    return IsAcceptedInviteNoticeEnabled()
   end
   if type(lfgDetect.SetAcceptedInviteNoticeCallback) == "function" then
     lfgDetect.SetAcceptedInviteNoticeCallback(function(payload)
@@ -1877,6 +1895,8 @@ local DEMO_FEATURE_NIL = {}
 local DEMO_FEATURE_TARGET_DUNGEON_NAME = "Nexus-Point Xenas"
 local DEMO_FEATURE_TARGET_MAP_ID = 559
 local DEMO_FEATURE_DB_KEYS = {
+  "acceptedInviteNoticeEnabled",
+  "groupJoinNoticeEnabled",
   "statsBoxEnabled",
   "statsBoxBgAlpha",
   "statsBoxFontSizeOffset",
@@ -1928,7 +1948,8 @@ local function ApplyDemoFeatureDbOverrides(ctx)
 
   db.statsBoxEnabled = true
   db.statsBoxBgAlpha = 0.35
-  db.statsBoxFontSizeOffset = 1
+  db.acceptedInviteNoticeEnabled = true
+  db.groupJoinNoticeEnabled = true
   db.lfgFlagsEnabled = true
   db.lfgGroupBonusesEnabled = true
   db.mobNameplateEnabled = true
@@ -1946,11 +1967,15 @@ local function ApplyDemoStatsBox(ctx)
   if type(statsBox.SetDemoData) == "function" then
     statsBox.SetDemoData({
       { key = "strength", label = "Str", value = 4210 },
+      { key = "stamina", label = "Stam", value = 6812 },
       { key = "crit", label = "Crit", value = 1824, percent = 24.85 },
       { key = "haste", label = "Haste", value = 1492, percent = 18.42 },
       { key = "mastery", label = "Mast", value = 2108, percent = 37.66 },
       { key = "versatility", label = "Vers", value = 1154, percent = 14.12 },
+      { key = "leech", label = "Leech", value = 238, percent = 3.27 },
       { key = "speed", label = "Speed", value = 326, percent = 6.44 },
+      { key = "durability", label = "Dur", valueText = "483", percent = 96.60 },
+      { key = "avoidance", label = "Avoid", value = 412, percent = 5.18 },
     })
   end
   if type(statsBox.SetEnabled) == "function" then
@@ -2034,7 +2059,6 @@ local function ShowDemoAcceptedInviteNotice(ctx, L)
       { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Group:", value = "+15 Demo Preview" },
       { label = L.INVITE_ACCEPTED_NOTICE_LABEL_ROLE or "Role:", value = L.ROLE_NAME_DAMAGE or "Damage" },
     },
-    teleportLabel = L.INVITE_ACCEPTED_NOTICE_TELEPORT_HEADER or "Teleport to dungeon:",
     teleportMapID = DEMO_FEATURE_TARGET_MAP_ID,
     frameWidth = 540,
     persistent = true,

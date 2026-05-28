@@ -8,14 +8,25 @@
 
 local function CreateTextureStub()
   local tex = { _hidden = false }
-  tex.SetAllPoints = function() end
+  tex.SetAllPoints = function(self)
+    self._allPoints = true
+  end
   tex.SetColorTexture = function() end
   tex.SetTexture = function() end
-  tex.SetSize = function() end
+  tex.SetSize = function(self, w, h)
+    self._width = w
+    self._height = h
+  end
   tex.SetWidth = function() end
   tex.SetHeight = function() end
-  tex.SetPoint = function() end
-  tex.ClearAllPoints = function() end
+  tex.SetPoint = function(self, ...)
+    self._points = self._points or {}
+    table.insert(self._points, { ... })
+  end
+  tex.ClearAllPoints = function(self)
+    self._points = {}
+    self._allPoints = false
+  end
   tex.SetTexCoord = function() end
   tex.SetBlendMode = function() end
   tex.SetVertexColor = function() end
@@ -55,7 +66,13 @@ local function CreateFontStringStub()
   end
   function fs:SetJustifyH() end
   function fs:SetJustifyV() end
-  function fs:SetTextColor() end
+  function fs:SetTextColor(r, g, b, a)
+    self._textColor = { r, g, b, a }
+  end
+  function fs:GetTextColor()
+    local color = self._textColor or { 1, 1, 1, 1 }
+    return color[1], color[2], color[3], color[4]
+  end
   function fs:SetWordWrap() end
   function fs:SetNonSpaceWrap() end
   function fs:SetWidth() end
@@ -669,6 +686,80 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       Assert.Equal(centerNotice.teleportHeader:GetText(), "Zum Dungeon teleportieren:", "teleportHeader text")
 
       Assert.False(centerNotice.text._shown, "regular text body must be hidden in rich mode")
+    end)
+  end)
+
+  test("Center notice headline titles use shared gold color", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local centerNotice = CreateCenterNoticeForRichTest()
+      centerNotice.Show(nil, 12, nil, nil, {
+        title = "isiLive - Einladung angenommen",
+        fields = {
+          { label = "Dungeon:", value = "Akademie von Algeth'ar +13" },
+        },
+      })
+
+      local r, g, b = centerNotice.titleText:GetTextColor()
+      Assert.Equal(r, 1, "center notice headline title should use the shared gold red channel")
+      Assert.Equal(g, 0.9, "center notice headline title should use the shared gold green channel")
+      Assert.Equal(b, 0.45, "center notice headline title should use the shared gold blue channel")
+    end)
+  end)
+
+  test("Center notice rich Show places a larger teleport button in the right action area", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local centerNotice = Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellID = function()
+          return 12345
+        end,
+        resolveMapIDBySpellID = function()
+          return 559
+        end,
+        applySecureSpellToButton = function() end,
+        isSpellKnown = function()
+          return true
+        end,
+      })
+
+      centerNotice.Show(nil, 12, "Akademie von Algeth'ar", nil, {
+        title = "isiLive - Einladung angenommen",
+        fields = {
+          { label = "Dungeon:", value = "Akademie von Algeth'ar +13" },
+          { label = "Gruppe:", value = "+13 Push-Lobby" },
+        },
+      })
+
+      Assert.Equal(centerNotice.teleportButton:GetWidth(), 64, "rich teleport button should use the larger icon size")
+      Assert.Equal(centerNotice.teleportButton:GetHeight(), 64, "rich teleport button should use the larger icon size")
+      local point, relativeTo, relativePoint, x, y = centerNotice.teleportButton:GetPoint()
+      Assert.Equal(point, "CENTER", "rich teleport button should anchor by its center in the right action area")
+      Assert.Equal(relativeTo, centerNotice.frame, "rich teleport button should anchor to the center notice")
+      Assert.Equal(relativePoint, "TOPRIGHT", "rich teleport button should calculate its y-position from the frame top")
+      Assert.Equal(x, -72, "rich teleport button should sit in the free right-side interior area")
+      Assert.Equal(y, -88, "rich teleport button should align symmetrically with the rich field rows")
+      Assert.Equal(
+        #centerNotice.teleportButton.icon._points,
+        2,
+        "rich teleport icon texture should be explicitly stretched to the larger button"
+      )
     end)
   end)
 
