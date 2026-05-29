@@ -1370,9 +1370,7 @@ local function ResolveApplicantBonusTextureOwner(member)
     return parent
   end
   local nameText = rawget(member, "Name")
-  local nameParent = type(nameText) == "table"
-      and type(nameText.GetParent) == "function"
-      and nameText:GetParent()
+  local nameParent = type(nameText) == "table" and type(nameText.GetParent) == "function" and nameText:GetParent()
     or nil
   if type(nameParent) == "table" and type(nameParent.CreateTexture) == "function" then
     return nameParent
@@ -1424,11 +1422,7 @@ local function RestoreApplicantNameAnchor(member)
   end
   local nameText = rawget(member, "Name")
   local stored = rawget(member, "_isiApplicantNameOriginalPoint")
-  if
-    type(nameText) ~= "table"
-    or type(stored) ~= "table"
-    or type(nameText.SetPoint) ~= "function"
-  then
+  if type(nameText) ~= "table" or type(stored) ~= "table" or type(nameText.SetPoint) ~= "function" then
     return
   end
   if type(nameText.ClearAllPoints) == "function" then

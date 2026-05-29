@@ -211,7 +211,11 @@ return function(test, ctx)
   local WithGlobals = ctx.with_globals
 
   local function LoadKillRow(killTrackData)
-    local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_roster_panel_helpers.lua", "isiLive_roster_panel_kill_row.lua" })
+    local addon = LoadAddonModules({
+      "isiLive_ui_common.lua",
+      "isiLive_roster_panel_helpers.lua",
+      "isiLive_roster_panel_kill_row.lua",
+    })
     addon.KillTrack = {
       GetData = function()
         return killTrackData

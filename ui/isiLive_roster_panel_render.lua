@@ -4,8 +4,7 @@ addonTable = addonTable or {}
 addonTable._RosterInternal = addonTable._RosterInternal or {}
 local RI = addonTable._RosterInternal
 local UICommon = addonTable.UICommon or {}
-local SetReadableText = type(UICommon.SetReadableText) == "function"
-    and UICommon.SetReadableText
+local SetReadableText = type(UICommon.SetReadableText) == "function" and UICommon.SetReadableText
   or function(fontString, text)
     if type(fontString) == "table" and type(fontString.SetText) == "function" then
       fontString:SetText(tostring(text or ""))

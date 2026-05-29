@@ -1276,7 +1276,11 @@ return function(test, ctx)
         local icon = member._isiLiveBonusBadgeIcons[1]
         Assert.NotNil(icon, "Hunter applicant must create one visible marker texture")
         Assert.Equal(icon._texture, BONUS_TEXTURE, "applicant marker must use the green heart texture")
-        Assert.Equal(createFontStringCalls, 0, "applicant marker must not use the old FontString texture-markup fallback")
+        Assert.Equal(
+          createFontStringCalls,
+          0,
+          "applicant marker must not use the old FontString texture-markup fallback"
+        )
         Assert.True(icon._shown == true, "badge texture must be shown after applying a bonus")
         Assert.True(icon._point[2] == member.ClassIcon, "badge texture must anchor next to the class icon")
         Assert.Equal(icon._point[3], "RIGHT", "badge texture must anchor from the class icon's right edge")
@@ -1325,9 +1329,19 @@ return function(test, ctx)
       Assert.NotNil(member._isiLiveBonusBadgeIcons, "parent fallback must still create applicant marker textures")
       Assert.NotNil(parentTextures[1], "parent must allocate at least one texture for applicant decorations")
       Assert.Equal(#member._isiLiveBonusBadgeIcons, 4, "parent must allocate the reusable marker texture slots")
-      Assert.Equal(member._isiLiveBonusBadgeIcons[1]._texture, BONUS_TEXTURE, "parent-created marker must use the green heart texture")
-      Assert.True(member._isiLiveBonusBadgeIcons[1]._shown == true, "parent-created marker must be visible for a relevant applicant")
-      Assert.True(member._isiLiveBonusBadgeIcons[1]._point[2] == member.ClassIcon, "parent-created marker must still anchor to the class icon")
+      Assert.Equal(
+        member._isiLiveBonusBadgeIcons[1]._texture,
+        BONUS_TEXTURE,
+        "parent-created marker must use the green heart texture"
+      )
+      Assert.True(
+        member._isiLiveBonusBadgeIcons[1]._shown == true,
+        "parent-created marker must be visible for a relevant applicant"
+      )
+      Assert.True(
+        member._isiLiveBonusBadgeIcons[1]._point[2] == member.ClassIcon,
+        "parent-created marker must still anchor to the class icon"
+      )
     end)
   end)
 
@@ -1386,7 +1400,22 @@ return function(test, ctx)
     local globals = BonusGlobals({
       C_LFGList = {
         GetApplicantMemberInfo = function()
-          return "Natire-Aegwynn", "PALADIN", "Paladin", 80, 288, 0, false, false, true, "HEALER", nil, 0, 0, nil, nil, 65
+          return "Natire-Aegwynn",
+            "PALADIN",
+            "Paladin",
+            80,
+            288,
+            0,
+            false,
+            false,
+            true,
+            "HEALER",
+            nil,
+            0,
+            0,
+            nil,
+            nil,
+            65
         end,
       },
     })
@@ -1423,7 +1452,11 @@ return function(test, ctx)
 
       Assert.NotNil(member._isiApplicantFlagTex, "parent fallback must still create applicant flag texture")
       Assert.Equal(#parentTextures, 1, "parent fallback must allocate exactly one applicant flag texture")
-      Assert.Equal(parentTextures[1]._texture, "Interface\\AddOns\\isiLive\\media\\flags\\DE", "parent-created flag uses realm language")
+      Assert.Equal(
+        parentTextures[1]._texture,
+        "Interface\\AddOns\\isiLive\\media\\flags\\DE",
+        "parent-created flag uses realm language"
+      )
       Assert.Equal(member.Name._point[4], 24, "parent-created flag must still shift the applicant name")
     end)
   end)
