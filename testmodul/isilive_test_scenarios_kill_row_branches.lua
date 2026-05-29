@@ -391,7 +391,9 @@ return function(test, ctx)
       addon._RosterInternal.UpdateKillTrackRow(row, {
         getTargetDungeonInfo = function()
           return {
-            name = "\208\156\208\176\208\185\209\129\208\176\209\128\208\176\208\186\208\176\208\178\208\181\209\128\208\189\208\181\208\189",
+            name = "\208\156\208\176\208\185\209\129\208\176\209\128"
+              .. "\208\176\208\186\208\176\208\178\208\181\209\128"
+              .. "\208\189\208\181\208\189",
           }
         end,
         isInChallengeMode = function()
