@@ -2177,6 +2177,31 @@ local function ShowDemoAcceptedInviteNotice(ctx, L)
   )
 end
 
+local function BuildDemoInviteHintPayload(L)
+  return {
+    demoPreview = true,
+    eyebrow = L.INVITE_HINT_EYEBROW or "LFG Invite",
+    title = L.INVITE_HINT_TITLE or "isiLive - Invite received",
+    fields = {
+      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:", value = "Nexus-Point Xenas +15" },
+      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Group:", value = "+15 Demo Preview" },
+      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LEADER or "Leader:", value = "isiLive-Demo" },
+      {
+        label = L.INVITE_ACCEPTED_NOTICE_LABEL_SOURCE or "Source:",
+        value = L.INVITE_HINT_SOURCE_LFG_INVITED or "LFG invite received",
+      },
+    },
+  }
+end
+
+local function ShowDemoInviteHint(ctx, L)
+  if type(ctx.ShowInviteHint) ~= "function" then
+    return
+  end
+
+  ctx.ShowInviteHint(BuildDemoInviteHintPayload(L), 120)
+end
+
 local function BuildDemoNonMythicDungeonNoticePayload(L)
   return {
     message = string.format(
@@ -2239,6 +2264,7 @@ local function ApplyDemoFeatureData(ctx)
 
   local L = ctx.GetL and ctx.GetL() or {}
   ShowDemoPortalNavigator(ctx, L)
+  ShowDemoInviteHint(ctx, L)
   if type(ctx.ShowDemoCenterNotices) == "function" then
     ctx.ShowDemoCenterNotices({
       BuildDemoAcceptedInviteNoticePayload(L),
@@ -2335,6 +2361,13 @@ local function ClearDemoFeatureData(ctx)
   RestoreDemoLfgFlags(ctx, db)
   RestoreDemoMobForces(ctx, db)
 
+  if
+    type(ctx.inviteHint) == "table"
+    and type(ctx.inviteHint.frame) == "table"
+    and type(ctx.inviteHint.frame.Hide) == "function"
+  then
+    ctx.inviteHint.frame:Hide()
+  end
   if type(ctx.SetPortalNavigatorVisible) == "function" then
     ctx.SetPortalNavigatorVisible(false)
   end
@@ -2389,6 +2422,9 @@ local function InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runti
           inCombat = true,
           pullPercent = 3.21,
         })
+      end
+      if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshKillTrackRow) == "function" then
+        ctx.rosterPanelController.RefreshKillTrackRow()
       end
       -- cdTrackerController is created after testModeController, so always defer.
       local C_Timer_ref = rawget(_G, "C_Timer")

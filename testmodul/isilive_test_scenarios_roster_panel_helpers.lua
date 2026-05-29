@@ -230,7 +230,7 @@ return function(test, ctx)
         return { remain = 35, icon = "Interface\\Icons\\Heroism" }
       end,
     })
-    Assert.Equal(row.lustText:GetText(), "BL: 0:35", "BL text must include mm:ss countdown")
+    Assert.Equal(row.lustText:GetText(), "0:35", "active BL text must show only the mm:ss countdown")
     Assert.Equal(row.lustIcon._texture, "Interface\\Icons\\Heroism", "active aura icon must override the default")
     Assert.True(row.lustIcon._shown, "lust icon must be shown while active")
   end)

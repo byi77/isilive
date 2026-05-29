@@ -5,6 +5,16 @@ local RI = addonTable._RosterInternal or {}
 addonTable._RosterInternal = RI
 
 local ApplyFontStringSize = RI.ApplyFontStringSize
+local SetReadableText = addonTable.UICommon
+    and type(addonTable.UICommon.SetReadableText) == "function"
+    and addonTable.UICommon.SetReadableText
+  or function(fontString, text)
+    if type(fontString) == "table" and type(fontString.SetText) == "function" then
+      fontString:SetText(tostring(text or ""))
+      return true
+    end
+    return false
+  end
 local CD_TRACKER_ROW_HEIGHT = RI.CD_TRACKER_ROW_HEIGHT or 20
 
 local KILLTRACK_ROW_BOTTOM_OFFSET = 12
@@ -91,7 +101,7 @@ local function CreateKillTrackRow(mainFrame)
   targetText:SetPoint("LEFT", box, "LEFT", 94, 0)
   targetText:SetPoint("RIGHT", box, "RIGHT", -(PREKEY_LEVEL_WIDTH + 10), 0)
   targetText:SetJustifyH("RIGHT")
-  targetText:SetText("")
+  SetReadableText(targetText, "")
   ApplyFontStringSize(targetText, CD_TRACKER_FONT_SIZE)
 
   local targetLevelText = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -143,7 +153,7 @@ local function CreateKillTrackRow(mainFrame)
   if type(activeDungeonText.SetAlpha) == "function" then
     activeDungeonText:SetAlpha(0.92)
   end
-  activeDungeonText:SetText("")
+  SetReadableText(activeDungeonText, "")
   ApplyFontStringSize(activeDungeonText, ACTIVE_DUNGEON_FONT_SIZE)
 
   local pctText = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -204,6 +214,19 @@ local function ResolvePreKeyTargetInfo(deps, data)
   }
 end
 
+local function ResolveActiveKeyLevel()
+  local MplusTimer = addonTable.MplusTimer
+  local timerData = type(MplusTimer) == "table"
+      and type(MplusTimer.GetTimerData) == "function"
+      and MplusTimer.GetTimerData()
+    or nil
+  local level = type(timerData) == "table" and tonumber(timerData.keyLevel) or nil
+  if not level or level <= 0 then
+    return nil
+  end
+  return math.floor(level)
+end
+
 local function UpdateKillTrackRow(row, deps)
   if not row then
     return
@@ -228,7 +251,7 @@ local function UpdateKillTrackRow(row, deps)
     if not activeDungeonText then
       return
     end
-    activeDungeonText:SetText(text or "")
+    SetReadableText(activeDungeonText, text or "")
     if text and text ~= "" then
       if activeDungeonBackdrop and type(activeDungeonBackdrop.Show) == "function" then
         activeDungeonBackdrop:Show()
@@ -255,7 +278,7 @@ local function UpdateKillTrackRow(row, deps)
       barBg:Show()
     end
     if targetText then
-      targetText:SetText("")
+      SetReadableText(targetText, "")
     end
     if targetLevelText then
       targetLevelText:SetText("")
@@ -264,7 +287,12 @@ local function UpdateKillTrackRow(row, deps)
         and type(deps.getTargetDungeonInfo) == "function"
         and deps.getTargetDungeonInfo()
       or nil
-    SetActiveDungeonContext(ResolveTargetDungeonNameFromInfo(activeInfo))
+    local activeDungeonName = ResolveTargetDungeonNameFromInfo(activeInfo)
+    local activeKeyLevel = activeDungeonName and ResolveActiveKeyLevel() or nil
+    if activeDungeonName and activeKeyLevel then
+      activeDungeonName = activeDungeonName .. " +" .. tostring(activeKeyLevel)
+    end
+    SetActiveDungeonContext(activeDungeonName)
     local pct = math.max(0, math.min(data.percent, 100))
     local r, g, b
     if pct < 80 then
@@ -329,7 +357,7 @@ local function UpdateKillTrackRow(row, deps)
       barPull:Hide()
     end
     if targetText then
-      targetText:SetText(targetInfo.name)
+      SetReadableText(targetText, targetInfo.name)
       if type(targetText.SetJustifyH) == "function" then
         targetText:SetJustifyH("RIGHT")
       end
@@ -370,7 +398,7 @@ local function UpdateKillTrackRow(row, deps)
       barPull:Hide()
     end
     if targetText then
-      targetText:SetText("")
+      SetReadableText(targetText, "")
     end
     if targetLevelText then
       targetLevelText:SetText("")

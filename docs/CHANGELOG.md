@@ -2,6 +2,84 @@
 
 ## Unreleased
 
+## 2026-05-30 - Version 0.9.290 (patch)
+
+### UI
+
+[isiLive.toc](../isiLive.toc),
+[README.md](../README.md),
+[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
+[ui/isiLive_ui_common.lua](../ui/isiLive_ui_common.lua),
+[ui/isiLive_notice.lua](../ui/isiLive_notice.lua),
+[ui/isiLive_lfg_flags.lua](../ui/isiLive_lfg_flags.lua),
+[ui/isiLive_roster_panel_render.lua](../ui/isiLive_roster_panel_render.lua),
+[ui/isiLive_roster_panel_cd_row.lua](../ui/isiLive_roster_panel_cd_row.lua),
+[ui/isiLive_roster_panel_kill_row.lua](../ui/isiLive_roster_panel_kill_row.lua),
+[ui/isiLive_roster_tooltip.lua](../ui/isiLive_roster_tooltip.lua),
+[ui/isiLive_teleport_ui.lua](../ui/isiLive_teleport_ui.lua),
+[logic/isiLive_event_handlers_challenge.lua](../logic/isiLive_event_handlers_challenge.lua),
+[game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua),
+[game/isiLive_mplus_timer.lua](../game/isiLive_mplus_timer.lua),
+[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua),
+[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
+[testmodul/isilive_test_scenarios_event_challenges.lua](../testmodul/isilive_test_scenarios_event_challenges.lua),
+[testmodul/isilive_test_scenarios_factory_secondary.lua](../testmodul/isilive_test_scenarios_factory_secondary.lua),
+[testmodul/isilive_test_scenarios_lfg_detect.lua](../testmodul/isilive_test_scenarios_lfg_detect.lua),
+[testmodul/isilive_test_scenarios_lfg_flags_branches.lua](../testmodul/isilive_test_scenarios_lfg_flags_branches.lua),
+[testmodul/isilive_test_scenarios_kill_row_branches.lua](../testmodul/isilive_test_scenarios_kill_row_branches.lua),
+[testmodul/isilive_test_scenarios_mplus_timer.lua](../testmodul/isilive_test_scenarios_mplus_timer.lua),
+[testmodul/isilive_test_scenarios_roster_panel.lua](../testmodul/isilive_test_scenarios_roster_panel.lua),
+[testmodul/isilive_test_scenarios_roster_panel_helpers.lua](../testmodul/isilive_test_scenarios_roster_panel_helpers.lua),
+[testmodul/isilive_test_scenarios_ui_common.lua](../testmodul/isilive_test_scenarios_ui_common.lua),
+[testmodul/isilive_test_scenarios_ui_notice_branches.lua](../testmodul/isilive_test_scenarios_ui_notice_branches.lua),
+[docs/RULES_LOGIC.md](RULES_LOGIC.md),
+[docs/ARCHITECTURE.md](ARCHITECTURE.md),
+[docs/ARCHITECTURE_RULES.md](ARCHITECTURE_RULES.md),
+[docs/RELEASE.md](RELEASE.md),
+[docs/USECASES.md](USECASES.md):
+
+- Bumped the TOC and documentation version basis to `0.9.290`.
+- Fixed Cyrillic LFG leader names in Center Notice payload fields by switching
+  affected FontStrings to the WoW Cyrillic-capable font when the concrete text
+  contains Cyrillic UTF-8 bytes, independent of the configured addon locale.
+- Restored the recorded baseline font for reused dynamic FontStrings once a
+  later payload no longer contains Cyrillic text.
+- Extended the same readable-font path to addon-owned roster rows, private
+  tooltips, teleport empty-state text, and killtracker dungeon labels while
+  leaving Blizzard-owned windows untouched.
+- Modernized the pre-accept `isiLiveInviteHintFrame` into the same info-card
+  visual language and now renders verified Dungeon, Group, Leader, and Source
+  rows for the currently visible `LFGListInviteDialog`.
+- Added the modern `isiLiveInviteHintFrame` to the ingame demo preview with
+  fixed demo Dungeon, Group, Leader, and Source rows and demo-exit cleanup.
+- Kept the demo `isiLiveInviteHintFrame` on a fixed high-priority demo anchor
+  so it is not reanchored under live fallback frames or covered by other demo
+  notices.
+- Enlarged the center-notice portal button status text so the ready `Portal`
+  label and active cooldown timer remain readable over dungeon icons.
+- Removed the redundant `BL:` prefix from the active Bloodlust tracker countdown
+  so the combat utility row mirrors the compact Battle Res timer style.
+- Added the started keystone level beside the active dungeon name on the lower
+  M+ killtracker row, sourced only from `MplusTimer`'s started-key snapshot.
+- Refreshed the lower M+ killtracker row immediately when demo mode injects its
+  active key preview, so the demo also shows the dungeon plus started key level.
+- Reset the visible M+ timer row immediately on `CHALLENGE_MODE_COMPLETED` and
+  `CHALLENGE_MODE_RESET`, including a direct CD-tracker refresh so completed or
+  aborted keys cannot leave stale timer values on screen.
+- Added language flags to LFG applicant rows, sourced from the concrete
+  applicant member realm, and hid the flag when that source is unresolved.
+- Restored the applicant name anchor whenever a reusable Blizzard applicant row
+  loses its language flag, and allowed applicant flags to render from a parent
+  texture owner when the member row itself cannot create textures.
+- Moved applicant buff-rating hearts to the right of the class badge so they
+  do not sit under Blizzard's badge artwork.
+- Forced applicant buff-rating hearts to render only as real textures from
+  `media/heart_bonus_green.tga`, removing the old FontString texture-markup
+  fallback that could display the wrong symbol in Blizzard applicant rows.
+- Extended the active Cyrillic-font, killtracker keylevel, and M+-timer reset
+  rule coverage, added applicant-row LFG coverage, and updated the release-gate
+  baseline to `1915` deterministic scenarios.
+
 ## 2026-05-29 - Version 0.9.288 (patch)
 
 ### UI
@@ -210,7 +288,7 @@
 - Added German strings for deDE, kept English fallback text for prepared
   locales by default, and accepted post-edited translations such as ruRU.
 - Integrated the ruRU translation help from @Hubbotu with thanks, adapted to
-  the current fixed-size `media/heart_bonus_green` buff-rating description.
+  the current fixed-size `media/heart_bonus_green.tga` buff-rating description.
 - Made locale-to-language flag resolution use a static lookup so roster
   tooltips cannot spend time rebuilding the locale map during hover rendering.
 - Updated the validator baseline to `1892` scenarios.

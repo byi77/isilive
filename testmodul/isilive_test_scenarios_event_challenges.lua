@@ -120,6 +120,28 @@ local function RegisterChallengeStartAndDelayTests(test, Assert, _WithGlobals, L
     Assert.Equal(showCalls, 0, "disabled key-end auto-open must not request a frame open on completion")
   end)
 
+  test("Event handlers refresh CD tracker on challenge completion and reset", function()
+    local cdRefreshCalls = 0
+    local timerEvents = {}
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      handleMplusTimerEvent = function(event)
+        timerEvents[#timerEvents + 1] = event
+      end,
+      updateCdTracker = function()
+        cdRefreshCalls = cdRefreshCalls + 1
+      end,
+    })
+
+    controller:Dispatch("CHALLENGE_MODE_COMPLETED")
+    controller:Dispatch("CHALLENGE_MODE_RESET")
+
+    Assert.Equal(timerEvents[1], "CHALLENGE_MODE_COMPLETED", "completion must reach the M+ timer before UI refresh")
+    Assert.Equal(timerEvents[2], "CHALLENGE_MODE_RESET", "reset must reach the M+ timer before UI refresh")
+    Assert.Equal(cdRefreshCalls, 2, "key end and key reset must refresh the CD tracker row")
+  end)
+
   test("Event handlers enable RIO delta only after delayed post-run refresh", function()
     local enableCalls = 0
     local refreshCalls = 0

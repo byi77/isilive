@@ -1239,7 +1239,7 @@ return function(test, ctx)
   end)
 
   test(
-    "LI.ApplyApplicantBonusToMemberFrame writes applicant bonus markers next to the role badge and clears them",
+    "LI.ApplyApplicantBonusToMemberFrame writes applicant bonus markers next to the class badge and clears them",
     function()
       local globals = BonusGlobals({
         C_LFGList = {
@@ -1254,11 +1254,14 @@ return function(test, ctx)
       WithGlobals(globals, function()
         local addon = LoadBonusModules(LoadAddonModules)
         local createdTextures = {}
+        local createFontStringCalls = 0
         local member = {
           memberIdx = 1,
           Name = NewFontStringStub(),
+          ClassIcon = {},
           RoleIcon = {},
           CreateFontString = function()
+            createFontStringCalls = createFontStringCalls + 1
             return NewFontStringStub()
           end,
           CreateTexture = function()
@@ -1273,18 +1276,157 @@ return function(test, ctx)
         local icon = member._isiLiveBonusBadgeIcons[1]
         Assert.NotNil(icon, "Hunter applicant must create one visible marker texture")
         Assert.Equal(icon._texture, BONUS_TEXTURE, "applicant marker must use the green heart texture")
+        Assert.Equal(createFontStringCalls, 0, "applicant marker must not use the old FontString texture-markup fallback")
         Assert.True(icon._shown == true, "badge texture must be shown after applying a bonus")
-        Assert.True(icon._point[2] == member.RoleIcon, "badge texture must anchor next to the role icon")
-        Assert.Equal(icon._point[3], "RIGHT", "badge texture must anchor from the role icon's right edge")
+        Assert.True(icon._point[2] == member.ClassIcon, "badge texture must anchor next to the class icon")
+        Assert.Equal(icon._point[3], "RIGHT", "badge texture must anchor from the class icon's right edge")
+        Assert.Equal(icon._point[4], 5, "badge texture must keep a visible gap to the class icon")
         Assert.Equal(icon._size[1], 12, "applicant marker texture must use the compact marker width")
         Assert.Equal(icon._size[2], 12, "applicant marker texture must use the compact marker height")
-        Assert.True(createdTextures[2]._shown == false, "unused marker texture slots must stay hidden")
+        Assert.True(member._isiLiveBonusBadgeIcons[2]._shown == false, "unused marker texture slots must stay hidden")
 
         addon.LFGFlags.SetGroupBonusesEnabled(false)
         Assert.True(icon._shown == false, "disabling class bonuses must hide known applicant marker textures")
       end)
     end
   )
+
+  test("LI.ApplyApplicantBonusToMemberFrame creates applicant marker textures on parent when member cannot", function()
+    local globals = BonusGlobals({
+      C_LFGList = {
+        GetApplicantInfo = function()
+          return { numMembers = 1 }
+        end,
+        GetApplicantMemberInfo = function()
+          return "Ariphinne", "HUNTER", "Hunter", 80, 280, 0, false, false, true, "DAMAGER", nil, 0, 0, nil, nil, 253
+        end,
+      },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadBonusModules(LoadAddonModules)
+      local parentTextures = {}
+      local parent = {
+        CreateTexture = function()
+          local tex = NewTextureStub()
+          table.insert(parentTextures, tex)
+          return tex
+        end,
+      }
+      local member = {
+        memberIdx = 1,
+        Name = NewFontStringStub(),
+        ClassIcon = {},
+        GetParent = function()
+          return parent
+        end,
+      }
+
+      addon._LFGFlagsInternal.ApplyApplicantBonusToMemberFrame(member, 51, 1)
+      Assert.NotNil(member._isiLiveBonusBadgeIcons, "parent fallback must still create applicant marker textures")
+      Assert.NotNil(parentTextures[1], "parent must allocate at least one texture for applicant decorations")
+      Assert.Equal(#member._isiLiveBonusBadgeIcons, 4, "parent must allocate the reusable marker texture slots")
+      Assert.Equal(member._isiLiveBonusBadgeIcons[1]._texture, BONUS_TEXTURE, "parent-created marker must use the green heart texture")
+      Assert.True(member._isiLiveBonusBadgeIcons[1]._shown == true, "parent-created marker must be visible for a relevant applicant")
+      Assert.True(member._isiLiveBonusBadgeIcons[1]._point[2] == member.ClassIcon, "parent-created marker must still anchor to the class icon")
+    end)
+  end)
+
+  test("LI.ApplyApplicantFlagToMemberFrame renders applicant language flag beside the name", function()
+    local applicantName = "Natire-Aegwynn"
+    local globals = BonusGlobals({
+      C_LFGList = {
+        GetApplicantMemberInfo = function()
+          return applicantName, "PALADIN", "Paladin", 80, 288, 0, false, false, true, "HEALER", nil, 0, 0, nil, nil, 65
+        end,
+      },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadBonusModules(LoadAddonModules)
+      addon.LFGFlags.Register({
+        localeModule = {
+          GetUnitServerLanguage = function(_unit, realm)
+            return realm == "Aegwynn" and "DE" or nil
+          end,
+          GetLanguageFlagTexturePath = function(tag)
+            return tag == "DE" and "Interface\\AddOns\\isiLive\\media\\flags\\DE" or nil
+          end,
+        },
+      })
+      local createdTextures = {}
+      local member = {
+        memberIdx = 1,
+        Name = NewFontStringStub(),
+        CreateTexture = function()
+          local tex = NewTextureStub()
+          table.insert(createdTextures, tex)
+          return tex
+        end,
+      }
+      member.Name:SetPoint("LEFT", member, "LEFT", 8, 0)
+
+      addon._LFGFlagsInternal.ApplyApplicantFlagToMemberFrame(member, 51, 1)
+
+      local tex = member._isiApplicantFlagTex
+      Assert.NotNil(tex, "applicant member frame must get a flag texture")
+      Assert.Equal(tex._texture, "Interface\\AddOns\\isiLive\\media\\flags\\DE", "applicant flag uses realm language")
+      Assert.True(tex._shown == true, "applicant flag must be visible when realm language resolves")
+      Assert.Equal(tex._point[1], "LEFT", "flag keeps the original name anchor point")
+      Assert.Equal(tex._point[4], 8, "flag uses the original name x offset")
+      Assert.Equal(member.Name._point[4], 24, "name text must shift right by flag width plus gap")
+      Assert.Equal(#createdTextures, 1, "flag rendering creates exactly one applicant flag texture")
+
+      applicantName = "Unknown-Nowhere"
+      addon._LFGFlagsInternal.ApplyApplicantFlagToMemberFrame(member, 51, 1)
+      Assert.True(tex._shown == false, "unresolved applicant language must hide the reusable flag texture")
+      Assert.Equal(member.Name._point[4], 8, "hiding the applicant flag must restore the original name x offset")
+    end)
+  end)
+
+  test("LI.ApplyApplicantFlagToMemberFrame creates applicant flag texture on parent when member cannot", function()
+    local globals = BonusGlobals({
+      C_LFGList = {
+        GetApplicantMemberInfo = function()
+          return "Natire-Aegwynn", "PALADIN", "Paladin", 80, 288, 0, false, false, true, "HEALER", nil, 0, 0, nil, nil, 65
+        end,
+      },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadBonusModules(LoadAddonModules)
+      addon.LFGFlags.Register({
+        localeModule = {
+          GetUnitServerLanguage = function(_unit, realm)
+            return realm == "Aegwynn" and "DE" or nil
+          end,
+          GetLanguageFlagTexturePath = function(tag)
+            return tag == "DE" and "Interface\\AddOns\\isiLive\\media\\flags\\DE" or nil
+          end,
+        },
+      })
+      local parentTextures = {}
+      local parent = {
+        CreateTexture = function()
+          local tex = NewTextureStub()
+          table.insert(parentTextures, tex)
+          return tex
+        end,
+      }
+      local member = {
+        memberIdx = 1,
+        Name = NewFontStringStub(),
+        GetParent = function()
+          return parent
+        end,
+      }
+      member.Name:SetPoint("LEFT", member, "LEFT", 8, 0)
+
+      addon._LFGFlagsInternal.ApplyApplicantFlagToMemberFrame(member, 51, 1)
+
+      Assert.NotNil(member._isiApplicantFlagTex, "parent fallback must still create applicant flag texture")
+      Assert.Equal(#parentTextures, 1, "parent fallback must allocate exactly one applicant flag texture")
+      Assert.Equal(parentTextures[1]._texture, "Interface\\AddOns\\isiLive\\media\\flags\\DE", "parent-created flag uses realm language")
+      Assert.Equal(member.Name._point[4], 24, "parent-created flag must still shift the applicant name")
+    end)
+  end)
 
   test("LI.BuildApplicantBonusMarkerBadge ignores applicant utility bonuses", function()
     WithGlobals(BonusGlobals(), function()

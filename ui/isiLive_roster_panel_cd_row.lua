@@ -254,7 +254,7 @@ local function UpdateCdTrackerRow(row, cdController)
       end
       local mins = math.floor(lust.remain / 60)
       local secs = math.floor(lust.remain % 60)
-      row.lustText:SetText(string.format("BL: %d:%02d", mins, secs))
+      row.lustText:SetText(string.format("%d:%02d", mins, secs))
     else
       if row._lustDefaultIcon then
         row.lustIcon:SetTexture(row._lustDefaultIcon)

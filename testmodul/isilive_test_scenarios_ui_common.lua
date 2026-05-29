@@ -21,9 +21,13 @@ local function MakeFontStringStub()
   function fs:SetNonSpaceWrap() end
   function fs:SetMaxLines() end
   function fs:SetTextColor() end
-  function fs:SetFont() end
+  function fs:SetFont(path, size, flags)
+    self._fontPath = path
+    self._fontSize = size
+    self._fontFlags = flags
+  end
   function fs:GetFont()
-    return "Fonts\\\\X.TTF", 12, "OUTLINE"
+    return self._fontPath or "Fonts\\\\X.TTF", self._fontSize or 12, self._fontFlags or "OUTLINE"
   end
   function fs:SetPoint() end
   function fs:ClearAllPoints() end
@@ -241,6 +245,97 @@ return function(test, ctx)
 
       Assert.False(addon.UICommon.ApplyLocaleFont(fontString), "enUS must not apply a locale font override")
       Assert.Equal(setCalls, 0, "non-overridden locale must not rewrite font")
+    end)
+  end)
+
+  test("UICommon.ApplyReadableFontForText uses Cyrillic-capable font for Cyrillic payload text", function()
+    WithGlobals({
+      IsiLiveDB = { locale = "enUS" },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua" })
+      local captured
+      local fontString = {
+        GetFont = function()
+          return "Fonts\\FRIZQT__.TTF", 13, "OUTLINE"
+        end,
+        SetFont = function(_, path, size, flags)
+          captured = { path = path, size = size, flags = flags }
+        end,
+      }
+
+      Assert.True(
+        addon.UICommon.ApplyReadableFontForText(fontString, "\208\157\208\184\209\129\208\176\208\189-Realm"),
+        "Cyrillic payload text must apply a font override"
+      )
+      Assert.Equal(captured.path, "Fonts\\ARIALN.TTF", "Cyrillic payload text must use a Cyrillic-capable font")
+      Assert.Equal(captured.size, 13, "font size must be preserved")
+      Assert.Equal(captured.flags, "OUTLINE", "font flags must be preserved")
+    end)
+  end)
+
+  test("UICommon.ApplyReadableFontForText restores the baseline font after Cyrillic payload text clears", function()
+    WithGlobals({
+      IsiLiveDB = { locale = "enUS" },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua" })
+      local fontPath = "Fonts\\FRIZQT__.TTF"
+      local fontString = {
+        GetFont = function()
+          return fontPath, 12, ""
+        end,
+        SetFont = function(_, path)
+          fontPath = path
+        end,
+      }
+
+      Assert.True(
+        addon.UICommon.ApplyReadableFontForText(fontString, "\208\155\208\184\208\180\208\181\209\128"),
+        "Cyrillic payload text must switch fonts"
+      )
+      Assert.Equal(fontPath, "Fonts\\ARIALN.TTF", "setup should switch to Cyrillic-capable font")
+
+      Assert.True(
+        addon.UICommon.ApplyReadableFontForText(fontString, "Leader-Realm"),
+        "ASCII payload text should restore the recorded baseline font"
+      )
+      Assert.Equal(fontPath, "Fonts\\FRIZQT__.TTF", "ASCII payload should restore the original font path")
+    end)
+  end)
+
+  test("UICommon.SetReadableText applies Cyrillic-capable font before writing Cyrillic text", function()
+    WithGlobals({
+      IsiLiveDB = { locale = "enUS" },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua" })
+      local fontString = MakeFontStringStub()
+
+      Assert.True(
+        addon.UICommon.SetReadableText(fontString, "\208\159\208\184\208\189\209\130\208\190"),
+        "SetReadableText should report a successful write"
+      )
+      Assert.Equal(fontString._text, "\208\159\208\184\208\189\209\130\208\190", "text must be written")
+      Assert.Equal(fontString._fontPath, "Fonts\\ARIALN.TTF", "Cyrillic text must use a readable font")
+    end)
+  end)
+
+  test("UICommon private tooltip lines use Cyrillic-capable font for Cyrillic payload text", function()
+    WithGlobals({
+      UIParent = MakeFrameStub(),
+      CreateFrame = function()
+        return MakeFrameStub()
+      end,
+      IsiLiveDB = { locale = "enUS" },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua" })
+      local tooltip = addon.UICommon.CreatePrivateTooltip(UIParent)
+      addon.UICommon.PreparePrivateTooltip(tooltip, UIParent, "ANCHOR_CURSOR")
+      tooltip:SetText("\208\155\208\184\208\180\208\181\209\128", 1, 1, 1)
+
+      Assert.Equal(
+        tooltip._isiLiveTooltipLines[1]._fontPath,
+        "Fonts\\ARIALN.TTF",
+        "private tooltip titles must switch to a Cyrillic-capable font"
+      )
     end)
   end)
 

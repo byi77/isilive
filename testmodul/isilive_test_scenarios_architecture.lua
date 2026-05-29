@@ -1248,7 +1248,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
     AssertContains(
       Assert,
       rosterPanelRenderContent,
-      'cell:SetText("|cff44ff44" .. readyText .. "|r")',
+      'SetReadableText(cell, "|cff44ff44" .. readyText .. "|r")',
       "RosterPanel render module must render the compact kick-ready state in green"
     )
   end)

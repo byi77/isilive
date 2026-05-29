@@ -17,6 +17,7 @@ local CLASS_BONUS_UTILITY_COLOR = "|cffffd100"
 local CLASS_BONUS_RESET_COLOR = "|r"
 local APPLICANT_BONUS_TEXT_COLOR = { 0.20, 1.00, 0.20, 1.00 }
 local APPLICANT_BONUS_MAJOR_COLOR = { 1.00, 0.82, 0.00, 1.00 }
+-- WoW texture APIs resolve the .tga asset from this extensionless path.
 local SEARCH_RESULT_BONUS_TEXTURE = "Interface\\AddOns\\isiLive\\media\\heart_bonus_green"
 local SEARCH_RESULT_BONUS_MARKUP = "|T" .. SEARCH_RESULT_BONUS_TEXTURE .. ":12:12|t"
 local SEARCH_RESULT_BONUS_MAX_MARKERS = 4
@@ -26,6 +27,7 @@ local SEARCH_RESULT_FLAG_X = 2
 local SEARCH_RESULT_FLAG_Y = 10
 local SEARCH_RESULT_FLAG_ACTIVITY_NAME_OFFSET_Y = -2
 local SEARCH_RESULT_DUNGEON_NAME_SHIFT_X = FLAG_WIDTH + 4
+local APPLICANT_FLAG_NAME_SHIFT_X = FLAG_WIDTH + 4
 local SEARCH_RESULT_BONUS_RIGHT_X = -44
 local SEARCH_RESULT_BONUS_Y = -16
 local SEARCH_RESULT_BONUS_WIDTH = 68
@@ -665,6 +667,30 @@ local function GetTagForResult(resultID)
   return tag
 end
 
+local function ResolveLanguageTagFromName(fullName)
+  local name, realm = SplitNameRealm(fullName)
+  if type(name) ~= "string" or name == "" then
+    return nil
+  end
+  if not realm then
+    local getRealmName = rawget(_G, "GetRealmName")
+    if type(getRealmName) == "function" then
+      local ok, realmName = pcall(getRealmName)
+      if ok and type(realmName) == "string" and realmName ~= "" then
+        realm = realmName
+      end
+    end
+  end
+  if type(realm) ~= "string" or realm == "" or type(getLanguageTag) ~= "function" then
+    return nil
+  end
+  local ok, tag = pcall(getLanguageTag, realm)
+  if ok and type(tag) == "string" and tag ~= "" and tag ~= "??" then
+    return tag
+  end
+  return nil
+end
+
 local function ExtractMemberInfoFromTable(info)
   if type(info) ~= "table" or IsSecretValue(info) then
     return nil
@@ -871,6 +897,7 @@ local function ReadApplicantMemberInfo(applicantID, memberIndex)
     return nil
   end
   return {
+    name = type(result[2]) == "string" and result[2] or nil,
     classToken = classToken,
     specID = ReadPositiveNumber(specID),
     className = type(localizedClass) == "string" and localizedClass or nil,
@@ -1275,6 +1302,21 @@ local function ResolveApplicantRoleAnchor(member)
   if type(member) ~= "table" then
     return nil
   end
+  local classAnchorKeys = {
+    "ClassIcon",
+    "Class",
+    "ClassButton",
+    "ClassIconTexture",
+    "SpecIcon",
+    "Spec",
+    "SpecIconTexture",
+  }
+  for _, key in ipairs(classAnchorKeys) do
+    local value = rawget(member, key)
+    if type(value) == "table" then
+      return value
+    end
+  end
   local roleAnchorKeys = {
     "RoleIcon",
     "Role",
@@ -1299,7 +1341,7 @@ local function AnchorApplicantBonusBadge(member, badgeText)
   end
   local roleAnchor = ResolveApplicantRoleAnchor(member)
   if roleAnchor then
-    badgeText:SetPoint("LEFT", roleAnchor, "RIGHT", 3, 0)
+    badgeText:SetPoint("LEFT", roleAnchor, "RIGHT", 5, 0)
     return
   end
   badgeText:SetPoint("LEFT", member, "LEFT", 104, 0)
@@ -1314,6 +1356,28 @@ local function HideApplicantBonusIcons(member)
       icon:Hide()
     end
   end
+end
+
+local function ResolveApplicantBonusTextureOwner(member)
+  if type(member) ~= "table" then
+    return nil
+  end
+  if type(member.CreateTexture) == "function" then
+    return member
+  end
+  local parent = type(member.GetParent) == "function" and member:GetParent() or nil
+  if type(parent) == "table" and type(parent.CreateTexture) == "function" then
+    return parent
+  end
+  local nameText = rawget(member, "Name")
+  local nameParent = type(nameText) == "table"
+      and type(nameText.GetParent) == "function"
+      and nameText:GetParent()
+    or nil
+  if type(nameParent) == "table" and type(nameParent.CreateTexture) == "function" then
+    return nameParent
+  end
+  return nil
 end
 
 local function ClearApplicantBonusMarker(member)
@@ -1335,6 +1399,134 @@ local function ClearApplicantBonusMarker(member)
   HideApplicantBonusIcons(member)
 end
 
+local function EnsureApplicantFlagTexture(member)
+  local textureOwner = ResolveApplicantBonusTextureOwner(member)
+  if type(member) ~= "table" or not textureOwner then
+    return nil
+  end
+  if type(member._isiApplicantFlagTex) == "table" then
+    return member._isiApplicantFlagTex
+  end
+  local tex = textureOwner:CreateTexture(nil, "OVERLAY")
+  if type(tex.SetSize) == "function" then
+    tex:SetSize(FLAG_WIDTH, FLAG_HEIGHT)
+  end
+  if type(tex.Hide) == "function" then
+    tex:Hide()
+  end
+  member._isiApplicantFlagTex = tex
+  return tex
+end
+
+local function RestoreApplicantNameAnchor(member)
+  if type(member) ~= "table" then
+    return
+  end
+  local nameText = rawget(member, "Name")
+  local stored = rawget(member, "_isiApplicantNameOriginalPoint")
+  if
+    type(nameText) ~= "table"
+    or type(stored) ~= "table"
+    or type(nameText.SetPoint) ~= "function"
+  then
+    return
+  end
+  if type(nameText.ClearAllPoints) == "function" then
+    nameText:ClearAllPoints()
+  end
+  nameText:SetPoint(stored.point, stored.relativeTo, stored.relativePoint, stored.offsetX, stored.offsetY)
+end
+
+local function AnchorApplicantFlag(member, nameText, tex)
+  if
+    type(member) ~= "table"
+    or type(nameText) ~= "table"
+    or type(tex) ~= "table"
+    or type(tex.SetPoint) ~= "function"
+    or type(nameText.SetPoint) ~= "function"
+  then
+    return
+  end
+  local stored = rawget(member, "_isiApplicantNameOriginalPoint")
+  if type(stored) ~= "table" and type(nameText.GetPoint) == "function" then
+    local point, relativeTo, relativePoint, offsetX, offsetY = nameText:GetPoint(1)
+    if type(point) == "string" then
+      stored = {
+        point = point,
+        relativeTo = relativeTo or member,
+        relativePoint = relativePoint or point,
+        offsetX = tonumber(offsetX) or 0,
+        offsetY = tonumber(offsetY) or 0,
+      }
+      member._isiApplicantNameOriginalPoint = stored
+    end
+  end
+  if type(stored) ~= "table" then
+    if type(tex.ClearAllPoints) == "function" then
+      tex:ClearAllPoints()
+    end
+    tex:SetPoint("LEFT", member, "LEFT", 6, 0)
+    return
+  end
+  if type(tex.ClearAllPoints) == "function" then
+    tex:ClearAllPoints()
+  end
+  tex:SetPoint(stored.point, stored.relativeTo, stored.relativePoint, stored.offsetX, stored.offsetY)
+  if type(nameText.ClearAllPoints) == "function" then
+    nameText:ClearAllPoints()
+  end
+  nameText:SetPoint(
+    stored.point,
+    stored.relativeTo,
+    stored.relativePoint,
+    stored.offsetX + APPLICANT_FLAG_NAME_SHIFT_X,
+    stored.offsetY
+  )
+end
+
+local function ApplyApplicantFlagToMemberFrame(member, applicantID, memberIndex)
+  if type(member) ~= "table" then
+    return
+  end
+  local tex = EnsureApplicantFlagTexture(member)
+  if not tex then
+    return
+  end
+  local function hide()
+    if type(tex.Hide) == "function" then
+      tex:Hide()
+    end
+    RestoreApplicantNameAnchor(member)
+  end
+  if not lfgFlagsEnabled then
+    hide()
+    return
+  end
+  applicantID = ReadPositiveNumber(applicantID)
+  memberIndex = ReadPositiveNumber(memberIndex or rawget(member, "memberIdx"))
+  if not applicantID or not memberIndex then
+    hide()
+    return
+  end
+  member._isiApplicantID = applicantID
+  member._isiApplicantMemberIndex = memberIndex
+  local applicantMember = ReadApplicantMemberInfo(applicantID, memberIndex)
+  local tag = applicantMember and ResolveLanguageTagFromName(applicantMember.name)
+  local path = tag and type(getFlagTexturePath) == "function" and getFlagTexturePath(tag)
+  if not path then
+    hide()
+    return
+  end
+  if type(tex.SetTexture) == "function" then
+    tex:SetTexture(path)
+  end
+  local nameText = rawget(member, "Name")
+  AnchorApplicantFlag(member, nameText, tex)
+  if type(tex.Show) == "function" then
+    tex:Show()
+  end
+end
+
 local function AnchorApplicantBonusIcon(member, icon, index)
   if type(member) ~= "table" or type(icon) ~= "table" or type(icon.SetPoint) ~= "function" then
     return
@@ -1351,7 +1543,7 @@ local function AnchorApplicantBonusIcon(member, icon, index)
   end
   local roleAnchor = ResolveApplicantRoleAnchor(member)
   if roleAnchor then
-    icon:SetPoint("LEFT", roleAnchor, "RIGHT", 3, 0)
+    icon:SetPoint("LEFT", roleAnchor, "RIGHT", 5, 0)
     return
   end
   icon:SetPoint("LEFT", member, "LEFT", 104, 0)
@@ -1359,14 +1551,15 @@ end
 
 local function ApplyApplicantBonusIconMarkers(member, markerCount)
   markerCount = math.min(SEARCH_RESULT_BONUS_MAX_MARKERS, math.floor(tonumber(markerCount) or 0))
-  if markerCount <= 0 or type(member) ~= "table" or type(member.CreateTexture) ~= "function" then
+  local textureOwner = ResolveApplicantBonusTextureOwner(member)
+  if markerCount <= 0 or type(member) ~= "table" or not textureOwner then
     return false
   end
   member._isiLiveBonusBadgeIcons = member._isiLiveBonusBadgeIcons or {}
   for index = 1, SEARCH_RESULT_BONUS_MAX_MARKERS do
     local icon = member._isiLiveBonusBadgeIcons[index]
     if type(icon) ~= "table" then
-      icon = member:CreateTexture(nil, "OVERLAY")
+      icon = textureOwner:CreateTexture(nil, "OVERLAY")
       member._isiLiveBonusBadgeIcons[index] = icon
     end
     if type(icon) == "table" then
@@ -1400,11 +1593,12 @@ local function ApplyApplicantBonusToMemberFrame(member, applicantID, memberIndex
     return
   end
   hookedApplicantMembers[member] = true
+  ApplyApplicantFlagToMemberFrame(member, applicantID, memberIndex)
   applicantID = ReadPositiveNumber(applicantID)
   memberIndex = ReadPositiveNumber(memberIndex or rawget(member, "memberIdx"))
-  local badge, badgeColor, markerCount
+  local badge, markerCount
   if applicantID and memberIndex then
-    badge, badgeColor, markerCount = BuildSingleApplicantMemberBadge(applicantID, memberIndex)
+    badge, _, markerCount = BuildSingleApplicantMemberBadge(applicantID, memberIndex)
   end
   local nameText = rawget(member, "Name")
   if type(nameText) ~= "table" or type(nameText.GetText) ~= "function" or type(nameText.SetText) ~= "function" then
@@ -1415,32 +1609,6 @@ local function ApplyApplicantBonusToMemberFrame(member, applicantID, memberIndex
     return
   end
   if ApplyApplicantBonusIconMarkers(member, markerCount) then
-    return
-  end
-  if not member._isiLiveBonusBadge and type(member.CreateFontString) == "function" then
-    local badgeText = member:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    badgeText:SetJustifyH("CENTER")
-    badgeText:SetWidth(54)
-    if type(badgeText.SetHeight) == "function" then
-      badgeText:SetHeight(14)
-    end
-    if type(badgeText.SetShadowColor) == "function" then
-      badgeText:SetShadowColor(0, 0, 0, 1)
-    end
-    if type(badgeText.SetShadowOffset) == "function" then
-      badgeText:SetShadowOffset(1, -1)
-    end
-    member._isiLiveBonusBadge = badgeText
-  end
-  if member._isiLiveBonusBadge and type(member._isiLiveBonusBadge.SetText) == "function" then
-    AnchorApplicantBonusBadge(member, member._isiLiveBonusBadge)
-    if badgeColor and type(member._isiLiveBonusBadge.SetTextColor) == "function" then
-      member._isiLiveBonusBadge:SetTextColor(badgeColor[1], badgeColor[2], badgeColor[3], badgeColor[4])
-    end
-    member._isiLiveBonusBadge:SetText(badge)
-    if type(member._isiLiveBonusBadge.Show) == "function" then
-      member._isiLiveBonusBadge:Show()
-    end
     return
   end
 end
@@ -1902,6 +2070,7 @@ LI.BuildSearchResultMemberBonuses = BuildSearchResultMemberBonuses
 LI.BuildSearchResultBonusBadge = BuildSearchResultBonusBadge
 LI.BuildApplicantMemberBonuses = BuildApplicantMemberBonuses
 LI.ApplyApplicantBonusToMemberFrame = ApplyApplicantBonusToMemberFrame
+LI.ApplyApplicantFlagToMemberFrame = ApplyApplicantFlagToMemberFrame
 LI.ApplyApplicantBonusToButton = ApplyApplicantBonusToButton
 LI.ApplyGroupBonusTooltipLines = ApplyGroupBonusTooltipLines
 LI.ResolvePlayerBonusProfile = ResolvePlayerBonusProfile
@@ -1983,9 +2152,22 @@ function LFGFlags.SetEnabled(enabled)
         tex:Hide()
       end
     end
+    for member in pairs(hookedApplicantMembers) do
+      local tex = rawget(member, "_isiApplicantFlagTex")
+      if tex and type(tex.Hide) == "function" then
+        tex:Hide()
+      end
+    end
   else
     for btn in pairs(hooked) do
       UpdateButton(btn)
+    end
+    for member in pairs(hookedApplicantMembers) do
+      ApplyApplicantFlagToMemberFrame(
+        member,
+        rawget(member, "_isiApplicantID"),
+        rawget(member, "_isiApplicantMemberIndex") or rawget(member, "memberIdx")
+      )
     end
   end
 end

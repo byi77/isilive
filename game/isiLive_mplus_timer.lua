@@ -109,6 +109,17 @@ local function StopTimer(completed)
   tickAccum = 0
 end
 
+local function ResetTimerState()
+  StopTimer(false)
+  state.timer = 0
+  state.deaths = 0
+  state.deathTimeLost = 0
+  state.timeLimit = 0
+  state.timeLimits = { 0, 0, 0 }
+  state.keyLevel = 0
+  state.deathPenaltyActive = false
+end
+
 local function UpdateDeaths()
   local challengeMode = rawget(_G, "C_ChallengeMode")
   if type(challengeMode) ~= "table" or type(challengeMode.GetDeathCount) ~= "function" then
@@ -162,28 +173,14 @@ function MplusTimer.HandleEvent(event)
   if event == "CHALLENGE_MODE_START" then
     StartTimer()
   elseif event == "CHALLENGE_MODE_COMPLETED" then
-    StopTimer(true)
+    ResetTimerState()
   elseif event == "CHALLENGE_MODE_RESET" then
-    StopTimer(false)
-    state.timer = 0
-    state.deaths = 0
-    state.deathTimeLost = 0
-    state.timeLimit = 0
-    state.timeLimits = { 0, 0, 0 }
+    ResetTimerState()
   elseif event == "CHALLENGE_MODE_DEATH_COUNT_UPDATED" then
     UpdateDeaths()
   elseif event == "PLAYER_ENTERING_WORLD" then
-    -- Clear the frozen post-completion snapshot when we transition out of
-    -- the challenge zone. CHALLENGE_MODE_COMPLETED only freezes the final
-    -- times; without this branch the timer box keeps showing them until
-    -- the next key starts (or until a /reload).
     if state.completed and not state.running then
-      state.completed = false
-      state.timer = 0
-      state.deaths = 0
-      state.deathTimeLost = 0
-      state.timeLimit = 0
-      state.timeLimits = { 0, 0, 0 }
+      ResetTimerState()
     end
   end
 end

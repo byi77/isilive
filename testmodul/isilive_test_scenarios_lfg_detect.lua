@@ -1993,13 +1993,18 @@ local function RegisterLFGDetectInviteHintTests(test, ctx)
 
   local function BuildLocale()
     return {
-      INVITE_HINT_GROUP = "Group: %s",
-      INVITE_HINT_DUNGEON = "Dungeon: %s",
+      INVITE_HINT_EYEBROW = "Invite",
+      INVITE_HINT_TITLE = "isiLive - Invite received",
+      INVITE_HINT_SOURCE_LFG_INVITED = "LFG invite received",
       INVITE_HINT_UNKNOWN_DUNGEON = "Unknown dungeon",
+      INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON = "Dungeon:",
+      INVITE_ACCEPTED_NOTICE_LABEL_GROUP = "Group:",
+      INVITE_ACCEPTED_NOTICE_LABEL_LEADER = "Leader:",
+      INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Source:",
     }
   end
 
-  test("LFGDetect.OnInvited surfaces a two-line invite hint with mapName + group title", function()
+  test("LFGDetect.OnInvited surfaces a structured invite hint with dungeon group leader and source", function()
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
@@ -2011,8 +2016,8 @@ local function RegisterLFGDetectInviteHintTests(test, ctx)
     WithGlobals(globals, function()
       local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
       local hints = {}
-      addon.LFGDetect.SetInviteHintCallback(function(message, durationSeconds)
-        hints[#hints + 1] = { message = message, duration = durationSeconds }
+      addon.LFGDetect.SetInviteHintCallback(function(payload, durationSeconds)
+        hints[#hints + 1] = { payload = payload, duration = durationSeconds }
       end)
       addon.LFGDetect.SetInviteHintEnabledFn(function()
         return true
@@ -2030,14 +2035,21 @@ local function RegisterLFGDetectInviteHintTests(test, ctx)
       Assert.Equal(#hints, 1, "OnInvited must trigger one InviteHint render")
       Assert.NotNil(hints[1], "InviteHint payload must be captured")
       Assert.Equal(hints[1].duration, 8, "InviteHint must request the 8s auto-hide window")
-      local message = hints[1].message
-      Assert.True(message:find("Windrunner Spire", 1, true) ~= nil, "InviteHint must mention the resolved dungeon name")
-      Assert.True(message:find("+12", 1, true) ~= nil, "InviteHint must surface the parsed key level")
+      local payload = hints[1].payload
+      Assert.Equal(payload.eyebrow, "Invite", "InviteHint must use the localized eyebrow")
+      Assert.Equal(payload.title, "isiLive - Invite received", "InviteHint must use the localized modern title")
+      Assert.Equal(payload.fields[1].label, "Dungeon:", "row 1 must be the dungeon label")
+      Assert.Equal(payload.fields[1].value, "Windrunner Spire +12", "row 1 must mention dungeon and key level")
+      Assert.Equal(payload.fields[2].label, "Group:", "row 2 must be the group label")
+      Assert.Equal(payload.fields[2].value, "+12 NW Push, no jail", "row 2 must surface the raw group title")
+      Assert.Equal(payload.fields[3].label, "Leader:", "row 3 must be the leader label")
+      Assert.Equal(payload.fields[3].value, "Tankadin-Realm", "row 3 must surface the listing leader")
+      Assert.Equal(payload.fields[4].label, "Source:", "row 4 must be the source label")
+      Assert.Equal(payload.fields[4].value, "LFG invite received", "row 4 must surface the pre-accept source")
       Assert.True(
-        message:find("+12 NW Push, no jail", 1, true) ~= nil,
-        "InviteHint must surface the raw group title (lobby conventions)"
+        payload.legacyMessage:find("Windrunner Spire +12", 1, true) ~= nil,
+        "legacy message keeps the dungeon headline for compatibility"
       )
-      Assert.True(message:find("\n", 1, true) ~= nil, "InviteHint must be two-line")
     end)
   end)
 
@@ -2053,8 +2065,8 @@ local function RegisterLFGDetectInviteHintTests(test, ctx)
     WithGlobals(globals, function()
       local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
       local hints = {}
-      addon.LFGDetect.SetInviteHintCallback(function(message)
-        hints[#hints + 1] = message
+      addon.LFGDetect.SetInviteHintCallback(function(payload)
+        hints[#hints + 1] = payload
       end)
       addon.LFGDetect.SetInviteHintEnabledFn(function()
         return false
@@ -2091,9 +2103,10 @@ local function RegisterLFGDetectInviteHintTests(test, ctx)
 
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
       Assert.Equal(#hints, 1, "InviteHint must still render when the teleport lookup returns nil")
-      Assert.True(
-        hints[1]:find("Unknown dungeon", 1, true) ~= nil,
-        "InviteHint headline must use the localized fallback when mapName is unresolved"
+      Assert.Equal(
+        hints[1].fields[1].value,
+        "Unknown dungeon +9",
+        "InviteHint dungeon row must use the localized fallback when mapName is unresolved"
       )
     end)
   end)

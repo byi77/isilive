@@ -37,9 +37,20 @@ local function NewFontStringStub()
   local fs = {
     _text = "",
     _color = nil,
+    _fontPath = "Fonts\\FRIZQT__.TTF",
+    _fontSize = 12,
+    _fontFlags = "",
   }
   function fs.SetText(self, text)
     self._text = text
+  end
+  function fs.GetFont(self)
+    return self._fontPath, self._fontSize, self._fontFlags
+  end
+  function fs.SetFont(self, path, size, flags)
+    self._fontPath = path
+    self._fontSize = size
+    self._fontFlags = flags
   end
   function fs.SetTextColor(self, r, g, b)
     self._color = { r, g, b }
@@ -200,7 +211,7 @@ return function(test, ctx)
   local WithGlobals = ctx.with_globals
 
   local function LoadKillRow(killTrackData)
-    local addon = LoadAddonModules({ "isiLive_roster_panel_helpers.lua", "isiLive_roster_panel_kill_row.lua" })
+    local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_roster_panel_helpers.lua", "isiLive_roster_panel_kill_row.lua" })
     addon.KillTrack = {
       GetData = function()
         return killTrackData
@@ -367,6 +378,31 @@ return function(test, ctx)
     end)
   end)
 
+  test("UpdateKillTrackRow uses Cyrillic-capable font for verified Cyrillic dungeon names", function()
+    WithGlobals({
+      IsiLiveDB = { locale = "enUS" },
+    }, function()
+      local addon = LoadKillRow({ active = false, percent = 0 })
+      local row = NewRow()
+      addon._RosterInternal.UpdateKillTrackRow(row, {
+        getTargetDungeonInfo = function()
+          return {
+            name = "\208\156\208\176\208\185\209\129\208\176\209\128\208\176\208\186\208\176\208\178\208\181\209\128\208\189\208\181\208\189",
+          }
+        end,
+        isInChallengeMode = function()
+          return false
+        end,
+      })
+
+      Assert.Equal(
+        row.killTrackTargetText._fontPath,
+        "Fonts\\ARIALN.TTF",
+        "verified Cyrillic dungeon names must switch the killtracker font"
+      )
+    end)
+  end)
+
   test("UpdateKillTrackRow drops raw level text when no numeric level resolves", function()
     WithGlobals({}, function()
       local addon = LoadKillRow({ active = false, percent = 0 })
@@ -446,6 +482,11 @@ return function(test, ctx)
   test("UpdateKillTrackRow keeps dungeon context visible while active percent data is visible", function()
     WithGlobals({}, function()
       local addon = LoadKillRow({ active = true, percent = 42 })
+      addon.MplusTimer = {
+        GetTimerData = function()
+          return { running = true, keyLevel = 16 }
+        end,
+      }
       local row = NewRow(200)
       addon._RosterInternal.UpdateKillTrackRow(row, {
         getTargetDungeonInfo = function()
@@ -463,8 +504,8 @@ return function(test, ctx)
       Assert.Equal(row.killTrackTargetLevelText._text, "", "active percent view must clear pre-key level text")
       Assert.Equal(
         row.killTrackActiveDungeonText._text,
-        "Nexuspunkt Xenas",
-        "active percent view must keep the dungeon context visible on the progress row"
+        "Nexuspunkt Xenas +16",
+        "active percent view must append the started key level from MplusTimer"
       )
       Assert.Equal(
         row.killTrackActiveDungeonText._justifyH,
@@ -478,6 +519,34 @@ return function(test, ctx)
       )
       Assert.True(row.killTrackActiveDungeonBackdrop._shown == true, "active dungeon backdrop must show behind text")
       Assert.Equal(row.killTrackPctText._text, "42,00%", "active percent text must stay primary")
+    end)
+  end)
+
+  test("UpdateKillTrackRow omits active key level when MplusTimer has no started level", function()
+    WithGlobals({}, function()
+      local addon = LoadKillRow({ active = true, percent = 42 })
+      addon.MplusTimer = {
+        GetTimerData = function()
+          return { running = true, keyLevel = 0 }
+        end,
+      }
+      local row = NewRow(200)
+      addon._RosterInternal.UpdateKillTrackRow(row, {
+        getTargetDungeonInfo = function()
+          return {
+            name = "  Nexuspunkt Xenas  ",
+            level = 14,
+          }
+        end,
+        isInChallengeMode = function()
+          return true
+        end,
+      })
+      Assert.Equal(
+        row.killTrackActiveDungeonText._text,
+        "Nexuspunkt Xenas",
+        "target-dungeon level must not be used as an active-key fallback"
+      )
     end)
   end)
 

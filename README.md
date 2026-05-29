@@ -4,7 +4,7 @@
 
 - **For:** M+ players in pre-made groups and LFG runs
 - **WoW version:** `12.0+` (Midnight) only
-- **Current version:** `0.9.288`
+- **Current version:** `0.9.290`
 - **Active season:** `midnight_s1` — 8 dungeons (Wing, MT, NPX, MC, AA, POS, SOT, SR)
 
 ---
@@ -44,6 +44,7 @@ When you join a group, isiLive opens a single window with everything you want to
 - Forces info on the **mouseover tooltip** for any mob in a key
 - Optional independent **player stats box** with live primary/secondary stats, short English labels, and separate opacity/font/lock controls
 - Optional **Group Finder buff-rating hearts** for applicant and search-result rows, shown only when the listed class/spec offers a relevant non-stacking group bonus for your current character
+- Cyrillic-safe rendering for isiLive-owned dynamic text such as roster names, invite notices, tooltips, and dungeon labels
 
 Everything syncs automatically between group members who run isiLive — no manual import, no `/say` spam.
 
@@ -115,7 +116,7 @@ During a ready check, the row background changes color: **green** for ready, **r
 
 - **BR** — Battle Res charges and cooldown with icon
 - **Lust** — Bloodlust/Heroism cooldown with icon and remaining time
-- **M+ Timer** — `+3 / +2 / +1` cutoffs counting down live, plus death penalty
+- **M+ Timer** — `+3 / +2 / +1` cutoffs counting down live, plus death penalty; resets immediately when the key completes or is aborted
 
 ### Killtracker (Enemy Forces)
 
@@ -123,7 +124,7 @@ A bottom bar that shows your kill-count percentage:
 
 - **Green** < 80%, **Yellow** < 95%, **Red** ≥ 95%
 - After a verified LFG invite target announce, the bar shows the target dungeon and key level right-aligned until the key starts
-- During an active key, the verified dungeon name stays visible on the progress bar as a left-aligned outlined label with a subtle contrast background
+- During an active key, the verified dungeon name stays visible on the progress bar as a left-aligned outlined label with the started key level read from the active Mythic+ timer snapshot
 - During a pull, a light-blue segment on the right shows **how much the current pull will add** (`+X.XX%`) — so you can see mid-pull whether it's enough
 - When combat ends, the tracker refreshes Blizzard's live scenario progress immediately, so the last pull is counted before the next pull or boss engagement
 
@@ -209,15 +210,15 @@ You can turn either announce off in the settings. Non-isiLive group members won'
 
 ### Pre-key group view
 
-When you get an LFG invite, the matching portal highlights and the center notice includes a clickable portal button from the verified listing activity. The chat tells you which dungeon and level you joined, and the bottom M+ killtracker mirrors that verified target as a right-aligned dungeon + key-level label until the key starts.
+When you get an LFG invite, the matching portal highlights and the center notice includes a clickable portal button from the verified listing activity. The invite hint and accepted-invite notice show dungeon, group, leader, and source rows. The chat tells you which dungeon and level you joined, and the bottom M+ killtracker mirrors that verified target as a right-aligned dungeon + key-level label until the key starts.
 
 ### Group Finder class-bonus hints
 
 Optional Group Finder hints help you scan applicant and search-result rows for useful class buffs before you join or accept someone:
 
 - Search results show compact green heart texture markers inside the Blizzard row, independent of third-party class-badge addons
-- Applicant rows show the same markers next to the role badge when the applicant offers a relevant non-utility group bonus
-- The settings description shows the examples on separate fixed-size green heart texture lines using `media/heart_bonus_green`
+- Applicant rows show language flags beside the name and the same markers to the right of the class badge when the applicant offers a relevant non-utility group bonus
+- The settings description shows the examples on separate fixed-size green heart texture lines using `media/heart_bonus_green.tga`
 - 1 heart means one useful non-stacking buff, 2 hearts means two, 3 hearts means three, and 4 hearts means four or more
 - Search-result tooltips add localized bonus text per listed class/spec
 - Duplicate non-stacking buffs count once per search result, so two players with the same class buff do not create extra markers

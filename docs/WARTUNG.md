@@ -237,13 +237,13 @@ Aktueller Soll-Zustand:
 - `lfgGroupBonusesEnabled` ist ein SavedVariable-Schemafeld mit Default `true`.
 - Suchergebniszeilen und Bewerberzeilen zeigen nur relevante, nicht stapelnde Nicht-Utility-Boni als gruene Marker.
 - Battle Res, Bloodlust, Power Infusion, Devotion Aura, Atrophic Poison und vergleichbare Utility-Hinweise duerfen im Tooltip erscheinen, zaehlen aber nicht fuer die kompakten Marker.
-- Settings-Beschreibung und sichtbare Marker verwenden `Interface\AddOns\isiLive\media\heart_bonus_green`; Font-Herz-Glyphen sind fuer dieses Feature nicht stabil genug.
+- Settings-Beschreibung und sichtbare Marker verwenden `Interface\AddOns\isiLive\media\heart_bonus_green.tga`; Font-Herz-Glyphen sind fuer dieses Feature nicht stabil genug.
 - Die Settings-Beschreibung erklaert untereinander 1/2/3/4 Herzchen als einen, zwei, drei beziehungsweise vier oder mehr relevante Buffs.
 - `SetGroupBonusesEnabled(false)` leert Suchergebnis-Caches und sichtbare Bewerbermarker.
 
 Typische Ursachen fuer Brueche:
 - Ein neuer Bonus wird als Utility oder als stapelnder Gruppenbuff falsch einsortiert → Markerzahl wird irrefuehrend.
-- Eine Locale-Beschreibung nutzt ein rohes Herzzeichen statt `heart_bonus_green` → Darstellung driftet zwischen Fonts/Clients.
+- Eine Locale-Beschreibung nutzt ein rohes Herzzeichen statt `heart_bonus_green.tga` → Darstellung driftet zwischen Fonts/Clients.
 - Ein Settings-Schalter schreibt nur DB, ruft aber nicht den Live-Callback → Anzeige aendert sich erst nach Reload.
 
 ### 3.10 Lokalisierung und Uebersetzungs-PRs

@@ -687,10 +687,14 @@ local function NewRecordedFontString(createdFontStrings)
     self.width = value
   end
   function fontString.SetJustifyH() end
-  function fontString.GetFont()
-    return "font", 10, ""
+  function fontString.GetFont(self)
+    return self._fontPath or "Fonts\\FRIZQT__.TTF", self._fontSize or 10, self._fontFlags or ""
   end
-  function fontString.SetFont() end
+  function fontString.SetFont(self, path, size, flags)
+    self._fontPath = path
+    self._fontSize = size
+    self._fontFlags = flags
+  end
   function fontString.SetTextColor() end
   function fontString.SetShadowOffset() end
   function fontString.SetText(self, value)
@@ -1568,6 +1572,75 @@ RegisterRosterRenderReadyCheckReapplyTest = function(test, Assert, WithGlobals, 
         foundReadyBackground,
         "boolean ready-check state must render without attempting to call it as a function"
       )
+    end)
+  end)
+
+  test("Roster render uses Cyrillic-capable font for Cyrillic player names", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local createdTextures = {}
+    local cyrillicName = "\208\159\208\184\208\189\209\130\208\190"
+
+    WithGlobals({
+      IsiLiveDB = { locale = "enUS" },
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      C_ChatInfo = { SendChatMessage = function() end },
+      print = function() end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_roster_panel.lua" })
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings, {
+        createdTextures = createdTextures,
+        buildOrderedRoster = function(currentRoster)
+          return {
+            {
+              unit = "player",
+              info = currentRoster and currentRoster.player or {},
+            },
+          }
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = cyrillicName,
+            languageDisplay = "RU",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "-",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        isReadyCheckActive = false,
+      })
+
+      controller.RenderRoster({
+        player = {
+          name = cyrillicName,
+          role = "DAMAGER",
+        },
+      })
+
+      local foundReadableName = false
+      for _, fontString in ipairs(createdFontStrings) do
+        if type(fontString.text) == "string" and fontString.text:find(cyrillicName, 1, true) then
+          foundReadableName = fontString._fontPath == "Fonts\\ARIALN.TTF"
+          break
+        end
+      end
+
+      Assert.True(foundReadableName, "Cyrillic roster player names must switch the row font")
     end)
   end)
 

@@ -6,8 +6,9 @@ local UICommon = {}
 addonTable.UICommon = UICommon
 
 UICommon.DEFAULT_BG_ALPHA = 0.50
+UICommon.CYRILLIC_FONT_PATH = "Fonts\\ARIALN.TTF"
 UICommon.LOCALE_FONT_OVERRIDES = {
-  ruRU = "Fonts\\ARIALN.TTF",
+  ruRU = UICommon.CYRILLIC_FONT_PATH,
 }
 
 UICommon.Colors = {
@@ -69,7 +70,7 @@ function UICommon.GetLocaleFontPath(localeTag)
   return UICommon.LOCALE_FONT_OVERRIDES[ResolveActiveLocale(localeTag)]
 end
 
-function UICommon.ApplyLocaleFont(fontString, localeTag)
+local function ApplyFontPath(fontString, fontPath)
   if
     type(fontString) ~= "table"
     or type(fontString.GetFont) ~= "function"
@@ -78,7 +79,6 @@ function UICommon.ApplyLocaleFont(fontString, localeTag)
     return false
   end
 
-  local fontPath = UICommon.GetLocaleFontPath(localeTag)
   if type(fontPath) ~= "string" or fontPath == "" then
     return false
   end
@@ -89,6 +89,72 @@ function UICommon.ApplyLocaleFont(fontString, localeTag)
   end
 
   fontString:SetFont(fontPath, fontSize, fontFlags)
+  return true
+end
+
+local function CaptureReadableFontBaseline(fontString)
+  if
+    type(fontString) ~= "table"
+    or type(fontString.GetFont) ~= "function"
+    or type(fontString.SetFont) ~= "function"
+  then
+    return nil
+  end
+
+  if type(fontString._isiLiveReadableFontBaseline) == "table" then
+    return fontString._isiLiveReadableFontBaseline
+  end
+
+  local fontPath, fontSize, fontFlags = fontString:GetFont()
+  if type(fontPath) ~= "string" or type(fontSize) ~= "number" then
+    return nil
+  end
+
+  fontString._isiLiveReadableFontBaseline = {
+    path = fontPath,
+    size = fontSize,
+    flags = fontFlags,
+  }
+  return fontString._isiLiveReadableFontBaseline
+end
+
+function UICommon.ApplyLocaleFont(fontString, localeTag)
+  return ApplyFontPath(fontString, UICommon.GetLocaleFontPath(localeTag))
+end
+
+function UICommon.TextNeedsCyrillicFont(text)
+  if type(text) ~= "string" or text == "" then
+    return false
+  end
+
+  return text:find("[\208-\211][\128-\191]") ~= nil
+end
+
+function UICommon.ApplyReadableFontForText(fontString, text, localeTag)
+  local baseline = CaptureReadableFontBaseline(fontString)
+  if UICommon.TextNeedsCyrillicFont(text) then
+    return ApplyFontPath(fontString, UICommon.CYRILLIC_FONT_PATH)
+  end
+
+  if UICommon.ApplyLocaleFont(fontString, localeTag) then
+    return true
+  end
+
+  if baseline then
+    return ApplyFontPath(fontString, baseline.path)
+  end
+
+  return false
+end
+
+function UICommon.SetReadableText(fontString, text, localeTag)
+  if type(fontString) ~= "table" or type(fontString.SetText) ~= "function" then
+    return false
+  end
+
+  local value = tostring(text or "")
+  UICommon.ApplyReadableFontForText(fontString, value, localeTag)
+  fontString:SetText(value)
   return true
 end
 
@@ -454,9 +520,7 @@ local function EnsurePrivateTooltipAPI(tooltip)
     if type(line.SetTextColor) == "function" then
       line:SetTextColor(tonumber(r) or 1, tonumber(g) or 1, tonumber(b) or 1)
     end
-    if type(line.SetText) == "function" then
-      line:SetText(tostring(text or ""))
-    end
+    UICommon.SetReadableText(line, text)
     if type(line.Show) == "function" then
       line:Show()
     end
@@ -473,9 +537,7 @@ local function EnsurePrivateTooltipAPI(tooltip)
     if type(line.SetTextColor) == "function" then
       line:SetTextColor(tonumber(r) or 1, tonumber(g) or 1, tonumber(b) or 1)
     end
-    if type(line.SetText) == "function" then
-      line:SetText(tostring(text or ""))
-    end
+    UICommon.SetReadableText(line, text)
     if type(line.Show) == "function" then
       line:Show()
     end

@@ -4,6 +4,16 @@ addonTable = addonTable or {}
 
 local RI = addonTable._RosterInternal or {}
 addonTable._RosterInternal = RI
+local SetReadableText = addonTable.UICommon
+    and type(addonTable.UICommon.SetReadableText) == "function"
+    and addonTable.UICommon.SetReadableText
+  or function(fontString, text)
+    if type(fontString) == "table" and type(fontString.SetText) == "function" then
+      fontString:SetText(tostring(text or ""))
+      return true
+    end
+    return false
+  end
 
 -- 12.0 Secret-Value guard. Any value coming from a Blizzard tooltip or unit API
 -- in a protected context must be Secret-checked BEFORE any `==`, `~=`, `<`, `..`
@@ -201,9 +211,7 @@ local function EnsureSimpleTooltipAPI(tooltip)
     if type(line.SetTextColor) == "function" then
       line:SetTextColor(tonumber(r) or 1, tonumber(g) or 1, tonumber(b) or 1)
     end
-    if type(line.SetText) == "function" then
-      line:SetText(tostring(text or ""))
-    end
+    SetReadableText(line, text)
     if type(line.Show) == "function" then
       line:Show()
     end
@@ -220,9 +228,7 @@ local function EnsureSimpleTooltipAPI(tooltip)
     if type(line.SetTextColor) == "function" then
       line:SetTextColor(tonumber(r) or 1, tonumber(g) or 1, tonumber(b) or 1)
     end
-    if type(line.SetText) == "function" then
-      line:SetText(tostring(text or ""))
-    end
+    SetReadableText(line, text)
     if type(line.Show) == "function" then
       line:Show()
     end

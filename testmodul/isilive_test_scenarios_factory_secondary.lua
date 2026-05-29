@@ -347,6 +347,9 @@ local function BuildControllerContext(state, addon, initial)
         INVITE_ACCEPTED_NOTICE_LABEL_LEADER = "Leader:",
         INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Source:",
         INVITE_ACCEPTED_NOTICE_SOURCE_LFG_ACCEPTED = "LFG accepted invite",
+        INVITE_HINT_EYEBROW = "LFG Invite",
+        INVITE_HINT_TITLE = "isiLive - Invite received",
+        INVITE_HINT_SOURCE_LFG_INVITED = "LFG invite received",
         DUNGEON_DIFF_NORMAL = "Normal",
         NON_MYTHIC_ENTERED = "Warning: Entered non-Mythic dungeon (%s).",
         NON_MYTHIC_NOTICE_DUNGEON_EYEBROW = "Dungeon",
@@ -404,6 +407,11 @@ local function BuildControllerContext(state, addon, initial)
     ShowDemoCenterNotices = function(notices)
       state.demoCenterNotices = notices
     end,
+    ShowInviteHint = function(payload, durationSeconds, searchResultID)
+      state.inviteHintPayload = payload
+      state.inviteHintDurationSeconds = durationSeconds
+      state.inviteHintSearchResultID = searchResultID
+    end,
     SetDemoCenterNoticesVisible = function(visible)
       state.demoCenterNoticesVisible = visible
     end,
@@ -422,7 +430,9 @@ local function BuildControllerContext(state, addon, initial)
     end,
     inviteHint = {
       frame = {
-        Hide = function() end,
+        Hide = function()
+          state.inviteHintHidden = true
+        end,
       },
     },
     TriggerGroupRosterUpdate = function() end,
@@ -604,9 +614,11 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
 
     Assert.NotNil(state.mplusDemoData, "test mode must populate M+ timer demo data")
     Assert.True(state.mplusDemoData.running, "M+ timer demo data must represent a running key")
+    Assert.Equal(state.mplusDemoData.keyLevel, 15, "M+ timer demo data must expose the started key level")
     Assert.NotNil(state.killTrackDemoData, "test mode must populate bottom M+ forces tracker demo data")
     Assert.True(state.killTrackDemoData.active, "kill-track demo data must be active")
     Assert.Equal(state.killTrackDemoData.percent, 47.34, "kill-track demo percent must match the preview value")
+    Assert.Equal(state.killTrackRowRefreshes, 1, "test mode must refresh the kill-track row after demo data is set")
     Assert.NotNil(state.latestQueueState, "test mode must populate a demo target dungeon context")
     Assert.Equal(state.latestQueueState.dungeonName, "Nexus-Point Xenas", "demo target dungeon name must be explicit")
     Assert.Equal(state.latestQueueState.mapID, 559, "demo target dungeon map must match kill-track preview map")
@@ -647,6 +659,32 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Nil(portalEntriesBySlot.center.icon, "demo center portal must not synthesize an icon")
     Assert.NotNil(state.demoCenterNotices, "test mode must show the demo center notices without replacing each other")
     Assert.Equal(#state.demoCenterNotices, 2, "test mode must show both center notice demo variants at once")
+    Assert.NotNil(state.inviteHintPayload, "test mode must show the modern invite hint preview")
+    Assert.True(state.inviteHintPayload.demoPreview == true, "invite hint demo must opt into the demo anchor path")
+    Assert.Equal(state.inviteHintDurationSeconds, 120, "invite hint demo must stay visible long enough to inspect")
+    Assert.Nil(state.inviteHintSearchResultID, "invite hint demo must not bind to a live search result")
+    Assert.Equal(state.inviteHintPayload.eyebrow, "LFG Invite", "invite hint demo must use the localized eyebrow")
+    Assert.Equal(
+      state.inviteHintPayload.title,
+      "isiLive - Invite received",
+      "invite hint demo must use the modern localized title"
+    )
+    Assert.Equal(
+      state.inviteHintPayload.fields[1].value,
+      "Nexus-Point Xenas +15",
+      "invite hint demo must render the dungeon row"
+    )
+    Assert.Equal(
+      state.inviteHintPayload.fields[2].value,
+      "+15 Demo Preview",
+      "invite hint demo must render the group row"
+    )
+    Assert.Equal(state.inviteHintPayload.fields[3].value, "isiLive-Demo", "invite hint demo must render the leader row")
+    Assert.Equal(
+      state.inviteHintPayload.fields[4].value,
+      "LFG invite received",
+      "invite hint demo must render the source row"
+    )
     local acceptedNotice = state.demoCenterNotices[1]
     local difficultyNotice = state.demoCenterNotices[2]
     Assert.Equal(acceptedNotice.dungeonName, "Nexus-Point Xenas", "center notice demo must use the demo target")
@@ -701,6 +739,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.False(state.mobNameplateTestMode, "test mode exit must disable nameplate forces demo mode")
     Assert.False(state.portalNavigatorVisible, "test mode exit must hide the portal navigator demo")
     Assert.False(state.demoCenterNoticesVisible, "test mode exit must hide the stacked demo center notices")
+    Assert.True(state.inviteHintHidden == true, "test mode exit must hide the invite hint demo")
   end)
 
   test("Factory test mode does not resize the stats box font setting", function()

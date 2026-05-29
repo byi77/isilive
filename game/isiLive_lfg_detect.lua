@@ -655,27 +655,42 @@ local function MaybeShowInviteHint(entry, searchResultID)
     mapName = L.INVITE_HINT_UNKNOWN_DUNGEON or "Unknown dungeon"
   end
 
-  -- Headline: dungeon name with optional "+<level>" suffix when the group
+  -- Dungeon row: dungeon name with optional "+<level>" suffix when the group
   -- title leaked a key level (most LFG postings do).
-  local headline
+  local dungeonValue
   if entry.titleLevel then
-    headline = string.format("%s  +%d", mapName, entry.titleLevel)
+    dungeonValue = string.format("%s +%d", mapName, entry.titleLevel)
   else
-    headline = mapName
+    dungeonValue = mapName
   end
 
-  -- Subline: localized "Group: %s" with the raw group title preserved (so
-  -- lobby conventions like "no jail" / "achiever" stay readable).
   local groupText = entry.groupName or "?"
+  local fields = {
+    { label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:", value = dungeonValue },
+    { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Group:", value = groupText },
+  }
+  if type(entry.leaderName) == "string" and entry.leaderName ~= "" then
+    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LEADER or "Leader:", value = entry.leaderName }
+  end
+  fields[#fields + 1] = {
+    label = L.INVITE_ACCEPTED_NOTICE_LABEL_SOURCE or "Source:",
+    value = L.INVITE_HINT_SOURCE_LFG_INVITED or "LFG invite received",
+  }
+
   local groupTemplate = L.INVITE_HINT_GROUP or "Group: %s"
-  local subline = string.format(groupTemplate, groupText)
+  local legacyMessage = dungeonValue .. "\n" .. string.format(groupTemplate, groupText)
 
   -- searchResultID lets the hint frame re-validate against the currently
   -- visible LFGListInviteDialog: if the Blizzard dialog is showing a different
   -- listing (very common with multiple parallel invites for "+12/+13/+14"
   -- variants of the same dungeon), the hint must not present text that does
   -- not match the dialog the player is about to act on.
-  inviteHintCallback(headline .. "\n" .. subline, 8, searchResultID)
+  inviteHintCallback({
+    eyebrow = L.INVITE_HINT_EYEBROW or "LFG Invite",
+    title = L.INVITE_HINT_TITLE or "isiLive - Invite received",
+    fields = fields,
+    legacyMessage = legacyMessage,
+  }, 8, searchResultID)
 end
 
 -- Deterministic recovery of the listing "+N" when entry.titleLevel is nil but

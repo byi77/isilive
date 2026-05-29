@@ -4,6 +4,15 @@ addonTable = addonTable or {}
 addonTable._RosterInternal = addonTable._RosterInternal or {}
 local RI = addonTable._RosterInternal
 local UICommon = addonTable.UICommon or {}
+local SetReadableText = type(UICommon.SetReadableText) == "function"
+    and UICommon.SetReadableText
+  or function(fontString, text)
+    if type(fontString) == "table" and type(fontString.SetText) == "function" then
+      fontString:SetText(tostring(text or ""))
+      return true
+    end
+    return false
+  end
 
 local CreateFrame = rawget(_G, "CreateFrame")
 
@@ -294,7 +303,8 @@ local function ApplyRowNameDisplay(row, displayData)
     return
   end
 
-  row.name:SetText(
+  SetReadableText(
+    row.name,
     (displayData.readyCheckMarkup or "")
       .. " |c"
       .. displayData.colorHex
@@ -310,7 +320,7 @@ local function ApplyRowSpecDisplay(row, displayData)
     return
   end
 
-  row.spec:SetText("|c" .. displayData.colorHex .. displayData.specText .. "|r")
+  SetReadableText(row.spec, "|c" .. displayData.colorHex .. displayData.specText .. "|r")
 end
 
 local function ApplyRowReadyCheckDisplay(row, displayData)
@@ -363,25 +373,25 @@ local function SetKickCellText(cell, info, getL)
     return
   end
   if type(info) ~= "table" or info.syncHasKick == false then
-    cell:SetText("|cff666666-|r")
+    SetReadableText(cell, "|cff666666-|r")
     return
   end
   if info.syncKickOnCooldown == true then
     local secs = math.ceil(info.syncKickRemain or 0)
     if secs > 0 then
-      cell:SetText(string.format("|cffff4040%ds|r", secs))
+      SetReadableText(cell, string.format("|cffff4040%ds|r", secs))
     else
-      cell:SetText("|cff666666-|r")
+      SetReadableText(cell, "|cff666666-|r")
     end
     return
   end
   if info.syncKickOnCooldown == false then
     local L = type(getL) == "function" and getL() or {}
     local readyText = type(L.SYNC_KICK_READY_SHORT) == "string" and L.SYNC_KICK_READY_SHORT or "OK"
-    cell:SetText("|cff44ff44" .. readyText .. "|r")
+    SetReadableText(cell, "|cff44ff44" .. readyText .. "|r")
     return
   end
-  cell:SetText("|cff666666-|r")
+  SetReadableText(cell, "|cff666666-|r")
 end
 
 local function ResolveReadyCheckActive(state)
@@ -433,15 +443,15 @@ local function RenderRosterImpl(state, roster)
   local isCollapsed = IsCompactLayoutMode(layoutMode)
 
   local function ClearMemberRow(row)
-    row.spec:SetText("")
-    row.name:SetText("")
-    row.realm:SetText("")
-    row.key:SetText("")
-    row.ilvl:SetText("")
-    row.rio:SetText("")
-    row.dps:SetText("")
+    SetReadableText(row.spec, "")
+    SetReadableText(row.name, "")
+    SetReadableText(row.realm, "")
+    SetReadableText(row.key, "")
+    SetReadableText(row.ilvl, "")
+    SetReadableText(row.rio, "")
+    SetReadableText(row.dps, "")
     if row.kick then
-      row.kick:SetText("")
+      SetReadableText(row.kick, "")
     end
     row.unit = nil
     row.tooltipName = nil
@@ -602,14 +612,14 @@ local function RenderRosterImpl(state, roster)
     -- Skip displayData.roleIconMarkup since we render it as a secure button
     ApplyRowNameDisplay(row, displayData)
     ApplyRowReadyCheckDisplay(row, displayData)
-    row.realm:SetText(displayData.languageDisplay)
+    SetReadableText(row.realm, displayData.languageDisplay)
     if displayData.keyText ~= "-" and activeKeyOwnerUnit and entry.unit == activeKeyOwnerUnit then
-      row.key:SetText("|cffff4040" .. displayData.keyText .. "|r")
+      SetReadableText(row.key, "|cffff4040" .. displayData.keyText .. "|r")
     else
-      row.key:SetText(displayData.keyText)
+      SetReadableText(row.key, displayData.keyText)
     end
-    row.ilvl:SetText(displayData.ilvlText)
-    row.rio:SetText(displayData.rioText)
+    SetReadableText(row.ilvl, displayData.ilvlText)
+    SetReadableText(row.rio, displayData.rioText)
     local showDps = FORCE_SHOW_DPS_COLUMN
     if showDps then
       local dpsText = "-"
@@ -619,10 +629,10 @@ local function RenderRosterImpl(state, roster)
       if dpsText == "-" and info.syncDps and info.syncDps > 0 then
         dpsText = FormatCompactTooltipNumber(info.syncDps) or "-"
       end
-      row.dps:SetText(dpsText)
+      SetReadableText(row.dps, dpsText)
       row.dps:Show()
     else
-      row.dps:SetText("")
+      SetReadableText(row.dps, "")
       row.dps:Hide()
     end
     if row.kick then

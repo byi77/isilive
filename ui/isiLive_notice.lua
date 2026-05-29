@@ -18,6 +18,11 @@ local preparePrivateTooltip = assert(
 )
 local hidePrivateTooltip =
   assert(addonTable.UICommon and addonTable.UICommon.HidePrivateTooltip, "isiLive: UICommon.HidePrivateTooltip missing")
+local applyReadableFontForText = assert(
+  addonTable.UICommon and addonTable.UICommon.ApplyReadableFontForText,
+  "isiLive: UICommon.ApplyReadableFontForText missing"
+)
+local setReadableText = addonTable.UICommon and addonTable.UICommon.SetReadableText
 
 local NOTICE_TITLE_COLOR_R, NOTICE_TITLE_COLOR_G, NOTICE_TITLE_COLOR_B = 1, 0.9, 0.45
 local NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B = 1, 0.82, 0.25
@@ -199,6 +204,20 @@ local function IncreaseFontSize(fontString, delta)
   fontString:SetFont(fontPath, numericSize + numericDelta, fontFlags)
 end
 
+local function SetReadableText(fontString, text)
+  if type(fontString) ~= "table" or type(fontString.SetText) ~= "function" then
+    return
+  end
+
+  local value = tostring(text or "")
+  if type(setReadableText) == "function" then
+    setReadableText(fontString, value)
+  else
+    applyReadableFontForText(fontString, value)
+    fontString:SetText(value)
+  end
+end
+
 local function CreatePortalNavigatorTitle(frame, config)
   local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   IncreaseFontSize(title, config.fontDelta)
@@ -344,7 +363,7 @@ local function ApplyPortalNavigatorLayout(state, layout)
     return false
   end
 
-  state.titleText:SetText(title)
+  SetReadableText(state.titleText, title)
 
   local entryMap = {}
   for _, entry in ipairs(layout.entries or {}) do
@@ -358,7 +377,7 @@ local function ApplyPortalNavigatorLayout(state, layout)
     local entry = entryMap[slot]
     if node and entry then
       node.direction:SetText("")
-      node.destination:SetText(tostring(entry.destination or ""))
+      SetReadableText(node.destination, entry.destination or "")
       node.detail:SetText("")
       if entry.isEmpty == true then
         node.iconBg:SetColorTexture(0.13, 0.15, 0.18, 0.55)
@@ -472,6 +491,7 @@ local RICH_TELEPORT_BUTTON_WIDTH = 170
 local RICH_TELEPORT_BUTTON_MIN_HEIGHT = 104
 local RICH_TELEPORT_ICON_INSET = 14
 local RICH_TELEPORT_BUTTON_RIGHT_INSET = 24
+local RICH_TELEPORT_STATUS_FONT_DELTA = 4
 
 local function CreateCenterNoticeFieldRow(frame, config)
   local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -556,6 +576,7 @@ local function CreateCenterNoticeTeleportButton(frame, config)
   button.overlay:SetAllPoints()
   button.overlay:SetColorTexture(0, 0, 0, 0)
   button.cooldownText = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  IncreaseFontSize(button.cooldownText, RICH_TELEPORT_STATUS_FONT_DELTA)
   button.cooldownText:SetPoint("TOP", button, "TOP", 0, -4)
   button.cooldownText:SetTextColor(1, 1, 1)
   button.cooldownText:Hide()
@@ -822,7 +843,7 @@ local SUBLINE_GAP = 4
 
 local function ApplyCenterNoticeSubline(fontString, content)
   if type(content) == "string" and content ~= "" then
-    fontString:SetText(content)
+    SetReadableText(fontString, content)
     fontString:Show()
     return true
   end
@@ -835,7 +856,7 @@ local function ApplyLegacyCenterNoticeLayout(state, message, hasTeleportButton)
   state.text:ClearAllPoints()
   state.text:SetPoint("TOPLEFT", state.frame, "TOPLEFT", state.config.paddingX, -state.config.paddingY)
   state.text:SetPoint("BOTTOMRIGHT", state.frame, "BOTTOMRIGHT", -state.config.paddingX, state.config.paddingY)
-  state.text:SetText(message)
+  SetReadableText(state.text, message)
   state.text:SetWidth(state.frame:GetWidth() - (state.config.paddingX * 2))
   local textHeight = state.text:GetStringHeight() or 0
 
@@ -867,7 +888,7 @@ local function ApplyCenterNoticeStackLayout(state, message, hasSublineTop, hasSu
   end
 
   state.text:ClearAllPoints()
-  state.text:SetText(message)
+  SetReadableText(state.text, message)
   state.text:SetWidth(innerWidth)
   local sublineTopHeight = hasSublineTop and (state.sublineTop:GetStringHeight() or 0) or 0
   local textTopOffset = state.config.paddingY + (hasSublineTop and (sublineTopHeight + SUBLINE_GAP) or 0)
@@ -956,7 +977,7 @@ local function ApplyCenterNoticeRichLayout(state, payload, hasTeleportButton)
     state.eyebrowText:ClearAllPoints()
     state.eyebrowText:SetPoint("TOPLEFT", state.frame, "TOPLEFT", paddingX, -cursorY)
     state.eyebrowText:SetWidth(contentWidth)
-    state.eyebrowText:SetText(payload.eyebrow)
+    SetReadableText(state.eyebrowText, payload.eyebrow)
     state.eyebrowText:Show()
     cursorY = cursorY + (state.eyebrowText:GetStringHeight() or 0) + 2
   elseif state.eyebrowText then
@@ -970,7 +991,7 @@ local function ApplyCenterNoticeRichLayout(state, payload, hasTeleportButton)
     state.titleText:SetPoint("TOPLEFT", state.frame, "TOPLEFT", paddingX, -cursorY)
     state.titleText:SetWidth(contentWidth)
     state.titleText:SetJustifyH("LEFT")
-    state.titleText:SetText(payload.title)
+    SetReadableText(state.titleText, payload.title)
     state.titleText:Show()
     cursorY = cursorY + (state.titleText:GetStringHeight() or 0) + lineGap
 
@@ -997,7 +1018,7 @@ local function ApplyCenterNoticeRichLayout(state, payload, hasTeleportButton)
         local isWarning = field.warning == true
         row.label:ClearAllPoints()
         row.label:SetPoint("TOPLEFT", state.frame, "TOPLEFT", paddingX, -cursorY)
-        row.label:SetText(field.label)
+        SetReadableText(row.label, field.label)
         if isWarning then
           row.label:SetTextColor(FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B, 1)
         else
@@ -1008,7 +1029,7 @@ local function ApplyCenterNoticeRichLayout(state, payload, hasTeleportButton)
         row.value:ClearAllPoints()
         row.value:SetPoint("TOPLEFT", state.frame, "TOPLEFT", paddingX + FIELD_LABEL_WIDTH + lineGap, -cursorY)
         row.value:SetWidth(valueWidth)
-        row.value:SetText(valueText)
+        SetReadableText(row.value, valueText)
         if isWarning then
           row.value:SetTextColor(FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B, 1)
           if field.blink == true then
@@ -1032,7 +1053,7 @@ local function ApplyCenterNoticeRichLayout(state, payload, hasTeleportButton)
     state.teleportHeader:ClearAllPoints()
     state.teleportHeader:SetPoint("TOPLEFT", state.frame, "TOPLEFT", paddingX, -cursorY)
     state.teleportHeader:SetWidth(contentWidth)
-    state.teleportHeader:SetText(payload.teleportLabel)
+    SetReadableText(state.teleportHeader, payload.teleportLabel)
     state.teleportHeader:Show()
     cursorY = cursorY + (state.teleportHeader:GetStringHeight() or 0) + lineGap
   end
@@ -1448,9 +1469,14 @@ function Notice.CreateInviteHint(opts)
   opts = opts or {}
   local parent = opts.parent or UIParent
   local mainFrameGlobalName = opts.mainFrameGlobalName or "isiLiveMainFrame"
+  local paddingX = 18
+  local paddingY = 12
+  local rowGap = 6
+  local inviteHintWidth = 560
+  local inviteHintLabelWidth = 120
 
   local frame = CreateFrame("Frame", "isiLiveInviteHintFrame", parent, "BackdropTemplate")
-  frame:SetSize(420, 64)
+  frame:SetSize(inviteHintWidth, 146)
   frame:Hide()
   frame:SetFrameStrata("DIALOG")
 
@@ -1463,9 +1489,63 @@ function Notice.CreateInviteHint(opts)
     end
   end
 
-  -- Two-line layout: headline (dungeon + level) on top in larger / brighter
-  -- gold, group title underneath in muted gold. Both share the same FontString
-  -- with a "\n"-separated message so the caller stays simple.
+  local eyebrow = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  eyebrow:SetPoint("TOPLEFT", frame, "TOPLEFT", paddingX, -paddingY)
+  eyebrow:SetJustifyH("LEFT")
+  eyebrow:SetJustifyV("TOP")
+  eyebrow:SetWordWrap(false)
+  if eyebrow.SetNonSpaceWrap then
+    eyebrow:SetNonSpaceWrap(false)
+  end
+  eyebrow:SetTextColor(0.46, 0.94, 1)
+  eyebrow:Hide()
+
+  local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  IncreaseFontSize(title, 4)
+  title:SetPoint("TOPLEFT", frame, "TOPLEFT", paddingX, -(paddingY + 18))
+  title:SetJustifyH("LEFT")
+  title:SetJustifyV("TOP")
+  title:SetWordWrap(false)
+  if title.SetNonSpaceWrap then
+    title:SetNonSpaceWrap(false)
+  end
+  title:SetTextColor(NOTICE_TITLE_COLOR_R, NOTICE_TITLE_COLOR_G, NOTICE_TITLE_COLOR_B)
+  title:Hide()
+
+  local separator = nil
+  if type(frame.CreateTexture) == "function" then
+    separator = frame:CreateTexture(nil, "ARTWORK")
+    separator:SetHeight(1)
+    separator:SetColorTexture(0.36, 0.71, 1, 0.55)
+    separator:Hide()
+  end
+
+  local fieldRows = {}
+  for i = 1, MAX_FIELD_ROWS do
+    local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    label:SetJustifyH("LEFT")
+    label:SetJustifyV("TOP")
+    label:SetWordWrap(false)
+    if label.SetNonSpaceWrap then
+      label:SetNonSpaceWrap(false)
+    end
+    label:SetTextColor(FIELD_LABEL_R, FIELD_LABEL_G, FIELD_LABEL_B)
+    label:SetWidth(inviteHintLabelWidth)
+    label:Hide()
+
+    local value = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    value:SetJustifyH("LEFT")
+    value:SetJustifyV("TOP")
+    value:SetWordWrap(true)
+    if value.SetNonSpaceWrap then
+      value:SetNonSpaceWrap(false)
+    end
+    value:SetTextColor(FIELD_VALUE_R, FIELD_VALUE_G, FIELD_VALUE_B)
+    value:Hide()
+
+    fieldRows[i] = { label = label, value = value }
+  end
+
   local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   text:SetPoint("CENTER", 0, 0)
   text:SetJustifyH("CENTER")
@@ -1473,6 +1553,7 @@ function Notice.CreateInviteHint(opts)
   if type(text.SetSpacing) == "function" then
     text:SetSpacing(2)
   end
+  text:Hide()
 
   local endsAt = 0
   -- searchResultID this hint was rendered for. When the visible LFGListInviteDialog
@@ -1480,6 +1561,7 @@ function Notice.CreateInviteHint(opts)
   -- e.g. "+12/+13/+14" push-lobby variants), hide instead of confidently labeling
   -- the wrong listing. nil = hint is dialog-agnostic (legacy callers).
   local currentResultID = nil
+  local isDemoPreview = false
 
   local function GetInviteDialog()
     local lfgListInviteDialog = rawget(_G, "LFGListInviteDialog")
@@ -1521,6 +1603,12 @@ function Notice.CreateInviteHint(opts)
   end
 
   local function Position()
+    if isDemoPreview then
+      frame:ClearAllPoints()
+      frame:SetPoint("TOP", parent, "TOP", 0, -360)
+      return
+    end
+
     if IsHintMismatchedToVisibleDialog() then
       frame:Hide()
       return
@@ -1543,9 +1631,110 @@ function Notice.CreateInviteHint(opts)
     frame:SetPoint("TOP", parent, "TOP", 0, -220)
   end
 
+  local function HideStructuredText()
+    eyebrow:SetText("")
+    eyebrow:Hide()
+    title:SetText("")
+    title:Hide()
+    if separator then
+      separator:Hide()
+    end
+    for _, row in ipairs(fieldRows) do
+      row.label:SetText("")
+      row.value:SetText("")
+      row.label:Hide()
+      row.value:Hide()
+    end
+  end
+
+  local function RenderLegacyMessage(message)
+    frame:SetSize(420, 64)
+    HideStructuredText()
+    text:ClearAllPoints()
+    text:SetPoint("CENTER", 0, 0)
+    text:SetWidth(380)
+    SetReadableText(text, message)
+    text:Show()
+  end
+
+  local function RenderStructuredMessage(payload)
+    frame:SetWidth(inviteHintWidth)
+    text:SetText("")
+    text:Hide()
+
+    local cursorY = paddingY
+    local contentWidth = inviteHintWidth - (paddingX * 2)
+    if type(payload.eyebrow) == "string" and payload.eyebrow ~= "" then
+      eyebrow:ClearAllPoints()
+      eyebrow:SetPoint("TOPLEFT", frame, "TOPLEFT", paddingX, -cursorY)
+      eyebrow:SetWidth(contentWidth)
+      SetReadableText(eyebrow, payload.eyebrow)
+      eyebrow:Show()
+      cursorY = cursorY + (eyebrow:GetStringHeight() or 0) + 2
+    else
+      eyebrow:SetText("")
+      eyebrow:Hide()
+    end
+
+    if type(payload.title) == "string" and payload.title ~= "" then
+      title:ClearAllPoints()
+      title:SetPoint("TOPLEFT", frame, "TOPLEFT", paddingX, -cursorY)
+      title:SetWidth(contentWidth)
+      SetReadableText(title, payload.title)
+      title:Show()
+      cursorY = cursorY + (title:GetStringHeight() or 0) + rowGap
+    else
+      title:SetText("")
+      title:Hide()
+    end
+
+    if separator then
+      separator:ClearAllPoints()
+      separator:SetPoint("TOPLEFT", frame, "TOPLEFT", paddingX, -cursorY)
+      separator:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -paddingX, -cursorY)
+      separator:Show()
+      cursorY = cursorY + 1 + (rowGap * 2)
+    end
+
+    local valueWidth = math.max(40, contentWidth - inviteHintLabelWidth - rowGap)
+    local fields = type(payload.fields) == "table" and payload.fields or {}
+    for i, row in ipairs(fieldRows) do
+      local field = fields[i]
+      if type(field) == "table" and type(field.label) == "string" and field.label ~= "" then
+        row.label:ClearAllPoints()
+        row.label:SetPoint("TOPLEFT", frame, "TOPLEFT", paddingX, -cursorY)
+        row.label:SetWidth(inviteHintLabelWidth)
+        SetReadableText(row.label, field.label)
+        row.label:Show()
+
+        row.value:ClearAllPoints()
+        row.value:SetPoint("TOPLEFT", frame, "TOPLEFT", paddingX + inviteHintLabelWidth + rowGap, -cursorY)
+        row.value:SetWidth(valueWidth)
+        SetReadableText(row.value, field.value or "")
+        row.value:Show()
+
+        local rowHeight = math.max(row.label:GetStringHeight() or 0, row.value:GetStringHeight() or 0)
+        cursorY = cursorY + rowHeight + rowGap
+      else
+        row.label:SetText("")
+        row.value:SetText("")
+        row.label:Hide()
+        row.value:Hide()
+      end
+    end
+
+    frame:SetHeight(math.max(96, math.ceil(cursorY + paddingY)))
+  end
+
   local function Show(message, durationSeconds, searchResultID)
     currentResultID = searchResultID
-    text:SetText(message)
+    isDemoPreview = type(message) == "table" and message.demoPreview == true
+    frame:SetFrameStrata(isDemoPreview and "FULLSCREEN_DIALOG" or "DIALOG")
+    if type(message) == "table" then
+      RenderStructuredMessage(message)
+    else
+      RenderLegacyMessage(message)
+    end
     Position()
     endsAt = CurrentTime() + (durationSeconds or 10)
     if not IsHintMismatchedToVisibleDialog() then
@@ -1584,6 +1773,11 @@ function Notice.CreateInviteHint(opts)
 
   return {
     frame = frame,
+    text = text,
+    eyebrowText = eyebrow,
+    titleText = title,
+    titleSeparator = separator,
+    fieldRows = fieldRows,
     Show = Show,
     Position = Position,
   }

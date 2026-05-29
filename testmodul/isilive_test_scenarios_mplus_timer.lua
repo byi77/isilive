@@ -3,7 +3,7 @@
 -- Scenarios for game/isiLive_mplus_timer.lua.
 -- The module is event-driven: CHALLENGE_MODE_START loads the map's time
 -- limits + key level and starts a tick loop; _COMPLETED / _RESET stop
--- it; _DEATH_COUNT_UPDATED pulls Blizzard's death count + lost seconds.
+-- it and wipes the visible timer; _DEATH_COUNT_UPDATED pulls Blizzard's death count + lost seconds.
 -- We stub Blizzard's challenge-mode APIs, load the module, dispatch
 -- each event and assert on GetTimerData().
 
@@ -222,22 +222,7 @@ return function(test, ctx)
     Assert.Equal(data.timer, 0, "pcall failure must leave the timer at zero")
   end)
 
-  test("mplus_timer: CHALLENGE_MODE_COMPLETED marks the run completed and clears OnUpdate", function()
-    local globals, _state, frames = BuildEnv({ keyLevel = 6, timeLimit = 1800 })
-    local addon
-    WithGlobals(globals, function()
-      addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
-      local eventFrame, tickFrame = AfterLoad(frames)
-      eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_START")
-      eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_COMPLETED")
-      Assert.Nil(tickFrame:GetScript("OnUpdate"), "StopTimer must unregister OnUpdate")
-    end)
-    local data = addon.MplusTimer.GetTimerData()
-    Assert.Equal(data.running, false)
-    Assert.Equal(data.completed, true)
-  end)
-
-  test("mplus_timer: PLAYER_ENTERING_WORLD clears the frozen post-COMPLETED snapshot", function()
+  test("mplus_timer: CHALLENGE_MODE_COMPLETED wipes timer, deaths, and time limits", function()
     local globals, state, frames = BuildEnv({ keyLevel = 6, timeLimit = 1800 })
     state.deaths = 3
     state.deathTimeLost = 45
@@ -250,15 +235,39 @@ return function(test, ctx)
       tickFrame:GetScript("OnUpdate")(tickFrame, 0.15)
       eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_DEATH_COUNT_UPDATED")
       eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_COMPLETED")
-      local frozen = addon.MplusTimer.GetTimerData()
-      Assert.Equal(frozen.completed, true, "precondition: COMPLETED freezes the snapshot")
-      Assert.Equal(frozen.timer, 1500, "precondition: final timer value is held")
+      Assert.Nil(tickFrame:GetScript("OnUpdate"), "StopTimer must unregister OnUpdate")
+    end)
+    local data = addon.MplusTimer.GetTimerData()
+    Assert.Equal(data.running, false)
+    Assert.Equal(data.completed, false, "COMPLETED must clear the completed timer snapshot")
+    Assert.Equal(data.timer, 0)
+    Assert.Equal(data.timeLimit, 0)
+    Assert.Equal(data.keyLevel, 0)
+    Assert.Equal(data.deaths, 0)
+    Assert.Equal(data.deathTimeLost, 0)
+    Assert.Equal(data.timeRemaining1, 0)
+  end)
+
+  test("mplus_timer: PLAYER_ENTERING_WORLD stays cleared after completed key reset", function()
+    local globals, state, frames = BuildEnv({ keyLevel = 6, timeLimit = 1800 })
+    state.deaths = 3
+    state.deathTimeLost = 45
+    state.worldElapsed = 1500
+    local addon
+    WithGlobals(globals, function()
+      addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
+      local eventFrame, tickFrame = AfterLoad(frames)
+      eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_START")
+      tickFrame:GetScript("OnUpdate")(tickFrame, 0.15)
+      eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_DEATH_COUNT_UPDATED")
+      eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_COMPLETED")
       eventFrame:GetScript("OnEvent")(eventFrame, "PLAYER_ENTERING_WORLD")
     end)
     local data = addon.MplusTimer.GetTimerData()
     Assert.Equal(data.completed, false, "PEW must clear completed flag")
     Assert.Equal(data.timer, 0)
     Assert.Equal(data.timeLimit, 0)
+    Assert.Equal(data.keyLevel, 0)
     Assert.Equal(data.deaths, 0)
     Assert.Equal(data.deathTimeLost, 0)
     Assert.Equal(data.timeRemaining1, 0)
@@ -312,6 +321,7 @@ return function(test, ctx)
     Assert.Equal(data.completed, false, "RESET must not mark the key completed")
     Assert.Equal(data.timer, 0)
     Assert.Equal(data.timeLimit, 0)
+    Assert.Equal(data.keyLevel, 0)
     Assert.Equal(data.deaths, 0)
     Assert.Equal(data.deathTimeLost, 0)
     Assert.Equal(data.timeRemaining1, 0, "RESET must zero all cutoffs")

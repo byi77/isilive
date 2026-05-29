@@ -15,6 +15,7 @@ local preparePrivateTooltip = assert(
 )
 local hidePrivateTooltip =
   assert(addonTable.UICommon and addonTable.UICommon.HidePrivateTooltip, "isiLive: UICommon.HidePrivateTooltip missing")
+local setReadableText = addonTable.UICommon and addonTable.UICommon.SetReadableText
 local LAYOUT_MODE_EXPANDED = RI.LAYOUT_MODE_EXPANDED or "expanded"
 local LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or "compact_main_horizontal"
 local M2_ROW_LEFT_MARGIN = RI.M2_ROW_LEFT_MARGIN or 10
@@ -473,7 +474,11 @@ function TeleportUI.CreateController(opts)
 
     if type(emptyText) == "string" and emptyText ~= "" then
       if type(label.SetText) == "function" then
-        label:SetText(emptyText)
+        if type(setReadableText) == "function" then
+          setReadableText(label, emptyText)
+        else
+          label:SetText(emptyText)
+        end
       end
       if type(label.Show) == "function" then
         label:Show()

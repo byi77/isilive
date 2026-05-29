@@ -38,7 +38,7 @@
 - `README.md` wird bei jeder user-visible Verhaltensaenderung aktualisiert.
 - Beispiele und Slash-Commands bleiben synchron mit dem Code.
 - Aktive UI-Labels in den Dokus bleiben synchron zu den Lokalisierungskeys, zum Beispiel Feature-Liste in `README.md` und ASCII-Skizze in `ARCHITECTURE.md`.
-- UI-Beschreibungen mit Buff-Rating-Herzchen verwenden in Doku und Locale-Texten `media/heart_bonus_green`; Font-Herz-Glyphen werden dafuer nicht dokumentiert.
+- UI-Beschreibungen mit Buff-Rating-Herzchen verwenden die Datei `media/heart_bonus_green.tga`; der WoW-API-Pfad darf extensionless `media/heart_bonus_green` sein. Font-Herz-Glyphen werden dafuer nicht dokumentiert.
 - Das dokumentierte Roster-Format bleibt synchron zur Runtime, insbesondere das `RIO`-Deltaformat `(+X)RIO` ohne negative Werte.
 - `CHANGELOG.md` wird bei jeder funktionalen oder Code-Aenderung aktualisiert.
 - Changelog-Eintraege tragen immer ein explizites Datum im Format `YYYY-MM-DD`.

@@ -85,9 +85,13 @@ local function CreateFontStringStub()
   function fs:IsShown()
     return self._shown == true
   end
-  function fs:SetFont() end
+  function fs:SetFont(path, size, flags)
+    self._fontPath = path
+    self._fontSize = size
+    self._fontFlags = flags
+  end
   function fs:GetFont()
-    return "Fonts\\FRIZQT__.TTF", 12, ""
+    return self._fontPath or "Fonts\\FRIZQT__.TTF", self._fontSize or 12, self._fontFlags or ""
   end
   function fs:GetStringHeight()
     return 14
@@ -406,6 +410,99 @@ local function RegisterInviteHintTests(test, Assert, WithGlobals, LoadAddonModul
       Assert.True(
         hint.frame:IsShown(),
         "invite hint must remain visible against non-LFGListInviteDialog anchors regardless of searchResultID"
+      )
+    end)
+  end)
+
+  test("Notice.CreateInviteHint renders structured modern invite fields", function()
+    local now = 850
+    local dialog = CreateFrameStub()
+    dialog:Show()
+    dialog.resultID = 77
+
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return now
+      end,
+      LFGListInviteDialog = dialog,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local hint = Notice.CreateInviteHint({ parent = UIParent })
+
+      hint.Show({
+        eyebrow = "LFG Invite",
+        title = "isiLive - Invite received",
+        fields = {
+          { label = "Dungeon:", value = "Windrunner Spire +12" },
+          { label = "Group:", value = "+12 Push" },
+          { label = "Leader:", value = "Tankadin-Realm" },
+          { label = "Source:", value = "LFG invite received" },
+        },
+      }, 8, 77)
+
+      Assert.True(hint.frame:IsShown(), "structured invite hint should be visible")
+      Assert.False(hint.text:IsShown(), "legacy two-line text should stay hidden in structured mode")
+      Assert.True(hint.eyebrowText:IsShown(), "structured eyebrow should be visible")
+      Assert.Equal(hint.eyebrowText:GetText(), "LFG Invite", "eyebrow text must propagate")
+      Assert.True(hint.titleText:IsShown(), "structured title should be visible")
+      Assert.Equal(hint.titleText:GetText(), "isiLive - Invite received", "title text must propagate")
+      Assert.Equal(hint.fieldRows[1].value:GetText(), "Windrunner Spire +12", "dungeon row text")
+      Assert.Equal(hint.fieldRows[2].value:GetText(), "+12 Push", "group row text")
+      Assert.Equal(hint.fieldRows[3].value:GetText(), "Tankadin-Realm", "leader row text")
+      Assert.Equal(hint.fieldRows[4].value:GetText(), "LFG invite received", "source row text")
+    end)
+  end)
+
+  test("Notice.CreateInviteHint demo preview keeps a fixed parent anchor above live fallback anchors", function()
+    local now = 875
+    local parent = CreateFrameStub()
+    local mainFrame = CreateFrameStub()
+    mainFrame:Show()
+
+    WithGlobals({
+      UIParent = parent,
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return now
+      end,
+      isiLiveMainFrame = mainFrame,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local hint = Notice.CreateInviteHint({ parent = parent })
+
+      hint.Show({
+        demoPreview = true,
+        eyebrow = "LFG Invite",
+        title = "isiLive - Invite received",
+        fields = {
+          { label = "Dungeon:", value = "Nexus-Point Xenas +15" },
+        },
+      }, 120)
+
+      local point, relativeTo, relativePoint, xOfs, yOfs = hint.frame:GetPoint()
+      Assert.Equal(point, "TOP", "demo invite hint should use a fixed top anchor")
+      Assert.Equal(relativeTo, parent, "demo invite hint should anchor to its parent")
+      Assert.Equal(relativePoint, "TOP", "demo invite hint should stay parent-relative")
+      Assert.Equal(xOfs, 0, "demo invite hint x offset")
+      Assert.Equal(yOfs, -360, "demo invite hint y offset")
+      Assert.Equal(
+        hint.frame:GetFrameStrata(),
+        "FULLSCREEN_DIALOG",
+        "demo invite hint must render above notice previews"
+      )
+
+      local onUpdate = RequireValue(hint.frame:GetScript("OnUpdate"), "invite hint frame should expose OnUpdate")
+      onUpdate(hint.frame, 0.25)
+
+      local _, updatedRelativeTo = hint.frame:GetPoint()
+      Assert.Equal(
+        updatedRelativeTo,
+        parent,
+        "demo invite hint must not be reanchored under the main frame on reposition ticks"
       )
     end)
   end)
@@ -775,6 +872,35 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
     end)
   end)
 
+  test("Center notice rich field values use Cyrillic-capable font for Cyrillic leader names", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+      IsiLiveDB = { locale = "enUS" },
+    }, function()
+      local centerNotice = CreateCenterNoticeForRichTest()
+      centerNotice.Show(nil, 12, nil, nil, {
+        title = "isiLive - Einladung angenommen",
+        fields = {
+          { label = "Dungeon:", value = "Maisarakavernen" },
+          {
+            label = "Leader:",
+            value = "\208\157\208\184\209\129\208\176\208\189-\208\154\208\176\208\183\208\183\208\176\208\186",
+          },
+        },
+      })
+
+      Assert.Equal(
+        centerNotice.fieldRows[2].value._fontPath,
+        "Fonts\\ARIALN.TTF",
+        "Cyrillic leader names should use a Cyrillic-capable font in the center notice"
+      )
+    end)
+  end)
+
   test("Center notice rich Show places a larger teleport button in the right action area", function()
     WithGlobals({
       UIParent = CreateFrameStub(),
@@ -931,6 +1057,8 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
         "Portal",
         "ready portal label should use the locale text"
       )
+      local _, fontSize = centerNotice.teleportButton.cooldownText:GetFont()
+      Assert.True(fontSize >= 16, "ready portal label should use the enlarged teleport status font")
     end)
   end)
 
@@ -979,6 +1107,8 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       centerNotice.teleportButton:GetScript("OnUpdate")(centerNotice.teleportButton, 0.1)
 
       Assert.Equal(centerNotice.teleportButton.cooldownText:GetText(), "07:59", "cooldown must replace the ready label")
+      local _, fontSize = centerNotice.teleportButton.cooldownText:GetFont()
+      Assert.True(fontSize >= 16, "cooldown timer should use the enlarged teleport status font")
     end)
   end)
 
