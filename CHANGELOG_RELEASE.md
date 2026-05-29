@@ -19,6 +19,8 @@ Highlights:
 - Added language flags to LFG applicant rows and moved applicant bonus hearts to the right of the class badge.
 - Restored applicant name positioning when a reusable applicant row loses its language flag, including parent-frame texture fallback support.
 - Forced applicant bonus hearts to use real `media/heart_bonus_green.tga` textures instead of the old FontString texture-markup fallback.
+- Applied applicant bonus-heart textures directly from visible `button.Members` rows when Blizzard's member-update hook does not fire.
+- Kept applicant bonus-heart textures visible in layouts where the role icon is outside the member-name frame, and resolved localized applicant class names through Blizzard class-name tables.
 - Modernized the accepted-invite center notice into the new info-card layout with a wide right-side portal action area.
 - Reworked the Timeways Portal Navigator into a five-position crescent view with verified teleport spell icons on occupied portals and the empty center `Heaven` portal muted.
 - Reworked the non-Mythic dungeon-entry notice into the same rich center-card layout with a dominant blinking red warning row.
@@ -32,4 +34,4 @@ Highlights:
 - Added configurable StatsBox detail rows for Leech, Speed, Durability, Stamina, and Avoidance.
 - Polished Settings language spacing, stronger section headers, and distinct child-group separators.
 - Kept the StatsBox settings as one coherent block without an internal separator.
-- Updated the release-gate scenario baseline to 1915 deterministic scenarios.
+- Updated the release-gate scenario baseline to 1918 deterministic scenarios.

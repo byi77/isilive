@@ -935,6 +935,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - LI.BuildSearchResultBonusBadge counts relevant non-utility bonuses as markers
   - LI.BuildSearchResultBonusBadge counts each non-stacking bonus only once
   - LI.ApplyApplicantBonusToMemberFrame writes applicant bonus markers next to the class badge and clears them
+  - LI.HookApplicantButton applies bonus markers to visible applicant member frames
+  - LI.ApplyApplicantBonusToMemberFrame anchors applicant markers to the visible name when no class icon exists
+  - LI.ApplyApplicantBonusToMemberFrame resolves localized applicant class names through Blizzard tables
   - LI.ApplyApplicantBonusToMemberFrame creates applicant marker textures on parent when member cannot
   - LI.ApplyApplicantFlagToMemberFrame renders applicant language flag beside the name
   - LI.ApplyApplicantFlagToMemberFrame creates applicant flag texture on parent when member cannot

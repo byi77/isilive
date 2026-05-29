@@ -43,7 +43,7 @@ Die GitHub-Workflows checken das Repository vor der Trigger-Pruefung aus, damit 
 
 `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (Stand nach Applicant-Flag-/Herzchen-Review-Fix: 1915 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
+`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (Stand nach Applicant-Flag-/Herzchen-Review-Fix: 1918 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
 
 Windows-Hinweis: Wenn Metrics mit fehlenden LuaRocks-Modulen (`lfs`, `luacheck.decoder`, `luacheck.parser`) scheitern, `LUA_PATH` und `LUA_CPATH` auf die LuaRocks-Pfade `share/lua/5.4` und `lib/lua/5.4` setzen, bevor der Metrics-Check laeuft. Lokal gelten dieselben Release-Schwellen wie in CI: `ISILIVE_MAX_FILE_LINES=3200` und `ISILIVE_MAX_FUNCTION_LINES=420`.
 

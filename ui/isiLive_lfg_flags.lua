@@ -289,6 +289,30 @@ local function NormalizeToken(value)
   return token
 end
 
+local function ResolveClassToken(value)
+  local token = NormalizeToken(value)
+  if token and CLASS_TOKENS[token] then
+    return token
+  end
+  if type(value) ~= "string" or value == "" then
+    return nil
+  end
+  local localizedTables = {
+    rawget(_G, "LOCALIZED_CLASS_NAMES_MALE"),
+    rawget(_G, "LOCALIZED_CLASS_NAMES_FEMALE"),
+  }
+  for _, localized in ipairs(localizedTables) do
+    if type(localized) == "table" then
+      for classToken, className in pairs(localized) do
+        if type(classToken) == "string" and CLASS_TOKENS[classToken] and className == value then
+          return classToken
+        end
+      end
+    end
+  end
+  return nil
+end
+
 local function NormalizeSpecText(value)
   if type(value) ~= "string" or value == "" then
     return nil
@@ -346,8 +370,7 @@ local function ResolvePlayerClassToken()
   if not ok then
     return nil
   end
-  classToken = NormalizeToken(classToken)
-  return CLASS_TOKENS[classToken] and classToken or nil
+  return ResolveClassToken(classToken)
 end
 
 local function ResolvePlayerSpecID()
@@ -695,7 +718,7 @@ local function ExtractMemberInfoFromTable(info)
   if type(info) ~= "table" or IsSecretValue(info) then
     return nil
   end
-  local classToken = NormalizeToken(info.classFilename or info.classFileName or info.classToken or info.class)
+  local classToken = ResolveClassToken(info.classFilename or info.classFileName or info.classToken or info.class)
   local specID = ReadPositiveNumber(info.specID or info.specId or info.specializationID or info.specializationId)
   if specID and SPEC_CLASS_TOKENS[specID] ~= classToken then
     specID = nil
@@ -732,7 +755,7 @@ local function ExtractMemberInfoFromValues(...)
         pendingNumericSpecID = pendingNumericSpecID or numericValue
       end
     elseif type(value) == "string" and value ~= "" and not IsSecretValue(value) then
-      local token = NormalizeToken(value)
+      local token = ResolveClassToken(value)
       if token and CLASS_TOKENS[token] then
         classToken = classToken or token
         if not specID and pendingNumericSpecID and SPEC_CLASS_TOKENS[pendingNumericSpecID] == classToken then
@@ -892,8 +915,8 @@ local function ReadApplicantMemberInfo(applicantID, memberIndex)
   local classToken = result[3]
   local localizedClass = result[4]
   local specID = result[17]
-  classToken = NormalizeToken(classToken)
-  if not classToken or not CLASS_TOKENS[classToken] then
+  classToken = ResolveClassToken(classToken) or ResolveClassToken(localizedClass)
+  if not classToken then
     return nil
   end
   return {
@@ -1298,7 +1321,7 @@ local function ApplyApplicantBonusToButton(button, applicantIDOverride)
   end
 end
 
-local function ResolveApplicantRoleAnchor(member)
+local function ResolveApplicantClassAnchor(member)
   if type(member) ~= "table" then
     return nil
   end
@@ -1317,17 +1340,17 @@ local function ResolveApplicantRoleAnchor(member)
       return value
     end
   end
-  local roleAnchorKeys = {
-    "RoleIcon",
-    "Role",
-    "RoleButton",
-    "RoleIconTexture",
-  }
-  for _, key in ipairs(roleAnchorKeys) do
-    local value = rawget(member, key)
-    if type(value) == "table" then
-      return value
-    end
+  return nil
+end
+
+local function ResolveApplicantBonusAnchor(member)
+  local classAnchor = ResolveApplicantClassAnchor(member)
+  if classAnchor then
+    return classAnchor
+  end
+  local nameText = type(member) == "table" and rawget(member, "Name") or nil
+  if type(nameText) == "table" then
+    return nameText
   end
   return nil
 end
@@ -1339,9 +1362,9 @@ local function AnchorApplicantBonusBadge(member, badgeText)
   if type(badgeText.ClearAllPoints) == "function" then
     badgeText:ClearAllPoints()
   end
-  local roleAnchor = ResolveApplicantRoleAnchor(member)
-  if roleAnchor then
-    badgeText:SetPoint("LEFT", roleAnchor, "RIGHT", 5, 0)
+  local bonusAnchor = ResolveApplicantBonusAnchor(member)
+  if bonusAnchor then
+    badgeText:SetPoint("LEFT", bonusAnchor, "RIGHT", 5, 0)
     return
   end
   badgeText:SetPoint("LEFT", member, "LEFT", 104, 0)
@@ -1535,9 +1558,9 @@ local function AnchorApplicantBonusIcon(member, icon, index)
       return
     end
   end
-  local roleAnchor = ResolveApplicantRoleAnchor(member)
-  if roleAnchor then
-    icon:SetPoint("LEFT", roleAnchor, "RIGHT", 5, 0)
+  local bonusAnchor = ResolveApplicantBonusAnchor(member)
+  if bonusAnchor then
+    icon:SetPoint("LEFT", bonusAnchor, "RIGHT", 5, 0)
     return
   end
   icon:SetPoint("LEFT", member, "LEFT", 104, 0)
@@ -1607,8 +1630,25 @@ local function ApplyApplicantBonusToMemberFrame(member, applicantID, memberIndex
   end
 end
 
+local function ApplyApplicantMembersFromButton(button, applicantIDOverride)
+  if type(button) ~= "table" then
+    return
+  end
+  local applicantID = ReadPositiveNumber(applicantIDOverride) or ReadPositiveNumber(rawget(button, "applicantID"))
+  local members = rawget(button, "Members")
+  if not applicantID or type(members) ~= "table" then
+    return
+  end
+  for index, member in pairs(members) do
+    if type(member) == "table" then
+      ApplyApplicantBonusToMemberFrame(member, applicantID, ReadPositiveNumber(rawget(member, "memberIdx")) or index)
+    end
+  end
+end
+
 local function HookApplicantButton(button, applicantIDOverride)
   if not button or hookedApplicants[button] then
+    ApplyApplicantMembersFromButton(button, applicantIDOverride)
     ApplyApplicantBonusToButton(button, applicantIDOverride)
     return
   end
@@ -1629,6 +1669,7 @@ local function HookApplicantButton(button, applicantIDOverride)
       ApplyApplicantBonusToButton(self, ResolveApplicantIDFromButton(button))
     end)
   end
+  ApplyApplicantMembersFromButton(button, applicantIDOverride)
   ApplyApplicantBonusToButton(button, applicantIDOverride)
 end
 
@@ -2065,12 +2106,15 @@ LI.BuildSearchResultBonusBadge = BuildSearchResultBonusBadge
 LI.BuildApplicantMemberBonuses = BuildApplicantMemberBonuses
 LI.ApplyApplicantBonusToMemberFrame = ApplyApplicantBonusToMemberFrame
 LI.ApplyApplicantFlagToMemberFrame = ApplyApplicantFlagToMemberFrame
+LI.ApplyApplicantMembersFromButton = ApplyApplicantMembersFromButton
+LI.HookApplicantButton = HookApplicantButton
 LI.ApplyApplicantBonusToButton = ApplyApplicantBonusToButton
 LI.ApplyGroupBonusTooltipLines = ApplyGroupBonusTooltipLines
 LI.ResolvePlayerBonusProfile = ResolvePlayerBonusProfile
 LI.BuildApplicantBonusBadge = BuildApplicantBonusBadge
 LI.BuildApplicantBonusMarkerBadge = BuildApplicantBonusMarkerBadge
-LI.ResolveApplicantRoleAnchor = ResolveApplicantRoleAnchor
+LI.ResolveApplicantClassAnchor = ResolveApplicantClassAnchor
+LI.ResolveApplicantBonusAnchor = ResolveApplicantBonusAnchor
 LI.AnchorApplicantBonusBadge = AnchorApplicantBonusBadge
 LI.IsSearchResultPromotionOfferedRow = IsSearchResultPromotionOfferedRow
 LI.ResetCacheForTests = function()

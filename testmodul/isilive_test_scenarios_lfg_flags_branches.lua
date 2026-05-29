@@ -155,6 +155,12 @@ local function BonusGlobals(overrides)
   if overrides.C_LFGList ~= nil then
     globals.C_LFGList = overrides.C_LFGList
   end
+  if overrides.LOCALIZED_CLASS_NAMES_MALE ~= nil then
+    globals.LOCALIZED_CLASS_NAMES_MALE = overrides.LOCALIZED_CLASS_NAMES_MALE
+  end
+  if overrides.LOCALIZED_CLASS_NAMES_FEMALE ~= nil then
+    globals.LOCALIZED_CLASS_NAMES_FEMALE = overrides.LOCALIZED_CLASS_NAMES_FEMALE
+  end
   if overrides.GameTooltip ~= nil then
     globals.GameTooltip = overrides.GameTooltip
   end
@@ -1344,6 +1350,121 @@ return function(test, ctx)
       )
     end)
   end)
+
+  test("LI.HookApplicantButton applies bonus markers to visible applicant member frames", function()
+    local globals = BonusGlobals({
+      C_LFGList = {
+        GetApplicantInfo = function()
+          return { numMembers = 1 }
+        end,
+        GetApplicantMemberInfo = function()
+          return "Ariphinne", "HUNTER", "Hunter", 80, 280, 0, false, false, true, "DAMAGER", nil, 0, 0, nil, nil, 253
+        end,
+      },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadBonusModules(LoadAddonModules)
+      local member = {
+        memberIdx = 1,
+        Name = NewFontStringStub(),
+        ClassIcon = {},
+        CreateTexture = function()
+          return NewTextureStub()
+        end,
+      }
+      local button = {
+        applicantID = 51,
+        Members = { member },
+        HookScript = function() end,
+      }
+
+      addon._LFGFlagsInternal.HookApplicantButton(button)
+
+      local icon = Assert.NotNil(member._isiLiveBonusBadgeIcons[1], "hooked applicant row must decorate its member")
+      Assert.Equal(icon._texture, BONUS_TEXTURE, "hooked applicant member marker must use the green heart texture")
+      Assert.True(icon._shown == true, "hooked applicant member marker must be visible")
+    end)
+  end)
+
+  test(
+    "LI.ApplyApplicantBonusToMemberFrame anchors applicant markers to the visible name when no class icon exists",
+    function()
+      local globals = BonusGlobals({
+        C_LFGList = {
+          GetApplicantInfo = function()
+            return { numMembers = 1 }
+          end,
+          GetApplicantMemberInfo = function()
+            return "Ariphinne", "HUNTER", "Hunter", 80, 280, 0, false, false, true, "DAMAGER", nil, 0, 0, nil, nil, 253
+          end,
+        },
+      })
+      WithGlobals(globals, function()
+        local addon = LoadBonusModules(LoadAddonModules)
+        local member = {
+          memberIdx = 1,
+          Name = NewFontStringStub(),
+          RoleIcon = {},
+          CreateTexture = function()
+            return NewTextureStub()
+          end,
+        }
+
+        addon._LFGFlagsInternal.ApplyApplicantBonusToMemberFrame(member, 51, 1)
+
+        local icon = Assert.NotNil(member._isiLiveBonusBadgeIcons[1], "visible applicant member must get a marker")
+        Assert.True(
+          icon._point[2] == member.Name,
+          "marker must stay inside the visible name cell when no class icon exists"
+        )
+        Assert.True(icon._shown == true, "name-anchored applicant marker must be visible")
+      end)
+    end
+  )
+
+  test(
+    "LI.ApplyApplicantBonusToMemberFrame resolves localized applicant class names through Blizzard tables",
+    function()
+      local globals = BonusGlobals({
+        UnitClass = function(unit)
+          if unit == "player" then
+            return "Warrior", "WARRIOR"
+          end
+          return nil, nil
+        end,
+        GetSpecializationInfo = function()
+          return 72
+        end,
+        LOCALIZED_CLASS_NAMES_MALE = {
+          WARRIOR = "Krieger",
+        },
+        C_LFGList = {
+          GetApplicantInfo = function()
+            return { numMembers = 1 }
+          end,
+          GetApplicantMemberInfo = function()
+            return "Bertar", "Krieger", "Krieger", 80, 287, 0, false, false, true, "DAMAGER"
+          end,
+        },
+      })
+      WithGlobals(globals, function()
+        local addon = LoadBonusModules(LoadAddonModules)
+        local member = {
+          memberIdx = 1,
+          Name = NewFontStringStub(),
+          CreateTexture = function()
+            return NewTextureStub()
+          end,
+        }
+
+        addon._LFGFlagsInternal.ApplyApplicantBonusToMemberFrame(member, 51, 1)
+
+        local icon = Assert.NotNil(member._isiLiveBonusBadgeIcons[1], "localized class names must still create markers")
+        Assert.Equal(icon._texture, BONUS_TEXTURE, "localized applicant marker must use the green heart texture")
+        Assert.True(icon._shown == true, "localized applicant marker must be visible")
+      end)
+    end
+  )
 
   test("LI.ApplyApplicantFlagToMemberFrame renders applicant language flag beside the name", function()
     local applicantName = "Natire-Aegwynn"

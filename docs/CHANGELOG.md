@@ -76,9 +76,18 @@
 - Forced applicant buff-rating hearts to render only as real textures from
   `media/heart_bonus_green.tga`, removing the old FontString texture-markup
   fallback that could display the wrong symbol in Blizzard applicant rows.
+- Fixed visible LFG applicant rows that exposed `button.Members` without
+  reliably firing the global member-update hook, so green bonus-heart textures
+  are applied directly from the hooked applicant button.
+- Fixed applicant bonus-heart textures being clipped in Blizzard layouts where
+  the role icon sits outside the member-name frame by anchoring fallback markers
+  to the visible name field instead of the role column.
+- Resolved localized applicant class names through Blizzard's class-name tables
+  so bonus hearts still render when `GetApplicantMemberInfo` returns localized
+  class text instead of an English class token.
 - Extended the active Cyrillic-font, killtracker keylevel, and M+-timer reset
   rule coverage, added applicant-row LFG coverage, and updated the release-gate
-  baseline to `1915` deterministic scenarios.
+  baseline to `1918` deterministic scenarios.
 
 ## 2026-05-29 - Version 0.9.288 (patch)
 
