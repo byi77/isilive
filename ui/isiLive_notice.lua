@@ -55,6 +55,7 @@ local function BuildCenterNoticeConfig(opts)
       or (frameName .. "TeleportButton"),
     minHeight = tonumber(opts.minHeight) or 70,
     maxHeight = tonumber(opts.maxHeight) or 220,
+    yOffset = tonumber(opts.yOffset) or 0,
     paddingX = tonumber(opts.paddingX) or 20,
     paddingY = tonumber(opts.paddingY) or 12,
     buttonHeight = tonumber(opts.buttonHeight) or 56,
@@ -105,21 +106,21 @@ local function BuildPortalNavigatorConfig(opts)
     parent = opts.parent or UIParent,
     frameName = frameName,
     width = tonumber(opts.width) or 760,
-    height = tonumber(opts.height) or 195,
-    yOffset = tonumber(opts.yOffset) or 210,
+    height = tonumber(opts.height) or 220,
+    yOffset = tonumber(opts.yOffset) or 190,
     frameAlpha = tonumber(opts.frameAlpha) or 1,
-    backgroundAlpha = tonumber(opts.backgroundAlpha) or 0.72,
-    fontDelta = tonumber(opts.fontDelta) or 10,
+    backgroundAlpha = tonumber(opts.backgroundAlpha) or 0.62,
+    fontDelta = tonumber(opts.fontDelta) or 2,
     paddingX = tonumber(opts.paddingX) or 24,
     paddingY = tonumber(opts.paddingY) or 14,
-    entryWidth = tonumber(opts.entryWidth) or 320,
+    entryWidth = tonumber(opts.entryWidth) or 180,
   }
 end
 
 local function CreateCenterNoticeFrame(config)
   local frame = CreateFrame("Frame", config.frameName, config.parent, "BackdropTemplate")
   frame:SetSize(680, config.minHeight)
-  frame:SetPoint("CENTER", config.parent, "CENTER", 0, 0)
+  frame:SetPoint("CENTER", config.parent, "CENTER", 0, config.yOffset)
   frame:SetMovable(true)
   ClampMovableFrameToScreen(frame)
   frame:EnableMouse(true)
@@ -220,11 +221,14 @@ local function CreatePortalNavigatorSeparator(frame)
 end
 
 local PORTAL_NAVIGATOR_SLOT_POINTS = {
-  half_left = { point = "TOPLEFT", x = 60, y = -78 },
-  left = { point = "TOPLEFT", x = 60, y = -138 },
-  right = { point = "TOPRIGHT", x = -60, y = -138 },
-  half_right = { point = "TOPRIGHT", x = -60, y = -78 },
+  left = { point = "TOPLEFT", x = 36, y = -126, iconX = 0, iconY = -6 },
+  half_left = { point = "TOPLEFT", x = 178, y = -86, iconX = 0, iconY = -6 },
+  center = { point = "TOP", x = 0, y = -66, iconX = 0, iconY = -6 },
+  half_right = { point = "TOPRIGHT", x = -178, y = -86, iconX = 0, iconY = -6 },
+  right = { point = "TOPRIGHT", x = -36, y = -126, iconX = 0, iconY = -6 },
 }
+
+local PORTAL_NAVIGATOR_SLOT_ORDER = { "left", "half_left", "center", "half_right", "right" }
 
 local function CreatePortalStyleBodyText(frame, config)
   local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -235,6 +239,34 @@ end
 
 local function CreatePortalNavigatorEntry(frame, config, slot)
   local text = CreatePortalStyleBodyText(frame, config)
+  local pointDef = PORTAL_NAVIGATOR_SLOT_POINTS[slot] or PORTAL_NAVIGATOR_SLOT_POINTS.left
+
+  local direction = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  IncreaseFontSize(direction, math.max(0, math.floor((tonumber(config.fontDelta) or 0) / 2)))
+  direction:SetWidth(config.entryWidth)
+  direction:SetJustifyH("CENTER")
+  direction:SetJustifyV("TOP")
+  direction:SetWordWrap(false)
+  if direction.SetNonSpaceWrap then
+    direction:SetNonSpaceWrap(false)
+  end
+  direction:SetTextColor(0.38, 0.92, 1)
+  direction:SetPoint(pointDef.point, frame, pointDef.point, pointDef.x, pointDef.y)
+
+  local iconBg = frame:CreateTexture(nil, "BACKGROUND")
+  if type(iconBg.SetSize) == "function" then
+    iconBg:SetSize(44, 44)
+  end
+  iconBg:SetPoint("TOP", direction, "BOTTOM", pointDef.iconX, pointDef.iconY)
+  iconBg:SetColorTexture(0.05, 0.2, 0.34, 0.65)
+
+  local iconCore = frame:CreateTexture(nil, "ARTWORK")
+  if type(iconCore.SetSize) == "function" then
+    iconCore:SetSize(40, 40)
+  end
+  iconCore:SetPoint("CENTER", iconBg, "CENTER", 0, 0)
+  iconCore:SetColorTexture(0.1, 0.45, 1, 0.92)
+
   text:SetWidth(config.entryWidth)
   text:SetJustifyH("CENTER")
   text:SetJustifyV("MIDDLE")
@@ -242,18 +274,60 @@ local function CreatePortalNavigatorEntry(frame, config, slot)
   if text.SetNonSpaceWrap then
     text:SetNonSpaceWrap(false)
   end
+  text:SetPoint("TOP", iconBg, "BOTTOM", 0, -6)
 
-  local pointDef = PORTAL_NAVIGATOR_SLOT_POINTS[slot] or PORTAL_NAVIGATOR_SLOT_POINTS.left
-  text:SetPoint(pointDef.point, frame, pointDef.point, pointDef.x, pointDef.y)
-  return text
+  local detail = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  detail:SetWidth(config.entryWidth)
+  detail:SetJustifyH("CENTER")
+  detail:SetJustifyV("TOP")
+  detail:SetWordWrap(false)
+  if detail.SetNonSpaceWrap then
+    detail:SetNonSpaceWrap(false)
+  end
+  detail:SetTextColor(0.62, 0.68, 0.76)
+  detail:SetPoint("TOP", text, "BOTTOM", 0, -2)
+
+  return {
+    direction = direction,
+    destination = text,
+    detail = detail,
+    iconBg = iconBg,
+    iconCore = iconCore,
+  }
+end
+
+local function SetPortalNavigatorIconTexture(iconFrame, icon)
+  if type(iconFrame) ~= "table" then
+    return
+  end
+  if type(iconFrame.SetTexture) == "function" then
+    iconFrame:SetTexture(icon)
+  end
+  if icon ~= nil and type(iconFrame.SetTexCoord) == "function" then
+    iconFrame:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+  end
+end
+
+local function SetPortalNavigatorIconColor(iconFrame, r, g, b, a)
+  if type(iconFrame) ~= "table" then
+    return
+  end
+  SetPortalNavigatorIconTexture(iconFrame, nil)
+  if type(iconFrame.SetColorTexture) == "function" then
+    iconFrame:SetColorTexture(r, g, b, a)
+  end
 end
 
 local function ClearPortalNavigatorEntries(state)
   state.titleText:SetText("")
-  for _, slot in ipairs({ "half_left", "left", "right", "half_right" }) do
-    local entry = state.entries[slot]
+  for _, slot in ipairs(PORTAL_NAVIGATOR_SLOT_ORDER) do
+    local entry = state.nodes[slot]
     if entry then
-      entry:SetText("")
+      entry.direction:SetText("")
+      entry.destination:SetText("")
+      entry.detail:SetText("")
+      entry.iconBg:SetColorTexture(0.05, 0.2, 0.34, 0.65)
+      SetPortalNavigatorIconColor(entry.iconCore, 0.1, 0.45, 1, 0.92)
     end
   end
 end
@@ -279,13 +353,28 @@ local function ApplyPortalNavigatorLayout(state, layout)
     end
   end
 
-  for _, slot in ipairs({ "half_left", "left", "right", "half_right" }) do
-    local textFrame = state.entries[slot]
+  for _, slot in ipairs(PORTAL_NAVIGATOR_SLOT_ORDER) do
+    local node = state.nodes[slot]
     local entry = entryMap[slot]
-    if textFrame and entry then
-      textFrame:SetText(tostring(entry.destination or ""))
-    elseif textFrame then
-      textFrame:SetText("")
+    if node and entry then
+      node.direction:SetText("")
+      node.destination:SetText(tostring(entry.destination or ""))
+      node.detail:SetText("")
+      if entry.isEmpty == true then
+        node.iconBg:SetColorTexture(0.13, 0.15, 0.18, 0.55)
+        SetPortalNavigatorIconColor(node.iconCore, 0.36, 0.4, 0.46, 0.78)
+      else
+        node.iconBg:SetColorTexture(0.05, 0.2, 0.34, 0.65)
+        if type(entry.icon) == "string" or type(entry.icon) == "number" then
+          SetPortalNavigatorIconTexture(node.iconCore, entry.icon)
+        else
+          SetPortalNavigatorIconColor(node.iconCore, 0.1, 0.45, 1, 0.92)
+        end
+      end
+    elseif node then
+      node.direction:SetText("")
+      node.destination:SetText("")
+      node.detail:SetText("")
     end
   end
 
@@ -337,7 +426,7 @@ local function CreateCenterNoticeTitle(frame, config)
   local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   -- Title sits above the separator and announces the notice category. Sized
   -- a touch larger than the body fontDelta so it reads as the dominant header.
-  IncreaseFontSize(title, (tonumber(config.fontDelta) or 0) + 2)
+  IncreaseFontSize(title, tonumber(config.fontDelta) or 0)
   title:SetJustifyH("CENTER")
   title:SetJustifyV("MIDDLE")
   title:SetWordWrap(false)
@@ -355,17 +444,34 @@ local function CreateCenterNoticeTitleSeparator(frame)
   end
   local sep = frame:CreateTexture(nil, "ARTWORK")
   sep:SetHeight(1)
-  -- Soft gold tint at 35% alpha — matches the PortalNavigator separator so
-  -- the visual language across notice variants stays consistent.
-  sep:SetColorTexture(NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B, 0.35)
+  sep:SetColorTexture(0.36, 0.71, 1, 0.55)
   sep:Hide()
   return sep
 end
 
-local FIELD_LABEL_WIDTH = 130
+local function CreateCenterNoticeEyebrow(frame, config)
+  local eyebrow = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  IncreaseFontSize(eyebrow, math.max(0, math.floor((tonumber(config.fontDelta) or 0) / 3)))
+  eyebrow:SetJustifyH("LEFT")
+  eyebrow:SetJustifyV("TOP")
+  eyebrow:SetWordWrap(false)
+  if eyebrow.SetNonSpaceWrap then
+    eyebrow:SetNonSpaceWrap(false)
+  end
+  eyebrow:SetTextColor(0.46, 0.94, 1)
+  eyebrow:Hide()
+  return eyebrow
+end
+
+local FIELD_LABEL_WIDTH = 144
 local MAX_FIELD_ROWS = 4
-local RICH_TELEPORT_BUTTON_SIZE = 64
-local RICH_TELEPORT_BUTTON_RIGHT_INSET = 72
+local FIELD_LABEL_R, FIELD_LABEL_G, FIELD_LABEL_B = 0.62, 0.68, 0.76
+local FIELD_VALUE_R, FIELD_VALUE_G, FIELD_VALUE_B = 0.94, 0.96, 0.99
+local FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B = 1, 0.16, 0.12
+local RICH_TELEPORT_BUTTON_WIDTH = 170
+local RICH_TELEPORT_BUTTON_MIN_HEIGHT = 104
+local RICH_TELEPORT_ICON_INSET = 14
+local RICH_TELEPORT_BUTTON_RIGHT_INSET = 24
 
 local function CreateCenterNoticeFieldRow(frame, config)
   local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -376,8 +482,7 @@ local function CreateCenterNoticeFieldRow(frame, config)
   if label.SetNonSpaceWrap then
     label:SetNonSpaceWrap(false)
   end
-  -- Gold accent for labels (Dungeon: / Gruppe: / ...).
-  label:SetTextColor(NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B)
+  label:SetTextColor(FIELD_LABEL_R, FIELD_LABEL_G, FIELD_LABEL_B)
   label:SetWidth(FIELD_LABEL_WIDTH)
   label:Hide()
 
@@ -389,9 +494,7 @@ local function CreateCenterNoticeFieldRow(frame, config)
   if value.SetNonSpaceWrap then
     value:SetNonSpaceWrap(false)
   end
-  -- Warm white for values, slightly muted vs. pure white so the gold labels
-  -- still stand out.
-  value:SetTextColor(0.95, 0.95, 0.92)
+  value:SetTextColor(FIELD_VALUE_R, FIELD_VALUE_G, FIELD_VALUE_B)
   value:Hide()
 
   return { label = label, value = value }
@@ -436,15 +539,24 @@ local function CreateCenterNoticeTeleportButton(frame, config)
   button:SetAttribute("useOnKeyDown", true)
   button:SetAttribute("spell", 0)
   button:SetAttribute("spell1", 0)
+  button.actionBg = button:CreateTexture(nil, "BACKGROUND")
+  if type(button.actionBg.SetSize) == "function" then
+    button.actionBg:SetSize(config.buttonHeight + 8, config.buttonHeight + 8)
+  end
+  button.actionBg:SetPoint("CENTER", button, "CENTER", 0, 0)
+  button.actionBg:SetColorTexture(0.04, 0.18, 0.32, 0.62)
   button.icon = button:CreateTexture(nil, "ARTWORK")
-  button.icon:SetAllPoints()
+  if type(button.icon.SetSize) == "function" then
+    button.icon:SetSize(config.buttonHeight, config.buttonHeight)
+  end
+  button.icon:SetPoint("CENTER", button, "CENTER", 0, 0)
   button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
   button.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
   button.overlay = button:CreateTexture(nil, "OVERLAY")
   button.overlay:SetAllPoints()
   button.overlay:SetColorTexture(0, 0, 0, 0)
   button.cooldownText = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  button.cooldownText:SetPoint("CENTER", button, "CENTER", 0, 0)
+  button.cooldownText:SetPoint("TOP", button, "TOP", 0, -4)
   button.cooldownText:SetTextColor(1, 1, 1)
   button.cooldownText:Hide()
 
@@ -465,7 +577,7 @@ end
 
 local function ResetCenterNoticeToDefaultPosition(state)
   state.frame:ClearAllPoints()
-  state.frame:SetPoint("CENTER", state.config.parent, "CENTER", 0, 0)
+  state.frame:SetPoint("CENTER", state.config.parent, "CENTER", 0, state.config.yOffset)
 end
 
 local function SetCenterNoticeVisible(state, visible)
@@ -480,6 +592,12 @@ local function SetCenterNoticeVisible(state, visible)
   end
   if state.frame:IsShown() then
     state.frame:Hide()
+  end
+  if state.teleportButton:IsShown() then
+    state.teleportButton:Hide()
+  end
+  if state.teleportButton.cooldownText then
+    state.teleportButton.cooldownText:Hide()
   end
 end
 
@@ -551,24 +669,43 @@ local function SetCenterNoticeTeleportButtonAnchor(state, yOffset, point, relati
   state.teleportButton:SetPoint(point or "TOP", state.frame, relativePoint or "TOP", tonumber(xOffset) or 0, yOffset)
 end
 
-local function SetCenterNoticeTeleportButtonSize(state, size)
-  local buttonSize = math.max(1, tonumber(size) or state.config.buttonHeight)
+local function SetCenterNoticeTeleportButtonSize(state, width, height, iconSize)
+  local buttonWidth = math.max(1, tonumber(width) or state.config.buttonHeight)
+  local buttonHeight = math.max(1, tonumber(height) or buttonWidth)
+  local iconDimension = math.max(1, tonumber(iconSize) or math.min(buttonWidth, buttonHeight))
   if state.config.isInCombat() then
-    state.pendingTeleportButtonSize = buttonSize
+    state.pendingTeleportButtonSize = {
+      width = buttonWidth,
+      height = buttonHeight,
+      iconSize = iconDimension,
+    }
     return
   end
 
   state.pendingTeleportButtonSize = nil
-  state.teleportButton:SetSize(buttonSize, buttonSize)
+  state.teleportButton:SetSize(buttonWidth, buttonHeight)
+  if state.teleportButton.actionBg and type(state.teleportButton.actionBg.ClearAllPoints) == "function" then
+    state.teleportButton.actionBg:ClearAllPoints()
+    state.teleportButton.actionBg:SetPoint("CENTER", state.teleportButton, "CENTER", 0, 0)
+  end
+  if state.teleportButton.actionBg and type(state.teleportButton.actionBg.SetSize) == "function" then
+    state.teleportButton.actionBg:SetSize(iconDimension + 8, iconDimension + 8)
+  end
   if state.teleportButton.icon and type(state.teleportButton.icon.ClearAllPoints) == "function" then
     state.teleportButton.icon:ClearAllPoints()
-    state.teleportButton.icon:SetPoint("TOPLEFT", state.teleportButton, "TOPLEFT", 0, 0)
-    state.teleportButton.icon:SetPoint("BOTTOMRIGHT", state.teleportButton, "BOTTOMRIGHT", 0, 0)
+    state.teleportButton.icon:SetPoint("CENTER", state.teleportButton, "CENTER", 0, 0)
+  end
+  if state.teleportButton.icon and type(state.teleportButton.icon.SetSize) == "function" then
+    state.teleportButton.icon:SetSize(iconDimension, iconDimension)
   end
   if state.teleportButton.overlay and type(state.teleportButton.overlay.ClearAllPoints) == "function" then
     state.teleportButton.overlay:ClearAllPoints()
     state.teleportButton.overlay:SetPoint("TOPLEFT", state.teleportButton, "TOPLEFT", 0, 0)
     state.teleportButton.overlay:SetPoint("BOTTOMRIGHT", state.teleportButton, "BOTTOMRIGHT", 0, 0)
+  end
+  if state.teleportButton.cooldownText and type(state.teleportButton.cooldownText.ClearAllPoints) == "function" then
+    state.teleportButton.cooldownText:ClearAllPoints()
+    state.teleportButton.cooldownText:SetPoint("TOP", state.teleportButton.icon or state.teleportButton, "TOP", 0, -4)
   end
 end
 
@@ -576,7 +713,12 @@ local function ClearCenterNoticeTeleportButton(state)
   SetCenterNoticeTeleportButtonVisible(state, false)
   state.pendingTeleportButtonAnchor = nil
   state.pendingTeleportButtonSize = nil
-  SetCenterNoticeTeleportButtonSize(state, state.config.buttonHeight)
+  SetCenterNoticeTeleportButtonSize(
+    state,
+    state.config.buttonHeight,
+    state.config.buttonHeight,
+    state.config.buttonHeight
+  )
   state.teleportButton.spellID = nil
   state.teleportButton.mapID = nil
   state.teleportButton.dungeonName = nil
@@ -759,11 +901,15 @@ end
 -- subsequent stack-mode / legacy-mode renders do not leak title/separator/
 -- field/teleport-header fragments from a previous rich render.
 local function HideRichCenterNoticeElements(state)
+  state.warningFieldRows = nil
   if state.titleText then
     state.titleText:Hide()
   end
   if state.titleSeparator then
     state.titleSeparator:Hide()
+  end
+  if state.eyebrowText then
+    state.eyebrowText:Hide()
   end
   if state.teleportHeader then
     state.teleportHeader:Hide()
@@ -771,9 +917,11 @@ local function HideRichCenterNoticeElements(state)
   if type(state.fieldRows) == "table" then
     for _, row in ipairs(state.fieldRows) do
       if row.label then
+        row.label:SetTextColor(FIELD_LABEL_R, FIELD_LABEL_G, FIELD_LABEL_B, 1)
         row.label:Hide()
       end
       if row.value then
+        row.value:SetTextColor(FIELD_VALUE_R, FIELD_VALUE_G, FIELD_VALUE_B, 1)
         row.value:Hide()
       end
     end
@@ -790,18 +938,38 @@ local function ApplyCenterNoticeRichLayout(state, payload, hasTeleportButton)
   local paddingY = state.config.paddingY
   local lineGap = math.max(SUBLINE_GAP, 6)
   local sectionGap = lineGap * 2
+  local actionReserve = hasTeleportButton and (RICH_TELEPORT_BUTTON_WIDTH + 28) or 0
+  local contentWidth = math.max(220, innerWidth - actionReserve)
 
   -- Hide the regular text body — rich mode renders payload via field rows.
   state.text:ClearAllPoints()
   state.text:SetText("")
   state.text:Hide()
 
-  local cursorY = paddingY
+  local cursorY = paddingY + 2
+  local actionTopY = nil
+  local actionBottomY = nil
+  state.warningFieldRows = nil
+  state.warningBlinkTime = 0
+
+  if type(payload.eyebrow) == "string" and payload.eyebrow ~= "" and state.eyebrowText then
+    state.eyebrowText:ClearAllPoints()
+    state.eyebrowText:SetPoint("TOPLEFT", state.frame, "TOPLEFT", paddingX, -cursorY)
+    state.eyebrowText:SetWidth(contentWidth)
+    state.eyebrowText:SetText(payload.eyebrow)
+    state.eyebrowText:Show()
+    cursorY = cursorY + (state.eyebrowText:GetStringHeight() or 0) + 2
+  elseif state.eyebrowText then
+    state.eyebrowText:SetText("")
+    state.eyebrowText:Hide()
+  end
 
   if type(payload.title) == "string" and payload.title ~= "" and state.titleText then
+    actionTopY = cursorY
     state.titleText:ClearAllPoints()
-    state.titleText:SetPoint("TOP", state.frame, "TOP", 0, -cursorY)
-    state.titleText:SetWidth(innerWidth)
+    state.titleText:SetPoint("TOPLEFT", state.frame, "TOPLEFT", paddingX, -cursorY)
+    state.titleText:SetWidth(contentWidth)
+    state.titleText:SetJustifyH("LEFT")
     state.titleText:SetText(payload.title)
     state.titleText:Show()
     cursorY = cursorY + (state.titleText:GetStringHeight() or 0) + lineGap
@@ -809,7 +977,7 @@ local function ApplyCenterNoticeRichLayout(state, payload, hasTeleportButton)
     if state.titleSeparator then
       state.titleSeparator:ClearAllPoints()
       state.titleSeparator:SetPoint("TOPLEFT", state.frame, "TOPLEFT", paddingX, -cursorY)
-      state.titleSeparator:SetPoint("TOPRIGHT", state.frame, "TOPRIGHT", -paddingX, -cursorY)
+      state.titleSeparator:SetPoint("TOPRIGHT", state.frame, "TOPLEFT", paddingX + contentWidth, -cursorY)
       state.titleSeparator:Show()
       cursorY = cursorY + 1 + sectionGap
     else
@@ -818,7 +986,7 @@ local function ApplyCenterNoticeRichLayout(state, payload, hasTeleportButton)
   end
 
   if type(payload.fields) == "table" then
-    local valueWidth = math.max(40, innerWidth - FIELD_LABEL_WIDTH - lineGap)
+    local valueWidth = math.max(40, contentWidth - FIELD_LABEL_WIDTH - lineGap)
     for i, row in ipairs(state.fieldRows) do
       local field = payload.fields[i]
       if i > MAX_FIELD_ROWS then
@@ -826,18 +994,34 @@ local function ApplyCenterNoticeRichLayout(state, payload, hasTeleportButton)
       end
       if type(field) == "table" and type(field.label) == "string" and field.label ~= "" then
         local valueText = type(field.value) == "string" and field.value or ""
+        local isWarning = field.warning == true
         row.label:ClearAllPoints()
         row.label:SetPoint("TOPLEFT", state.frame, "TOPLEFT", paddingX, -cursorY)
         row.label:SetText(field.label)
+        if isWarning then
+          row.label:SetTextColor(FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B, 1)
+        else
+          row.label:SetTextColor(FIELD_LABEL_R, FIELD_LABEL_G, FIELD_LABEL_B, 1)
+        end
         row.label:Show()
 
         row.value:ClearAllPoints()
         row.value:SetPoint("TOPLEFT", state.frame, "TOPLEFT", paddingX + FIELD_LABEL_WIDTH + lineGap, -cursorY)
         row.value:SetWidth(valueWidth)
         row.value:SetText(valueText)
+        if isWarning then
+          row.value:SetTextColor(FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B, 1)
+          if field.blink == true then
+            state.warningFieldRows = state.warningFieldRows or {}
+            state.warningFieldRows[#state.warningFieldRows + 1] = row
+          end
+        else
+          row.value:SetTextColor(FIELD_VALUE_R, FIELD_VALUE_G, FIELD_VALUE_B, 1)
+        end
         row.value:Show()
 
         local rowHeight = math.max(row.label:GetStringHeight() or 0, row.value:GetStringHeight() or 0)
+        actionBottomY = cursorY + rowHeight
         cursorY = cursorY + rowHeight + lineGap
       end
     end
@@ -846,17 +1030,20 @@ local function ApplyCenterNoticeRichLayout(state, payload, hasTeleportButton)
 
   if type(payload.teleportLabel) == "string" and payload.teleportLabel ~= "" and state.teleportHeader then
     state.teleportHeader:ClearAllPoints()
-    state.teleportHeader:SetPoint("TOP", state.frame, "TOP", 0, -cursorY)
-    state.teleportHeader:SetWidth(innerWidth)
+    state.teleportHeader:SetPoint("TOPLEFT", state.frame, "TOPLEFT", paddingX, -cursorY)
+    state.teleportHeader:SetWidth(contentWidth)
     state.teleportHeader:SetText(payload.teleportLabel)
     state.teleportHeader:Show()
     cursorY = cursorY + (state.teleportHeader:GetStringHeight() or 0) + lineGap
   end
 
-  local richButtonSize = RICH_TELEPORT_BUTTON_SIZE
-  local richButtonCenterY = -(paddingY + 76)
+  actionTopY = actionTopY or paddingY
+  actionBottomY = actionBottomY or cursorY
+  local richButtonHeight = math.max(RICH_TELEPORT_BUTTON_MIN_HEIGHT, math.ceil(actionBottomY - actionTopY))
+  local richButtonCenterY = -(actionTopY + math.ceil(richButtonHeight / 2))
+  local richIconSize = math.max(1, math.min(RICH_TELEPORT_BUTTON_WIDTH, richButtonHeight) - RICH_TELEPORT_ICON_INSET)
   local richButtonRequiredHeight = hasTeleportButton
-      and math.abs(richButtonCenterY) + math.ceil(richButtonSize / 2) + paddingY
+      and math.abs(richButtonCenterY) + math.ceil(richButtonHeight / 2) + paddingY
     or 0
   local frameHeight = math.min(
     state.config.maxHeight,
@@ -865,13 +1052,13 @@ local function ApplyCenterNoticeRichLayout(state, payload, hasTeleportButton)
   state.frame:SetHeight(frameHeight)
 
   if hasTeleportButton then
-    SetCenterNoticeTeleportButtonSize(state, richButtonSize)
+    SetCenterNoticeTeleportButtonSize(state, RICH_TELEPORT_BUTTON_WIDTH, richButtonHeight, richIconSize)
     SetCenterNoticeTeleportButtonAnchor(
       state,
       richButtonCenterY,
       "CENTER",
       "TOPRIGHT",
-      -RICH_TELEPORT_BUTTON_RIGHT_INSET
+      -(RICH_TELEPORT_BUTTON_RIGHT_INSET + math.ceil(RICH_TELEPORT_BUTTON_WIDTH / 2))
     )
   end
 end
@@ -1001,7 +1188,9 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
       self.cooldownText:Show()
       return
     end
-    self.cooldownText:Hide()
+    local L = state.config.getL() or {}
+    self.cooldownText:SetText(L.CENTER_NOTICE_PORTAL_READY_LABEL or "Portal")
+    self.cooldownText:Show()
   end)
 
   state.teleportButton:SetScript("OnLeave", function()
@@ -1026,7 +1215,8 @@ local function ApplyPendingCenterNoticeTeleportButtonState(state)
     SetCenterNoticeTeleportButtonAnchor(state, anchor.yOffset, anchor.point, anchor.relativePoint, anchor.xOffset)
   end
   if state.pendingTeleportButtonSize ~= nil then
-    SetCenterNoticeTeleportButtonSize(state, state.pendingTeleportButtonSize)
+    local size = state.pendingTeleportButtonSize
+    SetCenterNoticeTeleportButtonSize(state, size.width, size.height, size.iconSize)
   end
   if state.pendingTeleportButtonMouseEnabled ~= nil then
     SetCenterNoticeTeleportButtonMouseEnabled(state, state.pendingTeleportButtonMouseEnabled)
@@ -1053,6 +1243,19 @@ local function AttachCenterNoticeFrameScripts(state)
         state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, alpha)
       else
         state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, 1)
+      end
+      if type(state.warningFieldRows) == "table" then
+        state.warningBlinkTime = (state.warningBlinkTime or 0) + (elapsed or 0)
+        local wave = (math.sin(state.warningBlinkTime * 6) + 1) * 0.5
+        local alpha = 0.35 + (wave * 0.65)
+        for _, row in ipairs(state.warningFieldRows) do
+          if row.label then
+            row.label:SetTextColor(FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B, alpha)
+          end
+          if row.value then
+            row.value:SetTextColor(FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B, alpha)
+          end
+        end
       end
     end
 
@@ -1088,6 +1291,7 @@ local function BuildCenterNoticeController(state)
     text = state.text,
     sublineTop = state.sublineTop,
     sublineBottom = state.sublineBottom,
+    eyebrowText = state.eyebrowText,
     titleText = state.titleText,
     titleSeparator = state.titleSeparator,
     teleportHeader = state.teleportHeader,
@@ -1111,6 +1315,7 @@ function Notice.CreateCenterNotice(opts)
   local teleportButton = CreateCenterNoticeTeleportButton(frame, config)
   local sublineTop = CreateCenterNoticeSubline(frame, config, "top")
   local sublineBottom = CreateCenterNoticeSubline(frame, config, "bottom")
+  local eyebrowText = CreateCenterNoticeEyebrow(frame, config)
   local titleText = CreateCenterNoticeTitle(frame, config)
   local titleSeparator = CreateCenterNoticeTitleSeparator(frame)
   local teleportHeader = CreateCenterNoticeTeleportHeader(frame, config)
@@ -1124,6 +1329,7 @@ function Notice.CreateCenterNotice(opts)
     text = text,
     sublineTop = sublineTop,
     sublineBottom = sublineBottom,
+    eyebrowText = eyebrowText,
     titleText = titleText,
     titleSeparator = titleSeparator,
     teleportHeader = teleportHeader,
@@ -1186,6 +1392,7 @@ local function BuildPortalNavigatorController(state)
     frame = state.frame,
     titleText = state.titleText,
     entries = state.entries,
+    nodes = state.nodes,
     closeButton = state.closeButton,
     SetVisible = SetVisible,
     Show = Show,
@@ -1198,17 +1405,26 @@ function Notice.CreatePortalNavigatorNotice(opts)
   local titleText = CreatePortalNavigatorTitle(frame, config)
   CreatePortalNavigatorSeparator(frame)
   local closeButton = CreateCenterNoticeCloseButton(frame)
-  local entries = {
-    half_left = CreatePortalNavigatorEntry(frame, config, "half_left"),
+  local nodes = {
     left = CreatePortalNavigatorEntry(frame, config, "left"),
-    right = CreatePortalNavigatorEntry(frame, config, "right"),
+    half_left = CreatePortalNavigatorEntry(frame, config, "half_left"),
+    center = CreatePortalNavigatorEntry(frame, config, "center"),
     half_right = CreatePortalNavigatorEntry(frame, config, "half_right"),
+    right = CreatePortalNavigatorEntry(frame, config, "right"),
+  }
+  local entries = {
+    left = nodes.left.destination,
+    half_left = nodes.half_left.destination,
+    center = nodes.center.destination,
+    half_right = nodes.half_right.destination,
+    right = nodes.right.destination,
   }
   local state = {
     config = config,
     frame = frame,
     titleText = titleText,
     closeButton = closeButton,
+    nodes = nodes,
     entries = entries,
   }
 

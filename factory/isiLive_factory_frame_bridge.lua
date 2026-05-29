@@ -458,6 +458,54 @@ local function InitializeFactoryFrameBridge(ctx)
   ctx.centerNotice = frameBridgeContext.centerNotice
   ctx.centerNoticeFrame = frameBridgeContext.centerNoticeFrame
   ctx.centerNoticeTeleportButton = frameBridgeContext.centerNoticeTeleportButton
+  ctx.demoCenterNotices = {
+    modules.notice.CreateCenterNotice({
+      parent = UIParent,
+      frameName = "isiLiveDemoCenterNoticeTarget",
+      teleportButtonName = "isiLiveDemoCenterNoticeTargetTeleportButton",
+      minHeight = 70,
+      maxHeight = 220,
+      paddingX = 20,
+      paddingY = 12,
+      buttonHeight = 36,
+      buttonGap = 8,
+      yOffset = -20,
+      isInCombat = ctx.IsInCombat,
+      resolveTeleportSpellID = ctx.ResolveTeleportSpellID,
+      resolveTeleportSpellIDByMapID = ctx.ResolveTeleportSpellIDByMapID,
+      resolveMapIDBySpellID = ctx.ResolveMapIDBySpellID,
+      resolveMapIDByActivityID = ctx.ResolveMapIDByActivityID,
+      applySecureSpellToButton = ctx.ApplySecureSpellToButton,
+      isSpellKnown = ctx.IsSpellKnownSafe,
+      getTeleportCooldownRemaining = ctx.GetTeleportCooldownRemaining,
+      formatCooldownSeconds = ctx.FormatCooldownSeconds,
+      getDungeonName = ctx.GetDungeonName,
+      getL = ctx.GetL,
+    }),
+    modules.notice.CreateCenterNotice({
+      parent = UIParent,
+      frameName = "isiLiveDemoCenterNoticeDifficulty",
+      teleportButtonName = "isiLiveDemoCenterNoticeDifficultyTeleportButton",
+      minHeight = 70,
+      maxHeight = 220,
+      paddingX = 20,
+      paddingY = 12,
+      buttonHeight = 36,
+      buttonGap = 8,
+      yOffset = -245,
+      isInCombat = ctx.IsInCombat,
+      resolveTeleportSpellID = ctx.ResolveTeleportSpellID,
+      resolveTeleportSpellIDByMapID = ctx.ResolveTeleportSpellIDByMapID,
+      resolveMapIDBySpellID = ctx.ResolveMapIDBySpellID,
+      resolveMapIDByActivityID = ctx.ResolveMapIDByActivityID,
+      applySecureSpellToButton = ctx.ApplySecureSpellToButton,
+      isSpellKnown = ctx.IsSpellKnownSafe,
+      getTeleportCooldownRemaining = ctx.GetTeleportCooldownRemaining,
+      formatCooldownSeconds = ctx.FormatCooldownSeconds,
+      getDungeonName = ctx.GetDungeonName,
+      getL = ctx.GetL,
+    }),
+  }
   ctx.portalNavigatorNoticeFrame = ctx.portalNavigatorNotice.frame
   ctx.inviteHint = frameBridgeContext.inviteHint
   ctx.mainUI = frameBridgeContext.mainUI
@@ -475,6 +523,28 @@ local function InitializeFactoryFrameBridge(ctx)
       return
     end
     frameBridgeContext.ShowCenterNotice(message, durationSeconds, dungeonName, activityID, showOptions)
+  end
+  ctx.ShowDemoCenterNotices = function(notices)
+    ctx.centerNotice.SetVisible(false)
+    for index, notice in ipairs(ctx.demoCenterNotices or {}) do
+      local payload = type(notices) == "table" and notices[index] or nil
+      if type(payload) == "table" then
+        notice.Show(
+          payload.message,
+          payload.durationSeconds,
+          payload.dungeonName,
+          payload.activityID,
+          payload.showOptions
+        )
+      else
+        notice.SetVisible(false)
+      end
+    end
+  end
+  ctx.SetDemoCenterNoticesVisible = function(visible)
+    for _, notice in ipairs(ctx.demoCenterNotices or {}) do
+      notice.SetVisible(visible)
+    end
   end
   ctx.SetPortalNavigatorVisible = function(visible)
     ctx.portalNavigatorNotice.SetVisible(visible)

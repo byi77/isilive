@@ -6,9 +6,16 @@ local function CreateTextureStub()
     SetWidth = function() end,
     SetSize = function() end,
     SetPoint = function() end,
-    SetColorTexture = function() end,
-    SetTexture = function() end,
-    SetTexCoord = function() end,
+    SetColorTexture = function(self, r, g, b, a)
+      self._texture = nil
+      self._colorTexture = { r, g, b, a }
+    end,
+    SetTexture = function(self, texture)
+      self._texture = texture
+    end,
+    SetTexCoord = function(self, ...)
+      self._texCoord = { ... }
+    end,
     SetBlendMode = function() end,
     SetVertexColor = function() end,
     Hide = function(self)
@@ -979,7 +986,7 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
     end)
   end)
 
-  test("Portal navigator notice lays out the four portal labels around the frame", function()
+  test("Portal navigator notice lays out the five portal positions in a crescent", function()
     WithGlobals({
       UIParent = {},
       CreateFrame = BuildCreateFrameStub(),
@@ -998,14 +1005,14 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
       Assert.Equal(frameRelativeTo, UIParent, "portal navigator frame should anchor to UIParent")
       Assert.Equal(frameRelativePoint, "CENTER", "portal navigator frame should keep center relative point")
       Assert.Equal(frameX, 0, "portal navigator frame should not drift horizontally")
-      Assert.Equal(frameY, 210, "portal navigator frame should keep the compact notice near the top center")
-      Assert.Equal(portalNotice.frame:GetHeight(), 195, "portal navigator should use the compact frame height")
+      Assert.Equal(frameY, 190, "portal navigator frame should keep the compact notice near the top center")
+      Assert.Equal(portalNotice.frame:GetHeight(), 220, "portal navigator should use the compact crescent frame height")
       Assert.Equal(portalNotice.frame:GetAlpha(), 1, "portal navigator text should stay fully opaque")
       local bgR, bgG, bgB, bgA = portalNotice.frame:GetBackdropColor()
       Assert.Equal(bgR, 0.05, "portal navigator background should keep the configured red channel")
       Assert.Equal(bgG, 0.05, "portal navigator background should keep the configured green channel")
       Assert.Equal(bgB, 0.08, "portal navigator background should keep the configured blue channel")
-      Assert.Equal(bgA, 0.72, "portal navigator background should render at the configured alpha")
+      Assert.Equal(bgA, 0.62, "portal navigator background should render at the configured alpha")
 
       portalNotice.SetVisible(false)
       Assert.True(not portalNotice.frame:IsShown(), "portal navigator should hide cleanly")
@@ -1017,15 +1024,27 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
       Assert.Equal(reopenedFrameRelativeTo, UIParent, "portal navigator should still anchor to UIParent when reopened")
       Assert.Equal(reopenedFrameRelativePoint, "CENTER", "portal navigator should reopen with center relative point")
       Assert.Equal(reopenedFrameX, 0, "portal navigator should not drift horizontally when reopened")
-      Assert.Equal(reopenedFrameY, 210, "portal navigator should reopen at the configured top offset")
+      Assert.Equal(reopenedFrameY, 190, "portal navigator should reopen at the configured top offset")
 
       local shown = portalNotice.Show({
         title = "Portal Navigator",
         entries = {
-          { slot = "half_left", direction = "Half left", destination = "Grube von Saron" },
-          { slot = "left", direction = "Left", destination = "Himmelsnadel" },
-          { slot = "right", direction = "Right", destination = "Sitz des Triumvirats" },
-          { slot = "half_right", direction = "Half right", destination = "Akademie von Algeth'ar" },
+          { slot = "half_left", direction = "Half left", destination = "Grube von Saron", icon = "icon-pit" },
+          { slot = "left", direction = "Left", destination = "Himmelsnadel", icon = "icon-skyreach" },
+          {
+            slot = "center",
+            direction = "Straight ahead",
+            destination = "Heaven",
+            detail = "Unbelegt",
+            isEmpty = true,
+          },
+          { slot = "right", direction = "Right", destination = "Sitz des Triumvirats", icon = "icon-seat" },
+          {
+            slot = "half_right",
+            direction = "Half right",
+            destination = "Akademie von Algeth'ar",
+            icon = "icon-academy",
+          },
         },
       })
 
@@ -1033,15 +1052,16 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
       Assert.True(portalNotice.frame:IsShown(), "portal navigator should be visible after show")
 
       local _, titleFontSize = portalNotice.titleText:GetFont()
-      Assert.Equal(titleFontSize, 24, "portal navigator title should be 10 points larger than the stub baseline")
+      Assert.Equal(titleFontSize, 16, "portal navigator title should stay compact in-game")
       local titleR, titleG, titleB = portalNotice.titleText:GetTextColor()
       Assert.Equal(titleR, 1, "portal navigator title should use the shared gold red channel")
       Assert.Equal(titleG, 0.9, "portal navigator title should use the shared gold green channel")
       Assert.Equal(titleB, 0.45, "portal navigator title should use the shared gold blue channel")
 
-      for _, slot in ipairs({ "half_left", "left", "right", "half_right" }) do
+      Assert.NotNil(portalNotice.nodes, "portal navigator should expose node primitives for deterministic layout tests")
+      for _, slot in ipairs({ "left", "half_left", "center", "half_right", "right" }) do
         local _, entryFontSize = portalNotice.entries[slot]:GetFont()
-        Assert.Equal(entryFontSize, 24, "portal navigator entries should be 10 points larger than the stub baseline")
+        Assert.Equal(entryFontSize, 16, "portal navigator entries should stay compact in-game")
         Assert.Equal(
           portalNotice.entries[slot]._fontObject,
           "GameFontNormal",
@@ -1056,35 +1076,44 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
       Assert.Equal(titleX, 0, "portal navigator title should stay centered")
       Assert.Equal(titleY, -12, "portal navigator title should keep the configured top offset")
 
-      local halfLeftPoint, halfLeftRelativeTo, halfLeftRelativePoint, halfLeftX, halfLeftY =
-        portalNotice.entries.half_left:GetPoint()
-      Assert.Equal(halfLeftPoint, "TOPLEFT", "half-left portal should anchor in the upper left quadrant")
-      Assert.Equal(halfLeftRelativeTo, portalNotice.frame, "half-left portal should anchor to the frame")
-      Assert.Equal(halfLeftRelativePoint, "TOPLEFT", "half-left portal should keep the top-left relative point")
-      Assert.Equal(halfLeftX, 60, "half-left portal should use the configured x offset")
-      Assert.Equal(halfLeftY, -78, "half-left portal should use the configured y offset")
-
-      local leftPoint, leftRelativeTo, leftRelativePoint, leftX, leftY = portalNotice.entries.left:GetPoint()
-      Assert.Equal(leftPoint, "TOPLEFT", "left portal should anchor in the lower left quadrant")
+      local leftPoint, leftRelativeTo, leftRelativePoint, leftX, leftY = portalNotice.nodes.left.direction:GetPoint()
+      Assert.Equal(leftPoint, "TOPLEFT", "left portal should anchor on the outer left")
       Assert.Equal(leftRelativeTo, portalNotice.frame, "left portal should anchor to the frame")
       Assert.Equal(leftRelativePoint, "TOPLEFT", "left portal should keep the top-left relative point")
-      Assert.Equal(leftX, 60, "left portal should use the configured x offset")
-      Assert.Equal(leftY, -138, "left portal should sit lower to separate it from the upper entry")
+      Assert.Equal(leftX, 36, "left portal should use the configured outer-left x offset")
+      Assert.Equal(leftY, -126, "left portal should sit lower on the crescent")
 
-      local rightPoint, rightRelativeTo, rightRelativePoint, rightX, rightY = portalNotice.entries.right:GetPoint()
-      Assert.Equal(rightPoint, "TOPRIGHT", "right portal should anchor in the lower right quadrant")
-      Assert.Equal(rightRelativeTo, portalNotice.frame, "right portal should anchor to the frame")
-      Assert.Equal(rightRelativePoint, "TOPRIGHT", "right portal should keep the top-right relative point")
-      Assert.Equal(rightX, -60, "right portal should use the configured x offset")
-      Assert.Equal(rightY, -138, "right portal should sit lower to separate it from the upper entry")
+      local halfLeftPoint, halfLeftRelativeTo, halfLeftRelativePoint, halfLeftX, halfLeftY =
+        portalNotice.nodes.half_left.direction:GetPoint()
+      Assert.Equal(halfLeftPoint, "TOPLEFT", "half-left portal should anchor inside the left side")
+      Assert.Equal(halfLeftRelativeTo, portalNotice.frame, "half-left portal should anchor to the frame")
+      Assert.Equal(halfLeftRelativePoint, "TOPLEFT", "half-left portal should keep the top-left relative point")
+      Assert.Equal(halfLeftX, 178, "half-left portal should use the configured inner-left x offset")
+      Assert.Equal(halfLeftY, -86, "half-left portal should sit above the outer portal")
+
+      local centerPoint, centerRelativeTo, centerRelativePoint, centerX, centerY =
+        portalNotice.nodes.center.direction:GetPoint()
+      Assert.Equal(centerPoint, "TOP", "center portal should anchor straight ahead")
+      Assert.Equal(centerRelativeTo, portalNotice.frame, "center portal should anchor to the frame")
+      Assert.Equal(centerRelativePoint, "TOP", "center portal should keep the top relative point")
+      Assert.Equal(centerX, 0, "center portal should stay on the horizontal center")
+      Assert.Equal(centerY, -66, "center portal should sit at the top of the crescent")
 
       local halfRightPoint, halfRightRelativeTo, halfRightRelativePoint, halfRightX, halfRightY =
-        portalNotice.entries.half_right:GetPoint()
-      Assert.Equal(halfRightPoint, "TOPRIGHT", "half-right portal should anchor in the upper right quadrant")
+        portalNotice.nodes.half_right.direction:GetPoint()
+      Assert.Equal(halfRightPoint, "TOPRIGHT", "half-right portal should anchor inside the right side")
       Assert.Equal(halfRightRelativeTo, portalNotice.frame, "half-right portal should anchor to the frame")
       Assert.Equal(halfRightRelativePoint, "TOPRIGHT", "half-right portal should keep the top-right relative point")
-      Assert.Equal(halfRightX, -60, "half-right portal should use the configured x offset")
-      Assert.Equal(halfRightY, -78, "half-right portal should use the configured y offset")
+      Assert.Equal(halfRightX, -178, "half-right portal should use the configured inner-right x offset")
+      Assert.Equal(halfRightY, -86, "half-right portal should sit above the outer portal")
+
+      local rightPoint, rightRelativeTo, rightRelativePoint, rightX, rightY =
+        portalNotice.nodes.right.direction:GetPoint()
+      Assert.Equal(rightPoint, "TOPRIGHT", "right portal should anchor on the outer right")
+      Assert.Equal(rightRelativeTo, portalNotice.frame, "right portal should anchor to the frame")
+      Assert.Equal(rightRelativePoint, "TOPRIGHT", "right portal should keep the top-right relative point")
+      Assert.Equal(rightX, -36, "right portal should use the configured outer-right x offset")
+      Assert.Equal(rightY, -126, "right portal should sit lower on the crescent")
 
       Assert.Equal(
         portalNotice.entries.half_left:GetText(),
@@ -1105,6 +1134,43 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
         portalNotice.entries.half_right:GetText(),
         "Akademie von Algeth'ar",
         "upper-right portal should show the destination name"
+      )
+      Assert.Equal(portalNotice.entries.center:GetText(), "Heaven", "center portal should show the placeholder name")
+      for _, slot in ipairs({ "left", "half_left", "center", "half_right", "right" }) do
+        Assert.Equal(
+          portalNotice.nodes[slot].direction:GetText(),
+          "",
+          "portal navigator should not render directional helper labels"
+        )
+        Assert.Equal(
+          portalNotice.nodes[slot].detail:GetText(),
+          "",
+          "portal navigator should not render secondary detail labels"
+        )
+      end
+      Assert.Equal(
+        portalNotice.nodes.left.iconCore._texture,
+        "icon-skyreach",
+        "left portal should render the provided dungeon icon"
+      )
+      Assert.Equal(
+        portalNotice.nodes.half_left.iconCore._texture,
+        "icon-pit",
+        "half-left portal should render the provided dungeon icon"
+      )
+      Assert.Equal(
+        portalNotice.nodes.half_right.iconCore._texture,
+        "icon-academy",
+        "half-right portal should render the provided dungeon icon"
+      )
+      Assert.Equal(
+        portalNotice.nodes.right.iconCore._texture,
+        "icon-seat",
+        "right portal should render the provided dungeon icon"
+      )
+      Assert.Nil(
+        portalNotice.nodes.center.iconCore._texture,
+        "empty center portal should stay muted instead of rendering a dungeon icon"
       )
     end)
   end)

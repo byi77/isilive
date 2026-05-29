@@ -11,16 +11,30 @@ local function BuildLocale()
     DUNGEON_DIFF_RAID_MYTHIC = "Mythic Raid",
     DUNGEON_DIFF_RAID_UNKNOWN = "Raid",
     NON_MYTHIC_ENTERED = "Warning: Entered non-Mythic dungeon (%s).",
+    NON_MYTHIC_NOTICE_DUNGEON_EYEBROW = "Dungeon",
+    NON_MYTHIC_NOTICE_RAID_EYEBROW = "Raid",
+    NON_MYTHIC_NOTICE_DUNGEON_TITLE = "isiLive - Dungeon entered",
+    NON_MYTHIC_NOTICE_RAID_TITLE = "isiLive - Raid entered",
+    NON_MYTHIC_NOTICE_LABEL_DUNGEON = "Dungeon:",
+    NON_MYTHIC_NOTICE_LABEL_RAID = "Raid:",
+    NON_MYTHIC_NOTICE_LABEL_DIFFICULTY = "Difficulty:",
+    NON_MYTHIC_NOTICE_LABEL_HINT = "Hint:",
+    NON_MYTHIC_NOTICE_LABEL_SOURCE = "Source:",
+    NON_MYTHIC_NOTICE_HINT_NON_MYTHIC = "Not a Mythic+ dungeon",
+    NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED = "Instance entered",
     RAID_ENTERED = "Entered raid: %s",
     PORTAL_NAVIGATOR_TITLE = "isiLive - Portal Navigator",
     PORTAL_NAVIGATOR_HALF_LEFT = "Half left",
     PORTAL_NAVIGATOR_LEFT = "Left",
     PORTAL_NAVIGATOR_RIGHT = "Right",
     PORTAL_NAVIGATOR_HALF_RIGHT = "Half right",
+    PORTAL_NAVIGATOR_CENTER = "Straight ahead",
     PORTAL_NAVIGATOR_SKYREACH = "Skyreach",
     PORTAL_NAVIGATOR_TRIUMVIRATE = "Seat of the Triumvirate",
     PORTAL_NAVIGATOR_PIT_OF_SARON = "Pit of Saron",
     PORTAL_NAVIGATOR_ALGETHAR = "Algeth'ar Academy",
+    PORTAL_NAVIGATOR_HEAVEN = "Heaven",
+    PORTAL_NAVIGATOR_UNOCCUPIED = "Unoccupied",
     PORTAL_NAVIGATOR_TEXT = "isiLive - Portal Navigator\n"
       .. "Left: Skyreach\n"
       .. "Right: Seat of the Triumvirate\n"
@@ -348,6 +362,21 @@ local function RegisterDungeonDifficultyTests(test, Assert, WithGlobals, LoadAdd
           notices[1].showOptions and notices[1].showOptions.textColor,
           "raid entry notice must NOT apply the red warning color used for non-mythic dungeons"
         )
+        Assert.Equal(
+          notices[1].showOptions and notices[1].showOptions.title,
+          "isiLive - Raid entered",
+          "raid entry notice must use the modern rich title"
+        )
+        Assert.Equal(
+          notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[1].value,
+          "Manaforge Omega",
+          "raid entry notice must render the verified instance name"
+        )
+        Assert.Equal(
+          notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[2].value,
+          case.expectedDifficulty,
+          "raid entry notice must render the difficulty row"
+        )
       end)
     end
   end)
@@ -395,7 +424,7 @@ local function RegisterDungeonDifficultyTests(test, Assert, WithGlobals, LoadAdd
     end)
   end)
 
-  test("Status MaybeShowNonMythicDungeonEntryNotice still warns on non-mythic party dungeon (unchanged)", function()
+  test("Status MaybeShowNonMythicDungeonEntryNotice renders rich notice on non-mythic party dungeon", function()
     local notices = {}
     local current = {
       instanceName = "Priory of the Sacred Flame",
@@ -434,11 +463,44 @@ local function RegisterDungeonDifficultyTests(test, Assert, WithGlobals, LoadAdd
       Assert.Equal(#notices, 1, "non-mythic party dungeon entry still produces the warning notice")
       Assert.True(
         string.find(notices[1].message, "Warning", 1, true) ~= nil,
-        "non-mythic dungeon notice must keep the warning prefix"
+        "legacy message payload still keeps the warning prefix for compatibility"
       )
-      Assert.NotNil(
+      Assert.Equal(
+        notices[1].showOptions and notices[1].showOptions.title,
+        "isiLive - Dungeon entered",
+        "non-mythic dungeon notice must use the modern rich title"
+      )
+      Assert.Equal(
+        notices[1].showOptions and notices[1].showOptions.eyebrow,
+        "Dungeon",
+        "non-mythic dungeon notice must use the dungeon eyebrow"
+      )
+      Assert.Nil(
         notices[1].showOptions and notices[1].showOptions.textColor,
-        "non-mythic dungeon notice must keep the red warning accent"
+        "non-mythic dungeon notice no longer uses the red legacy text accent"
+      )
+      Assert.Equal(
+        notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[1].value,
+        "Priory of the Sacred Flame",
+        "non-mythic dungeon notice must render the verified instance name"
+      )
+      Assert.Equal(
+        notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[2].value,
+        "Normal",
+        "non-mythic dungeon notice must render the difficulty row"
+      )
+      Assert.Equal(
+        notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[3].value,
+        "Not a Mythic+ dungeon",
+        "non-mythic dungeon notice must render the non-mythic hint"
+      )
+      Assert.True(
+        notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[3].warning == true,
+        "non-mythic dungeon notice hint must be marked as a warning row"
+      )
+      Assert.True(
+        notices[1].showOptions and notices[1].showOptions.fields and notices[1].showOptions.fields[3].blink == true,
+        "non-mythic dungeon notice hint must blink for emphasis"
       )
     end)
   end)
@@ -449,39 +511,48 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
     Assert.Equal(type(layout), "table", "portal navigator should pass a structured layout table")
     Assert.Equal(layout.title, BuildLocale().PORTAL_NAVIGATOR_TITLE, "portal navigator should expose the title")
     Assert.Equal(type(layout.entries), "table", "portal navigator should expose entry widgets")
-    Assert.Equal(#layout.entries, 4, "portal navigator should expose four directional entries")
+    Assert.Equal(#layout.entries, 5, "portal navigator should expose five portal positions")
 
-    Assert.Equal(layout.entries[1].slot, "half_left", "first portal entry should be half left")
+    Assert.Equal(layout.entries[1].slot, "left", "first portal entry should be left")
+    Assert.Equal(layout.entries[1].direction, BuildLocale().PORTAL_NAVIGATOR_LEFT, "left entry should use left label")
     Assert.Equal(
-      layout.entries[1].direction,
+      layout.entries[1].destination,
+      BuildLocale().PORTAL_NAVIGATOR_SKYREACH,
+      "left entry should point to Skyreach"
+    )
+    Assert.Equal(layout.entries[1].mapID, 161, "left entry should carry the Skyreach map id")
+
+    Assert.Equal(layout.entries[2].slot, "half_left", "second portal entry should be half left")
+    Assert.Equal(
+      layout.entries[2].direction,
       BuildLocale().PORTAL_NAVIGATOR_HALF_LEFT,
       "half left entry should use the localized direction label"
     )
     Assert.Equal(
-      layout.entries[1].destination,
+      layout.entries[2].destination,
       BuildLocale().PORTAL_NAVIGATOR_PIT_OF_SARON,
       "half left entry should point to Pit of Saron"
     )
+    Assert.Equal(layout.entries[2].mapID, 556, "half-left entry should carry the Pit of Saron map id")
 
-    Assert.Equal(layout.entries[2].slot, "left", "second portal entry should be left")
-    Assert.Equal(layout.entries[2].direction, BuildLocale().PORTAL_NAVIGATOR_LEFT, "left entry should use left label")
-    Assert.Equal(
-      layout.entries[2].destination,
-      BuildLocale().PORTAL_NAVIGATOR_SKYREACH,
-      "left entry should point to Skyreach"
-    )
-
-    Assert.Equal(layout.entries[3].slot, "right", "third portal entry should be right")
+    Assert.Equal(layout.entries[3].slot, "center", "third portal entry should be center")
     Assert.Equal(
       layout.entries[3].direction,
-      BuildLocale().PORTAL_NAVIGATOR_RIGHT,
-      "right entry should use right label"
+      BuildLocale().PORTAL_NAVIGATOR_CENTER,
+      "center entry should use straight-ahead label"
     )
     Assert.Equal(
       layout.entries[3].destination,
-      BuildLocale().PORTAL_NAVIGATOR_TRIUMVIRATE,
-      "right entry should point to Seat of the Triumvirate"
+      BuildLocale().PORTAL_NAVIGATOR_HEAVEN,
+      "center entry should show the configured Heaven placeholder"
     )
+    Assert.Equal(
+      layout.entries[3].detail,
+      BuildLocale().PORTAL_NAVIGATOR_UNOCCUPIED,
+      "center entry should mark the portal as unoccupied"
+    )
+    Assert.True(layout.entries[3].isEmpty, "center entry should be flagged as empty for muted rendering")
+    Assert.Nil(layout.entries[3].mapID, "center placeholder should not carry a dungeon map id")
 
     Assert.Equal(layout.entries[4].slot, "half_right", "fourth portal entry should be half right")
     Assert.Equal(
@@ -494,9 +565,23 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
       BuildLocale().PORTAL_NAVIGATOR_ALGETHAR,
       "half right entry should point to Algeth'ar Academy"
     )
+    Assert.Equal(layout.entries[4].mapID, 402, "half-right entry should carry the Algeth'ar Academy map id")
+
+    Assert.Equal(layout.entries[5].slot, "right", "fifth portal entry should be right")
+    Assert.Equal(
+      layout.entries[5].direction,
+      BuildLocale().PORTAL_NAVIGATOR_RIGHT,
+      "right entry should use right label"
+    )
+    Assert.Equal(
+      layout.entries[5].destination,
+      BuildLocale().PORTAL_NAVIGATOR_TRIUMVIRATE,
+      "right entry should point to Seat of the Triumvirate"
+    )
+    Assert.Equal(layout.entries[5].mapID, 239, "right entry should carry the Seat of the Triumvirate map id")
   end
 
-  test("Portal navigator shows the four portal directions only in the Timeways room", function()
+  test("Portal navigator shows the five portal positions only in the Timeways room", function()
     local current = {
       zoneText = nil,
       subZoneText = nil,
@@ -561,6 +646,65 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
       current.playerMapID = 100
       controller.MaybeShowPortalNavigatorNotice()
       Assert.Equal(hides, 1, "leaving the portal room should hide the portal navigator")
+    end)
+  end)
+
+  test("Portal navigator attaches verified teleport icons from map lookup", function()
+    local notices = {}
+
+    WithGlobals({
+      GetZoneText = function()
+        return "Jahrhunderschwelle"
+      end,
+      GetSubZoneText = function()
+        return nil
+      end,
+      C_Map = {
+        GetBestMapForUnit = function(unit)
+          if unit == "player" then
+            return 2266
+          end
+          return nil
+        end,
+        GetMapInfo = function(mapID)
+          if mapID == 2266 then
+            return { name = "Jahrhunderschwelle" }
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_status.lua" })
+      local controller = addon.Status.CreateController({
+        getL = BuildLocale,
+        getTeleportInfoByMapID = function(mapID)
+          return {
+            mapID = mapID,
+            spellID = mapID + 1000,
+            icon = "icon-" .. tostring(mapID),
+          }
+        end,
+        showPortalNavigatorNotice = function(layout)
+          table.insert(notices, layout)
+        end,
+        hidePortalNavigatorNotice = function() end,
+      })
+
+      controller.MaybeShowPortalNavigatorNotice()
+
+      Assert.Equal(#notices, 1, "portal room should show the navigator with teleport icon metadata")
+      local entriesBySlot = {}
+      for _, entry in ipairs(notices[1].entries or {}) do
+        entriesBySlot[entry.slot] = entry
+      end
+
+      Assert.Equal(entriesBySlot.left.icon, "icon-161", "left portal should use the Skyreach teleport icon")
+      Assert.Equal(entriesBySlot.left.spellID, 1161, "left portal should keep the verified Skyreach spell id")
+      Assert.Equal(entriesBySlot.half_left.icon, "icon-556", "half-left portal should use the Pit of Saron icon")
+      Assert.Equal(entriesBySlot.half_right.icon, "icon-402", "half-right portal should use the Algeth'ar icon")
+      Assert.Equal(entriesBySlot.right.icon, "icon-239", "right portal should use the Seat of the Triumvirate icon")
+      Assert.Nil(entriesBySlot.center.icon, "empty center portal should not synthesize an icon")
+      Assert.Nil(entriesBySlot.center.spellID, "empty center portal should not synthesize a spell id")
     end)
   end)
 

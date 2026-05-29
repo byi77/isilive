@@ -714,7 +714,12 @@ return function(test, ctx)
           INVITE_ACCEPTED_NOTICE_LABEL_GROUP = "Gruppe-DE:",
           INVITE_ACCEPTED_NOTICE_LABEL_DESCRIPTION = "Beschr-DE:",
           INVITE_ACCEPTED_NOTICE_LABEL_ROLE = "Rolle-DE:",
+          INVITE_ACCEPTED_NOTICE_LABEL_LEADER = "Leader-DE:",
+          INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Quelle-DE:",
+          INVITE_ACCEPTED_NOTICE_SOURCE_LFG_ACCEPTED = "LFG-DE",
+          INVITE_ACCEPTED_NOTICE_SOURCE_OWN_LFG_LISTING = "Eigene-LFG-DE",
           INVITE_ACCEPTED_NOTICE_TITLE = "isiLive - Invite-DE",
+          INVITE_ACCEPTED_NOTICE_TITLE_OWN_LFG_LISTING = "isiLive - LFG-DE",
           INVITE_ACCEPTED_RAID_NOTICE_TITLE = "isiLive - Raid-Invite-DE",
         }
       end,
@@ -842,16 +847,16 @@ return function(test, ctx)
         return "TANK"
       end,
     })
-    local fields = build(c, "MyDungeon", { level = 10, groupName = "Crew", comment = "Pls timer" })
-    Assert.Equal(#fields, 4, "must render dungeon + group + description + role rows")
+    local fields = build(c, "MyDungeon", { level = 10, groupName = "Crew", comment = "Pls timer", leaderName = "Lead" })
+    Assert.Equal(#fields, 4, "must render dungeon + group + leader + source rows")
     Assert.Equal(fields[1].label, "Dungeon-DE:", "row 1 must be the dungeon label")
     Assert.Equal(fields[1].value, "MyDungeon +10", "row 1 must render +N from the level")
     Assert.Equal(fields[2].label, "Gruppe-DE:", "row 2 must be the group label")
     Assert.Equal(fields[2].value, "Crew", "row 2 must echo the group name")
-    Assert.Equal(fields[3].label, "Beschr-DE:", "row 3 must be the description label")
-    Assert.Equal(fields[3].value, "Pls timer", "row 3 must echo the comment")
-    Assert.Equal(fields[4].label, "Rolle-DE:", "row 4 must be the role label")
-    Assert.Equal(fields[4].value, "Tank-DE", "row 4 must render the resolved role name")
+    Assert.Equal(fields[3].label, "Leader-DE:", "row 3 must be the leader label")
+    Assert.Equal(fields[3].value, "Lead", "row 3 must echo the accepted invite leader")
+    Assert.Equal(fields[4].label, "Quelle-DE:", "row 4 must be the source label")
+    Assert.Equal(fields[4].value, "LFG-DE", "row 4 must render the accepted invite source")
   end)
 
   test("factory_controllers: BuildAcceptedInviteFields drops level suffix when level is nil or non-positive", function()
@@ -879,15 +884,16 @@ return function(test, ctx)
     })
 
     local fields = build(c, "MyDungeon", { level = 5 })
-    Assert.Equal(#fields, 1, "no group + no comment + NONE role must leave only the dungeon row")
+    Assert.Equal(#fields, 2, "no group + no leader must leave dungeon + source rows")
     Assert.Equal(fields[1].label, "Dungeon-DE:", "the dungeon row must always be present")
+    Assert.Equal(fields[2].label, "Quelle-DE:", "the source row must always be present")
 
     -- empty / non-string group + comment must be dropped (string guard)
     local fieldsEmpty = build(c, "MyDungeon", { level = 5, groupName = "", comment = "" })
-    Assert.Equal(#fieldsEmpty, 1, "blank optional strings must be treated as missing")
+    Assert.Equal(#fieldsEmpty, 2, "blank optional strings must be treated as missing except source")
 
     local fieldsBadType = build(c, "MyDungeon", { level = 5, groupName = 42, comment = false })
-    Assert.Equal(#fieldsBadType, 1, "non-string optional values must be dropped")
+    Assert.Equal(#fieldsBadType, 2, "non-string optional values must be dropped except source")
   end)
 
   test(
@@ -903,17 +909,14 @@ return function(test, ctx)
           return "TANK"
         end,
       }
-      local fields = build(c, "Dun", { level = 7, groupName = "G", comment = "C" })
-      -- ResolveAcceptedInviteRoleName returns nil when L.ROLE_NAME_TANK is
-      -- missing, so the role row is dropped — only dungeon + group +
-      -- description remain. The english fallback for the role label is
-      -- never reached on an empty locale table; that branch is exercised
-      -- when the locale only lacks the label keys, not the role names.
-      Assert.Equal(#fields, 3, "missing role-name keys drop the role row")
+      local fields = build(c, "Dun", { level = 7, groupName = "G", comment = "C", leaderName = "Lead" })
+      Assert.Equal(#fields, 4, "missing optional locale keys must still render the mockup field set")
       Assert.Equal(fields[1].label, "Dungeon:", "missing dungeon label key must fall back to english")
       Assert.Equal(fields[1].value, "Dun +7", "missing headline template must fall back to english")
       Assert.Equal(fields[2].label, "Group:", "missing group label key must fall back to english")
-      Assert.Equal(fields[3].label, "Description:", "missing description label key must fall back to english")
+      Assert.Equal(fields[3].label, "Leader:", "missing leader label key must fall back to english")
+      Assert.Equal(fields[4].label, "Source:", "missing source label key must fall back to english")
+      Assert.Equal(fields[4].value, "LFG accepted invite", "missing source value key must fall back to english")
     end
   )
 
@@ -972,6 +975,7 @@ return function(test, ctx)
       level = 12,
       groupName = "Crew",
       comment = "Pls timer",
+      leaderName = "Leader-Realm",
     })
     Assert.NotNil(captured, "ShowCenterNotice must be invoked once")
     Assert.Equal(captured.unit, nil, "ShowCenterNotice unit arg must be nil (center notice)")
@@ -982,10 +986,11 @@ return function(test, ctx)
     Assert.Equal(captured.opts.teleportMapID, 559, "verified mapID must configure the embedded notice portal")
     Assert.Equal(captured.opts.title, "isiLive - Invite-DE", "opts.title must come from the locale table")
     Assert.Nil(captured.opts.teleportLabel, "accepted invite notice should not render a redundant teleport header")
-    Assert.Equal(captured.opts.frameWidth, 540, "opts.frameWidth must be the compact 540px card width")
-    Assert.Equal(#captured.opts.fields, 4, "opts.fields must contain dungeon + group + comment + role rows")
+    Assert.Equal(captured.opts.frameWidth, 680, "opts.frameWidth must preserve enough width for the mockup field rows")
+    Assert.Equal(#captured.opts.fields, 4, "opts.fields must contain dungeon + group + leader + source rows")
     Assert.Equal(captured.opts.fields[1].value, "Halls +12", "dungeon row must carry the resolved mapName + level")
-    Assert.Equal(captured.opts.fields[4].value, "Heal-DE", "role row must reflect HEALER -> ROLE_NAME_HEALER")
+    Assert.Equal(captured.opts.fields[3].value, "Leader-Realm", "leader row must reflect the accepted invite leader")
+    Assert.Equal(captured.opts.fields[4].value, "LFG-DE", "source row must show the accepted invite source")
   end)
 
   test("factory_controllers: RenderAcceptedInviteNotice uses verified mapID when activityID is missing", function()
@@ -1023,6 +1028,14 @@ return function(test, ctx)
     function()
       local addon = Load()
       local show = addon._FactoryInternal.ShowJoinedTargetNotice
+      addon.LFGDetect = {
+        GetActiveInviteLeader = function()
+          return "Leader-Realm"
+        end,
+        GetActiveInviteGroupName = function()
+          return "+17 weekly"
+        end,
+      }
       local call
       local c = BuildAcceptedInviteCtx({
         GetUnitRole = function()
@@ -1065,7 +1078,67 @@ return function(test, ctx)
       Assert.Equal(call.activityID, 1768, "center notice must carry the latest verified activity ID")
       Assert.Equal(call.showOptions.teleportMapID, 559, "portal button must resolve from verified mapID")
       Assert.Equal(call.showOptions.fields[1].value, "Nexuspunkt Xenas +17", "dungeon row must include the known level")
-      Assert.Equal(call.showOptions.fields[2].value, "DD-DE", "role row must still use the live player role")
+      Assert.Equal(call.showOptions.fields[2].value, "+17 weekly", "fallback notice must preserve the LFG group title")
+      Assert.Equal(call.showOptions.fields[3].value, "Leader-Realm", "fallback notice must preserve the LFG leader")
+      Assert.Equal(call.showOptions.fields[4].value, "LFG-DE", "fallback notice must still show the source row")
+    end
+  )
+
+  test(
+    "factory_controllers: ShowJoinedTargetNotice renders own LFG listing identity from verified active entry",
+    function()
+      local addon = Load()
+      local show = addon._FactoryInternal.ShowJoinedTargetNotice
+      addon.LFGDetect = {
+        GetActiveInviteLeader = function()
+          return nil
+        end,
+        GetActiveInviteGroupName = function()
+          return nil
+        end,
+        GetActiveQueueListingLeaderName = function()
+          return "Isi-Blackmoore"
+        end,
+        GetActiveQueueListingGroupName = function()
+          return "+12 chill"
+        end,
+      }
+      local call
+      local c = BuildAcceptedInviteCtx({
+        ShowCenterNotice = function(_, _, dungeonName, activityID, showOptions)
+          call = {
+            dungeonName = dungeonName,
+            activityID = activityID,
+            showOptions = showOptions,
+          }
+        end,
+        ResolveLocalStatusTargetMapID = function()
+          return 2441
+        end,
+        GetStatusTargetDungeonInfo = function()
+          return { name = "Tazavesh", level = 12 }
+        end,
+        runtimeState = {
+          GetLatestQueueState = function()
+            return "Tazavesh", 1700, nil, 2441
+          end,
+        },
+      })
+      local modules = {
+        teleport = {
+          GetTeleportInfoByMapID = function()
+            return { mapName = "Tazavesh" }
+          end,
+        },
+      }
+
+      show(c, modules)
+
+      Assert.NotNil(call, "own listing fallback must render a center notice")
+      Assert.Equal(call.showOptions.title, "isiLive - LFG-DE", "own listing must not use the invite-accepted title")
+      Assert.Equal(call.showOptions.fields[2].value, "+12 chill", "own listing group title must be shown")
+      Assert.Equal(call.showOptions.fields[3].value, "Isi-Blackmoore", "own listing leader must be shown")
+      Assert.Equal(call.showOptions.fields[4].value, "Eigene-LFG-DE", "own listing source must be shown")
     end
   )
 

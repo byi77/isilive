@@ -725,10 +725,16 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
   -- ---------------------------------------------------------------------------
 
   test("LFGDetect queue-set detectedMapID is cleared when listing is removed", function()
-    local activeEntry = { activityID = 1542 }
+    local activeEntry = { activityID = 1542, name = "+11 weekly" }
 
     local globals, fire = BuildLFGDetectEnv({
       globals = {
+        UnitFullName = function(unit)
+          if unit == "player" then
+            return "Isi", "Blackmoore"
+          end
+          return nil
+        end,
         C_LFGList = {
           GetSearchResultInfo = function()
             return nil
@@ -751,11 +757,29 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
 
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE") -- listing present
       Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "queue listing must set detectedMapID")
+      Assert.Equal(
+        addon.LFGDetect.GetActiveQueueListingGroupName(),
+        "+11 weekly",
+        "setup: queue listing title must be exposed"
+      )
+      Assert.Equal(
+        addon.LFGDetect.GetActiveQueueListingLeaderName(),
+        "Isi-Blackmoore",
+        "setup: queue listing leader must be exposed"
+      )
 
       activeEntry = nil -- listing removed
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE") -- no listing
 
       Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "queue-set detectedMapID must be cleared when listing is removed")
+      Assert.Nil(
+        addon.LFGDetect.GetActiveQueueListingGroupName(),
+        "queue listing title must be cleared when listing is removed"
+      )
+      Assert.Nil(
+        addon.LFGDetect.GetActiveQueueListingLeaderName(),
+        "queue listing leader must be cleared when listing is removed"
+      )
     end)
   end)
 
@@ -800,6 +824,34 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
       Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "own listing must set detectedMapID")
       Assert.Nil(addon.LFGDetect.GetActiveInviteLeader(), "own queue path must not produce an invite leader hint")
+    end)
+  end)
+
+  test("LFGDetect own queue listing exposes verified group title and local leader", function()
+    local globals, fire = BuildLFGDetectEnv({
+      globals = {
+        UnitFullName = function(unit)
+          if unit == "player" then
+            return "Isi", "Blackmoore"
+          end
+          return nil
+        end,
+        C_LFGList = BuildC_LFGList({}, { activityID = 1542, name = "+11 weekly" }),
+      },
+    })
+
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+
+      fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
+
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "own listing must set detectedMapID")
+      Assert.Equal(addon.LFGDetect.GetActiveQueueListingGroupName(), "+11 weekly", "own listing title must be exposed")
+      Assert.Equal(
+        addon.LFGDetect.GetActiveQueueListingLeaderName(),
+        "Isi-Blackmoore",
+        "own listing leader must come from the verified local unit name"
+      )
     end)
   end)
 
@@ -1221,6 +1273,11 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       )
       Assert.Equal(payloads[1].leaderName, "Leader-Realm", "callback payload carries the leader name")
       Assert.Equal(payloads[1].groupName, "+13 Relaxed", "callback payload carries the listing title")
+      Assert.Equal(
+        addon.LFGDetect.GetActiveInviteGroupName(),
+        "+13 Relaxed",
+        "active invite group title stays available"
+      )
       Assert.Equal(payloads[1].activityID, 1768, "callback payload carries the accepted activityID")
       Assert.Equal(payloads[1].searchResultID, 601, "callback payload carries the accepted searchResultID")
     end)

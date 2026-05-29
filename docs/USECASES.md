@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.287`
-Zuletzt aktualisiert: `2026-05-28`
+Versionsbasis: `0.9.288`
+Zuletzt aktualisiert: `2026-05-29`
 
 ## Akteure
 
@@ -129,7 +129,7 @@ Ziel: Rating-Aenderungen vor und nach einem Run pro Spieler im Roster zeigen, oh
 5. Trigger: Das Roster wird nach Rating-Updates gerendert.
 6. Output: Die `RIO`-Spalte zeigt `(+X)RIO`, wenn Baseline und aktueller Wert vorhanden sind.
 7. Regel: Delta wird auf nicht-negative Werte geklemmt; Minimum ist `+0`, Minus-Rendering ist verboten.
-8. Regel: Der Admin-Testmodus (`/isilive testall`) verwendet den Full-Dummy-Preview-Pfad, inklusive sichtbarem positivem Dummy-Delta, einer Ghost-/Leaver-Zeile, Demo-Daten fuer M+-Timer, Combat-CDs, unteren M+-Forces-Tracker, Statsbox, Portal-Navigator, Centerbox-Portal, M+-Forces-Nameplates/-Tooltip und LFG-Bonusmarker. Demo-Feature-Schalter einschliesslich `Accepted-invite notice` und `Group-join target notice` werden nur temporaer gesetzt und beim Verlassen auf die vorherigen User-Settings zurueckgesetzt.
+8. Regel: Der Admin-Testmodus (`/isilive testall`) verwendet den Full-Dummy-Preview-Pfad, inklusive sichtbarem positivem Dummy-Delta, einer Ghost-/Leaver-Zeile, Demo-Daten fuer M+-Timer, Combat-CDs, unteren M+-Forces-Tracker, Statsbox, Portal-Navigator, Centerbox-Portal, Non-Mythic-Dungeon-Entry-Centerbox, M+-Forces-Nameplates/-Tooltip und LFG-Bonusmarker. Centerbox-Portal und Non-Mythic-Dungeon-Entry-Centerbox bleiben im Demomodus parallel sichtbar, damit sie sich nicht gegenseitig verdraengen. Demo-Feature-Schalter einschliesslich `Accepted-invite notice` und `Group-join target notice` werden nur temporaer gesetzt und beim Verlassen auf die vorherigen User-Settings zurueckgesetzt.
 9. Erfolgskriterium: Die Anzeige bleibt pro Spieler ueber Unit-Slot-Wechsel stabil und zeigt niemals ein negatives Delta.
 
 ## UC-08 Post-Run-Stats-Snapshot
@@ -348,7 +348,7 @@ Ziel: Eine optionale, eigenstaendige Spieler-Stats-Box zeigt live gelesene Prim√
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `1892` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `1901` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.

@@ -152,6 +152,9 @@ local pendingAcceptedInviteMapID = nil
 -- Consumers use this to disambiguate ResolveActiveKeyOwnerUnit when the roster
 -- contains multiple members with the same keyMapID.
 local activeInviteLeader = nil
+local activeInviteGroupName = nil
+local activeQueueListingLeaderName = nil
+local activeQueueListingGroupName = nil
 -- Hint key level parsed from the LFG group title (e.g. "+13 Competitive" → 13).
 -- Used as a last-resort fallback for the "Ziel-Dungeon: X +N" announce when
 -- neither a roster owner nor a synced target supplies a level (typical for
@@ -736,6 +739,21 @@ local function ClearPendingTargetDungeonChat()
   pendingTargetDungeonChatSearchResultID = nil
 end
 
+local function GetLocalPlayerFullName()
+  local unitFullNameFn = rawget(_G, "UnitFullName")
+  if type(unitFullNameFn) ~= "function" then
+    return nil
+  end
+  local name, realm = unitFullNameFn("player")
+  if type(name) ~= "string" or name == "" then
+    return nil
+  end
+  if type(realm) == "string" and realm ~= "" then
+    return name .. "-" .. realm
+  end
+  return name
+end
+
 -- Exposed for callers that hold a raw entry table (e.g. tests pinning the
 -- divergence-recovery contract, or future consumers that bypass the
 -- MaybeShow* helpers). Mirrors the Get* naming used by the rest of the
@@ -901,6 +919,7 @@ local function OnInviteAccepted(searchResultID)
   if mapID then
     pendingInvites[searchResultID] = nil
     activeInviteLeader = leaderName
+    activeInviteGroupName = type(entry.groupName) == "string" and entry.groupName ~= "" and entry.groupName or nil
     activeInviteTitleLevel = titleLevel
     activeInviteTitleLevelText = titleLevelText
     acceptedInviteSearchResultID = searchResultID
@@ -914,6 +933,7 @@ local function OnInviteAccepted(searchResultID)
       Log("state_set", "var=pendingAcceptedInviteMapID val=%s", tostring(mapID))
     end
     Log("state_set", "var=activeInviteLeader val=%s", tostring(leaderName))
+    Log("state_set", "var=activeInviteGroupName val=%s", tostring(activeInviteGroupName))
     Log("state_set", "var=activeInviteTitleLevel val=%s", tostring(titleLevel))
     Log("state_set", "var=activeInviteTitleLevelText val=%s", tostring(titleLevelText))
     Log("state_set", "var=acceptedInviteSearchResultID val=%s", tostring(searchResultID))
@@ -986,6 +1006,9 @@ local function OnInviteDeclined(searchResultID)
   if mapID and detectedMapID == mapID then
     detectedMapID = nil
     activeInviteLeader = nil
+    activeInviteGroupName = nil
+    activeQueueListingLeaderName = nil
+    activeQueueListingGroupName = nil
     activeInviteTitleLevel = nil
     activeInviteTitleLevelText = nil
     acceptedInviteSearchResultID = nil
@@ -1038,6 +1061,9 @@ local function ClearDetectedState()
     detectedMapID = nil
     lastQueueMapID = nil
     activeInviteLeader = nil
+    activeInviteGroupName = nil
+    activeQueueListingLeaderName = nil
+    activeQueueListingGroupName = nil
     activeInviteTitleLevel = nil
     activeInviteTitleLevelText = nil
     acceptedInviteSearchResultID = nil
@@ -1067,6 +1093,9 @@ local function ClearAllStateImpl()
     or next(pendingInvites) ~= nil
     or pendingAcceptedInviteMapID ~= nil
     or activeInviteLeader ~= nil
+    or activeInviteGroupName ~= nil
+    or activeQueueListingLeaderName ~= nil
+    or activeQueueListingGroupName ~= nil
     or activeInviteTitleLevel ~= nil
     or activeInviteTitleLevelText ~= nil
     or acceptedInviteSearchResultID ~= nil
@@ -1076,6 +1105,9 @@ local function ClearAllStateImpl()
   lastQueueMapID = nil
   pendingAcceptedInviteMapID = nil
   activeInviteLeader = nil
+  activeInviteGroupName = nil
+  activeQueueListingLeaderName = nil
+  activeQueueListingGroupName = nil
   activeInviteTitleLevel = nil
   activeInviteTitleLevelText = nil
   acceptedInviteSearchResultID = nil
@@ -1096,6 +1128,18 @@ end
 
 function LFGDetect.GetActiveInviteLeader()
   return activeInviteLeader
+end
+
+function LFGDetect.GetActiveInviteGroupName()
+  return activeInviteGroupName
+end
+
+function LFGDetect.GetActiveQueueListingLeaderName()
+  return activeQueueListingLeaderName
+end
+
+function LFGDetect.GetActiveQueueListingGroupName()
+  return activeQueueListingGroupName
 end
 
 -- Hint level parsed from the leader's free-form LFG group title
@@ -1162,13 +1206,24 @@ local function CheckActiveGroup()
     Log("queue_listing_detected", "mapID=%s lastQueueMapID=%s", tostring(mapID), tostring(lastQueueMapID))
     lastQueueMapID = mapID
     detectedMapID = mapID
+    activeQueueListingGroupName = type(info.name) == "string" and info.name ~= "" and info.name or nil
+    activeQueueListingLeaderName = type(info.leaderName) == "string" and info.leaderName ~= "" and info.leaderName
+      or GetLocalPlayerFullName()
     Log("state_set", "var=lastQueueMapID val=%s", tostring(mapID))
     Log("state_set", "var=detectedMapID val=%s", tostring(mapID))
+    Log("state_set", "var=activeQueueListingGroupName val=%s", tostring(activeQueueListingGroupName))
+    Log("state_set", "var=activeQueueListingLeaderName val=%s", tostring(activeQueueListingLeaderName))
     TriggerHighlightUpdate("queue") -- BUG-1: own listing → suppress portal sound
+  elseif mapID then
+    activeQueueListingGroupName = type(info.name) == "string" and info.name ~= "" and info.name or nil
+    activeQueueListingLeaderName = type(info.leaderName) == "string" and info.leaderName ~= "" and info.leaderName
+      or GetLocalPlayerFullName()
   elseif not mapID and lastQueueMapID ~= nil then
     Log("queue_listing_cleared", "no_active_entry")
     lastQueueMapID = nil
     detectedMapID = nil
+    activeQueueListingLeaderName = nil
+    activeQueueListingGroupName = nil
     TriggerHighlightUpdate("queue")
   end
 end
@@ -1278,6 +1333,7 @@ local function ClearAcceptedInviteListingIdentity(reason)
   if
     detectedMapID == nil
     and activeInviteLeader == nil
+    and activeInviteGroupName == nil
     and activeInviteTitleLevel == nil
     and activeInviteTitleLevelText == nil
     and acceptedInviteSearchResultID == nil
@@ -1296,6 +1352,7 @@ local function ClearAcceptedInviteListingIdentity(reason)
   )
   detectedMapID = nil
   activeInviteLeader = nil
+  activeInviteGroupName = nil
   activeInviteTitleLevel = nil
   activeInviteTitleLevelText = nil
   acceptedInviteSearchResultID = nil
@@ -1435,6 +1492,7 @@ function LFGDetect.HandleEvent(event, ...)
       if resultID and entry then
         detectedMapID = entry.mapID
         activeInviteLeader = entry.leaderName
+        activeInviteGroupName = type(entry.groupName) == "string" and entry.groupName ~= "" and entry.groupName or nil
         activeInviteTitleLevel = ResolveEntryTitleLevel(entry)
         activeInviteTitleLevelText = not activeInviteTitleLevel and ResolveEntryTitleLevelText(entry) or nil
         acceptedInviteSearchResultID = resultID

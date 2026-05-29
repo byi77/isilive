@@ -88,9 +88,32 @@ local function MakeFrameStub()
     return MakeFontStringStub()
   end
   function frame:CreateTexture()
-    local tex = {}
-    function tex:SetAllPoints() end
-    function tex:SetColorTexture() end
+    local tex = { _points = {} }
+    function tex:SetAllPoints()
+      self._allPoints = true
+    end
+    function tex:SetPoint(...)
+      table.insert(self._points, { ... })
+    end
+    function tex:ClearAllPoints()
+      self._points = {}
+      self._allPoints = false
+    end
+    function tex:SetTexture(texture)
+      self._texture = texture
+    end
+    function tex:SetTexCoord(...)
+      self._texCoord = { ... }
+    end
+    function tex:SetBlendMode(mode)
+      self._blendMode = mode
+    end
+    function tex:SetAlpha(alpha)
+      self._alpha = alpha
+    end
+    function tex:SetColorTexture(...)
+      self._colorTexture = { ... }
+    end
     function tex:Hide() end
     function tex:Show() end
     return tex
@@ -297,6 +320,47 @@ return function(test, ctx)
       UICommon.ApplyBackdrop(MakeFrameStub(), "DOES_NOT_EXIST"),
       "unknown preset name must short-circuit to false"
     )
+  end)
+
+  test("UICommon.CreateRedCloseButton renders themed WoW close art", function()
+    WithGlobals({
+      CreateFrame = function()
+        return MakeFrameStub()
+      end,
+      UIParent = MakeFrameStub(),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua" })
+      local parent = MakeFrameStub()
+      local button = addon.UICommon.CreateRedCloseButton(parent, { size = 22 })
+
+      local art = Assert.NotNil(button._isiLiveCloseButtonArt, "close button should expose its themed art")
+      Assert.Equal(button._borderColor[1], 1.0, "close button border should use a gold red channel")
+      Assert.Equal(button._borderColor[2], 0.68, "close button border should use a warm gold green channel")
+      Assert.Equal(
+        art.icon._texture,
+        "Interface\\Buttons\\UI-Panel-MinimizeButton-Up",
+        "close button should use WoW panel close art"
+      )
+      Assert.Equal(
+        art.highlight._texture,
+        "Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight",
+        "close button should include WoW highlight art"
+      )
+
+      button._scripts.OnMouseDown()
+      Assert.Equal(
+        art.icon._texture,
+        "Interface\\Buttons\\UI-Panel-MinimizeButton-Down",
+        "pressed state should swap to WoW down art"
+      )
+
+      button._scripts.OnLeave()
+      Assert.Equal(
+        art.icon._texture,
+        "Interface\\Buttons\\UI-Panel-MinimizeButton-Up",
+        "leave state should restore normal art"
+      )
+    end)
   end)
 
   -- Private tooltip pipeline ---------------------------------------------------

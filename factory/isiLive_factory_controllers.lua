@@ -835,10 +835,10 @@ local function ResolveAcceptedInviteDungeonName(ctx, modules, mapID)
 end
 
 -- Builds the rich-layout field rows for the post-accept notice from the
--- payload. Order is fixed (Dungeon first, then Group, Description, Role) so
--- the visual hierarchy is stable across invites. Optional rows (Description,
--- Role) are dropped when their source is missing — never filled with "-" or
--- "Unknown" placeholders.
+-- payload. Order is fixed (Dungeon, Group, Leader, Source) so the visual
+-- hierarchy matches the center-notice mockup and stays stable across invites.
+-- Optional rows are dropped when their source is missing — never filled with
+-- "-" or "Unknown" placeholders.
 local function BuildAcceptedInviteFields(ctx, mapName, payload)
   local L = ctx.GetL and ctx.GetL() or {}
   local fields = {}
@@ -856,16 +856,14 @@ local function BuildAcceptedInviteFields(ctx, mapName, payload)
     fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Group:", value = payload.groupName }
   end
 
-  if type(payload.comment) == "string" and payload.comment ~= "" then
-    fields[#fields + 1] =
-      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_DESCRIPTION or "Description:", value = payload.comment }
+  if type(payload.leaderName) == "string" and payload.leaderName ~= "" then
+    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LEADER or "Leader:", value = payload.leaderName }
   end
 
-  local role = type(ctx.GetUnitRole) == "function" and ctx.GetUnitRole("player") or nil
-  local roleName = ResolveAcceptedInviteRoleName(ctx, role)
-  if roleName then
-    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_ROLE or "Role:", value = roleName }
-  end
+  fields[#fields + 1] = {
+    label = L.INVITE_ACCEPTED_NOTICE_LABEL_SOURCE or "Source:",
+    value = payload.sourceText or L.INVITE_ACCEPTED_NOTICE_SOURCE_LFG_ACCEPTED or "LFG accepted invite",
+  }
 
   return fields
 end
@@ -918,12 +916,13 @@ local function RenderAcceptedInviteNotice(ctx, modules, payload, useAcceptedNoti
   -- resolver as the highlighted M+ portal row. Without verified context the
   -- notice stays informational and no name-based fallback is attempted.
   ctx.ShowCenterNotice(nil, nil, hasTeleportContext and mapName or nil, activityID, {
-    title = L.INVITE_ACCEPTED_NOTICE_TITLE or "isiLive - Invite accepted",
+    eyebrow = L.INVITE_ACCEPTED_NOTICE_EYEBROW or "M+ Target",
+    title = payload.title or L.INVITE_ACCEPTED_NOTICE_TITLE or "isiLive - Invite accepted",
     fields = fields,
     teleportMapID = mapID,
-    -- Compact card width: narrower than the default 680px legacy banner so
-    -- the layout reads as a focused info card rather than a full-width header.
-    frameWidth = 540,
+    -- Keep the rich card at the default notice width so the accepted-invite
+    -- title and four mockup field rows do not collapse beside the portal icon.
+    frameWidth = 680,
     -- Persistent (no auto-hide): the notice stays until the user right-clicks
     -- it or presses the close button. The auto-timer kept producing too-short
     -- visibility windows in live testing (12 s missed during a busy invite
@@ -964,11 +963,42 @@ local function ShowJoinedTargetNotice(ctx, modules)
     local _, latestQueueActivityID = ctx.runtimeState.GetLatestQueueState()
     activityID = latestQueueActivityID
   end
+  local lfgDetect = addonTable.LFGDetect
+  local leaderName = nil
+  local groupName = nil
+  local sourceText = nil
+  local title = nil
+  local usedQueueListingIdentity = false
+  if type(lfgDetect) == "table" then
+    if type(lfgDetect.GetActiveInviteLeader) == "function" then
+      leaderName = lfgDetect.GetActiveInviteLeader()
+    end
+    if type(lfgDetect.GetActiveInviteGroupName) == "function" then
+      groupName = lfgDetect.GetActiveInviteGroupName()
+    end
+    if not leaderName and type(lfgDetect.GetActiveQueueListingLeaderName) == "function" then
+      leaderName = lfgDetect.GetActiveQueueListingLeaderName()
+      usedQueueListingIdentity = leaderName ~= nil
+    end
+    if not groupName and type(lfgDetect.GetActiveQueueListingGroupName) == "function" then
+      groupName = lfgDetect.GetActiveQueueListingGroupName()
+      usedQueueListingIdentity = usedQueueListingIdentity or groupName ~= nil
+    end
+  end
+  if usedQueueListingIdentity then
+    local L = ctx.GetL and ctx.GetL() or {}
+    sourceText = L.INVITE_ACCEPTED_NOTICE_SOURCE_OWN_LFG_LISTING or "Own LFG key search"
+    title = L.INVITE_ACCEPTED_NOTICE_TITLE_OWN_LFG_LISTING or "isiLive - LFG key search"
+  end
 
   RenderAcceptedInviteNotice(ctx, modules, {
     mapID = math.floor(mapID),
     activityID = activityID,
     level = targetInfo.level,
+    leaderName = leaderName,
+    groupName = groupName,
+    sourceText = sourceText,
+    title = title,
   }, false)
 end
 
@@ -1013,6 +1043,7 @@ local function RenderAcceptedRaidInviteNotice(ctx, modules, payload)
   local mapName = ResolveAcceptedInviteDungeonName(ctx, modules, payload.mapID)
   local fields = BuildAcceptedRaidInviteFields(ctx, mapName, payload)
   ctx.ShowCenterNotice(nil, nil, nil, nil, {
+    eyebrow = L.INVITE_ACCEPTED_RAID_NOTICE_EYEBROW or "Raid Target",
     title = L.INVITE_ACCEPTED_RAID_NOTICE_TITLE or "isiLive - Raid invite accepted",
     fields = fields,
     frameWidth = 540,
@@ -1662,6 +1693,7 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
     getRealZoneText = ctx.GetRealZoneText,
     getPlayerMapID = ctx.GetPlayerMapID,
     getMapInfoName = ctx.GetMapInfoName,
+    getTeleportInfoByMapID = modules.teleport and modules.teleport.GetTeleportInfoByMapID or nil,
     timerAfter = function(seconds, callback)
       if C_Timer and C_Timer.After then
         C_Timer.After(seconds, function()
@@ -1894,6 +1926,14 @@ end
 local DEMO_FEATURE_NIL = {}
 local DEMO_FEATURE_TARGET_DUNGEON_NAME = "Nexus-Point Xenas"
 local DEMO_FEATURE_TARGET_MAP_ID = 559
+local DEMO_FEATURE_NON_MYTHIC_DUNGEON_NAME = "Priorei der Heiligen Flamme"
+local DEMO_FEATURE_NON_MYTHIC_NOTICE_DELAY_SECONDS = 8
+local DEMO_FEATURE_PORTAL_NAVIGATOR_MAP_IDS = {
+  left = 161,
+  half_left = 556,
+  half_right = 402,
+  right = 239,
+}
 local DEMO_FEATURE_DB_KEYS = {
   "acceptedInviteNoticeEnabled",
   "groupJoinNoticeEnabled",
@@ -2015,6 +2055,45 @@ local function ApplyDemoMobForces(ctx)
   end
 end
 
+local function ApplyDemoPortalNavigatorTeleportInfo(ctx, entry, mapID)
+  entry.mapID = mapID
+  local teleport = ctx.modules and ctx.modules.teleport
+  if type(teleport) ~= "table" or type(teleport.GetTeleportInfoByMapID) ~= "function" then
+    return
+  end
+
+  local ok, info = pcall(teleport.GetTeleportInfoByMapID, mapID)
+  if not ok or type(info) ~= "table" then
+    return
+  end
+
+  local spellID = tonumber(info.spellID)
+  if spellID and spellID > 0 then
+    entry.spellID = math.floor(spellID)
+  end
+  if type(info.icon) == "string" or type(info.icon) == "number" then
+    entry.icon = info.icon
+  end
+end
+
+local function BuildDemoPortalNavigatorEntry(ctx, slot, direction, destination, opts)
+  local entry = {
+    slot = slot,
+    direction = direction,
+    destination = destination,
+  }
+  if type(opts) == "table" then
+    entry.detail = opts.detail
+    entry.isEmpty = opts.isEmpty == true
+  end
+
+  local mapID = DEMO_FEATURE_PORTAL_NAVIGATOR_MAP_IDS[slot]
+  if mapID then
+    ApplyDemoPortalNavigatorTeleportInfo(ctx, entry, mapID)
+  end
+  return entry
+end
+
 local function ShowDemoPortalNavigator(ctx, L)
   if type(ctx.ShowPortalNavigatorNotice) ~= "function" then
     return
@@ -2023,28 +2102,64 @@ local function ShowDemoPortalNavigator(ctx, L)
   ctx.ShowPortalNavigatorNotice({
     title = L.PORTAL_NAVIGATOR_TITLE or "Timeways Portal Navigator",
     entries = {
-      {
-        slot = "half_left",
-        direction = L.PORTAL_NAVIGATOR_HALF_LEFT or "Half-left",
-        destination = L.PORTAL_NAVIGATOR_PIT_OF_SARON or "Pit of Saron",
-      },
-      {
-        slot = "left",
-        direction = L.PORTAL_NAVIGATOR_LEFT or "Left",
-        destination = L.PORTAL_NAVIGATOR_SKYREACH or "Skyreach",
-      },
-      {
-        slot = "right",
-        direction = L.PORTAL_NAVIGATOR_RIGHT or "Right",
-        destination = L.PORTAL_NAVIGATOR_TRIUMVIRATE or "Seat of the Triumvirate",
-      },
-      {
-        slot = "half_right",
-        direction = L.PORTAL_NAVIGATOR_HALF_RIGHT or "Half-right",
-        destination = L.PORTAL_NAVIGATOR_ALGETHAR or "Algeth'ar Academy",
-      },
+      BuildDemoPortalNavigatorEntry(
+        ctx,
+        "left",
+        L.PORTAL_NAVIGATOR_LEFT or "Left",
+        L.PORTAL_NAVIGATOR_SKYREACH or "Skyreach"
+      ),
+      BuildDemoPortalNavigatorEntry(
+        ctx,
+        "half_left",
+        L.PORTAL_NAVIGATOR_HALF_LEFT or "Half-left",
+        L.PORTAL_NAVIGATOR_PIT_OF_SARON or "Pit of Saron"
+      ),
+      BuildDemoPortalNavigatorEntry(
+        ctx,
+        "center",
+        L.PORTAL_NAVIGATOR_CENTER or "Straight ahead",
+        L.PORTAL_NAVIGATOR_HEAVEN or "Heaven",
+        { detail = L.PORTAL_NAVIGATOR_UNOCCUPIED or "Unoccupied", isEmpty = true }
+      ),
+      BuildDemoPortalNavigatorEntry(
+        ctx,
+        "half_right",
+        L.PORTAL_NAVIGATOR_HALF_RIGHT or "Half-right",
+        L.PORTAL_NAVIGATOR_ALGETHAR or "Algeth'ar Academy"
+      ),
+      BuildDemoPortalNavigatorEntry(
+        ctx,
+        "right",
+        L.PORTAL_NAVIGATOR_RIGHT or "Right",
+        L.PORTAL_NAVIGATOR_TRIUMVIRATE or "Seat of the Triumvirate"
+      ),
     },
   })
+end
+
+local function BuildDemoAcceptedInviteNoticePayload(L)
+  return {
+    message = nil,
+    durationSeconds = nil,
+    dungeonName = DEMO_FEATURE_TARGET_DUNGEON_NAME,
+    activityID = nil,
+    showOptions = {
+      eyebrow = L.INVITE_ACCEPTED_NOTICE_EYEBROW or "M+ Target",
+      title = L.INVITE_ACCEPTED_NOTICE_TITLE or "isiLive - Invite accepted",
+      fields = {
+        { label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:", value = "Nexus-Point Xenas +15" },
+        { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Group:", value = "+15 Demo Preview" },
+        { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LEADER or "Leader:", value = "isiLive-Demo" },
+        {
+          label = L.INVITE_ACCEPTED_NOTICE_LABEL_SOURCE or "Source:",
+          value = L.INVITE_ACCEPTED_NOTICE_SOURCE_LFG_ACCEPTED or "LFG accepted invite",
+        },
+      },
+      teleportMapID = DEMO_FEATURE_TARGET_MAP_ID,
+      frameWidth = 680,
+      persistent = true,
+    },
+  }
 end
 
 local function ShowDemoAcceptedInviteNotice(ctx, L)
@@ -2052,20 +2167,71 @@ local function ShowDemoAcceptedInviteNotice(ctx, L)
     return
   end
 
-  ctx.ShowCenterNotice(nil, nil, DEMO_FEATURE_TARGET_DUNGEON_NAME, nil, {
-    title = L.INVITE_ACCEPTED_NOTICE_TITLE or "isiLive - Invite accepted",
-    fields = {
-      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:", value = "Nexus-Point Xenas +15" },
-      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Group:", value = "+15 Demo Preview" },
-      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_ROLE or "Role:", value = L.ROLE_NAME_DAMAGE or "Damage" },
+  local payload = BuildDemoAcceptedInviteNoticePayload(L)
+  ctx.ShowCenterNotice(
+    payload.message,
+    payload.durationSeconds,
+    payload.dungeonName,
+    payload.activityID,
+    payload.showOptions
+  )
+end
+
+local function BuildDemoNonMythicDungeonNoticePayload(L)
+  return {
+    message = string.format(
+      L.NON_MYTHIC_ENTERED or "Warning: Entered non-Mythic dungeon (%s).",
+      L.DUNGEON_DIFF_NORMAL or "Normal"
+    ),
+    durationSeconds = 120,
+    dungeonName = nil,
+    activityID = nil,
+    showOptions = {
+      eyebrow = L.NON_MYTHIC_NOTICE_DUNGEON_EYEBROW or "Dungeon",
+      title = L.NON_MYTHIC_NOTICE_DUNGEON_TITLE or "isiLive - Dungeon entered",
+      fields = {
+        {
+          label = L.NON_MYTHIC_NOTICE_LABEL_DUNGEON or "Dungeon:",
+          value = L.NON_MYTHIC_NOTICE_DEMO_DUNGEON or DEMO_FEATURE_NON_MYTHIC_DUNGEON_NAME,
+        },
+        {
+          label = L.NON_MYTHIC_NOTICE_LABEL_DIFFICULTY or "Difficulty:",
+          value = L.DUNGEON_DIFF_NORMAL or "Normal",
+        },
+        {
+          label = L.NON_MYTHIC_NOTICE_LABEL_HINT or "Hint:",
+          value = L.NON_MYTHIC_NOTICE_HINT_NON_MYTHIC or "Not a Mythic+ dungeon",
+          warning = true,
+          blink = true,
+        },
+        {
+          label = L.NON_MYTHIC_NOTICE_LABEL_SOURCE or "Source:",
+          value = L.NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED or "Instance entered",
+        },
+      },
+      frameWidth = 680,
+      persistent = true,
     },
-    teleportMapID = DEMO_FEATURE_TARGET_MAP_ID,
-    frameWidth = 540,
-    persistent = true,
-  })
+  }
+end
+
+local function ShowDemoNonMythicDungeonNotice(ctx, L)
+  if type(ctx.ShowCenterNotice) ~= "function" then
+    return
+  end
+
+  local payload = BuildDemoNonMythicDungeonNoticePayload(L)
+  ctx.ShowCenterNotice(
+    payload.message,
+    payload.durationSeconds,
+    payload.dungeonName,
+    payload.activityID,
+    payload.showOptions
+  )
 end
 
 local function ApplyDemoFeatureData(ctx)
+  ctx._demoFeatureActive = true
   ApplyDemoFeatureDbOverrides(ctx)
   ApplyDemoStatsBox(ctx)
   ApplyDemoLfgFlags(ctx)
@@ -2073,7 +2239,23 @@ local function ApplyDemoFeatureData(ctx)
 
   local L = ctx.GetL and ctx.GetL() or {}
   ShowDemoPortalNavigator(ctx, L)
-  ShowDemoAcceptedInviteNotice(ctx, L)
+  if type(ctx.ShowDemoCenterNotices) == "function" then
+    ctx.ShowDemoCenterNotices({
+      BuildDemoAcceptedInviteNoticePayload(L),
+      BuildDemoNonMythicDungeonNoticePayload(L),
+    })
+  else
+    ShowDemoAcceptedInviteNotice(ctx, L)
+    if C_Timer and C_Timer.After then
+      C_Timer.After(DEMO_FEATURE_NON_MYTHIC_NOTICE_DELAY_SECONDS, function()
+        if ctx._demoFeatureActive == true then
+          ShowDemoNonMythicDungeonNotice(ctx, ctx.GetL and ctx.GetL() or L)
+        end
+      end)
+    else
+      ShowDemoNonMythicDungeonNotice(ctx, L)
+    end
+  end
 end
 
 local function RestoreDemoStatsBox(ctx)
@@ -2138,6 +2320,10 @@ local function RestoreDemoLfgFlags(ctx, db)
 end
 
 local function ClearDemoFeatureData(ctx)
+  ctx._demoFeatureActive = false
+  if type(ctx.SetDemoCenterNoticesVisible) == "function" then
+    ctx.SetDemoCenterNoticesVisible(false)
+  end
   local db = rawget(_G, "IsiLiveDB")
   local snapshot = ctx._demoFeatureSnapshot
   if type(db) == "table" and type(snapshot) == "table" then

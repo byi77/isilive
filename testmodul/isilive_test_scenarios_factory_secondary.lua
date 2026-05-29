@@ -263,6 +263,14 @@ local function BuildControllerContext(state, addon, initial)
           }
         end,
       },
+      teleport = {
+        GetTeleportInfoByMapID = function(mapID)
+          return {
+            spellID = 100000 + mapID,
+            icon = "icon-" .. tostring(mapID),
+          }
+        end,
+      },
       sync = {
         SetPlayerKickInfo = function(name, realm, onCooldown, cooldownRemain, capturedAt, hasKick)
           state.lastSetKickInfo = {
@@ -336,15 +344,32 @@ local function BuildControllerContext(state, addon, initial)
         INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON = "Dungeon:",
         INVITE_ACCEPTED_NOTICE_LABEL_GROUP = "Group:",
         INVITE_ACCEPTED_NOTICE_LABEL_ROLE = "Role:",
+        INVITE_ACCEPTED_NOTICE_LABEL_LEADER = "Leader:",
+        INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Source:",
+        INVITE_ACCEPTED_NOTICE_SOURCE_LFG_ACCEPTED = "LFG accepted invite",
+        DUNGEON_DIFF_NORMAL = "Normal",
+        NON_MYTHIC_ENTERED = "Warning: Entered non-Mythic dungeon (%s).",
+        NON_MYTHIC_NOTICE_DUNGEON_EYEBROW = "Dungeon",
+        NON_MYTHIC_NOTICE_DUNGEON_TITLE = "isiLive - Dungeon entered",
+        NON_MYTHIC_NOTICE_LABEL_DUNGEON = "Dungeon:",
+        NON_MYTHIC_NOTICE_LABEL_DIFFICULTY = "Difficulty:",
+        NON_MYTHIC_NOTICE_LABEL_HINT = "Hint:",
+        NON_MYTHIC_NOTICE_LABEL_SOURCE = "Source:",
+        NON_MYTHIC_NOTICE_HINT_NON_MYTHIC = "Not a Mythic+ dungeon",
+        NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED = "Instance entered",
+        NON_MYTHIC_NOTICE_DEMO_DUNGEON = "Priory of the Sacred Flame",
         PORTAL_NAVIGATOR_TITLE = "Navigator",
         PORTAL_NAVIGATOR_HALF_LEFT = "Half-left",
         PORTAL_NAVIGATOR_LEFT = "Left",
         PORTAL_NAVIGATOR_RIGHT = "Right",
         PORTAL_NAVIGATOR_HALF_RIGHT = "Half-right",
+        PORTAL_NAVIGATOR_CENTER = "Straight ahead",
         PORTAL_NAVIGATOR_PIT_OF_SARON = "Pit",
         PORTAL_NAVIGATOR_SKYREACH = "Sky",
         PORTAL_NAVIGATOR_TRIUMVIRATE = "Seat",
         PORTAL_NAVIGATOR_ALGETHAR = "AA",
+        PORTAL_NAVIGATOR_HEAVEN = "Heaven",
+        PORTAL_NAVIGATOR_UNOCCUPIED = "Unoccupied",
         ROLE_NAME_DAMAGE = "Damage",
       }
     end,
@@ -373,6 +398,14 @@ local function BuildControllerContext(state, addon, initial)
         activityID = activityID,
         opts = opts,
       }
+      state.centerNoticeHistory = state.centerNoticeHistory or {}
+      table.insert(state.centerNoticeHistory, state.centerNotice)
+    end,
+    ShowDemoCenterNotices = function(notices)
+      state.demoCenterNotices = notices
+    end,
+    SetDemoCenterNoticesVisible = function(visible)
+      state.demoCenterNoticesVisible = visible
     end,
     ResetInspectAll = function() end,
     CaptureRioBaselineSnapshot = function() end,
@@ -597,10 +630,66 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Nil(state.mobNameplateFormat, "nameplate demo must not override the user's percent format settings")
     Assert.Nil(state.mobNameplateAppearance, "nameplate demo must not override the user's appearance settings")
     Assert.NotNil(state.portalNavigatorLayout, "test mode must show the portal navigator demo")
-    Assert.NotNil(state.centerNotice, "test mode must show the accepted-invite center notice demo")
-    Assert.Equal(state.centerNotice.dungeonName, "Nexus-Point Xenas", "center notice demo must use the demo target")
-    Assert.Equal(state.centerNotice.opts.teleportMapID, 559, "center notice demo must configure a verified map portal")
-    Assert.Nil(state.centerNotice.opts.teleportLabel, "center notice demo must omit the redundant teleport header")
+    Assert.Equal(#state.portalNavigatorLayout.entries, 5, "portal navigator demo must render all five portal positions")
+    local portalEntriesBySlot = {}
+    for _, entry in ipairs(state.portalNavigatorLayout.entries) do
+      portalEntriesBySlot[entry.slot] = entry
+    end
+    Assert.Equal(portalEntriesBySlot.left.icon, "icon-161", "demo left portal must use the Skyreach teleport icon")
+    Assert.Equal(portalEntriesBySlot.half_left.icon, "icon-556", "demo half-left portal must use the Pit teleport icon")
+    Assert.Equal(
+      portalEntriesBySlot.half_right.icon,
+      "icon-402",
+      "demo half-right portal must use the Academy teleport icon"
+    )
+    Assert.Equal(portalEntriesBySlot.right.icon, "icon-239", "demo right portal must use the Triumvirate teleport icon")
+    Assert.True(portalEntriesBySlot.center.isEmpty == true, "demo center portal must stay marked as empty")
+    Assert.Nil(portalEntriesBySlot.center.icon, "demo center portal must not synthesize an icon")
+    Assert.NotNil(state.demoCenterNotices, "test mode must show the demo center notices without replacing each other")
+    Assert.Equal(#state.demoCenterNotices, 2, "test mode must show both center notice demo variants at once")
+    local acceptedNotice = state.demoCenterNotices[1]
+    local difficultyNotice = state.demoCenterNotices[2]
+    Assert.Equal(acceptedNotice.dungeonName, "Nexus-Point Xenas", "center notice demo must use the demo target")
+    Assert.Equal(
+      acceptedNotice.showOptions.teleportMapID,
+      559,
+      "center notice demo must configure a verified map portal"
+    )
+    Assert.Nil(acceptedNotice.showOptions.teleportLabel, "center notice demo must omit the redundant teleport header")
+    Assert.Equal(acceptedNotice.showOptions.frameWidth, 680, "accepted-invite demo notice must use the rich card width")
+    Assert.Equal(
+      acceptedNotice.showOptions.fields[3].value,
+      "isiLive-Demo",
+      "accepted-invite demo notice must render the leader row"
+    )
+    Assert.Equal(
+      acceptedNotice.showOptions.fields[4].value,
+      "LFG accepted invite",
+      "accepted-invite demo notice must render the source row"
+    )
+    Assert.Equal(
+      difficultyNotice.showOptions.title,
+      "isiLive - Dungeon entered",
+      "demo mode must preview the non-mythic dungeon-entry center notice beside the target notice"
+    )
+    Assert.Equal(
+      difficultyNotice.showOptions.fields[1].value,
+      "Priory of the Sacred Flame",
+      "non-mythic demo notice must render the demo dungeon"
+    )
+    Assert.Equal(
+      difficultyNotice.showOptions.fields[2].value,
+      "Normal",
+      "non-mythic demo notice must render the normal difficulty"
+    )
+    Assert.True(
+      difficultyNotice.showOptions.fields[3].warning == true,
+      "non-mythic demo notice hint must be marked as a warning row"
+    )
+    Assert.True(
+      difficultyNotice.showOptions.fields[3].blink == true,
+      "non-mythic demo notice hint must blink for emphasis"
+    )
 
     state.ctx.ExitTestMode()
     Assert.Nil(state.mplusDemoData, "test mode exit must clear M+ timer demo data")
@@ -611,6 +700,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Equal(state.statsBoxDemoCleared, 1, "stats-box demo data must be cleared once")
     Assert.False(state.mobNameplateTestMode, "test mode exit must disable nameplate forces demo mode")
     Assert.False(state.portalNavigatorVisible, "test mode exit must hide the portal navigator demo")
+    Assert.False(state.demoCenterNoticesVisible, "test mode exit must hide the stacked demo center notices")
   end)
 
   test("Factory test mode does not resize the stats box font setting", function()

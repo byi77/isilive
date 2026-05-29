@@ -2,6 +2,89 @@
 
 ## Unreleased
 
+## 2026-05-29 - Version 0.9.288 (patch)
+
+### UI
+
+[isiLive.toc](../isiLive.toc),
+[README.md](../README.md),
+[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
+[ui/isiLive_notice.lua](../ui/isiLive_notice.lua),
+[ui/isiLive_status.lua](../ui/isiLive_status.lua),
+[ui/isiLive_ui_common.lua](../ui/isiLive_ui_common.lua),
+[game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua),
+[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua),
+[factory/isiLive_factory_frame_bridge.lua](../factory/isiLive_factory_frame_bridge.lua),
+[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
+[testmodul/isilive_test_scenarios_factory_secondary.lua](../testmodul/isilive_test_scenarios_factory_secondary.lua),
+[testmodul/isilive_test_scenarios_status.lua](../testmodul/isilive_test_scenarios_status.lua),
+[testmodul/isilive_test_scenarios_ui_center_notice.lua](../testmodul/isilive_test_scenarios_ui_center_notice.lua),
+[testmodul/isilive_test_scenarios_ui_common.lua](../testmodul/isilive_test_scenarios_ui_common.lua),
+[testmodul/isilive_test_scenarios_ui_notice_branches.lua](../testmodul/isilive_test_scenarios_ui_notice_branches.lua),
+[docs/RULES_LOGIC.md](RULES_LOGIC.md),
+[docs/ARCHITECTURE.md](ARCHITECTURE.md),
+[docs/ARCHITECTURE_RULES.md](ARCHITECTURE_RULES.md),
+[docs/RELEASE.md](RELEASE.md),
+[docs/USECASES.md](USECASES.md),
+[tools/mockups/center_notice_preview.html](../tools/mockups/center_notice_preview.html),
+[tools/mockups/center_notice_preview.png](../tools/mockups/center_notice_preview.png):
+
+- Bumped the TOC and documentation version basis to `0.9.288`.
+- Modernized the accepted-invite center notice portal action into a wide
+  right-side button area while keeping the actual spell icon square and
+  centered.
+- Reworked the accepted-invite center notice into the selected modern info-card
+  layout with a localized eyebrow, left-aligned title/content column, blue
+  separator, muted field labels, and reserved text width beside the portal
+  action area.
+- Reworked the Timeways Portal Navigator into a five-position crescent layout:
+  outer-left `Skyreach`, inner-left `Pit of Saron`, center `Heaven`
+  (`Unoccupied`), inner-right `Algeth'ar Academy`, and outer-right
+  `Seat of the Triumvirate`.
+- The occupied Portal Navigator entries now render the verified teleport spell
+  icons from `Teleport.GetTeleportInfoByMapID`; the empty center `Heaven`
+  placeholder stays muted and icon-free.
+- Removed the rendered Portal Navigator direction helper labels and the center
+  `Unoccupied` detail text so the view focuses on the portal icons and
+  destination names.
+- Corrected the accepted-invite Center Notice to match the mockup field set
+  again: `Dungeon`, `Group`, `Leader`, and `Source`, with a wider card and a
+  smaller visible portal-button background around the larger dungeon icon.
+- Kept the accepted LFG listing title available after invite acceptance so the
+  group-join fallback notice can still render the `Group` and `Leader` rows.
+- Added the same `Group` / `Leader` identity rows for the player's own active
+  LFG key listing, with a distinct `LFG key search` title/source instead of
+  labeling that path as an accepted invite.
+- Aligned the Center Notice portal action area dynamically to the rich text
+  block from title top to the last field row, moved cooldown text off the icon
+  center, and hid the portal button explicitly when the notice closes.
+- Added a small localized `Portal` ready label in the Center Notice portal
+  action area; an active cooldown still replaces it with the remaining time.
+- Reworked the non-Mythic dungeon-entry Center Notice from the old red
+  single-line warning into the same rich info-card layout, with dungeon/raid
+  name, difficulty, hint, and source rows while keeping M+ keystone entries
+  suppressed.
+- The non-Mythic dungeon-entry hint row now renders as a dominant blinking red
+  warning so `Not a Mythic+ dungeon` / `Nicht auf Mythisch+` stands out inside
+  the rich Center Notice.
+- Increased the rich Center Notice label gutter so field values start farther
+  to the right in both accepted-invite and non-Mythic dungeon-entry notices.
+- Restyled the shared close button with a darker red panel, warm gold border,
+  subtle red glow, and WoW panel close textures so the window chrome better
+  matches the current isiLive theme.
+- Added the non-Mythic dungeon-entry Center Notice to the demo preview cycle
+  after the accepted-invite portal preview, guarded so delayed demo callbacks do
+  not fire after demo exit.
+- Corrected the demo preview data for the modern notices: the Portal Navigator
+  now uses verified teleport icon metadata, and the accepted-invite Center
+  Notice keeps the full `Dungeon`, `Group`, `Leader`, and `Source` field set
+  visible longer before the non-Mythic preview replaces it.
+- Changed the demo preview to render the accepted-invite portal Center Notice
+  and the non-Mythic dungeon-entry Center Notice in separate demo-only frames
+  so both can be inspected at the same time.
+- Added deterministic layout and status coverage for the five portal positions
+  and updated the release-gate baseline to `1901` scenarios.
+
 ## 2026-05-28 - Version 0.9.287 (patch)
 
 ### LFG

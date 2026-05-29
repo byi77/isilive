@@ -56,6 +56,13 @@ local PORTAL_NAVIGATOR_MAP_IDS = {
   [2266] = true,
 }
 
+local PORTAL_NAVIGATOR_ENTRY_MAP_IDS = {
+  left = 161,
+  half_left = 556,
+  half_right = 402,
+  right = 239,
+}
+
 local function NormalizeZoneText(value)
   if type(value) ~= "string" then
     return nil
@@ -154,6 +161,26 @@ local function ResolvePortalNavigatorZoneSignature(deps)
   return nil, sawZoneText
 end
 
+local function ApplyPortalNavigatorTeleportInfo(deps, entry, mapID)
+  entry.mapID = mapID
+  if type(deps.getTeleportInfoByMapID) ~= "function" then
+    return
+  end
+
+  local ok, info = pcall(deps.getTeleportInfoByMapID, mapID)
+  if not ok or type(info) ~= "table" then
+    return
+  end
+
+  local spellID = tonumber(info.spellID)
+  if spellID and spellID > 0 then
+    entry.spellID = math.floor(spellID)
+  end
+  if type(info.icon) == "string" or type(info.icon) == "number" then
+    entry.icon = info.icon
+  end
+end
+
 local function BuildPortalNavigatorLayout(deps)
   local L = deps.getL()
   local title = L.PORTAL_NAVIGATOR_TITLE
@@ -162,32 +189,46 @@ local function BuildPortalNavigatorLayout(deps)
   end
   local entries = {
     {
-      slot = "half_left",
-      direction = L.PORTAL_NAVIGATOR_HALF_LEFT,
-      destination = L.PORTAL_NAVIGATOR_PIT_OF_SARON,
-    },
-    {
       slot = "left",
       direction = L.PORTAL_NAVIGATOR_LEFT,
       destination = L.PORTAL_NAVIGATOR_SKYREACH,
     },
     {
-      slot = "right",
-      direction = L.PORTAL_NAVIGATOR_RIGHT,
-      destination = L.PORTAL_NAVIGATOR_TRIUMVIRATE,
+      slot = "half_left",
+      direction = L.PORTAL_NAVIGATOR_HALF_LEFT,
+      destination = L.PORTAL_NAVIGATOR_PIT_OF_SARON,
+    },
+    {
+      slot = "center",
+      direction = L.PORTAL_NAVIGATOR_CENTER,
+      destination = L.PORTAL_NAVIGATOR_HEAVEN,
+      detail = L.PORTAL_NAVIGATOR_UNOCCUPIED,
+      isEmpty = true,
     },
     {
       slot = "half_right",
       direction = L.PORTAL_NAVIGATOR_HALF_RIGHT,
       destination = L.PORTAL_NAVIGATOR_ALGETHAR,
     },
+    {
+      slot = "right",
+      direction = L.PORTAL_NAVIGATOR_RIGHT,
+      destination = L.PORTAL_NAVIGATOR_TRIUMVIRATE,
+    },
   }
 
   for _, entry in ipairs(entries) do
+    local mapID = PORTAL_NAVIGATOR_ENTRY_MAP_IDS[entry.slot]
+    if mapID then
+      ApplyPortalNavigatorTeleportInfo(deps, entry, mapID)
+    end
     if type(entry.direction) ~= "string" or entry.direction == "" then
       return nil
     end
     if type(entry.destination) ~= "string" or entry.destination == "" then
+      return nil
+    end
+    if entry.detail ~= nil and type(entry.detail) ~= "string" then
       return nil
     end
   end
@@ -539,23 +580,49 @@ local function MaybeShowNonMythicDungeonEntryNotice(state, deps)
       end
       state.lastAnnouncedNonMythicSignature = confirmedSignature
       local template
-      local textColor
+      local showOpts
       if cInstanceType == "raid" then
         template = L.RAID_ENTERED or "Raid: %s"
-        -- Raid notice is informational (which difficulty did I just enter),
-        -- not a warning — keep the default brand color rather than the red
-        -- accent used by the non-mythic-dungeon warning.
-        textColor = nil
+        showOpts = {
+          eyebrow = L.NON_MYTHIC_NOTICE_RAID_EYEBROW or "Raid",
+          title = L.NON_MYTHIC_NOTICE_RAID_TITLE or "isiLive - Raid entered",
+          fields = {
+            {
+              label = L.NON_MYTHIC_NOTICE_LABEL_RAID or "Raid:",
+              value = cInstanceName or L.DUNGEON_DIFF_RAID_UNKNOWN or "Raid",
+            },
+            { label = L.NON_MYTHIC_NOTICE_LABEL_DIFFICULTY or "Difficulty:", value = cText },
+            {
+              label = L.NON_MYTHIC_NOTICE_LABEL_SOURCE or "Source:",
+              value = L.NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED or "Instance entered",
+            },
+          },
+          frameWidth = 680,
+        }
       else
         template = L.NON_MYTHIC_ENTERED or "Non-Mythic: %s"
-        textColor = { 1, 0.2, 0.2 }
-      end
-      local showOpts = {
-        blink = true,
-        fontScale = 1.35,
-      }
-      if textColor then
-        showOpts.textColor = textColor
+        showOpts = {
+          eyebrow = L.NON_MYTHIC_NOTICE_DUNGEON_EYEBROW or "Dungeon",
+          title = L.NON_MYTHIC_NOTICE_DUNGEON_TITLE or "isiLive - Dungeon entered",
+          fields = {
+            {
+              label = L.NON_MYTHIC_NOTICE_LABEL_DUNGEON or "Dungeon:",
+              value = cInstanceName or L.INVITE_HINT_UNKNOWN_DUNGEON or "Unknown dungeon",
+            },
+            { label = L.NON_MYTHIC_NOTICE_LABEL_DIFFICULTY or "Difficulty:", value = cText },
+            {
+              label = L.NON_MYTHIC_NOTICE_LABEL_HINT or "Hint:",
+              value = L.NON_MYTHIC_NOTICE_HINT_NON_MYTHIC or "Not a Mythic+ dungeon",
+              warning = true,
+              blink = true,
+            },
+            {
+              label = L.NON_MYTHIC_NOTICE_LABEL_SOURCE or "Source:",
+              value = L.NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED or "Instance entered",
+            },
+          },
+          frameWidth = 680,
+        }
       end
       deps.showCenterNotice(string.format(template, cText), 120, nil, nil, showOpts)
       -- Mark ownership so the leave-dungeon path knows it may hide this
@@ -736,6 +803,7 @@ function Status.CreateController(opts)
       end
       return mapInfo.name
     end,
+    getTeleportInfoByMapID = opts.getTeleportInfoByMapID,
     getRealZoneText = opts.getRealZoneText or function()
       local getRealZoneText = rawget(_G, "GetRealZoneText")
       if type(getRealZoneText) ~= "function" then

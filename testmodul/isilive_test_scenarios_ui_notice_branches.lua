@@ -644,11 +644,13 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
     }, function()
       local centerNotice = CreateCenterNoticeForRichTest()
       Assert.NotNil(centerNotice.titleText, "titleText must be exposed")
+      Assert.NotNil(centerNotice.eyebrowText, "eyebrowText must be exposed")
       Assert.NotNil(centerNotice.titleSeparator, "titleSeparator must be exposed")
       Assert.NotNil(centerNotice.teleportHeader, "teleportHeader must be exposed")
       Assert.NotNil(centerNotice.fieldRows, "fieldRows must be exposed")
       Assert.Equal(#centerNotice.fieldRows, 4, "should pre-allocate 4 field rows")
       Assert.False(centerNotice.titleText._shown, "titleText hidden by default")
+      Assert.False(centerNotice.eyebrowText._shown, "eyebrowText hidden by default")
       Assert.False(centerNotice.fieldRows[1].label._shown, "first field row hidden by default")
     end)
   end)
@@ -663,6 +665,7 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
     }, function()
       local centerNotice = CreateCenterNoticeForRichTest()
       centerNotice.Show(nil, 12, nil, nil, {
+        eyebrow = "M+ Target",
         title = "isiLive - Einladung angenommen",
         fields = {
           { label = "Dungeon:", value = "Akademie von Algeth'ar +13" },
@@ -671,6 +674,8 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
         teleportLabel = "Zum Dungeon teleportieren:",
       })
 
+      Assert.True(centerNotice.eyebrowText._shown, "eyebrowText must be visible")
+      Assert.Equal(centerNotice.eyebrowText:GetText(), "M+ Target", "eyebrow text must propagate")
       Assert.True(centerNotice.titleText._shown, "titleText must be visible")
       Assert.Equal(centerNotice.titleText:GetText(), "isiLive - Einladung angenommen", "title text must propagate")
       Assert.Equal(centerNotice.titleSeparator._hidden, false, "titleSeparator must be visible when title is set")
@@ -712,7 +717,132 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
     end)
   end)
 
+  test("Center notice rich field values use wider label gutter", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local centerNotice = CreateCenterNoticeForRichTest()
+      centerNotice.Show(nil, 12, nil, nil, {
+        title = "isiLive - Dungeon entered",
+        fields = {
+          { label = "Dungeon:", value = "Priory of the Sacred Flame" },
+        },
+      })
+
+      local point, relativeTo, relativePoint, x = centerNotice.fieldRows[1].value:GetPoint()
+      Assert.Equal(point, "TOPLEFT", "field value should anchor from the left text block")
+      Assert.Equal(relativeTo, centerNotice.frame, "field value should anchor to the center notice frame")
+      Assert.Equal(relativePoint, "TOPLEFT", "field value should use a stable top-left anchor")
+      Assert.Equal(x, 170, "field values should start farther to the right")
+    end)
+  end)
+
+  test("Center notice rich warning field renders red and blinks", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local centerNotice = CreateCenterNoticeForRichTest()
+      centerNotice.Show(nil, 12, nil, nil, {
+        title = "isiLive - Dungeon entered",
+        fields = {
+          { label = "Dungeon:", value = "Priory of the Sacred Flame" },
+          { label = "Hint:", value = "Not a Mythic+ dungeon", warning = true, blink = true },
+        },
+      })
+
+      local labelR, labelG, labelB, labelA = centerNotice.fieldRows[2].label:GetTextColor()
+      local valueR, valueG, valueB, valueA = centerNotice.fieldRows[2].value:GetTextColor()
+      Assert.Equal(labelR, 1, "warning label red channel must be dominant")
+      Assert.Equal(labelG, 0.16, "warning label green channel must use danger tint")
+      Assert.Equal(labelB, 0.12, "warning label blue channel must use danger tint")
+      Assert.Equal(labelA, 1, "warning label starts fully visible")
+      Assert.Equal(valueR, 1, "warning value red channel must be dominant")
+      Assert.Equal(valueG, 0.16, "warning value green channel must use danger tint")
+      Assert.Equal(valueB, 0.12, "warning value blue channel must use danger tint")
+      Assert.Equal(valueA, 1, "warning value starts fully visible")
+
+      centerNotice.frame:GetScript("OnUpdate")(centerNotice.frame, 0.2)
+      local _, _, _, blinkAlpha = centerNotice.fieldRows[2].value:GetTextColor()
+      Assert.True(blinkAlpha < 1, "warning value alpha should pulse after an update tick")
+    end)
+  end)
+
   test("Center notice rich Show places a larger teleport button in the right action area", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local centerNotice = Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellID = function()
+          return 12345
+        end,
+        resolveMapIDBySpellID = function()
+          return 559
+        end,
+        applySecureSpellToButton = function() end,
+        isSpellKnown = function()
+          return true
+        end,
+      })
+
+      centerNotice.Show(nil, 12, "Akademie von Algeth'ar", nil, {
+        eyebrow = "M+ Ziel",
+        title = "isiLive - Einladung angenommen",
+        fields = {
+          { label = "Dungeon:", value = "Akademie von Algeth'ar +13" },
+          { label = "Gruppe:", value = "+13 Push-Lobby" },
+          { label = "Leader:", value = "Lead-Realm" },
+          { label = "Quelle:", value = "LFG-Einladung angenommen" },
+        },
+      })
+
+      Assert.Equal(
+        centerNotice.teleportButton:GetWidth(),
+        170,
+        "rich teleport button should keep a generous click area"
+      )
+      Assert.Equal(
+        centerNotice.teleportButton:GetHeight(),
+        107,
+        "rich teleport button should span title through source row"
+      )
+      local point, relativeTo, relativePoint, x, y = centerNotice.teleportButton:GetPoint()
+      Assert.Equal(point, "CENTER", "rich teleport button should anchor by its center in the right action area")
+      Assert.Equal(relativeTo, centerNotice.frame, "rich teleport button should anchor to the center notice")
+      Assert.Equal(relativePoint, "TOPRIGHT", "rich teleport button should calculate its y-position from the frame top")
+      Assert.Equal(x, -109, "rich teleport button should sit in the free right-side interior area")
+      Assert.Equal(y, -84, "rich teleport button should align symmetrically with the rich text block")
+      Assert.Equal(
+        centerNotice.teleportButton.icon._width,
+        93,
+        "rich teleport icon should be visually dominant inside the action area"
+      )
+      Assert.Equal(
+        centerNotice.teleportButton.actionBg._width,
+        101,
+        "rich teleport visible blue background should only frame the icon"
+      )
+    end)
+  end)
+
+  test("Center notice SetVisible(false) hides the rich teleport button with the frame", function()
     WithGlobals({
       UIParent = CreateFrameStub(),
       CreateFrame = CreateFrameStub,
@@ -743,23 +873,112 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
         title = "isiLive - Einladung angenommen",
         fields = {
           { label = "Dungeon:", value = "Akademie von Algeth'ar +13" },
-          { label = "Gruppe:", value = "+13 Push-Lobby" },
         },
       })
+      Assert.True(centerNotice.teleportButton:IsShown(), "setup: rich teleport button is visible")
 
-      Assert.Equal(centerNotice.teleportButton:GetWidth(), 64, "rich teleport button should use the larger icon size")
-      Assert.Equal(centerNotice.teleportButton:GetHeight(), 64, "rich teleport button should use the larger icon size")
-      local point, relativeTo, relativePoint, x, y = centerNotice.teleportButton:GetPoint()
-      Assert.Equal(point, "CENTER", "rich teleport button should anchor by its center in the right action area")
-      Assert.Equal(relativeTo, centerNotice.frame, "rich teleport button should anchor to the center notice")
-      Assert.Equal(relativePoint, "TOPRIGHT", "rich teleport button should calculate its y-position from the frame top")
-      Assert.Equal(x, -72, "rich teleport button should sit in the free right-side interior area")
-      Assert.Equal(y, -88, "rich teleport button should align symmetrically with the rich field rows")
+      centerNotice.SetVisible(false)
+
+      Assert.False(centerNotice.frame:IsShown(), "center notice frame must hide")
+      Assert.False(centerNotice.teleportButton:IsShown(), "rich teleport button must not float after hiding the frame")
+    end)
+  end)
+
+  test("Center notice rich teleport button shows Portal label while ready", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local centerNotice = Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellID = function()
+          return 12345
+        end,
+        resolveMapIDBySpellID = function()
+          return 559
+        end,
+        applySecureSpellToButton = function() end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        getL = function()
+          return { CENTER_NOTICE_PORTAL_READY_LABEL = "Portal" }
+        end,
+      })
+
+      centerNotice.Show(nil, 12, "Grube von Saron", nil, {
+        title = "isiLive - Einladung angenommen",
+        fields = {
+          { label = "Dungeon:", value = "Grube von Saron" },
+        },
+      })
+      centerNotice.teleportButton:GetScript("OnUpdate")(centerNotice.teleportButton, 0.1)
+
+      Assert.True(centerNotice.teleportButton.cooldownText:IsShown(), "ready portal label should be visible")
       Assert.Equal(
-        #centerNotice.teleportButton.icon._points,
-        2,
-        "rich teleport icon texture should be explicitly stretched to the larger button"
+        centerNotice.teleportButton.cooldownText:GetText(),
+        "Portal",
+        "ready portal label should use the locale text"
       )
+    end)
+  end)
+
+  test("Center notice rich teleport button cooldown text overrides Portal label", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local centerNotice = Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellID = function()
+          return 12345
+        end,
+        resolveMapIDBySpellID = function()
+          return 559
+        end,
+        applySecureSpellToButton = function() end,
+        isSpellKnown = function()
+          return true
+        end,
+        getTeleportCooldownRemaining = function()
+          return 479
+        end,
+        formatCooldownSeconds = function()
+          return "07:59"
+        end,
+        getL = function()
+          return { CENTER_NOTICE_PORTAL_READY_LABEL = "Portal" }
+        end,
+      })
+
+      centerNotice.Show(nil, 12, "Grube von Saron", nil, {
+        title = "isiLive - Einladung angenommen",
+        fields = {
+          { label = "Dungeon:", value = "Grube von Saron" },
+        },
+      })
+      centerNotice.teleportButton:GetScript("OnUpdate")(centerNotice.teleportButton, 0.1)
+
+      Assert.Equal(centerNotice.teleportButton.cooldownText:GetText(), "07:59", "cooldown must replace the ready label")
     end)
   end)
 
@@ -802,6 +1021,7 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
 
       centerNotice.Show("plain follow-up", 12, nil, nil, {})
       Assert.False(centerNotice.titleText._shown, "title hidden after legacy Show")
+      Assert.False(centerNotice.eyebrowText._shown, "eyebrow hidden after legacy Show")
       Assert.False(centerNotice.fieldRows[1].label._shown, "field rows hidden after legacy Show")
       Assert.False(centerNotice.teleportHeader._shown, "teleportHeader hidden after legacy Show")
       Assert.True(centerNotice.text._shown, "regular text body shown again in legacy mode")
