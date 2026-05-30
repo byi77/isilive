@@ -324,6 +324,331 @@ return function(test, ctx)
     Assert.Equal(refreshHits, 1, "settings panel must be refreshed after localization")
   end)
 
+  test("factory split coverage: status wiring callbacks execute", function()
+    local addon = LoadAddonModules({
+      "isiLive_factory_notices.lua",
+      "isiLive_factory_localization.lua",
+      "isiLive_factory_refresh.lua",
+      "isiLive_factory_status.lua",
+    })
+
+    local teleportDebugOpts
+    local statusOpts
+    local lfgChatCallback
+    local latestQueueState
+    local updateStatusHits = 0
+    local statusTextWrites = 0
+    local snapshotHits = 0
+    local announceHits = 0
+    local payloadAnnounce
+    local countdownHits = 0
+    local timerHits = 0
+    local centerHidden = false
+    local portalHidden = false
+    local killRefreshHits = 0
+    local logfHits = 0
+
+    local countdownButton = NewButton()
+    local refreshButton = NewButton()
+    refreshButton._fullText = "Re-Sync"
+
+    local runtimeState = {
+      GetLatestQueueState = function()
+        return latestQueueState
+      end,
+      SetLatestQueueState = function(dungeonName, activityID, spellID, mapID)
+        latestQueueState = { dungeonName, activityID, spellID, mapID }
+      end,
+      GetRuntimeFlags = function()
+        return { isStopped = false, isPaused = false, isTestMode = false }
+      end,
+      IsStopped = function()
+        return false
+      end,
+      IsPaused = function()
+        return false
+      end,
+      IsTestMode = function()
+        return false
+      end,
+      IsTestAllMode = function()
+        return false
+      end,
+    }
+
+    local factoryCtx = {
+      addonTable = addon,
+      runtimeState = runtimeState,
+      modules = nil,
+      Print = function() end,
+      PrintHighlighted = function() end,
+      GetL = function()
+        return {}
+      end,
+      UpdateMPlusTeleportButton = function() end,
+      ResolveActiveTeleportSpellID = function() end,
+      IsSpellKnownSafe = function()
+        return true
+      end,
+      GetTeleportCooldownRemaining = function()
+        return 0
+      end,
+      GetSpellCooldownSafe = function()
+        return 0, 0, 0
+      end,
+      FormatCooldownSeconds = function(value)
+        return tostring(value)
+      end,
+      ResolveMapIDByActivityID = function(activityID)
+        return activityID
+      end,
+      ResolveTeleportSpellIDByActivityID = function(activityID)
+        return activityID and activityID + 1000
+      end,
+      GetNormalizedActiveEntryInfo = function()
+        return nil
+      end,
+      ResolveTeleportSpellID = function()
+        return 777
+      end,
+      centerNoticeTeleportButton = { spellID = 777 },
+      mplusTeleportButtons = { [777] = NewButton() },
+      ShowCenterNotice = function() end,
+      countdownCancelButton = countdownButton,
+      IsPlayerLeader = function()
+        return true
+      end,
+      runtimeLogController = {
+        Log = function() end,
+        Logf = function()
+          logfHits = logfHits + 1
+        end,
+      },
+      mainFrame = {
+        SetScript = function() end,
+        GetScript = function()
+          return nil
+        end,
+      },
+      InspectLoop = function() end,
+      inspectController = {
+        ResetQueues = function() end,
+        QueueForceRefreshData = function() end,
+      },
+      keySyncController = {
+        ForceRefreshSyncState = function() end,
+      },
+      statusLine = {
+        SetText = function(_, text)
+          statusTextWrites = statusTextWrites + 1
+          Assert.Equal(text, "ready", "status text must be built through the status controller")
+        end,
+      },
+      SendOwnTargetSnapshot = function()
+        snapshotHits = snapshotHits + 1
+      end,
+      centerNotice = {
+        SetVisible = function(value)
+          centerHidden = value == false
+        end,
+      },
+      SetPortalNavigatorVisible = function(value)
+        portalHidden = value == false
+      end,
+      ShowPortalNavigatorNotice = function() end,
+      IsPortalNavigatorEnabled = function()
+        return true
+      end,
+      GetStatusTargetDungeonInfo = function()
+        return { name = "Target", level = 7 }
+      end,
+      ResolveLocalStatusTargetMapID = function()
+        return 77
+      end,
+      GetSubZoneText = function()
+        return "Sub"
+      end,
+      GetZoneText = function()
+        return "Zone"
+      end,
+      GetRealZoneText = function()
+        return "Real"
+      end,
+      GetPlayerMapID = function()
+        return 77
+      end,
+      GetMapInfoName = function()
+        return "Map"
+      end,
+      panelUI = nil,
+      secondPanelUI = nil,
+      mountPanelUI = nil,
+      rosterPanelController = {
+        ApplyLocalization = function() end,
+        RefreshKillTrackRow = function()
+          killRefreshHits = killRefreshHits + 1
+        end,
+      },
+      UpdateCountdownCancelButton = function() end,
+      UpdateCenterTeleportButtonVisual = function() end,
+      UpdateStatusLine = function()
+        updateStatusHits = updateStatusHits + 1
+      end,
+      settingsPanel = {
+        category = { ID = "isiLive-settings" },
+        Refresh = function() end,
+      },
+      refreshButton = refreshButton,
+      GetRoster = function()
+        return {}
+      end,
+      SendIsiLiveHello = function() end,
+      SendOwnKeySnapshot = function() end,
+      SendOwnBackgroundSnapshot = function() end,
+      SendRefreshRequest = function() end,
+      UpdateUI = function() end,
+      RefreshLocalPlayerKey = function() end,
+      GetActiveChallengeMapID = function() end,
+    }
+
+    local modules = {
+      teleportDebug = {
+        CreateController = function(opts)
+          teleportDebugOpts = opts
+          return { created = true }
+        end,
+      },
+      teleport = {
+        ResolveTeleportSpellIDByMapID = function(mapID)
+          return mapID and mapID + 2000
+        end,
+        GetTeleportInfoByMapID = function(mapID)
+          return { mapName = "Dungeon " .. tostring(mapID) }
+        end,
+      },
+      status = {
+        CreateController = function(opts)
+          statusOpts = opts
+          return {
+            BuildStatusLineText = function(statusFlags)
+              Assert.Equal(statusFlags.isStopped, false, "runtime flags must be forwarded")
+              return "ready"
+            end,
+            MaybeAnnounceTargetDungeonChat = function()
+              announceHits = announceHits + 1
+            end,
+            AnnounceTargetDungeonFromPayload = function(payload)
+              payloadAnnounce = payload
+            end,
+          }
+        end,
+      },
+      ui = {
+        EnsurePanelUI = function()
+          return {}
+        end,
+        EnsureSecondPanelUI = function()
+          return {}
+        end,
+        EnsureMountPanelUI = function()
+          return {}
+        end,
+        EnsureThirdPanelUI = function()
+          return {}
+        end,
+      },
+      refresh = {
+        CreateController = function()
+          return { RunFullRefresh = function() end }
+        end,
+      },
+      configBuilders = {
+        BuildRefreshControllerOpts = function(opts)
+          return opts
+        end,
+      },
+    }
+    factoryCtx.modules = modules
+    addon.SeasonData = {
+      HasActiveDungeons = function()
+        return false
+      end,
+      GetSeasonLabel = function()
+        return "Midnight"
+      end,
+    }
+    addon.LFGDetect = {
+      SetTargetDungeonChatCallback = function(callback)
+        lfgChatCallback = callback
+      end,
+    }
+
+    WithGlobals({
+      IsInGroup = function()
+        return true
+      end,
+      C_Timer = {
+        After = function(_, callback)
+          callback()
+        end,
+        NewTicker = function()
+          return { Cancel = function() end }
+        end,
+      },
+      C_PartyInfo = {
+        DoCountdown = function(value)
+          if value == 0 then
+            countdownHits = countdownHits + 1
+          end
+        end,
+      },
+      Settings = {
+        OpenToCategory = function() end,
+      },
+      IsiLiveDB = { showEscPanel = true },
+    }, function()
+      addon._FactoryInternal.InitializeFactoryRefreshAndStatusControllers(factoryCtx)
+
+      Assert.Equal(teleportDebugOpts.getLatestQueueState(), nil, "latest queue callback must read runtime state")
+      Assert.Equal(
+        teleportDebugOpts.getCenterNoticeTeleportButton(),
+        factoryCtx.centerNoticeTeleportButton,
+        "center teleport button callback must read context state"
+      )
+      Assert.Equal(
+        teleportDebugOpts.getMplusTeleportButtons(),
+        factoryCtx.mplusTeleportButtons,
+        "teleport button callback must read context state"
+      )
+      teleportDebugOpts.setLatestQueueState("Dungeon 77", 12, 2077, 77)
+
+      statusOpts.timerAfter(0.1, function()
+        timerHits = timerHits + 1
+      end)
+      statusOpts.hideCenterNotice()
+      statusOpts.hidePortalNavigatorNotice()
+      Assert.Equal(statusOpts.hasLocalTargetSource(), true, "local target callback must accept resolved map IDs")
+      Assert.Equal(statusOpts.hasActiveDungeons(), false, "active dungeon callback must read season data")
+      Assert.Equal(statusOpts.getActiveSeasonLabel(), "Midnight", "season label callback must read season data")
+
+      countdownButton:GetScript("OnClick")()
+      lfgChatCallback({ mapID = 77, activityID = 12, level = 9 })
+    end)
+
+    Assert.Equal(updateStatusHits, 0, "old status callback must be replaced during status initialization")
+    Assert.Equal(statusTextWrites, 1, "setLatestQueueState callback must refresh the status line")
+    Assert.Equal(snapshotHits, 1, "status refresh must send the own target snapshot")
+    Assert.Equal(announceHits, 1, "status refresh must run target chat evaluation")
+    Assert.Equal(timerHits, 1, "timer callback must execute through the protected wrapper")
+    Assert.Equal(centerHidden, true, "hideCenterNotice callback must hide the notice")
+    Assert.Equal(portalHidden, true, "hidePortalNavigatorNotice callback must hide the portal navigator")
+    Assert.Equal(countdownHits, 1, "leader countdown cancel must call the party countdown API")
+    Assert.Equal(payloadAnnounce.name, "Dungeon 77", "LFG chat callback must resolve dungeon name")
+    Assert.Equal(payloadAnnounce.level, 9, "LFG chat callback must forward payload level")
+    Assert.Equal(killRefreshHits, 1, "LFG chat callback must refresh the kill tracker row")
+    Assert.True(logfHits > 0, "status wiring must use runtime logging callbacks")
+  end)
+
   test("factory split coverage: cd tracker and secondary runtime dark callbacks execute", function()
     local addon = LoadAddonModules({
       "isiLive_factory_cd_tracker.lua",
