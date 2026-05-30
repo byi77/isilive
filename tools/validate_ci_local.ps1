@@ -57,13 +57,36 @@ function Initialize-LuaRocksEnvironment {
 }
 
 function Test-LuaModule($moduleName) {
-  & lua -e "require('$moduleName')"
-  return $LASTEXITCODE -eq 0
+  $processInfo = [System.Diagnostics.ProcessStartInfo]::new()
+  $processInfo.FileName = "lua"
+  $processInfo.Arguments = "-e `"require('$moduleName')`""
+  $processInfo.UseShellExecute = $false
+  $processInfo.RedirectStandardOutput = $true
+  $processInfo.RedirectStandardError = $true
+
+  $process = [System.Diagnostics.Process]::Start($processInfo)
+  $process.WaitForExit()
+  return $process.ExitCode -eq 0
+}
+
+function Add-ToolLuaPath {
+  $toolLuaPath = (Join-Path $PSScriptRoot "?.lua")
+  $currentLuaPath = [System.Environment]::GetEnvironmentVariable("LUA_PATH", "Process")
+  if ([string]::IsNullOrEmpty($currentLuaPath)) {
+    [System.Environment]::SetEnvironmentVariable("LUA_PATH", $toolLuaPath, "Process")
+  } elseif (-not ($currentLuaPath -split ";" | Where-Object { $_ -eq $toolLuaPath })) {
+    [System.Environment]::SetEnvironmentVariable("LUA_PATH", "$toolLuaPath;$currentLuaPath", "Process")
+  }
 }
 
 Push-Location (Resolve-Path (Join-Path $PSScriptRoot ".."))
 try {
-  $env:PATH = "$PSScriptRoot;$env:PATH"
+  $styluaCachePath = Join-Path $PSScriptRoot "cache\stylua"
+  if (Test-Path $styluaCachePath) {
+    $env:PATH = "$styluaCachePath;$PSScriptRoot;$env:PATH"
+  } else {
+    $env:PATH = "$PSScriptRoot;$env:PATH"
+  }
 
   Assert-Command "lua" | Out-Null
   Assert-Command "stylua" | Out-Null
@@ -89,7 +112,11 @@ try {
   Initialize-LuaRocksEnvironment
 
   if (-not (Test-LuaModule "lfs")) {
-    throw "LuaFileSystem ('lfs') is missing for local Lua. Run: luarocks install luafilesystem 1.8.0-1"
+    Add-ToolLuaPath
+    if (-not (Test-LuaModule "lfs")) {
+      throw "LuaFileSystem ('lfs') is missing and tools/lfs_compat.lua could not be loaded."
+    }
+    Write-Warning "LuaFileSystem ('lfs') is missing for local Lua; using tools/lfs_compat.lua for project checks."
   }
 
   Invoke-CheckedCommand "StyLua (check)" "stylua --check ."

@@ -297,25 +297,33 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
   end)
 
   test("Architecture root keeps challenge helper guarded and de-duplicates roster trigger helper", function()
-    local content = ReadFile("isiLive_factory_controllers.lua")
+    local runtimeHelpersContent = ReadFile("isiLive_factory_runtime_helpers.lua")
+    local controllersContent = ReadFile("isiLive_factory_controllers.lua")
+    local refreshContent = ReadFile("isiLive_factory_refresh.lua")
 
     AssertContains(
       Assert,
-      content,
+      runtimeHelpersContent,
       'local challengeMode = rawget(_G, "C_ChallengeMode")',
-      "isiLive_factory_controllers.lua must guard Blizzard challenge API access in root helper"
+      "isiLive_factory_runtime_helpers.lua must guard Blizzard challenge API access in root helper"
     )
     AssertContains(
       Assert,
-      content,
+      refreshContent,
       "local function TriggerGroupRosterUpdate()",
-      "isiLive_factory_controllers.lua must centralize GROUP_ROSTER_UPDATE helper"
+      "isiLive_factory_refresh.lua must centralize GROUP_ROSTER_UPDATE helper"
     )
     AssertNotContains(
       Assert,
-      content,
+      controllersContent,
       "triggerGroupRosterUpdate = function()",
       "isiLive_factory_controllers.lua must not keep duplicated inline GROUP_ROSTER_UPDATE closures"
+    )
+    AssertNotContains(
+      Assert,
+      refreshContent,
+      "triggerGroupRosterUpdate = function()",
+      "isiLive_factory_refresh.lua must not keep duplicated inline GROUP_ROSTER_UPDATE closures"
     )
   end)
 
@@ -567,7 +575,7 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
   end)
 
   test("Architecture combat utility ticker rerenders UI while Mythic+ timer is active", function()
-    local content = ReadFile("isiLive_factory_controllers.lua")
+    local content = ReadFile("isiLive_factory_cd_tracker.lua")
 
     AssertContains(
       Assert,
@@ -698,19 +706,19 @@ local function RegisterArchitectureQueueWiringTests(test, Assert)
   test("Architecture queue join callbacks stay wired through runtime setup and controller wiring", function()
     local wiringContent = ReadFile("isiLive_controller_wiring.lua")
     local factoryContent = ReadFile("isiLive_factory.lua")
-    local helpersContent = ReadFile("isiLive_factory_controllers.lua")
+    local helpersContent = ReadFile("isiLive_factory_status_helpers.lua")
 
     AssertContains(
       Assert,
       helpersContent,
       "ctx.CaptureQueueJoinCandidate = function(...)",
-      "factory runtime helpers must define CaptureQueueJoinCandidate directly"
+      "factory status helpers must define CaptureQueueJoinCandidate directly"
     )
     AssertContains(
       Assert,
       helpersContent,
       "ctx.AnnounceQueuedGroupJoin = function()",
-      "factory runtime helpers must define AnnounceQueuedGroupJoin directly"
+      "factory status helpers must define AnnounceQueuedGroupJoin directly"
     )
     AssertContains(
       Assert,
@@ -788,10 +796,10 @@ local function RegisterArchitectureTeleportWiringTests(test, Assert)
   end)
 
   test("Architecture ResolveLocalStatusTargetMapID prioritises LFG detected mapID", function()
-    local controllersContent = ReadFile("isiLive_factory_controllers.lua")
+    local controllersContent = ReadFile("isiLive_factory_status_helpers.lua")
 
     local resolverStart = controllersContent:find("ctx%.ResolveLocalStatusTargetMapID = function%(%)", 1, false)
-    Assert.True(resolverStart ~= nil, "ResolveLocalStatusTargetMapID must still be defined in factory controllers")
+    Assert.True(resolverStart ~= nil, "ResolveLocalStatusTargetMapID must still be defined in factory status helpers")
     local resolverEnd = resolverStart and controllersContent:find("GetLatestQueueState", resolverStart, true)
     Assert.True(
       resolverEnd ~= nil,
@@ -818,7 +826,7 @@ local function RegisterArchitectureReadyCheckWiringTests(test, Assert)
   test("Architecture ready check refresh stays wired through runtime setup and controller wiring", function()
     local wiringContent = ReadFile("isiLive_controller_wiring.lua")
     local factoryContent = ReadFile("isiLive_factory.lua")
-    local helpersContent = ReadFile("isiLive_factory_controllers.lua")
+    local helpersContent = ReadFile("isiLive_factory_primary.lua")
     local handlersContent = ReadFile("isiLive_event_handlers.lua")
 
     AssertContains(
@@ -2055,6 +2063,45 @@ local function RegisterArchitectureLoadOrderTests(test, Assert)
           )
         )
       end
+    end
+  end)
+
+  test("Architecture factory submodules load before the controller compatibility anchor", function()
+    local tocOrder = ParseTocOrder()
+    local deps = ParseHarnessDependencies()
+    local controllerFile = "isiLive_factory_controllers.lua"
+    local controllerIndex = tocOrder[controllerFile]
+    Assert.True(controllerIndex ~= nil, "factory controller compatibility anchor must be listed in isiLive.toc")
+
+    local expectedSubmodules = {
+      "isiLive_factory_demo.lua",
+      "isiLive_factory_notices.lua",
+      "isiLive_factory_cd_tracker.lua",
+      "isiLive_factory_status_helpers.lua",
+      "isiLive_factory_runtime_helpers.lua",
+      "isiLive_factory_testmode_bindings.lua",
+      "isiLive_factory_combat_announces.lua",
+      "isiLive_factory_localization.lua",
+      "isiLive_factory_refresh.lua",
+      "isiLive_factory_lfg_wiring.lua",
+      "isiLive_factory_secondary_runtime.lua",
+      "isiLive_factory_primary.lua",
+      "isiLive_factory_status.lua",
+      "isiLive_factory_secondary.lua",
+    }
+
+    local controllerDeps = {}
+    for _, dep in ipairs(deps[controllerFile] or {}) do
+      controllerDeps[dep] = true
+    end
+    for _, fileName in ipairs(expectedSubmodules) do
+      local submoduleIndex = tocOrder[fileName]
+      Assert.True(submoduleIndex ~= nil, fileName .. " must be listed in isiLive.toc")
+      Assert.True(
+        controllerDeps[fileName] == true,
+        fileName .. " must be an implicit dependency of the factory controller anchor"
+      )
+      Assert.True(submoduleIndex < controllerIndex, fileName .. " must load before isiLive_factory_controllers.lua")
     end
   end)
 

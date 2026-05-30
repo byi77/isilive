@@ -31,7 +31,10 @@ local OVERRIDES = {
   -- Add entries here as: KEY_NAME = "reason it's exempt",
 }
 
-local lfs = require("lfs")
+local ok_lfs, lfs = pcall(require, "lfs")
+if not ok_lfs then
+  lfs = require("tools.lfs_compat")
+end
 
 local function fail(code, message)
   io.stderr:write("dead-locale-keys: " .. message .. "\n")

@@ -224,7 +224,7 @@ Ziel: Jeder BR- und Bloodlust-Cast eines isiLive-Spielers wird im Mythic+ genau 
 8. Verarbeitung: `Sync.ProcessAddonMessage` erkennt `BRLUST:` als eigenen Bucket und exponiert `{kind, caster, spellID}` als `result.combatAnnounce`; `HandleChatMsgAddonEvent` ruft `ctx.showCombatAnnounce(...)`, das den lokalisierten Template-Text (`COMBAT_CHAT_BR_USED` / `COMBAT_CHAT_LUST_STARTED`) via `ctx.Print` in den Chat schreibt.
 9. Regel: Unbekannte `BRLUST`-Kinds (also alles ausser `"BR"` und `"LUST"`) werden auf Empfaengerseite still verworfen, damit ein zukuenftiger Sender mit neuem Kind keinen Log-Spam produziert.
 10. Regel: Nicht-isiLive-Gruppenmitglieder sehen nichts; die Verteilung laeuft ausschliesslich ueber den Addon-Message-Kanal zwischen isiLive-Peers. Bei `N` isiLive-Usern in einer Gruppe meldet jeder Caster seinen eigenen Cast, und alle `N-1` Peers bekommen die Zeile.
-11. Realm-Darstellung: Die realm-strippende Display-Logik liegt in `factory/isiLive_factory_controllers.lua.FormatDisplayName` und wird sowohl vom Self-Render- als auch vom Peer-Render-Pfad genutzt; Cross-Realm-Namen behalten dabei ihren Realm-Suffix.
+11. Realm-Darstellung: Die realm-strippende Display-Logik liegt in `factory/isiLive_factory_combat_announces.lua.FormatDisplayName` und wird sowohl vom Self-Render- als auch vom Peer-Render-Pfad genutzt; Cross-Realm-Namen behalten dabei ihren Realm-Suffix.
 12. Erfolgskriterium: Ein BR- oder Lust-Cast im Mythic+ erzeugt genau eine sichtbare Chat-Zeile pro isiLive-Empfaenger, der Self-Render beim Sender, keinen `ADDON_ACTION_FORBIDDEN`-Popup und keinen `"table index is secret"`-Fehler; Toggles entfernen die Zeile vollstaendig auf Senderseite, Peers ausserhalb eines aktiven Keys sehen keine Zeile.
 
 ## UC-24 Gruppensuche-Klassenbonus-Hinweise
@@ -372,19 +372,19 @@ Aktuelle Validator-Baseline: `1918` Szenarien ueber die in `tools/usecase_scenar
 | Thema | Dateien |
 |---|---|
 | Queue-Erkennung und Target-Capture | `isiLive_queue.lua`, `isiLive_event_handlers_queue.lua` |
-| LFG-Detektion, Chat-Hinweise und Highlight-Dispatch | `isiLive_lfg_detect.lua`, `isiLive_factory_controllers.lua`, `isiLive_texts.lua`, `isiLive_teleport_ui.lua` |
+| LFG-Detektion, Chat-Hinweise und Highlight-Dispatch | `isiLive_lfg_detect.lua`, `isiLive_factory_lfg_wiring.lua`, `isiLive_factory_notices.lua`, `isiLive_texts.lua`, `isiLive_teleport_ui.lua` |
 | Highlight-Aufloesung und Inside-Dungeon-Suppression | `isiLive_highlight.lua` |
 | Teleport-Spell-Mapping und Cooldown-Verhalten | `isiLive_teleport.lua`, `isiLive_spell_utils.lua`, `isiLive_teleport_ui.lua` |
 | Gruppen-Lifecycle, Leader-State-Mirroring und Roster-Rebuild | `isiLive_group.lua`, `isiLive_roster.lua` |
 | RIO-Baseline-Capture und Delta-Preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
 | Last-Run-DPS-Capture und begrenzte Stats-Persistenz | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
-| Combat-Utility-Tracker-Zeile, M+-Killtracker, Kick-State und LibKeystone-Key-Interop | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_killtrack.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_controllers.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_panel_kill_row.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
+| Combat-Utility-Tracker-Zeile, M+-Killtracker, Kick-State und LibKeystone-Key-Interop | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_killtrack.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_cd_tracker.lua`, `isiLive_factory_status_helpers.lua`, `isiLive_factory_kick_tracker.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_panel_kill_row.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
 | Leader-Transfer-Erkennung und Feedback | `isiLive_leader_watch.lua` |
 | UI-Aktionen, Rollen-Buttons, Key-Share-Button | `isiLive_roster_panel.lua` |
 | Esc-Tooling-/Travel-/Mounts-/Addons-Strips und Blizzard-Settings-Canvas | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_factory.lua`, `isiLive_texts.lua`, `isiLive_ui_common.lua` |
 | Auto-Marker-Logik, entfernt oder ersetzt | `isiLive_group.lua` nach Bereinigung |
 | Raid-Size-H-Mode-UI | `isiLive_roster_panel.lua`, `isiLive_group.lua` |
 | Event-Routing und Gate | `isiLive_events.lua`, `isiLive_event_handlers.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_event_handlers_queue.lua`, `isiLive_event_handlers_challenge.lua` |
-| BR-/Lust-Combat-Announce und Addon-Message-Routing | `isiLive_combat_events.lua`, `isiLive_sync.lua` (`SendCombatAnnounce`, `ProcessAddonMessage.BRLUST`), `isiLive_event_handlers_runtime.lua` (`HandleChatMsgAddonEvent`), `isiLive_factory_controllers.lua` (`FormatDisplayName`, `broadcastCombatAnnounce`), `isiLive_texts.lua` (`COMBAT_CHAT_BR_USED`, `COMBAT_CHAT_LUST_STARTED`, `SETTINGS_SECTION_CHAT`, `SETTINGS_CHAT_BR_ANNOUNCE`, `SETTINGS_CHAT_LUST_ANNOUNCE`), `libs/ChatThrottleLib/ChatThrottleLib.lua` |
+| BR-/Lust-Combat-Announce und Addon-Message-Routing | `isiLive_combat_events.lua`, `isiLive_sync.lua` (`SendCombatAnnounce`, `ProcessAddonMessage.BRLUST`), `isiLive_event_handlers_runtime.lua` (`HandleChatMsgAddonEvent`), `isiLive_factory_combat_announces.lua` (`FormatDisplayName`, `broadcastCombatAnnounce`), `isiLive_texts.lua` (`COMBAT_CHAT_BR_USED`, `COMBAT_CHAT_LUST_STARTED`, `SETTINGS_SECTION_CHAT`, `SETTINGS_CHAT_BR_ANNOUNCE`, `SETTINGS_CHAT_LUST_ANNOUNCE`), `libs/ChatThrottleLib/ChatThrottleLib.lua` |
 | Mob-Tooltip-Forces-Anreicherung | `isiLive_mob_tooltip.lua`, `data/isiLive_mplus_forces.lua`, `tools/sync_mdt_forces.lua`, `tools/check_mplus_db_lifetime.lua`, `.github/workflows/sync-mplus-forces.yml` |
 | Gruppensuche-Buff-Rating und Sprachflaggen | `isiLive_lfg_flags.lua`, `isiLive_locale.lua`, `isiLive_texts.lua`, `isiLive_settings_sections.lua`, `isiLive_db_schema.lua` |

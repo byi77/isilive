@@ -53,7 +53,10 @@ local WATCHED_APIS = {
   "UnitName",
 }
 
-local lfs = require("lfs")
+local ok_lfs, lfs = pcall(require, "lfs")
+if not ok_lfs then
+  lfs = require("tools.lfs_compat")
+end
 
 local function walkDir(dir, files)
   for entry in lfs.dir(dir) do

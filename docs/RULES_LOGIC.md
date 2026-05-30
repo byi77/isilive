@@ -823,6 +823,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - PLAYER_REGEN_ENABLED refreshes live forces before the next pull starts
   - refresh ticker callback reads live forces and notifies subscribers while state is active
+  - Architecture combat utility ticker rerenders UI while Mythic+ timer is active
 
 ### RULE-LFG-INVITE-LISTE-KEIN-GUESSING
 - Regelnummer: 61

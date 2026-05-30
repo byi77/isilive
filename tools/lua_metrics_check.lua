@@ -8,8 +8,7 @@ local os = os
 
 local ok_lfs, lfs = pcall(require, "lfs")
 if not ok_lfs then
-  io.stderr:write("metrics: missing dependency 'lfs' (LuaFileSystem)\n")
-  os.exit(1)
+  lfs = require("tools.lfs_compat")
 end
 
 local ok_decoder, decoder = pcall(require, "luacheck.decoder")

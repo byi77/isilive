@@ -140,7 +140,7 @@ Pruefen:
 - `game/isiLive_combat_events.lua`
 - `logic/isiLive_sync.lua` (`SendCombatAnnounce`, `ProcessAddonMessage.BRLUST`)
 - `logic/isiLive_event_handlers_runtime.lua` (`HandleChatMsgAddonEvent`)
-- `factory/isiLive_factory_controllers.lua` (`FormatDisplayName`, `broadcastCombatAnnounce`)
+- `factory/isiLive_factory_combat_announces.lua` (`FormatDisplayName`, `broadcastCombatAnnounce`)
 - `libs/ChatThrottleLib/ChatThrottleLib.lua`
 
 Aktueller Soll-Zustand:
@@ -342,7 +342,10 @@ Pruefen:
 - `isiLive_config_builders.lua`
 - `isiLive_event_handlers_runtime.lua`
 - `isiLive_event_handlers_challenge.lua`
-- `isiLive_factory_controllers.lua`
+- `isiLive_factory_status.lua`
+- `isiLive_factory_secondary_runtime.lua`
+- `isiLive_factory_cd_tracker.lua`
+- `isiLive_factory_kick_tracker.lua`
 - `isiLive_roster_panel.lua`
 - `isiLive_leader_watch.lua`
 

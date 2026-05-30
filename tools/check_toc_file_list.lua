@@ -35,7 +35,10 @@ local EXTRA_TOC_PATHS = {
   ["isiLive.lua"] = true,
 }
 
-local lfs = require("lfs")
+local ok_lfs, lfs = pcall(require, "lfs")
+if not ok_lfs then
+  lfs = require("tools.lfs_compat")
+end
 
 local function fail(code, message)
   io.stderr:write("toc-file-list: " .. message .. "\n")
