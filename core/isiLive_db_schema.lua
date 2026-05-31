@@ -129,7 +129,7 @@ local SCHEMA = {
   statsBoxDisplayMode = { type = "string", default = "both", enum = { "both", "value", "percent" } },
   statsBoxShowLeech = { type = "boolean", default = true },
   statsBoxShowSpeed = { type = "boolean", default = true },
-  statsBoxShowDurability = { type = "boolean", default = true },
+  statsBoxShowDurability = { type = "boolean", default = false },
   statsBoxShowStamina = { type = "boolean", default = false },
   statsBoxShowAvoidance = { type = "boolean", default = false },
 

@@ -17,6 +17,13 @@ local FONT_FLAGS = ""
 local TEXT_SHADOW_COLOR = { 0, 0, 0, 0.9 }
 local TEXT_SHADOW_OFFSET_X = 1
 local TEXT_SHADOW_OFFSET_Y = -1
+local ROW_TINT_ALPHA = 0.12
+local PRIMARY_ROW_TINT_ALPHA = 0.22
+local ROW_TINT_SIDE_PADDING = 3
+local ROW_TINT_VERTICAL_INSET = 1
+local SEPARATOR_ALPHA = 0.18
+local SEPARATOR_WIDTH = 1
+local HOVER_MIN_BG_ALPHA = 0.18
 local LABEL_COLUMN_WIDTH = 35
 local VALUE_COLUMN_WIDTH = 42
 local PERCENT_COLUMN_WIDTH = 70
@@ -65,6 +72,12 @@ local PRIMARY_STAT_INDEX = {
   strength = STAT_STRENGTH,
   agility = STAT_AGILITY,
   intellect = STAT_INTELLECT,
+}
+
+local PRIMARY_STAT_KEYS = {
+  strength = true,
+  agility = true,
+  intellect = true,
 }
 
 local LABELS = {
@@ -155,7 +168,7 @@ local function ResolveOptionalRowEnabled(key)
   local option = ({
     leech = { field = "statsBoxShowLeech", default = true },
     speed = { field = "statsBoxShowSpeed", default = true },
-    durability = { field = "statsBoxShowDurability", default = true },
+    durability = { field = "statsBoxShowDurability", default = false },
     stamina = { field = "statsBoxShowStamina", default = false },
     avoidance = { field = "statsBoxShowAvoidance", default = false },
   })[key]
@@ -191,6 +204,7 @@ local function ResolveLayout()
     rightPadding = ScaleDimension(RIGHT_PADDING, scale),
     topPadding = ScaleDimension(TOP_PADDING, scale),
     bottomPadding = ScaleDimension(BOTTOM_PADDING, scale),
+    separatorWidth = ScaleDimension(SEPARATOR_WIDTH, scale),
     columnGap = ScaleDimension(COLUMN_GAP, scale),
     valuePercentGap = ScaleDimension(VALUE_PERCENT_GAP, scale),
   }
@@ -333,6 +347,7 @@ local function ReadDurabilityRow(opts)
   return {
     key = "durability",
     label = ResolveLabel("durability"),
+    value = currentTotal,
     valueText = string.format("%d", currentTotal),
     percent = (currentTotal / maxTotal) * 100,
   }
@@ -685,6 +700,10 @@ local function RenderRows(state, rows)
       rowFrame.label:SetText(row.label)
       rowFrame.value:SetText(valueText or "")
       local c = COLORS[row.key] or COLORS.strength
+      local tintAlpha = PRIMARY_STAT_KEYS[row.key] and PRIMARY_ROW_TINT_ALPHA or ROW_TINT_ALPHA
+      if rowFrame.tint and type(rowFrame.tint.SetColorTexture) == "function" then
+        rowFrame.tint:SetColorTexture(c[1], c[2], c[3], tintAlpha)
+      end
       rowFrame.label:SetTextColor(c[1], c[2], c[3], c[4])
       rowFrame.value:SetTextColor(c[1], c[2], c[3], c[4])
       rowFrame.percent:SetTextColor(c[1], c[2], c[3], c[4])
@@ -695,6 +714,9 @@ local function RenderRows(state, rows)
         rowFrame.percent:SetText("")
         rowFrame.percent:Hide()
       end
+      if rowFrame.tint and type(rowFrame.tint.Show) == "function" then
+        rowFrame.tint:Show()
+      end
       rowFrame.label:Show()
       rowFrame.value:Show()
     else
@@ -704,6 +726,9 @@ local function RenderRows(state, rows)
       rowFrame.label:Hide()
       rowFrame.value:Hide()
       rowFrame.percent:Hide()
+      if rowFrame.tint and type(rowFrame.tint.Hide) == "function" then
+        rowFrame.tint:Hide()
+      end
     end
   end
   ApplyLayout(state, ResolveContentFitLayout(layout, state.lines, visibleCount, state.layout))
@@ -712,8 +737,62 @@ end
 ApplyLayout = function(state, layout)
   state.layout = layout
   state.frame:SetSize(layout.width, layout.height)
+  if state.separator then
+    if layout.hasPercent then
+      if type(state.separator.ClearAllPoints) == "function" then
+        state.separator:ClearAllPoints()
+      end
+      if type(state.separator.SetPoint) == "function" then
+        local xOffset = layout.leftPadding
+          + layout.labelWidth
+          + layout.columnGap
+          + layout.valueWidth
+          + math.floor((layout.valuePercentGap - layout.separatorWidth) / 2)
+        state.separator:SetPoint(
+          "TOPLEFT",
+          state.frame,
+          "TOPLEFT",
+          xOffset,
+          -layout.topPadding
+        )
+        state.separator:SetPoint(
+          "BOTTOMRIGHT",
+          state.frame,
+          "BOTTOMLEFT",
+          xOffset + layout.separatorWidth,
+          layout.bottomPadding
+        )
+      end
+      if type(state.separator.Show) == "function" then
+        state.separator:Show()
+      end
+    elseif type(state.separator.Hide) == "function" then
+      state.separator:Hide()
+    end
+  end
   for index, rowFrame in ipairs(state.lines) do
     local yOffset = -layout.topPadding - ((index - 1) * layout.lineHeight)
+    if rowFrame.tint then
+      if type(rowFrame.tint.ClearAllPoints) == "function" then
+        rowFrame.tint:ClearAllPoints()
+      end
+      if type(rowFrame.tint.SetPoint) == "function" then
+        rowFrame.tint:SetPoint(
+          "TOPLEFT",
+          state.frame,
+          "TOPLEFT",
+          layout.leftPadding - ROW_TINT_SIDE_PADDING,
+          yOffset + ROW_TINT_VERTICAL_INSET
+        )
+        rowFrame.tint:SetPoint(
+          "BOTTOMRIGHT",
+          state.frame,
+          "TOPLEFT",
+          layout.width - layout.rightPadding + ROW_TINT_SIDE_PADDING,
+          yOffset - layout.lineHeight + ROW_TINT_VERTICAL_INSET
+        )
+      end
+    end
     rowFrame.label:ClearAllPoints()
     rowFrame.label:SetPoint("TOPLEFT", state.frame, "TOPLEFT", layout.leftPadding, yOffset)
     rowFrame.label:SetWidth(layout.labelWidth)
@@ -789,12 +868,36 @@ function StatsBox.Create(opts)
 
   local state = {
     frame = frame,
+    separator = nil,
     lines = {},
     elapsed = 0,
     collectStats = opts.collectStats or StatsBox.CollectPlayerStats,
   }
 
+  if type(frame.CreateTexture) == "function" then
+    local separator = frame:CreateTexture(nil, "BORDER")
+    if type(separator.SetColorTexture) == "function" then
+      separator:SetColorTexture(1, 0.9, 0.45, SEPARATOR_ALPHA)
+    end
+    if type(separator.Hide) == "function" then
+      separator:Hide()
+    end
+    state.separator = separator
+  end
+
   for index = 1, 10 do
+    local tint = nil
+    if type(frame.CreateTexture) == "function" then
+      tint = frame:CreateTexture(nil, "BORDER")
+      if type(tint.SetColorTexture) == "function" then
+        tint:SetColorTexture(0, 0, 0, 0)
+      end
+      if type(tint.Hide) == "function" then
+        tint:Hide()
+      end
+
+    end
+
     local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     label:SetPoint("TOPLEFT", frame, "TOPLEFT", 8, -6 - ((index - 1) * LINE_HEIGHT))
     label:SetWidth(LABEL_COLUMN_WIDTH)
@@ -814,6 +917,7 @@ function StatsBox.Create(opts)
     percent:SetText("")
 
     state.lines[index] = {
+      tint = tint,
       label = label,
       value = value,
       percent = percent,
@@ -857,6 +961,20 @@ function StatsBox.Create(opts)
     end
     self:StopMovingOrSizing()
     SavePosition(self)
+  end)
+  frame:SetScript("OnEnter", function(self)
+    if ResolveLocked() then
+      return
+    end
+    if type(self.SetBackdropColor) == "function" then
+      local alpha = math.max(ResolveBgAlpha(), HOVER_MIN_BG_ALPHA)
+      self:SetBackdropColor(0, 0, 0, alpha)
+    end
+  end)
+  frame:SetScript("OnLeave", function(self)
+    if type(self.SetBackdropColor) == "function" then
+      self:SetBackdropColor(0, 0, 0, ResolveBgAlpha())
+    end
   end)
   frame:SetScript("OnEvent", function(_, event)
     if event == "ADDON_LOADED" then

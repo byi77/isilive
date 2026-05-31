@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Changed the StatsBox durability row default to off, so visible refreshes skip
+  durability API reads unless the user enables that detail row.
+- Added a subtle value/percent separator, stronger primary-stat highlight,
+  unlocked hover affordance, and stat-colored row tint backgrounds to the
+  borderless StatsBox while keeping the fixed palette and stable column layout.
 - Localized only the sound-settings labels and descriptions for the prepared
   `frFR`, `esES`, `ptBR`, `itIT`, `ruRU`, and `trTR` locale tables; other
   prepared-locale areas may still intentionally use English fallback text.

@@ -258,6 +258,78 @@ return function(test, ctx)
     end)
   end)
 
+  test("StatsBox renders subtle row tint backgrounds without a border", function()
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = { statsBoxEnabled = true, statsBoxBgAlpha = 0.4 },
+      CreateFrame = BuildCreateFrameStub(),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          return {
+            { key = "crit", label = "Crit", value = 923, percent = 25.07 },
+            { key = "haste", label = "Haste", value = 512, percent = 16.10 },
+          }
+        end,
+      })
+
+      Assert.Equal(box.frame._backdrop.edgeFile, nil, "stats box must stay borderless")
+      Assert.NotNil(box.lines[1].tint, "visible rows should get a tint texture")
+      Assert.Equal(box.lines[1].tint._color[1], 1.00, "crit tint should use the fixed stat red channel")
+      Assert.Equal(box.lines[1].tint._color[2], 0.25, "crit tint should use the fixed stat green channel")
+      Assert.Equal(box.lines[1].tint._color[3], 0.25, "crit tint should use the fixed stat blue channel")
+      Assert.Equal(box.lines[1].tint._color[4], 0.12, "row tint should stay subtle")
+      Assert.Equal(box.lines[2].tint._color[3], 0.87, "haste tint should follow the fixed stat palette")
+      Assert.False(box.lines[1].tint.hidden, "visible stat row tint should be shown")
+      Assert.True(box.lines[3].tint.hidden, "unused stat row tint should stay hidden")
+      Assert.Equal(box.lines[1].tint._points[1][1], "TOPLEFT", "row tint should start at the row left edge")
+      Assert.Equal(box.lines[1].tint._points[2][1], "BOTTOMRIGHT", "row tint should end at the fitted right edge")
+    end)
+  end)
+
+  test("StatsBox renders separator primary highlight and unlocked hover affordance", function()
+    local db = {
+      statsBoxEnabled = true,
+      statsBoxBgAlpha = 0,
+    }
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = BuildCreateFrameStub(),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          return {
+            { key = "strength", label = "Str", value = 2052 },
+            { key = "haste", label = "Haste", value = 528, percent = 16.48 },
+          }
+        end,
+      })
+
+      Assert.Nil(box.header, "stats box should not render a title/header row")
+      Assert.False(box.separator.hidden, "value-percent separator should show when percent data is visible")
+      Assert.Equal(box.separator._color[4], 0.18, "value-percent separator should stay subtle")
+      Assert.Equal(box.lines[1].tint._color[4], 0.22, "primary stat tint should be stronger than secondary rows")
+      Assert.Equal(box.lines[2].tint._color[4], 0.12, "secondary stat tint should stay subtle")
+
+      local onEnter = Assert.NotNil(box.frame._scripts.OnEnter, "stats box should define hover enter affordance")
+      local onLeave = Assert.NotNil(box.frame._scripts.OnLeave, "stats box should define hover leave affordance")
+      onEnter(box.frame)
+      Assert.Equal(box.frame._backdropColor[4], 0.18, "unlocked hover should raise transparent background opacity")
+      onLeave(box.frame)
+      Assert.Equal(box.frame._backdropColor[4], 0, "hover leave should restore configured background opacity")
+
+      box.SetLocked(true)
+      onEnter(box.frame)
+      Assert.Equal(box.frame._backdropColor[4], 0, "locked stats box should not show drag hover affordance")
+    end)
+  end)
+
   test("StatsBox applies font size offset from settings", function()
     local createFrameStub = BuildCreateFrameStub()
     local db = {
@@ -578,6 +650,7 @@ return function(test, ctx)
       IsiLiveDB = {
         statsBoxEnabled = true,
         statsBoxShowStamina = true,
+        statsBoxShowDurability = true,
         statsBoxShowAvoidance = true,
       },
       CreateFrame = BuildCreateFrameStub(),
@@ -681,7 +754,7 @@ return function(test, ctx)
     end)
   end)
 
-  test("StatsBox optional row defaults show leech speed and durability only", function()
+  test("StatsBox optional row defaults show leech and speed only", function()
     WithGlobals({
       UIParent = {},
       IsiLiveDB = {
@@ -721,7 +794,7 @@ return function(test, ctx)
 
       Assert.NotNil(found.leech, "leech must be enabled by default")
       Assert.NotNil(found.speed, "speed must be enabled by default")
-      Assert.NotNil(found.durability, "durability must be enabled by default")
+      Assert.Nil(found.durability, "durability must be disabled by default")
       Assert.Nil(found.stamina, "stamina must be disabled by default")
       Assert.Nil(found.avoidance, "avoidance must be disabled by default")
     end)
