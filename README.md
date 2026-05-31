@@ -270,6 +270,7 @@ Open via **Escape → AddOns → isiLive**. Everything takes effect immediately.
 - User-facing text is localized through the locale tables.
 - New built-in text is maintained in English and German first.
 - Other prepared locales may temporarily use English fallback text until a translator updates them.
+- Only the sound setting labels and descriptions are already post-edited for the prepared French, Spanish, Portuguese, Italian, Russian, and Turkish locale tables; other areas may still use English fallback text.
 - Community translation pull requests are welcome; accepted translators are credited in the changelog.
 
 ### Auto-open defaults

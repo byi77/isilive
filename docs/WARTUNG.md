@@ -259,6 +259,7 @@ Pruefen:
 Aktueller Soll-Zustand:
 - Beim Programmieren werden neue Texte mindestens in Englisch und Deutsch gepflegt.
 - Weitere vorbereitete Locales duerfen bewusst englischen Fallback behalten, bis sie nachbearbeitet werden.
+- Nur Sound-Settings-Texte sind fuer `frFR`, `esES`, `ptBR`, `itIT`, `ruRU` und `trTR` nachbearbeitet; andere vorbereitete Locale-Bereiche duerfen weiterhin englische Fallbacks tragen. Neue Sound-Settings duerfen diesen Stand nicht wieder auf englische Fallbacks zuruecksetzen.
 - Hilfreiche Uebersetzungs-PRs werden angenommen, wenn sie technisch zum aktuellen UI- und Regelvertrag passen; der User wird im Changelog bedankt.
 - `Locale.LocaleToLanguageTag` ist tooltip-hotpath-sicher: statischer Lookup, kein Iterieren ueber `Languages.SUPPORTED` beim Hover.
 - `koKR`, `zhCN` und `zhTW` bleiben display-only Flag-Tags ohne vollstaendige UI-Sprache.

@@ -19,6 +19,7 @@ Highlights:
 - Disarmed Bloodlust-ready reminders and Battle-Res-ready transitions whenever the M+ timer is no longer running, so key-end or dungeon-leave refreshes cannot start delayed ready announcements.
 - Routed isiLive sound playback through the `Master` audio channel, matching DBM's configured alert channel.
 - Added Play buttons beside every sound setting so users can preview each configured audio cue.
+- Localized only the new sound-setting labels and descriptions for the prepared French, Spanish, Portuguese, Italian, Russian, and Turkish locale tables; other prepared-locale areas may still use English fallback text.
 - Suppressed the accepted-invite/group-join Center Notice after `/reload` when the current group matches the verified reload roster mirror.
 - The accepted-invite/group-join Center Notice now appends an exact `+N` from the verified LFG group title to the dungeon row when no separate key level was available.
 - Bumped the TOC and documentation version basis to `0.9.291`.

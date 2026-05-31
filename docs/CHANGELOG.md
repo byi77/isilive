@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Localized only the sound-settings labels and descriptions for the prepared
+  `frFR`, `esES`, `ptBR`, `itIT`, `ruRU`, and `trTR` locale tables; other
+  prepared-locale areas may still intentionally use English fallback text.
+
 ## 2026-05-31 - Version 0.9.291 (patch)
 
 - Added a separate default-enabled `Sound: Battle Res Ready` alert that plays
