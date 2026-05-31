@@ -1237,6 +1237,49 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
     Assert.Equal(#state.mainFrameVisibleCalls, 0, "reload-in-key must not auto-show or auto-hide the main frame")
   end)
 
+  test("Reload roster mirror suppresses group-join side effects outside active key", function()
+    local mirror = {
+      signature = "Party1-Realm1|Party2-Realm2|Party3-Realm3|Party4-Realm4|TestPlayer-TestRealm",
+      members = {
+        ["TestPlayer-TestRealm"] = {
+          name = "TestPlayer",
+          realm = "TestRealm",
+          class = "WARRIOR",
+          spec = "Arms",
+          ilvl = 631,
+          rio = 3500,
+        },
+        ["Party1-Realm1"] = { name = "Party1", realm = "Realm1", class = "MAGE" },
+        ["Party2-Realm2"] = { name = "Party2", realm = "Realm2", class = "MAGE" },
+        ["Party3-Realm3"] = { name = "Party3", realm = "Realm3", class = "MAGE" },
+        ["Party4-Realm4"] = { name = "Party4", realm = "Realm4", class = "MAGE" },
+      },
+      targetKey = {
+        mapID = 2449,
+        name = "Sitz des Triumvirats",
+      },
+    }
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = false,
+      reloadRosterMirror = mirror,
+    })
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.NotNil(state.roster.player, "reload mirror must still restore the player entry")
+    Assert.Equal(state.queued, 0, "reload with matching mirror must not capture a fresh queue join")
+    Assert.Equal(state.announced, 0, "reload with matching mirror must not announce a queued group join")
+    Assert.Equal(state.groupJoinedCalls, 0, "reload with matching mirror must not fire group-join notice callbacks")
+    Assert.Equal(#state.mainFrameVisibleCalls, 0, "reload with matching mirror must not auto-open as a queue join")
+    Assert.Equal(state.snapshotCalls, 1, "reload with matching mirror still sends the normal group snapshot")
+    Assert.False(state.snapshotArgs[1].force, "reload group snapshot must not be marked as a fresh forced join")
+    Assert.Equal(state.helloCalls, 1, "reload with matching mirror still sends the normal group hello")
+    Assert.False(state.helloArgs[1].force, "reload group hello must not be marked as a fresh forced join")
+    Assert.Equal(state.refreshRequests, 1, "reload with matching mirror must still request live peer refresh")
+    Assert.True(state.refreshRequestArgs[1].force, "reload mirror refresh should bypass request cooldowns")
+    Assert.NotNil(state.restoredReloadRosterTargetSnapshot, "reload mirror must restore the verified target snapshot")
+  end)
+
   test("Reload roster mirror restores verified data when group signature matches", function()
     local mirror = {
       signature = "Member-Realm|TestPlayer-TestRealm",

@@ -248,7 +248,7 @@ local function BuildControllerContext(state, addon, initial)
               state.cdScans = (state.cdScans or 0) + 1
             end,
             GetBResInfo = function()
-              return nil
+              return state.bresInfo
             end,
             GetLustInfo = function()
               return state.lustInfo
@@ -583,8 +583,14 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
         end,
       },
       SoundUtils = {
+        PlayBattleResReady = function()
+          state.battleResReadySoundCalls = (state.battleResReadySoundCalls or 0) + 1
+        end,
         PlayBloodlust = function()
           state.bloodlustSoundCalls = (state.bloodlustSoundCalls or 0) + 1
+        end,
+        PlayBloodlustReady = function()
+          state.bloodlustReadySoundCalls = (state.bloodlustReadySoundCalls or 0) + 1
         end,
       },
     })
@@ -1094,6 +1100,136 @@ return function(test, ctx)
     state.lustInfo = { remain = 25, icon = 132114 }
     state.ctx.UpdateCdTracker()
     Assert.Equal(state.bloodlustSoundCalls or 0, 1, "non-UNIT_AURA refresh must not play a Bloodlust sound")
+  end)
+
+  test("Factory CD refresh plays Bloodlust-ready sound once when exhaustion expires", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
+
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.bloodlustReadySoundCalls or 0, 0, "inactive initial scan must not play Bloodlust-ready")
+
+    state.lustInfo = { remain = 2, icon = 132114 }
+    state.ctx.UpdateCdTracker({ playLustSoundOnStart = true })
+    Assert.Equal(state.bloodlustReadySoundCalls or 0, 0, "active Bloodlust must not play the ready alert")
+
+    state.lustInfo = nil
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.bloodlustReadySoundCalls or 0, 1, "Bloodlust expiration must play the ready alert once")
+
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.bloodlustReadySoundCalls or 0, 1, "still-ready Bloodlust must not replay the ready alert")
+
+    state.lustInfo = { remain = 10, icon = 132114 }
+    state.ctx.UpdateCdTracker({ playLustSoundOnStart = true })
+    state.lustInfo = nil
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.bloodlustReadySoundCalls or 0, 2, "a later Bloodlust cycle may play one new ready alert")
+  end)
+
+  test("Factory CD refresh suppresses Bloodlust-ready sound on key reset refresh", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
+
+    state.lustInfo = { remain = 20, icon = 132114 }
+    state.ctx.UpdateCdTracker({ playLustSoundOnStart = true })
+    Assert.Equal(state.bloodlustReadySoundCalls or 0, 0, "active Bloodlust must not play ready before reset")
+
+    state.lustInfo = nil
+    state.ctx.UpdateCdTracker({ suppressLustReadySound = true })
+    Assert.Equal(
+      state.bloodlustReadySoundCalls or 0,
+      0,
+      "key reset refresh must not announce Bloodlust-ready when the aura is force-cleared"
+    )
+
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.bloodlustReadySoundCalls or 0, 0, "suppressed reset must clear the observed cycle")
+  end)
+
+  test("Factory CD refresh clears Bloodlust-ready cycle when key ends during exhaustion", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
+
+    state.lustInfo = { remain = 20, icon = 132114 }
+    state.ctx.UpdateCdTracker({ playLustSoundOnStart = true })
+    Assert.Equal(state.bloodlustReadySoundCalls or 0, 0, "active Bloodlust must not play ready before key end")
+
+    state.ctx.UpdateCdTracker({ suppressLustReadySound = true })
+    Assert.Equal(
+      state.bloodlustReadySoundCalls or 0,
+      0,
+      "key end refresh must not announce Bloodlust-ready while exhaustion is still active"
+    )
+
+    state.lustInfo = nil
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(
+      state.bloodlustReadySoundCalls or 0,
+      0,
+      "post-key zone refresh must not announce Bloodlust-ready after the suppressed cycle was cleared"
+    )
+  end)
+
+  test("Factory CD refresh plays Battle Res-ready sound once when charges recover", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
+
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.battleResReadySoundCalls or 0, 0, "unresolved initial BRes scan must not play ready")
+
+    state.bresInfo = { charges = 1, maxCharges = 1, cooldownRemain = 0 }
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.battleResReadySoundCalls or 0, 0, "available initial BRes scan must not play ready")
+
+    state.bresInfo = { charges = 0, maxCharges = 1, cooldownRemain = 120 }
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.battleResReadySoundCalls or 0, 0, "BRes cooldown start must not play ready")
+
+    state.bresInfo = { charges = 1, maxCharges = 1, cooldownRemain = 0 }
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.battleResReadySoundCalls or 0, 1, "BRes charge recovery must play ready once")
+
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.battleResReadySoundCalls or 0, 1, "still-ready BRes must not replay")
+  end)
+
+  test("Factory CD refresh suppresses Battle Res-ready sound on key reset refresh", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
+
+    state.bresInfo = { charges = 0, maxCharges = 1, cooldownRemain = 120 }
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.battleResReadySoundCalls or 0, 0, "BRes cooldown state must not play ready")
+
+    state.bresInfo = { charges = 1, maxCharges = 1, cooldownRemain = 0 }
+    state.ctx.UpdateCdTracker({ suppressBattleResReadySound = true })
+    Assert.Equal(
+      state.battleResReadySoundCalls or 0,
+      0,
+      "key reset refresh must not announce Battle Res-ready when charges are force-restored"
+    )
+
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.battleResReadySoundCalls or 0, 0, "suppressed BRes reset must clear the observed cycle")
+  end)
+
+  test("Factory CD refresh clears Battle Res-ready cycle when key ends during cooldown", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
+
+    state.bresInfo = { charges = 0, maxCharges = 1, cooldownRemain = 120 }
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.battleResReadySoundCalls or 0, 0, "BRes cooldown state must not play ready")
+
+    state.ctx.UpdateCdTracker({ suppressBattleResReadySound = true })
+    Assert.Equal(
+      state.battleResReadySoundCalls or 0,
+      0,
+      "key end refresh must not announce Battle Res-ready while BRes is still on cooldown"
+    )
+
+    state.bresInfo = { charges = 1, maxCharges = 1, cooldownRemain = 0 }
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(
+      state.battleResReadySoundCalls or 0,
+      0,
+      "post-key zone refresh must not announce Battle Res-ready after the suppressed cycle was cleared"
+    )
   end)
 
   test("Factory hidden kick ticker keeps syncing while frame is hidden", function()

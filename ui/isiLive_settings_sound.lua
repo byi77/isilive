@@ -42,12 +42,28 @@ local SOUND_SETTING_FALLBACKS = {
     settingKey = "soundBattleResEnabled",
     defaultEnabled = true,
   },
+  battle_res_ready = {
+    labelKey = "SETTINGS_SOUND_BATTLE_RES_READY",
+    descKey = "SETTINGS_SOUND_BATTLE_RES_READY_DESC",
+    labelFallback = "Sound: Battle Res ready",
+    descFallback = "Plays a TTS alert when Battle Resurrection becomes available again.",
+    settingKey = "soundBattleResReadyEnabled",
+    defaultEnabled = true,
+  },
   bloodlust = {
     labelKey = "SETTINGS_SOUND_BLOODLUST",
     descKey = "SETTINGS_SOUND_BLOODLUST_DESC",
     labelFallback = "Sound: Bloodlust",
     descFallback = "Plays a sound when Bloodlust or a similar effect starts.",
     settingKey = "soundBloodlustEnabled",
+    defaultEnabled = true,
+  },
+  bloodlust_ready = {
+    labelKey = "SETTINGS_SOUND_BLOODLUST_READY",
+    descKey = "SETTINGS_SOUND_BLOODLUST_READY_DESC",
+    labelFallback = "Sound: Bloodlust ready",
+    descFallback = "Plays a TTS alert when Bloodlust or a similar exhaustion effect expires.",
+    settingKey = "soundBloodlustReadyEnabled",
     defaultEnabled = true,
   },
 }
@@ -85,7 +101,15 @@ function SettingsSound.GetSoundSettingEntries()
   local soundUtils = addonTable.SoundUtils
   local registry = type(soundUtils) == "table" and type(soundUtils.Registry) == "table" and soundUtils.Registry or nil
   local order = type(soundUtils) == "table" and type(soundUtils.SettingsOrder) == "table" and soundUtils.SettingsOrder
-    or { "leader_transfer", "group_join", "portal_available", "battle_res", "bloodlust" }
+    or {
+      "leader_transfer",
+      "group_join",
+      "portal_available",
+      "battle_res",
+      "battle_res_ready",
+      "bloodlust",
+      "bloodlust_ready",
+    }
   local entries = {}
 
   for _, key in ipairs(order) do

@@ -779,9 +779,9 @@ local function BuildEventHandlersDepsFromContext(ctx)
       setMainFrameWidthSafe = ctx.setMainFrameWidthSafe,
       -- Late-bound: ctx.UpdateCdTracker is set after event handlers are wired,
       -- so capture ctx by reference and resolve at call time.
-      updateCdTracker = function()
+      updateCdTracker = function(opts)
         if type(ctx.UpdateCdTracker) == "function" then
-          ctx.UpdateCdTracker()
+          ctx.UpdateCdTracker(opts)
         end
       end,
     },

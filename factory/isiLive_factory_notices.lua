@@ -40,11 +40,37 @@ local function ResolveAcceptedInviteDungeonName(ctx, modules, mapID)
   return L.INVITE_HINT_UNKNOWN_DUNGEON or "Unknown dungeon"
 end
 
+local function ResolveGroupTitleKeyLevel(groupName)
+  if type(groupName) ~= "string" or groupName == "" then
+    return nil
+  end
+  local best = nil
+  for digits in string.gmatch(groupName, "%+[^%a%d]-(%d+)") do
+    local n = tonumber(digits)
+    if n and n >= 1 and n <= 40 and (not best or n > best) then
+      best = n
+    end
+  end
+  if best then
+    return best
+  end
+  for digits in string.gmatch(groupName, "(%d+)[^%a%d]-%+") do
+    local n = tonumber(digits)
+    if n and n >= 1 and n <= 40 and (not best or n > best) then
+      best = n
+    end
+  end
+  return best
+end
+
 local function BuildAcceptedInviteFields(ctx, mapName, payload)
   local L = ctx.GetL and ctx.GetL() or {}
   local fields = {}
 
   local level = tonumber(payload.level)
+  if not (level and level > 0) then
+    level = ResolveGroupTitleKeyLevel(payload.groupName)
+  end
   local dungeonValue
   if level and level > 0 then
     dungeonValue = string.format(L.INVITE_ACCEPTED_NOTICE_HEADLINE_WITH_LEVEL or "%s +%d", mapName, math.floor(level))
@@ -291,6 +317,7 @@ end
 
 FactoryNotices.ResolveAcceptedInviteRoleName = ResolveAcceptedInviteRoleName
 FactoryNotices.ResolveAcceptedInviteDungeonName = ResolveAcceptedInviteDungeonName
+FactoryNotices.ResolveGroupTitleKeyLevel = ResolveGroupTitleKeyLevel
 FactoryNotices.BuildAcceptedInviteFields = BuildAcceptedInviteFields
 FactoryNotices.RenderAcceptedInviteNotice = RenderAcceptedInviteNotice
 FactoryNotices.ShowJoinedTargetNotice = ShowJoinedTargetNotice
@@ -302,6 +329,7 @@ FactoryNotices.InitializeInviteControllers = InitializeInviteControllers
 
 FI.ResolveAcceptedInviteRoleName = ResolveAcceptedInviteRoleName
 FI.ResolveAcceptedInviteDungeonName = ResolveAcceptedInviteDungeonName
+FI.ResolveGroupTitleKeyLevel = ResolveGroupTitleKeyLevel
 FI.BuildAcceptedInviteFields = BuildAcceptedInviteFields
 FI.RenderAcceptedInviteNotice = RenderAcceptedInviteNotice
 FI.ShowJoinedTargetNotice = ShowJoinedTargetNotice

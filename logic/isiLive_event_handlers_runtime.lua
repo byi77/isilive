@@ -422,6 +422,8 @@ local LUST_SATED_AURA_IDS = {
 -- proc refreshes, stack changes). The CD-tracker only cares about the six
 -- Sated/Exhaustion IDs above. Use the unitAuraUpdateInfo payload to skip the
 -- 40-slot HARMFUL pcall scan when no Sated-relevant change is in this event.
+-- Aura removals do not reliably include spellId, only aura instance IDs, so
+-- any removal payload must scan to detect natural Sated/Exhaustion expiry.
 -- Conservative fallback: scan whenever the payload is missing or signals a
 -- full update, so /reload and zone transitions still resync.
 --
@@ -435,6 +437,12 @@ local function UnitAuraUpdateRequiresCdScan(updateInfo)
     return true
   end
   if updateInfo.isFullUpdate then
+    return true
+  end
+  if type(updateInfo.removedAuraInstanceIDs) == "table" and #updateInfo.removedAuraInstanceIDs > 0 then
+    return true
+  end
+  if type(updateInfo.removedAuras) == "table" and #updateInfo.removedAuras > 0 then
     return true
   end
   local added = updateInfo.addedAuras

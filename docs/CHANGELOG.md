@@ -2,6 +2,52 @@
 
 ## Unreleased
 
+## 2026-05-31 - Version 0.9.291 (patch)
+
+[isiLive.toc](../isiLive.toc),
+[README.md](../README.md),
+[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
+[core/isiLive_db_schema.lua](../core/isiLive_db_schema.lua),
+[core/isiLive_sound_utils.lua](../core/isiLive_sound_utils.lua),
+[factory/isiLive_controller_wiring.lua](../factory/isiLive_controller_wiring.lua),
+[factory/isiLive_factory_cd_tracker.lua](../factory/isiLive_factory_cd_tracker.lua),
+[factory/isiLive_factory_notices.lua](../factory/isiLive_factory_notices.lua),
+[logic/isiLive_event_handlers_challenge.lua](../logic/isiLive_event_handlers_challenge.lua),
+[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
+[ui/isiLive_settings_sound.lua](../ui/isiLive_settings_sound.lua),
+[tools/simulate_sound_playback.lua](../tools/simulate_sound_playback.lua),
+[testmodul/isilive_test_scenarios_architecture.lua](../testmodul/isilive_test_scenarios_architecture.lua),
+[testmodul/isilive_test_scenarios_factory_controllers_helpers.lua](../testmodul/isilive_test_scenarios_factory_controllers_helpers.lua),
+[testmodul/isilive_test_scenarios_factory_secondary.lua](../testmodul/isilive_test_scenarios_factory_secondary.lua),
+[testmodul/isilive_test_scenarios_ui_settings.lua](../testmodul/isilive_test_scenarios_ui_settings.lua),
+[sounds/BattleRezReady.wav](../sounds/BattleRezReady.wav),
+[sounds/BloodlustReady.wav](../sounds/BloodlustReady.wav),
+[docs/RULES_LOGIC.md](RULES_LOGIC.md),
+[docs/ARCHITECTURE.md](ARCHITECTURE.md),
+[docs/ARCHITECTURE_RULES.md](ARCHITECTURE_RULES.md),
+[docs/USECASES.md](USECASES.md):
+
+- Added a separate default-enabled `Sound: Battle Res Ready` alert that plays
+  the new `sounds/BattleRezReady.wav` TTS asset once when Battle Resurrection
+  recovers from zero available charges.
+- Added a separate default-enabled `Sound: Bloodlust Ready` alert that plays
+  the new `sounds/BloodlustReady.wav` TTS asset once when the observed
+  Bloodlust/Heroism/Time Warp exhaustion aura expires.
+- Suppressed Bloodlust-ready and Battle-Res-ready TTS cycles during
+  key-end/key-abort CD refreshes so later world or zone refreshes cannot
+  announce stale readiness.
+- Kept event-driven Bloodlust-ready and Battle-Res-ready refreshes active while
+  the main UI is hidden, without enabling the hidden CD polling ticker.
+- Fixed Bloodlust-ready expiry detection for visible in-key play by scanning
+  `UNIT_AURA` removal payloads that no longer carry a stable `spellId`.
+- Suppressed the accepted-invite/group-join Center Notice after `/reload` when
+  the current group matches the verified reload roster mirror.
+- The accepted-invite/group-join Center Notice now appends an exact `+N` from
+  the verified LFG group title to the dungeon row when no separate key level
+  was available.
+- Bumped the TOC and documentation version basis to `0.9.291`.
+- Updated the release-gate scenario baseline to `1938` deterministic scenarios.
+
 ## 2026-05-30 - Version 0.9.290 (patch)
 
 ### UI

@@ -384,6 +384,8 @@ function ConfigBuilders.BuildGateOpts(ctx)
       PLAYER_SPECIALIZATION_CHANGED = true,
       PLAYER_ROLES_ASSIGNED = true,
       ROLE_CHANGED_INFORM = true,
+      SPELL_UPDATE_CHARGES = true,
+      UNIT_AURA = true,
     },
   }
 end

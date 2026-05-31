@@ -874,6 +874,27 @@ return function(test, ctx)
     Assert.Equal(fieldsNeg[1].value, "MyDungeon", "negative level must render dungeon name without +N")
   end)
 
+  test("factory_controllers: BuildAcceptedInviteFields derives dungeon level from verified LFG group title", function()
+    local addon = Load()
+    local build = addon._FactoryInternal.BuildAcceptedInviteFields
+    local c = BuildAcceptedInviteCtx()
+
+    local fieldsPlain = build(c, "Grube von Saron", { groupName = "+10" })
+    Assert.Equal(
+      fieldsPlain[1].value,
+      "Grube von Saron +10",
+      "plain +N group title must be appended to the dungeon row"
+    )
+    Assert.Equal(fieldsPlain[2].label, "Gruppe-DE:", "group title row must keep the group label")
+    Assert.Equal(fieldsPlain[2].value, "+10", "group title row must preserve the raw LFG title")
+
+    local fieldsText = build(c, "Grube von Saron", { groupName = "+13 weekly" })
+    Assert.Equal(fieldsText[1].value, "Grube von Saron +13", "textual +N group title must still resolve")
+
+    local fieldsNoLevel = build(c, "Grube von Saron", { groupName = "weekly chill" })
+    Assert.Equal(fieldsNoLevel[1].value, "Grube von Saron", "group title without +N must not invent a level")
+  end)
+
   test("factory_controllers: BuildAcceptedInviteFields omits optional rows when their source is missing", function()
     local addon = Load()
     local build = addon._FactoryInternal.BuildAcceptedInviteFields
@@ -1081,6 +1102,61 @@ return function(test, ctx)
       Assert.Equal(call.showOptions.fields[2].value, "+17 weekly", "fallback notice must preserve the LFG group title")
       Assert.Equal(call.showOptions.fields[3].value, "Leader-Realm", "fallback notice must preserve the LFG leader")
       Assert.Equal(call.showOptions.fields[4].value, "LFG-DE", "fallback notice must still show the source row")
+    end
+  )
+
+  test(
+    "factory_controllers: ShowJoinedTargetNotice derives notice dungeon level from verified LFG group title",
+    function()
+      local addon = Load()
+      local show = addon._FactoryInternal.ShowJoinedTargetNotice
+      addon.LFGDetect = {
+        GetActiveInviteLeader = function()
+          return "Bircan-Rexxar"
+        end,
+        GetActiveInviteGroupName = function()
+          return "+10"
+        end,
+      }
+      local call
+      local c = BuildAcceptedInviteCtx({
+        ShowCenterNotice = function(_, _, dungeonName, activityID, showOptions)
+          call = {
+            dungeonName = dungeonName,
+            activityID = activityID,
+            showOptions = showOptions,
+          }
+        end,
+        ResolveLocalStatusTargetMapID = function()
+          return 699
+        end,
+        GetStatusTargetDungeonInfo = function()
+          return { name = "Grube von Saron", level = nil }
+        end,
+      })
+      local modules = {
+        teleport = {
+          GetTeleportInfoByMapID = function()
+            return { mapName = "Grube von Saron" }
+          end,
+        },
+      }
+
+      show(c, modules)
+
+      Assert.NotNil(call, "joined-target fallback must render a center notice")
+      Assert.Equal(
+        call.showOptions.fields[1].value,
+        "Grube von Saron +10",
+        "fallback notice must append the verified +N from the LFG group title to the dungeon row"
+      )
+      Assert.Equal(call.showOptions.fields[2].label, "Gruppe-DE:", "raw LFG title row must remain a group-title row")
+      Assert.Equal(call.showOptions.fields[2].value, "+10", "raw LFG title must still be visible")
+      Assert.Equal(
+        call.showOptions.fields[3].value,
+        "Bircan-Rexxar",
+        "leader row must still render after the title row"
+      )
     end
   )
 

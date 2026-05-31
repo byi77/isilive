@@ -294,6 +294,18 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
       "ROLE_CHANGED_INFORM = true",
       "ConfigBuilders hidden-gate allowlist must include hidden live role-change events"
     )
+    AssertContains(
+      Assert,
+      content,
+      "SPELL_UPDATE_CHARGES = true",
+      "ConfigBuilders hidden-gate allowlist must include hidden BRes charge refresh events"
+    )
+    AssertContains(
+      Assert,
+      content,
+      "UNIT_AURA = true",
+      "ConfigBuilders hidden-gate allowlist must include hidden Bloodlust aura refresh events"
+    )
   end)
 
   test("Architecture root keeps challenge helper guarded and de-duplicates roster trigger helper", function()
@@ -972,7 +984,9 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.True(addon.SoundUtils.HasKey("group_join"), "sound registry should include the group-join key")
       Assert.True(addon.SoundUtils.HasKey("portal_available"), "sound registry should include the portal key")
       Assert.True(addon.SoundUtils.HasKey("battle_res"), "sound registry should include the battle-res key")
+      Assert.True(addon.SoundUtils.HasKey("battle_res_ready"), "sound registry should include the battle-res-ready key")
       Assert.True(addon.SoundUtils.HasKey("bloodlust"), "sound registry should include the bloodlust key")
+      Assert.True(addon.SoundUtils.HasKey("bloodlust_ready"), "sound registry should include the bloodlust-ready key")
       local leaderEntry = addon.SoundUtils.GetEntry("leader_transfer")
       Assert.NotNil(leaderEntry, "leader-transfer entry should exist")
       Assert.Equal(
@@ -1033,6 +1047,22 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         addon.SoundUtils.IsEnabled("battle_res"),
         "battle-res sound should default to enabled when no DB override exists"
       )
+      local battleResReadyEntry = addon.SoundUtils.GetEntry("battle_res_ready")
+      Assert.NotNil(battleResReadyEntry, "battle-res-ready sound entry should exist")
+      Assert.Equal(
+        battleResReadyEntry.settingKey,
+        "soundBattleResReadyEnabled",
+        "battle-res-ready sound should map to the battle-res-ready setting key"
+      )
+      Assert.Equal(
+        battleResReadyEntry.file,
+        "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady.wav",
+        "battle-res-ready entry should point at the TTS asset"
+      )
+      Assert.True(
+        addon.SoundUtils.IsEnabled("battle_res_ready"),
+        "battle-res-ready sound should default to enabled when no DB override exists"
+      )
       local bloodlustEntry = addon.SoundUtils.GetEntry("bloodlust")
       Assert.NotNil(bloodlustEntry, "bloodlust sound entry should exist")
       Assert.Equal(
@@ -1049,11 +1079,35 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         addon.SoundUtils.IsEnabled("bloodlust"),
         "bloodlust sound should default to enabled when no DB override exists"
       )
+      local bloodlustReadyEntry = addon.SoundUtils.GetEntry("bloodlust_ready")
+      Assert.NotNil(bloodlustReadyEntry, "bloodlust-ready sound entry should exist")
+      Assert.Equal(
+        bloodlustReadyEntry.settingKey,
+        "soundBloodlustReadyEnabled",
+        "bloodlust-ready sound should map to the bloodlust-ready setting key"
+      )
+      Assert.Equal(
+        bloodlustReadyEntry.file,
+        "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
+        "bloodlust-ready entry should point at the TTS asset"
+      )
+      Assert.True(
+        addon.SoundUtils.IsEnabled("bloodlust_ready"),
+        "bloodlust-ready sound should default to enabled when no DB override exists"
+      )
       Assert.NotNil(addon.SoundUtils.PlayGroupJoin, "sound utils should expose a dedicated group-join sound helper")
       Assert.NotNil(addon.SoundUtils.PlayPortalAvailable, "sound utils should expose a dedicated portal sound helper")
       Assert.NotNil(addon.SoundUtils.PlayIncomingSummon, "sound utils should expose a dedicated summon sound helper")
       Assert.NotNil(addon.SoundUtils.PlayBattleRes, "sound utils should expose a dedicated battle-res sound helper")
+      Assert.NotNil(
+        addon.SoundUtils.PlayBattleResReady,
+        "sound utils should expose a dedicated battle-res-ready sound helper"
+      )
       Assert.NotNil(addon.SoundUtils.PlayBloodlust, "sound utils should expose a dedicated bloodlust sound helper")
+      Assert.NotNil(
+        addon.SoundUtils.PlayBloodlustReady,
+        "sound utils should expose a dedicated bloodlust-ready sound helper"
+      )
       addon.SoundUtils.PlayKey("leader_transfer")
       Assert.Equal(playCalls, 1, "leader-transfer sound helper should play exactly once")
       Assert.Equal(
@@ -1080,35 +1134,46 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       )
       Assert.Equal(playedChannel, "SFX", "portal sound helper should use the SFX channel")
       addon.SoundUtils.PlayBattleRes()
+      addon.SoundUtils.PlayBattleResReady()
       addon.SoundUtils.PlayBloodlust()
-      Assert.Equal(playCalls, 5, "battle-res and bloodlust both play their configured assets")
+      addon.SoundUtils.PlayBloodlustReady()
+      Assert.Equal(
+        playCalls,
+        7,
+        "battle-res, battle-res-ready, bloodlust, and bloodlust-ready play their configured assets"
+      )
       Assert.Equal(
         playedPath,
-        "Interface\\AddOns\\isiLive\\sounds\\BoxingArenaSound.ogg",
-        "bloodlust helper should use the boxing-arena asset"
+        "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
+        "bloodlust-ready helper should use the TTS asset"
       )
 
       db.soundLeadEnabled = false
       db.soundGroupJoinEnabled = true
       db.soundPortalAvailableEnabled = false
       db.soundBattleResEnabled = true
+      db.soundBattleResReadyEnabled = true
       db.soundBloodlustEnabled = true
+      db.soundBloodlustReadyEnabled = true
       now = 2
       playCalls = 0
       addon.SoundUtils.PlayKey("leader_transfer")
       addon.SoundUtils.PlayGroupJoin()
       addon.SoundUtils.PlayPortalAvailable()
       addon.SoundUtils.PlayBattleRes()
+      addon.SoundUtils.PlayBattleResReady()
       addon.SoundUtils.PlayBloodlust()
+      addon.SoundUtils.PlayBloodlustReady()
       Assert.Equal(
         playCalls,
-        3,
-        "enabled group-join, battle-res, and bloodlust should play; disabled lead and portal stay silent"
+        5,
+        "enabled group-join, battle-res, battle-res-ready, bloodlust, and bloodlust-ready should play; "
+          .. "disabled lead and portal stay silent"
       )
       Assert.Equal(
         playedPath,
-        "Interface\\AddOns\\isiLive\\sounds\\BoxingArenaSound.ogg",
-        "bloodlust asset should be the last played sound"
+        "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
+        "bloodlust-ready asset should be the last played sound"
       )
 
       playCalls = 0
@@ -1209,6 +1274,62 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.Equal(muted[1], 7340960, "C_Sound mute API should receive astral aurochs file IDs")
       Assert.True(addon.SoundUtils.ApplyAstralAurochsSoundSetting(false), "C_Sound unmute API should be accepted")
       Assert.Equal(unmuted[1], 7340960, "C_Sound unmute API should receive astral aurochs file IDs")
+    end)
+  end)
+
+  test("SoundUtils Bloodlust-ready setting disables TTS playback", function()
+    local playCalls = 0
+    local db = {
+      soundBloodlustReadyEnabled = false,
+    }
+    WithGlobals({
+      IsiLiveDB = db,
+      GetTime = function()
+        return 30
+      end,
+      PlaySoundFile = function()
+        playCalls = playCalls + 1
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
+      Assert.False(
+        addon.SoundUtils.IsEnabled("bloodlust_ready"),
+        "bloodlust-ready setting should disable the TTS sound"
+      )
+      addon.SoundUtils.PlayBloodlustReady()
+      Assert.Equal(playCalls, 0, "disabled bloodlust-ready setting must suppress TTS playback")
+
+      db.soundBloodlustReadyEnabled = true
+      addon.SoundUtils.PlayBloodlustReady()
+      Assert.Equal(playCalls, 1, "enabled bloodlust-ready setting should allow one TTS playback")
+    end)
+  end)
+
+  test("SoundUtils Battle Res-ready setting disables TTS playback", function()
+    local playCalls = 0
+    local db = {
+      soundBattleResReadyEnabled = false,
+    }
+    WithGlobals({
+      IsiLiveDB = db,
+      GetTime = function()
+        return 40
+      end,
+      PlaySoundFile = function()
+        playCalls = playCalls + 1
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
+      Assert.False(
+        addon.SoundUtils.IsEnabled("battle_res_ready"),
+        "battle-res-ready setting should disable the TTS sound"
+      )
+      addon.SoundUtils.PlayBattleResReady()
+      Assert.Equal(playCalls, 0, "disabled battle-res-ready setting must suppress TTS playback")
+
+      db.soundBattleResReadyEnabled = true
+      addon.SoundUtils.PlayBattleResReady()
+      Assert.Equal(playCalls, 1, "enabled battle-res-ready setting should allow one TTS playback")
     end)
   end)
 

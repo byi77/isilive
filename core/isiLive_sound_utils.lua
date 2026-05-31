@@ -701,10 +701,30 @@ SoundUtils.Registry = {
     defaultEnabled = true,
     defaultChannel = "SFX",
   },
+  battle_res_ready = {
+    file = "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady.wav",
+    labelKey = "SETTINGS_SOUND_BATTLE_RES_READY",
+    descKey = "SETTINGS_SOUND_BATTLE_RES_READY_DESC",
+    labelFallback = "Sound: Battle Res ready",
+    descFallback = "Plays a TTS alert when Battle Resurrection becomes available again.",
+    settingKey = "soundBattleResReadyEnabled",
+    defaultEnabled = true,
+    defaultChannel = "SFX",
+  },
   bloodlust = {
     file = "Interface\\AddOns\\isiLive\\sounds\\BoxingArenaSound.ogg",
     labelKey = "SETTINGS_SOUND_BLOODLUST",
     settingKey = "soundBloodlustEnabled",
+    defaultEnabled = true,
+    defaultChannel = "SFX",
+  },
+  bloodlust_ready = {
+    file = "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
+    labelKey = "SETTINGS_SOUND_BLOODLUST_READY",
+    descKey = "SETTINGS_SOUND_BLOODLUST_READY_DESC",
+    labelFallback = "Sound: Bloodlust ready",
+    descFallback = "Plays a TTS alert when Bloodlust or a similar exhaustion effect expires.",
+    settingKey = "soundBloodlustReadyEnabled",
     defaultEnabled = true,
     defaultChannel = "SFX",
   },
@@ -715,7 +735,9 @@ SoundUtils.SettingsOrder = {
   "group_join",
   "portal_available",
   "battle_res",
+  "battle_res_ready",
   "bloodlust",
+  "bloodlust_ready",
 }
 
 local function BuildSoundKey(soundFile, channel)
@@ -843,8 +865,16 @@ function SoundUtils.PlayBattleRes()
   SoundUtils.PlayKey("battle_res")
 end
 
+function SoundUtils.PlayBattleResReady()
+  SoundUtils.PlayKey("battle_res_ready")
+end
+
 function SoundUtils.PlayBloodlust()
   SoundUtils.PlayKey("bloodlust")
+end
+
+function SoundUtils.PlayBloodlustReady()
+  SoundUtils.PlayKey("bloodlust_ready")
 end
 
 local function CopySoundFileIDs(key)

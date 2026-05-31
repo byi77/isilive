@@ -2173,7 +2173,9 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
             SETTINGS_SOUND_GROUP_JOIN_ENABLED = "Sound: Full Group",
             SETTINGS_SOUND_PORTAL_AVAILABLE = "Sound: Incoming Summon",
             SETTINGS_SOUND_BATTLE_RES = "Sound: Battle Res",
+            SETTINGS_SOUND_BATTLE_RES_READY = "Sound: Battle Res Ready",
             SETTINGS_SOUND_BLOODLUST = "Sound: Bloodlust",
+            SETTINGS_SOUND_BLOODLUST_READY = "Sound: Bloodlust Ready",
             SETTINGS_QUEUE_DEBUG = "Queue Debug",
             SETTINGS_RUNTIME_LOG = "Runtime Log",
           }
@@ -2192,14 +2194,24 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Nil(db.soundGroupJoinEnabled, "opening settings should not persist the default group-join sound state")
       Assert.Nil(db.soundPortalAvailableEnabled, "opening settings should not persist the default portal sound state")
       Assert.Nil(db.soundBattleResEnabled, "opening settings should not persist the default battle-res sound state")
+      Assert.Nil(
+        db.soundBattleResReadyEnabled,
+        "opening settings should not persist the default battle-res-ready sound state"
+      )
       Assert.Nil(db.soundBloodlustEnabled, "opening settings should not persist the default bloodlust sound state")
+      Assert.Nil(
+        db.soundBloodlustReadyEnabled,
+        "opening settings should not persist the default bloodlust-ready sound state"
+      )
 
       local soundSectionHeader = nil
       local leadSoundCheck = nil
       local groupJoinSoundCheck = nil
       local portalSoundCheck = nil
       local battleResSoundCheck = nil
+      local battleResReadySoundCheck = nil
       local bloodlustSoundCheck = nil
+      local bloodlustReadySoundCheck = nil
       for _, frame in ipairs(createdFrames) do
         if frame._sectionKey == "SETTINGS_SECTION_SOUNDS" then
           soundSectionHeader = frame
@@ -2212,8 +2224,12 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           portalSoundCheck = frame
         elseif frame._settingKey == "SETTINGS_SOUND_BATTLE_RES" then
           battleResSoundCheck = frame
+        elseif frame._settingKey == "SETTINGS_SOUND_BATTLE_RES_READY" then
+          battleResReadySoundCheck = frame
         elseif frame._settingKey == "SETTINGS_SOUND_BLOODLUST" then
           bloodlustSoundCheck = frame
+        elseif frame._settingKey == "SETTINGS_SOUND_BLOODLUST_READY" then
+          bloodlustReadySoundCheck = frame
         end
       end
 
@@ -2224,25 +2240,39 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       portalSoundCheck = Assert.NotNil(portalSoundCheck, "settings panel should create a portal sound checkbox")
       battleResSoundCheck =
         Assert.NotNil(battleResSoundCheck, "settings panel should create a battle-res sound checkbox")
+      battleResReadySoundCheck =
+        Assert.NotNil(battleResReadySoundCheck, "settings panel should create a battle-res-ready sound checkbox")
       bloodlustSoundCheck =
         Assert.NotNil(bloodlustSoundCheck, "settings panel should create a bloodlust sound checkbox")
+      bloodlustReadySoundCheck =
+        Assert.NotNil(bloodlustReadySoundCheck, "settings panel should create a bloodlust-ready sound checkbox")
       ---@diagnostic disable: undefined-field
       Assert.True(leadSoundCheck:GetChecked(), "leader-transfer sound should default to enabled")
       Assert.True(groupJoinSoundCheck:GetChecked(), "group-join sound should default to enabled")
       Assert.True(portalSoundCheck:GetChecked(), "portal sound should default to enabled")
       Assert.True(battleResSoundCheck:GetChecked(), "battle-res sound should default to enabled")
+      Assert.True(battleResReadySoundCheck:GetChecked(), "battle-res-ready sound should default to enabled")
       Assert.True(bloodlustSoundCheck:GetChecked(), "bloodlust sound should default to enabled")
+      Assert.True(bloodlustReadySoundCheck:GetChecked(), "bloodlust-ready sound should default to enabled")
 
       local onClickLead = leadSoundCheck._scripts and leadSoundCheck._scripts.OnClick or nil
       local onClickJoin = groupJoinSoundCheck._scripts and groupJoinSoundCheck._scripts.OnClick or nil
       local onClickPortal = portalSoundCheck._scripts and portalSoundCheck._scripts.OnClick or nil
       local onClickBattleRes = battleResSoundCheck._scripts and battleResSoundCheck._scripts.OnClick or nil
+      local onClickBattleResReady = battleResReadySoundCheck._scripts and battleResReadySoundCheck._scripts.OnClick
+        or nil
       local onClickBloodlust = bloodlustSoundCheck._scripts and bloodlustSoundCheck._scripts.OnClick or nil
+      local onClickBloodlustReady = bloodlustReadySoundCheck._scripts and bloodlustReadySoundCheck._scripts.OnClick
+        or nil
       onClickLead = Assert.NotNil(onClickLead, "leader-transfer sound checkbox should define OnClick")
       onClickJoin = Assert.NotNil(onClickJoin, "group-join sound checkbox should define OnClick")
       onClickPortal = Assert.NotNil(onClickPortal, "portal sound checkbox should define OnClick")
       onClickBattleRes = Assert.NotNil(onClickBattleRes, "battle-res sound checkbox should define OnClick")
+      onClickBattleResReady =
+        Assert.NotNil(onClickBattleResReady, "battle-res-ready sound checkbox should define OnClick")
       onClickBloodlust = Assert.NotNil(onClickBloodlust, "bloodlust sound checkbox should define OnClick")
+      onClickBloodlustReady =
+        Assert.NotNil(onClickBloodlustReady, "bloodlust-ready sound checkbox should define OnClick")
 
       leadSoundCheck:SetChecked(false)
       onClickLead(leadSoundCheck)
@@ -2252,21 +2282,35 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       onClickPortal(portalSoundCheck)
       battleResSoundCheck:SetChecked(false)
       onClickBattleRes(battleResSoundCheck)
+      battleResReadySoundCheck:SetChecked(false)
+      onClickBattleResReady(battleResReadySoundCheck)
       bloodlustSoundCheck:SetChecked(true)
       onClickBloodlust(bloodlustSoundCheck)
+      bloodlustReadySoundCheck:SetChecked(false)
+      onClickBloodlustReady(bloodlustReadySoundCheck)
 
       Assert.False(db.soundLeadEnabled, "disabling leader-transfer sound should persist false")
       Assert.True(db.soundGroupJoinEnabled, "enabling group-join sound should persist true")
       Assert.False(db.soundPortalAvailableEnabled, "disabling portal sound should persist false")
       Assert.False(db.soundBattleResEnabled, "disabling battle-res sound should persist false")
+      Assert.False(db.soundBattleResReadyEnabled, "disabling battle-res-ready sound should persist false")
       Assert.True(db.soundBloodlustEnabled, "enabling bloodlust sound should persist true")
+      Assert.False(db.soundBloodlustReadyEnabled, "disabling bloodlust-ready sound should persist false")
 
       panel.Refresh()
       Assert.False(leadSoundCheck:GetChecked(), "refresh should keep the disabled leader-transfer sound state")
       Assert.True(groupJoinSoundCheck:GetChecked(), "refresh should keep the enabled group-join sound state")
       Assert.False(portalSoundCheck:GetChecked(), "refresh should keep the disabled portal sound state")
       Assert.False(battleResSoundCheck:GetChecked(), "refresh should keep the disabled battle-res sound state")
+      Assert.False(
+        battleResReadySoundCheck:GetChecked(),
+        "refresh should keep the disabled battle-res-ready sound state"
+      )
       Assert.True(bloodlustSoundCheck:GetChecked(), "refresh should keep the enabled bloodlust sound state")
+      Assert.False(
+        bloodlustReadySoundCheck:GetChecked(),
+        "refresh should keep the disabled bloodlust-ready sound state"
+      )
       ---@diagnostic enable: undefined-field
     end)
   end)
@@ -2668,7 +2712,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       )
       Assert.Equal(
         checkboxCount,
-        40,
+        42,
         "settings should hide only the legacy name-length"
           .. " and teleport-column controls while keeping the startup/key-end, navigator, sound,"
           .. " chat-announce, combat-fade, nameplate-subtoggle,"
@@ -2681,7 +2725,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 7, "refresh should keep the stats-box and nameplate sliders visible")
       Assert.Equal(
         checkboxCount,
-        40,
+        42,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
           .. " while preserving the visible sound, chat-announce, combat-fade, nameplate-subtoggle,"
           .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows, VIP sound toggles,"

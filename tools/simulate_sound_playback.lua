@@ -86,7 +86,9 @@ local helpers = {
   { key = "portal_available", fn = SoundUtils.PlayPortalAvailable },
   { key = "portal_available", fn = SoundUtils.PlayIncomingSummon, label = "incoming_summon" },
   { key = "battle_res", fn = SoundUtils.PlayBattleRes },
+  { key = "battle_res_ready", fn = SoundUtils.PlayBattleResReady },
   { key = "bloodlust", fn = SoundUtils.PlayBloodlust },
+  { key = "bloodlust_ready", fn = SoundUtils.PlayBloodlustReady },
 }
 
 local fail = false

@@ -581,6 +581,29 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
     Assert.Equal(dispatched[5], "INCOMING_SUMMON_CHANGED", "incoming summon status trigger should pass hidden gate")
   end)
 
+  test("Bootstrap gate keeps hidden CD refresh triggers for ready sounds", function()
+    local dispatched = {}
+
+    local addon = LoadAddonModules({ "isiLive_events.lua", "isiLive_bootstrap.lua" })
+    local gate = CreateBootstrapGate(addon, function(_frame, event, ...)
+      local _ = ...
+      table.insert(dispatched, event)
+    end)
+
+    local frame = {
+      IsShown = function()
+        return false
+      end,
+    }
+
+    gate(frame, "UNIT_AURA", "player", { isFullUpdate = true })
+    gate(frame, "SPELL_UPDATE_CHARGES")
+
+    Assert.Equal(#dispatched, 2, "hidden gate must keep event-driven CD refresh triggers")
+    Assert.Equal(dispatched[1], "UNIT_AURA", "UNIT_AURA should pass hidden gate for Bloodlust-ready")
+    Assert.Equal(dispatched[2], "SPELL_UPDATE_CHARGES", "SPELL_UPDATE_CHARGES should pass hidden gate for BRes-ready")
+  end)
+
   -- 0.9.238: GROUP_ROSTER_UPDATE is now combat-allowed. In sustained-combat
   -- instances (Delves are the canonical case) Blizzard fires the event only
   -- once when a member joins; if the gate drops it because of InCombat-
@@ -763,6 +786,54 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
     )
     Assert.Equal(dispatched[5], "PLAYER_ROLES_ASSIGNED", "config builders gate should pass PLAYER_ROLES_ASSIGNED")
     Assert.Equal(dispatched[6], "ROLE_CHANGED_INFORM", "config builders gate should pass ROLE_CHANGED_INFORM")
+  end)
+
+  test("Config builders gate allows CD refresh events while frame is hidden", function()
+    local dispatched = {}
+
+    local addon = LoadAddonModules({ "isiLive_events.lua", "isiLive_bootstrap.lua", "isiLive_config_builders.lua" })
+    local gate = addon.Bootstrap.CreateGatedOnEvent(addon.ConfigBuilders.BuildGateOpts({
+      events = addon.Events,
+      onEvent = function(_frame, event, ...)
+        local _ = ...
+        table.insert(dispatched, event)
+      end,
+      onDispatchError = nil,
+      isStopped = function()
+        return false
+      end,
+      isPaused = function()
+        return false
+      end,
+      isTestMode = function()
+        return false
+      end,
+      isInCombat = function()
+        return false
+      end,
+      isInGroup = function()
+        return true
+      end,
+      isInPartyInstance = function()
+        return false
+      end,
+      getActiveChallengeMapID = function()
+        return nil
+      end,
+    }))
+
+    local frame = {
+      IsShown = function()
+        return false
+      end,
+    }
+
+    gate(frame, "UNIT_AURA", "player", { isFullUpdate = true })
+    gate(frame, "SPELL_UPDATE_CHARGES")
+
+    Assert.Equal(#dispatched, 2, "config builders gate must allow hidden event-driven CD refreshes")
+    Assert.Equal(dispatched[1], "UNIT_AURA", "config builders gate should pass UNIT_AURA")
+    Assert.Equal(dispatched[2], "SPELL_UPDATE_CHARGES", "config builders gate should pass SPELL_UPDATE_CHARGES")
   end)
 end
 

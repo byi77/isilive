@@ -19,12 +19,38 @@ local function InitializeFactorySecondaryCdTracker(
   ctx.cdTrackerController = modules.cdTracker.CreateController({
     getTime = getTime,
   })
+  local lastBResCharges = nil
   local lastLustActive = false
   ctx.UpdateCdTracker = function(opts)
+    local optsTable = type(opts) == "table" and opts or nil
+    local suppressBattleResReadySound = optsTable and optsTable.suppressBattleResReadySound == true
+    local suppressLustReadySound = optsTable and optsTable.suppressLustReadySound == true
     if IsRaidModeActive() then
+      lastBResCharges = nil
+      lastLustActive = false
       return
     end
     ctx.cdTrackerController.Scan()
+    local bresInfo = type(ctx.cdTrackerController.GetBResInfo) == "function" and ctx.cdTrackerController.GetBResInfo()
+      or nil
+    local bresCharges = type(bresInfo) == "table" and tonumber(bresInfo.charges) or nil
+    if
+      lastBResCharges ~= nil
+      and lastBResCharges <= 0
+      and bresCharges ~= nil
+      and bresCharges > 0
+      and not suppressBattleResReadySound
+      and ctx.addonTable
+      and type(ctx.addonTable.SoundUtils) == "table"
+      and type(ctx.addonTable.SoundUtils.PlayBattleResReady) == "function"
+    then
+      ctx.addonTable.SoundUtils.PlayBattleResReady()
+    end
+    if suppressBattleResReadySound then
+      lastBResCharges = nil
+    else
+      lastBResCharges = bresCharges
+    end
     local lustInfo = type(ctx.cdTrackerController.GetLustInfo) == "function" and ctx.cdTrackerController.GetLustInfo()
       or nil
     local lustActive = type(lustInfo) == "table" and tonumber(lustInfo.remain) ~= nil and lustInfo.remain > 0
@@ -39,7 +65,21 @@ local function InitializeFactorySecondaryCdTracker(
     then
       ctx.addonTable.SoundUtils.PlayBloodlust()
     end
-    lastLustActive = lustActive
+    if
+      lastLustActive
+      and not lustActive
+      and not suppressLustReadySound
+      and ctx.addonTable
+      and type(ctx.addonTable.SoundUtils) == "table"
+      and type(ctx.addonTable.SoundUtils.PlayBloodlustReady) == "function"
+    then
+      ctx.addonTable.SoundUtils.PlayBloodlustReady()
+    end
+    if suppressLustReadySound then
+      lastLustActive = false
+    else
+      lastLustActive = lustActive
+    end
     if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
       ctx.rosterPanelController.RefreshCdTracker()
     end

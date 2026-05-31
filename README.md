@@ -4,7 +4,7 @@
 
 - **For:** M+ players in pre-made groups and LFG runs
 - **WoW version:** `12.0+` (Midnight) only
-- **Current version:** `0.9.290`
+- **Current version:** `0.9.291`
 - **Active season:** `midnight_s1` — 8 dungeons (Wing, MT, NPX, MC, AA, POS, SOT, SR)
 
 ---
@@ -37,7 +37,7 @@ When you join a group, isiLive opens a single window with everything you want to
 - Escape-menu shortcut panels for tools, travel, verified mount shortcuts, and installed/enabled supported addons
 - Configurable Hearthstone travel shortcut with random owned, default item, or a specific owned Hearthstone toy
 - Who can interrupt, and whose kick is still on cooldown
-- Battle Res charges and Bloodlust cooldown during a run
+- Battle Res charges, Bloodlust cooldown, and separate Battle Res-ready / Bloodlust-ready alerts during a run
 - The M+ timer with `+3 / +2 / +1` cutoffs live
 - Forces percentage with a live pull-prediction bar and combat-end refresh so completed pulls are reflected immediately
 - Default-on **forces overlay on every enemy nameplate** during a key — shows what each individual mob contributes plus the verified remaining count needed to finish enemy forces
@@ -114,7 +114,7 @@ During a ready check, the row background changes color: **green** for ready, **r
 
 ### M+ Utility Row
 
-- **BR** — Battle Res charges and cooldown with icon
+- **BR** — Battle Res charges and cooldown with icon, plus optional ready TTS when a charge returns
 - **Lust** — Bloodlust/Heroism cooldown with icon and remaining time
 - **M+ Timer** — `+3 / +2 / +1` cutoffs counting down live, plus death penalty; resets immediately when the key completes or is aborted
 
@@ -210,7 +210,7 @@ You can turn either announce off in the settings. Non-isiLive group members won'
 
 ### Pre-key group view
 
-When you get an LFG invite, the matching portal highlights and the center notice includes a clickable portal button from the verified listing activity. The invite hint and accepted-invite notice show dungeon, group, leader, and source rows. The chat tells you which dungeon and level you joined, and the bottom M+ killtracker mirrors that verified target as a right-aligned dungeon + key-level label until the key starts.
+When you get an LFG invite, the matching portal highlights and the center notice includes a clickable portal button from the verified listing activity. The invite hint and accepted-invite notice show dungeon, group, leader, and source rows. The dungeon row includes the key level when the level is available from the accepted context or as an exact `+N` in the verified LFG group title. The chat tells you which dungeon and level you joined, and the bottom M+ killtracker mirrors that verified target as a right-aligned dungeon + key-level label until the key starts.
 
 ### Group Finder class-bonus hints
 
@@ -260,7 +260,7 @@ Open via **Escape → AddOns → isiLive**. Everything takes effect immediately.
 - **General** — language, startup auto-show, minimap button, Hearthstone travel shortcut selection
 - **Display** — UI scale, background opacity, default layout (M+, M, H, V), lock main frame position, player stats box controls, Group Finder language flags and class-bonus hints, reset UI
 - **Behavior** — addon sync, auto-show/hide triggers (show on login, auto-open on M+ queue, auto-open on key end, auto-close on key start, auto-close on leaving the group), lock main frame position, fade in combat, raid behavior status
-- **Sounds** — lead transfer, full group, incoming summon, Battle Res, Bloodlust, plus VIP guest mount sound mute toggles for Astral Aurochs, Grand Expedition Yak, and Trader's Gilded Brutosaur
+- **Sounds** — lead transfer, full group, incoming summon, Battle Res, Battle Res Ready, Bloodlust, Bloodlust Ready, plus VIP guest mount sound mute toggles for Astral Aurochs, Grand Expedition Yak, and Trader's Gilded Brutosaur
 - **Nameplates** — enable forces overlay, font size, position, percent toggle
 - **Chat Announcements** — announce Battle Res / announce Bloodlust
 - **Administrative** — queue debug log, runtime log (both reset on reload, for support), plus dedicated **Clear Queue Debug Log** / **Clear Runtime Log** buttons in the panel for one-click log purge without using the slash command

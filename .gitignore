@@ -26,6 +26,8 @@ build/
 sounds/*
 !sounds/CartoonVoiceBaritone.ogg
 !sounds/BoxingArenaSound.ogg
+!sounds/BattleRezReady.wav
+!sounds/BloodlustReady.wav
 !sounds/ChickenAlarm.ogg
 !sounds/SynthChord.ogg
 

@@ -667,37 +667,42 @@ local function HandleGroupRosterUpdate(deps)
   if wasRaidGroupBefore then
     deps.clearKnownUsers()
   end
+  local restoredFromReloadMirror = false
   if joinedNow then
     deps.setRoster({})
-    TryRestoreReloadRosterMirror(deps)
-    deps.setMainFrameVisible(true, {
-      reason = "queue",
-      skipShowCallbacks = true,
-    })
-    -- Pre-sync leader state so PARTY_LEADER_CHANGED does not trigger a
-    -- "you are now leader" notification when the player created the group.
-    if deps.unitIsGroupLeader("player") then
-      deps.setWasGroupLeader(true)
+    restoredFromReloadMirror = TryRestoreReloadRosterMirror(deps)
+    if not restoredFromReloadMirror then
+      deps.setMainFrameVisible(true, {
+        reason = "queue",
+        skipShowCallbacks = true,
+      })
+      -- Pre-sync leader state so PARTY_LEADER_CHANGED does not trigger a
+      -- "you are now leader" notification when the player created the group.
+      if deps.unitIsGroupLeader("player") then
+        deps.setWasGroupLeader(true)
+      end
+      deps.captureQueueJoinCandidate()
+      deps.announceQueuedGroupJoin()
+      deps.onGroupJoined()
     end
-    deps.captureQueueJoinCandidate()
-    deps.announceQueuedGroupJoin()
-    deps.onGroupJoined()
   end
 
   local roster = deps.getRoster()
   deps.resetInspectQueues()
 
   AddPlayerToRoster(deps, roster)
-  UpdatePartyMembersInRoster(deps, roster, joinedNow and nil or deps)
+  UpdatePartyMembersInRoster(deps, roster, joinedNow and not restoredFromReloadMirror and nil or deps)
 
-  deps.sendOwnKeySnapshot(joinedNow, "group")
+  deps.sendOwnKeySnapshot(joinedNow and not restoredFromReloadMirror, "group")
   SaveReloadRosterMirror(deps, roster)
   deps.updateUI()
   deps.updateMPlusTeleportButton()
   deps.updateLeaderButtons()
-  deps.sendIsiLiveHello(joinedNow, "group")
+  deps.sendIsiLiveHello(joinedNow and not restoredFromReloadMirror, "group")
   if joinedNow then
     -- Delay to ensure IsInGroup() has settled before sending addon messages.
+    -- Reload-mirror restores are not fresh joins, but still need one live
+    -- refresh request so restored peer data is verified after /reload.
     deps.timerAfter(0.5, function()
       deps.sendRefreshRequest(true)
     end)

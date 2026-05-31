@@ -48,7 +48,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 25. (veraltet — Duplikat zu Regel 15) RIO-Delta bleibt immer bei `+0` oder hoeher.
 26. (veraltet — Duplikat zu Regel 2) UI-Toggle per STRG+F9 ausserhalb des Raids.
 27. das schliessen der ui ist jederzeit anforderbar, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9; ausser im Raidmodus bleiben blockierte hide-wechsel bis `PLAYER_REGEN_ENABLED` gependelt und werden dann nachgezogen
-28. während die ui ausgeblendet ist, laufen roster/addon-sync im hintergrund weiter und dürfen eventgetrieben vor-rendern; queue-scanning und sonstige dauerhafte polling-last stoppen jedoch, der kick-sync bleibt fuer isiLive-gruppenmitglieder aktiv. `LFG_LIST_APPLICATION_STATUS_UPDATED` bleibt hidden fuer Queue- und Invite-Listenverarbeitung blockiert. Im Raid sind UI und Hintergrund-Sync komplett aus.
+28. während die ui ausgeblendet ist, laufen roster/addon-sync im hintergrund weiter und dürfen eventgetrieben vor-rendern; queue-scanning und sonstige dauerhafte polling-last stoppen jedoch, der kick-sync bleibt fuer isiLive-gruppenmitglieder aktiv. Eventgetriebene CD-Refreshes fuer Bloodlust-ready- und Battle-Res-ready-Klanghinweise bleiben hidden erlaubt. `LFG_LIST_APPLICATION_STATUS_UPDATED` bleibt hidden fuer Queue- und Invite-Listenverarbeitung blockiert. Im Raid sind UI und Hintergrund-Sync komplett aus.
 29. teleport-eintraege fuer shared spells bleiben deterministisch sortiert und doppelte grid-eintraege werden entfernt.
 30. falls ein anderer user entdeckt wird welcher auch "isiLive" benutzt, hängen wir hinter seinen Namen ein <3 (blaues herz) an
 31. main ui auto-open bleibt bei gruppenbeitritt erhalten, ausser im Raidmodus; key-ende auto-open ist standardmaessig an, aber abschaltbar; automatisches schliessen bei key start ist standardmaessig aus.
@@ -84,13 +84,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 61. Die verworfene LFG-Invite-Liste bleibt entfernt: Es gibt kein Modul, keinen TOC-Eintrag, kein Settings-Control, kein SavedVariable-Feld und kein Runtime-Wiring; `LFG_LIST_APPLICATION_STATUS_UPDATED` darf keine Invite-Listenverarbeitung ausloesen.
 62. Addon-eigene sichtbare FontStrings und private Tooltips muessen fuer `ruRU` und konkrete kyrillische Payload-Texte einen kyrillisch-faehigen Font verwenden, unabhaengig vom WoW-Client-Locale.
 63. Die M+Marker-Leiste muss native SecureActionButton-Worldmarker-Attribute verwenden, ihre sicheren Klickflaechen ueber konkurrierenden UI-Sibling-Frames halten und darf keine geschuetzten Marker-APIs direkt aufrufen.
-64. Ein Reload-Roster-Mirror darf verifizierte Gruppenanzeigedaten und den verifizierten aktuellen Gruppen-Ziel-Key nur wiederherstellen, wenn die aktuelle Gruppensignatur exakt zur gespeicherten Signatur passt; Kick-Zustaende werden daraus nicht wiederhergestellt.
+64. Ein Reload-Roster-Mirror darf verifizierte Gruppenanzeigedaten und den verifizierten aktuellen Gruppen-Ziel-Key nur wiederherstellen, wenn die aktuelle Gruppensignatur exakt zur gespeicherten Signatur passt; ein erfolgreicher Mirror-Restore ist kein neuer Gruppenbeitritt und darf keine Join-Sideeffects ausloesen; Kick-Zustaende werden daraus nicht wiederhergestellt.
 65. Die eigenstaendige Spieler-Stats-Box zeigt den Primärstat klassen- beziehungsweise spezialisierungsgenau, zeigt nur direkt aus Blizzard-Live-APIs gelesene Werte, kann Leech, Speed, Haltbarkeit, Ausdauer und Vermeidung einzeln ein- oder ausblenden, kann Werte und Prozente zusammen oder jeweils einzeln anzeigen, aktiviert Leech, Speed und Haltbarkeit standardmaessig und deaktiviert Ausdauer und Vermeidung standardmaessig, haelt ihre Werte-Spalte auch bei drei- und vierstelligen Zahlen stabil, haelt ihre Prozent-Spalte breit genug fuer `(999.99%)`, ist rahmenlos, standardmaessig aus, ueber Settings einschaltbar und gegen Positions-Drag sperrbar, und speichert ihre Position getrennt von der Main-UI.
 66. Alle frei verschiebbaren isiLive-Fenster muessen an den WoW-Sichtbereich geklemmt sein, sodass ihre Raender beim Ziehen nicht ausserhalb des WoW-Fensters verschwinden.
 67. Das ESC-Addons-Panel darf Shortcut-Buttons fuer Addons anzeigen, die installiert und auf dem aktuellen Charakter aktiviert sind; beim Klick muss ein noch nicht geladenes externes Ziel-Addon verifiziert geladen werden, bevor dessen registrierter Slash-Alias ausgefuehrt wird. Der isiLive-eigene Shortcut darf stattdessen direkt die isiLive-Settings oeffnen und darf keinen Self-Load versuchen.
 68. Die LFG-Klassenbonus-Herzchen zaehlen nur relevante, nicht stapelnde Gruppenboni; Utility-Effekte wie PI, BL, BR, Devotion Aura und Atrophic Poison erzeugen keine Herzchen, und Applicant-Zeilen rendern diese Herzchen als grüne Texturmarker rechts neben dem Klassenbadge. Applicant-Zeilen zeigen Sprachflaggen nur aus verifizierter Realm-Sprache und muessen den Namensanker beim Ausblenden wiederherstellen. Der Settings-Schalter ist standardmaessig aktiv, kann die Buff-Rating-Herzchen ein- und ausschalten und beschreibt mit untereinander stehenden Herz-Textur-Beispielzeilen, dass 1/2/3/4 Herzchen einen, zwei, drei beziehungsweise vier oder mehr relevante Buffs bedeuten. Beim Programmieren werden Deutsch und Englisch gepflegt; weitere vorbereitete Locales duerfen bis zur Nachbearbeitung englischen Fallback verwenden oder nachbearbeitete Uebersetzungen tragen.
-69. Wenn nach einem LFG-Gruppenbeitritt kein `inviteaccepted`-Event beim Accepted-Invite-Pfad angekommen ist, darf die Centerbox nur bei aktiviertem Gruppenbeitritts-Zielhinweis aus einem bereits verifizierten lokalen Ziel-Dungeon-Kontext gerendert werden und muss ohne diesen Kontext oder bei deaktiviertem Gruppenbeitritts-Zielhinweis stumm bleiben. Die direkte Accepted-Invite-Notice und der Gruppenbeitritts-Zielhinweis muessen getrennt schaltbar bleiben.
+69. Wenn nach einem LFG-Gruppenbeitritt kein `inviteaccepted`-Event beim Accepted-Invite-Pfad angekommen ist, darf die Centerbox nur bei aktiviertem Gruppenbeitritts-Zielhinweis aus einem bereits verifizierten lokalen Ziel-Dungeon-Kontext gerendert werden und muss ohne diesen Kontext, bei deaktiviertem Gruppenbeitritts-Zielhinweis oder bei einem Reload-Roster-Mirror-Restore einer bestehenden Gruppe stumm bleiben. Die direkte Accepted-Invite-Notice und der Gruppenbeitritts-Zielhinweis muessen getrennt schaltbar bleiben.
 70. Center-Notice- und Portal-Navigator-Ueberschriften muessen mit `isiLive - ` beginnen und den gemeinsamen warmen Goldton verwenden.
+71. Der Bloodlust-ready-Klanghinweis darf nur beim natuerlichen beobachteten Uebergang von aktivem Erschoepfungsdebuff zu keinem aktiven Erschoepfungsdebuff einmal pro Zyklus abgespielt werden, darf bei Key-Ende- oder Key-Abbruch-Refresh nicht ausloesen, muss UNIT_AURA-Removal-Payloads als moegliches natuerliches Auslaufen scannen und muss die eigene Settings-Option respektieren.
+72. Der Battle-Res-ready-Klanghinweis darf nur beim natuerlichen beobachteten Uebergang von null verfuegbaren Battle-Res-Aufladungen zu mindestens einer verfuegbaren Aufladung einmal pro Zyklus abgespielt werden, darf bei Key-Ende- oder Key-Abbruch-Refresh nicht ausloesen und muss die eigene Settings-Option respektieren.
 
 ## Regelbloecke
 
@@ -344,7 +346,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-HIDDEN-SPARFLAMME
 - Regelnummer: 28
 - Status: aktiv
-- Zusammenfassung: waehrend die ui ausgeblendet ist, laeuft der daten-sync (roster/addon-msgs) im hintergrund weiter und darf eventgetrieben ui-zustand vor-rendern; queue-scanning und sonstige dauerhafte polling-last bleiben aus. `LFG_LIST_APPLICATION_STATUS_UPDATED` bleibt hidden fuer Queue- und Invite-Listenverarbeitung blockiert. Der Kick-Sync fuer isiLive-Gruppenmitglieder bleibt davon ausgenommen und darf weiterlaufen, damit ausgeblendete Clients keine Kick-Nachteile erzeugen. Ein expliziter Refresh-Request darf Hidden-Clients genau eine forciert eventgetriebene Antwort entlocken (alle Sync-Buckets: KEY, STATS, DPS, LOC, TARGET, KICK); gestoppte oder pausierte Runs antworten dabei nicht. Im Raid sind UI und Hintergrund-Sync komplett aus.
+- Zusammenfassung: waehrend die ui ausgeblendet ist, laeuft der daten-sync (roster/addon-msgs) im hintergrund weiter und darf eventgetrieben ui-zustand vor-rendern; queue-scanning und sonstige dauerhafte polling-last bleiben aus. `LFG_LIST_APPLICATION_STATUS_UPDATED` bleibt hidden fuer Queue- und Invite-Listenverarbeitung blockiert. Eventgetriebene CD-Refreshes duerfen hidden fuer Bloodlust-ready- und Battle-Res-ready-Klanghinweise laufen, ohne den dauerhaften Hidden-CD-Ticker zu aktivieren. Der Kick-Sync fuer isiLive-Gruppenmitglieder bleibt davon ausgenommen und darf weiterlaufen, damit ausgeblendete Clients keine Kick-Nachteile erzeugen. Ein expliziter Refresh-Request darf Hidden-Clients genau eine forciert eventgetriebene Antwort entlocken (alle Sync-Buckets: KEY, STATS, DPS, LOC, TARGET, KICK); gestoppte oder pausierte Runs antworten dabei nicht. Im Raid sind UI und Hintergrund-Sync komplett aus.
 - Erforderliche Tests:
   - Bootstrap gate allows sync events while frame is hidden if configured
   - ConfigBuilders hidden gate keeps LFG status blocked
@@ -365,6 +367,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - KeySync SendRefreshResponse can answer hidden refresh requests
   - KeySync SendRefreshResponse skips while paused or stopped
   - Bootstrap gate keeps hidden lifecycle triggers for key start/end and summon
+  - Bootstrap gate keeps hidden CD refresh triggers for ready sounds
+  - Config builders gate allows CD refresh events while frame is hidden
   - INCOMING_SUMMON_CHANGED plays incoming-summon sound for pending player summons
   - INCOMING_SUMMON_CHANGED ignores non-player and non-pending summon updates
   - INCOMING_SUMMON_CHANGED fails closed when pending summon enum is unavailable
@@ -865,10 +869,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-RELOAD-ROSTER-MIRROR-SIGNATUR
 - Regelnummer: 64
 - Status: aktiv
-- Zusammenfassung: Der Reload-Roster-Mirror darf verifizierte Gruppenanzeigedaten nach `/reload` nur dann in den Runtime-Roster vorbefuellen, wenn die aktuelle Gruppensignatur aus den konkret lesbaren `player`/`partyN`-Mitgliedern exakt der gespeicherten Signatur entspricht. Der verifizierte aktuelle Gruppen-Ziel-Key mit Dungeon-mapID, Dungeonname und optionaler positiver numerischer Keystufe oder exaktem Leveltext darf nur mit derselben Signatur gespeichert und wiederhergestellt werden. Bei fehlender, unvollstaendiger oder abweichender Signatur muss der gespeicherte Mirror verworfen werden. Kick-Zustaende duerfen nicht aus dem Reload-Roster-Mirror wiederhergestellt werden. Nach einer erfolgreichen Vorbefuellung muss der normale Live-Sync-Refresh weiter angefordert werden.
+- Zusammenfassung: Der Reload-Roster-Mirror darf verifizierte Gruppenanzeigedaten nach `/reload` nur dann in den Runtime-Roster vorbefuellen, wenn die aktuelle Gruppensignatur aus den konkret lesbaren `player`/`partyN`-Mitgliedern exakt der gespeicherten Signatur entspricht. Der verifizierte aktuelle Gruppen-Ziel-Key mit Dungeon-mapID, Dungeonname und optionaler positiver numerischer Keystufe oder exaktem Leveltext darf nur mit derselben Signatur gespeichert und wiederhergestellt werden. Bei fehlender, unvollstaendiger oder abweichender Signatur muss der gespeicherte Mirror verworfen werden. Ein erfolgreicher Mirror-Restore einer bestehenden Gruppe darf keine Queue-Capture-, Queue-Announce-, Auto-Open- oder Group-Join-Notice-Sideeffects ausloesen. Kick-Zustaende duerfen nicht aus dem Reload-Roster-Mirror wiederhergestellt werden. Nach einer erfolgreichen Vorbefuellung muss der normale Live-Sync-Refresh weiter angefordert werden.
 - Erforderliche Tests:
   - Reload roster mirror restores verified data when group signature matches
   - Reload roster mirror restores verified target key when group signature matches
+  - Reload roster mirror suppresses group-join side effects outside active key
   - Reload roster mirror is discarded when group signature differs
   - factory_controllers.status: reload roster target snapshot restores target level before roster owner
   - DBSchema.Sanitize gives each db an isolated reload roster mirror
@@ -950,14 +955,16 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-LFG-GRUPPENBEITRITT-CENTERBOX-VERIFIZIERT
 - Regelnummer: 69
 - Status: aktiv
-- Zusammenfassung: Nach einem LFG-Gruppenbeitritt darf die Accepted-Invite-Fallback-Centerbox mit Portalbutton auch dann erscheinen, wenn kein `LFG_LIST_APPLICATION_STATUS_UPDATED=inviteaccepted` beim Accepted-Invite-Pfad angekommen ist, aber bereits ein verifizierter lokaler Ziel-Dungeon-Kontext (`ResolveLocalStatusTargetMapID` plus Status-Dungeon-Info) vorliegt und `groupJoinNoticeEnabled` nicht deaktiviert ist. Die Fallback-Centerbox darf keinen Dungeon, keine Keystufe, kein Gruppenlabel und keinen Portalbutton raten; ohne verifizierte lokale Ziel-Map oder bei deaktiviertem Gruppenbeitritts-Zielhinweis bleibt sie stumm. `acceptedInviteNoticeEnabled` darf diesen Fallback nicht deaktivieren, weil direkte Accepted-Invite-Notice und Gruppenbeitritts-Zielhinweis getrennte Settings sind. Wenn die direkte Accepted-Invite-Centerbox bereits aus dem `inviteaccepted`-Pfad gerendert wurde, darf der Gruppenbeitritt keine zweite Centerbox fuer denselben Join erzeugen.
+- Zusammenfassung: Nach einem LFG-Gruppenbeitritt darf die Accepted-Invite-Fallback-Centerbox mit Portalbutton auch dann erscheinen, wenn kein `LFG_LIST_APPLICATION_STATUS_UPDATED=inviteaccepted` beim Accepted-Invite-Pfad angekommen ist, aber bereits ein verifizierter lokaler Ziel-Dungeon-Kontext (`ResolveLocalStatusTargetMapID` plus Status-Dungeon-Info) vorliegt und `groupJoinNoticeEnabled` nicht deaktiviert ist. Die Fallback-Centerbox darf keinen Dungeon, keine Keystufe, kein Gruppenlabel und keinen Portalbutton raten; eine Keystufe darf nur aus `Status-Dungeon-Info` oder aus einem konkret verifizierten `+N` im LFG-Gruppentitel der angenommenen Gruppe uebernommen werden. Ohne verifizierte lokale Ziel-Map, bei deaktiviertem Gruppenbeitritts-Zielhinweis oder bei einem erfolgreichen Reload-Roster-Mirror-Restore einer bereits bestehenden Gruppe bleibt sie stumm. `acceptedInviteNoticeEnabled` darf diesen Fallback nicht deaktivieren, weil direkte Accepted-Invite-Notice und Gruppenbeitritts-Zielhinweis getrennte Settings sind. Wenn die direkte Accepted-Invite-Centerbox bereits aus dem `inviteaccepted`-Pfad gerendert wurde, darf der Gruppenbeitritt keine zweite Centerbox fuer denselben Join erzeugen.
 - Erforderliche Tests:
   - ControllerWiring CreateGroupControllerFromContext forwards group-joined callback
   - factory_controllers: ShowJoinedTargetNotice renders from verified local target when accept event is missing
+  - factory_controllers: ShowJoinedTargetNotice derives notice dungeon level from verified LFG group title
   - factory_controllers: ShowJoinedTargetNotice stays silent without verified local target
   - factory_controllers: ShowJoinedTargetNotice ignores accepted invite notice setting
   - factory_controllers: ShowJoinedTargetNotice respects group join notice setting
   - factory_controllers: ShowJoinedTargetNotice suppresses duplicate after direct accepted notice
+  - Reload roster mirror suppresses group-join side effects outside active key
 
 ### RULE-NOTICE-TITEL-BRAND-GOLD
 - Regelnummer: 70
@@ -966,3 +973,28 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Locale center-notice titles use isiLive prefix in every locale
   - Center notice headline titles use shared gold color
+
+### RULE-BLOODLUST-READY-KLANGHINWEIS
+- Regelnummer: 71
+- Status: aktiv
+- Zusammenfassung: Der Bloodlust-ready-Klanghinweis wird erst abgespielt, nachdem der CD-Tracker zuvor einen aktiven Bloodlust-/Heroism-/Time-Warp-Erschoepfungsdebuff beobachtet hat und ein spaeterer natuerlicher Scan keinen aktiven Erschoepfungsdebuff mehr findet. Ein inaktiver Initialscan darf keinen Ready-Klang ausloesen, ein dauerhaft inaktiver Zustand darf den Ready-Klang nicht wiederholen, und ein spaeterer neuer Bloodlust-Zyklus darf genau einen weiteren Ready-Klang ausloesen. UNIT_AURA-Removal-Payloads muessen einen CD-Scan ausloesen, weil Aura-Entfernungen beim natuerlichen Auslaufen keine belastbare `spellId` mehr liefern muessen. Refreshes fuer Key-Ende oder Key-Abbruch duerfen keinen Ready-Klang ausloesen und muessen den beobachteten Ready-Zyklus verwerfen, weil die Aura dabei nicht als natuerlich ausgelaufen gilt und ein spaeterer Welt-/Zonen-Refresh keine nachtraegliche Ready-Ansage erzeugen darf. Wenn `soundBloodlustReadyEnabled` deaktiviert ist, muss der TTS-Klang stumm bleiben.
+- Erforderliche Tests:
+  - Factory CD refresh plays Bloodlust-ready sound once when exhaustion expires
+  - Event handlers call updateCdTracker on UNIT_AURA aura removals
+  - Factory CD refresh suppresses Bloodlust-ready sound on key reset refresh
+  - Factory CD refresh clears Bloodlust-ready cycle when key ends during exhaustion
+  - Bootstrap gate keeps hidden CD refresh triggers for ready sounds
+  - Config builders gate allows CD refresh events while frame is hidden
+  - SoundUtils Bloodlust-ready setting disables TTS playback
+
+### RULE-BATTLE-RES-READY-KLANGHINWEIS
+- Regelnummer: 72
+- Status: aktiv
+- Zusammenfassung: Der Battle-Res-ready-Klanghinweis wird erst abgespielt, nachdem der CD-Tracker zuvor aus direkt gelesenen Battle-Res-Charges null verfuegbare Aufladungen beobachtet hat und ein spaeterer natuerlicher Scan mindestens eine verfuegbare Aufladung findet. Ein unbekannter Initialscan oder ein bereits verfuegbarer Initialscan darf keinen Ready-Klang ausloesen, dauerhaft verfuegbare Battle-Res-Charges duerfen den Ready-Klang nicht wiederholen, und ein spaeterer neuer Null-zu-verfuegbar-Zyklus darf genau einen weiteren Ready-Klang ausloesen. Refreshes fuer Key-Ende oder Key-Abbruch duerfen keinen Ready-Klang ausloesen und muessen den beobachteten Ready-Zyklus verwerfen, weil die Aufladung dabei nicht als natuerlich wieder verfuegbar gilt und ein spaeterer Welt-/Zonen-Refresh keine nachtraegliche Ready-Ansage erzeugen darf. Wenn `soundBattleResReadyEnabled` deaktiviert ist, muss der TTS-Klang stumm bleiben.
+- Erforderliche Tests:
+  - Factory CD refresh plays Battle Res-ready sound once when charges recover
+  - Factory CD refresh suppresses Battle Res-ready sound on key reset refresh
+  - Factory CD refresh clears Battle Res-ready cycle when key ends during cooldown
+  - Bootstrap gate keeps hidden CD refresh triggers for ready sounds
+  - Config builders gate allows CD refresh events while frame is hidden
+  - SoundUtils Battle Res-ready setting disables TTS playback
