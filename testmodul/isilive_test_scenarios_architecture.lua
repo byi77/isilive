@@ -1115,7 +1115,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         "Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg",
         "leader-transfer sound helper should use the transfer asset"
       )
-      Assert.Equal(playedChannel, "SFX", "leader-transfer sound helper should use the SFX channel")
+      Assert.Equal(playedChannel, "Master", "leader-transfer sound helper should use the Master channel")
       db.soundGroupJoinEnabled = true
       addon.SoundUtils.PlayGroupJoin()
       Assert.Equal(playCalls, 2, "group-join sound helper should play exactly once after the leader sound")
@@ -1124,7 +1124,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         "Interface\\AddOns\\isiLive\\sounds\\SynthChord.ogg",
         "group-join sound helper should use the SynthChord asset"
       )
-      Assert.Equal(playedChannel, "SFX", "group-join sound helper should use the SFX channel")
+      Assert.Equal(playedChannel, "Master", "group-join sound helper should use the Master channel")
       addon.SoundUtils.PlayPortalAvailable()
       Assert.Equal(playCalls, 3, "portal sound helper should play exactly once after the group sound")
       Assert.Equal(
@@ -1132,7 +1132,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         "Interface\\AddOns\\isiLive\\sounds\\Portal.ogg",
         "portal sound helper should use the bundled portal asset"
       )
-      Assert.Equal(playedChannel, "SFX", "portal sound helper should use the SFX channel")
+      Assert.Equal(playedChannel, "Master", "portal sound helper should use the Master channel")
       addon.SoundUtils.PlayBattleRes()
       addon.SoundUtils.PlayBattleResReady()
       addon.SoundUtils.PlayBloodlust()
@@ -1195,7 +1195,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       addon.SoundUtils.PlaySoundKit(7777)
       Assert.Equal(playCalls, 2, "numeric SoundKit ids must play directly")
       Assert.Equal(playedSoundKit, 7777, "numeric SoundKit playback must pass the given id")
-      Assert.Equal(playedChannel, "SFX", "SoundKit playback defaults to the SFX channel")
+      Assert.Equal(playedChannel, "Master", "SoundKit playback defaults to the Master channel")
 
       local aurochsIDs = addon.SoundUtils.GetAstralAurochsSoundFileIDs()
       Assert.NotNil(aurochsIDs, "astral aurochs sound mute list must be exposed for tests")

@@ -811,6 +811,12 @@ return function(test, ctx)
         return raidMode
       end)
 
+      runningTimer = true
+      factoryCtx.addonTable.MplusTimer = {
+        GetTimerData = function()
+          return { running = runningTimer }
+        end,
+      }
       factoryCtx.UpdateCdTracker()
       lustInfo = { remain = 12 }
       factoryCtx.UpdateCdTracker({ playLustSoundOnStart = true })
@@ -818,12 +824,6 @@ return function(test, ctx)
       factoryCtx.UpdateCdTracker()
       raidMode = false
 
-      runningTimer = true
-      factoryCtx.addonTable.MplusTimer = {
-        GetTimerData = function()
-          return { running = runningTimer }
-        end,
-      }
       mainShown = false
       tickerCallback()
       mainShown = true

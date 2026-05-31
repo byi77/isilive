@@ -711,7 +711,7 @@ return function(test, ctx)
           INVITE_ACCEPTED_NOTICE_HEADLINE_WITH_LEVEL = "%s +%d",
           INVITE_ACCEPTED_NOTICE_HEADLINE_NO_LEVEL = "%s",
           INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON = "Dungeon-DE:",
-          INVITE_ACCEPTED_NOTICE_LABEL_GROUP = "Gruppe-DE:",
+          INVITE_ACCEPTED_NOTICE_LABEL_GROUP = "Titel-DE:",
           INVITE_ACCEPTED_NOTICE_LABEL_DESCRIPTION = "Beschr-DE:",
           INVITE_ACCEPTED_NOTICE_LABEL_ROLE = "Rolle-DE:",
           INVITE_ACCEPTED_NOTICE_LABEL_LEADER = "Leader-DE:",
@@ -851,7 +851,7 @@ return function(test, ctx)
     Assert.Equal(#fields, 4, "must render dungeon + group + leader + source rows")
     Assert.Equal(fields[1].label, "Dungeon-DE:", "row 1 must be the dungeon label")
     Assert.Equal(fields[1].value, "MyDungeon +10", "row 1 must render +N from the level")
-    Assert.Equal(fields[2].label, "Gruppe-DE:", "row 2 must be the group label")
+    Assert.Equal(fields[2].label, "Titel-DE:", "row 2 must be the title label")
     Assert.Equal(fields[2].value, "Crew", "row 2 must echo the group name")
     Assert.Equal(fields[3].label, "Leader-DE:", "row 3 must be the leader label")
     Assert.Equal(fields[3].value, "Lead", "row 3 must echo the accepted invite leader")
@@ -885,7 +885,7 @@ return function(test, ctx)
       "Grube von Saron +10",
       "plain +N group title must be appended to the dungeon row"
     )
-    Assert.Equal(fieldsPlain[2].label, "Gruppe-DE:", "group title row must keep the group label")
+    Assert.Equal(fieldsPlain[2].label, "Titel-DE:", "group title row must keep the title label")
     Assert.Equal(fieldsPlain[2].value, "+10", "group title row must preserve the raw LFG title")
 
     local fieldsText = build(c, "Grube von Saron", { groupName = "+13 weekly" })
@@ -934,7 +934,7 @@ return function(test, ctx)
       Assert.Equal(#fields, 4, "missing optional locale keys must still render the mockup field set")
       Assert.Equal(fields[1].label, "Dungeon:", "missing dungeon label key must fall back to english")
       Assert.Equal(fields[1].value, "Dun +7", "missing headline template must fall back to english")
-      Assert.Equal(fields[2].label, "Group:", "missing group label key must fall back to english")
+      Assert.Equal(fields[2].label, "Title:", "missing title label key must fall back to english")
       Assert.Equal(fields[3].label, "Leader:", "missing leader label key must fall back to english")
       Assert.Equal(fields[4].label, "Source:", "missing source label key must fall back to english")
       Assert.Equal(fields[4].value, "LFG accepted invite", "missing source value key must fall back to english")
@@ -1150,7 +1150,7 @@ return function(test, ctx)
         "Grube von Saron +10",
         "fallback notice must append the verified +N from the LFG group title to the dungeon row"
       )
-      Assert.Equal(call.showOptions.fields[2].label, "Gruppe-DE:", "raw LFG title row must remain a group-title row")
+      Assert.Equal(call.showOptions.fields[2].label, "Titel-DE:", "raw LFG title row must remain a title row")
       Assert.Equal(call.showOptions.fields[2].value, "+10", "raw LFG title must still be visible")
       Assert.Equal(
         call.showOptions.fields[3].value,
@@ -1393,7 +1393,7 @@ return function(test, ctx)
     Assert.Equal(#fields, 4, "must render dungeon + group + description + role rows")
     Assert.Equal(fields[1].label, "Dungeon-DE:", "row 1 must be the dungeon label")
     Assert.Equal(fields[1].value, "Manaforge Omega", "row 1 must render the raid name without +N suffix")
-    Assert.Equal(fields[2].label, "Gruppe-DE:", "row 2 must be the group label")
+    Assert.Equal(fields[2].label, "Titel-DE:", "row 2 must be the title label")
     Assert.Equal(fields[2].value, "AOTC", "row 2 must echo the group name")
     Assert.Equal(fields[3].label, "Beschr-DE:", "row 3 must be the description label")
     Assert.Equal(fields[3].value, "exp only", "row 3 must echo the comment")

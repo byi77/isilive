@@ -1,17 +1,17 @@
 #!/usr/bin/env lua
 ---@diagnostic disable: undefined-global
--- Pins CLAUDE.md rule: every PlaySoundFile call must use channel "SFX",
--- never "Master". The user adjusts SFX independently via the WoW Sound
--- Effects slider; "Master" cannot be separated from voice / music / ambience.
+-- Pins the current project sound-channel policy: every PlaySoundFile call must
+-- use channel "Master" unless a caller deliberately passes another explicit
+-- channel for a documented WoW API requirement.
 --
 -- Scans production Lua files (core / factory / game / logic / ui) for any
--- "Master" string literal that appears in a sound-related context. A line
+-- "SFX" string literal that appears in a sound-related context. A line
 -- counts as sound-related if it mentions PlaySound, defaultChannel, channel,
--- or Sound — that catches both direct PlaySoundFile(..., "Master") calls and
--- indirect entries like `defaultChannel = "Master"` in a sound registry.
+-- or Sound — that catches both direct PlaySoundFile(..., "SFX") calls and
+-- indirect entries like `defaultChannel = "SFX"` in a sound registry.
 --
 -- Inline override: append `-- sound-ok` to a line to silence the gate. Only
--- use for genuinely non-sound usages of the literal "Master" (extremely rare
+-- use for genuinely non-sound usages of the literal "SFX" (extremely rare
 -- in this codebase).
 --
 -- Exits 0 on clean, 1 on violations, 2 on IO/setup errors.
@@ -76,7 +76,7 @@ local function isSoundContext(line)
   end
   -- Plain "channel" needs to appear as an identifier (= / : / . / followed by
   -- a literal). A naïve match risks false positives, so require the literal
-  -- "Master" to follow within the same line.
+  -- "SFX" to follow within the same line.
   if line:lower():find("channel") then
     return true
   end
@@ -106,19 +106,16 @@ local function main()
     for lineno, raw in ipairs(lines) do
       if not lineHasSoundOk(raw) then
         local code = stripComment(raw)
-        if code:find('"Master"') and isSoundContext(code) then
-          issues[#issues + 1] = string.format(
-            '%s:%d: sound channel "Master" detected — use "SFX" instead (CLAUDE.md sound-channel rule)',
-            path,
-            lineno
-          )
+        if code:find('"SFX"') and isSoundContext(code) then
+          issues[#issues + 1] =
+            string.format('%s:%d: sound channel "SFX" detected — use "Master" instead', path, lineno)
         end
       end
     end
   end
 
   if #issues == 0 then
-    io.write('sound-channel: clean — no PlaySoundFile / defaultChannel calls use "Master"\n')
+    io.write('sound-channel: clean — no PlaySoundFile / defaultChannel calls use "SFX"\n')
     os.exit(0)
   end
 

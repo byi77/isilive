@@ -8,6 +8,8 @@ local CreateSectionHeader = addonTable.SettingsControls.CreateSectionHeader
 local CreateSectionNote = addonTable.SettingsControls.CreateSectionNote
 local CreateSettingsCheckbox = addonTable.SettingsControls.CreateSettingsCheckbox
 local DESCRIPTION_WIDTH = 620
+local PREVIEW_BUTTON_WIDTH = 24
+local PREVIEW_BUTTON_HEIGHT = 22
 
 local SOUND_SETTING_FALLBACKS = {
   leader_transfer = {
@@ -88,6 +90,7 @@ local function DescriptionOptions(descriptionText)
     descriptionText = descriptionText,
     descriptionWidth = DESCRIPTION_WIDTH,
     descriptionWordWrap = true,
+    width = DESCRIPTION_WIDTH - PREVIEW_BUTTON_WIDTH - 12,
   }
 end
 
@@ -135,6 +138,45 @@ local function SetLocalizedText(region, key, fallback, labels)
   end
 end
 
+local function CreateSoundPreviewButton(parent, checkbox, soundKey)
+  local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
+  button:SetSize(PREVIEW_BUTTON_WIDTH, PREVIEW_BUTTON_HEIGHT)
+  button:SetPoint("LEFT", checkbox.check, "RIGHT", 4, 0)
+  button._sectionKey = "SETTINGS_SECTION_SOUNDS"
+  button._settingKey = "SETTINGS_SOUND_PREVIEW"
+  button._soundPreviewKey = soundKey
+
+  if type(button.SetBackdrop) == "function" then
+    button:SetBackdrop({
+      bgFile = "Interface\\Buttons\\WHITE8X8",
+      edgeFile = "Interface\\Buttons\\WHITE8X8",
+      edgeSize = 1,
+      insets = { left = 0, right = 0, top = 0, bottom = 0 },
+    })
+    button:SetBackdropColor(0.12, 0.12, 0.18, 0.75)
+    button:SetBackdropBorderColor(0.3, 0.65, 1, 0.55)
+  end
+
+  local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  label:SetPoint("CENTER", 0, 0)
+  label:SetText(">")
+  button.label = label
+
+  if checkbox.label and type(checkbox.label.ClearAllPoints) == "function" then
+    checkbox.label:ClearAllPoints()
+    checkbox.label:SetPoint("LEFT", button, "RIGHT", 4, 0)
+  end
+
+  button:SetScript("OnClick", function()
+    local soundUtils = addonTable.SoundUtils
+    if type(soundUtils) == "table" and type(soundUtils.PlayPreviewKey) == "function" then
+      soundUtils.PlayPreviewKey(soundKey)
+    end
+  end)
+
+  return button
+end
+
 function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, controls)
   controls.soundHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_SECTION_SOUNDS or "Sounds")
   if controls.soundHeader then
@@ -148,6 +190,7 @@ function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, contro
   end
 
   controls.soundChecks = controls.soundChecks or {}
+  controls.soundPreviewButtons = controls.soundPreviewButtons or {}
 
   for _, entry in ipairs(SettingsSound.GetSoundSettingEntries()) do
     local checkbox, nextY = CreateSettingsCheckbox(
@@ -181,6 +224,7 @@ function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, contro
       checkbox.check._soundKey = entry.key
     end
     controls.soundChecks[entry.key] = checkbox
+    controls.soundPreviewButtons[entry.key] = CreateSoundPreviewButton(canvas, checkbox, entry.key)
     yOffset = nextY
   end
 
@@ -275,6 +319,10 @@ function SettingsSound.RefreshSoundControls(controls, labels, db)
             or "Sound"
         )
         SetDescription(soundControl, labels[entry.descKey] or fallback.descFallback or entry.descFallback)
+      end
+      local previewButton = controls.soundPreviewButtons and controls.soundPreviewButtons[entry.key] or nil
+      if previewButton and previewButton.label then
+        previewButton.label:SetText(">")
       end
     end
   end

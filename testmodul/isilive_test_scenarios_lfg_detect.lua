@@ -1998,7 +1998,7 @@ local function RegisterLFGDetectInviteHintTests(test, ctx)
       INVITE_HINT_SOURCE_LFG_INVITED = "LFG invite received",
       INVITE_HINT_UNKNOWN_DUNGEON = "Unknown dungeon",
       INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON = "Dungeon:",
-      INVITE_ACCEPTED_NOTICE_LABEL_GROUP = "Group:",
+      INVITE_ACCEPTED_NOTICE_LABEL_GROUP = "Title:",
       INVITE_ACCEPTED_NOTICE_LABEL_LEADER = "Leader:",
       INVITE_ACCEPTED_NOTICE_LABEL_SOURCE = "Source:",
     }
@@ -2040,7 +2040,7 @@ local function RegisterLFGDetectInviteHintTests(test, ctx)
       Assert.Equal(payload.title, "isiLive - Invite received", "InviteHint must use the localized modern title")
       Assert.Equal(payload.fields[1].label, "Dungeon:", "row 1 must be the dungeon label")
       Assert.Equal(payload.fields[1].value, "Windrunner Spire +12", "row 1 must mention dungeon and key level")
-      Assert.Equal(payload.fields[2].label, "Group:", "row 2 must be the group label")
+      Assert.Equal(payload.fields[2].label, "Title:", "row 2 must be the title label")
       Assert.Equal(payload.fields[2].value, "+12 NW Push, no jail", "row 2 must surface the raw group title")
       Assert.Equal(payload.fields[3].label, "Leader:", "row 3 must be the leader label")
       Assert.Equal(payload.fields[3].value, "Tankadin-Realm", "row 3 must surface the listing leader")

@@ -4,6 +4,8 @@ addonTable = addonTable or {}
 local FI = addonTable._FactoryInternal or {}
 addonTable._FactoryInternal = FI
 
+local LUST_READY_REMINDER_SECONDS = 60
+
 local function InitializeFactorySecondaryCdTracker(
   ctx,
   modules,
@@ -20,25 +22,74 @@ local function InitializeFactorySecondaryCdTracker(
     getTime = getTime,
   })
   local lastBResCharges = nil
+  local lastBResCooldownRemain = nil
+  local lastMplusRunning = false
   local lastLustActive = false
+  local lastLustReadySoundAt = nil
+  local function ClearReadySoundState()
+    lastBResCharges = nil
+    lastBResCooldownRemain = nil
+    lastLustActive = false
+    lastLustReadySoundAt = nil
+  end
+
+  local function IsMplusTimerRunning()
+    local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
+    if type(MplusTimer) == "table" and type(MplusTimer.GetTimerData) == "function" then
+      local timerData = MplusTimer.GetTimerData()
+      if timerData and timerData.running then
+        return true
+      end
+    end
+    return false
+  end
+
+  local function PlayBloodlustReadySound()
+    if
+      ctx.addonTable
+      and type(ctx.addonTable.SoundUtils) == "table"
+      and type(ctx.addonTable.SoundUtils.PlayBloodlustReady) == "function"
+    then
+      ctx.addonTable.SoundUtils.PlayBloodlustReady()
+      return true
+    end
+    return false
+  end
+
   ctx.UpdateCdTracker = function(opts)
     local optsTable = type(opts) == "table" and opts or nil
     local suppressBattleResReadySound = optsTable and optsTable.suppressBattleResReadySound == true
     local suppressLustReadySound = optsTable and optsTable.suppressLustReadySound == true
+    local fromVisibleRender = optsTable and optsTable.fromVisibleRender == true
     if IsRaidModeActive() then
-      lastBResCharges = nil
-      lastLustActive = false
+      ClearReadySoundState()
+      lastMplusRunning = false
       return
+    end
+    local mplusRunning = IsMplusTimerRunning()
+    if mplusRunning and not lastMplusRunning then
+      lastBResCharges = nil
+      lastBResCooldownRemain = nil
     end
     ctx.cdTrackerController.Scan()
     local bresInfo = type(ctx.cdTrackerController.GetBResInfo) == "function" and ctx.cdTrackerController.GetBResInfo()
       or nil
     local bresCharges = type(bresInfo) == "table" and tonumber(bresInfo.charges) or nil
-    if
-      lastBResCharges ~= nil
+    local bresCooldownRemain = type(bresInfo) == "table" and tonumber(bresInfo.cooldownRemain) or nil
+    if not mplusRunning then
+      ClearReadySoundState()
+    end
+    local bresChargesRecovered = lastBResCharges ~= nil
       and lastBResCharges <= 0
       and bresCharges ~= nil
       and bresCharges > 0
+    local bresDisplayedCooldownExpired = lastBResCooldownRemain ~= nil
+      and lastBResCooldownRemain > 0
+      and bresCooldownRemain ~= nil
+      and bresCooldownRemain <= 0
+    if
+      (bresChargesRecovered or bresDisplayedCooldownExpired)
+      and mplusRunning
       and not suppressBattleResReadySound
       and ctx.addonTable
       and type(ctx.addonTable.SoundUtils) == "table"
@@ -46,17 +97,24 @@ local function InitializeFactorySecondaryCdTracker(
     then
       ctx.addonTable.SoundUtils.PlayBattleResReady()
     end
-    if suppressBattleResReadySound then
+    if suppressBattleResReadySound or not mplusRunning then
       lastBResCharges = nil
+      lastBResCooldownRemain = nil
     else
       lastBResCharges = bresCharges
+      lastBResCooldownRemain = bresCooldownRemain
     end
+    lastMplusRunning = mplusRunning
     local lustInfo = type(ctx.cdTrackerController.GetLustInfo) == "function" and ctx.cdTrackerController.GetLustInfo()
       or nil
     local lustActive = type(lustInfo) == "table" and tonumber(lustInfo.remain) ~= nil and lustInfo.remain > 0
+    if lustActive then
+      lastLustReadySoundAt = nil
+    end
     if
       lustActive
       and not lastLustActive
+      and mplusRunning
       and type(opts) == "table"
       and opts.playLustSoundOnStart == true
       and ctx.addonTable
@@ -65,22 +123,32 @@ local function InitializeFactorySecondaryCdTracker(
     then
       ctx.addonTable.SoundUtils.PlayBloodlust()
     end
-    if
-      lastLustActive
+    if mplusRunning and lastLustActive and not lustActive and not suppressLustReadySound then
+      if PlayBloodlustReadySound() then
+        lastLustReadySoundAt = getTime()
+      end
+    elseif
+      mplusRunning
       and not lustActive
       and not suppressLustReadySound
-      and ctx.addonTable
-      and type(ctx.addonTable.SoundUtils) == "table"
-      and type(ctx.addonTable.SoundUtils.PlayBloodlustReady) == "function"
+      and lastLustReadySoundAt ~= nil
+      and getTime() - lastLustReadySoundAt >= LUST_READY_REMINDER_SECONDS
     then
-      ctx.addonTable.SoundUtils.PlayBloodlustReady()
+      if PlayBloodlustReadySound() then
+        lastLustReadySoundAt = getTime()
+      end
     end
-    if suppressLustReadySound then
+    if suppressLustReadySound or not mplusRunning then
       lastLustActive = false
+      lastLustReadySoundAt = nil
     else
       lastLustActive = lustActive
     end
-    if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
+    if
+      not fromVisibleRender
+      and ctx.rosterPanelController
+      and type(ctx.rosterPanelController.RefreshCdTracker) == "function"
+    then
       ctx.rosterPanelController.RefreshCdTracker()
     end
     if
@@ -94,18 +162,25 @@ local function InitializeFactorySecondaryCdTracker(
       ctx.rosterPanelController.RefreshReadyCheckState(ctx.GetRoster())
     end
     -- Also refresh full UI if M+ key is running so the timer counts down.
-    local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
-    if type(MplusTimer) == "table" and type(MplusTimer.GetTimerData) == "function" then
-      local timerData = MplusTimer.GetTimerData()
-      if timerData and timerData.running then
-        if ctx.UpdateUI then
-          ctx.UpdateUI()
-        end
+    if mplusRunning and not fromVisibleRender then
+      if ctx.UpdateUI then
+        ctx.UpdateUI()
       end
     end
   end
   if ctx.rosterPanelController and type(ctx.rosterPanelController.SetCdController) == "function" then
-    ctx.rosterPanelController.SetCdController(ctx.cdTrackerController)
+    local uiCdController = {
+      Scan = function()
+        ctx.UpdateCdTracker({ fromVisibleRender = true })
+      end,
+      GetBResInfo = function()
+        return type(ctx.cdTrackerController.GetBResInfo) == "function" and ctx.cdTrackerController.GetBResInfo() or nil
+      end,
+      GetLustInfo = function()
+        return type(ctx.cdTrackerController.GetLustInfo) == "function" and ctx.cdTrackerController.GetLustInfo() or nil
+      end,
+    }
+    ctx.rosterPanelController.SetCdController(uiCdController)
   end
 
   -- Subscribe the kill-track row to state updates so the pull bar refreshes
@@ -144,14 +219,7 @@ local function InitializeFactorySecondaryCdTracker(
       if not IsMainFrameShown() then
         return
       end
-      local needsTick = false
-      local MplusTimer = ctx.addonTable and ctx.addonTable.MplusTimer
-      if type(MplusTimer) == "table" and type(MplusTimer.GetTimerData) == "function" then
-        local timerData = MplusTimer.GetTimerData()
-        if timerData and timerData.running then
-          needsTick = true
-        end
-      end
+      local needsTick = IsMplusTimerRunning()
       if not needsTick and ctx.cdTrackerController and type(ctx.cdTrackerController.GetLustInfo) == "function" then
         local lustInfo = ctx.cdTrackerController.GetLustInfo()
         if lustInfo and tonumber(lustInfo.remain) and lustInfo.remain > 0 then

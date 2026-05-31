@@ -102,7 +102,7 @@ return function(test, ctx)
           "Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg",
           "leader gain must use the transfer sound"
         )
-        Assert.Equal(channel, "SFX", "leader gain must play on the SFX channel")
+        Assert.Equal(channel, "Master", "leader gain must play on the Master channel")
       end,
     }, function()
       local controller, state = BuildLeaderWatchController({

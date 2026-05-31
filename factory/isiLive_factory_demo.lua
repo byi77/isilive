@@ -232,7 +232,7 @@ local function BuildDemoAcceptedInviteNoticePayload(L)
       title = L.INVITE_ACCEPTED_NOTICE_TITLE or "isiLive - Invite accepted",
       fields = {
         { label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:", value = "Nexus-Point Xenas +15" },
-        { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Group:", value = "+15 Demo Preview" },
+        { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Title:", value = "+15 Demo Preview" },
         { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LEADER or "Leader:", value = "isiLive-Demo" },
         {
           label = L.INVITE_ACCEPTED_NOTICE_LABEL_SOURCE or "Source:",
@@ -268,7 +268,7 @@ local function BuildDemoInviteHintPayload(L)
     title = L.INVITE_HINT_TITLE or "isiLive - Invite received",
     fields = {
       { label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:", value = "Nexus-Point Xenas +15" },
-      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Group:", value = "+15 Demo Preview" },
+      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Title:", value = "+15 Demo Preview" },
       { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LEADER or "Leader:", value = "isiLive-Demo" },
       {
         label = L.INVITE_ACCEPTED_NOTICE_LABEL_SOURCE or "Source:",

@@ -128,8 +128,8 @@ for i, h in ipairs(helpers) do
         fail = true
       end
     end
-    if call.channel ~= "SFX" then
-      print(string.format("         WRONG CHANNEL: expected SFX, got %s", tostring(call.channel)))
+    if call.channel ~= "Master" then
+      print(string.format("         WRONG CHANNEL: expected Master, got %s", tostring(call.channel)))
       fail = true
     end
   end
@@ -178,4 +178,4 @@ if fail then
   print(" RESULT: FAIL — at least one sound asset is missing from disk")
   os.exit(1)
 end
-print(" RESULT: PASS — every helper emits an existing asset on the SFX channel")
+print(" RESULT: PASS — every helper emits an existing asset on the Master channel")

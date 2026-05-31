@@ -94,6 +94,8 @@ function CdTracker.CreateController(opts)
           local remain = type(expiry) == "number" and math.max(0, expiry - getTime()) or 0
           if remain > 0 then
             lustRemain = remain
+          elseif lustRemain ~= nil then
+            lustRemain = 0
           end
           lustIcon = rawget(aura, "icon")
           found = true

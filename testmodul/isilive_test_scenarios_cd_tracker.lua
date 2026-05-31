@@ -220,6 +220,33 @@ return function(test, ctx)
     end)
   end)
 
+  test("CdTracker reports zero Lust remain when an observed aura timer expires", function()
+    local NOW = 1000
+    local currentTime = NOW
+    local auras = { MakeLustAura(NOW + 2, 57723) }
+    WithGlobals({
+      C_UnitAuras = BuildHarmfulAuraApi(function()
+        return auras
+      end),
+    }, function()
+      local ctrl = MakeController({
+        getTime = function()
+          return currentTime
+        end,
+      })
+      ctrl.Scan()
+      local activeInfo = ctrl.GetLustInfo()
+      Assert.NotNil(activeInfo, "observed active Lust info must be available before expiry")
+      Assert.Equal(activeInfo.remain, 2, "initial observed remain must use the aura timer")
+
+      currentTime = NOW + 3
+      ctrl.Scan()
+      local expiredInfo = ctrl.GetLustInfo()
+      Assert.NotNil(expiredInfo, "previously observed Lust info must surface the displayed zero tick")
+      Assert.Equal(expiredInfo.remain, 0, "expired observed aura must report zero remain")
+    end)
+  end)
+
   test(
     "CdTracker reads aura fields via rawget - direct table fields are accessible, __index trap is not triggered",
     function()

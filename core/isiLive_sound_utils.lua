@@ -678,28 +678,28 @@ SoundUtils.Registry = {
     labelKey = "SETTINGS_SOUND_LEAD_ENABLED",
     settingKey = "soundLeadEnabled",
     defaultEnabled = true,
-    defaultChannel = "SFX",
+    defaultChannel = "Master",
   },
   group_join = {
     file = "Interface\\AddOns\\isiLive\\sounds\\SynthChord.ogg",
     labelKey = "SETTINGS_SOUND_GROUP_JOIN_ENABLED",
     settingKey = "soundGroupJoinEnabled",
     defaultEnabled = true,
-    defaultChannel = "SFX",
+    defaultChannel = "Master",
   },
   portal_available = {
     file = "Interface\\AddOns\\isiLive\\sounds\\Portal.ogg",
     labelKey = "SETTINGS_SOUND_PORTAL_AVAILABLE",
     settingKey = "soundPortalAvailableEnabled",
     defaultEnabled = true,
-    defaultChannel = "SFX",
+    defaultChannel = "Master",
   },
   battle_res = {
     file = "Interface\\AddOns\\isiLive\\sounds\\ChickenAlarm.ogg",
     labelKey = "SETTINGS_SOUND_BATTLE_RES",
     settingKey = "soundBattleResEnabled",
     defaultEnabled = true,
-    defaultChannel = "SFX",
+    defaultChannel = "Master",
   },
   battle_res_ready = {
     file = "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady.wav",
@@ -709,14 +709,14 @@ SoundUtils.Registry = {
     descFallback = "Plays a TTS alert when Battle Resurrection becomes available again.",
     settingKey = "soundBattleResReadyEnabled",
     defaultEnabled = true,
-    defaultChannel = "SFX",
+    defaultChannel = "Master",
   },
   bloodlust = {
     file = "Interface\\AddOns\\isiLive\\sounds\\BoxingArenaSound.ogg",
     labelKey = "SETTINGS_SOUND_BLOODLUST",
     settingKey = "soundBloodlustEnabled",
     defaultEnabled = true,
-    defaultChannel = "SFX",
+    defaultChannel = "Master",
   },
   bloodlust_ready = {
     file = "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
@@ -726,7 +726,7 @@ SoundUtils.Registry = {
     descFallback = "Plays a TTS alert when Bloodlust or a similar exhaustion effect expires.",
     settingKey = "soundBloodlustReadyEnabled",
     defaultEnabled = true,
-    defaultChannel = "SFX",
+    defaultChannel = "Master",
   },
 }
 
@@ -741,7 +741,7 @@ SoundUtils.SettingsOrder = {
 }
 
 local function BuildSoundKey(soundFile, channel)
-  return tostring(soundFile) .. "\31" .. tostring(channel or "SFX")
+  return tostring(soundFile) .. "\31" .. tostring(channel or "Master")
 end
 
 function SoundUtils.GetEntry(key)
@@ -781,13 +781,13 @@ function SoundUtils.IsEnabled(key)
   return entry.defaultEnabled ~= false
 end
 
--- Plays a sound file on the SFX channel with spam protection.
+-- Plays a sound file on the configured channel with spam protection.
 -- A sound that was played less than SPAM_WINDOW seconds ago is silently dropped.
 function SoundUtils.Play(soundFile, channel)
   if type(soundFile) ~= "string" or soundFile == "" then
     return
   end
-  local resolvedChannel = type(channel) == "string" and channel ~= "" and channel or "SFX"
+  local resolvedChannel = type(channel) == "string" and channel ~= "" and channel or "Master"
   local GetTime_ref = rawget(_G, "GetTime")
   local now = type(GetTime_ref) == "function" and GetTime_ref() or 0
   local soundKey = BuildSoundKey(soundFile, resolvedChannel)
@@ -817,7 +817,7 @@ function SoundUtils.PlaySoundKit(soundKit, channel)
   if resolvedKit == nil then
     return
   end
-  local resolvedChannel = type(channel) == "string" and channel ~= "" and channel or "SFX"
+  local resolvedChannel = type(channel) == "string" and channel ~= "" and channel or "Master"
   local GetTime_ref = rawget(_G, "GetTime")
   local now = type(GetTime_ref) == "function" and GetTime_ref() or 0
   local soundKey = "kit\31" .. tostring(resolvedKit) .. "\31" .. resolvedChannel
@@ -832,12 +832,11 @@ function SoundUtils.PlaySoundKit(soundKit, channel)
   end
 end
 
-function SoundUtils.PlayKey(key)
-  local entry = SoundUtils.GetEntry(key)
-  if not entry or not SoundUtils.IsEnabled(key) then
+local function PlayEntry(entry)
+  if type(entry) ~= "table" then
     return
   end
-  local channel = type(entry.defaultChannel) == "string" and entry.defaultChannel or "SFX"
+  local channel = type(entry.defaultChannel) == "string" and entry.defaultChannel or "Master"
   if entry.soundKit ~= nil then
     SoundUtils.PlaySoundKit(entry.soundKit, channel)
     return
@@ -847,6 +846,18 @@ function SoundUtils.PlayKey(key)
     return
   end
   SoundUtils.Play(soundFile, channel)
+end
+
+function SoundUtils.PlayKey(key)
+  local entry = SoundUtils.GetEntry(key)
+  if not entry or not SoundUtils.IsEnabled(key) then
+    return
+  end
+  PlayEntry(entry)
+end
+
+function SoundUtils.PlayPreviewKey(key)
+  PlayEntry(SoundUtils.GetEntry(key))
 end
 
 function SoundUtils.PlayGroupJoin()

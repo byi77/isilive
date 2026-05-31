@@ -2131,11 +2131,19 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
   test("Settings panel exposes sound toggles with the intended defaults", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}
+    local now = 100
+    local previewCalls = {}
 
     WithGlobals({
       UIParent = {},
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
+      GetTime = function()
+        return now
+      end,
+      PlaySoundFile = function(path, channel)
+        previewCalls[#previewCalls + 1] = { path = path, channel = channel }
+      end,
       Settings = {
         RegisterCanvasLayoutCategory = function(canvas, name)
           return { canvas = canvas, name = name }
@@ -2143,7 +2151,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         RegisterAddOnCategory = function() end,
       },
     }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_sound_utils.lua", "isiLive_settings.lua" })
       local panel = addon.SettingsPanel.Create({
         getL = function()
           return {
@@ -2212,6 +2220,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       local battleResReadySoundCheck = nil
       local bloodlustSoundCheck = nil
       local bloodlustReadySoundCheck = nil
+      local soundPreviewButtons = {}
       for _, frame in ipairs(createdFrames) do
         if frame._sectionKey == "SETTINGS_SECTION_SOUNDS" then
           soundSectionHeader = frame
@@ -2231,6 +2240,9 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         elseif frame._settingKey == "SETTINGS_SOUND_BLOODLUST_READY" then
           bloodlustReadySoundCheck = frame
         end
+        if frame._soundPreviewKey then
+          soundPreviewButtons[frame._soundPreviewKey] = frame
+        end
       end
 
       Assert.NotNil(soundSectionHeader, "settings panel should create a dedicated sounds section")
@@ -2246,6 +2258,29 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         Assert.NotNil(bloodlustSoundCheck, "settings panel should create a bloodlust sound checkbox")
       bloodlustReadySoundCheck =
         Assert.NotNil(bloodlustReadySoundCheck, "settings panel should create a bloodlust-ready sound checkbox")
+      Assert.NotNil(soundPreviewButtons.leader_transfer, "settings panel should create a leader sound preview button")
+      Assert.NotNil(soundPreviewButtons.group_join, "settings panel should create a group-join sound preview button")
+      Assert.NotNil(soundPreviewButtons.portal_available, "settings panel should create a portal sound preview button")
+      Assert.NotNil(soundPreviewButtons.battle_res, "settings panel should create a battle-res sound preview button")
+      Assert.NotNil(
+        soundPreviewButtons.battle_res_ready,
+        "settings panel should create a battle-res-ready sound preview button"
+      )
+      Assert.NotNil(soundPreviewButtons.bloodlust, "settings panel should create a bloodlust sound preview button")
+      Assert.NotNil(
+        soundPreviewButtons.bloodlust_ready,
+        "settings panel should create a bloodlust-ready sound preview button"
+      )
+      Assert.Equal(
+        soundPreviewButtons.leader_transfer._point[1],
+        "LEFT",
+        "sound preview buttons should be anchored inline instead of to the far right edge"
+      )
+      Assert.Equal(
+        soundPreviewButtons.leader_transfer._point[2],
+        leadSoundCheck,
+        "sound preview buttons should sit next to their checkbox"
+      )
       ---@diagnostic disable: undefined-field
       Assert.True(leadSoundCheck:GetChecked(), "leader-transfer sound should default to enabled")
       Assert.True(groupJoinSoundCheck:GetChecked(), "group-join sound should default to enabled")
@@ -2296,6 +2331,19 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.False(db.soundBattleResReadyEnabled, "disabling battle-res-ready sound should persist false")
       Assert.True(db.soundBloodlustEnabled, "enabling bloodlust sound should persist true")
       Assert.False(db.soundBloodlustReadyEnabled, "disabling bloodlust-ready sound should persist false")
+
+      local onPreviewLead = Assert.NotNil(
+        soundPreviewButtons.leader_transfer._scripts and soundPreviewButtons.leader_transfer._scripts.OnClick or nil,
+        "leader-transfer preview button should define OnClick"
+      )
+      onPreviewLead(soundPreviewButtons.leader_transfer, "LeftButton")
+      Assert.Equal(#previewCalls, 1, "previewing a disabled sound should still play once")
+      Assert.Equal(
+        previewCalls[1].path,
+        "Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg",
+        "leader-transfer preview should play the configured sound asset"
+      )
+      Assert.Equal(previewCalls[1].channel, "Master", "sound previews should use the configured Master channel")
 
       panel.Refresh()
       Assert.False(leadSoundCheck:GetChecked(), "refresh should keep the disabled leader-transfer sound state")

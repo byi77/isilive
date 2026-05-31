@@ -4,29 +4,6 @@
 
 ## 2026-05-31 - Version 0.9.291 (patch)
 
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[core/isiLive_db_schema.lua](../core/isiLive_db_schema.lua),
-[core/isiLive_sound_utils.lua](../core/isiLive_sound_utils.lua),
-[factory/isiLive_controller_wiring.lua](../factory/isiLive_controller_wiring.lua),
-[factory/isiLive_factory_cd_tracker.lua](../factory/isiLive_factory_cd_tracker.lua),
-[factory/isiLive_factory_notices.lua](../factory/isiLive_factory_notices.lua),
-[logic/isiLive_event_handlers_challenge.lua](../logic/isiLive_event_handlers_challenge.lua),
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
-[ui/isiLive_settings_sound.lua](../ui/isiLive_settings_sound.lua),
-[tools/simulate_sound_playback.lua](../tools/simulate_sound_playback.lua),
-[testmodul/isilive_test_scenarios_architecture.lua](../testmodul/isilive_test_scenarios_architecture.lua),
-[testmodul/isilive_test_scenarios_factory_controllers_helpers.lua](../testmodul/isilive_test_scenarios_factory_controllers_helpers.lua),
-[testmodul/isilive_test_scenarios_factory_secondary.lua](../testmodul/isilive_test_scenarios_factory_secondary.lua),
-[testmodul/isilive_test_scenarios_ui_settings.lua](../testmodul/isilive_test_scenarios_ui_settings.lua),
-[sounds/BattleRezReady.wav](../sounds/BattleRezReady.wav),
-[sounds/BloodlustReady.wav](../sounds/BloodlustReady.wav),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/ARCHITECTURE_RULES.md](ARCHITECTURE_RULES.md),
-[docs/USECASES.md](USECASES.md):
-
 - Added a separate default-enabled `Sound: Battle Res Ready` alert that plays
   the new `sounds/BattleRezReady.wav` TTS asset once when Battle Resurrection
   recovers from zero available charges.
@@ -40,49 +17,41 @@
   the main UI is hidden, without enabling the hidden CD polling ticker.
 - Fixed Bloodlust-ready expiry detection for visible in-key play by scanning
   `UNIT_AURA` removal payloads that no longer carry a stable `spellId`.
+- Fixed in-key ready announcements to fire from the observed tracker countdown:
+  Bloodlust-ready now sees an already-observed aura tick down to zero, and
+  Battle-Res-ready can fire when the displayed BRes cooldown reaches zero even
+  before a later charge refresh.
+- Re-rendered the ready TTS assets with a louder normalized English voice; the
+  Battle-Res-ready file now uses the phonetic `Battleretz ready!` prompt for a
+  clearer in-game pronunciation.
+- Routed visible combat-utility UI rescans through the same CD-tracker
+  transition path as the ready alerts, so the displayed Battle-Res cooldown
+  reaching zero can trigger the Battle-Res-ready TTS during the key.
+- Kept the first available Battle-Res state directly after key start silent,
+  then announced every later observed Battle-Res recovery.
+- Added Bloodlust-ready reminders every 60 seconds while Bloodlust remains
+  unused after the first ready TTS.
+- Disarmed Bloodlust-ready reminders and Battle-Res-ready transitions whenever
+  the M+ timer is no longer running, so key-end or dungeon-leave refreshes
+  cannot start delayed ready announcements.
+- Routed isiLive sound playback through the `Master` audio channel, matching
+  DBM's configured alert channel and making the ready TTS alerts less dependent
+  on a low Sound Effects slider.
+- Added Play buttons beside every sound setting so users can preview each
+  configured audio cue without changing whether that cue is enabled.
 - Suppressed the accepted-invite/group-join Center Notice after `/reload` when
   the current group matches the verified reload roster mirror.
 - The accepted-invite/group-join Center Notice now appends an exact `+N` from
   the verified LFG group title to the dungeon row when no separate key level
   was available.
+- Renamed the accepted-invite/group-join notice row from `Group` to `Title`,
+  matching the raw LFG listing title shown in that field.
 - Bumped the TOC and documentation version basis to `0.9.291`.
-- Updated the release-gate scenario baseline to `1938` deterministic scenarios.
+- Updated the release-gate scenario baseline to `1942` deterministic scenarios.
 
 ## 2026-05-30 - Version 0.9.290 (patch)
 
 ### UI
-
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[ui/isiLive_ui_common.lua](../ui/isiLive_ui_common.lua),
-[ui/isiLive_notice.lua](../ui/isiLive_notice.lua),
-[ui/isiLive_lfg_flags.lua](../ui/isiLive_lfg_flags.lua),
-[ui/isiLive_roster_panel_render.lua](../ui/isiLive_roster_panel_render.lua),
-[ui/isiLive_roster_panel_cd_row.lua](../ui/isiLive_roster_panel_cd_row.lua),
-[ui/isiLive_roster_panel_kill_row.lua](../ui/isiLive_roster_panel_kill_row.lua),
-[ui/isiLive_roster_tooltip.lua](../ui/isiLive_roster_tooltip.lua),
-[ui/isiLive_teleport_ui.lua](../ui/isiLive_teleport_ui.lua),
-[logic/isiLive_event_handlers_challenge.lua](../logic/isiLive_event_handlers_challenge.lua),
-[game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua),
-[game/isiLive_mplus_timer.lua](../game/isiLive_mplus_timer.lua),
-[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua),
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
-[testmodul/isilive_test_scenarios_event_challenges.lua](../testmodul/isilive_test_scenarios_event_challenges.lua),
-[testmodul/isilive_test_scenarios_factory_secondary.lua](../testmodul/isilive_test_scenarios_factory_secondary.lua),
-[testmodul/isilive_test_scenarios_lfg_detect.lua](../testmodul/isilive_test_scenarios_lfg_detect.lua),
-[testmodul/isilive_test_scenarios_lfg_flags_branches.lua](../testmodul/isilive_test_scenarios_lfg_flags_branches.lua),
-[testmodul/isilive_test_scenarios_kill_row_branches.lua](../testmodul/isilive_test_scenarios_kill_row_branches.lua),
-[testmodul/isilive_test_scenarios_mplus_timer.lua](../testmodul/isilive_test_scenarios_mplus_timer.lua),
-[testmodul/isilive_test_scenarios_roster_panel.lua](../testmodul/isilive_test_scenarios_roster_panel.lua),
-[testmodul/isilive_test_scenarios_roster_panel_helpers.lua](../testmodul/isilive_test_scenarios_roster_panel_helpers.lua),
-[testmodul/isilive_test_scenarios_ui_common.lua](../testmodul/isilive_test_scenarios_ui_common.lua),
-[testmodul/isilive_test_scenarios_ui_notice_branches.lua](../testmodul/isilive_test_scenarios_ui_notice_branches.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/ARCHITECTURE_RULES.md](ARCHITECTURE_RULES.md),
-[docs/RELEASE.md](RELEASE.md),
-[docs/USECASES.md](USECASES.md):
 
 - Bumped the TOC and documentation version basis to `0.9.290`.
 - Fixed Cyrillic LFG leader names in Center Notice payload fields by switching
@@ -138,29 +107,6 @@
 ## 2026-05-29 - Version 0.9.288 (patch)
 
 ### UI
-
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[ui/isiLive_notice.lua](../ui/isiLive_notice.lua),
-[ui/isiLive_status.lua](../ui/isiLive_status.lua),
-[ui/isiLive_ui_common.lua](../ui/isiLive_ui_common.lua),
-[game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua),
-[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua),
-[factory/isiLive_factory_frame_bridge.lua](../factory/isiLive_factory_frame_bridge.lua),
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
-[testmodul/isilive_test_scenarios_factory_secondary.lua](../testmodul/isilive_test_scenarios_factory_secondary.lua),
-[testmodul/isilive_test_scenarios_status.lua](../testmodul/isilive_test_scenarios_status.lua),
-[testmodul/isilive_test_scenarios_ui_center_notice.lua](../testmodul/isilive_test_scenarios_ui_center_notice.lua),
-[testmodul/isilive_test_scenarios_ui_common.lua](../testmodul/isilive_test_scenarios_ui_common.lua),
-[testmodul/isilive_test_scenarios_ui_notice_branches.lua](../testmodul/isilive_test_scenarios_ui_notice_branches.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/ARCHITECTURE_RULES.md](ARCHITECTURE_RULES.md),
-[docs/RELEASE.md](RELEASE.md),
-[docs/USECASES.md](USECASES.md),
-[tools/mockups/center_notice_preview.html](../tools/mockups/center_notice_preview.html),
-[tools/mockups/center_notice_preview.png](../tools/mockups/center_notice_preview.png):
 
 - Bumped the TOC and documentation version basis to `0.9.288`.
 - Modernized the accepted-invite center notice portal action into a wide
@@ -222,10 +168,6 @@
 
 ### LFG
 
-[docs/RULES_LOGIC.md](RULES_LOGIC.md),
-[docs/USECASES.md](USECASES.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md):
-
 - Removed the abandoned experimental LFG invite-list modules
   (`logic/isiLive_invites.lua`, `ui/isiLive_invite_list.lua`), TOC entries,
   guards, locale strings, and obsolete scenario file.
@@ -273,11 +215,6 @@
 
 ### LFG / Center Notice
 
-[factory/isiLive_factory.lua](../factory/isiLive_factory.lua),
-[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua),
-[testmodul/isilive_test_scenarios_factory_controllers_helpers.lua](../testmodul/isilive_test_scenarios_factory_controllers_helpers.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
-
 - Added a verified group-join fallback for the accepted-invite center notice so
   the dungeon summary and clickable portal button still render when Blizzard
   does not deliver the expected direct LFG invite-accepted callback.
@@ -288,15 +225,6 @@
 
 ### Commands / Settings
 
-[logic/isiLive_commands.lua](../logic/isiLive_commands.lua),
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
-[core/isiLive_db_schema.lua](../core/isiLive_db_schema.lua),
-[ui/isiLive_settings_support.lua](../ui/isiLive_settings_support.lua),
-[ui/isiLive_roster_panel.lua](../ui/isiLive_roster_panel.lua),
-[testmodul/isilive_test_scenarios_commands.lua](../testmodul/isilive_test_scenarios_commands.lua),
-[testmodul/isilive_test_scenarios_locale.lua](../testmodul/isilive_test_scenarios_locale.lua),
-[testmodul/isilive_test_scenarios_ui_settings.lua](../testmodul/isilive_test_scenarios_ui_settings.lua):
-
 - Split the public slash-command surface into normal help and an explicit
   `/isilive admin` support surface for diagnostic and preview commands.
 - Removed obsolete public command entries for runtime start/stop/pause/resume,
@@ -306,21 +234,10 @@
 
 ### Kick Tracker
 
-[tools/simulate_kick_tracker_extras.lua](../tools/simulate_kick_tracker_extras.lua),
-[testmodul/isilive_test_scenarios_kick_tracker.lua](../testmodul/isilive_test_scenarios_kick_tracker.lua):
-
 - Tightened deterministic coverage for Protection Paladin Avenger's Shield as
   an extra interrupt source and its cooldown-expiry cleanup path.
 
 ### Release Metadata
-
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/ARCHITECTURE_RULES.md](ARCHITECTURE_RULES.md),
-[docs/RELEASE.md](RELEASE.md),
-[docs/USECASES.md](USECASES.md):
 
 - Bumped the TOC and documented baselines to `0.9.285`.
 - Updated the release validation baseline to `1889` scenarios.
@@ -328,12 +245,6 @@
 ## 2026-05-27 - Version 0.9.284 (patch)
 
 ### Settings
-
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
-[ui/isiLive_settings_sections.lua](../ui/isiLive_settings_sections.lua),
-[testmodul/isilive_test_scenarios_ui_settings.lua](../testmodul/isilive_test_scenarios_ui_settings.lua),
-[testmodul/isilive_test_scenarios_locale.lua](../testmodul/isilive_test_scenarios_locale.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
 
 - Renamed the LFG class-bonus setting to **Group Finder: Buff rating hearts**,
   kept it enabled by default, and expanded the description to explain the
@@ -352,22 +263,11 @@
 
 ### Ready Check
 
-[ui/isiLive_roster_panel.lua](../ui/isiLive_roster_panel.lua),
-[testmodul/isilive_test_scenarios_roster_panel.lua](../testmodul/isilive_test_scenarios_roster_panel.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
-
 - Hardened the Readycheck secure macro button by wiring `/readycheck` on the
   default, left-click, and right-click secure attributes and registering both
   mouse-up and mouse-down clicks.
 
 ### Release Metadata
-
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/RELEASE.md](RELEASE.md),
-[docs/USECASES.md](USECASES.md):
 
 - Bumped the TOC and documented baselines to `0.9.283`.
 - Confirmed the validator baseline remains `1890` scenarios.
@@ -379,29 +279,17 @@ deterministic Unicode coverage for Share Keys sender handling.
 
 ### Ready Check
 
-[ui/isiLive_roster_panel.lua](../ui/isiLive_roster_panel.lua),
-[testmodul/isilive_test_scenarios_roster_panel.lua](../testmodul/isilive_test_scenarios_roster_panel.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
-
 - The Readycheck button now keeps Blizzard's secure macro click handler intact;
   isiLive logging hooks onto the click instead of replacing the secure
   `OnClick` script. Countdown buttons remain regular Lua actions.
 
 ### LFG Group Bonus Indicators
 
-[ui/isiLive_lfg_flags.lua](../ui/isiLive_lfg_flags.lua),
-[testmodul/isilive_test_scenarios_lfg_flags_branches.lua](../testmodul/isilive_test_scenarios_lfg_flags_branches.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
-
 - Applicant member rows now render class-bonus hearts as real green texture
   markers next to the role icon instead of FontString texture markup, avoiding
   distorted or white glyphs on recycled Blizzard applicant rows.
 
 ### Share Keys
-
-[logic/isiLive_sync.lua](../logic/isiLive_sync.lua),
-[testmodul/isilive_test_scenarios_sync.lua](../testmodul/isilive_test_scenarios_sync.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
 
 - Added regression coverage proving `SHAREKEYS` requests from UTF-8 sender names
   such as `Kürshad-Blackmoore` and Cyrillic `Name-Realm` pairs trigger the same
@@ -413,13 +301,6 @@ deterministic Unicode coverage for Share Keys sender handling.
 
 ### Release Metadata
 
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/RELEASE.md](RELEASE.md),
-[docs/USECASES.md](USECASES.md):
-
 - Bumped the TOC and documented baselines to `0.9.282`.
 - Updated the validator baseline to `1890` scenarios.
 
@@ -429,13 +310,6 @@ Improves Settings readability and expands demo mode into a full logical preview
 of the current feature surfaces.
 
 ### Demo Mode
-
-[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua),
-[logic/isiLive_test_mode.lua](../logic/isiLive_test_mode.lua),
-[ui/isiLive_stats_box.lua](../ui/isiLive_stats_box.lua),
-[testmodul/isilive_test_scenarios_factory_secondary.lua](../testmodul/isilive_test_scenarios_factory_secondary.lua),
-[testmodul/isilive_test_scenarios_stats_box.lua](../testmodul/isilive_test_scenarios_stats_box.lua),
-[testmodul/isilive_test_scenarios_test_mode.lua](../testmodul/isilive_test_scenarios_test_mode.lua):
 
 - Demo/test mode now enables the current preview surfaces together: M+ timer,
   combat cooldowns, bottom forces tracker, Statsbox, Portal Navigator,
@@ -451,12 +325,6 @@ of the current feature surfaces.
 
 ### LFG Accepted Invite Notice
 
-[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua),
-[factory/isiLive_factory_frame_bridge.lua](../factory/isiLive_factory_frame_bridge.lua),
-[ui/isiLive_notice.lua](../ui/isiLive_notice.lua),
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
-[testmodul/isilive_test_scenarios_factory_controllers_helpers.lua](../testmodul/isilive_test_scenarios_factory_controllers_helpers.lua):
-
 - The accepted M+ invite center notice now includes the same verified target
   dungeon as a clickable portal button when the accepted LFG listing supplies a
   concrete activity or map ID.
@@ -468,15 +336,6 @@ of the current feature surfaces.
   activity data cannot hide a valid portal.
 
 ### Settings
-
-[ui/isiLive_settings_controls.lua](../ui/isiLive_settings_controls.lua),
-[ui/isiLive_settings_sections.lua](../ui/isiLive_settings_sections.lua),
-[ui/isiLive_settings_behavior.lua](../ui/isiLive_settings_behavior.lua),
-[ui/isiLive_settings_nameplates.lua](../ui/isiLive_settings_nameplates.lua),
-[ui/isiLive_settings_sound.lua](../ui/isiLive_settings_sound.lua),
-[ui/isiLive_settings_support.lua](../ui/isiLive_settings_support.lua),
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
-[testmodul/isilive_test_scenarios_ui_settings_descriptions.lua](../testmodul/isilive_test_scenarios_ui_settings_descriptions.lua):
 
 - Settings descriptions now render below every option row with a wider
   wrapping text region, including checkboxes, sliders, dropdowns, and option
@@ -499,13 +358,6 @@ of the current feature surfaces.
 
 ### Release Metadata
 
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/RELEASE.md](RELEASE.md),
-[docs/USECASES.md](USECASES.md):
-
 - Bumped the TOC and documented baselines to `0.9.281`.
 - Updated the validator baseline to `1888` scenarios.
 
@@ -515,12 +367,6 @@ Updates the LFG class-bonus data and marker counting so the compact Group
 Finder signal reflects current non-stacking group buffs.
 
 ### LFG Group Bonus Indicators
-
-[ui/isiLive_lfg_flags.lua](../ui/isiLive_lfg_flags.lua),
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
-[testmodul/isilive_test_scenarios_lfg_flags_branches.lua](../testmodul/isilive_test_scenarios_lfg_flags_branches.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md),
-[docs/USECASES.md](USECASES.md):
 
 - Updated Hunter's Mark to the current `+3% Dmg taken` label and Arcane
   Intellect to `+3% Int`, with German text for the German addon locale and
@@ -534,12 +380,6 @@ Finder signal reflects current non-stacking group buffs.
 
 ### Release Metadata
 
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/RELEASE.md](RELEASE.md):
-
 - Bumped the TOC and documented baselines to `0.9.278`.
 - Updated the validator baseline to `1882` scenarios.
 
@@ -550,11 +390,6 @@ Group Finder rows and completes the release documentation baseline for the
 class-bonus feature.
 
 ### LFG Group Bonus Indicators
-
-[ui/isiLive_lfg_flags.lua](../ui/isiLive_lfg_flags.lua),
-[media/heart_bonus_green.tga](../media/heart_bonus_green.tga),
-[testmodul/isilive_test_scenarios_lfg_flags_branches.lua](../testmodul/isilive_test_scenarios_lfg_flags_branches.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
 
 - Moved compact green search-result bonus markers to a right-aligned anchor
   inside the Blizzard search-result row, so the display no longer depends on
@@ -567,13 +402,6 @@ class-bonus feature.
 
 ### Release Metadata
 
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/USECASES.md](USECASES.md),
-[docs/RELEASE.md](RELEASE.md):
-
 - Bumped the TOC and documented baselines to `0.9.277`.
 - Updated the validator baseline to `1880` scenarios.
 
@@ -584,12 +412,6 @@ summon dialog through status updates, and ships the documented baseline for
 the new LFG group-bonus indicators.
 
 ### Incoming Summon Sound
-
-[core/isiLive_bootstrap.lua](../core/isiLive_bootstrap.lua),
-[logic/isiLive_event_handlers_runtime.lua](../logic/isiLive_event_handlers_runtime.lua),
-[testmodul/isilive_test_scenarios_event_handlers_runtime_branches.lua](../testmodul/isilive_test_scenarios_event_handlers_runtime_branches.lua),
-[testmodul/isilive_test_scenarios_event_utils.lua](../testmodul/isilive_test_scenarios_event_utils.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
 
 - Registered `INCOMING_SUMMON_CHANGED` alongside the existing
   `CONFIRM_SUMMON` path so incoming summon dialogs can trigger the bundled
@@ -602,13 +424,6 @@ the new LFG group-bonus indicators.
 
 ### LFG Group Bonus Indicators
 
-[ui/isiLive_lfg_flags.lua](../ui/isiLive_lfg_flags.lua),
-[ui/isiLive_settings.lua](../ui/isiLive_settings.lua),
-[ui/isiLive_settings_sections.lua](../ui/isiLive_settings_sections.lua),
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
-[core/isiLive_db_schema.lua](../core/isiLive_db_schema.lua),
-[factory/isiLive_factory.lua](../factory/isiLive_factory.lua):
-
 - Added optional LFG bonus hints for applicant rows and search-result tooltips,
   including class buffs, major utility markers, Battle Res, Bloodlust, and
   Augmentation Evoker damage utility.
@@ -618,13 +433,6 @@ the new LFG group-bonus indicators.
   with English fallback text.
 
 ### Release Metadata
-
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/USECASES.md](USECASES.md),
-[docs/RELEASE.md](RELEASE.md):
 
 - Bumped the TOC and documented baselines to `0.9.276`.
 - Updated the validator baseline to `1872` scenarios.
@@ -636,12 +444,6 @@ and ships the release baseline for the post-0.9.274 CI/test split.
 
 ### ESC Addons Panel
 
-[ui/isiLive_ui_game_menu_actions.lua](../ui/isiLive_ui_game_menu_actions.lua),
-[testmodul/isilive_test_scenarios_ui.lua](../testmodul/isilive_test_scenarios_ui.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/USECASES.md](USECASES.md):
-
 - Scoped supported external addon shortcut visibility to the current character's
   enable state instead of treating the global `Some` state as active.
 - Prevents shortcuts from appearing for addons that are installed and enabled on
@@ -652,23 +454,12 @@ and ships the release baseline for the post-0.9.274 CI/test split.
 
 ### CI / Test Hygiene
 
-[testmodul/isilive_test_scenarios_ui.lua](../testmodul/isilive_test_scenarios_ui.lua),
-[testmodul/isilive_test_scenarios_ui_game_menu_addons.lua](../testmodul/isilive_test_scenarios_ui_game_menu_addons.lua),
-[tools/usecase_scenarios.lua](../tools/usecase_scenarios.lua):
-
 - Split the game-menu addon scenarios into a focused test module so the Lua
   metrics hard file-size gate stays green without changing runtime behavior.
 - Kept the scenario registry explicit so the existing usecase validator still
   executes the moved coverage.
 
 ### Release Metadata
-
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/USECASES.md](USECASES.md),
-[docs/RELEASE.md](RELEASE.md):
 
 - Bumped the TOC and documented baselines to `0.9.275`.
 - Updated the validator baseline to `1851` scenarios.
@@ -680,15 +471,6 @@ architecture contracts with deterministic coverage.
 
 ### Architecture Cleanup
 
-[ui/isiLive_ui.lua](../ui/isiLive_ui.lua),
-[ui/isiLive_ui_main_frame.lua](../ui/isiLive_ui_main_frame.lua),
-[ui/isiLive_ui_game_menu.lua](../ui/isiLive_ui_game_menu.lua),
-[ui/isiLive_ui_game_menu_actions.lua](../ui/isiLive_ui_game_menu_actions.lua),
-[ui/isiLive_ui_game_menu_mounts.lua](../ui/isiLive_ui_game_menu_mounts.lua),
-[ui/isiLive_ui_game_menu_travel.lua](../ui/isiLive_ui_game_menu_travel.lua),
-[ui/isiLive_settings.lua](../ui/isiLive_settings.lua),
-[ui/isiLive_settings_sections.lua](../ui/isiLive_settings_sections.lua):
-
 - Reduced the legacy UI entrypoints to thin namespace shims and moved main-frame,
   ESC game-menu, travel, mount, action, and Settings section responsibilities
   into focused modules.
@@ -699,24 +481,12 @@ architecture contracts with deterministic coverage.
 
 ### Stats Box
 
-[ui/isiLive_stats_box.lua](../ui/isiLive_stats_box.lua),
-[testmodul/isilive_test_scenarios_stats_box.lua](../testmodul/isilive_test_scenarios_stats_box.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md),
-[README.md](../README.md):
-
 - Widened the standalone Stats Box percent column enough for `(999.99%)`, so
   values above `100.00%` stay on one line.
 - Kept short and large percent rows aligned through a stable compact minimum
   width and added deterministic regression coverage.
 
 ### Release Metadata
-
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/USECASES.md](USECASES.md),
-[docs/RELEASE.md](RELEASE.md):
 
 - Bumped the TOC and documented baselines to `0.9.274`.
 - Updated the validator baseline to `1848` scenarios.
@@ -727,15 +497,6 @@ Adds the Settings-driven Hearthstone travel selection, VIP guest mount sound
 muting, and the matching deterministic coverage.
 
 ### Hearthstone Selection
-
-[ui/isiLive_ui.lua](../ui/isiLive_ui.lua),
-[ui/isiLive_settings.lua](../ui/isiLive_settings.lua),
-[core/isiLive_db_schema.lua](../core/isiLive_db_schema.lua),
-[factory/isiLive_factory.lua](../factory/isiLive_factory.lua),
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
-[testmodul/isilive_test_scenarios_ui.lua](../testmodul/isilive_test_scenarios_ui.lua),
-[testmodul/isilive_test_scenarios_ui_settings.lua](../testmodul/isilive_test_scenarios_ui_settings.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
 
 - Added a Settings dropdown for `random-owned`, the default Hearthstone item,
   and specific owned Hearthstone toys.
@@ -749,11 +510,6 @@ muting, and the matching deterministic coverage.
   them.
 
 ### VIP Guest Sounds
-
-[core/isiLive_sound_utils.lua](../core/isiLive_sound_utils.lua),
-[logic/isiLive_event_handlers_runtime.lua](../logic/isiLive_event_handlers_runtime.lua),
-[ui/isiLive_settings.lua](../ui/isiLive_settings.lua),
-[testmodul/isilive_test_scenarios_db_schema.lua](../testmodul/isilive_test_scenarios_db_schema.lua):
 
 - Added VIP Guest Settings mute toggles for Astral Aurochs, Grand Expedition
   Yak, and Trader's Gilded Brutosaur mount sounds.
@@ -770,13 +526,6 @@ muting, and the matching deterministic coverage.
 
 ### Release Metadata
 
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/USECASES.md](USECASES.md),
-[docs/RELEASE.md](RELEASE.md):
-
 - Bumped the TOC and documented baselines to `0.9.273`.
 - Updated the validator baseline to `1841` scenarios.
 
@@ -787,13 +536,6 @@ release metadata.
 
 ### Ready Check
 
-[ui/isiLive_roster_panel.lua](../ui/isiLive_roster_panel.lua),
-[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua),
-[logic/isiLive_event_handlers_runtime.lua](../logic/isiLive_event_handlers_runtime.lua),
-[testmodul/isilive_test_scenarios_taint.lua](../testmodul/isilive_test_scenarios_taint.lua),
-[testmodul/isilive_test_scenarios_event_handlers_runtime_branches.lua](../testmodul/isilive_test_scenarios_event_handlers_runtime_branches.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
-
 - Deferred secure ready-check button enable/alpha updates while combat lockdown
   is active, preventing `ADDON_ACTION_BLOCKED` from `Button:SetEnabled()`.
 - Applied pending leader-button state on `PLAYER_REGEN_ENABLED`, so non-leader
@@ -802,13 +544,6 @@ release metadata.
   both tests to the active secure-button combat rule.
 
 ### Release Metadata
-
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/USECASES.md](USECASES.md),
-[docs/RELEASE.md](RELEASE.md):
 
 - Bumped the TOC and documented baselines to `0.9.272`.
 - Updated the validator baseline to `1830` scenarios.
@@ -819,12 +554,6 @@ Tightens the Share Keys cooldown chain for all isiLive users and sends the
 request with higher addon-message priority.
 
 ### Share Keys
-
-[logic/isiLive_event_handlers_runtime.lua](../logic/isiLive_event_handlers_runtime.lua),
-[logic/isiLive_sync.lua](../logic/isiLive_sync.lua),
-[testmodul/isilive_test_scenarios_event_handlers_hidden_sync.lua](../testmodul/isilive_test_scenarios_event_handlers_hidden_sync.lua),
-[testmodul/isilive_test_scenarios_sync.lua](../testmodul/isilive_test_scenarios_sync.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
 
 - Remote isiLive clients now start the 30-second Share Keys button cooldown for
   every valid incoming `SHAREKEYS` request, even when they have no own key to
@@ -838,13 +567,6 @@ request with higher addon-message priority.
 
 ### Release Metadata
 
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/USECASES.md](USECASES.md),
-[docs/RELEASE.md](RELEASE.md):
-
 - Bumped the TOC and documented baselines to `0.9.271`.
 - Kept the validator baseline at `1828` scenarios.
 
@@ -854,12 +576,6 @@ Fixes the ready-check action button for combat lockdown and syncs release
 metadata.
 
 ### Ready Check
-
-[ui/isiLive_roster_panel.lua](../ui/isiLive_roster_panel.lua),
-[ui/isiLive_roster_panel_chrome.lua](../ui/isiLive_roster_panel_chrome.lua),
-[testmodul/isilive_test_scenarios_roster_panel.lua](../testmodul/isilive_test_scenarios_roster_panel.lua),
-[testmodul/isilive_test_scenarios_tank_helper.lua](../testmodul/isilive_test_scenarios_tank_helper.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
 
 - Replaced the insecure `DoReadyCheck()` click path with a preconfigured
   secure macro action using `/readycheck`.
@@ -871,13 +587,6 @@ metadata.
 
 ### Release Metadata
 
-[isiLive.toc](../isiLive.toc),
-[README.md](../README.md),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/USECASES.md](USECASES.md),
-[docs/RELEASE.md](RELEASE.md):
-
 - Bumped the TOC and documented baselines to `0.9.270`.
 - Updated the validator baseline to `1828` scenarios.
 
@@ -886,13 +595,6 @@ metadata.
 Hardens the ESC Addons shortcut dispatch and syncs release documentation.
 
 ### ESC Addons Panel
-
-[ui/isiLive_ui.lua](../ui/isiLive_ui.lua),
-[testmodul/isilive_test_scenarios_ui.lua](../testmodul/isilive_test_scenarios_ui.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md),
-[docs/USECASES.md](USECASES.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[README.md](../README.md):
 
 - Kept shortcut visibility fail-closed: supported external addon buttons appear
   only when the target addon is installed and enabled.
@@ -906,10 +608,6 @@ Hardens the ESC Addons shortcut dispatch and syncs release documentation.
 
 ### Release Metadata
 
-[isiLive.toc](../isiLive.toc),
-[CHANGELOG_RELEASE.md](../CHANGELOG_RELEASE.md),
-[docs/RELEASE.md](RELEASE.md):
-
 - Bumped the TOC and documented baselines to `0.9.269`.
 - Updated the validator baseline to `1827` scenarios.
 
@@ -918,12 +616,6 @@ Hardens the ESC Addons shortcut dispatch and syncs release documentation.
 Stabilizes the standalone Stats Box value column for compact stat layouts.
 
 ### Stats Box
-
-[ui/isiLive_stats_box.lua](../ui/isiLive_stats_box.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md),
-[docs/USECASES.md](USECASES.md),
-[README.md](../README.md),
-[testmodul/isilive_test_scenarios_stats_box.lua](../testmodul/isilive_test_scenarios_stats_box.lua):
 
 - Kept the values column at its compact minimum width even when current text
   measurements are narrower, so four-digit primary stats such as `2052` do not
@@ -937,15 +629,6 @@ Stabilizes the standalone Stats Box value column for compact stat layouts.
 Adds verified mount shortcuts to the ESC menu.
 
 ### ESC Mounts Panel
-
-[ui/isiLive_ui.lua](../ui/isiLive_ui.lua),
-[factory/isiLive_factory.lua](../factory/isiLive_factory.lua),
-[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua),
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md),
-[docs/ARCHITECTURE.md](ARCHITECTURE.md),
-[docs/USECASES.md](USECASES.md),
-[testmodul/isilive_test_scenarios_ui.lua](../testmodul/isilive_test_scenarios_ui.lua):
 
 - Added a localized `Mounts` panel below the existing `Travel` ESC panel.
 - Added secure macro shortcuts for favorite mount, auction-house Brutosaur, and
@@ -966,14 +649,6 @@ accepts the Russian locale improvements from pull request #21.
 
 ### Stats Box
 
-[ui/isiLive_stats_box.lua](../ui/isiLive_stats_box.lua),
-[ui/isiLive_ui_common.lua](../ui/isiLive_ui_common.lua),
-[ui/isiLive_roster_layout.lua](../ui/isiLive_roster_layout.lua),
-[ui/isiLive_roster_panel_chrome.lua](../ui/isiLive_roster_panel_chrome.lua),
-[ui/isiLive_settings.lua](../ui/isiLive_settings.lua),
-[testmodul/isilive_test_scenarios_stats_box.lua](../testmodul/isilive_test_scenarios_stats_box.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
-
 - FontString width measurements that are masked as Secret Values are now
   ignored instead of being coerced or compared in Lua.
 - Refreshes keep the last trusted fitted text layout; first-time tainted
@@ -985,8 +660,6 @@ accepts the Russian locale improvements from pull request #21.
   the secret width measurement path.
 
 ### Russian Locale
-
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua):
 
 - Accepted pull request #21 from `Hubbotu` with Russian text abbreviations for
   ESC-menu and Settings labels.
@@ -1001,10 +674,6 @@ visibility.
 
 ### Sound Cues
 
-[core/isiLive_sound_utils.lua](../core/isiLive_sound_utils.lua),
-[logic/isiLive_event_handlers_runtime.lua](../logic/isiLive_event_handlers_runtime.lua),
-[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua):
-
 - Incoming summon now plays the bundled `sounds/Portal.ogg` asset directly
   instead of depending on a client-specific SoundKit constant.
 - Bloodlust sound now also fires from the observed player Sated/Exhaustion aura
@@ -1015,9 +684,6 @@ visibility.
 
 ### Settings UI
 
-[ui/isiLive_settings.lua](../ui/isiLive_settings.lua),
-[testmodul/isilive_test_scenarios_ui_settings.lua](../testmodul/isilive_test_scenarios_ui_settings.lua):
-
 - Default-layout option buttons now fit localized labels such as German
   `Zuletzt verwendet`, preventing the next V/H/M+ button from overlapping.
 - Behavior-section auto-show/hide and raid notes are refreshed when the addon
@@ -1027,10 +693,6 @@ visibility.
   note refresh across all supported addon locales.
 
 ### ESC Addons Panel
-
-[ui/isiLive_ui.lua](../ui/isiLive_ui.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md),
-[testmodul/isilive_test_scenarios_ui.lua](../testmodul/isilive_test_scenarios_ui.lua):
 
 - Addon shortcut buttons now appear for supported addons that are installed and
   enabled, even if the target addon is still load-on-demand and not yet loaded.
@@ -1048,10 +710,6 @@ Adds an ESC-menu Addons shortcut panel.
 
 ### ESC Addons Panel
 
-[ui/isiLive_ui.lua](../ui/isiLive_ui.lua),
-[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua),
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua):
-
 - Added a third ESC overlay panel to the left of the Travel panel with the
   `Addons` header.
 - Added shortcut buttons for MDT, MRT, DBM, BigWigs, Details, SimC, and
@@ -1066,9 +724,6 @@ Fixes the Settings default-layout selector spacing.
 
 ### Settings Layout
 
-[ui/isiLive_settings.lua](../ui/isiLive_settings.lua),
-[testmodul/isilive_test_scenarios_ui_settings.lua](../testmodul/isilive_test_scenarios_ui_settings.lua):
-
 - The default-layout label now uses the full Settings text width.
 - The V/H/M+ option buttons now sit on a separate row with clear vertical
   spacing below the label.
@@ -1079,10 +734,6 @@ Fixes the Settings default-layout selector spacing.
 Closes German Settings translation gaps.
 
 ### Settings Localization
-
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua),
-[ui/isiLive_settings.lua](../ui/isiLive_settings.lua),
-[factory/isiLive_factory_minimap.lua](../factory/isiLive_factory_minimap.lua):
 
 - Reworded German Settings labels that still used avoidable English terms.
 - Localized the minimap button tooltip instead of hard-coding English click
@@ -1095,10 +746,6 @@ Closes German Settings translation gaps.
 Persists the current group target key through the reload roster mirror.
 
 ### Reload Roster Mirror Target Key
-
-[logic/isiLive_group.lua](../logic/isiLive_group.lua),
-[factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
 
 - The reload roster mirror now stores the verified current group target key
   alongside the member snapshot, bound to the same exact group signature.
@@ -1114,10 +761,6 @@ Tightens the standalone player Stats Box background to the rendered text.
 
 ### Stats Box Fit
 
-[ui/isiLive_stats_box.lua](../ui/isiLive_stats_box.lua),
-[testmodul/isilive_test_scenarios_stats_box.lua](../testmodul/isilive_test_scenarios_stats_box.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
-
 - The Stats Box now measures its visible label, value, and percent text columns
   after rendering and resizes the frameless background to those text bounds plus
   compact padding.
@@ -1132,9 +775,6 @@ Corrects the title-bar Settings shortcut placement and spacing.
 
 ### Title Bar Settings Shortcut Follow-Up
 
-[ui/isiLive_ui.lua](../ui/isiLive_ui.lua),
-[ui/isiLive_roster_panel.lua](../ui/isiLive_roster_panel.lua):
-
 - Moved the gear button to the left of the `L` lock button.
 - Shifted the M+/H/V layout switcher group left so it no longer overlaps the
   Settings, lock, and close controls.
@@ -1146,11 +786,6 @@ Corrects the title-bar Settings shortcut placement and spacing.
 Adds a direct Settings shortcut to the main isiLive title bar.
 
 ### Title Bar Settings Shortcut
-
-[ui/isiLive_ui.lua](../ui/isiLive_ui.lua),
-[factory/isiLive_frame_bridge.lua](../factory/isiLive_frame_bridge.lua),
-[factory/isiLive_factory_frame_bridge.lua](../factory/isiLive_factory_frame_bridge.lua),
-[locale/isiLive_texts.lua](../locale/isiLive_texts.lua):
 
 - Added a gear button directly to the right of the title-bar `L` lock button;
   left-click opens the isiLive Blizzard Settings category.
@@ -1165,9 +800,6 @@ Fixes Settings audit findings around exposed numeric ranges and long localized
 slider labels.
 
 ### Settings Audit
-
-[ui/isiLive_settings.lua](../ui/isiLive_settings.lua),
-[testmodul/isilive_test_scenarios_ui_settings.lua](../testmodul/isilive_test_scenarios_ui_settings.lua):
 
 - Aligned the Nameplate font-size Settings slider with the DB schema range:
   the UI now exposes the full valid `8..28` range instead of stopping at `24`.
@@ -1188,10 +820,6 @@ Restores the default-off auto-close contract and migrates legacy combined
 auto-close settings without guessing from ambiguous SavedVariables.
 
 ### Auto-Close Default and Legacy Migration
-
-[core/isiLive_db_schema.lua](../core/isiLive_db_schema.lua),
-[factory/isiLive_factory.lua](../factory/isiLive_factory.lua),
-[ui/isiLive_settings.lua](../ui/isiLive_settings.lua):
 
 - Restored the active default-off contract for `autoCloseOnKeyStart`: fresh
   installs and untouched SavedVariables now only close the main UI on key
@@ -1216,9 +844,6 @@ same runtime dependencies as the local button flow.
 
 ### Share Keys Wiring
 
-[factory/isiLive_controller_wiring.lua](../factory/isiLive_controller_wiring.lua),
-[logic/isiLive_event_handlers_runtime.lua](../logic/isiLive_event_handlers_runtime.lua):
-
 - The event-handler config now receives the wired own-keystone chat sender,
   runtime trace hooks, and share-keys cooldown trigger from controller wiring.
 - Remote `SHAREKEYS` addon messages now call the same own-key party-chat
@@ -1227,9 +852,6 @@ same runtime dependencies as the local button flow.
   party post succeeds, preserving the fail-closed spam-protection contract.
 
 ### Tests
-
-[testmodul/isilive_test_scenarios_controller_wiring_keystone.lua](../testmodul/isilive_test_scenarios_controller_wiring_keystone.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
 
 - Added deterministic coverage that `Sync.SendShareKeysRequest()` produces the
   real `SHAREKEYS` addon payload and that the wired receive path processes
@@ -1244,12 +866,6 @@ Adds an optional standalone player stats box and prevents movable isiLive
 windows from being dragged outside the WoW screen.
 
 ### Player Stats Box
-
-[ui/isiLive_stats_box.lua](../ui/isiLive_stats_box.lua),
-[ui/isiLive_settings.lua](../ui/isiLive_settings.lua),
-[core/isiLive_db_schema.lua](../core/isiLive_db_schema.lua),
-[factory/isiLive_factory.lua](../factory/isiLive_factory.lua),
-[isiLive.toc](../isiLive.toc):
 
 - Added a separate player stats box that is independent from the M+, H, and V
   main UI layouts.
@@ -1268,10 +884,6 @@ windows from being dragged outside the WoW screen.
 
 ### Movable UI Clamp
 
-[ui/isiLive_ui.lua](../ui/isiLive_ui.lua),
-[ui/isiLive_notice.lua](../ui/isiLive_notice.lua),
-[ui/isiLive_stats_box.lua](../ui/isiLive_stats_box.lua):
-
 - Main UI, Center Notice, Portal Navigator, and Stats Box now clamp their
   movable frames to the WoW screen edge, so users cannot drag those windows
   outside the game view.
@@ -1279,12 +891,6 @@ windows from being dragged outside the WoW screen.
   of being treated as a normal movable window.
 
 ### Tests
-
-[testmodul/isilive_test_scenarios_stats_box.lua](../testmodul/isilive_test_scenarios_stats_box.lua),
-[testmodul/isilive_test_scenarios_ui.lua](../testmodul/isilive_test_scenarios_ui.lua),
-[testmodul/isilive_test_scenarios_ui_center_notice.lua](../testmodul/isilive_test_scenarios_ui_center_notice.lua),
-[testmodul/isilive_test_scenarios_ui_settings.lua](../testmodul/isilive_test_scenarios_ui_settings.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
 
 - Added deterministic coverage for live-only Stats Box values, secret-value
   formatting safety, fixed labels, alignment, color palette, font scaling,
@@ -1300,13 +906,6 @@ and adds explicit SHAREKEYS runtime tracing.
 
 ### Reload Roster Mirror
 
-[core/isiLive_db_schema.lua](../core/isiLive_db_schema.lua),
-[logic/isiLive_group.lua](../logic/isiLive_group.lua),
-[factory/isiLive_controller_wiring.lua](../factory/isiLive_controller_wiring.lua),
-[factory/isiLive_factory.lua](../factory/isiLive_factory.lua),
-[logic/isiLive_event_handlers.lua](../logic/isiLive_event_handlers.lua),
-[logic/isiLive_event_handlers_runtime.lua](../logic/isiLive_event_handlers_runtime.lua):
-
 - Reload roster snapshots now persist verified group display data separately
   from volatile runtime state and restore it only when the current player group
   signature matches the saved signature.
@@ -1316,17 +915,11 @@ and adds explicit SHAREKEYS runtime tracing.
 
 ### SHAREKEYS Runtime Trace
 
-[logic/isiLive_sync.lua](../logic/isiLive_sync.lua),
-[logic/isiLive_event_handlers.lua](../logic/isiLive_event_handlers.lua),
-[logic/isiLive_event_handlers_runtime.lua](../logic/isiLive_event_handlers_runtime.lua):
-
 - Applied sync messages now log whether a `SHAREKEYS` request was detected.
 - Runtime handling now emits explicit `[SHAREKEYS]` receive, reply-result, and
   cooldown-trigger traces when a peer asks for key sharing.
 
 ### M+Marker
-
-[ui/isiLive_roster_panel_chrome.lua](../ui/isiLive_roster_panel_chrome.lua):
 
 - M+Marker buttons now set the native `worldmarker` secure-action attributes
   directly on each button (`type` and `marker`) and keep left/right click
@@ -1336,14 +929,6 @@ and adds explicit SHAREKEYS runtime tracing.
   the defensive layering already used for tank/healer role-marker buttons.
 
 ### Tests
-
-[testmodul/isilive_test_scenarios_tank_helper.lua](../testmodul/isilive_test_scenarios_tank_helper.lua),
-[testmodul/isilive_test_scenarios_taint.lua](../testmodul/isilive_test_scenarios_taint.lua),
-[testmodul/isilive_test_scenarios_db_schema.lua](../testmodul/isilive_test_scenarios_db_schema.lua),
-[testmodul/isilive_test_scenarios_group.lua](../testmodul/isilive_test_scenarios_group.lua),
-[testmodul/isilive_test_scenarios_sync.lua](../testmodul/isilive_test_scenarios_sync.lua),
-[testmodul/isilive_test_scenarios_event_handlers_hidden_sync.lua](../testmodul/isilive_test_scenarios_event_handlers_hidden_sync.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
 
 - Tightened deterministic coverage for M+Marker secure attributes and attached
   it to the active M+Marker WorldMarker rule.
@@ -1359,8 +944,6 @@ around runtime resolution.
 
 ### Teleport Cooldowns
 
-[game/isiLive_spell_utils.lua](../game/isiLive_spell_utils.lua):
-
 - Teleport cooldown start times that imply multiple complete 8-hour portal
   windows are now normalized to the current cooldown-cycle remainder before
   formatting. The visible cooldown frame is anchored at the current session time
@@ -1371,10 +954,6 @@ around runtime resolution.
 
 ### No-Guess Contract
 
-[docs/RULES_LOGIC.md](RULES_LOGIC.md),
-[game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua),
-[logic/isiLive_keysync.lua](../logic/isiLive_keysync.lua):
-
 - Clarified that an explicitly parseable `+N` in the LFG group title is an
   accepted listing source for the key level, while free-form title text without
   that marker remains unresolved.
@@ -1383,9 +962,6 @@ around runtime resolution.
   time from a received, verified peer cooldown payload.
 
 ### Tests
-
-[testmodul/isilive_test_scenarios_spell_utils.lua](../testmodul/isilive_test_scenarios_spell_utils.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
 
 - Added deterministic coverage for wrapped teleport cooldown start times being
   normalized to the current cooldown cycle and for the Teleport UI applying the
@@ -1399,10 +975,6 @@ Fixes Russian roster column headers after the `ruRU` locale rollout.
 
 ### Locale UI
 
-[locale/isiLive_texts.lua](locale/isiLive_texts.lua),
-[ui/isiLive_roster_panel.lua](ui/isiLive_roster_panel.lua),
-[ui/isiLive_roster_panel_chrome.lua](ui/isiLive_roster_panel_chrome.lua):
-
 - Shortened the Russian iLvl and kick column headers to fit their fixed roster
   columns.
 - Roster column headers now use the same Cyrillic-capable ruRU font override
@@ -1410,9 +982,6 @@ Fixes Russian roster column headers after the `ruRU` locale rollout.
   so long localized headers cannot visually run into adjacent columns.
 
 ### Tests
-
-[testmodul/isilive_test_scenarios_roster_layout.lua](testmodul/isilive_test_scenarios_roster_layout.lua),
-[docs/RULES_LOGIC.md](RULES_LOGIC.md):
 
 - Added deterministic coverage for ruRU header fitting and attached it to the
   active ruRU font rendering rule.
@@ -1426,9 +995,6 @@ Russian locale update.
 
 ### Sync
 
-[logic/isiLive_sync.lua](logic/isiLive_sync.lua),
-[factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua):
-
 - KICK payloads with both multi-kick extras and a primary spell ID now keep
   `:E:` before `:S:`, preserving mixed-version compatibility for older peers
   that read extras from `parts[4]/parts[5]`.
@@ -1437,12 +1003,6 @@ Russian locale update.
   still dropped instead of becoming a guessed level.
 
 ### Locale UI
-
-[locale/isiLive_texts.lua](locale/isiLive_texts.lua),
-[locale/isiLive_locale.lua](locale/isiLive_locale.lua),
-[ui/isiLive_settings.lua](ui/isiLive_settings.lua),
-[ui/isiLive_invite_list.lua](ui/isiLive_invite_list.lua),
-[ui/isiLive_roster_layout.lua](ui/isiLive_roster_layout.lua):
 
 - The ruRU locale now uses Cyrillic translations for the addon UI strings and
   localized language display names instead of transliterated placeholders.
@@ -1463,11 +1023,6 @@ Russian locale update.
 
 ### Tests
 
-[testmodul/isilive_test_scenarios_locale.lua](testmodul/isilive_test_scenarios_locale.lua),
-[testmodul/isilive_test_scenarios_roster_layout.lua](testmodul/isilive_test_scenarios_roster_layout.lua),
-[testmodul/isilive_test_scenarios_sync.lua](testmodul/isilive_test_scenarios_sync.lua),
-[testmodul/isilive_test_scenarios_factory_controllers_status_helpers.lua](testmodul/isilive_test_scenarios_factory_controllers_status_helpers.lua):
-
 - Replaced the legacy 14-character locale gate for full-width action buttons
   with key-presence coverage plus deterministic font-fit scenarios for short,
   long, post-shrink, and ruRU Cyrillic-font labels.
@@ -1484,8 +1039,6 @@ success signal.
 
 ### M+ KillTracker
 
-[ui/isiLive_roster_panel_kill_row.lua](ui/isiLive_roster_panel_kill_row.lua):
-
 - Pre-key level cell now only renders the numeric `+N`; raw LFG title
   scraps (group-leader notes, unprocessed Blizzard keystone markup) no
   longer leak into the level position.
@@ -1494,8 +1047,6 @@ success signal.
   element while the dungeon label stays legible.
 
 ### Share Keys
-
-[logic/isiLive_sync.lua](logic/isiLive_sync.lua):
 
 - `SendShareKeysRequest()` now reports success only when the `SHAREKEYS`
   addon message dispatch actually succeeds. Failed dispatch attempts no
@@ -1507,10 +1058,6 @@ success signal.
 Fixes M+ target display and enemy-forces freshness in the bottom tracker.
 
 ### M+ target and portal highlight
-
-[factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua),
-[ui/isiLive_roster_panel.lua](ui/isiLive_roster_panel.lua),
-[ui/isiLive_roster_panel_kill_row.lua](ui/isiLive_roster_panel_kill_row.lua):
 
 - The portal highlight resolver now receives the verified local target map
   from the LFG/target-dungeon path before falling back to synced peer
@@ -1531,8 +1078,6 @@ Fixes M+ target display and enemy-forces freshness in the bottom tracker.
 
 ### Killtracker live forces refresh
 
-[game/isiLive_killtrack.lua](game/isiLive_killtrack.lua):
-
 - `PLAYER_REGEN_ENABLED` now re-reads Blizzard's live scenario forces
   before notifying the UI, so completed pulls are committed immediately
   instead of waiting for the next combat start.
@@ -1541,12 +1086,6 @@ Fixes M+ target display and enemy-forces freshness in the bottom tracker.
   remaining-count suffix aligned.
 
 ### Tests
-
-[testmodul/isilive_test_scenarios_factory_highlight_priority.lua](testmodul/isilive_test_scenarios_factory_highlight_priority.lua),
-[testmodul/isilive_test_scenarios_factory_controllers_status_helpers.lua](testmodul/isilive_test_scenarios_factory_controllers_status_helpers.lua),
-[testmodul/isilive_test_scenarios_kill_row_branches.lua](testmodul/isilive_test_scenarios_kill_row_branches.lua),
-[testmodul/isilive_test_scenarios_lfg_detect.lua](testmodul/isilive_test_scenarios_lfg_detect.lua),
-[testmodul/isilive_test_scenarios_killtrack.lua](testmodul/isilive_test_scenarios_killtrack.lua):
 
 - `Factory primary highlight forwards local target map to shared resolver`
 - `UpdateKillTrackRow renders verified target key as right-aligned combined text before challenge start`
@@ -1564,9 +1103,6 @@ Rolls up the 2026-05-15 key-start notice-replay work plus a
 follow-up belt-and-suspenders guard for the recovery branch.
 
 ### Key-start closes the accepted-invite notice window
-
-[logic/isiLive_event_handlers_challenge.lua](logic/isiLive_event_handlers_challenge.lua),
-[game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua):
 
 - The challenge-mode-start handler now forwards `CHALLENGE_MODE_START`
   to `LFGDetect.HandleEvent`. The new branch sets
@@ -1618,10 +1154,6 @@ because those are not table values either.
 
 ### Direct-push carries the exact Blizzard keystone markup
 
-[game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua),
-[ui/isiLive_status.lua](ui/isiLive_status.lua),
-[factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua):
-
 - New helper `ResolveEntryTitleLevelText(entry)` returns
   `entry.groupName` verbatim **only** when it matches
   `^|Kk%d+|k$` (anchor-strict). Free-form titles like
@@ -1639,10 +1171,6 @@ because those are not table values either.
   rendered, without any descriptive title fragments leaking in.
 
 ### Tests
-
-[testmodul/isilive_test_scenarios_status.lua](testmodul/isilive_test_scenarios_status.lua),
-[testmodul/isilive_test_scenarios_lfg_detect.lua](testmodul/isilive_test_scenarios_lfg_detect.lua),
-[testmodul/isilive_test_scenarios_event_challenges.lua](testmodul/isilive_test_scenarios_event_challenges.lua):
 
 - `Event handlers forward challenge start to LFGDetect` — dispatch
   contract.
@@ -1699,8 +1227,6 @@ Reconstructed from the in-game byte-dump (vorfall 2026-05-15):
 
 ### Fix — recovery branch fires the post-accept hooks itself
 
-[game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua):
-
 - The recovery branch in `LFGDetect.HandleEvent("GROUP_ROSTER_UPDATE")`
   now calls `MaybeShowAcceptedInviteNotice(entry, resultID)` and
   `MaybeFireTargetDungeonChatFromAccept(entry, resultID)` directly
@@ -1734,15 +1260,11 @@ Reconstructed from the in-game byte-dump (vorfall 2026-05-15):
 
 ### Tests
 
-[testmodul/isilive_test_scenarios_lfg_detect.lua](testmodul/isilive_test_scenarios_lfg_detect.lua):
-
 - New `LFGDetect GROUP_ROSTER_UPDATE recovery fires target-dungeon-chat
   callback once` pins the full race contract in one sequence:
   `invited` → `GROUP_ROSTER_UPDATE` → callback fires once with
   `mapID/level/leader/searchResultID`; the subsequent
   `inviteaccepted` is silently deduped.
-
-[docs/RULES_LOGIC.md](docs/RULES_LOGIC.md):
 
 - The "Status target dungeon chat" rule now lists the new test as
   required, so future audits keep the contract enforced.
@@ -1773,8 +1295,6 @@ Lua API to invoke Blizzard's lookup-table decoder.
 
 ### Pattern C reverted
 
-[game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua):
-
 - `ParseTitleKeyLevel` rolls back to the pre-0.9.242 Pattern A / B
   set (plain "+N" and "N+"). For Blizzard's pipe markup the parser
   now correctly returns nil — no false level invented from the
@@ -1786,8 +1306,6 @@ Lua API to invoke Blizzard's lookup-table decoder.
   bogus number.
 
 ### Direct-push bails on level=nil
-
-[ui/isiLive_status.lua](ui/isiLive_status.lua):
 
 - `AnnounceTargetDungeonFromPayload` returns early when
   `payload.level` is nil. No chat line emitted, no
@@ -1814,8 +1332,6 @@ ascertainable, and the chat line is uniformly the compact
 
 ### Tests
 
-[testmodul/isilive_test_scenarios_status.lua](testmodul/isilive_test_scenarios_status.lua):
-
 - Removed `renders without +N when level is nil` — the old contract
   ("emit anyway, just without +N") is exactly what the user
   rejected.
@@ -1823,8 +1339,6 @@ ascertainable, and the chat line is uniformly the compact
   pins the new contract: level-less direct-push stays silent, does
   not poison the lock-in, and the resolver path takes over with the
   roster-owner level.
-
-[testmodul/isilive_test_scenarios_lfg_detect.lua](testmodul/isilive_test_scenarios_lfg_detect.lua):
 
 - Pattern C assertions removed.
 - New assertions on the `ResolveEntryTitleLevel` helper pin the
@@ -1860,8 +1374,6 @@ verbatim to the chat frame — which then rendered it as "+12".
 
 ### Pattern C — Blizzard `|Kk<N>|k` keystone-level markup
 
-[game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua):
-
 - `ParseTitleKeyLevel` learns a third pattern: `|Kk(%d+)|k`.
   Runs alongside Pattern A so a listing title that mixes plain
   text (`"+13"`) and markup (`"|Kk13|k"`) still picks the highest
@@ -1893,8 +1405,6 @@ Routing through the helper for:
 
 ### Telemetry
 
-[game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua):
-
 - `ResolveEntryTitleLevel` emits a `title_level_fallback` log
   entry whenever the recovery path actually fires (e.g. markup-only
   titles). Cheap, no PII (LFG titles are public listings), gives
@@ -1904,8 +1414,6 @@ Routing through the helper for:
   this log makes the same data persistent.
 
 ### Tests
-
-[testmodul/isilive_test_scenarios_lfg_detect.lua](testmodul/isilive_test_scenarios_lfg_detect.lua):
 
 - Existing `ResolveEntryTitleLevel recovers level from groupName
   when titleLevel is nil` extended with three Pattern C assertions:
@@ -2012,8 +1520,6 @@ Fix:
 
 Usecase count rises from 1702 (post-0.9.240) to 1705.
 
-[testmodul/isilive_test_scenarios_status.lua](testmodul/isilive_test_scenarios_status.lua):
-
 - Rewrote `lock-in resets when group leaves` on the real `info=nil`
   reset path (the mocked `targetInfo` is cleared alongside
   `inGroup=false`, matching how the live resolver collapses to nil
@@ -2028,14 +1534,10 @@ Usecase count rises from 1702 (post-0.9.240) to 1705.
   appearing later opens the gate, and direct-push bypasses the
   gate regardless.
 
-[testmodul/isilive_test_scenarios_lfg_detect.lua](testmodul/isilive_test_scenarios_lfg_detect.lua):
-
 - New `direct-push fires even while IsInGroup() is transient false`
   pins the production wiring: callback set, no
   `SetTargetDungeonChatEnabledFn`, `IsInGroup()=false` — the
   callback must still fire and carry the listing's `+N`.
-
-[tools/simulate_multi_invite_target_chain.lua](tools/simulate_multi_invite_target_chain.lua):
 
 - Phase 5 (`leave + rejoin must allow a fresh announce`) realigned
   with the real group-leave sequence: `ClearAllState` clears the
@@ -2073,8 +1575,6 @@ the chat shows `+N` — they share the payload now.
 
 ### New direct-push hook in lfg_detect
 
-[game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua):
-
 - New `targetDungeonChatCallback` / `targetDungeonChatEnabledFn`
   module-local slots plus their `SetTargetDungeonChatCallback` /
   `SetTargetDungeonChatEnabledFn` setters.
@@ -2088,8 +1588,6 @@ the chat shows `+N` — they share the payload now.
   frame.
 
 ### New direct-push entry point on the status controller
-
-[ui/isiLive_status.lua](ui/isiLive_status.lua):
 
 - New `controller.AnnounceTargetDungeonFromPayload(payload)` method.
   Takes `{name, level}` directly (the factory pre-resolves
@@ -2105,8 +1603,6 @@ the chat shows `+N` — they share the payload now.
   already being set for the same name.
 
 ### Factory wiring
-
-[factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua):
 
 - After `statusController` is created, the factory wires the LFG-
   detect callback to a closure that pre-resolves the dungeon name
@@ -2140,8 +1636,6 @@ one path where the listing payload carries the authoritative level.
 
 7 new regression tests; usecase count rises from 1695 to 1702.
 
-[testmodul/isilive_test_scenarios_status.lua](testmodul/isilive_test_scenarios_status.lua):
-
 - `AnnounceTargetDungeonFromPayload emits the +N line and sets the
   lock-in` — pins the happy path and the no-second-fire.
 - `... renders without +N when level is nil` — listing without a
@@ -2151,8 +1645,6 @@ one path where the listing payload carries the authoritative level.
 - `... locks out the resolver-driven path` — direct push first, then
   a subsequent resolver-driven `MaybeAnnounceTargetDungeonChat` must
   stay silent because the lock-in is set.
-
-[testmodul/isilive_test_scenarios_lfg_detect.lua](testmodul/isilive_test_scenarios_lfg_detect.lua):
 
 - `OnInviteAccepted fires the target-dungeon-chat callback with the
   listing payload` — `level == entry.titleLevel`,
@@ -2218,8 +1710,6 @@ Fix:
 
 Test changes; usecase count rises from 1702 to 1704.
 
-[testmodul/isilive_test_scenarios_status.lua](testmodul/isilive_test_scenarios_status.lua):
-
 - "lock-in resets when group leaves" rewritten on the real `info=nil`
   reset path (the mocked `targetInfo` is now cleared alongside
   `inGroup=false`, matching how the live resolver collapses to nil
@@ -2228,8 +1718,6 @@ Test changes; usecase count rises from 1702 to 1704.
   the LFG-accept race window: direct push fires, `IsInGroup` flips
   false, the synchronous status refresh runs — the chat line stays
   quiet, the next `GROUP_ROSTER_UPDATE` pass stays quiet too.
-
-[testmodul/isilive_test_scenarios_lfg_detect.lua](testmodul/isilive_test_scenarios_lfg_detect.lua):
 
 - New `direct-push fires even while IsInGroup() is transient false`
   pins the production wiring: callback set, no `SetTargetDungeonChat-
@@ -2273,8 +1761,6 @@ Fix:
   joined key / detectedMapID (LFG accept) light it up, synced-only
   does not.
 
-[testmodul/isilive_test_scenarios_status.lua](testmodul/isilive_test_scenarios_status.lua):
-
 - New `suppresses the announce when only a synced peer target is
   available` covers all four branches: synced-only target stays
   silent, name flip across roster changes stays silent, a local
@@ -2287,7 +1773,6 @@ Usecase count rises from 1704 to 1705.
 
 Three follow-up fixes to the 0.9.238 LFG-edge-case audit. All three
 belong to the same bug class — the accepted-invite identity inside
-[game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua)
 (`activeInviteLeader`, `activeInviteTitleLevel`, `detectedMapID`,
 `acceptedInviteSearchResultID`, `pendingAcceptedInviteMapID`) used to
 be either too permissive at capture time or too sticky across group
@@ -2308,7 +1793,6 @@ own keys visible just as instantly as the player's own one, so the
 player-only guard left the door open for every other roster member.
 
 `ResolveActiveKeyOwnerUnit` in
-[logic/isiLive_keysync.lua](logic/isiLive_keysync.lua)
 now generalises the guard: when the caller did **not** supply a
 preferred-owner hint AND the roster has ≥2 non-ghost members AND the
 unique-owner search found exactly one match, return nil regardless of
@@ -2318,7 +1802,6 @@ best-effort resolution. The 0.9.238 spec ("refuses 'player' as the
 lone match") is now a special case of this generalised rule.
 
 Test changes in
-[testmodul/isilive_test_scenarios_keysync.lua](testmodul/isilive_test_scenarios_keysync.lua):
 
 - Renamed "returns unique key owner" to "refuses unique-owner fallback
   in a multi-member group without a hint" with the new spec.
@@ -2344,13 +1827,11 @@ dungeon (e.g. a +13 hint from a just-finished POS run leaking into a
 follow-up NPX +15 run).
 
 A new helper `ClearAcceptedInviteListingIdentity` in
-[game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua)
 clears exactly the accepted-invite identity slots
 (`detectedMapID`, `activeInviteLeader`, `activeInviteTitleLevel`,
 `acceptedInviteSearchResultID`, `pendingAcceptedInviteMapID`) and
 leaves `pendingInvites` / `lastQueueMapID` untouched.
 `HandleChallengeModeCompletedOrReset` in
-[logic/isiLive_event_handlers_challenge.lua](logic/isiLive_event_handlers_challenge.lua)
 now calls `handleLFGDetectEvent(event)` in lockstep with the existing
 `handleMplusTimerEvent / handleKillTrackEvent /
 handleCombatEventsEvent` chain so the clear lands deterministically
@@ -2369,7 +1850,6 @@ so even a correct `UnitIsGroupLeader` fallback could not run for the
 new leader.
 
 `PARTY_LEADER_CHANGED` in
-[logic/isiLive_event_handlers_runtime.lua](logic/isiLive_event_handlers_runtime.lua)
 now also forwards to `handleLFGDetectEvent("PARTY_LEADER_CHANGED")`,
 which calls `ClearAcceptedInviteListingIdentity`. The helper is a
 no-op when no listing identity was captured to begin with, so
@@ -2378,7 +1858,6 @@ pre-formed groups stay quiet (no spurious clear-state log entries).
 ### Tests for Fix 1c + 1d
 
 Four new regression tests in
-[testmodul/isilive_test_scenarios_lfg_detect.lua](testmodul/isilive_test_scenarios_lfg_detect.lua):
 
 - CHALLENGE_MODE_COMPLETED clears the accepted-invite identity.
 - CHALLENGE_MODE_RESET clears the accepted-invite identity.
@@ -2401,7 +1880,6 @@ inconsistent with the Center Notice (which carries the listing's level
 directly from the LFG payload). Two independent root causes converged:
 
 **Cause A**: in
-[game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua),
 `OnInviteDeclined` nulled `activeInviteLeader` /
 `activeInviteTitleLevel` / `detectedMapID` /
 `acceptedInviteSearchResultID` for the **accepted** search-result ID as
@@ -2415,7 +1893,6 @@ the accepted search-result ID are now ignored; state only clears via
 `ClearAllStateImpl` (group-leave / explicit reset).
 
 **Cause B**: in
-[logic/isiLive_keysync.lua](logic/isiLive_keysync.lua),
 `ResolveActiveKeyOwnerUnit`'s unique-owner fallback happily returned
 `"player"` when only the player's own key matched the target dungeon
 in the roster. Right after `GROUP_ROSTER_UPDATE` only the player's own
@@ -2510,7 +1987,6 @@ plus the FontString-driven main frame; no secure / taint-sensitive
 code is reachable, so it is safe to run during InCombatLockdown.
 
 Pinned by a new test in
-[testmodul/isilive_test_scenarios_event_utils.lua](testmodul/isilive_test_scenarios_event_utils.lua)
 ("Bootstrap gate allows GROUP_ROSTER_UPDATE during combat (Delves
 member-join fix)") which drives the gate with `isInCombat()=true` and
 asserts the event reaches the dispatcher.
@@ -2559,7 +2035,6 @@ touched, and `TriggerHighlightUpdate` is not called. The only
 side effect is the notice render.
 
 The factory wires `RenderAcceptedRaidInviteNotice` in
-[factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua)
 to the new callback. It uses the same Center Notice frame and layout
 as the M+ notice, with a separate title key
 (`INVITE_ACCEPTED_RAID_NOTICE_TITLE`) so the user can tell the two
@@ -2571,7 +2046,6 @@ notices through a single user-facing switch.
 ### Raid entry Center Notice with difficulty label
 
 `GetDungeonDifficultyLabel` in
-[ui/isiLive_status.lua](ui/isiLive_status.lua)
 gained a `raid` branch that maps the four current Blizzard raid
 difficulties (LFR 17, Normal 14, Heroic 15, Mythic 16) to localized
 label strings. Legacy 10-man / 25-man / original LFR IDs are not
@@ -2617,8 +2091,6 @@ inline wiring.
 Center Notice rendering. No production behaviour change. Usecase count
 rises from 1668 to 1683.
 
-[testmodul/isilive_test_scenarios_lfg_detect.lua](testmodul/isilive_test_scenarios_lfg_detect.lua):
-
 - `AcceptedRaidInviteNotice fires for a Raid LFG listing with categoryID=3`
   — asserts the Raid callback fires, the M+ callback does not, the
   payload carries mapID / leaderName / groupName / comment / searchResultID,
@@ -2636,8 +2108,6 @@ rises from 1668 to 1683.
   — the Raid path does not raise when the factory has not wired its
   callback yet (early-load safety).
 
-[testmodul/isilive_test_scenarios_status.lua](testmodul/isilive_test_scenarios_status.lua):
-
 - `Status GetDungeonDifficultyLabel returns localized raid labels for difficulties 14/15/16/17`
   — pins the four current Blizzard raid difficulty mappings plus the
   contract `isMythic=false`, `inDungeon=true`, `instanceType="raid"`.
@@ -2654,8 +2124,6 @@ rises from 1668 to 1683.
 - `Status MaybeShowNonMythicDungeonEntryNotice still warns on non-mythic party dungeon (unchanged)`
   — backward-compat pin: non-mythic party dungeon entry keeps the
   warning prefix and the red text accent.
-
-[testmodul/isilive_test_scenarios_factory_controllers_helpers.lua](testmodul/isilive_test_scenarios_factory_controllers_helpers.lua):
 
 - `BuildAcceptedRaidInviteFields renders dungeon row WITHOUT level suffix`
   — Raid payload renders dungeon + group + description + role rows,
@@ -2703,7 +2171,6 @@ moment the first status-line update fired.
 ### `MaybeAnnounceTargetDungeonChat` waits up to 3 s for the level
 
 `MaybeAnnounceTargetDungeonChat` in
-[ui/isiLive_status.lua](ui/isiLive_status.lua)
 used a two-sighting-then-announce-level-less rule which guaranteed exactly
 one chat line per accept but locked the dungeon name in even before the
 level could resolve. Once locked, a follow-up status update carrying
@@ -2813,7 +2280,6 @@ by `UpdateCollapseState` in
 only its mouse handling was disabled (`EnableMouse(show)`). The
 `readyCheckBackground` child is shown by `RefreshReadyCheckStateImpl`
 in
-[ui/isiLive_roster_panel_render.lua](ui/isiLive_roster_panel_render.lua)
 whenever a READY_CHECK fires, with no layoutMode gating. So during —
 and during the hold phase after — a check, the colored background
 rendered through what should have been an empty toolbar surface.
@@ -2831,7 +2297,6 @@ No behaviour change.
 
 ### RenderRosterImpl: drop `touchedRowSlots` set, clear sequentially
 
-[ui/isiLive_roster_panel_render.lua](ui/isiLive_roster_panel_render.lua)
 used to track every refilled slot in a `touchedRowSlots` lookup and
 then run a `pairs(memberRows)` cleanup pass to clear the untouched
 ones. `memberRows` is keyed sequentially (1..N) and only ever
@@ -2845,7 +2310,6 @@ consistency.
 
 ### CombatEvents.ShouldDedup: in-line expiry for the recent map
 
-[game/isiLive_combat_events.lua](game/isiLive_combat_events.lua)
 keyed each cast on `sourceName|spellID` and stored its timestamp in
 `recent`. `controller.Reset()` cleared the whole map on
 `CHALLENGE_MODE_*`, but between those events entries lived forever
@@ -2893,7 +2357,6 @@ one combat-event API hit have been moved off the per-frame path.
 ### CenterNotice frame OnUpdate: deferred-state drain moved to PLAYER_REGEN_ENABLED
 
 The center-notice OnUpdate handler in
-[ui/isiLive_notice.lua](ui/isiLive_notice.lua)
 polled three `pendingTeleportButton*` fields every render frame so it
 could apply the button mutations that `SetCenterNoticeTeleportButton*`
 had captured during combat lockdown. With the notice visible, that was
@@ -2904,7 +2367,6 @@ The polling block has been extracted into
 `ApplyPendingCenterNoticeTeleportButtonState(state)` and exposed on the
 controller as `ApplyPendingTeleportButtonState()`. The
 `tryRestoreCenterNoticeTeleportButton` callback in
-[factory/isiLive_controller_wiring.lua](factory/isiLive_controller_wiring.lua)
 — which already fires on `PLAYER_REGEN_ENABLED` — now drains the
 pending state exactly once on the regen-enabled edge. The OnUpdate
 handler keeps only the blink animation and the `endsAt` auto-hide
@@ -2913,7 +2375,6 @@ check.
 ### CenterNotice teleport-button OnUpdate: 0.1 s accumulator
 
 The teleport-button OnUpdate in
-[ui/isiLive_notice.lua](ui/isiLive_notice.lua)
 called `getTeleportCooldownRemaining` + `formatCooldownSeconds` +
 `SetText` on every render frame even though the cooldown text only
 needs sub-second resolution. The handler now uses the same 0.1 s
@@ -2923,7 +2384,6 @@ work rate from 60–144 Hz down to 10 Hz.
 ### LFG invite-hint OnUpdate: Position() throttled to 0.2 s
 
 The invite-hint OnUpdate in
-[ui/isiLive_notice.lua](ui/isiLive_notice.lua)
 re-anchored itself against the LFG popup every render frame. The
 dialog itself never moves faster than the user can drag it, so a
 0.2 s accumulator suffices. `endsAt` and the dialog-mismatch hide
@@ -2933,7 +2393,6 @@ closes.
 ### CombatEvents: isInKey() result cached across casts
 
 `HandleUnitSpellcastSucceeded` in
-[game/isiLive_combat_events.lua](game/isiLive_combat_events.lua)
 called the configured `isInKey()` (default:
 `pcall(C_ChallengeMode.GetActiveChallengeMapID)`) on every single
 UNIT_SPELLCAST_SUCCEEDED, including the hundreds-per-second self-cast
@@ -2948,7 +2407,6 @@ effect: one pcall at the start of each key instead of one per cast.
 
 ### Simulator updates
 
-[tools/simulate_challenge_mode_taint_sequence.lua](tools/simulate_challenge_mode_taint_sequence.lua)
 previously flipped its `inKey.value` lambda mid-test without firing
 the matching `CHALLENGE_MODE_*` event. That was an artificial
 construct — in production the live API result only changes when one
@@ -2968,11 +2426,9 @@ only changes at ~10 Hz.
 ### UNIT_AURA filtered against `unitAuraUpdateInfo`
 
 `HandleUnitAuraEvent` in
-[logic/isiLive_event_handlers_runtime.lua](logic/isiLive_event_handlers_runtime.lua)
 previously called `ctx.updateCdTracker()` on every player UNIT_AURA fire,
 which during combat triggered the 40-slot HARMFUL `pcall(GetAuraDataByIndex)`
 scan in
-[game/isiLive_cd_tracker.lua](game/isiLive_cd_tracker.lua)
 on each DoT tick, proc refresh and stack change — easily 15–20× per
 second in an M+ pull.
 
@@ -3007,7 +2463,6 @@ the existing branch tests still observe the call in-tick.
 ### CdTracker 1 s ticker scan-gated
 
 The 1 Hz ticker in
-[factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua)
 called `UpdateCdTracker()` every second while the main frame was shown,
 even outside an M+ key with no active Bloodlust/Exhaustion countdown.
 With the frame open in town that burned ~41 pcalls + a full
@@ -3024,7 +2479,6 @@ anything.
 ([factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua))
 and therefore runs on every `SCENARIO_CRITERIA_UPDATE` (i.e. every mob
 kill in M+) plus the KillTrack 0.5 s ticker. The loop in
-[ui/isiLive_mob_nameplate.lua](ui/isiLive_mob_nameplate.lua)
 allocated 40 fresh string concatenations (`"nameplate" .. i`) per call
 and then re-applied font, frame size and text on every plate.
 
@@ -3136,7 +2590,6 @@ segment dodgerblue.
 ([ui/isiLive_settings.lua](ui/isiLive_settings.lua))
 
 Chat brand-prefix (`|cff4da6ffisiLive|r`) in
-[factory/isiLive_factory_frame_bridge.lua](factory/isiLive_factory_frame_bridge.lua)
 is left unchanged — it stays single-color blue for chat-line consistency.
 
 No behaviour or test changes. ([isiLive.toc](isiLive.toc), [ui/isiLive_settings.lua](ui/isiLive_settings.lua))
@@ -3777,7 +3230,6 @@ via the iterator-callback pattern. `CreateController` itself drops to 312 LOC.
 ### Interrupt-audit skill reference refreshed for Midnight values
 
 The `interrupt-audit` skill's reference table in
-[`.claude/skills/interrupt-audit/SKILL.md`](../.claude/skills/interrupt-audit/SKILL.md)
 (canonical source in the workspace repo) had stale CD values for two
 specs that no longer matched the in-game tooltip:
 

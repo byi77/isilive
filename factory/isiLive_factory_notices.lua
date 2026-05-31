@@ -80,7 +80,7 @@ local function BuildAcceptedInviteFields(ctx, mapName, payload)
   fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:", value = dungeonValue }
 
   if type(payload.groupName) == "string" and payload.groupName ~= "" then
-    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Group:", value = payload.groupName }
+    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Title:", value = payload.groupName }
   end
 
   if type(payload.leaderName) == "string" and payload.leaderName ~= "" then
@@ -219,7 +219,7 @@ local function BuildAcceptedRaidInviteFields(ctx, mapName, payload)
     value = mapName,
   }
   if type(payload.groupName) == "string" and payload.groupName ~= "" then
-    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Group:", value = payload.groupName }
+    fields[#fields + 1] = { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Title:", value = payload.groupName }
   end
   if type(payload.comment) == "string" and payload.comment ~= "" then
     fields[#fields + 1] =
