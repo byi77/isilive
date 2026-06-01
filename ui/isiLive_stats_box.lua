@@ -748,13 +748,7 @@ ApplyLayout = function(state, layout)
           + layout.columnGap
           + layout.valueWidth
           + math.floor((layout.valuePercentGap - layout.separatorWidth) / 2)
-        state.separator:SetPoint(
-          "TOPLEFT",
-          state.frame,
-          "TOPLEFT",
-          xOffset,
-          -layout.topPadding
-        )
+        state.separator:SetPoint("TOPLEFT", state.frame, "TOPLEFT", xOffset, -layout.topPadding)
         state.separator:SetPoint(
           "BOTTOMRIGHT",
           state.frame,
@@ -895,7 +889,6 @@ function StatsBox.Create(opts)
       if type(tint.Hide) == "function" then
         tint:Hide()
       end
-
     end
 
     local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
