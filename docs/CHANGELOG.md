@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 2026-06-01 - Version 0.9.293 (patch)
+
+- Suppressed Bloodlust-ready and Battle-Res-ready sound cycles after leaving the
+  group, even if the local Mythic+ timer still reports a stale running state,
+  so Bloodlust-ready reminders no longer repeat every 60 seconds while solo.
+- Suppressed queued `INSTANCE_CHAT` addon-sync dispatches after leaving an
+  instance group, preventing repeated Blizzard "not in a group" system messages
+  from delayed ChatThrottleLib sends.
+- Bumped the TOC and documentation version basis to `0.9.293`.
+- Updated the release-gate scenario baseline to `1948` deterministic scenarios.
+
 ## 2026-06-01 - Version 0.9.292 (patch)
 
 - Fixed the M+ forces nameplate percentage font size after WoW or an internal

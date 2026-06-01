@@ -44,6 +44,13 @@ local function InitializeFactorySecondaryCdTracker(
     return false
   end
 
+  local function IsGroupedReadySoundContext()
+    if type(ctx.isInGroup) ~= "function" then
+      return false
+    end
+    return ctx.isInGroup() == true
+  end
+
   local function PlayBloodlustReadySound()
     if
       ctx.addonTable
@@ -67,6 +74,7 @@ local function InitializeFactorySecondaryCdTracker(
       return
     end
     local mplusRunning = IsMplusTimerRunning()
+    local readySoundContextActive = mplusRunning and IsGroupedReadySoundContext()
     if mplusRunning and not lastMplusRunning then
       lastBResCharges = nil
       lastBResCooldownRemain = nil
@@ -76,7 +84,7 @@ local function InitializeFactorySecondaryCdTracker(
       or nil
     local bresCharges = type(bresInfo) == "table" and tonumber(bresInfo.charges) or nil
     local bresCooldownRemain = type(bresInfo) == "table" and tonumber(bresInfo.cooldownRemain) or nil
-    if not mplusRunning then
+    if not readySoundContextActive then
       ClearReadySoundState()
     end
     local bresChargesRecovered = lastBResCharges ~= nil
@@ -89,7 +97,7 @@ local function InitializeFactorySecondaryCdTracker(
       and bresCooldownRemain <= 0
     if
       (bresChargesRecovered or bresDisplayedCooldownExpired)
-      and mplusRunning
+      and readySoundContextActive
       and not suppressBattleResReadySound
       and ctx.addonTable
       and type(ctx.addonTable.SoundUtils) == "table"
@@ -97,7 +105,7 @@ local function InitializeFactorySecondaryCdTracker(
     then
       ctx.addonTable.SoundUtils.PlayBattleResReady()
     end
-    if suppressBattleResReadySound or not mplusRunning then
+    if suppressBattleResReadySound or not readySoundContextActive then
       lastBResCharges = nil
       lastBResCooldownRemain = nil
     else
@@ -114,7 +122,7 @@ local function InitializeFactorySecondaryCdTracker(
     if
       lustActive
       and not lastLustActive
-      and mplusRunning
+      and readySoundContextActive
       and type(opts) == "table"
       and opts.playLustSoundOnStart == true
       and ctx.addonTable
@@ -123,12 +131,12 @@ local function InitializeFactorySecondaryCdTracker(
     then
       ctx.addonTable.SoundUtils.PlayBloodlust()
     end
-    if mplusRunning and lastLustActive and not lustActive and not suppressLustReadySound then
+    if readySoundContextActive and lastLustActive and not lustActive and not suppressLustReadySound then
       if PlayBloodlustReadySound() then
         lastLustReadySoundAt = getTime()
       end
     elseif
-      mplusRunning
+      readySoundContextActive
       and not lustActive
       and not suppressLustReadySound
       and lastLustReadySoundAt ~= nil
@@ -138,7 +146,7 @@ local function InitializeFactorySecondaryCdTracker(
         lastLustReadySoundAt = getTime()
       end
     end
-    if suppressLustReadySound or not mplusRunning then
+    if suppressLustReadySound or not readySoundContextActive then
       lastLustActive = false
       lastLustReadySoundAt = nil
     else

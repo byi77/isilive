@@ -473,6 +473,9 @@ local function BuildControllerContext(state, addon, initial)
     IsRaidGroup = function()
       return state.isRaidGroup == true
     end,
+    isInGroup = function()
+      return state.inGroup == true
+    end,
   }
 
   ctx.ApplyHotkeyBindings = function()
@@ -490,6 +493,7 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
   local state = {
     time = tonumber(initial.time) or 0,
     mainFrameShown = initial.mainFrameShown == true,
+    inGroup = initial.inGroup ~= false,
     isRaidGroup = initial.isRaidGroup == true,
     mplusTimerData = initial.mplusTimerData,
     sentKick = {},
@@ -1228,6 +1232,35 @@ return function(test, ctx)
       state.bloodlustReadySoundCalls or 0,
       1,
       "post-key or dungeon-leave refreshes must not resume Bloodlust-ready reminders"
+    )
+  end)
+
+  test("Factory CD refresh suppresses Bloodlust-ready reminders after group leave with stale timer", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mplusTimerData = {
+        running = true,
+      },
+    })
+
+    state.lustInfo = { remain = 2, icon = 132114 }
+    state.ctx.UpdateCdTracker({ playLustSoundOnStart = true })
+    Assert.Equal(state.bloodlustReadySoundCalls or 0, 0, "active Bloodlust must not play ready before group leave")
+
+    state.inGroup = false
+    state.lustInfo = { remain = 0, icon = 132114 }
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(
+      state.bloodlustReadySoundCalls or 0,
+      0,
+      "group-leave refresh must not announce Bloodlust-ready even when the timer is stale"
+    )
+
+    state.time = 60
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(
+      state.bloodlustReadySoundCalls or 0,
+      0,
+      "group-leave refresh must discard the 60-second Bloodlust-ready reminder cycle"
     )
   end)
 

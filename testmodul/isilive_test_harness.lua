@@ -5,6 +5,8 @@ local Unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table,
 -- Maps bare filenames to their subdirectory paths.
 -- Scenario files and callers pass bare names; the harness resolves the real path.
 local FILE_PATHS = {
+  -- libs
+  ["ChatThrottleLib.lua"] = "libs/ChatThrottleLib/ChatThrottleLib.lua",
   -- core
   ["isiLive_validation_helpers.lua"] = "core/isiLive_validation_helpers.lua",
   ["isiLive_string_utils.lua"] = "core/isiLive_string_utils.lua",

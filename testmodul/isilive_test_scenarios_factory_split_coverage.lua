@@ -729,6 +729,9 @@ return function(test, ctx)
       GetLanguageTooltipMarkup = function()
         return "English"
       end,
+      isInGroup = function()
+        return true
+      end,
       locales = {
         enUS = { LANG_SET_EN = "English" },
         deDE = { LANG_SET_DE = "Deutsch" },

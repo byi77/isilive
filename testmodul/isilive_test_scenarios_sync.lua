@@ -2631,6 +2631,79 @@ local function RegisterChatThrottleLibRoutingTests(test, Assert, WithGlobals, Lo
       Assert.True(fallbackMessages[1].message:match("^KICK:") ~= nil, "fallback dispatch must carry kick payload")
     end)
   end)
+
+  test("ChatThrottleLib drops queued INSTANCE_CHAT addon messages after instance group leave", function()
+    local sentMessages = {}
+    local callbackDidSend = nil
+    local inInstanceGroup = true
+
+    WithGlobals({
+      ChatThrottleLib = false,
+      LE_PARTY_CATEGORY_INSTANCE = 2,
+      GetTime = function()
+        return 100
+      end,
+      GetFramerate = function()
+        return 60
+      end,
+      IsInGroup = function(category)
+        if category == 2 then
+          return inInstanceGroup
+        end
+        return inInstanceGroup
+      end,
+      UnitInRaid = function()
+        return false
+      end,
+      UnitInParty = function()
+        return inInstanceGroup
+      end,
+      hooksecurefunc = function() end,
+      wipe = function(t)
+        for key in pairs(t) do
+          t[key] = nil
+        end
+      end,
+      unpack = rawget(table, "unpack"),
+      CreateFrame = function()
+        return {
+          SetScript = function() end,
+          RegisterEvent = function() end,
+          Show = function() end,
+          Hide = function() end,
+        }
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, { prefix = prefix, message = message, channel = channel })
+          return true
+        end,
+      },
+    }, function()
+      LoadAddonModules({ "ChatThrottleLib.lua" })
+
+      local ctl = Assert.NotNil(rawget(_G, "ChatThrottleLib"), "ChatThrottleLib must load into globals")
+      ctl.bQueueing = true
+      ctl:SendAddonMessage(
+        "NORMAL",
+        "ISILIVE",
+        "HELLO:0.9.293",
+        "INSTANCE_CHAT",
+        nil,
+        "leave-test",
+        function(_, didSend)
+          callbackDidSend = didSend
+        end
+      )
+
+      inInstanceGroup = false
+      ctl.Prio.NORMAL.avail = 1000
+      ctl:Despool(ctl.Prio.NORMAL)
+
+      Assert.Equal(#sentMessages, 0, "queued INSTANCE_CHAT send must be dropped after instance group leave")
+      Assert.Equal(callbackDidSend, false, "ChatThrottleLib callback must report that the queued send was dropped")
+    end)
+  end)
 end
 
 local function RegisterSyncResetTests(test, Assert, WithGlobals, LoadAddonModules)

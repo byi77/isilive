@@ -77,7 +77,8 @@ local strlen = string.len
 local GetFramerate = GetFramerate
 local strlower = string.lower
 local unpack,type,pairs,wipe = unpack,type,pairs,wipe
-local UnitInRaid,UnitInParty = UnitInRaid,UnitInParty
+local UnitInRaid,UnitInParty,IsInGroup = UnitInRaid,UnitInParty,IsInGroup
+local LE_PARTY_CATEGORY_INSTANCE = LE_PARTY_CATEGORY_INSTANCE
 
 
 -----------------------------------------------------------------------
@@ -233,6 +234,18 @@ end
 
 local bMyTraffic = false
 
+local function IsAddonChannelAvailable(chattype)
+	local lowerDest = strlower(chattype or "")
+	if lowerDest == "raid" then
+		return UnitInRaid("player")
+	elseif lowerDest == "party" then
+		return UnitInParty("player")
+	elseif lowerDest == "instance_chat" then
+		return IsInGroup and IsInGroup(LE_PARTY_CATEGORY_INSTANCE or 2)
+	end
+	return true
+end
+
 function ChatThrottleLib.Hook_SendChatMessage(text, chattype, language, destination, ...)
 	if bMyTraffic then
 		return
@@ -306,10 +319,7 @@ function ChatThrottleLib:Despool(Prio)
 			Prio.Ring.pos = Prio.Ring.pos.next
 		end
 		local didSend=false
-		local lowerDest = strlower(msg[3] or "")
-		if lowerDest == "raid" and not UnitInRaid("player") then
-			-- do nothing
-		elseif lowerDest == "party" and not UnitInParty("player") then
+		if not IsAddonChannelAvailable(msg[3]) then
 			-- do nothing
 		else
 			Prio.avail = Prio.avail - msg.nSize
@@ -430,6 +440,12 @@ function ChatThrottleLib:SendChatMessage(prio, prefix,   text, chattype, languag
 
 	-- Check if there's room in the global available bandwidth gauge to send directly
 	if not self.bQueueing and nSize < self:UpdateAvail() then
+		if not IsAddonChannelAvailable(chattype) then
+			if callbackFn then
+				callbackFn (callbackArg, false)
+			end
+			return
+		end
 		self.avail = self.avail - nSize
 		bMyTraffic = true
 		_G.SendChatMessage(text, chattype, language, destination)
@@ -483,6 +499,12 @@ function ChatThrottleLib:SendAddonMessage(prio, prefix, text, chattype, target, 
 
 	-- Check if there's room in the global available bandwidth gauge to send directly
 	if not self.bQueueing and nSize < self:UpdateAvail() then
+		if not IsAddonChannelAvailable(chattype) then
+			if callbackFn then
+				callbackFn (callbackArg, false)
+			end
+			return
+		end
 		self.avail = self.avail - nSize
 		bMyTraffic = true
 		if _G.C_ChatInfo then
@@ -531,5 +553,3 @@ if(WOWB_VER) then
 	ChatThrottleLib.Frame:RegisterEvent("CHAT_MSG_SAY")
 end
 ]]
-
-
