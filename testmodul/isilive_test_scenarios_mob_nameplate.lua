@@ -714,6 +714,37 @@ local function RegisterFontSizeTests(test, Assert, WithGlobals, LoadAddonModules
     end)
   end)
 
+  test("MobNameplate re-applies configured font size when WoW reasserts template height", function()
+    local globals = BuildEnv({
+      units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = MakeFrame() },
+      progressValues = { nameplate1 = { count = 5, total = 431, percent = "1.16" } },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      addon.MobNameplate.SetAppearance({ fontSize = 22 })
+      addon.MobNameplate.SetEnabled(true)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+
+      local frame = addon.MobNameplate._Test_GetFrames()["nameplate1"]
+      frame = Assert.NotNil(frame, "frame must exist after first update")
+      Assert.Equal(frame.text._font.size, 22, "initial render must use the configured font size")
+      local initialCallCount = frame.text._setFontCallCount
+
+      -- Simulates a Blizzard internal refresh restoring the inherited
+      -- GameFontNormalOutline height while the isiLive cache still says the
+      -- requested user size was applied.
+      frame.text._font.size = 10
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+
+      Assert.True(
+        frame.text._setFontCallCount > initialCallCount,
+        "ApplyFont must not trust the cache when the actual FontString height changed"
+      )
+      Assert.Equal(frame.text._font.size, 22, "configured font size must be restored after template reassertion")
+    end)
+  end)
+
   test("MobNameplate ApplyFont falls back to default font when GameFontNormalOutline is missing", function()
     -- Simulates a runtime context where Blizzard has not (yet) registered the
     -- GameFontNormalOutline FontObject. ApplyFont must still call SetFont on

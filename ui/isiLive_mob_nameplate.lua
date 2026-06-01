@@ -263,10 +263,17 @@ local function ApplyFont(fontString)
   -- Dirty-check: ApplyFont is called from every UpdateNameplate. The font
   -- size only changes when the user moves the slider or fontSize default
   -- switches; skip the SetFontObject/SetFont/SetTextHeight chain when nothing
-  -- could have changed. The test "SetAppearance({fontSize}) triggers SetFont"
-  -- still passes because SetFormat/SetAppearance reset _lastFontSize via the
-  -- cache-bust below.
-  if fontString._lastFontSize == size then
+  -- could have changed. WoW can still re-assert the inherited FontObject
+  -- height after our previous SetFont call, so the cache is only valid when
+  -- the actual FontString height still matches the requested setting.
+  local actualSize
+  if type(fontString.GetFont) == "function" then
+    local ok, _, height = pcall(fontString.GetFont, fontString)
+    if ok and type(height) == "number" then
+      actualSize = height
+    end
+  end
+  if fontString._lastFontSize == size and (actualSize == nil or actualSize == size) then
     return
   end
   -- Detach from the FontObject template the FontString inherited from at

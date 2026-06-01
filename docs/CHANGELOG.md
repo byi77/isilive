@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fixed the M+ forces nameplate percentage font size after WoW or an internal
+  nameplate refresh reasserted the inherited FontObject height. The render path
+  now verifies the actual FontString height before trusting the dirty cache, so
+  the configured nameplate font-size setting is restored without requiring a
+  reload.
 - Changed the StatsBox durability row default to off, so visible refreshes skip
   durability API reads unless the user enables that detail row.
 - Added a subtle value/percent separator, stronger primary-stat highlight,
