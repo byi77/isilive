@@ -157,29 +157,6 @@ local function InitializeFactoryLfgWiringControllers(ctx, modules)
     if type(lfgDetect.SetLogger) == "function" then
       lfgDetect.SetLogger(nil)
     end
-    -- Pre-accept InviteHint plumbing: hand the floating-yellow-popup callback,
-    -- the DB toggle reader, and the dungeon-name lookup over to LFGDetect.
-    -- All three are nil-safe on the LFGDetect side, so partial wiring (early
-    -- ADDON_LOADED state, tests) stays safe.
-    if type(lfgDetect.SetInviteHintCallback) == "function" then
-      lfgDetect.SetInviteHintCallback(ctx.ShowInviteHint)
-    end
-    if type(lfgDetect.SetInviteHintEnabledFn) == "function" then
-      lfgDetect.SetInviteHintEnabledFn(function()
-        local db = rawget(_G, "IsiLiveDB")
-        if type(db) ~= "table" then
-          return true
-        end
-        return db.inviteHintEnabled ~= false
-      end)
-    end
-    if type(lfgDetect.SetTeleportLookupByMapID) == "function" and modules.teleport then
-      lfgDetect.SetTeleportLookupByMapID(modules.teleport.GetTeleportInfoByMapID)
-    end
-    if type(lfgDetect.SetInviteHintLocaleFn) == "function" then
-      lfgDetect.SetInviteHintLocaleFn(ctx.GetL)
-    end
-
     -- Post-accept Center Notice plumbing. Triggered from OnInviteAccepted with
     -- a payload extracted exclusively from the accepted searchResultID's
     -- pendingInvites entry. Sibling listings (different searchResultID) cannot

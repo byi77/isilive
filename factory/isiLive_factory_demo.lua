@@ -261,31 +261,6 @@ local function ShowDemoAcceptedInviteNotice(ctx, L)
   )
 end
 
-local function BuildDemoInviteHintPayload(L)
-  return {
-    demoPreview = true,
-    eyebrow = L.INVITE_HINT_EYEBROW or "LFG Invite",
-    title = L.INVITE_HINT_TITLE or "isiLive - Invite received",
-    fields = {
-      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:", value = "Nexus-Point Xenas +15" },
-      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_GROUP or "Title:", value = "+15 Demo Preview" },
-      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_LEADER or "Leader:", value = "isiLive-Demo" },
-      {
-        label = L.INVITE_ACCEPTED_NOTICE_LABEL_SOURCE or "Source:",
-        value = L.INVITE_HINT_SOURCE_LFG_INVITED or "LFG invite received",
-      },
-    },
-  }
-end
-
-local function ShowDemoInviteHint(ctx, L)
-  if type(ctx.ShowInviteHint) ~= "function" then
-    return
-  end
-
-  ctx.ShowInviteHint(BuildDemoInviteHintPayload(L), 120)
-end
-
 local function BuildDemoNonMythicDungeonNoticePayload(L)
   return {
     message = string.format(
@@ -348,7 +323,6 @@ local function ApplyDemoFeatureData(ctx)
 
   local L = ctx.GetL and ctx.GetL() or {}
   ShowDemoPortalNavigator(ctx, L)
-  ShowDemoInviteHint(ctx, L)
   if type(ctx.ShowDemoCenterNotices) == "function" then
     ctx.ShowDemoCenterNotices({
       BuildDemoAcceptedInviteNoticePayload(L),

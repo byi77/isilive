@@ -393,12 +393,6 @@ local function FinalizeFactorySettings(ctx)
       if db.mobNameplateYOffset == nil then
         db.mobNameplateYOffset = 0
       end
-      -- Default the LFG invite hint ON for first-run users; legacy users who
-      -- never had the toggle keep the same default. They can disable it via
-      -- the settings panel (SETTINGS_INVITE_HINT_ENABLED).
-      if db.inviteHintEnabled == nil then
-        db.inviteHintEnabled = true
-      end
       if db.lfgGroupBonusesEnabled == nil then
         db.lfgGroupBonusesEnabled = true
       end

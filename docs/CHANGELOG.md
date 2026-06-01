@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2026-06-01 - Version 0.9.292 (patch)
+
 - Fixed the M+ forces nameplate percentage font size after WoW or an internal
   nameplate refresh reasserted the inherited FontObject height. The render path
   now verifies the actual FontString height before trusting the dirty cache, so
@@ -15,6 +17,11 @@
 - Localized only the sound-settings labels and descriptions for the prepared
   `frFR`, `esES`, `ptBR`, `itIT`, `ruRU`, and `trTR` locale tables; other
   prepared-locale areas may still intentionally use English fallback text.
+- Removed the pre-accept LFG invite hint window, including its settings toggle,
+  SavedVariable default, factory wiring, and ingame demo preview, while keeping
+  the accepted-invite and group-join target Center Notices.
+- Bumped the TOC and documentation version basis to `0.9.292`.
+- Updated the release-gate scenario baseline to `1946` deterministic scenarios.
 
 ## 2026-05-31 - Version 0.9.291 (patch)
 

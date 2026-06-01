@@ -42,6 +42,7 @@ return function(test, ctx)
     Assert.Equal(db.autoCloseOnSoloChange, false, "solo-change auto-close default false")
     Assert.Equal(db.locale, "enUS", "locale default")
     Assert.Nil(db.inviteListEnabled, "removed invite-list feature must not create a DB default")
+    Assert.Nil(db.inviteHintEnabled, "removed pre-accept invite hint must not create a DB default")
   end)
 
   test("DBSchema.Sanitize stamps __schemaVersion on first run", function()
@@ -49,6 +50,13 @@ return function(test, ctx)
     local db = {}
     DBSchema.Sanitize(db)
     Assert.Equal(db.__schemaVersion, DBSchema.GetSchemaVersion(), "version must be stamped after sanitize")
+  end)
+
+  test("DBSchema.Sanitize does not create removed invite hint default", function()
+    local DBSchema = LoadSchema()
+    local db = {}
+    DBSchema.Sanitize(db)
+    Assert.Nil(db.inviteHintEnabled, "removed pre-accept invite hint must not have a SavedVariable field")
   end)
 
   test("DBSchema.Sanitize is idempotent on a fully-sanitized db", function()

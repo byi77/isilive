@@ -199,15 +199,6 @@ local function Run()
         INVITE_HINT_UNKNOWN_DUNGEON = "Unknown",
       }
     end)
-    addon.LFGDetect.SetTeleportLookupByMapID(function(mapID)
-      if mapID == 559 then
-        return { mapName = "Nexus-Point Xenas" }
-      elseif mapID == 557 then
-        return { mapName = "Windrunner Spire" }
-      end
-      return nil
-    end)
-
     -- Drive the status controller through the REAL production resolver
     -- (ctx.GetStatusTargetDungeonInfo from factory_controllers.lua) so the
     -- LFG-title-priority logic (Fix 1) is exercised end-to-end alongside
@@ -289,17 +280,15 @@ local function Run()
 
     -- ------------------------------------------------------------------
     -- Phase 1: three invites arrive in quick succession.
-    -- Each renders an invite-hint with its own searchResultID.
+    -- Pre-accept invite hints were removed; the detector must keep tracking
+    -- the pending invites without rendering hint frames.
     -- ------------------------------------------------------------------
     print("---- Phase 1: three parallel invites arrive ----")
     fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
     fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 2, "invited")
     fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 3, "invited")
 
-    Check(#hints == 3, "every incoming invite renders an invite-hint")
-    Check(hints[1].searchResultID == 1, "hint #1 carries the listing-A searchResultID")
-    Check(hints[2].searchResultID == 2, "hint #2 carries the listing-B searchResultID")
-    Check(hints[3].searchResultID == 3, "hint #3 carries the listing-C searchResultID (Fix 3a wiring)")
+    Check(#hints == 0, "incoming invites keep removed pre-accept invite hints suppressed")
 
     -- ------------------------------------------------------------------
     -- Phase 2: player accepts listing C (the +14 NPX push).

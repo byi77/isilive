@@ -665,32 +665,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Nil(portalEntriesBySlot.center.icon, "demo center portal must not synthesize an icon")
     Assert.NotNil(state.demoCenterNotices, "test mode must show the demo center notices without replacing each other")
     Assert.Equal(#state.demoCenterNotices, 2, "test mode must show both center notice demo variants at once")
-    Assert.NotNil(state.inviteHintPayload, "test mode must show the modern invite hint preview")
-    Assert.True(state.inviteHintPayload.demoPreview == true, "invite hint demo must opt into the demo anchor path")
-    Assert.Equal(state.inviteHintDurationSeconds, 120, "invite hint demo must stay visible long enough to inspect")
-    Assert.Nil(state.inviteHintSearchResultID, "invite hint demo must not bind to a live search result")
-    Assert.Equal(state.inviteHintPayload.eyebrow, "LFG Invite", "invite hint demo must use the localized eyebrow")
-    Assert.Equal(
-      state.inviteHintPayload.title,
-      "isiLive - Invite received",
-      "invite hint demo must use the modern localized title"
-    )
-    Assert.Equal(
-      state.inviteHintPayload.fields[1].value,
-      "Nexus-Point Xenas +15",
-      "invite hint demo must render the dungeon row"
-    )
-    Assert.Equal(
-      state.inviteHintPayload.fields[2].value,
-      "+15 Demo Preview",
-      "invite hint demo must render the group row"
-    )
-    Assert.Equal(state.inviteHintPayload.fields[3].value, "isiLive-Demo", "invite hint demo must render the leader row")
-    Assert.Equal(
-      state.inviteHintPayload.fields[4].value,
-      "LFG invite received",
-      "invite hint demo must render the source row"
-    )
+    Assert.Nil(state.inviteHintPayload, "test mode must not show the removed pre-accept invite hint preview")
     local acceptedNotice = state.demoCenterNotices[1]
     local difficultyNotice = state.demoCenterNotices[2]
     Assert.Equal(acceptedNotice.dungeonName, "Nexus-Point Xenas", "center notice demo must use the demo target")
@@ -746,6 +721,19 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.False(state.portalNavigatorVisible, "test mode exit must hide the portal navigator demo")
     Assert.False(state.demoCenterNoticesVisible, "test mode exit must hide the stacked demo center notices")
     Assert.True(state.inviteHintHidden == true, "test mode exit must hide the invite hint demo")
+  end)
+
+  test("Factory test mode does not show removed pre-accept invite hint demo", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
+
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.ctx.EnterFullDummyPreview()
+      state.afterCallbacks[1]()
+
+      Assert.Nil(state.inviteHintPayload, "removed pre-accept invite hint demo must not be shown")
+      Assert.NotNil(state.demoCenterNotices, "accepted/group target center notices must still be previewed")
+      Assert.Equal(#state.demoCenterNotices, 2, "center notice demos remain available after removing invite hint")
+    end)
   end)
 
   test("Factory test mode does not resize the stats box font setting", function()

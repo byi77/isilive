@@ -93,6 +93,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 70. Center-Notice- und Portal-Navigator-Ueberschriften muessen mit `isiLive - ` beginnen und den gemeinsamen warmen Goldton verwenden.
 71. Der Bloodlust-ready-Klanghinweis darf nur waehrend eines laufenden M+-Timers und erst nach einem zuvor beobachteten aktiven Erschoepfungsdebuff abgespielt werden, sobald der beobachtete angezeigte Erschoepfungs-Timer null erreicht oder ein spaeterer natuerlicher Scan keinen aktiven Erschoepfungsdebuff mehr findet; wenn Bloodlust danach unbenutzt verfuegbar bleibt, muss der Klanghinweis alle 60 Sekunden wiederholt werden, bis ein neuer aktiver Erschoepfungsdebuff beobachtet wird; er darf bei Key-Ende-, Key-Abbruch-, Dungeon-Verlassen- oder sonstigem Nicht-laufend-Refresh nicht ausloesen, muss dabei seinen beobachteten Ready-Zyklus verwerfen, muss UNIT_AURA-Removal-Payloads als moegliches natuerliches Auslaufen scannen und muss die eigene Settings-Option respektieren.
 72. Der Battle-Res-ready-Klanghinweis darf nur waehrend eines laufenden M+-Timers und erst nach einem zuvor beobachteten Battle-Res-Cooldown oder null verfuegbaren Battle-Res-Aufladungen abgespielt werden, sobald der beobachtete angezeigte Battle-Res-Cooldown null erreicht oder ein spaeterer natuerlicher Scan mindestens eine verfuegbare Aufladung findet; der erste verfuegbare Battle-Res-Zustand direkt nach Key-Start bleibt stumm, danach muss jede weitere beobachtete Wiederverfuegbarkeit angesagt werden; sichtbare UI-Rescans muessen denselben Ready-Transition-Pfad nutzen wie der Factory-CD-Tracker; der Klanghinweis darf bei Key-Ende-, Key-Abbruch-, Dungeon-Verlassen- oder sonstigem Nicht-laufend-Refresh nicht ausloesen, muss dabei seinen beobachteten Ready-Zyklus verwerfen und muss die eigene Settings-Option respektieren.
+73. Der Pre-Accept-LFG-Invite-Hint bleibt entfernt; ein `invited`-Status darf kein oberes Einladungsfenster rendern und es gibt kein Factory-Wiring, kein Settings-Control, kein SavedVariable-Feld und keine Testmodus-Demo dafuer.
 
 ## Regelbloecke
 
@@ -779,10 +780,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-TESTMODE-DEMO-MODULE-VOLLSTAENDIG
 - Regelnummer: 57
 - Status: aktiv
-- Zusammenfassung: Der Ingame-Testmodus muss beim Aktivieren die Demo-Daten fuer M+-Timer, Combat-CDs, den unteren M+-Forces-Tracker, Statsbox, Portal-Navigator, Invite-Hint, Centerbox-Portal, Non-Mythic-Dungeon-Entry-Centerbox, M+-Forces-Nameplates/-Tooltip und LFG-Bonusmarker setzen, beim Deaktivieren wieder loeschen und im Dummy-Roster Multi-Kick-Extras fuer den Tooltip-Preview bereitstellen. Demo-Feature-Schalter duerfen nur temporaer fuer die Vorschau gesetzt werden und muessen die vorherigen User-Settings danach wiederherstellen. Die Nameplate-Demo darf die Nutzer-Settings fuer Prozentformat, Position, Schriftgroesse und Offsets nicht ueberschreiben. Wenn die Centerbox einen verifizierten mapID-Kontext und einen Activity-Kontext erhaelt, muss der Portalbutton den mapID-Kontext priorisieren. Die Invite-Hint-Demo muss ueber einen festen Demo-Anker sichtbar bleiben und darf nicht unter Live-Anker oder andere Demo-Notices verschoben werden. Die Centerbox-Portal- und Non-Mythic-Dungeon-Entry-Demos muessen im Demomodus parallel sichtbar sein und duerfen sich nicht gegenseitig verdraengen.
+- Zusammenfassung: Der Ingame-Testmodus muss beim Aktivieren die Demo-Daten fuer M+-Timer, Combat-CDs, den unteren M+-Forces-Tracker, Statsbox, Portal-Navigator, Centerbox-Portal, Non-Mythic-Dungeon-Entry-Centerbox, M+-Forces-Nameplates/-Tooltip und LFG-Bonusmarker setzen, beim Deaktivieren wieder loeschen und im Dummy-Roster Multi-Kick-Extras fuer den Tooltip-Preview bereitstellen. Demo-Feature-Schalter duerfen nur temporaer fuer die Vorschau gesetzt werden und muessen die vorherigen User-Settings danach wiederherstellen. Die Nameplate-Demo darf die Nutzer-Settings fuer Prozentformat, Position, Schriftgroesse und Offsets nicht ueberschreiben. Wenn die Centerbox einen verifizierten mapID-Kontext und einen Activity-Kontext erhaelt, muss der Portalbutton den mapID-Kontext priorisieren. Die Centerbox-Portal- und Non-Mythic-Dungeon-Entry-Demos muessen im Demomodus parallel sichtbar sein und duerfen sich nicht gegenseitig verdraengen.
 - Erforderliche Tests:
   - Factory test mode populates timer, cooldown and kill-track demo data
-  - Notice.CreateInviteHint demo preview keeps a fixed parent anchor above live fallback anchors
   - Factory test mode does not resize the stats box font setting
   - Factory test mode temporarily enables notice demo settings
   - Demo dummy roster exposes multi-kick extras for tooltip preview
@@ -1004,3 +1004,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Bootstrap gate keeps hidden CD refresh triggers for ready sounds
   - Config builders gate allows CD refresh events while frame is hidden
   - SoundUtils Battle Res-ready setting disables TTS playback
+
+### RULE-LFG-PREACCEPT-INVITE-HINT-ENTFERNT
+- Regelnummer: 73
+- Status: aktiv
+- Zusammenfassung: Der Pre-Accept-LFG-Invite-Hint ist entfernt. Ein `LFG_LIST_APPLICATION_STATUS_UPDATED`-Status `invited` darf kein oberes isiLive-Einladungsfenster rendern, auch wenn alte Invite-Hint-Callbacks noch gesetzt werden. Die Factory darf die entfernten Pre-Accept-Invite-Hint-Callbacks nicht mehr verdrahten. Es gibt kein Settings-Control `SETTINGS_INVITE_HINT_ENABLED`, kein SavedVariable-Feld `inviteHintEnabled` und keine Ingame-Testmodus-Demo fuer diesen entfernten Hint. Die Accepted-Invite-Centerbox und der Gruppenbeitritts-Zielhinweis bleiben davon unberuehrt.
+- Erforderliche Tests:
+  - LFGDetect.OnInvited keeps pre-accept invite hint removed
+  - LFGDetect.OnInvited ignores removed pre-accept invite hint callbacks
+  - Factory LFG wiring does not wire removed pre-accept invite hint callbacks
+  - DBSchema.Sanitize does not create removed invite hint default
+  - Settings panel keeps removed LFG invite hint out of the UI
+  - Factory test mode does not show removed pre-accept invite hint demo

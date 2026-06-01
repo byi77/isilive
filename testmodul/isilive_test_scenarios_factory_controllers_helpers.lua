@@ -172,6 +172,58 @@ return function(test, ctx)
     return LoadAddonModules({ "isiLive_factory_controllers.lua" })
   end
 
+  test("Factory LFG wiring does not wire removed pre-accept invite hint callbacks", function()
+    WithGlobals({}, function()
+      local addon = LoadAddonModules({ "isiLive_factory_runtime_helpers.lua", "isiLive_factory_lfg_wiring.lua" })
+      local calls = {}
+      addon.LFGDetect = {
+        SetHighlightCallback = function()
+          calls.highlight = (calls.highlight or 0) + 1
+        end,
+        SetGroupRosterTraceLogger = function()
+          calls.rosterTrace = (calls.rosterTrace or 0) + 1
+        end,
+        SetTraceLogger = function()
+          calls.trace = (calls.trace or 0) + 1
+        end,
+        SetDeepTraceLogger = function()
+          calls.deepTrace = (calls.deepTrace or 0) + 1
+        end,
+        SetLogger = function()
+          calls.logger = (calls.logger or 0) + 1
+        end,
+        SetInviteHintCallback = function()
+          calls.inviteHintCallback = (calls.inviteHintCallback or 0) + 1
+        end,
+        SetInviteHintEnabledFn = function()
+          calls.inviteHintEnabled = (calls.inviteHintEnabled or 0) + 1
+        end,
+        SetInviteHintLocaleFn = function()
+          calls.inviteHintLocale = (calls.inviteHintLocale or 0) + 1
+        end,
+      }
+      addon._FactoryInternal.FactoryNotices = {
+        WireAcceptedInviteNoticeCallbacks = function()
+          calls.acceptedInvite = (calls.acceptedInvite or 0) + 1
+        end,
+      }
+
+      addon._FactoryInternal.InitializeFactoryLfgWiringControllers({
+        UpdateMPlusTeleportButton = function() end,
+        runtimeLogController = {},
+      }, {
+        teleport = {
+          GetTeleportInfoByMapID = function() end,
+        },
+      })
+
+      Assert.Nil(calls.inviteHintCallback, "removed invite hint callback must not be wired")
+      Assert.Nil(calls.inviteHintEnabled, "removed invite hint setting reader must not be wired")
+      Assert.Nil(calls.inviteHintLocale, "removed invite hint locale reader must not be wired")
+      Assert.Equal(calls.acceptedInvite, 1, "accepted-invite notice wiring remains active")
+    end)
+  end)
+
   -- =====================================================
   -- InitializeGameAPIHelpers
   -- =====================================================

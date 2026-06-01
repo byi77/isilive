@@ -770,24 +770,6 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
     CheckboxDescriptionOptions(labels.SETTINGS_TOOLTIP_FLAGS_DESC or "Shows language flags in player tooltips.")
   )
 
-  controls.inviteHint, yOffset = CreateSettingsCheckbox(
-    canvas,
-    yOffset,
-    labels.SETTINGS_INVITE_HINT_ENABLED or "LFG invite hint",
-    function()
-      local db = config.getDB()
-      return db.inviteHintEnabled ~= false
-    end,
-    function(checked)
-      local db = config.getDB()
-      db.inviteHintEnabled = checked
-    end,
-    "SETTINGS_INVITE_HINT_ENABLED",
-    CheckboxDescriptionOptions(
-      labels.SETTINGS_INVITE_HINT_ENABLED_DESC or "Shows dungeon and group details when an LFG invite arrives."
-    )
-  )
-
   controls.acceptedInviteNotice, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
@@ -1013,14 +995,6 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
       labels.SETTINGS_TOOLTIP_FLAGS_DESC or "Shows language flags in player tooltips."
     )
     controls.tooltipFlags.check:SetChecked(db.tooltipFlagsEnabled ~= false)
-  end
-  if controls.inviteHint then
-    controls.inviteHint.label:SetText(labels.SETTINGS_INVITE_HINT_ENABLED or "LFG invite hint")
-    SetCheckboxDescription(
-      controls.inviteHint,
-      labels.SETTINGS_INVITE_HINT_ENABLED_DESC or "Shows dungeon and group details when an LFG invite arrives."
-    )
-    controls.inviteHint.check:SetChecked(db.inviteHintEnabled ~= false)
   end
   if controls.acceptedInviteNotice then
     controls.acceptedInviteNotice.label:SetText(

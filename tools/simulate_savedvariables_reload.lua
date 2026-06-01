@@ -392,28 +392,31 @@ local function Run()
   print("\n========== Scenario: convention round-trip ==========")
   local conventionSession = BuildPanelSession({})
 
-  -- Pattern A on a fresh DB: inviteHintEnabled has no stored value yet,
-  -- but `db.inviteHintEnabled ~= false` (the production read pattern in
-  -- factory.lua + lfg_detect.lua) must yield true.
+  -- Pattern A on a fresh DB: acceptedInviteNoticeEnabled has no stored value
+  -- yet or is schema-defaulted true, and `db.acceptedInviteNoticeEnabled ~= false`
+  -- must yield true.
   Check(
-    conventionSession.db.inviteHintEnabled == nil or conventionSession.db.inviteHintEnabled == true,
-    "Pattern A on fresh DB: inviteHintEnabled is nil-or-true (default-ON read pattern works pre-toggle)"
+    conventionSession.db.acceptedInviteNoticeEnabled == nil or conventionSession.db.acceptedInviteNoticeEnabled == true,
+    "Pattern A on fresh DB: acceptedInviteNoticeEnabled is nil-or-true (default-ON read pattern works pre-toggle)"
   )
 
-  -- User toggles inviteHintEnabled OFF.
-  ClickCheckbox(conventionSession.frames, "SETTINGS_INVITE_HINT_ENABLED", false)
-  Check(conventionSession.db.inviteHintEnabled == false, "Pattern A: toggle-OFF persists explicit `false` in DB")
+  -- User toggles acceptedInviteNoticeEnabled OFF.
+  ClickCheckbox(conventionSession.frames, "SETTINGS_ACCEPTED_INVITE_NOTICE_ENABLED", false)
+  Check(
+    conventionSession.db.acceptedInviteNoticeEnabled == false,
+    "Pattern A: toggle-OFF persists explicit `false` in DB"
+  )
 
   -- Simulate /reload via SavedVariables roundtrip.
   local conventionReloaded = BuildPanelSession(CopyTable(conventionSession.db))
   Check(
-    conventionReloaded.db.inviteHintEnabled == false,
+    conventionReloaded.db.acceptedInviteNoticeEnabled == false,
     "Pattern A: explicit `false` survives /reload (the v0.9.211-style regression pin)"
   )
   -- The production read pattern would now resolve to false.
   Check(
-    (conventionReloaded.db.inviteHintEnabled ~= false) == false,
-    "Pattern A: read site `db.inviteHintEnabled ~= false` returns false after toggle-OFF + reload"
+    (conventionReloaded.db.acceptedInviteNoticeEnabled ~= false) == false,
+    "Pattern A: read site `db.acceptedInviteNoticeEnabled ~= false` returns false after toggle-OFF + reload"
   )
 
   -- Pattern B on a fresh DB: auto-close split fields are unset; production
