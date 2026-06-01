@@ -74,6 +74,11 @@ local function CreateFactoryContext(addonName, tbl)
     locale = GetLocale(),
   }
 
+  ctx.isInGroup = function()
+    local isInGroup = rawget(_G, "IsInGroup")
+    return type(isInGroup) == "function" and isInGroup() == true
+  end
+
   ctx.GetL = function()
     return ctx.L
   end

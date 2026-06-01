@@ -346,6 +346,32 @@ local function CreateOrGetFrame(unit)
   return f
 end
 
+local function ApplyTextAnchor(frame, pos)
+  if not frame or type(frame.text) ~= "table" then
+    return
+  end
+  local text = frame.text
+  if type(text.ClearAllPoints) == "function" then
+    text:ClearAllPoints()
+  end
+  if pos == "RIGHT" then
+    text:SetPoint("LEFT", frame, "LEFT", 0, 0)
+    if type(text.SetJustifyH) == "function" then
+      text:SetJustifyH("LEFT")
+    end
+  elseif pos == "LEFT" then
+    text:SetPoint("RIGHT", frame, "RIGHT", 0, 0)
+    if type(text.SetJustifyH) == "function" then
+      text:SetJustifyH("RIGHT")
+    end
+  else
+    text:SetPoint("CENTER", frame, "CENTER", 0, 0)
+    if type(text.SetJustifyH) == "function" then
+      text:SetJustifyH("CENTER")
+    end
+  end
+end
+
 local function ApplyPosition(frame, nameplate)
   if not frame or not nameplate then
     return
@@ -365,6 +391,7 @@ local function ApplyPosition(frame, nameplate)
   else
     frame:SetPoint("CENTER", nameplate, "CENTER", xo, yo)
   end
+  ApplyTextAnchor(frame, pos)
 end
 
 local function UpdateNameplate(unit)
@@ -375,13 +402,6 @@ local function UpdateNameplate(unit)
   -- challenge-mode + forces-DB checks so the slider can be verified outside
   -- a key.
   if enabled == false or not HasNamePlateAPI() then
-    if frame then
-      frame:Hide()
-    end
-    return
-  end
-
-  if not testMode and not HasProgressAPI() then
     if frame then
       frame:Hide()
     end
@@ -418,7 +438,7 @@ local function UpdateNameplate(unit)
     -- inspection is blocked. Filtering Secret Values out at this point would
     -- leave the nameplate empty in M+ keys.
     percentString = ResolveMobContributionFromDB(unit, activeMapID)
-    if not percentString then
+    if not percentString and HasProgressAPI() then
       local api = rawget(_G, "C_ScenarioInfo")
       local _, _, apiPercent = SafeCall(api.GetUnitCriteriaProgressValues, unit)
       if apiPercent ~= nil then
@@ -811,7 +831,7 @@ function MobNameplate.Register()
   if registered then
     return true
   end
-  if not HasProgressAPI() or not HasNamePlateAPI() then
+  if not HasNamePlateAPI() then
     return false
   end
   if not enabled then

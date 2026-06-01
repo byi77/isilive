@@ -8,12 +8,18 @@
 -- assert on the resulting frame/text state.
 
 local function MakeFontString()
-  local fs = { _text = "", _points = nil, _color = nil, _font = nil, _setFontCallCount = 0 }
+  local fs = { _text = "", _points = nil, _color = nil, _font = nil, _justifyH = nil, _setFontCallCount = 0 }
   function fs:SetText(text)
     self._text = tostring(text or "")
   end
   function fs:SetPoint(...)
     self._points = { ... }
+  end
+  function fs:ClearAllPoints()
+    self._points = nil
+  end
+  function fs:SetJustifyH(justify)
+    self._justifyH = justify
   end
   function fs:SetTextColor(r, g, b, a)
     self._color = { r, g, b, a }
@@ -204,22 +210,22 @@ local function LoadModule(LoadAddonModules, addonOverrides)
 end
 
 local function RegisterLifecycleTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("MobNameplate.Register reports success when progress + nameplate APIs are present", function()
+  test("MobNameplate.Register reports success when nameplate API is present", function()
     local globals = BuildEnv()
     WithGlobals(globals, function()
       local addon = LoadModule(LoadAddonModules)
       local ok = addon.MobNameplate.Register()
-      Assert.True(ok, "Register() must succeed when C_ScenarioInfo + C_NamePlate are available")
+      Assert.True(ok, "Register() must succeed when C_NamePlate is available")
     end)
   end)
 
-  test("MobNameplate.Register reports failure when C_ScenarioInfo is missing", function()
+  test("MobNameplate.Register reports success when C_ScenarioInfo is missing", function()
     local globals = BuildEnv({ C_ScenarioInfo = false })
     globals.C_ScenarioInfo = nil
     WithGlobals(globals, function()
       local addon = LoadModule(LoadAddonModules)
       local ok = addon.MobNameplate.Register()
-      Assert.False(ok, "Register() must fail without C_ScenarioInfo")
+      Assert.True(ok, "Register() must not depend on C_ScenarioInfo")
     end)
   end)
 
@@ -502,6 +508,12 @@ local function RegisterDefensivePathTests(test, Assert, WithGlobals, LoadAddonMo
     TOP = { "BOTTOM", "TOP" },
     BOTTOM = { "TOP", "BOTTOM" },
   }
+  local EXPECTED_TEXT_ANCHORS = {
+    LEFT = { "RIGHT", "RIGHT", "RIGHT" },
+    RIGHT = { "LEFT", "LEFT", "LEFT" },
+    TOP = { "CENTER", "CENTER", "CENTER" },
+    BOTTOM = { "CENTER", "CENTER", "CENTER" },
+  }
 
   for _, pos in ipairs(POSITIONS) do
     test("MobNameplate ApplyPosition anchors correctly for position " .. pos, function()
@@ -521,6 +533,10 @@ local function RegisterDefensivePathTests(test, Assert, WithGlobals, LoadAddonMo
         local expected = EXPECTED_ANCHORS[pos]
         Assert.Equal(frame._points[1], expected[1], "frame anchor point for pos=" .. pos)
         Assert.Equal(frame._points[3], expected[2], "nameplate anchor point for pos=" .. pos)
+        local expectedText = EXPECTED_TEXT_ANCHORS[pos]
+        Assert.Equal(frame.text._points[1], expectedText[1], "text anchor point for pos=" .. pos)
+        Assert.Equal(frame.text._points[3], expectedText[2], "text parent anchor point for pos=" .. pos)
+        Assert.Equal(frame.text._justifyH, expectedText[3], "text justification for pos=" .. pos)
       end)
     end)
   end
@@ -985,6 +1001,34 @@ local function RegisterBranchCoverageTests(test, Assert, WithGlobals, LoadAddonM
       frame = Assert.NotNil(frame, "frame must be created when DB has a hit")
       -- 25 / 1000 = 2.50% (DB) — must beat the API "99.99".
       Assert.Equal(frame.text._text, "2.50%", "DB percent must override the API percent")
+    end)
+  end)
+
+  test("MobNameplate renders DB-derived percent when ScenarioInfo progress API is unavailable", function()
+    local globals = BuildEnv({
+      mapID = 161,
+      units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = MakeFrame() },
+      C_ScenarioInfo = {},
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules, {
+        MPlusForces = {
+          byNpcId = {
+            [76132] = { mapID = 161, count = 25 },
+          },
+          dungeonTotal = {
+            [161] = { total = 1000 },
+          },
+        },
+      })
+      addon.MobNameplate.SetEnabled(true)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+
+      local frame = addon.MobNameplate._Test_GetFrames()["nameplate1"]
+      frame = Assert.NotNil(frame, "frame must be created from DB data without ScenarioInfo progress API")
+      Assert.True(frame._shown == true, "DB-derived percent must render without ScenarioInfo progress API")
+      Assert.Equal(frame.text._text, "2.50%", "DB-derived per-mob percent must remain the primary source")
     end)
   end)
 

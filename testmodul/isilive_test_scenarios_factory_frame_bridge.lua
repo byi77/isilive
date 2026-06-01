@@ -375,6 +375,26 @@ local function Register(test, ctx)
     Assert.Equal(factoryCtx.locales.enUS.greeting, "hi", "locale tables must be exposed")
   end)
 
+  test("factory_frame_bridge: CreateFactoryContext exposes live IsInGroup for ready sound gates", function()
+    local inGroup = false
+    local globals = BuildDefaultGlobals({
+      IsInGroup = function()
+        return inGroup
+      end,
+    })
+    local addonTable
+    local factoryCtx
+    ctx.with_globals(globals, function()
+      addonTable = ctx.load_modules({ "isiLive_factory_frame_bridge.lua" })
+      factoryCtx = addonTable._FactoryInternal.CreateFactoryContext("isiLive", BuildMinimalAddonTable())
+      factoryCtx = Assert.NotNil(factoryCtx, "context must be returned for a valid addon table")
+
+      Assert.Equal(factoryCtx.isInGroup(), false, "ready sound gate must see the initial solo state")
+      inGroup = true
+      Assert.Equal(factoryCtx.isInGroup(), true, "ready sound gate must read the current group state live")
+    end)
+  end)
+
   test("factory_frame_bridge: GetL returns the currently assigned locale table", function()
     local globals = BuildDefaultGlobals()
     local addonTable

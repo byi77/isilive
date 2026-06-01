@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 2026-06-02 - Version 0.9.294 (patch)
+
+- Restored Battle-Res-ready and Bloodlust-ready alerts by wiring the production
+  factory context to the live group-state source used by the ready-sound gate.
+- Kept M+ forces nameplate percentages rendering from bundled DB data when the
+  ScenarioInfo progress API is unavailable; ScenarioInfo remains fallback-only.
+- Fixed M+ forces nameplate placement so RIGHT/LEFT positions align the text
+  directly beside the health bar instead of centering it inside the overlay
+  frame, which pushed larger values away from the plate.
+- Bumped the TOC and documentation version basis to `0.9.294`.
+- Updated the release-gate scenario baseline to `1950` deterministic scenarios.
+
 ## 2026-06-01 - Version 0.9.293 (patch)
 
 - Suppressed Bloodlust-ready and Battle-Res-ready sound cycles after leaving the

@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.293`
-Zuletzt aktualisiert: `2026-06-01`
+Versionsbasis: `0.9.294`
+Zuletzt aktualisiert: `2026-06-02`
 
 ## Akteure
 
@@ -265,13 +265,14 @@ Ziel: Eine optionale Live-Anzeige auf jeder feindlichen Namensplakette waehrend 
 1. Trigger: `NAME_PLATE_UNIT_ADDED` / `NAME_PLATE_UNIT_REMOVED` / `CHALLENGE_MODE_START` / `PLAYER_ENTERING_WORLD` / `SCENARIO_UPDATE` feuern, waehrend `C_ChallengeMode.IsChallengeModeActive()` `true` liefert und der User `mobNameplateEnabled` aktiviert hat.
 2. Voraussetzung: `data/isiLive_mplus_forces.lua` ist geladen und liefert `MPlusForces.byNpcId` plus `MPlusForces.dungeonTotal[mapID].total`.
 3. Aktivierungs-Gate (alle vier muessen halten): aktiver Key, User-Toggle gesetzt, `UnitReaction(unit,"player") <= 4` (hostile/neutral, friendly Units skipped), `UnitGUID` ist ein nicht-leerer String und kein Secret Value.
-4. Verarbeitung: Der GUID wird in eine NpcID umgewandelt (Pattern-Match auf den Blizzard-GUID, akzeptiert nur `Creature` und `Vehicle`), und der `count`-Wert aus `MPlusForces.byNpcId[npcId]` wird durch `MPlusForces.dungeonTotal[mapID].total` geteilt -> `percent = count / total * 100`. Diese DB-basierte Berechnung ist die primaere Quelle; die Blizzard-API `C_ScenarioInfo.GetUnitCriteriaProgressValues` wird nur als Fallback genutzt, wenn die DB den NPC nicht kennt (frischer Patch-Mob vor naechstem MDT-Refresh).
+4. Verarbeitung: Der GUID wird in eine NpcID umgewandelt (Pattern-Match auf den Blizzard-GUID, akzeptiert nur `Creature` und `Vehicle`), und der `count`-Wert aus `MPlusForces.byNpcId[npcId]` wird durch `MPlusForces.dungeonTotal[mapID].total` geteilt -> `percent = count / total * 100`. Diese DB-basierte Berechnung ist die primaere Quelle und muss auch rendern, wenn `C_ScenarioInfo.GetUnitCriteriaProgressValues` nicht verfuegbar ist; die Blizzard-API wird nur als Fallback genutzt, wenn die DB den NPC nicht kennt (frischer Patch-Mob vor naechstem MDT-Refresh).
 5. Regel: `BuildText` rendert `<percent>%` oder versteckt das Frame, wenn der Anteil nicht ermittelbar ist (Secret Value, leerer String, fehlender NPC im DB). Solange `mobNameplateShowRemaining` nicht explizit `false` ist und `KillTrack.GetData()` fuer dieselbe aktive `mapID` einen belastbaren `rawCount`/`total`- oder `percent`/`total`-Stand liefert, wird zusaetzlich `/<remaining>%` angehaengt; ohne passende KillTrack-Daten bleibt nur der Mob-Anteil sichtbar. Nach Combat-Ende muss der Restbedarf mit dem live aktualisierten KillTrack-Gesamtstand konvergieren.
 6. Regel: 12.0-Secret-Value-Guards greifen vor jedem `==`/`~=`/`<=`/`<`/Pattern-Match-Operator: `mapID`, `numCriteria`, `quantity`, `totalQuantity`, `unitGUID`, `unitReaction`, `percentString`. Die Reihenfolge ist `type() -> IsSecretValue() -> Comparison`, niemals umgekehrt, da der Comparison-Operator den Stack tainted, bevor der Guard laeuft.
 7. Regel: Frame-Pool pro `unit`-Token, sodass `CreateFrame` hoechstens einmal pro gleichzeitig aktivem Nameplate-Slot gerufen wird. `NAME_PLATE_UNIT_REMOVED` versteckt das Frame und entfernt den Pool-Eintrag.
 8. Regel: Plater- oder Platynator-Soft-Detect zeigt eine dezente Warnung in den Settings; `mobNameplateEnabled` defaultet auf `true` fuer Frischinstallationen, damit die Forces-Prozentanzeige im Key ohne manuelles Aktivieren sichtbar ist.
 9. Verarbeitung: `appearance.fontSize` wird via `ApplyFont(fontString)` als `SetFont(file, size, flags)` mit dem Template `GameFontNormalOutline` und Default-Fallback `Fonts\\FRIZQT__.TTF` / `OUTLINE` auf den FontString uebertragen, sowohl bei Frame-Erstellung als auch bei jedem Refresh, sodass Slider-Aenderungen ohne `/reload` durchschlagen.
-10. Erfolgskriterium: Im aktiven Key zeigt jede feindliche Namensplakette eine deterministische, lokalisierungsneutrale Forces-Zahl, die der Mouseover-Tooltip-Zeile entspricht; bei aktivierter Restbedarfs-Option folgt der noch benoetigte Dungeon-Fortschritt im Format `<mob>%/<rest>%`. Ausserhalb eines Keys oder bei nicht-feindlichen Units bleibt das Overlay versteckt.
+10. Positionierung: Bei Position `RIGHT` beginnt der Text direkt am rechten Rand des Nameplate-Frames und ist linksbuendig; bei `LEFT` endet der Text direkt am linken Rand und ist rechtsbuendig; `TOP` und `BOTTOM` bleiben zentriert. Dadurch darf die Zahl nicht durch Zentrierung in einem breiten Overlay-Frame sichtbar vom HP-Balken wegrutschen.
+11. Erfolgskriterium: Im aktiven Key zeigt jede feindliche Namensplakette eine deterministische, lokalisierungsneutrale Forces-Zahl, die der Mouseover-Tooltip-Zeile entspricht; bei aktivierter Restbedarfs-Option folgt der noch benoetigte Dungeon-Fortschritt im Format `<mob>%/<rest>%`. Ausserhalb eines Keys oder bei nicht-feindlichen Units bleibt das Overlay versteckt.
 
 ## UC-20 Clear-Log-Buttons im Settings-Debug
 
@@ -349,7 +350,7 @@ Ziel: Eine optionale, eigenstaendige Spieler-Stats-Box zeigt live gelesene Prim√
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `1948` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `1950` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
