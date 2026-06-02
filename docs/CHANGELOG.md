@@ -6,6 +6,9 @@
   buff-rating hearts section with the player-aware relevance and dedup rules.
 - Added a stable-release GitHub asset ZIP for WowUp Hub with the required
   top-level `isiLive/` folder while leaving Wago publishing manual.
+- Moved the GitHub release asset upload before the CurseForge auto-packager
+  trigger and added short CurseForge trigger retries, so WowUp publishing is
+  not blocked by a transient CurseForge trigger response.
 
 ## 2026-06-02 - Version 0.9.295 (patch)
 
