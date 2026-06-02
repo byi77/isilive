@@ -23,7 +23,7 @@ jobs:
     permissions:
       contents: read
 
-  trigger-curseforge-packager:
+  publish-release:
     needs: quality-gate
     if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/isiLive_release_')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_release == 'true' && startsWith(github.event.inputs.release_tag, 'isiLive_release_')) }}
     runs-on: ubuntu-latest
@@ -32,6 +32,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Validate Release Trigger
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -41,6 +43,69 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: pwsh -File tools/validate_release_trigger.ps1 -Mode release
+      - name: Checkout release tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          MANUAL_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            TAG="${MANUAL_TAG}"
+          else
+            TAG="${REF_NAME}"
+          fi
+          case "${TAG}" in
+            isiLive_release_*) ;;
+            *) echo "Unexpected tag '${TAG}' — expected isiLive_release_* prefix."; exit 1 ;;
+          esac
+          VERSION="${TAG#isiLive_release_}"
+          git fetch --force --tags origin "refs/tags/${TAG}:refs/tags/${TAG}"
+          git checkout --detach "${TAG}"
+          echo "RELEASE_TAG=${TAG}" >> "${GITHUB_ENV}"
+          echo "RELEASE_VERSION=${VERSION}" >> "${GITHUB_ENV}"
+      - name: Validate Wago configuration
+        env:
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+          WAGO_PROJECT_ID: ${{ vars.WAGO_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${WAGO_API_TOKEN}" ]; then
+            echo "WAGO_API_TOKEN secret is required for Wago publishing."
+            exit 1
+          fi
+          case "${WAGO_PROJECT_ID}" in
+            ''|*[!A-Za-z0-9]*)
+              echo "WAGO_PROJECT_ID repository variable must be the Wago 8-character alpha-numeric project id."
+              exit 1
+              ;;
+          esac
+          if ! printf '%s' "${WAGO_PROJECT_ID}" | grep -Eq '^[A-Za-z0-9]{8}$'; then
+            echo "WAGO_PROJECT_ID repository variable must be exactly 8 alpha-numeric characters."
+            exit 1
+          fi
+      - name: Package and publish to Wago
+        uses: BigWigsMods/packager@v2
+        env:
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+        with:
+          args: -a ${{ vars.WAGO_PROJECT_ID }} -n "isiLive-$RELEASE_VERSION:$RELEASE_VERSION"
+      - name: Prepare GitHub/WowUp asset
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          package_path="$(find .release -type f -name 'isiLive-*.zip' ! -name '*-nolib*' | sort | tail -n 1)"
+          if [ -z "${package_path}" ] || [ ! -f "${package_path}" ]; then
+            echo "Packager did not create an isiLive zip asset."
+            exit 1
+          fi
+          asset_path="dist/isiLive-${RELEASE_VERSION}.zip"
+          cp "${package_path}" "${asset_path}"
+          if ! unzip -l "${asset_path}" "isiLive/isiLive.toc" >/dev/null 2>&1; then
+            echo "Release zip must contain isiLive/isiLive.toc at the zip root for WowUp Hub."
+            exit 1
+          fi
+          echo "GITHUB_RELEASE_ASSET=${asset_path}" >> "${GITHUB_ENV}"
       - name: Trigger CurseForge Auto-Packager
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
@@ -106,8 +171,12 @@ jobs:
               --repo "${GITHUB_REPOSITORY}" \
               --title "v${VERSION}" \
               --notes-file "${NOTES_FILE}"
+            gh release upload "${TAG}" "${GITHUB_RELEASE_ASSET}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --clobber
           else
             gh release create "${TAG}" \
+              "${GITHUB_RELEASE_ASSET}" \
               --repo "${GITHUB_REPOSITORY}" \
               --title "v${VERSION}" \
               --notes-file "${NOTES_FILE}" \

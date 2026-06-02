@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Refreshed the README feature highlights and expanded the Group Finder
+  buff-rating hearts section with the player-aware relevance and dedup rules.
+- Added Wago publishing to the stable release workflow through the BigWigs
+  packager and attached the generated addon ZIP to GitHub Releases so WowUp Hub
+  can ingest the release asset with the required top-level `isiLive/` folder.
+
 ## 2026-06-02 - Version 0.9.295 (patch)
 
 - Clarified internal leader-hint comments so they no longer imply that the

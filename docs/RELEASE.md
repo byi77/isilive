@@ -99,6 +99,7 @@ Im Actions-Tab pruefen:
 1. `Lua Check` als Quality Gate muss erfolgreich sein.
 2. Der `Release`-Workflow darf nur fuer `isiLive_release_*` triggern.
 3. `Pre-Release (Alpha/Beta)` darf nur fuer `isiLive_alpha_*` und `isiLive_beta_*` triggern.
+4. Der Stable-`Release`-Workflow muss neben CurseForge auch den Wago-Publish und den GitHub-Release-Asset-Upload erfolgreich abschliessen.
 
 ## 7) CurseForge-Paket pruefen
 
@@ -128,8 +129,19 @@ git push origin :refs/tags/isiLive_release_X.Y.Z
 
 ## 9) Wago-Publish
 
-- In diesem Repository ist kein automatischer Wago-Publish-Workflow konfiguriert.
-- Auf Wago manuell veroeffentlichen oder aktualisieren, nachdem CurseForge/GitHub-Release bestaetigt ist.
+- Der Stable-`Release`-Workflow baut das Addon ueber `BigWigsMods/packager@v2` und veroeffentlicht dasselbe Release auf Wago Addons.
+- Erforderliche GitHub-Konfiguration:
+  - Repository Secret `WAGO_API_TOKEN`
+  - Repository Variable `WAGO_PROJECT_ID` mit der 8-stelligen alphanumerischen Wago-Projekt-ID aus dem Wago Developer Dashboard
+- Wenn eine dieser Konfigurationen fehlt oder die Projekt-ID kein exakt 8-stelliger alphanumerischer Wert ist, bricht der Release fail-closed ab.
+- CurseForge bleibt weiterhin beim bestehenden CurseForge-Auto-Packager-Trigger und wird nicht ueber den BigWigs-Packager hochgeladen.
+
+## 10) WowUp-Hub-Publish
+
+- WowUp wird ueber das GitHub Release bedient.
+- Der Stable-`Release`-Workflow haengt das vom Packager erzeugte ZIP als `isiLive-X.Y.Z.zip` an das GitHub Release.
+- Der Workflow prueft vor dem Upload, dass das ZIP am Root die Addon-Mappe `isiLive/` mit `isiLive/isiLive.toc` enthaelt. Diese Struktur ist fuer WowUp Hub erforderlich.
+- Nach erfolgreichem Release in WowUp Hub pruefen, dass das neue GitHub-Release-Asset erkannt wird und die Version der TOC-Version entspricht.
 
 ## Hinweise
 

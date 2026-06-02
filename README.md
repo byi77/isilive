@@ -9,6 +9,18 @@
 
 ---
 
+## Feature highlights
+
+- **Group Finder buff-rating hearts** — green heart markers in Blizzard LFG search results and applicant rows show which listings add useful, non-stacking class buffs for your current character.
+- **One-window M+ roster** — spec, role, language, key, iLvl, Raider.IO, last-run DPS, interrupt status, leader marker, isiLive peer marker, and ghost rows after leavers.
+- **Live enemy forces tools** — tooltip percentages, nameplate percentages, bottom killtracker bar, pull prediction, and combat-end refresh from the bundled MDT-synced forces database.
+- **Season portal grid** — all current dungeon portals with cooldowns, availability highlights, and verified LFG target highlighting.
+- **Share Keys sync** — posts your key first, then asks isiLive peers to post their own key line through the fastest AddOn-message priority path.
+- **Run utility alerts** — Battle Res charges, Bloodlust cooldown, BR/Lust group announces, and separate ready sounds when Battle Res or Bloodlust becomes available during a key.
+- **Configurable support tools** — Escape-menu shortcut strips, Hearthstone travel shortcut, optional player stats box, nameplate controls, runtime logs, and safe UI position locking.
+
+---
+
 ## License and Source Attribution
 
 isiLive uses an MIT-based license with an additional source-attribution requirement.
@@ -33,6 +45,7 @@ https://github.com/byi77/isilive
 When you join a group, isiLive opens a single window with everything you want to see before and during a key:
 
 - Who is in the group, their spec, item level, Raider.IO rating, and keystone
+- Optional default-on LFG buff-rating hearts that help you pick groups and applicants by relevant class-bonus coverage before anyone joins your party
 - One-click access to all 8 season dungeon portals, with live cooldowns
 - Escape-menu shortcut panels for tools, travel, verified mount shortcuts, and installed/enabled supported addons
 - Configurable Hearthstone travel shortcut with random owned, default item, or a specific owned Hearthstone toy
@@ -214,16 +227,16 @@ When you accept an LFG invite, the matching portal highlights and the center not
 
 ### Group Finder class-bonus hints
 
-Optional Group Finder hints help you scan applicant and search-result rows for useful class buffs before you join or accept someone:
+Optional Group Finder hints help you scan applicant and search-result rows for useful class buffs before you join a group or accept someone into your own listing. The goal is to answer one question quickly: **what does this group add for my current character that is actually useful and not already duplicated?**
 
-- Search results show compact green heart texture markers inside the Blizzard row, independent of third-party class-badge addons
-- Applicant rows show language flags beside the name and the same markers to the right of the class badge when the applicant offers a relevant non-utility group bonus
-- The settings description shows the examples on separate fixed-size green heart texture lines using `media/heart_bonus_green.tga`
-- 1 heart means one useful non-stacking buff, 2 hearts means two, 3 hearts means three, and 4 hearts means four or more
-- Search-result tooltips add localized bonus text per listed class/spec
-- Duplicate non-stacking buffs count once per search result, so two players with the same class buff do not create extra markers
-- Battle Res, Bloodlust, PI, Devotion Aura, Atrophic Poison, and other utility notes can appear in tooltips, but they do not count toward the compact green marker score
-- The setting lives under **Display -> Group Finder: Buff rating hearts** and is enabled by default
+- **Search result rows** show compact green heart texture markers directly inside the Blizzard row, independent of third-party class-badge addons.
+- **Applicant rows** show language flags beside the applicant name and the same heart markers to the right of the class badge when that applicant offers a relevant non-utility group bonus.
+- **Tooltips** add localized bonus text per listed class/spec, so you can see which buffs created the marker score.
+- **Relevance is player-aware:** physical, magic, intellect, attack-power, stamina, mastery, versatility, enemy-damage and universal damage bonuses are counted only when they matter for your current character profile.
+- **Non-stacking bonuses are deduplicated:** two players with the same class buff count once per search result, so the marker score reflects coverage instead of duplicate noise.
+- **Utility stays separate:** Battle Res, Bloodlust, PI, Devotion Aura, Atrophic Poison, Healthstone and similar utility notes may appear in tooltips, but they do not inflate the compact green heart score.
+- **Heart scale:** 1 heart means one useful non-stacking buff, 2 hearts means two, 3 hearts means three, and 4 hearts means four or more.
+- **Default-on setting:** **Display -> Group Finder: Buff rating hearts**. The settings description shows the same fixed-size green heart texture examples using `media/heart_bonus_green.tga`.
 
 ### Ghost rows after wipes / reloads
 
