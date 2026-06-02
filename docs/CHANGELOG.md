@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2026-06-02 - Version 0.9.296 (patch)
+
 - Refreshed the README feature highlights and expanded the Group Finder
   buff-rating hearts section with the player-aware relevance and dedup rules.
 - Added a stable-release GitHub asset ZIP for WowUp Hub with the required
@@ -18,6 +20,8 @@
 - Restored the stable `Release` workflow to tag-push-only triggering, so
   GitHub Actions lists stable release runs under the `isiLive_release_*` tag
   again instead of `main`.
+- Bumped the TOC and documentation version basis to `0.9.296`.
+- Updated the release-gate scenario baseline to `1938` deterministic scenarios.
 
 ## 2026-06-02 - Version 0.9.295 (patch)
 
