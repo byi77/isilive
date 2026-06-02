@@ -197,10 +197,9 @@ jobs:
             curl --silent --show-error --location \
               --output "${RESPONSE_FILE}" \
               --write-out "%{http_code}" \
-              --header "X-Api-Token: ${CF_API_KEY}" \
               --form "metadata=<${METADATA_FILE};type=application/json" \
               --form "file=@${GITHUB_RELEASE_ASSET};type=application/zip" \
-              "https://wow.curseforge.com/api/projects/${CURSE_PROJECT_ID}/upload-file"
+              "https://wow.curseforge.com/api/projects/${CURSE_PROJECT_ID}/upload-file?token=${CF_API_KEY}"
           )"
           if [ "${HTTP_CODE}" -lt 200 ] || [ "${HTTP_CODE}" -ge 300 ]; then
             echo "CurseForge upload failed with HTTP ${HTTP_CODE}."
