@@ -145,6 +145,7 @@ jobs:
       - name: Validate CurseForge configuration
         env:
           CURSE_PROJECT_ID: ${{ vars.CURSE_PROJECT_ID }}
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
         run: |
           set -euo pipefail
           case "${CURSE_PROJECT_ID}" in
@@ -153,9 +154,62 @@ jobs:
               exit 1
               ;;
           esac
-      - name: Publish to CurseForge
-        uses: BigWigsMods/packager@v2
+          if [ -z "${CF_API_KEY}" ]; then
+            echo "CF_API_KEY secret must be configured."
+            exit 1
+          fi
+      - name: Publish existing zip to CurseForge
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
-        with:
-          args: -p ${{ vars.CURSE_PROJECT_ID }} -n "isiLive-${{ steps.release_context.outputs.version }}:${{ steps.release_context.outputs.version }}"
+          CURSE_PROJECT_ID: ${{ vars.CURSE_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          TOC_INTERFACE="$(awk -F': *' '/^## Interface:/ { print $2; exit }' isiLive.toc)"
+          if [ -z "${TOC_INTERFACE}" ]; then
+            echo "isiLive.toc must contain a retail ## Interface value."
+            exit 1
+          fi
+          if [ $(( ${#TOC_INTERFACE} % 2 )) -ne 0 ]; then
+            echo "Unsupported TOC interface '${TOC_INTERFACE}'. Expected an even number of digits."
+            exit 1
+          fi
+          GAME_VERSION="$((10#${TOC_INTERFACE:0:2})).$((10#${TOC_INTERFACE:2:1})).$((10#${TOC_INTERFACE:3}))"
+          NOTES_FILE="$(mktemp)"
+          if [ -s CHANGELOG_RELEASE.md ]; then
+            cp CHANGELOG_RELEASE.md "${NOTES_FILE}"
+          else
+            printf 'Release %s\n' "${RELEASE_VERSION}" > "${NOTES_FILE}"
+          fi
+          METADATA_FILE="$(mktemp)"
+          jq -n \
+            --rawfile changelog "${NOTES_FILE}" \
+            --arg display_name "isiLive-${RELEASE_VERSION}" \
+            --arg game_version "${GAME_VERSION}" \
+            '{
+              changelog: $changelog,
+              changelogType: "markdown",
+              displayName: $display_name,
+              gameVersionNames: [$game_version],
+              releaseType: "release"
+            }' > "${METADATA_FILE}"
+          RESPONSE_FILE="$(mktemp)"
+          HTTP_CODE="$(
+            curl --silent --show-error --location \
+              --output "${RESPONSE_FILE}" \
+              --write-out "%{http_code}" \
+              --header "X-Api-Token: ${CF_API_KEY}" \
+              --form "metadata=<${METADATA_FILE};type=application/json" \
+              --form "file=@${GITHUB_RELEASE_ASSET};type=application/zip" \
+              "https://wow.curseforge.com/api/projects/${CURSE_PROJECT_ID}/upload-file"
+          )"
+          if [ "${HTTP_CODE}" -lt 200 ] || [ "${HTTP_CODE}" -ge 300 ]; then
+            echo "CurseForge upload failed with HTTP ${HTTP_CODE}."
+            cat "${RESPONSE_FILE}"
+            exit 1
+          fi
+          if ! jq -e '.id' "${RESPONSE_FILE}" >/dev/null; then
+            echo "CurseForge upload did not return a file id."
+            cat "${RESPONSE_FILE}"
+            exit 1
+          fi
+          echo "CurseForge upload accepted with file id $(jq -r '.id' "${RESPONSE_FILE}")."

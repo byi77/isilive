@@ -12,6 +12,9 @@
 - Replaced the legacy CurseForge remote packager trigger with a direct
   BigWigs packager upload using the official CurseForge upload API route, so
   GitHub Actions no longer depends on the Cloudflare-blocked website trigger.
+- Replaced the BigWigs CurseForge upload step with a direct upload of the
+  already-built release ZIP, including explicit CurseForge `gameVersionNames`
+  metadata derived from the TOC interface version.
 
 ## 2026-06-02 - Version 0.9.295 (patch)
 
