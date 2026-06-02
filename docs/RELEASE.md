@@ -38,7 +38,7 @@ Erwartung: Lint, Style, Metrics, Usecase- und Rule-Checks sind gruen.
 
 Die Wrapper `tools/check.ps1` und `tools/check.cmd` fuehren den vollen lokalen Preflight ueber den repo-lokalen `luacheck.cmd`-Shim aus und vermeiden so den Windows-App-Auswahldialog, der beim direkten Aufruf des LuaRocks-`luacheck`-Scripts auftaucht.
 
-`tools/validate_release_trigger.ps1` prueft die Release- und Pre-Release-Triggerlogik lokal. Fuer einen Dry-Run ohne GitHub-API-Check `CHECK_TAG_EXISTS=false` setzen und die passenden `EVENT_NAME`, `REF` bzw. `MANUAL_*`-Variablen uebergeben.
+`tools/validate_release_trigger.ps1` prueft die Release- und Pre-Release-Triggerlogik lokal. Fuer einen Dry-Run ohne GitHub-API-Check `CHECK_TAG_EXISTS=false` setzen und die passenden `EVENT_NAME`- und `REF`-Variablen uebergeben.
 Die GitHub-Workflows checken das Repository vor der Trigger-Pruefung aus, damit `tools/validate_release_trigger.ps1` und die lokalen Release-Checks im Workflow-Kontext auf die echten Dateien zugreifen koennen.
 
 `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
@@ -144,7 +144,7 @@ git push origin :refs/tags/isiLive_release_X.Y.Z
 ## Hinweise
 
 - Release-Tagging ist absichtlich vom normalen `main`-Push getrennt, damit CI noch sicher fehlschlagen kann, bevor CurseForge-Pakete gebaut werden.
-- Ein TOC-/Doku-Bump auf `main` ist noch kein CurseForge-Release. CurseForge wird erst durch einen passenden Release- oder Pre-Release-Tag beziehungsweise einen explizit bestaetigten Workflow-Dispatch hochgeladen.
+- Ein TOC-/Doku-Bump auf `main` ist noch kein CurseForge-Release. CurseForge wird erst durch einen passenden Release- oder Pre-Release-Tag hochgeladen.
 - CI schliesst `.luarocks/` bereits aus Lint- und Syntax-Checks aus.
 - Packaging ignoriert Nicht-Nutzer-Dateien ueber `.pkgmeta`, einschliesslich `.github/`, `.claude/`, dem kompletten `docs/`-Ordner (mit `ARCHITECTURE.md`, `USECASES.md`, `WARTUNG.md`, `RULES.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `RELEASE.md`, `CHANGELOG.md`), dem Root-`README.md`, `AGENTS.md`, `CLAUDE.md`, den Dev-only-Ordnern `tools/` und `testmodul/` sowie PNG-Screenshots/Logos. Die CurseForge-Dateinotizen verwenden den kurzen Stub `CHANGELOG_RELEASE.md`, nicht das volle Repository-Changelog.
 - Wenn VS-Code-Diagnostics veraltet wirken, ausfuehren:

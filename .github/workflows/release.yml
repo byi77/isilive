@@ -4,28 +4,17 @@ on:
   push:
     tags:
       - "isiLive_release_*"
-  workflow_dispatch:
-    inputs:
-      confirm_release:
-        description: "Set to true to allow manual CurseForge trigger"
-        required: true
-        type: boolean
-        default: false
-      release_tag:
-        description: "Release tag (must start with isiLive_release_)"
-        required: true
-        type: string
 
 jobs:
   quality-gate:
-    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/isiLive_release_')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_release == 'true' && startsWith(github.event.inputs.release_tag, 'isiLive_release_')) }}
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/isiLive_release_') }}
     uses: ./.github/workflows/lua-check.yml
     permissions:
       contents: read
 
   publish-release:
     needs: quality-gate
-    if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/isiLive_release_')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_release == 'true' && startsWith(github.event.inputs.release_tag, 'isiLive_release_')) }}
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/isiLive_release_') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -38,24 +27,16 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
-          MANUAL_CONFIRM: ${{ github.event.inputs.confirm_release }}
-          MANUAL_TAG: ${{ github.event.inputs.release_tag }}
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: pwsh -File tools/validate_release_trigger.ps1 -Mode release
       - name: Checkout release tag
         id: release_context
         env:
-          EVENT_NAME: ${{ github.event_name }}
           REF_NAME: ${{ github.ref_name }}
-          MANUAL_TAG: ${{ github.event.inputs.release_tag }}
         run: |
           set -euo pipefail
-          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
-            TAG="${MANUAL_TAG}"
-          else
-            TAG="${REF_NAME}"
-          fi
+          TAG="${REF_NAME}"
           case "${TAG}" in
             isiLive_release_*) ;;
             *) echo "Unexpected tag '${TAG}' — expected isiLive_release_* prefix."; exit 1 ;;
@@ -92,16 +73,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          EVENT_NAME: ${{ github.event_name }}
           REF_NAME: ${{ github.ref_name }}
-          MANUAL_TAG: ${{ github.event.inputs.release_tag }}
         run: |
           set -euo pipefail
-          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
-            TAG="${MANUAL_TAG}"
-          else
-            TAG="${REF_NAME}"
-          fi
+          TAG="${REF_NAME}"
           case "${TAG}" in
             isiLive_release_*) ;;
             *) echo "Unexpected tag '${TAG}' — expected isiLive_release_* prefix."; exit 1 ;;

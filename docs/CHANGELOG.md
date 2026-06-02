@@ -15,6 +15,9 @@
 - Replaced the BigWigs CurseForge upload step with a direct upload of the
   already-built release ZIP, including explicit CurseForge `gameVersionNames`
   metadata derived from the TOC interface version.
+- Restored the stable `Release` workflow to tag-push-only triggering, so
+  GitHub Actions lists stable release runs under the `isiLive_release_*` tag
+  again instead of `main`.
 
 ## 2026-06-02 - Version 0.9.295 (patch)
 
