@@ -64,43 +64,23 @@ jobs:
           git checkout --detach "${TAG}"
           echo "RELEASE_TAG=${TAG}" >> "${GITHUB_ENV}"
           echo "RELEASE_VERSION=${VERSION}" >> "${GITHUB_ENV}"
-      - name: Validate Wago configuration
-        env:
-          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
-          WAGO_PROJECT_ID: ${{ vars.WAGO_PROJECT_ID }}
-        run: |
-          set -euo pipefail
-          if [ -z "${WAGO_API_TOKEN}" ]; then
-            echo "WAGO_API_TOKEN secret is required for Wago publishing."
-            exit 1
-          fi
-          case "${WAGO_PROJECT_ID}" in
-            ''|*[!A-Za-z0-9]*)
-              echo "WAGO_PROJECT_ID repository variable must be the Wago 8-character alpha-numeric project id."
-              exit 1
-              ;;
-          esac
-          if ! printf '%s' "${WAGO_PROJECT_ID}" | grep -Eq '^[A-Za-z0-9]{8}$'; then
-            echo "WAGO_PROJECT_ID repository variable must be exactly 8 alpha-numeric characters."
-            exit 1
-          fi
-      - name: Package and publish to Wago
-        uses: BigWigsMods/packager@v2
-        env:
-          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
-        with:
-          args: -a ${{ vars.WAGO_PROJECT_ID }} -n "isiLive-$RELEASE_VERSION:$RELEASE_VERSION"
       - name: Prepare GitHub/WowUp asset
         run: |
           set -euo pipefail
-          mkdir -p dist
-          package_path="$(find .release -type f -name 'isiLive-*.zip' ! -name '*-nolib*' | sort | tail -n 1)"
-          if [ -z "${package_path}" ] || [ ! -f "${package_path}" ]; then
-            echo "Packager did not create an isiLive zip asset."
-            exit 1
-          fi
+          rm -rf dist package
+          mkdir -p dist package/isiLive
+          while IFS= read -r -d '' file; do
+            case "${file}" in
+              .github/*|.githooks/*|.vscode/*|.claude/*|.gitattributes|.editorconfig|.luacheckrc|.stylua.toml|.styluaignore|.luarocks/*|.luacov|.gitignore|.pkgmeta|docs/*|README.md|AGENTS.md|CLAUDE.md|tools/*|testmodul/*|luacheck_output.txt|isiLive.png|isiLive_H_ui.png|isiLive_MPlus_ui.png|isiLive_M_ui.png|isiLive_V_ui.png|isiLive_screenshot.png)
+                continue
+                ;;
+            esac
+            target="package/isiLive/${file}"
+            mkdir -p "$(dirname "${target}")"
+            cp "${file}" "${target}"
+          done < <(git ls-files -z)
           asset_path="dist/isiLive-${RELEASE_VERSION}.zip"
-          cp "${package_path}" "${asset_path}"
+          (cd package && zip -qr "../${asset_path}" isiLive)
           if ! unzip -l "${asset_path}" "isiLive/isiLive.toc" >/dev/null 2>&1; then
             echo "Release zip must contain isiLive/isiLive.toc at the zip root for WowUp Hub."
             exit 1
