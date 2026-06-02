@@ -9,6 +9,9 @@
 - Moved the GitHub release asset upload before the CurseForge auto-packager
   trigger and added short CurseForge trigger retries, so WowUp publishing is
   not blocked by a transient CurseForge trigger response.
+- Replaced the legacy CurseForge remote packager trigger with a direct
+  BigWigs packager upload using the official CurseForge upload API route, so
+  GitHub Actions no longer depends on the Cloudflare-blocked website trigger.
 
 ## 2026-06-02 - Version 0.9.295 (patch)
 
