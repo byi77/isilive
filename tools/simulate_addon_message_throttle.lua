@@ -4,10 +4,9 @@
 -- falls back to raw C_ChatInfo.SendAddonMessage otherwise.
 --
 -- Per-message-type priority, as set by the production senders in sync.lua:
---   ALERT  -> SendKick (1287), SendRefreshRequest (1408)
+--   ALERT  -> SendKick, SendRefreshRequest, SendShareKeysRequest
 --   NORMAL -> SendHello, SendKey, SendTarget, SendCombatAnnounce,
---             SendShareKeysRequest, SendLibKeystoneRequest,
---             SendLibKeystonePartyData
+--             SendLibKeystoneRequest, SendLibKeystonePartyData
 --   BULK   -> SendStats, SendDps, SendLoc
 --
 -- Verifies:
@@ -241,11 +240,11 @@ local function ScenarioCTLPriorityRouting()
   session.send(session.addon.Sync.SendRefreshRequest, {})
   Check(LastCTL().priority == "ALERT", "REQSYNC routes priority=ALERT")
 
-  -- SHAREKEYS: NORMAL
+  -- SHAREKEYS: ALERT
   Harness.WithGlobals(buildGlobals(), function()
     session.addon.Sync.SendShareKeysRequest()
   end)
-  Check(LastCTL().priority == "NORMAL", "SHAREKEYS routes priority=NORMAL")
+  Check(LastCTL().priority == "ALERT", "SHAREKEYS routes priority=ALERT")
 end
 
 -- ----------------------------------------------------------------------

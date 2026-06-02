@@ -41,10 +41,10 @@ local function InitializeFactoryLfgWiringControllers(ctx, modules)
     end
 
     -- Fallback: when no LFG-leader hint is available (pre-formed group, or
-    -- after invite-accepted state was cleared), use the current group leader
-    -- as the hint. The played key always belongs to the leader, so without
-    -- this fallback the unique-owner scan can pick a random group member who
-    -- happens to hold a higher-level key for the same dungeon.
+    -- after invite-accepted state was cleared), use the observed group leader
+    -- only as a disambiguation hint. This does not prove key ownership; the
+    -- downstream resolver still requires a matching verified key map and fails
+    -- closed instead of picking an arbitrary same-dungeon key.
     if type(preferredOwnerName) ~= "string" or preferredOwnerName == "" then
       local roster = ctx.GetRoster() or {}
       local unitIsGroupLeaderFn = rawget(_G, "UnitIsGroupLeader")

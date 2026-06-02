@@ -1163,10 +1163,6 @@ return function(test, ctx)
         pcall(factoryCtx.SetPortalNavigatorVisible, true)
         pcall(factoryCtx.SetPortalNavigatorVisible, false)
       end
-      if type(factoryCtx.ShowInviteHint) == "function" then
-        pcall(factoryCtx.ShowInviteHint, "joined", 3)
-      end
-
       -- 8. Settings-panel callbacks - these are wired inside
       --    FinalizeFactorySettings and exercised via ctx.resetDB + a
       --    hand-triggered onResetMainFramePosition (the latter is the

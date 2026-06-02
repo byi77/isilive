@@ -273,7 +273,6 @@ local function RegisterGroupJoinLifecycleTests(test, Assert, LoadAddonModules, W
                 centerNotice = {},
                 centerNoticeFrame = {},
                 centerNoticeTeleportButton = {},
-                inviteHint = {},
                 mainUI = {},
                 mainFrame = {
                   GetScript = function()
@@ -286,7 +285,6 @@ local function RegisterGroupJoinLifecycleTests(test, Assert, LoadAddonModules, W
                 SetCenterNoticeVisible = function() end,
                 UpdateCenterTeleportButtonVisual = function() end,
                 ShowCenterNotice = function() end,
-                ShowInviteHint = function() end,
                 SetMainFrameVisible = function(visible)
                   table.insert(frameBridgeCalls, visible)
                 end,
@@ -306,9 +304,6 @@ local function RegisterGroupJoinLifecycleTests(test, Assert, LoadAddonModules, W
                 SetVisible = function() end,
                 Show = function() end,
               }
-            end,
-            CreateInviteHint = function()
-              return {}
             end,
           },
           ui = {
@@ -586,7 +581,6 @@ local function RegisterFactoryFrameBridgeRestoreTests(test, Assert, LoadAddonMod
                 centerNotice = {},
                 centerNoticeFrame = {},
                 centerNoticeTeleportButton = {},
-                inviteHint = {},
                 mainUI = {},
                 mainFrame = {
                   GetScript = function()
@@ -599,7 +593,6 @@ local function RegisterFactoryFrameBridgeRestoreTests(test, Assert, LoadAddonMod
                 SetCenterNoticeVisible = function() end,
                 UpdateCenterTeleportButtonVisual = function() end,
                 ShowCenterNotice = function() end,
-                ShowInviteHint = function() end,
                 SetMainFrameVisible = function(visible)
                   table.insert(frameBridgeCalls, visible)
                   if visible and type(opts.onShownInGroup) == "function" then
@@ -623,9 +616,6 @@ local function RegisterFactoryFrameBridgeRestoreTests(test, Assert, LoadAddonMod
                 SetVisible = function() end,
                 Show = function() end,
               }
-            end,
-            CreateInviteHint = function()
-              return {}
             end,
           },
           ui = {
@@ -772,13 +762,11 @@ local function RegisterFactoryFrameBridgeRestoreTests(test, Assert, LoadAddonMod
                 centerNotice = {},
                 centerNoticeFrame = {},
                 centerNoticeTeleportButton = {},
-                inviteHint = {},
                 mainUI = {},
                 mainFrame = {},
                 SetCenterNoticeVisible = function() end,
                 UpdateCenterTeleportButtonVisual = function() end,
                 ShowCenterNotice = function() end,
-                ShowInviteHint = function() end,
                 SetMainFrameVisible = function()
                   return false
                 end,
@@ -798,9 +786,6 @@ local function RegisterFactoryFrameBridgeRestoreTests(test, Assert, LoadAddonMod
                 SetVisible = function() end,
                 Show = function() end,
               }
-            end,
-            CreateInviteHint = function()
-              return {}
             end,
           },
           ui = {

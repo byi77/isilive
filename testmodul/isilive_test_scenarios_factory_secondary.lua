@@ -724,7 +724,6 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.False(state.mobNameplateTestMode, "test mode exit must disable nameplate forces demo mode")
     Assert.False(state.portalNavigatorVisible, "test mode exit must hide the portal navigator demo")
     Assert.False(state.demoCenterNoticesVisible, "test mode exit must hide the stacked demo center notices")
-    Assert.True(state.inviteHintHidden == true, "test mode exit must hide the invite hint demo")
   end)
 
   test("Factory test mode does not show removed pre-accept invite hint demo", function()

@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.294`
+Versionsbasis: `0.9.295`
 Zuletzt aktualisiert: `2026-06-02`
 
 ## Akteure
@@ -129,7 +129,7 @@ Ziel: Rating-Aenderungen vor und nach einem Run pro Spieler im Roster zeigen, oh
 5. Trigger: Das Roster wird nach Rating-Updates gerendert.
 6. Output: Die `RIO`-Spalte zeigt `(+X)RIO`, wenn Baseline und aktueller Wert vorhanden sind.
 7. Regel: Delta wird auf nicht-negative Werte geklemmt; Minimum ist `+0`, Minus-Rendering ist verboten.
-8. Regel: Der Admin-Testmodus (`/isilive testall`) verwendet den Full-Dummy-Preview-Pfad, inklusive sichtbarem positivem Dummy-Delta, einer Ghost-/Leaver-Zeile, Demo-Daten fuer M+-Timer, Combat-CDs, unteren M+-Forces-Tracker, Statsbox, Portal-Navigator, Invite-Hint, Centerbox-Portal, Non-Mythic-Dungeon-Entry-Centerbox, M+-Forces-Nameplates/-Tooltip und LFG-Bonusmarker. Der Invite-Hint nutzt im Demomodus einen festen Demo-Anker und darf nicht unter Live-Fallback-Anker verschoben werden. Centerbox-Portal und Non-Mythic-Dungeon-Entry-Centerbox bleiben im Demomodus parallel sichtbar, damit sie sich nicht gegenseitig verdraengen. Demo-Feature-Schalter einschliesslich `Accepted-invite notice` und `Group-join target notice` werden nur temporaer gesetzt und beim Verlassen auf die vorherigen User-Settings zurueckgesetzt.
+8. Regel: Der Admin-Testmodus (`/isilive testall`) verwendet den Full-Dummy-Preview-Pfad, inklusive sichtbarem positivem Dummy-Delta, einer Ghost-/Leaver-Zeile, Demo-Daten fuer M+-Timer, Combat-CDs, unteren M+-Forces-Tracker, Statsbox, Portal-Navigator, Centerbox-Portal, Non-Mythic-Dungeon-Entry-Centerbox, M+-Forces-Nameplates/-Tooltip und LFG-Bonusmarker. Centerbox-Portal und Non-Mythic-Dungeon-Entry-Centerbox bleiben im Demomodus parallel sichtbar, damit sie sich nicht gegenseitig verdraengen. Demo-Feature-Schalter einschliesslich `Accepted-invite notice` und `Group-join target notice` werden nur temporaer gesetzt und beim Verlassen auf die vorherigen User-Settings zurueckgesetzt.
 9. Erfolgskriterium: Die Anzeige bleibt pro Spieler ueber Unit-Slot-Wechsel stabil und zeigt niemals ein negatives Delta.
 
 ## UC-08 Post-Run-Stats-Snapshot
@@ -350,7 +350,7 @@ Ziel: Eine optionale, eigenstaendige Spieler-Stats-Box zeigt live gelesene Prim√
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `1950` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `1938` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
@@ -363,7 +363,7 @@ Aktuelle Validator-Baseline: `1950` Szenarien ueber die in `tools/usecase_scenar
 9. UC-11 und UC-12: Secure-World-Marker-Button-Konfiguration fuer M+Marker und Compact-Layout-Visibility-Logik fuer M/V/H.
 10. Taint-Hardening: verschobene Secure-Attribute-Writes, verschobene `Esc`-Shortcut-Secure-Button-Refreshes, insecure Teleport-Grid-Aktionen und combat-sicheres Collapse-Handling.
 11. UC-13 und UC-14: Game-Menu-Tooling-/Travel-/Mounts-/Addons-Strips, Ruhestein-Auswahl, VIP-Gast-Sound-Schalter, Lokalisierung inklusive ruRU-Font-Override, Close-then-Open-Verhalten, verschobener Secure-Reload-Button-Refresh, sichere Mount-Macro-Shortcuts, Direct-Opener-Fallback-Auswahl, Settings-Canvas-State-Mirroring, Background-Opacity-Verhalten, Live-BRes-/Bloodlust-/M+-Timer-Rendering, kompakter aktiver Lust-Timer, M+-Killtracker-Live-Refresh mit aktiver Keylevel-Anzeige und gesyncte Interrupt-Cooldown-Anzeige.
-12. UC-15: LFG-Detektion ohne Name-Fallbacks, locale-aware Chat-Hinweise, pending-invite Race-Hardening, konkrete lokale LFG-Map-Prioritaet, Highlight-Dispatch, strukturierter Invite-Hint und Centerbox-Portalbutton aus verifiziertem Activity-/Map-Kontext.
+12. UC-15: LFG-Detektion ohne Name-Fallbacks, locale-aware Chat-Hinweise, pending-invite Race-Hardening, konkrete lokale LFG-Map-Prioritaet, Highlight-Dispatch und Centerbox-Portalbutton aus verifiziertem Activity-/Map-Kontext.
 13. UC-24: Gruppensuche-Buff-Rating-Herzchen ohne Guessing, mit Spielerprofil-Relevanz, Utility-Ausschluss fuer kompakte Marker, nicht-stapelnder Buffzaehlung, Blizzard-Default-kompatibler Suchergebnisposition, Bewerber-Herzchen rechts neben dem Klassenbadge als echte Texturen, Bewerber-Sprachflaggen aus verifiziertem Realm, default-aktivem Settings-Schalter, `media/heart_bonus_green.tga`-Texturvertrag sowie vorbereiteten Locale-Fallbacks inklusive akzeptierter Community-Uebersetzungen.
 14. UC-16: BR-/Lust-Self-Cast-Filter gegen 12.0-Secret-Value-Spam, 3s-`sourceGUID|spellID`-Dedup, Toggle-Gating, ChatThrottleLib-Routing via `BRLUST`-Addon-Message, Receiver-Dispatch in lokalisierten Template-Zeilen und Drop-On-Unknown-Kind.
 15. UC-17: Mob-Tooltip-Forces-Rendering nur bei aktiver Challenge-Map-ID mit passendem NPC-Dataset, Per-Tooltip-Dedup gegen `TooltipDataProcessor`-Rerender und `SetEnabled(false)`-Gate.

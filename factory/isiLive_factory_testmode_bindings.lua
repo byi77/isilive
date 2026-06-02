@@ -32,9 +32,7 @@ local function InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runti
     clearDemoFeatureData = demoCallbacks.clearDemoFeatureData,
     updateMPlusTeleportButton = ctx.UpdateMPlusTeleportButton,
     setCenterNoticeVisible = ctx.SetCenterNoticeVisible,
-    hideInviteHint = function()
-      ctx.inviteHint.frame:Hide()
-    end,
+    hideInviteHint = function() end,
     triggerGroupRosterUpdate = ctx.TriggerGroupRosterUpdate,
   }))
 

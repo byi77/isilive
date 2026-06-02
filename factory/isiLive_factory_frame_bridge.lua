@@ -403,7 +403,6 @@ local function InitializeFactoryFrameBridge(ctx)
 
   local frameBridgeContext = modules.frameBridge.CreateContext({
     createCenterNotice = modules.notice.CreateCenterNotice,
-    createInviteHint = modules.notice.CreateInviteHint,
     createMainFrame = modules.ui.CreateMainFrame,
     parent = UIParent,
     mainFrameGlobalName = "isiLiveMainFrame",
@@ -512,7 +511,6 @@ local function InitializeFactoryFrameBridge(ctx)
     }),
   }
   ctx.portalNavigatorNoticeFrame = ctx.portalNavigatorNotice.frame
-  ctx.inviteHint = frameBridgeContext.inviteHint
   ctx.mainUI = frameBridgeContext.mainUI
   ctx.mainFrame = frameBridgeContext.mainFrame
   ctx.SetCenterNoticeVisible = function(visible)
@@ -556,9 +554,6 @@ local function InitializeFactoryFrameBridge(ctx)
   end
   ctx.ShowPortalNavigatorNotice = function(layout)
     ctx.portalNavigatorNotice.Show(layout)
-  end
-  ctx.ShowInviteHint = function(message, durationSeconds, searchResultID)
-    frameBridgeContext.ShowInviteHint(message, durationSeconds, searchResultID)
   end
   ctx.SetMainFrameVisible = function(visible, reasonOrOpts)
     local opts = type(reasonOrOpts) == "table" and reasonOrOpts or {}

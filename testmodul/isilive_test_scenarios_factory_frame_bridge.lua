@@ -441,7 +441,6 @@ local function Register(test, ctx)
               }
             end,
             CreateCenterNotice = function() end,
-            CreateInviteHint = function() end,
           },
           ui = {
             CreateMainFrame = function() end,
@@ -453,13 +452,11 @@ local function Register(test, ctx)
                 centerNotice = { Show = function() end },
                 centerNoticeFrame = {},
                 centerNoticeTeleportButton = {},
-                inviteHint = {},
                 mainUI = {},
                 mainFrame = {},
                 SetCenterNoticeVisible = function() end,
                 UpdateCenterTeleportButtonVisual = function() end,
                 ShowCenterNotice = function() end,
-                ShowInviteHint = function() end,
                 SetMainFrameVisible = function() end,
               }
             end,

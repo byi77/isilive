@@ -13,7 +13,6 @@ function FrameBridge.CreateContext(opts)
   opts = opts or {}
 
   local createCenterNotice = RequireFunction(opts.createCenterNotice, "createCenterNotice")
-  local createInviteHint = RequireFunction(opts.createInviteHint, "createInviteHint")
   local createMainFrame = RequireFunction(opts.createMainFrame, "createMainFrame")
   local isInGroup = RequireFunction(opts.isInGroup, "isInGroup")
   local onShownInGroup = RequireFunction(opts.onShownInGroup, "onShownInGroup")
@@ -69,11 +68,6 @@ function FrameBridge.CreateContext(opts)
     getL = getL,
   })
 
-  local inviteHint = createInviteHint({
-    parent = opts.parent,
-    mainFrameGlobalName = tostring(opts.mainFrameGlobalName or "isiLiveMainFrame"),
-  })
-
   local mainUI = createMainFrame({
     minHeight = tonumber(opts.mainFrameMinHeight) or 212,
     parent = opts.parent,
@@ -91,7 +85,6 @@ function FrameBridge.CreateContext(opts)
     centerNotice = centerNotice,
     centerNoticeFrame = centerNotice.frame,
     centerNoticeTeleportButton = centerNotice.teleportButton,
-    inviteHint = inviteHint,
     mainUI = mainUI,
     mainFrame = mainUI.frame,
   }
@@ -110,10 +103,6 @@ function FrameBridge.CreateContext(opts)
   -- center notice directly when dungeon context is intentional.
   function context.ShowCenterNotice(message, durationSeconds, _dungeonName, _activityID, showOptions)
     centerNotice.Show(message, durationSeconds, nil, nil, showOptions)
-  end
-
-  function context.ShowInviteHint(message, durationSeconds, searchResultID)
-    inviteHint.Show(message, durationSeconds, searchResultID)
   end
 
   function context.SetMainFrameVisible(visible, showOpts)

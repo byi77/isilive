@@ -419,13 +419,6 @@ local function ClearDemoFeatureData(ctx)
   RestoreDemoLfgFlags(ctx, db)
   RestoreDemoMobForces(ctx, db)
 
-  if
-    type(ctx.inviteHint) == "table"
-    and type(ctx.inviteHint.frame) == "table"
-    and type(ctx.inviteHint.frame.Hide) == "function"
-  then
-    ctx.inviteHint.frame:Hide()
-  end
   if type(ctx.SetPortalNavigatorVisible) == "function" then
     ctx.SetPortalNavigatorVisible(false)
   end

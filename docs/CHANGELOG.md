@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## 2026-06-02 - Version 0.9.295 (patch)
+
+- Clarified internal leader-hint comments so they no longer imply that the
+  played key must belong to the group leader; the runtime still treats leader
+  state only as a verified disambiguation hint and fails closed otherwise.
+- Removed one stale tooltip-only regression test for the long-deprecated
+  `Runs together` row; the bounded stats persistence contract remains covered
+  by the direct DB/statistics scenarios, and the current validator baseline is
+  `1938` deterministic scenarios.
+- Audited the active logic and architecture contracts, then completed the
+  `ARCHITECTURE.md`
+  active-contract list for all 11 enforced architecture rules.
+- Removed the dormant pre-accept LFG invite-hint frame, its dead frame-bridge
+  surface, the stale standalone simulator, and the helper-only branch tests;
+  the active accepted-invite and group-join Center Notice paths remain covered.
+- Audited the full Share Keys chain and corrected the standalone addon-message
+  throttle simulator to expect the current `SHAREKEYS` `ALERT` priority.
+- Bumped the TOC and documentation version basis to `0.9.295`.
+- Updated the release-gate scenario baseline to `1938` deterministic scenarios.
+
 ## 2026-06-02 - Version 0.9.294 (patch)
 
 - Restored Battle-Res-ready and Bloodlust-ready alerts by wiring the production
@@ -12,7 +32,7 @@
   directly beside the health bar instead of centering it inside the overlay
   frame, which pushed larger values away from the plate.
 - Bumped the TOC and documentation version basis to `0.9.294`.
-- Updated the release-gate scenario baseline to `1950` deterministic scenarios.
+- Updated the release-gate scenario baseline to `1938` deterministic scenarios.
 
 ## 2026-06-01 - Version 0.9.293 (patch)
 

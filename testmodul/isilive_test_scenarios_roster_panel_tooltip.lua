@@ -273,22 +273,6 @@ local function RunTooltipScenario(WithGlobals, LoadAddonModules, Assert, options
   end)
 end
 
-local function RegisterRosterPanelRowTooltipNoHistoryTest(test, Assert, WithGlobals, LoadAddonModules)
-  test("Roster row tooltip no longer shows deprecated runs-together history", function()
-    RunTooltipScenario(WithGlobals, LoadAddonModules, Assert, {}, function(addon)
-      addon.Sync.SetPlayerHelloInfo("Buddy", "Realm", "0.9.36", 2, 90, "inspect")
-    end, function(_addon, _controller, _rowFrame, tooltipLines)
-      local foundRuns = false
-      for _, line in ipairs(tooltipLines) do
-        if line:find("Runs together: 5", 1, true) then
-          foundRuns = true
-        end
-      end
-      Assert.False(foundRuns, "Tooltip should not contain deprecated runs-together history")
-    end)
-  end)
-end
-
 local function RegisterRosterPanelRowTooltipDpsTest(test, Assert, WithGlobals, LoadAddonModules)
   test("Roster row tooltip shows last run DPS when available", function()
     RunTooltipScenario(WithGlobals, LoadAddonModules, Assert, {
@@ -482,7 +466,6 @@ local function RegisterRosterPanelRowTooltipFullKeyNameTest(test, Assert, WithGl
 end
 
 local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, WithGlobals, LoadAddonModules)
-  RegisterRosterPanelRowTooltipNoHistoryTest(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipDpsTest(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipAckVersionTest(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipSyncDebugTest(test, Assert, WithGlobals, LoadAddonModules)

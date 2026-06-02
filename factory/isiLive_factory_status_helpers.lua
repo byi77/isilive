@@ -269,9 +269,9 @@ local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState)
     local unitIsGroupLeaderFn = rawget(_G, "UnitIsGroupLeader")
 
     -- Leader-only path: when we can identify the group leader, only their
-    -- target announcement counts. The played key always belongs to the
-    -- leader, so any conflicting broadcast from a member who happens to
-    -- carry a higher-level key for the same dungeon must be ignored.
+    -- explicit target announcement counts for this branch. Leadership is not
+    -- proof of key ownership; if the leader has no verified target payload, we
+    -- fail closed instead of using a conflicting member broadcast.
     if type(unitIsGroupLeaderFn) == "function" then
       for unit, info in pairs(roster) do
         if type(unit) == "string" and unit ~= "" and type(info) == "table" and not info.isGhost then
