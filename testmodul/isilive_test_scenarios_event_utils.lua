@@ -491,6 +491,43 @@ local function RegisterBootstrapHiddenGateTests(test, Assert, LoadAddonModules)
     Assert.Equal(#dispatched, 3, "combat gate should allow ready check lifecycle events")
   end)
 
+  test("Bootstrap gate allows addon sync during combat for in-key BRLUST announces", function()
+    local dispatched = {}
+
+    local addon = LoadAddonModules({ "isiLive_events.lua", "isiLive_bootstrap.lua" })
+    local gate = addon.Bootstrap.CreateGatedOnEvent({
+      events = addon.Events,
+      dispatch = function(_frame, event, ...)
+        table.insert(dispatched, { event = event, args = { ... } })
+      end,
+      isStopped = function()
+        return false
+      end,
+      isPaused = function()
+        return false
+      end,
+      isTestMode = function()
+        return false
+      end,
+      isInCombat = function()
+        return true
+      end,
+    })
+
+    local frame = {
+      IsShown = function()
+        return true
+      end,
+    }
+
+    gate(frame, "CHAT_MSG_ADDON", "ISILIVE", "BRLUST:BR:Druid-Realm:20484", "INSTANCE_CHAT", "Druid-Realm")
+
+    Assert.Equal(#dispatched, 1, "combat gate must keep addon sync for BRLUST peer announces")
+    Assert.Equal(dispatched[1].event, "CHAT_MSG_ADDON", "CHAT_MSG_ADDON must reach the dispatcher in combat")
+    Assert.Equal(dispatched[1].args[2], "BRLUST:BR:Druid-Realm:20484", "BRLUST payload must be preserved")
+    Assert.Equal(dispatched[1].args[3], "INSTANCE_CHAT", "in-key addon channel must be preserved")
+  end)
+
   test("Bootstrap gate allows sync events while frame is hidden if configured", function()
     local dispatched = {}
 

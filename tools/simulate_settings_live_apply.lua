@@ -114,7 +114,7 @@ local function ApplySettingsDefaults(db)
     db.mobNameplateShowPercent = true
   end
   if db.mobNameplateShowRemaining == nil then
-    db.mobNameplateShowRemaining = true
+    db.mobNameplateShowRemaining = false
   end
   if db.mobNameplateFontSize == nil then
     db.mobNameplateFontSize = 14

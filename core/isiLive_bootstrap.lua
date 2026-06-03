@@ -121,7 +121,9 @@ local EVENT_REGISTRY = {
   { "LFG_LIST_SEARCH_RESULT_UPDATED", false, false, false },
   { "LFG_LIST_APPLICATION_STATUS_UPDATED", false, false, false },
   { "LFG_LIST_ACTIVE_ENTRY_UPDATE", false, false, false },
-  { "CHAT_MSG_ADDON", false, false, false },
+  -- Addon sync payloads include in-key BR/Lust combat announces and must not
+  -- be dropped while the receiver is in combat.
+  { "CHAT_MSG_ADDON", true, false, false },
   { "CONFIRM_SUMMON", true, true, false },
   { "INCOMING_SUMMON_CHANGED", true, true, false },
   { "INSPECT_READY", false, false, true },

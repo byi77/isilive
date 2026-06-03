@@ -95,6 +95,37 @@ return function(test, ctx)
     Assert.Equal(sent.spellID, 20484, "broadcast path must send the combat announce payload")
   end)
 
+  test("factory split coverage: combat announce in-key gate uses running M+ timer when map API is masked", function()
+    local deps
+    local addon = LoadAddonModules({ "isiLive_factory_combat_announces.lua" })
+    addon.MplusTimer = {
+      GetTimerData = function()
+        return { running = true }
+      end,
+    }
+    addon.CombatEvents = {
+      SetDependencies = function(value)
+        deps = value
+      end,
+    }
+
+    local factoryCtx = {
+      GetActiveChallengeMapID = function()
+        return nil
+      end,
+      GetL = function()
+        return {}
+      end,
+      Print = function() end,
+      modules = {},
+    }
+
+    addon._FactoryInternal.InitializeFactoryCombatAnnounceControllers(factoryCtx)
+
+    Assert.Equal(type(deps.isInKey), "function", "combat dependency must provide a live in-key gate")
+    Assert.True(deps.isInKey(), "running M+ timer must keep combat announces enabled when map ID is masked")
+  end)
+
   test("factory split coverage: refresh button cooldown and refresh-controller callbacks execute", function()
     local addon = LoadAddonModules({ "isiLive_factory_refresh.lua" })
     local now = 0

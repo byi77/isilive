@@ -589,12 +589,14 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
       SoundUtils = {
         PlayBattleResReady = function()
           state.battleResReadySoundCalls = (state.battleResReadySoundCalls or 0) + 1
+          return true
         end,
         PlayBloodlust = function()
           state.bloodlustSoundCalls = (state.bloodlustSoundCalls or 0) + 1
         end,
         PlayBloodlustReady = function()
           state.bloodlustReadySoundCalls = (state.bloodlustReadySoundCalls or 0) + 1
+          return true
         end,
       },
     })
@@ -1118,6 +1120,9 @@ return function(test, ctx)
       1,
       "displayed zero Bloodlust timer must play the ready alert once"
     )
+    local readyDisplay = state.cdController.GetLustInfo()
+    Assert.NotNil(readyDisplay, "Bloodlust-ready display state must stay visible after the ready transition")
+    Assert.Equal(readyDisplay.remain, 0, "Bloodlust-ready display state must render as 00:00 through the UI controller")
 
     state.ctx.UpdateCdTracker()
     Assert.Equal(state.bloodlustReadySoundCalls or 0, 1, "still-ready Bloodlust must not replay the ready alert")
@@ -1143,6 +1148,101 @@ return function(test, ctx)
     state.lustInfo = nil
     state.ctx.UpdateCdTracker()
     Assert.Equal(state.bloodlustReadySoundCalls or 0, 4, "a later Bloodlust cycle may play one new ready alert")
+  end)
+
+  test("Factory CD refresh exposes BL: -- when ready display context is inactive", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mplusTimerData = {
+        running = true,
+      },
+    })
+
+    state.lustInfo = { remain = 2, icon = 132114 }
+    state.ctx.UpdateCdTracker({ playLustSoundOnStart = true })
+    state.lustInfo = nil
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.cdController.GetLustInfo().remain, 0, "running grouped key must expose ready display as 00:00")
+
+    state.inGroup = false
+    state.ctx.UpdateCdTracker()
+    Assert.Nil(state.cdController.GetLustInfo(), "ungrouped context must fall back to BL: --")
+  end)
+
+  test("Factory CD refresh routes Bloodlust-ready through the real SoundUtils asset", function()
+    local now = 100
+    local lustInfo = nil
+    local playCalls = {}
+
+    WithGlobals({
+      IsiLiveDB = {
+        soundBloodlustReadyEnabled = true,
+      },
+      GetTime = function()
+        return now
+      end,
+      PlaySoundFile = function(path, channel)
+        playCalls[#playCalls + 1] = { path = path, channel = channel }
+        return true
+      end,
+      C_Timer = {
+        NewTicker = function()
+          return {
+            Cancel = function() end,
+          }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sound_utils.lua", "isiLive_factory_cd_tracker.lua" })
+      addon.MplusTimer = {
+        GetTimerData = function()
+          return { running = true }
+        end,
+      }
+      local modules = {
+        cdTracker = {
+          CreateController = function()
+            return {
+              Scan = function() end,
+              GetBResInfo = function()
+                return nil
+              end,
+              GetLustInfo = function()
+                return lustInfo
+              end,
+            }
+          end,
+        },
+      }
+      local factoryCtx = {
+        addonTable = addon,
+        isInGroup = function()
+          return true
+        end,
+        UpdateUI = function() end,
+      }
+
+      addon._FactoryInternal.InitializeFactorySecondaryCdTracker(factoryCtx, modules, {}, function()
+        return now
+      end, function()
+        return false
+      end, function()
+        return false
+      end)
+
+      factoryCtx.UpdateCdTracker()
+      lustInfo = { remain = 5, icon = 132114 }
+      factoryCtx.UpdateCdTracker()
+      lustInfo = { remain = 0, icon = 132114 }
+      factoryCtx.UpdateCdTracker()
+    end)
+
+    Assert.Equal(#playCalls, 1, "Bloodlust-ready transition must emit exactly one real sound call")
+    Assert.Equal(
+      playCalls[1].path,
+      "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
+      "Bloodlust-ready transition must use the dedicated TTS asset"
+    )
+    Assert.Equal(playCalls[1].channel, "Master", "Bloodlust-ready transition must use the configured channel")
   end)
 
   test("Factory CD refresh suppresses Bloodlust-ready sound on key reset refresh", function()
@@ -1294,7 +1394,18 @@ return function(test, ctx)
 
     state.bresInfo = { charges = 1, maxCharges = 1, cooldownRemain = 0 }
     state.ctx.UpdateCdTracker()
-    Assert.Equal(state.battleResReadySoundCalls or 0, 2, "BRes charge recovery may still play one new ready alert")
+    Assert.Equal(state.battleResReadySoundCalls or 0, 2, "BRes charge increase may still play one new ready alert")
+
+    state.bresInfo = { charges = 2, maxCharges = 2, cooldownRemain = 0 }
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(
+      state.battleResReadySoundCalls or 0,
+      3,
+      "any later BRes charge increase should play one new ready alert"
+    )
+
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.battleResReadySoundCalls or 0, 3, "unchanged increased BRes charges must not loop")
   end)
 
   test("Factory CD refresh suppresses the first Battle Res-ready state after key start only", function()

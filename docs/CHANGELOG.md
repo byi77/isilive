@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+## 2026-06-02 - Version 0.9.297 (patch)
+
+- Fixed in-key BR/Bloodlust peer announcements by allowing `CHAT_MSG_ADDON`
+  sync payloads through the combat event gate, so incoming `BRLUST` messages
+  are no longer dropped during active pulls.
+- Fixed the local BR/Bloodlust sender path by using the running M+ timer as a
+  verified in-key source when the active challenge map API is masked, and by
+  treating owned pet Bloodlust casts as the local player's announcement.
+- Stabilized M+ forces nameplate percentage anchoring by rendering the overlay
+  above the plate level and enforcing a small edge gap even when the saved X/Y
+  offsets are zero.
+- Restored the M+ forces nameplate default to the compact per-mob percentage
+  only; the remaining-needed suffix is now opt-in again and existing default
+  values migrate back to the compact display.
+- Fixed M+ forces nameplate size and position settings under external
+  nameplate addons by anchoring to an observed healthbar child when available
+  while keeping the overlay independent from external nameplate scaling.
+- Hardened the Battle Res combat sound path with a verified separate
+  `RoosterChickenCalls.ogg` fallback if WoW rejects the primary BR asset,
+  while keeping the working Bloodlust sound path on `BoxingArenaSound.ogg`.
+- Fixed Battle Res-ready detection by scanning directly observed known BR spell
+  IDs instead of only Rebirth, and by triggering the ready TTS once when the
+  displayed BR charge count increases.
+- Reworked Bloodlust-ready detection around the CD row display transition:
+  after an in-key Bloodlust countdown expires, the row now stays on `00:00`
+  instead of falling back to `BL: --`, and the ready TTS follows that displayed
+  ready transition. `BL: --` is reserved for missing context such as no running
+  key, no group, or an explicit reset/key-end discard.
+
 ## 2026-06-02 - Version 0.9.296 (patch)
 
 - Refreshed the README feature highlights and expanded the Group Finder

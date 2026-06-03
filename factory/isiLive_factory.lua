@@ -307,7 +307,7 @@ local function FinalizeFactorySettings(ctx)
         if type(mobNameplate.SetFormat) == "function" then
           mobNameplate.SetFormat({
             showPercent = db.mobNameplateShowPercent ~= false,
-            showRemaining = db.mobNameplateShowRemaining ~= false,
+            showRemaining = db.mobNameplateShowRemaining == true,
           })
         end
         if type(mobNameplate.SetAppearance) == "function" then
@@ -378,8 +378,14 @@ local function FinalizeFactorySettings(ctx)
       if db.mobNameplateShowPercent == nil then
         db.mobNameplateShowPercent = true
       end
+      if db.mobNameplateRemainingDefaultMigrated ~= true then
+        if db.mobNameplateShowRemaining == true then
+          db.mobNameplateShowRemaining = false
+        end
+        db.mobNameplateRemainingDefaultMigrated = true
+      end
       if db.mobNameplateShowRemaining == nil then
-        db.mobNameplateShowRemaining = true
+        db.mobNameplateShowRemaining = false
       end
       if db.mobNameplateFontSize == nil then
         db.mobNameplateFontSize = 14
@@ -430,7 +436,7 @@ local function FinalizeFactorySettings(ctx)
         if type(mobNameplate.SetFormat) == "function" then
           mobNameplate.SetFormat({
             showPercent = db.mobNameplateShowPercent ~= false,
-            showRemaining = db.mobNameplateShowRemaining ~= false,
+            showRemaining = db.mobNameplateShowRemaining == true,
           })
         end
         if type(mobNameplate.SetAppearance) == "function" then

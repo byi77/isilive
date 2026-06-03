@@ -1043,6 +1043,11 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         "Interface\\AddOns\\isiLive\\sounds\\ChickenAlarm.ogg",
         "battle-res entry should point at the chicken-alarm asset"
       )
+      Assert.Equal(
+        battleResEntry.fallbackFile,
+        "Interface\\AddOns\\isiLive\\sounds\\RoosterChickenCalls.ogg",
+        "battle-res entry should fall back to a non-ready BR asset if the primary file is rejected"
+      )
       Assert.True(
         addon.SoundUtils.IsEnabled("battle_res"),
         "battle-res sound should default to enabled when no DB override exists"
@@ -1058,6 +1063,10 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         battleResReadyEntry.file,
         "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady.wav",
         "battle-res-ready entry should point at the TTS asset"
+      )
+      Assert.False(
+        battleResEntry.fallbackFile == battleResReadyEntry.file,
+        "combat battle-res fallback must not reuse the battle-res-ready TTS asset"
       )
       Assert.True(
         addon.SoundUtils.IsEnabled("battle_res_ready"),
@@ -1254,6 +1263,63 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.True(hasBrutosaurFootstep, "gilded brutosaur mute list must include verified footstep files")
       Assert.True(hasBrutosaurMoving, "gilded brutosaur mute list must include verified mount-special moving files")
       Assert.True(hasBrutosaurLateFidget, "gilded brutosaur mute list must include verified late fidget files")
+    end)
+
+    local fallbackCalls = {}
+    WithGlobals({
+      IsiLiveDB = {
+        soundBattleResEnabled = true,
+        soundBloodlustEnabled = true,
+      },
+      GetTime = function()
+        return 100
+      end,
+      PlaySoundFile = function(path, channel)
+        fallbackCalls[#fallbackCalls + 1] = { path = path, channel = channel }
+        if path == "Interface\\AddOns\\isiLive\\sounds\\ChickenAlarm.ogg" then
+          return false
+        end
+        return true
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
+      Assert.True(addon.SoundUtils.PlayBattleRes(), "battle-res should fall back when the primary file is rejected")
+      Assert.Equal(
+        fallbackCalls[1].path,
+        "Interface\\AddOns\\isiLive\\sounds\\ChickenAlarm.ogg",
+        "BR must try the primary configured asset first"
+      )
+      Assert.Equal(fallbackCalls[1].channel, "Master", "BR primary attempt must keep the configured channel")
+      Assert.Equal(
+        fallbackCalls[2].path,
+        "Interface\\AddOns\\isiLive\\sounds\\RoosterChickenCalls.ogg",
+        "BR must try the fallback asset when the primary asset is rejected"
+      )
+      Assert.Equal(fallbackCalls[2].channel, "Master", "BR fallback must keep the configured channel")
+      Assert.Equal(#fallbackCalls, 2, "BR fallback must add exactly one secondary playback attempt")
+    end)
+
+    local bloodlustCalls = {}
+    WithGlobals({
+      IsiLiveDB = {
+        soundBloodlustEnabled = true,
+      },
+      GetTime = function()
+        return 200
+      end,
+      PlaySoundFile = function(path, channel)
+        bloodlustCalls[#bloodlustCalls + 1] = { path = path, channel = channel }
+        return false
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
+      Assert.False(addon.SoundUtils.PlayBloodlust(), "bloodlust should report rejected playback without a fallback")
+      Assert.Equal(#bloodlustCalls, 1, "bloodlust must not inherit the battle-res fallback")
+      Assert.Equal(
+        bloodlustCalls[1].path,
+        "Interface\\AddOns\\isiLive\\sounds\\BoxingArenaSound.ogg",
+        "bloodlust must keep the BoxingArenaSound asset"
+      )
     end)
 
     local muted = {}

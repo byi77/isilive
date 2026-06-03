@@ -93,6 +93,43 @@ return function(test, ctx)
     end)
   end)
 
+  test("CdTracker scans later known Battle Res spell when Rebirth charges are unavailable", function()
+    local calls = {}
+    WithGlobals({
+      C_Spell = {
+        GetSpellCharges = function(spellID)
+          calls[#calls + 1] = spellID
+          if spellID == 20484 then
+            return nil
+          end
+          if spellID == 61999 then
+            return {
+              currentCharges = 0,
+              maxCharges = 1,
+              cooldownStartTime = 900,
+              cooldownDuration = 480,
+            }
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local ctrl = MakeController({
+        getTime = function()
+          return 1000
+        end,
+      })
+      ctrl.Scan()
+      local info = ctrl.GetBResInfo()
+      Assert.NotNil(info, "BRes info must use the first directly observed known Battle Res spell")
+      Assert.Equal(calls[1], 20484, "Rebirth should be checked first")
+      Assert.Equal(calls[2], 61999, "Raise Ally should be checked when Rebirth has no charge data")
+      Assert.Equal(info.charges, 0, "charges should come from the observed Raise Ally charge info")
+      Assert.Equal(info.maxCharges, 1, "maxCharges should come from the observed Raise Ally charge info")
+      Assert.Equal(info.cooldownRemain, 380, "cooldownRemain should use the observed Raise Ally cooldown")
+    end)
+  end)
+
   test("CdTracker calculates remaining cooldown when BRes is on cooldown", function()
     WithGlobals({
       C_Spell = {

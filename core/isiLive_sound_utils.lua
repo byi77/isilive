@@ -696,6 +696,7 @@ SoundUtils.Registry = {
   },
   battle_res = {
     file = "Interface\\AddOns\\isiLive\\sounds\\ChickenAlarm.ogg",
+    fallbackFile = "Interface\\AddOns\\isiLive\\sounds\\RoosterChickenCalls.ogg",
     labelKey = "SETTINGS_SOUND_BATTLE_RES",
     settingKey = "soundBattleResEnabled",
     defaultEnabled = true,
@@ -740,7 +741,10 @@ SoundUtils.SettingsOrder = {
   "bloodlust_ready",
 }
 
-local function BuildSoundKey(soundFile, channel)
+local function BuildSoundKey(soundFile, channel, spamScope)
+  if type(spamScope) == "string" and spamScope ~= "" then
+    return "scope\31" .. spamScope .. "\31" .. tostring(channel or "Master")
+  end
   return tostring(soundFile) .. "\31" .. tostring(channel or "Master")
 end
 
@@ -783,23 +787,28 @@ end
 
 -- Plays a sound file on the configured channel with spam protection.
 -- A sound that was played less than SPAM_WINDOW seconds ago is silently dropped.
-function SoundUtils.Play(soundFile, channel)
+function SoundUtils.Play(soundFile, channel, spamScope)
   if type(soundFile) ~= "string" or soundFile == "" then
-    return
+    return false
   end
   local resolvedChannel = type(channel) == "string" and channel ~= "" and channel or "Master"
   local GetTime_ref = rawget(_G, "GetTime")
   local now = type(GetTime_ref) == "function" and GetTime_ref() or 0
-  local soundKey = BuildSoundKey(soundFile, resolvedChannel)
+  local soundKey = BuildSoundKey(soundFile, resolvedChannel, spamScope)
   local last = lastPlayedAt[soundKey]
   if last and (now - last) < SPAM_WINDOW then
-    return
+    return false
+  end
+  local playSoundFile = rawget(_G, "PlaySoundFile")
+  if type(playSoundFile) ~= "function" then
+    return false
+  end
+  local ok, accepted = pcall(playSoundFile, soundFile, resolvedChannel)
+  if not ok or accepted == false then
+    return false
   end
   lastPlayedAt[soundKey] = now
-  local playSoundFile = rawget(_G, "PlaySoundFile")
-  if type(playSoundFile) == "function" then
-    playSoundFile(soundFile, resolvedChannel)
-  end
+  return true
 end
 
 -- Plays a Blizzard SoundKit (numeric ID or SOUNDKIT name) with spam protection
@@ -807,7 +816,7 @@ end
 -- not resolve in this client (e.g. constant renamed in a future patch).
 function SoundUtils.PlaySoundKit(soundKit, channel)
   if soundKit == nil then
-    return
+    return false
   end
   local resolvedKit = soundKit
   if type(resolvedKit) == "string" then
@@ -815,7 +824,7 @@ function SoundUtils.PlaySoundKit(soundKit, channel)
     resolvedKit = type(kitTable) == "table" and kitTable[soundKit] or nil
   end
   if resolvedKit == nil then
-    return
+    return false
   end
   local resolvedChannel = type(channel) == "string" and channel ~= "" and channel or "Master"
   local GetTime_ref = rawget(_G, "GetTime")
@@ -823,69 +832,80 @@ function SoundUtils.PlaySoundKit(soundKit, channel)
   local soundKey = "kit\31" .. tostring(resolvedKit) .. "\31" .. resolvedChannel
   local last = lastPlayedAt[soundKey]
   if last and (now - last) < SPAM_WINDOW then
-    return
+    return false
+  end
+  local playSound = rawget(_G, "PlaySound")
+  if type(playSound) ~= "function" then
+    return false
+  end
+  local ok, accepted = pcall(playSound, resolvedKit, resolvedChannel)
+  if not ok or accepted == false then
+    return false
   end
   lastPlayedAt[soundKey] = now
-  local playSound = rawget(_G, "PlaySound")
-  if type(playSound) == "function" then
-    playSound(resolvedKit, resolvedChannel)
-  end
+  return true
 end
 
-local function PlayEntry(entry)
+local function PlayEntry(entry, key)
   if type(entry) ~= "table" then
-    return
+    return false
   end
   local channel = type(entry.defaultChannel) == "string" and entry.defaultChannel or "Master"
   if entry.soundKit ~= nil then
-    SoundUtils.PlaySoundKit(entry.soundKit, channel)
-    return
+    return SoundUtils.PlaySoundKit(entry.soundKit, channel)
   end
   local soundFile = entry.file
   if type(soundFile) ~= "string" or soundFile == "" then
-    return
+    return false
   end
-  SoundUtils.Play(soundFile, channel)
+  if SoundUtils.Play(soundFile, channel, key) then
+    return true
+  end
+  local fallbackFile = entry.fallbackFile
+  if type(fallbackFile) == "string" and fallbackFile ~= "" then
+    return SoundUtils.Play(fallbackFile, channel, key and (key .. ":fallback") or nil)
+  end
+  return false
 end
 
 function SoundUtils.PlayKey(key)
   local entry = SoundUtils.GetEntry(key)
   if not entry or not SoundUtils.IsEnabled(key) then
-    return
+    return false
   end
-  PlayEntry(entry)
+  return PlayEntry(entry, key)
 end
 
 function SoundUtils.PlayPreviewKey(key)
-  PlayEntry(SoundUtils.GetEntry(key))
+  return PlayEntry(SoundUtils.GetEntry(key), key and ("preview:" .. key) or nil)
 end
 
 function SoundUtils.PlayGroupJoin()
-  SoundUtils.PlayKey("group_join")
+  return SoundUtils.PlayKey("group_join")
 end
 
 function SoundUtils.PlayPortalAvailable()
-  SoundUtils.PlayKey("portal_available")
+  return SoundUtils.PlayKey("portal_available")
 end
 
 function SoundUtils.PlayIncomingSummon()
-  SoundUtils.PlayKey("portal_available")
+  return SoundUtils.PlayKey("portal_available")
 end
 
 function SoundUtils.PlayBattleRes()
-  SoundUtils.PlayKey("battle_res")
+  return SoundUtils.PlayKey("battle_res")
 end
 
 function SoundUtils.PlayBattleResReady()
-  SoundUtils.PlayKey("battle_res_ready")
+  return SoundUtils.PlayKey("battle_res_ready")
 end
 
 function SoundUtils.PlayBloodlust()
-  SoundUtils.PlayKey("bloodlust")
+  return SoundUtils.PlayKey("bloodlust")
 end
 
 function SoundUtils.PlayBloodlustReady()
-  SoundUtils.PlayKey("bloodlust_ready")
+  return SoundUtils.PlayKey("bloodlust_ready")
 end
 
 local function CopySoundFileIDs(key)

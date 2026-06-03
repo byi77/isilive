@@ -4,7 +4,12 @@ addonTable = addonTable or {}
 local CdTracker = {}
 addonTable.CdTracker = CdTracker
 
-local BRES_SPELL_ID = 20484
+local BRES_SPELL_IDS = {
+  20484, -- Rebirth (Druid)
+  61999, -- Raise Ally (Death Knight)
+  391054, -- Intercession (Paladin)
+  20707, -- Soulstone Resurrection (Warlock)
+}
 
 -- Sated / Exhaustion / Insanity / Temporal Displacement debuff IDs left behind
 -- by Bloodlust-class effects. ScanLust matches these against the player's
@@ -30,19 +35,18 @@ function CdTracker.CreateController(opts)
   local lustRemain = nil
   local lustIcon = nil
 
-  local function ScanBRes()
-    local C_Spell_ref = rawget(_G, "C_Spell")
-    if type(C_Spell_ref) ~= "table" or type(C_Spell_ref.GetSpellCharges) ~= "function" then
-      bresCharges = nil
-      return
+  local function ResolveBResChargeInfo(C_Spell_ref)
+    for _, spellID in ipairs(BRES_SPELL_IDS) do
+      local ok, chargeInfoOrCharges, maxCharges, _, chargeStart, chargeDuration =
+        pcall(C_Spell_ref.GetSpellCharges, spellID)
+      if ok and chargeInfoOrCharges ~= nil then
+        return chargeInfoOrCharges, maxCharges, chargeStart, chargeDuration
+      end
     end
-    local ok, chargeInfoOrCharges, maxCharges, _, chargeStart, chargeDuration =
-      pcall(C_Spell_ref.GetSpellCharges, BRES_SPELL_ID)
-    if not ok then
-      bresCharges = nil
-      return
-    end
+    return nil
+  end
 
+  local function ApplyBResChargeInfo(chargeInfoOrCharges, maxCharges, chargeStart, chargeDuration)
     local charges
     if type(chargeInfoOrCharges) == "table" then
       charges = chargeInfoOrCharges.currentCharges
@@ -54,8 +58,7 @@ function CdTracker.CreateController(opts)
     end
 
     if type(charges) ~= "number" or type(maxCharges) ~= "number" then
-      bresCharges = nil
-      return
+      return false
     end
     bresCharges = charges
     bresMaxCharges = maxCharges
@@ -63,6 +66,20 @@ function CdTracker.CreateController(opts)
       bresCooldownRemain = math.max(0, chargeStart + chargeDuration - getTime())
     else
       bresCooldownRemain = 0
+    end
+    return true
+  end
+
+  local function ScanBRes()
+    local C_Spell_ref = rawget(_G, "C_Spell")
+    if type(C_Spell_ref) ~= "table" or type(C_Spell_ref.GetSpellCharges) ~= "function" then
+      bresCharges = nil
+      return
+    end
+    local chargeInfoOrCharges, maxCharges, chargeStart, chargeDuration = ResolveBResChargeInfo(C_Spell_ref)
+    if not ApplyBResChargeInfo(chargeInfoOrCharges, maxCharges, chargeStart, chargeDuration) then
+      bresCharges = nil
+      return
     end
   end
 

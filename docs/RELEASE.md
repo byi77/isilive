@@ -8,7 +8,7 @@ Dies ist der verbindliche Release-Ablauf fuer `isiLive` (Repository- und Tag-Pra
    - `## Version: x.y.z`
    - Wenn der optionale Git-Hook aktiv ist, werden die passenden dokumentierten Baselines und der Titelstring vor dem Commit automatisch aus der TOC-Version synchronisiert.
 2. Einen neuen Eintrag oben in `CHANGELOG.md` anlegen.
-   - Fuer `0.9.99` sowohl den Docs-Baseline-Bump als auch den Stand der Post-Baseline-Bereinigung notieren, damit `CHANGELOG.md` und die Dokus den Branch korrekt widerspiegeln.
+   - Reine Versions- oder Testbaseline-Verwaltungszeilen wie TOC-/Doku-Bump oder Release-Gate-Szenario-Baseline werden nicht als Changelog-Bullets eingetragen; der Changelog beschreibt nur relevante Nutzer- oder Engineering-Aenderungen.
 3. `README.md` fuer user-visible Verhaltens- oder Layoutaenderungen aktualisieren.
 4. Wenn Season-Daten angefasst wurden, muessen die Dokus die aktive `ACTIVE_SEASON_ID` und den Vorbereitungsstand der naechsten Season explizit nennen (`README.md` und `CHANGELOG.md`).
 5. Wenn Runtime-Flow oder UI-Verhalten geaendert wurden, `ARCHITECTURE.md` und `USECASES.md` aktualisieren; wenn kurze Engineering-Regeln oder Wartungserwartungen betroffen sind, auch `RULES.md` und `WARTUNG.md` synchronisieren.
@@ -43,7 +43,7 @@ Die GitHub-Workflows checken das Repository vor der Trigger-Pruefung aus, damit 
 
 `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (Stand nach Invite-Hint-Dead-Code-Maintenance: 1938 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
+`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (aktueller Stand: 1948 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
 
 Windows-Hinweis: Wenn Metrics mit fehlenden LuaRocks-Modulen (`lfs`, `luacheck.decoder`, `luacheck.parser`) scheitern, `LUA_PATH` und `LUA_CPATH` auf die LuaRocks-Pfade `share/lua/5.4` und `lib/lua/5.4` setzen, bevor der Metrics-Check laeuft. Lokal gelten dieselben Release-Schwellen wie in CI: `ISILIVE_MAX_FILE_LINES=3200` und `ISILIVE_MAX_FUNCTION_LINES=420`.
 

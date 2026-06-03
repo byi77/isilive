@@ -188,6 +188,7 @@ function Stats.CreateController(opts)
   local localPlayerKey = nil
   local initialized = false
   local sessionPlayerLastRuns = {}
+  local sessionPlayerLastRunMisses = {}
 
   local function EnsureInitialized()
     if initialized then
@@ -211,6 +212,15 @@ function Stats.CreateController(opts)
     local roster = type(rosterOverride) == "table" and rosterOverride or (getRoster and getRoster())
     local runSnapshot = CaptureRunPerformanceSnapshot(roster, mapID, level, onTime)
     sessionPlayerLastRuns = runSnapshot
+    sessionPlayerLastRunMisses = {}
+    for _, info in pairs(roster or {}) do
+      if type(info) == "table" and type(info.name) == "string" and info.name ~= "" then
+        local key = NormalizeName(info.name, info.realm)
+        if key and runSnapshot[key] == nil then
+          sessionPlayerLastRunMisses[key] = true
+        end
+      end
+    end
     local recordedAnyPlayer = next(runSnapshot) ~= nil
 
     local selfRun = localPlayerKey and runSnapshot[localPlayerKey] or nil
@@ -232,6 +242,9 @@ function Stats.CreateController(opts)
     end
     local key = NormalizeName(name, realm)
     local info = key and sessionPlayerLastRuns[key] or nil
+    if key and sessionPlayerLastRunMisses[key] == true then
+      return nil
+    end
     if type(info) ~= "table" and key and localPlayerKey and key == localPlayerKey then
       local persistentLastRuns = type(db.stats.playerLastRunByCharacter) == "table"
           and db.stats.playerLastRunByCharacter

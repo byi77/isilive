@@ -185,7 +185,8 @@ local SCHEMA = {
   mobNameplateEnabled = { type = "boolean", default = true },
   mplusForcesEstimate = { type = "boolean", default = false },
   mobNameplateShowPercent = { type = "boolean", default = true },
-  mobNameplateShowRemaining = { type = "boolean", default = true },
+  mobNameplateShowRemaining = { type = "boolean", default = false },
+  mobNameplateRemainingDefaultMigrated = { type = "boolean", default = false },
   mobNameplateFontSize = { type = "number", default = 14, min = 8, max = 28 },
   mobNameplatePosition = {
     type = "string",

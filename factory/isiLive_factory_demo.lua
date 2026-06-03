@@ -373,7 +373,7 @@ local function RestoreDemoMobForces(ctx, db)
   if type(mobNameplate.SetFormat) == "function" then
     mobNameplate.SetFormat({
       showPercent = type(db) ~= "table" or db.mobNameplateShowPercent ~= false,
-      showRemaining = type(db) ~= "table" or db.mobNameplateShowRemaining ~= false,
+      showRemaining = type(db) == "table" and db.mobNameplateShowRemaining == true,
     })
   end
   if type(mobNameplate.SetAppearance) == "function" then

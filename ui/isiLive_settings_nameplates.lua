@@ -198,7 +198,7 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
     yOffset,
     labels.SETTINGS_NAMEPLATE_SHOW_REMAINING or "Show remaining needed",
     function()
-      return config.getDB().mobNameplateShowRemaining ~= false
+      return config.getDB().mobNameplateShowRemaining == true
     end,
     function(checked)
       local db = config.getDB()
@@ -416,7 +416,7 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
     local parts = {}
     if showPercent then
       local text = "1.16%"
-      if db.mobNameplateShowRemaining ~= false then
+      if db.mobNameplateShowRemaining == true then
         text = text .. "/24.34%"
       end
       parts[#parts + 1] = text

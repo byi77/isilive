@@ -51,6 +51,9 @@ local function BuildFrameStub()
   function explicit:RegisterEvent(event)
     self._registeredEvents[event] = true
   end
+  function explicit:RegisterUnitEvent(event, ...)
+    self._registeredEvents[event] = { ... }
+  end
   function explicit:UnregisterEvent(event)
     self._registeredEvents[event] = nil
   end
@@ -817,8 +820,22 @@ local function GetAllIsiLiveFiles()
     "isiLive_frame_bridge.lua",
     "isiLive_controller_init.lua",
     "isiLive_factory_frame_bridge.lua",
-    "isiLive_factory_controllers.lua",
     "isiLive_factory_kick_tracker.lua",
+    "isiLive_factory_cd_tracker.lua",
+    "isiLive_factory_status_helpers.lua",
+    "isiLive_factory_runtime_helpers.lua",
+    "isiLive_factory_demo.lua",
+    "isiLive_factory_testmode_bindings.lua",
+    "isiLive_factory_combat_announces.lua",
+    "isiLive_factory_localization.lua",
+    "isiLive_factory_refresh.lua",
+    "isiLive_factory_notices.lua",
+    "isiLive_factory_lfg_wiring.lua",
+    "isiLive_factory_secondary_runtime.lua",
+    "isiLive_factory_primary.lua",
+    "isiLive_factory_status.lua",
+    "isiLive_factory_secondary.lua",
+    "isiLive_factory_controllers.lua",
     "isiLive_factory_minimap.lua",
     "isiLive_factory.lua",
   }
@@ -872,7 +889,42 @@ return function(test, ctx)
     Assert.NotNil(factoryCtx.eventHandlersController, "ctx.eventHandlersController must be wired by RuntimeSetup")
     Assert.Equal(db.mobNameplateEnabled, true, "fresh DB must default the M+ forces display mode to nameplates")
     Assert.Equal(db.mplusForcesEstimate, false, "fresh DB must keep the tooltip forces display disabled")
-    Assert.Equal(db.mobNameplateShowRemaining, true, "fresh DB must enable nameplate remaining percent by default")
+    Assert.Equal(db.mobNameplateShowRemaining, false, "fresh DB must show only per-mob nameplate percent by default")
+    Assert.Equal(
+      db.mobNameplateRemainingDefaultMigrated,
+      true,
+      "fresh DB must mark the remaining-percent default migration as applied"
+    )
+  end)
+
+  test("factory composition root: legacy nameplate remaining default migrates to opt-in", function()
+    local globals, db = BuildGlobals()
+    db.mobNameplateShowRemaining = true
+    db.mobNameplateRemainingDefaultMigrated = false
+
+    local addon
+    WithGlobals(globals, function()
+      addon = LoadAddonModules(GetAllIsiLiveFiles())
+    end)
+
+    WithGlobals(globals, function()
+      local ok, err = xpcall(function()
+        addon.Factory.InitializeAddon("isiLive", addon)
+      end, debug.traceback)
+      Assert.Equal(
+        ok,
+        true,
+        "InitializeAddon must migrate the old remaining-percent default without raising: " .. tostring(err)
+      )
+    end)
+
+    Assert.Equal(db.mobNameplateShowRemaining, false, "old default-true remaining percent must migrate back to opt-in")
+    Assert.Equal(db.mobNameplateRemainingDefaultMigrated, true, "remaining-percent default migration must be persisted")
+    Assert.Equal(
+      addon.MobNameplate._Test_GetState().format.showRemaining,
+      false,
+      "ApplyDBSettings must push the migrated opt-in state into the live MobNameplate module"
+    )
   end)
 
   test("factory composition root: legacy tooltip-only forces settings migrate to nameplate default", function()
@@ -899,6 +951,119 @@ return function(test, ctx)
       true,
       "ApplyDBSettings must push the migrated nameplate flag into the live MobNameplate module"
     )
+  end)
+
+  test("factory composition root: natural in-key spellcast announces BR through runtime gate", function()
+    local globals, db = BuildGlobals()
+    db.chatAnnounceBR = true
+    db.syncEnabled = true
+    globals.IsInGroup = function(category)
+      return category == nil
+    end
+    globals.GetNumGroupMembers = function()
+      return 5
+    end
+    globals.InCombatLockdown = function()
+      return true
+    end
+    globals.GetTime = function()
+      return 10
+    end
+    globals.C_ChallengeMode.GetActiveChallengeMapID = function()
+      return nil
+    end
+
+    local printed = {}
+    globals.print = function(msg)
+      printed[#printed + 1] = tostring(msg)
+    end
+
+    local sent = {}
+    globals.C_ChatInfo.SendAddonMessage = function(prefix, payload, channel, priority)
+      sent[#sent + 1] = {
+        prefix = prefix,
+        payload = payload,
+        channel = channel,
+        priority = priority,
+      }
+      return true
+    end
+    local playedSounds = {}
+    globals.PlaySoundFile = function(path, channel)
+      playedSounds[#playedSounds + 1] = {
+        path = path,
+        channel = channel,
+      }
+      return true
+    end
+
+    local addon
+    WithGlobals(globals, function()
+      addon = LoadAddonModules(GetAllIsiLiveFiles())
+      local ok, err = xpcall(function()
+        addon.Factory.InitializeAddon("isiLive", addon)
+      end, debug.traceback)
+      Assert.Equal(ok, true, "InitializeAddon must wire combat announces without raising: " .. tostring(err))
+    end)
+
+    local factoryCtx = addon._factoryCtx
+    Assert.NotNil(factoryCtx, "factory ctx must exist after init")
+    Assert.Equal(
+      type(factoryCtx.ShowCombatAnnounce),
+      "function",
+      "combat announce renderer must be wired before runtime event dispatch"
+    )
+    Assert.Equal(
+      type(factoryCtx.eventFrame._scripts.OnEvent),
+      "function",
+      "eventFrame must hold the gated runtime OnEvent handler"
+    )
+    Assert.True(
+      factoryCtx.eventFrame._registeredEvents.UNIT_SPELLCAST_SUCCEEDED ~= nil,
+      "UNIT_SPELLCAST_SUCCEEDED must be registered on the natural event frame"
+    )
+
+    WithGlobals(globals, function()
+      factoryCtx.eventFrame._scripts.OnEvent(factoryCtx.eventFrame, "CHALLENGE_MODE_START")
+      local timerData = addon.MplusTimer.GetTimerData()
+      Assert.Equal(timerData.running, true, "CHALLENGE_MODE_START must mark the M+ timer as running")
+
+      factoryCtx.eventFrame._scripts.OnEvent(
+        factoryCtx.eventFrame,
+        "UNIT_SPELLCAST_SUCCEEDED",
+        "player",
+        "cast-1",
+        20484
+      )
+    end)
+
+    local brPrints = {}
+    for _, msg in ipairs(printed) do
+      if string.find(msg, "used BR", 1, true) then
+        brPrints[#brPrints + 1] = msg
+      end
+    end
+    Assert.Equal(#brPrints, 1, "BR self-cast must render exactly one local chat announcement")
+    Assert.True(
+      string.find(brPrints[1], "Tester", 1, true) ~= nil,
+      "BR local chat announcement must name the local caster"
+    )
+    local brSends = {}
+    for _, msg in ipairs(sent) do
+      if type(msg.payload) == "string" and string.sub(msg.payload, 1, 7) == "BRLUST:" then
+        brSends[#brSends + 1] = msg
+      end
+    end
+    Assert.Equal(#brSends, 1, "BR self-cast must send exactly one isiLive addon announcement")
+    Assert.Equal(brSends[1].payload, "BRLUST:BR:Tester-Realm:20484", "BR addon payload must carry the verified caster")
+    Assert.Equal(brSends[1].channel, "PARTY", "BR addon payload must use the group sync channel")
+    Assert.Equal(#playedSounds, 1, "BR self-cast must play exactly one configured local sound")
+    Assert.Equal(
+      playedSounds[1].path,
+      "Interface\\AddOns\\isiLive\\sounds\\ChickenAlarm.ogg",
+      "BR self-cast must use the configured combat Battle Res sound"
+    )
+    Assert.Equal(playedSounds[1].channel, "Master", "BR self-cast sound must use the Master channel")
   end)
 
   test("factory composition root: post-init ctx helpers and event flows execute without errors", function()

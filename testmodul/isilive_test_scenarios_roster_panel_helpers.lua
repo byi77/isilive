@@ -230,12 +230,12 @@ return function(test, ctx)
         return { remain = 35, icon = "Interface\\Icons\\Heroism" }
       end,
     })
-    Assert.Equal(row.lustText:GetText(), "0:35", "active BL text must show only the mm:ss countdown")
+    Assert.Equal(row.lustText:GetText(), "00:35", "active BL text must show only the mm:ss countdown")
     Assert.Equal(row.lustIcon._texture, "Interface\\Icons\\Heroism", "active aura icon must override the default")
     Assert.True(row.lustIcon._shown, "lust icon must be shown while active")
   end)
 
-  test("UpdateCdTrackerRow restores default BL icon and renders BL: -- when no active aura", function()
+  test("UpdateCdTrackerRow renders BL ready as 00:00 when cooldown reached zero", function()
     local RI = LoadCdRow()
     local row = MakeCdRowStub({ lustDefaultIcon = "Interface\\Icons\\BL_Default" })
     -- Pretend a previous render had set a different texture; default must be re-applied.
@@ -248,7 +248,23 @@ return function(test, ctx)
         return { remain = 0 }
       end,
     })
-    Assert.Equal(row.lustText:GetText(), "BL: --", "BL text must render '--' when not active")
+    Assert.Equal(row.lustText:GetText(), "00:00", "BL text must render 00:00 when the cooldown is ready in-key")
+    Assert.Equal(row.lustIcon._texture, "Interface\\Icons\\BL_Default", "icon must revert to the default texture")
+  end)
+
+  test("UpdateCdTrackerRow restores default BL icon and renders BL: -- when no BL context exists", function()
+    local RI = LoadCdRow()
+    local row = MakeCdRowStub({ lustDefaultIcon = "Interface\\Icons\\BL_Default" })
+    row.lustIcon._texture = "Interface\\Icons\\Heroism"
+    RI.UpdateCdTrackerRow(row, {
+      GetBResInfo = function()
+        return nil
+      end,
+      GetLustInfo = function()
+        return nil
+      end,
+    })
+    Assert.Equal(row.lustText:GetText(), "BL: --", "BL text must render '--' when no in-key BL context exists")
     Assert.Equal(row.lustIcon._texture, "Interface\\Icons\\BL_Default", "icon must revert to the default texture")
   end)
 

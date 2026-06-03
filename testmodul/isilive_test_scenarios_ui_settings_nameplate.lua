@@ -129,6 +129,31 @@ local function RegisterSettingsPanelNameplateRoundtripTests(test, Assert, WithGl
     end)
   end)
 
+  test("Settings nameplate showRemaining checkbox defaults to unchecked", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = { mobNameplateEnabled = true }
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local panel = Assert.NotNil(BuildPanel(db, createFrameStub), "settings panel must build")
+      local check = Assert.NotNil(
+        FindFrame(createdFrames, "CheckButton", "SETTINGS_NAMEPLATE_SHOW_REMAINING"),
+        "showRemaining checkbox must exist"
+      )
+      Assert.False(check:GetChecked(), "showRemaining checkbox must default to unchecked when DB value is missing")
+      panel.Refresh()
+      Assert.False(check:GetChecked(), "Refresh must keep the missing DB value visually unchecked")
+    end)
+  end)
+
   test("Settings nameplate showRemaining checkbox roundtrip persists user value across Refresh", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = { mobNameplateEnabled = true, mobNameplateShowRemaining = false }

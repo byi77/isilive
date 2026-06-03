@@ -24,12 +24,14 @@ local function InitializeFactorySecondaryCdTracker(
   local lastBResCharges = nil
   local lastBResCooldownRemain = nil
   local lastMplusRunning = false
-  local lastLustActive = false
+  local lastLustDisplayedTimer = false
+  local lustReadyDisplayActive = false
   local lastLustReadySoundAt = nil
   local function ClearReadySoundState()
     lastBResCharges = nil
     lastBResCooldownRemain = nil
-    lastLustActive = false
+    lastLustDisplayedTimer = false
+    lustReadyDisplayActive = false
     lastLustReadySoundAt = nil
   end
 
@@ -87,16 +89,13 @@ local function InitializeFactorySecondaryCdTracker(
     if not readySoundContextActive then
       ClearReadySoundState()
     end
-    local bresChargesRecovered = lastBResCharges ~= nil
-      and lastBResCharges <= 0
-      and bresCharges ~= nil
-      and bresCharges > 0
+    local bresChargesIncreased = lastBResCharges ~= nil and bresCharges ~= nil and bresCharges > lastBResCharges
     local bresDisplayedCooldownExpired = lastBResCooldownRemain ~= nil
       and lastBResCooldownRemain > 0
       and bresCooldownRemain ~= nil
       and bresCooldownRemain <= 0
     if
-      (bresChargesRecovered or bresDisplayedCooldownExpired)
+      (bresChargesIncreased or bresDisplayedCooldownExpired)
       and readySoundContextActive
       and not suppressBattleResReadySound
       and ctx.addonTable
@@ -115,13 +114,15 @@ local function InitializeFactorySecondaryCdTracker(
     lastMplusRunning = mplusRunning
     local lustInfo = type(ctx.cdTrackerController.GetLustInfo) == "function" and ctx.cdTrackerController.GetLustInfo()
       or nil
-    local lustActive = type(lustInfo) == "table" and tonumber(lustInfo.remain) ~= nil and lustInfo.remain > 0
-    if lustActive then
+    local lustRemain = type(lustInfo) == "table" and tonumber(lustInfo.remain) or nil
+    local lustTimerDisplayed = lustRemain ~= nil and lustRemain > 0
+    if lustTimerDisplayed then
       lastLustReadySoundAt = nil
+      lustReadyDisplayActive = false
     end
     if
-      lustActive
-      and not lastLustActive
+      lustTimerDisplayed
+      and not lastLustDisplayedTimer
       and readySoundContextActive
       and type(opts) == "table"
       and opts.playLustSoundOnStart == true
@@ -131,13 +132,14 @@ local function InitializeFactorySecondaryCdTracker(
     then
       ctx.addonTable.SoundUtils.PlayBloodlust()
     end
-    if readySoundContextActive and lastLustActive and not lustActive and not suppressLustReadySound then
+    if readySoundContextActive and lastLustDisplayedTimer and not lustTimerDisplayed and not suppressLustReadySound then
       if PlayBloodlustReadySound() then
         lastLustReadySoundAt = getTime()
+        lustReadyDisplayActive = true
       end
     elseif
       readySoundContextActive
-      and not lustActive
+      and not lustTimerDisplayed
       and not suppressLustReadySound
       and lastLustReadySoundAt ~= nil
       and getTime() - lastLustReadySoundAt >= LUST_READY_REMINDER_SECONDS
@@ -147,10 +149,11 @@ local function InitializeFactorySecondaryCdTracker(
       end
     end
     if suppressLustReadySound or not readySoundContextActive then
-      lastLustActive = false
+      lastLustDisplayedTimer = false
+      lustReadyDisplayActive = false
       lastLustReadySoundAt = nil
     else
-      lastLustActive = lustActive
+      lastLustDisplayedTimer = lustTimerDisplayed
     end
     if
       not fromVisibleRender
@@ -185,7 +188,15 @@ local function InitializeFactorySecondaryCdTracker(
         return type(ctx.cdTrackerController.GetBResInfo) == "function" and ctx.cdTrackerController.GetBResInfo() or nil
       end,
       GetLustInfo = function()
-        return type(ctx.cdTrackerController.GetLustInfo) == "function" and ctx.cdTrackerController.GetLustInfo() or nil
+        local info = type(ctx.cdTrackerController.GetLustInfo) == "function" and ctx.cdTrackerController.GetLustInfo()
+          or nil
+        if info ~= nil then
+          return info
+        end
+        if lustReadyDisplayActive and IsMplusTimerRunning() and IsGroupedReadySoundContext() then
+          return { remain = 0 }
+        end
+        return nil
       end,
     }
     ctx.rosterPanelController.SetCdController(uiCdController)

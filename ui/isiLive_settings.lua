@@ -154,7 +154,7 @@ local function RefreshSettingsControls(controls, config)
       "SETTINGS_NAMEPLATE_SHOW_REMAINING_DESC",
       "Adds the remaining enemy forces needed when live dungeon data is available."
     )
-    controls.nameplateShowRemaining.check:SetChecked(db.mobNameplateShowRemaining ~= false)
+    controls.nameplateShowRemaining.check:SetChecked(db.mobNameplateShowRemaining == true)
   end
   if controls.nameplatePosition and type(controls.nameplatePosition.UpdateHighlight) == "function" then
     controls.nameplatePosition.UpdateHighlight()

@@ -22,6 +22,8 @@ local appearance = {
   yOffset = 0,
 }
 
+local ANCHOR_GAP = 8
+
 -- Debug overlay: when active, UpdateNameplate skips the challenge-mode and
 -- DB/API checks and renders `testPercent` on every eligible (hostile/neutral)
 -- nameplate. Drives the ApplyFont / ApplyFrameSizeForFont path live so the
@@ -372,24 +374,74 @@ local function ApplyTextAnchor(frame, pos)
   end
 end
 
+local function ResolveAnchorTarget(nameplate)
+  if type(nameplate) ~= "table" then
+    return nil
+  end
+
+  local containers = {
+    nameplate.UnitFrame,
+    nameplate.unitFrame,
+    nameplate,
+  }
+  local names = {
+    "healthBar",
+    "HealthBar",
+    "healthbar",
+  }
+  for _, container in ipairs(containers) do
+    if type(container) == "table" then
+      for _, fieldName in ipairs(names) do
+        local candidate = container[fieldName]
+        if type(candidate) == "table" then
+          return candidate
+        end
+      end
+    end
+  end
+
+  return nameplate
+end
+
 local function ApplyPosition(frame, nameplate)
   if not frame or not nameplate then
     return
+  end
+  local anchorTarget = ResolveAnchorTarget(nameplate)
+  if not anchorTarget then
+    return
+  end
+  if type(frame.SetParent) == "function" then
+    local uiParent = rawget(_G, "UIParent")
+    if type(uiParent) == "table" then
+      pcall(frame.SetParent, frame, uiParent)
+    end
+  end
+  local levelSource = type(anchorTarget.GetFrameLevel) == "function" and anchorTarget or nameplate
+  if type(frame.SetFrameLevel) == "function" and type(levelSource.GetFrameLevel) == "function" then
+    local okLevel, level = pcall(levelSource.GetFrameLevel, levelSource)
+    if okLevel and type(level) == "number" then
+      pcall(frame.SetFrameLevel, frame, level + 20)
+    end
   end
   frame:ClearAllPoints()
   local pos = appearance.position or "RIGHT"
   local xo = appearance.xOffset or 0
   local yo = appearance.yOffset or 0
   if pos == "RIGHT" then
-    frame:SetPoint("LEFT", nameplate, "RIGHT", xo, yo)
+    xo = math.max(xo, ANCHOR_GAP)
+    frame:SetPoint("LEFT", anchorTarget, "RIGHT", xo, yo)
   elseif pos == "LEFT" then
-    frame:SetPoint("RIGHT", nameplate, "LEFT", xo, yo)
+    xo = math.min(xo, -ANCHOR_GAP)
+    frame:SetPoint("RIGHT", anchorTarget, "LEFT", xo, yo)
   elseif pos == "TOP" then
-    frame:SetPoint("BOTTOM", nameplate, "TOP", xo, yo)
+    yo = math.max(yo, ANCHOR_GAP)
+    frame:SetPoint("BOTTOM", anchorTarget, "TOP", xo, yo)
   elseif pos == "BOTTOM" then
-    frame:SetPoint("TOP", nameplate, "BOTTOM", xo, yo)
+    yo = math.min(yo, -ANCHOR_GAP)
+    frame:SetPoint("TOP", anchorTarget, "BOTTOM", xo, yo)
   else
-    frame:SetPoint("CENTER", nameplate, "CENTER", xo, yo)
+    frame:SetPoint("CENTER", anchorTarget, "CENTER", xo, yo)
   end
   ApplyTextAnchor(frame, pos)
 end

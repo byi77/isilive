@@ -29,6 +29,15 @@ local function PlayCombatAnnounceSound(kind)
   end
 end
 
+local function IsMplusTimerRunning()
+  local mplusTimer = addonTable.MplusTimer
+  if type(mplusTimer) ~= "table" or type(mplusTimer.GetTimerData) ~= "function" then
+    return false
+  end
+  local data = mplusTimer.GetTimerData()
+  return type(data) == "table" and data.running == true
+end
+
 local function InitializeFactoryCombatAnnounceControllers(ctx)
   -- Renders a BR/Lust combat announcement locally via ctx.Print. Used both for
   -- the local self-cast and for incoming addon-message broadcasts from isiLive
@@ -66,6 +75,13 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
     combatEvents.SetDependencies({
       getDB = function()
         return rawget(_G, "IsiLiveDB") or {}
+      end,
+      isInKey = function()
+        if IsMplusTimerRunning() then
+          return true
+        end
+        -- secret-value-ok: ctx wrapper is pcall-protected.
+        return type(ctx.GetActiveChallengeMapID) == "function" and ctx.GetActiveChallengeMapID() ~= nil
       end,
       broadcastCombatAnnounce = ctx.BroadcastCombatAnnounce,
     })

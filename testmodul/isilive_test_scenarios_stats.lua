@@ -349,6 +349,61 @@ local function RegisterStatsDamageMeterTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
+  test("Stats controller does not use stale local DPS when the fresh run snapshot misses the player", function()
+    local db = {
+      stats = {
+        playerLastRunByCharacter = {
+          ["me-myrealm"] = { dps = 143800.0, mapID = 2662, level = 12 },
+        },
+      },
+    }
+    local roster = {
+      player = { name = "Me", realm = "MyRealm" },
+      party1 = { name = "Buddy", realm = "Realm" },
+    }
+
+    WithGlobals({
+      IsiLiveDB = db,
+      GetRealmName = function()
+        return "MyRealm"
+      end,
+      C_DamageMeter = {
+        GetCombatSessionFromType = function()
+          return {
+            durationSeconds = 1560,
+            combatSources = {
+              { name = "Buddy-Realm", amountPerSecond = 143800.0, totalAmount = 224328000 },
+            },
+          }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_stats.lua" })
+      local controller = addon.Stats.CreateController({
+        getRoster = function()
+          return roster
+        end,
+        getUnitNameAndRealm = function(unit)
+          if unit == "player" then
+            return "Me", "MyRealm"
+          end
+          return nil
+        end,
+      })
+
+      Assert.True(controller.RecordRun(2662, 12, true), "party DPS snapshot should count as a captured run")
+      Assert.Nil(
+        controller.GetPlayerLastRunDps("Me", "MyRealm"),
+        "fresh run miss for the local player must not fall back to stale persisted DPS"
+      )
+      Assert.Equal(
+        math.floor(controller.GetPlayerLastRunDps("Buddy", "Realm") or 0),
+        143800,
+        "matched party DPS must still be exposed from the fresh snapshot"
+      )
+    end)
+  end)
+
   test("Stats NormalizeName strips realm special chars matching NormalizePlayerKey convention", function()
     local db = { stats = {} }
 

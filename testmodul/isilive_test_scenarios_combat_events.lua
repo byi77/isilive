@@ -257,14 +257,26 @@ local function RegisterCombatEventsBRTests(test, ctx)
     end)
     local broadcasts = {}
     local controller = BuildController({ addon = addon, broadcasts = broadcasts })
-    -- Only the caster announces their own cast; other units are ignored to
-    -- avoid "table index is secret" from the 12.0.0 Secret Values system.
+    -- Only the caster announces their own cast; other non-owned units are
+    -- ignored to avoid "table index is secret" from the 12.0.0 Secret Values
+    -- system. The owned pet Bloodlust path is covered separately.
     controller.HandleUnitSpellcastSucceeded("party1", "cast-1", 20484)
     controller.HandleUnitSpellcastSucceeded("raid3", "cast-2", 20484)
     controller.HandleUnitSpellcastSucceeded("target", "cast-3", 20484)
     controller.HandleUnitSpellcastSucceeded("boss1", "cast-4", 20484)
     controller.HandleUnitSpellcastSucceeded("focus", "cast-5", 20484)
     Assert.Equal(#broadcasts, 0, "BR from non-player units must be ignored (self-casts only)")
+  end)
+
+  test("CombatEvents ignores BR spell IDs reported on pet unit", function()
+    local addon = nil
+    WithGlobals(BuildCombatEventsEnv(), function()
+      addon = LoadAddonModules({ "isiLive_combat_events.lua" })
+    end)
+    local broadcasts = {}
+    local controller = BuildController({ addon = addon, broadcasts = broadcasts })
+    controller.HandleUnitSpellcastSucceeded("pet", "cast-1", 20484)
+    Assert.Equal(#broadcasts, 0, "pet-unit BR spell IDs must not announce as a local battle res")
   end)
 end
 
@@ -284,6 +296,27 @@ local function RegisterCombatEventsLustTests(test, ctx)
     Assert.Equal(#broadcasts, 1, "must broadcast the Bloodlust cast")
     Assert.Equal(broadcasts[1].kind, "LUST", "broadcast kind must be LUST")
     Assert.Equal(broadcasts[1].spellID, 2825, "broadcast must carry the Bloodlust spellID")
+  end)
+
+  test("CombatEvents broadcasts owned pet Bloodlust as the local player", function()
+    local addon = nil
+    WithGlobals(BuildCombatEventsEnv(), function()
+      addon = LoadAddonModules({ "isiLive_combat_events.lua" })
+    end)
+    local broadcasts = {}
+    local controller = BuildController({
+      addon = addon,
+      broadcasts = broadcasts,
+      nameMap = {
+        player = "Hunter-Realm",
+        pet = "PetName",
+      },
+    })
+    controller.HandleUnitSpellcastSucceeded("pet", "cast-1", 264667)
+    Assert.Equal(#broadcasts, 1, "owned pet Bloodlust must broadcast once")
+    Assert.Equal(broadcasts[1].kind, "LUST", "pet Bloodlust must announce as Lust")
+    Assert.Equal(broadcasts[1].caster, "Hunter-Realm", "pet Bloodlust must display the owning player")
+    Assert.Equal(broadcasts[1].spellID, 264667, "pet Bloodlust must keep its triggering spellID")
   end)
 
   test("CombatEvents ignores unrelated spell IDs", function()

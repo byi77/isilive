@@ -64,7 +64,7 @@ local function ApplyFactorySettingsDefaults(db)
     db.mobNameplateShowPercent = true
   end
   if db.mobNameplateShowRemaining == nil then
-    db.mobNameplateShowRemaining = true
+    db.mobNameplateShowRemaining = false
   end
   if db.mobNameplateFontSize == nil then
     db.mobNameplateFontSize = 14
@@ -93,7 +93,7 @@ local function ApplyLiveSettingsFromDB(db, live)
   live.mobNameplate = {
     enabled = db.mobNameplateEnabled == true,
     showPercent = db.mobNameplateShowPercent ~= false,
-    showRemaining = db.mobNameplateShowRemaining ~= false,
+    showRemaining = db.mobNameplateShowRemaining == true,
     fontSize = tonumber(db.mobNameplateFontSize) or 14,
     position = type(db.mobNameplatePosition) == "string" and db.mobNameplatePosition or "RIGHT",
     xOffset = tonumber(db.mobNameplateXOffset) or 0,

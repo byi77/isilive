@@ -301,6 +301,24 @@ local function RegisterCombatStartupCVarAndWorldEntryTests(test, Assert, WithGlo
     Assert.Equal(cdTrackerCalls, 2, "legacy removed aura payloads must also trigger a scan")
   end)
 
+  test("Event handlers call updateCdTracker on UNIT_AURA aura instance updates", function()
+    local cdTrackerCalls = 0
+
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      updateCdTracker = function()
+        cdTrackerCalls = cdTrackerCalls + 1
+      end,
+    })
+
+    controller:Dispatch("UNIT_AURA", "player", { updatedAuraInstanceIDs = { 42 } })
+    Assert.Equal(
+      cdTrackerCalls,
+      1,
+      "updated aura instance payloads must trigger a scan because Sated expiry can arrive without spellId"
+    )
+  end)
+
   test("Event handlers ignore UNIT_AURA events for non-player units", function()
     local cdTrackerCalls = 0
 

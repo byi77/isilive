@@ -245,16 +245,20 @@ local function UpdateCdTrackerRow(row, cdController)
   -- fall back to the cached Bloodlust icon when inactive.
   do
     local lust = cdController and cdController.GetLustInfo()
-    if lust and lust.remain and lust.remain > 0 then
+    local lustRemain = lust and tonumber(lust.remain) or nil
+    if lustRemain ~= nil then
       if lust.icon then
         row.lustIcon:SetTexture(lust.icon)
+      elseif row._lustDefaultIcon then
+        row.lustIcon:SetTexture(row._lustDefaultIcon)
       end
       if row._lustIconReady or lust.icon then
         row.lustIcon:Show()
       end
-      local mins = math.floor(lust.remain / 60)
-      local secs = math.floor(lust.remain % 60)
-      row.lustText:SetText(string.format("%d:%02d", mins, secs))
+      local remain = math.max(0, lustRemain)
+      local mins = math.floor(remain / 60)
+      local secs = math.floor(remain % 60)
+      row.lustText:SetText(string.format("%02d:%02d", mins, secs))
     else
       if row._lustDefaultIcon then
         row.lustIcon:SetTexture(row._lustDefaultIcon)

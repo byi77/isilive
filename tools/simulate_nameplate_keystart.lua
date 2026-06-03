@@ -142,7 +142,7 @@ local function ApplyFactoryNameplateDefaults(db)
     db.mobNameplateShowPercent = true
   end
   if db.mobNameplateShowRemaining == nil then
-    db.mobNameplateShowRemaining = true
+    db.mobNameplateShowRemaining = false
   end
   if db.mobNameplateFontSize == nil then
     db.mobNameplateFontSize = 14
@@ -389,7 +389,7 @@ local function RunScenario(name, opts)
     local addon = Harness.LoadAddonModules({ "isiLive_mob_nameplate.lua" }, seed)
     addon.MobNameplate.SetFormat({
       showPercent = db.mobNameplateShowPercent ~= false,
-      showRemaining = db.mobNameplateShowRemaining ~= false,
+      showRemaining = db.mobNameplateShowRemaining == true,
     })
     addon.MobNameplate.SetAppearance({
       fontSize = tonumber(db.mobNameplateFontSize) or 14,
@@ -433,7 +433,7 @@ local scenarios = {
   happy = function()
     RunScenario("happy path: default SavedVariables, hostile nameplate, DB percent", {
       expectedFinalShown = true,
-      expectedFinalText = "1.16%/24.36%",
+      expectedFinalText = "1.16%",
     })
   end,
   disabled = function()
@@ -453,7 +453,7 @@ local scenarios = {
       dbMapID = 162,
       apiPercent = "2.50",
       expectedFinalShown = true,
-      expectedFinalText = "2.50%/24.36%",
+      expectedFinalText = "2.50%",
     })
   end,
   no_sources = function()
@@ -471,7 +471,7 @@ local scenarios = {
       secretGuid = true,
       apiPercent = "3.42",
       expectedFinalShown = true,
-      expectedFinalText = "3.42%/24.36%",
+      expectedFinalText = "3.42%",
     })
   end,
   api_only = function()
@@ -482,7 +482,7 @@ local scenarios = {
       withForcesDB = false,
       apiPercent = "0.50",
       expectedFinalShown = true,
-      expectedFinalText = "0.50%/24.36%",
+      expectedFinalText = "0.50%",
     })
   end,
   secret_mapid = function()

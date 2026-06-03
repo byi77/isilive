@@ -143,7 +143,7 @@ function CombatEvents.CreateController(opts)
   -- when the protected SendChatMessage is invoked from a tainted M+/boss
   -- execution context.
   function controller.HandleUnitSpellcastSucceeded(unit, _, spellID)
-    if unit ~= "player" then
+    if unit ~= "player" and unit ~= "pet" then
       return
     end
     if not IsInKeyCached() then
@@ -154,6 +154,9 @@ function CombatEvents.CreateController(opts)
     end
     local kind
     if BR_SPELL_IDS[spellID] then
+      if unit ~= "player" then
+        return
+      end
       if not IsEnabledForBR() then
         return
       end
@@ -166,7 +169,7 @@ function CombatEvents.CreateController(opts)
     else
       return
     end
-    local sourceName = getUnitName(unit)
+    local sourceName = getUnitName(unit == "pet" and "player" or unit)
     if ShouldDedup(sourceName or "", spellID) then
       return
     end

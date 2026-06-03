@@ -70,6 +70,8 @@ local function MakeFrame()
     _points = nil,
     _size = nil,
     _strata = nil,
+    _frameLevel = 1,
+    _parent = nil,
     _ignoreParentAlpha = nil,
     _scripts = {},
     _events = {},
@@ -79,6 +81,18 @@ local function MakeFrame()
   end
   function f:SetFrameStrata(s)
     self._strata = s
+  end
+  function f:SetFrameLevel(level)
+    self._frameLevel = level
+  end
+  function f:GetFrameLevel()
+    return self._frameLevel
+  end
+  function f:SetParent(parent)
+    self._parent = parent
+  end
+  function f:GetParent()
+    return self._parent
   end
   function f:SetIgnoreParentAlpha(flag)
     self._ignoreParentAlpha = flag
@@ -557,6 +571,78 @@ local function RegisterDefensivePathTests(test, Assert, WithGlobals, LoadAddonMo
       Assert.True(frame ~= nil, "frame must exist for unknown position")
       Assert.Equal(frame._points[1], "CENTER", "unknown position falls back to CENTER anchor")
       Assert.Equal(frame._points[3], "CENTER", "unknown position falls back to CENTER nameplate anchor")
+    end)
+  end)
+
+  test("MobNameplate ApplyPosition keeps default offsets clear of the plate edge", function()
+    local plate = MakeFrame()
+    plate:SetFrameLevel(42)
+    local globals = BuildEnv({
+      units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = plate },
+      progressValues = { nameplate1 = { count = 5, total = 431, percent = "1.16" } },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      addon.MobNameplate.SetAppearance({ position = "BOTTOM", xOffset = 0, yOffset = 0 })
+      addon.MobNameplate.SetEnabled(true)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+
+      local frame = addon.MobNameplate._Test_GetFrames()["nameplate1"]
+      frame = Assert.NotNil(frame, "frame must exist for default-offset BOTTOM position")
+      Assert.Equal(
+        frame._parent,
+        globals.UIParent,
+        "overlay frame must stay on UIParent so external nameplate scale does not alter font size"
+      )
+      Assert.Equal(frame._frameLevel, 62, "overlay frame must render above the nameplate frame level")
+      Assert.Equal(frame._points[1], "TOP", "BOTTOM position must anchor the overlay top edge")
+      Assert.Equal(frame._points[3], "BOTTOM", "BOTTOM position must anchor below the nameplate")
+      Assert.Equal(frame._points[5], -8, "zero yOffset must still keep the text below the plate edge")
+
+      addon.MobNameplate.SetAppearance({ position = "RIGHT", xOffset = 0, yOffset = 0 })
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+      Assert.Equal(frame._points[1], "LEFT", "RIGHT position must anchor the overlay left edge")
+      Assert.Equal(frame._points[3], "RIGHT", "RIGHT position must anchor outside the nameplate")
+      Assert.Equal(frame._points[4], 8, "zero xOffset must still keep the text beside the plate edge")
+    end)
+  end)
+
+  test("MobNameplate ApplyPosition anchors to the observed healthbar child when available", function()
+    local plate = MakeFrame()
+    plate:SetFrameLevel(10)
+    local healthBar = MakeFrame()
+    healthBar:SetFrameLevel(50)
+    plate.UnitFrame = {
+      healthBar = healthBar,
+    }
+    local globals = BuildEnv({
+      units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = plate },
+      progressValues = { nameplate1 = { count = 5, total = 431, percent = "1.16" } },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      addon.MobNameplate.SetAppearance({ position = "RIGHT", fontSize = 23, xOffset = 0, yOffset = 0 })
+      addon.MobNameplate.SetEnabled(true)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+
+      local frame = addon.MobNameplate._Test_GetFrames()["nameplate1"]
+      frame = Assert.NotNil(frame, "frame must exist for healthbar anchor")
+      Assert.Equal(
+        frame._parent,
+        globals.UIParent,
+        "overlay frame parent must stay independent of the external nameplate root"
+      )
+      Assert.Equal(
+        frame._points[2],
+        healthBar,
+        "RIGHT position must anchor to UnitFrame.healthBar, not the wider root plate"
+      )
+      Assert.Equal(frame._points[1], "LEFT", "RIGHT position must keep the overlay left edge as the anchor point")
+      Assert.Equal(frame._points[3], "RIGHT", "RIGHT position must use the healthbar right edge")
+      Assert.Equal(frame._frameLevel, 70, "overlay frame level must be above the observed healthbar")
+      Assert.Equal(frame.text._font.size, 23, "healthbar anchoring must still apply the configured font size")
     end)
   end)
 

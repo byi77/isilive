@@ -351,6 +351,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: waehrend die ui ausgeblendet ist, laeuft der daten-sync (roster/addon-msgs) im hintergrund weiter und darf eventgetrieben ui-zustand vor-rendern; queue-scanning und sonstige dauerhafte polling-last bleiben aus. `LFG_LIST_APPLICATION_STATUS_UPDATED` bleibt hidden fuer Queue- und Invite-Listenverarbeitung blockiert. Eventgetriebene CD-Refreshes duerfen hidden fuer Bloodlust-ready- und Battle-Res-ready-Klanghinweise laufen, ohne den dauerhaften Hidden-CD-Ticker zu aktivieren. Der Kick-Sync fuer isiLive-Gruppenmitglieder bleibt davon ausgenommen und darf weiterlaufen, damit ausgeblendete Clients keine Kick-Nachteile erzeugen. Ein expliziter Refresh-Request darf Hidden-Clients genau eine forciert eventgetriebene Antwort entlocken (alle Sync-Buckets: KEY, STATS, DPS, LOC, TARGET, KICK); gestoppte oder pausierte Runs antworten dabei nicht. Im Raid sind UI und Hintergrund-Sync komplett aus.
 - Erforderliche Tests:
   - Bootstrap gate allows sync events while frame is hidden if configured
+  - Bootstrap gate allows addon sync during combat for in-key BRLUST announces
+  - factory composition root: natural in-key spellcast announces BR through runtime gate
   - ConfigBuilders hidden gate keeps LFG status blocked
   - Hidden grouped roster updates keep pre-rendered UI fresh
   - Event handlers pre-render UI for hidden addon sync updates
@@ -608,6 +610,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Sync ProcessAddonMessage parses DPS payload and stores it
   - KeySync ApplyKnownKeyToRosterEntry backfills syncDps and syncLocMapID
   - KeySync ApplyKnownKeyToRosterEntry clears stale synced DPS fallback fields when sync data disappears
+  - Stats controller does not use stale local DPS when the fresh run snapshot misses the player
 
 ### RULE-KICKTRACKER-PERSOENLICHER-INTERRUPT
 - Regelnummer: 49
@@ -980,11 +983,15 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-BLOODLUST-READY-KLANGHINWEIS
 - Regelnummer: 71
 - Status: aktiv
-- Zusammenfassung: Der Bloodlust-ready-Klanghinweis wird nur waehrend eines laufenden M+-Timers mit aktiver Gruppe und erst abgespielt, nachdem der CD-Tracker zuvor einen aktiven Bloodlust-/Heroism-/Time-Warp-Erschoepfungsdebuff beobachtet hat und entweder der beobachtete angezeigte Erschoepfungs-Timer null erreicht oder ein spaeterer natuerlicher Scan keinen aktiven Erschoepfungsdebuff mehr findet. Ein inaktiver Initialscan darf keinen Ready-Klang ausloesen. Wenn Bloodlust nach dieser ersten Ready-Ansage unbenutzt verfuegbar bleibt, muss der Klanghinweis nach 60 Sekunden erneut abgespielt werden und danach in weiteren 60-Sekunden-Abstaenden wiederholen, bis ein neuer aktiver Erschoepfungsdebuff beobachtet wird. Ein spaeterer neuer Bloodlust-Zyklus darf wieder eine neue Ready-Ansage mit eigener 60-Sekunden-Erinnerung starten. UNIT_AURA-Removal-Payloads muessen einen CD-Scan ausloesen, weil Aura-Entfernungen beim natuerlichen Auslaufen keine belastbare `spellId` mehr liefern muessen. Wenn eine bereits beobachtete Aura im Scan noch vorhanden ist, ihr Timer aber abgelaufen ist, muss der CD-Tracker den angezeigten Nullpunkt als `remain=0` liefern, damit der Factory-Pfad die Ready-Ansage waehrend des Keys ausloesen kann. Refreshes fuer Key-Ende, Key-Abbruch, Dungeon-Verlassen, Gruppen-Verlassen oder sonstige Scans mit nicht laufendem M+-Timer oder fehlender aktiver Gruppe duerfen keinen Ready-Klang und keine 60-Sekunden-Erinnerung ausloesen und muessen den beobachteten Ready-Zyklus verwerfen, weil die Aura dabei nicht als natuerlich ausgelaufen gilt und ein spaeterer Welt-/Zonen-Refresh keine nachtraegliche Ready-Ansage erzeugen darf. Wenn `soundBloodlustReadyEnabled` deaktiviert ist, muss der TTS-Klang stumm bleiben.
+- Zusammenfassung: Der Bloodlust-ready-Klanghinweis wird nur waehrend eines laufenden M+-Timers mit aktiver Gruppe und erst abgespielt, nachdem die CD-Tracker-Anzeige zuvor einen aktiven Bloodlust-/Heroism-/Time-Warp-Erschoepfungs-Timer angezeigt hat und ein spaeterer natuerlicher Scan fuer denselben Anzeigezyklus keinen positiven Timer mehr liefert. Ein inaktiver Initialscan darf keinen Ready-Klang ausloesen. Wenn Bloodlust nach dieser ersten Ready-Ansage unbenutzt verfuegbar bleibt, muss der Klanghinweis nach 60 Sekunden erneut abgespielt werden und danach in weiteren 60-Sekunden-Abstaenden wiederholen, bis ein neuer aktiver Erschoepfungs-Timer angezeigt wird. Ein spaeterer neuer Bloodlust-Zyklus darf wieder eine neue Ready-Ansage mit eigener 60-Sekunden-Erinnerung starten. Die UI muss waehrend laufendem Key und aktiver Gruppe nach dem Ready-Uebergang `00:00` anzeigen; `BL: --` ist fuer fehlenden BL-Kontext wie kein laufender Key, keine Gruppe oder explizit verworfene Reset-/Key-Ende-Zyklen reserviert. UNIT_AURA-Removal- und Aura-Instance-Update-Payloads muessen einen CD-Scan ausloesen, weil Aura-Entfernungen und Instanz-Updates beim natuerlichen Auslaufen keine belastbare `spellId` mehr liefern muessen. Wenn eine bereits beobachtete Aura im Scan noch vorhanden ist, ihr Timer aber abgelaufen ist, muss der CD-Tracker den angezeigten Nullpunkt als `remain=0` liefern, damit der Factory-Pfad die Ready-Ansage waehrend des Keys ausloesen kann. Refreshes fuer Key-Ende, Key-Abbruch, Dungeon-Verlassen, Gruppen-Verlassen oder sonstige Scans mit nicht laufendem M+-Timer oder fehlender aktiver Gruppe duerfen keinen Ready-Klang und keine 60-Sekunden-Erinnerung ausloesen und muessen den beobachteten Ready-Zyklus verwerfen, weil die Aura dabei nicht als natuerlich ausgelaufen gilt und ein spaeterer Welt-/Zonen-Refresh keine nachtraegliche Ready-Ansage erzeugen darf. Rueckfallstrategie, falls diese Anzeigenstrategie zurueckgebaut werden muss: Der alte Vertrag war aura-event-zentriert und wertete den Uebergang von `lastLustActive == true` zu `lustActive == false` ohne dauerhaften `00:00`-Anzeigezustand aus. Wenn `soundBloodlustReadyEnabled` deaktiviert ist, muss der TTS-Klang stumm bleiben.
 - Erforderliche Tests:
   - Factory CD refresh plays Bloodlust-ready sound and repeats while unused every 60 seconds
+  - Factory CD refresh exposes BL: -- when ready display context is inactive
+  - UpdateCdTrackerRow renders BL ready as 00:00 when cooldown reached zero
+  - UpdateCdTrackerRow restores default BL icon and renders BL: -- when no BL context exists
   - CdTracker reports zero Lust remain when an observed aura timer expires
   - Event handlers call updateCdTracker on UNIT_AURA aura removals
+  - Event handlers call updateCdTracker on UNIT_AURA aura instance updates
   - Factory CD refresh suppresses Bloodlust-ready sound on key reset refresh
   - Factory CD refresh clears Bloodlust-ready cycle when key ends during exhaustion
   - Factory CD refresh stops Bloodlust-ready reminders after key end or dungeon leave
@@ -1004,6 +1011,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Factory visible CD rescan routes Battle Res-ready sound through the displayed timer path
   - Factory CD refresh suppresses Battle Res-ready sound on key reset refresh
   - Factory CD refresh clears Battle Res-ready cycle when key ends during cooldown
+  - CdTracker scans later known Battle Res spell when Rebirth charges are unavailable
   - factory_frame_bridge: CreateFactoryContext exposes live IsInGroup for ready sound gates
   - Bootstrap gate keeps hidden CD refresh triggers for ready sounds
   - Config builders gate allows CD refresh events while frame is hidden

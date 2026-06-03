@@ -3,12 +3,13 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.296`.
+Current release: `0.9.297`.
 
 Highlights:
-- Added GitHub Release ZIP publishing for WowUp Hub with the required top-level `isiLive/` folder.
-- Kept Wago publishing manual while preserving CurseForge and WowUp as the automated stable release targets.
-- Replaced the legacy CurseForge packager trigger with a direct upload of the already-built release ZIP.
-- Restored stable releases to tag-push-only triggering so GitHub Actions lists release runs under `isiLive_release_*`.
-- Bumped the TOC and documentation version basis to `0.9.296`.
-- Updated the release-gate scenario baseline to 1938 deterministic scenarios.
+- Fixed in-key BR/Bloodlust peer announcements by allowing incoming `BRLUST` addon-sync payloads through the combat event gate.
+- Fixed local BR/Bloodlust sender detection when the active challenge map API is masked, including owned pet Bloodlust casts.
+- Stabilized M+ forces nameplate percentage anchoring around third-party nameplates and zero offsets.
+- Restored compact M+ forces nameplate percentages by making the remaining-needed suffix opt-in again.
+- Fixed M+ forces nameplate position and font-size settings under external nameplate addons by anchoring to the observed healthbar while avoiding inherited nameplate scaling.
+- Hardened the Battle Res combat sound with a separate fallback playback path without changing the Bloodlust sound asset.
+- Fixed Battle Res-ready TTS to use directly observed known BR charge data and play once when the displayed BR charge count increases.
