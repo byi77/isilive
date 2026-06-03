@@ -1,6 +1,31 @@
 # Changelog
 
-## Unreleased
+## 2026-06-03 - Version 0.9.298 (patch)
+
+- Fixed roster role assignment after inspected spec changes by deriving a
+  verified role from Blizzard's inspected specialization role API, so specs
+  like Retribution render as DPS and Blood renders as tank even when
+  `UnitGroupRolesAssigned` is stale.
+- Aligned center notice layers with the main M+ UI frame and removed the
+  Portal Navigator's hard `DIALOG` strata, so all isiLive center windows share
+  the same UI layer basis.
+- Restyled the Portal Navigator header to match the rich center notice cards:
+  `Portal - Navigation` cyan eyebrow, larger left-aligned
+  `isiLive - Midnight Season One M+ Navigator` gold headline, and blue
+  separator.
+- Fixed the demo-mode Portal Navigator layout so it passes the same blue
+  eyebrow and season title as the live navigator layout.
+- Moved the Portal Navigator header separator and portal crescent downward so
+  the blue line no longer intersects the larger gold season title.
+- Fixed M+ forces percentage anchoring with Platynator by resolving the
+  visible Platynator health widget on the real nameplate before falling back to
+  Blizzard `UnitFrame.healthBar`, so the Settings preview and live runtime use
+  the same anchor semantics.
+- Pinned Plater anchoring through Plater-style `unitFrame.healthBar`, matching
+  Plater's documented unit-frame member path.
+- Added nameplate diagnostics for the selected runtime anchor source, including
+  the Platynator health-widget path.
+- Bumped the TOC and documentation baselines to `0.9.298`.
 
 ## 2026-06-02 - Version 0.9.297 (patch)
 

@@ -436,6 +436,33 @@ return function(test, ctx)
       end)
     end)
 
+    test.it("Units GetInspectSpecRole resolves role from inspected specialization id", function()
+      WithGlobals({
+        UnitExists = function()
+          return true
+        end,
+        GetInspectSpecialization = function(unit)
+          if unit == "party1" then
+            return 250
+          end
+          return nil
+        end,
+        GetSpecializationRoleByID = function(specID)
+          if specID == 250 then
+            return "TANK"
+          end
+          return nil
+        end,
+      }, function()
+        local addon = LoadAddonModules({ "isiLive_units.lua" })
+        Assert.Equal(
+          addon.Units.GetInspectSpecRole("party1"),
+          "TANK",
+          "inspect role must come from the verified inspected specialization id"
+        )
+      end)
+    end)
+
     test.it("Units GetShortSpecLabel normalizes umlauts and maps to short German labels", function()
       WithGlobals({}, function()
         local addon = LoadAddonModules({ "isiLive_units.lua" })

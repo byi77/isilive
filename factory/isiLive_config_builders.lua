@@ -312,9 +312,10 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
       )
       ctx.printFn(
         string.format(
-          "[NP] frameExists=%s frameShown=%s fontFile=%s fontHeight=%s fontFlags=%s fontStringText=%s",
+          "[NP] frameExists=%s frameShown=%s anchorSource=%s fontFile=%s fontHeight=%s fontFlags=%s fontStringText=%s",
           fmt(state.frameExists),
           fmt(state.frameShown),
+          fmt(state.anchorSource),
           fmt(state.fontFile),
           fmt(state.fontHeight),
           fmt(state.fontFlags),

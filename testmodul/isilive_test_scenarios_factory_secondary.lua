@@ -361,7 +361,8 @@ local function BuildControllerContext(state, addon, initial)
         NON_MYTHIC_NOTICE_HINT_NON_MYTHIC = "Not a Mythic+ dungeon",
         NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED = "Instance entered",
         NON_MYTHIC_NOTICE_DEMO_DUNGEON = "Priory of the Sacred Flame",
-        PORTAL_NAVIGATOR_TITLE = "Navigator",
+        PORTAL_NAVIGATOR_TITLE = "isiLive - Midnight Season One M+ Navigator",
+        PORTAL_NAVIGATOR_EYEBROW = "Portal - Navigation",
         PORTAL_NAVIGATOR_HALF_LEFT = "Half-left",
         PORTAL_NAVIGATOR_LEFT = "Left",
         PORTAL_NAVIGATOR_RIGHT = "Right",
@@ -550,9 +551,10 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
         SetAppearance = function(appearance)
           state.mobNameplateAppearance = appearance
         end,
-        SetTestMode = function(enabled, percent)
+        SetTestMode = function(enabled, percent, opts)
           state.mobNameplateTestMode = enabled
           state.mobNameplateTestPercent = percent
+          state.mobNameplateTestOpts = opts
         end,
         RefreshAll = function()
           state.mobNameplateRefreshes = (state.mobNameplateRefreshes or 0) + 1
@@ -651,9 +653,21 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.True(state.mobTooltipEnabled == true, "test mode must enable M+ forces tooltip demo surface")
     Assert.True(state.mobNameplateTestMode == true, "test mode must enable nameplate forces demo mode")
     Assert.Equal(state.mobNameplateTestPercent, "12.34", "nameplate demo percent must be explicit")
+    Assert.NotNil(state.mobNameplateTestOpts, "nameplate demo must pass an explicit demo context")
+    Assert.Equal(state.mobNameplateTestOpts.activeMapID, 559, "nameplate demo must use the demo target map context")
     Assert.Nil(state.mobNameplateFormat, "nameplate demo must not override the user's percent format settings")
     Assert.Nil(state.mobNameplateAppearance, "nameplate demo must not override the user's appearance settings")
     Assert.NotNil(state.portalNavigatorLayout, "test mode must show the portal navigator demo")
+    Assert.Equal(
+      state.portalNavigatorLayout.eyebrow,
+      "Portal - Navigation",
+      "portal navigator demo must render the blue header eyebrow"
+    )
+    Assert.Equal(
+      state.portalNavigatorLayout.title,
+      "isiLive - Midnight Season One M+ Navigator",
+      "portal navigator demo must render the season navigator title"
+    )
     Assert.Equal(#state.portalNavigatorLayout.entries, 5, "portal navigator demo must render all five portal positions")
     local portalEntriesBySlot = {}
     for _, entry in ipairs(state.portalNavigatorLayout.entries) do
@@ -739,6 +753,26 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       Assert.NotNil(state.demoCenterNotices, "accepted/group target center notices must still be previewed")
       Assert.Equal(#state.demoCenterNotices, 2, "center notice demos remain available after removing invite hint")
     end)
+  end)
+
+  test("Factory test mode shows portal navigator demo with matching header texts", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
+
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.ctx.EnterFullDummyPreview()
+    end)
+
+    Assert.NotNil(state.portalNavigatorLayout, "test mode must show the portal navigator demo")
+    Assert.Equal(
+      state.portalNavigatorLayout.eyebrow,
+      "Portal - Navigation",
+      "demo portal navigator must pass the blue eyebrow text"
+    )
+    Assert.Equal(
+      state.portalNavigatorLayout.title,
+      "isiLive - Midnight Season One M+ Navigator",
+      "demo portal navigator must pass the gold season title"
+    )
   end)
 
   test("Factory test mode does not resize the stats box font setting", function()

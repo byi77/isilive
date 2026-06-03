@@ -110,6 +110,9 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     end,
     getUnitRole = RequireFunction(deps.getUnitRole, "getUnitRole"),
     getPlayerSpecName = RequireFunction(deps.getPlayerSpecName, "getPlayerSpecName"),
+    getInspectSpecRole = type(deps.getInspectSpecRole) == "function" and deps.getInspectSpecRole or function()
+      return nil
+    end,
     getUnitRio = RequireFunction(deps.getUnitRio, "getUnitRio"),
     getOwnAverageItemLevel = type(deps.getOwnAverageItemLevel) == "function" and deps.getOwnAverageItemLevel
       or function()
@@ -417,7 +420,8 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
       deps.getUnitRio,
       deps.getInspectSpecName,
       deps.getPlayerSpecName,
-      deps.getOwnAverageItemLevel
+      deps.getOwnAverageItemLevel,
+      deps.getInspectSpecRole
     )
   end
   config.processAddonMessage = function(prefix, message, sender, channel)
@@ -681,6 +685,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     markIsiLiveUser = ctx.markIsiLiveUser,
     getUnitRio = ctx.getUnitRio,
     getInspectSpecName = ctx.getInspectSpecName,
+    getInspectSpecRole = ctx.getInspectSpecRole,
     getPlayerSpecName = ctx.getPlayerSpecName,
     getOwnAverageItemLevel = ctx.getOwnAverageItemLevel,
     getAddonVersionRaw = ctx.getAddonVersionRaw,

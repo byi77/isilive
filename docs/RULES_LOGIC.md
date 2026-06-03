@@ -95,6 +95,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 72. Der Battle-Res-ready-Klanghinweis darf nur waehrend eines laufenden M+-Timers mit aktiver Gruppe und erst nach einem zuvor beobachteten Battle-Res-Cooldown oder null verfuegbaren Battle-Res-Aufladungen abgespielt werden, sobald der beobachtete angezeigte Battle-Res-Cooldown null erreicht oder ein spaeterer natuerlicher Scan mindestens eine verfuegbare Aufladung findet; der erste verfuegbare Battle-Res-Zustand direkt nach Key-Start bleibt stumm, danach muss jede weitere beobachtete Wiederverfuegbarkeit angesagt werden; sichtbare UI-Rescans muessen denselben Ready-Transition-Pfad nutzen wie der Factory-CD-Tracker; der Klanghinweis darf bei Key-Ende-, Key-Abbruch-, Dungeon-Verlassen-, Gruppen-Verlassen- oder sonstigem Nicht-laufend-Refresh nicht ausloesen, muss dabei seinen beobachteten Ready-Zyklus verwerfen und muss die eigene Settings-Option respektieren.
 73. Der Pre-Accept-LFG-Invite-Hint bleibt entfernt; ein `invited`-Status darf kein oberes Einladungsfenster rendern und es gibt kein Factory-Wiring, kein Settings-Control, kein SavedVariable-Feld und keine Testmodus-Demo dafuer.
 74. Queued `INSTANCE_CHAT`-Addon-Sync darf nach dem Verlassen der Instanzgruppe nicht mehr an Blizzard gesendet werden und muss als nicht gesendet gemeldet werden.
+75. Die M+-Forces-Namensplakettenanzeige muss mit Blizzard-Namensplaketten, Plater und Platynator funktionieren; die Settings-Vorschau muss denselben Renderer nutzen wie die Runtime.
+76. Die Roster-Rolle muss bei vorhandener verifizierter Inspect-Spezialisierung aus Blizzards Spezialisierungsrollen-API korrigiert werden; stale Gruppenrollenzuweisungen duerfen die Spec-Rolle nicht dauerhaft ueberstimmen.
 
 ## Regelbloecke
 
@@ -787,6 +789,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Der Ingame-Testmodus muss beim Aktivieren die Demo-Daten fuer M+-Timer, Combat-CDs, den unteren M+-Forces-Tracker, Statsbox, Portal-Navigator, Centerbox-Portal, Non-Mythic-Dungeon-Entry-Centerbox, M+-Forces-Nameplates/-Tooltip und LFG-Bonusmarker setzen, beim Deaktivieren wieder loeschen und im Dummy-Roster Multi-Kick-Extras fuer den Tooltip-Preview bereitstellen. Demo-Feature-Schalter duerfen nur temporaer fuer die Vorschau gesetzt werden und muessen die vorherigen User-Settings danach wiederherstellen. Die Nameplate-Demo darf die Nutzer-Settings fuer Prozentformat, Position, Schriftgroesse und Offsets nicht ueberschreiben. Wenn die Centerbox einen verifizierten mapID-Kontext und einen Activity-Kontext erhaelt, muss der Portalbutton den mapID-Kontext priorisieren. Die Centerbox-Portal- und Non-Mythic-Dungeon-Entry-Demos muessen im Demomodus parallel sichtbar sein und duerfen sich nicht gegenseitig verdraengen.
 - Erforderliche Tests:
   - Factory test mode populates timer, cooldown and kill-track demo data
+  - Factory test mode shows portal navigator demo with matching header texts
+  - MobNameplate.SetTestMode can render remaining percent from explicit demo map context
   - Factory test mode does not resize the stats box font setting
   - Factory test mode temporarily enables notice demo settings
   - Demo dummy roster exposes multi-kick extras for tooltip preview
@@ -975,10 +979,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-NOTICE-TITEL-BRAND-GOLD
 - Regelnummer: 70
 - Status: aktiv
-- Zusammenfassung: Alle Center-Notice- und Portal-Navigator-Ueberschriften, die als Fenstertitel oder Headline gerendert werden, muessen textlich mit `isiLive - ` beginnen und im gemeinsamen warmen Goldton `1, 0.9, 0.45` angezeigt werden. Der reine Addon-Name `TITLE = "isiLive"` sowie Tooltip- oder Feldtitel sind davon nicht betroffen.
+- Zusammenfassung: Alle Center-Notice- und Portal-Navigator-Ueberschriften, die als Fenstertitel oder Headline gerendert werden, muessen textlich mit `isiLive - ` beginnen und im gemeinsamen warmen Goldton `1, 0.9, 0.45` angezeigt werden. Der Portal-Navigator muss seinen Header optisch an die Rich-Center-Notice-Header angleichen: cyanfarbene Eyebrow-Zeile `Portal - Navigation`, linksbuendige goldene Headline `isiLive - Midnight Season One M+ Navigator` in derselben Headline-Schriftgroesse und blaue Trennlinie unterhalb der vollstaendigen Headline. Der reine Addon-Name `TITLE = "isiLive"` sowie Tooltip- oder Feldtitel sind davon nicht betroffen.
 - Erforderliche Tests:
   - Locale center-notice titles use isiLive prefix in every locale
   - Center notice headline titles use shared gold color
+  - Portal navigator notice lays out the five portal positions in a crescent
 
 ### RULE-BLOODLUST-READY-KLANGHINWEIS
 - Regelnummer: 71
@@ -1035,3 +1040,25 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Queued `INSTANCE_CHAT`-Addon-Sync darf nach dem Verlassen der Instanzgruppe nicht mehr an Blizzard gesendet werden. Der Throttle-Callback muss diesen spaeten Drop als `didSend == false` melden, damit keine lokale Erfolgsannahme aus einem verworfenen Send entsteht.
 - Erforderliche Tests:
   - ChatThrottleLib drops queued INSTANCE_CHAT addon messages after instance group leave
+
+### RULE-MPLUS-NAMEPLATE-KOMPATIBLE-VORSCHAU
+- Regelnummer: 75
+- Status: aktiv
+- Zusammenfassung: Die M+-Forces-Namensplakettenanzeige muss nach expliziter Aktivierung unabhaengig davon rendern, ob kein externes Namensplaketten-Addon, Plater oder Platynator geladen ist. Externe Namensplaketten-Addons duerfen hoechstens eine Settings-Warnung ausloesen, aber den Runtime-Renderer nicht deaktivieren. Die Settings-Vorschau muss denselben Text-, Groessen-, Font- und Ankerpfad verwenden wie der Runtime-Renderer, damit Prozentanzeige, Restbedarf, Position, Schriftgroesse und Offsets nicht auseinanderlaufen; die Fake-Namensplatte der Vorschau muss dafuer einen `UnitFrame.healthBar`-Anker bereitstellen und die Prozentanzeige daran ankern. Wenn Plater auf der Namensplatte einen `unitFrame.healthBar` bereitstellt, muss dieser Healthbar-Frame als Runtime-Anker genutzt werden. Wenn Platynator auf der Blizzard-Namensplatte ein sichtbares Display mit `widgets` und einem Health-Widget `details.kind == "health"` bereitstellt, muss dieses sichtbare Health-Widget den Runtime-Anker bilden und vor einem versteckten Blizzard-`UnitFrame.healthBar` Vorrang haben. Das Runtime-Overlay muss die Strata der Namensplatte uebernehmen und darf nicht pauschal auf eine globale Top-Ebene wie `TOOLTIP` erzwingen; eine hoeherliegende Sortierung ist nur ueber das FrameLevel innerhalb derselben Strata erlaubt.
+- Erforderliche Tests:
+  - MobNameplate font-size pipeline is unaffected by Plater being loaded
+  - MobNameplate overlay renders when Platynator is loaded
+  - MobNameplate ApplyPosition keeps default offsets clear of the plate edge
+  - MobNameplate ApplyPosition anchors to the observed healthbar child when available
+  - MobNameplate ApplyPosition anchors to the Plater unitFrame healthBar when available
+  - MobNameplate ApplyPosition anchors to the Platynator display health widget when available
+  - MobNameplate ApplyPreview uses the runtime text, size and healthbar anchor path
+  - Settings nameplate preview uses the shared MobNameplate renderer
+
+### RULE-ROSTER-ROLLE-AUS-INSPECT-SPEZIALISIERUNG
+- Regelnummer: 76
+- Status: aktiv
+- Zusammenfassung: Sobald fuer eine Roster-Zeile eine verifizierte Inspect-Spezialisierung vorliegt, muss die angezeigte und sortierende Roster-Rolle aus Blizzards `GetSpecializationRoleByID` fuer genau diese Inspect-Spezialisierung korrigiert werden. Das gilt insbesondere fuer Spec-Wechsel wie Vergeltung-Paladin zu `DAMAGER` und Blut-Todesritter zu `TANK`, wenn `UnitGroupRolesAssigned` noch einen stale Wert liefert. Ohne verifizierte Inspect-Spezialisierung bleibt die bestehende Rollenquelle unveraendert; es darf keine Ableitung aus Namen, Textheuristiken oder unvollstaendigen Daten erfolgen.
+- Erforderliche Tests:
+  - Units GetInspectSpecRole resolves role from inspected specialization id
+  - Inspect OnInspectReady updates roster role from inspected specialization role

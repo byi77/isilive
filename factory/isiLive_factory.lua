@@ -718,6 +718,7 @@ local function FinalizeFactoryRuntime(ctx)
     getUnitRio = ctx.GetUnitRio,
     getOwnAverageItemLevel = ctx.GetOwnAverageItemLevel,
     getInspectSpecName = ctx.GetInspectSpecName,
+    getInspectSpecRole = ctx.GetInspectSpecRole,
     unitHasIsiLive = ctx.UnitHasIsiLive,
     applyKnownKeyToRosterEntry = ctx.ApplyKnownKeyToRosterEntry,
     registerVerifiedSyncAliasForRoster = ctx.RegisterVerifiedSyncAliasForRoster,

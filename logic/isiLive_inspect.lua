@@ -127,7 +127,8 @@ local function OnInspectReady(
   getUnitRio,
   getInspectSpecName,
   getPlayerSpecName,
-  getOwnAverageItemLevel
+  getOwnAverageItemLevel,
+  getInspectSpecRole
 )
   local inspectedUnit = controller.isInspecting
   if not (inspectedUnit and GetUnitGUIDSafe(inspectedUnit) == guid) then
@@ -201,6 +202,17 @@ local function OnInspectReady(
     controller.specCache[guid] = specName
   end
 
+  local specRole = type(getInspectSpecRole) == "function" and getInspectSpecRole(inspectedUnit) or nil
+  local roleChanged = false
+  if
+    roster[inspectedUnit]
+    and (specRole == "TANK" or specRole == "HEALER" or specRole == "DAMAGER")
+    and roster[inspectedUnit].role ~= specRole
+  then
+    roster[inspectedUnit].role = specRole
+    roleChanged = true
+  end
+
   if roster[inspectedUnit] then
     roster[inspectedUnit]._refreshQueued = nil
   end
@@ -208,17 +220,20 @@ local function OnInspectReady(
   local getTimeFn = rawget(_G, "GetTime")
   controller.lastInspectTime = type(getTimeFn) == "function" and getTimeFn() or 0
 
-  local dataChanged = ilvlChanged or rioChanged or specChanged
+  local dataChanged = ilvlChanged or rioChanged or specChanged or roleChanged
   if controller.logRuntimeTracef then
     controller.logRuntimeTracef(
-      "[INSPECT] result unit=%s ilvl=%s rio=%s spec=%s ilvlChanged=%s rioChanged=%s specChanged=%s",
+      "[INSPECT] result unit=%s ilvl=%s rio=%s spec=%s role=%s "
+        .. "ilvlChanged=%s rioChanged=%s specChanged=%s roleChanged=%s",
       tostring(inspectedUnit),
       tostring(ilvl),
       tostring(rio),
       tostring(specName),
+      tostring(specRole),
       tostring(ilvlChanged),
       tostring(rioChanged),
-      tostring(specChanged)
+      tostring(specChanged),
+      tostring(roleChanged)
     )
   end
   if inspectedUnit == "player" and dataChanged and controller.TriggerOwnKeySnapshot then
@@ -387,7 +402,8 @@ function Inspect.CreateController(config)
     getUnitRio,
     getInspectSpecName,
     getPlayerSpecName,
-    getOwnAverageItemLevel
+    getOwnAverageItemLevel,
+    getInspectSpecRole
   )
     return OnInspectReady(
       controller,
@@ -396,7 +412,8 @@ function Inspect.CreateController(config)
       getUnitRio,
       getInspectSpecName,
       getPlayerSpecName,
-      getOwnAverageItemLevel
+      getOwnAverageItemLevel,
+      getInspectSpecRole
     )
   end
 

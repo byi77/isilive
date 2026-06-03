@@ -66,6 +66,8 @@ local function BuildCenterNoticeConfig(opts)
     buttonHeight = tonumber(opts.buttonHeight) or 56,
     buttonGap = tonumber(opts.buttonGap) or 8,
     fontDelta = tonumber(opts.fontDelta) or 10,
+    frameStrata = type(opts.frameStrata) == "string" and opts.frameStrata ~= "" and opts.frameStrata or nil,
+    frameLevel = tonumber(opts.frameLevel),
     isInCombat = opts.isInCombat or function()
       local inCombatFn = rawget(_G, "InCombatLockdown")
       return type(inCombatFn) == "function" and inCombatFn() == true
@@ -116,16 +118,32 @@ local function BuildPortalNavigatorConfig(opts)
     frameAlpha = tonumber(opts.frameAlpha) or 1,
     backgroundAlpha = tonumber(opts.backgroundAlpha) or 0.62,
     fontDelta = tonumber(opts.fontDelta) or 2,
+    headerFontDelta = tonumber(opts.headerFontDelta) or 10,
     paddingX = tonumber(opts.paddingX) or 24,
     paddingY = tonumber(opts.paddingY) or 14,
     entryWidth = tonumber(opts.entryWidth) or 180,
+    frameStrata = type(opts.frameStrata) == "string" and opts.frameStrata ~= "" and opts.frameStrata or nil,
+    frameLevel = tonumber(opts.frameLevel),
   }
+end
+
+local function ApplyNoticeFrameLayer(frame, config)
+  if type(frame) ~= "table" or type(config) ~= "table" then
+    return
+  end
+  if config.frameStrata and type(frame.SetFrameStrata) == "function" then
+    frame:SetFrameStrata(config.frameStrata)
+  end
+  if config.frameLevel and type(frame.SetFrameLevel) == "function" then
+    frame:SetFrameLevel(config.frameLevel)
+  end
 end
 
 local function CreateCenterNoticeFrame(config)
   local frame = CreateFrame("Frame", config.frameName, config.parent, "BackdropTemplate")
   frame:SetSize(680, config.minHeight)
   frame:SetPoint("CENTER", config.parent, "CENTER", 0, config.yOffset)
+  ApplyNoticeFrameLayer(frame, config)
   frame:SetMovable(true)
   ClampMovableFrameToScreen(frame)
   frame:EnableMouse(true)
@@ -153,7 +171,7 @@ local function CreatePortalNavigatorFrame(config)
   local frame = CreateFrame("Frame", config.frameName, config.parent, "BackdropTemplate")
   frame:SetSize(config.width, config.height)
   frame:SetPoint("CENTER", config.parent, "CENTER", 0, config.yOffset)
-  frame:SetFrameStrata("DIALOG")
+  ApplyNoticeFrameLayer(frame, config)
   frame:SetMovable(true)
   ClampMovableFrameToScreen(frame)
   frame:EnableMouse(true)
@@ -218,12 +236,27 @@ local function SetReadableText(fontString, text)
   end
 end
 
+local function CreatePortalNavigatorEyebrow(frame, config)
+  local eyebrow = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  IncreaseFontSize(eyebrow, math.max(0, math.floor((tonumber(config.headerFontDelta) or 0) / 3)))
+  eyebrow:SetPoint("TOPLEFT", frame, "TOPLEFT", config.paddingX, -config.paddingY)
+  eyebrow:SetJustifyH("LEFT")
+  eyebrow:SetJustifyV("TOP")
+  eyebrow:SetWordWrap(false)
+  if eyebrow.SetNonSpaceWrap then
+    eyebrow:SetNonSpaceWrap(false)
+  end
+  eyebrow:SetTextColor(0.46, 0.94, 1)
+  return eyebrow
+end
+
 local function CreatePortalNavigatorTitle(frame, config)
   local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-  IncreaseFontSize(title, config.fontDelta)
-  title:SetPoint("TOP", frame, "TOP", 0, -12)
-  title:SetJustifyH("CENTER")
-  title:SetJustifyV("TOP")
+  IncreaseFontSize(title, config.headerFontDelta)
+  title:SetPoint("TOPLEFT", frame, "TOPLEFT", config.paddingX, -(config.paddingY + 18))
+  title:SetJustifyH("LEFT")
+  title:SetJustifyV("MIDDLE")
+  title:SetWidth(config.width - (config.paddingX * 2))
   title:SetTextColor(NOTICE_TITLE_COLOR_R, NOTICE_TITLE_COLOR_G, NOTICE_TITLE_COLOR_B)
   return title
 end
@@ -234,17 +267,18 @@ local function CreatePortalNavigatorSeparator(frame)
   end
   local sep = frame:CreateTexture(nil, "ARTWORK")
   sep:SetHeight(1)
-  sep:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -46)
-  sep:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20, -46)
-  sep:SetColorTexture(NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B, 0.35)
+  sep:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -68)
+  sep:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -24, -68)
+  sep:SetColorTexture(0.36, 0.71, 1, 0.55)
+  return sep
 end
 
 local PORTAL_NAVIGATOR_SLOT_POINTS = {
-  left = { point = "TOPLEFT", x = 36, y = -126, iconX = 0, iconY = -6 },
-  half_left = { point = "TOPLEFT", x = 178, y = -86, iconX = 0, iconY = -6 },
-  center = { point = "TOP", x = 0, y = -66, iconX = 0, iconY = -6 },
-  half_right = { point = "TOPRIGHT", x = -178, y = -86, iconX = 0, iconY = -6 },
-  right = { point = "TOPRIGHT", x = -36, y = -126, iconX = 0, iconY = -6 },
+  left = { point = "TOPLEFT", x = 36, y = -142, iconX = 0, iconY = -6 },
+  half_left = { point = "TOPLEFT", x = 178, y = -102, iconX = 0, iconY = -6 },
+  center = { point = "TOP", x = 0, y = -82, iconX = 0, iconY = -6 },
+  half_right = { point = "TOPRIGHT", x = -178, y = -102, iconX = 0, iconY = -6 },
+  right = { point = "TOPRIGHT", x = -36, y = -142, iconX = 0, iconY = -6 },
 }
 
 local PORTAL_NAVIGATOR_SLOT_ORDER = { "left", "half_left", "center", "half_right", "right" }
@@ -338,6 +372,7 @@ local function SetPortalNavigatorIconColor(iconFrame, r, g, b, a)
 end
 
 local function ClearPortalNavigatorEntries(state)
+  state.eyebrowText:SetText("")
   state.titleText:SetText("")
   for _, slot in ipairs(PORTAL_NAVIGATOR_SLOT_ORDER) do
     local entry = state.nodes[slot]
@@ -361,6 +396,13 @@ local function ApplyPortalNavigatorLayout(state, layout)
   if title == "" then
     ClearPortalNavigatorEntries(state)
     return false
+  end
+
+  local eyebrow = type(layout.eyebrow) == "string" and layout.eyebrow or ""
+  if eyebrow ~= "" then
+    SetReadableText(state.eyebrowText, eyebrow)
+  else
+    state.eyebrowText:SetText("")
   end
 
   SetReadableText(state.titleText, title)
@@ -551,7 +593,9 @@ local function CreateCenterNoticeTeleportButton(frame, config)
   button.spellID = nil
   button.inCombatBlocked = false
   button:RegisterForClicks("AnyDown", "AnyUp")
-  button:SetFrameStrata("HIGH")
+  if type(button.SetFrameStrata) == "function" and type(frame.GetFrameStrata) == "function" then
+    button:SetFrameStrata(frame:GetFrameStrata())
+  end
   button:SetFrameLevel(frame:GetFrameLevel() + 10)
   button:SetAttribute("type", "spell")
   button:SetAttribute("type1", "spell")
@@ -1411,7 +1455,9 @@ local function BuildPortalNavigatorController(state)
 
   return {
     frame = state.frame,
+    eyebrowText = state.eyebrowText,
     titleText = state.titleText,
+    titleSeparator = state.titleSeparator,
     entries = state.entries,
     nodes = state.nodes,
     closeButton = state.closeButton,
@@ -1423,8 +1469,9 @@ end
 function Notice.CreatePortalNavigatorNotice(opts)
   local config = BuildPortalNavigatorConfig(opts)
   local frame = CreatePortalNavigatorFrame(config)
+  local eyebrowText = CreatePortalNavigatorEyebrow(frame, config)
   local titleText = CreatePortalNavigatorTitle(frame, config)
-  CreatePortalNavigatorSeparator(frame)
+  local titleSeparator = CreatePortalNavigatorSeparator(frame)
   local closeButton = CreateCenterNoticeCloseButton(frame)
   local nodes = {
     left = CreatePortalNavigatorEntry(frame, config, "left"),
@@ -1443,7 +1490,9 @@ function Notice.CreatePortalNavigatorNotice(opts)
   local state = {
     config = config,
     frame = frame,
+    eyebrowText = eyebrowText,
     titleText = titleText,
+    titleSeparator = titleSeparator,
     closeButton = closeButton,
     nodes = nodes,
     entries = entries,

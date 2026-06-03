@@ -300,6 +300,56 @@ local function RegisterInspectFreshnessTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
+  test("Inspect OnInspectReady updates roster role from inspected specialization role", function()
+    WithGlobals({
+      GetTime = function()
+        return 100
+      end,
+      UnitExists = function(_unit)
+        return true
+      end,
+      UnitGUID = function(unit)
+        return "guid-" .. unit
+      end,
+      C_PaperDollInfo = {
+        GetInspectItemLevel = function()
+          return 620
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_inspect.lua" })
+      local controller = addon.Inspect.CreateController({})
+      local roster = {
+        party1 = {
+          name = "Culus",
+          role = "DAMAGER",
+          spec = "Unholy",
+        },
+      }
+      controller.isInspecting = "party1"
+
+      local changed = controller.OnInspectReady(
+        "guid-party1",
+        roster,
+        function()
+          return 2000
+        end,
+        function()
+          return "Blood"
+        end,
+        nil,
+        nil,
+        function()
+          return "TANK"
+        end
+      )
+
+      Assert.True(changed, "role correction from inspected specialization must count as changed data")
+      Assert.Equal(roster.party1.spec, "Blood", "inspect must write the verified spec name")
+      Assert.Equal(roster.party1.role, "TANK", "inspect must correct stale group-role data from spec role")
+    end)
+  end)
+
   test("OnInspectReady falls back to getOwnAverageItemLevel for player when GetInspectItemLevel returns 0", function()
     WithGlobals({
       GetTime = function()

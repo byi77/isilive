@@ -23,7 +23,8 @@ local function BuildLocale()
     NON_MYTHIC_NOTICE_HINT_NON_MYTHIC = "Not a Mythic+ dungeon",
     NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED = "Instance entered",
     RAID_ENTERED = "Entered raid: %s",
-    PORTAL_NAVIGATOR_TITLE = "isiLive - Portal Navigator",
+    PORTAL_NAVIGATOR_TITLE = "isiLive - Midnight Season One M+ Navigator",
+    PORTAL_NAVIGATOR_EYEBROW = "Portal - Navigation",
     PORTAL_NAVIGATOR_HALF_LEFT = "Half left",
     PORTAL_NAVIGATOR_LEFT = "Left",
     PORTAL_NAVIGATOR_RIGHT = "Right",
@@ -509,6 +510,7 @@ end
 local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddonModules)
   local function AssertPortalNavigatorLayout(layout)
     Assert.Equal(type(layout), "table", "portal navigator should pass a structured layout table")
+    Assert.Equal(layout.eyebrow, BuildLocale().PORTAL_NAVIGATOR_EYEBROW, "portal navigator should expose the eyebrow")
     Assert.Equal(layout.title, BuildLocale().PORTAL_NAVIGATOR_TITLE, "portal navigator should expose the title")
     Assert.Equal(type(layout.entries), "table", "portal navigator should expose entry widgets")
     Assert.Equal(#layout.entries, 5, "portal navigator should expose five portal positions")

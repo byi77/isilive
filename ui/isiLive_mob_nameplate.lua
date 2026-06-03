@@ -30,6 +30,7 @@ local ANCHOR_GAP = 8
 -- size slider can be verified outside a key.
 local testMode = false
 local testPercent = "1.23"
+local testActiveMapID = nil
 
 local function IsSecretValue(v)
   local fn = rawget(_G, "issecretvalue")
@@ -209,8 +210,9 @@ local function ResolveRemainingPercent(activeMapID)
   return string.format("%.2f", (remainingCount / total) * 100)
 end
 
-local function BuildText(percentString, remainingPercentString)
-  if not format.showPercent or type(percentString) ~= "string" then
+local function BuildTextForFormat(fmt, percentString, remainingPercentString)
+  fmt = type(fmt) == "table" and fmt or format
+  if not fmt.showPercent or type(percentString) ~= "string" then
     return nil
   end
   -- Do NOT compare percentString to "" — in WoW 12.0 M+ tainted context the
@@ -231,11 +233,15 @@ local function BuildText(percentString, remainingPercentString)
   return text
 end
 
+local function BuildText(percentString, remainingPercentString)
+  return BuildTextForFormat(format, percentString, remainingPercentString)
+end
+
 local function ResolveFontSize()
   return tonumber(appearance.fontSize) or 14
 end
 
-local function ApplyFrameSizeForFont(frame, size)
+local function ApplyFrameSizeForFont(frame, size, showRemainingOverride)
   if not frame or type(frame.SetSize) ~= "function" then
     return
   end
@@ -243,7 +249,11 @@ local function ApplyFrameSizeForFont(frame, size)
   -- (small visual padding); width grows linearly so 4-character percent text
   -- ("99.9%") never gets clipped on the side.
   local height = math.max(20, math.ceil(size + 6))
-  local widthMultiplier = format.showRemaining and 7 or 4
+  local showRemaining = showRemainingOverride
+  if type(showRemaining) ~= "boolean" then
+    showRemaining = format.showRemaining == true
+  end
+  local widthMultiplier = showRemaining and 7 or 4
   local width = math.max(80, math.ceil(size * widthMultiplier))
   -- Dirty-check: SetSize is invoked from RefreshAll (every kill in M+) for
   -- frames whose dimensions haven't changed. Skipping the pcall+API call is
@@ -254,6 +264,34 @@ local function ApplyFrameSizeForFont(frame, size)
   if pcall(frame.SetSize, frame, width, height) then
     frame._lastSizeW = width
     frame._lastSizeH = height
+  end
+end
+
+local function ApplyRenderedText(frame, text)
+  if not (frame and frame.text and frame.text.SetText) then
+    return
+  end
+  -- Dirty-check `_lastText` so RefreshAll (fires on every mob kill in M+)
+  -- does not re-SetText 40 plates when nothing changed. `text` can be a
+  -- Secret Value in 12.0 M+ tainted context. Plain compare and plain assign
+  -- both poison the field and raise "tainted by 'isiLive'" on the next
+  -- call, so both the read and the write are pcall-guarded.
+  local equal = false
+  pcall(function()
+    equal = frame.text._lastText == text
+  end)
+  if equal then
+    return
+  end
+  frame.text:SetText(text)
+  local canCache = false
+  pcall(function()
+    canCache = text == text
+  end)
+  if canCache then
+    frame.text._lastText = text
+  else
+    frame.text._lastText = nil
   end
 end
 
@@ -323,15 +361,6 @@ local function CreateOrGetFrame(unit)
     return nil
   end
   ApplyFrameSizeForFont(f, ResolveFontSize())
-  -- Render above third-party nameplate addons (Plater/Platynator) which
-  -- typically draw their visuals on TOOLTIP-1 / HIGH; staying on MEDIUM
-  -- left our percent text occluded by their plate art.
-  if f.SetFrameStrata then
-    f:SetFrameStrata("TOOLTIP")
-  end
-  if f.SetFrameLevel then
-    f:SetFrameLevel(1000)
-  end
   if f.SetIgnoreParentAlpha then
     f:SetIgnoreParentAlpha(true)
   end
@@ -374,43 +403,91 @@ local function ApplyTextAnchor(frame, pos)
   end
 end
 
-local function ResolveAnchorTarget(nameplate)
-  if type(nameplate) ~= "table" then
+local function FrameIsShownOrUnknown(frame)
+  if type(frame) ~= "table" or type(frame.IsShown) ~= "function" then
+    return true
+  end
+  local ok, shown = pcall(frame.IsShown, frame)
+  return ok and shown ~= false
+end
+
+local function GetFrameChildren(frame)
+  if type(frame) ~= "table" or type(frame.GetChildren) ~= "function" then
+    return nil
+  end
+  local ok, children = pcall(function()
+    return { frame:GetChildren() }
+  end)
+  if ok and type(children) == "table" then
+    return children
+  end
+  return nil
+end
+
+local function ResolvePlatynatorHealthWidget(nameplate)
+  local children = GetFrameChildren(nameplate)
+  if type(children) ~= "table" then
     return nil
   end
 
+  for _, child in ipairs(children) do
+    if type(child) == "table" and type(child.widgets) == "table" then
+      for _, widget in ipairs(child.widgets) do
+        local details = type(widget) == "table" and widget.details or nil
+        if type(details) == "table" and details.kind == "health" and FrameIsShownOrUnknown(widget) then
+          return widget
+        end
+      end
+    end
+  end
+
+  return nil
+end
+
+local function ResolveAnchorTarget(nameplate)
+  if type(nameplate) ~= "table" then
+    return nil, "missing"
+  end
+
+  local platynatorHealthWidget = ResolvePlatynatorHealthWidget(nameplate)
+  if platynatorHealthWidget then
+    return platynatorHealthWidget, "platynator-health-widget"
+  end
+
   local containers = {
-    nameplate.UnitFrame,
-    nameplate.unitFrame,
-    nameplate,
+    { frame = nameplate.UnitFrame, source = "UnitFrame" },
+    { frame = nameplate.unitFrame, source = "unitFrame" },
+    { frame = nameplate, source = "nameplate" },
   }
   local names = {
     "healthBar",
     "HealthBar",
     "healthbar",
   }
-  for _, container in ipairs(containers) do
+  for _, containerInfo in ipairs(containers) do
+    local container = containerInfo.frame
     if type(container) == "table" then
       for _, fieldName in ipairs(names) do
         local candidate = container[fieldName]
         if type(candidate) == "table" then
-          return candidate
+          return candidate, containerInfo.source .. "." .. fieldName
         end
       end
     end
   end
 
-  return nameplate
+  return nameplate, "nameplate-root"
 end
 
 local function ApplyPosition(frame, nameplate)
   if not frame or not nameplate then
     return
   end
-  local anchorTarget = ResolveAnchorTarget(nameplate)
+  local anchorTarget, anchorSource = ResolveAnchorTarget(nameplate)
   if not anchorTarget then
     return
   end
+  frame._isiLiveAnchorSource = anchorSource
   if type(frame.SetParent) == "function" then
     local uiParent = rawget(_G, "UIParent")
     if type(uiParent) == "table" then
@@ -418,6 +495,13 @@ local function ApplyPosition(frame, nameplate)
     end
   end
   local levelSource = type(anchorTarget.GetFrameLevel) == "function" and anchorTarget or nameplate
+  local strataSource = type(nameplate.GetFrameStrata) == "function" and nameplate or anchorTarget
+  if type(frame.SetFrameStrata) == "function" and type(strataSource.GetFrameStrata) == "function" then
+    local okStrata, strata = pcall(strataSource.GetFrameStrata, strataSource)
+    if okStrata and type(strata) == "string" and strata ~= "" then
+      pcall(frame.SetFrameStrata, frame, strata)
+    end
+  end
   if type(frame.SetFrameLevel) == "function" and type(levelSource.GetFrameLevel) == "function" then
     local okLevel, level = pcall(levelSource.GetFrameLevel, levelSource)
     if okLevel and type(level) == "number" then
@@ -478,6 +562,7 @@ local function UpdateNameplate(unit)
   local activeMapID
   if testMode then
     percentString = testPercent
+    activeMapID = testActiveMapID
   else
     activeMapID = GetActiveChallengeMapID() -- secret-value-ok: file-local helper is pcall-protected
     -- Primary source: bundled MDT-synced forces DB, which is deterministic and
@@ -523,33 +608,7 @@ local function UpdateNameplate(unit)
   ApplyPosition(frame, nameplate)
   ApplyFrameSizeForFont(frame, ResolveFontSize())
   ApplyFont(frame.text)
-  -- Dirty-check `_lastText` so RefreshAll (fires on every mob kill in M+)
-  -- does not re-SetText 40 plates when nothing changed. `text` can be a
-  -- Secret Value in 12.0 M+ tainted context — see the BuildText comment
-  -- above re: the percent string masking. Plain compare and plain assign
-  -- both poison the field and raise "tainted by 'isiLive'" on the next
-  -- call, so both the read and the write are pcall-guarded. When the
-  -- value cannot be safely cached, we still call SetText (FontString
-  -- renderer accepts Secret strings) and leave the cache cleared so the
-  -- next refresh keeps working.
-  if frame.text and frame.text.SetText then
-    local equal = false
-    pcall(function()
-      equal = frame.text._lastText == text
-    end)
-    if not equal then
-      frame.text:SetText(text)
-      local canCache = false
-      pcall(function()
-        canCache = text == text
-      end)
-      if canCache then
-        frame.text._lastText = text
-      else
-        frame.text._lastText = nil
-      end
-    end
-  end
+  ApplyRenderedText(frame, text)
   frame:Show()
 end
 
@@ -702,11 +761,58 @@ function MobNameplate.SetAppearance(opts)
   end
 end
 
+function MobNameplate.ApplyPreview(frame, anchor, opts)
+  if type(frame) ~= "table" or type(anchor) ~= "table" or type(opts) ~= "table" then
+    return nil
+  end
+  local previewFormat = {
+    showPercent = opts.showPercent ~= false,
+    showRemaining = opts.showRemaining == true,
+  }
+  local text = BuildTextForFormat(previewFormat, opts.percentString, opts.remainingPercentString)
+  if not text then
+    if type(frame.Hide) == "function" then
+      frame:Hide()
+    end
+    return nil
+  end
+
+  local previousAppearance = {
+    fontSize = appearance.fontSize,
+    position = appearance.position,
+    xOffset = appearance.xOffset,
+    yOffset = appearance.yOffset,
+  }
+  appearance.fontSize = tonumber(opts.fontSize) or previousAppearance.fontSize
+  appearance.position = type(opts.position) == "string" and opts.position or previousAppearance.position
+  appearance.xOffset = tonumber(opts.xOffset) or 0
+  appearance.yOffset = tonumber(opts.yOffset) or 0
+
+  ApplyPosition(frame, anchor)
+  ApplyFrameSizeForFont(frame, ResolveFontSize(), previewFormat.showRemaining)
+  ApplyFont(frame.text)
+  ApplyRenderedText(frame, text)
+  if frame.text and type(frame.text.Show) == "function" then
+    frame.text:Show()
+  end
+  if type(frame.Show) == "function" then
+    frame:Show()
+  end
+
+  appearance.fontSize = previousAppearance.fontSize
+  appearance.position = previousAppearance.position
+  appearance.xOffset = previousAppearance.xOffset
+  appearance.yOffset = previousAppearance.yOffset
+
+  return text
+end
+
 -- Toggle the debug overlay. When `flag` is omitted, the current state is
 -- inverted. `percent` is optional and defaults to "1.23" — pass any string
--- (e.g. "42") to control the rendered text. Auto-enables the module if it
--- was off so the events get registered before the first refresh.
-function MobNameplate.SetTestMode(flag, percent)
+-- (e.g. "42") to control the rendered text. `opts.activeMapID` lets the
+-- ingame demo reuse the remaining-percent runtime path against demo KillTrack
+-- data without pretending that a live challenge is active.
+function MobNameplate.SetTestMode(flag, percent, opts)
   local nextMode
   if flag == nil then
     nextMode = not testMode
@@ -716,6 +822,11 @@ function MobNameplate.SetTestMode(flag, percent)
   testMode = nextMode
   if type(percent) == "string" and percent ~= "" then
     testPercent = percent
+  end
+  if testMode and type(opts) == "table" and type(opts.activeMapID) == "number" and opts.activeMapID > 0 then
+    testActiveMapID = opts.activeMapID
+  elseif not testMode then
+    testActiveMapID = nil
   end
   if testMode and not enabled then
     MobNameplate.SetEnabled(true)
@@ -772,6 +883,7 @@ function MobNameplate.DumpFrames()
   return {
     enabled = enabled,
     testMode = testMode,
+    testActiveMapID = testActiveMapID,
     appearanceFontSize = appearance.fontSize,
     frameCount = #rows,
     frames = rows,
@@ -788,11 +900,13 @@ function MobNameplate.DumpState(unit)
     unit = unit,
     enabled = enabled,
     testMode = testMode,
+    testActiveMapID = testActiveMapID,
     appearanceFontSize = appearance.fontSize,
     hasNamePlateAPI = HasNamePlateAPI(),
     hasProgressAPI = HasProgressAPI(),
     challengeActive = IsChallengeModeActive(),
-    activeMapID = GetActiveChallengeMapID(), -- secret-value-ok: file-local helper is pcall-protected
+    -- secret-value-ok: file-local helper is pcall-protected.
+    activeMapID = testMode and testActiveMapID or GetActiveChallengeMapID(),
     eligible = IsEligibleUnit(unit),
   }
 
@@ -856,6 +970,7 @@ function MobNameplate.DumpState(unit)
   if frame then
     out.frameExists = true
     out.frameShown = frame.IsShown and frame:IsShown() == true or false
+    out.anchorSource = frame._isiLiveAnchorSource
     if frame.text then
       if type(frame.text.GetFont) == "function" then
         local okFont, file, height, flags = pcall(frame.text.GetFont, frame.text)

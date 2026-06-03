@@ -203,7 +203,42 @@ Typische Ursachen fuer Brueche:
 - Blizzard aendert die `TooltipDataProcessor`-API oder `Enum.TooltipDataType.Unit` → Feature registriert sich nicht mehr.
 - `data/isiLive_mplus_forces.lua` laeuft ueber `expiresAt` → CI-Lifetime-Gate blockiert den Release; der wochenweise MDT-Refresh-Workflow regeneriert normalerweise rechtzeitig, manueller Retrigger ueber `workflow_dispatch` falls der Donnerstag-Run gescheitert ist.
 
-### 3.8 M+ Forces DB / MDT-Sync
+### 3.8 Mob-Nameplate-Forces-Anker
+
+Pruefen:
+- `ui/isiLive_mob_nameplate.lua`
+- `ui/isiLive_settings_nameplates.lua`
+- `factory/isiLive_config_builders.lua` (`/il npstate`)
+- `testmodul/isilive_test_scenarios_mob_nameplate.lua`
+- `testmodul/isilive_test_scenarios_ui_settings_nameplate.lua`
+- `docs/RULES_LOGIC.md` Regel 75
+- `docs/USECASES.md` UC-18
+
+Aktueller Soll-Zustand:
+- Settings-Preview und Runtime nutzen denselben Renderer (`MobNameplate.ApplyPreview` / `ApplyPosition`) fuer Text, Fontgroesse, Position und Offsets. Wenn die Preview sichtbar anders ist als live, ist die Preview selbst verdaechtig, nicht der User-Offset.
+- Der Live-Anker ist eine verifizierbare Frame-Kette, kein Kalibrierwert:
+  - Platynator: sichtbares Display-Kind der Blizzard-Namensplatte mit `widgets`; das Widget mit `details.kind == "health"` gewinnt vor Blizzard-`UnitFrame.healthBar`, weil Platynator den originalen Blizzard-UnitFrame verstecken kann.
+  - Plater: `nameplate.unitFrame.healthBar`, passend zum Plater-`unitFrame.healthBar`-Pfad.
+  - Blizzard/default: `nameplate.UnitFrame.healthBar`.
+  - Fallback nur wenn kein Healthbar-Anker existiert: Nameplate-Root-Frame.
+- Das Overlay bleibt auf `UIParent`, damit externe Nameplate-Skalierung nicht die isiLive-Schriftgroesse veraendert. Die Strata kommt von der Root-Namensplatte; das FrameLevel wird relativ zum beobachteten Healthbar-Anker erhoeht.
+- Position `RIGHT`/`LEFT` muss die Textkante an die Healthbar-Kante haengen, nicht den Text in einem breiten Overlay zentrieren. `Y-Offset = 0` bedeutet vertikale Mitte des gewaehlten Ankers.
+- `/il npstate [unit]` muss bei betroffenen Plates `anchorSource` ausgeben. Erwartete Werte sind z. B. `platynator-health-widget`, `unitFrame.healthBar`, `UnitFrame.healthBar` oder `nameplate-root`.
+
+Learnings:
+- Offsets duerfen einen falschen Anker nicht kaschieren. Wenn erst extreme X/Y-Offsets "mittig" wirken, haengt der Text sehr wahrscheinlich an der falschen Platte oder am falschen Root-Frame.
+- Bei externen Nameplate-Addons reicht "Addon geladen" nicht als Quelle. Belastbar ist nur die tatsaechlich am Nameplate vorhandene Frame-Struktur.
+- Platynator und Plater sind unterschiedlich: Platynator baut eigene Display-Widgets auf die Blizzard-Nameplate; Plater arbeitet mit einem Plater-`unitFrame` und dessen `healthBar`.
+- Eine Settings-Vorschau ist nur nuetzlich, wenn sie denselben Ankerpfad simuliert wie die Runtime. Fake-Previews muessen daher mindestens einen `UnitFrame.healthBar` bereitstellen und ueber den Shared-Renderer laufen.
+- Neue Nameplate-Addon-Kompatibilitaet immer mit einem konkreten Anker-Test pinnen, nicht nur mit "Addon geladen -> Overlay rendert".
+
+Typische Ursachen fuer Brueche:
+- Ein externer Nameplate-Addon-Update benennt seine sichtbare Healthbar-Struktur um → `anchorSource` faellt auf `nameplate-root` oder einen versteckten Blizzard-Frame zurueck.
+- Das Overlay wird wieder direkt auf ein extern skaliertes Nameplate-Child geparentet → Fontgroesse driftet gegenueber dem Settings-Wert.
+- Die Preview baut ein eigenes SetPoint-Verhalten statt `MobNameplate.ApplyPreview` zu nutzen → Preview und Liveposition laufen auseinander.
+- Jemand erzwingt wieder globale Top-Strata wie `TOOLTIP` → Anzeige liegt ueber UI-Panels statt auf Nameplate-Ebene.
+
+### 3.9 M+ Forces DB / MDT-Sync
 
 Pruefen:
 - `data/isiLive_mplus_forces.lua` (generierter Datensatz, niemals von Hand editieren)
@@ -222,7 +257,7 @@ Typische Ursachen fuer Brueche:
 - MDT-Clone schlaegt im Workflow fehl → Auto-Refresh bleibt still, Lifetime-Gate wird irgendwann rot.
 - Season-Wechsel → `SEASON_TO_MDT_DIR` in `sync_mdt_forces.lua` erweitern, Default-`SEASON_DEFAULT` umstellen.
 
-### 3.9 Gruppensuche-Buff-Rating-Herzchen
+### 3.10 Gruppensuche-Buff-Rating-Herzchen
 
 Pruefen:
 - `ui/isiLive_lfg_flags.lua`
@@ -246,7 +281,7 @@ Typische Ursachen fuer Brueche:
 - Eine Locale-Beschreibung nutzt ein rohes Herzzeichen statt `heart_bonus_green.tga` → Darstellung driftet zwischen Fonts/Clients.
 - Ein Settings-Schalter schreibt nur DB, ruft aber nicht den Live-Callback → Anzeige aendert sich erst nach Reload.
 
-### 3.10 Lokalisierung und Uebersetzungs-PRs
+### 3.11 Lokalisierung und Uebersetzungs-PRs
 
 Pruefen:
 - `locale/isiLive_languages.lua`

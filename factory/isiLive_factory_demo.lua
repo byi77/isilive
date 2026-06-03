@@ -133,7 +133,7 @@ local function ApplyDemoMobForces(ctx)
   end
 
   if type(mobNameplate.SetTestMode) == "function" then
-    mobNameplate.SetTestMode(true, "12.34")
+    mobNameplate.SetTestMode(true, "12.34", { activeMapID = DEMO_FEATURE_TARGET_MAP_ID })
   elseif type(mobNameplate.SetEnabled) == "function" then
     mobNameplate.SetEnabled(true)
   end
@@ -184,6 +184,7 @@ local function ShowDemoPortalNavigator(ctx, L)
   end
 
   ctx.ShowPortalNavigatorNotice({
+    eyebrow = L.PORTAL_NAVIGATOR_EYEBROW or "Portal - Navigation",
     title = L.PORTAL_NAVIGATOR_TITLE or "Timeways Portal Navigator",
     entries = {
       BuildDemoPortalNavigatorEntry(

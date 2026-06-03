@@ -370,36 +370,48 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
   previewLabel:SetText(labels.SETTINGS_NAMEPLATE_PREVIEW or "Preview")
   controls.nameplatePreviewLabel = previewLabel
 
-  local preview = CreateFrame("Frame", nil, canvas, "BackdropTemplate")
-  preview:SetSize(140, 24)
-  preview:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X + 160, yOffset - 4)
-  if type(preview.SetBackdrop) == "function" then
-    preview:SetBackdrop({
+  local preview = CreateFrame("Frame", nil, canvas)
+  preview:SetSize(160, 32)
+  preview:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X + 160, yOffset - 8)
+
+  local previewHealthBar = CreateFrame("Frame", nil, preview, "BackdropTemplate")
+  previewHealthBar:SetSize(140, 16)
+  previewHealthBar:SetPoint("CENTER", preview, "CENTER", 0, 0)
+  preview.UnitFrame = { healthBar = previewHealthBar }
+  preview._isiLivePreviewRoot = true
+  previewHealthBar._isiLivePreviewHealthBar = true
+  if type(previewHealthBar.SetBackdrop) == "function" then
+    previewHealthBar:SetBackdrop({
       bgFile = "Interface\\Buttons\\WHITE8X8",
       edgeFile = "Interface\\Buttons\\WHITE8X8",
       edgeSize = 1,
       insets = { left = 0, right = 0, top = 0, bottom = 0 },
     })
-    if type(preview.SetBackdropColor) == "function" then
-      preview:SetBackdropColor(0.55, 0.12, 0.12, 0.75)
+    if type(previewHealthBar.SetBackdropColor) == "function" then
+      previewHealthBar:SetBackdropColor(0.55, 0.12, 0.12, 0.75)
     end
-    if type(preview.SetBackdropBorderColor) == "function" then
-      preview:SetBackdropBorderColor(0.25, 0.25, 0.25, 0.9)
+    if type(previewHealthBar.SetBackdropBorderColor) == "function" then
+      previewHealthBar:SetBackdropBorderColor(0.25, 0.25, 0.25, 0.9)
     end
   end
 
-  preview.name = preview:CreateFontString(nil, "OVERLAY", "GameFontNormalSmallOutline")
-  preview.name:SetPoint("CENTER", preview, "CENTER", 0, 0)
+  preview.name = previewHealthBar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmallOutline")
+  preview.name:SetPoint("CENTER", previewHealthBar, "CENTER", 0, 0)
   preview.name:SetText(labels.SETTINGS_NAMEPLATE_PREVIEW_MOB or "Test Mob")
   if type(preview.name.SetTextColor) == "function" then
     preview.name:SetTextColor(1, 1, 1, 1)
   end
 
-  preview.overlay = preview:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
+  preview.overlay = previewHealthBar:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
   if type(preview.overlay.SetTextColor) == "function" then
     preview.overlay:SetTextColor(1, 1, 1, 1)
   end
+  local previewOverlayFrame = CreateFrame("Frame", nil, canvas)
+  previewOverlayFrame.text = preview.overlay
+  preview.overlay:SetPoint("CENTER", previewOverlayFrame, "CENTER", 0, 0)
+  controls.nameplatePreviewOverlayFrame = previewOverlayFrame
   controls.nameplatePreview = preview
+  controls.nameplatePreviewHealthBar = previewHealthBar
 
   local function UpdatePreview()
     local db = config.getDB()
@@ -409,45 +421,78 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
       if type(preview.overlay.Hide) == "function" then
         preview.overlay:Hide()
       end
+      if type(previewOverlayFrame.Hide) == "function" then
+        previewOverlayFrame:Hide()
+      end
       return
     end
 
-    local showPercent = db.mobNameplateShowPercent ~= false
-    local parts = {}
-    if showPercent then
-      local text = "1.16%"
-      if db.mobNameplateShowRemaining == true then
-        text = text .. "/24.34%"
+    local mobNameplate = addonTable.MobNameplate
+    if type(mobNameplate) == "table" and type(mobNameplate.ApplyPreview) == "function" then
+      local text = mobNameplate.ApplyPreview(previewOverlayFrame, preview, {
+        showPercent = db.mobNameplateShowPercent ~= false,
+        showRemaining = db.mobNameplateShowRemaining == true,
+        percentString = "1.16",
+        remainingPercentString = db.mobNameplateShowRemaining == true and "24.34" or nil,
+        fontSize = tonumber(db.mobNameplateFontSize) or 14,
+        position = NormalizeNameplatePosition(db.mobNameplatePosition),
+        xOffset = tonumber(db.mobNameplateXOffset) or 0,
+        yOffset = tonumber(db.mobNameplateYOffset) or 0,
+      })
+      if text then
+        return
       end
-      parts[#parts + 1] = text
-    end
-    if #parts == 0 then
       preview.overlay:SetText("")
       if type(preview.overlay.Hide) == "function" then
         preview.overlay:Hide()
       end
+      if type(previewOverlayFrame.Hide) == "function" then
+        previewOverlayFrame:Hide()
+      end
       return
     end
 
-    preview.overlay:SetText(table.concat(parts, " | "))
+    local showPercent = db.mobNameplateShowPercent ~= false
+    local text = nil
+    if showPercent then
+      text = "1.16%"
+      if db.mobNameplateShowRemaining == true then
+        text = text .. "/24.34%"
+      end
+    end
+    if not text then
+      preview.overlay:SetText("")
+      if type(preview.overlay.Hide) == "function" then
+        preview.overlay:Hide()
+      end
+      if type(previewOverlayFrame.Hide) == "function" then
+        previewOverlayFrame:Hide()
+      end
+      return
+    end
+
+    preview.overlay:SetText(text)
     if type(preview.overlay.Show) == "function" then
       preview.overlay:Show()
+    end
+    if type(previewOverlayFrame.Show) == "function" then
+      previewOverlayFrame:Show()
     end
 
     local pos = NormalizeNameplatePosition(db.mobNameplatePosition)
     local xo = tonumber(db.mobNameplateXOffset) or 0
     local yo = tonumber(db.mobNameplateYOffset) or 0
-    if type(preview.overlay.ClearAllPoints) == "function" then
-      preview.overlay:ClearAllPoints()
+    if type(previewOverlayFrame.ClearAllPoints) == "function" then
+      previewOverlayFrame:ClearAllPoints()
     end
     if pos == "LEFT" then
-      preview.overlay:SetPoint("RIGHT", preview, "LEFT", xo, yo)
+      previewOverlayFrame:SetPoint("RIGHT", previewHealthBar, "LEFT", xo, yo)
     elseif pos == "TOP" then
-      preview.overlay:SetPoint("BOTTOM", preview, "TOP", xo, yo)
+      previewOverlayFrame:SetPoint("BOTTOM", previewHealthBar, "TOP", xo, yo)
     elseif pos == "BOTTOM" then
-      preview.overlay:SetPoint("TOP", preview, "BOTTOM", xo, yo)
+      previewOverlayFrame:SetPoint("TOP", previewHealthBar, "BOTTOM", xo, yo)
     else
-      preview.overlay:SetPoint("LEFT", preview, "RIGHT", xo, yo)
+      previewOverlayFrame:SetPoint("LEFT", previewHealthBar, "RIGHT", xo, yo)
     end
 
     local fontSize = tonumber(db.mobNameplateFontSize) or 14

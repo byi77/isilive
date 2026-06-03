@@ -9,7 +9,7 @@ local RequireValue = helpers.RequireValue
 
 local function RegisterSettingsPanelNameplateRoundtripTests(test, Assert, WithGlobals, LoadAddonModules)
   local function BuildPanel(db, createFrameStub, extraOpts)
-    local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_settings.lua" })
+    local addon = LoadAddonModules({ "isiLive_mob_nameplate.lua", "isiLive_ui_common.lua", "isiLive_settings.lua" })
     local opts = {
       getL = function()
         return {
@@ -63,6 +63,27 @@ local function RegisterSettingsPanelNameplateRoundtripTests(test, Assert, WithGl
     -- selector's setter.
     for _, frame in ipairs(createdFrames) do
       if frame._frameType == "Button" and frame._optionValue == value and frame._scripts and frame._scripts.OnClick then
+        return frame
+      end
+    end
+    return nil
+  end
+
+  local function FindPreviewOverlayFrame(createdFrames)
+    for _, frame in ipairs(createdFrames) do
+      if type(frame.text) == "table" and type(frame.text.GetText) == "function" then
+        local text = frame.text:GetText()
+        if text == "1.16%" or text == "1.16%/24.34%" then
+          return frame
+        end
+      end
+    end
+    return nil
+  end
+
+  local function FindPreviewHealthBar(createdFrames)
+    for _, frame in ipairs(createdFrames) do
+      if frame._isiLivePreviewHealthBar == true then
         return frame
       end
     end
@@ -191,6 +212,55 @@ local function RegisterSettingsPanelNameplateRoundtripTests(test, Assert, WithGl
       Assert.Equal(db.mobNameplateShowRemaining, true, "Refresh must NOT overwrite true back to default")
       Assert.True(check:GetChecked(), "Refresh must keep the checkbox visually checked")
       ---@diagnostic enable: undefined-field
+    end)
+  end)
+
+  test("Settings nameplate preview uses the shared MobNameplate renderer", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {
+      mobNameplateEnabled = true,
+      mobNameplateShowPercent = true,
+      mobNameplateShowRemaining = true,
+      mobNameplateFontSize = 20,
+      mobNameplatePosition = "RIGHT",
+      mobNameplateXOffset = 0,
+      mobNameplateYOffset = 0,
+    }
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local panel = Assert.NotNil(BuildPanel(db, createFrameStub), "settings panel must build")
+      local overlayFrame =
+        Assert.NotNil(FindPreviewOverlayFrame(createdFrames), "preview overlay frame must be rendered via MobNameplate")
+      local healthBar =
+        Assert.NotNil(FindPreviewHealthBar(createdFrames), "preview must expose a fake UnitFrame.healthBar anchor")
+      Assert.Equal(overlayFrame.text:GetText(), "1.16%/24.34%", "preview text must match runtime formatter")
+      Assert.Equal(overlayFrame._width, 140, "preview width must use runtime remaining-aware sizing")
+      Assert.Equal(overlayFrame._height, 26, "preview height must use runtime font sizing")
+      Assert.Equal(overlayFrame._point[1], "LEFT", "RIGHT preview must anchor its frame like runtime")
+      Assert.Equal(overlayFrame._point[2], healthBar, "preview must anchor to fake UnitFrame.healthBar like runtime")
+      Assert.Equal(overlayFrame._point[3], "RIGHT", "RIGHT preview must anchor to the preview plate edge")
+      Assert.Equal(overlayFrame._point[4], 8, "zero X offset must apply the runtime anchor gap")
+      Assert.Equal(overlayFrame._point[5], 0, "zero Y offset must keep the preview vertically centered")
+      Assert.Equal(overlayFrame.text._justifyH, "LEFT", "preview text justification must match runtime")
+
+      overlayFrame.text:Hide()
+      panel.Refresh()
+      Assert.True(overlayFrame.text:IsShown(), "preview text must be shown again after a previous hidden state")
+      Assert.True(overlayFrame:IsShown(), "preview overlay frame must be shown with the text")
+
+      db.mobNameplateShowRemaining = false
+      panel.Refresh()
+      Assert.Equal(overlayFrame.text:GetText(), "1.16%", "preview must update through the shared renderer on refresh")
+      Assert.Equal(overlayFrame._width, 80, "preview width must shrink through runtime percent-only sizing")
     end)
   end)
 

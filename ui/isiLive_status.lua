@@ -187,6 +187,10 @@ local function BuildPortalNavigatorLayout(deps)
   if type(title) ~= "string" or title == "" then
     return nil
   end
+  local eyebrow = L.PORTAL_NAVIGATOR_EYEBROW
+  if type(eyebrow) ~= "string" or eyebrow == "" then
+    return nil
+  end
   local entries = {
     {
       slot = "left",
@@ -234,6 +238,7 @@ local function BuildPortalNavigatorLayout(deps)
   end
 
   return {
+    eyebrow = eyebrow,
     title = title,
     entries = entries,
   }

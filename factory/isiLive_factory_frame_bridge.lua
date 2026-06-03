@@ -198,6 +198,7 @@ local function CreateFactoryContext(addonName, tbl)
   ctx.GetUnitNameAndRealm = modules.units.GetUnitNameAndRealm
   ctx.GetPlayerSpecName = modules.units.GetPlayerSpecName
   ctx.GetInspectSpecName = modules.units.GetInspectSpecName
+  ctx.GetInspectSpecRole = modules.units.GetInspectSpecRole
   ctx.GetShortSpecLabel = modules.units.GetShortSpecLabel
   ctx.GetUnitRio = modules.units.GetUnitRio
   ctx.GetOwnAverageItemLevel = modules.keySync and modules.keySync.ResolveAverageItemLevel
@@ -396,11 +397,6 @@ local function InitializeFactoryFrameBridge(ctx)
     return type(inCombatFn) == "function" and inCombatFn() == true
   end
 
-  ctx.portalNavigatorNotice = modules.notice.CreatePortalNavigatorNotice({
-    parent = UIParent,
-    frameName = "isiLivePortalNavigatorNotice",
-  })
-
   local frameBridgeContext = modules.frameBridge.CreateContext({
     createCenterNotice = modules.notice.CreateCenterNotice,
     createMainFrame = modules.ui.CreateMainFrame,
@@ -462,6 +458,22 @@ local function InitializeFactoryFrameBridge(ctx)
   ctx.centerNotice = frameBridgeContext.centerNotice
   ctx.centerNoticeFrame = frameBridgeContext.centerNoticeFrame
   ctx.centerNoticeTeleportButton = frameBridgeContext.centerNoticeTeleportButton
+  ctx.mainUI = frameBridgeContext.mainUI
+  ctx.mainFrame = frameBridgeContext.mainFrame
+  local centerFrameStrata = type(ctx.mainFrame) == "table"
+      and type(ctx.mainFrame.GetFrameStrata) == "function"
+      and ctx.mainFrame:GetFrameStrata()
+    or nil
+  local centerFrameLevel = type(ctx.mainFrame) == "table"
+      and type(ctx.mainFrame.GetFrameLevel) == "function"
+      and ctx.mainFrame:GetFrameLevel()
+    or nil
+  ctx.portalNavigatorNotice = modules.notice.CreatePortalNavigatorNotice({
+    parent = UIParent,
+    frameName = "isiLivePortalNavigatorNotice",
+    frameStrata = centerFrameStrata,
+    frameLevel = centerFrameLevel,
+  })
   ctx.demoCenterNotices = {
     modules.notice.CreateCenterNotice({
       parent = UIParent,
@@ -474,6 +486,8 @@ local function InitializeFactoryFrameBridge(ctx)
       buttonHeight = 36,
       buttonGap = 8,
       yOffset = -20,
+      frameStrata = centerFrameStrata,
+      frameLevel = centerFrameLevel,
       isInCombat = ctx.IsInCombat,
       resolveTeleportSpellID = ctx.ResolveTeleportSpellID,
       resolveTeleportSpellIDByMapID = ctx.ResolveTeleportSpellIDByMapID,
@@ -497,6 +511,8 @@ local function InitializeFactoryFrameBridge(ctx)
       buttonHeight = 36,
       buttonGap = 8,
       yOffset = -245,
+      frameStrata = centerFrameStrata,
+      frameLevel = centerFrameLevel,
       isInCombat = ctx.IsInCombat,
       resolveTeleportSpellID = ctx.ResolveTeleportSpellID,
       resolveTeleportSpellIDByMapID = ctx.ResolveTeleportSpellIDByMapID,
@@ -511,8 +527,6 @@ local function InitializeFactoryFrameBridge(ctx)
     }),
   }
   ctx.portalNavigatorNoticeFrame = ctx.portalNavigatorNotice.frame
-  ctx.mainUI = frameBridgeContext.mainUI
-  ctx.mainFrame = frameBridgeContext.mainFrame
   ctx.SetCenterNoticeVisible = function(visible)
     frameBridgeContext.SetCenterNoticeVisible(visible)
   end

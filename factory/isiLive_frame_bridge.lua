@@ -47,27 +47,6 @@ function FrameBridge.CreateContext(opts)
       return nil
     end
 
-  local centerNotice = createCenterNotice({
-    parent = opts.parent,
-    minHeight = tonumber(opts.centerNoticeMinHeight) or 70,
-    maxHeight = tonumber(opts.centerNoticeMaxHeight) or 220,
-    paddingX = tonumber(opts.centerNoticePaddingX) or 20,
-    paddingY = tonumber(opts.centerNoticePaddingY) or 12,
-    buttonHeight = tonumber(opts.centerNoticeButtonHeight) or 36,
-    buttonGap = tonumber(opts.centerNoticeButtonGap) or 8,
-    isInCombat = isInCombat,
-    resolveTeleportSpellID = resolveTeleportSpellID,
-    resolveTeleportSpellIDByMapID = resolveTeleportSpellIDByMapID,
-    resolveMapIDBySpellID = resolveMapIDBySpellID,
-    resolveMapIDByActivityID = resolveMapIDByActivityID,
-    applySecureSpellToButton = applySecureSpellToButton,
-    isSpellKnown = isSpellKnown,
-    getTeleportCooldownRemaining = getTeleportCooldownRemaining,
-    formatCooldownSeconds = formatCooldownSeconds,
-    getDungeonName = getDungeonName,
-    getL = getL,
-  })
-
   local mainUI = createMainFrame({
     minHeight = tonumber(opts.mainFrameMinHeight) or 212,
     parent = opts.parent,
@@ -81,12 +60,45 @@ function FrameBridge.CreateContext(opts)
     onOpenSettings = onOpenSettings,
   })
 
+  local mainFrame = mainUI.frame
+  local mainFrameStrata = type(mainFrame) == "table"
+      and type(mainFrame.GetFrameStrata) == "function"
+      and mainFrame:GetFrameStrata()
+    or nil
+  local mainFrameLevel = type(mainFrame) == "table"
+      and type(mainFrame.GetFrameLevel) == "function"
+      and mainFrame:GetFrameLevel()
+    or nil
+
+  local centerNotice = createCenterNotice({
+    parent = opts.parent,
+    minHeight = tonumber(opts.centerNoticeMinHeight) or 70,
+    maxHeight = tonumber(opts.centerNoticeMaxHeight) or 220,
+    paddingX = tonumber(opts.centerNoticePaddingX) or 20,
+    paddingY = tonumber(opts.centerNoticePaddingY) or 12,
+    buttonHeight = tonumber(opts.centerNoticeButtonHeight) or 36,
+    buttonGap = tonumber(opts.centerNoticeButtonGap) or 8,
+    frameStrata = mainFrameStrata,
+    frameLevel = mainFrameLevel,
+    isInCombat = isInCombat,
+    resolveTeleportSpellID = resolveTeleportSpellID,
+    resolveTeleportSpellIDByMapID = resolveTeleportSpellIDByMapID,
+    resolveMapIDBySpellID = resolveMapIDBySpellID,
+    resolveMapIDByActivityID = resolveMapIDByActivityID,
+    applySecureSpellToButton = applySecureSpellToButton,
+    isSpellKnown = isSpellKnown,
+    getTeleportCooldownRemaining = getTeleportCooldownRemaining,
+    formatCooldownSeconds = formatCooldownSeconds,
+    getDungeonName = getDungeonName,
+    getL = getL,
+  })
+
   local context = {
     centerNotice = centerNotice,
     centerNoticeFrame = centerNotice.frame,
     centerNoticeTeleportButton = centerNotice.teleportButton,
     mainUI = mainUI,
-    mainFrame = mainUI.frame,
+    mainFrame = mainFrame,
   }
 
   function context.SetCenterNoticeVisible(visible)

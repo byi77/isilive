@@ -82,6 +82,9 @@ local function MakeFrame()
   function f:SetFrameStrata(s)
     self._strata = s
   end
+  function f:GetFrameStrata()
+    return self._strata
+  end
   function f:SetFrameLevel(level)
     self._frameLevel = level
   end
@@ -577,6 +580,7 @@ local function RegisterDefensivePathTests(test, Assert, WithGlobals, LoadAddonMo
   test("MobNameplate ApplyPosition keeps default offsets clear of the plate edge", function()
     local plate = MakeFrame()
     plate:SetFrameLevel(42)
+    plate:SetFrameStrata("LOW")
     local globals = BuildEnv({
       units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
       nameplates = { nameplate1 = plate },
@@ -595,6 +599,7 @@ local function RegisterDefensivePathTests(test, Assert, WithGlobals, LoadAddonMo
         globals.UIParent,
         "overlay frame must stay on UIParent so external nameplate scale does not alter font size"
       )
+      Assert.Equal(frame._strata, "LOW", "overlay frame must use the same strata as the nameplate")
       Assert.Equal(frame._frameLevel, 62, "overlay frame must render above the nameplate frame level")
       Assert.Equal(frame._points[1], "TOP", "BOTTOM position must anchor the overlay top edge")
       Assert.Equal(frame._points[3], "BOTTOM", "BOTTOM position must anchor below the nameplate")
@@ -605,14 +610,17 @@ local function RegisterDefensivePathTests(test, Assert, WithGlobals, LoadAddonMo
       Assert.Equal(frame._points[1], "LEFT", "RIGHT position must anchor the overlay left edge")
       Assert.Equal(frame._points[3], "RIGHT", "RIGHT position must anchor outside the nameplate")
       Assert.Equal(frame._points[4], 8, "zero xOffset must still keep the text beside the plate edge")
+      Assert.Equal(frame._points[5], 0, "zero yOffset must keep RIGHT position vertically centered on the anchor")
     end)
   end)
 
   test("MobNameplate ApplyPosition anchors to the observed healthbar child when available", function()
     local plate = MakeFrame()
     plate:SetFrameLevel(10)
+    plate:SetFrameStrata("HIGH")
     local healthBar = MakeFrame()
     healthBar:SetFrameLevel(50)
+    healthBar:SetFrameStrata("TOOLTIP")
     plate.UnitFrame = {
       healthBar = healthBar,
     }
@@ -639,10 +647,140 @@ local function RegisterDefensivePathTests(test, Assert, WithGlobals, LoadAddonMo
         healthBar,
         "RIGHT position must anchor to UnitFrame.healthBar, not the wider root plate"
       )
+      Assert.Equal(frame._strata, "HIGH", "overlay strata must match the root nameplate, not force TOOLTIP")
       Assert.Equal(frame._points[1], "LEFT", "RIGHT position must keep the overlay left edge as the anchor point")
       Assert.Equal(frame._points[3], "RIGHT", "RIGHT position must use the healthbar right edge")
       Assert.Equal(frame._frameLevel, 70, "overlay frame level must be above the observed healthbar")
       Assert.Equal(frame.text._font.size, 23, "healthbar anchoring must still apply the configured font size")
+    end)
+  end)
+
+  test("MobNameplate ApplyPosition anchors to the Plater unitFrame healthBar when available", function()
+    local plate = MakeFrame()
+    plate:SetFrameLevel(10)
+    plate:SetFrameStrata("HIGH")
+    local platerHealthBar = MakeFrame()
+    platerHealthBar:SetFrameLevel(60)
+    plate.unitFrame = {
+      healthBar = platerHealthBar,
+    }
+    local globals = BuildEnv({
+      units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = plate },
+      progressValues = { nameplate1 = { count = 5, total = 431, percent = "1.16" } },
+      C_AddOns = {
+        IsAddOnLoaded = function(name)
+          return name == "Plater"
+        end,
+      },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      addon.MobNameplate.SetAppearance({ position = "RIGHT", xOffset = 0, yOffset = 0 })
+      addon.MobNameplate.SetEnabled(true)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+
+      local frame = addon.MobNameplate._Test_GetFrames()["nameplate1"]
+      frame = Assert.NotNil(frame, "frame must exist for Plater healthbar anchor")
+      Assert.Equal(frame._points[2], platerHealthBar, "Plater unitFrame.healthBar must be used as the anchor")
+      Assert.Equal(frame._points[1], "LEFT", "RIGHT position must anchor the overlay left edge")
+      Assert.Equal(frame._points[3], "RIGHT", "RIGHT position must use the Plater healthbar right edge")
+      Assert.Equal(frame._points[4], 8, "zero xOffset must still keep the text beside the visible bar")
+      Assert.Equal(frame._points[5], 0, "zero yOffset must keep RIGHT position vertically centered")
+      Assert.Equal(frame._frameLevel, 80, "overlay frame level must render above the Plater healthbar")
+      Assert.Equal(
+        frame._isiLiveAnchorSource,
+        "unitFrame.healthBar",
+        "diagnostics must expose the Plater anchor source"
+      )
+    end)
+  end)
+
+  test("MobNameplate ApplyPosition anchors to the Platynator display health widget when available", function()
+    local plate = MakeFrame()
+    plate:SetFrameLevel(10)
+    plate:SetFrameStrata("HIGH")
+    local hiddenBlizzardHealthBar = MakeFrame()
+    hiddenBlizzardHealthBar:SetFrameLevel(20)
+    plate.UnitFrame = {
+      healthBar = hiddenBlizzardHealthBar,
+    }
+    local platynatorHealthWidget = MakeFrame()
+    platynatorHealthWidget:SetFrameLevel(70)
+    platynatorHealthWidget.details = { kind = "health" }
+    platynatorHealthWidget.statusBar = MakeFrame()
+    platynatorHealthWidget:Show()
+    local platynatorDisplay = {
+      widgets = {
+        platynatorHealthWidget,
+      },
+    }
+    function plate:GetChildren()
+      return platynatorDisplay
+    end
+    local globals = BuildEnv({
+      units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = plate },
+      progressValues = { nameplate1 = { count = 5, total = 431, percent = "1.16" } },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      addon.MobNameplate.SetAppearance({ position = "RIGHT", xOffset = 0, yOffset = 0 })
+      addon.MobNameplate.SetEnabled(true)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+
+      local frame = addon.MobNameplate._Test_GetFrames()["nameplate1"]
+      frame = Assert.NotNil(frame, "frame must exist for Platynator health widget anchor")
+      Assert.Equal(
+        frame._points[2],
+        platynatorHealthWidget,
+        "Platynator's visible health widget must win over the hidden Blizzard healthbar"
+      )
+      Assert.Equal(frame._points[1], "LEFT", "RIGHT position must anchor the overlay left edge")
+      Assert.Equal(frame._points[3], "RIGHT", "RIGHT position must use the Platynator healthbar right edge")
+      Assert.Equal(frame._points[4], 8, "zero xOffset must still keep the text beside the visible bar")
+      Assert.Equal(frame._points[5], 0, "zero yOffset must keep RIGHT position vertically centered")
+      Assert.Equal(frame._frameLevel, 90, "overlay frame level must render above the visible Platynator health widget")
+      Assert.Equal(
+        frame._isiLiveAnchorSource,
+        "platynator-health-widget",
+        "diagnostics must expose the live anchor source"
+      )
+    end)
+  end)
+
+  test("MobNameplate ApplyPreview uses the runtime text, size and healthbar anchor path", function()
+    local plate = MakeFrame()
+    plate:SetFrameLevel(10)
+    local healthBar = MakeFrame()
+    healthBar:SetFrameLevel(50)
+    plate.UnitFrame = { healthBar = healthBar }
+    local previewFrame = MakeFrame()
+    previewFrame.text = MakeFontString()
+    local globals = BuildEnv()
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      local text = addon.MobNameplate.ApplyPreview(previewFrame, plate, {
+        showPercent = true,
+        showRemaining = true,
+        percentString = "1.16",
+        remainingPercentString = "24.34",
+        fontSize = 20,
+        position = "RIGHT",
+        xOffset = 0,
+        yOffset = 0,
+      })
+
+      Assert.Equal(text, "1.16%/24.34%", "preview text must use the same formatter as runtime")
+      Assert.True(previewFrame._shown == true, "preview overlay frame must be visible")
+      Assert.Equal(previewFrame.text._text, "1.16%/24.34%", "preview FontString must receive the rendered text")
+      Assert.Equal(previewFrame._size[1], 140, "preview frame width must use the remaining-aware runtime size")
+      Assert.Equal(previewFrame._size[2], 26, "preview frame height must derive from the runtime font size")
+      Assert.Equal(previewFrame._points[2], healthBar, "preview must anchor to the same healthbar target as runtime")
+      Assert.Equal(previewFrame._points[4], 8, "preview must apply the runtime right-side anchor gap")
+      Assert.Equal(previewFrame._points[5], 0, "preview must keep zero yOffset vertically centered on the anchor")
+      Assert.Equal(previewFrame.text._font.size, 20, "preview must apply runtime font sizing")
+      Assert.Equal(previewFrame.text._justifyH, "LEFT", "preview text alignment must match RIGHT runtime position")
     end)
   end)
 
@@ -905,6 +1043,32 @@ local function RegisterFontSizeTests(test, Assert, WithGlobals, LoadAddonModules
       Assert.Equal(font.size, 16, "fontSize must still be honoured when Plater is loaded")
     end)
   end)
+
+  test("MobNameplate overlay renders when Platynator is loaded", function()
+    local globals = BuildEnv({
+      units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = MakeFrame() },
+      progressValues = { nameplate1 = { count = 5, total = 431, percent = "1.16" } },
+      C_AddOns = {
+        IsAddOnLoaded = function(name)
+          return name == "Platynator"
+        end,
+      },
+    })
+
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      addon.MobNameplate.SetAppearance({ fontSize = 18 })
+      addon.MobNameplate.SetEnabled(true)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+
+      local frame = addon.MobNameplate._Test_GetFrames()["nameplate1"]
+      frame = Assert.NotNil(frame, "frame must still be created when Platynator is loaded")
+      Assert.True(frame._shown == true, "overlay must render even with Platynator loaded")
+      Assert.Equal(frame.text._text, "1.16%", "Platynator presence must not alter the rendered percent text")
+      Assert.Equal(frame.text._font.size, 18, "fontSize must still be honoured when Platynator is loaded")
+    end)
+  end)
 end
 
 local function RegisterDebugSurfaceTests(test, Assert, WithGlobals, LoadAddonModules)
@@ -931,6 +1095,43 @@ local function RegisterDebugSurfaceTests(test, Assert, WithGlobals, LoadAddonMod
       local off = addon.MobNameplate.SetTestMode(false)
       Assert.True(off == false, "SetTestMode(false) must return the resulting off state")
       Assert.False(addon.MobNameplate.IsTestMode(), "IsTestMode() must be false after toggling off")
+    end)
+  end)
+
+  test("MobNameplate.SetTestMode can render remaining percent from explicit demo map context", function()
+    local globals = BuildEnv({
+      challengeActive = false,
+      units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = MakeFrame() },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules, {
+        KillTrack = {
+          GetData = function()
+            return {
+              active = true,
+              mapID = 559,
+              percent = 75.66,
+              total = 431,
+            }
+          end,
+        },
+      })
+      addon.MobNameplate.SetFormat({ showPercent = true, showRemaining = true })
+      addon.MobNameplate.SetTestMode(true, "12.34", { activeMapID = 559 })
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+
+      local frame = addon.MobNameplate._Test_GetFrames()["nameplate1"]
+      frame = Assert.NotNil(frame, "test mode must render against an eligible demo nameplate")
+      Assert.Equal(
+        frame.text._text,
+        "12.34%/24.34%",
+        "demo test mode must use the explicit map context for remaining-percent rendering"
+      )
+
+      addon.MobNameplate.SetTestMode(false)
+      local state = addon.MobNameplate.DumpFrames()
+      Assert.Nil(state.testActiveMapID, "turning test mode off must clear the demo map context")
     end)
   end)
 

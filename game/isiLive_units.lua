@@ -282,6 +282,29 @@ function Units.GetInspectSpecName(unit)
   return nil
 end
 
+function Units.GetInspectSpecRole(unit)
+  local getInspectSpecialization = rawget(_G, "GetInspectSpecialization")
+  local getSpecializationRoleByID = rawget(_G, "GetSpecializationRoleByID")
+  if
+    not IsExistingUnit(unit)
+    or type(getInspectSpecialization) ~= "function"
+    or type(getSpecializationRoleByID) ~= "function"
+  then
+    return nil
+  end
+
+  local okSpec, specID = pcall(getInspectSpecialization, unit)
+  if not okSpec or type(specID) ~= "number" or specID <= 0 then
+    return nil
+  end
+
+  local okRole, role = pcall(getSpecializationRoleByID, specID)
+  if okRole and (role == "TANK" or role == "HEALER" or role == "DAMAGER") then
+    return role
+  end
+  return nil
+end
+
 function Units.GetShortSpecLabel(specName)
   if type(specName) ~= "string" or specName == "" then
     return specName

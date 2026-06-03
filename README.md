@@ -4,7 +4,7 @@
 
 - **For:** M+ players in pre-made groups and LFG runs
 - **WoW version:** `12.0+` (Midnight) only
-- **Current version:** `0.9.297`
+- **Current version:** `0.9.298`
 - **Active season:** `midnight_s1` — 8 dungeons (Wing, MT, NPX, MC, AA, POS, SOT, SR)
 
 ---
@@ -102,7 +102,7 @@ The selected layout is remembered across sessions.
 
 Columns in order: **Spec · Name · Lang · Key · iLvl · RIO · DPS · Kick**
 
-- **Spec** — role-sorted: tanks first, then healers, then DPS
+- **Spec** — role-sorted: tanks first, then healers, then DPS. Once a player's inspected specialization is verified, isiLive corrects stale group-role assignments through Blizzard's specialization role API.
 - **Lang** — spoken-language flag for the player
 - **Key** — keystone and level, short code (e.g. `MT +14`, `DAWN+12`). Red if this player owns the key you joined for.
 - **iLvl** — equipped item level
@@ -198,6 +198,8 @@ Default-on text over every hostile unit's nameplate during a key; Settings -> Na
 
 Configurable: percent toggle, font size 8-24, position around the nameplate (LEFT/RIGHT/TOP/BOTTOM). Same DB-based source as the tooltip — deterministic mob contribution, never the cumulative progress.
 
+The Settings preview uses the same formatter and anchor semantics as the live overlay. With Platynator, isiLive anchors to Platynator's visible health widget when that frame is present; otherwise it falls back to Blizzard-style healthbar anchors.
+
 ### Player stats box
 
 An optional standalone stats box can be enabled in Settings. It is independent from the M+, H, and V layouts and can be moved separately.
@@ -208,7 +210,7 @@ An optional standalone stats box can be enabled in Settings. It is independent f
 - Can be locked, hidden, moved, and configured with separate background opacity and relative font size
 - Starts disabled by default
 
-Plater / Platynator users: a soft warning is shown in Settings if either is loaded — both addons can already display M+ forces on nameplates via their own scripts, so you can disable isiLive's overlay there if you prefer to avoid duplication.
+Plater / Platynator users: a soft warning is shown in Settings if either is loaded. isiLive still renders when enabled and does not hard-disable itself; you can turn the overlay off there if you prefer an external addon script to own M+ forces text.
 
 ### Battle Res / Bloodlust chat announce
 
