@@ -3,11 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.298`.
+Current release: `0.9.299`.
 
 Highlights:
-- Fixed roster role assignment after verified inspect updates, so stale group roles are corrected from Blizzard's specialization role API.
-- Fixed M+ forces nameplate percentage anchoring for Blizzard nameplates, Plater, and Platynator by using the observed real healthbar anchor semantics.
-- Added nameplate diagnostics and demo coverage for runtime anchor source, percentage position, font size, and offsets.
-- Aligned center notice and Portal Navigator layers with the main M+ UI frame.
-- Restyled the Portal Navigator header with the matching blue eyebrow, gold season title, and lowered separator.
+- Reorganized the Blizzard Settings panel into clearer thematic sections while keeping runtime behavior unchanged.
+- Restored the Beta notice to the top of Settings and moved VIP guest mount sound controls to the bottom.
+- Moved Portal Navigator into Display extras and moved Blizzard Combat Logging / Damage Meter reset into Administrative.
+- Added deterministic coverage for the Settings section order.
+- Refreshed the Settings documentation and release baselines for `0.9.299`.

@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-06-07 - Version 0.9.299 (patch)
+
+- Reorganized the Blizzard Settings panel into clearer thematic sections:
+  Beta notice first, then General, ESC Menu, Display, Behavior, Nameplates,
+  Sounds, Chat Announcements, Administrative, and VIP Guest Settings last.
+- Moved ESC shortcut and Hearthstone controls into their own ESC Menu block.
+- Moved Portal Navigator from General into Display extras, next to the minimap
+  button, and added a thin separator before the Group Finder display controls.
+- Moved Blizzard Advanced Combat Logging and Damage Meter reset toggles from
+  General into Administrative, ahead of the debug-log controls.
+- Updated English and German Settings section hints for the new grouping while
+  keeping locale keys aligned across all prepared locale tables.
+- Added deterministic coverage for the Settings section order.
+
 ## 2026-06-03 - Version 0.9.298 (patch)
 
 - Fixed roster role assignment after inspected spec changes by deriving a

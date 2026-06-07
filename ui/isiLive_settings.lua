@@ -12,8 +12,10 @@ local SETTINGS_CONTENT_WIDTH = 700
 local ISILIVE_BRAND_TITLE = "isi|cff1e90ffLive|r"
 local CreateSettingsIntro = addonTable.SettingsControls.CreateSettingsIntro
 local BuildGeneralSettingsSection = addonTable.SettingsSections.BuildGeneralSection
+local BuildEscMenuSettingsSection = addonTable.SettingsSections.BuildEscMenuSection
 local BuildDisplaySettingsSection = addonTable.SettingsSections.BuildDisplaySection
 local RefreshGeneralControls = addonTable.SettingsSections.RefreshGeneralControls
+local RefreshEscMenuControls = addonTable.SettingsSections.RefreshEscMenuControls
 local RefreshDisplayControls = addonTable.SettingsSections.RefreshDisplayControls
 local BuildNameplatesSettingsSection = addonTable.SettingsNameplates.BuildSection
 local BuildBehaviorSettingsSection = addonTable.SettingsBehavior.BuildSection
@@ -118,7 +120,8 @@ local function RefreshSettingsControls(controls, config)
     "SETTINGS_PAGE_HINT",
     "Use the sections below to tune layout, behavior, and audio cues."
   )
-  RefreshGeneralControls(controls, freshL, db, config)
+  RefreshGeneralControls(controls, freshL)
+  RefreshEscMenuControls(controls, freshL, db, config)
   RefreshDisplayControls(controls, freshL, db, config)
   SetLocalizedText(controls.nameplatesHeader, "SETTINGS_SECTION_NAMEPLATES", "Nameplates")
   SetLocalizedText(
@@ -262,11 +265,13 @@ function SettingsPanel.Create(opts)
   y = y - SECTION_GAP
   y = BuildGeneralSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
+  y = BuildEscMenuSettingsSection(content, y, L, config, controls)
+  y = y - SECTION_GAP
   y = BuildDisplaySettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
-  y = BuildNameplatesSettingsSection(content, y, L, config, controls)
-  y = y - SECTION_GAP
   y = BuildBehaviorSettingsSection(content, y, L, config, controls)
+  y = y - SECTION_GAP
+  y = BuildNameplatesSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
   y = BuildSoundSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP

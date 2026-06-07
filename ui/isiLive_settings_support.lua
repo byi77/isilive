@@ -37,6 +37,22 @@ local function SetDescription(control, text)
   end
 end
 
+local function GetCVarEnabled(name)
+  local getCVar = rawget(_G, "GetCVar")
+  if type(getCVar) == "function" then
+    return getCVar(name) == "1"
+  end
+
+  return false
+end
+
+local function SetCVarEnabled(name, checked)
+  local setCVar = rawget(_G, "SetCVar")
+  if type(setCVar) == "function" then
+    setCVar(name, checked and "1" or "0")
+  end
+end
+
 local function AttachResetUiHint(canvas, control, labels)
   if type(control) ~= "table" or type(control.button) ~= "table" then
     return nil
@@ -119,15 +135,48 @@ function SettingsSupport.BuildChatSection(canvas, yOffset, labels, config, contr
 end
 
 function SettingsSupport.BuildDebugSection(canvas, yOffset, labels, config, controls)
-  controls.debugHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_SECTION_DEBUG or "Debug")
+  controls.debugHeader, yOffset =
+    CreateSectionHeader(canvas, yOffset, labels.SETTINGS_SECTION_DEBUG or "Administrative")
   controls.debugHint, yOffset = CreateSectionNote(
     canvas,
     yOffset,
-    labels.SETTINGS_SECTION_DEBUG_HINT or "Logs reset on reload and help with support."
+    labels.SETTINGS_SECTION_DEBUG_HINT or "System toggles, diagnostics, reset actions, and support links."
   )
   if controls.debugHint then
     controls.debugHint._sectionKey = "SETTINGS_SECTION_DEBUG"
   end
+
+  controls.combatLog, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_COMBAT_LOGGING or "Advanced Combat Logging",
+    function()
+      return GetCVarEnabled("advancedCombatLogging")
+    end,
+    function(checked)
+      SetCVarEnabled("advancedCombatLogging", checked)
+    end,
+    "SETTINGS_COMBAT_LOGGING",
+    DescriptionOptions(
+      labels.SETTINGS_COMBAT_LOGGING_DESC or "Enables Blizzard's advanced combat log for external log analysis."
+    )
+  )
+
+  controls.dmReset, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_DM_RESET or "Reset Blizzard Damage Meter on dungeon entry",
+    function()
+      return GetCVarEnabled("damageMeterResetOnNewInstance")
+    end,
+    function(checked)
+      SetCVarEnabled("damageMeterResetOnNewInstance", checked)
+    end,
+    "SETTINGS_DM_RESET",
+    DescriptionOptions(
+      labels.SETTINGS_DM_RESET_DESC or "Clears Blizzard's built-in damage meter when you enter a new dungeon."
+    )
+  )
 
   controls.queueDebug, yOffset = CreateSettingsCheckbox(
     canvas,
@@ -328,10 +377,28 @@ function SettingsSupport.RefreshControls(controls, labels, db, config)
   end
 
   if controls.debugHeader then
-    controls.debugHeader:SetText(labels.SETTINGS_SECTION_DEBUG or "Debug")
+    controls.debugHeader:SetText(labels.SETTINGS_SECTION_DEBUG or "Administrative")
   end
   if controls.debugHint then
-    controls.debugHint:SetText(labels.SETTINGS_SECTION_DEBUG_HINT or "Logs reset on reload and help with support.")
+    controls.debugHint:SetText(
+      labels.SETTINGS_SECTION_DEBUG_HINT or "System toggles, diagnostics, reset actions, and support links."
+    )
+  end
+  if controls.combatLog then
+    controls.combatLog.label:SetText(labels.SETTINGS_COMBAT_LOGGING or "Advanced Combat Logging")
+    SetDescription(
+      controls.combatLog,
+      labels.SETTINGS_COMBAT_LOGGING_DESC or "Enables Blizzard's advanced combat log for external log analysis."
+    )
+    controls.combatLog.check:SetChecked(GetCVarEnabled("advancedCombatLogging"))
+  end
+  if controls.dmReset then
+    controls.dmReset.label:SetText(labels.SETTINGS_DM_RESET or "Reset Blizzard Damage Meter on dungeon entry")
+    SetDescription(
+      controls.dmReset,
+      labels.SETTINGS_DM_RESET_DESC or "Clears Blizzard's built-in damage meter when you enter a new dungeon."
+    )
+    controls.dmReset.check:SetChecked(GetCVarEnabled("damageMeterResetOnNewInstance"))
   end
   if controls.queueDebug then
     controls.queueDebug.label:SetText(labels.SETTINGS_QUEUE_DEBUG or "Queue Debug Log")

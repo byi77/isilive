@@ -227,22 +227,6 @@ local function NotifyStatsBoxOptionsChanged(config)
   end
 end
 
-local function GetCVarEnabled(name)
-  local getCVar = rawget(_G, "GetCVar")
-  if type(getCVar) == "function" then
-    return getCVar(name) == "1"
-  end
-
-  return false
-end
-
-local function SetCVarEnabled(name, checked)
-  local setCVar = rawget(_G, "SetCVar")
-  if type(setCVar) == "function" then
-    setCVar(name, checked and "1" or "0")
-  end
-end
-
 local function SetLocalizedText(control, labels, key, fallback)
   if control and type(control.SetText) == "function" then
     control:SetText(labels[key] or fallback)
@@ -324,37 +308,23 @@ function SettingsSections.BuildGeneralSection(canvas, yOffset, labels, config, c
     )
   )
 
-  controls.combatLog, yOffset = CreateSettingsCheckbox(
-    canvas,
-    yOffset,
-    labels.SETTINGS_COMBAT_LOGGING or "Advanced Combat Logging",
-    function()
-      return GetCVarEnabled("advancedCombatLogging")
-    end,
-    function(checked)
-      SetCVarEnabled("advancedCombatLogging", checked)
-    end,
-    "SETTINGS_COMBAT_LOGGING",
-    CheckboxDescriptionOptions(
-      labels.SETTINGS_COMBAT_LOGGING_DESC or "Enables Blizzard's advanced combat log for external log analysis."
-    )
-  )
+  return yOffset
+end
 
-  controls.dmReset, yOffset = CreateSettingsCheckbox(
+function SettingsSections.BuildEscMenuSection(canvas, yOffset, labels, config, controls)
+  controls.escMenuHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_ESC_PANEL or "ESC Menu")
+  if controls.escMenuHeader then
+    controls.escMenuHeader._sectionKey = "SETTINGS_ESC_PANEL"
+  end
+
+  controls.escMenuHint, yOffset = CreateSectionNote(
     canvas,
     yOffset,
-    labels.SETTINGS_DM_RESET or "Reset Blizzard Damage Meter on dungeon entry",
-    function()
-      return GetCVarEnabled("damageMeterResetOnNewInstance")
-    end,
-    function(checked)
-      SetCVarEnabled("damageMeterResetOnNewInstance", checked)
-    end,
-    "SETTINGS_DM_RESET",
-    CheckboxDescriptionOptions(
-      labels.SETTINGS_DM_RESET_DESC or "Clears Blizzard's built-in damage meter when you enter a new dungeon."
-    )
+    labels.SETTINGS_ESC_PANEL_DESC or "Adds isiLive's shortcut panel to the ESC menu for quick access."
   )
+  if controls.escMenuHint then
+    controls.escMenuHint._sectionKey = "SETTINGS_ESC_PANEL"
+  end
 
   controls.escPanel, yOffset = CreateSettingsCheckbox(
     canvas,
@@ -374,28 +344,6 @@ function SettingsSections.BuildGeneralSection(canvas, yOffset, labels, config, c
     "SETTINGS_ESC_PANEL",
     CheckboxDescriptionOptions(
       labels.SETTINGS_ESC_PANEL_DESC or "Adds isiLive's shortcut panel to the ESC menu for quick access."
-    )
-  )
-
-  controls.portalNavigator, yOffset = CreateSettingsCheckbox(
-    canvas,
-    yOffset,
-    labels.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR or "Show Timeways Navigator",
-    function()
-      local db = config.getDB()
-      return db.showPortalNavigator ~= false
-    end,
-    function(checked)
-      local db = config.getDB()
-      db.showPortalNavigator = checked
-      if type(config.onPortalNavigatorToggle) == "function" then
-        config.onPortalNavigatorToggle(checked)
-      end
-    end,
-    "SETTINGS_SHOW_TIMEWAYS_NAVIGATOR",
-    CheckboxDescriptionOptions(
-      labels.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR_DESC
-        or "Shows the Timeways portal navigator when a known target dungeon can be resolved."
     )
   )
 
@@ -713,6 +661,30 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
     CheckboxDescriptionOptions(labels.SETTINGS_MINIMAP_BUTTON_DESC or "Shows the isiLive minimap button.")
   )
 
+  controls.portalNavigator, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR or "Show Timeways Navigator",
+    function()
+      local db = config.getDB()
+      return db.showPortalNavigator ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.showPortalNavigator = checked
+      if type(config.onPortalNavigatorToggle) == "function" then
+        config.onPortalNavigatorToggle(checked)
+      end
+    end,
+    "SETTINGS_SHOW_TIMEWAYS_NAVIGATOR",
+    CheckboxDescriptionOptions(
+      labels.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR_DESC
+        or "Shows the Timeways portal navigator when a known target dungeon can be resolved."
+    )
+  )
+
+  controls.lfgDisplaySeparator, yOffset = CreateChildSeparator(canvas, yOffset)
+
   controls.lfgFlags, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
@@ -810,7 +782,7 @@ function SettingsSections.BuildDisplaySection(canvas, yOffset, labels, config, c
   return yOffset
 end
 
-function SettingsSections.RefreshGeneralControls(controls, labels, db, config)
+function SettingsSections.RefreshGeneralControls(controls, labels)
   if controls.generalHeader then
     controls.generalHeader:SetText(labels.SETTINGS_SECTION_GENERAL or "General")
   end
@@ -825,22 +797,25 @@ function SettingsSections.RefreshGeneralControls(controls, labels, db, config)
     SetControlDescription(controls.lang, labels.SETTINGS_LANGUAGE_DESC or "Changes the isiLive addon language.")
     controls.lang.UpdateHighlight()
   end
-  if controls.combatLog then
-    controls.combatLog.label:SetText(labels.SETTINGS_COMBAT_LOGGING or "Advanced Combat Logging")
-    SetCheckboxDescription(
-      controls.combatLog,
-      labels.SETTINGS_COMBAT_LOGGING_DESC or "Enables Blizzard's advanced combat log for external log analysis."
+  if controls.defaultLayout then
+    SetControlDescription(
+      controls.defaultLayout,
+      labels.SETTINGS_DEFAULT_OPEN_UI_DESC or "Chooses which main layout opens when isiLive is shown."
     )
-    controls.combatLog.check:SetChecked(GetCVarEnabled("advancedCombatLogging"))
+    controls.defaultLayout.UpdateHighlight()
   end
-  if controls.dmReset then
-    controls.dmReset.label:SetText(labels.SETTINGS_DM_RESET or "Reset Blizzard Damage Meter on dungeon entry")
-    SetCheckboxDescription(
-      controls.dmReset,
-      labels.SETTINGS_DM_RESET_DESC or "Clears Blizzard's built-in damage meter when you enter a new dungeon."
-    )
-    controls.dmReset.check:SetChecked(GetCVarEnabled("damageMeterResetOnNewInstance"))
+end
+
+function SettingsSections.RefreshEscMenuControls(controls, labels, db, config)
+  if controls.escMenuHeader then
+    controls.escMenuHeader:SetText(labels.SETTINGS_ESC_PANEL or "ESC Menu")
   end
+  SetLocalizedText(
+    controls.escMenuHint,
+    labels,
+    "SETTINGS_ESC_PANEL_DESC",
+    "Adds isiLive's shortcut panel to the ESC menu for quick access."
+  )
   if controls.escPanel then
     controls.escPanel.label:SetText(labels.SETTINGS_ESC_PANEL or "Show ESC Menu Shortcuts")
     SetCheckboxDescription(
@@ -849,24 +824,8 @@ function SettingsSections.RefreshGeneralControls(controls, labels, db, config)
     )
     controls.escPanel.check:SetChecked(db.showEscPanel ~= false)
   end
-  if controls.portalNavigator then
-    controls.portalNavigator.label:SetText(labels.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR or "Show Timeways Navigator")
-    SetCheckboxDescription(
-      controls.portalNavigator,
-      labels.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR_DESC
-        or "Shows the Timeways portal navigator when a known target dungeon can be resolved."
-    )
-    controls.portalNavigator.check:SetChecked(db.showPortalNavigator ~= false)
-  end
   if controls.hearthstoneSelect then
     controls.hearthstoneSelect.UpdateOptions(BuildHearthstoneSettingsOptions(config, labels))
-  end
-  if controls.defaultLayout then
-    SetControlDescription(
-      controls.defaultLayout,
-      labels.SETTINGS_DEFAULT_OPEN_UI_DESC or "Chooses which main layout opens when isiLive is shown."
-    )
-    controls.defaultLayout.UpdateHighlight()
   end
 end
 
@@ -955,6 +914,15 @@ function SettingsSections.RefreshDisplayControls(controls, labels, db, config)
       labels.SETTINGS_MINIMAP_BUTTON_DESC or "Shows the isiLive minimap button."
     )
     controls.minimapBtn.check:SetChecked(db.showMinimapButton == true)
+  end
+  if controls.portalNavigator then
+    controls.portalNavigator.label:SetText(labels.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR or "Show Timeways Navigator")
+    SetCheckboxDescription(
+      controls.portalNavigator,
+      labels.SETTINGS_SHOW_TIMEWAYS_NAVIGATOR_DESC
+        or "Shows the Timeways portal navigator when a known target dungeon can be resolved."
+    )
+    controls.portalNavigator.check:SetChecked(db.showPortalNavigator ~= false)
   end
   if controls.nameMaxChars then
     controls.nameMaxChars.label:SetText(labels.SETTINGS_NAME_MAX_CHARS or "Name Length")

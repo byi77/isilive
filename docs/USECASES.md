@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.298`
+Versionsbasis: `0.9.299`
 Zuletzt aktualisiert: `2026-06-03`
 
 ## Akteure
@@ -42,7 +42,7 @@ Zuletzt aktualisiert: `2026-06-03`
 | UC-17 | Mob-Tooltip mit Forces-Anteil | Hovern ueber einen Mob in einem aktiven M+-Run haengt eine Forces-Zeile aus der DB an den Blizzard-Tooltip an |
 | UC-18 | Nameplate-Forces-Overlay im Mythic+ | Optionales Live-Overlay auf jeder feindlichen Namensplakette zeigt den Mob-Forces-Beitrag |
 | UC-19 | (reserviert / nicht vergeben) | Nummer ausgelassen; nicht neu belegen, damit bereits referenzierte Test-/Commit-Querverweise stabil bleiben |
-| UC-20 | Clear-Log-Buttons im Settings-Debug | Zwei dedizierte Action-Buttons in Settings -> Debug leeren Runtime-Log und Queue-Debug-Log ohne Slash-Command |
+| UC-20 | Clear-Log-Buttons im Settings-Administrativ | Zwei dedizierte Action-Buttons in Settings -> Administrative leeren Runtime-Log und Queue-Debug-Log ohne Slash-Command |
 | UC-21 | Multi-Kick-Extras im Roster-Tooltip | Zusaetzliche Interrupt-Spells einer Klasse (Prot Pala Avenger's Shield) werden separat vom Primary getrackt, ueber den Sync-Pfad an Peers verteilt und im Hover-Tooltip angezeigt |
 | UC-22 | LFG-Invite-Liste entfernt | Die verworfene offene Premade-LFG-Invite-Liste hat keine Module, keine Settings, keine SavedVariable und kein Runtime-Wiring |
 | UC-23 | Spieler-Stats-Box | Eine optionale, eigenstaendige Stats-Box zeigt live gelesene Spielerwerte ohne Guessing und bleibt unabhaengig von den Main-UI-Layouts verschiebbar |
@@ -158,16 +158,18 @@ Ziel: Schnelle Blizzard-Panel-Shortcuts und lokalisierte Addon-Toggles anbieten,
 4. Combat-Sicherheit: Wenn Combat-Lockdown Secure-`ReloadUI`-Button-Refreshes oder sichere Mount-Button-Attribute blockiert, zum Beispiel Click-Registration oder Macro-Attribute-Updates, verschiebt das Addon diese Aktualisierung und wiederholt sie auf `PLAYER_REGEN_ENABLED`. Die gemounteten `Esc`-Strips selbst bleiben im Combat read-only, bleiben ueber `GameMenuFrame` sichtbar und machen aus insecure Shortcut-Klicks No-Ops statt Overlay-Layout zu mutieren.
 5. Regel: Der Spellbook-Shortcut muss spellbook-spezifische Opener nutzen und darf nicht ueber das Talents-Panel routen.
 6. Trigger B: Der Spieler oeffnet `Settings -> AddOns -> isiLive`.
-7. Ergebnis B: Blizzard Settings zeigen — gruppiert in eigene Hauptsektionen plus Reset und Beta-Hinweis:
-   - **General**: Sprache, `Default UI on Open`, `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Show ESC Menu Shortcuts`, `Show Timeways Navigator`, `Hearthstone Selection`.
-   - **Display**: `UI Scale`, `Background Opacity`, Spieler-Stats-Box mit Enable-, Lock-, Hintergrund-Deckkraft-, Schriftgroessen-Offset-, Zahlenmodus- und Detailzeilen-Control fuer Leech, Speed, Haltbarkeit, Ausdauer und Vermeidung, `Minimap Button`, `Group Finder: Language Flags`, `Group Finder: Buff rating hearts`, `Tooltip: Language Flags`, `Accepted-invite notice`, `Group-join target notice`.
-   - **Nameplates**: 3-Modi-Selector `Off / Tooltip / Nameplate` fuer den M+-Forces-Overlay, plus `Show percentage`, `Show remaining needed`, `Font size`, `Position`, `X offset`, `Y offset` und ein Live-Preview.
+7. Ergebnis B: Blizzard Settings zeigen — gruppiert in eigene Hauptsektionen mit Beta-Hinweis oben und VIP-Gast-Einstellungen unten:
+   - **Beta-Hinweis**: Issue-Tracker- und CurseForge-Kommentar-Link.
+   - **General**: Sprache und `Default UI on Open`.
+   - **ESC-Menue**: `Show ESC Menu Shortcuts` und `Hearthstone Selection`.
+   - **Display**: `UI Scale`, `Background Opacity`, Spieler-Stats-Box mit Enable-, Lock-, Hintergrund-Deckkraft-, Schriftgroessen-Offset-, Zahlenmodus- und Detailzeilen-Control fuer Leech, Speed, Haltbarkeit, Ausdauer und Vermeidung, `Minimap Button`, `Show Timeways Navigator`, `Group Finder: Language Flags`, `Group Finder: Buff rating hearts`, `Tooltip: Language Flags`, `Accepted-invite notice`, `Group-join target notice`.
    - **Behavior**: `Addon Sync`, `Lock main frame position`, `Fade out in Combat (M2 only)`, gefolgt vom Auto-Show/Hide-Block mit Erklaerung (`Show on Login / Reload`, `Auto-Open on M+ Queue`, `Auto-Open on Key End`, `Auto-close when key starts`, `Auto-close when leaving the group`), und einem statischen Raid-Behavior-Hinweis statt einem 1-Optionen-Selector.
-   - **Sounds**: `Sound: Lead Transfer`, `Sound: Full Group`, `Sound: Incoming Summon`, `Sound: Battle Res`, `Sound: Battle Res Ready`, `Sound: Bloodlust`, `Sound: Bloodlust Ready`, jeweils mit eigenem Play-Button zum Probehören auch bei deaktiviertem Toggle und nachbearbeiteten Sound-Settings-Texten fuer alle acht gepflegten UI-Locale-Tabellen. Diese Nachbearbeitung gilt nur fuer den Sound-Settings-Bereich, nicht fuer alle Texte der vorbereiteten Locales. Dazu kommen VIP-Gast-Sound-Schalter fuer Astral Aurochs, Grand Expedition Yak und Trader's Gilded Brutosaur. Eingehende Beschwoerungen des lokalen Spielers spielen den Summon-Sound ueber den klassischen `CONFIRM_SUMMON`-Pfad und ueber den statusbasierten `INCOMING_SUMMON_CHANGED`-Pfad nur bei `Enum.SummonStatus.Pending`.
+   - **Nameplates**: 3-Modi-Selector `Off / Tooltip / Nameplate` fuer den M+-Forces-Overlay, plus `Show percentage`, `Show remaining needed`, `Font size`, `Position`, `X offset`, `Y offset` und ein Live-Preview.
+   - **Sounds**: `Sound: Lead Transfer`, `Sound: Full Group`, `Sound: Incoming Summon`, `Sound: Battle Res`, `Sound: Battle Res Ready`, `Sound: Bloodlust`, `Sound: Bloodlust Ready`, jeweils mit eigenem Play-Button zum Probehören auch bei deaktiviertem Toggle und nachbearbeiteten Sound-Settings-Texten fuer alle acht gepflegten UI-Locale-Tabellen. Diese Nachbearbeitung gilt nur fuer den Sound-Settings-Bereich, nicht fuer alle Texte der vorbereiteten Locales. Eingehende Beschwoerungen des lokalen Spielers spielen den Summon-Sound ueber den klassischen `CONFIRM_SUMMON`-Pfad und ueber den statusbasierten `INCOMING_SUMMON_CHANGED`-Pfad nur bei `Enum.SummonStatus.Pending`.
    - **Chat Announcements**: `Chat: Announce Battle Res usage in M+`, `Chat: Announce Bloodlust casts in M+`.
-   - **Debug**: `Queue Debug Log (resets on reload)`, `Clear Queue Debug Log`, `Runtime Log (resets on reload)`, `Clear Runtime Log`.
+   - **Administrative**: `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Queue Debug Log (resets on reload)`, `Clear Queue Debug Log`, `Runtime Log (resets on reload)`, `Clear Runtime Log`.
    - **Reset-Aktionen**: `/isilive resetui` und `Reset All Settings`, jeweils mit Bestaetigung.
-   - **Beta-Hinweis** mit Issue-Tracker- und CurseForge-Kommentar-Link.
+   - **VIP Guest Settings**: VIP-Gast-Sound-Schalter fuer Astral Aurochs, Grand Expedition Yak und Trader's Gilded Brutosaur.
 8. Regel: Settings-Controls spiegeln live Blizzard-CVars und SavedVariables und wenden Aenderungen sofort an, ohne dass das Main-Addon-Fenster sichtbar sein muss; eine Aenderung von `Background Opacity` aktualisiert live den Main-Frame, die optionalen `Esc`-Tooling-, Travel-, Mounts- und Addons-Strips und den Settings-Canvas. Der neue `Lock main frame position`-Schalter, der Top-right-Lock-Button sowie die Slash-Commands `/isilive lock`, `/isilive unlock` und `/isilive resetui` spiegeln denselben gespeicherten Lock-State und verhindern unabsichtliches Verschieben der Haupt-UI; `resetui` setzt Position, UI-Skalierung und Hintergrund-Deckkraft wieder auf ihre Default-Werte zurueck und zeigt den Default-Hinweis als separate Textzeile unter dem Button, bevor eine Reset-Bestaetigung abgefragt wird. Hidden Legacy-Controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`) bleiben aus der Settings-UI draussen und nutzen derzeit feste Runtime-Defaults: `DPS` an, Marker fuer alle sichtbar, feste Namenstrunkierung und Legacy-`Travel`-Layout mit 2 Spalten.
 9. Regel: Die Ruhestein-Auswahl bietet `random-owned`, den Standard-Ruhestein `item:6948` und nur konkret besessene Ruhestein-Toys an. Die Liste aktualisiert sich bei `TOYS_UPDATED` und `GET_ITEM_INFO_RECEIVED`, zeigt im deutschen Addon-Locale client-lokalisierte Namen und in allen anderen Addon-Sprachen die verifizierten englischen Namen. Nicht verifizierte oder nicht besessene Toy-Ziele bleiben verborgen statt als numerischer Fallback angezeigt zu werden.
 10. Regel: Der `Esc`-Travel-Ruhestein-Button wendet die gespeicherte Auswahl auf seinen sicheren Action-Button an. Wenn Combat-Lockdown oder ein aktiver Keydown sichere Attribut-Updates blockiert, wird die Aktualisierung verschoben und auf dem naechsten erlaubten Refresh wiederholt.
@@ -274,11 +276,11 @@ Ziel: Eine optionale Live-Anzeige auf jeder feindlichen Namensplakette waehrend 
 10. Positionierung: Wenn Platynator auf dem beobachteten Blizzard-Nameplate-Objekt ein sichtbares Display mit `widgets` und einem Health-Widget `details.kind == "health"` bereitstellt, wird dieses sichtbare Health-Widget als Anchor-Ziel genutzt. Wenn kein solcher Platynator-Anker vorhanden ist und Plater oder ein kompatibler Renderer `unitFrame.healthBar` bereitstellt, wird dieser Healthbar-Frame genutzt. Danach wird ein direkt benannter Blizzard-Healthbar-Frame wie `UnitFrame.healthBar` genutzt; sonst bleibt das Nameplate-Frame selbst das Anchor-Ziel. Das Overlay-Frame bleibt auf `UIParent`, damit externe Nameplate-Skalierung die konfigurierte Schriftgroesse nicht veraendert. Bei Position `RIGHT` beginnt der Text direkt am rechten Rand des Anchor-Ziels und ist linksbuendig; bei `LEFT` endet der Text direkt am linken Rand und ist rechtsbuendig; `TOP` und `BOTTOM` bleiben zentriert. Dadurch darf die Zahl nicht durch Zentrierung in einem breiten Overlay-Frame sichtbar vom HP-Balken wegrutschen.
 11. Erfolgskriterium: Im aktiven Key zeigt jede feindliche Namensplakette eine deterministische, lokalisierungsneutrale Forces-Zahl, die der Mouseover-Tooltip-Zeile entspricht; bei aktivierter Restbedarfs-Option folgt der noch benoetigte Dungeon-Fortschritt im Format `<mob>%/<rest>%`. Ausserhalb eines Keys oder bei nicht-feindlichen Units bleibt das Overlay versteckt.
 
-## UC-20 Clear-Log-Buttons im Settings-Debug
+## UC-20 Clear-Log-Buttons im Settings-Administrativ
 
 Ziel: Den User die beiden On-Reload-Debug-Logs (Queue-Debug, Runtime-Log) per Klick aus dem Settings-Panel leeren lassen, ohne die Slash-Command-Variante kennen zu muessen.
 
-1. Trigger: Klick auf den `Clear Queue Debug Log`- oder `Clear Runtime Log`-Action-Button in der Debug-Sektion des Blizzard-Settings-Canvas.
+1. Trigger: Klick auf den `Clear Queue Debug Log`- oder `Clear Runtime Log`-Action-Button in der Administrative-Sektion des Blizzard-Settings-Canvas.
 2. Verarbeitung: Der Klick ruft `config.onClearQueueDebugLog()` bzw. `config.onClearRuntimeLog()`. Die Factory verdrahtet diese auf `ctx.clearQueueDebugLog` und `ctx.clearRuntimeLog`, dieselben Dispatcher die auch `/isilive qdebug clear` und `/isilive log clear` nutzen.
 3. Regel: Beide Buttons zeigen einen lokalisierten Label-Text aus `L.SETTINGS_QUEUE_DEBUG_CLEAR` / `L.SETTINGS_RUNTIME_LOG_CLEAR`; alle 8 Sprachen synchron.
 4. Regel: Der Refresh-on-Language-Change-Pfad in `RefreshSettingsControls` zieht die Button-Labels nach Sprachwechsel automatisch nach.
