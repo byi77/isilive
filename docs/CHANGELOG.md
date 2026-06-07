@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-06-07 - Version 0.9.300 (patch)
+
+- Hardened all external ESC Addons shortcuts against slower late slash-handler
+  registration after a verified addon load by retrying the exact registered
+  alias across a bounded short window, while still avoiding chat-edit fallbacks
+  or guessed internals.
+- Added a Sound setting for disabling the 60-second Bloodlust-ready reminder
+  loop while keeping the first Bloodlust-ready alert independently controlled;
+  the reminder loop remains enabled by default and is covered by deterministic
+  runtime and Settings tests.
+- Suppressed Lua language-server diagnostics in the local LuaFileSystem
+  compatibility shim for validation tooling without changing addon runtime
+  behavior.
+
 ## 2026-06-07 - Version 0.9.299 (patch)
 
 - Reorganized the Blizzard Settings panel into clearer thematic sections:

@@ -27,6 +27,7 @@ local function InitializeFactorySecondaryCdTracker(
   local lastLustDisplayedTimer = false
   local lustReadyDisplayActive = false
   local lastLustReadySoundAt = nil
+  local initialDBRef = rawget(_G, "IsiLiveDB")
   local function ClearReadySoundState()
     lastBResCharges = nil
     lastBResCooldownRemain = nil
@@ -63,6 +64,17 @@ local function InitializeFactorySecondaryCdTracker(
       return true
     end
     return false
+  end
+
+  local function IsBloodlustReadyReminderEnabled()
+    local db = rawget(_G, "IsiLiveDB")
+    if type(db) ~= "table" then
+      db = initialDBRef
+    end
+    if type(db) == "table" and db.soundBloodlustReadyReminderEnabled == false then
+      return false
+    end
+    return true
   end
 
   ctx.UpdateCdTracker = function(opts)
@@ -142,6 +154,7 @@ local function InitializeFactorySecondaryCdTracker(
       and not lustTimerDisplayed
       and not suppressLustReadySound
       and lastLustReadySoundAt ~= nil
+      and IsBloodlustReadyReminderEnabled()
       and getTime() - lastLustReadySoundAt >= LUST_READY_REMINDER_SECONDS
     then
       if PlayBloodlustReadySound() then

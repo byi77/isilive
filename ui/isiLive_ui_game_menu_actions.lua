@@ -288,14 +288,49 @@ end
 local function RunSlashText(slashText)
   local commandText, args = ParseSlashCommandText(slashText)
   if not commandText then
-    return false
+    return false, "invalid"
   end
 
   local handler = FindSlashHandlerByCommandAlias(commandText)
   if type(handler) == "function" then
-    return SafeCall(handler, args or "")
+    local ok = SafeCall(handler, args or "")
+    return ok, ok and nil or "handler_failed"
   end
 
+  return false, "missing_handler"
+end
+
+local ADDON_SLASH_RETRY_DELAY_SECONDS = 0.25
+local ADDON_SLASH_RETRY_MAX_ATTEMPTS = 12
+
+local function RetrySlashTextWhenHandlerAppears(slashText, attempt)
+  attempt = tonumber(attempt) or 1
+  if attempt > ADDON_SLASH_RETRY_MAX_ATTEMPTS then
+    return
+  end
+
+  local timer = rawget(_G, "C_Timer")
+  local after = type(timer) == "table" and rawget(timer, "After") or nil
+  if type(after) ~= "function" then
+    return
+  end
+
+  after(ADDON_SLASH_RETRY_DELAY_SECONDS, function()
+    local ok, reason = RunSlashText(slashText)
+    if ok or reason ~= "missing_handler" then
+      return
+    end
+    RetrySlashTextWhenHandlerAppears(slashText, attempt + 1)
+  end)
+end
+
+local function RunSlashTextWithHandlerRetry(slashText)
+  local ok, reason = RunSlashText(slashText)
+  if ok or reason ~= "missing_handler" then
+    return ok
+  end
+
+  RetrySlashTextWhenHandlerAppears(slashText, 1)
   return false
 end
 
@@ -495,7 +530,7 @@ local function BuildAddonPanelUIActions(overrides)
       if entry.skipLoadCheck ~= true and not EnsureAddOnLoaded(addOnName) then
         return false
       end
-      return RunSlashText(ResolveLocaleSlashText(entry))
+      return RunSlashTextWithHandlerRetry(ResolveLocaleSlashText(entry))
     end
   end
   if type(overrides) == "table" then

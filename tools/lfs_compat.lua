@@ -1,3 +1,5 @@
+---@diagnostic disable: undefined-global
+
 -- Minimal LuaFileSystem compatibility layer for local validation tools.
 -- It intentionally implements only the subset used in tools/*.lua.
 

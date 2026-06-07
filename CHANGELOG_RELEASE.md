@@ -3,11 +3,10 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.299`.
+Current release: `0.9.300`.
 
 Highlights:
-- Reorganized the Blizzard Settings panel into clearer thematic sections while keeping runtime behavior unchanged.
-- Restored the Beta notice to the top of Settings and moved VIP guest mount sound controls to the bottom.
-- Moved Portal Navigator into Display extras and moved Blizzard Combat Logging / Damage Meter reset into Administrative.
-- Added deterministic coverage for the Settings section order.
-- Refreshed the Settings documentation and release baselines for `0.9.299`.
+- Hardened all external ESC Addons shortcuts against slower late slash-handler registration after a verified addon load.
+- Kept addon shortcut dispatch fail-closed: no chat-edit fallback and no guessed internal handlers.
+- Added a default-enabled Sound setting for disabling the 60-second Bloodlust-ready reminder loop.
+- Suppressed Lua language-server diagnostics in local LuaFileSystem compatibility tooling without changing runtime behavior.

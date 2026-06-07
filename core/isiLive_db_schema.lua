@@ -201,6 +201,7 @@ local SCHEMA = {
   soundBattleResReadyEnabled = { type = "boolean", default = true },
   soundBloodlustEnabled = { type = "boolean", default = true },
   soundBloodlustReadyEnabled = { type = "boolean", default = true },
+  soundBloodlustReadyReminderEnabled = { type = "boolean", default = true },
   soundGroupJoinEnabled = { type = "boolean", default = true },
   soundLeadEnabled = { type = "boolean", default = true },
   soundPortalAvailableEnabled = { type = "boolean", default = true },

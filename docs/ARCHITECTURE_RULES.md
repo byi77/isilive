@@ -4,10 +4,10 @@ Diese Datei beschreibt verbindliche Strukturregeln fuer den aktuellen Modulzusch
 Im Gegensatz zu `RULES_LOGIC.md` geht es hier nicht um Runtime-Verhalten, sondern um
 stabile Architekturgrenzen, die ueber deterministische Strukturtests geprueft werden.
 
-Aktueller Dokumentationsstand: `0.9.299`. Die aktuellen 0.9.299-Aenderungen
-haben keine neue Architekturregel erfordert; die Settings-Reihenfolge bleibt
-innerhalb der bereits aktiven Split-, Hidden-Gate-, CI-, Secure-Mutation- und
-RuntimeSetup-Vertraege.
+Aktueller Dokumentationsstand: `0.9.300`. Die aktuellen 0.9.300-Aenderungen
+haben keine neue Architekturregel erfordert; die ESC-Addon-Shortcut-Haertung
+und die lokalen Tooling-Diagnostics bleiben innerhalb der bereits aktiven
+Split-, Hidden-Gate-, CI-, Secure-Mutation- und RuntimeSetup-Vertraege.
 
 ## Schreibformat
 

@@ -70,6 +70,15 @@ local SOUND_SETTING_FALLBACKS = {
   },
 }
 
+local BLOODLUST_READY_REMINDER_SETTING = {
+  labelKey = "SETTINGS_SOUND_BLOODLUST_READY_REMINDER",
+  descKey = "SETTINGS_SOUND_BLOODLUST_READY_REMINDER_DESC",
+  labelFallback = "Repeat Bloodlust-ready alert every 60 seconds",
+  descFallback = "Repeats the Bloodlust-ready TTS alert every 60 seconds while Bloodlust remains unused.",
+  settingKey = "soundBloodlustReadyReminderEnabled",
+  defaultEnabled = true,
+}
+
 local VIP_SOUND_DESCRIPTIONS = {
   SETTINGS_VIP_ASTRAL_AUROCHS_SOUND = {
     descKey = "SETTINGS_VIP_ASTRAL_AUROCHS_SOUND_DESC",
@@ -177,6 +186,37 @@ local function CreateSoundPreviewButton(parent, checkbox, soundKey)
   return button
 end
 
+local function CreateBloodlustReadyReminderCheckbox(canvas, yOffset, labels, config, controls)
+  local checkbox, nextY = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels[BLOODLUST_READY_REMINDER_SETTING.labelKey] or BLOODLUST_READY_REMINDER_SETTING.labelFallback,
+    function()
+      local db = config.getDB()
+      local stored = db[BLOODLUST_READY_REMINDER_SETTING.settingKey]
+      if stored ~= nil then
+        return stored == true
+      end
+      return BLOODLUST_READY_REMINDER_SETTING.defaultEnabled ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db[BLOODLUST_READY_REMINDER_SETTING.settingKey] = checked == true
+    end,
+    BLOODLUST_READY_REMINDER_SETTING.labelKey,
+    DescriptionOptions(
+      labels[BLOODLUST_READY_REMINDER_SETTING.descKey] or BLOODLUST_READY_REMINDER_SETTING.descFallback
+    )
+  )
+
+  if checkbox and checkbox.check then
+    checkbox.check._sectionKey = "SETTINGS_SECTION_SOUNDS"
+    checkbox.check._soundKey = "bloodlust_ready_reminder"
+  end
+  controls.bloodlustReadyReminderCheck = checkbox
+  return nextY
+end
+
 function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, controls)
   controls.soundHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_SECTION_SOUNDS or "Sounds")
   if controls.soundHeader then
@@ -226,6 +266,9 @@ function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, contro
     controls.soundChecks[entry.key] = checkbox
     controls.soundPreviewButtons[entry.key] = CreateSoundPreviewButton(canvas, checkbox, entry.key)
     yOffset = nextY
+    if entry.key == "bloodlust_ready" then
+      yOffset = CreateBloodlustReadyReminderCheckbox(canvas, yOffset, labels, config, controls)
+    end
   end
 
   return yOffset
@@ -340,6 +383,22 @@ function SettingsSound.RefreshSoundControls(controls, labels, db)
         soundControl.check:SetChecked(nextValue)
       end
     end
+  end
+
+  if controls.bloodlustReadyReminderCheck then
+    controls.bloodlustReadyReminderCheck.label:SetText(
+      labels[BLOODLUST_READY_REMINDER_SETTING.labelKey] or BLOODLUST_READY_REMINDER_SETTING.labelFallback
+    )
+    SetDescription(
+      controls.bloodlustReadyReminderCheck,
+      labels[BLOODLUST_READY_REMINDER_SETTING.descKey] or BLOODLUST_READY_REMINDER_SETTING.descFallback
+    )
+    local stored = db[BLOODLUST_READY_REMINDER_SETTING.settingKey]
+    local nextValue = BLOODLUST_READY_REMINDER_SETTING.defaultEnabled ~= false
+    if stored ~= nil then
+      nextValue = stored == true
+    end
+    controls.bloodlustReadyReminderCheck.check:SetChecked(nextValue)
   end
 end
 

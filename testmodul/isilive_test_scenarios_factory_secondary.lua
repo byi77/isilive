@@ -1184,6 +1184,31 @@ return function(test, ctx)
     Assert.Equal(state.bloodlustReadySoundCalls or 0, 4, "a later Bloodlust cycle may play one new ready alert")
   end)
 
+  test("Factory CD refresh respects disabled Bloodlust-ready reminder loop setting", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      db = {
+        soundBloodlustReadyReminderEnabled = false,
+      },
+      mplusTimerData = {
+        running = true,
+      },
+    })
+
+    state.lustInfo = { remain = 2, icon = 132114 }
+    state.ctx.UpdateCdTracker({ playLustSoundOnStart = true })
+    state.lustInfo = nil
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.bloodlustReadySoundCalls or 0, 1, "first Bloodlust-ready alert must still play")
+
+    state.time = 60
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(
+      state.bloodlustReadySoundCalls or 0,
+      1,
+      "disabled Bloodlust-ready reminder setting must suppress the 60-second repeat"
+    )
+  end)
+
   test("Factory CD refresh exposes BL: -- when ready display context is inactive", function()
     local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
       mplusTimerData = {

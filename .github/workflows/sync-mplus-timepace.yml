@@ -1,0 +1,121 @@
+name: Inspect M+ TimePace Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      window_days:
+        description: "Warcraft Logs lookback window in days"
+        required: true
+        default: "10"
+      min_key_level:
+        description: "Minimum keystone level to include"
+        required: true
+        default: "12"
+      min_samples:
+        description: "Minimum samples required for a profile summary"
+        required: true
+        default: "30"
+      report_page_limit:
+        description: "Maximum Warcraft Logs report pages to inspect"
+        required: true
+        default: "20"
+      report_limit:
+        description: "Warcraft Logs reports per page"
+        required: true
+        default: "100"
+      report_code:
+        description: "Optional comma-separated Warcraft Logs report code(s) for a focused inspect run"
+        required: false
+        default: ""
+      game_zone_id:
+        description: "Optional Warcraft Logs gameZoneID filter; leave empty for all"
+        required: false
+        default: ""
+
+concurrency:
+  group: inspect-mplus-timepace
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Check Warcraft Logs credentials
+        env:
+          WARCRAFTLOGS_CLIENT_ID: ${{ secrets.WARCRAFTLOGS_CLIENT_ID }}
+          WARCRAFTLOGS_CLIENT_SECRET: ${{ secrets.WARCRAFTLOGS_CLIENT_SECRET }}
+        run: |
+          set -e
+          if [ -z "$WARCRAFTLOGS_CLIENT_ID" ] || [ -z "$WARCRAFTLOGS_CLIENT_SECRET" ]; then
+            echo "Missing WARCRAFTLOGS_CLIENT_ID or WARCRAFTLOGS_CLIENT_SECRET repository secret." >&2
+            exit 2
+          fi
+
+      - name: Fetch Warcraft Logs TimePace samples
+        env:
+          WARCRAFTLOGS_CLIENT_ID: ${{ secrets.WARCRAFTLOGS_CLIENT_ID }}
+          WARCRAFTLOGS_CLIENT_SECRET: ${{ secrets.WARCRAFTLOGS_CLIENT_SECRET }}
+        run: |
+          set -e
+          args=(
+            "--window-days=${{ inputs.window_days }}"
+            "--min-key-level=${{ inputs.min_key_level }}"
+            "--min-samples=${{ inputs.min_samples }}"
+            "--report-page-limit=${{ inputs.report_page_limit }}"
+            "--report-limit=${{ inputs.report_limit }}"
+            "--out-dir=tools/cache/wcl_timepace"
+          )
+          if [ -n "${{ inputs.report_code }}" ]; then
+            args+=("--report-code=${{ inputs.report_code }}")
+          fi
+          if [ -n "${{ inputs.game_zone_id }}" ]; then
+            args+=("--game-zone-id=${{ inputs.game_zone_id }}")
+          fi
+          python tools/sync_wcl_timepace.py "${args[@]}"
+
+      - name: Summarize extracted data
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("tools/cache/wcl_timepace")
+          snapshot = json.loads((root / "snapshot.json").read_text(encoding="utf-8"))
+          counters = snapshot.get("counters", {})
+          profiles = snapshot.get("profiles", {})
+
+          profile_count = sum(len(levels) for levels in profiles.values())
+          print("## TimePace WCL Inspect")
+          print("")
+          print(f"- Reports: {counters.get('reports', 0)}")
+          print(f"- Fights: {counters.get('fights', 0)}")
+          print(f"- +12 intime samples: {counters.get('samples', 0)}")
+          print(f"- Profile summaries above min sample threshold: {profile_count}")
+          print("")
+          print("| Dungeon | Key | Samples | Median seconds |")
+          print("| --- | ---: | ---: | ---: |")
+          for dungeon, levels in sorted(profiles.items()):
+            for level, data in sorted(levels.items(), key=lambda item: int(item[0])):
+              print(
+                f"| {dungeon} | +{level} | {data.get('samples')} | "
+                f"{data.get('medianDurationSeconds')} |"
+              )
+          PY
+
+      - name: Upload TimePace inspect artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: mplus-timepace-wcl-inspect
+          path: tools/cache/wcl_timepace/
+          if-no-files-found: error

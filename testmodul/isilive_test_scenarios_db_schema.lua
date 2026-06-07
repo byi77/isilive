@@ -38,6 +38,7 @@ return function(test, ctx)
     Assert.Equal(db.groupJoinNoticeEnabled, true, "groupJoinNoticeEnabled default true")
     Assert.Equal(db.lockMainFramePosition, true, "lockMainFramePosition default true")
     Assert.Equal(db.syncEnabled, true, "syncEnabled default true")
+    Assert.Equal(db.soundBloodlustReadyReminderEnabled, true, "bloodlust-ready reminder default true")
     Assert.Equal(db.autoCloseOnKeyStart, false, "key-start auto-close default false")
     Assert.Equal(db.autoCloseOnSoloChange, false, "solo-change auto-close default false")
     Assert.Equal(db.locale, "enUS", "locale default")
@@ -348,6 +349,11 @@ return function(test, ctx)
     Assert.Equal(known.statsBoxShowAvoidance, true, "statsBoxShowAvoidance must be in known fields")
     Assert.Equal(known.groupJoinNoticeEnabled, true, "groupJoinNoticeEnabled must be in known fields")
     Assert.Equal(known.syncEnabled, true, "syncEnabled must be in known fields")
+    Assert.Equal(
+      known.soundBloodlustReadyReminderEnabled,
+      true,
+      "soundBloodlustReadyReminderEnabled must be in known fields"
+    )
     Assert.Equal(known.hearthstoneChoice, true, "hearthstoneChoice must be in known fields")
     Assert.Equal(known.vipAstralAurochsSoundMuted, true, "vipAstralAurochsSoundMuted must be in known fields")
     Assert.Equal(known.vipGrandExpeditionYakSoundMuted, true, "vipGrandExpeditionYakSoundMuted must be in known fields")
