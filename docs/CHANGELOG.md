@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-06-08 - Version 0.9.302 (patch)
+
+- Fixed ESC Addons shortcuts so external addon slash handlers run only after
+  the Game Menu is observed closed, and mirror Blizzard's slash dispatch
+  signature by passing the default chat edit box to verified handlers.
+- Added deterministic coverage that the close-before-slash path is shared by
+  supported external addons, not only SimC.
+- Bumped the TOC and documentation baselines to `0.9.302`.
+- Updated the release-gate scenario baseline to `1973` deterministic scenarios.
+
 ## 2026-06-08 - Version 0.9.301 (patch)
 
 - Removed all root-level repository screenshot PNGs from both release package

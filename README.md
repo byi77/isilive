@@ -4,7 +4,7 @@
 
 - **For:** M+ players in pre-made groups and LFG runs
 - **WoW version:** `12.0+` (Midnight) only
-- **Current version:** `0.9.301`
+- **Current version:** `0.9.302`
 - **Active season:** `midnight_s1` — 8 dungeons (Wing, MT, NPX, MC, AA, POS, SOT, SR)
 
 ---
@@ -70,7 +70,7 @@ Everything syncs automatically between group members who run isiLive — no manu
 
 No setup required. Open the settings via **Escape → AddOns → isiLive** if you want to change language, sounds, or auto-open behavior.
 
-The optional Escape-menu Addons panel shows shortcuts only for supported addons that are installed and enabled. External shortcuts use the target addon's registered slash handler directly after any verified load-on-demand load; they do not write slash text into chat.
+The optional Escape-menu Addons panel shows shortcuts only for supported addons that are installed and enabled. External shortcuts first close the Game Menu, wait until it is observed closed, then use the target addon's registered slash handler directly after any verified load-on-demand load. They do not write slash text into chat.
 
 ---
 

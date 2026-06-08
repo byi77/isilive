@@ -293,7 +293,9 @@ local function RunSlashText(slashText)
 
   local handler = FindSlashHandlerByCommandAlias(commandText)
   if type(handler) == "function" then
-    local ok = SafeCall(handler, args or "")
+    local defaultChatFrame = rawget(_G, "DEFAULT_CHAT_FRAME")
+    local editBox = type(defaultChatFrame) == "table" and rawget(defaultChatFrame, "editBox") or nil
+    local ok = SafeCall(handler, args or "", editBox)
     return ok, ok and nil or "handler_failed"
   end
 

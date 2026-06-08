@@ -3,9 +3,9 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.301`.
+Current release: `0.9.302`.
 
 Highlights:
-- Removed repository screenshot PNGs from both CurseForge and WowUp release packages.
-- Added a deterministic gate that keeps CurseForge and WowUp package exclusions synchronized.
-- Documented the package parity rule and the private workspace learning-sync rule.
+- Fixed ESC Addons shortcuts so all supported external addon buttons wait for the Game Menu to close before dispatching the verified slash handler.
+- Mirrored Blizzard's slash handler call shape by passing the default chat edit box to registered handlers.
+- Kept the no-chat-fallback contract intact: missing or failed handlers stay silent instead of writing slash text into chat.

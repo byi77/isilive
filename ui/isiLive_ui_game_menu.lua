@@ -947,19 +947,36 @@ HideGameMenuFrame = function(gameMenuFrame)
   return false
 end
 
-RunAfterGameMenuClose = function(callback)
+local GAME_MENU_CLOSE_RETRY_DELAY_SECONDS = 0.05
+local GAME_MENU_CLOSE_RETRY_MAX_ATTEMPTS = 10
+
+RunAfterGameMenuClose = function(gameMenuFrame, callback, attempt)
   if type(callback) ~= "function" then
+    return
+  end
+
+  if type(gameMenuFrame) ~= "table" or type(gameMenuFrame.IsShown) ~= "function" or gameMenuFrame:IsShown() ~= true then
+    callback()
+    return
+  end
+
+  attempt = tonumber(attempt) or 1
+  if attempt > GAME_MENU_CLOSE_RETRY_MAX_ATTEMPTS then
     return
   end
 
   local timer = rawget(_G, "C_Timer")
   local after = type(timer) == "table" and rawget(timer, "After") or nil
   if type(after) == "function" then
-    after(0, callback)
+    after(GAME_MENU_CLOSE_RETRY_DELAY_SECONDS, function()
+      RunAfterGameMenuClose(gameMenuFrame, callback, attempt + 1)
+    end)
     return
   end
 
-  callback()
+  if type(gameMenuFrame.IsShown) ~= "function" or gameMenuFrame:IsShown() ~= true then
+    callback()
+  end
 end
 
 local function BindNonSecurePanelButtonOnClick(button, state)
@@ -975,7 +992,7 @@ local function BindNonSecurePanelButtonOnClick(button, state)
       return
     end
     HideGameMenuFrame(state.gameMenuFrame)
-    RunAfterGameMenuClose(action)
+    RunAfterGameMenuClose(state.gameMenuFrame, action)
   end)
 end
 

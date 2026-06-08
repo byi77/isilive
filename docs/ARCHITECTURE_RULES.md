@@ -4,11 +4,10 @@ Diese Datei beschreibt verbindliche Strukturregeln fuer den aktuellen Modulzusch
 Im Gegensatz zu `RULES_LOGIC.md` geht es hier nicht um Runtime-Verhalten, sondern um
 stabile Architekturgrenzen, die ueber deterministische Strukturtests geprueft werden.
 
-Aktueller Dokumentationsstand: `0.9.301`. Die aktuellen 0.9.301-Aenderungen
-haben keine neue Architekturregel erfordert; die Packaging-Paritaet zwischen
-CurseForge und WowUp ist als aktive Projektregel in `RULES_LOGIC.md` gepinnt
-und wird ueber Architekturtests fuer `.pkgmeta` und den Stable-`Release`-
-Workflow validiert.
+Aktueller Dokumentationsstand: `0.9.302`. Die aktuellen 0.9.302-Aenderungen
+haben keine neue Architekturregel erfordert; die ESC-Addons-Shortcut-Runtime
+ist als aktive Projektregel in `RULES_LOGIC.md` gepinnt und wird ueber
+deterministische Game-Menu-Addon-Szenarien validiert.
 
 ## Schreibformat
 
