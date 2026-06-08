@@ -699,6 +699,123 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     )
   end)
 
+  test("Architecture pkgmeta excludes root screenshot assets from release package", function()
+    local content = ReadFile(".pkgmeta")
+    local screenshots = {
+      "isiLive.png",
+      "isiLive_EnterDungeon.png",
+      "isiLive_H_ui.png",
+      "isiLive_InviteAccepted.png",
+      "isiLive_LFGBuffRating.png",
+      "isiLive_LFGBuffRating2.png",
+      "isiLive_MPlus_ui.png",
+      "isiLive_M_ui.png",
+      "isiLive_PortalNavigator.png",
+      "isiLive_Statsbox.png",
+      "isiLive_V_ui.png",
+      "isiLive_screenshot.png",
+    }
+
+    for _, screenshot in ipairs(screenshots) do
+      AssertContains(
+        Assert,
+        content,
+        "  - " .. screenshot,
+        ".pkgmeta must exclude root screenshot asset " .. screenshot .. " from CurseForge packaging"
+      )
+    end
+  end)
+
+  test("Architecture release workflow excludes root screenshot assets from WowUp package", function()
+    local content = ReadFile(".github/workflows/release.yml")
+    local screenshots = {
+      "isiLive.png",
+      "isiLive_EnterDungeon.png",
+      "isiLive_H_ui.png",
+      "isiLive_InviteAccepted.png",
+      "isiLive_LFGBuffRating.png",
+      "isiLive_LFGBuffRating2.png",
+      "isiLive_MPlus_ui.png",
+      "isiLive_M_ui.png",
+      "isiLive_PortalNavigator.png",
+      "isiLive_Statsbox.png",
+      "isiLive_V_ui.png",
+      "isiLive_screenshot.png",
+    }
+
+    AssertContains(
+      Assert,
+      content,
+      "Prepare GitHub/WowUp asset",
+      "release workflow must keep a dedicated WowUp package preparation step"
+    )
+    for _, screenshot in ipairs(screenshots) do
+      AssertContains(
+        Assert,
+        content,
+        screenshot,
+        "release workflow must exclude root screenshot asset " .. screenshot .. " from the WowUp package"
+      )
+    end
+  end)
+
+  test("Architecture release package ignore lists stay identical for CurseForge and WowUp", function()
+    local pkgmetaContent = ReadFile(".pkgmeta")
+    local workflowContent = ReadFile(".github/workflows/release.yml")
+    local workflowLine = workflowContent:match("[^\n]*luacheck_output%.txt[^\n]*")
+
+    Assert.NotNil(workflowLine, "release workflow must keep an explicit WowUp package exclusion line")
+
+    local function normalize(entry)
+      local directoryEntries = {
+        [".github"] = true,
+        [".githooks"] = true,
+        [".vscode"] = true,
+        [".claude"] = true,
+        [".luarocks"] = true,
+        ["docs"] = true,
+        ["tools"] = true,
+        ["testmodul"] = true,
+      }
+
+      if type(entry) ~= "string" or entry == "" then
+        return nil
+      end
+      entry = entry:gsub("/%*$", "")
+      if directoryEntries[entry] then
+        return entry
+      end
+      return entry
+    end
+
+    local pkgmetaIgnores = {}
+    for entry in pkgmetaContent:gmatch("\n%s+%-%s+([^\n]+)") do
+      local normalized = normalize((entry:gsub("%s+$", "")))
+      if normalized then
+        pkgmetaIgnores[normalized] = true
+      end
+    end
+
+    local workflowIgnores = {}
+    for entry in workflowLine:gmatch("([^|%)]+)") do
+      entry = entry:gsub("^%s+", ""):gsub("%s+$", "")
+      local normalized = normalize(entry)
+      if normalized and normalized ~= ".pkgmeta" then
+        workflowIgnores[normalized] = true
+      end
+    end
+
+    for entry in pairs(pkgmetaIgnores) do
+      Assert.True(
+        workflowIgnores[entry] == true,
+        "WowUp package exclusions must include CurseForge exclusion " .. entry
+      )
+    end
+    for entry in pairs(workflowIgnores) do
+      Assert.True(pkgmetaIgnores[entry] == true, "CurseForge package exclusions must include WowUp exclusion " .. entry)
+    end
+  end)
+
   test("Architecture WARTUNG runbook references the required maintenance document chain", function()
     local content = ReadFile("WARTUNG.md")
 

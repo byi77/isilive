@@ -97,6 +97,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 74. Queued `INSTANCE_CHAT`-Addon-Sync darf nach dem Verlassen der Instanzgruppe nicht mehr an Blizzard gesendet werden und muss als nicht gesendet gemeldet werden.
 75. Die M+-Forces-Namensplakettenanzeige muss mit Blizzard-Namensplaketten, Plater und Platynator funktionieren; die Settings-Vorschau muss denselben Renderer nutzen wie die Runtime.
 76. Die Roster-Rolle muss bei vorhandener verifizierter Inspect-Spezialisierung aus Blizzards Spezialisierungsrollen-API korrigiert werden; stale Gruppenrollenzuweisungen duerfen die Spec-Rolle nicht dauerhaft ueberstimmen.
+77. CurseForge- und WowUp-Pakete muessen denselben Nutzerinhalt enthalten; jede Paket-Ausschlussaenderung muss beide Paketpfade synchron aktualisieren.
 
 ## Regelbloecke
 
@@ -1066,3 +1067,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Units GetInspectSpecRole resolves role from inspected specialization id
   - Inspect OnInspectReady updates roster role from inspected specialization role
+
+### RULE-PAKETE-CURSEFORGE-WOWUP-GLEICH
+- Regelnummer: 77
+- Status: aktiv
+- Zusammenfassung: CurseForge- und WowUp-Pakete muessen denselben Nutzerinhalt enthalten. Jede Aenderung an Paket-Ausschluessen fuer CurseForge muss im selben Change die GitHub/WowUp-Zip-Ausschlussliste im Stable-`Release`-Workflow gleichwertig aktualisieren, und jede Aenderung an der GitHub/WowUp-Zip-Ausschlussliste muss im selben Change die CurseForge-`.pkgmeta`-Ausschlussliste gleichwertig aktualisieren. Technische Workflow-Metadaten, die nur fuer den Buildprozess gebraucht werden und nicht Teil eines Nutzerpakets sind, duerfen separat behandelt werden, solange der ausgelieferte Addon-Inhalt identisch bleibt.
+- Erforderliche Tests:
+  - Architecture pkgmeta excludes root screenshot assets from release package
+  - Architecture release workflow excludes root screenshot assets from WowUp package
+  - Architecture release package ignore lists stay identical for CurseForge and WowUp

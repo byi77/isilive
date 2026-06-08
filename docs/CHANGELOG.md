@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-06-08 - Version 0.9.301 (patch)
+
+- Removed all root-level repository screenshot PNGs from both release package
+  paths: CurseForge `.pkgmeta` and the GitHub/WowUp release ZIP builder now
+  exclude the same screenshot asset set.
+- Added deterministic architecture coverage that compares the CurseForge and
+  WowUp package exclusion lists, so future package-content changes must keep
+  both release artifacts aligned.
+- Added active rule 77 documenting that CurseForge and WowUp packages must
+  contain the same shipped addon content, with technical build-only metadata
+  allowed to differ only when it is not part of the user package.
+- Bumped the TOC and documentation baselines to `0.9.301`.
+- Updated the release-gate scenario baseline to `1970` deterministic scenarios.
+
 ## 2026-06-07 - Version 0.9.300 (patch)
 
 - Hardened all external ESC Addons shortcuts against slower late slash-handler
