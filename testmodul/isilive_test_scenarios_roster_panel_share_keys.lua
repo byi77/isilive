@@ -285,8 +285,14 @@ local function RegisterShareKeysEndToEndButtonRuntimeTest()
         "isiLive_roster_panel.lua",
       })
 
-      local helloResult =
-        addon.Sync.ProcessAddonMessage("ISILIVE", "HELLO:1.0:2:899:hello", "Sender-RealmA", "Receiver", "RealmB", "PARTY")
+      local helloResult = addon.Sync.ProcessAddonMessage(
+        "ISILIVE",
+        "HELLO:1.0:2:899:hello",
+        "Sender-RealmA",
+        "Receiver",
+        "RealmB",
+        "PARTY"
+      )
       Assert.NotNil(helloResult, "pre-sync HELLO must be accepted before the share-keys click")
       Assert.True(addon.Sync.IsUserKnown("Sender", "RealmA"), "sender must already be known from normal sync")
 
