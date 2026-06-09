@@ -1298,6 +1298,22 @@ local function RegisterProcessMessageReceiveTests(test, Assert, WithGlobals, Loa
 end
 
 local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Sync GetAddonSyncChannel returns nil in raid", function()
+    WithGlobals({
+      LE_PARTY_CATEGORY_INSTANCE = 1,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return true
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      Assert.Nil(addon.Sync.GetAddonSyncChannel(), "raid hard-off must suppress the addon sync channel")
+    end)
+  end)
+
   test("Sync SendHello respects cooldown and force bypass", function()
     local sentMessages = {}
     local now = 100
@@ -1427,6 +1443,37 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
 
       Assert.False(result, "share-keys request must report failure when no addon sync channel exists")
       Assert.Equal(#sentMessages, 0, "share-keys request must not publish without an addon sync channel")
+    end)
+  end)
+
+  test("Sync SendShareKeysRequest does not publish in raid", function()
+    local sentMessages = {}
+
+    WithGlobals({
+      LE_PARTY_CATEGORY_INSTANCE = 1,
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return true
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+          return true
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local result = addon.Sync.SendShareKeysRequest()
+
+      Assert.False(result, "share-keys request must report failure in raid")
+      Assert.Equal(#sentMessages, 0, "share-keys request must not publish in raid")
     end)
   end)
 

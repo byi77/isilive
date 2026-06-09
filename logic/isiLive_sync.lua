@@ -1200,16 +1200,16 @@ function Sync.GetPlayerSyncSummary(name, realm)
   return best
 end
 
---- Returns the current group addon sync channel, or nil when not in a group.
--- Priority: INSTANCE_CHAT > RAID > PARTY.
--- @return string|nil "INSTANCE_CHAT", "RAID", "PARTY", or nil.
+--- Returns the current group addon sync channel, or nil when not in a group or raid.
+-- Priority: raid hard-off, then INSTANCE_CHAT > PARTY.
+-- @return string|nil "INSTANCE_CHAT", "PARTY", or nil.
 function Sync.GetAddonSyncChannel()
+  if IsInRaid and IsInRaid() then
+    return nil
+  end
   local inInstanceGroup = LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE)
   if inInstanceGroup then
     return "INSTANCE_CHAT"
-  end
-  if IsInRaid() then
-    return "RAID"
   end
   if IsInGroup() then
     return "PARTY"
@@ -1642,8 +1642,7 @@ function Sync.SendLibKeystoneRequest(opts)
 
   -- Pick the correct party channel: inside an instance the WoW server only
   -- delivers party addon messages on INSTANCE_CHAT, sending to "PARTY" silently
-  -- drops. Mirror Sync.GetAddonSyncChannel's instance-aware selection but skip
-  -- the RAID branch — LibKeystone is party-only by spec.
+  -- drops. Raid is already suppressed above because LibKeystone is party-only.
   local libKsChannel = (LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE)) and "INSTANCE_CHAT"
     or "PARTY"
   local sent = DispatchAddonMessage(LIBKEYSTONE_SYNC_PREFIX, "R", libKsChannel, "NORMAL")

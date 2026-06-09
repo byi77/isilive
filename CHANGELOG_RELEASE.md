@@ -3,9 +3,9 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.302`.
+Current release: `0.9.303`.
 
 Highlights:
-- Fixed ESC Addons shortcuts so all supported external addon buttons wait for the Game Menu to close before dispatching the verified slash handler.
-- Mirrored Blizzard's slash handler call shape by passing the default chat edit box to registered handlers.
-- Kept the no-chat-fallback contract intact: missing or failed handlers stay silent instead of writing slash text into chat.
+- Disabled isiLive AddOn sync transport while in raids, including Share Keys requests.
+- Kept Share Keys on the fastest AddOn-message priority path for supported party and instance-party channels.
+- Added an end-to-end Share Keys sender/receiver simulation covering click, sync dispatch, receiver processing, chat output, cooldown, and runtime trace.

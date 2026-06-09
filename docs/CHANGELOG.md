@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-06-09 - Version 0.9.303 (patch)
+
+- Disabled the isiLive AddOn sync send channel while `IsInRaid()` is active,
+  so Share Keys and all other isiLive sync buckets fail closed in raid groups
+  instead of resolving a raid transport channel.
+- Kept Share Keys on ChatThrottleLib `ALERT` priority for the supported
+  non-raid channels, with `INSTANCE_CHAT` preferred inside instance groups
+  and `PARTY` used for normal groups.
+- Added deterministic coverage for the full Share Keys sender/receiver chain:
+  button click, local chat output, `SHAREKEYS` dispatch, receiver processing,
+  receiver chat output, remote cooldown, and runtime trace logging.
+- Added raid transport regression coverage proving the sync channel resolves
+  to `nil` in raids and `Sync.SendShareKeysRequest()` does not publish there.
+- Bumped the TOC and documentation baselines to `0.9.303`.
+- Updated the release-gate scenario baseline to `1976` deterministic scenarios.
+
 ## 2026-06-08 - Version 0.9.302 (patch)
 
 - Fixed ESC Addons shortcuts so external addon slash handlers run only after

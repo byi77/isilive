@@ -215,6 +215,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Event handlers suppress background processing while raid mode is active
   - Settings panel renders raid behavior as a status note instead of a single-option selector
   - Factory raid behavior resolver defaults to raid off and normalizes legacy values
+  - Sync GetAddonSyncChannel returns nil in raid
+  - Sync SendShareKeysRequest does not publish in raid
 
 ### RULE-LOCALE-SYMMETRIE-FALLBACK
 - Regelnummer: 12
@@ -693,6 +695,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Der Share-Keys-Button ist 30 Sekunden gegen Spam gesperrt. Die Sperre wird lokal nur nach einem wirksamen eigenen Klick gesetzt, also wenn dabei entweder der eigene Key erfolgreich in `PARTY` angekuendigt oder ein erfolgreicher `SHAREKEYS`-Sync ausgeloest wurde; ein lokaler Print-Fallback zaehlt dafuer nicht als Chat-Share. Empfangende isiLive-Clients sperren ihren Button bei jedem eingehenden `SHAREKEYS`-Pfad, auch wenn sie keinen eigenen `PARTY`-Post ausloesen koennen. Ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt.
 - Erforderliche Tests:
   - Roster panel share keys button debounces rapid clicks
+  - Roster panel share keys button drives full sender receiver chat chain
   - Roster panel share keys button does not treat the local print fallback as a successful party share
   - Roster panel share keys button ignores no-op clicks without chat or sync success
   - Roster panel share keys button locks on remote SHAREKEYS signal

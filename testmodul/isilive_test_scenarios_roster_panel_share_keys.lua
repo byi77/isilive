@@ -22,6 +22,14 @@ local function RequireRosterPanelHelpers()
   return helpers
 end
 
+local function RequireFixtures()
+  local chunk, loadErr = loadfile("testmodul/isilive_test_fixtures.lua")
+  if not chunk then
+    error(string.format("cannot load fixture helper: %s", tostring(loadErr)))
+  end
+  return chunk()
+end
+
 -- Upvalue locals — set once from the scenario entry point before any test is called.
 local NewRecordedFrame
 local NewRecordedMainFrame
@@ -161,6 +169,315 @@ local function RegisterShareKeysGlobalPathTest()
       Assert.Equal(sentMessages[1].channel, "PARTY", "share-keys global chat path should still announce to party chat")
       Assert.Equal(shareKeyRequests, 1, "share-keys global chat path should still broadcast the sync request")
     end)
+  end)
+end
+
+local function RegisterShareKeysEndToEndButtonRuntimeTest()
+  test("Roster panel share keys button drives full sender receiver chat chain", function()
+    local Fixtures = RequireFixtures()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local chatMessages = {}
+    local addonMessages = {}
+    local runtimeLogs = {}
+    local cooldownTriggers = 0
+    local currentTime = 900
+    local counters = { uiUpdates = 0, refreshResponses = 0 }
+    local senderRoster = {
+      player = {
+        name = "Sender",
+        realm = "RealmA",
+        role = "DAMAGER",
+        keyMapID = 2649,
+        keyLevel = 12,
+      },
+    }
+    local receiverRoster = {
+      sender = {
+        name = "Sender",
+        realm = "RealmA",
+        hasIsiLive = true,
+      },
+      player = {
+        name = "Receiver",
+        realm = "RealmB",
+        role = "HEALER",
+        keyMapID = 2660,
+        keyLevel = 15,
+      },
+    }
+
+    local function Strsplit(sep, str, max)
+      local pos = str:find(sep, 1, true)
+      if not pos then
+        return str
+      end
+      if max and max >= 2 then
+        return str:sub(1, pos - 1), str:sub(pos + 1)
+      end
+      return str:sub(1, pos - 1)
+    end
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      GetRealmName = function()
+        return "RealmA"
+      end,
+      GetTime = function()
+        return currentTime
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      IsInGroup = function(category)
+        if category == 2 then
+          return false
+        end
+        return true
+      end,
+      LE_PARTY_CATEGORY_INSTANCE = 2,
+      IsiLiveDB = { syncEnabled = true },
+      C_MythicPlus = false,
+      C_Container = false,
+      C_ChallengeMode = {
+        GetMapUIInfo = function(mapID)
+          if mapID == 2649 then
+            return "Sender Dungeon"
+          end
+          if mapID == 2660 then
+            return "Receiver Dungeon"
+          end
+          return nil
+        end,
+      },
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(addonMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+          return true
+        end,
+      },
+      SendChatMessage = function(message, channel)
+        table.insert(chatMessages, {
+          message = message,
+          channel = channel,
+        })
+      end,
+      strsplit = Strsplit,
+      print = function() end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_context_helpers.lua",
+        "isiLive_sync.lua",
+        "isiLive_event_handlers.lua",
+        "isiLive_roster_panel.lua",
+      })
+
+      local helloResult =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "HELLO:1.0:2:899:hello", "Sender-RealmA", "Receiver", "RealmB", "PARTY")
+      Assert.NotNil(helloResult, "pre-sync HELLO must be accepted before the share-keys click")
+      Assert.True(addon.Sync.IsUserKnown("Sender", "RealmA"), "sender must already be known from normal sync")
+
+      local senderController = addon.RosterPanel.CreateController({
+        mainFrame = NewRecordedMainFrame(createdFontStrings),
+        getL = function()
+          return { ANNOUNCE_PREFIX = "PartyKeys:" }
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
+        buildOrderedRoster = function(roster)
+          return {
+            { unit = "player", info = roster.player },
+          }
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Sender",
+            languageDisplay = "EN",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "SD +12",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function(mapID)
+          return mapID == 2649 and "SD" or "RD"
+        end,
+        getOwnedKeystoneSnapshot = function()
+          return 2649, 12
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return senderRoster
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {
+          HEALER = 1,
+          DAMAGER = 2,
+          NONE = 3,
+        },
+        unitPriority = {
+          player = 1,
+        },
+        getTime = function()
+          return currentTime
+        end,
+        shareKeysDebounceSeconds = 30,
+        sendShareKeysRequest = function()
+          return addon.Sync.SendShareKeysRequest()
+        end,
+      })
+
+      senderController.RenderRoster(senderRoster)
+
+      local shareKeysButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame.pointY == -150 then
+          shareKeysButton = frame
+          break
+        end
+      end
+      shareKeysButton = Assert.NotNil(shareKeysButton, "share-keys button should exist")
+      ---@cast shareKeysButton any
+      Assert.True(shareKeysButton.enabled, "sender share-keys button must start enabled")
+
+      ---@diagnostic disable: undefined-field
+      shareKeysButton.OnClick()
+      ---@diagnostic enable: undefined-field
+
+      Assert.Equal(#chatMessages, 1, "sender click must first publish the sender's own key to chat")
+      Assert.Equal(
+        chatMessages[1].message,
+        "[isiLive] PartyKeys: [Keystone: Sender Dungeon +12]",
+        "sender chat output must be built from the live sender keystone snapshot"
+      )
+      Assert.Equal(chatMessages[1].channel, "PARTY", "sender own-key chat must use the party channel")
+      Assert.Equal(#addonMessages, 1, "sender click must publish exactly one SHAREKEYS addon request")
+      Assert.Equal(addonMessages[1].prefix, addon.Sync.GetPrefix(), "addon request must use the ISILIVE prefix")
+      Assert.Equal(addonMessages[1].message, "SHAREKEYS", "addon request must carry the SHAREKEYS payload")
+      Assert.Equal(addonMessages[1].channel, "PARTY", "addon request must use the party sync channel")
+      Assert.False(shareKeysButton.enabled, "successful sender click must start the local share-keys cooldown")
+
+      local receiverController = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, counters, {
+        isMainFrameShown = function()
+          return false
+        end,
+        processAddonMessage = function(prefix, message, sender, channel)
+          return addon.Sync.ProcessAddonMessage(prefix, message, sender, "Receiver", "RealmB", channel)
+        end,
+        sendOwnKeystoneToChat = function()
+          local line = addon.ContextHelpers.BuildOwnKeystoneAnnounceLine({
+            getL = function()
+              return { ANNOUNCE_PREFIX = "PartyKeys:" }
+            end,
+            getOwnedKeystoneSnapshot = function()
+              return 2660, 15
+            end,
+            getDungeonShortCode = function(mapID)
+              return mapID == 2660 and "RD" or nil
+            end,
+          })
+          return addon.ContextHelpers.SendPartyChatMessage(line)
+        end,
+        triggerShareKeysCooldown = function()
+          cooldownTriggers = cooldownTriggers + 1
+        end,
+        logRuntimeTracef = function(formatText, ...)
+          table.insert(runtimeLogs, string.format(formatText, ...))
+        end,
+        getRoster = function()
+          return receiverRoster
+        end,
+        forEachRosterInfo = function(visitor)
+          visitor(receiverRoster.sender)
+          visitor(receiverRoster.player)
+        end,
+        isSyncUserKnown = function(name, realm)
+          return addon.Sync.IsUserKnown(name, realm)
+        end,
+      })
+
+      receiverController:Dispatch(
+        "CHAT_MSG_ADDON",
+        addonMessages[1].prefix,
+        addonMessages[1].message,
+        addonMessages[1].channel,
+        "Sender-RealmA"
+      )
+    end)
+
+    Assert.Equal(#chatMessages, 2, "receiver must add exactly one answer chat line after processing SHAREKEYS")
+    Assert.Equal(
+      chatMessages[2].message,
+      "[isiLive] PartyKeys: [Keystone: Receiver Dungeon +15]",
+      "receiver chat output must be built from the receiver's own keystone snapshot"
+    )
+    Assert.Equal(chatMessages[2].channel, "PARTY", "receiver own-key chat must use the party channel")
+    Assert.Equal(cooldownTriggers, 1, "receiver must trigger the remote share-keys cooldown")
+    Assert.True(receiverRoster.sender.hasIsiLive, "pre-synced sender must stay marked as isiLive-known")
+    Assert.Equal(
+      counters.uiUpdates,
+      0,
+      "SHAREKEYS must not force a roster UI refresh when the sender was already known"
+    )
+    Assert.Equal(
+      counters.updates,
+      0,
+      "SHAREKEYS must not refresh target-dependent status when no roster, target, or kick state changed"
+    )
+
+    local sawReceiveLog = false
+    local sawReplyLog = false
+    local sawCooldownLog = false
+    for _, line in ipairs(runtimeLogs) do
+      if line == "[SHAREKEYS] received sender=Sender-RealmA" then
+        sawReceiveLog = true
+      elseif line == "[SHAREKEYS] reply_result sender=Sender-RealmA sent=true" then
+        sawReplyLog = true
+      elseif line == "[SHAREKEYS] cooldown_triggered sender=Sender-RealmA" then
+        sawCooldownLog = true
+      end
+    end
+    Assert.True(sawReceiveLog, "receiver must log SHAREKEYS receive")
+    Assert.True(sawReplyLog, "receiver must log successful own-key reply")
+    Assert.True(sawCooldownLog, "receiver must log remote cooldown trigger")
   end)
 end
 
@@ -1313,6 +1630,7 @@ return function(test_arg, ctx)
   NewRecordedFrame = Helpers.NewRecordedFrame
   NewRecordedMainFrame = Helpers.NewRecordedMainFrame
   RegisterShareKeysGlobalPathTest()
+  RegisterShareKeysEndToEndButtonRuntimeTest()
   RegisterShareKeysDeterministicLinkTest()
   RegisterShareKeysFallbackLinkTest()
   RegisterShareKeysLiveSnapshotTest()
