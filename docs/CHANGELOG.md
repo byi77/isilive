@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-06-10 - Version 0.9.305 (patch)
+
+- Fixed ESC Addons shortcuts so Blizzard's character-scoped enabled state
+  (`Some` / state `1`) counts as active only after isiLive verifies and passes
+  the current character to the enable-state query.
+- Kept global `Some` enable-state values fail-closed without a concrete
+  current-character source.
+- Added deterministic regression coverage for character-scoped ESC Addons
+  shortcut visibility and slash dispatch.
+- Bumped the TOC and documentation baselines to `0.9.305`.
+- Updated the release-gate scenario baseline to `1984` deterministic scenarios.
+
 ## 2026-06-10 - Version 0.9.304 (patch)
 
 - Added a Sound output channel selector to the Settings sound section. Built-in

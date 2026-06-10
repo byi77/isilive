@@ -3,9 +3,9 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.304`.
+Current release: `0.9.305`.
 
 Highlights:
-- Added a Sound output channel setting with `Master` as the default and optional `SFX` routing for built-in isiLive alerts.
-- Kept hard-coded built-in sound playback fail-closed to `Master` unless the saved user setting explicitly selects `SFX`.
-- Added deterministic coverage for sound-channel routing, Settings UI persistence, DB schema validation, and localized Sound settings.
+- Fixed ESC Addons shortcuts for addons that Blizzard reports as character-scoped enabled (`Some` / state `1`) after isiLive verifies the current character.
+- Kept global `Some` enable-state values fail-closed when no concrete current-character query is available.
+- Added deterministic coverage for character-scoped ESC Addons shortcut visibility and slash dispatch.

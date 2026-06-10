@@ -167,7 +167,7 @@ local function IsEnabledStateForCurrentCharacter(state, hasCurrentCharacter)
     return false
   end
   if hasCurrentCharacter then
-    return state == 2
+    return state == 1 or state == 2
   end
   return state == 2
 end

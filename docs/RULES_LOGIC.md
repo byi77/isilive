@@ -939,6 +939,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UI third game-menu addon panel shows installed and enabled addon shortcuts
   - UI third game-menu addon shortcut loads enabled addon before running slash
   - UI third game-menu addon shortcut uses current-character enable state
+  - UI third game-menu addon shortcut accepts character-scoped enabled state
   - UI third game-menu addon panel hides addons enabled only on another character
   - UI third game-menu isiLive shortcut can use direct settings action without self-load
   - UI third game-menu addon shortcuts resolve registered slash aliases and arguments

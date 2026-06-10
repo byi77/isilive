@@ -555,6 +555,71 @@ local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGloba
     end)
   end)
 
+  test("UI third game-menu addon shortcut accepts character-scoped enabled state", function()
+    local createFrameStub = BuildCreateFrameStub()
+    local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+    local closeButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
+    gameMenuFrame.CloseButton = closeButton
+    local loaded = {
+      MythicDungeonTools = true,
+    }
+    local slashCalls = 0
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      GameMenuFrame = gameMenuFrame,
+      UnitName = function()
+        return "Currentchar"
+      end,
+      C_AddOns = {
+        GetAddOnInfo = function(addOnName)
+          if addOnName == "MythicDungeonTools" then
+            return { name = addOnName }
+          end
+          return nil
+        end,
+        GetAddOnEnableState = function(addOnName, character)
+          Assert.Equal(addOnName, "MythicDungeonTools", "enable state should be queried for MDT")
+          Assert.Equal(character, "Currentchar", "enable state must use the current character")
+          return 1
+        end,
+        IsAddOnLoaded = function(addOnName)
+          return loaded[addOnName] == true
+        end,
+        LoadAddOn = function() end,
+      },
+      SlashCmdList = {
+        MYTHICDUNGEONTOOLS = function(msg)
+          if msg == "" then
+            slashCalls = slashCalls + 1
+          end
+        end,
+      },
+      SLASH_MYTHICDUNGEONTOOLS2 = "/mdt",
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local toolingStrip = UI.EnsurePanelUI({ gameMenuFrame = gameMenuFrame })
+      local travelStrip = UI.EnsureSecondPanelUI({
+        gameMenuFrame = gameMenuFrame,
+        firstPanelState = toolingStrip,
+      })
+      local addonStrip = UI.EnsureThirdPanelUI({
+        gameMenuFrame = gameMenuFrame,
+        secondPanelState = travelStrip,
+      })
+      addonStrip = Assert.NotNil(addonStrip, "addon shortcut panel should exist for character-scoped MDT")
+
+      local mdtButton =
+        RequireValue(addonStrip.buttonsById.mdt, "character-scoped MDT button should exist")
+      local onClick = mdtButton._scripts and mdtButton._scripts.OnClick
+      onClick = Assert.NotNil(onClick, "MDT shortcut must define OnClick")
+      onClick(mdtButton, "LeftButton")
+
+      Assert.Equal(slashCalls, 1, "character-scoped enabled addon should run its slash handler")
+    end)
+  end)
+
   test("UI third game-menu addon panel hides addons enabled only on another character", function()
     local createFrameStub = BuildCreateFrameStub()
     local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
