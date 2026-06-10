@@ -16,13 +16,17 @@
 - Fixed the factory/runtime wiring so the `ADDON_LOADED` SavedVariables
   re-apply path calls the real `ApplyDBSettings` callback instead of a
   file-load-time no-op, and pinned that reload path with active rule 79.
+- Fixed the M+ forces nameplate Settings preview so re-enabling the nameplate
+  display mode restores the unchanged percent text immediately instead of
+  waiting for another option, such as remaining-needed, to change the rendered
+  text.
 - Allowed `sounds/Portal.ogg` through the repository sound whitelist so the
   incoming-summon sound asset is tracked and included in the shared WowUp and
   CurseForge release ZIP.
 - Added deterministic architecture coverage that keeps the Portal sound
   trackable, matching the release workflow's `git ls-files` packaging source.
 - Bumped the TOC and documentation baselines to `0.9.304`.
-- Updated the release-gate scenario baseline to `1981` deterministic scenarios.
+- Updated the release-gate scenario baseline to `1982` deterministic scenarios.
 
 ## 2026-06-09 - Version 0.9.303 (patch)
 

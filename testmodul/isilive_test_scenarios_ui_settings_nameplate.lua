@@ -264,6 +264,57 @@ local function RegisterSettingsPanelNameplateRoundtripTests(test, Assert, WithGl
     end)
   end)
 
+  test("Settings nameplate preview restores percent text after display mode is re-enabled", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {
+      mobNameplateEnabled = true,
+      mplusForcesEstimate = false,
+      mobNameplateShowPercent = true,
+      mobNameplateShowRemaining = false,
+      mobNameplateFontSize = 20,
+      mobNameplatePosition = "RIGHT",
+      mobNameplateXOffset = 0,
+      mobNameplateYOffset = 0,
+    }
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local panel = Assert.NotNil(BuildPanel(db, createFrameStub), "settings panel must build")
+      local overlayFrame =
+        Assert.NotNil(FindPreviewOverlayFrame(createdFrames), "preview overlay frame must be rendered via MobNameplate")
+      local offButton = Assert.NotNil(FindOptionButton(createdFrames, nil, "off"), "'off' display-mode button must exist")
+      local nameplateButton =
+        Assert.NotNil(FindOptionButton(createdFrames, nil, "nameplate"), "'nameplate' display-mode button must exist")
+
+      Assert.Equal(overlayFrame.text:GetText(), "1.16%", "initial preview must render the percent")
+
+      ---@diagnostic disable: undefined-field
+      offButton._scripts.OnClick(offButton)
+      Assert.Equal(overlayFrame.text:GetText(), "", "turning display mode off must clear the preview text")
+      Assert.False(overlayFrame.text:IsShown(), "turning display mode off must hide the preview text")
+
+      nameplateButton._scripts.OnClick(nameplateButton)
+      ---@diagnostic enable: undefined-field
+      Assert.Equal(
+        overlayFrame.text:GetText(),
+        "1.16%",
+        "re-enabling display mode must write the percent text even when the rendered value is unchanged"
+      )
+      Assert.True(overlayFrame.text:IsShown(), "re-enabling display mode must show the preview text")
+
+      panel.Refresh()
+      Assert.Equal(overlayFrame.text:GetText(), "1.16%", "refresh must keep the restored percent preview")
+    end)
+  end)
+
   test("Settings LFG group-bonus checkbox persists and invokes live toggle callback", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}

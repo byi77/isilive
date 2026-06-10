@@ -70,6 +70,22 @@ local function ResolveMplusForcesModeFromDB(db)
   return "off"
 end
 
+local function ClearPreviewOverlay(previewOverlayFrame)
+  local text = type(previewOverlayFrame) == "table" and previewOverlayFrame.text or nil
+  if type(text) == "table" then
+    if type(text.SetText) == "function" then
+      text:SetText("")
+    end
+    text._lastText = nil
+    if type(text.Hide) == "function" then
+      text:Hide()
+    end
+  end
+  if type(previewOverlayFrame) == "table" and type(previewOverlayFrame.Hide) == "function" then
+    previewOverlayFrame:Hide()
+  end
+end
+
 local function IsExternalNameplateAddonLoaded()
   local cAddOns = rawget(_G, "C_AddOns")
   local isLoaded = nil
@@ -417,13 +433,7 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
     local db = config.getDB()
     local enabled = db.mobNameplateEnabled == true
     if not enabled then
-      preview.overlay:SetText("")
-      if type(preview.overlay.Hide) == "function" then
-        preview.overlay:Hide()
-      end
-      if type(previewOverlayFrame.Hide) == "function" then
-        previewOverlayFrame:Hide()
-      end
+      ClearPreviewOverlay(previewOverlayFrame)
       return
     end
 
@@ -442,13 +452,7 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
       if text then
         return
       end
-      preview.overlay:SetText("")
-      if type(preview.overlay.Hide) == "function" then
-        preview.overlay:Hide()
-      end
-      if type(previewOverlayFrame.Hide) == "function" then
-        previewOverlayFrame:Hide()
-      end
+      ClearPreviewOverlay(previewOverlayFrame)
       return
     end
 
@@ -461,13 +465,7 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
       end
     end
     if not text then
-      preview.overlay:SetText("")
-      if type(preview.overlay.Hide) == "function" then
-        preview.overlay:Hide()
-      end
-      if type(previewOverlayFrame.Hide) == "function" then
-        previewOverlayFrame:Hide()
-      end
+      ClearPreviewOverlay(previewOverlayFrame)
       return
     end
 

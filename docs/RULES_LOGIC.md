@@ -1065,6 +1065,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - MobNameplate ApplyPosition anchors to the Platynator display health widget when available
   - MobNameplate ApplyPreview uses the runtime text, size and healthbar anchor path
   - Settings nameplate preview uses the shared MobNameplate renderer
+  - Settings nameplate preview restores percent text after display mode is re-enabled
 
 ### RULE-ROSTER-ROLLE-AUS-INSPECT-SPEZIALISIERUNG
 - Regelnummer: 76
