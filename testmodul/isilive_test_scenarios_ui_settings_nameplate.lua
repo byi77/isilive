@@ -290,7 +290,8 @@ local function RegisterSettingsPanelNameplateRoundtripTests(test, Assert, WithGl
       local panel = Assert.NotNil(BuildPanel(db, createFrameStub), "settings panel must build")
       local overlayFrame =
         Assert.NotNil(FindPreviewOverlayFrame(createdFrames), "preview overlay frame must be rendered via MobNameplate")
-      local offButton = Assert.NotNil(FindOptionButton(createdFrames, nil, "off"), "'off' display-mode button must exist")
+      local offButton =
+        Assert.NotNil(FindOptionButton(createdFrames, nil, "off"), "'off' display-mode button must exist")
       local nameplateButton =
         Assert.NotNil(FindOptionButton(createdFrames, nil, "nameplate"), "'nameplate' display-mode button must exist")
 
