@@ -313,8 +313,6 @@ local LOCALES = {
     SETTINGS_SOUND_PREVIEW = "Play",
     SETTINGS_SOUND_CHANNEL = "Sound output channel",
     SETTINGS_SOUND_CHANNEL_DESC = "Choose whether isiLive sound alerts use the Master or Sound Effects channel.",
-    SETTINGS_SOUND_CHANNEL_MASTER = "Master",
-    SETTINGS_SOUND_CHANNEL_SFX = "SFX",
     SETTINGS_SECTION_VIP_GUESTS = "VIP Guest Settings",
     SETTINGS_SECTION_VIP_GUESTS_HINT = "Special sound controls for selected guests.",
     SETTINGS_SECTION_CHAT = "Chat Announcements",
@@ -706,8 +704,6 @@ local LOCALES = {
     SETTINGS_SOUND_PREVIEW = "Abspielen",
     SETTINGS_SOUND_CHANNEL = "Klangkanal",
     SETTINGS_SOUND_CHANNEL_DESC = "Waehlt, ob isiLive-Klanghinweise den Master- oder den Soundeffekte-Kanal nutzen.",
-    SETTINGS_SOUND_CHANNEL_MASTER = "Master",
-    SETTINGS_SOUND_CHANNEL_SFX = "SFX",
     SETTINGS_SECTION_VIP_GUESTS = "Einstellungen fuer VIP Gaeste",
     SETTINGS_SECTION_VIP_GUESTS_HINT = "Spezielle Klangschalter fuer ausgewaehlte Gaeste.",
     SETTINGS_SECTION_CHAT = "Chat-Ansagen",
@@ -1099,8 +1095,6 @@ local LOCALES = {
     SETTINGS_SOUND_PREVIEW = "Ecouter",
     SETTINGS_SOUND_CHANNEL = "Canal audio",
     SETTINGS_SOUND_CHANNEL_DESC = "Choisissez si les alertes sonores isiLive utilisent le canal Master ou Effets sonores.",
-    SETTINGS_SOUND_CHANNEL_MASTER = "Master",
-    SETTINGS_SOUND_CHANNEL_SFX = "SFX",
     SETTINGS_SECTION_VIP_GUESTS = "Parametres invites VIP",
     SETTINGS_SECTION_VIP_GUESTS_HINT = "Controles sonores speciaux pour des invites selectionnes.",
     SETTINGS_SECTION_CHAT = "Annonces de chat",
@@ -1492,8 +1486,6 @@ local LOCALES = {
     SETTINGS_SOUND_PREVIEW = "Reproducir",
     SETTINGS_SOUND_CHANNEL = "Canal de sonido",
     SETTINGS_SOUND_CHANNEL_DESC = "Elige si las alertas sonoras de isiLive usan el canal Master o Efectos de sonido.",
-    SETTINGS_SOUND_CHANNEL_MASTER = "Master",
-    SETTINGS_SOUND_CHANNEL_SFX = "SFX",
     SETTINGS_SECTION_VIP_GUESTS = "Ajustes para invitados VIP",
     SETTINGS_SECTION_VIP_GUESTS_HINT = "Controles de sonido especiales para invitados seleccionados.",
     SETTINGS_SECTION_CHAT = "Anuncios de chat",
@@ -1885,8 +1877,6 @@ local LOCALES = {
     SETTINGS_SOUND_PREVIEW = "Tocar",
     SETTINGS_SOUND_CHANNEL = "Canal de som",
     SETTINGS_SOUND_CHANNEL_DESC = "Escolha se os alertas sonoros do isiLive usam o canal Master ou Efeitos sonoros.",
-    SETTINGS_SOUND_CHANNEL_MASTER = "Master",
-    SETTINGS_SOUND_CHANNEL_SFX = "SFX",
     SETTINGS_SECTION_VIP_GUESTS = "Configuracoes de convidados VIP",
     SETTINGS_SECTION_VIP_GUESTS_HINT = "Controles de som especiais para convidados selecionados.",
     SETTINGS_SECTION_CHAT = "Anuncios no chat",
@@ -2278,8 +2268,6 @@ local LOCALES = {
     SETTINGS_SOUND_PREVIEW = "Riproduci",
     SETTINGS_SOUND_CHANNEL = "Canale audio",
     SETTINGS_SOUND_CHANNEL_DESC = "Scegli se gli avvisi sonori di isiLive usano il canale Master o Effetti sonori.",
-    SETTINGS_SOUND_CHANNEL_MASTER = "Master",
-    SETTINGS_SOUND_CHANNEL_SFX = "SFX",
     SETTINGS_SECTION_VIP_GUESTS = "Impostazioni ospiti VIP",
     SETTINGS_SECTION_VIP_GUESTS_HINT = "Controlli audio speciali per ospiti selezionati.",
     SETTINGS_SECTION_CHAT = "Annunci chat",
@@ -2671,8 +2659,6 @@ local LOCALES = {
     SETTINGS_SOUND_PREVIEW = "Слушать",
     SETTINGS_SOUND_CHANNEL = "Звуковой канал",
     SETTINGS_SOUND_CHANNEL_DESC = "Выбирает, используют ли звуковые оповещения isiLive канал Master или Sound Effects.",
-    SETTINGS_SOUND_CHANNEL_MASTER = "Master",
-    SETTINGS_SOUND_CHANNEL_SFX = "SFX",
     SETTINGS_SECTION_VIP_GUESTS = "Настройки VIP-гостей",
     SETTINGS_SECTION_VIP_GUESTS_HINT = "Специальные переключатели звука для выбранных гостей.",
     SETTINGS_SECTION_CHAT = "Объявления в чате",
@@ -3066,8 +3052,6 @@ local LOCALES = {
     SETTINGS_SOUND_PREVIEW = "Dinle",
     SETTINGS_SOUND_CHANNEL = "Ses kanali",
     SETTINGS_SOUND_CHANNEL_DESC = "isiLive sesli uyarilarinin Master veya Ses Efektleri kanalini kullanacagini sec.",
-    SETTINGS_SOUND_CHANNEL_MASTER = "Master",
-    SETTINGS_SOUND_CHANNEL_SFX = "SFX",
     SETTINGS_SECTION_VIP_GUESTS = "VIP misafir ayarlari",
     SETTINGS_SECTION_VIP_GUESTS_HINT = "Secili misafirler icin ozel ses denetimleri.",
     SETTINGS_SECTION_CHAT = "Sohbet Duyurulari",
@@ -3202,6 +3186,11 @@ local LOCALES = {
     SETTINGS_BETA_NOTICE = "Beta",
   },
 }
+
+for _, localeTable in pairs(LOCALES) do
+  localeTable.SETTINGS_SOUND_CHANNEL_MASTER = "Master"
+  localeTable.SETTINGS_SOUND_CHANNEL_SFX = "SFX"
+end
 
 function Texts.GetLocaleTables()
   return LOCALES
