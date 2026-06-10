@@ -109,7 +109,8 @@ local function main()
         local code = stripComment(raw)
         if code:find('"SFX"') and isSoundContext(code) then
           issues[#issues + 1] = string.format(
-            '%s:%d: hard-coded sound channel "SFX" detected — default to "Master" or mark the persisted user setting with -- sound-ok',
+            '%s:%d: hard-coded sound channel "SFX" detected — default to "Master" '
+              .. "or mark the persisted user setting with -- sound-ok",
             path,
             lineno
           )
