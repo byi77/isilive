@@ -7,6 +7,26 @@ addonTable.SoundUtils = SoundUtils
 
 local SPAM_WINDOW = 1.0 -- seconds: ignore duplicate sound within this window
 local lastPlayedAt = {} -- soundKey -> timestamp
+local DEFAULT_SOUND_CHANNEL = "Master"
+local OUTPUT_CHANNELS = { Master = true, SFX = true }
+
+local function NormalizeOutputChannel(value, fallback)
+  if type(value) == "string" and OUTPUT_CHANNELS[value] then
+    return value
+  end
+  if type(fallback) == "string" and OUTPUT_CHANNELS[fallback] then
+    return fallback
+  end
+  return DEFAULT_SOUND_CHANNEL
+end
+
+function SoundUtils.GetConfiguredOutputChannel(fallback)
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) == "table" then
+    return NormalizeOutputChannel(db.soundOutputChannel, fallback)
+  end
+  return NormalizeOutputChannel(nil, fallback)
+end
 local VIP_MOUNT_SOUND_FILE_IDS = {
   astral_aurochs = {
     7340960,
@@ -743,9 +763,9 @@ SoundUtils.SettingsOrder = {
 
 local function BuildSoundKey(soundFile, channel, spamScope)
   if type(spamScope) == "string" and spamScope ~= "" then
-    return "scope\31" .. spamScope .. "\31" .. tostring(channel or "Master")
+    return "scope\31" .. spamScope .. "\31" .. tostring(channel or DEFAULT_SOUND_CHANNEL)
   end
-  return tostring(soundFile) .. "\31" .. tostring(channel or "Master")
+  return tostring(soundFile) .. "\31" .. tostring(channel or DEFAULT_SOUND_CHANNEL)
 end
 
 function SoundUtils.GetEntry(key)
@@ -791,7 +811,8 @@ function SoundUtils.Play(soundFile, channel, spamScope)
   if type(soundFile) ~= "string" or soundFile == "" then
     return false
   end
-  local resolvedChannel = type(channel) == "string" and channel ~= "" and channel or "Master"
+  local resolvedChannel = type(channel) == "string" and channel ~= "" and channel
+    or SoundUtils.GetConfiguredOutputChannel()
   local GetTime_ref = rawget(_G, "GetTime")
   local now = type(GetTime_ref) == "function" and GetTime_ref() or 0
   local soundKey = BuildSoundKey(soundFile, resolvedChannel, spamScope)
@@ -826,7 +847,8 @@ function SoundUtils.PlaySoundKit(soundKit, channel)
   if resolvedKit == nil then
     return false
   end
-  local resolvedChannel = type(channel) == "string" and channel ~= "" and channel or "Master"
+  local resolvedChannel = type(channel) == "string" and channel ~= "" and channel
+    or SoundUtils.GetConfiguredOutputChannel()
   local GetTime_ref = rawget(_G, "GetTime")
   local now = type(GetTime_ref) == "function" and GetTime_ref() or 0
   local soundKey = "kit\31" .. tostring(resolvedKit) .. "\31" .. resolvedChannel
@@ -850,7 +872,7 @@ local function PlayEntry(entry, key)
   if type(entry) ~= "table" then
     return false
   end
-  local channel = type(entry.defaultChannel) == "string" and entry.defaultChannel or "Master"
+  local channel = SoundUtils.GetConfiguredOutputChannel(entry.defaultChannel)
   if entry.soundKit ~= nil then
     return SoundUtils.PlaySoundKit(entry.soundKit, channel)
   end

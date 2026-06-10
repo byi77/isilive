@@ -1,8 +1,9 @@
 #!/usr/bin/env lua
 ---@diagnostic disable: undefined-global
--- Pins the current project sound-channel policy: every PlaySoundFile call must
--- use channel "Master" unless a caller deliberately passes another explicit
--- channel for a documented WoW API requirement.
+-- Pins the current project sound-channel policy: every built-in isiLive sound
+-- defaults to channel "Master". The only supported "SFX" path is the persisted
+-- user output-channel setting; hard-coded SFX playback remains forbidden unless
+-- a line is explicitly documented with the inline override below.
 --
 -- Scans production Lua files (core / factory / game / logic / ui) for any
 -- "SFX" string literal that appears in a sound-related context. A line
@@ -10,9 +11,9 @@
 -- or Sound — that catches both direct PlaySoundFile(..., "SFX") calls and
 -- indirect entries like `defaultChannel = "SFX"` in a sound registry.
 --
--- Inline override: append `-- sound-ok` to a line to silence the gate. Only
--- use for genuinely non-sound usages of the literal "SFX" (extremely rare
--- in this codebase).
+-- Inline override: append `-- sound-ok` to a line to silence the gate. Use it
+-- only for the persisted soundOutputChannel setting or for genuinely non-sound
+-- usages of the literal "SFX" (extremely rare in this codebase).
 --
 -- Exits 0 on clean, 1 on violations, 2 on IO/setup errors.
 -- Run from repo root:
@@ -108,14 +109,18 @@ local function main()
         local code = stripComment(raw)
         if code:find('"SFX"') and isSoundContext(code) then
           issues[#issues + 1] =
-            string.format('%s:%d: sound channel "SFX" detected — use "Master" instead', path, lineno)
+            string.format(
+              '%s:%d: hard-coded sound channel "SFX" detected — default to "Master" or mark the persisted user setting with -- sound-ok',
+              path,
+              lineno
+            )
         end
       end
     end
   end
 
   if #issues == 0 then
-    io.write('sound-channel: clean — no PlaySoundFile / defaultChannel calls use "SFX"\n')
+    io.write('sound-channel: clean — built-in playback defaults to "Master"; only documented user-setting SFX paths remain\n')
     os.exit(0)
   end
 

@@ -2244,6 +2244,10 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
             SETTINGS_SOUND_BLOODLUST = "Sound: Bloodlust",
             SETTINGS_SOUND_BLOODLUST_READY = "Sound: Bloodlust Ready",
             SETTINGS_SOUND_BLOODLUST_READY_REMINDER = "Repeat Bloodlust Ready",
+            SETTINGS_SOUND_CHANNEL = "Sound output channel",
+            SETTINGS_SOUND_CHANNEL_DESC = "Choose whether isiLive sound alerts use Master or SFX.",
+            SETTINGS_SOUND_CHANNEL_MASTER = "Master",
+            SETTINGS_SOUND_CHANNEL_SFX = "SFX",
             SETTINGS_QUEUE_DEBUG = "Queue Debug",
             SETTINGS_RUNTIME_LOG = "Runtime Log",
           }
@@ -2263,6 +2267,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Nil(db.soundPortalAvailableEnabled, "opening settings should not persist the default portal sound state")
       Assert.Nil(db.soundBattleResEnabled, "opening settings should not persist the default battle-res sound state")
       Assert.Nil(db.soundBloodlustEnabled, "opening settings should not persist the default bloodlust sound state")
+      Assert.Nil(db.soundOutputChannel, "opening settings should not persist the default sound output channel")
       local unstoredDefaultKeys = {
         "soundBattleResReadyEnabled",
         "soundBloodlustReadyEnabled",
@@ -2281,6 +2286,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       local bloodlustSoundCheck = nil
       local bloodlustReadySoundCheck = nil
       local bloodlustReadyReminderCheck = nil
+      local soundChannelMasterButton = nil
+      local soundChannelSfxButton = nil
       local soundPreviewButtons = {}
       for _, frame in ipairs(createdFrames) do
         if frame._sectionKey == "SETTINGS_SECTION_SOUNDS" then
@@ -2302,6 +2309,10 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           bloodlustReadySoundCheck = frame
         elseif frame._settingKey == "SETTINGS_SOUND_BLOODLUST_READY_REMINDER" then
           bloodlustReadyReminderCheck = frame
+        elseif frame._settingKey == "SETTINGS_SOUND_CHANNEL" and frame._optionValue == "Master" then
+          soundChannelMasterButton = frame
+        elseif frame._settingKey == "SETTINGS_SOUND_CHANNEL" and frame._optionValue == "SFX" then
+          soundChannelSfxButton = frame
         end
         if frame._soundPreviewKey then
           soundPreviewButtons[frame._soundPreviewKey] = frame
@@ -2323,6 +2334,15 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         Assert.NotNil(bloodlustReadySoundCheck, "settings panel should create a bloodlust-ready sound checkbox")
       bloodlustReadyReminderCheck =
         Assert.NotNil(bloodlustReadyReminderCheck, "settings panel should create a bloodlust-ready reminder checkbox")
+      soundChannelMasterButton =
+        Assert.NotNil(soundChannelMasterButton, "settings panel should create a Master sound-channel option")
+      soundChannelSfxButton =
+        Assert.NotNil(soundChannelSfxButton, "settings panel should create an SFX sound-channel option")
+      Assert.Equal(
+        soundChannelMasterButton._backdropColor and soundChannelMasterButton._backdropColor[4],
+        0.25,
+        "Master sound channel should be highlighted by default"
+      )
       Assert.NotNil(soundPreviewButtons.leader_transfer, "settings panel should create a leader sound preview button")
       Assert.NotNil(soundPreviewButtons.group_join, "settings panel should create a group-join sound preview button")
       Assert.NotNil(soundPreviewButtons.portal_available, "settings panel should create a portal sound preview button")
@@ -2372,6 +2392,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       local onClickBloodlustReadyReminder = bloodlustReadyReminderCheck._scripts
           and bloodlustReadyReminderCheck._scripts.OnClick
         or nil
+      local onClickSoundChannelSfx = soundChannelSfxButton._scripts and soundChannelSfxButton._scripts.OnClick or nil
       onClickLead = Assert.NotNil(onClickLead, "leader-transfer sound checkbox should define OnClick")
       onClickJoin = Assert.NotNil(onClickJoin, "group-join sound checkbox should define OnClick")
       onClickPortal = Assert.NotNil(onClickPortal, "portal sound checkbox should define OnClick")
@@ -2383,6 +2404,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         Assert.NotNil(onClickBloodlustReady, "bloodlust-ready sound checkbox should define OnClick")
       onClickBloodlustReadyReminder =
         Assert.NotNil(onClickBloodlustReadyReminder, "bloodlust-ready reminder checkbox should define OnClick")
+      onClickSoundChannelSfx =
+        Assert.NotNil(onClickSoundChannelSfx, "SFX sound-channel option should define OnClick")
 
       leadSoundCheck:SetChecked(false)
       onClickLead(leadSoundCheck)
@@ -2400,6 +2423,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       onClickBloodlustReady(bloodlustReadySoundCheck)
       bloodlustReadyReminderCheck:SetChecked(false)
       onClickBloodlustReadyReminder(bloodlustReadyReminderCheck)
+      onClickSoundChannelSfx(soundChannelSfxButton)
 
       Assert.False(db.soundLeadEnabled, "disabling leader-transfer sound should persist false")
       Assert.True(db.soundGroupJoinEnabled, "enabling group-join sound should persist true")
@@ -2409,6 +2433,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.True(db.soundBloodlustEnabled, "enabling bloodlust sound should persist true")
       Assert.False(db.soundBloodlustReadyEnabled, "disabling bloodlust-ready sound should persist false")
       Assert.False(db.soundBloodlustReadyReminderEnabled, "disabling bloodlust-ready reminders should persist false")
+      Assert.Equal(db.soundOutputChannel, "SFX", "selecting the SFX sound channel should persist SFX")
 
       local onPreviewLead = Assert.NotNil(
         soundPreviewButtons.leader_transfer._scripts and soundPreviewButtons.leader_transfer._scripts.OnClick or nil,
@@ -2421,7 +2446,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         "Interface\\AddOns\\isiLive\\sounds\\CartoonVoiceBaritone.ogg",
         "leader-transfer preview should play the configured sound asset"
       )
-      Assert.Equal(previewCalls[1].channel, "Master", "sound previews should use the configured Master channel")
+      Assert.Equal(previewCalls[1].channel, "SFX", "sound previews should use the configured SFX channel")
 
       panel.Refresh()
       Assert.False(leadSoundCheck:GetChecked(), "refresh should keep the disabled leader-transfer sound state")
@@ -2440,6 +2465,11 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.False(
         bloodlustReadyReminderCheck:GetChecked(),
         "refresh should keep the disabled bloodlust-ready reminder state"
+      )
+      Assert.Equal(
+        soundChannelSfxButton._backdropColor and soundChannelSfxButton._backdropColor[4],
+        0.25,
+        "refresh should keep the selected SFX sound-channel highlight"
       )
     end)
   end)

@@ -1460,6 +1460,43 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
     end)
   end)
 
+  test("SoundUtils uses Master by default and SFX when configured", function()
+    local now = 1
+    local playedChannel = nil
+    local db = {}
+
+    WithGlobals({
+      IsiLiveDB = db,
+      GetTime = function()
+        return now
+      end,
+      PlaySoundFile = function(_path, channel)
+        playedChannel = channel
+        return true
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
+      Assert.Equal(
+        addon.SoundUtils.GetConfiguredOutputChannel(),
+        "Master",
+        "sound output channel should default to Master"
+      )
+
+      addon.SoundUtils.PlayGroupJoin()
+      Assert.Equal(playedChannel, "Master", "built-in sound playback should use Master by default")
+
+      db.soundOutputChannel = "SFX"
+      now = 3
+      addon.SoundUtils.PlayGroupJoin()
+      Assert.Equal(playedChannel, "SFX", "built-in sound playback should use configured SFX output")
+
+      db.soundOutputChannel = "Dialog"
+      now = 5
+      addon.SoundUtils.PlayGroupJoin()
+      Assert.Equal(playedChannel, "Master", "invalid sound output channel should fail closed to Master")
+    end)
+  end)
+
   test("SoundUtils Bloodlust-ready setting disables TTS playback", function()
     local playCalls = 0
     local db = {

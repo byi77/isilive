@@ -364,6 +364,40 @@ return function(test, ctx)
     )
   end)
 
+  test("Locale sound-channel settings strings support prepared translations", function()
+    local addon = LoadAddonModules({ "isiLive_texts.lua" })
+    local locales = addon.Texts.GetLocaleTables()
+    local enUS = locales.enUS or {}
+    local deDE = locales.deDE or {}
+
+    Assert.Equal(
+      enUS.SETTINGS_SOUND_CHANNEL,
+      "Sound output channel",
+      "enUS sound-channel setting label must describe the output channel"
+    )
+    Assert.Equal(deDE.SETTINGS_SOUND_CHANNEL, "Klangkanal", "deDE sound-channel setting label must be German")
+
+    for localeName, localeTable in pairs(locales) do
+      Assert.True(
+        type(localeTable.SETTINGS_SOUND_CHANNEL) == "string" and localeTable.SETTINGS_SOUND_CHANNEL ~= "",
+        localeName .. " sound-channel setting label must be prepared"
+      )
+      Assert.True(
+        type(localeTable.SETTINGS_SOUND_CHANNEL_DESC) == "string"
+          and localeTable.SETTINGS_SOUND_CHANNEL_DESC ~= "",
+        localeName .. " sound-channel setting description must be prepared"
+      )
+      Assert.Equal(localeTable.SETTINGS_SOUND_CHANNEL_MASTER, "Master", localeName .. " Master option label")
+      Assert.Equal(localeTable.SETTINGS_SOUND_CHANNEL_SFX, "SFX", localeName .. " SFX option label")
+      if localeName ~= "enUS" then
+        Assert.False(
+          localeTable.SETTINGS_SOUND_CHANNEL_DESC == enUS.SETTINGS_SOUND_CHANNEL_DESC,
+          localeName .. " sound-channel description must not fall back to English"
+        )
+      end
+    end
+  end)
+
   test("Full-width action button labels exist for fitted rendering", function()
     local addon = LoadAddonModules({ "isiLive_texts.lua" })
     local locales = addon.Texts.GetLocaleTables()

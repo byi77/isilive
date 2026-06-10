@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-06-10 - Version 0.9.304 (patch)
+
+- Added a Sound output channel selector to the Settings sound section. Built-in
+  isiLive alerts continue to default to `Master`, and users can explicitly
+  switch them to `SFX`.
+- Added `soundOutputChannel` schema validation with fail-closed fallback to
+  `Master` for invalid values.
+- Updated the sound-channel gate so hard-coded `SFX` playback remains blocked
+  while the persisted user setting is allowed.
+- Added localized Sound settings text for all prepared locale tables.
+- Added active rule 78 for selectable sound-channel behavior and deterministic
+  coverage for SoundUtils routing, Settings persistence, Locale strings, and DB
+  schema validation.
+- Bumped the TOC and documentation baselines to `0.9.304`.
+- Updated the release-gate scenario baseline to `1979` deterministic scenarios.
+
 ## 2026-06-09 - Version 0.9.303 (patch)
 
 - Disabled the isiLive AddOn sync send channel while `IsInRaid()` is active,

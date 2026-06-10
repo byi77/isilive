@@ -197,6 +197,7 @@ local SCHEMA = {
   mobNameplateYOffset = { type = "number", default = 0, min = -200, max = 200 },
 
   -- Sound cues.
+  soundOutputChannel = { type = "string", default = "Master", enum = { "Master", "SFX" } }, -- sound-ok
   soundBattleResEnabled = { type = "boolean", default = true },
   soundBattleResReadyEnabled = { type = "boolean", default = true },
   soundBloodlustEnabled = { type = "boolean", default = true },

@@ -38,6 +38,7 @@ return function(test, ctx)
     Assert.Equal(db.groupJoinNoticeEnabled, true, "groupJoinNoticeEnabled default true")
     Assert.Equal(db.lockMainFramePosition, true, "lockMainFramePosition default true")
     Assert.Equal(db.syncEnabled, true, "syncEnabled default true")
+    Assert.Equal(db.soundOutputChannel, "Master", "soundOutputChannel default Master")
     Assert.Equal(db.soundBloodlustReadyReminderEnabled, true, "bloodlust-ready reminder default true")
     Assert.Equal(db.autoCloseOnKeyStart, false, "key-start auto-close default false")
     Assert.Equal(db.autoCloseOnSoloChange, false, "solo-change auto-close default false")
@@ -148,6 +149,17 @@ return function(test, ctx)
     local db = { mobNameplatePosition = "TOP" }
     DBSchema.Sanitize(db)
     Assert.Equal(db.mobNameplatePosition, "TOP", "valid enum must be preserved")
+  end)
+
+  test("DBSchema.Sanitize resets invalid soundOutputChannel to Master and preserves SFX", function()
+    local DBSchema = LoadSchema()
+    local db = { soundOutputChannel = "Dialog" }
+    DBSchema.Sanitize(db)
+    Assert.Equal(db.soundOutputChannel, "Master", "invalid sound output channel must reset to Master")
+
+    db.soundOutputChannel = "SFX"
+    DBSchema.Sanitize(db)
+    Assert.Equal(db.soundOutputChannel, "SFX", "SFX sound output channel must be preserved")
   end)
 
   -- ----------------------------------------------------------------------
@@ -354,6 +366,7 @@ return function(test, ctx)
       true,
       "soundBloodlustReadyReminderEnabled must be in known fields"
     )
+    Assert.Equal(known.soundOutputChannel, true, "soundOutputChannel must be in known fields")
     Assert.Equal(known.hearthstoneChoice, true, "hearthstoneChoice must be in known fields")
     Assert.Equal(known.vipAstralAurochsSoundMuted, true, "vipAstralAurochsSoundMuted must be in known fields")
     Assert.Equal(known.vipGrandExpeditionYakSoundMuted, true, "vipGrandExpeditionYakSoundMuted must be in known fields")

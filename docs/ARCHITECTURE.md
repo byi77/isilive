@@ -1,7 +1,7 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.303`
-Zuletzt aktualisiert: `2026-06-09`
+Versionsbasis: `0.9.304`
+Zuletzt aktualisiert: `2026-06-10`
 
 ## Zweck
 
@@ -190,7 +190,7 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
    - `ISILIVE_MAX_FILE_LINES=3200 ISILIVE_MAX_FUNCTION_LINES=420 lua tools/lua_metrics_check.lua`
    - `lua tools/check_locale_drift.lua`
    - `lua tools/check_mplus_db_lifetime.lua` — verhindert, dass eine abgelaufene `data/isiLive_mplus_forces.lua` einen Release passiert; Override ueber `ISILIVE_ALLOW_STALE_MPLUS_DB=1`.
-   - `lua tools/check_sound_channel.lua` — pinnt die Soundkanal-Regel: jeder zentrale `PlaySoundFile`-/`defaultChannel`-Pfad nutzt Channel `"Master"` statt `"SFX"`, damit isiLive-Audiosignale wie DBM ueber den lauteren Master-Kanal laufen. Inline-Override per `-- sound-ok`.
+   - `lua tools/check_sound_channel.lua` — pinnt die Soundkanal-Regel: eingebaute isiLive-Sounds nutzen standardmaessig Channel `"Master"`; `"SFX"` ist nur ueber die gespeicherte Nutzeroption `soundOutputChannel` zulaessig. Inline-Override per `-- sound-ok`.
    - `lua tools/check_chat_color_safety.lua` — verhindert das `|cff...[...]|r`-ohne-`|H`-Hyperlink-Muster in Files, die `SendChatMessage` aufrufen (WoW-Server filtert solche Nachrichten silent). Inline-Override per `-- chat-color-ok`.
    - `lua tools/check_wow_api_compliance.lua` — pinnt die WoW 12.0 (Midnight) Restriktionen aus CLAUDE.md: `COMBAT_LOG_EVENT_UNFILTERED`, `CombatLogGetCurrentEventInfo`, `C_MythicPlus.GetOwnedKeystoneLink` und Tooltip-Sync-Version-Regressions. Inline-Override per `-- wow-api-ok`.
    - `lua tools/simulate_nameplate_keystart.lua all` — simuliert die Nameplate-Prozentanzeige rund um `CHALLENGE_MODE_START` und bricht bei verletzten Gate-Erwartungen ab.
@@ -220,7 +220,7 @@ Die lokalen Wrapper `tools/check.ps1` und `tools/check.cmd` sind der bevorzugte 
 ## UI-Struktur (ASCII-Skizze)
 
 ```text
-| isiLive                                                 v0.9.303 Open/Close CTRL-F9 [H][V][M][M+][L][X]            |
+| isiLive                                                 v0.9.304 Open/Close CTRL-F9 [H][V][M][M+][L][X]            |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

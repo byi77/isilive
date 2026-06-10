@@ -4,10 +4,10 @@ Diese Datei beschreibt verbindliche Strukturregeln fuer den aktuellen Modulzusch
 Im Gegensatz zu `RULES_LOGIC.md` geht es hier nicht um Runtime-Verhalten, sondern um
 stabile Architekturgrenzen, die ueber deterministische Strukturtests geprueft werden.
 
-Aktueller Dokumentationsstand: `0.9.302`. Die aktuellen 0.9.302-Aenderungen
-haben keine neue Architekturregel erfordert; die ESC-Addons-Shortcut-Runtime
-ist als aktive Projektregel in `RULES_LOGIC.md` gepinnt und wird ueber
-deterministische Game-Menu-Addon-Szenarien validiert.
+Aktueller Dokumentationsstand: `0.9.304`. Die aktuellen 0.9.304-Aenderungen
+haben keine neue Architekturregel erfordert; die Soundkanal-Wahl ist als
+aktive Projektregel in `RULES_LOGIC.md` gepinnt und wird ueber deterministische
+SoundUtils-, Settings-, Locale- und DBSchema-Szenarien validiert.
 
 ## Schreibformat
 

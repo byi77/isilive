@@ -6,10 +6,36 @@ addonTable.SettingsSound = SettingsSound
 
 local CreateSectionHeader = addonTable.SettingsControls.CreateSectionHeader
 local CreateSectionNote = addonTable.SettingsControls.CreateSectionNote
+local CreateChildSeparator = addonTable.SettingsControls.CreateChildSeparator
 local CreateSettingsCheckbox = addonTable.SettingsControls.CreateSettingsCheckbox
+local CreateSettingsOptionSelector = addonTable.SettingsControls.CreateSettingsOptionSelector
 local DESCRIPTION_WIDTH = 620
 local PREVIEW_BUTTON_WIDTH = 24
 local PREVIEW_BUTTON_HEIGHT = 22
+local SOUND_CHANNEL_VALUES = { Master = true, SFX = true }
+
+local SOUND_CHANNEL_SETTING = {
+  labelKey = "SETTINGS_SOUND_CHANNEL",
+  descKey = "SETTINGS_SOUND_CHANNEL_DESC",
+  labelFallback = "Sound output channel",
+  descFallback = "Choose whether isiLive sound alerts use the Master or Sound Effects channel.",
+  settingKey = "soundOutputChannel",
+  defaultValue = "Master",
+  options = {
+    {
+      value = "Master",
+      labelKey = "SETTINGS_SOUND_CHANNEL_MASTER",
+      fallback = "Master",
+      width = 74,
+    },
+    {
+      value = "SFX",
+      labelKey = "SETTINGS_SOUND_CHANNEL_SFX", -- sound-ok
+      fallback = "SFX",
+      width = 58,
+    },
+  },
+}
 
 local SOUND_SETTING_FALLBACKS = {
   leader_transfer = {
@@ -93,6 +119,13 @@ local VIP_SOUND_DESCRIPTIONS = {
     fallback = "Mutes the Trader Brutosaur vendor mount ambience.",
   },
 }
+
+local function NormalizeSoundChannel(value)
+  if type(value) == "string" and SOUND_CHANNEL_VALUES[value] then
+    return value
+  end
+  return SOUND_CHANNEL_SETTING.defaultValue
+end
 
 local function DescriptionOptions(descriptionText)
   return {
@@ -217,6 +250,50 @@ local function CreateBloodlustReadyReminderCheckbox(canvas, yOffset, labels, con
   return nextY
 end
 
+local function CreateSoundChannelSelector(canvas, yOffset, labels, config, controls)
+  local selector, nextY = CreateSettingsOptionSelector(
+    canvas,
+    yOffset,
+    SOUND_CHANNEL_SETTING.labelKey,
+    labels[SOUND_CHANNEL_SETTING.labelKey] or SOUND_CHANNEL_SETTING.labelFallback,
+    SOUND_CHANNEL_SETTING.options,
+    function()
+      return labels
+    end,
+    function()
+      local db = config.getDB()
+      return NormalizeSoundChannel(db[SOUND_CHANNEL_SETTING.settingKey])
+    end,
+    function(value)
+      local db = config.getDB()
+      db[SOUND_CHANNEL_SETTING.settingKey] = NormalizeSoundChannel(value)
+    end,
+    NormalizeSoundChannel,
+    false,
+    {
+      descriptionKey = SOUND_CHANNEL_SETTING.descKey,
+      descriptionText = labels[SOUND_CHANNEL_SETTING.descKey] or SOUND_CHANNEL_SETTING.descFallback,
+      descriptionWidth = DESCRIPTION_WIDTH,
+      descriptionWordWrap = true,
+    }
+  )
+
+  selector._sectionKey = "SETTINGS_SECTION_SOUNDS"
+  selector._settingKey = SOUND_CHANNEL_SETTING.labelKey
+  if selector.label then
+    selector.label._sectionKey = "SETTINGS_SECTION_SOUNDS"
+    selector.label._settingKey = SOUND_CHANNEL_SETTING.labelKey
+  end
+  if selector.buttons then
+    for _, button in ipairs(selector.buttons) do
+      button._sectionKey = "SETTINGS_SECTION_SOUNDS"
+      button._settingKey = SOUND_CHANNEL_SETTING.labelKey
+    end
+  end
+  controls.soundChannelSelector = selector
+  return nextY
+end
+
 function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, controls)
   controls.soundHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_SECTION_SOUNDS or "Sounds")
   if controls.soundHeader then
@@ -231,6 +308,14 @@ function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, contro
 
   controls.soundChecks = controls.soundChecks or {}
   controls.soundPreviewButtons = controls.soundPreviewButtons or {}
+
+  yOffset = CreateSoundChannelSelector(canvas, yOffset, labels, config, controls)
+  if type(CreateChildSeparator) == "function" then
+    controls.soundOutputSeparator, yOffset = CreateChildSeparator(canvas, yOffset)
+    if controls.soundOutputSeparator then
+      controls.soundOutputSeparator._sectionKey = "SETTINGS_SECTION_SOUNDS"
+    end
+  end
 
   for _, entry in ipairs(SettingsSound.GetSoundSettingEntries()) do
     local checkbox, nextY = CreateSettingsCheckbox(
@@ -347,6 +432,10 @@ end
 function SettingsSound.RefreshSoundControls(controls, labels, db)
   SetLocalizedText(controls.soundHeader, "SETTINGS_SECTION_SOUNDS", "Sounds", labels)
   SetLocalizedText(controls.soundHint, "SETTINGS_SECTION_SOUNDS_HINT", "Toggle the built-in audio cues.", labels)
+
+  if controls.soundChannelSelector and type(controls.soundChannelSelector.UpdateHighlight) == "function" then
+    controls.soundChannelSelector.UpdateHighlight()
+  end
 
   if controls.soundChecks then
     for _, entry in ipairs(SettingsSound.GetSoundSettingEntries()) do

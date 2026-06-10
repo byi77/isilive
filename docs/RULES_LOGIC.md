@@ -1082,3 +1082,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Architecture pkgmeta excludes root screenshot assets from release package
   - Architecture release workflow excludes root screenshot assets from WowUp package
   - Architecture release package ignore lists stay identical for CurseForge and WowUp
+
+### RULE-SOUNDKANAL-WAEHLBAR
+- Regelnummer: 78
+- Status: aktiv
+- Zusammenfassung: Eingebaute isiLive-Soundausgaben muessen ohne gespeicherte Nutzerentscheidung ueber `Master` abgespielt werden. Die gespeicherte Option `soundOutputChannel` darf nur die Werte `Master` und `SFX` akzeptieren; ungueltige Werte fallen geschlossen auf `Master` zurueck. Wenn `soundOutputChannel = "SFX"` gespeichert ist, muessen Runtime-Playback und Preview-Playback der eingebauten Sound-Registry `SFX` verwenden, waehrend die einzelnen Sound-Enable-Toggles unveraendert pro Sound greifen. Die Settings-UI muss die Kanalwahl in der Sound-Sektion anbieten und den Default nicht schon beim Oeffnen persistieren.
+- Erforderliche Tests:
+  - SoundUtils uses Master by default and SFX when configured
+  - Settings panel exposes sound toggles with the intended defaults
+  - Locale sound-channel settings strings support prepared translations
+  - DBSchema.Sanitize fills all defaults on an empty db
+  - DBSchema.Sanitize resets invalid soundOutputChannel to Master and preserves SFX

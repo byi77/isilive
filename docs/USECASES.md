@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.303`
-Zuletzt aktualisiert: `2026-06-09`
+Versionsbasis: `0.9.304`
+Zuletzt aktualisiert: `2026-06-10`
 
 ## Akteure
 
@@ -165,7 +165,7 @@ Ziel: Schnelle Blizzard-Panel-Shortcuts und lokalisierte Addon-Toggles anbieten,
    - **Display**: `UI Scale`, `Background Opacity`, Spieler-Stats-Box mit Enable-, Lock-, Hintergrund-Deckkraft-, Schriftgroessen-Offset-, Zahlenmodus- und Detailzeilen-Control fuer Leech, Speed, Haltbarkeit, Ausdauer und Vermeidung, `Minimap Button`, `Show Timeways Navigator`, `Group Finder: Language Flags`, `Group Finder: Buff rating hearts`, `Tooltip: Language Flags`, `Accepted-invite notice`, `Group-join target notice`.
    - **Behavior**: `Addon Sync`, `Lock main frame position`, `Fade out in Combat (M2 only)`, gefolgt vom Auto-Show/Hide-Block mit Erklaerung (`Show on Login / Reload`, `Auto-Open on M+ Queue`, `Auto-Open on Key End`, `Auto-close when key starts`, `Auto-close when leaving the group`), und einem statischen Raid-Behavior-Hinweis statt einem 1-Optionen-Selector.
    - **Nameplates**: 3-Modi-Selector `Off / Tooltip / Nameplate` fuer den M+-Forces-Overlay, plus `Show percentage`, `Show remaining needed`, `Font size`, `Position`, `X offset`, `Y offset` und ein Live-Preview.
-   - **Sounds**: `Sound: Lead Transfer`, `Sound: Full Group`, `Sound: Incoming Summon`, `Sound: Battle Res`, `Sound: Battle Res Ready`, `Sound: Bloodlust`, `Sound: Bloodlust Ready`, jeweils mit eigenem Play-Button zum Probehören auch bei deaktiviertem Toggle und nachbearbeiteten Sound-Settings-Texten fuer alle acht gepflegten UI-Locale-Tabellen. Diese Nachbearbeitung gilt nur fuer den Sound-Settings-Bereich, nicht fuer alle Texte der vorbereiteten Locales. Eingehende Beschwoerungen des lokalen Spielers spielen den Summon-Sound ueber den klassischen `CONFIRM_SUMMON`-Pfad und ueber den statusbasierten `INCOMING_SUMMON_CHANGED`-Pfad nur bei `Enum.SummonStatus.Pending`.
+   - **Sounds**: Soundkanal-Selector `Master / SFX` mit Default `Master`; `Sound: Lead Transfer`, `Sound: Full Group`, `Sound: Incoming Summon`, `Sound: Battle Res`, `Sound: Battle Res Ready`, `Sound: Bloodlust`, `Sound: Bloodlust Ready`, jeweils mit eigenem Play-Button zum Probehoeren auch bei deaktiviertem Toggle und nachbearbeiteten Sound-Settings-Texten fuer alle acht gepflegten UI-Locale-Tabellen. Diese Nachbearbeitung gilt nur fuer den Sound-Settings-Bereich, nicht fuer alle Texte der vorbereiteten Locales. Eingehende Beschwoerungen des lokalen Spielers spielen den Summon-Sound ueber den klassischen `CONFIRM_SUMMON`-Pfad und ueber den statusbasierten `INCOMING_SUMMON_CHANGED`-Pfad nur bei `Enum.SummonStatus.Pending`.
    - **Chat Announcements**: `Chat: Announce Battle Res usage in M+`, `Chat: Announce Bloodlust casts in M+`.
    - **Administrative**: `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Queue Debug Log (resets on reload)`, `Clear Queue Debug Log`, `Runtime Log (resets on reload)`, `Clear Runtime Log`.
    - **Reset-Aktionen**: `/isilive resetui` und `Reset All Settings`, jeweils mit Bestaetigung.
