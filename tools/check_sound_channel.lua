@@ -108,19 +108,20 @@ local function main()
       if not lineHasSoundOk(raw) then
         local code = stripComment(raw)
         if code:find('"SFX"') and isSoundContext(code) then
-          issues[#issues + 1] =
-            string.format(
-              '%s:%d: hard-coded sound channel "SFX" detected — default to "Master" or mark the persisted user setting with -- sound-ok',
-              path,
-              lineno
-            )
+          issues[#issues + 1] = string.format(
+            '%s:%d: hard-coded sound channel "SFX" detected — default to "Master" or mark the persisted user setting with -- sound-ok',
+            path,
+            lineno
+          )
         end
       end
     end
   end
 
   if #issues == 0 then
-    io.write('sound-channel: clean — built-in playback defaults to "Master"; only documented user-setting SFX paths remain\n')
+    io.write(
+      'sound-channel: clean — built-in playback defaults to "Master"; only documented user-setting SFX paths remain\n'
+    )
     os.exit(0)
   end
 

@@ -2404,8 +2404,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         Assert.NotNil(onClickBloodlustReady, "bloodlust-ready sound checkbox should define OnClick")
       onClickBloodlustReadyReminder =
         Assert.NotNil(onClickBloodlustReadyReminder, "bloodlust-ready reminder checkbox should define OnClick")
-      onClickSoundChannelSfx =
-        Assert.NotNil(onClickSoundChannelSfx, "SFX sound-channel option should define OnClick")
+      onClickSoundChannelSfx = Assert.NotNil(onClickSoundChannelSfx, "SFX sound-channel option should define OnClick")
 
       leadSoundCheck:SetChecked(false)
       onClickLead(leadSoundCheck)

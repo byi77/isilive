@@ -383,8 +383,7 @@ return function(test, ctx)
         localeName .. " sound-channel setting label must be prepared"
       )
       Assert.True(
-        type(localeTable.SETTINGS_SOUND_CHANNEL_DESC) == "string"
-          and localeTable.SETTINGS_SOUND_CHANNEL_DESC ~= "",
+        type(localeTable.SETTINGS_SOUND_CHANNEL_DESC) == "string" and localeTable.SETTINGS_SOUND_CHANNEL_DESC ~= "",
         localeName .. " sound-channel setting description must be prepared"
       )
       Assert.Equal(localeTable.SETTINGS_SOUND_CHANNEL_MASTER, "Master", localeName .. " Master option label")
