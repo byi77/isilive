@@ -610,8 +610,7 @@ local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGloba
       })
       addonStrip = Assert.NotNil(addonStrip, "addon shortcut panel should exist for character-scoped MDT")
 
-      local mdtButton =
-        RequireValue(addonStrip.buttonsById.mdt, "character-scoped MDT button should exist")
+      local mdtButton = RequireValue(addonStrip.buttonsById.mdt, "character-scoped MDT button should exist")
       local onClick = mdtButton._scripts and mdtButton._scripts.OnClick
       onClick = Assert.NotNil(onClick, "MDT shortcut must define OnClick")
       onClick(mdtButton, "LeftButton")
