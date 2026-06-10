@@ -29,6 +29,7 @@ sounds/*
 !sounds/BattleRezReady.wav
 !sounds/BloodlustReady.wav
 !sounds/ChickenAlarm.ogg
+!sounds/Portal.ogg
 !sounds/SynthChord.ogg
 
 # Local LuaRocks tree (CI/local tooling)

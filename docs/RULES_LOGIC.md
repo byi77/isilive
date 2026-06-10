@@ -1082,6 +1082,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Architecture pkgmeta excludes root screenshot assets from release package
   - Architecture release workflow excludes root screenshot assets from WowUp package
   - Architecture release package ignore lists stay identical for CurseForge and WowUp
+  - Architecture gitignore keeps incoming summon Portal sound trackable
 
 ### RULE-SOUNDKANAL-WAEHLBAR
 - Regelnummer: 78
