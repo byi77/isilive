@@ -1093,3 +1093,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Locale sound-channel settings strings support prepared translations
   - DBSchema.Sanitize fills all defaults on an empty db
   - DBSchema.Sanitize resets invalid soundOutputChannel to Master and preserves SFX
+
+### RULE-SAVEDVARIABLES-SETTINGS-REAPPLY
+- Regelnummer: 79
+- Status: aktiv
+- Zusammenfassung: Settings-Werte, die beim Laden von Live-Modulen angewendet werden muessen, duerfen nicht dauerhaft am File-Load-Default haengen bleiben, wenn `IsiLiveDB` waehrend der Lua-Dateiladung noch nicht wiederhergestellt ist. Der `ADDON_LOADED`-Pfad muss nach dem SavedVariables-Restore die gespeicherten Werte erneut ueber den echten `ApplyDBSettings`-Callback auf MobNameplate, MobTooltip, LFGFlags, Gruppenbonus-Flags, Tooltip-Flags und StatsBox anwenden. Fehlt der Callback waehrend frueher Initialisierung noch, darf der spaetere Eventpfad nicht auf einen dauerhaft eingefrorenen No-Op zeigen.
+- Erforderliche Tests:
+  - factory composition root: ADDON_LOADED reapplies saved display settings after SavedVariables restore

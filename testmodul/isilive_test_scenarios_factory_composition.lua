@@ -953,6 +953,54 @@ return function(test, ctx)
     )
   end)
 
+  test("factory composition root: ADDON_LOADED reapplies saved display settings after SavedVariables restore", function()
+    local globals = BuildGlobals()
+    globals.IsiLiveDB = nil
+    local savedDb = {
+      locale = "enUS",
+      mobNameplateEnabled = false,
+      mplusForcesEstimate = true,
+      mobNameplateShowPercent = false,
+      mobNameplateShowRemaining = true,
+      mobNameplateRemainingDefaultMigrated = true,
+      mobNameplateFontSize = 18,
+      mobNameplatePosition = "LEFT",
+      mobNameplateXOffset = 12,
+      mobNameplateYOffset = -8,
+    }
+
+    local addon
+    WithGlobals(globals, function()
+      addon = LoadAddonModules(GetAllIsiLiveFiles())
+      local ok, err = xpcall(function()
+        addon.Factory.InitializeAddon("isiLive", addon)
+      end, debug.traceback)
+      Assert.Equal(ok, true, "InitializeAddon must support missing SavedVariables at file-load: " .. tostring(err))
+
+      Assert.Equal(
+        addon.MobNameplate._Test_GetState().enabled,
+        true,
+        "file-load defaults should enable MobNameplate before SavedVariables are restored"
+      )
+
+      _G.IsiLiveDB = savedDb
+      local factoryCtx = addon._factoryCtx
+      local onEvent = factoryCtx and factoryCtx.eventFrame and factoryCtx.eventFrame._scripts
+        and factoryCtx.eventFrame._scripts.OnEvent
+      onEvent = Assert.NotNil(onEvent, "factory event frame should expose the gated OnEvent handler")
+      onEvent(factoryCtx.eventFrame, "ADDON_LOADED", "isiLive")
+    end)
+
+    local state = addon.MobNameplate._Test_GetState()
+    Assert.Equal(state.enabled, false, "ADDON_LOADED must re-apply saved disabled MobNameplate state")
+    Assert.Equal(state.format.showPercent, false, "ADDON_LOADED must re-apply saved nameplate percent format")
+    Assert.Equal(state.format.showRemaining, true, "ADDON_LOADED must re-apply saved nameplate remaining format")
+    Assert.Equal(state.appearance.fontSize, 18, "ADDON_LOADED must re-apply saved nameplate font size")
+    Assert.Equal(state.appearance.position, "LEFT", "ADDON_LOADED must re-apply saved nameplate position")
+    Assert.Equal(state.appearance.xOffset, 12, "ADDON_LOADED must re-apply saved nameplate X offset")
+    Assert.Equal(state.appearance.yOffset, -8, "ADDON_LOADED must re-apply saved nameplate Y offset")
+  end)
+
   test("factory composition root: natural in-key spellcast announces BR through runtime gate", function()
     local globals, db = BuildGlobals()
     db.chatAnnounceBR = true

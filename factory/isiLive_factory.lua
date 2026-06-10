@@ -847,7 +847,11 @@ local function FinalizeFactoryRuntime(ctx)
     exitTestMode = ctx.ExitTestMode,
     updateStatusLine = ctx.UpdateStatusLine,
     applyLocalizationToUI = ctx.ApplyLocalizationToUI,
-    applyDBSettings = ctx.ApplyDBSettings,
+    applyDBSettings = function()
+      if type(ctx.ApplyDBSettings) == "function" then
+        return ctx.ApplyDBSettings()
+      end
+    end,
     updateCountdownCancelButton = ctx.UpdateCountdownCancelButton,
     restoreLayoutState = ctx.RestoreLayoutState,
     checkIfEnteredTargetDungeon = ctx.CheckIfEnteredTargetDungeon,

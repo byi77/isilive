@@ -13,8 +13,11 @@
 - Added active rule 78 for selectable sound-channel behavior and deterministic
   coverage for SoundUtils routing, Settings persistence, Locale strings, and DB
   schema validation.
+- Fixed the factory/runtime wiring so the `ADDON_LOADED` SavedVariables
+  re-apply path calls the real `ApplyDBSettings` callback instead of a
+  file-load-time no-op, and pinned that reload path with active rule 79.
 - Bumped the TOC and documentation baselines to `0.9.304`.
-- Updated the release-gate scenario baseline to `1979` deterministic scenarios.
+- Updated the release-gate scenario baseline to `1980` deterministic scenarios.
 
 ## 2026-06-09 - Version 0.9.303 (patch)
 
