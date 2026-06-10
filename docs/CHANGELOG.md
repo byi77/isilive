@@ -20,13 +20,22 @@
   display mode restores the unchanged percent text immediately instead of
   waiting for another option, such as remaining-needed, to change the rendered
   text.
+- Fixed the Share Keys sender chain so the lightweight `SHAREKEYS` addon
+  request is dispatched before the visible own-key group chat line, preventing
+  the local chat post from getting ahead of peer cooldown/reply coordination.
+- Documented the live-log diagnosis: receiver handling was already healthy
+  when Bircan triggered the share, while the failing local/Aby clicks only
+  proved local dispatch acceptance and own chat output, with no observed
+  `SHAREKEYS` self-echo or peer reply in the captured logs.
+- Added button-level Share Keys trace output and deterministic coverage for the
+  dispatch-before-chat ordering.
 - Allowed `sounds/Portal.ogg` through the repository sound whitelist so the
   incoming-summon sound asset is tracked and included in the shared WowUp and
   CurseForge release ZIP.
 - Added deterministic architecture coverage that keeps the Portal sound
   trackable, matching the release workflow's `git ls-files` packaging source.
 - Bumped the TOC and documentation baselines to `0.9.304`.
-- Updated the release-gate scenario baseline to `1982` deterministic scenarios.
+- Updated the release-gate scenario baseline to `1983` deterministic scenarios.
 
 ## 2026-06-09 - Version 0.9.303 (patch)
 

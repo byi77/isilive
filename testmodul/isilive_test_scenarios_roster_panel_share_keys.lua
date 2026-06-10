@@ -172,6 +172,145 @@ local function RegisterShareKeysGlobalPathTest()
   end)
 end
 
+local function RegisterShareKeysDispatchOrderTest()
+  test("Roster panel share keys button dispatches SHAREKEYS before party chat", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local effectOrder = {}
+    local currentTime = 350
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      SendChatMessage = function(text, channel)
+        table.insert(effectOrder, {
+          kind = "chat",
+          text = text,
+          channel = channel,
+        })
+      end,
+      print = function() end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = NewRecordedMainFrame(createdFontStrings),
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
+        buildOrderedRoster = function(roster)
+          return {
+            { unit = "player", info = roster.player },
+          }
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Self",
+            languageDisplay = "EN",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "DB +10",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return "DB"
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return {
+            player = {
+              name = "Self",
+              role = "DAMAGER",
+              keyMapID = 2662,
+              keyLevel = 10,
+            },
+          }
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = {
+          DAMAGER = 1,
+          NONE = 2,
+        },
+        unitPriority = {
+          player = 1,
+        },
+        getTime = function()
+          return currentTime
+        end,
+        shareKeysDebounceSeconds = 30,
+        sendShareKeysRequest = function()
+          table.insert(effectOrder, {
+            kind = "sync",
+          })
+          return true
+        end,
+      })
+
+      controller.RenderRoster({
+        player = {
+          name = "Self",
+          role = "DAMAGER",
+          keyMapID = 2662,
+          keyLevel = 10,
+        },
+      })
+
+      local shareKeysButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame.pointY == -150 then
+          shareKeysButton = frame
+          break
+        end
+      end
+
+      shareKeysButton = Assert.NotNil(shareKeysButton, "share-keys button should exist")
+      ---@diagnostic disable: undefined-field
+      shareKeysButton.OnClick()
+      ---@diagnostic enable: undefined-field
+
+      Assert.Equal(#effectOrder, 2, "share-keys click must perform one sync request and one party chat")
+      Assert.Equal(effectOrder[1].kind, "sync", "SHAREKEYS must be dispatched before the visible party chat")
+      Assert.Equal(effectOrder[2].kind, "chat", "own key party chat must follow the SHAREKEYS dispatch")
+      Assert.Equal(effectOrder[2].channel, "PARTY", "own key line must still announce to party chat")
+    end)
+  end)
+end
+
 local function RegisterShareKeysEndToEndButtonRuntimeTest()
   test("Roster panel share keys button drives full sender receiver chat chain", function()
     local Fixtures = RequireFixtures()
@@ -1636,6 +1775,7 @@ return function(test_arg, ctx)
   NewRecordedFrame = Helpers.NewRecordedFrame
   NewRecordedMainFrame = Helpers.NewRecordedMainFrame
   RegisterShareKeysGlobalPathTest()
+  RegisterShareKeysDispatchOrderTest()
   RegisterShareKeysEndToEndButtonRuntimeTest()
   RegisterShareKeysDeterministicLinkTest()
   RegisterShareKeysFallbackLinkTest()

@@ -273,6 +273,11 @@ local function CreateShareKeysButton(mainFrame, deps)
     end
     local announcedOwnKey = false
     local ownLine = nil
+    local inGroup = deps.isInGroup() == true
+    local requestedPeers = false
+    if inGroup and type(deps.sendShareKeysRequest) == "function" then
+      requestedPeers = deps.sendShareKeysRequest() == true
+    end
     if type(ContextHelpers.BuildOwnKeystoneAnnounceLine) == "function" then
       ownLine = ContextHelpers.BuildOwnKeystoneAnnounceLine({
         getL = deps.getL,
@@ -281,7 +286,6 @@ local function CreateShareKeysButton(mainFrame, deps)
         getDungeonShortCode = deps.getDungeonShortCode,
       })
     end
-    local inGroup = deps.isInGroup() == true
     if ownLine then
       if inGroup then
         local sentOwnKey = ContextHelpers.SendPartyChatMessage(ownLine)
@@ -294,10 +298,14 @@ local function CreateShareKeysButton(mainFrame, deps)
         announcedOwnKey = true
       end
     end
-    local requestedPeers = false
-    if inGroup and type(deps.sendShareKeysRequest) == "function" then
-      requestedPeers = deps.sendShareKeysRequest() == true
-    end
+    Trace(
+      string.format(
+        "share_keys_click inGroup=%s requestedPeers=%s announcedOwnKey=%s",
+        tostring(inGroup),
+        tostring(requestedPeers),
+        tostring(announcedOwnKey)
+      )
+    )
     if not announcedOwnKey and not requestedPeers then
       return
     end

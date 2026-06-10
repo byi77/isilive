@@ -110,13 +110,13 @@ Ziel: Sowohl natuerliches Cooldown-Ende als auch Dungeon-Finish-Reset unterstuet
 Ziel: Dem User erlauben, aktuelle Party-Keys schnell zu posten.
 
 1. Trigger: Der User klickt den Button `Share Keys` im rechten Kontrollstapel.
-2. Verarbeitung: Das Addon postet sofort die Key-Zeile des lokalen Spielers in den passenden Gruppenchat (`PARTY` oder `INSTANCE_CHAT`), bevorzugt mit Blizzard-Owned-Keystone-Hyperlink und als Fallback mit lokalisiertem Dungeon-Short-Code plus Level; der Fallback bleibt dabei anklickbar.
-3. Verarbeitung: Danach broadcastet das Addon `SHAREKEYS` ueber den Addon-Sync-Channel, damit andere `isiLive`-Peers ihre eigene lokale Key-Zeile posten koennen, ohne einen vollen `Re-Sync` zu brauchen; dieser Request gilt nur dann als erfolgreich, wenn der Addon-Message-Dispatch selbst Erfolg meldet.
-4. Output: Eine lokale Key-Zeile geht sofort in den Gruppenchat; bei Sendefehler gibt es einen lokalen Print-Fallback, der nicht als erfolgreicher Gruppenchat-Share zaehlt. Weitere Peer-Zeilen duerfen danach von antwortenden Gruppenmitgliedern folgen.
+2. Verarbeitung: Das Addon broadcastet zuerst `SHAREKEYS` ueber den Addon-Sync-Channel, damit andere `isiLive`-Peers ihre eigene lokale Key-Zeile posten koennen, ohne einen vollen `Re-Sync` zu brauchen; dieser Request gilt nur dann als erfolgreich, wenn der Addon-Message-Dispatch selbst Erfolg meldet.
+3. Verarbeitung: Danach postet das Addon die Key-Zeile des lokalen Spielers in den passenden Gruppenchat (`PARTY` oder `INSTANCE_CHAT`), bevorzugt mit Blizzard-Owned-Keystone-Hyperlink und als Fallback mit lokalisiertem Dungeon-Short-Code plus Level; der Fallback bleibt dabei anklickbar.
+4. Output: Der Peer-Request wird vor der sichtbaren lokalen Key-Zeile dispatcht; bei Sendefehler gibt es einen lokalen Print-Fallback, der nicht als erfolgreicher Gruppenchat-Share zaehlt. Weitere Peer-Zeilen duerfen danach von antwortenden Gruppenmitgliedern folgen.
 5. Regel: `Share Keys`-Button-Klicks werden entprellt, um schnelle doppelte Chat-Ausgaben zu vermeiden, und der Button zeigt waehrend der Sperre sichtbar `30s` Cooldown; ein fehlgeschlagener eigener Gruppenchat-Post ohne erfolgreich dispatchten `SHAREKEYS`-Request darf keine Sperre starten.
 5a. Regel: Wenn ein Client eine eingehende `SHAREKEYS`-Sync-Message erhaelt, wird der lokale `Share Keys`-Button ueber `TriggerRemoteCooldown` fuer `30s` gesperrt, auch wenn dieser Empfangspfad keinen eigenen Gruppenchat-Share ausloesen kann; ein bereits laufender lokaler Cooldown wird nicht zurueckgesetzt.
 6. Verwandte Aktion: Der danebenliegende `Re-Sync`-Button erzwingt den Hidden-Peer-Sync-Handshake, sendet zusaetzlich eine `LibKS`-Party-Anfrage fuer kompatible Nicht-`isiLive`-Peers und bleibt danach sichtbar `10s` auf Cooldown.
-7. Erfolgskriterium: Der ausloesende User bekommt immer zuerst die eigene Owned-Keystone-Zeile, und Peer-Antworten bleiben senderverteilt statt aus gecachten Remote-Roster-Daten rekonstruiert zu werden.
+7. Erfolgskriterium: Der ausloesende User bekommt eine eigene Owned-Keystone-Zeile, waehrend der Peer-Request vorher bereits dispatcht wurde, und Peer-Antworten bleiben senderverteilt statt aus gecachten Remote-Roster-Daten rekonstruiert zu werden.
 
 ## UC-07 RIO-Delta-Sichtbarkeit
 
@@ -353,7 +353,7 @@ Ziel: Eine optionale, eigenstaendige Spieler-Stats-Box zeigt live gelesene Prim√
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `1982` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `1983` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
