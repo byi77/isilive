@@ -23,6 +23,8 @@ local function InitializeFactorySecondaryKickTracker(
   local kickHeartbeatAt = 0
   local kickTrackerSuppressedByRaid = false
   local kickTrackerRecoveryInProgress = false
+  local C_Timer_ref = rawget(_G, "C_Timer")
+  local timerAfter = type(C_Timer_ref) == "table" and C_Timer_ref.After or nil
 
   local function ClearOwnKickSyncCache()
     if not (modules.sync and type(modules.sync.ClearPlayerKickInfo) == "function") then
@@ -153,6 +155,28 @@ local function InitializeFactorySecondaryKickTracker(
       RefreshKickColumnIfVisible()
     end,
   })
+
+  local function ScheduleObservedKickCooldownReconcile()
+    if
+      not ctx.kickTrackerController
+      or type(ctx.kickTrackerController.ReconcileObservedCooldown) ~= "function"
+    then
+      return
+    end
+    if type(timerAfter) ~= "function" then
+      return
+    end
+    timerAfter(0.05, function()
+      if IsRaidModeActive() or kickTrackerSuppressedByRaid or not ctx.kickTrackerController then
+        return
+      end
+      if ctx.kickTrackerController.ReconcileObservedCooldown() == true then
+        SyncOwnKickState(true)
+        RefreshKickColumnIfVisible()
+      end
+    end)
+  end
+
   ctx.SendOwnKickState = function(force)
     if IsRaidModeActive() then
       EnterRaidKickSuppression()
@@ -177,6 +201,9 @@ local function InitializeFactorySecondaryKickTracker(
     if event == "UNIT_SPELLCAST_SUCCEEDED" then
       if ctx.kickTrackerController then
         local observedKick = ctx.kickTrackerController.OnCast(unit, spellID) == true
+        if observedKick then
+          ScheduleObservedKickCooldownReconcile()
+        end
         if kickTrackerSuppressedByRaid then
           if observedKick then
             kickTrackerSuppressedByRaid = false
@@ -226,7 +253,6 @@ local function InitializeFactorySecondaryKickTracker(
   end
 
   -- Ticker: scan own kick state + refresh kick column every 0.5s.
-  local C_Timer_ref = rawget(_G, "C_Timer")
   if type(C_Timer_ref) == "table" and type(C_Timer_ref.NewTicker) == "function" then
     C_Timer_ref.NewTicker(0.5, function()
       if IsRaidModeActive() then

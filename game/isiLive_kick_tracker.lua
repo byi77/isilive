@@ -545,6 +545,8 @@ function KickTracker.CreateController(opts)
   -- Value = { cd = baseCd seconds, cdEnd = absolute getTime() when CD expires }.
   local extras = {}
   local cachedPlayerClass = nil
+  local lastObservedKickSpellID = nil
+  local lastObservedKickWasPrimary = false
 
   local function ResolvePlayerClass()
     if cachedPlayerClass then
@@ -711,6 +713,47 @@ function KickTracker.CreateController(opts)
     return ReadExactCooldownStateForSpell(watchedSpellID)
   end
 
+  local function ApplyExactActiveCooldownForPrimary()
+    if availabilityResolved ~= true or hasKickAvailable ~= true or not watchedSpellID then
+      return false
+    end
+    local exactState = ReadExactCooldownState()
+    if not exactState or exactState.active ~= true then
+      return false
+    end
+    if
+      type(exactState.cooldownDuration) == "number"
+      and exactState.cooldownDuration > MEANINGFUL_KICK_COOLDOWN_MIN_SECONDS
+    then
+      watchedCd = exactState.cooldownDuration
+    end
+    return ApplyCooldownState(true, exactState.endTime)
+  end
+
+  local function ApplyExactActiveCooldownForExtra(spellID)
+    if type(spellID) ~= "number" or type(extras[spellID]) ~= "table" then
+      return false
+    end
+    local exactState = ReadExactCooldownStateForSpell(spellID)
+    if not exactState or exactState.active ~= true or type(exactState.endTime) ~= "number" then
+      return false
+    end
+    if exactState.endTime <= getTime() then
+      return false
+    end
+    if
+      type(exactState.cooldownDuration) == "number"
+      and exactState.cooldownDuration > MEANINGFUL_KICK_COOLDOWN_MIN_SECONDS
+    then
+      extras[spellID].cd = exactState.cooldownDuration
+    end
+    extras[spellID].cdEnd = exactState.endTime
+    if onCooldownChanged then
+      onCooldownChanged(onCooldown, cooldownRemain, watchedSpellID)
+    end
+    return true
+  end
+
   RefreshSpec()
 
   -- Read exact cooldown state from Blizzard spell cooldown data.
@@ -765,6 +808,9 @@ function KickTracker.CreateController(opts)
         return false
       end
       SetCooldown(true, getTime() + cd)
+      lastObservedKickSpellID = watchedSpellID
+      lastObservedKickWasPrimary = true
+      ApplyExactActiveCooldownForPrimary()
       return true
     end
 
@@ -778,6 +824,9 @@ function KickTracker.CreateController(opts)
         return false
       end
       extras[spellID] = { cd = cd, cdEnd = getTime() + cd }
+      lastObservedKickSpellID = spellID
+      lastObservedKickWasPrimary = false
+      ApplyExactActiveCooldownForExtra(spellID)
       if onCooldownChanged then
         onCooldownChanged(onCooldown, cooldownRemain, watchedSpellID)
       end
@@ -790,6 +839,13 @@ function KickTracker.CreateController(opts)
   -- Called on SPELL_UPDATE_COOLDOWN and PLAYER_REGEN_ENABLED to refresh cached CD.
   function controller.CacheCooldown()
     return CacheCooldown()
+  end
+
+  function controller.ReconcileObservedCooldown()
+    if lastObservedKickWasPrimary then
+      return ApplyExactActiveCooldownForPrimary()
+    end
+    return ApplyExactActiveCooldownForExtra(lastObservedKickSpellID)
   end
 
   function controller.ResolveKickState()

@@ -58,6 +58,13 @@ local function BuildKickTrackerModule(state, controllerSetup)
             controllerSetup.cacheCooldownPokesKickInfo(state.kickInfo)
           end
         end,
+        ReconcileObservedCooldown = function()
+          state.reconcileObservedCooldownCalls = (state.reconcileObservedCooldownCalls or 0) + 1
+          if controllerSetup and controllerSetup.reconcileObservedCooldown then
+            return controllerSetup.reconcileObservedCooldown(state)
+          end
+          return false
+        end,
         GetKickInfo = function()
           return state.kickInfo
         end,
@@ -152,6 +159,10 @@ return function(test, ctx)
     local globals = {
       CreateFrame = NewCreateFrame(state.frames),
       C_Timer = {
+        After = function(delay, callback)
+          state.afterCallbacks = state.afterCallbacks or {}
+          table.insert(state.afterCallbacks, { delay = delay, callback = callback })
+        end,
         NewTicker = function(interval, callback)
           state.tickers = state.tickers or {}
           local ticker = { interval = interval, callback = callback }
@@ -260,6 +271,35 @@ return function(test, ctx)
     })
     state.kickTrackerOpts.onCooldownChanged(true, 12)
     Assert.Equal(#state.sentKick, 0, "raid mode must veto cooldown-changed broadcast")
+  end)
+
+  test("kick tracker: observed casts schedule a post-cast exact cooldown reconcile", function()
+    local _ctx, _modules, state = LoadFactoryKickTracker({
+      time = 100,
+      onCastReturn = true,
+      controllerSetup = {
+        reconcileObservedCooldown = function(testState)
+          testState.kickInfo = {
+            availabilityResolved = true,
+            spellID = 6552,
+            hasKick = true,
+            onCooldown = true,
+            cooldownRemain = 12,
+          }
+          return true
+        end,
+      },
+    })
+
+    state.fireEvent("UNIT_SPELLCAST_SUCCEEDED", "player", nil, 6552)
+    Assert.Equal(#state.afterCallbacks, 1, "observed kick cast must queue a short post-cast reconcile")
+    Assert.Equal(state.afterCallbacks[1].delay, 0.05, "post-cast reconcile must use the intended short delay")
+
+    state.afterCallbacks[1].callback()
+    Assert.Equal(state.reconcileObservedCooldownCalls, 1, "delayed callback must reconcile the observed cooldown")
+    Assert.True(#state.sentKick >= 1, "reconciled exact cooldown must force a kick sync")
+    Assert.True(state.lastSetKickInfo.onCooldown, "reconciled local kick state must be written to local sync cache")
+    Assert.Equal(state.lastSetKickInfo.cooldownRemain, 12, "local sync cache must carry the refined remain")
   end)
 
   -- SendOwnKickState defensive paths ------------------------------------------

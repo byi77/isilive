@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-06-11 - Version 0.9.307 (patch)
+
+- Hardened the kick tracker cooldown chain: observed local interrupt casts now
+  reconcile against exact Blizzard cooldown data after the cast event, so
+  talent- and pet-sensitive cooldowns can be refined without waiting for the
+  next broad cooldown refresh.
+- Kept the fail-closed behavior for early cooldown reads: an inactive or not
+  yet updated exact cooldown payload no longer clears an already observed kick
+  cooldown.
+- Added deterministic coverage for observed-cast cooldown refinement, early
+  inactive cooldown reads, and the factory post-cast reconcile path.
+
 ## 2026-06-11 - Version 0.9.306 (patch)
 
 - Added group-wide mirroring of the Share Keys button cooldown: peers with a

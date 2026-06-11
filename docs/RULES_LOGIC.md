@@ -641,6 +641,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - KickTracker tracks pet-based Warlock interrupt cooldown from pet casts
   - KickTracker reconstructs active cooldown from Blizzard cooldown data without guessing
   - KickTracker keeps observed active cooldown when Blizzard cooldown fields are unreadable
+  - KickTracker refines an observed kick cooldown from exact Blizzard data
+  - KickTracker does not clear an observed kick when exact data is not yet active
   - Sync SendKick encodes no-interrupt state and deduplicates payloads
   - Sync SendKick retries identical payload after a rejected dispatch
   - Sync SendKick appends primary spell suffix when spellID is explicit
@@ -657,6 +659,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Factory post-raid unresolved kick availability does not invent a no-kick state
   - Factory post-raid kick recovery emits exactly one sync after exact cooldown change
   - Factory post-raid unrelated cast keeps kick state unresolved until the tracked kick is observed
+  - kick tracker: observed casts schedule a post-cast exact cooldown reconcile
   - SetKickCellText renders compact green ready marker using locale string when available
   - SetKickCellText falls back to compact ready marker when getL returns no string
   - roster_tooltip: ShowRosterInfoTooltip renders multi-kick extras sorted by spellID

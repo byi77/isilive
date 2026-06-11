@@ -4,6 +4,7 @@
 ---@field ResolveKickState fun(): table
 ---@field OnCast fun(unit: string, spellID: number): boolean|nil
 ---@field CacheCooldown fun(): boolean|nil
+---@field ReconcileObservedCooldown fun(): boolean|nil
 ---@field Scan fun()
 
 ---@param controller KickController|nil
@@ -598,6 +599,125 @@ local function RegisterCooldownRecoveryTests(test, Assert, WithGlobals, LoadAddo
       15,
       "unreadable cooldown payloads must preserve the observed cooldown remain instead of guessing ready"
     )
+  end)
+
+  test("KickTracker refines an observed kick cooldown from exact Blizzard data", function()
+    local now = 100
+    ---@type KickController|nil
+    local controller = nil
+    local exactActive = false
+    local observedKick = nil
+    local info = nil
+
+    WithGlobals({
+      GetSpecialization = function()
+        return 1
+      end,
+      GetSpecializationInfo = function(index)
+        if index == 1 then
+          return 71
+        end
+        return nil
+      end,
+      GetSpellBaseCooldown = function(spellID)
+        if spellID == 6552 then
+          return 15000
+        end
+        return 0
+      end,
+      C_Spell = {
+        GetSpellCooldown = function(spellID)
+          if spellID == 6552 then
+            if not exactActive then
+              return {
+                startTime = 0,
+                duration = 0,
+                isEnabled = true,
+              }
+            end
+            return {
+              startTime = 100,
+              duration = 12,
+              isEnabled = true,
+            }
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_kick_tracker.lua" })
+      controller = addon.KickTracker.CreateController({
+        getTime = function()
+          return now
+        end,
+      })
+      local kickController =
+        RequireController(controller, "kick info must exist while refining observed cooldowns", Assert)
+      exactActive = true
+      observedKick = kickController.OnCast("player", 6552)
+      info = kickController.GetKickInfo()
+    end)
+
+    Assert.True(observedKick, "observed kick cast must still start the local cooldown path")
+    Assert.True(info.onCooldown, "observed kick must remain on cooldown")
+    Assert.Equal(info.cooldownRemain, 12, "exact Blizzard cooldown must refine the observed configured duration")
+  end)
+
+  test("KickTracker does not clear an observed kick when exact data is not yet active", function()
+    local now = 100
+    ---@type KickController|nil
+    local controller = nil
+    local cooldownPayload = {
+      startTime = 0,
+      duration = 0,
+      isEnabled = true,
+    }
+    local observedKick = nil
+    local reconciled = nil
+    local info = nil
+
+    WithGlobals({
+      GetSpecialization = function()
+        return 1
+      end,
+      GetSpecializationInfo = function(index)
+        if index == 1 then
+          return 71
+        end
+        return nil
+      end,
+      GetSpellBaseCooldown = function(spellID)
+        if spellID == 6552 then
+          return 15000
+        end
+        return 0
+      end,
+      C_Spell = {
+        GetSpellCooldown = function(spellID)
+          if spellID == 6552 then
+            return cooldownPayload
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_kick_tracker.lua" })
+      controller = addon.KickTracker.CreateController({
+        getTime = function()
+          return now
+        end,
+      })
+      local kickController =
+        RequireController(controller, "kick info must exist while preserving observed cooldowns", Assert)
+      observedKick = kickController.OnCast("player", 6552)
+      reconciled = kickController.ReconcileObservedCooldown()
+      info = kickController.GetKickInfo()
+    end)
+
+    Assert.True(observedKick, "observed kick cast must be accepted")
+    Assert.False(reconciled, "inactive exact cooldown data must not be treated as a better source")
+    Assert.True(info.onCooldown, "observed kick cooldown must not be cleared by early inactive exact data")
+    Assert.Equal(info.cooldownRemain, 15, "observed configured duration must remain intact")
   end)
 
   test("KickTracker scans all talent trees for cooldown reductions", function()
