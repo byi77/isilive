@@ -173,7 +173,7 @@ local UI_VISIBILITY_RULES = {
   { "statusLine", true, false, false, false },
   { "mplusManagementHeader", true, false, false, false },
   { "shareKeysButton", true, true, false, true },
-  { "refreshButton", true, true, false, true },
+  { "refreshButton", true, false, false, true },
   { "leadOptionsHeader", true, true, false, false },
   { "tankHeader", true, true, false, false },
 }

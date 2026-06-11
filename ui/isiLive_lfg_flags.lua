@@ -648,6 +648,23 @@ local function BuildApplicantBonusMarkerBadge(classToken, specID, profile)
   return BuildSearchResultBonusBadgeText(relevantBonusCount), APPLICANT_BONUS_TEXT_COLOR
 end
 
+local function BuildRosterBonusMarkerBadge(classToken, specID)
+  if not lfgGroupBonusesEnabled then
+    return nil
+  end
+
+  classToken = ResolveClassToken(classToken)
+  specID = ReadPositiveNumber(specID)
+  if specID and SPEC_CLASS_TOKENS[specID] ~= classToken then
+    specID = nil
+  end
+  if not classToken or not CLASS_TOKENS[classToken] then
+    return nil
+  end
+
+  return BuildApplicantBonusMarkerBadge(classToken, specID, ResolvePlayerBonusProfile())
+end
+
 local function GetTagForResult(resultID)
   local cached = resultTagCache[resultID]
   if cached ~= nil then
@@ -2113,6 +2130,7 @@ LI.ApplyGroupBonusTooltipLines = ApplyGroupBonusTooltipLines
 LI.ResolvePlayerBonusProfile = ResolvePlayerBonusProfile
 LI.BuildApplicantBonusBadge = BuildApplicantBonusBadge
 LI.BuildApplicantBonusMarkerBadge = BuildApplicantBonusMarkerBadge
+LI.BuildRosterBonusMarkerBadge = BuildRosterBonusMarkerBadge
 LI.ResolveApplicantClassAnchor = ResolveApplicantClassAnchor
 LI.ResolveApplicantBonusAnchor = ResolveApplicantBonusAnchor
 LI.AnchorApplicantBonusBadge = AnchorApplicantBonusBadge
@@ -2222,6 +2240,10 @@ function LFGFlags.SetGroupBonusesEnabled(enabled)
   for member in pairs(hookedApplicantMembers) do
     ClearApplicantBonusMarker(member)
   end
+end
+
+function LFGFlags.BuildRosterBonusMarkerBadge(classToken, specID)
+  return BuildRosterBonusMarkerBadge(classToken, specID)
 end
 
 function LFGFlags.Register(deps)

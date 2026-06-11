@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-06-11 - Version 0.9.308 (patch)
+
+- Added roster buff-rating hearts: roster names now show the same compact green
+  class-bonus markers as Group Finder rows when a verified roster class/spec
+  provides relevant non-utility buffs for the current character.
+- Reused the existing Group Finder buff-rating setting for roster hearts and
+  refresh the roster immediately when the setting is toggled.
+- Added deterministic coverage for roster heart rendering and the disabled
+  setting path.
+- Hid the Re-Sync button in the compact vertical `V` layout while keeping it
+  available in the other layouts.
+- Bumped the TOC and documentation baselines to `0.9.308`.
+- Updated the release-gate scenario baseline to `2001` deterministic scenarios.
+
 ## 2026-06-11 - Version 0.9.307 (patch)
 
 - Hardened the kick tracker cooldown chain: observed local interrupt casts now

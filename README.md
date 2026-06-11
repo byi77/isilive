@@ -4,14 +4,14 @@
 
 - **For:** M+ players in pre-made groups and LFG runs
 - **WoW version:** `12.0+` (Midnight) only
-- **Current version:** `0.9.307`
+- **Current version:** `0.9.308`
 - **Active season:** `midnight_s1` — 8 dungeons (Wing, MT, NPX, MC, AA, POS, SOT, SR)
 
 ---
 
 ## Feature highlights
 
-- **Group Finder buff-rating hearts** — green heart markers in Blizzard LFG search results and applicant rows show which listings add useful, non-stacking class buffs for your current character.
+- **Buff-rating hearts** — green heart markers in Blizzard LFG search results, applicant rows, and the roster show which players add useful, non-stacking class buffs for your current character.
 - **One-window M+ roster** — spec, role, language, key, iLvl, Raider.IO, last-run DPS, interrupt status, leader marker, isiLive peer marker, and ghost rows after leavers.
 - **Live enemy forces tools** — tooltip percentages, nameplate percentages, bottom killtracker bar, pull prediction, and combat-end refresh from the bundled MDT-synced forces database.
 - **Season portal grid** — all current dungeon portals with cooldowns, availability highlights, and verified LFG target highlighting.
@@ -45,7 +45,7 @@ https://github.com/byi77/isilive
 When you join a group, isiLive opens a single window with everything you want to see before and during a key:
 
 - Who is in the group, their spec, item level, Raider.IO rating, and keystone
-- Optional default-on LFG buff-rating hearts that help you pick groups and applicants by relevant class-bonus coverage before anyone joins your party
+- Optional default-on buff-rating hearts that help you pick groups, applicants, and roster members by relevant class-bonus coverage
 - One-click access to all 8 season dungeon portals, with live cooldowns
 - Escape-menu shortcut panels for tools, travel, verified mount shortcuts, and installed/enabled supported addons
 - Configurable Hearthstone travel shortcut with random owned, default item, or a specific owned Hearthstone toy
@@ -56,7 +56,7 @@ When you join a group, isiLive opens a single window with everything you want to
 - Default-on **forces overlay on every enemy nameplate** during a key — shows what each individual mob contributes plus the verified remaining count needed to finish enemy forces
 - Forces info on the **mouseover tooltip** for any mob in a key
 - Optional independent **player stats box** with live primary/secondary stats, short English labels, and separate opacity/font/lock controls
-- Optional **Group Finder buff-rating hearts** for applicant and search-result rows, shown only when the listed class/spec offers a relevant non-stacking group bonus for your current character
+- Optional **buff-rating hearts** for applicant, search-result, and roster rows, shown only when the listed class/spec offers a relevant non-stacking group bonus for your current character
 - Cyrillic-safe rendering for isiLive-owned dynamic text such as roster names, invite notices, tooltips, and dungeon labels
 
 Everything syncs automatically between group members who run isiLive — no manual import, no `/say` spam.
@@ -113,6 +113,7 @@ Columns in order: **Spec · Name · Lang · Key · iLvl · RIO · DPS · Kick**
 ### Markers next to names
 
 - **Blue heart** — this player also runs isiLive
+- **Green heart** — this class/spec provides a useful non-stacking buff for your current character
 - **Crown** — this player is the group leader
 - **Ghost row** (greyed out) — a player who left the group. Kept visible until the group dissolves or you reload, so you can still see who was there after a wipe or dungeon reset.
 - **Right-click a row** to whisper that player
@@ -170,7 +171,7 @@ Posts everyone's keystone in group chat — yours first, then other isiLive user
 
 ### Re-Sync
 
-Forces a fresh sync round. Use it if someone's iLvl or key looks stuck. Asks compatible LibKeystone addons for their keys too. 10-second cooldown.
+Forces a fresh sync round. Use it if someone's iLvl or key looks stuck. Asks compatible LibKeystone addons for their keys too. 10-second cooldown. Hidden in the compact vertical **V** layout.
 
 ---
 
@@ -233,6 +234,7 @@ Optional Group Finder hints help you scan applicant and search-result rows for u
 
 - **Search result rows** show compact green heart texture markers directly inside the Blizzard row, independent of third-party class-badge addons.
 - **Applicant rows** show language flags beside the applicant name and the same heart markers to the right of the class badge when that applicant offers a relevant non-utility group bonus.
+- **Roster rows** show the same compact green heart markers directly next to the member name when the verified class/spec offers a relevant non-utility group bonus.
 - **Tooltips** add localized bonus text per listed class/spec, so you can see which buffs created the marker score.
 - **Relevance is player-aware:** physical, magic, intellect, attack-power, stamina, mastery, versatility, enemy-damage and universal damage bonuses are counted only when they matter for your current character profile.
 - **Non-stacking bonuses are deduplicated:** two players with the same class buff count once per search result, so the marker score reflects coverage instead of duplicate noise.

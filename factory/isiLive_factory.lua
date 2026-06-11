@@ -285,6 +285,9 @@ local function FinalizeFactorySettings(ctx)
         if type(lfgFlags) == "table" and type(lfgFlags.SetGroupBonusesEnabled) == "function" then
           lfgFlags.SetGroupBonusesEnabled(enabled)
         end
+        if ctx.rosterPanelController and type(ctx.rosterPanelController.RenderRoster) == "function" then
+          ctx.rosterPanelController.RenderRoster(ctx.GetRoster())
+        end
       end,
       onTooltipFlagsToggle = function(enabled)
         local rosterInternal = ctx.addonTable and ctx.addonTable._RosterInternal

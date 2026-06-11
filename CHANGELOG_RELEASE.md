@@ -3,9 +3,10 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.307`.
+Current release: `0.9.308`.
 
 Highlights:
-- Kick tracking now reconciles observed local interrupts with exact Blizzard cooldown data after the cast event, improving talent- and pet-sensitive cooldown accuracy.
-- Early inactive cooldown reads no longer clear an observed interrupt cooldown, so the roster kick column stays fail-closed instead of flipping to ready too soon.
-- Added deterministic coverage for observed-cast refinement, early inactive cooldown reads, and the post-cast factory reconcile path.
+- Roster names now show the same compact green buff-rating hearts as Group Finder rows when a verified class/spec provides relevant non-utility buffs for your current character.
+- The existing Group Finder buff-rating setting now controls roster hearts too and refreshes the roster immediately when toggled.
+- The Re-Sync button is now hidden in the compact vertical `V` layout while staying available in the other roster layouts.
+- Added deterministic coverage for roster heart rendering and the disabled-setting path.

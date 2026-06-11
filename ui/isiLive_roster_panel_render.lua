@@ -279,7 +279,7 @@ local function BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID
   local info = entry and entry.info or {}
   local shouldIncludeReadyCheckDecorations = includeReadyCheckDecorations == true
 
-  return state.buildDisplayData(info, {
+  local displayData = state.buildDisplayData(info, {
     unit = entry and entry.unit or nil,
     truncateName = state.truncateName,
     getShortSpecLabel = state.getShortSpecLabel,
@@ -295,11 +295,30 @@ local function BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID
     getTime = shouldIncludeReadyCheckDecorations and state.getTime or nil,
     isAtDungeon = IsEntryAtTargetDungeon(targetMapID, entry, info),
   })
+
+  local lfgFlags = addonTable.LFGFlags
+  if type(lfgFlags) == "table" and type(lfgFlags.BuildRosterBonusMarkerBadge) == "function" then
+    local bonusMarker = lfgFlags.BuildRosterBonusMarkerBadge(
+      info.classToken or info.classFilename or info.classFileName or info.class,
+      info.specID or info.specId or info.specializationID or info.specializationId
+    )
+    if type(bonusMarker) == "string" and bonusMarker ~= "" then
+      displayData.rosterBonusMarker = bonusMarker
+    end
+  end
+
+  return displayData
 end
 
 local function ApplyRowNameDisplay(row, displayData)
   if not row or not row.name or type(row.name.SetText) ~= "function" then
     return
+  end
+  local rosterBonusMarker = displayData.rosterBonusMarker
+  if type(rosterBonusMarker) == "string" and rosterBonusMarker ~= "" then
+    rosterBonusMarker = " " .. rosterBonusMarker
+  else
+    rosterBonusMarker = ""
   end
 
   SetReadableText(
@@ -309,6 +328,7 @@ local function ApplyRowNameDisplay(row, displayData)
       .. displayData.colorHex
       .. displayData.displayName
       .. "|r"
+      .. rosterBonusMarker
       .. displayData.atDungeonMarker
       .. displayData.addonMarker
   )

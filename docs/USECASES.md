@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
 Versionsbasis: `0.9.305`
-Zuletzt aktualisiert: `2026-06-10`
+Zuletzt aktualisiert: `2026-06-11`
 
 ## Akteure
 
@@ -46,7 +46,7 @@ Zuletzt aktualisiert: `2026-06-10`
 | UC-21 | Multi-Kick-Extras im Roster-Tooltip | Zusaetzliche Interrupt-Spells einer Klasse (Prot Pala Avenger's Shield) werden separat vom Primary getrackt, ueber den Sync-Pfad an Peers verteilt und im Hover-Tooltip angezeigt |
 | UC-22 | LFG-Invite-Liste entfernt | Die verworfene offene Premade-LFG-Invite-Liste hat keine Module, keine Settings, keine SavedVariable und kein Runtime-Wiring |
 | UC-23 | Spieler-Stats-Box | Eine optionale, eigenstaendige Stats-Box zeigt live gelesene Spielerwerte ohne Guessing und bleibt unabhaengig von den Main-UI-Layouts verschiebbar |
-| UC-24 | Gruppensuche-Klassenbonus-Hinweise | Bewerber- und Suchergebniszeilen zeigen relevante nicht-Utility-Gruppenboni kompakt an und ergaenzen Tooltips mit lokalisierten Bonusdetails |
+| UC-24 | Gruppensuche- und Roster-Klassenbonus-Hinweise | Bewerber-, Suchergebnis- und Roster-Zeilen zeigen relevante nicht-Utility-Gruppenboni kompakt an und ergaenzen LFG-Tooltips mit lokalisierten Bonusdetails |
 
 ## UC-01 Invite-Erkennung ohne Target-Guessing
 
@@ -117,7 +117,7 @@ Ziel: Dem User erlauben, aktuelle Party-Keys schnell zu posten.
 5a. Regel: Wenn ein Client eine eingehende `SHAREKEYS`-Sync-Message erhaelt, wird der lokale `Share Keys`-Button ueber `TriggerRemoteCooldown` fuer `30s` gesperrt, auch wenn dieser Empfangspfad keinen eigenen Gruppenchat-Share ausloesen kann; ein bereits laufender lokaler Cooldown wird nicht zurueckgesetzt.
 5b. Regel: Im Hello-Ack-/REQSYNC-Fan-out spiegelt jeder Client eine laufende Button-Sperre als `SKCD:<rest>`-Payload an neu beigetretene Gruppenmitglieder. Der Empfaenger uebernimmt die Restzeit per Max-Merge (verlaengern ja, verkuerzen nie) und klemmt sie auf das lokale `30s`-Fenster; aeltere Clients ignorieren das unbekannte Payload.
 5c. Regel: Die laufende Button-Sperre wirkt zugleich als Ruhefenster fuer den Antwortpfad: solange sie aktiv ist, beantwortet der Client eingehende `SHAREKEYS` nicht mit einem erneuten eigenen Key-Post (schliesst den Doppelpost nach eigenem Klick aus, da der Klickpfad den Antwort-Zeitstempel nicht schreibt).
-6. Verwandte Aktion: Der danebenliegende `Re-Sync`-Button erzwingt den Hidden-Peer-Sync-Handshake, sendet zusaetzlich eine `LibKS`-Party-Anfrage fuer kompatible Nicht-`isiLive`-Peers und bleibt danach sichtbar `10s` auf Cooldown.
+6. Verwandte Aktion: Der danebenliegende `Re-Sync`-Button erzwingt den Hidden-Peer-Sync-Handshake, sendet zusaetzlich eine `LibKS`-Party-Anfrage fuer kompatible Nicht-`isiLive`-Peers und bleibt danach sichtbar `10s` auf Cooldown. Im kompakten vertikalen `V`-Layout ist der `Re-Sync`-Button verborgen; in den anderen Layouts bleibt er sichtbar.
 7. Erfolgskriterium: Der ausloesende User bekommt eine eigene Owned-Keystone-Zeile, waehrend der Peer-Request vorher bereits dispatcht wurde, und Peer-Antworten bleiben senderverteilt statt aus gecachten Remote-Roster-Daten rekonstruiert zu werden.
 
 ## UC-07 RIO-Delta-Sichtbarkeit
@@ -231,22 +231,22 @@ Ziel: Jeder BR- und Bloodlust-Cast eines isiLive-Spielers wird im Mythic+ genau 
 11. Realm-Darstellung: Die realm-strippende Display-Logik liegt in `factory/isiLive_factory_combat_announces.lua.FormatDisplayName` und wird sowohl vom Self-Render- als auch vom Peer-Render-Pfad genutzt; Cross-Realm-Namen behalten dabei ihren Realm-Suffix.
 12. Erfolgskriterium: Ein BR- oder Lust-Cast im Mythic+ erzeugt genau eine sichtbare Chat-Zeile pro isiLive-Empfaenger, der Self-Render beim Sender, keinen `ADDON_ACTION_FORBIDDEN`-Popup und keinen `"table index is secret"`-Fehler; Toggles entfernen die Zeile vollstaendig auf Senderseite, Peers ausserhalb eines aktiven Keys sehen keine Zeile.
 
-## UC-24 Gruppensuche-Klassenbonus-Hinweise
+## UC-24 Gruppensuche- und Roster-Klassenbonus-Hinweise
 
-Ziel: Der Spieler soll in der Blizzard-Gruppensuche schnell erkennen, ob eine Gruppe oder ein Bewerber relevante Klassenboni fuer den aktuell eingeloggten Charakter mitbringt.
+Ziel: Der Spieler soll in der Blizzard-Gruppensuche und im Roster schnell erkennen, ob eine Gruppe, ein Bewerber oder ein Gruppenmitglied relevante Klassenboni fuer den aktuell eingeloggten Charakter mitbringt.
 
-1. Trigger: Eine LFG-Suchergebniszeile, ein Suchergebnis-Tooltip oder eine Bewerberzeile wird aktualisiert.
-2. Verarbeitung: Das Addon liest nur die von Blizzard bereitgestellten Klassen-/Spezialisierungsdaten fuer die sichtbare Zeile beziehungsweise den sichtbaren Tooltip. Nicht aufloesbare Klassen oder Spezialisierungen bleiben unresolved.
+1. Trigger: Eine LFG-Suchergebniszeile, ein Suchergebnis-Tooltip, eine Bewerberzeile oder eine Roster-Zeile wird aktualisiert.
+2. Verarbeitung: Das Addon liest nur die von Blizzard bereitgestellten Klassen-/Spezialisierungsdaten fuer die sichtbare Zeile beziehungsweise den sichtbaren Tooltip oder die verifizierten Roster-Klassen-/Spec-Daten. Nicht aufloesbare Klassen oder Spezialisierungen bleiben unresolved.
 3. Verarbeitung: Die Relevanz wird gegen das live aufgeloeste Spielerprofil bewertet. Staerke-, Beweglichkeits- und Intelligenzboni, physischer und magischer Schadensbonus sowie Ausdauer-, Meisterschafts-, Versa- und Schadensreduktionsboni zaehlen nur, wenn sie fuer den lokalen Charakter relevant sind.
 4. Regel: Battle Res, Bloodlust, Power Infusion, Devotion Aura, Atrophic Poison und aehnliche Utility-Hinweise duerfen in Tooltip-Details erscheinen, zaehlen aber nicht als kompakte gruene Suchergebnis-Marker.
-5. Anzeige: Suchergebniszeilen zeigen bis zu vier gruene Herzmarker rechtsbuendig innerhalb der Blizzard-Zeile und unabhaengig davon, ob ein Drittanbieter-Addon zusaetzliche Klassenbadges zeichnet. Die Settings-Option `Group Finder: Buff rating hearts` ist standardmaessig aktiv, kann diese Marker und die zugehoerigen Bonus-Tooltip-Ergaenzungen ausschalten und beschreibt mit untereinander stehenden fix grossen Herz-Textur-Beispielzeilen, dass 1/2/3/4 Herzen einen, zwei, drei beziehungsweise vier oder mehr relevante Buffs bedeuten.
+5. Anzeige: Suchergebniszeilen zeigen bis zu vier gruene Herzmarker rechtsbuendig innerhalb der Blizzard-Zeile und unabhaengig davon, ob ein Drittanbieter-Addon zusaetzliche Klassenbadges zeichnet. Roster-Zeilen zeigen dieselben Marker direkt am Spielernamen, wenn die Roster-Klasse verifiziert ist und eine vorhandene Spec-ID zur Klasse passt. Die Settings-Option `Group Finder: Buff rating hearts` ist standardmaessig aktiv, kann diese Marker und die zugehoerigen Bonus-Tooltip-Ergaenzungen ausschalten und beschreibt mit untereinander stehenden fix grossen Herz-Textur-Beispielzeilen, dass 1/2/3/4 Herzen einen, zwei, drei beziehungsweise vier oder mehr relevante Buffs bedeuten.
 6. Anzeige: Gleiche nicht stapelnde Boni zaehlen pro Suchergebnis nur einmal, auch wenn mehrere Gruppenmitglieder denselben Buff liefern.
 7. Texturvertrag: Kompakte Marker und Settings-Beispiele nutzen die Datei `Interface\AddOns\isiLive\media\heart_bonus_green.tga`; der WoW-API-Pfad darf extensionless `Interface\AddOns\isiLive\media\heart_bonus_green` sein. Instabile Font-Herz-Glyphen sind fuer dieses Feature nicht zulaessig. Bewerberzeilen platzieren echte Texturmarker rechts neben dem Klassenbadge, damit sie nicht unter Blizzard-Badges verschwinden, und duerfen keinen FontString-Markup-Fallback fuer diese Herzchen verwenden.
 8. Verarbeitung: Bewerberzeilen duerfen Sprachflaggen nur anzeigen, wenn der Realm aus dem konkreten Bewerber-Mitgliedsnamen oder dem lokalen Realm belastbar aufgeloest werden kann; ohne Realm-/Sprachquelle bleibt die Flagge verborgen.
-8. Anzeige: Bewerberzeilen zeigen die Marker neben dem Rollenbadge. Suchergebnis-Tooltips ergaenzen passende Mitgliedszeilen mit lokalisierten Bonusdetails; beim Programmieren werden Deutsch und Englisch gepflegt, weitere vorbereitete Locales duerfen bis zur Nachbearbeitung englische Fallback-Texte verwenden oder nachbearbeitete Uebersetzungen tragen.
+8. Anzeige: Bewerberzeilen zeigen die Marker neben dem Rollenbadge. Roster-Zeilen zeigen die Marker im Namensfeld vor Portal-, Sync- und Leader-Markern. Suchergebnis-Tooltips ergaenzen passende Mitgliedszeilen mit lokalisierten Bonusdetails; beim Programmieren werden Deutsch und Englisch gepflegt, weitere vorbereitete Locales duerfen bis zur Nachbearbeitung englische Fallback-Texte verwenden oder nachbearbeitete Uebersetzungen tragen.
 9. Uebersetzungsregel: Community-PRs fuer vorbereitete Locales werden angenommen, wenn sie mit den aktuellen UI- und Regelvertraegen kompatibel gemacht werden koennen; der einreichende User wird im Changelog bedankt.
 10. Ausnahme: Zeilen mit `Bef√∂rderung angeboten` beziehungsweise dessen lokalisierter Spielstil-Anzeige zeigen keine kompakten Suchergebnis-Marker.
-11. Erfolgskriterium: Relevante nicht-Utility-Boni sind sichtbar, irrelevante oder unbekannte Boni bleiben ausgeblendet, doppelte Buffquellen erhoehen die Markerzahl nicht, und fehlende Drittanbieter-Badges entfernen die Marker nicht aus der Blizzard-Default-Anzeige.
+11. Erfolgskriterium: Relevante nicht-Utility-Boni sind sichtbar, irrelevante oder unbekannte Boni bleiben ausgeblendet, doppelte Buffquellen erhoehen die Markerzahl nicht, fehlende Drittanbieter-Badges entfernen die Marker nicht aus der Blizzard-Default-Anzeige, und Roster-Zeilen zeigen keine Marker ohne verifizierte Klasse.
 
 ## UC-17 Mob-Tooltip mit Forces-Anteil im Mythic+
 
@@ -355,7 +355,7 @@ Ziel: Eine optionale, eigenstaendige Spieler-Stats-Box zeigt live gelesene Prim√
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `1984` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `2001` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
@@ -369,7 +369,7 @@ Aktuelle Validator-Baseline: `1984` Szenarien ueber die in `tools/usecase_scenar
 10. Taint-Hardening: verschobene Secure-Attribute-Writes, verschobene `Esc`-Shortcut-Secure-Button-Refreshes, insecure Teleport-Grid-Aktionen und combat-sicheres Collapse-Handling.
 11. UC-13 und UC-14: Game-Menu-Tooling-/Travel-/Mounts-/Addons-Strips, Ruhestein-Auswahl, VIP-Gast-Sound-Schalter, Lokalisierung inklusive ruRU-Font-Override, Close-then-Open-Verhalten, verschobener Secure-Reload-Button-Refresh, sichere Mount-Macro-Shortcuts, Direct-Opener-Fallback-Auswahl, Settings-Canvas-State-Mirroring, Background-Opacity-Verhalten, Live-BRes-/Bloodlust-/M+-Timer-Rendering, kompakter aktiver Lust-Timer, M+-Killtracker-Live-Refresh mit aktiver Keylevel-Anzeige und gesyncte Interrupt-Cooldown-Anzeige.
 12. UC-15: LFG-Detektion ohne Name-Fallbacks, locale-aware Chat-Hinweise, pending-invite Race-Hardening, konkrete lokale LFG-Map-Prioritaet, Highlight-Dispatch und Centerbox-Portalbutton aus verifiziertem Activity-/Map-Kontext.
-13. UC-24: Gruppensuche-Buff-Rating-Herzchen ohne Guessing, mit Spielerprofil-Relevanz, Utility-Ausschluss fuer kompakte Marker, nicht-stapelnder Buffzaehlung, Blizzard-Default-kompatibler Suchergebnisposition, Bewerber-Herzchen rechts neben dem Klassenbadge als echte Texturen, Bewerber-Sprachflaggen aus verifiziertem Realm, default-aktivem Settings-Schalter, `media/heart_bonus_green.tga`-Texturvertrag sowie vorbereiteten Locale-Fallbacks inklusive akzeptierter Community-Uebersetzungen.
+13. UC-24: Gruppensuche- und Roster-Buff-Rating-Herzchen ohne Guessing, mit Spielerprofil-Relevanz, Utility-Ausschluss fuer kompakte Marker, nicht-stapelnder Buffzaehlung, Blizzard-Default-kompatibler Suchergebnisposition, Bewerber-Herzchen rechts neben dem Klassenbadge als echte Texturen, Roster-Herzchen direkt am Spielernamen aus verifizierter Klasse und passender Spec-ID, Bewerber-Sprachflaggen aus verifiziertem Realm, default-aktivem Settings-Schalter, `media/heart_bonus_green.tga`-Texturvertrag sowie vorbereiteten Locale-Fallbacks inklusive akzeptierter Community-Uebersetzungen.
 14. UC-16: BR-/Lust-Self-Cast-Filter gegen 12.0-Secret-Value-Spam, 3s-`sourceGUID|spellID`-Dedup, Toggle-Gating, ChatThrottleLib-Routing via `BRLUST`-Addon-Message, Receiver-Dispatch in lokalisierten Template-Zeilen und Drop-On-Unknown-Kind.
 15. UC-17: Mob-Tooltip-Forces-Rendering nur bei aktiver Challenge-Map-ID mit passendem NPC-Dataset, Per-Tooltip-Dedup gegen `TooltipDataProcessor`-Rerender und `SetEnabled(false)`-Gate.
 

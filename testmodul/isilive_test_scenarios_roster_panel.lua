@@ -533,6 +533,135 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
       )
     end)
   end)
+
+  test("Roster render appends green bonus-heart marker for relevant roster class buffs", function()
+    WithGlobals({
+      GetReadyCheckStatus = function()
+        return nil
+      end,
+      UnitClass = function(unit)
+        if unit == "player" then
+          return "Warrior", "WARRIOR"
+        end
+        return nil, nil
+      end,
+      GetSpecialization = function()
+        return 1
+      end,
+      GetSpecializationInfo = function()
+        return 72
+      end,
+      RAID_CLASS_COLORS = {},
+      CreateColor = function()
+        return {
+          GenerateHexColor = function()
+            return "ffffffff"
+          end,
+        }
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster.lua",
+        "isiLive_lfg_flags.lua",
+        "isiLive_roster_panel_render.lua",
+      })
+
+      local displayData = addon._RosterInternal.BuildRowDisplayData({
+        buildDisplayData = function(info, opts)
+          return addon.Roster.BuildDisplayData(info, opts)
+        end,
+      }, {
+        unit = "party1",
+        info = {
+          name = "Warrior",
+          class = "WARRIOR",
+          role = "DAMAGER",
+          specID = 72,
+        },
+      }, false, nil, true)
+
+      local capturedNameText = nil
+      addon._RosterInternal.ApplyRowNameDisplay({
+        name = {
+          SetText = function(_, value)
+            capturedNameText = value
+          end,
+        },
+      }, displayData)
+
+      Assert.True(
+        capturedNameText:find("media\\heart_bonus_green", 1, true) ~= nil,
+        "relevant roster class buffs must render the green bonus-heart marker next to the member name"
+      )
+      Assert.True(
+        capturedNameText:find("Warrior|r |TInterface\\AddOns\\isiLive\\media\\heart_bonus_green", 1, true) ~= nil,
+        "roster bonus-heart marker must keep the same leading spacing style as inline roster markers"
+      )
+    end)
+  end)
+
+  test("Roster render hides green bonus-heart marker when group-bonus setting is disabled", function()
+    WithGlobals({
+      GetReadyCheckStatus = function()
+        return nil
+      end,
+      UnitClass = function(unit)
+        if unit == "player" then
+          return "Warrior", "WARRIOR"
+        end
+        return nil, nil
+      end,
+      GetSpecialization = function()
+        return 1
+      end,
+      GetSpecializationInfo = function()
+        return 72
+      end,
+      RAID_CLASS_COLORS = {},
+      CreateColor = function()
+        return {
+          GenerateHexColor = function()
+            return "ffffffff"
+          end,
+        }
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster.lua",
+        "isiLive_lfg_flags.lua",
+        "isiLive_roster_panel_render.lua",
+      })
+      addon.LFGFlags.SetGroupBonusesEnabled(false)
+
+      local displayData = addon._RosterInternal.BuildRowDisplayData({
+        buildDisplayData = function(info, opts)
+          return addon.Roster.BuildDisplayData(info, opts)
+        end,
+      }, {
+        unit = "party1",
+        info = {
+          name = "Warrior",
+          class = "WARRIOR",
+          role = "DAMAGER",
+          specID = 72,
+        },
+      }, false, nil, true)
+
+      local capturedNameText = nil
+      addon._RosterInternal.ApplyRowNameDisplay({
+        name = {
+          SetText = function(_, value)
+            capturedNameText = value
+          end,
+        },
+      }, displayData)
+
+      Assert.True(
+        capturedNameText:find("media\\heart_bonus_green", 1, true) == nil,
+        "disabled group-bonus setting must suppress roster bonus-heart markers"
+      )
+    end)
+  end)
 end
 
 local function RegisterRosterDisplayTruncationTests(test, Assert, WithGlobals, LoadAddonModules)

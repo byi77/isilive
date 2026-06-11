@@ -298,7 +298,7 @@ local function RegisterNativeWorldMarkerButtonTests(test, Assert, WithGlobals, L
       },
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_roster_panel.lua" })
-      addon.RosterPanel.CreateController({
+      controller = addon.RosterPanel.CreateController({
         mainFrame = NewRecordedMainFrame(createdFontStrings),
         getL = function()
           return { TANK_HELPER_HEADER = "M+Marker" }
@@ -378,6 +378,8 @@ local function RegisterNativeWorldMarkerButtonTests(test, Assert, WithGlobals, L
       "M+Marker column should occupy the compact helper slot in expanded mode"
     )
     local readyCheckButton = nil
+    local refreshButton = nil
+    local shareKeysButton = nil
     for _, frame in ipairs(createdFrames) do
       if
         (
@@ -410,6 +412,7 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     local createdFrames = {}
     local createdFontStrings = {}
     local mainFrame = NewRecordedMainFrame(createdFontStrings)
+    local controller = nil
 
     WithGlobals({
       CreateFrame = function(frameType, name, parent, template)
@@ -429,7 +432,7 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
       },
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_roster_panel.lua" })
-      addon.RosterPanel.CreateController({
+      controller = addon.RosterPanel.CreateController({
         mainFrame = mainFrame,
         getL = function()
           return { TANK_HELPER_HEADER = "M+Marker" }
@@ -538,6 +541,8 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     local miniWidth = mainFrame.width
     local buttonX = tankButton.pointX -- Negative value relative to TOPRIGHT
     local readyCheckButton = nil
+    local refreshButton = controller and controller.GetRefreshButton and controller.GetRefreshButton() or nil
+    local shareKeysButton = nil
     for _, frame in ipairs(createdFrames) do
       if
         (
@@ -547,10 +552,14 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
         ) and frame.pointY == -60
       then
         readyCheckButton = frame
-        break
+      end
+      if frame._verticalY == -150 then
+        shareKeysButton = frame
       end
     end
     readyCheckButton = Assert.NotNil(readyCheckButton, "Readycheck button should exist")
+    refreshButton = Assert.NotNil(refreshButton, "Refresh button should exist")
+    shareKeysButton = Assert.NotNil(shareKeysButton, "Share Keys button should exist")
     Assert.Equal(buttonX, -37, "M+Marker buttons should move into the right mini-mode tool column")
     Assert.Equal(readyCheckButton.pointX, -70, "M+Managment buttons should stay fully inside the mini-mode frame")
     Assert.True(
@@ -563,6 +572,8 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     )
     Assert.True(titleFontString.hidden, "Title should be hidden in vertical mini mode")
     Assert.True(versionFontString.hidden, "Version line should be hidden in vertical mini mode")
+    Assert.False(refreshButton._shown, "Re-Sync button should be hidden in vertical mini mode")
+    Assert.True(shareKeysButton._shown, "Share Keys button should remain visible in vertical mini mode")
     Assert.Equal(collapseButton._collapseButtonLabel, "V", "V mode button keeps static V label")
     Assert.Equal(
       horizontalCollapseButton._collapseButtonLabel,
