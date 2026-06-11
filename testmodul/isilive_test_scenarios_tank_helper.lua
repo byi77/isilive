@@ -298,7 +298,7 @@ local function RegisterNativeWorldMarkerButtonTests(test, Assert, WithGlobals, L
       },
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_roster_panel.lua" })
-      controller = addon.RosterPanel.CreateController({
+      addon.RosterPanel.CreateController({
         mainFrame = NewRecordedMainFrame(createdFontStrings),
         getL = function()
           return { TANK_HELPER_HEADER = "M+Marker" }
@@ -378,8 +378,6 @@ local function RegisterNativeWorldMarkerButtonTests(test, Assert, WithGlobals, L
       "M+Marker column should occupy the compact helper slot in expanded mode"
     )
     local readyCheckButton = nil
-    local refreshButton = nil
-    local shareKeysButton = nil
     for _, frame in ipairs(createdFrames) do
       if
         (
