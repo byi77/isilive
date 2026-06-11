@@ -6,11 +6,11 @@ local _, addonTable = ...
 
 addonTable.MPlusForces = {
   season = "midnight_s1",
-  mdtVersion = "6.1.12",
-  generatedAt = "2026-06-04",
-  expiresAt = "2026-06-19",
+  mdtVersion = "6.1.16",
+  generatedAt = "2026-06-11",
+  expiresAt = "2026-06-26",
   dungeonCount = 8,
-  npcCount = 128,
+  npcCount = 127,
 
   -- Enemy Forces total per dungeon (keyed by challenge-mode mapID)
   dungeonTotal = {
@@ -124,7 +124,6 @@ addonTable.MPlusForces = {
     [249030] = { count = 15, mapID = 560 }, -- Restless Gnarldin
     [249036] = { count = 7, mapID = 560 }, -- Tormented Shade
     [249086] = { count = 7, mapID = 558 }, -- Void Infuser
-    [250883] = { count = 2, mapID = 557 }, -- Scouting Trapper
     [250992] = { count = 1, mapID = 161 }, -- Raging Squall
     [251853] = { count = 7, mapID = 559 }, -- Grand Nullifier
     [251861] = { count = 12, mapID = 558 }, -- Blazing Pyromancer
