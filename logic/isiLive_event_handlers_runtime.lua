@@ -861,15 +861,22 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       ctx.sendRefreshResponse()
       ctx.sendOwnTargetSnapshot(true, "hello", true)
       ctx.sendOwnKickState()
+      ctx.sendShareKeysCooldownState()
     end
     if syncResult.shouldRequestRefresh then
       ctx.sendIsiLiveHello(true, "reqsync-ack")
       ctx.sendRefreshResponse()
       ctx.sendOwnTargetSnapshot(true, "reqsync", true)
       ctx.sendOwnKickState()
+      ctx.sendShareKeysCooldownState()
     end
     if syncResult.shouldShareKeys then
       HandleShareKeysRequest(ctx, syncResult, sender)
+    end
+    local remoteShareKeysCooldown = tonumber(syncResult.shareKeysCooldownRemain)
+    if remoteShareKeysCooldown and remoteShareKeysCooldown > 0 then
+      -- Mirror a peer's share-keys lock (max-merge happens inside the button).
+      ctx.triggerShareKeysCooldown(remoteShareKeysCooldown)
     end
     if syncResult.combatAnnounce then
       ctx.showCombatAnnounce(syncResult.combatAnnounce)

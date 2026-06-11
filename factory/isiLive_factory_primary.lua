@@ -149,6 +149,7 @@ local function InitializeFactoryPrimaryControllers(ctx)
   ctx.countdownCancelButton = initResult.countdownCancelButton
   ctx.statusLine = initResult.statusLine
   ctx.TriggerShareKeysCooldown = initResult.triggerShareKeysCooldown
+  ctx.GetShareKeysCooldownRemaining = initResult.getShareKeysCooldownRemaining
   ctx.teleportUIController = initResult.teleportUIController
   ctx.mplusTeleportButtons = initResult.mplusTeleportButtons
   ctx.UpdateLeaderButtons = function()

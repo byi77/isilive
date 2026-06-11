@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-06-11 - Version 0.9.306 (patch)
+
+- Added group-wide mirroring of the Share Keys button cooldown: peers with a
+  running lock announce the remaining seconds as a new `SKCD:<remain>` sync
+  payload during the hello-ack / REQSYNC state fan-out, so freshly joined
+  group members start with the same lock instead of immediately re-triggering
+  a redundant `SHAREKEYS` wave.
+- Receivers apply mirrored locks with max-merge semantics: a remote remaining
+  time can extend the local lock but never shorten it, and is clamped to the
+  local 30s debounce window. Older clients ignore the unknown payload, so the
+  sync protocol version stays at `2`.
+- Closed the click-path double-post gap: the share-keys response path now also
+  honours the running button cooldown, so an incoming `SHAREKEYS` shortly
+  after a local click no longer re-posts the own keystone a second time.
+- Added deterministic coverage for the SKCD sender, parser (clamping and
+  self-echo), runtime fan-out, button max-merge, and an end-to-end
+  sender-to-receiver wire-bytes chain; extended active rule 53 accordingly.
+- Added `tools/simulate_ctl_wire_order.lua`: drives the share-keys click
+  sequence through the real embedded ChatThrottleLib (not a mock) and pins the
+  wire order on idle and congested networks — synchronous SHAREKEYS-first on
+  idle, chat-line-first inversion under congestion (cosmetic only, the
+  receiver chain is order-independent), ALERT overtaking foreign BULK backlog,
+  and FIFO inside the ISILIVE pipe.
+- Bumped the TOC and documentation baselines to `0.9.306`.
+- Updated the release-gate scenario baseline to `1996` deterministic scenarios.
+
 ## 2026-06-10 - Version 0.9.305 (patch)
 
 - Fixed ESC Addons shortcuts so Blizzard's character-scoped enabled state

@@ -170,6 +170,9 @@ local function BuildContext(opts)
     return false
   end)
   ctx.triggerShareKeysCooldown = OptionalFunction(opts.triggerShareKeysCooldown, function() end)
+  ctx.sendShareKeysCooldownState = OptionalFunction(opts.sendShareKeysCooldownState, function()
+    return false
+  end)
   ctx.sendOwnKickState = OptionalFunction(opts.sendOwnKickState, function() end)
   ctx.runFullRefresh = RequireFunction(opts.runFullRefresh, "runFullRefresh")
   ctx.recordRun = OptionalFunction(opts.recordRun, function() end)

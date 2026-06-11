@@ -98,6 +98,10 @@ local function NewCtx(overrides)
     sendOwnKeystoneToChat = function()
       return false
     end,
+    triggerShareKeysCooldown = function() end,
+    sendShareKeysCooldownState = function()
+      return false
+    end,
     showCombatAnnounce = function() end,
     playIncomingSummonSound = function() end,
     forEachRosterInfo = function() end,
@@ -720,6 +724,65 @@ return function(test, ctx)
     })
     handlers.CHAT_MSG_ADDON(nil, "isiLive", "msg", "PARTY", "Sender")
     Assert.Equal(cooldownCalls, 1, "share-keys cooldown must fire when posting succeeded")
+  end)
+
+  test("CHAT_MSG_ADDON mirrors a peer SKCD lock via triggerShareKeysCooldown", function()
+    local cooldownArgs = {}
+    local handlers = LoadHandlers({
+      processAddonMessage = function()
+        return { shareKeysCooldownRemain = 17 }
+      end,
+      triggerShareKeysCooldown = function(seconds)
+        table.insert(cooldownArgs, seconds)
+      end,
+    })
+    handlers.CHAT_MSG_ADDON(nil, "isiLive", "SKCD:17", "PARTY", "Sender")
+    Assert.Equal(#cooldownArgs, 1, "SKCD payload must trigger the share-keys cooldown exactly once")
+    Assert.Equal(cooldownArgs[1], 17, "the mirrored cooldown must carry the remaining seconds")
+  end)
+
+  test("CHAT_MSG_ADDON ignores invalid SKCD remain values", function()
+    local cooldownCalls = 0
+    local handlers = LoadHandlers({
+      processAddonMessage = function()
+        return { shareKeysCooldownRemain = 0 }
+      end,
+      triggerShareKeysCooldown = function()
+        cooldownCalls = cooldownCalls + 1
+      end,
+    })
+    handlers.CHAT_MSG_ADDON(nil, "isiLive", "SKCD:0", "PARTY", "Sender")
+    Assert.Equal(cooldownCalls, 0, "non-positive SKCD remain must not lock the button")
+  end)
+
+  test("CHAT_MSG_ADDON hello-ack fan-out includes the share-keys cooldown state", function()
+    local stateSends = 0
+    local handlers = LoadHandlers({
+      processAddonMessage = function()
+        return { shouldAck = true, sender = "Sender" }
+      end,
+      sendShareKeysCooldownState = function()
+        stateSends = stateSends + 1
+        return true
+      end,
+    })
+    handlers.CHAT_MSG_ADDON(nil, "isiLive", "HELLO:1:2:3:local", "PARTY", "Sender")
+    Assert.Equal(stateSends, 1, "hello-ack must forward the local share-keys cooldown to the new peer")
+  end)
+
+  test("CHAT_MSG_ADDON reqsync fan-out includes the share-keys cooldown state", function()
+    local stateSends = 0
+    local handlers = LoadHandlers({
+      processAddonMessage = function()
+        return { shouldRequestRefresh = true }
+      end,
+      sendShareKeysCooldownState = function()
+        stateSends = stateSends + 1
+        return true
+      end,
+    })
+    handlers.CHAT_MSG_ADDON(nil, "isiLive", "REQSYNC", "PARTY", "Sender")
+    Assert.Equal(stateSends, 1, "reqsync must forward the local share-keys cooldown to the requesting peer")
   end)
 
   -- HandlePlayerEnteringWorldEvent: raid early-return + reload-roster --------

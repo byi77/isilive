@@ -1508,6 +1508,161 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
     end)
   end)
 
+  test("Sync SendShareKeysCooldown publishes SKCD with ceiled and clamped remain", function()
+    local sentMessages = {}
+
+    WithGlobals({
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      GetTime = function()
+        return 100
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+          return true
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local result = addon.Sync.SendShareKeysCooldown({ remain = 12.4 })
+      Assert.True(result, "share-keys cooldown send should report success")
+      Assert.Equal(#sentMessages, 1, "share-keys cooldown should publish one addon message")
+      Assert.Equal(sentMessages[1].prefix, "ISILIVE", "share-keys cooldown must use the ISILIVE prefix")
+      Assert.Equal(sentMessages[1].message, "SKCD:13", "fractional remain must be ceiled to whole seconds")
+
+      local blocked = addon.Sync.SendShareKeysCooldown({ remain = 20 })
+      Assert.False(blocked, "second send within the 1s rate limit must be suppressed")
+      Assert.Equal(#sentMessages, 1, "rate-limited send must not publish a second message")
+
+      local clamped = addon.Sync.SendShareKeysCooldown({ remain = 999, force = true })
+      Assert.True(clamped, "forced send must bypass the rate limit")
+      Assert.Equal(sentMessages[2].message, "SKCD:30", "remain must be clamped to the 30s debounce window")
+    end)
+  end)
+
+  test("Sync SendShareKeysCooldown returns false for invalid remain or missing channel", function()
+    local sentMessages = {}
+
+    WithGlobals({
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      GetTime = function()
+        return 100
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+          return true
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      Assert.False(addon.Sync.SendShareKeysCooldown({ remain = 0 }), "remain=0 must not publish")
+      Assert.False(addon.Sync.SendShareKeysCooldown({ remain = -5 }), "negative remain must not publish")
+      Assert.False(addon.Sync.SendShareKeysCooldown({}), "missing remain must not publish")
+      Assert.Equal(#sentMessages, 0, "invalid remain must never reach the wire")
+    end)
+
+    WithGlobals({
+      IsInGroup = function(_category)
+        return false
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      GetTime = function()
+        return 100
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(_prefix, _message, _channel)
+          return true
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+      Assert.False(addon.Sync.SendShareKeysCooldown({ remain = 10 }), "no group channel must suppress the send")
+    end)
+  end)
+
+  test("Sync ProcessAddonMessage mirrors SKCD payloads with clamping", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str:sub(1, pos - 1)
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local result = addon.Sync.ProcessAddonMessage("ISILIVE", "SKCD:25", "OtherPlayer-OtherRealm", "MyPlayer", "Realm")
+      Assert.NotNil(result, "SKCD must return a result")
+      Assert.Equal(result.shareKeysCooldownRemain, 25, "SKCD remain must be mirrored verbatim")
+      Assert.False(result.shouldShareKeys, "SKCD must not trigger a share-keys chat response")
+
+      local clamped =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "SKCD:999", "OtherPlayer-OtherRealm", "MyPlayer", "Realm")
+      Assert.Equal(clamped.shareKeysCooldownRemain, 30, "oversized SKCD remain must be clamped to 30s")
+
+      local zero = addon.Sync.ProcessAddonMessage("ISILIVE", "SKCD:0", "OtherPlayer-OtherRealm", "MyPlayer", "Realm")
+      Assert.Nil(zero.shareKeysCooldownRemain, "SKCD remain 0 must be ignored")
+
+      local garbage =
+        addon.Sync.ProcessAddonMessage("ISILIVE", "SKCD:abc", "OtherPlayer-OtherRealm", "MyPlayer", "Realm")
+      Assert.Nil(garbage.shareKeysCooldownRemain, "non-numeric SKCD remain must be ignored")
+    end)
+  end)
+
+  test("Sync ProcessAddonMessage suppresses SKCD self-echo", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str:sub(1, pos - 1)
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      local result = addon.Sync.ProcessAddonMessage("ISILIVE", "SKCD:25", "MyPlayer-Realm", "MyPlayer", "Realm")
+      Assert.NotNil(result, "SKCD self-echo must still return a result")
+      Assert.Nil(result.shareKeysCooldownRemain, "SKCD self-echo must not mirror the own cooldown back")
+    end)
+  end)
+
   test("Sync SendLibKeystoneRequest publishes one party request", function()
     local sentMessages = {}
     local now = 100

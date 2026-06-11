@@ -179,6 +179,71 @@ return function(test, ctx)
     end)
   end)
 
+  test("sendOwnKeystoneToChat aborts while the share-keys button cooldown is active", function()
+    -- The button cooldown also starts on a local click, which never writes
+    -- _lastKeystoneChatAt — without this guard an incoming SHAREKEYS right
+    -- after a local click would re-post the own key a second time.
+    local traceLines = {}
+    WithGlobals({
+      GetTime = function()
+        return 1000
+      end,
+    }, function()
+      local config = WireKeystone({
+        SendPartyChatMessage = function()
+          return true
+        end,
+        ctxOverrides = {
+          isInGroup = function()
+            return true
+          end,
+          GetShareKeysCooldownRemaining = function()
+            return 7
+          end,
+          runtimeLogController = {
+            Log = Noop,
+            Logf = Noop,
+            TraceDeep = function(builder)
+              table.insert(traceLines, builder())
+            end,
+          },
+        },
+      })
+      Assert.False(config.sendOwnKeystoneToChat(), "active button cooldown must suppress the chat response")
+    end)
+
+    local sawAbort = false
+    for _, line in ipairs(traceLines) do
+      if line == "[KEYSTONE] aborted reason=button_cooldown remaining=7" then
+        sawAbort = true
+      end
+    end
+    Assert.True(sawAbort, "button_cooldown abort reason must be deep-traced")
+  end)
+
+  test("sendOwnKeystoneToChat proceeds when the share-keys button cooldown is idle", function()
+    WithGlobals({
+      GetTime = function()
+        return 1000
+      end,
+    }, function()
+      local config = WireKeystone({
+        SendPartyChatMessage = function()
+          return true
+        end,
+        ctxOverrides = {
+          isInGroup = function()
+            return true
+          end,
+          GetShareKeysCooldownRemaining = function()
+            return 0
+          end,
+        },
+      })
+      Assert.True(config.sendOwnKeystoneToChat(), "idle button cooldown must not block the response")
+    end)
+  end)
+
   -- No-line abort --------------------------------------------------------------
 
   test("sendOwnKeystoneToChat aborts when BuildOwnKeystoneAnnounceLine returns nil", function()

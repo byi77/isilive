@@ -692,7 +692,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-SHAREKEYS-SPAMSCHUTZ
 - Regelnummer: 53
 - Status: aktiv
-- Zusammenfassung: Der Share-Keys-Button ist 30 Sekunden gegen Spam gesperrt. Beim eigenen Klick wird der `SHAREKEYS`-Sync vor dem sichtbaren `PARTY`-Post dispatcht. Die Sperre wird lokal nur nach einem wirksamen eigenen Klick gesetzt, also wenn dabei entweder der eigene Key erfolgreich in `PARTY` angekuendigt oder ein erfolgreicher `SHAREKEYS`-Sync ausgeloest wurde; ein lokaler Print-Fallback zaehlt dafuer nicht als Chat-Share. Empfangende isiLive-Clients sperren ihren Button bei jedem eingehenden `SHAREKEYS`-Pfad, auch wenn sie keinen eigenen `PARTY`-Post ausloesen koennen. Ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt.
+- Zusammenfassung: Der Share-Keys-Button ist 30 Sekunden gegen Spam gesperrt. Beim eigenen Klick wird der `SHAREKEYS`-Sync vor dem sichtbaren `PARTY`-Post dispatcht. Die Sperre wird lokal nur nach einem wirksamen eigenen Klick gesetzt, also wenn dabei entweder der eigene Key erfolgreich in `PARTY` angekuendigt oder ein erfolgreicher `SHAREKEYS`-Sync ausgeloest wurde; ein lokaler Print-Fallback zaehlt dafuer nicht als Chat-Share. Empfangende isiLive-Clients sperren ihren Button bei jedem eingehenden `SHAREKEYS`-Pfad, auch wenn sie keinen eigenen `PARTY`-Post ausloesen koennen. Ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt. Im Hello-Ack-/REQSYNC-Fan-out spiegelt jeder Client eine laufende Button-Sperre als `SKCD:<rest>`-Payload an neue Gruppenmitglieder; der Empfaenger uebernimmt die Restzeit per Max-Merge (verlaengern ja, verkuerzen nie) und klemmt sie auf das lokale 30s-Fenster. Die Button-Sperre wirkt zusaetzlich als gemeinsames Ruhefenster fuer den Antwortpfad: solange sie laeuft, wird auf eingehende `SHAREKEYS` kein eigener Key erneut in den Chat gepostet (der eigene Klick schreibt den Antwort-Zeitstempel nicht, die Button-Sperre schliesst diese Luecke).
 - Erforderliche Tests:
   - Roster panel share keys button debounces rapid clicks
   - Roster panel share keys button dispatches SHAREKEYS before party chat
@@ -700,17 +700,29 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Roster panel share keys button does not treat the local print fallback as a successful party share
   - Roster panel share keys button ignores no-op clicks without chat or sync success
   - Roster panel share keys button locks on remote SHAREKEYS signal
+  - Roster panel share keys button mirrors a partial remote cooldown with max-merge
+  - Share keys cooldown mirror drives full sender receiver SKCD chain
   - Sync SendShareKeysRequest returns false without an addon sync channel
   - Sync SendShareKeysRequest returns false when addon message dispatch fails
+  - Sync SendShareKeysCooldown publishes SKCD with ceiled and clamped remain
+  - Sync SendShareKeysCooldown returns false for invalid remain or missing channel
   - Sync routes send through ChatThrottleLib with correct priority per message type
   - Sync ProcessAddonMessage handles SHAREKEYS payloads
   - Sync ProcessAddonMessage handles SHAREKEYS from UTF-8 sender names
   - Sync ProcessAddonMessage suppresses SHAREKEYS self-echo for UTF-8 names
+  - Sync ProcessAddonMessage mirrors SKCD payloads with clamping
+  - Sync ProcessAddonMessage suppresses SKCD self-echo
   - ControllerWiring sendOwnKeystoneToChat uses ContextHelpers loaded after wiring
   - ControllerWiring SHAREKEYS send and receive paths use the same real payload
+  - sendOwnKeystoneToChat aborts while the share-keys button cooldown is active
+  - sendOwnKeystoneToChat proceeds when the share-keys button cooldown is idle
   - Event handlers answer SHAREKEYS requests while frame is hidden
   - Event handlers process SHAREKEYS through the real sync parser and trigger cooldown
   - Event handlers trigger SHAREKEYS cooldown even when no own key chat share was posted
+  - CHAT_MSG_ADDON mirrors a peer SKCD lock via triggerShareKeysCooldown
+  - CHAT_MSG_ADDON ignores invalid SKCD remain values
+  - CHAT_MSG_ADDON hello-ack fan-out includes the share-keys cooldown state
+  - CHAT_MSG_ADDON reqsync fan-out includes the share-keys cooldown state
 
 ### RULE-NO-GUESS-LAUFZEITAUFLOESUNG
 - Regelnummer: 54

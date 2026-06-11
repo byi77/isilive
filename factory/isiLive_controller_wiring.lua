@@ -449,6 +449,17 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     end
   config.triggerShareKeysCooldown = type(deps.triggerShareKeysCooldown) == "function" and deps.triggerShareKeysCooldown
     or function() end
+  config.sendShareKeysCooldownState = function()
+    local getRemaining = deps.getShareKeysCooldownRemaining
+    local remain = type(getRemaining) == "function" and tonumber(getRemaining()) or nil
+    if not remain or remain <= 0 then
+      return false
+    end
+    if type(modules.sync.SendShareKeysCooldown) ~= "function" then
+      return false
+    end
+    return modules.sync.SendShareKeysCooldown({ remain = remain }) == true
+  end
   config.forEachRosterInfo = function(visitor)
     for _, info in pairs(state.getRoster()) do
       visitor(info)
@@ -560,6 +571,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     sendRefreshResponse = ctx.sendRefreshResponse,
     sendRefreshRequest = ctx.sendRefreshRequest,
     triggerShareKeysCooldown = ctx.TriggerShareKeysCooldown,
+    getShareKeysCooldownRemaining = ctx.GetShareKeysCooldownRemaining,
     registerVerifiedSyncAliasForRoster = ctx.registerVerifiedSyncAliasForRoster,
     sendOwnKeystoneToChat = function()
       local logFn = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil
@@ -576,6 +588,27 @@ local function BuildEventHandlersDepsFromContext(ctx)
             return string.format(
               "[KEYSTONE] aborted reason=cooldown remaining=%s",
               tostring(30 - (now - ctx._lastKeystoneChatAt))
+            )
+          end)
+        end
+        return false
+      end
+
+      -- The share-keys button cooldown doubles as the shared quiet-window
+      -- stamp: it starts on a local click (own key already announced then)
+      -- and on every received SHAREKEYS. Honour it here because
+      -- _lastKeystoneChatAt is only written by this response path — without
+      -- this guard an incoming SHAREKEYS shortly after a local click would
+      -- re-post the key a second time.
+      local buttonCooldownRemain = type(ctx.GetShareKeysCooldownRemaining) == "function"
+          and tonumber(ctx.GetShareKeysCooldownRemaining())
+        or nil
+      if buttonCooldownRemain and buttonCooldownRemain > 0 then
+        if traceDeep then
+          traceDeep(function()
+            return string.format(
+              "[KEYSTONE] aborted reason=button_cooldown remaining=%s",
+              tostring(buttonCooldownRemain)
             )
           end)
         end

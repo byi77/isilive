@@ -162,11 +162,19 @@ local function AttachControllerAccessors(controller, deps)
     SetFlatButtonText(deps.countdownCancelButton, tostring(text or ""))
   end
 
-  function controller.TriggerShareKeysCooldown()
+  function controller.TriggerShareKeysCooldown(seconds)
     local btn = deps.shareKeysButton
     if btn and type(btn.TriggerRemoteCooldown) == "function" then
-      btn.TriggerRemoteCooldown()
+      btn.TriggerRemoteCooldown(seconds)
     end
+  end
+
+  function controller.GetShareKeysCooldownRemaining()
+    local btn = deps.shareKeysButton
+    if btn and type(btn.GetRemainingCooldown) == "function" then
+      return btn.GetRemainingCooldown()
+    end
+    return 0
   end
 end
 
@@ -250,15 +258,34 @@ local function CreateShareKeysButton(mainFrame, deps)
     RefreshShareKeysButton()
   end
 
-  function button.TriggerRemoteCooldown()
+  function button.TriggerRemoteCooldown(seconds)
     local now = GetCurrentTime()
     if not now or debounceSeconds <= 0 then
       return
     end
-    if IsCooldownActive(now) then
+    local cooldownSeconds = tonumber(seconds) or debounceSeconds
+    if cooldownSeconds <= 0 then
       return
     end
-    StartCooldownDisplay(now + debounceSeconds)
+    if cooldownSeconds > debounceSeconds then
+      cooldownSeconds = debounceSeconds
+    end
+    -- Max-merge: a remote cooldown may extend the lock but never shorten an
+    -- already-running one (multiple peers mirror their remaining time; the
+    -- longest lock wins).
+    local newCooldownEnd = now + cooldownSeconds
+    if IsCooldownActive(now) and cooldownEndAt and cooldownEndAt >= newCooldownEnd then
+      return
+    end
+    StartCooldownDisplay(newCooldownEnd)
+  end
+
+  function button.GetRemainingCooldown()
+    local now = GetCurrentTime()
+    if not now or not IsCooldownActive(now) then
+      return 0
+    end
+    return math.max(0, (cooldownEndAt or 0) - now)
   end
 
   function button.SetShareKeysAvailable(isAvailable)

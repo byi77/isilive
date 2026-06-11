@@ -17,6 +17,8 @@ local ISILIVE_KEY_COOLDOWN = 5
 local ISILIVE_STATS_COOLDOWN = 5
 local ISILIVE_TARGET_COOLDOWN = 5
 local ISILIVE_REFRESH_REQUEST_COOLDOWN = 1
+local ISILIVE_SHAREKEYS_CD_COOLDOWN = 1
+local ISILIVE_SHAREKEYS_CD_MAX_SECONDS = 30
 local LIBKEYSTONE_REQUEST_COOLDOWN = 3
 
 -- Architecture note: Module-level singleton state (intentional deviation from CreateController pattern).
@@ -38,6 +40,7 @@ local lastIsiLiveLocAt = 0
 local lastIsiLiveTargetAt = 0
 local lastIsiLiveKickAt = 0
 local lastIsiLiveRefreshRequestAt = 0
+local lastIsiLiveShareKeysCdAt = 0
 local lastLibKeystoneRequestAt = 0
 local lastKeyPayloadSent = nil
 local lastStatsPayloadSent = nil
@@ -598,6 +601,7 @@ function Sync.ClearKnownUsers()
   lastIsiLiveTargetAt = 0
   lastIsiLiveKickAt = 0
   lastIsiLiveRefreshRequestAt = 0
+  lastIsiLiveShareKeysCdAt = 0
   lastLibKeystoneRequestAt = 0
   lastKeyPayloadSent = nil
   lastStatsPayloadSent = nil
@@ -1726,6 +1730,44 @@ function Sync.SendShareKeysRequest()
   return sent == true
 end
 
+--- Broadcasts the remaining share-keys button cooldown to the group.
+-- Sent as part of the hello-ack / REQSYNC state fan-out so a freshly joined
+-- peer mirrors the lock instead of immediately re-triggering a SHAREKEYS wave.
+-- Rate-limited by ISILIVE_SHAREKEYS_CD_COOLDOWN (1 s); remain is clamped to
+-- 1..ISILIVE_SHAREKEYS_CD_MAX_SECONDS (30 s, the button debounce window).
+-- @param opts table {remain:number, force:boolean}
+-- @return boolean true if the message was sent; false if suppressed or invalid.
+function Sync.SendShareKeysCooldown(opts)
+  opts = opts or {}
+  local channel = ResolveSendChannel(opts)
+  if not channel then
+    return false
+  end
+
+  local remain = tonumber(opts.remain)
+  if not remain or remain <= 0 then
+    return false
+  end
+  remain = math.ceil(remain)
+  if remain > ISILIVE_SHAREKEYS_CD_MAX_SECONDS then
+    remain = ISILIVE_SHAREKEYS_CD_MAX_SECONDS
+  end
+
+  local getTimeFn = rawget(_G, "GetTime")
+  local now = type(getTimeFn) == "function" and getTimeFn() or 0
+  if not opts.force and (now - lastIsiLiveShareKeysCdAt) < ISILIVE_SHAREKEYS_CD_COOLDOWN then
+    return false
+  end
+
+  local payload = string.format("SKCD:%d", remain)
+  local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "NORMAL")
+  if sent == true then
+    lastIsiLiveShareKeysCdAt = now
+  end
+  SyncLog("send_sharekeys_cd", "remain=%d channel=%s sent=%s", remain, tostring(channel), tostring(sent))
+  return sent == true
+end
+
 local MAX_ADDON_MESSAGE_LENGTH = 255
 
 local function ProcessLibKeystoneMessage(message, sender, localName, localRealm, channel)
@@ -1797,7 +1839,7 @@ local function ProcessLibKeystoneMessage(message, sender, localName, localRealm,
 end
 
 --- Processes an incoming addon message and updates peer sync state accordingly.
--- Routes ISILIVE payloads (KEY, STATS, DPS, LOC, TARGET, KICK, HELLO, ACK, REQSYNC, SHAREKEYS)
+-- Routes ISILIVE payloads (KEY, STATS, DPS, LOC, TARGET, KICK, HELLO, ACK, REQSYNC, SHAREKEYS, SKCD)
 -- and LibKS payloads to their respective handlers. Silently drops messages that fail
 -- prefix, sender, or length validation.
 -- @param prefix string Addon message prefix ("ISILIVE" or "LibKS").
@@ -1808,7 +1850,8 @@ end
 -- @param channel string|nil Arrival channel (LibKS accepts PARTY + INSTANCE_CHAT).
 -- @return table|nil Result with fields: shouldAck, shouldRequestRefresh, shouldShareKeys, sender,
 --   peerAddonVersion, peerProtocolVersion, peerCapturedAt, peerSource,
---   keyUpdated, statsUpdated, dpsUpdated, locUpdated, targetUpdated, kickUpdated.
+--   keyUpdated, statsUpdated, dpsUpdated, locUpdated, targetUpdated, kickUpdated,
+--   shareKeysCooldownRemain (number|nil, mirrored share-keys lock from a peer).
 --   Returns nil when the message is rejected or the prefix is unrecognized.
 function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm, channel)
   if prefix == LIBKEYSTONE_SYNC_PREFIX then
@@ -1842,6 +1885,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
   local kickUpdated = false
   local targetUpdated = false
   local combatAnnounce = nil
+  local shareKeysCooldownRemain = nil
 
   local parts = SplitPayload(message)
   local bucket = parts[1]
@@ -1899,6 +1943,19 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
         parsedKick.spellID
       )
     end
+  elseif bucket == "SKCD" and parts[2] then
+    -- Mirrored share-keys button lock from a peer (hello-ack / REQSYNC fan-out).
+    -- Self-echo is skipped: the local button is already on cooldown.
+    if senderKey ~= selfKey then
+      local remain = tonumber(parts[2])
+      if remain and remain > 0 then
+        remain = math.ceil(remain)
+        if remain > ISILIVE_SHAREKEYS_CD_MAX_SECONDS then
+          remain = ISILIVE_SHAREKEYS_CD_MAX_SECONDS
+        end
+        shareKeysCooldownRemain = remain
+      end
+    end
   elseif bucket == "BRLUST" and parts[2] and parts[3] then
     -- Skip self-echo: BroadcastCombatAnnounce already rendered the announce
     -- locally before sending. CHAT_MSG_ADDON on PARTY/INSTANCE_CHAT echoes
@@ -1942,10 +1999,11 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     or shouldAck
     or shouldRequestRefresh
     or shouldShareKeys
+    or shareKeysCooldownRemain ~= nil
   local logFn = anyFlag and SyncLog or SyncLogDeep
   logFn(
     "message_applied",
-    "sender=%s key=%s stats=%s dps=%s loc=%s target=%s kick=%s ack=%s reqsync=%s sharekeys=%s",
+    "sender=%s key=%s stats=%s dps=%s loc=%s target=%s kick=%s ack=%s reqsync=%s sharekeys=%s skcd=%s",
     tostring(sender),
     tostring(keyUpdated),
     tostring(statsUpdated),
@@ -1955,7 +2013,8 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     tostring(kickUpdated),
     tostring(shouldAck),
     tostring(shouldRequestRefresh),
-    tostring(shouldShareKeys)
+    tostring(shouldShareKeys),
+    tostring(shareKeysCooldownRemain)
   )
   return {
     shouldAck = shouldAck and true or false,
@@ -1972,6 +2031,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     targetUpdated = targetUpdated and true or false,
     kickUpdated = kickUpdated and true or false,
     shouldShareKeys = shouldShareKeys and true or false,
+    shareKeysCooldownRemain = shareKeysCooldownRemain,
     combatAnnounce = combatAnnounce,
   }
 end

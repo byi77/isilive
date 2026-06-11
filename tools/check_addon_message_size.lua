@@ -271,6 +271,12 @@ local cases = {
     end,
   },
   {
+    label = "SendShareKeysCooldown",
+    run = function()
+      Sync.SendShareKeysCooldown({ force = true, remain = 99999 })
+    end,
+  },
+  {
     label = "SendLibKeystonePartyData",
     run = function()
       Sync.SendLibKeystonePartyData({
