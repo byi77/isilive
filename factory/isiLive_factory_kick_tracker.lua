@@ -157,10 +157,7 @@ local function InitializeFactorySecondaryKickTracker(
   })
 
   local function ScheduleObservedKickCooldownReconcile()
-    if
-      not ctx.kickTrackerController
-      or type(ctx.kickTrackerController.ReconcileObservedCooldown) ~= "function"
-    then
+    if not ctx.kickTrackerController or type(ctx.kickTrackerController.ReconcileObservedCooldown) ~= "function" then
       return
     end
     if type(timerAfter) ~= "function" then
