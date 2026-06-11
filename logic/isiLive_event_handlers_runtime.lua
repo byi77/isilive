@@ -552,6 +552,25 @@ local function HandleShareKeysRequest(ctx, syncResult, sender)
   end
 end
 
+-- Full own-state fan-out towards a peer (hello-ack and REQSYNC paths share
+-- it): hello + refresh response (key, stats, dps, loc) + target + kick +
+-- share-keys cooldown mirror.
+local function SendPeerStateFanOut(ctx, helloSource, targetSource)
+  ctx.sendIsiLiveHello(true, helloSource)
+  ctx.sendRefreshResponse()
+  ctx.sendOwnTargetSnapshot(true, targetSource, true)
+  ctx.sendOwnKickState()
+  ctx.sendShareKeysCooldownState()
+end
+
+local function ApplyMirroredShareKeysCooldown(ctx, syncResult)
+  local remain = tonumber(syncResult.shareKeysCooldownRemain)
+  if remain and remain > 0 then
+    -- Mirror a peer's share-keys lock (max-merge happens inside the button).
+    ctx.triggerShareKeysCooldown(remain)
+  end
+end
+
 local function NoopEventHandler(_event, ...) end
 
 local function ResolveEventHandler(handler)
@@ -856,28 +875,16 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end
     if syncResult.shouldAck then
       ctx.sendAck(syncResult.sender)
-      -- New peer detected: send hello + full state (key, stats, dps, loc) + kick immediately.
-      ctx.sendIsiLiveHello(true, "hello-ack")
-      ctx.sendRefreshResponse()
-      ctx.sendOwnTargetSnapshot(true, "hello", true)
-      ctx.sendOwnKickState()
-      ctx.sendShareKeysCooldownState()
+      -- New peer detected: send the full own-state fan-out immediately.
+      SendPeerStateFanOut(ctx, "hello-ack", "hello")
     end
     if syncResult.shouldRequestRefresh then
-      ctx.sendIsiLiveHello(true, "reqsync-ack")
-      ctx.sendRefreshResponse()
-      ctx.sendOwnTargetSnapshot(true, "reqsync", true)
-      ctx.sendOwnKickState()
-      ctx.sendShareKeysCooldownState()
+      SendPeerStateFanOut(ctx, "reqsync-ack", "reqsync")
     end
     if syncResult.shouldShareKeys then
       HandleShareKeysRequest(ctx, syncResult, sender)
     end
-    local remoteShareKeysCooldown = tonumber(syncResult.shareKeysCooldownRemain)
-    if remoteShareKeysCooldown and remoteShareKeysCooldown > 0 then
-      -- Mirror a peer's share-keys lock (max-merge happens inside the button).
-      ctx.triggerShareKeysCooldown(remoteShareKeysCooldown)
-    end
+    ApplyMirroredShareKeysCooldown(ctx, syncResult)
     if syncResult.combatAnnounce then
       ctx.showCombatAnnounce(syncResult.combatAnnounce)
     end
