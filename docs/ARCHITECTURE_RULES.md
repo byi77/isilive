@@ -4,10 +4,12 @@ Diese Datei beschreibt verbindliche Strukturregeln fuer den aktuellen Modulzusch
 Im Gegensatz zu `RULES_LOGIC.md` geht es hier nicht um Runtime-Verhalten, sondern um
 stabile Architekturgrenzen, die ueber deterministische Strukturtests geprueft werden.
 
-Aktueller Dokumentationsstand: `0.9.305`. Die aktuellen 0.9.305-Aenderungen
-haben keine neue Architekturregel erfordert; die ESC-Addon-Shortcut-Korrektur
-ist als aktive Projektregel in `RULES_LOGIC.md` gepinnt und wird ueber
-deterministische GameMenu-Addon-Szenarien validiert.
+Aktueller Dokumentationsstand: `0.9.309`. Die aktuellen 0.9.309-Aenderungen
+(Tank-/Heiler-Todesalarm und Locale-Split in Pro-Sprache-Dateien) haben keine
+neue Architekturregel erfordert; der Todesalarm ist als aktive Projektregel 80
+in `RULES_LOGIC.md` gepinnt und wird ueber deterministische Death-Alert-
+Szenarien validiert, der Locale-Split bleibt durch die bestehenden
+Locale-Symmetrie- und TOC-Strukturtests abgedeckt.
 
 ## Schreibformat
 

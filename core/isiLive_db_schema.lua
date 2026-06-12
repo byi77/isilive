@@ -206,6 +206,8 @@ local SCHEMA = {
   soundGroupJoinEnabled = { type = "boolean", default = true },
   soundLeadEnabled = { type = "boolean", default = true },
   soundPortalAvailableEnabled = { type = "boolean", default = true },
+  soundReadyCheckCompleteEnabled = { type = "boolean", default = true },
+  deathAlertEnabled = { type = "boolean", default = true },
   vipAstralAurochsSoundMuted = { type = "boolean", default = false },
   vipGrandExpeditionYakSoundMuted = { type = "boolean", default = false },
   vipGildedBrutosaurSoundMuted = { type = "boolean", default = false },

@@ -4,16 +4,29 @@ return {
   std = "lua51+wow_isiLive",
 
   files = {
-    ["locale/isiLive_texts.lua"] = {
-      ignore = {
-        "631", -- locale strings are translation data and may exceed the code line budget
-      },
-    },
-    ["locale\\isiLive_texts.lua"] = {
-      ignore = {
-        "631",
-      },
-    },
+    -- Locale string tables are translation data and may exceed the code
+    -- line budget (631). Covers the aggregator, the shared common blocks
+    -- and every per-language table file.
+    ["locale/isiLive_texts.lua"] = { ignore = { "631" } },
+    ["locale\\isiLive_texts.lua"] = { ignore = { "631" } },
+    ["locale/isiLive_texts_common.lua"] = { ignore = { "631" } },
+    ["locale\\isiLive_texts_common.lua"] = { ignore = { "631" } },
+    ["locale/isiLive_texts_enUS.lua"] = { ignore = { "631" } },
+    ["locale\\isiLive_texts_enUS.lua"] = { ignore = { "631" } },
+    ["locale/isiLive_texts_deDE.lua"] = { ignore = { "631" } },
+    ["locale\\isiLive_texts_deDE.lua"] = { ignore = { "631" } },
+    ["locale/isiLive_texts_frFR.lua"] = { ignore = { "631" } },
+    ["locale\\isiLive_texts_frFR.lua"] = { ignore = { "631" } },
+    ["locale/isiLive_texts_esES.lua"] = { ignore = { "631" } },
+    ["locale\\isiLive_texts_esES.lua"] = { ignore = { "631" } },
+    ["locale/isiLive_texts_ptBR.lua"] = { ignore = { "631" } },
+    ["locale\\isiLive_texts_ptBR.lua"] = { ignore = { "631" } },
+    ["locale/isiLive_texts_itIT.lua"] = { ignore = { "631" } },
+    ["locale\\isiLive_texts_itIT.lua"] = { ignore = { "631" } },
+    ["locale/isiLive_texts_ruRU.lua"] = { ignore = { "631" } },
+    ["locale\\isiLive_texts_ruRU.lua"] = { ignore = { "631" } },
+    ["locale/isiLive_texts_trTR.lua"] = { ignore = { "631" } },
+    ["locale\\isiLive_texts_trTR.lua"] = { ignore = { "631" } },
     ["testmodul/"] = {
       ignore = {
         "212", -- unused argument (mock stubs intentionally match real method signatures)

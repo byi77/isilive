@@ -50,6 +50,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_ui_game_menu_addons.lua",
   "testmodul/isilive_test_scenarios_ui_branches.lua",
   "testmodul/isilive_test_scenarios_ui_settings.lua",
+  "testmodul/isilive_test_scenarios_ui_settings_ready_check_sound.lua",
   "testmodul/isilive_test_scenarios_ui_settings_order.lua",
   "testmodul/isilive_test_scenarios_ui_settings_nameplate.lua",
   "testmodul/isilive_test_scenarios_ui_settings_descriptions.lua",
@@ -98,6 +99,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_factory_kick_tracker_branches.lua",
   "testmodul/isilive_test_scenarios_chrome_branches.lua",
   "testmodul/isilive_test_scenarios_roster_tooltip_branches.lua",
+  "testmodul/isilive_test_scenarios_death_alert.lua",
 }
 
 return scenarioFiles

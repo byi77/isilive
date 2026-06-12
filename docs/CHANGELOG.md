@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-06-12 - Version 0.9.309 (patch)
+
+- Added the ready-check-complete sound: `BttF_Tinkle.wav` plays once when all
+  five valid ready-check participants are marked ready during an active
+  ready-check.
+- Added a Sounds settings toggle and preview button for the new ready-check
+  completion sound; it follows the configured `Master` / `SFX` sound output
+  channel.
+- Added the tank / healer death alert: a big red frameless on-screen warning
+  ("Tank died" / "Healer died") with a scale-punch animation and a TTS voice
+  alert fires when the tank or the healer dies during an active M+ run. The
+  local player's own death alerts as well.
+- Death detection is edge-triggered per GUID via `UNIT_HEALTH` for the player
+  and party1-4: exactly one alert per death, a revive re-arms the edge,
+  challenge lifecycle events reset the flags, and roster updates drop flags of
+  departed players. DPS deaths, disconnects, and out-of-key states stay
+  silent; raid mode keeps the whole path suppressed.
+- Added the TTS sound assets `TankDied.wav` / `HealerDied.wav` to the sound
+  registry on the `Master` channel; a single new settings toggle in the Sounds
+  section (`deathAlertEnabled`, default on) gates the on-screen text and both
+  sound files together, with a preview button.
+- Split the locale string tables into per-language files
+  (`locale/isiLive_texts_<tag>.lua` plus shared common blocks in
+  `locale/isiLive_texts_common.lua`); `locale/isiLive_texts.lua` is now a slim
+  aggregator with a standalone loadfile fallback for the locale tools. The
+  drift, dead-keys, format-consistency, and button-label gates plus the test
+  harness follow the new layout.
+- Added `RULES_LOGIC` rule 80 with twelve deterministic death-alert scenarios
+  and rule 81 for the ready-check-complete sound gate; the validator baseline
+  is now `2017` scenarios.
+- Bumped the TOC and documentation baselines to `0.9.309`.
+
 ## 2026-06-11 - Version 0.9.308 (patch)
 
 - Added roster buff-rating hearts: roster names now show the same compact green

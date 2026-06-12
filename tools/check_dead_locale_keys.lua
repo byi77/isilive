@@ -90,7 +90,10 @@ local function main()
   for _, dir in ipairs(SCAN_DIRS) do
     local files = walkDir(dir, {})
     for _, path in ipairs(files) do
-      if not path:match("isiLive_texts%.lua$") then
+      -- Skip the aggregator and every per-language / common texts file:
+      -- they define each key by construction and would give every key a
+      -- free pass in the usage blob.
+      if not path:match("isiLive_texts[%w_]*%.lua$") then
         blobParts[#blobParts + 1] = readFile(path)
       end
     end

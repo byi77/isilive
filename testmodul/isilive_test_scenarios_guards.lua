@@ -61,6 +61,8 @@ local REQUIRED_MODULES = {
   "isiLive_killtrack.lua",
   "isiLive_kick_tracker.lua",
   "isiLive_combat_events.lua",
+  "isiLive_death_watch.lua",
+  "isiLive_death_alert.lua",
   "isiLive_settings.lua",
   "isiLive_bindings.lua",
   "isiLive_event_utils.lua",

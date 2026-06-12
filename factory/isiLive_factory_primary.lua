@@ -5,6 +5,7 @@ local FI = addonTable._FactoryInternal or {}
 addonTable._FactoryInternal = FI
 
 local InitializeFactoryCombatAnnounceControllers = FI.InitializeFactoryCombatAnnounceControllers
+local InitializeFactoryDeathAlertControllers = FI.InitializeFactoryDeathAlertControllers
 local InitializeFactoryLfgWiringControllers = FI.InitializeFactoryLfgWiringControllers
 
 local FactoryNotices = FI.FactoryNotices or {}
@@ -183,6 +184,8 @@ local function InitializeFactoryPrimaryControllers(ctx)
   InitializeInviteControllers(ctx, modules)
 
   InitializeFactoryCombatAnnounceControllers(ctx)
+
+  InitializeFactoryDeathAlertControllers(ctx)
 end
 
 FI.InitializeFactoryPrimaryControllers = InitializeFactoryPrimaryControllers

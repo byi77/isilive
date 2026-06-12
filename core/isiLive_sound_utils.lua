@@ -707,6 +707,16 @@ SoundUtils.Registry = {
     defaultEnabled = true,
     defaultChannel = "Master",
   },
+  ready_check_complete = {
+    file = "Interface\\AddOns\\isiLive\\sounds\\BttF_Tinkle.wav",
+    labelKey = "SETTINGS_SOUND_READY_CHECK_COMPLETE",
+    descKey = "SETTINGS_SOUND_READY_CHECK_COMPLETE_DESC",
+    labelFallback = "Sound alert when all five players are ready",
+    descFallback = "Plays a sound once when all five ready-check participants are marked ready.",
+    settingKey = "soundReadyCheckCompleteEnabled",
+    defaultEnabled = true,
+    defaultChannel = "Master",
+  },
   portal_available = {
     file = "Interface\\AddOns\\isiLive\\sounds\\Portal.ogg",
     labelKey = "SETTINGS_SOUND_PORTAL_AVAILABLE",
@@ -749,16 +759,37 @@ SoundUtils.Registry = {
     defaultEnabled = true,
     defaultChannel = "Master",
   },
+  -- tank_died carries the settings checkbox for the whole death-alert
+  -- feature; healer_died shares the same settingKey so one toggle gates the
+  -- on-screen text and both TTS files together.
+  tank_died = {
+    file = "Interface\\AddOns\\isiLive\\sounds\\TankDied.wav",
+    labelKey = "SETTINGS_SOUND_DEATH_ALERT",
+    descKey = "SETTINGS_SOUND_DEATH_ALERT_DESC",
+    labelFallback = "Alert: Tank / Healer died",
+    descFallback = "Shows a big red warning and plays a TTS alert when the tank or healer dies in an active M+ run.",
+    settingKey = "deathAlertEnabled",
+    defaultEnabled = true,
+    defaultChannel = "Master",
+  },
+  healer_died = {
+    file = "Interface\\AddOns\\isiLive\\sounds\\HealerDied.wav",
+    settingKey = "deathAlertEnabled",
+    defaultEnabled = true,
+    defaultChannel = "Master",
+  },
 }
 
 SoundUtils.SettingsOrder = {
   "leader_transfer",
   "group_join",
+  "ready_check_complete",
   "portal_available",
   "battle_res",
   "battle_res_ready",
   "bloodlust",
   "bloodlust_ready",
+  "tank_died",
 }
 
 local function BuildSoundKey(soundFile, channel, spamScope)
@@ -906,6 +937,10 @@ function SoundUtils.PlayGroupJoin()
   return SoundUtils.PlayKey("group_join")
 end
 
+function SoundUtils.PlayReadyCheckComplete()
+  return SoundUtils.PlayKey("ready_check_complete")
+end
+
 function SoundUtils.PlayPortalAvailable()
   return SoundUtils.PlayKey("portal_available")
 end
@@ -928,6 +963,14 @@ end
 
 function SoundUtils.PlayBloodlustReady()
   return SoundUtils.PlayKey("bloodlust_ready")
+end
+
+function SoundUtils.PlayTankDied()
+  return SoundUtils.PlayKey("tank_died")
+end
+
+function SoundUtils.PlayHealerDied()
+  return SoundUtils.PlayKey("healer_died")
 end
 
 local function CopySoundFileIDs(key)

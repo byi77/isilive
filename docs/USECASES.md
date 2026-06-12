@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.305`
-Zuletzt aktualisiert: `2026-06-11`
+Versionsbasis: `0.9.309`
+Zuletzt aktualisiert: `2026-06-12`
 
 ## Akteure
 
@@ -330,6 +330,19 @@ Ziel: Eine optionale, eigenstaendige Spieler-Stats-Box zeigt live gelesene PrimÃ
 9. Screen-Clamp: Beim Ziehen bleibt die Stats-Box wie Main-UI, Center-Notice und Portal-Navigator am WoW-Sichtbereich geklemmt; der Fensterrand kann nicht ausserhalb des WoW-Fensters verschwinden.
 10. Erfolgskriterium: Die Box zeigt nur verifizierte Live-Werte, bleibt layout-unabhaengig bedienbar und kann nicht ausserhalb des WoW-Fensters gezogen werden.
 
+## UC-24 Tank-/Heiler-Todesalarm im Mythic+
+
+Ziel: Der Spieler wird im laufenden M+-Run sofort und unuebersehbar informiert, wenn Tank oder Heiler stirbt.
+
+1. Trigger: `UNIT_HEALTH` fuer `player` oder `party1`-`party4` waehrend eines aktiven M+-Runs.
+2. Voraussetzung: `deathAlertEnabled` ist aktiv (Default an); ausserhalb eines aktiven Keys, im Raidmodus oder bei deaktivierter Option bleibt der Pfad stumm.
+3. Verarbeitung: Die Erkennung ist pro GUID edge-getriggert: nur der Uebergang lebendig zu tot loest genau einen Alarm aus; wiederholte Health-Ticks toter Spieler und der Uebergang tot zu Geist bleiben stumm. Eine Wiederbelebung schaltet die Flanke neu scharf; `CHALLENGE_MODE_START/COMPLETED/RESET` setzen alle Flags zurueck und `GROUP_ROSTER_UPDATE` verwirft Flags verlassener Spieler.
+4. Regel: Die Rolle kommt aus der verifizierten Rollenaufloesung (`Units.GetUnitRole`); nur `TANK` und `HEALER` alarmieren. Disconnects und unlesbare (Secret-Value-)Zustaende gelten fail-closed als nicht tot.
+5. Darstellung: Eine grosse rote rahmenlose Bildschirmwarnung (`Tank died` / `Healer died`) mit Scale-Punch-Animation (uebergross einfliegend, Fade-out nach rund 1,7 Sekunden) plus TTS-Ansage (`TankDied.wav` / `HealerDied.wav`, Kanal `Master`).
+6. Eigener Tod: Stirbt der Spieler selbst als Tank oder Heiler, werden Text und Sound ebenfalls ausgegeben.
+7. Settings: Ein einzelner Schalter in der Sound-Sektion (`deathAlertEnabled`) schaltet Bildschirmtext und beide TTS-Dateien gemeinsam; der Preview-Button spielt die Tank-Ansage.
+8. Erfolgskriterium: Genau ein Alarm pro Tod; keine Alarme ausserhalb aktiver Keys, fuer DPS-Tode oder fuer Disconnects.
+
 ## Nichtfunktionale Regeln
 
 1. Kein spekulatives Verhalten: unresolved oder mehrdeutiger Map-Kontext bleibt unresolved; kein Name-/Token-Fallback-Guessing.
@@ -349,13 +362,13 @@ Ziel: Eine optionale, eigenstaendige Spieler-Stats-Box zeigt live gelesene PrimÃ
 15. Raid-Gruppenerkennung bei mehr als 5 Mitgliedern blendet die Addon-UI aus, unterdrueckt Background-Processing einschliesslich hidden Kick-Keep-Alive und delayed Post-Run-Refresh-Ausfuehrung, gibt keine Raid-Transition-Notice aus und blockiert das Zurueckschalten auf M/V, bis die Gruppengroesse wieder Party ist.
 16. Die optionalen `Esc`-Tooling-, Travel-, Mounts- und Addons-Strips bleiben lokalisiert, schliessen das Game-Menu vor dem Oeffnen ihrer Ziele und halten `ReloadUI` auf einem Secure-Macro-Pfad (`/click GameMenuButtonContinue` + `/reload`), der `ActionButtonUseKeyDown` spiegelt; blockierte Secure-Refreshes fuer diesen Button und sichere Mount-Macro-Buttons werden auf `PLAYER_REGEN_ENABLED` wiederholt, waehrend die Strips als vorab gemountete `GameMenuFrame`-Kinder keinen deferred Host-Frame-Re-Show-Pfad im Combat ausfuehren. Externe Addon-Shortcuts bleiben an verifizierte Addon-Installation, Aktivierung, optionales Load-on-Demand-Laden, beobachtet geschlossenes `GameMenuFrame` und registrierte Slash-Aliase gebunden, tolerieren eine kurze verzoegerte Registrierung desselben exakten Slash-Alias, fuehren den verifizierten Handler direkt mit `msg, editBox` aus und nutzen keinen Chat-Edit-Fallback; der isiLive-Shortcut oeffnet direkt die Settings.
 17. Hidden Legacy-Settings-Controls bleiben aus den Blizzard Settings entfernt und nutzen aktuell feste Runtime-Defaults: `DPS`-Spalte an, Marker fuer alle sichtbar, feste Namenstrunkierung und Legacy-`Travel`-Grid mit 2 Spalten.
-18. Ready-Check-Lifecycle-Updates muessen den dedizierten Ready-Check-Refresh-Pfad nutzen, damit Row-Background-State, Waiting-Sandglass-Marker sowie der 20-Sekunden-Hold fuer `ready` und fuer explizit/unbeantwortet `notready` deterministisch zurueckgesetzt werden, ohne Secure-Role-Button-Attribute neu zu schreiben. Der Readycheck-Button bleibt ein Secure-Macro-Button fuer `/readycheck`; Lua-Click-Logging darf diesen Secure-OnClick nicht ersetzen.
+18. Ready-Check-Lifecycle-Updates muessen den dedizierten Ready-Check-Refresh-Pfad nutzen, damit Row-Background-State, Waiting-Sandglass-Marker sowie der 20-Sekunden-Hold fuer `ready` und fuer explizit/unbeantwortet `notready` deterministisch zurueckgesetzt werden, ohne Secure-Role-Button-Attribute neu zu schreiben. Der Readycheck-Button bleibt ein Secure-Macro-Button fuer `/readycheck`; Lua-Click-Logging darf diesen Secure-OnClick nicht ersetzen. Wenn exakt fuenf gueltige Ready-Check-Teilnehmer in einem aktiven Ready-Check als bereit markiert sind, spielt der abschaltbare Ready-Check-Komplett-Klang genau einmal.
 19. Locale-Tag-zu-Sprachflaggen-Aufloesung muss tooltip-hotpath-sicher aus einer statischen Lookup-Tabelle erfolgen. Ein Tooltip-Hover darf nicht `Languages.SUPPORTED` iterieren oder die Alias-Map lazy neu aufbauen.
 20. Roster-Leader-Marker muessen den echten `UnitIsGroupLeader`-State spiegeln; Leader-Zeilen bekommen eine 16x16-Krone, und wenn dieselbe Zeile auch den blauen `isiLive`-Heart-Marker hat, bleibt die Reihenfolge `heart -> crown`.
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `2001` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `2017` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.

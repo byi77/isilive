@@ -589,6 +589,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   ctx.handleLFGDetectEvent = ResolveEventHandler(ctx.handleLFGDetectEvent)
   ctx.handleKillTrackEvent = ResolveEventHandler(ctx.handleKillTrackEvent)
   ctx.handleCombatEventsEvent = ResolveEventHandler(ctx.handleCombatEventsEvent)
+  ctx.handleDeathWatchEvent = ResolveEventHandler(ctx.handleDeathWatchEvent)
   ctx.handleKickTrackerEvent = ResolveEventHandler(ctx.handleKickTrackerEvent)
   ctx.handleMplusTimerEvent = ResolveEventHandler(ctx.handleMplusTimerEvent)
   ctx.handleLeaderWatchEvent = ResolveEventHandler(ctx.handleLeaderWatchEvent)
@@ -606,6 +607,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     RefreshPlayerSpecCache(ctx)
     ctx.handleLeaderWatchEvent("GROUP_ROSTER_UPDATE")
     ctx.handleLFGDetectEvent("GROUP_ROSTER_UPDATE")
+    ctx.handleDeathWatchEvent("GROUP_ROSTER_UPDATE")
     -- Refresh status line after roster settles so the "Ziel-Dungeon: X +Y"
     -- chat announce fires as soon as the group is formed (post-invite-accept),
     -- not only when a peer's key sync arrives later. Skipped in raid mode so
@@ -974,6 +976,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       if not IsRaidModeActive(ctx) then
         ctx.handleKickTrackerEvent("UNIT_SPELLCAST_SUCCEEDED", ...)
         ctx.handleCombatEventsEvent("UNIT_SPELLCAST_SUCCEEDED", ...)
+      end
+    end,
+    UNIT_HEALTH = function(_self, ...)
+      if not IsRaidModeActive(ctx) then
+        ctx.handleDeathWatchEvent("UNIT_HEALTH", ...)
       end
     end,
     SCENARIO_CRITERIA_UPDATE = function(_self, ...)

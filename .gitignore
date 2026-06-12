@@ -28,6 +28,9 @@ sounds/*
 !sounds/BoxingArenaSound.ogg
 !sounds/BattleRezReady.wav
 !sounds/BloodlustReady.wav
+!sounds/BttF_Tinkle.wav
+!sounds/TankDied.wav
+!sounds/HealerDied.wav
 !sounds/ChickenAlarm.ogg
 !sounds/Portal.ogg
 !sounds/SynthChord.ogg

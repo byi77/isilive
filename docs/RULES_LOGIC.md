@@ -98,6 +98,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 75. Die M+-Forces-Namensplakettenanzeige muss mit Blizzard-Namensplaketten, Plater und Platynator funktionieren; die Settings-Vorschau muss denselben Renderer nutzen wie die Runtime.
 76. Die Roster-Rolle muss bei vorhandener verifizierter Inspect-Spezialisierung aus Blizzards Spezialisierungsrollen-API korrigiert werden; stale Gruppenrollenzuweisungen duerfen die Spec-Rolle nicht dauerhaft ueberstimmen.
 77. CurseForge- und WowUp-Pakete muessen denselben Nutzerinhalt enthalten; jede Paket-Ausschlussaenderung muss beide Paketpfade synchron aktualisieren.
+78. Eingebaute Soundausgaben laufen standardmaessig ueber `Master`; `soundOutputChannel` akzeptiert nur `Master`/`SFX` und faellt geschlossen auf `Master` zurueck.
+79. Nach dem SavedVariables-Restore muss `ADDON_LOADED` gespeicherte Anzeige-Settings erneut ueber den echten `ApplyDBSettings`-Callback anwenden.
+80. Der Tank-/Heiler-Todesalarm zeigt nur waehrend eines aktiven M+-Runs beim Uebergang lebendig zu tot einmalig eine grosse rote Bildschirmwarnung mit TTS-Ansage; ein einzelner Settings-Schalter schaltet Text und Sound gemeinsam.
+81. Der Ready-Check-Komplett-Klang spielt `BttF_Tinkle.wav` genau einmal, wenn exakt fuenf gueltige Ready-Check-Teilnehmer im aktiven Ready-Check als bereit markiert sind, und ist per Settings abschaltbar.
 
 ## Regelbloecke
 
@@ -1121,3 +1125,32 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Settings-Werte, die beim Laden von Live-Modulen angewendet werden muessen, duerfen nicht dauerhaft am File-Load-Default haengen bleiben, wenn `IsiLiveDB` waehrend der Lua-Dateiladung noch nicht wiederhergestellt ist. Der `ADDON_LOADED`-Pfad muss nach dem SavedVariables-Restore die gespeicherten Werte erneut ueber den echten `ApplyDBSettings`-Callback auf MobNameplate, MobTooltip, LFGFlags, Gruppenbonus-Flags, Tooltip-Flags und StatsBox anwenden. Fehlt der Callback waehrend frueher Initialisierung noch, darf der spaetere Eventpfad nicht auf einen dauerhaft eingefrorenen No-Op zeigen.
 - Erforderliche Tests:
   - factory composition root: ADDON_LOADED reapplies saved display settings after SavedVariables restore
+
+### RULE-DEATH-ALERT-MPLUS
+- Regelnummer: 80
+- Status: aktiv
+- Zusammenfassung: Der Tank-/Heiler-Todesalarm rendert nur waehrend eines aktiven M+-Runs eine grosse rote rahmenlose Bildschirmwarnung (`Tank died` / `Healer died`) mit Scale-Punch-Animation und spielt die zugehoerige TTS-Ansage. Die Erkennung laeuft edge-getriggert ueber `UNIT_HEALTH` pro GUID fuer `player` und `party1`-`party4`: nur der Uebergang lebendig zu tot loest genau einen Alarm aus, eine Wiederbelebung schaltet die Flanke neu scharf, Challenge-Lifecycle-Events setzen die Flags zurueck und Roster-Updates verwerfen Flags verlassener Spieler. Der eigene Tod alarmiert ebenfalls; DPS-Tode, Disconnects und Zustaende ausserhalb eines aktiven Keys bleiben stumm. Ein einzelner Settings-Schalter (`deathAlertEnabled`, Default an) schaltet Bildschirmtext und beide TTS-Dateien gemeinsam; im Raid bleibt der Pfad ueber die Raid-Unterdrueckung des Event-Dispatches aus.
+- Erforderliche Tests:
+  - DeathWatch fires tank death alert once per active-key death
+  - DeathWatch fires healer death alert with role resolved at death time
+  - DeathWatch stays silent outside an active M+ key
+  - DeathWatch stays silent when the death alert setting is disabled
+  - DeathWatch fires again after revive and renewed death
+  - DeathWatch ignores DPS deaths and disconnected units
+  - DeathWatch alerts for the local player's own death
+  - DeathWatch resets dead flags on challenge lifecycle events
+  - DeathWatch roster update drops dead flags of departed players
+  - DeathAlert renders big red death text and restarts animation on repeated show
+  - Factory death alert wiring routes role deaths to alert and TTS sound
+  - SoundUtils registry gates both death TTS files behind the single death alert setting
+
+### RULE-READYCHECK-KOMPLETT-KLANG
+- Regelnummer: 81
+- Status: aktiv
+- Zusammenfassung: Der Ready-Check-Komplett-Klang nutzt `Interface\AddOns\isiLive\sounds\BttF_Tinkle.wav` und darf pro Ready-Check-Zyklus genau einmal abgespielt werden, sobald waehrend eines aktiven Ready-Checks exakt fuenf gueltige Roster-Units (`player` und `party1`-`party4`, keine Geister) als bereit markiert sind. Vor dem fuenften bereiten Spieler, bei weniger als fuenf gueltigen Teilnehmern, bei Geister-Zeilen, nach beendetem Ready-Check oder wenn `soundReadyCheckCompleteEnabled` deaktiviert ist, bleibt der Klang stumm. Der Klang muss in der Sound-Registry und in den Settings mit Preview-Schalter verfuegbar sein und dieselbe `soundOutputChannel`-Ausgabe wie andere eingebaute Sounds verwenden.
+- Erforderliche Tests:
+  - Event handlers play ready-check complete sound once when all five players are ready
+  - Event handlers keep ready-check complete sound silent unless exactly five players are ready
+  - Architecture ready check refresh stays wired through runtime setup and controller wiring
+  - SoundUtils ready-check-complete setting disables BttF playback
+  - Settings panel exposes ready-check-complete sound toggle and preview

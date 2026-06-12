@@ -119,19 +119,33 @@ end
 -- Inline override scan: parse the locale file once and record line numbers
 -- for any value tagged `-- format-ok`. We approximate the location by
 -- matching `KEY = "..."` with the comment on the same physical line.
+local OVERRIDE_SCAN_FILES = {
+  "locale/isiLive_texts.lua",
+  "locale/isiLive_texts_common.lua",
+  "locale/isiLive_texts_enUS.lua",
+  "locale/isiLive_texts_deDE.lua",
+  "locale/isiLive_texts_frFR.lua",
+  "locale/isiLive_texts_esES.lua",
+  "locale/isiLive_texts_ptBR.lua",
+  "locale/isiLive_texts_itIT.lua",
+  "locale/isiLive_texts_ruRU.lua",
+  "locale/isiLive_texts_trTR.lua",
+}
+
 local function LoadOverrideKeys()
-  local fh = io.open("locale/isiLive_texts.lua", "r")
-  if not fh then
-    return {}
-  end
   local overrides = {}
-  for line in fh:lines() do
-    local key = line:match('^%s*([%w_]+)%s*=%s*"')
-    if key and (line:find("%-%-%s*format[%s%-:]+ok") or line:find("%-%-%s*format:%s*ok")) then
-      overrides[key] = true
+  for _, path in ipairs(OVERRIDE_SCAN_FILES) do
+    local fh = io.open(path, "r")
+    if fh then
+      for line in fh:lines() do
+        local key = line:match('^%s*([%w_]+)%s*=%s*"')
+        if key and (line:find("%-%-%s*format[%s%-:]+ok") or line:find("%-%-%s*format:%s*ok")) then
+          overrides[key] = true
+        end
+      end
+      fh:close()
     end
   end
-  fh:close()
   return overrides
 end
 

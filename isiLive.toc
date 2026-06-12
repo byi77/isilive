@@ -2,7 +2,7 @@
 ## Title: isi|cff1e90ffLive|r
 ## Notes: M+ Dungeon and Group Management
 ## Author: mematiWoW
-## Version: 0.9.308
+## Version: 0.9.309
 ## SavedVariables: IsiLiveDB
 ## IconTexture: Interface\Icons\INV_Misc_GroupLooking
 libs/ChatThrottleLib/ChatThrottleLib.lua
@@ -14,6 +14,15 @@ core/isiLive_error_log.lua
 locale/realm_language_data.lua
 locale/isiLive_languages.lua
 locale/isiLive_locale.lua
+locale/isiLive_texts_common.lua
+locale/isiLive_texts_enUS.lua
+locale/isiLive_texts_deDE.lua
+locale/isiLive_texts_frFR.lua
+locale/isiLive_texts_esES.lua
+locale/isiLive_texts_ptBR.lua
+locale/isiLive_texts_itIT.lua
+locale/isiLive_texts_ruRU.lua
+locale/isiLive_texts_trTR.lua
 locale/isiLive_texts.lua
 game/isiLive_spell_utils.lua
 game/isiLive_cd_tracker.lua
@@ -63,6 +72,8 @@ game/isiLive_mplus_timer.lua
 game/isiLive_killtrack.lua
 game/isiLive_kick_tracker.lua
 game/isiLive_combat_events.lua
+game/isiLive_death_watch.lua
+ui/isiLive_death_alert.lua
 ui/isiLive_roster_panel_helpers.lua
 ui/isiLive_roster_panel_chrome.lua
 ui/isiLive_roster_panel_cd_row.lua
@@ -99,6 +110,7 @@ factory/isiLive_factory_runtime_helpers.lua
 factory/isiLive_factory_demo.lua
 factory/isiLive_factory_testmode_bindings.lua
 factory/isiLive_factory_combat_announces.lua
+factory/isiLive_factory_death_alert.lua
 factory/isiLive_factory_localization.lua
 factory/isiLive_factory_refresh.lua
 factory/isiLive_factory_notices.lua

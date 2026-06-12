@@ -54,6 +54,14 @@ local SOUND_SETTING_FALLBACKS = {
     settingKey = "soundGroupJoinEnabled",
     defaultEnabled = true,
   },
+  ready_check_complete = {
+    labelKey = "SETTINGS_SOUND_READY_CHECK_COMPLETE",
+    descKey = "SETTINGS_SOUND_READY_CHECK_COMPLETE_DESC",
+    labelFallback = "Sound: Ready Check complete",
+    descFallback = "Plays a sound once when all five ready-check participants are marked ready.",
+    settingKey = "soundReadyCheckCompleteEnabled",
+    defaultEnabled = true,
+  },
   portal_available = {
     labelKey = "SETTINGS_SOUND_PORTAL_AVAILABLE",
     descKey = "SETTINGS_SOUND_PORTAL_AVAILABLE_DESC",
@@ -92,6 +100,14 @@ local SOUND_SETTING_FALLBACKS = {
     labelFallback = "Sound: Bloodlust ready",
     descFallback = "Plays a TTS alert when Bloodlust or a similar exhaustion effect expires.",
     settingKey = "soundBloodlustReadyEnabled",
+    defaultEnabled = true,
+  },
+  tank_died = {
+    labelKey = "SETTINGS_SOUND_DEATH_ALERT",
+    descKey = "SETTINGS_SOUND_DEATH_ALERT_DESC",
+    labelFallback = "Alert: Tank / Healer died",
+    descFallback = "Shows a big red warning and plays a TTS alert when the tank or healer dies in an active M+ run.",
+    settingKey = "deathAlertEnabled",
     defaultEnabled = true,
   },
 }

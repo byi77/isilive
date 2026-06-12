@@ -140,6 +140,12 @@ local EVENT_REGISTRY = {
   { "SPELL_UPDATE_CHARGES", true, true, false },
   { "SPELLS_CHANGED", false, true, false },
   { "UNIT_AURA", true, true, false, "player" },
+  -- Death watch (tank / healer death alert): needs player + party1-4, which
+  -- exceeds the two-unit RegisterUnitEvent limit, so it registers unfiltered
+  -- and DeathWatch drops non-party units on the first lookup. combat=true
+  -- because deaths happen mid-combat; hidden=true because the alert is an
+  -- event-driven cue independent of main-UI visibility (rule 80).
+  { "UNIT_HEALTH", true, true, false },
   { "UNIT_PET", false, true, false, "player" },
   { "UNIT_SPELLCAST_SUCCEEDED", true, true, false, { "player", "pet" } },
   { "READY_CHECK", true, false, false },

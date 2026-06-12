@@ -1005,6 +1005,24 @@ local function RegisterArchitectureReadyCheckWiringTests(test, Assert)
       'ctx.refreshReadyCheckUI = RequireFunction(opts.refreshReadyCheckUI, "refreshReadyCheckUI")',
       "EventHandlers must require the dedicated ready-check refresh callback"
     )
+    AssertContains(
+      Assert,
+      wiringContent,
+      "config.playReadyCheckCompleteSound",
+      "ControllerWiring must forward the ready-check-complete sound callback into event handlers"
+    )
+    AssertContains(
+      Assert,
+      wiringContent,
+      "soundUtils.PlayReadyCheckComplete()",
+      "ControllerWiring context builder must route ready-check-complete playback through SoundUtils"
+    )
+    AssertContains(
+      Assert,
+      handlersContent,
+      "ctx.playReadyCheckCompleteSound = OptionalFunction(opts.playReadyCheckCompleteSound",
+      "EventHandlers must accept the ready-check-complete sound callback"
+    )
   end)
 end
 
@@ -1110,6 +1128,10 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.NotNil(addon.SoundUtils.PlayKey, "sound utils should expose a key-based play helper")
       Assert.True(addon.SoundUtils.HasKey("leader_transfer"), "sound registry should include the leader-transfer key")
       Assert.True(addon.SoundUtils.HasKey("group_join"), "sound registry should include the group-join key")
+      Assert.True(
+        addon.SoundUtils.HasKey("ready_check_complete"),
+        "sound registry should include the ready-check-complete key"
+      )
       Assert.True(addon.SoundUtils.HasKey("portal_available"), "sound registry should include the portal key")
       Assert.True(addon.SoundUtils.HasKey("battle_res"), "sound registry should include the battle-res key")
       Assert.True(addon.SoundUtils.HasKey("battle_res_ready"), "sound registry should include the battle-res-ready key")
@@ -1142,6 +1164,22 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.True(
         addon.SoundUtils.IsEnabled("group_join"),
         "group-join sound should be enabled by default when no DB override exists"
+      )
+      local readyCheckCompleteEntry = addon.SoundUtils.GetEntry("ready_check_complete")
+      Assert.NotNil(readyCheckCompleteEntry, "ready-check-complete sound entry should exist")
+      Assert.Equal(
+        readyCheckCompleteEntry.settingKey,
+        "soundReadyCheckCompleteEnabled",
+        "ready-check-complete sound should map to the ready-check-complete setting key"
+      )
+      Assert.Equal(
+        readyCheckCompleteEntry.file,
+        "Interface\\AddOns\\isiLive\\sounds\\BttF_Tinkle.wav",
+        "ready-check-complete sound should use the bundled BttF tinkle asset"
+      )
+      Assert.True(
+        addon.SoundUtils.IsEnabled("ready_check_complete"),
+        "ready-check-complete sound should default to enabled when no DB override exists"
       )
       local portalEntry = addon.SoundUtils.GetEntry("portal_available")
       Assert.NotNil(portalEntry, "portal sound entry should exist")
@@ -1233,6 +1271,10 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         "bloodlust-ready sound should default to enabled when no DB override exists"
       )
       Assert.NotNil(addon.SoundUtils.PlayGroupJoin, "sound utils should expose a dedicated group-join sound helper")
+      Assert.NotNil(
+        addon.SoundUtils.PlayReadyCheckComplete,
+        "sound utils should expose a dedicated ready-check-complete sound helper"
+      )
       Assert.NotNil(addon.SoundUtils.PlayPortalAvailable, "sound utils should expose a dedicated portal sound helper")
       Assert.NotNil(addon.SoundUtils.PlayIncomingSummon, "sound utils should expose a dedicated summon sound helper")
       Assert.NotNil(addon.SoundUtils.PlayBattleRes, "sound utils should expose a dedicated battle-res sound helper")
@@ -1262,8 +1304,16 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         "group-join sound helper should use the SynthChord asset"
       )
       Assert.Equal(playedChannel, "Master", "group-join sound helper should use the Master channel")
+      addon.SoundUtils.PlayReadyCheckComplete()
+      Assert.Equal(playCalls, 3, "ready-check-complete sound helper should play exactly once after the group sound")
+      Assert.Equal(
+        playedPath,
+        "Interface\\AddOns\\isiLive\\sounds\\BttF_Tinkle.wav",
+        "ready-check-complete sound helper should use the bundled BttF tinkle asset"
+      )
+      Assert.Equal(playedChannel, "Master", "ready-check-complete sound helper should use the Master channel")
       addon.SoundUtils.PlayPortalAvailable()
-      Assert.Equal(playCalls, 3, "portal sound helper should play exactly once after the group sound")
+      Assert.Equal(playCalls, 4, "portal sound helper should play exactly once after the ready-check sound")
       Assert.Equal(
         playedPath,
         "Interface\\AddOns\\isiLive\\sounds\\Portal.ogg",
@@ -1276,7 +1326,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       addon.SoundUtils.PlayBloodlustReady()
       Assert.Equal(
         playCalls,
-        7,
+        8,
         "battle-res, battle-res-ready, bloodlust, and bloodlust-ready play their configured assets"
       )
       Assert.Equal(
@@ -1287,6 +1337,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
 
       db.soundLeadEnabled = false
       db.soundGroupJoinEnabled = true
+      db.soundReadyCheckCompleteEnabled = false
       db.soundPortalAvailableEnabled = false
       db.soundBattleResEnabled = true
       db.soundBattleResReadyEnabled = true
@@ -1296,6 +1347,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       playCalls = 0
       addon.SoundUtils.PlayKey("leader_transfer")
       addon.SoundUtils.PlayGroupJoin()
+      addon.SoundUtils.PlayReadyCheckComplete()
       addon.SoundUtils.PlayPortalAvailable()
       addon.SoundUtils.PlayBattleRes()
       addon.SoundUtils.PlayBattleResReady()
@@ -1305,7 +1357,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         playCalls,
         5,
         "enabled group-join, battle-res, battle-res-ready, bloodlust, and bloodlust-ready should play; "
-          .. "disabled lead and portal stay silent"
+          .. "disabled lead, ready-check, and portal stay silent"
       )
       Assert.Equal(
         playedPath,
@@ -1561,6 +1613,34 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       db.soundBattleResReadyEnabled = true
       addon.SoundUtils.PlayBattleResReady()
       Assert.Equal(playCalls, 1, "enabled battle-res-ready setting should allow one TTS playback")
+    end)
+  end)
+
+  test("SoundUtils ready-check-complete setting disables BttF playback", function()
+    local playCalls = 0
+    local db = {
+      soundReadyCheckCompleteEnabled = false,
+    }
+    WithGlobals({
+      IsiLiveDB = db,
+      GetTime = function()
+        return 50
+      end,
+      PlaySoundFile = function()
+        playCalls = playCalls + 1
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
+      Assert.False(
+        addon.SoundUtils.IsEnabled("ready_check_complete"),
+        "ready-check-complete setting should disable the BttF sound"
+      )
+      addon.SoundUtils.PlayReadyCheckComplete()
+      Assert.Equal(playCalls, 0, "disabled ready-check-complete setting must suppress BttF playback")
+
+      db.soundReadyCheckCompleteEnabled = true
+      addon.SoundUtils.PlayReadyCheckComplete()
+      Assert.Equal(playCalls, 1, "enabled ready-check-complete setting should allow one BttF playback")
     end)
   end)
 

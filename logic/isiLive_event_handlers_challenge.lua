@@ -13,6 +13,7 @@ local POST_RUN_FOLLOWUP_REFRESH_ATTEMPTS = 2
 local POST_RUN_CAPTURE_RETRIES = 5
 local POST_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
 local READY_CHECK_DECLINED_HOLD_SECONDS = 20
+local IsReadyCheckRosterUnit
 local function ResetDamageMeterIfAvailable()
   local damageMeterAPI = rawget(_G, "C_DamageMeter")
   if
@@ -106,6 +107,47 @@ local function CountReadyCheckHoldUnits(getUntil, roster, now)
     end
   end
   return count
+end
+
+local function CollectReadyCheckRosterUnits(ctx)
+  local roster = type(ctx.getRoster) == "function" and ctx.getRoster() or nil
+  if type(roster) ~= "table" then
+    return nil
+  end
+
+  local units = {}
+  for unit, info in pairs(roster) do
+    if IsReadyCheckRosterUnit(unit, info) then
+      units[#units + 1] = unit
+    end
+  end
+  table.sort(units)
+  return units
+end
+
+local function MaybePlayReadyCheckCompleteSound(ctx)
+  if ctx.readyCheckCompleteSoundPlayed == true then
+    return false
+  end
+  if not (ctx.isReadyCheckActive and ctx.isReadyCheckActive() == true) then
+    return false
+  end
+
+  local units = CollectReadyCheckRosterUnits(ctx)
+  if type(units) ~= "table" or #units ~= 5 then
+    return false
+  end
+
+  local readyUnits = ctx.readyCheckReadyUnits or {}
+  for _, unit in ipairs(units) do
+    if readyUnits[unit] ~= true then
+      return false
+    end
+  end
+
+  ctx.readyCheckCompleteSoundPlayed = true
+  ctx.playReadyCheckCompleteSound()
+  return true
 end
 
 local function LogReadyCheckTrace(ctx, eventName, unit, status, extra)
@@ -280,6 +322,7 @@ end
 local function ResetReadyCheckDeclinedTracking(ctx)
   ctx.readyCheckReadyUnits = {}
   ctx.readyCheckDeclinedUnits = {}
+  ctx.readyCheckCompleteSoundPlayed = false
   ctx.clearAllReadyCheckReady()
   ctx.clearAllReadyCheckDeclined()
   ctx.readyCheckHoldUntil = nil
@@ -387,7 +430,7 @@ local function PromoteDeclinedReadyCheckUnitsToHold(ctx)
   )
 end
 
-local function IsReadyCheckRosterUnit(unit, info)
+IsReadyCheckRosterUnit = function(unit, info)
   if type(unit) ~= "string" or unit == "" then
     return false
   end
@@ -508,6 +551,8 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     or function(_event, ...) end
   ctx.handleCombatEventsEvent = type(ctx.handleCombatEventsEvent) == "function" and ctx.handleCombatEventsEvent
     or function(_event, ...) end
+  ctx.handleDeathWatchEvent = type(ctx.handleDeathWatchEvent) == "function" and ctx.handleDeathWatchEvent
+    or function(_event, ...) end
 
   local function HandleChallengeModeStart(_self)
     if IsRaidModeActive(ctx) then
@@ -516,6 +561,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     ctx.handleMplusTimerEvent("CHALLENGE_MODE_START")
     ctx.handleKillTrackEvent("CHALLENGE_MODE_START")
     ctx.handleCombatEventsEvent("CHALLENGE_MODE_START")
+    ctx.handleDeathWatchEvent("CHALLENGE_MODE_START")
     ctx.handleLFGDetectEvent("CHALLENGE_MODE_START")
     if type(ctx.logRuntimeTrace) == "function" then
       ctx.logRuntimeTrace("[RC] challenge_mode_start state_set var=readyCheckActive val=false")
@@ -554,6 +600,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     ctx.handleMplusTimerEvent(event)
     ctx.handleKillTrackEvent(event)
     ctx.handleCombatEventsEvent(event)
+    ctx.handleDeathWatchEvent(event)
     ctx.updateCdTracker({ suppressBattleResReadySound = true, suppressLustReadySound = true })
     -- Clear the accepted-invite listing identity inside LFGDetect (leader /
     -- title-level / detectedMapID / acceptedInviteSearchResultID). The next
@@ -636,6 +683,7 @@ function ChallengeLifecycle.BuildHandlers(ctx)
       if isReady then
         if ctx.isReadyCheckActive() then
           UpdateReadyCheckUnits(ctx, unit, true, nil)
+          MaybePlayReadyCheckCompleteSound(ctx)
           LogReadyCheckTrace(ctx, "READY_CHECK_CONFIRM", unit, status, "active=1")
           RefreshReadyCheckUI(ctx)
         else

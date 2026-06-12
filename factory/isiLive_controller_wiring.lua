@@ -432,6 +432,9 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     or function(_info) end
   config.playIncomingSummonSound = type(deps.playIncomingSummonSound) == "function" and deps.playIncomingSummonSound
     or function() end
+  config.playReadyCheckCompleteSound = type(deps.playReadyCheckCompleteSound) == "function"
+      and deps.playReadyCheckCompleteSound
+    or function() end
   config.sendAck = function(sender)
     if type(sender) ~= "string" or sender == "" then
       return
@@ -488,6 +491,8 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   config.handleKillTrackEvent = type(deps.handleKillTrackEvent) == "function" and deps.handleKillTrackEvent
     or function(_event, ...) end
   config.handleCombatEventsEvent = type(deps.handleCombatEventsEvent) == "function" and deps.handleCombatEventsEvent
+    or function(_event, ...) end
+  config.handleDeathWatchEvent = type(deps.handleDeathWatchEvent) == "function" and deps.handleDeathWatchEvent
     or function(_event, ...) end
   config.handleKickTrackerEvent = type(deps.handleKickTrackerEvent) == "function" and deps.handleKickTrackerEvent
     or function(_event, ...) end
@@ -715,6 +720,12 @@ local function BuildEventHandlersDepsFromContext(ctx)
         soundUtils.PlayIncomingSummon()
       end
     end,
+    playReadyCheckCompleteSound = function()
+      local soundUtils = addonTable.SoundUtils
+      if type(soundUtils) == "table" and type(soundUtils.PlayReadyCheckComplete) == "function" then
+        soundUtils.PlayReadyCheckComplete()
+      end
+    end,
     markIsiLiveUser = ctx.markIsiLiveUser,
     getUnitRio = ctx.getUnitRio,
     getInspectSpecName = ctx.getInspectSpecName,
@@ -734,6 +745,9 @@ local function BuildEventHandlersDepsFromContext(ctx)
     end,
     handleCombatEventsEvent = function(event, ...)
       DispatchModuleEvent(ctx.modules and ctx.modules.combatEvents, event, ...)
+    end,
+    handleDeathWatchEvent = function(event, ...)
+      DispatchModuleEvent(ctx.modules and ctx.modules.deathWatch, event, ...)
     end,
     handleKickTrackerEvent = function(event, ...)
       if type(ctx.HandleKickTrackerEvent) == "function" then

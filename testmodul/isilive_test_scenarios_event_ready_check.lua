@@ -616,11 +616,88 @@ local function RegisterReadyCheckInitiatorTests(test, Assert, _WithGlobals, Load
   end)
 end
 
+local function RegisterReadyCheckCompleteSoundTests(test, Assert, _WithGlobals, LoadAddonModules, Fixtures)
+  local function BuildCompleteSoundController(roster, playSound)
+    local readyCheckActive = false
+    local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+    return Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      setReadyCheckActive = function(value)
+        readyCheckActive = value and true or false
+      end,
+      isReadyCheckActive = function()
+        return readyCheckActive
+      end,
+      getRoster = function()
+        return roster
+      end,
+      playReadyCheckCompleteSound = playSound,
+    })
+  end
+
+  test("Event handlers play ready-check complete sound once when all five players are ready", function()
+    local soundCalls = 0
+    local roster = {
+      player = { name = "Me" },
+      party1 = { name = "One" },
+      party2 = { name = "Two" },
+      party3 = { name = "Three" },
+      party4 = { name = "Four" },
+    }
+    local controller = BuildCompleteSoundController(roster, function()
+      soundCalls = soundCalls + 1
+    end)
+
+    controller:Dispatch("READY_CHECK")
+    controller:Dispatch("READY_CHECK_CONFIRM", "player", "ready")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party1", true)
+    controller:Dispatch("READY_CHECK_CONFIRM", "party2", "ready")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party3", 1)
+    Assert.Equal(soundCalls, 0, "four ready players must not play the complete sound")
+
+    controller:Dispatch("READY_CHECK_CONFIRM", "party4", "ready")
+    Assert.Equal(soundCalls, 1, "the fifth ready player must play the complete sound exactly once")
+
+    controller:Dispatch("READY_CHECK_CONFIRM", "party4", "ready")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party3", "ready")
+    Assert.Equal(soundCalls, 1, "duplicate ready confirmations must not replay the complete sound")
+  end)
+
+  test("Event handlers keep ready-check complete sound silent unless exactly five players are ready", function()
+    local soundCalls = 0
+    local roster = {
+      player = { name = "Me" },
+      party1 = { name = "One" },
+      party2 = { name = "Two" },
+      party3 = { name = "Three" },
+    }
+    local controller = BuildCompleteSoundController(roster, function()
+      soundCalls = soundCalls + 1
+    end)
+
+    controller:Dispatch("READY_CHECK")
+    controller:Dispatch("READY_CHECK_CONFIRM", "player", "ready")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party1", "ready")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party2", "ready")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party3", "ready")
+    Assert.Equal(soundCalls, 0, "underfilled ready checks must not play the complete sound")
+
+    roster.party4 = { name = "Four", isGhost = true }
+    controller:Dispatch("READY_CHECK")
+    controller:Dispatch("READY_CHECK_CONFIRM", "player", "ready")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party1", "ready")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party2", "ready")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party3", "ready")
+    controller:Dispatch("READY_CHECK_CONFIRM", "party4", "ready")
+    Assert.Equal(soundCalls, 0, "ghost roster rows must not count toward the five-player ready gate")
+  end)
+end
+
 local function RegisterReadyCheckAndStatsTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   RegisterReadyCheckLifecycleTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   RegisterReadyCheckHoldTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   RegisterReadyCheckHoldAndRunRecordTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
   RegisterReadyCheckInitiatorTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
+  RegisterReadyCheckCompleteSoundTests(test, Assert, WithGlobals, LoadAddonModules, Fixtures)
 end
 
 return function(test, ctx)

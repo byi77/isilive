@@ -26,6 +26,15 @@ local FILE_PATHS = {
   ["isiLive_languages.lua"] = "locale/isiLive_languages.lua",
   ["isiLive_locale.lua"] = "locale/isiLive_locale.lua",
   ["isiLive_texts.lua"] = "locale/isiLive_texts.lua",
+  ["isiLive_texts_common.lua"] = "locale/isiLive_texts_common.lua",
+  ["isiLive_texts_enUS.lua"] = "locale/isiLive_texts_enUS.lua",
+  ["isiLive_texts_deDE.lua"] = "locale/isiLive_texts_deDE.lua",
+  ["isiLive_texts_frFR.lua"] = "locale/isiLive_texts_frFR.lua",
+  ["isiLive_texts_esES.lua"] = "locale/isiLive_texts_esES.lua",
+  ["isiLive_texts_ptBR.lua"] = "locale/isiLive_texts_ptBR.lua",
+  ["isiLive_texts_itIT.lua"] = "locale/isiLive_texts_itIT.lua",
+  ["isiLive_texts_ruRU.lua"] = "locale/isiLive_texts_ruRU.lua",
+  ["isiLive_texts_trTR.lua"] = "locale/isiLive_texts_trTR.lua",
   -- game
   ["isiLive_spell_utils.lua"] = "game/isiLive_spell_utils.lua",
   ["isiLive_cd_tracker.lua"] = "game/isiLive_cd_tracker.lua",
@@ -38,7 +47,9 @@ local FILE_PATHS = {
   ["isiLive_lfg_detect.lua"] = "game/isiLive_lfg_detect.lua",
   ["isiLive_combat_events.lua"] = "game/isiLive_combat_events.lua",
   ["isiLive_killtrack.lua"] = "game/isiLive_killtrack.lua",
+  ["isiLive_death_watch.lua"] = "game/isiLive_death_watch.lua",
   -- ui
+  ["isiLive_death_alert.lua"] = "ui/isiLive_death_alert.lua",
   ["isiLive_bindings.lua"] = "ui/isiLive_bindings.lua",
   ["isiLive_ui_common.lua"] = "ui/isiLive_ui_common.lua",
   ["isiLive_stats_box.lua"] = "ui/isiLive_stats_box.lua",
@@ -104,6 +115,7 @@ local FILE_PATHS = {
   ["isiLive_factory_demo.lua"] = "factory/isiLive_factory_demo.lua",
   ["isiLive_factory_testmode_bindings.lua"] = "factory/isiLive_factory_testmode_bindings.lua",
   ["isiLive_factory_combat_announces.lua"] = "factory/isiLive_factory_combat_announces.lua",
+  ["isiLive_factory_death_alert.lua"] = "factory/isiLive_factory_death_alert.lua",
   ["isiLive_factory_localization.lua"] = "factory/isiLive_factory_localization.lua",
   ["isiLive_factory_refresh.lua"] = "factory/isiLive_factory_refresh.lua",
   ["isiLive_factory_notices.lua"] = "factory/isiLive_factory_notices.lua",
@@ -170,6 +182,7 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_factory_demo.lua",
     "isiLive_factory_testmode_bindings.lua",
     "isiLive_factory_combat_announces.lua",
+    "isiLive_factory_death_alert.lua",
     "isiLive_factory_localization.lua",
     "isiLive_factory_refresh.lua",
     "isiLive_factory_notices.lua",
@@ -189,6 +202,7 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_factory_demo.lua",
     "isiLive_factory_testmode_bindings.lua",
     "isiLive_factory_combat_announces.lua",
+    "isiLive_factory_death_alert.lua",
     "isiLive_factory_localization.lua",
     "isiLive_factory_refresh.lua",
     "isiLive_factory_notices.lua",
@@ -203,6 +217,19 @@ local IMPLICIT_DEPENDENCIES = {
   -- isiLive_languages.lua must be loaded before any module that calls
   -- addonTable.Languages (locale, commands, season_data).
   ["isiLive_locale.lua"] = { "isiLive_languages.lua" },
+  -- The texts aggregator collects the per-language tables registered by the
+  -- locale/isiLive_texts_<tag>.lua files (TOC order in production).
+  ["isiLive_texts.lua"] = {
+    "isiLive_texts_common.lua",
+    "isiLive_texts_enUS.lua",
+    "isiLive_texts_deDE.lua",
+    "isiLive_texts_frFR.lua",
+    "isiLive_texts_esES.lua",
+    "isiLive_texts_ptBR.lua",
+    "isiLive_texts_itIT.lua",
+    "isiLive_texts_ruRU.lua",
+    "isiLive_texts_trTR.lua",
+  },
   ["isiLive_commands.lua"] = { "isiLive_languages.lua" },
   ["isiLive_season_data.lua"] = { "isiLive_languages.lua" },
   ["isiLive_settings.lua"] = {

@@ -4,7 +4,7 @@
 
 - **For:** M+ players in pre-made groups and LFG runs
 - **WoW version:** `12.0+` (Midnight) only
-- **Current version:** `0.9.308`
+- **Current version:** `0.9.309`
 - **Active season:** `midnight_s1` — 8 dungeons (Wing, MT, NPX, MC, AA, POS, SOT, SR)
 
 ---
@@ -16,7 +16,7 @@
 - **Live enemy forces tools** — tooltip percentages, nameplate percentages, bottom killtracker bar, pull prediction, and combat-end refresh from the bundled MDT-synced forces database.
 - **Season portal grid** — all current dungeon portals with cooldowns, availability highlights, and verified LFG target highlighting.
 - **Share Keys sync** — posts your key first, then asks isiLive peers to post their own key line through the fastest AddOn-message priority path.
-- **Run utility alerts** — Battle Res charges, Bloodlust cooldown, BR/Lust group announces, and separate ready sounds when Battle Res or Bloodlust becomes available during a key.
+- **Run utility alerts** — Battle Res charges, Bloodlust cooldown, BR/Lust group announces, separate ready sounds when Battle Res or Bloodlust becomes available during a key, and a big red on-screen death alert with TTS voice when the tank or healer dies during an active M+ run.
 - **Configurable support tools** — Escape-menu shortcut strips, Hearthstone travel shortcut, optional player stats box, nameplate controls, runtime logs, and safe UI position locking.
 
 ---
