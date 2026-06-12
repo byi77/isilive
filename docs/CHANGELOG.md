@@ -29,7 +29,7 @@
   harness follow the new layout.
 - Added `RULES_LOGIC` rule 80 with twelve deterministic death-alert scenarios
   and rule 81 for the ready-check-complete sound gate; the validator baseline
-  is now `2017` scenarios.
+  is now `2021` scenarios.
 - Bumped the TOC and documentation baselines to `0.9.309`.
 
 ## 2026-06-11 - Version 0.9.308 (patch)

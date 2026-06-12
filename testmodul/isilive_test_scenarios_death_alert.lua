@@ -192,6 +192,88 @@ local function RegisterDeathWatchTests(test, ctx)
     controller.HandleUnitHealth("party1")
     Assert.Equal(#env.alerts, 2, "new slot occupant must get a fresh edge state")
   end)
+
+  test("DeathWatch default dependencies fail closed and dispatch safely", function()
+    local alerts = {}
+    local addon
+    WithGlobals({
+      IsiLiveDB = {},
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return 2662
+        end,
+      },
+      UnitExists = function(unit)
+        return unit == "party1"
+      end,
+      UnitIsConnected = function()
+        return true
+      end,
+      UnitGUID = function(unit)
+        return "GUID-" .. tostring(unit)
+      end,
+      UnitIsDeadOrGhost = function()
+        return true
+      end,
+    }, function()
+      addon = LoadAddonModules({ "isiLive_death_watch.lua" }, {
+        Units = {
+          GetUnitRole = function()
+            return "TANK"
+          end,
+        },
+      })
+      addon.DeathWatch.SetDependencies("invalid")
+      addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+      addon.DeathWatch.SetDependencies({
+        onRoleDeath = function(role, unit)
+          table.insert(alerts, { role = role, unit = unit })
+        end,
+      })
+      addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+      addon.DeathWatch.HandleEvent("GROUP_ROSTER_UPDATE")
+      addon.DeathWatch.HandleEvent("CHALLENGE_MODE_START")
+      addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+      addon.DeathWatch.HandleEvent("UNKNOWN_EVENT")
+    end)
+
+    Assert.Equal(#alerts, 2, "default dependency dispatch should alert, reset, and alert again")
+    Assert.Equal(alerts[1].role, "TANK", "default role resolver should use addon Units")
+  end)
+
+  test("DeathWatch default API readers fail closed on missing or protected values", function()
+    local alerts = {}
+    WithGlobals({
+      IsiLiveDB = {},
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          error("protected map")
+        end,
+      },
+      UnitExists = function()
+        error("protected exists")
+      end,
+      UnitIsConnected = function()
+        error("protected connected")
+      end,
+      UnitGUID = function()
+        error("protected guid")
+      end,
+      UnitIsDeadOrGhost = function()
+        error("protected dead")
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_death_watch.lua" })
+      addon.DeathWatch.SetDependencies({
+        onRoleDeath = function(role, unit)
+          table.insert(alerts, { role = role, unit = unit })
+        end,
+      })
+      addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+    end)
+
+    Assert.Equal(#alerts, 0, "protected default API reads must fail closed without alerts")
+  end)
 end
 
 local function BuildFrameStub(track)

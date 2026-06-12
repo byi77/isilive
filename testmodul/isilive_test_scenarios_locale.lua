@@ -85,6 +85,43 @@ return function(test, ctx)
     end
   end)
 
+  test("Locale texts aggregator loadfile fallback loads split locale tables", function()
+    local realLoadfile = loadfile
+    local loadedFiles = {}
+    local addonTable = {}
+
+    WithGlobals({
+      loadfile = function(path)
+        loadedFiles[#loadedFiles + 1] = path
+        return assert(realLoadfile(path))
+      end,
+    }, function()
+      local chunk = assert(realLoadfile("locale/isiLive_texts.lua"))
+      chunk("isiLive", addonTable)
+    end)
+
+    local locales = addonTable.Texts.GetLocaleTables()
+    Assert.True(#loadedFiles >= 9, "standalone fallback should load the split locale files")
+    Assert.NotNil(locales.enUS, "loadfile fallback should provide enUS texts")
+    Assert.Equal(locales.enUS.SETTINGS_SOUND_CHANNEL_MASTER, "Master", "aggregator should add Master label")
+    Assert.Equal(locales.enUS.SETTINGS_SOUND_CHANNEL_SFX, "SFX", "aggregator should add SFX label")
+  end)
+
+  test("Locale texts aggregator stays empty when no locale source is available", function()
+    local realLoadfile = loadfile
+    local addonTable = {}
+
+    WithGlobals({
+      loadfile = false,
+    }, function()
+      local chunk = assert(realLoadfile("locale/isiLive_texts.lua"))
+      chunk("isiLive", addonTable)
+    end)
+
+    local locales = addonTable.Texts.GetLocaleTables()
+    Assert.Equal(next(locales), nil, "missing preloaded locales and loadfile must produce an empty table")
+  end)
+
   test("LOADED_HINT contains format placeholder in both locales", function()
     local addon = LoadAddonModules({ "isiLive_texts.lua" })
     local locales = addon.Texts.GetLocaleTables()
