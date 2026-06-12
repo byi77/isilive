@@ -176,6 +176,14 @@ local function AttachControllerAccessors(controller, deps)
     end
     return 0
   end
+
+  function controller.GetShareKeysLocalCooldownRemaining()
+    local btn = deps.shareKeysButton
+    if btn and type(btn.GetLocallyOwnedCooldownRemaining) == "function" then
+      return btn.GetLocallyOwnedCooldownRemaining()
+    end
+    return 0
+  end
 end
 
 local function CreateShareKeysButton(mainFrame, deps)
@@ -184,6 +192,7 @@ local function CreateShareKeysButton(mainFrame, deps)
   button._verticalY = -150
   local countdownTicker = nil
   local cooldownEndAt = nil
+  local cooldownLocallyOwned = false
   local shareKeysAvailable = false
   local debounceSeconds = tonumber(deps.shareKeysDebounceSeconds) or 0
   if debounceSeconds < 0 then
@@ -209,6 +218,7 @@ local function CreateShareKeysButton(mainFrame, deps)
     local cooldownActive = IsCooldownActive(now)
     if not cooldownActive then
       cooldownEndAt = nil
+      cooldownLocallyOwned = false
     end
 
     if cooldownActive then
@@ -263,6 +273,7 @@ local function CreateShareKeysButton(mainFrame, deps)
     if not now or debounceSeconds <= 0 then
       return
     end
+    local isRemoteMirror = tonumber(seconds) ~= nil
     local cooldownSeconds = tonumber(seconds) or debounceSeconds
     if cooldownSeconds <= 0 then
       return
@@ -277,6 +288,9 @@ local function CreateShareKeysButton(mainFrame, deps)
     if IsCooldownActive(now) and cooldownEndAt and cooldownEndAt >= newCooldownEnd then
       return
     end
+    -- A lock set or extended by a remote SKCD mirror is not locally owned
+    -- and must never be re-broadcast (see GetLocallyOwnedCooldownRemaining).
+    cooldownLocallyOwned = not isRemoteMirror
     StartCooldownDisplay(newCooldownEnd)
   end
 
@@ -286,6 +300,17 @@ local function CreateShareKeysButton(mainFrame, deps)
       return 0
     end
     return math.max(0, (cooldownEndAt or 0) - now)
+  end
+
+  -- Only locally owned locks (own click or received SHAREKEYS request) may
+  -- be mirrored to peers via SKCD. Re-broadcasting a lock that itself came
+  -- from a remote SKCD mirror would reflect the cooldown between peers
+  -- indefinitely once send queues add latency.
+  function button.GetLocallyOwnedCooldownRemaining()
+    if not cooldownLocallyOwned then
+      return 0
+    end
+    return button.GetRemainingCooldown()
   end
 
   function button.SetShareKeysAvailable(isAvailable)
@@ -337,6 +362,7 @@ local function CreateShareKeysButton(mainFrame, deps)
       return
     end
     if now and debounceSeconds > 0 then
+      cooldownLocallyOwned = true
       StartCooldownDisplay(now + debounceSeconds)
     end
   end)

@@ -2,6 +2,22 @@
 
 ## 2026-06-12 - Version 0.9.309 (patch)
 
+- Fixed the share-keys button being stuck in an endless cooldown loop. Two
+  clients used to answer each other's hello-ack fan-outs forever (the
+  fan-out hello bypasses the 8 s rate limit), backing up the addon-message
+  send queue by ~30 seconds; the stale mirrored `SKCD` locks then kept
+  re-locking the button right after its own cooldown expired. Incoming
+  HELLOs with source `hello-ack` / `reqsync-ack` no longer trigger another
+  ack fan-out (the join bootstrap is unaffected: the joiner broadcasts its
+  own snapshot and a delayed sync request itself).
+- The share-keys cooldown mirror now only broadcasts locally owned locks
+  (own click or a received share-keys request). A lock that was itself set
+  or extended by a peer's `SKCD` mirror loses local ownership and is never
+  re-broadcast, so the lock can no longer reflect between clients.
+- Added `RULES_LOGIC` rule 82 (hello-ack loop breaker) and extended rule 53
+  with the SKCD ownership contract; both are pinned by new deterministic
+  scenarios, including an end-to-end sender-receiver reflection test across
+  the real wiring and buttons.
 - Added the ready-check-complete sound: `BttF_Tinkle.wav` plays once when all
   five valid ready-check participants are marked ready during an active
   ready-check.

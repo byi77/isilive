@@ -138,6 +138,9 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     getShareKeysCooldownRemaining = function()
       return controller.GetShareKeysCooldownRemaining()
     end,
+    getShareKeysLocalCooldownRemaining = function()
+      return controller.GetShareKeysLocalCooldownRemaining()
+    end,
   }
 end
 

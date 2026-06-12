@@ -699,7 +699,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-SHAREKEYS-SPAMSCHUTZ
 - Regelnummer: 53
 - Status: aktiv
-- Zusammenfassung: Der Share-Keys-Button ist 30 Sekunden gegen Spam gesperrt. Beim eigenen Klick wird der `SHAREKEYS`-Sync vor dem sichtbaren `PARTY`-Post dispatcht. Die Sperre wird lokal nur nach einem wirksamen eigenen Klick gesetzt, also wenn dabei entweder der eigene Key erfolgreich in `PARTY` angekuendigt oder ein erfolgreicher `SHAREKEYS`-Sync ausgeloest wurde; ein lokaler Print-Fallback zaehlt dafuer nicht als Chat-Share. Empfangende isiLive-Clients sperren ihren Button bei jedem eingehenden `SHAREKEYS`-Pfad, auch wenn sie keinen eigenen `PARTY`-Post ausloesen koennen. Ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt. Im Hello-Ack-/REQSYNC-Fan-out spiegelt jeder Client eine laufende Button-Sperre als `SKCD:<rest>`-Payload an neue Gruppenmitglieder; der Empfaenger uebernimmt die Restzeit per Max-Merge (verlaengern ja, verkuerzen nie) und klemmt sie auf das lokale 30s-Fenster. Die Button-Sperre wirkt zusaetzlich als gemeinsames Ruhefenster fuer den Antwortpfad: solange sie laeuft, wird auf eingehende `SHAREKEYS` kein eigener Key erneut in den Chat gepostet (der eigene Klick schreibt den Antwort-Zeitstempel nicht, die Button-Sperre schliesst diese Luecke).
+- Zusammenfassung: Der Share-Keys-Button ist 30 Sekunden gegen Spam gesperrt. Beim eigenen Klick wird der `SHAREKEYS`-Sync vor dem sichtbaren `PARTY`-Post dispatcht. Die Sperre wird lokal nur nach einem wirksamen eigenen Klick gesetzt, also wenn dabei entweder der eigene Key erfolgreich in `PARTY` angekuendigt oder ein erfolgreicher `SHAREKEYS`-Sync ausgeloest wurde; ein lokaler Print-Fallback zaehlt dafuer nicht als Chat-Share. Empfangende isiLive-Clients sperren ihren Button bei jedem eingehenden `SHAREKEYS`-Pfad, auch wenn sie keinen eigenen `PARTY`-Post ausloesen koennen. Ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt. Im Hello-Ack-/REQSYNC-Fan-out spiegelt jeder Client eine laufende Button-Sperre als `SKCD:<rest>`-Payload an neue Gruppenmitglieder; der Empfaenger uebernimmt die Restzeit per Max-Merge (verlaengern ja, verkuerzen nie) und klemmt sie auf das lokale 30s-Fenster. Gespiegelt wird ausschliesslich eine lokal entstandene Sperre (eigener wirksamer Klick oder empfangenes `SHAREKEYS`); eine Sperre, die selbst durch einen empfangenen `SKCD`-Mirror gesetzt oder verlaengert wurde, verliert die lokale Ownership und darf nicht erneut gebroadcastet werden, damit der Cooldown nicht endlos zwischen den Clients reflektiert. Die Button-Sperre wirkt zusaetzlich als gemeinsames Ruhefenster fuer den Antwortpfad: solange sie laeuft, wird auf eingehende `SHAREKEYS` kein eigener Key erneut in den Chat gepostet (der eigene Klick schreibt den Antwort-Zeitstempel nicht, die Button-Sperre schliesst diese Luecke).
 - Erforderliche Tests:
   - Roster panel share keys button debounces rapid clicks
   - Roster panel share keys button dispatches SHAREKEYS before party chat
@@ -708,6 +708,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Roster panel share keys button ignores no-op clicks without chat or sync success
   - Roster panel share keys button locks on remote SHAREKEYS signal
   - Roster panel share keys button mirrors a partial remote cooldown with max-merge
+  - Roster panel share keys button reports only locally owned locks for SKCD mirroring
+  - ControllerWiring sendShareKeysCooldownState mirrors only the locally owned cooldown
+  - Share keys SKCD reflection dies after one hop across real wiring and buttons
   - Share keys cooldown mirror drives full sender receiver SKCD chain
   - Sync SendShareKeysRequest returns false without an addon sync channel
   - Sync SendShareKeysRequest returns false when addon message dispatch fails
@@ -1154,3 +1157,14 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Architecture ready check refresh stays wired through runtime setup and controller wiring
   - SoundUtils ready-check-complete setting disables BttF playback
   - Settings panel exposes ready-check-complete sound toggle and preview
+
+### RULE-SYNC-HELLO-ACK-LOOP-BREAKER
+- Regelnummer: 82
+- Status: aktiv
+- Zusammenfassung: Ein eingehendes `HELLO` loest den vollen Peer-State-Fan-out (hello-ack) nur aus, wenn es ein initiales HELLO ist (Source `local`, `group`, `refresh` oder legacy ohne Source-Feld). HELLOs mit Source `hello-ack` oder `reqsync-ack` sind selbst Fan-out-Antworten und duerfen keinen weiteren Ack-Fan-out ausloesen. Ohne diesen Loop-Breaker beantworten sich zwei Clients endlos gegenseitig (der Fan-out-Hello wird mit force am 8s-Hello-Rate-Limit vorbei gesendet), die Dauerflut staut die ChatThrottleLib-Sendequeue um ~30 Sekunden auf und gespiegelte `SKCD`-Sperren reflektieren endlos zwischen den Peers, sodass der Share-Keys-Button nie wieder frei wird.
+- Erforderliche Tests:
+  - Sync ProcessAddonMessage does not ack hello-ack or reqsync-ack fan-out hellos
+  - Sync ProcessAddonMessage handles HELLO, REQSYNC, and KEY payloads
+  - ControllerWiring sendShareKeysCooldownState mirrors only the locally owned cooldown
+  - Roster panel share keys button reports only locally owned locks for SKCD mirroring
+  - Share keys SKCD reflection dies after one hop across real wiring and buttons

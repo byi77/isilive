@@ -1785,6 +1785,151 @@ RegisterShareKeysRemoteCooldownTests = function()
     end)
   end)
 
+  test("Roster panel share keys button reports only locally owned locks for SKCD mirroring", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local shareKeyRequests = 0
+    local currentTime = 200
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      C_ChatInfo = { SendChatMessage = function() end },
+      print = function() end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = NewRecordedMainFrame(createdFontStrings),
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
+        buildOrderedRoster = function(roster)
+          return { { unit = "player", info = roster.player } }
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Self",
+            languageDisplay = "EN",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "DB +10",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return "DB"
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return { player = { name = "Self", role = "DAMAGER", keyMapID = 2441, keyLevel = 10 } }
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = { DAMAGER = 1, NONE = 2 },
+        unitPriority = { player = 1 },
+        getTime = function()
+          return currentTime
+        end,
+        shareKeysDebounceSeconds = 30,
+        sendShareKeysRequest = function()
+          shareKeyRequests = shareKeyRequests + 1
+          return true
+        end,
+      })
+
+      controller.RenderRoster({
+        player = { name = "Self", role = "DAMAGER", keyMapID = 2441, keyLevel = 10 },
+      })
+
+      local shareKeysButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame.pointY == -150 then
+          shareKeysButton = frame
+          break
+        end
+      end
+      shareKeysButton = Assert.NotNil(shareKeysButton, "share-keys button should exist")
+
+      Assert.Equal(controller.GetShareKeysLocalCooldownRemaining(), 0, "idle button must report no locally owned lock")
+
+      controller.TriggerShareKeysCooldown(12)
+      Assert.Equal(controller.GetShareKeysCooldownRemaining(), 12, "remote mirror must lock the button")
+      Assert.Equal(
+        controller.GetShareKeysLocalCooldownRemaining(),
+        0,
+        "a remote-mirrored lock must never be re-broadcast via SKCD"
+      )
+
+      controller.TriggerShareKeysCooldown()
+      Assert.Equal(
+        controller.GetShareKeysLocalCooldownRemaining(),
+        30,
+        "a received SHAREKEYS lock is locally owned and may be mirrored"
+      )
+
+      controller.TriggerShareKeysCooldown(20)
+      Assert.Equal(
+        controller.GetShareKeysLocalCooldownRemaining(),
+        30,
+        "a shorter remote mirror must not demote the locally owned lock"
+      )
+
+      currentTime = 205
+      controller.TriggerShareKeysCooldown(30)
+      Assert.Equal(controller.GetShareKeysCooldownRemaining(), 30, "a longer remote mirror must extend the lock")
+      Assert.Equal(
+        controller.GetShareKeysLocalCooldownRemaining(),
+        0,
+        "a remote-extended lock loses local ownership and must not be re-broadcast"
+      )
+
+      currentTime = 236
+      ---@diagnostic disable: undefined-field
+      shareKeysButton.OnClick()
+      ---@diagnostic enable: undefined-field
+      Assert.Equal(shareKeyRequests, 1, "click must succeed once the remote lock has expired")
+      Assert.Equal(
+        controller.GetShareKeysLocalCooldownRemaining(),
+        30,
+        "an own click creates a locally owned lock for SKCD mirroring"
+      )
+    end)
+  end)
+
   test("Share keys cooldown mirror drives full sender receiver SKCD chain", function()
     local Fixtures = RequireFixtures()
     local createdFrames = {}
@@ -1965,6 +2110,276 @@ RegisterShareKeysRemoteCooldownTests = function()
         0,
         "mirrored lock must expire exactly when the sender's window ends"
       )
+    end)
+  end)
+
+  test("Share keys SKCD reflection dies after one hop across real wiring and buttons", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local addonMessages = {}
+    local currentTime = 500
+
+    local function Strsplit(sep, str, max)
+      local pos = str:find(sep, 1, true)
+      if not pos then
+        return str
+      end
+      if max and max >= 2 then
+        return str:sub(1, pos - 1), str:sub(pos + 1)
+      end
+      return str:sub(1, pos - 1)
+    end
+
+    local function Noop() end
+
+    local function BuildPanelOpts()
+      return {
+        mainFrame = NewRecordedMainFrame(createdFontStrings),
+        getL = function()
+          return {}
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
+        buildOrderedRoster = function(roster)
+          return { { unit = "player", info = roster.player } }
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Self",
+            languageDisplay = "EN",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "DB +10",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return "DB"
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return { player = { name = "Self", role = "DAMAGER", keyMapID = 2441, keyLevel = 10 } }
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = { DAMAGER = 1, NONE = 2 },
+        unitPriority = { player = 1 },
+        getTime = function()
+          return currentTime
+        end,
+        shareKeysDebounceSeconds = 30,
+        sendShareKeysRequest = function()
+          return true
+        end,
+      }
+    end
+
+    -- Minimal required deps for the real ControllerWiring event-handlers
+    -- config; modules.sync is the real Sync module so
+    -- sendShareKeysCooldownState produces real SKCD wire bytes.
+    local function BuildWiringDeps(addon, panelController)
+      return {
+        addonName = "isiLive",
+        defaultLocale = "enUS",
+        locales = { enUS = {} },
+        resolveLocaleTag = Noop,
+        setLocaleTable = Noop,
+        isInGroup = Noop,
+        isInChallengeMode = Noop,
+        isNegativeApplicationStatusEvent = Noop,
+        getNormalizedActiveEntryInfo = Noop,
+        sendIsiLiveHello = Noop,
+        sendOwnKeySnapshot = Noop,
+        sendOwnBackgroundSnapshot = Noop,
+        sendRefreshResponse = Noop,
+        ensureQueueDebugStorage = Noop,
+        setQueueDebugEnabled = Noop,
+        registerIsiLiveSyncPrefix = Noop,
+        applyHotkeyBindings = Noop,
+        startBindingWatchdog = Noop,
+        getUnitNameAndRealm = Noop,
+        markIsiLiveUser = Noop,
+        applyKnownKeyToRosterEntry = Noop,
+        runFullRefresh = Noop,
+        getShareKeysLocalCooldownRemaining = function()
+          return panelController.GetShareKeysLocalCooldownRemaining()
+        end,
+        state = {
+          isTestMode = Noop,
+          isTestAllMode = Noop,
+          setPendingQueueJoinInfo = Noop,
+          setPendingPostChallengeRefresh = Noop,
+          getActiveJoinedKeyMapID = Noop,
+          setActiveJoinedKeyMapID = Noop,
+          getPendingBindingApply = Noop,
+          getRoster = function()
+            return {}
+          end,
+        },
+        refs = {
+          mainFrame = {
+            IsShown = function()
+              return false
+            end,
+          },
+          mainUI = {
+            GetPendingHeight = Noop,
+            GetPendingWidth = Noop,
+            GetPendingVisible = Noop,
+          },
+          applySecureSpellToButton = Noop,
+        },
+        controllers = {
+          group = {
+            HandleGroupRosterUpdate = Noop,
+          },
+        },
+        callbacks = {
+          exitTestMode = Noop,
+          clearLatestQueueTarget = Noop,
+          updateMPlusTeleportButton = Noop,
+          captureQueueJoinCandidate = Noop,
+          updateUI = Noop,
+          refreshReadyCheckUI = Noop,
+          setMainFrameVisible = Noop,
+          updateLeaderButtons = Noop,
+          updateStatusLine = Noop,
+          applyLocalizationToUI = Noop,
+          restoreLayoutState = Noop,
+          updateCountdownCancelButton = Noop,
+          checkIfEnteredTargetDungeon = Noop,
+          setMainFrameHeightSafe = Noop,
+          setMainFrameWidthSafe = Noop,
+        },
+        modules = { sync = addon.Sync },
+      }
+    end
+
+    local function CaptureConfigModule()
+      local captured
+      return {
+        CreateController = function(config)
+          captured = config
+          return {}
+        end,
+      }, function()
+        return captured
+      end
+    end
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      GetRealmName = function()
+        return "RealmA"
+      end,
+      GetTime = function()
+        return currentTime
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      IsInGroup = function()
+        return true
+      end,
+      LE_PARTY_CATEGORY_INSTANCE = 2,
+      IsiLiveDB = { syncEnabled = true },
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel)
+          table.insert(addonMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+          })
+          return true
+        end,
+      },
+      strsplit = Strsplit,
+      print = function() end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_context_helpers.lua",
+        "isiLive_sync.lua",
+        "isiLive_roster_panel.lua",
+        "isiLive_controller_wiring.lua",
+      })
+
+      local senderPanel = addon.RosterPanel.CreateController(BuildPanelOpts())
+      local receiverPanel = addon.RosterPanel.CreateController(BuildPanelOpts())
+
+      local senderModule, getSenderConfig = CaptureConfigModule()
+      addon.ControllerWiring.CreateEventHandlersController(senderModule, BuildWiringDeps(addon, senderPanel))
+      local senderConfig = getSenderConfig()
+
+      local receiverModule, getReceiverConfig = CaptureConfigModule()
+      addon.ControllerWiring.CreateEventHandlersController(receiverModule, BuildWiringDeps(addon, receiverPanel))
+      local receiverConfig = getReceiverConfig()
+
+      -- Sender: lock is locally owned (received SHAREKEYS request path).
+      senderPanel.TriggerShareKeysCooldown()
+      Assert.True(senderConfig.sendShareKeysCooldownState(), "sender must mirror its locally owned lock")
+      Assert.Equal(#addonMessages, 1, "exactly one SKCD message must hit the wire")
+      Assert.Equal(addonMessages[1].message, "SKCD:30", "wire payload must carry the sender's full window")
+
+      -- Receiver: real parser, then the production mirror path
+      -- (ApplyMirroredShareKeysCooldown passes the remain argument).
+      local result = addon.Sync.ProcessAddonMessage(
+        addonMessages[1].prefix,
+        addonMessages[1].message,
+        "PeerA-RealmA",
+        "Receiver",
+        "RealmB",
+        addonMessages[1].channel
+      )
+      Assert.Equal(result.shareKeysCooldownRemain, 30, "receiver parser must surface the mirrored remain")
+      receiverPanel.TriggerShareKeysCooldown(result.shareKeysCooldownRemain)
+      Assert.Equal(receiverPanel.GetShareKeysCooldownRemaining(), 30, "receiver button must be locked by the mirror")
+
+      -- Reflection must die here: the receiver's lock is remote-owned, so
+      -- its fan-out sends no SKCD. The clock is advanced past the 1 s send
+      -- rate limit so only the ownership gate can suppress the send.
+      currentTime = 502
+      Assert.False(receiverConfig.sendShareKeysCooldownState(), "receiver must not re-broadcast the mirrored lock")
+      Assert.Equal(#addonMessages, 1, "no second SKCD message may hit the wire (reflection loop)")
+
+      -- Positive control: once the receiver owns a lock locally (incoming
+      -- SHAREKEYS), its fan-out mirrors again.
+      currentTime = 504
+      receiverPanel.TriggerShareKeysCooldown()
+      Assert.True(receiverConfig.sendShareKeysCooldownState(), "receiver must mirror its own locally owned lock")
+      Assert.Equal(#addonMessages, 2, "a locally owned lock must produce a new SKCD message")
     end)
   end)
 

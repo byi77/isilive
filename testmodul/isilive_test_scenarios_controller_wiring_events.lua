@@ -281,6 +281,35 @@ return function(test, ctx)
     Assert.Equal(result, "handled", "sync module's return value must propagate to the caller")
   end)
 
+  test("ControllerWiring sendShareKeysCooldownState mirrors only the locally owned cooldown", function()
+    local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" })
+    local module, getCaptured = CaptureEventModule()
+    local sentRemains = {}
+    local localRemain = 0
+    local deps = BuildMinimalEventDeps()
+    deps.getShareKeysLocalCooldownRemaining = function()
+      return localRemain
+    end
+    -- The full getter also reports remote-mirrored locks; it must never
+    -- drive SKCD sends, otherwise the lock reflects between peers forever.
+    deps.getShareKeysCooldownRemaining = function()
+      return 23
+    end
+    deps.modules.sync.SendShareKeysCooldown = function(opts)
+      table.insert(sentRemains, opts.remain)
+      return true
+    end
+    addon.ControllerWiring.CreateEventHandlersController(module, deps)
+    local config = getCaptured()
+
+    Assert.False(config.sendShareKeysCooldownState(), "a remote-owned lock must not be mirrored")
+    Assert.Equal(#sentRemains, 0, "no SKCD payload may be sent for a remote-owned lock")
+
+    localRemain = 17
+    Assert.True(config.sendShareKeysCooldownState(), "a locally owned lock must be mirrored")
+    Assert.Equal(sentRemains[1], 17, "SKCD payload must carry the locally owned remaining time")
+  end)
+
   test("ControllerWiring CreateEventHandlersController sendAck skips when sender is empty", function()
     local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" })
     local module, getCaptured = CaptureEventModule()

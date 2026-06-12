@@ -1990,6 +1990,15 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     end
   end
 
+  -- Loop breaker: a HELLO that is itself an ack fan-out reply must not be
+  -- acked again. Without this, two peers answer each other's hello-acks
+  -- forever (the fan-out hello is force-sent past the 8 s rate limit), the
+  -- resulting message flood backs up the ChatThrottleLib queue by ~30 s, and
+  -- the mirrored SKCD locks reflect between the peers indefinitely.
+  if shouldAck and (peerSource == "hello-ack" or peerSource == "reqsync-ack") then
+    shouldAck = false
+  end
+
   local anyFlag = keyUpdated
     or statsUpdated
     or dpsUpdated

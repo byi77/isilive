@@ -7,7 +7,9 @@
 -- periodic refresh.
 --
 -- Production fan-out, triggered by Sync.ProcessAddonMessage returning
--- shouldAck=true (HELLO from a non-self sender) — see
+-- shouldAck=true (initial HELLO from a non-self sender; HELLOs with source
+-- hello-ack/reqsync-ack are themselves fan-out replies and are loop-broken,
+-- see RULE-SYNC-HELLO-ACK-LOOP-BREAKER) — see
 -- logic/isiLive_event_handlers_runtime.lua:554-561:
 --
 --   ctx.sendAck(syncResult.sender)             -- 1 ACK WHISPER
@@ -468,22 +470,33 @@ local function ScenarioHelloTriggersFanOut()
 end
 
 -- ----------------------------------------------------------------------
--- Phase 2: HELLO source=hello-ack arrives. Production marks shouldAck=true
--- only when the message is HELLO (any HELLO variant). The hello-ack from
--- a peer triggers another fan-out (this is intentional — bootstrap is
--- mutual). This scenario pins that the source string does NOT change the
--- fan-out shape.
+-- Phase 2: HELLO source=hello-ack arrives. The fan-out hello is itself an
+-- ack reply; acking it again would make two peers answer each other's
+-- hello-acks forever (the fan-out hello is force-sent past the 8 s rate
+-- limit), flood the ChatThrottleLib send queue, and reflect mirrored SKCD
+-- locks between the peers indefinitely. ProcessAddonMessage therefore
+-- drops shouldAck for hello-ack/reqsync-ack sources
+-- (RULE-SYNC-HELLO-ACK-LOOP-BREAKER). The join bootstrap stays intact:
+-- the joiner broadcasts its own snapshot and a delayed REQSYNC itself.
 -- ----------------------------------------------------------------------
-local function ScenarioHelloAckAlsoTriggers()
-  print("\n========== Scenario 2: HELLO with source=hello-ack also triggers fan-out ==========")
+local function ScenarioHelloAckDoesNotTrigger()
+  print("\n========== Scenario 2: HELLO with source=hello-ack -> NO fan-out (loop breaker) ==========")
   local session = BuildSession()
   local hello = session.captureSenderHello("hello-ack")
   model.groupBroadcasts = {}
   model.whisperBroadcasts = {}
 
   session.dispatchOnReceiver("ISILIVE", hello.payload, "PARTY", "Peer-OtherRealm")
-  Check(#model.whisperBroadcasts == 1, "hello-ack also produces 1 ACK whisper")
-  Check(#model.groupBroadcasts == 7, "hello-ack also produces 7 group broadcasts (mutual bootstrap)")
+  Check(#model.whisperBroadcasts == 0, "hello-ack must not produce an ACK whisper")
+  Check(#model.groupBroadcasts == 0, "hello-ack must not trigger another fan-out (no ack ping-pong)")
+
+  local reqsyncAckHello = session.captureSenderHello("reqsync-ack")
+  model.groupBroadcasts = {}
+  model.whisperBroadcasts = {}
+
+  session.dispatchOnReceiver("ISILIVE", reqsyncAckHello.payload, "PARTY", "Peer-OtherRealm")
+  Check(#model.whisperBroadcasts == 0, "reqsync-ack hello must not produce an ACK whisper")
+  Check(#model.groupBroadcasts == 0, "reqsync-ack hello must not trigger another fan-out")
 end
 
 -- ----------------------------------------------------------------------
@@ -561,7 +574,7 @@ local function ScenarioHelloAckSourceString()
 end
 
 ScenarioHelloTriggersFanOut()
-ScenarioHelloAckAlsoTriggers()
+ScenarioHelloAckDoesNotTrigger()
 ScenarioSelfEchoSuppressed()
 ScenarioReqSyncTwinPath()
 ScenarioReqSyncSelfEchoSuppressed()

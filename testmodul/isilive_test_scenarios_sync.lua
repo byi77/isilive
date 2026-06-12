@@ -1000,6 +1000,59 @@ local function RegisterProcessMessageReceiveTests(test, Assert, WithGlobals, Loa
     end)
   end)
 
+  test("Sync ProcessAddonMessage does not ack hello-ack or reqsync-ack fan-out hellos", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str:sub(1, pos - 1)
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      -- Loop breaker: without it two peers answer each other's ack fan-out
+      -- hellos forever, flooding the send queue and reflecting SKCD locks.
+      local helloAckResult = addon.Sync.ProcessAddonMessage(
+        "ISILIVE",
+        "HELLO:0.9.310:2:123:hello-ack",
+        "OtherPlayer-OtherRealm",
+        "MyPlayer",
+        "Realm"
+      )
+      Assert.NotNil(helloAckResult, "hello-ack HELLO must return a result")
+      Assert.False(helloAckResult.shouldAck, "a hello-ack fan-out reply must not be acked again")
+      Assert.Equal(helloAckResult.peerSource, "hello-ack", "hello-ack source metadata must stay exposed")
+
+      local reqsyncAckResult = addon.Sync.ProcessAddonMessage(
+        "ISILIVE",
+        "HELLO:0.9.310:2:124:reqsync-ack",
+        "OtherPlayer-OtherRealm",
+        "MyPlayer",
+        "Realm"
+      )
+      Assert.NotNil(reqsyncAckResult, "reqsync-ack HELLO must return a result")
+      Assert.False(reqsyncAckResult.shouldAck, "a reqsync-ack fan-out reply must not be acked again")
+
+      local initialResult = addon.Sync.ProcessAddonMessage(
+        "ISILIVE",
+        "HELLO:0.9.310:2:125:group",
+        "OtherPlayer-OtherRealm",
+        "MyPlayer",
+        "Realm"
+      )
+      Assert.NotNil(initialResult, "initial HELLO must return a result")
+      Assert.True(initialResult.shouldAck, "an initial HELLO must still require an ack")
+    end)
+  end)
+
   test("Sync ProcessAddonMessage stores ACK version as hello info", function()
     WithGlobals({
       strsplit = function(sep, str, max)

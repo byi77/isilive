@@ -677,6 +677,7 @@ local function FinalizeFactoryRuntime(ctx)
     ShowCombatAnnounce = ctx.ShowCombatAnnounce,
     TriggerShareKeysCooldown = ctx.TriggerShareKeysCooldown,
     GetShareKeysCooldownRemaining = ctx.GetShareKeysCooldownRemaining,
+    GetShareKeysLocalCooldownRemaining = ctx.GetShareKeysLocalCooldownRemaining,
     GetCombatLogEventInfo = ctx.GetCombatLogEventInfo,
     RestoreBgAlpha = ctx.RestoreBgAlpha,
     UpdateCdTracker = ctx.UpdateCdTracker,

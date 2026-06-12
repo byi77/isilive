@@ -151,6 +151,7 @@ local function InitializeFactoryPrimaryControllers(ctx)
   ctx.statusLine = initResult.statusLine
   ctx.TriggerShareKeysCooldown = initResult.triggerShareKeysCooldown
   ctx.GetShareKeysCooldownRemaining = initResult.getShareKeysCooldownRemaining
+  ctx.GetShareKeysLocalCooldownRemaining = initResult.getShareKeysLocalCooldownRemaining
   ctx.teleportUIController = initResult.teleportUIController
   ctx.mplusTeleportButtons = initResult.mplusTeleportButtons
   ctx.UpdateLeaderButtons = function()

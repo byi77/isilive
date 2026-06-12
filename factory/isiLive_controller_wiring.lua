@@ -453,7 +453,10 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   config.triggerShareKeysCooldown = type(deps.triggerShareKeysCooldown) == "function" and deps.triggerShareKeysCooldown
     or function() end
   config.sendShareKeysCooldownState = function()
-    local getRemaining = deps.getShareKeysCooldownRemaining
+    -- Mirror only locally owned locks (own click / received SHAREKEYS).
+    -- Re-broadcasting a lock that was itself set by a remote SKCD mirror
+    -- would reflect the cooldown between peers indefinitely.
+    local getRemaining = deps.getShareKeysLocalCooldownRemaining
     local remain = type(getRemaining) == "function" and tonumber(getRemaining()) or nil
     if not remain or remain <= 0 then
       return false
@@ -577,6 +580,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     sendRefreshRequest = ctx.sendRefreshRequest,
     triggerShareKeysCooldown = ctx.TriggerShareKeysCooldown,
     getShareKeysCooldownRemaining = ctx.GetShareKeysCooldownRemaining,
+    getShareKeysLocalCooldownRemaining = ctx.GetShareKeysLocalCooldownRemaining,
     registerVerifiedSyncAliasForRoster = ctx.registerVerifiedSyncAliasForRoster,
     sendOwnKeystoneToChat = function()
       local logFn = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil
