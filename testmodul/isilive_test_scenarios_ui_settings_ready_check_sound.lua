@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-global
 local helpersChunk, helpersErr = loadfile("testmodul/isilive_test_ui_helpers.lua")
 if not helpersChunk then
   error("cannot load UI helpers: " .. tostring(helpersErr))
