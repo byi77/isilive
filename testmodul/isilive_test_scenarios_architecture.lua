@@ -1100,6 +1100,8 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
     local playedPath = nil
     local playedChannel = nil
     local playedSoundKit = nil
+    local stoppedHandles = {}
+    local stopSpeakingTextCalls = 0
     local now = 0
     local db = {}
     WithGlobals({
@@ -1111,12 +1113,22 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         playCalls = playCalls + 1
         playedPath = path
         playedChannel = channel
+        return true, "file:" .. tostring(playCalls)
       end,
       PlaySound = function(id, channel)
         playCalls = playCalls + 1
         playedSoundKit = id
         playedChannel = channel
+        return true, "kit:" .. tostring(playCalls)
       end,
+      StopSound = function(handle)
+        stoppedHandles[#stoppedHandles + 1] = handle
+      end,
+      C_VoiceChat = {
+        StopSpeakingText = function()
+          stopSpeakingTextCalls = stopSpeakingTextCalls + 1
+        end,
+      },
     }, function()
       local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
       Assert.NotNil(addon.SoundUtils, "sound utils module should load")
@@ -1271,6 +1283,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         "bloodlust-ready sound should default to enabled when no DB override exists"
       )
       Assert.NotNil(addon.SoundUtils.PlayGroupJoin, "sound utils should expose a dedicated group-join sound helper")
+      Assert.NotNil(addon.SoundUtils.StopAllActiveSounds, "sound utils should expose a stop-all helper")
       Assert.NotNil(
         addon.SoundUtils.PlayReadyCheckComplete,
         "sound utils should expose a dedicated ready-check-complete sound helper"
@@ -1334,6 +1347,14 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
         "bloodlust-ready helper should use the TTS asset"
       )
+      addon.SoundUtils.StopAllActiveSounds()
+      Assert.Equal(#stoppedHandles, 8, "stop-all helper must stop every active sound handle")
+      local stoppedByHandle = {}
+      for _, handle in ipairs(stoppedHandles) do
+        stoppedByHandle[handle] = true
+      end
+      Assert.True(stoppedByHandle["file:1"] == true, "stop-all helper must pass file playback handles to StopSound")
+      Assert.Equal(stopSpeakingTextCalls, 1, "stop-all helper must stop active text-to-speech playback")
 
       db.soundLeadEnabled = false
       db.soundGroupJoinEnabled = true

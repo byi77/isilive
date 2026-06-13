@@ -818,6 +818,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Factory test mode populates timer, cooldown and kill-track demo data
   - Factory demo simulation tablet builds safe actions and runs preview hooks
+  - Factory demo cleanup stops active preview sounds
   - Simulation tablet renders actions and runs only executable buttons
   - Simulation tablet toggles, hides stale buttons, and handles tooltip paths
   - Simulation tablet hover uses private tooltip without mutating buttons

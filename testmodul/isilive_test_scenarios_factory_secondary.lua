@@ -653,6 +653,13 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
           state.readyCheckCompleteSoundCalls = (state.readyCheckCompleteSoundCalls or 0) + 1
           return true
         end,
+        PlayIncomingSummon = function()
+          state.incomingSummonSoundCalls = (state.incomingSummonSoundCalls or 0) + 1
+          return true
+        end,
+        StopAllActiveSounds = function()
+          state.stopAllActiveSoundsCalls = (state.stopAllActiveSoundsCalls or 0) + 1
+        end,
         SpeakTts = function(text, opts)
           state.ttsPreviews = state.ttsPreviews or {}
           table.insert(state.ttsPreviews, {
@@ -867,7 +874,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       state.addon._FactoryInternal.FactoryDemo.InitializeSimulationTablet(state.ctx)
       Assert.NotNil(state.simulationTabletOpts, "simulation tablet must be initialized through the demo factory")
       local actions = state.simulationTabletOpts.getActions()
-      Assert.Equal(#actions, 21, "simulation tablet must expose the full action palette")
+      Assert.Equal(#actions, 22, "simulation tablet must expose the full action palette")
       Assert.Nil(actions[1].run, "removed pre-accept invite simulation must stay a visible no-op")
 
       for index = 2, #actions do
@@ -902,9 +909,32 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.True(state.lfgGroupBonusesEnabled == true, "LFG action must enable bonus markers")
     Assert.NotNil(state.statsBoxDemoHistory, "stats action must populate stats-box data")
     Assert.Equal(state.statsBoxDemoCleared, 1, "cleanup action must clear stats-box demo data")
+    Assert.Equal(state.incomingSummonSoundCalls, 1, "incoming summon action must play the local summon preview sound")
     Assert.True(#state.deathAlertPreviews >= 5, "death alert actions must call preview hooks")
+    local sawTank = false
+    local sawHealer = false
+    for _, preview in ipairs(state.deathAlertPreviews or {}) do
+      if preview.role == "TANK" and preview.unit == "party1" then
+        sawTank = true
+      elseif preview.role == "HEALER" and preview.unit == "party2" then
+        sawHealer = true
+      end
+    end
+    Assert.True(sawTank, "tank-dead action must run as a standalone preview")
+    Assert.True(sawHealer, "healer-dead action must run as a standalone preview")
     Assert.True(state.readyCheckCompleteSoundCalls >= 2, "sound action must play ready-check preview")
     Assert.True(#state.ttsPreviews >= 2, "sound action must speak TTS preview")
+  end)
+
+  test("Factory demo cleanup stops active preview sounds", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
+
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.ctx.EnterFullDummyPreview()
+      state.ctx.ExitTestMode()
+    end)
+
+    Assert.Equal(state.stopAllActiveSoundsCalls, 1, "test-mode exit must stop all active preview sounds")
   end)
 
   test("Factory test mode shows portal navigator demo with matching header texts", function()

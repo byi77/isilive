@@ -7,6 +7,7 @@ addonTable.SoundUtils = SoundUtils
 
 local SPAM_WINDOW = 1.0 -- seconds: ignore duplicate sound within this window
 local lastPlayedAt = {} -- soundKey -> timestamp
+local activeSoundHandles = {} -- handle -> true
 local DEFAULT_SOUND_CHANNEL = "Master"
 local OUTPUT_CHANNELS = { Master = true, SFX = true }
 
@@ -799,6 +800,12 @@ local function BuildSoundKey(soundFile, channel, spamScope)
   return tostring(soundFile) .. "\31" .. tostring(channel or DEFAULT_SOUND_CHANNEL)
 end
 
+local function TrackSoundHandle(handle)
+  if handle ~= nil then
+    activeSoundHandles[handle] = true
+  end
+end
+
 function SoundUtils.GetEntry(key)
   if type(key) ~= "string" or key == "" then
     return nil
@@ -855,10 +862,11 @@ function SoundUtils.Play(soundFile, channel, spamScope)
   if type(playSoundFile) ~= "function" then
     return false
   end
-  local ok, accepted = pcall(playSoundFile, soundFile, resolvedChannel)
+  local ok, accepted, handle = pcall(playSoundFile, soundFile, resolvedChannel)
   if not ok or accepted == false then
     return false
   end
+  TrackSoundHandle(handle)
   lastPlayedAt[soundKey] = now
   return true
 end
@@ -891,12 +899,28 @@ function SoundUtils.PlaySoundKit(soundKit, channel)
   if type(playSound) ~= "function" then
     return false
   end
-  local ok, accepted = pcall(playSound, resolvedKit, resolvedChannel)
+  local ok, accepted, handle = pcall(playSound, resolvedKit, resolvedChannel)
   if not ok or accepted == false then
     return false
   end
+  TrackSoundHandle(handle)
   lastPlayedAt[soundKey] = now
   return true
+end
+
+function SoundUtils.StopAllActiveSounds()
+  local stopSound = rawget(_G, "StopSound")
+  if type(stopSound) == "function" then
+    for handle in pairs(activeSoundHandles) do
+      pcall(stopSound, handle)
+    end
+  end
+  activeSoundHandles = {}
+  local voiceChat = rawget(_G, "C_VoiceChat")
+  local stopSpeakingText = type(voiceChat) == "table" and voiceChat.StopSpeakingText or nil
+  if type(stopSpeakingText) == "function" then
+    pcall(stopSpeakingText)
+  end
 end
 
 -- Whether spoken text-to-speech announcements are enabled. Default off:

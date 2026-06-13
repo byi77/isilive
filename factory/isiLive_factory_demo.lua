@@ -563,6 +563,10 @@ end
 
 local function ClearDemoFeatureData(ctx)
   ctx._demoFeatureActive = false
+  local soundUtils = ctx.addonTable and ctx.addonTable.SoundUtils
+  if type(soundUtils) == "table" and type(soundUtils.StopAllActiveSounds) == "function" then
+    soundUtils.StopAllActiveSounds()
+  end
   if type(ctx.HideSimulationTablet) == "function" then
     ctx.HideSimulationTablet()
   end
@@ -709,6 +713,19 @@ local function BuildSimulationTabletActions(ctx)
       run = function()
         ShowDemoNonMythicDungeonNotice(ctx, L())
         return done("SIM_ACTION_A4_DONE")
+      end,
+    },
+    {
+      id = "A5",
+      status = "green",
+      title = "Incoming summon sound",
+      description = "Plays the local incoming-summon preview sound only; no summon event is faked.",
+      run = function()
+        local soundUtils = ctx.addonTable and ctx.addonTable.SoundUtils
+        if type(soundUtils) == "table" and type(soundUtils.PlayIncomingSummon) == "function" then
+          soundUtils.PlayIncomingSummon()
+        end
+        return done("SIM_ACTION_A5_DONE")
       end,
     },
     {

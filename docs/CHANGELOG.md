@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-06-13 - Version 0.9.315 (patch)
+
+- Demo mode exit now stops active preview sound handles and active TTS playback
+  immediately via the shared sound registry stop helper.
+- Added a dedicated local incoming-summon sound button to the demo simulation
+  tablet and strengthened deterministic coverage for the group-full, tank-dead,
+  healer-dead, incoming-summon, and cleanup paths.
+- The validator baseline is now `2049` scenarios.
+- Bumped the TOC and documentation baselines to `0.9.315`.
+
 ## 2026-06-13 - Version 0.9.314 (patch)
 
 - Fixed the demo simulation tablet hover tooltips mutating the hovered button
