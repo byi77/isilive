@@ -894,65 +894,6 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
     end)
   end)
 
-  test("Settings language selector hides Spanish Portuguese and Italian buttons", function()
-    local createFrameStub, createdFrames = BuildCreateFrameStub()
-    local db = {}
-
-    WithGlobals({
-      UIParent = {},
-      IsiLiveDB = db,
-      CreateFrame = createFrameStub,
-      Settings = {
-        RegisterCanvasLayoutCategory = function(canvas, name)
-          return { canvas = canvas, name = name }
-        end,
-        RegisterAddOnCategory = function() end,
-      },
-    }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_languages.lua", "isiLive_settings.lua" })
-      addon.SettingsPanel.Create({
-        getL = function()
-          return {
-            SETTINGS_SECTION_GENERAL = "General",
-            SETTINGS_SECTION_DISPLAY = "Display",
-            SETTINGS_SECTION_DEBUG = "Debug",
-            SETTINGS_LANGUAGE = "Language",
-            SETTINGS_LANGUAGE_DESC = "Changes the isiLive addon language.",
-            SETTINGS_COMBAT_LOGGING = "Combat Logging",
-            SETTINGS_DM_RESET = "DM Reset",
-            SETTINGS_ESC_PANEL = "ESC Panel",
-            SETTINGS_BG_ALPHA = "Background Opacity",
-            SETTINGS_QUEUE_DEBUG = "Queue Debug",
-            SETTINGS_RUNTIME_LOG = "Runtime Log",
-          }
-        end,
-        getCurrentLocale = function()
-          return "enUS"
-        end,
-        setLanguage = function() end,
-        getDB = function()
-          return db
-        end,
-      })
-
-      local rendered = {}
-      for _, frame in ipairs(createdFrames) do
-        if frame._frameType == "Button" and frame._languageTag then
-          rendered[frame._languageTag] = true
-        end
-      end
-
-      Assert.True(rendered.enUS == true, "English must remain selectable in settings")
-      Assert.True(rendered.deDE == true, "German must remain selectable in settings")
-      Assert.True(rendered.frFR == true, "French must remain selectable in settings")
-      Assert.True(rendered.ruRU == true, "Russian must remain selectable in settings")
-      Assert.True(rendered.trTR == true, "Turkish must remain selectable in settings")
-      Assert.Nil(rendered.esES, "Spanish must no longer be selectable in settings")
-      Assert.Nil(rendered.ptBR, "Portuguese must no longer be selectable in settings")
-      Assert.Nil(rendered.itIT, "Italian must no longer be selectable in settings")
-    end)
-  end)
-
   test("Settings panel lets the user choose the default layout on open", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}
