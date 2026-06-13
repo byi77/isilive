@@ -488,7 +488,7 @@ local function ApplyPosition(frame, nameplate)
     return
   end
   frame._isiLiveAnchorSource = anchorSource
-  if type(frame.SetParent) == "function" then
+  if frame._isiLiveSettingsPreviewOverlay ~= true and type(frame.SetParent) == "function" then
     local uiParent = rawget(_G, "UIParent")
     if type(uiParent) == "table" then
       pcall(frame.SetParent, frame, uiParent)

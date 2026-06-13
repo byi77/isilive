@@ -3,7 +3,7 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.315`.
+Current release: `0.9.316`.
 
 Highlights:
 - New movable demo simulation tablet: `/isilive testall` opens it automatically

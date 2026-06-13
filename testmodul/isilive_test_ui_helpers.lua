@@ -200,6 +200,12 @@ local function ApplyFrameMethods(frame)
     local p = self._point
     return p[1], p[2], p[3], p[4], p[5]
   end
+  frame.SetParent = function(self, parent)
+    self._parent = parent
+  end
+  frame.GetParent = function(self)
+    return self._parent
+  end
   frame.ClearAllPoints = function(self)
     if self._simulateProtectedFrames and self._isProtected and self._isInCombat() then
       error("ADDON_ACTION_BLOCKED: protected frame point clear blocked in combat")

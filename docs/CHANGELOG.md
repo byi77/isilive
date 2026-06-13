@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-06-13 - Version 0.9.316 (patch)
+
+- Removed Spanish, Portuguese, and Italian from the Settings language selector
+  while keeping the prepared locale tables and realm-language flag handling
+  available for validation and display paths.
+- Shortened the German Settings default-layout `Last Used` button label to
+  `Zuletzt`.
+- Fixed the Settings nameplate preview so its overlay frame and text stay
+  parented inside the Settings panel instead of being reparented to `UIParent`.
+- Added deterministic Settings coverage for the reduced language selector.
+- The validator baseline is now `2050` scenarios.
+- Bumped the TOC and documentation baselines to `0.9.316`.
+
 ## 2026-06-13 - Version 0.9.315 (patch)
 
 - Demo mode exit now stops active preview sound handles and active TTS playback

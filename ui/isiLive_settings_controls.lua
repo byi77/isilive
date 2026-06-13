@@ -518,7 +518,7 @@ function SettingsControls.CreateLanguageSelector(
   local bgSec = Colors.BG_SECONDARY or { 0.12, 0.12, 0.18, 0.7 }
   local acBlue = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
 
-  local supported = addonTable.Languages and addonTable.Languages.SUPPORTED or {}
+  local supported = addonTable.Languages and addonTable.Languages.SETTINGS_SUPPORTED or {}
   local buttons = {}
   local rowIndex = 0
   local labelBlockHeight = GetTextBlockHeight(label, 20)

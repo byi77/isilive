@@ -250,6 +250,15 @@ local function RegisterSettingsPanelNameplateRoundtripTests(test, Assert, WithGl
       Assert.Equal(overlayFrame._point[3], "RIGHT", "RIGHT preview must anchor to the preview plate edge")
       Assert.Equal(overlayFrame._point[4], 8, "zero X offset must apply the runtime anchor gap")
       Assert.Equal(overlayFrame._point[5], 0, "zero Y offset must keep the preview vertically centered")
+      Assert.Equal(overlayFrame:GetParent(), panel.content, "settings preview overlay must remain inside the panel")
+      Assert.True(
+        overlayFrame:GetParent() ~= _G.UIParent,
+        "settings preview overlay must not be reparented to UIParent"
+      )
+      Assert.True(
+        overlayFrame._fontStrings and overlayFrame._fontStrings[1] == overlayFrame.text,
+        "settings preview text must be owned by the overlay frame"
+      )
       Assert.Equal(overlayFrame.text._justifyH, "LEFT", "preview text justification must match runtime")
 
       overlayFrame.text:Hide()

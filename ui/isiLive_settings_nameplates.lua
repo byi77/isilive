@@ -418,11 +418,12 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
     preview.name:SetTextColor(1, 1, 1, 1)
   end
 
-  preview.overlay = previewHealthBar:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
+  local previewOverlayFrame = CreateFrame("Frame", nil, canvas)
+  previewOverlayFrame._isiLiveSettingsPreviewOverlay = true
+  preview.overlay = previewOverlayFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
   if type(preview.overlay.SetTextColor) == "function" then
     preview.overlay:SetTextColor(1, 1, 1, 1)
   end
-  local previewOverlayFrame = CreateFrame("Frame", nil, canvas)
   previewOverlayFrame.text = preview.overlay
   preview.overlay:SetPoint("CENTER", previewOverlayFrame, "CENTER", 0, 0)
   controls.nameplatePreviewOverlayFrame = previewOverlayFrame
