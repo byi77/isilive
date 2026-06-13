@@ -14,7 +14,7 @@
   hint; simulator buttons never send real chat posts or group actions.
 - Added deterministic coverage for the tablet UI, `/isilive sim`, and the
   `testall` show / exit hide contract. Updated rule 57 and the demo usecase;
-  the validator baseline is now `2045` scenarios.
+  the validator baseline is now `2047` scenarios.
 - Bumped the TOC and documentation baselines to `0.9.313`.
 
 ## 2026-06-13 - Version 0.9.312 (patch)

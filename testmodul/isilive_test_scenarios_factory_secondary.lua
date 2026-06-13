@@ -502,6 +502,8 @@ local function BuildControllerContext(state, addon, initial)
     end,
     TriggerShareKeysCooldown = function(seconds)
       state.shareKeysCooldownSeconds = seconds
+      state.shareKeysCooldownHistory = state.shareKeysCooldownHistory or {}
+      table.insert(state.shareKeysCooldownHistory, seconds)
     end,
     ClearShareKeysCooldown = function()
       state.shareKeysCooldownCleared = (state.shareKeysCooldownCleared or 0) + 1
@@ -598,6 +600,8 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
           state.mobNameplateTestMode = enabled
           state.mobNameplateTestPercent = percent
           state.mobNameplateTestOpts = opts
+          state.mobNameplateTestModeHistory = state.mobNameplateTestModeHistory or {}
+          table.insert(state.mobNameplateTestModeHistory, enabled)
         end,
         RefreshAll = function()
           state.mobNameplateRefreshes = (state.mobNameplateRefreshes or 0) + 1
@@ -619,6 +623,8 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
       StatsBox = {
         SetDemoData = function(data)
           state.statsBoxDemoData = data
+          state.statsBoxDemoHistory = state.statsBoxDemoHistory or {}
+          table.insert(state.statsBoxDemoHistory, data)
         end,
         ClearDemoData = function()
           state.statsBoxDemoData = nil
@@ -656,12 +662,31 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
           return true
         end,
       },
+      SimulationTablet = {
+        CreateController = function(opts)
+          state.simulationTabletOpts = opts
+          return {
+            Show = function()
+              state.simulationTabletControllerShown = true
+              state.simulationTabletControllerShowCalls = (state.simulationTabletControllerShowCalls or 0) + 1
+            end,
+            Hide = function()
+              state.simulationTabletControllerShown = false
+              state.simulationTabletControllerHideCalls = (state.simulationTabletControllerHideCalls or 0) + 1
+            end,
+            Toggle = function()
+              state.simulationTabletControllerToggles = (state.simulationTabletControllerToggles or 0) + 1
+            end,
+          }
+        end,
+      },
     })
 
     local ctx = BuildControllerContext(state, addon, initial)
 
     addon._FactoryInternal.InitializeFactorySecondaryControllers(ctx)
     state.ctx = ctx
+    state.addon = addon
   end)
 
   return state
@@ -833,6 +858,53 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       Assert.NotNil(state.demoCenterNotices, "accepted/group target center notices must still be previewed")
       Assert.Equal(#state.demoCenterNotices, 2, "center notice demos remain available after removing invite hint")
     end)
+  end)
+
+  test("Factory demo simulation tablet builds safe actions and runs preview hooks", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules)
+
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.addon._FactoryInternal.FactoryDemo.InitializeSimulationTablet(state.ctx)
+      Assert.NotNil(state.simulationTabletOpts, "simulation tablet must be initialized through the demo factory")
+      local actions = state.simulationTabletOpts.getActions()
+      Assert.Equal(#actions, 21, "simulation tablet must expose the full action palette")
+      Assert.Nil(actions[1].run, "removed pre-accept invite simulation must stay a visible no-op")
+
+      for index = 2, #actions do
+        Assert.True(type(actions[index].run) == "function", "action " .. actions[index].id .. " must be executable")
+        actions[index].run()
+      end
+      if state.afterCallbacks and state.afterCallbacks[1] then
+        state.afterCallbacks[1]()
+      end
+    end)
+
+    Assert.True(state.simulationTabletControllerShowCalls >= 1, "full feature preview must show the tablet")
+    Assert.NotNil(state.centerNoticeHistory, "notice simulations must render center notices")
+    Assert.True(#state.centerNoticeHistory >= 3, "multiple notice simulations must be covered")
+    Assert.Equal(
+      state.shareKeysCooldownHistory[#state.shareKeysCooldownHistory],
+      30,
+      "share-keys cooldown action must use the simulator lock"
+    )
+    Assert.Equal(state.shareKeysCooldownCleared, 2, "share-keys cleanup must run from D2 and F3")
+    Assert.Equal(state.mplusDemoCleared, 1, "cleanup action must clear M+ timer demo data")
+    Assert.Equal(state.killTrackDemoCleared, 1, "cleanup action must clear kill-track demo data")
+    Assert.NotNil(state.portalNavigatorLayout, "portal action must show the portal navigator")
+    local nameplateWasEnabled = false
+    for _, enabled in ipairs(state.mobNameplateTestModeHistory or {}) do
+      if enabled == true then
+        nameplateWasEnabled = true
+      end
+    end
+    Assert.True(nameplateWasEnabled, "nameplate forces action must enable test mode")
+    Assert.True(state.lfgFlagsEnabled == true, "LFG action must enable language flags")
+    Assert.True(state.lfgGroupBonusesEnabled == true, "LFG action must enable bonus markers")
+    Assert.NotNil(state.statsBoxDemoHistory, "stats action must populate stats-box data")
+    Assert.Equal(state.statsBoxDemoCleared, 1, "cleanup action must clear stats-box demo data")
+    Assert.True(#state.deathAlertPreviews >= 5, "death alert actions must call preview hooks")
+    Assert.True(state.readyCheckCompleteSoundCalls >= 2, "sound action must play ready-check preview")
+    Assert.True(#state.ttsPreviews >= 2, "sound action must speak TTS preview")
   end)
 
   test("Factory test mode shows portal navigator demo with matching header texts", function()

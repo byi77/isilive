@@ -166,4 +166,70 @@ return function(test, ctx)
     Assert.Equal(actionRuns, 1, "executable button must run its action")
     Assert.True(#createdFrames >= 3, "tablet and buttons must be created")
   end)
+
+  test("Simulation tablet toggles, hides stale buttons, and handles tooltip paths", function()
+    local tooltipLines = {}
+    local controller = nil
+
+    WithGlobals({
+      UIParent = MakeFrameStub(),
+      GameTooltip = {
+        SetOwner = function() end,
+        AddLine = function(_, text)
+          table.insert(tooltipLines, text)
+        end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      CreateFrame = function()
+        return MakeFrameStub()
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_simulation_tablet.lua" }, {
+        UICommon = {
+          ApplyBackdrop = function()
+            return true
+          end,
+        },
+      })
+      controller = addon.SimulationTablet.CreateController({
+        getL = function()
+          return {
+            SIM_TABLET_TITLE = "Demo simulator",
+            SIM_TABLET_READY = "Ready",
+            SIM_STATUS_GREEN = "Green",
+            SIM_ACTION_BLOCKED = "Blocked",
+            SIM_ACTION_FAILED = "Failed",
+          }
+        end,
+      })
+      controller.SetActions({
+        { id = "A1", status = "green", title = "Tooltip title", description = "Tooltip body" },
+        { id = "A2", status = "yellow", title = "Second", description = "Second body" },
+      })
+      controller.SetActions({ { id = "B1", status = "green", title = "Reduced", description = "Reduced body" } })
+    end)
+
+    Assert.True(controller ~= nil, "controller must be created without UICommon close button")
+    Assert.True(controller.buttons[2]._shown == false, "stale buttons must be hidden after action shrink")
+    controller.Toggle()
+    Assert.True(controller.IsShown(), "toggle must show a hidden tablet")
+    local previousTooltip = rawget(_G, "GameTooltip")
+    _G.GameTooltip = {
+      SetOwner = function() end,
+      AddLine = function(_, text)
+        table.insert(tooltipLines, text)
+      end,
+      Show = function() end,
+      Hide = function() end,
+    }
+    controller.buttons[1]._scripts.OnEnter(controller.buttons[1])
+    _G.GameTooltip = previousTooltip
+    Assert.Equal(tooltipLines[1], "Reduced", "tooltip must render action title")
+    controller.buttons[1]._scripts.OnLeave(controller.buttons[1])
+    controller.Toggle()
+    Assert.False(controller.IsShown(), "toggle must hide a visible tablet")
+    controller.SetActions(nil)
+    Assert.Equal(#controller.actions, 0, "invalid action table must clear actions")
+  end)
 end

@@ -817,7 +817,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Zusammenfassung: Der Ingame-Testmodus muss beim Aktivieren die Demo-Daten fuer M+-Timer, Combat-CDs, den unteren M+-Forces-Tracker, Statsbox, Portal-Navigator, Centerbox-Portal, Non-Mythic-Dungeon-Entry-Centerbox, M+-Forces-Nameplates/-Tooltip, LFG-Bonusmarker, Ready-Check-Hold-Zeilen, Share-Keys-Cooldown, Death-Alert-Preview, Sound-/TTS-Preview und das verschiebbare Demo-Simulations-Tablet setzen, beim Deaktivieren wieder loeschen und im Dummy-Roster Multi-Kick-Extras fuer den Tooltip-Preview bereitstellen. Das Tablet muss auch ueber `/isilive sim` umschaltbar sein, darf nur lokale Vorschau-Hooks ausfuehren, muss nicht mehr vorhandene oder regelblockierte Pre-Accept-Invite-Simulationen sichtbar rot blockieren und darf keine echten Chatposts oder Gruppenaktionen senden. Demo-Feature-Schalter duerfen nur temporaer fuer die Vorschau gesetzt werden und muessen die vorherigen User-Settings danach wiederherstellen. Die Nameplate-Demo darf die Nutzer-Settings fuer Prozentformat, Position, Schriftgroesse und Offsets nicht ueberschreiben. Wenn die Centerbox einen verifizierten mapID-Kontext und einen Activity-Kontext erhaelt, muss der Portalbutton den mapID-Kontext priorisieren. Die Centerbox-Portal- und Non-Mythic-Dungeon-Entry-Demos muessen im Demomodus parallel sichtbar sein und duerfen sich nicht gegenseitig verdraengen.
 - Erforderliche Tests:
   - Factory test mode populates timer, cooldown and kill-track demo data
+  - Factory demo simulation tablet builds safe actions and runs preview hooks
   - Simulation tablet renders actions and runs only executable buttons
+  - Simulation tablet toggles, hides stale buttons, and handles tooltip paths
   - Commands sim toggles the simulation tablet
   - Factory test mode shows portal navigator demo with matching header texts
   - MobNameplate.SetTestMode can render remaining percent from explicit demo map context
