@@ -2502,6 +2502,140 @@ RegisterShareKeysRemoteCooldownTests = function()
       Assert.Equal(shareKeyRequests, 1, "share-keys should become usable again once the cooldown expires")
     end)
   end)
+
+  test("Roster panel share keys cooldown text survives localization and layout refresh", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local currentTime = 200
+    local roster = {
+      player = { name = "Self", role = "DAMAGER", keyMapID = 2441, keyLevel = 10 },
+    }
+
+    WithGlobals({
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+      C_ChatInfo = { SendChatMessage = function() end },
+      print = function() end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster_layout.lua",
+        "isiLive_roster_panel_chrome.lua",
+        "isiLive_roster_panel.lua",
+      })
+      local controller = addon.RosterPanel.CreateController({
+        mainFrame = NewRecordedMainFrame(createdFontStrings),
+        getL = function()
+          return {
+            TITLE = "isiLive",
+            BTN_READYCHECK = "Readycheck",
+            BTN_COUNTDOWN10 = "Countdown10",
+            BTN_COUNTDOWN_CANCEL = "Countdown 0",
+            BTN_REFRESH = "Re-Sync",
+            BTN_SHARE_KEYS = "Share Keys",
+          }
+        end,
+        isPlayerLeader = function()
+          return true
+        end,
+        getAddonVersionText = function()
+          return ""
+        end,
+        updateStatusLine = function() end,
+        setMainFrameHeightSafe = function() end,
+        setMainFrameWidthSafe = function() end,
+        buildOrderedRoster = function(currentRoster)
+          return { { unit = "player", info = currentRoster.player } }
+        end,
+        buildDisplayData = function()
+          return {
+            colorHex = "ffffffff",
+            displayName = "Self",
+            languageDisplay = "EN",
+            specText = "",
+            ilvlText = "",
+            rioText = "",
+            keyText = "DB +10",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+            roleIconMarkup = "",
+          }
+        end,
+        truncateName = function(text)
+          return text
+        end,
+        getShortSpecLabel = function(text)
+          return text
+        end,
+        getLanguageFlagMarkup = function()
+          return ""
+        end,
+        getDungeonShortCode = function()
+          return "DB"
+        end,
+        resolveActiveKeyOwnerUnit = function()
+          return nil
+        end,
+        getRoster = function()
+          return roster
+        end,
+        isInGroup = function()
+          return true
+        end,
+        rolePriority = { DAMAGER = 1, NONE = 2 },
+        unitPriority = { player = 1 },
+        getTime = function()
+          return currentTime
+        end,
+        shareKeysDebounceSeconds = 30,
+        sendShareKeysRequest = function()
+          return true
+        end,
+      })
+
+      controller.ApplyLocalization()
+      controller.RenderRoster(roster)
+
+      local shareKeysButton = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame.pointY == -150 then
+          shareKeysButton = frame
+          break
+        end
+      end
+      shareKeysButton = Assert.NotNil(shareKeysButton, "share-keys button should exist")
+
+      controller.TriggerShareKeysCooldown()
+      Assert.Equal(
+        shareKeysButton._flatLabel.text,
+        "Share Keys (30s)",
+        "started share-keys cooldown must show the remaining time"
+      )
+
+      currentTime = 207
+      controller.ApplyLocalization()
+      Assert.Equal(
+        shareKeysButton._flatLabel.text,
+        "Share Keys (23s)",
+        "localization refresh must not replace the cooldown label with the base label"
+      )
+
+      controller.RefreshLayoutState()
+      Assert.Equal(
+        shareKeysButton._flatLabel.text,
+        "Share Keys (23s)",
+        "layout refresh must not replace the cooldown label with the base label"
+      )
+    end)
+  end)
 end
 
 return function(test_arg, ctx)

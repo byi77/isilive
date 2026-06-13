@@ -509,6 +509,14 @@ local function SetFlatButtonText(btn, text)
 end
 RI.SetFlatButtonText = SetFlatButtonText
 
+local function RefreshButtonDisplayText(btn, text)
+  if type(btn) == "table" and type(btn.RefreshDisplayText) == "function" then
+    btn.RefreshDisplayText()
+    return
+  end
+  SetFlatButtonText(btn, text)
+end
+
 local function GetHorizontalHelperButtonX(markerIndex)
   local helperRowWidth = (8 * MINI_HORIZONTAL_HELPER_BUTTON_SIZE) + (7 * MINI_HORIZONTAL_HELPER_GAP)
   local leftInset = math.floor((MINI_HORIZONTAL_FRAME_WIDTH - helperRowWidth) / 2)
@@ -671,7 +679,7 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
     for _, btn in ipairs(ui.toolbarButtons or {}) do
       SetFrameSizeSafe(btn, M2_TOOLBAR_BUTTON_WIDTH, M2_TOOLBAR_BUTTON_HEIGHT)
       if btn and btn._fullText then
-        SetFlatButtonText(btn, btn._fullText)
+        RefreshButtonDisplayText(btn, btn._fullText)
       end
     end
   else
@@ -680,12 +688,12 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
         if isHorizontal then
           SetFrameSizeSafe(btn, MINI_HORIZONTAL_MANAGEMENT_BTN_WIDTH, MINI_HORIZONTAL_MANAGEMENT_BTN_HEIGHT)
           if btn._hModeText then
-            SetFlatButtonText(btn, btn._hModeText)
+            RefreshButtonDisplayText(btn, btn._hModeText)
           end
         else
           SetFrameSizeSafe(btn, 120, 24)
           if btn._fullText then
-            SetFlatButtonText(btn, btn._fullText)
+            RefreshButtonDisplayText(btn, btn._fullText)
           end
         end
       end
@@ -695,7 +703,7 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
       if btn then
         SetFrameSizeSafe(btn, 120, 24)
         if btn._fullText then
-          SetFlatButtonText(btn, btn._fullText)
+          RefreshButtonDisplayText(btn, btn._fullText)
         end
       end
     end

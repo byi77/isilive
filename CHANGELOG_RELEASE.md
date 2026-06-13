@@ -3,9 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.311`.
+Current release: `0.9.312`.
 
 Highlights:
+- Fixed the Share Keys button cooldown label flickering between the timer and
+  the plain button text during UI refreshes.
 - Expanded demo mode: the full preview now also shows ready-check hold row
   colors, a mirrored Share Keys cooldown, death-alert/TTS previews, and the
   ready-check-complete sound, then clears those preview states on exit.

@@ -167,7 +167,7 @@ Only enabled when you are the leader:
 
 ### Share Keys
 
-Posts everyone's keystone in group chat — yours first, then other isiLive users reply with their own. The button has a 30-second cooldown after a real local share or successful peer request; receiving clients also lock their button for 30 seconds whenever a valid peer request arrives, even if they have no key to post.
+Posts everyone's keystone in group chat — yours first, then other isiLive users reply with their own. The button has a 30-second cooldown after a real local share or successful peer request and keeps the remaining seconds visible during that lock; receiving clients also lock their button for 30 seconds whenever a valid peer request arrives, even if they have no key to post.
 
 ### Re-Sync
 

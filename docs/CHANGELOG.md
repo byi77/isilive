@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-06-13 - Version 0.9.312 (patch)
+
+- Fixed the Share Keys button flickering between its cooldown label and the
+  plain button label while a lock is active. Localization and layout refreshes
+  now re-render the active cooldown text instead of overwriting it.
+- Added deterministic coverage for the cooldown label surviving localization
+  and layout refreshes, and mapped it to the Share Keys spam-protection rule.
+- Bumped the TOC and documentation baselines to `0.9.312`.
+
 ## 2026-06-13 - Version 0.9.311 (patch)
 
 - Expanded demo mode so the full preview also exercises the recent sound and

@@ -230,14 +230,9 @@ local function CreateShareKeysButton(mainFrame, deps)
 
     if cooldownActive then
       local remaining = math.max(1, math.ceil((cooldownEndAt or 0) - now))
-      local label = button._baseText or button._fullText or ""
-      button._baseText = label
+      local label = button._fullText or ""
       SetFlatButtonText(button, string.format("%s (%ds)", label, remaining))
     else
-      if button._baseText then
-        button._fullText = button._baseText
-        button._baseText = nil
-      end
       SetFlatButtonText(button, button._fullText or "")
     end
 
@@ -332,6 +327,10 @@ local function CreateShareKeysButton(mainFrame, deps)
 
   function button.SetShareKeysAvailable(isAvailable)
     shareKeysAvailable = isAvailable == true
+    RefreshShareKeysButton()
+  end
+
+  function button.RefreshDisplayText()
     RefreshShareKeysButton()
   end
 
@@ -862,7 +861,11 @@ function RosterPanel.CreateController(opts)
       isH and countdownCancelButton._hModeText or countdownCancelButton._fullText
     )
     SetFlatButtonText(refreshButton, refreshButton._fullText)
-    SetFlatButtonText(shareKeysButton, shareKeysButton._fullText)
+    if type(shareKeysButton.RefreshDisplayText) == "function" then
+      shareKeysButton.RefreshDisplayText()
+    else
+      SetFlatButtonText(shareKeysButton, shareKeysButton._fullText)
+    end
     ApplyLocaleFont(ui.advancedCombatLoggingToggle.label)
     ApplyLocaleFont(ui.damageMeterResetToggle.label)
     ui.advancedCombatLoggingToggle.label:SetText(L.OPT_ADVANCED_COMBAT_LOGGING)
