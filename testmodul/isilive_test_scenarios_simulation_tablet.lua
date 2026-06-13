@@ -1,0 +1,169 @@
+---@diagnostic disable: undefined-global
+
+local function MakeFontStringStub()
+  local fs = { _text = "" }
+  function fs:SetText(text)
+    self._text = tostring(text or "")
+  end
+  function fs:GetText()
+    return self._text
+  end
+  function fs:SetPoint() end
+  function fs:SetJustifyH() end
+  function fs:SetWidth() end
+  function fs:SetTextColor() end
+  function fs:Show() end
+  function fs:Hide() end
+  return fs
+end
+
+local function MakeTextureStub()
+  local texture = {}
+  function texture:SetSize(w, h)
+    self._size = { w, h }
+  end
+  function texture:SetPoint(...)
+    self._point = { ... }
+  end
+  function texture:SetColorTexture(r, g, b, a)
+    self._color = { r, g, b, a }
+  end
+  function texture:Show() end
+  function texture:Hide() end
+  return texture
+end
+
+local function MakeFrameStub()
+  local frame = { _shown = false, _scripts = {}, _children = {} }
+  function frame:SetSize(w, h)
+    self._size = { w, h }
+  end
+  function frame:SetPoint(...)
+    self._point = { ... }
+  end
+  function frame:SetFrameStrata(strata)
+    self._strata = strata
+  end
+  function frame:SetFrameLevel(level)
+    self._level = level
+  end
+  function frame:SetMovable(movable)
+    self._movable = movable
+  end
+  function frame:EnableMouse(enabled)
+    self._mouse = enabled
+  end
+  function frame:RegisterForDrag(button)
+    self._dragButton = button
+  end
+  function frame:SetClampedToScreen(clamped)
+    self._clamped = clamped
+  end
+  function frame:SetClampRectInsets() end
+  function frame:SetBackdrop(backdrop)
+    self._backdrop = backdrop
+  end
+  function frame:SetBackdropColor(r, g, b, a)
+    self._backdropColor = { r, g, b, a }
+  end
+  function frame:SetScript(script, fn)
+    self._scripts[script] = fn
+  end
+  function frame:CreateFontString()
+    local fs = MakeFontStringStub()
+    table.insert(self._children, fs)
+    return fs
+  end
+  function frame:CreateTexture()
+    local texture = MakeTextureStub()
+    table.insert(self._children, texture)
+    return texture
+  end
+  function frame:Show()
+    self._shown = true
+  end
+  function frame:Hide()
+    self._shown = false
+  end
+  function frame:IsShown()
+    return self._shown == true
+  end
+  function frame:StartMoving()
+    self._moving = true
+  end
+  function frame:StopMovingOrSizing()
+    self._moving = false
+  end
+  return frame
+end
+
+return function(test, ctx)
+  local Assert = ctx.assert
+  local WithGlobals = ctx.with_globals
+  local LoadAddonModules = ctx.load_modules
+
+  test("Simulation tablet renders actions and runs only executable buttons", function()
+    local createdFrames = {}
+    local actionRuns = 0
+    local controller = nil
+
+    WithGlobals({
+      UIParent = MakeFrameStub(),
+      CreateFrame = function(_frameType, _name, _parent, _template)
+        local frame = MakeFrameStub()
+        table.insert(createdFrames, frame)
+        return frame
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_simulation_tablet.lua" }, {
+        UICommon = {
+          ApplyBackdrop = function(frame)
+            frame._backdropApplied = true
+            return true
+          end,
+          CreateRedCloseButton = function(parent, _opts)
+            local button = MakeFrameStub()
+            button._parent = parent
+            return button
+          end,
+        },
+      })
+      controller = addon.SimulationTablet.CreateController({
+        getL = function()
+          return {
+            SIM_TABLET_TITLE = "Demo simulator",
+            SIM_TABLET_READY = "Ready",
+            SIM_ACTION_BLOCKED = "Blocked",
+          }
+        end,
+      })
+      controller.SetActions({
+        { id = "A0", status = "red", title = "Blocked", description = "No-op" },
+        {
+          id = "A1",
+          status = "green",
+          title = "Run",
+          description = "Runs",
+          run = function()
+            actionRuns = actionRuns + 1
+            return "done"
+          end,
+        },
+      })
+    end)
+
+    Assert.True(controller ~= nil, "controller must be created")
+    Assert.True(controller.frame._shown == false, "tablet must start hidden")
+    Assert.True(controller.frame._clamped == true, "tablet frame must be clamped to screen")
+    controller.Show()
+    Assert.True(controller.frame._shown == true, "show must reveal tablet")
+    Assert.Equal(controller.buttons[1].label:GetText(), "A0", "first button must render its code")
+    Assert.Equal(controller.buttons[2].label:GetText(), "A1", "second button must render its code")
+    Assert.True(controller.buttons[1].statusDot._color[1] > 0.9, "red status dot must use red channel")
+    controller.buttons[1]._scripts.OnClick(controller.buttons[1])
+    Assert.Equal(actionRuns, 0, "blocked button must not run an action")
+    controller.buttons[2]._scripts.OnClick(controller.buttons[2])
+    Assert.Equal(actionRuns, 1, "executable button must run its action")
+    Assert.True(#createdFrames >= 3, "tablet and buttons must be created")
+  end)
+end

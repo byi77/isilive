@@ -14,6 +14,7 @@ local DEMO_FEATURE_NON_MYTHIC_DUNGEON_NAME = "Priorei der Heiligen Flamme"
 local DEMO_FEATURE_NON_MYTHIC_NOTICE_DELAY_SECONDS = 8
 local DEMO_FEATURE_READY_CHECK_HOLD_SECONDS = 20
 local DEMO_FEATURE_SHARE_KEYS_COOLDOWN_SECONDS = 18
+local SIMULATION_TABLET_SHARE_KEYS_COOLDOWN_SECONDS = 30
 local DEMO_FEATURE_PORTAL_NAVIGATOR_MAP_IDS = {
   left = 161,
   half_left = 556,
@@ -201,6 +202,21 @@ end
 local function ClearDemoShareKeysCooldown(ctx)
   if type(ctx.ClearShareKeysCooldown) == "function" then
     ctx.ClearShareKeysCooldown()
+  end
+end
+
+local function ApplyReadyCheckActivePreview(ctx)
+  if type(ctx.SetReadyCheckActive) == "function" then
+    ctx.SetReadyCheckActive(true)
+  end
+  if type(ctx.ClearAllReadyCheckReady) == "function" then
+    ctx.ClearAllReadyCheckReady()
+  end
+  if type(ctx.ClearAllReadyCheckDeclined) == "function" then
+    ctx.ClearAllReadyCheckDeclined()
+  end
+  if type(ctx.RefreshReadyCheckUI) == "function" then
+    ctx.RefreshReadyCheckUI()
   end
 end
 
@@ -400,6 +416,56 @@ local function ShowDemoNonMythicDungeonNotice(ctx, L)
   )
 end
 
+local function ShowSimulationGroupFullNotice(ctx, L)
+  if type(ctx.ShowCenterNotice) ~= "function" then
+    return
+  end
+
+  ctx.ShowCenterNotice(nil, 120, nil, nil, {
+    eyebrow = L.SIM_GROUP_FULL_EYEBROW or "LFG simulation",
+    title = L.SIM_GROUP_FULL_TITLE or "isiLive - Group is full",
+    fields = {
+      { label = L.SIM_NOTICE_LABEL_STATE or "State:", value = L.SIM_GROUP_FULL_VALUE or "Group full" },
+      {
+        label = L.SIM_NOTICE_LABEL_SOURCE or "Source:",
+        value = L.SIM_NOTICE_SOURCE_TABLET or "Simulation tablet",
+      },
+      {
+        label = L.SIM_NOTICE_LABEL_HINT or "Hint:",
+        value = L.SIM_GROUP_FULL_HINT or "No group action and no chat post were sent.",
+        warning = true,
+      },
+    },
+    frameWidth = 680,
+    persistent = true,
+  })
+end
+
+local function ShowSimulationJoinedTargetNotice(ctx, L)
+  if type(ctx.ShowCenterNotice) ~= "function" then
+    return
+  end
+
+  ctx.ShowCenterNotice(nil, 120, DEMO_FEATURE_TARGET_DUNGEON_NAME, nil, {
+    eyebrow = L.SIM_JOINED_TARGET_EYEBROW or "Group joined",
+    title = L.SIM_JOINED_TARGET_TITLE or "isiLive - Joined target group",
+    fields = {
+      { label = L.INVITE_ACCEPTED_NOTICE_LABEL_DUNGEON or "Dungeon:", value = "Nexus-Point Xenas +15" },
+      {
+        label = L.SIM_NOTICE_LABEL_SOURCE or "Source:",
+        value = L.SIM_NOTICE_SOURCE_TABLET or "Simulation tablet",
+      },
+      {
+        label = L.SIM_NOTICE_LABEL_HINT or "Hint:",
+        value = L.SIM_JOINED_TARGET_HINT or "Local center notice only; no real chat post was sent.",
+      },
+    },
+    teleportMapID = DEMO_FEATURE_TARGET_MAP_ID,
+    frameWidth = 680,
+    persistent = true,
+  })
+end
+
 local function ApplyDemoFeatureData(ctx)
   ctx._demoFeatureActive = true
   ApplyDemoFeatureDbOverrides(ctx)
@@ -428,6 +494,9 @@ local function ApplyDemoFeatureData(ctx)
     else
       ShowDemoNonMythicDungeonNotice(ctx, L)
     end
+  end
+  if type(ctx.ShowSimulationTablet) == "function" then
+    ctx.ShowSimulationTablet()
   end
 end
 
@@ -494,6 +563,9 @@ end
 
 local function ClearDemoFeatureData(ctx)
   ctx._demoFeatureActive = false
+  if type(ctx.HideSimulationTablet) == "function" then
+    ctx.HideSimulationTablet()
+  end
   if type(ctx.SetDemoCenterNoticesVisible) == "function" then
     ctx.SetDemoCenterNoticesVisible(false)
   end
@@ -583,7 +655,281 @@ local function ClearDemoTimerData(ctx)
   end
 end
 
+local function BuildSimulationTabletActions(ctx)
+  local function L()
+    return ctx.GetL and ctx.GetL() or {}
+  end
+  local function done(key)
+    local locale = L()
+    return locale[key] or locale.SIM_ACTION_DONE or "Simulation applied."
+  end
+
+  return {
+    {
+      id = "A0",
+      status = "red",
+      title = "Incoming group invite",
+      description = "Blocked: the pre-accept invite hint was intentionally removed by rule 73.",
+    },
+    {
+      id = "A1",
+      status = "green",
+      title = "Accepted invite notice",
+      description = "Shows the safe accepted-invite center notice for the demo dungeon.",
+      run = function()
+        ShowDemoAcceptedInviteNotice(ctx, L())
+        return done("SIM_ACTION_A1_DONE")
+      end,
+    },
+    {
+      id = "A2",
+      status = "yellow",
+      title = "Group is full",
+      description = "Shows a synthetic group-full notice without sending chat or group actions.",
+      run = function()
+        ShowSimulationGroupFullNotice(ctx, L())
+        return done("SIM_ACTION_A2_DONE")
+      end,
+    },
+    {
+      id = "A3",
+      status = "yellow",
+      title = "Joined target group",
+      description = "Shows a local joined-target notice using the verified demo dungeon.",
+      run = function()
+        ShowSimulationJoinedTargetNotice(ctx, L())
+        return done("SIM_ACTION_A3_DONE")
+      end,
+    },
+    {
+      id = "A4",
+      status = "green",
+      title = "Non-Mythic dungeon warning",
+      description = "Shows the non-Mythic dungeon center notice preview.",
+      run = function()
+        ShowDemoNonMythicDungeonNotice(ctx, L())
+        return done("SIM_ACTION_A4_DONE")
+      end,
+    },
+    {
+      id = "B1",
+      status = "green",
+      title = "Full feature preview",
+      description = "Re-applies all demo feature data: stats, flags, nameplates, alerts, cooldowns and notices.",
+      run = function()
+        ApplyDemoFeatureData(ctx)
+        return done("SIM_ACTION_B1_DONE")
+      end,
+    },
+    {
+      id = "B2",
+      status = "green",
+      title = "Ready-check active",
+      description = "Simulates an active ready-check waiting state in the roster UI.",
+      run = function()
+        ApplyReadyCheckActivePreview(ctx)
+        return done("SIM_ACTION_B2_DONE")
+      end,
+    },
+    {
+      id = "B3",
+      status = "green",
+      title = "Ready-check result hold",
+      description = "Simulates held ready and declined markers after a ready-check finishes.",
+      run = function()
+        ApplyDemoReadyCheckPreview(ctx)
+        return done("SIM_ACTION_B3_DONE")
+      end,
+    },
+    {
+      id = "B4",
+      status = "green",
+      title = "Clear ready-check",
+      description = "Clears active and held ready-check markers.",
+      run = function()
+        ClearDemoReadyCheckPreview(ctx)
+        return done("SIM_ACTION_B4_DONE")
+      end,
+    },
+    {
+      id = "C1",
+      status = "green",
+      title = "M+ timer and pull",
+      description = "Simulates the M+ timer, death time and kill-count pull row.",
+      run = function()
+        SetDemoTimerData(ctx, ctx._demoRuntimeState or {})
+        return done("SIM_ACTION_C1_DONE")
+      end,
+    },
+    {
+      id = "C2",
+      status = "green",
+      title = "Combat cooldown tracker",
+      description = "Simulates battle resurrection and lust cooldown tracker states.",
+      run = function()
+        if ctx.cdTrackerController and type(ctx.cdTrackerController.SetDemoData) == "function" then
+          ctx.cdTrackerController.SetDemoData({
+            bres = { charges = 0, maxCharges = 1, cooldownRemain = 112 },
+            lust = { remain = 23, icon = nil },
+          })
+        end
+        if ctx.rosterPanelController and type(ctx.rosterPanelController.RefreshCdTracker) == "function" then
+          ctx.rosterPanelController.RefreshCdTracker()
+        end
+        return done("SIM_ACTION_C2_DONE")
+      end,
+    },
+    {
+      id = "C3",
+      status = "green",
+      title = "Portal navigator",
+      description = "Shows the Timeways portal navigator preview with demo map slots.",
+      run = function()
+        ShowDemoPortalNavigator(ctx, L())
+        return done("SIM_ACTION_C3_DONE")
+      end,
+    },
+    {
+      id = "C4",
+      status = "green",
+      title = "Nameplate and tooltip forces",
+      description = "Enables the M+ mob forces tooltip/nameplate test values.",
+      run = function()
+        ApplyDemoMobForces(ctx)
+        return done("SIM_ACTION_C4_DONE")
+      end,
+    },
+    {
+      id = "D1",
+      status = "green",
+      title = "Share Keys cooldown",
+      description = "Starts the local Share Keys cooldown preview.",
+      run = function()
+        if type(ctx.TriggerShareKeysCooldown) == "function" then
+          ctx.TriggerShareKeysCooldown(SIMULATION_TABLET_SHARE_KEYS_COOLDOWN_SECONDS)
+        end
+        return done("SIM_ACTION_D1_DONE")
+      end,
+    },
+    {
+      id = "D2",
+      status = "green",
+      title = "Clear Share Keys cooldown",
+      description = "Clears the Share Keys cooldown preview.",
+      run = function()
+        ClearDemoShareKeysCooldown(ctx)
+        return done("SIM_ACTION_D2_DONE")
+      end,
+    },
+    {
+      id = "E1",
+      status = "green",
+      title = "Tank death alert",
+      description = "Shows the tank death alert preview.",
+      run = function()
+        if type(ctx.ShowRoleDeathAlert) == "function" then
+          ctx.ShowRoleDeathAlert("TANK", "party1")
+        end
+        return done("SIM_ACTION_E1_DONE")
+      end,
+    },
+    {
+      id = "E2",
+      status = "green",
+      title = "Healer death alert",
+      description = "Shows the healer death alert preview.",
+      run = function()
+        if type(ctx.ShowRoleDeathAlert) == "function" then
+          ctx.ShowRoleDeathAlert("HEALER", "party2")
+        end
+        return done("SIM_ACTION_E2_DONE")
+      end,
+    },
+    {
+      id = "E3",
+      status = "green",
+      title = "Sound and TTS preview",
+      description = "Runs the ready-check sound and text-to-speech preview hooks.",
+      run = function()
+        ApplyDemoAlertAndSoundPreview(ctx, L())
+        return done("SIM_ACTION_E3_DONE")
+      end,
+    },
+    {
+      id = "F1",
+      status = "green",
+      title = "Stats box preview",
+      description = "Populates the movable stats box with deterministic demo values.",
+      run = function()
+        ApplyDemoStatsBox(ctx)
+        return done("SIM_ACTION_F1_DONE")
+      end,
+    },
+    {
+      id = "F2",
+      status = "green",
+      title = "LFG flags and bonus markers",
+      description = "Enables LFG flags and class bonus marker previews.",
+      run = function()
+        ApplyDemoLfgFlags(ctx)
+        return done("SIM_ACTION_F2_DONE")
+      end,
+    },
+    {
+      id = "F3",
+      status = "green",
+      title = "Clear simulation state",
+      description = "Clears timer and feature preview state, then keeps the tablet open.",
+      run = function()
+        ClearDemoTimerData(ctx)
+        ClearDemoFeatureData(ctx)
+        if type(ctx.ShowSimulationTablet) == "function" then
+          ctx.ShowSimulationTablet()
+        end
+        return done("SIM_ACTION_F3_DONE")
+      end,
+    },
+  }
+end
+
+function FactoryDemo.InitializeSimulationTablet(ctx)
+  local module = ctx.addonTable and ctx.addonTable.SimulationTablet
+  if type(module) ~= "table" or type(module.CreateController) ~= "function" then
+    return
+  end
+
+  local controller = module.CreateController({
+    getL = ctx.GetL,
+    getActions = function()
+      if type(ctx._simulationTabletActions) ~= "table" then
+        ctx._simulationTabletActions = BuildSimulationTabletActions(ctx)
+      end
+      return ctx._simulationTabletActions
+    end,
+  })
+  ctx.simulationTabletController = controller
+
+  ctx.ShowSimulationTablet = function()
+    if controller and type(controller.Show) == "function" then
+      controller.Show()
+    end
+  end
+  ctx.HideSimulationTablet = function()
+    if controller and type(controller.Hide) == "function" then
+      controller.Hide()
+    end
+  end
+  ctx.ToggleSimulationTablet = function()
+    if controller and type(controller.Toggle) == "function" then
+      controller.Toggle()
+      return true
+    end
+    return false
+  end
+end
+
 function FactoryDemo.BuildTestModeControllerCallbacks(ctx, runtimeState)
+  ctx._demoRuntimeState = runtimeState
   return {
     setDemoTimerData = function()
       SetDemoTimerData(ctx, runtimeState)

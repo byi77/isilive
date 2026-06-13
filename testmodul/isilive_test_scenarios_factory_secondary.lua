@@ -300,6 +300,14 @@ local function BuildControllerContext(state, addon, initial)
         end,
       },
     },
+    ShowSimulationTablet = function()
+      state.simulationTabletShown = true
+      state.simulationTabletShowCalls = (state.simulationTabletShowCalls or 0) + 1
+    end,
+    HideSimulationTablet = function()
+      state.simulationTabletShown = false
+      state.simulationTabletHideCalls = (state.simulationTabletHideCalls or 0) + 1
+    end,
     runtimeState = {
       GetRuntimeFlags = function()
         return {
@@ -710,6 +718,8 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Equal(state.readyCheckDeclinedUntil.party2, 20, "demo mode must mark one party row declined")
     Assert.Equal(state.readyCheckRefreshes, 1, "demo mode must refresh ready-check row decoration")
     Assert.Equal(state.shareKeysCooldownSeconds, 18, "demo mode must show the mirrored share-keys cooldown state")
+    Assert.True(state.simulationTabletShown == true, "demo mode must show the simulation tablet")
+    Assert.Equal(state.simulationTabletShowCalls, 1, "demo mode must show the simulation tablet once")
     Assert.NotNil(state.deathAlertPreviews, "demo mode must preview death alerts")
     Assert.Equal(state.deathAlertPreviews[1].role, "TANK", "demo mode must show the tank death alert preview")
     Assert.Equal(state.deathAlertPreviews[2].role, "DAMAGER", "demo mode must exercise the TTS-only DPS death path")
@@ -808,6 +818,8 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Nil(state.shareKeysCooldownSeconds, "test mode exit must leave no demo share-keys cooldown")
     Assert.False(state.portalNavigatorVisible, "test mode exit must hide the portal navigator demo")
     Assert.False(state.demoCenterNoticesVisible, "test mode exit must hide the stacked demo center notices")
+    Assert.False(state.simulationTabletShown, "test mode exit must hide the simulation tablet")
+    Assert.Equal(state.simulationTabletHideCalls, 1, "test mode exit must hide the simulation tablet once")
   end)
 
   test("Factory test mode does not show removed pre-accept invite hint demo", function()

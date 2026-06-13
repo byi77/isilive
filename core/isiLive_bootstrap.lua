@@ -25,6 +25,10 @@ function Bootstrap.RegisterSlashCommands(opts)
   local triggerGroupRosterUpdate = RequireFunction(opts.triggerGroupRosterUpdate, "triggerGroupRosterUpdate")
   local toggleStandardTestMode = RequireFunction(opts.toggleStandardTestMode, "toggleStandardTestMode")
   local enterFullDummyPreview = RequireFunction(opts.enterFullDummyPreview, "enterFullDummyPreview")
+  local toggleSimulationTablet = type(opts.toggleSimulationTablet) == "function" and opts.toggleSimulationTablet
+    or function()
+      return false
+    end
   local setMainFrameVisible = RequireFunction(opts.setMainFrameVisible, "setMainFrameVisible")
   local getMainFrameLocked = RequireFunction(opts.getMainFrameLocked, "getMainFrameLocked")
   local setMainFrameLocked = RequireFunction(opts.setMainFrameLocked, "setMainFrameLocked")
@@ -56,6 +60,7 @@ function Bootstrap.RegisterSlashCommands(opts)
     triggerGroupRosterUpdate = triggerGroupRosterUpdate,
     toggleStandardTestMode = toggleStandardTestMode,
     enterFullDummyPreview = enterFullDummyPreview,
+    toggleSimulationTablet = toggleSimulationTablet,
     setMainFrameVisible = setMainFrameVisible,
     getMainFrameLocked = getMainFrameLocked,
     setMainFrameLocked = setMainFrameLocked,

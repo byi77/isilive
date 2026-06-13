@@ -11,6 +11,7 @@ local InitializeFactoryLfgWiringControllers = FI.InitializeFactoryLfgWiringContr
 local FactoryNotices = FI.FactoryNotices or {}
 local ShowJoinedTargetNotice = FactoryNotices.ShowJoinedTargetNotice
 local InitializeInviteControllers = FactoryNotices.InitializeInviteControllers
+local FactoryDemo = FI.FactoryDemo or {}
 
 local function InitializeFactoryPrimaryControllers(ctx)
   local modules = ctx.modules
@@ -192,6 +193,10 @@ local function InitializeFactoryPrimaryControllers(ctx)
   InitializeFactoryCombatAnnounceControllers(ctx)
 
   InitializeFactoryDeathAlertControllers(ctx)
+
+  if type(FactoryDemo.InitializeSimulationTablet) == "function" then
+    FactoryDemo.InitializeSimulationTablet(ctx)
+  end
 end
 
 FI.InitializeFactoryPrimaryControllers = InitializeFactoryPrimaryControllers

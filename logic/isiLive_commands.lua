@@ -19,6 +19,9 @@ local function BuildDeps(opts)
     triggerGroupRosterUpdate = opts.triggerGroupRosterUpdate or function() end,
     toggleStandardTestMode = opts.toggleStandardTestMode or function() end,
     enterFullDummyPreview = opts.enterFullDummyPreview or function() end,
+    toggleSimulationTablet = opts.toggleSimulationTablet or function()
+      return false
+    end,
     setMainFrameVisible = opts.setMainFrameVisible or function(_visible) end,
     getMainFrameLocked = opts.getMainFrameLocked or function()
       return true
@@ -110,6 +113,7 @@ local HELP_KEYS = {
 local ADMIN_HELP_KEYS = {
   "ADMIN_HEADER",
   "HELP_TESTALL",
+  "HELP_SIM",
   "HELP_LOG",
   "HELP_QDEBUG",
   "HELP_ERRORLOG",
@@ -417,6 +421,11 @@ end
 local function TryHandleUtilityCommands(ctx, cmd)
   if cmd == "settings" then
     ctx.openSettings()
+    return true
+  end
+
+  if cmd == "sim" then
+    ctx.toggleSimulationTablet()
     return true
   end
 

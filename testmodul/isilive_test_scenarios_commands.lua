@@ -7,6 +7,7 @@ local function BuildCommandLocale()
     HELP_ADMIN = "/isilive admin",
     ADMIN_HEADER = "Admin commands:",
     HELP_TESTALL = "/isilive testall",
+    HELP_SIM = "/isilive sim",
     HELP_TPTEST = "/isilive tptest",
     HELP_TPDEBUG = "/isilive tpdebug",
     HELP_LOG = "/isilive log",
@@ -50,6 +51,7 @@ local function BuildCommandState(overrides)
     openSettingsCalls = 0,
     tpTestCalls = 0,
     tpDebugCalls = 0,
+    simToggleCalls = 0,
     _overrides = overrides or {},
   }
 end
@@ -97,6 +99,10 @@ local function BuildCommandDeps(state, L)
     end,
     enterFullDummyPreview = function()
       state.fullPreviews = state.fullPreviews + 1
+    end,
+    toggleSimulationTablet = function()
+      state.simToggleCalls = state.simToggleCalls + 1
+      return true
     end,
     setMainFrameVisible = function(visible)
       state.mainFrameVisible = visible
@@ -317,6 +323,12 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
     Assert.Equal(state.fullPreviews, 1, "testall must call enterFullDummyPreview")
   end)
 
+  test("Commands sim toggles the simulation tablet", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("sim")
+    Assert.Equal(state.simToggleCalls, 1, "sim must call toggleSimulationTablet")
+  end)
+
   test("Commands tptest delegates to forceTeleportTestTarget", function()
     local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
     state._execute("tptest")
@@ -404,6 +416,7 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
     local expected = {
       "Admin commands:",
       "/isilive testall",
+      "/isilive sim",
       "/isilive log",
       "/isilive qdebug",
       "/isilive errorlog",

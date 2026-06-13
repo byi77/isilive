@@ -3,9 +3,14 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.312`.
+Current release: `0.9.313`.
 
 Highlights:
+- New movable demo simulation tablet: `/isilive testall` opens it automatically
+  and `/isilive sim` toggles it manually. Buttons run local preview scenarios
+  for notices, group-full simulation, ready-checks, M+ timer / forces, combat
+  cooldowns, portal navigator, Share Keys cooldown, death/sound/TTS previews,
+  stats, LFG bonus markers, and cleanup.
 - Fixed the Share Keys button cooldown label flickering between the timer and
   the plain button text during UI refreshes.
 - Expanded demo mode: the full preview now also shows ready-check hold row

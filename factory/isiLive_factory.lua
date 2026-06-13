@@ -871,6 +871,7 @@ local function FinalizeFactoryRuntime(ctx)
     triggerGroupRosterUpdate = ctx.TriggerGroupRosterUpdate,
     toggleStandardTestMode = ctx.ToggleStandardTestMode,
     enterFullDummyPreview = ctx.EnterFullDummyPreview,
+    toggleSimulationTablet = ctx.ToggleSimulationTablet,
     setLanguage = ctx.SetLanguage,
     teleportDebugController = ctx.teleportDebugController,
     queueDebugController = ctx.queueDebugController,

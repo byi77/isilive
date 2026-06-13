@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-06-13 - Version 0.9.313 (patch)
+
+- Added a movable demo simulation tablet that appears during `/isilive testall`
+  and can also be toggled with `/isilive sim`.
+- The tablet exposes local preview buttons for accepted-invite notices, group
+  full simulation, joined-target notices, non-Mythic dungeon warnings,
+  ready-check states, M+ timer / kill tracker data, combat cooldowns, portal
+  navigator, nameplate forces, Share Keys cooldown, death alerts, sound / TTS,
+  stats box, LFG bonus markers, and cleanup.
+- Added an Ampel-style status dot to every simulator button. Red entries are
+  visible no-ops for rule-blocked flows such as the removed pre-accept invite
+  hint; simulator buttons never send real chat posts or group actions.
+- Added deterministic coverage for the tablet UI, `/isilive sim`, and the
+  `testall` show / exit hide contract. Updated rule 57 and the demo usecase;
+  the validator baseline is now `2045` scenarios.
+- Bumped the TOC and documentation baselines to `0.9.313`.
+
 ## 2026-06-13 - Version 0.9.312 (patch)
 
 - Fixed the Share Keys button flickering between its cooldown label and the

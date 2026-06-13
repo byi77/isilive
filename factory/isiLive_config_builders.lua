@@ -93,6 +93,7 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
     triggerGroupRosterUpdate = ctx.triggerGroupRosterUpdate,
     toggleStandardTestMode = ctx.toggleStandardTestMode,
     enterFullDummyPreview = ctx.enterFullDummyPreview,
+    toggleSimulationTablet = ctx.toggleSimulationTablet,
     setMainFrameVisible = ctx.setMainFrameVisible,
     getMainFrameLocked = function()
       local mainUI = ctx.mainUI
