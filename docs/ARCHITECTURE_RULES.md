@@ -4,7 +4,9 @@ Diese Datei beschreibt verbindliche Strukturregeln fuer den aktuellen Modulzusch
 Im Gegensatz zu `RULES_LOGIC.md` geht es hier nicht um Runtime-Verhalten, sondern um
 stabile Architekturgrenzen, die ueber deterministische Strukturtests geprueft werden.
 
-Aktueller Dokumentationsstand: `0.9.309`. Die aktuellen 0.9.309-Aenderungen
+Aktueller Dokumentationsstand: `0.9.310`. Die 0.9.310-Aenderungen
+(gesprochene Text-to-Speech-Todesansagen mit Name-/Klasse-Schaltern und
+DPS-Abdeckung) und die vorherigen 0.9.309-Aenderungen
 (Tank-/Heiler-Todesalarm und Locale-Split in Pro-Sprache-Dateien) haben keine
 neue Architekturregel erfordert; der Todesalarm ist als aktive Projektregel 80
 in `RULES_LOGIC.md` gepinnt und wird ueber deterministische Death-Alert-

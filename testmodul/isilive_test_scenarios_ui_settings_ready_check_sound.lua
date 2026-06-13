@@ -76,4 +76,141 @@ return function(test, ctx)
       Assert.Equal(previewCalls[1].channel, "Master", "ready-check preview should use the default Master channel")
     end)
   end)
+
+  test("Settings panel exposes the spoken-alert toggle and TTS preview", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+    local spokenPreviews = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      GetTime = function()
+        return 100
+      end,
+      PlaySoundFile = function() end,
+      C_VoiceChat = {
+        GetTtsVoices = function()
+          return { { voiceID = 1, name = "Voice" } }
+        end,
+        SpeakText = function(_voiceID, text)
+          spokenPreviews[#spokenPreviews + 1] = text
+          return true
+        end,
+      },
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_sound_utils.lua", "isiLive_settings.lua" })
+      addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_SOUNDS = "Sounds",
+            SETTINGS_TTS_ENABLED = "Spoken alerts",
+            TTS_PREVIEW_TEXT = "isiLive text to speech is active.",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+      })
+
+      local ttsCheck = nil
+      local ttsPreview = nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._settingKey == "SETTINGS_TTS_ENABLED" then
+          ttsCheck = frame
+        elseif frame._ttsPreview == true then
+          ttsPreview = frame
+        end
+      end
+
+      ttsCheck = Assert.NotNil(ttsCheck, "TTS toggle checkbox should exist")
+      ttsPreview = Assert.NotNil(ttsPreview, "TTS preview button should exist")
+      Assert.Nil(db.ttsAnnouncementsEnabled, "opening settings must not persist the TTS default")
+      Assert.False(ttsCheck:GetChecked(), "TTS announcements must default to off")
+
+      local onClick = Assert.NotNil(ttsCheck._scripts.OnClick, "TTS toggle needs OnClick")
+      ttsCheck:SetChecked(true)
+      onClick(ttsCheck)
+      Assert.True(db.ttsAnnouncementsEnabled, "enabling the TTS toggle must persist true")
+
+      local onPreview = Assert.NotNil(ttsPreview._scripts.OnClick, "TTS preview button needs OnClick")
+      onPreview(ttsPreview, "LeftButton")
+      Assert.Equal(#spokenPreviews, 1, "TTS preview should speak once")
+      Assert.Equal(spokenPreviews[1], "isiLive text to speech is active.", "preview must speak the localized line")
+    end)
+  end)
+
+  test("Settings panel exposes the TTS name and class toggles", function()
+    local createFrameStub, createdFrames = BuildCreateFrameStub()
+    local db = {}
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = createFrameStub,
+      GetTime = function()
+        return 100
+      end,
+      PlaySoundFile = function() end,
+      Settings = {
+        RegisterCanvasLayoutCategory = function(canvas, name)
+          return { canvas = canvas, name = name }
+        end,
+        RegisterAddOnCategory = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_sound_utils.lua", "isiLive_settings.lua" })
+      addon.SettingsPanel.Create({
+        getL = function()
+          return {
+            SETTINGS_SECTION_SOUNDS = "Sounds",
+            SETTINGS_TTS_ANNOUNCE_NAME = "Say the player name",
+            SETTINGS_TTS_ANNOUNCE_CLASS = "Say the class",
+          }
+        end,
+        getCurrentLocale = function()
+          return "enUS"
+        end,
+        setLanguage = function() end,
+        getDB = function()
+          return db
+        end,
+      })
+
+      local nameCheck, classCheck = nil, nil
+      for _, frame in ipairs(createdFrames) do
+        if frame._settingKey == "SETTINGS_TTS_ANNOUNCE_NAME" then
+          nameCheck = frame
+        elseif frame._settingKey == "SETTINGS_TTS_ANNOUNCE_CLASS" then
+          classCheck = frame
+        end
+      end
+
+      nameCheck = Assert.NotNil(nameCheck, "TTS name toggle should exist")
+      classCheck = Assert.NotNil(classCheck, "TTS class toggle should exist")
+      Assert.True(nameCheck:GetChecked(), "name announcement must default on")
+      Assert.False(classCheck:GetChecked(), "class announcement must default off")
+
+      local onNameClick = Assert.NotNil(nameCheck._scripts.OnClick, "name toggle needs OnClick")
+      nameCheck:SetChecked(false)
+      onNameClick(nameCheck)
+      Assert.False(db.ttsAnnounceName, "disabling the name toggle must persist false")
+
+      local onClassClick = Assert.NotNil(classCheck._scripts.OnClick, "class toggle needs OnClick")
+      classCheck:SetChecked(true)
+      onClassClick(classCheck)
+      Assert.True(db.ttsAnnounceClass, "enabling the class toggle must persist true")
+    end)
+  end)
 end

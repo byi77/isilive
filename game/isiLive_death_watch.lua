@@ -151,7 +151,10 @@ function DeathWatch.CreateController(opts)
     end
     deadByGuid[guid] = true
     local role = getUnitRole(unit)
-    if role == "TANK" or role == "HEALER" then
+    -- Fire for tank, healer and damage dealers. The presentation layer
+    -- decides what each role gets: the on-screen warning stays tank/healer
+    -- only, while spoken alerts can cover damage dealers too.
+    if role == "TANK" or role == "HEALER" or role == "DAMAGER" then
       onRoleDeath(role, unit)
     end
   end

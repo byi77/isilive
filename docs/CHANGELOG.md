@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-06-13 - Version 0.9.310 (patch)
+
+- Added optional spoken (text-to-speech) death alerts: a new Sounds toggle
+  (`ttsAnnouncementsEnabled`, default off) speaks the death alert through your
+  system text-to-speech voice (`C_VoiceChat.SpeakText`) instead of playing the
+  recorded sound file. It follows your Blizzard accessibility voice and speech
+  rate and therefore bypasses the Master / Sound Effects channel, fails closed
+  to the recorded file when no system voice is available, and obeys the same
+  one-second spam window as the other cues.
+- Added two spoken-alert modifiers: "say the player name" (`ttsAnnounceName`,
+  default on) includes the player name, and "say the class" (`ttsAnnounceClass`,
+  default off) announces the class (for example "Hunter died") instead of the
+  group role. With names off the alert is role/class only (for example "Tank
+  died").
+- Extended spoken death alerts to damage dealers. Detection now fires for tank,
+  healer and damage dealers, but the big red on-screen warning stays limited to
+  tank and healer and always shows the role-only text without a name. A
+  damage-dealer death produces a spoken announcement only (there is no recorded
+  file for it, so it stays silent when spoken alerts are off).
+- Updated `RULES_LOGIC` rule 80 (on-screen warning limited to tank/healer,
+  detection covers damage dealers) and rule 83 (spoken-alert name/class
+  contract); the validator baseline is now `2042` scenarios.
+- Bumped the TOC and documentation baselines to `0.9.310`.
+
 ## 2026-06-12 - Version 0.9.309 (patch)
 
 - Fixed the share-keys button being stuck in an endless cooldown loop. Two
@@ -25,7 +49,7 @@
   completion sound; it follows the configured `Master` / `SFX` sound output
   channel.
 - Added the tank / healer death alert: a big red frameless on-screen warning
-  ("Tank died" / "Healer died") with a scale-punch animation and a TTS voice
+  ("Tank died" / "Healer died") with a scale-punch animation and a sound
   alert fires when the tank or the healer dies during an active M+ run. The
   local player's own death alerts as well.
 - Death detection is edge-triggered per GUID via `UNIT_HEALTH` for the player
@@ -33,10 +57,10 @@
   challenge lifecycle events reset the flags, and roster updates drop flags of
   departed players. DPS deaths, disconnects, and out-of-key states stay
   silent; raid mode keeps the whole path suppressed.
-- Added the TTS sound assets `TankDied.wav` / `HealerDied.wav` to the sound
-  registry on the `Master` channel; a single new settings toggle in the Sounds
-  section (`deathAlertEnabled`, default on) gates the on-screen text and both
-  sound files together, with a preview button.
+- Added the death-alert sound assets `TankDied.wav` / `HealerDied.wav` to the
+  sound registry on the `Master` channel; a single new settings toggle in the
+  Sounds section (`deathAlertEnabled`, default on) gates the on-screen text and
+  both sound files together, with a preview button.
 - Split the locale string tables into per-language files
   (`locale/isiLive_texts_<tag>.lua` plus shared common blocks in
   `locale/isiLive_texts_common.lua`); `locale/isiLive_texts.lua` is now a slim
@@ -44,8 +68,7 @@
   drift, dead-keys, format-consistency, and button-label gates plus the test
   harness follow the new layout.
 - Added `RULES_LOGIC` rule 80 with twelve deterministic death-alert scenarios
-  and rule 81 for the ready-check-complete sound gate; the validator baseline
-  is now `2021` scenarios.
+  and rule 81 for the ready-check-complete sound gate.
 - Bumped the TOC and documentation baselines to `0.9.309`.
 
 ## 2026-06-11 - Version 0.9.308 (patch)

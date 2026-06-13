@@ -899,6 +899,127 @@ function SoundUtils.PlaySoundKit(soundKit, channel)
   return true
 end
 
+-- Whether spoken text-to-speech announcements are enabled. Default off:
+-- the feature is opt-in and intentionally bypasses the Master/SFX channels.
+function SoundUtils.IsTtsEnabled()
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) == "table" and db.ttsAnnouncementsEnabled ~= nil then
+    return db.ttsAnnouncementsEnabled == true
+  end
+  return false
+end
+
+-- Whether spoken alerts include the player name. Default on: the name is the
+-- richest context. Turning it off yields role/class-only announcements.
+function SoundUtils.ShouldAnnounceName()
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) == "table" and db.ttsAnnounceName ~= nil then
+    return db.ttsAnnounceName == true
+  end
+  return true
+end
+
+-- Whether spoken alerts name the class (e.g. "Hunter died") instead of the
+-- group role (e.g. "Damage dealer died"). Default off.
+function SoundUtils.ShouldAnnounceClass()
+  local db = rawget(_G, "IsiLiveDB")
+  if type(db) == "table" and db.ttsAnnounceClass ~= nil then
+    return db.ttsAnnounceClass == true
+  end
+  return false
+end
+
+-- Resolves the TTS voice: the user-configured ttsVoiceID when it still exists
+-- in the live voice list, otherwise the first available system voice.
+local function ResolveTtsVoiceID(voices)
+  local db = rawget(_G, "IsiLiveDB")
+  local preferred = type(db) == "table" and db.ttsVoiceID or nil
+  if preferred ~= nil then
+    for _, voice in ipairs(voices) do
+      if type(voice) == "table" and voice.voiceID == preferred then
+        return preferred
+      end
+    end
+  end
+  local first = voices[1]
+  if type(first) == "table" then
+    return first.voiceID
+  end
+  return nil
+end
+
+local function ResolveTtsVolume()
+  local db = rawget(_G, "IsiLiveDB")
+  local volume = type(db) == "table" and tonumber(db.ttsVolume) or nil
+  if not volume then
+    return 100
+  end
+  if volume < 0 then
+    return 0
+  end
+  if volume > 100 then
+    return 100
+  end
+  return volume
+end
+
+-- Speaks text via the WoW 12.0 text-to-speech engine. This path intentionally
+-- bypasses the Master/SFX sound channels: it follows the user's Blizzard TTS
+-- accessibility voice and speech rate (an explicit project decision, see the
+-- sound-channel policy in CLAUDE.md). Fail-closed: returns false when the API
+-- is unavailable or no system voice exists, so callers can fall back to a WAV.
+-- 12.0 signature is SpeakText(voiceID, text, rate, volume[, overlap]); the
+-- pre-12.0 destination argument was removed in patch 12.0.0. sound-ok
+function SoundUtils.SpeakTts(text, opts)
+  if type(text) ~= "string" or text == "" then
+    return false
+  end
+  local voiceChat = rawget(_G, "C_VoiceChat")
+  if type(voiceChat) ~= "table" then
+    return false
+  end
+  local getVoices = voiceChat.GetTtsVoices
+  local speakText = voiceChat.SpeakText
+  if type(getVoices) ~= "function" or type(speakText) ~= "function" then
+    return false
+  end
+  local okVoices, voices = pcall(getVoices)
+  if not okVoices or type(voices) ~= "table" or #voices == 0 then
+    return false
+  end
+  local voiceID = ResolveTtsVoiceID(voices)
+  if voiceID == nil then
+    return false
+  end
+  local GetTime_ref = rawget(_G, "GetTime")
+  local now = type(GetTime_ref) == "function" and GetTime_ref() or 0
+  local spamScope = type(opts) == "table"
+      and type(opts.spamScope) == "string"
+      and opts.spamScope ~= ""
+      and opts.spamScope
+    or text
+  local soundKey = "tts\31" .. spamScope
+  local last = lastPlayedAt[soundKey]
+  if last and (now - last) < SPAM_WINDOW then
+    return false
+  end
+  local rate = 0
+  local ttsSettings = rawget(_G, "C_TTSSettings")
+  if type(ttsSettings) == "table" and type(ttsSettings.GetSpeechRate) == "function" then
+    local okRate, resolvedRate = pcall(ttsSettings.GetSpeechRate)
+    if okRate and type(resolvedRate) == "number" then
+      rate = resolvedRate
+    end
+  end
+  local volume = ResolveTtsVolume()
+  local ok = pcall(speakText, voiceID, text, rate, volume, false)
+  if not ok then
+    return false
+  end
+  lastPlayedAt[soundKey] = now
+  return true
+end
+
 local function PlayEntry(entry, key)
   if type(entry) ~= "table" then
     return false

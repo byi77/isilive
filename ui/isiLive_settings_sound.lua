@@ -121,6 +121,36 @@ local BLOODLUST_READY_REMINDER_SETTING = {
   defaultEnabled = true,
 }
 
+local TTS_ANNOUNCEMENTS_SETTING = {
+  labelKey = "SETTINGS_TTS_ENABLED",
+  descKey = "SETTINGS_TTS_ENABLED_DESC",
+  labelFallback = "Spoken alerts (text-to-speech)",
+  descFallback = "Speaks death alerts via your system TTS voice instead of a sound file. "
+    .. "Covers tank, healer and damage dealers.",
+  previewTextKey = "TTS_PREVIEW_TEXT",
+  previewFallback = "isiLive text to speech is active.",
+  settingKey = "ttsAnnouncementsEnabled",
+  defaultEnabled = false,
+}
+
+local TTS_NAME_SETTING = {
+  labelKey = "SETTINGS_TTS_ANNOUNCE_NAME",
+  descKey = "SETTINGS_TTS_ANNOUNCE_NAME_DESC",
+  labelFallback = "Spoken alerts: say the player name",
+  descFallback = "When on, the spoken alert includes the player name; when off it only says the role or class.",
+  settingKey = "ttsAnnounceName",
+  defaultEnabled = true,
+}
+
+local TTS_CLASS_SETTING = {
+  labelKey = "SETTINGS_TTS_ANNOUNCE_CLASS",
+  descKey = "SETTINGS_TTS_ANNOUNCE_CLASS_DESC",
+  labelFallback = "Spoken alerts: say the class",
+  descFallback = "When on, the spoken alert names the class (e.g. Hunter died) instead of the group role.",
+  settingKey = "ttsAnnounceClass",
+  defaultEnabled = false,
+}
+
 local VIP_SOUND_DESCRIPTIONS = {
   SETTINGS_VIP_ASTRAL_AUROCHS_SOUND = {
     descKey = "SETTINGS_VIP_ASTRAL_AUROCHS_SOUND_DESC",
@@ -235,6 +265,51 @@ local function CreateSoundPreviewButton(parent, checkbox, soundKey)
   return button
 end
 
+-- Preview button for the spoken-TTS toggle. Unlike the recorded-sound preview
+-- (which resolves its file from the registry), TTS speaks a localized preview
+-- line; the text is stored on the button and refreshed on locale change.
+local function CreateTtsPreviewButton(parent, checkbox, previewText)
+  local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
+  button:SetSize(PREVIEW_BUTTON_WIDTH, PREVIEW_BUTTON_HEIGHT)
+  button:SetPoint("LEFT", checkbox.check, "RIGHT", 4, 0)
+  button._sectionKey = "SETTINGS_SECTION_SOUNDS"
+  button._settingKey = "SETTINGS_SOUND_PREVIEW"
+  button._ttsPreview = true
+  button._ttsPreviewText = previewText
+
+  if type(button.SetBackdrop) == "function" then
+    button:SetBackdrop({
+      bgFile = "Interface\\Buttons\\WHITE8X8",
+      edgeFile = "Interface\\Buttons\\WHITE8X8",
+      edgeSize = 1,
+      insets = { left = 0, right = 0, top = 0, bottom = 0 },
+    })
+    button:SetBackdropColor(0.12, 0.12, 0.18, 0.75)
+    button:SetBackdropBorderColor(0.3, 0.65, 1, 0.55)
+  end
+
+  local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  label:SetPoint("CENTER", 0, 0)
+  label:SetText(">")
+  button.label = label
+
+  if checkbox.label and type(checkbox.label.ClearAllPoints) == "function" then
+    checkbox.label:ClearAllPoints()
+    checkbox.label:SetPoint("LEFT", button, "RIGHT", 4, 0)
+  end
+
+  button:SetScript("OnClick", function()
+    local soundUtils = addonTable.SoundUtils
+    if type(soundUtils) == "table" and type(soundUtils.SpeakTts) == "function" then
+      soundUtils.SpeakTts(button._ttsPreviewText or TTS_ANNOUNCEMENTS_SETTING.previewFallback, {
+        spamScope = "preview:tts",
+      })
+    end
+  end)
+
+  return button
+end
+
 local function CreateBloodlustReadyReminderCheckbox(canvas, yOffset, labels, config, controls)
   local checkbox, nextY = CreateSettingsCheckbox(
     canvas,
@@ -264,6 +339,78 @@ local function CreateBloodlustReadyReminderCheckbox(canvas, yOffset, labels, con
   end
   controls.bloodlustReadyReminderCheck = checkbox
   return nextY
+end
+
+-- Plain sub-toggle for a TTS modifier setting (name / class). No preview
+-- button; it only refines how the spoken alert reads.
+local function CreateTtsModifierCheckbox(canvas, yOffset, setting, labels, config, soundKey)
+  local checkbox, nextY = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels[setting.labelKey] or setting.labelFallback,
+    function()
+      local db = config.getDB()
+      local stored = db[setting.settingKey]
+      if stored ~= nil then
+        return stored == true
+      end
+      return setting.defaultEnabled ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db[setting.settingKey] = checked == true
+    end,
+    setting.labelKey,
+    DescriptionOptions(labels[setting.descKey] or setting.descFallback)
+  )
+
+  if checkbox and checkbox.check then
+    checkbox.check._sectionKey = "SETTINGS_SECTION_SOUNDS"
+    checkbox.check._soundKey = soundKey
+  end
+  return checkbox, nextY
+end
+
+local function CreateTtsAnnouncementsCheckbox(canvas, yOffset, labels, config, controls)
+  local checkbox, nextY = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels[TTS_ANNOUNCEMENTS_SETTING.labelKey] or TTS_ANNOUNCEMENTS_SETTING.labelFallback,
+    function()
+      local db = config.getDB()
+      local stored = db[TTS_ANNOUNCEMENTS_SETTING.settingKey]
+      if stored ~= nil then
+        return stored == true
+      end
+      return TTS_ANNOUNCEMENTS_SETTING.defaultEnabled ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db[TTS_ANNOUNCEMENTS_SETTING.settingKey] = checked == true
+    end,
+    TTS_ANNOUNCEMENTS_SETTING.labelKey,
+    DescriptionOptions(labels[TTS_ANNOUNCEMENTS_SETTING.descKey] or TTS_ANNOUNCEMENTS_SETTING.descFallback)
+  )
+
+  if checkbox and checkbox.check then
+    checkbox.check._sectionKey = "SETTINGS_SECTION_SOUNDS"
+    checkbox.check._soundKey = "tts_announcements"
+  end
+  if checkbox then
+    controls.ttsPreviewButton = CreateTtsPreviewButton(
+      canvas,
+      checkbox,
+      labels[TTS_ANNOUNCEMENTS_SETTING.previewTextKey] or TTS_ANNOUNCEMENTS_SETTING.previewFallback
+    )
+  end
+  controls.ttsAnnouncementsCheck = checkbox
+
+  yOffset = nextY
+  controls.ttsAnnounceNameCheck, yOffset =
+    CreateTtsModifierCheckbox(canvas, yOffset, TTS_NAME_SETTING, labels, config, "tts_announce_name")
+  controls.ttsAnnounceClassCheck, yOffset =
+    CreateTtsModifierCheckbox(canvas, yOffset, TTS_CLASS_SETTING, labels, config, "tts_announce_class")
+  return yOffset
 end
 
 local function CreateSoundChannelSelector(canvas, yOffset, labels, config, controls)
@@ -369,6 +516,8 @@ function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, contro
     yOffset = nextY
     if entry.key == "bloodlust_ready" then
       yOffset = CreateBloodlustReadyReminderCheckbox(canvas, yOffset, labels, config, controls)
+    elseif entry.key == "tank_died" then
+      yOffset = CreateTtsAnnouncementsCheckbox(canvas, yOffset, labels, config, controls)
     end
   end
 
@@ -505,6 +654,47 @@ function SettingsSound.RefreshSoundControls(controls, labels, db)
     end
     controls.bloodlustReadyReminderCheck.check:SetChecked(nextValue)
   end
+
+  if controls.ttsAnnouncementsCheck then
+    controls.ttsAnnouncementsCheck.label:SetText(
+      labels[TTS_ANNOUNCEMENTS_SETTING.labelKey] or TTS_ANNOUNCEMENTS_SETTING.labelFallback
+    )
+    SetDescription(
+      controls.ttsAnnouncementsCheck,
+      labels[TTS_ANNOUNCEMENTS_SETTING.descKey] or TTS_ANNOUNCEMENTS_SETTING.descFallback
+    )
+    local stored = db[TTS_ANNOUNCEMENTS_SETTING.settingKey]
+    local nextValue = TTS_ANNOUNCEMENTS_SETTING.defaultEnabled ~= false
+    if stored ~= nil then
+      nextValue = stored == true
+    end
+    controls.ttsAnnouncementsCheck.check:SetChecked(nextValue)
+  end
+
+  if controls.ttsPreviewButton then
+    controls.ttsPreviewButton._ttsPreviewText = labels[TTS_ANNOUNCEMENTS_SETTING.previewTextKey]
+      or TTS_ANNOUNCEMENTS_SETTING.previewFallback
+    if controls.ttsPreviewButton.label then
+      controls.ttsPreviewButton.label:SetText(">")
+    end
+  end
+
+  local function RefreshTtsModifier(control, setting)
+    if not control then
+      return
+    end
+    control.label:SetText(labels[setting.labelKey] or setting.labelFallback)
+    SetDescription(control, labels[setting.descKey] or setting.descFallback)
+    local stored = db[setting.settingKey]
+    local nextValue = setting.defaultEnabled ~= false
+    if stored ~= nil then
+      nextValue = stored == true
+    end
+    control.check:SetChecked(nextValue)
+  end
+
+  RefreshTtsModifier(controls.ttsAnnounceNameCheck, TTS_NAME_SETTING)
+  RefreshTtsModifier(controls.ttsAnnounceClassCheck, TTS_CLASS_SETTING)
 end
 
 function SettingsSound.RefreshVIPGuestControls(controls, labels, db)

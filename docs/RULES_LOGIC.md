@@ -1132,19 +1132,21 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-DEATH-ALERT-MPLUS
 - Regelnummer: 80
 - Status: aktiv
-- Zusammenfassung: Der Tank-/Heiler-Todesalarm rendert nur waehrend eines aktiven M+-Runs eine grosse rote rahmenlose Bildschirmwarnung (`Tank died` / `Healer died`) mit Scale-Punch-Animation und spielt die zugehoerige TTS-Ansage. Die Erkennung laeuft edge-getriggert ueber `UNIT_HEALTH` pro GUID fuer `player` und `party1`-`party4`: nur der Uebergang lebendig zu tot loest genau einen Alarm aus, eine Wiederbelebung schaltet die Flanke neu scharf, Challenge-Lifecycle-Events setzen die Flags zurueck und Roster-Updates verwerfen Flags verlassener Spieler. Der eigene Tod alarmiert ebenfalls; DPS-Tode, Disconnects und Zustaende ausserhalb eines aktiven Keys bleiben stumm. Ein einzelner Settings-Schalter (`deathAlertEnabled`, Default an) schaltet Bildschirmtext und beide TTS-Dateien gemeinsam; im Raid bleibt der Pfad ueber die Raid-Unterdrueckung des Event-Dispatches aus.
+- Zusammenfassung: Der Todesalarm rendert nur waehrend eines aktiven M+-Runs eine grosse rote rahmenlose Bildschirmwarnung mit Scale-Punch-Animation. Diese Bildschirmwarnung ist strikt auf Tank und Heiler begrenzt und zeigt ausschliesslich den rollenbasierten Text ohne Namen (`Tank died` / `Healer died`). Die Erkennung laeuft edge-getriggert ueber `UNIT_HEALTH` pro GUID fuer `player` und `party1`-`party4` und feuert fuer Tank, Heiler und Schadensausteiler: nur der Uebergang lebendig zu tot loest genau einen Alarm aus, eine Wiederbelebung schaltet die Flanke neu scharf, Challenge-Lifecycle-Events setzen die Flags zurueck und Roster-Updates verwerfen Flags verlassener Spieler. Der eigene Tod alarmiert ebenfalls; Disconnects und Zustaende ausserhalb eines aktiven Keys bleiben stumm. Die aufgezeichnete WAV-Datei existiert nur fuer Tank und Heiler; ein Schadensausteiler-Tod erzeugt ausschliesslich eine gesprochene Ansage (kein Bildschirmtext, keine WAV) und bleibt bei deaktiviertem TTS stumm. Der Settings-Schalter (`deathAlertEnabled`, Default an) ist der Master-Gate fuer das ganze Feature; im Raid bleibt der Pfad ueber die Raid-Unterdrueckung des Event-Dispatches aus.
 - Erforderliche Tests:
   - DeathWatch fires tank death alert once per active-key death
   - DeathWatch fires healer death alert with role resolved at death time
   - DeathWatch stays silent outside an active M+ key
   - DeathWatch stays silent when the death alert setting is disabled
   - DeathWatch fires again after revive and renewed death
-  - DeathWatch ignores DPS deaths and disconnected units
+  - DeathWatch fires for damage-dealer deaths so they can be announced
+  - DeathWatch ignores disconnected units
   - DeathWatch alerts for the local player's own death
   - DeathWatch resets dead flags on challenge lifecycle events
   - DeathWatch roster update drops dead flags of departed players
   - DeathAlert renders big red death text and restarts animation on repeated show
   - Factory death alert wiring routes role deaths to alert and TTS sound
+  - Factory death alert keeps the on-screen warning to tank and healer
   - SoundUtils registry gates both death TTS files behind the single death alert setting
 
 ### RULE-READYCHECK-KOMPLETT-KLANG
@@ -1168,3 +1170,24 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - ControllerWiring sendShareKeysCooldownState mirrors only the locally owned cooldown
   - Roster panel share keys button reports only locally owned locks for SKCD mirroring
   - Share keys SKCD reflection dies after one hop across real wiring and buttons
+
+### RULE-TTS-ANSAGEN
+- Regelnummer: 83
+- Status: aktiv
+- Zusammenfassung: Gesprochene Text-to-Speech-Ansagen laufen ueber `SoundUtils.SpeakTts` mit der WoW-12.0-Signatur `C_VoiceChat.SpeakText(voiceID, text, rate, volume[, overlap])` (das `destination`-Argument wurde in 12.0 entfernt). Das Feature ist opt-in ueber `ttsAnnouncementsEnabled` (Default aus). `SpeakTts` ist fail-closed: ohne `C_VoiceChat.GetTtsVoices`/`SpeakText`, ohne verfuegbare Stimme oder bei leerem Text wird nichts gesprochen und `false` zurueckgegeben. Die Stimme ist die per `ttsVoiceID` gewaehlte, sofern sie in der Live-Stimmenliste existiert, sonst die erste Systemstimme; die Sprechgeschwindigkeit kommt aus `C_TTSSettings.GetSpeechRate()` (Fallback 0), die Lautstaerke aus `ttsVolume` (0..100, Default 100). TTS umgeht bewusst die Master/SFX-Soundkanaele (genehmigte Ausnahme der Sound-Channel-Policy). Es gilt dasselbe 1-Sekunden-Spam-Fenster wie bei `Play`. Der gesprochene Todes-Text wird aus zwei Templates und einem Deskriptor gebaut: `ttsAnnounceName` (Default an) bestimmt, ob der Spielername genannt wird (`TTS_NAMED_DIED_FMT` mit Name plus Deskriptor) oder nur der Deskriptor (`TTS_DIED_FMT`). `ttsAnnounceClass` (Default aus) bestimmt den Deskriptor: bei an der lokalisierte Klassenname via `UnitClass` (Secret-Value-guarded), sonst das lokalisierte Rollenwort (`TTS_ROLE_TANK` / `TTS_ROLE_HEALER` / `TTS_ROLE_DAMAGER`); ist die Klasse nicht lesbar, faellt der Deskriptor auf das Rollenwort zurueck. Ist der Name nicht aufloesbar (Secret-Value, leer), wird die namenlose Form gesprochen. Gesprochene Ansagen decken Tank, Heiler und Schadensausteiler ab. Schlaegt der TTS-Pfad fehl oder ist er deaktiviert, spielt der Death-Alert die WAV-Datei nur fuer Tank/Heiler; fuer Schadensausteiler gibt es keine WAV, ein DPS-Tod bleibt ohne TTS also stumm. Der `deathAlertEnabled`-Schalter und die Raid-Unterdrueckung bleiben vorgelagert wirksam; die TTS-Schalter waehlen nur die Klangform und den Wortlaut.
+- Erforderliche Tests:
+  - SoundUtils SpeakTts fails closed without the voice-chat API
+  - SoundUtils SpeakTts fails closed when no system voice is available
+  - SoundUtils SpeakTts speaks with the 12.0 argument order and honours the spam window
+  - SoundUtils SpeakTts prefers the configured voice id and clamps the volume
+  - SoundUtils IsTtsEnabled defaults to off and follows the setting
+  - SoundUtils ShouldAnnounceName defaults on and follows the setting
+  - SoundUtils ShouldAnnounceClass defaults off and follows the setting
+  - Factory death alert speaks the player name when TTS is enabled
+  - Factory death alert announces the role word when names are off
+  - Factory death alert announces the class when class mode is on
+  - Factory death alert announces a damage-dealer death via TTS only
+  - Factory death alert falls back to a nameless announcement for a secret or missing name
+  - Factory death alert falls back to the recorded wav when TTS is disabled or unavailable
+  - Settings panel exposes the spoken-alert toggle and TTS preview
+  - Settings panel exposes the TTS name and class toggles

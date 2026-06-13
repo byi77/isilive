@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.309`
-Zuletzt aktualisiert: `2026-06-12`
+Versionsbasis: `0.9.310`
+Zuletzt aktualisiert: `2026-06-13`
 
 ## Akteure
 
@@ -338,10 +338,11 @@ Ziel: Der Spieler wird im laufenden M+-Run sofort und unuebersehbar informiert, 
 2. Voraussetzung: `deathAlertEnabled` ist aktiv (Default an); ausserhalb eines aktiven Keys, im Raidmodus oder bei deaktivierter Option bleibt der Pfad stumm.
 3. Verarbeitung: Die Erkennung ist pro GUID edge-getriggert: nur der Uebergang lebendig zu tot loest genau einen Alarm aus; wiederholte Health-Ticks toter Spieler und der Uebergang tot zu Geist bleiben stumm. Eine Wiederbelebung schaltet die Flanke neu scharf; `CHALLENGE_MODE_START/COMPLETED/RESET` setzen alle Flags zurueck und `GROUP_ROSTER_UPDATE` verwirft Flags verlassener Spieler.
 4. Regel: Die Rolle kommt aus der verifizierten Rollenaufloesung (`Units.GetUnitRole`); nur `TANK` und `HEALER` alarmieren. Disconnects und unlesbare (Secret-Value-)Zustaende gelten fail-closed als nicht tot.
-5. Darstellung: Eine grosse rote rahmenlose Bildschirmwarnung (`Tank died` / `Healer died`) mit Scale-Punch-Animation (uebergross einfliegend, Fade-out nach rund 1,7 Sekunden) plus TTS-Ansage (`TankDied.wav` / `HealerDied.wav`, Kanal `Master`).
-6. Eigener Tod: Stirbt der Spieler selbst als Tank oder Heiler, werden Text und Sound ebenfalls ausgegeben.
-7. Settings: Ein einzelner Schalter in der Sound-Sektion (`deathAlertEnabled`) schaltet Bildschirmtext und beide TTS-Dateien gemeinsam; der Preview-Button spielt die Tank-Ansage.
-8. Erfolgskriterium: Genau ein Alarm pro Tod; keine Alarme ausserhalb aktiver Keys, fuer DPS-Tode oder fuer Disconnects.
+5. Darstellung: Eine grosse rote rahmenlose Bildschirmwarnung (`Tank died` / `Healer died`) mit Scale-Punch-Animation (uebergross einfliegend, Fade-out nach rund 1,7 Sekunden). Die Audioform haengt am TTS-Schalter: ist `ttsAnnouncementsEnabled` aus (Default), spielt die aufgezeichnete WAV-Datei (`TankDied.wav` / `HealerDied.wav`, Kanal `Master`); ist er an und steht eine System-Stimme bereit, spricht die Sprachausgabe stattdessen den lokalisierten Text mit Spielernamen (`TTS_TANK_DIED_FMT` / `TTS_HEALER_DIED_FMT`) ueber `C_VoiceChat.SpeakText` ohne Master/SFX-Kanal.
+6. TTS-Fallback: Ist der Spielername nicht aufloesbar (Secret-Value oder leer), spricht die Sprachausgabe den namenlosen Bildschirmtext (`DEATH_ALERT_TANK` / `DEATH_ALERT_HEALER`). Schlaegt der TTS-Pfad fehl (keine Stimme, API fehlt) oder ist er deaktiviert, faellt der Alarm auf die WAV-Datei zurueck. Der `deathAlertEnabled`-Gate und die Raid-Unterdrueckung bleiben vorgelagert wirksam.
+7. Eigener Tod: Stirbt der Spieler selbst als Tank oder Heiler, werden Text und Audio ebenfalls ausgegeben.
+8. Settings: Ein Schalter in der Sound-Sektion (`deathAlertEnabled`) schaltet Bildschirmtext und Audio gemeinsam; ein zweiter Schalter (`ttsAnnouncementsEnabled`, Default aus) waehlt gesprochene Ansage statt WAV und hat einen eigenen Preview-Button, der den lokalisierten Vorschautext spricht.
+9. Erfolgskriterium: Genau ein Alarm pro Tod; keine Alarme ausserhalb aktiver Keys, fuer DPS-Tode oder fuer Disconnects.
 
 ## Nichtfunktionale Regeln
 
