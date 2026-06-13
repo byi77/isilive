@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-06-13 - Version 0.9.314 (patch)
+
+- Fixed the demo simulation tablet hover tooltips mutating the hovered button
+  into a tooltip frame, which could resize or visually hide the button under
+  the cursor.
+- Added deterministic coverage proving simulator hover uses the dedicated
+  private tooltip frame and leaves button dimensions untouched; the validator
+  baseline is now `2048` scenarios.
+- Bumped the TOC and documentation baselines to `0.9.314`.
+
 ## 2026-06-13 - Version 0.9.313 (patch)
 
 - Added a movable demo simulation tablet that appears during `/isilive testall`

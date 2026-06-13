@@ -7,6 +7,7 @@ addonTable.SimulationTablet = SimulationTablet
 local UICommon = addonTable.UICommon or {}
 local ApplyBackdrop = UICommon.ApplyBackdrop
 local CreateRedCloseButton = UICommon.CreateRedCloseButton
+local CreatePrivateTooltip = UICommon.CreatePrivateTooltip
 local PreparePrivateTooltip = UICommon.PreparePrivateTooltip
 local HidePrivateTooltip = UICommon.HidePrivateTooltip
 
@@ -66,13 +67,16 @@ local function ApplyButtonStatus(button, status)
   end
 end
 
-local function ShowTooltip(opts, owner, action)
+local function ShowTooltip(opts, tooltipFrame, owner, action)
   if not action then
     return
   end
   local L = ResolveL(opts)
-  local tooltip = type(PreparePrivateTooltip) == "function" and PreparePrivateTooltip(owner)
-    or rawget(_G, "GameTooltip")
+  local tooltip = nil
+  if type(PreparePrivateTooltip) == "function" and type(tooltipFrame) == "table" then
+    tooltip = PreparePrivateTooltip(tooltipFrame, owner, "ANCHOR_CURSOR")
+  end
+  tooltip = tooltip or rawget(_G, "GameTooltip")
   if type(tooltip) ~= "table" then
     return
   end
@@ -92,9 +96,9 @@ local function ShowTooltip(opts, owner, action)
   end
 end
 
-local function HideTooltip()
-  if type(HidePrivateTooltip) == "function" then
-    HidePrivateTooltip()
+local function HideTooltip(tooltipFrame)
+  if type(HidePrivateTooltip) == "function" and type(tooltipFrame) == "table" then
+    HidePrivateTooltip(tooltipFrame)
     return
   end
   local tooltip = rawget(_G, "GameTooltip")
@@ -180,8 +184,11 @@ function SimulationTablet.CreateController(opts)
   statusLine:SetPoint("RIGHT", frame, "RIGHT", -14, 0)
   statusLine:SetJustifyH("LEFT")
 
+  local tooltipFrame = type(CreatePrivateTooltip) == "function" and CreatePrivateTooltip(frame) or nil
+
   local controller = {
     frame = frame,
+    tooltipFrame = tooltipFrame,
     buttons = {},
     actions = {},
   }
@@ -223,9 +230,11 @@ function SimulationTablet.CreateController(opts)
       SetText(button.label, action.id or tostring(index))
       ApplyButtonStatus(button, action.status)
       button:SetScript("OnEnter", function(self)
-        ShowTooltip(opts, self, self._isiLiveAction)
+        ShowTooltip(opts, tooltipFrame, self, self._isiLiveAction)
       end)
-      button:SetScript("OnLeave", HideTooltip)
+      button:SetScript("OnLeave", function()
+        HideTooltip(tooltipFrame)
+      end)
       button:SetScript("OnClick", function(self)
         local currentAction = self._isiLiveAction
         if type(currentAction) ~= "table" or type(currentAction.run) ~= "function" then

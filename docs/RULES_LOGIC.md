@@ -820,6 +820,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Factory demo simulation tablet builds safe actions and runs preview hooks
   - Simulation tablet renders actions and runs only executable buttons
   - Simulation tablet toggles, hides stale buttons, and handles tooltip paths
+  - Simulation tablet hover uses private tooltip without mutating buttons
   - Commands sim toggles the simulation tablet
   - Factory test mode shows portal navigator demo with matching header texts
   - MobNameplate.SetTestMode can render remaining percent from explicit demo map context

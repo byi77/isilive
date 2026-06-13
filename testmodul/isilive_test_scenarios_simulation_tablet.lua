@@ -232,4 +232,71 @@ return function(test, ctx)
     controller.SetActions(nil)
     Assert.Equal(#controller.actions, 0, "invalid action table must clear actions")
   end)
+
+  test("Simulation tablet hover uses private tooltip without mutating buttons", function()
+    local controller = nil
+    local preparedTooltip = nil
+    local hiddenTooltip = nil
+    local tooltipLines = {}
+
+    WithGlobals({
+      UIParent = MakeFrameStub(),
+      CreateFrame = function()
+        return MakeFrameStub()
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_simulation_tablet.lua" }, {
+        UICommon = {
+          ApplyBackdrop = function()
+            return true
+          end,
+          CreatePrivateTooltip = function(parent)
+            local tooltip = MakeFrameStub()
+            tooltip._parent = parent
+            function tooltip:SetOwner(owner, anchor)
+              self._owner = owner
+              self._anchor = anchor
+            end
+            function tooltip:ClearLines()
+              tooltipLines = {}
+            end
+            function tooltip:AddLine(text)
+              table.insert(tooltipLines, text)
+            end
+            return tooltip
+          end,
+          PreparePrivateTooltip = function(tooltip, owner, anchor)
+            preparedTooltip = tooltip
+            tooltip:SetOwner(owner, anchor)
+            return tooltip
+          end,
+          HidePrivateTooltip = function(tooltip)
+            hiddenTooltip = tooltip
+            tooltip:Hide()
+          end,
+        },
+      })
+      controller = addon.SimulationTablet.CreateController({
+        getL = function()
+          return {
+            SIM_TABLET_TITLE = "Demo simulator",
+            SIM_TABLET_READY = "Ready",
+            SIM_STATUS_GREEN = "Green",
+          }
+        end,
+      })
+      controller.SetActions({ { id = "A1", status = "green", title = "Hover", description = "Body" } })
+    end)
+
+    local button = controller.buttons[1]
+    local originalSize = button._size
+    button._scripts.OnEnter(button)
+    Assert.True(preparedTooltip == controller.tooltipFrame, "hover must prepare the dedicated tablet tooltip")
+    Assert.True(button._isiLiveTooltipReady ~= true, "hover must not turn the button into a tooltip")
+    Assert.Equal(button._size[1], originalSize[1], "hover must not resize the button width")
+    Assert.Equal(button._size[2], originalSize[2], "hover must not resize the button height")
+    Assert.Equal(tooltipLines[1], "Hover", "private tooltip must receive the action title")
+    button._scripts.OnLeave(button)
+    Assert.True(hiddenTooltip == controller.tooltipFrame, "leave must hide the dedicated tablet tooltip")
+  end)
 end
