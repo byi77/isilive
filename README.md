@@ -255,6 +255,11 @@ If the group breaks up or someone disconnects, their data stays visible as a gre
 | `Ctrl + F9` | Toggle the main window |
 | `Ctrl + Alt + F9` | Toggle demo mode with full preview surfaces (for testing without a group) |
 
+Demo mode previews the current surfaces together: roster rows, ghost rows, M+
+timer / cooldown / forces data, ready-check hold colors, Share Keys cooldown,
+Portal Navigator, center notices, stats box, nameplate / tooltip forces, LFG
+bonus hearts, death alert, ready-check sound, and spoken TTS preview.
+
 ## Slash commands
 
 ```

@@ -184,6 +184,13 @@ local function AttachControllerAccessors(controller, deps)
     end
     return 0
   end
+
+  function controller.ClearShareKeysCooldown()
+    local btn = deps.shareKeysButton
+    if btn and type(btn.ClearCooldown) == "function" then
+      btn.ClearCooldown()
+    end
+  end
 end
 
 local function CreateShareKeysButton(mainFrame, deps)
@@ -311,6 +318,16 @@ local function CreateShareKeysButton(mainFrame, deps)
       return 0
     end
     return button.GetRemainingCooldown()
+  end
+
+  function button.ClearCooldown()
+    cooldownEndAt = nil
+    cooldownLocallyOwned = false
+    if countdownTicker then
+      countdownTicker:Cancel()
+      countdownTicker = nil
+    end
+    RefreshShareKeysButton()
   end
 
   function button.SetShareKeysAvailable(isAvailable)

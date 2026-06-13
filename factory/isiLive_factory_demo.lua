@@ -12,6 +12,8 @@ local DEMO_FEATURE_TARGET_DUNGEON_NAME = "Nexus-Point Xenas"
 local DEMO_FEATURE_TARGET_MAP_ID = 559
 local DEMO_FEATURE_NON_MYTHIC_DUNGEON_NAME = "Priorei der Heiligen Flamme"
 local DEMO_FEATURE_NON_MYTHIC_NOTICE_DELAY_SECONDS = 8
+local DEMO_FEATURE_READY_CHECK_HOLD_SECONDS = 20
+local DEMO_FEATURE_SHARE_KEYS_COOLDOWN_SECONDS = 18
 local DEMO_FEATURE_PORTAL_NAVIGATOR_MAP_IDS = {
   left = 161,
   half_left = 556,
@@ -34,6 +36,11 @@ local DEMO_FEATURE_DB_KEYS = {
   "mobNameplatePosition",
   "mobNameplateXOffset",
   "mobNameplateYOffset",
+  "soundReadyCheckCompleteEnabled",
+  "deathAlertEnabled",
+  "ttsAnnouncementsEnabled",
+  "ttsAnnounceName",
+  "ttsAnnounceClass",
 }
 
 local function CaptureDemoFeatureSnapshot(db)
@@ -78,6 +85,11 @@ local function ApplyDemoFeatureDbOverrides(ctx)
   db.lfgGroupBonusesEnabled = true
   db.mobNameplateEnabled = true
   db.mplusForcesEstimate = true
+  db.soundReadyCheckCompleteEnabled = true
+  db.deathAlertEnabled = true
+  db.ttsAnnouncementsEnabled = true
+  db.ttsAnnounceName = true
+  db.ttsAnnounceClass = false
 
   return db
 end
@@ -136,6 +148,79 @@ local function ApplyDemoMobForces(ctx)
     mobNameplate.SetTestMode(true, "12.34", { activeMapID = DEMO_FEATURE_TARGET_MAP_ID })
   elseif type(mobNameplate.SetEnabled) == "function" then
     mobNameplate.SetEnabled(true)
+  end
+end
+
+local function ApplyDemoReadyCheckPreview(ctx)
+  local getTime = rawget(_G, "GetTime")
+  local now = type(getTime) == "function" and tonumber(getTime()) or 0
+  local holdUntil = now + DEMO_FEATURE_READY_CHECK_HOLD_SECONDS
+
+  if type(ctx.SetReadyCheckActive) == "function" then
+    ctx.SetReadyCheckActive(false)
+  end
+  if type(ctx.ClearAllReadyCheckReady) == "function" then
+    ctx.ClearAllReadyCheckReady()
+  end
+  if type(ctx.ClearAllReadyCheckDeclined) == "function" then
+    ctx.ClearAllReadyCheckDeclined()
+  end
+  if type(ctx.SetReadyCheckReadyUntil) == "function" then
+    ctx.SetReadyCheckReadyUntil("player", holdUntil)
+    ctx.SetReadyCheckReadyUntil("party1", holdUntil)
+  end
+  if type(ctx.SetReadyCheckDeclinedUntil) == "function" then
+    ctx.SetReadyCheckDeclinedUntil("party2", holdUntil)
+  end
+  if type(ctx.RefreshReadyCheckUI) == "function" then
+    ctx.RefreshReadyCheckUI()
+  end
+end
+
+local function ClearDemoReadyCheckPreview(ctx)
+  if type(ctx.SetReadyCheckActive) == "function" then
+    ctx.SetReadyCheckActive(false)
+  end
+  if type(ctx.ClearAllReadyCheckReady) == "function" then
+    ctx.ClearAllReadyCheckReady()
+  end
+  if type(ctx.ClearAllReadyCheckDeclined) == "function" then
+    ctx.ClearAllReadyCheckDeclined()
+  end
+  if type(ctx.RefreshReadyCheckUI) == "function" then
+    ctx.RefreshReadyCheckUI()
+  end
+end
+
+local function ApplyDemoShareKeysCooldown(ctx)
+  if type(ctx.TriggerShareKeysCooldown) == "function" then
+    ctx.TriggerShareKeysCooldown(DEMO_FEATURE_SHARE_KEYS_COOLDOWN_SECONDS)
+  end
+end
+
+local function ClearDemoShareKeysCooldown(ctx)
+  if type(ctx.ClearShareKeysCooldown) == "function" then
+    ctx.ClearShareKeysCooldown()
+  end
+end
+
+local function ApplyDemoAlertAndSoundPreview(ctx, L)
+  if type(ctx.ShowRoleDeathAlert) == "function" then
+    ctx.ShowRoleDeathAlert("TANK", "party1")
+    ctx.ShowRoleDeathAlert("DAMAGER", "party3")
+  end
+
+  local soundUtils = ctx.addonTable and ctx.addonTable.SoundUtils
+  if type(soundUtils) ~= "table" then
+    return
+  end
+  if type(soundUtils.PlayReadyCheckComplete) == "function" then
+    soundUtils.PlayReadyCheckComplete()
+  end
+  if type(soundUtils.SpeakTts) == "function" then
+    soundUtils.SpeakTts(L.TTS_PREVIEW_TEXT or "isiLive text to speech is active.", {
+      spamScope = "preview:demo",
+    })
   end
 end
 
@@ -321,8 +406,11 @@ local function ApplyDemoFeatureData(ctx)
   ApplyDemoStatsBox(ctx)
   ApplyDemoLfgFlags(ctx)
   ApplyDemoMobForces(ctx)
+  ApplyDemoReadyCheckPreview(ctx)
+  ApplyDemoShareKeysCooldown(ctx)
 
   local L = ctx.GetL and ctx.GetL() or {}
+  ApplyDemoAlertAndSoundPreview(ctx, L)
   ShowDemoPortalNavigator(ctx, L)
   if type(ctx.ShowDemoCenterNotices) == "function" then
     ctx.ShowDemoCenterNotices({
@@ -419,6 +507,8 @@ local function ClearDemoFeatureData(ctx)
   RestoreDemoStatsBox(ctx)
   RestoreDemoLfgFlags(ctx, db)
   RestoreDemoMobForces(ctx, db)
+  ClearDemoReadyCheckPreview(ctx)
+  ClearDemoShareKeysCooldown(ctx)
 
   if type(ctx.SetPortalNavigatorVisible) == "function" then
     ctx.SetPortalNavigatorVisible(false)

@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-06-13 - Version 0.9.311 (patch)
+
+- Expanded demo mode so the full preview also exercises the recent sound and
+  alert surfaces: ready-check hold row colors, a mirrored Share Keys cooldown,
+  the tank death-alert preview, the damage-dealer TTS-only death path, the
+  ready-check-complete sound, and the spoken TTS preview.
+- Demo mode now temporarily enables the related sound / TTS preview settings
+  and restores the user's previous values on exit, matching the existing
+  temporary handling for notice and display demo settings.
+- Added cleanup for the demo Share Keys cooldown so leaving demo mode does not
+  leave the live button in a preview lock.
+- Updated `RULES_LOGIC` rule 57 and `USECASES.md` so the demo-mode contract
+  covers the new preview surfaces; the validator baseline remains `2042`
+  scenarios.
+- Bumped the TOC and documentation baselines to `0.9.311`.
+
 ## 2026-06-13 - Version 0.9.310 (patch)
 
 - Added optional spoken (text-to-speech) death alerts: a new Sounds toggle

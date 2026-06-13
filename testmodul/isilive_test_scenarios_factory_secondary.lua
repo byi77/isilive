@@ -375,6 +375,7 @@ local function BuildControllerContext(state, addon, initial)
         PORTAL_NAVIGATOR_HEAVEN = "Heaven",
         PORTAL_NAVIGATOR_UNOCCUPIED = "Unoccupied",
         ROLE_NAME_DAMAGE = "Damage",
+        TTS_PREVIEW_TEXT = "isiLive text to speech is active.",
       }
     end,
     GetRealmInfoLib = function()
@@ -392,6 +393,9 @@ local function BuildControllerContext(state, addon, initial)
     SetMainFrameVisible = function(_visible) end,
     UpdateUI = function()
       state.uiUpdates = (state.uiUpdates or 0) + 1
+    end,
+    RefreshReadyCheckUI = function()
+      state.readyCheckRefreshes = (state.readyCheckRefreshes or 0) + 1
     end,
     UpdateLeaderButtons = function() end,
     ShowCenterNotice = function(message, durationSeconds, dungeonName, activityID, opts)
@@ -471,6 +475,37 @@ local function BuildControllerContext(state, addon, initial)
         state.cdController = ctrl
       end,
     },
+    SetReadyCheckActive = function(active)
+      state.readyCheckActive = active == true
+    end,
+    SetReadyCheckReadyUntil = function(unit, untilTime)
+      state.readyCheckReadyUntil = state.readyCheckReadyUntil or {}
+      state.readyCheckReadyUntil[unit] = untilTime
+    end,
+    SetReadyCheckDeclinedUntil = function(unit, untilTime)
+      state.readyCheckDeclinedUntil = state.readyCheckDeclinedUntil or {}
+      state.readyCheckDeclinedUntil[unit] = untilTime
+    end,
+    ClearAllReadyCheckReady = function()
+      state.readyCheckReadyUntil = {}
+    end,
+    ClearAllReadyCheckDeclined = function()
+      state.readyCheckDeclinedUntil = {}
+    end,
+    TriggerShareKeysCooldown = function(seconds)
+      state.shareKeysCooldownSeconds = seconds
+    end,
+    ClearShareKeysCooldown = function()
+      state.shareKeysCooldownCleared = (state.shareKeysCooldownCleared or 0) + 1
+      state.shareKeysCooldownSeconds = nil
+    end,
+    ShowRoleDeathAlert = function(role, unit)
+      state.deathAlertPreviews = state.deathAlertPreviews or {}
+      table.insert(state.deathAlertPreviews, {
+        role = role,
+        unit = unit,
+      })
+    end,
     IsRaidGroup = function()
       return state.isRaidGroup == true
     end,
@@ -600,6 +635,18 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
           state.bloodlustReadySoundCalls = (state.bloodlustReadySoundCalls or 0) + 1
           return true
         end,
+        PlayReadyCheckComplete = function()
+          state.readyCheckCompleteSoundCalls = (state.readyCheckCompleteSoundCalls or 0) + 1
+          return true
+        end,
+        SpeakTts = function(text, opts)
+          state.ttsPreviews = state.ttsPreviews or {}
+          table.insert(state.ttsPreviews, {
+            text = text,
+            spamScope = opts and opts.spamScope or nil,
+          })
+          return true
+        end,
       },
     })
 
@@ -657,6 +704,23 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Equal(state.mobNameplateTestOpts.activeMapID, 559, "nameplate demo must use the demo target map context")
     Assert.Nil(state.mobNameplateFormat, "nameplate demo must not override the user's percent format settings")
     Assert.Nil(state.mobNameplateAppearance, "nameplate demo must not override the user's appearance settings")
+    Assert.False(state.readyCheckActive, "demo mode must use finished ready-check hold states, not live active status")
+    Assert.Equal(state.readyCheckReadyUntil.player, 20, "demo mode must mark the player ready for the hold preview")
+    Assert.Equal(state.readyCheckReadyUntil.party1, 20, "demo mode must mark one party row ready for the hold preview")
+    Assert.Equal(state.readyCheckDeclinedUntil.party2, 20, "demo mode must mark one party row declined")
+    Assert.Equal(state.readyCheckRefreshes, 1, "demo mode must refresh ready-check row decoration")
+    Assert.Equal(state.shareKeysCooldownSeconds, 18, "demo mode must show the mirrored share-keys cooldown state")
+    Assert.NotNil(state.deathAlertPreviews, "demo mode must preview death alerts")
+    Assert.Equal(state.deathAlertPreviews[1].role, "TANK", "demo mode must show the tank death alert preview")
+    Assert.Equal(state.deathAlertPreviews[2].role, "DAMAGER", "demo mode must exercise the TTS-only DPS death path")
+    Assert.Equal(state.readyCheckCompleteSoundCalls, 1, "demo mode must preview the ready-check-complete sound")
+    Assert.NotNil(state.ttsPreviews, "demo mode must preview spoken TTS")
+    Assert.Equal(
+      state.ttsPreviews[1].text,
+      "isiLive text to speech is active.",
+      "demo TTS preview text must be explicit"
+    )
+    Assert.Equal(state.ttsPreviews[1].spamScope, "preview:demo", "demo TTS preview must use a separate spam scope")
     Assert.NotNil(state.portalNavigatorLayout, "test mode must show the portal navigator demo")
     Assert.Equal(
       state.portalNavigatorLayout.eyebrow,
@@ -738,6 +802,10 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Nil(state.statsBoxDemoData, "test mode exit must clear stats-box demo data")
     Assert.Equal(state.statsBoxDemoCleared, 1, "stats-box demo data must be cleared once")
     Assert.False(state.mobNameplateTestMode, "test mode exit must disable nameplate forces demo mode")
+    Assert.Equal(next(state.readyCheckReadyUntil), nil, "test mode exit must clear ready-check ready holds")
+    Assert.Equal(next(state.readyCheckDeclinedUntil), nil, "test mode exit must clear ready-check declined holds")
+    Assert.Equal(state.shareKeysCooldownCleared, 1, "test mode exit must clear the demo share-keys cooldown")
+    Assert.Nil(state.shareKeysCooldownSeconds, "test mode exit must leave no demo share-keys cooldown")
     Assert.False(state.portalNavigatorVisible, "test mode exit must hide the portal navigator demo")
     Assert.False(state.demoCenterNoticesVisible, "test mode exit must hide the stacked demo center notices")
   end)

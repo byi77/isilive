@@ -152,6 +152,11 @@ local function InitializeFactoryPrimaryControllers(ctx)
   ctx.TriggerShareKeysCooldown = initResult.triggerShareKeysCooldown
   ctx.GetShareKeysCooldownRemaining = initResult.getShareKeysCooldownRemaining
   ctx.GetShareKeysLocalCooldownRemaining = initResult.getShareKeysLocalCooldownRemaining
+  ctx.ClearShareKeysCooldown = function()
+    if ctx.rosterPanelController and type(ctx.rosterPanelController.ClearShareKeysCooldown) == "function" then
+      ctx.rosterPanelController.ClearShareKeysCooldown()
+    end
+  end
   ctx.teleportUIController = initResult.teleportUIController
   ctx.mplusTeleportButtons = initResult.mplusTeleportButtons
   ctx.UpdateLeaderButtons = function()
