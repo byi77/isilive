@@ -5,7 +5,9 @@ local RI = addonTable._RosterInternal or {}
 addonTable._RosterInternal = RI
 
 local ApplyFontStringSize = RI.ApplyFontStringSize
+local AnchorRosterHoverTooltip = RI.AnchorRosterHoverTooltip
 local FormatMplusTime = RI.FormatMplusTime
+local HideRosterHoverTooltip = RI.HideRosterHoverTooltip
 local SetFontStringTextColorSafe = RI.SetFontStringTextColorSafe
 
 local CD_TRACKER_ROW_HEIGHT = RI.CD_TRACKER_ROW_HEIGHT or 20
@@ -13,6 +15,43 @@ local CD_TRACKER_ROW_BOTTOM_OFFSET = RI.CD_TRACKER_ROW_BOTTOM_OFFSET or 20
 local CD_TRACKER_ICON_SIZE = 16
 local CD_TRACKER_TEXT_GAP = 6
 local CD_TRACKER_FONT_SIZE = 12
+
+local function BuildDeathSummaryTooltipLines(summaries)
+  local lines = {}
+  if type(summaries) ~= "table" then
+    return lines
+  end
+
+  for _, entry in ipairs(summaries) do
+    local name = type(entry) == "table" and entry.name or nil
+    local count = type(entry) == "table" and tonumber(entry.count) or nil
+    if type(name) == "string" and name ~= "" and count and count > 0 then
+      lines[#lines + 1] = {
+        name = name,
+        count = math.floor(count),
+      }
+    end
+  end
+
+  table.sort(lines, function(a, b)
+    local nameA = tostring(a.name or "")
+    local nameB = tostring(b.name or "")
+    if nameA ~= nameB then
+      return nameA < nameB
+    end
+    return (tonumber(a.count) or 0) > (tonumber(b.count) or 0)
+  end)
+
+  return lines
+end
+
+local function GetDeathWatchSummaries()
+  local deathWatch = addonTable.DeathWatch
+  if type(deathWatch) ~= "table" or type(deathWatch.GetAllDeathSummaries) ~= "function" then
+    return {}
+  end
+  return deathWatch.GetAllDeathSummaries()
+end
 
 -- Shared shape for the +3 / +2 / +1 timer badges (16x12 colored frame with a
 -- centred colour-coded label). Used three times below; the previous revision
@@ -48,7 +87,8 @@ local function CreateMplusGradeBadge(parent, leftOffset, bgR, bgG, bgB, labelTex
   return badge
 end
 
-local function CreateCdTrackerRow(mainFrame)
+local function CreateCdTrackerRow(mainFrame, opts)
+  opts = opts or {}
   local UICommon = addonTable.UICommon or {}
   local row = CreateFrame("Frame", nil, mainFrame)
   if type(row.CreateTexture) ~= "function" or type(row.CreateFontString) ~= "function" then
@@ -204,6 +244,49 @@ local function CreateCdTrackerRow(mainFrame)
     row.mpDeathIcon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_8")
   end
 
+  local deathHover = CreateFrame("Frame", nil, mplusBox)
+  if type(deathHover.SetPoint) == "function" then
+    deathHover:SetPoint("CENTER", row.mpDeathIcon, "CENTER", 0, 0)
+  end
+  if type(deathHover.SetSize) == "function" then
+    deathHover:SetSize(18, 18)
+  end
+  if type(deathHover.EnableMouse) == "function" then
+    deathHover:EnableMouse(true)
+  end
+  if type(deathHover.SetFrameLevel) == "function" and type(mplusBox.GetFrameLevel) == "function" then
+    deathHover:SetFrameLevel((mplusBox:GetFrameLevel() or 1) + 5)
+  end
+  deathHover:SetScript("OnEnter", function(self)
+    local tooltipFrame = opts.tooltipFrame
+    local tooltip = type(AnchorRosterHoverTooltip) == "function" and AnchorRosterHoverTooltip(tooltipFrame, self) or nil
+    if type(tooltip) ~= "table" or type(tooltip.SetText) ~= "function" then
+      return
+    end
+    local L = type(opts.getL) == "function" and opts.getL() or {}
+    local title = type(L.TOOLTIP_DEATH_BREAKDOWN_TITLE) == "string" and L.TOOLTIP_DEATH_BREAKDOWN_TITLE or "Deaths"
+    tooltip:SetText(title, 1, 1, 1)
+    if type(tooltip.AddLine) == "function" then
+      local lines = BuildDeathSummaryTooltipLines(GetDeathWatchSummaries())
+      if #lines > 0 then
+        for _, line in ipairs(lines) do
+          tooltip:AddLine(string.format("%s %d", line.name, line.count), 1, 0.38, 0.38)
+        end
+      else
+        tooltip:AddLine("--", 0.65, 0.65, 0.65)
+      end
+    end
+    if type(tooltip.Show) == "function" then
+      tooltip:Show()
+    end
+  end)
+  deathHover:SetScript("OnLeave", function()
+    if type(HideRosterHoverTooltip) == "function" then
+      HideRosterHoverTooltip(opts.tooltipFrame)
+    end
+  end)
+  row.mpDeathHover = deathHover
+
   row.mpDeathText = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   row.mpDeathText:SetPoint("LEFT", row.mpDeathIcon, "RIGHT", 4, 0)
   row.mpDeathText:SetJustifyH("LEFT")
@@ -336,3 +419,4 @@ end
 
 RI.CreateCdTrackerRow = CreateCdTrackerRow
 RI.UpdateCdTrackerRow = UpdateCdTrackerRow
+RI.BuildDeathSummaryTooltipLines = BuildDeathSummaryTooltipLines

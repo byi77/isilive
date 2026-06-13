@@ -198,6 +198,13 @@ local function CreateFactoryContext(addonName, tbl)
   ctx.GetUnitClass = modules.units.GetUnitClass
   ctx.TruncateName = modules.units.TruncateName
   ctx.GetUnitNameAndRealm = modules.units.GetUnitNameAndRealm
+  ctx.GetDeathSummaryForPlayer = function(name, realm)
+    local deathWatch = modules.deathWatch or addonTable.DeathWatch
+    if type(deathWatch) == "table" and type(deathWatch.GetDeathSummaryForPlayer) == "function" then
+      return deathWatch.GetDeathSummaryForPlayer(name, realm)
+    end
+    return nil
+  end
   ctx.GetPlayerSpecName = modules.units.GetPlayerSpecName
   ctx.GetInspectSpecName = modules.units.GetInspectSpecName
   ctx.GetInspectSpecRole = modules.units.GetInspectSpecRole

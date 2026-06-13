@@ -16,6 +16,7 @@ local ROLE_ICONS = {
 }
 
 local LEADER_MARKER = " |TInterface\\GroupFrame\\UI-Group-LeaderIcon:16:16|t"
+local DEATH_MARKER_ICON = " |TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:12:12:0:0|t"
 local READY_CHECK_WAITING_MARKUP = "|TInterface\\RAIDFRAME\\ReadyCheck-Waiting:16:16:0:0|t "
 local READY_CHECK_BACKGROUND_COLORS = {
   ready = { 0.08, 0.5, 0.16, 0.42 },
@@ -122,6 +123,7 @@ function Roster.BuildDisplayData(info, opts)
   local syncMarker = opts.syncMarker or ""
   local syncBadge = opts.syncBadge or ""
   local syncSummary = opts.syncSummary
+  local deathSummary = opts.deathSummary
   local isReadyCheckActive = opts.isReadyCheckActive
   local getReadyCheckReadyUntil = opts.getReadyCheckReadyUntil
   local getReadyCheckDeclinedUntil = opts.getReadyCheckDeclinedUntil
@@ -212,6 +214,13 @@ function Roster.BuildDisplayData(info, opts)
   end
   if type(syncSummary) == "table" then
     addonMarker = addonMarker .. syncBadge
+  end
+  local deathCount = type(deathSummary) == "table" and tonumber(deathSummary.count) or tonumber(info.deathCount)
+  if deathCount and deathCount > 0 then
+    addonMarker = addonMarker .. DEATH_MARKER_ICON
+    if deathCount > 1 then
+      addonMarker = addonMarker .. "|cffff6060" .. tostring(math.floor(deathCount)) .. "|r"
+    end
   end
   local atDungeonMarker = opts.isAtDungeon and "|TInterface\\MINIMAP\\Minimap_Summon_Icon:12:12:0:0|t" or ""
   local roleIconMarkup = ROLE_ICONS[info.role] or ""

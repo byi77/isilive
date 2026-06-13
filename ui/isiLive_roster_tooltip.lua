@@ -666,7 +666,8 @@ local function ShowRosterInfoTooltip(
   getDungeonName,
   getPlayerLastRunDps,
   getLanguageTooltipMarkup,
-  getL
+  getL,
+  getDeathSummaryForPlayer
 )
   if type(info) ~= "table" then
     return false
@@ -677,6 +678,8 @@ local function ShowRosterInfoTooltip(
   end
 
   local lastRunDps = type(getPlayerLastRunDps) == "function" and getPlayerLastRunDps(info.name, info.realm) or nil
+  local deathSummary = type(getDeathSummaryForPlayer) == "function" and getDeathSummaryForPlayer(info.name, info.realm)
+    or nil
   local syncModule = addonTable.Sync
   local syncSummary = type(syncModule) == "table"
       and type(syncModule.GetPlayerSyncSummary) == "function"
@@ -733,6 +736,7 @@ local function ShowRosterInfoTooltip(
     or (tonumber(info.ilvl) and tonumber(info.ilvl) > 0)
     or (tonumber(info.rio) and tonumber(info.rio) > 0)
     or (tonumber(lastRunDps) and tonumber(lastRunDps) > 0)
+    or (type(deathSummary) == "table" and tonumber(deathSummary.count) and tonumber(deathSummary.count) > 0)
     or (unitLevel and unitLevel > 0)
     or (languageCode and languageCode ~= "")
     or syncSummary ~= nil
@@ -787,6 +791,11 @@ local function ShowRosterInfoTooltip(
     if info.rio then
       local fmt = type(Lrow.TOOLTIP_RIO_FMT) == "string" and Lrow.TOOLTIP_RIO_FMT or "Rio: %s"
       tooltip:AddLine(string.format(fmt, tostring(math.floor(tonumber(info.rio) or 0))), 0.9, 0.9, 0.9)
+    end
+    local deathCount = type(deathSummary) == "table" and tonumber(deathSummary.count) or nil
+    if deathCount and deathCount > 0 then
+      local fmt = type(Lrow.TOOLTIP_DEATH_COUNT_FMT) == "string" and Lrow.TOOLTIP_DEATH_COUNT_FMT or "Deaths: %d"
+      tooltip:AddLine(string.format(fmt, math.floor(deathCount)), 1, 0.38, 0.38)
     end
     -- Multi-kick extras (Demo Warlock Inner Demons, Prot Pala Avenger's Shield etc.).
     -- Only rendered when at least one extra is on cooldown -- the primary kick

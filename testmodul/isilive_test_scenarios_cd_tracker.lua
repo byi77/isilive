@@ -400,4 +400,32 @@ return function(test, ctx)
       Assert.Nil(ctrl.GetLustInfo(), "Lust info must be nil when no aura is active")
     end)
   end)
+
+  test("CdTracker ClearRuntimeData wipes Battle Res and Bloodlust state", function()
+    local NOW = 1000
+    WithGlobals({
+      C_Spell = {
+        GetSpellCharges = function()
+          return 1, 2, 0, 900, 300
+        end,
+      },
+      C_UnitAuras = BuildHarmfulAuraApi(function()
+        return { MakeLustAura(NOW + 120, 57723, 132114) }
+      end),
+    }, function()
+      local ctrl = MakeController({
+        getTime = function()
+          return NOW
+        end,
+      })
+      ctrl.Scan()
+      Assert.NotNil(ctrl.GetBResInfo(), "BRes info must be populated before runtime clear")
+      Assert.NotNil(ctrl.GetLustInfo(), "Lust info must be populated before runtime clear")
+
+      ctrl.ClearRuntimeData()
+
+      Assert.Nil(ctrl.GetBResInfo(), "runtime clear must remove BRes info")
+      Assert.Nil(ctrl.GetLustInfo(), "runtime clear must remove Bloodlust info")
+    end)
+  end)
 end

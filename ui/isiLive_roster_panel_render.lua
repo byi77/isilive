@@ -145,7 +145,8 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip, getL)
         row.getDungeonName,
         row.getPlayerLastRunDps,
         row.getLanguageTooltipMarkup,
-        row.getL
+        row.getL,
+        row.getDeathSummaryForPlayer
       )
     then
       ShowRosterNameFallbackTooltip(rosterTooltip, row.hoverFrame, row.tooltipName, row.tooltipRealm)
@@ -289,6 +290,7 @@ local function BuildRowDisplayData(state, entry, isReadyCheckActive, targetMapID
     syncMarker = state.syncMarker,
     syncBadge = state.syncBadge,
     syncSummary = state.getPlayerSyncSummary and state.getPlayerSyncSummary(info.name, info.realm) or nil,
+    deathSummary = state.getDeathSummaryForPlayer and state.getDeathSummaryForPlayer(info.name, info.realm) or nil,
     isReadyCheckActive = shouldIncludeReadyCheckDecorations and isReadyCheckActive or nil,
     getReadyCheckReadyUntil = shouldIncludeReadyCheckDecorations and state.getReadyCheckReadyUntil or nil,
     getReadyCheckDeclinedUntil = shouldIncludeReadyCheckDecorations and state.getReadyCheckDeclinedUntil or nil,
@@ -479,6 +481,7 @@ local function RenderRosterImpl(state, roster)
     row.getDungeonShortCode = nil
     row.getDungeonName = nil
     row.getPlayerLastRunDps = nil
+    row.getDeathSummaryForPlayer = nil
     row.getLanguageTooltipMarkup = nil
     row.getL = nil
     if row.hoverFrame then
@@ -668,6 +671,7 @@ local function RenderRosterImpl(state, roster)
     row.getDungeonShortCode = getDungeonShortCode
     row.getDungeonName = getDungeonName
     row.getPlayerLastRunDps = getPlayerLastRunDps
+    row.getDeathSummaryForPlayer = state.getDeathSummaryForPlayer
     row.getLanguageTooltipMarkup = getLanguageTooltipMarkup
     row.getL = getL
     if row.hoverFrame then

@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-06-13 - Version 0.9.320 (patch)
+
+- Added a hover tooltip to the skull in the M+ timer row. It now lists tracked
+  per-player deaths as `Name Count`, sorted alphabetically by player name.
+- Added deterministic coverage for the M+ skull death-breakdown ordering.
+- The validator baseline is now `2058` scenarios.
+- Bumped the TOC and documentation baselines to `0.9.320`.
+
+## 2026-06-13 - Version 0.9.319 (patch)
+
+- Added per-player Mythic+ death tracking from the existing DeathWatch path.
+  Players with tracked deaths now get a skull marker next to their roster name;
+  repeated deaths show the count, and the row tooltip shows the exact total.
+- Death counts stay visible after key completion, key abort, and group leave on
+  existing active or ghost roster rows until a new key starts or the UI reloads.
+- Added deterministic coverage for DeathWatch count lifetime, suppressed DPS
+  TTS deaths still incrementing the counter, roster skull markers, and tooltip
+  death totals.
+- The validator baseline is now `2057` scenarios.
+- Bumped the TOC and documentation baselines to `0.9.319`.
+
+## 2026-06-13 - Version 0.9.318 (patch)
+
+- Reset visible M+ utility timers on key completion or abort: the M+ timer
+  snapshot, Battle Res cooldown display, and Bloodlust cooldown display now
+  return to placeholders immediately and stay reset while no key is running.
+- Added deterministic coverage for CD tracker runtime clearing, challenge
+  lifecycle reset options, and visible out-of-key BR/BL rescan suppression.
+- The validator baseline is now `2053` scenarios.
+- Bumped the TOC and documentation baselines to `0.9.318`.
+
+## 2026-06-13 - Version 0.9.317 (patch)
+
+- Suppressed damage-dealer spoken death alerts once both the tank and healer
+  are already dead, while keeping the tank/healer alerts and earlier DPS TTS
+  announcements intact.
+- Added deterministic DeathWatch coverage for the tank-dead plus healer-dead
+  DPS suppression path.
+- The validator baseline is now `2051` scenarios.
+- Bumped the TOC and documentation baselines to `0.9.317`.
+
 ## 2026-06-13 - Version 0.9.316 (patch)
 
 - Removed Spanish, Portuguese, and Italian from the Settings language selector

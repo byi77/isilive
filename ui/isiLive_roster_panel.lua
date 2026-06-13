@@ -528,7 +528,10 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   local rosterTooltip = CreateRosterHoverTooltip(mainFrame)
   local tankButtons, tankHeader = CreateTankHelperButtons(mainFrame, panelTooltip, uiDeps.getL)
 
-  local cdTrackerRow = CreateCdTrackerRow(mainFrame)
+  local cdTrackerRow = CreateCdTrackerRow(mainFrame, {
+    tooltipFrame = rosterTooltip,
+    getL = uiDeps.getL,
+  })
   local killTrackRow = CreateKillTrackRow(mainFrame)
   local statusLine = CreateStatusLine(mainFrame)
   local optionToggles = CreateSystemOptionToggles(mainFrame)
@@ -743,6 +746,8 @@ function RosterPanel.CreateController(opts)
   end
   local sendShareKeysRequest = type(opts.sendShareKeysRequest) == "function" and opts.sendShareKeysRequest or nil
   local getPlayerLastRunDps = type(opts.getPlayerLastRunDps) == "function" and opts.getPlayerLastRunDps or nil
+  local getDeathSummaryForPlayer = type(opts.getDeathSummaryForPlayer) == "function" and opts.getDeathSummaryForPlayer
+    or nil
   local getTargetDungeonInfo = type(opts.getTargetDungeonInfo) == "function" and opts.getTargetDungeonInfo or nil
   local isInChallengeMode = type(opts.isInChallengeMode) == "function" and opts.isInChallengeMode or nil
   local logRuntimeTrace = type(opts.logRuntimeTrace) == "function" and opts.logRuntimeTrace or nil
@@ -996,6 +1001,7 @@ function RosterPanel.CreateController(opts)
       syncBadge = syncBadge,
       getPlayerSyncSummary = getPlayerSyncSummary,
       getPlayerLastRunDps = getPlayerLastRunDps,
+      getDeathSummaryForPlayer = getDeathSummaryForPlayer,
       getReadyCheckReadyUntil = getReadyCheckReadyUntil,
       getReadyCheckDeclinedUntil = getReadyCheckDeclinedUntil,
       getTime = getTime,
@@ -1031,6 +1037,7 @@ function RosterPanel.CreateController(opts)
       syncMarker = syncMarker,
       syncBadge = syncBadge,
       getPlayerSyncSummary = getPlayerSyncSummary,
+      getDeathSummaryForPlayer = getDeathSummaryForPlayer,
       getReadyCheckReadyUntil = getReadyCheckReadyUntil,
       getReadyCheckDeclinedUntil = getReadyCheckDeclinedUntil,
       getTime = getTime,

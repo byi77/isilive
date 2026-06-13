@@ -97,6 +97,24 @@ return function(test, ctx)
     RI.SetFontStringTextColorSafe({}, 1, 1, 1)
   end)
 
+  test("BuildDeathSummaryTooltipLines sorts tracked Mythic+ deaths by player name", function()
+    local RI = LoadAddonModules({ "isiLive_roster_panel.lua" })._RosterInternal
+    local lines = RI.BuildDeathSummaryTooltipLines({
+      { name = "Pinto", count = 5 },
+      { name = "Abi", count = 3 },
+      { name = "Bircan", count = 6 },
+      { name = "Ignored", count = 0 },
+    })
+
+    Assert.Equal(#lines, 3, "zero-count entries must not render")
+    Assert.Equal(lines[1].name, "Abi", "death tooltip should sort alphabetically by player")
+    Assert.Equal(lines[1].count, 3, "Abi count")
+    Assert.Equal(lines[2].name, "Bircan", "second player")
+    Assert.Equal(lines[2].count, 6, "Bircan count")
+    Assert.Equal(lines[3].name, "Pinto", "third player")
+    Assert.Equal(lines[3].count, 5, "Pinto count")
+  end)
+
   -- UpdateCdTrackerRow branch coverage. Lives in isiLive_roster_panel_cd_row.lua;
   -- exposed via _RosterInternal. Pure-function over a row stub + cdController
   -- stub, so we drive every branch without FrameXML.

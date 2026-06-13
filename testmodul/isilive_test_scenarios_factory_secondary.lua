@@ -260,6 +260,11 @@ local function BuildControllerContext(state, addon, initial)
               state.cdTrackerDemoData = nil
               state.cdTrackerDemoCleared = (state.cdTrackerDemoCleared or 0) + 1
             end,
+            ClearRuntimeData = function()
+              state.cdTrackerRuntimeCleared = (state.cdTrackerRuntimeCleared or 0) + 1
+              state.bresInfo = nil
+              state.lustInfo = nil
+            end,
           }
         end,
       },
@@ -1407,6 +1412,39 @@ return function(test, ctx)
     state.inGroup = false
     state.ctx.UpdateCdTracker()
     Assert.Nil(state.cdController.GetLustInfo(), "ungrouped context must fall back to BL: --")
+  end)
+
+  test("Factory CD refresh resets visible Battle Res and Bloodlust timers when key ends", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mplusTimerData = {
+        running = true,
+      },
+    })
+
+    state.bresInfo = { charges = 0, maxCharges = 1, cooldownRemain = 120 }
+    state.lustInfo = { remain = 20, icon = 132114 }
+    state.ctx.UpdateCdTracker({ playLustSoundOnStart = true })
+    Assert.NotNil(state.cdController.GetBResInfo(), "running key must expose BRes timer info before key end")
+    Assert.NotNil(state.cdController.GetLustInfo(), "running key must expose Bloodlust timer info before key end")
+
+    state.mplusTimerData = {
+      running = false,
+    }
+    state.ctx.UpdateCdTracker({
+      suppressBattleResReadySound = true,
+      suppressLustReadySound = true,
+      resetRuntimeTimers = true,
+    })
+
+    Assert.Equal(state.cdTrackerRuntimeCleared or 0, 1, "key-end refresh must clear CD tracker runtime data")
+    Assert.Nil(state.cdController.GetBResInfo(), "key-end refresh must reset BRes display to placeholder")
+    Assert.Nil(state.cdController.GetLustInfo(), "key-end refresh must reset Bloodlust display to placeholder")
+
+    state.bresInfo = { charges = 1, maxCharges = 1, cooldownRemain = 0 }
+    state.lustInfo = { remain = 0, icon = 132114 }
+    state.cdController.Scan()
+    Assert.Nil(state.cdController.GetBResInfo(), "visible out-of-key scan must keep BRes reset")
+    Assert.Nil(state.cdController.GetLustInfo(), "visible out-of-key scan must keep Bloodlust reset")
   end)
 
   test("Factory CD refresh routes Bloodlust-ready through the real SoundUtils asset", function()

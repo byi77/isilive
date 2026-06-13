@@ -123,14 +123,16 @@ local function RegisterChallengeStartAndDelayTests(test, Assert, _WithGlobals, L
   test("Event handlers refresh CD tracker on challenge completion and reset", function()
     local cdRefreshCalls = 0
     local timerEvents = {}
+    local cdRefreshOpts = {}
 
     local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
     local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
       handleMplusTimerEvent = function(event)
         timerEvents[#timerEvents + 1] = event
       end,
-      updateCdTracker = function()
+      updateCdTracker = function(opts)
         cdRefreshCalls = cdRefreshCalls + 1
+        cdRefreshOpts[#cdRefreshOpts + 1] = opts
       end,
     })
 
@@ -140,6 +142,10 @@ local function RegisterChallengeStartAndDelayTests(test, Assert, _WithGlobals, L
     Assert.Equal(timerEvents[1], "CHALLENGE_MODE_COMPLETED", "completion must reach the M+ timer before UI refresh")
     Assert.Equal(timerEvents[2], "CHALLENGE_MODE_RESET", "reset must reach the M+ timer before UI refresh")
     Assert.Equal(cdRefreshCalls, 2, "key end and key reset must refresh the CD tracker row")
+    Assert.True(cdRefreshOpts[1].resetRuntimeTimers, "completion must request a visible BR/BL timer reset")
+    Assert.True(cdRefreshOpts[2].resetRuntimeTimers, "reset must request a visible BR/BL timer reset")
+    Assert.True(cdRefreshOpts[1].suppressBattleResReadySound, "completion must suppress BRes-ready sound")
+    Assert.True(cdRefreshOpts[1].suppressLustReadySound, "completion must suppress Bloodlust-ready sound")
   end)
 
   test("Event handlers enable RIO delta only after delayed post-run refresh", function()

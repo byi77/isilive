@@ -138,6 +138,14 @@ function CdTracker.CreateController(opts)
     demoOverride = nil
   end
 
+  function controller.ClearRuntimeData()
+    bresCharges = nil
+    bresMaxCharges = nil
+    bresCooldownRemain = nil
+    lustRemain = nil
+    lustIcon = nil
+  end
+
   function controller.GetBResInfo()
     if demoOverride then
       return demoOverride.bres

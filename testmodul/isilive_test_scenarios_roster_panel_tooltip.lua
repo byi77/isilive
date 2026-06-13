@@ -215,6 +215,7 @@ local function BuildTooltipController(addon, options)
     rolePriority = options.rolePriority or {},
     unitPriority = options.unitPriority or {},
     getPlayerLastRunDps = options.getPlayerLastRunDps,
+    getDeathSummaryForPlayer = options.getDeathSummaryForPlayer,
   })
 end
 
@@ -465,11 +466,42 @@ local function RegisterRosterPanelRowTooltipFullKeyNameTest(test, Assert, WithGl
   end)
 end
 
+local function RegisterRosterPanelRowTooltipDeathCountTest(test, Assert, WithGlobals, LoadAddonModules)
+  test("Roster row tooltip shows tracked Mythic+ death count", function()
+    RunTooltipScenario(WithGlobals, LoadAddonModules, Assert, {
+      controller = {
+        getL = function()
+          return {
+            TOOLTIP_DEATH_COUNT_FMT = "Deaths: %d",
+          }
+        end,
+        getDeathSummaryForPlayer = function(name, realm)
+          if name == "Buddy" and realm == "Realm" then
+            return { count = 3 }
+          end
+          return nil
+        end,
+      },
+    }, function(addon)
+      addon.Sync.SetPlayerHelloInfo("Buddy", "Realm", "0.9.36", 2, 90, "inspect")
+    end, function(_addon, _controller, _rowFrame, tooltipLines)
+      local foundDeaths = false
+      for _, line in ipairs(tooltipLines) do
+        if line:find("Deaths: 3", 1, true) then
+          foundDeaths = true
+        end
+      end
+      Assert.True(foundDeaths, "Tooltip should contain the tracked death count")
+    end)
+  end)
+end
+
 local function RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipDpsTest(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipAckVersionTest(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipSyncDebugTest(test, Assert, WithGlobals, LoadAddonModules)
   RegisterRosterPanelRowTooltipFullKeyNameTest(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterRosterPanelRowTooltipDeathCountTest(test, Assert, WithGlobals, LoadAddonModules)
 end
 
 local function RegisterBlizzardUnitTooltipLanguageFlagTest(test, Assert, WithGlobals, LoadAddonModules)

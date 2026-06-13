@@ -166,6 +166,7 @@ local function InitializeFactoryDeathAlertControllers(ctx)
         return type(ctx.GetActiveChallengeMapID) == "function" and ctx.GetActiveChallengeMapID() ~= nil
       end,
       getUnitRole = type(ctx.getUnitRole) == "function" and ctx.getUnitRole or nil,
+      getUnitNameAndRealm = type(ctx.GetUnitNameAndRealm) == "function" and ctx.GetUnitNameAndRealm or nil,
       onRoleDeath = ctx.ShowRoleDeathAlert,
     })
   end

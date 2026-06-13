@@ -82,6 +82,44 @@ local function DefaultGetUnitRole(unit)
   return "NONE"
 end
 
+local function DefaultGetUnitNameAndRealm(unit)
+  local units = addonTable.Units
+  if type(units) == "table" and type(units.GetUnitNameAndRealm) == "function" then
+    return units.GetUnitNameAndRealm(unit)
+  end
+  local unitName = rawget(_G, "UnitName")
+  if type(unitName) ~= "function" then
+    return nil, nil
+  end
+  local ok, name, realm = pcall(unitName, unit)
+  if not ok or type(name) ~= "string" or name == "" then
+    return nil, nil
+  end
+  if type(realm) ~= "string" or realm == "" then
+    realm = nil
+  end
+  return name, realm
+end
+
+local function PlayerKey(name, realm)
+  if type(name) ~= "string" or name == "" then
+    return nil
+  end
+  return name .. "-" .. (type(realm) == "string" and realm or "")
+end
+
+local function CopyDeathSummary(entry)
+  if type(entry) ~= "table" then
+    return nil
+  end
+  return {
+    name = entry.name,
+    realm = entry.realm,
+    role = entry.role,
+    count = entry.count,
+  }
+end
+
 function DeathWatch.CreateController(opts)
   opts = opts or {}
   local isInKey = type(opts.isInKey) == "function" and opts.isInKey or DefaultIsInKey
@@ -91,6 +129,8 @@ function DeathWatch.CreateController(opts)
   local unitIsConnected = type(opts.unitIsConnected) == "function" and opts.unitIsConnected or DefaultUnitIsConnected
   local unitGUID = type(opts.unitGUID) == "function" and opts.unitGUID or DefaultUnitGUID
   local getUnitRole = type(opts.getUnitRole) == "function" and opts.getUnitRole or DefaultGetUnitRole
+  local getUnitNameAndRealm = type(opts.getUnitNameAndRealm) == "function" and opts.getUnitNameAndRealm
+    or DefaultGetUnitNameAndRealm
   local getDB = type(opts.getDB) == "function" and opts.getDB
     or function()
       return rawget(_G, "IsiLiveDB") or {}
@@ -103,6 +143,9 @@ function DeathWatch.CreateController(opts)
   -- alive -> dead transition fires; repeated UNIT_HEALTH ticks while dead and
   -- the dead -> ghost transition (both report dead) stay silent.
   local deadByGuid = {}
+  local deadRoleByGuid = {}
+  local deathSummaryByGuid = {}
+  local guidByPlayerKey = {}
   -- Same in-key cache pattern as CombatEvents: invalidated via Reset() on
   -- CHALLENGE_MODE_START / COMPLETED / RESET, the only events that change it.
   local cachedInKey = nil
@@ -117,6 +160,41 @@ function DeathWatch.CreateController(opts)
   local function IsEnabled()
     local db = getDB() or {}
     return db.deathAlertEnabled ~= false
+  end
+
+  local function HasDeadTankAndHealer()
+    local tankDead = false
+    local healerDead = false
+    for _, role in pairs(deadRoleByGuid) do
+      if role == "TANK" then
+        tankDead = true
+      elseif role == "HEALER" then
+        healerDead = true
+      end
+      if tankDead and healerDead then
+        return true
+      end
+    end
+    return false
+  end
+
+  local function RecordDeath(guid, unit, role)
+    local name, realm = getUnitNameAndRealm(unit)
+    local entry = deathSummaryByGuid[guid]
+    if type(entry) ~= "table" then
+      entry = { count = 0 }
+      deathSummaryByGuid[guid] = entry
+    end
+    entry.count = (tonumber(entry.count) or 0) + 1
+    entry.role = role
+    if type(name) == "string" and name ~= "" then
+      entry.name = name
+      entry.realm = type(realm) == "string" and realm or nil
+      local key = PlayerKey(entry.name, entry.realm)
+      if key then
+        guidByPlayerKey[key] = guid
+      end
+    end
   end
 
   function controller.HandleUnitHealth(unit)
@@ -144,6 +222,7 @@ function DeathWatch.CreateController(opts)
     end
     if not dead then
       deadByGuid[guid] = nil
+      deadRoleByGuid[guid] = nil
       return
     end
     if deadByGuid[guid] then
@@ -151,12 +230,48 @@ function DeathWatch.CreateController(opts)
     end
     deadByGuid[guid] = true
     local role = getUnitRole(unit)
-    -- Fire for tank, healer and damage dealers. The presentation layer
-    -- decides what each role gets: the on-screen warning stays tank/healer
-    -- only, while spoken alerts can cover damage dealers too.
+    RecordDeath(guid, unit, role)
+    -- Damage-dealer deaths are useful while the run can still recover. Once
+    -- both critical roles are dead, extra DPS TTS would only add noise.
     if role == "TANK" or role == "HEALER" or role == "DAMAGER" then
+      if role == "DAMAGER" and HasDeadTankAndHealer() then
+        return
+      end
+      deadRoleByGuid[guid] = role
       onRoleDeath(role, unit)
     end
+  end
+
+  function controller.GetDeathSummaryForPlayer(name, realm)
+    local key = PlayerKey(name, realm)
+    local guid = key and guidByPlayerKey[key] or nil
+    return CopyDeathSummary(guid and deathSummaryByGuid[guid] or nil)
+  end
+
+  function controller.GetDeathSummaryForUnit(unit)
+    if type(unit) ~= "string" or unit == "" then
+      return nil
+    end
+    local guid = unitGUID(unit)
+    return CopyDeathSummary(guid and deathSummaryByGuid[guid] or nil)
+  end
+
+  function controller.GetAllDeathSummaries()
+    local out = {}
+    for _, entry in pairs(deathSummaryByGuid) do
+      if type(entry) == "table" and tonumber(entry.count) and tonumber(entry.count) > 0 then
+        out[#out + 1] = CopyDeathSummary(entry)
+      end
+    end
+    table.sort(out, function(a, b)
+      local nameA = type(a.name) == "string" and a.name or ""
+      local nameB = type(b.name) == "string" and b.name or ""
+      if nameA ~= nameB then
+        return nameA < nameB
+      end
+      return tostring(a.realm or "") < tostring(b.realm or "")
+    end)
+    return out
   end
 
   -- Drops dead flags of players who left the group so a returning slot
@@ -174,13 +289,21 @@ function DeathWatch.CreateController(opts)
     for guid in pairs(deadByGuid) do
       if not current[guid] then
         deadByGuid[guid] = nil
+        deadRoleByGuid[guid] = nil
       end
     end
   end
 
-  function controller.Reset()
+  function controller.ResetEdges()
     deadByGuid = {}
+    deadRoleByGuid = {}
     cachedInKey = nil
+  end
+
+  function controller.Reset()
+    controller.ResetEdges()
+    deathSummaryByGuid = {}
+    guidByPlayerKey = {}
   end
 
   return controller
@@ -207,7 +330,25 @@ function DeathWatch.HandleEvent(event, ...)
     controllerInstance.HandleGroupRosterUpdate()
     return
   end
-  if event == "CHALLENGE_MODE_START" or event == "CHALLENGE_MODE_COMPLETED" or event == "CHALLENGE_MODE_RESET" then
+  if event == "CHALLENGE_MODE_START" then
     controllerInstance.Reset()
+    return
   end
+  if event == "CHALLENGE_MODE_COMPLETED" or event == "CHALLENGE_MODE_RESET" then
+    controllerInstance.ResetEdges()
+  end
+end
+
+function DeathWatch.GetDeathSummaryForPlayer(name, realm)
+  if not controllerInstance or type(controllerInstance.GetDeathSummaryForPlayer) ~= "function" then
+    return nil
+  end
+  return controllerInstance.GetDeathSummaryForPlayer(name, realm)
+end
+
+function DeathWatch.GetAllDeathSummaries()
+  if not controllerInstance or type(controllerInstance.GetAllDeathSummaries) ~= "function" then
+    return {}
+  end
+  return controllerInstance.GetAllDeathSummaries()
 end

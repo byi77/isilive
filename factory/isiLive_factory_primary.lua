@@ -66,6 +66,7 @@ local function InitializeFactoryPrimaryControllers(ctx)
       return modules.teleport.GetDungeonShortCode(mapID, activeLocale)
     end,
     getRioDelta = ctx.GetRioDeltaForRosterInfo,
+    getDeathSummaryForPlayer = ctx.GetDeathSummaryForPlayer,
     resolveActiveKeyOwnerUnit = function()
       if ctx.ResolveActiveKeyOwnerUnit then
         return ctx.ResolveActiveKeyOwnerUnit()

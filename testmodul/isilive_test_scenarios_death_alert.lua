@@ -27,6 +27,13 @@ local function BuildWatchEnv(opts)
       party3 = "DAMAGER",
       party4 = "DAMAGER",
     },
+    names = opts.names or {
+      player = { "Self", "Realm" },
+      party1 = { "Tankadin", "Realm" },
+      party2 = { "Priestess", "Realm" },
+      party3 = { "Magey", "Realm" },
+      party4 = { "Hunterx", "Realm" },
+    },
   }
 
   env.deps = {
@@ -50,6 +57,13 @@ local function BuildWatchEnv(opts)
     end,
     getUnitRole = function(unit)
       return env.roles[unit] or "NONE"
+    end,
+    getUnitNameAndRealm = function(unit)
+      local nameRealm = env.names[unit]
+      if type(nameRealm) == "table" then
+        return nameRealm[1], nameRealm[2]
+      end
+      return nil, nil
     end,
     onRoleDeath = function(role, unit)
       table.insert(env.alerts, { role = role, unit = unit })
@@ -147,6 +161,23 @@ local function RegisterDeathWatchTests(test, ctx)
     Assert.Equal(env.alerts[1].role, "DAMAGER", "the resolved role must be DAMAGER")
   end)
 
+  test("DeathWatch suppresses damage-dealer TTS event after tank and healer are dead", function()
+    local addon = LoadDeathWatch()
+    local env = BuildWatchEnv()
+    local controller = addon.DeathWatch.CreateController(env.deps)
+
+    env.deadUnits.party1 = true -- tank
+    controller.HandleUnitHealth("party1")
+    env.deadUnits.party2 = true -- healer
+    controller.HandleUnitHealth("party2")
+    env.deadUnits.party3 = true -- damage dealer
+    controller.HandleUnitHealth("party3")
+
+    Assert.Equal(#env.alerts, 2, "DPS deaths after tank and healer are dead must not produce a TTS event")
+    Assert.Equal(env.alerts[1].role, "TANK", "the tank death still alerts")
+    Assert.Equal(env.alerts[2].role, "HEALER", "the healer death still alerts")
+  end)
+
   test("DeathWatch ignores disconnected units", function()
     local addon = LoadDeathWatch()
     local env = BuildWatchEnv()
@@ -182,6 +213,47 @@ local function RegisterDeathWatchTests(test, ctx)
     addon.DeathWatch.HandleEvent("CHALLENGE_MODE_RESET")
     addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
     Assert.Equal(#env.alerts, 2, "challenge reset must clear the dead flag and re-arm the edge")
+  end)
+
+  test("DeathWatch tracks per-player death counts until a new challenge starts", function()
+    local addon = LoadDeathWatch()
+    local env = BuildWatchEnv()
+    local controller = addon.DeathWatch.CreateController(env.deps)
+
+    env.deadUnits.party1 = true
+    controller.HandleUnitHealth("party1")
+    env.deadUnits.party1 = false
+    controller.HandleUnitHealth("party1")
+    env.deadUnits.party1 = true
+    controller.HandleUnitHealth("party1")
+
+    local summary = controller.GetDeathSummaryForPlayer("Tankadin", "Realm")
+    Assert.Equal(summary.count, 2, "two separate tank deaths must be counted for the player")
+    Assert.Equal(summary.role, "TANK", "summary should keep the resolved role")
+
+    controller.ResetEdges()
+    summary = controller.GetDeathSummaryForPlayer("Tankadin", "Realm")
+    Assert.Equal(summary.count, 2, "key end/reset edge clearing must not wipe the visible death count")
+
+    controller.Reset()
+    Assert.Nil(controller.GetDeathSummaryForPlayer("Tankadin", "Realm"), "new key reset must clear death counts")
+  end)
+
+  test("DeathWatch keeps counting damage-dealer deaths even when TTS is suppressed", function()
+    local addon = LoadDeathWatch()
+    local env = BuildWatchEnv()
+    local controller = addon.DeathWatch.CreateController(env.deps)
+
+    env.deadUnits.party1 = true -- tank
+    controller.HandleUnitHealth("party1")
+    env.deadUnits.party2 = true -- healer
+    controller.HandleUnitHealth("party2")
+    env.deadUnits.party3 = true -- damage dealer
+    controller.HandleUnitHealth("party3")
+
+    Assert.Equal(#env.alerts, 2, "the late DPS death still must not emit a TTS event")
+    local summary = controller.GetDeathSummaryForPlayer("Magey", "Realm")
+    Assert.Equal(summary.count, 1, "the suppressed DPS TTS event must still increment death tracking")
   end)
 
   test("DeathWatch roster update drops dead flags of departed players", function()

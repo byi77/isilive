@@ -92,6 +92,7 @@ local function CreateRosterPanelController(ctx, keySyncResult)
     getOwnedKeystoneSnapshot = keySyncResult.getOwnedKeystoneSnapshot,
     getRioDelta = ctx.getRioDelta,
     getPlayerSyncSummary = ctx.getPlayerSyncSummary,
+    getDeathSummaryForPlayer = ctx.getDeathSummaryForPlayer,
     resolveActiveKeyOwnerUnit = ctx.resolveActiveKeyOwnerUnit,
     resolveTargetMapID = ctx.resolveTargetMapID,
     isReadyCheckActive = ctx.isReadyCheckActive,

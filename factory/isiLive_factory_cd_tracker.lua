@@ -81,9 +81,13 @@ local function InitializeFactorySecondaryCdTracker(
     local optsTable = type(opts) == "table" and opts or nil
     local suppressBattleResReadySound = optsTable and optsTable.suppressBattleResReadySound == true
     local suppressLustReadySound = optsTable and optsTable.suppressLustReadySound == true
+    local resetRuntimeTimers = optsTable and optsTable.resetRuntimeTimers == true
     local fromVisibleRender = optsTable and optsTable.fromVisibleRender == true
     if IsRaidModeActive() then
       ClearReadySoundState()
+      if ctx.cdTrackerController and type(ctx.cdTrackerController.ClearRuntimeData) == "function" then
+        ctx.cdTrackerController.ClearRuntimeData()
+      end
       lastMplusRunning = false
       return
     end
@@ -93,7 +97,14 @@ local function InitializeFactorySecondaryCdTracker(
       lastBResCharges = nil
       lastBResCooldownRemain = nil
     end
-    ctx.cdTrackerController.Scan()
+    if resetRuntimeTimers or not mplusRunning then
+      ClearReadySoundState()
+      if ctx.cdTrackerController and type(ctx.cdTrackerController.ClearRuntimeData) == "function" then
+        ctx.cdTrackerController.ClearRuntimeData()
+      end
+    else
+      ctx.cdTrackerController.Scan()
+    end
     local bresInfo = type(ctx.cdTrackerController.GetBResInfo) == "function" and ctx.cdTrackerController.GetBResInfo()
       or nil
     local bresCharges = type(bresInfo) == "table" and tonumber(bresInfo.charges) or nil
@@ -198,9 +209,15 @@ local function InitializeFactorySecondaryCdTracker(
         ctx.UpdateCdTracker({ fromVisibleRender = true })
       end,
       GetBResInfo = function()
+        if not IsMplusTimerRunning() or not IsGroupedReadySoundContext() then
+          return nil
+        end
         return type(ctx.cdTrackerController.GetBResInfo) == "function" and ctx.cdTrackerController.GetBResInfo() or nil
       end,
       GetLustInfo = function()
+        if not IsMplusTimerRunning() or not IsGroupedReadySoundContext() then
+          return nil
+        end
         local info = type(ctx.cdTrackerController.GetLustInfo) == "function" and ctx.cdTrackerController.GetLustInfo()
           or nil
         if info ~= nil then

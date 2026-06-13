@@ -4,7 +4,7 @@
 
 - **For:** M+ players in pre-made groups and LFG runs
 - **WoW version:** `12.0+` (Midnight) only
-- **Current version:** `0.9.316`
+- **Current version:** `0.9.320`
 - **Active season:** `midnight_s1` — 8 dungeons (Wing, MT, NPX, MC, AA, POS, SOT, SR)
 
 ---
@@ -16,7 +16,7 @@
 - **Live enemy forces tools** — tooltip percentages, nameplate percentages, bottom killtracker bar, pull prediction, and combat-end refresh from the bundled MDT-synced forces database.
 - **Season portal grid** — all current dungeon portals with cooldowns, availability highlights, and verified LFG target highlighting.
 - **Share Keys sync** — posts your key first, then asks isiLive peers to post their own key line through the fastest AddOn-message priority path.
-- **Run utility alerts** — Battle Res charges, Bloodlust cooldown, BR/Lust group announces, separate ready sounds when Battle Res or Bloodlust becomes available during a key, and a big red on-screen death alert with sound when the tank or healer dies during an active M+ run. The death alert can optionally speak the player's name with your system text-to-speech voice instead of playing the recorded file.
+- **Run utility alerts** — Battle Res charges, Bloodlust cooldown, BR/Lust group announces, separate ready sounds when Battle Res or Bloodlust becomes available during a key, and a big red on-screen death alert with sound when the tank or healer dies during an active M+ run. Key completion or abort resets the visible M+ / BR / BL timers immediately. The death alert can optionally speak the player's name with your system text-to-speech voice instead of playing the recorded file, and stops adding DPS spoken deaths once both tank and healer are dead. Per-player death counts are tracked during the key and shown as skull markers plus exact tooltip totals after the run until a new key or reload; the M+ timer-row skull also shows the full per-player death list.
 - **Configurable support tools** — Escape-menu shortcut strips, Hearthstone travel shortcut, optional player stats box, nameplate controls, runtime logs, safe UI position locking, and a movable demo simulation tablet for local preview scenarios.
 
 ---

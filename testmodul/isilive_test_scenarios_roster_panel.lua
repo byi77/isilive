@@ -534,6 +534,48 @@ local function RegisterRosterDisplayMarkerTests(test, Assert, WithGlobals, LoadA
     end)
   end)
 
+  test("Roster display appends skull marker and repeat count for tracked deaths", function()
+    WithGlobals({
+      GetReadyCheckStatus = function()
+        return nil
+      end,
+      RAID_CLASS_COLORS = {},
+      CreateColor = function()
+        return {
+          GenerateHexColor = function()
+            return "ffffffff"
+          end,
+        }
+      end,
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_roster.lua",
+      })
+
+      local once = addon.Roster.BuildDisplayData({
+        name = "Once",
+      }, {
+        deathSummary = { count = 1 },
+      })
+      Assert.True(
+        once.addonMarker:find("UI%-RaidTargetingIcon_8", 1) ~= nil,
+        "a player with deaths should receive the skull marker"
+      )
+      Assert.False(once.addonMarker:find("|cffff60601|r", 1, true) ~= nil, "one death should not add a noisy count")
+
+      local twice = addon.Roster.BuildDisplayData({
+        name = "Twice",
+      }, {
+        deathSummary = { count = 2 },
+      })
+      Assert.True(
+        twice.addonMarker:find("UI%-RaidTargetingIcon_8", 1) ~= nil,
+        "repeat deaths should keep the skull marker"
+      )
+      Assert.True(twice.addonMarker:find("|cffff60602|r", 1, true) ~= nil, "repeat deaths should show the count")
+    end)
+  end)
+
   test("Roster render appends green bonus-heart marker for relevant roster class buffs", function()
     WithGlobals({
       GetReadyCheckStatus = function()

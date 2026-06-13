@@ -601,7 +601,11 @@ function ChallengeLifecycle.BuildHandlers(ctx)
     ctx.handleKillTrackEvent(event)
     ctx.handleCombatEventsEvent(event)
     ctx.handleDeathWatchEvent(event)
-    ctx.updateCdTracker({ suppressBattleResReadySound = true, suppressLustReadySound = true })
+    ctx.updateCdTracker({
+      suppressBattleResReadySound = true,
+      suppressLustReadySound = true,
+      resetRuntimeTimers = true,
+    })
     -- Clear the accepted-invite listing identity inside LFGDetect (leader /
     -- title-level / detectedMapID / acceptedInviteSearchResultID). The next
     -- key the group plays is a pre-formed-group continuation, not a fresh
