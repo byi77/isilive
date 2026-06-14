@@ -3,9 +3,20 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.320`.
+Current release: `0.9.321`.
 
 Highlights:
+- Spoken death alerts now pause for 30 seconds after two different players die
+  in consecutive DeathWatch death edges.
+- Damage-dealer spoken death alerts now announce the resolved class by default
+  (for example `Hunter died`), and the local player's own death no longer
+  produces a spoken TTS alert.
+- Spoken death-alert player-name announcements now default to off, and the
+  player-name and class-name modifiers are mutually exclusive.
+- The M+ timer row now keeps death-time penalties in the skull tooltip, while
+  the visible row shows only the total death count.
+- The framed `+3` / `+2` / `+1` M+ timer badges and timer value slots were
+  widened to avoid `...` truncation under WoW UI scaling.
 - The skull in the M+ timer row now has a hover tooltip listing tracked
   per-player deaths as `Name Count`, sorted alphabetically by player name.
 - Per-player Mythic+ deaths are now tracked during the key and shown as skull

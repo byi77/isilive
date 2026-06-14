@@ -15,6 +15,20 @@ local WATCHED_UNITS = {
   party4 = true,
 }
 
+local DEATH_TTS_BURST_PAUSE_SECONDS = 30
+
+local function DefaultGetTime()
+  local fn = rawget(_G, "GetTime")
+  if type(fn) ~= "function" then
+    return 0
+  end
+  local ok, value = pcall(fn)
+  if not ok then
+    return 0
+  end
+  return tonumber(value) or 0
+end
+
 local function DefaultIsInKey()
   local api = rawget(_G, "C_ChallengeMode")
   if type(api) ~= "table" or type(api.GetActiveChallengeMapID) ~= "function" then
@@ -131,6 +145,7 @@ function DeathWatch.CreateController(opts)
   local getUnitRole = type(opts.getUnitRole) == "function" and opts.getUnitRole or DefaultGetUnitRole
   local getUnitNameAndRealm = type(opts.getUnitNameAndRealm) == "function" and opts.getUnitNameAndRealm
     or DefaultGetUnitNameAndRealm
+  local getTime = type(opts.getTime) == "function" and opts.getTime or DefaultGetTime
   local getDB = type(opts.getDB) == "function" and opts.getDB
     or function()
       return rawget(_G, "IsiLiveDB") or {}
@@ -146,6 +161,9 @@ function DeathWatch.CreateController(opts)
   local deadRoleByGuid = {}
   local deathSummaryByGuid = {}
   local guidByPlayerKey = {}
+  local previousDeathGuid = nil
+  local sequentialDifferentDeaths = 0
+  local deathTtsPausedUntil = 0
   -- Same in-key cache pattern as CombatEvents: invalidated via Reset() on
   -- CHALLENGE_MODE_START / COMPLETED / RESET, the only events that change it.
   local cachedInKey = nil
@@ -176,6 +194,37 @@ function DeathWatch.CreateController(opts)
       end
     end
     return false
+  end
+
+  local function GetNow()
+    return tonumber(getTime()) or 0
+  end
+
+  local function IsDeathTtsPaused(now)
+    return tonumber(deathTtsPausedUntil) and now < deathTtsPausedUntil
+  end
+
+  local function UpdateDeathTtsBurstPause(guid, now)
+    if IsDeathTtsPaused(now) then
+      return true
+    end
+    if tonumber(deathTtsPausedUntil) and deathTtsPausedUntil > 0 then
+      previousDeathGuid = nil
+      sequentialDifferentDeaths = 0
+      deathTtsPausedUntil = 0
+    end
+    local suppressTts = false
+    if previousDeathGuid and previousDeathGuid ~= guid then
+      sequentialDifferentDeaths = sequentialDifferentDeaths + 1
+    else
+      sequentialDifferentDeaths = 1
+    end
+    previousDeathGuid = guid
+    if sequentialDifferentDeaths >= 2 then
+      deathTtsPausedUntil = now + DEATH_TTS_BURST_PAUSE_SECONDS
+      suppressTts = true
+    end
+    return suppressTts
   end
 
   local function RecordDeath(guid, unit, role)
@@ -237,8 +286,9 @@ function DeathWatch.CreateController(opts)
       if role == "DAMAGER" and HasDeadTankAndHealer() then
         return
       end
+      local suppressTts = UpdateDeathTtsBurstPause(guid, GetNow())
       deadRoleByGuid[guid] = role
-      onRoleDeath(role, unit)
+      onRoleDeath(role, unit, { suppressTts = suppressTts })
     end
   end
 
@@ -297,6 +347,9 @@ function DeathWatch.CreateController(opts)
   function controller.ResetEdges()
     deadByGuid = {}
     deadRoleByGuid = {}
+    previousDeathGuid = nil
+    sequentialDifferentDeaths = 0
+    deathTtsPausedUntil = 0
     cachedInKey = nil
   end
 

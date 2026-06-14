@@ -933,14 +933,17 @@ function SoundUtils.IsTtsEnabled()
   return false
 end
 
--- Whether spoken alerts include the player name. Default on: the name is the
--- richest context. Turning it off yields role/class-only announcements.
+-- Whether spoken alerts include the player name. Default off. Class mode and
+-- name mode are mutually exclusive; class wins if stale saved data has both.
 function SoundUtils.ShouldAnnounceName()
   local db = rawget(_G, "IsiLiveDB")
+  if type(db) == "table" and db.ttsAnnounceClass == true then
+    return false
+  end
   if type(db) == "table" and db.ttsAnnounceName ~= nil then
     return db.ttsAnnounceName == true
   end
-  return true
+  return false
 end
 
 -- Whether spoken alerts name the class (e.g. "Hunter died") instead of the

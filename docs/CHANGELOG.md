@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-06-14 - Version 0.9.321 (patch)
+
+- Paused spoken death TTS for 30 seconds after two different players die in
+  consecutive DeathWatch death edges. The second death starts the pause
+  immediately, later deaths during the fixed window do not extend it, and
+  tank/healer on-screen warnings still render.
+- Added deterministic coverage for the DeathWatch burst pause and the factory
+  path that suppresses paused TTS without falling back to a recorded WAV when
+  spoken alerts are enabled.
+- Restored the framed `+3` / `+2` / `+1` M+ timer badges with enough width to
+  avoid `...`, widened the timer value slots for five-character times, and
+  moved the visible death-time penalty from the M+ timer row into the skull
+  tooltip.
+- Damage-dealer spoken death alerts now announce the resolved class by default
+  (for example `Hunter died`) and the local player's own death no longer
+  produces a spoken TTS alert.
+- Spoken death-alert modifiers now default player-name announcements to off,
+  and the player-name and class-name toggles are mutually exclusive in settings
+  and runtime fallback handling.
+- The validator baseline is now `2064` scenarios.
+- Bumped the TOC and documentation baselines to `0.9.321`.
+
 ## 2026-06-13 - Version 0.9.320 (patch)
 
 - Added a hover tooltip to the skull in the M+ timer row. It now lists tracked

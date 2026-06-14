@@ -15,6 +15,7 @@ local CD_TRACKER_ROW_BOTTOM_OFFSET = RI.CD_TRACKER_ROW_BOTTOM_OFFSET or 20
 local CD_TRACKER_ICON_SIZE = 16
 local CD_TRACKER_TEXT_GAP = 6
 local CD_TRACKER_FONT_SIZE = 12
+local MPLUS_TIMER_TEXT_WIDTH = 48
 
 local function BuildDeathSummaryTooltipLines(summaries)
   local lines = {}
@@ -53,12 +54,19 @@ local function GetDeathWatchSummaries()
   return deathWatch.GetAllDeathSummaries()
 end
 
--- Shared shape for the +3 / +2 / +1 timer badges (16x12 colored frame with a
--- centred colour-coded label). Used three times below; the previous revision
--- inlined three near-identical do/end blocks.
+local function BuildDeathTimeLostTooltipLine(deathTimeLost, L)
+  local seconds = tonumber(deathTimeLost) or 0
+  if seconds <= 0 then
+    return nil
+  end
+  local fmt = type(L) == "table" and type(L.TOOLTIP_DEATH_TIME_LOST_FMT) == "string" and L.TOOLTIP_DEATH_TIME_LOST_FMT
+    or "Time lost: +%ds"
+  return string.format(fmt, seconds)
+end
+
 local function CreateMplusGradeBadge(parent, leftOffset, bgR, bgG, bgB, labelText)
   local badge = CreateFrame("Frame", nil, parent)
-  badge:SetSize(16, 12)
+  badge:SetSize(20, 12)
   badge:SetPoint("LEFT", parent, "LEFT", leftOffset, 0)
   local bg = badge:CreateTexture(nil, "BACKGROUND")
   if type(bg.SetAllPoints) == "function" then
@@ -208,26 +216,26 @@ local function CreateCdTrackerRow(mainFrame, opts)
     row.mplusLabel = badge
   end
 
-  row.mp3Icon = CreateMplusGradeBadge(mplusBox, 32, 0.15, 0.45, 0.15, "|cff44ff44+3|r")
+  row.mp3Icon = CreateMplusGradeBadge(mplusBox, 34, 0.15, 0.45, 0.15, "|cff44ff44+3|r")
   row.mp3Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.mp3Text:SetPoint("LEFT", mplusBox, "LEFT", 50, 0)
-  row.mp3Text:SetWidth(36)
+  row.mp3Text:SetPoint("LEFT", mplusBox, "LEFT", 58, 0)
+  row.mp3Text:SetWidth(MPLUS_TIMER_TEXT_WIDTH)
   row.mp3Text:SetJustifyH("LEFT")
   row.mp3Text:SetText("--:--")
   ApplyFontStringSize(row.mp3Text, CD_TRACKER_FONT_SIZE)
 
-  row.mp2Icon = CreateMplusGradeBadge(mplusBox, 90, 0.45, 0.38, 0.05, "|cffffd91a+2|r")
+  row.mp2Icon = CreateMplusGradeBadge(mplusBox, 102, 0.45, 0.38, 0.05, "|cffffd91a+2|r")
   row.mp2Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.mp2Text:SetPoint("LEFT", mplusBox, "LEFT", 108, 0)
-  row.mp2Text:SetWidth(36)
+  row.mp2Text:SetPoint("LEFT", mplusBox, "LEFT", 126, 0)
+  row.mp2Text:SetWidth(MPLUS_TIMER_TEXT_WIDTH)
   row.mp2Text:SetJustifyH("LEFT")
   row.mp2Text:SetText("--:--")
   ApplyFontStringSize(row.mp2Text, CD_TRACKER_FONT_SIZE)
 
-  row.mp1Icon = CreateMplusGradeBadge(mplusBox, 148, 0.3, 0.3, 0.3, "|cffdddddd+1|r")
+  row.mp1Icon = CreateMplusGradeBadge(mplusBox, 170, 0.3, 0.3, 0.3, "|cffdddddd+1|r")
   row.mp1Text = mplusBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  row.mp1Text:SetPoint("LEFT", mplusBox, "LEFT", 166, 0)
-  row.mp1Text:SetWidth(36)
+  row.mp1Text:SetPoint("LEFT", mplusBox, "LEFT", 194, 0)
+  row.mp1Text:SetWidth(MPLUS_TIMER_TEXT_WIDTH)
   row.mp1Text:SetJustifyH("LEFT")
   row.mp1Text:SetText("--:--")
   ApplyFontStringSize(row.mp1Text, CD_TRACKER_FONT_SIZE)
@@ -238,7 +246,7 @@ local function CreateCdTrackerRow(mainFrame, opts)
     row.mpDeathIcon:SetSize(12, 12)
   end
   if type(row.mpDeathIcon.SetPoint) == "function" then
-    row.mpDeathIcon:SetPoint("LEFT", mplusBox, "LEFT", 206, 0)
+    row.mpDeathIcon:SetPoint("LEFT", mplusBox, "LEFT", 246, 0)
   end
   if type(row.mpDeathIcon.SetTexture) == "function" then
     row.mpDeathIcon:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcon_8")
@@ -274,6 +282,10 @@ local function CreateCdTrackerRow(mainFrame, opts)
         end
       else
         tooltip:AddLine("--", 0.65, 0.65, 0.65)
+      end
+      local timeLostLine = BuildDeathTimeLostTooltipLine(row._deathTimeLost, L)
+      if timeLostLine then
+        tooltip:AddLine(timeLostLine, 1, 0.38, 0.38)
       end
     end
     if type(tooltip.Show) == "function" then
@@ -393,14 +405,10 @@ local function UpdateCdTrackerRow(row, cdController)
 
       -- Tode
       if data.deaths and data.deaths > 0 then
-        local deathStr
-        if data.deathTimeLost and data.deathTimeLost > 0 then
-          deathStr = string.format("|cffff6060%d (+%ds)|r", data.deaths, data.deathTimeLost)
-        else
-          deathStr = string.format("|cffff6060%d|r", data.deaths)
-        end
-        row.mpDeathText:SetText(deathStr)
+        row._deathTimeLost = tonumber(data.deathTimeLost) or 0
+        row.mpDeathText:SetText(string.format("|cffff6060%d|r", data.deaths))
       else
+        row._deathTimeLost = 0
         row.mpDeathText:SetText("")
       end
     else
@@ -412,6 +420,7 @@ local function UpdateCdTrackerRow(row, cdController)
       SetFontStringTextColorSafe(row.mp1Text, 0.4, 0.4, 0.5)
       row.mp1Text:SetText("--:--")
       SetFontStringTextColorSafe(row.mpDeathText, 0.4, 0.4, 0.5)
+      row._deathTimeLost = 0
       row.mpDeathText:SetText("--")
     end
   end
@@ -420,3 +429,4 @@ end
 RI.CreateCdTrackerRow = CreateCdTrackerRow
 RI.UpdateCdTrackerRow = UpdateCdTrackerRow
 RI.BuildDeathSummaryTooltipLines = BuildDeathSummaryTooltipLines
+RI.BuildDeathTimeLostTooltipLine = BuildDeathTimeLostTooltipLine

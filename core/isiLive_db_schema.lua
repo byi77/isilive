@@ -214,7 +214,7 @@ local SCHEMA = {
   -- ttsVoiceID is an optional advanced override (Phase 2 voice picker); it is
   -- read defensively from the DB and stays absent until the user sets it.
   ttsAnnouncementsEnabled = { type = "boolean", default = false },
-  ttsAnnounceName = { type = "boolean", default = true },
+  ttsAnnounceName = { type = "boolean", default = false },
   ttsAnnounceClass = { type = "boolean", default = false },
   ttsVolume = { type = "number", default = 100, min = 0, max = 100 },
   vipAstralAurochsSoundMuted = { type = "boolean", default = false },

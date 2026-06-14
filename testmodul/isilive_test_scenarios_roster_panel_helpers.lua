@@ -2,6 +2,7 @@
 return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
+  local WithGlobals = ctx.with_globals
 
   local function LoadHelpers()
     local addon = LoadAddonModules({ "isiLive_roster_panel_helpers.lua" })
@@ -115,6 +116,18 @@ return function(test, ctx)
     Assert.Equal(lines[3].count, 5, "Pinto count")
   end)
 
+  test("BuildDeathTimeLostTooltipLine moves death penalty into the skull tooltip", function()
+    local RI = LoadAddonModules({ "isiLive_roster_panel.lua" })._RosterInternal
+
+    Assert.Nil(RI.BuildDeathTimeLostTooltipLine(0, {}), "zero time penalty must not add a tooltip line")
+    Assert.Nil(RI.BuildDeathTimeLostTooltipLine(nil, {}), "missing time penalty must not add a tooltip line")
+    Assert.Equal(
+      RI.BuildDeathTimeLostTooltipLine(150, { TOOLTIP_DEATH_TIME_LOST_FMT = "Zeitstrafe: +%ds" }),
+      "Zeitstrafe: +150s",
+      "positive death penalty must render as a tooltip-only line"
+    )
+  end)
+
   -- UpdateCdTrackerRow branch coverage. Lives in isiLive_roster_panel_cd_row.lua;
   -- exposed via _RosterInternal. Pure-function over a row stub + cdController
   -- stub, so we drive every branch without FrameXML.
@@ -129,6 +142,21 @@ return function(test, ctx)
     function fs:GetText()
       return self._text
     end
+    function fs:SetPoint(...)
+      self._point = { ... }
+    end
+    function fs:SetAllPoints(parent)
+      self._allPoints = parent
+    end
+    function fs:SetWidth(width)
+      self._width = width
+    end
+    function fs:SetJustifyH(justify)
+      self._justifyH = justify
+    end
+    function fs:SetJustifyV(justify)
+      self._justifyV = justify
+    end
     -- Helpers used by ApplyFontStringSize via cd_row CD_TRACKER_FONT_SIZE
     -- writeback (called once during row creation only — not in update path).
     fs.SetFont = function() end
@@ -142,6 +170,21 @@ return function(test, ctx)
     local icon = { _shown = false, _texture = nil }
     function icon:SetTexture(tex)
       self._texture = tex
+    end
+    function icon:SetSize(width, height)
+      self._size = { width, height }
+    end
+    function icon:SetPoint(...)
+      self._point = { ... }
+    end
+    function icon:SetTexCoord(...)
+      self._texCoord = { ... }
+    end
+    function icon:SetAllPoints(parent)
+      self._allPoints = parent
+    end
+    function icon:SetVertexColor(r, g, b, a)
+      self._vertexColor = { r, g, b, a }
     end
     function icon:Show()
       self._shown = true
@@ -183,6 +226,48 @@ return function(test, ctx)
     return addon._RosterInternal
   end
 
+  local function MakeFrameStub()
+    local frame = { _shown = true, _scripts = {} }
+    function frame:SetHeight(height)
+      self._height = height
+    end
+    function frame:SetWidth(width)
+      self._width = width
+    end
+    function frame:SetSize(width, height)
+      self._size = { width, height }
+    end
+    function frame:SetPoint(...)
+      self._point = self._point or {}
+      self._point[#self._point + 1] = { ... }
+    end
+    function frame:Show()
+      self._shown = true
+    end
+    function frame:Hide()
+      self._shown = false
+    end
+    function frame:CreateTexture()
+      return MakeIconStub()
+    end
+    function frame:CreateFontString()
+      return MakeFontStringStub()
+    end
+    function frame:EnableMouse(enabled)
+      self._mouseEnabled = enabled
+    end
+    function frame:SetFrameLevel(level)
+      self._frameLevel = level
+    end
+    function frame:GetFrameLevel()
+      return self._frameLevel or 1
+    end
+    function frame:SetScript(scriptName, handler)
+      self._scripts[scriptName] = handler
+    end
+    return frame
+  end
+
   test("UpdateCdTrackerRow returns silently for nil row", function()
     local RI = LoadCdRow()
     RI.UpdateCdTrackerRow(nil, {
@@ -193,6 +278,30 @@ return function(test, ctx)
         return nil
       end,
     })
+  end)
+
+  test("CreateCdTrackerRow renders M+ grade badges and wide timer fields", function()
+    local row
+    WithGlobals({
+      CreateFrame = function()
+        return MakeFrameStub()
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" }, {
+        UICommon = {
+          ApplyBackdrop = function() end,
+        },
+      })
+      row = addon._RosterInternal.CreateCdTrackerRow(MakeFrameStub(), {})
+    end)
+
+    Assert.NotNil(row, "cd tracker row should be created")
+    Assert.Equal(row.mp3Icon._size[1], 20, "+3 badge must be wider than the old ellipsizing 16px")
+    Assert.Equal(row.mp2Icon._size[1], 20, "+2 badge must be wider than the old ellipsizing 16px")
+    Assert.Equal(row.mp1Icon._size[1], 20, "+1 badge must be wider than the old ellipsizing 16px")
+    Assert.Equal(row.mp3Text._width, 48, "+3 timer must fit five-character M+ times")
+    Assert.Equal(row.mp2Text._width, 48, "+2 timer must fit five-character M+ times")
+    Assert.Equal(row.mp1Text._width, 48, "+1 timer must fit five-character M+ times")
   end)
 
   test("UpdateCdTrackerRow renders BR charges + remaining cooldown when remain > 0", function()
@@ -320,9 +429,11 @@ return function(test, ctx)
     Assert.Equal(row.mp3Text:GetText(), "2:10", "+3 timer formats mm:ss")
     Assert.Equal(row.mp2Text:GetText(), "1:05", "+2 timer formats mm:ss")
     Assert.Equal(row.mp1Text:GetText(), "0:30", "+1 timer formats mm:ss")
+    Assert.Equal(row.mpDeathText:GetText(), "|cffff60602|r", "death cell must show only the visible death count")
+    Assert.Equal(row._deathTimeLost, 30, "death time penalty must stay available for the skull tooltip")
     Assert.True(
-      row.mpDeathText:GetText():find("(+30s)", 1, true) ~= nil,
-      "death cell must include both deaths and deathTimeLost penalty"
+      row.mpDeathText:GetText():find("(+30s)", 1, true) == nil,
+      "death cell must keep the time penalty out of the visible row"
     )
   end)
 

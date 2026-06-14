@@ -63,7 +63,7 @@ end
 -- are on (and resolvable), otherwise the localized role word. Falls back to
 -- the role word when the class cannot be read.
 local function ResolveDescriptor(role, unit, L, announceClass)
-  if announceClass then
+  if announceClass or role == "DAMAGER" then
     local className = ResolveUnitClassName(unit)
     if className then
       return className
@@ -102,16 +102,21 @@ end
 -- WAV only exists for tank/healer, so a damage-dealer death is silent unless
 -- TTS speaks it. The deathAlertEnabled gate already passed upstream in
 -- DeathWatch, so this only chooses the audio form.
-local function PlayRoleDeathSound(role, unit, getL)
+local function PlayRoleDeathSound(role, unit, getL, opts)
   local soundUtils = addonTable.SoundUtils
   if type(soundUtils) ~= "table" then
     return
   end
+  local suppressTts = type(opts) == "table" and opts.suppressTts == true
+  local isSelfDeath = unit == "player"
   if
     type(soundUtils.IsTtsEnabled) == "function"
     and soundUtils.IsTtsEnabled()
     and type(soundUtils.SpeakTts) == "function"
   then
+    if suppressTts or isSelfDeath then
+      return
+    end
     local announceName = type(soundUtils.ShouldAnnounceName) ~= "function" or soundUtils.ShouldAnnounceName()
     local announceClass = type(soundUtils.ShouldAnnounceClass) == "function" and soundUtils.ShouldAnnounceClass()
     local text = BuildRoleDeathTtsText(role, unit, getL, announceName, announceClass)
@@ -141,7 +146,7 @@ local function InitializeFactoryDeathAlertControllers(ctx)
   -- on-screen warning is intentionally limited to tank/healer and always
   -- shows the role-only text without a name; damage-dealer deaths only ever
   -- produce a spoken announcement.
-  ctx.ShowRoleDeathAlert = function(role, unit)
+  ctx.ShowRoleDeathAlert = function(role, unit, opts)
     if
       (role == "TANK" or role == "HEALER")
       and type(deathAlert) == "table"
@@ -149,7 +154,7 @@ local function InitializeFactoryDeathAlertControllers(ctx)
     then
       deathAlert.ShowRoleDeath(role)
     end
-    PlayRoleDeathSound(role, unit, ctx.GetL)
+    PlayRoleDeathSound(role, unit, ctx.GetL, opts)
   end
 
   local deathWatch = addonTable.DeathWatch

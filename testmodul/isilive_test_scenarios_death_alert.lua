@@ -34,6 +34,7 @@ local function BuildWatchEnv(opts)
       party3 = { "Magey", "Realm" },
       party4 = { "Hunterx", "Realm" },
     },
+    now = opts.now or 100,
   }
 
   env.deps = {
@@ -65,8 +66,11 @@ local function BuildWatchEnv(opts)
       end
       return nil, nil
     end,
-    onRoleDeath = function(role, unit)
-      table.insert(env.alerts, { role = role, unit = unit })
+    getTime = function()
+      return env.now
+    end,
+    onRoleDeath = function(role, unit, optsTable)
+      table.insert(env.alerts, { role = role, unit = unit, opts = optsTable })
     end,
   }
 
@@ -176,6 +180,39 @@ local function RegisterDeathWatchTests(test, ctx)
     Assert.Equal(#env.alerts, 2, "DPS deaths after tank and healer are dead must not produce a TTS event")
     Assert.Equal(env.alerts[1].role, "TANK", "the tank death still alerts")
     Assert.Equal(env.alerts[2].role, "HEALER", "the healer death still alerts")
+  end)
+
+  test("DeathWatch pauses death TTS for 30 seconds after two consecutive player deaths", function()
+    local addon = LoadDeathWatch()
+    local env = BuildWatchEnv({
+      roles = {
+        player = "DAMAGER",
+        party1 = "TANK",
+        party2 = "DAMAGER",
+        party3 = "DAMAGER",
+        party4 = "DAMAGER",
+      },
+    })
+    local controller = addon.DeathWatch.CreateController(env.deps)
+
+    env.deadUnits.party1 = true
+    controller.HandleUnitHealth("party1")
+    Assert.False(env.alerts[1].opts.suppressTts == true, "first death must still allow TTS")
+
+    env.now = 101
+    env.deadUnits.party2 = true
+    controller.HandleUnitHealth("party2")
+    Assert.True(env.alerts[2].opts.suppressTts == true, "second different player death must start the TTS pause")
+
+    env.now = 120
+    env.deadUnits.party3 = true
+    controller.HandleUnitHealth("party3")
+    Assert.True(env.alerts[3].opts.suppressTts == true, "death TTS must stay paused inside the 30-second window")
+
+    env.now = 132
+    env.deadUnits.party4 = true
+    controller.HandleUnitHealth("party4")
+    Assert.False(env.alerts[4].opts.suppressTts == true, "death TTS must resume after the 30-second pause expires")
   end)
 
   test("DeathWatch ignores disconnected units", function()
@@ -799,7 +836,7 @@ local function RegisterTtsTests(test, ctx)
     Assert.Equal(env.spoke.text, "Hunter died.", "class mode must speak the class name")
   end)
 
-  test("Factory death alert announces a damage-dealer death via TTS only", function()
+  test("Factory death alert announces a damage-dealer death via class TTS only", function()
     local env = BuildFactoryTtsEnv({ ttsEnabled = true, announceName = false })
     WithGlobals({
       GetTime = function()
@@ -808,14 +845,75 @@ local function RegisterTtsTests(test, ctx)
       UnitName = function()
         return "Bob"
       end,
+      UnitClass = function()
+        return "Hunter", "HUNTER"
+      end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_factory_death_alert.lua" }, env.seed)
       addon._FactoryInternal.InitializeFactoryDeathAlertControllers(env.ctxStub)
       env.deps.onRoleDeath("DAMAGER", "party3")
     end)
-    Assert.Equal(env.spoke.text, "Damage dealer died.", "a DPS death speaks the damage-dealer role word")
+    Assert.Equal(env.spoke.text, "Hunter died.", "a DPS death speaks the resolved class by default")
     Assert.Equal(#env.shown, 0, "a DPS death must not render the on-screen warning")
     Assert.Nil(env.wav, "a DPS death has no recorded WAV")
+  end)
+
+  test("Factory death alert suppresses TTS for the local player's own death", function()
+    local env = BuildFactoryTtsEnv({ ttsEnabled = true, announceName = false })
+    WithGlobals({
+      GetTime = function()
+        return 100
+      end,
+      UnitName = function()
+        return "Self"
+      end,
+      UnitClass = function()
+        return "Hunter", "HUNTER"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_factory_death_alert.lua" }, env.seed)
+      addon._FactoryInternal.InitializeFactoryDeathAlertControllers(env.ctxStub)
+      env.deps.onRoleDeath("DAMAGER", "player")
+    end)
+    Assert.Nil(env.spoke, "own death must not produce a spoken TTS alert")
+    Assert.Nil(env.wav, "DPS own death has no recorded WAV fallback")
+  end)
+
+  test("Factory death alert suppresses paused death TTS without hiding tank or healer warnings", function()
+    local env = BuildFactoryTtsEnv({ ttsEnabled = true, announceName = false })
+    WithGlobals({
+      GetTime = function()
+        return 100
+      end,
+      UnitName = function()
+        return "Tankadin"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_factory_death_alert.lua" }, env.seed)
+      addon._FactoryInternal.InitializeFactoryDeathAlertControllers(env.ctxStub)
+      env.deps.onRoleDeath("TANK", "party1", { suppressTts = true })
+    end)
+    Assert.Nil(env.spoke, "paused death TTS must not call SpeakTts")
+    Assert.Nil(env.wav, "paused enabled TTS must not fall back to the recorded WAV")
+    Assert.Equal(env.shown[1], "TANK", "the on-screen warning must still render for tank deaths")
+  end)
+
+  test("Factory death alert keeps recorded wav fallback when TTS is disabled during a burst pause", function()
+    local env = BuildFactoryTtsEnv({ ttsEnabled = false })
+    WithGlobals({
+      GetTime = function()
+        return 100
+      end,
+      UnitName = function()
+        return "Tankadin"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_factory_death_alert.lua" }, env.seed)
+      addon._FactoryInternal.InitializeFactoryDeathAlertControllers(env.ctxStub)
+      env.deps.onRoleDeath("TANK", "party1", { suppressTts = true })
+    end)
+    Assert.Nil(env.spoke, "disabled TTS must not speak")
+    Assert.Equal(env.wav, "tank", "recorded fallback remains unchanged when TTS is disabled")
   end)
 
   test("Factory death alert keeps the on-screen warning to tank and healer", function()
@@ -891,16 +989,19 @@ local function RegisterTtsTests(test, ctx)
     Assert.Equal(failingEnv.wav, "healer", "a failed SpeakTts must fall back to the recorded WAV")
   end)
 
-  test("SoundUtils ShouldAnnounceName defaults on and follows the setting", function()
+  test("SoundUtils ShouldAnnounceName defaults off and class mode wins stale conflicts", function()
     local addon
     WithGlobals({}, function()
       addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
     end)
     WithGlobals({ IsiLiveDB = {} }, function()
-      Assert.True(addon.SoundUtils.ShouldAnnounceName(), "name announcement defaults on")
+      Assert.False(addon.SoundUtils.ShouldAnnounceName(), "name announcement defaults off")
     end)
-    WithGlobals({ IsiLiveDB = { ttsAnnounceName = false } }, function()
-      Assert.False(addon.SoundUtils.ShouldAnnounceName(), "explicit false disables the name")
+    WithGlobals({ IsiLiveDB = { ttsAnnounceName = true } }, function()
+      Assert.True(addon.SoundUtils.ShouldAnnounceName(), "explicit true enables the name")
+    end)
+    WithGlobals({ IsiLiveDB = { ttsAnnounceName = true, ttsAnnounceClass = true } }, function()
+      Assert.False(addon.SoundUtils.ShouldAnnounceName(), "class mode must win stale both-true saved data")
     end)
   end)
 

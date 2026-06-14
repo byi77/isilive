@@ -137,16 +137,16 @@ local TTS_NAME_SETTING = {
   labelKey = "SETTINGS_TTS_ANNOUNCE_NAME",
   descKey = "SETTINGS_TTS_ANNOUNCE_NAME_DESC",
   labelFallback = "Spoken alerts: say the player name",
-  descFallback = "When on, the spoken alert includes the player name; when off it only says the role or class.",
+  descFallback = "When on, the spoken alert includes the player name and turns class naming off.",
   settingKey = "ttsAnnounceName",
-  defaultEnabled = true,
+  defaultEnabled = false,
 }
 
 local TTS_CLASS_SETTING = {
   labelKey = "SETTINGS_TTS_ANNOUNCE_CLASS",
   descKey = "SETTINGS_TTS_ANNOUNCE_CLASS_DESC",
   labelFallback = "Spoken alerts: say the class",
-  descFallback = "When on, the spoken alert names the class (e.g. Hunter died) instead of the group role.",
+  descFallback = "When on, the spoken alert names the class and turns player-name announcements off.",
   settingKey = "ttsAnnounceClass",
   defaultEnabled = false,
 }
@@ -343,7 +343,16 @@ end
 
 -- Plain sub-toggle for a TTS modifier setting (name / class). No preview
 -- button; it only refines how the spoken alert reads.
-local function CreateTtsModifierCheckbox(canvas, yOffset, setting, labels, config, soundKey)
+local function CreateTtsModifierCheckbox(
+  canvas,
+  yOffset,
+  setting,
+  labels,
+  config,
+  soundKey,
+  controls,
+  exclusiveSettingKey
+)
   local checkbox, nextY = CreateSettingsCheckbox(
     canvas,
     yOffset,
@@ -359,6 +368,22 @@ local function CreateTtsModifierCheckbox(canvas, yOffset, setting, labels, confi
     function(checked)
       local db = config.getDB()
       db[setting.settingKey] = checked == true
+      if checked == true and type(exclusiveSettingKey) == "string" then
+        db[exclusiveSettingKey] = false
+        if
+          type(controls) == "table"
+          and exclusiveSettingKey == TTS_NAME_SETTING.settingKey
+          and controls.ttsAnnounceNameCheck
+        then
+          controls.ttsAnnounceNameCheck.check:SetChecked(false)
+        elseif
+          type(controls) == "table"
+          and exclusiveSettingKey == TTS_CLASS_SETTING.settingKey
+          and controls.ttsAnnounceClassCheck
+        then
+          controls.ttsAnnounceClassCheck.check:SetChecked(false)
+        end
+      end
     end,
     setting.labelKey,
     DescriptionOptions(labels[setting.descKey] or setting.descFallback)
@@ -406,10 +431,26 @@ local function CreateTtsAnnouncementsCheckbox(canvas, yOffset, labels, config, c
   controls.ttsAnnouncementsCheck = checkbox
 
   yOffset = nextY
-  controls.ttsAnnounceNameCheck, yOffset =
-    CreateTtsModifierCheckbox(canvas, yOffset, TTS_NAME_SETTING, labels, config, "tts_announce_name")
-  controls.ttsAnnounceClassCheck, yOffset =
-    CreateTtsModifierCheckbox(canvas, yOffset, TTS_CLASS_SETTING, labels, config, "tts_announce_class")
+  controls.ttsAnnounceNameCheck, yOffset = CreateTtsModifierCheckbox(
+    canvas,
+    yOffset,
+    TTS_NAME_SETTING,
+    labels,
+    config,
+    "tts_announce_name",
+    controls,
+    TTS_CLASS_SETTING.settingKey
+  )
+  controls.ttsAnnounceClassCheck, yOffset = CreateTtsModifierCheckbox(
+    canvas,
+    yOffset,
+    TTS_CLASS_SETTING,
+    labels,
+    config,
+    "tts_announce_class",
+    controls,
+    TTS_NAME_SETTING.settingKey
+  )
   return yOffset
 end
 
@@ -679,6 +720,8 @@ function SettingsSound.RefreshSoundControls(controls, labels, db)
     end
   end
 
+  local classChecked = db[TTS_CLASS_SETTING.settingKey] == true
+
   local function RefreshTtsModifier(control, setting)
     if not control then
       return
@@ -689,6 +732,9 @@ function SettingsSound.RefreshSoundControls(controls, labels, db)
     local nextValue = setting.defaultEnabled ~= false
     if stored ~= nil then
       nextValue = stored == true
+    end
+    if setting.settingKey == TTS_NAME_SETTING.settingKey and classChecked then
+      nextValue = false
     end
     control.check:SetChecked(nextValue)
   end
