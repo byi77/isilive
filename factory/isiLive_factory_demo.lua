@@ -39,9 +39,6 @@ local DEMO_FEATURE_DB_KEYS = {
   "mobNameplateYOffset",
   "soundReadyCheckCompleteEnabled",
   "deathAlertEnabled",
-  "ttsAnnouncementsEnabled",
-  "ttsAnnounceName",
-  "ttsAnnounceClass",
 }
 
 local function CaptureDemoFeatureSnapshot(db)
@@ -88,9 +85,6 @@ local function ApplyDemoFeatureDbOverrides(ctx)
   db.mplusForcesEstimate = true
   db.soundReadyCheckCompleteEnabled = true
   db.deathAlertEnabled = true
-  db.ttsAnnouncementsEnabled = true
-  db.ttsAnnounceName = true
-  db.ttsAnnounceClass = false
 
   return db
 end
@@ -220,7 +214,7 @@ local function ApplyReadyCheckActivePreview(ctx)
   end
 end
 
-local function ApplyDemoAlertAndSoundPreview(ctx, L)
+local function ApplyDemoAlertAndSoundPreview(ctx, _L)
   if type(ctx.ShowRoleDeathAlert) == "function" then
     ctx.ShowRoleDeathAlert("TANK", "party1")
     ctx.ShowRoleDeathAlert("DAMAGER", "party3")
@@ -232,11 +226,6 @@ local function ApplyDemoAlertAndSoundPreview(ctx, L)
   end
   if type(soundUtils.PlayReadyCheckComplete) == "function" then
     soundUtils.PlayReadyCheckComplete()
-  end
-  if type(soundUtils.SpeakTts) == "function" then
-    soundUtils.SpeakTts(L.TTS_PREVIEW_TEXT or "isiLive text to speech is active.", {
-      spamScope = "preview:demo",
-    })
   end
 end
 
@@ -865,8 +854,8 @@ local function BuildSimulationTabletActions(ctx)
     {
       id = "E3",
       status = "green",
-      title = "Sound and TTS preview",
-      description = "Runs the ready-check sound and text-to-speech preview hooks.",
+      title = "Sound preview",
+      description = "Runs the ready-check sound preview hook.",
       run = function()
         ApplyDemoAlertAndSoundPreview(ctx, L())
         return done("SIM_ACTION_E3_DONE")

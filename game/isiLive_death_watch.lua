@@ -15,7 +15,7 @@ local WATCHED_UNITS = {
   party4 = true,
 }
 
-local DEATH_TTS_BURST_PAUSE_SECONDS = 30
+local DEATH_AUDIO_BURST_PAUSE_SECONDS = 30
 
 local function DefaultGetTime()
   local fn = rawget(_G, "GetTime")
@@ -163,7 +163,7 @@ function DeathWatch.CreateController(opts)
   local guidByPlayerKey = {}
   local previousDeathGuid = nil
   local sequentialDifferentDeaths = 0
-  local deathTtsPausedUntil = 0
+  local deathAudioPausedUntil = 0
   -- Same in-key cache pattern as CombatEvents: invalidated via Reset() on
   -- CHALLENGE_MODE_START / COMPLETED / RESET, the only events that change it.
   local cachedInKey = nil
@@ -200,20 +200,20 @@ function DeathWatch.CreateController(opts)
     return tonumber(getTime()) or 0
   end
 
-  local function IsDeathTtsPaused(now)
-    return tonumber(deathTtsPausedUntil) and now < deathTtsPausedUntil
+  local function IsDeathAudioPaused(now)
+    return tonumber(deathAudioPausedUntil) and now < deathAudioPausedUntil
   end
 
-  local function UpdateDeathTtsBurstPause(guid, now)
-    if IsDeathTtsPaused(now) then
+  local function UpdateDeathAudioBurstPause(guid, now)
+    if IsDeathAudioPaused(now) then
       return true
     end
-    if tonumber(deathTtsPausedUntil) and deathTtsPausedUntil > 0 then
+    if tonumber(deathAudioPausedUntil) and deathAudioPausedUntil > 0 then
       previousDeathGuid = nil
       sequentialDifferentDeaths = 0
-      deathTtsPausedUntil = 0
+      deathAudioPausedUntil = 0
     end
-    local suppressTts = false
+    local suppressAudio = false
     if previousDeathGuid and previousDeathGuid ~= guid then
       sequentialDifferentDeaths = sequentialDifferentDeaths + 1
     else
@@ -221,10 +221,10 @@ function DeathWatch.CreateController(opts)
     end
     previousDeathGuid = guid
     if sequentialDifferentDeaths >= 2 then
-      deathTtsPausedUntil = now + DEATH_TTS_BURST_PAUSE_SECONDS
-      suppressTts = true
+      deathAudioPausedUntil = now + DEATH_AUDIO_BURST_PAUSE_SECONDS
+      suppressAudio = true
     end
-    return suppressTts
+    return suppressAudio
   end
 
   local function RecordDeath(guid, unit, role)
@@ -281,14 +281,14 @@ function DeathWatch.CreateController(opts)
     local role = getUnitRole(unit)
     RecordDeath(guid, unit, role)
     -- Damage-dealer deaths are useful while the run can still recover. Once
-    -- both critical roles are dead, extra DPS TTS would only add noise.
+    -- both critical roles are dead, extra DPS audio would only add noise.
     if role == "TANK" or role == "HEALER" or role == "DAMAGER" then
       if role == "DAMAGER" and HasDeadTankAndHealer() then
         return
       end
-      local suppressTts = UpdateDeathTtsBurstPause(guid, GetNow())
+      local suppressAudio = UpdateDeathAudioBurstPause(guid, GetNow())
       deadRoleByGuid[guid] = role
-      onRoleDeath(role, unit, { suppressTts = suppressTts })
+      onRoleDeath(role, unit, { suppressAudio = suppressAudio })
     end
   end
 
@@ -349,7 +349,7 @@ function DeathWatch.CreateController(opts)
     deadRoleByGuid = {}
     previousDeathGuid = nil
     sequentialDifferentDeaths = 0
-    deathTtsPausedUntil = 0
+    deathAudioPausedUntil = 0
     cachedInKey = nil
   end
 

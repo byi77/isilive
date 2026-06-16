@@ -824,6 +824,65 @@ return function(test, ctx)
     Assert.Equal(visibilityCalls[#visibilityCalls], true, "frame must be made visible on instance entry")
   end)
 
+  test("PLAYER_ENTERING_WORLD resets stale challenge timers on inactive instance entry", function()
+    local timerEvents = {}
+    local cdRefreshOpts = {}
+    local handlers, stub = LoadHandlers({
+      isInPartyInstance = function()
+        return true
+      end,
+      isInGroup = function()
+        return true
+      end,
+      isInChallengeMode = function()
+        return false
+      end,
+      handleMplusTimerEvent = function(event)
+        table.insert(timerEvents, event)
+      end,
+      updateCdTracker = function(opts)
+        table.insert(cdRefreshOpts, opts or false)
+      end,
+    })
+    stub.wasInPartyInstance = false
+
+    handlers.PLAYER_ENTERING_WORLD(nil)
+
+    Assert.Equal(timerEvents[1], "PLAYER_ENTERING_WORLD", "PEW must still reach the M+ timer first")
+    Assert.Equal(timerEvents[2], "CHALLENGE_MODE_RESET", "inactive instance entry must clear stale challenge state")
+    Assert.Equal(#cdRefreshOpts, 1, "inactive instance entry must use a single reset CD refresh")
+    Assert.True(cdRefreshOpts[1].resetRuntimeTimers, "stale challenge reset must clear visible BR/BL timers")
+    Assert.True(cdRefreshOpts[1].suppressBattleResReadySound, "stale challenge reset must suppress BRes-ready")
+    Assert.True(cdRefreshOpts[1].suppressLustReadySound, "stale challenge reset must suppress Bloodlust-ready")
+  end)
+
+  test("PLAYER_ENTERING_WORLD keeps active challenge instance entry from resetting timers", function()
+    local timerEvents = {}
+    local cdRefreshOpts = {}
+    local handlers, stub = LoadHandlers({
+      isInPartyInstance = function()
+        return true
+      end,
+      isInChallengeMode = function()
+        return true
+      end,
+      handleMplusTimerEvent = function(event)
+        table.insert(timerEvents, event)
+      end,
+      updateCdTracker = function(opts)
+        table.insert(cdRefreshOpts, opts or false)
+      end,
+    })
+    stub.wasInPartyInstance = false
+
+    handlers.PLAYER_ENTERING_WORLD(nil)
+
+    Assert.Equal(#timerEvents, 1, "active challenge PEW must only forward the PEW timer event")
+    Assert.Equal(timerEvents[1], "PLAYER_ENTERING_WORLD", "active challenge PEW must not synthesize RESET")
+    Assert.Equal(#cdRefreshOpts, 1, "active challenge PEW must keep the normal CD refresh")
+    Assert.Equal(cdRefreshOpts[1], false, "active challenge PEW must not use resetRuntimeTimers")
+  end)
+
   -- HandlePlayerRegenEnabledEvent: pending-binding + pending-frame paths ------
 
   test("PLAYER_REGEN_ENABLED applies pending bindings when getPendingBindingApply is true", function()

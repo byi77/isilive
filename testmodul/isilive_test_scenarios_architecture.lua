@@ -1101,7 +1101,6 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
     local playedChannel = nil
     local playedSoundKit = nil
     local stoppedHandles = {}
-    local stopSpeakingTextCalls = 0
     local now = 0
     local db = {}
     WithGlobals({
@@ -1124,11 +1123,6 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       StopSound = function(handle)
         stoppedHandles[#stoppedHandles + 1] = handle
       end,
-      C_VoiceChat = {
-        StopSpeakingText = function()
-          stopSpeakingTextCalls = stopSpeakingTextCalls + 1
-        end,
-      },
     }, function()
       local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
       Assert.NotNil(addon.SoundUtils, "sound utils module should load")
@@ -1240,11 +1234,11 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.Equal(
         battleResReadyEntry.file,
         "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady.wav",
-        "battle-res-ready entry should point at the TTS asset"
+        "battle-res-ready entry should point at the bundled WAV asset"
       )
       Assert.False(
         battleResEntry.fallbackFile == battleResReadyEntry.file,
-        "combat battle-res fallback must not reuse the battle-res-ready TTS asset"
+        "combat battle-res fallback must not reuse the battle-res-ready WAV asset"
       )
       Assert.True(
         addon.SoundUtils.IsEnabled("battle_res_ready"),
@@ -1276,7 +1270,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.Equal(
         bloodlustReadyEntry.file,
         "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
-        "bloodlust-ready entry should point at the TTS asset"
+        "bloodlust-ready entry should point at the bundled WAV asset"
       )
       Assert.True(
         addon.SoundUtils.IsEnabled("bloodlust_ready"),
@@ -1345,7 +1339,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.Equal(
         playedPath,
         "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
-        "bloodlust-ready helper should use the TTS asset"
+        "bloodlust-ready helper should use the bundled WAV asset"
       )
       addon.SoundUtils.StopAllActiveSounds()
       Assert.Equal(#stoppedHandles, 8, "stop-all helper must stop every active sound handle")
@@ -1354,7 +1348,6 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         stoppedByHandle[handle] = true
       end
       Assert.True(stoppedByHandle["file:1"] == true, "stop-all helper must pass file playback handles to StopSound")
-      Assert.Equal(stopSpeakingTextCalls, 1, "stop-all helper must stop active text-to-speech playback")
 
       db.soundLeadEnabled = false
       db.soundGroupJoinEnabled = true
@@ -1364,8 +1357,12 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       db.soundBattleResReadyEnabled = true
       db.soundBloodlustEnabled = true
       db.soundBloodlustReadyEnabled = true
-      now = 2
+      now = 2.9
       playCalls = 0
+      addon.SoundUtils.PlayGroupJoin()
+      Assert.Equal(playCalls, 0, "same sound key must stay silent until the 3-second spam window expires")
+
+      now = 3
       addon.SoundUtils.PlayKey("leader_transfer")
       addon.SoundUtils.PlayGroupJoin()
       addon.SoundUtils.PlayReadyCheckComplete()
@@ -1401,9 +1398,15 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.Equal(playedChannel, "Dialog", "explicit SoundKit channel should be preserved")
       addon.SoundUtils.PlaySoundKit("UI_TEST_SOUND", "Dialog")
       Assert.Equal(playCalls, 1, "SoundKit spam protection must suppress duplicate playback")
-      now = 12
+      now = 12.9
+      addon.SoundUtils.PlaySoundKit("UI_TEST_SOUND", "Dialog")
+      Assert.Equal(playCalls, 1, "SoundKit spam protection must last for the full 3-second window")
+      now = 13
+      addon.SoundUtils.PlaySoundKit("UI_TEST_SOUND", "Dialog")
+      Assert.Equal(playCalls, 2, "SoundKit spam protection must allow replay after 3 seconds")
+      now = 16
       addon.SoundUtils.PlaySoundKit(7777)
-      Assert.Equal(playCalls, 2, "numeric SoundKit ids must play directly")
+      Assert.Equal(playCalls, 3, "numeric SoundKit ids must play directly")
       Assert.Equal(playedSoundKit, 7777, "numeric SoundKit playback must pass the given id")
       Assert.Equal(playedChannel, "Master", "SoundKit playback defaults to the Master channel")
 
@@ -1570,18 +1573,18 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.Equal(playedChannel, "Master", "built-in sound playback should use Master by default")
 
       db.soundOutputChannel = "SFX"
-      now = 3
+      now = 4
       addon.SoundUtils.PlayGroupJoin()
       Assert.Equal(playedChannel, "SFX", "built-in sound playback should use configured SFX output")
 
       db.soundOutputChannel = "Dialog"
-      now = 5
+      now = 7
       addon.SoundUtils.PlayGroupJoin()
       Assert.Equal(playedChannel, "Master", "invalid sound output channel should fail closed to Master")
     end)
   end)
 
-  test("SoundUtils Bloodlust-ready setting disables TTS playback", function()
+  test("SoundUtils Bloodlust-ready setting disables WAV playback", function()
     local playCalls = 0
     local db = {
       soundBloodlustReadyEnabled = false,
@@ -1598,18 +1601,18 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
       Assert.False(
         addon.SoundUtils.IsEnabled("bloodlust_ready"),
-        "bloodlust-ready setting should disable the TTS sound"
+        "bloodlust-ready setting should disable the WAV sound"
       )
       addon.SoundUtils.PlayBloodlustReady()
-      Assert.Equal(playCalls, 0, "disabled bloodlust-ready setting must suppress TTS playback")
+      Assert.Equal(playCalls, 0, "disabled bloodlust-ready setting must suppress WAV playback")
 
       db.soundBloodlustReadyEnabled = true
       addon.SoundUtils.PlayBloodlustReady()
-      Assert.Equal(playCalls, 1, "enabled bloodlust-ready setting should allow one TTS playback")
+      Assert.Equal(playCalls, 1, "enabled bloodlust-ready setting should allow one WAV playback")
     end)
   end)
 
-  test("SoundUtils Battle Res-ready setting disables TTS playback", function()
+  test("SoundUtils Battle Res-ready setting disables WAV playback", function()
     local playCalls = 0
     local db = {
       soundBattleResReadyEnabled = false,
@@ -1626,14 +1629,14 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
       Assert.False(
         addon.SoundUtils.IsEnabled("battle_res_ready"),
-        "battle-res-ready setting should disable the TTS sound"
+        "battle-res-ready setting should disable the WAV sound"
       )
       addon.SoundUtils.PlayBattleResReady()
-      Assert.Equal(playCalls, 0, "disabled battle-res-ready setting must suppress TTS playback")
+      Assert.Equal(playCalls, 0, "disabled battle-res-ready setting must suppress WAV playback")
 
       db.soundBattleResReadyEnabled = true
       addon.SoundUtils.PlayBattleResReady()
-      Assert.Equal(playCalls, 1, "enabled battle-res-ready setting should allow one TTS playback")
+      Assert.Equal(playCalls, 1, "enabled battle-res-ready setting should allow one WAV playback")
     end)
   end)
 

@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-06-16 - Version 0.9.322 (patch)
+
+- Disabled the native WoW text-to-speech path (`C_VoiceChat.SpeakText`) and
+  removed the spoken-alert settings from the Sounds panel.
+- Death-alert audio now uses only the bundled static WAV files for tank and
+  healer deaths; damage-dealer deaths remain tracked but do not play audio
+  without a bundled WAV asset.
+- Death-alert role announcements now drop immediate duplicate tank or healer
+  callbacks, so `Tank died` and `Healer died` each fire only once per direct
+  repeated role event.
+- Increased the shared sound spam window from 1 second to 3 seconds for the
+  same sound key, covering both file-based sounds and SoundKit playback.
+- Split the death-alert sound settings into separate Tank died and Healer died
+  WAV toggles while keeping the visual death-alert gate unchanged.
+- Trimmed `TankDied.wav` and `HealerDied.wav` to a single spoken announcement
+  so the sound preview and runtime alert no longer repeat the phrase from one
+  file playback.
+- Bumped the TOC and documentation baselines to `0.9.322`.
+
 ## 2026-06-14 - Version 0.9.321 (patch)
 
 - Paused spoken death TTS for 30 seconds after two different players die in

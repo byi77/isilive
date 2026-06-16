@@ -14,8 +14,8 @@
 --     deaths + deathTimeLost.
 --   * Death-penalty gate: GetTimerData() exposes deathTimeLost only when
 --     keyLevel >= 4 (no penalty on +2/+3 keys per Blizzard's rule).
---   * COMPLETED stops the tick, marks completed=true, leaves the timer value.
---   * RESET stops the tick AND wipes the timer/deaths/cutoffs entirely.
+--   * COMPLETED and RESET stop the tick and wipe the timer/deaths/cutoffs
+--     entirely.
 --   * timeRemaining1/2/3 = (cutoffSeconds - state.timer); negative when
 --     the cutoff has been missed.
 --   * SetDemoData wins over live state; ClearDemoData restores the live read.
@@ -246,10 +246,10 @@ local function ScenarioDeathCountAndPenaltyGate()
 end
 
 -- ----------------------------------------------------------------------
--- Phase 4: CHALLENGE_MODE_COMPLETED stops the tick + marks completed.
+-- Phase 4: CHALLENGE_MODE_COMPLETED wipes everything.
 -- ----------------------------------------------------------------------
 local function ScenarioKeyCompleted()
-  print("\n========== Scenario 4: CHALLENGE_MODE_COMPLETED stops tick ==========")
+  print("\n========== Scenario 4: CHALLENGE_MODE_COMPLETED wipes state ==========")
   ResetModel()
   local session = BuildSession()
   session.fire("CHALLENGE_MODE_START")
@@ -259,14 +259,18 @@ local function ScenarioKeyCompleted()
   session.fire("CHALLENGE_MODE_COMPLETED")
   local data = session.getTimerData()
   Check(data.running == false, "post-COMPLETED: running=false")
-  Check(data.completed == true, "post-COMPLETED: completed=true")
-  Check(data.timer == 1200, "post-COMPLETED: timer value preserved (last tick stays visible)")
+  Check(data.completed == false, "post-COMPLETED: completed=false")
+  Check(data.timer == 0, "post-COMPLETED: timer wiped to 0")
+  Check(data.deaths == 0, "post-COMPLETED: deaths wiped to 0")
+  Check(data.deathTimeLost == 0, "post-COMPLETED: deathTimeLost wiped to 0")
+  Check(data.timeLimit == 0, "post-COMPLETED: timeLimit wiped to 0")
+  Check(data.timeRemaining1 == 0, "post-COMPLETED: cutoff arrays reset (timeRemaining1=0)")
 
-  -- A subsequent tick must NOT advance the timer (OnUpdate was unhooked).
+  -- A subsequent tick must NOT advance the timer or restore the wiped state.
   model.worldElapsedTime = 1500
   session.tick(0.2)
   data = session.getTimerData()
-  Check(data.timer == 1200, "tick after COMPLETED is a no-op: timer stays at 1200 (OnUpdate was SetScript(nil))")
+  Check(data.timer == 0, "tick after COMPLETED is a no-op: timer stays wiped")
 end
 
 -- ----------------------------------------------------------------------

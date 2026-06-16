@@ -207,16 +207,9 @@ local SCHEMA = {
   soundLeadEnabled = { type = "boolean", default = true },
   soundPortalAvailableEnabled = { type = "boolean", default = true },
   soundReadyCheckCompleteEnabled = { type = "boolean", default = true },
+  soundTankDiedEnabled = { type = "boolean", default = true },
+  soundHealerDiedEnabled = { type = "boolean", default = true },
   deathAlertEnabled = { type = "boolean", default = true },
-  -- Text-to-speech announcements (default off). Spoken alerts intentionally
-  -- bypass the Master/SFX sound channels (they follow the user's Blizzard TTS
-  -- voice / rate) — see the sound-channel policy in CLAUDE.md. sound-ok
-  -- ttsVoiceID is an optional advanced override (Phase 2 voice picker); it is
-  -- read defensively from the DB and stays absent until the user sets it.
-  ttsAnnouncementsEnabled = { type = "boolean", default = false },
-  ttsAnnounceName = { type = "boolean", default = false },
-  ttsAnnounceClass = { type = "boolean", default = false },
-  ttsVolume = { type = "number", default = 100, min = 0, max = 100 },
   vipAstralAurochsSoundMuted = { type = "boolean", default = false },
   vipGrandExpeditionYakSoundMuted = { type = "boolean", default = false },
   vipGildedBrutosaurSoundMuted = { type = "boolean", default = false },

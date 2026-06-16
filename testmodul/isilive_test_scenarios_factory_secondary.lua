@@ -388,7 +388,6 @@ local function BuildControllerContext(state, addon, initial)
         PORTAL_NAVIGATOR_HEAVEN = "Heaven",
         PORTAL_NAVIGATOR_UNOCCUPIED = "Unoccupied",
         ROLE_NAME_DAMAGE = "Damage",
-        TTS_PREVIEW_TEXT = "isiLive text to speech is active.",
       }
     end,
     GetRealmInfoLib = function()
@@ -665,14 +664,6 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
         StopAllActiveSounds = function()
           state.stopAllActiveSoundsCalls = (state.stopAllActiveSoundsCalls or 0) + 1
         end,
-        SpeakTts = function(text, opts)
-          state.ttsPreviews = state.ttsPreviews or {}
-          table.insert(state.ttsPreviews, {
-            text = text,
-            spamScope = opts and opts.spamScope or nil,
-          })
-          return true
-        end,
       },
       SimulationTablet = {
         CreateController = function(opts)
@@ -759,15 +750,9 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Equal(state.simulationTabletShowCalls, 1, "demo mode must show the simulation tablet once")
     Assert.NotNil(state.deathAlertPreviews, "demo mode must preview death alerts")
     Assert.Equal(state.deathAlertPreviews[1].role, "TANK", "demo mode must show the tank death alert preview")
-    Assert.Equal(state.deathAlertPreviews[2].role, "DAMAGER", "demo mode must exercise the TTS-only DPS death path")
+    Assert.Equal(state.deathAlertPreviews[2].role, "DAMAGER", "demo mode must exercise the DPS death tracking path")
     Assert.Equal(state.readyCheckCompleteSoundCalls, 1, "demo mode must preview the ready-check-complete sound")
-    Assert.NotNil(state.ttsPreviews, "demo mode must preview spoken TTS")
-    Assert.Equal(
-      state.ttsPreviews[1].text,
-      "isiLive text to speech is active.",
-      "demo TTS preview text must be explicit"
-    )
-    Assert.Equal(state.ttsPreviews[1].spamScope, "preview:demo", "demo TTS preview must use a separate spam scope")
+    Assert.Nil(state.ttsPreviews, "demo mode must not preview removed native TTS")
     Assert.NotNil(state.portalNavigatorLayout, "test mode must show the portal navigator demo")
     Assert.Equal(
       state.portalNavigatorLayout.eyebrow,
@@ -928,7 +913,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.True(sawTank, "tank-dead action must run as a standalone preview")
     Assert.True(sawHealer, "healer-dead action must run as a standalone preview")
     Assert.True(state.readyCheckCompleteSoundCalls >= 2, "sound action must play ready-check preview")
-    Assert.True(#state.ttsPreviews >= 2, "sound action must speak TTS preview")
+    Assert.Nil(state.ttsPreviews, "sound action must not speak removed TTS preview")
   end)
 
   test("Factory demo cleanup stops active preview sounds", function()
@@ -1415,36 +1400,42 @@ return function(test, ctx)
   end)
 
   test("Factory CD refresh resets visible Battle Res and Bloodlust timers when key ends", function()
-    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
-      mplusTimerData = {
-        running = true,
-      },
-    })
+    local function AssertEndRefreshClearsVisibleTimers(reason)
+      local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+        mplusTimerData = {
+          running = true,
+        },
+      })
 
-    state.bresInfo = { charges = 0, maxCharges = 1, cooldownRemain = 120 }
-    state.lustInfo = { remain = 20, icon = 132114 }
-    state.ctx.UpdateCdTracker({ playLustSoundOnStart = true })
-    Assert.NotNil(state.cdController.GetBResInfo(), "running key must expose BRes timer info before key end")
-    Assert.NotNil(state.cdController.GetLustInfo(), "running key must expose Bloodlust timer info before key end")
+      state.bresInfo = { charges = 0, maxCharges = 1, cooldownRemain = 120 }
+      state.lustInfo = { remain = 20, icon = 132114 }
+      state.ctx.UpdateCdTracker({ playLustSoundOnStart = true })
+      Assert.NotNil(state.cdController.GetBResInfo(), reason .. ": running key must expose BRes timer info")
+      Assert.NotNil(state.cdController.GetLustInfo(), reason .. ": running key must expose Bloodlust timer info")
 
-    state.mplusTimerData = {
-      running = false,
-    }
-    state.ctx.UpdateCdTracker({
-      suppressBattleResReadySound = true,
-      suppressLustReadySound = true,
-      resetRuntimeTimers = true,
-    })
+      state.mplusTimerData = {
+        running = false,
+      }
+      state.ctx.UpdateCdTracker({
+        suppressBattleResReadySound = true,
+        suppressLustReadySound = true,
+        resetRuntimeTimers = true,
+      })
 
-    Assert.Equal(state.cdTrackerRuntimeCleared or 0, 1, "key-end refresh must clear CD tracker runtime data")
-    Assert.Nil(state.cdController.GetBResInfo(), "key-end refresh must reset BRes display to placeholder")
-    Assert.Nil(state.cdController.GetLustInfo(), "key-end refresh must reset Bloodlust display to placeholder")
+      Assert.Equal(state.cdTrackerRuntimeCleared or 0, 1, reason .. ": key-end refresh must clear runtime data")
+      Assert.Equal(state.cdRefreshes or 0, 2, reason .. ": key-end refresh must rerender the CD tracker row")
+      Assert.Nil(state.cdController.GetBResInfo(), reason .. ": key-end refresh must reset BRes display")
+      Assert.Nil(state.cdController.GetLustInfo(), reason .. ": key-end refresh must reset Bloodlust display")
 
-    state.bresInfo = { charges = 1, maxCharges = 1, cooldownRemain = 0 }
-    state.lustInfo = { remain = 0, icon = 132114 }
-    state.cdController.Scan()
-    Assert.Nil(state.cdController.GetBResInfo(), "visible out-of-key scan must keep BRes reset")
-    Assert.Nil(state.cdController.GetLustInfo(), "visible out-of-key scan must keep Bloodlust reset")
+      state.bresInfo = { charges = 1, maxCharges = 1, cooldownRemain = 0 }
+      state.lustInfo = { remain = 0, icon = 132114 }
+      state.cdController.Scan()
+      Assert.Nil(state.cdController.GetBResInfo(), reason .. ": visible out-of-key scan must keep BRes reset")
+      Assert.Nil(state.cdController.GetLustInfo(), reason .. ": visible out-of-key scan must keep Bloodlust reset")
+    end
+
+    AssertEndRefreshClearsVisibleTimers("completion")
+    AssertEndRefreshClearsVisibleTimers("reset")
   end)
 
   test("Factory CD refresh routes Bloodlust-ready through the real SoundUtils asset", function()
@@ -1519,7 +1510,7 @@ return function(test, ctx)
     Assert.Equal(
       playCalls[1].path,
       "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
-      "Bloodlust-ready transition must use the dedicated TTS asset"
+      "Bloodlust-ready transition must use the dedicated WAV asset"
     )
     Assert.Equal(playCalls[1].channel, "Master", "Bloodlust-ready transition must use the configured channel")
   end)

@@ -552,6 +552,23 @@ local function HandleShareKeysRequest(ctx, syncResult, sender)
   end
 end
 
+local function ResetChallengeRuntimeOnInactiveInstanceEntry(ctx, wasInPartyInstance, inPartyInstance)
+  if wasInPartyInstance == nil or wasInPartyInstance == true or inPartyInstance ~= true then
+    return false
+  end
+  if ctx.isInChallengeMode() then
+    return false
+  end
+
+  ctx.handleMplusTimerEvent("CHALLENGE_MODE_RESET")
+  ctx.updateCdTracker({
+    suppressBattleResReadySound = true,
+    suppressLustReadySound = true,
+    resetRuntimeTimers = true,
+  })
+  return true
+end
+
 -- Full own-state fan-out towards a peer (hello-ack and REQSYNC paths share
 -- it): hello + refresh response (key, stats, dps, loc) + target + kick +
 -- share-keys cooldown mirror.
@@ -700,6 +717,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
 
   local function HandlePlayerEnteringWorldEvent(_self)
     local inPartyInstance = ctx.isInPartyInstance() == true
+    local wasInPartyInstance = ctx.wasInPartyInstance
     if type(ctx.logRuntimeTracef) == "function" then
       ctx.logRuntimeTracef(
         "[RUNTIME] player_entering_world isRaid=%s inPartyInstance=%s isInGroup=%s isInChallenge=%s",
@@ -715,7 +733,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end
     ctx.handleKillTrackEvent("PLAYER_ENTERING_WORLD")
     ctx.handleMplusTimerEvent("PLAYER_ENTERING_WORLD")
-    ctx.updateCdTracker()
+    local didResetChallengeRuntime =
+      ResetChallengeRuntimeOnInactiveInstanceEntry(ctx, wasInPartyInstance, inPartyInstance)
+    if not didResetChallengeRuntime then
+      ctx.updateCdTracker()
+    end
     UpdateTrackedMythicZeroRun(ctx)
     ScheduleBindingStartupRefresh(ctx)
     ctx.sendOwnKeySnapshot(true, "world", not ctx.isMainFrameShown())
@@ -725,7 +747,6 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.updateStatusLine()
     ctx.checkIfEnteredTargetDungeon()
 
-    local wasInPartyInstance = ctx.wasInPartyInstance
     ctx.wasInPartyInstance = inPartyInstance
 
     if wasInPartyInstance == nil and ctx.isInGroup() then

@@ -77,10 +77,9 @@ return function(test, ctx)
     end)
   end)
 
-  test("Settings panel exposes the spoken-alert toggle and TTS preview", function()
+  test("Settings panel keeps removed spoken TTS controls out of the sound UI", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}
-    local spokenPreviews = {}
 
     WithGlobals({
       UIParent = {},
@@ -90,15 +89,6 @@ return function(test, ctx)
         return 100
       end,
       PlaySoundFile = function() end,
-      C_VoiceChat = {
-        GetTtsVoices = function()
-          return { { voiceID = 1, name = "Voice" } }
-        end,
-        SpeakText = function(_voiceID, text)
-          spokenPreviews[#spokenPreviews + 1] = text
-          return true
-        end,
-      },
       Settings = {
         RegisterCanvasLayoutCategory = function(canvas, name)
           return { canvas = canvas, name = name }
@@ -111,8 +101,6 @@ return function(test, ctx)
         getL = function()
           return {
             SETTINGS_SECTION_SOUNDS = "Sounds",
-            SETTINGS_TTS_ENABLED = "Spoken alerts",
-            TTS_PREVIEW_TEXT = "isiLive text to speech is active.",
           }
         end,
         getCurrentLocale = function()
@@ -126,32 +114,31 @@ return function(test, ctx)
 
       local ttsCheck = nil
       local ttsPreview = nil
+      local nameCheck = nil
+      local classCheck = nil
       for _, frame in ipairs(createdFrames) do
         if frame._settingKey == "SETTINGS_TTS_ENABLED" then
           ttsCheck = frame
         elseif frame._ttsPreview == true then
           ttsPreview = frame
+        elseif frame._settingKey == "SETTINGS_TTS_ANNOUNCE_NAME" then
+          nameCheck = frame
+        elseif frame._settingKey == "SETTINGS_TTS_ANNOUNCE_CLASS" then
+          classCheck = frame
         end
       end
 
-      ttsCheck = Assert.NotNil(ttsCheck, "TTS toggle checkbox should exist")
-      ttsPreview = Assert.NotNil(ttsPreview, "TTS preview button should exist")
+      Assert.Nil(ttsCheck, "removed TTS toggle checkbox must not exist")
+      Assert.Nil(ttsPreview, "removed TTS preview button must not exist")
+      Assert.Nil(nameCheck, "removed TTS name checkbox must not exist")
+      Assert.Nil(classCheck, "removed TTS class checkbox must not exist")
       Assert.Nil(db.ttsAnnouncementsEnabled, "opening settings must not persist the TTS default")
-      Assert.False(ttsCheck:GetChecked(), "TTS announcements must default to off")
-
-      local onClick = Assert.NotNil(ttsCheck._scripts.OnClick, "TTS toggle needs OnClick")
-      ttsCheck:SetChecked(true)
-      onClick(ttsCheck)
-      Assert.True(db.ttsAnnouncementsEnabled, "enabling the TTS toggle must persist true")
-
-      local onPreview = Assert.NotNil(ttsPreview._scripts.OnClick, "TTS preview button needs OnClick")
-      onPreview(ttsPreview, "LeftButton")
-      Assert.Equal(#spokenPreviews, 1, "TTS preview should speak once")
-      Assert.Equal(spokenPreviews[1], "isiLive text to speech is active.", "preview must speak the localized line")
+      Assert.Nil(db.ttsAnnounceName, "opening settings must not persist the removed name setting")
+      Assert.Nil(db.ttsAnnounceClass, "opening settings must not persist the removed class setting")
     end)
   end)
 
-  test("Settings panel exposes the TTS name and class toggles", function()
+  test("Settings panel exposes separate tank and healer death sound toggles", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}
 
@@ -175,8 +162,6 @@ return function(test, ctx)
         getL = function()
           return {
             SETTINGS_SECTION_SOUNDS = "Sounds",
-            SETTINGS_TTS_ANNOUNCE_NAME = "Say the player name",
-            SETTINGS_TTS_ANNOUNCE_CLASS = "Say the class",
           }
         end,
         getCurrentLocale = function()
@@ -188,38 +173,40 @@ return function(test, ctx)
         end,
       })
 
-      local nameCheck, classCheck = nil, nil
+      local tankCheck = nil
+      local healerCheck = nil
+      local tankPreview = nil
+      local healerPreview = nil
       for _, frame in ipairs(createdFrames) do
-        if frame._settingKey == "SETTINGS_TTS_ANNOUNCE_NAME" then
-          nameCheck = frame
-        elseif frame._settingKey == "SETTINGS_TTS_ANNOUNCE_CLASS" then
-          classCheck = frame
+        if frame._soundKey == "tank_died" then
+          tankCheck = frame
+        elseif frame._soundKey == "healer_died" then
+          healerCheck = frame
+        elseif frame._soundPreviewKey == "tank_died" then
+          tankPreview = frame
+        elseif frame._soundPreviewKey == "healer_died" then
+          healerPreview = frame
         end
       end
 
-      nameCheck = Assert.NotNil(nameCheck, "TTS name toggle should exist")
-      classCheck = Assert.NotNil(classCheck, "TTS class toggle should exist")
-      Assert.False(nameCheck:GetChecked(), "name announcement must default off")
-      Assert.False(classCheck:GetChecked(), "class announcement must default off")
+      tankCheck = Assert.NotNil(tankCheck, "tank death sound checkbox should exist")
+      healerCheck = Assert.NotNil(healerCheck, "healer death sound checkbox should exist")
+      Assert.NotNil(tankPreview, "tank death sound preview button should exist")
+      Assert.NotNil(healerPreview, "healer death sound preview button should exist")
+      Assert.True(tankCheck:GetChecked(), "tank death sound should default to enabled")
+      Assert.True(healerCheck:GetChecked(), "healer death sound should default to enabled")
+      Assert.Nil(db.soundTankDiedEnabled, "opening settings must not persist the tank death sound default")
+      Assert.Nil(db.soundHealerDiedEnabled, "opening settings must not persist the healer death sound default")
 
-      local onNameClick = Assert.NotNil(nameCheck._scripts.OnClick, "name toggle needs OnClick")
-      nameCheck:SetChecked(true)
-      onNameClick(nameCheck)
-      Assert.True(db.ttsAnnounceName, "enabling the name toggle must persist true")
-      Assert.False(db.ttsAnnounceClass, "enabling name must keep class disabled")
-
-      local onClassClick = Assert.NotNil(classCheck._scripts.OnClick, "class toggle needs OnClick")
-      classCheck:SetChecked(true)
-      onClassClick(classCheck)
-      Assert.True(db.ttsAnnounceClass, "enabling the class toggle must persist true")
-      Assert.False(db.ttsAnnounceName, "enabling class must disable name")
-      Assert.False(nameCheck:GetChecked(), "enabling class must visually uncheck name")
-
-      nameCheck:SetChecked(true)
-      onNameClick(nameCheck)
-      Assert.True(db.ttsAnnounceName, "re-enabling name must persist true")
-      Assert.False(db.ttsAnnounceClass, "re-enabling name must disable class")
-      Assert.False(classCheck:GetChecked(), "re-enabling name must visually uncheck class")
+      local tankOnClick = Assert.NotNil(tankCheck._scripts.OnClick, "tank death checkbox needs OnClick")
+      local healerOnClick = Assert.NotNil(healerCheck._scripts.OnClick, "healer death checkbox needs OnClick")
+      tankCheck:SetChecked(false)
+      tankOnClick(tankCheck)
+      healerCheck:SetChecked(false)
+      healerOnClick(healerCheck)
+      Assert.False(db.soundTankDiedEnabled, "disabling tank death sound should persist only the tank field")
+      Assert.False(db.soundHealerDiedEnabled, "disabling healer death sound should persist only the healer field")
+      Assert.Nil(db.deathAlertEnabled, "sound toggles must not persist the death-alert master gate")
     end)
   end)
 end
