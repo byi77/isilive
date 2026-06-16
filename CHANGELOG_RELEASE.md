@@ -3,10 +3,11 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.323`.
+Current release: `0.9.324`.
 
 Highlights:
-- isiLive is marked compatible with WoW 12.0.7 via TOC interface `120007`.
+- isiLive is marked compatible with WoW 12.0.5 and 12.0.7 via TOC
+  interfaces `120005` and `120007`.
 - Native WoW text-to-speech death alerts are disabled; death-alert audio now
   uses only the bundled static WAV files.
 - Tank and healer death WAVs have separate Sounds settings toggles and preview

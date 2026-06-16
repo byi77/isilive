@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-06-17 - Version 0.9.324 (patch)
+
+- Listed both supported Retail TOC interfaces, `120005` and `120007`, so
+  isiLive remains loadable on WoW 12.0.5 clients while also being marked
+  compatible with WoW 12.0.7.
+- Updated the stable Release workflow to translate comma-separated TOC
+  interfaces into multiple CurseForge `gameVersionNames`.
+- Bumped the TOC and documentation baselines to `0.9.324`.
+
 ## 2026-06-16 - Version 0.9.323 (patch)
 
 - Bumped the TOC interface to `120007` for WoW 12.0.7 compatibility.

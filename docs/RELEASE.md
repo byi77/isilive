@@ -103,7 +103,7 @@ Im Actions-Tab pruefen:
 
 ## 7) CurseForge-Paket pruefen
 
-Der Stable-`Release`-Workflow baut zuerst das gemeinsame Release-ZIP `isiLive-X.Y.Z.zip`, haengt es an das GitHub Release fuer WowUp und laedt dasselbe ZIP danach mit `CF_API_KEY` direkt ueber `https://wow.curseforge.com/api/projects/{id}/upload-file` auf CurseForge hoch. Die CurseForge-Metadata setzt `gameVersionNames` aus der TOC-Interface-Version. Der fruehere Website-Auto-Packager-Trigger und der BigWigs-Packager werden fuer den Stable-Release nicht mehr verwendet, weil beide vor dem Upload an externen CurseForge-Web/API-Versionsabfragen scheitern koennen.
+Der Stable-`Release`-Workflow baut zuerst das gemeinsame Release-ZIP `isiLive-X.Y.Z.zip`, haengt es an das GitHub Release fuer WowUp und laedt dasselbe ZIP danach mit `CF_API_KEY` direkt ueber `https://wow.curseforge.com/api/projects/{id}/upload-file` auf CurseForge hoch. Die CurseForge-Metadata setzt `gameVersionNames` aus den kommagetrennten TOC-Interface-Versionen. Der fruehere Website-Auto-Packager-Trigger und der BigWigs-Packager werden fuer den Stable-Release nicht mehr verwendet, weil beide vor dem Upload an externen CurseForge-Web/API-Versionsabfragen scheitern koennen.
 
 Nach erfolgreichem `Release` auf CurseForge pruefen:
 

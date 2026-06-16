@@ -827,6 +827,30 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     end
   end)
 
+  test("Architecture release workflow maps comma-separated TOC interfaces to CurseForge game versions", function()
+    local content = ReadFile(".github/workflows/release.yml")
+
+    AssertContains(
+      Assert,
+      content,
+      "TOC_INTERFACES=\"$(awk -F': *' '/^## Interface:/ { print $2; exit }' isiLive.toc)\"",
+      "release workflow must read the full TOC interface list"
+    )
+    AssertContains(Assert, content, "tr ',' '\\n'", "release workflow must split comma-separated TOC interfaces")
+    AssertContains(
+      Assert,
+      content,
+      "--argjson game_versions",
+      "release workflow must pass parsed game versions as JSON"
+    )
+    AssertContains(
+      Assert,
+      content,
+      "gameVersionNames: $game_versions",
+      "CurseForge metadata must include every parsed TOC game version"
+    )
+  end)
+
   test("Architecture WARTUNG runbook references the required maintenance document chain", function()
     local content = ReadFile("WARTUNG.md")
 

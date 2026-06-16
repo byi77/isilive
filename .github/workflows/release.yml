@@ -139,16 +139,33 @@ jobs:
           CURSE_PROJECT_ID: ${{ vars.CURSE_PROJECT_ID }}
         run: |
           set -euo pipefail
-          TOC_INTERFACE="$(awk -F': *' '/^## Interface:/ { print $2; exit }' isiLive.toc)"
-          if [ -z "${TOC_INTERFACE}" ]; then
+          TOC_INTERFACES="$(awk -F': *' '/^## Interface:/ { print $2; exit }' isiLive.toc)"
+          if [ -z "${TOC_INTERFACES}" ]; then
             echo "isiLive.toc must contain a retail ## Interface value."
             exit 1
           fi
-          if [ $(( ${#TOC_INTERFACE} % 2 )) -ne 0 ]; then
-            echo "Unsupported TOC interface '${TOC_INTERFACE}'. Expected an even number of digits."
+          GAME_VERSIONS_JSON="$(
+            printf '%s\n' "${TOC_INTERFACES}" | tr ',' '\n' | awk '
+              {
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+                if ($0 != "") print
+              }
+            ' | while IFS= read -r interface; do
+              if ! printf '%s' "${interface}" | grep -Eq '^[0-9]+$'; then
+                echo "Unsupported TOC interface '${interface}'. Expected digits only." >&2
+                exit 1
+              fi
+              if [ $(( ${#interface} % 2 )) -ne 0 ]; then
+                echo "Unsupported TOC interface '${interface}'. Expected an even number of digits." >&2
+                exit 1
+              fi
+              printf '%s.%s.%s\n' "$((10#${interface:0:2}))" "$((10#${interface:2:1}))" "$((10#${interface:3}))"
+            done | jq -R . | jq -s .
+          )"
+          if [ "$(printf '%s' "${GAME_VERSIONS_JSON}" | jq 'length')" -eq 0 ]; then
+            echo "isiLive.toc must contain at least one retail ## Interface value."
             exit 1
           fi
-          GAME_VERSION="$((10#${TOC_INTERFACE:0:2})).$((10#${TOC_INTERFACE:2:1})).$((10#${TOC_INTERFACE:3}))"
           NOTES_FILE="$(mktemp)"
           if [ -s CHANGELOG_RELEASE.md ]; then
             cp CHANGELOG_RELEASE.md "${NOTES_FILE}"
@@ -159,12 +176,12 @@ jobs:
           jq -n \
             --rawfile changelog "${NOTES_FILE}" \
             --arg display_name "isiLive-${RELEASE_VERSION}" \
-            --arg game_version "${GAME_VERSION}" \
+            --argjson game_versions "${GAME_VERSIONS_JSON}" \
             '{
               changelog: $changelog,
               changelogType: "markdown",
               displayName: $display_name,
-              gameVersionNames: [$game_version],
+              gameVersionNames: $game_versions,
               releaseType: "release"
             }' > "${METADATA_FILE}"
           RESPONSE_FILE="$(mktemp)"
