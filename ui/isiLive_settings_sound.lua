@@ -513,7 +513,6 @@ function SettingsSound.RefreshSoundControls(controls, labels, db)
     end
     controls.bloodlustReadyReminderCheck.check:SetChecked(nextValue)
   end
-
 end
 
 function SettingsSound.RefreshVIPGuestControls(controls, labels, db)
