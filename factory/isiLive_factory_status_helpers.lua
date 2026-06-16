@@ -370,16 +370,36 @@ local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState)
   ctx.GetStatusTargetDungeonInfo = function()
     local targetMapID = ctx.ResolveStatusTargetMapID()
     local latestQueueDungeonName, latestQueueActivityID = runtimeState.GetLatestQueueState()
+    local _, _, _, latestQueueMapID = runtimeState.GetLatestQueueState()
     local roster = ctx.GetRoster()
 
-    local targetName = ctx.NormalizeConcreteStatusTargetName(latestQueueDungeonName, targetMapID)
+    local numericTargetMapID = tonumber(targetMapID)
+    local latestQueueMatchesTarget = false
+    local numericLatestQueueMapID = tonumber(latestQueueMapID)
+    if numericTargetMapID and numericLatestQueueMapID and numericLatestQueueMapID == numericTargetMapID then
+      latestQueueMatchesTarget = true
+    elseif numericTargetMapID and latestQueueActivityID then
+      local resolvedActivityMapID = tonumber(ctx.ResolveMapIDByActivityID(latestQueueActivityID))
+      latestQueueMatchesTarget = resolvedActivityMapID and resolvedActivityMapID == numericTargetMapID or false
+    end
+
+    local targetName = nil
+    if latestQueueMatchesTarget then
+      targetName = ctx.NormalizeConcreteStatusTargetName(latestQueueDungeonName, targetMapID)
+    end
     if not targetName and targetMapID and modules.teleport and modules.teleport.GetTeleportInfoByMapID then
       local info = modules.teleport.GetTeleportInfoByMapID(targetMapID)
       if type(info) == "table" then
         targetName = ctx.NormalizeConcreteStatusTargetName(info.mapName, targetMapID)
       end
     end
-    if not targetName and latestQueueActivityID and modules.queue and modules.queue.GetActivityName then
+    if
+      not targetName
+      and latestQueueMatchesTarget
+      and latestQueueActivityID
+      and modules.queue
+      and modules.queue.GetActivityName
+    then
       targetName =
         ctx.NormalizeConcreteStatusTargetName(modules.queue.GetActivityName(latestQueueActivityID), targetMapID)
     end

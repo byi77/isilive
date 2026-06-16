@@ -1360,7 +1360,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       now = 2.9
       playCalls = 0
       addon.SoundUtils.PlayGroupJoin()
-      Assert.Equal(playCalls, 0, "same sound key must stay silent until the 3-second spam window expires")
+      Assert.Equal(playCalls, 1, "same sound key replay is temporarily allowed without the global spam window")
 
       now = 3
       addon.SoundUtils.PlayKey("leader_transfer")
@@ -1373,7 +1373,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       addon.SoundUtils.PlayBloodlustReady()
       Assert.Equal(
         playCalls,
-        5,
+        6,
         "enabled group-join, battle-res, battle-res-ready, bloodlust, and bloodlust-ready should play; "
           .. "disabled lead, ready-check, and portal stay silent"
       )
@@ -1397,16 +1397,16 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.Equal(playedSoundKit, 4242, "named SoundKit playback must pass the resolved numeric id")
       Assert.Equal(playedChannel, "Dialog", "explicit SoundKit channel should be preserved")
       addon.SoundUtils.PlaySoundKit("UI_TEST_SOUND", "Dialog")
-      Assert.Equal(playCalls, 1, "SoundKit spam protection must suppress duplicate playback")
+      Assert.Equal(playCalls, 2, "SoundKit duplicate playback is temporarily allowed")
       now = 12.9
       addon.SoundUtils.PlaySoundKit("UI_TEST_SOUND", "Dialog")
-      Assert.Equal(playCalls, 1, "SoundKit spam protection must last for the full 3-second window")
+      Assert.Equal(playCalls, 3, "SoundKit playback remains allowed before the old spam window would expire")
       now = 13
       addon.SoundUtils.PlaySoundKit("UI_TEST_SOUND", "Dialog")
-      Assert.Equal(playCalls, 2, "SoundKit spam protection must allow replay after 3 seconds")
+      Assert.Equal(playCalls, 4, "SoundKit playback remains allowed after the old spam window would expire")
       now = 16
       addon.SoundUtils.PlaySoundKit(7777)
-      Assert.Equal(playCalls, 3, "numeric SoundKit ids must play directly")
+      Assert.Equal(playCalls, 5, "numeric SoundKit ids must play directly")
       Assert.Equal(playedSoundKit, 7777, "numeric SoundKit playback must pass the given id")
       Assert.Equal(playedChannel, "Master", "SoundKit playback defaults to the Master channel")
 
@@ -1550,6 +1550,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
   test("SoundUtils uses Master by default and SFX when configured", function()
     local now = 1
     local playedChannel = nil
+    local playedByPath = {}
     local db = {}
 
     WithGlobals({
@@ -1557,8 +1558,9 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       GetTime = function()
         return now
       end,
-      PlaySoundFile = function(_path, channel)
+      PlaySoundFile = function(path, channel)
         playedChannel = channel
+        playedByPath[path] = channel
         return true
       end,
     }, function()
@@ -1576,6 +1578,24 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       now = 4
       addon.SoundUtils.PlayGroupJoin()
       Assert.Equal(playedChannel, "SFX", "built-in sound playback should use configured SFX output")
+
+      for _, key in ipairs(addon.SoundUtils.SettingsOrder) do
+        now = now + 1
+        local entry = addon.SoundUtils.GetEntry(key)
+        playedChannel = nil
+        Assert.True(addon.SoundUtils.PlayKey(key), "registered sound key should play: " .. tostring(key))
+        Assert.Equal(playedChannel, "SFX", "runtime sound key must use configured SFX output: " .. tostring(key))
+
+        now = now + 1
+        playedChannel = nil
+        Assert.True(addon.SoundUtils.PlayPreviewKey(key), "preview sound key should play: " .. tostring(key))
+        Assert.Equal(playedChannel, "SFX", "preview sound key must use configured SFX output: " .. tostring(key))
+        Assert.Equal(
+          playedByPath[entry.file],
+          "SFX",
+          "registry asset must be bound to configured SFX output: " .. tostring(entry.file)
+        )
+      end
 
       db.soundOutputChannel = "Dialog"
       now = 7

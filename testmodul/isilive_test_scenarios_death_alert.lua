@@ -613,6 +613,27 @@ local function RegisterFactoryWiringTests(test, ctx)
     Assert.Equal(#playCalls, 1, "only the healer WAV must play")
     Assert.True(playCalls[1]:find("HealerDied.wav", 1, true) ~= nil, "the played file must be the healer WAV")
   end)
+
+  test("SoundUtils death WAV failure records path channel and reason", function()
+    WithGlobals({
+      IsiLiveDB = {
+        soundTankDiedEnabled = true,
+      },
+      GetTime = function()
+        return 100
+      end,
+      PlaySoundFile = function()
+        return false
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
+      Assert.False(addon.SoundUtils.PlayTankDied(), "rejected tank death WAV playback must fail")
+      local result = addon.SoundUtils.GetLastPlayResult()
+      Assert.Equal(result.reason, "play_rejected", "rejected PlaySoundFile must record the rejection reason")
+      Assert.Equal(result.channel, "Master", "death WAV failure must record the resolved channel")
+      Assert.True(result.path:find("TankDied.wav", 1, true) ~= nil, "death WAV failure must record the asset path")
+    end)
+  end)
 end
 
 local function RegisterStaticDeathWavTests(test, ctx)
@@ -630,26 +651,36 @@ local function RegisterStaticDeathWavTests(test, ctx)
     return (b1 or 0) + ((b2 or 0) * 256) + ((b3 or 0) * 65536) + ((b4 or 0) * 16777216)
   end
 
-  local function ReadWavDurationSeconds(path)
+  local function ReadWavInfo(path)
     local file = assert(io.open(path, "rb"))
     local bytes = file:read("*a")
     file:close()
     Assert.Equal(bytes:sub(1, 4), "RIFF", path .. " must be a RIFF file")
     Assert.Equal(bytes:sub(9, 12), "WAVE", path .. " must be a WAVE file")
 
+    local audioFormat = nil
+    local channels = nil
     local sampleRate = nil
     local blockAlign = nil
+    local bitsPerSample = nil
     local dataBytes = nil
+    local dataOffset = nil
+    local fmtChunkSize = nil
     local offset = 13
     while offset + 7 <= #bytes do
       local chunkId = bytes:sub(offset, offset + 3)
       local chunkSize = ReadLe32(bytes, offset + 4)
       local payloadOffset = offset + 8
       if chunkId == "fmt " then
+        fmtChunkSize = chunkSize
+        audioFormat = ReadLe16(bytes, payloadOffset)
+        channels = ReadLe16(bytes, payloadOffset + 2)
         sampleRate = ReadLe32(bytes, payloadOffset + 4)
         blockAlign = ReadLe16(bytes, payloadOffset + 12)
+        bitsPerSample = ReadLe16(bytes, payloadOffset + 14)
       elseif chunkId == "data" then
         dataBytes = chunkSize
+        dataOffset = payloadOffset
         break
       end
       offset = payloadOffset + chunkSize
@@ -661,7 +692,34 @@ local function RegisterStaticDeathWavTests(test, ctx)
     Assert.True(type(sampleRate) == "number" and sampleRate > 0, path .. " must declare a sample rate")
     Assert.True(type(blockAlign) == "number" and blockAlign > 0, path .. " must declare block align")
     Assert.True(type(dataBytes) == "number" and dataBytes > 0, path .. " must contain PCM data")
-    return dataBytes / (sampleRate * blockAlign)
+
+    local maxAbs = 0
+    if bitsPerSample == 16 and type(dataOffset) == "number" then
+      local dataEnd = math.min(#bytes, dataOffset + dataBytes - 1)
+      local i = dataOffset
+      while i + 1 <= dataEnd do
+        local sample = ReadLe16(bytes, i)
+        if sample >= 32768 then
+          sample = sample - 65536
+        end
+        local absValue = math.abs(sample)
+        if absValue > maxAbs then
+          maxAbs = absValue
+        end
+        i = i + 2
+      end
+    end
+
+    return {
+      audioFormat = audioFormat,
+      channels = channels,
+      sampleRate = sampleRate,
+      blockAlign = blockAlign,
+      bitsPerSample = bitsPerSample,
+      fmtChunkSize = fmtChunkSize,
+      durationSeconds = dataBytes / (sampleRate * blockAlign),
+      peakRatio = maxAbs / 32768,
+    }
   end
 
   test("SoundUtils keeps native SpeakText TTS disabled", function()
@@ -687,14 +745,17 @@ local function RegisterStaticDeathWavTests(test, ctx)
   end)
 
   test("SoundUtils death WAV assets stay single-announcement length", function()
-    Assert.True(
-      ReadWavDurationSeconds("sounds/TankDied.wav") <= 1.2,
-      "TankDied.wav must contain only one short spoken announcement"
-    )
-    Assert.True(
-      ReadWavDurationSeconds("sounds/HealerDied.wav") <= 1.2,
-      "HealerDied.wav must contain only one short spoken announcement"
-    )
+    local tankInfo = ReadWavInfo("sounds/TankDied.wav")
+    local healerInfo = ReadWavInfo("sounds/HealerDied.wav")
+    for label, info in pairs({ TankDied = tankInfo, HealerDied = healerInfo }) do
+      Assert.Equal(info.audioFormat, 1, label .. ".wav must use PCM format")
+      Assert.Equal(info.fmtChunkSize, 16, label .. ".wav must use the canonical PCM fmt chunk")
+      Assert.Equal(info.channels, 1, label .. ".wav must be mono")
+      Assert.Equal(info.sampleRate, 44100, label .. ".wav must use the addon sound sample rate")
+      Assert.Equal(info.bitsPerSample, 16, label .. ".wav must be 16-bit PCM")
+      Assert.True(info.durationSeconds <= 1.2, label .. ".wav must contain only one short spoken announcement")
+      Assert.True(info.peakRatio >= 0.85, label .. ".wav must be normalized loudly enough for in-game playback")
+    end
   end)
 
   local function BuildFactoryStaticWavEnv()
@@ -759,6 +820,38 @@ local function RegisterStaticDeathWavTests(test, ctx)
     Assert.Equal(env.wavs[2], "healer", "healer death must play the healer WAV")
     Assert.Equal(#env.wavs, 2, "damage-dealer deaths have no bundled WAV")
     Assert.Equal(env.spoke, 0, "factory must not call SpeakTts even when a stale stub exists")
+  end)
+
+  test("Factory death alert reports failed static WAV playback without TTS fallback", function()
+    local printed = {}
+    local env = BuildFactoryStaticWavEnv()
+    env.seed.SoundUtils.PlayTankDied = function()
+      return false
+    end
+    env.seed.SoundUtils.GetLastPlayResult = function()
+      return {
+        reason = "play_rejected",
+        channel = "Master",
+        path = "Interface\\AddOns\\isiLive\\sounds\\TankDied.wav",
+      }
+    end
+
+    WithGlobals({
+      print = function(message)
+        printed[#printed + 1] = message
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_factory_death_alert.lua" }, env.seed)
+      addon._FactoryInternal.InitializeFactoryDeathAlertControllers(env.ctxStub)
+      env.deps.onRoleDeath("TANK", "party1")
+    end)
+
+    Assert.Equal(env.wavs[1], nil, "failed tank death sound helper must not be counted as played")
+    Assert.Equal(env.spoke, 0, "failed static WAV playback must not fall back to stale SpeakTts")
+    Assert.Equal(#printed, 1, "failed death WAV playback must print one diagnostic line")
+    Assert.True(printed[1]:find("role=TANK", 1, true) ~= nil, "diagnostic must include the role")
+    Assert.True(printed[1]:find("reason=play_rejected", 1, true) ~= nil, "diagnostic must include the failure reason")
+    Assert.True(printed[1]:find("TankDied.wav", 1, true) ~= nil, "diagnostic must include the asset path")
   end)
 
   test("Factory death alert keeps the on-screen warning to tank and healer", function()

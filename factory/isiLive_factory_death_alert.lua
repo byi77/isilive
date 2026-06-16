@@ -25,10 +25,29 @@ local function PlayRoleDeathSound(role, opts)
   if type(soundUtils) ~= "table" then
     return
   end
+  local played = nil
   if role == "TANK" and type(soundUtils.PlayTankDied) == "function" then
-    soundUtils.PlayTankDied()
+    played = soundUtils.PlayTankDied()
   elseif role == "HEALER" and type(soundUtils.PlayHealerDied) == "function" then
-    soundUtils.PlayHealerDied()
+    played = soundUtils.PlayHealerDied()
+  end
+  if played == false and (role == "TANK" or role == "HEALER") and type(soundUtils.GetLastPlayResult) == "function" then
+    local result = soundUtils.GetLastPlayResult()
+    local path = type(result) == "table" and result.path or nil
+    local channel = type(result) == "table" and result.channel or nil
+    local reason = type(result) == "table" and result.reason or "unknown"
+    local printFn = rawget(_G, "print")
+    if type(printFn) == "function" then
+      printFn(
+        string.format(
+          "|cffffd200isiLive|r death sound failed role=%s reason=%s channel=%s path=%s",
+          tostring(role),
+          tostring(reason),
+          tostring(channel),
+          tostring(path)
+        )
+      )
+    end
   end
 end
 

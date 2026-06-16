@@ -15,7 +15,9 @@ Highlights:
   playback.
 - Repeated `Tank died` / `Healer died` role callbacks are de-duplicated before
   playing a second immediate alert.
-- The shared sound spam window now drops repeated playback of the same sound
-  key for 3 seconds.
+- The shared same-sound spam window is temporarily disabled for death-WAV
+  diagnosis.
 - Damage-dealer deaths remain tracked for death counters and tooltips, but do
   not play audio because no bundled DPS death WAV exists.
+- Accepted-invite target chat now uses the same verified listing payload as the
+  center notice and avoids stale duplicate dungeon lines from older queue state.

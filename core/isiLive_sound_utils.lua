@@ -5,9 +5,10 @@ addonTable = addonTable or {}
 local SoundUtils = {}
 addonTable.SoundUtils = SoundUtils
 
-local SPAM_WINDOW = 3.0 -- seconds: ignore duplicate sound within this window
+local SPAM_WINDOW = 0 -- temporary: allow immediate duplicate sound playback while death WAV output is debugged
 local lastPlayedAt = {} -- soundKey -> timestamp
 local activeSoundHandles = {} -- handle -> true
+local lastPlayResult = nil
 local DEFAULT_SOUND_CHANNEL = "Master"
 local OUTPUT_CHANNELS = { Master = true, SFX = true }
 
@@ -738,7 +739,7 @@ SoundUtils.Registry = {
     labelKey = "SETTINGS_SOUND_BATTLE_RES_READY",
     descKey = "SETTINGS_SOUND_BATTLE_RES_READY_DESC",
     labelFallback = "Sound: Battle Res ready",
-    descFallback = "Plays the bundled Battle Res ready WAV when Battle Resurrection becomes available again.",
+    descFallback = "Plays a sound when Battle Resurrection becomes available again.",
     settingKey = "soundBattleResReadyEnabled",
     defaultEnabled = true,
     defaultChannel = "Master",
@@ -755,7 +756,7 @@ SoundUtils.Registry = {
     labelKey = "SETTINGS_SOUND_BLOODLUST_READY",
     descKey = "SETTINGS_SOUND_BLOODLUST_READY_DESC",
     labelFallback = "Sound: Bloodlust ready",
-    descFallback = "Plays the bundled Bloodlust ready WAV when Bloodlust or a similar exhaustion effect expires.",
+    descFallback = "Plays a sound when Bloodlust or a similar exhaustion effect expires.",
     settingKey = "soundBloodlustReadyEnabled",
     defaultEnabled = true,
     defaultChannel = "Master",
@@ -765,7 +766,7 @@ SoundUtils.Registry = {
     labelKey = "SETTINGS_SOUND_TANK_DIED",
     descKey = "SETTINGS_SOUND_TANK_DIED_DESC",
     labelFallback = "Sound: Tank died",
-    descFallback = "Plays the bundled Tank died WAV when the tank dies during an active M+ run.",
+    descFallback = "Plays a sound when the tank dies during an active M+ run.",
     settingKey = "soundTankDiedEnabled",
     defaultEnabled = true,
     defaultChannel = "Master",
@@ -775,7 +776,7 @@ SoundUtils.Registry = {
     labelKey = "SETTINGS_SOUND_HEALER_DIED",
     descKey = "SETTINGS_SOUND_HEALER_DIED_DESC",
     labelFallback = "Sound: Healer died",
-    descFallback = "Plays the bundled Healer died WAV when the healer dies during an active M+ run.",
+    descFallback = "Plays a sound when the healer dies during an active M+ run.",
     settingKey = "soundHealerDiedEnabled",
     defaultEnabled = true,
     defaultChannel = "Master",
@@ -806,6 +807,22 @@ local function TrackSoundHandle(handle)
   if handle ~= nil then
     activeSoundHandles[handle] = true
   end
+end
+
+local function SetLastPlayResult(result)
+  lastPlayResult = result
+  return result and result.ok == true
+end
+
+function SoundUtils.GetLastPlayResult()
+  if type(lastPlayResult) ~= "table" then
+    return nil
+  end
+  local copy = {}
+  for key, value in pairs(lastPlayResult) do
+    copy[key] = value
+  end
+  return copy
 end
 
 function SoundUtils.GetEntry(key)
@@ -845,10 +862,11 @@ function SoundUtils.IsEnabled(key)
   return entry.defaultEnabled ~= false
 end
 
--- Plays a sound file on the configured channel with spam protection.
--- A sound that was played less than SPAM_WINDOW seconds ago is silently dropped.
+-- Plays a sound file on the configured channel.
+-- SPAM_WINDOW is currently disabled so repeated previews/runtime cues can be debugged.
 function SoundUtils.Play(soundFile, channel, spamScope)
   if type(soundFile) ~= "string" or soundFile == "" then
+    SetLastPlayResult({ ok = false, reason = "invalid_file", path = soundFile, channel = channel })
     return false
   end
   local resolvedChannel = type(channel) == "string" and channel ~= "" and channel
@@ -858,19 +876,43 @@ function SoundUtils.Play(soundFile, channel, spamScope)
   local soundKey = BuildSoundKey(soundFile, resolvedChannel, spamScope)
   local last = lastPlayedAt[soundKey]
   if last and (now - last) < SPAM_WINDOW then
+    SetLastPlayResult({
+      ok = false,
+      reason = "spam_window",
+      path = soundFile,
+      channel = resolvedChannel,
+      spamScope = spamScope,
+    })
     return false
   end
   local playSoundFile = rawget(_G, "PlaySoundFile")
   if type(playSoundFile) ~= "function" then
+    SetLastPlayResult({ ok = false, reason = "missing_PlaySoundFile", path = soundFile, channel = resolvedChannel })
     return false
   end
   local ok, accepted, handle = pcall(playSoundFile, soundFile, resolvedChannel)
   if not ok or accepted == false then
+    SetLastPlayResult({
+      ok = false,
+      reason = ok and "play_rejected" or "play_error",
+      error = ok and nil or tostring(accepted),
+      path = soundFile,
+      channel = resolvedChannel,
+      accepted = accepted,
+    })
     return false
   end
   TrackSoundHandle(handle)
   lastPlayedAt[soundKey] = now
-  return true
+  return SetLastPlayResult({
+    ok = true,
+    reason = "played",
+    path = soundFile,
+    channel = resolvedChannel,
+    accepted = accepted,
+    handle = handle,
+    spamScope = spamScope,
+  })
 end
 
 -- Plays a Blizzard SoundKit (numeric ID or SOUNDKIT name) with spam protection
@@ -878,6 +920,7 @@ end
 -- not resolve in this client (e.g. constant renamed in a future patch).
 function SoundUtils.PlaySoundKit(soundKit, channel)
   if soundKit == nil then
+    SetLastPlayResult({ ok = false, reason = "missing_soundkit", soundKit = soundKit, channel = channel })
     return false
   end
   local resolvedKit = soundKit
@@ -886,6 +929,7 @@ function SoundUtils.PlaySoundKit(soundKit, channel)
     resolvedKit = type(kitTable) == "table" and kitTable[soundKit] or nil
   end
   if resolvedKit == nil then
+    SetLastPlayResult({ ok = false, reason = "unresolved_soundkit", soundKit = soundKit, channel = channel })
     return false
   end
   local resolvedChannel = type(channel) == "string" and channel ~= "" and channel
@@ -895,19 +939,36 @@ function SoundUtils.PlaySoundKit(soundKit, channel)
   local soundKey = "kit\31" .. tostring(resolvedKit) .. "\31" .. resolvedChannel
   local last = lastPlayedAt[soundKey]
   if last and (now - last) < SPAM_WINDOW then
+    SetLastPlayResult({ ok = false, reason = "spam_window", soundKit = resolvedKit, channel = resolvedChannel })
     return false
   end
   local playSound = rawget(_G, "PlaySound")
   if type(playSound) ~= "function" then
+    SetLastPlayResult({ ok = false, reason = "missing_PlaySound", soundKit = resolvedKit, channel = resolvedChannel })
     return false
   end
   local ok, accepted, handle = pcall(playSound, resolvedKit, resolvedChannel)
   if not ok or accepted == false then
+    SetLastPlayResult({
+      ok = false,
+      reason = ok and "play_rejected" or "play_error",
+      error = ok and nil or tostring(accepted),
+      soundKit = resolvedKit,
+      channel = resolvedChannel,
+      accepted = accepted,
+    })
     return false
   end
   TrackSoundHandle(handle)
   lastPlayedAt[soundKey] = now
-  return true
+  return SetLastPlayResult({
+    ok = true,
+    reason = "played",
+    soundKit = resolvedKit,
+    channel = resolvedChannel,
+    accepted = accepted,
+    handle = handle,
+  })
 end
 
 function SoundUtils.StopAllActiveSounds()
@@ -944,7 +1005,12 @@ end
 
 function SoundUtils.PlayKey(key)
   local entry = SoundUtils.GetEntry(key)
-  if not entry or not SoundUtils.IsEnabled(key) then
+  if not entry then
+    SetLastPlayResult({ ok = false, reason = "missing_entry", key = key })
+    return false
+  end
+  if not SoundUtils.IsEnabled(key) then
+    SetLastPlayResult({ ok = false, reason = "disabled", key = key, settingKey = entry.settingKey })
     return false
   end
   return PlayEntry(entry, key)

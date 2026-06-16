@@ -798,6 +798,40 @@ return function(test, ctx)
     end)
   end)
 
+  test("factory_controllers.status: GetStatusTargetDungeonInfo rejects stale queue name for accepted map", function()
+    local addon = Load()
+    addon.LFGDetect = {
+      GetDetectedMapID = function()
+        return 2441
+      end,
+    }
+    local rs = BuildRuntimeStateStub({
+      latestDungeonName = "Sitz des Triumvirats",
+      latestQueueMapID = 1989,
+    })
+    rs.rosterRef = {}
+    local mods = BuildModulesStub({
+      teleport = {
+        GetTeleportInfoByMapID = function(mapID)
+          if mapID == 2441 then
+            return { mapName = "Akademie von Algeth'ar" }
+          end
+        end,
+      },
+    })
+    local c = BuildCtx(rs, mods)
+    WithGlobals({}, function()
+      Init(addon, c)
+      local info = c.GetStatusTargetDungeonInfo()
+      Assert.Equal(
+        info.name,
+        "Akademie von Algeth'ar",
+        "accepted mapID must not be paired with a stale latestQueueDungeonName"
+      )
+    end)
+    addon.LFGDetect = nil
+  end)
+
   test("factory_controllers.status: GetStatusTargetDungeonInfo falls back to queue activity name", function()
     local addon = Load()
     local rs = BuildRuntimeStateStub({ latestActivityID = 9001, latestQueueMapID = 1 })

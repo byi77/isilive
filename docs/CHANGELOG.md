@@ -10,13 +10,26 @@
 - Death-alert role announcements now drop immediate duplicate tank or healer
   callbacks, so `Tank died` and `Healer died` each fire only once per direct
   repeated role event.
-- Increased the shared sound spam window from 1 second to 3 seconds for the
-  same sound key, covering both file-based sounds and SoundKit playback.
+- Temporarily disabled the shared same-sound spam window so death-WAV playback
+  can be tested without duplicate suppression.
+- Normalized `TankDied.wav` and `HealerDied.wav` to louder 44.1 kHz 16-bit PCM
+  assets and pinned that format in deterministic coverage.
+- Added a narrow Tank/Healer death-sound diagnostic that reports the
+  `PlaySoundFile` failure reason, channel, and asset path when the red on-screen
+  warning appears but the WAV cannot be started.
 - Split the death-alert sound settings into separate Tank died and Healer died
   WAV toggles while keeping the visual death-alert gate unchanged.
 - Trimmed `TankDied.wav` and `HealerDied.wav` to a single spoken announcement
   so the sound preview and runtime alert no longer repeat the phrase from one
   file playback.
+- Fixed accepted-invite target-dungeon chat so it uses the same verified LFG
+  listing level as the Center Notice instead of waiting for later roster or
+  sync state that can surface a different key level.
+- Hardened accepted-invite target resolution so a new accepted `mapID` cannot
+  be paired with a stale `latestQueueDungeonName` from a previous queue/listing
+  context, preventing duplicate chat output where the first line names the old
+  dungeon.
+- The validator baseline is now `2060` scenarios.
 - Bumped the TOC and documentation baselines to `0.9.322`.
 
 ## 2026-06-14 - Version 0.9.321 (patch)

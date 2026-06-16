@@ -739,11 +739,7 @@ local function QueueTargetDungeonChatFromAccept(entry, searchResultID)
   if type(entry) ~= "table" or not entry.mapID then
     return
   end
-  pendingTargetDungeonChatEntry = entry
-  pendingTargetDungeonChatSearchResultID = searchResultID
-  if IsInGroup() then
-    FlushPendingTargetDungeonChat()
-  end
+  MaybeFireTargetDungeonChatFromAccept(entry, searchResultID)
 end
 
 -- Renders the post-accept Center Notice. Pulls ALL data from the supplied
@@ -858,12 +854,12 @@ local function OnInviteAccepted(searchResultID)
     Log("state_set", "var=activeInviteTitleLevel val=%s", tostring(titleLevel))
     Log("state_set", "var=activeInviteTitleLevelText val=%s", tostring(titleLevelText))
     Log("state_set", "var=acceptedInviteSearchResultID val=%s", tostring(searchResultID))
-    TriggerHighlightUpdate("invite")
     MaybeShowAcceptedInviteNotice(entry, searchResultID)
-    -- Queue the chat announce with the SAME entry the notice just rendered.
-    -- The actual print waits until the group is observed as joined so the
-    -- Target-Dungeon line lands after Blizzard's group-join noise.
+    -- Announce chat with the SAME entry the notice just rendered before the
+    -- highlight refresh can synchronously re-enter the resolver-driven status
+    -- path with stale queue-state text.
     QueueTargetDungeonChatFromAccept(entry, searchResultID)
+    TriggerHighlightUpdate("invite")
     return
   end
 

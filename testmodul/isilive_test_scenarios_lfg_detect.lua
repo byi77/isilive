@@ -1442,46 +1442,50 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
     end)
   end)
 
-  test("LFGDetect direct-push waits for GROUP_ROSTER_UPDATE when IsInGroup is transient false", function()
-    -- Reproduces the LFG_LIST_APPLICATION_STATUS_UPDATED=inviteaccepted
-    -- race: Blizzard sends the accept event before the matching
-    -- GROUP_ROSTER_UPDATE, so IsInGroup() can still return false in this
-    -- window. The chat line must wait until the group-settle event so it
-    -- appears after Blizzard's group-join messages.
-    local grouped = false
-    local globals, fire = BuildLFGDetectEnv({
-      IsInGroup = function()
-        return grouped
-      end,
-      GetNumGroupMembers = function()
-        return grouped and 5 or 0
-      end,
-      globals = {
-        C_LFGList = BuildC_LFGList({
-          [604] = { activityID = 1768, name = "+13 quick", leaderName = "L-Realm" },
-        }, nil),
-      },
-    })
+  test(
+    "LFGDetect direct-push uses accepted listing before GROUP_ROSTER_UPDATE when IsInGroup is transient false",
+    function()
+      -- Reproduces the LFG_LIST_APPLICATION_STATUS_UPDATED=inviteaccepted
+      -- race: Blizzard sends the accept event before the matching
+      -- GROUP_ROSTER_UPDATE, so IsInGroup() can still return false in this
+      -- window. The chat line must still use the same accepted-listing payload
+      -- as the Center Notice; waiting for the later roster settle lets owner /
+      -- sync status sources surface a different key level.
+      local grouped = false
+      local globals, fire = BuildLFGDetectEnv({
+        IsInGroup = function()
+          return grouped
+        end,
+        GetNumGroupMembers = function()
+          return grouped and 5 or 0
+        end,
+        globals = {
+          C_LFGList = BuildC_LFGList({
+            [604] = { activityID = 1768, name = "+13 quick", leaderName = "L-Realm" },
+          }, nil),
+        },
+      })
 
-    WithGlobals(globals, function()
-      local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
-      local payloads = {}
-      addon.LFGDetect.SetTargetDungeonChatCallback(function(payload)
-        payloads[#payloads + 1] = payload
+      WithGlobals(globals, function()
+        local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+        local payloads = {}
+        addon.LFGDetect.SetTargetDungeonChatCallback(function(payload)
+          payloads[#payloads + 1] = payload
+        end)
+        -- No SetTargetDungeonChatEnabledFn: matches the production wiring
+        -- after the IsInGroup gate was removed.
+
+        fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 604, "invited")
+        fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 604, "inviteaccepted")
+
+        Assert.Equal(#payloads, 1, "direct-push must fire from the accepted listing immediately")
+        Assert.Equal(payloads[1].level, 13, "payload carries entry.titleLevel from the accepted listing")
+        grouped = true
+        fire("GROUP_ROSTER_UPDATE")
+        Assert.Equal(#payloads, 1, "group settle must not replay the accepted-listing direct-push")
       end)
-      -- No SetTargetDungeonChatEnabledFn: matches the production wiring
-      -- after the IsInGroup gate was removed.
-
-      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 604, "invited")
-      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 604, "inviteaccepted")
-
-      Assert.Equal(#payloads, 0, "direct-push must wait until the group is observed")
-      grouped = true
-      fire("GROUP_ROSTER_UPDATE")
-      Assert.Equal(#payloads, 1, "direct-push fires once after group join settles")
-      Assert.Equal(payloads[1].level, 13, "payload still carries entry.titleLevel from the listing")
-    end)
-  end)
+    end
+  )
 
   test("LFGDetect ResolveEntryTitleLevel recovers level from groupName when titleLevel is nil", function()
     -- Pin the in-the-wild divergence: even when an entry lands at the
