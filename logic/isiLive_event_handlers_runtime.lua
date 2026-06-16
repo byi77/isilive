@@ -602,6 +602,36 @@ local function ApplyVIPGuestSoundSettingsIfAvailable()
   end
 end
 
+local function BuildNonRaidEventForwarder(ctx, handlerName, eventName)
+  return function(_self, ...)
+    if not IsRaidModeActive(ctx) then
+      ctx[handlerName](eventName, ...)
+    end
+  end
+end
+
+local function BuildUnitSpellcastSucceededForwarder(ctx)
+  return function(_self, ...)
+    if not IsRaidModeActive(ctx) then
+      ctx.handleKickTrackerEvent("UNIT_SPELLCAST_SUCCEEDED", ...)
+      ctx.handleCombatEventsEvent("UNIT_SPELLCAST_SUCCEEDED", ...)
+    end
+  end
+end
+
+local function BuildPartyLeaderChangedForwarder(ctx)
+  return function(_self, ...)
+    if not IsRaidModeActive(ctx) then
+      ctx.handleLeaderWatchEvent("PARTY_LEADER_CHANGED", ...)
+      -- Forward to LFGDetect so the stale activeInviteLeader / -TitleLevel
+      -- (captured when the previous leader's listing was accepted) is
+      -- dropped; the new leader is its own authority and must be resolved via
+      -- UnitIsGroupLeader by downstream consumers.
+      ctx.handleLFGDetectEvent("PARTY_LEADER_CHANGED")
+    end
+  end
+end
+
 function RuntimeLifecycle.BuildHandlers(ctx)
   ctx.handleLFGDetectEvent = ResolveEventHandler(ctx.handleLFGDetectEvent)
   ctx.handleKillTrackEvent = ResolveEventHandler(ctx.handleKillTrackEvent)
@@ -983,46 +1013,16 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     SPELL_UPDATE_COOLDOWN = HandleSpellUpdateCooldownEvent,
     SPELL_UPDATE_CHARGES = HandleSpellUpdateChargesEvent,
     UNIT_AURA = HandleUnitAuraEvent,
-    SPELLS_CHANGED = function(_self, ...)
-      if not IsRaidModeActive(ctx) then
-        ctx.handleKickTrackerEvent("SPELLS_CHANGED", ...)
-      end
-    end,
-    UNIT_PET = function(_self, ...)
-      if not IsRaidModeActive(ctx) then
-        ctx.handleKickTrackerEvent("UNIT_PET", ...)
-      end
-    end,
-    UNIT_SPELLCAST_SUCCEEDED = function(_self, ...)
-      if not IsRaidModeActive(ctx) then
-        ctx.handleKickTrackerEvent("UNIT_SPELLCAST_SUCCEEDED", ...)
-        ctx.handleCombatEventsEvent("UNIT_SPELLCAST_SUCCEEDED", ...)
-      end
-    end,
-    UNIT_HEALTH = function(_self, ...)
-      if not IsRaidModeActive(ctx) then
-        ctx.handleDeathWatchEvent("UNIT_HEALTH", ...)
-      end
-    end,
-    SCENARIO_CRITERIA_UPDATE = function(_self, ...)
-      if not IsRaidModeActive(ctx) then
-        ctx.handleKillTrackEvent("SCENARIO_CRITERIA_UPDATE", ...)
-      end
-    end,
-    CHALLENGE_MODE_DEATH_COUNT_UPDATED = function(_self, ...)
-      if not IsRaidModeActive(ctx) then
-        ctx.handleMplusTimerEvent("CHALLENGE_MODE_DEATH_COUNT_UPDATED", ...)
-      end
-    end,
-    PARTY_LEADER_CHANGED = function(_self, ...)
-      if not IsRaidModeActive(ctx) then
-        ctx.handleLeaderWatchEvent("PARTY_LEADER_CHANGED", ...)
-        -- Forward to LFGDetect so the stale activeInviteLeader / -TitleLevel
-        -- (captured when the previous leader's listing was accepted) is
-        -- dropped — the new leader is its own authority and must be
-        -- resolved via UnitIsGroupLeader by downstream consumers.
-        ctx.handleLFGDetectEvent("PARTY_LEADER_CHANGED")
-      end
-    end,
+    SPELLS_CHANGED = BuildNonRaidEventForwarder(ctx, "handleKickTrackerEvent", "SPELLS_CHANGED"),
+    UNIT_PET = BuildNonRaidEventForwarder(ctx, "handleKickTrackerEvent", "UNIT_PET"),
+    UNIT_SPELLCAST_SUCCEEDED = BuildUnitSpellcastSucceededForwarder(ctx),
+    UNIT_HEALTH = BuildNonRaidEventForwarder(ctx, "handleDeathWatchEvent", "UNIT_HEALTH"),
+    SCENARIO_CRITERIA_UPDATE = BuildNonRaidEventForwarder(ctx, "handleKillTrackEvent", "SCENARIO_CRITERIA_UPDATE"),
+    CHALLENGE_MODE_DEATH_COUNT_UPDATED = BuildNonRaidEventForwarder(
+      ctx,
+      "handleMplusTimerEvent",
+      "CHALLENGE_MODE_DEATH_COUNT_UPDATED"
+    ),
+    PARTY_LEADER_CHANGED = BuildPartyLeaderChangedForwarder(ctx),
   }
 end
