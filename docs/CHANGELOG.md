@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-06-16 - Version 0.9.323 (patch)
+
+- Bumped the TOC interface to `120007` for WoW 12.0.7 compatibility.
+- Bumped the TOC and documentation baselines to `0.9.323`.
+
 ## 2026-06-16 - Version 0.9.322 (patch)
 
 - Disabled the native WoW text-to-speech path (`C_VoiceChat.SpeakText`) and
