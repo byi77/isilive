@@ -1,13 +1,21 @@
 # Changelog
 
-## 2026-06-17 - Version 0.9.324 (patch)
+## 2026-06-17 - Version 0.9.325 (patch)
 
 - Listed both supported Retail TOC interfaces, `120005` and `120007`, so
   isiLive remains loadable on WoW 12.0.5 clients while also being marked
   compatible with WoW 12.0.7.
+- Added the active Mythic+ death count directly behind the active dungeon/key
+  name in the M+ killtracker row and reset the DeathWatch visible counters on
+  the same completion/reset boundaries as the M+ and BR/BL timers.
+- Suppressed Bloodlust-ready and Battle-Res-ready alerts on party-instance
+  entry refreshes without resetting an already active Mythic+ timer.
+- Added the concrete class buff behind roster green-heart markers to the
+  player mouseover tooltip, for example `+2% Mastery`, and included BR/BL
+  there without counting them as green-heart markers.
 - Updated the stable Release workflow to translate comma-separated TOC
   interfaces into multiple CurseForge `gameVersionNames`.
-- Bumped the TOC and documentation baselines to `0.9.324`.
+- Bumped the TOC and documentation baselines to `0.9.325`.
 
 ## 2026-06-16 - Version 0.9.323 (patch)
 

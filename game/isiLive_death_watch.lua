@@ -388,7 +388,7 @@ function DeathWatch.HandleEvent(event, ...)
     return
   end
   if event == "CHALLENGE_MODE_COMPLETED" or event == "CHALLENGE_MODE_RESET" then
-    controllerInstance.ResetEdges()
+    controllerInstance.Reset()
   end
 end
 

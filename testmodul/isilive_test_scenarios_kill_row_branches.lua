@@ -528,6 +528,49 @@ return function(test, ctx)
     end)
   end)
 
+  test("UpdateKillTrackRow appends death count behind active dungeon name", function()
+    WithGlobals({}, function()
+      local addon = LoadKillRow({ active = true, percent = 42 })
+      addon.MplusTimer = {
+        GetTimerData = function()
+          return { running = true, keyLevel = 16 }
+        end,
+      }
+      addon.DeathWatch = {
+        GetAllDeathSummaries = function()
+          return {
+            { name = "Tankadin", count = 1 },
+            { name = "Magey", count = 2 },
+          }
+        end,
+      }
+      local row = NewRow(200)
+      addon._RosterInternal.UpdateKillTrackRow(row, {
+        getTargetDungeonInfo = function()
+          return {
+            name = "Nexuspunkt Xenas",
+          }
+        end,
+        isInChallengeMode = function()
+          return true
+        end,
+      })
+
+      Assert.True(
+        row.killTrackActiveDungeonText._text:find("Nexuspunkt Xenas +16", 1, true) == 1,
+        "active dungeon name and started key level must stay first"
+      )
+      Assert.True(
+        row.killTrackActiveDungeonText._text:find("UI%-RaidTargetingIcon_8", 1, false) ~= nil,
+        "active dungeon name must append the skull marker"
+      )
+      Assert.True(
+        row.killTrackActiveDungeonText._text:find("|cffff60603|r", 1, true) ~= nil,
+        "active dungeon name must append the summed death count"
+      )
+    end)
+  end)
+
   test("UpdateKillTrackRow omits active key level when MplusTimer has no started level", function()
     WithGlobals({}, function()
       local addon = LoadKillRow({ active = true, percent = 42 })

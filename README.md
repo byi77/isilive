@@ -4,19 +4,19 @@
 
 - **For:** M+ players in pre-made groups and LFG runs
 - **WoW version:** `12.0+` (Midnight) only
-- **Current version:** `0.9.324`
+- **Current version:** `0.9.325`
 - **Active season:** `midnight_s1` — 8 dungeons (Wing, MT, NPX, MC, AA, POS, SOT, SR)
 
 ---
 
 ## Feature highlights
 
-- **Buff-rating hearts** — green heart markers in Blizzard LFG search results, applicant rows, and the roster show which players add useful, non-stacking class buffs for your current character.
+- **Buff-rating hearts** — green heart markers in Blizzard LFG search results, applicant rows, and the roster show which players add useful, non-stacking class buffs for your current character; roster mouseovers name the concrete bonus and can include BR/BL as tooltip-only utility.
 - **One-window M+ roster** — spec, role, language, key, iLvl, Raider.IO, last-run DPS, interrupt status, leader marker, isiLive peer marker, and ghost rows after leavers.
 - **Live enemy forces tools** — tooltip percentages, nameplate percentages, bottom killtracker bar, pull prediction, and combat-end refresh from the bundled MDT-synced forces database.
 - **Season portal grid** — all current dungeon portals with cooldowns, availability highlights, and verified LFG target highlighting.
 - **Share Keys sync** — posts your key first, then asks isiLive peers to post their own key line through the fastest AddOn-message priority path.
-- **Run utility alerts** — Battle Res charges, Bloodlust cooldown, BR/Lust group announces, separate ready WAV sounds when Battle Res or Bloodlust becomes available during a key, and a big red on-screen death alert with bundled WAV sound when the tank or healer dies during an active M+ run. Tank and healer death sounds have separate Sounds settings toggles. Key completion or abort resets the visible M+ / BR / BL timers immediately. Native WoW text-to-speech is disabled; damage-dealer deaths are still counted for roster and tooltip tracking but do not play audio without a bundled WAV asset. Per-player death counts are tracked during the key and shown as skull markers plus exact tooltip totals after the run until a new key or reload; the M+ timer-row skull also shows the full per-player death list.
+- **Run utility alerts** — Battle Res charges, Bloodlust cooldown, BR/Lust group announces, separate ready WAV sounds when Battle Res or Bloodlust becomes available during a key, and a big red on-screen death alert with bundled WAV sound when the tank or healer dies during an active M+ run. Tank and healer death sounds have separate Sounds settings toggles. Key completion or abort resets the visible M+ / BR / BL timers immediately. Native WoW text-to-speech is disabled; damage-dealer deaths are still counted for roster and tooltip tracking but do not play audio without a bundled WAV asset. Per-player death counts are tracked during the key and shown as skull markers plus exact tooltip totals after the run until a new key or reload; the M+ timer-row skull shows the full per-player death list, and the active killtracker label shows the current total directly behind the dungeon/key name.
 - **Configurable support tools** — Escape-menu shortcut strips, Hearthstone travel shortcut, optional player stats box, nameplate controls, runtime logs, safe UI position locking, and a movable demo simulation tablet for local preview scenarios.
 
 ---

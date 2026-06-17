@@ -1541,6 +1541,32 @@ return function(test, ctx)
     Assert.Equal(state.bloodlustReadySoundCalls or 0, 0, "suppressed reset must clear the observed cycle")
   end)
 
+  test("Factory CD refresh suppresses Bloodlust-ready sound on dungeon-entry refresh", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mplusTimerData = {
+        running = true,
+      },
+    })
+
+    state.lustInfo = { remain = 20, icon = 132114 }
+    state.ctx.UpdateCdTracker({ playLustSoundOnStart = true })
+    Assert.Equal(state.bloodlustReadySoundCalls or 0, 0, "active Bloodlust must not play ready before dungeon entry")
+
+    state.lustInfo = nil
+    state.ctx.UpdateCdTracker({
+      suppressBattleResReadySound = true,
+      suppressLustReadySound = true,
+    })
+    Assert.Equal(
+      state.bloodlustReadySoundCalls or 0,
+      0,
+      "dungeon-entry refresh must not announce Bloodlust-ready when aura restore is incomplete"
+    )
+
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(state.bloodlustReadySoundCalls or 0, 0, "dungeon-entry suppress must discard the observed cycle")
+  end)
+
   test("Factory CD refresh clears Bloodlust-ready cycle when key ends during exhaustion", function()
     local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
       mplusTimerData = {

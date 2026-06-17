@@ -457,6 +457,24 @@ local function FormatSyncDebugField(label, info, currentStamp)
   return nil
 end
 
+local function BuildRosterBonusTooltipLine(info)
+  if type(info) ~= "table" then
+    return nil
+  end
+  local lfgFlags = addonTable and addonTable.LFGFlags
+  local buildLine = type(lfgFlags) == "table" and lfgFlags.BuildRosterBonusTooltipLine or nil
+  if type(buildLine) ~= "function" then
+    return nil
+  end
+  local classToken = info.classToken or info.classFilename or info.classFileName or info.class
+  local specID = info.specID or info.specId or info.specializationID or info.specializationId
+  local ok, line = pcall(buildLine, classToken, specID)
+  if ok and type(line) == "string" and line ~= "" then
+    return line
+  end
+  return nil
+end
+
 local function ShowRosterNameFallbackTooltip(tooltipFrame, anchorFrame, name, realm)
   local tooltipName = BuildFallbackTooltipPlayerName(name, realm)
   if not tooltipName then
@@ -707,6 +725,7 @@ local function ShowRosterInfoTooltip(
     or nil
   local unitLevel = ResolveTooltipUnitLevel(unit, info)
   local className = ResolveTooltipClassName(info)
+  local rosterBonusTooltipLine = BuildRosterBonusTooltipLine(info)
   local languageCode = type(info.language) == "string"
       and info.language ~= ""
       and tostring(info.language):upper():sub(1, 2)
@@ -737,6 +756,7 @@ local function ShowRosterInfoTooltip(
     or (tonumber(info.rio) and tonumber(info.rio) > 0)
     or (tonumber(lastRunDps) and tonumber(lastRunDps) > 0)
     or (type(deathSummary) == "table" and tonumber(deathSummary.count) and tonumber(deathSummary.count) > 0)
+    or rosterBonusTooltipLine ~= nil
     or (unitLevel and unitLevel > 0)
     or (languageCode and languageCode ~= "")
     or syncSummary ~= nil
@@ -783,6 +803,9 @@ local function ShowRosterInfoTooltip(
       tooltip:AddLine(string.format(fmt, className), 0.9, 0.9, 0.9)
     elseif type(info.spec) == "string" and info.spec ~= "" then
       tooltip:AddLine(info.spec, 0.9, 0.9, 0.9)
+    end
+    if rosterBonusTooltipLine then
+      tooltip:AddLine(rosterBonusTooltipLine, 0.2, 1, 0.2)
     end
     if info.ilvl then
       local fmt = type(Lrow.TOOLTIP_ILVL_FMT) == "string" and Lrow.TOOLTIP_ILVL_FMT or "iLvl: %s"

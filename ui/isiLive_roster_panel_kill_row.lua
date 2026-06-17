@@ -23,6 +23,7 @@ local ACTIVE_DUNGEON_FONT_SIZE = 11
 local PREKEY_LEVEL_WIDTH = 42
 local ACTIVE_DUNGEON_RIGHT_OFFSET = 122
 local ACTIVE_DUNGEON_LABEL_WIDTH = 146
+local DEATH_MARKER_ICON = " |TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:10:10:0:0|t"
 
 local function CreateKillTrackRow(mainFrame)
   local UICommon = addonTable.UICommon or {}
@@ -227,6 +228,38 @@ local function ResolveActiveKeyLevel()
   return math.floor(level)
 end
 
+local function ResolveTotalDeathCount()
+  local deathWatch = addonTable.DeathWatch
+  if type(deathWatch) ~= "table" or type(deathWatch.GetAllDeathSummaries) ~= "function" then
+    return 0
+  end
+  local summaries = deathWatch.GetAllDeathSummaries()
+  if type(summaries) ~= "table" then
+    return 0
+  end
+  local total = 0
+  for _, entry in ipairs(summaries) do
+    if type(entry) == "table" then
+      local count = tonumber(entry.count)
+      if count and count > 0 then
+        total = total + math.floor(count)
+      end
+    end
+  end
+  return total
+end
+
+local function AppendDeathCountToActiveDungeonName(activeDungeonName)
+  if type(activeDungeonName) ~= "string" or activeDungeonName == "" then
+    return activeDungeonName
+  end
+  local deathCount = ResolveTotalDeathCount()
+  if deathCount <= 0 then
+    return activeDungeonName
+  end
+  return activeDungeonName .. DEATH_MARKER_ICON .. "|cffff6060" .. tostring(deathCount) .. "|r"
+end
+
 local function UpdateKillTrackRow(row, deps)
   if not row then
     return
@@ -292,6 +325,7 @@ local function UpdateKillTrackRow(row, deps)
     if activeDungeonName and activeKeyLevel then
       activeDungeonName = activeDungeonName .. " +" .. tostring(activeKeyLevel)
     end
+    activeDungeonName = AppendDeathCountToActiveDungeonName(activeDungeonName)
     SetActiveDungeonContext(activeDungeonName)
     local pct = math.max(0, math.min(data.percent, 100))
     local r, g, b

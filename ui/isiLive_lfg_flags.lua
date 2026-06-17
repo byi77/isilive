@@ -566,6 +566,39 @@ local function BuildBonusSuffix(classToken, specID, profile)
   return "(" .. table.concat(parts, ", ") .. ")"
 end
 
+local function IsRosterTooltipUtilityBonus(bonus)
+  if type(bonus) ~= "table" or bonus.kind ~= "utility" then
+    return false
+  end
+  return bonus.textKey == "LFG_BONUS_BL" or bonus.textKey == "LFG_BONUS_BR"
+end
+
+local function BuildRosterTooltipBonusSuffix(classToken, specID, profile)
+  local bonuses = BuildBonusList(classToken, specID)
+  if type(bonuses) ~= "table" or next(bonuses) == nil then
+    return nil
+  end
+  local parts = {}
+  for _, bonus in ipairs(bonuses) do
+    if
+      type(bonus) == "table"
+      and (
+        (bonus.kind ~= "utility" and IsBonusRelevantForPlayer(bonus, profile) == true)
+        or IsRosterTooltipUtilityBonus(bonus)
+      )
+    then
+      local text = ColorizeBonusText(bonus, profile)
+      if text then
+        table.insert(parts, text)
+      end
+    end
+  end
+  if #parts == 0 then
+    return nil
+  end
+  return "(" .. table.concat(parts, ", ") .. ")"
+end
+
 local function IsMajorApplicantUtility(bonus)
   if type(bonus) ~= "table" or bonus.kind ~= "utility" then
     return false
@@ -663,6 +696,33 @@ local function BuildRosterBonusMarkerBadge(classToken, specID)
   end
 
   return BuildApplicantBonusMarkerBadge(classToken, specID, ResolvePlayerBonusProfile())
+end
+
+local function BuildRosterBonusTooltipLine(classToken, specID)
+  if not lfgGroupBonusesEnabled then
+    return nil
+  end
+
+  classToken = ResolveClassToken(classToken)
+  specID = ReadPositiveNumber(specID)
+  if specID and SPEC_CLASS_TOKENS[specID] ~= classToken then
+    specID = nil
+  end
+  if not classToken or not CLASS_TOKENS[classToken] then
+    return nil
+  end
+
+  local suffix = BuildRosterTooltipBonusSuffix(classToken, specID, ResolvePlayerBonusProfile())
+  if type(suffix) ~= "string" or suffix == "" then
+    return nil
+  end
+
+  local tooltipText = ResolveLocalizedText("LFG_BONUS_TOOLTIP_FMT") or "isiLive Bonus: %s"
+  local okFormatted, line = pcall(string.format, tooltipText, suffix)
+  if okFormatted and type(line) == "string" and line ~= "" then
+    return line
+  end
+  return "isiLive Bonus: " .. suffix
 end
 
 local function GetTagForResult(resultID)
@@ -2131,6 +2191,7 @@ LI.ResolvePlayerBonusProfile = ResolvePlayerBonusProfile
 LI.BuildApplicantBonusBadge = BuildApplicantBonusBadge
 LI.BuildApplicantBonusMarkerBadge = BuildApplicantBonusMarkerBadge
 LI.BuildRosterBonusMarkerBadge = BuildRosterBonusMarkerBadge
+LI.BuildRosterBonusTooltipLine = BuildRosterBonusTooltipLine
 LI.ResolveApplicantClassAnchor = ResolveApplicantClassAnchor
 LI.ResolveApplicantBonusAnchor = ResolveApplicantBonusAnchor
 LI.AnchorApplicantBonusBadge = AnchorApplicantBonusBadge
@@ -2244,6 +2305,10 @@ end
 
 function LFGFlags.BuildRosterBonusMarkerBadge(classToken, specID)
   return BuildRosterBonusMarkerBadge(classToken, specID)
+end
+
+function LFGFlags.BuildRosterBonusTooltipLine(classToken, specID)
+  return BuildRosterBonusTooltipLine(classToken, specID)
 end
 
 function LFGFlags.Register(deps)

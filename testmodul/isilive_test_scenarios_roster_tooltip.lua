@@ -117,8 +117,13 @@ local function BuildGlobals(overrides)
     RAID_CLASS_COLORS = overrides.RAID_CLASS_COLORS or {
       MAGE = { r = 0.25, g = 0.78, b = 0.92 },
       WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
+      SHAMAN = { r = 0, g = 0.44, b = 0.87 },
     },
     AbbreviateNumbers = overrides.AbbreviateNumbers,
+    IsiLiveDB = overrides.IsiLiveDB,
+    UnitClass = overrides.UnitClass,
+    GetSpecialization = overrides.GetSpecialization,
+    GetSpecializationInfo = overrides.GetSpecializationInfo,
   }
 end
 
@@ -131,6 +136,15 @@ return function(test, ctx)
     -- roster_tooltip pulls from Sync/Locale tables on addonTable; load
     -- the deps alongside so `addonTable.Sync` can be probed safely.
     return LoadAddonModules({ "isiLive_roster_tooltip.lua" })
+  end
+
+  local function LoadWithRosterBonuses()
+    return LoadAddonModules({
+      "isiLive_languages.lua",
+      "isiLive_texts.lua",
+      "isiLive_lfg_flags.lua",
+      "isiLive_roster_tooltip.lua",
+    })
   end
 
   -- =====================================================
@@ -489,6 +503,48 @@ return function(test, ctx)
       end
       Assert.Equal(matched, true)
     end)
+  end)
+
+  test("roster_tooltip: ShowRosterInfoTooltip renders green-heart class buff details", function()
+    WithGlobals(
+      BuildGlobals({
+        IsiLiveDB = { locale = "enUS" },
+        UnitClass = function(unit)
+          if unit == "player" then
+            return "Shaman", "SHAMAN"
+          end
+          return nil, nil
+        end,
+        GetSpecialization = function()
+          return 1
+        end,
+        GetSpecializationInfo = function()
+          return 262
+        end,
+      }),
+      function()
+        local addon = LoadWithRosterBonuses()
+        local args = buildShowArgs({
+          name = "Totem",
+          class = "SHAMAN",
+          specID = 262,
+        })
+        Assert.Equal(callShow(addon, args), true)
+
+        local foundBonusLine = false
+        for _, line in ipairs(args.tooltipFrame._isiLiveTooltipLines) do
+          local text = line:GetText()
+          if
+            text:find("isiLive Bonus:", 1, true)
+            and text:find("+2% Mastery", 1, true)
+            and text:find("BL", 1, true)
+          then
+            foundBonusLine = true
+          end
+        end
+        Assert.True(foundBonusLine, "roster tooltip must show the concrete buff and BL behind the mouseover")
+      end
+    )
   end)
 
   -- UC-21: Multi-Kick-Extras rendering inside the rich roster tooltip.

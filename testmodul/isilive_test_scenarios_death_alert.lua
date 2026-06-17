@@ -252,28 +252,42 @@ local function RegisterDeathWatchTests(test, ctx)
     Assert.Equal(#env.alerts, 2, "challenge reset must clear the dead flag and re-arm the edge")
   end)
 
-  test("DeathWatch tracks per-player death counts until a new challenge starts", function()
+  test("DeathWatch clears per-player death counts on challenge end and reset", function()
     local addon = LoadDeathWatch()
     local env = BuildWatchEnv()
-    local controller = addon.DeathWatch.CreateController(env.deps)
+    addon.DeathWatch.SetDependencies(env.deps)
 
     env.deadUnits.party1 = true
-    controller.HandleUnitHealth("party1")
+    addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
     env.deadUnits.party1 = false
-    controller.HandleUnitHealth("party1")
+    addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
     env.deadUnits.party1 = true
-    controller.HandleUnitHealth("party1")
+    addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
 
-    local summary = controller.GetDeathSummaryForPlayer("Tankadin", "Realm")
+    local summary = addon.DeathWatch.GetDeathSummaryForPlayer("Tankadin", "Realm")
     Assert.Equal(summary.count, 2, "two separate tank deaths must be counted for the player")
     Assert.Equal(summary.role, "TANK", "summary should keep the resolved role")
 
-    controller.ResetEdges()
-    summary = controller.GetDeathSummaryForPlayer("Tankadin", "Realm")
-    Assert.Equal(summary.count, 2, "key end/reset edge clearing must not wipe the visible death count")
+    addon.DeathWatch.HandleEvent("CHALLENGE_MODE_COMPLETED")
+    Assert.Nil(
+      addon.DeathWatch.GetDeathSummaryForPlayer("Tankadin", "Realm"),
+      "challenge completion must clear visible death counts"
+    )
 
-    controller.Reset()
-    Assert.Nil(controller.GetDeathSummaryForPlayer("Tankadin", "Realm"), "new key reset must clear death counts")
+    env.deadUnits.party1 = false
+    addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+    env.deadUnits.party1 = true
+    addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+    Assert.NotNil(
+      addon.DeathWatch.GetDeathSummaryForPlayer("Tankadin", "Realm"),
+      "death tracking must restart after completion"
+    )
+
+    addon.DeathWatch.HandleEvent("CHALLENGE_MODE_RESET")
+    Assert.Nil(
+      addon.DeathWatch.GetDeathSummaryForPlayer("Tankadin", "Realm"),
+      "challenge reset must clear visible death counts"
+    )
   end)
 
   test("DeathWatch keeps counting damage-dealer deaths even when audio is suppressed", function()

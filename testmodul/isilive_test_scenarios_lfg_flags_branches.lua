@@ -929,6 +929,81 @@ return function(test, ctx)
     end)
   end)
 
+  test("LI.BuildRosterBonusTooltipLine lists green-heart buffs plus BL and BR", function()
+    WithGlobals(
+      BonusGlobals({
+        IsiLiveDB = { locale = "enUS" },
+        UnitClass = function(unit)
+          if unit == "player" then
+            return "Shaman", "SHAMAN"
+          end
+          return nil, nil
+        end,
+        GetSpecialization = function()
+          return 1
+        end,
+        GetSpecializationInfo = function()
+          return 262
+        end,
+      }),
+      function()
+        local addon = LoadBonusModules(LoadAddonModules)
+        local LI = addon._LFGFlagsInternal
+        local line = StripColors(
+          Assert.NotNil(
+            LI.BuildRosterBonusTooltipLine("SHAMAN", 262),
+            "Shaman mastery must produce a roster bonus tooltip line"
+          )
+        )
+
+        Assert.True(line:find("isiLive Bonus:", 1, true) ~= nil, "tooltip line must use the localized bonus label")
+        Assert.True(line:find("+2% Mastery", 1, true) ~= nil, "tooltip line must list the concrete green-heart buff")
+        Assert.True(line:find("BL", 1, true) ~= nil, "Bloodlust must be listed in the roster tooltip only")
+        Assert.Nil(
+          LI.BuildRosterBonusMarkerBadge("DEATHKNIGHT", 250),
+          "battle resurrection alone must not create a green-heart marker"
+        )
+        local deathKnightLine = StripColors(
+          Assert.NotNil(
+            LI.BuildRosterBonusTooltipLine("DEATHKNIGHT", 250),
+            "battle resurrection must still produce a roster tooltip line"
+          )
+        )
+        Assert.True(
+          deathKnightLine:find("BR", 1, true) ~= nil,
+          "Battle resurrection must be listed in the tooltip only"
+        )
+      end
+    )
+  end)
+
+  test("LI.BuildRosterBonusTooltipLine respects disabled group-bonus setting", function()
+    WithGlobals(
+      BonusGlobals({
+        UnitClass = function(unit)
+          if unit == "player" then
+            return "Shaman", "SHAMAN"
+          end
+          return nil, nil
+        end,
+        GetSpecialization = function()
+          return 1
+        end,
+        GetSpecializationInfo = function()
+          return 262
+        end,
+      }),
+      function()
+        local addon = LoadBonusModules(LoadAddonModules)
+        addon.LFGFlags.SetGroupBonusesEnabled(false)
+        Assert.Nil(
+          addon._LFGFlagsInternal.BuildRosterBonusTooltipLine("SHAMAN", 262),
+          "disabled group-bonus setting must suppress roster bonus tooltip lines"
+        )
+      end
+    )
+  end)
+
   test("LI.ResolvePlayerBonusProfile treats Frost and Unholy DK as magic-only damage profiles", function()
     local currentSpecID = 251
     local globals = BonusGlobals({

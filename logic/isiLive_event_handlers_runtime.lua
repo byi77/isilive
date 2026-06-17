@@ -569,6 +569,16 @@ local function ResetChallengeRuntimeOnInactiveInstanceEntry(ctx, wasInPartyInsta
   return true
 end
 
+local function BuildPlayerEnteringWorldCdTrackerOptions(wasInPartyInstance, inPartyInstance)
+  if inPartyInstance == true and wasInPartyInstance ~= true then
+    return {
+      suppressBattleResReadySound = true,
+      suppressLustReadySound = true,
+    }
+  end
+  return nil
+end
+
 -- Full own-state fan-out towards a peer (hello-ack and REQSYNC paths share
 -- it): hello + refresh response (key, stats, dps, loc) + target + kick +
 -- share-keys cooldown mirror.
@@ -766,7 +776,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     local didResetChallengeRuntime =
       ResetChallengeRuntimeOnInactiveInstanceEntry(ctx, wasInPartyInstance, inPartyInstance)
     if not didResetChallengeRuntime then
-      ctx.updateCdTracker()
+      ctx.updateCdTracker(BuildPlayerEnteringWorldCdTrackerOptions(wasInPartyInstance, inPartyInstance))
     end
     UpdateTrackedMythicZeroRun(ctx)
     ScheduleBindingStartupRefresh(ctx)

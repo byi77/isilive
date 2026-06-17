@@ -880,7 +880,30 @@ return function(test, ctx)
     Assert.Equal(#timerEvents, 1, "active challenge PEW must only forward the PEW timer event")
     Assert.Equal(timerEvents[1], "PLAYER_ENTERING_WORLD", "active challenge PEW must not synthesize RESET")
     Assert.Equal(#cdRefreshOpts, 1, "active challenge PEW must keep the normal CD refresh")
-    Assert.Equal(cdRefreshOpts[1], false, "active challenge PEW must not use resetRuntimeTimers")
+    Assert.False(cdRefreshOpts[1].resetRuntimeTimers == true, "active challenge PEW must not use resetRuntimeTimers")
+    Assert.True(cdRefreshOpts[1].suppressBattleResReadySound, "active challenge PEW must suppress BRes-ready on entry")
+    Assert.True(cdRefreshOpts[1].suppressLustReadySound, "active challenge PEW must suppress Bloodlust-ready on entry")
+  end)
+
+  test("PLAYER_ENTERING_WORLD keeps repeated in-instance CD refresh unsuppressed", function()
+    local cdRefreshOpts = {}
+    local handlers, stub = LoadHandlers({
+      isInPartyInstance = function()
+        return true
+      end,
+      isInChallengeMode = function()
+        return true
+      end,
+      updateCdTracker = function(opts)
+        table.insert(cdRefreshOpts, opts or false)
+      end,
+    })
+    stub.wasInPartyInstance = true
+
+    handlers.PLAYER_ENTERING_WORLD(nil)
+
+    Assert.Equal(#cdRefreshOpts, 1, "repeated PEW inside the same instance must refresh CDs once")
+    Assert.Equal(cdRefreshOpts[1], false, "repeated in-instance PEW must not discard an active ready cycle")
   end)
 
   -- HandlePlayerRegenEnabledEvent: pending-binding + pending-frame paths ------
