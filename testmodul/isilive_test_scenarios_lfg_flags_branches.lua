@@ -264,6 +264,102 @@ local function NewFontStringStub()
   return fs
 end
 
+local function RegisterGroupBonusTooltipLineTests(test, Assert, LoadAddonModules, WithGlobals)
+  test("LI.ApplyGroupBonusTooltipLines appends localized suffixes to matching search-result member lines", function()
+    local line2 = NewFontStringStub()
+    line2:SetText("Mitglieder")
+    local line3 = NewFontStringStub()
+    line3:SetText("Druide - Wächter")
+    local line4 = NewFontStringStub()
+    line4:SetText("Erstellt: vor 1 Min.")
+
+    local globals = BonusGlobals({
+      IsiLiveDB = { locale = "deDE" },
+      C_LFGList = {
+        GetSearchResultInfo = function()
+          return { numMembers = 1 }
+        end,
+        GetSearchResultPlayerInfo = function()
+          return {
+            classFilename = "DRUID",
+            specID = 104,
+            className = "Druide",
+            specName = "Wächter",
+          }
+        end,
+      },
+      GameTooltip = {
+        NumLines = function()
+          return 4
+        end,
+      },
+    })
+    globals.GameTooltipTextLeft1 = NewFontStringStub()
+    globals.GameTooltipTextLeft2 = line2
+    globals.GameTooltipTextLeft3 = line3
+    globals.GameTooltipTextLeft4 = line4
+
+    WithGlobals(globals, function()
+      local addon = LoadBonusModules(LoadAddonModules)
+      addon._LFGFlagsInternal.ApplyGroupBonusTooltipLines(99)
+      local plain = StripColors(line3:GetText())
+      Assert.True(plain:find("%+3%% Versa", 1, false) ~= nil, "tooltip member line must include the Druid versa bonus")
+      Assert.True(plain:find("BR", 1, true) ~= nil, "tooltip member line must include the Druid BR utility")
+    end)
+  end)
+
+  test(
+    "LI.ApplyGroupBonusTooltipLines matches exact member lines without a German or English section header",
+    function()
+      local line1 = NewFontStringStub()
+      line1:SetText("Membres")
+      local line2 = NewFontStringStub()
+      line2:SetText("Druide - Wächter")
+      local line3 = NewFontStringStub()
+      line3:SetText("Créé : il y a 1 min.")
+
+      local globals = BonusGlobals({
+        IsiLiveDB = { locale = "frFR" },
+        C_LFGList = {
+          GetSearchResultInfo = function()
+            return { numMembers = 1 }
+          end,
+          GetSearchResultPlayerInfo = function()
+            return {
+              classFilename = "DRUID",
+              specID = 104,
+              className = "Druide",
+              specName = "Wächter",
+            }
+          end,
+        },
+        GameTooltip = {
+          NumLines = function()
+            return 3
+          end,
+        },
+      })
+      globals.GameTooltipTextLeft1 = line1
+      globals.GameTooltipTextLeft2 = line2
+      globals.GameTooltipTextLeft3 = line3
+
+      WithGlobals(globals, function()
+        local addon = LoadBonusModules(LoadAddonModules)
+        addon._LFGFlagsInternal.ApplyGroupBonusTooltipLines(99)
+        local plain = StripColors(line2:GetText())
+        Assert.True(
+          plain:find("%+3%% Versa", 1, false) ~= nil,
+          "fallback matching must append bonuses to the exact class/spec line"
+        )
+        Assert.True(
+          StripColors(line1:GetText()):find("%+3%% Versa", 1, false) == nil,
+          "fallback matching must not append bonuses to a non-member header line"
+        )
+      end)
+    end
+  )
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
@@ -1674,97 +1770,5 @@ return function(test, ctx)
     end)
   end)
 
-  test("LI.ApplyGroupBonusTooltipLines appends localized suffixes to matching search-result member lines", function()
-    local line2 = NewFontStringStub()
-    line2:SetText("Mitglieder")
-    local line3 = NewFontStringStub()
-    line3:SetText("Druide - Wächter")
-    local line4 = NewFontStringStub()
-    line4:SetText("Erstellt: vor 1 Min.")
-
-    local globals = BonusGlobals({
-      IsiLiveDB = { locale = "deDE" },
-      C_LFGList = {
-        GetSearchResultInfo = function()
-          return { numMembers = 1 }
-        end,
-        GetSearchResultPlayerInfo = function()
-          return {
-            classFilename = "DRUID",
-            specID = 104,
-            className = "Druide",
-            specName = "Wächter",
-          }
-        end,
-      },
-      GameTooltip = {
-        NumLines = function()
-          return 4
-        end,
-      },
-    })
-    globals.GameTooltipTextLeft1 = NewFontStringStub()
-    globals.GameTooltipTextLeft2 = line2
-    globals.GameTooltipTextLeft3 = line3
-    globals.GameTooltipTextLeft4 = line4
-
-    WithGlobals(globals, function()
-      local addon = LoadBonusModules(LoadAddonModules)
-      addon._LFGFlagsInternal.ApplyGroupBonusTooltipLines(99)
-      local plain = StripColors(line3:GetText())
-      Assert.True(plain:find("%+3%% Versa", 1, false) ~= nil, "tooltip member line must include the Druid versa bonus")
-      Assert.True(plain:find("BR", 1, true) ~= nil, "tooltip member line must include the Druid BR utility")
-    end)
-  end)
-
-  test(
-    "LI.ApplyGroupBonusTooltipLines matches exact member lines without a German or English section header",
-    function()
-      local line1 = NewFontStringStub()
-      line1:SetText("Membres")
-      local line2 = NewFontStringStub()
-      line2:SetText("Druide - Wächter")
-      local line3 = NewFontStringStub()
-      line3:SetText("Créé : il y a 1 min.")
-
-      local globals = BonusGlobals({
-        IsiLiveDB = { locale = "frFR" },
-        C_LFGList = {
-          GetSearchResultInfo = function()
-            return { numMembers = 1 }
-          end,
-          GetSearchResultPlayerInfo = function()
-            return {
-              classFilename = "DRUID",
-              specID = 104,
-              className = "Druide",
-              specName = "Wächter",
-            }
-          end,
-        },
-        GameTooltip = {
-          NumLines = function()
-            return 3
-          end,
-        },
-      })
-      globals.GameTooltipTextLeft1 = line1
-      globals.GameTooltipTextLeft2 = line2
-      globals.GameTooltipTextLeft3 = line3
-
-      WithGlobals(globals, function()
-        local addon = LoadBonusModules(LoadAddonModules)
-        addon._LFGFlagsInternal.ApplyGroupBonusTooltipLines(99)
-        local plain = StripColors(line2:GetText())
-        Assert.True(
-          plain:find("%+3%% Versa", 1, false) ~= nil,
-          "fallback matching must append bonuses to the exact class/spec line"
-        )
-        Assert.True(
-          StripColors(line1:GetText()):find("%+3%% Versa", 1, false) == nil,
-          "fallback matching must not append bonuses to a non-member header line"
-        )
-      end)
-    end
-  )
+  RegisterGroupBonusTooltipLineTests(test, Assert, LoadAddonModules, WithGlobals)
 end
