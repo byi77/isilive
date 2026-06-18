@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-06-19 - Version 0.9.327 (patch)
+
+- Refreshed the README overview for addon listing use with a clearer Mythic+
+  command-center positioning, colorful feature signals, stronger user-facing
+  highlights, and a screenshot section for the main tool surfaces.
+- Updated the release documentation baseline to `0.9.327`.
+
 ## 2026-06-18 - Version 0.9.326 (patch)
 
 - Converted `BttF_Tinkle.wav` from stereo to mono while keeping it as a

@@ -1,23 +1,83 @@
 # isiLive
 
-**A Mythic+ group helper for World of Warcraft.** One window that shows who has which key, how the group is doing, and what matters during a run.
+**The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
-- **For:** M+ players in pre-made groups and LFG runs
-- **WoW version:** `12.0.7+` (Midnight) only
-- **Current version:** `0.9.326`
-- **Active season:** `midnight_s1` — 8 dungeons (Wing, MT, NPX, MC, AA, POS, SOT, SR)
+| | |
+|---|---|
+| **Built for** | Mythic+ players, premade groups, and LFG runs |
+| **WoW version** | `12.0.7+` Midnight Retail |
+| **Current version** | `0.9.327` |
+| **Active season** | `midnight_s1` with 8 supported dungeons: `Wing`, `MT`, `NPX`, `MC`, `AA`, `POS`, `SOT`, `SR` |
+| **Setup** | Install, join a 5-player group, and the window opens automatically |
+
+---
+
+## Why isiLive?
+
+| Signal | What you get |
+|---|---|
+| **Green hearts** | Instantly see useful, non-stacking group buffs in LFG search results, applicant rows, and your active roster. |
+| **Blue peer markers** | Know which party members also run isiLive and can sync keys, stats, kicks, targets, and cooldown state. |
+| **Gold portal focus** | The matching season portal highlights from verified LFG or listing context, with cooldowns visible at a glance. |
+| **Red death alerts** | Tank and healer deaths during active keys trigger a large on-screen warning and bundled WAV audio. |
+| **Live forces bar** | Track enemy forces, pull prediction, nameplate percentages, tooltip percentages, and combat-end refresh from the bundled MDT-synced database. |
+| **One clean roster** | Spec, role, language, key, iLvl, Raider.IO, last-run DPS, interrupt state, leader marker, isiLive marker, group-bonus hearts, and ghost rows after leavers. |
 
 ---
 
 ## Feature highlights
 
-- **Buff-rating hearts** — green heart markers in Blizzard LFG search results, applicant rows, and the roster show which players add useful, non-stacking class buffs for your current character; roster mouseovers name the concrete bonus and can include BR/BL as tooltip-only utility.
-- **One-window M+ roster** — spec, role, language, key, iLvl, Raider.IO, last-run DPS, interrupt status, leader marker, isiLive peer marker, and ghost rows after leavers.
-- **Live enemy forces tools** — tooltip percentages, nameplate percentages, bottom killtracker bar, pull prediction, and combat-end refresh from the bundled MDT-synced forces database.
-- **Season portal grid** — all current dungeon portals with cooldowns, availability highlights, and verified LFG target highlighting.
-- **Share Keys sync** — posts your key first, then asks isiLive peers to post their own key line through the fastest AddOn-message priority path.
-- **Run utility alerts** — Battle Res charges, Bloodlust cooldown, BR/Lust group announces, separate ready WAV sounds when Battle Res or Bloodlust becomes available during a key, and a big red on-screen death alert with bundled WAV sound when the tank or healer dies during an active M+ run. Tank and healer death sounds have separate Sounds settings toggles. Key completion or abort resets the visible M+ / BR / BL timers immediately. Native WoW text-to-speech is disabled; damage-dealer deaths are still counted for roster and tooltip tracking but do not play audio without a bundled WAV asset. Per-player death counts are tracked during the key and shown as skull markers plus exact tooltip totals after the run until a new key or reload; the M+ timer-row skull shows the full per-player death list, and the active killtracker label shows the current total directly behind the dungeon/key name.
-- **Configurable support tools** — Escape-menu shortcut strips, Hearthstone travel shortcut, optional player stats box, nameplate controls, runtime logs, safe UI position locking, and a movable demo simulation tablet for local preview scenarios.
+### Group Finder clarity
+
+🟩 **Buff-rating hearts** show when an applicant, search-result group, or roster member adds useful class-bonus coverage for your current character. Utility such as Battle Res and Bloodlust can still appear in tooltips, but it does not inflate the heart score.
+
+🟦 **Language flags** help you scan LFG and roster rows faster. Dynamic isiLive-owned text uses Cyrillic-capable rendering for Russian names and payloads.
+
+🟨 **Verified target hints** keep portal highlighting and pre-key dungeon labels tied to observed Blizzard LFG context instead of guessed names.
+
+### One-window Mythic+ control
+
+🟦 **Roster:** spec, role, key, iLvl, Raider.IO, DPS, interrupt status, leader crown, isiLive peer marker, green group-bonus hearts, and right-click whisper.
+
+🟩 **Enemy forces:** bottom killtracker, pull prediction, nameplate percentages, mob tooltip percentages, and immediate combat-end refresh.
+
+🟨 **Portals:** all current season dungeon teleports in one grid with cooldowns, ready states, and target highlight.
+
+🟥 **Run alerts:** Battle Res charges, Bloodlust cooldown, ready sounds, BR/Lust group announcements, tank/healer death warning, and tracked per-player death counts.
+
+### Sync without chat spam
+
+isiLive users in the same group automatically exchange useful state through AddOn messages: keys, stats, DPS fallback data, target dungeon, interrupt readiness, cooldown locks, and peer detection. Key sharing posts your key first, then asks other isiLive peers to post theirs through the fastest AddOn-message priority path.
+
+---
+
+## Screenshots
+
+| M+ roster and tools | Group Finder buff hearts |
+|---|---|
+| ![isiLive M+ layout](isiLive_MPlus_ui.png) | ![isiLive LFG buff rating](isiLive_LFGBuffRating.png) |
+
+| Portal navigator | Player stats box |
+|---|---|
+| ![isiLive Portal Navigator](isiLive_PortalNavigator.png) | ![isiLive Stats Box](isiLive_Statsbox.png) |
+
+---
+
+## What it does
+
+When you join a group, isiLive gives you a colorful, compact overview of the things that matter before and during a key:
+
+- Choose better groups and applicants with green class-bonus hearts.
+- See every group member's spec, item level, Raider.IO score, key, last-run DPS, role, language, and interrupt status.
+- Share keystones between isiLive users without manual copy/paste.
+- Jump to the right season portal from one grid with cooldown and target highlighting.
+- Track enemy forces through a bottom progress bar, live pull prediction, nameplates, and mob tooltips.
+- Watch Battle Res, Bloodlust, M+ timer cutoffs, and death counts without opening extra panels.
+- Get clear red tank/healer death alerts during active keys, with separate sound toggles.
+- Keep departed players as ghost rows so post-wipe or post-reset context does not vanish immediately.
+- Use optional support tools: ESC-menu shortcuts, Hearthstone travel shortcut, player stats box, nameplate controls, safe position lock, runtime logs, and demo simulation tablet.
+
+Everything syncs automatically between group members who run isiLive. No manual import. No guessed dungeon targets. No `/say` spam.
 
 ---
 
@@ -37,31 +97,6 @@ https://github.com/byi77/isilive
 Source attribution required when redistributing or reusing substantial code:
 https://github.com/byi77/isilive
 ```
-
----
-
-## What it does
-
-When you join a group, isiLive opens a single window with everything you want to see before and during a key:
-
-- Who is in the group, their spec, item level, Raider.IO rating, and keystone
-- Optional default-on buff-rating hearts that help you pick groups, applicants, and roster members by relevant class-bonus coverage
-- One-click access to all 8 season dungeon portals, with live cooldowns
-- Escape-menu shortcut panels for tools, travel, verified mount shortcuts, and installed/enabled supported addons
-- Configurable Hearthstone travel shortcut with random owned, default item, or a specific owned Hearthstone toy
-- Who can interrupt, and whose kick is still on cooldown
-- Battle Res charges, Bloodlust cooldown, and separate Battle Res-ready / Bloodlust-ready alerts during a run
-- The M+ timer with `+3 / +2 / +1` cutoffs live
-- Forces percentage with a live pull-prediction bar and combat-end refresh so completed pulls are reflected immediately
-- Default-on **forces overlay on every enemy nameplate** during a key — shows what each individual mob contributes plus the verified remaining count needed to finish enemy forces
-- Forces info on the **mouseover tooltip** for any mob in a key
-- Optional independent **player stats box** with live primary/secondary stats, short English labels, and separate opacity/font/lock controls
-- Optional **buff-rating hearts** for applicant, search-result, and roster rows, shown only when the listed class/spec offers a relevant non-stacking group bonus for your current character
-- Cyrillic-safe rendering for isiLive-owned dynamic text such as roster names, invite notices, tooltips, and dungeon labels
-
-Everything syncs automatically between group members who run isiLive — no manual import, no `/say` spam.
-
----
 
 ## Install
 

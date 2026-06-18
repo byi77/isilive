@@ -3,9 +3,13 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.326`.
+Current release: `0.9.327`.
 
 Highlights:
+- The README / addon listing overview has been redesigned around the actual
+  tool experience: clearer Mythic+ command-center positioning, colorful
+  feature signals, stronger "why use it" highlights, and a screenshot section
+  for the main surfaces.
 - The ready-check-complete `BttF_Tinkle.wav` asset is now mono 44.1 kHz
   16-bit PCM, cutting that bundled WAV roughly in half while keeping the same
   in-game sound path.
