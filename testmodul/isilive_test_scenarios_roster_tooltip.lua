@@ -534,11 +534,7 @@ return function(test, ctx)
         local foundBonusLine = false
         for _, line in ipairs(args.tooltipFrame._isiLiveTooltipLines) do
           local text = line:GetText()
-          if
-            text:find("isiLive Bonus:", 1, true)
-            and text:find("+2% Mastery", 1, true)
-            and text:find("BL", 1, true)
-          then
+          if text:find("Group bonus:", 1, true) and text:find("+2% Mastery", 1, true) and text:find("BL", 1, true) then
             foundBonusLine = true
           end
         end

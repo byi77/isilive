@@ -699,15 +699,23 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     )
   end)
 
-  test("Architecture gitignore keeps incoming summon Portal sound trackable", function()
+  test("Architecture gitignore keeps packaged sound assets trackable", function()
     local content = ReadFile(".gitignore")
+    local soundFiles = {
+      "Portal.ogg",
+      "RoosterChickenCalls.ogg",
+    }
 
-    AssertContains(
-      Assert,
-      content,
-      "!sounds/Portal.ogg",
-      ".gitignore must allow sounds/Portal.ogg to be tracked because release packages are built from git files"
-    )
+    for _, soundFile in ipairs(soundFiles) do
+      AssertContains(
+        Assert,
+        content,
+        "!sounds/" .. soundFile,
+        ".gitignore must allow sounds/"
+          .. soundFile
+          .. " to be tracked because release packages are built from git files"
+      )
+    end
   end)
 
   test("Architecture pkgmeta excludes root screenshot assets from release package", function()

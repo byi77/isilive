@@ -569,6 +569,20 @@ local function ResetChallengeRuntimeOnInactiveInstanceEntry(ctx, wasInPartyInsta
   return true
 end
 
+local function ResetChallengeRuntimeOnPartyInstanceExit(ctx, wasInPartyInstance, inPartyInstance)
+  if wasInPartyInstance ~= true or inPartyInstance == true then
+    return false
+  end
+
+  ctx.handleMplusTimerEvent("CHALLENGE_MODE_RESET")
+  ctx.updateCdTracker({
+    suppressBattleResReadySound = true,
+    suppressLustReadySound = true,
+    resetRuntimeTimers = true,
+  })
+  return true
+end
+
 local function BuildPlayerEnteringWorldCdTrackerOptions(wasInPartyInstance, inPartyInstance)
   if inPartyInstance == true and wasInPartyInstance ~= true then
     return {
@@ -775,6 +789,9 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.handleMplusTimerEvent("PLAYER_ENTERING_WORLD")
     local didResetChallengeRuntime =
       ResetChallengeRuntimeOnInactiveInstanceEntry(ctx, wasInPartyInstance, inPartyInstance)
+    if not didResetChallengeRuntime then
+      didResetChallengeRuntime = ResetChallengeRuntimeOnPartyInstanceExit(ctx, wasInPartyInstance, inPartyInstance)
+    end
     if not didResetChallengeRuntime then
       ctx.updateCdTracker(BuildPlayerEnteringWorldCdTrackerOptions(wasInPartyInstance, inPartyInstance))
     end

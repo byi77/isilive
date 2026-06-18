@@ -1057,6 +1057,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Factory CD refresh stops Bloodlust-ready reminders after key end or dungeon leave
   - Factory CD refresh suppresses Bloodlust-ready reminders after group leave with stale timer
   - PLAYER_ENTERING_WORLD resets stale challenge timers on inactive instance entry
+  - PLAYER_ENTERING_WORLD resets stale challenge timers on party instance exit
   - PLAYER_ENTERING_WORLD keeps active challenge instance entry from resetting timers
   - PLAYER_ENTERING_WORLD keeps repeated in-instance CD refresh unsuppressed
   - factory_frame_bridge: CreateFactoryContext exposes live IsInGroup for ready sound gates
@@ -1133,7 +1134,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Architecture pkgmeta excludes root screenshot assets from release package
   - Architecture release workflow excludes root screenshot assets from WowUp package
   - Architecture release package ignore lists stay identical for CurseForge and WowUp
-  - Architecture gitignore keeps incoming summon Portal sound trackable
+  - Architecture gitignore keeps packaged sound assets trackable
 
 ### RULE-SOUNDKANAL-WAEHLBAR
 - Regelnummer: 78

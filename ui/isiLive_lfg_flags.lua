@@ -717,12 +717,12 @@ local function BuildRosterBonusTooltipLine(classToken, specID)
     return nil
   end
 
-  local tooltipText = ResolveLocalizedText("LFG_BONUS_TOOLTIP_FMT") or "isiLive Bonus: %s"
+  local tooltipText = ResolveLocalizedText("LFG_BONUS_TOOLTIP_FMT") or "Group bonus: %s"
   local okFormatted, line = pcall(string.format, tooltipText, suffix)
   if okFormatted and type(line) == "string" and line ~= "" then
     return line
   end
-  return "isiLive Bonus: " .. suffix
+  return "Group bonus: " .. suffix
 end
 
 local function GetTagForResult(resultID)
@@ -1149,6 +1149,15 @@ local function GetTooltipLine(index)
   return rawget(_G, "GameTooltipTextLeft" .. tostring(index))
 end
 
+local function ResolveBonusTooltipPrefix()
+  local tooltipText = ResolveLocalizedText("LFG_BONUS_TOOLTIP_FMT") or "Group bonus: %s"
+  local markerStart = string.find(tooltipText, "%%s")
+  if markerStart and markerStart > 1 then
+    return string.sub(tooltipText, 1, markerStart - 1)
+  end
+  return "Group bonus: "
+end
+
 local function TooltipHasApplicantBonusLine(suffix)
   if type(suffix) ~= "string" or suffix == "" then
     return false
@@ -1163,11 +1172,12 @@ local function TooltipHasApplicantBonusLine(suffix)
     return false
   end
   local suffixPlain = StripColorCodes(suffix)
+  local prefixPlain = StripColorCodes(ResolveBonusTooltipPrefix())
   for index = 1, numLines do
     local line = GetTooltipLine(index)
     local text = line and type(line.GetText) == "function" and line:GetText() or nil
     local plain = StripColorCodes(text)
-    if string.find(plain, "isiLive Bonus:", 1, true) and string.find(plain, suffixPlain, 1, true) then
+    if string.find(plain, prefixPlain, 1, true) and string.find(plain, suffixPlain, 1, true) then
       return true
     end
   end
@@ -1391,7 +1401,7 @@ local function ApplyApplicantBonusToButton(button, applicantIDOverride)
       if TooltipHasApplicantBonusLine(suffix) then
         return
       end
-      local tooltipText = ResolveLocalizedText("LFG_BONUS_TOOLTIP_FMT") or "isiLive Bonus: %s"
+      local tooltipText = ResolveLocalizedText("LFG_BONUS_TOOLTIP_FMT") or "Group bonus: %s"
       tooltip:AddLine(string.format(tooltipText, suffix), 0.85, 0.85, 0.9)
       tooltip:Show()
     end
@@ -1820,7 +1830,7 @@ local function HookApplicationViewer()
       and type(tooltip.Show) == "function"
     then
       tooltip:AddLine(" ")
-      local tooltipText = ResolveLocalizedText("LFG_BONUS_TOOLTIP_FMT") or "isiLive Bonus: %s"
+      local tooltipText = ResolveLocalizedText("LFG_BONUS_TOOLTIP_FMT") or "Group bonus: %s"
       tooltip:AddLine(string.format(tooltipText, suffix), 0.20, 1.00, 0.20)
       tooltip:Show()
     end

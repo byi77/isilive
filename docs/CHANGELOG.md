@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-06-18 - Version 0.9.326 (patch)
+
+- Converted `BttF_Tinkle.wav` from stereo to mono while keeping it as a
+  44.1 kHz 16-bit PCM WAV, reducing the ready-check-complete asset size.
+- Added `RoosterChickenCalls.ogg` to the tracked sound whitelist so the
+  Battle Res alert fallback asset is packaged with releases.
+- Fixed Bloodlust-ready reminders continuing outside dungeons after leaving a
+  party instance by resetting stale Mythic+ timer and BR/BL ready-sound state.
+- Removed the older WoW 12.0.5 TOC compatibility marker; isiLive now targets
+  the live 12.0.7 interface only.
+- Updated deterministic packaging coverage so packaged sound fallback assets
+  must stay trackable through `.gitignore`.
+- Renamed the player-hover group-bonus tooltip prefix from `isiLive Bonus` to
+  neutral group-bonus wording.
+- Bumped the TOC and documentation baselines to `0.9.326`.
+
 ## 2026-06-17 - Version 0.9.325 (patch)
 
 - Listed both supported Retail TOC interfaces, `120005` and `120007`, so

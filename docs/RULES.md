@@ -9,8 +9,8 @@
 - Raid-Gruppen werden als Hard-off-Zustand behandelt: UI ausblenden und jede Hintergrundverarbeitung anhalten, inklusive hidden Kick-Keep-Alive.
 - Slash-Command-Verhalten bleibt rueckwaertskompatibel, ausser es wird explizit geaendert.
 - Additive Aenderungen vor breaking Refactors bevorzugen.
-- Zielplattform ist ausschliesslich WoW-Patch `12.0+`.
-- `<12.0` gilt als unsupported/incompatible; dafuer wird kein Legacy-Kompatibilitaetscode hinzugefuegt.
+- Zielplattform ist ausschliesslich WoW-Patch `12.0.7+`.
+- `<12.0.7` gilt als unsupported/incompatible; dafuer wird kein Legacy-Kompatibilitaetscode hinzugefuegt.
 - Die Aktivierung des RIO-Deltas bleibt an den erfolgreichen delayed Post-Run-Refresh gebunden, nicht direkt an das Key-End-Event.
 - Wenn der delayed Post-Run-Refresh waehrend Raid-Hard-off faellig wird, wird er verschoben und erst nach Raid-Ende fortgesetzt.
 - `CHALLENGE_MODE_COMPLETED` und `CHALLENGE_MODE_RESET` bleiben auch bei hidden Main-Window aktiv, damit Post-Run-Refresh und Delta-Flow verlaesslich bleiben.

@@ -1052,7 +1052,7 @@ return function(test, ctx)
           )
         )
 
-        Assert.True(line:find("isiLive Bonus:", 1, true) ~= nil, "tooltip line must use the localized bonus label")
+        Assert.True(line:find("Group bonus:", 1, true) ~= nil, "tooltip line must use the localized bonus label")
         Assert.True(line:find("+2% Mastery", 1, true) ~= nil, "tooltip line must list the concrete green-heart buff")
         Assert.True(line:find("BL", 1, true) ~= nil, "Bloodlust must be listed in the roster tooltip only")
         Assert.Nil(

@@ -1,8 +1,8 @@
-## Interface: 120005, 120007
+## Interface: 120007
 ## Title: isi|cff1e90ffLive|r
 ## Notes: M+ Dungeon and Group Management
 ## Author: mematiWoW
-## Version: 0.9.325
+## Version: 0.9.326
 ## SavedVariables: IsiLiveDB
 ## IconTexture: Interface\Icons\INV_Misc_GroupLooking
 libs/ChatThrottleLib/ChatThrottleLib.lua

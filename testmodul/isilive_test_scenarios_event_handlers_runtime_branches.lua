@@ -856,6 +856,38 @@ return function(test, ctx)
     Assert.True(cdRefreshOpts[1].suppressLustReadySound, "stale challenge reset must suppress Bloodlust-ready")
   end)
 
+  test("PLAYER_ENTERING_WORLD resets stale challenge timers on party instance exit", function()
+    local timerEvents = {}
+    local cdRefreshOpts = {}
+    local handlers, stub = LoadHandlers({
+      isInPartyInstance = function()
+        return false
+      end,
+      isInGroup = function()
+        return true
+      end,
+      isInChallengeMode = function()
+        return false
+      end,
+      handleMplusTimerEvent = function(event)
+        table.insert(timerEvents, event)
+      end,
+      updateCdTracker = function(opts)
+        table.insert(cdRefreshOpts, opts or false)
+      end,
+    })
+    stub.wasInPartyInstance = true
+
+    handlers.PLAYER_ENTERING_WORLD(nil)
+
+    Assert.Equal(timerEvents[1], "PLAYER_ENTERING_WORLD", "PEW must still reach the M+ timer first")
+    Assert.Equal(timerEvents[2], "CHALLENGE_MODE_RESET", "party instance exit must clear stale challenge state")
+    Assert.Equal(#cdRefreshOpts, 1, "party instance exit must use a single reset CD refresh")
+    Assert.True(cdRefreshOpts[1].resetRuntimeTimers, "party instance exit must clear visible BR/BL timers")
+    Assert.True(cdRefreshOpts[1].suppressBattleResReadySound, "party instance exit must suppress BRes-ready")
+    Assert.True(cdRefreshOpts[1].suppressLustReadySound, "party instance exit must suppress Bloodlust-ready")
+  end)
+
   test("PLAYER_ENTERING_WORLD keeps active challenge instance entry from resetting timers", function()
     local timerEvents = {}
     local cdRefreshOpts = {}

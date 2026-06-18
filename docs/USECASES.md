@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.325`
-Zuletzt aktualisiert: `2026-06-17`
+Versionsbasis: `0.9.326`
+Zuletzt aktualisiert: `2026-06-18`
 
 ## Akteure
 
@@ -187,7 +187,7 @@ Ziel: Live-BRes, Bloodlust/Heroism/Time Warp, aktive Mythic+-Timer-Cutoffs, den 
 2. Verarbeitung: Das Addon scannt `C_Spell.GetSpellCharges` mit Struct-Return (`currentCharges`, `maxCharges`, `cooldownStartTime`, `cooldownDuration`) fuer Battle Resurrection und iteriert die `HARMFUL`-Auren des Spielers ueber `C_UnitAuras.GetAuraDataByIndex("player", index, "HARMFUL")` fuer die Erschoepfungsvarianten von Bloodlust, Heroism und Time Warp.
 3. Regel: Nur numerische Aura-`spellId`-Werte duerfen am Lust-Lookup teilnehmen; geschuetzte, geheime, String- oder sonstige nicht-numerische Werte muessen sicher ignoriert werden, ohne den gesamten Lust-Scan abzubrechen.
 4. Regel: `UNIT_AURA`-Updates mit `isFullUpdate=true` nach Zone-/World-Transitions oder UI-Reloads muessen den aktiven Lust-State hydrieren, ohne einen neuen Onset-Callback auszufeuern.
-5. Regel: `PLAYER_ENTERING_WORLD` darf beim Uebergang in eine Party-Instanz keine Battle-Res-ready- oder Bloodlust-ready-Ansage ausloesen; ein aktiver Challenge-Kontext darf dabei keinen synthetischen Timer-Reset erhalten.
+5. Regel: `PLAYER_ENTERING_WORLD` darf beim Uebergang in eine Party-Instanz keine Battle-Res-ready- oder Bloodlust-ready-Ansage ausloesen; ein aktiver Challenge-Kontext darf dabei keinen synthetischen Timer-Reset erhalten. Beim Verlassen einer Party-Instanz wird ein stale Challenge-Timer mit unterdrueckten BR-/Bloodlust-ready-Klanghinweisen zurueckgesetzt, damit keine 60-Sekunden-Erinnerung ausserhalb des Dungeons weiterlaeuft.
 6. Verarbeitung: Solange ein aktiver Mythic+-Timer laeuft und das Roster-Panel sichtbar ist, muss derselbe One-Second-Utility-Ticker auch einen Vollrender des Panels ausloesen, damit die sichtbaren `+3/+2/+1`-Cutoffs live herunterzaehlen; Hidden-Modus darf diesen Utility-Poller nicht weiterlaufen lassen, und beim erneuten Oeffnen der UI darf genau ein frischer Utility-Rescan nur auf dem ersten sichtbaren Render nach Dirty-Markierung stattfinden.
 6a. Verarbeitung: Nach einem verifizierten LFG-Invite-Target-Announce zeigt die untere M+-Killtracker-Zeile bis `CHALLENGE_MODE_START` den belastbaren Ziel-Dungeon plus Keystufe als rechtsbuendigen kombinierten Text; die Keystufe erscheint nur, wenn sie positiv verifiziert numerisch vorliegt. Sobald der Key gestartet ist, wird dieser Pre-Key-Zieltext unterdrueckt und die Zeile nutzt wieder die Forces-Prozentanzeige.
 6b. Verarbeitung: Wenn waehrend aktiver Prozentdaten ein verifizierter Ziel-Dungeon bekannt ist, bleibt dessen Name linksbuendig als helles Outline-Label mit dunkler Hinterlegung auf dem Prozentbalken sichtbar; die aktive Keystufe wird direkt daneben nur angezeigt, wenn sie positiv aus dem gestarteten M+-Timer-Keylevel stammt, und darf nicht aus der Target-Dungeon-Aufloesung uebernommen werden.

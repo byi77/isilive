@@ -3,8 +3,8 @@
 **A Mythic+ group helper for World of Warcraft.** One window that shows who has which key, how the group is doing, and what matters during a run.
 
 - **For:** M+ players in pre-made groups and LFG runs
-- **WoW version:** `12.0+` (Midnight) only
-- **Current version:** `0.9.325`
+- **WoW version:** `12.0.7+` (Midnight) only
+- **Current version:** `0.9.326`
 - **Active season:** `midnight_s1` — 8 dungeons (Wing, MT, NPX, MC, AA, POS, SOT, SR)
 
 ---
