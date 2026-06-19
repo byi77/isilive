@@ -812,7 +812,7 @@ RI.NotifyLayoutChanged = NotifyLayoutChanged
 -- _modeTarget and _collapseLayoutMode identify the button for tests.
 -- Active/inactive state is set via text color in UpdateCollapseState.
 local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onClick, buttonWidth)
-  local btn = CreateFrame("Button", nil, mainFrame)
+  local btn = CreateFrame("Button", nil, mainFrame, "BackdropTemplate")
   btn:SetSize(tonumber(buttonWidth) or 20, 20)
   btn:SetPoint("TOPRIGHT", xOffset, -2)
   -- DragHandle sits at mainFrame:GetFrameLevel() + 100; button must be above it.
@@ -821,6 +821,10 @@ local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onCli
   end
   if btn.SetHighlightTexture then
     btn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
+  end
+  local uiCommon = addonTable and addonTable.UICommon
+  if type(uiCommon) == "table" and type(uiCommon.ApplyBackdrop) == "function" then
+    uiCommon.ApplyBackdrop(btn, "CLOSE_BUTTON")
   end
   if type(btn.CreateFontString) == "function" then
     local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")

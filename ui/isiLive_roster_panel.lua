@@ -514,7 +514,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
 
   local function ApplyTitleBudget()
     local frameWidth = type(mainFrame.GetWidth) == "function" and tonumber(mainFrame:GetWidth()) or FULL_FRAME_WIDTH
-    local budget = math.max(160, (frameWidth or FULL_FRAME_WIDTH) - 96)
+    local budget = math.max(160, (frameWidth or FULL_FRAME_WIDTH) - 160)
     local measureWidth = type(UICommon.MeasureFontStringWidthSafe) == "function" and UICommon.MeasureFontStringWidthSafe
       or nil
     local titleWidth = math.max(56, (measureWidth and measureWidth(title)) or 56)
@@ -639,7 +639,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   ui.modeButtons = {}
   local modeButtonDefs = {
     {
-      xOffset = -132,
+      xOffset = -112,
       label = "M+",
       target = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL,
       width = 24,
@@ -647,14 +647,14 @@ local function ConstructPanelUI(mainFrame, uiDeps)
       descriptionFallback = L.MODE_LAYOUT_M2 or "Main horizontal layout.",
     },
     {
-      xOffset = -108,
+      xOffset = -90,
       label = "H",
       target = LAYOUT_MODE_COMPACT_HORIZONTAL,
       descriptionKey = "MODE_LAYOUT_H",
       descriptionFallback = L.MODE_LAYOUT_H or "Compact horizontal layout.",
     },
     {
-      xOffset = -88,
+      xOffset = -68,
       label = "V",
       target = LAYOUT_MODE_COMPACT_VERTICAL,
       descriptionKey = "MODE_LAYOUT_V",

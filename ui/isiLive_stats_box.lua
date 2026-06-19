@@ -21,7 +21,7 @@ local ROW_TINT_ALPHA = 0.12
 local PRIMARY_ROW_TINT_ALPHA = 0.22
 local ROW_TINT_SIDE_PADDING = 3
 local ROW_TINT_VERTICAL_INSET = 1
-local SEPARATOR_ALPHA = 0.18
+local SEPARATOR_ALPHA = 0
 local SEPARATOR_WIDTH = 1
 local HOVER_MIN_BG_ALPHA = 0.18
 local LABEL_COLUMN_WIDTH = 35
@@ -757,8 +757,8 @@ ApplyLayout = function(state, layout)
           layout.bottomPadding
         )
       end
-      if type(state.separator.Show) == "function" then
-        state.separator:Show()
+      if type(state.separator.Hide) == "function" then
+        state.separator:Hide()
       end
     elseif type(state.separator.Hide) == "function" then
       state.separator:Hide()

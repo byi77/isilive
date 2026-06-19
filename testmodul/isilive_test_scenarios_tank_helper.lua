@@ -205,6 +205,15 @@ local function NewRecordedFrame(createdFrames, createdFontStrings, frameType, na
   function frame:SetHighlightTexture(tex)
     self.highlightTexture = tex
   end
+  function frame:SetBackdrop(backdrop)
+    self._backdrop = backdrop
+  end
+  function frame:SetBackdropColor(r, g, b, a)
+    self._backdropColor = { r, g, b, a }
+  end
+  function frame:SetBackdropBorderColor(r, g, b, a)
+    self._backdropBorderColor = { r, g, b, a }
+  end
 
   table.insert(createdFrames, frame)
   return frame
@@ -524,8 +533,8 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     )
     Assert.Equal(
       collapseButton.pointX - horizontalCollapseButton.pointX,
-      collapseButton.width,
-      "Expanded collapse toggles should sit directly next to each other"
+      collapseButton.width + 2,
+      "Expanded collapse toggles should match the 2px title-bar button gap"
     )
     Assert.Equal(
       mainFrame.height,
@@ -680,9 +689,15 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     m2Button = Assert.NotNil(m2Button, "M2 mode button should exist")
     Assert.Nil(expandedButton, "Expanded mode button should stay hidden from the title bar")
     titleVersion = Assert.NotNil(titleVersion, "Title version should exist")
-    Assert.Equal(m2Button.pointX, -132, "M+ mode button should leave room for title-bar controls")
-    Assert.Equal(horizontalButton.pointX, -108, "H mode button should shift left with the mode-button group")
-    Assert.Equal(collapseButton.pointX, -88, "V mode button should stay left of the title-bar control group")
+    Assert.Equal(m2Button.pointX, -112, "M+ mode button should sit directly left of the H/V title-bar controls")
+    Assert.Equal(horizontalButton.pointX, -90, "H mode button should sit between M+ and V in the title-bar group")
+    Assert.Equal(collapseButton.pointX, -68, "V mode button should sit directly left of the settings button")
+    Assert.Equal(m2Button._template, "BackdropTemplate", "M+ mode button should use the framed title-bar style")
+    Assert.Equal(horizontalButton._template, "BackdropTemplate", "H mode button should use the framed title-bar style")
+    Assert.Equal(collapseButton._template, "BackdropTemplate", "V mode button should use the framed title-bar style")
+    Assert.NotNil(m2Button._backdropBorderColor, "M+ mode button should render the shared gold title-bar border")
+    Assert.NotNil(horizontalButton._backdropBorderColor, "H mode button should render the shared gold title-bar border")
+    Assert.NotNil(collapseButton._backdropBorderColor, "V mode button should render the shared gold title-bar border")
     Assert.Equal(horizontalButton._collapseButtonLabel, "H", "H mode button has static H label in expanded mode")
 
     local helperButtons = {}

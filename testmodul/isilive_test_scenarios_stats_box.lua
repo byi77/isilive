@@ -289,7 +289,7 @@ return function(test, ctx)
     end)
   end)
 
-  test("StatsBox renders separator primary highlight and unlocked hover affordance", function()
+  test("StatsBox keeps value-percent separator hidden while preserving row highlight and hover affordance", function()
     local db = {
       statsBoxEnabled = true,
       statsBoxBgAlpha = 0,
@@ -312,8 +312,8 @@ return function(test, ctx)
       })
 
       Assert.Nil(box.header, "stats box should not render a title/header row")
-      Assert.False(box.separator.hidden, "value-percent separator should show when percent data is visible")
-      Assert.Equal(box.separator._color[4], 0.18, "value-percent separator should stay subtle")
+      Assert.True(box.separator.hidden, "value-percent separator should stay hidden when percent data is visible")
+      Assert.Equal(box.separator._color[4], 0, "value-percent separator should be invisible")
       Assert.Equal(box.lines[1].tint._color[4], 0.22, "primary stat tint should be stronger than secondary rows")
       Assert.Equal(box.lines[2].tint._color[4], 0.12, "secondary stat tint should stay subtle")
 

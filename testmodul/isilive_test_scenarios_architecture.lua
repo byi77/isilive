@@ -1912,8 +1912,8 @@ local function RegisterArchitectureNoticeTypographyTests(test, Assert)
     AssertContains(
       Assert,
       rosterPanelContent,
-      "(frameWidth or FULL_FRAME_WIDTH) - 96",
-      "RosterPanel title budget must reserve space for the right-side toolbar buttons"
+      "(frameWidth or FULL_FRAME_WIDTH) - 160",
+      "RosterPanel title budget must reserve space for the right-side mode and toolbar buttons"
     )
     AssertContains(
       Assert,

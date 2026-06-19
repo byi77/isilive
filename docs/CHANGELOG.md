@@ -32,6 +32,10 @@
   row so the addon title no longer pushes the version label away, the full
   version stays readable next to the BETA badge, and the row aligns with the
   M+/H/V mode buttons.
+- Moved the M+/H/V mode buttons into the right title-bar button group and gave
+  them the same gold framed style as the settings, lock, and close controls.
+- Hid the standalone Stats Box value/percent separator while keeping the value
+  and percent columns aligned.
 - Ran the full local CI preflight after the 0.9.329 audit/fix pass; final
   result: `Local CI preflight passed`, with `2081` usecase scenarios passing.
 - Registered `docs/CURSEFORGE_OVERVIEW.md` as a maintained project document.
