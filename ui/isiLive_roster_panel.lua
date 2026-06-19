@@ -478,7 +478,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   end
 
   -- All three title elements share the same Y so they sit on one horizontal line.
-  local TITLE_Y = -10
+  local TITLE_Y = -7
 
   local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   title:SetPoint("TOPLEFT", 10, TITLE_Y)
@@ -488,7 +488,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   if type(title.SetShadowColor) == "function" then
     title:SetShadowColor(0, 0, 0, 0.8)
   end
-  ApplyFontStringSize(title, 14)
+  ApplyFontStringSize(title, 12)
 
   local titleVersion = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   titleVersion:SetPoint("LEFT", title, "RIGHT", 5, 0)
@@ -499,7 +499,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   if type(titleVersion.SetShadowColor) == "function" then
     titleVersion:SetShadowColor(0, 0, 0, 0.9)
   end
-  ApplyFontStringSize(titleVersion, 14)
+  ApplyFontStringSize(titleVersion, 12)
 
   local titleHint = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   titleHint:SetPoint("LEFT", titleVersion, "RIGHT", 6, 0)
@@ -510,25 +510,25 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   if type(titleHint.SetShadowColor) == "function" then
     titleHint:SetShadowColor(0, 0, 0, 0.9)
   end
-  ApplyFontStringSize(titleHint, 14)
+  ApplyFontStringSize(titleHint, 12)
 
   local function ApplyTitleBudget()
     local frameWidth = type(mainFrame.GetWidth) == "function" and tonumber(mainFrame:GetWidth()) or FULL_FRAME_WIDTH
     local budget = math.max(160, (frameWidth or FULL_FRAME_WIDTH) - 96)
     local measureWidth = type(UICommon.MeasureFontStringWidthSafe) == "function" and UICommon.MeasureFontStringWidthSafe
       or nil
-    local titleWidth = measureWidth and measureWidth(title) or 0
-    local versionWidth = measureWidth and measureWidth(titleVersion) or 0
-    local hintWidth = measureWidth and measureWidth(titleHint) or 0
+    local titleWidth = math.max(56, (measureWidth and measureWidth(title)) or 56)
+    local versionWidth = math.max(92, (measureWidth and measureWidth(titleVersion)) or 92)
+    local hintWidth = math.max(48, (measureWidth and measureWidth(titleHint)) or 48)
     local gapWidth = 11
     local totalWidth = titleWidth + versionWidth + hintWidth + gapWidth
 
     if totalWidth <= budget then
       if type(title.SetWidth) == "function" then
-        title:SetWidth(math.max(72, titleWidth > 0 and titleWidth or 160))
+        title:SetWidth(titleWidth)
       end
       if type(titleVersion.SetWidth) == "function" then
-        titleVersion:SetWidth(math.max(44, versionWidth > 0 and versionWidth or 72))
+        titleVersion:SetWidth(versionWidth)
       end
       if type(titleVersion.Show) == "function" then
         titleVersion:Show()
@@ -539,8 +539,8 @@ local function ConstructPanelUI(mainFrame, uiDeps)
       return
     end
 
-    local versionBudget = math.max(44, math.min(versionWidth > 0 and versionWidth or 72, budget * 0.28))
-    local remainingTitleWidth = math.max(72, budget - versionBudget - gapWidth)
+    local versionBudget = math.max(92, math.min(versionWidth, budget * 0.36))
+    local remainingTitleWidth = math.max(56, budget - versionBudget - gapWidth)
     if type(title.SetWidth) == "function" then
       title:SetWidth(remainingTitleWidth)
     end

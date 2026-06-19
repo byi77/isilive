@@ -1918,6 +1918,42 @@ local function RegisterArchitectureNoticeTypographyTests(test, Assert)
     AssertContains(
       Assert,
       rosterPanelContent,
+      "local TITLE_Y = -7",
+      "RosterPanel title row must stay vertically aligned with the mode buttons"
+    )
+    AssertContains(
+      Assert,
+      rosterPanelContent,
+      "ApplyFontStringSize(title, 12)",
+      "RosterPanel title text must stay compact enough for the toolbar row"
+    )
+    AssertContains(
+      Assert,
+      rosterPanelContent,
+      "ApplyFontStringSize(titleVersion, 12)",
+      "RosterPanel version text must stay compact enough for the toolbar row"
+    )
+    AssertContains(
+      Assert,
+      rosterPanelContent,
+      "ApplyFontStringSize(titleHint, 12)",
+      "RosterPanel title hint text must stay compact enough for the toolbar row"
+    )
+    AssertContains(
+      Assert,
+      rosterPanelContent,
+      "local titleWidth = math.max(56, (measureWidth and measureWidth(title)) or 56)",
+      "RosterPanel title budget must keep the title fallback compact instead of pushing the version away"
+    )
+    AssertContains(
+      Assert,
+      rosterPanelContent,
+      "local versionWidth = math.max(92, (measureWidth and measureWidth(titleVersion)) or 92)",
+      "RosterPanel title budget must reserve enough width for the full version label"
+    )
+    AssertContains(
+      Assert,
+      rosterPanelContent,
       "titleHint:Hide()",
       "RosterPanel title budget must drop the hint before it collides with toolbar buttons"
     )
