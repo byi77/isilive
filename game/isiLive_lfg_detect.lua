@@ -211,13 +211,8 @@ local groupRosterTraceLogger = nil
 local acceptedInviteNoticeCallback = nil
 local acceptedInviteNoticeEnabledFn = nil
 
--- Raid-only mirror of the M+ accepted-invite notice plumbing. Lives on its
--- own callback so the M+ pipeline (pendingInvites, detectedMapID,
--- activeInviteTitleLevel, TriggerHighlightUpdate, the chat "Target Dungeon"
--- announce) is never reached for Raid listings — the only side effect of a
--- Raid invite-accept is the notice render.
-local acceptedRaidInviteNoticeCallback = nil
-local acceptedRaidInviteNoticeEnabledFn = nil
+-- Retained as no-op compatibility hooks for older glue. Raid accepted-invite
+-- notices are intentionally removed from runtime.
 
 -- Direct-push hook for the target-dungeon chat announce. The Center Notice
 -- already renders the listing's "+N" synchronously from entry.titleLevel —
@@ -291,12 +286,12 @@ function LFGDetect.SetAcceptedInviteNoticeEnabledFn(fn)
   acceptedInviteNoticeEnabledFn = type(fn) == "function" and fn or nil
 end
 
-function LFGDetect.SetAcceptedRaidInviteNoticeCallback(fn)
-  acceptedRaidInviteNoticeCallback = type(fn) == "function" and fn or nil
+function LFGDetect.SetAcceptedRaidInviteNoticeCallback(_fn)
+  return nil
 end
 
-function LFGDetect.SetAcceptedRaidInviteNoticeEnabledFn(fn)
-  acceptedRaidInviteNoticeEnabledFn = type(fn) == "function" and fn or nil
+function LFGDetect.SetAcceptedRaidInviteNoticeEnabledFn(_fn)
+  return nil
 end
 
 function LFGDetect.SetTargetDungeonChatCallback(fn)
@@ -576,30 +571,6 @@ local function ResolveRaidInviteEntry(searchResultID)
   }
 end
 
--- Renders the Raid post-accept Center Notice. The callback receives the same
--- shape of payload as the M+ notice (minus level / activityID — Raid listings
--- have no keystone level and there is no teleport-button wiring on the Raid
--- notice). All data comes from the resolved Raid entry; no roster lookup, no
--- sync state, no M+ pipeline state mutation.
-local function MaybeShowAcceptedRaidInviteNotice(entry, searchResultID)
-  if type(acceptedRaidInviteNoticeCallback) ~= "function" then
-    return
-  end
-  if type(entry) ~= "table" or not entry.mapID then
-    return
-  end
-  if type(acceptedRaidInviteNoticeEnabledFn) == "function" and acceptedRaidInviteNoticeEnabledFn() == false then
-    return
-  end
-  acceptedRaidInviteNoticeCallback({
-    mapID = entry.mapID,
-    leaderName = entry.leaderName,
-    groupName = entry.groupName,
-    comment = entry.comment,
-    searchResultID = searchResultID,
-  })
-end
-
 -- Deterministic recovery of the listing "+N" when entry.titleLevel is nil but
 -- entry.groupName still encodes it. Real-world races (the group title gets
 -- finalised between LFG_LIST_SEARCH_RESULT_RECEIVED and the
@@ -864,9 +835,9 @@ local function OnInviteAccepted(searchResultID)
   end
 
   -- Raid fallback: the M+ resolver dropped the listing (Raid filter), so the
-  -- M+ side never sees it. Try the Raid-only resolver. On a hit, render the
-  -- Raid notice and stop — no detectedMapID / activeInviteLeader / highlight
-  -- update / chat announce is touched for Raid.
+  -- M+ side never sees it. Try the Raid-only resolver. On a hit, consume the
+  -- pending entry and stop — no notice / detectedMapID / activeInviteLeader /
+  -- highlight update / chat announce is touched for Raid.
   local raidEntry = ResolveRaidInviteEntry(searchResultID)
   if type(raidEntry) == "table" and raidEntry.mapID then
     Log(
@@ -877,7 +848,6 @@ local function OnInviteAccepted(searchResultID)
       tostring(raidEntry.leaderName)
     )
     pendingInvites[searchResultID] = nil
-    MaybeShowAcceptedRaidInviteNotice(raidEntry, searchResultID)
   end
 end
 

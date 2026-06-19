@@ -265,14 +265,6 @@ local function WireAcceptedInviteNoticeCallbacks(ctx, modules, lfgDetect)
   if type(lfgDetect.SetAcceptedInviteNoticeEnabledFn) == "function" then
     lfgDetect.SetAcceptedInviteNoticeEnabledFn(noticeEnabled)
   end
-  if type(lfgDetect.SetAcceptedRaidInviteNoticeCallback) == "function" then
-    lfgDetect.SetAcceptedRaidInviteNoticeCallback(function(payload)
-      RenderAcceptedRaidInviteNotice(ctx, modules, payload)
-    end)
-  end
-  if type(lfgDetect.SetAcceptedRaidInviteNoticeEnabledFn) == "function" then
-    lfgDetect.SetAcceptedRaidInviteNoticeEnabledFn(noticeEnabled)
-  end
 end
 
 local function HandleTargetDungeonChatPayload(ctx, modules, statusController, payload)

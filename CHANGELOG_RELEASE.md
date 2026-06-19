@@ -3,9 +3,22 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.327`.
+Current release: `0.9.329`.
 
 Highlights:
+- Queue/LFG target handling now keeps ambiguous single-struct activityID lists
+  unresolved instead of selecting the first concrete candidate.
+- UI layout hardening now covers rich center notices with long wrapped fields,
+  title-bar text budgets, demo simulation tablet growth/clamping, death-alert
+  wrapping, and sound-preview play tooltips.
+- The optional Player Stats Box now keeps wider live stat values, including
+  Stamina rows without a percent value, inside the value column instead of
+  clipping them.
+- Raid LFG accepts no longer show an isiLive center notice, avoiding irrelevant
+  "Unknown dungeon" messages for non-Mythic+ content.
+- If raid mode hides an already-open isiLive window, the window now reopens
+  automatically when the group returns to party size; windows that were already
+  closed stay closed.
 - The README / addon listing overview has been redesigned around the actual
   tool experience: clearer Mythic+ command-center positioning, colorful
   feature signals, stronger "why use it" highlights, and a screenshot section

@@ -293,7 +293,12 @@ local function AnimateMainFrameAlpha(mainFrame, targetAlpha)
   local steps = math.max(1, math.floor(COMBAT_FADE_DURATION / COMBAT_FADE_TICK))
   local delta = (targetAlpha - currentAlpha) / steps
   local stepsDone = 0
-  activeFadeTicker = C_Timer.NewTicker(COMBAT_FADE_TICK, function()
+  local timer = rawget(_G, "C_Timer")
+  if type(timer) ~= "table" or type(timer.NewTicker) ~= "function" then
+    mainFrame:SetAlpha(targetAlpha)
+    return
+  end
+  activeFadeTicker = timer.NewTicker(COMBAT_FADE_TICK, function()
     stepsDone = stepsDone + 1
     local newAlpha = currentAlpha + delta * stepsDone
     if stepsDone >= steps then

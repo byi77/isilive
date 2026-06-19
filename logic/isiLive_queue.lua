@@ -461,7 +461,7 @@ local function ScanApplicationTupleValues(values, resolveTeleportSpellIDByActivi
   end
 end
 
-local function ApplySingleStructFallback(values, state)
+local function ApplySingleStructFallback(values, resolveTeleportSpellIDByActivityID, state)
   if type(values[1]) ~= "table" or #values ~= 1 then
     return
   end
@@ -469,13 +469,8 @@ local function ApplySingleStructFallback(values, state)
   local data = values[1]
   AccumulateStatusFlags(data.applicationStatus or data.appStatus or data.status, state)
 
-  if not state.activityID and type(data.activityIDs) == "table" and not IsSecretValue(data.activityIDs) then
-    for _, id in pairs(data.activityIDs) do
-      if not IsSecretValue(id) and type(id) == "number" and HasConcreteActivityMap(id) then
-        state.activityID = id
-        break
-      end
-    end
+  if not state.activityID then
+    state.activityID = Queue.GetSearchResultActivityID(data, resolveTeleportSpellIDByActivityID)
   end
 
   if not state.groupName and type(data.searchResultInfo) == "table" then
@@ -510,7 +505,7 @@ local function ExtractApplicationSnapshot(values, resolveTeleportSpellIDByActivi
   SeedSnapshotFromSingleStruct(values, resolveTeleportSpellIDByActivityID, state)
   AccumulateStatusFlags(state.appStatus, state)
   ScanApplicationTupleValues(values, resolveTeleportSpellIDByActivityID, state)
-  ApplySingleStructFallback(values, state)
+  ApplySingleStructFallback(values, resolveTeleportSpellIDByActivityID, state)
 
   if state.pendingStatus == 0 or state.pendingStatus == "" then
     state.pendingStatus = nil
@@ -587,7 +582,7 @@ function Queue.CaptureQueueJoinFromApplications(updatePendingQueueJoin, resolveT
         tostring(snap.stableQueueEventID)
       )
 
-      if snap.isInviteLike and not snap.pendingStatus then
+      if snap.isInviteLike and not snap.pendingStatus and snap.activityID then
         local dungeonName = Queue.GetActivityName(snap.activityID)
         local priority = snap.isAccepted and 2 or 1
         local signature = table.concat({
@@ -626,7 +621,7 @@ function Queue.CaptureQueueJoinCandidate(updatePendingQueueJoin, resolveTeleport
     tostring(snap.activityID),
     tostring(snap.stableQueueEventID)
   )
-  if snap.isInviteLike and not snap.pendingStatus then
+  if snap.isInviteLike and not snap.pendingStatus and snap.activityID then
     local dungeonName = Queue.GetActivityName(snap.activityID)
     local priority = snap.isAccepted and 2 or 1
     local signature = table.concat({

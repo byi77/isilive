@@ -41,6 +41,7 @@ local function BuildDeps(opts)
     captureQueueJoinCandidate = opts.captureQueueJoinCandidate or emptyfn,
     announceQueuedGroupJoin = opts.announceQueuedGroupJoin or emptyfn,
     setMainFrameVisible = opts.setMainFrameVisible or emptyfn,
+    isMainFrameVisible = opts.isMainFrameVisible or falsefn,
     updateLeaderButtons = opts.updateLeaderButtons or emptyfn,
     clearLatestQueueTarget = opts.clearLatestQueueTarget or emptyfn,
     clearRioBaselineSnapshot = opts.clearRioBaselineSnapshot or emptyfn,
@@ -104,6 +105,7 @@ local function BuildDeps(opts)
     autoCloseMainFrame = opts.autoCloseMainFrame or emptyfn,
     logRuntimeTrace = type(opts.logRuntimeTrace) == "function" and opts.logRuntimeTrace or emptyfn,
     logRuntimeTracef = type(opts.logRuntimeTracef) == "function" and opts.logRuntimeTracef or emptyfn,
+    restoreMainFrameAfterRaid = false,
   }
 end
 
@@ -333,7 +335,19 @@ end
 local SetIfNotNil
 local UpdatePlayerEntry
 
-local function HandleNoGroup(deps, wasInGroupBefore)
+local function RestoreMainFrameAfterRaidIfNeeded(deps, reason)
+  if deps.restoreMainFrameAfterRaid ~= true then
+    deps.restoreMainFrameAfterRaid = false
+    return
+  end
+  deps.restoreMainFrameAfterRaid = false
+  deps.setMainFrameVisible(true, {
+    reason = reason or "raid-return",
+    skipShowCallbacks = true,
+  })
+end
+
+local function HandleNoGroup(deps, wasInGroupBefore, wasRaidGroupBefore)
   local leftGroupNow = wasInGroupBefore and not deps.isInGroup()
   deps.logRuntimeTracef(
     "[GROUP] handle_no_group wasInGroupBefore=%s leftGroupNow=%s",
@@ -342,6 +356,11 @@ local function HandleNoGroup(deps, wasInGroupBefore)
   )
   deps.setWasGroupLeader(nil)
   deps.setWasRaidGroup(false)
+  if wasRaidGroupBefore then
+    RestoreMainFrameAfterRaidIfNeeded(deps, "raid-return")
+  else
+    deps.restoreMainFrameAfterRaid = false
+  end
   deps.clearRioBaselineSnapshot()
   if leftGroupNow then
     deps.clearReloadRosterMirror()
@@ -611,6 +630,7 @@ local function HandleGroupRosterUpdate(deps)
   local wasInGroupBefore = deps.getWasInGroup() == true
   local inGroupNow = deps.isInGroup() == true
   local joinedNow = inGroupNow and not wasInGroupBefore
+  local wasRaidGroupBefore = deps.getWasRaidGroup() and true or false
   deps.logRuntimeTracef(
     "[GROUP] roster_update wasInGroup=%s inGroupNow=%s joinedNow=%s",
     tostring(wasInGroupBefore),
@@ -639,14 +659,14 @@ local function HandleGroupRosterUpdate(deps)
   end
 
   if not inGroupNow then
-    HandleNoGroup(deps, wasInGroupBefore)
+    HandleNoGroup(deps, wasInGroupBefore, wasRaidGroupBefore)
     return
   end
 
   local numMembers = deps.getNumGroupMembers()
-  local wasRaidGroupBefore = deps.getWasRaidGroup() and true or false
   if numMembers > 5 then
     if not wasRaidGroupBefore then
+      deps.restoreMainFrameAfterRaid = deps.isMainFrameVisible() == true
       deps.clearPendingQueueJoinInfo()
       deps.clearLatestQueueTarget()
       deps.clearRioBaselineSnapshot()
@@ -666,6 +686,9 @@ local function HandleGroupRosterUpdate(deps)
   deps.setWasRaidGroup(false)
   if wasRaidGroupBefore then
     deps.clearKnownUsers()
+    RestoreMainFrameAfterRaidIfNeeded(deps, "raid-return")
+  else
+    deps.restoreMainFrameAfterRaid = false
   end
   local restoredFromReloadMirror = false
   if joinedNow then

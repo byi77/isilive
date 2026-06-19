@@ -127,6 +127,13 @@ local function BuildSim()
       visibility[#visibility + 1] = { visible = visible == true, reason = ctx and ctx.reason or nil }
       record("setMainFrameVisible", { visible = visible, reason = ctx and ctx.reason })
     end,
+    isMainFrameVisible = function()
+      local latest = visibility[#visibility]
+      if latest then
+        return latest.visible == true
+      end
+      return false
+    end,
     updateLeaderButtons = function()
       record("updateLeaderButtons")
     end,
@@ -380,6 +387,11 @@ local function Run()
   Check(
     CountEvents(sim.events, "sendOwnKeySnapshot", phase2End + 1) == 1,
     "raid -> party recovery re-sends the keystone snapshot"
+  )
+  local raidReturnVisibility = sim.visibility[#sim.visibility]
+  Check(
+    raidReturnVisibility and raidReturnVisibility.visible == true and raidReturnVisibility.reason == "raid-return",
+    "raid -> party recovery restores the frame when it was visible before raid"
   )
   -- joinedNow is false here (already in group), so we should NOT reset the
   -- roster a second time and should NOT call captureQueueJoinCandidate again.

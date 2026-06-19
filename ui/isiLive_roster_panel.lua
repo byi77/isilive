@@ -512,6 +512,46 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   end
   ApplyFontStringSize(titleHint, 14)
 
+  local function ApplyTitleBudget()
+    local frameWidth = type(mainFrame.GetWidth) == "function" and tonumber(mainFrame:GetWidth()) or FULL_FRAME_WIDTH
+    local budget = math.max(160, (frameWidth or FULL_FRAME_WIDTH) - 96)
+    local measureWidth = type(UICommon.MeasureFontStringWidthSafe) == "function" and UICommon.MeasureFontStringWidthSafe
+      or nil
+    local titleWidth = measureWidth and measureWidth(title) or 0
+    local versionWidth = measureWidth and measureWidth(titleVersion) or 0
+    local hintWidth = measureWidth and measureWidth(titleHint) or 0
+    local gapWidth = 11
+    local totalWidth = titleWidth + versionWidth + hintWidth + gapWidth
+
+    if totalWidth <= budget then
+      if type(title.SetWidth) == "function" then
+        title:SetWidth(math.max(72, titleWidth > 0 and titleWidth or 160))
+      end
+      if type(titleVersion.SetWidth) == "function" then
+        titleVersion:SetWidth(math.max(44, versionWidth > 0 and versionWidth or 72))
+      end
+      if type(titleVersion.Show) == "function" then
+        titleVersion:Show()
+      end
+      if type(titleHint.Show) == "function" then
+        titleHint:Show()
+      end
+      return
+    end
+
+    local versionBudget = math.max(44, math.min(versionWidth > 0 and versionWidth or 72, budget * 0.28))
+    local remainingTitleWidth = math.max(72, budget - versionBudget - gapWidth)
+    if type(title.SetWidth) == "function" then
+      title:SetWidth(remainingTitleWidth)
+    end
+    if type(titleVersion.SetWidth) == "function" then
+      titleVersion:SetWidth(versionBudget)
+    end
+    if type(titleHint.Hide) == "function" then
+      titleHint:Hide()
+    end
+  end
+
   local headers = CreatePanelHeaders(mainFrame)
   local m2ColumnGuides = CreateM2ColumnGuides(mainFrame)
   local panelTooltip = CreateRosterHoverTooltip(mainFrame)
@@ -548,6 +588,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     panelTooltip = panelTooltip,
     rosterTooltip = rosterTooltip,
     title = title,
+    ApplyTitleBudget = ApplyTitleBudget,
     cdTrackerRow = cdTrackerRow,
     killTrackRow = killTrackRow,
     statusLine = statusLine,
@@ -671,6 +712,24 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   return ui
 end
 
+local function ResolveLanguageTooltipMarkupProvider(opts, getLanguageFlagMarkup)
+  if type(opts.getLanguageTooltipMarkup) == "function" then
+    return opts.getLanguageTooltipMarkup
+  end
+
+  local localeModule = addonTable and addonTable.Locale
+  if type(localeModule) == "table" and type(localeModule.GetLanguageTooltipMarkup) == "function" then
+    local locale = rawget(_G, "GetLocale") and GetLocale() or nil
+    return function(languageTag)
+      return localeModule.GetLanguageTooltipMarkup(languageTag, locale)
+    end
+  end
+
+  return function(languageTag)
+    return getLanguageFlagMarkup(languageTag)
+  end
+end
+
 function RosterPanel.CreateController(opts)
   Trace("creating controller")
   opts = opts or {}
@@ -689,21 +748,7 @@ function RosterPanel.CreateController(opts)
   local truncateName = RequireFunction(opts.truncateName, "truncateName")
   local getShortSpecLabel = RequireFunction(opts.getShortSpecLabel, "getShortSpecLabel")
   local getLanguageFlagMarkup = RequireFunction(opts.getLanguageFlagMarkup, "getLanguageFlagMarkup")
-  local getLanguageTooltipMarkup = type(opts.getLanguageTooltipMarkup) == "function" and opts.getLanguageTooltipMarkup
-    or nil
-  if not getLanguageTooltipMarkup then
-    local localeModule = addonTable and addonTable.Locale
-    if type(localeModule) == "table" and type(localeModule.GetLanguageTooltipMarkup) == "function" then
-      local locale = rawget(_G, "GetLocale") and GetLocale() or nil
-      getLanguageTooltipMarkup = function(languageTag)
-        return localeModule.GetLanguageTooltipMarkup(languageTag, locale)
-      end
-    else
-      getLanguageTooltipMarkup = function(languageTag)
-        return getLanguageFlagMarkup(languageTag)
-      end
-    end
-  end
+  local getLanguageTooltipMarkup = ResolveLanguageTooltipMarkupProvider(opts, getLanguageFlagMarkup)
   local getDungeonShortCode = RequireFunction(opts.getDungeonShortCode, "getDungeonShortCode")
   local getDungeonName = type(opts.getDungeonName) == "function" and opts.getDungeonName or nil
   local getOwnedKeystoneSnapshot = type(opts.getOwnedKeystoneSnapshot) == "function" and opts.getOwnedKeystoneSnapshot
@@ -837,6 +882,9 @@ function RosterPanel.CreateController(opts)
     if ui.titleHint then
       ui.titleHint:SetText(tostring(L.TITLE_HINT or ""))
       ApplyLocaleFont(ui.titleHint)
+    end
+    if type(ui.ApplyTitleBudget) == "function" then
+      ui.ApplyTitleBudget()
     end
     SetPanelHeaderText(ui.specHeader, L.COL_SPEC)
     SetPanelHeaderText(ui.nameHeader, L.COL_NAME)

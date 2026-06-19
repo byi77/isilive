@@ -636,8 +636,9 @@ local function MaybeShowNonMythicDungeonEntryNotice(state, deps)
       state.nonMythicNoticeShown = true
     end
 
-    if C_Timer and C_Timer.After then
-      C_Timer.After(3, function()
+    local timer = rawget(_G, "C_Timer")
+    if type(timer) == "table" and type(timer.After) == "function" then
+      timer.After(3, function()
         pcall(ConfirmAndShowNotice)
       end)
     else

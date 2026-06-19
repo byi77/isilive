@@ -73,7 +73,9 @@ local function CreateFontStringStub()
   end
   function fs:SetWordWrap() end
   function fs:SetNonSpaceWrap() end
-  function fs:SetWidth() end
+  function fs:SetWidth(width)
+    self._width = tonumber(width) or width
+  end
   function fs:Hide()
     self._shown = false
   end
@@ -92,7 +94,14 @@ local function CreateFontStringStub()
     return self._fontPath or "Fonts\\FRIZQT__.TTF", self._fontSize or 12, self._fontFlags or ""
   end
   function fs:GetStringHeight()
-    return 14
+    local width = tonumber(self._width) or 0
+    if width <= 0 then
+      return 14
+    end
+    local charsPerLine = math.max(8, math.floor(width / 7))
+    local textLength = #(self._text or "")
+    local lines = math.max(1, math.ceil(textLength / charsPerLine))
+    return lines * 14
   end
   return fs
 end
@@ -827,6 +836,61 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       })
       Assert.False(centerNotice.titleText._shown, "no title -> titleText stays hidden")
       Assert.True(centerNotice.fieldRows[1].label._shown, "field row visible without title")
+    end)
+  end)
+
+  test("Center notice rich layout expands height for long wrapped fields", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local centerNotice = CreateCenterNoticeForRichTest()
+      local longValue = string.rep("VeryLongVerifiedDungeonGroupName ", 12)
+      centerNotice.Show(nil, 12, nil, nil, {
+        title = "isiLive - Dungeon entered",
+        fields = {
+          { label = "Dungeon:", value = longValue },
+          { label = "Group:", value = longValue },
+          { label = "Leader:", value = longValue },
+        },
+        frameWidth = 540,
+      })
+
+      Assert.True(
+        centerNotice.frame:GetHeight() > 220,
+        "rich center notice must grow beyond the default max height when wrapped verified values need it"
+      )
+    end)
+  end)
+
+  test("Center notice rich layout ignores too-small explicit maxHeight for required content", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local centerNotice = CreateCenterNoticeForRichTest()
+      local longValue = string.rep("VeryLongVerifiedDungeonGroupName ", 12)
+      centerNotice.Show(nil, 12, nil, nil, {
+        title = "isiLive - Dungeon entered",
+        fields = {
+          { label = "Dungeon:", value = longValue },
+          { label = "Group:", value = longValue },
+          { label = "Leader:", value = longValue },
+        },
+        frameWidth = 540,
+        maxHeight = 240,
+      })
+
+      Assert.True(
+        centerNotice.frame:GetHeight() > 240,
+        "explicit rich maxHeight must not clip verified wrapped field content"
+      )
     end)
   end)
 end

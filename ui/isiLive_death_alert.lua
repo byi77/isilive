@@ -11,6 +11,7 @@ addonTable.DeathAlert = DeathAlert
 local FONT_PATH = "Fonts\\FRIZQT__.TTF"
 local FONT_SIZE = 56
 local FONT_FLAGS = "THICKOUTLINE"
+local TEXT_WIDTH = 720
 local TEXT_COLOR = { r = 1, g = 0.1, b = 0.1 }
 local PUNCH_START_SCALE = 2.6
 local PUNCH_DURATION = 0.35
@@ -51,7 +52,7 @@ end
 local function BuildAlertFrame(createFrame)
   local parent = rawget(_G, "UIParent")
   local frame = createFrame("Frame", nil, parent)
-  frame:SetSize(64, 64)
+  frame:SetSize(TEXT_WIDTH, 96)
   frame:SetPoint("CENTER", parent, "CENTER", 0, 220)
   if type(frame.SetFrameStrata) == "function" then
     frame:SetFrameStrata("HIGH")
@@ -66,6 +67,18 @@ local function BuildAlertFrame(createFrame)
     text:SetTextColor(TEXT_COLOR.r, TEXT_COLOR.g, TEXT_COLOR.b, 1)
   end
   text:SetPoint("CENTER", frame, "CENTER", 0, 0)
+  if type(text.SetWidth) == "function" then
+    text:SetWidth(TEXT_WIDTH)
+  end
+  if type(text.SetJustifyH) == "function" then
+    text:SetJustifyH("CENTER")
+  end
+  if type(text.SetWordWrap) == "function" then
+    text:SetWordWrap(true)
+  end
+  if type(text.SetNonSpaceWrap) == "function" then
+    text:SetNonSpaceWrap(true)
+  end
   frame.text = text
 
   if type(frame.CreateAnimationGroup) == "function" then

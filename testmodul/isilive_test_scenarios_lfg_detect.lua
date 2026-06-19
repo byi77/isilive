@@ -2630,12 +2630,12 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
     end)
   end)
 
-  -- 0.9.237: raid invites get their OWN notice via a separate callback so the
-  -- M+ pipeline (detectedMapID / activeInviteLeader / activeInviteTitleLevel /
-  -- TriggerHighlightUpdate / chat announce) stays untouched. The Raid resolver
-  -- accepts only listings where categoryID == 3 AND isMythicPlusActivity ~= true.
+  -- Raid invites stay silent. The separate Raid resolver only consumes the
+  -- accepted listing so the M+ pipeline (detectedMapID / activeInviteLeader /
+  -- activeInviteTitleLevel / TriggerHighlightUpdate / chat announce) stays
+  -- untouched. Legacy Raid-notice callbacks remain no-op compatibility hooks.
 
-  test("AcceptedRaidInviteNotice fires for a Raid LFG listing with categoryID=3", function()
+  test("AcceptedRaidInviteNotice stays silent for a Raid LFG listing with categoryID=3", function()
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = {
@@ -2689,14 +2689,7 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 801, "inviteaccepted")
 
       Assert.Equal(#mplusPayloads, 0, "Raid invite must not trigger the M+ accepted-invite callback")
-      Assert.Equal(#raidPayloads, 1, "Raid invite must trigger the Raid accepted-invite callback exactly once")
-      Assert.Equal(raidPayloads[1].mapID, 2657, "Raid payload must carry the resolved mapID")
-      Assert.Equal(raidPayloads[1].leaderName, "RaidLead", "Raid payload must carry the leader name")
-      Assert.Equal(raidPayloads[1].groupName, "AOTC Manaforge", "Raid payload must carry the LFG group title")
-      Assert.Equal(raidPayloads[1].comment, "exp only", "Raid payload must carry the LFG comment")
-      Assert.Equal(raidPayloads[1].searchResultID, 801, "Raid payload must carry the originating searchResultID")
-      Assert.Nil(raidPayloads[1].level, "Raid payload must NOT carry a keystone level")
-      Assert.Nil(raidPayloads[1].activityID, "Raid payload must NOT carry an activityID")
+      Assert.Equal(#raidPayloads, 0, "Raid invite must not trigger the removed Raid accepted-invite callback")
 
       -- The whole point of the separate pipeline: the M+ state must stay clean.
       Assert.Nil(addon.LFGDetect.GetDetectedMapID(), "Raid accept must NOT set detectedMapID")
@@ -2757,7 +2750,7 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
     end)
   end)
 
-  test("AcceptedRaidInviteNotice is suppressed when the enabled gate returns false", function()
+  test("AcceptedRaidInviteNotice remains silent even when the legacy enabled gate returns true", function()
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = {
@@ -2788,13 +2781,13 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
         raidPayloads[#raidPayloads + 1] = payload
       end)
       addon.LFGDetect.SetAcceptedRaidInviteNoticeEnabledFn(function()
-        return false
+        return true
       end)
 
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 803, "invited")
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 803, "inviteaccepted")
 
-      Assert.Equal(#raidPayloads, 0, "Raid notice must respect its enabled gate")
+      Assert.Equal(#raidPayloads, 0, "removed Raid notice must stay silent even when legacy gate returns true")
     end)
   end)
 

@@ -222,10 +222,11 @@ local function StartRefreshTicker()
   if refreshTicker ~= nil then
     return
   end
-  if not C_Timer or type(C_Timer.NewTicker) ~= "function" then
+  local timer = rawget(_G, "C_Timer")
+  if type(timer) ~= "table" or type(timer.NewTicker) ~= "function" then
     return
   end
-  refreshTicker = C_Timer.NewTicker(0.5, function()
+  refreshTicker = timer.NewTicker(0.5, function()
     if not state.active then
       return
     end
@@ -319,8 +320,9 @@ function KillTrack._DispatchEvent(event)
     pull.inCombat = false
     pull.displayUntil = Now() + POST_COMBAT_GRACE_SECONDS
     NotifyUpdate()
-    if C_Timer and type(C_Timer.After) == "function" then
-      C_Timer.After(POST_COMBAT_GRACE_SECONDS + 0.1, function()
+    local timer = rawget(_G, "C_Timer")
+    if type(timer) == "table" and type(timer.After) == "function" then
+      timer.After(POST_COMBAT_GRACE_SECONDS + 0.1, function()
         if not pull.inCombat then
           pull.pullPercent = 0
           pull.displayUntil = 0

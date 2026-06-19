@@ -1806,35 +1806,71 @@ local function HookApplicationViewer()
     end)
   end
 
-  pcall(hooksecurefunc, "LFGListApplicationViewer_UpdateResults", function(self)
-    HookApplicantButtonsFromViewer(self)
-    HookNamedApplicantButtons()
-  end)
-  pcall(hooksecurefunc, "LFGListApplicationViewer_UpdateApplicant", function(button, applicantID)
-    HookApplicantButton(button, applicantID)
-  end)
-  pcall(hooksecurefunc, "LFGListApplicationViewer_UpdateApplicantMember", function(member, applicantID, memberIndex)
-    ApplyApplicantBonusToMemberFrame(member, applicantID, memberIndex)
-  end)
-  pcall(hooksecurefunc, "LFGListApplicantMember_OnEnter", function(member)
-    HideApplicantProvingGroundTooltipLines()
-    local parent = type(member) == "table" and type(member.GetParent) == "function" and member:GetParent() or nil
-    local applicantID = parent and rawget(parent, "applicantID") or nil
-    local memberIndex = type(member) == "table" and rawget(member, "memberIdx") or nil
-    local suffix = BuildSingleApplicantMemberSuffix(applicantID, memberIndex)
-    local tooltip = rawget(_G, "GameTooltip")
-    if
-      suffix
-      and type(tooltip) == "table"
-      and type(tooltip.AddLine) == "function"
-      and type(tooltip.Show) == "function"
-    then
-      tooltip:AddLine(" ")
-      local tooltipText = ResolveLocalizedText("LFG_BONUS_TOOLTIP_FMT") or "Group bonus: %s"
-      tooltip:AddLine(string.format(tooltipText, suffix), 0.20, 1.00, 0.20)
-      tooltip:Show()
-    end
-  end)
+  local hooksecurefuncRef = rawget(_G, "hooksecurefunc")
+  if type(hooksecurefuncRef) == "function" then
+    pcall(hooksecurefuncRef, "LFGListApplicationViewer_UpdateResults", function(self)
+      HookApplicantButtonsFromViewer(self)
+      HookNamedApplicantButtons()
+    end)
+    pcall(hooksecurefuncRef, "LFGListApplicationViewer_UpdateApplicant", function(button, applicantID)
+      HookApplicantButton(button, applicantID)
+    end)
+    pcall(
+      hooksecurefuncRef,
+      "LFGListApplicationViewer_UpdateApplicantMember",
+      function(member, applicantID, memberIndex)
+        ApplyApplicantBonusToMemberFrame(member, applicantID, memberIndex)
+      end
+    )
+    pcall(hooksecurefuncRef, "LFGListApplicantMember_OnEnter", function(member)
+      HideApplicantProvingGroundTooltipLines()
+      local parent = type(member) == "table" and type(member.GetParent) == "function" and member:GetParent() or nil
+      local applicantID = parent and rawget(parent, "applicantID") or nil
+      local memberIndex = type(member) == "table" and rawget(member, "memberIdx") or nil
+      local suffix = BuildSingleApplicantMemberSuffix(applicantID, memberIndex)
+      local tooltip = rawget(_G, "GameTooltip")
+      if
+        suffix
+        and type(tooltip) == "table"
+        and type(tooltip.AddLine) == "function"
+        and type(tooltip.Show) == "function"
+      then
+        tooltip:AddLine(" ")
+        local tooltipText = ResolveLocalizedText("LFG_BONUS_TOOLTIP_FMT") or "Group bonus: %s"
+        tooltip:AddLine(string.format(tooltipText, suffix), 0.20, 1.00, 0.20)
+        tooltip:Show()
+      end
+    end)
+  end
+end
+
+local function CreateEventFrame()
+  local createFrame = rawget(_G, "CreateFrame")
+  if type(createFrame) ~= "function" then
+    return nil
+  end
+
+  return createFrame("Frame")
+end
+
+local function ScheduleAfter(delay, callback)
+  local timer = rawget(_G, "C_Timer")
+  if type(timer) ~= "table" or type(timer.After) ~= "function" then
+    return false
+  end
+
+  timer.After(delay, callback)
+  return true
+end
+
+local function HookGlobalFunction(name, callback)
+  local hooksecurefuncRef = rawget(_G, "hooksecurefunc")
+  if type(hooksecurefuncRef) ~= "function" then
+    return false
+  end
+
+  local ok = pcall(hooksecurefuncRef, name, callback)
+  return ok == true
 end
 
 -- -------------------------------------------------------------------------
@@ -2231,27 +2267,29 @@ function LFGFlags.HookSearchPanel()
     end
   else
     -- ScrollBoxUtil not available: hook on search results event instead.
-    local eventFrame = CreateFrame("Frame")
-    eventFrame:RegisterEvent("LFG_LIST_SEARCH_RESULTS_RECEIVED")
-    eventFrame:SetScript("OnEvent", function()
-      C_Timer.After(0.1, function()
-        if type(searchBox.GetFrames) == "function" then
-          HookButtons(searchBox:GetFrames() or {})
-        end
-        -- resultID is set by Blizzard after the initial populate; refresh again.
-        C_Timer.After(0.3, RefreshAll)
+    local eventFrame = CreateEventFrame()
+    if eventFrame then
+      eventFrame:RegisterEvent("LFG_LIST_SEARCH_RESULTS_RECEIVED")
+      eventFrame:SetScript("OnEvent", function()
+        ScheduleAfter(0.1, function()
+          if type(searchBox.GetFrames) == "function" then
+            HookButtons(searchBox:GetFrames() or {})
+          end
+          -- resultID is set by Blizzard after the initial populate; refresh again.
+          ScheduleAfter(0.3, RefreshAll)
+        end)
       end)
-    end)
+    end
   end
 
   -- Clear result cache on new search so stale language data is not shown.
-  pcall(hooksecurefunc, "LFGListSearchPanel_DoSearch", function()
+  HookGlobalFunction("LFGListSearchPanel_DoSearch", function()
     resultTagCache = {}
     ClearSearchResultBonusCache()
   end)
 
   -- Extra trigger: update the specific button when Blizzard activates it.
-  pcall(hooksecurefunc, "LFGListUtil_SetSearchEntryTooltip", function(_, resultID)
+  HookGlobalFunction("LFGListUtil_SetSearchEntryTooltip", function(_, resultID)
     if not resultID then
       return
     end
@@ -2346,14 +2384,16 @@ function LFGFlags.Register(deps)
   if LFGListFrameRef and LFGListFrameRef.SearchPanel then
     LFGFlags.HookSearchPanel()
   else
-    local eventFrame = CreateFrame("Frame")
-    eventFrame:RegisterEvent("ADDON_LOADED")
-    eventFrame:SetScript("OnEvent", function(self, _, name)
-      if name ~= "Blizzard_LFGList" then
-        return
-      end
-      self:UnregisterEvent("ADDON_LOADED")
-      LFGFlags.HookSearchPanel()
-    end)
+    local eventFrame = CreateEventFrame()
+    if eventFrame then
+      eventFrame:RegisterEvent("ADDON_LOADED")
+      eventFrame:SetScript("OnEvent", function(self, _, name)
+        if name ~= "Blizzard_LFGList" then
+          return
+        end
+        self:UnregisterEvent("ADDON_LOADED")
+        LFGFlags.HookSearchPanel()
+      end)
+    end
   end
 end

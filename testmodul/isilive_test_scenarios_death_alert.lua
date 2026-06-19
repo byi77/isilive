@@ -411,6 +411,18 @@ local function BuildFrameStub(track)
     local region = {}
     region.SetPoint = function() end
     region.SetSize = function() end
+    region.SetWidth = function(_, width)
+      track.textWidth = width
+    end
+    region.SetJustifyH = function(_, justify)
+      track.justifyH = justify
+    end
+    region.SetWordWrap = function(_, value)
+      track.wordWrap = value
+    end
+    region.SetNonSpaceWrap = function(_, value)
+      track.nonSpaceWrap = value
+    end
     region.SetFont = function(_, path, size, flags)
       track.font = { path = path, size = size, flags = flags }
     end
@@ -497,6 +509,10 @@ local function RegisterDeathAlertUiTests(test, ctx)
     Assert.Equal(track.text, "Tank died", "tank alert must show the configured text")
     Assert.Equal(track.color.r, 1, "alert text must be red")
     Assert.True(track.color.g < 0.3 and track.color.b < 0.3, "alert text must be red, not white")
+    Assert.Equal(track.textWidth, 720, "alert text must reserve a bounded width")
+    Assert.Equal(track.justifyH, "CENTER", "alert text must stay centered inside its bounded width")
+    Assert.True(track.wordWrap == true, "alert text must wrap instead of drawing offscreen")
+    Assert.True(track.nonSpaceWrap == true, "alert text must wrap long localized terms")
     Assert.Equal(track.plays, 1, "animation must play on show")
 
     Assert.Equal(controller.ShowRoleDeath("HEALER"), true, "healer alert must render")

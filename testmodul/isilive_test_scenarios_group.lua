@@ -82,6 +82,9 @@ local function BuildGroupControllerOptions(state, overrides)
         reasonOrOpts = reasonOrOpts,
       })
     end,
+    isMainFrameVisible = overrides.isMainFrameVisible or function()
+      return state.mainFrameVisible == true
+    end,
     updateLeaderButtons = function() end,
     clearLatestQueueTarget = function() end,
     clearPendingQueueJoinInfo = function() end,
@@ -1094,6 +1097,73 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
     Assert.False(state.mainFrameVisibleCalls[1].visible, "raid transition should hide instead of opening")
     Assert.Equal(state.uiUpdates, 0, "raid transition must not rerender the roster")
     Assert.Equal(#state.prints, 0, "raid transition must not print a raid notice")
+  end)
+
+  test("Raid return reopens the UI only when it was visible before raid suppression", function()
+    local members = 6
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      mainFrameVisible = true,
+      getNumGroupMembers = function()
+        return members
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+    members = 5
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(#state.mainFrameVisibleCalls, 2, "raid enter and return should issue one hide and one restore")
+    Assert.False(state.mainFrameVisibleCalls[1].visible, "raid enter must hide the visible frame")
+    Assert.True(state.mainFrameVisibleCalls[2].visible, "raid return must restore the previously visible frame")
+    Assert.Equal(
+      state.mainFrameVisibleCalls[2].reasonOrOpts and state.mainFrameVisibleCalls[2].reasonOrOpts.reason,
+      "raid-return",
+      "raid return restore must carry explicit reason metadata"
+    )
+  end)
+
+  test("Raid return keeps the UI closed when it was closed before raid suppression", function()
+    local members = 6
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      mainFrameVisible = false,
+      getNumGroupMembers = function()
+        return members
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+    members = 5
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(#state.mainFrameVisibleCalls, 1, "closed-before-raid state must not create a restore show request")
+    Assert.False(state.mainFrameVisibleCalls[1].visible, "raid enter still issues the suppressing hide request")
+    Assert.False(state.mainFrameVisible, "UI must remain closed after returning from raid")
+  end)
+
+  test("Raid disband restores the UI when it was visible before raid suppression", function()
+    local inGroup = true
+    local members = 6
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      mainFrameVisible = true,
+      isInGroup = function()
+        return inGroup
+      end,
+      getNumGroupMembers = function()
+        return members
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+    inGroup = false
+    members = 0
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(#state.mainFrameVisibleCalls, 2, "raid disband should issue one hide and one restore")
+    Assert.False(state.mainFrameVisibleCalls[1].visible, "raid enter must hide the visible frame")
+    Assert.True(state.mainFrameVisibleCalls[2].visible, "raid disband must restore the previously visible frame")
   end)
 
   test("First group join fires queue capture and announce", function()

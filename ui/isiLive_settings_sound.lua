@@ -204,6 +204,13 @@ local function SetLocalizedText(region, key, fallback, labels)
   end
 end
 
+local function SetPreviewTooltip(button, labels)
+  if type(button) ~= "table" then
+    return
+  end
+  button._previewTooltipText = labels.SETTINGS_SOUND_PREVIEW or "Play preview"
+end
+
 local function CreateSoundPreviewButton(parent, checkbox, soundKey)
   local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
   button:SetSize(PREVIEW_BUTTON_WIDTH, PREVIEW_BUTTON_HEIGHT)
@@ -225,8 +232,30 @@ local function CreateSoundPreviewButton(parent, checkbox, soundKey)
 
   local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   label:SetPoint("CENTER", 0, 0)
-  label:SetText(">")
+  label:SetText("\226\150\182")
   button.label = label
+
+  button:SetScript("OnEnter", function(self)
+    local tooltip = rawget(_G, "GameTooltip")
+    if type(tooltip) ~= "table" or type(tooltip.SetOwner) ~= "function" then
+      return
+    end
+    tooltip:SetOwner(self, "ANCHOR_RIGHT")
+    if type(tooltip.SetText) == "function" then
+      tooltip:SetText(self._previewTooltipText or "Play preview", 1, 1, 1)
+    elseif type(tooltip.AddLine) == "function" then
+      tooltip:AddLine(self._previewTooltipText or "Play preview", 1, 1, 1)
+    end
+    if type(tooltip.Show) == "function" then
+      tooltip:Show()
+    end
+  end)
+  button:SetScript("OnLeave", function()
+    local tooltip = rawget(_G, "GameTooltip")
+    if type(tooltip) == "table" and type(tooltip.Hide) == "function" then
+      tooltip:Hide()
+    end
+  end)
 
   if checkbox.label and type(checkbox.label.ClearAllPoints) == "function" then
     checkbox.label:ClearAllPoints()
@@ -374,6 +403,7 @@ function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, contro
     end
     controls.soundChecks[entry.key] = checkbox
     controls.soundPreviewButtons[entry.key] = CreateSoundPreviewButton(canvas, checkbox, entry.key)
+    SetPreviewTooltip(controls.soundPreviewButtons[entry.key], labels)
     yOffset = nextY
     if entry.key == "bloodlust_ready" then
       yOffset = CreateBloodlustReadyReminderCheckbox(canvas, yOffset, labels, config, controls)
@@ -478,7 +508,8 @@ function SettingsSound.RefreshSoundControls(controls, labels, db)
       end
       local previewButton = controls.soundPreviewButtons and controls.soundPreviewButtons[entry.key] or nil
       if previewButton and previewButton.label then
-        previewButton.label:SetText(">")
+        previewButton.label:SetText("\226\150\182")
+        SetPreviewTooltip(previewButton, labels)
       end
     end
   end

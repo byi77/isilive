@@ -278,6 +278,37 @@ local function RegisterQueueCaptureCoreTests(test, Assert, WithGlobals, LoadAddo
     Assert.Equal(applied, 1, "candidate path should still capture from event payload")
     Assert.Equal(applicationsLookedUp, 0, "candidate path must not enumerate application list")
   end)
+
+  test("Queue single-struct fallback stays unresolved for ambiguous activityIDs", function()
+    local applied = 0
+
+    WithGlobals({
+      C_LFGList = {
+        GetActivityInfoTable = function(activityID)
+          if activityID == 401 then
+            return { fullName = "Dungeon A", mapID = 2441, isMythicPlusActivity = true, categoryID = 2 }
+          end
+          if activityID == 402 then
+            return { fullName = "Dungeon B", mapID = 2442, isMythicPlusActivity = true, categoryID = 2 }
+          end
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_queue.lua" })
+      addon.Queue.CaptureQueueJoinCandidate(function()
+        applied = applied + 1
+      end, function(_activityID)
+        return nil
+      end, {
+        applicationStatus = "accepted",
+        groupName = "Ambiguous Group",
+        activityIDs = { 401, 402 },
+      })
+    end)
+
+    Assert.Equal(applied, 0, "ambiguous single-struct activityIDs must stay unresolved instead of guessing")
+  end)
 end
 
 local function RegisterQueueCaptureStableIDTests(test, Assert, WithGlobals, LoadAddonModules)

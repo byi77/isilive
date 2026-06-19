@@ -484,6 +484,110 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     end
   end)
 
+  test("Architecture optional WoW globals use guarded rawget caches", function()
+    local lfgFlagsContent = ReadFile("isiLive_lfg_flags.lua")
+    local noticeContent = ReadFile("isiLive_notice.lua")
+    local checkedRawgetFiles = {
+      "isiLive_controller_wiring.lua",
+      "isiLive_event_handlers_runtime.lua",
+      "isiLive_factory_demo.lua",
+      "isiLive_factory_primary.lua",
+      "isiLive_factory_refresh.lua",
+      "isiLive_factory_status.lua",
+      "isiLive_killtrack.lua",
+      "isiLive_status.lua",
+      "isiLive_teleport.lua",
+    }
+
+    local function StripLuaComments(content)
+      content = content:gsub("%-%-%[%[.-%]%]", "")
+      content = content:gsub("%-%-[^\r\n]*", "")
+      return content
+    end
+
+    AssertContains(
+      Assert,
+      lfgFlagsContent,
+      'local createFrame = rawget(_G, "CreateFrame")',
+      "LFGFlags fallback event frames must resolve CreateFrame through rawget"
+    )
+    AssertContains(
+      Assert,
+      lfgFlagsContent,
+      'local timer = rawget(_G, "C_Timer")',
+      "LFGFlags delayed fallback refresh must resolve C_Timer through rawget"
+    )
+    AssertContains(
+      Assert,
+      lfgFlagsContent,
+      'local hooksecurefuncRef = rawget(_G, "hooksecurefunc")',
+      "LFGFlags hook wiring must resolve hooksecurefunc through rawget"
+    )
+    AssertNotContains(
+      Assert,
+      lfgFlagsContent,
+      "pcall(hooksecurefunc,",
+      "LFGFlags must not call bare hooksecurefunc in pcall"
+    )
+    AssertNotContains(Assert, lfgFlagsContent, "C_Timer.After", "LFGFlags must not call bare C_Timer.After")
+    AssertContains(
+      Assert,
+      noticeContent,
+      'local spellApi = rawget(_G, "C_Spell")',
+      "Notice teleport-button icon lookup must resolve C_Spell through rawget"
+    )
+    AssertNotContains(
+      Assert,
+      noticeContent,
+      "if spellID and C_Spell and C_Spell.GetSpellTexture then",
+      "Notice teleport-button icon lookup must not use bare C_Spell short-circuit chains"
+    )
+
+    for _, file in ipairs(checkedRawgetFiles) do
+      local content = StripLuaComments(ReadFile(file))
+      Assert.True(not content:find("C_Timer and", 1, true), file .. " must not use bare C_Timer short-circuit chains")
+      Assert.True(not content:find("C_Timer.", 1, true), file .. " must not call bare C_Timer APIs")
+      Assert.True(
+        not content:find("C_Spell and C_Spell", 1, true),
+        file .. " must not use bare C_Spell short-circuit chains"
+      )
+      Assert.True(not content:find("C_Spell.", 1, true), file .. " must not call bare C_Spell APIs")
+    end
+
+    local teleportContent = ReadFile("isiLive_teleport.lua")
+    AssertContains(
+      Assert,
+      teleportContent,
+      'local createFrame = rawget(_G, "CreateFrame")',
+      "Teleport combat retry frame must resolve fallback-capable CreateFrame through rawget"
+    )
+  end)
+
+  test("Architecture large-module watchlist is documented and gate-pinned", function()
+    local architectureContent = ReadFile("ARCHITECTURE.md")
+
+    AssertContains(
+      Assert,
+      architectureContent,
+      "## Architektur-Refactoring-Watchlist",
+      "architecture docs must keep a visible refactoring watchlist section"
+    )
+    AssertContains(
+      Assert,
+      architectureContent,
+      "`ui/isiLive_lfg_flags.lua`",
+      "large-module watchlist must include LFGFlags"
+    )
+    AssertContains(Assert, architectureContent, "`logic/isiLive_sync.lua`", "large-module watchlist must include Sync")
+    AssertContains(Assert, architectureContent, "`ui/isiLive_notice.lua`", "large-module watchlist must include Notice")
+    AssertContains(
+      Assert,
+      architectureContent,
+      "Splits erfolgen nur entlang klarer Runtime- oder",
+      "large-module watchlist must preserve the split contract"
+    )
+  end)
+
   test("Architecture secure button mutation surface is explicitly audited for combat and key safety", function()
     local audited = {
       ["game/isiLive_teleport.lua"] = {
@@ -1793,6 +1897,35 @@ local function RegisterArchitectureNoticeTypographyTests(test, Assert)
       "local function CreateCenterNoticeText(frame, config)\n"
         .. "  local text = CreatePortalStyleBodyText(frame, config)",
       "Notice module must build center notice body text from the shared body text helper"
+    )
+  end)
+
+  test("Architecture main-frame title bar applies a toolbar-safe text budget", function()
+    local rosterPanelContent = ReadFile("isiLive_roster_panel.lua")
+
+    AssertContains(
+      Assert,
+      rosterPanelContent,
+      "local function ApplyTitleBudget()",
+      "RosterPanel title bar must keep an explicit text-budget helper"
+    )
+    AssertContains(
+      Assert,
+      rosterPanelContent,
+      "(frameWidth or FULL_FRAME_WIDTH) - 96",
+      "RosterPanel title budget must reserve space for the right-side toolbar buttons"
+    )
+    AssertContains(
+      Assert,
+      rosterPanelContent,
+      "titleHint:Hide()",
+      "RosterPanel title budget must drop the hint before it collides with toolbar buttons"
+    )
+    AssertContains(
+      Assert,
+      rosterPanelContent,
+      "ui.ApplyTitleBudget()",
+      "RosterPanel localization refresh must reapply the title budget after locale text changes"
     )
   end)
 end

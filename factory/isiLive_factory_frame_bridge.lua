@@ -601,6 +601,9 @@ local function InitializeFactoryFrameBridge(ctx)
     end
     return frameBridgeContext.SetMainFrameVisible(visible, opts)
   end
+  ctx.IsMainFrameVisible = function()
+    return frameBridgeContext.IsMainFrameVisible and frameBridgeContext.IsMainFrameVisible() == true
+  end
   ctx.SetMainFrameHeightSafe = function(height)
     frameBridgeContext.SetMainFrameHeightSafe(height)
   end

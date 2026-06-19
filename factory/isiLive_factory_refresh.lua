@@ -112,8 +112,9 @@ local function InitializeFactoryRefreshControllers(ctx, modules, runtimeState)
     if resyncTicker then
       resyncTicker:Cancel()
     end
-    if C_Timer and C_Timer.NewTicker then
-      resyncTicker = C_Timer.NewTicker(1.0, UpdateResyncButton, RESYNC_COOLDOWN)
+    local timer = rawget(_G, "C_Timer")
+    if type(timer) == "table" and type(timer.NewTicker) == "function" then
+      resyncTicker = timer.NewTicker(1.0, UpdateResyncButton, RESYNC_COOLDOWN)
     end
     UpdateResyncButton()
   end)

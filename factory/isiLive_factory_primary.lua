@@ -96,8 +96,9 @@ local function InitializeFactoryPrimaryControllers(ctx)
     getCooldownFrameStartForRemaining = ctx.GetCooldownFrameStartForRemaining,
     applyCooldownFrameSafe = ctx.ApplyCooldownFrameSafe,
     getSpellTexture = function(spellID)
-      if spellID and C_Spell and C_Spell.GetSpellTexture then
-        return C_Spell.GetSpellTexture(spellID)
+      local spellApi = rawget(_G, "C_Spell")
+      if spellID and type(spellApi) == "table" and type(spellApi.GetSpellTexture) == "function" then
+        return spellApi.GetSpellTexture(spellID)
       end
       return nil
     end,

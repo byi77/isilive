@@ -474,8 +474,9 @@ local function ApplyDemoFeatureData(ctx)
     })
   else
     ShowDemoAcceptedInviteNotice(ctx, L)
-    if C_Timer and C_Timer.After then
-      C_Timer.After(DEMO_FEATURE_NON_MYTHIC_NOTICE_DELAY_SECONDS, function()
+    local timer = rawget(_G, "C_Timer")
+    if type(timer) == "table" and type(timer.After) == "function" then
+      timer.After(DEMO_FEATURE_NON_MYTHIC_NOTICE_DELAY_SECONDS, function()
         if ctx._demoFeatureActive == true then
           ShowDemoNonMythicDungeonNotice(ctx, ctx.GetL and ctx.GetL() or L)
         end

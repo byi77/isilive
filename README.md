@@ -2,26 +2,46 @@
 
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
-| | |
-|---|---|
-| **Built for** | Mythic+ players, premade groups, and LFG runs |
-| **WoW version** | `12.0.7+` Midnight Retail |
-| **Current version** | `0.9.327` |
-| **Active season** | `midnight_s1` with 8 supported dungeons: `Wing`, `MT`, `NPX`, `MC`, `AA`, `POS`, `SOT`, `SR` |
-| **Setup** | Install, join a 5-player group, and the window opens automatically |
+![WoW 12.0.7+ Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%2B%20Midnight%20Retail-00A2FF?style=for-the-badge)
+![isiLive 0.9.329](https://img.shields.io/badge/isiLive-0.9.329-1E90FF?style=for-the-badge)
+![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
+![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
+
+![isiLive M+ roster, cooldowns, portals, and forces tools](https://raw.githubusercontent.com/byi77/isilive/main/isiLive_MPlus_ui.png)
+
+**Built for:** Mythic+ players, premade groups, and LFG runs
+
+**Active season:** `midnight_s1` with 8 supported dungeons: `Wing`, `MT`, `NPX`, `MC`, `AA`, `POS`, `SOT`, `SR`
+
+**Setup:** install, join a 5-player group, and the window opens automatically.
 
 ---
 
 ## Why isiLive?
 
-| Signal | What you get |
-|---|---|
-| **Green hearts** | Instantly see useful, non-stacking group buffs in LFG search results, applicant rows, and your active roster. |
-| **Blue peer markers** | Know which party members also run isiLive and can sync keys, stats, kicks, targets, and cooldown state. |
-| **Gold portal focus** | The matching season portal highlights from verified LFG or listing context, with cooldowns visible at a glance. |
-| **Red death alerts** | Tank and healer deaths during active keys trigger a large on-screen warning and bundled WAV audio. |
-| **Live forces bar** | Track enemy forces, pull prediction, nameplate percentages, tooltip percentages, and combat-end refresh from the bundled MDT-synced database. |
-| **One clean roster** | Spec, role, language, key, iLvl, Raider.IO, last-run DPS, interrupt state, leader marker, isiLive marker, group-bonus hearts, and ghost rows after leavers. |
+### GREEN HEARTS: better LFG decisions
+
+Instantly see useful, non-stacking group buffs in Blizzard LFG search results, applicant rows, and your active roster.
+
+![isiLive green buff-rating hearts in Blizzard Group Finder](https://raw.githubusercontent.com/byi77/isilive/main/isiLive_LFGBuffRating.png)
+
+### ONE WINDOW: group, keys, cooldowns, forces, portals
+
+Spec, role, language, key, iLvl, Raider.IO, last-run DPS, interrupt state, leader marker, isiLive peer marker, group-bonus hearts, and ghost rows after leavers.
+
+### LIVE FORCES: pull planning while the key is running
+
+Track enemy forces, pull prediction, nameplate percentages, tooltip percentages, and combat-end refresh from the bundled MDT-synced database.
+
+### PORTAL GRID: current season travel in one place
+
+The matching season portal highlights from verified LFG or listing context, with cooldowns visible at a glance.
+
+![isiLive season portal navigator](https://raw.githubusercontent.com/byi77/isilive/main/isiLive_PortalNavigator.png)
+
+### RED ALERTS: deaths and run utility
+
+Tank and healer deaths during active Mythic+ keys trigger a large on-screen warning and bundled WAV audio. Battle Res, Bloodlust, ready sounds, and death counts stay visible where you need them.
 
 ---
 
@@ -29,21 +49,21 @@
 
 ### Group Finder clarity
 
-🟩 **Buff-rating hearts** show when an applicant, search-result group, or roster member adds useful class-bonus coverage for your current character. Utility such as Battle Res and Bloodlust can still appear in tooltips, but it does not inflate the heart score.
+**GREEN HEARTS** show when an applicant, search-result group, or roster member adds useful class-bonus coverage for your current character. Utility such as Battle Res and Bloodlust can still appear in tooltips, but it does not inflate the heart score.
 
-🟦 **Language flags** help you scan LFG and roster rows faster. Dynamic isiLive-owned text uses Cyrillic-capable rendering for Russian names and payloads.
+**LANGUAGE FLAGS** help you scan LFG and roster rows faster. Dynamic isiLive-owned text uses Cyrillic-capable rendering for Russian names and payloads.
 
-🟨 **Verified target hints** keep portal highlighting and pre-key dungeon labels tied to observed Blizzard LFG context instead of guessed names.
+**VERIFIED TARGET HINTS** keep portal highlighting and pre-key dungeon labels tied to observed Blizzard LFG context instead of guessed names.
 
 ### One-window Mythic+ control
 
-🟦 **Roster:** spec, role, key, iLvl, Raider.IO, DPS, interrupt status, leader crown, isiLive peer marker, green group-bonus hearts, and right-click whisper.
+**ROSTER:** spec, role, key, iLvl, Raider.IO, DPS, interrupt status, leader crown, isiLive peer marker, green group-bonus hearts, and right-click whisper.
 
-🟩 **Enemy forces:** bottom killtracker, pull prediction, nameplate percentages, mob tooltip percentages, and immediate combat-end refresh.
+**ENEMY FORCES:** bottom killtracker, pull prediction, nameplate percentages, mob tooltip percentages, and immediate combat-end refresh.
 
-🟨 **Portals:** all current season dungeon teleports in one grid with cooldowns, ready states, and target highlight.
+**PORTALS:** all current season dungeon teleports in one grid with cooldowns, ready states, and target highlight.
 
-🟥 **Run alerts:** Battle Res charges, Bloodlust cooldown, ready sounds, BR/Lust group announcements, tank/healer death warning, and tracked per-player death counts.
+**RUN ALERTS:** Battle Res charges, Bloodlust cooldown, ready sounds, BR/Lust group announcements, tank/healer death warning, and tracked per-player death counts.
 
 ### Sync without chat spam
 
@@ -242,7 +262,7 @@ An optional standalone stats box can be enabled in Settings. It is independent f
 
 - Shows the class-appropriate primary stat (`Str`, `Agi`, or `Int`) plus `Crit`, `Haste`, `Mast`, `Vers`, `Leech`, and `Speed` when Blizzard's live APIs provide those values
 - Uses short English labels only
-- Values and percentages are right-aligned for compact scanning; the value column keeps a stable compact width for three- and four-digit values, and the percent column fits values up to `(999.99%)`
+- Values and percentages are right-aligned for compact scanning; the value column keeps a stable compact width for larger live stat values, including Stamina rows without a percent value, and the percent column fits values up to `(999.99%)`
 - Can be locked, hidden, moved, and configured with separate background opacity and relative font size
 - Starts disabled by default
 
@@ -261,7 +281,7 @@ You can turn either announce off in the settings. Non-isiLive group members won'
 
 ### Pre-key group view
 
-When you accept an LFG invite, the matching portal highlights and the center notice includes a clickable portal button from the verified listing activity. The accepted-invite notice shows dungeon, title, leader, and source rows. The dungeon row includes the key level when the level is available from the accepted context or as an exact `+N` in the verified LFG group title. The chat tells you which dungeon and level you joined, and the bottom M+ killtracker mirrors that verified target as a right-aligned dungeon + key-level label until the key starts.
+When you accept a Mythic+ LFG invite, the matching portal highlights and the center notice includes a clickable portal button from the verified listing activity. The accepted-invite notice shows dungeon, title, leader, and source rows. The dungeon row includes the key level when the level is available from the accepted context or as an exact `+N` in the verified LFG group title. The chat tells you which dungeon and level you joined, and the bottom M+ killtracker mirrors that verified target as a right-aligned dungeon + key-level label until the key starts. Raid LFG accepts stay silent because they are outside the Mythic+ target pipeline.
 
 ### Group Finder class-bonus hints
 
@@ -340,7 +360,7 @@ Open via **Escape → AddOns → isiLive**. Everything takes effect immediately.
 - Close automatically when the key starts — **off** (separate toggle)
 - Close automatically when leaving the group — **off** (separate toggle)
 - Show on login/reload — **on** (except in raid groups)
-- Raid groups hide the window completely and pause all background processing
+- Raid groups hide the window completely and pause all background processing; if the window was open before raid mode, it reopens when the group returns to party size
 
 ---
 
@@ -356,7 +376,7 @@ They either don't have a keystone, or they don't have isiLive or a LibKeystone-c
 You're already inside the dungeon, or the LFG queue was cancelled, or the group dissolved — any of those clears the highlight.
 
 **Why is the main window gone in a raid?**
-Raid groups (6+ members) are a hard-off state: UI hidden, background sync off. It comes back when the group drops to party size.
+Raid groups (6+ members) are a hard-off state: UI hidden, background sync off. If the window was open before raid mode hid it, it comes back when the group drops to party size; if you had it closed, it stays closed.
 
 **Why did the chat announce not fire?**
 BR/Lust announce only fires during an active M+ key. Also check the Chat Announcements toggles in the settings.

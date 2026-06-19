@@ -15,8 +15,9 @@ end
 
 local function BuildTimerAfter()
   return function(seconds, callback)
-    if C_Timer and C_Timer.After then
-      C_Timer.After(seconds, function()
+    local timer = rawget(_G, "C_Timer")
+    if type(timer) == "table" and type(timer.After) == "function" then
+      timer.After(seconds, function()
         local ok, err = xpcall(callback, function(e)
           local debugLib = rawget(_G, "debug")
           if type(debugLib) == "table" and type(debugLib.traceback) == "function" then
@@ -79,6 +80,10 @@ function ControllerWiring.CreateGroupController(groupModule, deps)
     onMemberJoinedGroup = type(callbacks.onMemberJoinedGroup) == "function" and callbacks.onMemberJoinedGroup
       or function() end,
     setMainFrameVisible = RequireFunction(callbacks.setMainFrameVisible, "callbacks.setMainFrameVisible"),
+    isMainFrameVisible = type(callbacks.isMainFrameVisible) == "function" and callbacks.isMainFrameVisible
+      or function()
+        return false
+      end,
     updateLeaderButtons = RequireFunction(callbacks.updateLeaderButtons, "callbacks.updateLeaderButtons"),
     clearLatestQueueTarget = RequireFunction(callbacks.clearLatestQueueTarget, "callbacks.clearLatestQueueTarget"),
     clearRioBaselineSnapshot = type(callbacks.clearRioBaselineSnapshot) == "function"
@@ -186,6 +191,7 @@ local function BuildGroupControllerDepsFromContext(ctx)
         end
       end,
       setMainFrameVisible = ctx.setMainFrameVisible,
+      isMainFrameVisible = ctx.isMainFrameVisible,
       updateLeaderButtons = ctx.updateLeaderButtons,
       clearLatestQueueTarget = ctx.clearLatestQueueTarget,
       clearRioBaselineSnapshot = ctx.clearRioBaselineSnapshot,
@@ -221,6 +227,7 @@ local function BuildGroupControllerDepsFromContext(ctx)
     getRaidTransitionBehavior = ctx.getRaidTransitionBehavior,
     shouldAutoCloseOnSoloChange = ctx.shouldAutoCloseOnSoloChange,
     autoCloseMainFrame = ctx.autoCloseMainFrame,
+    isMainFrameVisible = ctx.isMainFrameVisible,
     logRuntimeTrace = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil,
     logRuntimeTracef = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil,
   }

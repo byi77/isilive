@@ -80,8 +80,9 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
     getMapInfoName = ctx.GetMapInfoName,
     getTeleportInfoByMapID = modules.teleport and modules.teleport.GetTeleportInfoByMapID or nil,
     timerAfter = function(seconds, callback)
-      if C_Timer and C_Timer.After then
-        C_Timer.After(seconds, function()
+      local timer = rawget(_G, "C_Timer")
+      if type(timer) == "table" and type(timer.After) == "function" then
+        timer.After(seconds, function()
           pcall(callback)
         end)
       end

@@ -34,7 +34,7 @@ local function MakeTextureStub()
 end
 
 local function MakeFrameStub()
-  local frame = { _shown = false, _scripts = {}, _children = {} }
+  local frame = { _shown = false, _scripts = {}, _children = {}, _clampCalls = 0 }
   function frame:SetSize(w, h)
     self._size = { w, h }
   end
@@ -58,6 +58,7 @@ local function MakeFrameStub()
   end
   function frame:SetClampedToScreen(clamped)
     self._clamped = clamped
+    self._clampCalls = self._clampCalls + 1
   end
   function frame:SetClampRectInsets() end
   function frame:SetBackdrop(backdrop)
@@ -298,5 +299,79 @@ return function(test, ctx)
     Assert.Equal(tooltipLines[1], "Hover", "private tooltip must receive the action title")
     button._scripts.OnLeave(button)
     Assert.True(hiddenTooltip == controller.tooltipFrame, "leave must hide the dedicated tablet tooltip")
+  end)
+
+  test("Simulation tablet expands frame height for larger action grids", function()
+    local controller = nil
+
+    WithGlobals({
+      UIParent = MakeFrameStub(),
+      CreateFrame = function()
+        return MakeFrameStub()
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_simulation_tablet.lua" }, {
+        UICommon = {
+          ApplyBackdrop = function()
+            return true
+          end,
+        },
+      })
+      controller = addon.SimulationTablet.CreateController({
+        getL = function()
+          return {
+            SIM_TABLET_TITLE = "Demo simulator",
+            SIM_TABLET_READY = "Ready",
+          }
+        end,
+      })
+      local actions = {}
+      for index = 1, 50 do
+        actions[index] = { id = "A" .. tostring(index), status = "green", title = "Action", description = "Preview" }
+      end
+      controller.SetActions(actions)
+    end)
+
+    Assert.True(controller.frame._size[2] > 360, "tablet height must grow when the action grid exceeds baseline")
+    Assert.Equal(controller.buttons[50].label:GetText(), "A50", "last large-grid action must still render")
+  end)
+
+  test("Simulation tablet reapplies screen clamp after dynamic height changes", function()
+    local controller = nil
+
+    WithGlobals({
+      UIParent = MakeFrameStub(),
+      CreateFrame = function()
+        return MakeFrameStub()
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_simulation_tablet.lua" }, {
+        UICommon = {
+          ApplyBackdrop = function()
+            return true
+          end,
+        },
+      })
+      controller = addon.SimulationTablet.CreateController({
+        getL = function()
+          return {
+            SIM_TABLET_TITLE = "Demo simulator",
+            SIM_TABLET_READY = "Ready",
+          }
+        end,
+      })
+      local initialClampCalls = controller.frame._clampCalls
+      local actions = {}
+      for index = 1, 50 do
+        actions[index] = { id = "A" .. tostring(index), status = "green", title = "Action", description = "Preview" }
+      end
+      controller.SetActions(actions)
+
+      Assert.True(
+        controller.frame._clampCalls > initialClampCalls,
+        "tablet must reapply screen clamping after the dynamic height update"
+      )
+      Assert.True(controller.frame._clamped == true, "tablet must remain clamped after resizing")
+    end)
   end)
 end

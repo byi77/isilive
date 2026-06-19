@@ -1,5 +1,47 @@
 # Changelog
 
+## 2026-06-19 - Version 0.9.329 (patch)
+
+- Widened the standalone Player Stats Box value column so larger live stat
+  values, including Stamina rows without a percent value, stay inside the value
+  column instead of clipping.
+- Added deterministic coverage for the Stamina no-percent layout path and
+  updated the active StatsBox rule mapping.
+- Fixed architecture documentation drift by updating the architecture rules
+  baseline, moving misplaced controller rows back into the controller-boundary
+  table, and recording the large-module split watchlist.
+- Hardened optional LFG/notice UI hooks to resolve `CreateFrame`, `C_Timer`,
+  `hooksecurefunc`, and `C_Spell` through guarded `_G` lookups, with
+  deterministic architecture coverage.
+- Extended the optional WoW-global hardening across timer and spell lookups in
+  runtime, refresh, status, demo, killtrack, teleport, and primary factory
+  paths, and promoted the large-module watchlist to an active architecture
+  contract.
+- Hardened UI layout budgets for rich center notices, the main-frame title bar,
+  the demo simulation tablet, death-alert text, and sound-preview buttons so
+  long localized text and growing preview actions cannot overlap fixed controls.
+- Re-applied screen clamping after demo simulation tablet height changes and
+  prevented explicit rich-notice `maxHeight` values from clipping verified
+  wrapped field content.
+- Kept ambiguous single-struct Queue/LFG `activityIDs` unresolved instead of
+  falling back to the first concrete candidate.
+- Guarded the main-frame title budget against Secret-Value-masked
+  `GetStringWidth()` results by routing width reads through the shared safe
+  FontString measurement helper.
+- Ran the full local CI preflight after the 0.9.329 audit/fix pass; final
+  result: `Local CI preflight passed`, with `2081` usecase scenarios passing.
+- Registered `docs/CURSEFORGE_OVERVIEW.md` as a maintained project document.
+- Bumped the TOC and documentation baselines to `0.9.329`.
+
+## 2026-06-19 - Version 0.9.328 (patch)
+
+- Removed the Raid LFG accepted-invite center notice, so Raid accepts no
+  longer show an irrelevant `Unknown dungeon` message.
+- Restored the main window after leaving raid mode only when raid mode hid an
+  already-visible window; windows that were already closed stay closed.
+- Updated the CurseForge overview, README, architecture, usecase, and release
+  documentation baselines to `0.9.328`.
+
 ## 2026-06-19 - Version 0.9.327 (patch)
 
 - Refreshed the README overview for addon listing use with a clearer Mythic+

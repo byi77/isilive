@@ -224,6 +224,35 @@ return function(test, ctx)
     end)
   end)
 
+  test("Factory notices does not wire removed Raid accepted-invite callbacks", function()
+    local addon = LoadAddonModules({ "isiLive_factory_notices.lua" })
+    local wire = addon._FactoryInternal and addon._FactoryInternal.WireAcceptedInviteNoticeCallbacks
+    Assert.NotNil(wire, "factory notices must export accepted-invite wiring")
+
+    local calls = {}
+    local lfgDetect = {
+      SetAcceptedInviteNoticeCallback = function()
+        calls.acceptedCallback = (calls.acceptedCallback or 0) + 1
+      end,
+      SetAcceptedInviteNoticeEnabledFn = function()
+        calls.acceptedEnabled = (calls.acceptedEnabled or 0) + 1
+      end,
+      SetAcceptedRaidInviteNoticeCallback = function()
+        calls.raidCallback = (calls.raidCallback or 0) + 1
+      end,
+      SetAcceptedRaidInviteNoticeEnabledFn = function()
+        calls.raidEnabled = (calls.raidEnabled or 0) + 1
+      end,
+    }
+
+    wire({}, {}, lfgDetect)
+
+    Assert.Equal(calls.acceptedCallback, 1, "M+ accepted-invite callback wiring must remain active")
+    Assert.Equal(calls.acceptedEnabled, 1, "M+ accepted-invite enabled gate wiring must remain active")
+    Assert.Nil(calls.raidCallback, "removed Raid accepted-invite callback must not be wired")
+    Assert.Nil(calls.raidEnabled, "removed Raid accepted-invite enabled gate must not be wired")
+  end)
+
   -- =====================================================
   -- InitializeGameAPIHelpers
   -- =====================================================

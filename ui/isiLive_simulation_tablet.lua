@@ -18,6 +18,8 @@ local BUTTON_SIZE = 42
 local BUTTON_GAP = 8
 local COLUMNS = 7
 local STATUS_SIZE = 8
+local GRID_TOP_OFFSET = HEADER_HEIGHT + 46
+local GRID_BOTTOM_PADDING = 18
 
 local STATUS_COLORS = {
   green = { 0.12, 0.86, 0.28, 1 },
@@ -125,7 +127,7 @@ local function CreateButton(parent, opts, index)
     parent,
     "TOPLEFT",
     18 + (column * (BUTTON_SIZE + BUTTON_GAP)),
-    -(HEADER_HEIGHT + 46 + (row * (BUTTON_SIZE + BUTTON_GAP)))
+    -(GRID_TOP_OFFSET + (row * (BUTTON_SIZE + BUTTON_GAP)))
   )
 
   button.label = button:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -138,6 +140,20 @@ local function CreateButton(parent, opts, index)
   button.statusDot:SetPoint("TOPRIGHT", button, "TOPRIGHT", -4, -4)
   ApplyButtonStatus(button, "yellow")
   return button
+end
+
+local function ApplyFrameHeightForActionCount(frame, count)
+  local rowCount = math.max(1, math.ceil((tonumber(count) or 0) / COLUMNS))
+  local height = math.max(
+    FRAME_HEIGHT,
+    GRID_TOP_OFFSET + (rowCount * BUTTON_SIZE) + ((rowCount - 1) * BUTTON_GAP) + GRID_BOTTOM_PADDING
+  )
+  if type(frame.SetSize) == "function" then
+    frame:SetSize(FRAME_WIDTH, height)
+  end
+  if type(frame.SetClampedToScreen) == "function" then
+    frame:SetClampedToScreen(true)
+  end
 end
 
 function SimulationTablet.CreateController(opts)
@@ -220,6 +236,7 @@ function SimulationTablet.CreateController(opts)
       actions = {}
     end
     controller.actions = actions
+    ApplyFrameHeightForActionCount(frame, #actions)
     for index, action in ipairs(actions) do
       local button = controller.buttons[index]
       if not button then

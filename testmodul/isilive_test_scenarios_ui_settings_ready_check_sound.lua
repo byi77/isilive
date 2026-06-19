@@ -15,11 +15,23 @@ return function(test, ctx)
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {}
     local previewCalls = {}
+    local tooltipText = nil
+    local tooltipHidden = false
 
     WithGlobals({
       UIParent = {},
       IsiLiveDB = db,
       CreateFrame = createFrameStub,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function(_, text)
+          tooltipText = text
+        end,
+        Show = function() end,
+        Hide = function()
+          tooltipHidden = true
+        end,
+      },
       GetTime = function()
         return 100
       end,
@@ -38,6 +50,7 @@ return function(test, ctx)
         getL = function()
           return {
             SETTINGS_SECTION_SOUNDS = "Sounds",
+            SETTINGS_SOUND_PREVIEW = "Preview",
           }
         end,
         getCurrentLocale = function()
@@ -74,6 +87,11 @@ return function(test, ctx)
       Assert.Equal(#previewCalls, 1, "ready-check preview should play once")
       Assert.Equal(previewCalls[1].path, "Interface\\AddOns\\isiLive\\sounds\\BttF_Tinkle.wav", "preview asset")
       Assert.Equal(previewCalls[1].channel, "Master", "ready-check preview should use the default Master channel")
+      Assert.Equal(readyCheckPreview.label:GetText(), "\226\150\182", "preview button should render a play glyph")
+      readyCheckPreview._scripts.OnEnter(readyCheckPreview)
+      Assert.Equal(tooltipText, "Preview", "preview button hover should explain the action")
+      readyCheckPreview._scripts.OnLeave(readyCheckPreview)
+      Assert.True(tooltipHidden, "preview button leave should hide its tooltip")
     end)
   end)
 

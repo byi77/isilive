@@ -21,31 +21,34 @@ local ACTIVITY_TO_MAP_CACHE = {}
 
 local pendingCombatUpdates = {}
 
-local combatRetryFrame = CreateFrame("Frame")
+local createFrame = rawget(_G, "CreateFrame")
+local combatRetryFrame = type(createFrame) == "function" and createFrame("Frame") or nil
 -- PLAYER_REGEN_ENABLED is registered statically at module load to avoid a
 -- dynamic RegisterEvent from handlers dispatched by protected code (e.g.
 -- CHALLENGE_MODE_START), which raises ADDON_ACTION_FORBIDDEN in 12.0+.
-combatRetryFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-combatRetryFrame:SetScript("OnEvent", function(_, event)
-  if event ~= "PLAYER_REGEN_ENABLED" then
-    return
-  end
-  if next(pendingCombatUpdates) == nil then
-    return
-  end
-  -- Snapshot the queue so ApplySecureSpellToButton's own per-entry mutations
-  -- (clears successful entries, re-defers if it sees InCombatLockdown again)
-  -- don't race the pairs() traversal. No blanket ClearTable afterwards — the
-  -- per-entry state is the source of truth so a re-deferred apply survives to
-  -- the next regen tick.
-  local snapshot = {}
-  for button, spellID in pairs(pendingCombatUpdates) do
-    snapshot[button] = spellID
-  end
-  for button, spellID in pairs(snapshot) do
-    Teleport.ApplySecureSpellToButton(button, spellID)
-  end
-end)
+if combatRetryFrame then
+  combatRetryFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+  combatRetryFrame:SetScript("OnEvent", function(_, event)
+    if event ~= "PLAYER_REGEN_ENABLED" then
+      return
+    end
+    if next(pendingCombatUpdates) == nil then
+      return
+    end
+    -- Snapshot the queue so ApplySecureSpellToButton's own per-entry mutations
+    -- (clears successful entries, re-defers if it sees InCombatLockdown again)
+    -- don't race the pairs() traversal. No blanket ClearTable afterwards — the
+    -- per-entry state is the source of truth so a re-deferred apply survives to
+    -- the next regen tick.
+    local snapshot = {}
+    for button, spellID in pairs(pendingCombatUpdates) do
+      snapshot[button] = spellID
+    end
+    for button, spellID in pairs(snapshot) do
+      Teleport.ApplySecureSpellToButton(button, spellID)
+    end
+  end)
+end
 
 local function ResolveMappedSpellID(mapID)
   local mapToTeleport = GetMapToTeleport()
@@ -188,8 +191,9 @@ function Teleport.GetTeleportInfoByMapID(mapID)
   end
 
   local icon
-  if C_Spell and C_Spell.GetSpellTexture then
-    icon = C_Spell.GetSpellTexture(spellID)
+  local spellApi = rawget(_G, "C_Spell")
+  if type(spellApi) == "table" and type(spellApi.GetSpellTexture) == "function" then
+    icon = spellApi.GetSpellTexture(spellID)
   end
   if not icon then
     icon = "Interface\\Icons\\INV_Misc_QuestionMark"
@@ -319,8 +323,9 @@ function Teleport.ApplySecureSpellToButton(button, spellID)
   end
 
   local spellValue = spellID
-  if C_Spell and C_Spell.GetSpellName then
-    local spellName = C_Spell.GetSpellName(spellID)
+  local spellApi = rawget(_G, "C_Spell")
+  if type(spellApi) == "table" and type(spellApi.GetSpellName) == "function" then
+    local spellName = spellApi.GetSpellName(spellID)
     if spellName and spellName ~= "" then
       spellValue = spellName
     end

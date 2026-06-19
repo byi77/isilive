@@ -668,8 +668,9 @@ end
 
 local function UpdateCenterNoticeTeleportButtonVisual(state, spellID, isEnabled, inCombatBlocked)
   local icon
-  if spellID and C_Spell and C_Spell.GetSpellTexture then
-    icon = C_Spell.GetSpellTexture(spellID)
+  local spellApi = rawget(_G, "C_Spell")
+  if spellID and type(spellApi) == "table" and type(spellApi.GetSpellTexture) == "function" then
+    icon = spellApi.GetSpellTexture(spellID)
   end
   if not icon then
     icon = "Interface\\Icons\\INV_Misc_QuestionMark"
@@ -1110,10 +1111,9 @@ local function ApplyCenterNoticeRichLayout(state, payload, hasTeleportButton)
   local richButtonRequiredHeight = hasTeleportButton
       and math.abs(richButtonCenterY) + math.ceil(richButtonHeight / 2) + paddingY
     or 0
-  local frameHeight = math.min(
-    state.config.maxHeight,
-    math.max(state.config.minHeight, richButtonRequiredHeight, math.ceil(cursorY + paddingY))
-  )
+  local requiredHeight = math.max(state.config.minHeight, richButtonRequiredHeight, math.ceil(cursorY + paddingY))
+  local richMaxHeight = math.max(tonumber(payload.maxHeight) or 0, state.config.maxHeight, requiredHeight)
+  local frameHeight = math.min(richMaxHeight, requiredHeight)
   state.frame:SetHeight(frameHeight)
 
   if hasTeleportButton then

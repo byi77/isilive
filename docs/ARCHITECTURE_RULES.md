@@ -4,14 +4,12 @@ Diese Datei beschreibt verbindliche Strukturregeln fuer den aktuellen Modulzusch
 Im Gegensatz zu `RULES_LOGIC.md` geht es hier nicht um Runtime-Verhalten, sondern um
 stabile Architekturgrenzen, die ueber deterministische Strukturtests geprueft werden.
 
-Aktueller Dokumentationsstand: `0.9.310`. Die 0.9.310-Aenderungen
-(gesprochene Text-to-Speech-Todesansagen mit Name-/Klasse-Schaltern und
-DPS-Abdeckung) und die vorherigen 0.9.309-Aenderungen
-(Tank-/Heiler-Todesalarm und Locale-Split in Pro-Sprache-Dateien) haben keine
-neue Architekturregel erfordert; der Todesalarm ist als aktive Projektregel 80
-in `RULES_LOGIC.md` gepinnt und wird ueber deterministische Death-Alert-
-Szenarien validiert, der Locale-Split bleibt durch die bestehenden
-Locale-Symmetrie- und TOC-Strukturtests abgedeckt.
+Aktueller Dokumentationsstand: `0.9.329`. Die seit 0.9.310 hinzugekommenen
+Runtime- und UI-Aenderungen sind in `RULES_LOGIC.md` als aktive Projektregeln
+gepinnt und werden ueber deterministische Szenarien validiert. Native WoW-TTS
+ist durch Regel 84 deaktiviert; Death-Audio nutzt statische WAV-Dateien. Der
+Locale-Split bleibt durch die bestehenden Locale-Symmetrie- und
+TOC-Strukturtests abgedeckt.
 
 ## Schreibformat
 
@@ -42,6 +40,8 @@ Locale-Symmetrie- und TOC-Strukturtests abgedeckt.
 9. Secure- und Klick-Mutationsflaechen muessen explizit fuer Kampf- und Key-Sicherheit auditiert sein.
 10. Lokale CI-Wrapper muessen die GitHub-Lua-Check-Workflow-Gates spiegeln und nur delegierend verschalten.
 11. `RuntimeSetup` erhaelt benannte Controller-Context-Bundles, damit Group- und Event-Handler-Wiring nicht mehr aus einem unmarkierten Gesamtcontext gelesen werden.
+12. Optionale WoW-Globals wie `C_Timer` und `C_Spell` werden ueber geschuetzte `_G`-Caches gelesen.
+13. Bekannte Grossmodule bleiben als Refactoring-Watchlist dokumentiert und duerfen nicht still aus der Architektur verschwinden.
 
 ## Regelbloecke
 
@@ -126,3 +126,17 @@ Locale-Symmetrie- und TOC-Strukturtests abgedeckt.
 - Erforderliche Tests:
   - Architecture runtime setup uses context-based wiring factories
   - Architecture factory passes named runtime setup controller contexts
+
+### RULE-ARCH-OPTIONALE-WOW-GLOBALS-GESCHUETZT
+- Regelnummer: 12
+- Status: aktiv
+- Zusammenfassung: Produktive Zugriffe auf optionale WoW-Globale wie `C_Timer`, `C_Spell`, `hooksecurefunc` und fallback-faehige `CreateFrame`-Pfade muessen ueber lokale `rawget(_G, "...")`-Caches laufen und bei fehlender API geschlossen bleiben, statt bare globale Short-Circuit-Ketten zu verwenden.
+- Erforderliche Tests:
+  - Architecture optional WoW globals use guarded rawget caches
+
+### RULE-ARCH-GROSSMODULE-WATCHLIST
+- Regelnummer: 13
+- Status: aktiv
+- Zusammenfassung: Die bekannten grossen Ownership-Flaechen `ui/isiLive_lfg_flags.lua`, `logic/isiLive_sync.lua` und `ui/isiLive_notice.lua` bleiben in `docs/ARCHITECTURE.md` als Refactoring-Watchlist dokumentiert. Splits duerfen nur entlang klarer Runtime- oder UI-Verantwortlichkeiten und mit deterministischen Tests fuer extrahierte Module erfolgen.
+- Erforderliche Tests:
+  - Architecture large-module watchlist is documented and gate-pinned

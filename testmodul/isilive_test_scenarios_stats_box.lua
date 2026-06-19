@@ -356,7 +356,7 @@ return function(test, ctx)
       )
       local _, size = box.lines[1].label:GetFont()
       Assert.Equal(size, 16, "font size should apply default 14 plus saved offset")
-      Assert.Equal(box.frame._width, 202, "positive font offset should keep the enlarged percent column stable")
+      Assert.Equal(box.frame._width, 223, "positive font offset should keep the enlarged percent column stable")
       Assert.Equal(box.frame._height, 50, "positive font offset should enlarge the fitted stats box height")
       Assert.Equal(box.lines[1].label._width, 40, "positive font offset should enlarge the fitted label column")
 
@@ -364,7 +364,7 @@ return function(test, ctx)
       _, size = box.lines[1].value:GetFont()
       Assert.Equal(db.statsBoxFontSizeOffset, -3, "font offset setter should persist to db")
       Assert.Equal(size, 11, "font size should apply default 14 plus negative offset")
-      Assert.Equal(box.frame._width, 136, "negative font offset should shrink while keeping the percent column stable")
+      Assert.Equal(box.frame._width, 150, "negative font offset should shrink while keeping the percent column stable")
       Assert.Equal(box.frame._height, 36, "negative font offset should shrink the fitted stats box height")
       Assert.Equal(box.lines[1].label._width, 25, "negative font offset should shrink the fitted label column")
     end)
@@ -421,21 +421,21 @@ return function(test, ctx)
 
       Assert.Equal(box.lines[1].label._text, "Strength", "label column should contain the stat label")
       Assert.Equal(box.lines[1].value._text, "2105", "value column should contain the stat value")
-      Assert.Equal(box.frame._width, 198, "stats box background should fit the rendered text width")
+      Assert.Equal(box.frame._width, 216, "stats box background should fit the rendered text width")
       Assert.Equal(box.frame._height, 44, "stats box background should fit the rendered visible row count")
       Assert.Equal(box.lines[1].label._point[1], "TOPLEFT", "label column should keep its left-side column anchor")
       Assert.Equal(box.lines[1].label._justifyH, "RIGHT", "label text should align to the right edge of its column")
       Assert.Equal(box.lines[1].value._point[1], "TOPLEFT", "value column should anchor after the label column")
       Assert.Equal(box.lines[1].value._justifyH, "RIGHT", "value text should align right")
       Assert.Equal(box.lines[1].label._width, 56, "label column should fit the widest rendered label")
-      Assert.Equal(box.lines[1].value._width, 42, "value column should keep enough stable room for four digits")
+      Assert.Equal(box.lines[1].value._width, 60, "value column should keep enough stable room for larger stat values")
       Assert.Equal(box.lines[2].value._text, "551", "rating column should keep the numeric rating separate")
       Assert.Equal(box.lines[2].percent._text, "(17.03%)", "percent column should keep the percent text separate")
       Assert.Equal(box.lines[2].percent._point[1], "TOPLEFT", "percent column should anchor after the value column")
       Assert.Equal(box.lines[2].percent._width, 70, "percent column should reserve room for high percent values")
       Assert.True(
-        box.lines[1].label._width > box.lines[1].value._width,
-        "label column should have more room than the value column"
+        box.lines[1].value._width >= box.lines[1].label._width,
+        "value column should reserve enough room even beside a long label"
       )
     end)
   end)
@@ -461,10 +461,51 @@ return function(test, ctx)
       })
 
       Assert.Equal(box.lines[1].value._text, "2052", "four-digit primary stat should render in the value column")
-      Assert.Equal(box.lines[1].value._width, 42, "value column should keep the compact minimum width")
-      Assert.Equal(box.lines[2].value._width, 42, "three-digit rows should use the same stable value column")
-      Assert.Equal(box.lines[2].percent._point[4], 99, "percent column should not shift left after a three-digit value")
-      Assert.Equal(box.lines[3].percent._point[4], 99, "percent column should stay aligned across visible rows")
+      Assert.Equal(box.lines[1].value._width, 60, "value column should keep the compact minimum width")
+      Assert.Equal(box.lines[2].value._width, 60, "three-digit rows should use the same stable value column")
+      Assert.Equal(
+        box.lines[2].percent._point[4],
+        117,
+        "percent column should not shift left after a three-digit value"
+      )
+      Assert.Equal(box.lines[3].percent._point[4], 117, "percent column should stay aligned across visible rows")
+    end)
+  end)
+
+  test("StatsBox keeps stamina value column stable without percent text", function()
+    local createFrameStub = BuildCreateFrameStub()
+
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = { statsBoxEnabled = true },
+      CreateFrame = createFrameStub,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          return {
+            { key = "intellect", label = "Int", value = 2426 },
+            { key = "stamina", label = "Stam", value = 22242 },
+            { key = "crit", label = "Crit", value = 1044, percent = 29.70 },
+          }
+        end,
+      })
+
+      Assert.Equal(box.lines[2].label._text, "Stam", "stamina row should render with its short label")
+      Assert.Equal(box.lines[2].value._text, "22242", "stamina should keep the full observed value text")
+      Assert.Equal(
+        box.lines[2].value._width,
+        60,
+        "stamina value column should reserve enough room without percent text"
+      )
+      Assert.Equal(box.lines[2].percent._text, "", "stamina row should not synthesize a percent text")
+      Assert.Equal(box.lines[2].percent._shown, false, "stamina percent column should stay hidden")
+      Assert.Equal(
+        box.lines[3].percent._point[4],
+        110,
+        "later percent rows should stay aligned after the wider value column"
+      )
     end)
   end)
 
@@ -490,10 +531,10 @@ return function(test, ctx)
       Assert.Equal(box.lines[1].percent._text, "(999.99%)", "large percent text should render in one percent column")
       Assert.Equal(box.lines[1].percent._width, 70, "percent column should keep enough room for 999.99 percent")
       Assert.Equal(box.lines[2].percent._width, 70, "shorter percent rows should use the same stable percent column")
-      Assert.Equal(box.lines[1].percent._point[4], 99, "large percent text should stay aligned after the value column")
+      Assert.Equal(box.lines[1].percent._point[4], 117, "large percent text should stay aligned after the value column")
       Assert.Equal(
         box.lines[2].percent._point[4],
-        99,
+        117,
         "shorter percent text should stay aligned with large percent rows"
       )
     end)
@@ -523,13 +564,13 @@ return function(test, ctx)
         end,
       })
 
-      Assert.Equal(box.frame._width, 177, "background width should preserve the compact minimum percent column")
+      Assert.Equal(box.frame._width, 195, "background width should preserve the compact minimum percent column")
       Assert.Equal(box.frame._height, 124, "background height should follow the seven visible stat rows")
       Assert.Equal(box.lines[1].label._point[4], 8, "label text should start at the fitted left padding")
       Assert.Equal(box.lines[1].value._point[4], 51, "value text should start after fitted labels and gap")
       Assert.Equal(
         box.lines[2].percent._point[4],
-        99,
+        117,
         "percent text should start after the stable value column and gap"
       )
 
@@ -541,10 +582,10 @@ return function(test, ctx)
       end
       box.SetBackgroundAlpha(0.6)
 
-      Assert.Equal(box.frame._width, 177, "settings refresh should keep the stable fitted text width")
+      Assert.Equal(box.frame._width, 195, "settings refresh should keep the stable fitted text width")
       Assert.Equal(box.frame._height, 124, "settings refresh should keep the background fitted to rendered text height")
       Assert.Equal(#sizeWrites, 1, "settings refresh should apply only the fitted content size")
-      Assert.Equal(sizeWrites[1].width, 177, "settings refresh must not write the wide default frame first")
+      Assert.Equal(sizeWrites[1].width, 195, "settings refresh must not write the wide default frame first")
     end)
   end)
 
@@ -602,17 +643,17 @@ return function(test, ctx)
         collectStats = CollectSevenRows,
       })
 
-      Assert.Equal(box.frame._width, 177, "trusted text measurements should keep the stable percent column")
+      Assert.Equal(box.frame._width, 195, "trusted text measurements should keep the stable percent column")
       secretWidths = true
       local ok, err = pcall(box.SetBackgroundAlpha, 0.6)
       Assert.True(ok, "secret text-width measurements must not throw: " .. tostring(err))
-      Assert.Equal(box.frame._width, 177, "secret width refresh should keep the last trusted fitted width")
+      Assert.Equal(box.frame._width, 195, "secret width refresh should keep the last trusted fitted width")
 
       local firstSecretBox = addon.StatsBox.Create({
         parent = UIParent,
         collectStats = CollectSevenRows,
       })
-      Assert.Equal(firstSecretBox.frame._width, 177, "first secret-width refresh should use compact fallback columns")
+      Assert.Equal(firstSecretBox.frame._width, 195, "first secret-width refresh should use compact fallback columns")
       Assert.Equal(firstSecretBox.frame._height, 124, "secret-width fallback should still fit the visible row count")
     end)
   end)
