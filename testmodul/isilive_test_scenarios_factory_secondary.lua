@@ -526,6 +526,9 @@ local function BuildControllerContext(state, addon, initial)
     isInGroup = function()
       return state.inGroup == true
     end,
+    GetActiveChallengeMapID = function()
+      return state.activeChallengeMapID
+    end,
   }
 
   ctx.ApplyHotkeyBindings = function()
@@ -545,6 +548,7 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
     mainFrameShown = initial.mainFrameShown == true,
     inGroup = initial.inGroup ~= false,
     isRaidGroup = initial.isRaidGroup == true,
+    activeChallengeMapID = initial.activeChallengeMapID == false and nil or (initial.activeChallengeMapID or 559),
     mplusTimerData = initial.mplusTimerData,
     sentKick = {},
     tickers = {},
@@ -1539,6 +1543,36 @@ return function(test, ctx)
 
     state.ctx.UpdateCdTracker()
     Assert.Equal(state.bloodlustReadySoundCalls or 0, 0, "suppressed reset must clear the observed cycle")
+  end)
+
+  test("Factory CD refresh suppresses Bloodlust-ready sound on stale timer after challenge abort", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      activeChallengeMapID = 559,
+      mplusTimerData = {
+        running = true,
+      },
+    })
+
+    state.lustInfo = { remain = 20, icon = 132114 }
+    state.ctx.UpdateCdTracker({ playLustSoundOnStart = true })
+    Assert.Equal(state.bloodlustReadySoundCalls or 0, 0, "active Bloodlust must not play ready before abort")
+
+    state.activeChallengeMapID = nil
+    state.lustInfo = nil
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(
+      state.bloodlustReadySoundCalls or 0,
+      0,
+      "challenge-abort aura removal must not announce Bloodlust-ready while the timer snapshot is stale"
+    )
+
+    state.activeChallengeMapID = 559
+    state.ctx.UpdateCdTracker()
+    Assert.Equal(
+      state.bloodlustReadySoundCalls or 0,
+      0,
+      "stale challenge-abort refresh must discard the observed Bloodlust-ready cycle"
+    )
   end)
 
   test("Factory CD refresh suppresses Bloodlust-ready sound on dungeon-entry refresh", function()

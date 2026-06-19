@@ -36,6 +36,8 @@
   them the same gold framed style as the settings, lock, and close controls.
 - Hid the standalone Stats Box value/percent separator while keeping the value
   and percent columns aligned.
+- Suppressed Bloodlust-ready announcements after challenge aborts even when the
+  local M+ timer snapshot is still stale-running during the aura removal refresh.
 - Ran the full local CI preflight after the 0.9.329 audit/fix pass; final
   result: `Local CI preflight passed`, with `2081` usecase scenarios passing.
 - Registered `docs/CURSEFORGE_OVERVIEW.md` as a maintained project document.

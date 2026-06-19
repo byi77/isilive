@@ -47,6 +47,24 @@ local function InitializeFactorySecondaryCdTracker(
     return false
   end
 
+  local function IsActiveChallengeContext()
+    if type(ctx.GetActiveChallengeMapID) ~= "function" then
+      return true
+    end
+    local ok, mapID = pcall(ctx.GetActiveChallengeMapID)
+    if not ok or mapID == nil then
+      return false
+    end
+    local isSecretValue = rawget(_G, "issecretvalue")
+    if type(isSecretValue) == "function" then
+      local secretOk, isSecret = pcall(isSecretValue, mapID)
+      if secretOk and isSecret == true then
+        return false
+      end
+    end
+    return true
+  end
+
   local function IsGroupedReadySoundContext()
     if type(ctx.isInGroup) ~= "function" then
       return false
@@ -92,7 +110,7 @@ local function InitializeFactorySecondaryCdTracker(
       return
     end
     local mplusRunning = IsMplusTimerRunning()
-    local readySoundContextActive = mplusRunning and IsGroupedReadySoundContext()
+    local readySoundContextActive = mplusRunning and IsGroupedReadySoundContext() and IsActiveChallengeContext()
     if mplusRunning and not lastMplusRunning then
       lastBResCharges = nil
       lastBResCooldownRemain = nil

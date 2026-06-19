@@ -1059,6 +1059,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Event handlers call updateCdTracker on UNIT_AURA aura removals
   - Event handlers call updateCdTracker on UNIT_AURA aura instance updates
   - Factory CD refresh suppresses Bloodlust-ready sound on key reset refresh
+  - Factory CD refresh suppresses Bloodlust-ready sound on stale timer after challenge abort
   - Factory CD refresh suppresses Bloodlust-ready sound on dungeon-entry refresh
   - Factory CD refresh clears Bloodlust-ready cycle when key ends during exhaustion
   - Factory CD refresh stops Bloodlust-ready reminders after key end or dungeon leave
