@@ -210,7 +210,7 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 2081 Szenarien ueber die aktuell registrierten Module (siehe `tools/usecase_scenarios.lua`) ab; die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
+5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 2082 Szenarien ueber die aktuell registrierten Module (siehe `tools/usecase_scenarios.lua`) ab; die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
    Zusaetzlich laeuft der gleiche Validator-Lauf in CI unter `luacov` (`lua -lluacov tools/validate_usecases.lua`), damit `tools/coverage_summary.lua` die Line-Coverage pro Schicht in das GitHub-Actions-Step-Summary schreibt und der vollstaendige `luacov.report.out` als Artefakt hochgeladen wird.
    Aktueller Audit-Stand (`2026-06-20`, lokaler Preflight nach 0.9.329): **92.43% Gesamt-Line-Coverage** ueber 33901 gezaehlte Zeilen. Per-Schicht: `locale/` 99.55%, `core/` 97.96%, `logic/` 92.61%, `game/` 92.32%, `factory/` 91.20%, `ui/` 89.75%. Das Coverage-Gate bleibt bei mindestens 88.00%.
    Historische Baseline (`2026-04-22`, Commit nach Coverage-Einfuehrung): **78.62% Gesamt-Line-Coverage** ueber 19487 Produktionszeilen.
@@ -220,8 +220,12 @@ Die lokalen Wrapper `tools/check.ps1` und `tools/check.cmd` sind der bevorzugte 
 
 ## UI-Struktur (ASCII-Skizze)
 
+Titlebar-Vertrag: `M+`, `H` und `V` sind rechts angedockte, rahmenlose
+Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
+Settings, Lock und Close.
+
 ```text
-| isiLive                                                 v0.9.329 Open/Close CTRL-F9 [H][V][M][M+][L][X]            |
+| isiLive v0.9.329 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -238,7 +242,7 @@ Die lokalen Wrapper `tools/check.ps1` und `tools/check.cmd` sind der bevorzugte 
 
 Collapsed / Vertical Mini Mode:
 
-|                                          [H][V][M][X]|
+|                                      [M+][H][V][X]|
 |----------------------------------------------------------------|
 | M+Managment                 Marker                              |
 | [Readycheck]                [Blue]                              |
@@ -251,7 +255,7 @@ Collapsed / Vertical Mini Mode:
 
 Horizontal Mini Mode:
 
-|                                      [H][V][M][X]|
+|                                   [M+][H][V][X]|
 |---------------------------------------------------|
 | [CD 0] [CD] [RC]                                  |
 | [Blue][Green][Purple][Red][Yel][Cir][Moo][Sku]    |
