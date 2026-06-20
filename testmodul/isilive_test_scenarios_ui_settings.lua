@@ -2866,7 +2866,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         checkboxCount,
         43,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
-          .. " while preserving the visible sound, incoming-summon loop, chat-announce, combat-fade, nameplate-subtoggle,"
+          .. " while preserving the visible sound, incoming-summon loop, chat-announce,"
+          .. " combat-fade, nameplate-subtoggle,"
           .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows, VIP sound toggles,"
           .. " and the two auto-close split checkboxes"
       )
