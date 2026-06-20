@@ -129,6 +129,15 @@ local BLOODLUST_READY_REMINDER_SETTING = {
   defaultEnabled = true,
 }
 
+local INCOMING_SUMMON_LOOP_SETTING = {
+  labelKey = "SETTINGS_SOUND_INCOMING_SUMMON_LOOP",
+  descKey = "SETTINGS_SOUND_INCOMING_SUMMON_LOOP_DESC",
+  labelFallback = "Repeat incoming-summon alert every 5 seconds",
+  descFallback = "Repeats the incoming-summon sound every 5 seconds while the summon is still pending.",
+  settingKey = "soundIncomingSummonLoopEnabled",
+  defaultEnabled = true,
+}
+
 local VIP_SOUND_DESCRIPTIONS = {
   SETTINGS_VIP_ASTRAL_AUROCHS_SOUND = {
     descKey = "SETTINGS_VIP_ASTRAL_AUROCHS_SOUND_DESC",
@@ -272,6 +281,35 @@ local function CreateSoundPreviewButton(parent, checkbox, soundKey)
   return button
 end
 
+local function CreateIncomingSummonLoopCheckbox(canvas, yOffset, labels, config, controls)
+  local checkbox, nextY = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels[INCOMING_SUMMON_LOOP_SETTING.labelKey] or INCOMING_SUMMON_LOOP_SETTING.labelFallback,
+    function()
+      local db = config.getDB()
+      local stored = db[INCOMING_SUMMON_LOOP_SETTING.settingKey]
+      if stored ~= nil then
+        return stored == true
+      end
+      return INCOMING_SUMMON_LOOP_SETTING.defaultEnabled ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db[INCOMING_SUMMON_LOOP_SETTING.settingKey] = checked == true
+    end,
+    INCOMING_SUMMON_LOOP_SETTING.labelKey,
+    DescriptionOptions(labels[INCOMING_SUMMON_LOOP_SETTING.descKey] or INCOMING_SUMMON_LOOP_SETTING.descFallback)
+  )
+
+  if checkbox and checkbox.check then
+    checkbox.check._sectionKey = "SETTINGS_SECTION_SOUNDS"
+    checkbox.check._soundKey = "incoming_summon_loop"
+  end
+  controls.incomingSummonLoopCheck = checkbox
+  return nextY
+end
+
 local function CreateBloodlustReadyReminderCheckbox(canvas, yOffset, labels, config, controls)
   local checkbox, nextY = CreateSettingsCheckbox(
     canvas,
@@ -405,6 +443,9 @@ function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, contro
     controls.soundPreviewButtons[entry.key] = CreateSoundPreviewButton(canvas, checkbox, entry.key)
     SetPreviewTooltip(controls.soundPreviewButtons[entry.key], labels)
     yOffset = nextY
+    if entry.key == "portal_available" then
+      yOffset = CreateIncomingSummonLoopCheckbox(canvas, yOffset, labels, config, controls)
+    end
     if entry.key == "bloodlust_ready" then
       yOffset = CreateBloodlustReadyReminderCheckbox(canvas, yOffset, labels, config, controls)
     end

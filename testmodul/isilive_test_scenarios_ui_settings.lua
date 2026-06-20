@@ -2230,6 +2230,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Nil(db.soundLeadEnabled, "opening settings should not persist the default leader-sound state")
       Assert.Nil(db.soundGroupJoinEnabled, "opening settings should not persist the default group-join sound state")
       Assert.Nil(db.soundPortalAvailableEnabled, "opening settings should not persist the default portal sound state")
+      Assert.Nil(db.soundIncomingSummonLoopEnabled, "opening settings should not persist the incoming-summon loop default")
       Assert.Nil(db.soundBattleResEnabled, "opening settings should not persist the default battle-res sound state")
       Assert.Nil(db.soundBloodlustEnabled, "opening settings should not persist the default bloodlust sound state")
       Assert.Nil(db.soundOutputChannel, "opening settings should not persist the default sound output channel")
@@ -2246,6 +2247,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       local leadSoundCheck = nil
       local groupJoinSoundCheck = nil
       local portalSoundCheck = nil
+      local incomingSummonLoopCheck = nil
       local battleResSoundCheck = nil
       local battleResReadySoundCheck = nil
       local bloodlustSoundCheck = nil
@@ -2264,6 +2266,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           groupJoinSoundCheck = frame
         elseif frame._settingKey == "SETTINGS_SOUND_PORTAL_AVAILABLE" then
           portalSoundCheck = frame
+        elseif frame._settingKey == "SETTINGS_SOUND_INCOMING_SUMMON_LOOP" then
+          incomingSummonLoopCheck = frame
         elseif frame._settingKey == "SETTINGS_SOUND_BATTLE_RES" then
           battleResSoundCheck = frame
         elseif frame._settingKey == "SETTINGS_SOUND_BATTLE_RES_READY" then
@@ -2289,6 +2293,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       groupJoinSoundCheck =
         Assert.NotNil(groupJoinSoundCheck, "settings panel should create a group-join sound checkbox")
       portalSoundCheck = Assert.NotNil(portalSoundCheck, "settings panel should create a portal sound checkbox")
+      incomingSummonLoopCheck =
+        Assert.NotNil(incomingSummonLoopCheck, "settings panel should create an incoming-summon loop checkbox")
       battleResSoundCheck =
         Assert.NotNil(battleResSoundCheck, "settings panel should create a battle-res sound checkbox")
       battleResReadySoundCheck =
@@ -2335,6 +2341,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         leadSoundCheck,
         groupJoinSoundCheck,
         portalSoundCheck,
+        incomingSummonLoopCheck,
         battleResSoundCheck,
         battleResReadySoundCheck,
         bloodlustSoundCheck,
@@ -2348,6 +2355,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       local onClickLead = leadSoundCheck._scripts and leadSoundCheck._scripts.OnClick or nil
       local onClickJoin = groupJoinSoundCheck._scripts and groupJoinSoundCheck._scripts.OnClick or nil
       local onClickPortal = portalSoundCheck._scripts and portalSoundCheck._scripts.OnClick or nil
+      local onClickIncomingSummonLoop = incomingSummonLoopCheck._scripts and incomingSummonLoopCheck._scripts.OnClick
+        or nil
       local onClickBattleRes = battleResSoundCheck._scripts and battleResSoundCheck._scripts.OnClick or nil
       local onClickBattleResReady = battleResReadySoundCheck._scripts and battleResReadySoundCheck._scripts.OnClick
         or nil
@@ -2361,6 +2370,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       onClickLead = Assert.NotNil(onClickLead, "leader-transfer sound checkbox should define OnClick")
       onClickJoin = Assert.NotNil(onClickJoin, "group-join sound checkbox should define OnClick")
       onClickPortal = Assert.NotNil(onClickPortal, "portal sound checkbox should define OnClick")
+      onClickIncomingSummonLoop =
+        Assert.NotNil(onClickIncomingSummonLoop, "incoming-summon loop checkbox should define OnClick")
       onClickBattleRes = Assert.NotNil(onClickBattleRes, "battle-res sound checkbox should define OnClick")
       onClickBattleResReady =
         Assert.NotNil(onClickBattleResReady, "battle-res-ready sound checkbox should define OnClick")
@@ -2377,6 +2388,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       onClickJoin(groupJoinSoundCheck)
       portalSoundCheck:SetChecked(false)
       onClickPortal(portalSoundCheck)
+      incomingSummonLoopCheck:SetChecked(false)
+      onClickIncomingSummonLoop(incomingSummonLoopCheck)
       battleResSoundCheck:SetChecked(false)
       onClickBattleRes(battleResSoundCheck)
       battleResReadySoundCheck:SetChecked(false)
@@ -2392,6 +2405,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.False(db.soundLeadEnabled, "disabling leader-transfer sound should persist false")
       Assert.True(db.soundGroupJoinEnabled, "enabling group-join sound should persist true")
       Assert.False(db.soundPortalAvailableEnabled, "disabling portal sound should persist false")
+      Assert.False(db.soundIncomingSummonLoopEnabled, "disabling incoming-summon loop should persist false")
       Assert.False(db.soundBattleResEnabled, "disabling battle-res sound should persist false")
       Assert.False(db.soundBattleResReadyEnabled, "disabling battle-res-ready sound should persist false")
       Assert.True(db.soundBloodlustEnabled, "enabling bloodlust sound should persist true")
@@ -2416,6 +2430,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.False(leadSoundCheck:GetChecked(), "refresh should keep the disabled leader-transfer sound state")
       Assert.True(groupJoinSoundCheck:GetChecked(), "refresh should keep the enabled group-join sound state")
       Assert.False(portalSoundCheck:GetChecked(), "refresh should keep the disabled portal sound state")
+      Assert.False(incomingSummonLoopCheck:GetChecked(), "refresh should keep the disabled incoming-summon loop state")
       Assert.False(battleResSoundCheck:GetChecked(), "refresh should keep the disabled battle-res sound state")
       Assert.False(
         battleResReadySoundCheck:GetChecked(),
@@ -2833,10 +2848,10 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       )
       Assert.Equal(
         checkboxCount,
-        42,
+        43,
         "settings should hide only the legacy name-length"
           .. " and teleport-column controls while keeping the startup/key-end, navigator, sound,"
-          .. " chat-announce, combat-fade, nameplate-subtoggle,"
+          .. " incoming-summon loop, chat-announce, combat-fade, nameplate-subtoggle,"
           .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows, VIP sound toggles,"
           .. " and the two auto-close split checkboxes visible"
           .. " (M+ forces tooltip/nameplate toggles replaced by a single 3-way display-mode selector)"
@@ -2846,9 +2861,9 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 7, "refresh should keep the stats-box and nameplate sliders visible")
       Assert.Equal(
         checkboxCount,
-        42,
+        43,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
-          .. " while preserving the visible sound, chat-announce, combat-fade, nameplate-subtoggle,"
+          .. " while preserving the visible sound, incoming-summon loop, chat-announce, combat-fade, nameplate-subtoggle,"
           .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows, VIP sound toggles,"
           .. " and the two auto-close split checkboxes"
       )

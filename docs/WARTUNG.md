@@ -129,10 +129,21 @@ Kritisch:
 - `challengeMapAliases`
 - `inactivePortalMessageByLocale`
 
+Aktueller Stand:
+- `midnight_s1` ist die aktive Runtime-Season.
+- `midnight_s2` ist nur als vorbereitetes Scaffold vorhanden und darf nicht aktiv geschaltet werden, solange technische IDs oder Forces-Daten fehlen.
+
 Wenn eine neue Season startet:
 - neue Season als vollstaendigen Datensatz eintragen
 - erst dann `ACTIVE_SEASON_ID` umstellen
 - keine halbfertige Season live schalten
+
+Fuer Midnight Season 2 muessen vor Aktivierung verifiziert werden:
+- Challenge-Map-IDs fuer alle acht Dungeons
+- Portal-Spell-IDs fuer alle acht Dungeons
+- LFG-Activity-IDs fuer Mythic+-Listings
+- MDT-/Forces-Daten inklusive Dungeon-Gesamtwerten und NPC-Zaehlern
+- Lokalisierte Dungeonnamen und stabile Kurz-Codes fuer mindestens `enUS` und `deDE`
 
 ### 3.5 BR-/Bloodlust-Combat-Events und Addon-Message-Transport
 

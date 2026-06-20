@@ -465,6 +465,144 @@ return function(test, ctx)
     Assert.Equal(calls, 1, "pending player summons should play the configured summon sound")
   end)
 
+  test("INCOMING_SUMMON_CHANGED repeats incoming-summon sound every 5 seconds while pending", function()
+    local calls = 0
+    local tickerCallback = nil
+    local tickerInterval = nil
+    local cancelCalls = 0
+    local status = 1
+    local globals = {
+      Enum = {
+        SummonStatus = {
+          Pending = 1,
+          Accepted = 2,
+          Declined = 3,
+        },
+      },
+      C_IncomingSummon = {
+        IncomingSummonStatus = function(unit)
+          Assert.Equal(unit, "player", "incoming summon loop should poll the player status")
+          return status
+        end,
+      },
+      C_Timer = {
+        NewTicker = function(interval, callback)
+          tickerInterval = interval
+          tickerCallback = callback
+          return {
+            Cancel = function()
+              cancelCalls = cancelCalls + 1
+            end,
+          }
+        end,
+      },
+    }
+    local handlers = LoadHandlers({
+      playIncomingSummonSound = function()
+        calls = calls + 1
+      end,
+    }, globals)
+    WithGlobals(globals, function()
+      handlers.INCOMING_SUMMON_CHANGED(nil, "player")
+      Assert.Equal(calls, 1, "pending player summons should play immediately")
+      Assert.Equal(tickerInterval, 5, "incoming summon loop must use a 5-second ticker")
+      Assert.NotNil(tickerCallback, "pending player summons should start a repeat ticker")
+
+      tickerCallback()
+      Assert.Equal(calls, 2, "pending summon loop tick should repeat the sound")
+
+      status = 2
+      tickerCallback()
+      Assert.Equal(calls, 2, "accepted summon should not play another loop sound")
+      Assert.Equal(cancelCalls, 1, "accepted summon should cancel the repeat ticker")
+    end)
+  end)
+
+  test("INCOMING_SUMMON_CHANGED respects disabled incoming-summon sound loop setting", function()
+    local calls = 0
+    local tickerCalls = 0
+    local globals = {
+      Enum = {
+        SummonStatus = {
+          Pending = 1,
+        },
+      },
+      C_IncomingSummon = {
+        IncomingSummonStatus = function()
+          return 1
+        end,
+      },
+      C_Timer = {
+        NewTicker = function()
+          tickerCalls = tickerCalls + 1
+          return {
+            Cancel = function() end,
+          }
+        end,
+      },
+    }
+    local handlers = LoadHandlers({
+      isIncomingSummonSoundLoopEnabled = function()
+        return false
+      end,
+      playIncomingSummonSound = function()
+        calls = calls + 1
+      end,
+    }, globals)
+    WithGlobals(globals, function()
+      handlers.INCOMING_SUMMON_CHANGED(nil, "player")
+    end)
+    Assert.Equal(calls, 1, "disabled loop setting must keep the immediate summon sound")
+    Assert.Equal(tickerCalls, 0, "disabled loop setting must not start a repeat ticker")
+  end)
+
+  test("INCOMING_SUMMON_CHANGED stops incoming-summon sound loop when setting is disabled during pending", function()
+    local calls = 0
+    local tickerCallback = nil
+    local cancelCalls = 0
+    local loopEnabled = true
+    local globals = {
+      Enum = {
+        SummonStatus = {
+          Pending = 1,
+        },
+      },
+      C_IncomingSummon = {
+        IncomingSummonStatus = function()
+          return 1
+        end,
+      },
+      C_Timer = {
+        NewTicker = function(_interval, callback)
+          tickerCallback = callback
+          return {
+            Cancel = function()
+              cancelCalls = cancelCalls + 1
+            end,
+          }
+        end,
+      },
+    }
+    local handlers = LoadHandlers({
+      isIncomingSummonSoundLoopEnabled = function()
+        return loopEnabled
+      end,
+      playIncomingSummonSound = function()
+        calls = calls + 1
+      end,
+    }, globals)
+    WithGlobals(globals, function()
+      handlers.INCOMING_SUMMON_CHANGED(nil, "player")
+      Assert.Equal(calls, 1, "pending player summons should play immediately")
+      Assert.NotNil(tickerCallback, "enabled loop setting should start a repeat ticker")
+
+      loopEnabled = false
+      tickerCallback()
+      Assert.Equal(calls, 1, "disabled loop setting during pending must not play another loop sound")
+      Assert.Equal(cancelCalls, 1, "disabled loop setting during pending must cancel the repeat ticker")
+    end)
+  end)
+
   test("INCOMING_SUMMON_CHANGED ignores non-player and non-pending summon updates", function()
     local calls = 0
     local statusCalls = 0

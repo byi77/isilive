@@ -1,7 +1,28 @@
 # Changelog
 
+## 2026-06-21 - Version 0.9.330 (patch)
+
+- Prepared an inactive `midnight_s2` SeasonData scaffold for Midnight Season 2
+  with the announced dungeon rotation, while keeping `midnight_s1` as the
+  active runtime season.
+- Kept the TOC interface on live WoW `120007`; 12.1.0 is only prepared and is
+  not marked as the supported live interface yet.
+- Added deterministic coverage that the prepared `midnight_s2` scaffold stays
+  inactive and readiness-blocked until verified map IDs, portal spell IDs, LFG
+  activity IDs, and forces data exist.
+- Updated the README, usecase, and maintenance documentation to show the active
+  Season 1 state and the prepared-but-unverified Season 2 state explicitly.
+- Renamed the compact H-mode leader button labels from `CD` / `CD 0` to
+  `CD10` / `CD0`, while keeping `RC` for ready checks, and updated the
+  architecture sketch to match.
+
 ## 2026-06-19 - Version 0.9.329 (patch)
 
+- Added an incoming-summon reminder loop: when the local player's summon is
+  verifiably pending, the `Portal.ogg` cue repeats every 5 seconds until the
+  summon is accepted, declined, no longer pending, or raid suppression applies.
+- Added a default-on Sound setting to disable only the incoming-summon repeat
+  loop while keeping the immediate incoming-summon sound toggle separate.
 - Widened the standalone Player Stats Box value column so larger live stat
   values, including Stamina rows without a percent value, stay inside the value
   column instead of clipping.
@@ -32,8 +53,8 @@
   row so the addon title no longer pushes the version label away, the full
   version stays readable next to the BETA badge, and the row aligns with the
   M+/H/V mode buttons.
-- Moved the M+/H/V mode buttons into the right title-bar button group while
-  keeping them borderless beside the framed settings, lock, and close controls.
+- Moved the M+/H/V mode buttons into the right title-bar button group and gave
+  them the same framed warm-gold title-bar chrome as settings, lock, and close.
 - Hid the standalone Stats Box value/percent separator while keeping the value
   and percent columns aligned.
 - Suppressed Bloodlust-ready announcements after challenge aborts even when the

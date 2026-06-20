@@ -6,6 +6,7 @@ local RuntimeLifecycle = {}
 addonTable.EventHandlersRuntimeLifecycle = RuntimeLifecycle
 local ChallengeLifecycle = addonTable.EventHandlersChallengeLifecycle
 local IsRaidModeActive
+local INCOMING_SUMMON_SOUND_LOOP_SECONDS = 5
 
 local function GetDB()
   return rawget(_G, "IsiLiveDB")
@@ -41,21 +42,69 @@ local function IsPlayerIncomingSummonPending(unitTarget)
   return pending ~= nil and status == pending
 end
 
+local function StopIncomingSummonSoundLoop(ctx)
+  local ticker = ctx.incomingSummonSoundLoopTicker
+  ctx.incomingSummonSoundLoopTicker = nil
+  if ticker and type(ticker.Cancel) == "function" then
+    ticker:Cancel()
+  end
+end
+
+local function StartIncomingSummonSoundLoopIfPending(ctx)
+  if type(ctx.isIncomingSummonSoundLoopEnabled) == "function" and ctx.isIncomingSummonSoundLoopEnabled() ~= true then
+    StopIncomingSummonSoundLoop(ctx)
+    return
+  end
+  if ctx.incomingSummonSoundLoopTicker then
+    return
+  end
+  if not IsPlayerIncomingSummonPending("player") then
+    return
+  end
+
+  local timer = rawget(_G, "C_Timer")
+  local newTicker = type(timer) == "table" and timer.NewTicker or nil
+  if type(newTicker) ~= "function" then
+    return
+  end
+
+  ctx.incomingSummonSoundLoopTicker = newTicker(INCOMING_SUMMON_SOUND_LOOP_SECONDS, function()
+    if
+      IsRaidModeActive(ctx)
+      or (
+        type(ctx.isIncomingSummonSoundLoopEnabled) == "function"
+        and ctx.isIncomingSummonSoundLoopEnabled() ~= true
+      )
+      or not IsPlayerIncomingSummonPending("player")
+    then
+      StopIncomingSummonSoundLoop(ctx)
+      return
+    end
+    ctx.playIncomingSummonSound()
+  end)
+end
+
 local function HandleConfirmSummonSound(ctx)
   if IsRaidModeActive(ctx) then
     return
   end
   ctx.playIncomingSummonSound()
+  StartIncomingSummonSoundLoopIfPending(ctx)
 end
 
 local function HandleIncomingSummonChangedSound(ctx, unitTarget)
   if IsRaidModeActive(ctx) then
+    StopIncomingSummonSoundLoop(ctx)
     return
   end
   if not IsPlayerIncomingSummonPending(unitTarget) then
+    if unitTarget == "player" then
+      StopIncomingSummonSoundLoop(ctx)
+    end
     return
   end
   ctx.playIncomingSummonSound()
+  StartIncomingSummonSoundLoopIfPending(ctx)
 end
 
 local TRACKED_NON_CHALLENGE_PARTY_DIFFICULTY_IDS = {

@@ -3,9 +3,16 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.329`.
+Current release: `0.9.330`.
 
 Highlights:
+- Midnight Season 2 preparation has started: `midnight_s2` is scaffolded but
+  inactive until verified Blizzard IDs and Mythic+ forces data are available.
+- isiLive still targets the live WoW 12.0.7 interface; 12.1.0 is not marked
+  live in the TOC yet.
+- Incoming summons can now repeat the `Portal.ogg` cue every 5 seconds while
+  the local player's summon remains verifiably pending; the repeat loop has its
+  own default-on Sound setting.
 - Queue/LFG target handling now keeps ambiguous single-struct activityID lists
   unresolved instead of selecting the first concrete candidate.
 - UI layout hardening now covers rich center notices with long wrapped fields,

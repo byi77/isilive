@@ -20,7 +20,7 @@
 - `isiLive_season_data.lua` darf mehrere Seasons enthalten (`active` plus vorbereitete zukuenftige Seasons), aber zur Laufzeit ist immer nur eine Season-ID aktiv.
 - `ACTIVE_SEASON_ID` wird nie umgestellt, bevor die Ziel-Season-Mappings (`mapToTeleport`, `displayOrder`, `shortCodesByLocale`, `challengeMapAliases`) vollstaendig und validiert sind.
 - Bei Season-Data-Aenderungen muessen `README.md` und `CHANGELOG.md` die aktive Season-ID und den Vorbereitungsstand der naechsten Season explizit nennen.
-- Aktuelle Planungsbasis: `midnight_s1` ist das aktive Pre-Season-Dataset.
+- Aktuelle Planungsbasis: `midnight_s1` ist das aktive Live-Dataset; `midnight_s2` ist nur als vorbereitetes, readiness-blockiertes Scaffold vorhanden.
 
 ## Lokalisierung
 - Alle user-facing Texte laufen ueber die Lokalisierungstabelle.

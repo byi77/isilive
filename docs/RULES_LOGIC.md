@@ -106,6 +106,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 84. Native WoW-Text-to-Speech-Ausgabe ist deaktiviert; Death- und Ready-Audio laufen ueber statische WAV-Dateien aus der Sound-Registry; Tank-/Heiler-Death-WAVs muessen als kurze, normalisierte 44,1-kHz-16-bit-PCM-Dateien vorliegen.
 85. Raid-LFG-Annahmen rendern keine Accepted-Invite-Centerbox und bleiben ausserhalb der M+-Zielpipeline stumm.
 86. Sichtbare UI-Elemente mit dynamischen Texten oder wachsender Aktionszahl muessen ein explizites Layoutbudget haben, damit sie nicht in Toolbar, Framegrenzen oder Bildschirmrand laufen.
+87. Eingehende Beschwoerungen wiederholen den Portal-Sound bei aktiviertem Loop alle 5 Sekunden, solange der Live-Status fuer `player` verifiziert `Pending` bleibt.
 
 ## Regelbloecke
 
@@ -392,6 +393,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Bootstrap gate keeps hidden CD refresh triggers for ready sounds
   - Config builders gate allows CD refresh events while frame is hidden
   - INCOMING_SUMMON_CHANGED plays incoming-summon sound for pending player summons
+  - INCOMING_SUMMON_CHANGED repeats incoming-summon sound every 5 seconds while pending
+  - INCOMING_SUMMON_CHANGED respects disabled incoming-summon sound loop setting
+  - INCOMING_SUMMON_CHANGED stops incoming-summon sound loop when setting is disabled during pending
   - INCOMING_SUMMON_CHANGED ignores non-player and non-pending summon updates
   - INCOMING_SUMMON_CHANGED fails closed when pending summon enum is unavailable
   - INCOMING_SUMMON_CHANGED suppresses incoming-summon sound in raid mode
@@ -1285,3 +1289,18 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Simulation tablet reapplies screen clamp after dynamic height changes
   - DeathAlert renders big red death text and restarts animation on repeated show
   - Settings panel exposes ready-check-complete sound toggle and preview
+
+### RULE-INCOMING-SUMMON-SOUND-LOOP
+- Regelnummer: 87
+- Status: aktiv
+- Zusammenfassung: Wenn fuer den lokalen Spieler eine eingehende Beschwoerung verifiziert als `Enum.SummonStatus.Pending` beobachtet wird, spielt der bestehende Incoming-Summon-Klang sofort und bei aktivierter Option `soundIncomingSummonLoopEnabled` anschliessend alle 5 Sekunden erneut. Der Loop ist standardmaessig aktiv, ueber die Sound-Settings abschaltbar und darf nur weiterlaufen, solange ein Live-Status fuer `player` weiterhin verifiziert `Pending` meldet. Sobald der Status fuer `player` nicht mehr `Pending` ist, die Pending-Quelle fehlt, der Loop-Schalter aus ist oder Raidmodus aktiv wird, muss der Loop geschlossen stoppen; ein einzelner `CONFIRM_SUMMON`-Klang ohne verifizierbaren Pending-Status darf keinen geratenen Endlosloop starten.
+- Erforderliche Tests:
+  - INCOMING_SUMMON_CHANGED plays incoming-summon sound for pending player summons
+  - INCOMING_SUMMON_CHANGED repeats incoming-summon sound every 5 seconds while pending
+  - INCOMING_SUMMON_CHANGED respects disabled incoming-summon sound loop setting
+  - INCOMING_SUMMON_CHANGED stops incoming-summon sound loop when setting is disabled during pending
+  - INCOMING_SUMMON_CHANGED ignores non-player and non-pending summon updates
+  - INCOMING_SUMMON_CHANGED fails closed when pending summon enum is unavailable
+  - INCOMING_SUMMON_CHANGED suppresses incoming-summon sound in raid mode
+  - Settings panel exposes sound toggles with the intended defaults
+  - DBSchema.Sanitize fills all defaults on an empty db

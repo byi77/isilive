@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.329`
-Zuletzt aktualisiert: `2026-06-20`
+Versionsbasis: `0.9.330`
+Zuletzt aktualisiert: `2026-06-21`
 
 ## Akteure
 
@@ -12,7 +12,7 @@ Zuletzt aktualisiert: `2026-06-20`
 ## Voraussetzungen
 
 1. Das Addon ist geladen und nicht im Zustand `stopped`.
-2. Das Season-Dataset wird ueber `ACTIVE_SEASON_ID` ausgewaehlt; aktuell `midnight_s1` mit dem live 8-Dungeon-Midnight-Season-1-Portalpool.
+2. Das Season-Dataset wird ueber `ACTIVE_SEASON_ID` ausgewaehlt; aktuell `midnight_s1` mit dem live 8-Dungeon-Midnight-Season-1-Portalpool. `midnight_s2` ist nur als vorbereitetes Scaffold vorhanden und bleibt inaktiv, bis Map-IDs, Portal-Spell-IDs, LFG-Activity-IDs und M+-Forces-Daten verifiziert sind.
 3. Die relevante UI ist fuer Queue-Scanning und Rendering sichtbar; waehrend hidden duerfen Addon-Message-Sync und Roster-Updates im Hintergrund weiterlaufen, die UI darf durch frischen Gruppenjoin, Key-Ende, echten Dungeon-Entry-Transition-Flow oder UI-Reload waehrend bestehender Gruppe auto-openen, und explizite Refresh-Requests duerfen genau eine hidden Sync-Reply triggern, auch waehrend eines aktiven Mythic+-Runs; derselbe Refresh-Pfad darf zusaetzlich genau eine `LibKS`-Party-Anfrage an kompatible Nicht-`isiLive`-Peers senden. Wenn LFGDetect bereits einen konkreten lokalen Map-Kontext kennt, gewinnt dieser fuer das Portal-Highlight gegen peer-synced Zielkontext. Nur stopped oder paused unterdruecken die hidden `isiLive`-Reply.
 4. Nicht-`isiLive`-Spieler koennen nur dann `Key` und `RIO` beitragen, wenn auf ihrer Seite ein kompatibles `LibKeystone`-sprechendes Addon laeuft; ohne sendenden Addon-Code bleiben diese Daten unresolved.
 5. Raid-Gruppen sind ein eigener Hard-off-Zustand: UI aus und Background-Processing aus; eine vor dem Raid sichtbare Main-UI wird beim Rueckweg aus dem Raid wieder geoeffnet.
@@ -167,7 +167,7 @@ Ziel: Schnelle Blizzard-Panel-Shortcuts und lokalisierte Addon-Toggles anbieten,
    - **Display**: `UI Scale`, `Background Opacity`, Spieler-Stats-Box mit Enable-, Lock-, Hintergrund-Deckkraft-, Schriftgroessen-Offset-, Zahlenmodus- und Detailzeilen-Control fuer Leech, Speed, Haltbarkeit, Ausdauer und Vermeidung, `Minimap Button`, `Show Timeways Navigator`, `Group Finder: Language Flags`, `Group Finder: Buff rating hearts`, `Tooltip: Language Flags`, `M+ Accepted-invite notice`, `Group-join target notice`.
    - **Behavior**: `Addon Sync`, `Lock main frame position`, `Fade out in Combat (M2 only)`, gefolgt vom Auto-Show/Hide-Block mit Erklaerung (`Show on Login / Reload`, `Auto-Open on M+ Queue`, `Auto-Open on Key End`, `Auto-close when key starts`, `Auto-close when leaving the group`), und einem statischen Raid-Behavior-Hinweis statt einem 1-Optionen-Selector.
    - **Nameplates**: 3-Modi-Selector `Off / Tooltip / Nameplate` fuer den M+-Forces-Overlay, plus `Show percentage`, `Show remaining needed`, `Font size`, `Position`, `X offset`, `Y offset` und ein Live-Preview.
-   - **Sounds**: Soundkanal-Selector `Master / SFX` mit Default `Master`; `Sound: Lead Transfer`, `Sound: Full Group`, `Sound: Incoming Summon`, `Sound: Battle Res`, `Sound: Battle Res Ready`, `Sound: Bloodlust`, `Sound: Bloodlust Ready`, `Sound: Ready Check Complete`, `Sound: Tank died` und `Sound: Healer died`, jeweils mit eigenem Play-Button zum Probehoeren auch bei deaktiviertem Toggle und nachbearbeiteten Sound-Settings-Texten fuer alle acht gepflegten UI-Locale-Tabellen. Native WoW-Text-to-Speech-Controls werden nicht gerendert. Diese Nachbearbeitung gilt nur fuer den Sound-Settings-Bereich, nicht fuer alle Texte der vorbereiteten Locales. Eingehende Beschwoerungen des lokalen Spielers spielen den Summon-Sound ueber den klassischen `CONFIRM_SUMMON`-Pfad und ueber den statusbasierten `INCOMING_SUMMON_CHANGED`-Pfad nur bei `Enum.SummonStatus.Pending`.
+   - **Sounds**: Soundkanal-Selector `Master / SFX` mit Default `Master`; `Sound: Lead Transfer`, `Sound: Full Group`, `Sound: Incoming Summon`, `Repeat incoming-summon alert every 5 seconds`, `Sound: Battle Res`, `Sound: Battle Res Ready`, `Sound: Bloodlust`, `Sound: Bloodlust Ready`, `Sound: Ready Check Complete`, `Sound: Tank died` und `Sound: Healer died`, jeweils mit eigenem Play-Button zum Probehoeren fuer direkte Soundausgaben auch bei deaktiviertem Toggle und nachbearbeiteten Sound-Settings-Texten fuer alle acht gepflegten UI-Locale-Tabellen. Native WoW-Text-to-Speech-Controls werden nicht gerendert. Diese Nachbearbeitung gilt nur fuer den Sound-Settings-Bereich, nicht fuer alle Texte der vorbereiteten Locales. Eingehende Beschwoerungen des lokalen Spielers spielen den Summon-Sound ueber den klassischen `CONFIRM_SUMMON`-Pfad und ueber den statusbasierten `INCOMING_SUMMON_CHANGED`-Pfad nur bei `Enum.SummonStatus.Pending`; bei aktiviertem Loop-Schalter wird der Klang alle 5 Sekunden wiederholt, solange derselbe Live-Status fuer `player` verifiziert `Pending` bleibt.
    - **Chat Announcements**: `Chat: Announce Battle Res usage in M+`, `Chat: Announce Bloodlust casts in M+`.
    - **Administrative**: `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Queue Debug Log (resets on reload)`, `Clear Queue Debug Log`, `Runtime Log (resets on reload)`, `Clear Runtime Log`.
    - **Reset-Aktionen**: `/isilive resetui` und `Reset All Settings`, jeweils mit Bestaetigung.

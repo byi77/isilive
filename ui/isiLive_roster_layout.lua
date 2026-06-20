@@ -48,6 +48,7 @@ end
 local MeasureFontStringWidthSafe = type(UICommon.MeasureFontStringWidthSafe) == "function"
     and UICommon.MeasureFontStringWidthSafe
   or MeasureFontStringWidthSafeFallback
+local ApplyBackdrop = type(UICommon.ApplyBackdrop) == "function" and UICommon.ApplyBackdrop or nil
 
 -- Layout Konstanten
 local LAYOUT_MODE_EXPANDED = "expanded"
@@ -812,15 +813,30 @@ RI.NotifyLayoutChanged = NotifyLayoutChanged
 -- _modeTarget and _collapseLayoutMode identify the button for tests.
 -- Active/inactive state is set via text color in UpdateCollapseState.
 local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onClick, buttonWidth)
-  local btn = CreateFrame("Button", nil, mainFrame)
+  local btn = CreateFrame("Button", nil, mainFrame, "BackdropTemplate")
   btn:SetSize(tonumber(buttonWidth) or 20, 20)
   btn:SetPoint("TOPRIGHT", xOffset, -2)
   -- DragHandle sits at mainFrame:GetFrameLevel() + 100; button must be above it.
   if btn.SetFrameLevel and mainFrame.GetFrameLevel then
     btn:SetFrameLevel(mainFrame:GetFrameLevel() + 102)
   end
+  if ApplyBackdrop then
+    ApplyBackdrop(btn, "CLOSE_BUTTON")
+  end
   if btn.SetHighlightTexture then
     btn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
+  end
+  if type(btn.SetScript) == "function" then
+    btn:SetScript("OnEnter", function(self)
+      if type(self.SetBackdropColor) == "function" then
+        self:SetBackdropColor(0.14, 0.14, 0.20, 0.7)
+      end
+    end)
+    btn:SetScript("OnLeave", function(self)
+      if type(self.SetBackdropColor) == "function" then
+        self:SetBackdropColor(0.08, 0.015, 0.012, 0.92)
+      end
+    end)
   end
   if type(btn.CreateFontString) == "function" then
     local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")

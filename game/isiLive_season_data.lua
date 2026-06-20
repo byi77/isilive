@@ -123,6 +123,36 @@ SeasonData.SEASONS = {
     -- Season is live; no inactive message needed.
     inactivePortalMessageByLocale = {},
   },
+  midnight_s2 = {
+    label = "Midnight Season 2",
+    -- Technical dungeon IDs, portal spell IDs, LFG activity IDs, and forces
+    -- data are intentionally unresolved until verified from Blizzard/Live data.
+    plannedDungeons = {
+      "Altar of Fangs",
+      "Murder Row",
+      "Den of Nalorakk",
+      "The Blinding Vale",
+      "Voidscar Arena",
+      "King's Rest",
+      "Ruby Life Pools",
+      "Temple of Sethraliss",
+    },
+    mapToTeleport = {},
+    displayOrder = {},
+    shortCodesByLocale = {
+      default = {},
+      deDE = {},
+    },
+    namesByLocale = {
+      enUS = {},
+      deDE = {},
+    },
+    challengeMapAliases = {},
+    inactivePortalMessageByLocale = {
+      default = "Midnight Season 2 portal data is not verified yet.",
+      deDE = "Midnight-Season-2-Portaldaten sind noch nicht verifiziert.",
+    },
+  },
 }
 
 local function RefreshLegacyAliases()

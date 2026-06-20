@@ -439,6 +439,11 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     or function(_info) end
   config.playIncomingSummonSound = type(deps.playIncomingSummonSound) == "function" and deps.playIncomingSummonSound
     or function() end
+  config.isIncomingSummonSoundLoopEnabled = type(deps.isIncomingSummonSoundLoopEnabled) == "function"
+      and deps.isIncomingSummonSoundLoopEnabled
+    or function()
+      return true
+    end
   config.playReadyCheckCompleteSound = type(deps.playReadyCheckCompleteSound) == "function"
       and deps.playReadyCheckCompleteSound
     or function() end
@@ -730,6 +735,10 @@ local function BuildEventHandlersDepsFromContext(ctx)
       if type(soundUtils) == "table" and type(soundUtils.PlayIncomingSummon) == "function" then
         soundUtils.PlayIncomingSummon()
       end
+    end,
+    isIncomingSummonSoundLoopEnabled = function()
+      local db = rawget(_G, "IsiLiveDB")
+      return type(db) ~= "table" or db.soundIncomingSummonLoopEnabled ~= false
     end,
     playReadyCheckCompleteSound = function()
       local soundUtils = addonTable.SoundUtils
