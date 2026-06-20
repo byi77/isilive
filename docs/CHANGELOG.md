@@ -32,8 +32,8 @@
   row so the addon title no longer pushes the version label away, the full
   version stays readable next to the BETA badge, and the row aligns with the
   M+/H/V mode buttons.
-- Moved the M+/H/V mode buttons into the right title-bar button group and gave
-  them the same gold framed style as the settings, lock, and close controls.
+- Moved the M+/H/V mode buttons into the right title-bar button group while
+  keeping them borderless beside the framed settings, lock, and close controls.
 - Hid the standalone Stats Box value/percent separator while keeping the value
   and percent columns aligned.
 - Suppressed Bloodlust-ready announcements after challenge aborts even when the
