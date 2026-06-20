@@ -2230,7 +2230,10 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Nil(db.soundLeadEnabled, "opening settings should not persist the default leader-sound state")
       Assert.Nil(db.soundGroupJoinEnabled, "opening settings should not persist the default group-join sound state")
       Assert.Nil(db.soundPortalAvailableEnabled, "opening settings should not persist the default portal sound state")
-      Assert.Nil(db.soundIncomingSummonLoopEnabled, "opening settings should not persist the incoming-summon loop default")
+      Assert.Nil(
+        db.soundIncomingSummonLoopEnabled,
+        "opening settings should not persist the incoming-summon loop default"
+      )
       Assert.Nil(db.soundBattleResEnabled, "opening settings should not persist the default battle-res sound state")
       Assert.Nil(db.soundBloodlustEnabled, "opening settings should not persist the default bloodlust sound state")
       Assert.Nil(db.soundOutputChannel, "opening settings should not persist the default sound output channel")

@@ -71,7 +71,10 @@ local function RegisterReadinessTests(test, Assert, LoadAddonModules)
     Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s1", "prepared S2 scaffold must not be active")
     Assert.False(readiness.isReady, "prepared S2 scaffold must fail readiness until verified IDs exist")
     Assert.Equal(readiness.mappedDungeonCount, 0, "prepared S2 scaffold must not expose guessed map IDs")
-    Assert.NotNil(findError(readiness, "mapToTeleport is empty"), "prepared S2 scaffold must stay blocked by empty map data")
+    Assert.NotNil(
+      findError(readiness, "mapToTeleport is empty"),
+      "prepared S2 scaffold must stay blocked by empty map data"
+    )
     Assert.Equal(
       addon.SeasonData.GetInactivePortalMessage("deDE", "midnight_s2"),
       "Midnight-Season-2-Portaldaten sind noch nicht verifiziert.",

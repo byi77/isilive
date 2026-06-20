@@ -71,10 +71,7 @@ local function StartIncomingSummonSoundLoopIfPending(ctx)
   ctx.incomingSummonSoundLoopTicker = newTicker(INCOMING_SUMMON_SOUND_LOOP_SECONDS, function()
     if
       IsRaidModeActive(ctx)
-      or (
-        type(ctx.isIncomingSummonSoundLoopEnabled) == "function"
-        and ctx.isIncomingSummonSoundLoopEnabled() ~= true
-      )
+      or (type(ctx.isIncomingSummonSoundLoopEnabled) == "function" and ctx.isIncomingSummonSoundLoopEnabled() ~= true)
       or not IsPlayerIncomingSummonPending("player")
     then
       StopIncomingSummonSoundLoop(ctx)
