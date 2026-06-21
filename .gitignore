@@ -27,13 +27,18 @@ sounds/*
 !sounds/CartoonVoiceBaritone.ogg
 !sounds/BoxingArenaSound.ogg
 !sounds/BattleRezReady.wav
+!sounds/BattleRezReady_deDE.wav
 !sounds/BloodlustReady.wav
+!sounds/BloodlustReady_deDE.wav
 !sounds/BttF_Tinkle.wav
 !sounds/TankDied.wav
+!sounds/TankDied_deDE.wav
 !sounds/HealerDied.wav
+!sounds/HealerDied_deDE.wav
 !sounds/ChickenAlarm.ogg
 !sounds/RoosterChickenCalls.ogg
 !sounds/Portal.ogg
+!sounds/Portal_deDE.wav
 !sounds/SynthChord.ogg
 
 # Local LuaRocks tree (CI/local tooling)

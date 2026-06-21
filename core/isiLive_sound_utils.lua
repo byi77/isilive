@@ -11,6 +11,7 @@ local activeSoundHandles = {} -- handle -> true
 local lastPlayResult = nil
 local DEFAULT_SOUND_CHANNEL = "Master"
 local OUTPUT_CHANNELS = { Master = true, SFX = true }
+local LOCALIZED_SOUND_LOCALES = { deDE = true }
 
 local function NormalizeOutputChannel(value, fallback)
   if type(value) == "string" and OUTPUT_CHANNELS[value] then
@@ -28,6 +29,34 @@ function SoundUtils.GetConfiguredOutputChannel(fallback)
     return NormalizeOutputChannel(db.soundOutputChannel, fallback)
   end
   return NormalizeOutputChannel(nil, fallback)
+end
+
+local function GetClientLocale()
+  local getLocale = rawget(_G, "GetLocale")
+  if type(getLocale) ~= "function" then
+    return nil
+  end
+  local ok, locale = pcall(getLocale)
+  if ok and type(locale) == "string" and LOCALIZED_SOUND_LOCALES[locale] then
+    return locale
+  end
+  return nil
+end
+
+function SoundUtils.ResolveSoundFile(entry)
+  if type(entry) ~= "table" then
+    return nil
+  end
+  local locale = GetClientLocale()
+  local localizedFiles = type(entry.localizedFiles) == "table" and entry.localizedFiles or nil
+  local localizedFile = locale and localizedFiles and localizedFiles[locale] or nil
+  if type(localizedFile) == "string" and localizedFile ~= "" then
+    return localizedFile
+  end
+  if type(entry.file) == "string" and entry.file ~= "" then
+    return entry.file
+  end
+  return nil
 end
 local VIP_MOUNT_SOUND_FILE_IDS = {
   astral_aurochs = {
@@ -721,6 +750,9 @@ SoundUtils.Registry = {
   },
   portal_available = {
     file = "Interface\\AddOns\\isiLive\\sounds\\Portal.ogg",
+    localizedFiles = {
+      deDE = "Interface\\AddOns\\isiLive\\sounds\\Portal_deDE.wav",
+    },
     labelKey = "SETTINGS_SOUND_PORTAL_AVAILABLE",
     settingKey = "soundPortalAvailableEnabled",
     defaultEnabled = true,
@@ -736,6 +768,9 @@ SoundUtils.Registry = {
   },
   battle_res_ready = {
     file = "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady.wav",
+    localizedFiles = {
+      deDE = "Interface\\AddOns\\isiLive\\sounds\\BattleRezReady_deDE.wav",
+    },
     labelKey = "SETTINGS_SOUND_BATTLE_RES_READY",
     descKey = "SETTINGS_SOUND_BATTLE_RES_READY_DESC",
     labelFallback = "Sound: Battle Res ready",
@@ -753,6 +788,9 @@ SoundUtils.Registry = {
   },
   bloodlust_ready = {
     file = "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
+    localizedFiles = {
+      deDE = "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady_deDE.wav",
+    },
     labelKey = "SETTINGS_SOUND_BLOODLUST_READY",
     descKey = "SETTINGS_SOUND_BLOODLUST_READY_DESC",
     labelFallback = "Sound: Bloodlust ready",
@@ -763,6 +801,9 @@ SoundUtils.Registry = {
   },
   tank_died = {
     file = "Interface\\AddOns\\isiLive\\sounds\\TankDied.wav",
+    localizedFiles = {
+      deDE = "Interface\\AddOns\\isiLive\\sounds\\TankDied_deDE.wav",
+    },
     labelKey = "SETTINGS_SOUND_TANK_DIED",
     descKey = "SETTINGS_SOUND_TANK_DIED_DESC",
     labelFallback = "Sound: Tank died",
@@ -773,6 +814,9 @@ SoundUtils.Registry = {
   },
   healer_died = {
     file = "Interface\\AddOns\\isiLive\\sounds\\HealerDied.wav",
+    localizedFiles = {
+      deDE = "Interface\\AddOns\\isiLive\\sounds\\HealerDied_deDE.wav",
+    },
     labelKey = "SETTINGS_SOUND_HEALER_DIED",
     descKey = "SETTINGS_SOUND_HEALER_DIED_DESC",
     labelFallback = "Sound: Healer died",
@@ -989,7 +1033,7 @@ local function PlayEntry(entry, key)
   if entry.soundKit ~= nil then
     return SoundUtils.PlaySoundKit(entry.soundKit, channel)
   end
-  local soundFile = entry.file
+  local soundFile = SoundUtils.ResolveSoundFile(entry)
   if type(soundFile) ~= "string" or soundFile == "" then
     return false
   end

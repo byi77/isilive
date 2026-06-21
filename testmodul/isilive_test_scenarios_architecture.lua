@@ -806,8 +806,17 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
   test("Architecture gitignore keeps packaged sound assets trackable", function()
     local content = ReadFile(".gitignore")
     local soundFiles = {
+      "BattleRezReady.wav",
+      "BattleRezReady_deDE.wav",
+      "BloodlustReady.wav",
+      "BloodlustReady_deDE.wav",
+      "HealerDied.wav",
+      "HealerDied_deDE.wav",
       "Portal.ogg",
+      "Portal_deDE.wav",
       "RoosterChickenCalls.ogg",
+      "TankDied.wav",
+      "TankDied_deDE.wav",
     }
 
     for _, soundFile in ipairs(soundFiles) do
@@ -1737,6 +1746,64 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       now = 7
       addon.SoundUtils.PlayGroupJoin()
       Assert.Equal(playedChannel, "Master", "invalid sound output channel should fail closed to Master")
+    end)
+  end)
+
+  test("SoundUtils resolves German spoken WAV assets only for deDE", function()
+    local calls = {}
+    local locale = "deDE"
+    local now = 0
+
+    WithGlobals({
+      IsiLiveDB = {},
+      GetLocale = function()
+        return locale
+      end,
+      GetTime = function()
+        now = now + 1
+        return now
+      end,
+      PlaySoundFile = function(path, channel)
+        calls[#calls + 1] = { path = path, channel = channel }
+        return true
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
+      local localizedKeys = {
+        battle_res_ready = "BattleRezReady_deDE.wav",
+        bloodlust_ready = "BloodlustReady_deDE.wav",
+        portal_available = "Portal_deDE.wav",
+        tank_died = "TankDied_deDE.wav",
+        healer_died = "HealerDied_deDE.wav",
+      }
+
+      for key, expectedFile in pairs(localizedKeys) do
+        local entry = addon.SoundUtils.GetEntry(key)
+        Assert.NotNil(entry.localizedFiles, key .. " must declare localized static WAV files")
+        Assert.Equal(
+          addon.SoundUtils.ResolveSoundFile(entry),
+          "Interface\\AddOns\\isiLive\\sounds\\" .. expectedFile,
+          key .. " must resolve to the German WAV on deDE clients"
+        )
+        Assert.True(addon.SoundUtils.PlayKey(key), key .. " must play the German WAV")
+        Assert.True(
+          calls[#calls].path:find(expectedFile, 1, true) ~= nil,
+          key .. " playback must use the German WAV on deDE clients"
+        )
+      end
+
+      locale = "frFR"
+      calls = {}
+      addon.SoundUtils.PlayBattleResReady()
+      addon.SoundUtils.PlayBloodlustReady()
+      addon.SoundUtils.PlayPortalAvailable()
+      addon.SoundUtils.PlayTankDied()
+      addon.SoundUtils.PlayHealerDied()
+      Assert.True(calls[1].path:find("BattleRezReady.wav", 1, true) ~= nil, "frFR must use English BR-ready")
+      Assert.True(calls[2].path:find("BloodlustReady.wav", 1, true) ~= nil, "frFR must use English BL-ready")
+      Assert.True(calls[3].path:find("Portal.ogg", 1, true) ~= nil, "frFR must use default incoming summon")
+      Assert.True(calls[4].path:find("TankDied.wav", 1, true) ~= nil, "frFR must use English tank death")
+      Assert.True(calls[5].path:find("HealerDied.wav", 1, true) ~= nil, "frFR must use English healer death")
     end)
   end)
 

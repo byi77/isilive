@@ -3,7 +3,7 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.330`.
+Current release: `0.9.331`.
 
 Highlights:
 - Midnight Season 2 preparation has started: `midnight_s2` is scaffolded but
@@ -13,6 +13,14 @@ Highlights:
 - Incoming summons can now repeat the `Portal.ogg` cue every 5 seconds while
   the local player's summon remains verifiably pending; the repeat loop has its
   own default-on Sound setting.
+- German clients now use German static WAV announcements for tank death, healer
+  death, Battle Res ready, and Bloodlust ready; English and all other locales
+  keep the existing English WAVs.
+- German clients also get a spoken incoming-summon cue ("Beschwoerung aktiv");
+  all other locales continue to use `Portal.ogg`.
+- On-screen death-alert text is now uppercase: German clients show `TANK TOT`
+  / `HEILER TOT`, while English and fallback locales show `TANK DIED` /
+  `HEALER DIED`.
 - Compact vertical `V` layout now uses short leader labels (`RC`, `CD10`,
   `CD0`), hides Share Keys there, removes the tool headers, and places world
   markers in two tight columns.

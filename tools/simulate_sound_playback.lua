@@ -164,11 +164,23 @@ for _, key in ipairs(SoundUtils.SettingsOrder) do
       fail = true
     end
   else
-    local existsOk, full = file_exists(entry.file)
-    print(string.format("  [%s] %-22s -> %s", existsOk and "OK  " or "MISS", key, entry.file))
+    local resolvedFile = type(SoundUtils.ResolveSoundFile) == "function" and SoundUtils.ResolveSoundFile(entry)
+      or entry.file
+    local existsOk, full = file_exists(resolvedFile)
+    print(string.format("  [%s] %-22s -> %s", existsOk and "OK  " or "MISS", key, resolvedFile))
     if not existsOk then
       print(string.format("         expected on disk: %s", full))
       fail = true
+    end
+    if type(entry.localizedFiles) == "table" then
+      for locale, localizedFile in pairs(entry.localizedFiles) do
+        local localizedOk, localizedFull = file_exists(localizedFile)
+        print(string.format("  [%s] %-22s -> %s (%s)", localizedOk and "OK  " or "MISS", key, localizedFile, locale))
+        if not localizedOk then
+          print(string.format("         expected on disk: %s", localizedFull))
+          fail = true
+        end
+      end
     end
   end
 end

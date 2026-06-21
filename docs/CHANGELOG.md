@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-06-21 - Version 0.9.331 (patch)
+
+- Tracked the German localized spoken sound assets for release packaging, so
+  the `deDE` WAV announcements are included by the git-file-based CurseForge
+  and WowUp package builds.
+- Uppercased the on-screen death-alert role text: German clients show
+  `TANK TOT` / `HEILER TOT`, while English and fallback locales show
+  `TANK DIED` / `HEALER DIED`.
+
 ## 2026-06-21 - Version 0.9.330 (patch)
 
 - Prepared an inactive `midnight_s2` SeasonData scaffold for Midnight Season 2
@@ -31,6 +40,13 @@
   refreshes after `TOYS_UPDATED` when the toy cache warms up.
 - Fixed the German Sound settings refresh for the incoming-summon repeat
   toggle so its label and description no longer fall back to English.
+- Added German static spoken WAV assets for tank death, healer death, Battle
+  Res ready, and Bloodlust ready alerts. `deDE` clients now use the German
+  files while English and all other client locales keep the existing English
+  WAVs.
+- Added a German incoming-summon announcement (`Portal_deDE.wav`,
+  "Beschwoerung aktiv") for `deDE` clients while every other locale keeps the
+  existing `Portal.ogg` cue.
 - Audited Settings localization: prepared French, Spanish, Portuguese, Italian,
   Russian, and Turkish Settings fallbacks were translated without rewriting
   existing non-English translations, and deterministic coverage prevents

@@ -499,14 +499,14 @@ local function RegisterDeathAlertUiTests(test, ctx)
         return BuildFrameStub(track)
       end,
       getL = function()
-        return { DEATH_ALERT_TANK = "Tank died", DEATH_ALERT_HEALER = "Healer died" }
+        return { DEATH_ALERT_TANK = "TANK DIED", DEATH_ALERT_HEALER = "HEALER DIED" }
       end,
     })
 
     Assert.Equal(controller.ShowRoleDeath("DAMAGER"), false, "non tank/healer roles must not render")
 
     Assert.Equal(controller.ShowRoleDeath("TANK"), true, "tank alert must render")
-    Assert.Equal(track.text, "Tank died", "tank alert must show the configured text")
+    Assert.Equal(track.text, "TANK DIED", "tank alert must show the configured text")
     Assert.Equal(track.color.r, 1, "alert text must be red")
     Assert.True(track.color.g < 0.3 and track.color.b < 0.3, "alert text must be red, not white")
     Assert.Equal(track.textWidth, 720, "alert text must reserve a bounded width")
@@ -516,10 +516,33 @@ local function RegisterDeathAlertUiTests(test, ctx)
     Assert.Equal(track.plays, 1, "animation must play on show")
 
     Assert.Equal(controller.ShowRoleDeath("HEALER"), true, "healer alert must render")
-    Assert.Equal(track.text, "Healer died", "healer alert must show the configured text")
+    Assert.Equal(track.text, "HEALER DIED", "healer alert must show the configured text")
     Assert.Equal(track.stops, 2, "animation must stop before every (re)play")
     Assert.Equal(track.plays, 2, "animation must restart for the second death")
     Assert.True(controller._Test_GetFrame().shown == true, "alert frame must be visible after show")
+  end)
+
+  test("DeathAlert uses German role death text for deDE locale", function()
+    local addon
+    WithGlobals({}, function()
+      addon = LoadAddonModules({ "isiLive_death_alert.lua" })
+    end)
+
+    local track = {}
+    local controller = addon.DeathAlert.CreateController({
+      createFrame = function()
+        return BuildFrameStub(track)
+      end,
+      getL = function()
+        return { DEATH_ALERT_TANK = "TANK TOT", DEATH_ALERT_HEALER = "HEILER TOT" }
+      end,
+    })
+
+    Assert.Equal(controller.ShowRoleDeath("TANK"), true, "tank alert must render")
+    Assert.Equal(track.text, "TANK TOT", "German tank alert must use the localized role text")
+
+    Assert.Equal(controller.ShowRoleDeath("HEALER"), true, "healer alert must render")
+    Assert.Equal(track.text, "HEILER TOT", "German healer alert must use the localized role text")
   end)
 end
 
@@ -777,7 +800,14 @@ local function RegisterStaticDeathWavTests(test, ctx)
   test("SoundUtils death WAV assets stay single-announcement length", function()
     local tankInfo = ReadWavInfo("sounds/TankDied.wav")
     local healerInfo = ReadWavInfo("sounds/HealerDied.wav")
-    for label, info in pairs({ TankDied = tankInfo, HealerDied = healerInfo }) do
+    local tankDeInfo = ReadWavInfo("sounds/TankDied_deDE.wav")
+    local healerDeInfo = ReadWavInfo("sounds/HealerDied_deDE.wav")
+    for label, info in pairs({
+      TankDied = tankInfo,
+      HealerDied = healerInfo,
+      TankDied_deDE = tankDeInfo,
+      HealerDied_deDE = healerDeInfo,
+    }) do
       Assert.Equal(info.audioFormat, 1, label .. ".wav must use PCM format")
       Assert.Equal(info.fmtChunkSize, 16, label .. ".wav must use the canonical PCM fmt chunk")
       Assert.Equal(info.channels, 1, label .. ".wav must be mono")
@@ -823,8 +853,8 @@ local function RegisterStaticDeathWavTests(test, ctx)
     env.ctxStub = {
       GetL = function()
         return {
-          DEATH_ALERT_TANK = "Tank died",
-          DEATH_ALERT_HEALER = "Healer died",
+          DEATH_ALERT_TANK = "TANK DIED",
+          DEATH_ALERT_HEALER = "HEALER DIED",
         }
       end,
       GetActiveChallengeMapID = function()
