@@ -401,7 +401,7 @@ local function CreateOwnDeathSoundCheckbox(canvas, yOffset, labels, config, cont
     checkbox.check:SetPoint("TOPLEFT", canvas, "TOPLEFT", CHILD_CHECKBOX_OFFSET_X, yOffset)
   end
   if checkbox and checkbox.description and type(checkbox.description.GetPoint) == "function" then
-    local point, _relativeTo, relativePoint, _x, y = checkbox.description:GetPoint()
+    local point, _, relativePoint, _, y = checkbox.description:GetPoint()
     if point and type(checkbox.description.ClearAllPoints) == "function" then
       checkbox.description:ClearAllPoints()
       checkbox.description:SetPoint(point, canvas, relativePoint, CHILD_CHECKBOX_OFFSET_X, y or 0)
