@@ -97,7 +97,7 @@ When you join a group, isiLive gives you a colorful, compact overview of the thi
 - Watch Battle Res, Bloodlust, M+ timer cutoffs, and death counts without opening extra panels.
 - Get clear red tank/healer death alerts during active keys, with separate sound toggles.
 - Keep departed players as ghost rows so post-wipe or post-reset context does not vanish immediately.
-- Use optional support tools: ESC-menu shortcuts, Hearthstone travel shortcut, player stats box, nameplate controls, safe position lock, runtime logs, and demo simulation tablet.
+- Use optional support tools: ESC-menu shortcuts, Hearthstone and Dalaran travel shortcuts, player stats box, nameplate controls, safe position lock, runtime logs, and demo simulation tablet.
 
 Everything syncs automatically between group members who run isiLive. No manual import. No guessed dungeon targets. No `/say` spam.
 
@@ -149,7 +149,7 @@ The window comes in four layouts. Click the button in the title bar to switch:
 | **M+** | Compact main | Full roster + all M+ tools stacked (default) |
 | **M** | Main | Roster + tools in a classic stacked view |
 | **H** | Horizontal | Slim tool strip — just the essentials |
-| **V** | Vertical | Small palette with markers and group tools |
+| **V** | Vertical | Small palette with short `RC` / `CD10` / `CD0` leader buttons and two compact marker columns |
 
 The selected layout is remembered across sessions.
 
@@ -338,7 +338,7 @@ Open via **Escape → AddOns → isiLive**. Everything takes effect immediately.
 
 - **Beta** — current beta notice plus GitHub issue and CurseForge comment links
 - **General** — language and default layout when opening isiLive
-- **ESC Menu** — ESC shortcut panel toggle and Hearthstone travel shortcut selection
+- **ESC Menu** — ESC shortcut panel toggle, Hearthstone travel shortcut selection, and verified Dalaran Hearthstone travel button
 - **Display** — UI scale, background opacity, player stats box controls, minimap button, Portal Navigator, Group Finder language flags and class-bonus hints
 - **Behavior** — addon sync, lock main frame position, fade in combat, auto-show/hide triggers (show on login, auto-open on M+ queue, auto-open on key end, auto-close on key start, auto-close on leaving the group), raid behavior status
 - **Nameplates** — enable forces overlay, font size, position, percent toggle
@@ -351,8 +351,8 @@ Open via **Escape → AddOns → isiLive**. Everything takes effect immediately.
 
 - User-facing text is localized through the locale tables.
 - New built-in text is maintained in English and German first.
-- Other prepared locales may temporarily use English fallback text until a translator updates them.
-- Only the sound setting labels and descriptions are already post-edited for the prepared French, Spanish, Portuguese, Italian, Russian, and Turkish locale tables; other areas may still use English fallback text.
+- Other prepared locales may temporarily use English fallback text outside the Settings panel until a translator updates them.
+- Settings labels and descriptions are post-edited for the prepared French, Spanish, Portuguese, Italian, Russian, and Turkish locale tables; deterministic coverage prevents unmarked English fallback text in prepared Settings locales.
 - Community translation pull requests are welcome; accepted translators are credited in the changelog.
 
 ### Auto-open defaults

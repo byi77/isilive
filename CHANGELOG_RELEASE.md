@@ -13,6 +13,14 @@ Highlights:
 - Incoming summons can now repeat the `Portal.ogg` cue every 5 seconds while
   the local player's summon remains verifiably pending; the repeat loop has its
   own default-on Sound setting.
+- Compact vertical `V` layout now uses short leader labels (`RC`, `CD10`,
+  `CD0`), hides Share Keys there, removes the tool headers, and places world
+  markers in two tight columns.
+- The ESC Travel panel now includes a Dalaran shortcut that only appears when
+  the Dalaran Hearthstone toy is verified as owned.
+- Settings localization was audited: prepared French, Spanish, Portuguese,
+  Italian, Russian, and Turkish Settings fallbacks were translated, with tests
+  preventing unmarked English fallback text in prepared Settings locales.
 - Queue/LFG target handling now keeps ambiguous single-struct activityID lists
   unresolved instead of selecting the first concrete candidate.
 - UI layout hardening now covers rich center notices with long wrapped fields,
