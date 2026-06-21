@@ -21,6 +21,12 @@ Highlights:
 - On-screen death-alert text is now uppercase: German clients show `TANK TOT`
   / `HEILER TOT`, while English and fallback locales show `TANK DIED` /
   `HEALER DIED`.
+- New Sound settings can mute only your own tank-death or healer-death WAV
+  alert without disabling the on-screen warning, death counters, or alerts for
+  other group members.
+- Those own-death sound settings now sit below their matching tank/healer
+  parent setting, and Sound preview buttons use a texture play icon instead of
+  a font glyph.
 - Compact vertical `V` layout now uses short leader labels (`RC`, `CD10`,
   `CD0`), hides Share Keys there, removes the tool headers, and places world
   markers in two tight columns.

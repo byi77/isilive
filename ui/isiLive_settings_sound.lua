@@ -12,6 +12,8 @@ local CreateSettingsOptionSelector = addonTable.SettingsControls.CreateSettingsO
 local DESCRIPTION_WIDTH = 620
 local PREVIEW_BUTTON_WIDTH = 24
 local PREVIEW_BUTTON_HEIGHT = 22
+local CHILD_CHECKBOX_OFFSET_X = 32
+local PREVIEW_PLAY_TEXTURE = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up"
 local SOUND_CHANNEL_VALUES = { Master = true, SFX = true }
 
 local SOUND_CHANNEL_SETTING = {
@@ -138,6 +140,31 @@ local INCOMING_SUMMON_LOOP_SETTING = {
   defaultEnabled = true,
 }
 
+local OWN_DEATH_SOUND_SETTINGS = {
+  {
+    controlKey = "ownTankDiedSoundCheck",
+    soundKey = "own_tank_died",
+    labelKey = "SETTINGS_SOUND_OWN_TANK_DIED",
+    descKey = "SETTINGS_SOUND_OWN_TANK_DIED_DESC",
+    parentSoundKey = "tank_died",
+    labelFallback = "Sound alert even when you play tank yourself",
+    descFallback = "Also plays the tank-death sound even when you are the tank yourself.",
+    settingKey = "soundOwnTankDiedEnabled",
+    defaultEnabled = true,
+  },
+  {
+    controlKey = "ownHealerDiedSoundCheck",
+    soundKey = "own_healer_died",
+    labelKey = "SETTINGS_SOUND_OWN_HEALER_DIED",
+    descKey = "SETTINGS_SOUND_OWN_HEALER_DIED_DESC",
+    parentSoundKey = "healer_died",
+    labelFallback = "Sound alert even when you play healer yourself",
+    descFallback = "Also plays the healer-death sound even when you are the healer yourself.",
+    settingKey = "soundOwnHealerDiedEnabled",
+    defaultEnabled = true,
+  },
+}
+
 local VIP_SOUND_DESCRIPTIONS = {
   SETTINGS_VIP_ASTRAL_AUROCHS_SOUND = {
     descKey = "SETTINGS_VIP_ASTRAL_AUROCHS_SOUND_DESC",
@@ -241,8 +268,15 @@ local function CreateSoundPreviewButton(parent, checkbox, soundKey)
 
   local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   label:SetPoint("CENTER", 0, 0)
-  label:SetText("\226\150\182")
+  label:SetText("")
   button.label = label
+  if type(button.CreateTexture) == "function" then
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("CENTER", 0, 0)
+    icon:SetSize(14, 14)
+    icon:SetTexture(PREVIEW_PLAY_TEXTURE)
+    button.icon = icon
+  end
 
   button:SetScript("OnEnter", function(self)
     local tooltip = rawget(_G, "GameTooltip")
@@ -338,6 +372,47 @@ local function CreateBloodlustReadyReminderCheckbox(canvas, yOffset, labels, con
     checkbox.check._soundKey = "bloodlust_ready_reminder"
   end
   controls.bloodlustReadyReminderCheck = checkbox
+  return nextY
+end
+
+local function CreateOwnDeathSoundCheckbox(canvas, yOffset, labels, config, controls, entry)
+  local checkbox, nextY = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels[entry.labelKey] or entry.labelFallback,
+    function()
+      local db = config.getDB()
+      local stored = db[entry.settingKey]
+      if stored ~= nil then
+        return stored == true
+      end
+      return entry.defaultEnabled ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db[entry.settingKey] = checked == true
+    end,
+    entry.labelKey,
+    DescriptionOptions(labels[entry.descKey] or entry.descFallback)
+  )
+
+  if checkbox and checkbox.check and type(checkbox.check.ClearAllPoints) == "function" then
+    checkbox.check:ClearAllPoints()
+    checkbox.check:SetPoint("TOPLEFT", canvas, "TOPLEFT", CHILD_CHECKBOX_OFFSET_X, yOffset)
+  end
+  if checkbox and checkbox.description and type(checkbox.description.GetPoint) == "function" then
+    local point, _relativeTo, relativePoint, _x, y = checkbox.description:GetPoint()
+    if point and type(checkbox.description.ClearAllPoints) == "function" then
+      checkbox.description:ClearAllPoints()
+      checkbox.description:SetPoint(point, canvas, relativePoint, CHILD_CHECKBOX_OFFSET_X, y or 0)
+    end
+  end
+
+  if checkbox and checkbox.check then
+    checkbox.check._sectionKey = "SETTINGS_SECTION_SOUNDS"
+    checkbox.check._soundKey = entry.soundKey
+  end
+  controls[entry.controlKey] = checkbox
   return nextY
 end
 
@@ -449,6 +524,11 @@ function SettingsSound.BuildSoundSection(canvas, yOffset, labels, config, contro
     if entry.key == "bloodlust_ready" then
       yOffset = CreateBloodlustReadyReminderCheckbox(canvas, yOffset, labels, config, controls)
     end
+    for _, ownDeathEntry in ipairs(OWN_DEATH_SOUND_SETTINGS) do
+      if ownDeathEntry.parentSoundKey == entry.key then
+        yOffset = CreateOwnDeathSoundCheckbox(canvas, yOffset, labels, config, controls, ownDeathEntry)
+      end
+    end
   end
 
   return yOffset
@@ -549,7 +629,7 @@ function SettingsSound.RefreshSoundControls(controls, labels, db)
       end
       local previewButton = controls.soundPreviewButtons and controls.soundPreviewButtons[entry.key] or nil
       if previewButton and previewButton.label then
-        previewButton.label:SetText("\226\150\182")
+        previewButton.label:SetText("")
         SetPreviewTooltip(previewButton, labels)
       end
     end
@@ -600,6 +680,20 @@ function SettingsSound.RefreshSoundControls(controls, labels, db)
       nextValue = stored == true
     end
     controls.incomingSummonLoopCheck.check:SetChecked(nextValue)
+  end
+
+  for _, entry in ipairs(OWN_DEATH_SOUND_SETTINGS) do
+    local control = controls[entry.controlKey]
+    if control then
+      control.label:SetText(labels[entry.labelKey] or entry.labelFallback)
+      SetDescription(control, labels[entry.descKey] or entry.descFallback)
+      local stored = db[entry.settingKey]
+      local nextValue = entry.defaultEnabled ~= false
+      if stored ~= nil then
+        nextValue = stored == true
+      end
+      control.check:SetChecked(nextValue)
+    end
   end
 end
 

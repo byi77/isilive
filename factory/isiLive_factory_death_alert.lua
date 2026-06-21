@@ -6,6 +6,11 @@ addonTable._FactoryInternal = FI
 
 local DEATH_ALERT_DUPLICATE_WINDOW_SECONDS = 1
 
+local OWN_DEATH_SOUND_SETTINGS = {
+  TANK = "soundOwnTankDiedEnabled",
+  HEALER = "soundOwnHealerDiedEnabled",
+}
+
 local function IsMplusTimerRunning()
   local mplusTimer = addonTable.MplusTimer
   if type(mplusTimer) ~= "table" or type(mplusTimer.GetTimerData) ~= "function" then
@@ -20,6 +25,13 @@ end
 local function PlayRoleDeathSound(role, opts)
   if type(opts) == "table" and opts.suppressAudio == true then
     return
+  end
+  if type(opts) == "table" and opts.unit == "player" then
+    local settingKey = OWN_DEATH_SOUND_SETTINGS[role]
+    local db = rawget(_G, "IsiLiveDB")
+    if type(settingKey) == "string" and type(db) == "table" and db[settingKey] == false then
+      return
+    end
   end
   local soundUtils = addonTable.SoundUtils
   if type(soundUtils) ~= "table" then
@@ -67,7 +79,7 @@ local function InitializeFactoryDeathAlertControllers(ctx)
   -- on-screen warning is intentionally limited to tank/healer and always
   -- shows the role-only text without a name; damage-dealer deaths have no
   -- bundled WAV asset and stay audio-silent.
-  ctx.ShowRoleDeathAlert = function(role, _unit, opts)
+  ctx.ShowRoleDeathAlert = function(role, unit, opts)
     local GetTime_ref = rawget(_G, "GetTime")
     local now = type(GetTime_ref) == "function" and tonumber(GetTime_ref()) or nil
     if now and (role == "TANK" or role == "HEALER") then
@@ -85,6 +97,8 @@ local function InitializeFactoryDeathAlertControllers(ctx)
     then
       deathAlert.ShowRoleDeath(role)
     end
+    opts = type(opts) == "table" and opts or {}
+    opts.unit = unit
     PlayRoleDeathSound(role, opts)
   end
 

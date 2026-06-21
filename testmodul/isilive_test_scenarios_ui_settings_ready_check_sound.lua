@@ -87,7 +87,13 @@ return function(test, ctx)
       Assert.Equal(#previewCalls, 1, "ready-check preview should play once")
       Assert.Equal(previewCalls[1].path, "Interface\\AddOns\\isiLive\\sounds\\BttF_Tinkle.wav", "preview asset")
       Assert.Equal(previewCalls[1].channel, "Master", "ready-check preview should use the default Master channel")
-      Assert.Equal(readyCheckPreview.label:GetText(), "\226\150\182", "preview button should render a play glyph")
+      Assert.Equal(readyCheckPreview.label:GetText(), "", "preview button should not rely on a font glyph")
+      Assert.NotNil(readyCheckPreview.icon, "preview button should render a texture icon")
+      Assert.Equal(
+        readyCheckPreview.icon._texture,
+        "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up",
+        "preview button should use a Blizzard play-like texture"
+      )
       readyCheckPreview._scripts.OnEnter(readyCheckPreview)
       Assert.Equal(tooltipText, "Preview", "preview button hover should explain the action")
       readyCheckPreview._scripts.OnLeave(readyCheckPreview)
@@ -195,11 +201,17 @@ return function(test, ctx)
       local healerCheck = nil
       local tankPreview = nil
       local healerPreview = nil
+      local ownTankCheck = nil
+      local ownHealerCheck = nil
       for _, frame in ipairs(createdFrames) do
         if frame._soundKey == "tank_died" then
           tankCheck = frame
         elseif frame._soundKey == "healer_died" then
           healerCheck = frame
+        elseif frame._soundKey == "own_tank_died" then
+          ownTankCheck = frame
+        elseif frame._soundKey == "own_healer_died" then
+          ownHealerCheck = frame
         elseif frame._soundPreviewKey == "tank_died" then
           tankPreview = frame
         elseif frame._soundPreviewKey == "healer_died" then
@@ -209,21 +221,63 @@ return function(test, ctx)
 
       tankCheck = Assert.NotNil(tankCheck, "tank death sound checkbox should exist")
       healerCheck = Assert.NotNil(healerCheck, "healer death sound checkbox should exist")
+      ownTankCheck = Assert.NotNil(ownTankCheck, "own tank death sound checkbox should exist")
+      ownHealerCheck = Assert.NotNil(ownHealerCheck, "own healer death sound checkbox should exist")
       Assert.NotNil(tankPreview, "tank death sound preview button should exist")
       Assert.NotNil(healerPreview, "healer death sound preview button should exist")
+      Assert.Equal(
+        ownTankCheck.label:GetText(),
+        "Sound alert even when you play tank yourself",
+        "own tank death sound checkbox should use the requested English fallback label"
+      )
+      Assert.Equal(
+        ownHealerCheck.label:GetText(),
+        "Sound alert even when you play healer yourself",
+        "own healer death sound checkbox should use the requested English fallback label"
+      )
+      Assert.Equal(
+        ownTankCheck._point[4],
+        32,
+        "own tank death sound checkbox should be indented as a child of the tank sound toggle"
+      )
+      Assert.Equal(
+        ownHealerCheck._point[4],
+        32,
+        "own healer death sound checkbox should be indented as a child of the healer sound toggle"
+      )
+      Assert.True(
+        ownTankCheck._point[5] < tankCheck._point[5] and ownTankCheck._point[5] > healerCheck._point[5],
+        "own tank death sound checkbox should sit between the tank and healer sound toggles"
+      )
+      Assert.True(
+        ownHealerCheck._point[5] < healerCheck._point[5],
+        "own healer death sound checkbox should sit below the healer sound toggle"
+      )
       Assert.True(tankCheck:GetChecked(), "tank death sound should default to enabled")
       Assert.True(healerCheck:GetChecked(), "healer death sound should default to enabled")
+      Assert.True(ownTankCheck:GetChecked(), "own tank death sound should default to enabled")
+      Assert.True(ownHealerCheck:GetChecked(), "own healer death sound should default to enabled")
       Assert.Nil(db.soundTankDiedEnabled, "opening settings must not persist the tank death sound default")
       Assert.Nil(db.soundHealerDiedEnabled, "opening settings must not persist the healer death sound default")
+      Assert.Nil(db.soundOwnTankDiedEnabled, "opening settings must not persist the own tank death sound default")
+      Assert.Nil(db.soundOwnHealerDiedEnabled, "opening settings must not persist the own healer death sound default")
 
       local tankOnClick = Assert.NotNil(tankCheck._scripts.OnClick, "tank death checkbox needs OnClick")
       local healerOnClick = Assert.NotNil(healerCheck._scripts.OnClick, "healer death checkbox needs OnClick")
+      local ownTankOnClick = Assert.NotNil(ownTankCheck._scripts.OnClick, "own tank death checkbox needs OnClick")
+      local ownHealerOnClick = Assert.NotNil(ownHealerCheck._scripts.OnClick, "own healer death checkbox needs OnClick")
       tankCheck:SetChecked(false)
       tankOnClick(tankCheck)
       healerCheck:SetChecked(false)
       healerOnClick(healerCheck)
+      ownTankCheck:SetChecked(false)
+      ownTankOnClick(ownTankCheck)
+      ownHealerCheck:SetChecked(false)
+      ownHealerOnClick(ownHealerCheck)
       Assert.False(db.soundTankDiedEnabled, "disabling tank death sound should persist only the tank field")
       Assert.False(db.soundHealerDiedEnabled, "disabling healer death sound should persist only the healer field")
+      Assert.False(db.soundOwnTankDiedEnabled, "disabling own tank death sound should persist only its own field")
+      Assert.False(db.soundOwnHealerDiedEnabled, "disabling own healer death sound should persist only its own field")
       Assert.Nil(db.deathAlertEnabled, "sound toggles must not persist the death-alert master gate")
     end)
   end)

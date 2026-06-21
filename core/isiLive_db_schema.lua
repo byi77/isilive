@@ -210,6 +210,8 @@ local SCHEMA = {
   soundReadyCheckCompleteEnabled = { type = "boolean", default = true },
   soundTankDiedEnabled = { type = "boolean", default = true },
   soundHealerDiedEnabled = { type = "boolean", default = true },
+  soundOwnTankDiedEnabled = { type = "boolean", default = true },
+  soundOwnHealerDiedEnabled = { type = "boolean", default = true },
   deathAlertEnabled = { type = "boolean", default = true },
   vipAstralAurochsSoundMuted = { type = "boolean", default = false },
   vipGrandExpeditionYakSoundMuted = { type = "boolean", default = false },

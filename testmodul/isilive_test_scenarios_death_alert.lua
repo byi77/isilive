@@ -926,6 +926,27 @@ local function RegisterStaticDeathWavTests(test, ctx)
     Assert.Equal(env.shown[1], "TANK", "the rendered on-screen role must be the tank")
   end)
 
+  test("Factory death alert can suppress only the local player's own tank and healer death WAVs", function()
+    local env = BuildFactoryStaticWavEnv()
+    WithGlobals({
+      IsiLiveDB = {
+        soundOwnTankDiedEnabled = false,
+        soundOwnHealerDiedEnabled = false,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_factory_death_alert.lua" }, env.seed)
+      addon._FactoryInternal.InitializeFactoryDeathAlertControllers(env.ctxStub)
+      env.deps.onRoleDeath("TANK", "player")
+      env.deps.onRoleDeath("HEALER", "player")
+      env.deps.onRoleDeath("TANK", "party1")
+      env.deps.onRoleDeath("HEALER", "party2")
+    end)
+    Assert.Equal(#env.shown, 4, "own-death sound toggles must not hide on-screen warnings")
+    Assert.Equal(env.wavs[1], "tank", "party tank death must still play the tank WAV")
+    Assert.Equal(env.wavs[2], "healer", "party healer death must still play the healer WAV")
+    Assert.Equal(#env.wavs, 2, "own tank and healer deaths must be the only suppressed WAVs")
+  end)
+
   test("Factory death alert drops immediate duplicate tank and healer role announcements", function()
     local now = 100
     local env = BuildFactoryStaticWavEnv()

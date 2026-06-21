@@ -8,6 +8,12 @@
 - Uppercased the on-screen death-alert role text: German clients show
   `TANK TOT` / `HEILER TOT`, while English and fallback locales show
   `TANK DIED` / `HEALER DIED`.
+- Added separate Settings toggles for muting only your own tank-death or
+  healer-death WAV alert, while keeping the on-screen warning, death counters,
+  and other players' tank/healer death sounds active.
+- Nested those own tank/healer death sound toggles directly below their
+  matching global tank/healer death sound setting and replaced the preview
+  play glyph with a texture icon so WoW fonts no longer render it as a square.
 
 ## 2026-06-21 - Version 0.9.330 (patch)
 
