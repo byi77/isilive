@@ -15,6 +15,26 @@
 - Renamed the compact H-mode leader button labels from `CD` / `CD 0` to
   `CD10` / `CD0`, while keeping `RC` for ready checks, and updated the
   architecture sketch to match.
+- Matched the compact V-mode leader button labels to H mode (`RC`, `CD10`,
+  `CD0`) and hid the `Share Keys` button from the V layout.
+- Removed the `M+Management` / `Marker` headers from V mode and changed the
+  V-mode world markers from one vertical stack into two compact vertical
+  columns with four markers each.
+- Tightened the compact V-mode spacing and frame height so the action buttons
+  and marker columns sit closer together with less empty panel area, then
+  reduced the V frame width and action-button footprint further.
+- Moved compact V-mode content into the removed header space, kept short
+  leader labels stable during localization refreshes, restored a small bottom
+  pad, and shifted the marker columns closer to the right edge.
+- Added a Dalaran travel shortcut to the ESC Travel panel. It binds the
+  Dalaran Hearthstone toy (`140192`) only when ownership is verified and
+  refreshes after `TOYS_UPDATED` when the toy cache warms up.
+- Fixed the German Sound settings refresh for the incoming-summon repeat
+  toggle so its label and description no longer fall back to English.
+- Audited Settings localization: prepared French, Spanish, Portuguese, Italian,
+  Russian, and Turkish Settings fallbacks were translated without rewriting
+  existing non-English translations, and deterministic coverage prevents
+  unmarked English fallback text in prepared Settings locales.
 
 ## 2026-06-19 - Version 0.9.329 (patch)
 

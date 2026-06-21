@@ -350,6 +350,58 @@ return function(test, ctx)
     Assert.Equal(deDE.SETTINGS_STATS_BOX_SHOW_STAMINA, "Ausdauer", "deDE stamina setting label")
   end)
 
+  test("Settings strings avoid English fallback in prepared locales", function()
+    local addon = LoadAddonModules({ "isiLive_texts.lua" })
+    local locales = addon.Texts.GetLocaleTables()
+    local enUS = locales.enUS or {}
+    local checkedLocales = { "deDE", "frFR", "esES", "ptBR", "itIT", "ruRU", "trTR" }
+    local sharedTechnicalLabels = {
+      SETTINGS_BETA_NOTICE = true,
+      SETTINGS_DEFAULT_OPEN_UI_H = true,
+      SETTINGS_DEFAULT_OPEN_UI_M2 = true,
+      SETTINGS_DEFAULT_OPEN_UI_V = true,
+      SETTINGS_SOUND_CHANNEL_MASTER = true,
+      SETTINGS_SOUND_CHANNEL_SFX = true,
+    }
+    local sameAsEnglishAllowed = {
+      deDE = {
+        SETTINGS_NAMEPLATE_POSITION = true,
+        SETTINGS_STATS_BOX_SHOW_LEECH = true,
+        SETTINGS_STATS_BOX_SHOW_SPEED = true,
+      },
+      frFR = {
+        SETTINGS_NAMEPLATE_POSITION = true,
+      },
+      esES = {
+        SETTINGS_SECTION_GENERAL = true,
+      },
+      ptBR = {},
+      itIT = {},
+      ruRU = {},
+      trTR = {},
+    }
+
+    for _, localeName in ipairs(checkedLocales) do
+      local localeTable = locales[localeName] or {}
+      for key, enValue in pairs(enUS) do
+        if type(enValue) == "string" and key:find("^SETTINGS_") then
+          local translated = localeTable[key]
+          Assert.NotNil(translated, localeName .. " must have settings key: " .. tostring(key))
+          if
+            translated == enValue
+            and not sharedTechnicalLabels[key]
+            and not (sameAsEnglishAllowed[localeName] or {})[key]
+          then
+            Assert.False(
+              true,
+              localeName .. "." .. tostring(key) .. " must not fall back to English: " .. tostring(enValue)
+            )
+          end
+        end
+      end
+    end
+  end)
+
   test("Locale LFG group-bonus settings strings support prepared fallbacks and post-edited translations", function()
     local addon = LoadAddonModules({ "isiLive_texts.lua" })
     local locales = addon.Texts.GetLocaleTables()
@@ -413,6 +465,16 @@ return function(test, ctx)
       "enUS sound-channel setting label must describe the output channel"
     )
     Assert.Equal(deDE.SETTINGS_SOUND_CHANNEL, "Klangkanal", "deDE sound-channel setting label must be German")
+    Assert.Equal(
+      deDE.SETTINGS_SOUND_INCOMING_SUMMON_LOOP,
+      "Eingehende-Beschwoerung-Hinweis alle 5 Sekunden wiederholen",
+      "deDE incoming-summon loop label must be German"
+    )
+    Assert.Equal(
+      deDE.SETTINGS_SOUND_INCOMING_SUMMON_LOOP_DESC,
+      "Wiederholt den Beschwoerungston alle 5 Sekunden, solange die Beschwoerung noch aussteht.",
+      "deDE incoming-summon loop description must be German"
+    )
 
     for localeName, localeTable in pairs(locales) do
       Assert.True(

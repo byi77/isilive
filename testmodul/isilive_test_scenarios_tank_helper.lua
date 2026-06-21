@@ -178,6 +178,12 @@ local function NewRecordedFrame(createdFrames, createdFontStrings, frameType, na
   function frame:SetFrameLevel(value)
     self._frameLevel = value
   end
+  function frame:SetEnabled(value)
+    self.enabled = value and true or false
+  end
+  function frame:SetAlpha(value)
+    self.alpha = value
+  end
   function frame:GetFrameLevel()
     return self._frameLevel or 1
   end
@@ -442,7 +448,18 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
       controller = addon.RosterPanel.CreateController({
         mainFrame = mainFrame,
         getL = function()
-          return { TANK_HELPER_HEADER = "M+Marker" }
+          return {
+            TANK_HELPER_HEADER = "M+Marker",
+            LEAD_OPTIONS = "M+Management",
+            BTN_READYCHECK = "Readycheck",
+            BTN_READYCHECK_SHORT = "RC",
+            BTN_COUNTDOWN10 = "Countdown10",
+            BTN_COUNTDOWN10_SHORT = "CD10",
+            BTN_COUNTDOWN_CANCEL = "Countdown 0",
+            BTN_COUNTDOWN_CANCEL_SHORT = "CD0",
+            BTN_SHARE_KEYS = "Share Keys",
+            BTN_REFRESH = "Re-Sync",
+          }
         end,
         getAddonVersionText = function()
           return ""
@@ -501,6 +518,7 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
           return false
         end,
       })
+      controller.ApplyLocalization()
     end)
 
     local tankButton = nil
@@ -546,41 +564,86 @@ local function RegisterVerticalMiniLayoutTests(test, Assert, WithGlobals, LoadAd
     collapseButton.OnClick()
 
     local miniWidth = mainFrame.width
+    Assert.Equal(mainFrame.width, 150, "Vertical mini mode should use the tight V frame width")
+    Assert.Equal(mainFrame.height, 128, "Vertical mini mode should keep a small bottom pad")
     local buttonX = tankButton.pointX -- Negative value relative to TOPRIGHT
+    local markerButtons = {}
     local readyCheckButton = nil
+    local countdownButton = nil
+    local countdownCancelButton = nil
     local refreshButton = controller and controller.GetRefreshButton and controller.GetRefreshButton() or nil
     local shareKeysButton = nil
     for _, frame in ipairs(createdFrames) do
-      if
-        (
-          frame._template == "UIPanelButtonTemplate"
-          or frame._template == "BackdropTemplate"
-          or (type(frame._template) == "string" and frame._template:find("BackdropTemplate", 1, true) ~= nil)
-        ) and frame.pointY == -60
-      then
+      if frame._template == "SecureActionButtonTemplate" and frame:GetAttribute("type1") == "worldmarker" then
+        table.insert(markerButtons, frame)
+      end
+      if frame._flatLabel and frame._verticalY == -60 then
         readyCheckButton = frame
       end
-      if frame._verticalY == -150 then
+      if frame._flatLabel and frame._verticalY == -90 then
+        countdownButton = frame
+      end
+      if frame._flatLabel and frame._verticalY == -120 then
+        countdownCancelButton = frame
+      end
+      if frame._flatLabel and frame._verticalY == -150 then
         shareKeysButton = frame
       end
     end
     readyCheckButton = Assert.NotNil(readyCheckButton, "Readycheck button should exist")
+    countdownButton = Assert.NotNil(countdownButton, "Countdown10 button should exist")
+    countdownCancelButton = Assert.NotNil(countdownCancelButton, "Countdown 0 button should exist")
     refreshButton = Assert.NotNil(refreshButton, "Refresh button should exist")
     shareKeysButton = Assert.NotNil(shareKeysButton, "Share Keys button should exist")
-    Assert.Equal(buttonX, -37, "M+Marker buttons should move into the right mini-mode tool column")
-    Assert.Equal(readyCheckButton.pointX, -70, "M+Managment buttons should stay fully inside the mini-mode frame")
+    table.sort(markerButtons, function(a, b)
+      return (a._markerIndex or 0) < (b._markerIndex or 0)
+    end)
+    Assert.Equal(#markerButtons, 8, "V mode should keep all 8 M+Marker buttons available")
+    Assert.Equal(buttonX, -44, "M+Marker buttons should move into the left V-mode marker column")
+    Assert.Equal(readyCheckButton.pointX, -82, "M+Managment buttons should move into the tight V-mode action column")
+    Assert.Equal(readyCheckButton.width, 52, "V mode should use narrower action buttons")
+    Assert.Equal(readyCheckButton.height, 20, "V mode should use shorter action buttons")
     Assert.True(
       miniWidth + buttonX > 20,
       "Tank buttons (at " .. tostring(buttonX) .. ") must fit inside mini frame width (" .. tostring(miniWidth) .. ")"
     )
     Assert.True(
-      miniWidth + readyCheckButton.pointX - 120 >= 0,
+      miniWidth + readyCheckButton.pointX - readyCheckButton.width >= 0,
       "Management buttons must not clip out of the mini frame"
     )
+    Assert.Equal(countdownButton.pointY, -55, "V mode should keep action buttons tightly stacked")
+    Assert.Equal(countdownCancelButton.pointY, -76, "V mode should keep the third action button near the stack")
+    Assert.Equal(markerButtons[1].pointX, -44, "V marker column 1 should use the left marker column")
+    Assert.Equal(markerButtons[2].pointX, -44, "V marker column 1 should keep marker 2 below marker 1")
+    Assert.Equal(markerButtons[3].pointX, -44, "V marker column 1 should keep marker 3 below marker 2")
+    Assert.Equal(markerButtons[4].pointX, -44, "V marker column 1 should keep marker 4 below marker 3")
+    Assert.Equal(markerButtons[5].pointX, -24, "V marker column 2 should start close beside marker column 1")
+    Assert.Equal(markerButtons[8].pointX, -24, "V marker column 2 should keep marker 8 in the right marker column")
+    Assert.Equal(markerButtons[1].pointY, -34, "V marker column 1 should start in the removed header space")
+    Assert.Equal(markerButtons[4].pointY, -94, "V marker column 1 should place four markers downward")
+    Assert.Equal(markerButtons[5].pointY, -34, "V marker column 2 should start at the top beside marker 1")
+    Assert.Equal(markerButtons[8].pointY, -94, "V marker column 2 should place four markers downward")
     Assert.True(titleFontString.hidden, "Title should be hidden in vertical mini mode")
     Assert.True(versionFontString.hidden, "Version line should be hidden in vertical mini mode")
+    local managementHeader = nil
+    local markerHeader = nil
+    for _, fontString in ipairs(createdFontStrings) do
+      if fontString.text == "M+Management" then
+        managementHeader = fontString
+      elseif fontString.text == "M+Marker" then
+        markerHeader = fontString
+      end
+    end
+    managementHeader =
+      Assert.NotNil(managementHeader, "V mode management header should exist before visibility is applied")
+    markerHeader = Assert.NotNil(markerHeader, "V mode marker header should exist before visibility is applied")
+    Assert.True(managementHeader.hidden, "V mode should hide the M+Management header")
+    Assert.True(markerHeader.hidden, "V mode should hide the Marker header")
+    Assert.Equal(readyCheckButton._flatLabel.text, "RC", "V mode should use the short ready-check label")
+    Assert.Equal(countdownButton._flatLabel.text, "CD10", "V mode should use the short countdown label")
+    Assert.Equal(countdownCancelButton._flatLabel.text, "CD0", "V mode should use the short countdown-cancel label")
     Assert.False(refreshButton._shown, "Re-Sync button should be hidden in vertical mini mode")
-    Assert.True(shareKeysButton._shown, "Share Keys button should remain visible in vertical mini mode")
+    Assert.False(shareKeysButton._shown, "Share Keys button should be hidden in vertical mini mode")
     Assert.Equal(collapseButton._collapseButtonLabel, "V", "V mode button keeps static V label")
     Assert.Equal(
       horizontalCollapseButton._collapseButtonLabel,

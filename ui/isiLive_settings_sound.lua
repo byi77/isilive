@@ -585,6 +585,22 @@ function SettingsSound.RefreshSoundControls(controls, labels, db)
     end
     controls.bloodlustReadyReminderCheck.check:SetChecked(nextValue)
   end
+
+  if controls.incomingSummonLoopCheck then
+    controls.incomingSummonLoopCheck.label:SetText(
+      labels[INCOMING_SUMMON_LOOP_SETTING.labelKey] or INCOMING_SUMMON_LOOP_SETTING.labelFallback
+    )
+    SetDescription(
+      controls.incomingSummonLoopCheck,
+      labels[INCOMING_SUMMON_LOOP_SETTING.descKey] or INCOMING_SUMMON_LOOP_SETTING.descFallback
+    )
+    local stored = db[INCOMING_SUMMON_LOOP_SETTING.settingKey]
+    local nextValue = INCOMING_SUMMON_LOOP_SETTING.defaultEnabled ~= false
+    if stored ~= nil then
+      nextValue = stored == true
+    end
+    controls.incomingSummonLoopCheck.check:SetChecked(nextValue)
+  end
 end
 
 function SettingsSound.RefreshVIPGuestControls(controls, labels, db)

@@ -393,6 +393,7 @@ local function CreatePanelButtons(mainFrame, deps)
   local readyCheckButton = CreateFlatButton(mainFrame, 120, 24, "SecureActionButtonTemplate,BackdropTemplate")
   readyCheckButton:SetPoint("TOPRIGHT", -10, -60)
   readyCheckButton._verticalY = -60
+  readyCheckButton._compactFallbackText = "RC"
   if type(readyCheckButton.RegisterForClicks) == "function" then
     readyCheckButton:RegisterForClicks("AnyUp", "AnyDown")
   end
@@ -419,6 +420,7 @@ local function CreatePanelButtons(mainFrame, deps)
   local countdownButton = CreateFlatButton(mainFrame, 120, 24)
   countdownButton:SetPoint("TOPRIGHT", -10, -90)
   countdownButton._verticalY = -90
+  countdownButton._compactFallbackText = "CD10"
   countdownButton:SetScript("OnClick", function()
     if not isPlayerLeader() then
       return
@@ -444,6 +446,7 @@ local function CreatePanelButtons(mainFrame, deps)
   local countdownCancelButton = CreateFlatButton(mainFrame, 120, 24)
   countdownCancelButton:SetPoint("TOPRIGHT", -10, -120)
   countdownCancelButton._verticalY = -120
+  countdownCancelButton._compactFallbackText = "CD0"
   AttachPanelButtonTooltip(
     deps.tooltipFrame,
     countdownCancelButton,
@@ -899,19 +902,27 @@ function RosterPanel.CreateController(opts)
     SetPanelHeaderText(ui.leadOptionsHeader, L.LEAD_OPTIONS)
     SetPanelHeaderText(ui.mplusManagementHeader, L.MPLUS_MANAGEMENT)
     readyCheckButton._fullText = L.BTN_READYCHECK
-    readyCheckButton._hModeText = L.BTN_READYCHECK_SHORT
+    readyCheckButton._hModeText = L.BTN_READYCHECK_SHORT or readyCheckButton._compactFallbackText
     countdownButton._fullText = L.BTN_COUNTDOWN10
-    countdownButton._hModeText = L.BTN_COUNTDOWN10_SHORT
+    countdownButton._hModeText = L.BTN_COUNTDOWN10_SHORT or countdownButton._compactFallbackText
     countdownCancelButton._fullText = L.BTN_COUNTDOWN_CANCEL
-    countdownCancelButton._hModeText = L.BTN_COUNTDOWN_CANCEL_SHORT
+    countdownCancelButton._hModeText = L.BTN_COUNTDOWN_CANCEL_SHORT or countdownCancelButton._compactFallbackText
     shareKeysButton._fullText = L.BTN_SHARE_KEYS
     refreshButton._fullText = L.BTN_REFRESH
-    local isH = IsHorizontalCompactLayoutMode(ui and ui.layoutMode)
-    SetFlatButtonText(readyCheckButton, isH and readyCheckButton._hModeText or readyCheckButton._fullText)
-    SetFlatButtonText(countdownButton, isH and countdownButton._hModeText or countdownButton._fullText)
+    local normalizedLayoutMode = NormalizeLayoutMode(ui and ui.layoutMode)
+    local useShortManagementLabels = normalizedLayoutMode == LAYOUT_MODE_COMPACT_VERTICAL
+      or IsHorizontalCompactLayoutMode(normalizedLayoutMode)
+    SetFlatButtonText(
+      readyCheckButton,
+      useShortManagementLabels and readyCheckButton._hModeText or readyCheckButton._fullText
+    )
+    SetFlatButtonText(
+      countdownButton,
+      useShortManagementLabels and countdownButton._hModeText or countdownButton._fullText
+    )
     SetFlatButtonText(
       countdownCancelButton,
-      isH and countdownCancelButton._hModeText or countdownCancelButton._fullText
+      useShortManagementLabels and countdownCancelButton._hModeText or countdownCancelButton._fullText
     )
     SetFlatButtonText(refreshButton, refreshButton._fullText)
     if type(shareKeysButton.RefreshDisplayText) == "function" then

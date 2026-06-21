@@ -1341,6 +1341,14 @@ local function RegisterGameMenuSecondPanelBehaviorTests(test, Assert, WithGlobal
     return nil
   end
 
+  local function FireEventOnRegisteredFrames(createdFrames, eventName, ...)
+    for _, frame in ipairs(createdFrames or {}) do
+      if frame.IsEventRegistered and frame:IsEventRegistered(eventName) and frame.FireEvent then
+        frame:FireEvent(eventName, ...)
+      end
+    end
+  end
+
   local function BuildHousingScenario()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
@@ -1374,6 +1382,7 @@ local function RegisterGameMenuSecondPanelBehaviorTests(test, Assert, WithGlobal
       getL = function()
         return {
           BTN_SECOND_HEARTHSTONE = "Hearthstone",
+          BTN_SECOND_DALARAN = "Dalaran",
           BTN_SECOND_HOUSING = "Housing",
           PANEL_HEADER_TRAVEL = "Travel",
         }
@@ -1381,6 +1390,71 @@ local function RegisterGameMenuSecondPanelBehaviorTests(test, Assert, WithGlobal
     })
     return travelStrip
   end
+
+  test("UI second game-menu Dalaran button binds toy only when owned", function()
+    local createFrameStub, createdFrames, gameMenuFrame = BuildHousingScenario()
+    local isInCombat = { value = false }
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      GameMenuFrame = gameMenuFrame,
+      PlayerHasToy = function(itemID)
+        return itemID == 140192
+      end,
+      InCombatLockdown = function()
+        return isInCombat.value == true
+      end,
+      C_Housing = {
+        GetPlayerOwnedHouses = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local travelStrip = BuildHousingPanels(addon, gameMenuFrame)
+
+      local dalaranButton = RequireValue(travelStrip.buttonsById.dalaran_hearthstone, "Dalaran button must exist")
+      Assert.True(dalaranButton:IsShown(), "owned Dalaran Hearthstone button must be visible")
+      Assert.Equal(dalaranButton:GetAttribute("type"), "toy", "Dalaran button must bind a toy action")
+      Assert.Equal(dalaranButton:GetAttribute("toy"), 140192, "Dalaran button must bind the Dalaran Hearthstone toy")
+
+      local housingButton = RequireValue(travelStrip.buttonsById.housing_plot, "housing button must still exist")
+      Assert.Equal(housingButton:GetAttribute("type"), nil, "unrelated housing button must keep its own conditions")
+      Assert.NotNil(FindFrameWithEvent(createdFrames, "TOYS_UPDATED"), "Dalaran toy refresh frame must be registered")
+    end)
+  end)
+
+  test("UI second game-menu Dalaran button appears after TOYS_UPDATED warms the toy cache", function()
+    local createFrameStub, createdFrames, gameMenuFrame = BuildHousingScenario()
+    local hasDalaranToy = false
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      GameMenuFrame = gameMenuFrame,
+      PlayerHasToy = function(itemID)
+        return itemID == 140192 and hasDalaranToy == true
+      end,
+      InCombatLockdown = function()
+        return false
+      end,
+      C_Housing = {
+        GetPlayerOwnedHouses = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local travelStrip = BuildHousingPanels(addon, gameMenuFrame)
+
+      local dalaranButton =
+        RequireValue(travelStrip.buttonsById.dalaran_hearthstone, "Dalaran button must exist while hidden")
+      Assert.False(dalaranButton:IsShown(), "cold or missing Dalaran toy cache must keep the button hidden")
+      Assert.Equal(dalaranButton:GetAttribute("type"), nil, "hidden Dalaran button must not guess a fallback action")
+
+      hasDalaranToy = true
+      FireEventOnRegisteredFrames(createdFrames, "TOYS_UPDATED")
+
+      Assert.True(dalaranButton:IsShown(), "Dalaran button must appear after verified TOYS_UPDATED ownership")
+      Assert.Equal(dalaranButton:GetAttribute("type"), "toy", "warmed Dalaran button must bind a toy action")
+      Assert.Equal(dalaranButton:GetAttribute("toy"), 140192, "warmed Dalaran button must bind the verified toy")
+    end)
+  end)
 
   test("UI housing-plot button binds teleporthome attributes on PLAYER_HOUSE_LIST_UPDATED", function()
     local createFrameStub, createdFrames, gameMenuFrame = BuildHousingScenario()

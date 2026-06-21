@@ -2211,10 +2211,14 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       },
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_sound_utils.lua", "isiLive_settings.lua" })
+      local summonLoopDesc = "Wiederholt den Beschwoerungston alle 5 Sekunden, "
+        .. "solange die Beschwoerung noch aussteht."
       local panel = addon.SettingsPanel.Create({
         getL = function()
           return {
             SETTINGS_SECTION_SOUNDS = "Sounds",
+            SETTINGS_SOUND_INCOMING_SUMMON_LOOP = "Eingehende-Beschwoerung-Hinweis alle 5 Sekunden wiederholen",
+            SETTINGS_SOUND_INCOMING_SUMMON_LOOP_DESC = summonLoopDesc,
           }
         end,
         getCurrentLocale = function()
@@ -2447,6 +2451,21 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.False(
         bloodlustReadyReminderCheck:GetChecked(),
         "refresh should keep the disabled bloodlust-ready reminder state"
+      )
+      incomingSummonLoopCheck.label:SetText("Repeat incoming-summon alert every 5 seconds")
+      incomingSummonLoopCheck.description:SetText(
+        "Repeats the incoming-summon sound every 5 seconds while the summon is still pending."
+      )
+      panel.Refresh()
+      Assert.Equal(
+        incomingSummonLoopCheck.label:GetText(),
+        "Eingehende-Beschwoerung-Hinweis alle 5 Sekunden wiederholen",
+        "refresh should localize the incoming-summon loop label"
+      )
+      Assert.Equal(
+        incomingSummonLoopCheck.description:GetText(),
+        "Wiederholt den Beschwoerungston alle 5 Sekunden, solange die Beschwoerung noch aussteht.",
+        "refresh should localize the incoming-summon loop description"
       )
       Assert.Equal(
         soundChannelSfxButton._backdropColor and soundChannelSfxButton._backdropColor[4],

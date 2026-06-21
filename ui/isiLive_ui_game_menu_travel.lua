@@ -115,15 +115,25 @@ for _, entry in ipairs(HEARTHSTONE_TOYS) do
   HEARTHSTONE_TOY_LOOKUP[entry.id] = entry
 end
 
-local function CollectOwnedHearthstoneToys()
-  local playerHasToy = rawget(_G, "PlayerHasToy")
-  local owned = {}
-  if type(playerHasToy) ~= "function" then
-    return owned
+local DALARAN_HEARTHSTONE_TOY_ID = 140192
+
+local function IsOwnedToy(toyId)
+  toyId = tonumber(toyId)
+  if not toyId then
+    return false
   end
+  local playerHasToy = rawget(_G, "PlayerHasToy")
+  if type(playerHasToy) ~= "function" then
+    return false
+  end
+  local ok, hasToy = pcall(playerHasToy, toyId)
+  return ok and hasToy == true
+end
+
+local function CollectOwnedHearthstoneToys()
+  local owned = {}
   for _, entry in ipairs(HEARTHSTONE_TOYS) do
-    local ok, hasToy = pcall(playerHasToy, entry.id)
-    if ok and hasToy == true then
+    if IsOwnedToy(entry.id) then
       local usable = true
       if type(entry.usable) == "function" then
         local okUsable, result = pcall(entry.usable)
@@ -142,12 +152,7 @@ local function IsAvailableHearthstoneToy(toyId)
   if not toyId or not HEARTHSTONE_TOY_LOOKUP[toyId] then
     return false
   end
-  local playerHasToy = rawget(_G, "PlayerHasToy")
-  if type(playerHasToy) ~= "function" then
-    return false
-  end
-  local ok, hasToy = pcall(playerHasToy, toyId)
-  if not ok or hasToy ~= true then
+  if not IsOwnedToy(toyId) then
     return false
   end
   local usable = HEARTHSTONE_TOY_LOOKUP[toyId].usable
@@ -195,6 +200,10 @@ local function ResolveHearthstoneChoice(choice)
   return nil, nil
 end
 
+local function IsDalaranHearthstoneAvailable()
+  return IsOwnedToy(DALARAN_HEARTHSTONE_TOY_ID)
+end
+
 -- Export helper so other modules (settings) can query owned hearthstone toys.
 addonTable.UI = addonTable.UI or {}
 addonTable.UI.CollectOwnedHearthstoneToys = CollectOwnedHearthstoneToys
@@ -223,6 +232,13 @@ local SECOND_PANEL_UI_ENTRIES = {
     isSecure = true,
   },
   {
+    id = "dalaran_hearthstone",
+    labelKey = "BTN_SECOND_DALARAN",
+    fallbackText = "Dalaran",
+    icon = "Interface\\Icons\\INV_Misc_Rune_04",
+    isSecure = true,
+  },
+  {
     id = "housing_plot",
     labelKey = "BTN_SECOND_HOUSING",
     fallbackText = "Housing",
@@ -235,3 +251,5 @@ Travel.SECOND_PANEL_UI_ENTRIES = SECOND_PANEL_UI_ENTRIES
 Travel.CollectOwnedHearthstoneToys = CollectOwnedHearthstoneToys
 Travel.GetHearthstoneToyEnglishName = GetHearthstoneToyEnglishName
 Travel.ResolveHearthstoneChoice = ResolveHearthstoneChoice
+Travel.DALARAN_HEARTHSTONE_TOY_ID = DALARAN_HEARTHSTONE_TOY_ID
+Travel.IsDalaranHearthstoneAvailable = IsDalaranHearthstoneAvailable

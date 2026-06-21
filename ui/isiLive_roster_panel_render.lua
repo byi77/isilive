@@ -42,6 +42,10 @@ end
 
 -- Layout / state imports.
 local LAYOUT_MODE_EXPANDED = RI.LAYOUT_MODE_EXPANDED or "expanded"
+local LAYOUT_MODE_COMPACT_VERTICAL = RI.LAYOUT_MODE_COMPACT_VERTICAL or "compact_vertical"
+local NormalizeLayoutMode = RI.NormalizeLayoutMode or function(mode)
+  return mode or LAYOUT_MODE_EXPANDED
+end
 local IsCompactLayoutMode = RI.IsCompactLayoutMode or function(_mode)
   return false
 end
@@ -535,6 +539,7 @@ local function RenderRosterImpl(state, roster)
 
   if state.uiRef and state.uiRef.tankButtons and not IsCombatLockdownActive() then
     local isMainHorizontal = IsMainHorizontalLayoutMode(state.uiRef.layoutMode)
+    local isVertical = NormalizeLayoutMode(state.uiRef.layoutMode) == LAYOUT_MODE_COMPACT_VERTICAL
     local showMarkers = not isMainHorizontal
     for _, btn in ipairs(state.uiRef.tankButtons) do
       if showMarkers then
@@ -544,7 +549,7 @@ local function RenderRosterImpl(state, roster)
       end
     end
     if state.uiRef.tankHeader then
-      if showMarkers then
+      if showMarkers and not isVertical then
         state.uiRef.tankHeader:Show()
       else
         state.uiRef.tankHeader:Hide()

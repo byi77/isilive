@@ -57,13 +57,19 @@ local LAYOUT_MODE_COMPACT_HORIZONTAL = "compact_horizontal"
 local LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = "compact_main_horizontal"
 local LAYOUT_MODE_COMPACT_HORIZONTAL_2_LEGACY = "compact_horizontal_2"
 local FULL_FRAME_WIDTH = 755
-local MINI_FRAME_WIDTH = 220
+local MINI_FRAME_WIDTH = 150
+local MINI_VERTICAL_FRAME_HEIGHT = 128
 local MINI_HORIZONTAL_FRAME_WIDTH = 212
 local MINI_MAIN_HORIZONTAL_FRAME_WIDTH = 500
 local MANAGEMENT_COLUMN_X = -145
 local MANAGEMENT_COLUMN_X_MINI = -70
+local MANAGEMENT_COLUMN_X_VERTICAL_MINI = -82
 local HELPER_COLUMN_X = -111
 local HELPER_COLUMN_X_MINI = -37
+local MINI_VERTICAL_MANAGEMENT_ROW_Y = -34
+local MINI_VERTICAL_MANAGEMENT_BTN_WIDTH = 52
+local MINI_VERTICAL_MANAGEMENT_BTN_HEIGHT = 20
+local MINI_VERTICAL_MANAGEMENT_BTN_GAP = 1
 local MINI_HORIZONTAL_FRAME_HEIGHT = 94
 local MINI_MAIN_HORIZONTAL_EXTRA_HEIGHT = 8
 local MINI_HORIZONTAL_MANAGEMENT_ROW_Y = -28
@@ -74,6 +80,10 @@ local MINI_HORIZONTAL_MANAGEMENT_BTN_GAP = 6
 local HELPER_BUTTON_SIZE = 18
 local MINI_HORIZONTAL_HELPER_BUTTON_SIZE = HELPER_BUTTON_SIZE
 local MINI_HORIZONTAL_HELPER_GAP = 2
+local MINI_VERTICAL_HELPER_RIGHT = -24
+local MINI_VERTICAL_HELPER_ROW_Y = -34
+local MINI_VERTICAL_HELPER_ROWS = 4
+local MINI_VERTICAL_HELPER_GAP = 2
 local DEFAULT_MIN_FRAME_HEIGHT = 236
 local MINI_MAIN_HORIZONTAL_MIN_HEIGHT = DEFAULT_MIN_FRAME_HEIGHT + MINI_MAIN_HORIZONTAL_EXTRA_HEIGHT
 local M2_ROW_LEFT_MARGIN = 10
@@ -103,6 +113,7 @@ RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
 RI.LAYOUT_MODE_COMPACT_HORIZONTAL_2 = LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
 RI.FULL_FRAME_WIDTH = FULL_FRAME_WIDTH
 RI.MINI_FRAME_WIDTH = MINI_FRAME_WIDTH
+RI.MINI_VERTICAL_FRAME_HEIGHT = MINI_VERTICAL_FRAME_HEIGHT
 RI.MINI_HORIZONTAL_FRAME_WIDTH = MINI_HORIZONTAL_FRAME_WIDTH
 RI.MINI_MAIN_HORIZONTAL_FRAME_WIDTH = MINI_MAIN_HORIZONTAL_FRAME_WIDTH
 RI.MINI_HORIZONTAL_2_FRAME_WIDTH = MINI_MAIN_HORIZONTAL_FRAME_WIDTH
@@ -117,13 +128,22 @@ RI.MINI_HORIZONTAL_HELPER_ROW_Y = MINI_HORIZONTAL_HELPER_ROW_Y
 RI.MINI_HORIZONTAL_MANAGEMENT_BTN_WIDTH = MINI_HORIZONTAL_MANAGEMENT_BTN_WIDTH
 RI.MINI_HORIZONTAL_MANAGEMENT_BTN_HEIGHT = MINI_HORIZONTAL_MANAGEMENT_BTN_HEIGHT
 RI.MINI_HORIZONTAL_MANAGEMENT_BTN_GAP = MINI_HORIZONTAL_MANAGEMENT_BTN_GAP
+RI.MINI_VERTICAL_MANAGEMENT_ROW_Y = MINI_VERTICAL_MANAGEMENT_ROW_Y
+RI.MINI_VERTICAL_MANAGEMENT_BTN_WIDTH = MINI_VERTICAL_MANAGEMENT_BTN_WIDTH
+RI.MINI_VERTICAL_MANAGEMENT_BTN_HEIGHT = MINI_VERTICAL_MANAGEMENT_BTN_HEIGHT
+RI.MINI_VERTICAL_MANAGEMENT_BTN_GAP = MINI_VERTICAL_MANAGEMENT_BTN_GAP
 RI.HELPER_BUTTON_SIZE = HELPER_BUTTON_SIZE
 RI.MINI_HORIZONTAL_HELPER_BUTTON_SIZE = MINI_HORIZONTAL_HELPER_BUTTON_SIZE
 RI.MINI_HORIZONTAL_HELPER_GAP = MINI_HORIZONTAL_HELPER_GAP
 RI.MANAGEMENT_COLUMN_X = MANAGEMENT_COLUMN_X
 RI.MANAGEMENT_COLUMN_X_MINI = MANAGEMENT_COLUMN_X_MINI
+RI.MANAGEMENT_COLUMN_X_VERTICAL_MINI = MANAGEMENT_COLUMN_X_VERTICAL_MINI
 RI.HELPER_COLUMN_X = HELPER_COLUMN_X
 RI.HELPER_COLUMN_X_MINI = HELPER_COLUMN_X_MINI
+RI.MINI_VERTICAL_HELPER_RIGHT = MINI_VERTICAL_HELPER_RIGHT
+RI.MINI_VERTICAL_HELPER_ROW_Y = MINI_VERTICAL_HELPER_ROW_Y
+RI.MINI_VERTICAL_HELPER_ROWS = MINI_VERTICAL_HELPER_ROWS
+RI.MINI_VERTICAL_HELPER_GAP = MINI_VERTICAL_HELPER_GAP
 RI.M2_ROW_LEFT_MARGIN = M2_ROW_LEFT_MARGIN
 RI.M2_MANAGEMENT_ROW_Y = M2_MANAGEMENT_ROW_Y
 RI.M2_TELEPORT_ROW_Y = M2_TELEPORT_ROW_Y
@@ -173,10 +193,10 @@ local UI_VISIBILITY_RULES = {
   { "killTrackRow", false, false, false, true },
   { "statusLine", true, false, false, false },
   { "mplusManagementHeader", true, false, false, false },
-  { "shareKeysButton", true, true, false, true },
+  { "shareKeysButton", true, false, false, true },
   { "refreshButton", true, false, false, true },
-  { "leadOptionsHeader", true, true, false, false },
-  { "tankHeader", true, true, false, false },
+  { "leadOptionsHeader", true, false, false, false },
+  { "tankHeader", true, false, false, false },
 }
 RI.UI_VISIBILITY_RULES = UI_VISIBILITY_RULES
 
@@ -230,6 +250,9 @@ end
 RI.GetFrameWidthForLayoutMode = GetFrameWidthForLayoutMode
 
 local function GetFrameHeightForLayoutMode(layoutMode, minFrameHeight)
+  if NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_VERTICAL then
+    return MINI_VERTICAL_FRAME_HEIGHT
+  end
   if NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_HORIZONTAL then
     return MINI_HORIZONTAL_FRAME_HEIGHT
   end
@@ -518,6 +541,20 @@ local function RefreshButtonDisplayText(btn, text)
   SetFlatButtonText(btn, text)
 end
 
+local function GetCompactManagementButtonText(btn)
+  if type(btn) ~= "table" then
+    return ""
+  end
+  local shortText = btn._hModeText
+  if type(shortText) ~= "string" or shortText == "" then
+    shortText = btn._compactFallbackText
+  end
+  if type(shortText) ~= "string" or shortText == "" then
+    shortText = btn._fullText
+  end
+  return shortText or ""
+end
+
 local function GetHorizontalHelperButtonX(markerIndex)
   local helperRowWidth = (8 * MINI_HORIZONTAL_HELPER_BUTTON_SIZE) + (7 * MINI_HORIZONTAL_HELPER_GAP)
   local leftInset = math.floor((MINI_HORIZONTAL_FRAME_WIDTH - helperRowWidth) / 2)
@@ -527,6 +564,18 @@ local function GetHorizontalHelperButtonX(markerIndex)
   return rightEdge - MINI_HORIZONTAL_FRAME_WIDTH
 end
 RI.GetHorizontalHelperButtonX = GetHorizontalHelperButtonX
+
+local function GetVerticalHelperButtonPoint(markerIndex)
+  markerIndex = math.max(1, tonumber(markerIndex) or 1)
+  local zeroBased = markerIndex - 1
+  local col = math.floor(zeroBased / MINI_VERTICAL_HELPER_ROWS)
+  local row = zeroBased % MINI_VERTICAL_HELPER_ROWS
+  local step = MINI_HORIZONTAL_HELPER_BUTTON_SIZE + MINI_VERTICAL_HELPER_GAP
+  local x = MINI_VERTICAL_HELPER_RIGHT - ((1 - col) * step)
+  local y = MINI_VERTICAL_HELPER_ROW_Y - (row * step)
+  return x, y
+end
+RI.GetVerticalHelperButtonPoint = GetVerticalHelperButtonPoint
 
 local function ReanchorFrame(frame, point, x, y)
   if not (frame and frame.SetPoint) then
@@ -570,8 +619,10 @@ local function UpdateColumnPositions(ui, layoutMode)
   local isCollapsed = IsCompactLayoutMode(layoutMode)
   local isHorizontal = IsHorizontalCompactLayoutMode(layoutMode)
   local isMainHorizontal = IsMainHorizontalLayoutMode(layoutMode)
+  local isVerticalMini = isCollapsed and not isHorizontal
   local tankX = isCollapsed and HELPER_COLUMN_X_MINI or HELPER_COLUMN_X
-  local leadX = isCollapsed and MANAGEMENT_COLUMN_X_MINI or MANAGEMENT_COLUMN_X
+  local leadX = isVerticalMini and MANAGEMENT_COLUMN_X_VERTICAL_MINI
+    or (isCollapsed and MANAGEMENT_COLUMN_X_MINI or MANAGEMENT_COLUMN_X)
   local managementButtons = ui.managementButtons or {}
 
   if ui.tankButtons then
@@ -585,6 +636,10 @@ local function UpdateColumnPositions(ui, layoutMode)
         local markerIndex = tonumber(btn._markerIndex) or 1
         local x = GetHorizontalHelperButtonX(markerIndex)
         ReanchorFrame(btn, "TOPRIGHT", x, MINI_HORIZONTAL_HELPER_ROW_Y)
+      elseif isVerticalMini then
+        local markerIndex = tonumber(btn._markerIndex) or 1
+        local x, y = GetVerticalHelperButtonPoint(markerIndex)
+        ReanchorFrame(btn, "TOPRIGHT", x, y)
       else
         local y = tonumber(btn._verticalY) or 0
         ReanchorFrame(btn, "TOPRIGHT", tankX, y)
@@ -618,6 +673,10 @@ local function UpdateColumnPositions(ui, layoutMode)
         if isHorizontal then
           local x = -(10 + (index - 1) * (MINI_HORIZONTAL_MANAGEMENT_BTN_WIDTH + MINI_HORIZONTAL_MANAGEMENT_BTN_GAP))
           ReanchorFrame(btn, "TOPRIGHT", x, MINI_HORIZONTAL_MANAGEMENT_ROW_Y)
+        elseif isVerticalMini then
+          local y = MINI_VERTICAL_MANAGEMENT_ROW_Y
+            - ((index - 1) * (MINI_VERTICAL_MANAGEMENT_BTN_HEIGHT + MINI_VERTICAL_MANAGEMENT_BTN_GAP))
+          ReanchorFrame(btn, "TOPRIGHT", leadX, y)
         else
           local y = tonumber(btn._verticalY) or 0
           ReanchorFrame(btn, "TOPRIGHT", leadX, y)
@@ -648,6 +707,7 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
   local isCollapsed = IsCompactLayoutMode(layoutMode)
   local isHorizontal = IsHorizontalCompactLayoutMode(layoutMode)
   local isMainHorizontal = IsMainHorizontalLayoutMode(layoutMode)
+  local isVerticalMini = isCollapsed and not isHorizontal
 
   if type(ui) == "table" then
     ui.layoutMode = layoutMode
@@ -686,11 +746,12 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
   else
     for _, btn in ipairs(ui.managementButtons or {}) do
       if btn then
-        if isHorizontal then
+        if isVerticalMini then
+          SetFrameSizeSafe(btn, MINI_VERTICAL_MANAGEMENT_BTN_WIDTH, MINI_VERTICAL_MANAGEMENT_BTN_HEIGHT)
+          RefreshButtonDisplayText(btn, GetCompactManagementButtonText(btn))
+        elseif isHorizontal then
           SetFrameSizeSafe(btn, MINI_HORIZONTAL_MANAGEMENT_BTN_WIDTH, MINI_HORIZONTAL_MANAGEMENT_BTN_HEIGHT)
-          if btn._hModeText then
-            RefreshButtonDisplayText(btn, btn._hModeText)
-          end
+          RefreshButtonDisplayText(btn, GetCompactManagementButtonText(btn))
         else
           SetFrameSizeSafe(btn, 120, 24)
           if btn._fullText then

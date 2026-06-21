@@ -27,6 +27,12 @@ local CollectOwnedHearthstoneToys =
   assert(GameMenuTravel.CollectOwnedHearthstoneToys, "isiLive: UIGameMenuTravel.CollectOwnedHearthstoneToys missing")
 local ResolveHearthstoneChoice =
   assert(GameMenuTravel.ResolveHearthstoneChoice, "isiLive: UIGameMenuTravel.ResolveHearthstoneChoice missing")
+local DALARAN_HEARTHSTONE_TOY_ID =
+  assert(GameMenuTravel.DALARAN_HEARTHSTONE_TOY_ID, "isiLive: UIGameMenuTravel.DALARAN_HEARTHSTONE_TOY_ID missing")
+local IsDalaranHearthstoneAvailable = assert(
+  GameMenuTravel.IsDalaranHearthstoneAvailable,
+  "isiLive: UIGameMenuTravel.IsDalaranHearthstoneAvailable missing"
+)
 local Colors = addonTable.UICommon.Colors or {}
 local DEFAULT_GAME_MENU_BUTTON_WIDTH = 120
 local DEFAULT_GAME_MENU_BUTTON_HEIGHT = 30
@@ -111,6 +117,8 @@ local housingSecureButton = nil
 local housingDataEventFrame = nil
 local hearthstoneSecureButton = nil
 local hearthstoneToysEventFrame = nil
+local dalaranHearthstoneSecureButton = nil
+local dalaranHearthstoneToysEventFrame = nil
 -- pendingHousingApply caches the most recent PLAYER_HOUSE_LIST_UPDATED payload
 -- when SetAttribute is blocked by combat lockdown. The panelUISecureRetryFrame
 -- below drains this on PLAYER_REGEN_ENABLED so the housing-teleport button gets
@@ -327,6 +335,15 @@ local function RefreshPanelUISecureButton(button)
         button:SetAttribute("item", "item:6948")
         button._hearthstoneOwnedToys = nil
       end
+    end
+    return
+  end
+
+  if type(button._actionId) == "string" and button._actionId == "dalaran_hearthstone" then
+    button._available = IsDalaranHearthstoneAvailable()
+    if button._available then
+      button:SetAttribute("type", "toy")
+      button:SetAttribute("toy", DALARAN_HEARTHSTONE_TOY_ID)
     end
     return
   end
@@ -672,6 +689,25 @@ local function RefreshPanelUIState(state)
   ApplyPanelUISecureState(state)
   ApplyPanelUILocalization(state)
   return state
+end
+
+local function RefreshSecondPanelTravelEntries(state)
+  if type(state) ~= "table" then
+    return false
+  end
+  if IsPanelUISecureUpdateBlocked(state) then
+    QueuePanelUISecureStateRefresh(state)
+    return false
+  end
+
+  local dalaranButton = state.buttonsById and state.buttonsById.dalaran_hearthstone or nil
+  if type(dalaranButton) == "table" then
+    dalaranButton._available = IsDalaranHearthstoneAvailable()
+    if dalaranButton._available == true then
+      RefreshPanelUISecureButton(dalaranButton)
+    end
+  end
+  return true
 end
 
 local function RefreshMountPanelEntries(state)
@@ -1090,6 +1126,7 @@ function UI.EnsureSecondPanelUI(opts)
   if type(secondPanelUIState) == "table" and secondPanelUIState.gameMenuFrame == gameMenuFrame then
     ApplyReusablePanelUIOptions(secondPanelUIState, opts)
     secondPanelUIState.positionAnchorFrame = firstPanelState.panelFrame
+    RefreshSecondPanelTravelEntries(secondPanelUIState)
     return RefreshPanelUIState(secondPanelUIState)
   end
 
@@ -1097,6 +1134,11 @@ function UI.EnsureSecondPanelUI(opts)
     positionAnchorFrame = firstPanelState.panelFrame,
     positionOffsetX = -SECOND_PANEL_GAP,
     headerLKey = "PANEL_HEADER_TRAVEL",
+    onShowRefresh = function(refreshState)
+      RefreshSecondPanelTravelEntries(refreshState)
+      ApplyPanelUISecureState(refreshState)
+      ApplyPanelUILocalization(refreshState)
+    end,
   })
 
   InitializePanelUIChrome(state)
@@ -1130,7 +1172,10 @@ function UI.EnsureSecondPanelUI(opts)
     button._isSecurePanelAction = isSecure
     button._panelUIState = state
 
-    if (entry.id == "hearthstone" or entry.id == "housing_plot") and type(button.SetAttribute) == "function" then
+    if
+      (entry.id == "hearthstone" or entry.id == "dalaran_hearthstone" or entry.id == "housing_plot")
+      and type(button.SetAttribute) == "function"
+    then
       if IsPanelUISecureUpdateBlocked(state) then
         QueuePanelUISecureStateRefresh(state)
       else
@@ -1221,6 +1266,33 @@ function UI.EnsureSecondPanelUI(opts)
           button:SetScript("PreClick", PickRandomHearthstoneToy)
         end
       end
+    elseif entry.id == "dalaran_hearthstone" and type(button.SetAttribute) == "function" then
+      dalaranHearthstoneSecureButton = button
+      button._available = IsDalaranHearthstoneAvailable()
+      if button._available == true then
+        if IsPanelUISecureUpdateBlocked(state) then
+          QueuePanelUISecureStateRefresh(state)
+        else
+          RefreshPanelUISecureButton(button)
+        end
+      end
+
+      if not dalaranHearthstoneToysEventFrame then
+        dalaranHearthstoneToysEventFrame = CreateFrame("Frame")
+        dalaranHearthstoneToysEventFrame:SetScript("OnEvent", function(_, event)
+          if event ~= "TOYS_UPDATED" then
+            return
+          end
+          local btn = dalaranHearthstoneSecureButton
+          local refreshState = btn and btn._panelUIState or nil
+          if type(refreshState) ~= "table" then
+            return
+          end
+          RefreshSecondPanelTravelEntries(refreshState)
+          RefreshPanelUIState(refreshState)
+        end)
+      end
+      dalaranHearthstoneToysEventFrame:RegisterEvent("TOYS_UPDATED")
     elseif entry.id == "housing_plot" and type(button.SetAttribute) == "function" then
       housingSecureButton = button
       if not housingDataEventFrame then
@@ -1258,6 +1330,7 @@ function UI.EnsureSecondPanelUI(opts)
   AttachPanelUIStateMethods(state)
 
   secondPanelUIState = state
+  RefreshSecondPanelTravelEntries(state)
   return RefreshPanelUIState(state)
 end
 

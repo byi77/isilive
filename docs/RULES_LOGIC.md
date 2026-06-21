@@ -67,7 +67,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 44. Alle Center-Meldungen starten mit derselben Portal-Navigator-Basistypografie fuer Body-Text, Schriftgroesse und Standardfarbe.
 45. Beim Login oder UI-Reload wird die Main-UI standardmaessig eingeblendet, ausser im Raidmodus; die Startup-Option kann diesen Auto-Show-Pfad weiterhin abschalten.
 46. Manuelle Layout-Umschaltungen der Main-UI duerfen auch im Kampf angefordert werden, ausser im Raidmodus; direkte Mutationen an Secure-Kindern bleiben dabei ausgesetzt und werden spaetestens bei `PLAYER_REGEN_ENABLED` ueber den sichtbaren UI-Refresh nachgezogen.
-47. Die ESC-Panel-Overlays muessen im Kampf als bereits gemountete `GameMenuFrame`-Kinder sichtbar bleiben; waehrend Kampf-Lockdown sind an ihnen keine Show/Hide- oder Layout-Mutationen erlaubt, unsichere Shortcuts bleiben sichtbar, duerfen ihre Aktion aber erst ausserhalb des Kampfes ausfuehren, und sichere Mount-Shortcuts muessen als Secure-Macro-Buttons mit verifiziertem Spellnamen vorkonfiguriert sein; wenn Mount-Daten beim Initialisieren noch nicht verifizierbar sind, bleibt das Mount-Panel als gemountetes Kind vorhanden und aktualisiert seine sichtbaren Shortcuts beim naechsten ESC-Menue-Oeffnen ausserhalb des Kampfes.
+47. Die ESC-Panel-Overlays muessen im Kampf als bereits gemountete `GameMenuFrame`-Kinder sichtbar bleiben; waehrend Kampf-Lockdown sind an ihnen keine Show/Hide- oder Layout-Mutationen erlaubt, unsichere Shortcuts bleiben sichtbar, duerfen ihre Aktion aber erst ausserhalb des Kampfes ausfuehren, sichere Travel-Toy-Buttons duerfen nur fuer verifiziert besessene Toys sichtbar sein, und sichere Mount-Shortcuts muessen als Secure-Macro-Buttons mit verifiziertem Spellnamen vorkonfiguriert sein; wenn Mount-Daten beim Initialisieren noch nicht verifizierbar sind, bleibt das Mount-Panel als gemountetes Kind vorhanden und aktualisiert seine sichtbaren Shortcuts beim naechsten ESC-Menue-Oeffnen ausserhalb des Kampfes.
 48. Der isiLive-Last-Run-Sync transportiert nur den belastbar verifizierten `DPS`-Wert eines Snapshots; das Roster nutzt `syncDps` nur als Fallback, wenn lokal kein Last-Run-DPS vorliegt.
 49. Der Kick-Tracker bildet den aktuell verfuegbaren Interrupt der aktuellen Spezialisierung ab; Heal-Specs ohne Interrupt (Holy Paladin, Mistweaver Monk, Restoration Druid, Discipline / Holy Priest) melden `hasKick=false`, Devourer Demon Hunter nutzt `Disrupt`, und verfuegbare pet-basierte Warlock-Interrupts zaehlen als eigener Kick.
 50. Die Kicks-Spalte zeigt fuer den lokalen Spieler und fuer isiLive-Gruppenmitglieder den aktuellen Kick-Status an; der kompakte `SYNC_KICK_READY_SHORT`-Marker ist gruen, laufende Cooldowns zeigen rote Restsekunden, `-` steht fuer keinen verfuegbaren Kick oder fehlenden isiLive-Sync, und aktive Kick-Statusaenderungen werden spaetestens einmal pro Sekunde synchronisiert.
@@ -107,6 +107,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 85. Raid-LFG-Annahmen rendern keine Accepted-Invite-Centerbox und bleiben ausserhalb der M+-Zielpipeline stumm.
 86. Sichtbare UI-Elemente mit dynamischen Texten oder wachsender Aktionszahl muessen ein explizites Layoutbudget haben, damit sie nicht in Toolbar, Framegrenzen oder Bildschirmrand laufen.
 87. Eingehende Beschwoerungen wiederholen den Portal-Sound bei aktiviertem Loop alle 5 Sekunden, solange der Live-Status fuer `player` verifiziert `Pending` bleibt.
+88. Das kompakte vertikale V-Layout zeigt die M+-Leader-Aktionen eng als `RC`, `CD10` und `CD0`, blendet `Share Keys` sowie die Tool-Ueberschriften aus und ordnet die M+Marker in zwei eng stehenden vertikalen Vierer-Spalten an.
 
 ## Regelbloecke
 
@@ -234,7 +235,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-LOCALE-SYMMETRIE-FALLBACK
 - Regelnummer: 12
 - Status: aktiv
-- Zusammenfassung: Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS. Die Umwandlung von Locale-Tags in Sprachflaggen-Tags muss tooltip-hotpath-tauglich ueber eine konstante Lookup-Tabelle laufen und darf nicht pro Tooltip-Aufruf die unterstuetzten Sprachen iterieren.
+- Zusammenfassung: Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS. Die Umwandlung von Locale-Tags in Sprachflaggen-Tags muss tooltip-hotpath-tauglich ueber eine konstante Lookup-Tabelle laufen und darf nicht pro Tooltip-Aufruf die unterstuetzten Sprachen iterieren. Vorbereitete Settings-Locales duerfen nicht unmarkiert auf englische Fallback-Texte zurueckfallen; erlaubt sind nur explizit freigegebene technische Kurzlabels und identische Fachbegriffe.
 - Erforderliche Tests:
   - All enUS keys exist in deDE locale
   - All deDE keys exist in enUS locale
@@ -245,6 +246,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Settings hearthstone selector shows English toy names for non-German addon locales
   - Settings hearthstone selector uses client-localized toy names for German addon locale
   - German settings stats-box descriptions are localized
+  - Settings strings avoid English fallback in prepared locales
   - LI.BuildBonusSuffix localizes class bonuses and keeps German text for deDE only
   - LI.ApplyGroupBonusTooltipLines matches exact member lines without a German or English section header
 
@@ -610,7 +612,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ESC-PANEL-COMBAT-MOUNT
 - Regelnummer: 47
 - Status: aktiv
-- Zusammenfassung: Die ESC-Panel-Overlays muessen als direkte, vorab erzeugte Kinder von `GameMenuFrame` gemountet bleiben. Waehrend Kampf-Lockdown duerfen weder `OnShow` noch nachgelagerte Callback-Pfade an diesen Overlays `Show`, `Hide`, `ClearAllPoints`, `SetPoint`, `SetSize`, `EnableMouse` oder `SetAlpha` ausfuehren. Unsichere ESC-Shortcuts bleiben sichtbar, duerfen ihre Aktion im Kampf aber nicht ausfuehren; Secure-Button-Refreshes bleiben bis `PLAYER_REGEN_ENABLED` verzoegert. Das Mounts-Panel sitzt unter dem Travel-Panel und darf Mount-Aktionen nur als sichere Macro-Buttons fuer verifizierte Favoriten-/Mount-Verfuegbarkeit und verifizierte Spellnamen anzeigen; der Favoriten-Shortcut muss einen konkret verifizierten favorisierten Mount-Spell casten. Wenn Mount-Daten oder Spellnamen beim ersten Initialisieren noch nicht verifizierbar sind, bleibt das Panel als `GameMenuFrame`-Kind gemountet, aber verborgen, und aktualisiert beim naechsten `GameMenuFrame`-`OnShow` ausserhalb des Kampfes seine sichtbaren Shortcuts.
+- Zusammenfassung: Die ESC-Panel-Overlays muessen als direkte, vorab erzeugte Kinder von `GameMenuFrame` gemountet bleiben. Waehrend Kampf-Lockdown duerfen weder `OnShow` noch nachgelagerte Callback-Pfade an diesen Overlays `Show`, `Hide`, `ClearAllPoints`, `SetPoint`, `SetSize`, `EnableMouse` oder `SetAlpha` ausfuehren. Unsichere ESC-Shortcuts bleiben sichtbar, duerfen ihre Aktion im Kampf aber nicht ausfuehren; Secure-Button-Refreshes bleiben bis `PLAYER_REGEN_ENABLED` verzoegert. Der Dalaran-Travel-Button darf nur sichtbar sein und `toy:140192` binden, wenn `PlayerHasToy(140192)` verifiziert true meldet; ein fehlender oder kalter Toy-Cache darf keinen geratenen Dalaran-Fallback anzeigen, muss aber nach `TOYS_UPDATED` aktualisieren. Das Mounts-Panel sitzt unter dem Travel-Panel und darf Mount-Aktionen nur als sichere Macro-Buttons fuer verifizierte Favoriten-/Mount-Verfuegbarkeit und verifizierte Spellnamen anzeigen; der Favoriten-Shortcut muss einen konkret verifizierten favorisierten Mount-Spell casten. Wenn Mount-Daten oder Spellnamen beim ersten Initialisieren noch nicht verifizierbar sind, bleibt das Panel als `GameMenuFrame`-Kind gemountet, aber verborgen, und aktualisiert beim naechsten `GameMenuFrame`-`OnShow` ausserhalb des Kampfes seine sichtbaren Shortcuts.
 - Erforderliche Tests:
   - UI game-menu panel stays mounted as GameMenuFrame child while reload button remains secure
   - UI game-menu panels rely on parent visibility instead of deferred host callbacks
@@ -623,6 +625,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UI mount game-menu panel refreshes mounted shortcuts when verified spell names become available
   - UI mount game-menu panel also stays visible during combat
   - UI game-menu secure button updates are deferred during combat and applied after regen
+  - UI second game-menu Dalaran button binds toy only when owned
+  - UI second game-menu Dalaran button appears after TOYS_UPDATED warms the toy cache
 
 ### RULE-SYNC-LAST-RUN-METRIKEN
 - Regelnummer: 48
@@ -1304,3 +1308,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - INCOMING_SUMMON_CHANGED suppresses incoming-summon sound in raid mode
   - Settings panel exposes sound toggles with the intended defaults
   - DBSchema.Sanitize fills all defaults on an empty db
+
+### RULE-V-LAYOUT-KURZLABELS-OHNE-SHAREKEYS
+- Regelnummer: 88
+- Status: aktiv
+- Zusammenfassung: Im kompakten vertikalen `V`-Layout muessen die sichtbaren M+-Leader-Aktionsbuttons dieselben Kurzlabels wie im `H`-Layout verwenden: `RC` fuer Readycheck, `CD10` fuer den 10-Sekunden-Countdown und `CD0` fuer Countdown-Abbruch. Diese Aktionsbuttons muessen im `V`-Layout in einer engen linken Spalte mit reduziertem Button-Footprint stehen. Die Tool-Ueberschriften `M+Management` und `Marker` sowie der `Share Keys`-Button muessen im `V`-Layout ausgeblendet sein, und der durch entfernte Ueberschriften frei gewordene obere Raum muss fuer den kompakten Inhalt genutzt werden. Die acht M+Marker muessen im `V`-Layout als zwei eng stehende vertikale Spalten mit je vier Markern angeordnet sein und nahe am rechten Rand stehen. Das V-Frame muss ein eigenes kompaktes Breiten- und Hoehenbudget mit kleiner unterer Reserve nutzen. `Share Keys` bleibt in den nicht vertikalen Layouts unveraendert verfuegbar.
+- Erforderliche Tests:
+  - Mini frame width accommodates tank helper buttons without clipping

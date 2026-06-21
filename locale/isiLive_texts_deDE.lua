@@ -42,6 +42,7 @@ addonTable.TextsLocales.deDE = {
   BTN_GAMEMENU_RELOADUI = "ReloadUI",
   BTN_SECOND_ARKANATINE_KEY = "Arkantine",
   BTN_SECOND_HEARTHSTONE = "Ruhestein",
+  BTN_SECOND_DALARAN = "Dalaran",
   BTN_SECOND_HOUSING = "Housing",
   PANEL_HEADER_SHORTCUTS = "Schnellzugriff",
   PANEL_HEADER_TOOLING = "Werkzeuge",

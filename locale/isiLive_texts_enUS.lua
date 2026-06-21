@@ -42,6 +42,7 @@ addonTable.TextsLocales.enUS = {
   BTN_GAMEMENU_RELOADUI = "ReloadUI",
   BTN_SECOND_ARKANATINE_KEY = "Arkantine",
   BTN_SECOND_HEARTHSTONE = "Hearthstone",
+  BTN_SECOND_DALARAN = "Dalaran",
   BTN_SECOND_HOUSING = "Housing",
   PANEL_HEADER_SHORTCUTS = "Shortcuts",
   PANEL_HEADER_TOOLING = "Tools",
