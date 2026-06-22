@@ -103,6 +103,7 @@ local function NewCtx(overrides)
       return false
     end,
     showCombatAnnounce = function() end,
+    handlePiTrackerEvent = function() end,
     playIncomingSummonSound = function() end,
     forEachRosterInfo = function() end,
     isSyncUserKnown = function()
@@ -790,15 +791,24 @@ return function(test, ctx)
 
   test("UNIT_AURA refreshes cd tracker only for player unit outside raid", function()
     local calls = 0
+    local piEvents = {}
     local handlers = LoadHandlers({
       updateCdTracker = function()
         calls = calls + 1
       end,
+      handlePiTrackerEvent = function(event, unit, unitAuraUpdateInfo)
+        table.insert(piEvents, { event = event, unit = unit, payload = unitAuraUpdateInfo })
+      end,
     })
-    handlers.UNIT_AURA(nil, "party1")
+    local partyPayload = { addedAuras = {} }
+    handlers.UNIT_AURA(nil, "party1", partyPayload)
     Assert.Equal(calls, 0, "non-player unit must be ignored")
+    Assert.Equal(#piEvents, 1, "party UNIT_AURA must still be forwarded to the PI tracker")
+    Assert.Equal(piEvents[1].unit, "party1", "PI tracker must receive the aura unit")
+    Assert.Equal(piEvents[1].payload, partyPayload, "PI tracker must receive the aura payload")
     handlers.UNIT_AURA(nil, "player")
     Assert.Equal(calls, 1, "player unit must refresh")
+    Assert.Equal(#piEvents, 2, "player UNIT_AURA must also be forwarded to the PI tracker")
   end)
 
   test("UNIT_AURA bails out in raid mode even for player unit", function()

@@ -1025,7 +1025,7 @@ return function(test, ctx)
     end)
   end)
 
-  test("LI.BuildRosterBonusTooltipLine lists green-heart buffs plus BL and BR", function()
+  test("LI.BuildRosterBonusTooltipLine lists green-heart buffs plus BL, BR, and PI", function()
     WithGlobals(
       BonusGlobals({
         IsiLiveDB = { locale = "enUS" },
@@ -1069,6 +1069,19 @@ return function(test, ctx)
           deathKnightLine:find("BR", 1, true) ~= nil,
           "Battle resurrection must be listed in the tooltip only"
         )
+        Assert.Equal(
+          LI.BuildRosterBonusMarkerBadge("PRIEST", 256),
+          BONUS_MARKUP,
+          "Priest stamina must create one green-heart marker while Power Infusion does not add another"
+        )
+        local priestLine = StripColors(
+          Assert.NotNil(
+            LI.BuildRosterBonusTooltipLine("PRIEST", 256),
+            "Power Infusion must still produce a roster tooltip line"
+          )
+        )
+        Assert.True(priestLine:find("+5% Stamina", 1, true) ~= nil, "Priest stamina must stay listed in the tooltip")
+        Assert.True(priestLine:find("PI", 1, true) ~= nil, "Power Infusion must be listed in the tooltip only")
       end
     )
   end)

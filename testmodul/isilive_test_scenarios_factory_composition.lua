@@ -776,6 +776,7 @@ local function GetAllIsiLiveFiles()
     "isiLive_kick_tracker.lua",
     "isiLive_lfg_detect.lua",
     "isiLive_combat_events.lua",
+    "isiLive_pi_tracker.lua",
     "isiLive_death_watch.lua",
     "isiLive_death_alert.lua",
     "isiLive_killtrack.lua",

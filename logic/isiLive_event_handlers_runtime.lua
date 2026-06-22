@@ -1049,6 +1049,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end)
 
   local function HandleUnitAuraEvent(_self, unit, unitAuraUpdateInfo)
+    ctx.handlePiTrackerEvent("UNIT_AURA", unit, unitAuraUpdateInfo)
     if unit ~= "player" then
       return
     end

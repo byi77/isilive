@@ -42,6 +42,7 @@ local function BuildFactoryModules(tbl)
     killTrack = tbl and tbl.KillTrack,
     kickTracker = tbl and tbl.KickTracker,
     combatEvents = tbl and tbl.CombatEvents,
+    piTracker = tbl and tbl.PiTracker,
     deathWatch = tbl and tbl.DeathWatch,
     deathAlert = tbl and tbl.DeathAlert,
     bindings = tbl and tbl.Bindings,

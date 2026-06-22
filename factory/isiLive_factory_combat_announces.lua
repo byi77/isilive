@@ -70,6 +70,18 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
     end
   end
 
+  ctx.ShowPowerInfusionAnnounce = function(casterName, recipientName, isLocalRecipient)
+    local L = ctx.GetL and ctx.GetL() or {}
+    local template = L.COMBAT_CHAT_PI_RECEIVED or "%s empowered %s with PI"
+    ctx.Print(string.format(template, FormatDisplayName(casterName), FormatDisplayName(recipientName)))
+    if isLocalRecipient == true then
+      local deathAlert = addonTable.DeathAlert
+      if type(deathAlert) == "table" and type(deathAlert.ShowPowerInfusion) == "function" then
+        deathAlert.ShowPowerInfusion()
+      end
+    end
+  end
+
   local combatEvents = addonTable.CombatEvents
   if type(combatEvents) == "table" and type(combatEvents.SetDependencies) == "function" then
     combatEvents.SetDependencies({
@@ -84,6 +96,13 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
         return type(ctx.GetActiveChallengeMapID) == "function" and ctx.GetActiveChallengeMapID() ~= nil
       end,
       broadcastCombatAnnounce = ctx.BroadcastCombatAnnounce,
+    })
+  end
+
+  local piTracker = addonTable.PiTracker
+  if type(piTracker) == "table" and type(piTracker.SetDependencies) == "function" then
+    piTracker.SetDependencies({
+      announcePowerInfusion = ctx.ShowPowerInfusionAnnounce,
     })
   end
 end

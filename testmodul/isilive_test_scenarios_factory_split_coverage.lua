@@ -39,6 +39,7 @@ return function(test, ctx)
     local sent
     local brSounds = 0
     local lustSounds = 0
+    local piAlerts = 0
     local deps
 
     local addon = LoadAddonModules({ "isiLive_factory_combat_announces.lua" })
@@ -55,12 +56,23 @@ return function(test, ctx)
         deps = value
       end,
     }
+    addon.PiTracker = {
+      SetDependencies = function(value)
+        deps.pi = value
+      end,
+    }
+    addon.DeathAlert = {
+      ShowPowerInfusion = function()
+        piAlerts = piAlerts + 1
+      end,
+    }
 
     local factoryCtx = {
       GetL = function()
         return {
           COMBAT_CHAT_BR_USED = "%s used BR",
           COMBAT_CHAT_LUST_STARTED = "%s started Lust",
+          COMBAT_CHAT_PI_RECEIVED = "%s empowered %s with PI",
         }
       end,
       Print = function(line)
@@ -85,13 +97,18 @@ return function(test, ctx)
       factoryCtx.ShowCombatAnnounce({ kind = "BR" })
       factoryCtx.ShowCombatAnnounce({ kind = "LUST", caster = "Mage-Realm" })
       factoryCtx.BroadcastCombatAnnounce("BR", "Druid-Realm", 20484)
+      deps.pi.announcePowerInfusion("Priest-Realm", "Target-Realm", false)
+      deps.pi.announcePowerInfusion("Priest-Realm", "Me-Realm", true)
     end)
 
     Assert.Equal(prints[1], "? used BR", "missing caster must render a placeholder")
     Assert.Equal(prints[2], "Mage started Lust", "realm suffix must be stripped from lust caster")
     Assert.Equal(prints[3], "Druid used BR", "broadcast path must also render locally")
+    Assert.Equal(prints[4], "Priest empowered Target with PI", "PI on other players must render as local chat only")
+    Assert.Equal(prints[5], "Priest empowered Me with PI", "PI on player must render as local chat")
     Assert.Equal(brSounds, 2, "BR sound must fire for BR local and broadcast render")
     Assert.Equal(lustSounds, 1, "lust sound must fire for lust render")
+    Assert.Equal(piAlerts, 1, "PI center alert must fire only for the local recipient")
     Assert.Equal(sent.spellID, 20484, "broadcast path must send the combat announce payload")
   end)
 

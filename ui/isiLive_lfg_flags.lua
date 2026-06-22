@@ -570,7 +570,7 @@ local function IsRosterTooltipUtilityBonus(bonus)
   if type(bonus) ~= "table" or bonus.kind ~= "utility" then
     return false
   end
-  return bonus.textKey == "LFG_BONUS_BL" or bonus.textKey == "LFG_BONUS_BR"
+  return bonus.textKey == "LFG_BONUS_BL" or bonus.textKey == "LFG_BONUS_BR" or bonus.textKey == "LFG_BONUS_PI"
 end
 
 local function BuildRosterTooltipBonusSuffix(classToken, specID, profile)

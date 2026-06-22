@@ -22,12 +22,20 @@ local FADE_OUT_DURATION = 0.45
 local FALLBACK_TEXTS = {
   TANK = "Tank died",
   HEALER = "Healer died",
+  PI = "PI received",
 }
 
 local function ResolveAlertText(getL, role)
   local L = type(getL) == "function" and getL() or nil
   if type(L) == "table" then
-    local key = role == "TANK" and "DEATH_ALERT_TANK" or "DEATH_ALERT_HEALER"
+    local key
+    if role == "TANK" then
+      key = "DEATH_ALERT_TANK"
+    elseif role == "HEALER" then
+      key = "DEATH_ALERT_HEALER"
+    elseif role == "PI" then
+      key = "POWER_INFUSION_ALERT"
+    end
     local text = L[key]
     if type(text) == "string" and text ~= "" then
       return text
@@ -124,8 +132,8 @@ function DeathAlert.CreateController(opts)
   local controller = {}
   local frame = nil
 
-  function controller.ShowRoleDeath(role)
-    if role ~= "TANK" and role ~= "HEALER" then
+  local function ShowAlertKind(kind)
+    if kind ~= "TANK" and kind ~= "HEALER" and kind ~= "PI" then
       return false
     end
     if type(createFrame) ~= "function" then
@@ -134,7 +142,7 @@ function DeathAlert.CreateController(opts)
     if not frame then
       frame = BuildAlertFrame(createFrame)
     end
-    ApplyAlertText(frame.text, ResolveAlertText(getL, role))
+    ApplyAlertText(frame.text, ResolveAlertText(getL, kind))
     if frame.animGroup and type(frame.animGroup.Stop) == "function" then
       -- Restart cleanly when a second death lands mid-animation.
       frame.animGroup:Stop()
@@ -144,6 +152,17 @@ function DeathAlert.CreateController(opts)
       frame.animGroup:Play()
     end
     return true
+  end
+
+  function controller.ShowRoleDeath(role)
+    if role ~= "TANK" and role ~= "HEALER" then
+      return false
+    end
+    return ShowAlertKind(role)
+  end
+
+  function controller.ShowPowerInfusion()
+    return ShowAlertKind("PI")
   end
 
   -- Test-only hook: exposes the lazily created frame so deterministic tests
@@ -169,4 +188,11 @@ function DeathAlert.ShowRoleDeath(role)
     controllerInstance = DeathAlert.CreateController({})
   end
   return controllerInstance.ShowRoleDeath(role)
+end
+
+function DeathAlert.ShowPowerInfusion()
+  if not controllerInstance then
+    controllerInstance = DeathAlert.CreateController({})
+  end
+  return controllerInstance.ShowPowerInfusion()
 end

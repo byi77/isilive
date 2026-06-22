@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-06-23 - Version 0.9.332 (patch)
+
+- Added verified Power Infusion recipient detection from `UNIT_AURA`: local
+  chat now reports the verified priest and recipient, and the local player gets
+  the same red animated center alert style as the tank/healer death warning
+  when they personally receive PI.
+- Kept PI fail-closed: missing or non-priest aura sources do not guess a caster
+  or recipient, and repeated aura updates are deduplicated.
+- Bumped the TOC and documentation baselines to `0.9.332`.
+
 ## 2026-06-21 - Version 0.9.331 (patch)
 
 - Tracked the German localized spoken sound assets for release packaging, so

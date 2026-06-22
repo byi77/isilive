@@ -3,7 +3,7 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.331`.
+Current release: `0.9.332`.
 
 Highlights:
 - Midnight Season 2 preparation has started: `midnight_s2` is scaffolded but

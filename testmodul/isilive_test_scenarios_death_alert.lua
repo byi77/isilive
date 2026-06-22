@@ -522,6 +522,29 @@ local function RegisterDeathAlertUiTests(test, ctx)
     Assert.True(controller._Test_GetFrame().shown == true, "alert frame must be visible after show")
   end)
 
+  test("DeathAlert renders Power Infusion alert with the death-alert animation style", function()
+    local addon
+    WithGlobals({}, function()
+      addon = LoadAddonModules({ "isiLive_death_alert.lua" })
+    end)
+
+    local track = {}
+    local controller = addon.DeathAlert.CreateController({
+      createFrame = function()
+        return BuildFrameStub(track)
+      end,
+      getL = function()
+        return { POWER_INFUSION_ALERT = "PI RECEIVED" }
+      end,
+    })
+
+    Assert.Equal(controller.ShowPowerInfusion(), true, "PI alert must render")
+    Assert.Equal(track.text, "PI RECEIVED", "PI alert must use the configured text")
+    Assert.Equal(track.color.r, 1, "PI alert must use the same red text style")
+    Assert.True(track.color.g < 0.3 and track.color.b < 0.3, "PI alert must stay red")
+    Assert.Equal(track.plays, 1, "PI alert must play the same animation")
+  end)
+
   test("DeathAlert uses German role death text for deDE locale", function()
     local addon
     WithGlobals({}, function()

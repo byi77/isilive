@@ -2,7 +2,7 @@
 ## Title: isi|cff1e90ffLive|r
 ## Notes: M+ Dungeon and Group Management
 ## Author: mematiWoW
-## Version: 0.9.331
+## Version: 0.9.332
 ## SavedVariables: IsiLiveDB
 ## IconTexture: Interface\Icons\INV_Misc_GroupLooking
 libs/ChatThrottleLib/ChatThrottleLib.lua
@@ -73,6 +73,7 @@ game/isiLive_mplus_timer.lua
 game/isiLive_killtrack.lua
 game/isiLive_kick_tracker.lua
 game/isiLive_combat_events.lua
+game/isiLive_pi_tracker.lua
 game/isiLive_death_watch.lua
 ui/isiLive_death_alert.lua
 ui/isiLive_roster_panel_helpers.lua
