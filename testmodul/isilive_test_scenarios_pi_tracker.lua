@@ -125,4 +125,132 @@ return function(test, ctx)
     controller.HandleUnitAura("player", payload)
     Assert.Equal(#announces, 2, "PI aura may announce again after dedup window")
   end)
+
+  test("PiTracker default WoW adapters read time aura names and priest class token", function()
+    local PiTracker
+    local announces = {}
+    WithGlobals({
+      GetTime = function()
+        return 250
+      end,
+      C_UnitAuras = {
+        GetAuraDataByIndex = function(unit, index, filter)
+          if unit == "player" and index == 2 and filter == "HELPFUL" then
+            return { spellId = 10060, auraInstanceID = "default-aura", sourceUnit = "party1" }
+          end
+          return nil
+        end,
+      },
+      GetUnitName = function(unit, _showServerName)
+        if unit == "player" then
+          return "DefaultTarget-Realm"
+        end
+        if unit == "party1" then
+          return "DefaultPriest-Realm"
+        end
+        return ""
+      end,
+      UnitClass = function(unit)
+        if unit == "party1" then
+          return "Priest", "PRIEST"
+        end
+        return "Mage", "MAGE"
+      end,
+    }, function()
+      PiTracker = LoadPiTracker(ctx)
+      local controller = PiTracker.CreateController({
+        announcePowerInfusion = function(casterName, recipientName, isLocalRecipient)
+          table.insert(announces, {
+            casterName = casterName,
+            recipientName = recipientName,
+            isLocalRecipient = isLocalRecipient,
+          })
+        end,
+      })
+      Assert.True(controller.HandleUnitAura("player", { isFullUpdate = true }) == true, "default scan must announce PI")
+    end)
+    Assert.Equal(#announces, 1, "default adapters must announce exactly once")
+    Assert.Equal(announces[1].casterName, "DefaultPriest-Realm", "default GetUnitName must resolve caster")
+    Assert.Equal(announces[1].recipientName, "DefaultTarget-Realm", "default GetUnitName must resolve recipient")
+    Assert.True(announces[1].isLocalRecipient == true, "player recipient remains local")
+  end)
+
+  test("PiTracker controller fails closed for unsupported units partial updates and reset", function()
+    local PiTracker
+    WithGlobals({}, function()
+      PiTracker = LoadPiTracker(ctx)
+    end)
+    local controller, announces = BuildController(PiTracker, {
+      getAuraDataByIndex = function()
+        return nil
+      end,
+    })
+    Assert.True(controller.HandleUnitAura("target", nil) == false, "unsupported units must stay silent")
+    Assert.True(
+      controller.HandleUnitAura("player", { updatedAuraInstanceIDs = { 99 } }) == false,
+      "partial non-added updates must stay silent"
+    )
+    Assert.True(
+      controller.HandleUnitAura("player", nil) == false,
+      "nil update may scan but stays silent without verified aura"
+    )
+    Assert.Equal(controller._Test_GetRecentSize(), 0, "empty tracker starts with no recent entries")
+
+    controller.HandleUnitAura("player", {
+      addedAuras = {
+        { spellId = 10060, auraInstanceID = 83, sourceUnit = "party1" },
+      },
+    })
+    Assert.Equal(#announces, 1, "verified PI must be stored before reset")
+    Assert.Equal(controller._Test_GetRecentSize(), 1, "verified PI must create one dedup entry")
+    controller.Reset()
+    Assert.Equal(controller._Test_GetRecentSize(), 0, "reset must clear dedup entries")
+  end)
+
+  test("PiTracker module event wrapper installs dependencies handles aura and reset events", function()
+    local PiTracker
+    local announces = {}
+    WithGlobals({}, function()
+      PiTracker = LoadPiTracker(ctx)
+    end)
+    PiTracker.HandleEvent("UNIT_AURA", "player", {
+      addedAuras = {
+        { spellId = 10060, auraInstanceID = 84, sourceUnit = "party1" },
+      },
+    })
+    PiTracker.SetDependencies(nil)
+    PiTracker.SetDependencies({
+      getTime = function()
+        return 300
+      end,
+      getUnitName = function(unit)
+        return unit == "party1" and "WrapperPriest-Realm" or "WrapperTarget-Realm"
+      end,
+      getUnitClassToken = function(unit)
+        return unit == "party1" and "PRIEST" or "MAGE"
+      end,
+      announcePowerInfusion = function(casterName, recipientName, isLocalRecipient)
+        table.insert(announces, {
+          casterName = casterName,
+          recipientName = recipientName,
+          isLocalRecipient = isLocalRecipient,
+        })
+      end,
+    })
+    PiTracker.HandleEvent("UNIT_AURA", "player", {
+      addedAuras = {
+        { spellId = 10060, auraInstanceID = 84, sourceUnit = "party1" },
+      },
+    })
+    PiTracker.HandleEvent("GROUP_ROSTER_UPDATE")
+    PiTracker.HandleEvent("UNIT_AURA", "player", {
+      addedAuras = {
+        { spellId = 10060, auraInstanceID = 84, sourceUnit = "party1" },
+      },
+    })
+    PiTracker.HandleEvent("PLAYER_ENTERING_WORLD")
+    Assert.Equal(#announces, 2, "reset event must allow the same verified PI aura to announce again")
+    Assert.Equal(announces[1].casterName, "WrapperPriest-Realm", "wrapper must use configured caster resolver")
+    Assert.True(announces[1].isLocalRecipient == true, "wrapper must preserve local recipient flag")
+  end)
 end
