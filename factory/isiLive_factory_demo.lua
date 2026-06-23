@@ -41,6 +41,7 @@ local DEMO_FEATURE_DB_KEYS = {
   "mobNameplateYOffset",
   "soundReadyCheckCompleteEnabled",
   "deathAlertEnabled",
+  "powerInfusionTextEnabled",
 }
 
 local function CaptureDemoFeatureSnapshot(db)
@@ -87,6 +88,7 @@ local function ApplyDemoFeatureDbOverrides(ctx)
   db.mplusForcesEstimate = true
   db.soundReadyCheckCompleteEnabled = true
   db.deathAlertEnabled = true
+  db.powerInfusionTextEnabled = true
 
   return db
 end

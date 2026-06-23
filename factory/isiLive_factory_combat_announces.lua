@@ -71,6 +71,11 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
   end
 
   ctx.ShowPowerInfusionAnnounce = function(casterName, recipientName, isLocalRecipient)
+    local db = rawget(_G, "IsiLiveDB")
+    if type(db) == "table" and db.powerInfusionTextEnabled == false then
+      return
+    end
+
     local L = ctx.GetL and ctx.GetL() or {}
     local template = L.COMBAT_CHAT_PI_RECEIVED or "%s empowered %s with PI"
     ctx.Print(string.format(template, FormatDisplayName(casterName), FormatDisplayName(recipientName)))

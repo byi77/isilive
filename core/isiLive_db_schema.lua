@@ -220,6 +220,7 @@ local SCHEMA = {
   -- Combat-event chat announces.
   chatAnnounceBR = { type = "boolean", default = true },
   chatAnnounceLust = { type = "boolean", default = true },
+  powerInfusionTextEnabled = { type = "boolean", default = true },
 
   -- Persistent runtime caches (open-shape tables: per-player keys -> values).
   -- maxMapEntries caps unbounded growth: when the count exceeds the cap, the

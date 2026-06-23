@@ -714,6 +714,9 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
   test("Factory test mode populates timer, cooldown and kill-track demo data", function()
     local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
       mainFrameShown = true,
+      db = {
+        powerInfusionTextEnabled = false,
+      },
     })
 
     Assert.NotNil(state.testModeOpts, "factory must pass test-mode options into the controller")
@@ -758,6 +761,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Equal(state.readyCheckDeclinedUntil.party2, 20, "demo mode must mark one party row declined")
     Assert.Equal(state.readyCheckRefreshes, 1, "demo mode must refresh ready-check row decoration")
     Assert.Equal(state.shareKeysCooldownSeconds, 18, "demo mode must show the mirrored share-keys cooldown state")
+    Assert.True(state.db.powerInfusionTextEnabled == true, "demo mode must enable the PI text preview setting")
     Assert.True(state.simulationTabletShown == true, "demo mode must show the simulation tablet")
     Assert.Equal(state.simulationTabletShowCalls, 1, "demo mode must show the simulation tablet once")
     Assert.NotNil(state.deathAlertPreviews, "demo mode must preview death alerts")
@@ -853,7 +857,9 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       "non-mythic demo notice hint must blink for emphasis"
     )
 
-    state.ctx.ExitTestMode()
+    WithGlobals(BuildGlobalsEnv(state), function()
+      state.ctx.ExitTestMode()
+    end)
     Assert.Nil(state.mplusDemoData, "test mode exit must clear M+ timer demo data")
     Assert.Nil(state.killTrackDemoData, "test mode exit must clear kill-track demo data")
     Assert.Equal(state.mplusDemoCleared, 1, "M+ timer demo data must be cleared once")
@@ -865,6 +871,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.Equal(next(state.readyCheckDeclinedUntil), nil, "test mode exit must clear ready-check declined holds")
     Assert.Equal(state.shareKeysCooldownCleared, 1, "test mode exit must clear the demo share-keys cooldown")
     Assert.Nil(state.shareKeysCooldownSeconds, "test mode exit must leave no demo share-keys cooldown")
+    Assert.Equal(state.db.powerInfusionTextEnabled, false, "test mode exit must restore the previous PI text setting")
     Assert.False(state.portalNavigatorVisible, "test mode exit must hide the portal navigator demo")
     Assert.False(state.demoCenterNoticesVisible, "test mode exit must hide the stacked demo center notices")
     Assert.False(state.simulationTabletShown, "test mode exit must hide the simulation tablet")

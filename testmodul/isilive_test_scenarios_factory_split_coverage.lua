@@ -143,6 +143,49 @@ return function(test, ctx)
     Assert.True(deps.isInKey(), "running M+ timer must keep combat announces enabled when map ID is masked")
   end)
 
+  test("factory split coverage: Power Infusion text setting suppresses chat and center alert", function()
+    local prints = {}
+    local piAlerts = 0
+    local deps
+
+    local addon = LoadAddonModules({ "isiLive_factory_combat_announces.lua" })
+    addon.CombatEvents = {
+      SetDependencies = function(value)
+        deps = value
+      end,
+    }
+    addon.PiTracker = {
+      SetDependencies = function(value)
+        deps.pi = value
+      end,
+    }
+    addon.DeathAlert = {
+      ShowPowerInfusion = function()
+        piAlerts = piAlerts + 1
+      end,
+    }
+
+    local factoryCtx = {
+      GetL = function()
+        return {
+          COMBAT_CHAT_PI_RECEIVED = "%s empowered %s with PI",
+        }
+      end,
+      Print = function(line)
+        prints[#prints + 1] = line
+      end,
+      modules = {},
+    }
+
+    WithGlobals({ IsiLiveDB = { powerInfusionTextEnabled = false } }, function()
+      addon._FactoryInternal.InitializeFactoryCombatAnnounceControllers(factoryCtx)
+      deps.pi.announcePowerInfusion("Priest-Realm", "Me-Realm", true)
+    end)
+
+    Assert.Equal(#prints, 0, "disabled PI text setting must suppress the local chat line")
+    Assert.Equal(piAlerts, 0, "disabled PI text setting must suppress the local center alert")
+  end)
+
   test("factory split coverage: refresh button cooldown and refresh-controller callbacks execute", function()
     local addon = LoadAddonModules({ "isiLive_factory_refresh.lua" })
     local now = 0

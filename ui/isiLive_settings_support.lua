@@ -131,6 +131,25 @@ function SettingsSupport.BuildChatSection(canvas, yOffset, labels, config, contr
     )
   )
 
+  controls.powerInfusionTextAlert, yOffset = CreateSettingsCheckbox(
+    canvas,
+    yOffset,
+    labels.SETTINGS_TEXT_POWER_INFUSION_ALERT or "Text alert on Power Infusion",
+    function()
+      local db = config.getDB()
+      return db.powerInfusionTextEnabled ~= false
+    end,
+    function(checked)
+      local db = config.getDB()
+      db.powerInfusionTextEnabled = checked
+    end,
+    "SETTINGS_TEXT_POWER_INFUSION_ALERT",
+    DescriptionOptions(
+      labels.SETTINGS_TEXT_POWER_INFUSION_ALERT_DESC
+        or "Shows the local PI chat line and center alert when Power Infusion is detected."
+    )
+  )
+
   return yOffset
 end
 
@@ -374,6 +393,17 @@ function SettingsSupport.RefreshControls(controls, labels, db, config)
       labels.SETTINGS_CHAT_LUST_ANNOUNCE_DESC or "Announces Bloodlust casts in party chat during Mythic+ runs."
     )
     controls.chatAnnounceLust.check:SetChecked(db.chatAnnounceLust ~= false)
+  end
+  if controls.powerInfusionTextAlert and controls.powerInfusionTextAlert.label then
+    controls.powerInfusionTextAlert.label:SetText(
+      labels.SETTINGS_TEXT_POWER_INFUSION_ALERT or "Text alert on Power Infusion"
+    )
+    SetDescription(
+      controls.powerInfusionTextAlert,
+      labels.SETTINGS_TEXT_POWER_INFUSION_ALERT_DESC
+        or "Shows the local PI chat line and center alert when Power Infusion is detected."
+    )
+    controls.powerInfusionTextAlert.check:SetChecked(db.powerInfusionTextEnabled ~= false)
   end
 
   if controls.debugHeader then

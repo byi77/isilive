@@ -2240,6 +2240,10 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       )
       Assert.Nil(db.soundBattleResEnabled, "opening settings should not persist the default battle-res sound state")
       Assert.Nil(db.soundBloodlustEnabled, "opening settings should not persist the default bloodlust sound state")
+      Assert.Nil(
+        db.powerInfusionTextEnabled,
+        "opening settings should not persist the default Power Infusion text state"
+      )
       Assert.Nil(db.soundOutputChannel, "opening settings should not persist the default sound output channel")
       local unstoredDefaultKeys = {
         "soundBattleResReadyEnabled",
@@ -2260,6 +2264,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       local bloodlustSoundCheck = nil
       local bloodlustReadySoundCheck = nil
       local bloodlustReadyReminderCheck = nil
+      local powerInfusionTextAlertCheck = nil
       local soundChannelMasterButton = nil
       local soundChannelSfxButton = nil
       local soundPreviewButtons = {}
@@ -2285,6 +2290,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           bloodlustReadySoundCheck = frame
         elseif frame._settingKey == "SETTINGS_SOUND_BLOODLUST_READY_REMINDER" then
           bloodlustReadyReminderCheck = frame
+        elseif frame._settingKey == "SETTINGS_TEXT_POWER_INFUSION_ALERT" then
+          powerInfusionTextAlertCheck = frame
         elseif frame._settingKey == "SETTINGS_SOUND_CHANNEL" and frame._optionValue == "Master" then
           soundChannelMasterButton = frame
         elseif frame._settingKey == "SETTINGS_SOUND_CHANNEL" and frame._optionValue == "SFX" then
@@ -2312,6 +2319,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         Assert.NotNil(bloodlustReadySoundCheck, "settings panel should create a bloodlust-ready sound checkbox")
       bloodlustReadyReminderCheck =
         Assert.NotNil(bloodlustReadyReminderCheck, "settings panel should create a bloodlust-ready reminder checkbox")
+      powerInfusionTextAlertCheck =
+        Assert.NotNil(powerInfusionTextAlertCheck, "settings panel should create a Power Infusion text checkbox")
       soundChannelMasterButton =
         Assert.NotNil(soundChannelMasterButton, "settings panel should create a Master sound-channel option")
       soundChannelSfxButton =
@@ -2354,6 +2363,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         bloodlustSoundCheck,
         bloodlustReadySoundCheck,
         bloodlustReadyReminderCheck,
+        powerInfusionTextAlertCheck,
       }
       for _, check in ipairs(defaultCheckedSoundControls) do
         Assert.True(check:GetChecked(), "sound setting should default to enabled")
@@ -2373,6 +2383,9 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       local onClickBloodlustReadyReminder = bloodlustReadyReminderCheck._scripts
           and bloodlustReadyReminderCheck._scripts.OnClick
         or nil
+      local onClickPowerInfusionText = powerInfusionTextAlertCheck._scripts
+          and powerInfusionTextAlertCheck._scripts.OnClick
+        or nil
       local onClickSoundChannelSfx = soundChannelSfxButton._scripts and soundChannelSfxButton._scripts.OnClick or nil
       onClickLead = Assert.NotNil(onClickLead, "leader-transfer sound checkbox should define OnClick")
       onClickJoin = Assert.NotNil(onClickJoin, "group-join sound checkbox should define OnClick")
@@ -2387,6 +2400,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         Assert.NotNil(onClickBloodlustReady, "bloodlust-ready sound checkbox should define OnClick")
       onClickBloodlustReadyReminder =
         Assert.NotNil(onClickBloodlustReadyReminder, "bloodlust-ready reminder checkbox should define OnClick")
+      onClickPowerInfusionText =
+        Assert.NotNil(onClickPowerInfusionText, "Power Infusion text checkbox should define OnClick")
       onClickSoundChannelSfx = Assert.NotNil(onClickSoundChannelSfx, "SFX sound-channel option should define OnClick")
 
       leadSoundCheck:SetChecked(false)
@@ -2407,6 +2422,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       onClickBloodlustReady(bloodlustReadySoundCheck)
       bloodlustReadyReminderCheck:SetChecked(false)
       onClickBloodlustReadyReminder(bloodlustReadyReminderCheck)
+      powerInfusionTextAlertCheck:SetChecked(false)
+      onClickPowerInfusionText(powerInfusionTextAlertCheck)
       onClickSoundChannelSfx(soundChannelSfxButton)
 
       Assert.False(db.soundLeadEnabled, "disabling leader-transfer sound should persist false")
@@ -2418,6 +2435,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.True(db.soundBloodlustEnabled, "enabling bloodlust sound should persist true")
       Assert.False(db.soundBloodlustReadyEnabled, "disabling bloodlust-ready sound should persist false")
       Assert.False(db.soundBloodlustReadyReminderEnabled, "disabling bloodlust-ready reminders should persist false")
+      Assert.False(db.powerInfusionTextEnabled, "disabling Power Infusion text should persist false")
       Assert.Equal(db.soundOutputChannel, "SFX", "selecting the SFX sound channel should persist SFX")
 
       local onPreviewLead = Assert.NotNil(
@@ -2451,6 +2469,10 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.False(
         bloodlustReadyReminderCheck:GetChecked(),
         "refresh should keep the disabled bloodlust-ready reminder state"
+      )
+      Assert.False(
+        powerInfusionTextAlertCheck:GetChecked(),
+        "refresh should keep the disabled Power Infusion text state"
       )
       incomingSummonLoopCheck.label:SetText("Repeat incoming-summon alert every 5 seconds")
       incomingSummonLoopCheck.description:SetText(
@@ -2870,10 +2892,10 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       )
       Assert.Equal(
         checkboxCount,
-        43,
+        44,
         "settings should hide only the legacy name-length"
           .. " and teleport-column controls while keeping the startup/key-end, navigator, sound,"
-          .. " incoming-summon loop, chat-announce, combat-fade, nameplate-subtoggle,"
+          .. " incoming-summon loop, chat/text-announce, combat-fade, nameplate-subtoggle,"
           .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows, VIP sound toggles,"
           .. " and the two auto-close split checkboxes visible"
           .. " (M+ forces tooltip/nameplate toggles replaced by a single 3-way display-mode selector)"
@@ -2883,9 +2905,9 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 7, "refresh should keep the stats-box and nameplate sliders visible")
       Assert.Equal(
         checkboxCount,
-        43,
+        44,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
-          .. " while preserving the visible sound, incoming-summon loop, chat-announce,"
+          .. " while preserving the visible sound, incoming-summon loop, chat/text-announce,"
           .. " combat-fade, nameplate-subtoggle,"
           .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows, VIP sound toggles,"
           .. " and the two auto-close split checkboxes"
@@ -3039,7 +3061,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
     -- never called SetChecked, so the visible state could lag DB after
     -- /isilive reset until the panel was reopened.
     local createFrameStub, createdFrames = BuildCreateFrameStub()
-    local db = { chatAnnounceBR = true, chatAnnounceLust = true }
+    local db = { chatAnnounceBR = true, chatAnnounceLust = true, powerInfusionTextEnabled = true }
 
     WithGlobals({
       UIParent = {},
@@ -3058,6 +3080,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           return {
             SETTINGS_CHAT_BR_ANNOUNCE = "Chat BR",
             SETTINGS_CHAT_LUST_ANNOUNCE = "Chat Lust",
+            SETTINGS_TEXT_POWER_INFUSION_ALERT = "PI Text",
           }
         end,
         getCurrentLocale = function()
@@ -3071,28 +3094,34 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
 
       Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
 
-      local brCheck, lustCheck = nil, nil
+      local brCheck, lustCheck, piTextCheck = nil, nil, nil
       for _, frame in ipairs(createdFrames) do
         if frame._settingKey == "SETTINGS_CHAT_BR_ANNOUNCE" then
           brCheck = frame
         elseif frame._settingKey == "SETTINGS_CHAT_LUST_ANNOUNCE" then
           lustCheck = frame
+        elseif frame._settingKey == "SETTINGS_TEXT_POWER_INFUSION_ALERT" then
+          piTextCheck = frame
         end
       end
       brCheck = Assert.NotNil(brCheck, "settings should expose the chatAnnounceBR checkbox")
       lustCheck = Assert.NotNil(lustCheck, "settings should expose the chatAnnounceLust checkbox")
+      piTextCheck = Assert.NotNil(piTextCheck, "settings should expose the Power Infusion text checkbox")
 
       ---@diagnostic disable: undefined-field
       Assert.True(brCheck:GetChecked(), "chatAnnounceBR should start checked when DB says true")
       Assert.True(lustCheck:GetChecked(), "chatAnnounceLust should start checked when DB says true")
+      Assert.True(piTextCheck:GetChecked(), "powerInfusionTextEnabled should start checked when DB says true")
 
       -- Simulate /isilive reset: DB defaults flip to nil/false; Refresh must resync.
       db.chatAnnounceBR = false
       db.chatAnnounceLust = false
+      db.powerInfusionTextEnabled = false
       panel.Refresh()
 
       Assert.False(brCheck:GetChecked(), "Refresh must resync chatAnnounceBR to false after DB reset")
       Assert.False(lustCheck:GetChecked(), "Refresh must resync chatAnnounceLust to false after DB reset")
+      Assert.False(piTextCheck:GetChecked(), "Refresh must resync powerInfusionTextEnabled to false after DB reset")
       ---@diagnostic enable: undefined-field
     end)
   end)

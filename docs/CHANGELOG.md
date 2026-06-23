@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-06-23 - Version 0.9.334 (patch)
+
+- Added a Settings text-alert toggle for Power Infusion, default on: when
+  disabled, verified PI detection remains fail-closed but the local chat line
+  and local center alert stay silent.
+- Bumped the TOC and documentation baselines to `0.9.334`.
+
 ## 2026-06-23 - Version 0.9.333 (patch)
 
 - Added PI to demo mode: the full feature preview and simulation tablet can now
