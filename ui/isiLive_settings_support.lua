@@ -134,7 +134,7 @@ function SettingsSupport.BuildChatSection(canvas, yOffset, labels, config, contr
   controls.powerInfusionTextAlert, yOffset = CreateSettingsCheckbox(
     canvas,
     yOffset,
-    labels.SETTINGS_TEXT_POWER_INFUSION_ALERT or "Text alert on Power Infusion",
+    labels.SETTINGS_TEXT_POWER_INFUSION_ALERT or "Chat: Announce PI in M+",
     function()
       local db = config.getDB()
       return db.powerInfusionTextEnabled ~= false
@@ -146,7 +146,7 @@ function SettingsSupport.BuildChatSection(canvas, yOffset, labels, config, contr
     "SETTINGS_TEXT_POWER_INFUSION_ALERT",
     DescriptionOptions(
       labels.SETTINGS_TEXT_POWER_INFUSION_ALERT_DESC
-        or "Shows the local PI chat line and center alert when Power Infusion is detected."
+        or "Announces Power Infusion locally in chat during Mythic+ runs and shows the center alert for the recipient."
     )
   )
 
@@ -396,12 +396,12 @@ function SettingsSupport.RefreshControls(controls, labels, db, config)
   end
   if controls.powerInfusionTextAlert and controls.powerInfusionTextAlert.label then
     controls.powerInfusionTextAlert.label:SetText(
-      labels.SETTINGS_TEXT_POWER_INFUSION_ALERT or "Text alert on Power Infusion"
+      labels.SETTINGS_TEXT_POWER_INFUSION_ALERT or "Chat: Announce PI in M+"
     )
     SetDescription(
       controls.powerInfusionTextAlert,
       labels.SETTINGS_TEXT_POWER_INFUSION_ALERT_DESC
-        or "Shows the local PI chat line and center alert when Power Infusion is detected."
+        or "Announces Power Infusion locally in chat during Mythic+ runs and shows the center alert for the recipient."
     )
     controls.powerInfusionTextAlert.check:SetChecked(db.powerInfusionTextEnabled ~= false)
   end
