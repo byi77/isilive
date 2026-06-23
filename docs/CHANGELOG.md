@@ -8,6 +8,9 @@
   when they personally receive PI.
 - Kept PI fail-closed: missing or non-priest aura sources do not guess a caster
   or recipient, and repeated aura updates are deduplicated.
+- Tightened the PI path for raid and unresolved-name cases: raid mode does not
+  process PI aura events, and missing caster/recipient names no longer fall back
+  to unit tokens.
 - Bumped the TOC and documentation baselines to `0.9.332`.
 
 ## 2026-06-21 - Version 0.9.331 (patch)

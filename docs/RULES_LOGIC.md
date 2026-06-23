@@ -31,7 +31,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 8. Highlight-Aufloesung darf nur mit eindeutigem activity/map-Kontext arbeiten und kein Gruppen-freies Fallback nutzen.
 9. Der aktive Queue-Join-Runtimepfad muss waehrend aktiver Challenge Queue-Events ignorieren und ausserhalb davon Pending-Queue-Infos fuer den Gruppenbeitritts-Announce deterministisch setzen und wieder leeren.
 10. Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; blockierte Main-UI-Sichtbarkeitswechsel werden ausser im Raid gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
-11. In Raid-Groesse wird die Main-UI sofort ausgeblendet, die Raid-Option wird auf `hide` normalisiert und es laeuft weder UI- noch Hintergrund-Sync weiter; wenn die Main-UI vor der Raid-Unterdrueckung sichtbar war, wird sie beim Verlassen des Raids wieder geoeffnet.
+11. In Raid-Groesse wird die Main-UI sofort ausgeblendet, die Raid-Option wird auf `hide` normalisiert und es laeuft ausser den VIP-Einstellungen weder UI-, Output- noch Hintergrundverarbeitung weiter; wenn die Main-UI vor der Raid-Unterdrueckung sichtbar war, wird sie beim Verlassen des Raids wieder geoeffnet.
 12. Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
 13. Voll-Refresh laeuft nur in erlaubten Zustaenden und muss bei Stop oder aktivem M+ sauber aussetzen.
 14. Slash-Commands muessen oeffentliche Hilfe, Admin-Hilfe und die verbleibenden State-Zyklen stabil ausfuehren.
@@ -108,7 +108,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 86. Sichtbare UI-Elemente mit dynamischen Texten oder wachsender Aktionszahl muessen ein explizites Layoutbudget haben, damit sie nicht in Toolbar, Framegrenzen oder Bildschirmrand laufen.
 87. Eingehende Beschwoerungen wiederholen den Incoming-Summon-Sound bei aktiviertem Loop alle 5 Sekunden, solange der Live-Status fuer `player` verifiziert `Pending` bleibt; `deDE` nutzt die deutsche Ansage `Beschwoerung aktiv`, alle anderen Client-Locales behalten `Portal.ogg`.
 88. Das kompakte vertikale V-Layout zeigt die M+-Leader-Aktionen eng als `RC`, `CD10` und `CD0`, blendet `Share Keys` sowie die Tool-Ueberschriften aus und ordnet die M+Marker in zwei eng stehenden vertikalen Vierer-Spalten an.
-89. Power Infusion wird nur aus verifizierten Aura-Daten erkannt; lokale Chatzeilen zeigen verifizierten Priester und Empfaenger, die rote Center-Animation erscheint nur beim lokalen Empfaenger.
+89. Power Infusion wird ausserhalb des Raids nur aus verifizierten Aura-Daten erkannt; lokale Chatzeilen zeigen verifizierten Priester und Empfaenger, die rote Center-Animation erscheint nur beim lokalen Empfaenger.
 
 ## Regelbloecke
 
@@ -216,7 +216,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-GRUPPE-RAID-SICHTBARKEIT
 - Regelnummer: 11
 - Status: aktiv
-- Zusammenfassung: In Raid-Groesse wird die Main-UI sofort ausgeblendet, die Raid-Option wird auf `hide` normalisiert und es laeuft weder UI- noch Hintergrund-Sync weiter; wenn die Main-UI direkt vor der Raid-Unterdrueckung sichtbar war, muss sie beim Rueckweg aus dem Raid in Party- oder Solo-Zustand mit `reason = "raid-return"` wieder geoeffnet werden. War sie vor der Raid-Unterdrueckung geschlossen, muss sie beim Rueckweg aus dem Raid geschlossen bleiben. Beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt. Nur mit aktivierter Auto-Close-Option darf der Solo-Uebergang die Main-UI ausblenden.
+- Zusammenfassung: In Raid-Groesse wird die Main-UI sofort ausgeblendet, die Raid-Option wird auf `hide` normalisiert und es laeuft ausser den VIP-Einstellungen weder UI-, Output- noch Hintergrundverarbeitung weiter; sichtbare Hinweise, Chatframe-Ausgaben, Center-Animationen und nicht notwendige Eventverarbeitung muessen im Raid geschlossen bleiben. Wenn die Main-UI direkt vor der Raid-Unterdrueckung sichtbar war, muss sie beim Rueckweg aus dem Raid in Party- oder Solo-Zustand mit `reason = "raid-return"` wieder geoeffnet werden. War sie vor der Raid-Unterdrueckung geschlossen, muss sie beim Rueckweg aus dem Raid geschlossen bleiben. Beim Verlassen einer Kleingruppe bleibt die bisherige Sichtbarkeit standardmaessig erhalten und ehemalige Gruppenmitglieder werden als Geister weiter angezeigt. Nur mit aktivierter Auto-Close-Option darf der Solo-Uebergang die Main-UI ausblenden.
 - Erforderliche Tests:
   - Group leave keeps frame state and ghosts former party members
   - Group leave auto-close hides frame when option is enabled
@@ -225,6 +225,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Raid return reopens the UI only when it was visible before raid suppression
   - Raid return keeps the UI closed when it was closed before raid suppression
   - Raid disband restores the UI when it was visible before raid suppression
+  - UNIT_AURA bails out in raid mode even for player unit
   - Factory raid kick tracker suppresses sync until raid ends and then recovers
   - Frame bridge blocks show requests while raid mode is active
   - Event handlers suppress background processing while raid mode is active
@@ -1328,13 +1329,19 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-POWER-INFUSION-EMPFANGS-MELDUNG
 - Regelnummer: 89
 - Status: aktiv
-- Zusammenfassung: Power Infusion darf nur aus verifizierten `UNIT_AURA`-Daten fuer `player` oder `party1` bis `party4` erkannt werden, wenn die Aura Spell-ID `10060` traegt und die Auraquelle als Priester-Unit verifiziert ist. Ohne verifizierte Priesterquelle bleibt der PI-Pfad stumm; Cast-Events, aktuelle Targets, Klassenlisten oder sonstige Ratefallbacks duerfen keinen PI-Caster oder Empfaenger synthetisieren. Fuer jede frisch erkannte PI-Aura wird lokal dieselbe weisse Chatframe-Ausgabe wie bei BR-/Bloodlust-Announces gerendert: Priester und Empfaenger werden aus verifizierten Unit-Namen formatiert. Die rote mittige animierte Warnung verwendet denselben DeathAlert-Stil wie Tank-/Heiler-Tod und erscheint ausschliesslich, wenn der lokale Spieler selbst der PI-Empfaenger ist. Wiederholte Aura-Updates fuer dieselbe PI-Aura muessen dedupliziert werden.
+- Zusammenfassung: Power Infusion darf ausserhalb des Raids nur aus verifizierten `UNIT_AURA`-Daten fuer `player` oder `party1` bis `party4` erkannt werden, wenn die Aura Spell-ID `10060` traegt und die Auraquelle als Priester-Unit verifiziert ist. Im Raid darf der PI-Pfad nicht verarbeitet werden und muss ohne Output geschlossen bleiben. Ohne verifizierte Priesterquelle oder ohne verifizierte Namen fuer Priester und Empfaenger bleibt der PI-Pfad stumm; Cast-Events, aktuelle Targets, Klassenlisten, Unit-Token oder sonstige Ratefallbacks duerfen keinen PI-Caster oder Empfaenger synthetisieren. Fuer jede frisch erkannte PI-Aura wird lokal dieselbe weisse Chatframe-Ausgabe wie bei BR-/Bloodlust-Announces gerendert: Priester und Empfaenger werden aus verifizierten Unit-Namen formatiert. Die rote mittige animierte Warnung verwendet denselben DeathAlert-Stil wie Tank-/Heiler-Tod und erscheint ausschliesslich, wenn der lokale Spieler selbst der PI-Empfaenger ist. Wiederholte Aura-Updates fuer dieselbe PI-Aura muessen dedupliziert werden.
 - Erforderliche Tests:
   - PiTracker announces verified Power Infusion on player from UNIT_AURA addedAuras
   - PiTracker announces verified Power Infusion on party recipient without local flag
   - PiTracker does not guess Power Infusion caster when aura source is missing or not priest
+  - PiTracker stays silent when caster or recipient name is unresolved
   - PiTracker scans full aura updates for verified Power Infusion
   - PiTracker deduplicates repeated Power Infusion aura updates
+  - PiTracker default WoW adapters read time aura names and priest class token
+  - PiTracker default WoW name adapter fails closed when names are unavailable
+  - PiTracker controller fails closed for unsupported units partial updates and reset
+  - PiTracker module event wrapper installs dependencies handles aura and reset events
   - UNIT_AURA refreshes cd tracker only for player unit outside raid
+  - UNIT_AURA bails out in raid mode even for player unit
   - factory split coverage: combat announce callbacks render, sound, and broadcast
   - DeathAlert renders Power Infusion alert with the death-alert animation style

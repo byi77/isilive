@@ -813,6 +813,7 @@ return function(test, ctx)
 
   test("UNIT_AURA bails out in raid mode even for player unit", function()
     local calls = 0
+    local piCalls = 0
     local handlers = LoadHandlers({
       isRaidGroup = function()
         return true
@@ -820,9 +821,13 @@ return function(test, ctx)
       updateCdTracker = function()
         calls = calls + 1
       end,
+      handlePiTrackerEvent = function()
+        piCalls = piCalls + 1
+      end,
     })
     handlers.UNIT_AURA(nil, "player")
     Assert.Equal(calls, 0, "raid mode must veto cd tracker refresh")
+    Assert.Equal(piCalls, 0, "raid mode must not process PI aura events")
   end)
 
   -- HandleChatMsgAddonEvent ----------------------------------------------------

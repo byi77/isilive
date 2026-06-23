@@ -48,7 +48,7 @@ local function DefaultGetUnitName(unit)
       return name
     end
   end
-  return unit
+  return nil
 end
 
 local function DefaultGetUnitClassToken(unit)
@@ -126,12 +126,25 @@ function PiTracker.CreateController(opts)
     return unit .. "|" .. (ReadSourceUnit(aura) or "") .. "|" .. (ReadAuraInstanceID(aura) or POWER_INFUSION_SPELL_ID)
   end
 
+  local function ResolveVerifiedUnitName(unit)
+    local name = getUnitName(unit)
+    if type(name) == "string" and name ~= "" and name ~= unit then
+      return name
+    end
+    return nil
+  end
+
   local function AnnounceIfFresh(unit, aura)
     if ReadSpellID(aura) ~= POWER_INFUSION_SPELL_ID then
       return false
     end
     local sourceUnit = ReadSourceUnit(aura)
     if not sourceUnit or getUnitClassToken(sourceUnit) ~= "PRIEST" then
+      return false
+    end
+    local casterName = ResolveVerifiedUnitName(sourceUnit)
+    local recipientName = ResolveVerifiedUnitName(unit)
+    if not casterName or not recipientName then
       return false
     end
     local now = getTime()
@@ -142,7 +155,7 @@ function PiTracker.CreateController(opts)
       return false
     end
     recent[key] = now
-    announcePowerInfusion(getUnitName(sourceUnit), getUnitName(unit), unit == "player")
+    announcePowerInfusion(casterName, recipientName, unit == "player")
     return true
   end
 

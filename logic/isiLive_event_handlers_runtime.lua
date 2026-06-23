@@ -1049,11 +1049,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end)
 
   local function HandleUnitAuraEvent(_self, unit, unitAuraUpdateInfo)
-    ctx.handlePiTrackerEvent("UNIT_AURA", unit, unitAuraUpdateInfo)
-    if unit ~= "player" then
+    if IsRaidModeActive(ctx) then
       return
     end
-    if IsRaidModeActive(ctx) then
+    ctx.handlePiTrackerEvent("UNIT_AURA", unit, unitAuraUpdateInfo)
+    if unit ~= "player" then
       return
     end
     if not UnitAuraUpdateRequiresCdScan(unitAuraUpdateInfo) then

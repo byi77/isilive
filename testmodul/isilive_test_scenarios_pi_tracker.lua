@@ -89,6 +89,27 @@ return function(test, ctx)
     Assert.Equal(#announces, 0, "missing or non-priest source must stay silent")
   end)
 
+  test("PiTracker stays silent when caster or recipient name is unresolved", function()
+    local PiTracker
+    WithGlobals({}, function()
+      PiTracker = LoadPiTracker(ctx)
+    end)
+    local controller, announces = BuildController(PiTracker, {
+      nameByUnit = { party1 = "Priest-Realm", player = "player", party2 = "" },
+    })
+    controller.HandleUnitAura("player", {
+      addedAuras = {
+        { spellId = 10060, auraInstanceID = 85, sourceUnit = "party1" },
+      },
+    })
+    controller.HandleUnitAura("party2", {
+      addedAuras = {
+        { spellId = 10060, auraInstanceID = 86, sourceUnit = "party1" },
+      },
+    })
+    Assert.Equal(#announces, 0, "unresolved caster or recipient names must not be guessed from unit tokens")
+  end)
+
   test("PiTracker scans full aura updates for verified Power Infusion", function()
     local PiTracker
     WithGlobals({}, function()
@@ -173,6 +194,52 @@ return function(test, ctx)
     Assert.Equal(announces[1].casterName, "DefaultPriest-Realm", "default GetUnitName must resolve caster")
     Assert.Equal(announces[1].recipientName, "DefaultTarget-Realm", "default GetUnitName must resolve recipient")
     Assert.True(announces[1].isLocalRecipient == true, "player recipient remains local")
+  end)
+
+  test("PiTracker default WoW name adapter fails closed when names are unavailable", function()
+    local PiTracker
+    local announces = {}
+    WithGlobals({
+      GetTime = function()
+        return 251
+      end,
+      C_UnitAuras = {
+        GetAuraDataByIndex = function(unit, index, filter)
+          if unit == "player" and index == 1 and filter == "HELPFUL" then
+            return { spellId = 10060, auraInstanceID = "unnamed-aura", sourceUnit = "party1" }
+          end
+          return nil
+        end,
+      },
+      GetUnitName = function()
+        return ""
+      end,
+      UnitName = function()
+        return nil
+      end,
+      UnitClass = function(unit)
+        if unit == "party1" then
+          return "Priest", "PRIEST"
+        end
+        return "Mage", "MAGE"
+      end,
+    }, function()
+      PiTracker = LoadPiTracker(ctx)
+      local controller = PiTracker.CreateController({
+        announcePowerInfusion = function(casterName, recipientName, isLocalRecipient)
+          table.insert(announces, {
+            casterName = casterName,
+            recipientName = recipientName,
+            isLocalRecipient = isLocalRecipient,
+          })
+        end,
+      })
+      Assert.True(
+        controller.HandleUnitAura("player", { isFullUpdate = true }) == false,
+        "unresolved names must fail closed"
+      )
+    end)
+    Assert.Equal(#announces, 0, "default adapter must not synthesize names from unit tokens")
   end)
 
   test("PiTracker controller fails closed for unsupported units partial updates and reset", function()
