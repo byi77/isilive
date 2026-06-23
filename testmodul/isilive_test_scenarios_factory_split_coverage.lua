@@ -39,6 +39,7 @@ return function(test, ctx)
     local sent
     local brSounds = 0
     local lustSounds = 0
+    local piSounds = 0
     local piAlerts = 0
     local deps
 
@@ -49,6 +50,9 @@ return function(test, ctx)
       end,
       PlayBloodlust = function()
         lustSounds = lustSounds + 1
+      end,
+      PlayPowerInfusionReceived = function()
+        piSounds = piSounds + 1
       end,
     }
     addon.CombatEvents = {
@@ -108,6 +112,7 @@ return function(test, ctx)
     Assert.Equal(prints[5], "Priest empowered Me with PI", "PI on player must render as local chat")
     Assert.Equal(brSounds, 2, "BR sound must fire for BR local and broadcast render")
     Assert.Equal(lustSounds, 1, "lust sound must fire for lust render")
+    Assert.Equal(piSounds, 1, "PI sound must fire only for the local recipient")
     Assert.Equal(piAlerts, 1, "PI center alert must fire only for the local recipient")
     Assert.Equal(sent.spellID, 20484, "broadcast path must send the combat announce payload")
   end)
@@ -146,9 +151,15 @@ return function(test, ctx)
   test("factory split coverage: Power Infusion text setting suppresses chat and center alert", function()
     local prints = {}
     local piAlerts = 0
+    local piSounds = 0
     local deps
 
     local addon = LoadAddonModules({ "isiLive_factory_combat_announces.lua" })
+    addon.SoundUtils = {
+      PlayPowerInfusionReceived = function()
+        piSounds = piSounds + 1
+      end,
+    }
     addon.CombatEvents = {
       SetDependencies = function(value)
         deps = value
@@ -184,6 +195,62 @@ return function(test, ctx)
 
     Assert.Equal(#prints, 0, "disabled PI text setting must suppress the local chat line")
     Assert.Equal(piAlerts, 0, "disabled PI text setting must suppress the local center alert")
+    Assert.Equal(piSounds, 1, "disabled PI text setting must not suppress the local PI sound")
+  end)
+
+  test("factory split coverage: Power Infusion sound setting suppresses only local PI sound", function()
+    local prints = {}
+    local piAlerts = 0
+    local playCalls = 0
+    local deps
+
+    local addon = LoadAddonModules({ "isiLive_sound_utils.lua", "isiLive_factory_combat_announces.lua" })
+    addon.CombatEvents = {
+      SetDependencies = function(value)
+        deps = value
+      end,
+    }
+    addon.PiTracker = {
+      SetDependencies = function(value)
+        deps.pi = value
+      end,
+    }
+    addon.DeathAlert = {
+      ShowPowerInfusion = function()
+        piAlerts = piAlerts + 1
+      end,
+    }
+
+    local factoryCtx = {
+      GetL = function()
+        return {
+          COMBAT_CHAT_PI_RECEIVED = "%s empowered %s with PI",
+        }
+      end,
+      Print = function(line)
+        prints[#prints + 1] = line
+      end,
+      modules = {},
+    }
+
+    WithGlobals({
+      IsiLiveDB = { soundPowerInfusionReceivedEnabled = false },
+      GetTime = function()
+        return 100
+      end,
+      PlaySoundFile = function()
+        playCalls = playCalls + 1
+        return true
+      end,
+    }, function()
+      addon._FactoryInternal.InitializeFactoryCombatAnnounceControllers(factoryCtx)
+      deps.pi.announcePowerInfusion("Priest-Realm", "Me-Realm", true)
+      deps.pi.announcePowerInfusion("Priest-Realm", "Other-Realm", false)
+    end)
+
+    Assert.Equal(playCalls, 0, "disabled PI sound setting must suppress local PI WAV playback")
+    Assert.Equal(#prints, 2, "disabled PI sound setting must not suppress PI chat text")
+    Assert.Equal(piAlerts, 1, "disabled PI sound setting must not suppress the local center alert")
   end)
 
   test("factory split coverage: refresh button cooldown and refresh-controller callbacks execute", function()

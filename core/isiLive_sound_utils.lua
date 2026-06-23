@@ -799,6 +799,19 @@ SoundUtils.Registry = {
     defaultEnabled = true,
     defaultChannel = "Master",
   },
+  power_infusion_received = {
+    file = "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived.wav",
+    localizedFiles = {
+      deDE = "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived_deDE.wav",
+    },
+    labelKey = "SETTINGS_SOUND_POWER_INFUSION_RECEIVED",
+    descKey = "SETTINGS_SOUND_POWER_INFUSION_RECEIVED_DESC",
+    labelFallback = "Sound: PI received",
+    descFallback = "Plays a sound when you receive Power Infusion during an active M+ run.",
+    settingKey = "soundPowerInfusionReceivedEnabled",
+    defaultEnabled = true,
+    defaultChannel = "Master",
+  },
   tank_died = {
     file = "Interface\\AddOns\\isiLive\\sounds\\TankDied.wav",
     localizedFiles = {
@@ -836,6 +849,7 @@ SoundUtils.SettingsOrder = {
   "battle_res_ready",
   "bloodlust",
   "bloodlust_ready",
+  "power_infusion_received",
   "tank_died",
   "healer_died",
 }
@@ -1094,6 +1108,10 @@ end
 
 function SoundUtils.PlayBloodlustReady()
   return SoundUtils.PlayKey("bloodlust_ready")
+end
+
+function SoundUtils.PlayPowerInfusionReceived()
+  return SoundUtils.PlayKey("power_infusion_received")
 end
 
 function SoundUtils.PlayTankDied()

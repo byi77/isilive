@@ -2249,6 +2249,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         "soundBattleResReadyEnabled",
         "soundBloodlustReadyEnabled",
         "soundBloodlustReadyReminderEnabled",
+        "soundPowerInfusionReceivedEnabled",
       }
       for _, key in ipairs(unstoredDefaultKeys) do
         Assert.Nil(db[key], "opening settings should not persist " .. key)
@@ -2264,6 +2265,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       local bloodlustSoundCheck = nil
       local bloodlustReadySoundCheck = nil
       local bloodlustReadyReminderCheck = nil
+      local powerInfusionSoundCheck = nil
       local powerInfusionTextAlertCheck = nil
       local soundChannelMasterButton = nil
       local soundChannelSfxButton = nil
@@ -2290,6 +2292,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           bloodlustReadySoundCheck = frame
         elseif frame._settingKey == "SETTINGS_SOUND_BLOODLUST_READY_REMINDER" then
           bloodlustReadyReminderCheck = frame
+        elseif frame._settingKey == "SETTINGS_SOUND_POWER_INFUSION_RECEIVED" then
+          powerInfusionSoundCheck = frame
         elseif frame._settingKey == "SETTINGS_TEXT_POWER_INFUSION_ALERT" then
           powerInfusionTextAlertCheck = frame
         elseif frame._settingKey == "SETTINGS_SOUND_CHANNEL" and frame._optionValue == "Master" then
@@ -2319,6 +2323,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         Assert.NotNil(bloodlustReadySoundCheck, "settings panel should create a bloodlust-ready sound checkbox")
       bloodlustReadyReminderCheck =
         Assert.NotNil(bloodlustReadyReminderCheck, "settings panel should create a bloodlust-ready reminder checkbox")
+      powerInfusionSoundCheck =
+        Assert.NotNil(powerInfusionSoundCheck, "settings panel should create a Power Infusion sound checkbox")
       powerInfusionTextAlertCheck =
         Assert.NotNil(powerInfusionTextAlertCheck, "settings panel should create a Power Infusion text checkbox")
       soundChannelMasterButton =
@@ -2343,6 +2349,10 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         soundPreviewButtons.bloodlust_ready,
         "settings panel should create a bloodlust-ready sound preview button"
       )
+      Assert.NotNil(
+        soundPreviewButtons.power_infusion_received,
+        "settings panel should create a Power Infusion sound preview button"
+      )
       Assert.Equal(
         soundPreviewButtons.leader_transfer._point[1],
         "LEFT",
@@ -2363,6 +2373,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         bloodlustSoundCheck,
         bloodlustReadySoundCheck,
         bloodlustReadyReminderCheck,
+        powerInfusionSoundCheck,
         powerInfusionTextAlertCheck,
       }
       for _, check in ipairs(defaultCheckedSoundControls) do
@@ -2383,6 +2394,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       local onClickBloodlustReadyReminder = bloodlustReadyReminderCheck._scripts
           and bloodlustReadyReminderCheck._scripts.OnClick
         or nil
+      local onClickPowerInfusionSound = powerInfusionSoundCheck._scripts and powerInfusionSoundCheck._scripts.OnClick
+        or nil
       local onClickPowerInfusionText = powerInfusionTextAlertCheck._scripts
           and powerInfusionTextAlertCheck._scripts.OnClick
         or nil
@@ -2400,6 +2413,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         Assert.NotNil(onClickBloodlustReady, "bloodlust-ready sound checkbox should define OnClick")
       onClickBloodlustReadyReminder =
         Assert.NotNil(onClickBloodlustReadyReminder, "bloodlust-ready reminder checkbox should define OnClick")
+      onClickPowerInfusionSound =
+        Assert.NotNil(onClickPowerInfusionSound, "Power Infusion sound checkbox should define OnClick")
       onClickPowerInfusionText =
         Assert.NotNil(onClickPowerInfusionText, "Power Infusion text checkbox should define OnClick")
       onClickSoundChannelSfx = Assert.NotNil(onClickSoundChannelSfx, "SFX sound-channel option should define OnClick")
@@ -2422,6 +2437,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       onClickBloodlustReady(bloodlustReadySoundCheck)
       bloodlustReadyReminderCheck:SetChecked(false)
       onClickBloodlustReadyReminder(bloodlustReadyReminderCheck)
+      powerInfusionSoundCheck:SetChecked(false)
+      onClickPowerInfusionSound(powerInfusionSoundCheck)
       powerInfusionTextAlertCheck:SetChecked(false)
       onClickPowerInfusionText(powerInfusionTextAlertCheck)
       onClickSoundChannelSfx(soundChannelSfxButton)
@@ -2435,6 +2452,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.True(db.soundBloodlustEnabled, "enabling bloodlust sound should persist true")
       Assert.False(db.soundBloodlustReadyEnabled, "disabling bloodlust-ready sound should persist false")
       Assert.False(db.soundBloodlustReadyReminderEnabled, "disabling bloodlust-ready reminders should persist false")
+      Assert.False(db.soundPowerInfusionReceivedEnabled, "disabling Power Infusion sound should persist false")
       Assert.False(db.powerInfusionTextEnabled, "disabling Power Infusion text should persist false")
       Assert.Equal(db.soundOutputChannel, "SFX", "selecting the SFX sound channel should persist SFX")
 
@@ -2470,6 +2488,7 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
         bloodlustReadyReminderCheck:GetChecked(),
         "refresh should keep the disabled bloodlust-ready reminder state"
       )
+      Assert.False(powerInfusionSoundCheck:GetChecked(), "refresh should keep the disabled Power Infusion sound state")
       Assert.False(
         powerInfusionTextAlertCheck:GetChecked(),
         "refresh should keep the disabled Power Infusion text state"

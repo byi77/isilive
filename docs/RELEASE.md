@@ -4,7 +4,7 @@ Dies ist der verbindliche Release-Ablauf fuer `isiLive` (Repository- und Tag-Pra
 
 ## 1) Version und Dokus aktualisieren
 
-1. TOC-Version in `isiLive.toc` aktualisieren:
+1. TOC-Version in `isiLive.toc` nur auf ausdrueckliches User-Kommando aktualisieren:
    - `## Version: x.y.z`
    - Wenn der optionale Git-Hook aktiv ist, werden die passenden dokumentierten Baselines und der Titelstring vor dem Commit automatisch aus der TOC-Version synchronisiert.
 2. Einen neuen Eintrag oben in `CHANGELOG.md` anlegen.
@@ -42,7 +42,7 @@ Der bevorzugte vollstaendige lokale CI-Preflight ist:
 powershell -ExecutionPolicy Bypass -File tools\validate_ci_local.ps1
 ```
 
-Der Wrapper fuehrt Style-, Lint-, Syntax-, Metrics-, Locale-, Secret-Value-, Sound-, API-, Coverage-, Regel- und Usecase-Gates in derselben Reihenfolge aus, in der lokale Release-Vorbereitung sie erwarten sollte. Aktueller Usecase-Stand nach dem 0.9.334-Doku-Update: `lua tools/validate_usecases.lua` mit `2104 passed, 0 failed`. Letzter voller lokaler Audit-Stand nach dem 0.9.331-Doku-Update: `Local CI preflight passed`, Coverage `92.43%` bei Gate `>=88.00%`.
+Der Wrapper fuehrt Style-, Lint-, Syntax-, Metrics-, Locale-, Secret-Value-, Sound-, API-, Coverage-, Regel- und Usecase-Gates in derselben Reihenfolge aus, in der lokale Release-Vorbereitung sie erwarten sollte. Aktueller Usecase-Stand bei TOC `0.9.333`: `lua tools/validate_usecases.lua` mit `2106 passed, 0 failed`. Letzter voller lokaler Audit-Stand nach dem 0.9.331-Doku-Update: `Local CI preflight passed`, Coverage `92.43%` bei Gate `>=88.00%`.
 
 Die Wrapper `tools/check.ps1` und `tools/check.cmd` fuehren den statischen lokalen Preflight ueber den repo-lokalen `luacheck.cmd`-Shim aus und vermeiden so den Windows-App-Auswahldialog, der beim direkten Aufruf des LuaRocks-`luacheck`-Scripts auftaucht.
 
@@ -51,7 +51,7 @@ Die GitHub-Workflows checken das Repository vor der Trigger-Pruefung aus, damit 
 
 `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (aktueller Stand: 2104 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
+`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (aktueller Stand: 2106 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
 
 Windows-Hinweis: Wenn Metrics mit fehlenden LuaRocks-Modulen (`lfs`, `luacheck.decoder`, `luacheck.parser`) scheitern, `LUA_PATH` und `LUA_CPATH` auf die LuaRocks-Pfade `share/lua/5.4` und `lib/lua/5.4` setzen, bevor der Metrics-Check laeuft. Lokal gelten dieselben Release-Schwellen wie in CI: `ISILIVE_MAX_FILE_LINES=3200` und `ISILIVE_MAX_FUNCTION_LINES=420`.
 

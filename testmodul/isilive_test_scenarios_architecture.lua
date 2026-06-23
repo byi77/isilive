@@ -810,6 +810,8 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
       "BattleRezReady_deDE.wav",
       "BloodlustReady.wav",
       "BloodlustReady_deDE.wav",
+      "PowerInfusionReceived.wav",
+      "PowerInfusionReceived_deDE.wav",
       "HealerDied.wav",
       "HealerDied_deDE.wav",
       "Portal.ogg",
@@ -1421,6 +1423,22 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         addon.SoundUtils.IsEnabled("bloodlust_ready"),
         "bloodlust-ready sound should default to enabled when no DB override exists"
       )
+      local piReceivedEntry = addon.SoundUtils.GetEntry("power_infusion_received")
+      Assert.NotNil(piReceivedEntry, "PI-received sound entry should exist")
+      Assert.Equal(
+        piReceivedEntry.settingKey,
+        "soundPowerInfusionReceivedEnabled",
+        "PI-received sound should map to the PI-received setting key"
+      )
+      Assert.Equal(
+        piReceivedEntry.file,
+        "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived.wav",
+        "PI-received entry should point at the bundled WAV asset"
+      )
+      Assert.True(
+        addon.SoundUtils.IsEnabled("power_infusion_received"),
+        "PI-received sound should default to enabled when no DB override exists"
+      )
       Assert.NotNil(addon.SoundUtils.PlayGroupJoin, "sound utils should expose a dedicated group-join sound helper")
       Assert.NotNil(addon.SoundUtils.StopAllActiveSounds, "sound utils should expose a stop-all helper")
       Assert.NotNil(
@@ -1438,6 +1456,10 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.NotNil(
         addon.SoundUtils.PlayBloodlustReady,
         "sound utils should expose a dedicated bloodlust-ready sound helper"
+      )
+      Assert.NotNil(
+        addon.SoundUtils.PlayPowerInfusionReceived,
+        "sound utils should expose a dedicated PI-received sound helper"
       )
       addon.SoundUtils.PlayKey("leader_transfer")
       Assert.Equal(playCalls, 1, "leader-transfer sound helper should play exactly once")
@@ -1476,18 +1498,19 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       addon.SoundUtils.PlayBattleResReady()
       addon.SoundUtils.PlayBloodlust()
       addon.SoundUtils.PlayBloodlustReady()
+      addon.SoundUtils.PlayPowerInfusionReceived()
       Assert.Equal(
         playCalls,
-        8,
-        "battle-res, battle-res-ready, bloodlust, and bloodlust-ready play their configured assets"
+        9,
+        "battle-res, battle-res-ready, bloodlust, bloodlust-ready, and PI-received play their configured assets"
       )
       Assert.Equal(
         playedPath,
-        "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
-        "bloodlust-ready helper should use the bundled WAV asset"
+        "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived.wav",
+        "PI-received helper should use the bundled WAV asset"
       )
       addon.SoundUtils.StopAllActiveSounds()
-      Assert.Equal(#stoppedHandles, 8, "stop-all helper must stop every active sound handle")
+      Assert.Equal(#stoppedHandles, 9, "stop-all helper must stop every active sound handle")
       local stoppedByHandle = {}
       for _, handle in ipairs(stoppedHandles) do
         stoppedByHandle[handle] = true
@@ -1502,6 +1525,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       db.soundBattleResReadyEnabled = true
       db.soundBloodlustEnabled = true
       db.soundBloodlustReadyEnabled = true
+      db.soundPowerInfusionReceivedEnabled = true
       now = 2.9
       playCalls = 0
       addon.SoundUtils.PlayGroupJoin()
@@ -1516,16 +1540,17 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       addon.SoundUtils.PlayBattleResReady()
       addon.SoundUtils.PlayBloodlust()
       addon.SoundUtils.PlayBloodlustReady()
+      addon.SoundUtils.PlayPowerInfusionReceived()
       Assert.Equal(
         playCalls,
-        6,
-        "enabled group-join, battle-res, battle-res-ready, bloodlust, and bloodlust-ready should play; "
+        7,
+        "enabled group-join, battle-res, battle-res-ready, bloodlust, bloodlust-ready, and PI-received should play; "
           .. "disabled lead, ready-check, and portal stay silent"
       )
       Assert.Equal(
         playedPath,
-        "Interface\\AddOns\\isiLive\\sounds\\BloodlustReady.wav",
-        "bloodlust-ready asset should be the last played sound"
+        "Interface\\AddOns\\isiLive\\sounds\\PowerInfusionReceived.wav",
+        "PI-received asset should be the last played sound"
       )
 
       playCalls = 0
@@ -1772,6 +1797,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       local localizedKeys = {
         battle_res_ready = "BattleRezReady_deDE.wav",
         bloodlust_ready = "BloodlustReady_deDE.wav",
+        power_infusion_received = "PowerInfusionReceived_deDE.wav",
         portal_available = "Portal_deDE.wav",
         tank_died = "TankDied_deDE.wav",
         healer_died = "HealerDied_deDE.wav",
@@ -1796,14 +1822,16 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       calls = {}
       addon.SoundUtils.PlayBattleResReady()
       addon.SoundUtils.PlayBloodlustReady()
+      addon.SoundUtils.PlayPowerInfusionReceived()
       addon.SoundUtils.PlayPortalAvailable()
       addon.SoundUtils.PlayTankDied()
       addon.SoundUtils.PlayHealerDied()
       Assert.True(calls[1].path:find("BattleRezReady.wav", 1, true) ~= nil, "frFR must use English BR-ready")
       Assert.True(calls[2].path:find("BloodlustReady.wav", 1, true) ~= nil, "frFR must use English BL-ready")
-      Assert.True(calls[3].path:find("Portal.ogg", 1, true) ~= nil, "frFR must use default incoming summon")
-      Assert.True(calls[4].path:find("TankDied.wav", 1, true) ~= nil, "frFR must use English tank death")
-      Assert.True(calls[5].path:find("HealerDied.wav", 1, true) ~= nil, "frFR must use English healer death")
+      Assert.True(calls[3].path:find("PowerInfusionReceived.wav", 1, true) ~= nil, "frFR must use English PI")
+      Assert.True(calls[4].path:find("Portal.ogg", 1, true) ~= nil, "frFR must use default incoming summon")
+      Assert.True(calls[5].path:find("TankDied.wav", 1, true) ~= nil, "frFR must use English tank death")
+      Assert.True(calls[6].path:find("HealerDied.wav", 1, true) ~= nil, "frFR must use English healer death")
     end)
   end)
 
@@ -1860,6 +1888,34 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       db.soundBattleResReadyEnabled = true
       addon.SoundUtils.PlayBattleResReady()
       Assert.Equal(playCalls, 1, "enabled battle-res-ready setting should allow one WAV playback")
+    end)
+  end)
+
+  test("SoundUtils Power Infusion received setting disables WAV playback", function()
+    local playCalls = 0
+    local db = {
+      soundPowerInfusionReceivedEnabled = false,
+    }
+    WithGlobals({
+      IsiLiveDB = db,
+      GetTime = function()
+        return 50
+      end,
+      PlaySoundFile = function()
+        playCalls = playCalls + 1
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
+      Assert.False(
+        addon.SoundUtils.IsEnabled("power_infusion_received"),
+        "PI-received setting should disable the WAV sound"
+      )
+      addon.SoundUtils.PlayPowerInfusionReceived()
+      Assert.Equal(playCalls, 0, "disabled PI-received setting must suppress WAV playback")
+
+      db.soundPowerInfusionReceivedEnabled = true
+      addon.SoundUtils.PlayPowerInfusionReceived()
+      Assert.Equal(playCalls, 1, "enabled PI-received setting should allow one WAV playback")
     end)
   end)
 

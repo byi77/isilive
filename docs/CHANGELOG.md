@@ -1,18 +1,20 @@
 # Changelog
 
-## 2026-06-23 - Version 0.9.334 (patch)
+## Unreleased
+
+## 2026-06-23 - Version 0.9.333 (patch)
 
 - Added a Settings text-alert toggle for Power Infusion, default on: when
   disabled, verified PI detection remains fail-closed but the local chat line
   and local center alert stay silent.
-- Bumped the TOC and documentation baselines to `0.9.334`.
-
-## 2026-06-23 - Version 0.9.333 (patch)
-
+- Added a static Power Infusion received sound for the local recipient, with a
+  separate Settings toggle, English/German WAV assets, locale labels, and sound
+  preview support.
 - Added PI to demo mode: the full feature preview and simulation tablet can now
   trigger the local Power Infusion chat and center-alert preview through the same
   announce hook as runtime PI detection.
-- Bumped the TOC and documentation baselines to `0.9.333`.
+- Aligned the Power Infusion Settings label with the existing BR/BL chat toggles
+  across all prepared locales.
 
 ## 2026-06-23 - Version 0.9.332 (patch)
 

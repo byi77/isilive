@@ -89,6 +89,7 @@ local helpers = {
   { key = "battle_res_ready", fn = SoundUtils.PlayBattleResReady },
   { key = "bloodlust", fn = SoundUtils.PlayBloodlust },
   { key = "bloodlust_ready", fn = SoundUtils.PlayBloodlustReady },
+  { key = "power_infusion_received", fn = SoundUtils.PlayPowerInfusionReceived },
 }
 
 local fail = false

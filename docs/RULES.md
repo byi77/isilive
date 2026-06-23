@@ -69,9 +69,10 @@
 - Bevorzugter lokaler Einstiegspunkt fuer das statische Lint-Gate ist `tools/check.ps1` oder `tools/check.cmd`; damit bleibt der Windows-`luacheck`-Shim aktiv und der App-Auswahldialog wird vermieden.
 
 ## Release-Hygiene
-- Bei funktionalen Aenderungen wird die Version in `isiLive.toc` hochgezogen.
+- Die Version in `isiLive.toc` wird nur auf ausdrueckliches User-Kommando hochgezogen.
 - `CHANGELOG_RELEASE.md` bleibt ein kurzer, user-facing Release-Stub fuer CurseForge/Wago und wird bei sichtbaren Features ebenfalls aktualisiert.
 - Nach Aenderungen wird geprueft, dass das Addon ohne Lua-Fehler laedt.
+- Commits und Pushes werden nur auf ausdrueckliches User-Kommando ausgefuehrt.
 
 ## Versionierung
 - Verwendet wird `MAJOR.MINOR.PATCH` im SemVer-light-Stil, zum Beispiel `0.9.1`.
@@ -79,10 +80,10 @@
 - `PATCH`-Bump (`0.9.1 -> 0.9.2`): Bugfixes ohne neue user-facing Features.
 - `MINOR`-Bump (`0.9.2 -> 0.10.0`): neue Features, neue Commands, neue UI-Controls, backward-compatible Verhalten.
 - `MAJOR`-Bump (`0.x -> 1.0.0` oder `1.x -> 2.0.0`): Breaking Changes oder inkompatible Migration.
-- Jede funktionale Aenderung aktualisiert:
-- `isiLive.toc` Version
+- Jede funktionale Aenderung aktualisiert, sofern vom User kein anderer Release-Zuschnitt vorgegeben ist:
 - `CHANGELOG.md` Eintrag mit explizitem Datum (`YYYY-MM-DD`)
 - `README.md`, wenn user-visible Verhalten, Commands oder Installation geaendert wurden
+- `isiLive.toc` Version nur bei ausdruecklichem User-Kommando
 
 ## Offene Punkte
 - Hier koennen projektspezifische Regeln ergaenzt werden.

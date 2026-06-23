@@ -104,6 +104,14 @@ local SOUND_SETTING_FALLBACKS = {
     settingKey = "soundBloodlustReadyEnabled",
     defaultEnabled = true,
   },
+  power_infusion_received = {
+    labelKey = "SETTINGS_SOUND_POWER_INFUSION_RECEIVED",
+    descKey = "SETTINGS_SOUND_POWER_INFUSION_RECEIVED_DESC",
+    labelFallback = "Sound: PI received",
+    descFallback = "Plays a sound when you receive Power Infusion during an active M+ run.",
+    settingKey = "soundPowerInfusionReceivedEnabled",
+    defaultEnabled = true,
+  },
   tank_died = {
     labelKey = "SETTINGS_SOUND_TANK_DIED",
     descKey = "SETTINGS_SOUND_TANK_DIED_DESC",

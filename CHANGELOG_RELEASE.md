@@ -3,12 +3,14 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.334`.
+Current release: `0.9.333`.
 
 Highlights:
 - Power Infusion text alerts now have their own Settings toggle; disabling it
   keeps verified PI detection fail-closed but suppresses the local chat line and
   local center alert.
+- The local Power Infusion recipient now has a separate received-sound toggle
+  with English/German WAV assets and a Settings preview button.
 - Power Infusion detection now reports verified priest/recipient names locally,
   and the local recipient gets the same red animated center alert style as the
   tank/healer death warning.

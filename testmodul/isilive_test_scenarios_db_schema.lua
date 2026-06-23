@@ -40,6 +40,7 @@ return function(test, ctx)
     Assert.Equal(db.syncEnabled, true, "syncEnabled default true")
     Assert.Equal(db.soundOutputChannel, "Master", "soundOutputChannel default Master")
     Assert.Equal(db.soundBloodlustReadyReminderEnabled, true, "bloodlust-ready reminder default true")
+    Assert.Equal(db.soundPowerInfusionReceivedEnabled, true, "PI received sound default true")
     Assert.Equal(db.soundIncomingSummonLoopEnabled, true, "incoming-summon loop default true")
     Assert.Equal(db.soundTankDiedEnabled, true, "tank death sound default true")
     Assert.Equal(db.soundHealerDiedEnabled, true, "healer death sound default true")
@@ -384,6 +385,11 @@ return function(test, ctx)
       "soundBloodlustReadyReminderEnabled must be in known fields"
     )
     Assert.Equal(known.soundOutputChannel, true, "soundOutputChannel must be in known fields")
+    Assert.Equal(
+      known.soundPowerInfusionReceivedEnabled,
+      true,
+      "soundPowerInfusionReceivedEnabled must be in known fields"
+    )
     Assert.Equal(known.soundIncomingSummonLoopEnabled, true, "soundIncomingSummonLoopEnabled must be in known fields")
     Assert.Equal(known.soundTankDiedEnabled, true, "soundTankDiedEnabled must be in known fields")
     Assert.Equal(known.soundHealerDiedEnabled, true, "soundHealerDiedEnabled must be in known fields")

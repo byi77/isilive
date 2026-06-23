@@ -29,6 +29,13 @@ local function PlayCombatAnnounceSound(kind)
   end
 end
 
+local function PlayPowerInfusionReceivedSound()
+  local soundUtils = addonTable.SoundUtils
+  if type(soundUtils) == "table" and type(soundUtils.PlayPowerInfusionReceived) == "function" then
+    soundUtils.PlayPowerInfusionReceived()
+  end
+end
+
 local function IsMplusTimerRunning()
   local mplusTimer = addonTable.MplusTimer
   if type(mplusTimer) ~= "table" or type(mplusTimer.GetTimerData) ~= "function" then
@@ -71,15 +78,18 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
   end
 
   ctx.ShowPowerInfusionAnnounce = function(casterName, recipientName, isLocalRecipient)
-    local db = rawget(_G, "IsiLiveDB")
-    if type(db) == "table" and db.powerInfusionTextEnabled == false then
-      return
+    if isLocalRecipient == true then
+      PlayPowerInfusionReceivedSound()
     end
 
-    local L = ctx.GetL and ctx.GetL() or {}
-    local template = L.COMBAT_CHAT_PI_RECEIVED or "%s empowered %s with PI"
-    ctx.Print(string.format(template, FormatDisplayName(casterName), FormatDisplayName(recipientName)))
-    if isLocalRecipient == true then
+    local db = rawget(_G, "IsiLiveDB")
+    if type(db) ~= "table" or db.powerInfusionTextEnabled ~= false then
+      local L = ctx.GetL and ctx.GetL() or {}
+      local template = L.COMBAT_CHAT_PI_RECEIVED or "%s empowered %s with PI"
+      ctx.Print(string.format(template, FormatDisplayName(casterName), FormatDisplayName(recipientName)))
+    end
+
+    if isLocalRecipient == true and (type(db) ~= "table" or db.powerInfusionTextEnabled ~= false) then
       local deathAlert = addonTable.DeathAlert
       if type(deathAlert) == "table" and type(deathAlert.ShowPowerInfusion) == "function" then
         deathAlert.ShowPowerInfusion()
