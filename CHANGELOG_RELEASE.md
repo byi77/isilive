@@ -3,9 +3,14 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.332`.
+Current release: `0.9.333`.
 
 Highlights:
+- Power Infusion detection now reports verified priest/recipient names locally,
+  and the local recipient gets the same red animated center alert style as the
+  tank/healer death warning.
+- Demo mode now includes a Power Infusion preview in the full feature preview
+  and simulation tablet.
 - Midnight Season 2 preparation has started: `midnight_s2` is scaffolded but
   inactive until verified Blizzard IDs and Mythic+ forces data are available.
 - isiLive still targets the live WoW 12.0.7 interface; 12.1.0 is not marked

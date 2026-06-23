@@ -520,6 +520,14 @@ local function BuildControllerContext(state, addon, initial)
         unit = unit,
       })
     end,
+    ShowPowerInfusionAnnounce = function(casterName, recipientName, isLocalRecipient)
+      state.powerInfusionPreviews = state.powerInfusionPreviews or {}
+      table.insert(state.powerInfusionPreviews, {
+        casterName = casterName,
+        recipientName = recipientName,
+        isLocalRecipient = isLocalRecipient == true,
+      })
+    end,
     IsRaidGroup = function()
       return state.isRaidGroup == true
     end,
@@ -755,6 +763,21 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     Assert.NotNil(state.deathAlertPreviews, "demo mode must preview death alerts")
     Assert.Equal(state.deathAlertPreviews[1].role, "TANK", "demo mode must show the tank death alert preview")
     Assert.Equal(state.deathAlertPreviews[2].role, "DAMAGER", "demo mode must exercise the DPS death tracking path")
+    Assert.NotNil(state.powerInfusionPreviews, "demo mode must preview Power Infusion")
+    Assert.Equal(
+      state.powerInfusionPreviews[1].casterName,
+      "Velindra-Hyjal",
+      "demo mode must use an explicit PI priest name"
+    )
+    Assert.Equal(
+      state.powerInfusionPreviews[1].recipientName,
+      "Player-Realm",
+      "demo mode must use an explicit PI recipient name"
+    )
+    Assert.True(
+      state.powerInfusionPreviews[1].isLocalRecipient,
+      "demo mode PI preview must exercise the local center-alert path"
+    )
     Assert.Equal(state.readyCheckCompleteSoundCalls, 1, "demo mode must preview the ready-check-complete sound")
     Assert.Nil(state.ttsPreviews, "demo mode must not preview removed native TTS")
     Assert.NotNil(state.portalNavigatorLayout, "test mode must show the portal navigator demo")
@@ -868,7 +891,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
       state.addon._FactoryInternal.FactoryDemo.InitializeSimulationTablet(state.ctx)
       Assert.NotNil(state.simulationTabletOpts, "simulation tablet must be initialized through the demo factory")
       local actions = state.simulationTabletOpts.getActions()
-      Assert.Equal(#actions, 22, "simulation tablet must expose the full action palette")
+      Assert.Equal(#actions, 23, "simulation tablet must expose the full action palette")
       Assert.Nil(actions[1].run, "removed pre-accept invite simulation must stay a visible no-op")
 
       for index = 2, #actions do
@@ -916,6 +939,19 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     end
     Assert.True(sawTank, "tank-dead action must run as a standalone preview")
     Assert.True(sawHealer, "healer-dead action must run as a standalone preview")
+    Assert.NotNil(state.powerInfusionPreviews, "PI preview action must call the announce hook")
+    Assert.True(#state.powerInfusionPreviews >= 2, "PI preview must run from full preview and its standalone action")
+    local sawLocalPi = false
+    for _, preview in ipairs(state.powerInfusionPreviews or {}) do
+      if
+        preview.casterName == "Velindra-Hyjal"
+        and preview.recipientName == "Player-Realm"
+        and preview.isLocalRecipient == true
+      then
+        sawLocalPi = true
+      end
+    end
+    Assert.True(sawLocalPi, "PI preview action must use the local recipient announce path")
     Assert.True(state.readyCheckCompleteSoundCalls >= 2, "sound action must play ready-check preview")
     Assert.Nil(state.ttsPreviews, "sound action must not speak removed TTS preview")
   end)

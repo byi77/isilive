@@ -15,6 +15,8 @@ local DEMO_FEATURE_NON_MYTHIC_NOTICE_DELAY_SECONDS = 8
 local DEMO_FEATURE_READY_CHECK_HOLD_SECONDS = 20
 local DEMO_FEATURE_SHARE_KEYS_COOLDOWN_SECONDS = 18
 local SIMULATION_TABLET_SHARE_KEYS_COOLDOWN_SECONDS = 30
+local DEMO_FEATURE_PI_CASTER_NAME = "Velindra-Hyjal"
+local DEMO_FEATURE_PI_RECIPIENT_NAME = "Player-Realm"
 local DEMO_FEATURE_PORTAL_NAVIGATOR_MAP_IDS = {
   left = 161,
   half_left = 556,
@@ -218,6 +220,10 @@ local function ApplyDemoAlertAndSoundPreview(ctx, _L)
   if type(ctx.ShowRoleDeathAlert) == "function" then
     ctx.ShowRoleDeathAlert("TANK", "party1")
     ctx.ShowRoleDeathAlert("DAMAGER", "party3")
+  end
+
+  if type(ctx.ShowPowerInfusionAnnounce) == "function" then
+    ctx.ShowPowerInfusionAnnounce(DEMO_FEATURE_PI_CASTER_NAME, DEMO_FEATURE_PI_RECIPIENT_NAME, true)
   end
 
   local soundUtils = ctx.addonTable and ctx.addonTable.SoundUtils
@@ -855,11 +861,23 @@ local function BuildSimulationTabletActions(ctx)
     {
       id = "E3",
       status = "green",
+      title = "Power Infusion alert",
+      description = "Shows the local Power Infusion chat and center-alert preview.",
+      run = function()
+        if type(ctx.ShowPowerInfusionAnnounce) == "function" then
+          ctx.ShowPowerInfusionAnnounce(DEMO_FEATURE_PI_CASTER_NAME, DEMO_FEATURE_PI_RECIPIENT_NAME, true)
+        end
+        return done("SIM_ACTION_E3_DONE")
+      end,
+    },
+    {
+      id = "E4",
+      status = "green",
       title = "Sound preview",
       description = "Runs the ready-check sound preview hook.",
       run = function()
         ApplyDemoAlertAndSoundPreview(ctx, L())
-        return done("SIM_ACTION_E3_DONE")
+        return done("SIM_ACTION_E4_DONE")
       end,
     },
     {

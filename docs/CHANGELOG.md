@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-06-23 - Version 0.9.333 (patch)
+
+- Added PI to demo mode: the full feature preview and simulation tablet can now
+  trigger the local Power Infusion chat and center-alert preview through the same
+  announce hook as runtime PI detection.
+- Bumped the TOC and documentation baselines to `0.9.333`.
+
 ## 2026-06-23 - Version 0.9.332 (patch)
 
 - Added verified Power Infusion recipient detection from `UNIT_AURA`: local

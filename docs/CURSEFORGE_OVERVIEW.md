@@ -42,7 +42,7 @@ The colorful Mythic+ command center for World of Warcraft.
 🟦 WoW 12.0.7+ Midnight Retail
 🟩 Mythic+ Command Center
 🟧 Automatic Setup
-🟪 Version 0.9.332
+🟪 Version 0.9.333
 
 isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
