@@ -99,6 +99,16 @@ local function ReadSourceUnit(aura)
   return type(sourceUnit) == "string" and sourceUnit ~= "" and sourceUnit or nil
 end
 
+local function DefaultSpellIDMatches(spellID, expectedSpellID)
+  if type(spellID) ~= "number" then
+    return false
+  end
+  local ok, matches = pcall(function()
+    return spellID == expectedSpellID
+  end)
+  return ok and matches == true
+end
+
 function PiTracker.CreateController(opts)
   opts = opts or {}
   local getTime = type(opts.getTime) == "function" and opts.getTime or DefaultGetTime
@@ -107,6 +117,7 @@ function PiTracker.CreateController(opts)
   local getUnitName = type(opts.getUnitName) == "function" and opts.getUnitName or DefaultGetUnitName
   local getUnitClassToken = type(opts.getUnitClassToken) == "function" and opts.getUnitClassToken
     or DefaultGetUnitClassToken
+  local spellIDMatches = type(opts.spellIDMatches) == "function" and opts.spellIDMatches or DefaultSpellIDMatches
   local announcePowerInfusion = type(opts.announcePowerInfusion) == "function" and opts.announcePowerInfusion
     or function(_casterName, _recipientName, _isLocalRecipient) end
 
@@ -135,7 +146,8 @@ function PiTracker.CreateController(opts)
   end
 
   local function AnnounceIfFresh(unit, aura)
-    if ReadSpellID(aura) ~= POWER_INFUSION_SPELL_ID then
+    local ok, isPowerInfusion = pcall(spellIDMatches, ReadSpellID(aura), POWER_INFUSION_SPELL_ID)
+    if not ok or isPowerInfusion ~= true then
       return false
     end
     local sourceUnit = ReadSourceUnit(aura)

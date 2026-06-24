@@ -1336,6 +1336,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - PiTracker announces verified Power Infusion on player from UNIT_AURA addedAuras
   - PiTracker announces verified Power Infusion on party recipient without local flag
   - PiTracker does not guess Power Infusion caster when aura source is missing or not priest
+  - PiTracker ignores protected Power Infusion spell ids without dispatch failure
   - PiTracker stays silent when caster or recipient name is unresolved
   - PiTracker scans full aura updates for verified Power Infusion
   - PiTracker deduplicates repeated Power Infusion aura updates

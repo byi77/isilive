@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fixed the Power Infusion aura path so protected/secret `spellId` values fail
+  closed instead of aborting repeated `UNIT_AURA` dispatch.
+
 ## 2026-06-23 - Version 0.9.333 (patch)
 
 - Added a Settings text-alert toggle for Power Infusion, default on: when

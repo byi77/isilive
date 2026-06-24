@@ -21,6 +21,7 @@ local function BuildController(PiTracker, opts)
       return classByUnit[unit]
     end,
     getAuraDataByIndex = opts.getAuraDataByIndex,
+    spellIDMatches = opts.spellIDMatches,
     announcePowerInfusion = function(casterName, recipientName, isLocalRecipient)
       table.insert(announces, {
         casterName = casterName,
@@ -87,6 +88,27 @@ return function(test, ctx)
       },
     })
     Assert.Equal(#announces, 0, "missing or non-priest source must stay silent")
+  end)
+
+  test("PiTracker ignores protected Power Infusion spell ids without dispatch failure", function()
+    local PiTracker
+    WithGlobals({}, function()
+      PiTracker = LoadPiTracker(ctx)
+    end)
+    local controller, announces = BuildController(PiTracker, {
+      spellIDMatches = function()
+        error("attempt to compare a secret number value")
+      end,
+    })
+    Assert.True(
+      controller.HandleUnitAura("player", {
+        addedAuras = {
+          { spellId = 10060, auraInstanceID = 87, sourceUnit = "party1" },
+        },
+      }) == false,
+      "protected spell ids must fail closed instead of aborting UNIT_AURA dispatch"
+    )
+    Assert.Equal(#announces, 0, "protected spell ids must not announce PI from an unverifiable payload")
   end)
 
   test("PiTracker stays silent when caster or recipient name is unresolved", function()
