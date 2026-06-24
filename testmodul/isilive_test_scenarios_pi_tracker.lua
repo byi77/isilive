@@ -100,14 +100,11 @@ return function(test, ctx)
         error("attempt to compare a secret number value")
       end,
     })
-    Assert.True(
-      controller.HandleUnitAura("player", {
-        addedAuras = {
-          { spellId = 10060, auraInstanceID = 87, sourceUnit = "party1" },
-        },
-      }) == false,
-      "protected spell ids must fail closed instead of aborting UNIT_AURA dispatch"
-    )
+    Assert.True(controller.HandleUnitAura("player", {
+      addedAuras = {
+        { spellId = 10060, auraInstanceID = 87, sourceUnit = "party1" },
+      },
+    }) == false, "protected spell ids must fail closed instead of aborting UNIT_AURA dispatch")
     Assert.Equal(#announces, 0, "protected spell ids must not announce PI from an unverifiable payload")
   end)
 
