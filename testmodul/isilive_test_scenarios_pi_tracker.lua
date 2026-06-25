@@ -22,11 +22,12 @@ local function BuildController(PiTracker, opts)
     end,
     getAuraDataByIndex = opts.getAuraDataByIndex,
     spellIDMatches = opts.spellIDMatches,
-    announcePowerInfusion = function(casterName, recipientName, isLocalRecipient)
+    announcePowerInfusion = function(casterName, recipientName, isLocalRecipient, isLocalCaster)
       table.insert(announces, {
         casterName = casterName,
         recipientName = recipientName,
         isLocalRecipient = isLocalRecipient,
+        isLocalCaster = isLocalCaster,
       })
     end,
   }),
@@ -53,6 +54,26 @@ return function(test, ctx)
     Assert.Equal(announces[1].casterName, "Priest-Realm", "verified priest source must be announced")
     Assert.Equal(announces[1].recipientName, "Target-Realm", "player recipient must be announced")
     Assert.True(announces[1].isLocalRecipient == true, "player recipient must be marked local")
+    Assert.True(announces[1].isLocalCaster == false, "non-player priest source must not be marked local caster")
+  end)
+
+  test("PiTracker marks local Power Infusion caster from verified player source", function()
+    local PiTracker
+    WithGlobals({}, function()
+      PiTracker = LoadPiTracker(ctx)
+    end)
+    local controller, announces = BuildController(PiTracker, {
+      classByUnit = { player = "PRIEST" },
+      nameByUnit = { player = "Priest-Realm", party2 = "Target-Realm" },
+    })
+    controller.HandleUnitAura("party2", {
+      addedAuras = {
+        { spellId = 10060, auraInstanceID = 88, sourceUnit = "player" },
+      },
+    })
+    Assert.Equal(#announces, 1, "local PI caster must still announce verified PI")
+    Assert.True(announces[1].isLocalRecipient == false, "party recipient must not be marked local")
+    Assert.True(announces[1].isLocalCaster == true, "player source must be marked as local caster")
   end)
 
   test("PiTracker announces verified Power Infusion on party recipient without local flag", function()

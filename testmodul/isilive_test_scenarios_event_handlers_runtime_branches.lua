@@ -862,6 +862,22 @@ return function(test, ctx)
     Assert.Equal(captured.spellID, 1234, "spell id must be preserved")
   end)
 
+  test("CHAT_MSG_ADDON forwards powerInfusionAnnounce payload to showPowerInfusionAnnounce", function()
+    local captured
+    local handlers = LoadHandlers({
+      processAddonMessage = function()
+        return { powerInfusionAnnounce = { caster = "Priest-Realm", recipient = "Target-Realm", spellID = 10060 } }
+      end,
+      showPowerInfusionAnnounce = function(info)
+        captured = info
+      end,
+    })
+    handlers.CHAT_MSG_ADDON(nil, "isiLive", "msg", "PARTY", "Sender")
+    Assert.Equal(captured.caster, "Priest-Realm", "PI caster must be forwarded")
+    Assert.Equal(captured.recipient, "Target-Realm", "PI recipient must be forwarded")
+    Assert.Equal(captured.spellID, 10060, "PI spell id must be preserved")
+  end)
+
   test("CHAT_MSG_ADDON triggers share-keys cooldown when sendOwnKeystoneToChat succeeds", function()
     local cooldownCalls = 0
     local handlers = LoadHandlers({

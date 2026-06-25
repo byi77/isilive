@@ -2,8 +2,13 @@
 
 ## Unreleased
 
+## 2026-06-25 - Version 0.9.334 (patch)
+
+- Added isiLive peer sync for verified Power Infusion announces, using the
+  already verified aura caster and recipient without target-based guessing.
 - Fixed the Power Infusion aura path so protected/secret `spellId` values fail
   closed instead of aborting repeated `UNIT_AURA` dispatch.
+- Bumped the TOC and documentation baselines to `0.9.334`.
 
 ## 2026-06-23 - Version 0.9.333 (patch)
 

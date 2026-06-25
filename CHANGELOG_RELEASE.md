@@ -3,9 +3,14 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.333`.
+Current release: `0.9.334`.
 
 Highlights:
+- Power Infusion alerts are now shared with isiLive peers when the local
+  verified priest casts PI on a verified recipient, using addon sync instead
+  of target-based guessing.
+- Protected/secret Power Infusion `spellId` values now fail closed instead of
+  aborting repeated `UNIT_AURA` dispatch.
 - Power Infusion text alerts now have their own Settings toggle; disabling it
   keeps verified PI detection fail-closed but suppresses the local chat line and
   local center alert.

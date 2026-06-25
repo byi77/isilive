@@ -1019,6 +1019,9 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if syncResult.combatAnnounce then
       ctx.showCombatAnnounce(syncResult.combatAnnounce)
     end
+    if syncResult.powerInfusionAnnounce then
+      ctx.showPowerInfusionAnnounce(syncResult.powerInfusionAnnounce)
+    end
 
     if type(ctx.registerVerifiedSyncAliasForRoster) == "function" then
       ctx.registerVerifiedSyncAliasForRoster(ctx.getRoster(), syncResult.sender)

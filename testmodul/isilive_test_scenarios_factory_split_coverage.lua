@@ -36,7 +36,7 @@ return function(test, ctx)
 
   test("factory split coverage: combat announce callbacks render, sound, and broadcast", function()
     local prints = {}
-    local sent
+    local sent = {}
     local brSounds = 0
     local lustSounds = 0
     local piSounds = 0
@@ -85,7 +85,10 @@ return function(test, ctx)
       modules = {
         sync = {
           SendCombatAnnounce = function(info)
-            sent = info
+            sent.combat = info
+          end,
+          SendPowerInfusionAnnounce = function(info)
+            sent.pi = info
           end,
         },
       },
@@ -102,7 +105,7 @@ return function(test, ctx)
       factoryCtx.ShowCombatAnnounce({ kind = "LUST", caster = "Mage-Realm" })
       factoryCtx.BroadcastCombatAnnounce("BR", "Druid-Realm", 20484)
       deps.pi.announcePowerInfusion("Priest-Realm", "Target-Realm", false)
-      deps.pi.announcePowerInfusion("Priest-Realm", "Me-Realm", true)
+      deps.pi.announcePowerInfusion("Priest-Realm", "Me-Realm", true, true)
     end)
 
     Assert.Equal(prints[1], "? used BR", "missing caster must render a placeholder")
@@ -114,7 +117,10 @@ return function(test, ctx)
     Assert.Equal(lustSounds, 1, "lust sound must fire for lust render")
     Assert.Equal(piSounds, 1, "PI sound must fire only for the local recipient")
     Assert.Equal(piAlerts, 1, "PI center alert must fire only for the local recipient")
-    Assert.Equal(sent.spellID, 20484, "broadcast path must send the combat announce payload")
+    Assert.Equal(sent.combat.spellID, 20484, "broadcast path must send the combat announce payload")
+    Assert.Equal(sent.pi.caster, "Priest-Realm", "PI broadcast must send the verified caster")
+    Assert.Equal(sent.pi.recipient, "Me-Realm", "PI broadcast must send the verified recipient")
+    Assert.Equal(sent.pi.spellID, 10060, "PI broadcast must carry the PI spell id")
   end)
 
   test("factory split coverage: combat announce in-key gate uses running M+ timer when map API is masked", function()

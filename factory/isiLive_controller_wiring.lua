@@ -437,6 +437,9 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
   end
   config.showCombatAnnounce = type(deps.showCombatAnnounce) == "function" and deps.showCombatAnnounce
     or function(_info) end
+  config.showPowerInfusionAnnounce = type(deps.showPowerInfusionAnnounce) == "function"
+      and deps.showPowerInfusionAnnounce
+    or function(_info) end
   config.playIncomingSummonSound = type(deps.playIncomingSummonSound) == "function" and deps.playIncomingSummonSound
     or function() end
   config.isIncomingSummonSoundLoopEnabled = type(deps.isIncomingSummonSoundLoopEnabled) == "function"
@@ -732,6 +735,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     getUnitNameAndRealm = ctx.getUnitNameAndRealm,
     getUnitRole = ctx.getUnitRole,
     showCombatAnnounce = ctx.ShowCombatAnnounce,
+    showPowerInfusionAnnounce = ctx.ShowPowerInfusionAnnounce,
     playIncomingSummonSound = function()
       local soundUtils = addonTable.SoundUtils
       if type(soundUtils) == "table" and type(soundUtils.PlayIncomingSummon) == "function" then

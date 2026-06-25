@@ -1596,6 +1596,39 @@ function Sync.SendCombatAnnounce(opts)
   )
 end
 
+--- Broadcasts a verified Power Infusion announcement to all isiLive peers.
+-- Sender-side verification is owned by PiTracker: this function only transports
+-- already resolved caster/recipient names and does not infer missing data.
+-- @param opts table {caster:string, recipient:string, spellID:number,
+--   isVisible:boolean, allowHidden:boolean}
+function Sync.SendPowerInfusionAnnounce(opts)
+  opts = opts or {}
+  local channel = ResolveSendChannel(opts)
+  if not channel then
+    return
+  end
+  local caster = tostring(opts.caster or "")
+  local recipient = tostring(opts.recipient or "")
+  if caster == "" or recipient == "" or string.find(caster, ":", 1, true) or string.find(recipient, ":", 1, true) then
+    return
+  end
+  local spellID = tonumber(opts.spellID) or 10060
+  if spellID ~= 10060 then
+    return
+  end
+  local payload = string.format("PI:%s:%s:%d", caster, recipient, spellID)
+  local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "NORMAL")
+  SyncLog(
+    "send_power_infusion",
+    "caster=%s recipient=%s spellID=%d channel=%s sent=%s",
+    caster,
+    recipient,
+    spellID,
+    tostring(channel),
+    tostring(sent)
+  )
+end
+
 --- Broadcasts a REQSYNC request, asking all peers to re-send their current sync snapshot.
 -- Rate-limited by ISILIVE_REFRESH_REQUEST_COOLDOWN (1 s).
 -- @param opts table|nil {force:boolean}
@@ -1885,6 +1918,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
   local kickUpdated = false
   local targetUpdated = false
   local combatAnnounce = nil
+  local powerInfusionAnnounce = nil
   local shareKeysCooldownRemain = nil
 
   local parts = SplitPayload(message)
@@ -1971,6 +2005,22 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
         }
       end
     end
+  elseif bucket == "PI" and parts[2] and parts[3] then
+    -- Skip self-echo: BroadcastPowerInfusionAnnounce already rendered the
+    -- announce locally before sending.
+    if senderKey ~= selfKey then
+      local caster = parts[2]
+      local recipient = parts[3]
+      local spellID = tonumber(parts[4]) or 0
+      if caster ~= "" and recipient ~= "" and spellID == 10060 then
+        powerInfusionAnnounce = {
+          caster = caster,
+          recipient = recipient,
+          spellID = spellID,
+          isLocalRecipient = Sync.NormalizePlayerKey(recipient) == selfKey,
+        }
+      end
+    end
   end
 
   local peerAddonVersion = nil
@@ -2042,5 +2092,6 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     shouldShareKeys = shouldShareKeys and true or false,
     shareKeysCooldownRemain = shareKeysCooldownRemain,
     combatAnnounce = combatAnnounce,
+    powerInfusionAnnounce = powerInfusionAnnounce,
   }
 end

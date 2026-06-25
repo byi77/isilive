@@ -1000,6 +1000,55 @@ local function RegisterProcessMessageReceiveTests(test, Assert, WithGlobals, Loa
     end)
   end)
 
+  test("Sync ProcessAddonMessage handles Power Infusion payloads", function()
+    WithGlobals({
+      strsplit = function(sep, str, max)
+        local pos = str:find(sep, 1, true)
+        if not pos then
+          return str
+        end
+        if max and max >= 2 then
+          return str:sub(1, pos - 1), str:sub(pos + 1)
+        end
+        return str:sub(1, pos - 1)
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+      local piResult = addon.Sync.ProcessAddonMessage(
+        "ISILIVE",
+        "PI:Priest-OtherRealm:MyPlayer-Realm:10060",
+        "Priest-OtherRealm",
+        "MyPlayer",
+        "Realm"
+      )
+      Assert.NotNil(piResult.powerInfusionAnnounce, "PI payload must surface powerInfusionAnnounce on the result")
+      Assert.Equal(piResult.powerInfusionAnnounce.caster, "Priest-OtherRealm", "PI payload must carry caster")
+      Assert.Equal(piResult.powerInfusionAnnounce.recipient, "MyPlayer-Realm", "PI payload must carry recipient")
+      Assert.True(piResult.powerInfusionAnnounce.isLocalRecipient, "PI payload must mark the local recipient")
+
+      local piSelfEcho = addon.Sync.ProcessAddonMessage(
+        "ISILIVE",
+        "PI:MyPlayer-Realm:Target-OtherRealm:10060",
+        "MyPlayer-Realm",
+        "MyPlayer",
+        "Realm"
+      )
+      Assert.Nil(piSelfEcho.powerInfusionAnnounce, "PI self echo must not surface an announce")
+
+      local malformedPi = addon.Sync.ProcessAddonMessage(
+        "ISILIVE",
+        "PI:Priest-OtherRealm:Target-OtherRealm:123",
+        "Priest-OtherRealm",
+        "MyPlayer",
+        "Realm"
+      )
+      Assert.Nil(malformedPi.powerInfusionAnnounce, "wrong PI spell id must not surface an announce")
+    end)
+  end)
+
   test("Sync ProcessAddonMessage does not ack hello-ack or reqsync-ack fan-out hellos", function()
     WithGlobals({
       strsplit = function(sep, str, max)
@@ -1558,6 +1607,57 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
       Assert.False(result, "share-keys request must report failure when the addon message dispatch fails")
       Assert.Equal(#sentMessages, 1, "share-keys request should still attempt one addon message dispatch")
       Assert.Equal(sentMessages[1].message, "SHAREKEYS", "failed dispatch must still carry the SHAREKEYS payload")
+    end)
+  end)
+
+  test("Sync SendPowerInfusionAnnounce sends verified PI payload", function()
+    local sentMessages = {}
+
+    WithGlobals({
+      IsInGroup = function(_category)
+        return true
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      C_ChatInfo = {
+        SendAddonMessage = function(prefix, message, channel, priority)
+          table.insert(sentMessages, {
+            prefix = prefix,
+            message = message,
+            channel = channel,
+            priority = priority,
+          })
+          return true
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      addon.Sync.SendPowerInfusionAnnounce({
+        caster = "Priest-Realm",
+        recipient = "Target-Realm",
+        spellID = 10060,
+      })
+      addon.Sync.SendPowerInfusionAnnounce({
+        caster = "Priest-Realm",
+        recipient = "",
+        spellID = 10060,
+      })
+      addon.Sync.SendPowerInfusionAnnounce({
+        caster = "Priest-Realm",
+        recipient = "Target-Realm",
+        spellID = 123,
+      })
+
+      Assert.Equal(#sentMessages, 1, "only the verified PI payload should be sent")
+      Assert.Equal(sentMessages[1].prefix, "ISILIVE", "PI announce must use the isiLive prefix")
+      Assert.Equal(
+        sentMessages[1].message,
+        "PI:Priest-Realm:Target-Realm:10060",
+        "PI announce must carry caster and recipient"
+      )
+      Assert.Equal(sentMessages[1].channel, "PARTY", "PI announce must use the addon sync channel")
     end)
   end)
 

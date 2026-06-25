@@ -167,7 +167,7 @@ function PiTracker.CreateController(opts)
       return false
     end
     recent[key] = now
-    announcePowerInfusion(casterName, recipientName, unit == "player")
+    announcePowerInfusion(casterName, recipientName, unit == "player", sourceUnit == "player")
     return true
   end
 

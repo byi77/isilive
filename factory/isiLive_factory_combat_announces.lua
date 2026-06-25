@@ -77,7 +77,13 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
     end
   end
 
-  ctx.ShowPowerInfusionAnnounce = function(casterName, recipientName, isLocalRecipient)
+  ctx.ShowPowerInfusionAnnounce = function(infoOrCasterName, recipientName, isLocalRecipient)
+    local casterName = infoOrCasterName
+    if type(infoOrCasterName) == "table" then
+      casterName = infoOrCasterName.caster
+      recipientName = infoOrCasterName.recipient
+      isLocalRecipient = infoOrCasterName.isLocalRecipient == true
+    end
     if isLocalRecipient == true then
       PlayPowerInfusionReceivedSound()
     end
@@ -94,6 +100,17 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
       if type(deathAlert) == "table" and type(deathAlert.ShowPowerInfusion) == "function" then
         deathAlert.ShowPowerInfusion()
       end
+    end
+  end
+
+  ctx.BroadcastPowerInfusionAnnounce = function(casterName, recipientName, isLocalRecipient)
+    ctx.ShowPowerInfusionAnnounce(casterName, recipientName, isLocalRecipient)
+    if ctx.modules and ctx.modules.sync and type(ctx.modules.sync.SendPowerInfusionAnnounce) == "function" then
+      ctx.modules.sync.SendPowerInfusionAnnounce({
+        caster = casterName,
+        recipient = recipientName,
+        spellID = 10060,
+      })
     end
   end
 
@@ -117,7 +134,13 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
   local piTracker = addonTable.PiTracker
   if type(piTracker) == "table" and type(piTracker.SetDependencies) == "function" then
     piTracker.SetDependencies({
-      announcePowerInfusion = ctx.ShowPowerInfusionAnnounce,
+      announcePowerInfusion = function(casterName, recipientName, isLocalRecipient, isLocalCaster)
+        if isLocalCaster == true then
+          ctx.BroadcastPowerInfusionAnnounce(casterName, recipientName, isLocalRecipient)
+        else
+          ctx.ShowPowerInfusionAnnounce(casterName, recipientName, isLocalRecipient)
+        end
+      end,
     })
   end
 end
