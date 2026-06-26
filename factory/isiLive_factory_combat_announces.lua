@@ -143,6 +143,15 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
       end,
     })
   end
+
+  local vipDkAssist = addonTable.VipDkAssist
+  if type(vipDkAssist) == "table" and type(vipDkAssist.SetDependencies) == "function" then
+    vipDkAssist.SetDependencies({
+      getDB = function()
+        return rawget(_G, "IsiLiveDB") or {}
+      end,
+    })
+  end
 end
 
 FI.InitializeFactoryCombatAnnounceControllers = InitializeFactoryCombatAnnounceControllers

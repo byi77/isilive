@@ -109,6 +109,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 87. Eingehende Beschwoerungen wiederholen den Incoming-Summon-Sound bei aktiviertem Loop alle 5 Sekunden, solange der Live-Status fuer `player` verifiziert `Pending` bleibt; `deDE` nutzt die deutsche Ansage `Beschwoerung aktiv`, alle anderen Client-Locales behalten `Portal.ogg`.
 88. Das kompakte vertikale V-Layout zeigt die M+-Leader-Aktionen eng als `RC`, `CD10` und `CD0`, blendet `Share Keys` sowie die Tool-Ueberschriften aus und ordnet die M+Marker in zwei eng stehenden vertikalen Vierer-Spalten an.
 89. Power Infusion wird ausserhalb des Raids nur aus verifizierten Aura-Daten erkannt und vom lokal verifizierten PI-Caster an isiLive-Peers nur mit verifiziertem Priester und Empfaenger synchronisiert; wenn der PI-Texthinweis aktiviert ist, zeigen lokale Chatzeilen verifizierten Priester und Empfaenger, die rote Center-Animation erscheint nur beim lokalen Empfaenger, und der separat schaltbare PI-Empfangsklang spielt nur beim lokalen Empfaenger.
+90. Die VIP-DK-Seelenernter- und Putrefy-Warnungen sind standardmaessig aus, bleiben in den VIP-Settings immer sichtbar und duerfen nur fuer verifizierte lokale Unholy-Death-Knights nach einem eigenen Dark-Transformation-Cast eindeutig gefundene Actionbar-Ziele warnen.
 
 ## Regelbloecke
 
@@ -1361,3 +1362,20 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Settings Refresh resyncs chatAnnounce checkboxes from DB after a reset
   - DBSchema.Sanitize fills all defaults on an empty db
   - Factory demo simulation tablet builds safe actions and runs preview hooks
+
+### RULE-VIP-DK-SEELENERNTER-WARNUNG
+- Regelnummer: 90
+- Status: aktiv
+- Zusammenfassung: Die VIP-DK-Seelenernter- und Putrefy-Warnungen sind standardmaessig aus und werden getrennt ueber die VIP-Settings-Schalter `vipDkSoulReaperWarningEnabled` und `vipDkPutrefyWarningEnabled` aktiviert. Beide Settings-Schalter muessen im VIP-Settings-Abschnitt immer sichtbar bleiben, auch wenn der lokale Spieler kein Death Knight ist. Wenn der lokale Spieler verifiziert Death Knight mit Unholy-Spezialisierung ist und der lokale `UNIT_SPELLCAST_SUCCEEDED`-Cast die Spell-ID `1233448` fuer Dark Transformation meldet, wird nach 30 Sekunden fuer 15 Sekunden eine rote Warnung auf den fuer die aktivierten Optionen eindeutig gefundenen Actionbar-Buttons angezeigt. Soul Reaper darf nur ueber verifizierte Actionbar-Spell- oder Macro-Spell-IDs mit Spell-ID `343294` erkannt werden; Putrefy darf nur ueber verifizierte Actionbar-Spell- oder Macro-Spell-IDs mit Spell-ID `1247378` erkannt werden; Icon-, Textur-, Namens- oder Cooldown-Ratefallbacks sind nicht erlaubt. Non-player-Casts, falsche Spell-IDs, deaktivierte VIP-Settings, unverifizierte Klasse/Spezialisierung, Raidmodus-Forwarding, Spec-Wechsel und `PLAYER_REGEN_ENABLED` muessen geschlossen stumm bleiben beziehungsweise aktive Warnungen stoppen.
+- Erforderliche Tests:
+  - VipDkAssist starts Soul Reaper warning after Dark Transformation
+  - VipDkAssist starts Putrefy warning after Dark Transformation
+  - VipDkAssist can warn Soul Reaper and Putrefy together
+  - VipDkAssist ignores non-player and unrelated casts
+  - VipDkAssist respects disabled VIP setting
+  - VipDkAssist fails closed when player is not verified Unholy Death Knight
+  - VipDkAssist SetDependencies exposes central HandleEvent path
+  - Settings panel exposes VIP guest sound toggle and applies astral aurochs muting
+  - Settings panel orders controls by thematic sections
+  - DBSchema.Sanitize fills all defaults on an empty db
+  - DBSchema.GetKnownFieldNames includes core persistent fields

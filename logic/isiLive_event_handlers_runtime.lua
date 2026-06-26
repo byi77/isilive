@@ -698,6 +698,7 @@ local function BuildUnitSpellcastSucceededForwarder(ctx)
     if not IsRaidModeActive(ctx) then
       ctx.handleKickTrackerEvent("UNIT_SPELLCAST_SUCCEEDED", ...)
       ctx.handleCombatEventsEvent("UNIT_SPELLCAST_SUCCEEDED", ...)
+      ctx.handleVipDkAssistEvent("UNIT_SPELLCAST_SUCCEEDED", ...)
     end
   end
 end
@@ -721,6 +722,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   ctx.handleCombatEventsEvent = ResolveEventHandler(ctx.handleCombatEventsEvent)
   ctx.handleDeathWatchEvent = ResolveEventHandler(ctx.handleDeathWatchEvent)
   ctx.handleKickTrackerEvent = ResolveEventHandler(ctx.handleKickTrackerEvent)
+  ctx.handleVipDkAssistEvent = ResolveEventHandler(ctx.handleVipDkAssistEvent)
   ctx.handleMplusTimerEvent = ResolveEventHandler(ctx.handleMplusTimerEvent)
   ctx.handleLeaderWatchEvent = ResolveEventHandler(ctx.handleLeaderWatchEvent)
 
@@ -909,6 +911,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       end
     end
     ctx.handleKickTrackerEvent("PLAYER_REGEN_ENABLED")
+    ctx.handleVipDkAssistEvent("PLAYER_REGEN_ENABLED")
     ctx.handleKillTrackEvent("PLAYER_REGEN_ENABLED")
     ApplyCombatFade(ctx, 1)
     if IsRaidModeActive(ctx) then
@@ -961,6 +964,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       return
     end
     ctx.handleKickTrackerEvent("PLAYER_SPECIALIZATION_CHANGED", unit)
+    ctx.handleVipDkAssistEvent("PLAYER_SPECIALIZATION_CHANGED", unit)
     ctx.sendOwnBackgroundSnapshot("player-state")
     -- Spec change can be role-flipping (Druid Balance -> Guardian) or pure
     -- intra-role (Mage Arcane -> Frost). RefreshRosterRoles only fires

@@ -58,6 +58,9 @@ local function RegisterSettingsPanelOrderTests(test, Assert, WithGlobals, LoadAd
             SETTINGS_NAMEPLATE_FONT_SIZE = "Nameplate font size",
             SETTINGS_SOUND_LEAD_ENABLED = "Leadership sound",
             SETTINGS_VIP_ASTRAL_AUROCHS_SOUND = "Astral Aurochs sound",
+            SETTINGS_VIP_GILDED_BRUTOSAUR_SOUND = "Brutosaur sound",
+            SETTINGS_VIP_DK_SOUL_REAPER_WARNING = "Soul Reaper warning",
+            SETTINGS_VIP_DK_PUTREFY_WARNING = "Putrefy warning",
             SETTINGS_CHAT_BR_ANNOUNCE = "Chat BR",
             SETTINGS_COMBAT_LOGGING = "Combat Logging",
             SETTINGS_QUEUE_DEBUG = "Queue Debug",
@@ -89,6 +92,8 @@ local function RegisterSettingsPanelOrderTests(test, Assert, WithGlobals, LoadAd
       AssertBefore("SETTINGS_COMBAT_LOGGING", "SETTINGS_QUEUE_DEBUG")
       AssertBefore("SETTINGS_QUEUE_DEBUG", "SETTINGS_RESET_UI_POSITION")
       AssertBefore("SETTINGS_RESET_UI_POSITION", "SETTINGS_VIP_ASTRAL_AUROCHS_SOUND")
+      AssertBefore("SETTINGS_VIP_GILDED_BRUTOSAUR_SOUND", "SETTINGS_VIP_DK_SOUL_REAPER_WARNING")
+      AssertBefore("SETTINGS_VIP_DK_SOUL_REAPER_WARNING", "SETTINGS_VIP_DK_PUTREFY_WARNING")
     end)
   end)
 

@@ -2548,6 +2548,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
             SETTINGS_VIP_ASTRAL_AUROCHS_SOUND = "Mute Astral Aurochs mount sound",
             SETTINGS_VIP_GRAND_EXPEDITION_YAK_SOUND = "Mute Grand Expedition Yak mount sound",
             SETTINGS_VIP_GILDED_BRUTOSAUR_SOUND = "Mute Trader Brutosaur mount sound",
+            SETTINGS_VIP_DK_SOUL_REAPER_WARNING = "Soul Reaper warning for Unholy DK",
+            SETTINGS_VIP_DK_PUTREFY_WARNING = "Putrefy warning for Unholy DK",
           }
         end,
         getCurrentLocale = function()
@@ -2566,6 +2568,8 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       local aurochsCheck = nil
       local yakCheck = nil
       local brutosaurCheck = nil
+      local soulReaperCheck = nil
+      local putrefyCheck = nil
       for _, frame in ipairs(createdFrames) do
         if frame._sectionKey == "SETTINGS_SECTION_VIP_GUESTS" then
           vipHeader = vipHeader or frame
@@ -2576,6 +2580,10 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           yakCheck = frame
         elseif frame._settingKey == "SETTINGS_VIP_GILDED_BRUTOSAUR_SOUND" then
           brutosaurCheck = frame
+        elseif frame._settingKey == "SETTINGS_VIP_DK_SOUL_REAPER_WARNING" then
+          soulReaperCheck = frame
+        elseif frame._settingKey == "SETTINGS_VIP_DK_PUTREFY_WARNING" then
+          putrefyCheck = frame
         end
       end
 
@@ -2583,9 +2591,13 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       aurochsCheck = Assert.NotNil(aurochsCheck, "settings panel should create the astral aurochs sound checkbox")
       yakCheck = Assert.NotNil(yakCheck, "settings panel should create the grand expedition yak sound checkbox")
       brutosaurCheck = Assert.NotNil(brutosaurCheck, "settings panel should create the gilded brutosaur sound checkbox")
+      soulReaperCheck = Assert.NotNil(soulReaperCheck, "settings panel should create the VIP DK Soul Reaper checkbox")
+      putrefyCheck = Assert.NotNil(putrefyCheck, "settings panel should create the VIP DK Putrefy checkbox")
       Assert.False(aurochsCheck:GetChecked(), "astral aurochs sound mute should default to off")
       Assert.False(yakCheck:GetChecked(), "grand expedition yak sound mute should default to off")
       Assert.False(brutosaurCheck:GetChecked(), "gilded brutosaur sound mute should default to off")
+      Assert.False(soulReaperCheck:GetChecked(), "VIP DK Soul Reaper warning should default to off")
+      Assert.False(putrefyCheck:GetChecked(), "VIP DK Putrefy warning should default to off")
       local onClick =
         Assert.NotNil(aurochsCheck._scripts and aurochsCheck._scripts.OnClick or nil, "VIP checkbox needs OnClick")
 
@@ -2619,6 +2631,20 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       brutosaurOnClick(brutosaurCheck)
       Assert.True(db.vipGildedBrutosaurSoundMuted, "checking the brutosaur option should persist muted=true")
       Assert.Equal(muted[1], 1824124, "brutosaur muting should include the verified first model sound file")
+      local soulReaperOnClick = Assert.NotNil(
+        soulReaperCheck._scripts and soulReaperCheck._scripts.OnClick or nil,
+        "Soul Reaper VIP checkbox needs OnClick"
+      )
+      soulReaperCheck:SetChecked(true)
+      soulReaperOnClick(soulReaperCheck)
+      Assert.True(db.vipDkSoulReaperWarningEnabled, "checking Soul Reaper warning should persist enabled=true")
+      local putrefyOnClick = Assert.NotNil(
+        putrefyCheck._scripts and putrefyCheck._scripts.OnClick or nil,
+        "Putrefy VIP checkbox needs OnClick"
+      )
+      putrefyCheck:SetChecked(true)
+      putrefyOnClick(putrefyCheck)
+      Assert.True(db.vipDkPutrefyWarningEnabled, "checking Putrefy warning should persist enabled=true")
     end)
   end)
 
@@ -2911,11 +2937,12 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       )
       Assert.Equal(
         checkboxCount,
-        44,
+        46,
         "settings should hide only the legacy name-length"
           .. " and teleport-column controls while keeping the startup/key-end, navigator, sound,"
           .. " incoming-summon loop, chat/text-announce, combat-fade, nameplate-subtoggle,"
-          .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows, VIP sound toggles,"
+          .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows,"
+          .. " VIP sound toggles, the VIP DK Soul Reaper and Putrefy warnings,"
           .. " and the two auto-close split checkboxes visible"
           .. " (M+ forces tooltip/nameplate toggles replaced by a single 3-way display-mode selector)"
       )
@@ -2924,11 +2951,12 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 7, "refresh should keep the stats-box and nameplate sliders visible")
       Assert.Equal(
         checkboxCount,
-        44,
+        46,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
           .. " while preserving the visible sound, incoming-summon loop, chat/text-announce,"
           .. " combat-fade, nameplate-subtoggle,"
           .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows, VIP sound toggles,"
+          .. " the VIP DK Soul Reaper and Putrefy warnings,"
           .. " and the two auto-close split checkboxes"
       )
     end)

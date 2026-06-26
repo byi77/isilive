@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2026-06-27 - Version 0.9.336 (patch)
+
+- Added default-off VIP options for Unholy Death Knights that show red Soul
+  Reaper and Putrefy warnings during the last 15 seconds before Dark
+  Transformation is expected to be ready, using only the local Dark
+  Transformation cast and verified actionbar spell IDs. The Settings toggles
+  remain visible even when the current character is not a Death Knight.
+- Bumped the TOC and documentation baselines to `0.9.336`.
+
 ## 2026-06-26 - Version 0.9.335 (patch)
 
 - Fixed stale Mythic+ death-counter UI after dungeon completion, challenge

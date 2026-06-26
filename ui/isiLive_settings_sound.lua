@@ -186,6 +186,14 @@ local VIP_SOUND_DESCRIPTIONS = {
     descKey = "SETTINGS_VIP_GILDED_BRUTOSAUR_SOUND_DESC",
     fallback = "Mutes the Trader Brutosaur vendor mount ambience.",
   },
+  SETTINGS_VIP_DK_SOUL_REAPER_WARNING = {
+    descKey = "SETTINGS_VIP_DK_SOUL_REAPER_WARNING_DESC",
+    fallback = "Shows a red warning on Soul Reaper when Dark Transformation is nearly ready.",
+  },
+  SETTINGS_VIP_DK_PUTREFY_WARNING = {
+    descKey = "SETTINGS_VIP_DK_PUTREFY_WARNING_DESC",
+    fallback = "Shows a red warning on Putrefy when Dark Transformation is nearly ready.",
+  },
 }
 
 local function NormalizeSoundChannel(value)
@@ -609,6 +617,45 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
     "ApplyGildedBrutosaurSoundSetting"
   )
 
+  local function CreateVipDkWarningCheckbox(controlKey, labelKey, fallbackLabel, dbKey)
+    local desc = VIP_SOUND_DESCRIPTIONS[labelKey] or {}
+    controls[controlKey], yOffset = CreateSettingsCheckbox(
+      canvas,
+      yOffset,
+      labels[labelKey] or fallbackLabel,
+      function()
+        local db = config.getDB()
+        return db[dbKey] == true
+      end,
+      function(checked)
+        local db = config.getDB()
+        db[dbKey] = checked == true
+        local vipDkAssist = addonTable.VipDkAssist
+        if type(vipDkAssist) == "table" and type(vipDkAssist.HandleEvent) == "function" then
+          vipDkAssist.HandleEvent("PLAYER_SPECIALIZATION_CHANGED")
+        end
+      end,
+      labelKey,
+      DescriptionOptions(labels[desc.descKey] or desc.fallback)
+    )
+    if controls[controlKey] and controls[controlKey].check then
+      controls[controlKey].check._sectionKey = "SETTINGS_SECTION_VIP_GUESTS"
+    end
+  end
+
+  CreateVipDkWarningCheckbox(
+    "vipDkSoulReaperWarning",
+    "SETTINGS_VIP_DK_SOUL_REAPER_WARNING",
+    "Soul Reaper warning for Unholy DK",
+    "vipDkSoulReaperWarningEnabled"
+  )
+  CreateVipDkWarningCheckbox(
+    "vipDkPutrefyWarning",
+    "SETTINGS_VIP_DK_PUTREFY_WARNING",
+    "Putrefy warning for Unholy DK",
+    "vipDkPutrefyWarningEnabled"
+  )
+
   return yOffset
 end
 
@@ -742,5 +789,27 @@ function SettingsSound.RefreshVIPGuestControls(controls, labels, db)
       labels.SETTINGS_VIP_GILDED_BRUTOSAUR_SOUND_DESC or "Mutes the Trader Brutosaur vendor mount ambience."
     )
     controls.vipGildedBrutosaurSound.check:SetChecked(db.vipGildedBrutosaurSoundMuted == true)
+  end
+  if controls.vipDkSoulReaperWarning and controls.vipDkSoulReaperWarning.label then
+    controls.vipDkSoulReaperWarning.label:SetText(
+      labels.SETTINGS_VIP_DK_SOUL_REAPER_WARNING or "Soul Reaper warning for Unholy DK"
+    )
+    SetDescription(
+      controls.vipDkSoulReaperWarning,
+      labels.SETTINGS_VIP_DK_SOUL_REAPER_WARNING_DESC
+        or "Shows a red warning on Soul Reaper when Dark Transformation is nearly ready."
+    )
+    controls.vipDkSoulReaperWarning.check:SetChecked(db.vipDkSoulReaperWarningEnabled == true)
+  end
+  if controls.vipDkPutrefyWarning and controls.vipDkPutrefyWarning.label then
+    controls.vipDkPutrefyWarning.label:SetText(
+      labels.SETTINGS_VIP_DK_PUTREFY_WARNING or "Putrefy warning for Unholy DK"
+    )
+    SetDescription(
+      controls.vipDkPutrefyWarning,
+      labels.SETTINGS_VIP_DK_PUTREFY_WARNING_DESC
+        or "Shows a red warning on Putrefy when Dark Transformation is nearly ready."
+    )
+    controls.vipDkPutrefyWarning.check:SetChecked(db.vipDkPutrefyWarningEnabled == true)
   end
 end

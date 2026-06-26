@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.335`
-Zuletzt aktualisiert: `2026-06-26`
+Versionsbasis: `0.9.336`
+Zuletzt aktualisiert: `2026-06-27`
 
 ## Akteure
 
@@ -47,6 +47,7 @@ Zuletzt aktualisiert: `2026-06-26`
 | UC-22 | LFG-Invite-Liste entfernt | Die verworfene offene Premade-LFG-Invite-Liste hat keine Module, keine Settings, keine SavedVariable und kein Runtime-Wiring |
 | UC-23 | Spieler-Stats-Box | Eine optionale, eigenstaendige Stats-Box zeigt live gelesene Spielerwerte ohne Guessing und bleibt unabhaengig von den Main-UI-Layouts verschiebbar |
 | UC-24 | Gruppensuche- und Roster-Klassenbonus-Hinweise | Bewerber-, Suchergebnis- und Roster-Zeilen zeigen relevante nicht-Utility-Gruppenboni kompakt an und ergaenzen LFG-Tooltips mit lokalisierten Bonusdetails |
+| UC-25 | VIP-DK-Seelenernter- und Putrefy-Warnung | Optionale VIP-Schalter warnen Unholy-DKs nach eigenem Dark-Transformation-Cast auf eindeutig gefundenen Soul-Reaper- und Putrefy-Buttons |
 
 ## UC-01 Invite-Erkennung ohne Target-Guessing
 
@@ -345,6 +346,18 @@ Ziel: Der Spieler wird im laufenden M+-Run sofort und unuebersehbar informiert, 
 9. Diagnose: Wenn ein Tank-/Heiler-WAV-Start fehlschlaegt, wird Rolle, Fehlergrund, Kanal und Asset-Pfad diagnostizierbar ausgegeben; es gibt keinen TTS-Fallback.
 10. Erfolgskriterium: Genau ein Alarm pro Tod; keine Alarme ausserhalb aktiver Keys, fuer DPS-Tode oder fuer Disconnects.
 
+## UC-25 VIP-DK-Seelenernter- und Putrefy-Warnung
+
+Ziel: Optionale VIP-Schalter warnen lokale Unholy-Death-Knights davor, Seelenernter oder Putrefy direkt vor der naechsten Dunklen Transformation zu nutzen.
+
+1. Trigger: `UNIT_SPELLCAST_SUCCEEDED` meldet fuer den lokalen Spieler die Spell-ID `1233448` fuer Dark Transformation.
+2. Voraussetzung: Mindestens einer der Schalter `vipDkSoulReaperWarningEnabled` oder `vipDkPutrefyWarningEnabled` ist aktiv, der lokale Spieler ist verifiziert Death Knight und die aktuelle Spezialisierung ist verifiziert Unholy.
+3. Verarbeitung: Nach dem eigenen Dark-Transformation-Cast startet ein 30-Sekunden-Timer. Danach wird fuer 15 Sekunden eine rote Warnung auf den aktuell eindeutig gefundenen Actionbar-Buttons der aktivierten Optionen angezeigt.
+4. Regel: Soul Reaper wird nur ueber Actionbar-Spell-IDs oder Macro-Spell-IDs mit Spell-ID `343294` erkannt. Putrefy wird nur ueber Actionbar-Spell-IDs oder Macro-Spell-IDs mit Spell-ID `1247378` erkannt. Icon-, Textur-, Namens- und Cooldown-Ratefallbacks sind nicht erlaubt.
+5. Settings: Beide Schalter sitzen im abschliessenden VIP-Settings-Abschnitt, sind standardmaessig aus, bleiben auch fuer Nicht-DKs sichtbar und persistieren als `vipDkSoulReaperWarningEnabled` beziehungsweise `vipDkPutrefyWarningEnabled`.
+6. Stop-Bedingungen: Non-player-Casts, falsche Spell-IDs, deaktivierte VIP-Settings, unverifizierte Klasse/Spezialisierung, Raidmodus-Forwarding, Spec-Wechsel und `PLAYER_REGEN_ENABLED` bleiben stumm beziehungsweise stoppen aktive Warnungen.
+7. Erfolgskriterium: Nur ein verifizierter lokaler Unholy-DK mit aktivierter VIP-Option sieht nach eigenem Dark-Transformation-Cast eine 15-Sekunden-Warnung auf eindeutig erkanntem Soul Reaper und/oder Putrefy.
+
 ## Nichtfunktionale Regeln
 
 1. Kein spekulatives Verhalten: unresolved oder mehrdeutiger Map-Kontext bleibt unresolved; kein Name-/Token-Fallback-Guessing.
@@ -371,7 +384,7 @@ Ziel: Der Spieler wird im laufenden M+-Run sofort und unuebersehbar informiert, 
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `2112` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `2119` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback; mehrdeutige Single-Struct-`activityIDs` bleiben unresolved.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
@@ -388,6 +401,7 @@ Aktuelle Validator-Baseline: `2112` Szenarien ueber die in `tools/usecase_scenar
 13. UC-24: Gruppensuche- und Roster-Buff-Rating-Herzchen ohne Guessing, mit Spielerprofil-Relevanz, Utility-Ausschluss fuer kompakte Marker, BR/BL nur in Roster-Mouseover-Bonuszeilen, nicht-stapelnder Buffzaehlung, Blizzard-Default-kompatibler Suchergebnisposition, Bewerber-Herzchen rechts neben dem Klassenbadge als echte Texturen, Roster-Herzchen direkt am Spielernamen aus verifizierter Klasse und passender Spec-ID, Bewerber-Sprachflaggen aus verifiziertem Realm, default-aktivem Settings-Schalter, `media/heart_bonus_green.tga`-Texturvertrag sowie vorbereiteten Locale-Fallbacks inklusive akzeptierter Community-Uebersetzungen.
 14. UC-16: BR-/Lust-Self-Cast-Filter gegen 12.0-Secret-Value-Spam, 3s-`sourceGUID|spellID`-Dedup, Toggle-Gating, ChatThrottleLib-Routing via `BRLUST`-Addon-Message, Receiver-Dispatch in lokalisierten Template-Zeilen und Drop-On-Unknown-Kind; PI-Erkennung aus verifizierten Aura-Daten, Secret-Value-feste Spell-ID-Pruefung und isiLive-Peer-Sync nur durch den lokal verifizierten PI-Caster.
 15. UC-17: Mob-Tooltip-Forces-Rendering nur bei aktiver Challenge-Map-ID mit passendem NPC-Dataset, Per-Tooltip-Dedup gegen `TooltipDataProcessor`-Rerender und `SetEnabled(false)`-Gate.
+16. UC-25: VIP-DK-Seelenernter- und Putrefy-Warnungen mit Default-aus-Settings, immer sichtbaren VIP-Schaltern, lokalem Dark-Transformation-Cast, verifizierter Unholy-DK-Quelle, eindeutigen Actionbar-Spell-IDs und Stop-Pfaden ohne Ratefallbacks.
 
 ## Rueckverfolgbarkeit zu Quelldateien
 
@@ -401,6 +415,7 @@ Aktuelle Validator-Baseline: `2112` Szenarien ueber die in `tools/usecase_scenar
 | RIO-Baseline-Capture und Delta-Preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
 | Last-Run-DPS-Capture und begrenzte Stats-Persistenz | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
 | Combat-Utility-Tracker-Zeile, M+-Killtracker, Kick-State und LibKeystone-Key-Interop | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_killtrack.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_cd_tracker.lua`, `isiLive_factory_status_helpers.lua`, `isiLive_factory_kick_tracker.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_panel_kill_row.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
+| VIP-DK-Seelenernter- und Putrefy-Warnung | `isiLive_vip_dk_assist.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_controller_wiring.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_settings_sound.lua`, `isiLive_db_schema.lua`, `isiLive_texts.lua` |
 | Leader-Transfer-Erkennung und Feedback | `isiLive_leader_watch.lua` |
 | UI-Aktionen, Rollen-Buttons, Key-Share-Button | `isiLive_roster_panel.lua` |
 | Esc-Tooling-/Travel-/Mounts-/Addons-Strips und Blizzard-Settings-Canvas | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_factory.lua`, `isiLive_texts.lua`, `isiLive_ui_common.lua` |

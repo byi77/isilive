@@ -3,9 +3,13 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.335`.
+Current release: `0.9.336`.
 
 Highlights:
+- Unholy Death Knights can now enable default-off VIP warnings for Soul Reaper
+  and Putrefy. The warnings use only the local Dark Transformation cast and
+  verified actionbar spell IDs, and the Settings toggles stay visible even on
+  non-DK characters.
 - Mythic+ death counters now reset immediately after dungeon completion,
   challenge abort, or party-instance exit, matching the existing M+ timer and
   BR/BL timer cleanup.

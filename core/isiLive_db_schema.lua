@@ -217,6 +217,8 @@ local SCHEMA = {
   vipAstralAurochsSoundMuted = { type = "boolean", default = false },
   vipGrandExpeditionYakSoundMuted = { type = "boolean", default = false },
   vipGildedBrutosaurSoundMuted = { type = "boolean", default = false },
+  vipDkSoulReaperWarningEnabled = { type = "boolean", default = false },
+  vipDkPutrefyWarningEnabled = { type = "boolean", default = false },
 
   -- Combat-event chat announces.
   chatAnnounceBR = { type = "boolean", default = true },

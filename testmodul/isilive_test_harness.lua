@@ -47,6 +47,7 @@ local FILE_PATHS = {
   ["isiLive_lfg_detect.lua"] = "game/isiLive_lfg_detect.lua",
   ["isiLive_combat_events.lua"] = "game/isiLive_combat_events.lua",
   ["isiLive_pi_tracker.lua"] = "game/isiLive_pi_tracker.lua",
+  ["isiLive_vip_dk_assist.lua"] = "game/isiLive_vip_dk_assist.lua",
   ["isiLive_killtrack.lua"] = "game/isiLive_killtrack.lua",
   ["isiLive_death_watch.lua"] = "game/isiLive_death_watch.lua",
   -- ui
