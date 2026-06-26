@@ -1191,6 +1191,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - DeathWatch alerts for the local player's own death
   - DeathWatch resets dead flags on challenge lifecycle events
   - DeathWatch clears per-player death counts on challenge end and reset
+  - PLAYER_ENTERING_WORLD resets stale challenge death counters with visible UI
   - DeathWatch keeps counting damage-dealer deaths even when audio is suppressed
   - DeathWatch roster update drops dead flags of departed players
   - UpdateKillTrackRow appends death count behind active dungeon name

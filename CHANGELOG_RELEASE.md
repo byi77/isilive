@@ -3,9 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.334`.
+Current release: `0.9.335`.
 
 Highlights:
+- Mythic+ death counters now reset immediately after dungeon completion,
+  challenge abort, or party-instance exit, matching the existing M+ timer and
+  BR/BL timer cleanup.
 - Power Infusion alerts are now shared with isiLive peers when the local
   verified priest casts PI on a verified recipient, using addon sync instead
   of target-based guessing.

@@ -995,7 +995,9 @@ return function(test, ctx)
 
   test("PLAYER_ENTERING_WORLD resets stale challenge timers on inactive instance entry", function()
     local timerEvents = {}
+    local deathEvents = {}
     local cdRefreshOpts = {}
+    local uiUpdates = 0
     local handlers, stub = LoadHandlers({
       isInPartyInstance = function()
         return true
@@ -1009,8 +1011,14 @@ return function(test, ctx)
       handleMplusTimerEvent = function(event)
         table.insert(timerEvents, event)
       end,
+      handleDeathWatchEvent = function(event)
+        table.insert(deathEvents, event)
+      end,
       updateCdTracker = function(opts)
         table.insert(cdRefreshOpts, opts or false)
+      end,
+      updateUI = function()
+        uiUpdates = uiUpdates + 1
       end,
     })
     stub.wasInPartyInstance = false
@@ -1019,15 +1027,19 @@ return function(test, ctx)
 
     Assert.Equal(timerEvents[1], "PLAYER_ENTERING_WORLD", "PEW must still reach the M+ timer first")
     Assert.Equal(timerEvents[2], "CHALLENGE_MODE_RESET", "inactive instance entry must clear stale challenge state")
+    Assert.Equal(deathEvents[1], "CHALLENGE_MODE_RESET", "inactive instance entry must clear stale death counters")
     Assert.Equal(#cdRefreshOpts, 1, "inactive instance entry must use a single reset CD refresh")
     Assert.True(cdRefreshOpts[1].resetRuntimeTimers, "stale challenge reset must clear visible BR/BL timers")
     Assert.True(cdRefreshOpts[1].suppressBattleResReadySound, "stale challenge reset must suppress BRes-ready")
     Assert.True(cdRefreshOpts[1].suppressLustReadySound, "stale challenge reset must suppress Bloodlust-ready")
+    Assert.Equal(uiUpdates, 1, "visible stale challenge reset must rerender death-counter UI")
   end)
 
   test("PLAYER_ENTERING_WORLD resets stale challenge timers on party instance exit", function()
     local timerEvents = {}
+    local deathEvents = {}
     local cdRefreshOpts = {}
+    local uiUpdates = 0
     local handlers, stub = LoadHandlers({
       isInPartyInstance = function()
         return false
@@ -1041,8 +1053,14 @@ return function(test, ctx)
       handleMplusTimerEvent = function(event)
         table.insert(timerEvents, event)
       end,
+      handleDeathWatchEvent = function(event)
+        table.insert(deathEvents, event)
+      end,
       updateCdTracker = function(opts)
         table.insert(cdRefreshOpts, opts or false)
+      end,
+      updateUI = function()
+        uiUpdates = uiUpdates + 1
       end,
     })
     stub.wasInPartyInstance = true
@@ -1051,10 +1069,41 @@ return function(test, ctx)
 
     Assert.Equal(timerEvents[1], "PLAYER_ENTERING_WORLD", "PEW must still reach the M+ timer first")
     Assert.Equal(timerEvents[2], "CHALLENGE_MODE_RESET", "party instance exit must clear stale challenge state")
+    Assert.Equal(deathEvents[1], "CHALLENGE_MODE_RESET", "party instance exit must clear stale death counters")
     Assert.Equal(#cdRefreshOpts, 1, "party instance exit must use a single reset CD refresh")
     Assert.True(cdRefreshOpts[1].resetRuntimeTimers, "party instance exit must clear visible BR/BL timers")
     Assert.True(cdRefreshOpts[1].suppressBattleResReadySound, "party instance exit must suppress BRes-ready")
     Assert.True(cdRefreshOpts[1].suppressLustReadySound, "party instance exit must suppress Bloodlust-ready")
+    Assert.Equal(uiUpdates, 1, "visible party instance exit reset must rerender death-counter UI")
+  end)
+
+  test("PLAYER_ENTERING_WORLD resets stale challenge death counters with visible UI", function()
+    local deathEvents = {}
+    local uiUpdates = 0
+    local handlers, stub = LoadHandlers({
+      isInPartyInstance = function()
+        return false
+      end,
+      isInChallengeMode = function()
+        return false
+      end,
+      isMainFrameShown = function()
+        return true
+      end,
+      handleDeathWatchEvent = function(event)
+        table.insert(deathEvents, event)
+      end,
+      updateUI = function()
+        uiUpdates = uiUpdates + 1
+      end,
+    })
+    stub.wasInPartyInstance = true
+
+    handlers.PLAYER_ENTERING_WORLD(nil)
+
+    Assert.Equal(#deathEvents, 1, "stale party-instance exit must dispatch one DeathWatch reset")
+    Assert.Equal(deathEvents[1], "CHALLENGE_MODE_RESET", "stale party-instance exit must clear death counters")
+    Assert.Equal(uiUpdates, 1, "visible stale death-counter reset must rerender the UI immediately")
   end)
 
   test("PLAYER_ENTERING_WORLD keeps active challenge instance entry from resetting timers", function()

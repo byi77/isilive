@@ -612,11 +612,15 @@ local function ResetChallengeRuntimeOnInactiveInstanceEntry(ctx, wasInPartyInsta
   end
 
   ctx.handleMplusTimerEvent("CHALLENGE_MODE_RESET")
+  ctx.handleDeathWatchEvent("CHALLENGE_MODE_RESET")
   ctx.updateCdTracker({
     suppressBattleResReadySound = true,
     suppressLustReadySound = true,
     resetRuntimeTimers = true,
   })
+  if ctx.isMainFrameShown() then
+    ctx.updateUI()
+  end
   return true
 end
 
@@ -626,11 +630,15 @@ local function ResetChallengeRuntimeOnPartyInstanceExit(ctx, wasInPartyInstance,
   end
 
   ctx.handleMplusTimerEvent("CHALLENGE_MODE_RESET")
+  ctx.handleDeathWatchEvent("CHALLENGE_MODE_RESET")
   ctx.updateCdTracker({
     suppressBattleResReadySound = true,
     suppressLustReadySound = true,
     resetRuntimeTimers = true,
   })
+  if ctx.isMainFrameShown() then
+    ctx.updateUI()
+  end
   return true
 end
 

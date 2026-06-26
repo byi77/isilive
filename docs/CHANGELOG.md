@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 2026-06-26 - Version 0.9.335 (patch)
+
+- Fixed stale Mythic+ death-counter UI after dungeon completion, challenge
+  abort, or party-instance exit by resetting DeathWatch on the same lifecycle
+  path that clears the M+ timer and BR/BL timers, then immediately rerendering
+  visible UI.
+- Bumped the TOC and documentation baselines to `0.9.335`.
+
 ## 2026-06-25 - Version 0.9.334 (patch)
 
 - Added isiLive peer sync for verified Power Infusion announces, using the
