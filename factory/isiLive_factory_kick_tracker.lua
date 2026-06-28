@@ -11,7 +11,8 @@ local function InitializeFactorySecondaryKickTracker(
   getUnitName,
   getRealmName,
   IsMainFrameShown,
-  IsRaidModeActive
+  IsRaidModeActive,
+  IsGroupSyncActive
 )
   local kickTrackerModule = ctx.addonTable and ctx.addonTable.KickTracker
   if not (kickTrackerModule and type(kickTrackerModule.CreateController) == "function") then
@@ -51,6 +52,13 @@ local function InitializeFactorySecondaryKickTracker(
     then
       ctx.rosterPanelController.RefreshKickColumn()
     end
+  end
+
+  local function IsKickSyncContextActive()
+    if type(IsGroupSyncActive) ~= "function" then
+      return false
+    end
+    return IsGroupSyncActive() == true
   end
 
   local function SyncOwnKickState(force)
@@ -254,6 +262,9 @@ local function InitializeFactorySecondaryKickTracker(
     C_Timer_ref.NewTicker(0.5, function()
       if IsRaidModeActive() then
         EnterRaidKickSuppression()
+        return
+      end
+      if not IsKickSyncContextActive() then
         return
       end
 

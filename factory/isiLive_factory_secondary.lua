@@ -24,6 +24,14 @@ local function InitializeFactorySecondaryControllers(ctx)
     return type(ctx.IsRaidGroup) == "function" and ctx.IsRaidGroup() == true
   end
 
+  local function IsGroupSyncActive()
+    local isInGroup = type(ctx.IsInGroup) == "function" and ctx.IsInGroup or ctx.isInGroup
+    if type(isInGroup) == "function" and isInGroup() == true then
+      return true
+    end
+    return type(ctx.isInInstanceGroup) == "function" and ctx.isInInstanceGroup() == true
+  end
+
   RegisterBlizzardUnitLanguageTooltip(ctx, modules)
   InitializeFactorySecondaryTestModeAndBindings(ctx, modules, runtimeState)
   InitializeFactorySecondaryRuntimeMethods(ctx, modules)
@@ -36,7 +44,8 @@ local function InitializeFactorySecondaryControllers(ctx)
       getUnitName,
       getRealmName,
       IsMainFrameShown,
-      IsRaidModeActive
+      IsRaidModeActive,
+      IsGroupSyncActive
     )
   end
 end

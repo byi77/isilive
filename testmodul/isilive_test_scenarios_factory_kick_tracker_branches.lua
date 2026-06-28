@@ -198,6 +198,9 @@ return function(test, ctx)
         end,
         function()
           return state.isRaidGroup == true
+        end,
+        function()
+          return opts.inGroup ~= false
         end
       )
     end)

@@ -534,6 +534,9 @@ local function BuildControllerContext(state, addon, initial)
     isInGroup = function()
       return state.inGroup == true
     end,
+    isInInstanceGroup = function()
+      return state.inInstanceGroup == true
+    end,
     GetActiveChallengeMapID = function()
       return state.activeChallengeMapID
     end,
@@ -555,6 +558,7 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
     time = tonumber(initial.time) or 0,
     mainFrameShown = initial.mainFrameShown == true,
     inGroup = initial.inGroup ~= false,
+    inInstanceGroup = initial.inInstanceGroup == true,
     isRaidGroup = initial.isRaidGroup == true,
     activeChallengeMapID = initial.activeChallengeMapID == false and nil or (initial.activeChallengeMapID or 559),
     mplusTimerData = initial.mplusTimerData,
@@ -1914,6 +1918,59 @@ return function(test, ctx)
     Assert.Equal(#state.sentKick, 1, "hidden kick ticker must keep syncing kick state for peers")
     Assert.NotNil(state.lastSetKickInfo, "hidden kick ticker must still update the local kick sync cache")
     Assert.Equal(state.kickRefreshes or 0, 0, "hidden kick ticker must avoid polling-driven UI refreshes")
+  end)
+
+  test("Factory kick ticker skips solo polling while frame is hidden", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mainFrameShown = false,
+      inGroup = false,
+      kickInfo = {
+        spellID = 6552,
+        hasKick = true,
+        onCooldown = false,
+        cooldownRemain = 0,
+      },
+    })
+
+    local ticker = FindTicker(state.tickers, 0.5)
+    Assert.NotNil(ticker, "secondary controller init must register the kick ticker")
+    if type(ticker) ~= "table" or type(ticker.callback) ~= "function" then
+      return
+    end
+
+    ticker.callback()
+
+    Assert.Equal(state.kickScans or 0, 0, "solo kick ticker must not scan local kick state")
+    Assert.Equal(#state.sentKick, 0, "solo kick ticker must not send peer sync")
+    Assert.Nil(state.lastSetKickInfo, "solo kick ticker must not mutate the local kick sync cache")
+    Assert.Equal(state.kickRefreshes or 0, 0, "solo kick ticker must not refresh the visible kick column")
+  end)
+
+  test("Factory hidden kick ticker accepts verified instance groups", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mainFrameShown = false,
+      inGroup = false,
+      inInstanceGroup = true,
+      kickInfo = {
+        spellID = 6552,
+        hasKick = true,
+        onCooldown = false,
+        cooldownRemain = 0,
+      },
+    })
+
+    local ticker = FindTicker(state.tickers, 0.5)
+    Assert.NotNil(ticker, "secondary controller init must register the kick ticker")
+    if type(ticker) ~= "table" or type(ticker.callback) ~= "function" then
+      return
+    end
+
+    ticker.callback()
+
+    Assert.Equal(state.kickScans or 0, 1, "instance-group kick ticker must scan the local kick state")
+    Assert.Equal(#state.sentKick, 1, "instance-group kick ticker must keep syncing kick state")
+    Assert.NotNil(state.lastSetKickInfo, "instance-group kick ticker must update the local kick sync cache")
+    Assert.Equal(state.kickRefreshes or 0, 0, "hidden instance-group kick ticker must avoid UI refreshes")
   end)
 
   test("Factory raid kick tracker suppresses sync until raid ends and then recovers", function()

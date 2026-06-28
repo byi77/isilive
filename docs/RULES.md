@@ -5,7 +5,7 @@
 - KICK- und Sync-Zustaende muessen aus belegbaren Live-Daten oder explizit validierten Peer-Payloads stammen; malformed Payloads werden verworfen statt interpretiert.
 - Wenn ein Runtime-Wert, Zustand oder Zusammenhang nicht auf einer verifizierbaren Quelle beruht, bleibt er unresolved statt einen Fallback zu erfinden.
 - Keine spekulativen Fallbacks, heuristischen Ersatzwerte oder synthetischen Defaults verwenden, ausser sie sind explizit spezifiziert, dokumentiert und durch Tests abgedeckt.
-- Solange das Fenster hidden ist, bleiben Queue-Scanning und nicht-synchrones Polling aus; Background-Sync, eventgetriebenes Pre-Render und das Party-Kick-Keep-Alive bleiben aktiv.
+- Solange das Fenster hidden ist, bleiben Queue-Scanning und nicht-synchrones Polling aus; Background-Sync, eventgetriebenes Pre-Render und das Gruppen-Kick-Keep-Alive fuer normale Gruppen oder verifizierte automatische Instanzgruppen bleiben aktiv. Solo darf der Kick-Heartbeat nicht scannen oder senden.
 - Raid-Gruppen werden als Hard-off-Zustand behandelt: UI ausblenden und jede Hintergrundverarbeitung anhalten, inklusive hidden Kick-Keep-Alive.
 - Slash-Command-Verhalten bleibt rueckwaertskompatibel, ausser es wird explizit geaendert.
 - Additive Aenderungen vor breaking Refactors bevorzugen.

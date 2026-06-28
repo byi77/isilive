@@ -48,7 +48,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 25. (veraltet — Duplikat zu Regel 15) RIO-Delta bleibt immer bei `+0` oder hoeher.
 26. (veraltet — Duplikat zu Regel 2) UI-Toggle per STRG+F9 ausserhalb des Raids.
 27. das schliessen der ui ist jederzeit anforderbar, entweder per klick auf das rote x rechts oben (windows like) oder per STRG+F9; ausser im Raidmodus bleiben blockierte hide-wechsel bis `PLAYER_REGEN_ENABLED` gependelt und werden dann nachgezogen
-28. während die ui ausgeblendet ist, laufen roster/addon-sync im hintergrund weiter und dürfen eventgetrieben vor-rendern; queue-scanning und sonstige dauerhafte polling-last stoppen jedoch, der kick-sync bleibt fuer isiLive-gruppenmitglieder aktiv. Eventgetriebene CD-Refreshes fuer Bloodlust-ready- und Battle-Res-ready-Klanghinweise bleiben hidden erlaubt. `LFG_LIST_APPLICATION_STATUS_UPDATED` bleibt hidden fuer Queue- und Invite-Listenverarbeitung blockiert. Im Raid sind UI und Hintergrund-Sync komplett aus.
+28. während die ui ausgeblendet ist, laufen roster/addon-sync im hintergrund weiter und dürfen eventgetrieben vor-rendern; queue-scanning und sonstige dauerhafte polling-last stoppen jedoch, der kick-sync bleibt fuer isiLive-gruppenmitglieder einschliesslich verifizierter automatischer instanzgruppen aktiv. Eventgetriebene CD-Refreshes fuer Bloodlust-ready- und Battle-Res-ready-Klanghinweise bleiben hidden erlaubt. `LFG_LIST_APPLICATION_STATUS_UPDATED` bleibt hidden fuer Queue- und Invite-Listenverarbeitung blockiert. Im Raid sind UI und Hintergrund-Sync komplett aus.
 29. teleport-eintraege fuer shared spells bleiben deterministisch sortiert und doppelte grid-eintraege werden entfernt.
 30. falls ein anderer user entdeckt wird welcher auch "isiLive" benutzt, hängen wir hinter seinen Namen ein <3 (blaues herz) an
 31. main ui auto-open bleibt bei gruppenbeitritt erhalten, ausser im Raidmodus; key-ende auto-open ist standardmaessig an, aber abschaltbar; automatisches schliessen bei key start ist standardmaessig aus.
@@ -71,8 +71,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 48. Der isiLive-Last-Run-Sync transportiert nur den belastbar verifizierten `DPS`-Wert eines Snapshots; das Roster nutzt `syncDps` nur als Fallback, wenn lokal kein Last-Run-DPS vorliegt.
 49. Der Kick-Tracker bildet den aktuell verfuegbaren Interrupt der aktuellen Spezialisierung ab; Heal-Specs ohne Interrupt (Holy Paladin, Mistweaver Monk, Restoration Druid, Discipline / Holy Priest) melden `hasKick=false`, Devourer Demon Hunter nutzt `Disrupt`, und verfuegbare pet-basierte Warlock-Interrupts zaehlen als eigener Kick.
 50. Die Kicks-Spalte zeigt fuer den lokalen Spieler und fuer isiLive-Gruppenmitglieder den aktuellen Kick-Status an; der kompakte `SYNC_KICK_READY_SHORT`-Marker ist gruen, laufende Cooldowns zeigen rote Restsekunden, `-` steht fuer keinen verfuegbaren Kick oder fehlenden isiLive-Sync, und aktive Kick-Statusaenderungen werden spaetestens einmal pro Sekunde synchronisiert.
-51. Bei ausgeblendeter UI bleibt der komplette isiLive-Gruppensync aktiv; nur nicht-sync-bezogenes Polling wie Queue-Scanning bleibt deaktiviert. Im Raid ist diese Hintergrundverarbeitung komplett aus.
-52. Hidden-Clients senden weiterhin alle gruppenrelevanten isiLive-Sync-Buckets einschliesslich `KEY`, `STATS`, `DPS`, `LOC`, `TARGET` und `KICK`; sichtbarkeitsabhängige Unterdrückung ist nur ohne explizite Hidden-Freigabe erlaubt. Im Raid ist das deaktiviert.
+51. Bei ausgeblendeter UI bleibt der komplette isiLive-Gruppensync fuer normale Gruppen und verifizierte automatische Instanzgruppen aktiv; nur nicht-sync-bezogenes Polling wie Queue-Scanning bleibt deaktiviert. Im Raid ist diese Hintergrundverarbeitung komplett aus.
+52. Hidden-Clients senden weiterhin alle gruppenrelevanten isiLive-Sync-Buckets einschliesslich `KEY`, `STATS`, `DPS`, `LOC`, `TARGET` und `KICK`; sichtbarkeitsabhängige Unterdrückung ist nur ohne explizite Hidden-Freigabe erlaubt. Verifizierte automatische Instanzgruppen zaehlen fuer diese Hidden-Sync-Buckets als Gruppenkontext. Im Raid ist das deaktiviert.
 53. Der Share-Keys-Button ist 30 Sekunden gegen Spam gesperrt; beim eigenen Klick wird der `SHAREKEYS`-Sync vor dem sichtbaren Party-Post dispatcht, lokal startet die Sperre nur nach einem wirksamen Klick mit erfolgreichem eigenem Party-Post oder erfolgreichem `SHAREKEYS`-Sync, und empfangende isiLive-Clients sperren ihren Button bei jedem eingehenden `SHAREKEYS`-Pfad unabhaengig davon, ob sie dabei einen eigenen Party-Post ausloesen koennen. Ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt.
 54. Wenn fuer eine Runtime-Aufloesung keine eindeutige, belastbare Quelle vorliegt, muss das Ergebnis unresolved bleiben; fehlende oder mehrdeutige Laufzeitdaten duerfen nicht durch spekulative Fallbacks, Namens-/Token-Raten, heuristische Standardwerte oder synthetische Zustaende ersetzt werden.
 55. Die Main-UI kann ueber `lockMainFramePosition` gesperrt werden; bei aktivem Lock duerfen Frame und Drag-Handle keinen Positions-Drag starten und die gespeicherte Position bleibt unveraendert.
@@ -410,6 +410,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Factory hidden CD ticker skips polling while frame is hidden
   - Factory hidden explicit CD refresh keeps pre-rendered state current
   - Factory hidden kick ticker keeps syncing while frame is hidden
+  - Factory hidden kick ticker accepts verified instance groups
+  - Factory kick ticker skips solo polling while frame is hidden
   - Roster panel first visible render rescans cd tracker after hidden mode
   - Roster panel visible render does not rescan cd tracker after an explicit cd refresh
 
@@ -693,7 +695,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-HIDDEN-VOLLER-GRUPPENSYNC
 - Regelnummer: 51
 - Status: aktiv
-- Zusammenfassung: Wenn die Main-UI ausgeblendet ist, bleibt der komplette isiLive-Gruppensync fuer aktuelle Gruppenmitglieder aktiv. Hidden-Clients muessen weiterhin eingehende Sync-Nachrichten empfangen und verarbeiten sowie ausgehende Sync-Zustaende fuer Gruppe und Kick senden duerfen; nur nicht-sync-bezogenes Polling wie Queue-Scanning bleibt deaktiviert. Im Raid ist diese Hintergrundverarbeitung komplett aus.
+- Zusammenfassung: Wenn die Main-UI ausgeblendet ist, bleibt der komplette isiLive-Gruppensync fuer aktuelle Gruppenmitglieder und verifizierte automatische Instanzgruppen aktiv. Hidden-Clients muessen weiterhin eingehende Sync-Nachrichten empfangen und verarbeiten sowie ausgehende Sync-Zustaende fuer Gruppe und Kick senden duerfen; nur nicht-sync-bezogenes Polling wie Queue-Scanning bleibt deaktiviert. Im Raid ist diese Hintergrundverarbeitung komplett aus.
 - Erforderliche Tests:
   - Bootstrap gate allows sync events while frame is hidden if configured
   - Config builders gate allows sparse local change events while frame is hidden
@@ -707,16 +709,19 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Sync ProcessAddonMessage deep trace exposes raw bucket payloads and sender bytes
   - KeySync SendRefreshResponse can answer hidden refresh requests
   - Architecture kick tracker uses lightweight kick-column refresh hooks
+  - Factory hidden kick ticker accepts verified instance groups
+  - Factory kick ticker skips solo polling while frame is hidden
 
 ### RULE-HIDDEN-SYNC-BUCKETS-VOLLSTAENDIG
 - Regelnummer: 52
 - Status: aktiv
-- Zusammenfassung: Hidden-Clients duerfen sichtbarkeitsabhaengige Sync-Unterdrueckung nur ohne explizite Hidden-Freigabe anwenden. Fuer gruppenrelevante Hidden-Sync-Pfade muessen weiterhin alle Buckets `KEY`, `STATS`, `DPS`, `LOC`, `TARGET` und `KICK` gesendet werden koennen. Im Raid ist das deaktiviert.
+- Zusammenfassung: Hidden-Clients duerfen sichtbarkeitsabhaengige Sync-Unterdrueckung nur ohne explizite Hidden-Freigabe anwenden. Fuer gruppenrelevante Hidden-Sync-Pfade muessen weiterhin alle Buckets `KEY`, `STATS`, `DPS`, `LOC`, `TARGET` und `KICK` gesendet werden koennen; verifizierte automatische Instanzgruppen zaehlen fuer diese Bucket-Freigabe als Gruppenkontext. Im Raid ist das deaktiviert.
 - Erforderliche Tests:
   - KeySync SendOwnBackgroundSnapshot publishes sparse hidden changes without DPS spam
   - Sync SendTarget respects visibility and deduplicates payloads
   - Event handlers answer refresh requests while frame is hidden
   - Architecture kick tracker uses lightweight kick-column refresh hooks
+  - Factory hidden kick ticker accepts verified instance groups
 
 ### RULE-SHAREKEYS-SPAMSCHUTZ
 - Regelnummer: 53

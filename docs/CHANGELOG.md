@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 2026-06-28 - Version 0.9.340 (patch)
+
+- Fixed the Kick tracker heartbeat so the hidden keep-alive still syncs for
+  grouped clients, including verified automatic instance groups, but solo
+  clients no longer run the 0.5s Kick scan/sync loop.
+- Cleaned up fallback callback signatures in DeathWatch and Power Infusion
+  tracking so Lua diagnostics no longer report redundant callback parameters.
+
 ## 2026-06-28 - Version 0.9.339 (patch)
 
 - Added a hidden non-M+ party-run utility context: verified normal, heroic, and

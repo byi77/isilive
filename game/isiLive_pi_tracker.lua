@@ -119,7 +119,7 @@ function PiTracker.CreateController(opts)
     or DefaultGetUnitClassToken
   local spellIDMatches = type(opts.spellIDMatches) == "function" and opts.spellIDMatches or DefaultSpellIDMatches
   local announcePowerInfusion = type(opts.announcePowerInfusion) == "function" and opts.announcePowerInfusion
-    or function(_casterName, _recipientName, _isLocalRecipient) end
+    or function(_casterName, _recipientName, _isLocalRecipient, _isLocalCaster) end
 
   local recent = {}
 

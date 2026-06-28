@@ -150,7 +150,7 @@ function DeathWatch.CreateController(opts)
     or function()
       return rawget(_G, "IsiLiveDB") or {}
     end
-  local onRoleDeath = type(opts.onRoleDeath) == "function" and opts.onRoleDeath or function(_role, _unit) end
+  local onRoleDeath = type(opts.onRoleDeath) == "function" and opts.onRoleDeath or function(_role, _unit, _opts) end
 
   local controller = {}
   -- Edge-triggered dead flags keyed by GUID, not by unit token: party tokens

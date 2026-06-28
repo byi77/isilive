@@ -3,9 +3,15 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.339`.
+Current release: `0.9.340`.
 
 Highlights:
+- Hidden Kick sync now keeps its grouped keep-alive active for verified
+  automatic instance groups as well as normal groups, while solo clients no
+  longer run the 0.5s Kick scan/sync loop.
+- DeathWatch and Power Infusion fallback callback signatures now match their
+  runtime call sites, removing Lua diagnostics for redundant callback
+  parameters.
 - Normal, heroic, and other verified non-challenge party dungeons can now keep
   selected utility features active while isiLive remains a Mythic+ tool:
   battle-resurrection/Bloodlust display, BR/Lust combat announces, DeathWatch,

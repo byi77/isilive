@@ -1965,6 +1965,7 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
 
   test("Architecture kick tracker uses lightweight kick-column refresh hooks", function()
     local helpersContent = ReadFile("isiLive_factory_kick_tracker.lua")
+    local secondaryFactoryContent = ReadFile("isiLive_factory_secondary.lua")
     local rosterPanelContent = ReadFile("isiLive_roster_panel.lua")
 
     AssertContains(
@@ -1990,6 +1991,24 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       helpersContent,
       "ctx.rosterPanelController.RefreshKickColumn()",
       "factory kick tracking must use the dedicated roster kick refresh path"
+    )
+    AssertContains(
+      Assert,
+      helpersContent,
+      'if type(IsGroupSyncActive) ~= "function" then\n      return false',
+      "factory kick tracking must fail closed when the group-sync gate dependency is missing"
+    )
+    AssertContains(
+      Assert,
+      helpersContent,
+      "if not IsKickSyncContextActive() then",
+      "factory kick ticker must route polling through the group-sync gate"
+    )
+    AssertContains(
+      Assert,
+      secondaryFactoryContent,
+      "ctx.isInInstanceGroup() == true",
+      "factory kick group-sync gate must include verified automatic instance groups"
     )
     AssertContains(
       Assert,

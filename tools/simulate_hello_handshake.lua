@@ -320,7 +320,10 @@ local function BuildSession()
       end,
       function()
         return false
-      end -- IsRaidModeActive
+      end, -- IsRaidModeActive
+      function()
+        return IsInGroup() == true
+      end -- IsGroupSyncActive
     )
   end)
 

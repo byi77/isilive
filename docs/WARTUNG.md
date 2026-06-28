@@ -400,7 +400,7 @@ Aktueller Soll-Zustand:
 - Hidden stoppt Queue-Scanning und dauerhafte Polling-Last
 - `CHAT_MSG_ADDON` und `GROUP_ROSTER_UPDATE` duerfen weiterlaufen
 - eventgetriebenes Vor-Rendern der UI ist erlaubt
-- der dedizierte Kick-Keep-Alive darf hidden fuer Gruppenmitglieder weiterlaufen
+- der dedizierte Kick-Keep-Alive darf hidden fuer normale Gruppen und verifizierte automatische Instanzgruppen weiterlaufen, darf solo aber nicht scannen oder senden
 - der Utility/CD-Poller darf hidden nicht dauerhaft laufen; beim erneuten Anzeigen markiert die Show-Logik den Tracker dirty, und der erste sichtbare Render zieht genau einen frischen CD-Scan
 - Leader-State wird hidden still synchronisiert
 - hidden gibt es keine Notice-/Chat-Ausgabe fuer Leader-Transfers
@@ -410,6 +410,7 @@ Aktueller Soll-Zustand:
 Nicht versehentlich zurueckbauen auf:
 - "alles hidden komplett aus"
 - oder das Gegenteil: permanente Hidden-CPU-Last / Polling
+- oder solo laufender Kick-Heartbeat ohne verifizierte normale Gruppe oder automatische Instanzgruppe
 - oder "Raid verhaelt sich nur wie Hidden" statt echtem Hard-Off
 
 ## 5) Wenn UI oder Runtime geaendert wurde, diese Dateien mitziehen

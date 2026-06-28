@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.339`
+Versionsbasis: `0.9.340`
 Zuletzt aktualisiert: `2026-06-28`
 
 ## Akteure
@@ -13,7 +13,7 @@ Zuletzt aktualisiert: `2026-06-28`
 
 1. Das Addon ist geladen und nicht im Zustand `stopped`.
 2. Das Season-Dataset wird ueber `ACTIVE_SEASON_ID` ausgewaehlt; aktuell `midnight_s1` mit dem live 8-Dungeon-Midnight-Season-1-Portalpool. `midnight_s2` ist nur als vorbereitetes Scaffold vorhanden und bleibt inaktiv, bis Map-IDs, Portal-Spell-IDs, LFG-Activity-IDs und M+-Forces-Daten verifiziert sind.
-3. Die relevante UI ist fuer Queue-Scanning und Rendering sichtbar; waehrend hidden duerfen Addon-Message-Sync und Roster-Updates im Hintergrund weiterlaufen, die UI darf durch frischen Gruppenjoin, Key-Ende, echten Dungeon-Entry-Transition-Flow oder UI-Reload waehrend bestehender Gruppe auto-openen, und explizite Refresh-Requests duerfen genau eine hidden Sync-Reply triggern, auch waehrend eines aktiven Mythic+-Runs; derselbe Refresh-Pfad darf zusaetzlich genau eine `LibKS`-Party-Anfrage an kompatible Nicht-`isiLive`-Peers senden. Wenn LFGDetect bereits einen konkreten lokalen Map-Kontext kennt, gewinnt dieser fuer das Portal-Highlight gegen peer-synced Zielkontext. Nur stopped oder paused unterdruecken die hidden `isiLive`-Reply.
+3. Die relevante UI ist fuer Queue-Scanning und Rendering sichtbar; waehrend hidden duerfen Addon-Message-Sync und Roster-Updates im Hintergrund weiterlaufen, die UI darf durch frischen Gruppenjoin, Key-Ende, echten Dungeon-Entry-Transition-Flow oder UI-Reload waehrend bestehender Gruppe auto-openen, und explizite Refresh-Requests duerfen genau eine hidden Sync-Reply triggern, auch waehrend eines aktiven Mythic+-Runs; derselbe Refresh-Pfad darf zusaetzlich genau eine `LibKS`-Party-Anfrage an kompatible Nicht-`isiLive`-Peers senden. Der dedizierte Kick-Heartbeat bleibt hidden nur fuer verifizierte normale Gruppen oder automatische Instanzgruppen aktiv; solo darf er nicht scannen oder senden. Wenn LFGDetect bereits einen konkreten lokalen Map-Kontext kennt, gewinnt dieser fuer das Portal-Highlight gegen peer-synced Zielkontext. Nur stopped oder paused unterdruecken die hidden `isiLive`-Reply.
 4. Nicht-`isiLive`-Spieler koennen nur dann `Key` und `RIO` beitragen, wenn auf ihrer Seite ein kompatibles `LibKeystone`-sprechendes Addon laeuft; ohne sendenden Addon-Code bleiben diese Daten unresolved.
 5. Raid-Gruppen sind ein eigener Hard-off-Zustand: UI aus und Background-Processing aus; eine vor dem Raid sichtbare Main-UI wird beim Rueckweg aus dem Raid wieder geoeffnet.
 6. Die optionalen `Esc`-Tooling-, Travel-, Mounts- und Addons-Strips sind aktiv, solange der User sie nicht explizit in den Addon-Settings deaktiviert.
@@ -397,7 +397,7 @@ Ziel: isiLive bleibt ein M+-Tool, haelt aber ausgewaehlte Utility-Funktionen in 
 1. Kein spekulatives Verhalten: unresolved oder mehrdeutiger Map-Kontext bleibt unresolved; kein Name-/Token-Fallback-Guessing.
 2. Combat-protected UI-Operationen werden sicher verschoben, waehrend Fensterverschieben moeglich bleibt; Teleport-Action-Buttons duerfen Parent-Frames nicht auf protected promoten.
 3. Leader-only-Aktionen bleiben fuer Nicht-Leader deaktiviert.
-4. Hidden-Modus soll nicht-essentielle Verarbeitung anhalten, Queue-Scanning und permanentes Polling unterdruecken, Background-Roster- und Addon-Message-Sync aktiv halten, eventgetriebene Pre-Rendered-UI-State-Updates erlauben und nur erforderliche Auto-Open-Transitions aktiv halten; das dedizierte Party-Kick-Keep-Alive bleibt hidden aktiv, hidden Leader-Promotions spielen weiterhin den Transfer-Sound, unterdruecken aber Center-Notice und Chat-Output, und hidden `LFG_LIST_*`-Suppression bedeutet, dass verpasste Queue-Capture spaeter beim Gruppenjoin nicht als Chat nachgereicht wird.
+4. Hidden-Modus soll nicht-essentielle Verarbeitung anhalten, Queue-Scanning und permanentes Polling unterdruecken, Background-Roster- und Addon-Message-Sync aktiv halten, eventgetriebene Pre-Rendered-UI-State-Updates erlauben und nur erforderliche Auto-Open-Transitions aktiv halten; das dedizierte Gruppen-Kick-Keep-Alive bleibt hidden nur fuer verifizierte normale Gruppen oder automatische Instanzgruppen aktiv und bleibt solo idle, hidden Leader-Promotions spielen weiterhin den Transfer-Sound, unterdruecken aber Center-Notice und Chat-Output, und hidden `LFG_LIST_*`-Suppression bedeutet, dass verpasste Queue-Capture spaeter beim Gruppenjoin nicht als Chat nachgereicht wird.
 5. Blizzard-CVar-State bleibt autoritativ: `isiLive` spiegelt `advancedCombatLogging` und `damageMeterResetOnNewInstance` nur im Blizzard-Settings-Canvas und schreibt sie nur auf explizite User-Klicks; der Blizzard-Damage-Meter-Reset auf Challenge-Start bleibt aktiv, wenn API-Support existiert.
 6. RIO-Delta-Rendering muss deterministisch und nicht-negativ bleiben; nur `(+X)`.
 7. UI-Visibility-Toggle ueber `CTRL+F9` muss auch im Combat anforderbar bleiben; wenn Combat-Lockdown `Show` oder `Hide` blockiert, wird der angeforderte Zustand auf `PLAYER_REGEN_ENABLED` wiederholt. `CHALLENGE_MODE_START` auto-hidet das Main-Window nur, wenn `Auto-Close on Key Start / Solo` aktiviert ist.

@@ -42,7 +42,7 @@ Der bevorzugte vollstaendige lokale CI-Preflight ist:
 powershell -ExecutionPolicy Bypass -File tools\validate_ci_local.ps1
 ```
 
-Der Wrapper fuehrt Style-, Lint-, Syntax-, Metrics-, Locale-, Secret-Value-, Sound-, API-, Coverage-, Regel- und Usecase-Gates in derselben Reihenfolge aus, in der lokale Release-Vorbereitung sie erwarten sollte. Aktueller Usecase-Stand bei TOC `0.9.339`: `lua tools/validate_usecases.lua` mit `2143 passed, 0 failed`. Letzter voller lokaler Audit-Stand nach dem 0.9.331-Doku-Update: `Local CI preflight passed`, Coverage `92.43%` bei Gate `>=88.00%`.
+Der Wrapper fuehrt Style-, Lint-, Syntax-, Metrics-, Locale-, Secret-Value-, Sound-, API-, Coverage-, Regel- und Usecase-Gates in derselben Reihenfolge aus, in der lokale Release-Vorbereitung sie erwarten sollte. Aktueller Usecase-Stand bei TOC `0.9.340`: `lua tools/validate_usecases.lua` mit `2145 passed, 0 failed`. Letzter voller lokaler Audit-Stand nach dem 0.9.340-Doku-Update: `Local CI preflight passed`, Coverage `92.43%` bei Gate `>=88.00%`.
 
 Die Wrapper `tools/check.ps1` und `tools/check.cmd` fuehren den statischen lokalen Preflight ueber den repo-lokalen `luacheck.cmd`-Shim aus und vermeiden so den Windows-App-Auswahldialog, der beim direkten Aufruf des LuaRocks-`luacheck`-Scripts auftaucht.
 
