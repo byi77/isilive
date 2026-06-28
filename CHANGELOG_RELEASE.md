@@ -3,9 +3,17 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.338`.
+Current release: `0.9.339`.
 
 Highlights:
+- Normal, heroic, and other verified non-challenge party dungeons can now keep
+  selected utility features active while isiLive remains a Mythic+ tool:
+  battle-resurrection/Bloodlust display, BR/Lust combat announces, DeathWatch,
+  and non-challenge DPS capture are available from a verified hidden party-run
+  context.
+- Automatic dungeon finder instance groups now count as a valid grouped context
+  for the hidden party-run BR/Bloodlust display via Blizzard's verified
+  instance-group category.
 - Unholy Death Knights can now enable default-off VIP warnings for Soul Reaper
   and Putrefy. The warnings use only the local Dark Transformation cast and
   verified actionbar spell IDs or secure action button attributes, and the
@@ -16,7 +24,15 @@ Highlights:
 - VIP settings now include a default-off Bloodlust button warning for BL classes.
   While the player has a Sated/Exhaustion debuff, verified Bloodlust class or
   pet action buttons receive the same red cross overlay used by the DK warnings;
-  drums are intentionally excluded.
+  drums are intentionally excluded. The setting now sits as a top-level VIP
+  option directly below the Trader's Gilded Brutosaur mute, before a thin blue
+  separator and the DK-specific settings.
+- Marksmanship Hunter `Harrier's Cry` / `Schrei des Hetzers` (`466904`) now
+  counts as a verified Bloodlust spell for M+ Lust announces and the VIP
+  Bloodlust button debuff warning.
+- Mage Time Warp action buttons were ingame-validated to resolve to spell ID
+  `80353`; unresolved external Time Warp variants are not added, and drums
+  remain intentionally excluded from the VIP Bloodlust button warning.
 - The VIP DK settings now include a default-off child toggle for muting the
   Riders of the Apocalypse horse summon sounds.
 - The VIP DK settings now include a default-off movable missing-ghoul reminder

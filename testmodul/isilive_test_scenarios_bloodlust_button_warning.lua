@@ -214,6 +214,7 @@ local function RegisterBloodlustButtonWarningTests(test, Assert, WithGlobals, Lo
       },
       ActionButton1 = BuildVisibleActionButton(2825),
       ActionButton2 = BuildVisibleActionButton(381301),
+      ActionButton3 = BuildVisibleActionButton(466904),
       CreateFrame = function(_, _, parent)
         local overlay = {
           parent = parent,
@@ -258,9 +259,11 @@ local function RegisterBloodlustButtonWarningTests(test, Assert, WithGlobals, Lo
       local controller = LoadController().CreateController()
       controller.Refresh()
 
-      Assert.Equal(#overlays, 1, "only the exact class Bloodlust spell should receive an overlay")
+      Assert.Equal(#overlays, 2, "exact class Bloodlust spells should receive overlays while drums stay ignored")
       Assert.Equal(overlays[1].parent, globals.ActionButton1, "drums must not count as a Bloodlust class button")
+      Assert.Equal(overlays[2].parent, globals.ActionButton3, "Harrier's Cry must count as a Hunter Bloodlust button")
       Assert.True(overlays[1].shown, "exact Bloodlust overlay should be shown")
+      Assert.True(overlays[2].shown, "Harrier's Cry overlay should be shown")
       Assert.Equal(#overlays[1].textures, 2, "shared cross overlay should create both red bars")
     end)
   end)

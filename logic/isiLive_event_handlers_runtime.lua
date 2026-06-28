@@ -141,19 +141,28 @@ local function ResolveTrackedMythicZeroMapID()
   return math.floor(mapID)
 end
 
+local function ClearTrackedPartyRunState(ctx)
+  ctx.activeMythicZeroMapID = nil
+  ctx.activeMythicZeroRosterSnapshot = nil
+  ctx.pendingMythicZeroRunCapture = nil
+  if type(ctx.clearTrackedPartyRunInfo) == "function" then
+    ctx.clearTrackedPartyRunInfo()
+  end
+end
+
 local function GetTrackedMythicZeroState(ctx)
   if ctx.isInChallengeMode() then
-    return false, nil
+    return false, nil, nil, nil
   end
 
-  local okInstance, _, instanceType, difficultyID = pcall(GetInstanceInfo)
+  local okInstance, instanceName, instanceType, difficultyID = pcall(GetInstanceInfo)
   -- Legacy helper name: this now tracks all supported non-challenge party dungeons
   -- so last-run DPS also appears after normal and heroic completions.
   if not okInstance or instanceType ~= "party" or not TRACKED_NON_CHALLENGE_PARTY_DIFFICULTY_IDS[difficultyID] then
-    return false, nil
+    return false, nil, nil, nil
   end
 
-  return true, ResolveTrackedMythicZeroMapID()
+  return true, ResolveTrackedMythicZeroMapID(), difficultyID, instanceName
 end
 
 local function CloneRosterSnapshotForStats(roster)
@@ -241,7 +250,7 @@ RetryTrackedMythicZeroRunCapture = function(ctx, runInfo, retriesRemaining)
 end
 
 local function UpdateTrackedMythicZeroRun(ctx)
-  local isTrackedMythicZero, currentMapID = GetTrackedMythicZeroState(ctx)
+  local isTrackedMythicZero, currentMapID, currentDifficultyID, currentInstanceName = GetTrackedMythicZeroState(ctx)
   local previousMapID = tonumber(ctx.activeMythicZeroMapID)
   local roster = ctx.getRoster()
 
@@ -252,6 +261,17 @@ local function UpdateTrackedMythicZeroRun(ctx)
     end
     if not previousMapID and currentMapID then
       ctx.activeMythicZeroMapID = currentMapID
+    end
+    if currentMapID and currentDifficultyID then
+      if type(ctx.setTrackedPartyRunInfo) == "function" then
+        ctx.setTrackedPartyRunInfo({
+          mapID = currentMapID,
+          difficultyID = currentDifficultyID,
+          instanceName = currentInstanceName,
+        })
+      end
+    elseif type(ctx.clearTrackedPartyRunInfo) == "function" then
+      ctx.clearTrackedPartyRunInfo()
     end
     return
   end
@@ -273,6 +293,9 @@ local function UpdateTrackedMythicZeroRun(ctx)
   end
   ctx.activeMythicZeroMapID = nil
   ctx.activeMythicZeroRosterSnapshot = nil
+  if type(ctx.clearTrackedPartyRunInfo) == "function" then
+    ctx.clearTrackedPartyRunInfo()
+  end
 end
 
 local function CaptureTrackedMythicZeroRosterSnapshotIfPending(ctx)
@@ -856,6 +879,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       )
     end
     if IsRaidModeActive(ctx) then
+      ClearTrackedPartyRunState(ctx)
       ctx.wasInPartyInstance = inPartyInstance
       return
     end

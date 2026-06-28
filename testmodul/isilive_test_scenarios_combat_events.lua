@@ -298,6 +298,26 @@ local function RegisterCombatEventsLustTests(test, ctx)
     Assert.Equal(broadcasts[1].spellID, 2825, "broadcast must carry the Bloodlust spellID")
   end)
 
+  test("CombatEvents broadcasts Marksmanship Hunter Harrier's Cry as Bloodlust when in key", function()
+    local addon = nil
+    WithGlobals(BuildCombatEventsEnv(), function()
+      addon = LoadAddonModules({ "isiLive_combat_events.lua" })
+    end)
+    local broadcasts = {}
+    local controller = BuildController({
+      addon = addon,
+      broadcasts = broadcasts,
+      nameMap = {
+        player = "Hunter-Realm",
+      },
+    })
+    controller.HandleUnitSpellcastSucceeded("player", "cast-1", 466904)
+    Assert.Equal(#broadcasts, 1, "Harrier's Cry must broadcast as a Bloodlust cast")
+    Assert.Equal(broadcasts[1].kind, "LUST", "Harrier's Cry broadcast kind must be LUST")
+    Assert.Equal(broadcasts[1].caster, "Hunter-Realm", "Harrier's Cry must display the casting hunter")
+    Assert.Equal(broadcasts[1].spellID, 466904, "Harrier's Cry broadcast must keep its triggering spellID")
+  end)
+
   test("CombatEvents broadcasts owned pet Bloodlust as the local player", function()
     local addon = nil
     WithGlobals(BuildCombatEventsEnv(), function()

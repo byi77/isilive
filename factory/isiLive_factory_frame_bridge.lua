@@ -84,6 +84,16 @@ local function CreateFactoryContext(addonName, tbl)
     return type(isInGroup) == "function" and isInGroup() == true
   end
 
+  ctx.isInInstanceGroup = function()
+    local isInGroup = rawget(_G, "IsInGroup")
+    local instanceCategory = rawget(_G, "LE_PARTY_CATEGORY_INSTANCE")
+    if type(isInGroup) ~= "function" or instanceCategory == nil then
+      return false
+    end
+    local ok, inInstanceGroup = pcall(isInGroup, instanceCategory)
+    return ok and inInstanceGroup == true
+  end
+
   ctx.GetL = function()
     return ctx.L
   end

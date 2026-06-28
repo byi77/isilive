@@ -99,6 +99,29 @@ local function RegisterRuntimeStateTests(test, Assert, LoadAddonModules)
     )
   end)
 
+  test("RuntimeState stores verified tracked party-run context and fails closed for invalid data", function()
+    local addon = LoadAddonModules({ "isiLive_runtime_state.lua" })
+    local state = addon.RuntimeState.CreateController()
+
+    Assert.False(state.IsTrackedPartyRunActive(), "tracked party-run context must start inactive")
+    state.SetTrackedPartyRunInfo({
+      mapID = 2649,
+      difficultyID = 1,
+      instanceName = "Priory of the Sacred Flame",
+    })
+
+    local info = state.GetTrackedPartyRunInfo()
+    Assert.True(state.IsTrackedPartyRunActive(), "verified party-run context must activate the utility gate")
+    Assert.Equal(info.mapID, 2649, "tracked party-run context must preserve verified map id")
+    Assert.Equal(info.difficultyID, 1, "tracked party-run context must preserve verified difficulty id")
+    Assert.Equal(info.instanceName, "Priory of the Sacred Flame", "tracked party-run context may preserve instance name")
+
+    state.SetTrackedPartyRunInfo({ difficultyID = 1 })
+    Assert.False(state.IsTrackedPartyRunActive(), "missing map id must clear tracked party-run context")
+    state.SetTrackedPartyRunInfo({ mapID = 2649 })
+    Assert.False(state.IsTrackedPartyRunActive(), "missing difficulty id must keep tracked party-run context closed")
+  end)
+
   test("RuntimeState rio baseline clear resets snapshot and delta flags", function()
     local addon = LoadAddonModules({ "isiLive_runtime_state.lua" })
     local state = addon.RuntimeState.CreateController({

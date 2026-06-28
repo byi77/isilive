@@ -392,6 +392,8 @@ local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, 
       mapID = 2662,
     }
     local recordedRuns = {}
+    local trackedContexts = {}
+    local clearTrackedContexts = 0
     local roster = {
       player = { name = "Me", realm = "MyRealm" },
       party1 = { name = "Buddy", realm = "Realm" },
@@ -459,6 +461,8 @@ local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, 
       mapID = 2649,
     }
     local recordedRuns = {}
+    local trackedContexts = {}
+    local clearTrackedContexts = 0
     local roster = {
       player = { name = "Me", realm = "MyRealm" },
       party1 = { name = "Buddy", realm = "Realm" },
@@ -492,9 +496,23 @@ local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, 
             onTime = onTime,
           })
         end,
+        setTrackedPartyRunInfo = function(value)
+          trackedContexts[#trackedContexts + 1] = value
+        end,
+        clearTrackedPartyRunInfo = function()
+          clearTrackedContexts = clearTrackedContexts + 1
+        end,
       })
 
       controller:Dispatch("PLAYER_ENTERING_WORLD")
+      Assert.Equal(#trackedContexts, 1, "normal dungeon entry must publish a verified tracked party-run context")
+      Assert.Equal(trackedContexts[1].mapID, 2649, "tracked party-run context must carry the verified map id")
+      Assert.Equal(trackedContexts[1].difficultyID, 1, "tracked party-run context must carry the verified difficulty id")
+      Assert.Equal(
+        trackedContexts[1].instanceName,
+        "Priory of the Sacred Flame",
+        "tracked party-run context must carry the verified instance name when available"
+      )
 
       current.instanceType = "none"
       current.difficultyID = 0
@@ -508,6 +526,7 @@ local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, 
     Assert.Equal(recordedRuns[1].mapID, 2649, "normal dungeon exit should keep the recorded dungeon map id")
     Assert.Equal(recordedRuns[1].level, 0, "normal dungeon snapshots should keep non-key level 0")
     Assert.Nil(recordedRuns[1].onTime, "normal dungeon snapshots have no timed-run flag")
+    Assert.True(clearTrackedContexts > 0, "normal dungeon exit must clear the tracked party-run utility context")
   end)
 end
 

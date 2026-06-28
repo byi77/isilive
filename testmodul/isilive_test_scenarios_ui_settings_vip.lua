@@ -69,6 +69,7 @@ return function(test, ctx)
       local soulReaperCheck = nil
       local putrefyCheck = nil
       local bloodlustDebuffCheck = nil
+      local dkSeparator = nil
       local dkHorseCheck = nil
       local ghoulReminderCheck = nil
       for _, frame in ipairs(createdFrames) do
@@ -87,6 +88,8 @@ return function(test, ctx)
           putrefyCheck = frame
         elseif frame._settingKey == "SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING" then
           bloodlustDebuffCheck = frame
+        elseif frame._settingKey == "SETTINGS_VIP_DK_SEPARATOR" then
+          dkSeparator = frame
         elseif frame._settingKey == "SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND" then
           dkHorseCheck = frame
         elseif frame._settingKey == "SETTINGS_VIP_DK_GHOUL_REMINDER" then
@@ -102,9 +105,22 @@ return function(test, ctx)
       putrefyCheck = Assert.NotNil(putrefyCheck, "settings panel should create the VIP DK Putrefy checkbox")
       bloodlustDebuffCheck =
         Assert.NotNil(bloodlustDebuffCheck, "settings panel should create the VIP Bloodlust debuff checkbox")
+      dkSeparator = Assert.NotNil(dkSeparator, "settings panel should create the blue VIP DK separator")
       dkHorseCheck = Assert.NotNil(dkHorseCheck, "settings panel should create the VIP DK horse-sound child checkbox")
       ghoulReminderCheck =
         Assert.NotNil(ghoulReminderCheck, "settings panel should create the VIP DK ghoul-reminder child checkbox")
+
+      local _, _, _, bloodlustX = bloodlustDebuffCheck:GetPoint()
+      local _, _, _, dkHorseX = dkHorseCheck:GetPoint()
+      local _, _, _, ghoulReminderX = ghoulReminderCheck:GetPoint()
+      Assert.Equal(bloodlustX, 16, "Bloodlust debuff warning should be a top-level VIP checkbox")
+      Assert.Equal(dkHorseX, 32, "DK horse-sound mute should stay visually nested under the DK block")
+      Assert.Equal(ghoulReminderX, 32, "DK ghoul reminder should stay visually nested under the DK block")
+      Assert.Equal(dkSeparator._height, 1, "VIP DK separator should be a thin one-pixel line")
+      Assert.NotNil(dkSeparator.line, "VIP DK separator should own a visible line texture")
+      Assert.Equal(dkSeparator.line._height, 1, "VIP DK separator texture should be one pixel tall")
+      Assert.Equal(dkSeparator.line._color[1], 0.3, "VIP DK separator should use the accent-blue red channel")
+      Assert.Equal(dkSeparator.line._color[4], 0.42, "VIP DK separator should use the subtle section alpha")
 
       Assert.False(aurochsCheck:GetChecked(), "astral aurochs sound mute should default to off")
       Assert.False(yakCheck:GetChecked(), "grand expedition yak sound mute should default to off")

@@ -635,6 +635,45 @@ local function RegisterFactoryWiringTests(test, ctx)
     Assert.Equal(sounds[2], "healer_died", "healer death must play the healer WAV file")
   end)
 
+  test("Factory death alert treats verified party-run context as death-watch context", function()
+    local capturedDeps = nil
+    local addon
+    WithGlobals({}, function()
+      addon = LoadAddonModules({
+        "isiLive_factory_death_alert.lua",
+      }, {
+        DeathAlert = {
+          SetDependencies = function() end,
+        },
+        DeathWatch = {
+          SetDependencies = function(deps)
+            capturedDeps = deps
+          end,
+        },
+      })
+    end)
+
+    local trackedPartyRunActive = true
+    addon._FactoryInternal.InitializeFactoryDeathAlertControllers({
+      GetL = function()
+        return {}
+      end,
+      GetActiveChallengeMapID = function()
+        return nil
+      end,
+      runtimeState = {
+        IsTrackedPartyRunActive = function()
+          return trackedPartyRunActive
+        end,
+      },
+    })
+
+    Assert.Equal(type(capturedDeps), "table", "DeathWatch must receive dependencies")
+    Assert.True(capturedDeps.isInKey(), "verified tracked party-run context must enable DeathWatch utility tracking")
+    trackedPartyRunActive = false
+    Assert.False(capturedDeps.isInKey(), "DeathWatch must fail closed without M+ or tracked party-run context")
+  end)
+
   test("SoundUtils registry gates tank and healer death WAV files behind separate settings", function()
     local addon
     WithGlobals({}, function()

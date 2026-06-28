@@ -154,6 +154,179 @@ return function(test, ctx)
     Assert.True(deps.isInKey(), "running M+ timer must keep combat announces enabled when map ID is masked")
   end)
 
+  test("factory split coverage: combat announce gate accepts verified tracked party-run context", function()
+    local deps
+    local addon = LoadAddonModules({ "isiLive_factory_combat_announces.lua" })
+    addon.CombatEvents = {
+      SetDependencies = function(value)
+        deps = value
+      end,
+    }
+
+    local trackedPartyRunActive = true
+    local factoryCtx = {
+      runtimeState = {
+        IsTrackedPartyRunActive = function()
+          return trackedPartyRunActive
+        end,
+      },
+      GetActiveChallengeMapID = function()
+        return nil
+      end,
+      GetL = function()
+        return {}
+      end,
+      Print = function() end,
+      modules = {},
+    }
+
+    addon._FactoryInternal.InitializeFactoryCombatAnnounceControllers(factoryCtx)
+
+    Assert.True(deps.isInKey(), "verified tracked party-run context must enable combat utility announces")
+    trackedPartyRunActive = false
+    Assert.False(deps.isInKey(), "without M+ or tracked party-run context combat announces must fail closed")
+  end)
+
+  test("factory split coverage: CD tracker UI gate accepts verified tracked party-run context", function()
+    local addon = LoadAddonModules({ "isiLive_factory_cd_tracker.lua" })
+    local scans = 0
+    local uiController = nil
+    local trackedPartyRunActive = true
+    local factoryCtx = {
+      addonTable = {},
+      isInGroup = function()
+        return true
+      end,
+      rosterPanelController = {
+        SetCdController = function(controller)
+          uiController = controller
+        end,
+        RefreshCdTracker = function() end,
+      },
+    }
+    local modules = {
+      cdTracker = {
+        CreateController = function()
+          return {
+            Scan = function()
+              scans = scans + 1
+            end,
+            ClearRuntimeData = function() end,
+            GetBResInfo = function()
+              return { charges = 1, maxCharges = 1, cooldownRemain = 0 }
+            end,
+            GetLustInfo = function()
+              return nil
+            end,
+          }
+        end,
+      },
+    }
+    local runtimeState = {
+      IsTrackedPartyRunActive = function()
+        return trackedPartyRunActive
+      end,
+      IsReadyCheckActive = function()
+        return false
+      end,
+      HasReadyCheckHold = function()
+        return false
+      end,
+    }
+
+    WithGlobals({
+      C_Timer = {
+        NewTicker = function()
+          return { Cancel = function() end }
+        end,
+      },
+    }, function()
+      addon._FactoryInternal.InitializeFactorySecondaryCdTracker(factoryCtx, modules, runtimeState, function()
+        return 0
+      end, function()
+        return true
+      end, function()
+        return false
+      end)
+      factoryCtx.UpdateCdTracker()
+    end)
+
+    Assert.True(scans > 0, "tracked party-run context must allow CD tracker scans")
+    Assert.Equal(type(uiController), "table", "CD tracker UI controller must be wired")
+    Assert.NotNil(uiController.GetBResInfo(), "tracked party-run context must expose BR info to the UI")
+    trackedPartyRunActive = false
+    Assert.Nil(uiController.GetBResInfo(), "CD tracker UI must fail closed after party-run context clears")
+  end)
+
+  test("factory split coverage: CD tracker UI gate accepts verified tracked party-run instance group context", function()
+    local addon = LoadAddonModules({ "isiLive_factory_cd_tracker.lua" })
+    local uiController = nil
+    local factoryCtx = {
+      addonTable = {},
+      isInGroup = function()
+        return false
+      end,
+      isInInstanceGroup = function()
+        return true
+      end,
+      rosterPanelController = {
+        SetCdController = function(controller)
+          uiController = controller
+        end,
+        RefreshCdTracker = function() end,
+      },
+    }
+    local modules = {
+      cdTracker = {
+        CreateController = function()
+          return {
+            Scan = function() end,
+            ClearRuntimeData = function() end,
+            GetBResInfo = function()
+              return { charges = 1, maxCharges = 1, cooldownRemain = 0 }
+            end,
+            GetLustInfo = function()
+              return nil
+            end,
+          }
+        end,
+      },
+    }
+    local runtimeState = {
+      IsTrackedPartyRunActive = function()
+        return true
+      end,
+      IsReadyCheckActive = function()
+        return false
+      end,
+      HasReadyCheckHold = function()
+        return false
+      end,
+    }
+
+    WithGlobals({
+      C_Timer = {
+        NewTicker = function()
+          return { Cancel = function() end }
+        end,
+      },
+    }, function()
+      addon._FactoryInternal.InitializeFactorySecondaryCdTracker(factoryCtx, modules, runtimeState, function()
+        return 0
+      end, function()
+        return true
+      end, function()
+        return false
+      end)
+    end)
+
+    Assert.Equal(type(uiController), "table", "CD tracker UI controller must be wired for instance-group context")
+    Assert.NotNil(
+      uiController.GetBResInfo(),
+      "tracked party-run instance group must expose BR info even when the normal group category is false"
+    )
+  end)
+
   test("factory split coverage: VIP DK assist receives localized ghoul reminder text", function()
     local deps
     local addon = LoadAddonModules({ "isiLive_factory_combat_announces.lua" })

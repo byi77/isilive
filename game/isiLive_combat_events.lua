@@ -21,6 +21,7 @@ local LUST_CAST_IDS = {
   [80353] = true, -- Time Warp (Mage)
   [264667] = true, -- Primal Rage (Hunter Ferocity Pet)
   [390386] = true, -- Fury of the Aspects (Evoker)
+  [466904] = true, -- Harrier's Cry (Marksmanship Hunter)
   [381301] = true, -- Feral Hide Drums
   [178207] = true, -- Drums of Fury
   [230935] = true, -- Drums of the Mountain

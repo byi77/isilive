@@ -20,6 +20,17 @@ local function IsMplusTimerRunning()
   return type(data) == "table" and data.running == true
 end
 
+local function IsTrackedPartyRunActive(ctx)
+  local runtimeState = type(ctx) == "table" and ctx.runtimeState or nil
+  if type(runtimeState) == "table" and type(runtimeState.IsTrackedPartyRunActive) == "function" then
+    return runtimeState.IsTrackedPartyRunActive() == true
+  end
+  if type(ctx) == "table" and type(ctx.IsTrackedPartyRunActive) == "function" then
+    return ctx.IsTrackedPartyRunActive() == true
+  end
+  return false
+end
+
 -- Static WAV only. The bundled death WAVs exist for tank and healer; damage
 -- dealer deaths keep their DeathWatch counting path but have no audio asset.
 local function PlayRoleDeathSound(role, opts)
@@ -110,6 +121,9 @@ local function InitializeFactoryDeathAlertControllers(ctx)
       end,
       isInKey = function()
         if IsMplusTimerRunning() then
+          return true
+        end
+        if IsTrackedPartyRunActive(ctx) then
           return true
         end
         -- secret-value-ok: ctx wrapper is pcall-protected.

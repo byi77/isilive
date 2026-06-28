@@ -42,6 +42,11 @@ local function BuildContext(opts)
     end
     return instanceType == "party"
   end)
+  ctx.setTrackedPartyRunInfo = OptionalFunction(opts.setTrackedPartyRunInfo, function(_value) end)
+  ctx.clearTrackedPartyRunInfo = OptionalFunction(opts.clearTrackedPartyRunInfo, function() end)
+  ctx.isTrackedPartyRunActive = OptionalFunction(opts.isTrackedPartyRunActive, function()
+    return false
+  end)
   ctx.wasInPartyInstance = nil
   ctx.isTestMode = RequireFunction(opts.isTestMode, "isTestMode")
   ctx.isTestAllMode = RequireFunction(opts.isTestAllMode, "isTestAllMode")

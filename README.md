@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.0.7+ Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%2B%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.338](https://img.shields.io/badge/isiLive-0.9.338-1E90FF?style=for-the-badge)
+![isiLive 0.9.339](https://img.shields.io/badge/isiLive-0.9.339-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -96,7 +96,7 @@ When you join a group, isiLive gives you a colorful, compact overview of the thi
 - Track enemy forces through a bottom progress bar, live pull prediction, nameplates, and mob tooltips.
 - Watch Battle Res, Bloodlust, M+ timer cutoffs, and death counts without opening extra panels.
 - Get clear red tank/healer death alerts during active keys, with separate sound toggles.
-- Use optional VIP helpers: default-off DK Soul Reaper and Putrefy warnings, Riders horse sound mute, a localized movable missing-ghoul reminder, and a default-off Bloodlust button debuff warning for BL classes.
+- Use optional VIP helpers: a default-off Bloodlust button debuff warning for verified BL class and pet buttons, including ingame-validated Mage Time Warp `80353` and Marksmanship Hunter Harrier's Cry `466904`, plus a separated DK block for Soul Reaper / Putrefy warnings, Riders horse sound mute, and a localized movable missing-ghoul reminder.
 - Keep departed players as ghost rows so post-wipe or post-reset context does not vanish immediately.
 - Use optional support tools: ESC-menu shortcuts, Hearthstone and Dalaran travel shortcuts, player stats box, nameplate controls, safe position lock, runtime logs, and demo simulation tablet.
 
@@ -346,7 +346,7 @@ Open via **Escape → AddOns → isiLive**. Everything takes effect immediately.
 - **Sounds** — lead transfer, full group, ready-check complete, incoming summon, Battle Res, Battle Res Ready, Bloodlust, Bloodlust Ready, and tank/healer death alert; all isiLive alerts use bundled sound assets and the selected sound channel
 - **Chat Announcements** — announce Battle Res / announce Bloodlust
 - **Administrative** — Advanced Combat Logging, Blizzard Damage Meter reset, queue debug log, runtime log (both reset on reload, for support), plus dedicated **Clear Queue Debug Log** / **Clear Runtime Log** buttons and reset actions
-- **VIP Guest Settings** — mount sound mute toggles for Astral Aurochs, Grand Expedition Yak, and Trader's Gilded Brutosaur, plus default-off VIP DK child settings for Soul Reaper / Putrefy warnings, Riders horse sound mute, a movable localized missing-ghoul reminder, and a default-off Bloodlust button debuff warning for BL classes
+- **VIP Guest Settings** — mount sound mute toggles for Astral Aurochs, Grand Expedition Yak, and Trader's Gilded Brutosaur, a default-off Bloodlust button debuff warning for verified BL class and pet buttons, then a separated DK block with Soul Reaper / Putrefy warnings, Riders horse sound mute, and a movable localized missing-ghoul reminder
 
 ### Languages and translations
 

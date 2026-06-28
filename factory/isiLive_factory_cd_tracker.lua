@@ -47,6 +47,20 @@ local function InitializeFactorySecondaryCdTracker(
     return false
   end
 
+  local function IsTrackedPartyRunActive()
+    if runtimeState and type(runtimeState.IsTrackedPartyRunActive) == "function" then
+      return runtimeState.IsTrackedPartyRunActive() == true
+    end
+    if type(ctx.IsTrackedPartyRunActive) == "function" then
+      return ctx.IsTrackedPartyRunActive() == true
+    end
+    return false
+  end
+
+  local function IsCombatUtilityContextActive()
+    return IsMplusTimerRunning() or IsTrackedPartyRunActive()
+  end
+
   local function IsActiveChallengeContext()
     if type(ctx.GetActiveChallengeMapID) ~= "function" then
       return true
@@ -65,11 +79,14 @@ local function InitializeFactorySecondaryCdTracker(
     return true
   end
 
-  local function IsGroupedReadySoundContext()
-    if type(ctx.isInGroup) ~= "function" then
-      return false
+  local function IsGroupedUtilityContext()
+    if type(ctx.isInGroup) == "function" and ctx.isInGroup() == true then
+      return true
     end
-    return ctx.isInGroup() == true
+    if type(ctx.isInInstanceGroup) == "function" and ctx.isInInstanceGroup() == true then
+      return true
+    end
+    return false
   end
 
   local function PlayBloodlustReadySound()
@@ -110,12 +127,13 @@ local function InitializeFactorySecondaryCdTracker(
       return
     end
     local mplusRunning = IsMplusTimerRunning()
-    local readySoundContextActive = mplusRunning and IsGroupedReadySoundContext() and IsActiveChallengeContext()
+    local combatUtilityContextActive = mplusRunning or IsTrackedPartyRunActive()
+    local readySoundContextActive = mplusRunning and IsGroupedUtilityContext() and IsActiveChallengeContext()
     if mplusRunning and not lastMplusRunning then
       lastBResCharges = nil
       lastBResCooldownRemain = nil
     end
-    if resetRuntimeTimers or not mplusRunning then
+    if resetRuntimeTimers or not combatUtilityContextActive then
       ClearReadySoundState()
       if ctx.cdTrackerController and type(ctx.cdTrackerController.ClearRuntimeData) == "function" then
         ctx.cdTrackerController.ClearRuntimeData()
@@ -227,13 +245,13 @@ local function InitializeFactorySecondaryCdTracker(
         ctx.UpdateCdTracker({ fromVisibleRender = true })
       end,
       GetBResInfo = function()
-        if not IsMplusTimerRunning() or not IsGroupedReadySoundContext() then
+        if not IsCombatUtilityContextActive() or not IsGroupedUtilityContext() then
           return nil
         end
         return type(ctx.cdTrackerController.GetBResInfo) == "function" and ctx.cdTrackerController.GetBResInfo() or nil
       end,
       GetLustInfo = function()
-        if not IsMplusTimerRunning() or not IsGroupedReadySoundContext() then
+        if not IsCombatUtilityContextActive() or not IsGroupedUtilityContext() then
           return nil
         end
         local info = type(ctx.cdTrackerController.GetLustInfo) == "function" and ctx.cdTrackerController.GetLustInfo()
@@ -241,7 +259,7 @@ local function InitializeFactorySecondaryCdTracker(
         if info ~= nil then
           return info
         end
-        if lustReadyDisplayActive and IsMplusTimerRunning() and IsGroupedReadySoundContext() then
+        if lustReadyDisplayActive and IsMplusTimerRunning() and IsGroupedUtilityContext() then
           return { remain = 0 }
         end
         return nil
@@ -286,7 +304,7 @@ local function InitializeFactorySecondaryCdTracker(
       if not IsMainFrameShown() then
         return
       end
-      local needsTick = IsMplusTimerRunning()
+      local needsTick = IsCombatUtilityContextActive()
       if not needsTick and ctx.cdTrackerController and type(ctx.cdTrackerController.GetLustInfo) == "function" then
         local lustInfo = ctx.cdTrackerController.GetLustInfo()
         if lustInfo and tonumber(lustInfo.remain) and lustInfo.remain > 0 then

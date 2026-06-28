@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+## 2026-06-28 - Version 0.9.339 (patch)
+
+- Added a hidden non-M+ party-run utility context: verified normal, heroic, and
+  other tracked non-challenge party dungeons can now keep selected utility
+  features active, while isiLive remains documented and branded as a Mythic+
+  tool. Battle-resurrection/Bloodlust display, BR/Lust combat announces,
+  DeathWatch, and non-challenge DPS capture may use the verified context; M+
+  timers, Forces, RIO deltas, key levels, portal targets, and ready-sound
+  reminders remain M+-only.
+- Added deterministic coverage for the verified tracked-party-run RuntimeState,
+  event lifecycle, CD tracker UI gate, combat announce gate, and DeathWatch
+  factory gate. Ingame validation for the hidden non-M+ utility context is still
+  pending and remains the deciding release check for the feature.
+- The hidden party-run utility context now treats automatic dungeon finder
+  instance groups as a valid grouped UI context via
+  `IsInGroup(LE_PARTY_CATEGORY_INSTANCE)`, so BR/Bloodlust display is not tied
+  to the normal party category only.
+- Reordered the VIP settings so the Bloodlust button warning is a top-level VIP
+  option directly below the Trader's Gilded Brutosaur mute, followed by a thin
+  blue separator before the DK-specific settings.
+- Added Marksmanship Hunter `Harrier's Cry` / `Schrei des Hetzers`
+  (`466904`) to the verified Bloodlust spell lists for M+ Lust announces and
+  the VIP Bloodlust button debuff warning.
+- Documented the ingame Mage validation for Time Warp action buttons: the live
+  button resolved to spell ID `80353`, so the unresolved external variant
+  `428941` stays out of the verified Bloodlust spell lists. Drums remain
+  intentionally excluded from the VIP Bloodlust button warning.
+
 ## 2026-06-28 - Version 0.9.338 (patch)
 
 - Added a default-off VIP Bloodlust button debuff warning for BL classes. While

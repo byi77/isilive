@@ -45,6 +45,7 @@ function RuntimeState.CreateController(opts)
     wasGroupLeader = opts.wasGroupLeader,
     wasInGroup = NormalizeBoolean(opts.wasInGroup),
     wasRaidGroup = NormalizeBoolean(opts.wasRaidGroup),
+    trackedPartyRun = type(opts.trackedPartyRun) == "table" and CopyTableShallow(opts.trackedPartyRun) or nil,
     rioBaselineByPlayerKey = type(opts.rioBaselineByPlayerKey) == "table" and opts.rioBaselineByPlayerKey or {},
     hasRioBaselineSnapshot = NormalizeBoolean(opts.hasRioBaselineSnapshot),
     isRioDeltaDisplayEnabled = NormalizeBoolean(opts.isRioDeltaDisplayEnabled),
@@ -267,6 +268,39 @@ function RuntimeState.CreateController(opts)
     state.wasRaidGroup = NormalizeBoolean(value)
   end
 
+  function controller.SetTrackedPartyRunInfo(value)
+    if type(value) ~= "table" then
+      state.trackedPartyRun = nil
+      return
+    end
+    local mapID = tonumber(value.mapID)
+    local difficultyID = tonumber(value.difficultyID)
+    if not mapID or mapID <= 0 or not difficultyID or difficultyID <= 0 then
+      state.trackedPartyRun = nil
+      return
+    end
+    state.trackedPartyRun = {
+      mapID = math.floor(mapID),
+      difficultyID = math.floor(difficultyID),
+      instanceName = type(value.instanceName) == "string" and value.instanceName ~= "" and value.instanceName or nil,
+    }
+  end
+
+  function controller.ClearTrackedPartyRunInfo()
+    state.trackedPartyRun = nil
+  end
+
+  function controller.GetTrackedPartyRunInfo()
+    if type(state.trackedPartyRun) ~= "table" then
+      return nil
+    end
+    return CopyTableShallow(state.trackedPartyRun)
+  end
+
+  function controller.IsTrackedPartyRunActive()
+    return type(state.trackedPartyRun) == "table"
+  end
+
   function controller.GetWasGroupLeader()
     return state.wasGroupLeader
   end
@@ -328,6 +362,7 @@ function RuntimeState.CreateController(opts)
       wasGroupLeader = state.wasGroupLeader,
       wasInGroup = state.wasInGroup,
       wasRaidGroup = state.wasRaidGroup,
+      trackedPartyRun = type(state.trackedPartyRun) == "table" and CopyTableShallow(state.trackedPartyRun) or nil,
       rioBaselineByPlayerKey = CopyTableShallow(state.rioBaselineByPlayerKey),
       hasRioBaselineSnapshot = state.hasRioBaselineSnapshot,
       isRioDeltaDisplayEnabled = state.isRioDeltaDisplayEnabled,

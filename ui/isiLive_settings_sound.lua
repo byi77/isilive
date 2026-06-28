@@ -13,6 +13,7 @@ local DESCRIPTION_WIDTH = 620
 local PREVIEW_BUTTON_WIDTH = 24
 local PREVIEW_BUTTON_HEIGHT = 22
 local CHILD_CHECKBOX_OFFSET_X = 32
+local VIP_SEPARATOR_OFFSET_X = 16
 local PREVIEW_PLAY_TEXTURE = "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up"
 local SOUND_CHANNEL_VALUES = { Master = true, SFX = true }
 
@@ -629,7 +630,7 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
     "ApplyGildedBrutosaurSoundSetting"
   )
 
-  local function CreateVipDkWarningCheckbox(controlKey, labelKey, fallbackLabel, dbKey)
+  local function CreateVipWarningCheckbox(controlKey, labelKey, fallbackLabel, dbKey, onChanged)
     local desc = VIP_SOUND_DESCRIPTIONS[labelKey] or {}
     controls[controlKey], yOffset = CreateSettingsCheckbox(
       canvas,
@@ -642,9 +643,13 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
       function(checked)
         local db = config.getDB()
         db[dbKey] = checked == true
-        local vipDkAssist = addonTable.VipDkAssist
-        if type(vipDkAssist) == "table" and type(vipDkAssist.HandleEvent) == "function" then
-          vipDkAssist.HandleEvent("PLAYER_SPECIALIZATION_CHANGED")
+        if type(onChanged) == "function" then
+          onChanged()
+        else
+          local vipDkAssist = addonTable.VipDkAssist
+          if type(vipDkAssist) == "table" and type(vipDkAssist.HandleEvent) == "function" then
+            vipDkAssist.HandleEvent("PLAYER_SPECIALIZATION_CHANGED")
+          end
         end
       end,
       labelKey,
@@ -653,6 +658,36 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
     if controls[controlKey] and controls[controlKey].check then
       controls[controlKey].check._sectionKey = "SETTINGS_SECTION_VIP_GUESTS"
     end
+  end
+
+  local function CreateVipDkSeparator()
+    local separator = CreateFrame("Frame", nil, canvas)
+    separator._sectionKey = "SETTINGS_SECTION_VIP_GUESTS"
+    separator._settingKey = "SETTINGS_VIP_DK_SEPARATOR"
+    if type(separator.SetHeight) == "function" then
+      separator:SetHeight(1)
+    end
+    if type(separator.SetPoint) == "function" then
+      separator:SetPoint("TOPLEFT", canvas, "TOPLEFT", VIP_SEPARATOR_OFFSET_X, yOffset - 5)
+      separator:SetPoint("TOPRIGHT", canvas, "TOPRIGHT", -VIP_SEPARATOR_OFFSET_X, yOffset - 5)
+    end
+    if type(separator.CreateTexture) == "function" then
+      local line = separator:CreateTexture(nil, "ARTWORK")
+      if type(line.SetAllPoints) == "function" then
+        line:SetAllPoints(separator)
+      end
+      if type(line.SetHeight) == "function" then
+        line:SetHeight(1)
+      end
+      if type(line.SetColorTexture) == "function" then
+        local ab = addonTable.UICommon and addonTable.UICommon.Colors and addonTable.UICommon.Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
+        line:SetColorTexture(ab[1], ab[2], ab[3], 0.42)
+      end
+      line._isiLiveSettingsSeparator = "vipDk"
+      separator.line = line
+    end
+    controls.vipDkSeparator = separator
+    yOffset = yOffset - 14
   end
 
   local function CreateVipDkChildSoundCheckbox(controlKey, labelKey, fallbackLabel, dbKey, applyFnName)
@@ -734,19 +769,7 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
     yOffset = nextY
   end
 
-  CreateVipDkWarningCheckbox(
-    "vipDkSoulReaperWarning",
-    "SETTINGS_VIP_DK_SOUL_REAPER_WARNING",
-    "Soul Reaper warning for Unholy DK",
-    "vipDkSoulReaperWarningEnabled"
-  )
-  CreateVipDkWarningCheckbox(
-    "vipDkPutrefyWarning",
-    "SETTINGS_VIP_DK_PUTREFY_WARNING",
-    "Putrefy warning for Unholy DK",
-    "vipDkPutrefyWarningEnabled"
-  )
-  CreateVipDkChildCheckbox(
+  CreateVipWarningCheckbox(
     "vipBloodlustDebuffButtonWarning",
     "SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING",
     "Bloodlust button warning while debuffed",
@@ -756,8 +779,20 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
       if type(bloodlustWarning) == "table" and type(bloodlustWarning.HandleEvent) == "function" then
         bloodlustWarning.HandleEvent("UNIT_AURA", "player")
       end
-    end,
-    false
+    end
+  )
+  CreateVipDkSeparator()
+  CreateVipWarningCheckbox(
+    "vipDkSoulReaperWarning",
+    "SETTINGS_VIP_DK_SOUL_REAPER_WARNING",
+    "Soul Reaper warning for Unholy DK",
+    "vipDkSoulReaperWarningEnabled"
+  )
+  CreateVipWarningCheckbox(
+    "vipDkPutrefyWarning",
+    "SETTINGS_VIP_DK_PUTREFY_WARNING",
+    "Putrefy warning for Unholy DK",
+    "vipDkPutrefyWarningEnabled"
   )
   CreateVipDkChildSoundCheckbox(
     "vipDkApocalypseHorseSound",

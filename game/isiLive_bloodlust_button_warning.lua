@@ -26,6 +26,7 @@ local BLOODLUST_BUTTON_SPELL_IDS = {
   [80353] = true, -- Time Warp
   [264667] = true, -- Primal Rage
   [390386] = true, -- Fury of the Aspects
+  [466904] = true, -- Harrier's Cry
   [90355] = true, -- Ancient Hysteria
   [160452] = true, -- Netherwinds
 }
