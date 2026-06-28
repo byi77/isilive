@@ -392,8 +392,6 @@ local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, 
       mapID = 2662,
     }
     local recordedRuns = {}
-    local trackedContexts = {}
-    local clearTrackedContexts = 0
     local roster = {
       player = { name = "Me", realm = "MyRealm" },
       party1 = { name = "Buddy", realm = "Realm" },
