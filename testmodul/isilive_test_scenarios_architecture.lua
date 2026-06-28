@@ -1720,7 +1720,10 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.Equal(unmuted[1], 7340960, "C_Sound unmute API should receive astral aurochs file IDs")
       muted = {}
       unmuted = {}
-      Assert.True(addon.SoundUtils.ApplyDkApocalypseHorseSoundSetting(true), "C_Sound DK horse mute API should be accepted")
+      Assert.True(
+        addon.SoundUtils.ApplyDkApocalypseHorseSoundSetting(true),
+        "C_Sound DK horse mute API should be accepted"
+      )
       Assert.Equal(muted[1], 987917, "C_Sound DK horse mute API should receive the first horse file ID")
       Assert.True(
         addon.SoundUtils.ApplyDkApocalypseHorseSoundSetting(false),

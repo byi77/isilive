@@ -121,7 +121,10 @@ local REQUIRED_FUNCTIONS = {
   { path = { "CombatEvents", "HandleEvent" }, message = "isiLive: CombatEvents.HandleEvent missing" },
   { path = { "ActionButtonOverlay", "CreateCrossOverlay" }, message = "isiLive: ActionButtonOverlay missing" },
   { path = { "BloodlustButtonWarning", "SetDependencies" }, message = "isiLive: BloodlustButtonWarning missing" },
-  { path = { "BloodlustButtonWarning", "HandleEvent" }, message = "isiLive: BloodlustButtonWarning.HandleEvent missing" },
+  {
+    path = { "BloodlustButtonWarning", "HandleEvent" },
+    message = "isiLive: BloodlustButtonWarning.HandleEvent missing",
+  },
   { path = { "PiTracker", "CreateController" }, message = "isiLive: PiTracker.CreateController missing" },
   { path = { "PiTracker", "SetDependencies" }, message = "isiLive: PiTracker.SetDependencies missing" },
   { path = { "PiTracker", "HandleEvent" }, message = "isiLive: PiTracker.HandleEvent missing" },

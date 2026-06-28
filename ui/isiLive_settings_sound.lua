@@ -658,25 +658,17 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
   local function CreateVipDkChildSoundCheckbox(controlKey, labelKey, fallbackLabel, dbKey, applyFnName)
     local desc = VIP_SOUND_DESCRIPTIONS[labelKey] or {}
     local originalY = yOffset
-    local checkbox, nextY = CreateSettingsCheckbox(
-      canvas,
-      yOffset,
-      labels[labelKey] or fallbackLabel,
-      function()
-        local db = config.getDB()
-        return db[dbKey] == true
-      end,
-      function(checked)
-        local db = config.getDB()
-        db[dbKey] = checked == true
-        local soundUtils = addonTable.SoundUtils
-        if type(soundUtils) == "table" and type(soundUtils[applyFnName]) == "function" then
-          soundUtils[applyFnName](checked)
-        end
-      end,
-      labelKey,
-      DescriptionOptions(labels[desc.descKey] or desc.fallback)
-    )
+    local checkbox, nextY = CreateSettingsCheckbox(canvas, yOffset, labels[labelKey] or fallbackLabel, function()
+      local db = config.getDB()
+      return db[dbKey] == true
+    end, function(checked)
+      local db = config.getDB()
+      db[dbKey] = checked == true
+      local soundUtils = addonTable.SoundUtils
+      if type(soundUtils) == "table" and type(soundUtils[applyFnName]) == "function" then
+        soundUtils[applyFnName](checked)
+      end
+    end, labelKey, DescriptionOptions(labels[desc.descKey] or desc.fallback))
     controls[controlKey] = checkbox
     if controls[controlKey] and controls[controlKey].check then
       controls[controlKey].check._sectionKey = "SETTINGS_SECTION_VIP_GUESTS"
@@ -685,7 +677,11 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
         controls[controlKey].check:SetPoint("TOPLEFT", canvas, "TOPLEFT", CHILD_CHECKBOX_OFFSET_X, originalY)
       end
     end
-    if controls[controlKey] and controls[controlKey].description and type(controls[controlKey].description.GetPoint) == "function" then
+    if
+      controls[controlKey]
+      and controls[controlKey].description
+      and type(controls[controlKey].description.GetPoint) == "function"
+    then
       local point, _, relativePoint, _, y = controls[controlKey].description:GetPoint()
       if point and type(controls[controlKey].description.ClearAllPoints) == "function" then
         controls[controlKey].description:ClearAllPoints()
@@ -698,32 +694,24 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
   local function CreateVipDkChildCheckbox(controlKey, labelKey, fallbackLabel, dbKey, onChanged, defaultOn)
     local desc = VIP_SOUND_DESCRIPTIONS[labelKey] or {}
     local originalY = yOffset
-    local checkbox, nextY = CreateSettingsCheckbox(
-      canvas,
-      yOffset,
-      labels[labelKey] or fallbackLabel,
-      function()
-        local db = config.getDB()
-        if defaultOn == true then
-          return db[dbKey] ~= false
+    local checkbox, nextY = CreateSettingsCheckbox(canvas, yOffset, labels[labelKey] or fallbackLabel, function()
+      local db = config.getDB()
+      if defaultOn == true then
+        return db[dbKey] ~= false
+      end
+      return db[dbKey] == true
+    end, function(checked)
+      local db = config.getDB()
+      db[dbKey] = checked == true
+      if type(onChanged) == "function" then
+        onChanged()
+      else
+        local vipDkAssist = addonTable.VipDkAssist
+        if type(vipDkAssist) == "table" and type(vipDkAssist.HandleEvent) == "function" then
+          vipDkAssist.HandleEvent("PLAYER_SPECIALIZATION_CHANGED")
         end
-        return db[dbKey] == true
-      end,
-      function(checked)
-        local db = config.getDB()
-        db[dbKey] = checked == true
-        if type(onChanged) == "function" then
-          onChanged()
-        else
-          local vipDkAssist = addonTable.VipDkAssist
-          if type(vipDkAssist) == "table" and type(vipDkAssist.HandleEvent) == "function" then
-            vipDkAssist.HandleEvent("PLAYER_SPECIALIZATION_CHANGED")
-          end
-        end
-      end,
-      labelKey,
-      DescriptionOptions(labels[desc.descKey] or desc.fallback)
-    )
+      end
+    end, labelKey, DescriptionOptions(labels[desc.descKey] or desc.fallback))
     controls[controlKey] = checkbox
     if controls[controlKey] and controls[controlKey].check then
       controls[controlKey].check._sectionKey = "SETTINGS_SECTION_VIP_GUESTS"
@@ -732,7 +720,11 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
         controls[controlKey].check:SetPoint("TOPLEFT", canvas, "TOPLEFT", CHILD_CHECKBOX_OFFSET_X, originalY)
       end
     end
-    if controls[controlKey] and controls[controlKey].description and type(controls[controlKey].description.GetPoint) == "function" then
+    if
+      controls[controlKey]
+      and controls[controlKey].description
+      and type(controls[controlKey].description.GetPoint) == "function"
+    then
       local point, _, relativePoint, _, y = controls[controlKey].description:GetPoint()
       if point and type(controls[controlKey].description.ClearAllPoints) == "function" then
         controls[controlKey].description:ClearAllPoints()

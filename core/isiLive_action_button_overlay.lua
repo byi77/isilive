@@ -176,4 +176,3 @@ function ActionButtonOverlay.CreateCrossOverlay(button)
   overlay:Hide()
   return overlay
 end
-

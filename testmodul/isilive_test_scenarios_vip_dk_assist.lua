@@ -469,7 +469,11 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
       VipDkAssist.HandleEvent("PLAYER_SPECIALIZATION_CHANGED")
       VipDkAssist.HandleEvent("PLAYER_ENTERING_WORLD")
 
-      Assert.Equal(stopped, 2, "a new cast should cancel the old hide timer and spec changes should stop pending timers")
+      Assert.Equal(
+        stopped,
+        2,
+        "a new cast should cancel the old hide timer and spec changes should stop pending timers"
+      )
     end)
   end)
 
