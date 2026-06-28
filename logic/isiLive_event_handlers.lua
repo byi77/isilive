@@ -130,6 +130,8 @@ local function BuildContext(opts)
   ctx.handleKillTrackEvent = OptionalFunction(opts.handleKillTrackEvent, function(_event, ...) end)
   ctx.handleCombatEventsEvent = OptionalFunction(opts.handleCombatEventsEvent, function(_event, ...) end)
   ctx.handlePiTrackerEvent = OptionalFunction(opts.handlePiTrackerEvent, function(_event, ...) end)
+  ctx.handleBloodlustButtonWarningEvent =
+    OptionalFunction(opts.handleBloodlustButtonWarningEvent, function(_event, ...) end)
   ctx.handleVipDkAssistEvent = OptionalFunction(opts.handleVipDkAssistEvent, function(_event, ...) end)
   ctx.handleDeathWatchEvent = OptionalFunction(opts.handleDeathWatchEvent, function(_event, ...) end)
   ctx.handleKickTrackerEvent = OptionalFunction(opts.handleKickTrackerEvent, function(_event, ...) end)

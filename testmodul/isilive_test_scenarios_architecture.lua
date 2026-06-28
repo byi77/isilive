@@ -1596,8 +1596,10 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.True(hasLoop, "astral aurochs mute list must include the model loop flight sound")
       local yakIDs = addon.SoundUtils.GetGrandExpeditionYakSoundFileIDs()
       local brutosaurIDs = addon.SoundUtils.GetGildedBrutosaurSoundFileIDs()
+      local dkHorseIDs = addon.SoundUtils.GetDkApocalypseHorseSoundFileIDs()
       Assert.True(#yakIDs >= 300, "grand expedition yak mute list must include verified model and footstep files")
       Assert.True(#brutosaurIDs >= 100, "gilded brutosaur mute list must include verified model and special files")
+      Assert.Equal(#dkHorseIDs, 3, "DK apocalypse horse mute list must include the three known summon files")
       Assert.Equal(yakIDs[1], 613111, "grand expedition yak mute list must start with the verified base yak file")
       Assert.Equal(
         brutosaurIDs[1],
@@ -1637,6 +1639,8 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.True(hasBrutosaurFootstep, "gilded brutosaur mute list must include verified footstep files")
       Assert.True(hasBrutosaurMoving, "gilded brutosaur mute list must include verified mount-special moving files")
       Assert.True(hasBrutosaurLateFidget, "gilded brutosaur mute list must include verified late fidget files")
+      Assert.Equal(dkHorseIDs[1], 987917, "DK apocalypse horse mute list must start with the first known summon file")
+      Assert.Equal(dkHorseIDs[3], 987921, "DK apocalypse horse mute list must include the final known summon file")
     end)
 
     local fallbackCalls = {}
@@ -1714,6 +1718,15 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.Equal(muted[1], 7340960, "C_Sound mute API should receive astral aurochs file IDs")
       Assert.True(addon.SoundUtils.ApplyAstralAurochsSoundSetting(false), "C_Sound unmute API should be accepted")
       Assert.Equal(unmuted[1], 7340960, "C_Sound unmute API should receive astral aurochs file IDs")
+      muted = {}
+      unmuted = {}
+      Assert.True(addon.SoundUtils.ApplyDkApocalypseHorseSoundSetting(true), "C_Sound DK horse mute API should be accepted")
+      Assert.Equal(muted[1], 987917, "C_Sound DK horse mute API should receive the first horse file ID")
+      Assert.True(
+        addon.SoundUtils.ApplyDkApocalypseHorseSoundSetting(false),
+        "C_Sound DK horse unmute API should be accepted"
+      )
+      Assert.Equal(unmuted[3], 987921, "C_Sound DK horse unmute API should receive the final horse file ID")
     end)
   end)
 

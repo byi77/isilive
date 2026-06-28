@@ -150,6 +150,16 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
       getDB = function()
         return rawget(_G, "IsiLiveDB") or {}
       end,
+      getL = ctx.GetL,
+    })
+  end
+
+  local bloodlustWarning = addonTable.BloodlustButtonWarning
+  if type(bloodlustWarning) == "table" and type(bloodlustWarning.SetDependencies) == "function" then
+    bloodlustWarning.SetDependencies({
+      getDB = function()
+        return rawget(_G, "IsiLiveDB") or {}
+      end,
     })
   end
 end

@@ -703,6 +703,15 @@ local function BuildUnitSpellcastSucceededForwarder(ctx)
   end
 end
 
+local function BuildUnitPetForwarder(ctx)
+  return function(_self, ...)
+    if not IsRaidModeActive(ctx) then
+      ctx.handleKickTrackerEvent("UNIT_PET", ...)
+      ctx.handleVipDkAssistEvent("UNIT_PET", ...)
+    end
+  end
+end
+
 local function BuildPartyLeaderChangedForwarder(ctx)
   return function(_self, ...)
     if not IsRaidModeActive(ctx) then
@@ -722,6 +731,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   ctx.handleCombatEventsEvent = ResolveEventHandler(ctx.handleCombatEventsEvent)
   ctx.handleDeathWatchEvent = ResolveEventHandler(ctx.handleDeathWatchEvent)
   ctx.handleKickTrackerEvent = ResolveEventHandler(ctx.handleKickTrackerEvent)
+  ctx.handleBloodlustButtonWarningEvent = ResolveEventHandler(ctx.handleBloodlustButtonWarningEvent)
   ctx.handleVipDkAssistEvent = ResolveEventHandler(ctx.handleVipDkAssistEvent)
   ctx.handleMplusTimerEvent = ResolveEventHandler(ctx.handleMplusTimerEvent)
   ctx.handleLeaderWatchEvent = ResolveEventHandler(ctx.handleLeaderWatchEvent)
@@ -816,8 +826,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   local function HandlePlayerLoginEvent(_self)
     ApplyBindingStartupRefresh(ctx)
     ctx.handleLFGDetectEvent("PLAYER_LOGIN")
-    if not IsRaidModeActive(ctx) and ctx.shouldShowMainFrameOnStartup() then
-      ctx.setMainFrameVisible(true)
+    if not IsRaidModeActive(ctx) then
+      ctx.handleBloodlustButtonWarningEvent("PLAYER_LOGIN")
+      if ctx.shouldShowMainFrameOnStartup() then
+        ctx.setMainFrameVisible(true)
+      end
     end
     local playerName, playerRealm = ctx.getUnitNameAndRealm("player")
     ctx.markIsiLiveUser(playerName, playerRealm)
@@ -846,6 +859,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       ctx.wasInPartyInstance = inPartyInstance
       return
     end
+    ctx.handleBloodlustButtonWarningEvent("PLAYER_ENTERING_WORLD")
     ctx.handleKillTrackEvent("PLAYER_ENTERING_WORLD")
     ctx.handleMplusTimerEvent("PLAYER_ENTERING_WORLD")
     local didResetChallengeRuntime =
@@ -911,6 +925,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       end
     end
     ctx.handleKickTrackerEvent("PLAYER_REGEN_ENABLED")
+    ctx.handleBloodlustButtonWarningEvent("PLAYER_REGEN_ENABLED")
     ctx.handleVipDkAssistEvent("PLAYER_REGEN_ENABLED")
     ctx.handleKillTrackEvent("PLAYER_REGEN_ENABLED")
     ApplyCombatFade(ctx, 1)
@@ -964,6 +979,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
       return
     end
     ctx.handleKickTrackerEvent("PLAYER_SPECIALIZATION_CHANGED", unit)
+    ctx.handleBloodlustButtonWarningEvent("PLAYER_SPECIALIZATION_CHANGED", unit)
     ctx.handleVipDkAssistEvent("PLAYER_SPECIALIZATION_CHANGED", unit)
     ctx.sendOwnBackgroundSnapshot("player-state")
     -- Spec change can be role-flipping (Druid Balance -> Guardian) or pure
@@ -1074,6 +1090,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if not UnitAuraUpdateRequiresCdScan(unitAuraUpdateInfo) then
       return
     end
+    ctx.handleBloodlustButtonWarningEvent("UNIT_AURA", unit, unitAuraUpdateInfo)
     ctx.updateCdTracker({ playLustSoundOnStart = true })
   end
 
@@ -1108,7 +1125,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     SPELL_UPDATE_CHARGES = HandleSpellUpdateChargesEvent,
     UNIT_AURA = HandleUnitAuraEvent,
     SPELLS_CHANGED = BuildNonRaidEventForwarder(ctx, "handleKickTrackerEvent", "SPELLS_CHANGED"),
-    UNIT_PET = BuildNonRaidEventForwarder(ctx, "handleKickTrackerEvent", "UNIT_PET"),
+    UNIT_PET = BuildUnitPetForwarder(ctx),
     UNIT_SPELLCAST_SUCCEEDED = BuildUnitSpellcastSucceededForwarder(ctx),
     UNIT_HEALTH = BuildNonRaidEventForwarder(ctx, "handleDeathWatchEvent", "UNIT_HEALTH"),
     SCENARIO_CRITERIA_UPDATE = BuildNonRaidEventForwarder(ctx, "handleKillTrackEvent", "SCENARIO_CRITERIA_UPDATE"),

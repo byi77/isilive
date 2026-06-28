@@ -194,6 +194,18 @@ local VIP_SOUND_DESCRIPTIONS = {
     descKey = "SETTINGS_VIP_DK_PUTREFY_WARNING_DESC",
     fallback = "Shows a red warning on Putrefy when Dark Transformation is nearly ready.",
   },
+  SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING = {
+    descKey = "SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING_DESC",
+    fallback = "Shows a red cross on your Bloodlust button while you have a Sated/Exhaustion debuff.",
+  },
+  SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND = {
+    descKey = "SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND_DESC",
+    fallback = "Mutes the horse summon sounds from Riders of the Apocalypse.",
+  },
+  SETTINGS_VIP_DK_GHOUL_REMINDER = {
+    descKey = "SETTINGS_VIP_DK_GHOUL_REMINDER_DESC",
+    fallback = "Shows a movable warning when your Unholy ghoul is missing.",
+  },
 }
 
 local function NormalizeSoundChannel(value)
@@ -643,6 +655,93 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
     end
   end
 
+  local function CreateVipDkChildSoundCheckbox(controlKey, labelKey, fallbackLabel, dbKey, applyFnName)
+    local desc = VIP_SOUND_DESCRIPTIONS[labelKey] or {}
+    local originalY = yOffset
+    local checkbox, nextY = CreateSettingsCheckbox(
+      canvas,
+      yOffset,
+      labels[labelKey] or fallbackLabel,
+      function()
+        local db = config.getDB()
+        return db[dbKey] == true
+      end,
+      function(checked)
+        local db = config.getDB()
+        db[dbKey] = checked == true
+        local soundUtils = addonTable.SoundUtils
+        if type(soundUtils) == "table" and type(soundUtils[applyFnName]) == "function" then
+          soundUtils[applyFnName](checked)
+        end
+      end,
+      labelKey,
+      DescriptionOptions(labels[desc.descKey] or desc.fallback)
+    )
+    controls[controlKey] = checkbox
+    if controls[controlKey] and controls[controlKey].check then
+      controls[controlKey].check._sectionKey = "SETTINGS_SECTION_VIP_GUESTS"
+      if type(controls[controlKey].check.ClearAllPoints) == "function" then
+        controls[controlKey].check:ClearAllPoints()
+        controls[controlKey].check:SetPoint("TOPLEFT", canvas, "TOPLEFT", CHILD_CHECKBOX_OFFSET_X, originalY)
+      end
+    end
+    if controls[controlKey] and controls[controlKey].description and type(controls[controlKey].description.GetPoint) == "function" then
+      local point, _, relativePoint, _, y = controls[controlKey].description:GetPoint()
+      if point and type(controls[controlKey].description.ClearAllPoints) == "function" then
+        controls[controlKey].description:ClearAllPoints()
+        controls[controlKey].description:SetPoint(point, canvas, relativePoint, CHILD_CHECKBOX_OFFSET_X, y or 0)
+      end
+    end
+    yOffset = nextY
+  end
+
+  local function CreateVipDkChildCheckbox(controlKey, labelKey, fallbackLabel, dbKey, onChanged, defaultOn)
+    local desc = VIP_SOUND_DESCRIPTIONS[labelKey] or {}
+    local originalY = yOffset
+    local checkbox, nextY = CreateSettingsCheckbox(
+      canvas,
+      yOffset,
+      labels[labelKey] or fallbackLabel,
+      function()
+        local db = config.getDB()
+        if defaultOn == true then
+          return db[dbKey] ~= false
+        end
+        return db[dbKey] == true
+      end,
+      function(checked)
+        local db = config.getDB()
+        db[dbKey] = checked == true
+        if type(onChanged) == "function" then
+          onChanged()
+        else
+          local vipDkAssist = addonTable.VipDkAssist
+          if type(vipDkAssist) == "table" and type(vipDkAssist.HandleEvent) == "function" then
+            vipDkAssist.HandleEvent("PLAYER_SPECIALIZATION_CHANGED")
+          end
+        end
+      end,
+      labelKey,
+      DescriptionOptions(labels[desc.descKey] or desc.fallback)
+    )
+    controls[controlKey] = checkbox
+    if controls[controlKey] and controls[controlKey].check then
+      controls[controlKey].check._sectionKey = "SETTINGS_SECTION_VIP_GUESTS"
+      if type(controls[controlKey].check.ClearAllPoints) == "function" then
+        controls[controlKey].check:ClearAllPoints()
+        controls[controlKey].check:SetPoint("TOPLEFT", canvas, "TOPLEFT", CHILD_CHECKBOX_OFFSET_X, originalY)
+      end
+    end
+    if controls[controlKey] and controls[controlKey].description and type(controls[controlKey].description.GetPoint) == "function" then
+      local point, _, relativePoint, _, y = controls[controlKey].description:GetPoint()
+      if point and type(controls[controlKey].description.ClearAllPoints) == "function" then
+        controls[controlKey].description:ClearAllPoints()
+        controls[controlKey].description:SetPoint(point, canvas, relativePoint, CHILD_CHECKBOX_OFFSET_X, y or 0)
+      end
+    end
+    yOffset = nextY
+  end
+
   CreateVipDkWarningCheckbox(
     "vipDkSoulReaperWarning",
     "SETTINGS_VIP_DK_SOUL_REAPER_WARNING",
@@ -654,6 +753,32 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
     "SETTINGS_VIP_DK_PUTREFY_WARNING",
     "Putrefy warning for Unholy DK",
     "vipDkPutrefyWarningEnabled"
+  )
+  CreateVipDkChildCheckbox(
+    "vipBloodlustDebuffButtonWarning",
+    "SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING",
+    "Bloodlust button warning while debuffed",
+    "vipBloodlustDebuffButtonWarningEnabled",
+    function()
+      local bloodlustWarning = addonTable.BloodlustButtonWarning
+      if type(bloodlustWarning) == "table" and type(bloodlustWarning.HandleEvent) == "function" then
+        bloodlustWarning.HandleEvent("UNIT_AURA", "player")
+      end
+    end,
+    false
+  )
+  CreateVipDkChildSoundCheckbox(
+    "vipDkApocalypseHorseSound",
+    "SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND",
+    "Mute Riders of the Apocalypse horse sounds",
+    "vipDkApocalypseHorseSoundMuted",
+    "ApplyDkApocalypseHorseSoundSetting"
+  )
+  CreateVipDkChildCheckbox(
+    "vipDkGhoulReminder",
+    "SETTINGS_VIP_DK_GHOUL_REMINDER",
+    "Show missing-ghoul reminder",
+    "vipDkGhoulReminderEnabled"
   )
 
   return yOffset
@@ -811,5 +936,35 @@ function SettingsSound.RefreshVIPGuestControls(controls, labels, db)
         or "Shows a red warning on Putrefy when Dark Transformation is nearly ready."
     )
     controls.vipDkPutrefyWarning.check:SetChecked(db.vipDkPutrefyWarningEnabled == true)
+  end
+  if controls.vipBloodlustDebuffButtonWarning and controls.vipBloodlustDebuffButtonWarning.label then
+    controls.vipBloodlustDebuffButtonWarning.label:SetText(
+      labels.SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING or "Bloodlust button warning while debuffed"
+    )
+    SetDescription(
+      controls.vipBloodlustDebuffButtonWarning,
+      labels.SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING_DESC
+        or "Shows a red cross on your Bloodlust button while you have a Sated/Exhaustion debuff."
+    )
+    controls.vipBloodlustDebuffButtonWarning.check:SetChecked(db.vipBloodlustDebuffButtonWarningEnabled == true)
+  end
+  if controls.vipDkApocalypseHorseSound and controls.vipDkApocalypseHorseSound.label then
+    controls.vipDkApocalypseHorseSound.label:SetText(
+      labels.SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND or "Mute Riders of the Apocalypse horse sounds"
+    )
+    SetDescription(
+      controls.vipDkApocalypseHorseSound,
+      labels.SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND_DESC
+        or "Mutes the horse summon sounds from Riders of the Apocalypse."
+    )
+    controls.vipDkApocalypseHorseSound.check:SetChecked(db.vipDkApocalypseHorseSoundMuted == true)
+  end
+  if controls.vipDkGhoulReminder and controls.vipDkGhoulReminder.label then
+    controls.vipDkGhoulReminder.label:SetText(labels.SETTINGS_VIP_DK_GHOUL_REMINDER or "Show missing-ghoul reminder")
+    SetDescription(
+      controls.vipDkGhoulReminder,
+      labels.SETTINGS_VIP_DK_GHOUL_REMINDER_DESC or "Shows a movable warning when your Unholy ghoul is missing."
+    )
+    controls.vipDkGhoulReminder.check:SetChecked(db.vipDkGhoulReminderEnabled == true)
   end
 end

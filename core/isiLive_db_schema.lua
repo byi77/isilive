@@ -217,8 +217,23 @@ local SCHEMA = {
   vipAstralAurochsSoundMuted = { type = "boolean", default = false },
   vipGrandExpeditionYakSoundMuted = { type = "boolean", default = false },
   vipGildedBrutosaurSoundMuted = { type = "boolean", default = false },
+  vipDkApocalypseHorseSoundMuted = { type = "boolean", default = false },
   vipDkSoulReaperWarningEnabled = { type = "boolean", default = false },
   vipDkPutrefyWarningEnabled = { type = "boolean", default = false },
+  vipBloodlustDebuffButtonWarningEnabled = { type = "boolean", default = false },
+  vipDkGhoulReminderEnabled = { type = "boolean", default = false },
+  vipDkGhoulReminderPosition = {
+    type = "table",
+    default = function()
+      return { point = "CENTER", relativePoint = "CENTER", x = 0, y = 200 }
+    end,
+    fields = {
+      point = { type = "string", default = "CENTER" },
+      relativePoint = { type = "string", default = "CENTER" },
+      x = { type = "number", default = 0 },
+      y = { type = "number", default = 200 },
+    },
+  },
 
   -- Combat-event chat announces.
   chatAnnounceBR = { type = "boolean", default = true },

@@ -154,6 +154,63 @@ return function(test, ctx)
     Assert.True(deps.isInKey(), "running M+ timer must keep combat announces enabled when map ID is masked")
   end)
 
+  test("factory split coverage: VIP DK assist receives localized ghoul reminder text", function()
+    local deps
+    local addon = LoadAddonModules({ "isiLive_factory_combat_announces.lua" })
+    addon.VipDkAssist = {
+      SetDependencies = function(value)
+        deps = value
+      end,
+    }
+
+    local factoryCtx = {
+      GetL = function()
+        return { VIP_DK_GHOUL_REMINDER_TEXT = "Ghoul beschwören" }
+      end,
+      Print = function() end,
+      modules = {},
+    }
+
+    addon._FactoryInternal.InitializeFactoryCombatAnnounceControllers(factoryCtx)
+
+    Assert.Equal(type(deps), "table", "VIP DK assist dependencies must be registered")
+    Assert.Equal(type(deps.getL), "function", "VIP DK assist must receive the active locale getter")
+    Assert.Equal(
+      deps.getL().VIP_DK_GHOUL_REMINDER_TEXT,
+      "Ghoul beschwören",
+      "VIP DK ghoul reminder must use the active localized warning text"
+    )
+  end)
+
+  test("factory split coverage: Bloodlust button warning receives DB dependency", function()
+    local deps
+    local db = { vipBloodlustDebuffButtonWarningEnabled = true }
+    local addon = LoadAddonModules({ "isiLive_factory_combat_announces.lua" })
+    addon.BloodlustButtonWarning = {
+      SetDependencies = function(value)
+        deps = value
+      end,
+    }
+
+    local factoryCtx = {
+      GetL = function()
+        return {}
+      end,
+      Print = function() end,
+      modules = {},
+    }
+
+    local liveDB
+    WithGlobals({ IsiLiveDB = db }, function()
+      addon._FactoryInternal.InitializeFactoryCombatAnnounceControllers(factoryCtx)
+      liveDB = deps.getDB()
+    end)
+
+    Assert.Equal(type(deps), "table", "Bloodlust button warning dependencies must be registered")
+    Assert.Equal(type(deps.getDB), "function", "Bloodlust button warning must receive a DB getter")
+    Assert.Equal(liveDB, db, "Bloodlust button warning DB getter must read the live SavedVariables table")
+  end)
+
   test("factory split coverage: Power Infusion text setting suppresses chat and center alert", function()
     local prints = {}
     local piAlerts = 0

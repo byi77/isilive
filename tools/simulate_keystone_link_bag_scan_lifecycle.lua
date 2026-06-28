@@ -7,7 +7,7 @@
 -- C_MythicPlus exists as a table but the GetOwnedKeystoneLink field is nil.
 -- The fallback path is a bag scan for itemID 180653 (Mythic Keystone) using
 -- C_Container.GetContainerItemLink, which returns a real |Hkeystone:...|h
--- link the chat server accepts.
+-- or |Hitem:180653...|h link the chat server accepts.
 --
 -- Manually constructed |Hkeystone:...|h links are silently dropped by the
 -- chat server (treated as fake item links). Any plain-text fallback must
@@ -17,7 +17,9 @@
 --
 -- Verifies:
 --   * Primary: GetOwnedKeystoneLink returning a valid link is preferred.
---   * Fallback: bag scan finds itemID 180653 → returns its real link.
+--   * Fallback: bag scan finds itemID 180653 -> returns its real link.
+--   * Keystone item hyperlinks for itemID 180653 stay clickable instead of
+--     falling back to plain text.
 --   * Stale API: GetOwnedKeystoneLink exists but returns nil/empty/non-link
 --     → bag scan kicks in.
 --   * Empty bag: no key → plain-text "[Keystone: <dungeonName> +N]" form,
@@ -117,6 +119,7 @@ end
 -- ----------------------------------------------------------------------
 local NPX_MAP_ID = 559
 local NPX_BAG_LINK = "|cffa335ee|Hkeystone:180653:559:14:0:0:0:0|h[Keystone: Nexus-Point Xenas (14)]|h|r"
+local NPX_ITEM_LINK = "|cffa335ee|Hitem:180653::::::::80:250:::::|h[Keystone: Nexus-Point Xenas (14)]|h|r"
 local NPX_DUNGEON_NAME = "Nexus-Point Xenas"
 
 local function WithEnvironment(env, fn)
@@ -176,6 +179,32 @@ local function Run()
         link:find("|Hkeystone:", 1, true) ~= nil,
         "returned link is a real |Hkeystone:...|h link (not a manual reconstruction)"
       )
+    end)
+  end
+
+  -- ----------------------------------------------------------------------
+  -- Phase 2b: Some clients expose the verified bag item as an item hyperlink
+  -- for itemID 180653. That is still a real Blizzard link and must remain
+  -- clickable instead of falling back to plain text.
+  -- ----------------------------------------------------------------------
+  print("\n---- Phase 2b: bag scan accepts verified Keystone item hyperlink ----")
+  do
+    local bag = NewBagModel()
+    BagsForcePut(bag, 0, 5, { itemID = 180653, link = NPX_ITEM_LINK })
+    local env = {
+      cMythicPlus = {},
+      cContainer = BuildContainerApi(bag),
+      cChallengeMode = {
+        GetMapUIInfo = function()
+          error("plain fallback must not be reached for a verified Keystone item hyperlink", 0)
+        end,
+      },
+    }
+    WithEnvironment(env, function()
+      local addon = LoadContextHelpers()
+      local link = addon.ContextHelpers.BuildKeystoneChatLink(NPX_MAP_ID, 14)
+      Check(link == NPX_ITEM_LINK, "bag scan returns the real Keystone item hyperlink")
+      Check(link:find("|Hitem:180653", 1, true) ~= nil, "returned item hyperlink stays clickable")
     end)
   end
 

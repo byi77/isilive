@@ -42,7 +42,7 @@ The colorful Mythic+ command center for World of Warcraft.
 🟦 WoW 12.0.7+ Midnight Retail
 🟩 Mythic+ Command Center
 🟧 Automatic Setup
-🟪 Version 0.9.333
+🟪 Version 0.9.338
 
 isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
@@ -77,6 +77,7 @@ WHAT isiLive GIVES YOU
 ✅ Live enemy-forces tracking through a bottom bar, pull prediction, nameplates, and mob tooltips.
 ✅ Battle Res, Bloodlust, ready sounds, and tracked death counts in the main M+ view.
 ✅ A large red tank/healer death alert during active keys.
+✅ Optional VIP helpers for Soul Reaper / Putrefy warnings, Riders horse sound mute, a movable localized missing-ghoul reminder, and a default-off Bloodlust button debuff warning for BL classes.
 ✅ Optional support tools: ESC-menu shortcuts, Hearthstone and verified Dalaran travel, player stats box with stable wider values, nameplate controls, runtime logs, UI lock, and demo simulation tablet.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

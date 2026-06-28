@@ -110,6 +110,43 @@ return function(test, ctx)
     end)
   end)
 
+  test("context_helpers: BuildKeystoneChatLink accepts verified keystone item hyperlinks", function()
+    local itemLink = "|cffa335ee|Hitem:180653::::::::80:250:::::|h[Keystone: Windrunner's Tower (16)]|h|r"
+    WithGlobals({
+      C_MythicPlus = false,
+      C_Container = {
+        GetContainerNumSlots = function(bag)
+          if bag == 0 then
+            return 2
+          end
+          return 0
+        end,
+        GetContainerItemID = function(bag, slot)
+          if bag == 0 and slot == 1 then
+            return 180653
+          end
+          return nil
+        end,
+        GetContainerItemLink = function(bag, slot)
+          if bag == 0 and slot == 1 then
+            return itemLink
+          end
+          return nil
+        end,
+      },
+      C_ChallengeMode = {
+        GetMapUIInfo = function()
+          error("verified item hyperlink must be used before plain fallback", 0)
+        end,
+      },
+    }, function()
+      local addon = Load()
+      local link = addon.ContextHelpers.BuildKeystoneChatLink(2649, 16)
+      Assert.Equal(link, itemLink, "verified Keystone item hyperlink must stay clickable")
+      Assert.True(link:find("|Hitem:180653", 1, true) ~= nil)
+    end)
+  end)
+
   test("context_helpers: BuildKeystoneChatLink scans bags for keystone item 180653", function()
     WithGlobals({
       C_MythicPlus = false,

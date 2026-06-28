@@ -104,6 +104,7 @@ local function NewCtx(overrides)
     end,
     showCombatAnnounce = function() end,
     handlePiTrackerEvent = function() end,
+    handleBloodlustButtonWarningEvent = function() end,
     playIncomingSummonSound = function() end,
     forEachRosterInfo = function() end,
     isSyncUserKnown = function()
@@ -289,6 +290,7 @@ return function(test, ctx)
     local roster = {
       player = { name = "Alpha", role = "DAMAGER" },
     }
+    local bloodlustEvents = {}
     local handlers = LoadHandlers({
       getRoster = function()
         return roster
@@ -296,9 +298,17 @@ return function(test, ctx)
       getUnitRole = function(unit)
         return unit == "player" and "TANK" or "DAMAGER"
       end,
+      handleBloodlustButtonWarningEvent = function(event)
+        bloodlustEvents[#bloodlustEvents + 1] = event
+      end,
     })
     handlers.PLAYER_SPECIALIZATION_CHANGED(nil, "player")
     Assert.Equal(roster.player.role, "TANK", "spec change must trigger role refresh for player")
+    Assert.Equal(
+      bloodlustEvents[1],
+      "PLAYER_SPECIALIZATION_CHANGED",
+      "spec changes must refresh Bloodlust button warning class gates"
+    )
   end)
 
   test("PLAYER_SPECIALIZATION_CHANGED also refreshes cached spec name on player roster entry", function()
@@ -791,10 +801,14 @@ return function(test, ctx)
 
   test("UNIT_AURA refreshes cd tracker only for player unit outside raid", function()
     local calls = 0
+    local bloodlustEvents = {}
     local piEvents = {}
     local handlers = LoadHandlers({
       updateCdTracker = function()
         calls = calls + 1
+      end,
+      handleBloodlustButtonWarningEvent = function(event, unit, unitAuraUpdateInfo)
+        bloodlustEvents[#bloodlustEvents + 1] = { event = event, unit = unit, payload = unitAuraUpdateInfo }
       end,
       handlePiTrackerEvent = function(event, unit, unitAuraUpdateInfo)
         table.insert(piEvents, { event = event, unit = unit, payload = unitAuraUpdateInfo })
@@ -803,17 +817,24 @@ return function(test, ctx)
     local partyPayload = { addedAuras = {} }
     handlers.UNIT_AURA(nil, "party1", partyPayload)
     Assert.Equal(calls, 0, "non-player unit must be ignored")
+    Assert.Equal(#bloodlustEvents, 0, "non-player UNIT_AURA must not refresh Bloodlust button warning")
     Assert.Equal(#piEvents, 1, "party UNIT_AURA must still be forwarded to the PI tracker")
     Assert.Equal(piEvents[1].unit, "party1", "PI tracker must receive the aura unit")
     Assert.Equal(piEvents[1].payload, partyPayload, "PI tracker must receive the aura payload")
-    handlers.UNIT_AURA(nil, "player")
+    local playerPayload = { isFullUpdate = true }
+    handlers.UNIT_AURA(nil, "player", playerPayload)
     Assert.Equal(calls, 1, "player unit must refresh")
+    Assert.Equal(#bloodlustEvents, 1, "player UNIT_AURA must refresh Bloodlust button warning")
+    Assert.Equal(bloodlustEvents[1].event, "UNIT_AURA", "Bloodlust warning must receive the original event")
+    Assert.Equal(bloodlustEvents[1].unit, "player", "Bloodlust warning must receive the player unit")
+    Assert.Equal(bloodlustEvents[1].payload, playerPayload, "Bloodlust warning must receive the aura payload")
     Assert.Equal(#piEvents, 2, "player UNIT_AURA must also be forwarded to the PI tracker")
   end)
 
   test("UNIT_AURA bails out in raid mode even for player unit", function()
     local calls = 0
     local piCalls = 0
+    local bloodlustCalls = 0
     local handlers = LoadHandlers({
       isRaidGroup = function()
         return true
@@ -824,10 +845,14 @@ return function(test, ctx)
       handlePiTrackerEvent = function()
         piCalls = piCalls + 1
       end,
+      handleBloodlustButtonWarningEvent = function()
+        bloodlustCalls = bloodlustCalls + 1
+      end,
     })
     handlers.UNIT_AURA(nil, "player")
     Assert.Equal(calls, 0, "raid mode must veto cd tracker refresh")
     Assert.Equal(piCalls, 0, "raid mode must not process PI aura events")
+    Assert.Equal(bloodlustCalls, 0, "raid mode must not process Bloodlust button warning aura events")
   end)
 
   -- HandleChatMsgAddonEvent ----------------------------------------------------
@@ -1188,13 +1213,22 @@ return function(test, ctx)
 
   test("PLAYER_REGEN_ENABLED applies pending leader button updates", function()
     local calls = 0
+    local bloodlustEvents = {}
     local handlers = LoadHandlers({
       applyPendingLeaderButtonUpdates = function()
         calls = calls + 1
       end,
+      handleBloodlustButtonWarningEvent = function(event)
+        bloodlustEvents[#bloodlustEvents + 1] = event
+      end,
     })
     handlers.PLAYER_REGEN_ENABLED(nil)
     Assert.Equal(calls, 1, "pending leader button updates must be applied once combat ends")
+    Assert.Equal(
+      bloodlustEvents[1],
+      "PLAYER_REGEN_ENABLED",
+      "regen recovery must refresh Bloodlust button warning overlays"
+    )
   end)
 
   test("PLAYER_REGEN_ENABLED bails out in raid mode after combat fade is applied", function()
@@ -1246,6 +1280,47 @@ return function(test, ctx)
     })
     handlers.GROUP_ROSTER_UPDATE(nil)
     Assert.Equal(exits, 1, "test mode must be exited when group joined")
+  end)
+
+  test("UNIT_PET forwards to kick tracker and VIP DK assist outside raid", function()
+    local calls = {}
+    local handlers = LoadHandlers({
+      handleKickTrackerEvent = function(event, unit)
+        calls[#calls + 1] = { target = "kick", event = event, unit = unit }
+      end,
+      handleVipDkAssistEvent = function(event, unit)
+        calls[#calls + 1] = { target = "vipdk", event = event, unit = unit }
+      end,
+    })
+
+    handlers.UNIT_PET(nil, "player")
+
+    Assert.Equal(#calls, 2, "UNIT_PET must reach both pet-state consumers")
+    Assert.Equal(calls[1].target, "kick", "kick tracker keeps the first UNIT_PET refresh")
+    Assert.Equal(calls[1].event, "UNIT_PET", "kick tracker must receive the original event")
+    Assert.Equal(calls[1].unit, "player", "kick tracker must receive the unit payload")
+    Assert.Equal(calls[2].target, "vipdk", "VIP DK assist must also receive UNIT_PET")
+    Assert.Equal(calls[2].event, "UNIT_PET", "VIP DK assist must receive the original event")
+    Assert.Equal(calls[2].unit, "player", "VIP DK assist must receive the unit payload")
+  end)
+
+  test("UNIT_PET stays suppressed in raid mode for VIP DK assist", function()
+    local calls = 0
+    local handlers = LoadHandlers({
+      isRaidGroup = function()
+        return true
+      end,
+      handleKickTrackerEvent = function()
+        calls = calls + 1
+      end,
+      handleVipDkAssistEvent = function()
+        calls = calls + 1
+      end,
+    })
+
+    handlers.UNIT_PET(nil, "player")
+
+    Assert.Equal(calls, 0, "raid mode must suppress UNIT_PET side effects")
   end)
 
   -- ApplyCombatFade branch coverage. Reached via PLAYER_REGEN_DISABLED /

@@ -10,31 +10,10 @@ local PUTREFY_SPELL_ID = 1247378
 local UNHOLY_DEATH_KNIGHT_SPEC_ID = 252
 local WARNING_DELAY_SECONDS = 30
 local WARNING_DURATION_SECONDS = 15
-
-local BUTTON_NAMES = {}
-do
-  for i = 1, 12 do
-    BUTTON_NAMES[#BUTTON_NAMES + 1] = "ActionButton" .. i
-    BUTTON_NAMES[#BUTTON_NAMES + 1] = "MultiBarBottomLeftButton" .. i
-    BUTTON_NAMES[#BUTTON_NAMES + 1] = "MultiBarBottomRightButton" .. i
-    BUTTON_NAMES[#BUTTON_NAMES + 1] = "MultiBarRightButton" .. i
-    BUTTON_NAMES[#BUTTON_NAMES + 1] = "MultiBarLeftButton" .. i
-    BUTTON_NAMES[#BUTTON_NAMES + 1] = "MultiBar5Button" .. i
-    BUTTON_NAMES[#BUTTON_NAMES + 1] = "MultiBar6Button" .. i
-    BUTTON_NAMES[#BUTTON_NAMES + 1] = "MultiBar7Button" .. i
-  end
-  for i = 1, 180 do
-    BUTTON_NAMES[#BUTTON_NAMES + 1] = "BT4Button" .. i
-  end
-  for bar = 1, 10 do
-    for button = 1, 12 do
-      BUTTON_NAMES[#BUTTON_NAMES + 1] = "ElvUI_Bar" .. bar .. "Button" .. button
-    end
-  end
-  for i = 1, 168 do
-    BUTTON_NAMES[#BUTTON_NAMES + 1] = "DominosActionButton" .. i
-  end
-end
+local GHOUL_REMINDER_WIDTH = 300
+local GHOUL_REMINDER_HEIGHT = 60
+local GHOUL_REMINDER_FONT_SIZE = 32
+local GHOUL_REMINDER_STATE_DRIVER = "[spec:3,nopet,nomounted,novehicleui] show; hide"
 
 local function DefaultTimerAfter(delaySeconds, callback)
   local timer = rawget(_G, "C_Timer")
@@ -51,6 +30,23 @@ end
 
 local function DefaultGetDB()
   return rawget(_G, "IsiLiveDB") or {}
+end
+
+local function DefaultGetL()
+  local texts = addonTable.L
+  if type(texts) == "table" then
+    return texts
+  end
+  return {}
+end
+
+local function DefaultIsInCombat()
+  local inCombatLockdown = rawget(_G, "InCombatLockdown")
+  if type(inCombatLockdown) ~= "function" then
+    return false
+  end
+  local ok, result = pcall(inCombatLockdown)
+  return ok and result == true
 end
 
 local function DefaultIsLocalUnholyDeathKnight()
@@ -80,122 +76,119 @@ local function DefaultIsLocalUnholyDeathKnight()
 end
 
 local function DefaultGetActionSpellID(button)
-  if type(button) ~= "table" then
-    return nil
-  end
-  if type(button.GetSpellId) == "function" then
-    local ok, spellID = pcall(button.GetSpellId, button)
-    if ok and spellID then
-      return tonumber(spellID)
-    end
-  end
-
-  local actionSlot
-  if type(button.GetAction) == "function" then
-    local ok, action = pcall(button.GetAction, button)
-    if ok and type(action) == "number" then
-      actionSlot = action
-    end
-  end
-  if not actionSlot and type(button._state_action) == "number" then
-    actionSlot = button._state_action
-  end
-  if not actionSlot and type(button.action) == "number" then
-    actionSlot = button.action
-  end
-  if not actionSlot then
-    return nil
-  end
-
-  local getActionInfo = rawget(_G, "GetActionInfo")
-  if type(getActionInfo) ~= "function" then
-    return nil
-  end
-  local okAction, actionType, actionID = pcall(getActionInfo, actionSlot)
-  if not okAction then
-    return nil
-  end
-  if actionType == "spell" then
-    return tonumber(actionID)
-  end
-  if actionType == "macro" and actionID then
-    local getMacroSpell = rawget(_G, "GetMacroSpell")
-    if type(getMacroSpell) ~= "function" then
-      return nil
-    end
-    local okMacro, macroSpellID = pcall(getMacroSpell, actionID)
-    if okMacro then
-      return tonumber(macroSpellID)
-    end
+  local helper = addonTable.ActionButtonOverlay
+  if type(helper) == "table" and type(helper.GetActionSpellID) == "function" then
+    return helper.GetActionSpellID(button)
   end
   return nil
 end
 
 local function DefaultScanButtonsForSpellID(getActionSpellID, targetSpellID)
-  local buttons = {}
-  for _, name in ipairs(BUTTON_NAMES) do
-    local button = rawget(_G, name)
-    if type(button) == "table" and type(button.IsVisible) == "function" and button:IsVisible() then
-      local width, height = 0, 0
-      if type(button.GetSize) == "function" then
-        width, height = button:GetSize()
-      end
-      if (tonumber(width) or 0) > 1 and (tonumber(height) or 0) > 1 then
-        local spellID = getActionSpellID(button)
-        if spellID == targetSpellID then
-          buttons[#buttons + 1] = button
-        end
-      end
-    end
+  local helper = addonTable.ActionButtonOverlay
+  if type(helper) == "table" and type(helper.ScanButtonsForSpellID) == "function" then
+    return helper.ScanButtonsForSpellID(getActionSpellID, targetSpellID)
   end
-  return buttons
-end
-
-local function AttachCross(overlay)
-  if overlay._isiLiveDkAssistCrossH then
-    return
-  end
-  local h = overlay:CreateTexture(nil, "OVERLAY")
-  h:SetColorTexture(1, 0, 0, 0.88)
-  overlay._isiLiveDkAssistCrossH = h
-  local v = overlay:CreateTexture(nil, "OVERLAY")
-  v:SetColorTexture(1, 0, 0, 0.88)
-  overlay._isiLiveDkAssistCrossV = v
-end
-
-local function UpdateCross(overlay)
-  local h = overlay._isiLiveDkAssistCrossH
-  local v = overlay._isiLiveDkAssistCrossV
-  if not h or not v then
-    return
-  end
-  h:ClearAllPoints()
-  h:SetPoint("LEFT", overlay, "LEFT", 0, 0)
-  h:SetPoint("RIGHT", overlay, "RIGHT", 0, 0)
-  v:ClearAllPoints()
-  v:SetPoint("TOP", overlay, "TOP", 0, 0)
-  v:SetPoint("BOTTOM", overlay, "BOTTOM", 0, 0)
-  local width, height = overlay:GetSize()
-  h:SetHeight(math.max(2, (tonumber(height) or 0) * 0.24))
-  v:SetWidth(math.max(2, (tonumber(width) or 0) * 0.24))
+  return {}
 end
 
 local function DefaultCreateOverlay(button)
+  local helper = addonTable.ActionButtonOverlay
+  if type(helper) == "table" and type(helper.CreateCrossOverlay) == "function" then
+    return helper.CreateCrossOverlay(button)
+  end
+  return nil
+end
+
+local function SaveGhoulReminderPosition(frame, getDB)
+  local db = getDB() or {}
+  if type(db) ~= "table" or type(frame) ~= "table" or type(frame.GetPoint) ~= "function" then
+    return
+  end
+  local point, _, relativePoint, x, y = frame:GetPoint()
+  db.vipDkGhoulReminderPosition = {
+    point = point or "CENTER",
+    relativePoint = relativePoint or "CENTER",
+    x = tonumber(x) or 0,
+    y = tonumber(y) or 200,
+  }
+end
+
+local function ApplyGhoulReminderPosition(frame, parent, getDB)
+  local db = getDB() or {}
+  local pos = type(db) == "table" and db.vipDkGhoulReminderPosition or nil
+  if type(pos) ~= "table" then
+    return
+  end
+  if
+    type(pos.point) ~= "string"
+    or pos.point == ""
+    or type(pos.relativePoint) ~= "string"
+    or pos.relativePoint == ""
+    or type(pos.x) ~= "number"
+    or type(pos.y) ~= "number"
+    or type(frame.ClearAllPoints) ~= "function"
+    or type(frame.SetPoint) ~= "function"
+  then
+    return
+  end
+  frame:ClearAllPoints()
+  frame:SetPoint(pos.point, parent, pos.relativePoint, pos.x, pos.y)
+end
+
+local function DefaultCreateGhoulReminderFrame(parent, getDB, getL)
   local createFrame = rawget(_G, "CreateFrame")
   if type(createFrame) ~= "function" then
     return nil
   end
-  local overlay = createFrame("Frame", nil, button)
-  overlay:SetFrameStrata("HIGH")
-  overlay:SetAllPoints(button)
-  if type(button.GetFrameLevel) == "function" and type(overlay.SetFrameLevel) == "function" then
-    overlay:SetFrameLevel((button:GetFrameLevel() or 0) + 10)
+  parent = parent or rawget(_G, "UIParent")
+  if type(parent) ~= "table" then
+    return nil
   end
-  overlay._targetFrame = button
-  AttachCross(overlay)
-  UpdateCross(overlay)
-  overlay:Hide()
-  return overlay
+
+  local frame = createFrame("Frame", "isiLiveVipDkGhoulReminder", parent, "BackdropTemplate")
+  frame:SetSize(GHOUL_REMINDER_WIDTH, GHOUL_REMINDER_HEIGHT)
+  frame:SetPoint("CENTER", parent, "CENTER", 0, 200)
+  frame:SetFrameStrata("HIGH")
+  if type(frame.SetClampedToScreen) == "function" then
+    frame:SetClampedToScreen(true)
+  end
+  if type(frame.SetMovable) == "function" then
+    frame:SetMovable(true)
+  end
+  if type(frame.EnableMouse) == "function" then
+    frame:EnableMouse(true)
+  end
+  if type(frame.RegisterForDrag) == "function" then
+    frame:RegisterForDrag("LeftButton")
+  end
+
+  local bg = frame:CreateTexture(nil, "BACKGROUND")
+  bg:SetAllPoints(frame)
+  bg:SetColorTexture(0, 0, 0, 0.18)
+  frame.bg = bg
+
+  local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  text:SetPoint("CENTER", frame, "CENTER", 0, 0)
+  text:SetTextColor(1, 0.16, 0.16, 1)
+  text:SetText((getL() or {}).VIP_DK_GHOUL_REMINDER_TEXT or "SUMMON GHOUL")
+  text:SetFont("Fonts\\FRIZQT__.TTF", GHOUL_REMINDER_FONT_SIZE, "OUTLINE")
+  frame.text = text
+
+  ApplyGhoulReminderPosition(frame, parent, getDB)
+
+  frame:SetScript("OnDragStart", function(self)
+    if type(self.StartMoving) == "function" then
+      self:StartMoving()
+    end
+  end)
+  frame:SetScript("OnDragStop", function(self)
+    if type(self.StopMovingOrSizing) == "function" then
+      self:StopMovingOrSizing()
+    end
+    SaveGhoulReminderPosition(self, getDB)
+  end)
+  frame:Hide()
+  return frame
 end
 
 function VipDkAssist.CreateController(opts)
@@ -215,12 +208,23 @@ function VipDkAssist.CreateController(opts)
     end
   local createOverlay = type(opts.createOverlay) == "function" and opts.createOverlay or DefaultCreateOverlay
   local timerAfter = type(opts.timerAfter) == "function" and opts.timerAfter or DefaultTimerAfter
+  local getL = type(opts.getL) == "function" and opts.getL or DefaultGetL
+  local createGhoulReminderFrame = type(opts.createGhoulReminderFrame) == "function" and opts.createGhoulReminderFrame
+    or DefaultCreateGhoulReminderFrame
+  local registerStateDriver = type(opts.registerStateDriver) == "function" and opts.registerStateDriver
+    or rawget(_G, "RegisterStateDriver")
+  local unregisterStateDriver = type(opts.unregisterStateDriver) == "function" and opts.unregisterStateDriver
+    or rawget(_G, "UnregisterStateDriver")
+  local isInCombat = type(opts.isInCombat) == "function" and opts.isInCombat or DefaultIsInCombat
 
   local controller = {}
   local warningTimer = nil
   local hideTimer = nil
   local overlays = {}
   local warningActive = false
+  local ghoulReminderFrame = nil
+  local ghoulReminderDriverActive = false
+  local pendingGhoulReminderApply = false
 
   local function CancelTimer(timer)
     if timer and type(timer.Cancel) == "function" then
@@ -232,6 +236,11 @@ function VipDkAssist.CreateController(opts)
     local db = getDB() or {}
     return (db.vipDkSoulReaperWarningEnabled == true or db.vipDkPutrefyWarningEnabled == true)
       and isLocalUnholyDeathKnight() == true
+  end
+
+  local function IsGhoulReminderEnabled()
+    local db = getDB() or {}
+    return db.vipDkGhoulReminderEnabled == true and isLocalUnholyDeathKnight() == true
   end
 
   local function GetEnabledScanners()
@@ -319,6 +328,7 @@ function VipDkAssist.CreateController(opts)
       HideWarning()
       ShowWarning()
     end
+    controller.ApplyGhoulReminder()
   end
 
   function controller.Stop()
@@ -329,8 +339,66 @@ function VipDkAssist.CreateController(opts)
     HideWarning()
   end
 
+  function controller.HandlePlayerRegenEnabled()
+    CancelTimer(hideTimer)
+    hideTimer = nil
+    HideWarning()
+    controller.ApplyPendingGhoulReminder()
+  end
+
   function controller.IsWarningActive()
     return warningActive
+  end
+
+  function controller.DisableGhoulReminder()
+    if isInCombat() then
+      pendingGhoulReminderApply = true
+      return
+    end
+    if ghoulReminderFrame and ghoulReminderDriverActive and type(unregisterStateDriver) == "function" then
+      unregisterStateDriver(ghoulReminderFrame, "visibility")
+    end
+    ghoulReminderDriverActive = false
+    if ghoulReminderFrame and type(ghoulReminderFrame.Hide) == "function" then
+      ghoulReminderFrame:Hide()
+    end
+  end
+
+  function controller.ApplyGhoulReminder()
+    if isInCombat() then
+      pendingGhoulReminderApply = true
+      return
+    end
+    pendingGhoulReminderApply = false
+    if not IsGhoulReminderEnabled() then
+      controller.DisableGhoulReminder()
+      return
+    end
+    if not ghoulReminderFrame then
+      ghoulReminderFrame = createGhoulReminderFrame(rawget(_G, "UIParent"), getDB, getL)
+    end
+    if not ghoulReminderFrame then
+      return
+    end
+    if ghoulReminderFrame.text and type(ghoulReminderFrame.text.SetText) == "function" then
+      ghoulReminderFrame.text:SetText((getL() or {}).VIP_DK_GHOUL_REMINDER_TEXT or "SUMMON GHOUL")
+    end
+    if type(registerStateDriver) == "function" then
+      registerStateDriver(ghoulReminderFrame, "visibility", GHOUL_REMINDER_STATE_DRIVER)
+      ghoulReminderDriverActive = true
+    elseif type(ghoulReminderFrame.Show) == "function" then
+      ghoulReminderFrame:Show()
+    end
+  end
+
+  function controller.GetGhoulReminderFrame()
+    return ghoulReminderFrame
+  end
+
+  function controller.ApplyPendingGhoulReminder()
+    if pendingGhoulReminderApply and not isInCombat() then
+      controller.ApplyGhoulReminder()
+    end
   end
 
   return controller
@@ -343,6 +411,7 @@ function VipDkAssist.SetDependencies(deps)
     return
   end
   controllerInstance = VipDkAssist.CreateController(deps)
+  controllerInstance.ApplyGhoulReminder()
 end
 
 function VipDkAssist.HandleEvent(event, ...)
@@ -352,8 +421,11 @@ function VipDkAssist.HandleEvent(event, ...)
   if event == "UNIT_SPELLCAST_SUCCEEDED" then
     controllerInstance.HandleUnitSpellcastSucceeded(...)
   elseif event == "PLAYER_REGEN_ENABLED" then
-    controllerInstance.Stop()
+    controllerInstance.HandlePlayerRegenEnabled()
   elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
     controllerInstance.Stop()
+    controllerInstance.ApplyGhoulReminder()
+  elseif event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" or event == "UNIT_PET" then
+    controllerInstance.ApplyGhoulReminder()
   end
 end

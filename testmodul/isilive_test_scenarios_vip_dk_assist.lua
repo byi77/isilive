@@ -1,7 +1,7 @@
 ---@diagnostic disable: undefined-global
 local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModules)
   local function LoadController()
-    local addon = LoadAddonModules({ "isiLive_vip_dk_assist.lua" })
+    local addon = LoadAddonModules({ "isiLive_action_button_overlay.lua", "isiLive_vip_dk_assist.lua" })
     return addon.VipDkAssist
   end
 
@@ -355,6 +355,46 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
     end)
   end)
 
+  test("VipDkAssist default spell resolver reads secure action button attributes", function()
+    local globals, scheduled, overlays = BuildDefaultGlobals({
+      vipDkSoulReaperWarningEnabled = true,
+    }, {
+      ActionButton1 = {
+        IsVisible = function()
+          return true
+        end,
+        GetSize = function()
+          return 36, 36
+        end,
+        GetFrameLevel = function()
+          return 4
+        end,
+        GetAttribute = function(_, key)
+          if key == "action" then
+            return 8
+          end
+          return nil
+        end,
+      },
+    })
+    globals.GetActionInfo = function(slot)
+      if slot == 8 then
+        return "spell", 343294
+      end
+      return nil
+    end
+
+    WithGlobals(globals, function()
+      local controller = LoadController().CreateController()
+
+      controller.HandleUnitSpellcastSucceeded("player", nil, 1233448)
+      scheduled[1].callback()
+
+      Assert.True(controller.IsWarningActive(), "secure action attribute should resolve to the Soul Reaper warning")
+      Assert.Equal(#overlays, 1, "attribute-backed Soul Reaper button should receive an overlay")
+    end)
+  end)
+
   test("VipDkAssist default guards fail closed for unverifiable class and spec APIs", function()
     WithGlobals({
       IsiLiveDB = { vipDkSoulReaperWarningEnabled = true },
@@ -379,10 +419,11 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
     end)
   end)
 
-  test("VipDkAssist central HandleEvent stops warnings on regen and spec change", function()
+  test("VipDkAssist keeps pending warning timer across regen and stops on spec change", function()
     WithGlobals({}, function()
       local VipDkAssist = LoadController()
       local stopped = 0
+      local scheduled = {}
       VipDkAssist.SetDependencies({
         getDB = function()
           return { vipDkSoulReaperWarningEnabled = true }
@@ -390,22 +431,269 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
         isLocalUnholyDeathKnight = function()
           return true
         end,
-        timerAfter = function()
+        scanSoulReaperButtons = function()
+          return { { id = "soul-reaper-button" } }
+        end,
+        createOverlay = function(button)
           return {
+            button = button,
+            shown = false,
+            Show = function(self)
+              self.shown = true
+            end,
+            Hide = function(self)
+              self.shown = false
+            end,
+          }
+        end,
+        timerAfter = function(delay, callback)
+          local timer = {
+            delay = delay,
+            callback = callback,
             Cancel = function()
               stopped = stopped + 1
             end,
           }
+          scheduled[#scheduled + 1] = timer
+          return timer
         end,
       })
 
       VipDkAssist.HandleEvent("UNIT_SPELLCAST_SUCCEEDED", "player", nil, 1233448)
       VipDkAssist.HandleEvent("PLAYER_REGEN_ENABLED")
+      Assert.Equal(stopped, 0, "regen must not cancel the pending Dark Transformation warning timer")
+      scheduled[1].callback()
+      Assert.Equal(#scheduled, 2, "pending warning should still show and schedule its hide timer after regen")
+
       VipDkAssist.HandleEvent("UNIT_SPELLCAST_SUCCEEDED", "player", nil, 1233448)
       VipDkAssist.HandleEvent("PLAYER_SPECIALIZATION_CHANGED")
       VipDkAssist.HandleEvent("PLAYER_ENTERING_WORLD")
 
-      Assert.Equal(stopped, 2, "regen and spec changes should stop pending warning timers")
+      Assert.Equal(stopped, 2, "a new cast should cancel the old hide timer and spec changes should stop pending timers")
+    end)
+  end)
+
+  test("VipDkAssist applies missing-ghoul reminder only for enabled Unholy DK", function()
+    WithGlobals({}, function()
+      local db = { vipDkGhoulReminderEnabled = true }
+      local registered = {}
+      local unregistered = {}
+      local frame = {
+        hidden = false,
+        text = {
+          SetText = function(self, text)
+            self.text = text
+          end,
+        },
+        Hide = function(self)
+          self.hidden = true
+        end,
+      }
+      local controller = LoadController().CreateController({
+        getDB = function()
+          return db
+        end,
+        getL = function()
+          return { VIP_DK_GHOUL_REMINDER_TEXT = "SUMMON GHOUL" }
+        end,
+        isLocalUnholyDeathKnight = function()
+          return db.isUnholy ~= false
+        end,
+        createGhoulReminderFrame = function()
+          return frame
+        end,
+        registerStateDriver = function(target, attribute, driver)
+          registered[#registered + 1] = { target = target, attribute = attribute, driver = driver }
+        end,
+        unregisterStateDriver = function(target, attribute)
+          unregistered[#unregistered + 1] = { target = target, attribute = attribute }
+        end,
+      })
+
+      controller.ApplyGhoulReminder()
+
+      Assert.Equal(#registered, 1, "enabled Unholy DK ghoul reminder should register the visibility driver")
+      Assert.Equal(registered[1].attribute, "visibility", "ghoul reminder must use the visibility state driver")
+      Assert.Equal(
+        registered[1].driver,
+        "[spec:3,nopet,nomounted,novehicleui] show; hide",
+        "ghoul reminder visibility must be owned by the verified state driver"
+      )
+      Assert.Equal(frame.text.text, "SUMMON GHOUL", "ghoul reminder should localize its displayed warning text")
+
+      db.isUnholy = false
+      controller.ApplyGhoulReminder()
+
+      Assert.Equal(#unregistered, 1, "non-Unholy state must unregister the ghoul reminder driver")
+      Assert.True(frame.hidden, "non-Unholy state must hide the ghoul reminder")
+    end)
+  end)
+
+  test("VipDkAssist defers ghoul reminder state-driver changes during combat", function()
+    WithGlobals({}, function()
+      local inCombat = true
+      local registered = 0
+      local db = { vipDkGhoulReminderEnabled = true }
+      local controller = LoadController().CreateController({
+        getDB = function()
+          return db
+        end,
+        isLocalUnholyDeathKnight = function()
+          return true
+        end,
+        isInCombat = function()
+          return inCombat
+        end,
+        createGhoulReminderFrame = function()
+          return {
+            Hide = function() end,
+            text = {
+              SetText = function() end,
+            },
+          }
+        end,
+        registerStateDriver = function()
+          registered = registered + 1
+        end,
+      })
+
+      controller.ApplyGhoulReminder()
+      Assert.Equal(registered, 0, "combat lockdown must defer ghoul reminder state-driver registration")
+
+      inCombat = false
+      controller.ApplyPendingGhoulReminder()
+
+      Assert.Equal(registered, 1, "regen must apply the deferred ghoul reminder state-driver registration")
+    end)
+  end)
+
+  test("VipDkAssist ghoul reminder frame restores and saves its own position", function()
+    local db = {
+      vipDkGhoulReminderEnabled = true,
+      vipDkGhoulReminderPosition = {
+        point = "TOP",
+        relativePoint = "TOP",
+        x = 12,
+        y = -80,
+      },
+    }
+    local frame
+    local function CreateFrameStub()
+      frame = {
+        points = {},
+        scripts = {},
+        textures = {},
+        fontStrings = {},
+        SetSize = function(self, width, height)
+          self.width = width
+          self.height = height
+        end,
+        SetPoint = function(self, point, _relativeTo, relativePoint, x, y)
+          self.points[#self.points + 1] = { point = point, relativePoint = relativePoint, x = x, y = y }
+        end,
+        ClearAllPoints = function(self)
+          self.points = {}
+        end,
+        GetPoint = function()
+          return "BOTTOMLEFT", UIParent, "BOTTOMLEFT", 22, 33
+        end,
+        SetFrameStrata = function(self, strata)
+          self.strata = strata
+        end,
+        SetClampedToScreen = function(self, clamped)
+          self.clamped = clamped
+        end,
+        SetMovable = function(self, movable)
+          self.movable = movable
+        end,
+        EnableMouse = function(self, enabled)
+          self.mouseEnabled = enabled
+        end,
+        RegisterForDrag = function(self, button)
+          self.dragButton = button
+        end,
+        CreateTexture = function(self)
+          local texture = {
+            SetAllPoints = function(tex, target)
+              tex.allPoints = target
+            end,
+            SetColorTexture = function(tex, r, g, b, a)
+              tex.color = { r, g, b, a }
+            end,
+          }
+          self.textures[#self.textures + 1] = texture
+          return texture
+        end,
+        CreateFontString = function(self)
+          local fontString = {
+            SetPoint = function(fs, ...)
+              fs.point = { ... }
+            end,
+            SetTextColor = function(fs, ...)
+              fs.color = { ... }
+            end,
+            SetText = function(fs, text)
+              fs.text = text
+            end,
+            SetFont = function(fs, ...)
+              fs.font = { ... }
+            end,
+          }
+          self.fontStrings[#self.fontStrings + 1] = fontString
+          return fontString
+        end,
+        SetScript = function(self, scriptName, handler)
+          self.scripts[scriptName] = handler
+        end,
+        StartMoving = function(self)
+          self.startedMoving = true
+        end,
+        StopMovingOrSizing = function(self)
+          self.stoppedMoving = true
+        end,
+        Hide = function(self)
+          self.hidden = true
+        end,
+      }
+      return frame
+    end
+
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = function()
+        return CreateFrameStub()
+      end,
+    }, function()
+      local controller = LoadController().CreateController({
+        getDB = function()
+          return db
+        end,
+        isLocalUnholyDeathKnight = function()
+          return true
+        end,
+        registerStateDriver = function() end,
+      })
+
+      controller.ApplyGhoulReminder()
+
+      local reminderFrame = Assert.NotNil(controller.GetGhoulReminderFrame(), "ghoul reminder frame should be created")
+      Assert.True(reminderFrame.clamped, "ghoul reminder frame should be clamped to the screen")
+      Assert.True(reminderFrame.movable, "ghoul reminder frame should be movable")
+      Assert.Equal(reminderFrame.dragButton, "LeftButton", "ghoul reminder should use left-button dragging")
+      Assert.Equal(reminderFrame.points[1].point, "TOP", "ghoul reminder should restore saved point")
+      Assert.Equal(reminderFrame.points[1].relativePoint, "TOP", "ghoul reminder should restore saved relative point")
+      Assert.Equal(reminderFrame.points[1].x, 12, "ghoul reminder should restore saved x")
+      Assert.Equal(reminderFrame.points[1].y, -80, "ghoul reminder should restore saved y")
+      Assert.Equal(reminderFrame.fontStrings[1].text, "SUMMON GHOUL", "default ghoul reminder text should render")
+
+      reminderFrame.scripts.OnDragStart(reminderFrame)
+      reminderFrame.scripts.OnDragStop(reminderFrame)
+
+      Assert.True(reminderFrame.startedMoving, "drag start should move the ghoul reminder")
+      Assert.True(reminderFrame.stoppedMoving, "drag stop should stop moving the ghoul reminder")
+      Assert.Equal(db.vipDkGhoulReminderPosition.point, "BOTTOMLEFT", "drag stop should save ghoul reminder point")
+      Assert.Equal(db.vipDkGhoulReminderPosition.x, 22, "drag stop should save ghoul reminder x")
+      Assert.Equal(db.vipDkGhoulReminderPosition.y, 33, "drag stop should save ghoul reminder y")
     end)
   end)
 end

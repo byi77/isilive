@@ -2550,6 +2550,9 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
             SETTINGS_VIP_GILDED_BRUTOSAUR_SOUND = "Mute Trader Brutosaur mount sound",
             SETTINGS_VIP_DK_SOUL_REAPER_WARNING = "Soul Reaper warning for Unholy DK",
             SETTINGS_VIP_DK_PUTREFY_WARNING = "Putrefy warning for Unholy DK",
+            SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING = "Bloodlust button warning while debuffed",
+            SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND = "Mute Riders of the Apocalypse horse sounds",
+            SETTINGS_VIP_DK_GHOUL_REMINDER = "Show missing-ghoul reminder",
           }
         end,
         getCurrentLocale = function()
@@ -2570,6 +2573,9 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       local brutosaurCheck = nil
       local soulReaperCheck = nil
       local putrefyCheck = nil
+      local bloodlustDebuffCheck = nil
+      local dkHorseCheck = nil
+      local ghoulReminderCheck = nil
       for _, frame in ipairs(createdFrames) do
         if frame._sectionKey == "SETTINGS_SECTION_VIP_GUESTS" then
           vipHeader = vipHeader or frame
@@ -2584,6 +2590,12 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
           soulReaperCheck = frame
         elseif frame._settingKey == "SETTINGS_VIP_DK_PUTREFY_WARNING" then
           putrefyCheck = frame
+        elseif frame._settingKey == "SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING" then
+          bloodlustDebuffCheck = frame
+        elseif frame._settingKey == "SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND" then
+          dkHorseCheck = frame
+        elseif frame._settingKey == "SETTINGS_VIP_DK_GHOUL_REMINDER" then
+          ghoulReminderCheck = frame
         end
       end
 
@@ -2593,11 +2605,19 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       brutosaurCheck = Assert.NotNil(brutosaurCheck, "settings panel should create the gilded brutosaur sound checkbox")
       soulReaperCheck = Assert.NotNil(soulReaperCheck, "settings panel should create the VIP DK Soul Reaper checkbox")
       putrefyCheck = Assert.NotNil(putrefyCheck, "settings panel should create the VIP DK Putrefy checkbox")
+      bloodlustDebuffCheck =
+        Assert.NotNil(bloodlustDebuffCheck, "settings panel should create the VIP Bloodlust debuff checkbox")
+      dkHorseCheck = Assert.NotNil(dkHorseCheck, "settings panel should create the VIP DK horse-sound child checkbox")
+      ghoulReminderCheck =
+        Assert.NotNil(ghoulReminderCheck, "settings panel should create the VIP DK ghoul-reminder child checkbox")
       Assert.False(aurochsCheck:GetChecked(), "astral aurochs sound mute should default to off")
       Assert.False(yakCheck:GetChecked(), "grand expedition yak sound mute should default to off")
       Assert.False(brutosaurCheck:GetChecked(), "gilded brutosaur sound mute should default to off")
       Assert.False(soulReaperCheck:GetChecked(), "VIP DK Soul Reaper warning should default to off")
       Assert.False(putrefyCheck:GetChecked(), "VIP DK Putrefy warning should default to off")
+      Assert.False(bloodlustDebuffCheck:GetChecked(), "VIP Bloodlust debuff button warning should default to off")
+      Assert.False(dkHorseCheck:GetChecked(), "VIP DK horse-sound mute should default to off")
+      Assert.False(ghoulReminderCheck:GetChecked(), "VIP DK ghoul reminder should default to off")
       local onClick =
         Assert.NotNil(aurochsCheck._scripts and aurochsCheck._scripts.OnClick or nil, "VIP checkbox needs OnClick")
 
@@ -2645,6 +2665,33 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       putrefyCheck:SetChecked(true)
       putrefyOnClick(putrefyCheck)
       Assert.True(db.vipDkPutrefyWarningEnabled, "checking Putrefy warning should persist enabled=true")
+      local bloodlustOnClick = Assert.NotNil(
+        bloodlustDebuffCheck._scripts and bloodlustDebuffCheck._scripts.OnClick or nil,
+        "Bloodlust debuff VIP checkbox needs OnClick"
+      )
+      bloodlustDebuffCheck:SetChecked(true)
+      bloodlustOnClick(bloodlustDebuffCheck)
+      Assert.True(
+        db.vipBloodlustDebuffButtonWarningEnabled,
+        "checking Bloodlust debuff warning should persist enabled=true"
+      )
+      muted = {}
+      local dkHorseOnClick = Assert.NotNil(
+        dkHorseCheck._scripts and dkHorseCheck._scripts.OnClick or nil,
+        "DK horse-sound child checkbox needs OnClick"
+      )
+      dkHorseCheck:SetChecked(true)
+      dkHorseOnClick(dkHorseCheck)
+      Assert.True(db.vipDkApocalypseHorseSoundMuted, "checking DK horse sound should persist muted=true")
+      Assert.Equal(#muted, 3, "checking DK horse sound should mute the three known horse summon files")
+      Assert.Equal(muted[1], 987917, "DK horse muting should include the first known horse summon file")
+      local ghoulReminderOnClick = Assert.NotNil(
+        ghoulReminderCheck._scripts and ghoulReminderCheck._scripts.OnClick or nil,
+        "DK ghoul-reminder child checkbox needs OnClick"
+      )
+      ghoulReminderCheck:SetChecked(true)
+      ghoulReminderOnClick(ghoulReminderCheck)
+      Assert.True(db.vipDkGhoulReminderEnabled, "checking DK ghoul reminder should persist enabled=true")
     end)
   end)
 
@@ -2937,12 +2984,13 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       )
       Assert.Equal(
         checkboxCount,
-        46,
+        49,
         "settings should hide only the legacy name-length"
           .. " and teleport-column controls while keeping the startup/key-end, navigator, sound,"
           .. " incoming-summon loop, chat/text-announce, combat-fade, nameplate-subtoggle,"
           .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows,"
           .. " VIP sound toggles, the VIP DK Soul Reaper and Putrefy warnings,"
+          .. " the VIP Bloodlust debuff warning, the DK horse-sound child mute, the DK ghoul-reminder child toggle,"
           .. " and the two auto-close split checkboxes visible"
           .. " (M+ forces tooltip/nameplate toggles replaced by a single 3-way display-mode selector)"
       )
@@ -2951,12 +2999,13 @@ local function RegisterSettingsPanelSoundAndLegacyTests(test, Assert, WithGlobal
       Assert.Equal(sliderCount, 7, "refresh should keep the stats-box and nameplate sliders visible")
       Assert.Equal(
         checkboxCount,
-        46,
+        49,
         "refresh should keep the hidden legacy checkboxes out of the settings UI"
           .. " while preserving the visible sound, incoming-summon loop, chat/text-announce,"
           .. " combat-fade, nameplate-subtoggle,"
           .. " accepted-invite/group-join notices, LFG class-bonus, stats-box toggles/detail rows, VIP sound toggles,"
           .. " the VIP DK Soul Reaper and Putrefy warnings,"
+          .. " the VIP Bloodlust debuff warning, the DK horse-sound child mute, the DK ghoul-reminder child toggle,"
           .. " and the two auto-close split checkboxes"
       )
     end)

@@ -512,6 +512,9 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     or function(_event, ...) end
   config.handlePiTrackerEvent = type(deps.handlePiTrackerEvent) == "function" and deps.handlePiTrackerEvent
     or function(_event, ...) end
+  config.handleBloodlustButtonWarningEvent = type(deps.handleBloodlustButtonWarningEvent) == "function"
+      and deps.handleBloodlustButtonWarningEvent
+    or function(_event, ...) end
   config.handleVipDkAssistEvent = type(deps.handleVipDkAssistEvent) == "function" and deps.handleVipDkAssistEvent
     or function(_event, ...) end
   config.handleDeathWatchEvent = type(deps.handleDeathWatchEvent) == "function" and deps.handleDeathWatchEvent
@@ -776,6 +779,9 @@ local function BuildEventHandlersDepsFromContext(ctx)
     end,
     handlePiTrackerEvent = function(event, ...)
       DispatchModuleEvent(ctx.modules and ctx.modules.piTracker, event, ...)
+    end,
+    handleBloodlustButtonWarningEvent = function(event, ...)
+      DispatchModuleEvent(ctx.modules and ctx.modules.bloodlustButtonWarning, event, ...)
     end,
     handleVipDkAssistEvent = function(event, ...)
       DispatchModuleEvent(ctx.modules and ctx.modules.vipDkAssist, event, ...)

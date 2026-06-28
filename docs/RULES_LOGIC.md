@@ -109,7 +109,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 87. Eingehende Beschwoerungen wiederholen den Incoming-Summon-Sound bei aktiviertem Loop alle 5 Sekunden, solange der Live-Status fuer `player` verifiziert `Pending` bleibt; `deDE` nutzt die deutsche Ansage `Beschwoerung aktiv`, alle anderen Client-Locales behalten `Portal.ogg`.
 88. Das kompakte vertikale V-Layout zeigt die M+-Leader-Aktionen eng als `RC`, `CD10` und `CD0`, blendet `Share Keys` sowie die Tool-Ueberschriften aus und ordnet die M+Marker in zwei eng stehenden vertikalen Vierer-Spalten an.
 89. Power Infusion wird ausserhalb des Raids nur aus verifizierten Aura-Daten erkannt und vom lokal verifizierten PI-Caster an isiLive-Peers nur mit verifiziertem Priester und Empfaenger synchronisiert; wenn der PI-Texthinweis aktiviert ist, zeigen lokale Chatzeilen verifizierten Priester und Empfaenger, die rote Center-Animation erscheint nur beim lokalen Empfaenger, und der separat schaltbare PI-Empfangsklang spielt nur beim lokalen Empfaenger.
-90. Die VIP-DK-Seelenernter- und Putrefy-Warnungen sind standardmaessig aus, bleiben in den VIP-Settings immer sichtbar und duerfen nur fuer verifizierte lokale Unholy-Death-Knights nach einem eigenen Dark-Transformation-Cast eindeutig gefundene Actionbar-Ziele warnen.
+90. Die VIP-DK-Seelenernter-, Putrefy-, Pferdeklang- und Ghoul-Reminder-Optionen sind standardmaessig aus, bleiben in den VIP-Settings immer sichtbar und duerfen nur fuer verifizierte lokale Unholy-Death-Knights, eindeutig gefundene Actionbar-Ziele, fest gepflegte SoundFile-IDs oder den gepflegten Ghoul-Reminder-State-Driver wirken.
+91. Die VIP-Bloodlust-Debuff-Button-Warnung ist standardmaessig aus und immer in den VIP-Settings sichtbar, darf aber nur fuer verifizierte lokale Bloodlust-Klassen bei verifiziertem Erschoepfungs-/Satt-Debuff und exakt gepflegten Bloodlust-Klassen- oder Pet-Spell-IDs ein rotes Kreuz auf sichtbare Actionbar-Buttons legen.
 
 ## Regelbloecke
 
@@ -723,6 +724,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Roster panel share keys button debounces rapid clicks
   - Roster panel share keys button dispatches SHAREKEYS before party chat
+  - context_helpers: BuildKeystoneChatLink accepts verified keystone item hyperlinks
   - Roster panel share keys button drives full sender receiver chat chain
   - Roster panel share keys button does not treat the local print fallback as a successful party share
   - Roster panel share keys button ignores no-op clicks without chat or sync success
@@ -1366,15 +1368,43 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-VIP-DK-SEELENERNTER-WARNUNG
 - Regelnummer: 90
 - Status: aktiv
-- Zusammenfassung: Die VIP-DK-Seelenernter- und Putrefy-Warnungen sind standardmaessig aus und werden getrennt ueber die VIP-Settings-Schalter `vipDkSoulReaperWarningEnabled` und `vipDkPutrefyWarningEnabled` aktiviert. Beide Settings-Schalter muessen im VIP-Settings-Abschnitt immer sichtbar bleiben, auch wenn der lokale Spieler kein Death Knight ist. Wenn der lokale Spieler verifiziert Death Knight mit Unholy-Spezialisierung ist und der lokale `UNIT_SPELLCAST_SUCCEEDED`-Cast die Spell-ID `1233448` fuer Dark Transformation meldet, wird nach 30 Sekunden fuer 15 Sekunden eine rote Warnung auf den fuer die aktivierten Optionen eindeutig gefundenen Actionbar-Buttons angezeigt. Soul Reaper darf nur ueber verifizierte Actionbar-Spell- oder Macro-Spell-IDs mit Spell-ID `343294` erkannt werden; Putrefy darf nur ueber verifizierte Actionbar-Spell- oder Macro-Spell-IDs mit Spell-ID `1247378` erkannt werden; Icon-, Textur-, Namens- oder Cooldown-Ratefallbacks sind nicht erlaubt. Non-player-Casts, falsche Spell-IDs, deaktivierte VIP-Settings, unverifizierte Klasse/Spezialisierung, Raidmodus-Forwarding, Spec-Wechsel und `PLAYER_REGEN_ENABLED` muessen geschlossen stumm bleiben beziehungsweise aktive Warnungen stoppen.
+- Zusammenfassung: Die VIP-DK-Seelenernter- und Putrefy-Warnungen sind standardmaessig aus und werden getrennt ueber die VIP-Settings-Schalter `vipDkSoulReaperWarningEnabled` und `vipDkPutrefyWarningEnabled` aktiviert. Beide Settings-Schalter muessen im VIP-Settings-Abschnitt immer sichtbar bleiben, auch wenn der lokale Spieler kein Death Knight ist. Der VIP-DK-Pferdeklang-Schalter `vipDkApocalypseHorseSoundMuted` ist als eingerueckter Child-Schalter im DK-Settings-Block sichtbar, ist standardmaessig aus und darf nur die fest gepflegten DK-Pferde-SoundFile-IDs `987917`, `987919` und `987921` per `MuteSoundFile`/`UnmuteSoundFile` umschalten. Der VIP-DK-Ghoul-Reminder-Schalter `vipDkGhoulReminderEnabled` ist als eingerueckter Child-Schalter im DK-Settings-Block sichtbar, ist standardmaessig aus und darf nur bei verifiziertem lokalen Unholy-Death-Knight eine verschiebbare, bildschirmgeklemmte Warnung anzeigen; die Sichtbarkeit der Warnung muss ueber den State Driver `[spec:3,nopet,nomounted,novehicleui] show; hide` laufen, State-Driver-Aenderungen muessen im Kampf bis `PLAYER_REGEN_ENABLED` gependelt werden, die eigene Position wird getrennt in `vipDkGhoulReminderPosition` gespeichert, und der sichtbare Text muss ueber den aktiven Addon-Locale-Getter aus `VIP_DK_GHOUL_REMINDER_TEXT` kommen. Fuer `deDE` muss dieser Text `Ghoul beschwören` sein; alle gepflegten Locale-Tabellen muessen denselben Key enthalten. Ausserhalb von Raid-Hard-off muss `UNIT_PET` sowohl an den KickTracker als auch an die VIP-DK-Hilfe weitergeleitet werden, damit der Ghoul-Reminder auf Pet-Aenderungen reagiert; im Raidmodus muss die VIP-DK-Verarbeitung unterdrueckt bleiben. Wenn der lokale Spieler verifiziert Death Knight mit Unholy-Spezialisierung ist und der lokale `UNIT_SPELLCAST_SUCCEEDED`-Cast die Spell-ID `1233448` fuer Dark Transformation meldet, wird nach 30 Sekunden fuer 15 Sekunden eine rote Warnung auf den fuer die aktivierten Optionen eindeutig gefundenen Actionbar-Buttons angezeigt. Soul Reaper darf nur ueber verifizierte Actionbar-Spell-IDs, Secure-Actionbutton-Attribute oder Macro-Spell-IDs mit Spell-ID `343294` erkannt werden; Putrefy darf nur ueber verifizierte Actionbar-Spell-IDs, Secure-Actionbutton-Attribute oder Macro-Spell-IDs mit Spell-ID `1247378` erkannt werden; Icon-, Textur-, Namens- oder Cooldown-Ratefallbacks sind nicht erlaubt. Non-player-Casts, falsche Spell-IDs, deaktivierte VIP-Settings, unverifizierte Klasse/Spezialisierung, Raidmodus-Forwarding und Spec-Wechsel muessen geschlossen stumm bleiben beziehungsweise aktive Warnungen stoppen. `PLAYER_REGEN_ENABLED` darf sichtbare Warnoverlays schliessen und Ghoul-Reminder-Deferreds anwenden, darf aber einen nach Dark Transformation bereits geplanten 30-Sekunden-Warntimer nicht abbrechen.
 - Erforderliche Tests:
   - VipDkAssist starts Soul Reaper warning after Dark Transformation
   - VipDkAssist starts Putrefy warning after Dark Transformation
   - VipDkAssist can warn Soul Reaper and Putrefy together
+  - VipDkAssist default spell resolver reads secure action button attributes
   - VipDkAssist ignores non-player and unrelated casts
   - VipDkAssist respects disabled VIP setting
   - VipDkAssist fails closed when player is not verified Unholy Death Knight
+  - VipDkAssist applies missing-ghoul reminder only for enabled Unholy DK
+  - VipDkAssist defers ghoul reminder state-driver changes during combat
+  - VipDkAssist ghoul reminder frame restores and saves its own position
+  - UNIT_PET forwards to kick tracker and VIP DK assist outside raid
   - VipDkAssist SetDependencies exposes central HandleEvent path
+  - VipDkAssist keeps pending warning timer across regen and stops on spec change
+  - factory split coverage: VIP DK assist receives localized ghoul reminder text
+  - Settings panel exposes VIP guest sound toggle and applies astral aurochs muting
+  - Settings panel orders controls by thematic sections
+  - Architecture group-join sound hook stays local to controller wiring
+  - DBSchema.Sanitize fills all defaults on an empty db
+  - DBSchema.GetKnownFieldNames includes core persistent fields
+
+### RULE-VIP-BLOODLUST-DEBUFF-BUTTON-WARNUNG
+- Regelnummer: 91
+- Status: aktiv
+- Zusammenfassung: Die VIP-Bloodlust-Debuff-Button-Warnung persistiert als `vipBloodlustDebuffButtonWarningEnabled`, ist fuer neue oder sanitizte DBs standardmaessig aus und bleibt als Child-Option im VIP-Settings-Abschnitt immer sichtbar, unabhaengig von der aktuell gespielten Klasse. Zur Laufzeit darf die Warnung nur ausserhalb von Raid-Hard-off wirken, wenn der Schalter explizit aktiv ist, der lokale Spieler ueber `UnitClass("player")` als eine Bloodlust-Klasse `SHAMAN`, `MAGE`, `EVOKER` oder `HUNTER` verifiziert ist, ein verifizierter Harmful-Aura-Scan auf `player` eine gepflegte Erschoepfungs-/Satt-Spell-ID (`57723`, `57724`, `80354`, `264689`, `390435`, `95809`) meldet und ein sichtbarer Actionbar-Button eindeutig eine der gepflegten Bloodlust-Klassen- oder Pet-Spell-IDs (`2825`, `32182`, `80353`, `264667`, `390386`, `90355`, `160452`) traegt. Drums-Spell-IDs zaehlen fuer diese Warnung nicht. Icon-, Textur-, Namens-, Klassenlisten-Ratefallbacks oder synthetische Button-Ziele sind nicht erlaubt. Wenn Setting, Klasse, Debuff oder Button-Ziel nicht verifiziert sind, muss die Warnung geschlossen unsichtbar bleiben; wenn der Debuff ablaeuft, ein Button verschwindet, die Spezialisierung wechselt oder `PLAYER_REGEN_ENABLED` eine zuvor blockierte Anzeige ermoeglicht, muss der Zustand ueber den zentralen Eventpfad neu gelesen werden.
+- Erforderliche Tests:
+  - BloodlustButtonWarning shows a cross on a Bloodlust button while debuffed when enabled
+  - BloodlustButtonWarning hides when the setting is missing disabled or the class is not verified
+  - BloodlustButtonWarning hides an existing overlay when the debuff expires
+  - BloodlustButtonWarning central event path ignores non-player UNIT_AURA and refreshes player events
+  - BloodlustButtonWarning default dependencies use exact Bloodlust spells and ignore drums
+  - UNIT_AURA refreshes cd tracker only for player unit outside raid
+  - UNIT_AURA bails out in raid mode even for player unit
+  - PLAYER_SPECIALIZATION_CHANGED also refreshes player role from spec
+  - PLAYER_REGEN_ENABLED applies pending leader button updates
+  - factory split coverage: Bloodlust button warning receives DB dependency
   - Settings panel exposes VIP guest sound toggle and applies astral aurochs muting
   - Settings panel orders controls by thematic sections
   - DBSchema.Sanitize fills all defaults on an empty db

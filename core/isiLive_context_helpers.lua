@@ -52,6 +52,13 @@ function ContextHelpers.BuildDummyRoster(opts)
   })
 end
 
+local function IsUsableKeystoneChatLink(link)
+  if type(link) ~= "string" or link == "" then
+    return false
+  end
+  return link:find("|Hkeystone:", 1, true) ~= nil or link:find("|Hitem:180653", 1, true) ~= nil
+end
+
 function ContextHelpers.BuildKeystoneChatLink(mapID, level)
   local numericMapID = math.floor(tonumber(mapID) or 0)
   local numericLevel = math.floor(tonumber(level) or 0)
@@ -62,13 +69,14 @@ function ContextHelpers.BuildKeystoneChatLink(mapID, level)
   local mythicPlusApi = rawget(_G, "C_MythicPlus")
   if mythicPlusApi and type(mythicPlusApi.GetOwnedKeystoneLink) == "function" then
     local okLink, ownedLink = pcall(mythicPlusApi.GetOwnedKeystoneLink)
-    if okLink and type(ownedLink) == "string" and ownedLink ~= "" and ownedLink:find("|Hkeystone:", 1, true) then
+    if okLink and IsUsableKeystoneChatLink(ownedLink) then
       return ownedLink
     end
   end
 
   -- Fallback: GetOwnedKeystoneLink was removed in recent WoW retail.
-  -- Scan bags for the Mythic Keystone item (itemID 180653) and return its real link —
+  -- Scan bags for the Mythic Keystone item (itemID 180653) and return its real link.
+  -- Some clients expose it as |Hkeystone:...|h, others as the Keystone item hyperlink.
   -- manually constructed |Hkeystone:...|h links are silently dropped by the chat server.
   local containerApi = rawget(_G, "C_Container")
   if
@@ -84,7 +92,7 @@ function ContextHelpers.BuildKeystoneChatLink(mapID, level)
           local okID, itemID = pcall(containerApi.GetContainerItemID, bagID, slotID)
           if okID and itemID == 180653 then
             local okBagLink, bagLink = pcall(containerApi.GetContainerItemLink, bagID, slotID)
-            if okBagLink and type(bagLink) == "string" and bagLink:find("|Hkeystone:", 1, true) then
+            if okBagLink and IsUsableKeystoneChatLink(bagLink) then
               return bagLink
             end
           end

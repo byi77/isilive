@@ -4,7 +4,7 @@ Diese Datei beschreibt verbindliche Strukturregeln fuer den aktuellen Modulzusch
 Im Gegensatz zu `RULES_LOGIC.md` geht es hier nicht um Runtime-Verhalten, sondern um
 stabile Architekturgrenzen, die ueber deterministische Strukturtests geprueft werden.
 
-Aktueller Dokumentationsstand: `0.9.333`. Die seit 0.9.310 hinzugekommenen
+Aktueller Dokumentationsstand: `0.9.338`. Die seit 0.9.310 hinzugekommenen
 Runtime- und UI-Aenderungen sind in `RULES_LOGIC.md` als aktive Projektregeln
 gepinnt und werden ueber deterministische Szenarien validiert. Native WoW-TTS
 ist durch Regel 84 deaktiviert; Death-Audio nutzt statische WAV-Dateien. Der

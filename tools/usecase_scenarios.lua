@@ -45,6 +45,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_kick_tracker.lua",
   "testmodul/isilive_test_scenarios_combat_events.lua",
   "testmodul/isilive_test_scenarios_pi_tracker.lua",
+  "testmodul/isilive_test_scenarios_bloodlust_button_warning.lua",
   "testmodul/isilive_test_scenarios_vip_dk_assist.lua",
   "testmodul/isilive_test_scenarios_ui_frame_bridge.lua",
   "testmodul/isilive_test_scenarios_ui_center_notice.lua",

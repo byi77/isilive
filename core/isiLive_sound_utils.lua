@@ -721,6 +721,11 @@ local VIP_MOUNT_SOUND_FILE_IDS = {
     2470753,
     2470754,
   },
+  dk_apocalypse_horse = {
+    987917,
+    987919,
+    987921,
+  },
 }
 
 SoundUtils.Registry = {
@@ -1173,6 +1178,10 @@ function SoundUtils.GetGildedBrutosaurSoundFileIDs()
   return CopySoundFileIDs("gilded_brutosaur")
 end
 
+function SoundUtils.GetDkApocalypseHorseSoundFileIDs()
+  return CopySoundFileIDs("dk_apocalypse_horse")
+end
+
 function SoundUtils.ApplyAstralAurochsSoundSetting(muted)
   return ApplyVIPMountSoundSetting("astral_aurochs", muted)
 end
@@ -1185,11 +1194,16 @@ function SoundUtils.ApplyGildedBrutosaurSoundSetting(muted)
   return ApplyVIPMountSoundSetting("gilded_brutosaur", muted)
 end
 
+function SoundUtils.ApplyDkApocalypseHorseSoundSetting(muted)
+  return ApplyVIPMountSoundSetting("dk_apocalypse_horse", muted)
+end
+
 function SoundUtils.ApplyVIPGuestSoundSettings()
   local db = rawget(_G, "IsiLiveDB")
   local astralMuted = false
   local yakMuted = false
   local brutosaurMuted = false
+  local dkApocalypseHorseMuted = false
   if type(db) == "table" and db.vipAstralAurochsSoundMuted ~= nil then
     astralMuted = db.vipAstralAurochsSoundMuted == true
   end
@@ -1199,7 +1213,11 @@ function SoundUtils.ApplyVIPGuestSoundSettings()
   if type(db) == "table" and db.vipGildedBrutosaurSoundMuted ~= nil then
     brutosaurMuted = db.vipGildedBrutosaurSoundMuted == true
   end
+  if type(db) == "table" and db.vipDkApocalypseHorseSoundMuted ~= nil then
+    dkApocalypseHorseMuted = db.vipDkApocalypseHorseSoundMuted == true
+  end
   SoundUtils.ApplyAstralAurochsSoundSetting(astralMuted)
   SoundUtils.ApplyGrandExpeditionYakSoundSetting(yakMuted)
   SoundUtils.ApplyGildedBrutosaurSoundSetting(brutosaurMuted)
+  SoundUtils.ApplyDkApocalypseHorseSoundSetting(dkApocalypseHorseMuted)
 end

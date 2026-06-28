@@ -3,13 +3,29 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.336`.
+Current release: `0.9.338`.
 
 Highlights:
 - Unholy Death Knights can now enable default-off VIP warnings for Soul Reaper
   and Putrefy. The warnings use only the local Dark Transformation cast and
-  verified actionbar spell IDs, and the Settings toggles stay visible even on
-  non-DK characters.
+  verified actionbar spell IDs or secure action button attributes, and the
+  Settings toggles stay visible even on non-DK characters. The warning timer
+  now survives `PLAYER_REGEN_ENABLED` during the 30-second delay, and secure
+  action button attributes are accepted before resolving the exact spell or
+  macro spell ID.
+- VIP settings now include a default-off Bloodlust button warning for BL classes.
+  While the player has a Sated/Exhaustion debuff, verified Bloodlust class or
+  pet action buttons receive the same red cross overlay used by the DK warnings;
+  drums are intentionally excluded.
+- The VIP DK settings now include a default-off child toggle for muting the
+  Riders of the Apocalypse horse summon sounds.
+- The VIP DK settings now include a default-off movable missing-ghoul reminder
+  for Unholy Death Knights.
+- The missing-ghoul reminder now refreshes on pet changes and uses the active
+  addon locale text, including German `Ghoul beschwören`.
+- Share Keys now keeps the self-posted keystone clickable when Blizzard exposes
+  either the real keystone hyperlink or the verified keystone item hyperlink for
+  item `180653`; plain text is used only when no real link is available.
 - Mythic+ death counters now reset immediately after dungeon completion,
   challenge abort, or party-instance exit, matching the existing M+ timer and
   BR/BL timer cleanup.

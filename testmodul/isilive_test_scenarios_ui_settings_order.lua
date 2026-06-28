@@ -61,6 +61,9 @@ local function RegisterSettingsPanelOrderTests(test, Assert, WithGlobals, LoadAd
             SETTINGS_VIP_GILDED_BRUTOSAUR_SOUND = "Brutosaur sound",
             SETTINGS_VIP_DK_SOUL_REAPER_WARNING = "Soul Reaper warning",
             SETTINGS_VIP_DK_PUTREFY_WARNING = "Putrefy warning",
+            SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING = "Bloodlust debuff warning",
+            SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND = "DK horse sound",
+            SETTINGS_VIP_DK_GHOUL_REMINDER = "DK ghoul reminder",
             SETTINGS_CHAT_BR_ANNOUNCE = "Chat BR",
             SETTINGS_COMBAT_LOGGING = "Combat Logging",
             SETTINGS_QUEUE_DEBUG = "Queue Debug",
@@ -94,6 +97,9 @@ local function RegisterSettingsPanelOrderTests(test, Assert, WithGlobals, LoadAd
       AssertBefore("SETTINGS_RESET_UI_POSITION", "SETTINGS_VIP_ASTRAL_AUROCHS_SOUND")
       AssertBefore("SETTINGS_VIP_GILDED_BRUTOSAUR_SOUND", "SETTINGS_VIP_DK_SOUL_REAPER_WARNING")
       AssertBefore("SETTINGS_VIP_DK_SOUL_REAPER_WARNING", "SETTINGS_VIP_DK_PUTREFY_WARNING")
+      AssertBefore("SETTINGS_VIP_DK_PUTREFY_WARNING", "SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING")
+      AssertBefore("SETTINGS_VIP_BLOODLUST_DEBUFF_BUTTON_WARNING", "SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND")
+      AssertBefore("SETTINGS_VIP_DK_APOCALYPSE_HORSE_SOUND", "SETTINGS_VIP_DK_GHOUL_REMINDER")
     end)
   end)
 

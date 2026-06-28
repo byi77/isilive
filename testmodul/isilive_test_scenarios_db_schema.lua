@@ -49,6 +49,11 @@ return function(test, ctx)
     Assert.Equal(db.powerInfusionTextEnabled, true, "power infusion text alert default true")
     Assert.Equal(db.vipDkSoulReaperWarningEnabled, false, "VIP DK Soul Reaper warning default false")
     Assert.Equal(db.vipDkPutrefyWarningEnabled, false, "VIP DK Putrefy warning default false")
+    Assert.Equal(db.vipBloodlustDebuffButtonWarningEnabled, false, "VIP Bloodlust debuff button warning default false")
+    Assert.Equal(db.vipDkGhoulReminderEnabled, false, "VIP DK Ghoul reminder default false")
+    Assert.NotNil(db.vipDkGhoulReminderPosition, "VIP DK Ghoul reminder position default table")
+    Assert.Equal(db.vipDkGhoulReminderPosition.point, "CENTER", "VIP DK Ghoul reminder default point")
+    Assert.Equal(db.vipDkGhoulReminderPosition.y, 200, "VIP DK Ghoul reminder default y")
     Assert.Equal(db.autoCloseOnKeyStart, false, "key-start auto-close default false")
     Assert.Equal(db.autoCloseOnSoloChange, false, "solo-change auto-close default false")
     Assert.Equal(db.locale, "enUS", "locale default")
@@ -401,8 +406,14 @@ return function(test, ctx)
     Assert.Equal(known.vipAstralAurochsSoundMuted, true, "vipAstralAurochsSoundMuted must be in known fields")
     Assert.Equal(known.vipGrandExpeditionYakSoundMuted, true, "vipGrandExpeditionYakSoundMuted must be in known fields")
     Assert.Equal(known.vipGildedBrutosaurSoundMuted, true, "vipGildedBrutosaurSoundMuted must be in known fields")
+    Assert.Equal(known.vipDkApocalypseHorseSoundMuted, true, "vipDkApocalypseHorseSoundMuted must be in known fields")
     Assert.Equal(known.vipDkSoulReaperWarningEnabled, true, "vipDkSoulReaperWarningEnabled must be in known fields")
     Assert.Equal(known.vipDkPutrefyWarningEnabled, true, "vipDkPutrefyWarningEnabled must be in known fields")
+    Assert.Equal(
+      known.vipBloodlustDebuffButtonWarningEnabled,
+      true,
+      "vipBloodlustDebuffButtonWarningEnabled must be in known fields"
+    )
     Assert.Equal(known.mobNameplateEnabled, true, "mobNameplateEnabled must be in known fields")
     -- Runtime-only fields are intentionally excluded.
     Assert.Equal(known.queueDebug, nil, "queueDebug is runtime-only, must NOT be in schema")

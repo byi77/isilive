@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+## 2026-06-28 - Version 0.9.338 (patch)
+
+- Added a default-off VIP Bloodlust button debuff warning for BL classes. While
+  the local player has a verified Sated/Exhaustion debuff, verified Bloodlust
+  class or pet action buttons receive the shared red cross overlay; drums and
+  unverified name/icon fallbacks are intentionally ignored.
+- Added deterministic coverage for the Bloodlust button warning controller,
+  default-off DB/schema state, VIP settings order, runtime event forwarding,
+  factory wiring, and the new active rule contract. Usecase baseline is now
+  `2137 passed, 0 failed`.
+- Fixed VIP DK Soul Reaper / Putrefy warnings sometimes not appearing when
+  `PLAYER_REGEN_ENABLED` fired during the 30-second Dark Transformation delay;
+  regen now hides only currently visible overlays and leaves the scheduled
+  warning intact. The actionbutton resolver also accepts verified secure
+  `action` attributes before resolving spell or macro spell IDs.
+- Fixed self-posted Share Keys chat output falling back to plain text when the
+  verified bag link for Keystone item `180653` is exposed as an item hyperlink;
+  isiLive now keeps that Blizzard-provided link clickable instead of rebuilding
+  a non-clickable label.
+- Fixed the VIP DK missing-ghoul reminder not refreshing on pet changes by
+  forwarding the registered `UNIT_PET` event to the DK assist controller as well
+  as the kick tracker.
+- Fixed the VIP DK missing-ghoul reminder text always falling back to
+  `SUMMON GHOUL` by wiring the active locale getter into the DK assist
+  controller; the prepared locale tables already contain the warning text for
+  every supported locale.
+- Bumped the TOC and documentation baselines to `0.9.338`.
+
+## 2026-06-27 - Version 0.9.337 (patch)
+
+- Added a default-off VIP DK child setting that mutes only the fixed Riders of
+  the Apocalypse horse summon sound file IDs.
+- Added a default-off VIP DK child setting for a movable missing-ghoul reminder
+  that uses Blizzard's `nopet` state driver and saves its own position.
+- Bumped the TOC and documentation baselines to `0.9.337`.
+
 ## 2026-06-27 - Version 0.9.336 (patch)
 
 - Added default-off VIP options for Unholy Death Knights that show red Soul

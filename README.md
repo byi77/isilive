@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.0.7+ Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%2B%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.336](https://img.shields.io/badge/isiLive-0.9.336-1E90FF?style=for-the-badge)
+![isiLive 0.9.338](https://img.shields.io/badge/isiLive-0.9.338-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -96,6 +96,7 @@ When you join a group, isiLive gives you a colorful, compact overview of the thi
 - Track enemy forces through a bottom progress bar, live pull prediction, nameplates, and mob tooltips.
 - Watch Battle Res, Bloodlust, M+ timer cutoffs, and death counts without opening extra panels.
 - Get clear red tank/healer death alerts during active keys, with separate sound toggles.
+- Use optional VIP helpers: default-off DK Soul Reaper and Putrefy warnings, Riders horse sound mute, a localized movable missing-ghoul reminder, and a default-off Bloodlust button debuff warning for BL classes.
 - Keep departed players as ghost rows so post-wipe or post-reset context does not vanish immediately.
 - Use optional support tools: ESC-menu shortcuts, Hearthstone and Dalaran travel shortcuts, player stats box, nameplate controls, safe position lock, runtime logs, and demo simulation tablet.
 
@@ -224,7 +225,7 @@ Only enabled when you are the leader:
 
 ### Share Keys
 
-Posts everyone's keystone in group chat — yours first, then other isiLive users reply with their own. The button has a 30-second cooldown after a real local share or successful peer request and keeps the remaining seconds visible during that lock; receiving clients also lock their button for 30 seconds whenever a valid peer request arrives, even if they have no key to post.
+Posts everyone's keystone in group chat — yours first, then other isiLive users reply with their own. Your own post keeps the keystone clickable when Blizzard exposes a real `|Hkeystone:...|h` link or the verified keystone item hyperlink for item `180653`; if no real link exists, isiLive posts plain uncolored text instead of fabricating a chat link. The button has a 30-second cooldown after a real local share or successful peer request and keeps the remaining seconds visible during that lock; receiving clients also lock their button for 30 seconds whenever a valid peer request arrives, even if they have no key to post.
 
 ### Re-Sync
 
@@ -345,7 +346,7 @@ Open via **Escape → AddOns → isiLive**. Everything takes effect immediately.
 - **Sounds** — lead transfer, full group, ready-check complete, incoming summon, Battle Res, Battle Res Ready, Bloodlust, Bloodlust Ready, and tank/healer death alert; all isiLive alerts use bundled sound assets and the selected sound channel
 - **Chat Announcements** — announce Battle Res / announce Bloodlust
 - **Administrative** — Advanced Combat Logging, Blizzard Damage Meter reset, queue debug log, runtime log (both reset on reload, for support), plus dedicated **Clear Queue Debug Log** / **Clear Runtime Log** buttons and reset actions
-- **VIP Guest Settings** — mount sound mute toggles for Astral Aurochs, Grand Expedition Yak, and Trader's Gilded Brutosaur
+- **VIP Guest Settings** — mount sound mute toggles for Astral Aurochs, Grand Expedition Yak, and Trader's Gilded Brutosaur, plus default-off VIP DK child settings for Soul Reaper / Putrefy warnings, Riders horse sound mute, a movable localized missing-ghoul reminder, and a default-off Bloodlust button debuff warning for BL classes
 
 ### Languages and translations
 

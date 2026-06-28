@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.336`
-Zuletzt aktualisiert: `2026-06-27`
+Versionsbasis: `0.9.338`
+Zuletzt aktualisiert: `2026-06-28`
 
 ## Akteure
 
@@ -47,7 +47,8 @@ Zuletzt aktualisiert: `2026-06-27`
 | UC-22 | LFG-Invite-Liste entfernt | Die verworfene offene Premade-LFG-Invite-Liste hat keine Module, keine Settings, keine SavedVariable und kein Runtime-Wiring |
 | UC-23 | Spieler-Stats-Box | Eine optionale, eigenstaendige Stats-Box zeigt live gelesene Spielerwerte ohne Guessing und bleibt unabhaengig von den Main-UI-Layouts verschiebbar |
 | UC-24 | Gruppensuche- und Roster-Klassenbonus-Hinweise | Bewerber-, Suchergebnis- und Roster-Zeilen zeigen relevante nicht-Utility-Gruppenboni kompakt an und ergaenzen LFG-Tooltips mit lokalisierten Bonusdetails |
-| UC-25 | VIP-DK-Seelenernter- und Putrefy-Warnung | Optionale VIP-Schalter warnen Unholy-DKs nach eigenem Dark-Transformation-Cast auf eindeutig gefundenen Soul-Reaper- und Putrefy-Buttons |
+| UC-25 | VIP-DK-Hilfen | Optionale VIP-Schalter warnen Unholy-DKs nach eigenem Dark-Transformation-Cast, muten verifizierte DK-Pferde-Sounds und zeigen einen verschiebbaren Missing-Ghoul-Reminder |
+| UC-26 | VIP-Bloodlust-Debuff-Button-Warnung | Ein default-aus VIP-Schalter markiert bei verifizierten Bloodlust-Klassen den eigenen Bloodlust-Button mit rotem Kreuz, solange ein verifizierter Erschoepfungs-/Satt-Debuff aktiv ist |
 
 ## UC-01 Invite-Erkennung ohne Target-Guessing
 
@@ -112,7 +113,7 @@ Ziel: Dem User erlauben, aktuelle Party-Keys schnell zu posten.
 
 1. Trigger: Der User klickt den Button `Share Keys` im rechten Kontrollstapel.
 2. Verarbeitung: Das Addon broadcastet zuerst `SHAREKEYS` ueber den Addon-Sync-Channel, damit andere `isiLive`-Peers ihre eigene lokale Key-Zeile posten koennen, ohne einen vollen `Re-Sync` zu brauchen; dieser Request gilt nur dann als erfolgreich, wenn der Addon-Message-Dispatch selbst Erfolg meldet.
-3. Verarbeitung: Danach postet das Addon die Key-Zeile des lokalen Spielers in den passenden Gruppenchat (`PARTY` oder `INSTANCE_CHAT`), bevorzugt mit Blizzard-Owned-Keystone-Hyperlink und als Fallback mit lokalisiertem Dungeon-Short-Code plus Level; der Fallback bleibt dabei anklickbar.
+3. Verarbeitung: Danach postet das Addon die Key-Zeile des lokalen Spielers in den passenden Gruppenchat (`PARTY` oder `INSTANCE_CHAT`), bevorzugt mit einem Blizzard-Owned-Keystone-Hyperlink (`|Hkeystone:...|h`) oder einem verifizierten Keystone-Itemlink fuer `itemID 180653` (`|Hitem:180653...|h`). Wenn kein echter Blizzard-Link verfuegbar ist, wird nur eine ungefaerbte Klartext-Zeile mit Dungeon und Level genutzt; ein Fake-Hyperlink wird nicht gebaut.
 4. Output: Der Peer-Request wird vor der sichtbaren lokalen Key-Zeile dispatcht; bei Sendefehler gibt es einen lokalen Print-Fallback, der nicht als erfolgreicher Gruppenchat-Share zaehlt. Weitere Peer-Zeilen duerfen danach von antwortenden Gruppenmitgliedern folgen.
 5. Regel: `Share Keys`-Button-Klicks werden entprellt, um schnelle doppelte Chat-Ausgaben zu vermeiden, und der Button zeigt waehrend der Sperre sichtbar die Restzeit als Cooldown-Text ohne Wechsel auf den nackten Buttontext; ein fehlgeschlagener eigener Gruppenchat-Post ohne erfolgreich dispatchten `SHAREKEYS`-Request darf keine Sperre starten.
 5a. Regel: Wenn ein Client eine eingehende `SHAREKEYS`-Sync-Message erhaelt, wird der lokale `Share Keys`-Button ueber `TriggerRemoteCooldown` fuer `30s` gesperrt, auch wenn dieser Empfangspfad keinen eigenen Gruppenchat-Share ausloesen kann; ein bereits laufender lokaler Cooldown wird nicht zurueckgesetzt.
@@ -172,7 +173,7 @@ Ziel: Schnelle Blizzard-Panel-Shortcuts und lokalisierte Addon-Toggles anbieten,
    - **Chat Announcements**: `Chat: Announce Battle Res usage in M+`, `Chat: Announce Bloodlust casts in M+`.
    - **Administrative**: `Advanced Combat Logging`, `DM Reset on Dungeon Entry`, `Queue Debug Log (resets on reload)`, `Clear Queue Debug Log`, `Runtime Log (resets on reload)`, `Clear Runtime Log`.
    - **Reset-Aktionen**: `/isilive resetui` und `Reset All Settings`, jeweils mit Bestaetigung.
-   - **VIP Guest Settings**: VIP-Gast-Sound-Schalter fuer Astral Aurochs, Grand Expedition Yak und Trader's Gilded Brutosaur.
+   - **VIP Guest Settings**: VIP-Gast-Sound-Schalter fuer Astral Aurochs, Grand Expedition Yak und Trader's Gilded Brutosaur plus default-aus VIP-DK-Child-Optionen fuer Seelenernter-/Putrefy-Warnungen, DK-Pferdeklang-Mute und verschiebbaren Ghoul-Reminder.
 8. Regel: Settings-Controls spiegeln live Blizzard-CVars und SavedVariables und wenden Aenderungen sofort an, ohne dass das Main-Addon-Fenster sichtbar sein muss; eine Aenderung von `Background Opacity` aktualisiert live den Main-Frame, die optionalen `Esc`-Tooling-, Travel-, Mounts- und Addons-Strips und den Settings-Canvas. Der neue `Lock main frame position`-Schalter, der Top-right-Lock-Button sowie die Slash-Commands `/isilive lock`, `/isilive unlock` und `/isilive resetui` spiegeln denselben gespeicherten Lock-State und verhindern unabsichtliches Verschieben der Haupt-UI; `resetui` setzt Position, UI-Skalierung und Hintergrund-Deckkraft wieder auf ihre Default-Werte zurueck und zeigt den Default-Hinweis als separate Textzeile unter dem Button, bevor eine Reset-Bestaetigung abgefragt wird. Hidden Legacy-Controls (`Name Length`, `Teleport Grid Columns`, `Show DPS Column`, `Markers: Leader Only`) bleiben aus der Settings-UI draussen und nutzen derzeit feste Runtime-Defaults: `DPS` an, Marker fuer alle sichtbar, feste Namenstrunkierung und Legacy-`Travel`-Layout mit 2 Spalten.
 9. Regel: Die Ruhestein-Auswahl bietet `random-owned`, den Standard-Ruhestein `item:6948` und nur konkret besessene Ruhestein-Toys an. Die Liste aktualisiert sich bei `TOYS_UPDATED` und `GET_ITEM_INFO_RECEIVED`, zeigt im deutschen Addon-Locale client-lokalisierte Namen und in allen anderen Addon-Sprachen die verifizierten englischen Namen. Nicht verifizierte oder nicht besessene Toy-Ziele bleiben verborgen statt als numerischer Fallback angezeigt zu werden.
 10. Regel: Der `Esc`-Travel-Ruhestein-Button wendet die gespeicherte Auswahl auf seinen sicheren Action-Button an. Wenn Combat-Lockdown oder ein aktiver Keydown sichere Attribut-Updates blockiert, wird die Aktualisierung verschoben und auf dem naechsten erlaubten Refresh wiederholt.
@@ -346,17 +347,34 @@ Ziel: Der Spieler wird im laufenden M+-Run sofort und unuebersehbar informiert, 
 9. Diagnose: Wenn ein Tank-/Heiler-WAV-Start fehlschlaegt, wird Rolle, Fehlergrund, Kanal und Asset-Pfad diagnostizierbar ausgegeben; es gibt keinen TTS-Fallback.
 10. Erfolgskriterium: Genau ein Alarm pro Tod; keine Alarme ausserhalb aktiver Keys, fuer DPS-Tode oder fuer Disconnects.
 
-## UC-25 VIP-DK-Seelenernter- und Putrefy-Warnung
+## UC-25 VIP-DK-Hilfen
 
-Ziel: Optionale VIP-Schalter warnen lokale Unholy-Death-Knights davor, Seelenernter oder Putrefy direkt vor der naechsten Dunklen Transformation zu nutzen.
+Ziel: Optionale VIP-Schalter bieten lokale Unholy-Death-Knight-Hilfen fuer Seelenernter, Putrefy, DK-Pferdeklang und fehlenden Ghoul, ohne auf unverifizierte Daten auszuweichen.
 
 1. Trigger: `UNIT_SPELLCAST_SUCCEEDED` meldet fuer den lokalen Spieler die Spell-ID `1233448` fuer Dark Transformation.
-2. Voraussetzung: Mindestens einer der Schalter `vipDkSoulReaperWarningEnabled` oder `vipDkPutrefyWarningEnabled` ist aktiv, der lokale Spieler ist verifiziert Death Knight und die aktuelle Spezialisierung ist verifiziert Unholy.
+2. Voraussetzung: Mindestens einer der Schalter `vipDkSoulReaperWarningEnabled`, `vipDkPutrefyWarningEnabled`, `vipDkApocalypseHorseSoundMuted` oder `vipDkGhoulReminderEnabled` ist aktiv. Warnungen und Ghoul-Reminder wirken nur, wenn der lokale Spieler verifiziert Death Knight und die aktuelle Spezialisierung verifiziert Unholy ist.
 3. Verarbeitung: Nach dem eigenen Dark-Transformation-Cast startet ein 30-Sekunden-Timer. Danach wird fuer 15 Sekunden eine rote Warnung auf den aktuell eindeutig gefundenen Actionbar-Buttons der aktivierten Optionen angezeigt.
-4. Regel: Soul Reaper wird nur ueber Actionbar-Spell-IDs oder Macro-Spell-IDs mit Spell-ID `343294` erkannt. Putrefy wird nur ueber Actionbar-Spell-IDs oder Macro-Spell-IDs mit Spell-ID `1247378` erkannt. Icon-, Textur-, Namens- und Cooldown-Ratefallbacks sind nicht erlaubt.
-5. Settings: Beide Schalter sitzen im abschliessenden VIP-Settings-Abschnitt, sind standardmaessig aus, bleiben auch fuer Nicht-DKs sichtbar und persistieren als `vipDkSoulReaperWarningEnabled` beziehungsweise `vipDkPutrefyWarningEnabled`.
-6. Stop-Bedingungen: Non-player-Casts, falsche Spell-IDs, deaktivierte VIP-Settings, unverifizierte Klasse/Spezialisierung, Raidmodus-Forwarding, Spec-Wechsel und `PLAYER_REGEN_ENABLED` bleiben stumm beziehungsweise stoppen aktive Warnungen.
-7. Erfolgskriterium: Nur ein verifizierter lokaler Unholy-DK mit aktivierter VIP-Option sieht nach eigenem Dark-Transformation-Cast eine 15-Sekunden-Warnung auf eindeutig erkanntem Soul Reaper und/oder Putrefy.
+4. Regel: Soul Reaper wird nur ueber Actionbar-Spell-IDs, Secure-Actionbutton-Attribute oder Macro-Spell-IDs mit Spell-ID `343294` erkannt. Putrefy wird nur ueber Actionbar-Spell-IDs, Secure-Actionbutton-Attribute oder Macro-Spell-IDs mit Spell-ID `1247378` erkannt. Icon-, Textur-, Namens- und Cooldown-Ratefallbacks sind nicht erlaubt.
+5. Ghoul-Reminder: Der eingerueckte Schalter `vipDkGhoulReminderEnabled` ist standardmaessig aus, persistiert zusammen mit `vipDkGhoulReminderPosition` und zeigt einen frei verschiebbaren Reminder ueber den Blizzard-State-Driver `[spec:3,nopet,nomounted,novehicleui] show; hide`. Der Text kommt aus der aktiven Addon-Lokalisierung, zum Beispiel `Ghoul beschwören` auf `deDE`; alle acht gepflegten Locale-Tabellen enthalten denselben Key.
+6. Event-Pfad: Der Ghoul-Reminder aktualisiert sich ueber Login-/World-/Spec-Refreshes und ueber `UNIT_PET`. Ausserhalb von Raid-Hard-off wird `UNIT_PET` sowohl an den KickTracker als auch an die VIP-DK-Hilfe weitergeleitet; im Raidmodus bleibt die VIP-DK-Verarbeitung unterdrueckt.
+7. Pferdeklang-Mute: Der eingerueckte Schalter `vipDkApocalypseHorseSoundMuted` ist standardmaessig aus und mutet ausschliesslich die fest gepflegten DK-Pferde-SoundFile-IDs.
+8. Settings: Alle VIP-DK-Schalter sitzen als Child-Optionen im abschliessenden VIP-Settings-Abschnitt, bleiben auch fuer Nicht-DKs sichtbar und sind standardmaessig aus.
+9. Stop-Bedingungen: Non-player-Casts, falsche Spell-IDs, deaktivierte VIP-Settings, unverifizierte Klasse/Spezialisierung, Raidmodus-Forwarding und Spec-Wechsel bleiben stumm beziehungsweise stoppen aktive Warnungen. `PLAYER_REGEN_ENABLED` darf sichtbare Warnoverlays schliessen und Ghoul-Reminder-Deferreds anwenden, darf aber einen nach Dark Transformation bereits geplanten 30-Sekunden-Warntimer nicht abbrechen.
+10. Erfolgskriterium: Nur ein verifizierter lokaler Unholy-DK mit aktivierter VIP-Option sieht nach eigenem Dark-Transformation-Cast eine 15-Sekunden-Warnung auf eindeutig erkanntem Soul Reaper und/oder Putrefy; der Ghoul-Reminder erscheint nur ohne Pet, ohne Mount und ohne Vehicle-UI und nutzt den aktiven lokalisierten Text.
+
+## UC-26 VIP-Bloodlust-Debuff-Button-Warnung
+
+Ziel: Spieler mit echter Bloodlust-Klassenfaehigkeit sehen direkt auf ihrem Bloodlust-Button, dass sie wegen eines aktiven Erschoepfungs-/Satt-Debuffs nicht sinnvoll casten koennen.
+
+1. Trigger: `UNIT_AURA` fuer `player`, `PLAYER_LOGIN`, `PLAYER_ENTERING_WORLD`, `PLAYER_SPECIALIZATION_CHANGED` oder `PLAYER_REGEN_ENABLED`.
+2. Voraussetzung: Der Schalter `vipBloodlustDebuffButtonWarningEnabled` ist explizit aktiv. Neue und sanitizte DBs deaktivieren ihn standardmaessig; der Schalter bleibt im VIP-Settings-Abschnitt immer sichtbar, unabhaengig von der aktuellen Klasse.
+3. Verarbeitung: Der Controller prueft zuerst die verifizierte lokale Klasse ueber `UnitClass("player")`. Nur `SHAMAN`, `MAGE`, `EVOKER` und `HUNTER` duerfen den Anzeige-Pfad oeffnen.
+4. Debuff-Quelle: Der Controller scannt nur Harmful-Auren auf `player` und akzeptiert nur gepflegte Erschoepfungs-/Satt-Spell-IDs (`57723`, `57724`, `80354`, `264689`, `390435`, `95809`). Fehlt diese Quelle oder ist die Aura-ID nicht numerisch verifizierbar, bleibt die Warnung aus.
+5. Button-Quelle: Markiert werden nur sichtbare Actionbar-Buttons, deren Spell-ID ueber Button-API, Action-Slot, Secure-Actionbutton-Attribut oder Macro-Spell-ID exakt als Bloodlust-Klassen- oder Pet-Spell (`2825`, `32182`, `80353`, `264667`, `390386`, `90355`, `160452`) verifiziert ist.
+6. Regel: Drums zaehlen fuer diese Warnung nicht. Icon-, Textur-, Namens-, Klassenlisten-Ratefallbacks und synthetische Button-Ziele sind verboten.
+7. Darstellung: Auf jedem verifizierten sichtbaren Bloodlust-Button wird dasselbe rote Kreuz-Overlay genutzt wie bei den VIP-DK-Buttonwarnungen. Verschwindet Debuff oder Button-Ziel, wird das Overlay wieder verborgen.
+8. Raid-Hard-off: Im Raidmodus wird der Eventpfad vorgelagert unterdrueckt, sodass die Warnung keinen Output erzeugt.
+9. Erfolgskriterium: Nur ein verifizierter lokaler Bloodlust-Klassencharakter mit aktivem gepflegtem Erschoepfungs-/Satt-Debuff sieht ein rotes Kreuz auf eindeutig erkanntem Bloodlust-Button; Nicht-BL-Klassen, Drums, deaktiviertes Setting und unverifizierte Quellen bleiben stumm.
 
 ## Nichtfunktionale Regeln
 
@@ -384,7 +402,7 @@ Ziel: Optionale VIP-Schalter warnen lokale Unholy-Death-Knights davor, Seelenern
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `2119` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `2137` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback; mehrdeutige Single-Struct-`activityIDs` bleiben unresolved.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
@@ -401,7 +419,8 @@ Aktuelle Validator-Baseline: `2119` Szenarien ueber die in `tools/usecase_scenar
 13. UC-24: Gruppensuche- und Roster-Buff-Rating-Herzchen ohne Guessing, mit Spielerprofil-Relevanz, Utility-Ausschluss fuer kompakte Marker, BR/BL nur in Roster-Mouseover-Bonuszeilen, nicht-stapelnder Buffzaehlung, Blizzard-Default-kompatibler Suchergebnisposition, Bewerber-Herzchen rechts neben dem Klassenbadge als echte Texturen, Roster-Herzchen direkt am Spielernamen aus verifizierter Klasse und passender Spec-ID, Bewerber-Sprachflaggen aus verifiziertem Realm, default-aktivem Settings-Schalter, `media/heart_bonus_green.tga`-Texturvertrag sowie vorbereiteten Locale-Fallbacks inklusive akzeptierter Community-Uebersetzungen.
 14. UC-16: BR-/Lust-Self-Cast-Filter gegen 12.0-Secret-Value-Spam, 3s-`sourceGUID|spellID`-Dedup, Toggle-Gating, ChatThrottleLib-Routing via `BRLUST`-Addon-Message, Receiver-Dispatch in lokalisierten Template-Zeilen und Drop-On-Unknown-Kind; PI-Erkennung aus verifizierten Aura-Daten, Secret-Value-feste Spell-ID-Pruefung und isiLive-Peer-Sync nur durch den lokal verifizierten PI-Caster.
 15. UC-17: Mob-Tooltip-Forces-Rendering nur bei aktiver Challenge-Map-ID mit passendem NPC-Dataset, Per-Tooltip-Dedup gegen `TooltipDataProcessor`-Rerender und `SetEnabled(false)`-Gate.
-16. UC-25: VIP-DK-Seelenernter- und Putrefy-Warnungen mit Default-aus-Settings, immer sichtbaren VIP-Schaltern, lokalem Dark-Transformation-Cast, verifizierter Unholy-DK-Quelle, eindeutigen Actionbar-Spell-IDs und Stop-Pfaden ohne Ratefallbacks.
+16. UC-25: VIP-DK-Hilfen mit Default-aus-Settings, immer sichtbaren VIP-Child-Schaltern, lokalem Dark-Transformation-Cast, verifizierter Unholy-DK-Quelle, eindeutigen Actionbar-Spell-IDs inklusive Secure-Actionbutton-Attributen, DK-Pferdeklang-Mute, lokalisiertem verschiebbarem Ghoul-Reminder, `UNIT_PET`-Refresh ausserhalb Raid-Hard-off und Stop-Pfaden ohne Ratefallbacks.
+17. UC-26: VIP-Bloodlust-Debuff-Button-Warnung mit default-aus, immer sichtbarem VIP-Schalter, verifizierter lokaler Bloodlust-Klasse, verifizierten Erschoepfungs-/Satt-Auren, exakten Bloodlust-Klassen-/Pet-Spell-IDs, ausdruecklichem Drums-Ausschluss und Stop-Pfaden ohne Ratefallbacks.
 
 ## Rueckverfolgbarkeit zu Quelldateien
 
@@ -415,7 +434,8 @@ Aktuelle Validator-Baseline: `2119` Szenarien ueber die in `tools/usecase_scenar
 | RIO-Baseline-Capture und Delta-Preview | `isiLive_event_handlers_challenge.lua`, `isiLive_roster.lua`, `isiLive_test_mode.lua`, `isiLive_runtime_state.lua` |
 | Last-Run-DPS-Capture und begrenzte Stats-Persistenz | `isiLive_stats.lua`, `isiLive_event_handlers_challenge.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_tooltip.lua` |
 | Combat-Utility-Tracker-Zeile, M+-Killtracker, Kick-State und LibKeystone-Key-Interop | `isiLive_cd_tracker.lua`, `isiLive_mplus_timer.lua`, `isiLive_killtrack.lua`, `isiLive_kick_tracker.lua`, `isiLive_sync.lua`, `isiLive_keysync.lua`, `isiLive_factory_cd_tracker.lua`, `isiLive_factory_status_helpers.lua`, `isiLive_factory_kick_tracker.lua`, `isiLive_roster_panel.lua`, `isiLive_roster_panel_kill_row.lua`, `isiLive_roster_tooltip.lua`, `isiLive_texts.lua` |
-| VIP-DK-Seelenernter- und Putrefy-Warnung | `isiLive_vip_dk_assist.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_controller_wiring.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_settings_sound.lua`, `isiLive_db_schema.lua`, `isiLive_texts.lua` |
+| VIP-DK-Hilfen | `isiLive_vip_dk_assist.lua`, `isiLive_action_button_overlay.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_controller_wiring.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_settings_sound.lua`, `isiLive_db_schema.lua`, `isiLive_texts.lua` |
+| VIP-Bloodlust-Debuff-Button-Warnung | `isiLive_bloodlust_button_warning.lua`, `isiLive_action_button_overlay.lua`, `isiLive_event_handlers_runtime.lua`, `isiLive_controller_wiring.lua`, `isiLive_factory_combat_announces.lua`, `isiLive_settings_sound.lua`, `isiLive_db_schema.lua`, `isiLive_texts.lua` |
 | Leader-Transfer-Erkennung und Feedback | `isiLive_leader_watch.lua` |
 | UI-Aktionen, Rollen-Buttons, Key-Share-Button | `isiLive_roster_panel.lua` |
 | Esc-Tooling-/Travel-/Mounts-/Addons-Strips und Blizzard-Settings-Canvas | `isiLive_ui.lua`, `isiLive_settings.lua`, `isiLive_factory.lua`, `isiLive_texts.lua`, `isiLive_ui_common.lua` |
