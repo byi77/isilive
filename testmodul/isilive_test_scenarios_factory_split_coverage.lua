@@ -258,74 +258,77 @@ return function(test, ctx)
     Assert.Nil(uiController.GetBResInfo(), "CD tracker UI must fail closed after party-run context clears")
   end)
 
-  test("factory split coverage: CD tracker UI gate accepts verified tracked party-run instance group context", function()
-    local addon = LoadAddonModules({ "isiLive_factory_cd_tracker.lua" })
-    local uiController = nil
-    local factoryCtx = {
-      addonTable = {},
-      isInGroup = function()
-        return false
-      end,
-      isInInstanceGroup = function()
-        return true
-      end,
-      rosterPanelController = {
-        SetCdController = function(controller)
-          uiController = controller
+  test(
+    "factory split coverage: CD tracker UI gate accepts verified tracked party-run instance group context",
+    function()
+      local addon = LoadAddonModules({ "isiLive_factory_cd_tracker.lua" })
+      local uiController = nil
+      local factoryCtx = {
+        addonTable = {},
+        isInGroup = function()
+          return false
         end,
-        RefreshCdTracker = function() end,
-      },
-    }
-    local modules = {
-      cdTracker = {
-        CreateController = function()
-          return {
-            Scan = function() end,
-            ClearRuntimeData = function() end,
-            GetBResInfo = function()
-              return { charges = 1, maxCharges = 1, cooldownRemain = 0 }
-            end,
-            GetLustInfo = function()
-              return nil
-            end,
-          }
+        isInInstanceGroup = function()
+          return true
         end,
-      },
-    }
-    local runtimeState = {
-      IsTrackedPartyRunActive = function()
-        return true
-      end,
-      IsReadyCheckActive = function()
-        return false
-      end,
-      HasReadyCheckHold = function()
-        return false
-      end,
-    }
+        rosterPanelController = {
+          SetCdController = function(controller)
+            uiController = controller
+          end,
+          RefreshCdTracker = function() end,
+        },
+      }
+      local modules = {
+        cdTracker = {
+          CreateController = function()
+            return {
+              Scan = function() end,
+              ClearRuntimeData = function() end,
+              GetBResInfo = function()
+                return { charges = 1, maxCharges = 1, cooldownRemain = 0 }
+              end,
+              GetLustInfo = function()
+                return nil
+              end,
+            }
+          end,
+        },
+      }
+      local runtimeState = {
+        IsTrackedPartyRunActive = function()
+          return true
+        end,
+        IsReadyCheckActive = function()
+          return false
+        end,
+        HasReadyCheckHold = function()
+          return false
+        end,
+      }
 
-    WithGlobals({
-      C_Timer = {
-        NewTicker = function()
-          return { Cancel = function() end }
-        end,
-      },
-    }, function()
-      addon._FactoryInternal.InitializeFactorySecondaryCdTracker(factoryCtx, modules, runtimeState, function()
-        return 0
-      end, function()
-        return true
-      end, function()
-        return false
+      WithGlobals({
+        C_Timer = {
+          NewTicker = function()
+            return { Cancel = function() end }
+          end,
+        },
+      }, function()
+        addon._FactoryInternal.InitializeFactorySecondaryCdTracker(factoryCtx, modules, runtimeState, function()
+          return 0
+        end, function()
+          return true
+        end, function()
+          return false
+        end)
       end)
-    end)
 
-    Assert.Equal(type(uiController), "table", "CD tracker UI controller must be wired for instance-group context")
-    Assert.NotNil(
-      uiController.GetBResInfo(),
-      "tracked party-run instance group must expose BR info even when the normal group category is false"
-    )
-  end)
+      Assert.Equal(type(uiController), "table", "CD tracker UI controller must be wired for instance-group context")
+      Assert.NotNil(
+        uiController.GetBResInfo(),
+        "tracked party-run instance group must expose BR info even when the normal group category is false"
+      )
+    end
+  )
 
   test("factory split coverage: VIP DK assist receives localized ghoul reminder text", function()
     local deps

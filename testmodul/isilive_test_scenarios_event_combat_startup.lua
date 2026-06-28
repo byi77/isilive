@@ -507,7 +507,11 @@ local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, 
       controller:Dispatch("PLAYER_ENTERING_WORLD")
       Assert.Equal(#trackedContexts, 1, "normal dungeon entry must publish a verified tracked party-run context")
       Assert.Equal(trackedContexts[1].mapID, 2649, "tracked party-run context must carry the verified map id")
-      Assert.Equal(trackedContexts[1].difficultyID, 1, "tracked party-run context must carry the verified difficulty id")
+      Assert.Equal(
+        trackedContexts[1].difficultyID,
+        1,
+        "tracked party-run context must carry the verified difficulty id"
+      )
       Assert.Equal(
         trackedContexts[1].instanceName,
         "Priory of the Sacred Flame",

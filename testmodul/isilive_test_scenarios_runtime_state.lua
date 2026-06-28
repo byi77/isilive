@@ -114,7 +114,11 @@ local function RegisterRuntimeStateTests(test, Assert, LoadAddonModules)
     Assert.True(state.IsTrackedPartyRunActive(), "verified party-run context must activate the utility gate")
     Assert.Equal(info.mapID, 2649, "tracked party-run context must preserve verified map id")
     Assert.Equal(info.difficultyID, 1, "tracked party-run context must preserve verified difficulty id")
-    Assert.Equal(info.instanceName, "Priory of the Sacred Flame", "tracked party-run context may preserve instance name")
+    Assert.Equal(
+      info.instanceName,
+      "Priory of the Sacred Flame",
+      "tracked party-run context may preserve instance name"
+    )
 
     state.SetTrackedPartyRunInfo({ difficultyID = 1 })
     Assert.False(state.IsTrackedPartyRunActive(), "missing map id must clear tracked party-run context")

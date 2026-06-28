@@ -680,7 +680,8 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
         line:SetHeight(1)
       end
       if type(line.SetColorTexture) == "function" then
-        local ab = addonTable.UICommon and addonTable.UICommon.Colors and addonTable.UICommon.Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
+        local ab = addonTable.UICommon and addonTable.UICommon.Colors and addonTable.UICommon.Colors.ACCENT_BLUE
+          or { 0.3, 0.65, 1 }
         line:SetColorTexture(ab[1], ab[2], ab[3], 0.42)
       end
       line._isiLiveSettingsSeparator = "vipDk"
