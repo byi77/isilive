@@ -120,6 +120,8 @@ Wenn Blizzard die Struktur aendert, bricht die DPS-Anzeige.
 
 Pruefen:
 - `isiLive_season_data.lua`
+- `docs/SEASON_INTAKE.md`
+- `tools/check_season_intake.lua`
 
 Kritisch:
 - `SeasonData.ACTIVE_SEASON_ID`
@@ -144,6 +146,8 @@ Fuer Midnight Season 2 muessen vor Aktivierung verifiziert werden:
 - LFG-Activity-IDs fuer Mythic+-Listings
 - MDT-/Forces-Daten inklusive Dungeon-Gesamtwerten und NPC-Zaehlern
 - Lokalisierte Dungeonnamen und stabile Kurz-Codes fuer mindestens `enUS` und `deDE`
+
+Bis zur Aktivierung werden verifizierte oder teilweise verifizierte Funde in `docs/SEASON_INTAKE.md` gesammelt. Jede konkrete ID braucht `Source` und `VerifiedAt`; fehlende Werte bleiben `unresolved`. `tools/check_season_intake.lua` validiert die Struktur lokal, in CI und ueber den taeglichen Workflow `.github/workflows/season-intake.yml`, der ein GitHub Issue mit dem aktuellen Intake-Stand aktualisiert.
 
 ### 3.5 BR-/Bloodlust-Combat-Events und Addon-Message-Transport
 
@@ -256,12 +260,17 @@ Pruefen:
 - `tools/sync_mdt_forces.lua` (Generator, liest MDT und erzeugt den Datensatz)
 - `tools/check_mplus_db_lifetime.lua` (Lifetime-Gate in CI)
 - `.github/workflows/sync-mplus-forces.yml` (wochenweiser Auto-Refresh)
+- `.github/workflows/season-readiness.yml` (taeglicher Readiness-Report ohne Schreibrechte)
+- `.github/workflows/inspect-mplus-season-preview.yml` (woechentlicher MDT-Kandidatenreport ohne Schreibrechte)
+- `.github/workflows/season-intake.yml` (taeglicher Intake-Status mit Issue-Update)
 
 Aktueller Soll-Zustand:
 - Der Auto-Refresh laeuft donnerstags 06:00 UTC nach dem MDT-Release-Fenster (US Tuesday Patch + EU Wednesday Reset). Manuell ausloesbar ueber `workflow_dispatch`.
 - Der Workflow klont MDT, regeneriert den Datensatz, laeuft den vollen CI-Preflight (stylua, luacheck, syntax, metrics, locale drift, lifetime, usecases) und committet nur bei echtem Diff direkt nach `main`.
 - `expiresAt` ist `generatedAt + 15 Tage`. Das Lifetime-Gate blockiert jeden Release mit abgelaufenem DB-File; Override ausschliesslich ueber `ISILIVE_ALLOW_STALE_MPLUS_DB=1`.
 - Der Generator schreibt Single-Space-Key-Format (`season = %q,`), damit StyLua den regenerierten Datensatz akzeptiert.
+- Der Season-Readiness-Workflow fuehrt `tools/inspect_season_readiness.lua` aus, berichtet aktive/vorbereitete Seasons, Readiness-Fehler und den Abgleich zwischen aktiver Season und Forces-DB als Summary/Artifact und committet nichts.
+- Der M+-Season-Preview-Workflow klont MDT, fuehrt `tools/inspect_mdt_season_preview.lua` fuer die angefragte Season aus und listet nur textuelle Kandidaten zu `plannedDungeons`; wenn Kandidaten gefunden werden, erstellt oder aktualisiert er ein GitHub Issue fuer die manuelle Pruefung. MapIDs, Portal-SpellIDs, LFG-ActivityIDs und Forces-Daten bleiben unresolved, bis sie verifiziert sind.
 
 Typische Ursachen fuer Brueche:
 - MDT aendert die Struktur von `dungeonEnemies` / `dungeonTotalCount` / `mapInfo` → `sync_mdt_forces.lua` anpassen, lokal per `lua tools/sync_mdt_forces.lua` gegen einen frischen `tools/cache/mdt`-Clone testen.

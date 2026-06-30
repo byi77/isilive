@@ -1,0 +1,38 @@
+name: Inspect Season Readiness
+
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: inspect-season-readiness
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Lua
+        uses: leafo/gh-actions-lua@v12
+        with:
+          luaVersion: "5.1"
+
+      - name: Build season readiness report
+        run: |
+          mkdir -p tools/cache/season_readiness
+          lua tools/inspect_season_readiness.lua > tools/cache/season_readiness/season-readiness.md
+          cat tools/cache/season_readiness/season-readiness.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload season readiness artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: season-readiness-inspect
+          path: tools/cache/season_readiness/
+          if-no-files-found: error

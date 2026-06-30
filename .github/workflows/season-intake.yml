@@ -1,0 +1,97 @@
+name: Validate Season Intake
+
+on:
+  schedule:
+    - cron: "15 7 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: validate-season-intake
+  cancel-in-progress: false
+
+jobs:
+  intake:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Lua
+        uses: leafo/gh-actions-lua@v12
+        with:
+          luaVersion: "5.1"
+
+      - name: Validate season intake
+        id: intake
+        continue-on-error: true
+        run: |
+          mkdir -p tools/cache/season_intake
+          set +e
+          lua tools/check_season_intake.lua > tools/cache/season_intake/season-intake.md
+          status=$?
+          set -e
+          cat tools/cache/season_intake/season-intake.md >> "$GITHUB_STEP_SUMMARY"
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit "${status}"
+
+      - name: Open or update season intake issue
+        if: always()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const marker = "<!-- isiLive:season-intake:midnight_s2 -->";
+            const title = "Season Intake Status: midnight_s2";
+            const report = fs.readFileSync("tools/cache/season_intake/season-intake.md", "utf8");
+            const body = [
+              marker,
+              "",
+              "This issue is updated by the Season Intake workflow.",
+              "",
+              "The intake is a pre-activation collection surface only. Season activation remains manual via `SeasonData.ACTIVE_SEASON_ID`.",
+              "",
+              report,
+            ].join("\n");
+
+            const { owner, repo } = context.repo;
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: "open",
+              per_page: 100,
+            });
+            const existing = issues.find((issue) => issue.title === title && !issue.pull_request);
+
+            if (existing) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body,
+              });
+              core.notice("Updated existing season intake issue #" + existing.number);
+            } else {
+              const created = await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body,
+              });
+              core.notice("Created season intake issue #" + created.data.number);
+            }
+
+      - name: Fail on invalid intake structure
+        if: steps.intake.outputs.status != '0'
+        run: exit 1
+
+      - name: Upload season intake artifact
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: season-intake-status
+          path: tools/cache/season_intake/
+          if-no-files-found: error

@@ -14,6 +14,7 @@ local function WriteDBFixture(path, expiresAt)
   local f = assert(io.open(path, "w"))
   f:write("local _, addonTable = ...\n")
   f:write("addonTable.MPlusForces = {\n")
+  f:write('  season = "midnight_s1",\n')
   f:write(string.format("  expiresAt = %q,\n", tostring(expiresAt)))
   f:write("  dungeonTotal = {},\n")
   f:write("  byNpcId = {},\n")
@@ -120,6 +121,21 @@ return function(test, ctx)
     WriteRawFixture(path, "local _, addonTable = ...\naddonTable.MPlusForces = { dungeonTotal = {}, byNpcId = {} }\n")
     local code = tool.Check(path, { today = "2026-04-21" })
     Assert.Equal(2, code, "absent expiresAt must be a structural error")
+    os.remove(path)
+  end)
+
+  test("mplus_db_lifetime: returns 2 when active season and DB season diverge", function()
+    local tool = LoadTool()
+    local path = TempPath("isilive_mplus_db_wrongseason.lua")
+    WriteRawFixture(
+      path,
+      "local _, addonTable = ...\n"
+        .. 'addonTable.MPlusForces = { season = "midnight_s1", expiresAt = "2030-01-01", '
+        .. "dungeonTotal = {}, byNpcId = {} }\n"
+    )
+    local code, msg = tool.Check(path, { today = "2026-04-21", activeSeasonID = "midnight_s2" })
+    Assert.Equal(2, code, "season mismatch must be a structural error")
+    Assert.True(tostring(msg):find("season mismatch", 1, true) ~= nil, "message must name the season mismatch")
     os.remove(path)
   end)
 

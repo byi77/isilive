@@ -116,6 +116,10 @@ jobs:
         run: |
           lua tools/check_mplus_db_lifetime.lua
 
+      - name: Season Intake Check
+        run: |
+          lua tools/check_season_intake.lua
+
       - name: Nameplate Key-Start Simulator
         run: |
           lua tools/simulate_nameplate_keystart.lua all

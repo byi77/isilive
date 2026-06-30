@@ -10,6 +10,8 @@ local function BuildCommandLocale()
     HELP_SIM = "/isilive sim",
     HELP_TPTEST = "/isilive tptest",
     HELP_TPDEBUG = "/isilive tpdebug",
+    HELP_SEASONDUMP = "/isilive seasondump",
+    HELP_HEARTHDUMP = "/isilive hearthdump",
     HELP_LOG = "/isilive log",
     HELP_QDEBUG = "/isilive qdebug",
     HELP_ERRORLOG = "/isilive errorlog",
@@ -51,6 +53,8 @@ local function BuildCommandState(overrides)
     openSettingsCalls = 0,
     tpTestCalls = 0,
     tpDebugCalls = 0,
+    seasonDumpCalls = 0,
+    hearthDumpCalls = 0,
     simToggleCalls = 0,
     _overrides = overrides or {},
   }
@@ -130,6 +134,12 @@ local function BuildCommandDeps(state, L)
     end,
     printTeleportDebug = function()
       state.tpDebugCalls = state.tpDebugCalls + 1
+    end,
+    printSeasonDebug = function()
+      state.seasonDumpCalls = state.seasonDumpCalls + 1
+    end,
+    printHearthstoneDebug = function()
+      state.hearthDumpCalls = state.hearthDumpCalls + 1
     end,
     setQueueDebugEnabled = function() end,
     getQueueDebugEnabled = function()
@@ -341,6 +351,18 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
     Assert.Equal(state.tpDebugCalls, 1, "tpdebug must call printTeleportDebug")
   end)
 
+  test("Commands seasondump delegates to printSeasonDebug", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("seasondump")
+    Assert.Equal(state.seasonDumpCalls, 1, "seasondump must call printSeasonDebug")
+  end)
+
+  test("Commands hearthdump delegates to printHearthstoneDebug", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("hearthdump")
+    Assert.Equal(state.hearthDumpCalls, 1, "hearthdump must call printHearthstoneDebug")
+  end)
+
   test("Commands bindcheck prints binding info", function()
     local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
     state._execute("bindcheck")
@@ -423,6 +445,8 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
       "/isilive bindcheck",
       "/isilive tptest",
       "/isilive tpdebug",
+      "/isilive seasondump",
+      "/isilive hearthdump",
       "/isilive nptest",
       "/isilive npstate",
       "/isilive reset",

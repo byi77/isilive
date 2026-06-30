@@ -355,6 +355,22 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
         end
       end
     end,
+    printSeasonDebug = function()
+      local seasonDebug = addonTable.SeasonDebug
+      if type(seasonDebug) ~= "table" or type(seasonDebug.PrintDump) ~= "function" then
+        ctx.printFn("[SEASON] SeasonDebug module unavailable.")
+        return
+      end
+      seasonDebug.PrintDump(ctx.printFn)
+    end,
+    printHearthstoneDebug = function()
+      local hearthstoneDebug = addonTable.HearthstoneDebug
+      if type(hearthstoneDebug) ~= "table" or type(hearthstoneDebug.PrintDump) ~= "function" then
+        ctx.printFn("[HEARTH] HearthstoneDebug module unavailable.")
+        return
+      end
+      hearthstoneDebug.PrintDump(ctx.printFn)
+    end,
     logRuntimeTrace = ctx.logRuntimeTrace,
     logRuntimeTracef = ctx.logRuntimeTracef,
   }

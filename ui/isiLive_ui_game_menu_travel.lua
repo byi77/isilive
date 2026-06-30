@@ -147,6 +147,14 @@ local function CollectOwnedHearthstoneToys()
   return owned
 end
 
+local function GetKnownHearthstoneToyIDs()
+  local out = {}
+  for _, entry in ipairs(HEARTHSTONE_TOYS) do
+    out[#out + 1] = entry.id
+  end
+  return out
+end
+
 local function IsAvailableHearthstoneToy(toyId)
   toyId = tonumber(toyId)
   if not toyId or not HEARTHSTONE_TOY_LOOKUP[toyId] then
@@ -250,6 +258,7 @@ local SECOND_PANEL_UI_ENTRIES = {
 Travel.SECOND_PANEL_UI_ENTRIES = SECOND_PANEL_UI_ENTRIES
 Travel.CollectOwnedHearthstoneToys = CollectOwnedHearthstoneToys
 Travel.GetHearthstoneToyEnglishName = GetHearthstoneToyEnglishName
+Travel.GetKnownHearthstoneToyIDs = GetKnownHearthstoneToyIDs
 Travel.ResolveHearthstoneChoice = ResolveHearthstoneChoice
 Travel.DALARAN_HEARTHSTONE_TOY_ID = DALARAN_HEARTHSTONE_TOY_ID
 Travel.IsDalaranHearthstoneAvailable = IsDalaranHearthstoneAvailable

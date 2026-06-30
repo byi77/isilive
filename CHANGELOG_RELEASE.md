@@ -3,9 +3,15 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.340`.
+Current release: `0.9.341`.
 
 Highlights:
+- New admin diagnostics help prepare the next Season without guessing:
+  `/isilive seasondump` reports observed Season, instance, challenge, LFG, and
+  Forces DB data; `/isilive hearthdump` reports verified known Hearthstone toy
+  data.
+- A new Season intake checklist and CI gate track pre-activation Season IDs with
+  source/date metadata while keeping Season activation manual.
 - Hidden Kick sync now keeps its grouped keep-alive active for verified
   automatic instance groups as well as normal groups, while solo clients no
   longer run the 0.5s Kick scan/sync loop.

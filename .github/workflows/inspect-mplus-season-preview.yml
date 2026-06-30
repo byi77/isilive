@@ -1,0 +1,98 @@
+name: Inspect M+ Season Preview
+
+on:
+  schedule:
+    - cron: "30 7 * * 4"
+  workflow_dispatch:
+    inputs:
+      season:
+        description: "Season ID from game/isiLive_season_data.lua"
+        required: true
+        default: "midnight_s2"
+
+concurrency:
+  group: inspect-mplus-season-preview-${{ github.event.inputs.season || 'midnight_s2' }}
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      SEASON_ID: ${{ github.event.inputs.season || 'midnight_s2' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Lua
+        uses: leafo/gh-actions-lua@v12
+        with:
+          luaVersion: "5.1"
+
+      - name: Clone MDT
+        run: git clone --depth 1 https://github.com/Nnoggie/MythicDungeonTools tools/cache/mdt
+
+      - name: Build MDT season preview report
+        id: preview
+        run: |
+          mkdir -p tools/cache/season_preview
+          lua tools/inspect_mdt_season_preview.lua "--season=${SEASON_ID}" --mdt=tools/cache/mdt > tools/cache/season_preview/mdt-season-preview.md
+          cat tools/cache/season_preview/mdt-season-preview.md >> "$GITHUB_STEP_SUMMARY"
+          candidate_count="$(sed -n 's/^- Candidate matches: //p' tools/cache/season_preview/mdt-season-preview.md | head -n 1)"
+          echo "candidate_count=${candidate_count:-0}" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update preview issue when candidates are found
+        if: steps.preview.outputs.candidate_count != '0'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const marker = "<!-- isiLive:mplus-season-preview:" + process.env.SEASON_ID + " -->";
+            const title = "Season Preview: MDT candidates found for " + process.env.SEASON_ID;
+            const report = fs.readFileSync("tools/cache/season_preview/mdt-season-preview.md", "utf8");
+            const body = [
+              marker,
+              "",
+              "The MDT season preview workflow found textual candidates for `" + process.env.SEASON_ID + "`.",
+              "",
+              "These are inspect candidates only. Do not copy map IDs, portal spell IDs, LFG activity IDs, or forces data until each value is verified from a reliable source.",
+              "",
+              report,
+            ].join("\n");
+
+            const { owner, repo } = context.repo;
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: "open",
+              per_page: 100,
+            });
+            const existing = issues.find((issue) => issue.title === title && !issue.pull_request);
+
+            if (existing) {
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body,
+              });
+              core.notice("Updated existing preview issue #" + existing.number);
+            } else {
+              const created = await github.rest.issues.create({
+                owner,
+                repo,
+                title,
+                body,
+              });
+              core.notice("Created preview issue #" + created.data.number);
+            }
+
+      - name: Upload MDT season preview artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: mplus-season-preview-${{ env.SEASON_ID }}
+          path: tools/cache/season_preview/
+          if-no-files-found: error

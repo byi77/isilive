@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 2026-06-30 - Version 0.9.341 (patch)
+
+- Added local season-prep diagnostics for the next Season transition: `/isilive
+  seasondump` prints observed Season, instance, challenge, LFG, and Forces DB
+  data, while `/isilive hearthdump` prints verified known Hearthstone toy data.
+  Missing Blizzard APIs are reported as unavailable instead of guessed.
+- Tightened the M+ Forces DB release gate so the generated Forces dataset must
+  match the active Season ID, preventing a future Season switch from shipping
+  with stale Season data.
+- Added read-only GitHub Actions inspectors for season readiness and MDT
+  next-season preview artifacts; MDT preview discoveries now open or update a
+  GitHub issue for manual verification.
+- Added `docs/SEASON_INTAKE.md`, a deterministic intake validator, and a daily
+  issue-updating workflow so pre-activation season IDs can be collected with
+  source/date metadata without activating the season.
+- Bumped the TOC and documentation baselines to `0.9.341`.
+
 ## 2026-06-28 - Version 0.9.340 (patch)
 
 - Fixed the Kick tracker heartbeat so the hidden keep-alive still syncs for

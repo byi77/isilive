@@ -799,6 +799,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - AcceptedInviteNotice does not replay after challenge start
   - AcceptedInviteNotice does not replay via GROUP_ROSTER_UPDATE recovery after ClearAllState
   - LI.BuildSearchResultMemberBonuses resolves German Verstärkung only for Evoker
+  - SeasonDebug dump fails closed when Blizzard season APIs are unavailable
+  - HearthstoneDebug dump fails closed when toy APIs are unavailable
   - LI.BuildApplicantBonusBadge treats Devotion Aura and Atrophic Poison as utility
   - LI.BuildSearchResultBonusBadge accepts tuple spec IDs only for their matching class
   - LI.BuildSearchResultBonusBadge counts relevant non-utility bonuses as markers

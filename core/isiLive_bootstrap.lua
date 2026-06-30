@@ -51,6 +51,9 @@ function Bootstrap.RegisterSlashCommands(opts)
       return false
     end
   local dumpNameplateState = type(opts.dumpNameplateState) == "function" and opts.dumpNameplateState or function() end
+  local printSeasonDebug = type(opts.printSeasonDebug) == "function" and opts.printSeasonDebug or function() end
+  local printHearthstoneDebug = type(opts.printHearthstoneDebug) == "function" and opts.printHearthstoneDebug
+    or function() end
 
   commands.RegisterSlashCommands({
     printFn = printFn,
@@ -93,6 +96,8 @@ function Bootstrap.RegisterSlashCommands(opts)
     openSettings = openSettings,
     toggleNameplateTestMode = toggleNameplateTestMode,
     dumpNameplateState = dumpNameplateState,
+    printSeasonDebug = printSeasonDebug,
+    printHearthstoneDebug = printHearthstoneDebug,
     logRuntimeTracef = runtimeLogController.Logf,
   })
 end

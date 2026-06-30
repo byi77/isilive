@@ -34,6 +34,8 @@ local function BuildDeps(opts)
     end,
     forceTeleportTestTarget = opts.forceTeleportTestTarget or function() end,
     printTeleportDebug = opts.printTeleportDebug or function() end,
+    printSeasonDebug = opts.printSeasonDebug or function() end,
+    printHearthstoneDebug = opts.printHearthstoneDebug or function() end,
     setQueueDebugEnabled = opts.setQueueDebugEnabled or function(_enabled) end,
     getQueueDebugEnabled = opts.getQueueDebugEnabled or function()
       return false
@@ -120,6 +122,8 @@ local ADMIN_HELP_KEYS = {
   "HELP_BINDCHECK",
   "HELP_TPTEST",
   "HELP_TPDEBUG",
+  "HELP_SEASONDUMP",
+  "HELP_HEARTHDUMP",
   "HELP_NPTEST",
   "HELP_NPSTATE",
   "HELP_RESET",
@@ -436,6 +440,16 @@ local function TryHandleUtilityCommands(ctx, cmd)
 
   if cmd == "tpdebug" then
     ctx.printTeleportDebug()
+    return true
+  end
+
+  if cmd == "seasondump" then
+    ctx.printSeasonDebug()
+    return true
+  end
+
+  if cmd == "hearthdump" then
+    ctx.printHearthstoneDebug()
     return true
   end
 

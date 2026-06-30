@@ -12,11 +12,14 @@
 --                                   that do not touch the M+ forces feature).
 --   ISILIVE_TODAY_OVERRIDE=YYYY-MM-DD  Override "today" for deterministic runs
 --                                      (CI replay, regression reproduction).
+--   ISILIVE_ACTIVE_SEASON_ID=season_id  Optional active season id; when set,
+--                                      the DB's `season` field must match.
 --
 -- Run from repo root:
 --   lua tools/check_mplus_db_lifetime.lua
 
 local DB_PATH = "data/isiLive_mplus_forces.lua"
+local SEASON_DATA_PATH = "game/isiLive_season_data.lua"
 local ENV_OVERRIDE = "ISILIVE_ALLOW_STALE_MPLUS_DB"
 
 local function today()
@@ -36,6 +39,17 @@ local function parseDate(s)
     return nil
   end
   return tonumber(y) * 10000 + tonumber(m) * 100 + tonumber(d)
+end
+
+local function readActiveSeasonID(path)
+  path = path or SEASON_DATA_PATH
+  local file = io.open(path, "rb")
+  if not file then
+    return nil
+  end
+  local content = file:read("*a") or ""
+  file:close()
+  return content:match('SeasonData%.ACTIVE_SEASON_ID%s*=%s*"([^"]+)"')
 end
 
 local M = {}
@@ -58,6 +72,18 @@ function M.Check(dbPath, opts)
   local db = addonTable.MPlusForces
   if type(db) ~= "table" then
     return 2, "addonTable.MPlusForces missing or not a table"
+  end
+
+  local activeSeasonID = opts.activeSeasonID
+    or os.getenv("ISILIVE_ACTIVE_SEASON_ID")
+    or readActiveSeasonID(opts.seasonDataPath)
+  if type(activeSeasonID) == "string" and activeSeasonID ~= "" and db.season ~= activeSeasonID then
+    return 2,
+      string.format(
+        "M+ forces DB season mismatch: active season is %s but DB season is %s",
+        tostring(activeSeasonID),
+        tostring(db.season)
+      )
   end
 
   local expiresAt = db.expiresAt

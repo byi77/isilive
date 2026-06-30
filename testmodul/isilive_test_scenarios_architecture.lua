@@ -23,6 +23,7 @@ FILE_PATHS["CHANGELOG_RELEASE.md"] = "CHANGELOG_RELEASE.md"
 FILE_PATHS["RELEASE.md"] = "docs/RELEASE.md"
 FILE_PATHS["RULES.md"] = "docs/RULES.md"
 FILE_PATHS["RULES_LOGIC.md"] = "docs/RULES_LOGIC.md"
+FILE_PATHS["SEASON_INTAKE.md"] = "docs/SEASON_INTAKE.md"
 FILE_PATHS["USECASES.md"] = "docs/USECASES.md"
 FILE_PATHS["WARTUNG.md"] = "docs/WARTUNG.md"
 FILE_PATHS["simulate_multi_invite_target_chain.lua"] = "tools/simulate_multi_invite_target_chain.lua"
@@ -2380,10 +2381,121 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     AssertContains(
       Assert,
       workflowContent,
+      "lua tools/check_season_intake.lua",
+      "workflow must validate the pre-activation season intake"
+    )
+    AssertContains(
+      Assert,
+      workflowContent,
       "lua tools/check_hardcoded_strings.lua",
       "workflow must gate releases on hardcoded user-visible strings in ui/ and logic/"
     )
     AssertContains(Assert, workflowContent, "Lua Syntax Check", "workflow must keep the syntax validation step")
+  end)
+
+  test("Architecture season inspect workflows avoid content writes and keep artifact reports", function()
+    local readinessWorkflow = ReadFile(".github/workflows/season-readiness.yml")
+    local previewWorkflow = ReadFile(".github/workflows/inspect-mplus-season-preview.yml")
+    local intakeWorkflow = ReadFile(".github/workflows/season-intake.yml")
+
+    AssertContains(
+      Assert,
+      readinessWorkflow,
+      "lua tools/inspect_season_readiness.lua",
+      "season readiness workflow must run the repository inspect tool"
+    )
+    AssertContains(
+      Assert,
+      readinessWorkflow,
+      "actions/upload-artifact@v5",
+      "season readiness workflow must upload its report as an artifact"
+    )
+    AssertContains(
+      Assert,
+      readinessWorkflow,
+      "contents: read",
+      "season readiness workflow must not request write permissions"
+    )
+    AssertNotContains(Assert, readinessWorkflow, "git commit", "season readiness workflow must not commit data")
+    AssertNotContains(Assert, readinessWorkflow, "git push", "season readiness workflow must not push data")
+
+    AssertContains(
+      Assert,
+      previewWorkflow,
+      "git clone --depth 1 https://github.com/Nnoggie/MythicDungeonTools tools/cache/mdt",
+      "MDT preview workflow must inspect the current MDT checkout"
+    )
+    AssertContains(
+      Assert,
+      previewWorkflow,
+      "lua tools/inspect_mdt_season_preview.lua",
+      "MDT preview workflow must run the repository inspect tool"
+    )
+    AssertContains(
+      Assert,
+      previewWorkflow,
+      "actions/upload-artifact@v5",
+      "MDT preview workflow must upload its report as an artifact"
+    )
+    AssertContains(
+      Assert,
+      previewWorkflow,
+      "contents: read",
+      "MDT preview workflow must not request content write permissions"
+    )
+    AssertContains(
+      Assert,
+      previewWorkflow,
+      "issues: write",
+      "MDT preview workflow may write issues so candidate discoveries become visible"
+    )
+    AssertContains(
+      Assert,
+      previewWorkflow,
+      "actions/github-script@v8",
+      "MDT preview workflow must create or update a GitHub issue when candidates are found"
+    )
+    AssertContains(
+      Assert,
+      previewWorkflow,
+      "steps.preview.outputs.candidate_count != '0'",
+      "MDT preview workflow must only notify when textual candidates are present"
+    )
+    AssertNotContains(Assert, previewWorkflow, "git commit", "MDT preview workflow must not commit data")
+    AssertNotContains(Assert, previewWorkflow, "git push", "MDT preview workflow must not push data")
+
+    AssertContains(
+      Assert,
+      intakeWorkflow,
+      "lua tools/check_season_intake.lua",
+      "season intake workflow must validate the structured intake file"
+    )
+    AssertContains(
+      Assert,
+      intakeWorkflow,
+      "Season Intake Status: midnight_s2",
+      "season intake workflow must update a stable GitHub issue"
+    )
+    AssertContains(
+      Assert,
+      intakeWorkflow,
+      "issues: write",
+      "season intake workflow may write issues so intake drift becomes visible"
+    )
+    AssertContains(
+      Assert,
+      intakeWorkflow,
+      "contents: read",
+      "season intake workflow must not request content write permissions"
+    )
+    AssertContains(
+      Assert,
+      intakeWorkflow,
+      "actions/upload-artifact@v5",
+      "season intake workflow must upload its report as an artifact"
+    )
+    AssertNotContains(Assert, intakeWorkflow, "git commit", "season intake workflow must not commit data")
+    AssertNotContains(Assert, intakeWorkflow, "git push", "season intake workflow must not push data")
   end)
 
   test("Architecture local CI preflight mirrors the GitHub Lua Check workflow", function()
@@ -2546,6 +2658,12 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       localPreflightContent,
       'Invoke-CheckedCommand "M+ Forces DB Lifetime" "lua tools/check_mplus_db_lifetime.lua"',
       "local preflight must gate releases on the M+ forces DB lifetime"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      'Invoke-CheckedCommand "Season Intake Check" "lua tools/check_season_intake.lua"',
+      "local preflight must validate the pre-activation season intake"
     )
     AssertContains(
       Assert,
