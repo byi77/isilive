@@ -1204,18 +1204,51 @@ function Sync.GetPlayerSyncSummary(name, realm)
   return best
 end
 
+local function SafeBooleanCall(fn, ...)
+  local ok, result = pcall(fn, ...)
+  return ok and result == true
+end
+
+local function IsVerifiedInstanceGroup()
+  local isInGroup = rawget(_G, "IsInGroup")
+  local instanceCategory = rawget(_G, "LE_PARTY_CATEGORY_INSTANCE")
+  if type(isInGroup) ~= "function" or instanceCategory == nil then
+    return false
+  end
+  return SafeBooleanCall(isInGroup, instanceCategory)
+end
+
+local function IsVerifiedHomeParty()
+  local isInGroup = rawget(_G, "IsInGroup")
+  local homeCategory = rawget(_G, "LE_PARTY_CATEGORY_HOME")
+  if homeCategory ~= nil and type(isInGroup) == "function" and SafeBooleanCall(isInGroup, homeCategory) then
+    return true
+  end
+
+  local unitInParty = rawget(_G, "UnitInParty")
+  if type(unitInParty) == "function" then
+    return SafeBooleanCall(unitInParty, "player")
+  end
+
+  return type(isInGroup) == "function" and SafeBooleanCall(isInGroup)
+end
+
+local function IsVerifiedRaid()
+  local isInRaid = rawget(_G, "IsInRaid")
+  return type(isInRaid) == "function" and SafeBooleanCall(isInRaid)
+end
+
 --- Returns the current group addon sync channel, or nil when not in a group or raid.
--- Priority: raid hard-off, then INSTANCE_CHAT > PARTY.
+-- Priority: raid hard-off, then INSTANCE_CHAT > verified home PARTY.
 -- @return string|nil "INSTANCE_CHAT", "PARTY", or nil.
 function Sync.GetAddonSyncChannel()
-  if IsInRaid and IsInRaid() then
+  if IsVerifiedRaid() then
     return nil
   end
-  local inInstanceGroup = LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE)
-  if inInstanceGroup then
+  if IsVerifiedInstanceGroup() then
     return "INSTANCE_CHAT"
   end
-  if IsInGroup() then
+  if IsVerifiedHomeParty() then
     return "PARTY"
   end
   return nil
@@ -1664,10 +1697,8 @@ function Sync.SendLibKeystoneRequest(opts)
   end
   opts = opts or {}
 
-  if IsInRaid and IsInRaid() then
-    return false
-  end
-  if not (IsInGroup and IsInGroup()) then
+  local libKsChannel = Sync.GetAddonSyncChannel()
+  if not libKsChannel then
     return false
   end
 
@@ -1677,11 +1708,6 @@ function Sync.SendLibKeystoneRequest(opts)
     return false
   end
 
-  -- Pick the correct party channel: inside an instance the WoW server only
-  -- delivers party addon messages on INSTANCE_CHAT, sending to "PARTY" silently
-  -- drops. Raid is already suppressed above because LibKeystone is party-only.
-  local libKsChannel = (LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE)) and "INSTANCE_CHAT"
-    or "PARTY"
   local sent = DispatchAddonMessage(LIBKEYSTONE_SYNC_PREFIX, "R", libKsChannel, "NORMAL")
   if sent == true then
     lastLibKeystoneRequestAt = now
@@ -1704,10 +1730,8 @@ function Sync.SendLibKeystonePartyData(opts)
   end
   opts = opts or {}
 
-  if IsInRaid and IsInRaid() then
-    return false
-  end
-  if not (IsInGroup and IsInGroup()) then
+  local libKsChannel = Sync.GetAddonSyncChannel()
+  if not libKsChannel then
     return false
   end
 
@@ -1733,10 +1757,6 @@ function Sync.SendLibKeystonePartyData(opts)
   end
 
   local payload = string.format("%d,%d,%d", numericLevel, numericMapID, numericRio)
-  -- Same instance-aware channel picker as SendLibKeystoneRequest: must use
-  -- INSTANCE_CHAT inside dungeons/keys, otherwise the message is dropped.
-  local libKsChannel = (LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE)) and "INSTANCE_CHAT"
-    or "PARTY"
   local sent = DispatchAddonMessage(LIBKEYSTONE_SYNC_PREFIX, payload, libKsChannel, "NORMAL")
   SyncLog(
     "send_libkeystone_party",

@@ -274,22 +274,34 @@ return function(test, ctx)
     end)
   end)
 
-  test("context_helpers: ResolveGroupChatChannel returns INSTANCE_CHAT when in an instance group", function()
+  test(
+    "context_helpers: ResolveGroupChatChannel returns INSTANCE_CHAT for an instance group without home party",
+    function()
+      WithGlobals({
+        IsInGroup = function(category)
+          return category == 2
+        end,
+        LE_PARTY_CATEGORY_INSTANCE = 2,
+        LE_PARTY_CATEGORY_HOME = 1,
+        UnitInParty = function()
+          return false
+        end,
+      }, function()
+        local addon = Load()
+        Assert.Equal(addon.ContextHelpers.ResolveGroupChatChannel(), "INSTANCE_CHAT")
+      end)
+    end
+  )
+
+  test("context_helpers: ResolveGroupChatChannel returns PARTY for a verified home party", function()
     WithGlobals({
       IsInGroup = function(category)
-        return category == 2
+        return category == 1
       end,
       LE_PARTY_CATEGORY_INSTANCE = 2,
-    }, function()
-      local addon = Load()
-      Assert.Equal(addon.ContextHelpers.ResolveGroupChatChannel(), "INSTANCE_CHAT")
-    end)
-  end)
-
-  test("context_helpers: ResolveGroupChatChannel returns PARTY when not in an instance group", function()
-    WithGlobals({
-      IsInGroup = function()
-        return false
+      LE_PARTY_CATEGORY_HOME = 1,
+      UnitInParty = function()
+        return true
       end,
     }, function()
       local addon = Load()
@@ -297,10 +309,10 @@ return function(test, ctx)
     end)
   end)
 
-  test("context_helpers: ResolveGroupChatChannel returns PARTY when IsInGroup is missing", function()
+  test("context_helpers: ResolveGroupChatChannel fails closed when IsInGroup is missing", function()
     WithGlobals({ IsInGroup = false }, function()
       local addon = Load()
-      Assert.Equal(addon.ContextHelpers.ResolveGroupChatChannel(), "PARTY")
+      Assert.Nil(addon.ContextHelpers.ResolveGroupChatChannel())
     end)
   end)
 
@@ -316,8 +328,13 @@ return function(test, ctx)
   test("context_helpers: SendPartyChatMessage uses SendChatMessage first", function()
     local sentVia = nil
     WithGlobals({
-      IsInGroup = function()
-        return false
+      IsInGroup = function(category)
+        return category == 1
+      end,
+      LE_PARTY_CATEGORY_INSTANCE = 2,
+      LE_PARTY_CATEGORY_HOME = 1,
+      UnitInParty = function()
+        return true
       end,
       SendChatMessage = function(_msg, channel)
         sentVia = { api = "legacy", channel = channel }
@@ -333,8 +350,13 @@ return function(test, ctx)
   test("context_helpers: SendPartyChatMessage falls back to C_ChatInfo when SendChatMessage raises", function()
     local usedCompat = false
     WithGlobals({
-      IsInGroup = function()
-        return false
+      IsInGroup = function(category)
+        return category == 1
+      end,
+      LE_PARTY_CATEGORY_INSTANCE = 2,
+      LE_PARTY_CATEGORY_HOME = 1,
+      UnitInParty = function()
+        return true
       end,
       SendChatMessage = function()
         error("legacy busted", 0)
@@ -353,14 +375,40 @@ return function(test, ctx)
 
   test("context_helpers: SendPartyChatMessage returns false when no chat API is available", function()
     WithGlobals({
-      IsInGroup = function()
-        return false
+      IsInGroup = function(category)
+        return category == 1
+      end,
+      LE_PARTY_CATEGORY_INSTANCE = 2,
+      LE_PARTY_CATEGORY_HOME = 1,
+      UnitInParty = function()
+        return true
       end,
       SendChatMessage = false,
       C_ChatInfo = false,
     }, function()
       local addon = Load()
       Assert.Equal(addon.ContextHelpers.SendPartyChatMessage("hi"), false)
+    end)
+  end)
+
+  test("context_helpers: SendPartyChatMessage returns false without a verified group channel", function()
+    local attempted = false
+    WithGlobals({
+      IsInGroup = function()
+        return false
+      end,
+      LE_PARTY_CATEGORY_INSTANCE = 2,
+      LE_PARTY_CATEGORY_HOME = 1,
+      UnitInParty = function()
+        return false
+      end,
+      SendChatMessage = function()
+        attempted = true
+      end,
+    }, function()
+      local addon = Load()
+      Assert.Equal(addon.ContextHelpers.SendPartyChatMessage("hi"), false)
+      Assert.False(attempted, "chat API must not be called without a verified group channel")
     end)
   end)
 end

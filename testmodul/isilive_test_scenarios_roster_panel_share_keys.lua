@@ -36,6 +36,18 @@ local NewRecordedMainFrame
 local test, Assert, WithGlobals, LoadAddonModules
 local RegisterShareKeysRemoteCooldownTests
 
+local function WithVerifiedHomePartyGlobals(globals)
+  globals.LE_PARTY_CATEGORY_INSTANCE = 2
+  globals.LE_PARTY_CATEGORY_HOME = 1
+  globals.IsInGroup = function(category)
+    return category == nil or category == 1
+  end
+  globals.UnitInParty = function(unit)
+    return unit == "player"
+  end
+  return globals
+end
+
 local function RegisterShareKeysGlobalPathTest()
   test("Roster panel share keys button uses the global SendChatMessage runtime path", function()
     local createdFrames = {}
@@ -44,7 +56,7 @@ local function RegisterShareKeysGlobalPathTest()
     local shareKeyRequests = 0
     local currentTime = 300
 
-    WithGlobals({
+    local globals = WithVerifiedHomePartyGlobals({
       CreateFrame = function()
         return NewRecordedFrame(createdFrames, createdFontStrings)
       end,
@@ -62,7 +74,9 @@ local function RegisterShareKeysGlobalPathTest()
         })
       end,
       print = function() end,
-    }, function()
+    })
+
+    WithGlobals(globals, function()
       local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
       local controller = addon.RosterPanel.CreateController({
         mainFrame = NewRecordedMainFrame(createdFontStrings),
@@ -179,7 +193,7 @@ local function RegisterShareKeysDispatchOrderTest()
     local effectOrder = {}
     local currentTime = 350
 
-    WithGlobals({
+    local globals = WithVerifiedHomePartyGlobals({
       CreateFrame = function()
         return NewRecordedFrame(createdFrames, createdFontStrings)
       end,
@@ -198,7 +212,9 @@ local function RegisterShareKeysDispatchOrderTest()
         })
       end,
       print = function() end,
-    }, function()
+    })
+
+    WithGlobals(globals, function()
       local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
       local controller = addon.RosterPanel.CreateController({
         mainFrame = NewRecordedMainFrame(createdFontStrings),
@@ -634,7 +650,7 @@ local function RegisterShareKeysDeterministicLinkTest()
     local shareKeyRequests = 0
     local currentTime = 300
 
-    WithGlobals({
+    local globals = WithVerifiedHomePartyGlobals({
       CreateFrame = function()
         return NewRecordedFrame(createdFrames, createdFontStrings)
       end,
@@ -667,7 +683,9 @@ local function RegisterShareKeysDeterministicLinkTest()
         end,
       },
       print = function() end,
-    }, function()
+    })
+
+    WithGlobals(globals, function()
       local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
       local controller = addon.RosterPanel.CreateController({
         mainFrame = NewRecordedMainFrame(createdFontStrings),
@@ -796,7 +814,7 @@ local function RegisterShareKeysFallbackLinkTest()
     local shareKeyRequests = 0
     local currentTime = 300
 
-    WithGlobals({
+    local globals = WithVerifiedHomePartyGlobals({
       CreateFrame = function()
         return NewRecordedFrame(createdFrames, createdFontStrings)
       end,
@@ -821,7 +839,9 @@ local function RegisterShareKeysFallbackLinkTest()
         end,
       },
       print = function() end,
-    }, function()
+    })
+
+    WithGlobals(globals, function()
       local addon = LoadAddonModules({
         "core/isiLive_context_helpers.lua",
         "isiLive_roster_panel.lua",
@@ -957,7 +977,7 @@ local function RegisterShareKeysLiveSnapshotTest()
     local shareKeyRequests = 0
     local currentTime = 300
 
-    WithGlobals({
+    local globals = WithVerifiedHomePartyGlobals({
       CreateFrame = function()
         return NewRecordedFrame(createdFrames, createdFontStrings)
       end,
@@ -977,7 +997,9 @@ local function RegisterShareKeysLiveSnapshotTest()
         end,
       },
       print = function() end,
-    }, function()
+    })
+
+    WithGlobals(globals, function()
       local addon = LoadAddonModules({
         "core/isiLive_context_helpers.lua",
         "isiLive_roster_panel.lua",
@@ -1111,7 +1133,7 @@ local function RegisterShareKeysDebounceTests()
     local shareKeyRequests = 0
     local currentTime = 100
 
-    WithGlobals({
+    local globals = WithVerifiedHomePartyGlobals({
       CreateFrame = function()
         return NewRecordedFrame(createdFrames, createdFontStrings)
       end,
@@ -1131,7 +1153,9 @@ local function RegisterShareKeysDebounceTests()
         end,
       },
       print = function() end,
-    }, function()
+    })
+
+    WithGlobals(globals, function()
       local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
       local controller = addon.RosterPanel.CreateController({
         mainFrame = NewRecordedMainFrame(createdFontStrings),

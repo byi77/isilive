@@ -1411,11 +1411,45 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
       end,
     }, function()
       local addon = LoadAddonModules({ "isiLive_sync.lua" })
-
       Assert.Nil(addon.Sync.GetAddonSyncChannel(), "raid hard-off must suppress the addon sync channel")
     end)
   end)
-
+  test("Sync GetAddonSyncChannel returns INSTANCE_CHAT for an instance group without home party", function()
+    WithGlobals({
+      LE_PARTY_CATEGORY_INSTANCE = 2,
+      LE_PARTY_CATEGORY_HOME = 1,
+      IsInGroup = function(category)
+        return category == 2
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      UnitInParty = function()
+        return false
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+      Assert.Equal(addon.Sync.GetAddonSyncChannel(), "INSTANCE_CHAT", "instance group must use INSTANCE_CHAT")
+    end)
+  end)
+  test("Sync GetAddonSyncChannel fails closed without verified party or instance group", function()
+    WithGlobals({
+      LE_PARTY_CATEGORY_INSTANCE = 2,
+      LE_PARTY_CATEGORY_HOME = 1,
+      IsInGroup = function(category)
+        return category == nil
+      end,
+      IsInRaid = function()
+        return false
+      end,
+      UnitInParty = function()
+        return false
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+      Assert.Nil(addon.Sync.GetAddonSyncChannel(), "unverified group must not synthesize PARTY")
+    end)
+  end)
   test("Sync SendHello respects cooldown and force bypass", function()
     local sentMessages = {}
     local now = 100
@@ -1972,10 +2006,14 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
         return 200
       end,
       LE_PARTY_CATEGORY_INSTANCE = 2,
-      IsInGroup = function(_category)
-        return true
+      LE_PARTY_CATEGORY_HOME = 1,
+      IsInGroup = function(category)
+        return category == 2
       end,
       IsInRaid = function()
+        return false
+      end,
+      UnitInParty = function()
         return false
       end,
       C_ChatInfo = {
@@ -2001,10 +2039,14 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
 
     WithGlobals({
       LE_PARTY_CATEGORY_INSTANCE = 2,
-      IsInGroup = function(_category)
-        return true
+      LE_PARTY_CATEGORY_HOME = 1,
+      IsInGroup = function(category)
+        return category == 2
       end,
       IsInRaid = function()
+        return false
+      end,
+      UnitInParty = function()
         return false
       end,
       C_ChatInfo = {

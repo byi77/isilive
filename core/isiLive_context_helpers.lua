@@ -165,20 +165,42 @@ function ContextHelpers.BuildOwnKeystoneAnnounceLine(opts)
   return string.format("[isiLive] %s %s", announcePrefix, keyLink)
 end
 
+local function SafeBooleanCall(fn, ...)
+  local ok, result = pcall(fn, ...)
+  return ok and result == true
+end
+
 -- Returns the correct chat channel for the current group context.
--- Instance groups (M+, LFG, dungeon finder) must use INSTANCE_CHAT — SendChatMessage
--- silently drops PARTY messages when the player is in an instance group.
+-- Instance groups (M+, LFG, dungeon finder) must use INSTANCE_CHAT. PARTY is
+-- only valid for a verified home party; otherwise the helper fails closed.
 function ContextHelpers.ResolveGroupChatChannel()
   local isInGroup = rawget(_G, "IsInGroup")
   if type(isInGroup) ~= "function" then
-    return "PARTY"
+    return nil
   end
-  local instanceCategory = rawget(_G, "LE_PARTY_CATEGORY_INSTANCE") or 2
-  local okInstance, inInstance = pcall(isInGroup, instanceCategory)
-  if okInstance and inInstance then
+  local instanceCategory = rawget(_G, "LE_PARTY_CATEGORY_INSTANCE")
+  if instanceCategory ~= nil and SafeBooleanCall(isInGroup, instanceCategory) then
     return "INSTANCE_CHAT"
   end
-  return "PARTY"
+
+  local homeCategory = rawget(_G, "LE_PARTY_CATEGORY_HOME")
+  if homeCategory ~= nil and SafeBooleanCall(isInGroup, homeCategory) then
+    return "PARTY"
+  end
+
+  local unitInParty = rawget(_G, "UnitInParty")
+  if type(unitInParty) == "function" then
+    if SafeBooleanCall(unitInParty, "player") then
+      return "PARTY"
+    end
+    return nil
+  end
+
+  if SafeBooleanCall(isInGroup) then
+    return "PARTY"
+  end
+
+  return nil
 end
 
 function ContextHelpers.SendPartyChatMessage(message)
@@ -187,6 +209,9 @@ function ContextHelpers.SendPartyChatMessage(message)
   end
 
   local channel = ContextHelpers.ResolveGroupChatChannel()
+  if not channel then
+    return false
+  end
 
   local sendChatMessage = rawget(_G, "SendChatMessage")
   if type(sendChatMessage) == "function" then
