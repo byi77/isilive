@@ -10,7 +10,7 @@ local function BuildCommandLocale()
     HELP_SIM = "/isilive sim",
     HELP_TPTEST = "/isilive tptest",
     HELP_TPDEBUG = "/isilive tpdebug",
-    HELP_SEASONDUMP = "/isilive seasondump",
+    HELP_SEASONDUMP = "/isilive seasondump (/isilive s2d)",
     HELP_HEARTHDUMP = "/isilive hearthdump",
     HELP_LOG = "/isilive log",
     HELP_QDEBUG = "/isilive qdebug",
@@ -357,6 +357,12 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
     Assert.Equal(state.seasonDumpCalls, 1, "seasondump must call printSeasonDebug")
   end)
 
+  test("Commands s2d delegates to printSeasonDebug", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("s2d")
+    Assert.Equal(state.seasonDumpCalls, 1, "s2d must call printSeasonDebug")
+  end)
+
   test("Commands hearthdump delegates to printHearthstoneDebug", function()
     local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
     state._execute("hearthdump")
@@ -445,7 +451,7 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
       "/isilive bindcheck",
       "/isilive tptest",
       "/isilive tpdebug",
-      "/isilive seasondump",
+      "/isilive seasondump (/isilive s2d)",
       "/isilive hearthdump",
       "/isilive nptest",
       "/isilive npstate",

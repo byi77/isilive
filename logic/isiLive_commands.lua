@@ -443,7 +443,7 @@ local function TryHandleUtilityCommands(ctx, cmd)
     return true
   end
 
-  if cmd == "seasondump" then
+  if cmd == "seasondump" or cmd == "s2d" then
     ctx.printSeasonDebug()
     return true
   end

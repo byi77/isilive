@@ -109,18 +109,22 @@ return function(test, ctx)
     )
   end)
 
-  test("Season intake check accepts unresolved planned dungeons with explicit placeholders", function()
+  test("Season intake check accepts current planned dungeon intake progress", function()
     local tool = LoadTool("tools/check_season_intake.lua")
     local ok, result = tool.Check()
 
     Assert.True(ok, "live season intake file should be structurally valid")
     Assert.True(
-      result.summary:find("- Dungeon progress: 0/8 verified, 0 partial, 0 candidate, 8 unresolved", 1, true) ~= nil,
-      "season intake summary must expose current unresolved progress"
+      result.summary:find("- Dungeon progress: 0/8 verified, 1 partial, 2 candidate, 5 unresolved", 1, true) ~= nil,
+      "season intake summary must expose current intake progress"
     )
     Assert.True(
       result.summary:find("| Altar of Fangs | unresolved | unresolved | unresolved | unresolved |", 1, true) ~= nil,
       "season intake summary must include each planned dungeon"
+    )
+    Assert.True(
+      result.summary:find("| Ruby Life Pools | unresolved | 393256 | unresolved | partial |", 1, true) ~= nil,
+      "season intake summary must include the verified Ruby Life Pools portal spell"
     )
   end)
 

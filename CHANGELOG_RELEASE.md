@@ -3,13 +3,21 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.341`.
+Current release: `0.9.342`.
 
 Highlights:
 - New admin diagnostics help prepare the next Season without guessing:
   `/isilive seasondump` reports observed Season, instance, challenge, LFG, and
-  Forces DB data; `/isilive hearthdump` reports verified known Hearthstone toy
-  data.
+  Forces DB data and is also available as `/isilive s2d`; `/isilive
+  hearthdump` reports verified known Hearthstone toy data.
+- The Midnight Season 2 intake now records first 12.1.0 PTR findings: Murder
+  Row and Den of Nalorakk have observed instance/map candidates, and Ruby Life
+  Pools has verified portal spell `393256` while unavailable IDs stay
+  unresolved.
+- Share Keys, isiLive sync, and LibKeystone requests now use `INSTANCE_CHAT`
+  inside verified dungeon-finder instance groups such as timewalking runs,
+  while normal parties keep using `PARTY` and unverifiable group states stay
+  closed.
 - A new Season intake checklist and CI gate track pre-activation Season IDs with
   source/date metadata while keeping Season activation manual.
 - Hidden Kick sync now keeps its grouped keep-alive active for verified

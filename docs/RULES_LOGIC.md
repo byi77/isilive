@@ -271,6 +271,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Commands help lists only public commands
   - Commands admin input prints admin command list
+  - Commands s2d delegates to printSeasonDebug
   - Commands removed legacy commands fall back to public help
 
 ### RULE-ROSTER-RIO-DELTA-FORMAT

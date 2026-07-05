@@ -1,7 +1,7 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.341`
-Zuletzt aktualisiert: `2026-06-28`
+Versionsbasis: `0.9.342`
+Zuletzt aktualisiert: `2026-07-05`
 
 ## Zweck
 
@@ -214,7 +214,7 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 2143 Szenarien ueber die aktuell registrierten Module (siehe `tools/usecase_scenarios.lua`) ab; die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
+5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 2162 Szenarien ueber die aktuell registrierten Module (siehe `tools/usecase_scenarios.lua`) ab; die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
    Zusaetzlich laeuft der gleiche Validator-Lauf in CI unter `luacov` (`lua -lluacov tools/validate_usecases.lua`), damit `tools/coverage_summary.lua` die Line-Coverage pro Schicht in das GitHub-Actions-Step-Summary schreibt und der vollstaendige `luacov.report.out` als Artefakt hochgeladen wird.
    Aktueller voller Coverage-Audit-Stand (`2026-06-21`, lokaler Preflight nach 0.9.331): **92.43% Gesamt-Line-Coverage** ueber 31335 gezaehlte Zeilen. Das Coverage-Gate bleibt bei mindestens 88.00%.
    Historische Baseline (`2026-04-22`, Commit nach Coverage-Einfuehrung): **78.62% Gesamt-Line-Coverage** ueber 19487 Produktionszeilen.
@@ -229,7 +229,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.341 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.342 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -274,7 +274,7 @@ Zusaetzlich zum Main-Roster-Frame aus `isiLive_ui_main_frame.lua` kann `isiLive_
 | Highlight | Aktive Listings, Queue-Target und konkrete LFG-Map-Kontexte | Aktiver Teleport-Spell und Highlight-State |
 | KeySync | Sync-Messages, `LibKS`-Party-Messages und Owned-Snapshot-Daten | Roster-Backfill fuer Key/Stats/DPS/Location, `LibKeystone`-Party-Interop fuer Key/RIO, Key-Ownership und Sync-Marker |
 | Re-Sync | User-Refresh-Aktion | Erzwungener lokaler Snapshot, gruppenweiter Sync-Request, zusaetzliche `LibKS`-Party-Anfrage fuer kompatible Nicht-`isiLive`-Peers, Inspect-Refresh-Pipeline und sichtbarer 10s-Cooldown |
-| Share Keys | User-Chat-/Share-Aktion | Gruppenweiter `SHAREKEYS`-Request an Peers vor dem eigenen sichtbaren Key-Post in den passenden Gruppenchat, sichtbarer 30s lokaler Cooldown nur nach erfolgreichem Gruppenchat-Post oder erfolgreich dispatchtem Sync-Request und remote getriggerter 30s-Cooldown-Lock auf jedem Peer-Client mit eingehendem `SHAREKEYS`-Pfad, unabhaengig davon, ob dieser Client einen eigenen Gruppenchat-Post ausloesen kann; ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt; der eigene Post bevorzugt echte Blizzard-Hyperlinks (`|Hkeystone:...|h`) oder verifizierte Keystone-Itemlinks fuer `itemID 180653`, nutzt aber ungefaerbten Klartext statt Fake-Link, wenn kein echter Link verfuegbar ist |
+| Share Keys | User-Chat-/Share-Aktion | Gruppenweiter `SHAREKEYS`-Request an Peers vor dem eigenen sichtbaren Key-Post in den passenden verifizierten Gruppenchat (`INSTANCE_CHAT` fuer automatische Instanzgruppen, `PARTY` fuer normale Gruppen; ohne verifizierten Kanal fail-closed), sichtbarer 30s lokaler Cooldown nur nach erfolgreichem Gruppenchat-Post oder erfolgreich dispatchtem Sync-Request und remote getriggerter 30s-Cooldown-Lock auf jedem Peer-Client mit eingehendem `SHAREKEYS`-Pfad, unabhaengig davon, ob dieser Client einen eigenen Gruppenchat-Post ausloesen kann; ein bereits laufender lokaler Cooldown wird dabei nicht zurueckgesetzt; der eigene Post bevorzugt echte Blizzard-Hyperlinks (`|Hkeystone:...|h`) oder verifizierte Keystone-Itemlinks fuer `itemID 180653`, nutzt aber ungefaerbten Klartext statt Fake-Link, wenn kein echter Link verfuegbar ist |
 | EventHandlersRuntime | Addon-, World-, Combat-, Inspect- und Sync-Events | Startup, Hidden-Mode-Sync, sofortige Full-State-Reply auf neues Peer-`HELLO`, hidden `LibKS`-Party-Antworten auf Requests, eingehender Beschwoerungs-Sound ueber `CONFIRM_SUMMON` und pending `INCOMING_SUMMON_CHANGED` fuer `player`, Forwarding von relevanten `UNIT_AURA`-Updates fuer CdTracker und VIP-Bloodlust-Debuff-Button-Warnung, `UNIT_PET`-Forwarding fuer KickTracker und VIP-DK-Ghoul-Reminder ausserhalb Raid-Hard-off, Regen-Recovery fuer pending Visibility/Height, VIP-Bloodlust-Overlay-Refresh und Inspect-Dispatch |
 | EventHandlersQueue | LFG-Queue-/Listing-Events | Sichtbare Queue-Capture, Erhalt von Pending-Join-Kontext auf negativen Follow-ups und Joined-Key-Tracking |
 | LFGDetect | LFG-Queue-/Invite-Events | Locale-aware Invite-/Listing-Hinweise, statische Activity-zu-Map-Aufloesung, Prioritaet fuer lokalen konkreten LFG-Map-Kontext vor peer-synced Zielkontext, Highlight-Dispatch ueber injected Callback, Center-Notice-Portalbutton nur aus verifizierter Activity- oder Map-ID, Dungeon-Zeilen-Keystufe nur aus Status-Dungeon-Info oder konkretem `+N` im verifizierten LFG-Gruppentitel, Gruppenbeitritts-Fallback nur bei aktiviertem Gruppenbeitritts-Zielhinweis aus verifiziertem lokalem Status-Ziel und Full-Reset bei Group leave mit Notice-Replay-Sperre ab Challenge start |

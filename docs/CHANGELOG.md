@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 2026-07-05 - Version 0.9.342 (patch)
+
+- Added `/isilive s2d` as a short alias for the existing Season diagnostics
+  dump, keeping `/isilive seasondump` and `/il seasondump` intact.
+- Recorded the first 12.1.0 PTR Season Intake findings for Midnight Season 2:
+  Murder Row and Den of Nalorakk now carry observed PTR instance/map context as
+  candidates, and Ruby Life Pools has verified portal spell `393256` (`Pfad
+  des Nestverteidigers`) while its unavailable dungeon, challenge, and LFG IDs
+  remain unresolved.
+- Fixed group-chat and AddOn-sync channel routing for verified dungeon-finder
+  instance groups such as timewalking runs: isiLive now uses `INSTANCE_CHAT`
+  for verified instance groups, keeps `PARTY` for verified normal groups, and
+  fails closed when neither group channel is verifiable.
+- Updated deterministic Season Intake coverage to match the current
+  pre-activation progress: 0/8 verified, 1 partial, 2 candidate, 5 unresolved.
+- Updated deterministic instance-group chat and sync coverage; the current
+  usecase baseline is `2162 passed, 0 failed`.
+- Bumped the TOC and documentation baselines to `0.9.342`.
+
 ## 2026-06-30 - Version 0.9.341 (patch)
 
 - Added local season-prep diagnostics for the next Season transition: `/isilive

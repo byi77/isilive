@@ -18,12 +18,12 @@ Maschinenregeln:
 | Season | Dungeon | ChallengeMapID | PortalSpellID | LFGActivityID | Source | VerifiedAt | Status | Notiz |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | midnight_s2 | Altar of Fangs | unresolved | unresolved | unresolved | unresolved | unresolved | unresolved | PTR/Live verifizieren |
-| midnight_s2 | Murder Row | unresolved | unresolved | unresolved | unresolved | unresolved | unresolved | PTR/Live verifizieren |
-| midnight_s2 | Den of Nalorakk | unresolved | unresolved | unresolved | unresolved | unresolved | unresolved | PTR/Live verifizieren |
+| midnight_s2 | Murder Row | unresolved | unresolved | unresolved | PTR /isilive seasondump | 2026-07-03 | candidate | deDE Moerdergasse; inside dungeon: GetInstanceInfo type=party difficultyID=23 mapID=2813 groupSize=5 instanceID=5; playerBestMapID=2433; activeChallengeMapID=nil; activeLfgEntry=nil |
+| midnight_s2 | Den of Nalorakk | unresolved | unresolved | unresolved | PTR /isilive seasondump | 2026-07-03 | candidate | deDE Nalorakks Bau; inside dungeon: GetInstanceInfo type=party difficultyID=23 mapID=2825 groupSize=5 instanceID=5; playerBestMapID=2564; activeChallengeMapID=nil; activeLfgEntry=nil |
 | midnight_s2 | The Blinding Vale | unresolved | unresolved | unresolved | unresolved | unresolved | unresolved | PTR/Live verifizieren |
 | midnight_s2 | Voidscar Arena | unresolved | unresolved | unresolved | unresolved | unresolved | unresolved | PTR/Live verifizieren |
 | midnight_s2 | King's Rest | unresolved | unresolved | unresolved | unresolved | unresolved | unresolved | PTR/Live verifizieren |
-| midnight_s2 | Ruby Life Pools | unresolved | unresolved | unresolved | unresolved | unresolved | unresolved | PTR/Live verifizieren |
+| midnight_s2 | Ruby Life Pools | unresolved | 393256 | unresolved | PTR C_Spell.GetSpellInfo("Pfad des Nestverteidigers") | 2026-07-03 | partial | deDE Portalspell Pfad des Nestverteidigers verifiziert; Dungeon war auf PTR noch nicht freigeschaltet; Outdoor-Dump vor Eingang: GetInstanceInfo name=Dracheninseln type=none difficultyID=0 mapID=2444; playerBestMapID=2022 |
 | midnight_s2 | Temple of Sethraliss | unresolved | unresolved | unresolved | unresolved | unresolved | unresolved | PTR/Live verifizieren |
 
 ## Ruhestein-Intake

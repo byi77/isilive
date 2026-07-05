@@ -42,7 +42,7 @@ The colorful Mythic+ command center for World of Warcraft.
 🟦 WoW 12.0.7+ Midnight Retail
 🟩 Mythic+ Command Center
 🟧 Automatic Setup
-🟪 Version 0.9.341
+🟪 Version 0.9.342
 
 isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
@@ -71,7 +71,7 @@ WHAT isiLive GIVES YOU
 
 ✅ Better LFG scanning with green class-bonus hearts.
 ✅ One compact Mythic+ roster with key, item level, Raider.IO, DPS, language, role, and interrupt state.
-✅ Automatic key, target, stats, DPS, location, and kick sync between isiLive users.
+✅ Automatic key, target, stats, DPS, location, and kick sync between isiLive users, routed through verified party or instance chat channels.
 ✅ Verified Mythic+ target handling that highlights portals only from clear LFG activity/map context and leaves ambiguous data unresolved.
 ✅ A current-season portal grid with cooldowns and verified target highlighting.
 ✅ Live enemy-forces tracking through a bottom bar, pull prediction, nameplates, and mob tooltips.
