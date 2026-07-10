@@ -174,7 +174,13 @@ end
 
 local function CopyMirrorValue(value)
   local valueType = type(value)
-  if valueType == "string" or valueType == "number" or valueType == "boolean" then
+  if valueType == "number" then
+    if value ~= value or value == math.huge or value == -math.huge then
+      return nil
+    end
+    return value
+  end
+  if valueType == "string" or valueType == "boolean" then
     return value
   end
   return nil
@@ -224,7 +230,7 @@ local function CloneReloadRosterTargetSnapshot(source)
     return nil
   end
   local mapID = tonumber(source.mapID)
-  if not mapID or mapID <= 0 then
+  if not mapID or mapID ~= mapID or mapID == math.huge or mapID == -math.huge or mapID <= 0 then
     return nil
   end
   local name = CopyMirrorValue(source.name)
@@ -238,7 +244,7 @@ local function CloneReloadRosterTargetSnapshot(source)
   }
 
   local level = tonumber(source.level)
-  if level and level > 0 then
+  if level and level == level and level ~= math.huge and level ~= -math.huge and level > 0 then
     snapshot.level = math.floor(level)
   end
 

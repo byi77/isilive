@@ -506,7 +506,7 @@ local scenarios = {
   end,
 }
 
-local mode = tostring((...)) or "all"
+local mode = tostring(select(1, ...) or "all")
 if mode == "all" then
   scenarios.happy()
   scenarios.disabled()

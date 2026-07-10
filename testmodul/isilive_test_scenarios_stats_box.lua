@@ -997,4 +997,26 @@ return function(test, ctx)
       Assert.Equal(#liveRows, 0, "clearing demo data must restore live API collection")
     end)
   end)
+
+  test("StatsBox removes hidden OnUpdate polling and restores it when enabled", function()
+    local db = { statsBoxEnabled = false }
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = db,
+      CreateFrame = BuildCreateFrameStub(),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          return {}
+        end,
+      })
+      Assert.Nil(box.frame._scripts.OnUpdate, "disabled statsbox must not retain an OnUpdate handler")
+      box.SetEnabled(true)
+      Assert.Equal(type(box.frame._scripts.OnUpdate), "function", "enabled statsbox must restore polling")
+      box.SetEnabled(false)
+      Assert.Nil(box.frame._scripts.OnUpdate, "hidden statsbox must remove polling again")
+    end)
+  end)
 end

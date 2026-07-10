@@ -4,6 +4,8 @@ addonTable = addonTable or {}
 
 local RI = addonTable._RosterInternal or {}
 addonTable._RosterInternal = RI
+local RosterUI = addonTable.RosterUI or {}
+addonTable.RosterUI = RosterUI
 local SetReadableText = addonTable.UICommon
     and type(addonTable.UICommon.SetReadableText) == "function"
     and addonTable.UICommon.SetReadableText
@@ -1145,9 +1147,14 @@ local function RegisterBlizzardUnitLanguageTooltip(opts)
   return true
 end
 RI.RegisterBlizzardUnitLanguageTooltip = RegisterBlizzardUnitLanguageTooltip
+RosterUI.RegisterBlizzardUnitLanguageTooltip = RegisterBlizzardUnitLanguageTooltip
 
 function RI.SetTooltipFlagsEnabled(enabled)
   RI._blizzardUnitLanguageTooltipEnabled = enabled ~= false
+end
+
+function RosterUI.SetTooltipFlagsEnabled(enabled)
+  RI.SetTooltipFlagsEnabled(enabled)
 end
 
 -- Expose pure formatters via _RosterInternal so tests can drive them

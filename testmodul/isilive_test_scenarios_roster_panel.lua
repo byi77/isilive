@@ -4,7 +4,7 @@ addonTable = addonTable or {}
 local RegisterRosterRenderReadyCheckReapplyTest
 
 local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAddonModules)
-  test("Roster ready check uses row backgrounds and waiting icon without recoloring text", function()
+  test("Roster ready check uses row backgrounds and status icons without recoloring text", function()
     local readyCheckStatusByUnit = {}
 
     WithGlobals({
@@ -43,7 +43,10 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
       Assert.Equal(readyData.readyCheckBackgroundColor[2], 0.5, "Ready status should tint row background green")
       Assert.Equal(readyData.readyCheckBackgroundColor[3], 0.16, "Ready status should tint row background green")
       Assert.Equal(readyData.readyCheckBackgroundColor[4], 0.42, "Ready status should tint row background green")
-      Assert.Equal(readyData.readyCheckMarkup, "", "Ready status should not prepend waiting markup")
+      Assert.True(
+        readyData.readyCheckMarkup:find("ReadyCheck-Ready:16:16", 1, true) ~= nil,
+        "Ready status should prepend the ready icon markup"
+      )
 
       readyCheckStatusByUnit.player = "notready"
       local notReadyData = addon.Roster.BuildDisplayData(info, {
@@ -60,7 +63,10 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
       Assert.Equal(notReadyData.readyCheckBackgroundColor[2], 0.12, "Not-ready status should tint row background red")
       Assert.Equal(notReadyData.readyCheckBackgroundColor[3], 0.12, "Not-ready status should tint row background red")
       Assert.Equal(notReadyData.readyCheckBackgroundColor[4], 0.34, "Not-ready status should tint row background red")
-      Assert.Equal(notReadyData.readyCheckMarkup, "", "Not-ready status should not prepend waiting markup")
+      Assert.True(
+        notReadyData.readyCheckMarkup:find("ReadyCheck-NotReady:16:16", 1, true) ~= nil,
+        "Not-ready status should prepend the not-ready icon markup"
+      )
 
       readyCheckStatusByUnit.player = "waiting"
       local waitingData = addon.Roster.BuildDisplayData(info, {
@@ -157,7 +163,10 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
       Assert.Equal(displayDataHeld.colorHex, "ffc69b6d", "Declined hold should keep class-colored text")
       Assert.NotNil(displayDataHeld.readyCheckBackgroundColor, "Declined hold should keep the row background active")
       Assert.Equal(displayDataHeld.readyCheckStatus, "notready", "Declined hold should keep the not-ready row state")
-      Assert.Equal(displayDataHeld.readyCheckMarkup, "", "Declined hold should not prepend the waiting icon")
+      Assert.True(
+        displayDataHeld.readyCheckMarkup:find("ReadyCheck-NotReady:16:16", 1, true) ~= nil,
+        "Declined hold should retain the not-ready icon"
+      )
 
       -- 4. Once the hold expires, the row returns to normal
       now = now + 21
@@ -252,7 +261,10 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
       Assert.Equal(displayDataHeld.colorHex, "ffc69b6d", "Ready hold should keep class-colored text")
       Assert.NotNil(displayDataHeld.readyCheckBackgroundColor, "Ready hold should keep the row background active")
       Assert.Equal(displayDataHeld.readyCheckStatus, "ready", "Ready hold should keep the ready row state")
-      Assert.Equal(displayDataHeld.readyCheckMarkup, "", "Ready hold should not prepend waiting markup")
+      Assert.True(
+        displayDataHeld.readyCheckMarkup:find("ReadyCheck-Ready:16:16", 1, true) ~= nil,
+        "Ready hold should retain the ready icon"
+      )
 
       now = now + 21
       local displayDataExpired = addon.Roster.BuildDisplayData(roster.player, {

@@ -20,6 +20,7 @@ ignore:
   - README.md
   - AGENTS.md
   - CLAUDE.md
+  - TODO.md
   - tools
   - testmodul
   - luacheck_output.txt

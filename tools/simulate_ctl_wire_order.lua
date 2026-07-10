@@ -81,6 +81,12 @@ local globals = {
     return frame
   end,
   hooksecurefunc = function() end,
+  wipe = function(value)
+    for key in pairs(value) do
+      value[key] = nil
+    end
+    return value
+  end,
   strsplit = StrSplitStub,
   GetRealmName = function()
     return "Realm"
@@ -250,21 +256,29 @@ Harness.WithGlobals(globals, function()
     ctl:SendAddonMessage("BULK", "OTHER", bulkPayload, "PARTY")
   end
   wire = {}
-  addon.Sync.SendRefreshRequest({ force = true }) -- ALERT, pipe ISILIVE+PARTY
-  addon.Sync.SendShareKeysRequest() -- ALERT, same pipe
-  for _ = 1, 100 do
+  -- Drive CTL directly here: Sync intentionally rate-limits repeated request
+  -- types across the earlier scenarios, while this scenario isolates CTL's
+  -- FIFO contract for two already-accepted messages in the same pipe.
+  ctl:SendAddonMessage("ALERT", "ISILIVE", "REQSYNC", "PARTY")
+  ctl:SendAddonMessage("ALERT", "ISILIVE", "SHAREKEYS", "PARTY")
+  local reqPos, skPos = nil, nil
+  local drainTicks = 0
+  for tick = 1, 1200 do
+    drainTicks = tick
     model.now = model.now + 0.1
     ctl.OnUpdate(ctl.Frame, 0.1)
-  end
-  local reqPos, skPos = nil, nil
-  for i, entry in ipairs(wire) do
-    if entry.payload == "REQSYNC" then
-      reqPos = i
-    elseif entry.payload == "SHAREKEYS" then
-      skPos = i
+    for i, entry in ipairs(wire) do
+      if entry.payload == "REQSYNC" then
+        reqPos = reqPos or i
+      elseif entry.payload == "SHAREKEYS" then
+        skPos = skPos or i
+      end
+    end
+    if reqPos ~= nil and skPos ~= nil then
+      break
     end
   end
-  rawprint("  wire order after despool: " .. WireSummary())
+  rawprint(string.format("  wire order after despool (%d ticks): %s", drainTicks, WireSummary()))
   Check(reqPos ~= nil and skPos ~= nil, "both ISILIVE ALERT messages were delivered")
   Check(
     reqPos ~= nil and skPos ~= nil and reqPos < skPos,

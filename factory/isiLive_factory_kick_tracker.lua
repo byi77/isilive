@@ -182,7 +182,57 @@ local function InitializeFactorySecondaryKickTracker(
     end)
   end
 
+  local kickPollingTicker = nil
+  local function StopKickTrackerPolling()
+    if kickPollingTicker and type(kickPollingTicker.Cancel) == "function" then
+      kickPollingTicker:Cancel()
+    end
+    kickPollingTicker = nil
+  end
+
+  local function RunKickTrackerPoll()
+    if IsRaidModeActive() then
+      StopKickTrackerPolling()
+      EnterRaidKickSuppression()
+      return
+    end
+    if not IsKickSyncContextActive() then
+      StopKickTrackerPolling()
+      ClearOwnKickSyncCache()
+      return
+    end
+    local recoveredFromRaid = RecoverKickTrackerAfterRaid()
+    if kickTrackerSuppressedByRaid or recoveredFromRaid then
+      return
+    end
+    if ctx.kickTrackerController then
+      ctx.kickTrackerController.Scan()
+      SyncOwnKickState(false)
+    end
+    -- Hidden mode keeps kick sync alive for peers but avoids polling-driven UI updates.
+    RefreshKickColumnIfVisible()
+  end
+
+  local function RefreshKickTrackerPolling()
+    if not IsKickSyncContextActive() then
+      StopKickTrackerPolling()
+      return false
+    end
+    if kickPollingTicker then
+      return true
+    end
+    if type(C_Timer_ref) ~= "table" or type(C_Timer_ref.NewTicker) ~= "function" then
+      return false
+    end
+    kickPollingTicker = C_Timer_ref.NewTicker(0.5, RunKickTrackerPoll)
+    return kickPollingTicker ~= nil
+  end
+
+  ctx.RefreshKickTrackerPolling = RefreshKickTrackerPolling
+  ctx.StopKickTrackerPolling = StopKickTrackerPolling
+
   ctx.SendOwnKickState = function(force)
+    RefreshKickTrackerPolling()
     if IsRaidModeActive() then
       EnterRaidKickSuppression()
       return false
@@ -198,7 +248,12 @@ local function InitializeFactorySecondaryKickTracker(
   end
 
   ctx.HandleKickTrackerEvent = function(event, unit, _, spellID)
+    if event == "GROUP_ROSTER_UPDATE" then
+      RefreshKickTrackerPolling()
+      return
+    end
     if IsRaidModeActive() then
+      StopKickTrackerPolling()
       EnterRaidKickSuppression()
       return
     end
@@ -257,28 +312,6 @@ local function InitializeFactorySecondaryKickTracker(
     end
   end
 
-  -- Ticker: scan own kick state + refresh kick column every 0.5s.
-  if type(C_Timer_ref) == "table" and type(C_Timer_ref.NewTicker) == "function" then
-    C_Timer_ref.NewTicker(0.5, function()
-      if IsRaidModeActive() then
-        EnterRaidKickSuppression()
-        return
-      end
-      if not IsKickSyncContextActive() then
-        return
-      end
-
-      local recoveredFromRaid = RecoverKickTrackerAfterRaid()
-      if kickTrackerSuppressedByRaid or recoveredFromRaid then
-        return
-      end
-      if ctx.kickTrackerController then
-        ctx.kickTrackerController.Scan()
-        SyncOwnKickState(false)
-      end
-      -- Hidden mode keeps kick sync alive for peers but avoids polling-driven UI updates.
-      RefreshKickColumnIfVisible()
-    end)
-  end
+  RefreshKickTrackerPolling()
 end
 FI.InitializeFactorySecondaryKickTracker = InitializeFactorySecondaryKickTracker

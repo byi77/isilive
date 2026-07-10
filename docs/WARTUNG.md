@@ -69,6 +69,22 @@ lua -lluacov tools/validate_usecases.lua
 Wenn das nicht gruen ist, nicht "kurz weiterbauen".
 Vor jedem Release-Tag gilt zusaetzlich: erst `main` pushen, dann den gruenen `Lua Check` fuer genau diesen Commit abwarten. Lokal entspricht der Einstieg dafuer `tools/check.ps1` bzw. `tools/check.cmd`.
 
+## 2.1) Agenten-Delegation
+
+Wenn Hilfsagenten fuer Recherche, Review, Tests oder kleine Patches genutzt
+werden, gilt zusaetzlich `docs/AGENTEN_WORKFLOW.md`.
+
+Kurzfassung:
+- Agenten bleiben strikt dirigiert und arbeiten nur in klar begrenzten
+  Aufgaben.
+- Keine Agentenaufgabe darf den No-Guess-Vertrag aufweichen.
+- Schreibende Agenten brauchen einen eindeutigen Dateiumfang und duerfen keine
+  parallelen Aenderungen an denselben Dateien vornehmen.
+- Release-, Commit-, Push-, Tag- und Versionierungsaktionen bleiben
+  ausdruecklichen User-Kommandos vorbehalten.
+- Nach Agentenarbeit bleibt mindestens `lua tools/validate_usecases.lua`
+  Pflicht.
+
 ## 3) Die Stellen, die nach WoW-Patches zuerst brechen koennen
 
 ### 3.1 WoW-Interface / Addon-Load
@@ -437,7 +453,7 @@ Wichtig:
 - `RULES_LOGIC.md` ist append-only
 - bei neuen aktiven Regeln immer Testnamen im selben Change ergaenzen
 - ein geloeschter Git-Tag loescht kein bereits erzeugtes CurseForge-Paket; das muss dort separat archiviert/entfernt werden
-- `.pkgmeta` haelt PNG-Screenshots, Logo-Dateien, die grosse `CHANGELOG.md` und die `.claude/`-Helper aus dem CurseForge-Paket raus; die Release-Notiz nutzt stattdessen `CHANGELOG_RELEASE.md` als kurzen Link-Hinweis auf das Repo
+- `.pkgmeta` und die GitHub/WowUp-Ausschlussliste halten PNG-Screenshots, Logo-Dateien, die grosse `CHANGELOG.md`, `TODO.md` und die `.claude/`-Helper aus Nutzerpaketen raus; der Paritaetstest muss bei jeder Aenderung beider Listen gruen bleiben. Die Release-Notiz nutzt stattdessen `CHANGELOG_RELEASE.md` als kurzen Link-Hinweis auf das Repo.
 - `CHANGELOG_RELEASE.md` ist kurz, aber nicht leer: bei user-visible Features gehoeren 3-5 Release-Highlights hinein.
 
 ## 6) Wenn die Season gewechselt oder Dungeon-Daten angefasst wurden
@@ -465,6 +481,7 @@ Mindestens das testen:
 9. LFG-Suchergebnis und Bewerberzeile zeigen Buff-Rating-Herzchen nur, wenn der Settings-Schalter aktiv ist
 10. Settings-Beschreibung fuer `Group Finder: Buff rating hearts` nutzt gruene Texturbeispiele untereinander
 11. Readycheck-Button funktioniert als Leader und bleibt fuer Nicht-Leader optisch deaktiviert
+12. Ready-Check-Zeilen zeigen Ready, Not-ready und Waiting jeweils mit Hintergrundfarbe und passendem Blizzard-Symbol; die Resultat-Holds behalten beides und entfernen beides nach Ablauf
 
 ## 8) Wenn du nur 20 Minuten hast
 

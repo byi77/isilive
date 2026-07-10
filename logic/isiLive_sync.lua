@@ -20,6 +20,25 @@ local ISILIVE_REFRESH_REQUEST_COOLDOWN = 1
 local ISILIVE_SHAREKEYS_CD_COOLDOWN = 1
 local ISILIVE_SHAREKEYS_CD_MAX_SECONDS = 30
 local LIBKEYSTONE_REQUEST_COOLDOWN = 3
+local MAX_SAFE_INTEGER = 9007199254740991
+
+local function ToFiniteNumber(value)
+  local numericValue = tonumber(value)
+  if
+    numericValue == nil
+    or numericValue ~= numericValue
+    or numericValue == math.huge
+    or numericValue == -math.huge
+    or math.abs(numericValue) > MAX_SAFE_INTEGER
+  then
+    return nil
+  end
+  return numericValue
+end
+
+local function IsExplicitNonFiniteNumber(value)
+  return tonumber(value) ~= nil and ToFiniteNumber(value) == nil
+end
 
 -- Architecture note: Module-level singleton state (intentional deviation from CreateController pattern).
 --
@@ -128,7 +147,7 @@ local function GetSyncTimestamp()
   local getServerTime = rawget(_G, "GetServerTime")
   if type(getServerTime) == "function" then
     local ok, serverTime = pcall(getServerTime)
-    local numericServerTime = ok and tonumber(serverTime) or nil
+    local numericServerTime = ok and ToFiniteNumber(serverTime) or nil
     if numericServerTime and numericServerTime > 0 then
       return math.floor(numericServerTime)
     end
@@ -137,7 +156,7 @@ local function GetSyncTimestamp()
   local timeFn = rawget(_G, "time")
   if type(timeFn) == "function" then
     local ok, unixTime = pcall(timeFn)
-    local numericUnixTime = ok and tonumber(unixTime) or nil
+    local numericUnixTime = ok and ToFiniteNumber(unixTime) or nil
     if numericUnixTime and numericUnixTime > 0 then
       return math.floor(numericUnixTime)
     end
@@ -146,7 +165,7 @@ local function GetSyncTimestamp()
   local getTime = rawget(_G, "GetTime")
   if type(getTime) == "function" then
     local ok, elapsed = pcall(getTime)
-    local numericElapsed = ok and tonumber(elapsed) or nil
+    local numericElapsed = ok and ToFiniteNumber(elapsed) or nil
     if numericElapsed and numericElapsed > 0 then
       return math.floor(numericElapsed)
     end
@@ -165,7 +184,7 @@ local function NormalizeSyncSource(source)
 end
 
 local function NormalizeSyncProtocolVersion(protocolVersion)
-  local numericVersion = tonumber(protocolVersion)
+  local numericVersion = ToFiniteNumber(protocolVersion)
   if not numericVersion or numericVersion <= 0 then
     return ISILIVE_SYNC_PROTOCOL_VERSION
   end
@@ -195,8 +214,8 @@ local function ParseKickPayload(message)
     return nil
   end
 
-  local numericState = tonumber(stateRaw)
-  local numericRemain = tonumber(remainRaw)
+  local numericState = ToFiniteNumber(stateRaw)
+  local numericRemain = ToFiniteNumber(remainRaw)
   if not ((numericState == -1 or numericState == 0 or numericState == 1) and numericRemain and numericRemain >= 0) then
     return nil
   end
@@ -210,7 +229,7 @@ local function ParseKickPayload(message)
       if spellID ~= nil then
         return nil
       end
-      spellID = tonumber(spellRaw)
+      spellID = ToFiniteNumber(spellRaw)
       if not spellID or spellID <= 0 then
         return nil
       end
@@ -233,8 +252,8 @@ local function ParseKickPayload(message)
       local count = 0
       for entry in extrasRaw:gmatch("[^;]+") do
         local sidStr, remainStr = entry:match("^(%d+),(%d+)$")
-        local sid = tonumber(sidStr)
-        local rem = tonumber(remainStr)
+        local sid = ToFiniteNumber(sidStr)
+        local rem = ToFiniteNumber(remainStr)
         if not sid or not rem or rem <= 0 then
           return nil
         end
@@ -269,7 +288,7 @@ local function EncodeKickSpellSuffix(spellID, hasKick)
   if hasKick ~= true then
     return ""
   end
-  local sid = tonumber(spellID)
+  local sid = ToFiniteNumber(spellID)
   if not sid or sid <= 0 then
     return ""
   end
@@ -290,8 +309,8 @@ local function EncodeKickExtrasSuffix(extras)
   local entries = {}
   for spellID, data in pairs(extras) do
     if type(data) == "table" then
-      local sid = tonumber(spellID)
-      local r = tonumber(data.cooldownRemain)
+      local sid = ToFiniteNumber(spellID)
+      local r = ToFiniteNumber(data.cooldownRemain)
       if sid and r and r > 0 then
         entries[#entries + 1] = { sid = sid, remain = math.ceil(r) }
       end
@@ -334,9 +353,11 @@ function Sync.NormalizePlayerKey(name, realm)
   local r = realm and tostring(realm) or ""
 
   if r == "" and string.find(n, "-", 1, true) then
-    local splitName, splitRealm = strsplit("-", n, 2)
-    n = splitName or n
-    r = splitRealm or r
+    local dash = string.find(n, "-", 1, true)
+    if dash then
+      r = string.sub(n, dash + 1)
+      n = string.sub(n, 1, dash - 1)
+    end
   end
 
   if r == "" then
@@ -365,7 +386,7 @@ function Sync.GetProtocolVersion()
 end
 
 local function NormalizeCapturedAtAndSource(capturedAt, source)
-  local ts = tonumber(capturedAt)
+  local ts = ToFiniteNumber(capturedAt)
   if not ts or ts <= 0 then
     ts = GetSyncTimestamp() or 0
   end
@@ -373,8 +394,8 @@ local function NormalizeCapturedAtAndSource(capturedAt, source)
 end
 
 local function NormalizeKeyPayload(mapID, level, capturedAt, source)
-  local numericLevel = tonumber(level)
-  local numericMapID = tonumber(mapID)
+  local numericLevel = ToFiniteNumber(level)
+  local numericMapID = ToFiniteNumber(mapID)
   if type(SeasonData.NormalizeMapID) == "function" then
     numericMapID = SeasonData.NormalizeMapID(numericMapID)
   end
@@ -394,9 +415,9 @@ local function NormalizeKeyPayload(mapID, level, capturedAt, source)
 end
 
 local function NormalizeStatsPayload(specID, ilvl, rio, capturedAt, source)
-  local numericSpecID = tonumber(specID)
-  local numericIlvl = tonumber(ilvl)
-  local numericRio = tonumber(rio)
+  local numericSpecID = ToFiniteNumber(specID)
+  local numericIlvl = ToFiniteNumber(ilvl)
+  local numericRio = ToFiniteNumber(rio)
 
   if not numericSpecID or numericSpecID <= 0 then
     numericSpecID = 0
@@ -436,7 +457,7 @@ local function NormalizeStatsPayload(specID, ilvl, rio, capturedAt, source)
 end
 
 local function NormalizeDpsPayload(dps, capturedAt, source)
-  local numericDps = tonumber(dps)
+  local numericDps = ToFiniteNumber(dps)
   if not numericDps or numericDps < 0 then
     numericDps = 0
   else
@@ -450,7 +471,7 @@ local function NormalizeDpsPayload(dps, capturedAt, source)
 end
 
 local function NormalizeLocPayload(mapID, capturedAt, source)
-  local numericMapID = tonumber(mapID)
+  local numericMapID = ToFiniteNumber(mapID)
   local normalizedCapturedAt, normalizedSource = NormalizeCapturedAtAndSource(capturedAt, source)
   if not numericMapID or numericMapID <= 0 then
     return string.format("LOC:0:%d:%s", normalizedCapturedAt, normalizedSource),
@@ -476,8 +497,8 @@ local function NormalizeTargetLevelText(levelText, numericLevel)
 end
 
 local function NormalizeTargetPayload(mapID, level, capturedAt, source, levelText)
-  local numericMapID = tonumber(mapID)
-  local numericLevel = tonumber(level)
+  local numericMapID = ToFiniteNumber(mapID)
+  local numericLevel = ToFiniteNumber(level)
   local normalizedCapturedAt, normalizedSource = NormalizeCapturedAtAndSource(capturedAt, source)
   local normalizedLevelText = nil
   if not numericMapID or numericMapID <= 0 then
@@ -616,8 +637,8 @@ local function GetEntrySyncStamp(entry)
     return nil
   end
 
-  local capturedAt = tonumber(entry.capturedAt)
-  local receivedAt = tonumber(entry.receivedAt)
+  local capturedAt = ToFiniteNumber(entry.capturedAt)
+  local receivedAt = ToFiniteNumber(entry.receivedAt)
   return capturedAt or receivedAt
 end
 
@@ -626,7 +647,7 @@ local function SetEntryPreviousSyncStamp(entry, previousStamp)
     return
   end
 
-  previousStamp = tonumber(previousStamp)
+  previousStamp = ToFiniteNumber(previousStamp)
   local nextStamp = GetEntrySyncStamp(entry)
   if previousStamp and nextStamp and nextStamp >= previousStamp then
     entry.previousSyncStamp = previousStamp
@@ -650,7 +671,7 @@ function Sync.SetPlayerHelloInfo(name, realm, addonVersion, protocolVersion, cap
   end
 
   local normalizedProtocolVersion = NormalizeSyncProtocolVersion(protocolVersion)
-  local normalizedCapturedAt = tonumber(capturedAt)
+  local normalizedCapturedAt = ToFiniteNumber(capturedAt)
   if not normalizedCapturedAt or normalizedCapturedAt <= 0 then
     normalizedCapturedAt = GetSyncTimestamp() or 0
   end
@@ -932,7 +953,7 @@ function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capture
   local prev = kickInfoByPlayerKey[key]
   local newOnCooldown = onCooldown == true
   local newHasKick = hasKick == true
-  local numericRemain = tonumber(cooldownRemain)
+  local numericRemain = ToFiniteNumber(cooldownRemain)
   if newHasKick then
     if numericRemain == nil or numericRemain < 0 then
       return false
@@ -940,9 +961,9 @@ function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capture
   elseif newOnCooldown then
     return false
   end
-  local prevRemain = tonumber(prev and prev.cooldownRemain) or 0
+  local prevRemain = ToFiniteNumber(prev and prev.cooldownRemain) or 0
   local remainChanged = newHasKick and newOnCooldown and math.abs(prevRemain - numericRemain) > 0.05
-  local numericSpellID = newHasKick and tonumber(spellID) or nil
+  local numericSpellID = newHasKick and ToFiniteNumber(spellID) or nil
   if numericSpellID then
     if numericSpellID <= 0 then
       return false
@@ -954,8 +975,8 @@ function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capture
   local sanitizedExtras = nil
   if type(extras) == "table" then
     for extraSpellID, data in pairs(extras) do
-      local sid = tonumber(extraSpellID)
-      local r = type(data) == "table" and tonumber(data.cooldownRemain) or nil
+      local sid = ToFiniteNumber(extraSpellID)
+      local r = type(data) == "table" and ToFiniteNumber(data.cooldownRemain) or nil
       if sid and r and r > 0 then
         sanitizedExtras = sanitizedExtras or {}
         sanitizedExtras[sid] = { cooldownRemain = r }
@@ -997,7 +1018,7 @@ function Sync.SetPlayerKickInfo(name, realm, onCooldown, cooldownRemain, capture
     onCooldown = newOnCooldown,
     cooldownRemain = newHasKick and numericRemain or 0,
     extras = sanitizedExtras,
-    capturedAt = tonumber(capturedAt) or now,
+    capturedAt = ToFiniteNumber(capturedAt) or now,
     receivedAt = now,
     receivedAtGetTime = type(getTime) == "function" and getTime() or nil,
   }
@@ -1173,9 +1194,9 @@ function Sync.GetPlayerSyncSummary(name, realm)
   for _, candidate in ipairs(candidates) do
     local data = candidate.data
     if type(data) == "table" then
-      local capturedAt = tonumber(data.capturedAt)
-      local receivedAt = tonumber(data.receivedAt)
-      local previousSyncStamp = tonumber(data.previousSyncStamp)
+      local capturedAt = ToFiniteNumber(data.capturedAt)
+      local receivedAt = ToFiniteNumber(data.receivedAt)
+      local previousSyncStamp = ToFiniteNumber(data.previousSyncStamp)
       local sortStamp = capturedAt or receivedAt
       if sortStamp then
         local summary = {
@@ -1492,7 +1513,7 @@ function Sync.SendKick(opts)
   if onCooldown ~= true and onCooldown ~= false then
     return
   end
-  local cooldownRemain = tonumber(opts.cooldownRemain)
+  local cooldownRemain = ToFiniteNumber(opts.cooldownRemain)
   if hasKick == true then
     if cooldownRemain == nil or cooldownRemain < 0 then
       return
@@ -1615,7 +1636,7 @@ function Sync.SendCombatAnnounce(opts)
   if caster == "" or string.find(caster, ":", 1, true) then
     return
   end
-  local spellID = tonumber(opts.spellID) or 0
+  local spellID = ToFiniteNumber(opts.spellID) or 0
   local payload = string.format("BRLUST:%s:%s:%d", kind, caster, spellID)
   local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "NORMAL")
   SyncLog(
@@ -1645,7 +1666,7 @@ function Sync.SendPowerInfusionAnnounce(opts)
   if caster == "" or recipient == "" or string.find(caster, ":", 1, true) or string.find(recipient, ":", 1, true) then
     return
   end
-  local spellID = tonumber(opts.spellID) or 10060
+  local spellID = ToFiniteNumber(opts.spellID) or 10060
   if spellID ~= 10060 then
     return
   end
@@ -1735,8 +1756,8 @@ function Sync.SendLibKeystonePartyData(opts)
     return false
   end
 
-  local numericLevel = tonumber(opts.level)
-  local numericMapID = tonumber(opts.mapID)
+  local numericLevel = ToFiniteNumber(opts.level)
+  local numericMapID = ToFiniteNumber(opts.mapID)
   if type(SeasonData.NormalizeMapID) == "function" then
     numericMapID = SeasonData.NormalizeMapID(numericMapID)
   end
@@ -1749,7 +1770,7 @@ function Sync.SendLibKeystonePartyData(opts)
     numericMapID = math.floor(numericMapID)
   end
 
-  local numericRio = tonumber(opts.rio)
+  local numericRio = ToFiniteNumber(opts.rio)
   if numericRio == nil or numericRio < 0 then
     numericRio = 0
   else
@@ -1797,7 +1818,7 @@ function Sync.SendShareKeysCooldown(opts)
     return false
   end
 
-  local remain = tonumber(opts.remain)
+  local remain = ToFiniteNumber(opts.remain)
   if not remain or remain <= 0 then
     return false
   end
@@ -1822,6 +1843,13 @@ function Sync.SendShareKeysCooldown(opts)
 end
 
 local MAX_ADDON_MESSAGE_LENGTH = 255
+
+local function IsIsiLiveReceiveChannelAllowed(message, channel)
+  if channel == nil or channel == "PARTY" or channel == "INSTANCE_CHAT" then
+    return true
+  end
+  return channel == "WHISPER" and type(message) == "string" and message:find("^ACK:") ~= nil
+end
 
 local function ProcessLibKeystoneMessage(message, sender, localName, localRealm, channel)
   if type(sender) ~= "string" or sender == "" then
@@ -1856,9 +1884,9 @@ local function ProcessLibKeystoneMessage(message, sender, localName, localRealm,
     return nil
   end
 
-  local keyLevel = tonumber(levelRaw)
-  local keyMapID = tonumber(mapIDRaw)
-  local playerRating = tonumber(ratingRaw)
+  local keyLevel = ToFiniteNumber(levelRaw)
+  local keyMapID = ToFiniteNumber(mapIDRaw)
+  local playerRating = ToFiniteNumber(ratingRaw)
   if playerRating == nil or playerRating < 0 then
     return nil
   end
@@ -1919,6 +1947,9 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
   if type(message) ~= "string" or #message == 0 or #message > MAX_ADDON_MESSAGE_LENGTH then
     return nil
   end
+  if not IsIsiLiveReceiveChannelAllowed(message, channel) then
+    return nil
+  end
 
   SyncLog("message_received", "sender=%s type=%s", tostring(sender), tostring(message:match("^(%a+)") or "unknown"))
   Sync.MarkUser(sender)
@@ -1953,36 +1984,43 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
   )
 
   if bucket == "KEY" and parts[2] and parts[3] then
-    keyUpdated =
-      Sync.SetPlayerKeyInfo(sender, nil, tonumber(parts[2]), tonumber(parts[3]), tonumber(parts[4]), parts[5])
+    local mapID = ToFiniteNumber(parts[2])
+    local level = ToFiniteNumber(parts[3])
+    local capturedAt = ToFiniteNumber(parts[4])
+    if mapID and level and (parts[4] == nil or capturedAt) then
+      keyUpdated = Sync.SetPlayerKeyInfo(sender, nil, mapID, level, capturedAt, parts[5])
+    end
   elseif bucket == "STATS" and parts[2] and parts[3] and parts[4] then
-    statsUpdated = Sync.SetPlayerStatsInfo(
-      sender,
-      nil,
-      tonumber(parts[2]),
-      tonumber(parts[3]),
-      tonumber(parts[4]),
-      tonumber(parts[5]),
-      parts[6]
-    )
+    local specID = ToFiniteNumber(parts[2])
+    local ilvl = ToFiniteNumber(parts[3])
+    local rio = ToFiniteNumber(parts[4])
+    local capturedAt = ToFiniteNumber(parts[5])
+    if specID and ilvl and rio and (parts[5] == nil or capturedAt) then
+      statsUpdated = Sync.SetPlayerStatsInfo(sender, nil, specID, ilvl, rio, capturedAt, parts[6])
+    end
   elseif bucket == "DPS" and parts[2] then
-    dpsUpdated = Sync.SetPlayerDpsInfo(sender, nil, tonumber(parts[2]), tonumber(parts[3]), parts[4])
+    local dps = ToFiniteNumber(parts[2])
+    local capturedAt = ToFiniteNumber(parts[3])
+    if dps and (parts[3] == nil or capturedAt) then
+      dpsUpdated = Sync.SetPlayerDpsInfo(sender, nil, dps, capturedAt, parts[4])
+    end
   elseif bucket == "LOC" and parts[2] then
-    locUpdated = Sync.SetPlayerLocInfo(sender, nil, tonumber(parts[2]), tonumber(parts[3]), parts[4])
+    local mapID = ToFiniteNumber(parts[2])
+    local capturedAt = ToFiniteNumber(parts[3])
+    if mapID and (parts[3] == nil or capturedAt) then
+      locUpdated = Sync.SetPlayerLocInfo(sender, nil, mapID, capturedAt, parts[4])
+    end
   elseif bucket == "TARGET" and parts[2] and parts[3] then
     local levelText = nil
     if parts[6] == "LT" and type(parts[7]) == "string" then
       levelText = parts[7]
     end
-    targetUpdated = Sync.SetPlayerTargetInfo(
-      sender,
-      nil,
-      tonumber(parts[2]),
-      tonumber(parts[3]),
-      tonumber(parts[4]),
-      parts[5],
-      levelText
-    )
+    local mapID = ToFiniteNumber(parts[2])
+    local level = ToFiniteNumber(parts[3])
+    local capturedAt = ToFiniteNumber(parts[4])
+    if mapID and level and (parts[4] == nil or capturedAt) then
+      targetUpdated = Sync.SetPlayerTargetInfo(sender, nil, mapID, level, capturedAt, parts[5], levelText)
+    end
   elseif bucket == "KICK" then
     local parsedKick = ParseKickPayload(message)
     if parsedKick then
@@ -2001,7 +2039,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     -- Mirrored share-keys button lock from a peer (hello-ack / REQSYNC fan-out).
     -- Self-echo is skipped: the local button is already on cooldown.
     if senderKey ~= selfKey then
-      local remain = tonumber(parts[2])
+      local remain = ToFiniteNumber(parts[2])
       if remain and remain > 0 then
         remain = math.ceil(remain)
         if remain > ISILIVE_SHAREKEYS_CD_MAX_SECONDS then
@@ -2015,23 +2053,29 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     -- locally before sending. CHAT_MSG_ADDON on PARTY/INSTANCE_CHAT echoes
     -- back to the sender, so without this guard the print + sound fire twice
     -- for the caster.
-    if senderKey ~= selfKey then
+    if senderKey ~= selfKey and Sync.NormalizePlayerKey(parts[3]) == senderKey then
       local kind = parts[2]
       if kind == "BR" or kind == "LUST" then
-        combatAnnounce = {
-          kind = kind,
-          caster = parts[3],
-          spellID = tonumber(parts[4]) or 0,
-        }
+        local spellID = ToFiniteNumber(parts[4])
+        if not spellID or spellID <= 0 then
+          spellID = nil
+        end
+        if spellID then
+          combatAnnounce = {
+            kind = kind,
+            caster = parts[3],
+            spellID = math.floor(spellID),
+          }
+        end
       end
     end
   elseif bucket == "PI" and parts[2] and parts[3] then
     -- Skip self-echo: BroadcastPowerInfusionAnnounce already rendered the
     -- announce locally before sending.
-    if senderKey ~= selfKey then
+    if senderKey ~= selfKey and Sync.NormalizePlayerKey(parts[2]) == senderKey then
       local caster = parts[2]
       local recipient = parts[3]
-      local spellID = tonumber(parts[4]) or 0
+      local spellID = ToFiniteNumber(parts[4]) or 0
       if caster ~= "" and recipient ~= "" and spellID == 10060 then
         powerInfusionAnnounce = {
           caster = caster,
@@ -2050,10 +2094,19 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
   if isHelloMessage or isAckMessage then
     peerAddonVersion = parts[2]
     if isHelloMessage then
-      peerProtocolVersion = tonumber(parts[3])
-      peerCapturedAt = tonumber(parts[4])
+      peerProtocolVersion = ToFiniteNumber(parts[3])
+      peerCapturedAt = ToFiniteNumber(parts[4])
       peerSource = parts[5]
-      Sync.SetPlayerHelloInfo(sender, nil, peerAddonVersion, peerProtocolVersion, peerCapturedAt, peerSource)
+      local metadataValid = not IsExplicitNonFiniteNumber(parts[3]) and not IsExplicitNonFiniteNumber(parts[4])
+      if metadataValid then
+        Sync.SetPlayerHelloInfo(sender, nil, peerAddonVersion, peerProtocolVersion, peerCapturedAt, peerSource)
+      else
+        peerAddonVersion = nil
+        peerProtocolVersion = nil
+        peerCapturedAt = nil
+        peerSource = nil
+        shouldAck = false
+      end
     elseif peerAddonVersion and peerAddonVersion ~= "" then
       peerSource = "ack"
       Sync.SetPlayerHelloAckInfo(sender, nil, peerAddonVersion)

@@ -57,8 +57,8 @@ local function InitializeFactoryRefreshControllers(ctx, modules, runtimeState)
   local resyncCooldownEnd = 0
   local resyncTicker = nil
 
-  local RI = ctx.addonTable and ctx.addonTable._RosterInternal or {}
-  local setFlatButtonText = type(RI.SetFlatButtonText) == "function" and RI.SetFlatButtonText
+  local rosterUI = ctx.addonTable and ctx.addonTable.RosterUI or {}
+  local setFlatButtonText = type(rosterUI.SetFlatButtonText) == "function" and rosterUI.SetFlatButtonText
     or function(btn, text)
       if btn and btn.SetText then
         btn:SetText(text)

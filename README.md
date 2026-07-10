@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.0.7+ Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%2B%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.342](https://img.shields.io/badge/isiLive-0.9.342-1E90FF?style=for-the-badge)
+![isiLive 0.9.343](https://img.shields.io/badge/isiLive-0.9.343-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -178,7 +178,7 @@ Columns in order: **Spec · Name · Lang · Key · iLvl · RIO · DPS · Kick**
 
 ### Ready check
 
-During a ready check, the row background changes color: **green** for ready, **red** for declined or no answer, **yellow** (with sandglass) for still waiting. After the ready check ends, ready/declined colors stay visible for 20 seconds so you can glance at who responded how.
+During a ready check, the row background changes color: **green** for ready, **red** for declined or no answer, and **yellow** for still waiting. Blizzard's ready, not-ready, and waiting icons repeat the same state without relying on color alone. After the ready check ends, ready/declined colors and icons stay visible for 20 seconds so you can glance at who responded how.
 
 ---
 
@@ -344,7 +344,7 @@ Open via **Escape → AddOns → isiLive**. Everything takes effect immediately.
 - **Display** — UI scale, background opacity, player stats box controls, minimap button, Portal Navigator, Group Finder language flags and class-bonus hints
 - **Behavior** — addon sync, lock main frame position, fade in combat, auto-show/hide triggers (show on login, auto-open on M+ queue, auto-open on key end, auto-close on key start, auto-close on leaving the group), raid behavior status
 - **Nameplates** — enable forces overlay, font size, position, percent toggle
-- **Sounds** — lead transfer, full group, ready-check complete, incoming summon, Battle Res, Battle Res Ready, Bloodlust, Bloodlust Ready, and tank/healer death alert; all isiLive alerts use bundled sound assets and the selected sound channel
+- **Sounds** — lead transfer, full group, ready-check complete, incoming summon, Battle Res, Battle Res Ready, Bloodlust, Bloodlust Ready, and tank/healer death alert; all isiLive alerts use bundled sound assets, the selected sound channel, and one-second protection against immediate identical repeats
 - **Chat Announcements** — announce Battle Res / announce Bloodlust
 - **Administrative** — Advanced Combat Logging, Blizzard Damage Meter reset, queue debug log, runtime log (both reset on reload, for support), plus dedicated **Clear Queue Debug Log** / **Clear Runtime Log** buttons and reset actions
 - **VIP Guest Settings** — mount sound mute toggles for Astral Aurochs, Grand Expedition Yak, and Trader's Gilded Brutosaur, a default-off Bloodlust button debuff warning for verified BL class and pet buttons, then a separated DK block with Soul Reaper / Putrefy warnings, Riders horse sound mute, and a movable localized missing-ghoul reminder

@@ -5,7 +5,7 @@ addonTable = addonTable or {}
 local SoundUtils = {}
 addonTable.SoundUtils = SoundUtils
 
-local SPAM_WINDOW = 0 -- temporary: allow immediate duplicate sound playback while death WAV output is debugged
+local SPAM_WINDOW = 1
 local lastPlayedAt = {} -- soundKey -> timestamp
 local activeSoundHandles = {} -- handle -> true
 local lastPlayResult = nil
@@ -925,8 +925,7 @@ function SoundUtils.IsEnabled(key)
   return entry.defaultEnabled ~= false
 end
 
--- Plays a sound file on the configured channel.
--- SPAM_WINDOW is currently disabled so repeated previews/runtime cues can be debugged.
+-- Plays a sound file on the configured channel with one-second duplicate protection.
 function SoundUtils.Play(soundFile, channel, spamScope)
   if type(soundFile) ~= "string" or soundFile == "" then
     SetLastPlayResult({ ok = false, reason = "invalid_file", path = soundFile, channel = channel })

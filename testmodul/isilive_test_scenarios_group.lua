@@ -1335,6 +1335,46 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
     Assert.NotNil(state.restoredReloadRosterTargetSnapshot, "reload mirror must restore the verified target snapshot")
   end)
 
+  test("Reload roster mirror drops non-finite persisted values", function()
+    local mirror = {
+      signature = "Member-Realm|TestPlayer-TestRealm",
+      members = {
+        ["TestPlayer-TestRealm"] = {
+          name = "TestPlayer",
+          realm = "TestRealm",
+          class = "WARRIOR",
+          ilvl = math.huge,
+          syncDps = 0 / 0,
+        },
+        ["Member-Realm"] = { name = "Member", realm = "Realm", class = "MAGE" },
+      },
+      targetKey = { mapID = math.huge, name = "Corrupt target", level = 0 / 0 },
+    }
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = false,
+      reloadRosterMirror = mirror,
+      getNumGroupMembers = function()
+        return 2
+      end,
+      getUnitNameAndRealm = function(unit)
+        if unit == "player" then
+          return "TestPlayer", "TestRealm"
+        end
+        if unit == "party1" then
+          return "Member", "Realm"
+        end
+        return nil, nil
+      end,
+    })
+
+    controller.HandleGroupRosterUpdate()
+
+    Assert.NotNil(state.roster.player, "matching mirror must still restore its verified fields")
+    Assert.Nil(state.roster.player.ilvl, "infinite ilvl must be discarded")
+    Assert.Nil(state.roster.player.syncDps, "NaN synced DPS must be discarded")
+    Assert.Nil(state.restoredReloadRosterTargetSnapshot, "non-finite target map must not be restored")
+  end)
+
   test("Reload roster mirror restores verified data when group signature matches", function()
     local mirror = {
       signature = "Member-Realm|TestPlayer-TestRealm",

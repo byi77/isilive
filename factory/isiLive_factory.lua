@@ -290,9 +290,9 @@ local function FinalizeFactorySettings(ctx)
         end
       end,
       onTooltipFlagsToggle = function(enabled)
-        local rosterInternal = ctx.addonTable and ctx.addonTable._RosterInternal
-        if type(rosterInternal) == "table" and type(rosterInternal.SetTooltipFlagsEnabled) == "function" then
-          rosterInternal.SetTooltipFlagsEnabled(enabled)
+        local rosterUI = ctx.addonTable and ctx.addonTable.RosterUI
+        if type(rosterUI) == "table" and type(rosterUI.SetTooltipFlagsEnabled) == "function" then
+          rosterUI.SetTooltipFlagsEnabled(enabled)
         end
       end,
       onMplusForcesToggle = function(enabled)
@@ -417,9 +417,9 @@ local function FinalizeFactorySettings(ctx)
       if type(lfgFlags) == "table" and type(lfgFlags.SetGroupBonusesEnabled) == "function" then
         lfgFlags.SetGroupBonusesEnabled(db.lfgGroupBonusesEnabled ~= false)
       end
-      local rosterInternal = ctx.addonTable and ctx.addonTable._RosterInternal
-      if type(rosterInternal) == "table" and type(rosterInternal.SetTooltipFlagsEnabled) == "function" then
-        rosterInternal.SetTooltipFlagsEnabled(db.tooltipFlagsEnabled ~= false)
+      local rosterUI = ctx.addonTable and ctx.addonTable.RosterUI
+      if type(rosterUI) == "table" and type(rosterUI.SetTooltipFlagsEnabled) == "function" then
+        rosterUI.SetTooltipFlagsEnabled(db.tooltipFlagsEnabled ~= false)
       end
       local mobTooltip = ctx.addonTable and ctx.addonTable.MobTooltip
       if type(mobTooltip) == "table" then
@@ -586,6 +586,69 @@ local function BuildRuntimeSetupGroupContext(ctx, runtimeState)
   }
 end
 
+local function BuildRuntimeSetupLeaderWatchContext(ctx, runtimeState)
+  return {
+    isPlayerLeader = ctx.IsPlayerLeader,
+    getWasGroupLeader = ctx.GetWasGroupLeader,
+    setWasGroupLeader = ctx.SetWasGroupLeader,
+    isStopped = runtimeState.IsStopped,
+    isMainFrameShown = function()
+      return ctx.mainFrame and ctx.mainFrame:IsShown()
+    end,
+    showCenterNotice = ctx.ShowCenterNotice,
+    printFn = ctx.Print,
+    getL = ctx.GetL,
+    updateLeaderButtons = ctx.UpdateLeaderButtons,
+    runtimeLogController = ctx.runtimeLogController,
+  }
+end
+
+local function BuildRuntimeSetupSlashCommandsContext(ctx, runtimeState)
+  return {
+    commands = ctx.modules.commands,
+    printFn = ctx.Print,
+    getL = ctx.GetL,
+    getState = runtimeState.GetRuntimeFlags,
+    setState = runtimeState.PatchRuntimeFlags,
+    triggerGroupRosterUpdate = ctx.TriggerGroupRosterUpdate,
+    toggleStandardTestMode = ctx.ToggleStandardTestMode,
+    enterFullDummyPreview = ctx.EnterFullDummyPreview,
+    toggleSimulationTablet = ctx.ToggleSimulationTablet,
+    setMainFrameVisible = ctx.SetMainFrameVisible,
+    mainFrame = ctx.mainFrame,
+    mainUI = ctx.mainUI,
+    panelUI = ctx.panelUI,
+    settingsPanel = ctx.settingsPanel,
+    updateLeaderButtons = ctx.UpdateLeaderButtons,
+    isPlayerLeader = ctx.IsPlayerLeader,
+    setLanguage = ctx.SetLanguage,
+    teleportDebugController = ctx.teleportDebugController,
+    queueDebugController = ctx.queueDebugController,
+    traceChatFrameController = ctx.traceChatFrameController,
+    runtimeLogController = ctx.runtimeLogController,
+    resetDB = ctx.resetDB,
+    logRuntimeTrace = ctx.runtimeLogController and ctx.runtimeLogController.Log or nil,
+    logRuntimeTracef = ctx.runtimeLogController and ctx.runtimeLogController.Logf or nil,
+  }
+end
+
+local function BuildRuntimeSetupGateContext(ctx, runtimeState)
+  return {
+    events = ctx.modules.events,
+    onEvent = ctx.OnEvent,
+    onDispatchError = function(_frame, event, err)
+      ctx.Print(string.format("Event dispatch failed (%s): %s", tostring(event), tostring(err)))
+    end,
+    isStopped = runtimeState.IsStopped,
+    isPaused = runtimeState.IsPaused,
+    isTestMode = runtimeState.IsTestMode,
+    isInCombat = ctx.IsInCombat,
+    isMainFrameShown = function()
+      return ctx.mainFrame and ctx.mainFrame:IsShown()
+    end,
+  }
+end
+
 local function FinalizeFactoryRuntime(ctx)
   local modules = ctx.modules
   local runtimeState = ctx.runtimeState
@@ -647,24 +710,10 @@ local function FinalizeFactoryRuntime(ctx)
     end,
   })
 
-  local runtimeSetupContext = {
-    controllerWiring = modules.controllerWiring,
-    configBuilders = modules.configBuilders,
-    bootstrap = modules.bootstrap,
-    leaderWatchModule = modules.leaderWatch,
-    groupModule = modules.group,
-    eventHandlersModule = modules.eventHandlers,
-    mainFrame = ctx.mainFrame,
-    eventFrame = ctx.eventFrame,
-    onEvent = ctx.OnEvent,
-    onDispatchError = function(_frame, event, err)
-      ctx.Print(string.format("Event dispatch failed (%s): %s", tostring(event), tostring(err)))
-    end,
-    groupControllerContext = BuildRuntimeSetupGroupContext(ctx, runtimeState),
-    -- BuildEventHandlersDepsFromContext reads these PascalCase fields directly
-    -- off the runtime_setup ctx. Without forwarding them the resolved deps are
-    -- silently nil, breaking dungeon detection, killtrack, M+ timer, readycheck
-    -- hold persistence, BR/Lust announce, key-share cooldown and CD tracker.
+  -- This is the explicit adapter surface consumed by ControllerWiring.
+  -- Keep it separate from RuntimeSetup's own small composition context so a
+  -- missing dependency cannot be masked by falling back to the factory root.
+  local eventHandlersContext = {
     modules = ctx.modules,
     HandleKickTrackerEvent = ctx.HandleKickTrackerEvent,
     GetReadyCheckReadyUntil = ctx.GetReadyCheckReadyUntil,
@@ -885,7 +934,22 @@ local function FinalizeFactoryRuntime(ctx)
     addonName = ctx.addonName,
     resetDB = ctx.resetDB,
   }
-  runtimeSetupContext.eventHandlersContext = runtimeSetupContext
+  local runtimeSetupContext = {
+    controllerWiring = modules.controllerWiring,
+    configBuilders = modules.configBuilders,
+    bootstrap = modules.bootstrap,
+    leaderWatchModule = modules.leaderWatch,
+    groupModule = modules.group,
+    eventHandlersModule = modules.eventHandlers,
+    mainFrame = ctx.mainFrame,
+    eventFrame = ctx.eventFrame,
+    onEvent = ctx.OnEvent,
+    groupControllerContext = BuildRuntimeSetupGroupContext(ctx, runtimeState),
+    eventHandlersContext = eventHandlersContext,
+    leaderWatchContext = BuildRuntimeSetupLeaderWatchContext(ctx, runtimeState),
+    slashCommandsContext = BuildRuntimeSetupSlashCommandsContext(ctx, runtimeState),
+    gateContext = BuildRuntimeSetupGateContext(ctx, runtimeState),
+  }
 
   local runtimeSetupResult = isiLiveRuntimeSetup.Configure(runtimeSetupContext)
 
@@ -912,17 +976,20 @@ local function FinalizeFactoryRuntime(ctx)
   FinalizeFactorySettings(ctx)
 end
 
-function Factory.InitializeAddon(addonName, tbl)
+function Factory.InitializeAddon(addonName, tbl, testOptions)
   local ctx = CreateFactoryContext(addonName, tbl)
   if not ctx then
     return
   end
 
-  tbl._factoryCtx = ctx
   InitializeFactoryFrameBridge(ctx)
   InitializeFactoryRuntimeHelpers(ctx)
   InitializeFactoryPrimaryControllers(ctx)
   InitializeFactoryRefreshAndStatusControllers(ctx)
   InitializeFactorySecondaryControllers(ctx)
   FinalizeFactoryRuntime(ctx)
+  if type(testOptions) == "table" and testOptions.returnContext == true then
+    return ctx
+  end
+  return true
 end

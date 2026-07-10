@@ -26,23 +26,26 @@ function RuntimeSetup.Configure(ctx)
   local eventFrame = ctx.eventFrame
   RequireFunction(ctx.onEvent, "onEvent")
 
-  local groupContext = ctx.groupControllerContext or ctx
-  local eventContext = ctx.eventHandlersContext or ctx
+  local groupContext = RequireTable(ctx.groupControllerContext, "groupControllerContext")
+  local eventContext = RequireTable(ctx.eventHandlersContext, "eventHandlersContext")
+  local leaderWatchContext = RequireTable(ctx.leaderWatchContext, "leaderWatchContext")
+  local slashCommandsContext = RequireTable(ctx.slashCommandsContext, "slashCommandsContext")
+  local gateContext = RequireTable(ctx.gateContext, "gateContext")
 
   local groupController = controllerWiring.CreateGroupControllerFromContext(groupModule, groupContext)
-  ctx.groupController = groupController
   eventContext.groupController = groupController
 
-  local leaderWatchController = leaderWatchModule.CreateController(configBuilders.BuildLeaderWatchControllerOpts(ctx))
-  ctx.leaderWatchController = leaderWatchController
+  local leaderWatchController =
+    leaderWatchModule.CreateController(configBuilders.BuildLeaderWatchControllerOpts(leaderWatchContext))
+  eventContext.leaderWatchController = leaderWatchController
   leaderWatchController.Start()
 
   local eventHandlersController =
     controllerWiring.CreateEventHandlersControllerFromContext(eventHandlersModule, eventContext)
 
-  bootstrap.RegisterSlashCommands(configBuilders.BuildSlashCommandsOpts(ctx))
+  bootstrap.RegisterSlashCommands(configBuilders.BuildSlashCommandsOpts(slashCommandsContext))
 
-  local gateOpts = configBuilders.BuildGateOpts(ctx)
+  local gateOpts = configBuilders.BuildGateOpts(gateContext)
   local gatedOnEvent = bootstrap.CreateGatedOnEvent(gateOpts)
   -- Bind the gate on both frames:
   --   * eventFrame is where Blizzard delivers all natural RegisterEvent fires

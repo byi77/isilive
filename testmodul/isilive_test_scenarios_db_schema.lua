@@ -158,6 +158,20 @@ return function(test, ctx)
     Assert.Equal(db.uiScale, 1.25, "in-range uiScale must be preserved")
   end)
 
+  test("DBSchema.Sanitize resets non-finite numbers to safe defaults", function()
+    local DBSchema = LoadSchema()
+    local db = {
+      uiScale = 0 / 0,
+      bgAlpha = math.huge,
+      position = { point = "CENTER", relativePoint = "CENTER", x = -math.huge, y = 0 / 0 },
+    }
+    DBSchema.Sanitize(db)
+    Assert.Equal(db.uiScale, 1.0, "NaN uiScale must reset to its default")
+    Assert.Equal(db.bgAlpha, 0.5, "infinite alpha must reset to its default")
+    Assert.Equal(db.position.x, 0, "infinite frame offset must reset")
+    Assert.Equal(db.position.y, 0, "NaN frame offset must reset")
+  end)
+
   -- ----------------------------------------------------------------------
   -- Enum validation
   -- ----------------------------------------------------------------------
@@ -174,6 +188,19 @@ return function(test, ctx)
     local db = { mobNameplatePosition = "TOP" }
     DBSchema.Sanitize(db)
     Assert.Equal(db.mobNameplatePosition, "TOP", "valid enum must be preserved")
+  end)
+
+  test("DBSchema.Sanitize rejects invalid persisted frame anchors", function()
+    local DBSchema = LoadSchema()
+    local db = {
+      position = { point = "NOT_AN_ANCHOR", relativePoint = "ALSO_INVALID", x = 10, y = 20 },
+      statsBoxPosition = { point = "TOPLEFT", relativePoint = "BROKEN", x = 30, y = 40 },
+    }
+    DBSchema.Sanitize(db)
+    Assert.Equal(db.position.point, "CENTER", "invalid main-frame point must reset")
+    Assert.Equal(db.position.relativePoint, "CENTER", "invalid main-frame relative point must reset")
+    Assert.Equal(db.statsBoxPosition.point, "TOPLEFT", "valid stats-box point must remain")
+    Assert.Equal(db.statsBoxPosition.relativePoint, "CENTER", "invalid stats-box relative point must reset")
   end)
 
   test("DBSchema.Sanitize resets invalid soundOutputChannel to Master and preserves SFX", function()

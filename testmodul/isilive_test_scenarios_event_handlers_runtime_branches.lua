@@ -1342,7 +1342,7 @@ return function(test, ctx)
   end
 
   test("PLAYER_REGEN_DISABLED skips combat fade when combatFadeMM is not enabled", function()
-    rawset(_G, "IsiLiveDB", { combatFadeMM = false, defaultLayoutMode = "expanded" })
+    rawset(_G, "IsiLiveDB", { combatFadeMM = false, rosterLayoutMode = "expanded" })
     local frame = MakeMainFrameStub(1.0)
     local handlers = LoadHandlers({
       handleKillTrackEvent = function() end,
@@ -1355,7 +1355,7 @@ return function(test, ctx)
   end)
 
   test("PLAYER_REGEN_DISABLED skips combat fade when layout is neither compact_main_horizontal nor expanded", function()
-    rawset(_G, "IsiLiveDB", { combatFadeMM = true, defaultLayoutMode = "compact_horizontal" })
+    rawset(_G, "IsiLiveDB", { combatFadeMM = true, rosterLayoutMode = "compact_horizontal" })
     local frame = MakeMainFrameStub(1.0)
     local handlers = LoadHandlers({
       handleKillTrackEvent = function() end,
@@ -1368,7 +1368,7 @@ return function(test, ctx)
   end)
 
   test("PLAYER_REGEN_DISABLED snaps alpha when current already matches target (delta < 0.01)", function()
-    rawset(_G, "IsiLiveDB", { combatFadeMM = true, defaultLayoutMode = "expanded" })
+    rawset(_G, "IsiLiveDB", { combatFadeMM = true, rosterLayoutMode = "expanded" })
     local frame = MakeMainFrameStub(0.005)
     local tickerStarts = 0
     WithGlobals({
@@ -1392,7 +1392,7 @@ return function(test, ctx)
   end)
 
   test("PLAYER_REGEN_DISABLED installs a fade ticker that walks alpha from 1.0 down to 0", function()
-    rawset(_G, "IsiLiveDB", { combatFadeMM = true, defaultLayoutMode = "expanded" })
+    rawset(_G, "IsiLiveDB", { combatFadeMM = true, rosterLayoutMode = "expanded" })
     local frame = MakeMainFrameStub(1.0)
     local tickerFn
     local cancelCalls = 0
@@ -1436,7 +1436,7 @@ return function(test, ctx)
   end)
 
   test("PLAYER_REGEN_DISABLED skips combat fade when main frame is hidden", function()
-    rawset(_G, "IsiLiveDB", { combatFadeMM = true, defaultLayoutMode = "expanded" })
+    rawset(_G, "IsiLiveDB", { combatFadeMM = true, rosterLayoutMode = "expanded" })
     local frame = MakeMainFrameStub(1.0, false) -- IsShown returns false
     local tickerStarts = 0
     WithGlobals({

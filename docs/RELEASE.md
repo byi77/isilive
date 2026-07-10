@@ -42,7 +42,7 @@ Der bevorzugte vollstaendige lokale CI-Preflight ist:
 powershell -ExecutionPolicy Bypass -File tools\validate_ci_local.ps1
 ```
 
-Der Wrapper fuehrt Style-, Lint-, Syntax-, Metrics-, Locale-, Secret-Value-, Sound-, API-, Coverage-, Regel- und Usecase-Gates in derselben Reihenfolge aus, in der lokale Release-Vorbereitung sie erwarten sollte. Aktueller Usecase-Stand bei TOC `0.9.342`: `lua tools/validate_usecases.lua` mit `2162 passed, 0 failed`. Letzter voller lokaler Audit-Stand nach dem 0.9.341-Instanzgruppen-Chat-Fix: `Local CI preflight passed`, Coverage `92.43%` bei Gate `>=88.00%`.
+Der Wrapper fuehrt Style-, Lint-, Syntax-, Metrics-, Locale-, Secret-Value-, Sound-, API-, Regel-, Usecase- und anschliessend die GitHub-identischen Coverage-Gates aus. Vor dem Coverage-Lauf entfernt er lokale Coverage-Artefakte, damit alte Treffer das Ergebnis nicht verfaelschen. Aktueller Usecase-Stand bei TOC `0.9.343`: `lua tools/validate_usecases.lua` mit `2182 passed, 0 failed`. Letzter voller lokaler Audit-Stand vom `2026-07-10`: `Local CI preflight passed`, Coverage `92.17%` bei Gate `>=88.00%` und keine Datei unter `80.00%`.
 
 Die Wrapper `tools/check.ps1` und `tools/check.cmd` fuehren den statischen lokalen Preflight ueber den repo-lokalen `luacheck.cmd`-Shim aus und vermeiden so den Windows-App-Auswahldialog, der beim direkten Aufruf des LuaRocks-`luacheck`-Scripts auftaucht.
 
@@ -51,7 +51,7 @@ Die GitHub-Workflows checken das Repository vor der Trigger-Pruefung aus, damit 
 
 `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (aktueller Stand: 2162 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
+`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (aktueller Stand: 2182 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
 
 Windows-Hinweis: Wenn Metrics mit fehlenden LuaRocks-Modulen (`lfs`, `luacheck.decoder`, `luacheck.parser`) scheitern, `LUA_PATH` und `LUA_CPATH` auf die LuaRocks-Pfade `share/lua/5.4` und `lib/lua/5.4` setzen, bevor der Metrics-Check laeuft. Lokal gelten dieselben Release-Schwellen wie in CI: `ISILIVE_MAX_FILE_LINES=3200` und `ISILIVE_MAX_FUNCTION_LINES=420`.
 
@@ -154,7 +154,7 @@ git push origin :refs/tags/isiLive_release_X.Y.Z
 - Release-Tagging ist absichtlich vom normalen `main`-Push getrennt, damit CI noch sicher fehlschlagen kann, bevor CurseForge-Pakete gebaut werden.
 - Ein TOC-/Doku-Bump auf `main` ist noch kein CurseForge-Release. CurseForge wird erst durch einen passenden Release- oder Pre-Release-Tag hochgeladen.
 - CI schliesst `.luarocks/` bereits aus Lint- und Syntax-Checks aus.
-- Packaging ignoriert Nicht-Nutzer-Dateien ueber `.pkgmeta` und die GitHub/WowUp-Zip-Ausschlussliste im Stable-`Release`-Workflow, einschliesslich `.github/`, `.claude/`, dem kompletten `docs/`-Ordner (mit `ARCHITECTURE.md`, `USECASES.md`, `WARTUNG.md`, `RULES.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `RELEASE.md`, `CURSEFORGE_OVERVIEW.md`, `CHANGELOG.md`), dem Root-`README.md`, `AGENTS.md`, `CLAUDE.md`, den Dev-only-Ordnern `tools/` und `testmodul/` sowie PNG-Screenshots/Logos. Die CurseForge-Dateinotizen verwenden den kurzen Stub `CHANGELOG_RELEASE.md`, nicht das volle Repository-Changelog.
+- Packaging ignoriert Nicht-Nutzer-Dateien ueber `.pkgmeta` und die GitHub/WowUp-Zip-Ausschlussliste im Stable-`Release`-Workflow, einschliesslich `.github/`, `.claude/`, dem kompletten `docs/`-Ordner (mit `ARCHITECTURE.md`, `USECASES.md`, `WARTUNG.md`, `AGENTEN_WORKFLOW.md`, `RULES.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `RELEASE.md`, `CURSEFORGE_OVERVIEW.md`, `CHANGELOG.md`), den Root-Dateien `README.md`, `AGENTS.md`, `CLAUDE.md`, `TODO.md`, den Dev-only-Ordnern `tools/` und `testmodul/` sowie PNG-Screenshots/Logos. Die CurseForge-Dateinotizen verwenden den kurzen Stub `CHANGELOG_RELEASE.md`, nicht das volle Repository-Changelog.
 - Wenn VS-Code-Diagnostics veraltet wirken, ausfuehren:
   - `Developer: Reload Window`
   - `Lua: Restart Language Server`

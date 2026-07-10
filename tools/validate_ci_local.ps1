@@ -107,9 +107,15 @@ try {
   if ($InstallLuaRocksDeps) {
     Invoke-CheckedCommand "Install LuaRocks dependency: luacheck" "luarocks install luacheck 1.2.0-1"
     Invoke-CheckedCommand "Install LuaRocks dependency: luafilesystem" "luarocks install luafilesystem 1.8.0-1"
+    Invoke-CheckedCommand "Install LuaRocks dependency: luacov" "luarocks install luacov 0.15.0-1"
   }
 
   Initialize-LuaRocksEnvironment
+
+  if (-not (Test-LuaModule "luacov")) {
+    throw "LuaCov ('luacov') is missing. Install it with 'luarocks install luacov 0.15.0-1'."
+  }
+  Assert-Command "luacov" | Out-Null
 
   if (-not (Test-LuaModule "lfs")) {
     Add-ToolLuaPath
@@ -163,6 +169,7 @@ try {
   Invoke-CheckedCommand "M+ Forces DB Lifetime" "lua tools/check_mplus_db_lifetime.lua"
   Invoke-CheckedCommand "Season Intake Check" "lua tools/check_season_intake.lua"
   Invoke-CheckedCommand "Nameplate Key-Start Simulator" "lua tools/simulate_nameplate_keystart.lua all"
+  Invoke-CheckedCommand "CTL Wire-Order Simulator" "lua tools/simulate_ctl_wire_order.lua"
   Invoke-CheckedCommand "SavedVariables Reload Simulator" "lua tools/simulate_savedvariables_reload.lua"
   Invoke-CheckedCommand "Key-Start Lifecycle Simulator" "lua tools/simulate_key_start_lifecycle.lua"
   Invoke-CheckedCommand "Hidden-Sync Reload Simulator" "lua tools/simulate_hidden_sync_reload.lua"
@@ -180,6 +187,12 @@ try {
   Invoke-CheckedCommand "Combat-Lockdown Defer-and-Replay Simulator" "lua tools/simulate_combat_lockdown_settings.lua"
   Invoke-CheckedCommand "Role-Marker Macro Simulator" "lua tools/simulate_role_marker_macro.lua"
   Invoke-CheckedCommand "Deterministic Usecase + Rules Logic Validation" "lua tools/validate_usecases.lua"
+  Remove-Item -LiteralPath "luacov.stats.out", "luacov.report.out" -ErrorAction SilentlyContinue
+  Invoke-CheckedCommand "Coverage Run" "lua -lluacov tools/validate_usecases.lua"
+  Invoke-LuaRocksCommand "Coverage Report" "luacov" @()
+  Invoke-CheckedCommand "Coverage Summary" "lua tools/coverage_summary.lua luacov.report.out"
+  Invoke-CheckedCommand "Coverage Threshold (>=80% per file)" "lua tools/coverage_below.lua 80 luacov.report.out"
+  Invoke-CheckedCommand "Coverage Threshold (>=88% total)" "lua tools/coverage_total_gate.lua 88 luacov.report.out"
 
   Write-Host ""
   Write-Host "Local CI preflight passed."

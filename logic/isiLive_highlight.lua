@@ -115,8 +115,10 @@ local function ResolveCurrentMapID()
   -- Only the live player map should suppress the highlight. The active
   -- challenge map can become available before the player actually enters the
   -- dungeon, which would otherwise clear the highlight too early.
-  if IsExistingPlayerUnit() and C_Map and C_Map.GetBestMapForUnit then
-    local ok, mapID = pcall(C_Map.GetBestMapForUnit, "player")
+  local mapApi = rawget(_G, "C_Map")
+  local getBestMapForUnit = type(mapApi) == "table" and rawget(mapApi, "GetBestMapForUnit") or nil
+  if IsExistingPlayerUnit() and type(getBestMapForUnit) == "function" then
+    local ok, mapID = pcall(getBestMapForUnit, "player")
     if ok and type(mapID) == "number" and mapID > 0 then
       return mapID
     end

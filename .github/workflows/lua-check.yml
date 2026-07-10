@@ -124,6 +124,10 @@ jobs:
         run: |
           lua tools/simulate_nameplate_keystart.lua all
 
+      - name: CTL Wire-Order Simulator
+        run: |
+          lua tools/simulate_ctl_wire_order.lua
+
       - name: SavedVariables Reload Simulator
         run: |
           lua tools/simulate_savedvariables_reload.lua

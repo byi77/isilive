@@ -265,6 +265,7 @@ local warn_files = {}
 local hard_files = {}
 local warn_functions = {}
 local hard_functions = {}
+local watchlist_missing = {}
 
 for _, info in ipairs(file_metrics) do
   if info.lines > WARN_FILE_LINES then
@@ -281,6 +282,23 @@ for _, info in ipairs(function_metrics) do
   end
   if info.lines > function_line_limit(info.file) then
     table.insert(hard_functions, info)
+  end
+end
+
+local architecture_contents, architecture_read_error = read_file("docs/ARCHITECTURE.md")
+if not architecture_contents then
+  table.insert(
+    parse_errors,
+    "docs/ARCHITECTURE.md: unable to validate large-module watchlist: " .. tostring(architecture_read_error)
+  )
+else
+  for _, info in ipairs(warn_files) do
+    local is_production = not info.file:match("^testmodul/")
+      and not info.file:match("^tools/")
+      and not info.file:match("^libs/")
+    if is_production and not architecture_contents:find("`" .. info.file .. "`", 1, true) then
+      table.insert(watchlist_missing, info)
+    end
   end
 end
 
@@ -319,7 +337,7 @@ if #parse_errors > 0 then
   os.exit(1)
 end
 
-if #hard_files > 0 or #hard_functions > 0 then
+if #hard_files > 0 or #hard_functions > 0 or #watchlist_missing > 0 then
   print("Hard Limit Violations")
   for _, info in ipairs(hard_files) do
     print(string.format("  file  %4d > %d  %s", info.lines, MAX_FILE_LINES, info.file))
@@ -336,6 +354,9 @@ if #hard_files > 0 or #hard_functions > 0 then
         info.end_line
       )
     )
+  end
+  for _, info in ipairs(watchlist_missing) do
+    print(string.format("  watchlist missing  %4d > %d  %s", info.lines, WARN_FILE_LINES, info.file))
   end
   os.exit(1)
 end

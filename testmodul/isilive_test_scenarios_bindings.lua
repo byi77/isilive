@@ -49,6 +49,7 @@ local function BuildBindingsEnv(overrides)
     cleared = 0,
     tickerFn = nil,
     tickerInterval = nil,
+    tickerCancelCalls = 0,
     inCombat = overrides.inCombat or false,
     bindingActions = overrides.bindingActions or {},
   }
@@ -74,7 +75,9 @@ local function BuildBindingsEnv(overrides)
         state.tickerInterval = interval
         state.tickerFn = fn
         local ticker = {}
-        function ticker:Cancel() end
+        function ticker:Cancel()
+          state.tickerCancelCalls = state.tickerCancelCalls + 1
+        end
         return ticker
       end,
     },
@@ -215,6 +218,23 @@ return function(test, ctx)
       state.tickerFn()
       Assert.Equal(controller.GetPendingBindingApply(), true)
       Assert.Equal(state.cleared, 0, "combat tick must not clear bindings")
+    end)
+  end)
+
+  test("bindings: StopBindingWatchdog cancels ownership and allows a clean restart", function()
+    local globals, state = BuildBindingsEnv()
+    WithGlobals(globals, function()
+      local addon = Load()
+      local controller = addon.Bindings.CreateController({
+        onToggleMainFrame = function() end,
+        onToggleTestMode = function() end,
+      })
+      controller.StartBindingWatchdog()
+      local firstTicker = state.tickerFn
+      controller.StopBindingWatchdog()
+      Assert.Equal(state.tickerCancelCalls, 1, "stop must cancel the owned ticker exactly once")
+      controller.StartBindingWatchdog()
+      Assert.True(state.tickerFn ~= firstTicker, "restart must create a fresh ticker callback")
     end)
   end)
 

@@ -4,7 +4,7 @@ Diese Datei beschreibt verbindliche Strukturregeln fuer den aktuellen Modulzusch
 Im Gegensatz zu `RULES_LOGIC.md` geht es hier nicht um Runtime-Verhalten, sondern um
 stabile Architekturgrenzen, die ueber deterministische Strukturtests geprueft werden.
 
-Aktueller Dokumentationsstand: `0.9.342`. Die seit 0.9.310 hinzugekommenen
+Aktueller Dokumentationsstand: `0.9.343`. Die seit 0.9.310 hinzugekommenen
 Runtime- und UI-Aenderungen sind in `RULES_LOGIC.md` als aktive Projektregeln
 gepinnt und werden ueber deterministische Szenarien validiert. Native WoW-TTS
 ist durch Regel 84 deaktiviert; Death-Audio nutzt statische WAV-Dateien. Der
@@ -42,6 +42,8 @@ TOC-Strukturtests abgedeckt.
 11. `RuntimeSetup` erhaelt benannte Controller-Context-Bundles, damit Group- und Event-Handler-Wiring nicht mehr aus einem unmarkierten Gesamtcontext gelesen werden.
 12. Optionale WoW-Globals wie `C_Timer` und `C_Spell` werden ueber geschuetzte `_G`-Caches gelesen.
 13. Bekannte Grossmodule bleiben als Refactoring-Watchlist dokumentiert und duerfen nicht still aus der Architektur verschwinden.
+14. Logic- und Factory-Module konsumieren keine private Roster-UI-Registry, sondern nur explizite oeffentliche UI-Fassaden.
+15. Der mutierbare Factory-Kompositionskontext wird nicht auf der Addon-Tabelle publiziert.
 
 ## Regelbloecke
 
@@ -111,10 +113,12 @@ TOC-Strukturtests abgedeckt.
 ### RULE-ARCH-CI-WRAPPER-PARITAET
 - Regelnummer: 10
 - Status: aktiv
-- Zusammenfassung: Der lokale CI-Preflight muss die GitHub-Lua-Check-Gates spiegeln; die lokalen Wrapper bleiben reine Delegationsschichten und duerfen keine eigene Parallel- oder Sonderlogik einfuehren.
+- Zusammenfassung: Der lokale CI-Preflight muss die GitHub-Lua-Check-Gates spiegeln; die lokalen Wrapper bleiben reine Delegationsschichten und duerfen keine eigene Parallel- oder Sonderlogik einfuehren. Stable- und Pre-Release-Workflows verwenden dieselbe aktuelle Major-Version der Checkout-Action wie die uebrigen gepflegten Workflows.
 - Erforderliche Tests:
+  - Architecture release workflows use checkout v5
   - Architecture GitHub Lua Check workflow keeps CI validation steps wired
   - Architecture local CI preflight mirrors the GitHub Lua Check workflow
+  - Architecture CTL wire-order simulator is enforced by local and GitHub CI
   - Architecture local CI wrapper forwards directly into the preflight script
   - Architecture local CI shorthand wrapper forwards into the local CI wrapper
   - Architecture local CI cmd wrapper forwards into the PowerShell shortcut
@@ -122,21 +126,36 @@ TOC-Strukturtests abgedeckt.
 ### RULE-ARCH-RUNTIME-SETUP-CONTEXT-BUNDLES
 - Regelnummer: 11
 - Status: aktiv
-- Zusammenfassung: `RuntimeSetup` erhaelt benannte Controller-Context-Bundles; der Group-Controller wird aus einem eigenen Group-Context verdrahtet und der Event-Handler-Controller aus einem expliziten Event-Context.
+- Zusammenfassung: `RuntimeSetup` erhaelt verpflichtende benannte Controller-Context-Bundles; der Group-Controller wird aus einem eigenen Group-Context verdrahtet und der Event-Handler-Controller aus einem separat konstruierten Event-Context. Fallbacks auf den RuntimeSetup-Root und selbstreferenzielle Event-Kontexte sind verboten.
 - Erforderliche Tests:
   - Architecture runtime setup uses context-based wiring factories
   - Architecture factory passes named runtime setup controller contexts
+  - RuntimeSetup.Configure rejects missing named dependency contexts
 
 ### RULE-ARCH-OPTIONALE-WOW-GLOBALS-GESCHUETZT
 - Regelnummer: 12
 - Status: aktiv
-- Zusammenfassung: Produktive Zugriffe auf optionale WoW-Globale wie `C_Timer`, `C_Spell`, `hooksecurefunc` und fallback-faehige `CreateFrame`-Pfade muessen ueber lokale `rawget(_G, "...")`-Caches laufen und bei fehlender API geschlossen bleiben, statt bare globale Short-Circuit-Ketten zu verwenden.
+- Zusammenfassung: Produktive Zugriffe auf optionale WoW-Globale wie `C_Timer`, `C_Spell`, `C_Map`, `UnitExists`, `GetInstanceInfo`, `hooksecurefunc` und fallback-faehige `CreateFrame`-Pfade muessen ueber lokale `rawget(_G, "...")`-Caches laufen und bei fehlender API geschlossen bleiben, statt bare globale Short-Circuit-Ketten zu verwenden.
 - Erforderliche Tests:
   - Architecture optional WoW globals use guarded rawget caches
 
 ### RULE-ARCH-GROSSMODULE-WATCHLIST
 - Regelnummer: 13
 - Status: aktiv
-- Zusammenfassung: Die bekannten grossen Ownership-Flaechen `ui/isiLive_lfg_flags.lua`, `logic/isiLive_sync.lua` und `ui/isiLive_notice.lua` bleiben in `docs/ARCHITECTURE.md` als Refactoring-Watchlist dokumentiert. Splits duerfen nur entlang klarer Runtime- oder UI-Verantwortlichkeiten und mit deterministischen Tests fuer extrahierte Module erfolgen.
+- Zusammenfassung: Alle Produktionsdateien oberhalb der Metrik-Warnschwelle muessen in `docs/ARCHITECTURE.md` als Refactoring-Watchlist dokumentiert sein; das Metrik-Gate gleicht Warnungen und Watchlist deterministisch ab. Splits duerfen nur entlang klarer Runtime- oder UI-Verantwortlichkeiten und mit deterministischen Tests fuer extrahierte Module erfolgen.
 - Erforderliche Tests:
   - Architecture large-module watchlist is documented and gate-pinned
+
+### RULE-ARCH-ROSTER-UI-GRENZE
+- Regelnummer: 14
+- Status: aktiv
+- Zusammenfassung: `_RosterInternal` ist eine private Integrationsflaeche innerhalb der Roster-UI. Logic- und Factory-Module duerfen sie nicht lesen; benoetigte Funktionen werden ueber die explizite `RosterUI`-Fassade angeboten.
+- Erforderliche Tests:
+  - Architecture production layers do not consume private roster UI registry
+
+### RULE-ARCH-FACTORY-KONTEXT-KAPSELUNG
+- Regelnummer: 15
+- Status: aktiv
+- Zusammenfassung: `Factory.InitializeAddon` darf den mutierbaren Factory-Kompositionskontext weder auf der Addon-Tabelle publizieren noch im normalen Produktionspfad zurueckgeben. Nur deterministische Kompositionstests duerfen die interne Test-Introspection explizit anfordern.
+- Erforderliche Tests:
+  - Architecture factory does not publish mutable composition context

@@ -43,16 +43,28 @@ local function CreateFactoryMinimapButton(ctx)
   UpdatePosition()
 
   local isDragging = false
+  local function UpdateDragPosition()
+    if not isDragging or type(getCursorPosition) ~= "function" then
+      return
+    end
+    local mx, my = Minimap:GetCenter()
+    local cx, cy = getCursorPosition()
+    local scale = Minimap:GetEffectiveScale()
+    cx, cy = cx / scale, cy / scale
+    minimapAngle = math.deg(math.atan2(cy - my, cx - mx))
+    UpdatePosition()
+  end
   btn:RegisterForDrag("LeftButton")
   btn:SetScript("OnDragStart", function()
     isDragging = true
+    btn:SetScript("OnUpdate", UpdateDragPosition)
   end)
   btn:SetScript("OnDragStop", function()
+    isDragging = false
+    btn:SetScript("OnUpdate", nil)
     if type(getCursorPosition) ~= "function" then
-      isDragging = false
       return
     end
-    isDragging = false
     local mx, my = Minimap:GetCenter()
     local cx, cy = getCursorPosition()
     local scale = Minimap:GetEffectiveScale()
@@ -62,16 +74,6 @@ local function CreateFactoryMinimapButton(ctx)
       IsiLiveDB.minimapAngle = minimapAngle
     end
     UpdatePosition()
-  end)
-  btn:SetScript("OnUpdate", function()
-    if isDragging and type(getCursorPosition) == "function" then
-      local mx, my = Minimap:GetCenter()
-      local cx, cy = getCursorPosition()
-      local scale = Minimap:GetEffectiveScale()
-      cx, cy = cx / scale, cy / scale
-      minimapAngle = math.deg(math.atan2(cy - my, cx - mx))
-      UpdatePosition()
-    end
   end)
 
   btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")

@@ -28,6 +28,8 @@ local function InitializeFactorySecondaryCdTracker(
   local lustReadyDisplayActive = false
   local lastLustReadySoundAt = nil
   local initialDBRef = rawget(_G, "IsiLiveDB")
+  local C_Timer_ref = rawget(_G, "C_Timer")
+  local cdPollingTicker = nil
   local function ClearReadySoundState()
     lastBResCharges = nil
     lastBResCooldownRemain = nil
@@ -89,6 +91,51 @@ local function InitializeFactorySecondaryCdTracker(
     return false
   end
 
+  local function StopCdTrackerPolling()
+    if cdPollingTicker and type(cdPollingTicker.Cancel) == "function" then
+      cdPollingTicker:Cancel()
+    end
+    cdPollingTicker = nil
+  end
+
+  local function NeedsCdTrackerPolling()
+    if not IsMainFrameShown() then
+      return false
+    end
+    if IsCombatUtilityContextActive() then
+      return true
+    end
+    if ctx.cdTrackerController and type(ctx.cdTrackerController.GetLustInfo) == "function" then
+      local lustInfo = ctx.cdTrackerController.GetLustInfo()
+      return lustInfo and tonumber(lustInfo.remain) and lustInfo.remain > 0 or false
+    end
+    return false
+  end
+
+  local function RefreshCdTrackerPolling()
+    if IsRaidModeActive() or not NeedsCdTrackerPolling() then
+      StopCdTrackerPolling()
+      return false
+    end
+    if cdPollingTicker then
+      return true
+    end
+    if type(C_Timer_ref) ~= "table" or type(C_Timer_ref.NewTicker) ~= "function" then
+      return false
+    end
+    cdPollingTicker = C_Timer_ref.NewTicker(1.0, function()
+      if not NeedsCdTrackerPolling() then
+        StopCdTrackerPolling()
+        return
+      end
+      ctx.UpdateCdTracker()
+    end)
+    return cdPollingTicker ~= nil
+  end
+
+  ctx.RefreshCdTrackerPolling = RefreshCdTrackerPolling
+  ctx.StopCdTrackerPolling = StopCdTrackerPolling
+
   local function PlayBloodlustReadySound()
     if
       ctx.addonTable
@@ -119,6 +166,7 @@ local function InitializeFactorySecondaryCdTracker(
     local resetRuntimeTimers = optsTable and optsTable.resetRuntimeTimers == true
     local fromVisibleRender = optsTable and optsTable.fromVisibleRender == true
     if IsRaidModeActive() then
+      StopCdTrackerPolling()
       ClearReadySoundState()
       if ctx.cdTrackerController and type(ctx.cdTrackerController.ClearRuntimeData) == "function" then
         ctx.cdTrackerController.ClearRuntimeData()
@@ -238,6 +286,7 @@ local function InitializeFactorySecondaryCdTracker(
         ctx.UpdateUI()
       end
     end
+    RefreshCdTrackerPolling()
   end
   if ctx.rosterPanelController and type(ctx.rosterPanelController.SetCdController) == "function" then
     local uiCdController = {
@@ -298,24 +347,7 @@ local function InitializeFactorySecondaryCdTracker(
   -- Gated on the M+ key being active OR a Bloodlust countdown still running, so
   -- a freshly opened main frame in town does not burn 40 pcall(GetAuraDataByIndex)
   -- and a full roster render every second for state that cannot change.
-  local C_Timer_ref = rawget(_G, "C_Timer")
-  if type(C_Timer_ref) == "table" and type(C_Timer_ref.NewTicker) == "function" then
-    C_Timer_ref.NewTicker(1.0, function()
-      if not IsMainFrameShown() then
-        return
-      end
-      local needsTick = IsCombatUtilityContextActive()
-      if not needsTick and ctx.cdTrackerController and type(ctx.cdTrackerController.GetLustInfo) == "function" then
-        local lustInfo = ctx.cdTrackerController.GetLustInfo()
-        if lustInfo and tonumber(lustInfo.remain) and lustInfo.remain > 0 then
-          needsTick = true
-        end
-      end
-      if needsTick then
-        ctx.UpdateCdTracker()
-      end
-    end)
-  end
+  RefreshCdTrackerPolling()
 end
 
 FI.InitializeFactorySecondaryCdTracker = InitializeFactorySecondaryCdTracker

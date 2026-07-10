@@ -2,6 +2,55 @@
 
 ## Unreleased
 
+## 2026-07-10 - Version 0.9.343 (patch)
+
+- Added Blizzard ready, not-ready, and waiting icons to roster Ready Check rows,
+  including the 20-second result hold, so status is no longer communicated by
+  background color alone.
+- Excluded the root maintenance `TODO.md` from both CurseForge and GitHub/WowUp
+  packages and pinned the identical exclusion with deterministic tests.
+- Updated the stable and pre-release workflows from `actions/checkout@v4` to
+  the repository-wide v5 baseline and added a workflow regression gate.
+- Hardened the composition boundaries found by the end-to-end architecture
+  audit: RuntimeSetup now requires separately constructed group, event,
+  leader-watch, slash-command, and gate contexts without root fallbacks or a
+  self-referential event context.
+- Removed the production `_factoryCtx` escape hatch, introduced the explicit
+  `RosterUI` facade for cross-layer UI dependencies, and prohibited Logic and
+  Factory modules from reading the private roster implementation registry.
+- Made the Lua metrics gate verify every warning-level production file against
+  the documented refactoring watchlist and split the 420-line combined
+  status/operational initializer into bounded ownership phases.
+- Restored the shared one-second duplicate guard for identical sound files and
+  SoundKits in the same output channel and spam scope, with deterministic
+  boundary coverage at exactly one second.
+- Added the real CI coverage run and both coverage thresholds to the local full
+  preflight, including a parity test so the local wrapper can no longer report
+  success before the GitHub-equivalent coverage gates finish.
+- Reduced `CHANGELOG_RELEASE.md` to three current user-facing highlights and
+  pinned its documented three-to-five-highlight budget in the architecture
+  suite.
+- Guarded the remaining optional `C_Map`, `UnitExists`, and `GetInstanceInfo`
+  consumers so missing WoW APIs now fail closed instead of resolving through
+  bare globals.
+- Added explicit ownership and cancellation for the binding, kick, and combat
+  utility polling tickers; hidden notices, teleport cooldown text, and the
+  disabled stats box now release their frame-update handlers.
+- Repaired the real ChatThrottleLib FIFO simulator, made the nameplate simulator
+  default to its documented `all` mode, and added the CTL wire-order probe to
+  both local and GitHub CI.
+- Split optional-global boundary checks out of the large architecture scenario
+  module and added runtime lifecycle coverage for ticker and `OnUpdate`
+  transitions.
+- Hardened incoming sync trust boundaries: state payloads now require party or
+  instance-chat delivery, only ACK remains whisper-compatible, and BR/PI
+  casters must match Blizzard's message sender.
+- Rejected non-finite sync and SavedVariables numbers, invalid persisted frame
+  anchors, and corrupted reload-mirror values before they can reach runtime
+  formatting or UI state.
+- Removed the minimap button's idle frame polling and corrected combat fade to
+  use the current `rosterLayoutMode` instead of a retired setting name.
+
 ## 2026-07-05 - Version 0.9.342 (patch)
 
 - Added `/isilive s2d` as a short alias for the existing Season diagnostics

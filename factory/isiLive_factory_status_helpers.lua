@@ -86,8 +86,7 @@ local function RestoreReloadRosterTargetSnapshot(ctx, runtimeState, snapshot)
   return true
 end
 
--- Sub-function: Status target resolution, dungeon info, and operational helpers.
-local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState)
+local function InitializeQueueOperationalHelpers(ctx, modules, runtimeState)
   ctx.getPlayerSyncSummary = function(name, realm)
     if modules.sync and type(modules.sync.GetPlayerSyncSummary) == "function" then
       return modules.sync.GetPlayerSyncSummary(name, realm)
@@ -196,6 +195,13 @@ local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState)
       ctx.AnnounceQueuedGroupJoin()
     end
   end
+end
+
+-- Status target resolution and sync helpers. Queue/inspect operational setup
+-- lives in the bounded initializer above so this composition step stays below
+-- the architecture function-size ceiling.
+local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState)
+  InitializeQueueOperationalHelpers(ctx, modules, runtimeState)
   ctx.RefreshLocalPlayerKey = function()
     return ctx.keySyncController.RefreshLocalPlayerKey(ctx.GetRoster())
   end

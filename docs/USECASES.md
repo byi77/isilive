@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.342`
-Zuletzt aktualisiert: `2026-07-05`
+Versionsbasis: `0.9.343`
+Zuletzt aktualisiert: `2026-07-10`
 
 ## Akteure
 
@@ -415,10 +415,12 @@ Ziel: isiLive bleibt ein M+-Tool, haelt aber ausgewaehlte Utility-Funktionen in 
 19. Power Infusion wird ausserhalb des Raids nur aus verifizierten Aura-Daten erkannt. Lokale Chat- und Center-Ausgaben folgen dem PI-Texthinweis-Schalter; der separate PI-Empfangsklang spielt nur fuer den lokalen Empfaenger, nutzt `PowerInfusionReceived.wav` beziehungsweise auf `deDE` `PowerInfusionReceived_deDE.wav`, folgt dem gespeicherten Soundkanal und bleibt bei deaktiviertem `soundPowerInfusionReceivedEnabled` stumm. Verifizierte PI-Erkennungen duerfen nur vom lokal verifizierten PI-Caster per isiLive-Addon-Sync (`PI:<caster>:<recipient>:10060`) an Peers verteilt werden; Empfaenger rendern daraus dieselbe lokale PI-Ausgabe, Self-Echo wird nicht doppelt gerendert, und unvollstaendige oder falsche PI-Payloads bleiben stumm.
 20. Locale-Tag-zu-Sprachflaggen-Aufloesung muss tooltip-hotpath-sicher aus einer statischen Lookup-Tabelle erfolgen. Ein Tooltip-Hover darf nicht `Languages.SUPPORTED` iterieren oder die Alias-Map lazy neu aufbauen.
 21. Roster-Leader-Marker muessen den echten `UnitIsGroupLeader`-State spiegeln; Leader-Zeilen bekommen eine 16x16-Krone, und wenn dieselbe Zeile auch den blauen `isiLive`-Heart-Marker hat, bleibt die Reihenfolge `heart -> crown`.
+22. Dieselbe Sounddatei oder derselbe SoundKit-Key darf im selben Ausgabekanal und expliziten Spam-Scope innerhalb von strikt weniger als einer Sekunde nicht erneut abgespielt werden; ab genau einer Sekunde sowie fuer abweichende Kanaele oder Spam-Scopes ist die Wiedergabe wieder zulaessig.
+23. Ready-Check-Zeilen zeigen `ready`, `notready` und `waiting` sowohl ueber den Zeilenhintergrund als auch ueber das jeweilige Blizzard-Statussymbol; die 20-Sekunden-Holds behalten Symbol und Hintergrund gemeinsam und laufen danach gemeinsam aus.
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `2162` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `2182` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback; mehrdeutige Single-Struct-`activityIDs` bleiben unresolved.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.

@@ -17,7 +17,11 @@ local ROLE_ICONS = {
 
 local LEADER_MARKER = " |TInterface\\GroupFrame\\UI-Group-LeaderIcon:16:16|t"
 local DEATH_MARKER_ICON = " |TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:12:12:0:0|t"
-local READY_CHECK_WAITING_MARKUP = "|TInterface\\RAIDFRAME\\ReadyCheck-Waiting:16:16:0:0|t "
+local READY_CHECK_MARKUP = {
+  ready = "|TInterface\\RAIDFRAME\\ReadyCheck-Ready:16:16:0:0|t ",
+  notready = "|TInterface\\RAIDFRAME\\ReadyCheck-NotReady:16:16:0:0|t ",
+  waiting = "|TInterface\\RAIDFRAME\\ReadyCheck-Waiting:16:16:0:0|t ",
+}
 local READY_CHECK_BACKGROUND_COLORS = {
   ready = { 0.08, 0.5, 0.16, 0.42 },
   notready = { 0.48, 0.12, 0.12, 0.34 },
@@ -160,16 +164,16 @@ function Roster.BuildDisplayData(info, opts)
     if READY_CHECK_BACKGROUND_COLORS[status] then
       readyCheckStatus = status
       readyCheckBackgroundColor = READY_CHECK_BACKGROUND_COLORS[status]
-      if status == "waiting" then
-        readyCheckMarkup = READY_CHECK_WAITING_MARKUP
-      end
+      readyCheckMarkup = READY_CHECK_MARKUP[status] or ""
     end
   elseif not isOffline and not info.isGhost and readyUntil and now and readyUntil > now then
     readyCheckStatus = "ready"
     readyCheckBackgroundColor = READY_CHECK_BACKGROUND_COLORS.ready
+    readyCheckMarkup = READY_CHECK_MARKUP.ready
   elseif not isOffline and not info.isGhost and declinedUntil and now and declinedUntil > now then
     readyCheckStatus = "notready"
     readyCheckBackgroundColor = READY_CHECK_BACKGROUND_COLORS.notready
+    readyCheckMarkup = READY_CHECK_MARKUP.notready
   end
 
   local displayName = info.name or ""

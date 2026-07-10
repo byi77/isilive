@@ -98,7 +98,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 75. Die M+-Forces-Namensplakettenanzeige muss mit Blizzard-Namensplaketten, Plater und Platynator funktionieren; die Settings-Vorschau muss denselben Renderer nutzen wie die Runtime.
 76. Die Roster-Rolle muss bei vorhandener verifizierter Inspect-Spezialisierung aus Blizzards Spezialisierungsrollen-API korrigiert werden; stale Gruppenrollenzuweisungen duerfen die Spec-Rolle nicht dauerhaft ueberstimmen.
 77. CurseForge- und WowUp-Pakete muessen denselben Nutzerinhalt enthalten; jede Paket-Ausschlussaenderung muss beide Paketpfade synchron aktualisieren.
-78. Eingebaute Soundausgaben laufen standardmaessig ueber `Master`; `soundOutputChannel` akzeptiert nur `Master`/`SFX` und faellt geschlossen auf `Master` zurueck; die globale Wiederholsperre fuer gleiche Soundkeys ist temporaer deaktiviert.
+78. Eingebaute Soundausgaben laufen standardmaessig ueber `Master`; `soundOutputChannel` akzeptiert nur `Master`/`SFX` und faellt geschlossen auf `Master` zurueck; dieselbe Sounddatei oder derselbe SoundKit wird im selben Kanal und Spam-Scope innerhalb einer Sekunde nicht erneut gestartet.
 79. Nach dem SavedVariables-Restore muss `ADDON_LOADED` gespeicherte Anzeige-Settings erneut ueber den echten `ApplyDBSettings`-Callback anwenden.
 80. Der Tank-/Heiler-Todesalarm zeigt nur waehrend eines aktiven M+-Runs beim Uebergang lebendig zu tot einmalig eine grosse rote Bildschirmwarnung mit statischer WAV-Ansage; `deDE` nutzt deutsche statische WAVs, alle anderen Client-Locales nutzen englische WAVs; derselbe DeathWatch-Pfad zaehlt pro Spieler die beobachteten Key-Tode fuer Roster-Marker, Roster-Tooltip, den M+-Totenkopf-Tooltip und den aktiven M+-Dungeon-Namen; Key-Ende und Key-Abbruch loeschen die sichtbaren Death-Counter zusammen mit den M+- und BR-/BL-Timern; der Death-Alert-Master-Gate schaltet die Erkennung und Bildschirmwarnung gemeinsam, waehrend Tank- und Heiler-WAVs eigene Sound-Schalter haben; fehlgeschlagene Tank-/Heiler-WAV-Starts muessen diagnostizierbar sein.
 81. Der Ready-Check-Komplett-Klang spielt `BttF_Tinkle.wav` genau einmal, wenn exakt fuenf gueltige Ready-Check-Teilnehmer im aktiven Ready-Check als bereit markiert sind, und ist per Settings abschaltbar.
@@ -112,6 +112,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 90. Die VIP-DK-Seelenernter-, Putrefy-, Pferdeklang- und Ghoul-Reminder-Optionen sind standardmaessig aus, bleiben in den VIP-Settings immer sichtbar und duerfen nur fuer verifizierte lokale Unholy-Death-Knights, eindeutig gefundene Actionbar-Ziele, fest gepflegte SoundFile-IDs oder den gepflegten Ghoul-Reminder-State-Driver wirken.
 91. Die VIP-Bloodlust-Debuff-Button-Warnung ist standardmaessig aus und immer in den VIP-Settings sichtbar, darf aber nur fuer verifizierte lokale Bloodlust-Klassen bei verifiziertem Erschoepfungs-/Satt-Debuff und exakt gepflegten Bloodlust-Klassen- oder Pet-Spell-IDs ein rotes Kreuz auf sichtbare Actionbar-Buttons legen.
 92. isiLive bleibt ein M+-Tool; verifizierte Non-Challenge-Party-Dungeons duerfen nur einen versteckten Utility-Kontext fuer ausgewaehlte Nicht-Forces-Funktionen aktivieren, ohne M+-Timer-, Forces-, RIO- oder Keylevel-Logik ausserhalb eines echten M+-Runs zu oeffnen.
+93. Dauerhafte Polling- und Frame-Update-Schleifen muessen einen expliziten Besitzer haben und ausserhalb ihres verifizierten aktiven Kontexts stoppen.
+94. Eingehende isiLive-Syncdaten duerfen nur ueber die vorgesehenen Gruppenkanäle beziehungsweise den expliziten ACK-Whisperpfad verarbeitet werden; nicht-finite Zahlen und vorgetaeuschte Announce-Absender bleiben wirkungslos.
+95. Persistierte Zahlen, Frame-Anker und Reload-Mirror-Werte muessen vor Runtime-Nutzung validiert werden und bei nicht-finiten oder ungueltigen Daten geschlossen auf sichere Defaults beziehungsweise unresolved fallen.
+96. Combat-Fade darf nur anhand des aktuell persistierten `rosterLayoutMode` entschieden werden und nicht anhand eines veralteten Layoutfelds.
 
 ## Regelbloecke
 
@@ -468,9 +472,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-ROSTER-READY-CHECK-INDICATOR
 - Regelnummer: 34
 - Status: aktiv
-- Zusammenfassung: waehrend eines ready-checks bleibt die schrift in der roster-zeile bei ihrer normalen farbe; stattdessen wird der zeilenhintergrund entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt, wartende spieler erhalten zusaetzlich eine sanduhr vor dem namen, explizit bereit-antworten bleiben nach `READY_CHECK_FINISHED` noch 20 sekunden gruen markiert und sowohl explizit nicht bereite als auch unbeantwortete spieler bleiben noch 20 sekunden rot markiert; danach verschwindet diese sonderdarstellung wieder. Die Events `READY_CHECK`, `READY_CHECK_CONFIRM` und `READY_CHECK_FINISHED` muessen dafuer den dedizierten Ready-Check-Refreshpfad nutzen, ohne den generischen Voll-Renderpfad zu verwenden oder Secure-Rollenbutton-Attribute neu zu schreiben.
+- Zusammenfassung: waehrend eines ready-checks bleibt die schrift in der roster-zeile bei ihrer normalen farbe; stattdessen wird der zeilenhintergrund entsprechend dem status (bereit=gruen/nicht bereit=rot/wartend=gelb) eingefaerbt und jeder der drei Zustaende erhaelt zusaetzlich sein Blizzard-Statussymbol vor dem Namen, damit der Zustand nicht allein von Farbe abhaengt. Explizit bereit-antworten bleiben nach `READY_CHECK_FINISHED` noch 20 sekunden gruen mit Bereit-Symbol markiert und sowohl explizit nicht bereite als auch unbeantwortete spieler bleiben noch 20 sekunden rot mit Nicht-bereit-Symbol markiert; danach verschwindet diese sonderdarstellung wieder. Die Events `READY_CHECK`, `READY_CHECK_CONFIRM` und `READY_CHECK_FINISHED` muessen dafuer den dedizierten Ready-Check-Refreshpfad nutzen, ohne den generischen Voll-Renderpfad zu verwenden oder Secure-Rollenbutton-Attribute neu zu schreiben.
 - Erforderliche Tests:
-  - Roster ready check uses row backgrounds and waiting icon without recoloring text
+  - Roster ready check uses row backgrounds and status icons without recoloring text
   - Roster ready check stays green for 20 seconds after finish
   - Roster declined ready check stays red for 20 seconds after finish
   - Ready-check dedicated refresh clears declined row background after hold expiry
@@ -1165,19 +1169,21 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-PAKETE-CURSEFORGE-WOWUP-GLEICH
 - Regelnummer: 77
 - Status: aktiv
-- Zusammenfassung: CurseForge- und WowUp-Pakete muessen denselben Nutzerinhalt enthalten. Jede Aenderung an Paket-Ausschluessen fuer CurseForge muss im selben Change die GitHub/WowUp-Zip-Ausschlussliste im Stable-`Release`-Workflow gleichwertig aktualisieren, und jede Aenderung an der GitHub/WowUp-Zip-Ausschlussliste muss im selben Change die CurseForge-`.pkgmeta`-Ausschlussliste gleichwertig aktualisieren. Technische Workflow-Metadaten, die nur fuer den Buildprozess gebraucht werden und nicht Teil eines Nutzerpakets sind, duerfen separat behandelt werden, solange der ausgelieferte Addon-Inhalt identisch bleibt.
+- Zusammenfassung: CurseForge- und WowUp-Pakete muessen denselben Nutzerinhalt enthalten. Jede Aenderung an Paket-Ausschluessen fuer CurseForge muss im selben Change die GitHub/WowUp-Zip-Ausschlussliste im Stable-`Release`-Workflow gleichwertig aktualisieren, und jede Aenderung an der GitHub/WowUp-Zip-Ausschlussliste muss im selben Change die CurseForge-`.pkgmeta`-Ausschlussliste gleichwertig aktualisieren. Root-Wartungsdateien wie `TODO.md` duerfen in keinem Nutzerpaket landen. Technische Workflow-Metadaten, die nur fuer den Buildprozess gebraucht werden und nicht Teil eines Nutzerpakets sind, duerfen separat behandelt werden, solange der ausgelieferte Addon-Inhalt identisch bleibt.
 - Erforderliche Tests:
   - Architecture pkgmeta excludes root screenshot assets from release package
   - Architecture release workflow excludes root screenshot assets from WowUp package
   - Architecture release package ignore lists stay identical for CurseForge and WowUp
+  - Architecture release packages exclude root maintenance TODO
   - Architecture gitignore keeps packaged sound assets trackable
 
 ### RULE-SOUNDKANAL-WAEHLBAR
 - Regelnummer: 78
 - Status: aktiv
-- Zusammenfassung: Eingebaute isiLive-Soundausgaben muessen ohne gespeicherte Nutzerentscheidung ueber `Master` abgespielt werden. Die gespeicherte Option `soundOutputChannel` darf nur die Werte `Master` und `SFX` akzeptieren; ungueltige Werte fallen geschlossen auf `Master` zurueck. Wenn `soundOutputChannel = "SFX"` gespeichert ist, muessen Runtime-Playback und Preview-Playback der eingebauten Sound-Registry `SFX` verwenden, waehrend die einzelnen Sound-Enable-Toggles unveraendert pro Sound greifen. Die globale Wiederholsperre fuer dieselbe Sounddatei oder denselben SoundKit im selben Kanal und mit demselben Spam-Scope ist temporaer deaktiviert, damit direkte Wiederholungen fuer die Death-WAV-Diagnose abgespielt werden. Die Settings-UI muss die Kanalwahl in der Sound-Sektion anbieten und den Default nicht schon beim Oeffnen persistieren.
+- Zusammenfassung: Eingebaute isiLive-Soundausgaben muessen ohne gespeicherte Nutzerentscheidung ueber `Master` abgespielt werden. Die gespeicherte Option `soundOutputChannel` darf nur die Werte `Master` und `SFX` akzeptieren; ungueltige Werte fallen geschlossen auf `Master` zurueck. Wenn `soundOutputChannel = "SFX"` gespeichert ist, muessen Runtime-Playback und Preview-Playback der eingebauten Sound-Registry `SFX` verwenden, waehrend die einzelnen Sound-Enable-Toggles unveraendert pro Sound greifen. Dieselbe Sounddatei oder derselbe SoundKit darf im selben Kanal und mit demselben Spam-Scope innerhalb von strikt weniger als einer Sekunde nicht erneut gestartet werden; ab genau einer Sekunde ist die Wiedergabe wieder erlaubt. Unterschiedliche Sounddateien, SoundKits, Kanaele oder explizite Spam-Scopes bleiben voneinander unabhaengig. Die Settings-UI muss die Kanalwahl in der Sound-Sektion anbieten und den Default nicht schon beim Oeffnen persistieren.
 - Erforderliche Tests:
   - SoundUtils uses Master by default and SFX when configured
+  - SoundUtils suppresses identical sound keys for one second
   - Settings panel exposes sound toggles with the intended defaults
   - Locale sound-channel settings strings support prepared translations
   - DBSchema.Sanitize fills all defaults on an empty db
@@ -1434,3 +1440,42 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - factory split coverage: CD tracker UI gate accepts verified tracked party-run instance group context
   - factory split coverage: combat announce gate accepts verified tracked party-run context
   - Factory death alert treats verified party-run context as death-watch context
+
+### RULE-RUNTIME-POLLING-LIFECYCLE
+- Regelnummer: 93
+- Status: aktiv
+- Zusammenfassung: Der Binding-Watchdog muss sein Ticker-Handle explizit abbrechen und danach sauber neu starten koennen. Kick-Polling darf nur in einer verifizierten normalen Gruppe oder automatischen Instanzgruppe laufen, bleibt dort auch bei ausgeblendeter Main-UI fuer den Hidden-Sync aktiv und muss beim Solo- oder Raid-Uebergang abbrechen. CD-Polling darf nur fuer eine sichtbare Main-UI mit aktivem Battle-Res-, Bloodlust- oder Ready-Timer-Kontext laufen und muss bei ausgeblendeter UI oder inaktivem Kontext abbrechen. Center-Notice, Teleport-Cooldowntext und Statsbox duerfen nur im sichtbaren beziehungsweise aktivierten Zustand einen `OnUpdate`-Handler besitzen und muessen ihn beim Ausblenden entfernen. Der Minimap-Button darf seinen `OnUpdate`-Handler nur waehrend eines aktiven Drags installieren und muss ihn bei Drag-Ende entfernen.
+- Erforderliche Tests:
+  - bindings: StopBindingWatchdog cancels ownership and allows a clean restart
+  - Factory kick polling starts on group entry and cancels on solo transition
+  - Factory CD polling starts only for visible utility context and cancels when hidden
+  - Center notice removes hidden OnUpdate polling and restores it when shown
+  - Center notice teleport button owns OnUpdate only while visible
+  - StatsBox removes hidden OnUpdate polling and restores it when enabled
+  - factory_minimap: OnUpdate exists only during an active drag
+
+### RULE-SYNC-EINGANG-VERTRAUENSGRENZE
+- Regelnummer: 94
+- Status: aktiv
+- Zusammenfassung: `ISILIVE`-State-, Request- und Announce-Nachrichten duerfen nur auf `PARTY` oder `INSTANCE_CHAT` verarbeitet werden; nur ein explizites `ACK:` darf zusaetzlich per `WHISPER` eintreffen. Fehlende Channel-Metadaten bleiben fuer den internen Legacy-/Testadapter kompatibel. BR-/Bloodlust- und Power-Infusion-Announces duerfen nur wirken, wenn der normalisierte Caster exakt dem von Blizzard gelieferten Sender entspricht. Nicht-finite oder ausserhalb des sicher ganzzahlig darstellbaren Bereichs liegende numerische Payloadfelder bleiben unresolved und duerfen weder einen Dispatch-Fehler noch einen State-Write ausloesen.
+- Erforderliche Tests:
+  - Sync ProcessAddonMessage rejects untrusted ISILIVE receive channels
+  - Sync ProcessAddonMessage rejects spoofed announce casters
+  - Sync ProcessAddonMessage rejects non-finite numeric payloads without dispatch errors
+
+### RULE-PERSISTENZ-VALIDIERTE-LAUFZEITWERTE
+- Regelnummer: 95
+- Status: aktiv
+- Zusammenfassung: Der SavedVariables-Sanitizer muss `NaN`, positive und negative Unendlichkeit bei allen gepflegten Zahlenfeldern auf den jeweiligen sicheren Default zuruecksetzen. Persistierte Frame-Anker duerfen nur die neun gueltigen WoW-Ankerpunkte enthalten. Reload-Roster-Mirror duerfen nicht-finite Zahlen nicht in den wiederhergestellten Runtime-State kopieren; ein nicht-finiter Ziel-Mapwert bleibt unresolved und stellt kein Ziel wieder her.
+- Erforderliche Tests:
+  - DBSchema.Sanitize resets non-finite numbers to safe defaults
+  - DBSchema.Sanitize rejects invalid persisted frame anchors
+  - Reload roster mirror drops non-finite persisted values
+
+### RULE-COMBAT-FADE-AKTUELLES-LAYOUT
+- Regelnummer: 96
+- Status: aktiv
+- Zusammenfassung: Die Combat-Fade-Entscheidung liest ausschliesslich das aktuelle persistierte `rosterLayoutMode`; Fade ist nur fuer `compact_main_horizontal` und `expanded` erlaubt. Fehlt das aktuelle Feld, gilt `compact_main_horizontal` als bestehender sicherer Default. Das veraltete Feld `defaultLayoutMode` darf den Fade-Pfad nicht beeinflussen.
+- Erforderliche Tests:
+  - PLAYER_REGEN_DISABLED skips combat fade when layout is neither compact_main_horizontal nor expanded
+  - PLAYER_REGEN_DISABLED installs a fade ticker that walks alpha from 1.0 down to 0

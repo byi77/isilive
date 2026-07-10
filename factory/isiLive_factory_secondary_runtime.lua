@@ -9,7 +9,7 @@ local function RegisterBlizzardUnitLanguageTooltip(ctx, modules)
     return modules.contextHelpers.GetUnitServerLanguage(modules.locale, ctx.GetRealmInfoLib, unit, realm)
   end
 
-  local rosterTooltip = ctx.addonTable and ctx.addonTable._RosterInternal
+  local rosterTooltip = ctx.addonTable and ctx.addonTable.RosterUI
   if type(rosterTooltip) == "table" and type(rosterTooltip.RegisterBlizzardUnitLanguageTooltip) == "function" then
     rosterTooltip.RegisterBlizzardUnitLanguageTooltip({
       getUnitNameAndRealm = ctx.GetUnitNameAndRealm,
@@ -73,10 +73,13 @@ local function InitializeFactorySecondaryRuntimeMethods(ctx, modules)
     end
 
     local currentMapID = nil
-    if not currentMapID and C_Map and C_Map.GetBestMapForUnit and type(UnitExists) == "function" then
-      local okUnit, playerExists = pcall(UnitExists, "player")
+    local mapApi = rawget(_G, "C_Map")
+    local getBestMapForUnit = type(mapApi) == "table" and rawget(mapApi, "GetBestMapForUnit") or nil
+    local unitExists = rawget(_G, "UnitExists")
+    if type(getBestMapForUnit) == "function" and type(unitExists) == "function" then
+      local okUnit, playerExists = pcall(unitExists, "player")
       if okUnit and playerExists then
-        local okMap, mapID = pcall(C_Map.GetBestMapForUnit, "player")
+        local okMap, mapID = pcall(getBestMapForUnit, "player")
         if okMap and type(mapID) == "number" and mapID > 0 then
           currentMapID = mapID
         end

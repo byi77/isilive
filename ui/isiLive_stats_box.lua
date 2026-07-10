@@ -921,6 +921,15 @@ function StatsBox.Create(opts)
     RenderRows(state, state.collectStats(opts))
   end
 
+  local function UpdateVisibleStats(_, elapsed)
+    state.elapsed = state.elapsed + (tonumber(elapsed) or 0)
+    if state.elapsed < UPDATE_INTERVAL then
+      return
+    end
+    state.elapsed = 0
+    Refresh()
+  end
+
   local function ApplySettings()
     if type(frame.SetBackdropColor) == "function" then
       frame:SetBackdropColor(0, 0, 0, ResolveBgAlpha())
@@ -936,8 +945,11 @@ function StatsBox.Create(opts)
     end
     Refresh()
     if ResolveEnabled() then
+      frame:SetScript("OnUpdate", UpdateVisibleStats)
       frame:Show()
     else
+      frame:SetScript("OnUpdate", nil)
+      state.elapsed = 0
       frame:Hide()
     end
   end
@@ -975,17 +987,6 @@ function StatsBox.Create(opts)
     end
     ApplySettings()
   end)
-  frame:SetScript("OnUpdate", function(_, elapsed)
-    state.elapsed = state.elapsed + (tonumber(elapsed) or 0)
-    if state.elapsed < UPDATE_INTERVAL then
-      return
-    end
-    state.elapsed = 0
-    if frame:IsShown() then
-      Refresh()
-    end
-  end)
-
   for _, event in ipairs({
     "ADDON_LOADED",
     "PLAYER_LOGIN",

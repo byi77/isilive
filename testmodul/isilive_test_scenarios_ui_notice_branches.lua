@@ -536,6 +536,57 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
     end)
   end)
 
+  test("Center notice removes hidden OnUpdate polling and restores it when shown", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local centerNotice = CreateCenterNoticeForRichTest()
+      centerNotice.Show("Visible", 12)
+      Assert.Equal(type(centerNotice.frame:GetScript("OnUpdate")), "function", "shown notice must animate")
+      centerNotice.SetVisible(false)
+      Assert.Nil(centerNotice.frame:GetScript("OnUpdate"), "hidden notice must remove OnUpdate polling")
+      centerNotice.SetVisible(true)
+      Assert.Equal(type(centerNotice.frame:GetScript("OnUpdate")), "function", "shown notice must restore OnUpdate")
+    end)
+  end)
+
+  test("Center notice teleport button owns OnUpdate only while visible", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local centerNotice = addon.Notice.CreateCenterNotice({
+        parent = UIParent,
+        isInCombat = function()
+          return false
+        end,
+        resolveTeleportSpellIDByMapID = function()
+          return 12345
+        end,
+        applySecureSpellToButton = function()
+          return true
+        end,
+        isSpellKnown = function()
+          return true
+        end,
+      })
+      Assert.True(centerNotice.ConfigureTeleportButton("Dungeon", nil, 777), "verified map must show button")
+      Assert.Equal(type(centerNotice.teleportButton:GetScript("OnUpdate")), "function", "visible button must poll")
+      Assert.False(centerNotice.ConfigureTeleportButton(nil, nil, nil), "empty target must hide button")
+      Assert.Nil(centerNotice.teleportButton:GetScript("OnUpdate"), "hidden button must remove polling")
+      Assert.True(centerNotice.ConfigureTeleportButton("Dungeon", nil, 777), "button must be restorable")
+      Assert.Equal(type(centerNotice.teleportButton:GetScript("OnUpdate")), "function", "restored button must poll")
+    end)
+  end)
+
   test("Center notice rich field values use Cyrillic-capable font for Cyrillic leader names", function()
     WithGlobals({
       UIParent = CreateFrameStub(),

@@ -137,14 +137,20 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     AssertContains(
       Assert,
       content,
-      "local groupContext = ctx.groupControllerContext or ctx",
-      "RuntimeSetup must accept a narrow group-controller context bundle"
+      'local groupContext = RequireTable(ctx.groupControllerContext, "groupControllerContext")',
+      "RuntimeSetup must require a narrow group-controller context bundle"
     )
     AssertContains(
       Assert,
       content,
-      "local eventContext = ctx.eventHandlersContext or ctx",
-      "RuntimeSetup must accept an event-handler context bundle"
+      'local eventContext = RequireTable(ctx.eventHandlersContext, "eventHandlersContext")',
+      "RuntimeSetup must require an event-handler context bundle"
+    )
+    AssertNotContains(
+      Assert,
+      content,
+      "or ctx",
+      "RuntimeSetup must not silently fall back from a named bundle to its composition root"
     )
     AssertNotContains(
       Assert,
@@ -214,8 +220,14 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     AssertContains(
       Assert,
       content,
+      "eventHandlersContext = eventHandlersContext",
+      "factory root must pass a separately constructed event-handler context explicitly"
+    )
+    AssertNotContains(
+      Assert,
+      content,
       "runtimeSetupContext.eventHandlersContext = runtimeSetupContext",
-      "factory root must pass the event-handler context explicitly"
+      "factory root must not self-reference its RuntimeSetup context as event dependencies"
     )
     AssertContains(
       Assert,
@@ -485,110 +497,6 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     end
   end)
 
-  test("Architecture optional WoW globals use guarded rawget caches", function()
-    local lfgFlagsContent = ReadFile("isiLive_lfg_flags.lua")
-    local noticeContent = ReadFile("isiLive_notice.lua")
-    local checkedRawgetFiles = {
-      "isiLive_controller_wiring.lua",
-      "isiLive_event_handlers_runtime.lua",
-      "isiLive_factory_demo.lua",
-      "isiLive_factory_primary.lua",
-      "isiLive_factory_refresh.lua",
-      "isiLive_factory_status.lua",
-      "isiLive_killtrack.lua",
-      "isiLive_status.lua",
-      "isiLive_teleport.lua",
-    }
-
-    local function StripLuaComments(content)
-      content = content:gsub("%-%-%[%[.-%]%]", "")
-      content = content:gsub("%-%-[^\r\n]*", "")
-      return content
-    end
-
-    AssertContains(
-      Assert,
-      lfgFlagsContent,
-      'local createFrame = rawget(_G, "CreateFrame")',
-      "LFGFlags fallback event frames must resolve CreateFrame through rawget"
-    )
-    AssertContains(
-      Assert,
-      lfgFlagsContent,
-      'local timer = rawget(_G, "C_Timer")',
-      "LFGFlags delayed fallback refresh must resolve C_Timer through rawget"
-    )
-    AssertContains(
-      Assert,
-      lfgFlagsContent,
-      'local hooksecurefuncRef = rawget(_G, "hooksecurefunc")',
-      "LFGFlags hook wiring must resolve hooksecurefunc through rawget"
-    )
-    AssertNotContains(
-      Assert,
-      lfgFlagsContent,
-      "pcall(hooksecurefunc,",
-      "LFGFlags must not call bare hooksecurefunc in pcall"
-    )
-    AssertNotContains(Assert, lfgFlagsContent, "C_Timer.After", "LFGFlags must not call bare C_Timer.After")
-    AssertContains(
-      Assert,
-      noticeContent,
-      'local spellApi = rawget(_G, "C_Spell")',
-      "Notice teleport-button icon lookup must resolve C_Spell through rawget"
-    )
-    AssertNotContains(
-      Assert,
-      noticeContent,
-      "if spellID and C_Spell and C_Spell.GetSpellTexture then",
-      "Notice teleport-button icon lookup must not use bare C_Spell short-circuit chains"
-    )
-
-    for _, file in ipairs(checkedRawgetFiles) do
-      local content = StripLuaComments(ReadFile(file))
-      Assert.True(not content:find("C_Timer and", 1, true), file .. " must not use bare C_Timer short-circuit chains")
-      Assert.True(not content:find("C_Timer.", 1, true), file .. " must not call bare C_Timer APIs")
-      Assert.True(
-        not content:find("C_Spell and C_Spell", 1, true),
-        file .. " must not use bare C_Spell short-circuit chains"
-      )
-      Assert.True(not content:find("C_Spell.", 1, true), file .. " must not call bare C_Spell APIs")
-    end
-
-    local teleportContent = ReadFile("isiLive_teleport.lua")
-    AssertContains(
-      Assert,
-      teleportContent,
-      'local createFrame = rawget(_G, "CreateFrame")',
-      "Teleport combat retry frame must resolve fallback-capable CreateFrame through rawget"
-    )
-  end)
-
-  test("Architecture large-module watchlist is documented and gate-pinned", function()
-    local architectureContent = ReadFile("ARCHITECTURE.md")
-
-    AssertContains(
-      Assert,
-      architectureContent,
-      "## Architektur-Refactoring-Watchlist",
-      "architecture docs must keep a visible refactoring watchlist section"
-    )
-    AssertContains(
-      Assert,
-      architectureContent,
-      "`ui/isiLive_lfg_flags.lua`",
-      "large-module watchlist must include LFGFlags"
-    )
-    AssertContains(Assert, architectureContent, "`logic/isiLive_sync.lua`", "large-module watchlist must include Sync")
-    AssertContains(Assert, architectureContent, "`ui/isiLive_notice.lua`", "large-module watchlist must include Notice")
-    AssertContains(
-      Assert,
-      architectureContent,
-      "Splits erfolgen nur entlang klarer Runtime- oder",
-      "large-module watchlist must preserve the split contract"
-    )
-  end)
-
   test("Architecture secure button mutation surface is explicitly audited for combat and key safety", function()
     local audited = {
       ["game/isiLive_teleport.lua"] = {
@@ -771,6 +679,19 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     )
   end)
 
+  test("Architecture release packages exclude root maintenance TODO", function()
+    local pkgmetaContent = ReadFile(".pkgmeta")
+    local workflowContent = ReadFile(".github/workflows/release.yml")
+
+    AssertContains(Assert, pkgmetaContent, "  - TODO.md", ".pkgmeta must exclude the root maintenance TODO")
+    AssertContains(
+      Assert,
+      workflowContent,
+      "|TODO.md|",
+      "release workflow must exclude the root maintenance TODO from the WowUp package"
+    )
+  end)
+
   test("Architecture pkgmeta excludes the full CHANGELOG from release packaging and uses a short link stub", function()
     local content = ReadFile(".pkgmeta")
     local changelogStub = ReadFile("CHANGELOG_RELEASE.md")
@@ -792,6 +713,16 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
       changelogStub,
       "https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md",
       "release changelog stub must point back to the repository changelog"
+    )
+    local highlightCount = 0
+    for line in changelogStub:gmatch("[^\r\n]+") do
+      if line:match("^%- ") then
+        highlightCount = highlightCount + 1
+      end
+    end
+    Assert.True(
+      highlightCount >= 3 and highlightCount <= 5,
+      "release changelog stub must contain between three and five top-level highlights"
     )
   end)
 
@@ -1530,9 +1461,9 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       now = 2.9
       playCalls = 0
       addon.SoundUtils.PlayGroupJoin()
-      Assert.Equal(playCalls, 1, "same sound key replay is temporarily allowed without the global spam window")
+      Assert.Equal(playCalls, 1, "same sound key replay should play after the one-second spam window")
 
-      now = 3
+      now = 4
       addon.SoundUtils.PlayKey("leader_transfer")
       addon.SoundUtils.PlayGroupJoin()
       addon.SoundUtils.PlayReadyCheckComplete()
@@ -1568,16 +1499,16 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
       Assert.Equal(playedSoundKit, 4242, "named SoundKit playback must pass the resolved numeric id")
       Assert.Equal(playedChannel, "Dialog", "explicit SoundKit channel should be preserved")
       addon.SoundUtils.PlaySoundKit("UI_TEST_SOUND", "Dialog")
-      Assert.Equal(playCalls, 2, "SoundKit duplicate playback is temporarily allowed")
+      Assert.Equal(playCalls, 1, "SoundKit duplicate playback should be suppressed inside the spam window")
       now = 12.9
       addon.SoundUtils.PlaySoundKit("UI_TEST_SOUND", "Dialog")
-      Assert.Equal(playCalls, 3, "SoundKit playback remains allowed before the old spam window would expire")
+      Assert.Equal(playCalls, 2, "SoundKit playback should resume after the spam window")
       now = 13
       addon.SoundUtils.PlaySoundKit("UI_TEST_SOUND", "Dialog")
-      Assert.Equal(playCalls, 4, "SoundKit playback remains allowed after the old spam window would expire")
+      Assert.Equal(playCalls, 2, "SoundKit playback should be suppressed again inside the new window")
       now = 16
       addon.SoundUtils.PlaySoundKit(7777)
-      Assert.Equal(playCalls, 5, "numeric SoundKit ids must play directly")
+      Assert.Equal(playCalls, 3, "numeric SoundKit ids must play directly")
       Assert.Equal(playedSoundKit, 7777, "numeric SoundKit playback must pass the given id")
       Assert.Equal(playedChannel, "Master", "SoundKit playback defaults to the Master channel")
 
@@ -1731,6 +1662,63 @@ local function RegisterArchitectureAudioAndKickWiringTests(test, Assert, WithGlo
         "C_Sound DK horse unmute API should be accepted"
       )
       Assert.Equal(unmuted[3], 987921, "C_Sound DK horse unmute API should receive the final horse file ID")
+    end)
+  end)
+
+  test("SoundUtils suppresses identical sound keys for one second", function()
+    local now = 10
+    local fileCalls = 0
+    local kitCalls = 0
+    WithGlobals({
+      IsiLiveDB = {},
+      GetTime = function()
+        return now
+      end,
+      PlaySoundFile = function()
+        fileCalls = fileCalls + 1
+        return true, "file:" .. tostring(fileCalls)
+      end,
+      PlaySound = function()
+        kitCalls = kitCalls + 1
+        return true, "kit:" .. tostring(kitCalls)
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sound_utils.lua" })
+      local file = "Interface\\AddOns\\isiLive\\sounds\\SynthChord.ogg"
+
+      Assert.True(addon.SoundUtils.Play(file, "Master", "group"), "first scoped file playback should succeed")
+      now = 10.999
+      Assert.False(
+        addon.SoundUtils.Play(file, "Master", "group"),
+        "identical scoped file playback must be suppressed before one second"
+      )
+      Assert.Equal(fileCalls, 1, "suppressed scoped file playback must not reach PlaySoundFile")
+      Assert.Equal(
+        addon.SoundUtils.GetLastPlayResult().reason,
+        "spam_window",
+        "suppressed scoped file playback must expose the spam-window reason"
+      )
+      Assert.True(
+        addon.SoundUtils.Play(file, "Master", "other"),
+        "a different explicit spam scope should remain independent"
+      )
+      now = 11
+      Assert.True(
+        addon.SoundUtils.Play(file, "Master", "group"),
+        "identical scoped file playback should resume at exactly one second"
+      )
+
+      Assert.True(addon.SoundUtils.PlaySoundKit(4242, "Master"), "first SoundKit playback should succeed")
+      Assert.False(
+        addon.SoundUtils.PlaySoundKit(4242, "Master"),
+        "identical SoundKit playback must be suppressed before one second"
+      )
+      Assert.Equal(kitCalls, 1, "suppressed SoundKit playback must not reach PlaySound")
+      now = 12
+      Assert.True(
+        addon.SoundUtils.PlaySoundKit(4242, "Master"),
+        "identical SoundKit playback should resume after one second"
+      )
     end)
   end)
 
@@ -2126,6 +2114,21 @@ local function RegisterArchitectureNoticeTypographyTests(test, Assert)
 end
 
 local function RegisterArchitectureWorkflowTests(test, Assert)
+  test("Architecture release workflows use checkout v5", function()
+    local releaseContent = ReadFile(".github/workflows/release.yml")
+    local preReleaseContent = ReadFile(".github/workflows/pre-release.yml")
+
+    AssertContains(Assert, releaseContent, "actions/checkout@v5", "release workflow must use checkout v5")
+    AssertContains(Assert, preReleaseContent, "actions/checkout@v5", "pre-release workflow must use checkout v5")
+    AssertNotContains(Assert, releaseContent, "actions/checkout@v4", "release workflow must not retain checkout v4")
+    AssertNotContains(
+      Assert,
+      preReleaseContent,
+      "actions/checkout@v4",
+      "pre-release workflow must not retain checkout v4"
+    )
+  end)
+
   test("Architecture GitHub Lua Check workflow keeps CI validation steps wired", function()
     local workflowContent = ReadFile(".github/workflows/lua-check.yml")
     local syncWorkflowContent = ReadFile(".github/workflows/sync-mplus-forces.yml")
@@ -2544,6 +2547,25 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       localPreflightContent,
       'Invoke-CheckedCommand "Deterministic Usecase + Rules Logic Validation" "lua tools/validate_usecases.lua"',
       "local preflight must run the same deterministic validation step as the workflow"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      'Invoke-CheckedCommand "Coverage Run" "lua -lluacov tools/validate_usecases.lua"',
+      "local preflight must run the same coverage collection as the workflow"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      'Invoke-CheckedCommand "Coverage Threshold (>=80% per file)" "lua tools/coverage_below.lua 80 luacov.report.out"',
+      "local preflight must enforce the same per-file coverage threshold as the workflow"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      'Invoke-CheckedCommand "Coverage Threshold (>=88% total)" '
+        .. '"lua tools/coverage_total_gate.lua 88 luacov.report.out"',
+      "local preflight must enforce the same total coverage threshold as the workflow"
     )
     AssertContains(
       Assert,

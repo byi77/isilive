@@ -1,7 +1,7 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.342`
-Zuletzt aktualisiert: `2026-07-05`
+Versionsbasis: `0.9.343`
+Zuletzt aktualisiert: `2026-07-10`
 
 ## Zweck
 
@@ -153,7 +153,7 @@ Jeder Step laeuft genau einmal pro User; `db.__schemaVersion` wird nach erfolgre
 21. Voruebergehend versteckte Legacy-Settings-Controls bleiben aus den Blizzard Settings entfernt, waehrend die Runtime ihre festen Defaults (`DPS` an, Markers leader-only aus, feste Namenstrunkierung, Legacy-`Travel`-Grid mit 2 Spalten) erzwingt, bis die Controls wieder freigeschaltet werden.
 22. Die Lust-Onset- und Ready-Erkennung des CdTrackers kombiniert Spieler-Harmful-Aura-Scans mit direkten lokalen Lust-Spellcasts, akzeptiert fuer den Lookup nur numerische Aura-`spellId`-Werte, ignoriert geschuetzte oder andere nicht-numerische Werte sicher, behandelt `UNIT_AURA(..., { isFullUpdate = true })`-Restores nach Zone/Reload als nicht-onsetartige Hydration, scannt UNIT_AURA-Removal-Payloads fuer natuerliches Sated-Auslaufen und verwendet nur ein kurzes `PLAYER_ENTERING_WORLD`-Suppress-Fenster von 2 Sekunden als Sicherheitsnetz, bis der vollstaendige Aura-Restore eingetroffen ist.
 23. Leader-Gain/Loss-Erkennung vergleicht den aktuellen lokalen Leader-State mit dem gecachten State sowohl auf `GROUP_ROSTER_UPDATE` als auch auf `PARTY_LEADER_CHANGED`; hidden Promotions unterdruecken Center-Notice und Chat-Output, spielen aber weiterhin den Transfer-Sound.
-24. Ready-Check-Lifecycle-Events muessen ueber einen dedizierten Roster-Refresh-Pfad laufen, der row-background-State, Waiting-Sandglass-Marker und den 20-Sekunden-Hold fuer `ready` sowie fuer explizit/unbeantwortet `notready` erneut anlegt, ohne den generischen Vollrender des Rosters erneut auszufuehren oder Secure-Role-Button-Attribute anzufassen.
+24. Ready-Check-Lifecycle-Events muessen ueber einen dedizierten Roster-Refresh-Pfad laufen, der row-background-State, die farbunabhaengigen Blizzard-Symbole fuer `ready`, `notready` und `waiting` sowie den 20-Sekunden-Hold fuer `ready` und fuer explizit/unbeantwortet `notready` erneut anlegt, ohne den generischen Vollrender des Rosters erneut auszufuehren oder Secure-Role-Button-Attribute anzufassen.
 25. Roster-Leader-Marker werden ausschliesslich aus dem gespiegelten `UnitIsGroupLeader`-State abgeleitet; das Roster rendert fuer diese Zeilen eine 16x16-Krone, und bei gesyncten Leadern bleibt die blaue Heart-Markierung vor der Krone.
 26. Persistierte Ghost-Zeilen duerfen in nicht-vollen Gruppen bestehen bleiben, aber die Roster-Sortierung muss immer alle aktiven Mitglieder vor Ghosts halten, damit das sichtbare 5-Zeilen-Clipping nie ein aktuelles Gruppenmitglied hinter stale Leavern versteckt.
 27. Die optionale Spieler-Stats-Box zeigt nur direkt aus Blizzard-Live-APIs gelesene Werte; Secret Values duerfen nur direkt formatiert werden, fehlende Primary-/Secondary-Werte bleiben unsichtbar statt durch Defaults ersetzt zu werden, Leech, Speed, Haltbarkeit, Ausdauer und Vermeidung sind einzeln schaltbar, und die stabilen Werte-/Prozent-Spalten verhindern abgeschnittene groessere Werte, zeilenweise Verschiebung oder Umbruch bis `(999.99%)`.
@@ -180,6 +180,9 @@ Aktuell aktive Architekturvertraege decken ab:
 - explizit auditierte Secure-, Insecure-Action- und Klick-Mutationsflaechen
 - lokale CI-Wrapper-Paritaet mit dem GitHub-Lua-Check-Workflow
 - benannte RuntimeSetup-Controller-Context-Bundles fuer Group- und Event-Handler-Wiring
+- verpflichtende, getrennt konstruierte RuntimeSetup-Bundles ohne Root-Fallback oder selbstreferenziellen Event-Kontext
+- private `_RosterInternal`-Nutzung nur innerhalb der Roster-UI; Factory-Verbraucher nutzen die explizite `RosterUI`-Fassade
+- kein publizierter oder im Produktionspfad zurueckgegebener mutierbarer Factory-Kontext; interne Introspection ist nur explizit fuer deterministische Kompositionstests anforderbar
 
 ## Deterministische Validierungs-Gates
 
@@ -214,9 +217,9 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
    - `lua tools/validate_usecases.lua`
 3. `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 2162 Szenarien ueber die aktuell registrierten Module (siehe `tools/usecase_scenarios.lua`) ab; die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
+5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach 2182 Szenarien ueber die aktuell registrierten Module (siehe `tools/usecase_scenarios.lua`) ab; die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
    Zusaetzlich laeuft der gleiche Validator-Lauf in CI unter `luacov` (`lua -lluacov tools/validate_usecases.lua`), damit `tools/coverage_summary.lua` die Line-Coverage pro Schicht in das GitHub-Actions-Step-Summary schreibt und der vollstaendige `luacov.report.out` als Artefakt hochgeladen wird.
-   Aktueller voller Coverage-Audit-Stand (`2026-06-21`, lokaler Preflight nach 0.9.331): **92.43% Gesamt-Line-Coverage** ueber 31335 gezaehlte Zeilen. Das Coverage-Gate bleibt bei mindestens 88.00%.
+   Aktueller voller Coverage-Audit-Stand (`2026-07-10`, lokaler Preflight bei 0.9.343): **92.17% Gesamt-Line-Coverage** (`34183 / 37085` Zeilen). Das Coverage-Gate bleibt bei mindestens 88.00% gesamt und 80.00% pro Produktionsdatei.
    Historische Baseline (`2026-04-22`, Commit nach Coverage-Einfuehrung): **78.62% Gesamt-Line-Coverage** ueber 19487 Produktionszeilen.
 6. Der M+-Forces-DB-Refresh laeuft automatisch ueber `.github/workflows/sync-mplus-forces.yml` (Donnerstag 06:00 UTC plus `workflow_dispatch`): Clone MDT → `tools/sync_mdt_forces.lua` → voller CI-Preflight (stylua, luacheck, syntax, metrics, locale drift, lifetime, Nameplate-Key-Start-Simulator, SavedVariables-Reload-Simulator, Key-Start-Lifecycle-Simulator, usecases) → Commit + Push nach `main`. Ohne Diff im DB-File laeuft der Workflow still durch ohne Commit.
 
@@ -229,7 +232,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.342 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.343 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -285,7 +288,7 @@ Zusaetzlich zum Main-Roster-Frame aus `isiLive_ui_main_frame.lua` kann `isiLive_
 | KillTrack | `C_ScenarioInfo.GetCriteriaInfo` / `GetUnitCriteriaProgressValues`, aktive Challenge-Map, Combat-End- und Refresh-Ticker-Events | Live-Gesamtprozent, Pull-Vorschau, DB-Total-Fallback, sofortiger Combat-End-Commit der letzten Pull-Werte und Datenrefresh vor aktiven UI-/Nameplate-Benachrichtigungen |
 | KickTracker | Spec-ID-Lookup, Spec-Change-Benachrichtigungen und lokaler Kick-State-Sync; Pet-Interrupt-Support fuer Warlock (`Spell Lock` 24s / `Axe Toss` 30s) und Devourer Demon Hunter | Per-Spec-Interrupt-Spell-ID und exakter Cooldown-State; stale Cooldowns werden bei Spec-Wechsel sofort geloescht; wenn Raid-Hard-off lokales Tracking unterdrueckt hat, darf Recovery nur aus exaktem Zustand fortgesetzt werden: exakte Blizzard-Cooldown-Daten, ein neu beobachteter Post-Raid-Kick-Cast oder eine exakte `no kick`-Aufloesung; malformed KICK-Payloads werden fail-closed verworfen; fremde Casts duerfen die Suppression nicht aufheben; hidden Kick-Keep-Alive-Sync fuer normale Gruppen und verifizierte automatische Instanzgruppen, aber kein solo Kick-Polling; Raid-Hard-off unterdrueckt jede Kick-Aktivitaet bis Raid-Ende; der Kick-State wird an den Sync weitergereicht fuer das Kick-Spalten-Rendering im Roster |
 | LeaderWatch | `GROUP_ROSTER_UPDATE` / `PARTY_LEADER_CHANGED` plus gecachter Leader-State | Refresh fuer Leader-only-Buttons, sichtbare Center-Notice bei Promotion und Transfer-Sound-Feedback auch fuer hidden Promotions, sofern der User es nicht deaktiviert |
-| RosterPanel | Roster-Modell und Lokalisierung | Main-Table-Rendering, Rollenordnung aus Gruppenrolle mit verifizierter Inspect-Spezialisierungsrollen-Korrektur, aktive-vor-Ghost-Zeilenordnung unter dem 5-Zeilen-Budget, 16x16-Leader-Krone plus gesyncte Heart-Marker-Reihenfolge, grüne Buff-Rating-Herzchen im Namensfeld aus verifizierter Klasse und passender Spec-ID, dedizierter Ready-Check-Row-Background-Refresh mit Waiting-Sandglass und 20-Sekunden-Hold fuer `ready` sowie fuer explizit/unbeantwortet `notready`, DPS-Spalte, dedizierter Kick-Column-Refresh-Pfad, dirty-on-show-Utility-Rescan nur auf dem ersten sichtbaren Roster-Render und Action-Button-Callbacks |
+| RosterPanel | Roster-Modell und Lokalisierung | Main-Table-Rendering, Rollenordnung aus Gruppenrolle mit verifizierter Inspect-Spezialisierungsrollen-Korrektur, aktive-vor-Ghost-Zeilenordnung unter dem 5-Zeilen-Budget, 16x16-Leader-Krone plus gesyncte Heart-Marker-Reihenfolge, gruene Buff-Rating-Herzchen im Namensfeld aus verifizierter Klasse und passender Spec-ID, dedizierter Ready-Check-Row-Background-Refresh mit farbunabhaengigen Ready-/Not-ready-/Waiting-Symbolen und 20-Sekunden-Hold fuer `ready` sowie fuer explizit/unbeantwortet `notready`, DPS-Spalte, dedizierter Kick-Column-Refresh-Pfad, dirty-on-show-Utility-Rescan nur auf dem ersten sichtbaren Roster-Render und Action-Button-Callbacks |
 | SettingsPanel | Locale-, CVar- und SavedVariable-Getter plus Toggle-Callbacks | Blizzard-Settings-Canvas mit Beta-Hinweis oben, Sprachwaehler, eigenem ESC-Menue-Block, Display-/Behavior-/Nameplate-/Sounds-/Chat-/Administrativ- und abschliessendem VIP-Block, Sound-Toggles inklusive Lead-Transfer, volle Gruppe, eingehende Beschwoerung, vorbereitete Kampfeswiederbelebung, Battle-Res-ready-Klanghinweis, Kampfrausch, Bloodlust-ready-Klanghinweis, Ready-Check-Komplett-Klang sowie getrennte Tank-/Heiler-Death-WAV-Ausgaben, Inline-Preview-Buttons fuer jeden Sound-Cue, deaktivierter nativer Text-to-Speech-Settings-Pfad, `deDE`-spezifische statische WAVs fuer gesprochene Incoming-Summon-/Death-/Ready-Ansagen mit englischem beziehungsweise unveraendertem Default fuer alle anderen Client-Locales, nachbearbeitete Settings-Texte in allen acht gepflegten UI-Locale-Tabellen (andere vorbereitete Locale-Bereiche duerfen englische Fallbacks behalten), Slider fuer UI und Hintergrund, Selektor fuer Default-Open-Layout, optionale Statsbox- und Nameplate-Controls, Gruppensuche-Sprachflaggen, default-aktive Buff-Rating-Herzchen mit untereinander stehenden `media/heart_bonus_green.tga`-Beispielzeilen, default-aus VIP-Bloodlust-Debuff-Button-Warnung, administrative Blizzard-CVar-Spiegel fuer Combat Logging und Damage-Meter-Reset sowie temporaere Unterdrueckung von Legacy-Settings |
 | TeleportUI | Season-Teleport-Eintraege und State | Insecure-Action-Teleport-Button-State, deterministische Season-Slot-Platzierung, locale-aware `M+`-Short-Code-Overlays im ready-Zustand, visuelles Highlight ohne Portal-Sound bei neu verfuegbaren Teleport-Zielen und Cooldown-Labels mit Prioritaet solange Cooldown aktiv ist |
 | CombatEvents | `UNIT_SPELLCAST_SUCCEEDED` fuer `unit == "player"`, aktiver `C_ChallengeMode.GetActiveChallengeMapID()`, BR-/Lust-Spell-ID-Tabellen und `chatAnnounceBR` / `chatAnnounceLust`-Toggles | Self-Cast-Filter gegen 12.0-Secret-Value-Spam anderer Spieler, 3s-Dedup-Fenster pro `sourceGUID\|spellID`, lokaler Chat-Print via `COMBAT_CHAT_BR_USED` / `COMBAT_CHAT_LUST_STARTED` und Addon-Message-Broadcast via `Sync.SendCombatAnnounce` (Payload `BRLUST:<KIND>:<caster>:<spellID>`, Prioritaet `NORMAL`); `Reset()` auf `CHALLENGE_MODE_START` / `CHALLENGE_MODE_COMPLETED` loescht die Dedup-Map |
@@ -293,14 +296,34 @@ Zusaetzlich zum Main-Roster-Frame aus `isiLive_ui_main_frame.lua` kann `isiLive_
 | MobTooltip | `TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, ...)` plus aktiver `C_ChallengeMode`-Map-ID und der geladene `MPlusForces.byNpcId` / `MPlusForces.dungeonTotal`-Index | Eine zusaetzliche Tooltip-Zeile `Forces: %.2f%% (+%d)` fuer Mobs mit passendem `npcID` und `mapID == activeMapID`; `OnTooltipCleared`-Hook verhindert Doppelzeilen bei Tooltip-Rerender; `SetEnabled(false)` gated das Rendering komplett |
 | LFGFlags | Blizzard-LFG-Suchergebnis-/Bewerberzeilen, Roster-Bonusmarker, Locale- und Realm-Sprachdaten, lokale Spielerprofil-Aufloesung | Sprachflaggen fuer Suchergebnisse und Bewerberzeilen, Suchergebnis-Bonusmarker, Bewerber-Bonusmarker rechts neben dem Klassenbadge, Roster-Bonusmarker fuer verifizierte Klassen-/Spec-Daten und Tooltip-Bonuszeilen. `SetGroupBonusesEnabled(false)` leert Cache, unterdrueckt Roster-Marker und leert sichtbare LFG-Marker; die kompakte Bewertung zaehlt nur relevante nicht stapelnde Nicht-Utility-Boni. |
 
+## Polling- und Frame-Lifecycle
+
+- Der Binding-Watchdog besitzt sein Ticker-Handle und stellt explizite Start-/Stop-Operationen bereit.
+- Der Kick-Tracker pollt nur in einer verifizierten normalen Gruppe oder automatischen Instanzgruppe. Hidden-Sync bleibt in diesem Kontext erlaubt; Solo- und Raid-Uebergaenge brechen den Ticker ab.
+- Der CD-Tracker pollt nur bei sichtbarer Main-UI und aktivem Battle-Res-, Bloodlust- oder Ready-Timer-Kontext. Hidden- und inaktive Zustaende behalten nur die bereits erlaubten eventgetriebenen Refreshes.
+- Center-Notice, Teleport-Cooldowntext und Statsbox besitzen `OnUpdate` nur solange das jeweilige Element sichtbar beziehungsweise aktiviert ist.
+- Der Minimap-Button installiert sein `OnUpdate` nur zwischen Drag-Start und Drag-Ende.
+- Die CTL-Wire-Order-Probe nutzt den echten ChatThrottleLib-Pipepfad und ist Bestandteil des lokalen und des GitHub-CI-Preflights.
+
+## Sync- und Persistenz-Vertrauensgrenzen
+
+- `ISILIVE`-State-, Request- und Announce-Payloads werden nur auf `PARTY` oder `INSTANCE_CHAT` verarbeitet. Nur der direkte `ACK:`-Handshake darf per `WHISPER` eintreffen.
+- BR-/Bloodlust- und PI-Announces binden den Payload-Caster an den von Blizzard gelieferten Absender; abweichende Namen bleiben wirkungslos.
+- Numerische Syncfelder werden vor Normalisierung auf endliche, sicher ganzzahlig darstellbare Werte begrenzt. Payloads koennen dadurch weder `NaN`/Unendlichkeit speichern noch Integer-Formatierung zum Abbruch bringen.
+- `DBSchema.Sanitize` verwirft nicht-finite Zahlen und ungueltige Frame-Anker. Reload-Mirror kopieren ebenfalls nur endliche primitive Zahlenwerte und stellen keinen nicht-finiten Zielkontext wieder her.
+- Combat-Fade liest den aktuellen `rosterLayoutMode`; das entfernte Legacy-Feld `defaultLayoutMode` gehoert nicht zur Runtime-Entscheidung.
+
 ## Architektur-Refactoring-Watchlist
 
 Folgende Produktionsmodule sind bewusst nicht im Rahmen kleiner Hygiene-Changes
 zu splitten, weil ihre Ownership-Grenzen erst mit bestehenden Tests
-stabilisiert werden muessen: `ui/isiLive_lfg_flags.lua`, `logic/isiLive_sync.lua`
-und `ui/isiLive_notice.lua`. Splits erfolgen nur entlang klarer Runtime- oder
-UI-Verantwortlichkeiten und mit deterministischen Tests fuer das extrahierte
-Modul.
+stabilisiert werden muessen: `ui/isiLive_lfg_flags.lua`, `logic/isiLive_sync.lua`,
+`ui/isiLive_notice.lua`, `ui/isiLive_ui_game_menu.lua`,
+`game/isiLive_lfg_detect.lua` und `core/isiLive_sound_utils.lua`. Das
+Metrik-Gate gleicht alle Produktionsdateien oberhalb der Warnschwelle direkt
+mit dieser Watchlist ab und schlaegt bei einem fehlenden Eintrag fehl. Splits
+erfolgen nur entlang klarer Runtime- oder UI-Verantwortlichkeiten und mit
+deterministischen Tests fuer das extrahierte Modul.
 
 ## Settings-Layout-Konvention
 

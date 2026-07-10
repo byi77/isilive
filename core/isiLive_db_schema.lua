@@ -29,6 +29,17 @@ addonTable.DBSchema = DBSchema
 
 -- Bump every time MIGRATIONS gains a new step.
 local LATEST_SCHEMA_VERSION = 3
+local FRAME_ANCHOR_POINTS = {
+  "TOPLEFT",
+  "TOP",
+  "TOPRIGHT",
+  "LEFT",
+  "CENTER",
+  "RIGHT",
+  "BOTTOMLEFT",
+  "BOTTOM",
+  "BOTTOMRIGHT",
+}
 
 -- Migrations transform db FROM version (key-1) TO version (key). Only steps
 -- with key > db.__schemaVersion run. Each step is responsible for ONE atomic
@@ -101,8 +112,8 @@ local SCHEMA = {
       return { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 }
     end,
     fields = {
-      point = { type = "string", default = "CENTER" },
-      relativePoint = { type = "string", default = "CENTER" },
+      point = { type = "string", default = "CENTER", enum = FRAME_ANCHOR_POINTS },
+      relativePoint = { type = "string", default = "CENTER", enum = FRAME_ANCHOR_POINTS },
       x = { type = "number", default = 0 },
       y = { type = "number", default = 0 },
     },
@@ -113,8 +124,8 @@ local SCHEMA = {
       return { point = "CENTER", relativePoint = "CENTER", x = 320, y = 120 }
     end,
     fields = {
-      point = { type = "string", default = "CENTER" },
-      relativePoint = { type = "string", default = "CENTER" },
+      point = { type = "string", default = "CENTER", enum = FRAME_ANCHOR_POINTS },
+      relativePoint = { type = "string", default = "CENTER", enum = FRAME_ANCHOR_POINTS },
       x = { type = "number", default = 320 },
       y = { type = "number", default = 120 },
     },
@@ -228,8 +239,8 @@ local SCHEMA = {
       return { point = "CENTER", relativePoint = "CENTER", x = 0, y = 200 }
     end,
     fields = {
-      point = { type = "string", default = "CENTER" },
-      relativePoint = { type = "string", default = "CENTER" },
+      point = { type = "string", default = "CENTER", enum = FRAME_ANCHOR_POINTS },
+      relativePoint = { type = "string", default = "CENTER", enum = FRAME_ANCHOR_POINTS },
       x = { type = "number", default = 0 },
       y = { type = "number", default = 200 },
     },
@@ -326,6 +337,11 @@ local function ValidateField(parent, key, schema, log, path)
 
   -- Step 2: type-specific constraints.
   if schema.type == "number" then
+    if value ~= value or value == math.huge or value == -math.huge then
+      parent[key] = ResolveDefault(schema)
+      log(string.format("reset %s: non-finite number", fullPath))
+      value = parent[key]
+    end
     if schema.min ~= nil and value < schema.min then
       parent[key] = schema.min
       log(string.format("clamped %s from %s to min %s", fullPath, tostring(value), tostring(schema.min)))

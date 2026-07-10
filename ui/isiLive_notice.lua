@@ -648,6 +648,9 @@ end
 local function SetCenterNoticeVisible(state, visible)
   -- Opening/closing must always be possible, even in combat/in-key.
   if visible then
+    if state.centerNoticeOnUpdate then
+      state.frame:SetScript("OnUpdate", state.centerNoticeOnUpdate)
+    end
     if not state.frame:IsShown() then
       -- Center notice position is intentionally non-persistent.
       ResetCenterNoticeToDefaultPosition(state)
@@ -658,6 +661,7 @@ local function SetCenterNoticeVisible(state, visible)
   if state.frame:IsShown() then
     state.frame:Hide()
   end
+  state.frame:SetScript("OnUpdate", nil)
   if state.teleportButton:IsShown() then
     state.teleportButton:Hide()
   end
@@ -696,6 +700,9 @@ local function SetCenterNoticeTeleportButtonVisible(state, visible)
 
   state.pendingTeleportButtonVisible = nil
   if shouldShow then
+    if state.teleportButtonOnUpdate then
+      state.teleportButton:SetScript("OnUpdate", state.teleportButtonOnUpdate)
+    end
     if not state.teleportButton:IsShown() then
       state.teleportButton:Show()
     end
@@ -705,6 +712,7 @@ local function SetCenterNoticeTeleportButtonVisible(state, visible)
   if state.teleportButton:IsShown() then
     state.teleportButton:Hide()
   end
+  state.teleportButton:SetScript("OnUpdate", nil)
 end
 
 local function SetCenterNoticeTeleportButtonMouseEnabled(state, enabled)
@@ -1235,7 +1243,7 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
   -- + formatCooldownSeconds + SetText each time. 0.1s accumulator matches the same
   -- pattern as game/isiLive_mplus_timer.lua.
   state.teleportButton._cooldownTextAccum = 0
-  state.teleportButton:SetScript("OnUpdate", function(self, elapsed)
+  local function UpdateTeleportCooldownText(self, elapsed)
     self._cooldownTextAccum = (self._cooldownTextAccum or 0) + (elapsed or 0)
     if self._cooldownTextAccum < 0.1 then
       return
@@ -1256,7 +1264,18 @@ local function AttachCenterNoticeTeleportButtonScripts(state)
     local L = state.config.getL() or {}
     self.cooldownText:SetText(L.CENTER_NOTICE_PORTAL_READY_LABEL or "Portal")
     self.cooldownText:Show()
+  end
+  state.teleportButtonOnUpdate = UpdateTeleportCooldownText
+  state.teleportButton:SetScript("OnShow", function(self)
+    self:SetScript("OnUpdate", UpdateTeleportCooldownText)
   end)
+  state.teleportButton:SetScript("OnHide", function(self)
+    self:SetScript("OnUpdate", nil)
+    self._cooldownTextAccum = 0
+  end)
+  if state.teleportButton:IsShown() then
+    state.teleportButton:SetScript("OnUpdate", UpdateTeleportCooldownText)
+  end
 
   state.teleportButton:SetScript("OnLeave", function()
     if state.teleportButton.hoverGlow and type(state.teleportButton.hoverGlow.Hide) == "function" then
@@ -1298,28 +1317,25 @@ local function AttachCenterNoticeFrameScripts(state)
     end
   end)
 
-  state.frame:SetScript("OnUpdate", function(_, elapsed)
-    local isShown = state.frame:IsShown()
-    if isShown then
-      if state.isBlinking then
-        state.blinkTime = state.blinkTime + (elapsed or 0)
-        local wave = (math.sin(state.blinkTime * 3) + 1) * 0.5
-        local alpha = 0.65 + (wave * 0.35)
-        state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, alpha)
-      else
-        state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, 1)
-      end
-      if type(state.warningFieldRows) == "table" then
-        state.warningBlinkTime = (state.warningBlinkTime or 0) + (elapsed or 0)
-        local wave = (math.sin(state.warningBlinkTime * 6) + 1) * 0.5
-        local alpha = 0.35 + (wave * 0.65)
-        for _, row in ipairs(state.warningFieldRows) do
-          if row.label then
-            row.label:SetTextColor(FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B, alpha)
-          end
-          if row.value then
-            row.value:SetTextColor(FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B, alpha)
-          end
+  local function UpdateCenterNotice(_, elapsed)
+    if state.isBlinking then
+      state.blinkTime = state.blinkTime + (elapsed or 0)
+      local wave = (math.sin(state.blinkTime * 3) + 1) * 0.5
+      local alpha = 0.65 + (wave * 0.35)
+      state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, alpha)
+    else
+      state.text:SetTextColor(state.baseTextR, state.baseTextG, state.baseTextB, 1)
+    end
+    if type(state.warningFieldRows) == "table" then
+      state.warningBlinkTime = (state.warningBlinkTime or 0) + (elapsed or 0)
+      local wave = (math.sin(state.warningBlinkTime * 6) + 1) * 0.5
+      local alpha = 0.35 + (wave * 0.65)
+      for _, row in ipairs(state.warningFieldRows) do
+        if row.label then
+          row.label:SetTextColor(FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B, alpha)
+        end
+        if row.value then
+          row.value:SetTextColor(FIELD_WARNING_R, FIELD_WARNING_G, FIELD_WARNING_B, alpha)
         end
       end
     end
@@ -1327,7 +1343,17 @@ local function AttachCenterNoticeFrameScripts(state)
     if not state.isPersistent and CurrentTime() >= state.endsAt then
       SetCenterNoticeVisible(state, false)
     end
+  end
+  state.centerNoticeOnUpdate = UpdateCenterNotice
+  state.frame:SetScript("OnShow", function(self)
+    self:SetScript("OnUpdate", UpdateCenterNotice)
   end)
+  state.frame:SetScript("OnHide", function(self)
+    self:SetScript("OnUpdate", nil)
+  end)
+  if state.frame:IsShown() then
+    state.frame:SetScript("OnUpdate", UpdateCenterNotice)
+  end
 end
 
 local function BuildCenterNoticeController(state)

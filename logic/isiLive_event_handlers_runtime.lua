@@ -116,7 +116,11 @@ local TRACKED_NON_CHALLENGE_PARTY_DIFFICULTY_IDS = {
 local NON_CHALLENGE_RUN_CAPTURE_RETRIES = 5
 local NON_CHALLENGE_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
 local function ResolveTrackedMythicZeroMapID()
-  local okInstance, _, _, _, _, _, _, rawInstanceMapID = pcall(GetInstanceInfo)
+  local getInstanceInfo = rawget(_G, "GetInstanceInfo")
+  local okInstance, _, _, _, _, _, _, rawInstanceMapID = false, nil, nil, nil, nil, nil, nil, nil
+  if type(getInstanceInfo) == "function" then
+    okInstance, _, _, _, _, _, _, rawInstanceMapID = pcall(getInstanceInfo)
+  end
   local instanceMapID = okInstance and tonumber(rawInstanceMapID) or nil
   if instanceMapID and instanceMapID > 0 then
     return math.floor(instanceMapID)
@@ -124,10 +128,11 @@ local function ResolveTrackedMythicZeroMapID()
 
   local mapApi = rawget(_G, "C_Map")
   local getBestMapForUnit = mapApi and rawget(mapApi, "GetBestMapForUnit") or nil
-  if type(getBestMapForUnit) ~= "function" or type(UnitExists) ~= "function" then
+  local unitExistsFn = rawget(_G, "UnitExists")
+  if type(getBestMapForUnit) ~= "function" or type(unitExistsFn) ~= "function" then
     return nil
   end
-  local okUnit, unitExists = pcall(UnitExists, "player")
+  local okUnit, unitExists = pcall(unitExistsFn, "player")
   if not (okUnit and unitExists) then
     return nil
   end
@@ -155,7 +160,11 @@ local function GetTrackedMythicZeroState(ctx)
     return false, nil, nil, nil
   end
 
-  local okInstance, instanceName, instanceType, difficultyID = pcall(GetInstanceInfo)
+  local getInstanceInfo = rawget(_G, "GetInstanceInfo")
+  if type(getInstanceInfo) ~= "function" then
+    return false, nil, nil, nil
+  end
+  local okInstance, instanceName, instanceType, difficultyID = pcall(getInstanceInfo)
   -- Legacy helper name: this now tracks all supported non-challenge party dungeons
   -- so last-run DPS also appears after normal and heroic completions.
   if not okInstance or instanceType ~= "party" or not TRACKED_NON_CHALLENGE_PARTY_DIFFICULTY_IDS[difficultyID] then
@@ -380,9 +389,7 @@ local function AnimateMainFrameAlpha(mainFrame, targetAlpha)
 end
 
 local function IsCombatFadeLayout(layoutMode)
-  local RI = addonTable._RosterInternal or {}
-  return layoutMode == (RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or "compact_main_horizontal")
-    or layoutMode == (RI.LAYOUT_MODE_EXPANDED or "expanded")
+  return layoutMode == "compact_main_horizontal" or layoutMode == "expanded"
 end
 
 local function ApplyCombatFade(ctx, targetAlpha)
@@ -390,9 +397,8 @@ local function ApplyCombatFade(ctx, targetAlpha)
   if not db or db.combatFadeMM ~= true then
     return
   end
-  local RI = addonTable._RosterInternal or {}
-  local fallbackLayout = RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or "compact_main_horizontal"
-  local layoutMode = db.defaultLayoutMode or fallbackLayout
+  local fallbackLayout = "compact_main_horizontal"
+  local layoutMode = db.rosterLayoutMode or fallbackLayout
   if not IsCombatFadeLayout(layoutMode) then
     return
   end
@@ -773,6 +779,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.handleLeaderWatchEvent("GROUP_ROSTER_UPDATE")
     ctx.handleLFGDetectEvent("GROUP_ROSTER_UPDATE")
     ctx.handleDeathWatchEvent("GROUP_ROSTER_UPDATE")
+    ctx.handleKickTrackerEvent("GROUP_ROSTER_UPDATE")
     -- Refresh status line after roster settles so the "Ziel-Dungeon: X +Y"
     -- chat announce fires as soon as the group is formed (post-invite-accept),
     -- not only when a peer's key sync arrives later. Skipped in raid mode so

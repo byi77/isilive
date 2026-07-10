@@ -856,6 +856,7 @@ return function(test, ctx)
     local globals, db = BuildGlobals()
     local addon
     local initError
+    local factoryCtx
 
     -- Pre-populate the addon table with the Factory namespace so
     -- LoadAddonModules can layer all isiLive modules into a single table.
@@ -872,7 +873,7 @@ return function(test, ctx)
 
     WithGlobals(globals, function()
       local ok, err = xpcall(function()
-        addon.Factory.InitializeAddon("isiLive", addon)
+        factoryCtx = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
       end, debug.traceback)
       if not ok then
         initError = err
@@ -881,8 +882,8 @@ return function(test, ctx)
 
     Assert.Nil(initError, "InitializeAddon must run without raising: " .. tostring(initError))
 
-    local factoryCtx = addon._factoryCtx
-    Assert.NotNil(factoryCtx, "InitializeAddon must cache the factory context on addon._factoryCtx")
+    Assert.NotNil(factoryCtx, "InitializeAddon must return its initialized runtime composition")
+    Assert.Nil(addon._factoryCtx, "InitializeAddon must not publish its mutable factory context on the addon table")
     Assert.Equal(factoryCtx.addonName, "isiLive", "ctx must carry the addon name")
     Assert.NotNil(factoryCtx.modules, "ctx.modules must be populated by CreateFactoryContext")
     Assert.NotNil(factoryCtx.runtimeState, "ctx.runtimeState must be initialized")
@@ -978,10 +979,11 @@ return function(test, ctx)
       }
 
       local addon
+      local factoryCtx
       WithGlobals(globals, function()
         addon = LoadAddonModules(GetAllIsiLiveFiles())
         local ok, err = xpcall(function()
-          addon.Factory.InitializeAddon("isiLive", addon)
+          factoryCtx = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
         end, debug.traceback)
         Assert.Equal(ok, true, "InitializeAddon must support missing SavedVariables at file-load: " .. tostring(err))
 
@@ -992,7 +994,6 @@ return function(test, ctx)
         )
 
         _G.IsiLiveDB = savedDb
-        local factoryCtx = addon._factoryCtx
         local onEvent = factoryCtx
           and factoryCtx.eventFrame
           and factoryCtx.eventFrame._scripts
@@ -1057,15 +1058,15 @@ return function(test, ctx)
     end
 
     local addon
+    local factoryCtx
     WithGlobals(globals, function()
       addon = LoadAddonModules(GetAllIsiLiveFiles())
       local ok, err = xpcall(function()
-        addon.Factory.InitializeAddon("isiLive", addon)
+        factoryCtx = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
       end, debug.traceback)
       Assert.Equal(ok, true, "InitializeAddon must wire combat announces without raising: " .. tostring(err))
     end)
 
-    local factoryCtx = addon._factoryCtx
     Assert.NotNil(factoryCtx, "factory ctx must exist after init")
     Assert.Equal(
       type(factoryCtx.ShowCombatAnnounce),
@@ -1128,6 +1129,7 @@ return function(test, ctx)
   test("factory composition root: post-init ctx helpers and event flows execute without errors", function()
     local globals, db = BuildGlobals()
     local addon
+    local factoryCtx
     WithGlobals(globals, function()
       addon = LoadAddonModules(GetAllIsiLiveFiles())
     end)
@@ -1147,12 +1149,11 @@ return function(test, ctx)
 
     WithGlobals(globals, function()
       local ok, err = xpcall(function()
-        addon.Factory.InitializeAddon("isiLive", addon)
+        factoryCtx = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
       end, debug.traceback)
       Assert.Equal(ok, true, "InitializeAddon prerequisite must succeed: " .. tostring(err))
     end)
 
-    local factoryCtx = addon._factoryCtx
     Assert.NotNil(factoryCtx)
 
     -- Drive a realistic group-join flow through the real controllers
@@ -1542,6 +1543,7 @@ return function(test, ctx)
     local globals, db = BuildGlobals()
     db.runtimeLogEnabled = true -- enable BEFORE InitializeAddon so FinalizeFactoryRuntime sees it
     local addon
+    local factoryCtx
     WithGlobals(globals, function()
       addon = LoadAddonModules(GetAllIsiLiveFiles())
     end)
@@ -1554,11 +1556,10 @@ return function(test, ctx)
 
     WithGlobals(globals, function()
       local ok, err = xpcall(function()
-        addon.Factory.InitializeAddon("isiLive", addon)
+        factoryCtx = addon.Factory.InitializeAddon("isiLive", addon, { returnContext = true })
       end, debug.traceback)
       Assert.Equal(ok, true, "InitializeAddon must not raise with runtimeLogEnabled=true: " .. tostring(err))
 
-      local factoryCtx = addon._factoryCtx
       Assert.NotNil(factoryCtx, "factory ctx must still be wired")
       -- IsEnabled must reflect the enabled flag we set up front.
       Assert.True(

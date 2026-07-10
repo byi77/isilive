@@ -363,6 +363,12 @@ local function InitializeFactoryFrameBridge(ctx)
     end
   end
 
+  ctx.StopBindingWatchdog = function()
+    if ctx.bindingController and type(ctx.bindingController.StopBindingWatchdog) == "function" then
+      ctx.bindingController.StopBindingWatchdog()
+    end
+  end
+
   ctx.EnsureSoloPlayerRoster = function()
     if IsInGroup() then
       return

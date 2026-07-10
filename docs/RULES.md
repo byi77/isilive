@@ -29,6 +29,7 @@
 - Hilfreiche Uebersetzungs-PRs fuer vorbereitete Locales werden dankend integriert, sofern sie technisch mit den aktuellen UI-/Regelvertraegen kompatibel gemacht werden.
 - Externe Uebersetzungshelfer werden im Changelog dankend erwaehnt.
 - Locale-Tag-zu-Sprachflaggen-Aufloesung muss auf Tooltip-Hotpaths ueber konstante Lookups laufen; kein Lazy-Aufbau durch Iteration der Sprachliste beim Hover.
+- Status darf nicht ausschliesslich durch Farbe vermittelt werden; Ready-Check-Zustaende kombinieren Hintergrundfarbe und eindeutiges Blizzard-Statussymbol.
 
 ## Performance
 - Keine Arbeit in `OnUpdate`, ausser sie ist strikt noetig.

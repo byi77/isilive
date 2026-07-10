@@ -1302,12 +1302,7 @@ return function(test, ctx)
     })
 
     local ticker = FindTicker(state.tickers, 1.0)
-    Assert.NotNil(ticker, "secondary controller init must register the CD tracker ticker")
-    if type(ticker) ~= "table" or type(ticker.callback) ~= "function" then
-      return
-    end
-
-    ticker.callback()
+    Assert.Nil(ticker, "hidden controller init must not register a CD polling ticker")
 
     Assert.Equal(state.cdScans or 0, 0, "hidden CD ticker must not keep polling the CD tracker")
     Assert.Equal(state.cdRefreshes or 0, 0, "hidden CD ticker must not refresh the CD row")
@@ -1330,6 +1325,20 @@ return function(test, ctx)
     Assert.Equal(state.cdRefreshes or 0, 1, "event-driven hidden CD refresh must still pre-render the CD row")
     Assert.Equal(state.readyCheckRefreshes or 0, 1, "event-driven hidden CD refresh must keep ready-check rows current")
     Assert.Equal(state.uiUpdates or 0, 1, "event-driven hidden CD refresh must keep the timer display current")
+  end)
+
+  test("Factory CD polling starts only for visible utility context and cancels when hidden", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mainFrameShown = true,
+      mplusTimerData = { running = true },
+    })
+    local ticker = Assert.NotNil(FindTicker(state.tickers, 1.0), "visible active context must own a CD ticker")
+    state.mainFrameShown = false
+    ticker.callback()
+    Assert.True(ticker.cancelled, "hidden transition must cancel the owned CD ticker")
+    state.mainFrameShown = true
+    state.ctx.RefreshCdTrackerPolling()
+    Assert.True(#state.tickers >= 2, "visible transition must be able to create a fresh CD ticker")
   end)
 
   test("Factory UNIT_AURA CD refresh plays Bloodlust sound only on new aura onset", function()
@@ -1907,11 +1916,10 @@ return function(test, ctx)
     })
 
     local ticker = FindTicker(state.tickers, 0.5)
-    Assert.NotNil(ticker, "secondary controller init must register the kick ticker")
+    Assert.NotNil(ticker, "grouped hidden controller init must register the kick sync ticker")
     if type(ticker) ~= "table" or type(ticker.callback) ~= "function" then
       return
     end
-
     ticker.callback()
 
     Assert.Equal(state.kickScans or 0, 1, "hidden kick ticker must still scan the local kick state")
@@ -1933,17 +1941,26 @@ return function(test, ctx)
     })
 
     local ticker = FindTicker(state.tickers, 0.5)
-    Assert.NotNil(ticker, "secondary controller init must register the kick ticker")
-    if type(ticker) ~= "table" or type(ticker.callback) ~= "function" then
-      return
-    end
-
-    ticker.callback()
+    Assert.Nil(ticker, "solo controller init must not register a kick polling ticker")
 
     Assert.Equal(state.kickScans or 0, 0, "solo kick ticker must not scan local kick state")
     Assert.Equal(#state.sentKick, 0, "solo kick ticker must not send peer sync")
     Assert.Nil(state.lastSetKickInfo, "solo kick ticker must not mutate the local kick sync cache")
     Assert.Equal(state.kickRefreshes or 0, 0, "solo kick ticker must not refresh the visible kick column")
+  end)
+
+  test("Factory kick polling starts on group entry and cancels on solo transition", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mainFrameShown = false,
+      inGroup = false,
+    })
+    Assert.Nil(FindTicker(state.tickers, 0.5), "solo initialization must not create a kick ticker")
+    state.inGroup = true
+    state.ctx.HandleKickTrackerEvent("GROUP_ROSTER_UPDATE")
+    local ticker = Assert.NotNil(FindTicker(state.tickers, 0.5), "group entry must create the kick ticker")
+    state.inGroup = false
+    state.ctx.HandleKickTrackerEvent("GROUP_ROSTER_UPDATE")
+    Assert.True(ticker.cancelled, "solo transition must cancel the owned kick ticker")
   end)
 
   test("Factory hidden kick ticker accepts verified instance groups", function()

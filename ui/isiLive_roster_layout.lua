@@ -4,6 +4,8 @@ addonTable = addonTable or {}
 
 local RI = addonTable._RosterInternal or {}
 addonTable._RosterInternal = RI
+local RosterUI = addonTable.RosterUI or {}
+addonTable.RosterUI = RosterUI
 local UICommon = addonTable.UICommon or {}
 
 local function IsSecretValue(value)
@@ -225,6 +227,7 @@ local function IsCompactLayoutMode(layoutMode)
   return normalized == LAYOUT_MODE_COMPACT_VERTICAL or normalized == LAYOUT_MODE_COMPACT_HORIZONTAL
 end
 RI.IsCompactLayoutMode = IsCompactLayoutMode
+RosterUI.IsCompactLayoutMode = IsCompactLayoutMode
 
 local function IsHorizontalCompactLayoutMode(layoutMode)
   return NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_HORIZONTAL
@@ -532,6 +535,7 @@ local function SetFlatButtonText(btn, text)
   end
 end
 RI.SetFlatButtonText = SetFlatButtonText
+RosterUI.SetFlatButtonText = SetFlatButtonText
 
 local function RefreshButtonDisplayText(btn, text)
   if type(btn) == "table" and type(btn.RefreshDisplayText) == "function" then

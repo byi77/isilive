@@ -82,6 +82,11 @@ local function BuildCtx(overrides)
     mainFrame = overrides.mainFrame or BuildMainFrameStub(),
     eventFrame = overrides.eventFrame or BuildEventFrameStub(),
     onEvent = overrides.onEvent or function() end,
+    groupControllerContext = overrides.groupControllerContext or { kind = "groupContext" },
+    eventHandlersContext = overrides.eventHandlersContext or { kind = "eventContext" },
+    leaderWatchContext = overrides.leaderWatchContext or { kind = "leaderContext" },
+    slashCommandsContext = overrides.slashCommandsContext or { kind = "slashContext" },
+    gateContext = overrides.gateContext or { kind = "gateContext" },
   }
   if overrides.scrub then
     for _, key in ipairs(overrides.scrub) do
@@ -107,7 +112,16 @@ return function(test, ctx)
     WithGlobals({}, function()
       result = addon.RuntimeSetup.Configure(c)
     end)
-    Assert.Equal(c.groupController.id, "group-ctrl", "group controller must be attached to ctx")
+    Assert.Equal(
+      c.eventHandlersContext.groupController.id,
+      "group-ctrl",
+      "group controller must be attached only to the event-handler context"
+    )
+    Assert.Equal(
+      c.eventHandlersContext.leaderWatchController,
+      c.leaderWatchContext ~= nil and c.eventHandlersContext.leaderWatchController or nil,
+      "leader-watch controller must be attached to the event-handler context"
+    )
     Assert.Equal(calls.leaderStart, 1, "leader watch controller must be started exactly once")
     Assert.Equal(calls.slashRegistered, true, "slash commands must be registered via bootstrap")
     Assert.Equal(c.mainFrame.scriptType, "OnEvent", "mainFrame OnEvent script must be wired")
@@ -129,6 +143,24 @@ return function(test, ctx)
     end)
     Assert.Equal(ok, false, "nil ctx must fail")
     Assert.Equal(type(err) == "string" and err:find("ctx", 1, true) ~= nil, true)
+  end)
+
+  test("RuntimeSetup.Configure rejects missing named dependency contexts", function()
+    for _, key in ipairs({
+      "groupControllerContext",
+      "eventHandlersContext",
+      "leaderWatchContext",
+      "slashCommandsContext",
+      "gateContext",
+    }) do
+      local c = BuildCtx({ scrub = { key } })
+      local ok, err
+      WithGlobals({}, function()
+        ok, err = pcall(Load().RuntimeSetup.Configure, c)
+      end)
+      Assert.False(ok, key .. " must be required")
+      Assert.True(type(err) == "string" and err:find(key, 1, true) ~= nil, key .. " error must be explicit")
+    end
   end)
 
   test("RuntimeSetup.Configure raises when controllerWiring is missing", function()

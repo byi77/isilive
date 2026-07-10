@@ -102,6 +102,13 @@ function Bindings.CreateController(opts)
     end)
   end
 
+  local function StopBindingWatchdog()
+    if bindingWatchTicker and type(bindingWatchTicker.Cancel) == "function" then
+      bindingWatchTicker:Cancel()
+    end
+    bindingWatchTicker = nil
+  end
+
   local controller = {}
 
   function controller.ApplyHotkeyBindings()
@@ -110,6 +117,10 @@ function Bindings.CreateController(opts)
 
   function controller.StartBindingWatchdog()
     StartBindingWatchdog()
+  end
+
+  function controller.StopBindingWatchdog()
+    StopBindingWatchdog()
   end
 
   function controller.GetPendingBindingApply()

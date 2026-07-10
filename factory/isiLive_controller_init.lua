@@ -5,13 +5,13 @@ addonTable = addonTable or {}
 local ControllerInit = {}
 addonTable.ControllerInit = ControllerInit
 
--- The drag grip is shown for every layout mode EXCEPT the compact ones
--- (vertical / horizontal). Route the predicate through _RosterInternal so the
--- magic strings live in exactly one place (isiLive_roster_layout.lua).
+-- The drag grip is shown for every layout mode EXCEPT the compact ones.
+-- Consume the explicit public UI facade; implementation registries remain
+-- private to the roster UI layer.
 local function ShouldShowDragGrip(layoutMode)
-  local RI = addonTable._RosterInternal
-  if type(RI) == "table" and type(RI.IsCompactLayoutMode) == "function" then
-    return not RI.IsCompactLayoutMode(layoutMode)
+  local rosterUI = addonTable.RosterUI
+  if type(rosterUI) == "table" and type(rosterUI.IsCompactLayoutMode) == "function" then
+    return not rosterUI.IsCompactLayoutMode(layoutMode)
   end
   -- Fallback for load-order edge cases: hard-coded recognition of the two
   -- compact modes. Matches the legacy literal-string check this helper
