@@ -64,8 +64,12 @@ function RuntimeLog.CreateController(opts)
   local lastRawTime = nil
   local watchFn = nil
 
+  local function GetStorage()
+    return logBuffer.Normalize(EnsureStorage(), maxEntries)
+  end
+
   function controller.EnsureStorage()
-    return EnsureStorage()
+    return GetStorage()
   end
 
   function controller.SetEnabled(enabled)
@@ -121,7 +125,7 @@ function RuntimeLog.CreateController(opts)
     lastRawTime = now or lastRawTime
     local entry =
       string.format("seq=%d t=%s%s %s", sequence, tostring(getTimestamp()), deltaStr, NormalizeRuntimeMessage(message))
-    logBuffer.Append(EnsureStorage(), "", entry, maxEntries)
+    logBuffer.Append(GetStorage(), "", entry, maxEntries)
     if watchFn then
       watchFn(entry)
     end
@@ -201,8 +205,8 @@ function RuntimeLog.CreateController(opts)
     if not filterText then
       return controller.GetLogTail(clampedLimit)
     end
-    local fetchCount = math.min(maxEntries, 500)
-    local all = logBuffer.GetTail(EnsureStorage(), fetchCount, fetchCount, fetchCount)
+    local fetchCount = maxEntries
+    local all = logBuffer.GetTail(GetStorage(), fetchCount, fetchCount, fetchCount)
     local filtered = {}
     for _, line in ipairs(all) do
       if tostring(line):upper():find(filterText, 1, true) then
@@ -219,7 +223,7 @@ function RuntimeLog.CreateController(opts)
 
   function controller.ClearLog()
     local wipeFn = rawget(_G, "wipe")
-    local storage = EnsureStorage()
+    local storage = GetStorage()
     if type(wipeFn) == "function" then
       wipeFn(storage)
     else
@@ -232,11 +236,11 @@ function RuntimeLog.CreateController(opts)
   end
 
   function controller.GetLogCount()
-    return logBuffer.Count(EnsureStorage())
+    return logBuffer.Count(GetStorage())
   end
 
   function controller.GetLogTail(limit)
-    return logBuffer.GetTail(EnsureStorage(), limit, 20, 100)
+    return logBuffer.GetTail(GetStorage(), limit, 20, 100)
   end
 
   return controller

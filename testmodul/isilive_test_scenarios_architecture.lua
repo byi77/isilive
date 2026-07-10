@@ -668,6 +668,13 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     )
   end)
 
+  test("Architecture runtime log factory keeps the documented 800 entry cap", function()
+    local content = ReadFile("factory/isiLive_factory_frame_bridge.lua")
+
+    AssertContains(Assert, content, "maxEntries = 800", "runtime log factory must enforce the documented cap")
+    AssertNotContains(Assert, content, "maxEntries = 10000", "runtime log factory must not restore the oversized cap")
+  end)
+
   test("Architecture pkgmeta excludes WARTUNG maintenance doc from release package", function()
     local content = ReadFile(".pkgmeta")
 
@@ -2114,12 +2121,51 @@ local function RegisterArchitectureNoticeTypographyTests(test, Assert)
 end
 
 local function RegisterArchitectureWorkflowTests(test, Assert)
+  test("Architecture external workflow actions use immutable SHA pins with version comments", function()
+    local workflowFiles = {
+      ".github/workflows/inspect-mplus-season-preview.yml",
+      ".github/workflows/lua-check.yml",
+      ".github/workflows/pre-release.yml",
+      ".github/workflows/release.yml",
+      ".github/workflows/season-intake.yml",
+      ".github/workflows/season-readiness.yml",
+      ".github/workflows/sync-mplus-forces.yml",
+      ".github/workflows/sync-mplus-timepace.yml",
+    }
+
+    for _, workflowFile in ipairs(workflowFiles) do
+      local content = ReadFile(workflowFile)
+      for line in content:gmatch("[^\r\n]+") do
+        local actionRef = line:match("uses:%s+([^%s]+)")
+        if actionRef and actionRef:sub(1, 2) ~= "./" then
+          local sha = actionRef:match("@([0-9a-f]+)$")
+          Assert.True(
+            sha ~= nil and #sha == 40,
+            workflowFile .. " external action must use a full 40-character commit SHA: " .. actionRef
+          )
+          Assert.True(
+            line:match("#%s+v%d+") ~= nil,
+            workflowFile .. " SHA pin must retain its human-readable major version comment"
+          )
+        end
+      end
+    end
+
+    local dependabot = ReadFile(".github/dependabot.yml")
+    AssertContains(
+      Assert,
+      dependabot,
+      'package-ecosystem: "github-actions"',
+      "Dependabot must keep immutable GitHub Action pins maintainable"
+    )
+  end)
+
   test("Architecture release workflows use checkout v5", function()
     local releaseContent = ReadFile(".github/workflows/release.yml")
     local preReleaseContent = ReadFile(".github/workflows/pre-release.yml")
 
-    AssertContains(Assert, releaseContent, "actions/checkout@v5", "release workflow must use checkout v5")
-    AssertContains(Assert, preReleaseContent, "actions/checkout@v5", "pre-release workflow must use checkout v5")
+    AssertContains(Assert, releaseContent, "# v5", "release workflow must document checkout v5")
+    AssertContains(Assert, preReleaseContent, "# v5", "pre-release workflow must document checkout v5")
     AssertNotContains(Assert, releaseContent, "actions/checkout@v4", "release workflow must not retain checkout v4")
     AssertNotContains(
       Assert,
@@ -2410,7 +2456,7 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     AssertContains(
       Assert,
       readinessWorkflow,
-      "actions/upload-artifact@v5",
+      "actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5",
       "season readiness workflow must upload its report as an artifact"
     )
     AssertContains(
@@ -2437,7 +2483,7 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     AssertContains(
       Assert,
       previewWorkflow,
-      "actions/upload-artifact@v5",
+      "actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5",
       "MDT preview workflow must upload its report as an artifact"
     )
     AssertContains(
@@ -2455,7 +2501,7 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     AssertContains(
       Assert,
       previewWorkflow,
-      "actions/github-script@v8",
+      "actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8",
       "MDT preview workflow must create or update a GitHub issue when candidates are found"
     )
     AssertContains(
@@ -2494,7 +2540,7 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     AssertContains(
       Assert,
       intakeWorkflow,
-      "actions/upload-artifact@v5",
+      "actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5",
       "season intake workflow must upload its report as an artifact"
     )
     AssertNotContains(Assert, intakeWorkflow, "git commit", "season intake workflow must not commit data")

@@ -54,6 +54,20 @@ local function RegisterLogBufferDirectTests(test, Assert, LoadAddonModules)
     Assert.Equal(logs._head, 1, "NormalizeRing must reset invalid _head to 1")
   end)
 
+  test("LogBuffer Normalize compacts an oversized rotated ring to newest entries", function()
+    local addon = LoadAddonModules({ "isiLive_log_buffer.lua" })
+    local logs = { "a", "b", "c", "d", "e", _count = 5, _head = 3 }
+
+    addon.LogBuffer.Normalize(logs, 3)
+
+    Assert.Equal(#logs, 3, "normalization must physically remove entries beyond the new cap")
+    Assert.Equal(logs._count, 3, "normalization must rewrite count to the new cap")
+    Assert.Equal(logs._head, 1, "normalization must compact the ring to a stable head")
+    Assert.Equal(logs[1], "e", "normalization must retain the oldest of the three newest entries")
+    Assert.Equal(logs[2], "a", "normalization must preserve rotated chronological order")
+    Assert.Equal(logs[3], "b", "normalization must retain the newest entry")
+  end)
+
   test("LogBuffer Append after corruption recovery uses normalized state", function()
     local addon = LoadAddonModules({ "isiLive_log_buffer.lua" })
     local logs = { "a", "b", "c", _count = -5, _head = 0 }
@@ -123,6 +137,27 @@ return function(test, ctx)
       Assert.Equal(#tail, 2, "runtime log must keep only maxEntries newest entries")
       Assert.True(tail[1]:find("two", 1, true) ~= nil, "oldest retained entry should be second message")
       Assert.True(tail[2]:find("three", 1, true) ~= nil, "newest retained entry should be third message")
+    end)
+  end)
+
+  test("Runtime log controller normalizes persisted oversized storage to max entries", function()
+    WithGlobals({
+      IsiLiveDB = {
+        runtimeLog = { "one", "two", "three", "four", "five", _count = 5, _head = 1 },
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_log_buffer.lua", "isiLive_runtime_log.lua" })
+      local controller = addon.RuntimeLog.CreateController({
+        getTimestamp = function()
+          return "t"
+        end,
+        maxEntries = 3,
+      })
+
+      local storage = controller.EnsureStorage()
+      Assert.Equal(#storage, 3, "startup normalization must physically shrink persisted oversized logs")
+      Assert.Equal(storage[1], "three", "startup normalization must keep the newest retained window")
+      Assert.Equal(storage[3], "five", "startup normalization must retain the newest persisted entry")
     end)
   end)
 
@@ -648,6 +683,28 @@ return function(test, ctx)
       Assert.Equal(total, 3, "filter must count every matching entry in storage")
       Assert.Equal(#tail, 2, "clampedLimit must cap returned slice")
       Assert.True(tail[2]:find("event=three") ~= nil, "tail must end at the newest matching entry")
+    end)
+  end)
+
+  test("Runtime log filtered tail searches the complete retained ring", function()
+    WithGlobals({ IsiLiveDB = {} }, function()
+      local addon = LoadAddonModules({ "isiLive_log_buffer.lua", "isiLive_runtime_log.lua" })
+      local controller = addon.RuntimeLog.CreateController({
+        getTimestamp = function()
+          return "t"
+        end,
+        maxEntries = 800,
+      })
+      controller.SetEnabled(true)
+      controller.Log("[EARLY] event=retained")
+      for i = 1, 600 do
+        controller.Log("[NOISE] event=" .. tostring(i))
+      end
+
+      local tail, total = controller.GetLogTailFiltered(20, "[EARLY]")
+      Assert.Equal(total, 1, "filter must search every retained ring entry, not only the newest 500")
+      Assert.Equal(#tail, 1, "the retained early match must remain visible")
+      Assert.True(tail[1]:find("event=retained", 1, true) ~= nil, "filtered result must contain the early match")
     end)
   end)
 

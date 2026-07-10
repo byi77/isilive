@@ -18,10 +18,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Setup Lua
-        uses: leafo/gh-actions-lua@v12
+        uses: leafo/gh-actions-lua@8c9e175e7a3d77e21f809eefbee34a19b858641b # v12
         with:
           luaVersion: "5.1"
 
@@ -40,7 +40,7 @@ jobs:
 
       - name: Open or update season intake issue
         if: always()
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require("fs");
@@ -90,7 +90,7 @@ jobs:
 
       - name: Upload season intake artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: season-intake-status
           path: tools/cache/season_intake/

@@ -23,6 +23,8 @@ local SEASON_TO_MDT_DIR = {
   midnight_s1 = "Midnight",
 }
 local LIFETIME_DAYS = 15
+local MAX_DUNGEON_SOURCE_BYTES = 8 * 1024 * 1024
+local MAX_DUNGEON_INSTRUCTIONS = 1000000
 
 local function parseArgs(argv)
   local args = { season = SEASON_DEFAULT, mdt = "tools/cache/mdt", out = "data/isiLive_mplus_forces.lua" }
@@ -70,22 +72,59 @@ local function buildSandbox()
 end
 
 local function loadDungeonFile(path, MDT)
-  local env = setmetatable({ MDT = MDT }, { __index = _G })
+  local file, readErr = io.open(path, "rb")
+  if not file then
+    return false, readErr
+  end
+  local source = file:read("*a")
+  file:close()
+  if type(source) ~= "string" then
+    return false, "source is unreadable"
+  end
+  if #source > MAX_DUNGEON_SOURCE_BYTES then
+    return false, string.format("source exceeds %d byte limit", MAX_DUNGEON_SOURCE_BYTES)
+  end
+  if source:byte(1) == 27 then
+    return false, "Lua bytecode is not accepted"
+  end
+
+  -- MDT dungeon data is third-party input. Current source files require only
+  -- the injected MDT table plus ipairs; never inherit _G because this tool can
+  -- run in an automated workflow with repository write permission.
+  local env = { MDT = MDT, ipairs = ipairs }
   local chunk, err
   if setfenv then
-    -- Lua 5.1 ignores the mode/env parameters of loadfile; apply env via setfenv.
-    chunk, err = loadfile(path)
+    chunk, err = loadstring(source, "@" .. path)
     if not chunk then
       return false, err
     end
     setfenv(chunk, env)
   else
-    chunk, err = loadfile(path, "t", env)
+    chunk, err = load(source, "@" .. path, "t", env)
     if not chunk then
       return false, err
     end
   end
+
+  local debugLib = rawget(_G, "debug")
+  local canLimitInstructions = type(debugLib) == "table"
+    and type(debugLib.sethook) == "function"
+    and type(debugLib.gethook) == "function"
+  local previousHook, previousMask, previousCount
+  if canLimitInstructions then
+    previousHook, previousMask, previousCount = debugLib.gethook()
+    debugLib.sethook(function()
+      error("MDT dungeon source exceeded instruction limit")
+    end, "", MAX_DUNGEON_INSTRUCTIONS)
+  end
   local ok, runErr = pcall(chunk, "isiLive-sync")
+  if canLimitInstructions then
+    if previousHook then
+      debugLib.sethook(previousHook, previousMask or "", previousCount or 0)
+    else
+      debugLib.sethook()
+    end
+  end
   if not ok then
     return false, runErr
   end
@@ -312,6 +351,13 @@ local function main(argv)
   outFile:close()
 
   print(string.format("[sync_mdt_forces] wrote %s (expires %s)", args.out, isoDate(LIFETIME_DAYS)))
+end
+
+if ... == "module" then
+  return {
+    BuildSandbox = buildSandbox,
+    LoadDungeonFile = loadDungeonFile,
+  }
 end
 
 main(arg)

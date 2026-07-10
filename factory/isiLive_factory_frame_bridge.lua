@@ -135,7 +135,7 @@ local function CreateFactoryContext(addonName, tbl)
   end
 
   ctx.runtimeLogController = modules.runtimeLog.CreateController({
-    maxEntries = 10000,
+    maxEntries = 800,
     buildSessionHeader = function()
       local db = rawget(_G, "IsiLiveDB")
       return string.format(
@@ -143,7 +143,7 @@ local function CreateFactoryContext(addonName, tbl)
         tostring(ctx.GetAddonVersionRaw and ctx.GetAddonVersionRaw() or "unknown"),
         tostring(db and db.locale or ctx.locale or "unknown"),
         tostring(db and db.runtimeLogLevel or "normal"),
-        "10000"
+        "800"
       )
     end,
   })

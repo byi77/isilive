@@ -4,6 +4,16 @@
 
 ## 2026-07-10 - Version 0.9.343 (patch)
 
+- Pinned every external GitHub Action to an immutable full commit SHA, added
+  weekly Dependabot maintenance for those pins, and kept readable major-version
+  comments beside each reference.
+- Sandboxed freshly cloned MDT dungeon sources during Forces generation: the
+  loader no longer inherits `_G`, rejects bytecode and oversized files, and
+  enforces an instruction limit before a write-capable workflow can consume the
+  generated data.
+- Restored the documented 800-entry runtime-log cap, compacted oversized legacy
+  rings to their newest entries, and made filtered diagnostics search the full
+  retained ring instead of silently ignoring entries older than 500 lines.
 - Added Blizzard ready, not-ready, and waiting icons to roster Ready Check rows,
   including the 20-second result hold, so status is no longer communicated by
   background color alone.

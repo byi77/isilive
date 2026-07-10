@@ -86,5 +86,10 @@
 - `README.md`, wenn user-visible Verhalten, Commands oder Installation geaendert wurden
 - `isiLive.toc` Version nur bei ausdruecklichem User-Kommando
 
+## Supply Chain
+
+- Externe GitHub Actions werden auf vollstaendige Commit-SHAs gepinnt; der lesbare Major-Tag bleibt als Kommentar erhalten und Dependabot pflegt die Pins.
+- Fremde, frisch geklonte Lua-Datenquellen duerfen in schreibenden Workflows keinen Zugriff auf `_G`, Datei-/Prozessfunktionen oder unbeschraenkte Ausfuehrung erhalten.
+
 ## Offene Punkte
 - Hier koennen projektspezifische Regeln ergaenzt werden.

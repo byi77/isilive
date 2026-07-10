@@ -44,6 +44,7 @@ TOC-Strukturtests abgedeckt.
 13. Bekannte Grossmodule bleiben als Refactoring-Watchlist dokumentiert und duerfen nicht still aus der Architektur verschwinden.
 14. Logic- und Factory-Module konsumieren keine private Roster-UI-Registry, sondern nur explizite oeffentliche UI-Fassaden.
 15. Der mutierbare Factory-Kompositionskontext wird nicht auf der Addon-Tabelle publiziert.
+16. Der MDT-Forces-Generator verarbeitet fremde Dungeonquellen nur in einer globalfreien, groessen- und instruktionsbegrenzten Sandbox.
 
 ## Regelbloecke
 
@@ -113,8 +114,9 @@ TOC-Strukturtests abgedeckt.
 ### RULE-ARCH-CI-WRAPPER-PARITAET
 - Regelnummer: 10
 - Status: aktiv
-- Zusammenfassung: Der lokale CI-Preflight muss die GitHub-Lua-Check-Gates spiegeln; die lokalen Wrapper bleiben reine Delegationsschichten und duerfen keine eigene Parallel- oder Sonderlogik einfuehren. Stable- und Pre-Release-Workflows verwenden dieselbe aktuelle Major-Version der Checkout-Action wie die uebrigen gepflegten Workflows.
+- Zusammenfassung: Der lokale CI-Preflight muss die GitHub-Lua-Check-Gates spiegeln; die lokalen Wrapper bleiben reine Delegationsschichten und duerfen keine eigene Parallel- oder Sonderlogik einfuehren. Alle externen GitHub Actions werden unveraenderlich auf einen vollstaendigen 40-stelligen Commit-SHA gepinnt, behalten den lesbaren Major-Tag als Kommentar und werden ueber Dependabot fuer `github-actions` gepflegt. Stable- und Pre-Release-Workflows verwenden denselben verifizierten Checkout-v5-SHA wie die uebrigen gepflegten Workflows.
 - Erforderliche Tests:
+  - Architecture external workflow actions use immutable SHA pins with version comments
   - Architecture release workflows use checkout v5
   - Architecture GitHub Lua Check workflow keeps CI validation steps wired
   - Architecture local CI preflight mirrors the GitHub Lua Check workflow
@@ -159,3 +161,10 @@ TOC-Strukturtests abgedeckt.
 - Zusammenfassung: `Factory.InitializeAddon` darf den mutierbaren Factory-Kompositionskontext weder auf der Addon-Tabelle publizieren noch im normalen Produktionspfad zurueckgeben. Nur deterministische Kompositionstests duerfen die interne Test-Introspection explizit anfordern.
 - Erforderliche Tests:
   - Architecture factory does not publish mutable composition context
+
+### RULE-ARCH-MDT-QUELLEN-SANDBOX
+- Regelnummer: 16
+- Status: aktiv
+- Zusammenfassung: `tools/sync_mdt_forces.lua` darf fremde MDT-Dungeonquellen weder ueber `loadfile` mit geerbtem `_G` noch mit Zugriff auf `os`, `io`, `debug`, `require` oder andere Umgebungsfunktionen ausfuehren. Zulaessig sind nur der injizierte MDT-Datencontainer und `ipairs`; Bytecode, Quellen oberhalb des Groessenlimits und Ausfuehrungen oberhalb des Instruktionslimits werden geschlossen abgelehnt. Ein fuer das Instruktionslimit temporaer ersetzter Host-Debug-Hook muss danach einschliesslich Maske und Zaehler wiederhergestellt werden, damit Coverage- oder andere Instrumentierung nicht verloren geht.
+- Erforderliche Tests:
+  - MDT forces sync executes dungeon data without ambient globals

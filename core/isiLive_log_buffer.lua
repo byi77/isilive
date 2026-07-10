@@ -22,10 +22,23 @@ end
 local function NormalizeRing(logs, cap)
   local count = tonumber(logs._count)
   local head = tonumber(logs._head)
-  if count and head and count >= 0 and head >= 1 and head <= cap then
-    if count > cap then
-      count = cap
-      logs._count = count
+  local oldCap = #logs
+  if count and head and count >= 0 and count <= oldCap and head >= 1 and head <= math.max(1, oldCap) then
+    if oldCap > cap or count > cap or head > cap then
+      local keep = math.min(count, cap)
+      local compacted = {}
+      for offset = count - keep, count - 1 do
+        compacted[#compacted + 1] = logs[RingIndex(head, offset, oldCap)]
+      end
+      for i = 1, oldCap do
+        logs[i] = nil
+      end
+      for i = 1, keep do
+        logs[i] = compacted[i]
+      end
+      logs._count = keep
+      logs._head = 1
+      return keep, 1
     end
     return count, head
   end
@@ -50,6 +63,13 @@ local function NormalizeRing(logs, cap)
   logs._count = keep
   logs._head = 1
   return keep, 1
+end
+
+function LogBuffer.Normalize(logs, maxEntries)
+  assert(type(logs) == "table", "isiLive: LogBuffer.Normalize requires logs table")
+  local cap = math.max(1, math.floor(tonumber(maxEntries) or #logs))
+  NormalizeRing(logs, cap)
+  return logs
 end
 
 function LogBuffer.EnsureSavedTable(key)

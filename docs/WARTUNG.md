@@ -224,6 +224,8 @@ Pruefen:
 - `.github/workflows/sync-mplus-forces.yml`
 
 Aktueller Soll-Zustand:
+- Der geplante Forces-Workflow darf die frisch geklonten MDT-Dungeondateien nicht mit einem `_G`-Fallback laden. `tools/sync_mdt_forces.lua` stellt nur `MDT` und `ipairs` bereit, lehnt Bytecode und Quellen oberhalb von 8 MiB ab und bricht eine Quelle nach einer Million Instruktionen ab.
+- Externe Actions in allen Workflows tragen einen vollstaendigen Commit-SHA plus lesbaren Major-Kommentar. `.github/dependabot.yml` pflegt diese Pins woechentlich; bewegliche `@vN`-Referenzen duerfen nicht direkt zurueckkehren.
 - Registrierung laeuft ueber `TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, ...)`. Fehlen dieser APIs = Feature bleibt still inaktiv.
 - Die Forces-Zeile wird nur gerendert, wenn `C_ChallengeMode.GetActiveChallengeMapID()` eine aktive Map meldet und die NPC-Map-ID aus dem Datensatz damit uebereinstimmt.
 - `OnTooltipCleared`-Hook verhindert Doppelzeilen auf `TooltipDataProcessor`-Rerender.
@@ -367,6 +369,8 @@ Wenn du hier wieder Fremdspieler persistierst, baust du wieder unbounded Wachstu
 - `stats.playerLastRunByCharacter` ≤ 5000 (per-character Run-Stats)
 - `runtimeLog` ≤ 800 (LogBuffer-Ring, schon vorher)
 - `queueDebugLog` ≤ 400 (LogBuffer-Ring, schon vorher)
+
+Beim Laden beziehungsweise ersten Diagnosezugriff verdichtet `RuntimeLog` alte uebergrosse oder mit einem frueheren Cap rotierte Ringe physisch auf die neuesten 800 Eintraege. Gefilterte Tails durchsuchen alle 800 behaltenen Eintraege; ein internes 500er-Suchfenster darf nicht wieder eingefuehrt werden.
 
 Realistische User sollten diese Caps nie erreichen. Wenn doch, surfaced der Trim einen echten Bug upstream (infinite append in einer Schleife) und haelt die SavedVariables-Datei unter ~3MB statt sie auf Gigabyte-Skala wachsen zu lassen. Jede Trim-Aktion wird via `[DBSCHEMA] trimmed ...` geloggt.
 

@@ -332,7 +332,9 @@ bonus hearts, death alert, ready-check sound, and sound preview.
 Administrative commands shown by `/isilive admin` include the full preview mode,
 runtime / queue / Lua error logs, teleport, season (`/isilive s2d`),
 Hearthstone toy, nameplate diagnostics, and binding checks. They are
-intentionally kept out of the normal help list.
+intentionally kept out of the normal help list. Runtime-log capture starts
+disabled each session; retained diagnostics are capped at 800 entries, and
+filtered tails search the complete retained buffer.
 
 ## Settings
 
@@ -346,7 +348,7 @@ Open via **Escape → AddOns → isiLive**. Everything takes effect immediately.
 - **Nameplates** — enable forces overlay, font size, position, percent toggle
 - **Sounds** — lead transfer, full group, ready-check complete, incoming summon, Battle Res, Battle Res Ready, Bloodlust, Bloodlust Ready, and tank/healer death alert; all isiLive alerts use bundled sound assets, the selected sound channel, and one-second protection against immediate identical repeats
 - **Chat Announcements** — announce Battle Res / announce Bloodlust
-- **Administrative** — Advanced Combat Logging, Blizzard Damage Meter reset, queue debug log, runtime log (both reset on reload, for support), plus dedicated **Clear Queue Debug Log** / **Clear Runtime Log** buttons and reset actions
+- **Administrative** — Advanced Combat Logging, Blizzard Damage Meter reset, queue debug log, runtime log (capture toggles reset on reload while capped support logs remain available), plus dedicated **Clear Queue Debug Log** / **Clear Runtime Log** buttons and reset actions
 - **VIP Guest Settings** — mount sound mute toggles for Astral Aurochs, Grand Expedition Yak, and Trader's Gilded Brutosaur, a default-off Bloodlust button debuff warning for verified BL class and pet buttons, then a separated DK block with Soul Reaper / Putrefy warnings, Riders horse sound mute, and a movable localized missing-ghoul reminder
 
 ### Languages and translations

@@ -109,6 +109,52 @@ return function(test, ctx)
     )
   end)
 
+  test("MDT forces sync executes dungeon data without ambient globals", function()
+    local tool = LoadTool("tools/sync_mdt_forces.lua")
+    local root = "tools/cache/test_mdt_sandbox"
+    EnsureDir(root)
+    local safePath = root .. (IsWindows() and "\\Safe.lua" or "/Safe.lua")
+    local unsafePath = root .. (IsWindows() and "\\Unsafe.lua" or "/Unsafe.lua")
+    WriteFile(
+      safePath,
+      [[local addonName = ...
+local dungeonIndex = 1
+for _, zone in ipairs({ 10, 20 }) do
+  MDT.zoneIdToDungeonIdx[zone] = dungeonIndex
+end
+MDT.mapInfo[dungeonIndex] = { mapID = 42, englishName = addonName }
+MDT.dungeonTotalCount[dungeonIndex] = { normal = 100 }
+MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5, name = "Safe" } }
+]]
+    )
+    WriteFile(unsafePath, [[os.execute("must-not-run")]])
+
+    local sandbox = tool.BuildSandbox()
+    local debugLib = rawget(_G, "debug")
+    local previousHook, previousMask, previousCount = debugLib.gethook()
+    local sentinelHook = function() end
+    debugLib.sethook(sentinelHook, "", 1000000)
+    local safeOk, safeErr = tool.LoadDungeonFile(safePath, sandbox)
+    local restoredHook, restoredMask, restoredCount = debugLib.gethook()
+    if previousHook then
+      debugLib.sethook(previousHook, previousMask or "", previousCount or 0)
+    else
+      debugLib.sethook()
+    end
+    Assert.True(safeOk, "declarative MDT data must load in the restricted environment: " .. tostring(safeErr))
+    Assert.Equal(sandbox.mapInfo[1].mapID, 42, "safe data must populate the injected MDT table")
+    Assert.Equal(restoredHook, sentinelHook, "sandbox execution must restore an existing instrumentation hook")
+    Assert.Equal(restoredMask, "", "sandbox execution must restore the instrumentation hook mask")
+    Assert.Equal(restoredCount, 1000000, "sandbox execution must restore the instrumentation hook count")
+
+    local unsafeOk, unsafeErr = tool.LoadDungeonFile(unsafePath, sandbox)
+    Assert.False(unsafeOk, "third-party MDT data must not reach ambient os functions")
+    Assert.True(
+      tostring(unsafeErr):find("global 'os'", 1, true) ~= nil,
+      "sandbox rejection must identify the unavailable ambient global"
+    )
+  end)
+
   test("Season intake check accepts current planned dungeon intake progress", function()
     local tool = LoadTool("tools/check_season_intake.lua")
     local ok, result = tool.Check()
