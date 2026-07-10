@@ -828,6 +828,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UI main frame lock button toggles the drag lock state
   - Commands lock and unlock update main frame lock state
   - Commands resetui restores main frame defaults
+  - ControllerWiring event handlers resolve main frame from mainUI fallback
 
 ### RULE-RUNTIME-LOG-TRACE-DIAGNOSE
 - Regelnummer: 56

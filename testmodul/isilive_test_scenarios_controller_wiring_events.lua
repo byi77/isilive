@@ -281,6 +281,24 @@ return function(test, ctx)
     Assert.Equal(result, "handled", "sync module's return value must propagate to the caller")
   end)
 
+  test("ControllerWiring event handlers resolve main frame from mainUI fallback", function()
+    local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" })
+    local module, getCaptured = CaptureEventModule()
+    local deps = BuildMinimalEventDeps()
+    deps.refs.mainFrame = nil
+    deps.refs.mainUI.frame = {
+      IsShown = function()
+        return true
+      end,
+    }
+
+    addon.ControllerWiring.CreateEventHandlersController(module, deps)
+    local config = getCaptured()
+
+    Assert.Equal(config.getMainFrame(), deps.refs.mainUI.frame, "getMainFrame must fall back to mainUI.frame")
+    Assert.Equal(config.isMainFrameShown(), true, "isMainFrameShown must use the fallback frame without crashing")
+  end)
+
   test("ControllerWiring sendShareKeysCooldownState mirrors only the locally owned cooldown", function()
     local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" })
     local module, getCaptured = CaptureEventModule()

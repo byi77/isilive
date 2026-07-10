@@ -238,6 +238,16 @@ function ControllerWiring.CreateGroupControllerFromContext(groupModule, ctx)
 end
 
 local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, callbacks)
+  local function GetMainFrame()
+    if refs.mainFrame then
+      return refs.mainFrame
+    end
+    if refs.mainUI and refs.mainUI.frame then
+      return refs.mainUI.frame
+    end
+    return nil
+  end
+
   return {
     addonName = assert(deps.addonName, "isiLive: ControllerWiring requires addonName"),
     isRosterCollapsed = deps.isRosterCollapsed,
@@ -325,9 +335,7 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
       or function(_enabled) end,
     logRuntimeTrace = type(deps.logRuntimeTrace) == "function" and deps.logRuntimeTrace or function(_message) end,
     logRuntimeTracef = type(deps.logRuntimeTracef) == "function" and deps.logRuntimeTracef or function(_formatText) end,
-    getMainFrame = function()
-      return refs.mainFrame
-    end,
+    getMainFrame = GetMainFrame,
     registerIsiLiveSyncPrefix = RequireFunction(deps.registerIsiLiveSyncPrefix, "registerIsiLiveSyncPrefix"),
     applyHotkeyBindings = RequireFunction(deps.applyHotkeyBindings, "applyHotkeyBindings"),
     startBindingWatchdog = RequireFunction(deps.startBindingWatchdog, "startBindingWatchdog"),
@@ -415,7 +423,8 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
     end
   end
   config.isMainFrameShown = function()
-    return refs.mainFrame:IsShown()
+    local mainFrame = type(config.getMainFrame) == "function" and config.getMainFrame() or nil
+    return mainFrame and type(mainFrame.IsShown) == "function" and mainFrame:IsShown() == true
   end
   config.onInspectReady = function(guid)
     if not controllers.inspect then
