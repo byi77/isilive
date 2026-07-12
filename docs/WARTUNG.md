@@ -150,6 +150,9 @@ Kritisch:
 Aktueller Stand:
 - `midnight_s1` ist die aktive Runtime-Season.
 - `midnight_s2` ist nur als vorbereitetes Scaffold vorhanden und darf nicht aktiv geschaltet werden, solange technische IDs oder Forces-Daten fehlen.
+- PTR-Intake vom `2026-07-12`: alle acht Mythic+-LFG-Activity-IDs und der Portalspell fuer Rubinlebensbecken sind verifiziert; alle acht ChallengeMapIDs, sieben Portalspells und die M+-Forces-Daten bleiben unresolved.
+- Die Portalraum-Belegung fuer `midnight_s2` ist dokumentiert, aber nicht aktiviert: ganz links leer, halb links Koenigsruh, oben Rubinlebensbecken, halb rechts Tempel von Sethraliss, ganz rechts leer.
+- `midnight_s1` bleibt aktiv, bis der User die Umstellung ausdruecklich manuell ausfuehrt.
 
 Wenn eine neue Season startet:
 - neue Season als vollstaendigen Datensatz eintragen

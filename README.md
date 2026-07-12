@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.0.7+ Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%2B%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.343](https://img.shields.io/badge/isiLive-0.9.343-1E90FF?style=for-the-badge)
+![isiLive 0.9.344](https://img.shields.io/badge/isiLive-0.9.344-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -13,7 +13,7 @@
 
 **Active season:** `midnight_s1` with 8 supported dungeons: `WRS`, `MT`, `NPX`, `MC`, `AA`, `POS`, `SOT`, `SR`
 
-**Prepared season:** `midnight_s2` is scaffolded but inactive until Blizzard map IDs, LFG activity IDs, portal spell IDs, and Mythic+ forces data are verified.
+**Prepared season:** `midnight_s2` remains inactive. PTR intake has verified all eight Mythic+ LFG activity IDs and the Ruby Life Pools portal spell; all eight ChallengeMapIDs, seven portal spells, and Mythic+ forces data remain unresolved. Season 1 stays active until the explicit manual switch.
 
 **Setup:** install, join a 5-player group, and the window opens automatically.
 

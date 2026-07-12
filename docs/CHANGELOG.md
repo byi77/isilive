@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 2026-07-12 - Version 0.9.344 (patch)
+
+- Recorded verified PTR Mythic+ LFG activity IDs for all eight prepared Midnight
+  Season 2 dungeons and the verified Ruby Life Pools portal spell in the
+  fail-closed Season Intake.
+- Captured observed outside and inside instance context for the available PTR
+  dungeons without promoting LFG, instance, or player-best map IDs to unresolved
+  ChallengeMapIDs.
+- Documented the future Season 2 portal-room layout while keeping
+  `midnight_s1` active until the explicit manual season switch.
+- Expanded deterministic Season Intake coverage for all eight LFG activity IDs,
+  the Ruby Life Pools portal, and the current `0/8 verified, 8/8 partial` gate.
+
 ## 2026-07-10 - Version 0.9.343 (patch)
 
 - Pinned every external GitHub Action to an immutable full commit SHA, added

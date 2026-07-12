@@ -161,16 +161,42 @@ MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5, name = "Safe" } }
 
     Assert.True(ok, "live season intake file should be structurally valid")
     Assert.True(
-      result.summary:find("- Dungeon progress: 0/8 verified, 1 partial, 2 candidate, 5 unresolved", 1, true) ~= nil,
+      result.summary:find("- Dungeon progress: 0/8 verified, 8 partial, 0 candidate, 0 unresolved", 1, true) ~= nil,
       "season intake summary must expose current intake progress"
     )
     Assert.True(
-      result.summary:find("| Altar of Fangs | unresolved | unresolved | unresolved | unresolved |", 1, true) ~= nil,
-      "season intake summary must include each planned dungeon"
+      result.summary:find("| Altar of Fangs | unresolved | unresolved | 1933 | partial |", 1, true) ~= nil,
+      "season intake summary must include the verified Altar of Fangs Mythic+ activity"
     )
     Assert.True(
-      result.summary:find("| Ruby Life Pools | unresolved | 393256 | unresolved | partial |", 1, true) ~= nil,
-      "season intake summary must include the verified Ruby Life Pools portal spell"
+      result.summary:find("| Ruby Life Pools | unresolved | 393256 | 1176 | partial |", 1, true) ~= nil,
+      "season intake summary must include the verified Ruby Life Pools Mythic+ LFG activity"
+    )
+    Assert.True(
+      result.summary:find("| King's Rest | unresolved | unresolved | 514 | partial |", 1, true) ~= nil,
+      "season intake summary must include the verified King's Rest Mythic+ activity"
+    )
+    Assert.True(
+      result.summary:find("| Temple of Sethraliss | unresolved | unresolved | 504 | partial |", 1, true)
+        ~= nil,
+      "season intake summary must include the verified Temple of Sethraliss Mythic+ activity"
+    )
+    Assert.True(
+      result.summary:find("| Murder Row | unresolved | unresolved | 1950 | partial |", 1, true) ~= nil,
+      "season intake summary must include the verified Murder Row Mythic+ activity"
+    )
+    Assert.True(
+      result.summary:find("| Den of Nalorakk | unresolved | unresolved | 1952 | partial |", 1, true) ~= nil,
+      "season intake summary must include the verified Den of Nalorakk Mythic+ activity"
+    )
+    Assert.True(
+      result.summary:find("| The Blinding Vale | unresolved | unresolved | 1949 | partial |", 1, true)
+        ~= nil,
+      "season intake summary must include the verified The Blinding Vale Mythic+ activity"
+    )
+    Assert.True(
+      result.summary:find("| Voidscar Arena | unresolved | unresolved | 1951 | partial |", 1, true) ~= nil,
+      "season intake summary must include the verified Voidscar Arena Mythic+ activity"
     )
   end)
 

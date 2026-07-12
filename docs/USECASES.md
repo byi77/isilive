@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.343`
+Versionsbasis: `0.9.344`
 Zuletzt aktualisiert: `2026-07-10`
 
 ## Akteure
@@ -12,7 +12,7 @@ Zuletzt aktualisiert: `2026-07-10`
 ## Voraussetzungen
 
 1. Das Addon ist geladen und nicht im Zustand `stopped`.
-2. Das Season-Dataset wird ueber `ACTIVE_SEASON_ID` ausgewaehlt; aktuell `midnight_s1` mit dem live 8-Dungeon-Midnight-Season-1-Portalpool. `midnight_s2` ist nur als vorbereitetes Scaffold vorhanden und bleibt inaktiv, bis Map-IDs, Portal-Spell-IDs, LFG-Activity-IDs und M+-Forces-Daten verifiziert sind.
+2. Das Season-Dataset wird ueber `ACTIVE_SEASON_ID` ausgewaehlt; aktuell `midnight_s1` mit dem live 8-Dungeon-Midnight-Season-1-Portalpool. `midnight_s2` ist nur als vorbereitetes Scaffold vorhanden und bleibt inaktiv. Im PTR-Intake sind alle acht Mythic+-LFG-Activity-IDs und der Portalspell fuer Rubinlebensbecken verifiziert; alle acht ChallengeMapIDs, sieben Portalspells und die M+-Forces-Daten bleiben unresolved. Die Aktivierung erfolgt erst durch die ausdrueckliche manuelle Umstellung des Users.
 3. Die relevante UI ist fuer Queue-Scanning und Rendering sichtbar; waehrend hidden duerfen Addon-Message-Sync und Roster-Updates im Hintergrund weiterlaufen, die UI darf durch frischen Gruppenjoin, Key-Ende, echten Dungeon-Entry-Transition-Flow oder UI-Reload waehrend bestehender Gruppe auto-openen, und explizite Refresh-Requests duerfen genau eine hidden Sync-Reply triggern, auch waehrend eines aktiven Mythic+-Runs; derselbe Refresh-Pfad darf zusaetzlich genau eine `LibKS`-Party-Anfrage an kompatible Nicht-`isiLive`-Peers senden. Der dedizierte Kick-Heartbeat bleibt hidden nur fuer verifizierte normale Gruppen oder automatische Instanzgruppen aktiv; solo darf er nicht scannen oder senden. Wenn LFGDetect bereits einen konkreten lokalen Map-Kontext kennt, gewinnt dieser fuer das Portal-Highlight gegen peer-synced Zielkontext. Nur stopped oder paused unterdruecken die hidden `isiLive`-Reply.
 4. Nicht-`isiLive`-Spieler koennen nur dann `Key` und `RIO` beitragen, wenn auf ihrer Seite ein kompatibles `LibKeystone`-sprechendes Addon laeuft; ohne sendenden Addon-Code bleiben diese Daten unresolved.
 5. Raid-Gruppen sind ein eigener Hard-off-Zustand: UI aus und Background-Processing aus; eine vor dem Raid sichtbare Main-UI wird beim Rueckweg aus dem Raid wieder geoeffnet.
