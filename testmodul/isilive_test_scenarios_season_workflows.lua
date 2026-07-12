@@ -177,8 +177,7 @@ MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5, name = "Safe" } }
       "season intake summary must include the verified King's Rest Mythic+ activity"
     )
     Assert.True(
-      result.summary:find("| Temple of Sethraliss | unresolved | unresolved | 504 | partial |", 1, true)
-        ~= nil,
+      result.summary:find("| Temple of Sethraliss | unresolved | unresolved | 504 | partial |", 1, true) ~= nil,
       "season intake summary must include the verified Temple of Sethraliss Mythic+ activity"
     )
     Assert.True(
@@ -190,8 +189,7 @@ MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5, name = "Safe" } }
       "season intake summary must include the verified Den of Nalorakk Mythic+ activity"
     )
     Assert.True(
-      result.summary:find("| The Blinding Vale | unresolved | unresolved | 1949 | partial |", 1, true)
-        ~= nil,
+      result.summary:find("| The Blinding Vale | unresolved | unresolved | 1949 | partial |", 1, true) ~= nil,
       "season intake summary must include the verified The Blinding Vale Mythic+ activity"
     )
     Assert.True(
