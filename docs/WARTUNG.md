@@ -149,22 +149,27 @@ Kritisch:
 
 Aktueller Stand:
 - `midnight_s1` ist die aktive Runtime-Season.
-- `midnight_s2` ist nur als vorbereitetes Scaffold vorhanden und darf nicht aktiv geschaltet werden, solange technische IDs oder Forces-Daten fehlen.
-- PTR-Intake vom `2026-07-12`: alle acht Mythic+-LFG-Activity-IDs und der Portalspell fuer Rubinlebensbecken sind verifiziert; alle acht ChallengeMapIDs, sieben Portalspells und die M+-Forces-Daten bleiben unresolved.
+- `midnight_s2` ist als vorbereitetes Dataset mit verifizierten Portal-/Challenge-Mappings und vollstaendigen Darstellungsdaten vorhanden. Die Aktivierung erfolgt manuell und darf nicht von MDT-Forces abhaengen.
+- Freigabe-Intake vom `2026-07-13`: alle acht ChallengeMapIDs, castbaren PortalSpellIDs, Mythic+-LFG-Activity-IDs und Darstellungsdaten sind gepflegt. Die abweichenden `128977x`-Instant-Spells sind keine Portal-Cast-IDs. Nur die optionale S2-MDT-Forces-DB fehlt; `midnight_s1` bleibt bis zur bewussten manuellen Umstellung aktiv.
 - Die Portalraum-Belegung fuer `midnight_s2` ist dokumentiert, aber nicht aktiviert: ganz links leer, halb links Koenigsruh, oben Rubinlebensbecken, halb rechts Tempel von Sethraliss, ganz rechts leer.
-- `midnight_s1` bleibt aktiv, bis der User die Umstellung ausdruecklich manuell ausfuehrt.
+- `midnight_s2.autoDetectFromChallengeMaps=false`; Login und `CHALLENGE_MODE_MAPS_UPDATE` duerfen S2 nicht aktivieren. Der User stellt S2 manuell um.
 
 Wenn eine neue Season startet:
-- neue Season als vollstaendigen Datensatz eintragen
-- erst dann `ACTIVE_SEASON_ID` umstellen
-- keine halbfertige Season live schalten
+- neue Season als vollstaendigen Datensatz eintragen und die automatische Auswahl explizit erlauben oder verbieten
+- Forces-DB getrennt pflegen und nur bei exaktem Match zur aktiven Season an Runtime-Verbraucher ausgeben
+- bei `midnight_s2` die manuelle Aktivierungsentscheidung beibehalten
+- keine halbfertige Season live schalten und kein Datum als Umschaltquelle verwenden
 
 Fuer Midnight Season 2 muessen vor Aktivierung verifiziert werden:
-- Challenge-Map-IDs fuer alle acht Dungeons
-- Portal-Spell-IDs fuer alle acht Dungeons
-- LFG-Activity-IDs fuer Mythic+-Listings
+- Challenge-Map-IDs fuer alle acht Dungeons (erledigt 2026-07-13)
+- Portal-Spell-IDs fuer alle acht Dungeons (erledigt 2026-07-13)
+- `displayOrder`, englische/deutsche Namen und alle Default-/deDE-Kurzcodes (erledigt 2026-07-13; Reihenfolge aufsteigend nach Map-ID)
+- eine zu `midnight_s2` passende Forces-DB mit allen acht Dungeon-Gesamtwerten und NPC-Daten fuer die spaetere Freischaltung der optionalen Mob-Anzeigen; kein Aktivierungsblocker
+
+Forces-Quelle fuer S2 ist der offizielle MythicDungeonTools-Quellstand. Stand `2026-07-13` / MDT `6.1.20` ist er noch nicht verwendbar: Im `Midnight`-Ordner existiert fuer S2 nur ein unvollstaendiges `MurderRow.lua`-Geruest mit `mapID = 12345 -- FIXME`, waehrend die sieben weiteren S2-Dungeon-Dateien fehlen. S2 kann trotzdem manuell aktiv sein. `SeasonData.GetMatchingForcesData()` liefert in diesem Zustand fuer die weiterhin gebuendelte S1-DB `nil`; Nameplate-Mobprozente, Mob-Tooltips und MDT-Total-Fallback bleiben unsichtbar, waehrend Blizzard-Scenario-Gesamtfortschritt weiterlaeuft.
+- LFG-Activity-IDs fuer Mythic+-Listings (erledigt 2026-07-12)
 - MDT-/Forces-Daten inklusive Dungeon-Gesamtwerten und NPC-Zaehlern
-- Lokalisierte Dungeonnamen und stabile Kurz-Codes fuer mindestens `enUS` und `deDE`
+- Lokalisierte Dungeonnamen und stabile Kurz-Codes fuer `enUS`/Default und `deDE` (erledigt 2026-07-13)
 
 Bis zur Aktivierung werden verifizierte oder teilweise verifizierte Funde in `docs/SEASON_INTAKE.md` gesammelt. Jede konkrete ID braucht `Source` und `VerifiedAt`; fehlende Werte bleiben `unresolved`. `tools/check_season_intake.lua` validiert die Struktur lokal, in CI und ueber den taeglichen Workflow `.github/workflows/season-intake.yml`, der ein GitHub Issue mit dem aktuellen Intake-Stand aktualisiert.
 
@@ -282,7 +287,7 @@ Pruefen:
 - `tools/check_mplus_db_lifetime.lua` (Lifetime-Gate in CI)
 - `.github/workflows/sync-mplus-forces.yml` (wochenweiser Auto-Refresh)
 - `.github/workflows/season-readiness.yml` (taeglicher Readiness-Report ohne Schreibrechte)
-- `.github/workflows/inspect-mplus-season-preview.yml` (woechentlicher MDT-Kandidatenreport ohne Schreibrechte)
+- `.github/workflows/inspect-mplus-season-preview.yml` (taeglicher MDT-Forces-Verfuegbarkeitsreport mit stabilem Issue bei strukturell nutzbaren Quellen)
 - `.github/workflows/season-intake.yml` (taeglicher Intake-Status mit Issue-Update)
 
 Aktueller Soll-Zustand:
@@ -291,7 +296,7 @@ Aktueller Soll-Zustand:
 - `expiresAt` ist `generatedAt + 15 Tage`. Das Lifetime-Gate blockiert jeden Release mit abgelaufenem DB-File; Override ausschliesslich ueber `ISILIVE_ALLOW_STALE_MPLUS_DB=1`.
 - Der Generator schreibt Single-Space-Key-Format (`season = %q,`), damit StyLua den regenerierten Datensatz akzeptiert.
 - Der Season-Readiness-Workflow fuehrt `tools/inspect_season_readiness.lua` aus, berichtet aktive/vorbereitete Seasons, Readiness-Fehler und den Abgleich zwischen aktiver Season und Forces-DB als Summary/Artifact und committet nichts.
-- Der M+-Season-Preview-Workflow klont MDT, fuehrt `tools/inspect_mdt_season_preview.lua` fuer die angefragte Season aus und listet nur textuelle Kandidaten zu `plannedDungeons`; wenn Kandidaten gefunden werden, erstellt oder aktualisiert er ein GitHub Issue fuer die manuelle Pruefung. MapIDs, Portal-SpellIDs, LFG-ActivityIDs und Forces-Daten bleiben unresolved, bis sie verifiziert sind.
+- Der M+-Season-Preview-Workflow klont MDT taeglich und fuehrt `tools/inspect_mdt_season_preview.lua` fuer die angefragte Season aus. Ein stabiles GitHub Issue wird erst erstellt oder wieder geoeffnet, wenn alle acht Dungeons als ausfuehrbare Datensaetze mit exakt passender Map-ID, positivem normalem Dungeon-Gesamtwert und mindestens einem positiven NPC-Forces-Eintrag strukturell nutzbar sind. Der Inspector prueft nach ungueltigen Texttreffern weitere Dateien. Das Signal beweist nicht, dass upstream bereits jeden beabsichtigten NPC enthaelt; die generierte Runtime-DB bleibt separat zu validieren. Locale-/Moduldateien und Platzhalter wie `mapID = 12345` erzeugen keinen Alarm. Das Issue wird seitenuebergreifend anhand seines Markers gefunden, damit geschlossene Issues nicht dupliziert werden.
 
 Typische Ursachen fuer Brueche:
 - MDT aendert die Struktur von `dungeonEnemies` / `dungeonTotalCount` / `mapInfo` → `sync_mdt_forces.lua` anpassen, lokal per `lua tools/sync_mdt_forces.lua` gegen einen frischen `tools/cache/mdt`-Clone testen.

@@ -417,6 +417,29 @@ local function RegisterDbTotalAndMapIdTests(test, Assert, WithGlobals, LoadAddon
     end)
   end)
 
+  test("KillTrack keeps Blizzard progress but ignores a Forces DB from another season", function()
+    local env = BuildKillTrackEnv({ scenario = { quantity = 50, total = 450, mapID = 588 } })
+    WithGlobals(env.globals, function()
+      local addon = LoadAddonModules({ "isiLive_killtrack.lua" }, {
+        SeasonData = {
+          GetMatchingForcesData = function()
+            return nil
+          end,
+        },
+        MPlusForces = {
+          season = "midnight_s1",
+          dungeonTotal = { [588] = { total = 999 } },
+          byNpcId = {},
+        },
+      })
+      addon.KillTrack._DispatchEvent("CHALLENGE_MODE_START")
+      local data = addon.KillTrack.GetData()
+      Assert.True(data.active, "Blizzard progress must remain active without matching MDT data")
+      Assert.Equal(data.total, 450, "Blizzard total must remain visible")
+      Assert.True(math.abs(data.percent - (50 / 450) * 100) < 0.01, "Blizzard progress must remain correct")
+    end)
+  end)
+
   test("KillTrack debug logger fires once on API/DB total drift, then suppresses repeats", function()
     local env = BuildKillTrackEnv({ scenario = { quantity = 50, total = 450, mapID = 559 } })
     local driftMessages = {}

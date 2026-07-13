@@ -13,7 +13,7 @@
 
 **Active season:** `midnight_s1` with 8 supported dungeons: `WRS`, `MT`, `NPX`, `MC`, `AA`, `POS`, `SOT`, `SR`
 
-**Prepared season:** `midnight_s2` remains inactive. PTR intake has verified all eight Mythic+ LFG activity IDs and the Ruby Life Pools portal spell; all eight ChallengeMapIDs, seven portal spells, and Mythic+ forces data remain unresolved. Season 1 stays active until the explicit manual switch.
+**Prepared season:** `midnight_s2` remains inactive. All eight ChallengeMapIDs, castable portal spell IDs, Mythic+ LFG activity IDs, localized display names, short codes, and the map-ID display order are recorded. Automatic S2 selection is disabled; Season 2 will be activated manually even if its optional MDT forces database is not available yet. Until a matching S2 database ships, Blizzard's overall dungeon progress remains visible while MDT-dependent mob percentages and tooltip lines stay hidden.
 
 **Setup:** install, join a 5-player group, and the window opens automatically.
 

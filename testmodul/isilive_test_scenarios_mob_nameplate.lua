@@ -1261,6 +1261,32 @@ end
 -- fallback, BuildText showPercent=false guard, the GetNameplate-returns-nil
 -- hide path, the not-in-challenge hide path, and SetEnabled(false) cleanup.
 local function RegisterBranchCoverageTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("MobNameplate hides MDT and API mob percentages when the active season has no matching Forces DB", function()
+    local globals = BuildEnv({
+      mapID = 588,
+      units = { nameplate1 = { guid = "Creature-0-3889-588-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = MakeFrame() },
+      progressValues = { nameplate1 = { count = 5, total = 100, percent = "5.00" } },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules, {
+        SeasonData = {
+          GetMatchingForcesData = function()
+            return nil
+          end,
+        },
+        MPlusForces = {
+          season = "midnight_s1",
+          byNpcId = { [76132] = { mapID = 588, count = 5 } },
+          dungeonTotal = { [588] = { total = 100 } },
+        },
+      })
+      addon.MobNameplate.SetEnabled(true)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+      Assert.Nil(addon.MobNameplate._Test_GetFrames().nameplate1, "mismatched Forces must create no overlay")
+    end)
+  end)
+
   test("MobNameplate ResolveMobContributionFromDB returns percent from MDT-synced DB and overrides the API", function()
     local globals = BuildEnv({
       mapID = 161,

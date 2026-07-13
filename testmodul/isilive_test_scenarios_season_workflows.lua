@@ -50,8 +50,8 @@ return function(test, ctx)
       "season readiness inspect must report the persisted active season"
     )
     Assert.True(
-      summary:find("| midnight_s2 | Midnight Season 2 | no | 0 | 0 | mapToTeleport is empty | - |", 1, true) ~= nil,
-      "season readiness inspect must leave incomplete prepared season data unresolved"
+      summary:find("| midnight_s2 | Midnight Season 2 | yes | 8 | 0 | - | - |", 1, true) ~= nil,
+      "season readiness inspect must allow manual S2 activation without optional Forces data"
     )
     Assert.True(
       summary:find("- Matches active season: yes", 1, true) ~= nil,
@@ -71,9 +71,14 @@ return function(test, ctx)
       "MDT preview inspect must report the requested season"
     )
     Assert.True(
-      summary:find("| Altar of Fangs | unresolved | unresolved |", 1, true) ~= nil,
+      summary:find(
+        "| Altar of Fangs | 588 | unresolved | unresolved | unresolved: candidate file is missing |",
+        1,
+        true
+      ) ~= nil,
       "MDT preview inspect must not fabricate a candidate when no MDT file is available"
     )
+    Assert.True(summary:find("- Forces-ready: no", 1, true) ~= nil, "missing MDT data must fail closed")
   end)
 
   test("MDT season preview lists textual candidates from a cloned MDT tree", function()
@@ -82,7 +87,11 @@ return function(test, ctx)
     EnsureDir(root)
     WriteFile(
       root .. (IsWindows() and "\\DungeonData.lua" or "/DungeonData.lua"),
-      'local dungeonName = "Altar of Fangs"\n'
+      [[local dungeonIndex = 1
+MDT.mapInfo[dungeonIndex] = { mapID = 588, englishName = "Altar of Fangs" }
+MDT.dungeonTotalCount[dungeonIndex] = { normal = 100 }
+MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5, name = "Test Enemy" } }
+]]
     )
     WriteFile(
       root .. (IsWindows() and "\\MythicDungeonTools.toc" or "/MythicDungeonTools.toc"),
@@ -100,12 +109,66 @@ return function(test, ctx)
       "MDT preview must expose a machine-readable candidate count for workflow notifications"
     )
     Assert.True(
-      summary:find("| Altar of Fangs | ", 1, true) ~= nil and summary:find("DungeonData.lua", 1, true) ~= nil,
+      summary:find("| Altar of Fangs | 588 | ", 1, true) ~= nil and summary:find("DungeonData.lua", 1, true) ~= nil,
       "MDT preview must report the candidate file containing the planned dungeon name"
     )
     Assert.True(
-      summary:find('local dungeonName = "Altar of Fangs"', 1, true) ~= nil,
+      summary:find('MDT.mapInfo[dungeonIndex] = { mapID = 588, englishName = "Altar of Fangs" }', 1, true) ~= nil,
       "MDT preview must include the matched source line as inspect context"
+    )
+    Assert.True(
+      summary:find("- Forces-ready dungeons: 1/8", 1, true) ~= nil
+        and summary:find("- Forces-ready: no", 1, true) ~= nil,
+      "MDT preview must not declare the season ready until all eight dungeons are usable"
+    )
+  end)
+
+  test("MDT season preview rejects textual stubs with the wrong map id", function()
+    local tool = LoadTool("tools/inspect_mdt_season_preview.lua")
+    local root = "tools/cache/test_mdt_preview_stub"
+    EnsureDir(root)
+    WriteFile(
+      root .. (IsWindows() and "\\MurderRow.lua" or "/MurderRow.lua"),
+      [[local dungeonIndex = 1
+MDT.mapInfo[dungeonIndex] = { mapID = 12345, englishName = "Murder Row" }
+MDT.dungeonTotalCount[dungeonIndex] = { normal = 100 }
+MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5 } }
+]]
+    )
+
+    local summary = tool.BuildSummary({ seasonID = "midnight_s2", mdtPath = root })
+    Assert.True(
+      summary:find("mapID mismatch: expected 587, got 12345", 1, true) ~= nil,
+      "textual MDT stubs with placeholder map IDs must remain unresolved"
+    )
+    Assert.True(summary:find("- Forces-ready: no", 1, true) ~= nil, "a placeholder map ID must not notify")
+  end)
+
+  test("MDT season preview continues past an invalid textual candidate to a usable dungeon file", function()
+    local tool = LoadTool("tools/inspect_mdt_season_preview.lua")
+    local root = "tools/cache/test_mdt_preview_multiple_candidates"
+    EnsureDir(root)
+    WriteFile(
+      root .. (IsWindows() and "\\A_TextCandidate.lua" or "/A_TextCandidate.lua"),
+      'local label = "Altar of Fangs"\n'
+    )
+    WriteFile(
+      root .. (IsWindows() and "\\B_AltarOfFangs.lua" or "/B_AltarOfFangs.lua"),
+      [[local dungeonIndex = 1
+MDT.mapInfo[dungeonIndex] = { mapID = 588, englishName = "Altar of Fangs" }
+MDT.dungeonTotalCount[dungeonIndex] = { normal = 100 }
+MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5 } }
+]]
+    )
+
+    local summary = tool.BuildSummary({ seasonID = "midnight_s2", mdtPath = root })
+    Assert.True(
+      summary:find("B_AltarOfFangs.lua", 1, true) ~= nil and summary:find("| ready |", 1, true) ~= nil,
+      "a prior non-dungeon text hit must not hide a later structurally usable candidate"
+    )
+    Assert.True(
+      summary:find("- Forces-ready dungeons: 1/8", 1, true) ~= nil,
+      "the usable later candidate must count toward availability"
     )
   end)
 
@@ -161,40 +224,40 @@ MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5, name = "Safe" } }
 
     Assert.True(ok, "live season intake file should be structurally valid")
     Assert.True(
-      result.summary:find("- Dungeon progress: 0/8 verified, 8 partial, 0 candidate, 0 unresolved", 1, true) ~= nil,
+      result.summary:find("- Dungeon progress: 8/8 verified, 0 partial, 0 candidate, 0 unresolved", 1, true) ~= nil,
       "season intake summary must expose current intake progress"
     )
     Assert.True(
-      result.summary:find("| Altar of Fangs | unresolved | unresolved | 1933 | partial |", 1, true) ~= nil,
-      "season intake summary must include the verified Altar of Fangs Mythic+ activity"
+      result.summary:find("| Altar of Fangs | 588 | 1286812 | 1933 | verified |", 1, true) ~= nil,
+      "season intake summary must include the verified Altar of Fangs mapping"
     )
     Assert.True(
-      result.summary:find("| Ruby Life Pools | unresolved | 393256 | 1176 | partial |", 1, true) ~= nil,
-      "season intake summary must include the verified Ruby Life Pools Mythic+ LFG activity"
+      result.summary:find("| Ruby Life Pools | 399 | 393256 | 1176 | verified |", 1, true) ~= nil,
+      "season intake summary must include the verified Ruby Life Pools mapping"
     )
     Assert.True(
-      result.summary:find("| King's Rest | unresolved | unresolved | 514 | partial |", 1, true) ~= nil,
-      "season intake summary must include the verified King's Rest Mythic+ activity"
+      result.summary:find("| King's Rest | 249 | 1286831 | 514 | verified |", 1, true) ~= nil,
+      "season intake summary must include the verified King's Rest mapping"
     )
     Assert.True(
-      result.summary:find("| Temple of Sethraliss | unresolved | unresolved | 504 | partial |", 1, true) ~= nil,
-      "season intake summary must include the verified Temple of Sethraliss Mythic+ activity"
+      result.summary:find("| Temple of Sethraliss | 250 | 1286828 | 504 | verified |", 1, true) ~= nil,
+      "season intake summary must include the verified Temple of Sethraliss mapping"
     )
     Assert.True(
-      result.summary:find("| Murder Row | unresolved | unresolved | 1950 | partial |", 1, true) ~= nil,
-      "season intake summary must include the verified Murder Row Mythic+ activity"
+      result.summary:find("| Murder Row | 587 | 1286809 | 1950 | verified |", 1, true) ~= nil,
+      "season intake summary must include the verified Murder Row mapping"
     )
     Assert.True(
-      result.summary:find("| Den of Nalorakk | unresolved | unresolved | 1952 | partial |", 1, true) ~= nil,
-      "season intake summary must include the verified Den of Nalorakk Mythic+ activity"
+      result.summary:find("| Den of Nalorakk | 586 | 1286807 | 1952 | verified |", 1, true) ~= nil,
+      "season intake summary must include the verified Den of Nalorakk mapping"
     )
     Assert.True(
-      result.summary:find("| The Blinding Vale | unresolved | unresolved | 1949 | partial |", 1, true) ~= nil,
-      "season intake summary must include the verified The Blinding Vale Mythic+ activity"
+      result.summary:find("| The Blinding Vale | 584 | 1286801 | 1949 | verified |", 1, true) ~= nil,
+      "season intake summary must include the verified The Blinding Vale mapping"
     )
     Assert.True(
-      result.summary:find("| Voidscar Arena | unresolved | unresolved | 1951 | partial |", 1, true) ~= nil,
-      "season intake summary must include the verified Voidscar Arena Mythic+ activity"
+      result.summary:find("| Voidscar Arena | 585 | 1286804 | 1951 | verified |", 1, true) ~= nil,
+      "season intake summary must include the verified Voidscar Arena mapping"
     )
   end)
 

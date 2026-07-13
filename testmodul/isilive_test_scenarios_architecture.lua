@@ -2496,19 +2496,27 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       Assert,
       previewWorkflow,
       "issues: write",
-      "MDT preview workflow may write issues so candidate discoveries become visible"
+      "MDT preview workflow may write issues so complete Forces availability becomes visible"
     )
     AssertContains(
       Assert,
       previewWorkflow,
       "actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8",
-      "MDT preview workflow must create or update a GitHub issue when candidates are found"
+      "MDT preview workflow must create or update a GitHub issue when Forces data is complete"
     )
     AssertContains(
       Assert,
       previewWorkflow,
-      "steps.preview.outputs.candidate_count != '0'",
-      "MDT preview workflow must only notify when textual candidates are present"
+      "steps.preview.outputs.forces_ready == 'yes'",
+      "MDT preview workflow must only notify when every configured dungeon has usable Forces data"
+    )
+    AssertContains(Assert, previewWorkflow, 'cron: "30 7 * * *"', "MDT Forces availability must be checked daily")
+    Assert.True(
+      previewWorkflow:find("S2 Forces sources available in MDT for ", 1, true) ~= nil
+        and previewWorkflow:find("github.paginate(github.rest.issues.listForRepo", 1, true) ~= nil
+        and previewWorkflow:find('state: "all"', 1, true) ~= nil
+        and previewWorkflow:find("issue.body.includes(marker)", 1, true) ~= nil,
+      "MDT preview workflow must find and reopen its marker-stable Forces issue across every issue page"
     )
     AssertNotContains(Assert, previewWorkflow, "git commit", "MDT preview workflow must not commit data")
     AssertNotContains(Assert, previewWorkflow, "git push", "MDT preview workflow must not push data")
@@ -3152,6 +3160,30 @@ local function RegisterArchitectureLoadOrderTests(test, Assert)
   end)
 end
 
+local function RegisterArchitectureSeasonSelectionTests(test, Assert)
+  test("Architecture automatic season wiring uses Blizzard map table and rebuilds teleport buttons", function()
+    local wiring = ReadFile("isiLive_controller_wiring.lua")
+    AssertContains(
+      Assert,
+      wiring,
+      'rawget(challengeMode, "GetMapTable")',
+      "automatic season wiring must read Blizzard's challenge-map table through the guarded API cache"
+    )
+    AssertContains(
+      Assert,
+      wiring,
+      "seasonData.TryAutoSelectSeasonFromChallengeMapIDs(mapIDs",
+      "automatic season wiring must delegate exact-set selection to SeasonData"
+    )
+    AssertContains(
+      Assert,
+      wiring,
+      "controllers.teleport.BuildButtons()",
+      "a successful automatic season change must rebuild the teleport buttons"
+    )
+  end)
+end
+
 return function(test, ctx)
   RegisterArchitectureSourceBoundaryTests(test, ctx.assert)
   RegisterArchitectureQueueWiringTests(test, ctx.assert)
@@ -3164,4 +3196,5 @@ return function(test, ctx)
   RegisterArchitectureModuleApiTests(test, ctx.assert, ctx.load_modules)
   RegisterArchitectureGuardsSyncTests(test, ctx.assert)
   RegisterArchitectureLoadOrderTests(test, ctx.assert)
+  RegisterArchitectureSeasonSelectionTests(test, ctx.assert)
 end

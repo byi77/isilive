@@ -71,6 +71,7 @@ local function NewCtx(overrides)
     updateStatusLine = function() end,
     checkIfEnteredTargetDungeon = function() end,
     handleOwnedKeyRefresh = function() end,
+    refreshActiveSeasonFromBlizzard = function() end,
     onInspectReady = function()
       return false
     end,
@@ -412,15 +413,41 @@ return function(test, ctx)
     Assert.Equal(uiCalls, 0, "no change must not trigger a UI refresh")
   end)
 
-  test("CHALLENGE_MODE_MAPS_UPDATE shares the owned-key handler", function()
-    local calls = 0
+  test("Event handlers refresh automatic season selection on login and challenge-map updates", function()
+    local ownedKeyCalls = 0
+    local seasonEvents = {}
     local handlers = LoadHandlers({
       handleOwnedKeyRefresh = function()
-        calls = calls + 1
+        ownedKeyCalls = ownedKeyCalls + 1
+      end,
+      refreshActiveSeasonFromBlizzard = function(eventName)
+        seasonEvents[#seasonEvents + 1] = eventName
       end,
     })
+    handlers.PLAYER_LOGIN(nil)
     handlers.CHALLENGE_MODE_MAPS_UPDATE(nil)
-    Assert.Equal(calls, 1, "shared handler must run for CHALLENGE_MODE_MAPS_UPDATE")
+    Assert.Equal(ownedKeyCalls, 1, "challenge-map update must retain the owned-key refresh")
+    Assert.Equal(seasonEvents[1], "PLAYER_LOGIN", "login must request Blizzard season detection")
+    Assert.Equal(
+      seasonEvents[2],
+      "CHALLENGE_MODE_MAPS_UPDATE",
+      "challenge-map update must retry Blizzard season detection after the cache settles"
+    )
+  end)
+
+  test("Event handlers retry automatic season selection after combat", function()
+    local seasonEvents = {}
+    local handlers = LoadHandlers({
+      refreshActiveSeasonFromBlizzard = function(eventName)
+        seasonEvents[#seasonEvents + 1] = eventName
+      end,
+    })
+    handlers.PLAYER_REGEN_ENABLED(nil)
+    Assert.Equal(
+      seasonEvents[1],
+      "PLAYER_REGEN_ENABLED",
+      "combat-blocked automatic checks must be retried when protected UI mutation is safe"
+    )
   end)
 
   test("CONFIRM_SUMMON plays incoming-summon sound outside raid mode", function()

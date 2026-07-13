@@ -12,3 +12,5 @@ Highlights:
   unverified ChallengeMapID and portal spell explicitly unresolved.
 - Kept Midnight Season 1 active; the prepared Season 2 data is not switched on
   by this release.
+- Prepared manual Season 2 activation independently from optional MDT forces;
+  mismatched forces data stays hidden while Blizzard dungeon progress remains available.

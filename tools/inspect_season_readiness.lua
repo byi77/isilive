@@ -93,6 +93,9 @@ function M.BuildSummary(opts)
     return table.concat(lines, "\n") .. "\n"
   end
 
+  local forcesPath = opts.forcesPath or DEFAULT_FORCES_PATH
+  local forcesOk, forcesErr = LoadAddonFile(forcesPath, addonTable)
+
   lines[#lines + 1] = "- Active season: " .. tostring(seasonData.ACTIVE_SEASON_ID or "unresolved")
   lines[#lines + 1] = ""
   lines[#lines + 1] = "| Season | Label | Ready | Mapped dungeons | Aliases | Errors | Warnings |"
@@ -128,16 +131,13 @@ function M.BuildSummary(opts)
     AppendList(lines, "planned dungeons", type(season) == "table" and season.plannedDungeons or nil)
   end
 
-  local forcesPath = opts.forcesPath or DEFAULT_FORCES_PATH
-  local forcesAddon = {}
-  ok, err = LoadAddonFile(forcesPath, forcesAddon)
   lines[#lines + 1] = ""
   lines[#lines + 1] = "### M+ Forces DB"
-  if not ok then
+  if not forcesOk then
     lines[#lines + 1] = "- Status: unresolved"
-    lines[#lines + 1] = "- Reason: " .. err
+    lines[#lines + 1] = "- Reason: " .. forcesErr
   else
-    local forces = forcesAddon.MPlusForces
+    local forces = addonTable.MPlusForces
     if type(forces) ~= "table" then
       lines[#lines + 1] = "- Status: unresolved"
       lines[#lines + 1] = "- Reason: addonTable.MPlusForces missing"

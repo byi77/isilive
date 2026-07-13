@@ -18,10 +18,10 @@
 ## Season-Rahmen
 - Das Addon ist season-open; aktive Runtime-Season-Daten werden ausschliesslich ueber `SeasonData.ACTIVE_SEASON_ID` gewaehlt.
 - `isiLive_season_data.lua` darf mehrere Seasons enthalten (`active` plus vorbereitete zukuenftige Seasons), aber zur Laufzeit ist immer nur eine Season-ID aktiv.
-- `ACTIVE_SEASON_ID` wird nie umgestellt, bevor die Ziel-Season-Mappings (`mapToTeleport`, `displayOrder`, `shortCodesByLocale`, `challengeMapAliases`) vollstaendig und validiert sind.
+- `ACTIVE_SEASON_ID` wird nur automatisch umgestellt, wenn Blizzards Challenge-Map-Satz exakt zu einer vorbereiteten Season passt, deren Ziel-Season-Mappings (`mapToTeleport`, `displayOrder`, `shortCodesByLocale`, `namesByLocale`, `challengeMapAliases`) vollstaendig validiert sind und deren passende Forces-DB frisch ist.
 - Bei Season-Data-Aenderungen muessen `README.md` und `CHANGELOG.md` die aktive Season-ID und den Vorbereitungsstand der naechsten Season explizit nennen.
-- Aktuelle Planungsbasis: `midnight_s1` ist das aktive Live-Dataset; `midnight_s2` ist nur als vorbereitetes, readiness-blockiertes Scaffold vorhanden.
-- PTR-Stand `2026-07-12`: Fuer `midnight_s2` sind alle acht Mythic+-LFG-Activity-IDs und der Portalspell fuer Rubinlebensbecken verifiziert; alle acht ChallengeMapIDs, sieben Portalspells und die M+-Forces-Daten bleiben unresolved. Die Aktivierung bleibt eine ausdrueckliche manuelle User-Aktion.
+- Aktuelle Planungsbasis: `midnight_s1` ist das aktive Live-Dataset; `midnight_s2` enthaelt die acht freigegebenen ChallengeMapID-zu-PortalSpellID-Mappings und vollstaendige Darstellungsdaten.
+- PTR-/Freigabestand `2026-07-13`: Fuer `midnight_s2` sind alle acht ChallengeMapIDs, castbaren Portalspells, Mythic+-LFG-Activity-IDs und Darstellungsdaten verifiziert. S2 wird durch `autoDetectFromChallengeMaps=false` ausschliesslich manuell aktiviert und darf auch ohne passende MDT-Forces-DB aktiv sein. Bis eine exakt zu S2 passende DB vorliegt, bleiben MDT-abhaengige Mob-Anzeigen geschlossen; Blizzard-Gesamtfortschritt bleibt sichtbar.
 
 ## Lokalisierung
 - Alle user-facing Texte laufen ueber die Lokalisierungstabelle.

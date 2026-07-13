@@ -2,7 +2,7 @@ name: Inspect M+ Season Preview
 
 on:
   schedule:
-    - cron: "30 7 * * 4"
+    - cron: "30 7 * * *"
   workflow_dispatch:
     inputs:
       season:
@@ -42,35 +42,39 @@ jobs:
           lua tools/inspect_mdt_season_preview.lua "--season=${SEASON_ID}" --mdt=tools/cache/mdt > tools/cache/season_preview/mdt-season-preview.md
           cat tools/cache/season_preview/mdt-season-preview.md >> "$GITHUB_STEP_SUMMARY"
           candidate_count="$(sed -n 's/^- Candidate matches: //p' tools/cache/season_preview/mdt-season-preview.md | head -n 1)"
+          forces_ready="$(sed -n 's/^- Forces-ready: //p' tools/cache/season_preview/mdt-season-preview.md | head -n 1)"
           echo "candidate_count=${candidate_count:-0}" >> "$GITHUB_OUTPUT"
+          echo "forces_ready=${forces_ready:-no}" >> "$GITHUB_OUTPUT"
 
-      - name: Open or update preview issue when candidates are found
-        if: steps.preview.outputs.candidate_count != '0'
+      - name: Open or update issue when structurally usable forces sources are available
+        if: steps.preview.outputs.forces_ready == 'yes'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const fs = require("fs");
-            const marker = "<!-- isiLive:mplus-season-preview:" + process.env.SEASON_ID + " -->";
-            const title = "Season Preview: MDT candidates found for " + process.env.SEASON_ID;
+            const marker = "<!-- isiLive:mplus-forces-ready:" + process.env.SEASON_ID + " -->";
+            const title = "S2 Forces sources available in MDT for " + process.env.SEASON_ID;
             const report = fs.readFileSync("tools/cache/season_preview/mdt-season-preview.md", "utf8");
             const body = [
               marker,
               "",
-              "The MDT season preview workflow found textual candidates for `" + process.env.SEASON_ID + "`.",
+              "The daily MDT season preview found structurally usable Forces source data for every configured dungeon in `" + process.env.SEASON_ID + "`.",
               "",
-              "These are inspect candidates only. Do not copy map IDs, portal spell IDs, LFG activity IDs, or forces data until each value is verified from a reliable source.",
+              "This is an availability signal, not proof that upstream contains every intended NPC. The report verifies exact configured map IDs, positive dungeon totals, and at least one positive NPC Forces entry per dungeon. The runtime Forces DB must still be generated and validated in a reviewed repository change.",
               "",
               report,
             ].join("\n");
 
             const { owner, repo } = context.repo;
-            const { data: issues } = await github.rest.issues.listForRepo({
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner,
               repo,
-              state: "open",
+              state: "all",
               per_page: 100,
             });
-            const existing = issues.find((issue) => issue.title === title && !issue.pull_request);
+            const existing = issues.find((issue) =>
+              !issue.pull_request && typeof issue.body === "string" && issue.body.includes(marker)
+            );
 
             if (existing) {
               await github.rest.issues.update({
@@ -78,6 +82,7 @@ jobs:
                 repo,
                 issue_number: existing.number,
                 body,
+                state: "open",
               });
               core.notice("Updated existing preview issue #" + existing.number);
             } else {

@@ -58,6 +58,7 @@ See spec, role, language, key, item level, Raider.IO, last-run DPS, interrupt st
 
 🟨 LIVE FORCES: pull planning while the key is running
 Track enemy forces, pull prediction, nameplate percentages, tooltip percentages, and combat-end refresh from the bundled MDT-synced database.
+MDT-dependent mob details are shown only when the bundled database exactly matches the active season; Blizzard's overall dungeon progress remains available independently.
 
 🟪 PORTAL GRID: current season travel in one place
 Open the right dungeon portal from one compact grid. Cooldowns, ready states, and verified LFG target highlights stay visible at a glance.

@@ -10,7 +10,8 @@ addonTable.SeasonData = SeasonData
 -- 1) Add a new entry under SeasonData.SEASONS.
 -- 2) Fill mapToTeleport / shortCodesByLocale / challengeMapAliases completely.
 -- 3) Keep locale short-code overrides inside shortCodesByLocale.
--- 4) Switch SeasonData.ACTIVE_SEASON_ID only after step 2 is complete.
+-- 4) Let the verified Blizzard challenge-map set select the season only after
+--    the full dataset and matching forces snapshot pass readiness.
 
 local function NormalizeLocaleTag(localeTag)
   if not localeTag then
@@ -55,6 +56,8 @@ SeasonData.ACTIVE_SEASON_ID = "midnight_s1"
 SeasonData.SEASONS = {
   midnight_s1 = {
     label = "Midnight Season 1",
+    autoDetectFromChallengeMaps = true,
+    requiresForces = true,
     mapToTeleport = {
       [557] = 1254400, -- Windrunner Spire
       [558] = 1254572, -- Magisters' Terrace
@@ -125,8 +128,12 @@ SeasonData.SEASONS = {
   },
   midnight_s2 = {
     label = "Midnight Season 2",
-    -- Technical dungeon IDs, portal spell IDs, LFG activity IDs, and forces
-    -- data are intentionally unresolved until verified from Blizzard/Live data.
+    autoDetectFromChallengeMaps = false,
+    requiresForces = false,
+    -- Challenge map and castable portal spell IDs were explicitly approved
+    -- after cross-checking DBM, EnhanceQoL, Chonky Character Sheet, and
+    -- Wowhead PTR spell data. The season remains inactive until the remaining
+    -- display and forces data are complete.
     plannedDungeons = {
       "Altar of Fangs",
       "Murder Row",
@@ -137,20 +144,74 @@ SeasonData.SEASONS = {
       "Ruby Life Pools",
       "Temple of Sethraliss",
     },
-    mapToTeleport = {},
-    displayOrder = {},
+    mapToTeleport = {
+      [588] = 1286812, -- Altar of Fangs
+      [587] = 1286809, -- Murder Row
+      [586] = 1286807, -- Den of Nalorakk
+      [584] = 1286801, -- The Blinding Vale
+      [585] = 1286804, -- Voidscar Arena
+      [249] = 1286831, -- King's Rest
+      [399] = 393256, -- Ruby Life Pools
+      [250] = 1286828, -- Temple of Sethraliss
+    },
+    displayOrder = {
+      249, -- King's Rest
+      250, -- Temple of Sethraliss
+      399, -- Ruby Life Pools
+      584, -- The Blinding Vale
+      585, -- Voidscar Arena
+      586, -- Den of Nalorakk
+      587, -- Murder Row
+      588, -- Altar of Fangs
+    },
     shortCodesByLocale = {
-      default = {},
-      deDE = {},
+      default = {
+        [588] = "AOF",
+        [587] = "MR",
+        [586] = "DON",
+        [584] = "TBV",
+        [585] = "VA",
+        [249] = "KR",
+        [399] = "RLP",
+        [250] = "TOS",
+      },
+      deDE = {
+        [588] = "ADF",
+        [587] = "MG",
+        [586] = "NB",
+        [584] = "DBT",
+        [585] = "ADL",
+        [249] = "KR",
+        [399] = "RLB",
+        [250] = "TVS",
+      },
     },
     namesByLocale = {
-      enUS = {},
-      deDE = {},
+      enUS = {
+        [588] = "Altar of Fangs",
+        [587] = "Murder Row",
+        [586] = "Den of Nalorakk",
+        [584] = "The Blinding Vale",
+        [585] = "Voidscar Arena",
+        [249] = "King's Rest",
+        [399] = "Ruby Life Pools",
+        [250] = "Temple of Sethraliss",
+      },
+      deDE = {
+        [588] = "Der Altar der Fänge",
+        [587] = "Mördergasse",
+        [586] = "Nalorakks Bau",
+        [584] = "Das blendende Tal",
+        [585] = "Arena der Leerennarbe",
+        [249] = "Königsruh",
+        [399] = "Rubinlebensbecken",
+        [250] = "Tempel von Sethraliss",
+      },
     },
     challengeMapAliases = {},
     inactivePortalMessageByLocale = {
-      default = "Midnight Season 2 portal data is not verified yet.",
-      deDE = "Midnight-Season-2-Portaldaten sind noch nicht verifiziert.",
+      default = "Midnight Season 2 is prepared but not active yet.",
+      deDE = "Midnight Season 2 ist vorbereitet, aber noch nicht aktiv.",
     },
   },
 }
@@ -158,6 +219,121 @@ SeasonData.SEASONS = {
 local function RefreshLegacyAliases()
   SeasonData.MAP_TO_TELEPORT = SeasonData.GetMapToTeleport()
   SeasonData.MAP_SHORT_CODES = SeasonData.GetShortCodes("enUS")
+end
+
+local function ParseIsoDate(value)
+  if type(value) ~= "string" then
+    return nil
+  end
+  local year, month, day = value:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
+  if not year then
+    return nil
+  end
+  return tonumber(year) * 10000 + tonumber(month) * 100 + tonumber(day)
+end
+
+local function ResolveCurrentDate(opts)
+  if type(opts) == "table" and type(opts.currentDate) == "string" then
+    return opts.currentDate
+  end
+
+  local dateFn = rawget(_G, "date")
+  if type(dateFn) == "function" then
+    local ok, value = pcall(dateFn, "!%Y-%m-%d")
+    if ok and type(value) == "string" then
+      return value
+    end
+  end
+
+  local osLib = rawget(_G, "os")
+  if type(osLib) == "table" and type(osLib.date) == "function" then
+    local ok, value = pcall(osLib.date, "!%Y-%m-%d")
+    if ok and type(value) == "string" then
+      return value
+    end
+  end
+
+  return nil
+end
+
+local function AppendForcesReadinessErrors(errors, seasonID, season, opts)
+  if season.requiresForces ~= true then
+    return
+  end
+
+  local forces = type(opts) == "table" and opts.forcesData or nil
+  if forces == nil then
+    forces = addonTable.MPlusForces
+  end
+  if type(forces) ~= "table" then
+    table.insert(errors, "matching M+ forces data is missing")
+    return
+  end
+  if forces.season ~= seasonID then
+    table.insert(
+      errors,
+      string.format("M+ forces season mismatch: expected %s, got %s", tostring(seasonID), tostring(forces.season))
+    )
+    return
+  end
+
+  local dungeonTotal = forces.dungeonTotal
+  local byNpcId = forces.byNpcId
+  if type(dungeonTotal) ~= "table" then
+    table.insert(errors, "M+ forces dungeonTotal must be a table")
+  else
+    local mapped = type(season.mapToTeleport) == "table" and season.mapToTeleport or {}
+    for mapID in pairs(mapped) do
+      local entry = dungeonTotal[mapID]
+      if type(entry) ~= "table" or not IsPositiveNumber(entry.total) then
+        table.insert(errors, string.format("M+ forces is missing a positive total for map id %d", mapID))
+      end
+    end
+    for mapID in pairs(dungeonTotal) do
+      if mapped[mapID] == nil then
+        table.insert(errors, string.format("M+ forces contains map id %s outside season %s", tostring(mapID), seasonID))
+      end
+    end
+  end
+  if type(byNpcId) ~= "table" or next(byNpcId) == nil then
+    table.insert(errors, "M+ forces byNpcId is empty")
+  else
+    local mapped = type(season.mapToTeleport) == "table" and season.mapToTeleport or {}
+    local npcCountByMapID = {}
+    for npcID, entry in pairs(byNpcId) do
+      local numericNpcID = tonumber(npcID)
+      local entryMapID = type(entry) == "table" and tonumber(entry.mapID) or nil
+      local entryCount = type(entry) == "table" and tonumber(entry.count) or nil
+      if not numericNpcID or numericNpcID <= 0 or numericNpcID ~= math.floor(numericNpcID) then
+        table.insert(errors, string.format("M+ forces contains invalid NPC id %s", tostring(npcID)))
+      elseif not entryMapID or mapped[entryMapID] == nil then
+        table.insert(
+          errors,
+          string.format("M+ forces NPC id %d points outside season %s", numericNpcID, tostring(seasonID))
+        )
+      elseif not entryCount or entryCount <= 0 then
+        table.insert(errors, string.format("M+ forces NPC id %d must have a positive count", numericNpcID))
+      else
+        npcCountByMapID[entryMapID] = (npcCountByMapID[entryMapID] or 0) + 1
+      end
+    end
+    for mapID in pairs(mapped) do
+      if not npcCountByMapID[mapID] then
+        table.insert(errors, string.format("M+ forces is missing positive NPC data for map id %d", mapID))
+      end
+    end
+  end
+
+  local expiresKey = ParseIsoDate(forces.expiresAt)
+  local currentDate = ResolveCurrentDate(opts)
+  local currentKey = ParseIsoDate(currentDate)
+  if not expiresKey then
+    table.insert(errors, "M+ forces expiresAt is missing or malformed")
+  elseif not currentKey then
+    table.insert(errors, "current date is unavailable for M+ forces validation")
+  elseif currentKey > expiresKey then
+    table.insert(errors, string.format("M+ forces expired on %s", tostring(forces.expiresAt)))
+  end
 end
 
 function SeasonData.GetSeasonConfig(seasonID)
@@ -181,6 +357,18 @@ function SeasonData.GetActiveSeasonID()
   return SeasonData.ACTIVE_SEASON_ID
 end
 
+function SeasonData.GetMatchingForcesData(seasonID)
+  local resolvedSeasonID = seasonID or SeasonData.ACTIVE_SEASON_ID
+  local forces = addonTable.MPlusForces
+  if type(forces) ~= "table" or forces.season ~= resolvedSeasonID then
+    return nil
+  end
+  if type(forces.dungeonTotal) ~= "table" or type(forces.byNpcId) ~= "table" then
+    return nil
+  end
+  return forces
+end
+
 function SeasonData.GetAvailableSeasonIDs()
   local out = {}
   local seasons = SeasonData.SEASONS or {}
@@ -191,7 +379,7 @@ function SeasonData.GetAvailableSeasonIDs()
   return out
 end
 
-function SeasonData.GetSeasonReadiness(seasonID)
+function SeasonData.GetSeasonReadiness(seasonID, opts)
   local resolvedSeasonID = seasonID or SeasonData.ACTIVE_SEASON_ID
   local season = SeasonData.GetSeasonConfig(resolvedSeasonID)
   local errors = {}
@@ -214,6 +402,7 @@ function SeasonData.GetSeasonReadiness(seasonID)
   local mapToTeleport = season.mapToTeleport
   local displayOrder = season.displayOrder
   local byLocale = season.shortCodesByLocale
+  local namesByLocale = season.namesByLocale
   local aliases = season.challengeMapAliases
 
   local mapCount = CountTableEntries(mapToTeleport)
@@ -226,9 +415,20 @@ function SeasonData.GetSeasonReadiness(seasonID)
   else
     local defaultShortCodes = type(byLocale) == "table" and byLocale.default or nil
     local deShortCodes = type(byLocale) == "table" and byLocale.deDE or nil
+    local enNames = type(namesByLocale) == "table" and namesByLocale.enUS or nil
+    local deNames = type(namesByLocale) == "table" and namesByLocale.deDE or nil
 
     if type(defaultShortCodes) ~= "table" then
       table.insert(errors, "shortCodesByLocale.default must be a table")
+    end
+    if type(deShortCodes) ~= "table" then
+      table.insert(warnings, "shortCodesByLocale.deDE must be a table")
+    end
+    if type(enNames) ~= "table" then
+      table.insert(errors, "namesByLocale.enUS must be a table")
+    end
+    if type(deNames) ~= "table" then
+      table.insert(errors, "namesByLocale.deDE must be a table")
     end
 
     for mapID, spellValue in pairs(mapToTeleport) do
@@ -271,6 +471,19 @@ function SeasonData.GetSeasonReadiness(seasonID)
           local deShortCode = deShortCodes[numericMapID]
           if type(deShortCode) ~= "string" or deShortCode == "" then
             table.insert(warnings, string.format("shortCodesByLocale.deDE is missing map id %d", numericMapID))
+          end
+        end
+
+        if type(enNames) == "table" then
+          local name = enNames[numericMapID]
+          if type(name) ~= "string" or name == "" then
+            table.insert(errors, string.format("namesByLocale.enUS is missing map id %d", numericMapID))
+          end
+        end
+        if type(deNames) == "table" then
+          local name = deNames[numericMapID]
+          if type(name) ~= "string" or name == "" then
+            table.insert(errors, string.format("namesByLocale.deDE is missing map id %d", numericMapID))
           end
         end
       end
@@ -328,15 +541,86 @@ function SeasonData.GetSeasonReadiness(seasonID)
     end
   end
 
+  AppendForcesReadinessErrors(errors, resolvedSeasonID, season, opts)
+
   return {
     seasonID = resolvedSeasonID,
     label = SeasonData.GetSeasonLabel(resolvedSeasonID),
-    isReady = #errors == 0,
+    isReady = #errors == 0 and #warnings == 0,
     mappedDungeonCount = mapCount,
     aliasCount = aliasCount,
     errors = errors,
     warnings = warnings,
   }
+end
+
+function SeasonData.ResolveSeasonIDFromChallengeMapIDs(mapIDs)
+  if type(mapIDs) ~= "table" then
+    return nil, "Blizzard challenge map list is unavailable"
+  end
+
+  local observed = {}
+  local observedCount = 0
+  for _, rawMapID in ipairs(mapIDs) do
+    local mapID = NormalizeMapIDInput(rawMapID)
+    if not mapID or mapID <= 0 or mapID ~= math.floor(mapID) then
+      return nil, "Blizzard challenge map list contains an invalid map id"
+    end
+    if observed[mapID] then
+      return nil, string.format("Blizzard challenge map list contains duplicate map id %d", mapID)
+    end
+    observed[mapID] = true
+    observedCount = observedCount + 1
+  end
+  if observedCount == 0 then
+    return nil, "Blizzard challenge map list is empty"
+  end
+
+  local match
+  for seasonID, season in pairs(SeasonData.SEASONS or {}) do
+    if type(season) == "table" and season.autoDetectFromChallengeMaps == true then
+      local mapped = season.mapToTeleport
+      if type(mapped) == "table" and CountTableEntries(mapped) == observedCount then
+        local exact = true
+        for mapID in pairs(mapped) do
+          if observed[mapID] ~= true then
+            exact = false
+            break
+          end
+        end
+        if exact then
+          if match then
+            return nil, "Blizzard challenge map list matches more than one configured season"
+          end
+          match = seasonID
+        end
+      end
+    end
+  end
+
+  if not match then
+    return nil, "Blizzard challenge map list does not exactly match a configured season"
+  end
+  return match, nil
+end
+
+function SeasonData.TryAutoSelectSeasonFromChallengeMapIDs(mapIDs, opts)
+  local seasonID, resolveError = SeasonData.ResolveSeasonIDFromChallengeMapIDs(mapIDs)
+  if not seasonID then
+    return false, false, resolveError
+  end
+
+  local readiness = SeasonData.GetSeasonReadiness(seasonID, opts)
+  if not readiness.isReady then
+    local reason = readiness.errors[1] or readiness.warnings[1] or "season data is incomplete"
+    return false, false, string.format("Season '%s' is not ready: %s", seasonID, reason)
+  end
+  if SeasonData.ACTIVE_SEASON_ID == seasonID then
+    return true, false, string.format("Active season already matches %s", seasonID)
+  end
+
+  local ok, message = SeasonData.SetActiveSeasonID(seasonID, opts)
+  return ok, ok == true, message
 end
 
 function SeasonData.HasActiveDungeons(seasonID)
@@ -353,7 +637,7 @@ function SeasonData.SetActiveSeasonID(seasonID, opts)
     return false, string.format("Unknown season id '%s'", resolvedSeasonID)
   end
 
-  local readiness = SeasonData.GetSeasonReadiness(resolvedSeasonID)
+  local readiness = SeasonData.GetSeasonReadiness(resolvedSeasonID, opts)
   local allowIncomplete = opts.allowIncomplete == true
   if not allowIncomplete and not readiness.isReady then
     local firstError = readiness.errors[1] or "season data is incomplete"

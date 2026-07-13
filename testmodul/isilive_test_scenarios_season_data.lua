@@ -65,21 +65,138 @@ local function RegisterReadinessTests(test, Assert, LoadAddonModules)
     Assert.NotNil(findError(readiness, "mapToTeleport is empty"), "empty mapToTeleport must surface an error")
   end)
 
-  test("SeasonData keeps prepared Midnight Season 2 scaffold inactive until verified IDs exist", function()
+  test("SeasonData keeps prepared Midnight Season 2 manually activatable without forces data", function()
     local addon = LoadSeasonData(LoadAddonModules)
     local readiness = addon.SeasonData.GetSeasonReadiness("midnight_s2")
     Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s1", "prepared S2 scaffold must not be active")
-    Assert.False(readiness.isReady, "prepared S2 scaffold must fail readiness until verified IDs exist")
-    Assert.Equal(readiness.mappedDungeonCount, 0, "prepared S2 scaffold must not expose guessed map IDs")
-    Assert.NotNil(
-      findError(readiness, "mapToTeleport is empty"),
-      "prepared S2 scaffold must stay blocked by empty map data"
-    )
+    Assert.True(readiness.isReady, "optional Forces data must not block the manual S2 switch")
+    Assert.Equal(readiness.mappedDungeonCount, 8, "prepared S2 scaffold must expose all approved map mappings")
+    local ok = addon.SeasonData.SetActiveSeasonID("midnight_s2")
+    Assert.True(ok, "manual S2 activation must succeed without an MDT Forces DB")
+    Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s2", "manual activation must select S2")
     Assert.Equal(
       addon.SeasonData.GetInactivePortalMessage("deDE", "midnight_s2"),
-      "Midnight-Season-2-Portaldaten sind noch nicht verifiziert.",
+      "Midnight Season 2 ist vorbereitet, aber noch nicht aktiv.",
       "prepared S2 scaffold should expose a German inactive message"
     )
+  end)
+
+  test("SeasonData.GetMatchingForcesData exposes only the active season DB", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    addon.MPlusForces = {
+      season = "midnight_s1",
+      dungeonTotal = {},
+      byNpcId = {},
+    }
+    Assert.NotNil(addon.SeasonData.GetMatchingForcesData(), "active S1 must receive its matching Forces DB")
+
+    local ok = addon.SeasonData.SetActiveSeasonID("midnight_s2")
+    Assert.True(ok, "manual S2 activation must succeed for the season-match test")
+    Assert.Nil(addon.SeasonData.GetMatchingForcesData(), "S1 Forces must be hidden while S2 is active")
+
+    addon.MPlusForces = {
+      season = "midnight_s2",
+      dungeonTotal = {},
+      byNpcId = {},
+    }
+    Assert.NotNil(addon.SeasonData.GetMatchingForcesData(), "matching S2 Forces must become available")
+  end)
+
+  test("SeasonData Midnight Season 2 exposes approved English and German display metadata", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    local expectedDefaultCodes = {
+      [588] = "AOF",
+      [587] = "MR",
+      [586] = "DON",
+      [584] = "TBV",
+      [585] = "VA",
+      [249] = "KR",
+      [399] = "RLP",
+      [250] = "TOS",
+    }
+    local expectedGermanCodes = {
+      [588] = "ADF",
+      [587] = "MG",
+      [586] = "NB",
+      [584] = "DBT",
+      [585] = "ADL",
+      [249] = "KR",
+      [399] = "RLB",
+      [250] = "TVS",
+    }
+    local expectedEnglishNames = {
+      [588] = "Altar of Fangs",
+      [587] = "Murder Row",
+      [586] = "Den of Nalorakk",
+      [584] = "The Blinding Vale",
+      [585] = "Voidscar Arena",
+      [249] = "King's Rest",
+      [399] = "Ruby Life Pools",
+      [250] = "Temple of Sethraliss",
+    }
+    local expectedGermanNames = {
+      [588] = "Der Altar der Fänge",
+      [587] = "Mördergasse",
+      [586] = "Nalorakks Bau",
+      [584] = "Das blendende Tal",
+      [585] = "Arena der Leerennarbe",
+      [249] = "Königsruh",
+      [399] = "Rubinlebensbecken",
+      [250] = "Tempel von Sethraliss",
+    }
+
+    for mapID, code in pairs(expectedDefaultCodes) do
+      Assert.Equal(addon.SeasonData.GetDungeonShortCode(mapID, "enUS", "midnight_s2"), code, "default S2 code")
+      Assert.Equal(
+        addon.SeasonData.GetDungeonShortCode(mapID, "frFR", "midnight_s2"),
+        code,
+        "other locales use default S2 code"
+      )
+      Assert.Equal(
+        addon.SeasonData.GetDungeonShortCode(mapID, "deDE", "midnight_s2"),
+        expectedGermanCodes[mapID],
+        "German S2 code"
+      )
+      Assert.Equal(
+        addon.SeasonData.GetDungeonName(mapID, "enUS", "midnight_s2"),
+        expectedEnglishNames[mapID],
+        "English S2 name"
+      )
+      Assert.Equal(
+        addon.SeasonData.GetDungeonName(mapID, "deDE", "midnight_s2"),
+        expectedGermanNames[mapID],
+        "German S2 name"
+      )
+    end
+    local ordered = addon.SeasonData.GetOrderedMapIDs("midnight_s2")
+    local expectedOrder = { 249, 250, 399, 584, 585, 586, 587, 588 }
+    for index, mapID in ipairs(expectedOrder) do
+      Assert.Equal(ordered[index], mapID, "S2 display order must remain ascending by map ID")
+    end
+  end)
+
+  test("SeasonData Midnight Season 2 maps verified challenge IDs to castable portal spells", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    local mappings = addon.SeasonData.GetMapToTeleport("midnight_s2")
+    local expected = {
+      [588] = 1286812,
+      [587] = 1286809,
+      [586] = 1286807,
+      [584] = 1286801,
+      [585] = 1286804,
+      [249] = 1286831,
+      [399] = 393256,
+      [250] = 1286828,
+    }
+
+    local mappingCount = 0
+    for _ in pairs(mappings) do
+      mappingCount = mappingCount + 1
+    end
+    for mapID, spellID in pairs(expected) do
+      Assert.Equal(mappings[mapID], spellID, "S2 mapping must preserve the approved castable portal spell")
+    end
+    Assert.Equal(mappingCount, 8, "the S2 map must contain exactly the eight approved mappings")
   end)
 
   test("SeasonData.GetSeasonReadiness flags non-table shortCodesByLocale.default", function()
@@ -95,6 +212,27 @@ local function RegisterReadinessTests(test, Assert, LoadAddonModules)
     Assert.NotNil(
       findError(readiness, "shortCodesByLocale.default must be a table"),
       "non-table default short codes must surface an error"
+    )
+  end)
+
+  test("SeasonData.GetSeasonReadiness flags missing English and German dungeon names", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    addon.SeasonData.SEASONS.test_season = {
+      label = "Test",
+      mapToTeleport = { [2662] = 445414 },
+      shortCodesByLocale = { default = { [2662] = "DB" } },
+      namesByLocale = { enUS = {}, deDE = {} },
+      displayOrder = { 2662 },
+      challengeMapAliases = {},
+    }
+    local readiness = addon.SeasonData.GetSeasonReadiness("test_season")
+    Assert.NotNil(
+      findError(readiness, "namesByLocale.enUS is missing map id 2662"),
+      "missing English dungeon name must block readiness"
+    )
+    Assert.NotNil(
+      findError(readiness, "namesByLocale.deDE is missing map id 2662"),
+      "missing German dungeon name must block readiness"
     )
   end)
 
@@ -164,6 +302,24 @@ local function RegisterReadinessTests(test, Assert, LoadAddonModules)
       )
     end
   )
+
+  test("SeasonData.GetSeasonReadiness warns when the deDE short-code table is missing", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    addon.SeasonData.SEASONS.test_season = {
+      label = "Test",
+      mapToTeleport = { [2662] = 445414 },
+      shortCodesByLocale = { default = { [2662] = "DB" } },
+      namesByLocale = { enUS = { [2662] = "Test" }, deDE = { [2662] = "Test" } },
+      displayOrder = { 2662 },
+      challengeMapAliases = {},
+    }
+    local readiness = addon.SeasonData.GetSeasonReadiness("test_season")
+    Assert.NotNil(
+      findWarning(readiness, "shortCodesByLocale.deDE must be a table"),
+      "a missing German short-code table must block green readiness"
+    )
+    Assert.False(readiness.isReady, "missing German short-code table must not pass readiness")
+  end)
 
   test("SeasonData.GetSeasonReadiness flags non-table displayOrder, non-numeric entry, and unknown map id", function()
     local addon = LoadSeasonData(LoadAddonModules)
@@ -265,6 +421,148 @@ local function RegisterSetActiveSeasonIDTests(test, Assert, LoadAddonModules)
     -- allowIncomplete=true overrides the readiness gate.
     local ok2 = addon.SeasonData.SetActiveSeasonID("test_season", { allowIncomplete = true })
     Assert.True(ok2, "allowIncomplete=true must accept an unready season")
+  end)
+end
+
+local function RegisterAutomaticSeasonSelectionTests(test, Assert, LoadAddonModules)
+  test("SeasonData keeps Midnight Season 2 excluded from automatic selection", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    local season = addon.SeasonData.SEASONS.midnight_s2
+    Assert.False(season.autoDetectFromChallengeMaps, "S2 must require the explicit manual season switch")
+
+    local seasonID, reason = addon.SeasonData.ResolveSeasonIDFromChallengeMapIDs({
+      249,
+      250,
+      399,
+      584,
+      585,
+      586,
+      587,
+      588,
+    })
+    Assert.Nil(seasonID, "the exact S2 map set must not select S2 automatically")
+    Assert.Equal(
+      reason,
+      "Blizzard challenge map list does not exactly match a configured season",
+      "manual-only S2 must remain outside automatic map-set resolution"
+    )
+  end)
+
+  test("SeasonData auto-selects only an exact Blizzard challenge-map set with complete ready data", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    addon.SeasonData.SEASONS.test_auto = {
+      label = "Test Auto",
+      autoDetectFromChallengeMaps = true,
+      mapToTeleport = { [11] = 1011, [22] = 1022 },
+      shortCodesByLocale = {
+        default = { [11] = "A", [22] = "B" },
+        deDE = { [11] = "A", [22] = "B" },
+      },
+      namesByLocale = { enUS = { [11] = "A", [22] = "B" }, deDE = { [11] = "A", [22] = "B" } },
+      displayOrder = { 11, 22 },
+      challengeMapAliases = {},
+    }
+
+    local resolved = addon.SeasonData.ResolveSeasonIDFromChallengeMapIDs({ 22, 11 })
+    Assert.Equal(resolved, "test_auto", "exact map set must resolve independent of Blizzard order")
+    local partial, partialError = addon.SeasonData.ResolveSeasonIDFromChallengeMapIDs({ 11 })
+    Assert.Equal(partial, nil, "partial map set must remain unresolved")
+    Assert.True(type(partialError) == "string" and partialError ~= "", "partial map set must explain rejection")
+    local duplicate = addon.SeasonData.ResolveSeasonIDFromChallengeMapIDs({ 11, 11 })
+    Assert.Equal(duplicate, nil, "duplicate Blizzard map ids must fail closed")
+
+    local ok, changed = addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs({ 11, 22 })
+    Assert.True(ok, "ready exact season must auto-select")
+    Assert.True(changed, "selection must report the active-season change")
+    Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "test_auto", "exact ready season must become active")
+  end)
+
+  test("SeasonData auto-selection rejects missing stale or mismatched forces data", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    addon.SeasonData.SEASONS.test_forces = {
+      label = "Test Forces",
+      autoDetectFromChallengeMaps = true,
+      requiresForces = true,
+      mapToTeleport = { [33] = 1033 },
+      shortCodesByLocale = { default = { [33] = "TF" }, deDE = { [33] = "TF" } },
+      namesByLocale = { enUS = { [33] = "Test Forces" }, deDE = { [33] = "Test Forces" } },
+      displayOrder = { 33 },
+      challengeMapAliases = {},
+    }
+    local validForces = {
+      season = "test_forces",
+      expiresAt = "2099-01-01",
+      dungeonTotal = { [33] = { total = 100 } },
+      byNpcId = { [9001] = { count = 5, mapID = 33 } },
+    }
+
+    local missing = addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs({ 33 }, { currentDate = "2026-07-13" })
+    Assert.False(missing, "missing forces data must block auto-selection")
+
+    local staleForces = {
+      season = "test_forces",
+      expiresAt = "2026-07-12",
+      dungeonTotal = validForces.dungeonTotal,
+      byNpcId = validForces.byNpcId,
+    }
+    local stale = addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs(
+      { 33 },
+      { forcesData = staleForces, currentDate = "2026-07-13" }
+    )
+    Assert.False(stale, "expired forces data must block auto-selection")
+
+    local mismatchedForces = {
+      season = "other_season",
+      expiresAt = validForces.expiresAt,
+      dungeonTotal = validForces.dungeonTotal,
+      byNpcId = validForces.byNpcId,
+    }
+    local mismatched = addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs(
+      { 33 },
+      { forcesData = mismatchedForces, currentDate = "2026-07-13" }
+    )
+    Assert.False(mismatched, "forces data for another season must block auto-selection")
+
+    local ok, changed = addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs(
+      { 33 },
+      { forcesData = validForces, currentDate = "2026-07-13" }
+    )
+    Assert.True(ok, "matching fresh forces data must allow auto-selection")
+    Assert.True(changed, "matching fresh forces data must permit the season change")
+  end)
+
+  test("SeasonData forces readiness rejects invalid NPC entries and maps without NPC coverage", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    addon.SeasonData.SEASONS.test_forces_coverage = {
+      label = "Test Forces Coverage",
+      autoDetectFromChallengeMaps = true,
+      requiresForces = true,
+      mapToTeleport = { [41] = 1041, [42] = 1042 },
+      shortCodesByLocale = { default = { [41] = "A", [42] = "B" }, deDE = { [41] = "A", [42] = "B" } },
+      namesByLocale = {
+        enUS = { [41] = "A", [42] = "B" },
+        deDE = { [41] = "A", [42] = "B" },
+      },
+      displayOrder = { 41, 42 },
+      challengeMapAliases = {},
+    }
+    local readiness = addon.SeasonData.GetSeasonReadiness("test_forces_coverage", {
+      currentDate = "2026-07-13",
+      forcesData = {
+        season = "test_forces_coverage",
+        expiresAt = "2099-01-01",
+        dungeonTotal = { [41] = { total = 100 }, [42] = { total = 100 } },
+        byNpcId = {
+          [9001] = { count = 0, mapID = 41 },
+          [9002] = { count = 5, mapID = 999 },
+        },
+      },
+    })
+    Assert.False(readiness.isReady, "invalid or cross-season NPC data must block Forces readiness")
+    Assert.NotNil(findError(readiness, "NPC id 9001 must have a positive count"), "zero NPC count must error")
+    Assert.NotNil(findError(readiness, "NPC id 9002 points outside season"), "foreign NPC map must error")
+    Assert.NotNil(findError(readiness, "missing positive NPC data for map id 41"), "map 41 coverage must error")
+    Assert.NotNil(findError(readiness, "missing positive NPC data for map id 42"), "map 42 coverage must error")
   end)
 end
 
@@ -400,5 +698,6 @@ return function(test, ctx)
 
   RegisterReadinessTests(test, Assert, LoadAddonModules)
   RegisterSetActiveSeasonIDTests(test, Assert, LoadAddonModules)
+  RegisterAutomaticSeasonSelectionTests(test, Assert, LoadAddonModules)
   RegisterAccessorFallbackTests(test, Assert, LoadAddonModules)
 end

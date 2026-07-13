@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+- Disabled automatic selection for `midnight_s2` and allowed an explicit
+  manual S2 activation before its optional MDT forces database is available.
+  Blizzard scenario progress remains visible in that state, while MDT-backed
+  nameplate percentages, mob tooltip lines, and DB-total fallbacks stay hidden
+  until the bundled forces database exactly matches the active season.
+- Hardened Forces readiness for auto-detected seasons with positive NPC IDs,
+  counts, valid season-map ownership, and per-map NPC coverage. Missing German
+  short-code tables now also block green display readiness.
+- Made the daily MDT availability inspector continue past invalid text hits,
+  describe its result as structural availability instead of unprovable NPC
+  completeness, and reuse/reopen its marker-stable issue across all pages.
+- Added an out-of-combat season-selection retry for map updates that arrived
+  while protected UI mutation was blocked.
+- Completed the prepared Midnight Season 2 display metadata with English and
+  German dungeon names, default and German short codes, and an explicit
+  ascending map-ID display order.
+- Changed the MDT Season 2 preview into a daily fail-closed Forces availability
+  monitor. It opens or updates a stable GitHub issue only after all eight
+  dungeons expose exact map IDs, positive totals, and positive NPC Forces data;
+  textual placeholders no longer trigger a notification.
+- Added fail-closed automatic season selection on login and challenge-map
+  updates. A switch now requires an exact Blizzard challenge-map-set match,
+  complete display readiness, and a matching non-expired Mythic+ forces DB.
+- Documented that official MDT `6.1.20` does not yet contain usable Season 2
+  forces data: its only new-season file is an incomplete Murder Row scaffold.
+- Recorded all eight verified Midnight Season 2 ChallengeMapID-to-castable-
+  portal-spell mappings while keeping `midnight_s1` active and Season 2
+  readiness independent from the optional Mythic+ forces data.
+- Added deterministic coverage that pins every approved Season 2 dungeon
+  portal mapping and prevents triggered instant teleport subspells from
+  replacing the castable portal spells.
+
 ## 2026-07-12 - Version 0.9.344 (patch)
 
 - Recorded verified PTR Mythic+ LFG activity IDs for all eight prepared Midnight

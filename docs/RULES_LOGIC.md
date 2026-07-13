@@ -116,6 +116,9 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 94. Eingehende isiLive-Syncdaten duerfen nur ueber die vorgesehenen Gruppenkanäle beziehungsweise den expliziten ACK-Whisperpfad verarbeitet werden; nicht-finite Zahlen und vorgetaeuschte Announce-Absender bleiben wirkungslos.
 95. Persistierte Zahlen, Frame-Anker und Reload-Mirror-Werte muessen vor Runtime-Nutzung validiert werden und bei nicht-finiten oder ungueltigen Daten geschlossen auf sichere Defaults beziehungsweise unresolved fallen.
 96. Combat-Fade darf nur anhand des aktuell persistierten `rosterLayoutMode` entschieden werden und nicht anhand eines veralteten Layoutfelds.
+97. Eine aktive Season darf bei Login und Challenge-Map-Updates nur dann aus einem exakten Blizzard-Mapset automatisch gewaehlt werden, wenn ihr Datensatz die automatische Auswahl explizit erlaubt; `midnight_s2` bleibt davon ausgeschlossen und wird ausschliesslich manuell aktiviert.
+98. Midnight S2 verwendet die freigegebenen Namen, Kurzcodes und die aufsteigende Map-ID-Reihenfolge; der MDT-Monitor meldet nur strukturell nutzbare Forces-Kandidaten fuer alle acht Dungeons.
+99. Midnight S2 darf manuell ohne passende MDT-Forces-DB aktiviert werden; Blizzard-Gesamtfortschritt bleibt sichtbar, waehrend alle MDT-abhaengigen Mob-Anzeigen und DB-Fallbacks bis zu einem exakten Season-Match geschlossen bleiben.
 
 ## Regelbloecke
 
@@ -775,7 +778,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-NO-GUESS-LAUFZEITAUFLOESUNG
 - Regelnummer: 54
 - Status: aktiv
-- Zusammenfassung: Wenn fuer eine Runtime-Aufloesung keine eindeutige, belastbare Quelle vorliegt, muss das Ergebnis unresolved bleiben. Fehlende oder mehrdeutige Laufzeitdaten duerfen nicht durch spekulative Fallbacks, Namens-/Token-Raten, heuristische Standardwerte oder synthetische Cooldown-/Map-Zustaende ersetzt werden. Eindeutige Aufloesungen duerfen nur aus beobachteten Live-Daten, explizit persistierten verifizierten Daten oder eindeutig bestimmten Runtime-Zusammenhaengen entstehen. Opaque Blizzard-Keystone-Markup darf nur dann als Target-Level-Text weitergegeben werden, wenn es exakt dem verifizierten `|Kk<number>|k`-Format entspricht; freier Titeltext ohne eindeutig geparstes `+N` bleibt unresolved. Ein eindeutig geparstes `+N` im LFG-Gruppentitel gilt als belastbare Listing-Quelle fuer die Keystufe.
+- Zusammenfassung: Wenn fuer eine Runtime-Aufloesung keine eindeutige, belastbare Quelle vorliegt, muss das Ergebnis unresolved bleiben. Fehlende oder mehrdeutige Laufzeitdaten duerfen nicht durch spekulative Fallbacks, Namens-/Token-Raten, heuristische Standardwerte oder synthetische Cooldown-/Map-Zustaende ersetzt werden. Eindeutige Aufloesungen duerfen nur aus beobachteten Live-Daten, explizit persistierten verifizierten Daten oder eindeutig bestimmten Runtime-Zusammenhaengen entstehen. Explizit persistierte Season-Mappings muessen die vom User freigegebenen ChallengeMapID-zu-castbarer-PortalSpellID-Zuordnungen exakt bewahren. Eine automatische Season-Auswahl darf nur bei exakter Mengengleichheit zwischen dem von Blizzard gelieferten Challenge-Mapset und genau einem explizit dafuer freigegebenen Season-Datensatz aufloesen; Teilmengen, Duplikate, unbekannte oder mehrfach passende Sets bleiben unresolved. Opaque Blizzard-Keystone-Markup darf nur dann als Target-Level-Text weitergegeben werden, wenn es exakt dem verifizierten `|Kk<number>|k`-Format entspricht; freier Titeltext ohne eindeutig geparstes `+N` bleibt unresolved. Ein eindeutig geparstes `+N` im LFG-Gruppentitel gilt als belastbare Listing-Quelle fuer die Keystufe.
 - Erforderliche Tests:
   - Factory target dungeon stays unresolved without queue or joined-key map context
   - Factory target dungeon resolves from synced exact target context
@@ -802,6 +805,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Sync RegisterVerifiedAlias rejects cross-realm and unknown sender aliases
   - KeySync RegisterVerifiedSyncAliasForRoster maps one same-realm sender to one roster row
   - KeySync RegisterVerifiedSyncAliasForRoster fails closed for ambiguous same-realm candidates
+  - SeasonData Midnight Season 2 maps verified challenge IDs to castable portal spells
+  - SeasonData auto-selects only an exact Blizzard challenge-map set with complete ready data
   - SpellUtils.GetTeleportCooldownRemaining normalizes wrapped portal cooldown start times
   - TeleportUI applies visible cooldown frame from normalized remaining time
   - factory_controllers: RenderAcceptedInviteNotice uses verified mapID when activityID is missing
@@ -1484,3 +1489,40 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - PLAYER_REGEN_DISABLED skips combat fade when layout is neither compact_main_horizontal nor expanded
   - PLAYER_REGEN_DISABLED installs a fade ticker that walks alpha from 1.0 down to 0
+
+### RULE-AUTOMATISCHE-SEASON-AUSWAHL
+- Regelnummer: 97
+- Status: aktiv
+- Zusammenfassung: Beim `PLAYER_LOGIN` und bei `CHALLENGE_MODE_MAPS_UPDATE` darf isiLive den von `C_ChallengeMode.GetMapTable()` gelieferten Challenge-Map-Satz nur fuer Season-Datensaetze mit `autoDetectFromChallengeMaps=true` auswerten. Nur wenn dieser Satz exakt und eindeutig zu einem solchen Datensatz passt, dessen `GetSeasonReadiness` ohne Fehler und Warnungen gruen ist und dessen M+-Forces-Daten dieselbe Season, positive Dungeon-Gesamtwerte fuer exakt alle Season-Maps, fuer jede Season-Map mindestens einen positiven NPC-Eintrag, ausschliesslich positive ganzzahlige NPC-IDs und Counts, keine fremden NPC-Map-IDs sowie ein nicht abgelaufenes `expiresAt` tragen, darf `ACTIVE_SEASON_ID` automatisch wechseln. Eine wegen Kampf-Lockdown abgebrochene Pruefung muss ausserhalb des Raid-Hard-offs bei `PLAYER_REGEN_ENABLED` erneut versucht werden. `midnight_s2` muss `autoDetectFromChallengeMaps=false` tragen und darf weder bei Login noch bei Challenge-Map-Updates automatisch aktiviert werden; der Wechsel auf S2 erfolgt ausschliesslich durch eine bewusste manuelle Aktivierung. Nach einem erlaubten automatischen Wechsel muessen die Legacy-Season-Aliase und die Teleportbuttons neu aufgebaut sowie die UI aktualisiert werden. Fehlende API-Daten, leere oder teilweise Mapsets, Duplikate, Mehrdeutigkeit, unbekannte Sets, deaktivierte automatische Auswahl, unvollstaendige Darstellungsdaten sowie fehlende, falsche, strukturell unvollstaendige oder abgelaufene Forces-Daten lassen die aktive Season unveraendert; ein Datum allein darf keinen Wechsel ausloesen.
+- Erforderliche Tests:
+  - SeasonData auto-selects only an exact Blizzard challenge-map set with complete ready data
+  - SeasonData auto-selection rejects missing stale or mismatched forces data
+  - Event handlers refresh automatic season selection on login and challenge-map updates
+  - Event handlers retry automatic season selection after combat
+  - Architecture automatic season wiring uses Blizzard map table and rebuilds teleport buttons
+  - SeasonData.GetSeasonReadiness flags missing English and German dungeon names
+  - SeasonData.GetSeasonReadiness warns when the deDE short-code table is missing
+  - SeasonData keeps Midnight Season 2 excluded from automatic selection
+  - SeasonData forces readiness rejects invalid NPC entries and maps without NPC coverage
+
+### RULE-MIDNIGHT-S2-DARSTELLUNG-UND-FORCES-MONITOR
+- Regelnummer: 98
+- Status: aktiv
+- Zusammenfassung: Der vorbereitete Datensatz `midnight_s2` muss fuer die Challenge-Map-IDs `249`, `250`, `399`, `584`, `585`, `586`, `587` und `588` eine explizite aufsteigende `displayOrder` nach Map-ID tragen. Fuer alle Nicht-deDE-Sprachen gelten die Kurzcodes `KR`, `TOS`, `RLP`, `TBV`, `VA`, `DON`, `MR`, `AOF`; fuer deDE gelten in derselben Map-ID-Reihenfolge `KR`, `TVS`, `RLB`, `DBT`, `ADL`, `NB`, `MG`, `ADF`. Die englischen Namen muessen `King's Rest`, `Temple of Sethraliss`, `Ruby Life Pools`, `The Blinding Vale`, `Voidscar Arena`, `Den of Nalorakk`, `Murder Row` und `Altar of Fangs` lauten; die deutschen Namen muessen `Königsruh`, `Tempel von Sethraliss`, `Rubinlebensbecken`, `Das blendende Tal`, `Arena der Leerennarbe`, `Nalorakks Bau`, `Mördergasse` und `Der Altar der Fänge` lauten. Der taegliche MDT-Season-Preview-Workflow darf strukturell nutzbare S2-Forces-Quellen nur dann per stabilem GitHub Issue melden, wenn fuer alle acht konfigurierten Dungeons ein ausfuehrbarer Dungeon-Datensatz mit exakt passender Map-ID, positivem normalen Dungeon-Gesamtwert und mindestens einem positiven NPC-Forces-Eintrag vorliegt. Das ist ein Verfuegbarkeitssignal und kein unbelegter Beweis, dass upstream bereits jeden beabsichtigten NPC enthaelt. Der Inspector muss nach einem ungueltigen Texttreffer weitere Kandidatendateien pruefen. Reine Texttreffer, Locale-/Moduldateien, fehlende Dungeons oder Platzhalter-Map-IDs duerfen keine Bereitschaft melden. Das Issue muss ueber seinen stabilen Marker seitenuebergreifend auch im geschlossenen Zustand gefunden, aktualisiert und bei erneuter Verfuegbarkeit wieder geoeffnet werden, statt Duplikate zu erzeugen.
+- Erforderliche Tests:
+  - SeasonData Midnight Season 2 exposes approved English and German display metadata
+  - MDT season preview lists textual candidates from a cloned MDT tree
+  - MDT season preview rejects textual stubs with the wrong map id
+  - MDT season preview continues past an invalid textual candidate to a usable dungeon file
+  - Architecture season inspect workflows avoid content writes and keep artifact reports
+
+### RULE-MIDNIGHT-S2-OPTIONALE-FORCES
+- Regelnummer: 99
+- Status: aktiv
+- Zusammenfassung: `midnight_s2` muss `autoDetectFromChallengeMaps=false` und `requiresForces=false` tragen, damit der User S2 bewusst manuell aktivieren kann, auch wenn noch keine passende MDT-Forces-DB vorliegt. Eine fehlende, strukturell ungueltige oder fuer eine andere Season erzeugte `MPlusForces`-DB darf keine Fehlermeldung und keine MDT-abhaengige Anzeige erzeugen: Mob-Forces auf Nameplates, Mob-Forces im Tooltip und der MDT-Dungeon-Gesamtwert-Fallback des Killtrackers bleiben geschlossen. Der direkt aus verifizierten Blizzard-Scenario-Daten gelesene laufende Dungeon-Gesamtfortschritt des Killtrackers bleibt davon unabhaengig sichtbar. MDT-Daten duerfen fuer Runtime-Anzeigen erst verwendet werden, wenn `MPlusForces.season` exakt der aktiven `SeasonData.ACTIVE_SEASON_ID` entspricht und `dungeonTotal` sowie `byNpcId` Tabellen sind.
+- Erforderliche Tests:
+  - SeasonData keeps prepared Midnight Season 2 manually activatable without forces data
+  - SeasonData.GetMatchingForcesData exposes only the active season DB
+  - MobNameplate hides MDT and API mob percentages when the active season has no matching Forces DB
+  - MobTooltip hides a Forces DB that does not match the active season
+  - KillTrack keeps Blizzard progress but ignores a Forces DB from another season

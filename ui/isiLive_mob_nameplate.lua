@@ -100,6 +100,14 @@ end
 -- because Blizzard's GetUnitCriteriaProgressValues(unit) percentString in 12.0+
 -- can return the cumulative dungeon progress under some protected paths instead
 -- of the per-mob value the criterion was originally designed to expose.
+local function GetForcesDB()
+  local seasonData = addonTable.SeasonData
+  if type(seasonData) == "table" and type(seasonData.GetMatchingForcesData) == "function" then
+    return seasonData.GetMatchingForcesData()
+  end
+  return addonTable.MPlusForces
+end
+
 local function ResolveMobContributionFromDB(unit, activeMapID)
   if type(activeMapID) ~= "number" then
     return nil, nil
@@ -123,7 +131,7 @@ local function ResolveMobContributionFromDB(unit, activeMapID)
   if not npcId then
     return nil, nil
   end
-  local db = addonTable.MPlusForces
+  local db = GetForcesDB()
   if type(db) ~= "table" or type(db.byNpcId) ~= "table" or type(db.dungeonTotal) ~= "table" then
     return nil, nil
   end
@@ -551,6 +559,17 @@ local function UpdateNameplate(unit)
     return
   end
 
+  if not testMode then
+    local seasonData = addonTable.SeasonData
+    local hasSeasonForcesGate = type(seasonData) == "table" and type(seasonData.GetMatchingForcesData) == "function"
+    if hasSeasonForcesGate and not GetForcesDB() then
+      if frame then
+        frame:Hide()
+      end
+      return
+    end
+  end
+
   if not IsEligibleUnit(unit) then
     if frame then
       frame:Hide()
@@ -929,7 +948,7 @@ function MobNameplate.DumpState(unit)
     end
   end
 
-  local db = addonTable.MPlusForces
+  local db = GetForcesDB()
   if type(db) == "table" and out.npcId then
     out.dbHasByNpcId = type(db.byNpcId) == "table"
     if type(db.byNpcId) == "table" then

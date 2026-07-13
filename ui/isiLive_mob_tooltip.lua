@@ -26,7 +26,13 @@ local function IsSecretValue(v)
 end
 
 local function GetForcesDB()
-  local db = addonTable.MPlusForces
+  local seasonData = addonTable.SeasonData
+  local db
+  if type(seasonData) == "table" and type(seasonData.GetMatchingForcesData) == "function" then
+    db = seasonData.GetMatchingForcesData()
+  else
+    db = addonTable.MPlusForces
+  end
   if type(db) ~= "table" then
     return nil
   end

@@ -754,6 +754,17 @@ local function BuildPartyLeaderChangedForwarder(ctx)
   end
 end
 
+local function ApplyPendingMainFrameSize(ctx)
+  local pendingMainFrameHeight = ctx.getPendingMainFrameHeight()
+  if pendingMainFrameHeight then
+    ctx.setMainFrameHeightSafe(pendingMainFrameHeight)
+  end
+  local pendingMainFrameWidth = ctx.getPendingMainFrameWidth()
+  if pendingMainFrameWidth then
+    ctx.setMainFrameWidthSafe(pendingMainFrameWidth)
+  end
+end
+
 function RuntimeLifecycle.BuildHandlers(ctx)
   ctx.handleLFGDetectEvent = ResolveEventHandler(ctx.handleLFGDetectEvent)
   ctx.handleKillTrackEvent = ResolveEventHandler(ctx.handleKillTrackEvent)
@@ -854,6 +865,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandlePlayerLoginEvent(_self)
+    ctx.refreshActiveSeasonFromBlizzard("PLAYER_LOGIN")
     ApplyBindingStartupRefresh(ctx)
     ctx.handleLFGDetectEvent("PLAYER_LOGIN")
     if not IsRaidModeActive(ctx) then
@@ -963,14 +975,8 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     if IsRaidModeActive(ctx) then
       return
     end
-    local pendingMainFrameHeight = ctx.getPendingMainFrameHeight()
-    if pendingMainFrameHeight then
-      ctx.setMainFrameHeightSafe(pendingMainFrameHeight)
-    end
-    local pendingMainFrameWidth = ctx.getPendingMainFrameWidth()
-    if pendingMainFrameWidth then
-      ctx.setMainFrameWidthSafe(pendingMainFrameWidth)
-    end
+    ctx.refreshActiveSeasonFromBlizzard("PLAYER_REGEN_ENABLED")
+    ApplyPendingMainFrameSize(ctx)
     ApplyPendingLeaderButtonUpdates(ctx)
     if ctx.isMainFrameShown() then
       ctx.updateUI()
@@ -1000,6 +1006,11 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.handleOwnedKeyRefresh()
     ctx.maybeShowNonMythicDungeonEntryNotice()
     ctx.checkIfEnteredTargetDungeon()
+  end
+
+  local function HandleChallengeModeMapsUpdateEvent(self)
+    ctx.refreshActiveSeasonFromBlizzard("CHALLENGE_MODE_MAPS_UPDATE")
+    HandleOwnedKeyContextEvent(self)
   end
 
   local function HandlePlayerSpecializationChangedEvent(_self, unit)
@@ -1139,7 +1150,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ZONE_CHANGED_NEW_AREA = HandleInstanceContextChangedEvent,
     UPDATE_INSTANCE_INFO = HandleInstanceContextChangedEvent,
     BAG_UPDATE_DELAYED = HandleOwnedKeyContextEvent,
-    CHALLENGE_MODE_MAPS_UPDATE = HandleOwnedKeyContextEvent,
+    CHALLENGE_MODE_MAPS_UPDATE = HandleChallengeModeMapsUpdateEvent,
     PLAYER_EQUIPMENT_CHANGED = HandlePlayerEquipmentChangedEvent,
     PLAYER_SPECIALIZATION_CHANGED = HandlePlayerSpecializationChangedEvent,
     PLAYER_ROLES_ASSIGNED = HandlePlayerRolesAssignedEvent,

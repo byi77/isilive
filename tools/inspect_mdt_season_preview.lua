@@ -1,13 +1,14 @@
 #!/usr/bin/env lua
 ---@diagnostic disable: undefined-global
--- Scans an already cloned MythicDungeonTools checkout for textual candidates
--- matching planned isiLive season dungeons. The output is an inspect artifact,
--- not a source of verified runtime IDs.
+-- Scans an already cloned MythicDungeonTools checkout for planned isiLive
+-- season dungeons and verifies whether every matching dungeon file contains a
+-- usable forces dataset. The output is an inspect artifact, not a runtime DB.
 
 local DEFAULT_LANGUAGE_PATH = "locale/isiLive_languages.lua"
 local DEFAULT_SEASON_DATA_PATH = "game/isiLive_season_data.lua"
 local DEFAULT_MDT_PATH = "tools/cache/mdt"
 local DEFAULT_SEASON_ID = "midnight_s2"
+local DEFAULT_SYNC_TOOL_PATH = "tools/sync_mdt_forces.lua"
 
 local function ParseArgs(args)
   local opts = {}
@@ -88,6 +89,11 @@ local function NormalizeText(value)
   return tostring(value or ""):lower():gsub("[^%w]+", "")
 end
 
+local function IsDungeonDataFile(path)
+  local normalized = tostring(path or ""):gsub("\\", "/"):lower()
+  return not normalized:find("/locales/", 1, true) and not normalized:find("/modules/", 1, true)
+end
+
 local function FirstLineContaining(content, needle)
   local normalizedNeedle = NormalizeText(needle)
   if normalizedNeedle == "" then
@@ -108,6 +114,69 @@ local function ReadMdtVersion(root)
     return "unresolved"
   end
   return tocContent:match("##%s*Version:%s*([^\r\n]+)") or "unresolved"
+end
+
+local function LoadTool(path)
+  local chunk, err = loadfile(path)
+  if not chunk then
+    return nil, string.format("cannot load %s: %s", tostring(path), tostring(err))
+  end
+  local ok, tool = pcall(chunk, "module")
+  if not ok or type(tool) ~= "table" then
+    return nil, string.format("load error in %s: %s", tostring(path), tostring(tool))
+  end
+  return tool
+end
+
+local function ValidateForcesCandidate(filePath, expectedMapID, expectedName, syncTool)
+  if filePath == "unresolved" then
+    return false, "candidate file is missing"
+  end
+  if
+    type(syncTool) ~= "table"
+    or type(syncTool.BuildSandbox) ~= "function"
+    or type(syncTool.LoadDungeonFile) ~= "function"
+  then
+    return false, "forces sandbox is unavailable"
+  end
+
+  local MDT = syncTool.BuildSandbox()
+  local ok, err = syncTool.LoadDungeonFile(filePath, MDT)
+  if not ok then
+    return false, "candidate execution failed: " .. tostring(err)
+  end
+
+  for dungeonIndex, info in pairs(MDT.mapInfo or {}) do
+    if type(info) == "table" and info.englishName == expectedName then
+      if tonumber(info.mapID) ~= expectedMapID then
+        return false, string.format("mapID mismatch: expected %d, got %s", expectedMapID, tostring(info.mapID))
+      end
+
+      local totals = MDT.dungeonTotalCount and MDT.dungeonTotalCount[dungeonIndex]
+      if type(totals) ~= "table" or not tonumber(totals.normal) or tonumber(totals.normal) <= 0 then
+        return false, "positive normal dungeon total is missing"
+      end
+
+      local enemies = MDT.dungeonEnemies and MDT.dungeonEnemies[dungeonIndex]
+      if type(enemies) ~= "table" then
+        return false, "dungeon enemies are missing"
+      end
+      for _, enemy in pairs(enemies) do
+        if
+          type(enemy) == "table"
+          and tonumber(enemy.id)
+          and tonumber(enemy.id) > 0
+          and tonumber(enemy.count)
+          and tonumber(enemy.count) > 0
+        then
+          return true, "ready"
+        end
+      end
+      return false, "positive NPC forces entry is missing"
+    end
+  end
+
+  return false, "exact English dungeon name is missing from MDT mapInfo"
 end
 
 local M = {}
@@ -149,37 +218,80 @@ function M.BuildSummary(opts)
   end
 
   local plannedDungeons = type(season.plannedDungeons) == "table" and season.plannedDungeons or {}
+  local mapToTeleport = type(season.mapToTeleport) == "table" and season.mapToTeleport or {}
+  local namesByMapID = type(season.namesByLocale) == "table" and season.namesByLocale.enUS or {}
+  local mapIDByName = {}
+  for mapID in pairs(mapToTeleport) do
+    local name = type(namesByMapID) == "table" and namesByMapID[mapID] or nil
+    if type(name) == "string" and name ~= "" then
+      mapIDByName[name] = mapID
+    end
+  end
+  local syncTool, syncToolError = LoadTool(opts.syncToolPath or DEFAULT_SYNC_TOOL_PATH)
   local files = ListLuaFiles(mdtPath)
   local candidateMatches = 0
+  local forcesReadyDungeons = 0
   lines[#lines + 1] = "- Lua files scanned: " .. tostring(#files)
 
   local tableLines = {
     "",
-    "| Planned dungeon | Candidate file | Matched line |",
-    "| --- | --- | --- |",
+    "| Planned dungeon | Map ID | Candidate file | Matched line | Forces status |",
+    "| --- | ---: | --- | --- | --- |",
   }
   for _, dungeonName in ipairs(plannedDungeons) do
     local candidateFile = "unresolved"
     local matchedLine = "unresolved"
+    local expectedMapID = mapIDByName[dungeonName]
+    local forcesReady = false
+    local forcesStatus = "unresolved: candidate file is missing"
     for _, filePath in ipairs(files) do
-      local content = ReadFile(filePath)
-      local line = FirstLineContaining(content, dungeonName)
-      if line then
-        candidateFile = filePath
-        matchedLine = line
-        candidateMatches = candidateMatches + 1
-        break
+      if IsDungeonDataFile(filePath) then
+        local content = ReadFile(filePath)
+        local line = FirstLineContaining(content, dungeonName)
+        if line then
+          candidateMatches = candidateMatches + 1
+          candidateFile = filePath
+          matchedLine = line
+          if expectedMapID and syncTool then
+            local ready, reason = ValidateForcesCandidate(filePath, expectedMapID, dungeonName, syncTool)
+            if ready then
+              candidateFile = filePath
+              matchedLine = line
+              forcesReady = true
+              forcesStatus = "ready"
+              break
+            end
+            forcesStatus = "unresolved: " .. tostring(reason)
+          end
+        end
       end
     end
-    tableLines[#tableLines + 1] =
-      string.format("| %s | %s | %s |", tostring(dungeonName), tostring(candidateFile), tostring(matchedLine))
+    if not expectedMapID then
+      forcesStatus = "unresolved: configured map ID is missing"
+    elseif not syncTool then
+      forcesStatus = "unresolved: " .. tostring(syncToolError)
+    end
+    if forcesReady then
+      forcesReadyDungeons = forcesReadyDungeons + 1
+    end
+    tableLines[#tableLines + 1] = string.format(
+      "| %s | %s | %s | %s | %s |",
+      tostring(dungeonName),
+      tostring(expectedMapID or "unresolved"),
+      tostring(candidateFile),
+      tostring(matchedLine),
+      tostring(forcesStatus)
+    )
   end
 
   if #plannedDungeons == 0 then
-    tableLines[#tableLines + 1] = "| unresolved | unresolved | plannedDungeons is empty |"
+    tableLines[#tableLines + 1] = "| unresolved | unresolved | unresolved | plannedDungeons is empty | unresolved |"
   end
 
   lines[#lines + 1] = "- Candidate matches: " .. tostring(candidateMatches)
+  lines[#lines + 1] = string.format("- Forces-ready dungeons: %d/%d", forcesReadyDungeons, #plannedDungeons)
+  lines[#lines + 1] = "- Forces-ready: "
+    .. ((#plannedDungeons > 0 and forcesReadyDungeons == #plannedDungeons) and "yes" or "no")
   for _, line in ipairs(tableLines) do
     lines[#lines + 1] = line
   end

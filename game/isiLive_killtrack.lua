@@ -12,6 +12,14 @@ local debugLogger = nil
 
 local lastDriftKey = nil
 
+local function GetMatchingForcesDB()
+  local seasonData = addonTable.SeasonData
+  if type(seasonData) == "table" and type(seasonData.GetMatchingForcesData) == "function" then
+    return seasonData.GetMatchingForcesData()
+  end
+  return addonTable.MPlusForces
+end
+
 local state = {
   active = false,
   percent = 0,
@@ -131,7 +139,7 @@ local function ReadLiveData()
   end
 
   local dbTotal = nil
-  local mplusForces = addonTable.MPlusForces
+  local mplusForces = GetMatchingForcesDB()
   if type(mplusForces) == "table" and type(mplusForces.dungeonTotal) == "table" then
     local entry = mplusForces.dungeonTotal[mapID]
     if type(entry) == "table" then

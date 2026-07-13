@@ -274,6 +274,26 @@ local function RegisterGuardTests(test, Assert, WithGlobals, LoadAddonModules)
       Assert.Equal(#tooltipLines, 0, "missing MPlusForces DB must be handled gracefully")
     end)
   end)
+
+  test("MobTooltip hides a Forces DB that does not match the active season", function()
+    local tooltipLines = {}
+    local tooltip = MakeGameTooltip(tooltipLines)
+    SetupTooltipEnv(WithGlobals, { GameTooltip = tooltip }, function(postCalls)
+      local addon = LoadAddonModules({ "isiLive_mob_tooltip.lua" }, {
+        SeasonData = {
+          GetMatchingForcesData = function()
+            return nil
+          end,
+        },
+        MPlusForces = NewMplusForcesDB(),
+      })
+      addon.MobTooltip.Register()
+      postCalls[1].callback(tooltip, {
+        guid = "Creature-0-3889-161-12345-76132-0000ABCDEF",
+      })
+      Assert.Equal(#tooltipLines, 0, "mismatched season Forces must render no tooltip line")
+    end)
+  end)
 end
 
 local function RegisterDedupeTests(test, Assert, WithGlobals, LoadAddonModules)

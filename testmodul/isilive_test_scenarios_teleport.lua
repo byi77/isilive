@@ -38,6 +38,10 @@ local function BuildCreateFrameStub()
 end
 
 local function ActivateSeasonOrFail(Assert, addon, seasonID, opts)
+  -- Resolver fixtures intentionally define only fields used by Teleport; the
+  -- production automatic selector is covered separately with full readiness.
+  opts = opts or {}
+  opts.allowIncomplete = true
   local ok, err = addon.SeasonData.SetActiveSeasonID(seasonID, opts)
   Assert.True(ok, tostring(err))
 end

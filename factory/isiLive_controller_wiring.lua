@@ -360,6 +360,56 @@ local function ExtendEventHandlersConfig(config, deps, state, refs, controllers,
       return nil
     end
   config.markIsiLiveUser = RequireFunction(deps.markIsiLiveUser, "markIsiLiveUser")
+  config.refreshActiveSeasonFromBlizzard = function(eventName)
+    local seasonData = addonTable.SeasonData
+    local challengeMode = rawget(_G, "C_ChallengeMode")
+    local getMapTable = type(challengeMode) == "table" and rawget(challengeMode, "GetMapTable") or nil
+    if
+      type(seasonData) ~= "table"
+      or type(seasonData.TryAutoSelectSeasonFromChallengeMapIDs) ~= "function"
+      or type(getMapTable) ~= "function"
+    then
+      return false
+    end
+
+    local inCombatLockdown = rawget(_G, "InCombatLockdown")
+    if type(inCombatLockdown) == "function" then
+      local okCombat, inCombat = pcall(inCombatLockdown)
+      if not okCombat or inCombat == true then
+        return false
+      end
+    end
+
+    local okMaps, mapIDs = pcall(getMapTable)
+    if not okMaps or type(mapIDs) ~= "table" then
+      return false
+    end
+
+    local ok, changed, message = seasonData.TryAutoSelectSeasonFromChallengeMapIDs(mapIDs, {
+      forcesData = addonTable.MPlusForces,
+    })
+    if type(config.logRuntimeTracef) == "function" then
+      config.logRuntimeTracef(
+        "[SEASON] auto_select event=%s ok=%s changed=%s active=%s reason=%s",
+        tostring(eventName),
+        tostring(ok),
+        tostring(changed),
+        tostring(seasonData.GetActiveSeasonID and seasonData.GetActiveSeasonID() or nil),
+        tostring(message)
+      )
+    end
+    if not (ok and changed) then
+      return false
+    end
+
+    if controllers.teleport and type(controllers.teleport.BuildButtons) == "function" then
+      controllers.teleport.BuildButtons()
+    end
+    if type(callbacks.updateUI) == "function" then
+      callbacks.updateUI()
+    end
+    return true
+  end
   config.maybeShowNonMythicDungeonEntryNotice = function()
     local seasonData = addonTable.SeasonData
     if type(seasonData) == "table" and type(seasonData.HasActiveDungeons) == "function" then
@@ -854,6 +904,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
       refresh = ctx.refreshController,
       inspect = ctx.inspectController,
       status = ctx.statusController,
+      teleport = ctx.teleportUIController,
     },
     callbacks = {
       exitTestMode = ctx.exitTestMode,

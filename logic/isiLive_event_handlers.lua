@@ -163,6 +163,9 @@ local function BuildContext(opts)
     RequireFunction(opts.tryRestoreCenterNoticeTeleportButton, "tryRestoreCenterNoticeTeleportButton")
 
   ctx.handleOwnedKeyRefresh = RequireFunction(opts.handleOwnedKeyRefresh, "handleOwnedKeyRefresh")
+  ctx.refreshActiveSeasonFromBlizzard = OptionalFunction(opts.refreshActiveSeasonFromBlizzard, function()
+    return false
+  end)
   ctx.notifyPostChallengeSync = RequireFunction(opts.notifyPostChallengeSync, "notifyPostChallengeSync")
   ctx.isMainFrameShown = RequireFunction(opts.isMainFrameShown, "isMainFrameShown")
   ctx.onInspectReady = RequireFunction(opts.onInspectReady, "onInspectReady")
