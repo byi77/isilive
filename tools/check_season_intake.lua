@@ -7,7 +7,6 @@
 local DEFAULT_INTAKE_PATH = "docs/SEASON_INTAKE.md"
 local DEFAULT_LANGUAGE_PATH = "locale/isiLive_languages.lua"
 local DEFAULT_SEASON_DATA_PATH = "game/isiLive_season_data.lua"
-local DEFAULT_TARGET_SEASON = "midnight_s2"
 
 local STATUS_VALUES = {
   unresolved = true,
@@ -94,6 +93,37 @@ local function ParseTables(content)
   end
 
   return sections
+end
+
+local function ResolveTargetSeason(tables, requestedSeason)
+  if requestedSeason ~= nil then
+    local normalized = Trim(requestedSeason)
+    if not normalized:match("^[%w_%-]+$") then
+      return nil, "requested season ID has an invalid format"
+    end
+    return normalized
+  end
+
+  local seen = {}
+  local resolved
+  for _, row in ipairs(type(tables) == "table" and tables.dungeons or {}) do
+    local seasonID = Trim(row.Season)
+    if seasonID ~= "" and not seen[seasonID] then
+      seen[seasonID] = true
+      if resolved and resolved ~= seasonID then
+        return nil, "dungeon intake contains multiple seasons; pass an explicit season ID"
+      end
+      resolved = seasonID
+    end
+  end
+
+  if not resolved then
+    return nil, "dungeon intake does not contain a season ID"
+  end
+  if not resolved:match("^[%w_%-]+$") then
+    return nil, "intake season ID has an invalid format"
+  end
+  return resolved
 end
 
 local function LoadAddonFile(path, addonTable)
@@ -217,7 +247,7 @@ local function BuildPlannedDungeonSet(seasonData, seasonID)
   return set, ordered
 end
 
-local function CountStatuses(rows)
+local function CountStatuses(rows, seasonID)
   local counts = {
     unresolved = 0,
     candidate = 0,
@@ -225,27 +255,52 @@ local function CountStatuses(rows)
     verified = 0,
   }
   for _, row in ipairs(rows) do
-    local status = Trim(row.Status)
-    if counts[status] ~= nil then
-      counts[status] = counts[status] + 1
+    if row.Season == seasonID then
+      local status = Trim(row.Status)
+      if counts[status] ~= nil then
+        counts[status] = counts[status] + 1
+      end
     end
   end
   return counts
+end
+
+local function CountRowsForSeason(rows, seasonID)
+  local count = 0
+  for _, row in ipairs(rows) do
+    if row.Season == seasonID then
+      count = count + 1
+    end
+  end
+  return count
 end
 
 local M = {}
 
 function M.Check(opts)
   opts = opts or {}
-  local targetSeason = opts.seasonID or DEFAULT_TARGET_SEASON
   local content, readErr = ReadFile(opts.intakePath or DEFAULT_INTAKE_PATH)
   local errors = {}
   if not content then
+    local targetSeason = opts.seasonID or "unresolved"
     return false,
       {
         seasonID = targetSeason,
         errors = { readErr },
         summary = "## Season Intake Check\n\n- Status: invalid\n- Reason: " .. tostring(readErr) .. "\n",
+      }
+  end
+
+  local tables = ParseTables(content)
+  local targetSeason, targetErr = ResolveTargetSeason(tables, opts.seasonID)
+  if not targetSeason then
+    return false,
+      {
+        seasonID = "unresolved",
+        errors = { targetErr },
+        summary = "## Season Intake Check\n\n- Season: unresolved\n- Status: invalid\n- Reason: " .. tostring(
+          targetErr
+        ) .. "\n",
       }
   end
 
@@ -259,7 +314,6 @@ function M.Check(opts)
       }
   end
 
-  local tables = ParseTables(content)
   local plannedSet, plannedOrder = BuildPlannedDungeonSet(seasonData, targetSeason)
   if #plannedOrder == 0 then
     AddError(errors, "target season " .. targetSeason .. " has no plannedDungeons in SeasonData")
@@ -271,6 +325,16 @@ function M.Check(opts)
   local seenLfg = {}
   local seenToy = {}
   local seenMount = {}
+  local manifestSeason = seasonData.MANIFEST
+    and seasonData.MANIFEST.seasons
+    and seasonData.MANIFEST.seasons[targetSeason]
+  local manifestDungeonByMapID = {}
+  for _, dungeon in ipairs(type(manifestSeason) == "table" and manifestSeason.dungeons or {}) do
+    local mapID = tonumber(dungeon.mapID)
+    if mapID then
+      manifestDungeonByMapID[mapID] = dungeon
+    end
+  end
 
   for _, row in ipairs(tables.dungeons) do
     local label = string.format("dungeon row %s/%s", tostring(row.Season), tostring(row.Dungeon))
@@ -286,6 +350,35 @@ function M.Check(opts)
       RegisterUnique(errors, seenChallenge, "ChallengeMapID", row.ChallengeMapID, label)
       RegisterUnique(errors, seenPortal, "PortalSpellID", row.PortalSpellID, label)
       RegisterUnique(errors, seenLfg, "LFGActivityID", row.LFGActivityID, label)
+
+      local mapID = tonumber(row.ChallengeMapID)
+      local portalSpellID = tonumber(row.PortalSpellID)
+      local activityID = tonumber(row.LFGActivityID)
+      if mapID and portalSpellID and activityID then
+        local manifestDungeon = manifestDungeonByMapID[mapID]
+        if type(manifestDungeon) ~= "table" then
+          AddError(errors, label .. " is missing from the season manifest")
+        else
+          if seasonData.GetDungeonName(mapID, "enUS", targetSeason) ~= row.Dungeon then
+            AddError(errors, label .. " dungeon name does not match the season manifest")
+          end
+          if seasonData.GetMapToTeleport(targetSeason)[mapID] ~= portalSpellID then
+            AddError(errors, label .. " PortalSpellID does not match the season manifest")
+          end
+          if seasonData.GetMapIDByActivityID(activityID, targetSeason) ~= mapID then
+            AddError(errors, label .. " LFGActivityID does not match the season manifest")
+          end
+          local verification = manifestDungeon.verification
+          if type(verification) == "table" then
+            if verification.status ~= row.Status then
+              AddError(errors, label .. " Status does not match the season manifest")
+            end
+            if verification.verifiedAt ~= row.VerifiedAt then
+              AddError(errors, label .. " VerifiedAt does not match the season manifest")
+            end
+          end
+        end
+      end
     end
   end
 
@@ -311,7 +404,7 @@ function M.Check(opts)
     end
   end
 
-  local counts = CountStatuses(tables.dungeons)
+  local counts = CountStatuses(tables.dungeons, targetSeason)
   local lines = {
     "## Season Intake Check",
     "",
@@ -346,8 +439,8 @@ function M.Check(opts)
 
   lines[#lines + 1] = ""
   lines[#lines + 1] = "### Weitere Daten"
-  lines[#lines + 1] = string.format("- Ruhestein-Zeilen: %d", #tables.hearthstones)
-  lines[#lines + 1] = string.format("- Mount-Zeilen: %d", #tables.mounts)
+  lines[#lines + 1] = string.format("- Ruhestein-Zeilen: %d", CountRowsForSeason(tables.hearthstones, targetSeason))
+  lines[#lines + 1] = string.format("- Mount-Zeilen: %d", CountRowsForSeason(tables.mounts, targetSeason))
 
   if #errors > 0 then
     lines[#lines + 1] = ""

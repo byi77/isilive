@@ -1,8 +1,9 @@
 # Season-Intake
 
 Diese Datei ist die strukturierte Sammelstelle fuer kommende Season-Daten.
-Sie ist keine Aktivierung der Season. `SeasonData.ACTIVE_SEASON_ID` bleibt die
-einzige Runtime-Aktivierung.
+Sie ist keine Aktivierung der Season. `activeSeasonID` in
+`data/isiLive_seasons.lua` bleibt die einzige manuell gepflegte
+Runtime-Aktivierung; `SeasonData.ACTIVE_SEASON_ID` spiegelt diesen Wert.
 
 Maschinenregeln:
 - `Status` ist `unresolved`, `candidate`, `partial` oder `verified`.
@@ -12,6 +13,9 @@ Maschinenregeln:
 - `verified` bedeutet: alle Pflichtfelder der Zeile sind numerisch verifiziert und haben `Source` plus `VerifiedAt`.
 - `VerifiedAt` nutzt `YYYY-MM-DD`.
 - Werte werden nicht geraten. Ohne belastbare Quelle bleibt der Wert `unresolved`.
+- `tools/check_season_intake.lua` gleicht verifizierte Dungeonzeilen mit dem
+  normalisierten Saisonmanifest ab. ChallengeMapID, PortalSpellID,
+  LFGActivityID, Status und VerifiedAt duerfen nicht auseinanderlaufen.
 
 Aktueller Stand `2026-07-13`: `8/8 verified`, `0/8 partial`. Der User hat die Uebernahme aller acht castbaren PortalSpellIDs nach dem Crosscheck von DBM, EnhanceQoL Teleport Compendium, Chonky Character Sheet und Wowhead-PTR-Spell-Daten ausdruecklich freigegeben. Die `128680x`-Reihe enthaelt die castbaren 10-Sekunden-Portalspells; die abweichenden `128977x`-Instant-Spells werden nicht als Portal-Cast-IDs uebernommen. ChallengeMapIDs und Mythic+-LFG-Activity-IDs sind dokumentiert. Englische und deutsche Namen, Default-/deDE-Kurzcodes sowie die ausdruecklich freigegebene aufsteigende Map-ID-Anzeigereihenfolge sind im Season-Datensatz gepflegt. S2 wird bewusst manuell aktiviert und ist nicht von der optionalen MDT-Forces-DB abhaengig; bis eine passende S2-DB vorliegt, bleiben nur die MDT-abhaengigen Mob-Anzeigen geschlossen.
 

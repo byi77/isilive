@@ -19,7 +19,7 @@
 --   lua tools/check_mplus_db_lifetime.lua
 
 local DB_PATH = "data/isiLive_mplus_forces.lua"
-local SEASON_DATA_PATH = "game/isiLive_season_data.lua"
+local SEASON_DATA_PATH = "data/isiLive_seasons.lua"
 local ENV_OVERRIDE = "ISILIVE_ALLOW_STALE_MPLUS_DB"
 
 local function today()
@@ -49,7 +49,7 @@ local function readActiveSeasonID(path)
   end
   local content = file:read("*a") or ""
   file:close()
-  return content:match('SeasonData%.ACTIVE_SEASON_ID%s*=%s*"([^"]+)"')
+  return content:match('activeSeasonID%s*=%s*"([^"]+)"')
 end
 
 local M = {}

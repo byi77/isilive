@@ -575,6 +575,7 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
 
   WithGlobals(BuildGlobalsEnv(state), function()
     local addon = LoadAddonModules({
+      "isiLive_season_data.lua",
       "isiLive_factory_controllers.lua",
       "isiLive_factory_kick_tracker.lua",
     }, {

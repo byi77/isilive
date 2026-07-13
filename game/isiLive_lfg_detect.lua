@@ -13,27 +13,18 @@ local LFGDetect = {}
 addonTable.LFGDetect = LFGDetect
 local Unpack = rawget(_G, "unpack") or rawget(table, "unpack")
 
--- Static map: LFG activity ID -> challenge map ID for all active-season dungeons.
--- Primary fast path: zero-latency, no API call, taint-safe.
+-- Runtime cache for Blizzard-resolved activity IDs that are not present in the
+-- active season manifest. The verified static mappings live in SeasonData.
 -- The LFG API (C_LFGList.GetActivityInfoTable) can return tainted/secret values
 -- during raid state or when the API cache is cold (first event after login).
--- The static map guarantees a correct answer even in those edge cases.
--- New season: add entries here AND in SeasonData.mapToTeleport — both must stay in sync.
-local ACTIVITY_TO_MAP = {
-  [1542] = 557, -- Windrunner Spire
-  [182] = 161, -- Skyreach
-  [486] = 239, -- Seat of the Triumvirate
-  [1770] = 556, -- Pit of Saron
-  [1768] = 559, -- Nexus-Point Xenas
-  [1764] = 560, -- Maisara Caverns
-  [1760] = 558, -- Magisters' Terrace
-  [1160] = 402, -- Algeth'ar Academy
-}
+-- The season manifest guarantees a verified answer even in those edge cases.
+local ACTIVITY_TO_MAP = {}
 
 -- Resolve mapID from a single activityID.
 -- Resolution order:
---   1. ACTIVITY_TO_MAP  — static, zero-latency, taint-safe (primary)
---   2. C_LFGList.GetActivityInfoTable — dynamic fallback for IDs not in the static map;
+--   1. SeasonData manifest index — static, zero-latency, taint-safe (primary)
+--   2. ACTIVITY_TO_MAP — runtime cache for already verified Blizzard lookups
+--   3. C_LFGList.GetActivityInfoTable — dynamic fallback for unknown IDs;
 --      result is cached into ACTIVITY_TO_MAP so subsequent calls are free.
 local function MapIDFromActivityID(activityID)
   if not activityID then
@@ -44,7 +35,14 @@ local function MapIDFromActivityID(activityID)
     return nil
   end
 
-  -- 1. Static map: fast, taint-safe, reliable even when the API cache is cold
+  -- 1. Verified season manifest: fast, taint-safe, and season-scoped.
+  local seasonData = addonTable.SeasonData
+  if type(seasonData) == "table" and type(seasonData.GetMapIDByActivityID) == "function" then
+    local mapID = seasonData.GetMapIDByActivityID(numID)
+    if mapID then
+      return mapID
+    end
+  end
   if ACTIVITY_TO_MAP[numID] then
     return ACTIVITY_TO_MAP[numID]
   end

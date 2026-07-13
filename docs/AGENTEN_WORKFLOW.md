@@ -2,8 +2,11 @@
 
 Dieses Runbook beschreibt, wie Hilfsagenten fuer isiLive genutzt werden duerfen.
 Es ersetzt keine Projektregeln. Bei Widerspruch gelten zuerst
-`docs/RULES_LOGIC.md`, danach `docs/ARCHITECTURE_RULES.md`, `AGENTS.md`,
-`CLAUDE.md`, `docs/RULES.md` und die konkreten User-Entscheidungen.
+`docs/RULES_LOGIC.md`, danach `docs/ARCHITECTURE_RULES.md`, `docs/RULES.md` und
+die konkreten User-Entscheidungen. Lokale, nicht oeffentlich getrackte
+Maintainer-Anweisungen wie `AGENTS.md` oder `CLAUDE.md` koennen diese Regeln fuer
+den jeweiligen Workspace ergaenzen, sind aber keine Voraussetzung, um dieses
+oeffentliche Runbook zu verstehen oder anzuwenden.
 
 ## Grundsatz
 
@@ -103,6 +106,7 @@ Zweck: Vorarbeit fuer neue Seasons und Dungeon-Daten.
 Geeignete Aufgaben:
 
 - `docs/SEASON_INTAKE.md` gegen `tools/check_season_intake.lua` pruefen.
+- Bei jedem Saisonwechsel `docs/SAISON_WECHSEL.md` vollstaendig abarbeiten.
 - PTR-/Live-Dumps strukturiert einordnen.
 - Fehlende `Source`- oder `VerifiedAt`-Felder melden.
 - `unresolved`-Felder als offene Luecken listen.
@@ -110,7 +114,8 @@ Geeignete Aufgaben:
 Nicht erlaubt:
 
 - IDs aus Namen, Screenshots, externen Listen oder Plausibilitaet ableiten.
-- `SeasonData.ACTIVE_SEASON_ID` umstellen.
+- `activeSeasonID` in `data/isiLive_seasons.lua` oder dessen Runtime-Spiegel
+  `SeasonData.ACTIVE_SEASON_ID` umstellen.
 - Halbfertige Season-Daten als aktiv vorschlagen.
 
 ### Doku-Sync
@@ -122,6 +127,8 @@ Geeignete Aufgaben:
 - Pruefen, ob `README.md`, `docs/CHANGELOG.md`, `docs/USECASES.md`,
   `docs/ARCHITECTURE.md`, `docs/RULES.md`, `docs/WARTUNG.md` oder
   `CHANGELOG_RELEASE.md` nachgezogen werden muessen.
+- Bei Asset-Aenderungen `docs/ASSET_PROVENANCE.md`, bei Saisonarbeit
+  `docs/SEASON_INTAKE.md` und `docs/SAISON_WECHSEL.md` einbeziehen.
 - Sprachregel pruefen: README und Changelogs Englisch, sonst Deutsch.
 - UI-Labels gegen Locale-Keys und Dokumentation abgleichen.
 

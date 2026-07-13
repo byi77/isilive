@@ -192,6 +192,10 @@ jobs:
         run: |
           lua tools/simulate_role_marker_macro.lua
 
+      - name: M+ Timer Lifecycle Simulator
+        run: |
+          lua tools/simulate_mplus_timer_lifecycle.lua
+
       - name: Deterministic Usecase + Rules Logic Validation
         run: |
           lua tools/validate_usecases.lua

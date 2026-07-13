@@ -38,6 +38,19 @@ local function IsM2LayoutMode(layoutMode)
   return NormalizeLayoutMode(layoutMode) == LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL
 end
 
+local function ResolveTeleportLevelBlocked(button, deps)
+  local minimumPlayerLevel = tonumber(button and button.minimumPlayerLevel)
+  if not minimumPlayerLevel then
+    return false
+  end
+
+  local playerLevel = tonumber(deps.getPlayerLevel())
+  if not playerLevel then
+    return nil
+  end
+  return playerLevel < minimumPlayerLevel
+end
+
 local function ResolveTeleportButtonShortCode(deps, mapID)
   if type(deps.getDungeonShortCode) ~= "function" then
     return nil
@@ -192,6 +205,7 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
   button.spellID = entry.spellID
   button.mapID = entry.mapID
   button.mapName = entry.mapName
+  button.minimumPlayerLevel = tonumber(entry.minimumPlayerLevel)
   button.shortCode = ResolveTeleportButtonShortCode(deps, entry.mapID)
   button.defaultIcon = entry.icon or "Interface\\Icons\\INV_Misc_QuestionMark"
   button.isActiveTarget = false
@@ -299,7 +313,8 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
         tooltip:AddLine(englishMapName, 1, 1, 1, true)
       end
     end
-    if self.spellID and deps.isSpellKnown(self.spellID) then
+    local levelBlocked = ResolveTeleportLevelBlocked(self, deps)
+    if self.spellID and deps.isSpellKnown(self.spellID) and levelBlocked == false then
       if not hasMapName then
         tooltip:SetSpellByID(self.spellID)
       end
@@ -319,7 +334,12 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
       if not hasMapName then
         tooltip:SetText(L.BTN_TELEPORT_LOCKED, 1, 1, 1)
       end
-      tooltip:AddLine(L.TOOLTIP_TELEPORT_LOCKED, 1, 0.25, 0.25, true)
+      local minimumPlayerLevel = tonumber(self.minimumPlayerLevel)
+      if levelBlocked == true and type(L.TOOLTIP_TELEPORT_LEVEL_REQUIRED) == "string" then
+        tooltip:AddLine(string.format(L.TOOLTIP_TELEPORT_LEVEL_REQUIRED, minimumPlayerLevel), 1, 0.25, 0.25, true)
+      else
+        tooltip:AddLine(L.TOOLTIP_TELEPORT_LOCKED, 1, 0.25, 0.25, true)
+      end
     end
     if self.isActiveTarget then
       tooltip:AddLine(L.TOOLTIP_TELEPORT_ACTIVE_TARGET, 1, 0.85, 0.2, true)
@@ -346,6 +366,13 @@ function TeleportUI.CreateController(opts)
     end,
     getL = opts.getL or function()
       return {}
+    end,
+    getPlayerLevel = opts.getPlayerLevel or function()
+      local unitLevel = rawget(_G, "UnitLevel")
+      if type(unitLevel) ~= "function" then
+        return nil
+      end
+      return unitLevel("player")
     end,
     isSpellKnown = opts.isSpellKnown or function(_spellID)
       return false
@@ -589,6 +616,8 @@ function TeleportUI.CreateController(opts)
       end
 
       local known = deps.isSpellKnown(button.spellID)
+      local levelBlocked = ResolveTeleportLevelBlocked(button, deps)
+      local available = known and levelBlocked == false
       local icon = deps.getSpellTexture(button.spellID)
       button.icon:SetTexture(icon or button.defaultIcon or "Interface\\Icons\\INV_Misc_QuestionMark")
       button.isActiveTarget = (resolvedSpellID and button.spellID == resolvedSpellID) and true or false
@@ -596,9 +625,9 @@ function TeleportUI.CreateController(opts)
       if deps.logRuntimeTraceDeep and button.isActiveTarget then
         deps.logRuntimeTraceDeep(function()
           return string.format(
-            "[TP_UI] button_decision spellID=%s known=%s active=%s cooldown=%s soundContext=%s",
+            "[TP_UI] button_decision spellID=%s available=%s active=%s cooldown=%s soundContext=%s",
             tostring(button.spellID),
-            tostring(known),
+            tostring(available),
             tostring(button.isActiveTarget),
             tostring(button.cooldownRemainingSeconds),
             tostring(soundContext)
@@ -616,7 +645,7 @@ function TeleportUI.CreateController(opts)
         deps.applyCooldownFrameSafe(button.cooldown, 0, 0, false)
       end
 
-      -- Logic: Show active border even if spell is not known (locked),
+      -- Show the active border even when the portal is unavailable,
       -- so the user knows which dungeon is the current target.
       if button.isActiveTarget then
         button.activeBorder:Show()
@@ -624,7 +653,7 @@ function TeleportUI.CreateController(opts)
         button.activeBorder:Hide()
       end
 
-      if known then
+      if available then
         if button.isActiveTarget then
           button.overlay:SetColorTexture(0.15, 0.35, 0.55, 0.25)
           if not button.animGroup:IsPlaying() then

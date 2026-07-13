@@ -56,11 +56,13 @@ local PORTAL_NAVIGATOR_MAP_IDS = {
   [2266] = true,
 }
 
-local PORTAL_NAVIGATOR_ENTRY_MAP_IDS = {
-  left = 161,
-  half_left = 556,
-  half_right = 402,
-  right = 239,
+local PORTAL_NAVIGATOR_SLOT_ORDER = { "left", "half_left", "center", "half_right", "right" }
+local PORTAL_NAVIGATOR_DIRECTION_KEYS = {
+  left = "PORTAL_NAVIGATOR_LEFT",
+  half_left = "PORTAL_NAVIGATOR_HALF_LEFT",
+  center = "PORTAL_NAVIGATOR_CENTER",
+  half_right = "PORTAL_NAVIGATOR_HALF_RIGHT",
+  right = "PORTAL_NAVIGATOR_RIGHT",
 }
 
 local function NormalizeZoneText(value)
@@ -183,7 +185,17 @@ end
 
 local function BuildPortalNavigatorLayout(deps)
   local L = deps.getL()
-  local title = L.PORTAL_NAVIGATOR_TITLE
+  local seasonData = addonTable.SeasonData
+  local navigator = type(seasonData) == "table"
+      and type(seasonData.GetPortalNavigatorConfig) == "function"
+      and seasonData.GetPortalNavigatorConfig()
+    or nil
+  if type(navigator) ~= "table" or type(navigator.slots) ~= "table" then
+    return nil
+  end
+  local localeTag = deps.getLocaleTag()
+  local titles = type(navigator.titleByLocale) == "table" and navigator.titleByLocale or {}
+  local title = titles[localeTag] or titles.default
   if type(title) ~= "string" or title == "" then
     return nil
   end
@@ -191,38 +203,25 @@ local function BuildPortalNavigatorLayout(deps)
   if type(eyebrow) ~= "string" or eyebrow == "" then
     return nil
   end
-  local entries = {
-    {
-      slot = "left",
-      direction = L.PORTAL_NAVIGATOR_LEFT,
-      destination = L.PORTAL_NAVIGATOR_SKYREACH,
-    },
-    {
-      slot = "half_left",
-      direction = L.PORTAL_NAVIGATOR_HALF_LEFT,
-      destination = L.PORTAL_NAVIGATOR_PIT_OF_SARON,
-    },
-    {
-      slot = "center",
-      direction = L.PORTAL_NAVIGATOR_CENTER,
-      destination = L.PORTAL_NAVIGATOR_HEAVEN,
-      detail = L.PORTAL_NAVIGATOR_UNOCCUPIED,
-      isEmpty = true,
-    },
-    {
-      slot = "half_right",
-      direction = L.PORTAL_NAVIGATOR_HALF_RIGHT,
-      destination = L.PORTAL_NAVIGATOR_ALGETHAR,
-    },
-    {
-      slot = "right",
-      direction = L.PORTAL_NAVIGATOR_RIGHT,
-      destination = L.PORTAL_NAVIGATOR_TRIUMVIRATE,
-    },
-  }
+  local entries = {}
+  for _, slot in ipairs(PORTAL_NAVIGATOR_SLOT_ORDER) do
+    local mapID = navigator.slots[slot]
+    local entry = {
+      slot = slot,
+      direction = L[PORTAL_NAVIGATOR_DIRECTION_KEYS[slot]],
+    }
+    if mapID == false then
+      entry.destination = L.PORTAL_NAVIGATOR_HEAVEN
+      entry.detail = L.PORTAL_NAVIGATOR_UNOCCUPIED
+      entry.isEmpty = true
+    elseif type(mapID) == "number" and type(seasonData.GetDungeonName) == "function" then
+      entry.destination = seasonData.GetDungeonName(mapID, localeTag)
+    end
+    entries[#entries + 1] = entry
+  end
 
   for _, entry in ipairs(entries) do
-    local mapID = PORTAL_NAVIGATOR_ENTRY_MAP_IDS[entry.slot]
+    local mapID = navigator.slots[entry.slot]
     if mapID then
       ApplyPortalNavigatorTeleportInfo(deps, entry, mapID)
     end
@@ -743,6 +742,9 @@ function Status.CreateController(opts)
   local deps = {
     getL = opts.getL or function()
       return {}
+    end,
+    getLocaleTag = opts.getLocaleTag or function()
+      return "enUS"
     end,
     getTime = opts.getTime or function()
       local getTimeFn = rawget(_G, "GetTime")

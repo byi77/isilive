@@ -18,10 +18,13 @@
 -- is expected and not a sign of a header-only refresh: it means MDT
 -- itself was stable upstream.
 
-local SEASON_DEFAULT = "midnight_s1"
-local SEASON_TO_MDT_DIR = {
-  midnight_s1 = "Midnight",
-}
+local manifestAddon = {}
+local manifestLoader = loadfile("data/isiLive_seasons.lua")
+if manifestLoader then
+  manifestLoader("isiLive", manifestAddon)
+end
+local SEASON_MANIFEST = manifestAddon.SeasonManifest or {}
+local SEASON_DEFAULT = SEASON_MANIFEST.activeSeasonID or ""
 local LIFETIME_DAYS = 15
 local MAX_DUNGEON_SOURCE_BYTES = 8 * 1024 * 1024
 local MAX_DUNGEON_INSTRUCTIONS = 1000000
@@ -242,7 +245,8 @@ end
 local function main(argv)
   local args = parseArgs(argv)
 
-  local mdtSubDir = SEASON_TO_MDT_DIR[args.season]
+  local season = type(SEASON_MANIFEST.seasons) == "table" and SEASON_MANIFEST.seasons[args.season] or nil
+  local mdtSubDir = type(season) == "table" and season.mdtDirectory or nil
   if not mdtSubDir then
     io.stderr:write(string.format("[sync_mdt_forces] unknown season %q\n", args.season))
     os.exit(2)

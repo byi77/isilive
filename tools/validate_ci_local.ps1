@@ -186,6 +186,7 @@ try {
   Invoke-CheckedCommand "Version-Skew Simulator" "lua tools/simulate_version_skew.lua"
   Invoke-CheckedCommand "Combat-Lockdown Defer-and-Replay Simulator" "lua tools/simulate_combat_lockdown_settings.lua"
   Invoke-CheckedCommand "Role-Marker Macro Simulator" "lua tools/simulate_role_marker_macro.lua"
+  Invoke-CheckedCommand "M+ Timer Lifecycle Simulator" "lua tools/simulate_mplus_timer_lifecycle.lua"
   Invoke-CheckedCommand "Deterministic Usecase + Rules Logic Validation" "lua tools/validate_usecases.lua"
   Remove-Item -LiteralPath "luacov.stats.out", "luacov.report.out" -ErrorAction SilentlyContinue
   Invoke-CheckedCommand "Coverage Run" "lua -lluacov tools/validate_usecases.lua"

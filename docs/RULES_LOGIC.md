@@ -119,6 +119,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 97. Eine aktive Season darf bei Login und Challenge-Map-Updates nur dann aus einem exakten Blizzard-Mapset automatisch gewaehlt werden, wenn ihr Datensatz die automatische Auswahl explizit erlaubt; `midnight_s2` bleibt davon ausgeschlossen und wird ausschliesslich manuell aktiviert.
 98. Midnight S2 verwendet die freigegebenen Namen, Kurzcodes und die aufsteigende Map-ID-Reihenfolge; der MDT-Monitor meldet nur strukturell nutzbare Forces-Kandidaten fuer alle acht Dungeons.
 99. Midnight S2 darf manuell ohne passende MDT-Forces-DB aktiviert werden; Blizzard-Gesamtfortschritt bleibt sichtbar, waehrend alle MDT-abhaengigen Mob-Anzeigen und DB-Fallbacks bis zu einem exakten Season-Match geschlossen bleiben.
+100. Live bestaetigte Dungeonportal-Freischaltungen werden accountweit persistiert; nur explizit als neue Midnight-Dungeons gepflegte Portale duerfen fuer Charaktere unter Stufe 90 einen Stufenhinweis anzeigen, waehrend alte Dungeons keine Stufe-90-Sperre erben.
+101. Saisonbezogene Runtime-Aufloesungen fuer Portale, LFG-Activities, Anzeigeinformationen und Portalraum-Belegung werden ausschliesslich aus dem normalisierten Saisonmanifest erzeugt und bleiben bei fehlenden Daten unresolved.
 
 ## Regelbloecke
 
@@ -1526,3 +1528,24 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - MobNameplate hides MDT and API mob percentages when the active season has no matching Forces DB
   - MobTooltip hides a Forces DB that does not match the active season
   - KillTrack keeps Blizzard progress but ignores a Forces DB from another season
+
+### RULE-DUNGEONPORTAL-ACCOUNTWEIT-UND-STUFENGATE
+- Regelnummer: 100
+- Status: aktiv
+- Zusammenfassung: Die Verfuegbarkeitsanzeige der Dungeonportal-Buttons muss `C_SpellBook.IsSpellInSpellBook` sowie die weiteren bestehenden Spellbook-Known-APIs als belastbare charakterlokale Live-Quellen auswerten. Liefert eine dieser Spellbook-Quellen fuer einen im Season-Datensatz konfigurierten Portalzauber explizit `true`, muss isiLive diese Freischaltung in `verifiedAccountTeleportSpells` accountweit persistieren. Ein spaeteres explizites `false` auf einem anderen Charakter darf diesen verifizierten Zustand nicht loeschen; der Portalzauber gilt dort weiterhin als accountweit freigeschaltet und darf nicht erneut einen lokalen M+10-Abschluss verlangen. Nicht konfigurierte Zauber sowie reine Cooldown-Beobachtungen duerfen den Account-Speicher nicht befuellen. Ohne positive Live- oder persistierte verifizierte Quelle bleibt ein Portal gesperrt und der Tooltip muss die M+10-Freischaltung ausdruecklich als accountweit beschreiben. Eine explizite Stufensperre bleibt unabhaengig vom Account-Speicher wirksam: Sie darf nur angezeigt werden, wenn der aktuelle Charakter unter Stufe 90 liegt und der konkrete Dungeon im aktiven Season-Datensatz explizit ueber `minimumPlayerLevelByMapID[mapID] = 90` als neuer Midnight-Dungeon gepflegt ist; alte beziehungsweise zurueckkehrende Dungeons besitzen keinen solchen Eintrag und duerfen deshalb keinen Stufe-90-Hinweis erben.
+- Erforderliche Tests:
+  - SpellUtils persists only live-confirmed configured portals for account-wide alt reuse
+  - DBSchema.Sanitize fills all defaults on an empty db
+  - SeasonData marks only Midnight native dungeons with level 90 portal gates
+  - TeleportUI distinguishes account-wide portal unlocks from new-dungeon level gates
+
+### RULE-SEASON-MANIFEST-RUNTIME-AUFLOESUNG
+- Regelnummer: 101
+- Status: aktiv
+- Zusammenfassung: Die aktive Saison-ID sowie Challenge-Map-IDs, Portal-Spell-IDs, LFG-Activity-IDs, Anzeigenamen, Kurzcodes, Reihenfolge, explizite Stufengates und Portalraum-Slots werden pro Dungeon ausschliesslich in `data/isiLive_seasons.lua` gepflegt. `SeasonData` erzeugt daraus deterministische, saisongebundene Runtime-Indizes. LFG-Erkennung und Portal-Navigator duerfen keine davon abweichenden saisonalen Tabellen oder geratenen Ersatzwerte verwenden. Ein explizit leerer Portalraum-Slot bleibt leer; fehlende oder ungueltige Manifestdaten bleiben unresolved beziehungsweise machen die Season nicht bereit. Der generierte MDT-Forces-Datensatz bleibt getrennt und wird weiterhin nur bei exaktem Season-Match freigeschaltet.
+- Erforderliche Tests:
+  - Season manifest compiles dungeon records into all runtime indexes
+  - Season intake check rejects IDs that diverge from the season manifest
+  - Architecture season manifest is the only manually maintained runtime season source
+  - LFGDetect resolves mapID from static ACTIVITY_TO_MAP on invite
+  - Portal navigator shows the five portal positions only in the Timeways room

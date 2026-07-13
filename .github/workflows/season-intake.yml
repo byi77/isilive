@@ -35,17 +35,25 @@ jobs:
           status=$?
           set -e
           cat tools/cache/season_intake/season-intake.md >> "$GITHUB_STEP_SUMMARY"
+          season="$(sed -n 's/^- Season: //p' tools/cache/season_intake/season-intake.md | head -n 1)"
+          if [ -z "${season}" ]; then
+            season="unresolved"
+          fi
           echo "status=${status}" >> "$GITHUB_OUTPUT"
+          echo "season=${season}" >> "$GITHUB_OUTPUT"
           exit "${status}"
 
       - name: Open or update season intake issue
         if: always()
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          INTAKE_SEASON: ${{ steps.intake.outputs.season }}
         with:
           script: |
             const fs = require("fs");
-            const marker = "<!-- isiLive:season-intake:midnight_s2 -->";
-            const title = "Season Intake Status: midnight_s2";
+            const season = process.env.INTAKE_SEASON || "unresolved";
+            const marker = `<!-- isiLive:season-intake:${season} -->`;
+            const title = `Season Intake Status: ${season}`;
             const report = fs.readFileSync("tools/cache/season_intake/season-intake.md", "utf8");
             const body = [
               marker,

@@ -286,6 +286,13 @@ local SCHEMA = {
     end,
     maxMapEntries = 5000,
   },
+  verifiedAccountTeleportSpells = {
+    type = "table",
+    default = function()
+      return {}
+    end,
+    maxMapEntries = 200,
+  },
 
   -- Error-log ring buffer (always-on, capped by ErrorLog module's hard
   -- limit). Schema declaration ensures the field exists with a table

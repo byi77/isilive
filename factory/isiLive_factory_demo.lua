@@ -17,12 +17,6 @@ local DEMO_FEATURE_SHARE_KEYS_COOLDOWN_SECONDS = 18
 local SIMULATION_TABLET_SHARE_KEYS_COOLDOWN_SECONDS = 30
 local DEMO_FEATURE_PI_CASTER_NAME = "Velindra-Hyjal"
 local DEMO_FEATURE_PI_RECIPIENT_NAME = "Player-Realm"
-local DEMO_FEATURE_PORTAL_NAVIGATOR_MAP_IDS = {
-  left = 161,
-  half_left = 556,
-  half_right = 402,
-  right = 239,
-}
 local DEMO_FEATURE_DB_KEYS = {
   "acceptedInviteNoticeEnabled",
   "groupJoinNoticeEnabled",
@@ -269,8 +263,16 @@ local function BuildDemoPortalNavigatorEntry(ctx, slot, direction, destination, 
     entry.isEmpty = opts.isEmpty == true
   end
 
-  local mapID = DEMO_FEATURE_PORTAL_NAVIGATOR_MAP_IDS[slot]
+  local seasonData = (ctx.modules and ctx.modules.seasonData) or (ctx.addonTable and ctx.addonTable.SeasonData)
+  local navigator = type(seasonData) == "table"
+      and type(seasonData.GetPortalNavigatorConfig) == "function"
+      and seasonData.GetPortalNavigatorConfig()
+    or nil
+  local mapID = type(navigator) == "table" and type(navigator.slots) == "table" and navigator.slots[slot] or nil
   if mapID then
+    if type(seasonData.GetDungeonName) == "function" then
+      entry.destination = seasonData.GetDungeonName(mapID, ctx.locale) or entry.destination
+    end
     ApplyDemoPortalNavigatorTeleportInfo(ctx, entry, mapID)
   end
   return entry
@@ -281,9 +283,16 @@ local function ShowDemoPortalNavigator(ctx, L)
     return
   end
 
+  local seasonData = (ctx.modules and ctx.modules.seasonData) or (ctx.addonTable and ctx.addonTable.SeasonData)
+  local navigator = type(seasonData) == "table"
+      and type(seasonData.GetPortalNavigatorConfig) == "function"
+      and seasonData.GetPortalNavigatorConfig()
+    or nil
+  local titles = type(navigator) == "table" and type(navigator.titleByLocale) == "table" and navigator.titleByLocale
+    or {}
   ctx.ShowPortalNavigatorNotice({
     eyebrow = L.PORTAL_NAVIGATOR_EYEBROW or "Portal - Navigation",
-    title = L.PORTAL_NAVIGATOR_TITLE or "Timeways Portal Navigator",
+    title = titles[ctx.locale] or titles.default or L.PORTAL_NAVIGATOR_TITLE or "Timeways Portal Navigator",
     entries = {
       BuildDemoPortalNavigatorEntry(
         ctx,

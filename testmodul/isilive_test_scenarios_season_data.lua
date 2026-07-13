@@ -102,6 +102,36 @@ local function RegisterReadinessTests(test, Assert, LoadAddonModules)
     Assert.NotNil(addon.SeasonData.GetMatchingForcesData(), "matching S2 Forces must become available")
   end)
 
+  test("SeasonData marks only Midnight native dungeons with level 90 portal gates", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    for _, mapID in ipairs({ 557, 558, 559, 560 }) do
+      Assert.Equal(
+        addon.SeasonData.GetMinimumPlayerLevel(mapID, "midnight_s1"),
+        90,
+        "new Midnight Season 1 dungeons require player level 90"
+      )
+    end
+    for _, mapID in ipairs({ 402, 556, 239, 161 }) do
+      Assert.Nil(
+        addon.SeasonData.GetMinimumPlayerLevel(mapID, "midnight_s1"),
+        "returning legacy dungeons must not inherit the level-90 portal gate"
+      )
+    end
+    for _, mapID in ipairs({ 584, 585, 586, 587, 588 }) do
+      Assert.Equal(
+        addon.SeasonData.GetMinimumPlayerLevel(mapID, "midnight_s2"),
+        90,
+        "new Midnight Season 2 dungeons require player level 90"
+      )
+    end
+    for _, mapID in ipairs({ 249, 399, 250 }) do
+      Assert.Nil(
+        addon.SeasonData.GetMinimumPlayerLevel(mapID, "midnight_s2"),
+        "returning Season 2 dungeons must not inherit the level-90 portal gate"
+      )
+    end
+  end)
+
   test("SeasonData Midnight Season 2 exposes approved English and German display metadata", function()
     local addon = LoadSeasonData(LoadAddonModules)
     local expectedDefaultCodes = {
@@ -689,6 +719,29 @@ local function RegisterAccessorFallbackTests(test, Assert, LoadAddonModules)
       addon.SeasonData.GetInactivePortalMessage("enUS", "test_season"),
       "no message in any locale must return nil"
     )
+  end)
+
+  test("Season manifest compiles dungeon records into all runtime indexes", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    local manifest = addon.SeasonData.MANIFEST
+    local source = manifest and manifest.seasons and manifest.seasons.midnight_s2
+    Assert.Equal(manifest.activeSeasonID, "midnight_s1", "manifest must own the active season id")
+    Assert.Equal(#source.dungeons, 8, "S2 must be maintained as eight normalized dungeon records")
+    Assert.Equal(
+      addon.SeasonData.GetMapIDByActivityID(1933, "midnight_s2"),
+      588,
+      "verified S2 activity id must compile into the season-scoped LFG index"
+    )
+    Assert.Equal(
+      addon.SeasonData.GetMapToTeleport("midnight_s2")[588],
+      1286812,
+      "the same dungeon record must compile into the teleport index"
+    )
+    local navigator = addon.SeasonData.GetPortalNavigatorConfig("midnight_s2")
+    Assert.Equal(navigator.slots.half_left, 249, "S2 portal-room slots must live in the manifest")
+    Assert.Equal(navigator.slots.center, 399, "S2 portal-room center must resolve from the manifest")
+    Assert.False(navigator.slots.left, "explicitly empty S2 portal-room slots must remain false")
+    Assert.Nil(addon.SeasonData.GetMdtDirectory("midnight_s2"), "unknown S2 MDT directory must stay unresolved")
   end)
 end
 

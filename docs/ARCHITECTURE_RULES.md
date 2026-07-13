@@ -4,7 +4,7 @@ Diese Datei beschreibt verbindliche Strukturregeln fuer den aktuellen Modulzusch
 Im Gegensatz zu `RULES_LOGIC.md` geht es hier nicht um Runtime-Verhalten, sondern um
 stabile Architekturgrenzen, die ueber deterministische Strukturtests geprueft werden.
 
-Aktueller Dokumentationsstand: `0.9.344`. Die seit 0.9.310 hinzugekommenen
+Aktueller Dokumentationsstand: `0.9.345`. Die seit 0.9.310 hinzugekommenen
 Runtime- und UI-Aenderungen sind in `RULES_LOGIC.md` als aktive Projektregeln
 gepinnt und werden ueber deterministische Szenarien validiert. Native WoW-TTS
 ist durch Regel 84 deaktiviert; Death-Audio nutzt statische WAV-Dateien. Der
@@ -45,6 +45,7 @@ TOC-Strukturtests abgedeckt.
 14. Logic- und Factory-Module konsumieren keine private Roster-UI-Registry, sondern nur explizite oeffentliche UI-Fassaden.
 15. Der mutierbare Factory-Kompositionskontext wird nicht auf der Addon-Tabelle publiziert.
 16. Der MDT-Forces-Generator verarbeitet fremde Dungeonquellen nur in einer globalfreien, groessen- und instruktionsbegrenzten Sandbox.
+17. Manuell gepflegte Runtime-Saisondaten liegen ausschliesslich im normalisierten Saisonmanifest; Verbraucher und Werkzeuge leiten ihre Indizes daraus ab.
 
 ## Regelbloecke
 
@@ -168,3 +169,12 @@ TOC-Strukturtests abgedeckt.
 - Zusammenfassung: `tools/sync_mdt_forces.lua` darf fremde MDT-Dungeonquellen weder ueber `loadfile` mit geerbtem `_G` noch mit Zugriff auf `os`, `io`, `debug`, `require` oder andere Umgebungsfunktionen ausfuehren. Zulaessig sind nur der injizierte MDT-Datencontainer und `ipairs`; Bytecode, Quellen oberhalb des Groessenlimits und Ausfuehrungen oberhalb des Instruktionslimits werden geschlossen abgelehnt. Ein fuer das Instruktionslimit temporaer ersetzter Host-Debug-Hook muss danach einschliesslich Maske und Zaehler wiederhergestellt werden, damit Coverage- oder andere Instrumentierung nicht verloren geht.
 - Erforderliche Tests:
   - MDT forces sync executes dungeon data without ambient globals
+
+### RULE-ARCH-SEASON-MANIFEST-SINGLE-SOURCE
+- Regelnummer: 17
+- Status: aktiv
+- Zusammenfassung: `data/isiLive_seasons.lua` ist die einzige manuell gepflegte Runtime-Quelle fuer aktive und vorbereitete Seasons. Jeder Dungeon wird dort als ein normalisierter Datensatz mit Challenge-Map-ID, Portalzaubern, LFG-Activity-IDs, Reihenfolge, Namen, Kurzcodes, optionalem Stufengate und Verifikationsmetadaten gepflegt. `SeasonData` erzeugt daraus die Runtime-Indizes. LFG-Erkennung, Portal-Navigator und MDT-Werkzeuge duerfen keine parallelen saisonalen Zuordnungstabellen fuehren. Der generierte, grosse und verfallende MDT-Forces-Datensatz bleibt separat.
+- Erforderliche Tests:
+  - Architecture season manifest is the only manually maintained runtime season source
+  - Season manifest compiles dungeon records into all runtime indexes
+  - Season intake check rejects IDs that diverge from the season manifest

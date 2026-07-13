@@ -14,10 +14,14 @@ Dies ist der verbindliche Release-Ablauf fuer `isiLive` (Repository- und Tag-Pra
 5. Wenn Runtime-Flow oder UI-Verhalten geaendert wurden, `ARCHITECTURE.md` und `USECASES.md` aktualisieren; wenn kurze Engineering-Regeln oder Wartungserwartungen betroffen sind, auch `RULES.md` und `WARTUNG.md` synchronisieren.
 6. Wenn UI-Labels geaendert wurden, pruefen, dass `README.md` und `ARCHITECTURE.md` die aktuellen Buttontexte verwenden.
 7. Wenn lokalisierte Texte geaendert wurden, sicherstellen, dass neue produktive Texte mindestens enUS/deDE haben, vorbereitete weitere Locales bewusst englische Fallbacks oder nachbearbeitete Uebersetzungen tragen und externe Uebersetzungshelfer im `CHANGELOG.md` bedankt werden.
-8. Wenn Wartungs- oder Runbook-Erwartungen geaendert wurden, `WARTUNG.md` synchronisieren und die Packaging-Ignores in `.pkgmeta` abgestimmt halten.
+8. Bei neuen oder ersetzten Bibliotheken, Sounds oder Texturen
+   `docs/ASSET_PROVENANCE.md` mit exakter Quelle, Urheber, Lizenz und
+   Pruefstatus aktualisieren. Ungeklaerte Herkunft bleibt `unresolved` und darf
+   nicht still als Eigenproduktion oder frei verwendbar bezeichnet werden.
+9. Wenn Wartungs- oder Runbook-Erwartungen geaendert wurden, `WARTUNG.md` synchronisieren und die Packaging-Ignores in `.pkgmeta` abgestimmt halten.
    Das vollstaendige `CHANGELOG.md` bleibt aus dem CurseForge-Zip draussen; stattdessen wird der kurze Stub `CHANGELOG_RELEASE.md` verwendet.
-9. `CHANGELOG_RELEASE.md` mit einer kurzen user-facing Zusammenfassung der aktuellen Version aktualisieren; der Stub ist die Release-Notiz im Paket und darf nicht nur bei der Versionsnummer stehen bleiben, wenn sichtbare Features geaendert wurden.
-10. Sprachregel fuer Dokus einhalten:
+10. `CHANGELOG_RELEASE.md` mit einer kurzen user-facing Zusammenfassung der aktuellen Version aktualisieren; der Stub ist die Release-Notiz im Paket und darf nicht nur bei der Versionsnummer stehen bleiben, wenn sichtbare Features geaendert wurden.
+11. Sprachregel fuer Dokus einhalten:
    - `README.md` und die Changelog-Dateien bleiben Englisch.
    - Alle anderen gepflegten Projektdokumente bleiben Deutsch.
 
@@ -42,7 +46,7 @@ Der bevorzugte vollstaendige lokale CI-Preflight ist:
 powershell -ExecutionPolicy Bypass -File tools\validate_ci_local.ps1
 ```
 
-Der Wrapper fuehrt Style-, Lint-, Syntax-, Metrics-, Locale-, Secret-Value-, Sound-, API-, Regel-, Usecase- und anschliessend die GitHub-identischen Coverage-Gates aus. Vor dem Coverage-Lauf entfernt er lokale Coverage-Artefakte, damit alte Treffer das Ergebnis nicht verfaelschen. Aktueller Usecase-Stand bei TOC `0.9.344`: `lua tools/validate_usecases.lua` mit `2205 passed, 0 failed`. Letzter voller lokaler Audit-Stand vom `2026-07-10`: `Local CI preflight passed`, Coverage `92.18%` (`34199 / 37101`) bei Gate `>=88.00%` und keine Datei unter `80.00%`.
+Der Wrapper fuehrt Style-, Lint-, Syntax-, Metrics-, Locale-, Secret-Value-, Sound-, API-, Regel-, Usecase- und anschliessend die GitHub-identischen Coverage-Gates aus. Vor dem Coverage-Lauf entfernt er lokale Coverage-Artefakte, damit alte Treffer das Ergebnis nicht verfaelschen. Letzter voller lokaler CI-Stand vom 2026-07-13 bei TOC `0.9.345`: `Local CI preflight passed`, `2212 passed, 0 failed`, Coverage `92.09%` (`34460 / 37420`) und keine Produktionsdatei unter `80.00%`.
 
 Die Wrapper `tools/check.ps1` und `tools/check.cmd` fuehren den statischen lokalen Preflight ueber den repo-lokalen `luacheck.cmd`-Shim aus und vermeiden so den Windows-App-Auswahldialog, der beim direkten Aufruf des LuaRocks-`luacheck`-Scripts auftaucht.
 
@@ -51,7 +55,7 @@ Die GitHub-Workflows checken das Repository vor der Trigger-Pruefung aus, damit 
 
 `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (aktueller Stand: 2205 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
+`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (aktueller Stand: 2212 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
 
 Alle externen Actions in `.github/workflows/` werden auf vollstaendige Commit-SHAs gepinnt und behalten den Major-Tag als Kommentar. `.github/dependabot.yml` prueft diese `github-actions`-Pins woechentlich auf Updates. Der geplante MDT-Forces-Refresh darf fremde Dungeonquellen nur in der globalfreien, groessen- und instruktionsbegrenzten Generator-Sandbox verarbeiten.
 
@@ -156,7 +160,7 @@ git push origin :refs/tags/isiLive_release_X.Y.Z
 - Release-Tagging ist absichtlich vom normalen `main`-Push getrennt, damit CI noch sicher fehlschlagen kann, bevor CurseForge-Pakete gebaut werden.
 - Ein TOC-/Doku-Bump auf `main` ist noch kein CurseForge-Release. CurseForge wird erst durch einen passenden Release- oder Pre-Release-Tag hochgeladen.
 - CI schliesst `.luarocks/` bereits aus Lint- und Syntax-Checks aus.
-- Packaging ignoriert Nicht-Nutzer-Dateien ueber `.pkgmeta` und die GitHub/WowUp-Zip-Ausschlussliste im Stable-`Release`-Workflow, einschliesslich `.github/`, `.claude/`, dem kompletten `docs/`-Ordner (mit `ARCHITECTURE.md`, `USECASES.md`, `WARTUNG.md`, `AGENTEN_WORKFLOW.md`, `RULES.md`, `RULES_LOGIC.md`, `ARCHITECTURE_RULES.md`, `RELEASE.md`, `CURSEFORGE_OVERVIEW.md`, `CHANGELOG.md`), den Root-Dateien `README.md`, `AGENTS.md`, `CLAUDE.md`, `TODO.md`, den Dev-only-Ordnern `tools/` und `testmodul/` sowie PNG-Screenshots/Logos. Die CurseForge-Dateinotizen verwenden den kurzen Stub `CHANGELOG_RELEASE.md`, nicht das volle Repository-Changelog.
+- Packaging ignoriert Nicht-Nutzer-Dateien ueber `.pkgmeta` und die GitHub/WowUp-Zip-Ausschlussliste im Stable-`Release`-Workflow, einschliesslich `.github/`, `.claude/`, dem kompletten `docs/`-Ordner (mit Architektur-, Regel-, Usecase-, Wartungs-, Saison-, Asset-, Release- und Changelog-Dokumenten), den Root-Dateien `README.md`, `AGENTS.md`, `CLAUDE.md`, `TODO.md`, den Dev-only-Ordnern `tools/` und `testmodul/` sowie PNG-Screenshots und Mockup-Assets. Die CurseForge-Dateinotizen verwenden den kurzen Stub `CHANGELOG_RELEASE.md`, nicht das volle Repository-Changelog.
 - Wenn VS-Code-Diagnostics veraltet wirken, ausfuehren:
   - `Developer: Reload Window`
   - `Lua: Restart Language Server`

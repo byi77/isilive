@@ -42,7 +42,7 @@ The colorful Mythic+ command center for World of Warcraft.
 🟦 WoW 12.0.7+ Midnight Retail
 🟩 Mythic+ Command Center
 🟧 Automatic Setup
-🟪 Version 0.9.344
+🟪 Version 0.9.345
 
 isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
@@ -89,6 +89,13 @@ BUILT FOR
 🟢 Premade groups
 🟢 LFG runs
 🟢 Players who want fast decisions without opening five extra panels
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SOURCE AND LICENSE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The isiLive source code is available under the standard MIT License.
+Bundled library and media provenance is documented transparently in the public repository; unknown mixed-origin asset mappings remain explicitly unresolved instead of being guessed.
 
 No setup required. Install, join a 5-player group, and isiLive opens automatically.
 

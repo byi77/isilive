@@ -26,6 +26,7 @@ local function BuildFactoryModules(tbl)
     traceChatFrame = tbl and tbl.TraceChatFrame,
     notice = tbl and tbl.Notice,
     status = tbl and tbl.Status,
+    seasonData = tbl and tbl.SeasonData,
     units = tbl and tbl.Units,
     demo = tbl and tbl.Demo,
     testMode = tbl and tbl.TestMode,

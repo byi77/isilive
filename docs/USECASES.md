@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.344`
-Zuletzt aktualisiert: `2026-07-10`
+Versionsbasis: `0.9.345`
+Zuletzt aktualisiert: `2026-07-13`
 
 ## Akteure
 
@@ -12,7 +12,7 @@ Zuletzt aktualisiert: `2026-07-10`
 ## Voraussetzungen
 
 1. Das Addon ist geladen und nicht im Zustand `stopped`.
-2. Das Season-Dataset wird ueber `ACTIVE_SEASON_ID` ausgewaehlt; aktuell `midnight_s1` mit dem live 8-Dungeon-Midnight-Season-1-Portalpool. Bei Login und `CHALLENGE_MODE_MAPS_UPDATE` darf ein exakter, eindeutiger Blizzard-Challenge-Map-Satz nur auf Datensaetze mit `autoDetectFromChallengeMaps=true` automatisch wechseln. `midnight_s2` traegt `autoDetectFromChallengeMaps=false` und wird bewusst manuell aktiviert, auch wenn noch keine passende MDT-Forces-DB vorhanden ist. In diesem Zustand bleibt der Blizzard-basierte Dungeon-Gesamtfortschritt sichtbar; Nameplate-Mobprozente, Mob-Forces-Tooltips und MDT-Gesamtwert-Fallbacks bleiben ohne exakten Season-Match geschlossen.
+2. Das Season-Dataset wird ueber `activeSeasonID` im normalisierten Manifest `data/isiLive_seasons.lua` ausgewaehlt; aktuell `midnight_s1` mit dem live 8-Dungeon-Midnight-Season-1-Portalpool. Portal-, LFG-Activity-, Anzeige-, Stufengate- und Portalraum-Indizes werden aus denselben Dungeon-Datensaetzen erzeugt. Bei Login und `CHALLENGE_MODE_MAPS_UPDATE` darf ein exakter, eindeutiger Blizzard-Challenge-Map-Satz nur auf Datensaetze mit `autoDetectFromChallengeMaps=true` automatisch wechseln. `midnight_s2` traegt `autoDetectFromChallengeMaps=false` und wird bewusst manuell aktiviert, auch wenn noch keine passende MDT-Forces-DB vorhanden ist. In diesem Zustand bleibt der Blizzard-basierte Dungeon-Gesamtfortschritt sichtbar; Nameplate-Mobprozente, Mob-Forces-Tooltips und MDT-Gesamtwert-Fallbacks bleiben ohne exakten Season-Match geschlossen.
 3. Die relevante UI ist fuer Queue-Scanning und Rendering sichtbar; waehrend hidden duerfen Addon-Message-Sync und Roster-Updates im Hintergrund weiterlaufen, die UI darf durch frischen Gruppenjoin, Key-Ende, echten Dungeon-Entry-Transition-Flow oder UI-Reload waehrend bestehender Gruppe auto-openen, und explizite Refresh-Requests duerfen genau eine hidden Sync-Reply triggern, auch waehrend eines aktiven Mythic+-Runs; derselbe Refresh-Pfad darf zusaetzlich genau eine `LibKS`-Party-Anfrage an kompatible Nicht-`isiLive`-Peers senden. Der dedizierte Kick-Heartbeat bleibt hidden nur fuer verifizierte normale Gruppen oder automatische Instanzgruppen aktiv; solo darf er nicht scannen oder senden. Wenn LFGDetect bereits einen konkreten lokalen Map-Kontext kennt, gewinnt dieser fuer das Portal-Highlight gegen peer-synced Zielkontext. Nur stopped oder paused unterdruecken die hidden `isiLive`-Reply.
 4. Nicht-`isiLive`-Spieler koennen nur dann `Key` und `RIO` beitragen, wenn auf ihrer Seite ein kompatibles `LibKeystone`-sprechendes Addon laeuft; ohne sendenden Addon-Code bleiben diese Daten unresolved.
 5. Raid-Gruppen sind ein eigener Hard-off-Zustand: UI aus und Background-Processing aus; eine vor dem Raid sichtbare Main-UI wird beim Rueckweg aus dem Raid wieder geoeffnet.
@@ -50,6 +50,7 @@ Zuletzt aktualisiert: `2026-07-10`
 | UC-25 | VIP-DK-Hilfen | Optionale VIP-Schalter warnen Unholy-DKs nach eigenem Dark-Transformation-Cast, muten verifizierte DK-Pferde-Sounds und zeigen einen verschiebbaren Missing-Ghoul-Reminder |
 | UC-26 | VIP-Bloodlust-Debuff-Button-Warnung | Ein default-aus VIP-Schalter markiert bei verifizierten Bloodlust-Klassen den eigenen Bloodlust-Button mit rotem Kreuz, solange ein verifizierter Erschoepfungs-/Satt-Debuff aktiv ist |
 | UC-27 | Versteckter Non-Challenge-PartyRun-Utility-Kontext | Ausgewaehlte Utility-Pfade bleiben in verifizierten normalen, heroischen oder sonstigen verfolgten Party-Dungeons aktiv, ohne isiLive als M+-Tool umzudefinieren |
+| UC-28 | Tank-/Heiler-Todesalarm | Tank- und Heiler-Tode erzeugen im verifizierten Utility-Kontext genau einen sichtbaren und konfigurierbaren Alarm |
 
 ## UC-01 Invite-Erkennung ohne Target-Guessing
 
@@ -93,7 +94,7 @@ Ziel: Das Portal-Cooldown-Verhalten nur dann anwenden, wenn der Portal-Cast tats
 3. Verarbeitung: Der Cooldown-State wird aus den WoW-Spell-Cooldown-APIs gelesen.
 4. Regel: Alle Dungeon-Portal-Casts teilen sich nach Benutzung dasselbe 8h-Cooldown-Fenster.
 5. Regel: Sichtbare Portal-Slots bleiben in deterministischer Season-Display-Reihenfolge, auch wenn mehrere Dungeons denselben Teleport-Spell nutzen.
-6. Output: Das Teleport-Grid zeigt Cooldown-Zeit und Lock-State konsistent; in `M2` zeigen ready Buttons zusaetzlich den locale-aware Dungeon-Short-Code direkt auf dem Icon.
+6. Output: Das Teleport-Grid zeigt Cooldown-Zeit und Lock-State konsistent. Ein fuer einen konfigurierten Portalzauber live beobachtetes positives Blizzard-Spellbook-Ergebnis wird in `verifiedAccountTeleportSpells` accountweit persistiert; ein spaeteres charakterlokales `false` loescht diese verifizierte Freischaltung nicht. Nicht konfigurierte Zauber und reine Cooldown-Beobachtungen befuellen diesen Speicher nicht. Ohne positive Live- oder persistierte Quelle beschreiben gesperrte Portale den M+10-Abschluss als accountweite Freischaltung. Nur neue Midnight-Dungeons mit explizitem `minimumPlayerLevelByMapID[mapID] = 90` zeigen auf Charakteren unter Stufe 90 den Stufenhinweis; alte Dungeons besitzen keine Stufe-90-Sperre. In `M2` zeigen ready Buttons zusaetzlich den locale-aware Dungeon-Short-Code direkt auf dem Icon.
 7. Regel: Solange ein Teleport auf Cooldown ist, wird das `M2`-Short-Code-Overlay versteckt, damit der Cooldown-Timer lesbar bleibt.
 8. Regel: Das Teleport-Grid spielt beim Ready- oder Highlight-Wechsel keinen Portal-Sound mehr; `sounds/Portal.ogg` gehoert zum eingehenden Beschwoerungsdialog des lokalen Spielers. Auf `deDE`-Clients wird fuer diesen Beschwoerungsdialog stattdessen die statische Ansage `sounds/Portal_deDE.wav` mit dem gesprochenen Text `Beschwoerung aktiv` verwendet.
 9. Erfolgskriterium: Jeder Portal-Button spiegelt den gemeinsamen Cooldown ohne Slot-Drift wider, und `M2` behaelt die Zielerkennung ohne Mouseover.
@@ -152,6 +153,60 @@ Ziel: Die letzte abgeschlossene Dungeon-DPS pro Spieler aus dem Blizzard-Damage-
 9. UI-Regel: Hover ueber Roster, Buttons und Teleports nutzt isolierte `isiLive`-Tooltip-Frames mit kompakter, umbrochener Textdarstellung statt des geteilten Blizzard-`GameTooltip`.
 10. Regel: Wenn Blizzard-Damage-Meter-API oder Session nicht verfuegbar sind oder fuer einen Spieler kein exakter Source-Match existiert, werden keine Stats-Zeilen gezeigt.
 11. Erfolgskriterium: Roster und Tooltip zeigen in der Session die letzten Dungeon-Stats fuer passende Roster-Spieler, behalten persistent nur den Snapshot des passenden lokalen Charakters und bleiben fuer unresolved Spieler leer statt zu raten.
+
+## UC-09 Manuelle Rollen-Marker-Buttons
+
+Ziel: Tank und Heiler aus der sichtbaren Roster-Zeile manuell und combat-sicher
+markieren.
+
+1. Trigger: Der User klickt das Tank- oder Heiler-Rollensymbol einer konkreten
+   Roster-Zeile.
+2. Verarbeitung: Der vorab konfigurierte Secure-Button verwendet den
+   verifizierten Charakternamen inklusive Realm statt eines instabilen Unit-Slots.
+3. Ergebnis: Tank wird mit dem blauen, Heiler mit dem gruenen Zielmarker markiert.
+4. Erfolgskriterium: Es gibt keinen direkten geschuetzten Marker-API-Aufruf aus
+   unsicherem Runtime-Code und kein Namensraten.
+
+## UC-10 Raid-Zero-Process-Transition
+
+Ziel: Eine Raidgruppe ist fuer isiLive ein echter Hard-off-Zustand.
+
+1. Trigger: Die Gruppengroesse wechselt von Party auf Raid beziehungsweise
+   wieder zurueck auf Party.
+2. Verarbeitung: Beim Eintritt in den Raid werden UI, Sync, Queue-Scanning,
+   Polling und Notices unterdrueckt; notwendige Party-Zustaende werden nach dem
+   dokumentierten Transition-Vertrag bereinigt.
+3. Ergebnis: Im Raid arbeitet isiLive nicht im Hintergrund weiter. Nach der
+   Rueckkehr in eine Party wird nur der erlaubte Party-Zustand wiederhergestellt.
+4. Erfolgskriterium: Raid ist nicht lediglich ein verstecktes Fenster, sondern
+   ein deterministisch getesteter Zero-Process-Zustand.
+
+## UC-11 Sichere M+World-Marker
+
+Ziel: Acht Worldmarker direkt setzen und entfernen, ohne geschuetzte APIs aus
+unsicherem Code aufzurufen.
+
+1. Trigger: Linksklick oder Rechtsklick auf einen M+Marker-Button.
+2. Verarbeitung: Jeder vorab konfigurierte `SecureActionButtonTemplate` nutzt
+   `type="worldmarker"`, seine feste Marker-ID sowie `action1="set"` und
+   `action2="clear"`.
+3. Ergebnis: Linksklick setzt, Rechtsklick entfernt den gewaehlten Worldmarker.
+4. Erfolgskriterium: Die sichere Klickflaeche bleibt erreichbar und die Runtime
+   ruft keine geschuetzte Markerfunktion direkt auf.
+
+## UC-12 Roster-Panel Mini Mode
+
+Ziel: Das Roster-Panel platzsparend reduzieren, ohne Management-Werkzeuge oder
+sichere Buttons inkonsistent umzubauen.
+
+1. Trigger: Der User betaetigt den Collapse-/Layout-Schalter.
+2. Ergebnis: Roster-Liste und `Travel` werden ausgeblendet; kompakte Marker- und
+   Management-Werkzeuge bleiben sichtbar. Das V-Layout zeigt keine
+   Tool-Ueberschriften und ordnet M+Marker als zwei Vierer-Spalten an.
+3. Combat-Regel: Der gewaehlte Layoutmodus darf gespeichert werden, waehrend
+   direkte Mutation sicherer Kinder bis `PLAYER_REGEN_ENABLED` wartet.
+4. Erfolgskriterium: Der sichtbare Modus entspricht nach dem naechsten erlaubten
+   Refresh exakt der User-Auswahl.
 
 ## UC-13 Esc-Shortcuts und Addon-Settings
 
@@ -333,7 +388,7 @@ Ziel: Eine optionale, eigenstaendige Spieler-Stats-Box zeigt live gelesene Prim√
 9. Screen-Clamp: Beim Ziehen bleibt die Stats-Box wie Main-UI, Center-Notice und Portal-Navigator am WoW-Sichtbereich geklemmt; der Fensterrand kann nicht ausserhalb des WoW-Fensters verschwinden.
 10. Erfolgskriterium: Die Box zeigt nur verifizierte Live-Werte, bleibt layout-unabhaengig bedienbar und kann nicht ausserhalb des WoW-Fensters gezogen werden.
 
-## UC-24 Tank-/Heiler-Todesalarm im M+-Utility-Kontext
+## UC-28 Tank-/Heiler-Todesalarm im M+-Utility-Kontext
 
 Ziel: Der Spieler wird im laufenden M+-Run und in einem verifizierten Non-Challenge-PartyRun-Utility-Kontext sofort und unuebersehbar informiert, wenn Tank oder Heiler stirbt.
 
@@ -420,7 +475,7 @@ Ziel: isiLive bleibt ein M+-Tool, haelt aber ausgewaehlte Utility-Funktionen in 
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `2188` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `2212` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback; mehrdeutige Single-Struct-`activityIDs` bleiben unresolved.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
@@ -440,6 +495,9 @@ Aktuelle Validator-Baseline: `2188` Szenarien ueber die in `tools/usecase_scenar
 16. UC-25: VIP-DK-Hilfen mit Default-aus-Settings im durch eine duenne blaue Linie abgetrennten DK-Block, lokalem Dark-Transformation-Cast, verifizierter Unholy-DK-Quelle, eindeutigen Actionbar-Spell-IDs inklusive Secure-Actionbutton-Attributen, eingeruecktem DK-Pferdeklang-Mute, eingeruecktem lokalisiertem verschiebbarem Ghoul-Reminder, `UNIT_PET`-Refresh ausserhalb Raid-Hard-off und Stop-Pfaden ohne Ratefallbacks.
 17. UC-26: VIP-Bloodlust-Debuff-Button-Warnung mit default-aus, immer sichtbarem VIP-Schalter, verifizierter lokaler Bloodlust-Klasse, verifizierten Erschoepfungs-/Satt-Auren, exakten Bloodlust-Klassen-/Pet-Spell-IDs, ausdruecklichem Drums-Ausschluss und Stop-Pfaden ohne Ratefallbacks.
 18. UC-27: versteckter Non-Challenge-PartyRun-Utility-Kontext aus verifizierten Party-Instanz-, Difficulty- und MapID-Daten, mit strikt begrenzter Freigabe fuer BRes-/Bloodlust-Anzeige, Combat-Announces, DeathWatch und DPS-Snapshot ohne Oeffnung von M+-Timer-, Forces-, RIO-, Keylevel- oder Ready-Sound-Pfaden; automatische Dungeonfinder-Instanzgruppen gelten fuer die BR-/Bloodlust-Anzeige nur ueber `IsInGroup(LE_PARTY_CATEGORY_INSTANCE)` als belastbare Gruppenquelle.
+19. UC-28: edge-getriggerte Tank-/Heiler-Todeswarnung, getrennte Sound-Gates,
+    sichtbare Death-Counter und fail-closed Verhalten ausserhalb verifizierter
+    Party-Utility-Kontexte.
 
 ## Rueckverfolgbarkeit zu Quelldateien
 

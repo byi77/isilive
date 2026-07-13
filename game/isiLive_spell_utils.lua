@@ -6,6 +6,61 @@ local SpellUtils = {}
 addonTable.SpellUtils = SpellUtils
 local TELEPORT_MEANINGFUL_COOLDOWN_MIN_SECONDS = 2
 
+local function IsConfiguredTeleportSpellID(spellID)
+  local numericSpellID = tonumber(spellID)
+  local seasonData = addonTable.SeasonData
+  local seasons = type(seasonData) == "table" and seasonData.SEASONS or nil
+  if not numericSpellID or type(seasons) ~= "table" then
+    return false
+  end
+
+  for _, season in pairs(seasons) do
+    local mapToTeleport = type(season) == "table" and season.mapToTeleport or nil
+    if type(mapToTeleport) == "table" then
+      for _, mapped in pairs(mapToTeleport) do
+        if type(mapped) == "number" and mapped == numericSpellID then
+          return true
+        end
+        if type(mapped) == "table" then
+          for _, candidate in ipairs(mapped) do
+            if tonumber(candidate) == numericSpellID then
+              return true
+            end
+          end
+        end
+      end
+    end
+  end
+  return false
+end
+
+local function GetVerifiedAccountTeleportSpells()
+  local db = rawget(_G, "IsiLiveDB")
+  local verified = type(db) == "table" and db.verifiedAccountTeleportSpells or nil
+  if type(verified) ~= "table" then
+    return nil
+  end
+  return verified
+end
+
+local function RecordVerifiedAccountTeleportSpell(spellID)
+  if not IsConfiguredTeleportSpellID(spellID) then
+    return
+  end
+  local verified = GetVerifiedAccountTeleportSpells()
+  if verified then
+    verified[spellID] = true
+  end
+end
+
+local function IsPersistedAccountTeleportSpell(spellID)
+  if not IsConfiguredTeleportSpellID(spellID) then
+    return false
+  end
+  local verified = GetVerifiedAccountTeleportSpells()
+  return verified and verified[spellID] == true or false
+end
+
 function SpellUtils.NormalizeTeleportCooldownRemaining(remaining, duration)
   if type(remaining) ~= "number" or type(duration) ~= "number" then
     return remaining
@@ -117,15 +172,24 @@ function SpellUtils.IsSpellKnownSafe(spellID)
 
   local cSpellBook = rawget(_G, "C_SpellBook")
   if type(cSpellBook) == "table" then
+    if type(cSpellBook.IsSpellInSpellBook) == "function" then
+      local ok, known = pcall(cSpellBook.IsSpellInSpellBook, spellID)
+      if ok and known == true then
+        RecordVerifiedAccountTeleportSpell(spellID)
+        return true
+      end
+    end
     if type(cSpellBook.IsSpellKnownOrOverridesKnown) == "function" then
       local ok, known = pcall(cSpellBook.IsSpellKnownOrOverridesKnown, spellID)
       if ok and known == true then
+        RecordVerifiedAccountTeleportSpell(spellID)
         return true
       end
     end
     if type(cSpellBook.IsSpellKnown) == "function" then
       local ok, known = pcall(cSpellBook.IsSpellKnown, spellID)
       if ok and known == true then
+        RecordVerifiedAccountTeleportSpell(spellID)
         return true
       end
     end
@@ -138,7 +202,7 @@ function SpellUtils.IsSpellKnownSafe(spellID)
     return true
   end
 
-  return false
+  return IsPersistedAccountTeleportSpell(spellID)
 end
 
 function SpellUtils.GetTeleportCooldownRemaining(spellID)

@@ -37,6 +37,7 @@ local REQUIRED_MODULES = {
   "isiLive_texts.lua",
   "isiLive_ui_common.lua",
   "isiLive_ui.lua",
+  "isiLive_seasons.lua",
   "isiLive_season_data.lua",
   "isiLive_teleport.lua",
   "isiLive_teleport_ui.lua",

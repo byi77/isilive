@@ -180,6 +180,10 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         run: lua tools/simulate_key_completion_lifecycle.lua
 
+      - name: M+ Timer Lifecycle Simulator
+        if: steps.diff.outputs.changed == 'true'
+        run: lua tools/simulate_mplus_timer_lifecycle.lua
+
       - name: Deterministic Usecase + Rules Logic Validation
         if: steps.diff.outputs.changed == 'true'
         run: lua tools/validate_usecases.lua

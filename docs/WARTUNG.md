@@ -134,18 +134,26 @@ Wenn Blizzard die Struktur aendert, bricht die DPS-Anzeige.
 
 ### 3.4 Season-/Dungeon-Daten
 
+Die vollstaendige oeffentliche TODO-Liste fuer einen Saisonwechsel steht in
+`docs/SAISON_WECHSEL.md`. Diese Checkliste ist bei jedem Wechsel abzuarbeiten;
+der folgende Abschnitt dokumentiert die technischen Hintergruende und den
+aktuellen Projektstand.
+
 Pruefen:
+- `data/isiLive_seasons.lua`
 - `isiLive_season_data.lua`
 - `docs/SEASON_INTAKE.md`
+- `docs/SAISON_WECHSEL.md`
 - `tools/check_season_intake.lua`
 
 Kritisch:
-- `SeasonData.ACTIVE_SEASON_ID`
-- `mapToTeleport`
-- `displayOrder`
-- `shortCodesByLocale`
-- `challengeMapAliases`
-- `inactivePortalMessageByLocale`
+- `SeasonManifest.activeSeasonID`
+- pro Dungeon `mapID`, `activityIDs`, `portalSpellIDs` und `displayOrder`
+- pro Dungeon `names`, `shortCodes`, `challengeMapAliases` und optional `minimumPlayerLevel`
+- pro Season `autoDetectFromChallengeMaps`, `requiresForces`, `mdtDirectory`, `inactivePortalMessageByLocale` und `portalNavigator`
+- pro verifiziertem Dungeon `verification.status`, `verification.verifiedAt` und `verification.source`
+
+`data/isiLive_seasons.lua` ist die einzige manuell gepflegte Runtime-Saisonquelle. `isiLive_season_data.lua` kompiliert daraus die Lookup-Flaechen fuer Teleports, LFG-Activities, Namen, Kurzcodes, Reihenfolge, Stufengates und Portalraum. Keine dieser Zuordnungen parallel in Verbraucherdateien pflegen. Die grosse, generierte und verfallende `data/isiLive_mplus_forces.lua` bleibt separat.
 
 Aktueller Stand:
 - `midnight_s1` ist die aktive Runtime-Season.
@@ -155,7 +163,8 @@ Aktueller Stand:
 - `midnight_s2.autoDetectFromChallengeMaps=false`; Login und `CHALLENGE_MODE_MAPS_UPDATE` duerfen S2 nicht aktivieren. Der User stellt S2 manuell um.
 
 Wenn eine neue Season startet:
-- neue Season als vollstaendigen Datensatz eintragen und die automatische Auswahl explizit erlauben oder verbieten
+- neue Season und alle Dungeon-Datensaetze ausschliesslich in `data/isiLive_seasons.lua` eintragen und die automatische Auswahl explizit erlauben oder verbieten
+- Activity-, Portal-, Namens-, Kurzcode-, Reihenfolge-, Stufengate- und Portalraum-Daten nicht in LFG-, Status-, Demo- oder Tooldateien duplizieren
 - Forces-DB getrennt pflegen und nur bei exaktem Match zur aktiven Season an Runtime-Verbraucher ausgeben
 - bei `midnight_s2` die manuelle Aktivierungsentscheidung beibehalten
 - keine halbfertige Season live schalten und kein Datum als Umschaltquelle verwenden
@@ -301,7 +310,7 @@ Aktueller Soll-Zustand:
 Typische Ursachen fuer Brueche:
 - MDT aendert die Struktur von `dungeonEnemies` / `dungeonTotalCount` / `mapInfo` → `sync_mdt_forces.lua` anpassen, lokal per `lua tools/sync_mdt_forces.lua` gegen einen frischen `tools/cache/mdt`-Clone testen.
 - MDT-Clone schlaegt im Workflow fehl → Auto-Refresh bleibt still, Lifetime-Gate wird irgendwann rot.
-- Season-Wechsel → `SEASON_TO_MDT_DIR` in `sync_mdt_forces.lua` erweitern, Default-`SEASON_DEFAULT` umstellen.
+- Season-Wechsel → `activeSeasonID` und bei verifizierter MDT-Struktur `mdtDirectory` im Manifest pflegen; `sync_mdt_forces.lua` liest beide Werte daraus.
 
 ### 3.10 Gruppensuche-Buff-Rating-Herzchen
 
@@ -349,6 +358,40 @@ Typische Ursachen fuer Brueche:
 - Ein PR uebersetzt eine vorbereitete Locale, aber die aktuellen UI-Begriffe oder Texturvertraege werden nicht angepasst → Uebersetzung erst kompatibel machen, dann uebernehmen.
 - Neue Keys werden nur in enUS gesetzt → Locale-Drift-Gate wird rot.
 - Locale-Flag-Aufloesung wird wieder lazy aus der Sprachliste gebaut → Tooltip-Hover kann erneut `script ran too long` ausloesen.
+
+### 3.12 Asset-Herkunft und oeffentliche Mockups
+
+Pruefen:
+
+- `docs/ASSET_PROVENANCE.md`
+- `media/`
+- `sounds/`
+- `tools/mockups/README.md`
+- `.pkgmeta` und `.github/workflows/release.yml`
+
+Aktueller Soll-Zustand:
+
+- Der Quellcode steht unter unveraenderter Standard-MIT-Lizenz.
+- ChatThrottleLib dokumentiert seinen Public-Domain-Status im Dateikopf.
+- Die genaue Zuordnung der Sounddateien zu Eigenproduktion oder frueheren
+  externen Quellen, darunter ein moegliches WeakAuras-Soundpaket, bleibt bis zu
+  einem belastbaren Einzelnachweis `unresolved`.
+- Texturherkunft und -lizenz bleiben ebenfalls pro Datei `unresolved`, solange
+  kein belastbarer Nachweis vorliegt.
+- `media/arrow_bonus_green.tga` bleibt auf ausdrueckliche User-Entscheidung im
+  Repository, obwohl es aktuell keine Runtime-Referenz besitzt.
+- Das Center-Notice-Mockup bleibt als oeffentliche Entwicklungsunterlage unter
+  `tools/mockups/`; `isiLive_M_ui.png` ist seine dokumentierte
+  Hintergrundabhaengigkeit. Beides bleibt aus dem Nutzerpaket ausgeschlossen.
+
+Typische Ursachen fuer Brueche:
+
+- Eine gemischte Asset-Sammlung wird pauschal als selbst erstellt oder frei
+  lizenziert bezeichnet, obwohl die Einzelzuordnung fehlt.
+- Ein neues Sound-/Texturasset wird committed, ohne Herkunft und Lizenzstatus
+  in `docs/ASSET_PROVENANCE.md` nachzuziehen.
+- Ein Mockup-Asset landet durch eine abweichende Ausschlussliste im
+  CurseForge-/WowUp-Paket.
 
 ## 4) Dinge, die bewusst so gebaut sind und nicht versehentlich rueckgaengig gemacht werden duerfen
 
@@ -470,13 +513,9 @@ Wichtig:
 
 ## 6) Wenn die Season gewechselt oder Dungeon-Daten angefasst wurden
 
-Dann immer:
-
-1. `isiLive_season_data.lua` komplett pruefen
-2. `CHANGELOG.md` aktualisieren
-3. `README.md` auf aktive/prepared Season abgleichen
-4. `USECASES.md` pruefen, falls Verhalten sichtbar anders ist
-5. `lua tools/validate_usecases.lua` laufen lassen
+Dann die vollstaendige und einzige Saisonwechsel-TODO in
+`docs/SAISON_WECHSEL.md` abarbeiten. In dieser Wartungsdatei wird keine zweite
+Kurzfassung parallel gepflegt.
 
 ## 7) Ingame-Smoke nach groesseren Aenderungen
 
@@ -502,7 +541,7 @@ Dann genau das:
 1. `CHANGELOG.md` oben lesen
 2. `TODO.md` lesen
 3. `lua tools/validate_usecases.lua`
-4. `isiLive_season_data.lua` auf aktive Season pruefen
+4. `data/isiLive_seasons.lua` auf aktive Season und vollstaendige Dungeon-Datensaetze pruefen
 5. `isiLive.toc` auf aktuelle WoW-Interface-Version pruefen
 
 Wenn einer dieser Punkte rot ist, nicht blind releasen.

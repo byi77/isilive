@@ -776,16 +776,11 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     local content = ReadFile(".pkgmeta")
     local screenshots = {
       "isiLive.png",
-      "isiLive_EnterDungeon.png",
-      "isiLive_H_ui.png",
-      "isiLive_InviteAccepted.png",
       "isiLive_LFGBuffRating.png",
-      "isiLive_LFGBuffRating2.png",
       "isiLive_MPlus_ui.png",
       "isiLive_M_ui.png",
       "isiLive_PortalNavigator.png",
       "isiLive_Statsbox.png",
-      "isiLive_V_ui.png",
       "isiLive_screenshot.png",
     }
 
@@ -803,16 +798,11 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
     local content = ReadFile(".github/workflows/release.yml")
     local screenshots = {
       "isiLive.png",
-      "isiLive_EnterDungeon.png",
-      "isiLive_H_ui.png",
-      "isiLive_InviteAccepted.png",
       "isiLive_LFGBuffRating.png",
-      "isiLive_LFGBuffRating2.png",
       "isiLive_MPlus_ui.png",
       "isiLive_M_ui.png",
       "isiLive_PortalNavigator.png",
       "isiLive_Statsbox.png",
-      "isiLive_V_ui.png",
       "isiLive_screenshot.png",
     }
 
@@ -2130,7 +2120,6 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       ".github/workflows/season-intake.yml",
       ".github/workflows/season-readiness.yml",
       ".github/workflows/sync-mplus-forces.yml",
-      ".github/workflows/sync-mplus-timepace.yml",
     }
 
     for _, workflowFile in ipairs(workflowFiles) do
@@ -2530,8 +2519,14 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     AssertContains(
       Assert,
       intakeWorkflow,
-      "Season Intake Status: midnight_s2",
-      "season intake workflow must update a stable GitHub issue"
+      "const title = `Season Intake Status: ${season}`;",
+      "season intake workflow must derive its stable issue title from the validated intake season"
+    )
+    AssertContains(
+      Assert,
+      intakeWorkflow,
+      "const marker = `<!-- isiLive:season-intake:${season} -->`;",
+      "season intake workflow must derive its issue marker from the validated intake season"
     )
     AssertContains(
       Assert,

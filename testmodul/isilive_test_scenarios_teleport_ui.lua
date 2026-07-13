@@ -562,6 +562,119 @@ local function RegisterTeleportUIVisualTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
+  test("TeleportUI distinguishes account-wide portal unlocks from new-dungeon level gates", function()
+    local createFrameStub, createdFrames = BuildTeleportUICreateFrameStub()
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      UIParent = {},
+    }, function()
+      local addon = LoadAddonModules({
+        "isiLive_ui_common.lua",
+        "isiLive_teleport_ui.lua",
+      })
+
+      local controller = addon.TeleportUI.CreateController({
+        mainFrame = {
+          GetFrameLevel = function()
+            return 10
+          end,
+          GetFrameStrata = function()
+            return "MEDIUM"
+          end,
+          CreateFontString = function()
+            return {
+              SetPoint = function() end,
+              SetWidth = function() end,
+              SetJustifyH = function() end,
+              SetTextColor = function() end,
+              SetWordWrap = function() end,
+              SetNonSpaceWrap = function() end,
+              SetText = function() end,
+              Hide = function() end,
+              Show = function() end,
+            }
+          end,
+        },
+        applySecureSpellToButton = function()
+          return true
+        end,
+        getEntries = function()
+          return {
+            { spellID = 1254572, mapID = 558, mapName = "Magisters' Terrace", minimumPlayerLevel = 90 },
+            { spellID = 1254555, mapID = 556, mapName = "Pit of Saron" },
+            { spellID = 1254551, mapID = 239, mapName = "Seat of the Triumvirate" },
+          }
+        end,
+        getEmptyStateText = function()
+          return nil
+        end,
+        getL = function()
+          return {
+            TOOLTIP_TELEPORT_LOCKED = "Account-wide +10 unlock",
+            TOOLTIP_TELEPORT_LEVEL_REQUIRED = "Requires level %d; +10 is account-wide",
+            TOOLTIP_TELEPORT_READY = "Ready",
+          }
+        end,
+        getPlayerLevel = function()
+          return 80
+        end,
+        isSpellKnown = function(spellID)
+          return spellID ~= 1254551
+        end,
+        getTeleportCooldownRemaining = function()
+          return 0
+        end,
+        formatCooldownSeconds = function()
+          return ""
+        end,
+        getSpellCooldownSafe = function()
+          return 0, 0, true
+        end,
+        applyCooldownFrameSafe = function() end,
+        getSpellTexture = function()
+          return nil
+        end,
+        isInCombat = function()
+          return false
+        end,
+      })
+
+      controller.BuildButtons()
+      local buttons = controller.GetButtons()
+      buttons[1]._scripts.OnEnter(buttons[1])
+
+      local privateTooltip
+      for _, frame in ipairs(createdFrames) do
+        if frame._isIsiLiveTooltip == true then
+          privateTooltip = frame
+        end
+      end
+      local lines = privateTooltip and privateTooltip._isiLiveTooltipLines or {}
+      Assert.Equal(
+        lines[2] and lines[2]._text or nil,
+        "Requires level 90; +10 is account-wide",
+        "a new dungeon on a level-80 character must show only the level-90 gate plus account-wide unlock scope"
+      )
+
+      buttons[2]._scripts.OnEnter(buttons[2])
+      lines = privateTooltip and privateTooltip._isiLiveTooltipLines or {}
+      Assert.Equal(
+        lines[2] and lines[2]._text or nil,
+        "Ready",
+        "an account-wide unlocked old-dungeon portal must be ready below level 90"
+      )
+
+      buttons[3]._scripts.OnEnter(buttons[3])
+      lines = privateTooltip and privateTooltip._isiLiveTooltipLines or {}
+      Assert.Equal(
+        lines[2] and lines[2]._text or nil,
+        "Account-wide +10 unlock",
+        "a missing old-dungeon portal must explain the account-wide +10 unlock without a level-90 gate"
+      )
+    end)
+  end)
+
   test("TeleportUI keeps M2 short-code overlay visible during global cooldown", function()
     local createFrameStub = BuildTeleportUICreateFrameStub()
     local appliedCooldowns = {}

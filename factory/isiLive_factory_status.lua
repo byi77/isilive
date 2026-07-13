@@ -73,6 +73,9 @@ local function InitializeFactoryRefreshAndStatusControllers(ctx)
 
   local statusController = modules.status.CreateController({
     getL = ctx.GetL,
+    getLocaleTag = function()
+      return ctx.locale
+    end,
     getSubZoneText = ctx.GetSubZoneText,
     getZoneText = ctx.GetZoneText,
     getRealZoneText = ctx.GetRealZoneText,

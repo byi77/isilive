@@ -62,6 +62,7 @@ local REQUIRED_MODULES = {
   { key = "ContextHelpers", file = "isiLive_context_helpers.lua" },
   { key = "RuntimeSetup", file = "isiLive_runtime_setup.lua" },
   { key = "ControllerInit", file = "isiLive_controller_init.lua" },
+  { key = "SeasonManifest", file = "isiLive_seasons.lua" },
   { key = "SeasonData", file = "isiLive_season_data.lua" },
   { key = "EventHandlersQueueLifecycle", file = "isiLive_event_handlers_queue.lua" },
   { key = "EventHandlersChallengeLifecycle", file = "isiLive_event_handlers_challenge.lua" },

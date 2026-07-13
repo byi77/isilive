@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.0.7+ Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%2B%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.344](https://img.shields.io/badge/isiLive-0.9.344-1E90FF?style=for-the-badge)
+![isiLive 0.9.345](https://img.shields.io/badge/isiLive-0.9.345-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -14,6 +14,8 @@
 **Active season:** `midnight_s1` with 8 supported dungeons: `WRS`, `MT`, `NPX`, `MC`, `AA`, `POS`, `SOT`, `SR`
 
 **Prepared season:** `midnight_s2` remains inactive. All eight ChallengeMapIDs, castable portal spell IDs, Mythic+ LFG activity IDs, localized display names, short codes, and the map-ID display order are recorded. Automatic S2 selection is disabled; Season 2 will be activated manually even if its optional MDT forces database is not available yet. Until a matching S2 database ships, Blizzard's overall dungeon progress remains visible while MDT-dependent mob percentages and tooltip lines stay hidden.
+
+Season maintenance is driven by one normalized manifest. Portal, LFG activity, display, level-gate, and portal-room indexes are derived from the same per-dungeon records; the generated MDT forces snapshot remains separate.
 
 **Setup:** install, join a 5-player group, and the window opens automatically.
 
@@ -104,22 +106,11 @@ Everything syncs automatically between group members who run isiLive. No manual 
 
 ---
 
-## License and Source Attribution
+## License
 
-isiLive uses an MIT-based license with an additional source-attribution requirement.
-
-You may use, modify, redistribute, and include substantial parts of this project in other projects.
-
-If you do so, visible credit to the original GitHub source is required:
-
-https://github.com/byi77/isilive
-
-### Recommended CurseForge / Wago attribution text
-
-```text
-Source attribution required when redistributing or reusing substantial code:
-https://github.com/byi77/isilive
-```
+isiLive source code is released under the standard [MIT License](LICENSE).
+Third-party libraries and bundled media retain their own documented status; see
+[`docs/ASSET_PROVENANCE.md`](docs/ASSET_PROVENANCE.md) for the current provenance record.
 
 ## Install
 
@@ -206,6 +197,7 @@ All 8 season dungeon portals in one place:
 
 - **Icon + short code** when ready (e.g. `MT`, `DAWN`)
 - **Cooldown timer** when on cooldown, normalized to the current portal cooldown cycle
+- **Account-wide unlock memory** from live-confirmed Blizzard spellbook results; after isiLive has observed a portal on one character, alts reuse that verified unlock. Returning dungeons have no level-90 gate, while explicitly marked new Midnight dungeons show the level requirement below 90
 - **Highlight** when a portal becomes available
 - **Highlight + gold border** on the right portal when you accept an LFG invite or create your own LFG listing for a dungeon
 
@@ -394,5 +386,7 @@ BR/Lust announce only fires during an active M+ key. Also check the Chat Announc
 - **Source code:** [github.com/byi77/isilive](https://github.com/byi77/isilive)
 - **Bug reports / feature requests:** GitHub issues
 - **Technical documentation:** [`docs/`](docs/)
+- **Public season-change checklist:** [`docs/SAISON_WECHSEL.md`](docs/SAISON_WECHSEL.md)
+- **Bundled asset provenance:** [`docs/ASSET_PROVENANCE.md`](docs/ASSET_PROVENANCE.md)
 
 Also published on CurseForge and Wago — search for *isiLive*.

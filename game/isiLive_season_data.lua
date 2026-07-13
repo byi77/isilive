@@ -5,13 +5,9 @@ addonTable = addonTable or {}
 local SeasonData = {}
 addonTable.SeasonData = SeasonData
 
--- Seasonal data is centralized here.
--- To onboard a new season:
--- 1) Add a new entry under SeasonData.SEASONS.
--- 2) Fill mapToTeleport / shortCodesByLocale / challengeMapAliases completely.
--- 3) Keep locale short-code overrides inside shortCodesByLocale.
--- 4) Let the verified Blizzard challenge-map set select the season only after
---    the full dataset and matching forces snapshot pass readiness.
+-- Runtime compiler and access API for the normalized season manifest.
+-- Add or update seasons only in data/isiLive_seasons.lua. Generated forces
+-- data remains separate and is exposed only after an exact season match.
 
 local function NormalizeLocaleTag(localeTag)
   if not localeTag then
@@ -51,170 +47,149 @@ local function CountTableEntries(value)
   return count
 end
 
-SeasonData.ACTIVE_SEASON_ID = "midnight_s1"
+if type(addonTable.SeasonManifest) ~= "table" then
+  local loadfileRef = rawget(_G, "loadfile")
+  if type(loadfileRef) == "function" then
+    local chunk = loadfileRef("data/isiLive_seasons.lua")
+    if chunk then
+      chunk("isiLive", addonTable)
+    end
+  end
+end
 
-SeasonData.SEASONS = {
-  midnight_s1 = {
-    label = "Midnight Season 1",
-    autoDetectFromChallengeMaps = true,
-    requiresForces = true,
-    mapToTeleport = {
-      [557] = 1254400, -- Windrunner Spire
-      [558] = 1254572, -- Magisters' Terrace
-      [559] = 1254563, -- Nexus-Point Xenas
-      [560] = 1254559, -- Maisara Caverns
-      [402] = 393273, -- Algeth'ar Academy
-      [556] = 1254555, -- Pit of Saron
-      [239] = 1254551, -- Seat of the Triumvirate
-      [161] = 159898, -- Skyreach
-    },
-    displayOrder = {
-      558, -- Magisters' Terrace
-      560, -- Maisara Caverns
-      559, -- Nexus-Point Xenas
-      557, -- Windrunner Spire
-      402, -- Algeth'ar Academy
-      556, -- Pit of Saron
-      239, -- Seat of the Triumvirate
-      161, -- Skyreach
-    },
-    shortCodesByLocale = {
-      default = {
-        [557] = "WRS",
-        [558] = "MT",
-        [559] = "NPX",
-        [560] = "MC",
-        [402] = "AA",
-        [556] = "POS",
-        [239] = "SOT",
-        [161] = "SR",
-      },
-      deDE = {
-        [557] = "WRS",
-        [558] = "MT",
-        [559] = "NPX",
-        [560] = "MC",
-        [402] = "AA",
-        [556] = "POS",
-        [239] = "SOT",
-        [161] = "SR",
-      },
-    },
-    namesByLocale = {
-      enUS = {
-        [557] = "Windrunner Spire",
-        [558] = "Magisters' Terrace",
-        [559] = "Nexus-Point Xenas",
-        [560] = "Maisara Caverns",
-        [402] = "Algeth'ar Academy",
-        [556] = "Pit of Saron",
-        [239] = "Seat of the Triumvirate",
-        [161] = "Skyreach",
-      },
-      deDE = {
-        [557] = "Windläuferturm",
-        [558] = "Terrasse der Magister",
-        [559] = "Nexuspunkt Xenas",
-        [560] = "Maisarakavernen",
-        [402] = "Akademie von Algeth'ar",
-        [556] = "Grube von Saron",
-        [239] = "Sitz des Triumvirats",
-        [161] = "Die Himmelsnadel",
-      },
-    },
+local SeasonManifest = addonTable.SeasonManifest or {}
+
+local function CompileSeason(source)
+  source = type(source) == "table" and source or {}
+  local season = {
+    label = source.label,
+    autoDetectFromChallengeMaps = source.autoDetectFromChallengeMaps == true,
+    requiresForces = source.requiresForces == true,
+    mdtDirectory = source.mdtDirectory,
+    inactivePortalMessageByLocale = source.inactivePortalMessageByLocale or {},
+    portalNavigator = source.portalNavigator,
+    dungeons = source.dungeons,
+    mapToTeleport = {},
+    displayOrder = {},
+    minimumPlayerLevelByMapID = {},
+    shortCodesByLocale = { default = {}, deDE = {} },
+    namesByLocale = { enUS = {}, deDE = {} },
     challengeMapAliases = {},
-    -- Season is live; no inactive message needed.
-    inactivePortalMessageByLocale = {},
-  },
-  midnight_s2 = {
-    label = "Midnight Season 2",
-    autoDetectFromChallengeMaps = false,
-    requiresForces = false,
-    -- Challenge map and castable portal spell IDs were explicitly approved
-    -- after cross-checking DBM, EnhanceQoL, Chonky Character Sheet, and
-    -- Wowhead PTR spell data. The season remains inactive until the remaining
-    -- display and forces data are complete.
-    plannedDungeons = {
-      "Altar of Fangs",
-      "Murder Row",
-      "Den of Nalorakk",
-      "The Blinding Vale",
-      "Voidscar Arena",
-      "King's Rest",
-      "Ruby Life Pools",
-      "Temple of Sethraliss",
-    },
-    mapToTeleport = {
-      [588] = 1286812, -- Altar of Fangs
-      [587] = 1286809, -- Murder Row
-      [586] = 1286807, -- Den of Nalorakk
-      [584] = 1286801, -- The Blinding Vale
-      [585] = 1286804, -- Voidscar Arena
-      [249] = 1286831, -- King's Rest
-      [399] = 393256, -- Ruby Life Pools
-      [250] = 1286828, -- Temple of Sethraliss
-    },
-    displayOrder = {
-      249, -- King's Rest
-      250, -- Temple of Sethraliss
-      399, -- Ruby Life Pools
-      584, -- The Blinding Vale
-      585, -- Voidscar Arena
-      586, -- Den of Nalorakk
-      587, -- Murder Row
-      588, -- Altar of Fangs
-    },
-    shortCodesByLocale = {
-      default = {
-        [588] = "AOF",
-        [587] = "MR",
-        [586] = "DON",
-        [584] = "TBV",
-        [585] = "VA",
-        [249] = "KR",
-        [399] = "RLP",
-        [250] = "TOS",
-      },
-      deDE = {
-        [588] = "ADF",
-        [587] = "MG",
-        [586] = "NB",
-        [584] = "DBT",
-        [585] = "ADL",
-        [249] = "KR",
-        [399] = "RLB",
-        [250] = "TVS",
-      },
-    },
-    namesByLocale = {
-      enUS = {
-        [588] = "Altar of Fangs",
-        [587] = "Murder Row",
-        [586] = "Den of Nalorakk",
-        [584] = "The Blinding Vale",
-        [585] = "Voidscar Arena",
-        [249] = "King's Rest",
-        [399] = "Ruby Life Pools",
-        [250] = "Temple of Sethraliss",
-      },
-      deDE = {
-        [588] = "Der Altar der Fänge",
-        [587] = "Mördergasse",
-        [586] = "Nalorakks Bau",
-        [584] = "Das blendende Tal",
-        [585] = "Arena der Leerennarbe",
-        [249] = "Königsruh",
-        [399] = "Rubinlebensbecken",
-        [250] = "Tempel von Sethraliss",
-      },
-    },
-    challengeMapAliases = {},
-    inactivePortalMessageByLocale = {
-      default = "Midnight Season 2 is prepared but not active yet.",
-      deDE = "Midnight Season 2 ist vorbereitet, aber noch nicht aktiv.",
-    },
-  },
-}
+    activityToMap = {},
+    plannedDungeons = {},
+    manifestErrors = {},
+  }
+  local ordered = {}
+  local seenMapIDs = {}
+  local seenActivityIDs = {}
+  local seenDisplayOrders = {}
+
+  if type(source.dungeons) ~= "table" then
+    season.manifestErrors[#season.manifestErrors + 1] = "dungeons must be a table"
+    return season
+  end
+
+  for index, dungeon in ipairs(source.dungeons) do
+    local mapID = type(dungeon) == "table" and tonumber(dungeon.mapID) or nil
+    if not mapID or mapID <= 0 or mapID ~= math.floor(mapID) then
+      season.manifestErrors[#season.manifestErrors + 1] = string.format("dungeon %d has invalid mapID", index)
+    elseif seenMapIDs[mapID] then
+      season.manifestErrors[#season.manifestErrors + 1] = string.format("duplicate mapID %d", mapID)
+    else
+      seenMapIDs[mapID] = true
+      local spells = dungeon.portalSpellIDs
+      if type(spells) ~= "table" or #spells == 0 then
+        season.manifestErrors[#season.manifestErrors + 1] = string.format("mapID %d has no portalSpellIDs", mapID)
+      elseif #spells == 1 then
+        season.mapToTeleport[mapID] = spells[1]
+      else
+        season.mapToTeleport[mapID] = spells
+      end
+
+      local order = tonumber(dungeon.displayOrder)
+      if not order or order <= 0 or order ~= math.floor(order) then
+        season.manifestErrors[#season.manifestErrors + 1] = string.format("mapID %d has invalid displayOrder", mapID)
+      elseif seenDisplayOrders[order] then
+        season.manifestErrors[#season.manifestErrors + 1] = string.format("duplicate displayOrder %d", order)
+      else
+        seenDisplayOrders[order] = true
+      end
+      ordered[#ordered + 1] = { mapID = mapID, order = order or math.huge }
+      if dungeon.minimumPlayerLevel ~= nil then
+        season.minimumPlayerLevelByMapID[mapID] = dungeon.minimumPlayerLevel
+      end
+
+      for localeTag, name in pairs(type(dungeon.names) == "table" and dungeon.names or {}) do
+        season.namesByLocale[localeTag] = season.namesByLocale[localeTag] or {}
+        season.namesByLocale[localeTag][mapID] = name
+      end
+      for localeTag, code in pairs(type(dungeon.shortCodes) == "table" and dungeon.shortCodes or {}) do
+        season.shortCodesByLocale[localeTag] = season.shortCodesByLocale[localeTag] or {}
+        season.shortCodesByLocale[localeTag][mapID] = code
+      end
+      for _, aliasMapID in ipairs(type(dungeon.challengeMapAliases) == "table" and dungeon.challengeMapAliases or {}) do
+        season.challengeMapAliases[aliasMapID] = mapID
+      end
+      local activityIDs = type(dungeon.activityIDs) == "table" and dungeon.activityIDs or {}
+      if #activityIDs == 0 then
+        season.manifestErrors[#season.manifestErrors + 1] = string.format("mapID %d has no activityIDs", mapID)
+      end
+      for _, activityID in ipairs(activityIDs) do
+        local numericActivityID = tonumber(activityID)
+        if not numericActivityID or numericActivityID <= 0 or numericActivityID ~= math.floor(numericActivityID) then
+          season.manifestErrors[#season.manifestErrors + 1] = string.format("mapID %d has invalid activityID", mapID)
+        elseif seenActivityIDs[numericActivityID] then
+          season.manifestErrors[#season.manifestErrors + 1] =
+            string.format("duplicate activityID %d", numericActivityID)
+        else
+          seenActivityIDs[numericActivityID] = true
+          season.activityToMap[numericActivityID] = mapID
+        end
+      end
+
+      local englishName = season.namesByLocale.enUS[mapID]
+      if type(englishName) == "string" and englishName ~= "" then
+        season.plannedDungeons[#season.plannedDungeons + 1] = englishName
+      end
+    end
+  end
+
+  table.sort(ordered, function(left, right)
+    if left.order == right.order then
+      return left.mapID < right.mapID
+    end
+    return left.order < right.order
+  end)
+  for _, entry in ipairs(ordered) do
+    season.displayOrder[#season.displayOrder + 1] = entry.mapID
+  end
+
+  if season.requiresForces and (type(season.mdtDirectory) ~= "string" or season.mdtDirectory == "") then
+    season.manifestErrors[#season.manifestErrors + 1] = "requiresForces season has no mdtDirectory"
+  end
+  local navigator = season.portalNavigator
+  local slots = type(navigator) == "table" and navigator.slots or nil
+  local titles = type(navigator) == "table" and navigator.titleByLocale or nil
+  if type(slots) ~= "table" or type(titles) ~= "table" or type(titles.default) ~= "string" or titles.default == "" then
+    season.manifestErrors[#season.manifestErrors + 1] = "portalNavigator must provide slots and a default title"
+  else
+    for _, slot in ipairs({ "left", "half_left", "center", "half_right", "right" }) do
+      local mapID = slots[slot]
+      if mapID ~= false and (type(mapID) ~= "number" or not seenMapIDs[mapID]) then
+        season.manifestErrors[#season.manifestErrors + 1] = string.format("portalNavigator slot %s is unresolved", slot)
+      end
+    end
+  end
+
+  return season
+end
+
+SeasonData.ACTIVE_SEASON_ID = SeasonManifest.activeSeasonID
+SeasonData.MANIFEST = SeasonManifest
+SeasonData.SEASONS = {}
+for seasonID, source in pairs(SeasonManifest.seasons or {}) do
+  SeasonData.SEASONS[seasonID] = CompileSeason(source)
+end
 
 local function RefreshLegacyAliases()
   SeasonData.MAP_TO_TELEPORT = SeasonData.GetMapToTeleport()
@@ -347,6 +322,7 @@ function SeasonData.GetSeasonLabel(seasonID)
   if type(season) ~= "table" then
     return tostring(seasonID or "")
   end
+
   if type(season.label) == "string" and season.label ~= "" then
     return season.label
   end
@@ -397,6 +373,10 @@ function SeasonData.GetSeasonReadiness(seasonID, opts)
       },
       warnings = warnings,
     }
+  end
+
+  for _, manifestError in ipairs(season.manifestErrors or {}) do
+    errors[#errors + 1] = "season manifest: " .. tostring(manifestError)
   end
 
   local mapToTeleport = season.mapToTeleport
@@ -715,6 +695,47 @@ function SeasonData.GetOrderedMapIDs(seasonID)
   end
 
   return ordered
+end
+
+function SeasonData.GetMinimumPlayerLevel(mapID, seasonID)
+  local numericMapID = SeasonData.NormalizeMapID(mapID, seasonID)
+  if not numericMapID then
+    return nil
+  end
+
+  local season = SeasonData.GetSeasonConfig(seasonID)
+  local minimumLevels = type(season) == "table" and season.minimumPlayerLevelByMapID or nil
+  local minimumLevel = type(minimumLevels) == "table" and tonumber(minimumLevels[numericMapID]) or nil
+  if not minimumLevel or minimumLevel <= 0 or minimumLevel ~= math.floor(minimumLevel) then
+    return nil
+  end
+  return minimumLevel
+end
+
+function SeasonData.GetMapIDByActivityID(activityID, seasonID)
+  local numericActivityID = tonumber(activityID)
+  if not numericActivityID or numericActivityID <= 0 or numericActivityID ~= math.floor(numericActivityID) then
+    return nil
+  end
+  local season = SeasonData.GetSeasonConfig(seasonID)
+  local activityToMap = type(season) == "table" and season.activityToMap or nil
+  return type(activityToMap) == "table" and activityToMap[numericActivityID] or nil
+end
+
+function SeasonData.GetMdtDirectory(seasonID)
+  local season = SeasonData.GetSeasonConfig(seasonID)
+  if type(season) ~= "table" or type(season.mdtDirectory) ~= "string" or season.mdtDirectory == "" then
+    return nil
+  end
+  return season.mdtDirectory
+end
+
+function SeasonData.GetPortalNavigatorConfig(seasonID)
+  local season = SeasonData.GetSeasonConfig(seasonID)
+  if type(season) ~= "table" or type(season.portalNavigator) ~= "table" then
+    return nil
+  end
+  return season.portalNavigator
 end
 
 function SeasonData.GetShortCodes(localeTag, seasonID)

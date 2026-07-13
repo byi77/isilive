@@ -205,6 +205,9 @@ function Teleport.GetTeleportInfoByMapID(mapID)
     mapName = mapName,
     spellID = spellID,
     icon = icon,
+    minimumPlayerLevel = type(SeasonData.GetMinimumPlayerLevel) == "function" and SeasonData.GetMinimumPlayerLevel(
+      numericMapID
+    ) or nil,
   }
 end
 

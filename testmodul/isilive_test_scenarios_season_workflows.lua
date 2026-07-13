@@ -34,6 +34,16 @@ local function WriteFile(path, content)
   file:close()
 end
 
+local function ReadFile(path)
+  local file, err = ioLib.open(path, "rb")
+  if not file then
+    error(string.format("cannot read %s: %s", tostring(path), tostring(err)))
+  end
+  local content = file:read("*a") or ""
+  file:close()
+  return content
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
 
@@ -258,6 +268,53 @@ MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5, name = "Safe" } }
     Assert.True(
       result.summary:find("| Voidscar Arena | 585 | 1286804 | 1951 | verified |", 1, true) ~= nil,
       "season intake summary must include the verified Voidscar Arena mapping"
+    )
+  end)
+
+  test("Season intake check rejects IDs that diverge from the season manifest", function()
+    local tool = LoadTool("tools/check_season_intake.lua")
+    local path = "tools/cache/test_season_intake_manifest_drift.md"
+    EnsureDir("tools/cache")
+    local content = ReadFile("docs/SEASON_INTAKE.md")
+    local changed, replacementCount = content:gsub(
+      "| midnight_s2 | Altar of Fangs | 588 | 1286812 | 1933 |",
+      "| midnight_s2 | Altar of Fangs | 588 | 1286812 | 1934 |",
+      1
+    )
+    Assert.Equal(replacementCount, 1, "test fixture must change exactly one verified activity id")
+    WriteFile(path, changed)
+
+    local ok, result = tool.Check({ intakePath = path })
+    Assert.False(ok, "intake data must not drift from the runtime season manifest")
+    Assert.True(
+      result.summary:find("LFGActivityID does not match the season manifest", 1, true) ~= nil,
+      "drift error must name the mismatched manifest field"
+    )
+  end)
+
+  test("Season intake check infers one exact intake season and rejects ambiguous files", function()
+    local tool = LoadTool("tools/check_season_intake.lua")
+    local inferredOk, inferred = tool.Check()
+    Assert.True(inferredOk, "one exact season in the intake must be inferred")
+    Assert.Equal(inferred.seasonID, "midnight_s2", "inferred season must come from the intake rows")
+
+    local path = "tools/cache/test_season_intake_ambiguous.md"
+    EnsureDir("tools/cache")
+    local content = ReadFile("docs/SEASON_INTAKE.md")
+    WriteFile(path, content .. [[
+
+## Dungeon-Intake
+
+| Season | Dungeon | ChallengeMapID | PortalSpellID | LFGActivityID | Source | VerifiedAt | Status | Notiz |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| another_season | Example | unresolved | unresolved | unresolved | unresolved | unresolved | unresolved | test |
+]])
+
+    local ok, result = tool.Check({ intakePath = path })
+    Assert.False(ok, "multiple intake seasons must require an explicit season selection")
+    Assert.True(
+      result.summary:find("contains multiple seasons", 1, true) ~= nil,
+      "ambiguous intake failure must identify the multiple-season source"
     )
   end)
 

@@ -40,6 +40,7 @@ local FILE_PATHS = {
   ["isiLive_spell_utils.lua"] = "game/isiLive_spell_utils.lua",
   ["isiLive_cd_tracker.lua"] = "game/isiLive_cd_tracker.lua",
   ["isiLive_season_data.lua"] = "game/isiLive_season_data.lua",
+  ["isiLive_seasons.lua"] = "data/isiLive_seasons.lua",
   ["isiLive_season_debug.lua"] = "game/isiLive_season_debug.lua",
   ["isiLive_teleport.lua"] = "game/isiLive_teleport.lua",
   ["isiLive_teleport_debug.lua"] = "ui/isiLive_teleport_debug.lua",
@@ -238,7 +239,9 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_texts_trTR.lua",
   },
   ["isiLive_commands.lua"] = { "isiLive_languages.lua" },
-  ["isiLive_season_data.lua"] = { "isiLive_languages.lua" },
+  ["isiLive_season_data.lua"] = { "isiLive_languages.lua", "isiLive_seasons.lua" },
+  ["isiLive_lfg_detect.lua"] = { "isiLive_season_data.lua" },
+  ["isiLive_status.lua"] = { "isiLive_season_data.lua" },
   ["isiLive_settings.lua"] = {
     "isiLive_settings_reset.lua",
     "isiLive_settings_hearthstone.lua",

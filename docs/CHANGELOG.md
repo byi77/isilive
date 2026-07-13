@@ -1,7 +1,36 @@
 # Changelog
 
-## Unreleased
+## 2026-07-13 - Version 0.9.345 (patch)
 
+- Standardized the project license to unmodified MIT, added an explicit public
+  asset-provenance register for unresolved mixed-origin sound and texture
+  files, and made the public agent runbook standalone.
+- Removed five unused historical screenshots, documented the retained public
+  Center Notice mockup, moved experimental Warcraft Logs TimePace research to
+  the private workspace, and promoted the passing M+ timer lifecycle simulator
+  into local and GitHub CI.
+- Corrected the duplicate death-alert usecase identifier from `UC-24` to
+  `UC-28` and consolidated the season-change checklist into one public runbook.
+
+- Added the public `docs/SAISON_WECHSEL.md` runbook with a reusable checklist
+  for verified intake, manifest preparation, optional Forces generation,
+  activation approval, in-game checks, documentation, and full local CI.
+
+- Consolidated manually maintained season configuration into
+  `data/isiLive_seasons.lua`. Each dungeon now owns its ChallengeMapID,
+  portal spells, LFG activity IDs, display order, localized names, short
+  codes, optional level gate, portal-room placement, and verification
+  metadata in one record. Runtime lookup tables, LFG detection, the portal
+  navigator, and MDT directory selection derive from that manifest; the
+  generated expiring Forces payload remains separate. Added deterministic
+  runtime and architecture coverage for the single-source contract.
+
+- Fixed dungeon portal availability for lower-level alts by persisting only
+  live-confirmed configured portal spells for account-wide reuse. This avoids
+  character-local false Spellbook results on alts. Locked tooltips now describe
+  the +10 unlock as account-wide, and only explicitly marked new Midnight
+  dungeons show the level-90 requirement; returning dungeons no longer inherit
+  it. (2026-07-13)
 - Disabled automatic selection for `midnight_s2` and allowed an explicit
   manual S2 activation before its optional MDT forces database is available.
   Blizzard scenario progress remains visible in that state, while MDT-backed

@@ -16,12 +16,13 @@
 - `CHALLENGE_MODE_COMPLETED` und `CHALLENGE_MODE_RESET` bleiben auch bei hidden Main-Window aktiv, damit Post-Run-Refresh und Delta-Flow verlaesslich bleiben.
 
 ## Season-Rahmen
-- Das Addon ist season-open; aktive Runtime-Season-Daten werden ausschliesslich ueber `SeasonData.ACTIVE_SEASON_ID` gewaehlt.
-- `isiLive_season_data.lua` darf mehrere Seasons enthalten (`active` plus vorbereitete zukuenftige Seasons), aber zur Laufzeit ist immer nur eine Season-ID aktiv.
+- Das Addon ist season-open; die aktive Runtime-Season wird ausschliesslich ueber `activeSeasonID` in `data/isiLive_seasons.lua` festgelegt und von `SeasonData.ACTIVE_SEASON_ID` gespiegelt.
+- `data/isiLive_seasons.lua` ist die einzige manuell gepflegte Runtime-Saisonquelle und darf mehrere Seasons enthalten (`active` plus vorbereitete zukuenftige Seasons); pro Dungeon werden IDs, Darstellungsdaten, Stufengate, Portalraum-Slot und Verifikationsmetadaten in einem Datensatz gepflegt.
+- `isiLive_season_data.lua` enthaelt nur Compiler, Validierung und Zugriffsfunktionen fuer die aus dem Manifest erzeugten Indizes. Parallele saisonale Tabellen in LFG-, Status- oder MDT-Werkzeugcode sind verboten; der generierte Forces-Datensatz bleibt separat.
 - `ACTIVE_SEASON_ID` wird nur automatisch umgestellt, wenn Blizzards Challenge-Map-Satz exakt zu einer vorbereiteten Season passt, deren Ziel-Season-Mappings (`mapToTeleport`, `displayOrder`, `shortCodesByLocale`, `namesByLocale`, `challengeMapAliases`) vollstaendig validiert sind und deren passende Forces-DB frisch ist.
 - Bei Season-Data-Aenderungen muessen `README.md` und `CHANGELOG.md` die aktive Season-ID und den Vorbereitungsstand der naechsten Season explizit nennen.
-- Aktuelle Planungsbasis: `midnight_s1` ist das aktive Live-Dataset; `midnight_s2` enthaelt die acht freigegebenen ChallengeMapID-zu-PortalSpellID-Mappings und vollstaendige Darstellungsdaten.
-- PTR-/Freigabestand `2026-07-13`: Fuer `midnight_s2` sind alle acht ChallengeMapIDs, castbaren Portalspells, Mythic+-LFG-Activity-IDs und Darstellungsdaten verifiziert. S2 wird durch `autoDetectFromChallengeMaps=false` ausschliesslich manuell aktiviert und darf auch ohne passende MDT-Forces-DB aktiv sein. Bis eine exakt zu S2 passende DB vorliegt, bleiben MDT-abhaengige Mob-Anzeigen geschlossen; Blizzard-Gesamtfortschritt bleibt sichtbar.
+- Zeitgebundene Aktivierungs- und Intake-Staende gehoeren in `README.md`,
+  `docs/SEASON_INTAKE.md` und `docs/WARTUNG.md`, nicht in diese stabilen Regeln.
 
 ## Lokalisierung
 - Alle user-facing Texte laufen ueber die Lokalisierungstabelle.
@@ -73,6 +74,13 @@
 ## Release-Hygiene
 - Die Version in `isiLive.toc` wird nur auf ausdrueckliches User-Kommando hochgezogen.
 - `CHANGELOG_RELEASE.md` bleibt ein kurzer, user-facing Release-Stub fuer CurseForge/Wago und wird bei sichtbaren Features ebenfalls aktualisiert.
+- Die Herkunft und der Lizenzstatus gebuendelter Drittbibliotheken, Sounds und
+  Texturen werden in `docs/ASSET_PROVENANCE.md` gepflegt. Unbekannte
+  Datei-zu-Quelle-Zuordnungen bleiben `unresolved` und werden nicht aus Namen
+  oder Metadaten abgeleitet.
+- Oeffentliche Entwicklungs-Mockups muessen ihren Zweck, ihre Abhaengigkeiten
+  und ihren Ausschluss aus dem Addonpaket direkt im Mockup-Verzeichnis
+  dokumentieren.
 - Nach Aenderungen wird geprueft, dass das Addon ohne Lua-Fehler laedt.
 - Commits und Pushes werden nur auf ausdrueckliches User-Kommando ausgefuehrt.
 

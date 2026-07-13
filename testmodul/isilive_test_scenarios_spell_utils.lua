@@ -362,6 +362,63 @@ local function RegisterSpellUtilsBranchTests(test, Assert, WithGlobals, LoadAddo
     end)
   end)
 
+  test("SpellUtils persists only live-confirmed configured portals for account-wide alt reuse", function()
+    local portalKnown = true
+    WithGlobals({
+      IsiLiveDB = {
+        verifiedAccountTeleportSpells = {},
+      },
+      C_SpellBook = {
+        IsSpellInSpellBook = function(spellID)
+          return portalKnown and (spellID == 1254555 or spellID == 2139)
+        end,
+        IsSpellKnownOrOverridesKnown = function()
+          return false
+        end,
+        IsSpellKnown = function()
+          return false
+        end,
+      },
+      C_Spell = {
+        GetSpellCooldown = function()
+          return { startTime = 0, duration = 0, isEnabled = true }
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_spell_utils.lua" })
+      addon.SeasonData = {
+        SEASONS = {
+          midnight_s1 = {
+            mapToTeleport = {
+              [556] = 1254555,
+            },
+          },
+        },
+      }
+      Assert.True(
+        addon.SpellUtils.IsSpellKnownSafe(1254555),
+        "a configured portal present in the live player spellbook must be available"
+      )
+      Assert.Equal(
+        IsiLiveDB.verifiedAccountTeleportSpells[1254555],
+        true,
+        "the live-confirmed configured portal must be persisted"
+      )
+
+      Assert.True(addon.SpellUtils.IsSpellKnownSafe(2139), "an unrelated known spell must remain available")
+      Assert.Nil(
+        IsiLiveDB.verifiedAccountTeleportSpells[2139],
+        "an unrelated spell must never enter the account teleport cache"
+      )
+
+      portalKnown = false
+      Assert.True(
+        addon.SpellUtils.IsSpellKnownSafe(1254555),
+        "a later alt with false character-local spellbook results must reuse the verified account unlock"
+      )
+    end)
+  end)
+
   test("SpellUtils.IsSpellKnownSafe falls back to IsSpellKnown when override-aware API misses", function()
     WithGlobals({
       C_SpellBook = {
