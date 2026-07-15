@@ -2,6 +2,9 @@
 
 ## 2026-07-13 - Version 0.9.345 (patch)
 
+- Made Season Intake Markdown parsing deterministic across Lua 5.1 and 5.4 by
+  consuming table delimiters in every pattern match, with regression coverage
+  for exact row and column preservation.
 - Standardized the project license to unmodified MIT, added an explicit public
   asset-provenance register for unresolved mixed-origin sound and texture
   files, and made the public agent runbook standalone.
