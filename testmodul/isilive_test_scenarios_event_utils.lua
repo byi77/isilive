@@ -264,6 +264,48 @@ local function RegisterEventGateTests(test, Assert, LoadAddonModules)
     end
   end)
 
+  test("Events gate keeps restricted LFG group text out of reusable dispatch slots", function()
+    local captured = nil
+
+    local addon = LoadAddonModules({ "isiLive_events.lua" })
+    local gate = addon.Events.CreateGate({
+      dispatch = function(_frame, event, ...)
+        captured = {
+          event = event,
+          count = select("#", ...),
+          searchResultID = select(1, ...),
+          newStatus = select(2, ...),
+          oldStatus = select(3, ...),
+          groupName = select(4, ...),
+        }
+      end,
+      onDispatchError = function(_frame, _event, _err) end,
+    })
+
+    local frame = {
+      IsShown = function()
+        return true
+      end,
+    }
+    local restrictedGroupNameSentinel = { kind = "kstringLfgListChat" }
+    gate(
+      frame,
+      "LFG_LIST_APPLICATION_STATUS_UPDATED",
+      4021160,
+      "inviteaccepted",
+      "invited",
+      restrictedGroupNameSentinel
+    )
+
+    Assert.NotNil(captured, "LFG application event must dispatch")
+    Assert.Equal(captured.event, "LFG_LIST_APPLICATION_STATUS_UPDATED")
+    Assert.Equal(captured.count, 2, "only authoritative LFG application fields may enter the reusable slot")
+    Assert.Equal(captured.searchResultID, 4021160, "searchResultID must stay intact")
+    Assert.Equal(captured.newStatus, "inviteaccepted", "newStatus must stay intact")
+    Assert.Nil(captured.oldStatus, "oldStatus is not required by the runtime pipeline")
+    Assert.Nil(captured.groupName, "restricted groupName must not enter the reusable slot")
+  end)
+
   test("Events gate preserves outer arguments across re-entrant protected dispatch", function()
     local calls = {}
     local gate

@@ -137,6 +137,19 @@ function Events.CreateGate(config)
       return
     end
 
+    -- Midnight marks the fourth LFG application-status payload
+    -- (`groupName`) as kstringLfgListChat. It is not authoritative for dungeon
+    -- detection and must not enter the reusable protected-dispatch slots:
+    -- retaining restricted strings in a long-lived table can poison later
+    -- reads from that slot in the live client. The queue/LFG pipeline only
+    -- requires the stable search-result ID and the new status; listing details
+    -- are resolved from C_LFGList by that ID.
+    if event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
+      local searchResultID, newStatus = ...
+      DispatchSafe(frame, event, searchResultID, newStatus)
+      return
+    end
+
     DispatchSafe(frame, event, ...)
   end
 end

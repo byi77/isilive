@@ -430,7 +430,7 @@ Wenn du ein neues map-typed Feld in IsiLiveDB einfuehrst (z.B. ein per-Player-Ca
 ### 4.2a Runtime-Hotpaths bleiben gezielt
 
 Aktueller Soll-Zustand:
-- `logic/isiLive_events.lua` verwendet fuer geschuetzten Dispatch wiederverwendbare, reentrancy-sichere Argument-Slots und stabile Callbacks; keine Argumenttabelle oder Dispatch-Closure pro akzeptiertem Event.
+- `logic/isiLive_events.lua` verwendet fuer geschuetzten Dispatch wiederverwendbare, reentrancy-sichere Argument-Slots und stabile Callbacks; keine Argumenttabelle oder Dispatch-Closure pro akzeptiertem Event. Eingeschraenkte LFG-Gruppennamen aus `LFG_LIST_APPLICATION_STATUS_UPDATED` duerfen nicht in diesen langlebigen Slots gespeichert werden; der Runtime-Pfad uebergibt dort nur `searchResultID` und `newStatus` und liest Listingdetails anhand der ID.
 - `game/isiLive_mplus_timer.lua` besitzt keinen eigenen `OnUpdate`-Frame. Laufende Zeit wird bei `GetTimerData()` aus `GetWorldElapsedTime` gelesen; API-Fehler, Secret Values und nicht-finite Werte erhalten den letzten belastbaren Snapshot.
 - Der sichtbare CD-Sekundenticker aktualisiert nur CD-, Ready- und M+-Zeilen. Ein vollstaendiger M+-Pre-Render ist nur fuer ausgeblendete eventgetriebene Refreshes erlaubt.
 - Killtracker-Periodik aktualisiert nur bereits entdeckte Nameplate-Overlays. Ein Vollscan der Unit-Tokens ist auf Aktivierung, Start und Einstellungswechsel beschraenkt.

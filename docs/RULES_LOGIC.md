@@ -793,6 +793,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - LFGDetect keeps partially unresolved invite activity maps unresolved
   - LFGDetect active listing stays unresolved when only dungeon name text is available
   - LFGDetect exact invite stays pending until inviteaccepted and then highlights without sound
+  - LFGDetect resolves Algethar Academy after accepted invite
   - LFGDetect inviteaccepted refreshes incomplete invited listing before direct-push
   - LFGDetect direct-push carries exact Blizzard keystone level markup
   - LFGDetect ResolveEntryTitleLevel recovers level from groupName when titleLevel is nil
@@ -1473,6 +1474,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - StatsBox periodic refresh skips unchanged layout mutations
   - RosterLayout system option watcher owns ticker only while main frame is visible
   - Events gate preserves outer arguments across re-entrant protected dispatch
+  - Events gate keeps restricted LFG group text out of reusable dispatch slots
   - Architecture event gate reuses protected dispatch slots without per-event closure tables
   - factory_minimap: OnUpdate exists only during an active drag
 

@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.346`
+Versionsbasis: `0.9.347`
 Zuletzt aktualisiert: `2026-07-15`
 
 ## Akteure
@@ -265,7 +265,7 @@ Ziel: Live-BRes, Bloodlust/Heroism/Time Warp, aktive Mythic+-Timer-Cutoffs, den 
 Ziel: LFG-Einladungen und eigene Listings sollen das Portal-Highlight und die Chat-Hinweise deterministisch ausloesen, ohne Pending-Invite-Races oder Sprach-Fallbacks.
 
 1. Trigger: `LFG_LIST_APPLICATION_STATUS_UPDATED` meldet `invited` oder `inviteaccepted`, `LFG_LIST_ACTIVE_ENTRY_UPDATE` meldet eine eigene aktive Listing-Info, oder ein bestaetigter Gruppenbeitritt trifft ein, nachdem der lokale LFG-Status bereits ein verifiziertes Dungeon-Ziel kennt.
-2. Verarbeitung: Der Status wird kleingeschrieben normalisiert; die Activity-zu-Map-Aufloesung nutzt nur exakte Aktivitaetsdaten. Namen, Tokens oder andere heuristische Fallbacks bleiben unresolved.
+2. Verarbeitung: Der zentrale geschuetzte Dispatcher reicht fuer `LFG_LIST_APPLICATION_STATUS_UPDATED` nur `searchResultID` und `newStatus` in seinen wiederverwendeten Argument-Slot; das eingeschraenkte `kstringLfgListChat`-Gruppennamenfeld wird dort nicht persistiert. Der Status wird kleingeschrieben normalisiert; Listingdetails werden anhand der SearchResult-ID gelesen und die Activity-zu-Map-Aufloesung nutzt nur exakte Aktivitaetsdaten. Namen, Tokens oder andere heuristische Fallbacks bleiben unresolved.
 3. Verarbeitung: Der Invite-Kontext bleibt bis zur exakten Bestaetigung per `inviteaccepted` pending; danach wird der erkannte Dungeon-Zielzustand gesetzt und das Portal-Highlight ohne Sound aktiviert. Wenn LFGDetect bereits einen konkreten lokalen Map-Kontext hat, wird dieser an den gemeinsamen Highlight-Resolver weitergereicht und hat Vorrang vor peer-synced Highlight-Quellen. Der direkte Target-Dungeon-Chat fuer einen Accepted-Invite nutzt denselben verifizierten Listing-Payload wie die Centerbox und wird vor einem moeglichen synchronen Highlight-/Status-Refresh gelockt, damit stale Resolver-Zustaende keine zweite alte Chatzeile ausgeben.
 4. Regel: Eine eigene Queue-/Listing-Detektion triggert das Portal-Highlight ueber den injizierten Callback; Portal-Sound bleibt fuer Queue- und Invite-getriebene Updates unterdrueckt.
 5. Anzeige: Die Centerbox fuer eine angenommene M+-Einladung zeigt den verifizierten Dungeon und, wenn der akzeptierte LFG-Kontext eine konkrete `activityID` oder `mapID` liefert, einen klickbaren Portal-Button ueber denselben strikten Activity-/Map-Resolver. Angenommene Raid-LFG-Anmeldungen rendern keine isiLive-Centerbox.

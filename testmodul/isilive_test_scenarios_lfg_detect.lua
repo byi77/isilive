@@ -108,6 +108,30 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
     end)
   end)
 
+  test("LFGDetect resolves Algethar Academy after accepted invite", function()
+    local globals, fire = BuildLFGDetectEnv({
+      globals = {
+        C_LFGList = BuildC_LFGList({
+          [4021160] = { activityID = 1160, name = "+17 Akademie", leaderName = "AcademyLead" },
+        }, nil),
+      },
+    })
+
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+      local highlightContext = nil
+      addon.LFGDetect.SetHighlightCallback(function(soundContext)
+        highlightContext = soundContext
+      end)
+
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 4021160, "invited")
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 4021160, "inviteaccepted")
+
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 402, "activityID 1160 must resolve to Algethar mapID 402")
+      Assert.Equal(highlightContext, "invite", "accepted Academy invite must trigger the invite highlight path")
+    end)
+  end)
+
   test("LFGDetect keeps unknown invite activity unresolved instead of guessing from dungeon name", function()
     -- activityID 9999 is not in ACTIVITY_TO_MAP; name text must not be used as a fallback.
     local globals, fire = BuildLFGDetectEnv({

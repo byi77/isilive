@@ -42,10 +42,10 @@ The colorful Mythic+ command center for World of Warcraft.
 🟦 WoW 12.0.7+ Midnight Retail
 🟩 Mythic+ Command Center
 🟧 Automatic Setup
-🟪 Version 0.9.346
+🟪 Version 0.9.347
 
 isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
-Version 0.9.346 reduces combat-event allocation and avoids unnecessary full roster, nameplate, timer, stats, and layout refresh work.
+Version 0.9.347 restores accepted-invite dungeon detection for every supported Mythic+ dungeon while preserving the allocation-free protected event dispatcher.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 WHY USE isiLive?

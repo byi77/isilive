@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-15 - Version 0.9.347 (patch)
+
+- Fixed accepted-invite dungeon detection for visible LFG application events
+  such as Algeth'ar Academy. The protected event dispatcher now forwards only
+  the authoritative search-result ID and new status for
+  `LFG_LIST_APPLICATION_STATUS_UPDATED`, keeping Midnight's restricted
+  `kstringLfgListChat` group-name payload out of reusable hot-path argument
+  slots while preserving the allocation-free dispatcher.
+- Added deterministic coverage for the exact Academy mapping
+  (`activityID 1160` to `mapID 402`) and the restricted LFG payload boundary.
+
 ## 2026-07-15 - Version 0.9.346 (patch)
 
 - Removed per-event argument-table and closure allocation from protected event

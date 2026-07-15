@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.346`
+Versionsbasis: `0.9.347`
 Zuletzt aktualisiert: `2026-07-13`
 
 ## Zweck
@@ -223,7 +223,7 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
 5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach die aktuell registrierten Szenarien aus `tools/usecase_scenarios.lua` ab; die exakte Anzahl wird bei jedem Lauf ausgegeben und die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
    Zusaetzlich laeuft der gleiche Validator-Lauf in CI unter `luacov` (`lua -lluacov tools/validate_usecases.lua`), damit `tools/coverage_summary.lua` die Line-Coverage pro Schicht in das GitHub-Actions-Step-Summary schreibt und der vollstaendige `luacov.report.out` als Artefakt hochgeladen wird.
-   Letzter voller Coverage-Audit-Stand (`2026-07-15`, lokaler Preflight bei 0.9.346): **92.09% Gesamt-Line-Coverage** (`34512 / 37475` Zeilen). Das Coverage-Gate bleibt bei mindestens 88.00% gesamt und 80.00% pro Produktionsdatei.
+   Letzter voller Coverage-Audit-Stand (`2026-07-15`, lokaler Preflight bei 0.9.347): **92.09% Gesamt-Line-Coverage** (`34516 / 37479` Zeilen). Das Coverage-Gate bleibt bei mindestens 88.00% gesamt und 80.00% pro Produktionsdatei.
    Historische Baseline (`2026-04-22`, Commit nach Coverage-Einfuehrung): **78.62% Gesamt-Line-Coverage** ueber 19487 Produktionszeilen.
 6. Der M+-Forces-DB-Refresh laeuft automatisch ueber `.github/workflows/sync-mplus-forces.yml` (Donnerstag 06:00 UTC plus `workflow_dispatch`): Clone MDT → `tools/sync_mdt_forces.lua` → voller CI-Preflight (stylua, luacheck, syntax, metrics, locale drift, lifetime, Nameplate-Key-Start-Simulator, SavedVariables-Reload-Simulator, Key-Start-Lifecycle-Simulator, usecases) → Commit + Push nach `main`. Ohne Diff im DB-File laeuft der Workflow still durch ohne Commit.
 7. Der taegliche S2-Forces-Verfuegbarkeitsmonitor klont MDT nur zur Inspektion. Er meldet per markerstabilem, bei Bedarf wieder geoeffnetem GitHub Issue strukturelle Verfuegbarkeit, wenn fuer alle konfigurierten Dungeons exakte Map-IDs, positive Gesamtwerte und positive NPC-Forces-Daten ausfuehrbar vorliegen. Er prueft alle Kandidaten statt beim ersten Texttreffer abzubrechen; Texttreffer und Platzhalter bleiben geschlossen. Das Signal behauptet keine unbelegbare vollstaendige NPC-Abdeckung.
@@ -238,7 +238,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.346 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.347 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -311,7 +311,7 @@ Zusaetzlich zum Main-Roster-Frame aus `isiLive_ui_main_frame.lua` kann `isiLive_
 - Der periodische Killtracker-Pfad aktualisiert nur bereits entdeckte aktive Nameplate-Overlays; die vollstaendige Unit-Token-Erkennung bleibt Start-, Aktivierungs- und Einstellungswechseln vorbehalten.
 - Center-Notice, Teleport-Cooldowntext und Statsbox besitzen `OnUpdate` nur solange das jeweilige Element sichtbar beziehungsweise aktiviert ist. Die Statsbox wendet ihr Layout im Sekundentakt nur bei einer geaenderten Zeilenstruktur erneut an.
 - Der Systemoption-Watcher des Rosters besitzt nur bei sichtbarer Main-UI einen eigenen Fuenf-Sekunden-Ticker und bricht ihn beim Ausblenden ab.
-- Der geschuetzte Event-Dispatch verwendet pro Reentrancy-Tiefe wiederverwendbare Argument-Slots und stabile Callbacks, damit akzeptierte Events keine eigenen Argumenttabellen oder Dispatch-Closures erzeugen.
+- Der geschuetzte Event-Dispatch verwendet pro Reentrancy-Tiefe wiederverwendbare Argument-Slots und stabile Callbacks, damit akzeptierte Events keine eigenen Argumenttabellen oder Dispatch-Closures erzeugen. Fuer `LFG_LIST_APPLICATION_STATUS_UPDATED` gelangen nur die autoritativen Felder `searchResultID` und `newStatus` in diese Slots; das eingeschraenkte Midnight-`kstringLfgListChat`-Gruppennamenfeld bleibt ausserhalb langlebiger Dispatch-Tabellen, waehrend Listingdetails anhand der SearchResult-ID ueber `C_LFGList` aufgeloest werden.
 - Der Minimap-Button installiert sein `OnUpdate` nur zwischen Drag-Start und Drag-Ende.
 - Die CTL-Wire-Order-Probe nutzt den echten ChatThrottleLib-Pipepfad und ist Bestandteil des lokalen und des GitHub-CI-Preflights.
 - Externe GitHub Actions sind auf vollstaendige 40-stellige Commit-SHAs gepinnt; lesbare Major-Kommentare und `.github/dependabot.yml` halten die Pins wartbar.
