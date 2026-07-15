@@ -1061,6 +1061,7 @@ return function(test, ctx)
     local readyRefreshHits = 0
     local killRefreshHits = 0
     local nameplateRefreshHits = 0
+    local nameplateFullRefreshHits = 0
     local debugLogger
     local logfHits = 0
     local bloodlustHits = 0
@@ -1081,8 +1082,11 @@ return function(test, ctx)
           end,
         },
         MobNameplate = {
-          RefreshAll = function()
+          RefreshActive = function()
             nameplateRefreshHits = nameplateRefreshHits + 1
+          end,
+          RefreshAll = function()
+            nameplateFullRefreshHits = nameplateFullRefreshHits + 1
           end,
         },
         _RosterInternal = {
@@ -1242,7 +1246,8 @@ return function(test, ctx)
     Assert.True(scans >= 3, "cd tracker scan path and ticker path must run")
     Assert.True(readyRefreshHits >= 2, "ready-check refresh must run during cd updates")
     Assert.True(killRefreshHits >= 1, "killtrack OnUpdate callback must refresh the row")
-    Assert.True(nameplateRefreshHits >= 1, "killtrack OnUpdate callback must refresh nameplates")
+    Assert.True(nameplateRefreshHits >= 1, "killtrack OnUpdate callback must refresh active nameplates")
+    Assert.Equal(nameplateFullRefreshHits, 0, "killtrack OnUpdate callback must not rescan all nameplate tokens")
     Assert.Equal(logfHits > 0, true, "runtime logf paths must be exercised")
     Assert.Equal(bloodlustHits, 1, "new lust activation must play the configured sound")
   end)

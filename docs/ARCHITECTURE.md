@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.345`
+Versionsbasis: `0.9.346`
 Zuletzt aktualisiert: `2026-07-13`
 
 ## Zweck
@@ -212,7 +212,7 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
    - `lua tools/simulate_cross_realm_realm_suffix.lua` — pinnt `Sync.NormalizePlayerKey` ueber Cross-Realm-Formate (Spaces, Apostrophe, Dashes, Digits) als Aequivalenzklassen und treibt fuer jedes Realm-Pair einen vollen `Sync.ProcessAddonMessage`-Roundtrip durch. Erfasst auch Self-Echo, wenn der Server den Apostroph/Space im Sender-Suffix bereits abgestrippt hat.
    - `lua tools/simulate_version_skew.lua` — pinnt die HELLO/ACK-Toleranz ueber Versionsgrenzen: alter Peer (0.9.180), aktueller, zukuenftiger (1.0.0/1.1.0), Protokoll-Bump (3), Forward-Compat-Felder, fehlende und garbage Felder. Zusaetzlich Mixed-Group-State (drei Peers gleichzeitig, keine State-Ueberschreibung), In-Place-Versions-Bump, ACK preserved protocolVersion und SHAREKEYS ohne vorheriges HELLO. Pinnt das `SplitPayload`-gmatch-Empty-Field-Collapsing als bewusste Toleranz.
    - `lua tools/simulate_combat_lockdown_settings.lua` — pinnt den `PLAYER_REGEN_DISABLED` -> Defer-Queue -> `PLAYER_REGEN_ENABLED` -> Drain-Lifecycle ueber den echten EventHandlers-Controller. Produzenten-Closures (Bindings-Apply, MainFrame-Visibility/Height/Width) queueen waehrend `InCombatLockdown=true`; die echte `HandlePlayerRegenEnabledEvent`-Drain-Logik aus `logic/isiLive_event_handlers_runtime.lua` leert die Queue. 8 Phasen: Empty-Queue-No-Op, Single-/Multi-Pending-Drain, Raid-Override auf pendingVisible, Raid-Skip auf pendingHeight/Width, Cycle-Isolation (kein Re-Apply nach Drain), Re-Entry-Sauberkeit, Regen-Disabled-Hooks. Schliesst die Luecke zwischen den Per-Handler-Branch-Tests und einem End-to-End-Combat-Cycle.
-   - `lua tools/simulate_mplus_timer_lifecycle.lua` — treibt Start, Tick,
+   - `lua tools/simulate_mplus_timer_lifecycle.lua` — treibt Start, bedarfsgesteuertes Timer-Sampling,
      Todeszaehler, Abschluss, Reset, Demo-Daten und zwei direkt aufeinanderfolgende
      Keys durch den echten M+-Timer-Dispatcher.
 2. Runtime-Logik-Checks:
@@ -223,7 +223,7 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
 5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach die aktuell registrierten Szenarien aus `tools/usecase_scenarios.lua` ab; die exakte Anzahl wird bei jedem Lauf ausgegeben und die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
    Zusaetzlich laeuft der gleiche Validator-Lauf in CI unter `luacov` (`lua -lluacov tools/validate_usecases.lua`), damit `tools/coverage_summary.lua` die Line-Coverage pro Schicht in das GitHub-Actions-Step-Summary schreibt und der vollstaendige `luacov.report.out` als Artefakt hochgeladen wird.
-   Letzter voller Coverage-Audit-Stand (`2026-07-13`, lokaler Preflight bei 0.9.345): **92.09% Gesamt-Line-Coverage** (`34460 / 37420` Zeilen). Das Coverage-Gate bleibt bei mindestens 88.00% gesamt und 80.00% pro Produktionsdatei.
+   Letzter voller Coverage-Audit-Stand (`2026-07-15`, lokaler Preflight bei 0.9.346): **92.09% Gesamt-Line-Coverage** (`34512 / 37475` Zeilen). Das Coverage-Gate bleibt bei mindestens 88.00% gesamt und 80.00% pro Produktionsdatei.
    Historische Baseline (`2026-04-22`, Commit nach Coverage-Einfuehrung): **78.62% Gesamt-Line-Coverage** ueber 19487 Produktionszeilen.
 6. Der M+-Forces-DB-Refresh laeuft automatisch ueber `.github/workflows/sync-mplus-forces.yml` (Donnerstag 06:00 UTC plus `workflow_dispatch`): Clone MDT → `tools/sync_mdt_forces.lua` → voller CI-Preflight (stylua, luacheck, syntax, metrics, locale drift, lifetime, Nameplate-Key-Start-Simulator, SavedVariables-Reload-Simulator, Key-Start-Lifecycle-Simulator, usecases) → Commit + Push nach `main`. Ohne Diff im DB-File laeuft der Workflow still durch ohne Commit.
 7. Der taegliche S2-Forces-Verfuegbarkeitsmonitor klont MDT nur zur Inspektion. Er meldet per markerstabilem, bei Bedarf wieder geoeffnetem GitHub Issue strukturelle Verfuegbarkeit, wenn fuer alle konfigurierten Dungeons exakte Map-IDs, positive Gesamtwerte und positive NPC-Forces-Daten ausfuehrbar vorliegen. Er prueft alle Kandidaten statt beim ersten Texttreffer abzubrechen; Texttreffer und Platzhalter bleiben geschlossen. Das Signal behauptet keine unbelegbare vollstaendige NPC-Abdeckung.
@@ -238,7 +238,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.345 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.346 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -306,8 +306,12 @@ Zusaetzlich zum Main-Roster-Frame aus `isiLive_ui_main_frame.lua` kann `isiLive_
 
 - Der Binding-Watchdog besitzt sein Ticker-Handle und stellt explizite Start-/Stop-Operationen bereit.
 - Der Kick-Tracker pollt nur in einer verifizierten normalen Gruppe oder automatischen Instanzgruppe. Hidden-Sync bleibt in diesem Kontext erlaubt; Solo- und Raid-Uebergaenge brechen den Ticker ab.
-- Der CD-Tracker pollt nur bei sichtbarer Main-UI und aktivem Battle-Res-, Bloodlust- oder Ready-Timer-Kontext. Hidden- und inaktive Zustaende behalten nur die bereits erlaubten eventgetriebenen Refreshes.
-- Center-Notice, Teleport-Cooldowntext und Statsbox besitzen `OnUpdate` nur solange das jeweilige Element sichtbar beziehungsweise aktiviert ist.
+- Der CD-Tracker pollt nur bei sichtbarer Main-UI und aktivem Battle-Res-, Bloodlust- oder Ready-Timer-Kontext. Der sichtbare Sekundentakt aktualisiert gezielt die betroffenen Zeilen; ein vollstaendiger Roster-/Layout-Render bleibt auf den ausgeblendeten eventgetriebenen M+-Pre-Render beschraenkt. Hidden- und inaktive Zustaende behalten nur die bereits erlaubten eventgetriebenen Refreshes.
+- Der M+-Timer besitzt keinen eigenen Frame-`OnUpdate`-Poller. `GetTimerData()` liest die World-Elapsed-Zeit eines laufenden Keys geschuetzt bei Bedarf, sodass Verbraucher einen frischen Snapshot erhalten, ohne Blizzards API zehnmal pro Sekunde im Hintergrund aufzurufen.
+- Der periodische Killtracker-Pfad aktualisiert nur bereits entdeckte aktive Nameplate-Overlays; die vollstaendige Unit-Token-Erkennung bleibt Start-, Aktivierungs- und Einstellungswechseln vorbehalten.
+- Center-Notice, Teleport-Cooldowntext und Statsbox besitzen `OnUpdate` nur solange das jeweilige Element sichtbar beziehungsweise aktiviert ist. Die Statsbox wendet ihr Layout im Sekundentakt nur bei einer geaenderten Zeilenstruktur erneut an.
+- Der Systemoption-Watcher des Rosters besitzt nur bei sichtbarer Main-UI einen eigenen Fuenf-Sekunden-Ticker und bricht ihn beim Ausblenden ab.
+- Der geschuetzte Event-Dispatch verwendet pro Reentrancy-Tiefe wiederverwendbare Argument-Slots und stabile Callbacks, damit akzeptierte Events keine eigenen Argumenttabellen oder Dispatch-Closures erzeugen.
 - Der Minimap-Button installiert sein `OnUpdate` nur zwischen Drag-Start und Drag-Ende.
 - Die CTL-Wire-Order-Probe nutzt den echten ChatThrottleLib-Pipepfad und ist Bestandteil des lokalen und des GitHub-CI-Preflights.
 - Externe GitHub Actions sind auf vollstaendige 40-stellige Commit-SHAs gepinnt; lesbare Major-Kommentare und `.github/dependabot.yml` halten die Pins wartbar.

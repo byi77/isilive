@@ -264,6 +264,48 @@ local function RegisterEventGateTests(test, Assert, LoadAddonModules)
     end
   end)
 
+  test("Events gate preserves outer arguments across re-entrant protected dispatch", function()
+    local calls = {}
+    local gate
+
+    local addon = LoadAddonModules({ "isiLive_events.lua" })
+    gate = addon.Events.CreateGate({
+      dispatch = function(frame, event, ...)
+        calls[#calls + 1] = {
+          event = event,
+          count = select("#", ...),
+          first = select(1, ...),
+          second = select(2, ...),
+        }
+        if event == "OUTER" then
+          gate(frame, "INNER", "inner")
+          calls[#calls + 1] = {
+            event = event .. "_AFTER",
+            count = select("#", ...),
+            first = select(1, ...),
+            second = select(2, ...),
+          }
+        end
+      end,
+      onDispatchError = function(_frame, _event, _err) end,
+    })
+
+    local frame = {
+      IsShown = function()
+        return true
+      end,
+    }
+    gate(frame, "OUTER", "first", nil)
+
+    Assert.Equal(#calls, 3, "outer, inner, and resumed outer dispatch must all complete")
+    Assert.Equal(calls[1].event, "OUTER")
+    Assert.Equal(calls[2].event, "INNER")
+    Assert.Equal(calls[3].event, "OUTER_AFTER")
+    Assert.Equal(calls[3].count, 2, "outer nil-containing varargs must survive nested dispatch")
+    Assert.Equal(calls[3].first, "first")
+    Assert.Nil(calls[3].second)
+  end)
+
   test("Events gate uses default isStopped/isPaused/isTestMode/isInCombat fallbacks when config omits them", function()
     local dispatched = 0
 

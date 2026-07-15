@@ -16,26 +16,30 @@ local state = {
   deathTimeLost = 0,
 }
 
-local tickFrame
-local tickAccum = 0
-
-local function EnsureTickFrame()
-  if not tickFrame then
-    tickFrame = CreateFrame("Frame")
-  end
-  return tickFrame
-end
-
--- Called every 0.1s while the key is running
-local function OnUpdate()
+local function RefreshElapsedTime()
   if not state.running then
     return
   end
-  -- GetWorldElapsedTime returns (timerType, elapsedTime, ...) — use select(2, ...) for elapsed
-  local ok, _, elapsedTime = pcall(GetWorldElapsedTime, 1)
-  if ok and type(elapsedTime) == "number" then
-    state.timer = elapsedTime
+  local getWorldElapsedTime = rawget(_G, "GetWorldElapsedTime")
+  if type(getWorldElapsedTime) ~= "function" then
+    return
   end
+  -- GetWorldElapsedTime returns (timerType, elapsedTime, ...) — use select(2, ...) for elapsed
+  local ok, _, elapsedTime = pcall(getWorldElapsedTime, 1)
+  if not ok or type(elapsedTime) ~= "number" then
+    return
+  end
+  local isSecretValue = rawget(_G, "issecretvalue")
+  if type(isSecretValue) == "function" then
+    local secretOk, isSecret = pcall(isSecretValue, elapsedTime)
+    if not secretOk or isSecret == true then
+      return
+    end
+  end
+  if elapsedTime ~= elapsedTime or elapsedTime == math.huge or elapsedTime == -math.huge or elapsedTime < 0 then
+    return
+  end
+  state.timer = elapsedTime
 end
 
 local function LoadKeyTimeLimits(mapId)
@@ -90,23 +94,11 @@ local function StartTimer()
   state.deathTimeLost = 0
   state.running = true
   state.completed = false
-  tickAccum = 0
-  EnsureTickFrame():SetScript("OnUpdate", function(_, elapsed)
-    tickAccum = tickAccum + elapsed
-    if tickAccum >= 0.1 then
-      tickAccum = 0
-      OnUpdate()
-    end
-  end)
 end
 
 local function StopTimer(completed)
   state.running = false
   state.completed = completed == true
-  if tickFrame then
-    tickFrame:SetScript("OnUpdate", nil)
-  end
-  tickAccum = 0
 end
 
 local function ResetTimerState()
@@ -155,6 +147,9 @@ function MplusTimer.GetTimerData()
   if demoData then
     return demoData
   end
+  -- Sample Blizzard only when a consumer needs the timer. This keeps every
+  -- returned snapshot current without a permanent 10 Hz OnUpdate poll.
+  RefreshElapsedTime()
   return {
     running = state.running,
     completed = state.completed,

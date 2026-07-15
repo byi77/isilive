@@ -87,6 +87,34 @@ return function(test, ctx)
     Assert.True(content:find("return true", 1, true) ~= nil, "production composition must return only success")
   end)
 
+  test("Architecture event gate reuses protected dispatch slots without per-event closure tables", function()
+    local content = ReadFile("logic/isiLive_events.lua")
+    Assert.True(content:find("local dispatchSlots = {}", 1, true) ~= nil, "event dispatch must own a slot pool")
+    Assert.True(
+      content:find("local slot = dispatchSlots[dispatchDepth]", 1, true) ~= nil,
+      "event dispatch must select slots by re-entrancy depth"
+    )
+    Assert.True(
+      content:find("slot.args[index] = select(index, ...)", 1, true) ~= nil,
+      "event dispatch must refill its reusable argument buffer"
+    )
+    Assert.Nil(content:find("local args = { ... }", 1, true), "event dispatch must not allocate argument tables")
+  end)
+
+  test("Architecture combat utility refresh keeps hidden Mythic+ pre-render without visible full render", function()
+    local content = ReadFile("factory/isiLive_factory_cd_tracker.lua")
+    Assert.True(content:find("local timerData = MplusTimer.GetTimerData()", 1, true) ~= nil, "timer state required")
+    Assert.True(content:find("if timerData and timerData.running then", 1, true) ~= nil, "running gate required")
+    Assert.True(
+      content:find("if mplusRunning and not fromVisibleRender and not IsMainFrameShown() then", 1, true) ~= nil,
+      "hidden event-driven Mythic+ pre-render must remain"
+    )
+    Assert.Nil(
+      content:find("if mplusRunning and not fromVisibleRender then\n      if ctx.UpdateUI then", 1, true),
+      "visible Mythic+ refreshes must not rebuild the complete roster and layout"
+    )
+  end)
+
   test("Architecture season manifest is the only manually maintained runtime season source", function()
     local toc = ReadFile("isiLive.toc")
     local seasonData = ReadFile("game/isiLive_season_data.lua")

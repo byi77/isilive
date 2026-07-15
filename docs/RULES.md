@@ -35,6 +35,9 @@
 
 ## Performance
 - Keine Arbeit in `OnUpdate`, ausser sie ist strikt noetig.
+- Laufende Timer werden bei Bedarf aus belastbaren Blizzard-Daten gelesen statt ueber einen eigenen hochfrequenten Frame-Poller fortgeschrieben.
+- Periodische UI-Refreshes aktualisieren die kleinste betroffene Oberflaeche; vollstaendige Roster-, Layout- oder Unit-Token-Scans brauchen einen eigenen belegten Anlass.
+- Hotpath-Logging formatiert keine Strings, solange der zugehoerige Logger deaktiviert ist.
 - Queues werden beim Wechsel in Standby-Zustaende geleert.
 
 ## Dokumentation

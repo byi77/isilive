@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.0.7+ Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%2B%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.345](https://img.shields.io/badge/isiLive-0.9.345-1E90FF?style=for-the-badge)
+![isiLive 0.9.346](https://img.shields.io/badge/isiLive-0.9.346-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -16,6 +16,8 @@
 **Prepared season:** `midnight_s2` remains inactive. All eight ChallengeMapIDs, castable portal spell IDs, Mythic+ LFG activity IDs, localized display names, short codes, and the map-ID display order are recorded. Automatic S2 selection is disabled; Season 2 will be activated manually even if its optional MDT forces database is not available yet. Until a matching S2 database ships, Blizzard's overall dungeon progress remains visible while MDT-dependent mob percentages and tooltip lines stay hidden.
 
 Season maintenance is driven by one normalized manifest. Portal, LFG activity, display, level-gate, and portal-room indexes are derived from the same per-dungeon records; the generated MDT forces snapshot remains separate.
+
+Version `0.9.346` focuses on runtime efficiency: protected event dispatch avoids per-event argument-table and closure allocation, Mythic+ elapsed time is sampled only when consumed, and periodic cooldown, killtracker, nameplate, stats, and roster refreshes avoid unnecessary full renders and layout work.
 
 **Setup:** install, join a 5-player group, and the window opens automatically.
 

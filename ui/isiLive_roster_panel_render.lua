@@ -437,7 +437,9 @@ local RefreshReadyCheckStateImpl
 
 local function RenderRosterImpl(state, roster)
   local memberCount = roster and #roster or 0
-  Trace(string.format("rendering roster, member_count=%d", memberCount))
+  if RI._rosterPanelLogger then
+    Trace(string.format("rendering roster, member_count=%d", memberCount))
+  end
   local memberRows = state.memberRows
   local mainFrame = state.mainFrame
   local shareKeysButton = state.shareKeysButton
@@ -572,6 +574,7 @@ local function RenderRosterImpl(state, roster)
   local activeKeyOwnerUnit = resolveActiveKeyOwnerUnit and resolveActiveKeyOwnerUnit() or nil
   local targetMapID = resolveTargetMapID and resolveTargetMapID() or nil
   local hasAnyKey = false
+  local createdMemberRow = false
 
   for _, entry in ipairs(orderedRoster) do
     if index > 5 then
@@ -587,6 +590,7 @@ local function RenderRosterImpl(state, roster)
     if not row then
       row = CreateMemberRow(mainFrame, index, rosterTooltip, state.getL)
       memberRows[index] = row
+      createdMemberRow = true
     end
 
     if row.roleButton then
@@ -722,8 +726,9 @@ local function RenderRosterImpl(state, roster)
     or math.max(minFrameHeight, 45 + index * 16) + cdTrackerExtra
   setMainFrameHeightSafe(desiredHeight)
 
-  if state.uiRef then
+  if state.uiRef and (createdMemberRow or state.uiRef._isiLiveRenderedLayoutMode ~= layoutMode) then
     UpdateCollapseState(state.uiRef, layoutMode, mainFrame)
+    state.uiRef._isiLiveRenderedLayoutMode = layoutMode
   end
 end
 

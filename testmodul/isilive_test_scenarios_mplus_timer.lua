@@ -2,7 +2,7 @@
 
 -- Scenarios for game/isiLive_mplus_timer.lua.
 -- The module is event-driven: CHALLENGE_MODE_START loads the map's time
--- limits + key level and starts a tick loop; _COMPLETED / _RESET stop
+-- limits + key level; _COMPLETED / _RESET stop
 -- it and wipes the visible timer; _DEATH_COUNT_UPDATED pulls Blizzard's death count + lost seconds.
 -- We stub Blizzard's challenge-mode APIs, load the module, dispatch
 -- each event and assert on GetTimerData().
@@ -18,7 +18,6 @@ local function BuildEnv(overrides)
     mapID = overrides.mapID or 2649,
     timeLimit = overrides.timeLimit or 1800,
     eventHandler = nil,
-    tickFrame = nil,
     eventFrame = nil,
     registeredEvents = {},
     createdFrames = {},
@@ -73,7 +72,7 @@ local function BuildEnv(overrides)
   return globals, state, frames
 end
 
-local function AfterLoad(frames)
+local function AfterLoad(_frames)
   local eventFrame = {
     GetScript = function(_, scriptName)
       if scriptName ~= "OnEvent" then
@@ -85,13 +84,7 @@ local function AfterLoad(frames)
       end
     end,
   }
-  local tickFrame = {
-    GetScript = function(_, scriptName)
-      local frame = frames[1]
-      return frame and frame:GetScript(scriptName) or nil
-    end,
-  }
-  return eventFrame, tickFrame
+  return eventFrame
 end
 
 return function(test, ctx)
@@ -175,51 +168,76 @@ return function(test, ctx)
     Assert.Equal(data.deathTimeLost, 30, "lv4 is the boundary where penalty turns on")
   end)
 
-  test("mplus_timer: OnUpdate tick pulls elapsed time from GetWorldElapsedTime", function()
+  test("mplus_timer: GetTimerData samples elapsed time from GetWorldElapsedTime on demand", function()
     local globals, state, frames = BuildEnv({ keyLevel = 6, timeLimit = 1800 })
-    local addon
+    local addon, data
     WithGlobals(globals, function()
       addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
-      local eventFrame, tickFrame = AfterLoad(frames)
+      local eventFrame = AfterLoad(frames)
       eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_START")
-      -- The key is running; OnUpdate was installed. Pump time > 0.1s
-      -- so the tick accumulator fires.
       state.worldElapsed = 120
-      tickFrame:GetScript("OnUpdate")(tickFrame, 0.15)
+      data = addon.MplusTimer.GetTimerData()
     end)
-    local data = addon.MplusTimer.GetTimerData()
-    Assert.Equal(data.timer, 120, "timer must reflect the world elapsed time on tick")
+    Assert.Equal(data.timer, 120, "timer must reflect world elapsed time when read")
     Assert.Equal(data.timeRemaining1, 1800 - 120)
   end)
 
-  test("mplus_timer: tick accumulator stays under 0.1s without triggering OnUpdate", function()
+  test("mplus_timer: running timer creates no polling frame or OnUpdate handler", function()
     local globals, state, frames = BuildEnv({ keyLevel = 6, timeLimit = 1800 })
-    local addon
     WithGlobals(globals, function()
-      addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
-      local eventFrame, tickFrame = AfterLoad(frames)
+      local addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
+      local eventFrame = AfterLoad(frames)
       eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_START")
-      state.worldElapsed = 50
-      tickFrame:GetScript("OnUpdate")(tickFrame, 0.05)
+      Assert.Equal(#state.createdFrames, 0, "START must not create an idle polling frame")
+      addon.MplusTimer.GetTimerData()
     end)
-    local data = addon.MplusTimer.GetTimerData()
-    Assert.Equal(data.timer, 0, "sub-threshold accumulator must not yet update the timer")
   end)
 
-  test("mplus_timer: OnUpdate is a no-op when GetWorldElapsedTime raises", function()
-    local globals, state, frames = BuildEnv({ keyLevel = 6, timeLimit = 1800 })
+  test("mplus_timer: on-demand sample is a no-op when GetWorldElapsedTime raises", function()
+    local globals, _state, frames = BuildEnv({ keyLevel = 6, timeLimit = 1800 })
+    local shouldRaise = false
     globals.GetWorldElapsedTime = function()
-      error("blizzard api missing", 0)
+      if shouldRaise then
+        error("blizzard api missing", 0)
+      end
+      return 1, 42
     end
-    local addon
+    local firstData, failedData
     WithGlobals(globals, function()
-      addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
-      local eventFrame, tickFrame = AfterLoad(frames)
+      local addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
+      local eventFrame = AfterLoad(frames)
       eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_START")
-      tickFrame:GetScript("OnUpdate")(tickFrame, 0.5)
+      firstData = addon.MplusTimer.GetTimerData()
+      shouldRaise = true
+      failedData = addon.MplusTimer.GetTimerData()
     end)
-    local data = addon.MplusTimer.GetTimerData()
-    Assert.Equal(data.timer, 0, "pcall failure must leave the timer at zero")
+    Assert.Equal(firstData.timer, 42, "successful sampling must establish the last reliable timer")
+    Assert.Equal(failedData.timer, 42, "pcall failure must preserve the last reliable timer")
+  end)
+
+  test("mplus_timer: on-demand sample rejects protected and non-finite elapsed values", function()
+    local samples = { 60, 99, 0 / 0 }
+    local sampleIndex = 0
+    local globals, _state, frames = BuildEnv({ keyLevel = 6, timeLimit = 1800 })
+    globals.GetWorldElapsedTime = function()
+      sampleIndex = sampleIndex + 1
+      return 1, samples[sampleIndex]
+    end
+    globals.issecretvalue = function(value)
+      return value == 99
+    end
+    local validData, protectedData, nonFiniteData
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
+      local eventFrame = AfterLoad(frames)
+      eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_START")
+      validData = addon.MplusTimer.GetTimerData()
+      protectedData = addon.MplusTimer.GetTimerData()
+      nonFiniteData = addon.MplusTimer.GetTimerData()
+    end)
+    Assert.Equal(validData.timer, 60)
+    Assert.Equal(protectedData.timer, 60, "protected elapsed time must preserve the verified sample")
+    Assert.Equal(nonFiniteData.timer, 60, "non-finite elapsed time must preserve the verified sample")
   end)
 
   test("mplus_timer: CHALLENGE_MODE_COMPLETED wipes timer, deaths, and time limits", function()
@@ -230,12 +248,11 @@ return function(test, ctx)
     local addon
     WithGlobals(globals, function()
       addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
-      local eventFrame, tickFrame = AfterLoad(frames)
+      local eventFrame = AfterLoad(frames)
       eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_START")
-      tickFrame:GetScript("OnUpdate")(tickFrame, 0.15)
       eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_DEATH_COUNT_UPDATED")
       eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_COMPLETED")
-      Assert.Nil(tickFrame:GetScript("OnUpdate"), "StopTimer must unregister OnUpdate")
+      Assert.Equal(#state.createdFrames, 0, "timer lifecycle must not create a polling frame")
     end)
     local data = addon.MplusTimer.GetTimerData()
     Assert.Equal(data.running, false)
@@ -256,9 +273,8 @@ return function(test, ctx)
     local addon
     WithGlobals(globals, function()
       addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
-      local eventFrame, tickFrame = AfterLoad(frames)
+      local eventFrame = AfterLoad(frames)
       eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_START")
-      tickFrame:GetScript("OnUpdate")(tickFrame, 0.15)
       eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_DEATH_COUNT_UPDATED")
       eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_COMPLETED")
       eventFrame:GetScript("OnEvent")(eventFrame, "PLAYER_ENTERING_WORLD")
@@ -276,15 +292,14 @@ return function(test, ctx)
   test("mplus_timer: PLAYER_ENTERING_WORLD is a no-op while the key is still running", function()
     local globals, state, frames = BuildEnv({ keyLevel = 6, timeLimit = 1800 })
     state.worldElapsed = 600
-    local addon
+    local addon, data
     WithGlobals(globals, function()
       addon = LoadAddonModules({ "isiLive_mplus_timer.lua" })
-      local eventFrame, tickFrame = AfterLoad(frames)
+      local eventFrame = AfterLoad(frames)
       eventFrame:GetScript("OnEvent")(eventFrame, "CHALLENGE_MODE_START")
-      tickFrame:GetScript("OnUpdate")(tickFrame, 0.15)
       eventFrame:GetScript("OnEvent")(eventFrame, "PLAYER_ENTERING_WORLD")
+      data = addon.MplusTimer.GetTimerData()
     end)
-    local data = addon.MplusTimer.GetTimerData()
     Assert.Equal(data.running, true, "PEW mid-key must not stop the run")
     Assert.Equal(data.timer, 600, "PEW mid-key must not reset the timer")
     Assert.Equal(data.timeLimit, 1800)

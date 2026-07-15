@@ -656,6 +656,15 @@ local function RefreshAll()
   end
 end
 
+-- Periodic forces changes only affect overlays already discovered through
+-- NAME_PLATE_UNIT_ADDED or an explicit full scan. Avoid probing all 40
+-- possible unit tokens twice per second during an active key.
+local function RefreshActive()
+  for unit in pairs(frames) do
+    UpdateNameplate(unit)
+  end
+end
+
 local function ScheduleRefreshAll(delay)
   local timer = rawget(_G, "C_Timer")
   local after = type(timer) == "table" and timer.After or nil
@@ -756,6 +765,12 @@ end
 function MobNameplate.RefreshAll()
   if enabled then
     RefreshAll()
+  end
+end
+
+function MobNameplate.RefreshActive()
+  if enabled then
+    RefreshActive()
   end
 end
 

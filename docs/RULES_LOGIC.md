@@ -925,7 +925,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - PLAYER_REGEN_ENABLED refreshes live forces before the next pull starts
   - refresh ticker callback reads live forces and notifies subscribers while state is active
-  - Architecture combat utility ticker rerenders UI while Mythic+ timer is active
+  - Architecture combat utility refresh keeps hidden Mythic+ pre-render without visible full render
 
 ### RULE-LFG-INVITE-LISTE-KEIN-GUESSING
 - Regelnummer: 61
@@ -1456,14 +1456,24 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-RUNTIME-POLLING-LIFECYCLE
 - Regelnummer: 93
 - Status: aktiv
-- Zusammenfassung: Der Binding-Watchdog muss sein Ticker-Handle explizit abbrechen und danach sauber neu starten koennen. Kick-Polling darf nur in einer verifizierten normalen Gruppe oder automatischen Instanzgruppe laufen, bleibt dort auch bei ausgeblendeter Main-UI fuer den Hidden-Sync aktiv und muss beim Solo- oder Raid-Uebergang abbrechen. CD-Polling darf nur fuer eine sichtbare Main-UI mit aktivem Battle-Res-, Bloodlust- oder Ready-Timer-Kontext laufen und muss bei ausgeblendeter UI oder inaktivem Kontext abbrechen. Center-Notice, Teleport-Cooldowntext und Statsbox duerfen nur im sichtbaren beziehungsweise aktivierten Zustand einen `OnUpdate`-Handler besitzen und muessen ihn beim Ausblenden entfernen. Der Minimap-Button darf seinen `OnUpdate`-Handler nur waehrend eines aktiven Drags installieren und muss ihn bei Drag-Ende entfernen.
+- Zusammenfassung: Der Binding-Watchdog muss sein Ticker-Handle explizit abbrechen und danach sauber neu starten koennen. Kick-Polling darf nur in einer verifizierten normalen Gruppe oder automatischen Instanzgruppe laufen, bleibt dort auch bei ausgeblendeter Main-UI fuer den Hidden-Sync aktiv und muss beim Solo- oder Raid-Uebergang abbrechen. CD-Polling darf nur fuer eine sichtbare Main-UI mit aktivem Battle-Res-, Bloodlust- oder Ready-Timer-Kontext laufen und muss bei ausgeblendeter UI oder inaktivem Kontext abbrechen. Sein sichtbarer Sekundentakt darf nur die betroffenen CD-, Ready- und M+-Zeilen aktualisieren und keinen vollstaendigen Roster- oder Layout-Render ausloesen; der vollstaendige M+-Pre-Render bleibt ausschliesslich fuer ausgeblendete, eventgetriebene Refreshes erlaubt. Der M+-Timer darf keinen eigenen Frame-`OnUpdate`-Poller betreiben; waehrend eines laufenden Keys muss jeder produktive `GetTimerData()`-Read Blizzards verifizierte World-Elapsed-Zeit geschuetzt neu einlesen, und fehlende oder fehlerhafte API-Daten muessen den letzten belastbaren Timerwert unveraendert lassen. Der periodische Killtracker-Refresh darf nur bereits entdeckte aktive Nameplate-Overlays aktualisieren und keinen erneuten Scan aller moeglichen Nameplate-Unit-Tokens ausloesen. Center-Notice, Teleport-Cooldowntext und Statsbox duerfen nur im sichtbaren beziehungsweise aktivierten Zustand einen `OnUpdate`-Handler besitzen und muessen ihn beim Ausblenden entfernen; die Statsbox darf bei unveraenderter Zeilenstruktur im Sekundentakt kein erneutes Layout anwenden. Der Systemoption-Watcher des Rosters darf keinen permanenten `OnUpdate`-Handler besitzen, sondern nur bei sichtbarer Main-UI einen eigenen Fuenf-Sekunden-Ticker halten und muss diesen beim Ausblenden abbrechen. Der Minimap-Button darf seinen `OnUpdate`-Handler nur waehrend eines aktiven Drags installieren und muss ihn bei Drag-Ende entfernen. Geschuetzter Event-Dispatch muss pro Reentrancy-Tiefe wiederverwendbare Argument-Slots und stabile Callbacks nutzen; pro akzeptiertem Event duerfen weder eine Argumenttabelle noch Dispatch-Closures neu erzeugt werden.
 - Erforderliche Tests:
   - bindings: StopBindingWatchdog cancels ownership and allows a clean restart
   - Factory kick polling starts on group entry and cancels on solo transition
   - Factory CD polling starts only for visible utility context and cancels when hidden
+  - Factory visible CD polling refreshes timer row without full roster render
+  - mplus_timer: GetTimerData samples elapsed time from GetWorldElapsedTime on demand
+  - mplus_timer: running timer creates no polling frame or OnUpdate handler
+  - mplus_timer: on-demand sample is a no-op when GetWorldElapsedTime raises
+  - mplus_timer: on-demand sample rejects protected and non-finite elapsed values
+  - Factory kill-track updates refresh the kill row and active nameplates
   - Center notice removes hidden OnUpdate polling and restores it when shown
   - Center notice teleport button owns OnUpdate only while visible
   - StatsBox removes hidden OnUpdate polling and restores it when enabled
+  - StatsBox periodic refresh skips unchanged layout mutations
+  - RosterLayout system option watcher owns ticker only while main frame is visible
+  - Events gate preserves outer arguments across re-entrant protected dispatch
+  - Architecture event gate reuses protected dispatch slots without per-event closure tables
   - factory_minimap: OnUpdate exists only during an active drag
 
 ### RULE-SYNC-EINGANG-VERTRAUENSGRENZE

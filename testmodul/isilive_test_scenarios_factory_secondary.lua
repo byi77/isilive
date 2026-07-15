@@ -624,6 +624,9 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
           state.mobNameplateTestModeHistory = state.mobNameplateTestModeHistory or {}
           table.insert(state.mobNameplateTestModeHistory, enabled)
         end,
+        RefreshActive = function()
+          state.mobNameplateActiveRefreshes = (state.mobNameplateActiveRefreshes or 0) + 1
+        end,
         RefreshAll = function()
           state.mobNameplateRefreshes = (state.mobNameplateRefreshes or 0) + 1
         end,
@@ -1052,7 +1055,8 @@ local function RegisterKillTrackNameplateRefreshTests(test, Assert, WithGlobals,
     callback()
 
     Assert.Equal(state.killTrackRowRefreshes, 1, "KillTrack update must refresh the lower M+ forces row")
-    Assert.Equal(state.mobNameplateRefreshes, 1, "KillTrack update must refresh nameplate remaining-percent text")
+    Assert.Equal(state.mobNameplateActiveRefreshes, 1, "KillTrack update must refresh active nameplate text")
+    Assert.Equal(state.mobNameplateRefreshes or 0, 0, "KillTrack update must not rescan all nameplate unit tokens")
   end)
 end
 
@@ -1340,6 +1344,20 @@ return function(test, ctx)
     state.mainFrameShown = true
     state.ctx.RefreshCdTrackerPolling()
     Assert.True(#state.tickers >= 2, "visible transition must be able to create a fresh CD ticker")
+  end)
+
+  test("Factory visible CD polling refreshes timer row without full roster render", function()
+    local state = BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModules, {
+      mainFrameShown = true,
+      mplusTimerData = { running = true },
+    })
+    local ticker = Assert.NotNil(FindTicker(state.tickers, 1.0), "visible active context must own a CD ticker")
+
+    ticker.callback()
+
+    Assert.Equal(state.cdScans or 0, 1, "visible CD tick must scan cooldown state once")
+    Assert.Equal(state.cdRefreshes or 0, 1, "visible CD tick must refresh the targeted timer row")
+    Assert.Equal(state.uiUpdates or 0, 0, "visible CD tick must not rebuild the complete roster UI")
   end)
 
   test("Factory UNIT_AURA CD refresh plays Bloodlust sound only on new aura onset", function()

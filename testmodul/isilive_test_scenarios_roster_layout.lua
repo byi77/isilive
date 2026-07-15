@@ -16,6 +16,53 @@ return function(test, ctx)
     return LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_roster_panel_chrome.lua" })._RosterInternal
   end
 
+  test("RosterLayout system option watcher owns ticker only while main frame is visible", function()
+    local watcher
+    local ticker
+    local mainShown = true
+    WithGlobals({
+      CreateFrame = function()
+        watcher = {
+          scripts = {},
+          SetScript = function(self, name, fn)
+            self.scripts[name] = fn
+          end,
+        }
+        return watcher
+      end,
+      C_Timer = {
+        NewTicker = function(interval, callback)
+          Assert.Equal(interval, 5, "system option watcher must use a five-second ticker")
+          ticker = {
+            callback = callback,
+            cancelled = false,
+            Cancel = function(self)
+              self.cancelled = true
+            end,
+          }
+          return ticker
+        end,
+      },
+    }, function()
+      local RI = loadRI()
+      local mainFrame = {
+        IsShown = function()
+          return mainShown
+        end,
+      }
+      local ui = {}
+
+      RI.AttachSystemOptionToggleWatcher(mainFrame, ui)
+      Assert.NotNil(ticker, "visible main frame must start the owned ticker")
+      Assert.Nil(watcher.scripts.OnUpdate, "watcher must not poll once per render frame")
+
+      mainShown = false
+      watcher.scripts.OnHide()
+      Assert.True(ticker.cancelled, "hiding the main frame must cancel the owned ticker")
+      Assert.Nil(watcher._isiLiveTicker, "hidden watcher must release its ticker handle")
+    end)
+  end)
+
   -- NormalizeLayoutMode
 
   test("RosterLayout NormalizeLayoutMode maps nil to expanded", function()

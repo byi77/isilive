@@ -671,7 +671,9 @@ local function ConstructPanelUI(mainFrame, uiDeps)
       if raidLockedTarget and isRaidGroupFn() then
         return
       end
-      Trace(string.format("layout mode changed to %s", tostring(target)))
+      if runtimeLog then
+        Trace(string.format("layout mode changed to %s", tostring(target)))
+      end
       ui.layoutMode = target
       local db = GetDB()
       if db then
@@ -988,7 +990,9 @@ function RosterPanel.CreateController(opts)
 
   function controller.UpdateLeaderButtons()
     local enabled = isPlayerLeader()
-    Trace(string.format("updating leader buttons, isLeader=%s", tostring(enabled)))
+    if runtimeLog then
+      Trace(string.format("updating leader buttons, isLeader=%s", tostring(enabled)))
+    end
     if logRuntimeTraceDeep then
       logRuntimeTraceDeep(function()
         return string.format("[ROSTER_UI] leader_buttons enabled=%s", tostring(enabled))

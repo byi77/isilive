@@ -50,24 +50,63 @@ function Events.CreateGate(config)
   }
   local onDispatchError = type(config.onDispatchError) == "function" and config.onDispatchError or nil
 
+  -- The event gate sits in front of high-frequency combat events. Keep one
+  -- reusable argument slot per re-entrancy depth so protected dispatch does
+  -- not allocate an args table and two closures for every event.
+  local dispatchDepth = 0
+  local dispatchSlots = {}
+
+  local function BuildDispatchSlot()
+    local slot = {
+      args = {},
+      argCount = 0,
+      previousArgCount = 0,
+    }
+    slot.invoke = function()
+      return dispatch(slot.frame, slot.event, unpackFn(slot.args, 1, slot.argCount))
+    end
+    return slot
+  end
+
+  local function CaptureDispatchTraceback(runtimeErr)
+    local msg = tostring(runtimeErr)
+    local debugLib = rawget(_G, "debug")
+    if type(debugLib) == "table" and type(debugLib.traceback) == "function" then
+      return debugLib.traceback(msg, 2)
+    end
+    return msg
+  end
+
   local function DispatchSafe(frame, event, ...)
     if not onDispatchError then
       dispatch(frame, event, ...)
       return
     end
 
+    dispatchDepth = dispatchDepth + 1
+    local slot = dispatchSlots[dispatchDepth]
+    if not slot then
+      slot = BuildDispatchSlot()
+      dispatchSlots[dispatchDepth] = slot
+    end
+
     local argCount = select("#", ...)
-    local args = { ... }
-    local ok, err = xpcall(function()
-      dispatch(frame, event, unpackFn(args, 1, argCount))
-    end, function(runtimeErr)
-      local msg = tostring(runtimeErr)
-      local debugLib = rawget(_G, "debug")
-      if type(debugLib) == "table" and type(debugLib.traceback) == "function" then
-        return debugLib.traceback(msg, 2)
-      end
-      return msg
-    end)
+    slot.frame = frame
+    slot.event = event
+    slot.argCount = argCount
+    for index = 1, argCount do
+      slot.args[index] = select(index, ...)
+    end
+
+    local ok, err = xpcall(slot.invoke, CaptureDispatchTraceback)
+    local clearCount = math.max(slot.previousArgCount, argCount)
+    for index = 1, clearCount do
+      slot.args[index] = nil
+    end
+    slot.previousArgCount = argCount
+    slot.frame = nil
+    slot.event = nil
+    dispatchDepth = dispatchDepth - 1
     if not ok then
       local _ = pcall(onDispatchError, frame, event, err)
     end

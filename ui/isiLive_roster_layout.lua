@@ -407,22 +407,41 @@ RI.RefreshSystemOptionToggles = RefreshSystemOptionToggles
 
 local function AttachSystemOptionToggleWatcher(mainFrame, ui)
   local watcher = CreateFrame("Frame", nil, mainFrame)
-  local elapsedSinceRefresh = 0
+  local ticker = nil
 
-  watcher:SetScript("OnUpdate", function(_, elapsed)
-    if not mainFrame:IsShown() then
-      elapsedSinceRefresh = 0
+  local function IsMainFrameShown()
+    return type(mainFrame.IsShown) == "function" and mainFrame:IsShown() == true
+  end
+
+  local function StopWatcher()
+    if ticker and type(ticker.Cancel) == "function" then
+      ticker:Cancel()
+    end
+    ticker = nil
+    watcher._isiLiveTicker = nil
+  end
+
+  local function StartWatcher()
+    if ticker or not IsMainFrameShown() then
       return
     end
-
-    elapsedSinceRefresh = elapsedSinceRefresh + (tonumber(elapsed) or 0)
-    if elapsedSinceRefresh < 5 then
+    local timer = rawget(_G, "C_Timer")
+    if type(timer) ~= "table" or type(timer.NewTicker) ~= "function" then
       return
     end
+    ticker = timer.NewTicker(5, function()
+      if not IsMainFrameShown() then
+        StopWatcher()
+        return
+      end
+      RefreshSystemOptionToggles(ui)
+    end)
+    watcher._isiLiveTicker = ticker
+  end
 
-    elapsedSinceRefresh = 0
-    RefreshSystemOptionToggles(ui)
-  end)
+  watcher:SetScript("OnShow", StartWatcher)
+  watcher:SetScript("OnHide", StopWatcher)
+  StartWatcher()
 
   ui.systemOptionWatcher = watcher
 end

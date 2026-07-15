@@ -589,6 +589,35 @@ return function(test, ctx)
     end)
   end)
 
+  test("StatsBox periodic refresh skips unchanged layout mutations", function()
+    WithGlobals({
+      UIParent = {},
+      IsiLiveDB = { statsBoxEnabled = true },
+      CreateFrame = BuildCreateFrameStub(),
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local box = addon.StatsBox.Create({
+        parent = UIParent,
+        collectStats = function()
+          return {
+            { key = "strength", label = "Str", value = 1918 },
+            { key = "crit", label = "Crit", value = 923, percent = 25.07 },
+          }
+        end,
+      })
+      local sizeWrites = 0
+      local originalSetSize = box.frame.SetSize
+      box.frame.SetSize = function(self, width, height)
+        sizeWrites = sizeWrites + 1
+        return originalSetSize(self, width, height)
+      end
+
+      box.frame._scripts.OnUpdate(box.frame, 1.0)
+
+      Assert.Equal(sizeWrites, 0, "unchanged one-second refresh must not reapply frame layout")
+    end)
+  end)
+
   test("StatsBox ignores secret text width measurements", function()
     local secretWidth = {}
     local secretWidths = false

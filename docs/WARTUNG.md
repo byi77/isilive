@@ -427,6 +427,18 @@ Realistische User sollten diese Caps nie erreichen. Wenn doch, surfaced der Trim
 
 Wenn du ein neues map-typed Feld in IsiLiveDB einfuehrst (z.B. ein per-Player-Cache), MUSS es im Schema mit `maxMapEntries` deklariert werden. Sonst waechst es ungebunden.
 
+### 4.2a Runtime-Hotpaths bleiben gezielt
+
+Aktueller Soll-Zustand:
+- `logic/isiLive_events.lua` verwendet fuer geschuetzten Dispatch wiederverwendbare, reentrancy-sichere Argument-Slots und stabile Callbacks; keine Argumenttabelle oder Dispatch-Closure pro akzeptiertem Event.
+- `game/isiLive_mplus_timer.lua` besitzt keinen eigenen `OnUpdate`-Frame. Laufende Zeit wird bei `GetTimerData()` aus `GetWorldElapsedTime` gelesen; API-Fehler, Secret Values und nicht-finite Werte erhalten den letzten belastbaren Snapshot.
+- Der sichtbare CD-Sekundenticker aktualisiert nur CD-, Ready- und M+-Zeilen. Ein vollstaendiger M+-Pre-Render ist nur fuer ausgeblendete eventgetriebene Refreshes erlaubt.
+- Killtracker-Periodik aktualisiert nur bereits entdeckte Nameplate-Overlays. Ein Vollscan der Unit-Tokens ist auf Aktivierung, Start und Einstellungswechsel beschraenkt.
+- Statsbox, Roster-Collapse und Systemoption-Watcher duerfen unveraenderte Layouts nicht sekundenweise neu anwenden; der Systemoption-Watcher besitzt nur bei sichtbarer Main-UI einen abbrechbaren Fuenf-Sekunden-Ticker.
+- Deaktivierte Runtime-Logs duerfen auf Roster-Hotpaths keine Trace-Strings vorab formatieren.
+
+Bei Aenderungen mindestens die zugehoerigen Regel-93-Szenarien, `tools/simulate_mplus_timer_lifecycle.lua`, den Event-Dispatch-Benchmark und den vollen lokalen Preflight erneut ausfuehren.
+
 ### 4.2b Always-on Lua-Error-Erfassung
 
 Pruefen:

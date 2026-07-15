@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-07-15 - Version 0.9.346 (patch)
+
+- Removed per-event argument-table and closure allocation from protected event
+  dispatch while preserving nested dispatch and traceback reporting.
+- Replaced visible one-second full roster rerenders with targeted CD, ready, and
+  Mythic+ row refreshes; hidden event-driven Mythic+ pre-rendering remains.
+- Removed the Mythic+ timer's permanent 10 Hz frame poll; live snapshots now
+  sample Blizzard's elapsed timer only when a consumer reads them.
+- Limited periodic kill-tracker nameplate work to active overlays, moved the
+  roster system-option watcher from permanent `OnUpdate` work to a visible-only
+  owned ticker, and skipped unchanged StatsBox and roster layout mutations.
+- Avoided eager diagnostic string formatting when runtime logging is disabled,
+  added deterministic performance-contract coverage, and documented bundled
+  MP3 files in the unresolved asset-provenance inventory.
+
 ## 2026-07-13 - Version 0.9.345 (patch)
 
 - Made Season Intake Markdown parsing deterministic across Lua 5.1 and 5.4 by
@@ -2132,7 +2147,7 @@ follow-up belt-and-suspenders guard for the recovery branch.
 
 ### Recovery branch refuses to rebuild from the live API alone
 
-[game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua) — the
+[game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua) — the
 GROUP_ROSTER_UPDATE recovery branch now requires at least one
 cached `pendingInvites` table entry before it asks
 `ResolveAcceptedPendingInvite` for an answer. Without this guard
@@ -2217,7 +2232,7 @@ Reconstructed from the in-game byte-dump (vorfall 2026-05-15):
    sound.
 2. Accept → Blizzard's roster signal **arrives first**.
    `GROUP_ROSTER_UPDATE` handler's recovery branch (in
-   [game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua))
+   [game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua))
    sets `detectedMapID` / `activeInviteLeader` /
    `activeInviteTitleLevel` / `acceptedInviteSearchResultID` from
    the cached `pendingInvites[id]`, **consumes** the cache entry
@@ -2453,10 +2468,10 @@ IsInGroup misuses formed the race:
    Blizzard sends `LFG_LIST_APPLICATION_STATUS_UPDATED=inviteaccepted`
    before the matching `GROUP_ROSTER_UPDATE`, so `IsInGroup()` is
    still false in that window (the `ClearDetectedState` guard in
-   [game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua) already
+   [game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua) already
    documents the same race). The gate silenced the direct push on
    every accept where the roster signal lagged.
-2. [logic/isiLive_event_handlers_queue.lua](logic/isiLive_event_handlers_queue.lua)
+2. [logic/isiLive_event_handlers_queue.lua](../logic/isiLive_event_handlers_queue.lua)
    runs `RefreshTargetStatusAfterInviteAccepted` *synchronously*
    right after the LFG-detect handler returns. That triggers
    `ctx.updateStatusLine()` → `MaybeAnnounceTargetDungeonChat` while
@@ -2469,7 +2484,7 @@ IsInGroup misuses formed the race:
 
 Fix:
 
-- [factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua):
+- [factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua):
   the `SetTargetDungeonChatEnabledFn(() -> IsInGroup() == true)`
   setter is removed from the production wiring. The
   `LFGDetect.SetTargetDungeonChatEnabledFn` API itself stays (tests
@@ -2477,7 +2492,7 @@ Fix:
   the callback without it. The chat line is a local `print()` (not
   `SendChatMessage`), so requiring group membership at the moment
   of accept has no protocol-level justification.
-- [ui/isiLive_status.lua](ui/isiLive_status.lua):
+- [ui/isiLive_status.lua](../ui/isiLive_status.lua):
   `MaybeAnnounceTargetDungeonChat` is reordered to resolve
   `ResolveConcreteTargetDungeonInfo` *before* the IsInGroup guard.
   Real group-leave still resets through the `info=nil` branch (no
@@ -2508,7 +2523,7 @@ not surface that flip.
 
 Fix:
 
-- [ui/isiLive_status.lua](ui/isiLive_status.lua):
+- [ui/isiLive_status.lua](../ui/isiLive_status.lua):
   `MaybeAnnounceTargetDungeonChat` now consults a new
   `deps.hasLocalTargetSource` callback after the lock-in match and
   before emitting / deferring. When `hasLocalTargetSource()` returns
@@ -2518,7 +2533,7 @@ Fix:
   later `AnnounceTargetDungeonFromPayload` via LFG-accept still
   bypasses the gate because direct push emits through
   `EmitTargetDungeonAnnouncement`, not through the resolver path).
-- [factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua):
+- [factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua):
   wires `hasLocalTargetSource = ctx.ResolveLocalStatusTargetMapID()
   ~= nil`. Mirrors the existing resolver — own queue / active joined
   key / detectedMapID (LFG accept) light it up, synced-only does not.
@@ -2675,11 +2690,11 @@ Root cause: two coupled IsInGroup misuses formed a race.
    `LFG_LIST_APPLICATION_STATUS_UPDATED=inviteaccepted` *before* the
    matching `GROUP_ROSTER_UPDATE`, so `IsInGroup()` is still false in
    that window (the `ClearDetectedState` guard in
-   [game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua) already
+   [game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua) already
    documents the same race). The gate silenced the callback on every
    accept where the roster signal lagged behind the accept event.
 2. **Resolver-side reset erased the lock-in.**
-   [logic/isiLive_event_handlers_queue.lua](logic/isiLive_event_handlers_queue.lua)
+   [logic/isiLive_event_handlers_queue.lua](../logic/isiLive_event_handlers_queue.lua)
    runs `RefreshTargetStatusAfterInviteAccepted` *synchronously* right
    after the LFG-detect handler returns. That calls
    `ctx.updateStatusLine()` → `MaybeAnnounceTargetDungeonChat` while
@@ -2698,14 +2713,14 @@ disagreed.
 
 Fix:
 
-- [factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua):
+- [factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua):
   the `SetTargetDungeonChatEnabledFn(function() return IsInGroup() ==
   true end)` setter is removed from the production wiring. The
   `LFGDetect.SetTargetDungeonChatEnabledFn` API itself stays
   (tests still cover the gate semantics) but the production wiring
   installs the callback without it. The earlier "Factory wiring"
   block above is now accurate.
-- [ui/isiLive_status.lua](ui/isiLive_status.lua):
+- [ui/isiLive_status.lua](../ui/isiLive_status.lua):
   `MaybeAnnounceTargetDungeonChat` is reordered to resolve
   `ResolveConcreteTargetDungeonInfo` *before* the IsInGroup guard.
   Real group-leave still resets through the `info=nil` branch (no
@@ -2752,7 +2767,7 @@ not surface that flip.
 
 Fix:
 
-- [ui/isiLive_status.lua](ui/isiLive_status.lua):
+- [ui/isiLive_status.lua](../ui/isiLive_status.lua):
   `MaybeAnnounceTargetDungeonChat` now consults a new
   `deps.hasLocalTargetSource` callback after the lock-in match and
   before emitting / deferring. When `hasLocalTargetSource()` returns
@@ -2762,7 +2777,7 @@ Fix:
   later AnnounceTargetDungeonFromPayload via LFG-accept still
   bypasses the gate because direct push emits through
   EmitTargetDungeonAnnouncement, not through the resolver path).
-- [factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua):
+- [factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua):
   wires `hasLocalTargetSource = ctx.ResolveLocalStatusTargetMapID()
   ~= nil`. Mirrors the existing resolver — own queue / active
   joined key / detectedMapID (LFG accept) light it up, synced-only
@@ -2915,13 +2930,13 @@ waits for a real source. Solo / 1-man scenarios keep resolving to
 
 Both causes are pinned by new regression tests:
 
-- [testmodul/isilive_test_scenarios_lfg_detect.lua](testmodul/isilive_test_scenarios_lfg_detect.lua):
+- [testmodul/isilive_test_scenarios_lfg_detect.lua](../testmodul/isilive_test_scenarios_lfg_detect.lua):
   - `declined_delisted` on the accepted searchResultID keeps the state,
     `ClearAllState` is the only thing that drops it.
   - `declined_full` on the accepted searchResultID keeps the state.
   - `declined_delisted` for an invite that was never accepted still
     clears state (regression pin for the existing path).
-- [testmodul/isilive_test_scenarios_keysync.lua](testmodul/isilive_test_scenarios_keysync.lua):
+- [testmodul/isilive_test_scenarios_keysync.lua](../testmodul/isilive_test_scenarios_keysync.lua):
   - Multi-member group with "player" as sole key match → `nil`.
   - Solo roster with "player" as sole key match → `"player"`.
   - Ghost-only siblings don't count toward headcount, solo fallback
@@ -2935,9 +2950,9 @@ way during a pull unless the user explicitly opts out in Settings.
 
 Touch points:
 
-- [core/isiLive_db_schema.lua](core/isiLive_db_schema.lua) — schema
+- [core/isiLive_db_schema.lua](../core/isiLive_db_schema.lua) — schema
   default flipped to `true`.
-- [factory/isiLive_factory.lua](factory/isiLive_factory.lua) —
+- [factory/isiLive_factory.lua](../factory/isiLive_factory.lua) —
   `ResolveAutoCloseOnKeyStartEnabled` rewritten as
   `not (... == false)` (Pattern A in the codebase, same shape as
   `ResolveAutoShowMainFrameOnStartupEnabled`). The legacy migration
@@ -2945,7 +2960,7 @@ Touch points:
   detects exactly the pre-split persisted state and the
   `check_settings_default_pattern` gate doesn't see it as a default-OFF
   read.
-- [ui/isiLive_settings.lua](ui/isiLive_settings.lua) — both checkbox
+- [ui/isiLive_settings.lua](../ui/isiLive_settings.lua) — both checkbox
   read sites (the getter at the checkbox definition and the
   `panel.Refresh()` call) now use `~= false` so the UI matches the
   resolver behaviour.
@@ -2985,10 +3000,10 @@ arrived when some unrelated combat-end-adjacent event (boss-kill loot
 flow, member moving slot, etc.) happened to trigger a fresh
 GROUP_ROSTER_UPDATE.
 
-[core/isiLive_bootstrap.lua](core/isiLive_bootstrap.lua) now marks
+[core/isiLive_bootstrap.lua](../core/isiLive_bootstrap.lua) now marks
 GROUP_ROSTER_UPDATE as `combat=true`. The handler chain
 (`HandleGroupRosterUpdate` in
-[logic/isiLive_group.lua](logic/isiLive_group.lua) →
+[logic/isiLive_group.lua](../logic/isiLive_group.lua) →
 `UpdatePartyMembersInRoster` → `updateUI()`) only touches Lua tables
 plus the FontString-driven main frame; no secure / taint-sensitive
 code is reachable, so it is safe to run during InCombatLockdown.
@@ -3007,7 +3022,7 @@ so the M+ logic stays untouched.
 ### Why a separate pipeline (Option 2)
 
 The M+ detection path
-([game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua))
+([game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua))
 filters every LFG activity through
 `MapIDFromActivityID` with `isMythicPlusActivity == true`. That filter
 exists deliberately: without it, a Raid LFG invite would mutate
@@ -3229,7 +3244,7 @@ from the global `GetTime()`.
   is new: it pins the timeout fallback by advancing the mocked clock past
   the wait window and then firing the captured timer callback.
 - `RULE-TARGET-DUNGEON-CHAT-DEDUP` in
-  [docs/RULES_LOGIC.md](docs/RULES_LOGIC.md)
+  [docs/RULES_LOGIC.md](RULES_LOGIC.md)
   was updated to reference the two new tests and notes the 3-second
   deferred-wait window.
 
@@ -3241,7 +3256,7 @@ has +N, chat does not":
 
 - The **Notice** is rendered synchronously inside the LFG handler.
   `OnInviteAccepted` in
-  [game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua)
+  [game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua)
   sets `activeInviteTitleLevel = entry.titleLevel` and then calls
   `MaybeShowAcceptedInviteNotice(entry, ...)` in the same call frame.
   The Notice reads the level directly from the LFG payload — it never
@@ -3281,7 +3296,7 @@ applied by `ApplyRowReadyCheckDisplay`). In H and V layouts the row
 content itself is gone — only the management / tool buttons render —
 and the FontStrings (`row.spec`, `row.name`, …) are hidden individually
 by `UpdateCollapseState` in
-[ui/isiLive_roster_layout.lua](ui/isiLive_roster_layout.lua).
+[ui/isiLive_roster_layout.lua](../ui/isiLive_roster_layout.lua).
 
 `row.hoverFrame` itself was left visible by `UpdateCollapseState`,
 only its mouse handling was disabled (`EnableMouse(show)`). The
@@ -3342,7 +3357,7 @@ production behaviour change):
   the same intent (5-member render → 3-member render must clear only
   orphaned slots).
 - A new regression test in
-  [testmodul/isilive_test_scenarios_combat_events.lua](testmodul/isilive_test_scenarios_combat_events.lua)
+  [testmodul/isilive_test_scenarios_combat_events.lua](../testmodul/isilive_test_scenarios_combat_events.lua)
   covers the in-line expiry sweep: it drives five distinct
   `caster|spell` entries into `recent`, jumps past the 3 s window,
   and asserts that the next `ShouldDedup` miss reaps the expired
@@ -3483,7 +3498,7 @@ anything.
 ### Mob-nameplate `RefreshAll`: preallocated tokens + dirty checks
 
 `mobNameplate.RefreshAll()` is subscribed to KillTrack updates
-([factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua))
+([factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua))
 and therefore runs on every `SCENARIO_CRITERIA_UPDATE` (i.e. every mob
 kill in M+) plus the KillTrack 0.5 s ticker. The loop in
 allocated 40 fresh string concatenations (`"nameplate" .. i`) per call
@@ -3524,7 +3539,7 @@ In-game testing inside an active M+ keystone surfaced two Secret-Value
 crashes that the initial dirty-cache implementations did not anticipate:
 
 1. `UnitAuraUpdateRequiresCdScan` in
-   [logic/isiLive_event_handlers_runtime.lua](logic/isiLive_event_handlers_runtime.lua)
+   [logic/isiLive_event_handlers_runtime.lua](../logic/isiLive_event_handlers_runtime.lua)
    inspected `aura.spellId` from `addedAuras` with
    `type(spellId) == "number"` followed by a direct
    `LUST_SATED_AURA_IDS[spellId]` lookup. In tainted M+/boss context the
@@ -3534,7 +3549,7 @@ crashes that the initial dirty-cache implementations did not anticipate:
    The whole lookup is now wrapped in pcall, mirroring the long-standing
    defence in `game/isiLive_cd_tracker.lua:ScanLust`.
 2. `frame.text._lastText` cache in
-   [ui/isiLive_mob_nameplate.lua](ui/isiLive_mob_nameplate.lua)
+   [ui/isiLive_mob_nameplate.lua](../ui/isiLive_mob_nameplate.lua)
    stored the `text` output of `BuildText`, which concatenates the
    `percentString` returned by `C_ScenarioInfo.GetUnitCriteriaProgressValues`.
    In an active key that percent string can itself be a Secret string,
@@ -3594,12 +3609,12 @@ The canvas title-bar keeps its existing `ACCENT_GOLD` default so the
 plain `isi` segment renders in the historical brand color, and the
 embedded `|cff1e90ff...|r` in the title string colors only the `Live`
 segment dodgerblue.
-([ui/isiLive_settings.lua](ui/isiLive_settings.lua))
+([ui/isiLive_settings.lua](../ui/isiLive_settings.lua))
 
 Chat brand-prefix (`|cff4da6ffisiLive|r`) in
 is left unchanged — it stays single-color blue for chat-line consistency.
 
-No behaviour or test changes. ([isiLive.toc](isiLive.toc), [ui/isiLive_settings.lua](ui/isiLive_settings.lua))
+No behaviour or test changes. ([isiLive.toc](../isiLive.toc), [ui/isiLive_settings.lua](../ui/isiLive_settings.lua))
 
 ## 2026-05-11 - Version 0.9.230 (patch)
 
@@ -3617,7 +3632,7 @@ now passes `dungeonName = nil` and `activityID = nil` to
 `ShowCenterNotice`; `ConfigureCenterNoticeTeleportButton` early-returns
 when both are absent, so neither the button nor its header label render.
 The notice card collapses to title + four field rows (Dungeon, Gruppe,
-Beschreibung, Rolle). ([factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua))
+Beschreibung, Rolle). ([factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua))
 
 The `INVITE_ACCEPTED_NOTICE_TELEPORT_HEADER` locale key is removed from
 all eight language tables — no longer referenced. The
@@ -3631,7 +3646,7 @@ windows during a busy invite sequence; the notice flickered away while
 the player was still acting on the LFG popup. The notice now passes
 `persistent = true` to `ShowCenterNotice`; it stays open until the user
 right-clicks the frame, presses the red X, or another `ShowCenterNotice`
-call replaces the content. ([factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua))
+call replaces the content. ([factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua))
 
 ### Coverage
 
@@ -3660,7 +3675,7 @@ The leave-dungeon branch only calls `deps.hideCenterNotice()` when the
 flag is set (= this controller actually rendered the warning), and
 clears the flag afterwards. Other notice consumers (Accepted-Invite,
 Lead-Transfer, Test-Mode) keep their notices for the full duration
-they configured. ([ui/isiLive_status.lua](ui/isiLive_status.lua))
+they configured. ([ui/isiLive_status.lua](../ui/isiLive_status.lua))
 
 ### Coverage uplift
 
@@ -3689,7 +3704,7 @@ in the Teleport DB) but should never have appeared at all.
 Filter on `info.isMythicPlusActivity == true` before accepting the mapID
 from `C_LFGList.GetActivityInfoTable`. Activities in the static
 `ACTIVITY_TO_MAP` table are unaffected; all eight active-season entries
-are M+ dungeons. ([game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua))
+are M+ dungeons. ([game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua))
 
 ### Fix: M+ accept after group-leave no longer silently drops
 
@@ -3712,7 +3727,7 @@ no teleport highlight. Reproduction:
 entries to `suppressedInviteAccepts`. The suppressed bucket is reserved
 for its original purpose: the `decline → stray accept` race for the same
 `searchResultID` (still set inside `OnInviteDeclined`).
-([game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua))
+([game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua))
 
 ### Coverage uplift
 
@@ -3750,7 +3765,7 @@ caster.
   group session. Walk the table explicitly and only fall back when no
   table-shaped (= unresolved) entry remains. Restores the ffda54b
   determinism patch's effectiveness in push-lobby spam.
-  ([game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua))
+  ([game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua))
 
 - **Stale ready-check marks at M+ start.**
   `HandleChallengeModeStart` flipped `readyCheckActive=false` but left
@@ -3760,7 +3775,7 @@ caster.
   the two events (observed when the leader insta-starts), per-unit
   marks carried into the run and showed in the roster panel. Reuse
   the existing `ResetReadyCheckDeclinedTracking` helper.
-  ([logic/isiLive_event_handlers_challenge.lua](logic/isiLive_event_handlers_challenge.lua))
+  ([logic/isiLive_event_handlers_challenge.lua](../logic/isiLive_event_handlers_challenge.lua))
 
 - **Player spec column went empty after login.**
   `PLAYER_SPECIALIZATION_CHANGED` frequently fires before the first
@@ -3770,7 +3785,7 @@ caster.
   column then stayed blank until the next user-driven spec switch. Re-run
   the helper right after `handleGroupRosterUpdate` so the pending change
   lands as soon as the player's row is built.
-  ([logic/isiLive_event_handlers_runtime.lua](logic/isiLive_event_handlers_runtime.lua))
+  ([logic/isiLive_event_handlers_runtime.lua](../logic/isiLive_event_handlers_runtime.lua))
 
 - **Ghosts leaked into the owner-key fallback and the RIO baseline.**
   The leader-resolution path already filtered `info.isGhost`, but the
@@ -3778,7 +3793,7 @@ caster.
   unavailable) and `CaptureRioBaselineSnapshot` iterated the full
   roster including ghosts of members who had already left. Subsequent
   RIO delta calculations then showed deltas for non-present players.
-  ([factory/isiLive_factory_controllers.lua](factory/isiLive_factory_controllers.lua))
+  ([factory/isiLive_factory_controllers.lua](../factory/isiLive_factory_controllers.lua))
 
 ### Sync / chat correctness
 
@@ -3792,14 +3807,14 @@ caster.
   own data into their own peer slot, which is benign — the data is
   correct either way. BRLUST is the only branch whose return value
   triggers a side effect outside the sync cache.
-  ([logic/isiLive_sync.lua](logic/isiLive_sync.lua))
+  ([logic/isiLive_sync.lua](../logic/isiLive_sync.lua))
 
 - **LFG-flags name-realm split broke for US realm Area-52.**
   `SplitNameRealm` used the greedy `^(.+)-(.+)$` pattern, so
   `"Player-Area-52"` resolved to `("Player-Area", "52")` instead of
   `("Player", "Area-52")`. The four other name-realm splitters in the
   codebase all consume the first dash only — bring this one in line.
-  ([ui/isiLive_lfg_flags.lua](ui/isiLive_lfg_flags.lua))
+  ([ui/isiLive_lfg_flags.lua](../ui/isiLive_lfg_flags.lua))
 
 ### Settings / DB
 
@@ -3811,7 +3826,7 @@ caster.
   enforces mutual exclusion through the display-mode selector — any
   both-true state is uniquely a legacy collision. Detect it and clear
   `mobNameplateEnabled` to honour the prior tooltip-only choice.
-  ([factory/isiLive_factory.lua](factory/isiLive_factory.lua))
+  ([factory/isiLive_factory.lua](../factory/isiLive_factory.lua))
 
 ### WoW 12.0+ taint defense
 
@@ -3841,7 +3856,7 @@ caster.
   frames after any re-build (layout change, locale switch). The
   `HideExistingButtons` helper was already defined a few lines above
   — just call it.
-  ([ui/isiLive_teleport_ui.lua](ui/isiLive_teleport_ui.lua))
+  ([ui/isiLive_teleport_ui.lua](../ui/isiLive_teleport_ui.lua))
 
 ### Data hygiene
 
@@ -3853,7 +3868,7 @@ caster.
   (57723 Exhaustion, 57724 Sated, 80354 Temporal Displacement,
   264689 Fatigued, 390435 Ancient Hysteria Exhaustion, 95809 Insanity)
   with per-ID comments.
-  ([game/isiLive_cd_tracker.lua](game/isiLive_cd_tracker.lua))
+  ([game/isiLive_cd_tracker.lua](../game/isiLive_cd_tracker.lua))
 
 ### Trace correctness
 
@@ -3863,7 +3878,7 @@ caster.
   result (always nil). Memberless logs and nil/nil snapshots made the
   trace impossible to interpret. Switched to a `pairs()` count and
   multi-return unpack.
-  ([factory/isiLive_controller_wiring.lua](factory/isiLive_controller_wiring.lua))
+  ([factory/isiLive_controller_wiring.lua](../factory/isiLive_controller_wiring.lua))
 
 ### Stability
 
@@ -3872,13 +3887,13 @@ caster.
   `timeLost` mid-key (secret-value masking on tainted reads). The
   previous code fell back to 0 on every transient mask. Only overwrite
   when the API returned a real number.
-  ([game/isiLive_mplus_timer.lua](game/isiLive_mplus_timer.lua))
+  ([game/isiLive_mplus_timer.lua](../game/isiLive_mplus_timer.lua))
 
 - **Post-completion M+ timer snapshot didn't clear on zone change.**
   Carried over from the previous patch series — clears the frozen
   state on `PLAYER_ENTERING_WORLD` so the timer no longer shows the
   last run's numbers after leaving the dungeon.
-  ([game/isiLive_mplus_timer.lua](game/isiLive_mplus_timer.lua))
+  ([game/isiLive_mplus_timer.lua](../game/isiLive_mplus_timer.lua))
 
 ### Code-base notes
 
@@ -3889,7 +3904,7 @@ caster.
   wanted, while the runtime path must not. Locked in by the
   "strips dungeon context" contract test in
   `testmodul/isilive_test_scenarios_ui_frame_bridge.lua`.
-  ([factory/isiLive_frame_bridge.lua](factory/isiLive_frame_bridge.lua))
+  ([factory/isiLive_frame_bridge.lua](../factory/isiLive_frame_bridge.lua))
 
 ## 2026-05-11 - Version 0.9.226 (patch)
 
@@ -3923,7 +3938,7 @@ branch.
 
 ### Fix
 
-Two new helpers in [game/isiLive_lfg_detect.lua](game/isiLive_lfg_detect.lua)
+Two new helpers in [game/isiLive_lfg_detect.lua](../game/isiLive_lfg_detect.lua)
 replace the `next()`-shortcut with a strictly deterministic 3-stage
 resolver:
 
@@ -3977,11 +3992,11 @@ not clear the stale snapshot.
 ### Root cause
 
 `CHALLENGE_MODE_COMPLETED` runs `StopTimer(true)` in
-[game/isiLive_mplus_timer.lua](game/isiLive_mplus_timer.lua), which sets
+[game/isiLive_mplus_timer.lua](../game/isiLive_mplus_timer.lua), which sets
 `running=false, completed=true` and unhooks the per-tick `OnUpdate`. The
 timer value, time limits and death-penalty counters stay frozen so the
 final result is visible while the group is still in the dungeon. The UI
-in [ui/isiLive_roster_panel_cd_row.lua](ui/isiLive_roster_panel_cd_row.lua)
+in [ui/isiLive_roster_panel_cd_row.lua](../ui/isiLive_roster_panel_cd_row.lua)
 keeps rendering the timer box as long as `data.running or data.completed`
 is true — and `completed` was never cleared on a natural zone exit. Only
 `CHALLENGE_MODE_RESET` (manual key abandon from the keystone podium)
@@ -3995,7 +4010,7 @@ wiped the state.
   the next time the player zones. The branch is gated on
   `state.completed and not state.running`, so a mid-key `PEW` (UI reload
   while still inside the dungeon) does not abort an active timer.
-- [logic/isiLive_event_handlers_runtime.lua](logic/isiLive_event_handlers_runtime.lua)
+- [logic/isiLive_event_handlers_runtime.lua](../logic/isiLive_event_handlers_runtime.lua)
   dispatches `PLAYER_ENTERING_WORLD` to the M+ timer alongside the
   existing KillTrack dispatch — same site, one extra line, no new event
   registration.
@@ -4003,7 +4018,7 @@ wiped the state.
   cover the three relevant states: `PEW` after `COMPLETED` clears the
   snapshot, `PEW` mid-key is a no-op, `PEW` on a fresh idle state is a
   no-op. The behaviour is gated by the new `RULE-MPLUS-TIMER-PEW-RESET`
-  in [docs/RULES_LOGIC.md](docs/RULES_LOGIC.md).
+  in [docs/RULES_LOGIC.md](RULES_LOGIC.md).
 
 ## 2026-05-10 - Version 0.9.225 (patch)
 
@@ -4015,7 +4030,7 @@ characters that did not carry that item in their bags.
 ### Root cause
 
 `UI.EnsureSecondPanelUI` is invoked from `ApplyLocalizationToUI`, which runs
-from the `ADDON_LOADED` handler in [logic/isiLive_event_handlers_runtime.lua](logic/isiLive_event_handlers_runtime.lua).
+from the `ADDON_LOADED` handler in [logic/isiLive_event_handlers_runtime.lua](../logic/isiLive_event_handlers_runtime.lua).
 At that point the account-wide toy collection cache is often not yet warm:
 `PlayerHasToy(...)` returns `false` for every hearthstone toy ID, so the
 setup loop fell through to the `type=item, item=item:6948` fallback. The
@@ -4024,7 +4039,7 @@ rebuilt, even after `TOYS_UPDATED` fired moments later.
 
 ### Fix
 
-- New `CollectOwnedHearthstoneToys()` helper in [ui/isiLive_ui.lua](ui/isiLive_ui.lua)
+- New `CollectOwnedHearthstoneToys()` helper in [ui/isiLive_ui.lua](../ui/isiLive_ui.lua)
   centralises the `PlayerHasToy` scan.
 - A static `hearthstoneToysEventFrame` registers `TOYS_UPDATED` and rebinds
   the secure button to a random owned toy as soon as the cache is available
@@ -4881,7 +4896,7 @@ Two roster-UI audit fixes shipped together (0.9.199 was an internal stepping-sto
 
 ## 2026-04-27 - Version 0.9.196 (minor)
 
-- **Boss-target overlay fully removed ([ui/isiLive_mob_nameplate.lua](../ui/isiLive_mob_nameplate.lua), [ui/isiLive_roster_panel_kill_row.lua](../ui/isiLive_roster_panel_kill_row.lua), [ui/isiLive_settings.lua](../ui/isiLive_settings.lua), [factory/isiLive_factory.lua](../factory/isiLive_factory.lua), [data/isiLive_mplus_boss_targets.lua](../data/isiLive_mplus_boss_targets.lua) deleted):**
+- **Boss-target overlay fully removed ([ui/isiLive_mob_nameplate.lua](../ui/isiLive_mob_nameplate.lua), [ui/isiLive_roster_panel_kill_row.lua](../ui/isiLive_roster_panel_kill_row.lua), [ui/isiLive_settings.lua](../ui/isiLive_settings.lua), [factory/isiLive_factory.lua](../factory/isiLive_factory.lua), `data/isiLive_mplus_boss_targets.lua` deleted):**
   - The optional `next` / `end` boss-target remainder in the mob-nameplate overlay (`+24%` / `+47%` extra) and the three-color boss markers on the killtracker bar (gray/yellow/green) are completely removed. The per-mob forces contribution (`+1.50%`) on nameplates and the forces bar itself (fill + pull predictor + % text) remain unchanged.
   - Settings dropdown "Remainder display (off/next/end)" removed; 32 related locale strings (`SETTINGS_NAMEPLATE_BOSS_TARGET_MODE*`) dropped from all 8 languages, drift gate stays clean.
   - `data/isiLive_mplus_boss_targets.lua` deleted along with the TOC entry, the factory resolver `ResolveMobNameplateBossTargetMode`, the `bossTargetMode` parameter of `MobNameplate.SetFormat`, the `killTrackBossMarkers` pool, and 6 boss-target test scenarios.
@@ -4902,7 +4917,7 @@ Two roster-UI audit fixes shipped together (0.9.199 was an internal stepping-sto
 - **Factory cleanup ([factory/isiLive_factory.lua](../factory/isiLive_factory.lua)):**
   - Dead `showCount` / `showTotal` arguments to `MobNameplate.SetFormat` removed from the `onMobNameplateChange` callback. `SetFormat` was simplified during the boss-target strip and now only reads `showPercent`. The matching DB keys (`mobNameplateShowCount` / `mobNameplateShowTotal`) were never set anywhere — pure leftover from an older un-shipped feature stub.
 
-- **Third-party attributions cleaned up ([data/isiLive_mplus_boss_targets.lua](../data/isiLive_mplus_boss_targets.lua) deleted, [ui/isiLive_ui.lua](../ui/isiLive_ui.lua), [docs/CHANGELOG.md](CHANGELOG.md)):**
+- **Third-party attributions cleaned up (`data/isiLive_mplus_boss_targets.lua` deleted, [ui/isiLive_ui.lua](../ui/isiLive_ui.lua), [docs/CHANGELOG.md](CHANGELOG.md)):**
   - The boss-target data file (previously attributed to an external community dataset) is gone with the feature strip anyway.
   - The source comment for the 32 Hearthstone toy item IDs in [ui/isiLive_ui.lua:93](../ui/isiLive_ui.lua#L93) was switched from the reference-to-another-addon form to a generic "WoW item database" note; the list of IDs itself remains unchanged.
   - Dead Markdown link to a non-existent CurseForge URL in a historical v0.9.193 entry in [docs/CHANGELOG.md](CHANGELOG.md) reduced to plain text, plus two other clunky-hyphenated phrases ("external-interrupt-tracker-extraKicks model") rewritten in readable form.
@@ -4987,7 +5002,7 @@ Two roster-UI audit fixes shipped together (0.9.199 was an internal stepping-sto
   - Consistency anchor with the nameplate / tooltip path (0.9.186): the killtracker still reads `total` primarily from `cInfo.totalQuantity` (Blizzard API takes precedence because `rawCount` comes from the same source — mixing API `rawCount` + DB `total` would produce off-by-fraction percentages after a patch drift). But: if API `totalQuantity` is missing (Secret-Value taint, nil return, <= 0), the killtracker falls back to `addonTable.MPlusForces.dungeonTotal[mapID].total` instead of switching off completely. Without the fallback, the tracker would lose its display on a temporary API quirk; with the fallback, it stays live as long as the DB knows the dungeon.
   - Drift detection: when API total and DB total both exist but differ, the killtracker surfaces it once into the runtime log via a new `KillTrack.SetDebugLogger` hook (`[KILLTRACK] mapID=X total drift: api=Y db=Z (using api; check tools/sync_mdt_forces.lua)`). A `lastDriftKey` cache suppresses re-spam on repeated identical drifts. This way we can tell live whether Blizzard changed the `dungeonTotalCount` between MDT refreshes — the symptom would be systematically wrong percentages.
   - `KillTrack.GetData()` now additionally returns `mapID` (from `state.mapID`, set in `ReadLiveData`, cleared on `CHALLENGE_MODE_COMPLETED` / `CHALLENGE_MODE_RESET`). Required for the UI boss-target lookup.
-  - **Boss-target markers on the forces progress bar** ([ui/isiLive_roster_panel_kill_row.lua](../ui/isiLive_roster_panel_kill_row.lua)): vertical 1 px lines at the boss-target thresholds from [data/isiLive_mplus_boss_targets.lua](../data/isiLive_mplus_boss_targets.lua) (e.g. Skyreach `{28.07, 52.2, 60.09, 100}`). Pre-allocated pool of 8 marker textures per row (currently max 4 bosses per dungeon, 8 is headroom). Per render: position computed from current container width × target/100, re-positioning on layout switches automatic via the `OnSizeChanged` trigger of the existing bar-refresh pipeline.
+  - **Boss-target markers on the forces progress bar** ([ui/isiLive_roster_panel_kill_row.lua](../ui/isiLive_roster_panel_kill_row.lua)): vertical 1 px lines at the boss-target thresholds from `data/isiLive_mplus_boss_targets.lua` (e.g. Skyreach `{28.07, 52.2, 60.09, 100}`). Pre-allocated pool of 8 marker textures per row (currently max 4 bosses per dungeon, 8 is headroom). Per render: position computed from current container width × target/100, re-positioning on layout switches automatic via the `OnSizeChanged` trigger of the existing bar-refresh pipeline.
   - **Marker color coding** three states based on `accumulated` (cumulative `state.percent`) and `pullPct` (`pull.pullPercent`):
     - **Gray** (`0.6, 0.6, 0.65, 0.9`) — boss target is beyond the current pull (default, "not yet reachable")
     - **Yellow** (`1.0, 0.85, 0.2, 0.9`) — current pull will push cumulative over the boss target ("if this pull goes through, the boss is unlocked"). Criterion: `pct < target <= pct + pullPct`.
@@ -5131,7 +5146,7 @@ Two roster-UI audit fixes shipped together (0.9.199 was an internal stepping-sto
 
 - **Nameplate remainder display: "Next boss" vs. "Final boss" as a 3-way selector (`ui/isiLive_mob_nameplate.lua`, `ui/isiLive_settings.lua`):**
   - The previous single "show remainder to next boss (+X%)" toggle is replaced by a **3-option selector**: **Off / Next boss / Final boss**. Exclusive (radio-style), exactly one active at all times. Default `"next"`.
-  - **`"next"` mode** (as before): remainder to the next undefeated boss target from [data/isiLive_mplus_boss_targets.lua](../data/isiLive_mplus_boss_targets.lua). Example: Skyreach, progress 17%, boss 1 target 28.07 -> `+11%`.
+  - **`"next"` mode** (as before): remainder to the next undefeated boss target from `data/isiLive_mplus_boss_targets.lua`. Example: Skyreach, progress 17%, boss 1 target 28.07 -> `+11%`.
   - **New `"end"` mode**: remainder to 100% forces (final-boss threshold, independent of boss count). Example: progress 17% -> `+83%`. Useful as an overall progress display.
   - DB key `mobNameplateBossTargetMode` in `{"off","next","end"}` replaces the earlier `mobNameplateShowBossTarget` boolean. Migration in [factory/isiLive_factory.lua](../factory/isiLive_factory.lua) (`ResolveMobNameplateBossTargetMode`): old `== false` -> `"off"`, otherwise -> `"next"`. The old boolean is still written in sync for SavedVariables backward compatibility with 0.9.182 installations that manually downgrade.
   - Module API `MobNameplate.SetFormat` now accepts `bossTargetMode = "off"|"next"|"end"` instead of `showBossTarget = bool`. New helper `ResolveBossRemainder(mode)` in the nameplate module: "end" needs only the Scenario API (no boss-target DB lookup), while "next" works as before. The settings preview simulates both modes (`+13%` vs. `+83%`).
@@ -5153,7 +5168,7 @@ Two roster-UI audit fixes shipped together (0.9.199 was an internal stepping-sto
 - **Nameplate overlay upgrade: section percentage (to next boss) instead of redundant count display (`ui/isiLive_mob_nameplate.lua`, `data/isiLive_mplus_boss_targets.lua`):**
   - Rationale: the previous sub-toggles `showCount` and `showTotal` showed exactly the same per-mob contribution information as `showPercent`, only in a different format (`5`, `5/431` vs. `1.16%`) - redundant and not useful for M+ players. The more interesting data point is "how much forces progress is still missing until the next boss target". Both old toggles were removed (DB keys `mobNameplateShowCount`/`mobNameplateShowTotal` are no longer read either, but remain silently as legacy fields in old SavedVariables without migration).
   - New toggle `showBossTarget` (default ON) + new DB key `mobNameplateShowBossTarget`. Output format is now e.g. `1.16% | +13%` - the first value is the per-mob contribution, the second means "13 percentage points left until the current boss-target threshold is reached".
-  - New data file [data/isiLive_mplus_boss_targets.lua](../data/isiLive_mplus_boss_targets.lua) with cumulative boss-target percentages per dungeon. Values are community convention, adapted from [community source](https://github.com/community-source/forces-data) (GPLv2, attribution in the file header) - KP has maintained this mapping for years, and the numbers originally come from speedrun community consensus. For the current 8 Midnight Season 1 dungeons: Skyreach {28.07, 52.2, 60.09, 100}, SotT {14.61, 56.87, 100, 100}, Algethar {21.52, 51.09, 77.17, 100}, PoS {58.63, 79.94, 100}, Windrunner {45.35, 57.36, 100, 100}, Magisters {27.81, 48.91, 78.06, 100}, NPX {29.36, 73.66, 100}, Maisara {48.6, 89.95, 100}. User override via `IsiLiveDB.bossTargetsOverride[mapID] = { ... }` is possible (no UI for it - manual Lua edit).
+  - New data file `data/isiLive_mplus_boss_targets.lua` with cumulative boss-target percentages per dungeon. Values are community convention, adapted from [community source](https://github.com/community-source/forces-data) (GPLv2, attribution in the file header) - KP has maintained this mapping for years, and the numbers originally come from speedrun community consensus. For the current 8 Midnight Season 1 dungeons: Skyreach {28.07, 52.2, 60.09, 100}, SotT {14.61, 56.87, 100, 100}, Algethar {21.52, 51.09, 77.17, 100}, PoS {58.63, 79.94, 100}, Windrunner {45.35, 57.36, 100, 100}, Magisters {27.81, 48.91, 78.06, 100}, NPX {29.36, 73.66, 100}, Maisara {48.6, 89.95, 100}. User override via `IsiLiveDB.bossTargetsOverride[mapID] = { ... }` is possible (no UI for it - manual Lua edit).
   - Scenario API integration in [ui/isiLive_mob_nameplate.lua](../ui/isiLive_mob_nameplate.lua): new helpers `ResolveBossTargets(mapID)` + `ResolveScenarioProgress()` + `ResolveBossRemainder()`. `ResolveScenarioProgress` iterates `C_ScenarioInfo.GetStepInfo().numCriteria` and then `GetCriteriaInfo(i)` for each criterion: criteria with `totalQuantity > 1` are enemy forces (current progress via `quantity / totalQuantity`), criteria with `totalQuantity == 1` are bosses (Blizzard orders them in bossOrder sequence, so the nth boss criterion index is also the nth boss target from our DB). First non-`completed` boss -> next target value -> remainder = max(0, target - currentProgress). All API returns are pcall-wrapped and `IsSecretValue`-checked (including `totalQuantity`/`quantity`, for 12.0 Midnight Secret Value hardening).
   - Settings section adjusted: the sub-toggle block in the Nameplates section now contains only `Show percentage` + `Show remainder to next boss (+X%)` instead of the previous three. The preview row simulates the target format with fixed sample values `1.16%` and `+13%` (instead of the earlier `1.16% | 5/431`).
   - Locale: `SETTINGS_NAMEPLATE_SHOW_COUNT` and `SETTINGS_NAMEPLATE_SHOW_TOTAL` removed from all 8 languages, `SETTINGS_NAMEPLATE_SHOW_BOSS_TARGET` added (enUS: "Show remainder to next boss (+X%)", deDE: "Rest bis naechstem Boss anzeigen (+X%)", etc.).

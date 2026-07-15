@@ -1,5 +1,5 @@
 -- Standalone CLI tool: full lifecycle for the M+ timer module.
--- Drives CHALLENGE_MODE_START -> tick (OnUpdate ~10Hz) ->
+-- Drives CHALLENGE_MODE_START -> on-demand timer read ->
 -- CHALLENGE_MODE_DEATH_COUNT_UPDATED -> CHALLENGE_MODE_COMPLETED /
 -- CHALLENGE_MODE_RESET through the production HandleEvent dispatcher and
 -- pins the +1 / +2 / +3 cutoff math, the death-penalty key-level gate,
@@ -9,12 +9,12 @@
 --   * START reads mapID + keystone level + map time-limit, marks running=true,
 --     resets timer/deaths/death-time-lost, computes +1/+2/+3 cutoffs from
 --     the GetMapUIInfo timeLimit (100% / 80% / 60%).
---   * The 0.1s OnUpdate tick reads GetWorldElapsedTime and advances state.timer.
+--   * GetTimerData reads GetWorldElapsedTime on demand and advances state.timer.
 --   * CHALLENGE_MODE_DEATH_COUNT_UPDATED reads GetDeathCount and updates
 --     deaths + deathTimeLost.
 --   * Death-penalty gate: GetTimerData() exposes deathTimeLost only when
 --     keyLevel >= 4 (no penalty on +2/+3 keys per Blizzard's rule).
---   * COMPLETED and RESET stop the tick and wipe the timer/deaths/cutoffs
+--   * COMPLETED and RESET stop live sampling and wipe the timer/deaths/cutoffs
 --     entirely.
 --   * timeRemaining1/2/3 = (cutoffSeconds - state.timer); negative when
 --     the cutoff has been missed.
@@ -24,9 +24,9 @@
 --
 -- End-to-end discipline (CLAUDE.md "Tests & simulators: end-to-end by default"):
 -- the real MplusTimer module is loaded; every state mutation flows through
--- MplusTimer.HandleEvent (the production dispatcher); the tick path runs
--- the production OnUpdate closure that the module registers via SetScript.
--- The C_ChallengeMode / GetWorldElapsedTime / CreateFrame globals are the
+-- MplusTimer.HandleEvent (the production dispatcher); timer reads run through
+-- the production GetTimerData on-demand sampling path.
+-- The C_ChallengeMode / GetWorldElapsedTime globals are the
 -- exact surface WoW exposes.
 ---@diagnostic disable: undefined-global
 local io = io
@@ -58,8 +58,8 @@ local function Check(condition, message)
 end
 
 -- ----------------------------------------------------------------------
--- Steerable WoW-globals model. The C_ChallengeMode + GetWorldElapsedTime +
--- CreateFrame mocks below dereference these fields, so test scenarios
+-- Steerable WoW-globals model. The C_ChallengeMode + GetWorldElapsedTime
+-- mocks below dereference these fields, so test scenarios
 -- mutate them between HandleEvent calls.
 -- ----------------------------------------------------------------------
 local model = {
@@ -81,29 +81,8 @@ local function ResetModel()
   model.deathTimeLost = 0
 end
 
--- The MplusTimer module registers a SetScript("OnUpdate", ...) handler on
--- a CreateFrame stub. We capture that closure here so tests can drive ticks
--- explicitly via SimulateElapsed(seconds).
-local capturedOnUpdate = nil
-
-local function MakeFrameStub()
-  local frame = {
-    _scripts = {},
-  }
-  function frame:SetScript(scriptType, fn)
-    self._scripts[scriptType] = fn
-    if scriptType == "OnUpdate" then
-      capturedOnUpdate = fn -- hand back the live tick closure
-    end
-  end
-  return frame
-end
-
 local function buildGlobals()
   return {
-    CreateFrame = function()
-      return MakeFrameStub()
-    end,
     C_ChallengeMode = {
       GetActiveChallengeMapID = function()
         return model.activeMapID
@@ -127,7 +106,6 @@ local function buildGlobals()
 end
 
 local function BuildSession()
-  capturedOnUpdate = nil
   local addon
   Harness.WithGlobals(buildGlobals(), function()
     addon = Harness.LoadAddonModules({ "isiLive_mplus_timer.lua" })
@@ -137,18 +115,6 @@ local function BuildSession()
     fire = function(event)
       Harness.WithGlobals(buildGlobals(), function()
         addon.MplusTimer.HandleEvent(event)
-      end)
-    end,
-    -- Drive the production OnUpdate closure with a single tick. Each call
-    -- advances the internal tickAccum by `elapsed`; the body fires once
-    -- whenever tickAccum crosses 0.1s. We default to 0.2 to guarantee one
-    -- fire per call.
-    tick = function(elapsed)
-      if not capturedOnUpdate then
-        return
-      end
-      Harness.WithGlobals(buildGlobals(), function()
-        capturedOnUpdate(nil, elapsed or 0.2)
       end)
     end,
     getTimerData = function()
@@ -189,26 +155,24 @@ local function ScenarioKeyStart()
 end
 
 -- ----------------------------------------------------------------------
--- Phase 2: OnUpdate tick reads GetWorldElapsedTime and advances state.timer.
+-- Phase 2: GetTimerData reads GetWorldElapsedTime and advances state.timer.
 -- ----------------------------------------------------------------------
 local function ScenarioTickAdvancesTimer()
-  print("\n========== Scenario 2: OnUpdate tick advances state.timer ==========")
+  print("\n========== Scenario 2: on-demand read advances state.timer ==========")
   ResetModel()
   local session = BuildSession()
   session.fire("CHALLENGE_MODE_START")
 
-  -- Game world reports 30s elapsed; tick should pick that up.
+  -- Game world reports 30s elapsed; the next read picks that up.
   model.worldElapsedTime = 30
-  session.tick(0.2)
   local data = session.getTimerData()
-  Check(data.timer == 30, "tick reads GetWorldElapsedTime and sets state.timer=30")
+  Check(data.timer == 30, "read samples GetWorldElapsedTime and sets state.timer=30")
   Check(data.timeRemaining1 == 1770, "timeRemaining1 = 1800 - 30 = 1770")
 
   -- Game world reports 1500s elapsed (well into the run).
   model.worldElapsedTime = 1500
-  session.tick(0.2)
   data = session.getTimerData()
-  Check(data.timer == 1500, "tick at 1500s elapsed advances state.timer=1500")
+  Check(data.timer == 1500, "read at 1500s elapsed advances state.timer=1500")
   Check(data.timeRemaining3 == -420, "+3 missed: timeRemaining3 = 1080 - 1500 = -420 (negative)")
 end
 
@@ -254,7 +218,6 @@ local function ScenarioKeyCompleted()
   local session = BuildSession()
   session.fire("CHALLENGE_MODE_START")
   model.worldElapsedTime = 1200
-  session.tick(0.2)
 
   session.fire("CHALLENGE_MODE_COMPLETED")
   local data = session.getTimerData()
@@ -266,11 +229,10 @@ local function ScenarioKeyCompleted()
   Check(data.timeLimit == 0, "post-COMPLETED: timeLimit wiped to 0")
   Check(data.timeRemaining1 == 0, "post-COMPLETED: cutoff arrays reset (timeRemaining1=0)")
 
-  -- A subsequent tick must NOT advance the timer or restore the wiped state.
+  -- A subsequent read must NOT advance the timer or restore the wiped state.
   model.worldElapsedTime = 1500
-  session.tick(0.2)
   data = session.getTimerData()
-  Check(data.timer == 0, "tick after COMPLETED is a no-op: timer stays wiped")
+  Check(data.timer == 0, "read after COMPLETED leaves the timer wiped")
 end
 
 -- ----------------------------------------------------------------------
@@ -282,7 +244,6 @@ local function ScenarioKeyReset()
   local session = BuildSession()
   session.fire("CHALLENGE_MODE_START")
   model.worldElapsedTime = 600
-  session.tick(0.2)
   model.deathCount = 2
   model.deathTimeLost = 30
   session.fire("CHALLENGE_MODE_DEATH_COUNT_UPDATED")
@@ -307,7 +268,6 @@ local function ScenarioDemoData()
   local session = BuildSession()
   session.fire("CHALLENGE_MODE_START")
   model.worldElapsedTime = 100
-  session.tick(0.2)
 
   session.addon.MplusTimer.SetDemoData({
     running = true,
@@ -338,7 +298,6 @@ local function ScenarioBackToBackKeys()
   local session = BuildSession()
   session.fire("CHALLENGE_MODE_START")
   model.worldElapsedTime = 1500
-  session.tick(0.2)
   model.deathCount = 4
   model.deathTimeLost = 60
   session.fire("CHALLENGE_MODE_DEATH_COUNT_UPDATED")

@@ -80,6 +80,14 @@ local PRIMARY_STAT_KEYS = {
   intellect = true,
 }
 
+local OPTIONAL_ROW_OPTIONS = {
+  leech = { field = "statsBoxShowLeech", default = true },
+  speed = { field = "statsBoxShowSpeed", default = true },
+  durability = { field = "statsBoxShowDurability", default = false },
+  stamina = { field = "statsBoxShowStamina", default = false },
+  avoidance = { field = "statsBoxShowAvoidance", default = false },
+}
+
 local LABELS = {
   strength = "Str",
   agility = "Agi",
@@ -165,13 +173,7 @@ end
 
 local function ResolveOptionalRowEnabled(key)
   local db = GetDB()
-  local option = ({
-    leech = { field = "statsBoxShowLeech", default = true },
-    speed = { field = "statsBoxShowSpeed", default = true },
-    durability = { field = "statsBoxShowDurability", default = false },
-    stamina = { field = "statsBoxShowStamina", default = false },
-    avoidance = { field = "statsBoxShowAvoidance", default = false },
-  })[key]
+  local option = OPTIONAL_ROW_OPTIONS[key]
   if not option then
     return true
   end
@@ -673,6 +675,19 @@ end
 
 local ApplyLayout
 
+local function LayoutsEqual(left, right)
+  if type(left) ~= "table" or type(right) ~= "table" then
+    return false
+  end
+  return left.fontSize == right.fontSize
+    and left.width == right.width
+    and left.height == right.height
+    and left.labelWidth == right.labelWidth
+    and left.valueWidth == right.valueWidth
+    and left.percentWidth == right.percentWidth
+    and left.hasPercent == right.hasPercent
+end
+
 local function ResolveRenderableRow(rows, sourceIndex)
   while type(rows) == "table" and sourceIndex <= #rows do
     local row = rows[sourceIndex]
@@ -687,7 +702,7 @@ local function ResolveRenderableRow(rows, sourceIndex)
   return nil, nil, nil, sourceIndex
 end
 
-local function RenderRows(state, rows)
+local function RenderRows(state, rows, forceLayout)
   rows = type(rows) == "table" and rows or {}
   local layout = state.baseLayout or ResolveLayout()
   local visibleCount = 0
@@ -731,7 +746,10 @@ local function RenderRows(state, rows)
       end
     end
   end
-  ApplyLayout(state, ResolveContentFitLayout(layout, state.lines, visibleCount, state.layout))
+  local nextLayout = ResolveContentFitLayout(layout, state.lines, visibleCount, state.layout)
+  if forceLayout == true or not LayoutsEqual(state.layout, nextLayout) then
+    ApplyLayout(state, nextLayout)
+  end
 end
 
 ApplyLayout = function(state, layout)
@@ -917,8 +935,8 @@ function StatsBox.Create(opts)
     }
   end
 
-  local function Refresh()
-    RenderRows(state, state.collectStats(opts))
+  local function Refresh(forceLayout)
+    RenderRows(state, state.collectStats(opts), forceLayout)
   end
 
   local function UpdateVisibleStats(_, elapsed)
@@ -943,7 +961,7 @@ function StatsBox.Create(opts)
         ApplyLineTextStyle(line, state.baseLayout.fontSize)
       end
     end
-    Refresh()
+    Refresh(true)
     if ResolveEnabled() then
       frame:SetScript("OnUpdate", UpdateVisibleStats)
       frame:Show()

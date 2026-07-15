@@ -5,7 +5,7 @@ oeffentlichen Repository gebuendelten Drittbibliotheken, Sounds und Texturen.
 Unbekannte Zuordnungen bleiben ausdruecklich `unresolved`; sie werden nicht aus
 Dateinamen, Metadaten oder Aehnlichkeiten abgeleitet.
 
-Dokumentationsstand: `2026-07-13`.
+Dokumentationsstand: `2026-07-15`.
 
 ## Quellcode von Dritten
 
@@ -23,7 +23,7 @@ externen Dateien standen, ist derzeit nicht mehr belastbar zugeordnet.
 
 | Pfade | Herkunft | Lizenzstatus |
 | --- | --- | --- |
-| `sounds/*.wav`, `sounds/*.ogg` | Mischung aus selbst erstellten und extern bezogenen Dateien; Einzelzuordnung `unresolved` | `unresolved` |
+| `sounds/*.wav`, `sounds/*.ogg`, `sounds/*.mp3` | Mischung aus selbst erstellten und extern bezogenen Dateien; Einzelzuordnung `unresolved` | `unresolved` |
 
 Pflegepflicht:
 

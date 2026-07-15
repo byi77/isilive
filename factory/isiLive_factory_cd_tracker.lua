@@ -280,8 +280,10 @@ local function InitializeFactorySecondaryCdTracker(
     then
       ctx.rosterPanelController.RefreshReadyCheckState(ctx.GetRoster())
     end
-    -- Also refresh full UI if M+ key is running so the timer counts down.
-    if mplusRunning and not fromVisibleRender then
+    -- The targeted CD-row refresh above already advances the visible M+ timer.
+    -- Keep the full render only for hidden event-driven pre-rendering; the
+    -- visible one-second ticker must not rebuild the complete roster/layout.
+    if mplusRunning and not fromVisibleRender and not IsMainFrameShown() then
       if ctx.UpdateUI then
         ctx.UpdateUI()
       end
@@ -328,7 +330,9 @@ local function InitializeFactorySecondaryCdTracker(
           ctx.rosterPanelController.RefreshKillTrackRow()
         end
         local mobNameplate = ctx.addonTable and ctx.addonTable.MobNameplate
-        if type(mobNameplate) == "table" and type(mobNameplate.RefreshAll) == "function" then
+        if type(mobNameplate) == "table" and type(mobNameplate.RefreshActive) == "function" then
+          mobNameplate.RefreshActive()
+        elseif type(mobNameplate) == "table" and type(mobNameplate.RefreshAll) == "function" then
           mobNameplate.RefreshAll()
         end
       end)
