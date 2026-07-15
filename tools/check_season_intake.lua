@@ -36,7 +36,9 @@ local function SplitMarkdownRow(line)
   end
   trimmed = trimmed:gsub("^|", ""):gsub("|$", "")
   local cells = {}
-  for cell in trimmed:gmatch("([^|]*)") do
+  -- The full match must consume the delimiter. Lua 5.1 and 5.4 advance
+  -- zero-length gmatch results differently, which can shift table columns.
+  for cell in (trimmed .. "|"):gmatch("(.-)|") do
     cells[#cells + 1] = Trim(cell)
   end
   return cells
