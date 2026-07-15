@@ -269,6 +269,22 @@ MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5, name = "Safe" } }
       result.summary:find("| Voidscar Arena | 585 | 1286804 | 1951 | verified |", 1, true) ~= nil,
       "season intake summary must include the verified Voidscar Arena mapping"
     )
+    Assert.Equal(#result.tables.dungeons, 8, "markdown parsing must preserve exactly eight dungeon rows")
+    Assert.Equal(
+      result.tables.dungeons[1].Season,
+      "midnight_s2",
+      "markdown parsing must preserve the Season column on Lua 5.1 and newer"
+    )
+    Assert.Equal(
+      result.tables.dungeons[1].Dungeon,
+      "Altar of Fangs",
+      "markdown parsing must preserve the Dungeon column on Lua 5.1 and newer"
+    )
+    Assert.Equal(
+      result.tables.dungeons[1].Status,
+      "verified",
+      "markdown parsing must preserve later columns on Lua 5.1 and newer"
+    )
   end)
 
   test("Season intake check rejects IDs that diverge from the season manifest", function()
