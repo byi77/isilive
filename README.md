@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.0.7+ Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%2B%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.347](https://img.shields.io/badge/isiLive-0.9.347-1E90FF?style=for-the-badge)
+![isiLive 0.9.348](https://img.shields.io/badge/isiLive-0.9.348-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -17,7 +17,7 @@
 
 Season maintenance is driven by one normalized manifest. Portal, LFG activity, display, level-gate, and portal-room indexes are derived from the same per-dungeon records; the generated MDT forces snapshot remains separate.
 
-Version `0.9.347` restores accepted-invite dungeon detection for every supported Mythic+ dungeon. Restricted LFG group-name payloads no longer enter reusable protected-dispatch slots, while the allocation-free event hot path and strict verified activity-to-map resolution remain intact.
+Version `0.9.348` fixes a queued-chat channel guard in the bundled ChatThrottleLib and cleans up several full-codebase-audit findings: deduplicated Mythic+ timer/tracked-run checks, a hardened inspect controller call, and a consistent settings-dialog hover accent.
 
 **Setup:** install, join a 5-player group, and the window opens automatically.
 

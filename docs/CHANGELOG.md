@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-07-21 - Version 0.9.348 (patch)
+
+- Fixed ChatThrottleLib's queued-message channel guard: messages queued via
+  `SendChatMessage` under bandwidth throttling read the wrong table field for
+  their channel (the language slot instead of the channel slot), silently
+  bypassing the raid/party/instance_chat availability check once throttling
+  kicked in.
+- Deduplicated `IsMplusTimerRunning`/`IsTrackedPartyRunActive` (previously
+  duplicated identically across two factory modules) into a shared
+  `ContextHelpers` function, and removed unused `GetCombatLogEventInfo`
+  wiring left over from a pre-12.0 implementation.
+- Guarded `NotifyInspect` with `pcall` for consistency with the rest of the
+  inspect controller's protected-API handling.
+- Unified the settings-reset confirmation dialog's hover accent color to the
+  standard blue accent (was an inconsistent gold) and fixed
+  lua-language-server `inject-field` warnings on settings UI separator
+  textures via a shared type annotation.
+
 ## 2026-07-15 - Version 0.9.347 (patch)
 
 - Fixed accepted-invite dungeon detection for visible LFG application events
