@@ -672,7 +672,9 @@ function SettingsSound.BuildVIPGuestSection(canvas, yOffset, labels, config, con
       separator:SetPoint("TOPRIGHT", canvas, "TOPRIGHT", -VIP_SEPARATOR_OFFSET_X, yOffset - 5)
     end
     if type(separator.CreateTexture) == "function" then
-      local line = separator:CreateTexture(nil, "ARTWORK")
+      ---@class IsiLiveSeparatorTexture: Texture
+      ---@field _isiLiveSettingsSeparator string
+      local line = separator:CreateTexture(nil, "ARTWORK") ---@type IsiLiveSeparatorTexture
       if type(line.SetAllPoints) == "function" then
         line:SetAllPoints(separator)
       end

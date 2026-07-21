@@ -39,6 +39,26 @@ function ContextHelpers.GetUnitServerLanguage(isiLiveLocale, getRealmInfoLib, un
   return isiLiveLocale.GetUnitServerLanguage(unit, realm, getRealmInfoLib)
 end
 
+function ContextHelpers.IsMplusTimerRunning()
+  local mplusTimer = addonTable.MplusTimer
+  if type(mplusTimer) ~= "table" or type(mplusTimer.GetTimerData) ~= "function" then
+    return false
+  end
+  local data = mplusTimer.GetTimerData()
+  return type(data) == "table" and data.running == true
+end
+
+function ContextHelpers.IsTrackedPartyRunActive(ctx)
+  local runtimeState = type(ctx) == "table" and ctx.runtimeState or nil
+  if type(runtimeState) == "table" and type(runtimeState.IsTrackedPartyRunActive) == "function" then
+    return runtimeState.IsTrackedPartyRunActive() == true
+  end
+  if type(ctx) == "table" and type(ctx.IsTrackedPartyRunActive) == "function" then
+    return ctx.IsTrackedPartyRunActive() == true
+  end
+  return false
+end
+
 function ContextHelpers.BuildDummyRoster(opts)
   return opts.demoBuildDummyRoster({
     previewVariant = opts.previewVariant,

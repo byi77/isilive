@@ -36,25 +36,9 @@ local function PlayPowerInfusionReceivedSound()
   end
 end
 
-local function IsMplusTimerRunning()
-  local mplusTimer = addonTable.MplusTimer
-  if type(mplusTimer) ~= "table" or type(mplusTimer.GetTimerData) ~= "function" then
-    return false
-  end
-  local data = mplusTimer.GetTimerData()
-  return type(data) == "table" and data.running == true
-end
-
-local function IsTrackedPartyRunActive(ctx)
-  local runtimeState = type(ctx) == "table" and ctx.runtimeState or nil
-  if type(runtimeState) == "table" and type(runtimeState.IsTrackedPartyRunActive) == "function" then
-    return runtimeState.IsTrackedPartyRunActive() == true
-  end
-  if type(ctx) == "table" and type(ctx.IsTrackedPartyRunActive) == "function" then
-    return ctx.IsTrackedPartyRunActive() == true
-  end
-  return false
-end
+local ContextHelpers = addonTable.ContextHelpers or {}
+local IsMplusTimerRunning = ContextHelpers.IsMplusTimerRunning
+local IsTrackedPartyRunActive = ContextHelpers.IsTrackedPartyRunActive
 
 local function InitializeFactoryCombatAnnounceControllers(ctx)
   -- Renders a BR/Lust combat announcement locally via ctx.Print. Used both for

@@ -728,7 +728,6 @@ local function FinalizeFactoryRuntime(ctx)
     TriggerShareKeysCooldown = ctx.TriggerShareKeysCooldown,
     GetShareKeysCooldownRemaining = ctx.GetShareKeysCooldownRemaining,
     GetShareKeysLocalCooldownRemaining = ctx.GetShareKeysLocalCooldownRemaining,
-    GetCombatLogEventInfo = ctx.GetCombatLogEventInfo,
     RestoreBgAlpha = ctx.RestoreBgAlpha,
     UpdateCdTracker = ctx.UpdateCdTracker,
     sync = modules.sync,

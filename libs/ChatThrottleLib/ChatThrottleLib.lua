@@ -319,7 +319,7 @@ function ChatThrottleLib:Despool(Prio)
 			Prio.Ring.pos = Prio.Ring.pos.next
 		end
 		local didSend=false
-		if not IsAddonChannelAvailable(msg[3]) then
+		if not IsAddonChannelAvailable(msg.chattype) then
 			-- do nothing
 		else
 			Prio.avail = Prio.avail - msg.nSize
@@ -467,6 +467,7 @@ function ChatThrottleLib:SendChatMessage(prio, prefix,   text, chattype, languag
 	msg[4] = destination
 	msg.n = 4
 	msg.nSize = nSize
+	msg.chattype = chattype or "SAY"
 	msg.callbackFn = callbackFn
 	msg.callbackArg = callbackArg
 
@@ -530,6 +531,7 @@ function ChatThrottleLib:SendAddonMessage(prio, prefix, text, chattype, target, 
 	msg[4] = target
 	msg.n = (target~=nil) and 4 or 3;
 	msg.nSize = nSize
+	msg.chattype = chattype
 	msg.callbackFn = callbackFn
 	msg.callbackArg = callbackArg
 

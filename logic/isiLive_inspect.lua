@@ -304,7 +304,10 @@ local function TryDispatchInspect(controller, now)
     end
     controller.isInspecting = unit
     controller.lastInspectTime = now
-    NotifyInspect(unit)
+    local okNotify = pcall(NotifyInspect, unit)
+    if not okNotify and controller.logRuntimeTracef then
+      controller.logRuntimeTracef("[INSPECT] notify_failed unit=%s", tostring(unit))
+    end
   else
     if controller.logRuntimeTracef then
       controller.logRuntimeTracef(

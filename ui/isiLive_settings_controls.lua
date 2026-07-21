@@ -56,7 +56,7 @@ function SettingsControls.CreateSectionHeader(parent, yOffset, text)
   header:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset)
   header:SetJustifyH("LEFT")
   header:SetText(text or "")
-  local line = parent:CreateTexture(nil, "ARTWORK")
+  local line = parent:CreateTexture(nil, "ARTWORK") ---@type IsiLiveSeparatorTexture
   line:SetHeight(2)
   line:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset - HEADER_HEIGHT)
   line:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PADDING_X, yOffset - HEADER_HEIGHT)
@@ -67,7 +67,7 @@ function SettingsControls.CreateSectionHeader(parent, yOffset, text)
 end
 
 function SettingsControls.CreateChildSeparator(parent, yOffset)
-  local line = parent:CreateTexture(nil, "ARTWORK")
+  local line = parent:CreateTexture(nil, "ARTWORK") ---@type IsiLiveSeparatorTexture
   line:SetHeight(1)
   line:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset - 5)
   line:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PADDING_X, yOffset - 5)

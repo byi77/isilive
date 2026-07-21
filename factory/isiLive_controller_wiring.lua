@@ -823,7 +823,6 @@ local function BuildEventHandlersDepsFromContext(ctx)
     getPlayerSpecName = ctx.getPlayerSpecName,
     getOwnAverageItemLevel = ctx.getOwnAverageItemLevel,
     getAddonVersionRaw = ctx.getAddonVersionRaw,
-    getCombatLogEventInfo = ctx.GetCombatLogEventInfo,
     handleLFGDetectEvent = function(event, ...)
       DispatchModuleEvent(ctx.modules and ctx.modules.lfgDetect, event, ...)
     end,

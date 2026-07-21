@@ -33,7 +33,6 @@ local function StyleResetConfirmPopup(dialog)
     end
   end
   local accent = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
-  local gold = Colors.ACCENT_GOLD or { 1, 0.82, 0 }
   local buttons = { dialog.button1, dialog.button2 }
   for index, button in ipairs(buttons) do
     if type(button) == "table" then
@@ -72,7 +71,7 @@ local function StyleResetConfirmPopup(dialog)
       if type(button.SetScript) == "function" then
         button:SetScript("OnEnter", function(self)
           if type(self.SetBackdropBorderColor) == "function" then
-            self:SetBackdropBorderColor(gold[1], gold[2], gold[3], 0.85)
+            self:SetBackdropBorderColor(accent[1], accent[2], accent[3], 0.85)
           end
           if self._isiLiveHoverGlow and type(self._isiLiveHoverGlow.Show) == "function" then
             self._isiLiveHoverGlow:Show()

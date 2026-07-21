@@ -93,8 +93,8 @@ function QueueLifecycle.BuildHandlers(ctx)
   local logf = type(ctx.logRuntimeTracef) == "function" and ctx.logRuntimeTracef or nil
   return {
     LFG_LIST_APPLICATION_STATUS_UPDATED = function(_self, ...)
-      local args = { ... }
       if logf then
+        local args = { ... }
         logf(
           "[QUEUE] application_status_updated searchResultID=%s status=%s inChallenge=%s",
           tostring(args[1]),
@@ -115,6 +115,7 @@ function QueueLifecycle.BuildHandlers(ctx)
       if ctx.isNegativeApplicationStatusEvent(...) then
         local preserve = ShouldPreservePendingQueueJoinInfoOnNegativeStatus(ctx)
         if logf then
+          local args = { ... }
           logf("[QUEUE] negative_status searchResultID=%s preservePending=%s", tostring(args[1]), tostring(preserve))
         end
         if not preserve then
@@ -130,8 +131,8 @@ function QueueLifecycle.BuildHandlers(ctx)
       ctx.captureQueueJoinCandidate(...)
     end,
     LFG_LIST_SEARCH_RESULT_UPDATED = function(_self, ...)
-      local args = { ... }
       if logf then
+        local args = { ... }
         logf(
           "[QUEUE] search_result_updated searchResultID=%s inChallenge=%s",
           tostring(args[1]),
