@@ -902,6 +902,7 @@ local function FinalizeFactoryRuntime(ctx)
     refreshController = ctx.refreshController,
     inspectController = ctx.inspectController,
     statusController = ctx.statusController,
+    teleportUIController = ctx.teleportUIController,
     exitTestMode = ctx.ExitTestMode,
     updateStatusLine = ctx.UpdateStatusLine,
     applyLocalizationToUI = ctx.ApplyLocalizationToUI,

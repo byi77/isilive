@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-07-22 - Version 0.9.351 (patch)
+
+- Fixed the M+ UI teleport button grid staying on the previous season after an
+  automatic season switch. The event-handler context did not thread the
+  teleport UI controller through to the runtime wiring, so the
+  `controllers.teleport.BuildButtons()` rebuild that runs on a season change was
+  a silent no-op — the buttons kept the season they were built with at startup
+  while the portal navigator (a live-render path) already followed the new
+  season. The context now exposes `teleportUIController`, so the button grid
+  rebuilds on the switch.
+- Added regression guards: a source-level check that the event-handler context
+  threads `teleportUIController`, and a wiring test that the teleport controller
+  reaches `controllers.teleport`.
+
 ## 2026-07-22 - Version 0.9.350 (patch)
 
 - Confirmed that Midnight Season 2 reuses the Season 1 portal room

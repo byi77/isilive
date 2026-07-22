@@ -3,7 +3,7 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.350`.
+Current release: `0.9.351`.
 
 Highlights:
 - **Midnight Season 2 is armed for automatic selection.** isiLive now switches

@@ -118,6 +118,93 @@ local function CaptureEventModule()
   end
 end
 
+-- Minimal-but-complete factory context accepted by
+-- CreateEventHandlersControllerFromContext. Overrides are shallow-merged so
+-- individual tests can inject the one field they exercise.
+local function BuildEventContext(overrides)
+  local ctx = {
+    addonName = "isiLive",
+    isRosterCollapsed = Noop,
+    defaultLocale = "enUS",
+    locales = { enUS = {} },
+    resolveLocaleTag = Noop,
+    setLocaleTable = Noop,
+    isInGroup = Noop,
+    isInChallengeMode = Noop,
+    isRaidGroup = Noop,
+    isNegativeApplicationStatusEvent = Noop,
+    getNormalizedActiveEntryInfo = Noop,
+    sendIsiLiveHello = Noop,
+    sendOwnKeySnapshot = Noop,
+    sendOwnBackgroundSnapshot = Noop,
+    sendRefreshResponse = Noop,
+    ensureQueueDebugStorage = Noop,
+    setQueueDebugEnabled = Noop,
+    registerIsiLiveSyncPrefix = Noop,
+    applyHotkeyBindings = Noop,
+    startBindingWatchdog = Noop,
+    getUnitNameAndRealm = Noop,
+    markIsiLiveUser = Noop,
+    applyKnownKeyToRosterEntry = Noop,
+    isTestMode = Noop,
+    isTestAllMode = Noop,
+    setPendingQueueJoinInfo = Noop,
+    setPendingPostChallengeRefresh = Noop,
+    getActiveJoinedKeyMapID = Noop,
+    setActiveJoinedKeyMapID = Noop,
+    getPendingBindingApply = Noop,
+    getRoster = function()
+      return {}
+    end,
+    mainFrame = {
+      IsShown = function()
+        return true
+      end,
+    },
+    mainUI = {
+      GetPendingHeight = Noop,
+      GetPendingWidth = Noop,
+      GetPendingVisible = Noop,
+    },
+    applySecureSpellToButton = Noop,
+    groupController = { HandleGroupRosterUpdate = Noop },
+    exitTestMode = Noop,
+    clearLatestQueueTarget = Noop,
+    updateMPlusTeleportButton = Noop,
+    captureQueueJoinCandidate = Noop,
+    updateUI = Noop,
+    refreshReadyCheckUI = Noop,
+    setMainFrameVisible = Noop,
+    updateLeaderButtons = Noop,
+    updateStatusLine = Noop,
+    applyLocalizationToUI = Noop,
+    restoreLayoutState = Noop,
+    updateCountdownCancelButton = Noop,
+    checkIfEnteredTargetDungeon = Noop,
+    setMainFrameHeightSafe = Noop,
+    setMainFrameWidthSafe = Noop,
+    sync = {
+      ProcessAddonMessage = Noop,
+      GetPrefix = function()
+        return "ISILIVE"
+      end,
+      IsUserKnown = function()
+        return false
+      end,
+    },
+    runFullRefresh = Noop,
+    getAddonVersionRaw = function()
+      return "0.9.180"
+    end,
+  }
+  if overrides then
+    for key, value in pairs(overrides) do
+      ctx[key] = value
+    end
+  end
+  return ctx
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
@@ -431,85 +518,39 @@ return function(test, ctx)
   test("ControllerWiring CreateEventHandlersControllerFromContext builds deps from ctx", function()
     local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" })
     local module, getCaptured = CaptureEventModule()
-    local fakeCtx = {
-      addonName = "isiLive",
-      isRosterCollapsed = Noop,
-      defaultLocale = "enUS",
-      locales = { enUS = {} },
-      resolveLocaleTag = Noop,
-      setLocaleTable = Noop,
-      isInGroup = Noop,
-      isInChallengeMode = Noop,
-      isRaidGroup = Noop,
-      isNegativeApplicationStatusEvent = Noop,
-      getNormalizedActiveEntryInfo = Noop,
-      sendIsiLiveHello = Noop,
-      sendOwnKeySnapshot = Noop,
-      sendOwnBackgroundSnapshot = Noop,
-      sendRefreshResponse = Noop,
-      ensureQueueDebugStorage = Noop,
-      setQueueDebugEnabled = Noop,
-      registerIsiLiveSyncPrefix = Noop,
-      applyHotkeyBindings = Noop,
-      startBindingWatchdog = Noop,
-      getUnitNameAndRealm = Noop,
-      markIsiLiveUser = Noop,
-      applyKnownKeyToRosterEntry = Noop,
-      isTestMode = Noop,
-      isTestAllMode = Noop,
-      setPendingQueueJoinInfo = Noop,
-      setPendingPostChallengeRefresh = Noop,
-      getActiveJoinedKeyMapID = Noop,
-      setActiveJoinedKeyMapID = Noop,
-      getPendingBindingApply = Noop,
-      getRoster = function()
-        return {}
-      end,
-      mainFrame = {
-        IsShown = function()
-          return true
-        end,
-      },
-      mainUI = {
-        GetPendingHeight = Noop,
-        GetPendingWidth = Noop,
-        GetPendingVisible = Noop,
-      },
-      applySecureSpellToButton = Noop,
-      groupController = { HandleGroupRosterUpdate = Noop },
-      exitTestMode = Noop,
-      clearLatestQueueTarget = Noop,
-      updateMPlusTeleportButton = Noop,
-      captureQueueJoinCandidate = Noop,
-      updateUI = Noop,
-      refreshReadyCheckUI = Noop,
-      setMainFrameVisible = Noop,
-      updateLeaderButtons = Noop,
-      updateStatusLine = Noop,
-      applyLocalizationToUI = Noop,
-      restoreLayoutState = Noop,
-      updateCountdownCancelButton = Noop,
-      checkIfEnteredTargetDungeon = Noop,
-      setMainFrameHeightSafe = Noop,
-      setMainFrameWidthSafe = Noop,
-      sync = {
-        ProcessAddonMessage = Noop,
-        GetPrefix = function()
-          return "ISILIVE"
-        end,
-        IsUserKnown = function()
-          return false
-        end,
-      },
-      runFullRefresh = Noop,
-      getAddonVersionRaw = function()
-        return "0.9.180"
-      end,
-    }
-    local ctrl = addon.ControllerWiring.CreateEventHandlersControllerFromContext(module, fakeCtx)
+    local ctrl = addon.ControllerWiring.CreateEventHandlersControllerFromContext(module, BuildEventContext())
     Assert.NotNil(ctrl, "controller must be returned from context-based wiring")
     local config = getCaptured()
     Assert.NotNil(config, "module config must be captured")
     Assert.Equal(config.addonName, "isiLive", "addonName must propagate via the context mapping")
+  end)
+
+  -- Regression guard: the M+ teleport button grid is rebuilt on season switch
+  -- via controllers.teleport.BuildButtons(). That branch is a silent no-op if
+  -- teleportUIController is not threaded from the factory context into the
+  -- event-handler deps, which leaves the buttons stuck on the startup season
+  -- while the portal navigator (a live-render path) correctly follows the
+  -- auto-selected season.
+  test("CreateEventHandlersControllerFromContext threads teleportUIController into controllers.teleport", function()
+    local addon = LoadAddonModules({ "isiLive_controller_wiring.lua" })
+    local fakeTeleport = { BuildButtons = Noop, UpdateButtons = Noop, GetButtons = Noop }
+    local capturedDeps
+    local origCreate = addon.ControllerWiring.CreateEventHandlersController
+    addon.ControllerWiring.CreateEventHandlersController = function(_module, deps)
+      capturedDeps = deps
+      return { Dispatch = Noop }
+    end
+    addon.ControllerWiring.CreateEventHandlersControllerFromContext(
+      CaptureEventModule(),
+      BuildEventContext({ teleportUIController = fakeTeleport })
+    )
+    addon.ControllerWiring.CreateEventHandlersController = origCreate
+    Assert.NotNil(capturedDeps, "event-handler deps must be captured")
+    Assert.NotNil(capturedDeps.controllers, "deps.controllers must exist")
+    Assert.Equal(
+      capturedDeps.controllers.teleport,
+      fakeTeleport,
+      "teleportUIController must reach controllers.teleport so BuildButtons fires on season switch"
+    )
   end)
 end

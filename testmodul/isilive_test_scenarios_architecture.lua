@@ -988,6 +988,22 @@ local function RegisterArchitectureTeleportWiringTests(test, Assert)
     )
   end)
 
+  test("Architecture event-handler context threads the teleport UI controller", function()
+    -- The season auto-switch rebuilds the M+ teleport button grid via
+    -- controllers.teleport.BuildButtons(). That branch is a silent no-op unless
+    -- the event-handler context exposes teleportUIController, so guard the field
+    -- explicitly: without it the buttons stay stuck on the startup season while
+    -- the portal navigator (a live-render path) already follows the new season.
+    local factoryContent = ReadFile("isiLive_factory.lua")
+
+    AssertContains(
+      Assert,
+      factoryContent,
+      "teleportUIController = ctx.teleportUIController,",
+      "eventHandlersContext must thread teleportUIController so season-switch BuildButtons is not a silent no-op"
+    )
+  end)
+
   test("Architecture ResolveLocalStatusTargetMapID prioritises LFG detected mapID", function()
     local controllersContent = ReadFile("isiLive_factory_status_helpers.lua")
 
