@@ -159,7 +159,14 @@ jobs:
                 echo "Unsupported TOC interface '${interface}'. Expected an even number of digits." >&2
                 exit 1
               fi
-              printf '%s.%s.%s\n' "$((10#${interface:0:2}))" "$((10#${interface:2:1}))" "$((10#${interface:3}))"
+              # TOC interfaces are MAJOR + 2-digit MINOR + 2-digit PATCH, so split the
+              # trailing four digits off rather than assuming a single-digit minor
+              # (120100 is 12.1.0, not 12.0.100).
+              interface_len="${#interface}"
+              printf '%s.%s.%s\n' \
+                "$((10#${interface:0:interface_len-4}))" \
+                "$((10#${interface:interface_len-4:2}))" \
+                "$((10#${interface:interface_len-2:2}))"
             done | jq -R . | jq -s .
           )"
           if [ "$(printf '%s' "${GAME_VERSIONS_JSON}" | jq 'length')" -eq 0 ]; then

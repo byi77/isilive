@@ -170,6 +170,12 @@ local function CompileSeason(source)
   local navigator = season.portalNavigator
   local slots = type(navigator) == "table" and navigator.slots or nil
   local titles = type(navigator) == "table" and navigator.titleByLocale or nil
+  local zone = type(navigator) == "table" and navigator.zone or nil
+  -- Without a hub zone the navigator can never open, so treat it like the slots:
+  -- a manifest error, not a silent no-op.
+  if type(zone) ~= "table" or (CountTableEntries(zone.mapIDs) == 0 and CountTableEntries(zone.names) == 0) then
+    season.manifestErrors[#season.manifestErrors + 1] = "portalNavigator must provide a zone with mapIDs or names"
+  end
   if type(slots) ~= "table" or type(titles) ~= "table" or type(titles.default) ~= "string" or titles.default == "" then
     season.manifestErrors[#season.manifestErrors + 1] = "portalNavigator must provide slots and a default title"
   else
@@ -736,6 +742,34 @@ function SeasonData.GetPortalNavigatorConfig(seasonID)
     return nil
   end
   return season.portalNavigator
+end
+
+-- Returns the hub-zone gate for the season's portal room as lookup sets:
+-- `mapIDs` keyed by numeric map id, `names` keyed by lowercased zone name.
+-- Callers compare against both because the map id is unavailable in some states.
+function SeasonData.GetPortalNavigatorZone(seasonID)
+  local navigator = SeasonData.GetPortalNavigatorConfig(seasonID)
+  local zone = type(navigator) == "table" and navigator.zone or nil
+  if type(zone) ~= "table" then
+    return { mapIDs = {}, names = {} }
+  end
+
+  local mapIDs = {}
+  for _, rawMapID in ipairs(type(zone.mapIDs) == "table" and zone.mapIDs or {}) do
+    local mapID = NormalizeMapIDInput(rawMapID)
+    if mapID and mapID > 0 then
+      mapIDs[mapID] = true
+    end
+  end
+
+  local names = {}
+  for _, rawName in ipairs(type(zone.names) == "table" and zone.names or {}) do
+    if type(rawName) == "string" and rawName ~= "" then
+      names[string.lower(rawName)] = true
+    end
+  end
+
+  return { mapIDs = mapIDs, names = names }
 end
 
 function SeasonData.GetShortCodes(localeTag, seasonID)

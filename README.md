@@ -2,8 +2,8 @@
 
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
-![WoW 12.0.7+ Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%2B%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.348](https://img.shields.io/badge/isiLive-0.9.348-1E90FF?style=for-the-badge)
+![WoW 12.0.7 / 12.1.0 Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%20%2F%2012.1.0%20Midnight%20Retail-00A2FF?style=for-the-badge)
+![isiLive 0.9.349](https://img.shields.io/badge/isiLive-0.9.349-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -13,11 +13,11 @@
 
 **Active season:** `midnight_s1` with 8 supported dungeons: `WRS`, `MT`, `NPX`, `MC`, `AA`, `POS`, `SOT`, `SR`
 
-**Prepared season:** `midnight_s2` remains inactive. All eight ChallengeMapIDs, castable portal spell IDs, Mythic+ LFG activity IDs, localized display names, short codes, and the map-ID display order are recorded. Automatic S2 selection is disabled; Season 2 will be activated manually even if its optional MDT forces database is not available yet. Until a matching S2 database ships, Blizzard's overall dungeon progress remains visible while MDT-dependent mob percentages and tooltip lines stay hidden.
+**Prepared season:** `midnight_s2` is fully recorded but not live. All eight ChallengeMapIDs, castable portal spell IDs, Mythic+ LFG activity IDs, localized display names, short codes, and the map-ID display order are verified. S2 is armed for automatic selection: it activates itself once Blizzard's challenge-map table matches the recorded S2 map set exactly, so while S1 is live nothing changes. Selection is runtime-only and never rewrites the manifest's `activeSeasonID`, which stays available as the manual fallback. Season 2 does not depend on its optional MDT forces database; until a matching S2 database ships, Blizzard's overall dungeon progress remains visible while MDT-dependent mob percentages and tooltip lines stay hidden.
 
 Season maintenance is driven by one normalized manifest. Portal, LFG activity, display, level-gate, and portal-room indexes are derived from the same per-dungeon records; the generated MDT forces snapshot remains separate.
 
-Version `0.9.348` fixes a queued-chat channel guard in the bundled ChatThrottleLib and cleans up several full-codebase-audit findings: deduplicated Mythic+ timer/tracked-run checks, a hardened inspect controller call, and a consistent settings-dialog hover accent.
+Version `0.9.349` arms Midnight Season 2 for automatic selection, so the switch happens on its own once Blizzard ships the new dungeon set — no addon update required on season day. It also adds WoW `12.1.0` to the supported interface versions and fixes the season tooling that would otherwise have blocked a manual season switch.
 
 **Setup:** install, join a 5-player group, and the window opens automatically.
 

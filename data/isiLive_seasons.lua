@@ -11,9 +11,14 @@ addonTable = addonTable or {}
 -- Maintenance workflow for a new season:
 -- 1. Add a new entry under `seasons`; do not overwrite historical season entries.
 -- 2. Add every dungeon exactly once and use only IDs confirmed by a reliable source.
--- 3. Keep `autoDetectFromChallengeMaps = false` until the season is ready for activation.
+-- 3. Keep `autoDetectFromChallengeMaps = false` until every dungeon row is verified.
+--    Once verified it may be set to `true` ahead of the season launch: selection is an
+--    exact match against Blizzard's challenge-map table, so a prepared season only wins
+--    once Blizzard actually ships it. Auto-selection is runtime-only and never rewrites
+--    `activeSeasonID`.
 -- 4. Set `mdtDirectory` only when the exact MDT directory is verified; never guess it.
--- 5. Change `activeSeasonID` only after the full season intake has been verified.
+-- 5. Change `activeSeasonID` only as the manual fallback when auto-selection cannot
+--    match (e.g. Blizzard's map table diverges from the manifest).
 -- 6. Run `lua tools/check_season_intake.lua` and `lua tools/validate_usecases.lua`.
 --
 -- Runtime lookup tables are compiled from this manifest by game/isiLive_season_data.lua.
@@ -28,6 +33,18 @@ addonTable.SeasonManifest = {
       mdtDirectory = "Midnight",
       inactivePortalMessageByLocale = {},
       portalNavigator = {
+        -- Hub zone that hosts this season's portal room. `mapIDs` is the reliable
+        -- signal; `names` is the localized fallback when the map id is unavailable.
+        zone = {
+          mapIDs = { 2266 },
+          names = {
+            "Millennia's Threshold",
+            "Die Jahrhunderschwelle",
+            "Jahrhunderschwelle",
+            "The Timeways",
+            "Timeways",
+          },
+        },
         titleByLocale = {
           default = "isiLive - Midnight Season One M+ Navigator",
         },
@@ -112,13 +129,25 @@ addonTable.SeasonManifest = {
     },
     midnight_s2 = {
       label = "Midnight Season 2",
-      autoDetectFromChallengeMaps = false,
+      autoDetectFromChallengeMaps = true,
       requiresForces = false,
       inactivePortalMessageByLocale = {
         default = "Midnight Season 2 is prepared but not active yet.",
         deDE = "Midnight Season 2 ist vorbereitet, aber noch nicht aktiv.",
       },
       portalNavigator = {
+        -- Same Midnight hub zone as Season 1. Verify against the live portal room
+        -- before activation; a wrong zone silently keeps the navigator closed.
+        zone = {
+          mapIDs = { 2266 },
+          names = {
+            "Millennia's Threshold",
+            "Die Jahrhunderschwelle",
+            "Jahrhunderschwelle",
+            "The Timeways",
+            "Timeways",
+          },
+        },
         titleByLocale = {
           default = "isiLive - Midnight Season Two M+ Navigator",
           deDE = "isiLive - Midnight Saison Zwei M+ Navigator",

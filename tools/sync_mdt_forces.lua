@@ -246,10 +246,30 @@ local function main(argv)
   local args = parseArgs(argv)
 
   local season = type(SEASON_MANIFEST.seasons) == "table" and SEASON_MANIFEST.seasons[args.season] or nil
-  local mdtSubDir = type(season) == "table" and season.mdtDirectory or nil
-  if not mdtSubDir then
+  if type(season) ~= "table" then
     io.stderr:write(string.format("[sync_mdt_forces] unknown season %q\n", args.season))
     os.exit(2)
+  end
+
+  local mdtSubDir = season.mdtDirectory
+  if type(mdtSubDir) ~= "string" or mdtSubDir == "" then
+    -- A known season without an mdtDirectory is a valid state: MDT upstream has not
+    -- published this season yet. Only a requiresForces season makes that an error.
+    if season.requiresForces == true then
+      io.stderr:write(
+        string.format("[sync_mdt_forces] season %q requires forces but has no mdtDirectory\n", args.season)
+      )
+      os.exit(2)
+    end
+    print(
+      string.format(
+        "[sync_mdt_forces] season=%s has no mdtDirectory and requiresForces = false — "
+          .. "nothing to sync, leaving %s untouched.",
+        args.season,
+        args.out
+      )
+    )
+    os.exit(0)
   end
 
   local sourceDir = args.mdt .. "/" .. mdtSubDir

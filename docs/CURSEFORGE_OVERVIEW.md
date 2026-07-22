@@ -39,13 +39,13 @@ Empfohlene Medienpositionen im CurseForge-Editor:
 isiLive
 The colorful Mythic+ command center for World of Warcraft.
 
-🟦 WoW 12.0.7+ Midnight Retail
+🟦 WoW 12.0.7 / 12.1.0 Midnight Retail
 🟩 Mythic+ Command Center
 🟧 Automatic Setup
-🟪 Version 0.9.348
+🟪 Version 0.9.349
 
 isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
-Version 0.9.348 fixes a queued-chat channel guard in the bundled ChatThrottleLib and cleans up several full-codebase-audit findings, including deduplicated Mythic+ timer checks and a hardened inspect controller call.
+Version 0.9.349 arms Midnight Season 2 for automatic selection, so isiLive switches to the new dungeon set on its own once the game reports it — no addon update needed on season day. It also adds WoW 12.1.0 support.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 WHY USE isiLive?

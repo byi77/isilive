@@ -133,9 +133,26 @@ return function(test, ctx)
         .. 'addonTable.MPlusForces = { season = "midnight_s1", expiresAt = "2030-01-01", '
         .. "dungeonTotal = {}, byNpcId = {} }\n"
     )
-    local code, msg = tool.Check(path, { today = "2026-04-21", activeSeasonID = "midnight_s2" })
+    local code, msg = tool.Check(path, { today = "2026-04-21", activeSeasonID = "midnight_s2", requiresForces = true })
     Assert.Equal(2, code, "season mismatch must be a structural error")
     Assert.True(tostring(msg):find("season mismatch", 1, true) ~= nil, "message must name the season mismatch")
+    os.remove(path)
+  end)
+
+  test("mplus_db_lifetime: skips the season match when the active season needs no forces", function()
+    local tool = LoadTool()
+    local path = TempPath("isilive_mplus_db_noforces.lua")
+    -- A season may ship before MDT publishes its data (requiresForces = false).
+    -- The stale DB is then unused at runtime and must not fail the build.
+    WriteRawFixture(
+      path,
+      "local _, addonTable = ...\n"
+        .. 'addonTable.MPlusForces = { season = "midnight_s1", expiresAt = "2030-01-01", '
+        .. "dungeonTotal = {}, byNpcId = {} }\n"
+    )
+    local code, msg = tool.Check(path, { today = "2026-04-21", activeSeasonID = "midnight_s2", requiresForces = false })
+    Assert.Equal(0, code, "a requiresForces = false season must not be blocked by a foreign DB: " .. tostring(msg))
+    Assert.True(tostring(msg):find("requiresForces", 1, true) ~= nil, "message must name the skipped gate")
     os.remove(path)
   end)
 

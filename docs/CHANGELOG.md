@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-07-22 - Version 0.9.349 (patch)
+
+- **Season 2 is now armed for automatic selection.** `midnight_s2` switched to
+  `autoDetectFromChallengeMaps = true`. Season selection is an exact match
+  against `C_ChallengeMode.GetMapTable()`, so S2 only wins once Blizzard
+  actually ships the S2 map set; while Season 1 is live, `midnight_s1` keeps
+  resolving. Selection stays runtime-only and never rewrites `activeSeasonID`,
+  which remains the manual fallback if Blizzard's map set ever diverges from
+  the manifest. Active season is still `midnight_s1`.
+- **The M+ forces DB lifetime gate now honors `requiresForces`.** Previously,
+  pointing the manifest at a season whose forces data had not shipped yet
+  failed the build with a season mismatch that could not be bypassed — and the
+  DB could not be regenerated either, because `sync_mdt_forces.lua` aborted on
+  the missing `mdtDirectory`. A season declaring `requiresForces = false` now
+  skips the season match (the runtime already fails closed via
+  `SeasonData.GetMatchingForcesData`), and the sync tool exits cleanly instead
+  of erroring, leaving the existing DB untouched. A genuinely unknown season
+  still fails as before.
+- **Moved the portal-room hub zone into the season manifest**
+  (`portalNavigator.zone`). The map IDs and zone names used to gate the portal
+  navigator were hardcoded in `ui/isiLive_status.lua`, outside the season
+  manifest and reachable in only two of the eight supported languages. A
+  season without a zone is now a manifest error rather than a silently closed
+  navigator. Behavior for Season 1 is unchanged.
+- Fixed the CurseForge game-version parser in the release workflow, which
+  assumed a single-digit TOC minor version and would have published interface
+  `120100` as game version `12.0.100` instead of `12.1.0`.
+- Added `## Interface: 120100` (WoW 12.1.0) alongside `120007`.
+- Documented the auto-selection path and the portal-room zone check in
+  [`docs/SAISON_WECHSEL.md`](SAISON_WECHSEL.md).
+
 ## 2026-07-21 - Version 0.9.348 (patch)
 
 - Fixed ChatThrottleLib's queued-message channel guard: messages queued via

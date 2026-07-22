@@ -44,17 +44,22 @@ local function BuildDungeonContextSignature(instanceType, difficultyID, instance
   }, "|")
 end
 
-local PORTAL_NAVIGATOR_ZONE_NAMES = {
-  jahrhunderschwelle = true,
-  ["die jahrhunderschwelle"] = true,
-  ["millennia's threshold"] = true,
-  timeways = true,
-  ["the timeways"] = true,
-}
+-- The hub-zone gate lives in data/isiLive_seasons.lua so a season change cannot
+-- leave a stale zone behind in the UI layer. Fail closed on an unresolved season.
+local EMPTY_PORTAL_NAVIGATOR_ZONE = { mapIDs = {}, names = {} }
 
-local PORTAL_NAVIGATOR_MAP_IDS = {
-  [2266] = true,
-}
+local function GetPortalNavigatorZone()
+  local seasonData = addonTable.SeasonData
+  if type(seasonData) ~= "table" or type(seasonData.GetPortalNavigatorZone) ~= "function" then
+    return EMPTY_PORTAL_NAVIGATOR_ZONE
+  end
+
+  local ok, zone = pcall(seasonData.GetPortalNavigatorZone)
+  if not ok or type(zone) ~= "table" then
+    return EMPTY_PORTAL_NAVIGATOR_ZONE
+  end
+  return zone
+end
 
 local PORTAL_NAVIGATOR_SLOT_ORDER = { "left", "half_left", "center", "half_right", "right" }
 local PORTAL_NAVIGATOR_DIRECTION_KEYS = {
@@ -107,8 +112,9 @@ local function SafeCallNumberProvider(provider)
 end
 
 local function ResolvePortalNavigatorZoneSignature(deps)
+  local zone = GetPortalNavigatorZone()
   local playerMapID = SafeCallNumberProvider(deps.getPlayerMapID)
-  if playerMapID and PORTAL_NAVIGATOR_MAP_IDS[playerMapID] then
+  if playerMapID and zone.mapIDs[playerMapID] then
     return "map:" .. tostring(playerMapID), true
   end
 
@@ -155,7 +161,7 @@ local function ResolvePortalNavigatorZoneSignature(deps)
   end
 
   for _, candidateZoneText in ipairs(candidates) do
-    if PORTAL_NAVIGATOR_ZONE_NAMES[candidateZoneText] then
+    if zone.names[candidateZoneText] then
       return candidateZoneText, true
     end
   end

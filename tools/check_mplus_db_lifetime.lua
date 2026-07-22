@@ -13,7 +13,8 @@
 --   ISILIVE_TODAY_OVERRIDE=YYYY-MM-DD  Override "today" for deterministic runs
 --                                      (CI replay, regression reproduction).
 --   ISILIVE_ACTIVE_SEASON_ID=season_id  Optional active season id; when set,
---                                      the DB's `season` field must match.
+--                                      the DB's `season` field must match, unless
+--                                      that season declares requiresForces = false.
 --
 -- Run from repo root:
 --   lua tools/check_mplus_db_lifetime.lua
@@ -41,15 +42,37 @@ local function parseDate(s)
   return tonumber(y) * 10000 + tonumber(m) * 100 + tonumber(d)
 end
 
-local function readActiveSeasonID(path)
+local function loadSeasonManifest(path)
   path = path or SEASON_DATA_PATH
-  local file = io.open(path, "rb")
-  if not file then
+  local loader = loadfile(path)
+  if not loader then
     return nil
   end
-  local content = file:read("*a") or ""
-  file:close()
-  return content:match('activeSeasonID%s*=%s*"([^"]+)"')
+  local addonTable = {}
+  local ok = pcall(loader, "isiLive", addonTable)
+  if not ok or type(addonTable.SeasonManifest) ~= "table" then
+    return nil
+  end
+  return addonTable.SeasonManifest
+end
+
+local function readActiveSeasonID(path)
+  local manifest = loadSeasonManifest(path)
+  return type(manifest) == "table" and manifest.activeSeasonID or nil
+end
+
+-- A season may deliberately ship without MDT forces data (`requiresForces = false`),
+-- e.g. while MDT upstream has not published the new season yet. The runtime already
+-- fails closed via SeasonData.GetMatchingForcesData, so the DB is simply unused and
+-- must not block the build.
+local function seasonRequiresForces(path, seasonID)
+  local manifest = loadSeasonManifest(path)
+  local seasons = type(manifest) == "table" and manifest.seasons or nil
+  local season = type(seasons) == "table" and seasons[seasonID] or nil
+  if type(season) ~= "table" then
+    return true
+  end
+  return season.requiresForces == true
 end
 
 local M = {}
@@ -78,6 +101,18 @@ function M.Check(dbPath, opts)
     or os.getenv("ISILIVE_ACTIVE_SEASON_ID")
     or readActiveSeasonID(opts.seasonDataPath)
   if type(activeSeasonID) == "string" and activeSeasonID ~= "" and db.season ~= activeSeasonID then
+    local requiresForces = opts.requiresForces
+    if requiresForces == nil then
+      requiresForces = seasonRequiresForces(opts.seasonDataPath, activeSeasonID)
+    end
+    if not requiresForces then
+      return 0,
+        string.format(
+          "M+ forces DB is for %s while active season %s declares requiresForces = false — DB unused, skipping gate.",
+          tostring(db.season),
+          tostring(activeSeasonID)
+        )
+    end
     return 2,
       string.format(
         "M+ forces DB season mismatch: active season is %s but DB season is %s",

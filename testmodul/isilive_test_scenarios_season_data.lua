@@ -455,10 +455,23 @@ local function RegisterSetActiveSeasonIDTests(test, Assert, LoadAddonModules)
 end
 
 local function RegisterAutomaticSeasonSelectionTests(test, Assert, LoadAddonModules)
-  test("SeasonData keeps Midnight Season 2 excluded from automatic selection", function()
+  test("SeasonData auto-selects Midnight Season 2 only once Blizzard ships the S2 map set", function()
     local addon = LoadSeasonData(LoadAddonModules)
     local season = addon.SeasonData.SEASONS.midnight_s2
-    Assert.False(season.autoDetectFromChallengeMaps, "S2 must require the explicit manual season switch")
+    Assert.True(season.autoDetectFromChallengeMaps, "S2 must be an auto-selection candidate ahead of launch")
+
+    -- While Blizzard still ships the S1 map set, the prepared S2 entry must not win.
+    local liveSeasonID = addon.SeasonData.ResolveSeasonIDFromChallengeMapIDs({
+      161,
+      239,
+      402,
+      556,
+      557,
+      558,
+      559,
+      560,
+    })
+    Assert.Equal(liveSeasonID, "midnight_s1", "the live S1 map set must keep resolving to S1")
 
     local seasonID, reason = addon.SeasonData.ResolveSeasonIDFromChallengeMapIDs({
       249,
@@ -470,12 +483,23 @@ local function RegisterAutomaticSeasonSelectionTests(test, Assert, LoadAddonModu
       587,
       588,
     })
-    Assert.Nil(seasonID, "the exact S2 map set must not select S2 automatically")
-    Assert.Equal(
-      reason,
-      "Blizzard challenge map list does not exactly match a configured season",
-      "manual-only S2 must remain outside automatic map-set resolution"
-    )
+    Assert.Equal(seasonID, "midnight_s2", "the exact S2 map set must resolve to S2")
+    Assert.Nil(reason, "a successful resolution must not report a rejection reason")
+
+    -- S2 declares requiresForces = false, so the stale S1 forces DB must not block it.
+    local ok, changed = addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs({
+      249,
+      250,
+      399,
+      584,
+      585,
+      586,
+      587,
+      588,
+    })
+    Assert.True(ok, "S2 must pass the readiness gate without matching forces data")
+    Assert.True(changed, "auto-selection must report the active-season change")
+    Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s2", "S2 must become the runtime-active season")
   end)
 
   test("SeasonData auto-selects only an exact Blizzard challenge-map set with complete ready data", function()
@@ -742,6 +766,92 @@ local function RegisterAccessorFallbackTests(test, Assert, LoadAddonModules)
     Assert.Equal(navigator.slots.center, 399, "S2 portal-room center must resolve from the manifest")
     Assert.False(navigator.slots.left, "explicitly empty S2 portal-room slots must remain false")
     Assert.Nil(addon.SeasonData.GetMdtDirectory("midnight_s2"), "unknown S2 MDT directory must stay unresolved")
+  end)
+
+  test("SeasonData compiles the portal-room zone into normalized lookup sets", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+
+    for _, seasonID in ipairs({ "midnight_s1", "midnight_s2" }) do
+      local zone = addon.SeasonData.GetPortalNavigatorZone(seasonID)
+      Assert.True(zone.mapIDs[2266] == true, seasonID .. " must gate the navigator on the Midnight hub map id")
+      -- Names are lowercased at compile time so callers can compare directly
+      -- against normalized zone text from the Blizzard API.
+      Assert.True(zone.names["millennia's threshold"] == true, seasonID .. " must accept the enUS hub zone name")
+      Assert.True(zone.names["die jahrhunderschwelle"] == true, seasonID .. " must accept the deDE hub zone name")
+      Assert.Nil(zone.names["Millennia's Threshold"], "zone names must not stay in their original casing")
+      Assert.Nil(zone.mapIDs[9999], "an unrelated map id must not gate the navigator open")
+    end
+  end)
+
+  test("SeasonData zone lookup drops invalid entries and fails closed on a missing zone", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    addon.SeasonData.SEASONS.test_zone = {
+      label = "Test Zone",
+      portalNavigator = {
+        zone = { mapIDs = { 42, "nope", -1, 0 }, names = { "Real Zone", "", 17 } },
+      },
+    }
+
+    local zone = addon.SeasonData.GetPortalNavigatorZone("test_zone")
+    Assert.True(zone.mapIDs[42] == true, "a valid positive map id must survive normalization")
+    Assert.Nil(zone.mapIDs[-1], "a negative map id must be dropped")
+    Assert.Nil(zone.mapIDs[0], "a zero map id must be dropped")
+    Assert.True(zone.names["real zone"] == true, "a valid zone name must survive normalization")
+    Assert.Nil(zone.names[""], "an empty zone name must be dropped")
+
+    -- A season without a navigator zone must yield empty sets, never a nil that
+    -- would blow up the UI-side lookup.
+    addon.SeasonData.SEASONS.test_nozone = { label = "No Zone", portalNavigator = { slots = {} } }
+    local missing = addon.SeasonData.GetPortalNavigatorZone("test_nozone")
+    Assert.Equal(next(missing.mapIDs), nil, "a season without a zone must expose an empty map-id set")
+    Assert.Equal(next(missing.names), nil, "a season without a zone must expose an empty name set")
+
+    local unknown = addon.SeasonData.GetPortalNavigatorZone("does_not_exist")
+    Assert.Equal(next(unknown.mapIDs), nil, "an unknown season must fail closed with an empty zone")
+  end)
+
+  test("Season manifest rejects a portal navigator without a hub zone", function()
+    -- Seed the manifest before loading so the real CompileSeason path runs
+    -- against a season whose navigator has slots and a title but no zone.
+    local addon = LoadAddonModules({ "isiLive_season_data.lua" }, {
+      SeasonManifest = {
+        activeSeasonID = "zoneless",
+        seasons = {
+          zoneless = {
+            label = "Zoneless",
+            portalNavigator = {
+              titleByLocale = { default = "isiLive - Zoneless Navigator" },
+              slots = { left = 100, half_left = false, center = false, half_right = false, right = false },
+            },
+            dungeons = {
+              {
+                mapID = 100,
+                activityIDs = { 900 },
+                portalSpellIDs = { 800 },
+                displayOrder = 1,
+                names = { enUS = "Zoneless Dungeon", deDE = "Zoneloser Dungeon" },
+                shortCodes = { default = "ZD", deDE = "ZD" },
+              },
+            },
+          },
+        },
+      },
+    })
+
+    local readiness = addon.SeasonData.GetSeasonReadiness("zoneless")
+    Assert.False(readiness.isReady, "a season without a portal-room zone must not be ready")
+    Assert.True(findError(readiness, "zone") ~= nil, "the readiness report must name the missing portal-navigator zone")
+
+    -- The shipped seasons must not report that error. Their full readiness
+    -- (including the forces DB, which this harness does not load) is covered by
+    -- tools/inspect_season_readiness.lua.
+    local shipped = LoadSeasonData(LoadAddonModules)
+    for _, seasonID in ipairs({ "midnight_s1", "midnight_s2" }) do
+      Assert.Nil(
+        findError(shipped.SeasonData.GetSeasonReadiness(seasonID), "zone"),
+        seasonID .. " must not report a missing portal-navigator zone"
+      )
+    end
   end)
 end
 

@@ -3,17 +3,15 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.348`.
+Current release: `0.9.349`.
 
 Highlights:
-- Fixed a queued-chat channel guard in the bundled ChatThrottleLib: messages
-  queued via `SendChatMessage` under bandwidth throttling read the wrong
-  internal field for their channel, silently bypassing the raid/party/
-  instance-chat availability check.
-- Deduplicated Mythic+ timer and tracked-run state checks into a shared
-  helper and removed unused combat-log wiring left over from a pre-12.0
-  implementation.
-- Hardened the inspect controller's `NotifyInspect` call with the same
-  protected-API guard used everywhere else in that module.
-- Unified the settings-reset confirmation dialog's hover accent color and
-  fixed editor lint warnings on settings UI separator textures.
+- **Midnight Season 2 is armed for automatic selection.** isiLive now switches
+  to the Season 2 dungeon set on its own, as soon as the game reports the new
+  challenge maps. Nothing changes while Season 1 is live, and no addon update
+  is needed on season day.
+- Added WoW `12.1.0` to the supported interface versions alongside `12.0.7`.
+- Fixed the season maintenance tooling so a season that ships before its
+  optional enemy-forces database no longer blocks a manual season switch.
+- Moved the portal-room detection into the season data file, so a future
+  portal room can be updated in one place instead of in the UI code.

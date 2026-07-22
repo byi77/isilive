@@ -23,11 +23,18 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
 - [ ] In `data/isiLive_seasons.lua` einen neuen Season-Eintrag hinzufuegen;
   historische Eintraege nicht ueberschreiben.
 - [ ] Jeden Dungeon genau einmal als vollstaendigen Datensatz eintragen.
-- [ ] `autoDetectFromChallengeMaps` bewusst setzen. Noch nicht freigegebene
-  Seasons bleiben auf `false`.
+- [ ] `autoDetectFromChallengeMaps` bewusst setzen. Solange noch Dungeonzeilen
+  unverifiziert sind, bleibt der Wert `false`. Nach `8/8 verified` darf er schon
+  vor dem Season-Start auf `true` stehen: die Auswahl ist ein exakter Abgleich
+  gegen `C_ChallengeMode.GetMapTable()`, eine vorbereitete Season gewinnt also
+  erst, wenn Blizzard sie tatsaechlich ausliefert.
 - [ ] `requiresForces`, `inactivePortalMessageByLocale` und `portalNavigator`
   bewusst festlegen.
+- [ ] `portalNavigator.zone` gegen den echten Portalraum pruefen (Map-IDs und
+  Zonennamen). Eine falsche Zone laesst den Navigator stumm geschlossen.
 - [ ] `mdtDirectory` nur mit verifiziertem exaktem MDT-Verzeichnis setzen.
+  Fehlt es bei `requiresForces = false`, ueberspringt `sync_mdt_forces.lua`
+  den Lauf bewusst und laesst die bestehende DB unangetastet.
 - [ ] `activeSeasonID` in dieser Phase noch nicht umstellen.
 - [ ] Keine saisonalen Zuordnungstabellen in LFG-, Status-, Demo-, UI- oder
   Tooldateien duplizieren.
@@ -48,8 +55,14 @@ Werte bleiben `unresolved` und blockieren den betroffenen Schritt.
 - [ ] `lua tools/inspect_season_readiness.lua` ausfuehren und alle gemeldeten
   Luecken klaeren.
 - [ ] Die bewusste Freigabe des Users fuer den Saisonwechsel einholen.
-- [ ] Erst danach `activeSeasonID` in `data/isiLive_seasons.lua` umstellen.
-- [ ] TOC-Version nur nach ausdruecklichem Auftrag erhoehen.
+- [ ] Regelfall: Steht `autoDetectFromChallengeMaps = true` und stimmt der
+  Mapsatz, wechselt die Season zur Laufzeit von selbst. `activeSeasonID` bleibt
+  dann unveraendert, und die CI-Gates laufen weiter gegen die alte Season.
+- [ ] Fallback: Nur wenn kein Datensatz exakt passt (Blizzards Mapsatz weicht
+  vom Manifest ab), `activeSeasonID` in `data/isiLive_seasons.lua` umstellen.
+  Danach `lua tools/check_mplus_db_lifetime.lua` pruefen — bei
+  `requiresForces = true` muss vorher eine passende Forces-DB erzeugt sein.
+- [ ] TOC-Version und `## Interface` nur nach ausdruecklichem Auftrag erhoehen.
 
 ## 5. Deterministische und In-Game-Pruefung
 
