@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.0.7 / 12.1.0 Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%20%2F%2012.1.0%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.351](https://img.shields.io/badge/isiLive-0.9.351-1E90FF?style=for-the-badge)
+![isiLive 0.9.352](https://img.shields.io/badge/isiLive-0.9.352-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -17,7 +17,7 @@
 
 Season maintenance is driven by one normalized manifest. Portal, LFG activity, display, level-gate, and portal-room indexes are derived from the same per-dungeon records; the generated MDT forces snapshot remains separate.
 
-Version `0.9.351` fixes the Mythic+ teleport button grid not following an automatic season switch: the portal buttons now rebuild for the newly selected season, matching the portal navigator. The automatic Season 2 selection introduced in `0.9.350` is unchanged — the switch still happens on its own once Blizzard ships the new dungeon set, with no addon update required on season day.
+Version `0.9.352` adds a unified admin debug namespace (`/isilive debug <topic> [verb ...]`, old commands unchanged) and consolidates the addon's UI colors into a single maintained token table with no visual change. The automatic Season 2 selection introduced in `0.9.350` is unchanged — the switch still happens on its own once Blizzard ships the new dungeon set, with no addon update required on season day.
 
 **Setup:** install, join a 5-player group, and the window opens automatically.
 

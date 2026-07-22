@@ -1,7 +1,7 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.351`
-Zuletzt aktualisiert: `2026-07-13`
+Versionsbasis: `0.9.352`
+Zuletzt aktualisiert: `2026-07-22`
 
 ## Zweck
 
@@ -36,6 +36,47 @@ WoW Event
   -> Domain Controllers (queue/group/lfg-detect/highlight/sync/inspect/refresh/stats/cd-tracker/kick-tracker)
   -> Runtime State Update
   -> UI Controllers Render
+```
+
+Dieselbe Kette als Diagramm, gruppiert nach den fuenf Schichten aus der
+Schichtuebersicht oben. Absichtlich grob (Schichten, nicht Dateien) —
+Detailtiefe bleibt in der Tabelle, das Diagramm ist reine Navigationshilfe
+fuer den Wiedereinstieg nach einer Pause.
+
+```mermaid
+flowchart TD
+    WowEvent(["WoW Event"])
+
+    subgraph L1["Einstieg & Orchestrierung"]
+        Factory["Composition Root / Factories<br/>Wiring, Controller-Lifecycle"]
+    end
+
+    subgraph L2["Event-Gate & Dispatch"]
+        Gate["Event Gate<br/>stopped/paused/hidden/test"]
+        Aggregator["Event Handler Aggregator"]
+        Lifecycle["Lifecycle Handler<br/>runtime/queue/challenge"]
+    end
+
+    subgraph L3["Fachlogik"]
+        Domain["Domain Controllers<br/>queue/group/lfg-detect/highlight/sync/inspect/refresh/stats/cd-tracker/kick-tracker"]
+    end
+
+    subgraph L4["UI-Komposition"]
+        RuntimeState["Runtime State Update"]
+        UI["UI Controllers Render"]
+    end
+
+    subgraph L5["Gemeinsame Helfer & Daten"]
+        Helpers["Locale, Season-Manifest, Sound-Registry,<br/>Config-Builders, Runtime-Log, ..."]
+    end
+
+    WowEvent --> Gate --> Aggregator --> Lifecycle --> Domain --> RuntimeState --> UI
+
+    Factory -. wiring .-> Gate
+    Factory -. wiring .-> Domain
+    Factory -. wiring .-> UI
+    Helpers -. genutzt von .-> Domain
+    Helpers -. genutzt von .-> UI
 ```
 
 ## Zentrale Runtime-Zustaende
@@ -223,7 +264,7 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
 5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach die aktuell registrierten Szenarien aus `tools/usecase_scenarios.lua` ab; die exakte Anzahl wird bei jedem Lauf ausgegeben und die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
    Zusaetzlich laeuft der gleiche Validator-Lauf in CI unter `luacov` (`lua -lluacov tools/validate_usecases.lua`), damit `tools/coverage_summary.lua` die Line-Coverage pro Schicht in das GitHub-Actions-Step-Summary schreibt und der vollstaendige `luacov.report.out` als Artefakt hochgeladen wird.
-   Letzter voller Coverage-Audit-Stand (`2026-07-22`, lokaler Preflight bei 0.9.351): **92.10% Gesamt-Line-Coverage** (`34532 / 37494` Zeilen). Vorheriger Stand (`2026-07-22`, 0.9.350): 92.10% (`34531 / 37493` Zeilen). Das Coverage-Gate bleibt bei mindestens 88.00% gesamt und 80.00% pro Produktionsdatei.
+   Letzter voller Coverage-Audit-Stand (`2026-07-22`, lokaler Preflight bei 0.9.352): **92.13% Gesamt-Line-Coverage** (`34660 / 37621` Zeilen). Vorheriger Stand (`2026-07-22`, 0.9.351): 92.10% (`34532 / 37494` Zeilen). Das Coverage-Gate bleibt bei mindestens 88.00% gesamt und 80.00% pro Produktionsdatei.
    Historische Baseline (`2026-04-22`, Commit nach Coverage-Einfuehrung): **78.62% Gesamt-Line-Coverage** ueber 19487 Produktionszeilen.
 6. Der M+-Forces-DB-Refresh laeuft automatisch ueber `.github/workflows/sync-mplus-forces.yml` (Donnerstag 06:00 UTC plus `workflow_dispatch`): Clone MDT → `tools/sync_mdt_forces.lua` → voller CI-Preflight (stylua, luacheck, syntax, metrics, locale drift, lifetime, Nameplate-Key-Start-Simulator, SavedVariables-Reload-Simulator, Key-Start-Lifecycle-Simulator, usecases) → Commit + Push nach `main`. Ohne Diff im DB-File laeuft der Workflow still durch ohne Commit.
 7. Der taegliche S2-Forces-Verfuegbarkeitsmonitor klont MDT nur zur Inspektion. Er meldet per markerstabilem, bei Bedarf wieder geoeffnetem GitHub Issue strukturelle Verfuegbarkeit, wenn fuer alle konfigurierten Dungeons exakte Map-IDs, positive Gesamtwerte und positive NPC-Forces-Daten ausfuehrbar vorliegen. Er prueft alle Kandidaten statt beim ersten Texttreffer abzubrechen; Texttreffer und Platzhalter bleiben geschlossen. Das Signal behauptet keine unbelegbare vollstaendige NPC-Abdeckung.
@@ -238,7 +279,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.351 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.352 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

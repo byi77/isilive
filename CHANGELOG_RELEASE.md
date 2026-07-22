@@ -3,20 +3,15 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.351`.
+Current release: `0.9.352`.
 
 Highlights:
+- Added a unified admin debug namespace, `/isilive debug <topic> [verb ...]`,
+  covering runtime/queue/error/teleport/season/hearthstone debugging. Old
+  commands keep working unchanged.
+- Consolidated scattered UI colors into a single named-token table with a
+  build gate preventing new ones from creeping back in — no visual change.
 - **Midnight Season 2 is armed for automatic selection.** isiLive now switches
   to the Season 2 dungeon set on its own, as soon as the game reports the new
   challenge maps. Nothing changes while Season 1 is live, and no addon update
   is needed on season day.
-- Added WoW `12.1.0` to the supported interface versions alongside `12.0.7`.
-- Fixed the season maintenance tooling so a season that ships before its
-  optional enemy-forces database no longer blocks a manual season switch.
-- Moved the portal-room detection into the season data file, so a future
-  portal room can be updated in one place instead of in the UI code.
-  Season 2 is confirmed to reuse the Season 1 portal room — only the portals
-  inside it change.
-- Documented all bundled textures as the maintainer's own work in the public
-  provenance record. The per-file origin of the bundled sounds stays openly
-  marked as unresolved rather than guessed.

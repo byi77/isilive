@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-07-22 - Version 0.9.352 (patch)
+
+- Added a unified admin debug namespace, `/isilive debug <runtime|queue|errors|teleport|season|hearthstone> [verb ...]`,
+  routing to the existing `log`/`qdebug`/`errorlog`/`tpdebug`/`seasondump`/`hearthdump`
+  handlers. The old aliases keep working unchanged; the namespace is pure
+  routing with no behavior change, verified by parity tests that run both
+  paths and assert identical output.
+- Consolidated the 69 literal UI colors scattered across 17 `ui/*.lua` files
+  into named tokens in `UICommon.Colors` (`ui/isiLive_ui_common.lua`), each
+  value extracted verbatim (no visual change). Added a new local gate,
+  `tools/check_ui_color_tokens.lua`, that fails the build if a new literal
+  `SetTextColor`/`SetVertexColor`/`SetColorTexture` argument appears outside
+  `UICommon.Colors`.
+- Added a Mermaid flowchart to the Runtime-Flow section of
+  [`docs/ARCHITECTURE.md`](ARCHITECTURE.md), mirroring the existing text-flow
+  chain grouped by the five architecture layers, as a navigation aid.
+
 ## 2026-07-22 - Version 0.9.351 (patch)
 
 - Fixed the M+ UI teleport button grid staying on the previous season after an
