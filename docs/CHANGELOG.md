@@ -1,6 +1,21 @@
 # Changelog
 
-## 2026-07-22 - Version 0.9.349 (patch)
+## 2026-07-22 - Version 0.9.350 (patch)
+
+- Confirmed that Midnight Season 2 reuses the Season 1 portal room
+  (Millennia's Threshold): only the portals inside it change, and those are
+  already recorded in `portalNavigator.slots`. The hub zone in the season
+  manifest is no longer a carried-over assumption but a verified value.
+- Documented all bundled textures as the maintainer's own work in
+  [`docs/ASSET_PROVENANCE.md`](ASSET_PROVENANCE.md) — `media/flags/*.tga`,
+  `heart_bonus_green.tga`, `heart_sync.tga` and `arrow_bonus_green.tga` were
+  previously `unresolved`. The per-file mapping of the bundled sound files
+  remains explicitly `unresolved` and is not guessed.
+- Corrected the generated Season Intake issue body, which still claimed season
+  activation was manual; a season armed for automatic selection activates
+  itself, with the manifest flip demoted to a fallback.
+
+## 2026-07-22 - Version 0.9.349 (patch, superseded by 0.9.350 before release)
 
 - **Season 2 is now armed for automatic selection.** `midnight_s2` switched to
   `autoDetectFromChallengeMaps = true`. Season selection is an exact match

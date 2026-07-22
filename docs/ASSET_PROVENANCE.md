@@ -5,7 +5,10 @@ oeffentlichen Repository gebuendelten Drittbibliotheken, Sounds und Texturen.
 Unbekannte Zuordnungen bleiben ausdruecklich `unresolved`; sie werden nicht aus
 Dateinamen, Metadaten oder Aehnlichkeiten abgeleitet.
 
-Dokumentationsstand: `2026-07-15`.
+Dokumentationsstand: `2026-07-22`.
+
+Offen ist derzeit ausschliesslich die Einzelzuordnung der Sounddateien; die
+Texturen sind seit `2026-07-22` als Eigenwerk des Maintainers geklaert.
 
 ## Quellcode von Dritten
 
@@ -39,12 +42,15 @@ Pflegepflicht:
 
 ## Texturen
 
+Der Maintainer hat am `2026-07-22` bestaetigt, dass alle gebuendelten Texturen
+selbst erstellt wurden. Damit ist dieser Abschnitt vollstaendig geklaert.
+
 | Pfade | Herkunft | Lizenzstatus |
 | --- | --- | --- |
-| `media/flags/*.tga` | `unresolved` | `unresolved` |
-| `media/heart_bonus_green.tga` | `unresolved` | `unresolved` |
-| `media/heart_sync.tga` | `unresolved` | `unresolved` |
-| `media/arrow_bonus_green.tga` | Bewusst im Repository behalten; Herkunft `unresolved` | `unresolved` |
+| `media/flags/*.tga` | Selbst erstellt vom Maintainer; bestaetigt `2026-07-22` | Eigenes Werk des Maintainers |
+| `media/heart_bonus_green.tga` | Selbst erstellt vom Maintainer; bestaetigt `2026-07-22` | Eigenes Werk des Maintainers |
+| `media/heart_sync.tga` | Selbst erstellt vom Maintainer; bestaetigt `2026-07-22` | Eigenes Werk des Maintainers |
+| `media/arrow_bonus_green.tga` | Selbst erstellt vom Maintainer; bestaetigt `2026-07-22`. Bewusst im Repository behalten | Eigenes Werk des Maintainers |
 
 ## Screenshots und Mockups
 

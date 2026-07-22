@@ -136,8 +136,9 @@ addonTable.SeasonManifest = {
         deDE = "Midnight Season 2 ist vorbereitet, aber noch nicht aktiv.",
       },
       portalNavigator = {
-        -- Same Midnight hub zone as Season 1. Verify against the live portal room
-        -- before activation; a wrong zone silently keeps the navigator closed.
+        -- Same hub zone as Season 1 (Millennia's Threshold), confirmed by the
+        -- maintainer on 2026-07-22: S2 reuses the S1 portal room, only the
+        -- portals inside it change. The slots below carry that difference.
         zone = {
           mapIDs = { 2266 },
           names = {
