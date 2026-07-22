@@ -60,7 +60,7 @@ jobs:
               "",
               "This issue is updated by the Season Intake workflow.",
               "",
-              "The intake is a pre-activation collection surface only. Season activation remains manual via `SeasonData.ACTIVE_SEASON_ID`.",
+              "The intake is a pre-activation collection surface only. A season with `autoDetectFromChallengeMaps = true` activates itself once Blizzard ships the exact matching challenge-map set; `SeasonData.ACTIVE_SEASON_ID` remains the manual fallback.",
               "",
               report,
             ].join("\n");
