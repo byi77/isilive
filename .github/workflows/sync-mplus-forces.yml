@@ -104,6 +104,10 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         run: lua tools/check_hardcoded_strings.lua
 
+      - name: UI Color Tokens Check
+        if: steps.diff.outputs.changed == 'true'
+        run: lua tools/check_ui_color_tokens.lua
+
       - name: Sound Channel Check
         if: steps.diff.outputs.changed == 'true'
         run: lua tools/check_sound_channel.lua

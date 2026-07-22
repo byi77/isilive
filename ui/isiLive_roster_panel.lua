@@ -2,6 +2,11 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local RosterPanel = {}
 addonTable.RosterPanel = RosterPanel
 
@@ -486,7 +491,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   title:SetPoint("TOPLEFT", 10, TITLE_Y)
   title:SetJustifyH("LEFT")
-  title:SetTextColor(1, 0.85, 0)
+  title:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.GOLD_TITLE) or { 1, 0.85, 0 }))
   title:SetShadowOffset(1, -1)
   if type(title.SetShadowColor) == "function" then
     title:SetShadowColor(0, 0, 0, 0.8)
@@ -495,7 +500,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
 
   local titleVersion = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   titleVersion:SetPoint("LEFT", title, "RIGHT", 5, 0)
-  titleVersion:SetTextColor(0.55, 0.75, 1.0)
+  titleVersion:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.BLUE_VERSION_TEXT) or { 0.55, 0.75, 1.0 }))
   if type(titleVersion.SetShadowOffset) == "function" then
     titleVersion:SetShadowOffset(1, -1)
   end
@@ -506,7 +511,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
 
   local titleHint = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   titleHint:SetPoint("LEFT", titleVersion, "RIGHT", 6, 0)
-  titleHint:SetTextColor(0.45, 0.85, 0.45)
+  titleHint:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.GREEN_HINT_TEXT) or { 0.45, 0.85, 0.45 }))
   if type(titleHint.SetShadowOffset) == "function" then
     titleHint:SetShadowOffset(1, -1)
   end
@@ -583,7 +588,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
   local frameWidth = type(mainFrame.GetWidth) == "function" and mainFrame:GetWidth() or 400
   raidNoticeLabel:SetWidth(frameWidth - 16)
   raidNoticeLabel:SetJustifyH("CENTER")
-  raidNoticeLabel:SetTextColor(1, 0.5, 0)
+  raidNoticeLabel:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.ORANGE_RAID_NOTICE) or { 1, 0.5, 0 }))
   raidNoticeLabel:SetWordWrap(true)
   raidNoticeLabel:Hide()
 

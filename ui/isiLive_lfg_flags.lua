@@ -1,8 +1,15 @@
 local _, addonTable = ...
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local LFGFlags = {}
 addonTable.LFGFlags = LFGFlags
+
+local UICommon = addonTable.UICommon
 
 -- Internal helpers exposed for tests via addonTable._LFGFlagsInternal.
 -- Production callers continue to use the local references defined below.
@@ -1677,7 +1684,9 @@ local function ApplyApplicantBonusIconMarkers(member, markerCount)
         icon:SetTexCoord(0, 1, 0, 1)
       end
       if type(icon.SetVertexColor) == "function" then
-        icon:SetVertexColor(1, 1, 1, 1)
+        icon:SetVertexColor(
+          unpack((type(UICommon) == "table" and UICommon.Colors and UICommon.Colors.WHITE_OPAQUE) or { 1, 1, 1, 1 })
+        )
       end
       AnchorApplicantBonusIcon(member, icon, index)
       if index <= markerCount then

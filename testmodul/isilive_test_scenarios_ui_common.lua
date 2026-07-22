@@ -509,4 +509,44 @@ return function(test, ctx)
     UICommon.PreparePrivateTooltip(nil, MakeFrameStub())
     UICommon.PreparePrivateTooltip("not-a-table", MakeFrameStub())
   end)
+
+  -- UICommon.Colors ------------------------------------------------------------
+  -- Guards the 2026-07-22 UI color-token consolidation: every entry must be a
+  -- well-formed RGB(A) tuple, and no two keys may carry the exact same value
+  -- -- a new token should always reuse an existing exact match instead of
+  -- duplicating it (see the token catalog comment in isiLive_ui_common.lua).
+
+  test("UICommon.Colors entries are well-formed RGB or RGBA tuples with values in [0, 1]", function()
+    local UICommon = LoadUICommon()
+    for name, color in pairs(UICommon.Colors) do
+      Assert.True(type(color) == "table", "Colors." .. name .. " must be a table")
+      local count = #color
+      Assert.True(count == 3 or count == 4, "Colors." .. name .. " must have 3 (RGB) or 4 (RGBA) entries")
+      for i = 1, count do
+        local component = color[i]
+        Assert.True(type(component) == "number", "Colors." .. name .. "[" .. i .. "] must be numeric")
+        Assert.True(component >= 0 and component <= 1, "Colors." .. name .. "[" .. i .. "] must be in [0, 1]")
+      end
+    end
+  end)
+
+  test("UICommon.Colors has no two keys sharing the exact same value tuple", function()
+    local UICommon = LoadUICommon()
+    local seenBy = {}
+    for name, color in pairs(UICommon.Colors) do
+      local key = table.concat(color, ",")
+      local existing = seenBy[key]
+      Assert.True(
+        existing == nil,
+        "Colors."
+          .. name
+          .. " duplicates Colors."
+          .. tostring(existing)
+          .. " ("
+          .. key
+          .. ") -- reuse the token instead"
+      )
+      seenBy[key] = name
+    end
+  end)
 end

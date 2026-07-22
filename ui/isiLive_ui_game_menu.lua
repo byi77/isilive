@@ -2,6 +2,11 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local UI = addonTable.UI or {}
 addonTable.UI = UI
 local GameMenuActions = assert(addonTable.UIGameMenuActions, "isiLive: UIGameMenuActions missing")
@@ -484,7 +489,7 @@ local function CreatePanelUIButton(
       iconBorder:SetPoint("LEFT", PANEL_UI_ICON_PADDING - 1, 0)
     end
     if type(iconBorder.SetColorTexture) == "function" then
-      iconBorder:SetColorTexture(0, 0, 0, 0.5)
+      iconBorder:SetColorTexture(unpack(Colors.BLACK_OVERLAY_50 or { 0, 0, 0, 0.5 }))
     end
     local icon = button:CreateTexture(nil, "ARTWORK")
     if type(icon.SetSize) == "function" then

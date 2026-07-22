@@ -2,6 +2,11 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local TeleportUI = {}
 addonTable.TeleportUI = TeleportUI
 local RI = addonTable._RosterInternal or {}
@@ -16,6 +21,7 @@ local preparePrivateTooltip = assert(
 local hidePrivateTooltip =
   assert(addonTable.UICommon and addonTable.UICommon.HidePrivateTooltip, "isiLive: UICommon.HidePrivateTooltip missing")
 local setReadableText = addonTable.UICommon and addonTable.UICommon.SetReadableText
+local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
 local LAYOUT_MODE_EXPANDED = RI.LAYOUT_MODE_EXPANDED or "expanded"
 local LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or "compact_main_horizontal"
 local M2_ROW_LEFT_MARGIN = RI.M2_ROW_LEFT_MARGIN or 10
@@ -78,7 +84,7 @@ local function EnsureTeleportButtonShortCodeLabel(button)
     label:SetJustifyV("MIDDLE")
   end
   if label.SetTextColor then
-    label:SetTextColor(1, 1, 1)
+    label:SetTextColor(unpack(Colors.WHITE_RGB or { 1, 1, 1 }))
   end
   if label.SetShadowColor then
     label:SetShadowColor(0, 0, 0, 1)
@@ -228,7 +234,7 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
 
   button.overlay = button.overlayFrame:CreateTexture(nil, "OVERLAY")
   button.overlay:SetAllPoints()
-  button.overlay:SetColorTexture(0, 0, 0, 0.35)
+  button.overlay:SetColorTexture(unpack(Colors.BLACK_OVERLAY_35 or { 0, 0, 0, 0.35 }))
 
   -- Hatched active-target border: a container frame holding dashed segments
   -- along the four edges. The Show/Hide of the container propagates to the
@@ -459,7 +465,7 @@ function TeleportUI.CreateController(opts)
       label:SetJustifyH("RIGHT")
     end
     if type(label.SetTextColor) == "function" then
-      label:SetTextColor(1, 0.82, 0.18)
+      label:SetTextColor(unpack(Colors.GOLD_LABEL_ALT or { 1, 0.82, 0.18 }))
     end
     if type(label.SetWordWrap) == "function" then
       label:SetWordWrap(true)
@@ -655,16 +661,16 @@ function TeleportUI.CreateController(opts)
 
       if available then
         if button.isActiveTarget then
-          button.overlay:SetColorTexture(0.15, 0.35, 0.55, 0.25)
+          button.overlay:SetColorTexture(unpack(Colors.STEEL_BLUE_OVERLAY or { 0.15, 0.35, 0.55, 0.25 }))
           if not button.animGroup:IsPlaying() then
             button.animGroup:Play()
           end
         else
-          button.overlay:SetColorTexture(0, 0, 0, 0.28)
+          button.overlay:SetColorTexture(unpack(Colors.BLACK_OVERLAY_28 or { 0, 0, 0, 0.28 }))
           button.animGroup:Stop()
         end
       else
-        button.overlay:SetColorTexture(0, 0, 0, 0.62)
+        button.overlay:SetColorTexture(unpack(Colors.BLACK_OVERLAY_62 or { 0, 0, 0, 0.62 }))
         button.animGroup:Stop()
       end
 

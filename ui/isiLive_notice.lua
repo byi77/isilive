@@ -2,6 +2,11 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local Notice = {}
 addonTable.Notice = Notice
 local createRedCloseButton = assert(
@@ -23,6 +28,7 @@ local applyReadableFontForText = assert(
   "isiLive: UICommon.ApplyReadableFontForText missing"
 )
 local setReadableText = addonTable.UICommon and addonTable.UICommon.SetReadableText
+local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
 
 local NOTICE_TITLE_COLOR_R, NOTICE_TITLE_COLOR_G, NOTICE_TITLE_COLOR_B = 1, 0.9, 0.45
 local NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B = 1, 0.82, 0.25
@@ -161,7 +167,7 @@ local function CreateCenterNoticeFrame(config)
     if type(frame.CreateTexture) == "function" then
       local bg = frame:CreateTexture(nil, "BACKGROUND")
       bg:SetAllPoints()
-      bg:SetColorTexture(0.05, 0.05, 0.08, 0.75)
+      bg:SetColorTexture(unpack(Colors.BG_NOTICE_CARD or { 0.05, 0.05, 0.08, 0.75 }))
     end
   end
   return frame
@@ -189,10 +195,12 @@ local function CreatePortalNavigatorFrame(config)
     if type(frame.CreateTexture) == "function" then
       local bg = frame:CreateTexture(nil, "BACKGROUND")
       bg:SetAllPoints()
-      bg:SetColorTexture(0.05, 0.05, 0.08, config.backgroundAlpha)
+      local base = Colors.BG_NOTICE_CARD_BASE or { 0.05, 0.05, 0.08 }
+      bg:SetColorTexture(base[1], base[2], base[3], config.backgroundAlpha)
     end
   elseif type(frame.SetBackdropColor) == "function" then
-    frame:SetBackdropColor(0.05, 0.05, 0.08, config.backgroundAlpha)
+    local base = Colors.BG_NOTICE_CARD_BASE or { 0.05, 0.05, 0.08 }
+    frame:SetBackdropColor(base[1], base[2], base[3], config.backgroundAlpha)
   end
   if type(frame.SetAlpha) == "function" then
     frame:SetAlpha(config.frameAlpha)
@@ -246,7 +254,7 @@ local function CreatePortalNavigatorEyebrow(frame, config)
   if eyebrow.SetNonSpaceWrap then
     eyebrow:SetNonSpaceWrap(false)
   end
-  eyebrow:SetTextColor(0.46, 0.94, 1)
+  eyebrow:SetTextColor(unpack(Colors.CYAN_EYEBROW or { 0.46, 0.94, 1 }))
   return eyebrow
 end
 
@@ -269,7 +277,7 @@ local function CreatePortalNavigatorSeparator(frame)
   sep:SetHeight(1)
   sep:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -68)
   sep:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -24, -68)
-  sep:SetColorTexture(0.36, 0.71, 1, 0.55)
+  sep:SetColorTexture(unpack(Colors.BLUE_SEPARATOR or { 0.36, 0.71, 1, 0.55 }))
   return sep
 end
 
@@ -286,7 +294,7 @@ local PORTAL_NAVIGATOR_SLOT_ORDER = { "left", "half_left", "center", "half_right
 local function CreatePortalStyleBodyText(frame, config)
   local text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   IncreaseFontSize(text, config.fontDelta)
-  text:SetTextColor(1, 0.92, 0.7)
+  text:SetTextColor(unpack(Colors.WARM_WHITE_TEXT or { 1, 0.92, 0.7 }))
   return text
 end
 
@@ -303,7 +311,7 @@ local function CreatePortalNavigatorEntry(frame, config, slot)
   if direction.SetNonSpaceWrap then
     direction:SetNonSpaceWrap(false)
   end
-  direction:SetTextColor(0.38, 0.92, 1)
+  direction:SetTextColor(unpack(Colors.CYAN_DIRECTION or { 0.38, 0.92, 1 }))
   direction:SetPoint(pointDef.point, frame, pointDef.point, pointDef.x, pointDef.y)
 
   local iconBg = frame:CreateTexture(nil, "BACKGROUND")
@@ -311,14 +319,14 @@ local function CreatePortalNavigatorEntry(frame, config, slot)
     iconBg:SetSize(44, 44)
   end
   iconBg:SetPoint("TOP", direction, "BOTTOM", pointDef.iconX, pointDef.iconY)
-  iconBg:SetColorTexture(0.05, 0.2, 0.34, 0.65)
+  iconBg:SetColorTexture(unpack(Colors.DEEP_BLUE_ICON_BG or { 0.05, 0.2, 0.34, 0.65 }))
 
   local iconCore = frame:CreateTexture(nil, "ARTWORK")
   if type(iconCore.SetSize) == "function" then
     iconCore:SetSize(40, 40)
   end
   iconCore:SetPoint("CENTER", iconBg, "CENTER", 0, 0)
-  iconCore:SetColorTexture(0.1, 0.45, 1, 0.92)
+  iconCore:SetColorTexture(unpack(Colors.BLUE_ICON_CORE or { 0.1, 0.45, 1, 0.92 }))
 
   text:SetWidth(config.entryWidth)
   text:SetJustifyH("CENTER")
@@ -337,7 +345,7 @@ local function CreatePortalNavigatorEntry(frame, config, slot)
   if detail.SetNonSpaceWrap then
     detail:SetNonSpaceWrap(false)
   end
-  detail:SetTextColor(0.62, 0.68, 0.76)
+  detail:SetTextColor(unpack(Colors.SLATE_DETAIL_TEXT or { 0.62, 0.68, 0.76 }))
   detail:SetPoint("TOP", text, "BOTTOM", 0, -2)
 
   return {
@@ -380,7 +388,7 @@ local function ClearPortalNavigatorEntries(state)
       entry.direction:SetText("")
       entry.destination:SetText("")
       entry.detail:SetText("")
-      entry.iconBg:SetColorTexture(0.05, 0.2, 0.34, 0.65)
+      entry.iconBg:SetColorTexture(unpack(Colors.DEEP_BLUE_ICON_BG or { 0.05, 0.2, 0.34, 0.65 }))
       SetPortalNavigatorIconColor(entry.iconCore, 0.1, 0.45, 1, 0.92)
     end
   end
@@ -422,10 +430,10 @@ local function ApplyPortalNavigatorLayout(state, layout)
       SetReadableText(node.destination, entry.destination or "")
       node.detail:SetText("")
       if entry.isEmpty == true then
-        node.iconBg:SetColorTexture(0.13, 0.15, 0.18, 0.55)
+        node.iconBg:SetColorTexture(unpack(Colors.DARK_SLATE_ICON_BG or { 0.13, 0.15, 0.18, 0.55 }))
         SetPortalNavigatorIconColor(node.iconCore, 0.36, 0.4, 0.46, 0.78)
       else
-        node.iconBg:SetColorTexture(0.05, 0.2, 0.34, 0.65)
+        node.iconBg:SetColorTexture(unpack(Colors.DEEP_BLUE_ICON_BG or { 0.05, 0.2, 0.34, 0.65 }))
         if type(entry.icon) == "string" or type(entry.icon) == "number" then
           SetPortalNavigatorIconTexture(node.iconCore, entry.icon)
         else
@@ -472,7 +480,7 @@ local function CreateCenterNoticeSubline(frame, config, position)
     subline:SetTextColor(NOTICE_GOLD_ACCENT_R, NOTICE_GOLD_ACCENT_G, NOTICE_GOLD_ACCENT_B)
   else
     -- Muted grey for secondary context (group name, etc.).
-    subline:SetTextColor(0.7, 0.7, 0.7)
+    subline:SetTextColor(unpack(Colors.GRAY_SUBLINE or { 0.7, 0.7, 0.7 }))
   end
   subline:Hide()
   return subline
@@ -505,7 +513,7 @@ local function CreateCenterNoticeTitleSeparator(frame)
   end
   local sep = frame:CreateTexture(nil, "ARTWORK")
   sep:SetHeight(1)
-  sep:SetColorTexture(0.36, 0.71, 1, 0.55)
+  sep:SetColorTexture(unpack(Colors.BLUE_SEPARATOR or { 0.36, 0.71, 1, 0.55 }))
   sep:Hide()
   return sep
 end
@@ -519,7 +527,7 @@ local function CreateCenterNoticeEyebrow(frame, config)
   if eyebrow.SetNonSpaceWrap then
     eyebrow:SetNonSpaceWrap(false)
   end
-  eyebrow:SetTextColor(0.46, 0.94, 1)
+  eyebrow:SetTextColor(unpack(Colors.CYAN_EYEBROW or { 0.46, 0.94, 1 }))
   eyebrow:Hide()
   return eyebrow
 end
@@ -608,7 +616,7 @@ local function CreateCenterNoticeTeleportButton(frame, config)
     button.actionBg:SetSize(config.buttonHeight + 8, config.buttonHeight + 8)
   end
   button.actionBg:SetPoint("CENTER", button, "CENTER", 0, 0)
-  button.actionBg:SetColorTexture(0.04, 0.18, 0.32, 0.62)
+  button.actionBg:SetColorTexture(unpack(Colors.BLUE_ACTION_BG or { 0.04, 0.18, 0.32, 0.62 }))
   button.icon = button:CreateTexture(nil, "ARTWORK")
   if type(button.icon.SetSize) == "function" then
     button.icon:SetSize(config.buttonHeight, config.buttonHeight)
@@ -618,11 +626,11 @@ local function CreateCenterNoticeTeleportButton(frame, config)
   button.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
   button.overlay = button:CreateTexture(nil, "OVERLAY")
   button.overlay:SetAllPoints()
-  button.overlay:SetColorTexture(0, 0, 0, 0)
+  button.overlay:SetColorTexture(unpack(Colors.TRANSPARENT or { 0, 0, 0, 0 }))
   button.cooldownText = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   IncreaseFontSize(button.cooldownText, RICH_TELEPORT_STATUS_FONT_DELTA)
   button.cooldownText:SetPoint("TOP", button, "TOP", 0, -4)
-  button.cooldownText:SetTextColor(1, 1, 1)
+  button.cooldownText:SetTextColor(unpack(Colors.WHITE_RGB or { 1, 1, 1 }))
   button.cooldownText:Hide()
 
   button.hoverGlow = button:CreateTexture(nil, "BACKGROUND")
@@ -631,7 +639,7 @@ local function CreateCenterNoticeTeleportButton(frame, config)
     button.hoverGlow:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 4, -4)
   end
   if type(button.hoverGlow.SetColorTexture) == "function" then
-    button.hoverGlow:SetColorTexture(0.3, 0.65, 1, 0.2)
+    button.hoverGlow:SetColorTexture(unpack(Colors.BLUE_HOVER_GLOW or { 0.3, 0.65, 1, 0.2 }))
   end
   if type(button.hoverGlow.Hide) == "function" then
     button.hoverGlow:Hide()
@@ -682,11 +690,11 @@ local function UpdateCenterNoticeTeleportButtonVisual(state, spellID, isEnabled,
   state.teleportButton.icon:SetTexture(icon)
 
   if inCombatBlocked then
-    state.teleportButton.overlay:SetColorTexture(0.4, 0.05, 0.05, 0.55)
+    state.teleportButton.overlay:SetColorTexture(unpack(Colors.RED_DANGER_OVERLAY or { 0.4, 0.05, 0.05, 0.55 }))
   elseif not isEnabled then
-    state.teleportButton.overlay:SetColorTexture(0, 0, 0, 0.6)
+    state.teleportButton.overlay:SetColorTexture(unpack(Colors.BLACK_OVERLAY_60 or { 0, 0, 0, 0.6 }))
   else
-    state.teleportButton.overlay:SetColorTexture(0, 0, 0, 0)
+    state.teleportButton.overlay:SetColorTexture(unpack(Colors.TRANSPARENT or { 0, 0, 0, 0 }))
   end
 end
 

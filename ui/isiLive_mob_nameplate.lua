@@ -1,8 +1,15 @@
 local _, addonTable = ...
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local MobNameplate = {}
 addonTable.MobNameplate = MobNameplate
+
+local UICommon = addonTable.UICommon
 
 local enabled = false
 local registered = false
@@ -375,7 +382,9 @@ local function CreateOrGetFrame(unit)
   f.text = f:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
   f.text:SetPoint("CENTER")
   if f.text.SetTextColor then
-    f.text:SetTextColor(1, 1, 1, 1)
+    f.text:SetTextColor(
+      unpack((type(UICommon) == "table" and UICommon.Colors and UICommon.Colors.WHITE_OPAQUE) or { 1, 1, 1, 1 })
+    )
   end
   if f.text.SetDrawLayer then
     f.text:SetDrawLayer("OVERLAY", 7)

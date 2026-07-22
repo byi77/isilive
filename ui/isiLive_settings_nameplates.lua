@@ -1,6 +1,11 @@
 local _, addonTable = ...
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local SettingsNameplates = {}
 addonTable.SettingsNameplates = SettingsNameplates
 
@@ -415,14 +420,14 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
   preview.name:SetPoint("CENTER", previewHealthBar, "CENTER", 0, 0)
   preview.name:SetText(labels.SETTINGS_NAMEPLATE_PREVIEW_MOB or "Test Mob")
   if type(preview.name.SetTextColor) == "function" then
-    preview.name:SetTextColor(1, 1, 1, 1)
+    preview.name:SetTextColor(unpack(Colors.WHITE_OPAQUE or { 1, 1, 1, 1 }))
   end
 
   local previewOverlayFrame = CreateFrame("Frame", nil, canvas)
   previewOverlayFrame._isiLiveSettingsPreviewOverlay = true
   preview.overlay = previewOverlayFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
   if type(preview.overlay.SetTextColor) == "function" then
-    preview.overlay:SetTextColor(1, 1, 1, 1)
+    preview.overlay:SetTextColor(unpack(Colors.WHITE_OPAQUE or { 1, 1, 1, 1 }))
   end
   previewOverlayFrame.text = preview.overlay
   preview.overlay:SetPoint("CENTER", previewOverlayFrame, "CENTER", 0, 0)

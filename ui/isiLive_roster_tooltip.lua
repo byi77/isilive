@@ -2,6 +2,11 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local RI = addonTable._RosterInternal or {}
 addonTable._RosterInternal = RI
 local RosterUI = addonTable.RosterUI or {}
@@ -274,7 +279,9 @@ local function CreateRosterHoverTooltip(mainFrame)
         tooltip._isiLiveTooltipBackground:SetAllPoints()
       end
       if type(tooltip._isiLiveTooltipBackground.SetColorTexture) == "function" then
-        tooltip._isiLiveTooltipBackground:SetColorTexture(0, 0, 0, 0.92)
+        local bg = (type(UICommon) == "table" and UICommon.Colors and UICommon.Colors.TOOLTIP_BG_BLACK)
+          or { 0, 0, 0, 0.92 }
+        tooltip._isiLiveTooltipBackground:SetColorTexture(unpack(bg))
       end
     end
   end

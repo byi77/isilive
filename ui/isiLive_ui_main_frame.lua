@@ -1,6 +1,11 @@
 local _, addonTable = ...
 
 addonTable = addonTable or {}
+
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
 addonTable.UI = addonTable.UI or {}
 
 local UI = addonTable.UI
@@ -11,6 +16,7 @@ local createRedCloseButton = assert(
 local GetLocalizedText =
   assert(addonTable.UICommon and addonTable.UICommon.GetLocalizedText, "isiLive: UICommon.GetLocalizedText missing")
 local ApplyBackdrop = addonTable.UICommon.ApplyBackdrop
+local Colors = addonTable.UICommon.Colors
 
 local function SavePosition(target)
   -- SavedVariables are restored by Blizzard before ADDON_LOADED and the main
@@ -171,9 +177,9 @@ local function CreateDragLockButton(frame, dragHandle, getDragLocked, setDragLoc
     local locked = type(getDragLocked) == "function" and getDragLocked() == true
     button._isLocked = locked
     if locked then
-      label:SetTextColor(1, 0.85, 0.2, 1)
+      label:SetTextColor(unpack(Colors.GOLD_MAINFRAME_LABEL))
     else
-      label:SetTextColor(0.75, 0.9, 1, 1)
+      label:SetTextColor(unpack(Colors.LIGHT_BLUE_MAINFRAME_LABEL))
     end
   end
 

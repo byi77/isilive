@@ -2,10 +2,16 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local StatsBox = {}
 addonTable.StatsBox = StatsBox
 
 local ApplyBackdrop = addonTable.UICommon and addonTable.UICommon.ApplyBackdrop
+local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
 
 local BOX_WIDTH = 177
 local BOX_HEIGHT = 158
@@ -889,7 +895,8 @@ function StatsBox.Create(opts)
   if type(frame.CreateTexture) == "function" then
     local separator = frame:CreateTexture(nil, "BORDER")
     if type(separator.SetColorTexture) == "function" then
-      separator:SetColorTexture(1, 0.9, 0.45, SEPARATOR_ALPHA)
+      local gold = Colors.GOLD_SEPARATOR_BASE or { 1, 0.9, 0.45 }
+      separator:SetColorTexture(gold[1], gold[2], gold[3], SEPARATOR_ALPHA)
     end
     if type(separator.Hide) == "function" then
       separator:Hide()
@@ -902,7 +909,7 @@ function StatsBox.Create(opts)
     if type(frame.CreateTexture) == "function" then
       tint = frame:CreateTexture(nil, "BORDER")
       if type(tint.SetColorTexture) == "function" then
-        tint:SetColorTexture(0, 0, 0, 0)
+        tint:SetColorTexture(unpack(Colors.TRANSPARENT or { 0, 0, 0, 0 }))
       end
       if type(tint.Hide) == "function" then
         tint:Hide()

@@ -1,6 +1,11 @@
 local _, addonTable = ...
 
 addonTable = addonTable or {}
+
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
 addonTable._RosterInternal = addonTable._RosterInternal or {}
 local RI = addonTable._RosterInternal
 local UICommon = addonTable.UICommon or {}
@@ -125,7 +130,7 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip, getL)
   if index % 2 == 0 then
     local altBg = row.hoverFrame:CreateTexture(nil, "BACKGROUND", nil, -1)
     altBg:SetAllPoints()
-    altBg:SetColorTexture(1, 1, 1, 0.03)
+    altBg:SetColorTexture(unpack((UICommon.Colors and UICommon.Colors.ROW_ALT) or { 1, 1, 1, 0.03 }))
   end
 
   row.readyCheckBackground = row.hoverFrame:CreateTexture(nil, "BACKGROUND", nil, 0)
@@ -134,7 +139,9 @@ local function CreateMemberRow(mainFrame, index, rosterTooltip, getL)
 
   row.highlight = row.hoverFrame:CreateTexture(nil, "BACKGROUND")
   row.highlight:SetAllPoints()
-  row.highlight:SetColorTexture(0.3, 0.65, 1, 0.08)
+  row.highlight:SetColorTexture(
+    unpack((UICommon.Colors and UICommon.Colors.BLUE_ROW_HIGHLIGHT) or { 0.3, 0.65, 1, 0.08 })
+  )
   row.highlight:Hide()
 
   row.hoverFrame:SetScript("OnEnter", function()

@@ -1,6 +1,11 @@
 local _, addonTable = ...
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local SettingsSupport = {}
 addonTable.SettingsSupport = SettingsSupport
 
@@ -318,7 +323,7 @@ function SettingsSupport.BuildBetaSection(canvas, yOffset, labels, controls)
   controls.betaHeader, yOffset = CreateSectionHeader(canvas, yOffset, labels.SETTINGS_BETA_NOTICE or "Beta")
 
   local noticeText = canvas:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  noticeText:SetTextColor(1, 0.75, 0.2, 1)
+  noticeText:SetTextColor(unpack(Colors.AMBER_SUPPORT_NOTICE or { 1, 0.75, 0.2, 1 }))
   noticeText:SetPoint("TOPLEFT", canvas, "TOPLEFT", PADDING_X, yOffset - 4)
   noticeText:SetJustifyH("LEFT")
   noticeText:SetWidth(math.max(240, SETTINGS_CONTENT_WIDTH - (PADDING_X * 2)))

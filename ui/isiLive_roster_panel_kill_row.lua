@@ -1,6 +1,11 @@
 local _, addonTable = ...
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local RI = addonTable._RosterInternal or {}
 addonTable._RosterInternal = RI
 
@@ -15,6 +20,7 @@ local SetReadableText = addonTable.UICommon
     end
     return false
   end
+local UICommon = addonTable.UICommon or {}
 local CD_TRACKER_ROW_HEIGHT = RI.CD_TRACKER_ROW_HEIGHT or 20
 
 local KILLTRACK_ROW_BOTTOM_OFFSET = 12
@@ -26,7 +32,6 @@ local ACTIVE_DUNGEON_LABEL_WIDTH = 146
 local DEATH_MARKER_ICON = " |TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:10:10:0:0|t"
 
 local function CreateKillTrackRow(mainFrame)
-  local UICommon = addonTable.UICommon or {}
   local row = CreateFrame("Frame", nil, mainFrame)
   row:SetHeight(CD_TRACKER_ROW_HEIGHT)
   row:SetPoint("BOTTOMLEFT", 10, KILLTRACK_ROW_BOTTOM_OFFSET)
@@ -63,7 +68,7 @@ local function CreateKillTrackRow(mainFrame)
   barBg:SetAllPoints(barContainer)
   barBg:SetTexture("Interface\\Buttons\\WHITE8X8")
   if type(barBg.SetVertexColor) == "function" then
-    barBg:SetVertexColor(0.12, 0.12, 0.12)
+    barBg:SetVertexColor(unpack((UICommon.Colors and UICommon.Colors.DARK_GRAY_BAR_BG) or { 0.12, 0.12, 0.12 }))
   end
 
   local barFill = barContainer:CreateTexture(nil, "ARTWORK")
@@ -78,7 +83,7 @@ local function CreateKillTrackRow(mainFrame)
     barFill:SetTexture("Interface\\Buttons\\WHITE8X8")
   end
   if type(barFill.SetVertexColor) == "function" then
-    barFill:SetVertexColor(0.2, 0.75, 0.35)
+    barFill:SetVertexColor(unpack((UICommon.Colors and UICommon.Colors.SUCCESS_GREEN_BAR) or { 0.2, 0.75, 0.35 }))
   end
   barFill:Hide()
 
@@ -94,7 +99,7 @@ local function CreateKillTrackRow(mainFrame)
     barPull:SetTexture("Interface\\Buttons\\WHITE8X8")
   end
   if type(barPull.SetVertexColor) == "function" then
-    barPull:SetVertexColor(0.4, 0.7, 1.0, 0.7)
+    barPull:SetVertexColor(unpack((UICommon.Colors and UICommon.Colors.BLUE_PULL_BAR) or { 0.4, 0.7, 1.0, 0.7 }))
   end
   barPull:Hide()
 
@@ -135,7 +140,9 @@ local function CreateKillTrackRow(mainFrame)
     activeDungeonBackdrop:SetTexture("Interface\\Buttons\\WHITE8X8")
   end
   if type(activeDungeonBackdrop.SetVertexColor) == "function" then
-    activeDungeonBackdrop:SetVertexColor(0.02, 0.02, 0.02, 0.5)
+    activeDungeonBackdrop:SetVertexColor(
+      unpack((UICommon.Colors and UICommon.Colors.NEAR_BLACK_BACKDROP) or { 0.02, 0.02, 0.02, 0.5 })
+    )
   end
   if type(activeDungeonBackdrop.Hide) == "function" then
     activeDungeonBackdrop:Hide()
@@ -293,7 +300,7 @@ local function UpdateKillTrackRow(row, deps)
         activeDungeonText:SetJustifyH("LEFT")
       end
       if type(activeDungeonText.SetTextColor) == "function" then
-        activeDungeonText:SetTextColor(1.0, 1.0, 1.0)
+        activeDungeonText:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.WHITE_RGB) or { 1.0, 1.0, 1.0 }))
       end
       if type(activeDungeonText.SetAlpha) == "function" then
         activeDungeonText:SetAlpha(1.0)
@@ -371,7 +378,9 @@ local function UpdateKillTrackRow(row, deps)
       if data.inCombat and pullPct > 0 then
         pullText:SetText("+" .. string.format("%.2f%%", pullPct):gsub("%.", ","))
         if type(pullText.SetTextColor) == "function" then
-          pullText:SetTextColor(0.6, 0.85, 1.0)
+          pullText:SetTextColor(
+            unpack((UICommon.Colors and UICommon.Colors.LIGHT_BLUE_PULL_TEXT) or { 0.6, 0.85, 1.0 })
+          )
         end
       else
         pullText:SetText("")
@@ -396,7 +405,7 @@ local function UpdateKillTrackRow(row, deps)
         targetText:SetJustifyH("RIGHT")
       end
       if type(targetText.SetTextColor) == "function" then
-        targetText:SetTextColor(1.0, 0.84, 0.35)
+        targetText:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.GOLD_TARGET_TEXT) or { 1.0, 0.84, 0.35 }))
       end
     end
     if targetLevelText then
@@ -405,14 +414,16 @@ local function UpdateKillTrackRow(row, deps)
         targetLevelText:SetJustifyH("RIGHT")
       end
       if type(targetLevelText.SetTextColor) == "function" then
-        targetLevelText:SetTextColor(0.65, 0.85, 1.0)
+        targetLevelText:SetTextColor(
+          unpack((UICommon.Colors and UICommon.Colors.LIGHT_BLUE_LEVEL_TEXT) or { 0.65, 0.85, 1.0 })
+        )
       end
     end
     SetActiveDungeonContext(nil)
     if pctText then
       pctText:SetText("")
       if type(pctText.SetTextColor) == "function" then
-        pctText:SetTextColor(0.9, 0.82, 0.45)
+        pctText:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.MUTED_GOLD_PCT_TEXT) or { 0.9, 0.82, 0.45 }))
       end
     end
     if pullText then
@@ -441,7 +452,7 @@ local function UpdateKillTrackRow(row, deps)
     if pctText then
       pctText:SetText("--,--")
       if type(pctText.SetTextColor) == "function" then
-        pctText:SetTextColor(0.4, 0.4, 0.5)
+        pctText:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.GRAY_MUTED_PCT) or { 0.4, 0.4, 0.5 }))
       end
     end
     if pullText then

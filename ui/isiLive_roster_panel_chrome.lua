@@ -1,6 +1,11 @@
 local _, addonTable = ...
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local RI = addonTable._RosterInternal or {}
 addonTable._RosterInternal = RI
 
@@ -377,7 +382,7 @@ local function CreateM2ColumnGuides(mainFrame)
       guide:SetSize(1, 1)
     end
     if guide.SetColorTexture then
-      guide:SetColorTexture(0.2, 0.8, 1, 0.28)
+      guide:SetColorTexture(unpack((UICommon.Colors and UICommon.Colors.CYAN_GUIDE_LINE) or { 0.2, 0.8, 1, 0.28 }))
     elseif guide.SetTexture then
       guide:SetTexture("Interface\\Buttons\\WHITE8X8")
     end

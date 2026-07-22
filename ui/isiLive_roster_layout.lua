@@ -2,6 +2,11 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local RI = addonTable._RosterInternal or {}
 addonTable._RosterInternal = RI
 local RosterUI = addonTable.RosterUI or {}
@@ -751,9 +756,9 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
     local isActive = btn._modeTarget == layoutMode
     if btn.label and btn.label.SetTextColor then
       if isActive then
-        btn.label:SetTextColor(1, 0.85, 0)
+        btn.label:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.GOLD_TITLE) or { 1, 0.85, 0 }))
       else
-        btn.label:SetTextColor(0.5, 0.5, 0.5)
+        btn.label:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.GRAY_INACTIVE) or { 0.5, 0.5, 0.5 }))
       end
     end
   end
@@ -932,7 +937,8 @@ local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onCli
       end
     end
     if label.SetTextColor then
-      label:SetTextColor(0.5, 0.5, 0.5) -- startet grau; UpdateCollapseState hebt aktiven hervor
+      -- startet grau; UpdateCollapseState hebt aktiven hervor
+      label:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.GRAY_INACTIVE) or { 0.5, 0.5, 0.5 }))
     end
     if label.SetShadowOffset then
       label:SetShadowOffset(1, -1)

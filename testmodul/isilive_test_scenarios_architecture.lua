@@ -2421,6 +2421,12 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       "lua tools/check_hardcoded_strings.lua",
       "workflow must gate releases on hardcoded user-visible strings in ui/ and logic/"
     )
+    AssertContains(
+      Assert,
+      workflowContent,
+      "lua tools/check_ui_color_tokens.lua",
+      "workflow must gate releases on literal UI colors outside UICommon.Colors"
+    )
     AssertContains(Assert, workflowContent, "Lua Syntax Check", "workflow must keep the syntax validation step")
   end)
 
@@ -2734,6 +2740,12 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       localPreflightContent,
       'Invoke-CheckedCommand "Hardcoded Strings Check" "lua tools/check_hardcoded_strings.lua"',
       "local preflight must gate releases on hardcoded user-visible strings"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      'Invoke-CheckedCommand "UI Color Tokens Check" "lua tools/check_ui_color_tokens.lua"',
+      "local preflight must gate releases on literal UI colors outside UICommon.Colors"
     )
     AssertContains(
       Assert,

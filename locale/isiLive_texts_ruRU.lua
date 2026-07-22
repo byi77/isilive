@@ -168,6 +168,7 @@ addonTable.TextsLocales.ruRU = {
   ADMIN_HEADER = "Admin commands:",
   HELP_TESTALL = "  /isilive testall - Показать полный демонстрационный предпросмотр",
   HELP_SIM = "  /isilive sim - Toggle demo simulation tablet",
+  HELP_DEBUG_NAMESPACE = "  /isilive debug <runtime|queue|errors|teleport|season|hearthstone> [verb ...] - Unified debug namespace (legacy aliases below still work)",
   HELP_TPTEST = "  /isilive tptest - Принудительно задать демо-цель телепортации",
   HELP_TPDEBUG = "  /isilive tpdebug - Показать отладочную информацию кнопки телепорта",
   HELP_SEASONDUMP = "  /isilive seasondump (/isilive s2d) - Dump verified season and instance data",

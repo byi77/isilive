@@ -2,6 +2,11 @@ local _, addonTable = ...
 
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local UICommon = {}
 addonTable.UICommon = UICommon
 
@@ -21,6 +26,65 @@ UICommon.Colors = {
   TEXT_DIM = { 0.5, 0.5, 0.6 },
   HOVER_HIGHLIGHT = { 1, 1, 1, 0.10 },
   ROW_ALT = { 1, 1, 1, 0.03 },
+
+  -- Extracted 2026-07-22 from ui/*.lua literal SetTextColor/SetVertexColor/
+  -- SetColorTexture call sites (UI modernization pass). Each entry preserves
+  -- the exact original arity (3 = RGB, alpha left untouched by the widget
+  -- API; 4 = RGBA) so migrating a call site to `unpack(...)` is behavior-
+  -- neutral. Values are extracted verbatim, not semantically merged with
+  -- near-identical tones — unifying visually-similar colors is a separate,
+  -- deliberate design decision this pass deliberately did not make.
+  WHITE_OPAQUE = { 1, 1, 1, 1 },
+  WHITE_RGB = { 1, 1, 1 },
+  GOLD_TITLE = { 1, 0.85, 0 },
+  GOLD_TITLE_OPAQUE = { 1, 0.85, 0, 1 },
+  GOLD_LABEL_ALT = { 1, 0.82, 0.18 },
+  GOLD_MAINFRAME_LABEL = { 1, 0.85, 0.2, 1 },
+  GOLD_TARGET_TEXT = { 1.0, 0.84, 0.35 },
+  MUTED_GOLD_PCT_TEXT = { 0.9, 0.82, 0.45 },
+  LIGHT_GOLD_LABEL = { 1, 0.92, 0.45, 1 },
+  AMBER_BETA_LABEL = { 1, 0.83, 0.35, 0.95 },
+  AMBER_SUPPORT_NOTICE = { 1, 0.75, 0.2, 1 },
+  ORANGE_RAID_NOTICE = { 1, 0.5, 0 },
+  ORANGE_WARNING_LABEL = { 1, 0.55, 0.2, 1 },
+  WARM_WHITE_TEXT = { 1, 0.92, 0.7 },
+  BLUE_VERSION_TEXT = { 0.55, 0.75, 1.0 },
+  LIGHT_BLUE_PULL_TEXT = { 0.6, 0.85, 1.0 },
+  LIGHT_BLUE_LEVEL_TEXT = { 0.65, 0.85, 1.0 },
+  LIGHT_BLUE_MAINFRAME_LABEL = { 0.75, 0.9, 1, 1 },
+  PALE_BLUE_SUBTITLE = { 0.88, 0.92, 1, 1 },
+  CYAN_EYEBROW = { 0.46, 0.94, 1 },
+  CYAN_DIRECTION = { 0.38, 0.92, 1 },
+  CYAN_GUIDE_LINE = { 0.2, 0.8, 1, 0.28 },
+  BLUE_SEPARATOR = { 0.36, 0.71, 1, 0.55 },
+  BLUE_ICON_CORE = { 0.1, 0.45, 1, 0.92 },
+  BLUE_ACTION_BG = { 0.04, 0.18, 0.32, 0.62 },
+  BLUE_HOVER_GLOW = { 0.3, 0.65, 1, 0.2 },
+  BLUE_ROW_HIGHLIGHT = { 0.3, 0.65, 1, 0.08 },
+  BLUE_PULL_BAR = { 0.4, 0.7, 1.0, 0.7 },
+  STEEL_BLUE_OVERLAY = { 0.15, 0.35, 0.55, 0.25 },
+  DEEP_BLUE_ICON_BG = { 0.05, 0.2, 0.34, 0.65 },
+  DARK_SLATE_ICON_BG = { 0.13, 0.15, 0.18, 0.55 },
+  SLATE_DETAIL_TEXT = { 0.62, 0.68, 0.76 },
+  GREEN_HINT_TEXT = { 0.45, 0.85, 0.45 },
+  SUCCESS_GREEN_BAR = { 0.2, 0.75, 0.35 },
+  GRAY_INACTIVE = { 0.5, 0.5, 0.5 },
+  GRAY_SUBLINE = { 0.7, 0.7, 0.7 },
+  GRAY_MUTED_PCT = { 0.4, 0.4, 0.5 },
+  LIGHT_GRAY_ARROW = { 0.8, 0.8, 0.8 },
+  DARK_GRAY_BAR_BG = { 0.12, 0.12, 0.12 },
+  NEAR_BLACK_BACKDROP = { 0.02, 0.02, 0.02, 0.5 },
+  RED_DANGER_OVERLAY = { 0.4, 0.05, 0.05, 0.55 },
+  TRANSPARENT = { 0, 0, 0, 0 },
+  BLACK_OVERLAY_28 = { 0, 0, 0, 0.28 },
+  BLACK_OVERLAY_35 = { 0, 0, 0, 0.35 },
+  BLACK_OVERLAY_50 = { 0, 0, 0, 0.5 },
+  BLACK_OVERLAY_60 = { 0, 0, 0, 0.6 },
+  BLACK_OVERLAY_62 = { 0, 0, 0, 0.62 },
+  TOOLTIP_BG_BLACK = { 0, 0, 0, 0.92 },
+  BG_NOTICE_CARD = { 0.05, 0.05, 0.08, 0.75 },
+  BG_NOTICE_CARD_BASE = { 0.05, 0.05, 0.08 },
+  GOLD_SEPARATOR_BASE = { 1, 0.9, 0.45 },
 }
 
 function UICommon.GetLocalizedText(key, fallback)
@@ -654,7 +718,7 @@ local function CreateCloseButtonLabel(button)
   local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
   label:SetPoint("CENTER", button, "CENTER", 0, -1)
   label:SetText("X")
-  label:SetTextColor(1, 0.83, 0.35, 0.95)
+  label:SetTextColor(unpack(UICommon.Colors.AMBER_BETA_LABEL))
   button._isiLiveCloseButtonLabel = label
   return label
 end
@@ -671,7 +735,7 @@ local function AttachCloseButtonVisualStates(button, label, art, opts)
 
   button:SetScript("OnEnter", function()
     if label then
-      label:SetTextColor(1, 0.92, 0.45, 1)
+      label:SetTextColor(unpack(UICommon.Colors.LIGHT_GOLD_LABEL))
     end
     if art then
       SetTextureColor(art.glow, 0.95, 0.05, 0.025, 0.72)
@@ -693,7 +757,7 @@ local function AttachCloseButtonVisualStates(button, label, art, opts)
 
   button:SetScript("OnLeave", function()
     if label then
-      label:SetTextColor(1, 0.83, 0.35, 0.95)
+      label:SetTextColor(unpack(UICommon.Colors.AMBER_BETA_LABEL))
     end
     if art then
       SetTextureColor(art.glow, 0.55, 0.03, 0.015, 0.42)
@@ -708,7 +772,7 @@ local function AttachCloseButtonVisualStates(button, label, art, opts)
 
   button:SetScript("OnMouseDown", function()
     if label then
-      label:SetTextColor(1, 0.55, 0.2, 1)
+      label:SetTextColor(unpack(UICommon.Colors.ORANGE_WARNING_LABEL))
     end
     if art then
       SetTextureColor(art.glow, 0.75, 0.025, 0.015, 0.48)
@@ -719,7 +783,7 @@ local function AttachCloseButtonVisualStates(button, label, art, opts)
 
   button:SetScript("OnMouseUp", function()
     if label then
-      label:SetTextColor(1, 0.92, 0.45, 1)
+      label:SetTextColor(unpack(UICommon.Colors.LIGHT_GOLD_LABEL))
     end
     if art then
       SetTextureColor(art.glow, 0.95, 0.05, 0.025, 0.72)
@@ -779,7 +843,7 @@ function UICommon.CreatePrivateTooltip(parent)
       tooltip._isiLiveTooltipBackground:SetAllPoints()
     end
     if type(tooltip._isiLiveTooltipBackground.SetColorTexture) == "function" then
-      tooltip._isiLiveTooltipBackground:SetColorTexture(0, 0, 0, 0.92)
+      tooltip._isiLiveTooltipBackground:SetColorTexture(unpack(UICommon.Colors.TOOLTIP_BG_BLACK))
     end
   end
 

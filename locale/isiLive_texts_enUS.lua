@@ -168,6 +168,7 @@ addonTable.TextsLocales.enUS = {
   ADMIN_HEADER = "Admin commands:",
   HELP_TESTALL = "  /isilive testall - Show full dummy preview",
   HELP_SIM = "  /isilive sim - Toggle demo simulation tablet",
+  HELP_DEBUG_NAMESPACE = "  /isilive debug <runtime|queue|errors|teleport|season|hearthstone> [verb ...] - Unified debug namespace (legacy aliases below still work)",
   HELP_TPTEST = "  /isilive tptest - Force dummy teleport target",
   HELP_TPDEBUG = "  /isilive tpdebug - Show teleport button debug info",
   HELP_SEASONDUMP = "  /isilive seasondump (/isilive s2d) - Dump verified season and instance data",

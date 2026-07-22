@@ -8,6 +8,7 @@ local function BuildCommandLocale()
     ADMIN_HEADER = "Admin commands:",
     HELP_TESTALL = "/isilive testall",
     HELP_SIM = "/isilive sim",
+    HELP_DEBUG_NAMESPACE = "/isilive debug <topic>",
     HELP_TPTEST = "/isilive tptest",
     HELP_TPDEBUG = "/isilive tpdebug",
     HELP_SEASONDUMP = "/isilive seasondump (/isilive s2d)",
@@ -445,6 +446,7 @@ local function RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddon
       "Admin commands:",
       "/isilive testall",
       "/isilive sim",
+      "/isilive debug <topic>",
       "/isilive log",
       "/isilive qdebug",
       "/isilive errorlog",
@@ -826,6 +828,145 @@ local function RegisterCommandBranchCoverageTests(test, Assert, WithGlobals, Loa
   end)
 end
 
+-- /isilive debug <topic> [verb ...] -------------------------------------
+-- The namespace is pure routing over the pre-existing aliases (log/qdebug/
+-- errorlog/tpdebug/seasondump/hearthdump), so every case below proves parity
+-- against the matching legacy alias rather than re-asserting the underlying
+-- behavior (already covered above and in the runtime-log tests).
+local function RegisterCommandDebugNamespaceTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Commands debug runtime matches log for on/status/tail", function()
+    local legacy = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    local namespaced = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+
+    legacy._execute("log on")
+    namespaced._execute("debug runtime on")
+    Assert.Equal(
+      namespaced.runtimeLogEnabled,
+      legacy.runtimeLogEnabled,
+      "debug runtime on must enable the runtime log like log on"
+    )
+    Assert.Equal(
+      namespaced.prints[#namespaced.prints],
+      legacy.prints[#legacy.prints],
+      "debug runtime on must print the same confirmation as log on"
+    )
+
+    legacy._execute("log status")
+    namespaced._execute("debug runtime status")
+    Assert.Equal(
+      namespaced.prints[#namespaced.prints],
+      legacy.prints[#legacy.prints],
+      "debug runtime status must match log status output"
+    )
+
+    legacy._execute("log tail 2")
+    namespaced._execute("debug runtime tail 2")
+    Assert.Equal(
+      namespaced.prints[#namespaced.prints],
+      legacy.prints[#legacy.prints],
+      "debug runtime tail must match log tail output"
+    )
+  end)
+
+  test("Commands debug runtime with no verb defaults to status like bare log", function()
+    local legacy = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    local namespaced = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+
+    legacy._execute("log")
+    namespaced._execute("debug runtime")
+    Assert.Equal(
+      namespaced.prints[#namespaced.prints],
+      legacy.prints[#legacy.prints],
+      "debug runtime with no verb must match bare log output"
+    )
+  end)
+
+  test("Commands debug queue matches qdebug for on/status", function()
+    local legacy = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    local namespaced = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+
+    legacy._execute("qdebug on")
+    namespaced._execute("debug queue on")
+    Assert.Equal(
+      namespaced.prints[#namespaced.prints],
+      legacy.prints[#legacy.prints],
+      "debug queue on must match qdebug on output"
+    )
+
+    legacy._execute("qdebug status")
+    namespaced._execute("debug queue status")
+    Assert.Equal(
+      namespaced.prints[#namespaced.prints],
+      legacy.prints[#legacy.prints],
+      "debug queue status must match qdebug status output"
+    )
+  end)
+
+  test("Commands debug errors matches errorlog for status/clear", function()
+    local legacy = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    local namespaced = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+
+    legacy._execute("errorlog status")
+    namespaced._execute("debug errors status")
+    Assert.Equal(
+      namespaced.prints[#namespaced.prints],
+      legacy.prints[#legacy.prints],
+      "debug errors status must match errorlog status output"
+    )
+
+    legacy._execute("errorlog clear")
+    namespaced._execute("debug errors clear")
+    Assert.Equal(
+      namespaced.prints[#namespaced.prints],
+      legacy.prints[#legacy.prints],
+      "debug errors clear must match errorlog clear output"
+    )
+  end)
+
+  test("Commands debug teleport delegates to printTeleportDebug like tpdebug", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("debug teleport")
+    Assert.Equal(state.tpDebugCalls, 1, "debug teleport must call printTeleportDebug exactly once")
+  end)
+
+  test("Commands debug season delegates to printSeasonDebug like seasondump", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("debug season")
+    Assert.Equal(state.seasonDumpCalls, 1, "debug season must call printSeasonDebug exactly once")
+  end)
+
+  test("Commands debug hearthstone delegates to printHearthstoneDebug like hearthdump", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("debug hearthstone")
+    Assert.Equal(state.hearthDumpCalls, 1, "debug hearthstone must call printHearthstoneDebug exactly once")
+  end)
+
+  test("Commands debug with unknown topic prints an error and the usage line", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("debug bogus")
+    local foundUnknown, foundUsage = false, false
+    for _, msg in ipairs(state.prints) do
+      if msg:find("Unknown debug topic", 1, true) then
+        foundUnknown = true
+      end
+      if msg:find("Usage: /isilive debug", 1, true) then
+        foundUsage = true
+      end
+    end
+    Assert.True(foundUnknown, "unknown topic must print an error")
+    Assert.True(foundUsage, "unknown topic must also print the usage line")
+  end)
+
+  test("Commands bare debug with no topic prints the usage line", function()
+    local state = BuildCommandExecutor(WithGlobals, LoadAddonModules)
+    state._execute("debug")
+    Assert.NotNil(
+      state.prints[#state.prints]:find("Usage: /isilive debug", 1, true),
+      "bare debug must print the usage line"
+    )
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local WithGlobals = ctx.with_globals
@@ -835,4 +976,5 @@ return function(test, ctx)
   RegisterCommandRuntimeLogTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterCommandExtendedTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterCommandBranchCoverageTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterCommandDebugNamespaceTests(test, Assert, WithGlobals, LoadAddonModules)
 end

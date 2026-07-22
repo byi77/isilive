@@ -1,6 +1,11 @@
 local _, addonTable = ...
 addonTable = addonTable or {}
 
+-- Lua 5.1 (WoW client) exposes global `unpack`; Lua 5.4 (local tooling) only
+-- has `table.unpack`. Bridge locally so this file works under both without
+-- depending on the entrypoint script to have set up a global compat shim.
+local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table, "unpack"))
+
 local SettingsControls = {}
 addonTable.SettingsControls = SettingsControls
 
@@ -434,10 +439,10 @@ function SettingsControls.CreateSettingsActionButton(
         button:SetBackdropBorderColor(hoverLabelColor[1], hoverLabelColor[2], hoverLabelColor[3], 0.95)
       end
       if type(label.SetTextColor) == "function" then
-        label:SetTextColor(1, 1, 1, 1)
+        label:SetTextColor(unpack(Colors.WHITE_OPAQUE or { 1, 1, 1, 1 }))
       end
       if subtitle and type(subtitle.SetTextColor) == "function" then
-        subtitle:SetTextColor(0.88, 0.92, 1, 1)
+        subtitle:SetTextColor(unpack(Colors.PALE_BLUE_SUBTITLE or { 0.88, 0.92, 1, 1 }))
       end
       if hoverGlow and type(hoverGlow.Show) == "function" then
         hoverGlow:Show()
@@ -700,7 +705,7 @@ function SettingsControls.CreateSettingsOptionSelector(
     end
     if button.label and type(button.label.SetTextColor) == "function" then
       if selected then
-        button.label:SetTextColor(1, 0.85, 0, 1)
+        button.label:SetTextColor(unpack(Colors.GOLD_TITLE_OPAQUE or { 1, 0.85, 0, 1 }))
       else
         button.label:SetTextColor(tn[1], tn[2], tn[3], 1)
       end
@@ -871,7 +876,7 @@ function SettingsControls.CreateSettingsDropdownSelector(
   arrow:SetSize(12, 12)
   arrow:SetPoint("RIGHT", dropdownButton, "RIGHT", -8, 0)
   arrow:SetTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up")
-  arrow:SetVertexColor(0.8, 0.8, 0.8)
+  arrow:SetVertexColor(unpack(Colors.LIGHT_GRAY_ARROW or { 0.8, 0.8, 0.8 }))
 
   local menuParent = rawget(_G, "UIParent") or parent
   local menuFrame = CreateFrame("Frame", nil, menuParent, "BackdropTemplate")

@@ -116,6 +116,7 @@ local ADMIN_HELP_KEYS = {
   "ADMIN_HEADER",
   "HELP_TESTALL",
   "HELP_SIM",
+  "HELP_DEBUG_NAMESPACE",
   "HELP_LOG",
   "HELP_QDEBUG",
   "HELP_ERRORLOG",
@@ -361,6 +362,55 @@ local function HandleErrorLogCommand(ctx, cmd)
   end
 end
 
+-- /isilive debug <topic> [verb ...] -----------------------------------------
+-- Routing-only layer over the pre-existing debug sub-commands. Each topic
+-- forwards to the same handler the matching legacy alias already uses, so
+-- behavior and locale strings stay identical; this just gives every debug
+-- surface one consistent namespace to remember instead of six unrelated
+-- top-level words. Legacy aliases (log/qdebug/errorlog/tpdebug/seasondump/
+-- s2d/hearthdump) keep working unchanged.
+local DEBUG_TOPIC_ALIAS = {
+  runtime = "log",
+  queue = "qdebug",
+  errors = "errorlog",
+  teleport = "tpdebug",
+  season = "seasondump",
+  hearthstone = "hearthdump",
+}
+
+local DEBUG_NAMESPACE_USAGE = "Usage: /isilive debug <runtime|queue|errors|teleport|season|hearthstone> [verb ...]"
+
+local function HandleDebugNamespaceCommand(ctx, cmd)
+  local topic, rest = cmd:match("^debug%s+(%S+)%s*(.-)%s*$")
+  if not topic then
+    ctx.printFn(DEBUG_NAMESPACE_USAGE)
+    return
+  end
+
+  local legacyPrefix = DEBUG_TOPIC_ALIAS[topic]
+  if not legacyPrefix then
+    ctx.printFn("Unknown debug topic: " .. topic)
+    ctx.printFn(DEBUG_NAMESPACE_USAGE)
+    return
+  end
+
+  local suffix = (rest and rest ~= "") and (" " .. rest) or ""
+
+  if legacyPrefix == "log" then
+    HandleLogCommand(ctx, "log" .. suffix)
+  elseif legacyPrefix == "qdebug" then
+    HandleQDebugCommand(ctx, "qdebug" .. suffix)
+  elseif legacyPrefix == "errorlog" then
+    HandleErrorLogCommand(ctx, "errorlog" .. suffix)
+  elseif legacyPrefix == "tpdebug" then
+    ctx.printTeleportDebug()
+  elseif legacyPrefix == "seasondump" then
+    ctx.printSeasonDebug()
+  elseif legacyPrefix == "hearthdump" then
+    ctx.printHearthstoneDebug()
+  end
+end
+
 local function HandleBindCheck(printFn)
   local getBindingAction = rawget(_G, "GetBindingAction")
   if type(getBindingAction) ~= "function" then
@@ -450,6 +500,11 @@ local function TryHandleUtilityCommands(ctx, cmd)
 
   if cmd == "hearthdump" then
     ctx.printHearthstoneDebug()
+    return true
+  end
+
+  if cmd == "debug" or cmd:find("^debug%s+") == 1 then
+    HandleDebugNamespaceCommand(ctx, cmd)
     return true
   end
 
