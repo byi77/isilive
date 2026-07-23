@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026-07-23 - Unreleased
+## 2026-07-23 - Version 0.9.353 (patch)
 
 - Hardened all audited unit-token, identity, class, specialization, map, status,
   and role reads against successful WoW Secret Value returns. Protected values

@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.352`
-Zuletzt aktualisiert: `2026-07-22`
+Versionsbasis: `0.9.353`
+Zuletzt aktualisiert: `2026-07-23`
 
 ## Akteure
 
@@ -12,7 +12,7 @@ Zuletzt aktualisiert: `2026-07-22`
 ## Voraussetzungen
 
 1. Das Addon ist geladen und nicht im Zustand `stopped`.
-2. Das Season-Dataset wird ueber `activeSeasonID` im normalisierten Manifest `data/isiLive_seasons.lua` ausgewaehlt; aktuell `midnight_s1` mit dem live 8-Dungeon-Midnight-Season-1-Portalpool. Portal-, LFG-Activity-, Anzeige-, Stufengate- und Portalraum-Indizes werden aus denselben Dungeon-Datensaetzen erzeugt. Bei Login und `CHALLENGE_MODE_MAPS_UPDATE` darf ein exakter, eindeutiger Blizzard-Challenge-Map-Satz nur auf Datensaetze mit `autoDetectFromChallengeMaps=true` automatisch wechseln. `midnight_s2` traegt `autoDetectFromChallengeMaps=false` und wird bewusst manuell aktiviert, auch wenn noch keine passende MDT-Forces-DB vorhanden ist. In diesem Zustand bleibt der Blizzard-basierte Dungeon-Gesamtfortschritt sichtbar; Nameplate-Mobprozente, Mob-Forces-Tooltips und MDT-Gesamtwert-Fallbacks bleiben ohne exakten Season-Match geschlossen.
+2. Das Season-Dataset wird ueber `activeSeasonID` im normalisierten Manifest `data/isiLive_seasons.lua` ausgewaehlt; aktuell `midnight_s1` mit dem live 8-Dungeon-Midnight-Season-1-Portalpool. Portal-, LFG-Activity-, Anzeige-, Stufengate- und Portalraum-Indizes werden aus denselben Dungeon-Datensaetzen erzeugt. Bei Login und `CHALLENGE_MODE_MAPS_UPDATE` darf ein exakter, eindeutiger Blizzard-Challenge-Map-Satz nur auf Datensaetze mit `autoDetectFromChallengeMaps=true` automatisch wechseln. `midnight_s2` traegt diese Freigabe und wird erst aktiv, wenn Blizzard exakt den verifizierten S2-Map-Satz liefert; `activeSeasonID` bleibt der manuelle Fallback. Da S2 `requiresForces=false` traegt, bleibt der Blizzard-basierte Dungeon-Gesamtfortschritt auch ohne passende MDT-Forces-DB sichtbar; Nameplate-Mobprozente, Mob-Forces-Tooltips und MDT-Gesamtwert-Fallbacks bleiben ohne exakten Season-Match geschlossen.
 3. Die relevante UI ist fuer Queue-Scanning und Rendering sichtbar; waehrend hidden duerfen Addon-Message-Sync und Roster-Updates im Hintergrund weiterlaufen, die UI darf durch frischen Gruppenjoin, Key-Ende, echten Dungeon-Entry-Transition-Flow oder UI-Reload waehrend bestehender Gruppe auto-openen, und explizite Refresh-Requests duerfen genau eine hidden Sync-Reply triggern, auch waehrend eines aktiven Mythic+-Runs; derselbe Refresh-Pfad darf zusaetzlich genau eine `LibKS`-Party-Anfrage an kompatible Nicht-`isiLive`-Peers senden. Der dedizierte Kick-Heartbeat bleibt hidden nur fuer verifizierte normale Gruppen oder automatische Instanzgruppen aktiv; solo darf er nicht scannen oder senden. Wenn LFGDetect bereits einen konkreten lokalen Map-Kontext kennt, gewinnt dieser fuer das Portal-Highlight gegen peer-synced Zielkontext. Nur stopped oder paused unterdruecken die hidden `isiLive`-Reply.
 4. Nicht-`isiLive`-Spieler koennen nur dann `Key` und `RIO` beitragen, wenn auf ihrer Seite ein kompatibles `LibKeystone`-sprechendes Addon laeuft; ohne sendenden Addon-Code bleiben diese Daten unresolved.
 5. Raid-Gruppen sind ein eigener Hard-off-Zustand: UI aus und Background-Processing aus; eine vor dem Raid sichtbare Main-UI wird beim Rueckweg aus dem Raid wieder geoeffnet.

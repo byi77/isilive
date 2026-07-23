@@ -157,16 +157,16 @@ Kritisch:
 
 Aktueller Stand:
 - `midnight_s1` ist die aktive Runtime-Season.
-- `midnight_s2` ist als vorbereitetes Dataset mit verifizierten Portal-/Challenge-Mappings und vollstaendigen Darstellungsdaten vorhanden. Die Aktivierung erfolgt manuell und darf nicht von MDT-Forces abhaengen.
-- Freigabe-Intake vom `2026-07-13`: alle acht ChallengeMapIDs, castbaren PortalSpellIDs, Mythic+-LFG-Activity-IDs und Darstellungsdaten sind gepflegt. Die abweichenden `128977x`-Instant-Spells sind keine Portal-Cast-IDs. Nur die optionale S2-MDT-Forces-DB fehlt; `midnight_s1` bleibt bis zur bewussten manuellen Umstellung aktiv.
+- `midnight_s2` ist als vorbereitetes Dataset mit verifizierten Portal-/Challenge-Mappings und vollstaendigen Darstellungsdaten vorhanden. Die automatische Aktivierung erfolgt nur beim exakten, eindeutigen Blizzard-S2-Mapset und darf nicht von MDT-Forces abhaengen.
+- Freigabe-Intake vom `2026-07-13`: alle acht ChallengeMapIDs, castbaren PortalSpellIDs, Mythic+-LFG-Activity-IDs und Darstellungsdaten sind gepflegt. Die abweichenden `128977x`-Instant-Spells sind keine Portal-Cast-IDs. Nur die optionale S2-MDT-Forces-DB fehlt; `midnight_s1` bleibt aktiv, solange Blizzard nicht exakt das verifizierte S2-Mapset liefert und `activeSeasonID` nicht manuell umgestellt wird.
 - Die Portalraum-Belegung fuer `midnight_s2` ist dokumentiert, aber nicht aktiviert: ganz links leer, halb links Koenigsruh, oben Rubinlebensbecken, halb rechts Tempel von Sethraliss, ganz rechts leer.
-- `midnight_s2.autoDetectFromChallengeMaps=false`; Login und `CHALLENGE_MODE_MAPS_UPDATE` duerfen S2 nicht aktivieren. Der User stellt S2 manuell um.
+- `midnight_s2.autoDetectFromChallengeMaps=true`; Login und `CHALLENGE_MODE_MAPS_UPDATE` duerfen S2 nur bei einem exakten, eindeutigen Blizzard-S2-Mapset aktivieren. `activeSeasonID` bleibt der manuelle Fallback.
 
 Wenn eine neue Season startet:
 - neue Season und alle Dungeon-Datensaetze ausschliesslich in `data/isiLive_seasons.lua` eintragen und die automatische Auswahl explizit erlauben oder verbieten
 - Activity-, Portal-, Namens-, Kurzcode-, Reihenfolge-, Stufengate- und Portalraum-Daten nicht in LFG-, Status-, Demo- oder Tooldateien duplizieren
 - Forces-DB getrennt pflegen und nur bei exaktem Match zur aktiven Season an Runtime-Verbraucher ausgeben
-- bei `midnight_s2` die manuelle Aktivierungsentscheidung beibehalten
+- bei `midnight_s2` die exakte Mapset-Autoerkennung und `activeSeasonID` als manuellen Fallback beibehalten
 - keine halbfertige Season live schalten und kein Datum als Umschaltquelle verwenden
 
 Fuer Midnight Season 2 muessen vor Aktivierung verifiziert werden:
