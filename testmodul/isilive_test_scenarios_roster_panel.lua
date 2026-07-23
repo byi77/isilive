@@ -8,6 +8,9 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
     local readyCheckStatusByUnit = {}
 
     WithGlobals({
+      UnitExists = function()
+        return true
+      end,
       GetReadyCheckStatus = function(unit)
         return readyCheckStatusByUnit[unit]
       end,
@@ -99,6 +102,9 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
     }
 
     WithGlobals({
+      UnitExists = function()
+        return true
+      end,
       GetReadyCheckStatus = function(unit)
         return readyCheckStatusByUnit[unit]
       end,
@@ -199,6 +205,9 @@ local function RegisterRosterDisplayColorTests(test, Assert, WithGlobals, LoadAd
     }
 
     WithGlobals({
+      UnitExists = function()
+        return true
+      end,
       GetReadyCheckStatus = function(unit)
         return readyCheckStatusByUnit[unit]
       end,
@@ -1672,6 +1681,9 @@ RegisterRosterRenderReadyCheckReapplyTest = function(test, Assert, WithGlobals, 
     local createdTextures = {}
 
     WithGlobals({
+      UnitExists = function()
+        return true
+      end,
       GetReadyCheckStatus = function(unit)
         if unit == "player" then
           return "ready"

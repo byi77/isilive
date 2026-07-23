@@ -101,7 +101,7 @@ try {
 
   $luaVersion = (& lua -e "print(_VERSION)") | Select-Object -First 1
   if ($luaVersion -ne "Lua 5.1") {
-    Write-Warning "GitHub Actions uses Lua 5.1, local preflight runs with $luaVersion. The test runner bridges unpack/table.unpack for both versions; pure 5.1-syntax regressions (e.g. loadfile-env, integer-division //) still require a green CI run to catch."
+    Write-Warning "GitHub Actions uses Lua 5.1, local runtime checks use $luaVersion. StyLua parses project sources with syntax='Lua51'; runtime-only Lua 5.1 semantic differences still require the GitHub gate."
   }
 
   if ($InstallLuaRocksDeps) {
@@ -126,11 +126,12 @@ try {
   }
 
   Invoke-CheckedCommand "StyLua (check)" "stylua --check ."
-  Invoke-LuaRocksCommand "Luacheck" "luacheck" @("--exclude-files", ".luarocks/**", "--", ".")
+  Invoke-LuaRocksCommand "Luacheck" "luacheck" @("--exclude-files", ".luarocks/**", "tools/cache/**", "--", ".")
 
   Write-Step "Lua Syntax Check"
   $luaFiles = Get-ChildItem -Recurse -File -Filter *.lua | Where-Object {
-    $_.FullName -notlike "*\.luarocks\*"
+    $_.FullName -notlike "*\.luarocks\*" -and
+    $_.FullName -notlike "*\tools\cache\*"
   }
 
   foreach ($file in $luaFiles) {

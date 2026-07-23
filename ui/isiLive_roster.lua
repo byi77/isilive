@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local Roster = {}
 addonTable.Roster = Roster
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local function CreateRoleIcon(coords)
   return string.format("|TInterface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES:16:16:0:0:64:64:%s|t", coords)
@@ -27,6 +28,7 @@ local READY_CHECK_BACKGROUND_COLORS = {
   notready = { 0.48, 0.12, 0.12, 0.34 },
   waiting = { 0.55, 0.4, 0.08, 0.32 },
 }
+local IsExistingUnit = addonTable.Validators.IsExistingUnit
 
 local function NormalizeDisplayedKeyShortCode(shortCode)
   local text = tostring(shortCode or ""):gsub("%s+", "")
@@ -58,20 +60,21 @@ local function BuildColorHexSafe(r, g, b)
 end
 
 local function GetReadyCheckStatusSafe(unit)
+  if not IsExistingUnit(unit) then
+    return nil
+  end
   local getReadyCheckStatus = rawget(_G, "GetReadyCheckStatus")
   if type(getReadyCheckStatus) ~= "function" then
     return nil
   end
 
   local ok, status = pcall(getReadyCheckStatus, unit)
-  if not ok then
+  if not ok or IsSecretValue(status) then
     return nil
   end
 
   return status
 end
-
-local IsExistingUnit = addonTable.Validators.IsExistingUnit
 
 local function IsUnitConnectedSafe(unit)
   if not IsExistingUnit(unit) then
@@ -84,7 +87,7 @@ local function IsUnitConnectedSafe(unit)
   end
 
   local ok, isConnected = pcall(unitIsConnected, unit)
-  if not ok then
+  if not ok or IsSecretValue(isConnected) then
     return true
   end
 

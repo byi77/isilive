@@ -121,7 +121,7 @@ local function LayoutSimpleTooltip(tooltip)
       end
       if type(line) == "table" and type(line.GetStringWidth) == "function" then
         local ok, measuredWidth = pcall(line.GetStringWidth, line)
-        local measuredWidthNumber = ok and tonumber(measuredWidth) or nil
+        local measuredWidthNumber = ok and not IsSecretValue(measuredWidth) and tonumber(measuredWidth) or nil
         if measuredWidthNumber and measuredWidthNumber > 0 then
           local paddedWidth = measuredWidthNumber + (TOOLTIP_HORIZONTAL_PADDING * 2)
           tooltipWidth = math.max(tooltipWidth, math.min(TOOLTIP_MAX_WIDTH, paddedWidth))
@@ -508,11 +508,11 @@ local function ResolveTooltipUnitLevel(unit, info)
     local unitExists = rawget(_G, "UnitExists")
     if type(unitExists) == "function" then
       local okExists, exists = pcall(unitExists, unit)
-      if okExists and exists then
+      if okExists and not IsSecretValue(exists) and exists == true then
         local unitLevel = rawget(_G, "UnitLevel")
         if type(unitLevel) == "function" then
           local ok, level = pcall(unitLevel, unit)
-          local levelNumber = ok and tonumber(level) or nil
+          local levelNumber = ok and not IsSecretValue(level) and tonumber(level) or nil
           if levelNumber and levelNumber > 0 then
             return math.floor(levelNumber)
           end
@@ -990,18 +990,18 @@ local function AppendBlizzardUnitLanguageLine(
     local unitExists = rawget(_G, "UnitExists")
     if type(unitExists) == "function" then
       local okExists, exists = pcall(unitExists, resolvedUnit)
-      if okExists and exists then
+      if okExists and not IsSecretValue(exists) and exists == true then
         local unitIsPlayer = rawget(_G, "UnitIsPlayer")
         local okPlayer, isPlayer = true, true
         if type(unitIsPlayer) == "function" then
           okPlayer, isPlayer = pcall(unitIsPlayer, resolvedUnit)
         end
 
-        if okPlayer and isPlayer == true then
+        if okPlayer and not IsSecretValue(isPlayer) and isPlayer == true then
           local unitGUIDFn = rawget(_G, "UnitGUID")
           if type(getRealmInfoLib) == "function" and type(unitGUIDFn) == "function" then
             local okGuid, unitGUID = pcall(unitGUIDFn, resolvedUnit)
-            if okGuid and type(unitGUID) == "string" then
+            if okGuid and not IsSecretValue(unitGUID) and type(unitGUID) == "string" then
               local guidLanguageTag = ResolveBlizzardTooltipLanguageTagFromTooltipData({
                 guid = unitGUID,
                 isPlayer = true,

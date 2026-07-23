@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local Highlight = {}
 addonTable.Highlight = Highlight
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local function TryGet(obj, key1, key2, key3)
   if not obj then
@@ -108,7 +109,7 @@ local function IsExistingPlayerUnit()
   end
 
   local ok, exists = pcall(unitExists, "player")
-  return ok and exists == true
+  return ok and not IsSecretValue(exists) and exists == true
 end
 
 local function ResolveCurrentMapID()
@@ -119,7 +120,7 @@ local function ResolveCurrentMapID()
   local getBestMapForUnit = type(mapApi) == "table" and rawget(mapApi, "GetBestMapForUnit") or nil
   if IsExistingPlayerUnit() and type(getBestMapForUnit) == "function" then
     local ok, mapID = pcall(getBestMapForUnit, "player")
-    if ok and type(mapID) == "number" and mapID > 0 then
+    if ok and not IsSecretValue(mapID) and type(mapID) == "number" and mapID > 0 then
       return mapID
     end
   end

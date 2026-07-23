@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local Actions = {}
 addonTable.UIGameMenuActions = Actions
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local ADDON_PANEL_UI_ENTRIES = {
   {
@@ -146,13 +147,16 @@ local function IsAddOnInstalled(addOnName)
 end
 
 local function ResolveCurrentCharacterName()
+  if not addonTable.Validators.IsExistingUnit("player") then
+    return nil
+  end
   local unitName = rawget(_G, "UnitName")
   if type(unitName) ~= "function" then
     return nil
   end
 
   local ok, name = pcall(unitName, "player")
-  if not ok or type(name) ~= "string" or name == "" then
+  if not ok or IsSecretValue(name) or type(name) ~= "string" or name == "" then
     return nil
   end
 

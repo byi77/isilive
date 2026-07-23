@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local SeasonDebug = {}
 addonTable.SeasonDebug = SeasonDebug
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local function ValueText(value)
   if value == nil then
@@ -115,7 +116,7 @@ local function AppendMapInfo(lines)
   local unitExists = rawget(_G, "UnitExists")
   if type(unitExists) == "function" then
     local okUnit, exists = pcall(unitExists, "player")
-    if not okUnit or exists ~= true then
+    if not okUnit or IsSecretValue(exists) or exists ~= true then
       lines[#lines + 1] = "[SEASON] playerUnitExists=false"
       return
     end

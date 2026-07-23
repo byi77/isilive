@@ -61,7 +61,7 @@ local function IsChallengeModeActive()
     return false
   end
   local ok, active = pcall(api.IsChallengeModeActive)
-  return ok and active == true
+  return ok and not IsSecretValue(active) and active == true
 end
 
 local function HasProgressAPI()
@@ -116,7 +116,7 @@ local function GetForcesDB()
 end
 
 local function ResolveMobContributionFromDB(unit, activeMapID)
-  if type(activeMapID) ~= "number" then
+  if type(activeMapID) ~= "number" or not addonTable.Validators.IsExistingUnit(unit) then
     return nil, nil
   end
   local unitGUIDFn = rawget(_G, "UnitGUID")
@@ -124,16 +124,9 @@ local function ResolveMobContributionFromDB(unit, activeMapID)
     return nil, nil
   end
   local okGuid, guid = pcall(unitGUIDFn, unit)
-  if not okGuid or type(guid) ~= "string" then
+  if not okGuid or IsSecretValue(guid) or type(guid) ~= "string" then
     return nil, nil
   end
-  -- Do NOT compare `guid` to "" or any other literal here — in WoW 12.0
-  -- M+ tainted context the GUID is a Secret Value and `==` against a
-  -- literal raises "attempt to compare local 'guid' (a secret string
-  -- value, while execution tainted by 'isiLive')". `NpcIdFromGuid`
-  -- already short-circuits Secret Values via its own `IsSecretValue`
-  -- guard, and `string.match` against an empty string returns nil — so
-  -- both edge cases fall through cleanly into the API-path fallback.
   local npcId = NpcIdFromGuid(guid)
   if not npcId then
     return nil, nil
@@ -162,7 +155,7 @@ local function GetActiveChallengeMapID()
     return nil
   end
   local ok, mapID = pcall(api.GetActiveChallengeMapID)
-  if not ok or type(mapID) ~= "number" or IsSecretValue(mapID) or mapID <= 0 then
+  if not ok or IsSecretValue(mapID) or type(mapID) ~= "number" or mapID <= 0 then
     return nil
   end
   return mapID
@@ -174,7 +167,7 @@ local function IsEligibleUnit(unit)
     return false
   end
   local okExists, exists = pcall(unitExists, unit)
-  if not okExists or exists ~= true then
+  if not okExists or IsSecretValue(exists) or exists ~= true then
     return false
   end
 
@@ -954,7 +947,7 @@ function MobNameplate.DumpState(unit)
   }
 
   local unitGUIDFn = rawget(_G, "UnitGUID")
-  if type(unitGUIDFn) == "function" then
+  if out.eligible and type(unitGUIDFn) == "function" then
     local okGuid, guid = pcall(unitGUIDFn, unit)
     if okGuid then
       out.guidIsSecret = IsSecretValue(guid)
@@ -964,7 +957,7 @@ function MobNameplate.DumpState(unit)
   end
 
   local unitNameFn = rawget(_G, "UnitName")
-  if type(unitNameFn) == "function" then
+  if out.eligible and type(unitNameFn) == "function" then
     local okName, name = pcall(unitNameFn, unit)
     if okName then
       out.unitNameSecret = IsSecretValue(name)

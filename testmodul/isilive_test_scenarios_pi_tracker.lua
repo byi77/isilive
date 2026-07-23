@@ -191,6 +191,9 @@ return function(test, ctx)
     local PiTracker
     local announces = {}
     WithGlobals({
+      UnitExists = function()
+        return true
+      end,
       GetTime = function()
         return 250
       end,

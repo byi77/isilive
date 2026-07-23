@@ -3,6 +3,7 @@ addonTable = addonTable or {}
 
 local CombatEvents = {}
 addonTable.CombatEvents = CombatEvents
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 -- Battle-Res spells a player can cast on a dead ally in combat.
 local BR_SPELL_IDS = {
@@ -44,7 +45,7 @@ local function DefaultIsInKey()
     return false
   end
   local ok, mapID = pcall(api.GetActiveChallengeMapID)
-  if not ok then
+  if not ok or IsSecretValue(mapID) then
     return false
   end
   return type(mapID) == "number" and mapID > 0
@@ -54,21 +55,24 @@ end
 -- GetUnitName(unit, true) so cross-realm players keep their realm suffix.
 local function BuildDefaultGetUnitName()
   return function(unit)
+    if not addonTable.Validators.IsExistingUnit(unit) then
+      return nil
+    end
     local getUnitNameFn = rawget(_G, "GetUnitName")
     if type(getUnitNameFn) == "function" then
       local ok, name = pcall(getUnitNameFn, unit, true)
-      if ok and type(name) == "string" and name ~= "" then
+      if ok and not IsSecretValue(name) and type(name) == "string" and name ~= "" then
         return name
       end
     end
     local unitNameFn = rawget(_G, "UnitName")
     if type(unitNameFn) == "function" then
       local ok, name = pcall(unitNameFn, unit)
-      if ok and type(name) == "string" and name ~= "" then
+      if ok and not IsSecretValue(name) and type(name) == "string" and name ~= "" then
         return name
       end
     end
-    return unit
+    return nil
   end
 end
 
@@ -171,6 +175,9 @@ function CombatEvents.CreateController(opts)
       return
     end
     local sourceName = getUnitName(unit == "pet" and "player" or unit)
+    if type(sourceName) ~= "string" or sourceName == "" then
+      return
+    end
     if ShouldDedup(sourceName or "", spellID) then
       return
     end

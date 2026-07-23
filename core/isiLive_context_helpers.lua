@@ -86,16 +86,8 @@ function ContextHelpers.BuildKeystoneChatLink(mapID, level)
     return nil
   end
 
-  local mythicPlusApi = rawget(_G, "C_MythicPlus")
-  if mythicPlusApi and type(mythicPlusApi.GetOwnedKeystoneLink) == "function" then
-    local okLink, ownedLink = pcall(mythicPlusApi.GetOwnedKeystoneLink)
-    if okLink and IsUsableKeystoneChatLink(ownedLink) then
-      return ownedLink
-    end
-  end
-
-  -- Fallback: GetOwnedKeystoneLink was removed in recent WoW retail.
-  -- Scan bags for the Mythic Keystone item (itemID 180653) and return its real link.
+  -- GetOwnedKeystoneLink was removed from retail. Scan bags for the Mythic
+  -- Keystone item (itemID 180653) and return its observed Blizzard link.
   -- Some clients expose it as |Hkeystone:...|h, others as the Keystone item hyperlink.
   -- manually constructed |Hkeystone:...|h links are silently dropped by the chat server.
   local containerApi = rawget(_G, "C_Container")
@@ -187,7 +179,7 @@ end
 
 local function SafeBooleanCall(fn, ...)
   local ok, result = pcall(fn, ...)
-  return ok and result == true
+  return ok and not addonTable.Validators.IsSecretValue(result) and result == true
 end
 
 -- Returns the correct chat channel for the current group context.

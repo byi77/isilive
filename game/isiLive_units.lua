@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local Units = {}
 addonTable.Units = Units
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local SPEC_SHORT_LABELS = {
   -- German short labels (mostly 5 chars)
@@ -155,13 +156,17 @@ function Units.GetUnitRole(unit)
   local isPlayer = false
   if type(isUnit) == "function" then
     local ok, value = pcall(isUnit, unit, "player")
-    isPlayer = ok and value == true
+    isPlayer = ok and not IsSecretValue(value) and value == true
   end
   if isPlayer and GetSpecialization and GetSpecializationRole then
     local okIndex, specIndex = pcall(GetSpecialization)
-    if okIndex and specIndex then
+    if okIndex and not IsSecretValue(specIndex) and type(specIndex) == "number" and specIndex > 0 then
       local okRole, specRole = pcall(GetSpecializationRole, specIndex)
-      if okRole and (specRole == "TANK" or specRole == "HEALER" or specRole == "DAMAGER") then
+      if
+        okRole
+        and not IsSecretValue(specRole)
+        and (specRole == "TANK" or specRole == "HEALER" or specRole == "DAMAGER")
+      then
         return specRole
       end
     end
@@ -172,7 +177,7 @@ function Units.GetUnitRole(unit)
   local rolesAssigned = rawget(_G, "UnitGroupRolesAssigned")
   if type(rolesAssigned) == "function" then
     local ok, value = pcall(rolesAssigned, unit)
-    if ok and (value == "TANK" or value == "HEALER" or value == "DAMAGER") then
+    if ok and not IsSecretValue(value) and (value == "TANK" or value == "HEALER" or value == "DAMAGER") then
       return value
     end
   end
@@ -191,7 +196,7 @@ function Units.GetUnitClass(unit)
   end
 
   local ok, localizedClass, classToken = pcall(unitClass, unit)
-  if not ok then
+  if not ok or IsSecretValue(localizedClass) or IsSecretValue(classToken) then
     return nil, nil
   end
 
@@ -231,7 +236,7 @@ function Units.GetUnitNameAndRealm(unit)
   local fullName = rawget(_G, "UnitFullName")
   if type(fullName) == "function" then
     local ok, n, r = pcall(fullName, unit)
-    if ok then
+    if ok and not IsSecretValue(n) and not IsSecretValue(r) then
       name, realm = n, r
     end
   end
@@ -239,13 +244,21 @@ function Units.GetUnitNameAndRealm(unit)
     local unitName = rawget(_G, "UnitName")
     if type(unitName) == "function" then
       local ok, n = pcall(unitName, unit)
-      if ok then
+      if ok and not IsSecretValue(n) then
         name = n
       end
     end
   end
+  if addonTable.StringUtils.IsBlank(name) then
+    return nil, nil
+  end
   if addonTable.StringUtils.IsBlank(realm) then
-    realm = GetRealmName() or ""
+    local getRealmName = rawget(_G, "GetRealmName")
+    local okRealm, resolvedRealm = false, nil
+    if type(getRealmName) == "function" then
+      okRealm, resolvedRealm = pcall(getRealmName)
+    end
+    realm = okRealm and not IsSecretValue(resolvedRealm) and type(resolvedRealm) == "string" and resolvedRealm or ""
   end
   return name, realm
 end
@@ -255,11 +268,11 @@ function Units.GetPlayerSpecName()
     return nil
   end
   local okIndex, specIndex = pcall(GetSpecialization)
-  if not okIndex or not specIndex or specIndex <= 0 then
+  if not okIndex or IsSecretValue(specIndex) or not specIndex or specIndex <= 0 then
     return nil
   end
   local okInfo, _, specName = pcall(GetSpecializationInfo, specIndex)
-  if not okInfo then
+  if not okInfo or IsSecretValue(specName) then
     return nil
   end
   return specName
@@ -271,12 +284,12 @@ function Units.GetInspectSpecName(unit)
   end
 
   local okSpec, specID = pcall(GetInspectSpecialization, unit)
-  if not okSpec or not specID or specID <= 0 then
+  if not okSpec or IsSecretValue(specID) or type(specID) ~= "number" or specID <= 0 then
     return nil
   end
 
   local okName, _, specName = pcall(GetSpecializationInfoByID, specID)
-  if okName and type(specName) == "string" and specName ~= "" then
+  if okName and not IsSecretValue(specName) and type(specName) == "string" and specName ~= "" then
     return specName
   end
   return nil
@@ -294,12 +307,12 @@ function Units.GetInspectSpecRole(unit)
   end
 
   local okSpec, specID = pcall(getInspectSpecialization, unit)
-  if not okSpec or type(specID) ~= "number" or specID <= 0 then
+  if not okSpec or IsSecretValue(specID) or type(specID) ~= "number" or specID <= 0 then
     return nil
   end
 
   local okRole, role = pcall(getSpecializationRoleByID, specID)
-  if okRole and (role == "TANK" or role == "HEALER" or role == "DAMAGER") then
+  if okRole and not IsSecretValue(role) and (role == "TANK" or role == "HEALER" or role == "DAMAGER") then
     return role
   end
   return nil

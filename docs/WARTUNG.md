@@ -194,7 +194,7 @@ Pruefen:
 Aktueller Soll-Zustand:
 - `UNIT_SPELLCAST_SUCCEEDED` wird **nur** fuer `unit == "player"` verarbeitet. Casts anderer Spieler werden vor jeder Spell-ID-Inspektion verworfen, weil 12.0-Secret-Values sonst `"table index is secret"` werfen.
 - Die Gruppen-Verteilung laeuft ueber den Addon-Message-Kanal (`BRLUST:<KIND>:<caster>:<spellID>`, Prioritaet `NORMAL` ueber `DispatchAddonMessage`), **nicht** ueber `SendChatMessage`. Sonst triggert 12.0 den `ADDON_ACTION_FORBIDDEN`-Popup in Protected-Zonen.
-- 3-Sekunden-Dedup pro `sourceGUID|spellID`; `CHALLENGE_MODE_START` und `CHALLENGE_MODE_COMPLETED` rufen `Reset()`.
+- 3-Sekunden-Dedup pro verifiziertem `sourceName|spellID`; unresolved Caster werden nicht gesendet. `CHALLENGE_MODE_START` und `CHALLENGE_MODE_COMPLETED` rufen `Reset()`.
 - Empfaenger rendern die lokalisierten Templates `COMBAT_CHAT_BR_USED` und `COMBAT_CHAT_LUST_STARTED`; unbekannte `BRLUST`-Kinds werden still verworfen.
 - Toggles `chatAnnounceBR` und `chatAnnounceLust` sind standardmaessig an und leben in der `Chat Announcements`-Sektion der Blizzard-Settings.
 

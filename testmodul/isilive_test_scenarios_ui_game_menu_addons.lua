@@ -500,6 +500,9 @@ local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGloba
     WithGlobals({
       CreateFrame = createFrameStub,
       GameMenuFrame = gameMenuFrame,
+      UnitExists = function()
+        return true
+      end,
       UnitName = function(unit)
         Assert.Equal(unit, "player", "addon shortcut enable state should resolve the current player name")
         return "Activechar"
@@ -568,6 +571,9 @@ local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGloba
     WithGlobals({
       CreateFrame = createFrameStub,
       GameMenuFrame = gameMenuFrame,
+      UnitExists = function()
+        return true
+      end,
       UnitName = function()
         return "Currentchar"
       end,

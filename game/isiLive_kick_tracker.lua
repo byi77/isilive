@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local KickTracker = {}
 addonTable.KickTracker = KickTracker
+local IsSecretValue = addonTable.Validators.IsSecretValue
 local MEANINGFUL_KICK_COOLDOWN_MIN_SECONDS = 1.5
 local NO_INTERRUPT_SPEC_IDS = {
   [105] = true, -- Restoration Druid
@@ -127,15 +128,15 @@ local function ResolveSpecData()
       hasKick = false,
     }
   end
-  local specIndex = GetSpecialization_ref()
-  if not specIndex then
+  local okIndex, specIndex = pcall(GetSpecialization_ref)
+  if not okIndex or IsSecretValue(specIndex) or type(specIndex) ~= "number" or specIndex <= 0 then
     return {
       availabilityResolved = false,
       hasKick = false,
     }
   end
   local ok, specID = pcall(GetSpecializationInfo_ref, specIndex)
-  if not ok or type(specID) ~= "number" then
+  if not ok or IsSecretValue(specID) or type(specID) ~= "number" then
     return {
       availabilityResolved = false,
       hasKick = false,
@@ -295,7 +296,7 @@ local function ResolveActiveSpellData(specData)
       }
     end
     local ok, exists = pcall(UnitExists_ref, "pet")
-    if not ok then
+    if not ok or IsSecretValue(exists) then
       return {
         availabilityResolved = false,
         hasKick = false,
@@ -553,11 +554,11 @@ function KickTracker.CreateController(opts)
       return cachedPlayerClass
     end
     local UnitClass_ref = rawget(_G, "UnitClass")
-    if type(UnitClass_ref) ~= "function" then
+    if type(UnitClass_ref) ~= "function" or not addonTable.Validators.IsExistingUnit("player") then
       return nil
     end
     local ok, _, classToken = pcall(UnitClass_ref, "player")
-    if ok and type(classToken) == "string" and classToken ~= "" then
+    if ok and not IsSecretValue(classToken) and type(classToken) == "string" and classToken ~= "" then
       cachedPlayerClass = classToken
     end
     return cachedPlayerClass

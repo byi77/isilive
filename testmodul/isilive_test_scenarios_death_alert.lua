@@ -404,6 +404,44 @@ local function RegisterDeathWatchTests(test, ctx)
 
     Assert.Equal(#alerts, 0, "protected default API reads must fail closed without alerts")
   end)
+
+  test("DeathWatch default API readers reject successful secret-value returns", function()
+    local secret = {}
+    local alerts = {}
+    WithGlobals({
+      IsiLiveDB = {},
+      issecretvalue = function(value)
+        return value == secret
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return 42
+        end,
+      },
+      UnitExists = function()
+        return secret
+      end,
+      UnitIsConnected = function()
+        return true
+      end,
+      UnitGUID = function()
+        return "Player-1"
+      end,
+      UnitIsDeadOrGhost = function()
+        return true
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_death_watch.lua" })
+      addon.DeathWatch.SetDependencies({
+        onRoleDeath = function(role, unit)
+          table.insert(alerts, { role = role, unit = unit })
+        end,
+      })
+      addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+    end)
+
+    Assert.Equal(#alerts, 0, "successful secret UnitExists result must not be treated as an existing unit")
+  end)
 end
 
 local function BuildFrameStub(track)

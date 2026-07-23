@@ -179,11 +179,7 @@ local function RunPipelineScenario(name, opts)
       return opts.inGroup ~= false
     end,
     LE_PARTY_CATEGORY_INSTANCE = 2,
-    C_MythicPlus = opts.ownedKeystoneLink and {
-      GetOwnedKeystoneLink = function()
-        return opts.ownedKeystoneLink
-      end,
-    } or nil,
+    C_MythicPlus = {},
     C_Container = MakeBagApi(opts.bagHasKey == true),
     C_ChallengeMode = MakeChallengeModeApi(),
     SendChatMessage = opts.sendChatMessageFails and function()
@@ -241,8 +237,8 @@ local function RunPipelineScenario(name, opts)
 end
 
 local function SimulateSharePipeline()
-  RunPipelineScenario("1. happy_path: owned-keystone-link API liefert echten Link", {
-    ownedKeystoneLink = "|cffa335ee|Hkeystone:180653:2649:14|h[Keystone: Ara-Kara +14]|h|r",
+  RunPipelineScenario("1. happy_path: Bag-Scan liefert echten Link", {
+    bagHasKey = true,
     inGroup = true,
     inInstance = true,
   })
@@ -366,11 +362,7 @@ local function BuildRoundtripGlobals(opts)
     end,
     LE_PARTY_CATEGORY_INSTANCE = 2,
     strsplit = BuildStrsplit(),
-    C_MythicPlus = opts.ownedKeystoneLink and {
-      GetOwnedKeystoneLink = function()
-        return opts.ownedKeystoneLink
-      end,
-    } or nil,
+    C_MythicPlus = {},
     C_Container = MakeBagApi(opts.bagHasKey == true),
     C_ChallengeMode = MakeChallengeModeApi(),
     SendChatMessage = function(message, channel)

@@ -3,6 +3,7 @@ addonTable = addonTable or {}
 
 local BloodlustButtonWarning = {}
 addonTable.BloodlustButtonWarning = BloodlustButtonWarning
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local LUST_SATED_IDS = {
   [57723] = true, -- Exhaustion
@@ -36,12 +37,15 @@ local function DefaultGetDB()
 end
 
 local function DefaultIsLocalBloodlustClass()
+  if not addonTable.Validators.IsExistingUnit("player") then
+    return false
+  end
   local unitClass = rawget(_G, "UnitClass")
   if type(unitClass) ~= "function" then
     return false
   end
   local ok, _, classToken = pcall(unitClass, "player")
-  return ok and BLOODLUST_CLASS_TOKENS[classToken] == true
+  return ok and not IsSecretValue(classToken) and BLOODLUST_CLASS_TOKENS[classToken] == true
 end
 
 local function DefaultGetActionSpellID(button)

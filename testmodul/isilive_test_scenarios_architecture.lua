@@ -2172,7 +2172,7 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     AssertContains(
       Assert,
       workflowContent,
-      'luacheck --exclude-files ".luarocks/**" -- .',
+      'luacheck --exclude-files ".luarocks/**" "tools/cache/**" -- .',
       "workflow must keep the luacheck step"
     )
     AssertContains(
@@ -2428,6 +2428,12 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       "workflow must gate releases on literal UI colors outside UICommon.Colors"
     )
     AssertContains(Assert, workflowContent, "Lua Syntax Check", "workflow must keep the syntax validation step")
+    AssertContains(
+      Assert,
+      workflowContent,
+      '-not -path "./tools/cache/*"',
+      "workflow syntax validation must exclude generated and downloaded cache sources"
+    )
   end)
 
   test("Architecture season inspect workflows avoid content writes and keep artifact reports", function()
@@ -2575,7 +2581,7 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     AssertContains(
       Assert,
       localPreflightContent,
-      'Invoke-LuaRocksCommand "Luacheck" "luacheck" @("--exclude-files", ".luarocks/**", "--", ".")',
+      'Invoke-LuaRocksCommand "Luacheck" "luacheck" @("--exclude-files", ".luarocks/**", "tools/cache/**", "--", ".")',
       "local preflight must run luacheck through the launcher instead of invoking the bare script"
     )
     AssertContains(
@@ -2583,6 +2589,12 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
       localPreflightContent,
       'Write-Step "Lua Syntax Check"',
       "local preflight must keep the same Lua syntax check phase as the workflow"
+    )
+    AssertContains(
+      Assert,
+      localPreflightContent,
+      "*\\tools\\cache\\*",
+      "local syntax validation must exclude generated and downloaded cache sources"
     )
     AssertContains(
       Assert,
@@ -3160,30 +3172,6 @@ local function RegisterArchitectureLoadOrderTests(test, Assert)
   end)
 end
 
-local function RegisterArchitectureSeasonSelectionTests(test, Assert)
-  test("Architecture automatic season wiring uses Blizzard map table and rebuilds teleport buttons", function()
-    local wiring = ReadFile("isiLive_controller_wiring.lua")
-    AssertContains(
-      Assert,
-      wiring,
-      'rawget(challengeMode, "GetMapTable")',
-      "automatic season wiring must read Blizzard's challenge-map table through the guarded API cache"
-    )
-    AssertContains(
-      Assert,
-      wiring,
-      "seasonData.TryAutoSelectSeasonFromChallengeMapIDs(mapIDs",
-      "automatic season wiring must delegate exact-set selection to SeasonData"
-    )
-    AssertContains(
-      Assert,
-      wiring,
-      "controllers.teleport.BuildButtons()",
-      "a successful automatic season change must rebuild the teleport buttons"
-    )
-  end)
-end
-
 return function(test, ctx)
   RegisterArchitectureSourceBoundaryTests(test, ctx.assert)
   RegisterArchitectureQueueWiringTests(test, ctx.assert)
@@ -3196,5 +3184,4 @@ return function(test, ctx)
   RegisterArchitectureModuleApiTests(test, ctx.assert, ctx.load_modules)
   RegisterArchitectureGuardsSyncTests(test, ctx.assert)
   RegisterArchitectureLoadOrderTests(test, ctx.assert)
-  RegisterArchitectureSeasonSelectionTests(test, ctx.assert)
 end

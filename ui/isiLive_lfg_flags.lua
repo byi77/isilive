@@ -369,12 +369,15 @@ local function ResolveSpecIDFromText(value, classToken)
 end
 
 local function ResolvePlayerClassToken()
+  if not addonTable.Validators.IsExistingUnit("player") then
+    return nil
+  end
   local unitClass = rawget(_G, "UnitClass")
   if type(unitClass) ~= "function" then
     return nil
   end
   local ok, _, classToken = pcall(unitClass, "player")
-  if not ok then
+  if not ok or IsSecretValue(classToken) then
     return nil
   end
   return ResolveClassToken(classToken)
@@ -387,11 +390,11 @@ local function ResolvePlayerSpecID()
     return nil
   end
   local okIndex, specIndex = pcall(getSpecialization)
-  if not okIndex or not specIndex then
+  if not okIndex or IsSecretValue(specIndex) or not specIndex then
     return nil
   end
   local okInfo, specID = pcall(getSpecializationInfo, specIndex)
-  if not okInfo then
+  if not okInfo or IsSecretValue(specID) then
     return nil
   end
   return ReadPositiveNumber(specID)

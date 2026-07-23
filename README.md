@@ -61,6 +61,8 @@ Tank and healer deaths during active Mythic+ keys trigger a large on-screen warn
 
 **VERIFIED TARGET HINTS** keep portal highlighting and pre-key dungeon labels tied to observed Blizzard LFG context instead of guessed names.
 
+Verified pending Queue-join context also survives unrelated LFG refresh noise until the group join or an explicit Queue lifecycle transition consumes it; after the join, late event text cannot replace the already captured group.
+
 ### One-window Mythic+ control
 
 **ROSTER:** spec, role, key, iLvl, Raider.IO, DPS, interrupt status, leader crown, isiLive peer marker, green group-bonus hearts, and right-click whisper.

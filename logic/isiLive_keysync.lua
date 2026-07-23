@@ -6,6 +6,7 @@ local KeySync = {}
 addonTable.KeySync = KeySync
 
 local SeasonData = addonTable.SeasonData or {}
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 -- Module-level diagnostics counters. These are write-only from inside
 -- KeySync internals and read-only from outside via KeySync.GetDiagnostics().
@@ -103,14 +104,25 @@ local function GetOwnedKeystoneSnapshot()
 end
 
 local function ResolveAverageItemLevel()
-  if C_Item and C_Item.GetAverageItemLevel then
-    local avgIlvl, equippedIlvl = C_Item.GetAverageItemLevel()
+  local cItem = rawget(_G, "C_Item")
+  if type(cItem) == "table" and type(cItem.GetAverageItemLevel) == "function" then
+    local ok, avgIlvl, equippedIlvl = pcall(cItem.GetAverageItemLevel)
+    if not ok or IsSecretValue(avgIlvl) or IsSecretValue(equippedIlvl) then
+      return nil
+    end
     local resolved = tonumber(equippedIlvl) or tonumber(avgIlvl)
     if resolved and resolved > 0 then
       return math.floor(resolved)
     end
-  elseif GetAverageItemLevel then
-    local avgIlvl, equippedIlvl = GetAverageItemLevel()
+  else
+    local getAverageItemLevel = rawget(_G, "GetAverageItemLevel")
+    if type(getAverageItemLevel) ~= "function" then
+      return nil
+    end
+    local ok, avgIlvl, equippedIlvl = pcall(getAverageItemLevel)
+    if not ok or IsSecretValue(avgIlvl) or IsSecretValue(equippedIlvl) then
+      return nil
+    end
     local resolved = tonumber(equippedIlvl) or tonumber(avgIlvl)
     if resolved and resolved > 0 then
       return math.floor(resolved)
@@ -128,10 +140,15 @@ KeySync.ResolveAverageItemLevel = ResolveAverageItemLevel
 
 local function GetOwnedStatsSnapshot(getUnitRio)
   local specID = nil
-  if GetSpecialization and GetSpecializationInfo then
-    local specIndex = GetSpecialization()
-    if specIndex and specIndex > 0 then
-      local resolvedSpecID = GetSpecializationInfo(specIndex)
+  local getSpecialization = rawget(_G, "GetSpecialization")
+  local getSpecializationInfo = rawget(_G, "GetSpecializationInfo")
+  if type(getSpecialization) == "function" and type(getSpecializationInfo) == "function" then
+    local okIndex, specIndex = pcall(getSpecialization)
+    if okIndex and not IsSecretValue(specIndex) and type(specIndex) == "number" and specIndex > 0 then
+      local okInfo, resolvedSpecID = pcall(getSpecializationInfo, specIndex)
+      if not okInfo or IsSecretValue(resolvedSpecID) then
+        resolvedSpecID = nil
+      end
       resolvedSpecID = tonumber(resolvedSpecID)
       if resolvedSpecID and resolvedSpecID > 0 then
         specID = math.floor(resolvedSpecID)
@@ -143,7 +160,8 @@ local function GetOwnedStatsSnapshot(getUnitRio)
 
   local rio = nil
   if type(getUnitRio) == "function" then
-    local resolvedRio = tonumber(getUnitRio("player"))
+    local okRio, rawRio = pcall(getUnitRio, "player")
+    local resolvedRio = okRio and not IsSecretValue(rawRio) and tonumber(rawRio) or nil
     if resolvedRio then
       rio = math.max(0, math.floor(resolvedRio))
     end
@@ -199,11 +217,11 @@ local function GetOwnedLocMapID()
   end
   local mapApi = rawget(_G, "C_Map")
   local getBestMapForUnit = mapApi and mapApi.GetBestMapForUnit
-  if type(getBestMapForUnit) ~= "function" then
+  if type(getBestMapForUnit) ~= "function" or not addonTable.Validators.IsExistingUnit("player") then
     return nil
   end
   local okMap, mapID = pcall(getBestMapForUnit, "player")
-  mapID = okMap and tonumber(mapID) or nil
+  mapID = okMap and not IsSecretValue(mapID) and tonumber(mapID) or nil
   if not mapID or mapID <= 0 then
     return nil
   end
@@ -299,10 +317,14 @@ local function ResolveSpecName(specID)
   if not numericSpecID or numericSpecID <= 0 then
     return nil
   end
-  if not GetSpecializationInfoByID then
+  local getSpecializationInfoByID = rawget(_G, "GetSpecializationInfoByID")
+  if type(getSpecializationInfoByID) ~= "function" then
     return nil
   end
-  local _, specName = GetSpecializationInfoByID(numericSpecID)
+  local ok, _, specName = pcall(getSpecializationInfoByID, numericSpecID)
+  if not ok or IsSecretValue(specName) then
+    return nil
+  end
   return specName
 end
 

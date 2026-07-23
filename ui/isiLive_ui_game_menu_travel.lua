@@ -5,6 +5,7 @@ addonTable.UI = addonTable.UI or {}
 
 local Travel = {}
 addonTable.UIGameMenuTravel = Travel
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local covenantRenownCriteria = nil
 local function HasCompletedCovenantRenownCriteria(criteriaIndex)
@@ -35,12 +36,15 @@ local function HasActiveCovenant(covenantID)
 end
 
 local function PlayerRaceIDIs(...)
+  if not addonTable.Validators.IsExistingUnit("player") then
+    return false
+  end
   local unitRace = rawget(_G, "UnitRace")
   if type(unitRace) ~= "function" then
     return false
   end
   local ok, _, _, raceID = pcall(unitRace, "player")
-  if not ok then
+  if not ok or IsSecretValue(raceID) then
     return false
   end
   for index = 1, select("#", ...) do

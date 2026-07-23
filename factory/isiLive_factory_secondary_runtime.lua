@@ -78,9 +78,9 @@ local function InitializeFactorySecondaryRuntimeMethods(ctx, modules)
     local unitExists = rawget(_G, "UnitExists")
     if type(getBestMapForUnit) == "function" and type(unitExists) == "function" then
       local okUnit, playerExists = pcall(unitExists, "player")
-      if okUnit and playerExists then
+      if okUnit and not addonTable.Validators.IsSecretValue(playerExists) and playerExists == true then
         local okMap, mapID = pcall(getBestMapForUnit, "player")
-        if okMap and type(mapID) == "number" and mapID > 0 then
+        if okMap and not addonTable.Validators.IsSecretValue(mapID) and type(mapID) == "number" and mapID > 0 then
           currentMapID = mapID
         end
       end

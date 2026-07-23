@@ -140,10 +140,7 @@ local function InitializeQueueOperationalHelpers(ctx, modules, runtimeState)
       return
     end
 
-    if not IsInGroup() then
-      runtimeState.SetPendingQueueJoinInfo(nil)
-    end
-
+    local isInGroup = IsInGroup()
     local args = { ... }
     local groupName = nil
     if type(args[1]) == "table" then
@@ -161,14 +158,13 @@ local function InitializeQueueOperationalHelpers(ctx, modules, runtimeState)
       groupName = nil
     end
 
-    if not runtimeState.GetPendingQueueJoinInfo() then
-      if not groupName then
-        if logFn then
-          logFn("[QUEUE_FLOW] capture_candidate skipped reason=no_group_name")
-        end
-        return
+    local pending = runtimeState.GetPendingQueueJoinInfo()
+    if not groupName then
+      if logFn then
+        local reason = pending and "preserved_pending_without_group_name" or "no_group_name"
+        logFn("[QUEUE_FLOW] capture_candidate skipped reason=" .. reason)
       end
-
+    elseif not isInGroup or not pending then
       local capturedAt = nil
       local getTimeFn = rawget(_G, "GetTime")
       if type(getTimeFn) == "function" then
@@ -181,7 +177,7 @@ local function InitializeQueueOperationalHelpers(ctx, modules, runtimeState)
             "[QUEUE_FLOW] capture_candidate groupName=%s capturedAt=%s isInGroup=%s",
             tostring(groupName),
             tostring(capturedAt),
-            tostring(IsInGroup())
+            tostring(isInGroup)
           )
         )
       end
@@ -189,9 +185,11 @@ local function InitializeQueueOperationalHelpers(ctx, modules, runtimeState)
         groupName = groupName,
         capturedAt = capturedAt,
       })
+    elseif logFn then
+      logFn("[QUEUE_FLOW] capture_candidate skipped reason=preserved_pending_after_group_join")
     end
 
-    if IsInGroup() then
+    if isInGroup then
       ctx.AnnounceQueuedGroupJoin()
     end
   end
@@ -282,7 +280,7 @@ local function InitializeStatusAndOperationalHelpers(ctx, modules, runtimeState)
       for unit, info in pairs(roster) do
         if type(unit) == "string" and unit ~= "" and type(info) == "table" and not info.isGhost then
           local okLeader, isLeader = pcall(unitIsGroupLeaderFn, unit)
-          if okLeader and isLeader == true then
+          if okLeader and not addonTable.Validators.IsSecretValue(isLeader) and isLeader == true then
             local targetInfo = modules.sync.GetPlayerTargetInfo(info.name, info.realm)
             if type(targetInfo) == "table" then
               local mapID = tonumber(targetInfo.mapID)

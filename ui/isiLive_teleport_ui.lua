@@ -9,6 +9,7 @@ local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table,
 
 local TeleportUI = {}
 addonTable.TeleportUI = TeleportUI
+local IsSecretValue = addonTable.Validators.IsSecretValue
 local RI = addonTable._RosterInternal or {}
 local createPrivateTooltip = assert(
   addonTable.UICommon and addonTable.UICommon.CreatePrivateTooltip,
@@ -374,11 +375,18 @@ function TeleportUI.CreateController(opts)
       return {}
     end,
     getPlayerLevel = opts.getPlayerLevel or function()
+      if not addonTable.Validators.IsExistingUnit("player") then
+        return nil
+      end
       local unitLevel = rawget(_G, "UnitLevel")
       if type(unitLevel) ~= "function" then
         return nil
       end
-      return unitLevel("player")
+      local ok, level = pcall(unitLevel, "player")
+      if not ok or IsSecretValue(level) then
+        return nil
+      end
+      return level
     end,
     isSpellKnown = opts.isSpellKnown or function(_spellID)
       return false

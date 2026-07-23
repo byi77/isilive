@@ -52,7 +52,7 @@ local function InitializeFactoryLfgWiringControllers(ctx, modules)
         for unit, info in pairs(roster) do
           if type(unit) == "string" and unit ~= "" and type(info) == "table" and not info.isGhost then
             local okLeader, isLeader = pcall(unitIsGroupLeaderFn, unit)
-            if okLeader and isLeader == true then
+            if okLeader and not addonTable.Validators.IsSecretValue(isLeader) and isLeader == true then
               preferredOwnerName = addonTable.StringUtils.BuildQualifiedName(info.name, info.realm)
               break
             end

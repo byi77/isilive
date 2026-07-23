@@ -597,6 +597,9 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
     local hides = 0
 
     WithGlobals({
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
       GetZoneText = function()
         return current.zoneText
       end,
@@ -719,6 +722,9 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
     local notices = {}
 
     WithGlobals({
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
       GetSubZoneText = function()
         return current.subZoneText
       end,
@@ -811,6 +817,9 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
     local scheduled = {}
 
     WithGlobals({
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
       GetSubZoneText = function()
         return current.subZoneText
       end,
@@ -1834,7 +1843,7 @@ local function RegisterFactoryRuntimeQueueTests(test, Assert, WithGlobals, LoadA
     end)
   end)
 
-  test("Factory runtime queue capture resets stale pending info when a new search starts outside a group", function()
+  test("Factory runtime queue capture preserves verified pending info across informational event noise", function()
     WithGlobals({
       IsInGroup = function()
         return false
@@ -1855,13 +1864,14 @@ local function RegisterFactoryRuntimeQueueTests(test, Assert, WithGlobals, LoadA
         },
       }, LoadAddonModules)
 
-      ctx.CaptureQueueJoinCandidate()
+      ctx.CaptureQueueJoinCandidate(98765)
 
-      Assert.Nil(
-        state.pendingQueueJoinInfo,
-        "capture outside a group must clear stale pending queue join info before a new search starts"
+      Assert.Equal(
+        state.pendingQueueJoinInfo.groupName,
+        "Old Group",
+        "an event without a verified group name must not erase the pending queue join"
       )
-      Assert.Equal(#(state.prints or {}), 0, "stale pending reset outside a group must stay silent")
+      Assert.Equal(#(state.prints or {}), 0, "informational event noise outside a group must stay silent")
     end)
   end)
 

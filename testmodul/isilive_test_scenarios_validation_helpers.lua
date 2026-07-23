@@ -78,4 +78,20 @@ return function(test, ctx)
       Assert.Equal(addon.Validators.IsExistingUnit("player"), false, "must return false on API error")
     end)
   end)
+
+  test("Validators.IsExistingUnit rejects secret existence values", function()
+    local secret = {}
+    WithGlobals({
+      UnitExists = function()
+        return secret
+      end,
+      issecretvalue = function(value)
+        return value == secret
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_validation_helpers.lua" })
+      Assert.Equal(addon.Validators.IsExistingUnit("player"), false, "secret UnitExists result must fail closed")
+      Assert.True(addon.Validators.IsSecretValue(secret), "shared secret-value detector must expose protected values")
+    end)
+  end)
 end

@@ -24,6 +24,9 @@ local function RegisterBasicKickTests(test, Assert, WithGlobals, LoadAddonModule
     ---@type KickController|nil
     local controller = nil
     WithGlobals({
+      UnitExists = function()
+        return true
+      end,
       GetSpecialization = function()
         return 1
       end,
@@ -53,6 +56,9 @@ local function RegisterBasicKickTests(test, Assert, WithGlobals, LoadAddonModule
     ---@type KickController|nil
     local controller = nil
     WithGlobals({
+      UnitExists = function()
+        return true
+      end,
       GetSpecialization = function()
         return 1
       end,
@@ -815,6 +821,9 @@ local function RegisterMultiKickExtrasTests(test, Assert, WithGlobals, LoadAddon
     local controller = nil
     local clock = 100
     WithGlobals({
+      UnitExists = function()
+        return true
+      end,
       GetSpecialization = function()
         return 1
       end,
@@ -861,6 +870,9 @@ local function RegisterMultiKickExtrasTests(test, Assert, WithGlobals, LoadAddon
     local controller = nil
     local clock = 100
     WithGlobals({
+      UnitExists = function()
+        return true
+      end,
       GetSpecialization = function()
         return 1
       end,

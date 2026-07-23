@@ -48,7 +48,7 @@ local function GetActiveChallengeMapID()
     return nil
   end
   local ok, mapID = pcall(api.GetActiveChallengeMapID)
-  if not ok or type(mapID) ~= "number" or mapID <= 0 or IsSecretValue(mapID) then
+  if not ok or IsSecretValue(mapID) or type(mapID) ~= "number" or mapID <= 0 then
     return nil
   end
   return mapID
@@ -74,11 +74,11 @@ local function ResolveGuid(tooltipData)
     end
   end
   local unitGUIDFn = rawget(_G, "UnitGUID")
-  if type(unitGUIDFn) ~= "function" then
+  if type(unitGUIDFn) ~= "function" or not addonTable.Validators.IsExistingUnit("mouseover") then
     return nil
   end
   local ok, guid = pcall(unitGUIDFn, "mouseover")
-  if ok and type(guid) == "string" and not IsSecretValue(guid) and guid ~= "" then
+  if ok and not IsSecretValue(guid) and type(guid) == "string" and guid ~= "" then
     return guid
   end
   return nil

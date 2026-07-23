@@ -45,7 +45,7 @@ local RULES = {
   },
   {
     id = "owned-keystone-link",
-    pattern = "C_MythicPlus%.GetOwnedKeystoneLink",
+    pattern = "GetOwnedKeystoneLink",
     message = "C_MythicPlus.GetOwnedKeystoneLink is nil in retail (the table exists, the function does not). "
       .. "Use a bag scan via C_Container.GetContainerItemLink for item 180653.",
   },

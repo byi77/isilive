@@ -197,11 +197,22 @@ local function CreateFactoryContext(addonName, tbl)
       return false
     end
     local okUnit, playerExists = pcall(unitExists, "player")
-    if not (okUnit and playerExists) then
+    if not okUnit or addonTable.Validators.IsSecretValue(playerExists) or playerExists ~= true then
       return false
     end
-    -- secret-value-ok: IsInGroup short-circuits in solo, UnitIsGroupLeader is the leader query itself
-    return IsInGroup() and UnitIsGroupLeader("player")
+    local isInGroup = rawget(_G, "IsInGroup")
+    local unitIsGroupLeader = rawget(_G, "UnitIsGroupLeader")
+    if type(isInGroup) ~= "function" or type(unitIsGroupLeader) ~= "function" then
+      return false
+    end
+    local okGroup, grouped = pcall(isInGroup)
+    local okLeader, leader = pcall(unitIsGroupLeader, "player")
+    return okGroup
+      and not addonTable.Validators.IsSecretValue(grouped)
+      and grouped == true
+      and okLeader
+      and not addonTable.Validators.IsSecretValue(leader)
+      and leader == true
   end
 
   ctx.GetRealmInfoLib = modules.contextHelpers.CreateRealmInfoGetter()
@@ -289,7 +300,7 @@ local function CreateFactoryContext(addonName, tbl)
       return nil
     end
     local okExists, exists = pcall(unitExists, "player")
-    if not okExists or not exists then
+    if not okExists or addonTable.Validators.IsSecretValue(exists) or exists ~= true then
       return nil
     end
     local mapApi = rawget(_G, "C_Map")
@@ -298,7 +309,7 @@ local function CreateFactoryContext(addonName, tbl)
       return nil
     end
     local ok, mapID = pcall(getBestMapForUnit, "player")
-    mapID = ok and tonumber(mapID) or nil
+    mapID = ok and not addonTable.Validators.IsSecretValue(mapID) and tonumber(mapID) or nil
     if not mapID or mapID <= 0 then
       return nil
     end

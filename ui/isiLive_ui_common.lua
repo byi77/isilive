@@ -238,12 +238,12 @@ function UICommon.MeasureFontStringWidthSafe(fontString)
   end
 
   local ok, width = pcall(fontString.GetStringWidth, fontString)
-  if not ok or width == nil or UICommon.IsSecretValue(width) then
+  if not ok or UICommon.IsSecretValue(width) or width == nil then
     return nil
   end
 
   local numberOk, numericWidth = pcall(tonumber, width)
-  if not numberOk or numericWidth == nil or UICommon.IsSecretValue(numericWidth) then
+  if not numberOk or UICommon.IsSecretValue(numericWidth) or numericWidth == nil then
     return nil
   end
 

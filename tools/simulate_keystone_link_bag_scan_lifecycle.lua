@@ -1,11 +1,8 @@
 -- Standalone CLI tool: walks the full keystone-chat-link resolution lifecycle
 -- and verifies every branch of ContextHelpers.BuildKeystoneChatLink behaves
--- correctly across the WoW retail API churn around Mythic Keystones.
+-- correctly against the current WoW retail Mythic Keystone APIs.
 --
--- Background: in patch 12.0 retail, C_MythicPlus.GetOwnedKeystoneLink was
--- removed. The function still exists as a table member is FALSE — actually
--- C_MythicPlus exists as a table but the GetOwnedKeystoneLink field is nil.
--- The fallback path is a bag scan for itemID 180653 (Mythic Keystone) using
+-- The clickable-link source is a bag scan for itemID 180653 (Mythic Keystone) using
 -- C_Container.GetContainerItemLink, which returns a real |Hkeystone:...|h
 -- or |Hitem:180653...|h link the chat server accepts.
 --
@@ -16,12 +13,10 @@
 -- no color codes around square brackets").
 --
 -- Verifies:
---   * Primary: GetOwnedKeystoneLink returning a valid link is preferred.
---   * Fallback: bag scan finds itemID 180653 -> returns its real link.
+--   * Primary: bag scan finds itemID 180653 -> returns its real link.
 --   * Keystone item hyperlinks for itemID 180653 stay clickable instead of
 --     falling back to plain text.
---   * Stale API: GetOwnedKeystoneLink exists but returns nil/empty/non-link
---     → bag scan kicks in.
+--   * Invalid bag link: scanning continues until a verified link is found.
 --   * Empty bag: no key → plain-text "[Keystone: <dungeonName> +N]" form,
 --     never |c...|r-wrapped.
 --   * Multi-key bags: first matching itemID 180653 wins.
@@ -33,7 +28,7 @@
 -- COMPONENT-ONLY (CLAUDE.md "Tests & simulators: end-to-end by default"
 -- exception): ContextHelpers.BuildKeystoneChatLink is a pure function with
 -- no event path — its inputs are (mapID, level, dungeonName) plus the
--- C_MythicPlus / C_Container globals. There is no upstream production
+-- C_Container globals. There is no upstream production
 -- caller chain to drive end-to-end here; the SHAREKEYS roundtrip in
 -- simulate_sender_receiver.lua exercises the result of this function in a
 -- real send pipeline. Direct branch-coverage via mocked bag/API state is
@@ -138,36 +133,33 @@ local function Run()
   print("========== Keystone-link bag-scan lifecycle simulator ==========\n")
 
   -- ----------------------------------------------------------------------
-  -- Phase 1: Primary path — GetOwnedKeystoneLink returns a valid link.
+  -- Phase 1: Primary path — bag scan returns a valid link.
   -- ----------------------------------------------------------------------
-  print("---- Phase 1: GetOwnedKeystoneLink primary path ----")
+  print("---- Phase 1: bag-scan primary path ----")
   do
+    local bag = NewBagModel()
+    BagsForcePut(bag, 0, 5, { itemID = 180653, link = NPX_BAG_LINK })
     local env = {
-      cMythicPlus = {
-        GetOwnedKeystoneLink = function()
-          return NPX_BAG_LINK
-        end,
-      },
-      cContainer = nil, -- bag scan must NOT be reached
+      cMythicPlus = {},
+      cContainer = BuildContainerApi(bag),
       cChallengeMode = nil,
     }
     WithEnvironment(env, function()
       local addon = LoadContextHelpers()
       local link = addon.ContextHelpers.BuildKeystoneChatLink(NPX_MAP_ID, 14)
-      Check(link == NPX_BAG_LINK, "primary path returns the GetOwnedKeystoneLink result verbatim")
+      Check(link == NPX_BAG_LINK, "primary path returns the verified bag link verbatim")
     end)
   end
 
   -- ----------------------------------------------------------------------
-  -- Phase 2: 12.0 retail — GetOwnedKeystoneLink does not exist on
-  -- C_MythicPlus. Bag scan must find itemID 180653 and return its link.
+  -- Phase 2: C_MythicPlus may still exist, but the bag remains the sole link source.
   -- ----------------------------------------------------------------------
   print("\n---- Phase 2: 12.0 retail — bag scan finds the key ----")
   do
     local bag = NewBagModel()
     BagsForcePut(bag, 0, 5, { itemID = 180653, link = NPX_BAG_LINK })
     local env = {
-      cMythicPlus = {}, -- table exists but no GetOwnedKeystoneLink
+      cMythicPlus = {},
       cContainer = BuildContainerApi(bag),
       cChallengeMode = nil,
     }
@@ -209,35 +201,22 @@ local function Run()
   end
 
   -- ----------------------------------------------------------------------
-  -- Phase 3: Stale API surface — GetOwnedKeystoneLink exists but returns
-  -- empty/nil/non-link values. Bag scan must take over.
+  -- Phase 3: Invalid links in earlier Keystone slots are skipped.
   -- ----------------------------------------------------------------------
-  print("\n---- Phase 3: GetOwnedKeystoneLink returns garbage; bag scan rescues ----")
-  -- Iterate explicit cases so a nil entry in the middle does not terminate
-  -- ipairs early under Lua 5.1.
-  local garbageCases = {
-    { label = "empty string", value = "" },
-    { label = "nil", value = nil },
-    { label = "non-link text", value = "Some random text" },
-    { label = "number", value = 42 },
-  }
-  for i = 1, #garbageCases do
-    local case = garbageCases[i]
+  print("\n---- Phase 3: invalid bag links are skipped ----")
+  do
     local bag = NewBagModel()
-    BagsForcePut(bag, 1, 3, { itemID = 180653, link = NPX_BAG_LINK })
+    BagsForcePut(bag, 1, 1, { itemID = 180653, link = "not a hyperlink" })
+    BagsForcePut(bag, 1, 2, { itemID = 180653, link = NPX_BAG_LINK })
     local env = {
-      cMythicPlus = {
-        GetOwnedKeystoneLink = function()
-          return case.value
-        end,
-      },
+      cMythicPlus = {},
       cContainer = BuildContainerApi(bag),
       cChallengeMode = nil,
     }
     WithEnvironment(env, function()
       local addon = LoadContextHelpers()
       local link = addon.ContextHelpers.BuildKeystoneChatLink(NPX_MAP_ID, 14)
-      Check(link == NPX_BAG_LINK, string.format("garbage primary (%s) → bag scan link", case.label))
+      Check(link == NPX_BAG_LINK, "invalid earlier bag link does not hide a later verified Keystone link")
     end)
   end
 
@@ -351,11 +330,7 @@ local function Run()
   print("\n---- Phase 8: invalid input rejected ----")
   do
     local env = {
-      cMythicPlus = {
-        GetOwnedKeystoneLink = function()
-          return NPX_BAG_LINK
-        end,
-      },
+      cMythicPlus = {},
       cContainer = nil,
       cChallengeMode = nil,
     }

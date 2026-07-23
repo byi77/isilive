@@ -3,5 +3,6 @@ Libs/**
 vendor/**
 externals/**
 .luarocks/**
+tools/cache/**
 build/**
 realm_language_data.lua

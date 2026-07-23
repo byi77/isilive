@@ -68,15 +68,8 @@ local function InitializeFactorySecondaryCdTracker(
       return true
     end
     local ok, mapID = pcall(ctx.GetActiveChallengeMapID)
-    if not ok or mapID == nil then
+    if not ok or addonTable.Validators.IsSecretValue(mapID) or mapID == nil then
       return false
-    end
-    local isSecretValue = rawget(_G, "issecretvalue")
-    if type(isSecretValue) == "function" then
-      local secretOk, isSecret = pcall(isSecretValue, mapID)
-      if secretOk and isSecret == true then
-        return false
-      end
     end
     return true
   end

@@ -274,6 +274,9 @@ local function ReadDisplayNumber(value, shouldRound)
 end
 
 local function ReadUnitStat(statIndex, opts)
+  if opts.UnitStat == nil and not addonTable.Validators.IsExistingUnit("player") then
+    return nil
+  end
   local unitStat = opts.UnitStat or rawget(_G, "UnitStat")
   if type(unitStat) ~= "function" then
     return nil
@@ -362,6 +365,9 @@ local function ReadDurabilityRow(opts)
 end
 
 local function ReadPlayerSpellHaste(opts)
+  if opts.UnitSpellHaste == nil and not addonTable.Validators.IsExistingUnit("player") then
+    return nil
+  end
   local unitSpellHaste = opts.UnitSpellHaste or rawget(_G, "UnitSpellHaste")
   if type(unitSpellHaste) ~= "function" then
     return nil
@@ -379,6 +385,9 @@ local function ReadPlayerSpellHaste(opts)
 end
 
 local function ResolvePlayerClassToken(opts)
+  if opts.UnitClass == nil and not addonTable.Validators.IsExistingUnit("player") then
+    return nil
+  end
   local unitClass = opts.UnitClass or rawget(_G, "UnitClass")
   if type(unitClass) ~= "function" then
     return nil
@@ -401,12 +410,12 @@ local function ResolvePlayerSpecID(opts)
     return nil
   end
   local okSpec, specIndex = pcall(getSpecialization)
-  specIndex = okSpec and ReadPlainNumber(specIndex) or nil
+  specIndex = okSpec and not IsSecretValue(specIndex) and ReadPlainNumber(specIndex) or nil
   if specIndex == nil then
     return nil
   end
   local okInfo, specID = pcall(getSpecializationInfo, specIndex)
-  specID = okInfo and ReadPlainNumber(specID) or nil
+  specID = okInfo and not IsSecretValue(specID) and ReadPlainNumber(specID) or nil
   return specID
 end
 
@@ -556,12 +565,12 @@ local function MeasureFontStringWidth(fontString)
     return nil
   end
   local ok, width = pcall(fontString.GetStringWidth, fontString)
-  if not ok or width == nil or IsSecretValue(width) then
+  if not ok or IsSecretValue(width) or width == nil then
     return nil
   end
 
   local numberOk, numericWidth = pcall(tonumber, width)
-  if not numberOk or numericWidth == nil or IsSecretValue(numericWidth) then
+  if not numberOk or IsSecretValue(numericWidth) or numericWidth == nil then
     return nil
   end
 

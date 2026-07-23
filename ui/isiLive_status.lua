@@ -5,6 +5,7 @@ addonTable = addonTable or {}
 local Status = {}
 addonTable.Status = Status
 local StringUtils = addonTable.StringUtils
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local MYTHIC_DIFFICULTY_IDS = {
   [8] = true,
@@ -511,11 +512,10 @@ local function GetDungeonDifficultyLabel(getL)
     return L.DUNGEON_DIFF_OUTSIDE, false, false, instanceType, difficultyID, instanceName
   end
 
-  -- secret-value-ok: existence-guarded short-circuit chain on C_ChallengeMode
   local challengeMode = rawget(_G, "C_ChallengeMode")
   if type(challengeMode) == "table" and type(challengeMode.GetActiveChallengeMapID) == "function" then
     local okMap, activeMapID = pcall(challengeMode.GetActiveChallengeMapID)
-    if okMap and activeMapID then
+    if okMap and not IsSecretValue(activeMapID) and type(activeMapID) == "number" and activeMapID > 0 then
       return L.DUNGEON_DIFF_MYTHIC, true, true, instanceType, difficultyID, instanceName
     end
   end
@@ -726,7 +726,7 @@ local function BuildStatusLineText(deps, flags)
   local challengeMode = rawget(_G, "C_ChallengeMode")
   if type(challengeMode) == "table" and type(challengeMode.GetActiveChallengeMapID) == "function" then
     local ok, mapID = pcall(challengeMode.GetActiveChallengeMapID)
-    hasActiveChallenge = ok and mapID and true or false
+    hasActiveChallenge = ok and not IsSecretValue(mapID) and type(mapID) == "number" and mapID > 0
   end
   local mplusText = hasActiveChallenge and L.STATUS_MPLUS_YES or L.STATUS_MPLUS_NO
   local targetDungeonText = BuildTargetDungeonText(deps)
@@ -786,13 +786,16 @@ function Status.CreateController(opts)
       return text
     end,
     getPlayerMapID = opts.getPlayerMapID or function()
+      if not addonTable.Validators.IsExistingUnit("player") then
+        return nil
+      end
       local mapApi = rawget(_G, "C_Map")
       local getBestMapForUnit = mapApi and rawget(mapApi, "GetBestMapForUnit")
       if type(getBestMapForUnit) ~= "function" then
         return nil
       end
       local ok, mapID = pcall(getBestMapForUnit, "player")
-      mapID = ok and tonumber(mapID) or nil
+      mapID = ok and not IsSecretValue(mapID) and tonumber(mapID) or nil
       if not mapID or mapID <= 0 then
         return nil
       end

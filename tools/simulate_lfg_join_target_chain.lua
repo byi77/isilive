@@ -413,10 +413,7 @@ local function Run()
       Check(PendingGroupName(sim) == "+11 NW", "first solo capture sets the pending group name")
 
       sim.captureCandidate({ groupName = "+15 BRH" })
-      Check(
-        PendingGroupName(sim) == "+15 BRH",
-        "second solo capture overwrites pending (production clears-then-sets when not in group)"
-      )
+      Check(PendingGroupName(sim) == "+15 BRH", "second verified solo capture replaces the pending group name")
 
       sim.groupState.inGroup = true
       sim.groupState.numMembers = 3

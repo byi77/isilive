@@ -753,6 +753,9 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
 
     local globals, fire = BuildLFGDetectEnv({
       globals = {
+        UnitExists = function()
+          return true
+        end,
         UnitFullName = function(unit)
           if unit == "player" then
             return "Isi", "Blackmoore"
@@ -854,6 +857,9 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
   test("LFGDetect own queue listing exposes verified group title and local leader", function()
     local globals, fire = BuildLFGDetectEnv({
       globals = {
+        UnitExists = function()
+          return true
+        end,
         UnitFullName = function(unit)
           if unit == "player" then
             return "Isi", "Blackmoore"

@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local MplusTimer = {}
 addonTable.MplusTimer = MplusTimer
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 -- Internal state
 local state = {
@@ -73,7 +74,7 @@ local function StartTimer()
   local mapId
   if hasChallengeAPI and type(challengeMode.GetActiveChallengeMapID) == "function" then
     local ok, id = pcall(challengeMode.GetActiveChallengeMapID)
-    if ok and type(id) == "number" then
+    if ok and not IsSecretValue(id) and type(id) == "number" then
       mapId = id
     end
   end
@@ -82,7 +83,7 @@ local function StartTimer()
   local keyLevel = 0
   if hasChallengeAPI and type(challengeMode.GetActiveKeystoneInfo) == "function" then
     local ok, level = pcall(challengeMode.GetActiveKeystoneInfo)
-    if ok and type(level) == "number" then
+    if ok and not IsSecretValue(level) and type(level) == "number" then
       keyLevel = level
     end
   end

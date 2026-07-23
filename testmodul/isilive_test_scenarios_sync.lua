@@ -183,6 +183,9 @@ local function RegisterSyncRuntimeLogBurstTests(test, Assert, WithGlobals, LoadA
       IsInRaid = function()
         return false
       end,
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
       C_ChatInfo = {
         SendAddonMessage = function() end,
       },
@@ -197,11 +200,7 @@ local function RegisterSyncRuntimeLogBurstTests(test, Assert, WithGlobals, LoadA
 
       Assert.Equal(type(capturedBuilder), "function", "sync trace logger must receive a lazy message builder")
       local formatted = capturedBuilder and capturedBuilder() or nil
-      Assert.Equal(
-        formatted,
-        "[SYNC] send_reqsync channel=PARTY sent=false",
-        "sync trace builder must format on demand"
-      )
+      Assert.Equal(formatted, "[SYNC] send_reqsync channel=PARTY sent=true", "sync trace builder must format on demand")
     end)
   end)
 
@@ -543,6 +542,9 @@ local function RegisterSendOwnKeySnapshotTests(test, Assert, WithGlobals, LoadAd
     local keyMapID = 2649
 
     WithGlobals({
+      UnitExists = function(unit)
+        return unit == "player"
+      end,
       GetTime = function()
         return 100
       end,

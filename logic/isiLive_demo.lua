@@ -6,6 +6,7 @@ local Demo = {}
 addonTable.Demo = Demo
 
 local SeasonData = addonTable.SeasonData or {}
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local DUMMY_MEMBERS = {
   tank = {
@@ -116,7 +117,7 @@ local function DefaultGetUnitNameAndRealm(unit)
   end
 
   local okExists, exists = pcall(unitExists, unit)
-  if not okExists or not exists then
+  if not okExists or IsSecretValue(exists) or exists ~= true then
     return nil, nil
   end
 
@@ -124,7 +125,7 @@ local function DefaultGetUnitNameAndRealm(unit)
   local unitFullName = rawget(_G, "UnitFullName")
   if type(unitFullName) == "function" then
     local okFullName, fullName, fullRealm = pcall(unitFullName, unit)
-    if okFullName then
+    if okFullName and not IsSecretValue(fullName) and not IsSecretValue(fullRealm) then
       name = fullName
       realm = fullRealm
     end
@@ -134,7 +135,7 @@ local function DefaultGetUnitNameAndRealm(unit)
     local unitName = rawget(_G, "UnitName")
     if type(unitName) == "function" then
       local okName, fallbackName = pcall(unitName, unit)
-      if okName then
+      if okName and not IsSecretValue(fallbackName) then
         name = fallbackName
       end
     end
@@ -142,7 +143,11 @@ local function DefaultGetUnitNameAndRealm(unit)
 
   if addonTable.StringUtils.IsBlank(realm) then
     local getRealmName = rawget(_G, "GetRealmName")
-    realm = type(getRealmName) == "function" and getRealmName() or ""
+    local okRealm, fallbackRealm = false, nil
+    if type(getRealmName) == "function" then
+      okRealm, fallbackRealm = pcall(getRealmName)
+    end
+    realm = okRealm and not IsSecretValue(fallbackRealm) and fallbackRealm or ""
   end
   return name, realm
 end
@@ -158,7 +163,7 @@ local function DefaultGetUnitClass(unit)
   end
 
   local okExists, exists = pcall(unitExists, unit)
-  if not okExists or not exists then
+  if not okExists or IsSecretValue(exists) or exists ~= true then
     return nil, nil
   end
 
@@ -168,7 +173,7 @@ local function DefaultGetUnitClass(unit)
   end
 
   local okClass, localizedClass, classToken = pcall(unitClass, unit)
-  if not okClass then
+  if not okClass or IsSecretValue(localizedClass) or IsSecretValue(classToken) then
     return nil, nil
   end
 
@@ -178,15 +183,18 @@ end
 local function ResolvePlayerIlvl()
   local cItem = rawget(_G, "C_Item")
   if type(cItem) == "table" and type(cItem.GetAverageItemLevel) == "function" then
-    local avgIlvl = cItem.GetAverageItemLevel()
-    if type(avgIlvl) == "number" and avgIlvl > 0 then
+    local ok, avgIlvl = pcall(cItem.GetAverageItemLevel)
+    if ok and not IsSecretValue(avgIlvl) and type(avgIlvl) == "number" and avgIlvl > 0 then
       return avgIlvl
     end
   end
 
   local legacy = rawget(_G, "GetAverageItemLevel")
   if type(legacy) == "function" then
-    local avgIlvl, equippedIlvl = legacy()
+    local ok, avgIlvl, equippedIlvl = pcall(legacy)
+    if not ok or IsSecretValue(avgIlvl) or IsSecretValue(equippedIlvl) then
+      return nil
+    end
     local resolvedIlvl = equippedIlvl or avgIlvl
     if type(resolvedIlvl) == "number" and resolvedIlvl > 0 then
       return resolvedIlvl
@@ -270,14 +278,21 @@ function Demo.BuildDummyRoster(opts)
   local playerIlvl = ResolvePlayerIlvl()
   local playerKeyMapID, playerKeyLevel = ResolvePlayerKeystone()
   local includeGhostMember = opts.previewVariant == "full" or opts.includeGhostMember == true
+  local fallbackRealm = ""
+  if not playerRealm then
+    local getRealmName = rawget(_G, "GetRealmName")
+    if type(getRealmName) == "function" then
+      local okRealm, resolvedRealm = pcall(getRealmName)
+      if okRealm and not IsSecretValue(resolvedRealm) and type(resolvedRealm) == "string" then
+        fallbackRealm = resolvedRealm
+      end
+    end
+  end
 
   local roster = {
     ["player"] = {
       name = playerName or "Player",
-      realm = playerRealm or (function()
-        local getRealmName = rawget(_G, "GetRealmName")
-        return type(getRealmName) == "function" and getRealmName() or ""
-      end)(),
+      realm = playerRealm or fallbackRealm,
       language = playerLanguage or "??",
       class = playerClass or "WARRIOR",
       role = playerRole or "DAMAGER",

@@ -9,6 +9,7 @@ local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table,
 addonTable._RosterInternal = addonTable._RosterInternal or {}
 local RI = addonTable._RosterInternal
 local UICommon = addonTable.UICommon or {}
+local IsSecretValue = addonTable.Validators.IsSecretValue
 local SetReadableText = type(UICommon.SetReadableText) == "function" and UICommon.SetReadableText
   or function(fontString, text)
     if type(fontString) == "table" and type(fontString.SetText) == "function" then
@@ -267,12 +268,12 @@ end
 local function IsEntryAtTargetDungeon(targetMapID, entry, info)
   local isAtDungeon = false
 
-  if targetMapID and entry and entry.unit then
+  if targetMapID and entry and entry.unit and addonTable.Validators.IsExistingUnit(entry.unit) then
     local mapApi = rawget(_G, "C_Map")
     local getBestMapForUnit = mapApi and mapApi.GetBestMapForUnit or nil
     if type(getBestMapForUnit) == "function" then
       local ok, playerMapID = pcall(getBestMapForUnit, entry.unit)
-      if ok and playerMapID and tonumber(playerMapID) == tonumber(targetMapID) then
+      if ok and not IsSecretValue(playerMapID) and tonumber(playerMapID) == tonumber(targetMapID) then
         isAtDungeon = true
       end
     end

@@ -12,6 +12,12 @@ addonTable = addonTable or {}
 local LFGDetect = {}
 addonTable.LFGDetect = LFGDetect
 local Unpack = rawget(_G, "unpack") or rawget(table, "unpack")
+local Validators = addonTable.Validators or {}
+
+local function IsSecretValue(value)
+  local validator = rawget(Validators, "IsSecretValue")
+  return type(validator) == "function" and validator(value) == true
+end
 
 -- Runtime cache for Blizzard-resolved activity IDs that are not present in the
 -- active season manifest. The verified static mappings live in SeasonData.
@@ -631,12 +637,16 @@ local function ClearPendingTargetDungeonChat()
 end
 
 local function GetLocalPlayerFullName()
+  local isExistingUnit = rawget(Validators, "IsExistingUnit")
+  if type(isExistingUnit) ~= "function" or not isExistingUnit("player") then
+    return nil
+  end
   local unitFullNameFn = rawget(_G, "UnitFullName")
   if type(unitFullNameFn) ~= "function" then
     return nil
   end
-  local name, realm = unitFullNameFn("player")
-  if type(name) ~= "string" or name == "" then
+  local ok, name, realm = pcall(unitFullNameFn, "player")
+  if not ok or IsSecretValue(name) or IsSecretValue(realm) or type(name) ~= "string" or name == "" then
     return nil
   end
   if type(realm) == "string" and realm ~= "" then

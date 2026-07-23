@@ -129,4 +129,20 @@ return function(test, ctx)
     Assert.True(forcesTool:find("season.mdtDirectory", 1, true) ~= nil, "MDT tooling must use it")
     Assert.Nil(forcesTool:find("SEASON_TO_MDT_DIR", 1, true), "MDT tooling must not duplicate seasons")
   end)
+
+  test("Architecture automatic season wiring uses Blizzard map table and rebuilds teleport buttons", function()
+    local wiring = ReadFile("factory/isiLive_controller_wiring.lua")
+    Assert.True(
+      wiring:find('rawget(challengeMode, "GetMapTable")', 1, true) ~= nil,
+      "automatic season wiring must read Blizzard's challenge-map table through the guarded API cache"
+    )
+    Assert.True(
+      wiring:find("seasonData.TryAutoSelectSeasonFromChallengeMapIDs(mapIDs", 1, true) ~= nil,
+      "automatic season wiring must delegate exact-set selection to SeasonData"
+    )
+    Assert.True(
+      wiring:find("controllers.teleport.BuildButtons()", 1, true) ~= nil,
+      "a successful automatic season change must rebuild the teleport buttons"
+    )
+  end)
 end

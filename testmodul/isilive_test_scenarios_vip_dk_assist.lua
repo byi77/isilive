@@ -181,6 +181,9 @@ local function RegisterVipDkAssistTests(test, Assert, WithGlobals, LoadAddonModu
     local overlays = {}
     local globals = {
       IsiLiveDB = db,
+      UnitExists = function()
+        return true
+      end,
       UnitClass = function(unit)
         if unit == "player" then
           return "Death Knight", "DEATHKNIGHT"

@@ -3,6 +3,7 @@ addonTable = addonTable or {}
 
 local PiTracker = {}
 addonTable.PiTracker = PiTracker
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local POWER_INFUSION_SPELL_ID = 10060
 local DEDUP_WINDOW_SECONDS = 30
@@ -21,6 +22,9 @@ local function DefaultGetTime()
 end
 
 local function DefaultGetAuraDataByIndex(unit, index, filter)
+  if not addonTable.Validators.IsExistingUnit(unit) then
+    return nil
+  end
   local unitAuras = rawget(_G, "C_UnitAuras")
   local getAuraDataByIndex = type(unitAuras) == "table" and rawget(unitAuras, "GetAuraDataByIndex") or nil
   if type(getAuraDataByIndex) ~= "function" then
@@ -34,17 +38,20 @@ local function DefaultGetAuraDataByIndex(unit, index, filter)
 end
 
 local function DefaultGetUnitName(unit)
+  if not addonTable.Validators.IsExistingUnit(unit) then
+    return nil
+  end
   local getUnitNameFn = rawget(_G, "GetUnitName")
   if type(getUnitNameFn) == "function" then
     local ok, name = pcall(getUnitNameFn, unit, true)
-    if ok and type(name) == "string" and name ~= "" then
+    if ok and not IsSecretValue(name) and type(name) == "string" and name ~= "" then
       return name
     end
   end
   local unitNameFn = rawget(_G, "UnitName")
   if type(unitNameFn) == "function" then
     local ok, name = pcall(unitNameFn, unit)
-    if ok and type(name) == "string" and name ~= "" then
+    if ok and not IsSecretValue(name) and type(name) == "string" and name ~= "" then
       return name
     end
   end
@@ -52,12 +59,15 @@ local function DefaultGetUnitName(unit)
 end
 
 local function DefaultGetUnitClassToken(unit)
+  if not addonTable.Validators.IsExistingUnit(unit) then
+    return nil
+  end
   local unitClass = rawget(_G, "UnitClass")
   if type(unitClass) ~= "function" then
     return nil
   end
   local ok, _, classToken = pcall(unitClass, unit)
-  if ok and type(classToken) == "string" and classToken ~= "" then
+  if ok and not IsSecretValue(classToken) and type(classToken) == "string" and classToken ~= "" then
     return classToken
   end
   return nil

@@ -29,12 +29,12 @@ local function MeasureFontStringWidthSafeFallback(fontString)
   end
 
   local ok, width = pcall(fontString.GetStringWidth, fontString)
-  if not ok or width == nil or IsSecretValue(width) then
+  if not ok or IsSecretValue(width) or width == nil then
     return nil
   end
 
   local numberOk, numericWidth = pcall(tonumber, width)
-  if not numberOk or numericWidth == nil or IsSecretValue(numericWidth) then
+  if not numberOk or IsSecretValue(numericWidth) or numericWidth == nil then
     return nil
   end
 

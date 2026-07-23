@@ -409,6 +409,9 @@ local function RegisterCombatEventsDefaultTests(test, ctx)
           return 42
         end,
       },
+      UnitExists = function()
+        return true
+      end,
       GetUnitName = function(unit, _)
         return unit == "player" and "Alice-Realm" or unit
       end,
@@ -496,6 +499,9 @@ local function RegisterCombatEventsDefaultTests(test, ctx)
           return 9
         end,
       },
+      UnitExists = function()
+        return true
+      end,
       GetUnitName = function()
         error("no name", 0)
       end,
@@ -513,7 +519,7 @@ local function RegisterCombatEventsDefaultTests(test, ctx)
     Assert.Equal(broadcasts[1], "Bob", "fallback must use UnitName result")
   end)
 
-  test("CombatEvents default getUnitName returns unit token when all name APIs fail", function()
+  test("CombatEvents keeps caster unresolved when all name APIs fail", function()
     local addon = nil
     WithGlobals(BuildCombatEventsEnv(), function()
       addon = LoadAddonModules({ "isiLive_combat_events.lua" })
@@ -529,6 +535,9 @@ local function RegisterCombatEventsDefaultTests(test, ctx)
           return 9
         end,
       },
+      UnitExists = function()
+        return true
+      end,
       GetUnitName = function()
         return nil
       end,
@@ -543,7 +552,7 @@ local function RegisterCombatEventsDefaultTests(test, ctx)
       })
       controller.HandleUnitSpellcastSucceeded("player", "cast-1", 20484)
     end)
-    Assert.Equal(broadcasts[1], "player", "last-resort fallback must be the unit token itself")
+    Assert.Equal(#broadcasts, 0, "an unresolved caster must not be replaced with a unit-token guess")
   end)
 
   test("CombatEvents HandleUnitSpellcastSucceeded ignores non-numeric spellID", function()

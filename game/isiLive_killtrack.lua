@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local KillTrack = {}
 addonTable.KillTrack = KillTrack
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 -- Optional sink for drift warnings (API-total vs DB-total).
 -- The factory wires this to ctx.runtimeLogController.Logf so divergences land
@@ -76,10 +77,7 @@ local function FindEnemyForcesCriteria()
   if not stepInfo or not stepInfo.numCriteria then
     return nil
   end
-  local issecret = rawget(_G, "issecretvalue") or function()
-    return false
-  end
-  if issecret(stepInfo.numCriteria) then
+  if IsSecretValue(stepInfo.numCriteria) then
     return nil
   end
   for i = 1, stepInfo.numCriteria do
@@ -92,15 +90,11 @@ local function FindEnemyForcesCriteria()
 end
 
 local function ReadLiveData()
-  local issecret = rawget(_G, "issecretvalue") or function()
-    return false
-  end
-
   local mapID = nil
   local challengeMode = rawget(_G, "C_ChallengeMode")
   if type(challengeMode) == "table" and type(challengeMode.GetActiveChallengeMapID) == "function" then
     local ok, id = pcall(challengeMode.GetActiveChallengeMapID)
-    if ok and type(id) == "number" and id > 0 and not issecret(id) then
+    if ok and not IsSecretValue(id) and type(id) == "number" and id > 0 then
       mapID = id
     end
   end
@@ -131,7 +125,7 @@ local function ReadLiveData()
   -- case where Blizzard taints / nils the field.
   local apiTotalRaw = cInfo.totalQuantity
   local apiTotal = nil
-  if apiTotalRaw and not issecret(apiTotalRaw) then
+  if apiTotalRaw and not IsSecretValue(apiTotalRaw) then
     local n = tonumber(apiTotalRaw)
     if n and n > 0 then
       apiTotal = n
@@ -178,11 +172,11 @@ local function ReadLiveData()
 
   local rawCount = 0
   local qStr = cInfo.quantityString
-  if qStr and not issecret(qStr) then
+  if qStr and not IsSecretValue(qStr) then
     rawCount = tonumber(qStr:match("(%d+)")) or 0
   else
     local qty = cInfo.quantity
-    if qty and not issecret(qty) then
+    if qty and not IsSecretValue(qty) then
       rawCount = tonumber(qty) or 0
     end
   end

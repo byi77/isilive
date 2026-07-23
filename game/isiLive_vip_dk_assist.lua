@@ -3,6 +3,7 @@ addonTable = addonTable or {}
 
 local VipDkAssist = {}
 addonTable.VipDkAssist = VipDkAssist
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local DARK_TRANSFORMATION_SPELL_ID = 1233448
 local SOUL_REAPER_SPELL_ID = 343294
@@ -50,12 +51,15 @@ local function DefaultIsInCombat()
 end
 
 local function DefaultIsLocalUnholyDeathKnight()
+  if not addonTable.Validators.IsExistingUnit("player") then
+    return false
+  end
   local unitClass = rawget(_G, "UnitClass")
   if type(unitClass) ~= "function" then
     return false
   end
   local okClass, _, classToken = pcall(unitClass, "player")
-  if not okClass or classToken ~= "DEATHKNIGHT" then
+  if not okClass or IsSecretValue(classToken) or classToken ~= "DEATHKNIGHT" then
     return false
   end
 
@@ -68,11 +72,11 @@ local function DefaultIsLocalUnholyDeathKnight()
   end
 
   local okSpecIndex, specIndex = pcall(getSpecialization)
-  if not okSpecIndex or not specIndex then
+  if not okSpecIndex or IsSecretValue(specIndex) or type(specIndex) ~= "number" or specIndex <= 0 then
     return false
   end
   local okSpecInfo, specID = pcall(getSpecializationInfo, specIndex)
-  return okSpecInfo and tonumber(specID) == UNHOLY_DEATH_KNIGHT_SPEC_ID
+  return okSpecInfo and not IsSecretValue(specID) and tonumber(specID) == UNHOLY_DEATH_KNIGHT_SPEC_ID
 end
 
 local function DefaultGetActionSpellID(button)

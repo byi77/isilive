@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-07-23 - Unreleased
+
+- Hardened all audited unit-token, identity, class, specialization, map, status,
+  and role reads against successful WoW Secret Value returns. Protected values
+  now remain unresolved even when the API call itself succeeds, and the static
+  guard verifies aliased watched APIs as well as direct calls.
+- Removed the obsolete owned-keystone-link API path completely. Clickable
+  keystone chat links now come only from a verified bag hyperlink for item
+  `180653`; unresolved bag state continues through the existing safe plain-text
+  path.
+- Made isiLive sync dispatch transactional: raw Blizzard and ChatThrottleLib
+  exceptions are contained, and payload dedupe/cooldown timestamps advance only
+  after a successful dispatch, so failed messages remain immediately retryable.
+- Tightened the sync trust boundary so malformed and unknown `ISILIVE` payloads
+  no longer mark their sender as a known isiLive peer.
+- Removed the guessed unit-token caster fallback from combat announcements.
+  Announcements now require a verified caster name and otherwise remain silent.
+- Added deterministic Secret Value, failed-send retry, malformed-payload trust,
+  removed-keystone-API, and unresolved-combat-caster regression coverage.
+- Fixed verified pending Queue-join information being erased by a later LFG
+  event that carried no group name. Informational event noise now preserves the
+  pending join, while a new verified group name replaces it deterministically
+  before the join; after the join, the captured pending name wins and is
+  consumed exactly once.
+- Completed the unit-token guard audit for ready-check, stats, teleport-level,
+  aura, death-summary, mob-tooltip, and nameplate diagnostic paths. Missing
+  units now stop before the corresponding Blizzard API call.
+- Refreshed the generated Midnight Season 1 MDT forces snapshot from the
+  verified local MDT 6.1.20 source; its validation window now runs through
+  2026-08-07.
+
 ## 2026-07-22 - Version 0.9.352 (patch)
 
 - Added a unified admin debug namespace, `/isilive debug <runtime|queue|errors|teleport|season|hearthstone> [verb ...]`,

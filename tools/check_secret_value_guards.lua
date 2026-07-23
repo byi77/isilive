@@ -6,24 +6,31 @@
 -- mandates every such call site is wrapped in `pcall` AND the result passes
 -- through an `IsSecretValue` guard (or returns nil/0 fallback).
 --
--- This gate lists every direct call to one of the watched API names that
--- does not show one of the recognized guards on the same line. It is an
--- intentional heuristic — NOT every hit is a real bug. Every hit is worth a
--- human look. Use the inline override `-- secret-value-ok` to silence a line
--- once a maintainer has confirmed the call is safe (e.g. it lives inside a
--- pcall-wrapped helper that itself short-circuits on Secret Values).
+-- This gate follows direct calls, table-method calls and local aliases into
+-- pcall. For assigned pcall results it also verifies that the same returned
+-- variable reaches an IsSecretValue/issecretvalue check before any other use.
+-- Use the inline override `-- secret-value-ok` only when a maintainer has
+-- confirmed that a wrapper outside the local analysis window enforces the
+-- same ordering.
 --
 -- Watched APIs (any direct call to one of these triggers the gate):
 --   * UnitGUID, UnitName, UnitFullName
---   * UnitReaction, UnitClass, UnitIsGroupLeader
---   * UnitGroupRolesAssigned, UnitIsUnit, UnitIsVisible
+--   * UnitExists, UnitReaction, UnitClass, UnitRace, UnitIsGroupLeader
+--   * UnitGroupRolesAssigned, UnitIsUnit, UnitIsVisible, UnitIsConnected,
+--     UnitIsDeadOrGhost, UnitIsPlayer, UnitLevel
+--   * GetSpecialization, GetSpecializationInfo, GetSpecializationInfoByID,
+--     GetInspectSpecialization, GetSpecializationRole,
+--     GetSpecializationRoleByID
+--   * GetAverageItemLevel, GetInspectItemLevel, GetBestMapForUnit,
+--     GetIncomingSummonStatus
 --   * FontString GetStringWidth
---   * GetActiveChallengeMapID (both bare and via C_ChallengeMode)
+--   * GetActiveChallengeMapID, GetActiveKeystoneInfo and
+--     IsChallengeModeActive
 --   * CombatLogGetCurrentEventInfo (also forbidden in 12.0; double-belt)
 --
--- A line is considered "guarded" when it shows ANY of:
---   * the literal `pcall(`
---   * the literal `IsSecretValue(` or `issecretvalue(`
+-- A call is considered guarded when it is protected by `pcall` and its
+-- returned value is rejected by `IsSecretValue`/`issecretvalue` in the same
+-- short code window. Both protections are required.
 --   * the literal `rawget(_G,` (stub lookup; called inside a guarded helper)
 --   * the literal `or function` (default-fallback in BuildDeps tables)
 --   * the literal `function ` followed by the API name (definition, not call)
@@ -39,19 +46,42 @@ local SCAN_DIRS = { "core", "factory", "game", "logic", "ui" }
 -- Pattern fragments ordered: longer/more specific names first so they are
 -- matched before shorter prefixes (e.g. UnitFullName vs UnitName).
 local WATCHED_APIS = {
+  "GetSpecializationRoleByID",
+  "GetInspectSpecialization",
+  "GetSpecializationInfoByID",
+  "GetSpecializationInfo",
+  "GetSpecializationRole",
+  "GetIncomingSummonStatus",
+  "IsChallengeModeActive",
+  "GetActiveKeystoneInfo",
+  "GetInspectItemLevel",
   "UnitGroupRolesAssigned",
+  "UnitIsDeadOrGhost",
   "UnitIsGroupLeader",
+  "UnitIsConnected",
+  "UnitIsPlayer",
   "CombatLogGetCurrentEventInfo",
   "GetActiveChallengeMapID",
+  "GetAverageItemLevel",
+  "GetBestMapForUnit",
+  "GetSpecialization",
   "UnitFullName",
   "GetStringWidth",
   "UnitIsUnit",
   "UnitIsVisible",
   "UnitReaction",
+  "UnitExists",
+  "UnitLevel",
   "UnitClass",
+  "UnitRace",
   "UnitGUID",
   "UnitName",
 }
+
+local WATCHED_API_SET = {}
+for _, api in ipairs(WATCHED_APIS) do
+  WATCHED_API_SET[api] = true
+end
 
 local ok_lfs, lfs = pcall(require, "lfs")
 if not ok_lfs then
@@ -139,19 +169,171 @@ local function lineIsDefinitionFor(code, api)
   return false
 end
 
-local function lineIsGuarded(code, api)
-  if code:find("pcall%s*%(", 1) then
-    return true
+local function callHasAnyGuard(lines, lineno, code)
+  if not code:find("pcall%s*%(", 1) then
+    return false
   end
-  if code:find("IsSecretValue%s*%(") or code:find("issecretvalue%s*%(") then
-    return true
-  end
-  -- short-circuit pattern: <APIname> and <api>(unit)  -- existence check
-  -- before call (if the function table is nil, the call short-circuits).
-  if code:find(api .. "%s+and%s+" .. api .. "%s*%(") then
-    return true
+  local lastLine = math.min(#lines, lineno + 6)
+  for index = lineno, lastLine do
+    local nearby = stripComment(lines[index])
+    if nearby:find("IsSecretValue%s*%(") or nearby:find("issecretvalue%s*%(") then
+      return true
+    end
   end
   return false
+end
+
+local function trim(value)
+  return tostring(value or ""):match("^%s*(.-)%s*$")
+end
+
+local function resolveWatchedApi(target, watchedAliasByName)
+  target = trim(target)
+  local basename = target:match("([%w_]+)$")
+  if basename and WATCHED_API_SET[basename] then
+    return basename
+  end
+  return watchedAliasByName[target] or (basename and watchedAliasByName[basename]) or nil
+end
+
+local function registerAliases(code, watchedAliasByName)
+  local alias = code:match("^%s*local%s+([%w_]+)%s*=")
+  if not alias then
+    return
+  end
+
+  watchedAliasByName[alias] = nil
+  local rhs = code:match("^%s*local%s+[%w_]+%s*=%s*(.+)$") or ""
+  local rawgetApi = rhs:match('rawget%(%s*[%w_%.]+%s*,%s*"([%w_]+)"%s*%)')
+  if rawgetApi and WATCHED_API_SET[rawgetApi] then
+    watchedAliasByName[alias] = rawgetApi
+    return
+  end
+
+  for _, api in ipairs(WATCHED_APIS) do
+    if
+      rhs:find("[%.%s%(]" .. api .. "[%s%)]*$")
+      or rhs:find("%." .. api .. "[%s%)]")
+      or rhs:find("%." .. api .. "%s+or%s+")
+      or rhs:find("%s" .. api .. "%s+or%s+")
+      or trim(rhs) == api
+    then
+      watchedAliasByName[alias] = api
+      return
+    end
+  end
+end
+
+local function splitAssignedNames(rawNames)
+  local names = {}
+  for name in tostring(rawNames or ""):gmatch("([^,]+)") do
+    names[#names + 1] = trim(name)
+  end
+  return names
+end
+
+local function resultHasOrderedGuard(lines, lineno, variable)
+  if variable == "" or variable == "_" then
+    return true
+  end
+
+  local escaped = variable:gsub("([^%w])", "%%%1")
+  local lastLine = math.min(#lines, lineno + 8)
+  for index = lineno + 1, lastLine do
+    local raw = lines[index]
+    if hasInlineOverride(raw) then
+      return true
+    end
+    local code = stripComment(raw)
+    local withoutLhs = code:gsub("^%s*" .. escaped .. "%s*=%s*", "", 1)
+    local firstUse = withoutLhs:find("%f[%w_]" .. escaped .. "%f[^%w_]")
+    if firstUse then
+      local secretStart = withoutLhs:find("IsSecretValue%s*%(%s*" .. escaped .. "%s*%)")
+        or withoutLhs:find("issecretvalue%s*%(%s*" .. escaped .. "%s*%)")
+      if secretStart and secretStart <= firstUse then
+        return true
+      end
+      return false
+    end
+  end
+  return false
+end
+
+local function analyzeLines(path, lines)
+  local hits = {}
+  local watchedAliasByName = {}
+  local localWrapperByName = {}
+  for lineno, raw in ipairs(lines) do
+    local previous = lineno > 1 and lines[lineno - 1] or ""
+    local overridden = hasInlineOverride(raw) or hasInlineOverride(previous)
+    local code = stripComment(raw)
+    registerAliases(code, watchedAliasByName)
+    local localFunctionName = code:match("^%s*local%s+function%s+([%w_]+)%s*%(")
+    if localFunctionName then
+      localWrapperByName[localFunctionName] = true
+    end
+
+    if not overridden then
+      local assignedNames, pcallTarget = code:match("^%s*local%s+([^=]-)%s*=%s*pcall%s*%(%s*([%w_%.]+)")
+      local pcallApi = pcallTarget and resolveWatchedApi(pcallTarget, watchedAliasByName) or nil
+      if pcallApi and assignedNames then
+        local names = splitAssignedNames(assignedNames)
+        for index = 2, #names do
+          if not resultHasOrderedGuard(lines, lineno, names[index]) then
+            hits[#hits + 1] = string.format(
+              "%s:%d [%s result %s]: pcall result is used before the same value is rejected as secret",
+              path,
+              lineno,
+              pcallApi,
+              names[index]
+            )
+          end
+        end
+      end
+
+      for _, api in ipairs(WATCHED_APIS) do
+        local pattern = "[^%w_]" .. api .. "%s*%("
+        local startsBare = (code:sub(1, #api + 1) .. " "):find("^" .. api .. "%s*%(") ~= nil
+          or code:find("^%s*" .. api .. "%s*%(") ~= nil
+        local hasAnyCall = startsBare or code:find(pattern)
+        local isBareLocalWrapper = localWrapperByName[api] and code:find("[%.:]" .. api .. "%s*%(") == nil
+        if hasAnyCall and not isBareLocalWrapper then
+          if not lineIsDefinitionFor(code, api) and not callHasAnyGuard(lines, lineno, code) then
+            hits[#hits + 1] = string.format(
+              "%s:%d [%s]: direct call without both pcall and a Secret-Value rejection",
+              path,
+              lineno,
+              api
+            )
+            break
+          end
+        end
+      end
+
+      for alias, api in pairs(watchedAliasByName) do
+        local aliasCall = "[^%w_]" .. alias .. "%s*%("
+        local startsWithAlias = code:find("^%s*" .. alias .. "%s*%(") ~= nil
+        local pcallWithAlias = code:find("pcall%s*%(%s*" .. alias .. "[%s,%)]") ~= nil
+        if
+          (startsWithAlias or code:find(aliasCall) or pcallWithAlias)
+          and not code:find("function%s+" .. alias .. "%s*%(")
+          and not assignedNames
+        then
+          if not callHasAnyGuard(lines, lineno, code) then
+            hits[#hits + 1] = string.format(
+              "%s:%d [%s via %s]: aliased call without both pcall and a Secret-Value rejection",
+              path,
+              lineno,
+              api,
+              alias
+            )
+          end
+          break
+        end
+      end
+    end
+  end
+  return hits
 end
 
 local function main()
@@ -170,32 +352,9 @@ local function main()
       io.stderr:write("secret-value: cannot read " .. path .. "\n")
       os.exit(2)
     end
-    for lineno, raw in ipairs(lines) do
-      -- Accept the override either on the same line or on the immediately
-      -- preceding line — long call sites tend to push the override comment
-      -- onto its own line for readability.
-      local previous = lineno > 1 and lines[lineno - 1] or ""
-      if not (hasInlineOverride(raw) or hasInlineOverride(previous)) then
-        local code = stripComment(raw)
-        for _, api in ipairs(WATCHED_APIS) do
-          -- Match an actual call site: API name followed by `(` and not
-          -- preceded by a letter / digit / underscore (so we don't match
-          -- e.g. `MyUnitGUID(` as `UnitGUID(`).
-          local pattern = "[^%w_]" .. api .. "%s*%("
-          if (code:sub(1, #api + 1) .. " "):find("^" .. api .. "%s*%(") or code:find(pattern) then
-            if not lineIsDefinitionFor(code, api) and not lineIsGuarded(code, api) then
-              hits[#hits + 1] = string.format(
-                "%s:%d [%s]: direct call without pcall / IsSecretValue / short-circuit guard",
-                path,
-                lineno,
-                api
-              )
-              -- Only one hit per line.
-              break
-            end
-          end
-        end
-      end
+    local fileHits = analyzeLines(path, lines)
+    for _, hit in ipairs(fileHits) do
+      hits[#hits + 1] = hit
     end
   end
 
@@ -213,6 +372,12 @@ local function main()
       .. "  See CLAUDE.md WoW 12.0 addon-restrictions section for the contract.\n"
   )
   os.exit(1)
+end
+
+if ... == "test" then
+  return {
+    AnalyzeLines = analyzeLines,
+  }
 end
 
 main()

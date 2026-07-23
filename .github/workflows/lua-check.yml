@@ -46,12 +46,12 @@ jobs:
         run: |
           command -v luacheck
           luacheck --version || true
-          luacheck --exclude-files ".luarocks/**" -- .
+          luacheck --exclude-files ".luarocks/**" "tools/cache/**" -- .
 
       - name: Lua Syntax Check
         run: |
           set -e
-          for file in $(find . -type f -name "*.lua" -not -path "./.luarocks/*"); do
+          for file in $(find . -type f -name "*.lua" -not -path "./.luarocks/*" -not -path "./tools/cache/*"); do
             echo "Checking $file"
             tmp="$(mktemp)"
             sed '1s/^\xEF\xBB\xBF//' "$file" > "$tmp"

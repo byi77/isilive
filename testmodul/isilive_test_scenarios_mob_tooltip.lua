@@ -340,11 +340,37 @@ local function RegisterDedupeTests(test, Assert, WithGlobals, LoadAddonModules)
         end
         return nil
       end,
+      globals = {
+        UnitExists = function(unit)
+          return unit == "mouseover"
+        end,
+      },
     }, function(postCalls)
       local addon = LoadAddonModules({ "isiLive_mob_tooltip.lua" }, { MPlusForces = NewMplusForcesDB() })
       addon.MobTooltip.Register()
       postCalls[1].callback(tooltip, { dataInstanceID = 42 })
       Assert.Equal(#tooltipLines, 1, "forces line should render via UnitGUID fallback")
+    end)
+  end)
+
+  test("MobTooltip requires an existing mouseover before UnitGUID fallback", function()
+    local tooltipLines = {}
+    local tooltip = MakeGameTooltip(tooltipLines)
+    SetupTooltipEnv(WithGlobals, {
+      GameTooltip = tooltip,
+      UnitGUID = function()
+        error("missing mouseover must stop before GUID lookup", 0)
+      end,
+      globals = {
+        UnitExists = function()
+          return false
+        end,
+      },
+    }, function(postCalls)
+      local addon = LoadAddonModules({ "isiLive_mob_tooltip.lua" }, { MPlusForces = NewMplusForcesDB() })
+      addon.MobTooltip.Register()
+      postCalls[1].callback(tooltip, { dataInstanceID = 42 })
+      Assert.Equal(#tooltipLines, 0, "missing mouseover must keep forces tooltip unresolved")
     end)
   end)
 

@@ -29,7 +29,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 6. Identische KEY-Sync-Zustaende duerfen keine unnoetigen Folgeupdates erzeugen.
 7. Queue-Capture darf pending/applied Rauschen nicht als neues Ziel behandeln und muss Doppler ignorieren.
 8. Highlight-Aufloesung darf nur mit eindeutigem activity/map-Kontext arbeiten und kein Gruppen-freies Fallback nutzen.
-9. Der aktive Queue-Join-Runtimepfad muss waehrend aktiver Challenge Queue-Events ignorieren und ausserhalb davon Pending-Queue-Infos fuer den Gruppenbeitritts-Announce deterministisch setzen und wieder leeren.
+9. Der aktive Queue-Join-Runtimepfad muss waehrend aktiver Challenge Queue-Events ignorieren und ausserhalb davon Pending-Queue-Infos fuer den Gruppenbeitritts-Announce deterministisch setzen und wieder leeren; informationslose Folgeevents bewahren einen bereits verifizierten Pending-Kontext, waehrend ein neuer verifizierter Gruppenname ihn vor dem Gruppenbeitritt ersetzt.
 10. Secure-Button-Updates duerfen im Kampf nur verzoegert angewendet werden; blockierte Main-UI-Sichtbarkeitswechsel werden ausser im Raid gependelt und bei `PLAYER_REGEN_ENABLED` angewendet.
 11. In Raid-Groesse wird die Main-UI sofort ausgeblendet, die Raid-Option wird auf `hide` normalisiert und es laeuft ausser den VIP-Einstellungen weder UI-, Output- noch Hintergrundverarbeitung weiter; wenn die Main-UI vor der Raid-Unterdrueckung sichtbar war, wird sie beim Verlassen des Raids wieder geoeffnet.
 12. Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS.
@@ -121,6 +121,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 99. Midnight S2 darf manuell ohne passende MDT-Forces-DB aktiviert werden; Blizzard-Gesamtfortschritt bleibt sichtbar, waehrend alle MDT-abhaengigen Mob-Anzeigen und DB-Fallbacks bis zu einem exakten Season-Match geschlossen bleiben.
 100. Live bestaetigte Dungeonportal-Freischaltungen werden accountweit persistiert; nur explizit als neue Midnight-Dungeons gepflegte Portale duerfen fuer Charaktere unter Stufe 90 einen Stufenhinweis anzeigen, waehrend alte Dungeons keine Stufe-90-Sperre erben.
 101. Saisonbezogene Runtime-Aufloesungen fuer Portale, LFG-Activities, Anzeigeinformationen und Portalraum-Belegung werden ausschliesslich aus dem normalisierten Saisonmanifest erzeugt und bleiben bei fehlenden Daten unresolved.
+102. Erfolgreiche Blizzard-API-Aufrufe mit als geheim markierten Rueckgabewerten gelten als unverifiziert und muessen geschlossen bleiben.
+103. Sync-Sendecooldowns und Payload-Deduplizierung duerfen erst nach einem erfolgreichen Dispatch fortgeschrieben werden.
 
 ## Regelbloecke
 
@@ -200,12 +202,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-QUEUEFLOW-CHALLENGE-UND-DEDUP
 - Regelnummer: 9
 - Status: aktiv
-- Zusammenfassung: Der aktive Queue-Join-Runtimepfad muss waehrend aktiver Challenge Queue-Events ignorieren und ausserhalb davon Pending-Queue-Infos fuer den Gruppenbeitritts-Announce deterministisch setzen und wieder leeren.
+- Zusammenfassung: Der aktive Queue-Join-Runtimepfad muss waehrend aktiver Challenge Queue-Events ignorieren und ausserhalb davon Pending-Queue-Infos fuer den Gruppenbeitritts-Announce deterministisch setzen und wieder leeren. Ein informationsloses Queue-Folgeevent ohne verifizierten Gruppennamen darf eine bereits erfasste Pending-Queue-Info nicht loeschen; ein neuer verifizierter Gruppenname ersetzt sie vor dem Gruppenbeitritt deterministisch. Nach bestaetigtem Gruppenbeitritt wird zuerst der bereits erfasste Pending-Kontext angekuendigt und geleert.
 - Erforderliche Tests:
   - Factory runtime queue capture ignores queue events while challenge mode is active
   - Factory runtime queue capture stores pending info when not in group
   - Factory runtime queue capture announces immediately when already grouped
-  - Factory runtime queue capture resets stale pending info when a new search starts outside a group
+  - Factory runtime queue capture preserves verified pending info across informational event noise
   - Factory runtime queue announce prints queue joined message for members and clears pending
   - Factory runtime queue announce clears pending for leaders without printing
   - Architecture queue join callbacks stay wired through runtime setup and controller wiring
@@ -577,6 +579,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Units GetUnitRole returns NONE for non-existing unit
   - Units GetUnitNameAndRealm returns nil for non-existing unit
+  - Validators.IsExistingUnit rejects secret existence values
+  - KeySync location snapshot requires existing player and rejects secret map
+  - Roster target location requires existing unit and rejects secret map
+  - Unit-bound adapters stop before APIs for missing units
+  - MobTooltip requires an existing mouseover before UnitGUID fallback
 
 ### RULE-MAIN-UI-AUTO-CLOSE-OPTION
 - Regelnummer: 42
@@ -801,6 +808,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - LFGDetect ParseTitleKeyLevel picks the highest level when multiple +N tags appear
   - factory_controllers.status: GetStatusTargetDungeonInfo carries LFG level markup when numeric level is unresolved
   - factory_controllers.status: SendOwnTargetSnapshot carries LFG level markup when numeric level is unresolved
+  - CombatEvents keeps caster unresolved when all name APIs fail
+  - context_helpers: BuildKeystoneChatLink ignores removed GetOwnedKeystoneLink and uses bag scan
   - UI third game-menu addon shortcut fails closed without a registered slash alias
   - Settings hearthstone selector shows English toy names for non-German addon locales
   - Settings hearthstone selector uses client-localized toy names for German addon locale
@@ -1486,6 +1495,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Sync ProcessAddonMessage rejects untrusted ISILIVE receive channels
   - Sync ProcessAddonMessage rejects spoofed announce casters
   - Sync ProcessAddonMessage rejects non-finite numeric payloads without dispatch errors
+  - Sync malformed and unknown isiLive payloads do not establish peer trust
 
 ### RULE-PERSISTENZ-VALIDIERTE-LAUFZEITWERTE
 - Regelnummer: 95
@@ -1564,3 +1574,31 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - SeasonData compiles the portal-room zone into normalized lookup sets
   - SeasonData zone lookup drops invalid entries and fails closed on a missing zone
   - Season manifest rejects a portal navigator without a hub zone
+
+### RULE-BLIZZARD-SECRET-VALUES-FAIL-CLOSED
+- Regelnummer: 102
+- Status: aktiv
+- Zusammenfassung: Jeder Rueckgabewert einer Blizzard-API muss nach einem erfolgreichen geschuetzten Aufruf zusaetzlich mit `issecretvalue` geprueft werden, sofern die API Secret Values liefern kann. Ein als geheim markierter Wert gilt unabhaengig von seinem Lua-Typ und seiner Truthiness als unverifiziert und darf weder als Unit-Existenz, Identitaet, Klasse, Spezialisierung, Rollen-, Karten-, Status- noch Zahlenwert in Runtime-State, UI oder Sync uebernommen werden. Fehlt `issecretvalue`, bleibt ein normal typisierter Rueckgabewert nach den uebrigen aktiven Validierungsregeln auswertbar.
+- Erforderliche Tests:
+  - Validators.IsExistingUnit rejects secret existence values
+  - DeathWatch default API readers reject successful secret-value returns
+  - SpellUtils.GetSpellCooldownSafe replaces secret values for enabled, start, duration
+  - Demo default adapters reject successful secret unit and item-level values
+  - KeySync ResolveAverageItemLevel rejects successful secret values
+  - KickTracker keeps specialization unresolved when its index is secret
+  - Secret value checker rejects method aliases and late guards
+  - Units reject secret specialization and inspect values
+  - KeySync location snapshot requires existing player and rejects secret map
+  - Inspect rejects secret item level
+  - MplusTimer and KillTrack reject secret challenge values
+  - Roster target location requires existing unit and rejects secret map
+  - VIP DK assist rejects secret specialization index
+  - Status portal lookup rejects secret player map
+
+### RULE-SYNC-SENDESTATUS-TRANSAKTIONAL
+- Regelnummer: 103
+- Status: aktiv
+- Zusammenfassung: Ein isiLive-Sync-Payload gilt nur dann als gesendet, wenn der Aufruf von ChatThrottleLib oder `C_ChatInfo.SendAddonMessage` ohne Fehler zurueckkehrt und der rohe Blizzard-Pfad nicht explizit `false` meldet. Nur nach diesem erfolgreichen Dispatch duerfen der zugehoerige letzte Payload, Sendezeitpunkt, Cooldown oder Dedupe-Zustand fortgeschrieben werden. Ein Fehler oder eine explizite Ablehnung muss ohne Lua-Fehler bis zum Eventpfad abgefangen werden und denselben Payload ohne Zeitfortschritt sofort erneut sendbar lassen.
+- Erforderliche Tests:
+  - Sync raw dispatch failure is contained and does not consume payload dedupe
+  - Sync CTL dispatch failure does not consume payload dedupe

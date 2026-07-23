@@ -2,8 +2,8 @@
 
 -- Scenarios for core/isiLive_context_helpers.lua.
 -- Covers the API-fallback branches the composition-root test cannot
--- reach (missing C_AddOns, LibStub unavailable, C_MythicPlus keystone
--- link path, bag scan for item 180653, INSTANCE_CHAT vs PARTY channel
+-- reach (missing C_AddOns, LibStub unavailable, bag scan for item 180653,
+-- INSTANCE_CHAT vs PARTY channel
 -- resolution, SendChatMessage fallback to C_ChatInfo).
 
 return function(test, ctx)
@@ -96,17 +96,32 @@ return function(test, ctx)
     end)
   end)
 
-  test("context_helpers: BuildKeystoneChatLink uses GetOwnedKeystoneLink when available", function()
+  test("context_helpers: BuildKeystoneChatLink ignores removed GetOwnedKeystoneLink and uses bag scan", function()
+    local removedCalls = 0
+    local itemLink = "|cffa335ee|Hitem:180653::::::::80:250:::::|h[Keystone: Ara-Kara (12)]|h|r"
     WithGlobals({
       C_MythicPlus = {
         GetOwnedKeystoneLink = function()
-          return "|cffa335ee|Hkeystone:180653:2649:12|h[Keystone: Ara-Kara +12]|h|r"
+          removedCalls = removedCalls + 1
+          return "|cffa335ee|Hkeystone:180653:2649:12|h[Removed API]|h|r"
+        end,
+      },
+      C_Container = {
+        GetContainerNumSlots = function(bag)
+          return bag == 0 and 1 or 0
+        end,
+        GetContainerItemID = function(bag, slot)
+          return bag == 0 and slot == 1 and 180653 or nil
+        end,
+        GetContainerItemLink = function(bag, slot)
+          return bag == 0 and slot == 1 and itemLink or nil
         end,
       },
     }, function()
       local addon = Load()
       local link = addon.ContextHelpers.BuildKeystoneChatLink(2649, 12)
-      Assert.True(link:find("|Hkeystone:", 1, true) ~= nil)
+      Assert.Equal(link, itemLink, "bag hyperlink must remain the only verified clickable source")
+      Assert.Equal(removedCalls, 0, "removed Blizzard API must never be invoked")
     end)
   end)
 

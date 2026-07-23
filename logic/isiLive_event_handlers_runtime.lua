@@ -5,6 +5,7 @@ addonTable = addonTable or {}
 local RuntimeLifecycle = {}
 addonTable.EventHandlersRuntimeLifecycle = RuntimeLifecycle
 local ChallengeLifecycle = addonTable.EventHandlersChallengeLifecycle
+local IsSecretValue = addonTable.Validators.IsSecretValue
 local IsRaidModeActive
 local INCOMING_SUMMON_SOUND_LOOP_SECONDS = 5
 
@@ -35,7 +36,7 @@ local function IsPlayerIncomingSummonPending(unitTarget)
     return false
   end
   local ok, status = pcall(getStatus, "player")
-  if not ok then
+  if not ok or IsSecretValue(status) then
     return false
   end
   local pending = GetPendingSummonStatusValue()
@@ -133,12 +134,12 @@ local function ResolveTrackedMythicZeroMapID()
     return nil
   end
   local okUnit, unitExists = pcall(unitExistsFn, "player")
-  if not (okUnit and unitExists) then
+  if not okUnit or IsSecretValue(unitExists) or unitExists ~= true then
     return nil
   end
 
   local okMap, mapID = pcall(getBestMapForUnit, "player")
-  mapID = okMap and tonumber(mapID) or nil
+  mapID = okMap and not IsSecretValue(mapID) and tonumber(mapID) or nil
   if not mapID or mapID <= 0 then
     return nil
   end

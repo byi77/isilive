@@ -1227,7 +1227,7 @@ end
 
 local function SafeBooleanCall(fn, ...)
   local ok, result = pcall(fn, ...)
-  return ok and result == true
+  return ok and not addonTable.Validators.IsSecretValue(result) and result == true
 end
 
 local function IsVerifiedInstanceGroup()
@@ -1310,11 +1310,13 @@ end
 local function DispatchAddonMessage(prefix, payload, channel, priority)
   local ctl = rawget(_G, "ChatThrottleLib")
   if ctl and type(ctl.SendAddonMessage) == "function" then
-    return pcall(ctl.SendAddonMessage, ctl, priority or "NORMAL", prefix, payload, channel)
+    local ok = pcall(ctl.SendAddonMessage, ctl, priority or "NORMAL", prefix, payload, channel)
+    return ok
   end
   local chatInfo = rawget(_G, "C_ChatInfo")
   if type(chatInfo) == "table" and type(chatInfo.SendAddonMessage) == "function" then
-    return chatInfo.SendAddonMessage(prefix, payload, channel) and true or false
+    local ok, result = pcall(chatInfo.SendAddonMessage, prefix, payload, channel)
+    return ok and result ~= false
   end
   return false
 end
@@ -1361,7 +1363,6 @@ function Sync.SendHello(opts)
     return
   end
 
-  lastIsiLiveHelloAt = now
   local payload = string.format(
     "HELLO:%s:%d:%d:%s",
     tostring(opts.version or "?"),
@@ -1370,6 +1371,9 @@ function Sync.SendHello(opts)
     NormalizeSyncSource(opts.source) or "local"
   )
   local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "NORMAL")
+  if sent == true then
+    lastIsiLiveHelloAt = now
+  end
   SyncLog(
     "send_hello",
     "version=%s channel=%s source=%s sent=%s",
@@ -1422,9 +1426,11 @@ function Sync.SendKey(opts)
     return
   end
 
-  lastIsiLiveKeyAt = now
-  lastKeyPayloadSent = dedupePayload
   local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "NORMAL")
+  if sent == true then
+    lastIsiLiveKeyAt = now
+    lastKeyPayloadSent = dedupePayload
+  end
   SyncLog(
     "send_key",
     "mapID=%s level=%s channel=%s sent=%s",
@@ -1456,9 +1462,11 @@ function Sync.SendStats(opts)
     return
   end
 
-  lastIsiLiveStatsAt = now
-  lastStatsPayloadSent = dedupePayload
   local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "BULK")
+  if sent == true then
+    lastIsiLiveStatsAt = now
+    lastStatsPayloadSent = dedupePayload
+  end
   SyncLog(
     "send_stats",
     "specID=%s ilvl=%s rio=%s channel=%s sent=%s",
@@ -1489,9 +1497,11 @@ function Sync.SendDps(opts)
     return
   end
 
-  lastIsiLiveDpsAt = now
-  lastDpsPayloadSent = dedupePayload
   local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "BULK")
+  if sent == true then
+    lastIsiLiveDpsAt = now
+    lastDpsPayloadSent = dedupePayload
+  end
   SyncLog("send_dps", "dps=%s channel=%s sent=%s", tostring(numericDps), tostring(channel), tostring(sent))
 end
 
@@ -1570,9 +1580,11 @@ function Sync.SendLoc(opts)
     return
   end
 
-  lastIsiLiveLocAt = now
-  lastLocPayloadSent = dedupePayload
   local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "BULK")
+  if sent == true then
+    lastIsiLiveLocAt = now
+    lastLocPayloadSent = dedupePayload
+  end
   SyncLog("send_loc", "mapID=%s channel=%s sent=%s", tostring(numericMapID), tostring(channel), tostring(sent))
 end
 
@@ -1601,9 +1613,11 @@ function Sync.SendTarget(opts)
     return
   end
 
-  lastIsiLiveTargetAt = now
-  lastTargetPayloadSent = dedupePayload
   local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, payload, channel, "NORMAL")
+  if sent == true then
+    lastIsiLiveTargetAt = now
+    lastTargetPayloadSent = dedupePayload
+  end
   SyncLog(
     "send_target",
     "mapID=%s level=%s levelText=%s channel=%s sent=%s",
@@ -1699,8 +1713,10 @@ function Sync.SendRefreshRequest(opts)
     return
   end
 
-  lastIsiLiveRefreshRequestAt = now
   local sent = DispatchAddonMessage(ISILIVE_SYNC_PREFIX, "REQSYNC", channel, "ALERT")
+  if sent == true then
+    lastIsiLiveRefreshRequestAt = now
+  end
   SyncLog("send_reqsync", "channel=%s sent=%s", tostring(channel), tostring(sent))
 end
 
@@ -1952,7 +1968,6 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
   end
 
   SyncLog("message_received", "sender=%s type=%s", tostring(sender), tostring(message:match("^(%a+)") or "unknown"))
-  Sync.MarkUser(sender)
 
   local senderKey = Sync.NormalizePlayerKey(sender)
   local selfKey = Sync.NormalizePlayerKey(localName, localRealm)
@@ -1971,6 +1986,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
   local combatAnnounce = nil
   local powerInfusionAnnounce = nil
   local shareKeysCooldownRemain = nil
+  local payloadValid = message == "REQSYNC" or message == "SHAREKEYS"
 
   local parts = SplitPayload(message)
   local bucket = parts[1]
@@ -1988,6 +2004,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     local level = ToFiniteNumber(parts[3])
     local capturedAt = ToFiniteNumber(parts[4])
     if mapID and level and (parts[4] == nil or capturedAt) then
+      payloadValid = true
       keyUpdated = Sync.SetPlayerKeyInfo(sender, nil, mapID, level, capturedAt, parts[5])
     end
   elseif bucket == "STATS" and parts[2] and parts[3] and parts[4] then
@@ -1996,18 +2013,21 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     local rio = ToFiniteNumber(parts[4])
     local capturedAt = ToFiniteNumber(parts[5])
     if specID and ilvl and rio and (parts[5] == nil or capturedAt) then
+      payloadValid = true
       statsUpdated = Sync.SetPlayerStatsInfo(sender, nil, specID, ilvl, rio, capturedAt, parts[6])
     end
   elseif bucket == "DPS" and parts[2] then
     local dps = ToFiniteNumber(parts[2])
     local capturedAt = ToFiniteNumber(parts[3])
     if dps and (parts[3] == nil or capturedAt) then
+      payloadValid = true
       dpsUpdated = Sync.SetPlayerDpsInfo(sender, nil, dps, capturedAt, parts[4])
     end
   elseif bucket == "LOC" and parts[2] then
     local mapID = ToFiniteNumber(parts[2])
     local capturedAt = ToFiniteNumber(parts[3])
     if mapID and (parts[3] == nil or capturedAt) then
+      payloadValid = true
       locUpdated = Sync.SetPlayerLocInfo(sender, nil, mapID, capturedAt, parts[4])
     end
   elseif bucket == "TARGET" and parts[2] and parts[3] then
@@ -2019,11 +2039,13 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     local level = ToFiniteNumber(parts[3])
     local capturedAt = ToFiniteNumber(parts[4])
     if mapID and level and (parts[4] == nil or capturedAt) then
+      payloadValid = true
       targetUpdated = Sync.SetPlayerTargetInfo(sender, nil, mapID, level, capturedAt, parts[5], levelText)
     end
   elseif bucket == "KICK" then
     local parsedKick = ParseKickPayload(message)
     if parsedKick then
+      payloadValid = true
       kickUpdated = Sync.SetPlayerKickInfo(
         sender,
         nil,
@@ -2041,6 +2063,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
     if senderKey ~= selfKey then
       local remain = ToFiniteNumber(parts[2])
       if remain and remain > 0 then
+        payloadValid = true
         remain = math.ceil(remain)
         if remain > ISILIVE_SHAREKEYS_CD_MAX_SECONDS then
           remain = ISILIVE_SHAREKEYS_CD_MAX_SECONDS
@@ -2061,6 +2084,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
           spellID = nil
         end
         if spellID then
+          payloadValid = true
           combatAnnounce = {
             kind = kind,
             caster = parts[3],
@@ -2077,6 +2101,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
       local recipient = parts[3]
       local spellID = ToFiniteNumber(parts[4]) or 0
       if caster ~= "" and recipient ~= "" and spellID == 10060 then
+        payloadValid = true
         powerInfusionAnnounce = {
           caster = caster,
           recipient = recipient,
@@ -2099,6 +2124,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
       peerSource = parts[5]
       local metadataValid = not IsExplicitNonFiniteNumber(parts[3]) and not IsExplicitNonFiniteNumber(parts[4])
       if metadataValid then
+        payloadValid = true
         Sync.SetPlayerHelloInfo(sender, nil, peerAddonVersion, peerProtocolVersion, peerCapturedAt, peerSource)
       else
         peerAddonVersion = nil
@@ -2108,6 +2134,7 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
         shouldAck = false
       end
     elseif peerAddonVersion and peerAddonVersion ~= "" then
+      payloadValid = true
       peerSource = "ack"
       Sync.SetPlayerHelloAckInfo(sender, nil, peerAddonVersion)
     end
@@ -2120,6 +2147,10 @@ function Sync.ProcessAddonMessage(prefix, message, sender, localName, localRealm
   -- the mirrored SKCD locks reflect between the peers indefinitely.
   if shouldAck and (peerSource == "hello-ack" or peerSource == "reqsync-ack") then
     shouldAck = false
+  end
+
+  if payloadValid then
+    Sync.MarkUser(sender)
   end
 
   local anyFlag = keyUpdated

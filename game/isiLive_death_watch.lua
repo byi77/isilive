@@ -3,6 +3,7 @@ addonTable = addonTable or {}
 
 local DeathWatch = {}
 addonTable.DeathWatch = DeathWatch
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 -- Units watched for death transitions. UNIT_HEALTH cannot be registered via
 -- RegisterUnitEvent for five tokens (two-unit API limit), so the dispatcher
@@ -35,7 +36,7 @@ local function DefaultIsInKey()
     return false
   end
   local ok, mapID = pcall(api.GetActiveChallengeMapID)
-  if not ok then
+  if not ok or IsSecretValue(mapID) then
     return false
   end
   return type(mapID) == "number" and mapID > 0
@@ -47,7 +48,7 @@ local function DefaultUnitExists(unit)
     return false
   end
   local ok, value = pcall(fn, unit)
-  return ok and value == true
+  return ok and not IsSecretValue(value) and value == true
 end
 
 -- pcall-guarded against WoW 12.0 Secret Values: fail-closed, an unreadable
@@ -58,7 +59,7 @@ local function DefaultUnitIsDeadOrGhost(unit)
     return nil
   end
   local ok, value = pcall(fn, unit)
-  if not ok then
+  if not ok or IsSecretValue(value) then
     return nil
   end
   return value == true
@@ -70,7 +71,7 @@ local function DefaultUnitIsConnected(unit)
     return true
   end
   local ok, value = pcall(fn, unit)
-  if not ok then
+  if not ok or IsSecretValue(value) then
     return true
   end
   return value ~= false
@@ -82,7 +83,7 @@ local function DefaultUnitGUID(unit)
     return nil
   end
   local ok, value = pcall(fn, unit)
-  if not ok or type(value) ~= "string" or value == "" then
+  if not ok or IsSecretValue(value) or type(value) ~= "string" or value == "" then
     return nil
   end
   return value
@@ -106,7 +107,7 @@ local function DefaultGetUnitNameAndRealm(unit)
     return nil, nil
   end
   local ok, name, realm = pcall(unitName, unit)
-  if not ok or type(name) ~= "string" or name == "" then
+  if not ok or IsSecretValue(name) or IsSecretValue(realm) or type(name) ~= "string" or name == "" then
     return nil, nil
   end
   if type(realm) ~= "string" or realm == "" then
@@ -299,7 +300,7 @@ function DeathWatch.CreateController(opts)
   end
 
   function controller.GetDeathSummaryForUnit(unit)
-    if type(unit) ~= "string" or unit == "" then
+    if type(unit) ~= "string" or unit == "" or not unitExists(unit) then
       return nil
     end
     local guid = unitGUID(unit)

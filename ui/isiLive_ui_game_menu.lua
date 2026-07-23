@@ -9,6 +9,7 @@ local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table,
 
 local UI = addonTable.UI or {}
 addonTable.UI = UI
+local IsSecretValue = addonTable.Validators.IsSecretValue
 local GameMenuActions = assert(addonTable.UIGameMenuActions, "isiLive: UIGameMenuActions missing")
 local MergePanelUIActions =
   assert(GameMenuActions.MergePanelUIActions, "isiLive: UIGameMenuActions.MergePanelUIActions missing")
@@ -187,13 +188,13 @@ local function IsChallengeModeActiveForSecureUI()
   end
   if type(challengeMode.IsChallengeModeActive) == "function" then
     local ok, active = pcall(challengeMode.IsChallengeModeActive)
-    if ok and active == true then
+    if ok and not IsSecretValue(active) and active == true then
       return true
     end
   end
   if type(challengeMode.GetActiveChallengeMapID) == "function" then
     local ok, mapID = pcall(challengeMode.GetActiveChallengeMapID)
-    if ok and tonumber(mapID) ~= nil then
+    if ok and not IsSecretValue(mapID) and tonumber(mapID) ~= nil then
       return true
     end
   end

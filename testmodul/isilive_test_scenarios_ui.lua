@@ -1218,6 +1218,9 @@ local function RegisterGameMenuSecondPanelBehaviorTests(test, Assert, WithGlobal
 
     WithGlobals({
       CreateFrame = createFrameStub,
+      UnitExists = function()
+        return true
+      end,
       PlayerHasToy = function(itemID)
         return playerHasToyByID[itemID] == true
       end,

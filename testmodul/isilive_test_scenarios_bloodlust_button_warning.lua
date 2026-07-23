@@ -198,6 +198,9 @@ local function RegisterBloodlustButtonWarningTests(test, Assert, WithGlobals, Lo
     local overlays = {}
     local globals = {
       IsiLiveDB = { vipBloodlustDebuffButtonWarningEnabled = true },
+      UnitExists = function()
+        return true
+      end,
       UnitClass = function(unit)
         if unit == "player" then
           return "Shaman", "SHAMAN"

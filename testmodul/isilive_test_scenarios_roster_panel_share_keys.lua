@@ -643,7 +643,7 @@ local function RegisterShareKeysEndToEndButtonRuntimeTest()
 end
 
 local function RegisterShareKeysDeterministicLinkTest()
-  test("Roster panel share keys button builds a deterministic keystone link", function()
+  test("Roster panel share keys button rejects unverified foreign item links", function()
     local createdFrames = {}
     local createdFontStrings = {}
     local sentMessages = {}
@@ -660,11 +660,6 @@ local function RegisterShareKeysDeterministicLinkTest()
             return "Mists of Tirna Scithe"
           end
           return nil
-        end,
-      },
-      C_MythicPlus = {
-        GetOwnedKeystoneLink = function()
-          return "|Hitem:19019|h[Thunderfury, Blessed Blade of the Windseeker]|h"
         end,
       },
       GameTooltip = {

@@ -568,7 +568,7 @@ local function BuildRuntimeSetupGroupContext(ctx, runtimeState)
       end
 
       local okExists, exists = pcall(unitExists, unit)
-      if not okExists or not exists then
+      if not okExists or addonTable.Validators.IsSecretValue(exists) or exists ~= true then
         return false
       end
 
@@ -578,7 +578,7 @@ local function BuildRuntimeSetupGroupContext(ctx, runtimeState)
       end
 
       local okLeader, isLeader = pcall(unitIsGroupLeader, unit)
-      return okLeader and isLeader == true
+      return okLeader and not addonTable.Validators.IsSecretValue(isLeader) and isLeader == true
     end,
     runtimeLogController = ctx.runtimeLogController,
     getL = ctx.GetL,
@@ -840,7 +840,7 @@ local function FinalizeFactoryRuntime(ctx)
       end
 
       local okExists, exists = pcall(unitExists, unit)
-      if not okExists or not exists then
+      if not okExists or addonTable.Validators.IsSecretValue(exists) or exists ~= true then
         return false
       end
 
@@ -850,7 +850,7 @@ local function FinalizeFactoryRuntime(ctx)
       end
 
       local okLeader, isLeader = pcall(unitIsGroupLeader, unit)
-      return okLeader and isLeader == true
+      return okLeader and not addonTable.Validators.IsSecretValue(isLeader) and isLeader == true
     end,
     unitExists = UnitExists,
     getRaidTargetIndex = rawget(_G, "GetRaidTargetIndex"),

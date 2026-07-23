@@ -5,6 +5,20 @@ addonTable = addonTable or {}
 local Validators = {}
 addonTable.Validators = Validators
 
+--- Returns true when Blizzard marks a runtime value as secret/inaccessible.
+--- The helper itself is protected because sandboxed test environments and
+--- future client builds may expose a throwing compatibility function.
+--- @param value any
+--- @return boolean
+function Validators.IsSecretValue(value)
+  local isSecretValue = rawget(_G, "issecretvalue")
+  if type(isSecretValue) ~= "function" then
+    return false
+  end
+  local ok, result = pcall(isSecretValue, value)
+  return ok and result == true
+end
+
 --- Asserts that a value is a function and returns it.
 --- @param value any
 --- @param name string -- dependency name for error messages
@@ -40,5 +54,5 @@ function Validators.IsExistingUnit(unit)
   end
 
   local ok, exists = pcall(unitExists, unit)
-  return ok and exists == true
+  return ok and not Validators.IsSecretValue(exists) and exists == true
 end

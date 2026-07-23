@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local Inspect = {}
 addonTable.Inspect = Inspect
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local function IsUnitInInspectQueue(controller, unit)
   for i = 1, #controller.inspectQueue do
@@ -37,7 +38,7 @@ local function GetUnitGUIDSafe(unit)
   end
 
   local ok, guid = pcall(unitGUID, unit)
-  if ok then
+  if ok and not IsSecretValue(guid) and type(guid) == "string" and guid ~= "" then
     return guid
   end
 
@@ -138,7 +139,7 @@ local function OnInspectReady(
   local ilvl = nil
   if C_PaperDollInfo and type(C_PaperDollInfo.GetInspectItemLevel) == "function" then
     local ok, ilvlResult = pcall(C_PaperDollInfo.GetInspectItemLevel, inspectedUnit)
-    if ok then
+    if ok and not IsSecretValue(ilvlResult) and type(ilvlResult) == "number" then
       ilvl = ilvlResult
     end
   end
@@ -268,7 +269,7 @@ local function IsUnitInspectable(unit)
     return false
   end
   local okVisible, isVisible = pcall(unitIsVisible, unit)
-  if not okVisible or not isVisible then
+  if not okVisible or IsSecretValue(isVisible) or not isVisible then
     return false
   end
 
@@ -278,7 +279,7 @@ local function IsUnitInspectable(unit)
   end
 
   local okCanInspect, canInspect = pcall(canInspectFn, unit)
-  if not okCanInspect or not canInspect then
+  if not okCanInspect or IsSecretValue(canInspect) or not canInspect then
     return false
   end
   return true
