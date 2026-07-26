@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-07-26 - Version 0.9.357 (patch)
+
+- Bounded the tracked sound-handle set. Every played sound left a permanent
+  entry that was only ever cleared by the demo simulation tablet, so the set
+  grew for the whole session and the stop-all helper ended up calling StopSound
+  on thousands of long-finished handles. Handles are now dropped once they can
+  no longer be playing, which also makes the set match its name again.
+- Reset the suppressed-invite bucket in the LFG group-leave path. Every
+  neighbouring identity field was already cleared there; this one was not, so
+  decline state grew for the whole session and carried across unrelated groups.
+  Search result IDs are assigned by the LFG system and can be reused, so a
+  leftover flag could silence a later, unrelated accepted invite.
+- Hardened the stats-box text styling helper against missing line objects. The
+  caller iterated the three line fields through a throwaway table, which
+  stopped at the first missing one and left the remaining fields unstyled.
+
 ## 2026-07-26 - Version 0.9.356 (patch)
 
 - Corrected the Avenger's Shield interrupt cooldown from 30s to 13s. The old

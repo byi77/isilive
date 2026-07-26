@@ -3,16 +3,18 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.356`.
+Current release: `0.9.357`.
 
 Highlights:
 - **Interrupt tracking for Protection Paladins is no longer wrong.** Avenger's
   Shield was listed with roughly double its real cooldown, so the group saw it
-  as unavailable long after it was ready again.
+  as unavailable long after it was ready again. Long sessions also stay
+  lighter: played sounds no longer leave a permanent entry behind.
 - **Tank and healer death alerts no longer go silent for a whole session.**
   Entering or leaving a tracked dungeon run without a keystone could leave the
   alert context stuck, so warnings stopped firing inside the dungeon — or kept
-  firing out in the open world.
+  firing out in the open world. Leaving a group now also clears leftover
+  declined-invite state that could mute a later dungeon detection.
 - **`/isilive errorlog` now really only collects isiLive errors.** The filter
   previously matched its own frames, so other addons' errors filled the log and
   pushed out isiLive's own. Foreign errors are now rejected before any stack
