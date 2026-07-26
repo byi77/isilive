@@ -145,6 +145,76 @@ local function lineHasI18nOk(line)
   return line:match("%-%-%s*i18n[%s%-:]+ok") ~= nil
 end
 
+-- Second rule: locale-dependent READ paths.
+--
+-- The write-side rule above only sees literals handed to AddLine/SetText/...
+-- It cannot see code that RECOGNISES client-rendered text, e.g.
+--   string.find(plain, "Mitglieder", 1, true)
+--   ["Beförderung angeboten"] = true
+-- Those silently never match on the other supported client locales. v0.9.354
+-- found three such sites in ui/isiLive_lfg_flags.lua (member-section header,
+-- promotion-offered playstyle, Proving Grounds tooltip block) that had shipped
+-- undetected because this gate could not see them.
+--
+-- Correct pattern: compare against a client-localized Blizzard global string
+-- (rawget(_G, "LFG_LIST_TOOLTIP_MEMBERS")), never against a literal.
+local MATCH_FUNCTION_NAMES = {
+  find = true,
+  match = true,
+  gmatch = true,
+  gsub = true,
+}
+
+local function lineCallsStringMatcher(line)
+  for name in line:gmatch("[:.](%w+)%s*%(") do
+    if MATCH_FUNCTION_NAMES[name] then
+      return true
+    end
+  end
+  return false
+end
+
+-- Table constructor keys: `["Some Text"] = ...`. A literal in key position is
+-- an exact-match lookup table, the same defect class as a find() literal.
+local function extractTableKeyLiterals(line)
+  local literals = {}
+  for content in line:gmatch('%[%s*"([^"]*)"%s*%]%s*=') do
+    literals[#literals + 1] = content
+  end
+  return literals
+end
+
+-- Narrow the read-side rule to literals that plausibly are CLIENT-RENDERED
+-- PROSE, otherwise it drowns in true negatives: unit tokens ("player",
+-- "^party%d+$"), Lua type names ("table"), slash-command keywords ("debug"),
+-- sync protocol tokens ("KICK", "WHISPER") and hyperlink patterns are all
+-- legitimately compared as literals and are not locale-dependent.
+--
+-- Signal used: a Titlecase word. Game prose is capitalized ("Mitglieder",
+-- "Proving Grounds", "Beförderung angeboten"); identifiers and protocol
+-- tokens are all-lowercase or ALL-CAPS.
+local function looksLikeClientRenderedText(literal)
+  -- Non-ASCII characters in localized literals are written as decimal byte
+  -- escapes ("Bef\195\182rderung"). Fold them to a plain letter first, so the
+  -- backslash rejection below does not exempt exactly the umlaut-bearing
+  -- German / French / Spanish strings this rule exists to catch.
+  literal = literal:gsub("\\%d%d?%d?", "a")
+  -- Lua patterns, path separators and WoW markup are never plain prose.
+  if literal:find("[%%%^%$\\|%[%]]") then
+    return false
+  end
+  -- camelCase / PascalCase identifiers (frame names, binding names, addon
+  -- names) are code, not prose. Detected via an internal lower->upper
+  -- transition inside a single unbroken identifier.
+  if literal:find("^[%a_][%w_]*$") and literal:find("%l%u") then
+    return false
+  end
+  -- Titlecase word: uppercase followed by at least two lowercase letters.
+  -- Deliberately only two, so UTF-8 umlauts in the third position
+  -- ("Bef|ö|rderung") still register.
+  return literal:find("%u%l%l") ~= nil
+end
+
 local function main()
   local issues = {}
   local files = {}
@@ -164,12 +234,37 @@ local function main()
       os.exit(2)
     end
     for lineno, line in ipairs(lines) do
-      if lineCallsUiMethod(line) and not lineHasI18nOk(line) then
-        for _, lit in ipairs(extractStringLiterals(line)) do
-          local word = literalHasUnwhitelistedWord(lit)
+      if not lineHasI18nOk(line) then
+        if lineCallsUiMethod(line) then
+          for _, lit in ipairs(extractStringLiterals(line)) do
+            local word = literalHasUnwhitelistedWord(lit)
+            if word then
+              issues[#issues + 1] = string.format(
+                '%s:%d: hardcoded literal "%s" (word "%s") -- route via L.<KEY> or annotate `-- i18n-ok`',
+                path,
+                lineno,
+                lit,
+                word
+              )
+            end
+          end
+        end
+
+        local readLiterals = {}
+        if lineCallsStringMatcher(line) then
+          for _, lit in ipairs(extractStringLiterals(line)) do
+            readLiterals[#readLiterals + 1] = lit
+          end
+        end
+        for _, lit in ipairs(extractTableKeyLiterals(line)) do
+          readLiterals[#readLiterals + 1] = lit
+        end
+        for _, lit in ipairs(readLiterals) do
+          local word = looksLikeClientRenderedText(lit) and literalHasUnwhitelistedWord(lit) or nil
           if word then
             issues[#issues + 1] = string.format(
-              '%s:%d: hardcoded literal "%s" (word "%s") -- route via L.<KEY> or annotate `-- i18n-ok`',
+              '%s:%d: locale-dependent literal "%s" (word "%s") -- compare against a Blizzard global string'
+                .. " (rawget(_G, ...)) or annotate `-- i18n-ok`",
               path,
               lineno,
               lit,
@@ -182,7 +277,10 @@ local function main()
   end
 
   if #issues == 0 then
-    io.write("hardcoded-strings: clean — no unlocalized literals in ui/ or logic/ AddLine/SetText/SetTitle calls\n")
+    io.write(
+      "hardcoded-strings: clean — no unlocalized literals in ui/ or logic/ write paths"
+        .. " (AddLine/SetText/SetTitle) or locale-dependent read paths (find/match, table keys)\n"
+    )
     os.exit(0)
   end
 
