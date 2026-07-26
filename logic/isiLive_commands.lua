@@ -166,7 +166,13 @@ end
 --             getEnabled, setEnabled, getLevel, setLevel, clearLog, getCount,
 --             getTail, usageStr
 local function HandleDebugLogCommand(ctx, cmd, cfg)
-  local arg, restText = cmd:match("^" .. cfg.prefix .. "%s+(%S+)%s*(.-)%s*$")
+  -- The prefix is literal text, not pattern syntax. Escaping it keeps a future
+  -- prefix containing a magic character ("log-x", "cd.debug") from silently
+  -- changing what the pattern means: `-` would turn into a lazy quantifier and
+  -- `.` into a wildcard, and the command would just stop matching correctly
+  -- without raising anything.
+  local escapedPrefix = tostring(cfg.prefix or ""):gsub("(%W)", "%%%1")
+  local arg, restText = cmd:match("^" .. escapedPrefix .. "%s+(%S+)%s*(.-)%s*$")
   if not arg or arg == "status" then
     local levelText = cfg.getLevel and (" | level: " .. tostring(cfg.getLevel())) or ""
     ctx.printFn(
