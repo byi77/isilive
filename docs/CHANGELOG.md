@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-07-26 - Version 0.9.355 (patch)
+
+- Fixed tank and healer death alerts being silenced, or firing outside a
+  dungeon, when a tracked party run started or ended without a challenge
+  lifecycle event. The in-key answer is cached because `UNIT_HEALTH` is a hot
+  path, but it was only invalidated by challenge events, so an instance-context
+  transition left it stale for the rest of the session. Such transitions now
+  invalidate only the cached context and keep the run's death counts, which a
+  full reset would have discarded.
+- Fixed the Mythic+ killtracker refresh ticker running on as a no-op after the
+  challenge map disappeared. It now cancels itself instead of waiting for an
+  event that may never arrive.
+- Rejected implausible key level, item level and Mythic+ rating values received
+  from peers instead of publishing them into the roster, where they could break
+  the column layout for the whole group. Out-of-range values stay unresolved
+  rather than being clamped to a fabricated number.
+- Aligned the nil-guarding around the cooldown-tracker controller so every
+  access is guarded consistently.
+- Made the shared spell-name resolver prefer the modern `C_Spell` API over the
+  deprecated global, matching the mounts resolver instead of contradicting it.
+- Hardened the season-debug dump against Blizzard APIs that return a nil in the
+  middle of their result list, which previously made the packed result length
+  undefined and could drop trailing values.
+- Renamed a local that shadowed the Lua standard `next` inside the nameplate
+  module, and removed a write-only field from the killtracker pull state.
+- Added a Lua 5.1 compatibility gate. The WoW client and the CI workflow both
+  run Lua 5.1 while local tooling runs 5.4, so the local preflight was blind to
+  5.1-only breakage — the previous release shipped a red build for exactly this
+  reason. The gate flags `load()` with a source string, `table.unpack`,
+  integer division, bitwise operators, `goto` and newer standard-library calls,
+  while recognising the established `rawget` bridging pattern as correct. It
+  runs in the local preflight and both GitHub workflows.
+
 ## 2026-07-26 - Version 0.9.354 (patch)
 
 - Fixed the always-on error log capturing every addon's errors instead of only
