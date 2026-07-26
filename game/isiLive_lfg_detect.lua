@@ -1012,6 +1012,11 @@ local function ClearAllStateImpl()
   lastFiredTargetDungeonChatSearchResultID = nil
   ClearPendingTargetDungeonChat()
   pendingInvites = {}
+  -- Reset alongside pendingInvites: entries are added per declined invite and
+  -- were otherwise never dropped in bulk, so the map grew for the whole
+  -- session and carried decline state across unrelated groups. Search result
+  -- IDs are assigned by the LFG system and can be reused.
+  suppressedInviteAccepts = {}
   if hadState then
     TriggerHighlightUpdate("queue")
   end

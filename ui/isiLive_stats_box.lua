@@ -845,6 +845,9 @@ ApplyLayout = function(state, layout)
 end
 
 local function ApplyLineTextStyle(line, fontSize)
+  if type(line) ~= "table" then
+    return
+  end
   if type(line.GetFont) == "function" and type(line.SetFont) == "function" then
     local fontPath = line:GetFont()
     if type(fontPath) == "string" and fontPath ~= "" then
@@ -973,9 +976,12 @@ function StatsBox.Create(opts)
     end
     state.baseLayout = ResolveLayout()
     for _, rowFrame in ipairs(state.lines) do
-      for _, line in ipairs({ rowFrame.label, rowFrame.value, rowFrame.percent }) do
-        ApplyLineTextStyle(line, state.baseLayout.fontSize)
-      end
+      -- Styled directly rather than through a throwaway table: ipairs stops at
+      -- the first nil, so a row missing its label used to leave value and
+      -- percent unstyled.
+      ApplyLineTextStyle(rowFrame.label, state.baseLayout.fontSize)
+      ApplyLineTextStyle(rowFrame.value, state.baseLayout.fontSize)
+      ApplyLineTextStyle(rowFrame.percent, state.baseLayout.fontSize)
     end
     Refresh(true)
     if ResolveEnabled() then

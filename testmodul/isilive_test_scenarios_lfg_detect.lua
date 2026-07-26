@@ -1649,6 +1649,40 @@ local function RegisterLFGDetectResetTests(test, ctx)
   -- ClearAllState paths
   -- ---------------------------------------------------------------------------
 
+  -- ClearAllState resets every neighbouring identity field; the suppressed
+  -- bucket used to be the one exception, so decline state survived group-leave
+  -- and grew for the whole session. Search result IDs come from the LFG system
+  -- and can be reused, so a leftover flag could silence a later, unrelated
+  -- accept that arrives without a preceding "invited" event.
+  test("LFGDetect ClearAllState drops suppressed invite accepts", function()
+    local globals, fire = BuildLFGDetectEnv({
+      globals = {
+        C_LFGList = BuildC_LFGList({
+          [4021160] = { activityID = 1160, name = "+17 Akademie", leaderName = "AcademyLead" },
+        }, nil),
+      },
+    })
+
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
+
+      -- Decline parks the ID in the suppressed bucket.
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 4021160, "invited")
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 4021160, "declined")
+
+      addon.LFGDetect.ClearAllState()
+
+      -- Same ID reused for a later listing, accepted without a fresh "invited"
+      -- event. With the suppression flag still set this resolved to nothing.
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 4021160, "inviteaccepted")
+      Assert.Equal(
+        addon.LFGDetect.GetDetectedMapID(),
+        402,
+        "a reused search result ID must resolve again after ClearAllState"
+      )
+    end)
+  end)
+
   test(
     "LFGDetect GROUP_ROSTER_UPDATE not in group clears pending invites but allows late accept to re-resolve",
     function()

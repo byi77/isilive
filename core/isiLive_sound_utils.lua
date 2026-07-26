@@ -6,8 +6,15 @@ local SoundUtils = {}
 addonTable.SoundUtils = SoundUtils
 
 local SPAM_WINDOW = 1
+-- A sound handle is only meaningful while its sound is still playing. Handles
+-- are kept for this long and then dropped, so the set keeps matching its name
+-- and cannot grow without bound over a session: every played sound used to
+-- leave a permanent entry, and StopAllActiveSounds then called StopSound on
+-- thousands of long-finished handles. Comfortably longer than the longest
+-- bundled asset.
+local ACTIVE_SOUND_HANDLE_TTL = 30
 local lastPlayedAt = {} -- soundKey -> timestamp
-local activeSoundHandles = {} -- handle -> true
+local activeSoundHandles = {} -- handle -> start timestamp
 local lastPlayResult = nil
 local DEFAULT_SOUND_CHANNEL = "Master"
 local OUTPUT_CHANNELS = { Master = true, SFX = true }
@@ -866,10 +873,17 @@ local function BuildSoundKey(soundFile, channel, spamScope)
   return tostring(soundFile) .. "\31" .. tostring(channel or DEFAULT_SOUND_CHANNEL)
 end
 
-local function TrackSoundHandle(handle)
-  if handle ~= nil then
-    activeSoundHandles[handle] = true
+local function TrackSoundHandle(handle, now)
+  if handle == nil then
+    return
   end
+  now = tonumber(now) or 0
+  for tracked, startedAt in pairs(activeSoundHandles) do
+    if now - (tonumber(startedAt) or 0) > ACTIVE_SOUND_HANDLE_TTL then
+      activeSoundHandles[tracked] = nil
+    end
+  end
+  activeSoundHandles[handle] = now
 end
 
 local function SetLastPlayResult(result)
@@ -964,7 +978,7 @@ function SoundUtils.Play(soundFile, channel, spamScope)
     })
     return false
   end
-  TrackSoundHandle(handle)
+  TrackSoundHandle(handle, now)
   lastPlayedAt[soundKey] = now
   return SetLastPlayResult({
     ok = true,
@@ -1021,7 +1035,7 @@ function SoundUtils.PlaySoundKit(soundKit, channel)
     })
     return false
   end
-  TrackSoundHandle(handle)
+  TrackSoundHandle(handle, now)
   lastPlayedAt[soundKey] = now
   return SetLastPlayResult({
     ok = true,
