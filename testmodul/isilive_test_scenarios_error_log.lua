@@ -461,9 +461,16 @@ return function(test, ctx)
   -- current coroutine, so the probe sees exactly [error-log frames, caller]
   -- instead of also seeing this scenario file -- whose own name contains
   -- "isilive" and would make every probe assertion pass vacuously.
+  --
+  -- Lua 5.1 (WoW client and CI) compiles source strings via loadstring(); its
+  -- load() takes a reader FUNCTION and silently fails on a string. Lua 5.4
+  -- (local tooling) dropped loadstring() and accepts the string in load().
+  -- Bridge both, otherwise these scenarios pass locally and fail in CI.
+  local CompileChunk = rawget(_G, "loadstring") or load
+
   local function CaptureFromChunk(Capture, sourceName, message)
     local chunk =
-      load("local Capture, message = ... return function() Capture(message, nil, nil) end", "@" .. sourceName)
+      CompileChunk("local Capture, message = ... return function() Capture(message, nil, nil) end", "@" .. sourceName)
     Assert.Equal(type(chunk), "function", "caller chunk must compile: " .. sourceName)
     coroutine.wrap(chunk(Capture, message))()
   end
