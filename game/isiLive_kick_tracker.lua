@@ -20,13 +20,18 @@ local SPEC_DATA = {
   [250] = { spellID = 47528, cd = 15 }, -- Blood
   [251] = { spellID = 47528, cd = 15 }, -- Frost
   [252] = { spellID = 47528, cd = 15 }, -- Unholy
-  -- Demon Hunter
+  -- Demon Hunter -- all three specs share the class baseline interrupt.
+  -- Verified on a live client 2026-07-26: C_Spell.GetSpellName(183752) resolves
+  -- on every spec, and the tooltip reads 15s on each. Spec 1480 was confirmed
+  -- via GetSpecializationInfoByID as a Demon Hunter damage spec.
+  --
+  -- Naming trap for future audits: 183752 is Disrupt in English but reads
+  -- "Unterbrechen" on a German client -- which is also the generic German word
+  -- for "interrupt". Do not conclude from a spell NAME that a spec lacks this
+  -- ability; resolve the ID via C_Spell.GetSpellName instead.
   [577] = { spellID = 183752, cd = 15 }, -- Havoc
   [581] = { spellID = 183752, cd = 15 }, -- Vengeance
-  -- Spec ID verified live 2026-07-26 as a Demon Hunter damage spec (the new
-  -- Midnight third spec). The interrupt spell and its cooldown are inherited
-  -- from the class baseline here and still lack a tooltip confirmation.
-  [1480] = { spellID = 183752, cd = 15 },
+  [1480] = { spellID = 183752, cd = 15 }, -- Devourer (Midnight third spec)
   -- Druid
   [102] = { spellID = 78675, cd = 45 }, -- Balance: Solar Beam (45s in Midnight)
   [103] = { spellID = 106839, cd = 15 }, -- Feral: Skull Bash
