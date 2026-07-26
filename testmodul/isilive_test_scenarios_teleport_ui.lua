@@ -1620,7 +1620,121 @@ local function RegisterTeleportDebugBranchTests(test, Assert, WithGlobals, LoadA
   end)
 end
 
+-- WoW frames cannot be destroyed. BuildButtons used to allocate a fresh button
+-- per entry every time, so each rebuild stranded the previous generation on
+-- mainFrame -- 4 frames plus roughly 44 textures per dungeon.
+local function RegisterTeleportUIPoolingTests(test, Assert, WithGlobals, LoadAddonModules)
+  local function BuildPoolingController(addon, createFrameStub, getEntriesRef)
+    return addon.TeleportUI.CreateController({
+      mainFrame = {
+        GetFrameLevel = function()
+          return 10
+        end,
+        GetFrameStrata = function()
+          return "MEDIUM"
+        end,
+        CreateFontString = function()
+          return {
+            SetPoint = function() end,
+            SetWidth = function() end,
+            SetJustifyH = function() end,
+            SetTextColor = function() end,
+            SetWordWrap = function() end,
+            SetNonSpaceWrap = function() end,
+            SetText = function() end,
+            Show = function() end,
+            Hide = function() end,
+          }
+        end,
+      },
+      applySecureSpellToButton = function()
+        return true
+      end,
+      getEntries = function()
+        return getEntriesRef()
+      end,
+      getL = function()
+        return {}
+      end,
+      isSpellKnown = function()
+        return true
+      end,
+      getTeleportCooldownRemaining = function()
+        return 0
+      end,
+      formatCooldownSeconds = function()
+        return ""
+      end,
+      createFrame = createFrameStub,
+    })
+  end
+
+  test("TeleportUI reuses teleport buttons across rebuilds instead of leaking frames", function()
+    local createFrameStub, createdFrames = BuildTeleportUICreateFrameStub()
+    local entries = {
+      { spellID = 1, mapID = 101, mapName = "A" },
+      { spellID = 2, mapID = 102, mapName = "B" },
+    }
+
+    WithGlobals({ CreateFrame = createFrameStub }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_teleport_ui.lua" })
+      local controller = BuildPoolingController(addon, createFrameStub, function()
+        return entries
+      end)
+
+      controller.BuildButtons()
+      local framesAfterFirst = #createdFrames
+      local firstButtons = { controller.GetButtons()[1], controller.GetButtons()[2] }
+      Assert.Equal(#controller.GetButtons(), 2, "first build must produce one button per entry")
+
+      controller.BuildButtons()
+      Assert.Equal(#createdFrames, framesAfterFirst, "a rebuild must not allocate additional frames")
+      Assert.Equal(controller.GetButtons()[1], firstButtons[1], "slot 1 must reuse the same button object")
+      Assert.Equal(controller.GetButtons()[2], firstButtons[2], "slot 2 must reuse the same button object")
+    end)
+  end)
+
+  test("TeleportUI rebinds pooled buttons to the new entry list", function()
+    local createFrameStub, createdFrames = BuildTeleportUICreateFrameStub()
+    local entries = {
+      { spellID = 1, mapID = 101, mapName = "A" },
+      { spellID = 2, mapID = 102, mapName = "B" },
+      { spellID = 3, mapID = 103, mapName = "C" },
+    }
+
+    WithGlobals({ CreateFrame = createFrameStub }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_teleport_ui.lua" })
+      local controller = BuildPoolingController(addon, createFrameStub, function()
+        return entries
+      end)
+
+      controller.BuildButtons()
+      local framesAfterFirst = #createdFrames
+      local pooledThird = controller.GetButtons()[3]
+
+      -- Season change to a shorter list: surplus buttons stay pooled, not stranded.
+      entries = { { spellID = 9, mapID = 909, mapName = "Z" } }
+      controller.BuildButtons()
+      Assert.Equal(#controller.GetButtons(), 1, "the active button list must follow the new entry count")
+      Assert.Equal(controller.GetButtons()[1].spellID, 9, "the reused button must carry the new entry's spell")
+      Assert.Equal(controller.GetButtons()[1].mapID, 909, "the reused button must carry the new entry's map")
+
+      -- Growing again must pick the pooled button back up, not allocate.
+      entries = {
+        { spellID = 4, mapID = 104, mapName = "D" },
+        { spellID = 5, mapID = 105, mapName = "E" },
+        { spellID = 6, mapID = 106, mapName = "F" },
+      }
+      controller.BuildButtons()
+      Assert.Equal(#createdFrames, framesAfterFirst, "growing back must reuse pooled buttons")
+      Assert.Equal(controller.GetButtons()[3], pooledThird, "slot 3 must come back from the pool")
+      Assert.Equal(controller.GetButtons()[3].spellID, 6, "the pooled button must be rebound to the new entry")
+    end)
+  end)
+end
+
 local function RegisterTeleportUITests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterTeleportUIPoolingTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTeleportUIEmptyStateTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTeleportUIVisualTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterTeleportUIAudioAndDebugTests(test, Assert, WithGlobals, LoadAddonModules)

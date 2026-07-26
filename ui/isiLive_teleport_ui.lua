@@ -197,18 +197,18 @@ local function ApplyTeleportButtonLayout(button, slotIndex, layoutMode)
   button:SetPoint("TOPRIGHT", x, y)
 end
 
-local function CreateTeleportButton(mainFrame, deps, index, entry)
-  local size = 28
+-- Applies everything that belongs to a specific dungeon entry.
+--
+-- Split out of CreateTeleportButton so a rebuild can reuse existing frames.
+-- WoW frames cannot be destroyed: recreating them left every previous
+-- generation parented to mainFrame forever, and each generation is 4 frames
+-- plus roughly 44 textures and font strings.
+-- `isReused` is false for a freshly created button, which is already in a clean
+-- visual state by construction; resetting it there would just add a redundant
+-- cooldown-frame write on every build.
+local function ConfigureTeleportButton(button, deps, index, entry, isReused)
   local slotIndex = entry.slotIndex or index
-
-  -- Keep cast attributes working out of combat, but avoid promoting the parent to a protected frame.
-  local button = CreateFrame("Button", nil, mainFrame, "InsecureActionButtonTemplate")
-  button:SetSize(size, size)
   button.slotIndex = slotIndex
-  ApplyTeleportButtonLayout(button, slotIndex, deps.layoutMode)
-  button:EnableMouse(true)
-  button:RegisterForClicks("AnyDown", "AnyUp")
-  SyncButtonLayer(button, mainFrame, deps.isInCombat)
   button.spellID = entry.spellID
   button.mapID = entry.mapID
   button.mapName = entry.mapName
@@ -220,10 +220,46 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
   button._portalSoundPrimed = false
   deps.applySecureSpellToButton(button, entry.spellID)
 
+  if button.icon and button.icon.SetTexture then
+    button.icon:SetTexture(button.defaultIcon)
+  end
+
+  -- A reused button still carries the previous entry's highlight. UpdateButtons
+  -- recomputes all of this, but a rebuild can be rendered before the next update
+  -- arrives, so clear it here instead of showing another dungeon's active state.
+  if isReused then
+    if button.activeBorder and button.activeBorder.Hide then
+      button.activeBorder:Hide()
+    end
+    if button.animGroup and type(button.animGroup.Stop) == "function" then
+      button.animGroup:Stop()
+    end
+    if button.overlay and button.overlay.SetColorTexture then
+      button.overlay:SetColorTexture(unpack(Colors.BLACK_OVERLAY_35 or { 0, 0, 0, 0.35 }))
+    end
+    if button.cooldown then
+      deps.applyCooldownFrameSafe(button.cooldown, 0, 0, false)
+    end
+  end
+
+  button.cooldownRemainingSeconds = tonumber(deps.getTeleportCooldownRemaining(button.spellID)) or 0
+  ApplyTeleportButtonLayout(button, slotIndex, deps.layoutMode)
+  UpdateTeleportButtonShortCodeLabel(button, deps)
+end
+
+local function CreateTeleportButton(mainFrame, deps, index, entry)
+  local size = 28
+
+  -- Keep cast attributes working out of combat, but avoid promoting the parent to a protected frame.
+  local button = CreateFrame("Button", nil, mainFrame, "InsecureActionButtonTemplate")
+  button:SetSize(size, size)
+  button:EnableMouse(true)
+  button:RegisterForClicks("AnyDown", "AnyUp")
+  SyncButtonLayer(button, mainFrame, deps.isInCombat)
+
   button.icon = button:CreateTexture(nil, "ARTWORK")
   button.icon:SetAllPoints()
   button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  button.icon:SetTexture(button.defaultIcon)
 
   button.cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
   button.cooldown:SetAllPoints()
@@ -293,9 +329,6 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
     end)
   end
 
-  button.cooldownRemainingSeconds = tonumber(deps.getTeleportCooldownRemaining(button.spellID)) or 0
-  UpdateTeleportButtonShortCodeLabel(button, deps)
-
   button.animGroup = button.activeBorder:CreateAnimationGroup()
   button.animGroup:SetLooping("BOUNCE")
 
@@ -356,6 +389,10 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
   button:SetScript("OnLeave", function()
     hidePrivateTooltip(deps.tooltip)
   end)
+
+  -- Entry-specific state last: it depends on icon, overlay, cooldown and
+  -- activeBorder already existing.
+  ConfigureTeleportButton(button, deps, index, entry, false)
 
   return button
 end
@@ -439,7 +476,13 @@ function TeleportUI.CreateController(opts)
   assert(type(deps.isInCombat) == "function", "isiLive: TeleportUI requires isInCombat")
 
   local controller = {}
+  -- `buttons` mirrors the current entry list and is what every consumer sees.
+  -- `buttonPool` additionally keeps every button ever created, because WoW
+  -- frames cannot be destroyed: a rebuild reuses them instead of stranding the
+  -- previous generation on mainFrame. The pool only ever grows to the largest
+  -- entry count seen in this session.
   local buttons = {}
+  local buttonPool = {}
   ---@type table|nil
   local emptyStateLabel = nil
   local isVisible = true
@@ -559,16 +602,32 @@ function TeleportUI.CreateController(opts)
   end
 
   local function BuildButtonsInternal()
-    -- Hide old buttons before re-creating; CreateTeleportButton always builds
-    -- a fresh frame, so the previous ones would otherwise stay parented to
-    -- mainFrame with their secure attributes intact.
-    HideExistingButtons()
-    buttons = {}
     local entries = deps.getEntries()
     UpdateEmptyState(entries)
+
     for i, entry in ipairs(entries) do
-      table.insert(buttons, CreateTeleportButton(mainFrame, deps, i, entry))
+      local button = buttonPool[i]
+      if button then
+        ConfigureTeleportButton(button, deps, i, entry, true)
+      else
+        button = CreateTeleportButton(mainFrame, deps, i, entry)
+        buttonPool[i] = button
+      end
+      buttons[i] = button
     end
+
+    -- Pooled buttons beyond the current entry count stay allocated but hidden;
+    -- a later season with more dungeons picks them back up.
+    for i = #entries + 1, #buttonPool do
+      local surplus = buttonPool[i]
+      if surplus and surplus.Hide then
+        surplus:Hide()
+      end
+    end
+    for i = #buttons, #entries + 1, -1 do
+      buttons[i] = nil
+    end
+
     RelayoutButtons()
     ApplyVisibility()
   end
