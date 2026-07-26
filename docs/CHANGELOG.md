@@ -1,5 +1,56 @@
 # Changelog
 
+## 2026-07-26 - Version 0.9.354 (patch)
+
+- Fixed the always-on error log capturing every addon's errors instead of only
+  isiLive's. The isiLive filter matched the stack trace as a string, but a
+  trace taken inside the capture path always contains the error-log module's
+  own frames, so the match was unconditionally true and the filter never
+  rejected anything on the live error-handler path. Foreign errors filled the
+  100-slot ring and evicted genuine isiLive errors.
+- Replaced the traceback string match with a `debug.getinfo` frame probe that
+  excludes the error log's own frames by chunk identity, stops at the first
+  match, and is bounded to a fixed level count. The probe is also more accurate
+  than the previous approach because Lua elides middle frames in deep
+  tracebacks, where an isiLive frame could stay invisible.
+- Moved the isiLive filter ahead of traceback construction. The global error
+  handler routes every addon's errors through the capture path, so rejected
+  errors no longer pay for `debug.traceback` formatting — this removes the
+  per-error cost during an unrelated addon's error storm.
+- Fixed error-log entries being evicted in the wrong order after a `/reload`.
+  `firstSeen` / `lastSeen` are persisted and double as the trim eviction key,
+  but used a session-relative clock, so freshly captured errors sorted below
+  entries carried over from a previous session and were dropped first. The
+  stamps now use the cross-session epoch and are always numeric; entries
+  written by older versions sort below new ones and are evicted first, so no
+  migration is required.
+- Added deterministic regression coverage for the frame probe (foreign frame
+  rejected, isiLive frame accepted despite a foreign message, own error-log
+  frames excluded), for timestamp epoch and type guarantees, and for a freshly
+  captured error surviving a trim against a full ring of legacy entries.
+- Fixed three group-finder features that recognised client-rendered text by
+  matching hardcoded German and English literals and therefore never triggered
+  on the remaining supported client languages. All three now compare against
+  the client-localized Blizzard global string, verified against a live client:
+  the "promotion offered" playstyle row (which failed on every locale including
+  English, leaving the bonus badge visible where it should be hidden), the
+  tooltip member-section header, and the Proving Grounds block hidden from the
+  applicant tooltip.
+- Replaced the tooltip member-section end-marker heuristic with the known
+  member count. The section is now the first N non-empty lines after the
+  localized header, so the "Created" / "Best" literals are gone entirely.
+- Removed the tooltip fallback that treated every non-empty line as a member
+  row whenever the section header was not recognised. On affected locales that
+  pulled the group title and activity lines into the candidate set, where a
+  listing title naming a class and spec could absorb a member's bonus marker.
+  Without a resolvable header the tooltip is now left untouched.
+- Extended the hardcoded-string gate to locale-dependent read paths. It
+  previously inspected only literals passed to AddLine / SetText / SetTitle and
+  was blind to text recognition via find / match and to exact-match table keys,
+  which is why the three defects above shipped undetected. Detection is scoped
+  to literals that look like client-rendered prose, so unit tokens, Lua type
+  names, slash-command keywords and sync protocol tokens stay silent.
+
 ## 2026-07-23 - Version 0.9.353 (patch)
 
 - Hardened all audited unit-token, identity, class, specialization, map, status,

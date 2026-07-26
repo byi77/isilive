@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.0.7 / 12.1.0 Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%20%2F%2012.1.0%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.353](https://img.shields.io/badge/isiLive-0.9.353-1E90FF?style=for-the-badge)
+![isiLive 0.9.354](https://img.shields.io/badge/isiLive-0.9.354-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -17,7 +17,7 @@
 
 Season maintenance is driven by one normalized manifest. Portal, LFG activity, display, level-gate, and portal-room indexes are derived from the same per-dungeon records; the generated MDT forces snapshot remains separate.
 
-Version `0.9.353` hardens WoW Secret Value handling, makes sync sends transactional and retry-safe, rejects malformed sync payloads before peer trust is established, and preserves verified pending queue-join information across informational LFG event noise. Owned-keystone links now use only verified bag hyperlinks, with the existing safe plain-text fallback when no exact link is available. Automatic Season 2 selection remains unchanged: the switch happens only once Blizzard ships the exact recorded dungeon set.
+Version `0.9.354` repairs the always-on error log. Its isiLive filter matched its own frames in the captured stack trace, so other addons' errors were stored and evicted genuine isiLive ones; foreign errors are now rejected by a frame probe before any stack trace is built, which also removes the per-error cost during an unrelated addon's error storm. Error-log entries additionally use a timestamp that survives `/reload`, so freshly captured errors are no longer the first to be trimmed. Three group-finder features that recognised client text by matching German and English wording now read the client-localized Blizzard strings instead, so they work in every supported client language rather than silently doing nothing. Automatic Season 2 selection remains unchanged: the switch happens only once Blizzard ships the exact recorded dungeon set.
 
 **Setup:** install, join a 5-player group, and the window opens automatically.
 

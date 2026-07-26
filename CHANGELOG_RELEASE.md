@@ -3,17 +3,23 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.353`.
+Current release: `0.9.354`.
 
 Highlights:
-- Hardened unit, identity, class, specialization, map, status, and role reads
-  against WoW Secret Values; protected data now stays unresolved.
-- Made addon-sync sends transactional and retry-safe, and prevented malformed
-  or unknown payloads from establishing peer trust.
-- Preserved verified pending queue-join information across informational LFG
-  event noise so the join message is consumed exactly once after grouping.
-- Removed the obsolete owned-keystone-link API path. Clickable links now come
-  only from verified bag hyperlinks, with a safe plain-text fallback.
+- **`/isilive errorlog` now really only collects isiLive errors.** The filter
+  previously matched its own frames, so other addons' errors filled the log and
+  pushed out isiLive's own. Foreign errors are now rejected before any stack
+  trace is built, which also removes the cost during another addon's error
+  storm.
+- Error-log entries no longer lose their newest items after a `/reload`. The
+  buffer now orders by a timestamp that survives reloads and relogs.
+- **Group-finder features now work in every client language.** Three of them
+  recognised text by matching German and English wording and silently did
+  nothing everywhere else — hiding the bonus badge on "promotion offered" rows
+  (broken even in English), finding the member section in group tooltips, and
+  removing the Proving Grounds block from applicant tooltips.
+- Group-bonus markers in search-result tooltips can no longer end up on the
+  listing title instead of the member row.
 - **Midnight Season 2 is armed for automatic selection.** isiLive now switches
   to the Season 2 dungeon set on its own, as soon as the game reports the new
   challenge maps. Nothing changes while Season 1 is live, and no addon update

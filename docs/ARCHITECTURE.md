@@ -1,7 +1,7 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.353`
-Zuletzt aktualisiert: `2026-07-23`
+Versionsbasis: `0.9.354`
+Zuletzt aktualisiert: `2026-07-26`
 
 ## Zweck
 
@@ -150,7 +150,9 @@ Jeder Step laeuft genau einmal pro User; `db.__schemaVersion` wird nach erfolgre
 **Designprinzipien:**
 - **Always-on, nicht debug-gated.** Errors sind selten und wertvoll; `runtimeLog` ist hochfrequent und opt-in, der Error-Buffer ist niederfrequent und immer aktiv.
 - **Chain-of-responsibility.** `geterrorhandler() -> previous` wird IMMER zuerst aufgerufen, bevor wir capturen. BugSack / `!BugGrabber` / Blizzards `BasicScriptErrors` bleiben uneingeschraenkt aktiv; wir steigen nur als zusaetzlicher Subscriber ein.
-- **Filter auf isiLive-Code.** Nur Errors, deren Message oder Stack-Trace `isiLive` mention, landen im Buffer. Plater / WeakAuras / Blizzard-UI-Errors werden bewusst ignoriert.
+- **Filter auf isiLive-Code.** Nur Errors, deren Message oder Stack `isiLive` mention, landen im Buffer. Plater / WeakAuras / Blizzard-UI-Errors werden bewusst ignoriert. Der Stack-Anteil wird ueber einen `debug.getinfo`-Frame-Probe geprueft, **nicht** ueber einen String-Match auf `debug.traceback`: waehrend `Capture()` liegen immer eigene `isiLive_error_log.lua`-Frames auf dem Stack, ein Traceback-Match waere also unkonditioniert wahr und der Filter wirkungslos. Der Probe schliesst die eigenen Frames per Chunk-Identitaet aus, bricht beim ersten Treffer ab und ist auf `MAX_STACK_PROBE_LEVELS` begrenzt. Er ist ausserdem genauer als der Traceback-Match, weil Lua bei tiefen Stacks mittlere Frames elidiert.
+- **Filter vor Traceback.** `Install()` leitet die Errors *aller* Addons durch `Capture()`. Die Reject-Entscheidung faellt deshalb vor `debug.traceback`; der teure Traceback wird nur noch fuer Errors gebaut, die tatsaechlich gespeichert werden.
+- **Cross-Session-Zeitstempel.** `firstSeen` / `lastSeen` nutzen `time()` (Unix-Epoche), nicht `GetTime()`. Die Werte sind persistiert und gleichzeitig der Eviction-Schluessel von `TrimToCap`; ein session-relativer Stempel wuerde nach `/reload` frische Eintraege unter die uebernommenen sortieren und zuerst verwerfen. `GetTime()` bleibt reiner Fallback, der Rueckgabewert ist immer numerisch. Alt-Eintraege mit `GetTime()`-Epoche sortieren unter alle neuen und werden zuerst verdraengt — keine Migration noetig.
 - **Dedup via count++.** Identischer Error (gleicher `fullText` mit Stack) inkrementiert `entry.count` und `lastSeen`, statt 200 Duplikate zu speichern. Ein Error-Storm in einem Combat-Tick belegt einen Slot statt das Buffer zu fluten.
 - **Defensive Capture.** Jeder interner Schritt ist `pcall`-wrapped — ein Error im Error-Logger selbst loest keinen Sekundaer-Cascade aus.
 
@@ -168,7 +170,9 @@ Jeder Step laeuft genau einmal pro User; `db.__schemaVersion` wird nach erfolgre
 
 **Slash-Command:** `/isilive errorlog` zeigt Status (Installed/Count/Cap), `/isilive errorlog 20` zeigt die letzten 20, `/isilive errorlog clear` leert.
 
-**Tests:** [testmodul/isilive_test_scenarios_error_log.lua](../testmodul/isilive_test_scenarios_error_log.lua) (~18 Szenarien): isiLive-Filter, Stack-Frame-Detection, Dedup, Cap-Enforcement, Chain-of-responsibility, Idempotenz, GetTail/Clear-API, Schema-integrierter Map-Trim fuer alle vier capped fields.
+**Tests:** [testmodul/isilive_test_scenarios_error_log.lua](../testmodul/isilive_test_scenarios_error_log.lua) (~29 Szenarien): isiLive-Filter, Stack-Frame-Detection, Dedup, Cap-Enforcement, Chain-of-responsibility, Idempotenz, GetTail/Clear-API, Schema-integrierter Map-Trim fuer alle vier capped fields, Frame-Probe-Verhalten (Fremd-Frame abgelehnt, isiLive-Frame akzeptiert, eigene Error-Log-Frames ausgeschlossen) sowie `time()`-Epoche, numerische Stempel-Garantie und Eviction-Reihenfolge gegen Alt-Eintraege.
+
+Die Frame-Probe-Szenarien fahren ihren Aufrufer ueber `load(..., "@<pfad>")` auf einer eigenen Coroutine, weil `debug.getinfo` nur den aktuellen Coroutine-Stack laeuft — sonst laege die Szenariodatei selbst (`isilive_test_scenarios_error_log.lua`) im Stack und jede Probe-Assertion waere trivial wahr. Der `debug.getinfo`-fehlt-Guard hat bewusst kein Szenario: luacov loest das globale `debug` zur Laufzeit auf, ein Stub bricht den instrumentierten Coverage-Lauf. Der Guard faellt fail-closed.
 
 ## Deterministischer Regelsatz
 
@@ -264,7 +268,7 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
 5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach die aktuell registrierten Szenarien aus `tools/usecase_scenarios.lua` ab; die exakte Anzahl wird bei jedem Lauf ausgegeben und die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
    Zusaetzlich laeuft der gleiche Validator-Lauf in CI unter `luacov` (`lua -lluacov tools/validate_usecases.lua`), damit `tools/coverage_summary.lua` die Line-Coverage pro Schicht in das GitHub-Actions-Step-Summary schreibt und der vollstaendige `luacov.report.out` als Artefakt hochgeladen wird.
-   Letzter voller Coverage-Audit-Stand (`2026-07-23`, lokaler Preflight bei 0.9.353): **92.11% Gesamt-Line-Coverage** (`34766 / 37746` Zeilen) bei `2255 passed, 0 failed`. Vorheriger Stand (`2026-07-23`, 0.9.352): 92.08% (`34745 / 37732` Zeilen). Das Coverage-Gate bleibt bei mindestens 88.00% gesamt und 80.00% pro Produktionsdatei.
+   Letzter voller Coverage-Audit-Stand (`2026-07-26`, lokaler Preflight bei 0.9.354): **92.09% Gesamt-Line-Coverage** (`34808 / 37796` Zeilen) bei `2263 passed, 0 failed`. Vorheriger Stand (`2026-07-23`, 0.9.353): 92.11% (`34766 / 37746` Zeilen) bei `2255 passed, 0 failed`. Das Coverage-Gate bleibt bei mindestens 88.00% gesamt und 80.00% pro Produktionsdatei.
    Historische Baseline (`2026-04-22`, Commit nach Coverage-Einfuehrung): **78.62% Gesamt-Line-Coverage** ueber 19487 Produktionszeilen.
 6. Der M+-Forces-DB-Refresh laeuft automatisch ueber `.github/workflows/sync-mplus-forces.yml` (Donnerstag 06:00 UTC plus `workflow_dispatch`): Clone MDT → `tools/sync_mdt_forces.lua` → voller CI-Preflight (stylua, luacheck, syntax, metrics, locale drift, lifetime, Nameplate-Key-Start-Simulator, SavedVariables-Reload-Simulator, Key-Start-Lifecycle-Simulator, usecases) → Commit + Push nach `main`. Ohne Diff im DB-File laeuft der Workflow still durch ohne Commit.
 7. Der taegliche S2-Forces-Verfuegbarkeitsmonitor klont MDT nur zur Inspektion. Er meldet per markerstabilem, bei Bedarf wieder geoeffnetem GitHub Issue strukturelle Verfuegbarkeit, wenn fuer alle konfigurierten Dungeons exakte Map-IDs, positive Gesamtwerte und positive NPC-Forces-Daten ausfuehrbar vorliegen. Er prueft alle Kandidaten statt beim ersten Texttreffer abzubrechen; Texttreffer und Platzhalter bleiben geschlossen. Das Signal behauptet keine unbelegbare vollstaendige NPC-Abdeckung.
@@ -279,7 +283,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.353 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.354 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
