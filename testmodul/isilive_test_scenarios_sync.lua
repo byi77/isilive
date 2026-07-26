@@ -154,8 +154,11 @@ local function RegisterSyncRuntimeLogBurstTests(test, Assert, WithGlobals, LoadA
       runtimeLog.SetEnabled(true)
       addon.Sync.SetTraceLogger(runtimeLog.Trace)
 
+      -- Index is a counter, not a key level: keep it under the sanity bound.
+      local lastLevel
       for i = 1, 2000 do
-        addon.Sync.ProcessAddonMessage("ISILIVE", "KEY:2649:" .. tostring(i), "Peer-Realm", "Me", "Realm")
+        lastLevel = ((i - 1) % 500) + 1
+        addon.Sync.ProcessAddonMessage("ISILIVE", "KEY:2649:" .. tostring(lastLevel), "Peer-Realm", "Me", "Realm")
       end
 
       local keyInfo = addon.Sync.GetPlayerKeyInfo("Peer", "Realm")
@@ -163,7 +166,7 @@ local function RegisterSyncRuntimeLogBurstTests(test, Assert, WithGlobals, LoadA
       Assert.Equal(runtimeLog.GetLogCount(), 100, "sync burst trace must stay capped")
       Assert.Equal(#tail, 100, "sync burst tail must stay capped")
       Assert.NotNil(keyInfo, "sync burst must keep applying latest key state")
-      Assert.Equal(keyInfo.level, 2000, "sync burst must retain latest applied key level")
+      Assert.Equal(keyInfo.level, lastLevel, "sync burst must retain latest applied key level")
       Assert.True(
         tail[#tail]:find("%[SYNC%] event=message_applied sender=Peer%-Realm") ~= nil,
         "tail must include applied sync trace"

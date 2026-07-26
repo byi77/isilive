@@ -252,6 +252,45 @@ local function RegisterDeathWatchTests(test, ctx)
     Assert.Equal(#env.alerts, 2, "challenge reset must clear the dead flag and re-arm the edge")
   end)
 
+  -- The in-key answer is cached because UNIT_HEALTH is high frequency. It used
+  -- to be invalidated only by challenge lifecycle events, so a tracked party
+  -- run starting or ending without one left the cached answer stale for the
+  -- rest of the session: no alerts inside the dungeon, or alerts out in the
+  -- open world after leaving it.
+  test("DeathWatch picks up a party-run context that starts without a challenge event", function()
+    local addon = LoadDeathWatch()
+    local env = BuildWatchEnv({ inKey = false })
+    addon.DeathWatch.SetDependencies(env.deps)
+
+    env.deadUnits.party1 = true
+    addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+    Assert.Equal(#env.alerts, 0, "no alert outside a tracked run")
+
+    -- Tracked party run becomes active; no CHALLENGE_MODE_* event fires.
+    env.inKey = true
+    env.deadUnits.party1 = false
+    addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+    addon.DeathWatch.HandleEvent("INSTANCE_CONTEXT_CHANGED")
+    env.deadUnits.party1 = true
+    addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+    Assert.Equal(#env.alerts, 1, "context invalidation must let the alert fire inside the tracked run")
+  end)
+
+  test("DeathWatch context invalidation keeps the run's death counts", function()
+    local addon = LoadDeathWatch()
+    local env = BuildWatchEnv()
+    addon.DeathWatch.SetDependencies(env.deps)
+
+    env.deadUnits.party1 = true
+    addon.DeathWatch.HandleEvent("UNIT_HEALTH", "party1")
+    Assert.Equal(addon.DeathWatch.GetDeathSummaryForPlayer("Tankadin", "Realm").count, 1, "death must be counted")
+
+    addon.DeathWatch.HandleEvent("INSTANCE_CONTEXT_CHANGED")
+    local summary = addon.DeathWatch.GetDeathSummaryForPlayer("Tankadin", "Realm")
+    Assert.NotNil(summary, "context invalidation must not drop the death summary")
+    Assert.Equal(summary.count, 1, "context invalidation must not reset death counts mid-run")
+  end)
+
   test("DeathWatch clears per-player death counts on challenge end and reset", function()
     local addon = LoadDeathWatch()
     local env = BuildWatchEnv()

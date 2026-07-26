@@ -348,6 +348,28 @@ local function RegisterTickerTests(test, Assert, WithGlobals, LoadAddonModules)
       Assert.True(calls > before, "ticker firing must notify subscribers while state is active")
     end)
   end)
+
+  -- Self-heal: ReadLiveData inside the ticker can clear state.active itself
+  -- (challenge map ID gone). Without cancelling from inside, the 0.5s ticker
+  -- kept firing as a no-op until the next HandleEvent -- or forever if none
+  -- arrived.
+  test("refresh ticker cancels itself once the key state goes inactive", function()
+    local env = BuildKillTrackEnv({ scenario = { quantity = 5, total = 100 } })
+    WithGlobals(env.globals, function()
+      local addon = LoadAddonModules({ "isiLive_killtrack.lua" })
+      addon.KillTrack._DispatchEvent("CHALLENGE_MODE_START")
+      Assert.Equal(#env.tickers, 1, "a refresh ticker must exist while the key is active")
+
+      -- Challenge map disappears; the next ticker tick observes it.
+      env.scenario.SetActiveMapID(nil)
+      env.tickers[1].fn()
+      Assert.False(addon.KillTrack.GetData().active, "state must go inactive once the challenge map is gone")
+      Assert.False(env.tickers[1].cancelled, "the tick that observed the change may still complete")
+
+      env.tickers[1].fn()
+      Assert.True(env.tickers[1].cancelled, "the following tick must cancel the ticker instead of idling")
+    end)
+  end)
 end
 
 local function RegisterDbTotalAndMapIdTests(test, Assert, WithGlobals, LoadAddonModules)

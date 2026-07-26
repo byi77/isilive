@@ -732,11 +732,13 @@ local function UnregisterEvents()
 end
 
 function MobNameplate.SetEnabled(flag)
-  local next = flag ~= false
-  if next == enabled and registered then
+  -- Named nextEnabled, not next: shadowing the Lua standard `next` inside a
+  -- function is a footgun for anyone adding a table walk here later.
+  local nextEnabled = flag ~= false
+  if nextEnabled == enabled and registered then
     return
   end
-  enabled = next
+  enabled = nextEnabled
   if enabled then
     if RegisterEvents() then
       registered = true

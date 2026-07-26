@@ -179,10 +179,12 @@ local function InitializeFactorySecondaryCdTracker(
       if ctx.cdTrackerController and type(ctx.cdTrackerController.ClearRuntimeData) == "function" then
         ctx.cdTrackerController.ClearRuntimeData()
       end
-    else
+    elseif ctx.cdTrackerController and type(ctx.cdTrackerController.Scan) == "function" then
       ctx.cdTrackerController.Scan()
     end
-    local bresInfo = type(ctx.cdTrackerController.GetBResInfo) == "function" and ctx.cdTrackerController.GetBResInfo()
+    local bresInfo = ctx.cdTrackerController
+        and type(ctx.cdTrackerController.GetBResInfo) == "function"
+        and ctx.cdTrackerController.GetBResInfo()
       or nil
     local bresCharges = type(bresInfo) == "table" and tonumber(bresInfo.charges) or nil
     local bresCooldownRemain = type(bresInfo) == "table" and tonumber(bresInfo.cooldownRemain) or nil
@@ -212,7 +214,9 @@ local function InitializeFactorySecondaryCdTracker(
       lastBResCooldownRemain = bresCooldownRemain
     end
     lastMplusRunning = mplusRunning
-    local lustInfo = type(ctx.cdTrackerController.GetLustInfo) == "function" and ctx.cdTrackerController.GetLustInfo()
+    local lustInfo = ctx.cdTrackerController
+        and type(ctx.cdTrackerController.GetLustInfo) == "function"
+        and ctx.cdTrackerController.GetLustInfo()
       or nil
     local lustRemain = type(lustInfo) == "table" and tonumber(lustInfo.remain) or nil
     local lustTimerDisplayed = lustRemain ~= nil and lustRemain > 0
@@ -292,13 +296,18 @@ local function InitializeFactorySecondaryCdTracker(
         if not IsCombatUtilityContextActive() or not IsGroupedUtilityContext() then
           return nil
         end
-        return type(ctx.cdTrackerController.GetBResInfo) == "function" and ctx.cdTrackerController.GetBResInfo() or nil
+        return ctx.cdTrackerController
+            and type(ctx.cdTrackerController.GetBResInfo) == "function"
+            and ctx.cdTrackerController.GetBResInfo()
+          or nil
       end,
       GetLustInfo = function()
         if not IsCombatUtilityContextActive() or not IsGroupedUtilityContext() then
           return nil
         end
-        local info = type(ctx.cdTrackerController.GetLustInfo) == "function" and ctx.cdTrackerController.GetLustInfo()
+        local info = ctx.cdTrackerController
+            and type(ctx.cdTrackerController.GetLustInfo) == "function"
+            and ctx.cdTrackerController.GetLustInfo()
           or nil
         if info ~= nil then
           return info

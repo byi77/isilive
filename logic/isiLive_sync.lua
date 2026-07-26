@@ -22,6 +22,19 @@ local ISILIVE_SHAREKEYS_CD_MAX_SECONDS = 30
 local LIBKEYSTONE_REQUEST_COOLDOWN = 3
 local MAX_SAFE_INTEGER = 9007199254740991
 
+-- Upper sanity bounds for numeric peer payloads. These are NOT claims about
+-- game limits -- they are display bounds. Without them a broken or hostile
+-- peer can publish a key level or rating up to MAX_SAFE_INTEGER, which renders
+-- into the roster and blows up the column layout for everyone in the group.
+-- The rest of the ingest path is already strict this way (ParseKickPayload
+-- rejects malformed suffixes outright, SKCD caps at 30s); these close the gap
+-- for KEY and STATS. Values above the bound are treated as unresolved rather
+-- than clamped, per the fail-closed contract: a silently clamped number would
+-- be a fabricated value.
+local MAX_SYNC_KEY_LEVEL = 1000
+local MAX_SYNC_ILVL = 10000
+local MAX_SYNC_RIO = 100000
+
 local function ToFiniteNumber(value)
   local numericValue = tonumber(value)
   if
@@ -399,7 +412,13 @@ local function NormalizeKeyPayload(mapID, level, capturedAt, source)
   if type(SeasonData.NormalizeMapID) == "function" then
     numericMapID = SeasonData.NormalizeMapID(numericMapID)
   end
-  if not numericLevel or numericLevel <= 0 or not numericMapID or numericMapID <= 0 then
+  if
+    not numericLevel
+    or numericLevel <= 0
+    or numericLevel > MAX_SYNC_KEY_LEVEL
+    or not numericMapID
+    or numericMapID <= 0
+  then
     return string.format("KEY:0:0:%d:%s", GetSyncTimestamp() or 0, NormalizeSyncSource(source) or "local"),
       nil,
       nil,
@@ -425,13 +444,13 @@ local function NormalizeStatsPayload(specID, ilvl, rio, capturedAt, source)
     numericSpecID = math.floor(numericSpecID)
   end
 
-  if not numericIlvl or numericIlvl <= 0 then
+  if not numericIlvl or numericIlvl <= 0 or numericIlvl > MAX_SYNC_ILVL then
     numericIlvl = -1
   else
     numericIlvl = math.floor(numericIlvl)
   end
 
-  if numericRio == nil then
+  if numericRio == nil or numericRio > MAX_SYNC_RIO then
     numericRio = -1
   else
     numericRio = math.floor(numericRio)
@@ -1778,7 +1797,13 @@ function Sync.SendLibKeystonePartyData(opts)
     numericMapID = SeasonData.NormalizeMapID(numericMapID)
   end
 
-  if not numericLevel or numericLevel <= 0 or not numericMapID or numericMapID <= 0 then
+  if
+    not numericLevel
+    or numericLevel <= 0
+    or numericLevel > MAX_SYNC_KEY_LEVEL
+    or not numericMapID
+    or numericMapID <= 0
+  then
     numericLevel = 0
     numericMapID = 0
   else

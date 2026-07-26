@@ -25,6 +25,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_locale.lua",
   "testmodul/isilive_test_scenarios_sync.lua",
   "testmodul/isilive_test_scenarios_sync_dispatch_safety.lua",
+  "testmodul/isilive_test_scenarios_sync_payload_bounds.lua",
   "testmodul/isilive_test_scenarios_sync_security.lua",
   "testmodul/isilive_test_scenarios_keysync.lua",
   "testmodul/isilive_test_scenarios_guards.lua",

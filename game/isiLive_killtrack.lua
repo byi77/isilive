@@ -34,7 +34,6 @@ local state = {
 local pull = {
   inCombat = false,
   startRawCount = 0,
-  startTotal = 0,
   pullPercent = 0,
   displayUntil = 0, -- pullPercent stays visible until this GetTime() stamp
 }
@@ -220,6 +219,10 @@ local function ShouldDisplayPull()
   return false
 end
 
+-- Forward declaration: the ticker closure in StartRefreshTicker cancels itself
+-- via StopRefreshTicker, which is defined below.
+local StopRefreshTicker
+
 local function StartRefreshTicker()
   if refreshTicker ~= nil then
     return
@@ -229,7 +232,12 @@ local function StartRefreshTicker()
     return
   end
   refreshTicker = timer.NewTicker(0.5, function()
+    -- ReadLiveData() below can clear state.active itself (map ID gone). Cancel
+    -- from inside instead of only early-returning, otherwise the ticker keeps
+    -- firing as a no-op until the next HandleEvent -- or forever, if none
+    -- arrives.
     if not state.active then
+      StopRefreshTicker()
       return
     end
     ReadLiveData()
@@ -238,7 +246,7 @@ local function StartRefreshTicker()
   end)
 end
 
-local function StopRefreshTicker()
+function StopRefreshTicker()
   if refreshTicker and type(refreshTicker.Cancel) == "function" then
     pcall(refreshTicker.Cancel, refreshTicker)
   end
@@ -312,7 +320,6 @@ function KillTrack._DispatchEvent(event)
     if state.active then
       pull.inCombat = true
       pull.startRawCount = state.rawCount
-      pull.startTotal = state.total
       pull.pullPercent = 0
     end
     NotifyUpdate()

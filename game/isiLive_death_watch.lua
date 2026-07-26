@@ -345,6 +345,16 @@ function DeathWatch.CreateController(opts)
     end
   end
 
+  -- Drops only the in-key context cache, keeping dead flags and death counts.
+  -- Needed for instance-context transitions that change the tracked-party-run
+  -- state without a challenge lifecycle event: those must not wipe the run's
+  -- death summary, but the cached answer would otherwise stay stale for the
+  -- rest of the session -- silencing alerts inside a dungeon, or firing them
+  -- out in the open world after leaving one.
+  function controller.InvalidateContextCache()
+    cachedInKey = nil
+  end
+
   function controller.ResetEdges()
     deadByGuid = {}
     deadRoleByGuid = {}
@@ -382,6 +392,13 @@ function DeathWatch.HandleEvent(event, ...)
   end
   if event == "GROUP_ROSTER_UPDATE" then
     controllerInstance.HandleGroupRosterUpdate()
+    return
+  end
+  -- Instance context changed without a challenge lifecycle event (difficulty
+  -- change, delayed instance resolution after a zone change). Only the cached
+  -- in-key answer is stale; death counts must survive.
+  if event == "INSTANCE_CONTEXT_CHANGED" then
+    controllerInstance.InvalidateContextCache()
     return
   end
   if event == "CHALLENGE_MODE_START" then

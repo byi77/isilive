@@ -16,13 +16,26 @@ local function ValueText(value)
   return tostring(value)
 end
 
+-- Packs a pcall result into { n = count, [1..n] = values }. A plain
+-- `{ pcall(f) }` plus `table.remove` breaks when the called function returns a
+-- nil in the middle: the array then has a hole and `#results` is undefined, so
+-- the trailing values can silently disappear. Blizzard season APIs regularly
+-- return nil for unavailable fields, which is exactly this dump's subject.
+local function PackCallResults(...)
+  local count = select("#", ...)
+  local packed = { n = count - 1 }
+  for index = 2, count do
+    packed[index - 1] = (select(index, ...))
+  end
+  return (select(1, ...)), packed
+end
+
 local function SafeCallTable(rootName, fnName, ...)
   local root = rawget(_G, rootName)
   if type(root) ~= "table" or type(root[fnName]) ~= "function" then
     return false, "unavailable"
   end
-  local results = { pcall(root[fnName], ...) }
-  local ok = table.remove(results, 1)
+  local ok, results = PackCallResults(pcall(root[fnName], ...))
   if not ok then
     return false, "error:" .. tostring(results[1])
   end
@@ -34,8 +47,7 @@ local function SafeCallGlobal(fnName, ...)
   if type(fn) ~= "function" then
     return false, "unavailable"
   end
-  local results = { pcall(fn, ...) }
-  local ok = table.remove(results, 1)
+  local ok, results = PackCallResults(pcall(fn, ...))
   if not ok then
     return false, "error:" .. tostring(results[1])
   end

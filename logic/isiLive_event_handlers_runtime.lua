@@ -992,6 +992,10 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     end
     ctx.updateCdTracker()
     UpdateTrackedMythicZeroRun(ctx)
+    -- The line above can start or clear the tracked party run, which is one of
+    -- the inputs to DeathWatch's cached in-key answer. Invalidate it here; a
+    -- full CHALLENGE_MODE_RESET would also wipe the run's death counts.
+    ctx.handleDeathWatchEvent("INSTANCE_CONTEXT_CHANGED")
     ctx.updateStatusLine()
     ctx.maybeShowNonMythicDungeonEntryNotice()
     ctx.maybeShowPortalNavigatorNotice()

@@ -526,18 +526,33 @@ local function PositionPrivateTooltip(tooltip)
   end
 end
 
+-- Modern API first, legacy global last. The order matters: the global
+-- GetSpellInfo is the deprecated pre-11.0 signature and only survives as a
+-- compatibility shim, so it must never win over C_Spell. Mirrors
+-- ResolveSpellNameByID in isiLive_ui_game_menu_mounts.lua -- keep the two in
+-- step if either changes.
 local function ResolveSpellName(spellID)
-  if type(rawget(_G, "GetSpellInfo")) == "function" then
-    local ok, spellName = pcall(rawget(_G, "GetSpellInfo"), spellID)
+  local spellAPI = rawget(_G, "C_Spell")
+
+  local getSpellName = type(spellAPI) == "table" and spellAPI.GetSpellName or nil
+  if type(getSpellName) == "function" then
+    local ok, spellName = pcall(getSpellName, spellID)
     if ok and type(spellName) == "string" and spellName ~= "" then
       return spellName
     end
   end
 
-  local spellAPI = rawget(_G, "C_Spell")
-  local getSpellName = spellAPI and spellAPI.GetSpellName or nil
-  if type(getSpellName) == "function" then
-    local ok, spellName = pcall(getSpellName, spellID)
+  local getSpellInfo = type(spellAPI) == "table" and spellAPI.GetSpellInfo or nil
+  if type(getSpellInfo) == "function" then
+    local ok, spellInfo = pcall(getSpellInfo, spellID)
+    if ok and type(spellInfo) == "table" and type(spellInfo.name) == "string" and spellInfo.name ~= "" then
+      return spellInfo.name
+    end
+  end
+
+  local legacyGetSpellInfo = rawget(_G, "GetSpellInfo")
+  if type(legacyGetSpellInfo) == "function" then
+    local ok, spellName = pcall(legacyGetSpellInfo, spellID)
     if ok and type(spellName) == "string" and spellName ~= "" then
       return spellName
     end
