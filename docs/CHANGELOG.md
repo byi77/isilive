@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-26 - Version 0.9.359 (patch)
+
+- Escaped the sub-command prefix before it is interpolated into the debug-log
+  command pattern. The prefix is literal text but was treated as pattern
+  syntax, so a future prefix containing a magic character would have silently
+  changed what the pattern matches instead of failing visibly. The two current
+  prefixes are alphanumeric and behave identically before and after.
+
 ## 2026-07-26 - Version 0.9.358 (patch)
 
 - Stopped the portal grid from stranding its buttons on every rebuild. WoW

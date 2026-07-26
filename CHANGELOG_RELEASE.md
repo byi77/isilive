@@ -3,7 +3,7 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.358`.
+Current release: `0.9.359`.
 
 Highlights:
 - **Interrupt tracking for Protection Paladins is no longer wrong.** Avenger's
