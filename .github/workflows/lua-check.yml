@@ -68,6 +68,10 @@ jobs:
         run: |
           lua tools/check_locale_drift.lua
 
+      - name: Lua 5.1 Compatibility Check
+        run: |
+          lua tools/check_lua51_compat.lua
+
       - name: Hardcoded Strings Check
         run: |
           lua tools/check_hardcoded_strings.lua

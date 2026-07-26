@@ -156,6 +156,7 @@ try {
   $env:ISILIVE_MAX_FUNCTION_LINES = "420"
   Invoke-CheckedCommand "Lua Metrics Check" "lua tools/lua_metrics_check.lua"
   Invoke-CheckedCommand "Locale Drift Check" "lua tools/check_locale_drift.lua"
+  Invoke-CheckedCommand "Lua 5.1 Compatibility Check" "lua tools/check_lua51_compat.lua"
   Invoke-CheckedCommand "Hardcoded Strings Check" "lua tools/check_hardcoded_strings.lua"
   Invoke-CheckedCommand "UI Color Tokens Check" "lua tools/check_ui_color_tokens.lua"
   Invoke-CheckedCommand "Sound Channel Check" "lua tools/check_sound_channel.lua"
