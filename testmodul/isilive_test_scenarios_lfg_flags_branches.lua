@@ -267,7 +267,7 @@ end
 local function RegisterGroupBonusTooltipLineTests(test, Assert, LoadAddonModules, WithGlobals)
   test("LI.ApplyGroupBonusTooltipLines appends localized suffixes to matching search-result member lines", function()
     local line2 = NewFontStringStub()
-    line2:SetText("Mitglieder")
+    line2:SetText("Mitglieder: 1 (0/0/1)")
     local line3 = NewFontStringStub()
     line3:SetText("Druide - Wächter")
     local line4 = NewFontStringStub()
@@ -294,6 +294,7 @@ local function RegisterGroupBonusTooltipLineTests(test, Assert, LoadAddonModules
         end,
       },
     })
+    globals.LFG_LIST_TOOLTIP_MEMBERS = "Mitglieder: %d (%d/%d/%d)"
     globals.GameTooltipTextLeft1 = NewFontStringStub()
     globals.GameTooltipTextLeft2 = line2
     globals.GameTooltipTextLeft3 = line3
@@ -308,56 +309,114 @@ local function RegisterGroupBonusTooltipLineTests(test, Assert, LoadAddonModules
     end)
   end)
 
-  test(
-    "LI.ApplyGroupBonusTooltipLines matches exact member lines without a German or English section header",
-    function()
-      local line1 = NewFontStringStub()
-      line1:SetText("Membres")
-      local line2 = NewFontStringStub()
-      line2:SetText("Druide - Wächter")
-      local line3 = NewFontStringStub()
-      line3:SetText("Créé : il y a 1 min.")
-
-      local globals = BonusGlobals({
-        IsiLiveDB = { locale = "frFR" },
-        C_LFGList = {
-          GetSearchResultInfo = function()
-            return { numMembers = 1 }
-          end,
-          GetSearchResultPlayerInfo = function()
-            return {
-              classFilename = "DRUID",
-              specID = 104,
-              className = "Druide",
-              specName = "Wächter",
-            }
-          end,
-        },
-        GameTooltip = {
-          NumLines = function()
-            return 3
-          end,
-        },
-      })
-      globals.GameTooltipTextLeft1 = line1
-      globals.GameTooltipTextLeft2 = line2
-      globals.GameTooltipTextLeft3 = line3
-
-      WithGlobals(globals, function()
-        local addon = LoadBonusModules(LoadAddonModules)
-        addon._LFGFlagsInternal.ApplyGroupBonusTooltipLines(99)
-        local plain = StripColors(line2:GetText())
-        Assert.True(
-          plain:find("%+3%% Versa", 1, false) ~= nil,
-          "fallback matching must append bonuses to the exact class/spec line"
-        )
-        Assert.True(
-          StripColors(line1:GetText()):find("%+3%% Versa", 1, false) == nil,
-          "fallback matching must not append bonuses to a non-member header line"
-        )
-      end)
+  -- Locale independence: the member-section header is resolved from the
+  -- client-localized Blizzard global, so a French client must behave exactly
+  -- like a German one. Before this, the header was matched against literal
+  -- "Mitglieder"/"Members" and every other locale fell through to a
+  -- match-any-line fallback.
+  local function BuildFrenchTooltipGlobals(lines, numLines)
+    local globals = BonusGlobals({
+      IsiLiveDB = { locale = "frFR" },
+      C_LFGList = {
+        GetSearchResultInfo = function()
+          return { numMembers = 1 }
+        end,
+        GetSearchResultPlayerInfo = function()
+          return {
+            classFilename = "DRUID",
+            specID = 104,
+            className = "Druide",
+            specName = "Gardien",
+          }
+        end,
+      },
+      GameTooltip = {
+        NumLines = function()
+          return numLines
+        end,
+      },
+    })
+    globals.LFG_LIST_TOOLTIP_MEMBERS = "Membres : %d (%d/%d/%d)"
+    for index, line in ipairs(lines) do
+      globals["GameTooltipTextLeft" .. index] = line
     end
-  )
+    return globals
+  end
+
+  test("LI.ApplyGroupBonusTooltipLines resolves the member header on a non-German client", function()
+    local line1 = NewFontStringStub()
+    line1:SetText("Membres : 1 (0/0/1)")
+    local line2 = NewFontStringStub()
+    line2:SetText("Druide - Gardien")
+    local line3 = NewFontStringStub()
+    line3:SetText("Créé : il y a 1 min.")
+
+    WithGlobals(BuildFrenchTooltipGlobals({ line1, line2, line3 }, 3), function()
+      local addon = LoadBonusModules(LoadAddonModules)
+      addon._LFGFlagsInternal.ApplyGroupBonusTooltipLines(99)
+      Assert.True(
+        StripColors(line2:GetText()):find("%+3%% Versa", 1, false) ~= nil,
+        "member line must receive the bonus on a French client"
+      )
+      Assert.True(
+        StripColors(line1:GetText()):find("%+3%% Versa", 1, false) == nil,
+        "the header line itself must never receive a bonus"
+      )
+      Assert.True(
+        StripColors(line3:GetText()):find("%+3%% Versa", 1, false) == nil,
+        "lines past the member count must stay untouched without an end marker"
+      )
+    end)
+  end)
+
+  -- Regression: with the old match-any-line fallback the group title sat at
+  -- index 1 in the candidate set, so an LFG title naming a class and spec
+  -- ("LF Gardien Druide") was matched before the real member row and absorbed
+  -- the marker. Header gating must keep pre-header lines out entirely.
+  test("LI.ApplyGroupBonusTooltipLines never marks a group title that names a class and spec", function()
+    local title = NewFontStringStub()
+    title:SetText("M+12 LF Gardien Druide")
+    local header = NewFontStringStub()
+    header:SetText("Membres : 1 (0/0/1)")
+    local member = NewFontStringStub()
+    member:SetText("Druide - Gardien")
+
+    WithGlobals(BuildFrenchTooltipGlobals({ title, header, member }, 3), function()
+      local addon = LoadBonusModules(LoadAddonModules)
+      addon._LFGFlagsInternal.ApplyGroupBonusTooltipLines(99)
+      Assert.True(
+        StripColors(title:GetText()):find("%+3%% Versa", 1, false) == nil,
+        "the group title must never absorb a member bonus marker"
+      )
+      Assert.True(
+        StripColors(member:GetText()):find("%+3%% Versa", 1, false) ~= nil,
+        "the real member line must still receive the bonus"
+      )
+    end)
+  end)
+
+  -- Fail closed: no resolvable header global means no member section can be
+  -- identified, so nothing may be written. The old code fell back to writing
+  -- into any matching tooltip line instead.
+  test("LI.ApplyGroupBonusTooltipLines writes nothing when no member header global exists", function()
+    local line1 = NewFontStringStub()
+    line1:SetText("Druide - Gardien")
+    local line2 = NewFontStringStub()
+    line2:SetText("Druide - Gardien")
+
+    local globals = BuildFrenchTooltipGlobals({ line1, line2 }, 2)
+    globals.LFG_LIST_TOOLTIP_MEMBERS = nil
+    globals.LFG_LIST_TOOLTIP_MEMBERS_SIMPLE = nil
+    globals.MEMBERS_COLON = nil
+    globals.MEMBERS = nil
+
+    WithGlobals(globals, function()
+      local addon = LoadBonusModules(LoadAddonModules)
+      addon._LFGFlagsInternal.ApplyGroupBonusTooltipLines(99)
+      Assert.Equal(StripColors(line1:GetText()), "Druide - Gardien", "no header global must leave line 1 untouched")
+      Assert.Equal(StripColors(line2:GetText()), "Druide - Gardien", "no header global must leave line 2 untouched")
+    end)
+  end)
 end
 
 return function(test, ctx)
@@ -795,19 +854,22 @@ return function(test, ctx)
         end,
       },
     })
+    -- Deliberately NOT the German wording: the detection must key off the
+    -- client-localized Blizzard global, so any locale's text has to work.
+    globals.GROUP_FINDER_GENERAL_PLAYSTYLE4 = "Promotion proposée"
     WithGlobals(globals, function()
       local addon = LoadBonusModules(LoadAddonModules)
       local playstyle = NewFontStringStub()
       local button = NewButtonStub({ resultID = 17, Playstyle = playstyle })
 
-      playstyle:SetText("Beförderung angeboten")
+      playstyle:SetText("Promotion proposée")
       addon._LFGFlagsInternal.UpdateButton(button)
       local badge =
         Assert.NotNil(button.GetCreatedFontStrings()[1], "search result badge must still create a font string")
       Assert.Equal(badge._text, "", "promotion-offered rows must not show bonus markers")
       Assert.True(badge._shown == false, "promotion-offered rows must hide the bonus badge")
 
-      playstyle:SetText("Kompetitiv")
+      playstyle:SetText("Compétitif")
       addon._LFGFlagsInternal.UpdateButton(button)
       Assert.Equal(badge._text, BONUS_MARKUP, "normal playstyle rows must show bonus markers again")
       Assert.True(badge._shown == true, "normal playstyle rows must show the bonus badge")

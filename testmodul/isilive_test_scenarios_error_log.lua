@@ -283,10 +283,38 @@ return function(test, ctx)
   -- raises.
   -- ----------------------------------------------------------------------
 
-  test("ErrorLog.Capture entries carry numeric firstSeen / lastSeen when GetTime is available", function()
+  test("ErrorLog.Capture prefers the cross-session time() epoch over GetTime()", function()
+    ResetIsiLiveDB()
+    local unixNow = 1782000000
+    WithGlobals({
+      time = function()
+        return unixNow
+      end,
+      GetTime = function()
+        return 12345.678 -- session-relative, must NOT win
+      end,
+      date = function(fmt)
+        return fmt == "%H:%M:%S" and "11:22:33" or "2026-05-06 11:22:33"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_error_log.lua" })
+      addon.ErrorLog.Capture("isiLive: bang", "isiLive-stack-T", nil)
+      local entries = addon.ErrorLog.GetTail(1)
+      Assert.Equal(entries[1].firstSeen, unixNow, "firstSeen must use the Unix epoch from time()")
+      Assert.Equal(entries[1].lastSeen, unixNow, "lastSeen must use the Unix epoch from time()")
+      Assert.Equal(
+        entries[1].firstSeenDisplay,
+        "2026-05-06 11:22:33",
+        "firstSeenDisplay must use date('%Y-%m-%d %H:%M:%S')"
+      )
+    end)
+  end)
+
+  test("ErrorLog.Capture falls back to GetTime() when time() is unavailable", function()
     ResetIsiLiveDB()
     local now = 12345.678
     WithGlobals({
+      time = false, -- removes the time() branch entirely
       GetTime = function()
         return now
       end,
@@ -297,20 +325,18 @@ return function(test, ctx)
       local addon = LoadAddonModules({ "isiLive_error_log.lua" })
       addon.ErrorLog.Capture("isiLive: bang", "isiLive-stack-T", nil)
       local entries = addon.ErrorLog.GetTail(1)
-      Assert.Equal(entries[1].firstSeen, now, "firstSeen must use the numeric GetTime() value")
-      Assert.Equal(entries[1].lastSeen, now, "lastSeen must use the numeric GetTime() value")
-      Assert.Equal(
-        entries[1].firstSeenDisplay,
-        "2026-05-06 11:22:33",
-        "firstSeenDisplay must use date('%Y-%m-%d %H:%M:%S')"
-      )
+      Assert.Equal(entries[1].firstSeen, now, "firstSeen must fall back to the numeric GetTime() value")
     end)
   end)
 
-  test("ErrorLog.Capture falls back to date('%H:%M:%S') when GetTime is missing", function()
+  -- Regression guard: lastSeen is the TrimToCap eviction key AND is persisted
+  -- into SavedVariables. A non-numeric stamp collapses to 0 in TrimToCap and
+  -- would make that entry the permanent eviction victim.
+  test("ErrorLog.Capture timestamps stay numeric when neither time() nor GetTime() is available", function()
     ResetIsiLiveDB()
     WithGlobals({
-      GetTime = false, -- removes the GetTime branch entirely
+      time = false,
+      GetTime = false,
       date = function(fmt)
         return fmt == "%H:%M:%S" and "09:08:07" or "2026-05-06 09:08:07"
       end,
@@ -318,11 +344,44 @@ return function(test, ctx)
       local addon = LoadAddonModules({ "isiLive_error_log.lua" })
       addon.ErrorLog.Capture("isiLive: bang", "isiLive-stack-T", nil)
       local entries = addon.ErrorLog.GetTail(1)
-      Assert.Equal(
-        entries[1].firstSeen,
-        "09:08:07",
-        "firstSeen must fall back to date('%H:%M:%S') when GetTime is missing"
-      )
+      Assert.Equal(type(entries[1].firstSeen), "number", "firstSeen must never be a string")
+      Assert.Equal(type(entries[1].lastSeen), "number", "lastSeen must never be a string")
+      Assert.Equal(entries[1].firstSeenDisplay, "2026-05-06 09:08:07", "human-readable display still comes from date()")
+    end)
+  end)
+
+  -- Regression guard for the eviction-order bug: entries carried over from a
+  -- previous session (old GetTime() epoch, small numbers) must be evicted
+  -- BEFORE freshly captured ones, not the other way round.
+  test("ErrorLog trims legacy GetTime-epoch entries before fresh time()-epoch entries", function()
+    ResetIsiLiveDB()
+    WithGlobals({
+      time = function()
+        return 1782000000
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_error_log.lua" })
+      local db = rawget(_G, "IsiLiveDB")
+      db.errorLog = {}
+      -- Simulate a previous session: GetTime()-epoch stamps.
+      for i = 1, addon.ErrorLog.GetMaxEntries() do
+        db.errorLog[i] = {
+          message = string.format("isiLive: legacy %d", i),
+          fullText = string.format("isiLive-legacy-stack-%d", i),
+          count = 1,
+          firstSeen = i,
+          lastSeen = i,
+        }
+      end
+      addon.ErrorLog.Capture("isiLive: fresh error", "isiLive-fresh-stack", nil)
+      Assert.Equal(addon.ErrorLog.GetCount(), addon.ErrorLog.GetMaxEntries(), "cap must still hold")
+      local survived = false
+      for _, entry in ipairs(addon.ErrorLog.GetTail(addon.ErrorLog.GetMaxEntries())) do
+        if entry.fullText == "isiLive-fresh-stack" then
+          survived = true
+        end
+      end
+      Assert.True(survived, "the freshly captured error must survive the trim, not be evicted first")
     end)
   end)
 
@@ -375,17 +434,91 @@ return function(test, ctx)
     end
 
     local addon = LoadAddonModules({ "isiLive_error_log.lua" })
-    addon.ErrorLog.Capture("plain bang", nil, nil)
+    -- Message mentions isiLive, so the filter accepts it without the probe;
+    -- this pins that the stored fullText still carries the traceback output.
+    addon.ErrorLog.Capture("isiLive: plain bang", nil, nil)
 
     if type(debugLib) == "table" then
       debugLib.traceback = originalTraceback
     end
 
-    Assert.Equal(addon.ErrorLog.GetCount(), 1, "debug.traceback must surface isiLive frame and match the filter")
+    Assert.Equal(addon.ErrorLog.GetCount(), 1, "isiLive-mentioning message must be captured")
     local entries = addon.ErrorLog.GetTail(1)
     Assert.True(
       entries[1].fullText:find("[mock-stack-frame] isiLive", 1, true) ~= nil,
       "fullText must include the debug.traceback output"
     )
+  end)
+
+  -- ----------------------------------------------------------------------
+  -- Live-path filter: Install() routes EVERY addon's errors through
+  -- Capture(stack=nil). The isiLive frame probe must reject foreign errors
+  -- WITHOUT building a traceback first.
+  -- ----------------------------------------------------------------------
+
+  -- Builds a caller whose chunk source is `sourceName` and runs it on its own
+  -- coroutine stack. The coroutine matters: debug.getinfo walks only the
+  -- current coroutine, so the probe sees exactly [error-log frames, caller]
+  -- instead of also seeing this scenario file -- whose own name contains
+  -- "isilive" and would make every probe assertion pass vacuously.
+  local function CaptureFromChunk(Capture, sourceName, message)
+    local chunk =
+      load("local Capture, message = ... return function() Capture(message, nil, nil) end", "@" .. sourceName)
+    Assert.Equal(type(chunk), "function", "caller chunk must compile: " .. sourceName)
+    coroutine.wrap(chunk(Capture, message))()
+  end
+
+  test("ErrorLog.Capture rejects a foreign error raised from a non-isiLive frame (stack=nil)", function()
+    ResetIsiLiveDB()
+    local addon = LoadAddonModules({ "isiLive_error_log.lua" })
+    CaptureFromChunk(addon.ErrorLog.Capture, "Interface/AddOns/Plater/Plater.lua", "Plater: tooltip rendering failed")
+    Assert.Equal(addon.ErrorLog.GetCount(), 0, "a foreign frame must not pass the isiLive filter")
+  end)
+
+  test("ErrorLog.Capture accepts a foreign message raised from an isiLive frame (stack=nil)", function()
+    ResetIsiLiveDB()
+    local addon = LoadAddonModules({ "isiLive_error_log.lua" })
+    -- Blizzard-side message (no isiLive token) but the call chain runs through
+    -- isiLive code -- the v0.9.208 SetPoint(nil) crash class.
+    CaptureFromChunk(
+      addon.ErrorLog.Capture,
+      "Interface/AddOns/isiLive/ui/isiLive_ui_main_frame.lua",
+      "FrameXML/Frame.lua:42: bad argument"
+    )
+    Assert.Equal(addon.ErrorLog.GetCount(), 1, "an isiLive frame must pass the filter even with a foreign message")
+  end)
+
+  test("ErrorLog.Capture does not treat its own module frames as an isiLive match", function()
+    ResetIsiLiveDB()
+    local addon = LoadAddonModules({ "isiLive_error_log.lua" })
+    -- isiLive_error_log.lua is always on the stack during Capture(). If its
+    -- own frames counted, this foreign error would be captured -- which is
+    -- exactly the regression this probe replaces.
+    CaptureFromChunk(
+      addon.ErrorLog.Capture,
+      "Interface/AddOns/WeakAuras/WeakAuras.lua",
+      "WeakAuras: aura update failed"
+    )
+    Assert.Equal(addon.ErrorLog.GetCount(), 0, "own error-log frames must be excluded from the probe")
+  end)
+
+  -- NOTE: the "debug.getinfo unavailable" guard in StackMentionsIsiLive has no
+  -- scenario on purpose. luacov's debug hook resolves the GLOBAL `debug` table
+  -- at call time (luacov/hook.lua), so both stubbing `_G.debug` and mutating
+  -- `debug.getinfo` in place crash the instrumented coverage run. The guard
+  -- fails closed by construction (returns false -> error is not captured),
+  -- which is the safe direction.
+
+  test("ErrorLog.Capture keeps message-based detection independent of the stack probe", function()
+    ResetIsiLiveDB()
+    local addon = LoadAddonModules({ "isiLive_error_log.lua" })
+    -- Raised from a foreign frame, but the message itself names isiLive: the
+    -- message branch must accept it without relying on the probe at all.
+    CaptureFromChunk(
+      addon.ErrorLog.Capture,
+      "Interface/AddOns/Plater/Plater.lua",
+      "isiLive: raised through a foreign call site"
+    )
+    Assert.Equal(addon.ErrorLog.GetCount(), 1, "message-based detection must work from any call site")
   end)
 end

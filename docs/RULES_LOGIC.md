@@ -251,7 +251,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-LOCALE-SYMMETRIE-FALLBACK
 - Regelnummer: 12
 - Status: aktiv
-- Zusammenfassung: Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS. Die Umwandlung von Locale-Tags in Sprachflaggen-Tags muss tooltip-hotpath-tauglich ueber eine konstante Lookup-Tabelle laufen und darf nicht pro Tooltip-Aufruf die unterstuetzten Sprachen iterieren. Vorbereitete Settings-Locales duerfen nicht unmarkiert auf englische Fallback-Texte zurueckfallen; erlaubt sind nur explizit freigegebene technische Kurzlabels und identische Fachbegriffe.
+- Zusammenfassung: Locale-Tabellen muessen schluesselsymmetrisch sein; Fallback fuer unbekannte Tags bleibt enUS. Die Umwandlung von Locale-Tags in Sprachflaggen-Tags muss tooltip-hotpath-tauglich ueber eine konstante Lookup-Tabelle laufen und darf nicht pro Tooltip-Aufruf die unterstuetzten Sprachen iterieren. Vorbereitete Settings-Locales duerfen nicht unmarkiert auf englische Fallback-Texte zurueckfallen; erlaubt sind nur explizit freigegebene technische Kurzlabels und identische Fachbegriffe. Wo Addon-Code vom WoW-Client gerenderten Text wiedererkennen muss, laeuft der Vergleich ausschliesslich ueber client-lokalisierte Blizzard-Global-Strings; deutsche oder englische Stringliterale sind dafuer verboten, weil sie auf den uebrigen der acht unterstuetzten Clientsprachen stillschweigend nie greifen. Format-Platzhalter werden dabei abgeschnitten und nur der Literalpraefix verglichen. Ist der benoetigte Global nicht aufloesbar, gilt fail-closed: die betroffene Erkennung liefert kein Ergebnis, statt auf eine unscharfe Alternativzuordnung auszuweichen.
 - Erforderliche Tests:
   - All enUS keys exist in deDE locale
   - All deDE keys exist in enUS locale
@@ -264,7 +264,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - German settings stats-box descriptions are localized
   - Settings strings avoid English fallback in prepared locales
   - LI.BuildBonusSuffix localizes class bonuses and keeps German text for deDE only
-  - LI.ApplyGroupBonusTooltipLines matches exact member lines without a German or English section header
+  - LI.ApplyGroupBonusTooltipLines resolves the member header on a non-German client
+  - LI.ApplyGroupBonusTooltipLines never marks a group title that names a class and spec
+  - LI.ApplyGroupBonusTooltipLines writes nothing when no member header global exists
+  - LI.UpdateButton hides search-result bonus markers when promotion is offered
 
 ### RULE-REFRESH-STATE-GATES
 - Regelnummer: 13

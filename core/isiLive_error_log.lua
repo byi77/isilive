@@ -27,6 +27,9 @@ addonTable.ErrorLog = ErrorLog
 
 local MAX_ENTRIES = 100
 local FILTER_TOKEN = "isiLive"
+-- Upper bound for the stack probe. Deep enough for real WoW call chains,
+-- bounded so a runaway stack cannot make error handling itself expensive.
+local MAX_STACK_PROBE_LEVELS = 60
 
 local installedHandler = nil
 local installed = false
@@ -46,18 +49,32 @@ local function EnsureStorage()
   return db.errorLog
 end
 
+-- Ordering key for the ring buffer. MUST be a cross-session epoch: entries are
+-- persisted in SavedVariables and TrimToCap evicts by the lowest lastSeen.
+-- GetTime() is session-relative (seconds since client start), so after a
+-- /reload every fresh entry would sort BELOW entries carried over from a long
+-- previous session and get evicted first -- the buffer would freeze on stale
+-- content and drop exactly the errors the user just reproduced.
+--
+-- time() is the Unix epoch and stays monotonic across reloads and relogs.
+-- GetTime() remains a fallback only. The return value is always numeric so a
+-- mixed-type lastSeen can never collapse to 0 in TrimToCap.
+--
+-- Entries written by older versions carry a GetTime()-epoch stamp (small
+-- numbers). They therefore sort below every new time()-epoch entry and are
+-- evicted first, which is the desired direction -- no migration needed.
 local function NowTimestamp()
+  local timeFn = rawget(_G, "time")
+  if type(timeFn) == "function" then
+    local ok, value = pcall(timeFn)
+    if ok and type(value) == "number" and value > 0 then
+      return value
+    end
+  end
   local getTime = rawget(_G, "GetTime")
   if type(getTime) == "function" then
     local ok, value = pcall(getTime)
     if ok and type(value) == "number" then
-      return value
-    end
-  end
-  local dateFn = rawget(_G, "date")
-  if type(dateFn) == "function" then
-    local ok, value = pcall(dateFn, "%H:%M:%S")
-    if ok and type(value) == "string" then
       return value
     end
   end
@@ -89,6 +106,81 @@ local function MentionsIsiLive(text)
     return true
   end
   return false
+end
+
+-- This module's own chunk identity. Capture() always runs with
+-- isiLive_error_log.lua frames on the stack (error handler -> Capture ->
+-- pcall -> probe), and every one of those frame sources contains the string
+-- "isiLive". Without excluding them the probe below would report a match for
+-- literally every error, so they have to be filtered out by identity.
+--
+-- Resolved via the function form of getinfo (not a numeric level), which is
+-- independent of how deep this chunk is called from.
+local OWN_SOURCE, OWN_SHORT_SOURCE
+local function ResolveOwnChunkIdentity() end
+do
+  local debugLib = rawget(_G, "debug")
+  if type(debugLib) == "table" and type(debugLib.getinfo) == "function" then
+    local ok, info = pcall(debugLib.getinfo, ResolveOwnChunkIdentity, "S")
+    if ok and type(info) == "table" then
+      OWN_SOURCE = info.source
+      OWN_SHORT_SOURCE = info.short_src
+    end
+  end
+end
+
+-- Walks the live stack for a frame that belongs to isiLive but not to this
+-- module. Replaces the previous "format a full traceback, then string-match
+-- it" approach for two reasons:
+--
+--   1. Correctness. A traceback taken here ALWAYS contains this module's own
+--      frames, so matching "isiLive" against it was true unconditionally and
+--      the isiLive filter (design constraint 3) never actually rejected
+--      anything on the live path -- foreign addon errors filled the ring.
+--   2. Cost. Install() routes EVERY addon's errors through Capture(). The
+--      reject path must not pay for debug.traceback string formatting; a
+--      getinfo walk allocates no traceback and bails at the first hit.
+--
+-- Also strictly more accurate than scanning a traceback string: Lua elides
+-- middle frames in deep tracebacks, where an isiLive frame could hide.
+local function StackMentionsIsiLive()
+  local debugLib = rawget(_G, "debug")
+  if type(debugLib) ~= "table" or type(debugLib.getinfo) ~= "function" then
+    return false
+  end
+  local getinfo = debugLib.getinfo
+  local ok, found = pcall(function()
+    -- Levels are relative to this closure, which itself lives in this chunk
+    -- and is skipped by the OWN_SOURCE check like every other own frame.
+    for level = 1, MAX_STACK_PROBE_LEVELS do
+      local info = getinfo(level, "S")
+      if type(info) ~= "table" then
+        return false
+      end
+      local source = info.source
+      local shortSrc = info.short_src
+      local isOwnFrame = (OWN_SOURCE ~= nil and source == OWN_SOURCE)
+        or (OWN_SHORT_SOURCE ~= nil and shortSrc == OWN_SHORT_SOURCE)
+      if not isOwnFrame and (MentionsIsiLive(source) or MentionsIsiLive(shortSrc)) then
+        return true
+      end
+    end
+    return false
+  end)
+  return ok and found == true
+end
+
+-- Decides whether an error belongs to isiLive. Runs BEFORE any traceback is
+-- built so the reject path stays cheap. An explicitly supplied stack is
+-- trusted as-is (callers that pass one have already resolved the frames).
+local function IsIsiLiveError(message, stack)
+  if MentionsIsiLive(message) then
+    return true
+  end
+  if type(stack) == "string" then
+    return MentionsIsiLive(stack)
+  end
+  return StackMentionsIsiLive()
 end
 
 -- Enriches the raw error message with a stack traceback. Scoped via pcall
@@ -148,16 +240,19 @@ end
 -- @param source string|nil Optional source label (e.g. "controller_wiring").
 function ErrorLog.Capture(message, stack, source)
   local ok, err = pcall(function()
+    -- Filter first: Install() delivers every addon's errors here, and the
+    -- traceback below is the expensive part. Nothing before this point may
+    -- allocate per-error.
+    if not IsIsiLiveError(message, stack) then
+      return
+    end
+
     local storage = EnsureStorage()
     if not storage then
       return
     end
 
     local fullText = type(stack) == "string" and stack or CaptureStack(message)
-    if not MentionsIsiLive(fullText) and not MentionsIsiLive(message) then
-      return
-    end
-
     local existing = FindExistingEntry(storage, fullText)
     local now = NowTimestamp()
     if existing then

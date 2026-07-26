@@ -38,13 +38,37 @@ local APPLICANT_FLAG_NAME_SHIFT_X = FLAG_WIDTH + 4
 local SEARCH_RESULT_BONUS_RIGHT_X = -44
 local SEARCH_RESULT_BONUS_Y = -16
 local SEARCH_RESULT_BONUS_WIDTH = 68
+-- Extra tolerance ONLY. StripSearchResultKeystoneSuffix resolves the label
+-- from the client-localized global DUNGEON_DIFFICULTY_MYTHIC_KEYSTONE first
+-- and merely unions these on top, so every locale is already covered without
+-- them. They stay as a safety net for clients where the global is missing.
 local SEARCH_RESULT_KEYSTONE_LABELS = {
-  ["Mythic Keystone"] = true,
-  ["Mythischer Schl\195\188sselstein"] = true,
+  ["Mythic Keystone"] = true, -- i18n-ok: additive to the localized global
+  ["Mythischer Schl\195\188sselstein"] = true, -- i18n-ok: additive to the localized global
 }
-local SEARCH_RESULT_PROMOTION_OFFERED_PLAYSTYLE_TEXTS = {
-  ["Bef\195\182rderung angeboten"] = true,
+-- Blizzard global string keys used to recognise client-localized LFG text.
+-- Never compare against literal German/English strings here: the addon
+-- supports 8 locales and the WoW client renders these in its own language, so
+-- a literal match silently fails on every other client. Every key below was
+-- read from a live client via a _G reverse lookup, not guessed.
+local PROMOTION_OFFERED_PLAYSTYLE_GLOBAL = "GROUP_FINDER_GENERAL_PLAYSTYLE4"
+local PROVING_GROUND_TITLE_GLOBAL = "LFG_LIST_PROVING_GROUND_TITLE"
+-- Ordered by specificity: the LFG tooltip header first, generic member labels
+-- as fallback. Format specifiers are stripped, leaving the literal prefix.
+local MEMBERS_HEADER_GLOBALS = {
+  "LFG_LIST_TOOLTIP_MEMBERS", -- "Members: %d (%d/%d/%d)"
+  "LFG_LIST_TOOLTIP_MEMBERS_SIMPLE", -- "Members: %d"
+  "MEMBERS_COLON",
+  "MEMBERS",
 }
+
+local function ReadGlobalString(key)
+  local value = rawget(_G, key)
+  if type(value) ~= "string" or value == "" then
+    return nil
+  end
+  return value
+end
 
 local CLASS_TOKENS = {
   DEATHKNIGHT = true,
@@ -1076,13 +1100,25 @@ local function StripColorCodes(text)
   return stripped
 end
 
+-- Detects the "promotion offered" playstyle row. Compares against the
+-- client-localized Blizzard global instead of a literal, so this works on all
+-- supported locales rather than only deDE. Uses a substring match because the
+-- rendered cell may carry padding or trailing punctuation the raw global does
+-- not have. Fails closed when the global is unavailable.
 local function IsSearchResultPromotionOfferedRow(button)
   local playstyle = type(button) == "table" and rawget(button, "Playstyle") or nil
   if type(playstyle) ~= "table" or type(playstyle.GetText) ~= "function" then
     return false
   end
+  local expected = ReadGlobalString(PROMOTION_OFFERED_PLAYSTYLE_GLOBAL)
+  if not expected then
+    return false
+  end
   local text = StripColorCodes(playstyle:GetText())
-  return SEARCH_RESULT_PROMOTION_OFFERED_PLAYSTYLE_TEXTS[text] == true
+  if text == "" then
+    return false
+  end
+  return string.find(text, StripColorCodes(expected), 1, true) ~= nil
 end
 
 local function ClearSearchResultBonusCache(resultID)
@@ -1138,21 +1174,30 @@ local function HasExistingBonusSuffix(text)
   return false
 end
 
-local function IsMembersHeader(text)
-  local plain = StripColorCodes(text)
-  return string.find(plain, "Mitglieder", 1, true) ~= nil or string.find(plain, "Members", 1, true) ~= nil
-end
+-- Resolves the client-localized prefix of the tooltip's member-section header
+-- (e.g. "Members:" from "Members: %d (%d/%d/%d)") by cutting the Blizzard
+-- global at its first format specifier. Returns nil when no candidate global
+-- exists, which makes the caller fail closed.
+local resolvedMembersHeaderNeedle = nil
+local resolvedMembersHeaderChecked = false
 
-local function IsMemberSectionEnd(text)
-  local plain = StripColorCodes(text)
-  if plain == "" then
-    return false
+local function ResolveMembersHeaderNeedle()
+  if resolvedMembersHeaderChecked then
+    return resolvedMembersHeaderNeedle
   end
-  return string.find(plain, "Erstellt", 1, true) ~= nil
-    or string.find(plain, "Created", 1, true) ~= nil
-    or string.find(plain, "Raider.IO", 1, true) ~= nil
-    or string.find(plain, "Beste", 1, true) ~= nil
-    or string.find(plain, "Best", 1, true) ~= nil
+  resolvedMembersHeaderChecked = true
+  for _, key in ipairs(MEMBERS_HEADER_GLOBALS) do
+    local raw = ReadGlobalString(key)
+    if raw then
+      local head = string.match(raw, "^(.-)%%") or raw
+      head = StripColorCodes(head):gsub("%s+$", "")
+      if head ~= "" then
+        resolvedMembersHeaderNeedle = head
+        return resolvedMembersHeaderNeedle
+      end
+    end
+  end
+  return nil
 end
 
 local function GetTooltipLine(index)
@@ -1206,9 +1251,17 @@ local function HideTooltipLine(line)
   end
 end
 
+-- Hides Blizzard's Proving Grounds block (title line plus its value line) from
+-- the applicant tooltip before isiLive appends its own group-bonus line.
+-- Keyed off the client-localized global; without it nothing is hidden, which
+-- is the safe direction (a stale line beats hiding the wrong one).
 local function HideApplicantProvingGroundTooltipLines()
   local tooltip = rawget(_G, "GameTooltip")
   if type(tooltip) ~= "table" or type(tooltip.NumLines) ~= "function" then
+    return
+  end
+  local provingGroundTitle = StripColorCodes(ReadGlobalString(PROVING_GROUND_TITLE_GLOBAL))
+  if provingGroundTitle == "" then
     return
   end
   local ok, numLines = pcall(tooltip.NumLines, tooltip)
@@ -1220,7 +1273,7 @@ local function HideApplicantProvingGroundTooltipLines()
     local line = GetTooltipLine(index)
     local text = line and type(line.GetText) == "function" and line:GetText() or nil
     local plain = StripColorCodes(text)
-    if string.find(plain, "Die Feuerprobe", 1, true) or string.find(plain, "Proving Grounds", 1, true) then
+    if provingGroundTitle ~= "" and string.find(plain, provingGroundTitle, 1, true) then
       HideTooltipLine(line)
       HideTooltipLine(GetTooltipLine(index + 1))
       return
@@ -1228,7 +1281,26 @@ local function HideApplicantProvingGroundTooltipLines()
   end
 end
 
-local function CollectTooltipMemberLines()
+-- Collects the tooltip's member rows: the first `memberCount` non-empty lines
+-- after the localized member-section header.
+--
+-- Knowing the member count removes the need for a section END marker, which
+-- previously matched literal German/English words ("Erstellt" / "Created" /
+-- "Beste" / "Best"). It also removes the old "no header found -> use EVERY
+-- non-empty line" fallback: on any locale whose header did not match, that
+-- pulled the group title and activity lines into the candidate set, where an
+-- LFG title naming a class and spec could absorb a member's bonus marker.
+-- Without a resolvable header this now returns nothing and no marker is
+-- written, which is the safe direction.
+local function CollectTooltipMemberLines(memberCount)
+  memberCount = tonumber(memberCount)
+  if not memberCount or memberCount <= 0 then
+    return {}
+  end
+  local needle = ResolveMembersHeaderNeedle()
+  if not needle then
+    return {}
+  end
   local tooltip = rawget(_G, "GameTooltip")
   if type(tooltip) ~= "table" or type(tooltip.NumLines) ~= "function" then
     return {}
@@ -1239,36 +1311,26 @@ local function CollectTooltipMemberLines()
     return {}
   end
   local memberLines = {}
-  local fallbackLines = {}
   local inMembers = false
   for index = 1, numLines do
     local line = GetTooltipLine(index)
     local text = line and type(line.GetText) == "function" and line:GetText() or nil
-    if type(text) == "string" then
-      if text ~= "" then
-        table.insert(fallbackLines, {
+    if type(text) == "string" and text ~= "" then
+      if inMembers then
+        table.insert(memberLines, {
           index = index,
           line = line,
           text = text,
         })
-      end
-      if inMembers then
-        if IsMemberSectionEnd(text) then
+        if #memberLines >= memberCount then
           break
         end
-        if text ~= "" then
-          table.insert(memberLines, {
-            index = index,
-            line = line,
-            text = text,
-          })
-        end
-      elseif IsMembersHeader(text) then
+      elseif string.find(StripColorCodes(text), needle, 1, true) then
         inMembers = true
       end
     end
   end
-  return #memberLines > 0 and memberLines or fallbackLines
+  return memberLines
 end
 
 local function TextContainsAll(text, ...)
@@ -1314,7 +1376,7 @@ local function ApplyGroupBonusTooltipLines(resultID)
   if type(members) ~= "table" then
     return
   end
-  local memberLines = CollectTooltipMemberLines()
+  local memberLines = CollectTooltipMemberLines(#members)
   if #memberLines == 0 then
     return
   end
