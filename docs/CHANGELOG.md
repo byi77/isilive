@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-07-26 - Version 0.9.356 (patch)
+
+- Corrected the Avenger's Shield interrupt cooldown from 30s to 13s. The old
+  value was roughly double the real one, so a Protection Paladin's talent
+  interrupt was shown as unavailable to the group for far longer than it
+  actually was. Verified in-game from the spell tooltip, which is the only
+  authoritative source for these values. Cross-checked against Rebuke, which
+  reads exactly 15s and matches the existing entry; neither scales with haste,
+  so fixed constants remain the right model for Paladin interrupts.
+- Confirmed the third Demon Hunter specialization ID against a live client and
+  recorded the remaining open question in place: the specialization is a
+  verified damage spec, while its interrupt spell and cooldown are still
+  inherited from the class baseline without a tooltip confirmation.
+- Derived the extras-expiry scenario from the seeded cooldown instead of
+  restating the constant, so a future tooltip-driven value change no longer
+  breaks an unrelated test.
+
 ## 2026-07-26 - Version 0.9.355 (patch)
 
 - Fixed tank and healer death alerts being silenced, or firing outside a

@@ -3,9 +3,12 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current release: `0.9.355`.
+Current release: `0.9.356`.
 
 Highlights:
+- **Interrupt tracking for Protection Paladins is no longer wrong.** Avenger's
+  Shield was listed with roughly double its real cooldown, so the group saw it
+  as unavailable long after it was ready again.
 - **Tank and healer death alerts no longer go silent for a whole session.**
   Entering or leaving a tracked dungeon run without a keystone could leave the
   alert context stuck, so warnings stopped firing inside the dungeon — or kept
@@ -13,10 +16,8 @@ Highlights:
 - **`/isilive errorlog` now really only collects isiLive errors.** The filter
   previously matched its own frames, so other addons' errors filled the log and
   pushed out isiLive's own. Foreign errors are now rejected before any stack
-  trace is built, which also removes the cost during another addon's error
-  storm.
-- Error-log entries no longer lose their newest items after a `/reload`. The
-  buffer now orders by a timestamp that survives reloads and relogs.
+  trace is built, and entries no longer lose their newest items after a
+  `/reload`.
 - **Group-finder features now work in every client language.** Three of them
   recognised text by matching German and English wording and silently did
   nothing everywhere else — hiding the bonus badge on "promotion offered" rows
