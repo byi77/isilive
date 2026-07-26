@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-07-26 - Version 0.9.358 (patch)
+
+- Stopped the portal grid from stranding its buttons on every rebuild. WoW
+  frames cannot be destroyed, so allocating a fresh button per dungeon left the
+  entire previous generation parented to the main frame — four frames plus
+  roughly 44 textures and font strings per dungeon. Buttons are now pooled and
+  rebound to the new entry list, and a shorter season parks the surplus for
+  later reuse instead of abandoning it.
+- Split the portal button setup into structural creation and per-entry
+  configuration so a reused button cannot inherit the previous dungeon's active
+  highlight, animation or cooldown swirl before the next update recomputes it.
+- Added deterministic coverage for the pooling contract: a rebuild allocates no
+  further frames, reuses the same button objects per slot, rebinds them to a
+  changed entry list, and picks pooled buttons back up when the list grows
+  again.
+
 ## 2026-07-26 - Version 0.9.357 (patch)
 
 - Bounded the tracked sound-handle set. Every played sound left a permanent
