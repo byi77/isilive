@@ -21,8 +21,11 @@ local SPEC_DATA = {
   [251] = { spellID = 47528, cd = 15 }, -- Frost
   [252] = { spellID = 47528, cd = 15 }, -- Unholy
   -- Demon Hunter
-  [577] = { spellID = 183752, cd = 15 },
-  [581] = { spellID = 183752, cd = 15 },
+  [577] = { spellID = 183752, cd = 15 }, -- Havoc
+  [581] = { spellID = 183752, cd = 15 }, -- Vengeance
+  -- Spec ID verified live 2026-07-26 as a Demon Hunter damage spec (the new
+  -- Midnight third spec). The interrupt spell and its cooldown are inherited
+  -- from the class baseline here and still lack a tooltip confirmation.
   [1480] = { spellID = 183752, cd = 15 },
   -- Druid
   [102] = { spellID = 78675, cd = 45 }, -- Balance: Solar Beam (45s in Midnight)
@@ -108,7 +111,19 @@ local CLASS_INTERRUPT_LIST = {
 -- SPEC_DATA). Primary spells take their CD from SPEC_DATA, extras need this
 -- because there's no spec-slot to read from.
 local EXTRA_KICK_CD = {
-  [31935] = 30, -- Avenger's Shield (Prot Paladin interrupt talent)
+  -- Verified in-game 2026-07-26 on a Protection Paladin with the interrupt
+  -- talent active: the spell tooltip reads a flat 13s. Not haste-scaled --
+  -- Rebuke read exactly 15s on the same character at 13.03% haste, so a fixed
+  -- constant is the right model here.
+  --
+  -- Caveat: 13s is the value WITH that character's talent build. The
+  -- Protection tree also carries cooldown reductions for this spell, and
+  -- whether the reading already includes one cannot be separated without
+  -- respeccing. Left unmodelled in CD_REDUCTION_DEFS rather than guessed --
+  -- this constant only seeds the extras slot until the exact live cooldown
+  -- lands (see ApplyExactActiveCooldownForExtra), and serves as the fallback
+  -- when a Secret Value blocks that read.
+  [31935] = 13, -- Avenger's Shield (Prot Paladin interrupt talent)
 }
 
 -- Talent spell ID → { affects = interruptSpellID, reduction = seconds | pctReduction = % }

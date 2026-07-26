@@ -899,14 +899,21 @@ local function RegisterMultiKickExtrasTests(test, Assert, WithGlobals, LoadAddon
 
     local kickController = RequireController(controller, "Prot Paladin must build", Assert)
     kickController.OnCast("player", 31935)
-    Assert.NotNil(kickController.GetKickInfo().extras[31935], "extra must exist right after cast")
+    local seeded = kickController.GetKickInfo().extras[31935]
+    Assert.NotNil(seeded, "extra must exist right after cast")
 
-    clock = clock + 15
+    -- Derive the steps from the seeded cooldown instead of restating the
+    -- constant: this test is about the expiry transition, not about the
+    -- concrete Avenger's Shield value, which is tooltip-sourced and can change
+    -- with a patch.
+    local extraCd = seeded.cd
+    Assert.True(type(extraCd) == "number" and extraCd > 0, "seeded extra must carry a positive cooldown")
+
+    clock = clock + math.floor(extraCd / 2)
     kickController.Scan()
     Assert.NotNil(kickController.GetKickInfo().extras[31935], "extra must remain before its cooldown expires")
 
-    -- Advance clock past the 30s Avenger's Shield CD.
-    clock = clock + 20
+    clock = clock + extraCd
     kickController.Scan()
     local info = kickController.GetKickInfo()
     Assert.Equal(info.extras, nil, "expired extras must be removed by Scan")
