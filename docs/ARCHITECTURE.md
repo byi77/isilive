@@ -359,7 +359,7 @@ Zusaetzlich zum Main-Roster-Frame aus `isiLive_ui_main_frame.lua` kann `isiLive_
 - Der geschuetzte Event-Dispatch verwendet pro Reentrancy-Tiefe wiederverwendbare Argument-Slots und stabile Callbacks, damit akzeptierte Events keine eigenen Argumenttabellen oder Dispatch-Closures erzeugen. Fuer `LFG_LIST_APPLICATION_STATUS_UPDATED` gelangen nur die autoritativen Felder `searchResultID` und `newStatus` in diese Slots; das eingeschraenkte Midnight-`kstringLfgListChat`-Gruppennamenfeld bleibt ausserhalb langlebiger Dispatch-Tabellen, waehrend Listingdetails anhand der SearchResult-ID ueber `C_LFGList` aufgeloest werden.
 - Der Minimap-Button installiert sein `OnUpdate` nur zwischen Drag-Start und Drag-Ende.
 - Die CTL-Wire-Order-Probe nutzt den echten ChatThrottleLib-Pipepfad und ist Bestandteil des lokalen und des GitHub-CI-Preflights.
-- Externe GitHub Actions sind auf vollstaendige 40-stellige Commit-SHAs gepinnt; lesbare Major-Kommentare und `.github/dependabot.yml` halten die Pins wartbar.
+- Externe GitHub Actions sind auf vollstaendige 40-stellige Commit-SHAs gepinnt; lesbare Versionskommentare und `.github/dependabot.yml` halten die Pins wartbar. Alle gepflegten Workflows verwenden fuer `actions/checkout` denselben verifizierten v7.0.1-SHA.
 - Der MDT-Forces-Generator verarbeitet vendorfremde Dungeonquellen ohne `_G`-Fallback. Seine Ausfuehrungsumgebung enthaelt nur den injizierten MDT-Datencontainer und `ipairs`; Quellgroesse, Textformat und Instruktionszahl sind begrenzt. Der generierte Snapshot pinnt den exakten 40-stelligen MDT-Checkout-Commit.
 - Runtime-Diagnoselogs besitzen einen festen 800-Eintraege-Ring. Alte groessere Ringe werden auf die neuesten 800 Eintraege verdichtet, und Filter laufen ueber den gesamten behaltenen Ring.
 

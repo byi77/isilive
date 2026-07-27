@@ -2,6 +2,10 @@
 
 ## 2026-07-27 - Version 0.9.360 (patch)
 
+- Updated all maintained workflows from `actions/checkout` v5.0.1 to v7.0.1
+  on the exact upstream commit, corrected the stale inline version comments,
+  and strengthened the architecture test to verify SHA and comment together
+  across every workflow.
 - Closed the audited M+ forces lifetime gap: every runtime consumer now loses
   access to an expired, malformed, or temporally unverifiable MDT snapshot.
 - Contained `C_ScenarioInfo` failures in the killtracker and preserve the last
@@ -16,7 +20,7 @@
   bringing `core/isiLive_sound_utils.lua` below the large-module watchlist
   threshold.
 - Reconciled architecture and private workspace maintenance documentation with
-  the current `0.9.359` release state.
+  the current `0.9.360` baseline.
 
 ## 2026-07-26 - Version 0.9.359 (patch)
 
