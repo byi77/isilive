@@ -34,7 +34,10 @@ jobs:
         run: git clone --depth 1 https://github.com/Nnoggie/MythicDungeonTools tools/cache/mdt
 
       - name: Regenerate DB
-        run: lua tools/sync_mdt_forces.lua
+        run: |
+          MDT_SOURCE_COMMIT="$(git -C tools/cache/mdt rev-parse HEAD)"
+          test "${#MDT_SOURCE_COMMIT}" -eq 40
+          lua tools/sync_mdt_forces.lua "--source_commit=${MDT_SOURCE_COMMIT}"
 
       - name: Clean up MDT clone before CI gates
         run: rm -rf tools/cache

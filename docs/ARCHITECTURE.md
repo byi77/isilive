@@ -1,7 +1,7 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.359`
-Zuletzt aktualisiert: `2026-07-26`
+Versionsbasis: `0.9.360`
+Zuletzt aktualisiert: `2026-07-27`
 
 ## Zweck
 
@@ -268,11 +268,11 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
 5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach die aktuell registrierten Szenarien aus `tools/usecase_scenarios.lua` ab; die exakte Anzahl wird bei jedem Lauf ausgegeben und die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
    Zusaetzlich laeuft der gleiche Validator-Lauf in CI unter `luacov` (`lua -lluacov tools/validate_usecases.lua`), damit `tools/coverage_summary.lua` die Line-Coverage pro Schicht in das GitHub-Actions-Step-Summary schreibt und der vollstaendige `luacov.report.out` als Artefakt hochgeladen wird.
-   Letzter voller Coverage-Audit-Stand (`2026-07-26`, lokaler Preflight bei 0.9.359): **92.07% Gesamt-Line-Coverage** (`34860 / 37864` Zeilen) bei `2274 passed, 0 failed`. Vorheriger Stand (`2026-07-26`, 0.9.358): 92.07% (`34859 / 37863` Zeilen) bei `2274 passed, 0 failed`. Das Coverage-Gate bleibt bei mindestens 88.00% gesamt und 80.00% pro Produktionsdatei.
+   Letzter voller Coverage-Audit-Stand (`2026-07-27`, lokaler Preflight bei 0.9.360): **92.07% Gesamt-Line-Coverage** (`34897 / 37903` Zeilen) bei `2282 passed, 0 failed`. Vorheriger Stand (`2026-07-26`, 0.9.359): 92.07% (`34860 / 37864` Zeilen) bei `2274 passed, 0 failed`. Das Coverage-Gate bleibt bei mindestens 88.00% gesamt und 80.00% pro Produktionsdatei.
    Historische Baseline (`2026-04-22`, Commit nach Coverage-Einfuehrung): **78.62% Gesamt-Line-Coverage** ueber 19487 Produktionszeilen.
-6. Der M+-Forces-DB-Refresh laeuft automatisch ueber `.github/workflows/sync-mplus-forces.yml` (Donnerstag 06:00 UTC plus `workflow_dispatch`): Clone MDT → `tools/sync_mdt_forces.lua` → voller CI-Preflight (stylua, luacheck, syntax, metrics, locale drift, lifetime, Nameplate-Key-Start-Simulator, SavedVariables-Reload-Simulator, Key-Start-Lifecycle-Simulator, usecases) → Commit + Push nach `main`. Ohne Diff im DB-File laeuft der Workflow still durch ohne Commit.
+6. Der M+-Forces-DB-Refresh laeuft automatisch ueber `.github/workflows/sync-mplus-forces.yml` (Donnerstag 06:00 UTC plus `workflow_dispatch`): Clone MDT → exakten Checkout-Commit per `git rev-parse HEAD` erfassen → `tools/sync_mdt_forces.lua` mit vollstaendigem `sourceCommit` → voller CI-Preflight (stylua, luacheck, syntax, metrics, locale drift, lifetime, Nameplate-Key-Start-Simulator, SavedVariables-Reload-Simulator, Key-Start-Lifecycle-Simulator, usecases) → Commit + Push nach `main`. Ohne Diff im DB-File laeuft der Workflow still durch ohne Commit.
 7. Der taegliche S2-Forces-Verfuegbarkeitsmonitor klont MDT nur zur Inspektion. Er meldet per markerstabilem, bei Bedarf wieder geoeffnetem GitHub Issue strukturelle Verfuegbarkeit, wenn fuer alle konfigurierten Dungeons exakte Map-IDs, positive Gesamtwerte und positive NPC-Forces-Daten ausfuehrbar vorliegen. Er prueft alle Kandidaten statt beim ersten Texttreffer abzubrechen; Texttreffer und Platzhalter bleiben geschlossen. Das Signal behauptet keine unbelegbare vollstaendige NPC-Abdeckung.
-8. Runtime-Verbraucher beziehen MDT-Daten nur ueber den exakten Abgleich `MPlusForces.season == SeasonData.ACTIVE_SEASON_ID`. Ohne Match bleiben Mob-Nameplates, Mob-Tooltips und der MDT-Total-Fallback geschlossen; der primaere Blizzard-Scenario-Gesamtfortschritt des Killtrackers bleibt aktiv.
+8. Runtime-Verbraucher beziehen MDT-Daten nur ueber den exakten Season-Abgleich und eine am verifizierbaren aktuellen Datum noch nicht abgelaufene DB. Ohne Match, bei ungueltigem/abgelaufenem `expiresAt` oder ohne verifizierbares Datum bleiben Mob-Nameplates, Mob-Tooltips und der MDT-Total-Fallback geschlossen; der primaere Blizzard-Scenario-Gesamtfortschritt des Killtrackers bleibt aktiv.
 
 Die lokalen Wrapper `tools/check.ps1` und `tools/check.cmd` sind der bevorzugte Einstiegspunkt fuer das statische Gate, weil sie `luacheck` ueber den repo-lokalen Windows-Shim routen, statt direkt das LuaRocks-Script aufzurufen.
 
@@ -283,7 +283,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.359 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.360 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -360,7 +360,7 @@ Zusaetzlich zum Main-Roster-Frame aus `isiLive_ui_main_frame.lua` kann `isiLive_
 - Der Minimap-Button installiert sein `OnUpdate` nur zwischen Drag-Start und Drag-Ende.
 - Die CTL-Wire-Order-Probe nutzt den echten ChatThrottleLib-Pipepfad und ist Bestandteil des lokalen und des GitHub-CI-Preflights.
 - Externe GitHub Actions sind auf vollstaendige 40-stellige Commit-SHAs gepinnt; lesbare Major-Kommentare und `.github/dependabot.yml` halten die Pins wartbar.
-- Der MDT-Forces-Generator verarbeitet vendorfremde Dungeonquellen ohne `_G`-Fallback. Seine Ausfuehrungsumgebung enthaelt nur den injizierten MDT-Datencontainer und `ipairs`; Quellgroesse, Textformat und Instruktionszahl sind begrenzt.
+- Der MDT-Forces-Generator verarbeitet vendorfremde Dungeonquellen ohne `_G`-Fallback. Seine Ausfuehrungsumgebung enthaelt nur den injizierten MDT-Datencontainer und `ipairs`; Quellgroesse, Textformat und Instruktionszahl sind begrenzt. Der generierte Snapshot pinnt den exakten 40-stelligen MDT-Checkout-Commit.
 - Runtime-Diagnoselogs besitzen einen festen 800-Eintraege-Ring. Alte groessere Ringe werden auf die neuesten 800 Eintraege verdichtet, und Filter laufen ueber den gesamten behaltenen Ring.
 
 ## Sync- und Persistenz-Vertrauensgrenzen
@@ -376,8 +376,10 @@ Zusaetzlich zum Main-Roster-Frame aus `isiLive_ui_main_frame.lua` kann `isiLive_
 Folgende Produktionsmodule sind bewusst nicht im Rahmen kleiner Hygiene-Changes
 zu splitten, weil ihre Ownership-Grenzen erst mit bestehenden Tests
 stabilisiert werden muessen: `ui/isiLive_lfg_flags.lua`, `logic/isiLive_sync.lua`,
-`ui/isiLive_notice.lua`, `ui/isiLive_ui_game_menu.lua`,
-`game/isiLive_lfg_detect.lua` und `core/isiLive_sound_utils.lua`. Das
+`ui/isiLive_notice.lua`, `ui/isiLive_ui_game_menu.lua` und
+`game/isiLive_lfg_detect.lua`. Die statische Registry wurde aus
+`core/isiLive_sound_utils.lua` in `core/isiLive_sound_registry.lua` extrahiert;
+Playback, Spam-Schutz und VIP-Mount-Muting bleiben im Utility-Modul. Das
 Metrik-Gate gleicht alle Produktionsdateien oberhalb der Warnschwelle direkt
 mit dieser Watchlist ab und schlaegt bei einem fehlenden Eintrag fehl. Splits
 erfolgen nur entlang klarer Runtime- oder UI-Verantwortlichkeiten und mit

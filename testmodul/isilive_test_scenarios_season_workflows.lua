@@ -228,6 +228,21 @@ MDT.dungeonEnemies[dungeonIndex] = { { id = 7, count = 5, name = "Safe" } }
     )
   end)
 
+  test("MDT forces sync accepts only an exact source commit", function()
+    local tool = LoadTool("tools/sync_mdt_forces.lua")
+    local exact = "0123456789ABCDEF0123456789ABCDEF01234567"
+    Assert.Equal(
+      tool.NormalizeSourceCommit(exact),
+      exact:lower(),
+      "an exact 40-character hexadecimal git commit must be normalized"
+    )
+    Assert.Nil(tool.NormalizeSourceCommit("01234567"), "an abbreviated git commit must remain unresolved")
+    Assert.Nil(
+      tool.NormalizeSourceCommit("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"),
+      "a non-hexadecimal source identifier must remain unresolved"
+    )
+  end)
+
   test("Season intake check accepts current planned dungeon intake progress", function()
     local tool = LoadTool("tools/check_season_intake.lua")
     local ok, result = tool.Check()

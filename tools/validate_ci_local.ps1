@@ -35,6 +35,27 @@ function Invoke-LuaRocksCommand($label, $name, [string[]]$arguments) {
   }
 }
 
+function Invoke-LuaCovReport {
+  Write-Step "Coverage Report"
+
+  $command = Get-Command "luacov" -ErrorAction Stop
+  $path = $command.Source
+  $extension = [System.IO.Path]::GetExtension($path)
+  if ([string]::IsNullOrEmpty($extension)) {
+    $output = & lua $path 2>&1
+  } else {
+    $output = & $path 2>&1
+  }
+  $exitCode = $LASTEXITCODE
+  $output | ForEach-Object { Write-Host $_ }
+  if ($exitCode -ne 0) {
+    throw "Coverage Report failed with exit code $exitCode"
+  }
+  if (($output -join "`n") -match "Couldn't open") {
+    throw "Coverage Report encountered an unreadable source file."
+  }
+}
+
 function Assert-Command($name) {
   $cmd = Get-Command $name -ErrorAction SilentlyContinue
   if (-not $cmd) {
@@ -193,7 +214,7 @@ try {
   Invoke-CheckedCommand "Deterministic Usecase + Rules Logic Validation" "lua tools/validate_usecases.lua"
   Remove-Item -LiteralPath "luacov.stats.out", "luacov.report.out" -ErrorAction SilentlyContinue
   Invoke-CheckedCommand "Coverage Run" "lua -lluacov tools/validate_usecases.lua"
-  Invoke-LuaRocksCommand "Coverage Report" "luacov" @()
+  Invoke-LuaCovReport
   Invoke-CheckedCommand "Coverage Summary" "lua tools/coverage_summary.lua luacov.report.out"
   Invoke-CheckedCommand "Coverage Threshold (>=80% per file)" "lua tools/coverage_below.lua 80 luacov.report.out"
   Invoke-CheckedCommand "Coverage Threshold (>=88% total)" "lua tools/coverage_total_gate.lua 88 luacov.report.out"

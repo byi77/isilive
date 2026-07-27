@@ -470,7 +470,7 @@ return function(test, ctx)
 
   local function CaptureFromChunk(Capture, sourceName, message)
     local chunk =
-      CompileChunk("local Capture, message = ... return function() Capture(message, nil, nil) end", "@" .. sourceName)
+      CompileChunk("local Capture, message = ... return function() Capture(message, nil, nil) end", "=" .. sourceName)
     Assert.Equal(type(chunk), "function", "caller chunk must compile: " .. sourceName)
     coroutine.wrap(chunk(Capture, message))()
   end

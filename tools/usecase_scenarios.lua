@@ -1,5 +1,6 @@
 local scenarioFiles = {
   "testmodul/isilive_test_scenarios_architecture.lua",
+  "testmodul/isilive_test_scenarios_audit_fixes.lua",
   "testmodul/isilive_test_scenarios_architecture_boundaries.lua",
   "testmodul/isilive_test_scenarios_db_schema.lua",
   "testmodul/isilive_test_scenarios_error_log.lua",

@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-07-27 - Version 0.9.360 (patch)
+
+- Closed the audited M+ forces lifetime gap: every runtime consumer now loses
+  access to an expired, malformed, or temporally unverifiable MDT snapshot.
+- Contained `C_ScenarioInfo` failures in the killtracker and preserve the last
+  verified forces snapshot instead of propagating the API error or inventing
+  zero progress.
+- Made generated forces data reproducible by persisting the exact 40-character
+  MDT checkout commit and rejecting missing or abbreviated provenance in the
+  generator and lifetime gate.
+- Removed the synthetic LuaCov file warning from the error-log scenario and
+  made unreadable-source warnings fail both local and GitHub coverage reports.
+- Split the static sound registry from playback and VIP mount-muting logic,
+  bringing `core/isiLive_sound_utils.lua` below the large-module watchlist
+  threshold.
+- Reconciled architecture and private workspace maintenance documentation with
+  the current `0.9.359` release state.
+
 ## 2026-07-26 - Version 0.9.359 (patch)
 
 - Escaped the sub-command prefix before it is interpolated into the debug-log

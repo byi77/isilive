@@ -69,23 +69,46 @@ local function NotifyUpdate()
 end
 
 local function FindEnemyForcesCriteria()
-  if not C_ScenarioInfo or type(C_ScenarioInfo.GetScenarioStepInfo) ~= "function" then
-    return nil
+  local scenarioInfo = rawget(_G, "C_ScenarioInfo")
+  if
+    type(scenarioInfo) ~= "table"
+    or type(scenarioInfo.GetScenarioStepInfo) ~= "function"
+    or type(scenarioInfo.GetCriteriaInfo) ~= "function"
+  then
+    return nil, false
   end
-  local stepInfo = C_ScenarioInfo.GetScenarioStepInfo()
-  if not stepInfo or not stepInfo.numCriteria then
-    return nil
+  local okStep, stepInfo = pcall(scenarioInfo.GetScenarioStepInfo)
+  if not okStep or IsSecretValue(stepInfo) or type(stepInfo) ~= "table" then
+    return nil, false
   end
-  if IsSecretValue(stepInfo.numCriteria) then
-    return nil
+  local numCriteria = stepInfo.numCriteria
+  if numCriteria == nil then
+    return nil, true
   end
-  for i = 1, stepInfo.numCriteria do
-    local okCrit, cInfo = pcall(C_ScenarioInfo.GetCriteriaInfo, i)
-    if okCrit and cInfo and cInfo.isWeightedProgress then
-      return cInfo
+  if
+    IsSecretValue(numCriteria)
+    or type(numCriteria) ~= "number"
+    or numCriteria < 0
+    or numCriteria % 1 ~= 0
+    or numCriteria ~= numCriteria
+    or numCriteria == math.huge
+  then
+    return nil, false
+  end
+  for i = 1, numCriteria do
+    local okCrit, cInfo = pcall(scenarioInfo.GetCriteriaInfo, i)
+    if not okCrit or IsSecretValue(cInfo) or type(cInfo) ~= "table" then
+      return nil, false
+    end
+    local isWeightedProgress = cInfo.isWeightedProgress
+    if IsSecretValue(isWeightedProgress) then
+      return nil, false
+    end
+    if isWeightedProgress == true then
+      return cInfo, true
     end
   end
-  return nil
+  return nil, true
 end
 
 local function ReadLiveData()
@@ -106,10 +129,13 @@ local function ReadLiveData()
     return
   end
 
+  local cInfo, criteriaResolved = FindEnemyForcesCriteria()
+  if criteriaResolved ~= true then
+    return
+  end
+
   state.active = true
   state.mapID = mapID
-
-  local cInfo = FindEnemyForcesCriteria()
   if not cInfo then
     state.percent = 0
     state.rawCount = 0

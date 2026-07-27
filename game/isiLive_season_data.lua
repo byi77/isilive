@@ -210,7 +210,20 @@ local function ParseIsoDate(value)
   if not year then
     return nil
   end
-  return tonumber(year) * 10000 + tonumber(month) * 100 + tonumber(day)
+  year = tonumber(year)
+  month = tonumber(month)
+  day = tonumber(day)
+  if not year or not month or not day or month < 1 or month > 12 or day < 1 then
+    return nil
+  end
+  local daysByMonth = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+  if month == 2 and (year % 400 == 0 or (year % 4 == 0 and year % 100 ~= 0)) then
+    daysByMonth[2] = 29
+  end
+  if day > daysByMonth[month] then
+    return nil
+  end
+  return year * 10000 + month * 100 + day
 end
 
 local function ResolveCurrentDate(opts)
@@ -339,13 +352,18 @@ function SeasonData.GetActiveSeasonID()
   return SeasonData.ACTIVE_SEASON_ID
 end
 
-function SeasonData.GetMatchingForcesData(seasonID)
+function SeasonData.GetMatchingForcesData(seasonID, opts)
   local resolvedSeasonID = seasonID or SeasonData.ACTIVE_SEASON_ID
   local forces = addonTable.MPlusForces
   if type(forces) ~= "table" or forces.season ~= resolvedSeasonID then
     return nil
   end
   if type(forces.dungeonTotal) ~= "table" or type(forces.byNpcId) ~= "table" then
+    return nil
+  end
+  local expiresKey = ParseIsoDate(forces.expiresAt)
+  local currentKey = ParseIsoDate(ResolveCurrentDate(opts))
+  if not expiresKey or not currentKey or currentKey > expiresKey then
     return nil
   end
   return forces

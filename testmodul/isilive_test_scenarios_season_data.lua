@@ -85,21 +85,62 @@ local function RegisterReadinessTests(test, Assert, LoadAddonModules)
     local addon = LoadSeasonData(LoadAddonModules)
     addon.MPlusForces = {
       season = "midnight_s1",
+      expiresAt = "2099-01-01",
       dungeonTotal = {},
       byNpcId = {},
     }
-    Assert.NotNil(addon.SeasonData.GetMatchingForcesData(), "active S1 must receive its matching Forces DB")
+    Assert.NotNil(
+      addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-07-27" }),
+      "active S1 must receive its matching Forces DB"
+    )
 
     local ok = addon.SeasonData.SetActiveSeasonID("midnight_s2")
     Assert.True(ok, "manual S2 activation must succeed for the season-match test")
-    Assert.Nil(addon.SeasonData.GetMatchingForcesData(), "S1 Forces must be hidden while S2 is active")
+    Assert.Nil(
+      addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-07-27" }),
+      "S1 Forces must be hidden while S2 is active"
+    )
 
     addon.MPlusForces = {
       season = "midnight_s2",
+      expiresAt = "2099-01-01",
       dungeonTotal = {},
       byNpcId = {},
     }
-    Assert.NotNil(addon.SeasonData.GetMatchingForcesData(), "matching S2 Forces must become available")
+    Assert.NotNil(
+      addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-07-27" }),
+      "matching S2 Forces must become available"
+    )
+  end)
+
+  test("SeasonData.GetMatchingForcesData rejects expired or unverifiable forces data", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    addon.MPlusForces = {
+      season = "midnight_s1",
+      expiresAt = "2026-08-07",
+      dungeonTotal = {},
+      byNpcId = {},
+    }
+
+    Assert.NotNil(
+      addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-08-07" }),
+      "Forces data must remain usable through its exact expiry date"
+    )
+    Assert.Nil(
+      addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-08-08" }),
+      "expired Forces data must be hidden from every runtime consumer"
+    )
+
+    addon.MPlusForces.expiresAt = "2026-02-30"
+    Assert.Nil(
+      addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-02-28" }),
+      "an impossible expiry date must remain unresolved"
+    )
+    addon.MPlusForces.expiresAt = "2099-01-01"
+    Assert.Nil(
+      addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "not-a-date" }),
+      "an unverifiable current date must fail closed"
+    )
   end)
 
   test("SeasonData marks only Midnight native dungeons with level 90 portal gates", function()

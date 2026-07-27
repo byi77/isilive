@@ -15,6 +15,7 @@ local function WriteDBFixture(path, expiresAt)
   f:write("local _, addonTable = ...\n")
   f:write("addonTable.MPlusForces = {\n")
   f:write('  season = "midnight_s1",\n')
+  f:write('  sourceCommit = "0123456789abcdef0123456789abcdef01234567",\n')
   f:write(string.format("  expiresAt = %q,\n", tostring(expiresAt)))
   f:write("  dungeonTotal = {},\n")
   f:write("  byNpcId = {},\n")
@@ -112,6 +113,21 @@ return function(test, ctx)
     local code, msg = tool.Check(path, { today = "2026-04-21" })
     Assert.Equal(2, code, "malformed expiresAt must be a structural error")
     Assert.True(tostring(msg):find("expiresAt", 1, true) ~= nil, "message must name the offending field")
+    os.remove(path)
+  end)
+
+  test("mplus_db_lifetime: returns 2 when sourceCommit is missing or abbreviated", function()
+    local tool = LoadTool()
+    local path = TempPath("isilive_mplus_db_bad_source_commit.lua")
+    WriteRawFixture(
+      path,
+      "local _, addonTable = ...\n"
+        .. 'addonTable.MPlusForces = { season = "midnight_s1", sourceCommit = "01234567", '
+        .. 'expiresAt = "2030-01-01", dungeonTotal = {}, byNpcId = {} }\n'
+    )
+    local code, msg = tool.Check(path, { today = "2026-04-21" })
+    Assert.Equal(2, code, "abbreviated source provenance must be a structural error")
+    Assert.True(tostring(msg):find("sourceCommit", 1, true) ~= nil, "message must name sourceCommit")
     os.remove(path)
   end)
 

@@ -251,6 +251,47 @@ local function RegisterPullBaselineTests(test, Assert, WithGlobals, LoadAddonMod
     end)
   end)
 
+  test("KillTrack preserves verified live forces when scenario step reads fail", function()
+    local env = BuildKillTrackEnv({ scenario = { quantity = 25, total = 100, mapID = 556 } })
+    WithGlobals(env.globals, function()
+      local addon = LoadAddonModules({ "isiLive_killtrack.lua" })
+      addon.KillTrack._DispatchEvent("CHALLENGE_MODE_START")
+      local before = addon.KillTrack.GetData()
+
+      env.globals.C_ScenarioInfo.GetScenarioStepInfo = function()
+        error("scenario API fault")
+      end
+      local ok = pcall(addon.KillTrack._DispatchEvent, "SCENARIO_CRITERIA_UPDATE")
+      local after = addon.KillTrack.GetData()
+
+      Assert.True(ok, "a Blizzard scenario API exception must not escape the KillTrack adapter")
+      Assert.Equal(after.active, before.active, "an unresolved refresh must preserve the verified active state")
+      Assert.Equal(after.mapID, before.mapID, "an unresolved refresh must preserve the verified challenge map")
+      Assert.Equal(after.rawCount, before.rawCount, "an unresolved refresh must preserve verified raw forces")
+      Assert.Equal(after.total, before.total, "an unresolved refresh must preserve the verified total")
+      Assert.Equal(after.percent, before.percent, "an unresolved refresh must preserve the verified percentage")
+    end)
+  end)
+
+  test("KillTrack preserves verified live forces when scenario criteria are unreadable", function()
+    local env = BuildKillTrackEnv({ scenario = { quantity = 40, total = 100, mapID = 556 } })
+    WithGlobals(env.globals, function()
+      local addon = LoadAddonModules({ "isiLive_killtrack.lua" })
+      addon.KillTrack._DispatchEvent("CHALLENGE_MODE_START")
+      local before = addon.KillTrack.GetData()
+
+      env.globals.C_ScenarioInfo.GetCriteriaInfo = function()
+        error("criteria API fault")
+      end
+      addon.KillTrack._DispatchEvent("SCENARIO_CRITERIA_UPDATE")
+      local after = addon.KillTrack.GetData()
+
+      Assert.Equal(after.rawCount, before.rawCount, "a failed criteria read must not synthesize zero progress")
+      Assert.Equal(after.total, before.total, "a failed criteria read must not erase the verified denominator")
+      Assert.Equal(after.percent, before.percent, "a failed criteria read must not erase the verified percentage")
+    end)
+  end)
+
   test("PLAYER_REGEN_DISABLED does not start a pull when no key is active", function()
     local env = BuildKillTrackEnv({
       scenario = { quantity = 10, total = 100 },

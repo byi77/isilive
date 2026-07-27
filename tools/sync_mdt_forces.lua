@@ -5,7 +5,8 @@
 -- generates data/isiLive_mplus_forces.lua for isiLive.
 --
 -- Usage (from repo root):
---   lua tools/sync_mdt_forces.lua [--season=midnight_s1] [--mdt=tools/cache/mdt] [--out=data/isiLive_mplus_forces.lua]
+--   lua tools/sync_mdt_forces.lua [--season=midnight_s1] [--mdt=tools/cache/mdt]
+--     [--source_commit=<40-char git sha>] [--out=data/isiLive_mplus_forces.lua]
 --
 -- MDT dungeon files mutate a global `MDT` table. We stub that table,
 -- run each file as a chunk, and serialize the collected data.
@@ -38,6 +39,13 @@ local function parseArgs(argv)
     end
   end
   return args
+end
+
+local function normalizeSourceCommit(value)
+  if type(value) ~= "string" or #value ~= 40 or not value:match("^[0-9a-fA-F]+$") then
+    return nil
+  end
+  return value:lower()
 end
 
 local function buildSandbox()
@@ -208,6 +216,7 @@ local function formatDbLua(data)
   add("addonTable.MPlusForces = {")
   add(string.format("  season = %q,", data.season))
   add(string.format("  mdtVersion = %q,", data.mdtVersion))
+  add(string.format("  sourceCommit = %q,", data.sourceCommit))
   add(string.format("  generatedAt = %q,", data.generatedAt))
   add(string.format("  expiresAt = %q,", data.expiresAt))
   add(string.format("  dungeonCount = %d,", data.dungeonCount))
@@ -273,6 +282,11 @@ local function main(argv)
   end
 
   local sourceDir = args.mdt .. "/" .. mdtSubDir
+  local sourceCommit = normalizeSourceCommit(args.source_commit)
+  if not sourceCommit then
+    io.stderr:write("[sync_mdt_forces] --source_commit must be the exact 40-character MDT git commit\n")
+    os.exit(2)
+  end
   local files = listLuaFiles(sourceDir)
   if #files == 0 then
     io.stderr:write(string.format("[sync_mdt_forces] no .lua files in %s\n", sourceDir))
@@ -358,6 +372,7 @@ local function main(argv)
   local out = formatDbLua({
     season = args.season,
     mdtVersion = readMdtVersion(args.mdt),
+    sourceCommit = sourceCommit,
     generatedAt = isoDate(0),
     expiresAt = isoDate(LIFETIME_DAYS),
     dungeonCount = dungeonCount,
@@ -381,6 +396,7 @@ if ... == "module" then
   return {
     BuildSandbox = buildSandbox,
     LoadDungeonFile = loadDungeonFile,
+    NormalizeSourceCommit = normalizeSourceCommit,
   }
 end
 

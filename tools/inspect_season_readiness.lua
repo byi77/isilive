@@ -144,6 +144,7 @@ function M.BuildSummary(opts)
     else
       lines[#lines + 1] = "- Season: " .. tostring(forces.season or "unresolved")
       lines[#lines + 1] = "- MDT version: " .. tostring(forces.mdtVersion or "unresolved")
+      lines[#lines + 1] = "- MDT source commit: " .. tostring(forces.sourceCommit or "unresolved")
       lines[#lines + 1] = "- Generated at: " .. tostring(forces.generatedAt or "unresolved")
       lines[#lines + 1] = "- Expires at: " .. tostring(forces.expiresAt or "unresolved")
       lines[#lines + 1] = "- Dungeon count: " .. tostring(forces.dungeonCount or CountEntries(forces.dungeonTotal))

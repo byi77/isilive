@@ -96,7 +96,6 @@ function M.Check(dbPath, opts)
   if type(db) ~= "table" then
     return 2, "addonTable.MPlusForces missing or not a table"
   end
-
   local activeSeasonID = opts.activeSeasonID
     or os.getenv("ISILIVE_ACTIVE_SEASON_ID")
     or readActiveSeasonID(opts.seasonDataPath)
@@ -121,6 +120,11 @@ function M.Check(dbPath, opts)
       )
   end
 
+  local sourceCommit = db.sourceCommit
+  if type(sourceCommit) ~= "string" or #sourceCommit ~= 40 or not sourceCommit:match("^[0-9a-fA-F]+$") then
+    return 2, "sourceCommit missing or malformed (expected exact 40-character MDT git commit)"
+  end
+
   local expiresAt = db.expiresAt
   local expiresKey = parseDate(expiresAt)
   if not expiresKey then
@@ -134,7 +138,8 @@ function M.Check(dbPath, opts)
   end
 
   if todayKey <= expiresKey then
-    return 0, string.format("M+ forces DB valid until %s (today %s)", expiresAt, todayStr)
+    return 0,
+      string.format("M+ forces DB from MDT commit %s valid until %s (today %s)", sourceCommit, expiresAt, todayStr)
   end
 
   local override = opts.override

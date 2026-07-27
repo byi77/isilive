@@ -4,7 +4,7 @@ Diese Datei beschreibt verbindliche Strukturregeln fuer den aktuellen Modulzusch
 Im Gegensatz zu `RULES_LOGIC.md` geht es hier nicht um Runtime-Verhalten, sondern um
 stabile Architekturgrenzen, die ueber deterministische Strukturtests geprueft werden.
 
-Aktueller Dokumentationsstand: `0.9.353`. Die seit 0.9.310 hinzugekommenen
+Aktueller Dokumentationsstand: `0.9.360`. Die seit 0.9.310 hinzugekommenen
 Runtime- und UI-Aenderungen sind in `RULES_LOGIC.md` als aktive Projektregeln
 gepinnt und werden ueber deterministische Szenarien validiert. Native WoW-TTS
 ist durch Regel 84 deaktiviert; Death-Audio nutzt statische WAV-Dateien. Der
@@ -115,12 +115,13 @@ TOC-Strukturtests abgedeckt.
 ### RULE-ARCH-CI-WRAPPER-PARITAET
 - Regelnummer: 10
 - Status: aktiv
-- Zusammenfassung: Der lokale CI-Preflight muss die GitHub-Lua-Check-Gates spiegeln; die lokalen Wrapper bleiben reine Delegationsschichten und duerfen keine eigene Parallel- oder Sonderlogik einfuehren. Alle externen GitHub Actions werden unveraenderlich auf einen vollstaendigen 40-stelligen Commit-SHA gepinnt, behalten den lesbaren Major-Tag als Kommentar und werden ueber Dependabot fuer `github-actions` gepflegt. Stable- und Pre-Release-Workflows verwenden denselben verifizierten Checkout-v5-SHA wie die uebrigen gepflegten Workflows.
+- Zusammenfassung: Der lokale CI-Preflight muss die GitHub-Lua-Check-Gates spiegeln; die lokalen Wrapper bleiben reine Delegationsschichten und duerfen keine eigene Parallel- oder Sonderlogik einfuehren. Der lokale und der GitHub-Coverage-Report muessen neben einem Fehlercode auch jede LuaCov-Meldung ueber eine nicht lesbare Quelldatei als Gate-Fehler behandeln. Alle externen GitHub Actions werden unveraenderlich auf einen vollstaendigen 40-stelligen Commit-SHA gepinnt, behalten den lesbaren Major-Tag als Kommentar und werden ueber Dependabot fuer `github-actions` gepflegt. Stable- und Pre-Release-Workflows verwenden denselben verifizierten Checkout-v5-SHA wie die uebrigen gepflegten Workflows.
 - Erforderliche Tests:
   - Architecture external workflow actions use immutable SHA pins with version comments
   - Architecture release workflows use checkout v5
   - Architecture GitHub Lua Check workflow keeps CI validation steps wired
   - Architecture local CI preflight mirrors the GitHub Lua Check workflow
+  - Architecture coverage reports reject unreadable source warnings
   - Architecture CTL wire-order simulator is enforced by local and GitHub CI
   - Architecture local CI wrapper forwards directly into the preflight script
   - Architecture local CI shorthand wrapper forwards into the local CI wrapper
@@ -138,7 +139,7 @@ TOC-Strukturtests abgedeckt.
 ### RULE-ARCH-OPTIONALE-WOW-GLOBALS-GESCHUETZT
 - Regelnummer: 12
 - Status: aktiv
-- Zusammenfassung: Produktive Zugriffe auf optionale WoW-Globale wie `C_Timer`, `C_Spell`, `C_Map`, `UnitExists`, `GetInstanceInfo`, `hooksecurefunc` und fallback-faehige `CreateFrame`-Pfade muessen ueber lokale `rawget(_G, "...")`-Caches laufen und bei fehlender API geschlossen bleiben, statt bare globale Short-Circuit-Ketten zu verwenden.
+- Zusammenfassung: Produktive Zugriffe auf optionale WoW-Globale wie `C_Timer`, `C_Spell`, `C_Map`, `C_ScenarioInfo`, `UnitExists`, `GetInstanceInfo`, `hooksecurefunc` und fallback-faehige `CreateFrame`-Pfade muessen ueber lokale `rawget(_G, "...")`-Caches laufen und bei fehlender API geschlossen bleiben, statt bare globale Short-Circuit-Ketten zu verwenden.
 - Erforderliche Tests:
   - Architecture optional WoW globals use guarded rawget caches
 
@@ -148,6 +149,7 @@ TOC-Strukturtests abgedeckt.
 - Zusammenfassung: Alle Produktionsdateien oberhalb der Metrik-Warnschwelle muessen in `docs/ARCHITECTURE.md` als Refactoring-Watchlist dokumentiert sein; das Metrik-Gate gleicht Warnungen und Watchlist deterministisch ab. Splits duerfen nur entlang klarer Runtime- oder UI-Verantwortlichkeiten und mit deterministischen Tests fuer extrahierte Module erfolgen.
 - Erforderliche Tests:
   - Architecture large-module watchlist is documented and gate-pinned
+  - SoundRegistry owns static sound entries before SoundUtils playback loads
 
 ### RULE-ARCH-ROSTER-UI-GRENZE
 - Regelnummer: 14
@@ -166,9 +168,11 @@ TOC-Strukturtests abgedeckt.
 ### RULE-ARCH-MDT-QUELLEN-SANDBOX
 - Regelnummer: 16
 - Status: aktiv
-- Zusammenfassung: `tools/sync_mdt_forces.lua` darf fremde MDT-Dungeonquellen weder ueber `loadfile` mit geerbtem `_G` noch mit Zugriff auf `os`, `io`, `debug`, `require` oder andere Umgebungsfunktionen ausfuehren. Zulaessig sind nur der injizierte MDT-Datencontainer und `ipairs`; Bytecode, Quellen oberhalb des Groessenlimits und Ausfuehrungen oberhalb des Instruktionslimits werden geschlossen abgelehnt. Ein fuer das Instruktionslimit temporaer ersetzter Host-Debug-Hook muss danach einschliesslich Maske und Zaehler wiederhergestellt werden, damit Coverage- oder andere Instrumentierung nicht verloren geht.
+- Zusammenfassung: `tools/sync_mdt_forces.lua` darf fremde MDT-Dungeonquellen weder ueber `loadfile` mit geerbtem `_G` noch mit Zugriff auf `os`, `io`, `debug`, `require` oder andere Umgebungsfunktionen ausfuehren. Zulaessig sind nur der injizierte MDT-Datencontainer und `ipairs`; Bytecode, Quellen oberhalb des Groessenlimits und Ausfuehrungen oberhalb des Instruktionslimits werden geschlossen abgelehnt. Ein fuer das Instruktionslimit temporaer ersetzter Host-Debug-Hook muss danach einschliesslich Maske und Zaehler wiederhergestellt werden, damit Coverage- oder andere Instrumentierung nicht verloren geht. Jede erzeugte Forces-DB muss den exakten vollstaendigen 40-stelligen Git-Commit des ausgefuehrten MDT-Checkouts als `sourceCommit` tragen; Kurz-SHAs, fehlende oder nicht hexadezimale Quellen bleiben unresolved und blockieren Generator beziehungsweise Lifetime-Gate.
 - Erforderliche Tests:
   - MDT forces sync executes dungeon data without ambient globals
+  - MDT forces sync accepts only an exact source commit
+  - Architecture M+ forces workflow records exact source commit
 
 ### RULE-ARCH-SEASON-MANIFEST-SINGLE-SOURCE
 - Regelnummer: 17

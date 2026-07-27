@@ -215,7 +215,16 @@ jobs:
         run: |
           eval "$(luarocks path --lua-version 5.1)"
           lua -lluacov tools/validate_usecases.lua
-          luacov
+          set +e
+          LUACOV_OUTPUT="$(luacov 2>&1)"
+          LUACOV_STATUS=$?
+          set -e
+          printf '%s\n' "$LUACOV_OUTPUT"
+          test "$LUACOV_STATUS" -eq 0
+          if printf '%s\n' "$LUACOV_OUTPUT" | grep -F "Couldn't open"; then
+            echo "LuaCov reported an unreadable source file." >&2
+            exit 1
+          fi
 
       - name: Coverage Summary
         run: |

@@ -49,13 +49,18 @@ try {
     Write-Step "using existing MDT clone (NoPull)"
   }
 
+  $sourceCommit = (& git -C $mdtDir rev-parse HEAD).Trim()
+  if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch "^[0-9a-fA-F]{40}$") {
+    throw "Could not resolve the exact MDT source commit."
+  }
+
   $dataDir = Join-Path $repoRoot "data"
   if (-not (Test-Path $dataDir)) {
     New-Item -ItemType Directory -Path $dataDir | Out-Null
   }
 
   Write-Step "generating $outFile"
-  & lua "tools/sync_mdt_forces.lua" "--season=$Season" "--mdt=tools/cache/mdt" "--out=data/isiLive_mplus_forces.lua"
+  & lua "tools/sync_mdt_forces.lua" "--season=$Season" "--mdt=tools/cache/mdt" "--source_commit=$sourceCommit" "--out=data/isiLive_mplus_forces.lua"
   if ($LASTEXITCODE -ne 0) { throw "sync_mdt_forces.lua failed ($LASTEXITCODE)" }
 
   Write-Host ""

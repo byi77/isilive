@@ -10,6 +10,7 @@ local FILE_PATHS = {
   -- core
   ["isiLive_validation_helpers.lua"] = "core/isiLive_validation_helpers.lua",
   ["isiLive_string_utils.lua"] = "core/isiLive_string_utils.lua",
+  ["isiLive_sound_registry.lua"] = "core/isiLive_sound_registry.lua",
   ["isiLive_sound_utils.lua"] = "core/isiLive_sound_utils.lua",
   ["isiLive_db_schema.lua"] = "core/isiLive_db_schema.lua",
   ["isiLive_error_log.lua"] = "core/isiLive_error_log.lua",
@@ -152,6 +153,9 @@ local UNIVERSAL_DEPENDENCIES = {
 }
 
 local IMPLICIT_DEPENDENCIES = {
+  ["isiLive_sound_utils.lua"] = {
+    "isiLive_sound_registry.lua",
+  },
   ["isiLive_event_handlers.lua"] = {
     "isiLive_event_handlers_queue.lua",
     "isiLive_event_handlers_challenge.lua",
