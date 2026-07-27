@@ -115,10 +115,10 @@ TOC-Strukturtests abgedeckt.
 ### RULE-ARCH-CI-WRAPPER-PARITAET
 - Regelnummer: 10
 - Status: aktiv
-- Zusammenfassung: Der lokale CI-Preflight muss die GitHub-Lua-Check-Gates spiegeln; die lokalen Wrapper bleiben reine Delegationsschichten und duerfen keine eigene Parallel- oder Sonderlogik einfuehren. Der lokale und der GitHub-Coverage-Report muessen neben einem Fehlercode auch jede LuaCov-Meldung ueber eine nicht lesbare Quelldatei als Gate-Fehler behandeln. Alle externen GitHub Actions werden unveraenderlich auf einen vollstaendigen 40-stelligen Commit-SHA gepinnt, behalten den lesbaren Major-Tag als Kommentar und werden ueber Dependabot fuer `github-actions` gepflegt. Stable- und Pre-Release-Workflows verwenden denselben verifizierten Checkout-v5-SHA wie die uebrigen gepflegten Workflows.
+- Zusammenfassung: Der lokale CI-Preflight muss die GitHub-Lua-Check-Gates spiegeln; die lokalen Wrapper bleiben reine Delegationsschichten und duerfen keine eigene Parallel- oder Sonderlogik einfuehren. Der lokale und der GitHub-Coverage-Report muessen neben einem Fehlercode auch jede LuaCov-Meldung ueber eine nicht lesbare Quelldatei als Gate-Fehler behandeln. Alle externen GitHub Actions werden unveraenderlich auf einen vollstaendigen 40-stelligen Commit-SHA gepinnt, behalten die lesbare Version als Kommentar und werden ueber Dependabot fuer `github-actions` gepflegt. Alle gepflegten Workflows verwenden denselben verifizierten Checkout-v7.0.1-SHA.
 - Erforderliche Tests:
   - Architecture external workflow actions use immutable SHA pins with version comments
-  - Architecture release workflows use checkout v5
+  - Architecture workflows use checkout v7.0.1
   - Architecture GitHub Lua Check workflow keeps CI validation steps wired
   - Architecture local CI preflight mirrors the GitHub Lua Check workflow
   - Architecture coverage reports reject unreadable source warnings

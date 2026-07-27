@@ -2142,19 +2142,26 @@ local function RegisterArchitectureWorkflowTests(test, Assert)
     )
   end)
 
-  test("Architecture release workflows use checkout v5", function()
-    local releaseContent = ReadFile(".github/workflows/release.yml")
-    local preReleaseContent = ReadFile(".github/workflows/pre-release.yml")
+  test("Architecture workflows use checkout v7.0.1", function()
+    local workflowFiles = {
+      ".github/workflows/inspect-mplus-season-preview.yml",
+      ".github/workflows/lua-check.yml",
+      ".github/workflows/pre-release.yml",
+      ".github/workflows/release.yml",
+      ".github/workflows/season-intake.yml",
+      ".github/workflows/season-readiness.yml",
+      ".github/workflows/sync-mplus-forces.yml",
+    }
+    local expectedCheckout = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1"
 
-    AssertContains(Assert, releaseContent, "# v5", "release workflow must document checkout v5")
-    AssertContains(Assert, preReleaseContent, "# v5", "pre-release workflow must document checkout v5")
-    AssertNotContains(Assert, releaseContent, "actions/checkout@v4", "release workflow must not retain checkout v4")
-    AssertNotContains(
-      Assert,
-      preReleaseContent,
-      "actions/checkout@v4",
-      "pre-release workflow must not retain checkout v4"
-    )
+    for _, workflowFile in ipairs(workflowFiles) do
+      AssertContains(
+        Assert,
+        ReadFile(workflowFile),
+        expectedCheckout,
+        workflowFile .. " must use the verified checkout v7.0.1 SHA and matching version comment"
+      )
+    end
   end)
 
   test("Architecture GitHub Lua Check workflow keeps CI validation steps wired", function()
