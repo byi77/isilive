@@ -212,6 +212,9 @@ local function FinalizeFactorySettings(ctx)
         if ctx.mainFrame and type(ctx.mainFrame.SetScale) == "function" then
           ctx.mainFrame:SetScale(val)
         end
+        if type(ctx.RefreshSimulationTabletDock) == "function" then
+          ctx.RefreshSimulationTabletDock()
+        end
       end,
       onSyncToggle = function(_enabled)
         -- Runtime reads IsiLiveDB.syncEnabled directly; no additional action needed

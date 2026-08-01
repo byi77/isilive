@@ -732,12 +732,16 @@ local function RenderRosterImpl(state, roster)
   local cdTrackerExtra = IsMainHorizontalLayoutMode(layoutMode) and CD_TRACKER_ROW_HEIGHT or 0
   local desiredHeight = isCollapsed and GetFrameHeightForLayoutMode(layoutMode, minFrameHeight)
     or math.max(minFrameHeight, 45 + index * 16) + cdTrackerExtra
-  setMainFrameHeightSafe(desiredHeight)
 
   if state.uiRef and (createdMemberRow or state.uiRef._isiLiveRenderedLayoutMode ~= layoutMode) then
     UpdateCollapseState(state.uiRef, layoutMode, mainFrame)
     state.uiRef._isiLiveRenderedLayoutMode = layoutMode
   end
+
+  -- Creating roster rows can require a layout refresh, which also writes the
+  -- mode's generic frame height. Keep the roster-derived height authoritative
+  -- so the first five-player render matches every later render.
+  setMainFrameHeightSafe(desiredHeight)
 end
 
 RefreshReadyCheckStateImpl = function(state, roster)

@@ -537,7 +537,7 @@ Mindestens das testen:
 1. Addon laedt ohne Fehler
 2. UI oeffnen/schliessen
 3. Gruppeneintritt / Gruppenaustritt
-4. Demo-Modus + Refresh
+4. Demo-Modus + Refresh; direkt nach Reload muessen erster und zweiter Demo-Start dieselbe M+-Framehoehe behalten. Der Simulator muss rechts an der realen Main-UI andocken, bei fehlendem Platz auf eine freie Seite ausweichen, sichtbar angedockt auf Main-UI-Drag, Layout-/Scale-Wechsel und Sichtbereichsaenderung reagieren und nach manuellem Drag erst ueber `Andocken` wieder automatisch relativ zur aktuellen Main-UI positioniert werden.
 5. M+-Run Ende -> DPS sichtbar
 6. M0 betreten, Gruppe teilweise aufloesen, Dungeon verlassen -> DPS bleibt ueber frozen roster matchbar
 7. Key-Anzeige zeigt echte Shortcodes, keine `228`/`277`-Zahlen

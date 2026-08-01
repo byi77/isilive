@@ -366,6 +366,13 @@ function UI.CreateMainFrame(opts)
   local dragLocked = isDragLocked() == true
   local dragActive = false
   local lockButton = nil
+  local positionChangedHandler = nil
+
+  local function NotifyPositionChanged()
+    if type(positionChangedHandler) == "function" then
+      positionChangedHandler()
+    end
+  end
 
   local function BeginDrag()
     if dragLocked then
@@ -382,6 +389,7 @@ function UI.CreateMainFrame(opts)
     dragActive = false
     frame:StopMovingOrSizing()
     SavePosition(frame)
+    NotifyPositionChanged()
   end
 
   frame:RegisterForDrag("LeftButton")
@@ -423,6 +431,7 @@ function UI.CreateMainFrame(opts)
       dragActive = false
       frame:StopMovingOrSizing()
       SavePosition(frame)
+      NotifyPositionChanged()
     end
     if lockButton and type(lockButton.UpdateVisual) == "function" then
       lockButton:UpdateVisual()
@@ -456,12 +465,14 @@ function UI.CreateMainFrame(opts)
     end
     frame:ClearAllPoints()
     frame:SetPoint(pos.point, parent, pos.relativePoint, pos.x, pos.y)
+    NotifyPositionChanged()
   end
 
   local function ResetPosition()
     frame:ClearAllPoints()
     frame:SetPoint("CENTER", parent, "CENTER", 0, 0)
     SavePosition(frame)
+    NotifyPositionChanged()
   end
 
   closeButton:SetScript("OnClick", function()
@@ -485,6 +496,9 @@ function UI.CreateMainFrame(opts)
     SetWidthSafe = SetWidthSafe,
     GetPendingWidth = GetPendingWidth,
     SetDragLocked = SetDragLocked,
+    SetPositionChangedHandler = function(handler)
+      positionChangedHandler = type(handler) == "function" and handler or nil
+    end,
     GetDragLocked = function()
       return dragLocked
     end,

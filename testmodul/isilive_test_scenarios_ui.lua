@@ -388,6 +388,7 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
   end)
   test("UI drag start/stop remains available during combat", function()
     local inCombat = true
+    local positionChangedCalls = 0
     WithGlobals({
       UIParent = {},
       CreateFrame = BuildCreateFrameStub(),
@@ -406,6 +407,9 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
       })
       local onDragStart = mainUI.frame._scripts and mainUI.frame._scripts.OnDragStart or nil
       local onDragStop = mainUI.frame._scripts and mainUI.frame._scripts.OnDragStop or nil
+      mainUI.SetPositionChangedHandler(function()
+        positionChangedCalls = positionChangedCalls + 1
+      end)
       onDragStart = Assert.NotNil(onDragStart, "main frame should define OnDragStart handler")
       onDragStop = Assert.NotNil(onDragStop, "main frame should define OnDragStop handler")
       onDragStart(mainUI.frame)
@@ -413,6 +417,9 @@ local function RegisterMainFrameInteractionTests(test, Assert, WithGlobals, Load
       Assert.Equal(mainUI.frame._startMovingCalls, 1, "combat drag start should still call StartMoving")
       Assert.Equal(mainUI.frame._stopMovingCalls, 1, "combat drag stop should still call StopMovingOrSizing")
       Assert.NotNil(IsiLiveDB.position, "drag stop should persist main-frame position")
+      Assert.Equal(positionChangedCalls, 1, "drag stop must notify docked companion frames after saving position")
+      mainUI.ResetPosition()
+      Assert.Equal(positionChangedCalls, 2, "position reset must notify docked companion frames")
     end)
   end)
   test("UI drag grip lines can be hidden without disabling the drag handle", function()

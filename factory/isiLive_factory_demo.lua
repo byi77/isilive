@@ -678,13 +678,19 @@ local function BuildSimulationTabletActions(ctx)
   return {
     {
       id = "A0",
+      category = "group",
       status = "red",
+      titleKey = "SIM_ACTION_A0_TITLE",
+      descKey = "SIM_ACTION_A0_DESC",
       title = "Incoming group invite",
       description = "Blocked: the pre-accept invite hint was intentionally removed by rule 73.",
     },
     {
       id = "A1",
+      category = "group",
       status = "green",
+      titleKey = "SIM_ACTION_A1_TITLE",
+      descKey = "SIM_ACTION_A1_DESC",
       title = "Accepted invite notice",
       description = "Shows the safe accepted-invite center notice for the demo dungeon.",
       run = function()
@@ -694,7 +700,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "A2",
+      category = "group",
       status = "yellow",
+      titleKey = "SIM_ACTION_A2_TITLE",
+      descKey = "SIM_ACTION_A2_DESC",
       title = "Group is full",
       description = "Shows a synthetic group-full notice without sending chat or group actions.",
       run = function()
@@ -704,7 +713,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "A3",
+      category = "group",
       status = "yellow",
+      titleKey = "SIM_ACTION_A3_TITLE",
+      descKey = "SIM_ACTION_A3_DESC",
       title = "Joined target group",
       description = "Shows a local joined-target notice using the verified demo dungeon.",
       run = function()
@@ -714,7 +726,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "A4",
+      category = "group",
       status = "green",
+      titleKey = "SIM_ACTION_A4_TITLE",
+      descKey = "SIM_ACTION_A4_DESC",
       title = "Non-Mythic dungeon warning",
       description = "Shows the non-Mythic dungeon center notice preview.",
       run = function()
@@ -724,7 +739,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "A5",
+      category = "group",
       status = "green",
+      titleKey = "SIM_ACTION_A5_TITLE",
+      descKey = "SIM_ACTION_A5_DESC",
       title = "Incoming summon sound",
       description = "Plays the local incoming-summon preview sound only; no summon event is faked.",
       run = function()
@@ -737,7 +755,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "B1",
+      kind = "primary",
       status = "green",
+      titleKey = "SIM_ACTION_B1_TITLE",
+      descKey = "SIM_ACTION_B1_DESC",
       title = "Full feature preview",
       description = "Re-applies all demo feature data: stats, flags, nameplates, alerts, cooldowns and notices.",
       run = function()
@@ -747,7 +768,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "B2",
+      category = "group",
       status = "green",
+      titleKey = "SIM_ACTION_B2_TITLE",
+      descKey = "SIM_ACTION_B2_DESC",
       title = "Ready-check active",
       description = "Simulates an active ready-check waiting state in the roster UI.",
       run = function()
@@ -757,7 +781,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "B3",
+      category = "group",
       status = "green",
+      titleKey = "SIM_ACTION_B3_TITLE",
+      descKey = "SIM_ACTION_B3_DESC",
       title = "Ready-check result hold",
       description = "Simulates held ready and declined markers after a ready-check finishes.",
       run = function()
@@ -767,7 +794,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "B4",
+      category = "group",
       status = "green",
+      titleKey = "SIM_ACTION_B4_TITLE",
+      descKey = "SIM_ACTION_B4_DESC",
       title = "Clear ready-check",
       description = "Clears active and held ready-check markers.",
       run = function()
@@ -777,7 +807,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "C1",
+      category = "mplus",
       status = "green",
+      titleKey = "SIM_ACTION_C1_TITLE",
+      descKey = "SIM_ACTION_C1_DESC",
       title = "M+ timer and pull",
       description = "Simulates the M+ timer, death time and kill-count pull row.",
       run = function()
@@ -787,7 +820,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "C2",
+      category = "mplus",
       status = "green",
+      titleKey = "SIM_ACTION_C2_TITLE",
+      descKey = "SIM_ACTION_C2_DESC",
       title = "Combat cooldown tracker",
       description = "Simulates battle resurrection and lust cooldown tracker states.",
       run = function()
@@ -805,7 +841,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "C3",
+      category = "mplus",
       status = "green",
+      titleKey = "SIM_ACTION_C3_TITLE",
+      descKey = "SIM_ACTION_C3_DESC",
       title = "Portal navigator",
       description = "Shows the Timeways portal navigator preview with demo map slots.",
       run = function()
@@ -815,7 +854,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "C4",
+      category = "mplus",
       status = "green",
+      titleKey = "SIM_ACTION_C4_TITLE",
+      descKey = "SIM_ACTION_C4_DESC",
       title = "Nameplate and tooltip forces",
       description = "Enables the M+ mob forces tooltip/nameplate test values.",
       run = function()
@@ -825,7 +867,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "D1",
+      category = "group",
       status = "green",
+      titleKey = "SIM_ACTION_D1_TITLE",
+      descKey = "SIM_ACTION_D1_DESC",
       title = "Share Keys cooldown",
       description = "Starts the local Share Keys cooldown preview.",
       run = function()
@@ -837,7 +882,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "D2",
+      category = "group",
       status = "green",
+      titleKey = "SIM_ACTION_D2_TITLE",
+      descKey = "SIM_ACTION_D2_DESC",
       title = "Clear Share Keys cooldown",
       description = "Clears the Share Keys cooldown preview.",
       run = function()
@@ -847,7 +895,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "E1",
+      category = "alerts",
       status = "green",
+      titleKey = "SIM_ACTION_E1_TITLE",
+      descKey = "SIM_ACTION_E1_DESC",
       title = "Tank death alert",
       description = "Shows the tank death alert preview.",
       run = function()
@@ -859,7 +910,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "E2",
+      category = "alerts",
       status = "green",
+      titleKey = "SIM_ACTION_E2_TITLE",
+      descKey = "SIM_ACTION_E2_DESC",
       title = "Healer death alert",
       description = "Shows the healer death alert preview.",
       run = function()
@@ -871,7 +925,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "E3",
+      category = "alerts",
       status = "green",
+      titleKey = "SIM_ACTION_E3_TITLE",
+      descKey = "SIM_ACTION_E3_DESC",
       title = "Power Infusion alert",
       description = "Shows the local Power Infusion chat and center-alert preview.",
       run = function()
@@ -883,7 +940,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "E4",
+      category = "alerts",
       status = "green",
+      titleKey = "SIM_ACTION_E4_TITLE",
+      descKey = "SIM_ACTION_E4_DESC",
       title = "Sound preview",
       description = "Runs the ready-check sound preview hook.",
       run = function()
@@ -893,7 +953,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "F1",
+      category = "extras",
       status = "green",
+      titleKey = "SIM_ACTION_F1_TITLE",
+      descKey = "SIM_ACTION_F1_DESC",
       title = "Stats box preview",
       description = "Populates the movable stats box with deterministic demo values.",
       run = function()
@@ -903,7 +966,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "F2",
+      category = "extras",
       status = "green",
+      titleKey = "SIM_ACTION_F2_TITLE",
+      descKey = "SIM_ACTION_F2_DESC",
       title = "LFG flags and bonus markers",
       description = "Enables LFG flags and class bonus marker previews.",
       run = function()
@@ -913,7 +979,10 @@ local function BuildSimulationTabletActions(ctx)
     },
     {
       id = "F3",
+      kind = "reset",
       status = "green",
+      titleKey = "SIM_ACTION_F3_TITLE",
+      descKey = "SIM_ACTION_F3_DESC",
       title = "Clear simulation state",
       description = "Clears timer and feature preview state, then keeps the tablet open.",
       run = function()
@@ -935,6 +1004,7 @@ function FactoryDemo.InitializeSimulationTablet(ctx)
   end
 
   local controller = module.CreateController({
+    anchorFrame = ctx.mainFrame,
     getL = ctx.GetL,
     getActions = function()
       if type(ctx._simulationTabletActions) ~= "table" then
@@ -944,6 +1014,15 @@ function FactoryDemo.InitializeSimulationTablet(ctx)
     end,
   })
   ctx.simulationTabletController = controller
+
+  ctx.RefreshSimulationTabletDock = function()
+    if controller and type(controller.RefreshDock) == "function" then
+      controller.RefreshDock()
+    end
+  end
+  if ctx.mainUI and type(ctx.mainUI.SetPositionChangedHandler) == "function" then
+    ctx.mainUI.SetPositionChangedHandler(ctx.RefreshSimulationTabletDock)
+  end
 
   ctx.ShowSimulationTablet = function()
     if controller and type(controller.Show) == "function" then

@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-08-01 - Version 0.9.361 (patch)
+
+- Redesigned the demo simulation tablet as a compact local-preview control
+  surface with a prominent full preview, Group/M+/Alerts/Extras tabs, readable
+  localized action labels, textual status badges, a separate reset action and
+  a dedicated Dock control.
+- Anchored the simulator to the user's actual Main-UI instead of a fixed screen
+  center. It prefers a 12 px dock on the right, keeps the top edges aligned
+  when the viewport permits it, compares effective physical frame bounds
+  against the current WoW viewport, and falls back to left, below or above
+  when the available resolution requires it. Dragging
+  detaches the simulator for the current session; Dock recalculates the live
+  placement without changing either frame's scale or size.
+- Added deterministic coverage for right-side docking, resolution-aware left
+  fallback, below/above fallbacks, category switching, textual blocked state,
+  drag detachment and explicit re-docking.
+- Fixed an already-open docked simulator retaining an obsolete side after the
+  Main-UI was moved, resized or rescaled or after the WoW viewport changed.
+  These low-frequency events now re-evaluate the physical placement without
+  moving a manually detached simulator.
+- Prevented the fifth roster member from touching the Ready Check/countdown
+  toolbar in the M+ layout without increasing the window height. The lower
+  stack now keeps 3 px between roster and toolbar and tightens the
+  portal-to-BR/Lust/M+ timer gap from 6 px to 3 px.
+- Added deterministic layout coverage for both exact gaps and the unchanged M+
+  frame height.
+- Fixed the first demo start after a reload growing the M+ window from 260 px
+  to the generic 272 px layout height while it created roster rows 2–5. The
+  roster-derived height is now applied after that one-time layout refresh, so
+  the first and every later demo start remain identical.
+- Added a regression sequence covering reload-like one-player initialization,
+  first five-player demo render, the intermediate layout refresh, and the final
+  260 px height.
+
 ## 2026-07-27 - Version 0.9.360 (patch)
 
 - Updated all maintained workflows from `actions/checkout` v5.0.1 to v7.0.1

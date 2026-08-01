@@ -1529,8 +1529,8 @@ local function BuildHiddenSettingTestController(addon, createdFontStrings, opts)
       return ""
     end,
     updateStatusLine = function() end,
-    setMainFrameHeightSafe = function() end,
-    setMainFrameWidthSafe = function() end,
+    setMainFrameHeightSafe = opts.setMainFrameHeightSafe or function() end,
+    setMainFrameWidthSafe = opts.setMainFrameWidthSafe or function() end,
     buildOrderedRoster = opts.buildOrderedRoster or function()
       return {}
     end,
@@ -1940,6 +1940,70 @@ RegisterRosterRenderReadyCheckReapplyTest = function(test, Assert, WithGlobals, 
       -- the primary purpose of this test — a Lua error from the new clear
       -- loop would surface here as a thrown WithGlobals failure.
       Assert.True(#createdFrames > 0, "render must have created at least one row frame")
+    end)
+  end)
+
+  test("First five-player demo render keeps the normal M+ frame height after creating missing rows", function()
+    local createdFrames = {}
+    local createdFontStrings = {}
+    local heights = {}
+    local units = { "player", "party1", "party2", "party3", "party4" }
+    local fullRoster = {}
+    for index, unit in ipairs(units) do
+      fullRoster[unit] = { name = "Demo" .. index, role = "DAMAGER" }
+    end
+
+    WithGlobals({
+      IsiLiveDB = { rosterLayoutMode = "compact_main_horizontal" },
+      CreateFrame = function()
+        return NewRecordedFrame(createdFrames, createdFontStrings)
+      end,
+      GameTooltip = {
+        SetOwner = function() end,
+        SetText = function() end,
+        AddLine = function() end,
+        Show = function() end,
+        Hide = function() end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_roster_panel.lua" })
+      local controller = BuildHiddenSettingTestController(addon, createdFontStrings, {
+        setMainFrameHeightSafe = function(height)
+          heights[#heights + 1] = height
+        end,
+        buildOrderedRoster = function(currentRoster)
+          local ordered = {}
+          for _, unit in ipairs(units) do
+            if currentRoster and currentRoster[unit] then
+              ordered[#ordered + 1] = { unit = unit, info = currentRoster[unit] }
+            end
+          end
+          return ordered
+        end,
+        buildDisplayData = function(info)
+          return {
+            colorHex = "ffffffff",
+            displayName = info.name,
+            languageDisplay = "",
+            specText = "",
+            ilvlText = "-",
+            rioText = "-",
+            keyText = "-",
+            addonMarker = "",
+            atDungeonMarker = "",
+            readyCheckMarkup = "",
+          }
+        end,
+      })
+
+      controller.RestoreSavedState()
+      controller.RenderRoster({ player = fullRoster.player })
+      heights = {}
+
+      controller.RenderRoster(fullRoster)
+
+      Assert.Equal(heights[1], 272, "new demo rows should still receive the normal M+ layout refresh")
+      Assert.Equal(heights[#heights], 260, "roster-derived height must win after the first full demo render")
     end)
   end)
 end

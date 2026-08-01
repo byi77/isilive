@@ -220,6 +220,17 @@ return function(test, ctx)
     Assert.Equal(height, 272, "M2 height must clamp to MINI_MAIN_HORIZONTAL_MIN_HEIGHT (244) + 28 = 272")
   end)
 
+  test("RosterLayout M+ stack separates roster and toolbar while keeping portal-to-timer gap compact", function()
+    local RI = loadRI()
+    local fullRosterHeight = RI.DEFAULT_MIN_FRAME_HEIGHT + RI.CD_TRACKER_ROW_HEIGHT
+    local fifthRosterRowBottom = 130
+    local managementRowTop = fullRosterHeight - (RI.M2_MANAGEMENT_ROW_Y + RI.M2_TOOLBAR_BUTTON_HEIGHT)
+    local portalTimerGap = RI.M2_TELEPORT_ROW_Y - (RI.CD_TRACKER_ROW_BOTTOM_OFFSET + RI.CD_TRACKER_ROW_HEIGHT)
+
+    Assert.Equal(managementRowTop - fifthRosterRowBottom, 3, "full M+ roster must not touch the leader buttons")
+    Assert.Equal(portalTimerGap, 3, "portal row needs a compact 3 px gap above the timer row")
+  end)
+
   test("RosterLayout GetFrameHeightForLayoutMode returns default min for expanded mode", function()
     local RI = loadRI()
     Assert.Equal(

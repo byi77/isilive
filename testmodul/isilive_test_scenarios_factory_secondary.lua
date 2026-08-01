@@ -470,6 +470,11 @@ local function BuildControllerContext(state, addon, initial)
         return state.mainFrameShown == true
       end,
     },
+    mainUI = {
+      SetPositionChangedHandler = function(handler)
+        state.mainUIPositionChangedHandler = handler
+      end,
+    },
     rosterPanelController = {
       RefreshCdTracker = function()
         state.cdRefreshes = (state.cdRefreshes or 0) + 1
@@ -700,6 +705,9 @@ local function BuildFactorySecondaryControllerState(WithGlobals, LoadAddonModule
             Toggle = function()
               state.simulationTabletControllerToggles = (state.simulationTabletControllerToggles or 0) + 1
             end,
+            RefreshDock = function()
+              state.simulationTabletDockRefreshes = (state.simulationTabletDockRefreshes or 0) + 1
+            end,
           }
         end,
       },
@@ -905,6 +913,19 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     WithGlobals(BuildGlobalsEnv(state), function()
       state.addon._FactoryInternal.FactoryDemo.InitializeSimulationTablet(state.ctx)
       Assert.NotNil(state.simulationTabletOpts, "simulation tablet must be initialized through the demo factory")
+      Assert.True(
+        state.simulationTabletOpts.anchorFrame == state.ctx.mainFrame,
+        "simulation tablet must receive the live main frame as its responsive anchor"
+      )
+      Assert.True(
+        type(state.ctx.RefreshSimulationTabletDock) == "function",
+        "factory must expose a late-bound dock refresh for UI scale changes"
+      )
+      Assert.True(
+        state.mainUIPositionChangedHandler == state.ctx.RefreshSimulationTabletDock,
+        "factory must bind main-frame position changes to the simulator dock refresh"
+      )
+      state.ctx.RefreshSimulationTabletDock()
       local actions = state.simulationTabletOpts.getActions()
       Assert.Equal(#actions, 23, "simulation tablet must expose the full action palette")
       Assert.Nil(actions[1].run, "removed pre-accept invite simulation must stay a visible no-op")
@@ -919,6 +940,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     end)
 
     Assert.True(state.simulationTabletControllerShowCalls >= 1, "full feature preview must show the tablet")
+    Assert.Equal(state.simulationTabletDockRefreshes, 1, "factory dock refresh must reach the tablet controller")
     Assert.NotNil(state.centerNoticeHistory, "notice simulations must render center notices")
     Assert.True(#state.centerNoticeHistory >= 3, "multiple notice simulations must be covered")
     Assert.Equal(
