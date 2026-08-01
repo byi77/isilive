@@ -48,6 +48,7 @@ local FILE_PATHS = {
   ["isiLive_units.lua"] = "game/isiLive_units.lua",
   ["isiLive_mplus_timer.lua"] = "game/isiLive_mplus_timer.lua",
   ["isiLive_kick_tracker.lua"] = "game/isiLive_kick_tracker.lua",
+  ["isiLive_lfg_entry_resolver.lua"] = "game/isiLive_lfg_entry_resolver.lua",
   ["isiLive_lfg_detect.lua"] = "game/isiLive_lfg_detect.lua",
   ["isiLive_combat_events.lua"] = "game/isiLive_combat_events.lua",
   ["isiLive_pi_tracker.lua"] = "game/isiLive_pi_tracker.lua",
@@ -63,6 +64,8 @@ local FILE_PATHS = {
   ["isiLive_simulation_tablet.lua"] = "ui/isiLive_simulation_tablet.lua",
   ["isiLive_teleport_ui.lua"] = "ui/isiLive_teleport_ui.lua",
   ["isiLive_trace_chat_frame.lua"] = "ui/isiLive_trace_chat_frame.lua",
+  ["isiLive_notice_common.lua"] = "ui/isiLive_notice_common.lua",
+  ["isiLive_portal_navigator_notice.lua"] = "ui/isiLive_portal_navigator_notice.lua",
   ["isiLive_notice.lua"] = "ui/isiLive_notice.lua",
   ["isiLive_status.lua"] = "ui/isiLive_status.lua",
   ["isiLive_roster.lua"] = "ui/isiLive_roster.lua",
@@ -81,6 +84,7 @@ local FILE_PATHS = {
   ["isiLive_ui_game_menu_actions.lua"] = "ui/isiLive_ui_game_menu_actions.lua",
   ["isiLive_ui_game_menu_mounts.lua"] = "ui/isiLive_ui_game_menu_mounts.lua",
   ["isiLive_ui_game_menu_travel.lua"] = "ui/isiLive_ui_game_menu_travel.lua",
+  ["isiLive_ui_game_menu_panel.lua"] = "ui/isiLive_ui_game_menu_panel.lua",
   ["isiLive_hearthstone_debug.lua"] = "ui/isiLive_hearthstone_debug.lua",
   ["isiLive_ui_game_menu.lua"] = "ui/isiLive_ui_game_menu.lua",
   ["isiLive_settings_reset.lua"] = "ui/isiLive_settings_reset.lua",
@@ -92,6 +96,8 @@ local FILE_PATHS = {
   ["isiLive_settings_support.lua"] = "ui/isiLive_settings_support.lua",
   ["isiLive_settings_sections.lua"] = "ui/isiLive_settings_sections.lua",
   ["isiLive_settings.lua"] = "ui/isiLive_settings.lua",
+  ["isiLive_lfg_bonus_model.lua"] = "ui/isiLive_lfg_bonus_model.lua",
+  ["isiLive_lfg_view_hooks.lua"] = "ui/isiLive_lfg_view_hooks.lua",
   ["isiLive_lfg_flags.lua"] = "ui/isiLive_lfg_flags.lua",
   -- logic
   ["isiLive_leader_watch.lua"] = "logic/isiLive_leader_watch.lua",
@@ -153,6 +159,10 @@ local UNIVERSAL_DEPENDENCIES = {
 }
 
 local IMPLICIT_DEPENDENCIES = {
+  ["isiLive_notice.lua"] = {
+    "isiLive_notice_common.lua",
+    "isiLive_portal_navigator_notice.lua",
+  },
   ["isiLive_sound_utils.lua"] = {
     "isiLive_sound_registry.lua",
   },
@@ -244,7 +254,10 @@ local IMPLICIT_DEPENDENCIES = {
   },
   ["isiLive_commands.lua"] = { "isiLive_languages.lua" },
   ["isiLive_season_data.lua"] = { "isiLive_languages.lua", "isiLive_seasons.lua" },
-  ["isiLive_lfg_detect.lua"] = { "isiLive_season_data.lua" },
+  ["isiLive_lfg_entry_resolver.lua"] = { "isiLive_season_data.lua" },
+  ["isiLive_lfg_detect.lua"] = { "isiLive_season_data.lua", "isiLive_lfg_entry_resolver.lua" },
+  ["isiLive_lfg_view_hooks.lua"] = { "isiLive_lfg_bonus_model.lua" },
+  ["isiLive_lfg_flags.lua"] = { "isiLive_lfg_bonus_model.lua", "isiLive_lfg_view_hooks.lua" },
   ["isiLive_status.lua"] = { "isiLive_season_data.lua" },
   ["isiLive_settings.lua"] = {
     "isiLive_settings_reset.lua",
@@ -261,12 +274,14 @@ local IMPLICIT_DEPENDENCIES = {
     "isiLive_ui_game_menu_actions.lua",
     "isiLive_ui_game_menu_mounts.lua",
     "isiLive_ui_game_menu_travel.lua",
+    "isiLive_ui_game_menu_panel.lua",
     "isiLive_ui_game_menu.lua",
   },
   ["isiLive_ui_game_menu.lua"] = {
     "isiLive_ui_game_menu_actions.lua",
     "isiLive_ui_game_menu_mounts.lua",
     "isiLive_ui_game_menu_travel.lua",
+    "isiLive_ui_game_menu_panel.lua",
   },
 }
 

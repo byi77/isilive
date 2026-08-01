@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-08-02 - Version 0.9.362 (patch)
+
+- Split Blizzard LFG search-result and applicant frame lifecycle hooks into a
+  focused view-hook module. `LFGFlags` retains rendering, cache and settings
+  behavior behind its existing public facade.
+- Split the guarded LFG class/spec bonus catalog, player-profile relevance
+  evaluation and roster marker/tooltip builders into a focused bonus model.
+  Existing `LFGFlags` APIs retain search-result and applicant UI behavior while
+  synchronizing the feature toggle with the extracted model.
+- Split verified LFG activity-map resolution, listing normalization and key-level
+  parsing from the invite lifecycle coordinator. `LFGDetect` retains pending
+  state, event ordering, notices and highlight dispatch behind its existing
+  public facade, while deterministic coverage pins fail-closed resolution and
+  module load order.
+- Split generic ESC game-menu button construction, panel chrome and layout from
+  the secure panel coordinator. The existing game-menu facade retains combat
+  deferral and feature-specific behavior, with deterministic architecture and
+  secure-surface coverage pinning the new module boundary.
+- Split Portal Navigator construction from the Center Notice module behind the
+  existing `addonTable.Notice` facade. Shared notice typography, font scaling
+  and movable-frame clamping now live in a focused common module, with
+  deterministic architecture coverage pinning module ownership and load order.
+
 ## 2026-08-01 - Version 0.9.361 (patch)
 
 - Redesigned the demo simulation tablet as a compact local-preview control

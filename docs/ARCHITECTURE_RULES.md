@@ -4,7 +4,7 @@ Diese Datei beschreibt verbindliche Strukturregeln fuer den aktuellen Modulzusch
 Im Gegensatz zu `RULES_LOGIC.md` geht es hier nicht um Runtime-Verhalten, sondern um
 stabile Architekturgrenzen, die ueber deterministische Strukturtests geprueft werden.
 
-Aktueller Dokumentationsstand: `0.9.361`. Die seit 0.9.310 hinzugekommenen
+Aktueller Dokumentationsstand: `0.9.362`. Die seit 0.9.310 hinzugekommenen
 Runtime- und UI-Aenderungen sind in `RULES_LOGIC.md` als aktive Projektregeln
 gepinnt und werden ueber deterministische Szenarien validiert. Native WoW-TTS
 ist durch Regel 84 deaktiviert; Death-Audio nutzt statische WAV-Dateien. Der
@@ -150,6 +150,11 @@ TOC-Strukturtests abgedeckt.
 - Erforderliche Tests:
   - Architecture large-module watchlist is documented and gate-pinned
   - SoundRegistry owns static sound entries before SoundUtils playback loads
+  - Architecture portal navigator notice owns portal construction behind Notice facade
+  - Architecture game menu panel owns generic button construction and layout
+  - Architecture LFG entry resolver owns verified listing normalization behind LFGDetect facade
+  - Architecture LFG bonus model owns guarded bonus classification behind LFGFlags facade
+  - Architecture LFG view hooks own Blizzard frame lifecycle behind LFGFlags facade
 
 ### RULE-ARCH-ROSTER-UI-GRENZE
 - Regelnummer: 14

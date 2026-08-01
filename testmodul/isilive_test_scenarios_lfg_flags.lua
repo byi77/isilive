@@ -228,6 +228,83 @@ return function(test, ctx)
     end)
   end)
 
+  test("LFG view hooks wire recycled applicant frames and Blizzard viewer callbacks", function()
+    local applicantEnter
+    local inviteEnter
+    local function NewApplicantButton(applicantID)
+      local button = {
+        applicantID = applicantID,
+        Members = {},
+        HookScript = function(_, scriptType, callback)
+          if scriptType == "OnEnter" then
+            applicantEnter = callback
+          end
+        end,
+      }
+      button.InviteButton = {
+        HookScript = function(_, scriptType, callback)
+          if scriptType == "OnEnter" then
+            inviteEnter = callback
+          end
+        end,
+        GetParent = function()
+          return button
+        end,
+      }
+      return button
+    end
+
+    local first = NewApplicantButton(31)
+    local second = NewApplicantButton(32)
+    local changedFramesCallbacks = {}
+    local viewer = {
+      ScrollFrame = { buttons = { first } },
+      ScrollBox = {
+        GetFrames = function()
+          return { second }
+        end,
+      },
+    }
+    local globals, captured = BuildLFGFlagsEnv({
+      LFGListFrame = {
+        SearchPanel = { ScrollBox = {} },
+        ApplicationViewer = viewer,
+      },
+      ScrollBoxUtil = {
+        OnViewFramesChanged = function(_, _, callback)
+          table.insert(changedFramesCallbacks, callback)
+        end,
+      },
+    })
+    globals.LFGListApplicationViewerScrollFrameButton1 = NewApplicantButton(33)
+
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_lfg_flags.lua" })
+      addon.LFGFlags.HookSearchPanel()
+
+      Assert.True(type(applicantEnter) == "function", "applicant row must receive an OnEnter hook")
+      Assert.True(type(inviteEnter) == "function", "invite button must receive an OnEnter hook")
+      Assert.True(#changedFramesCallbacks >= 2, "applicant and search ScrollBoxes must receive recycle callbacks")
+      changedFramesCallbacks[1]({ NewApplicantButton(34) })
+      applicantEnter(first)
+      inviteEnter(first.InviteButton)
+
+      local updateResults = captured.hookSecureCalls.LFGListApplicationViewer_UpdateResults
+      local updateApplicant = captured.hookSecureCalls.LFGListApplicationViewer_UpdateApplicant
+      local updateMember = captured.hookSecureCalls.LFGListApplicationViewer_UpdateApplicantMember
+      local memberOnEnter = captured.hookSecureCalls.LFGListApplicantMember_OnEnter
+      Assert.True(type(updateResults) == "function", "viewer result hook must be registered")
+      Assert.True(type(updateApplicant) == "function", "applicant update hook must be registered")
+      Assert.True(type(updateMember) == "function", "member update hook must be registered")
+      Assert.True(type(memberOnEnter) == "function", "member tooltip hook must be registered")
+
+      updateResults(viewer)
+      updateApplicant(first, 31)
+      updateMember({}, 31, 1)
+      memberOnEnter({})
+    end)
+  end)
+
   test("LFGFlags.HookSearchPanel falls back to event handler when ScrollBoxUtil missing", function()
     local searchPanel = { ScrollBox = {
       GetFrames = function()

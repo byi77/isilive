@@ -617,6 +617,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Center notice font scale does not grow across repeated notices
   - Center notice uses portal navigator typography defaults
   - Architecture center notice and portal entries share the same notice body typography helper
+  - Architecture portal navigator notice owns portal construction behind Notice facade
 
 ### RULE-MAIN-UI-STARTUP-AUTO-SHOW
 - Regelnummer: 45
@@ -652,6 +653,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UI mount game-menu panel refreshes mounted shortcuts when verified spell names become available
   - UI mount game-menu panel also stays visible during combat
   - UI game-menu secure button updates are deferred during combat and applied after regen
+  - Architecture game menu panel owns generic button construction and layout
   - UI second game-menu Dalaran button binds toy only when owned
   - UI second game-menu Dalaran button appears after TOYS_UPDATED warms the toy cache
 
@@ -809,6 +811,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - LFGDetect ResolveEntryTitleLevel recovers level from groupName when titleLevel is nil
   - LFGDetect ParseTitleKeyLevel resolves 'N+' trailing-plus form via OnInvited title
   - LFGDetect ParseTitleKeyLevel picks the highest level when multiple +N tags appear
+  - Architecture LFG entry resolver owns verified listing normalization behind LFGDetect facade
   - factory_controllers.status: GetStatusTargetDungeonInfo carries LFG level markup when numeric level is unresolved
   - factory_controllers.status: SendOwnTargetSnapshot carries LFG level markup when numeric level is unresolved
   - CombatEvents keeps caster unresolved when all name APIs fail
@@ -1035,6 +1038,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UI main frame is clamped to the WoW screen while movable
   - StatsBox clamps its movable frame to the screen
   - Notice movable frames are clamped to the WoW screen
+  - Architecture portal navigator notice owns portal construction behind Notice facade
   - Simulation tablet reapplies screen clamp after dynamic height changes
   - Simulation tablet drag detaches and Dock restores the responsive anchor
 
@@ -1059,12 +1063,18 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - UI third game-menu addon shortcut does not fall back to chat edit when handler fails
   - Commands settings opens the settings panel
   - UI third game-menu addon panel stays hidden when no supported addon is enabled
+  - Architecture game menu panel owns generic button construction and layout
 
 ### RULE-LFG-KLASSENBONUS-HERZCHEN-NICHT-STAPELND
 - Regelnummer: 68
 - Status: aktiv
 - Zusammenfassung: Die LFG-Klassenbonus-Herzchen duerfen nur relevante nicht-Utility-Gruppenboni zaehlen, die fuer den eingeloggten Spieler wirksam sind. Gleiche nicht stapelnde Buffs zaehlen pro Suchergebnis nur einmal, auch wenn mehrere Gruppenmitglieder denselben Buff liefern. Utility-Effekte wie PI, BL, BR, Devotion Aura und Atrophic Poison duerfen in Tooltips sichtbar bleiben, erzeugen aber keine Herzchen. Applicant-Zeilen muessen relevante Herzchen als grüne Texturmarker direkt rechts neben dem Klassenbadge rendern und dafuer echte Texturen aus der Datei `Interface\AddOns\isiLive\media\heart_bonus_green.tga` verwenden; der WoW-API-Pfad darf extensionless `Interface\AddOns\isiLive\media\heart_bonus_green` sein, aber FontString-Markup oder Font-Glyphen sind fuer Applicant-Zeilen verboten. Roster-Zeilen muessen dieselben relevanten grünen Bonus-Herzchen direkt am Spielernamen rendern, wenn die Roster-Klasse aus einem verifizierten Klassen-Token oder Blizzard-Klassennamen aufgeloest wurde; eine Spec-ID darf nur beruecksichtigt werden, wenn sie zur verifizierten Klasse passt. Der Roster-Mouseover muss fuer dieselbe verifizierte Roster-Klasse und dieselbe passende Spec-ID die konkreten gruenen Herz-Boni plus PI/BR/BL als lokalisierte Bonuszeile anzeigen, darf PI/BR/BL aber nicht als Herzchen zaehlen und muss durch denselben Buff-Rating-Schalter deaktiviert werden. Applicant-Zeilen duerfen Sprachflaggen nur anzeigen, wenn die Sprache aus dem konkreten Bewerber-Realm oder dem lokalen Realm verifiziert aufgeloest wurde; beim Ausblenden oder bei wiederverwendeten Blizzard-Bewerberzeilen muss der urspruengliche Namensanker wiederhergestellt werden. Der Settings-Schalter fuer die Buff-Rating-Herzchen ist standardmaessig aktiv, kann die Anzeige ein- und ausschalten und muss lokalisiert mit untereinander stehenden fix grossen Herz-Textur-Beispielzeilen erklaeren, dass 1/2/3/4 Herzchen einen, zwei, drei beziehungsweise vier oder mehr relevante Buffs bedeuten. Beim Programmieren werden Deutsch und Englisch gepflegt; weitere vorbereitete Locales duerfen bis zur Nachbearbeitung englischen Fallback verwenden oder nachbearbeitete Uebersetzungen tragen. Jede Locale-Beschreibung muss die Datei `media/heart_bonus_green.tga` als Textur verwenden und darf keine instabilen Font-Herz-Glyphen verwenden.
 - Erforderliche Tests:
+  - Architecture LFG bonus model owns guarded bonus classification behind LFGFlags facade
+  - Architecture LFG view hooks own Blizzard frame lifecycle behind LFGFlags facade
+  - LFG view hooks wire recycled applicant frames and Blizzard viewer callbacks
+  - LI applicant helper fallbacks resolve nested ids anchors texture owners and marker cleanup
+  - LI.HideApplicantProvingGroundTooltipLines hides the localized title and following score
   - LI.BuildApplicantBonusBadge treats Devotion Aura and Atrophic Poison as utility
   - LI.BuildSearchResultBonusBadge counts relevant non-utility bonuses as markers
   - LI.BuildSearchResultBonusBadge counts each non-stacking bonus only once
@@ -1107,6 +1117,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Locale center-notice titles use isiLive prefix in every locale
   - Center notice headline titles use shared gold color
   - Portal navigator notice lays out the five portal positions in a crescent
+  - Architecture portal navigator notice owns portal construction behind Notice facade
 
 ### RULE-BLOODLUST-READY-KLANGHINWEIS
 - Regelnummer: 71
@@ -1583,6 +1594,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Season manifest compiles dungeon records into all runtime indexes
   - Season intake check rejects IDs that diverge from the season manifest
   - Architecture season manifest is the only manually maintained runtime season source
+  - Architecture LFG entry resolver owns verified listing normalization behind LFGDetect facade
   - LFGDetect resolves mapID from static ACTIVITY_TO_MAP on invite
   - Portal navigator shows the five portal positions only in the Timeways room
   - SeasonData compiles the portal-room zone into normalized lookup sets
@@ -1594,6 +1606,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Status: aktiv
 - Zusammenfassung: Jeder Rueckgabewert einer Blizzard-API muss nach einem erfolgreichen geschuetzten Aufruf zusaetzlich mit `issecretvalue` geprueft werden, sofern die API Secret Values liefern kann. Ein als geheim markierter Wert gilt unabhaengig von seinem Lua-Typ und seiner Truthiness als unverifiziert und darf weder als Unit-Existenz, Identitaet, Klasse, Spezialisierung, Rollen-, Karten-, Status- noch Zahlenwert in Runtime-State, UI oder Sync uebernommen werden. Fehlt `issecretvalue`, bleibt ein normal typisierter Rueckgabewert nach den uebrigen aktiven Validierungsregeln auswertbar.
 - Erforderliche Tests:
+  - Architecture LFG bonus model owns guarded bonus classification behind LFGFlags facade
   - Validators.IsExistingUnit rejects secret existence values
   - DeathWatch default API readers reject successful secret-value returns
   - SpellUtils.GetSpellCooldownSafe replaces secret values for enabled, start, duration

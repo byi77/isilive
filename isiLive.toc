@@ -2,7 +2,7 @@
 ## Title: isi|cff1e90ffLive|r
 ## Notes: M+ Dungeon and Group Management
 ## Author: mematiWoW
-## Version: 0.9.361
+## Version: 0.9.362
 ## SavedVariables: IsiLiveDB
 ## IconTexture: Interface\Icons\INV_Misc_GroupLooking
 libs/ChatThrottleLib/ChatThrottleLib.lua
@@ -43,6 +43,7 @@ data/isiLive_seasons.lua
 game/isiLive_season_data.lua
 game/isiLive_season_debug.lua
 data/isiLive_mplus_forces.lua
+game/isiLive_lfg_entry_resolver.lua
 game/isiLive_lfg_detect.lua
 ui/isiLive_ui_common.lua
 ui/isiLive_stats_box.lua
@@ -51,6 +52,8 @@ game/isiLive_teleport.lua
 ui/isiLive_teleport_ui.lua
 ui/isiLive_teleport_debug.lua
 ui/isiLive_trace_chat_frame.lua
+ui/isiLive_notice_common.lua
+ui/isiLive_portal_navigator_notice.lua
 ui/isiLive_notice.lua
 ui/isiLive_status.lua
 game/isiLive_units.lua
@@ -69,6 +72,8 @@ core/isiLive_runtime_log.lua
 logic/isiLive_inspect.lua
 ui/isiLive_roster.lua
 ui/isiLive_roster_tooltip.lua
+ui/isiLive_lfg_bonus_model.lua
+ui/isiLive_lfg_view_hooks.lua
 ui/isiLive_lfg_flags.lua
 ui/isiLive_mob_tooltip.lua
 ui/isiLive_mob_nameplate.lua
@@ -98,6 +103,7 @@ ui/isiLive_ui_main_frame.lua
 ui/isiLive_ui_game_menu_actions.lua
 ui/isiLive_ui_game_menu_mounts.lua
 ui/isiLive_ui_game_menu_travel.lua
+ui/isiLive_ui_game_menu_panel.lua
 ui/isiLive_hearthstone_debug.lua
 ui/isiLive_ui_game_menu.lua
 ui/isiLive_ui.lua

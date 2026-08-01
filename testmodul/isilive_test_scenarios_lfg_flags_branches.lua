@@ -419,6 +419,98 @@ local function RegisterGroupBonusTooltipLineTests(test, Assert, LoadAddonModules
   end)
 end
 
+local function RegisterApplicantFallbackCoverageTests(test, Assert, LoadAddonModules, WithGlobals)
+  test("LI applicant helper fallbacks resolve nested ids anchors texture owners and marker cleanup", function()
+    WithGlobals(MinimalGlobals(), function()
+      local addon = LoadBonusModules(LoadAddonModules)
+      local LI = addon._LFGFlagsInternal
+      local parent = { applicantID = 77 }
+      local button = {
+        GetParent = function()
+          return parent
+        end,
+      }
+      Assert.Equal(LI.ResolveApplicantIDFromButton(button), 77, "nested applicant id must resolve")
+      Assert.Nil(LI.ResolveApplicantIDFromButton({}), "missing applicant id must stay unresolved")
+
+      local fallbackBadge = NewFontStringStub()
+      local fallbackMember = {}
+      LI.AnchorApplicantBonusBadge(fallbackMember, fallbackBadge)
+      Assert.Equal(fallbackBadge._point[1], "LEFT", "fallback badge must anchor to member")
+      Assert.Equal(fallbackBadge._point[4], 104, "fallback badge must keep the fixed left offset")
+
+      local classAnchor = {}
+      local anchoredBadge = NewFontStringStub()
+      LI.AnchorApplicantBonusBadge({ ClassIcon = classAnchor }, anchoredBadge)
+      Assert.Equal(anchoredBadge._point[2], classAnchor, "class icon must own the preferred bonus anchor")
+
+      local nameParent = { CreateTexture = function() end }
+      local textureMember = {
+        Name = {
+          GetParent = function()
+            return nameParent
+          end,
+        },
+      }
+      Assert.Equal(
+        LI.ResolveApplicantBonusTextureOwner(textureMember),
+        nameParent,
+        "name parent must provide the final texture-owner fallback"
+      )
+      Assert.Nil(LI.ResolveApplicantBonusTextureOwner({}), "missing texture owner must stay unresolved")
+
+      local text = NewFontStringStub()
+      local badge = NewFontStringStub()
+      local iconA = NewTextureStub()
+      local iconB = NewTextureStub()
+      text:Show()
+      badge:Show()
+      iconA:Show()
+      iconB:Show()
+      LI.ClearApplicantBonusMarker({
+        _isiLiveBonusText = text,
+        _isiLiveBonusBadge = badge,
+        _isiLiveBonusBadgeIcons = { iconA, iconB },
+      })
+      Assert.Equal(text._text, "", "legacy applicant bonus text must be cleared")
+      Assert.False(text._shown, "legacy applicant bonus text must be hidden")
+      Assert.False(badge._shown, "legacy applicant bonus badge must be hidden")
+      Assert.False(iconA._shown, "first applicant marker icon must be hidden")
+      Assert.False(iconB._shown, "second applicant marker icon must be hidden")
+    end)
+  end)
+
+  test("LI.HideApplicantProvingGroundTooltipLines hides the localized title and following score", function()
+    local title = NewFontStringStub()
+    local provingTitle = NewFontStringStub()
+    local score = NewFontStringStub()
+    title:SetText("Applicant")
+    provingTitle:SetText("Proving Ground")
+    score:SetText("Gold")
+    title:Show()
+    provingTitle:Show()
+    score:Show()
+    local globals = MinimalGlobals()
+    globals.GameTooltip = {
+      NumLines = function()
+        return 3
+      end,
+    }
+    globals.LFG_LIST_PROVING_GROUND_TITLE = "Proving Ground"
+    globals.GameTooltipTextLeft1 = title
+    globals.GameTooltipTextLeft2 = provingTitle
+    globals.GameTooltipTextLeft3 = score
+    WithGlobals(globals, function()
+      local addon = LoadBonusModules(LoadAddonModules)
+      addon._LFGFlagsInternal.HideApplicantProvingGroundTooltipLines()
+      Assert.False(provingTitle._shown, "localized proving-ground title must be hidden")
+      Assert.False(score._shown, "following proving-ground score must be hidden")
+      Assert.Equal(provingTitle._text, "", "hidden title text must be cleared")
+      Assert.Equal(score._text, "", "hidden score text must be cleared")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
@@ -1845,5 +1937,6 @@ return function(test, ctx)
     end)
   end)
 
+  RegisterApplicantFallbackCoverageTests(test, Assert, LoadAddonModules, WithGlobals)
   RegisterGroupBonusTooltipLineTests(test, Assert, LoadAddonModules, WithGlobals)
 end

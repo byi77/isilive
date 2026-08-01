@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.0.7 / 12.1.0 Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%20%2F%2012.1.0%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.361](https://img.shields.io/badge/isiLive-0.9.361-1E90FF?style=for-the-badge)
+![isiLive 0.9.362](https://img.shields.io/badge/isiLive-0.9.362-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -17,7 +17,7 @@
 
 Season maintenance is driven by one normalized manifest. Portal, LFG activity, display, level-gate, and portal-room indexes are derived from the same per-dungeon records; the generated MDT forces snapshot remains separate, records the exact upstream commit, and is hidden at runtime as soon as its verified expiry date passes.
 
-Version `0.9.361` restores clean spacing below a full five-player roster without increasing the M+ window height, keeps that height stable on the first demo start after a reload, and introduces a redesigned responsive demo simulator. The simulator docks beside the user's actual M+ window, selects a safe alternate side when the current resolution has insufficient space, and reflows live after the window is moved, resized or rescaled and after the WoW viewport changes. Manually detached simulators keep their chosen position. Its local previews use readable category tabs instead of a dense code grid. Version `0.9.360` hardened Mythic+ forces tracking end to end: expired or unverifiable MDT data is hidden, transient scenario API failures preserve the last verified progress, and generated snapshots identify their exact upstream commit. Automatic Season 2 selection remains unchanged: the switch happens only once Blizzard ships the exact recorded dungeon set.
+Version `0.9.362` is a maintenance release that preserves the existing UI and settings while separating LFG resolution, LFG bonus evaluation, Blizzard Group Finder view hooks, Portal Navigator notices, and ESC-menu panel rendering into focused modules with deterministic architecture coverage. Version `0.9.361` restored clean spacing below a full five-player roster without increasing the M+ window height, stabilized that height on the first demo start after a reload, and introduced the responsive dockable demo simulator. Automatic Season 2 selection remains unchanged: the switch happens only once Blizzard ships the exact recorded dungeon set.
 
 **Setup:** install, join a 5-player group, and the window opens automatically.
 

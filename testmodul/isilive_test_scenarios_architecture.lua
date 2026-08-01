@@ -539,6 +539,7 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
         "PLAYER_REGEN_ENABLED",
         "C_ChallengeMode",
       },
+      ["ui/isiLive_ui_game_menu_panel.lua"] = { "skipInitialClickRegistration", "deps.isSecureUpdateBlocked" },
       ["ui/isiLive_ui_main_frame.lua"] = {
         "RegisterForClicks",
         'rawget(_G, "InCombatLockdown")',
@@ -555,7 +556,6 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
       "SetAttribute",
       "RegisterForClicks",
     }
-
     local function StripLuaComments(content)
       content = content:gsub("%-%-%[%[.-%]%]", "")
       content = content:gsub("%-%-[^\r\n]*", "")
@@ -2013,20 +2013,26 @@ end
 
 local function RegisterArchitectureNoticeTypographyTests(test, Assert)
   test("Architecture center notice and portal entries share the same notice body typography helper", function()
+    local commonContent = ReadFile("isiLive_notice_common.lua")
+    local portalContent = ReadFile("isiLive_portal_navigator_notice.lua")
     local noticeContent = ReadFile("isiLive_notice.lua")
-
     AssertContains(
       Assert,
-      noticeContent,
-      "local function CreatePortalStyleBodyText(frame, config)",
-      "Notice module must define a shared portal-style body text helper"
+      commonContent,
+      "function NoticeCommon.CreateBodyText(frame, config)",
+      "NoticeCommon must own the shared notice body text helper"
+    )
+    AssertContains(
+      Assert,
+      portalContent,
+      "local text = deps.createBodyText(frame, config)",
+      "PortalNavigatorNotice must receive the shared body text helper"
     )
     AssertContains(
       Assert,
       noticeContent,
-      "local function CreatePortalNavigatorEntry(frame, config, slot)\n"
-        .. "  local text = CreatePortalStyleBodyText(frame, config)",
-      "Notice module must build portal navigator entries from the shared body text helper"
+      "local CreatePortalStyleBodyText = NoticeCommon.CreateBodyText",
+      "Notice must bind its body text path to NoticeCommon"
     )
     AssertContains(
       Assert,
