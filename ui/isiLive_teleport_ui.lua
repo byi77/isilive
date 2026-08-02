@@ -257,8 +257,14 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
   button:RegisterForClicks("AnyDown", "AnyUp")
   SyncButtonLayer(button, mainFrame, deps.isInCombat)
 
+  button.runTile = button:CreateTexture(nil, "BACKGROUND")
+  button.runTile:SetAllPoints()
+  button.runTile:SetColorTexture(unpack(Colors.SURFACE_RUN_ZONE or { 0.035, 0.055, 0.085, 0.86 }))
+  button._isiLiveSurfaceRole = "run"
+
   button.icon = button:CreateTexture(nil, "ARTWORK")
-  button.icon:SetAllPoints()
+  button.icon:SetPoint("TOPLEFT", button, "TOPLEFT", 2, -2)
+  button.icon:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -2, 2)
   button.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
   button.cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")

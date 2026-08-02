@@ -3,6 +3,7 @@ addonTable = addonTable or {}
 
 local MobTooltip = {}
 addonTable.MobTooltip = MobTooltip
+local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
 
 local enabled = true
 local tdpRegistered = false
@@ -136,7 +137,8 @@ local function AppendForcesLine(tooltip, data)
   end
   local fmt = type(L.TOOLTIP_MOB_PROGRESS_LINE) == "string" and L.TOOLTIP_MOB_PROGRESS_LINE
     or "+%d progress (%.2f%% of %d)"
-  tooltip:AddLine(string.format(fmt, count, percent, total), 0.4, 0.8, 1)
+  local info = Colors.TEXT_SECTION or { 0.64, 0.80, 0.96 }
+  tooltip:AddLine(string.format(fmt, count, percent, total), info[1], info[2], info[3])
 end
 
 local function HookTooltipClear()

@@ -46,7 +46,7 @@ Der bevorzugte vollstaendige lokale CI-Preflight ist:
 powershell -ExecutionPolicy Bypass -File tools\validate_ci_local.ps1
 ```
 
-Der Wrapper fuehrt Style-, Lint-, Syntax-, Metrics-, Locale-, Secret-Value-, Sound-, API-, Regel-, Usecase- und anschliessend die GitHub-identischen Coverage-Gates aus. Vor dem Coverage-Lauf entfernt er lokale Coverage-Artefakte, damit alte Treffer das Ergebnis nicht verfaelscht. Letzter voller lokaler CI-Stand vom 2026-08-02 bei TOC `0.9.362`: `Local CI preflight passed`, `2296 passed, 0 failed`, Coverage `92.46%` (`35932 / 38862`) und keine Produktionsdatei unter `80.00%`.
+Der Wrapper fuehrt Style-, Lint-, Syntax-, Metrics-, Locale-, Secret-Value-, Sound-, API-, Regel-, Usecase- und anschliessend die GitHub-identischen Coverage-Gates aus. Vor dem Coverage-Lauf entfernt er lokale Coverage-Artefakte, damit alte Treffer das Ergebnis nicht verfaelscht. Letzter voller lokaler CI-Stand vom 2026-08-02 bei TOC `0.9.363`: `Local CI preflight passed`, `2306 passed, 0 failed`, Coverage `92.46%` (`36152 / 39102`) und keine Produktionsdatei unter `80.00%`.
 
 Die Wrapper `tools/check.ps1` und `tools/check.cmd` fuehren den statischen lokalen Preflight ueber den repo-lokalen `luacheck.cmd`-Shim aus und vermeiden so den Windows-App-Auswahldialog, der beim direkten Aufruf des LuaRocks-`luacheck`-Scripts auftaucht.
 
@@ -55,7 +55,7 @@ Die GitHub-Workflows checken das Repository vor der Trigger-Pruefung aus, damit 
 
 `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (aktueller Stand: 2296 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
+`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (aktueller Stand: 2306 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
 
 Alle externen Actions in `.github/workflows/` werden auf vollstaendige Commit-SHAs gepinnt und behalten den Major-Tag als Kommentar. `.github/dependabot.yml` prueft diese `github-actions`-Pins woechentlich auf Updates. Der geplante MDT-Forces-Refresh darf fremde Dungeonquellen nur in der globalfreien, groessen- und instruktionsbegrenzten Generator-Sandbox verarbeiten und muss den exakten 40-stelligen MDT-Checkout-Commit im generierten Snapshot persistieren. Coverage-Reports mit einer LuaCov-Meldung ueber nicht lesbare Quelldateien gelten lokal und in GitHub als fehlgeschlagen.
 

@@ -258,7 +258,7 @@ return function(test, ctx)
     end)
   end)
 
-  test("StatsBox renders subtle row tint backgrounds without a border", function()
+  test("StatsBox renders distinct stat row tints without a border", function()
     WithGlobals({
       UIParent = {},
       IsiLiveDB = { statsBoxEnabled = true, statsBoxBgAlpha = 0.4 },
@@ -280,8 +280,8 @@ return function(test, ctx)
       Assert.Equal(box.lines[1].tint._color[1], 1.00, "crit tint should use the fixed stat red channel")
       Assert.Equal(box.lines[1].tint._color[2], 0.25, "crit tint should use the fixed stat green channel")
       Assert.Equal(box.lines[1].tint._color[3], 0.25, "crit tint should use the fixed stat blue channel")
-      Assert.Equal(box.lines[1].tint._color[4], 0.12, "row tint should stay subtle")
-      Assert.Equal(box.lines[2].tint._color[3], 0.87, "haste tint should follow the fixed stat palette")
+      Assert.Equal(box.lines[1].tint._color[4], 0.12, "secondary row tint should stay subtle")
+      Assert.Equal(box.lines[2].tint._color[3], 0.87, "haste tint should use its distinct blue channel")
       Assert.False(box.lines[1].tint.hidden, "visible stat row tint should be shown")
       Assert.True(box.lines[3].tint.hidden, "unused stat row tint should stay hidden")
       Assert.Equal(box.lines[1].tint._points[1][1], "TOPLEFT", "row tint should start at the row left edge")
@@ -905,7 +905,7 @@ return function(test, ctx)
     end)
   end)
 
-  test("StatsBox applies Blizzard-like fixed stat colors", function()
+  test("StatsBox applies distinct fixed stat colors", function()
     WithGlobals({
       UIParent = {},
       IsiLiveDB = { statsBoxEnabled = true },
@@ -938,21 +938,12 @@ return function(test, ctx)
       }
 
       for index, color in ipairs(expected) do
-        local actual = box.lines[index].label._textColor
-        Assert.Equal(actual[1], color[1], "stat label red channel should match the fixed palette")
-        Assert.Equal(actual[2], color[2], "stat label green channel should match the fixed palette")
-        Assert.Equal(actual[3], color[3], "stat label blue channel should match the fixed palette")
-        Assert.Equal(actual[4], color[4], "stat label alpha channel should match the fixed palette")
-        Assert.Equal(
-          box.lines[index].value._textColor[1],
-          color[1],
-          "value column should use the same fixed stat color"
-        )
-        Assert.Equal(
-          box.lines[index].percent._textColor[1],
-          color[1],
-          "percent column should use the same fixed stat color"
-        )
+        local labelColor = box.lines[index].label._textColor
+        Assert.Equal(labelColor[1], color[1], "stat label red channel should match the fixed palette")
+        Assert.Equal(labelColor[2], color[2], "stat label green channel should match the fixed palette")
+        Assert.Equal(labelColor[3], color[3], "stat label blue channel should match the fixed palette")
+        Assert.Equal(box.lines[index].value._textColor[1], color[1], "value must reuse its stat color")
+        Assert.Equal(box.lines[index].percent._textColor[1], color[1], "percent must reuse its stat color")
       end
     end)
   end)

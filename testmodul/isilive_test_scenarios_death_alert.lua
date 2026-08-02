@@ -506,6 +506,12 @@ local function BuildFrameStub(track)
     region.SetTextColor = function(_, r, g, b)
       track.color = { r = r, g = g, b = b }
     end
+    region.SetShadowColor = function(_, r, g, b, a)
+      track.shadowColor = { r = r, g = g, b = b, a = a }
+    end
+    region.SetShadowOffset = function(_, x, y)
+      track.shadowOffset = { x = x, y = y }
+    end
     region.SetText = function(_, text)
       track.text = text
     end
@@ -585,7 +591,11 @@ local function RegisterDeathAlertUiTests(test, ctx)
     Assert.Equal(controller.ShowRoleDeath("TANK"), true, "tank alert must render")
     Assert.Equal(track.text, "TANK DIED", "tank alert must show the configured text")
     Assert.Equal(track.color.r, 1, "alert text must be red")
-    Assert.True(track.color.g < 0.3 and track.color.b < 0.3, "alert text must be red, not white")
+    Assert.Equal(track.color.g, 0.14, "alert text must use the shared danger green channel")
+    Assert.Equal(track.color.b, 0.16, "alert text must use the shared danger blue channel")
+    Assert.Equal(track.shadowColor.a, 0.92, "alert text must keep a strong contrast shadow")
+    Assert.Equal(track.shadowOffset.x, 2, "alert shadow must use the shared horizontal offset")
+    Assert.Equal(track.shadowOffset.y, -2, "alert shadow must use the shared vertical offset")
     Assert.Equal(track.textWidth, 720, "alert text must reserve a bounded width")
     Assert.Equal(track.justifyH, "CENTER", "alert text must stay centered inside its bounded width")
     Assert.True(track.wordWrap == true, "alert text must wrap instead of drawing offscreen")

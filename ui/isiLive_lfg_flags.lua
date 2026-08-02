@@ -50,10 +50,10 @@ local BuildRosterBonusTooltipLine =
 local LI = addonTable._LFGFlagsInternal or {}
 addonTable._LFGFlagsInternal = LI
 
-local FLAG_WIDTH = 12
-local FLAG_HEIGHT = 9
-local APPLICANT_BONUS_ICON_SIZE = 12
-local APPLICANT_BONUS_ICON_GAP = 1
+local FLAG_WIDTH = 11
+local FLAG_HEIGHT = 8
+local APPLICANT_BONUS_ICON_SIZE = 10
+local APPLICANT_BONUS_ICON_GAP = 0
 local SEARCH_RESULT_FLAG_X = 2
 local SEARCH_RESULT_FLAG_Y = 10
 local SEARCH_RESULT_FLAG_ACTIVITY_NAME_OFFSET_Y = -2
@@ -61,7 +61,7 @@ local SEARCH_RESULT_DUNGEON_NAME_SHIFT_X = FLAG_WIDTH + 4
 local APPLICANT_FLAG_NAME_SHIFT_X = FLAG_WIDTH + 4
 local SEARCH_RESULT_BONUS_RIGHT_X = -44
 local SEARCH_RESULT_BONUS_Y = -16
-local SEARCH_RESULT_BONUS_WIDTH = 68
+local SEARCH_RESULT_BONUS_WIDTH = 52
 -- Extra tolerance ONLY. StripSearchResultKeystoneSuffix resolves the label
 -- from the client-localized global DUNGEON_DIFFICULTY_MYTHIC_KEYSTONE first
 -- and merely unions these on top, so every locale is already covered without

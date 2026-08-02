@@ -257,6 +257,8 @@ return function(test, ctx)
       Assert.Equal(activeText._drawLayer[1], "OVERLAY", "active dungeon context must render above bar textures")
       Assert.Equal(activeText._drawLayer[2], 7, "active dungeon context uses a high overlay sublayer")
       Assert.Equal(activeText._alpha, 0.92, "active dungeon context starts with the configured default alpha")
+      Assert.Equal(row._points[2][1], "BOTTOMRIGHT", "kill tracker row must expose an explicit right anchor")
+      Assert.Equal(row._points[2][2], -6, "kill tracker row must end at the shared M+ right edge")
     end)
   end)
 

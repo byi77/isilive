@@ -231,6 +231,17 @@ return function(test, ctx)
     Assert.Equal(portalTimerGap, 3, "portal row needs a compact 3 px gap above the timer row")
   end)
 
+  test("RosterLayout M+ action portal timer and kill rows share one right edge", function()
+    local RI = loadRI()
+    local actionRight = RI.M2_ROW_LEFT_MARGIN + (5 * RI.M2_TOOLBAR_BUTTON_WIDTH) + (4 * RI.M2_TOOLBAR_BUTTON_GAP)
+    local portalRight = RI.M2_ROW_LEFT_MARGIN + (8 * RI.M2_TELEPORT_BUTTON_WIDTH) + (7 * RI.M2_TELEPORT_BUTTON_GAP)
+    local runRowRight = RI.MINI_MAIN_HORIZONTAL_FRAME_WIDTH - RI.M2_RUN_ROW_RIGHT_MARGIN
+
+    Assert.Equal(actionRight, 494, "M+ action row must retain its verified right edge")
+    Assert.Equal(portalRight, actionRight, "portal row must end at the action-row right edge")
+    Assert.Equal(runRowRight, actionRight, "timer and kill rows must end at the same right edge")
+  end)
+
   test("RosterLayout GetFrameHeightForLayoutMode returns default min for expanded mode", function()
     local RI = loadRI()
     Assert.Equal(

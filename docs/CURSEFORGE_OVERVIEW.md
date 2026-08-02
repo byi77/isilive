@@ -42,10 +42,10 @@ The colorful Mythic+ command center for World of Warcraft.
 🟦 WoW 12.0.7 / 12.1.0 Midnight Retail
 🟩 Mythic+ Command Center
 🟧 Automatic Setup
-🟪 Version 0.9.350
+🟪 Version 0.9.363
 
 isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
-Version 0.9.350 arms Midnight Season 2 for automatic selection, so isiLive switches to the new dungeon set on its own once the game reports it — no addon update needed on season day. It also adds WoW 12.1.0 support.
+Version 0.9.363 introduces a shared modern UI hierarchy across the main window, Mythic+ run surfaces, notices, Stats Box, Settings, ESC shortcuts, compact Group Finder markers, nameplates, tooltips, and death alerts. The Stats Box keeps a distinct established color per stat, the redundant BETA title label is removed while Settings retains its beta notice, and the M+ header lines and lower run blocks now align cleanly. Runtime data, secure actions, and automatic Midnight Season 2 selection remain unchanged.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 WHY USE isiLive?

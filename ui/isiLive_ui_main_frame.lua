@@ -16,6 +16,7 @@ local createRedCloseButton = assert(
 local GetLocalizedText =
   assert(addonTable.UICommon and addonTable.UICommon.GetLocalizedText, "isiLive: UICommon.GetLocalizedText missing")
 local ApplyBackdrop = addonTable.UICommon.ApplyBackdrop
+local ApplyActionButtonVisual = addonTable.UICommon.ApplyActionButtonVisual
 local Colors = addonTable.UICommon.Colors
 
 local function SavePosition(target)
@@ -111,7 +112,7 @@ local function CreateTitleBarIconButton(
   button:RegisterForClicks("LeftButtonUp")
 
   if type(ApplyBackdrop) == "function" then
-    ApplyBackdrop(button, "CLOSE_BUTTON")
+    ApplyBackdrop(button, "TITLE_BUTTON")
   end
 
   local icon = button:CreateTexture(nil, "OVERLAY")
@@ -132,7 +133,9 @@ local function CreateTitleBarIconButton(
       tooltip:Show()
     end
     if type(button.SetBackdropColor) == "function" then
-      button:SetBackdropColor(0.14, 0.14, 0.20, 0.7)
+      if type(ApplyActionButtonVisual) == "function" then
+        ApplyActionButtonVisual(button, "title", "hover")
+      end
     end
   end)
   button:SetScript("OnLeave", function()
@@ -141,7 +144,9 @@ local function CreateTitleBarIconButton(
       tooltip:Hide()
     end
     if type(button.SetBackdropColor) == "function" then
-      button:SetBackdropColor(0, 0, 0, 0.85)
+      if type(ApplyActionButtonVisual) == "function" then
+        ApplyActionButtonVisual(button, "title", "default")
+      end
     end
   end)
   button:SetScript("OnClick", function(self, mouseButton)
@@ -166,7 +171,7 @@ local function CreateDragLockButton(frame, dragHandle, getDragLocked, setDragLoc
   local tooltipBody = GetLocalizedText("TOOLTIP_LOCK_MAIN_FRAME_POSITION_HINT", "Left-click to toggle.")
 
   if type(ApplyBackdrop) == "function" then
-    ApplyBackdrop(button, "CLOSE_BUTTON")
+    ApplyBackdrop(button, "TITLE_BUTTON")
   end
 
   local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
@@ -192,7 +197,9 @@ local function CreateDragLockButton(frame, dragHandle, getDragLocked, setDragLoc
       tooltip:Show()
     end
     if type(button.SetBackdropColor) == "function" then
-      button:SetBackdropColor(0.14, 0.14, 0.20, 0.7)
+      if type(ApplyActionButtonVisual) == "function" then
+        ApplyActionButtonVisual(button, "title", "hover")
+      end
     end
   end)
   button:SetScript("OnLeave", function()
@@ -201,7 +208,9 @@ local function CreateDragLockButton(frame, dragHandle, getDragLocked, setDragLoc
       tooltip:Hide()
     end
     if type(button.SetBackdropColor) == "function" then
-      button:SetBackdropColor(0, 0, 0, 0.85)
+      if type(ApplyActionButtonVisual) == "function" then
+        ApplyActionButtonVisual(button, "title", "default")
+      end
     end
   end)
   button:SetScript("OnClick", function()

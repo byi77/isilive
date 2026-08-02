@@ -20,7 +20,9 @@ local function MakeFontStringStub()
   function fs:SetWordWrap() end
   function fs:SetNonSpaceWrap() end
   function fs:SetMaxLines() end
-  function fs:SetTextColor() end
+  function fs:SetTextColor(...)
+    self._textColor = { ... }
+  end
   function fs:SetFont(path, size, flags)
     self._fontPath = path
     self._fontSize = size
@@ -52,6 +54,8 @@ local function MakeFrameStub()
     _points = {},
     _scripts = {},
     _attrs = {},
+    _hookScripts = {},
+    _textures = {},
   }
   function frame:Show()
     self._shown = true
@@ -84,6 +88,16 @@ local function MakeFrameStub()
   function frame:SetFrameLevel() end
   function frame:SetScript(name, fn)
     self._scripts[name] = fn
+  end
+  function frame:HookScript(name, fn)
+    self._hookScripts[name] = fn
+  end
+  function frame:EnableMouse() end
+  function frame:RegisterForClicks(...)
+    self._registeredClicks = { ... }
+  end
+  function frame:IsMouseOver()
+    return self._mouseOver == true
   end
   function frame:GetEffectiveScale()
     return 1
@@ -118,8 +132,12 @@ local function MakeFrameStub()
     function tex:SetColorTexture(...)
       self._colorTexture = { ... }
     end
+    function tex:SetHeight(height)
+      self._height = height
+    end
     function tex:Hide() end
     function tex:Show() end
+    table.insert(self._textures, tex)
     return tex
   end
   return frame
@@ -372,6 +390,11 @@ return function(test, ctx)
     }, 0.7)
 
     Assert.Equal(UICommon.Colors.BG_PRIMARY[4], 0.7, "BG_PRIMARY[4] must mutate to the new alpha")
+    Assert.Equal(
+      mainFrame._backdropColor[1],
+      UICommon.Colors.SURFACE_MAIN_FRAME[1],
+      "mainFrame must retain the semantic slate surface when alpha changes"
+    )
     Assert.Equal(mainFrame._backdropColor[4], 0.7, "mainFrame must receive the new alpha")
     Assert.Equal(panelFrame._backdropColor[4], 0.7, "panelFrame must receive the new alpha")
     Assert.Equal(settingsCanvas._backdropColor[4], 0.7, "settingsCanvas must receive the new alpha")
@@ -504,10 +527,114 @@ return function(test, ctx)
     UICommon.HidePrivateTooltip("not-a-table")
   end)
 
+  test("UICommon private tooltip uses the shared notice surface", function()
+    WithGlobals({
+      CreateFrame = function()
+        return MakeFrameStub()
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua" })
+      local tooltip = addon.UICommon.CreatePrivateTooltip(MakeFrameStub())
+      Assert.Equal(
+        tooltip._backdropColor[1],
+        addon.UICommon.Colors.SURFACE_NOTICE[1],
+        "tooltip surface must use the shared notice token"
+      )
+      Assert.Equal(
+        tooltip._borderColor[1],
+        addon.UICommon.Colors.BORDER_NOTICE[1],
+        "tooltip border must use the shared notice token"
+      )
+    end)
+  end)
+
   test("UICommon.PreparePrivateTooltip is a no-op for non-table tooltip input", function()
     local UICommon = LoadUICommon()
     UICommon.PreparePrivateTooltip(nil, MakeFrameStub())
     UICommon.PreparePrivateTooltip("not-a-table", MakeFrameStub())
+  end)
+
+  -- Shared semantic design system --------------------------------------------
+
+  test("UICommon semantic design system exposes shared modern surface and spacing roles", function()
+    local UICommon = LoadUICommon()
+    Assert.Equal(UICommon.Theme.spacing.xs, 4, "extra-small spacing must stay on the 4 px base unit")
+    Assert.Equal(UICommon.Theme.spacing.sm, 8, "small spacing must stay on the 8 px base unit")
+    Assert.True(
+      UICommon.Theme.color.surface.main == UICommon.Colors.SURFACE_MAIN_FRAME,
+      "main surface role must reference the shared semantic color token"
+    )
+    Assert.True(
+      UICommon.Theme.color.text.primary == UICommon.Colors.TEXT_HEADING,
+      "primary text role must reference the shared heading token"
+    )
+    Assert.True(
+      UICommon.Theme.color.surface.run == UICommon.Colors.SURFACE_RUN_ZONE,
+      "M+ run surfaces must reference the shared run-zone token"
+    )
+    Assert.True(
+      UICommon.Theme.color.surface.notice == UICommon.Colors.SURFACE_NOTICE,
+      "notice cards must reference the shared notice token"
+    )
+  end)
+
+  test("UICommon action button switches deterministic primary visual states", function()
+    WithGlobals({
+      CreateFrame = function()
+        return MakeFrameStub()
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua" })
+      local UICommon = addon.UICommon
+      local button = UICommon.CreateActionButton(MakeFrameStub(), {
+        width = 92,
+        height = 22,
+        role = "primary",
+      })
+
+      Assert.Equal(button._isiLiveSemanticRole, "primary", "button must retain its semantic role")
+      Assert.Equal(
+        button._backdropColor[1],
+        UICommon.Colors.SURFACE_ACTION_PRIMARY[1],
+        "primary default surface must use the shared token"
+      )
+      button._hookScripts.OnEnter(button)
+      Assert.Equal(button._isiLiveVisualState, "hover", "hover hook must apply the hover state")
+      Assert.Equal(
+        button._backdropColor[1],
+        UICommon.Colors.SURFACE_ACTION_PRIMARY_HOVER[1],
+        "primary hover surface must use the shared token"
+      )
+      button._hookScripts.OnMouseDown(button)
+      Assert.Equal(button._isiLiveVisualState, "pressed", "mouse-down hook must apply the pressed state")
+      button:SetSemanticRole("secondary")
+      Assert.Equal(button._isiLiveSemanticRole, "secondary", "semantic role changes must repaint deterministically")
+    end)
+  end)
+
+  test("UICommon panel chrome creates a bounded title surface and separator", function()
+    local UICommon = LoadUICommon()
+    local parent = MakeFrameStub()
+    local chrome = UICommon.CreatePanelChrome(parent, { height = 27 })
+
+    Assert.NotNil(chrome, "panel chrome must be created for a texture-capable parent")
+    Assert.Equal(chrome.height, 27, "title chrome must preserve its explicit height budget")
+    Assert.Equal(chrome.titleBar._height, 27, "title surface must use the explicit height budget")
+    Assert.Equal(chrome.separator._height, 1, "title separator must remain a quiet one-pixel rule")
+    Assert.Equal(
+      chrome.titleBar._colorTexture[1],
+      UICommon.Colors.SURFACE_TITLE_BAR[1],
+      "title surface must use the shared semantic token"
+    )
+  end)
+
+  test("UICommon notice chrome creates a shared top accent and semantic role", function()
+    local UICommon = LoadUICommon()
+    local parent = MakeFrameStub()
+    local accent = UICommon.CreateNoticeChrome(parent)
+    Assert.NotNil(accent, "notice chrome should create the shared top accent")
+    Assert.Equal(parent._isiLiveSurfaceRole, "notice", "notice chrome should expose the semantic surface role")
+    Assert.Equal(accent._height, 2, "notice top accent should stay subtle")
   end)
 
   -- UICommon.Colors ------------------------------------------------------------

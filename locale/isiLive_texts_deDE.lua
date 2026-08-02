@@ -9,7 +9,6 @@ local LFG_GROUP_BONUSES_DESC_DE = TextsCommon.LFG_GROUP_BONUSES_DESC_DE
 addonTable.TextsLocales = addonTable.TextsLocales or {}
 addonTable.TextsLocales.deDE = {
   TITLE = "isiLive",
-  TITLE_HINT = "BETA",
   COL_SPEC = "Spec",
   COL_NAME = "Name",
   COL_LANGUAGE = "",

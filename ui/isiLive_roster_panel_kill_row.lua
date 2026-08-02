@@ -30,12 +30,13 @@ local PREKEY_LEVEL_WIDTH = 42
 local ACTIVE_DUNGEON_RIGHT_OFFSET = 122
 local ACTIVE_DUNGEON_LABEL_WIDTH = 146
 local DEATH_MARKER_ICON = " |TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:10:10:0:0|t"
+local M2_RUN_ROW_RIGHT_MARGIN = RI.M2_RUN_ROW_RIGHT_MARGIN or 6
 
 local function CreateKillTrackRow(mainFrame)
   local row = CreateFrame("Frame", nil, mainFrame)
   row:SetHeight(CD_TRACKER_ROW_HEIGHT)
   row:SetPoint("BOTTOMLEFT", 10, KILLTRACK_ROW_BOTTOM_OFFSET)
-  row:SetPoint("BOTTOMRIGHT", -10, KILLTRACK_ROW_BOTTOM_OFFSET)
+  row:SetPoint("BOTTOMRIGHT", -M2_RUN_ROW_RIGHT_MARGIN, KILLTRACK_ROW_BOTTOM_OFFSET)
 
   local box = CreateFrame("Frame", nil, row, "BackdropTemplate")
   box:SetHeight(CD_TRACKER_ROW_HEIGHT)
@@ -44,6 +45,8 @@ local function CreateKillTrackRow(mainFrame)
   if type(UICommon.ApplyBackdrop) == "function" then
     UICommon.ApplyBackdrop(box, "CD_BOX")
   end
+  box._isiLiveSurfaceRole = "run"
+  row.runSurface = box
 
   local label = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   label:SetPoint("LEFT", box, "LEFT", 6, 0)

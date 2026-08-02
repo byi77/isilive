@@ -265,8 +265,6 @@ function SettingsPanel.Create(opts)
   y = y - SECTION_GAP
   y = BuildGeneralSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
-  y = BuildEscMenuSettingsSection(content, y, L, config, controls)
-  y = y - SECTION_GAP
   y = BuildDisplaySettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
   y = BuildBehaviorSettingsSection(content, y, L, config, controls)
@@ -276,6 +274,8 @@ function SettingsPanel.Create(opts)
   y = BuildSoundSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
   y = BuildChatSettingsSection(content, y, L, config, controls)
+  y = y - SECTION_GAP
+  y = BuildEscMenuSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP
   y = BuildDebugSettingsSection(content, y, L, config, controls)
   y = y - SECTION_GAP

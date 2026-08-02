@@ -83,7 +83,7 @@ local function RegisterSettingsPanelOrderTests(test, Assert, WithGlobals, LoadAd
       Assert.NotNil(panel, "settings panel should be created when Blizzard Settings API exists")
 
       AssertBefore("SETTINGS_ESC_PANEL", "SETTINGS_HEARTHSTONE_SELECT")
-      AssertBefore("SETTINGS_HEARTHSTONE_SELECT", "SETTINGS_UI_SCALE")
+      AssertBefore("SETTINGS_UI_SCALE", "SETTINGS_BG_ALPHA")
       AssertBefore("SETTINGS_BG_ALPHA", "SETTINGS_STATS_BOX_ENABLED")
       AssertBefore("SETTINGS_STATS_BOX_SHOW_AVOIDANCE", "SETTINGS_MINIMAP_BUTTON")
       AssertBefore("SETTINGS_MINIMAP_BUTTON", "SETTINGS_SHOW_TIMEWAYS_NAVIGATOR")
@@ -92,7 +92,8 @@ local function RegisterSettingsPanelOrderTests(test, Assert, WithGlobals, LoadAd
       AssertBefore("SETTINGS_SYNC_ENABLED", "SETTINGS_NAMEPLATE_FONT_SIZE")
       AssertBefore("SETTINGS_NAMEPLATE_FONT_SIZE", "SETTINGS_SOUND_LEAD_ENABLED")
       AssertBefore("SETTINGS_SOUND_LEAD_ENABLED", "SETTINGS_CHAT_BR_ANNOUNCE")
-      AssertBefore("SETTINGS_CHAT_BR_ANNOUNCE", "SETTINGS_COMBAT_LOGGING")
+      AssertBefore("SETTINGS_CHAT_BR_ANNOUNCE", "SETTINGS_ESC_PANEL")
+      AssertBefore("SETTINGS_HEARTHSTONE_SELECT", "SETTINGS_COMBAT_LOGGING")
       AssertBefore("SETTINGS_COMBAT_LOGGING", "SETTINGS_QUEUE_DEBUG")
       AssertBefore("SETTINGS_QUEUE_DEBUG", "SETTINGS_RESET_UI_POSITION")
       AssertBefore("SETTINGS_RESET_UI_POSITION", "SETTINGS_VIP_ASTRAL_AUROCHS_SOUND")

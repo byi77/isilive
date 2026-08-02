@@ -396,6 +396,9 @@ local function CreatePanelButtons(mainFrame, deps)
   local isPlayerLeader = deps.isPlayerLeader
 
   local readyCheckButton = CreateFlatButton(mainFrame, 120, 24, "SecureActionButtonTemplate,BackdropTemplate")
+  if type(readyCheckButton.SetSemanticRole) == "function" then
+    readyCheckButton:SetSemanticRole("primary")
+  end
   readyCheckButton:SetPoint("TOPRIGHT", -10, -60)
   readyCheckButton._verticalY = -60
   readyCheckButton._compactFallbackText = "RC"
@@ -423,6 +426,9 @@ local function CreatePanelButtons(mainFrame, deps)
   AttachPanelButtonTooltip(deps.tooltipFrame, readyCheckButton, getL, "BTN_READYCHECK", "TOOLTIP_READY", isPlayerLeader)
 
   local countdownButton = CreateFlatButton(mainFrame, 120, 24)
+  if type(countdownButton.SetSemanticRole) == "function" then
+    countdownButton:SetSemanticRole("primary")
+  end
   countdownButton:SetPoint("TOPRIGHT", -10, -90)
   countdownButton._verticalY = -90
   countdownButton._compactFallbackText = "CD10"
@@ -442,13 +448,22 @@ local function CreatePanelButtons(mainFrame, deps)
   AttachPanelButtonTooltip(deps.tooltipFrame, countdownButton, getL, "BTN_COUNTDOWN10", "TOOLTIP_CD10", isPlayerLeader)
 
   local refreshButton = CreateFlatButton(mainFrame, 120, 24)
+  if type(refreshButton.SetSemanticRole) == "function" then
+    refreshButton:SetSemanticRole("secondary")
+  end
   refreshButton:SetPoint("TOPRIGHT", -10, -180)
   refreshButton._verticalY = -180
   AttachPanelButtonTooltip(deps.tooltipFrame, refreshButton, getL, "BTN_REFRESH", "TOOLTIP_REFRESH", nil)
 
   local shareKeysButton = CreateShareKeysButton(mainFrame, deps)
+  if type(shareKeysButton.SetSemanticRole) == "function" then
+    shareKeysButton:SetSemanticRole("secondary")
+  end
 
   local countdownCancelButton = CreateFlatButton(mainFrame, 120, 24)
+  if type(countdownCancelButton.SetSemanticRole) == "function" then
+    countdownCancelButton:SetSemanticRole("secondary")
+  end
   countdownCancelButton:SetPoint("TOPRIGHT", -10, -120)
   countdownCancelButton._verticalY = -120
   countdownCancelButton._compactFallbackText = "CD0"
@@ -485,13 +500,18 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     mainFrame:SetWidth(FULL_FRAME_WIDTH)
   end
 
+  local panelChrome = nil
+  if type(UICommon.CreatePanelChrome) == "function" then
+    panelChrome = UICommon.CreatePanelChrome(mainFrame, { height = 27 })
+  end
+
   -- All three title elements share the same Y so they sit on one horizontal line.
   local TITLE_Y = -7
 
   local title = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   title:SetPoint("TOPLEFT", 10, TITLE_Y)
   title:SetJustifyH("LEFT")
-  title:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.GOLD_TITLE) or { 1, 0.85, 0 }))
+  title:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.TEXT_HEADING) or { 0.93, 0.96, 1 }))
   title:SetShadowOffset(1, -1)
   if type(title.SetShadowColor) == "function" then
     title:SetShadowColor(0, 0, 0, 0.8)
@@ -511,7 +531,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
 
   local titleHint = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   titleHint:SetPoint("LEFT", titleVersion, "RIGHT", 6, 0)
-  titleHint:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.GREEN_HINT_TEXT) or { 0.45, 0.85, 0.45 }))
+  titleHint:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.TEXT_SUPPORTING) or { 0.58, 0.65, 0.74 }))
   if type(titleHint.SetShadowOffset) == "function" then
     titleHint:SetShadowOffset(1, -1)
   end
@@ -519,6 +539,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     titleHint:SetShadowColor(0, 0, 0, 0.9)
   end
   ApplyFontStringSize(titleHint, 12)
+  titleHint:Hide()
 
   local function ApplyTitleBudget()
     local frameWidth = type(mainFrame.GetWidth) == "function" and tonumber(mainFrame:GetWidth()) or FULL_FRAME_WIDTH
@@ -527,9 +548,8 @@ local function ConstructPanelUI(mainFrame, uiDeps)
       or nil
     local titleWidth = math.max(56, (measureWidth and measureWidth(title)) or 56)
     local versionWidth = math.max(92, (measureWidth and measureWidth(titleVersion)) or 92)
-    local hintWidth = math.max(48, (measureWidth and measureWidth(titleHint)) or 48)
-    local gapWidth = 11
-    local totalWidth = titleWidth + versionWidth + hintWidth + gapWidth
+    local gapWidth = 5
+    local totalWidth = titleWidth + versionWidth + gapWidth
 
     if totalWidth <= budget then
       if type(title.SetWidth) == "function" then
@@ -541,9 +561,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
       if type(titleVersion.Show) == "function" then
         titleVersion:Show()
       end
-      if type(titleHint.Show) == "function" then
-        titleHint:Show()
-      end
+      titleHint:Hide()
       return
     end
 
@@ -602,6 +620,7 @@ local function ConstructPanelUI(mainFrame, uiDeps)
     statusLine = statusLine,
     titleVersion = titleVersion,
     titleHint = titleHint,
+    panelChrome = panelChrome,
     raidNoticeLabel = raidNoticeLabel,
     m2ColumnGuides = m2ColumnGuides,
     tankButtons = tankButtons,
@@ -890,8 +909,9 @@ function RosterPanel.CreateController(opts)
       ApplyLocaleFont(ui.titleVersion)
     end
     if ui.titleHint then
-      ui.titleHint:SetText(tostring(L.TITLE_HINT or ""))
+      ui.titleHint:SetText("")
       ApplyLocaleFont(ui.titleHint)
+      ui.titleHint:Hide()
     end
     if type(ui.ApplyTitleBudget) == "function" then
       ui.ApplyTitleBudget()

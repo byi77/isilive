@@ -109,7 +109,7 @@ local LABELS = {
   avoidance = "Avoid",
 }
 
-local COLORS = {
+local STAT_COLORS = {
   strength = { 1.00, 0.82, 0.00, 1 },
   agility = { 1.00, 0.82, 0.00, 1 },
   intellect = { 1.00, 0.82, 0.00, 1 },
@@ -729,14 +729,14 @@ local function RenderRows(state, rows, forceLayout)
       visibleCount = index
       rowFrame.label:SetText(row.label)
       rowFrame.value:SetText(valueText or "")
-      local c = COLORS[row.key] or COLORS.strength
+      local statColor = STAT_COLORS[row.key] or STAT_COLORS.strength
       local tintAlpha = PRIMARY_STAT_KEYS[row.key] and PRIMARY_ROW_TINT_ALPHA or ROW_TINT_ALPHA
       if rowFrame.tint and type(rowFrame.tint.SetColorTexture) == "function" then
-        rowFrame.tint:SetColorTexture(c[1], c[2], c[3], tintAlpha)
+        rowFrame.tint:SetColorTexture(statColor[1], statColor[2], statColor[3], tintAlpha)
       end
-      rowFrame.label:SetTextColor(c[1], c[2], c[3], c[4])
-      rowFrame.value:SetTextColor(c[1], c[2], c[3], c[4])
-      rowFrame.percent:SetTextColor(c[1], c[2], c[3], c[4])
+      rowFrame.label:SetTextColor(statColor[1], statColor[2], statColor[3], statColor[4])
+      rowFrame.value:SetTextColor(statColor[1], statColor[2], statColor[3], statColor[4])
+      rowFrame.percent:SetTextColor(statColor[1], statColor[2], statColor[3], statColor[4])
       if percentText then
         rowFrame.percent:SetText("(" .. percentText .. ")")
         rowFrame.percent:Show()

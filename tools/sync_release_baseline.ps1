@@ -71,7 +71,7 @@ $changed = Update-TrackedFile "docs/ARCHITECTURE.md" {
   $next = $text
   $next = Replace-Required $next '^(Versionsbasis:\s*)`\d+\.\d+\.\d+`$' ('${1}' + '`' + $version + '`') "architecture version"
   $next = Replace-Required $next '^(Zuletzt aktualisiert:\s*)`\d{4}-\d{2}-\d{2}`$' ('${1}' + '`' + $currentDate + '`') "architecture date"
-  $next = Replace-Required $next '^(\| isiLive v)\d+\.\d+\.\d+(\s+BETA\s+Open/Close CTRL-F9\b)' ('${1}' + $version + '${2}') "architecture UI title"
+  $next = Replace-Required $next '^(\| isiLive v)\d+\.\d+\.\d+(\s+Open/Close CTRL-F9\b)' ('${1}' + $version + '${2}') "architecture UI title"
   return $next
 } -or $changed
 

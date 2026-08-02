@@ -280,4 +280,35 @@ return function(test, ctx)
       "a successful automatic season change must rebuild the teleport buttons"
     )
   end)
+
+  test("Architecture main-frame action hierarchy uses shared semantic button roles", function()
+    local common = ReadFile("ui/isiLive_ui_common.lua")
+    local rosterPanel = ReadFile("ui/isiLive_roster_panel.lua")
+    local rosterChrome = ReadFile("ui/isiLive_roster_panel_chrome.lua")
+
+    Assert.True(
+      common:find("function UICommon.CreateActionButton(parent, opts)", 1, true) ~= nil,
+      "UICommon must own the shared semantic action-button component"
+    )
+    Assert.True(
+      rosterChrome:find("return CreateActionButton(parent, {", 1, true) ~= nil,
+      "Roster chrome must delegate flat action-button construction to UICommon"
+    )
+    Assert.True(
+      rosterPanel:find('readyCheckButton:SetSemanticRole("primary")', 1, true) ~= nil,
+      "Ready Check must be a primary main-frame action"
+    )
+    Assert.True(
+      rosterPanel:find('countdownButton:SetSemanticRole("primary")', 1, true) ~= nil,
+      "Countdown must be a primary main-frame action"
+    )
+    Assert.True(
+      rosterPanel:find('shareKeysButton:SetSemanticRole("secondary")', 1, true) ~= nil,
+      "Share Keys must remain a secondary main-frame action"
+    )
+    Assert.True(
+      rosterPanel:find('refreshButton:SetSemanticRole("secondary")', 1, true) ~= nil,
+      "Refresh must remain a secondary main-frame action"
+    )
+  end)
 end

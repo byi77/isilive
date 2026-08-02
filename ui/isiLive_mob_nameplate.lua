@@ -372,11 +372,26 @@ local function CreateOrGetFrame(unit)
   if f.SetIgnoreParentAlpha then
     f:SetIgnoreParentAlpha(true)
   end
+  if type(f.CreateTexture) == "function" then
+    f.background = f:CreateTexture(nil, "BACKGROUND")
+    if type(f.background.SetAllPoints) == "function" then
+      f.background:SetAllPoints(f)
+    end
+    if type(f.background.SetColorTexture) == "function" then
+      f.background:SetColorTexture(
+        unpack(
+          (type(UICommon) == "table" and UICommon.Colors and UICommon.Colors.SURFACE_COMPACT_OVERLAY)
+            or { 0.025, 0.04, 0.06, 0.78 }
+        )
+      )
+    end
+  end
+  f._isiLiveSurfaceRole = "compact_overlay"
   f.text = f:CreateFontString(nil, "OVERLAY", "GameFontNormalOutline")
   f.text:SetPoint("CENTER")
   if f.text.SetTextColor then
     f.text:SetTextColor(
-      unpack((type(UICommon) == "table" and UICommon.Colors and UICommon.Colors.WHITE_OPAQUE) or { 1, 1, 1, 1 })
+      unpack((type(UICommon) == "table" and UICommon.Colors and UICommon.Colors.TEXT_SECTION) or { 0.64, 0.80, 0.96 })
     )
   end
   if f.text.SetDrawLayer then

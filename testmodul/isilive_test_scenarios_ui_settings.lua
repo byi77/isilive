@@ -697,7 +697,7 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
     end)
   end)
 
-  test("Settings display section separates child groups with thin non-blue lines", function()
+  test("Settings display section separates child groups with quiet and cool hierarchy lines", function()
     local createFrameStub = BuildCreateFrameStub()
     local db = {}
 
@@ -757,18 +757,18 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
           Assert.Equal(texture._color[4], 0.28, "child separator should stay visually lighter than section lines")
         elseif texture._isiLiveSettingsSeparator == "section" then
           sectionSeparators = sectionSeparators + 1
-          Assert.Equal(texture._height, 2, "section separator should keep the existing heavier blue line")
-          Assert.Equal(texture._color[1], 0.3, "section separator should keep the accent-blue red channel")
-          Assert.Equal(texture._color[4], 0.42, "section separator should keep the existing blue alpha")
+          Assert.Equal(texture._height, 2, "section separator should remain stronger than child lines")
+          Assert.Equal(texture._color[1], 0.26, "section separator should use the cool title-border red channel")
+          Assert.Equal(texture._color[4], 0.55, "section separator fallback should use restrained cool-border alpha")
         end
       end
 
       Assert.True(childSeparators >= 2, "display settings should separate distinct child groups with thin lines")
-      Assert.True(sectionSeparators >= 2, "main settings topics should keep their blue section separators")
+      Assert.True(sectionSeparators >= 2, "main settings topics should keep their cool section separators")
     end)
   end)
 
-  test("Settings section headers use the dominant gold title style", function()
+  test("Settings section headers use cool section-card styling", function()
     local createFrameStub = BuildCreateFrameStub()
     local db = {}
 
@@ -819,10 +819,16 @@ local function RegisterSettingsPanelTests(test, Assert, WithGlobals, LoadAddonMo
       generalHeader = Assert.NotNil(generalHeader, "settings panel should render the General section header")
       Assert.Equal(generalHeader._fontObject, "GameFontNormal", "section headers should use the larger title font")
       local r, g, b, a = generalHeader:GetTextColor()
-      Assert.Equal(r, 1, "section headers should use the shared warm-gold red channel")
-      Assert.Equal(g, 0.82, "section headers should use the shared warm-gold green channel")
-      Assert.Equal(b, 0, "section headers should use the shared warm-gold blue channel")
+      Assert.Equal(r, 0.64, "section headers should use the shared cool-section red channel")
+      Assert.Equal(g, 0.80, "section headers should use the shared cool-section green channel")
+      Assert.Equal(b, 0.96, "section headers should use the shared cool-section blue channel")
       Assert.Equal(a, 1, "section headers should be fully opaque")
+      Assert.Equal(
+        generalHeader._isiLiveSurfaceRole,
+        "settings_section",
+        "section headers should expose their surface role"
+      )
+      Assert.NotNil(generalHeader._isiLiveSectionSurface, "section headers should render a quiet card surface")
     end)
   end)
 

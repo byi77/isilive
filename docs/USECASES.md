@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.362`
+Versionsbasis: `0.9.363`
 Zuletzt aktualisiert: `2026-08-02`
 
 ## Akteure
@@ -476,7 +476,7 @@ Ziel: isiLive bleibt ein M+-Tool, haelt aber ausgewaehlte Utility-Funktionen in 
 
 Das Runtime-Verhalten in diesem Dokument wird von `tools/validate_usecases.lua` validiert.
 Aktive Regelvertraege aus `RULES_LOGIC.md` werden von `tools/validate_rules_logic.lua` validiert und ebenfalls waehrend `tools/validate_usecases.lua` erzwungen.
-Aktuelle Validator-Baseline: `2218` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
+Aktuelle Validator-Baseline: `2306` Szenarien ueber die in `tools/usecase_scenarios.lua` registrierten Module.
 
 1. UC-01 und UC-02: strikte Queue-Target-Aufloesung und Queue-Highlight-Verhalten ohne spekulativen Fallback; mehrdeutige Single-Struct-`activityIDs` bleiben unresolved.
 2. UC-03: Exact-Map-Suppression und Umgang mit Shared-Portcast-Mehrdeutigkeit.
@@ -488,17 +488,31 @@ Aktuelle Validator-Baseline: `2218` Szenarien ueber die in `tools/usecase_scenar
 8. UC-10: Raid-Size-Zero-Process-Verhalten, hidden UI-Suppression und kein Raid-Notice-Output.
 9. UC-11 und UC-12: Secure-World-Marker-Button-Konfiguration fuer M+Marker und Compact-Layout-Visibility-Logik fuer M/V/H.
 10. Taint-Hardening: verschobene Secure-Attribute-Writes, verschobene `Esc`-Shortcut-Secure-Button-Refreshes, insecure Teleport-Grid-Aktionen und combat-sicheres Collapse-Handling.
-11. UC-13 und UC-14: Game-Menu-Tooling-/Travel-/Mounts-/Addons-Strips, Ruhestein-Auswahl, VIP-Gast-Sound-Schalter, Lokalisierung inklusive ruRU-Font-Override, Close-then-Open-Verhalten, verschobener Secure-Reload-Button-Refresh, sichere Mount-Macro-Shortcuts, Direct-Opener-Fallback-Auswahl, Settings-Canvas-State-Mirroring, Background-Opacity-Verhalten, Live-BRes-/Bloodlust-/M+-Timer-Rendering, kompakter aktiver Lust-Timer, M+-Killtracker-Live-Refresh mit aktiver Keylevel-Anzeige und gesyncte Interrupt-Cooldown-Anzeige.
+11. UC-13 und UC-14: Game-Menu-Tooling-/Travel-/Mounts-/Addons-Strips mit semantischen sekundaeren Action-Zustaenden, Ruhestein-Auswahl, VIP-Gast-Sound-Schalter, Lokalisierung inklusive ruRU-Font-Override, Close-then-Open-Verhalten, verschobener Secure-Reload-Button-Refresh, sichere Mount-Macro-Shortcuts, Direct-Opener-Fallback-Auswahl, task-orientierte Settings-Reihenfolge mit kuehlen Section-Cards, Settings-Canvas-State-Mirroring, Background-Opacity-Verhalten, Live-BRes-/Bloodlust-/M+-Timer-Rendering, kompakter aktiver Lust-Timer, M+-Killtracker-Live-Refresh mit aktiver Keylevel-Anzeige und gesyncte Interrupt-Cooldown-Anzeige.
 12. UC-15: LFG-Detektion ohne Name-Fallbacks, locale-aware Chat-Hinweise, pending-invite Race-Hardening, konkrete lokale LFG-Map-Prioritaet, Highlight-Dispatch und Centerbox-Portalbutton aus verifiziertem Activity-/Map-Kontext.
-13. UC-24: Gruppensuche- und Roster-Buff-Rating-Herzchen ohne Guessing, mit Spielerprofil-Relevanz, Utility-Ausschluss fuer kompakte Marker, BR/BL nur in Roster-Mouseover-Bonuszeilen, nicht-stapelnder Buffzaehlung, Blizzard-Default-kompatibler Suchergebnisposition, Bewerber-Herzchen rechts neben dem Klassenbadge als echte Texturen, Roster-Herzchen direkt am Spielernamen aus verifizierter Klasse und passender Spec-ID, Bewerber-Sprachflaggen aus verifiziertem Realm, default-aktivem Settings-Schalter, `media/heart_bonus_green.tga`-Texturvertrag sowie vorbereiteten Locale-Fallbacks inklusive akzeptierter Community-Uebersetzungen.
+13. UC-24: Gruppensuche- und Roster-Buff-Rating-Herzchen ohne Guessing, mit kompakteren Flaggen und Herztexturen, Spielerprofil-Relevanz, Utility-Ausschluss fuer kompakte Marker, BR/BL nur in Roster-Mouseover-Bonuszeilen, nicht-stapelnder Buffzaehlung, Blizzard-Default-kompatibler Suchergebnisposition, Bewerber-Herzchen rechts neben dem Klassenbadge als echte Texturen, Roster-Herzchen direkt am Spielernamen aus verifizierter Klasse und passender Spec-ID, Bewerber-Sprachflaggen aus verifiziertem Realm, default-aktivem Settings-Schalter, `media/heart_bonus_green.tga`-Texturvertrag sowie vorbereiteten Locale-Fallbacks inklusive akzeptierter Community-Uebersetzungen.
 14. UC-16: BR-/Lust-Self-Cast-Filter gegen 12.0-Secret-Value-Spam, 3s-`sourceName|spellID`-Dedup aus einem verifizierten Namen, Toggle-Gating, ChatThrottleLib-Routing via `BRLUST`-Addon-Message, Receiver-Dispatch in lokalisierten Template-Zeilen und Drop-On-Unknown-Kind; PI-Erkennung aus verifizierten Aura-Daten, Secret-Value-feste Spell-ID-Pruefung und isiLive-Peer-Sync nur durch den lokal verifizierten PI-Caster.
-15. UC-17: Mob-Tooltip-Forces-Rendering nur bei aktiver Challenge-Map-ID mit passendem NPC-Dataset, Per-Tooltip-Dedup gegen `TooltipDataProcessor`-Rerender und `SetEnabled(false)`-Gate.
+15. UC-17: Mob-Tooltip-Forces-Rendering in der kuehlen gemeinsamen Textrolle nur bei aktiver Challenge-Map-ID mit passendem NPC-Dataset, Per-Tooltip-Dedup gegen `TooltipDataProcessor`-Rerender und `SetEnabled(false)`-Gate; das Nameplate-Pendant nutzt eine transparente Compact-Overlay-Flaeche.
 16. UC-25: VIP-DK-Hilfen mit Default-aus-Settings im durch eine duenne blaue Linie abgetrennten DK-Block, lokalem Dark-Transformation-Cast, verifizierter Unholy-DK-Quelle, eindeutigen Actionbar-Spell-IDs inklusive Secure-Actionbutton-Attributen, eingeruecktem DK-Pferdeklang-Mute, eingeruecktem lokalisiertem verschiebbarem Ghoul-Reminder, `UNIT_PET`-Refresh ausserhalb Raid-Hard-off und Stop-Pfaden ohne Ratefallbacks.
 17. UC-26: VIP-Bloodlust-Debuff-Button-Warnung mit default-aus, immer sichtbarem VIP-Schalter, verifizierter lokaler Bloodlust-Klasse, verifizierten Erschoepfungs-/Satt-Auren, exakten Bloodlust-Klassen-/Pet-Spell-IDs, ausdruecklichem Drums-Ausschluss und Stop-Pfaden ohne Ratefallbacks.
 18. UC-27: versteckter Non-Challenge-PartyRun-Utility-Kontext aus verifizierten Party-Instanz-, Difficulty- und MapID-Daten, mit strikt begrenzter Freigabe fuer BRes-/Bloodlust-Anzeige, Combat-Announces, DeathWatch und DPS-Snapshot ohne Oeffnung von M+-Timer-, Forces-, RIO-, Keylevel- oder Ready-Sound-Pfaden; automatische Dungeonfinder-Instanzgruppen gelten fuer die BR-/Bloodlust-Anzeige nur ueber `IsInGroup(LE_PARTY_CATEGORY_INSTANCE)` als belastbare Gruppenquelle.
 19. UC-28: edge-getriggerte Tank-/Heiler-Todeswarnung, getrennte Sound-Gates,
     sichtbare Death-Counter und fail-closed Verhalten ausserhalb verifizierter
     Party-Utility-Kontexte.
+
+## UI-Darstellungsvertraege fuer 0.9.363
+
+1. Die Stats Box rendert jede sichtbare Stat-Zeile mit ihrer fest zugeordneten,
+   von den anderen Stats unterscheidbaren Farbe fuer Label, Wert, Prozent und
+   dezente Zeilentinte. Ihre live Datenquelle und Zeilenstruktur bleiben
+   unveraendert.
+2. Der Haupttitel der M+-UI rendert keinen `BETA`-Zusatz. Der allgemeine
+   Beta-Status und der Beta-Hinweis in Settings bleiben bestehen.
+3. Oberer Titeltrenner und Trenner unter den Tabellenueberschriften enden bei
+   identischen horizontalen Insets von jeweils 8 px.
+4. Im 500 px breiten M+-Layout enden Aktionszeile, Portalreihe, BR-/BL- und
+   M+-Timer sowie Killtracker gemeinsam bei x=494. Linke Kanten, Buttonbreiten,
+   vertikale Positionen, Datenquellen und Secure-Aktionen bleiben unveraendert.
 
 ## Rueckverfolgbarkeit zu Quelldateien
 

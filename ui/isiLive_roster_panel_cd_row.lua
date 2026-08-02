@@ -16,6 +16,7 @@ local CD_TRACKER_ICON_SIZE = 16
 local CD_TRACKER_TEXT_GAP = 6
 local CD_TRACKER_FONT_SIZE = 12
 local MPLUS_TIMER_TEXT_WIDTH = 48
+local M2_RUN_ROW_RIGHT_MARGIN = RI.M2_RUN_ROW_RIGHT_MARGIN or 6
 
 local function BuildDeathSummaryTooltipLines(summaries)
   local lines = {}
@@ -107,7 +108,7 @@ local function CreateCdTrackerRow(mainFrame, opts)
   end
   if type(row.SetPoint) == "function" then
     row:SetPoint("BOTTOMLEFT", 10, CD_TRACKER_ROW_BOTTOM_OFFSET)
-    row:SetPoint("BOTTOMRIGHT", -10, CD_TRACKER_ROW_BOTTOM_OFFSET)
+    row:SetPoint("BOTTOMRIGHT", -M2_RUN_ROW_RIGHT_MARGIN, CD_TRACKER_ROW_BOTTOM_OFFSET)
   end
 
   -- BR/BL box: left-aligned, framed together
@@ -124,6 +125,7 @@ local function CreateCdTrackerRow(mainFrame, opts)
   if type(UICommon.ApplyBackdrop) == "function" then
     UICommon.ApplyBackdrop(cdBox, "CD_BOX")
   end
+  cdBox._isiLiveSurfaceRole = "run"
   row.cdBox = cdBox
 
   -- BR icon + text inside cdBox
@@ -191,6 +193,7 @@ local function CreateCdTrackerRow(mainFrame, opts)
   if type(UICommon.ApplyBackdrop) == "function" then
     UICommon.ApplyBackdrop(mplusBox, "MPLUS_BOX")
   end
+  mplusBox._isiLiveSurfaceRole = "run"
   mplusBox:Hide()
   row.mplusBox = mplusBox
 

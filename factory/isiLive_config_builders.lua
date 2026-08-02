@@ -138,13 +138,14 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
         mainUI.ResetPosition()
       end
 
-      if mainFrame and type(mainFrame.SetBackdropColor) == "function" then
-        mainFrame:SetBackdropColor(0, 0, 0, defaultBgAlpha)
-      end
-
       local colors = uiCommon and uiCommon.Colors
       if type(colors) == "table" and type(colors.BG_PRIMARY) == "table" then
         colors.BG_PRIMARY[4] = defaultBgAlpha
+      end
+
+      if mainFrame and type(mainFrame.SetBackdropColor) == "function" then
+        local mainSurface = colors and colors.SURFACE_MAIN_FRAME or { 0.035, 0.045, 0.065 }
+        mainFrame:SetBackdropColor(mainSurface[1], mainSurface[2], mainSurface[3], defaultBgAlpha)
       end
 
       local bg = colors and colors.BG_PRIMARY or { 0.08, 0.08, 0.12, defaultBgAlpha }

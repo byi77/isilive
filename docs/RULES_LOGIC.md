@@ -123,6 +123,10 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 101. Saisonbezogene Runtime-Aufloesungen fuer Portale, LFG-Activities, Anzeigeinformationen und Portalraum-Belegung werden ausschliesslich aus dem normalisierten Saisonmanifest erzeugt und bleiben bei fehlenden Daten unresolved.
 102. Erfolgreiche Blizzard-API-Aufrufe mit als geheim markierten Rueckgabewerten gelten als unverifiziert und muessen geschlossen bleiben.
 103. Sync-Sendecooldowns und Payload-Deduplizierung duerfen erst nach einem erfolgreichen Dispatch fortgeschrieben werden.
+104. Die Main-UI nutzt das gemeinsame kuehle isiLive-Designsystem: Readycheck und Countdown sind primaere Aktionen, Share Keys, Refresh und Countdown-Abbruch sekundaere Aktionen; Titel-Chrome und Toolbar-Buttons bleiben blau/slate, waehrend der rote Schliessen-Button erhalten bleibt.
+105. Portalreihe, BR-/BL-Zeile, M+-Timer und Killtracker bilden ueber gemeinsame semantische Flaechen eine M+-Run-Zone; Center-Notice und Portal-Navigator verwenden dieselbe moderne Notice-Card-Sprache und zeigen nur verifiziert gelieferte Navigator-Zusatztexte.
+106. (veraltet — ersetzt durch Regel 107) Die zwischenzeitlich neutrale Statsbox-Sekundaerhierarchie wurde nach User-Feedback wieder verworfen.
+107. Die Statsbox nutzt wieder pro Stat ihre feste unterscheidbare Farbe; der sichtbare BETA-Zusatz entfaellt nur aus der Main-UI-Ueberschrift, und die beiden oberen Trenner sowie alle unteren M+-Blockreihen enden jeweils an einer gemeinsamen rechten Kante.
 
 ## Regelbloecke
 
@@ -616,6 +620,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Center notice font scale does not grow across repeated notices
   - Center notice uses portal navigator typography defaults
+  - Portal navigator notice lays out the five portal positions in a crescent
   - Architecture center notice and portal entries share the same notice body typography helper
   - Architecture portal navigator notice owns portal construction behind Notice facade
 
@@ -1010,7 +1015,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - StatsBox lock blocks dragging without changing its saved position
   - Settings panel exposes stats box position lock toggle
   - StatsBox applies enabled toggle and background opacity without a border
-  - StatsBox renders subtle row tint backgrounds without a border
+  - StatsBox renders distinct stat row tints without a border
   - StatsBox keeps value-percent separator hidden while preserving row highlight and hover affordance
   - StatsBox applies font size offset from settings
   - StatsBox applies high contrast text shadow
@@ -1026,7 +1031,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - StatsBox optional row defaults show leech and speed only
   - StatsBox display mode renders values only or percentages only
   - Settings panel exposes stats box detail checkboxes and display mode
-  - StatsBox applies Blizzard-like fixed stat colors
+  - StatsBox applies distinct fixed stat colors
   - StatsBox formats secret API values without arithmetic
   - StatsBox uses explicit demo rows only while demo data is set
 
@@ -1190,7 +1195,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-MPLUS-NAMEPLATE-KOMPATIBLE-VORSCHAU
 - Regelnummer: 75
 - Status: aktiv
-- Zusammenfassung: Die M+-Forces-Namensplakettenanzeige muss nach expliziter Aktivierung unabhaengig davon rendern, ob kein externes Namensplaketten-Addon, Plater oder Platynator geladen ist. Externe Namensplaketten-Addons duerfen hoechstens eine Settings-Warnung ausloesen, aber den Runtime-Renderer nicht deaktivieren. Die Settings-Vorschau muss denselben Text-, Groessen-, Font- und Ankerpfad verwenden wie der Runtime-Renderer, damit Prozentanzeige, Restbedarf, Position, Schriftgroesse und Offsets nicht auseinanderlaufen; die Fake-Namensplatte der Vorschau muss dafuer einen `UnitFrame.healthBar`-Anker bereitstellen und die Prozentanzeige daran ankern. Wenn Plater auf der Namensplatte einen `unitFrame.healthBar` bereitstellt, muss dieser Healthbar-Frame als Runtime-Anker genutzt werden. Wenn Platynator auf der Blizzard-Namensplatte ein sichtbares Display mit `widgets` und einem Health-Widget `details.kind == "health"` bereitstellt, muss dieses sichtbare Health-Widget den Runtime-Anker bilden und vor einem versteckten Blizzard-`UnitFrame.healthBar` Vorrang haben. Das Runtime-Overlay muss die Strata der Namensplatte uebernehmen und darf nicht pauschal auf eine globale Top-Ebene wie `TOOLTIP` erzwingen; eine hoeherliegende Sortierung ist nur ueber das FrameLevel innerhalb derselben Strata erlaubt.
+- Zusammenfassung: Die M+-Forces-Namensplakettenanzeige muss nach expliziter Aktivierung unabhaengig davon rendern, ob kein externes Namensplaketten-Addon, Plater oder Platynator geladen ist. Externe Namensplaketten-Addons duerfen hoechstens eine Settings-Warnung ausloesen, aber den Runtime-Renderer nicht deaktivieren. Die Settings-Vorschau muss unabhaengig vom aktuell gewaehlten Live-Anzeigemodus `Aus`, `Tooltip` oder `Namensplakette` sichtbar bleiben und denselben Text-, Groessen-, Font- und Ankerpfad wie der Runtime-Renderer verwenden, damit Prozentanzeige, Restbedarf, Position, Schriftgroesse und Offsets nicht auseinanderlaufen; die Fake-Namensplatte der Vorschau muss dafuer einen `UnitFrame.healthBar`-Anker bereitstellen und die Prozentanzeige daran ankern. Wenn Plater auf der Namensplatte einen `unitFrame.healthBar` bereitstellt, muss dieser Healthbar-Frame als Runtime-Anker genutzt werden. Wenn Platynator auf der Blizzard-Namensplatte ein sichtbares Display mit `widgets` und einem Health-Widget `details.kind == "health"` bereitstellt, muss dieses sichtbare Health-Widget den Runtime-Anker bilden und vor einem versteckten Blizzard-`UnitFrame.healthBar` Vorrang haben. Das Runtime-Overlay muss die Strata der Namensplatte uebernehmen und darf nicht pauschal auf eine globale Top-Ebene wie `TOOLTIP` erzwingen; eine hoeherliegende Sortierung ist nur ueber das FrameLevel innerhalb derselben Strata erlaubt.
 - Erforderliche Tests:
   - MobNameplate font-size pipeline is unaffected by Plater being loaded
   - MobNameplate overlay renders when Platynator is loaded
@@ -1200,7 +1205,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - MobNameplate ApplyPosition anchors to the Platynator display health widget when available
   - MobNameplate ApplyPreview uses the runtime text, size and healthbar anchor path
   - Settings nameplate preview uses the shared MobNameplate renderer
-  - Settings nameplate preview restores percent text after display mode is re-enabled
+  - Settings nameplate preview remains visible independent of live display mode
 
 ### RULE-ROSTER-ROLLE-AUS-INSPECT-SPEZIALISIERUNG
 - Regelnummer: 76
@@ -1362,11 +1367,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-UI-LAYOUT-BUDGETS
 - Regelnummer: 86
 - Status: aktiv
-- Zusammenfassung: Sichtbare UI-Elemente mit dynamischen Texten oder wachsender Aktionszahl muessen ein explizites Layoutbudget haben. Rich-Center-Notices muessen ihre Hoehe ueber die Standardhoehe und ueber ein zu kleines explizites `maxHeight` hinaus erweitern, wenn verifizierte gewrappte Feldwerte sonst abgeschnitten wuerden. Die Main-Frame-Titelleiste muss Platz fuer die rechten Toolbar-Buttons reservieren und den optionalen Hint ausblenden, bevor er mit diesen Buttons kollidiert. Das Demo-Simulations-Tablet muss seine Aktionen in einer zweispaltigen, kategorisierten Ansicht budgetieren, seine Frame-Hoehe mit der Anzahl der in der aktiven Kategorie sichtbaren Aktionsbuttons erweitern und nach dynamischen Hoehenaenderungen am Bildschirm geklemmt bleiben. Death-Alert-Text muss ein begrenztes zentriertes Textbudget nutzen und lange lokalisierte Texte wrappen koennen. Sound-Preview-Buttons muessen als Play-Aktion mit fontunabhaengigem Texture-Icon erkennbar sein und beim Hover einen kurzen Tooltip anzeigen.
+- Zusammenfassung: Sichtbare UI-Elemente mit dynamischen Texten oder wachsender Aktionszahl muessen ein explizites Layoutbudget haben. Rich-Center-Notices muessen ihre Hoehe ueber die Standardhoehe und ueber ein zu kleines explizites `maxHeight` hinaus erweitern, wenn verifizierte gewrappte Feldwerte sonst abgeschnitten wuerden. Die Main-Frame-Titelleiste muss Platz fuer die rechten Toolbar-Buttons reservieren; der fruehere optionale Titel-Hint bleibt gemaess Regel 107 in allen Layouts dauerhaft ausgeblendet. Das Demo-Simulations-Tablet muss seine Aktionen in einer zweispaltigen, kategorisierten Ansicht budgetieren, seine Frame-Hoehe mit der Anzahl der in der aktiven Kategorie sichtbaren Aktionsbuttons erweitern und nach dynamischen Hoehenaenderungen am Bildschirm geklemmt bleiben. Death-Alert-Text muss ein begrenztes zentriertes Textbudget nutzen und lange lokalisierte Texte wrappen koennen. Sound-Preview-Buttons muessen als Play-Aktion mit fontunabhaengigem Texture-Icon erkennbar sein und beim Hover einen kurzen Tooltip anzeigen.
 - Erforderliche Tests:
   - Center notice rich layout expands height for long wrapped fields
   - Center notice rich layout ignores too-small explicit maxHeight for required content
   - Architecture main-frame title bar applies a toolbar-safe text budget
+  - Architecture M+ title omits beta label while settings retain beta status
   - Simulation tablet expands frame height for larger action grids
   - Simulation tablet reapplies screen clamp after dynamic height changes
   - Simulation tablet category tabs keep the control surface compact
@@ -1629,3 +1635,73 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Sync raw dispatch failure is contained and does not consume payload dedupe
   - Sync CTL dispatch failure does not consume payload dedupe
+
+### RULE-MAIN-UI-SEMANTISCHE-HIERARCHIE
+- Regelnummer: 104
+- Status: aktiv
+- Zusammenfassung: Die Main-UI verwendet die zentralen semantischen Theme-, Flaechen-, Text-, Border- und Abstandsrollen aus `UICommon`. Readycheck und der 10-Sekunden-Countdown werden als primaere Aktionen gerendert; Share Keys, Refresh und Countdown-Abbruch werden als sekundaere Aktionen gerendert. Titelflaeche, Spaltenueberschriften sowie Lock-/Settings-Toolbar nutzen die ruhige blau/slate Designsprache, der Windows-artige rote Schliessen-Button bleibt unveraendert erhalten. Die visuelle Modernisierung darf weder feste Roster- und Layoutbudgets noch Secure-Attribute, Klickpfade oder Leader-Berechtigungen veraendern.
+- Erforderliche Tests:
+  - UICommon semantic design system exposes shared modern surface and spacing roles
+  - UICommon action button switches deterministic primary visual states
+  - UICommon panel chrome creates a bounded title surface and separator
+  - Architecture main-frame action hierarchy uses shared semantic button roles
+  - Architecture main-frame title bar applies a toolbar-safe text budget
+  - Architecture secure button mutation surface is explicitly audited for combat and key safety
+  - UI close button hides frame directly
+
+### RULE-MPLUS-RUN-ZONE-UND-NOTICE-CARDS
+- Regelnummer: 105
+- Status: aktiv
+- Zusammenfassung: Die Dungeonportal-Buttons, die Battle-Res-/Bloodlust-Anzeige, der M+-Timer und der M+-Killtracker muessen ihre ruhige blau/slate Flaeche und ihren Border aus der gemeinsamen semantischen M+-Run-Rolle in `UICommon` beziehen. Center-Notice und Portal-Navigator muessen dieselbe semantische Notice-Flaeche, denselben kuehlen Border und denselben dezenten oberen Akzent verwenden; die bestehenden warm-goldenen `isiLive - `-Ueberschriften und die gemeinsame Body-Typografie bleiben erhalten. Der Portal-Navigator darf die bereits vom Status-Renderer verifiziert und lokalisiert gelieferten Richtungs- und Leerplatz-Detailtexte anzeigen, muss fehlende Zusatztexte aber leer lassen. Diese visuelle Vereinheitlichung darf keine Layoutbudgets, Secure-Attribute, Portal-Klickpfade sowie M+-Timer-, Cooldown- oder Killtracker-Datenlogik veraendern.
+- Erforderliche Tests:
+  - UICommon semantic design system exposes shared modern surface and spacing roles
+  - UICommon notice chrome creates a shared top accent and semantic role
+  - Center notice close button hides center notice directly
+  - CreateCdTrackerRow renders M+ grade badges and wide timer fields
+  - RosterLayout M+ action portal timer and kill rows share one right edge
+  - TeleportUI tooltip shows English dungeon name below the localized title
+  - Portal navigator notice lays out the five portal positions in a crescent
+  - Architecture secure button mutation surface is explicitly audited for combat and key safety
+
+### RULE-SEKUNDAERE-UI-RUHIGE-HIERARCHIE
+- Regelnummer: 106
+- Status: veraltet
+- Zusammenfassung: Ersetzt durch Regel 107. Die dort zwischenzeitlich festgelegte neutrale Statsbox-Sekundaerhierarchie wurde auf ausdrueckliches User-Feedback verworfen; die weiterhin gewuenschten Settings-, ESC-, LFG-, Nameplate-, Tooltip- und Death-Alert-Vertraege wurden in Regel 107 uebernommen.
+- Erforderliche Tests:
+  - StatsBox renders calm hierarchical row tints without a border
+  - StatsBox uses one primary accent and neutral secondary text hierarchy
+  - Settings display section separates child groups with quiet and cool hierarchy lines
+  - Settings section headers use cool section-card styling
+  - Settings panel orders controls by thematic sections
+  - UI game-menu panels rely on parent visibility instead of deferred host callbacks
+  - LI.EnsureFlagTexture creates the texture once and caches it on the button
+  - LI.UpdateButton renders search-result bonus markers as one right-aligned stack below the badge area
+  - LI.ApplyApplicantBonusToMemberFrame writes applicant bonus markers next to the class badge and clears them
+  - MobNameplate renders percent text for an eligible hostile unit in an active key
+  - UICommon private tooltip uses the shared notice surface
+  - MobTooltip appends forces line for matching creature in active M+ key
+  - DeathAlert renders big red death text and restarts animation on repeated show
+
+### RULE-UI-DESIGNBUG-KORREKTUREN
+- Regelnummer: 107
+- Status: aktiv
+- Zusammenfassung: Die Statsbox muss fuer Primaerstat, Ausdauer, Krit, Tempo, Meisterschaft, Vielseitigkeit, Lebensraub, Geschwindigkeit, Haltbarkeit und Vermeidung wieder die jeweils fest gepflegte unterscheidbare Statfarbe auf Label, Wert, Prozent und dezenter Zeilentoenung verwenden; feste Spaltenstruktur, Anzeigeoptionen und Blizzard-Live-Datenquellen bleiben unveraendert. Der sichtbare `BETA`-Zusatz muss aus der Main-UI-Ueberschrift in allen Layouts entfernt bleiben, waehrend der allgemeine Beta-Status und der Beta-Hinweis in den Settings erhalten bleiben. Die blaue Trennlinie unter der Titelflaeche und die blaue Trennlinie unter den Tabellenueberschriften muessen beide links und rechts exakt 8 Pixel eingerueckt enden. In der 500 Pixel breiten M+-Ansicht muessen Aktionsreihe, Dungeonportalreihe, kombinierte BR-/BL- und M+-Timerreihe sowie M+-Killtrackerreihe an derselben rechten Kante bei x=494 enden; Buttonbreiten, linke Kanten, vertikale Abstaende, Secure-Attribute und Datenlogik duerfen dadurch nicht veraendert werden. Die Settings behalten ihre task-orientierte Reihenfolge und kuehlen Section-Cards, ESC-Shortcuts ihre semantischen sekundaeren Zustaende, LFG-Flaggen und -Herzen ihre kompakte Darstellung sowie Nameplates, Tooltips und Death-Alerts ihre zuletzt festgelegten semantischen Rollen.
+- Erforderliche Tests:
+  - StatsBox renders distinct stat row tints without a border
+  - StatsBox applies distinct fixed stat colors
+  - Architecture M+ title omits beta label while settings retain beta status
+  - Architecture M+ title and table separators share horizontal bounds
+  - Architecture release baseline synchronizer targets beta-free M+ title
+  - RosterLayout M+ action portal timer and kill rows share one right edge
+  - CreateCdTrackerRow renders M+ grade badges and wide timer fields
+  - CreateKillTrackRow anchors active dungeon text to the full row overlay
+  - Settings display section separates child groups with quiet and cool hierarchy lines
+  - Settings section headers use cool section-card styling
+  - Settings panel orders controls by thematic sections
+  - UI game-menu panels rely on parent visibility instead of deferred host callbacks
+  - LI.EnsureFlagTexture creates the texture once and caches it on the button
+  - LI.ApplyApplicantBonusToMemberFrame writes applicant bonus markers next to the class badge and clears them
+  - MobNameplate renders percent text for an eligible hostile unit in an active key
+  - UICommon private tooltip uses the shared notice surface
+  - MobTooltip appends forces line for matching creature in active M+ key
+  - DeathAlert renders big red death text and restarts animation on repeated show

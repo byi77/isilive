@@ -12,7 +12,6 @@ local FONT_PATH = "Fonts\\FRIZQT__.TTF"
 local FONT_SIZE = 56
 local FONT_FLAGS = "THICKOUTLINE"
 local TEXT_WIDTH = 720
-local TEXT_COLOR = { r = 1, g = 0.1, b = 0.1 }
 local PUNCH_START_SCALE = 2.6
 local PUNCH_DURATION = 0.35
 local FADE_IN_DURATION = 0.12
@@ -72,7 +71,15 @@ local function BuildAlertFrame(createFrame)
     text:SetFont(FONT_PATH, FONT_SIZE, FONT_FLAGS)
   end
   if type(text.SetTextColor) == "function" then
-    text:SetTextColor(TEXT_COLOR.r, TEXT_COLOR.g, TEXT_COLOR.b, 1)
+    local colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
+    local danger = colors.TEXT_ALERT_DANGER or { 1, 0.14, 0.16 }
+    text:SetTextColor(danger[1], danger[2], danger[3], danger[4] or 1)
+  end
+  if type(text.SetShadowColor) == "function" then
+    text:SetShadowColor(0, 0, 0, 0.92)
+  end
+  if type(text.SetShadowOffset) == "function" then
+    text:SetShadowOffset(2, -2)
   end
   text:SetPoint("CENTER", frame, "CENTER", 0, 0)
   if type(text.SetWidth) == "function" then

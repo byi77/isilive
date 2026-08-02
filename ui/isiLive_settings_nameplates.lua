@@ -437,12 +437,6 @@ function SettingsNameplates.BuildSection(canvas, yOffset, labels, config, contro
 
   local function UpdatePreview()
     local db = config.getDB()
-    local enabled = db.mobNameplateEnabled == true
-    if not enabled then
-      ClearPreviewOverlay(previewOverlayFrame)
-      return
-    end
-
     local mobNameplate = addonTable.MobNameplate
     if type(mobNameplate) == "table" and type(mobNameplate.ApplyPreview) == "function" then
       local text = mobNameplate.ApplyPreview(previewOverlayFrame, preview, {

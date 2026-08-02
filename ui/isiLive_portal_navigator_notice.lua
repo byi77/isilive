@@ -66,8 +66,11 @@ local function CreateFrameRoot(config, deps)
       bg:SetColorTexture(base[1], base[2], base[3], config.backgroundAlpha)
     end
   elseif type(frame.SetBackdropColor) == "function" then
-    local base = colors.BG_NOTICE_CARD_BASE or { 0.05, 0.05, 0.08 }
+    local base = colors.SURFACE_NOTICE or { 0.035, 0.05, 0.075, 0.90 }
     frame:SetBackdropColor(base[1], base[2], base[3], config.backgroundAlpha)
+  end
+  if type(UICommon) == "table" and type(UICommon.CreateNoticeChrome) == "function" then
+    frame._isiLiveNoticeAccent = UICommon.CreateNoticeChrome(frame)
   end
   if type(frame.SetAlpha) == "function" then
     frame:SetAlpha(config.frameAlpha)
@@ -243,9 +246,9 @@ local function ApplyLayout(state, layout)
     local node = state.nodes[slot]
     local entry = entryMap[slot]
     if node and entry then
-      node.direction:SetText("")
+      state.deps.setReadableText(node.direction, entry.direction or "")
       state.deps.setReadableText(node.destination, entry.destination or "")
-      node.detail:SetText("")
+      state.deps.setReadableText(node.detail, entry.detail or "")
       if entry.isEmpty == true then
         node.iconBg:SetColorTexture(unpack(colors.DARK_SLATE_ICON_BG or { 0.13, 0.15, 0.18, 0.55 }))
         SetIconColor(node.iconCore, 0.36, 0.4, 0.46, 0.78)

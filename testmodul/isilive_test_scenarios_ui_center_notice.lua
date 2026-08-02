@@ -459,6 +459,11 @@ local function RegisterCenterNoticeVisibilityTests(test, Assert, WithGlobals, Lo
 
       centerNotice.Show("Test notice", 20, nil, nil, {})
       Assert.True(centerNotice.frame:IsShown(), "center notice should be visible before close button click")
+      Assert.Equal(
+        centerNotice.frame._isiLiveSurfaceRole,
+        "notice",
+        "center notice should use the shared notice-card chrome"
+      )
       Assert.NotNil(centerNotice.closeButton, "center notice should expose close button")
 
       local onClick = centerNotice.closeButton._scripts and centerNotice.closeButton._scripts.OnClick or nil
@@ -1060,10 +1065,15 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
       Assert.Equal(portalNotice.frame:GetHeight(), 220, "portal navigator should use the compact crescent frame height")
       Assert.Equal(portalNotice.frame:GetAlpha(), 1, "portal navigator text should stay fully opaque")
       local bgR, bgG, bgB, bgA = portalNotice.frame:GetBackdropColor()
-      Assert.Equal(bgR, 0.05, "portal navigator background should keep the configured red channel")
+      Assert.Equal(bgR, 0.035, "portal navigator background should use the shared notice red channel")
       Assert.Equal(bgG, 0.05, "portal navigator background should keep the configured green channel")
-      Assert.Equal(bgB, 0.08, "portal navigator background should keep the configured blue channel")
+      Assert.Equal(bgB, 0.075, "portal navigator background should use the shared notice blue channel")
       Assert.Equal(bgA, 0.62, "portal navigator background should render at the configured alpha")
+      Assert.Equal(
+        portalNotice.frame._isiLiveSurfaceRole,
+        "notice",
+        "portal navigator should use the shared notice-card chrome"
+      )
 
       portalNotice.SetVisible(false)
       Assert.True(not portalNotice.frame:IsShown(), "portal navigator should hide cleanly")
@@ -1211,18 +1221,17 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
         "upper-right portal should show the destination name"
       )
       Assert.Equal(portalNotice.entries.center:GetText(), "Heaven", "center portal should show the placeholder name")
-      for _, slot in ipairs({ "left", "half_left", "center", "half_right", "right" }) do
-        Assert.Equal(
-          portalNotice.nodes[slot].direction:GetText(),
-          "",
-          "portal navigator should not render directional helper labels"
-        )
-        Assert.Equal(
-          portalNotice.nodes[slot].detail:GetText(),
-          "",
-          "portal navigator should not render secondary detail labels"
-        )
-      end
+      Assert.Equal(portalNotice.nodes.left.direction:GetText(), "Left", "left direction should render")
+      Assert.Equal(portalNotice.nodes.half_left.direction:GetText(), "Half left", "half-left direction should render")
+      Assert.Equal(portalNotice.nodes.center.direction:GetText(), "Straight ahead", "center direction should render")
+      Assert.Equal(
+        portalNotice.nodes.half_right.direction:GetText(),
+        "Half right",
+        "half-right direction should render"
+      )
+      Assert.Equal(portalNotice.nodes.right.direction:GetText(), "Right", "right direction should render")
+      Assert.Equal(portalNotice.nodes.center.detail:GetText(), "Unbelegt", "verified empty-slot detail should render")
+      Assert.Equal(portalNotice.nodes.left.detail:GetText(), "", "missing optional detail should stay empty")
       Assert.Equal(
         portalNotice.nodes.left.iconCore._texture,
         "icon-skyreach",

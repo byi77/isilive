@@ -133,6 +133,16 @@ local function MakeFrame()
   function f:CreateFontString(_name, _layer, _template)
     return MakeFontString()
   end
+  function f:CreateTexture()
+    local texture = {}
+    function texture:SetAllPoints(target)
+      self._allPoints = target
+    end
+    function texture:SetColorTexture(...)
+      self._color = { ... }
+    end
+    return texture
+  end
   return f
 end
 
@@ -343,6 +353,10 @@ local function RegisterRenderTests(test, Assert, WithGlobals, LoadAddonModules)
       Assert.True(frame ~= nil, "frame must be created for eligible nameplate")
       Assert.True(frame._shown == true, "frame must be visible")
       Assert.Equal(frame.text._text, "1.16%", "default format renders the percent string with a trailing %")
+      Assert.Equal(frame._isiLiveSurfaceRole, "compact_overlay", "nameplate must expose the compact overlay role")
+      Assert.NotNil(frame.background, "nameplate must render a compact contrast surface")
+      Assert.Equal(frame.background._color[4], 0.78, "nameplate contrast surface must remain translucent")
+      Assert.Equal(frame.text._color[1], 0.64, "nameplate text must use the cool shared section color")
     end)
   end)
 

@@ -85,6 +85,60 @@ UICommon.Colors = {
   BG_NOTICE_CARD = { 0.05, 0.05, 0.08, 0.75 },
   BG_NOTICE_CARD_BASE = { 0.05, 0.05, 0.08 },
   GOLD_SEPARATOR_BASE = { 1, 0.9, 0.45 },
+
+  -- Deliberate semantic design tokens. Unlike the compatibility colors above,
+  -- these values define the shared modern isiLive visual language and may be
+  -- consumed by new reusable components across UI surfaces.
+  SURFACE_MAIN_FRAME = { 0.035, 0.045, 0.065 },
+  SURFACE_TITLE_BAR = { 0.025, 0.055, 0.085, 0.82 },
+  SURFACE_ACTION_PRIMARY = { 0.035, 0.16, 0.27, 0.92 },
+  SURFACE_ACTION_PRIMARY_HOVER = { 0.055, 0.24, 0.39, 0.96 },
+  SURFACE_ACTION_PRIMARY_PRESSED = { 0.025, 0.11, 0.19, 0.98 },
+  SURFACE_ACTION_SECONDARY = { 0.065, 0.075, 0.11, 0.88 },
+  SURFACE_ACTION_SECONDARY_HOVER = { 0.10, 0.13, 0.19, 0.94 },
+  SURFACE_ACTION_SECONDARY_PRESSED = { 0.04, 0.05, 0.08, 0.98 },
+  BORDER_ACTION_PRIMARY = { 0.28, 0.68, 1, 0.72 },
+  BORDER_ACTION_SECONDARY = { 0.32, 0.40, 0.52, 0.62 },
+  BORDER_TITLE_BAR = { 0.26, 0.62, 0.92, 0.38 },
+  TEXT_HEADING = { 0.93, 0.96, 1 },
+  TEXT_SECTION = { 0.64, 0.80, 0.96 },
+  TEXT_SUPPORTING = { 0.58, 0.65, 0.74 },
+  SURFACE_RUN_ZONE = { 0.035, 0.055, 0.085, 0.86 },
+  BORDER_RUN_ZONE = { 0.22, 0.48, 0.72, 0.54 },
+  SURFACE_NOTICE = { 0.035, 0.05, 0.075, 0.90 },
+  BORDER_NOTICE = { 0.24, 0.55, 0.82, 0.58 },
+  ACCENT_NOTICE_TOP = { 0.24, 0.72, 1, 0.72 },
+  SURFACE_COMPACT_OVERLAY = { 0.025, 0.04, 0.06, 0.78 },
+  TEXT_ALERT_DANGER = { 1, 0.14, 0.16 },
+}
+
+UICommon.Theme = {
+  spacing = {
+    xs = 4,
+    sm = 8,
+    md = 12,
+    lg = 16,
+  },
+  typography = {
+    title = "GameFontNormalLarge",
+    body = "GameFontNormalSmall",
+    data = "GameFontHighlightSmall",
+  },
+  color = {
+    surface = {
+      main = UICommon.Colors.SURFACE_MAIN_FRAME,
+      title = UICommon.Colors.SURFACE_TITLE_BAR,
+      raised = UICommon.Colors.BG_SECONDARY,
+      run = UICommon.Colors.SURFACE_RUN_ZONE,
+      notice = UICommon.Colors.SURFACE_NOTICE,
+    },
+    text = {
+      primary = UICommon.Colors.TEXT_HEADING,
+      secondary = UICommon.Colors.TEXT_SECTION,
+      supporting = UICommon.Colors.TEXT_SUPPORTING,
+    },
+    accent = UICommon.Colors.ACCENT_BLUE,
+  },
 }
 
 function UICommon.GetLocalizedText(key, fallback)
@@ -286,7 +340,8 @@ function UICommon.ApplyBgAlpha(frames, alpha)
 
   local mainFrame = frames.mainFrame
   if mainFrame and type(mainFrame.SetBackdropColor) == "function" then
-    mainFrame:SetBackdropColor(0, 0, 0, alpha)
+    local surface = UICommon.Colors.SURFACE_MAIN_FRAME
+    mainFrame:SetBackdropColor(surface[1], surface[2], surface[3], alpha)
   end
 
   local bg = UICommon.Colors and UICommon.Colors.BG_PRIMARY or { 0.08, 0.08, 0.12, alpha }
@@ -332,19 +387,20 @@ UICommon.BACKDROP_PRESETS = {
   MAIN_FRAME = {
     backdrop = BACKDROP_PANEL,
     bgColor = function()
-      return 0, 0, 0, UICommon.GetBackgroundAlpha()
+      local surface = UICommon.Colors.SURFACE_MAIN_FRAME
+      return surface[1], surface[2], surface[3], UICommon.GetBackgroundAlpha()
     end,
-    borderColor = { 0.3, 0.65, 1, 0.25 },
+    borderColor = UICommon.Colors.BORDER_TITLE_BAR,
   },
   NOTICE = {
     backdrop = BACKDROP_PANEL,
-    bgColor = { 0.05, 0.05, 0.08, 0.75 },
-    borderColor = { 1, 0.82, 0, 0.45 },
+    bgColor = UICommon.Colors.SURFACE_NOTICE,
+    borderColor = UICommon.Colors.BORDER_NOTICE,
   },
   TOOLTIP = {
     backdrop = BACKDROP_PANEL,
-    bgColor = { 0, 0, 0, 0.92 },
-    borderColor = UICommon.Colors.BORDER_DEFAULT,
+    bgColor = UICommon.Colors.SURFACE_NOTICE,
+    borderColor = UICommon.Colors.BORDER_NOTICE,
   },
   CLOSE_BUTTON = {
     backdrop = BACKDROP_PANEL,
@@ -356,19 +412,24 @@ UICommon.BACKDROP_PRESETS = {
     bgColor = UICommon.Colors.BG_SECONDARY,
     borderColor = UICommon.Colors.BORDER_DEFAULT,
   },
+  TITLE_BUTTON = {
+    backdrop = BACKDROP_FLAT_BUTTON,
+    bgColor = UICommon.Colors.SURFACE_ACTION_SECONDARY,
+    borderColor = UICommon.Colors.BORDER_ACTION_SECONDARY,
+  },
   BUTTON_BG = {
     backdrop = BACKDROP_BG_ONLY,
     bgColor = UICommon.Colors.BG_SECONDARY,
   },
   CD_BOX = {
     backdrop = BACKDROP_FLAT_BUTTON,
-    bgColor = { 0.10, 0.10, 0.16, 0.80 },
-    borderColor = { 0.30, 0.30, 0.45, 0.70 },
+    bgColor = UICommon.Colors.SURFACE_RUN_ZONE,
+    borderColor = UICommon.Colors.BORDER_RUN_ZONE,
   },
   MPLUS_BOX = {
     backdrop = BACKDROP_FLAT_BUTTON,
-    bgColor = { 0.06, 0.10, 0.18, 0.85 },
-    borderColor = { 0.20, 0.50, 0.90, 0.60 },
+    bgColor = UICommon.Colors.SURFACE_RUN_ZONE,
+    borderColor = UICommon.Colors.BORDER_RUN_ZONE,
   },
 }
 
@@ -394,6 +455,147 @@ function UICommon.ApplyBackdrop(frame, presetName)
     frame:SetBackdropBorderColor(bc[1], bc[2], bc[3], bc[4])
   end
   return true
+end
+
+local ACTION_BUTTON_STYLE_BY_ROLE = {
+  primary = {
+    defaultBg = UICommon.Colors.SURFACE_ACTION_PRIMARY,
+    hoverBg = UICommon.Colors.SURFACE_ACTION_PRIMARY_HOVER,
+    pressedBg = UICommon.Colors.SURFACE_ACTION_PRIMARY_PRESSED,
+    border = UICommon.Colors.BORDER_ACTION_PRIMARY,
+    text = UICommon.Colors.TEXT_HEADING,
+  },
+  secondary = {
+    defaultBg = UICommon.Colors.SURFACE_ACTION_SECONDARY,
+    hoverBg = UICommon.Colors.SURFACE_ACTION_SECONDARY_HOVER,
+    pressedBg = UICommon.Colors.SURFACE_ACTION_SECONDARY_PRESSED,
+    border = UICommon.Colors.BORDER_ACTION_SECONDARY,
+    text = UICommon.Colors.TEXT_NORMAL,
+  },
+  title = {
+    defaultBg = UICommon.Colors.SURFACE_ACTION_SECONDARY,
+    hoverBg = UICommon.Colors.SURFACE_ACTION_SECONDARY_HOVER,
+    pressedBg = UICommon.Colors.SURFACE_ACTION_SECONDARY_PRESSED,
+    border = UICommon.Colors.BORDER_TITLE_BAR,
+    text = UICommon.Colors.TEXT_SECTION,
+  },
+}
+
+local function ApplyColorTuple(target, methodName, color)
+  local method = type(target) == "table" and target[methodName] or nil
+  if type(method) ~= "function" or type(color) ~= "table" then
+    return
+  end
+  method(target, color[1], color[2], color[3], color[4] or 1)
+end
+
+function UICommon.ApplyActionButtonVisual(button, role, state)
+  if type(button) ~= "table" then
+    return false
+  end
+  local resolvedRole = ACTION_BUTTON_STYLE_BY_ROLE[role] and role or "secondary"
+  local style = ACTION_BUTTON_STYLE_BY_ROLE[resolvedRole]
+  local resolvedState = state == "hover" and "hover" or (state == "pressed" and "pressed" or "default")
+  local background = resolvedState == "hover" and style.hoverBg
+    or (resolvedState == "pressed" and style.pressedBg or style.defaultBg)
+
+  ApplyColorTuple(button, "SetBackdropColor", background)
+  ApplyColorTuple(button, "SetBackdropBorderColor", style.border)
+  ApplyColorTuple(button._flatLabel, "SetTextColor", style.text)
+  button._isiLiveSemanticRole = resolvedRole
+  button._isiLiveVisualState = resolvedState
+  return true
+end
+
+function UICommon.CreateActionButton(parent, opts)
+  opts = opts or {}
+  local createFrame = rawget(_G, "CreateFrame")
+  if type(createFrame) ~= "function" then
+    return nil
+  end
+
+  local button = createFrame("Button", opts.name, parent, opts.template or "BackdropTemplate")
+  button:SetSize(tonumber(opts.width) or 120, tonumber(opts.height) or 24)
+  UICommon.ApplyBackdrop(button, "FLAT_BUTTON")
+  if type(button.EnableMouse) == "function" then
+    button:EnableMouse(true)
+  end
+  if type(button.RegisterForClicks) == "function" then
+    button:RegisterForClicks("LeftButtonUp")
+  end
+
+  if type(button.CreateFontString) == "function" then
+    local label = button:CreateFontString(nil, "OVERLAY", opts.fontObject or UICommon.Theme.typography.body)
+    if type(label.SetPoint) == "function" then
+      label:SetPoint("CENTER", button, "CENTER", 0, 0)
+    end
+    button._flatLabel = label
+  end
+
+  local role = ACTION_BUTTON_STYLE_BY_ROLE[opts.role] and opts.role or "secondary"
+  function button:SetSemanticRole(nextRole)
+    role = ACTION_BUTTON_STYLE_BY_ROLE[nextRole] and nextRole or "secondary"
+    UICommon.ApplyActionButtonVisual(self, role, "default")
+  end
+
+  if type(button.HookScript) == "function" then
+    button:HookScript("OnEnter", function(self)
+      UICommon.ApplyActionButtonVisual(self, role, "hover")
+    end)
+    button:HookScript("OnLeave", function(self)
+      UICommon.ApplyActionButtonVisual(self, role, "default")
+    end)
+    button:HookScript("OnMouseDown", function(self)
+      UICommon.ApplyActionButtonVisual(self, role, "pressed")
+    end)
+    button:HookScript("OnMouseUp", function(self)
+      local isMouseOver = type(self.IsMouseOver) == "function" and self:IsMouseOver()
+      UICommon.ApplyActionButtonVisual(self, role, isMouseOver and "hover" or "default")
+    end)
+  end
+
+  UICommon.ApplyActionButtonVisual(button, role, "default")
+  return button
+end
+
+function UICommon.CreatePanelChrome(parent, opts)
+  opts = opts or {}
+  if type(parent) ~= "table" or type(parent.CreateTexture) ~= "function" then
+    return nil
+  end
+
+  local height = tonumber(opts.height) or 27
+  local titleBar = parent:CreateTexture(nil, "BACKGROUND")
+  titleBar:SetPoint("TOPLEFT", parent, "TOPLEFT", 1, -1)
+  titleBar:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -1, -1)
+  titleBar:SetHeight(height)
+  ApplyColorTuple(titleBar, "SetColorTexture", UICommon.Colors.SURFACE_TITLE_BAR)
+
+  local separator = parent:CreateTexture(nil, "ARTWORK")
+  separator:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -(height + 1))
+  separator:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -8, -(height + 1))
+  separator:SetHeight(1)
+  ApplyColorTuple(separator, "SetColorTexture", UICommon.Colors.BORDER_TITLE_BAR)
+
+  return {
+    titleBar = titleBar,
+    separator = separator,
+    height = height,
+  }
+end
+
+function UICommon.CreateNoticeChrome(parent)
+  if type(parent) ~= "table" or type(parent.CreateTexture) ~= "function" then
+    return nil
+  end
+
+  local accent = parent:CreateTexture(nil, "ARTWORK")
+  accent:SetPoint("TOPLEFT", parent, "TOPLEFT", 1, -1)
+  accent:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -1, -1)
+  accent:SetHeight(2)
+  ApplyColorTuple(accent, "SetColorTexture", UICommon.Colors.ACCENT_NOTICE_TOP)
+  parent._isiLiveSurfaceRole = "notice"
+  return accent
 end
 
 local TOOLTIP_HORIZONTAL_PADDING = 10

@@ -104,6 +104,7 @@ local M2_TOOLBAR_BUTTON_GAP = 6
 local M2_TELEPORT_BUTTON_WIDTH = 57
 local M2_TELEPORT_BUTTON_HEIGHT = 32
 local M2_TELEPORT_BUTTON_GAP = 4
+local M2_RUN_ROW_RIGHT_MARGIN = 6
 local M2_HELPER_BUTTON_SIZE = 22
 local M2_HELPER_BUTTON_GAP = 6
 
@@ -162,6 +163,7 @@ RI.M2_TELEPORT_BUTTON_WIDTH = M2_TELEPORT_BUTTON_WIDTH
 RI.M2_TELEPORT_BUTTON_HEIGHT = M2_TELEPORT_BUTTON_HEIGHT
 RI.M2_TELEPORT_BUTTON_SIZE = M2_TELEPORT_BUTTON_WIDTH
 RI.M2_TELEPORT_BUTTON_GAP = M2_TELEPORT_BUTTON_GAP
+RI.M2_RUN_ROW_RIGHT_MARGIN = M2_RUN_ROW_RIGHT_MARGIN
 RI.M2_HELPER_BUTTON_SIZE = M2_HELPER_BUTTON_SIZE
 RI.M2_HELPER_BUTTON_GAP = M2_HELPER_BUTTON_GAP
 RI.SYSTEM_OPTION_TOGGLE_LEFT_MARGIN = SYSTEM_OPTION_TOGGLE_LEFT_MARGIN
@@ -184,7 +186,7 @@ RI.LAYOUT_MODE_CONFIG = LAYOUT_MODE_CONFIG
 local UI_VISIBILITY_RULES = {
   { "title", true, false, false, true },
   { "titleVersion", true, false, false, true },
-  { "titleHint", true, false, false, true },
+  { "titleHint", false, false, false, false },
   { "headerSepLeft", true, false, false, true },
   { "headerSepRight", true, false, false, true },
   { "versionLine", true, false, false, true },

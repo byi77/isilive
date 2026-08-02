@@ -21,6 +21,7 @@ local HELPER_COLUMN_X = RI.HELPER_COLUMN_X or -111
 local UICommon = addonTable.UICommon or {}
 local Colors = UICommon.Colors or {}
 local MeasureFontStringWidthSafe = UICommon.MeasureFontStringWidthSafe
+local CreateActionButton = UICommon.CreateActionButton
 
 -- Column position constants. Shared with isiLive_roster_panel.lua via RI so
 -- both the header row creation here and the member row rendering there stay
@@ -166,6 +167,15 @@ local function SetPanelHeaderText(fontString, text)
 end
 
 local function CreateFlatButton(parent, width, height, template)
+  if type(CreateActionButton) == "function" then
+    return CreateActionButton(parent, {
+      width = width,
+      height = height,
+      template = template,
+      role = "secondary",
+    })
+  end
+
   local button = CreateFrame("Button", nil, parent, template or "BackdropTemplate")
   button:SetSize(width, height)
   local common = addonTable and addonTable.UICommon
@@ -313,6 +323,24 @@ local function CreatePanelHeaders(mainFrame)
   mplusManagementHeader:SetJustifyH("CENTER")
   ConfigureSingleLineFontString(mplusManagementHeader)
 
+  local headerColor = Colors.TEXT_SECTION or { 0.64, 0.80, 0.96 }
+  for _, header in ipairs({
+    specHeader,
+    nameHeader,
+    ilvlHeader,
+    serverHeader,
+    keyHeader,
+    rioHeader,
+    dpsHeader,
+    kickHeader,
+    leadOptionsHeader,
+    mplusManagementHeader,
+  }) do
+    if type(header.SetTextColor) == "function" then
+      header:SetTextColor(headerColor[1], headerColor[2], headerColor[3], headerColor[4] or 1)
+    end
+  end
+
   local headerSepLeft = mainFrame:CreateTexture(nil, "ARTWORK")
   headerSepLeft:SetHeight(1)
   headerSepLeft:SetPoint("TOPLEFT", 8, -48)
@@ -320,7 +348,9 @@ local function CreatePanelHeaders(mainFrame)
   if type(headerSepLeft.SetTexture) == "function" then
     headerSepLeft:SetTexture("Interface\\Buttons\\WHITE8X8")
   end
-  if type(headerSepLeft.SetGradient) == "function" then
+  if type(headerSepLeft.SetColorTexture) == "function" then
+    headerSepLeft:SetColorTexture(unpack(Colors.BORDER_TITLE_BAR or { 0.26, 0.62, 0.92, 0.38 }))
+  elseif type(headerSepLeft.SetGradient) == "function" then
     headerSepLeft:SetGradient(
       "HORIZONTAL",
       { r = 0.5, g = 0.5, b = 0.7, a = 0 },
@@ -331,11 +361,13 @@ local function CreatePanelHeaders(mainFrame)
   local headerSepRight = mainFrame:CreateTexture(nil, "ARTWORK")
   headerSepRight:SetHeight(1)
   headerSepRight:SetPoint("TOPLEFT", mainFrame, "TOP", 0, -48)
-  headerSepRight:SetPoint("TOPRIGHT", 0, -48)
+  headerSepRight:SetPoint("TOPRIGHT", -8, -48)
   if type(headerSepRight.SetTexture) == "function" then
     headerSepRight:SetTexture("Interface\\Buttons\\WHITE8X8")
   end
-  if type(headerSepRight.SetGradient) == "function" then
+  if type(headerSepRight.SetColorTexture) == "function" then
+    headerSepRight:SetColorTexture(unpack(Colors.BORDER_TITLE_BAR or { 0.26, 0.62, 0.92, 0.38 }))
+  elseif type(headerSepRight.SetGradient) == "function" then
     headerSepRight:SetGradient(
       "HORIZONTAL",
       { r = 0.5, g = 0.5, b = 0.7, a = 0.3 },

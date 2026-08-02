@@ -4,6 +4,7 @@ local function BuildTeleportUICreateFrameStub()
   local function CreateTextureStub()
     local texture = {}
     texture.SetAllPoints = function(_self) end
+    texture.SetPoint = function(_self, _point, _relativeTo, _relativePoint, _x, _y) end
     texture.SetTexCoord = function(_self, _x1, _x2, _y1, _y2) end
     texture.SetTexture = function(_self, _value) end
     texture.SetColorTexture = function(_self, _r, _g, _b, _a) end
@@ -538,6 +539,8 @@ local function RegisterTeleportUIVisualTests(test, Assert, WithGlobals, LoadAddo
       controller.BuildButtons()
       local button = controller.GetButtons()[1]
       Assert.NotNil(button, "TeleportUI should build one teleport button")
+      Assert.Equal(button._isiLiveSurfaceRole, "run", "portal button should use the shared M+ run surface")
+      Assert.NotNil(button.runTile, "portal button should render a stable run-zone tile behind its icon")
       local onEnter = button._scripts and button._scripts.OnEnter or nil
       Assert.NotNil(onEnter, "Teleport button should define an OnEnter handler")
       if onEnter then

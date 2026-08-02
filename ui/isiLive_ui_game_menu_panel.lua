@@ -90,7 +90,7 @@ function Panel.CreateButton(
 )
   local isAtlas = type(iconSpec) == "string" and not iconSpec:find("\\", 1, true)
   local button = CreateFrame("Button", nil, parent, buttonTemplate or "BackdropTemplate")
-  ApplyBackdrop(button, "BUTTON_BG")
+  ApplyBackdrop(button, "TITLE_BUTTON")
   if type(button.EnableMouse) == "function" then
     button:EnableMouse(true)
   end
@@ -143,6 +143,7 @@ function Panel.CreateButton(
       label:SetJustifyH("LEFT")
     end
     button._panelLabel = label
+    button._flatLabel = label
   end
 
   button._panelText = ""
@@ -169,23 +170,37 @@ function Panel.CreateButton(
 
   if type(button.SetScript) == "function" then
     button:SetScript("OnEnter", function(self)
-      if type(self.SetBackdropColor) == "function" then
-        self:SetBackdropColor(0.14, 0.14, 0.20, 0.7)
+      if type(UICommon.ApplyActionButtonVisual) == "function" then
+        UICommon.ApplyActionButtonVisual(self, "secondary", "hover")
       end
     end)
     button:SetScript("OnLeave", function(self)
-      if type(self.SetBackdropColor) == "function" then
-        local backgroundColor = Colors.BG_SECONDARY
-        self:SetBackdropColor(backgroundColor[1], backgroundColor[2], backgroundColor[3], backgroundColor[4])
+      if type(UICommon.ApplyActionButtonVisual) == "function" then
+        UICommon.ApplyActionButtonVisual(self, "secondary", "default")
       end
     end)
+    button:SetScript("OnMouseDown", function(self)
+      if type(UICommon.ApplyActionButtonVisual) == "function" then
+        UICommon.ApplyActionButtonVisual(self, "secondary", "pressed")
+      end
+    end)
+    button:SetScript("OnMouseUp", function(self)
+      if type(UICommon.ApplyActionButtonVisual) == "function" then
+        local state = type(self.IsMouseOver) == "function" and self:IsMouseOver() and "hover" or "default"
+        UICommon.ApplyActionButtonVisual(self, "secondary", state)
+      end
+    end)
+  end
+
+  if type(UICommon.ApplyActionButtonVisual) == "function" then
+    UICommon.ApplyActionButtonVisual(button, "secondary", "default")
   end
 
   return button
 end
 
 function Panel.ApplyBackdrop(panelFrame)
-  ApplyBackdrop(panelFrame, "PRIMARY")
+  ApplyBackdrop(panelFrame, "MAIN_FRAME")
 end
 
 function Panel.CreateHeaderChrome(state)
@@ -197,8 +212,8 @@ function Panel.CreateHeaderChrome(state)
   if type(panelFrame.CreateFontString) == "function" then
     state.shortcutsHeader = panelFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     if type(state.shortcutsHeader.SetTextColor) == "function" then
-      local textDim = Colors.TEXT_DIM
-      state.shortcutsHeader:SetTextColor(textDim[1], textDim[2], textDim[3], 1)
+      local sectionText = Colors.TEXT_SECTION
+      state.shortcutsHeader:SetTextColor(sectionText[1], sectionText[2], sectionText[3], 1)
     end
     if type(state.shortcutsHeader.SetJustifyH) == "function" then
       state.shortcutsHeader:SetJustifyH("LEFT")
@@ -211,8 +226,8 @@ function Panel.CreateHeaderChrome(state)
       state.shortcutsHeaderLine:SetHeight(1)
     end
     if type(state.shortcutsHeaderLine.SetColorTexture) == "function" then
-      local accentBlue = Colors.ACCENT_BLUE
-      state.shortcutsHeaderLine:SetColorTexture(accentBlue[1], accentBlue[2], accentBlue[3], 0.3)
+      local border = Colors.BORDER_TITLE_BAR
+      state.shortcutsHeaderLine:SetColorTexture(border[1], border[2], border[3], border[4])
     end
   end
 end

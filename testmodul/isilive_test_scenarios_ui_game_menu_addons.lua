@@ -28,6 +28,16 @@ local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGloba
         strip.panelFrame:IsShown(),
         "mounted panel should stay shown and inherit visibility from GameMenuFrame"
       )
+      local professionsButton = RequireValue(strip.buttonsById.professions, "profession shortcut should exist")
+      Assert.Equal(
+        professionsButton._isiLiveSemanticRole,
+        "secondary",
+        "game-menu shortcuts must use the shared secondary action role"
+      )
+      professionsButton._scripts.OnEnter(professionsButton)
+      Assert.Equal(professionsButton._isiLiveVisualState, "hover", "game-menu shortcut hover must repaint semantically")
+      professionsButton._scripts.OnLeave(professionsButton)
+      Assert.Equal(professionsButton._isiLiveVisualState, "default", "game-menu shortcut leave must restore its role")
     end)
   end)
   test(

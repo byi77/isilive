@@ -3,7 +3,7 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.0.7 / 12.1.0 Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%20%2F%2012.1.0%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.362](https://img.shields.io/badge/isiLive-0.9.362-1E90FF?style=for-the-badge)
+![isiLive 0.9.363](https://img.shields.io/badge/isiLive-0.9.363-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
@@ -17,7 +17,15 @@
 
 Season maintenance is driven by one normalized manifest. Portal, LFG activity, display, level-gate, and portal-room indexes are derived from the same per-dungeon records; the generated MDT forces snapshot remains separate, records the exact upstream commit, and is hidden at runtime as soon as its verified expiry date passes.
 
-Version `0.9.362` is a maintenance release that preserves the existing UI and settings while separating LFG resolution, LFG bonus evaluation, Blizzard Group Finder view hooks, Portal Navigator notices, and ESC-menu panel rendering into focused modules with deterministic architecture coverage. Version `0.9.361` restored clean spacing below a full five-player roster without increasing the M+ window height, stabilized that height on the first demo start after a reload, and introduced the responsive dockable demo simulator. Automatic Season 2 selection remains unchanged: the switch happens only once Blizzard ships the exact recorded dungeon set.
+The current development build introduces a shared cool blue/slate UI system for the main window. Its title chrome, column headers, toolbar controls, action surfaces, hover states, and pressed states now use one semantic component set. Ready Check and Countdown are visually primary actions; Share Keys, Refresh, and Countdown Cancel remain quieter secondary actions. Existing layouts, secure actions, button sizes, and the red close button are unchanged.
+
+The same visual language now groups the dungeon portals, Battle Res/Bloodlust status, M+ timer, and enemy-forces tracker into one coherent run zone. Center notices and the Portal Navigator share a modern card surface and top accent; the navigator also renders the verified localized direction labels and empty-slot detail already supplied by its status model.
+
+The supporting surfaces now complete that hierarchy: the Stats Box restores its established distinct color for every stat, Settings use cool topic cards and a task-oriented order, ESC shortcuts share consistent secondary action states, and LFG flags/hearts occupy less row space. Enemy-forces nameplates, private tooltips, forces tooltip lines, and death alerts use matching compact surface, text, and contrast roles without changing their data or actions.
+
+The main M+ title no longer repeats the `BETA` label, while the Settings beta notice remains. Both blue header separators now share the same 8 px horizontal bounds, and the action, portal, timer, and enemy-forces blocks terminate on one common right edge.
+
+Version `0.9.363` is the UI-modernization patch that introduces the shared semantic hierarchy across the main window, M+ run surfaces, notices, Stats Box, Settings, ESC shortcuts, compact LFG markers, nameplates, tooltips, and death alerts. Version `0.9.362` separated LFG resolution, bonus evaluation, Blizzard Group Finder view hooks, Portal Navigator notices, and ESC-menu panel rendering into focused modules with deterministic architecture coverage. Automatic Season 2 selection remains unchanged: the switch happens only once Blizzard ships the exact recorded dungeon set.
 
 **Setup:** install, join a 5-player group, and the window opens automatically.
 
@@ -263,6 +271,7 @@ An optional standalone stats box can be enabled in Settings. It is independent f
 
 - Shows the class-appropriate primary stat (`Str`, `Agi`, or `Int`) plus `Crit`, `Haste`, `Mast`, `Vers`, `Leech`, and `Speed` when Blizzard's live APIs provide those values
 - Uses short English labels only
+- Uses the established fixed per-stat color palette for labels, values, percentages, and subtle row tints
 - Values and percentages are right-aligned for compact scanning; the value column keeps a stable compact width for larger live stat values, including Stamina rows without a percent value, and the percent column fits values up to `(999.99%)`
 - Can be locked, hidden, moved, and configured with separate background opacity and relative font size
 - Starts disabled by default

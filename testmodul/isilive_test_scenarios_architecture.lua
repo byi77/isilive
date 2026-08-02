@@ -545,9 +545,8 @@ local function RegisterArchitectureSourceBoundaryTests(test, Assert)
         'rawget(_G, "InCombatLockdown")',
         "lockMainFramePosition",
       },
-      ["factory/isiLive_factory_minimap.lua"] = {
-        "RegisterForClicks",
-      },
+      ["ui/isiLive_ui_common.lua"] = { "CreateActionButton", "RegisterForClicks", "ApplyActionButtonVisual" },
+      ["factory/isiLive_factory_minimap.lua"] = { "RegisterForClicks" },
     }
     local checked = {}
     local surfaceMarkers = {

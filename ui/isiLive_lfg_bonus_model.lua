@@ -14,7 +14,7 @@ local APPLICANT_BONUS_TEXT_COLOR = { 0.20, 1.00, 0.20, 1.00 }
 local APPLICANT_BONUS_MAJOR_COLOR = { 1.00, 0.82, 0.00, 1.00 }
 -- WoW texture APIs resolve the .tga asset from this extensionless path.
 local SEARCH_RESULT_BONUS_TEXTURE = "Interface\\AddOns\\isiLive\\media\\heart_bonus_green"
-local SEARCH_RESULT_BONUS_MARKUP = "|T" .. SEARCH_RESULT_BONUS_TEXTURE .. ":12:12|t"
+local SEARCH_RESULT_BONUS_MARKUP = "|T" .. SEARCH_RESULT_BONUS_TEXTURE .. ":10:10|t"
 local SEARCH_RESULT_BONUS_MAX_MARKERS = 4
 
 local CLASS_TOKENS = {

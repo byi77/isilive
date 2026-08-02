@@ -180,7 +180,7 @@ local function StripColors(text)
   return stripped
 end
 
-local BONUS_MARKUP = "|TInterface\\AddOns\\isiLive\\media\\heart_bonus_green:12:12|t"
+local BONUS_MARKUP = "|TInterface\\AddOns\\isiLive\\media\\heart_bonus_green:10:10|t"
 local BONUS_TEXTURE = "Interface\\AddOns\\isiLive\\media\\heart_bonus_green"
 
 local function NewTextureStub()
@@ -698,8 +698,8 @@ return function(test, ctx)
       local tex2 = addon._LFGFlagsInternal.EnsureFlagTexture(button)
       Assert.NotNil(tex1, "first call must create texture")
       Assert.True(tex1 == tex2, "second call must reuse cached texture")
-      Assert.Equal(tex1._size[1], 12, "texture width must be compact enough for the dungeon row")
-      Assert.Equal(tex1._size[2], 9, "texture height must fit inside the dungeon row")
+      Assert.Equal(tex1._size[1], 11, "texture width must be compact enough for the dungeon row")
+      Assert.Equal(tex1._size[2], 8, "texture height must fit inside the dungeon row")
     end)
   end)
 
@@ -728,13 +728,13 @@ return function(test, ctx)
       Assert.Equal(activityName._point[1], "LEFT", "dungeon name must keep a left anchor")
       Assert.True(activityName._point[2] == button, "dungeon name must stay anchored to the search result button")
       Assert.Equal(activityName._point[3], "LEFT", "dungeon name must stay in the row")
-      Assert.Equal(activityName._point[4], 26, "dungeon name must leave room for the compact flag")
+      Assert.Equal(activityName._point[4], 25, "dungeon name must leave room for the compact flag")
       Assert.Equal(activityName._point[5], -4, "dungeon name must keep Blizzard's original row offset")
       local tex = button.GetCreatedTexture()
       Assert.Equal(tex._point[4], 10, "flag must use the original dungeon-name x offset")
       Assert.Equal(tex._point[5], -6, "flag must sit slightly lower than the original dungeon-name y offset")
       Assert.True(playstyle._point[2] == activityName, "playstyle must keep its Blizzard relative target")
-      Assert.Equal(playstyle._point[4], -16, "playstyle must compensate the shifted ActivityName x offset")
+      Assert.Equal(playstyle._point[4], -15, "playstyle must compensate the shifted ActivityName x offset")
       Assert.Equal(playstyle._point[5], -3, "playstyle must keep its original vertical offset")
     end)
   end)
@@ -895,7 +895,7 @@ return function(test, ctx)
       Assert.Equal(badge._point[4], -44, "badge stack right edge must sit below the right badge area")
       Assert.Equal(badge._point[5], -16, "badge stack must stay on the playstyle row below the role badges")
       Assert.Equal(badge._textColor[1], 0.20, "search-result bonus markers must use the regular bonus color")
-      Assert.Equal(badge._width, 68, "badge stack keeps enough fixed width for four right-aligned hearts")
+      Assert.Equal(badge._width, 52, "badge stack keeps a compact fixed width for four right-aligned hearts")
     end)
   end)
 
@@ -1629,8 +1629,8 @@ return function(test, ctx)
         Assert.True(icon._point[2] == member.ClassIcon, "badge texture must anchor next to the class icon")
         Assert.Equal(icon._point[3], "RIGHT", "badge texture must anchor from the class icon's right edge")
         Assert.Equal(icon._point[4], 5, "badge texture must keep a visible gap to the class icon")
-        Assert.Equal(icon._size[1], 12, "applicant marker texture must use the compact marker width")
-        Assert.Equal(icon._size[2], 12, "applicant marker texture must use the compact marker height")
+        Assert.Equal(icon._size[1], 10, "applicant marker texture must use the compact marker width")
+        Assert.Equal(icon._size[2], 10, "applicant marker texture must use the compact marker height")
         Assert.True(member._isiLiveBonusBadgeIcons[2]._shown == false, "unused marker texture slots must stay hidden")
 
         addon.LFGFlags.SetGroupBonusesEnabled(false)
@@ -1845,7 +1845,7 @@ return function(test, ctx)
       Assert.True(tex._shown == true, "applicant flag must be visible when realm language resolves")
       Assert.Equal(tex._point[1], "LEFT", "flag keeps the original name anchor point")
       Assert.Equal(tex._point[4], 8, "flag uses the original name x offset")
-      Assert.Equal(member.Name._point[4], 24, "name text must shift right by flag width plus gap")
+      Assert.Equal(member.Name._point[4], 23, "name text must shift right by flag width plus gap")
       Assert.Equal(#createdTextures, 1, "flag rendering creates exactly one applicant flag texture")
 
       applicantName = "Unknown-Nowhere"
@@ -1916,7 +1916,7 @@ return function(test, ctx)
         "Interface\\AddOns\\isiLive\\media\\flags\\DE",
         "parent-created flag uses realm language"
       )
-      Assert.Equal(member.Name._point[4], 24, "parent-created flag must still shift the applicant name")
+      Assert.Equal(member.Name._point[4], 23, "parent-created flag must still shift the applicant name")
     end)
   end)
 

@@ -1,14 +1,17 @@
 ---@diagnostic disable: undefined-global
 
 local function MakeGameTooltip(tooltipLines)
-  return {
-    AddLine = function(_self, text)
+  local tooltip = {
+    _lineColors = {},
+    AddLine = function(self, text, r, g, b)
       table.insert(tooltipLines, text)
+      table.insert(self._lineColors, { r, g, b })
     end,
     HookScript = function(self, script, handler)
       self[script] = handler
     end,
   }
+  return tooltip
 end
 
 local function NewMplusForcesDB()
@@ -112,6 +115,9 @@ local function RegisterTooltipRenderTests(test, Assert, WithGlobals, LoadAddonMo
         tooltipLines[1]:find("+5", 1, true) ~= nil,
         "forces line should include the raw count: " .. tostring(tooltipLines[1])
       )
+      Assert.Equal(tooltip._lineColors[1][1], 0.64, "forces tooltip line must use the shared cool text role")
+      Assert.Equal(tooltip._lineColors[1][2], 0.80, "forces tooltip line must use the shared cool text role")
+      Assert.Equal(tooltip._lineColors[1][3], 0.96, "forces tooltip line must use the shared cool text role")
     end)
   end)
 

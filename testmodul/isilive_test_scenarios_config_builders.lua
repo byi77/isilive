@@ -326,6 +326,7 @@ return function(test, ctx)
     local resetCalls = 0
     local scaleCalls = 0
     local lastBgAlpha = nil
+    local lastBgRed = nil
     local mainUI = {
       ResetPosition = function()
         resetCalls = resetCalls + 1
@@ -336,7 +337,8 @@ return function(test, ctx)
       scaleCalls = scaleCalls + 1
       self._scale = s
     end
-    function mainFrame:SetBackdropColor(_r, _g, _b, a)
+    function mainFrame:SetBackdropColor(r, _g, _b, a)
+      lastBgRed = r
       lastBgAlpha = a
     end
     local refreshCalls = 0
@@ -364,6 +366,7 @@ return function(test, ctx)
     Assert.Equal(db.uiScale, 1.0, "uiScale must be reset to 1.0")
     Assert.Equal(type(db.bgAlpha), "number", "bgAlpha must be reset to a numeric default")
     Assert.Equal(scaleCalls, 1, "mainFrame:SetScale(1.0) must be called")
+    Assert.Equal(lastBgRed, 0.035, "main-frame reset must retain the semantic slate surface")
     Assert.Equal(mainFrame._scale, 1.0)
     Assert.Equal(resetCalls, 1, "mainUI.ResetPosition must fire")
     Assert.Equal(lastBgAlpha, db.bgAlpha, "backdrop alpha must match the reset bgAlpha")

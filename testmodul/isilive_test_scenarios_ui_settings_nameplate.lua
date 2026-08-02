@@ -273,13 +273,13 @@ local function RegisterSettingsPanelNameplateRoundtripTests(test, Assert, WithGl
     end)
   end)
 
-  test("Settings nameplate preview restores percent text after display mode is re-enabled", function()
+  test("Settings nameplate preview remains visible independent of live display mode", function()
     local createFrameStub, createdFrames = BuildCreateFrameStub()
     local db = {
       mobNameplateEnabled = true,
       mplusForcesEstimate = false,
       mobNameplateShowPercent = true,
-      mobNameplateShowRemaining = false,
+      mobNameplateShowRemaining = true,
       mobNameplateFontSize = 20,
       mobNameplatePosition = "RIGHT",
       mobNameplateXOffset = 0,
@@ -301,27 +301,41 @@ local function RegisterSettingsPanelNameplateRoundtripTests(test, Assert, WithGl
         Assert.NotNil(FindPreviewOverlayFrame(createdFrames), "preview overlay frame must be rendered via MobNameplate")
       local offButton =
         Assert.NotNil(FindOptionButton(createdFrames, nil, "off"), "'off' display-mode button must exist")
+      local tooltipButton =
+        Assert.NotNil(FindOptionButton(createdFrames, nil, "tooltip"), "'tooltip' display-mode button must exist")
       local nameplateButton =
         Assert.NotNil(FindOptionButton(createdFrames, nil, "nameplate"), "'nameplate' display-mode button must exist")
 
-      Assert.Equal(overlayFrame.text:GetText(), "1.16%", "initial preview must render the percent")
+      Assert.Equal(overlayFrame.text:GetText(), "1.16%/24.34%", "initial preview must render percent and remaining")
 
       ---@diagnostic disable: undefined-field
       offButton._scripts.OnClick(offButton)
-      Assert.Equal(overlayFrame.text:GetText(), "", "turning display mode off must clear the preview text")
-      Assert.False(overlayFrame.text:IsShown(), "turning display mode off must hide the preview text")
+      Assert.Equal(
+        overlayFrame.text:GetText(),
+        "1.16%/24.34%",
+        "turning live display mode off must keep the configuration preview visible"
+      )
+      Assert.True(overlayFrame.text:IsShown(), "off mode must not hide the configuration preview")
+
+      tooltipButton._scripts.OnClick(tooltipButton)
+      Assert.Equal(
+        overlayFrame.text:GetText(),
+        "1.16%/24.34%",
+        "tooltip mode must keep the nameplate text configuration preview visible"
+      )
+      Assert.True(overlayFrame.text:IsShown(), "tooltip mode must not hide the configuration preview")
 
       nameplateButton._scripts.OnClick(nameplateButton)
       ---@diagnostic enable: undefined-field
       Assert.Equal(
         overlayFrame.text:GetText(),
-        "1.16%",
-        "re-enabling display mode must write the percent text even when the rendered value is unchanged"
+        "1.16%/24.34%",
+        "nameplate mode must keep the same percent and remaining preview"
       )
-      Assert.True(overlayFrame.text:IsShown(), "re-enabling display mode must show the preview text")
+      Assert.True(overlayFrame.text:IsShown(), "nameplate mode must keep the preview text visible")
 
       panel.Refresh()
-      Assert.Equal(overlayFrame.text:GetText(), "1.16%", "refresh must keep the restored percent preview")
+      Assert.Equal(overlayFrame.text:GetText(), "1.16%/24.34%", "refresh must keep the configuration preview")
     end)
   end)
 

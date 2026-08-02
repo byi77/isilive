@@ -55,9 +55,15 @@ local function ConfigureWrappingText(region, width, wordWrap)
 end
 
 function SettingsControls.CreateSectionHeader(parent, yOffset, text)
+  local surface = parent:CreateTexture(nil, "BACKGROUND")
+  surface:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X - 6, yOffset + 4)
+  surface:SetPoint("BOTTOMRIGHT", parent, "TOPRIGHT", -(PADDING_X - 6), yOffset - HEADER_HEIGHT + 4)
+  local sectionSurface = Colors.SURFACE_TITLE_BAR or { 0.025, 0.055, 0.085, 0.82 }
+  surface:SetColorTexture(sectionSurface[1], sectionSurface[2], sectionSurface[3], 0.52)
+
   local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  local gold = Colors.ACCENT_GOLD or { 1, 0.82, 0 }
-  header:SetTextColor(gold[1], gold[2], gold[3], 1)
+  local sectionText = Colors.TEXT_SECTION or { 0.64, 0.80, 0.96 }
+  header:SetTextColor(sectionText[1], sectionText[2], sectionText[3], 1)
   header:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset)
   header:SetJustifyH("LEFT")
   header:SetText(text or "")
@@ -65,9 +71,11 @@ function SettingsControls.CreateSectionHeader(parent, yOffset, text)
   line:SetHeight(2)
   line:SetPoint("TOPLEFT", parent, "TOPLEFT", PADDING_X, yOffset - HEADER_HEIGHT)
   line:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PADDING_X, yOffset - HEADER_HEIGHT)
-  local ab = Colors.ACCENT_BLUE or { 0.3, 0.65, 1 }
-  line:SetColorTexture(ab[1], ab[2], ab[3], 0.42)
+  local border = Colors.BORDER_TITLE_BAR or { 0.26, 0.62, 0.92, 0.38 }
+  line:SetColorTexture(border[1], border[2], border[3], 0.55)
   line._isiLiveSettingsSeparator = "section"
+  header._isiLiveSectionSurface = surface
+  header._isiLiveSurfaceRole = "settings_section"
   return header, yOffset - HEADER_HEIGHT - HEADER_LINE_GAP
 end
 

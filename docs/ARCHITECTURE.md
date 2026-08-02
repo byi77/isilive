@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.362`
+Versionsbasis: `0.9.363`
 Zuletzt aktualisiert: `2026-08-02`
 
 ## Zweck
@@ -25,6 +25,15 @@ Die Architektur ist eventgetrieben und in klare Runtime-Schichten aufgeteilt:
 | Gemeinsame Helfer und Daten | Locale, lokalisierte Texte, Units, Realm-Sprachdaten, normalisiertes Season-Manifest als einzige manuell gepflegte Runtime-Saisonquelle, daraus erzeugte Season-Indizes, separat generierter M+-Forces-Datensatz (`data/isiLive_mplus_forces.lua`) mit `expiresAt`-Lifetime-Stempel, sichere Spell-Cooldown-Wrapper, Runtime-Logging, fokussierte Config-Builder, private Tooltip-/UI-Helfer, zentrale Backdrop-Presets, gemeinsamer Actionbar-Kreuz-Overlay-Helfer, gemeinsame Validierungs-/String-Helfer, zentraler Sound-Registry-/Playback-Helfer inklusive Battle-Res-ready-, Bloodlust-ready- und Tank-/Heiler-died-WAV-Assets, deaktivierter nativer WoW-Text-to-Speech-Ausgabe und verifizierter VIP-Mount-Sound-Datei-IDs fuer Mute/Unmute, Debug-Helfer, Demo-/Test-Helfer | `isiLive_validation_helpers.lua`, `isiLive_string_utils.lua`, `isiLive_spell_utils.lua`, `isiLive_locale.lua`, `isiLive_texts.lua` (Aggregator) mit `isiLive_texts_common.lua` und den Pro-Sprache-Tabellen `isiLive_texts_<tag>.lua`, `realm_language_data.lua`, `isiLive_units.lua`, `data/isiLive_seasons.lua`, `isiLive_season_data.lua`, `isiLive_mplus_forces.lua`, `isiLive_teleport.lua`, `isiLive_ui_common.lua`, `isiLive_action_button_overlay.lua`, `isiLive_runtime_log.lua`, `isiLive_log_buffer.lua`, `isiLive_config_builders.lua`, `isiLive_queue_debug.lua`, `isiLive_demo.lua`, `isiLive_test_mode.lua` |
 | Gebuendelte Assets und Designhilfen | Runtime-Medien bleiben in `media/` und `sounds/`; bekannte und unbekannte Herkunft wird ohne Guessing in `docs/ASSET_PROVENANCE.md` gepflegt. Oeffentliche visuelle Entwicklungs-Mockups liegen unter `tools/mockups/`, dokumentieren ihre Abhaengigkeiten lokal und bleiben ausserhalb des Addonpakets. | `media/`, `sounds/`, `docs/ASSET_PROVENANCE.md`, `tools/mockups/README.md` |
 | Vendored Libraries | Shared Addon-Message-Throttling ueber ChatThrottleLib v24 mit Prioritaets-Routing (`ALERT` / `NORMAL` / `BULK`) pro Nachrichtentyp; Fallback auf raw `C_ChatInfo.SendAddonMessage`, wenn die Lib nicht geladen ist | `libs/ChatThrottleLib/ChatThrottleLib.lua` |
+
+Der 500 px breite M+-Modus besitzt einen expliziten Darstellungsvertrag: Beide
+blauen Header-Trenner liegen links und rechts jeweils 8 px innerhalb des
+Main-Frames. Aktionszeile, Portalreihe, BR-/BL- und M+-Timer sowie Killtracker
+enden gemeinsam bei x=494. Der Titel rendert keinen `BETA`-Zusatz; der
+Beta-Hinweis in Settings bleibt davon unberuehrt. Die Stats Box verwendet fuer
+Labels, Werte, Prozente und dezente Zeilentints ihre feste, je Stat
+unterschiedliche Farbpalette; die live Blizzard API bleibt alleinige Quelle
+der angezeigten Werte.
 
 ## Runtime-Flow
 
@@ -268,7 +277,7 @@ Lokale Release-Qualitaet ist absichtlich in statische und Runtime-Gates aufgetei
 4. `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
 5. `tools/validate_usecases.lua` fuehrt beide Validatoren zuerst aus und deckt danach die aktuell registrierten Szenarien aus `tools/usecase_scenarios.lua` ab; die exakte Anzahl wird bei jedem Lauf ausgegeben und die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
    Zusaetzlich laeuft der gleiche Validator-Lauf in CI unter `luacov` (`lua -lluacov tools/validate_usecases.lua`), damit `tools/coverage_summary.lua` die Line-Coverage pro Schicht in das GitHub-Actions-Step-Summary schreibt und der vollstaendige `luacov.report.out` als Artefakt hochgeladen wird.
-   Letzter voller Coverage-Audit-Stand (`2026-08-02`, lokaler Preflight bei 0.9.362): **92.46% Gesamt-Line-Coverage** (`35932 / 38862` Zeilen) bei `2296 passed, 0 failed`. Das neue LFG-View-Hook-Modul liegt bei 92.91%; keine Produktionsdatei liegt unter 80.00%. Das Coverage-Gate bleibt bei mindestens 88.00% gesamt und 80.00% pro Produktionsdatei.
+   Letzter voller Coverage-Audit-Stand (`2026-08-02`, lokaler Preflight bei 0.9.363): **92.46% Gesamt-Line-Coverage** (`36152 / 39102` Zeilen) bei `2306 passed, 0 failed`. Keine Produktionsdatei liegt unter 80.00%. Das Coverage-Gate bleibt bei mindestens 88.00% gesamt und 80.00% pro Produktionsdatei.
    Historische Baseline (`2026-04-22`, Commit nach Coverage-Einfuehrung): **78.62% Gesamt-Line-Coverage** ueber 19487 Produktionszeilen.
 6. Der M+-Forces-DB-Refresh laeuft automatisch ueber `.github/workflows/sync-mplus-forces.yml` (Donnerstag 06:00 UTC plus `workflow_dispatch`): Clone MDT → exakten Checkout-Commit per `git rev-parse HEAD` erfassen → `tools/sync_mdt_forces.lua` mit vollstaendigem `sourceCommit` → voller CI-Preflight (stylua, luacheck, syntax, metrics, locale drift, lifetime, Nameplate-Key-Start-Simulator, SavedVariables-Reload-Simulator, Key-Start-Lifecycle-Simulator, usecases) → Commit + Push nach `main`. Ohne Diff im DB-File laeuft der Workflow still durch ohne Commit.
 7. Der taegliche S2-Forces-Verfuegbarkeitsmonitor klont MDT nur zur Inspektion. Er meldet per markerstabilem, bei Bedarf wieder geoeffnetem GitHub Issue strukturelle Verfuegbarkeit, wenn fuer alle konfigurierten Dungeons exakte Map-IDs, positive Gesamtwerte und positive NPC-Forces-Daten ausfuehrbar vorliegen. Er prueft alle Kandidaten statt beim ersten Texttreffer abzubrechen; Texttreffer und Platzhalter bleiben geschlossen. Das Signal behauptet keine unbelegbare vollstaendige NPC-Abdeckung.
@@ -283,7 +292,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.362 BETA                                  Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.363                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -407,33 +416,34 @@ deterministischen Tests fuer das extrahierte Modul.
 
 ## Settings-Layout-Konvention
 
-Der Blizzard-Settings-Canvas nutzt grosse, goldene Section-Header fuer
-Hauptthemen und blaue Separatoren fuer harte Themenwechsel. Duennere
-Child-Separatoren trennen nur unterschiedliche Untergruppen innerhalb einer
-Section; zusammengehoerige Bedienbloecke bleiben ohne Linie zusammen.
+Der Blizzard-Settings-Canvas nutzt kuehle Section-Card-Ueberschriften fuer
+Hauptthemen und einen staerkeren kuehlen Border fuer harte Themenwechsel.
+Duennere neutrale Child-Separatoren trennen nur unterschiedliche Untergruppen
+innerhalb einer Section; zusammengehoerige Bedienbloecke bleiben ohne Linie
+zusammen.
 
 Aktuelle thematische Settings-Reihenfolge:
 
 1. **Beta:** Beta-Hinweis, GitHub-Issue-Link und CurseForge-Kommentar-Link.
 2. **Allgemein:** Sprache und Standard-Layout beim Oeffnen.
-3. **ESC-Menue:** ESC-Shortcut-Panel und Ruhestein-Auswahl.
-4. **Anzeige / Hauptfenster:** UI-Skalierung und Main-Window-Deckkraft.
-5. **Anzeige / Statsbox:** Statsbox anzeigen, sperren, Deckkraft,
+3. **Anzeige / Hauptfenster:** UI-Skalierung und Main-Window-Deckkraft.
+4. **Anzeige / Statsbox:** Statsbox anzeigen, sperren, Deckkraft,
    Schriftgroesse, Zahlenmodus sowie Leech, Speed, Haltbarkeit, Ausdauer und
    Vermeidung. Innerhalb dieses Blocks keine Trennlinie.
-6. **Anzeige / Zusatzanzeigen:** Minimap-Button und Portal-Navigator.
-7. **Anzeige / Gruppensuche:** LFG-Sprachflaggen, Buff-Herzchen,
+5. **Anzeige / Zusatzanzeigen:** Minimap-Button und Portal-Navigator.
+6. **Anzeige / Gruppensuche:** LFG-Sprachflaggen, Buff-Herzchen,
    Tooltip-Flags, Invite-Hinweis, M+-Accepted-Invite-Notice und
    Gruppenbeitritts-Zielhinweis.
-8. **Verhalten:** Sync, Mainframe-Positionssperre, Combat-Fade,
+7. **Verhalten:** Sync, Mainframe-Positionssperre, Combat-Fade,
    Auto-Show/Auto-Close-Trigger und Raid-Hinweis.
-9. **Namensplaketten:** M+-Forces-Anzeige, Format, Position, Offsets und
+8. **Namensplaketten:** M+-Forces-Anzeige, Format, Position, Offsets und
    Preview.
-10. **Sounds:** normale Sound-Cues.
-11. **Chat:** BR-/Bloodlust-Gruppenansagen.
-12. **Administrativ:** Blizzard-CVars fuer Combat Logging und
-    Damage-Meter-Reset, Debug-Protokolle und Reset-Aktionen.
-13. **VIP-Gast-Einstellungen:** VIP-Mount-Sound-Mutes, die normale default-aus VIP-Bloodlust-Debuff-Button-Warnung direkt unter dem Gilded-Brutosaur-Mute, danach eine duenne blaue DK-Trennlinie und default-aus VIP-DK-Seelenernter-/Putrefy-Warnungen inklusive eingeruecktem Pferdeklang-Mute und verschiebbarem Ghoul-Reminder.
+9. **Sounds:** normale Sound-Cues.
+10. **Chat:** BR-/Bloodlust-Gruppenansagen.
+11. **ESC-Menue:** ESC-Shortcut-Panel und Ruhestein-Auswahl.
+12. **Debug:** Blizzard-CVars fuer Combat Logging und Damage-Meter-Reset sowie Debug-Protokolle.
+13. **Reset:** Reset-Aktionen mit Bestaetigung.
+14. **VIP-Gast-Einstellungen:** VIP-Mount-Sound-Mutes, die normale default-aus VIP-Bloodlust-Debuff-Button-Warnung direkt unter dem Gilded-Brutosaur-Mute, danach eine duenne kuehle DK-Trennlinie und default-aus VIP-DK-Seelenernter-/Putrefy-Warnungen inklusive eingeruecktem Pferdeklang-Mute und verschiebbarem Ghoul-Reminder.
 
 ## Erweiterungspunkte
 

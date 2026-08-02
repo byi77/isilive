@@ -126,6 +126,9 @@ local function CreateCenterNoticeFrame(config)
       bg:SetColorTexture(unpack(Colors.BG_NOTICE_CARD or { 0.05, 0.05, 0.08, 0.75 }))
     end
   end
+  if type(UICommon) == "table" and type(UICommon.CreateNoticeChrome) == "function" then
+    frame._isiLiveNoticeAccent = UICommon.CreateNoticeChrome(frame)
+  end
   return frame
 end
 

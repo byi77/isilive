@@ -1,5 +1,45 @@
 # Changelog
 
+## 2026-08-02 - Version 0.9.363 (patch)
+
+- Fixed the enemy-forces text preview in Settings so percentage and remaining
+  values stay visible while configuring them, independent of whether the live
+  display mode is currently Off, Tooltip, or Nameplate. The live M+ renderer
+  remains gated by the selected mode and verified dungeon data.
+- Introduced a shared semantic UI design system with cool blue/slate surface,
+  border, text, spacing, hover and pressed-state roles.
+- Modernized the main-window title chrome, column headers, lock/settings
+  toolbar and action buttons without changing any layout dimensions, secure
+  attributes, leader permissions or click behavior.
+- Promoted Ready Check and Countdown as primary actions while keeping Share
+  Keys, Refresh and Countdown Cancel visually quieter secondary actions. The
+  existing red close button remains unchanged.
+- Added deterministic coverage for the shared theme, reusable action-button
+  states, bounded title chrome, semantic action hierarchy and secure-surface
+  audit.
+- Unified dungeon portals, BR/BL status, M+ timer and enemy-forces tracker on
+  one semantic blue/slate run surface without changing their data or secure
+  action behavior.
+- Applied one modern card surface and top accent to Center Notice and Portal
+  Navigator, and restored the verified localized navigator direction and
+  empty-slot detail labels that were already present in the status model.
+- Restored the Stats Box's established fixed per-stat colors for labels,
+  values, percentages and subtle row tints after the neutral hierarchy made
+  the surface less readable.
+- Removed the redundant `BETA` label from the main M+ title while retaining
+  the addon's beta notice in Settings.
+- Matched both blue header separators to the same 8 px horizontal bounds and
+  aligned the Ready Check/action row, dungeon portals, BR/BL and M+ timers,
+  and enemy-forces tracker to one right edge in the 500 px M+ layout.
+- Reordered Settings into a task-oriented General-to-VIP flow, introduced cool
+  section cards, and aligned ESC shortcuts with the shared secondary-action
+  default, hover and pressed states without changing secure behavior.
+- Reduced LFG row noise with smaller language flags and green-heart markers;
+  verified language resolution, non-stacking bonus counts and tooltip meaning
+  remain unchanged.
+- Aligned enemy-forces nameplates, private tooltips, forces tooltip text and
+  death alerts through compact surface, cool text and danger/contrast roles.
+
 ## 2026-08-02 - Version 0.9.362 (patch)
 
 - Repaired the release-baseline synchronizer for the current README badge,
