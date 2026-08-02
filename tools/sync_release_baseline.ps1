@@ -15,6 +15,20 @@ function Write-Text([string]$Path, [string]$Text) {
   [System.IO.File]::WriteAllText((Resolve-Path $Path).Path, $Text, $utf8NoBom)
 }
 
+function Replace-Required(
+  [string]$Text,
+  [string]$Pattern,
+  [string]$Replacement,
+  [string]$Label
+) {
+  $regex = [regex]::new($Pattern, [System.Text.RegularExpressions.RegexOptions]::Multiline)
+  $count = $regex.Matches($Text).Count
+  if ($count -ne 1) {
+    throw "Expected exactly one $Label marker, found $count"
+  }
+  return $regex.Replace($Text, $Replacement, 1)
+}
+
 function Update-TrackedFile([string]$Path, [scriptblock]$Updater) {
   $current = Read-Text $Path
   $updated = & $Updater $current
@@ -42,33 +56,30 @@ $changed = $false
 $changed = Update-TrackedFile "README.md" {
   param($text)
   $next = $text
-  $next = $next -replace '(?m)^(Current documented baseline:\s*)`[^`]+`(\.)$', ('${1}' + '`' + $version + '`' + '${2}')
-  $next = $next -replace '(?m)^(## Use Case / Logic Baseline \(v)[^)]+(\))$', ('${1}' + $version + '${2}')
-  $next = $next -replace '(?m)^(Documented on\s+)`[^`]+`(\s+as runtime behavior baseline \()`[^`]+`(\) for validation checks\.)$', ('${1}' + '`' + $currentDate + '`' + '${2}' + '`' + $version + '`' + '${3}')
+  $next = Replace-Required $next '^(!\[isiLive )\d+\.\d+\.\d+(\]\(https://img\.shields\.io/badge/isiLive-)\d+\.\d+\.\d+(-1E90FF\?style=for-the-badge\))$' ('${1}' + $version + '${2}' + $version + '${3}') "README badge"
+  $next = Replace-Required $next '^(Version )`\d+\.\d+\.\d+`( is )' ('${1}' + '`' + $version + '`' + '${2}') "README current-version paragraph"
   return $next
+} -or $changed
+
+$changed = Update-TrackedFile "CHANGELOG_RELEASE.md" {
+  param($text)
+  return Replace-Required $text '^(Current version:\s*)`\d+\.\d+\.\d+`(\.)$' ('${1}' + '`' + $version + '`' + '${2}') "release-stub version"
 } -or $changed
 
 $changed = Update-TrackedFile "docs/ARCHITECTURE.md" {
   param($text)
   $next = $text
-  $next = $next -replace '(?m)^(Version baseline:\s*)`[^`]+`$', ('${1}' + '`' + $version + '`')
-  $next = $next -replace '(?m)^(Last updated:\s*)`[^`]+`$', ('${1}' + '`' + $currentDate + '`')
-  $next = $next -replace '(?m)(\| isiLive\s+v)\d+\.\d+\.\d+(\s+Open/Close CTRL-F9 \[H\]\[V\]\[M\]\[M2\]\[X\]\|)', ('${1}' + $version + '${2}')
+  $next = Replace-Required $next '^(Versionsbasis:\s*)`\d+\.\d+\.\d+`$' ('${1}' + '`' + $version + '`') "architecture version"
+  $next = Replace-Required $next '^(Zuletzt aktualisiert:\s*)`\d{4}-\d{2}-\d{2}`$' ('${1}' + '`' + $currentDate + '`') "architecture date"
+  $next = Replace-Required $next '^(\| isiLive v)\d+\.\d+\.\d+(\s+BETA\s+Open/Close CTRL-F9\b)' ('${1}' + $version + '${2}') "architecture UI title"
   return $next
 } -or $changed
 
 $changed = Update-TrackedFile "docs/USECASES.md" {
   param($text)
   $next = $text
-  $next = $next -replace '(?m)^(Version baseline:\s*)`[^`]+`$', ('${1}' + '`' + $version + '`')
-  $next = $next -replace '(?m)^(Last updated:\s*)`[^`]+`$', ('${1}' + '`' + $currentDate + '`')
-  return $next
-} -or $changed
-
-$changed = Update-TrackedFile "locale/isiLive_texts.lua" {
-  param($text)
-  $next = $text
-  $next = $next -replace '(?m)^(\s*TITLE = "isiLive v)\d+\.\d+\.\d+(",)$', ('${1}' + $version + '${2}')
+  $next = Replace-Required $next '^(Versionsbasis:\s*)`\d+\.\d+\.\d+`$' ('${1}' + '`' + $version + '`') "usecase version"
+  $next = Replace-Required $next '^(Zuletzt aktualisiert:\s*)`\d{4}-\d{2}-\d{2}`$' ('${1}' + '`' + $currentDate + '`') "usecase date"
   return $next
 } -or $changed
 

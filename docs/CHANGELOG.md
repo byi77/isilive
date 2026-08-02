@@ -2,6 +2,11 @@
 
 ## 2026-08-02 - Version 0.9.362 (patch)
 
+- Repaired the release-baseline synchronizer for the current README badge,
+  German architecture/usecase headers, release stub and UI-title layout. The
+  script now fails closed when a required marker is missing or duplicated.
+- Aligned the public project instructions with the binding private-workspace
+  checkout path and the configurable `Master` / `SFX` sound-channel contract.
 - Split Blizzard LFG search-result and applicant frame lifecycle hooks into a
   focused view-hook module. `LFGFlags` retains rendering, cache and settings
   behavior behind its existing public facade.
@@ -4903,7 +4908,7 @@ Bug fixes (settings preview, locale switch coverage, WoW 12.0 Secret-Value harde
   - Data resolution reuses the existing `Notice.CreateInviteHint` frame (latent since v0.9.87 but never triggered) plus `Teleport.GetTeleportInfoByMapID` for the dungeon name — same source as the post-accept "Ziel-Dungeon" status-line chat, so both stay in lockstep.
   - New `SETTINGS_INVITE_HINT_ENABLED` checkbox in the settings panel (default on); the toggle is read live each invite, no `/reload` needed.
 
-- **Dead-code cleanup: unloaded `QueueFlow` module + 8 orphan locale keys ([logic/isiLive_queue_flow.lua](removed), [locale/isiLive_texts.lua](../locale/isiLive_texts.lua)):**
+- **Dead-code cleanup: unloaded `QueueFlow` module + 8 orphan locale keys (`logic/isiLive_queue_flow.lua`, removed; [locale/isiLive_texts.lua](../locale/isiLive_texts.lua)):**
   - `logic/isiLive_queue_flow.lua` had been written for a v0.9.27 refactor but never added to `isiLive.toc`. Tests loaded it directly via `loadfile`, so they stayed green for 9 months while WoW never executed the code. Production used a parallel inline implementation in `factory_controllers.AnnounceQueuedGroupJoin`.
   - Removed: the module (105 lines), the dedicated test file (~120 lines), `Fixtures.BuildQueueFlowController`, the legacy-parity test in `isilive_test_scenarios_status.lua` (~125 lines), and 5 manifest references.
   - Plus 8 orphan locale keys × 8 languages = 96 lines: `BTN_GAMEMENU_CHARACTER`, `INVITE_HINT_DUNGEON`, `INVITE_HINT_GROUP`, `INVITE_HINT_UNKNOWN_DUNGEON`, `LEAD_GAINED`, `MODE_LAYOUT_M`, `PORTAL_NAVIGATOR_TEXT`, `RAID_GROUP_HIDDEN` (the InviteHint keys were re-introduced for the new feature above).
