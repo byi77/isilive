@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-08-02 - Version 0.9.365 (patch)
+
+- Fixed the ESC menu addon shortcuts disappearing completely. When WoW 12.0
+  masks unit reads inside the protected ESC dispatch, the current character
+  name cannot be resolved; every addon that is enabled for the current
+  character only then reports the global "enabled for some characters" state,
+  the visible-entry list collapsed to empty, and the whole addon panel was
+  never built. An unresolvable character name is now treated as unknown rather
+  than as a reason to demand "enabled for all characters". The runtime-safety
+  guards that surfaced the problem stay in place, and the click path still
+  re-resolves the enable state and fails closed.
+- Reworked the regression coverage around it: the scenario that claims to hide
+  addons enabled only on another character never stubbed `UnitExists`, so it
+  passed through the unresolved-character path instead of the character-scoped
+  one it is named after. It now exercises the intended path, and a new scenario
+  pins the masked-character case that the live bug went through.
+
 ## 2026-08-02 - Version 0.9.364 (patch)
 
 Maintenance release from a code audit of the 0.9.362 and 0.9.363 changes. No
