@@ -10,6 +10,10 @@ gepinnt und werden ueber deterministische Szenarien validiert. Native WoW-TTS
 ist durch Regel 84 deaktiviert; Death-Audio nutzt statische WAV-Dateien. Der
 Locale-Split bleibt durch die bestehenden Locale-Symmetrie- und
 TOC-Strukturtests abgedeckt.
+Die aktuelle UI-Komposition zentralisiert wiederverwendbare Fenster-Controls,
+Deckkraftkopplung und semantische Zustandsflaechen in `UICommon`; die bindenden
+Darstellungsvertraege und Regressionstests stehen in den aktiven Regeln 27,
+65, 104, 105 und 108 in `RULES_LOGIC.md`.
 
 ## Schreibformat
 

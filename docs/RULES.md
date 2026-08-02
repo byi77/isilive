@@ -33,6 +33,12 @@
 - Locale-Tag-zu-Sprachflaggen-Aufloesung muss auf Tooltip-Hotpaths ueber konstante Lookups laufen; kein Lazy-Aufbau durch Iteration der Sprachliste beim Hover.
 - Status darf nicht ausschliesslich durch Farbe vermittelt werden; Ready-Check-Zustaende kombinieren Hintergrundfarbe und eindeutiges Blizzard-Statussymbol.
 
+## UI-Komponenten
+- Wiederkehrende addon-eigene Controls werden zentral in `UICommon` gepflegt und nicht pro Fenster visuell nachgebaut.
+- Main-Frame, Center-Notice, Portal-Navigator und Demo-Simulator beziehen sichtbare Schliessen-Controls aus `UICommon.CreateCloseButton`; Blizzard-eigene Close-Controls und Actionbar-Warnkreuze bleiben ausserhalb dieses Styles.
+- Semantische Kindflaechen ueber dem Main-Backdrop duerfen die globale Hintergrund-Deckkraft nicht durch hohe feste Alpha-Werte optisch aushebeln.
+- Titelbuttons verwenden ganzzahlige Pixelanker, damit WoW-UI-Skalierung keine sichtbar unruhigen Half-Pixel-Raster erzeugt.
+
 ## Performance
 - Keine Arbeit in `OnUpdate`, ausser sie ist strikt noetig.
 - Laufende Timer werden bei Bedarf aus belastbaren Blizzard-Daten gelesen statt ueber einen eigenen hochfrequenten Frame-Poller fortgeschrieben.

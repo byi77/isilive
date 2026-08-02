@@ -11,6 +11,7 @@ local UICommon = {}
 addonTable.UICommon = UICommon
 
 UICommon.DEFAULT_BG_ALPHA = 0.50
+UICommon.STRUCTURAL_TINT_ALPHA_FACTOR = 0.24
 UICommon.CYRILLIC_FONT_PATH = "Fonts\\ARIALN.TTF"
 UICommon.LOCALE_FONT_OVERRIDES = {
   ruRU = UICommon.CYRILLIC_FONT_PATH,
@@ -323,6 +324,38 @@ function UICommon.GetBackgroundAlpha()
   return UICommon.DEFAULT_BG_ALPHA
 end
 
+local backgroundAlphaSurfaces = setmetatable({}, { __mode = "k" })
+
+local function PaintBackgroundAlphaSurface(target, surface, alpha)
+  local method = type(target) == "table" and target[surface.methodName] or nil
+  local color = surface.color
+  if type(method) ~= "function" or type(color) ~= "table" then
+    return
+  end
+
+  method(target, color[1], color[2], color[3], alpha * surface.alphaFactor)
+end
+
+function UICommon.RegisterBackgroundAlphaSurface(target, methodName, color, alphaFactor)
+  if
+    type(target) ~= "table"
+    or type(target[methodName]) ~= "function"
+    or type(color) ~= "table"
+    or type(alphaFactor) ~= "number"
+  then
+    return false
+  end
+
+  local surface = {
+    methodName = methodName,
+    color = color,
+    alphaFactor = alphaFactor,
+  }
+  backgroundAlphaSurfaces[target] = surface
+  PaintBackgroundAlphaSurface(target, surface, UICommon.GetBackgroundAlpha())
+  return true
+end
+
 -- Apply the configured background alpha to the BG_PRIMARY palette and to the
 -- main / panel / settings frames in one place. Used by the ADDON_LOADED
 -- restore path as well as the live settings slider and the reset-defaults
@@ -354,6 +387,10 @@ function UICommon.ApplyBgAlpha(frames, alpha)
   local settingsCanvas = frames.settingsCanvas
   if settingsCanvas and type(settingsCanvas.SetBackdropColor) == "function" then
     settingsCanvas:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
+  end
+
+  for target, surface in pairs(backgroundAlphaSurfaces) do
+    PaintBackgroundAlphaSurface(target, surface, alpha)
   end
 end
 
@@ -404,8 +441,8 @@ UICommon.BACKDROP_PRESETS = {
   },
   CLOSE_BUTTON = {
     backdrop = BACKDROP_PANEL,
-    bgColor = { 0.08, 0.015, 0.012, 0.92 },
-    borderColor = { 1.0, 0.68, 0.16, 0.85 },
+    bgColor = UICommon.Colors.SURFACE_ACTION_SECONDARY,
+    borderColor = UICommon.Colors.BORDER_ACTION_SECONDARY,
   },
   FLAT_BUTTON = {
     backdrop = BACKDROP_FLAT_BUTTON,
@@ -424,11 +461,13 @@ UICommon.BACKDROP_PRESETS = {
   CD_BOX = {
     backdrop = BACKDROP_FLAT_BUTTON,
     bgColor = UICommon.Colors.SURFACE_RUN_ZONE,
+    backgroundAlphaFactor = UICommon.STRUCTURAL_TINT_ALPHA_FACTOR,
     borderColor = UICommon.Colors.BORDER_RUN_ZONE,
   },
   MPLUS_BOX = {
     backdrop = BACKDROP_FLAT_BUTTON,
     bgColor = UICommon.Colors.SURFACE_RUN_ZONE,
+    backgroundAlphaFactor = UICommon.STRUCTURAL_TINT_ALPHA_FACTOR,
     borderColor = UICommon.Colors.BORDER_RUN_ZONE,
   },
 }
@@ -442,7 +481,9 @@ function UICommon.ApplyBackdrop(frame, presetName)
     return false
   end
   frame:SetBackdrop(preset.backdrop)
-  if preset.bgColor and type(frame.SetBackdropColor) == "function" then
+  if preset.bgColor and preset.backgroundAlphaFactor then
+    UICommon.RegisterBackgroundAlphaSurface(frame, "SetBackdropColor", preset.bgColor, preset.backgroundAlphaFactor)
+  elseif preset.bgColor and type(frame.SetBackdropColor) == "function" then
     if type(preset.bgColor) == "function" then
       frame:SetBackdropColor(preset.bgColor())
     else
@@ -569,7 +610,12 @@ function UICommon.CreatePanelChrome(parent, opts)
   titleBar:SetPoint("TOPLEFT", parent, "TOPLEFT", 1, -1)
   titleBar:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -1, -1)
   titleBar:SetHeight(height)
-  ApplyColorTuple(titleBar, "SetColorTexture", UICommon.Colors.SURFACE_TITLE_BAR)
+  UICommon.RegisterBackgroundAlphaSurface(
+    titleBar,
+    "SetColorTexture",
+    UICommon.Colors.SURFACE_TITLE_BAR,
+    UICommon.STRUCTURAL_TINT_ALPHA_FACTOR
+  )
 
   local separator = parent:CreateTexture(nil, "ARTWORK")
   separator:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, -(height + 1))
@@ -854,78 +900,23 @@ local function ApplyCloseButtonBackdrop(button)
   UICommon.ApplyBackdrop(button, "CLOSE_BUTTON")
 end
 
-local CLOSE_TEXTURE_NORMAL = "Interface\\Buttons\\UI-Panel-MinimizeButton-Up"
-local CLOSE_TEXTURE_PRESSED = "Interface\\Buttons\\UI-Panel-MinimizeButton-Down"
-local CLOSE_TEXTURE_HIGHLIGHT = "Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight"
-
-local function SetTextureColor(texture, r, g, b, a)
-  if type(texture) == "table" and type(texture.SetColorTexture) == "function" then
-    texture:SetColorTexture(r, g, b, a)
-  end
-end
-
-local function SetTexturePath(texture, path)
-  if type(texture) == "table" and type(texture.SetTexture) == "function" then
-    texture:SetTexture(path)
-  end
-end
-
-local function AnchorTextureInset(texture, owner, inset)
-  if type(texture) ~= "table" then
-    return
-  end
-  if type(texture.ClearAllPoints) == "function" then
-    texture:ClearAllPoints()
-  end
-  if type(texture.SetPoint) == "function" then
-    texture:SetPoint("TOPLEFT", owner, "TOPLEFT", inset, -inset)
-    texture:SetPoint("BOTTOMRIGHT", owner, "BOTTOMRIGHT", -inset, inset)
-  elseif type(texture.SetAllPoints) == "function" then
-    texture:SetAllPoints(owner)
-  end
-end
-
-local function CreateCloseButtonArt(button)
-  if type(button.CreateTexture) ~= "function" then
-    return nil
-  end
-
-  local glow = button:CreateTexture(nil, "BACKGROUND")
-  if type(glow.SetAllPoints) == "function" then
-    glow:SetAllPoints(button)
-  end
-  SetTextureColor(glow, 0.55, 0.03, 0.015, 0.42)
-
-  local inner = button:CreateTexture(nil, "BORDER")
-  AnchorTextureInset(inner, button, 2)
-  SetTextureColor(inner, 0.18, 0.015, 0.012, 0.88)
-
-  local icon = button:CreateTexture(nil, "ARTWORK")
-  AnchorTextureInset(icon, button, 1)
-  SetTexturePath(icon, CLOSE_TEXTURE_NORMAL)
-  if type(icon.SetTexCoord) == "function" then
-    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  end
-
-  local highlight = button:CreateTexture(nil, "HIGHLIGHT")
-  AnchorTextureInset(highlight, button, 0)
-  SetTexturePath(highlight, CLOSE_TEXTURE_HIGHLIGHT)
-  if type(highlight.SetBlendMode) == "function" then
-    highlight:SetBlendMode("ADD")
-  end
-  if type(highlight.SetAlpha) == "function" then
-    highlight:SetAlpha(0.7)
-  end
-
-  local art = {
-    glow = glow,
-    inner = inner,
-    icon = icon,
-    highlight = highlight,
-  }
-  button._isiLiveCloseButtonArt = art
-  return art
-end
+local CLOSE_BUTTON_STYLE = {
+  default = {
+    background = UICommon.Colors.SURFACE_ACTION_SECONDARY,
+    border = UICommon.Colors.BORDER_ACTION_SECONDARY,
+    text = UICommon.Colors.TEXT_SUPPORTING,
+  },
+  hover = {
+    background = { 0.22, 0.045, 0.06, 0.96 },
+    border = { 1, 0.32, 0.36, 0.86 },
+    text = UICommon.Colors.TEXT_HEADING,
+  },
+  pressed = {
+    background = { 0.12, 0.02, 0.03, 0.98 },
+    border = { 0.92, 0.22, 0.28, 0.92 },
+    text = { 1, 0.62, 0.66, 1 },
+  },
+}
 
 local function CreateCloseButtonLabel(button)
   if type(button.CreateFontString) ~= "function" then
@@ -933,15 +924,23 @@ local function CreateCloseButtonLabel(button)
   end
 
   local label = button:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-  label:SetPoint("CENTER", button, "CENTER", 0, -1)
-  label:SetText("X")
-  label:SetTextColor(unpack(UICommon.Colors.AMBER_BETA_LABEL))
+  label:SetPoint("CENTER", button, "CENTER", 0, 0)
+  label:SetText("×")
   button._isiLiveCloseButtonLabel = label
   return label
 end
 
-local function AttachCloseButtonVisualStates(button, label, art, opts)
-  if not label and not art then
+local function ApplyCloseButtonVisual(button, label, state)
+  local resolvedState = CLOSE_BUTTON_STYLE[state] and state or "default"
+  local style = CLOSE_BUTTON_STYLE[resolvedState]
+  ApplyColorTuple(button, "SetBackdropColor", style.background)
+  ApplyColorTuple(button, "SetBackdropBorderColor", style.border)
+  ApplyColorTuple(label, "SetTextColor", style.text)
+  button._isiLiveVisualState = resolvedState
+end
+
+local function AttachCloseButtonVisualStates(button, label, opts)
+  if not label then
     return
   end
 
@@ -951,14 +950,7 @@ local function AttachCloseButtonVisualStates(button, label, art, opts)
   local anchor = type(opts.tooltipAnchor) == "string" and opts.tooltipAnchor or "ANCHOR_LEFT"
 
   button:SetScript("OnEnter", function()
-    if label then
-      label:SetTextColor(unpack(UICommon.Colors.LIGHT_GOLD_LABEL))
-    end
-    if art then
-      SetTextureColor(art.glow, 0.95, 0.05, 0.025, 0.72)
-      SetTextureColor(art.inner, 0.28, 0.02, 0.015, 0.95)
-      SetTexturePath(art.icon, CLOSE_TEXTURE_NORMAL)
-    end
+    ApplyCloseButtonVisual(button, label, "hover")
     local tooltip = rawget(_G, "GameTooltip")
     if tooltip and type(tooltip.SetOwner) == "function" and (titleText ~= "" or bodyText ~= "") then
       tooltip:SetOwner(button, anchor)
@@ -973,14 +965,7 @@ local function AttachCloseButtonVisualStates(button, label, art, opts)
   end)
 
   button:SetScript("OnLeave", function()
-    if label then
-      label:SetTextColor(unpack(UICommon.Colors.AMBER_BETA_LABEL))
-    end
-    if art then
-      SetTextureColor(art.glow, 0.55, 0.03, 0.015, 0.42)
-      SetTextureColor(art.inner, 0.18, 0.015, 0.012, 0.88)
-      SetTexturePath(art.icon, CLOSE_TEXTURE_NORMAL)
-    end
+    ApplyCloseButtonVisual(button, label, "default")
     local tooltip = rawget(_G, "GameTooltip")
     if tooltip and type(tooltip.Hide) == "function" then
       tooltip:Hide()
@@ -988,29 +973,16 @@ local function AttachCloseButtonVisualStates(button, label, art, opts)
   end)
 
   button:SetScript("OnMouseDown", function()
-    if label then
-      label:SetTextColor(unpack(UICommon.Colors.ORANGE_WARNING_LABEL))
-    end
-    if art then
-      SetTextureColor(art.glow, 0.75, 0.025, 0.015, 0.48)
-      SetTextureColor(art.inner, 0.11, 0.01, 0.008, 0.96)
-      SetTexturePath(art.icon, CLOSE_TEXTURE_PRESSED)
-    end
+    ApplyCloseButtonVisual(button, label, "pressed")
   end)
 
   button:SetScript("OnMouseUp", function()
-    if label then
-      label:SetTextColor(unpack(UICommon.Colors.LIGHT_GOLD_LABEL))
-    end
-    if art then
-      SetTextureColor(art.glow, 0.95, 0.05, 0.025, 0.72)
-      SetTextureColor(art.inner, 0.28, 0.02, 0.015, 0.95)
-      SetTexturePath(art.icon, CLOSE_TEXTURE_NORMAL)
-    end
+    local isMouseOver = type(button.IsMouseOver) == "function" and button:IsMouseOver()
+    ApplyCloseButtonVisual(button, label, isMouseOver and "hover" or "default")
   end)
 end
 
-function UICommon.CreateRedCloseButton(parent, opts)
+function UICommon.CreateCloseButton(parent, opts)
   opts = opts or {}
   local button = CreateFrame("Button", opts.name, parent, "BackdropTemplate")
   local size = tonumber(opts.size) or 20
@@ -1030,12 +1002,9 @@ function UICommon.CreateRedCloseButton(parent, opts)
   button:SetFrameLevel(level)
 
   ApplyCloseButtonBackdrop(button)
-  local art = CreateCloseButtonArt(button)
   local label = CreateCloseButtonLabel(button)
-  if art and label then
-    label:SetText("")
-  end
-  AttachCloseButtonVisualStates(button, label, art, {
+  ApplyCloseButtonVisual(button, label, "default")
+  AttachCloseButtonVisualStates(button, label, {
     tooltipTitleKey = opts.tooltipTitleKey,
     tooltipTitle = opts.tooltipTitle,
     tooltipBodyKey = opts.tooltipBodyKey,
@@ -1045,6 +1014,9 @@ function UICommon.CreateRedCloseButton(parent, opts)
 
   return button
 end
+
+-- Compatibility alias for existing call sites and third-party integrations.
+UICommon.CreateRedCloseButton = UICommon.CreateCloseButton
 
 function UICommon.CreatePrivateTooltip(parent)
   local tooltipParent = rawget(_G, "UIParent") or parent

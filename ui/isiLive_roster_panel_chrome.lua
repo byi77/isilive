@@ -469,6 +469,10 @@ local function AttachModeButtonTooltip(
   getLockReason
 )
   button:SetScript("OnEnter", function(self)
+    if type(UICommon.ApplyActionButtonVisual) == "function" then
+      local role = self._modeTarget == self._activeLayoutMode and "primary" or "title"
+      UICommon.ApplyActionButtonVisual(self, role, "hover")
+    end
     local tooltip = AnchorRosterHoverTooltip(tooltipFrame, self)
     if type(tooltip) ~= "table" then
       return
@@ -505,7 +509,11 @@ local function AttachModeButtonTooltip(
       tooltip:Show()
     end
   end)
-  button:SetScript("OnLeave", function()
+  button:SetScript("OnLeave", function(self)
+    if type(UICommon.ApplyActionButtonVisual) == "function" then
+      local role = self._modeTarget == self._activeLayoutMode and "primary" or "title"
+      UICommon.ApplyActionButtonVisual(self, role, "default")
+    end
     HideRosterHoverTooltip(tooltipFrame)
   end)
 end

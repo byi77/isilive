@@ -99,26 +99,68 @@ return function(test, ctx)
     end)
   end)
 
-  test("StatsBox uses fixed English short labels without locale variants", function()
+  test("StatsBox uses requested German short labels and fixed fallback labels", function()
     WithGlobals({
       UIParent = {},
       CreateFrame = BuildCreateFrameStub(),
+      IsiLiveDB = { statsBoxShowDurability = true },
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
       local StatsBox = addon.StatsBox
       local rows = StatsBox.CollectPlayerStats({
         locale = "deDE",
         UnitStat = function(_unit, statIndex)
-          if statIndex == 1 then
+          if statIndex == 2 then
             return 0, 2105
           end
           return nil
         end,
         UnitClass = function()
-          return "Warrior", "WARRIOR"
+          return "Hunter", "HUNTER"
         end,
       })
-      Assert.Equal(rows[1].label, "Str", "deDE should still use the fixed short English strength label")
+      Assert.Equal(rows[1].label, "Beweg", "deDE should use the requested short agility label")
+
+      rows = StatsBox.CollectPlayerStats({
+        locale = "deDE",
+        UnitClass = function()
+          return nil, nil
+        end,
+        GetCombatRating = function()
+          return 100
+        end,
+        GetCombatRatingBonus = function()
+          return 10
+        end,
+        GetCritChance = function()
+          return 20
+        end,
+        UnitSpellHaste = function()
+          return 15
+        end,
+        GetMasteryEffect = function()
+          return 30
+        end,
+        GetInventoryItemDurability = function(slot)
+          if slot == 1 then
+            return 80, 100
+          end
+          return nil, nil
+        end,
+        CR_CRIT_MELEE = 1,
+        CR_HASTE_MELEE = 2,
+        CR_MASTERY = 3,
+        CR_VERSATILITY_DAMAGE_DONE = 4,
+      })
+      local germanRows = {}
+      for _, row in ipairs(rows) do
+        germanRows[row.key] = row.label
+      end
+      Assert.Equal(germanRows.crit, "Krit", "deDE should use the requested crit label")
+      Assert.Equal(germanRows.haste, "Tempo", "deDE should use the requested haste label")
+      Assert.Equal(germanRows.mastery, "Meist", "deDE should use the requested mastery label")
+      Assert.Equal(germanRows.versatility, "Versa", "deDE should use the requested versatility label")
+      Assert.Equal(germanRows.durability, "Haltb", "deDE should use the requested durability label")
 
       rows = StatsBox.CollectPlayerStats({
         locale = "frFR",

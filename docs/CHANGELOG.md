@@ -2,6 +2,22 @@
 
 ## 2026-08-02 - Version 0.9.363 (patch)
 
+- Modernized the compact V and H layouts without adding boxed inner surfaces:
+  management actions and world markers now breathe on the uninterrupted main
+  background. Their fixed size and secure behavior are unchanged.
+- Replaced the warm close-button styling on the V/H/M+ layout selectors with
+  semantic title controls and a stronger blue active state.
+- Kept the integer optical correction for the visible M+ title and vertically
+  centered every 20 px title-bar control at `y=-4` across M+, H, and V.
+- Corrected the German Stats Box abbreviations to `Beweg`, `Krit`, `Tempo`,
+  `Meist`, `Versa`, and `Haltb`; other locales retain their existing labels.
+- Replaced the heavy Windows-like red close art across all isiLive-owned
+  windows with one compact `×` control: quiet slate by default and a restrained
+  red danger state only on hover or press. Close behavior is unchanged.
+- Restored complete main-window opacity control: title chrome, portal tiles,
+  BR/BL and M+ timer surfaces, and the enemy-forces tracker now use a subtle
+  tint that scales live with Background Opacity instead of retaining a nearly
+  opaque dark overlay.
 - Fixed the enemy-forces text preview in Settings so percentage and remaining
   values stay visible while configuring them, independent of whether the live
   display mode is currently Off, Tooltip, or Nameplate. The live M+ renderer
@@ -12,8 +28,7 @@
   toolbar and action buttons without changing any layout dimensions, secure
   attributes, leader permissions or click behavior.
 - Promoted Ready Check and Countdown as primary actions while keeping Share
-  Keys, Refresh and Countdown Cancel visually quieter secondary actions. The
-  existing red close button remains unchanged.
+  Keys, Refresh and Countdown Cancel visually quieter secondary actions.
 - Added deterministic coverage for the shared theme, reusable action-button
   states, bounded title chrome, semantic action hierarchy and secure-surface
   audit.

@@ -9,10 +9,8 @@ local unpack = rawget(_G, "unpack") or (type(table) == "table" and rawget(table,
 addonTable.UI = addonTable.UI or {}
 
 local UI = addonTable.UI
-local createRedCloseButton = assert(
-  addonTable.UICommon and addonTable.UICommon.CreateRedCloseButton,
-  "isiLive: UICommon.CreateRedCloseButton missing"
-)
+local createCloseButton =
+  assert(addonTable.UICommon and addonTable.UICommon.CreateCloseButton, "isiLive: UICommon.CreateCloseButton missing")
 local GetLocalizedText =
   assert(addonTable.UICommon and addonTable.UICommon.GetLocalizedText, "isiLive: UICommon.GetLocalizedText missing")
 local ApplyBackdrop = addonTable.UICommon.ApplyBackdrop
@@ -447,7 +445,7 @@ function UI.CreateMainFrame(opts)
     end
   end
 
-  local closeButton = createRedCloseButton(frame, {
+  local closeButton = createCloseButton(frame, {
     point = { "TOPRIGHT", frame, "TOPRIGHT", -2, -2 },
     frameLevel = dragHandle:GetFrameLevel() + 2,
     tooltipTitleKey = "TOOLTIP_HIDE_ISILIVE",
@@ -460,6 +458,7 @@ function UI.CreateMainFrame(opts)
     return dragLocked
   end, SetDragLocked)
   local settingsButton = CreateSettingsButton(frame, dragHandle, onOpenSettings)
+  frame._isiLiveTitleBarButtons = { closeButton, lockButton, settingsButton }
 
   SetDragLocked(dragLocked)
 

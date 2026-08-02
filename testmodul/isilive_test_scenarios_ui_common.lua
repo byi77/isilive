@@ -414,6 +414,41 @@ return function(test, ctx)
     Assert.Equal(UICommon.Colors.BG_PRIMARY[4], 0.5, "palette must mutate even without frames")
   end)
 
+  test("UICommon background opacity repaints semantic title and run surfaces", function()
+    rawset(_G, "IsiLiveDB", { bgAlpha = 0.4 })
+    local UICommon = LoadUICommon()
+    local parent = MakeFrameStub()
+    local chrome = UICommon.CreatePanelChrome(parent, { height = 27 })
+    local runBox = MakeFrameStub()
+    UICommon.ApplyBackdrop(runBox, "CD_BOX")
+
+    local expectedInitialAlpha = 0.4 * UICommon.STRUCTURAL_TINT_ALPHA_FACTOR
+    Assert.Equal(
+      chrome.titleBar._colorTexture[4],
+      expectedInitialAlpha,
+      "title tint must derive its initial alpha from the configured background opacity"
+    )
+    Assert.Equal(
+      runBox._backdropColor[4],
+      expectedInitialAlpha,
+      "run-zone tint must derive its initial alpha from the configured background opacity"
+    )
+
+    UICommon.ApplyBgAlpha(nil, 0.75)
+    local expectedLiveAlpha = 0.75 * UICommon.STRUCTURAL_TINT_ALPHA_FACTOR
+    Assert.Equal(
+      chrome.titleBar._colorTexture[4],
+      expectedLiveAlpha,
+      "title tint must repaint immediately when the background opacity changes"
+    )
+    Assert.Equal(
+      runBox._backdropColor[4],
+      expectedLiveAlpha,
+      "run-zone tint must repaint immediately when the background opacity changes"
+    )
+    rawset(_G, "IsiLiveDB", nil)
+  end)
+
   -- ApplyBackdrop --------------------------------------------------------------
 
   test("UICommon.ApplyBackdrop applies preset backdrop + bg + border colors when both setters exist", function()
@@ -440,7 +475,7 @@ return function(test, ctx)
     )
   end)
 
-  test("UICommon.CreateRedCloseButton renders themed WoW close art", function()
+  test("UICommon close button uses compact semantic visual states", function()
     WithGlobals({
       CreateFrame = function()
         return MakeFrameStub()
@@ -449,35 +484,27 @@ return function(test, ctx)
     }, function()
       local addon = LoadAddonModules({ "isiLive_ui_common.lua" })
       local parent = MakeFrameStub()
-      local button = addon.UICommon.CreateRedCloseButton(parent, { size = 22 })
+      local button = addon.UICommon.CreateCloseButton(parent, { size = 22 })
 
-      local art = Assert.NotNil(button._isiLiveCloseButtonArt, "close button should expose its themed art")
-      Assert.Equal(button._borderColor[1], 1.0, "close button border should use a gold red channel")
-      Assert.Equal(button._borderColor[2], 0.68, "close button border should use a warm gold green channel")
-      Assert.Equal(
-        art.icon._texture,
-        "Interface\\Buttons\\UI-Panel-MinimizeButton-Up",
-        "close button should use WoW panel close art"
+      Assert.True(
+        addon.UICommon.CreateRedCloseButton == addon.UICommon.CreateCloseButton,
+        "legacy close-button factory must remain a compatibility alias"
       )
+      Assert.Equal(button._isiLiveCloseButtonLabel._text, "×", "close button should render a compact multiplication X")
+      Assert.Equal(button._isiLiveVisualState, "default", "close button should start in the quiet default state")
       Assert.Equal(
-        art.highlight._texture,
-        "Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight",
-        "close button should include WoW highlight art"
+        button._backdropColor[1],
+        addon.UICommon.Colors.SURFACE_ACTION_SECONDARY[1],
+        "default close surface should share the title-control slate"
       )
 
+      button._scripts.OnEnter()
+      Assert.Equal(button._isiLiveVisualState, "hover", "hover should reveal the restrained danger state")
       button._scripts.OnMouseDown()
-      Assert.Equal(
-        art.icon._texture,
-        "Interface\\Buttons\\UI-Panel-MinimizeButton-Down",
-        "pressed state should swap to WoW down art"
-      )
+      Assert.Equal(button._isiLiveVisualState, "pressed", "mouse down should render the pressed danger state")
 
       button._scripts.OnLeave()
-      Assert.Equal(
-        art.icon._texture,
-        "Interface\\Buttons\\UI-Panel-MinimizeButton-Up",
-        "leave state should restore normal art"
-      )
+      Assert.Equal(button._isiLiveVisualState, "default", "leave should restore the quiet default state")
     end)
   end)
 

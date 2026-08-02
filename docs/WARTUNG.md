@@ -546,6 +546,10 @@ Mindestens das testen:
 10. Settings-Beschreibung fuer `Group Finder: Buff rating hearts` nutzt gruene Texturbeispiele untereinander
 11. Readycheck-Button funktioniert als Leader und bleibt fuer Nicht-Leader optisch deaktiviert
 12. Ready-Check-Zeilen zeigen Ready, Not-ready und Waiting jeweils mit Hintergrundfarbe und passendem Blizzard-Symbol; die Resultat-Holds behalten beides und entfernen beides nach Ablauf
+13. `Background Opacity` live von 30% ueber 50% bis 100% bewegen; Main-Backdrop, Titelflaeche, Portaltiles, BR-/BL-/M+-Timer und Killtracker muessen gemeinsam reagieren, ohne dass Titel oder untere Run-Bloecke fast deckend dunkel bleiben
+14. M+, H und V durchschalten; alle 20-px-Titelcontrols muessen vertikal ruhig auf derselben Linie stehen, der sichtbare M+-Titel muss optisch mittig bleiben und H/V duerfen keine dunklen Innenkarten zeigen
+15. Main-Frame, Center-Notice, Portal-Navigator und Demo-Simulator oeffnen; jedes addon-eigene `×` muss im Default slate bleiben, erst bei Hover/Press rot reagieren und weiterhin exakt sein eigenes Fenster schliessen
+16. Stats Box auf Deutsch mit Beweglichkeitsklasse sowie sichtbaren Sekundaerwerten pruefen; erwartet werden `Beweg`, `Krit`, `Tempo`, `Meist`, `Versa` und bei aktivierter Haltbarkeit `Haltb`
 
 ## 8) Wenn du nur 20 Minuten hast
 

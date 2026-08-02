@@ -109,6 +109,15 @@ local LABELS = {
   avoidance = "Avoid",
 }
 
+local DE_LABELS = {
+  agility = "Beweg",
+  crit = "Krit",
+  haste = "Tempo",
+  mastery = "Meist",
+  versatility = "Versa",
+  durability = "Haltb",
+}
+
 local STAT_COLORS = {
   strength = { 1.00, 0.82, 0.00, 1 },
   agility = { 1.00, 0.82, 0.00, 1 },
@@ -238,7 +247,19 @@ local function FormatPercent(value)
   return formatted
 end
 
-local function ResolveLabel(key)
+local function ResolveLabel(key, opts)
+  local locale = type(opts) == "table" and opts.locale or nil
+  if type(locale) ~= "string" or locale == "" then
+    local db = GetDB()
+    locale = type(db) == "table" and db.locale or nil
+  end
+  if (type(locale) ~= "string" or locale == "") and type(rawget(_G, "GetLocale")) == "function" then
+    local ok, clientLocale = pcall(rawget(_G, "GetLocale"))
+    locale = ok and clientLocale or nil
+  end
+  if locale == "deDE" and DE_LABELS[key] then
+    return DE_LABELS[key]
+  end
   return LABELS[key] or key
 end
 
@@ -357,7 +378,7 @@ local function ReadDurabilityRow(opts)
   end
   return {
     key = "durability",
-    label = ResolveLabel("durability"),
+    label = ResolveLabel("durability", opts),
     value = currentTotal,
     valueText = string.format("%d", currentTotal),
     percent = (currentTotal / maxTotal) * 100,
@@ -440,7 +461,7 @@ local function BuildPrimaryStatRow(opts)
   end
   return {
     key = primaryKey,
-    label = ResolveLabel(primaryKey),
+    label = ResolveLabel(primaryKey, opts),
     value = value,
   }
 end
@@ -471,7 +492,7 @@ function StatsBox.CollectPlayerStats(opts)
     if staminaValue ~= nil then
       rows[#rows + 1] = {
         key = "stamina",
-        label = ResolveLabel("stamina"),
+        label = ResolveLabel("stamina", opts),
         value = staminaValue,
       }
     end
@@ -480,37 +501,37 @@ function StatsBox.CollectPlayerStats(opts)
   local secondaryRows = {
     {
       key = "crit",
-      label = ResolveLabel("crit"),
+      label = ResolveLabel("crit", opts),
       value = ReadCombatRating("CR_CRIT_MELEE", opts),
       percent = ReadNoArgNumber("GetCritChance", opts),
     },
     {
       key = "haste",
-      label = ResolveLabel("haste"),
+      label = ResolveLabel("haste", opts),
       value = ReadCombatRating("CR_HASTE_MELEE", opts),
       percent = ReadPlayerSpellHaste(opts),
     },
     {
       key = "mastery",
-      label = ResolveLabel("mastery"),
+      label = ResolveLabel("mastery", opts),
       value = ReadCombatRating("CR_MASTERY", opts),
       percent = ReadNoArgNumber("GetMasteryEffect", opts),
     },
     {
       key = "versatility",
-      label = ResolveLabel("versatility"),
+      label = ResolveLabel("versatility", opts),
       value = ReadCombatRating("CR_VERSATILITY_DAMAGE_DONE", opts),
       percent = ReadCombatRatingBonus("CR_VERSATILITY_DAMAGE_DONE", opts),
     },
     {
       key = "leech",
-      label = ResolveLabel("leech"),
+      label = ResolveLabel("leech", opts),
       value = ResolveOptionalRowEnabled("leech") and ReadCombatRating("CR_LIFESTEAL", opts) or nil,
       percent = ResolveOptionalRowEnabled("leech") and ReadCombatRatingBonus("CR_LIFESTEAL", opts) or nil,
     },
     {
       key = "speed",
-      label = ResolveLabel("speed"),
+      label = ResolveLabel("speed", opts),
       value = ResolveOptionalRowEnabled("speed") and ReadCombatRating("CR_SPEED", opts) or nil,
       percent = ResolveOptionalRowEnabled("speed") and ReadCombatRatingBonus("CR_SPEED", opts) or nil,
     },
@@ -530,7 +551,7 @@ function StatsBox.CollectPlayerStats(opts)
     if avoidanceValue ~= nil then
       rows[#rows + 1] = {
         key = "avoidance",
-        label = ResolveLabel("avoidance"),
+        label = ResolveLabel("avoidance", opts),
         value = avoidanceValue,
         percent = ReadCombatRatingBonus("CR_AVOIDANCE", opts),
       }

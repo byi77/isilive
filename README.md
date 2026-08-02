@@ -17,13 +17,19 @@
 
 Season maintenance is driven by one normalized manifest. Portal, LFG activity, display, level-gate, and portal-room indexes are derived from the same per-dungeon records; the generated MDT forces snapshot remains separate, records the exact upstream commit, and is hidden at runtime as soon as its verified expiry date passes.
 
-The current development build introduces a shared cool blue/slate UI system for the main window. Its title chrome, column headers, toolbar controls, action surfaces, hover states, and pressed states now use one semantic component set. Ready Check and Countdown are visually primary actions; Share Keys, Refresh, and Countdown Cancel remain quieter secondary actions. Existing layouts, secure actions, button sizes, and the red close button are unchanged.
+The current development build introduces a shared cool blue/slate UI system for the main window. Its title chrome, column headers, toolbar controls, action surfaces, hover states, and pressed states now use one semantic component set. Ready Check and Countdown are visually primary actions; Share Keys, Refresh, and Countdown Cancel remain quieter secondary actions. Existing layouts, secure actions, and button sizes are unchanged. Every isiLive-owned window now uses the same quiet slate close control with a compact `×`; its restrained red danger state appears only on hover or press.
 
 The same visual language now groups the dungeon portals, Battle Res/Bloodlust status, M+ timer, and enemy-forces tracker into one coherent run zone. Center notices and the Portal Navigator share a modern card surface and top accent; the navigator also renders the verified localized direction labels and empty-slot detail already supplied by its status model.
 
 The supporting surfaces now complete that hierarchy: the Stats Box restores its established distinct color for every stat, Settings use cool topic cards and a task-oriented order, ESC shortcuts share consistent secondary action states, and LFG flags/hearts occupy less row space. Enemy-forces nameplates, private tooltips, forces tooltip lines, and death alerts use matching compact surface, text, and contrast roles without changing their data or actions.
 
 The main M+ title no longer repeats the `BETA` label, while the Settings beta notice remains. Both blue header separators now share the same 8 px horizontal bounds, and the action, portal, timer, and enemy-forces blocks terminate on one common right edge.
+
+The compact V and H views keep one uninterrupted main background without dark inner cards crowding their actions and world markers. The V/H/M+ selectors use quiet blue/slate title controls with a stronger active state; compact dimensions, button positions, and secure marker actions remain unchanged.
+
+The visible M+ title keeps its integer optical correction, while every 20 px title-bar control — including M+, H, V, utility, lock, settings, and close — now shares the vertically centered `y=-4` anchor in every layout.
+
+Background Opacity once again governs the complete main UI. The title chrome, portal tiles, BR/BL and M+ timer block, and enemy-forces tracker retain only a subtle semantic tint that scales live with the selected opacity instead of stacking an almost opaque dark layer over the main background.
 
 Version `0.9.363` is the UI-modernization patch that introduces the shared semantic hierarchy across the main window, M+ run surfaces, notices, Stats Box, Settings, ESC shortcuts, compact LFG markers, nameplates, tooltips, and death alerts. Version `0.9.362` separated LFG resolution, bonus evaluation, Blizzard Group Finder view hooks, Portal Navigator notices, and ESC-menu panel rendering into focused modules with deterministic architecture coverage. Automatic Season 2 selection remains unchanged: the switch happens only once Blizzard ships the exact recorded dungeon set.
 
@@ -140,7 +146,7 @@ The optional Escape-menu Addons panel shows shortcuts only for supported addons 
 The window opens automatically when you join a group and closes when you leave. You can also open or close it yourself:
 
 - **`Ctrl + F9`** — toggle the window
-- **Red X** in the top-right corner — close it
+- **× button** in the top-right corner — close it
 - **Lock icon** in the top-right — prevents dragging so the window doesn't move by accident
 - Drag the title bar to move the window. The position is remembered, and the window stops at the WoW screen edge instead of being draggable outside the game view.
 
@@ -269,7 +275,7 @@ The Settings preview uses the same formatter and anchor semantics as the live ov
 
 An optional standalone stats box can be enabled in Settings. It is independent from the M+, H, and V layouts and can be moved separately.
 
-- Shows the class-appropriate primary stat (`Str`, `Agi`, or `Int`) plus `Crit`, `Haste`, `Mast`, `Vers`, `Leech`, and `Speed` when Blizzard's live APIs provide those values
+- Shows the class-appropriate primary stat (`Str`, `Agi`, or `Int`) plus `Crit`, `Haste`, `Mast`, `Vers`, `Leech`, and `Speed` when Blizzard's live APIs provide those values; German uses the compact labels `Beweg`, `Krit`, `Tempo`, `Meist`, `Versa`, and `Haltb` for agility, critical strike, haste, mastery, versatility, and durability
 - Uses short English labels only
 - Uses the established fixed per-stat color palette for labels, values, percentages, and subtle row tints
 - Values and percentages are right-aligned for compact scanning; the value column keeps a stable compact width for larger live stat values, including Stamina rows without a percent value, and the percent column fits values up to `(999.99%)`

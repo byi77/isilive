@@ -240,24 +240,7 @@ local function NewRecordedMainFrame(createdFontStrings)
     return NewRecordedFontString(createdFontStrings)
   end
   function mainFrame.CreateTexture(_self)
-    return {
-      SetAllPoints = function() end,
-      SetHeight = function() end,
-      SetPoint = function() end,
-      SetWidth = function() end,
-      GetWidth = function()
-        return 0
-      end,
-      SetColorTexture = function() end,
-      SetTexture = function() end,
-      SetTexCoord = function() end,
-      SetVertexColor = function() end,
-      Hide = function() end,
-      Show = function() end,
-      IsShown = function()
-        return false
-      end,
-    }
+    return NewRecordedTexture()
   end
   function mainFrame:SetWidth(w)
     self.width = w
@@ -659,6 +642,7 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     local createdFrames = {}
     local createdFontStrings = {}
     local mainFrame = NewRecordedMainFrame(createdFontStrings)
+    local addon = nil
 
     WithGlobals({
       CreateFrame = function(frameType, name, parent, template)
@@ -677,7 +661,7 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
         SetCVar = function() end,
       },
     }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_roster_panel.lua" })
+      addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_roster_panel.lua" })
       addon.RosterPanel.CreateController({
         mainFrame = mainFrame,
         getL = function()
@@ -746,24 +730,27 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     local horizontalButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_horizontal")
     local m2Button = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "compact_main_horizontal")
     local expandedButton = FindFrameByProperty(createdFrames, "_collapseLayoutMode", "expanded")
+    local titleFontString = FindFontStringByPoint(createdFontStrings, "TOPLEFT", 10, -7)
     local titleVersion = FindFontStringByPoint(createdFontStrings, "LEFT", 5, 0)
     collapseButton = Assert.NotNil(collapseButton, "Vertical collapse button should exist")
     horizontalButton = Assert.NotNil(horizontalButton, "Horizontal collapse button should exist")
     m2Button = Assert.NotNil(m2Button, "M2 mode button should exist")
     Assert.Nil(expandedButton, "Expanded mode button should stay hidden from the title bar")
+    titleFontString = Assert.NotNil(titleFontString, "Title font string should exist")
     titleVersion = Assert.NotNil(titleVersion, "Title version should exist")
+    Assert.Nil(
+      addon.UICommon.CreateCompactLayoutChrome,
+      "compact layouts should not add boxed inner backgrounds around actions or markers"
+    )
     Assert.Equal(m2Button.pointX, -112, "M+ mode button should sit directly left of the H/V title-bar controls")
     Assert.Equal(horizontalButton.pointX, -90, "H mode button should sit between M+ and V in the title-bar group")
     Assert.Equal(collapseButton.pointX, -68, "V mode button should sit directly left of the settings button")
     Assert.Equal(m2Button._template, "BackdropTemplate", "M+ mode button should use title-bar button chrome")
     Assert.Equal(horizontalButton._template, "BackdropTemplate", "H mode button should use title-bar button chrome")
     Assert.Equal(collapseButton._template, "BackdropTemplate", "V mode button should use title-bar button chrome")
-    Assert.Equal(m2Button._backdropBorderColor[1], 1.0, "M+ mode button should render a gold title-bar border")
-    Assert.Equal(horizontalButton._backdropBorderColor[1], 1.0, "H mode button should render a gold title-bar border")
-    Assert.Equal(collapseButton._backdropBorderColor[1], 1.0, "V mode button should render a gold title-bar border")
-    Assert.Equal(m2Button._backdropBorderColor[2], 0.68, "M+ mode button border should use warm gold")
-    Assert.Equal(horizontalButton._backdropBorderColor[2], 0.68, "H mode button border should use warm gold")
-    Assert.Equal(collapseButton._backdropBorderColor[2], 0.68, "V mode button border should use warm gold")
+    Assert.Equal(m2Button._isiLiveSemanticRole, "title", "inactive M+ mode button should use quiet title chrome")
+    Assert.Equal(horizontalButton._isiLiveSemanticRole, "title", "inactive H mode button should use quiet title chrome")
+    Assert.Equal(collapseButton._isiLiveSemanticRole, "title", "inactive V mode button should use quiet title chrome")
     Assert.Equal(horizontalButton._collapseButtonLabel, "H", "H mode button has static H label in expanded mode")
 
     local helperButtons = {}
@@ -788,6 +775,13 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
 
     horizontalButton.OnClick()
 
+    Assert.Equal(horizontalButton._isiLiveSemanticRole, "primary", "active H mode should receive the stronger surface")
+    Assert.Equal(collapseButton._isiLiveSemanticRole, "title", "inactive V mode should retain quiet title chrome")
+    horizontalButton.OnEnter(horizontalButton)
+    Assert.Equal(horizontalButton._isiLiveVisualState, "hover", "active H mode should retain semantic hover feedback")
+    horizontalButton.OnLeave(horizontalButton)
+    Assert.Equal(horizontalButton._isiLiveVisualState, "default", "H mode should restore its active default surface")
+
     table.sort(helperButtons, function(a, b)
       return a.pointX < b.pointX
     end)
@@ -807,16 +801,33 @@ local function RegisterHorizontalMiniLayoutTests(test, Assert, WithGlobals, Load
     Assert.Equal(managementButtons[1].width, 60, "Management buttons resize to compact width in H mode")
     Assert.Equal(horizontalButton._collapseButtonLabel, "H", "H mode button keeps static H label in horizontal mode")
     Assert.Equal(collapseButton._collapseButtonLabel, "V", "V mode button keeps static V label in horizontal mode")
+    Assert.Equal(horizontalButton.pointY, -4, "H mode should vertically center its title buttons")
+    Assert.Equal(collapseButton.pointY, -4, "V selector should share the centered title-button anchor")
+    Assert.Equal(m2Button.pointY, -4, "M+ selector should share the centered title-button anchor")
     Assert.True(titleVersion.hidden, "Title version should be hidden in horizontal mini mode")
     Assert.True(
       helperButtons[1].pointX < helperButtons[#helperButtons].pointX,
       "Helper icons should spread horizontally"
     )
 
+    collapseButton.OnClick()
+
+    Assert.Equal(mainFrame.width, 150, "Vertical mini mode should retain its fixed width budget")
+    Assert.Equal(mainFrame.height, 128, "Vertical mini mode should retain its fixed height budget")
+
+    local titleUtilityButton =
+      NewRecordedFrame(createdFrames, createdFontStrings, "Button", nil, mainFrame, "BackdropTemplate")
+    titleUtilityButton:SetPoint("TOPRIGHT", mainFrame, "TOPRIGHT", -2, -2)
+    mainFrame._isiLiveTitleBarButtons = { titleUtilityButton }
+
     m2Button.OnClick()
 
     Assert.Equal(mainFrame.width, 500, "Leaving H through M2 should switch into the visible main layout")
     Assert.Equal(mainFrame.height, 272, "Leaving H through M2 should restore the modern main-layout height")
+    Assert.Equal(m2Button.pointY, -4, "M+ mode should keep every title control vertically centered")
+    Assert.Equal(titleUtilityButton.pointY, -4, "M+ mode should align utility buttons with the layout controls")
+    Assert.Equal(titleFontString.point, "TOPLEFT", "M+ title should preserve its stable anchor type")
+    Assert.Equal(titleFontString.pointY, -8, "M+ title should receive the matching one-pixel optical correction")
     Assert.Equal(managementButtons[1].width, 92, "Leaving H through M2 should restore the M2 button widths")
     Assert.Equal(
       horizontalButton._collapseButtonLabel,
@@ -947,7 +958,9 @@ local function RegisterHorizontalModernLayoutTests(test, Assert, WithGlobals, Lo
           frame._template == "UIPanelButtonTemplate"
           or frame._template == "BackdropTemplate"
           or (type(frame._template) == "string" and frame._template:find("BackdropTemplate", 1, true) ~= nil)
-        ) and frame._flatLabel
+        )
+        and frame._flatLabel
+        and frame._modeTarget == nil
       then
         table.insert(toolbarButtons, frame)
       elseif frame._template == "SecureActionButtonTemplate" and frame:GetAttribute("type1") == "worldmarker" then

@@ -81,7 +81,7 @@ local REQUIRED_FUNCTIONS = {
   { path = { "Commands", "RegisterSlashCommands" }, message = "isiLive: Commands.RegisterSlashCommands missing" },
   { path = { "Texts", "GetLocaleTables" }, message = "isiLive: Texts.GetLocaleTables missing" },
   { path = { "UI", "CreateMainFrame" }, message = "isiLive: UI.CreateMainFrame missing" },
-  { path = { "UICommon", "CreateRedCloseButton" }, message = "isiLive: UICommon.CreateRedCloseButton missing" },
+  { path = { "UICommon", "CreateCloseButton" }, message = "isiLive: UICommon.CreateCloseButton missing" },
   { path = { "UICommon", "CreatePrivateTooltip" }, message = "isiLive: UICommon.CreatePrivateTooltip missing" },
   { path = { "UICommon", "PreparePrivateTooltip" }, message = "isiLive: UICommon.PreparePrivateTooltip missing" },
   { path = { "UICommon", "HidePrivateTooltip" }, message = "isiLive: UICommon.HidePrivateTooltip missing" },

@@ -56,6 +56,9 @@ local MeasureFontStringWidthSafe = type(UICommon.MeasureFontStringWidthSafe) == 
     and UICommon.MeasureFontStringWidthSafe
   or MeasureFontStringWidthSafeFallback
 local ApplyBackdrop = type(UICommon.ApplyBackdrop) == "function" and UICommon.ApplyBackdrop or nil
+local ApplyActionButtonVisual = type(UICommon.ApplyActionButtonVisual) == "function"
+    and UICommon.ApplyActionButtonVisual
+  or nil
 
 -- Layout Konstanten
 local LAYOUT_MODE_EXPANDED = "expanded"
@@ -753,9 +756,38 @@ local function UpdateCollapseState(ui, layoutMode, mainFrame)
     ui.setMainFrameHeightSafe(GetFrameHeightForLayoutMode(layoutMode, ui.minFrameHeight))
   end
 
-  -- Mode-Buttons: aktiver Modus gold hervorheben, inaktive grau
+  -- Center every 20 px title control within the shared 27 px title chrome.
+  -- Use an integer anchor so UI scaling cannot rasterize a half pixel.
+  local titleButtonY = -4
+  local function ReanchorTitleButton(button)
+    if not (button and button.GetPoint and button.SetPoint) then
+      return
+    end
+    local point, relativeTo, relativePoint, x = button:GetPoint()
+    if button.ClearAllPoints then
+      button:ClearAllPoints()
+    end
+    button:SetPoint(point or "TOPRIGHT", relativeTo or mainFrame, relativePoint or "TOPRIGHT", x or 0, titleButtonY)
+  end
+
+  for _, btn in ipairs(ui.modeButtons or {}) do
+    ReanchorTitleButton(btn)
+  end
+  for _, btn in ipairs(mainFrame._isiLiveTitleBarButtons or {}) do
+    ReanchorTitleButton(btn)
+  end
+  if ui.title then
+    ReanchorFrame(ui.title, "TOPLEFT", 10, isMainHorizontal and -8 or -7)
+  end
+
+  -- Mode buttons share the title-bar language; the active layout receives the
+  -- stronger primary surface while the labels retain their compact state cue.
   for _, btn in ipairs(ui.modeButtons or {}) do
     local isActive = btn._modeTarget == layoutMode
+    btn._activeLayoutMode = layoutMode
+    if ApplyActionButtonVisual then
+      ApplyActionButtonVisual(btn, isActive and "primary" or "title", "default")
+    end
     if btn.label and btn.label.SetTextColor then
       if isActive then
         btn.label:SetTextColor(unpack((UICommon.Colors and UICommon.Colors.GOLD_TITLE) or { 1, 0.85, 0 }))
@@ -912,22 +944,10 @@ local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onCli
     btn:SetFrameLevel(mainFrame:GetFrameLevel() + 102)
   end
   if ApplyBackdrop then
-    ApplyBackdrop(btn, "CLOSE_BUTTON")
+    ApplyBackdrop(btn, "TITLE_BUTTON")
   end
   if btn.SetHighlightTexture then
     btn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
-  end
-  if type(btn.SetScript) == "function" then
-    btn:SetScript("OnEnter", function(self)
-      if type(self.SetBackdropColor) == "function" then
-        self:SetBackdropColor(0.14, 0.14, 0.20, 0.7)
-      end
-    end)
-    btn:SetScript("OnLeave", function(self)
-      if type(self.SetBackdropColor) == "function" then
-        self:SetBackdropColor(0.08, 0.015, 0.012, 0.92)
-      end
-    end)
   end
   if type(btn.CreateFontString) == "function" then
     local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -949,6 +969,7 @@ local function CreateModeButton(mainFrame, xOffset, modeLabel, modeTarget, onCli
       label:SetText(modeLabel)
     end
     btn.label = label
+    btn._flatLabel = label
   end
   btn._modeTarget = modeTarget
   btn._modeLabel = modeLabel

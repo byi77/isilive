@@ -22,6 +22,7 @@ local preparePrivateTooltip = assert(
 local hidePrivateTooltip =
   assert(addonTable.UICommon and addonTable.UICommon.HidePrivateTooltip, "isiLive: UICommon.HidePrivateTooltip missing")
 local setReadableText = addonTable.UICommon and addonTable.UICommon.SetReadableText
+local registerBackgroundAlphaSurface = addonTable.UICommon and addonTable.UICommon.RegisterBackgroundAlphaSurface
 local Colors = addonTable.UICommon and addonTable.UICommon.Colors or {}
 local LAYOUT_MODE_EXPANDED = RI.LAYOUT_MODE_EXPANDED or "expanded"
 local LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL = RI.LAYOUT_MODE_COMPACT_MAIN_HORIZONTAL or "compact_main_horizontal"
@@ -259,7 +260,16 @@ local function CreateTeleportButton(mainFrame, deps, index, entry)
 
   button.runTile = button:CreateTexture(nil, "BACKGROUND")
   button.runTile:SetAllPoints()
-  button.runTile:SetColorTexture(unpack(Colors.SURFACE_RUN_ZONE or { 0.035, 0.055, 0.085, 0.86 }))
+  if type(registerBackgroundAlphaSurface) == "function" then
+    registerBackgroundAlphaSurface(
+      button.runTile,
+      "SetColorTexture",
+      Colors.SURFACE_RUN_ZONE,
+      addonTable.UICommon.STRUCTURAL_TINT_ALPHA_FACTOR
+    )
+  else
+    button.runTile:SetColorTexture(unpack(Colors.SURFACE_RUN_ZONE or { 0.035, 0.055, 0.085, 0.86 }))
+  end
   button._isiLiveSurfaceRole = "run"
 
   button.icon = button:CreateTexture(nil, "ARTWORK")

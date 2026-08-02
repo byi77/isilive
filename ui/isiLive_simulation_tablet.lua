@@ -8,7 +8,7 @@ addonTable.SimulationTablet = SimulationTablet
 
 local UICommon = addonTable.UICommon or {}
 local ApplyBackdrop = UICommon.ApplyBackdrop
-local CreateRedCloseButton = UICommon.CreateRedCloseButton
+local CreateCloseButton = UICommon.CreateCloseButton
 local CreatePrivateTooltip = UICommon.CreatePrivateTooltip
 local PreparePrivateTooltip = UICommon.PreparePrivateTooltip
 local HidePrivateTooltip = UICommon.HidePrivateTooltip
@@ -420,8 +420,8 @@ function SimulationTablet.CreateController(opts)
   end)
 
   local closeButton = nil
-  if type(CreateRedCloseButton) == "function" then
-    closeButton = CreateRedCloseButton(frame, {
+  if type(CreateCloseButton) == "function" then
+    closeButton = CreateCloseButton(frame, {
       point = { "TOPRIGHT", frame, "TOPRIGHT", -8, -8 },
       tooltipTitleKey = "SIM_CLOSE_TOOLTIP_TITLE",
       tooltipBodyKey = "SIM_CLOSE_TOOLTIP_BODY",

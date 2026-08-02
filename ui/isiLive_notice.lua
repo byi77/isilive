@@ -11,10 +11,8 @@ local Notice = {}
 addonTable.Notice = Notice
 local NoticeCommon = assert(addonTable.NoticeCommon, "isiLive: NoticeCommon missing")
 local PortalNavigatorNotice = assert(addonTable.PortalNavigatorNotice, "isiLive: PortalNavigatorNotice missing")
-local createRedCloseButton = assert(
-  addonTable.UICommon and addonTable.UICommon.CreateRedCloseButton,
-  "isiLive: UICommon.CreateRedCloseButton missing"
-)
+local createCloseButton =
+  assert(addonTable.UICommon and addonTable.UICommon.CreateCloseButton, "isiLive: UICommon.CreateCloseButton missing")
 local createPrivateTooltip = assert(
   addonTable.UICommon and addonTable.UICommon.CreatePrivateTooltip,
   "isiLive: UICommon.CreatePrivateTooltip missing"
@@ -267,7 +265,7 @@ local function CreateCenterNoticeTeleportHeader(frame, config)
 end
 
 local function CreateCenterNoticeCloseButton(frame)
-  return createRedCloseButton(frame, {
+  return createCloseButton(frame, {
     point = { "TOPRIGHT", frame, "TOPRIGHT", -2, -2 },
     frameLevel = frame:GetFrameLevel() + 20,
   })

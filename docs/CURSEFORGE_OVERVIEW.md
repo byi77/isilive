@@ -45,7 +45,7 @@ The colorful Mythic+ command center for World of Warcraft.
 🟪 Version 0.9.363
 
 isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
-Version 0.9.363 introduces a shared modern UI hierarchy across the main window, Mythic+ run surfaces, notices, Stats Box, Settings, ESC shortcuts, compact Group Finder markers, nameplates, tooltips, and death alerts. The Stats Box keeps a distinct established color per stat, the redundant BETA title label is removed while Settings retains its beta notice, and the M+ header lines and lower run blocks now align cleanly. Runtime data, secure actions, and automatic Midnight Season 2 selection remain unchanged.
+Version 0.9.363 introduces a shared modern UI hierarchy across the main window, Mythic+ run surfaces, notices, Stats Box, Settings, ESC shortcuts, compact Group Finder markers, nameplates, tooltips, and death alerts. The compact H and V views keep one open background, all title controls are vertically centered, and every isiLive-owned window uses the same quiet slate close control with red reserved for hover or press. Background Opacity again governs the complete main UI, the Stats Box restores a distinct color per stat and uses corrected compact German labels, the redundant BETA title label is removed while Settings retains its beta notice, and the M+ header lines and lower run blocks align cleanly. Runtime data, secure actions, and automatic Midnight Season 2 selection remain unchanged.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 WHY USE isiLive?
@@ -80,7 +80,8 @@ WHAT isiLive GIVES YOU
 ✅ Battle Res, Bloodlust, ready sounds, and tracked death counts in the main M+ view.
 ✅ A large red tank/healer death alert during active keys.
 ✅ Optional VIP helpers for a default-off Bloodlust button debuff warning for verified BL class and pet buttons plus a separated DK block with Soul Reaper / Putrefy warnings, Riders horse sound mute, and a movable localized missing-ghoul reminder.
-✅ Optional support tools: ESC-menu shortcuts, Hearthstone and verified Dalaran travel, player stats box with stable wider values, nameplate controls, runtime logs, UI lock, and demo simulation tablet.
+✅ Optional support tools: ESC-menu shortcuts, Hearthstone and verified Dalaran travel, player stats box with distinct colors and corrected compact German labels, nameplate controls, runtime logs, UI lock, and demo simulation tablet.
+✅ Coherent UI controls: live full-window background opacity, centered title controls, and one compact close style across every isiLive-owned window.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 BUILT FOR

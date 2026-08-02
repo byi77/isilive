@@ -158,7 +158,7 @@ return function(test, ctx)
             frame._backdropApplied = true
             return true
           end,
-          CreateRedCloseButton = function(parent, _opts)
+          CreateCloseButton = function(parent, _opts)
             local button = MakeFrameStub()
             button._parent = parent
             return button
