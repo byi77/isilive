@@ -645,6 +645,12 @@ local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGloba
     WithGlobals({
       CreateFrame = createFrameStub,
       GameMenuFrame = gameMenuFrame,
+      -- UnitExists must be stubbed, otherwise the character name never resolves
+      -- and this scenario would pass through the unresolved-character path
+      -- instead of the character-scoped one it is named after.
+      UnitExists = function()
+        return true
+      end,
       UnitName = function()
         return "Currentchar"
       end,
@@ -1464,6 +1470,65 @@ local function RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGloba
   end)
 end
 
+local function RegisterGameMenuAddonPanelCharacterScopeTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("UI third game-menu addon panel survives an unresolvable current character", function()
+    local createFrameStub = BuildCreateFrameStub()
+    local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+    local closeButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
+    gameMenuFrame.CloseButton = closeButton
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      GameMenuFrame = gameMenuFrame,
+      -- WoW 12.0 can mask unit reads inside protected dispatch, so the current
+      -- character name is unavailable while the ESC panel is being built. A
+      -- character-scoped addon then reports 1, and the shortcut must remain
+      -- offered instead of collapsing the whole panel.
+      UnitExists = function()
+        return true
+      end,
+      UnitName = function()
+        return nil
+      end,
+      C_AddOns = {
+        GetAddOnInfo = function(addOnName)
+          if addOnName == "Details" then
+            return { name = addOnName }
+          end
+          return nil
+        end,
+        GetAddOnEnableState = function(_addOnName, character)
+          Assert.Nil(character, "an unresolved character must be forwarded as nil, not guessed")
+          return 1
+        end,
+        IsAddOnLoaded = function()
+          return false
+        end,
+        LoadAddOn = function() end,
+      },
+      SlashCmdList = {
+        DETAILS = function() end,
+      },
+      SLASH_DETAILS1 = "/details",
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local toolingStrip = UI.EnsurePanelUI({ gameMenuFrame = gameMenuFrame })
+      local travelStrip = UI.EnsureSecondPanelUI({
+        gameMenuFrame = gameMenuFrame,
+        firstPanelState = toolingStrip,
+      })
+      local addonStrip = UI.EnsureThirdPanelUI({
+        gameMenuFrame = gameMenuFrame,
+        secondPanelState = travelStrip,
+      })
+
+      addonStrip = RequireValue(addonStrip, "addon panel must still be built without a resolvable character name")
+      RequireValue(addonStrip.buttonsById.details, "character-scoped addon shortcut must stay visible")
+    end)
+  end)
+end
+
 local function RegisterGameMenuMountPanelTests(test, Assert, WithGlobals, LoadAddonModules)
   test("UI mount game-menu panel shows verified mount shortcuts under travel panel", function()
     local createFrameStub = BuildCreateFrameStub()
@@ -1835,5 +1900,6 @@ return function(test, ctx)
   local LoadAddonModules = RequireValue(ctx.load_modules, "UI game-menu addons scenario ctx.load_modules should exist")
 
   RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterGameMenuAddonPanelCharacterScopeTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGameMenuMountPanelTests(test, Assert, WithGlobals, LoadAddonModules)
 end

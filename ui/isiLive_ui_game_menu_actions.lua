@@ -163,17 +163,20 @@ local function ResolveCurrentCharacterName()
   return name
 end
 
-local function IsEnabledStateForCurrentCharacter(state, hasCurrentCharacter)
+-- Accepts both "enabled for some characters" (1) and "enabled for all" (2).
+-- An unresolvable character name must NOT tighten this to 2: the enable state
+-- only decides whether a shortcut is offered, and the action itself re-resolves
+-- and fails closed on click. Tightening hid the whole panel whenever
+-- `UnitExists` / `UnitName` came back masked or unavailable, because every
+-- character-scoped addon reports 1 and the entry list collapsed to empty.
+local function IsEnabledAddOnState(state)
   if type(state) == "boolean" then
     return state == true
   end
   if type(state) ~= "number" then
     return false
   end
-  if hasCurrentCharacter then
-    return state == 1 or state == 2
-  end
-  return state == 2
+  return state == 1 or state == 2
 end
 
 local function IsAddOnEnabled(addOnName)
@@ -182,12 +185,11 @@ local function IsAddOnEnabled(addOnName)
   end
 
   local currentCharacter = ResolveCurrentCharacterName()
-  local hasCurrentCharacter = type(currentCharacter) == "string" and currentCharacter ~= ""
   local cAddOns = rawget(_G, "C_AddOns")
   if type(cAddOns) == "table" and type(cAddOns.GetAddOnEnableState) == "function" then
     local ok, state = pcall(cAddOns.GetAddOnEnableState, addOnName, currentCharacter)
     if ok then
-      return IsEnabledStateForCurrentCharacter(state, hasCurrentCharacter)
+      return IsEnabledAddOnState(state)
     end
   end
 
@@ -195,7 +197,7 @@ local function IsAddOnEnabled(addOnName)
   if type(getAddOnEnableState) == "function" then
     local ok, state = pcall(getAddOnEnableState, currentCharacter, addOnName)
     if ok then
-      return IsEnabledStateForCurrentCharacter(state, hasCurrentCharacter)
+      return IsEnabledAddOnState(state)
     end
   end
 
