@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-08-02 - Version 0.9.364 (patch)
+
+Maintenance release from a code audit of the 0.9.362 and 0.9.363 changes. No
+player-facing behavior changes: every rendered label, color, and layout stays
+identical.
+
+- Moved the visible Stats Box short labels out of the UI module and into the
+  shared locale tables as `STATS_LABEL_*` keys across all eight languages. The
+  rendered labels are unchanged — German keeps `Beweg`, `Krit`, `Tempo`,
+  `Meist`, `Versa`, `Haltb`, every other locale keeps its existing short
+  forms — but the strings are now visible to the locale-drift and dead-key
+  gates and are picked up by the documented "add a new language" workflow
+  instead of silently staying English. Missing locale tables fail closed to
+  the fixed short labels.
+- Exported the addon-locale resolution chain as `UICommon.ResolveActiveLocale`
+  and pointed the Stats Box at it instead of its own copy. A full stats refresh
+  now resolves the locale and its label table once per collect pass rather than
+  once per rendered row; the rendered labels are unchanged.
+- Moved the close button's hover and pressed danger colors into named
+  `UICommon.Colors` tokens instead of inline literals, and corrected the
+  compatibility-alias comment: `addonTable` is private to the addon, so the
+  alias never served third-party callers. No visual change.
+- Recorded the superseded wording of rules 27, 65, and 104 in a new optional
+  `Ersetzte Festlegung` field instead of silently overwriting pinned rule text.
+  The field is documented in the RULES_LOGIC write-up section and is now
+  mandatory whenever an active rule's already-pinned wording changes meaning;
+  wholesale replacements keep using `Status: veraltet` plus a successor rule.
+
 ## 2026-08-02 - Version 0.9.363 (patch)
 
 - Modernized the compact V and H layouts without adding boxed inner surfaces:

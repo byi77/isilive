@@ -3,7 +3,7 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.363`.
+Current version: `0.9.364`.
 
 Highlights:
 - **Modernized every isiLive surface.** The shared cool blue/slate hierarchy
@@ -18,7 +18,9 @@ Highlights:
   the title, portal tiles, BR/BL, timer and forces surfaces live, while their
   semantic tint remains subtle.
 - **Improved Stats Box readability.** Distinct per-stat colors are restored;
-  German now uses `Beweg`, `Krit`, `Tempo`, `Meist`, `Versa` and `Haltb`.
-- **All local release gates pass.** The current development tree contains 2,307
-  passing deterministic scenarios, 92.50% total line coverage
-  (`36,195 / 39,129`), and no production file below 80% coverage.
+  German now uses `Beweg`, `Krit`, `Tempo`, `Meist`, `Versa` and `Haltb`. Those
+  labels and the close-button danger colors now come from the shared locale and
+  color tables, so translation and palette checks can see them.
+- **All local release gates pass.** The current development tree contains 2,309
+  passing deterministic scenarios, 92.52% total line coverage
+  (`36,314 / 39,248`), and no production file below 80% coverage.

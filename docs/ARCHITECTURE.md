@@ -1,6 +1,6 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.363`
+Versionsbasis: `0.9.364`
 Zuletzt aktualisiert: `2026-08-02`
 
 ## Zweck
@@ -306,7 +306,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.363                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.364                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|

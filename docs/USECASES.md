@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.363`
+Versionsbasis: `0.9.364`
 Zuletzt aktualisiert: `2026-08-02`
 
 ## Akteure
