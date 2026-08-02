@@ -500,8 +500,18 @@ return function(test, ctx)
 
       button._scripts.OnEnter()
       Assert.Equal(button._isiLiveVisualState, "hover", "hover should reveal the restrained danger state")
+      Assert.Equal(
+        button._backdropColor[1],
+        addon.UICommon.Colors.SURFACE_CLOSE_DANGER_HOVER[1],
+        "hover danger surface must come from the shared color token, not a literal"
+      )
       button._scripts.OnMouseDown()
       Assert.Equal(button._isiLiveVisualState, "pressed", "mouse down should render the pressed danger state")
+      Assert.Equal(
+        button._backdropColor[1],
+        addon.UICommon.Colors.SURFACE_CLOSE_DANGER_PRESSED[1],
+        "pressed danger surface must come from the shared color token, not a literal"
+      )
 
       button._scripts.OnLeave()
       Assert.Equal(button._isiLiveVisualState, "default", "leave should restore the quiet default state")

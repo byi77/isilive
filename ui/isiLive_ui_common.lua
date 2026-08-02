@@ -111,6 +111,14 @@ UICommon.Colors = {
   ACCENT_NOTICE_TOP = { 0.24, 0.72, 1, 0.72 },
   SURFACE_COMPACT_OVERLAY = { 0.025, 0.04, 0.06, 0.78 },
   TEXT_ALERT_DANGER = { 1, 0.14, 0.16 },
+
+  -- Restrained danger states for the shared close control. Only hover and
+  -- press expose red; the default state uses the quiet secondary surface.
+  SURFACE_CLOSE_DANGER_HOVER = { 0.22, 0.045, 0.06, 0.96 },
+  BORDER_CLOSE_DANGER_HOVER = { 1, 0.32, 0.36, 0.86 },
+  SURFACE_CLOSE_DANGER_PRESSED = { 0.12, 0.02, 0.03, 0.98 },
+  BORDER_CLOSE_DANGER_PRESSED = { 0.92, 0.22, 0.28, 0.92 },
+  TEXT_CLOSE_DANGER_PRESSED = { 1, 0.62, 0.66, 1 },
 }
 
 UICommon.Theme = {
@@ -184,6 +192,12 @@ local function ResolveActiveLocale(localeTag)
 
   return "enUS"
 end
+
+-- Shared addon-locale resolution: explicit tag, then the stored addon locale,
+-- then the client locale, and finally enUS. Exported so UI modules consume the
+-- one chain instead of re-implementing it; internal callers keep the local
+-- upvalue.
+UICommon.ResolveActiveLocale = ResolveActiveLocale
 
 function UICommon.GetLocaleFontPath(localeTag)
   return UICommon.LOCALE_FONT_OVERRIDES[ResolveActiveLocale(localeTag)]
@@ -907,14 +921,14 @@ local CLOSE_BUTTON_STYLE = {
     text = UICommon.Colors.TEXT_SUPPORTING,
   },
   hover = {
-    background = { 0.22, 0.045, 0.06, 0.96 },
-    border = { 1, 0.32, 0.36, 0.86 },
+    background = UICommon.Colors.SURFACE_CLOSE_DANGER_HOVER,
+    border = UICommon.Colors.BORDER_CLOSE_DANGER_HOVER,
     text = UICommon.Colors.TEXT_HEADING,
   },
   pressed = {
-    background = { 0.12, 0.02, 0.03, 0.98 },
-    border = { 0.92, 0.22, 0.28, 0.92 },
-    text = { 1, 0.62, 0.66, 1 },
+    background = UICommon.Colors.SURFACE_CLOSE_DANGER_PRESSED,
+    border = UICommon.Colors.BORDER_CLOSE_DANGER_PRESSED,
+    text = UICommon.Colors.TEXT_CLOSE_DANGER_PRESSED,
   },
 }
 
@@ -1015,7 +1029,10 @@ function UICommon.CreateCloseButton(parent, opts)
   return button
 end
 
--- Compatibility alias for existing call sites and third-party integrations.
+-- Legacy name kept as an alias so a missed call site fails visibly at review
+-- time instead of silently at runtime. No in-repo caller uses it any more, and
+-- `addonTable` is private to this addon, so nothing outside can reach it
+-- either -- see docs/ARCHITECTURE.md and rules 27 / 104.
 UICommon.CreateRedCloseButton = UICommon.CreateCloseButton
 
 function UICommon.CreatePrivateTooltip(parent)

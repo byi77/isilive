@@ -109,13 +109,23 @@ local LABELS = {
   avoidance = "Avoid",
 }
 
-local DE_LABELS = {
-  agility = "Beweg",
-  crit = "Krit",
-  haste = "Tempo",
-  mastery = "Meist",
-  versatility = "Versa",
-  durability = "Haltb",
+-- Locale keys for the visible short labels. The LABELS table above stays the
+-- fail-closed fallback for standalone loads where the locale tables are not
+-- registered yet; the shared tables in locale/isiLive_texts_<tag>.lua are the
+-- source of truth so locale drift and dead-key gates can see these strings.
+local LABEL_TEXT_KEYS = {
+  strength = "STATS_LABEL_STRENGTH",
+  agility = "STATS_LABEL_AGILITY",
+  intellect = "STATS_LABEL_INTELLECT",
+  stamina = "STATS_LABEL_STAMINA",
+  crit = "STATS_LABEL_CRIT",
+  haste = "STATS_LABEL_HASTE",
+  mastery = "STATS_LABEL_MASTERY",
+  versatility = "STATS_LABEL_VERSATILITY",
+  leech = "STATS_LABEL_LEECH",
+  speed = "STATS_LABEL_SPEED",
+  durability = "STATS_LABEL_DURABILITY",
+  avoidance = "STATS_LABEL_AVOIDANCE",
 }
 
 local STAT_COLORS = {
@@ -247,20 +257,45 @@ local function FormatPercent(value)
   return formatted
 end
 
-local function ResolveLabel(key, opts)
-  local locale = type(opts) == "table" and opts.locale or nil
-  if type(locale) ~= "string" or locale == "" then
-    local db = GetDB()
-    locale = type(db) == "table" and db.locale or nil
+local function ResolveActiveLocale(localeTag)
+  local uiCommon = addonTable.UICommon
+  if type(uiCommon) == "table" and type(uiCommon.ResolveActiveLocale) == "function" then
+    return uiCommon.ResolveActiveLocale(localeTag)
   end
-  if (type(locale) ~= "string" or locale == "") and type(rawget(_G, "GetLocale")) == "function" then
-    local ok, clientLocale = pcall(rawget(_G, "GetLocale"))
-    locale = ok and clientLocale or nil
+  -- UICommon precedes this file in the TOC, so this only degrades for
+  -- standalone loads that never reach label rendering.
+  return type(localeTag) == "string" and localeTag ~= "" and localeTag or "enUS"
+end
+
+local function ResolveLocaleLabels(locale)
+  local texts = addonTable.Texts
+  if type(texts) ~= "table" or type(texts.GetLocaleTables) ~= "function" then
+    return nil
   end
-  if locale == "deDE" and DE_LABELS[key] then
-    return DE_LABELS[key]
+  local ok, localeTables = pcall(texts.GetLocaleTables)
+  if not ok or type(localeTables) ~= "table" then
+    return nil
   end
-  return LABELS[key] or key
+  local labels = type(locale) == "string" and localeTables[locale] or nil
+  if type(labels) ~= "table" then
+    labels = localeTables.enUS
+  end
+  return type(labels) == "table" and labels or nil
+end
+
+-- Resolves the active locale and its label table once per collect pass and
+-- returns a lookup closure, so a full stats refresh no longer repeats the
+-- locale chain and the locale-table lookup for every single row.
+local function BuildLabelResolver(opts)
+  local labels = ResolveLocaleLabels(ResolveActiveLocale(type(opts) == "table" and opts.locale or nil))
+  return function(key)
+    local textKey = LABEL_TEXT_KEYS[key]
+    local localized = textKey and labels and labels[textKey] or nil
+    if type(localized) == "string" and localized ~= "" then
+      return localized
+    end
+    return LABELS[key] or key
+  end
 end
 
 local function ReadPlainNumber(value)
@@ -353,7 +388,7 @@ local function ReadNoArgNumber(fnName, opts)
   return ReadDisplayNumber(value, false)
 end
 
-local function ReadDurabilityRow(opts)
+local function ReadDurabilityRow(opts, resolveLabel)
   if not ResolveOptionalRowEnabled("durability") then
     return nil
   end
@@ -378,7 +413,7 @@ local function ReadDurabilityRow(opts)
   end
   return {
     key = "durability",
-    label = ResolveLabel("durability", opts),
+    label = resolveLabel("durability"),
     value = currentTotal,
     valueText = string.format("%d", currentTotal),
     percent = (currentTotal / maxTotal) * 100,
@@ -449,7 +484,7 @@ local function ResolvePrimaryStatKey(opts)
   return classToken and PRIMARY_BY_CLASS[classToken] or nil
 end
 
-local function BuildPrimaryStatRow(opts)
+local function BuildPrimaryStatRow(opts, resolveLabel)
   local primaryKey = ResolvePrimaryStatKey(opts)
   local statIndex = primaryKey and PRIMARY_STAT_INDEX[primaryKey] or nil
   if not statIndex then
@@ -461,7 +496,7 @@ local function BuildPrimaryStatRow(opts)
   end
   return {
     key = primaryKey,
-    label = ResolveLabel(primaryKey, opts),
+    label = resolveLabel(primaryKey),
     value = value,
   }
 end
@@ -482,8 +517,9 @@ function StatsBox.CollectPlayerStats(opts)
     return rows
   end
 
+  local resolveLabel = BuildLabelResolver(opts)
   local rows = {}
-  local primaryRow = BuildPrimaryStatRow(opts)
+  local primaryRow = BuildPrimaryStatRow(opts, resolveLabel)
   if primaryRow then
     rows[#rows + 1] = primaryRow
   end
@@ -492,7 +528,7 @@ function StatsBox.CollectPlayerStats(opts)
     if staminaValue ~= nil then
       rows[#rows + 1] = {
         key = "stamina",
-        label = ResolveLabel("stamina", opts),
+        label = resolveLabel("stamina"),
         value = staminaValue,
       }
     end
@@ -501,37 +537,37 @@ function StatsBox.CollectPlayerStats(opts)
   local secondaryRows = {
     {
       key = "crit",
-      label = ResolveLabel("crit", opts),
+      label = resolveLabel("crit"),
       value = ReadCombatRating("CR_CRIT_MELEE", opts),
       percent = ReadNoArgNumber("GetCritChance", opts),
     },
     {
       key = "haste",
-      label = ResolveLabel("haste", opts),
+      label = resolveLabel("haste"),
       value = ReadCombatRating("CR_HASTE_MELEE", opts),
       percent = ReadPlayerSpellHaste(opts),
     },
     {
       key = "mastery",
-      label = ResolveLabel("mastery", opts),
+      label = resolveLabel("mastery"),
       value = ReadCombatRating("CR_MASTERY", opts),
       percent = ReadNoArgNumber("GetMasteryEffect", opts),
     },
     {
       key = "versatility",
-      label = ResolveLabel("versatility", opts),
+      label = resolveLabel("versatility"),
       value = ReadCombatRating("CR_VERSATILITY_DAMAGE_DONE", opts),
       percent = ReadCombatRatingBonus("CR_VERSATILITY_DAMAGE_DONE", opts),
     },
     {
       key = "leech",
-      label = ResolveLabel("leech", opts),
+      label = resolveLabel("leech"),
       value = ResolveOptionalRowEnabled("leech") and ReadCombatRating("CR_LIFESTEAL", opts) or nil,
       percent = ResolveOptionalRowEnabled("leech") and ReadCombatRatingBonus("CR_LIFESTEAL", opts) or nil,
     },
     {
       key = "speed",
-      label = ResolveLabel("speed", opts),
+      label = resolveLabel("speed"),
       value = ResolveOptionalRowEnabled("speed") and ReadCombatRating("CR_SPEED", opts) or nil,
       percent = ResolveOptionalRowEnabled("speed") and ReadCombatRatingBonus("CR_SPEED", opts) or nil,
     },
@@ -542,7 +578,7 @@ function StatsBox.CollectPlayerStats(opts)
       rows[#rows + 1] = row
     end
   end
-  local durabilityRow = ReadDurabilityRow(opts)
+  local durabilityRow = ReadDurabilityRow(opts, resolveLabel)
   if durabilityRow then
     rows[#rows + 1] = durabilityRow
   end
@@ -551,7 +587,7 @@ function StatsBox.CollectPlayerStats(opts)
     if avoidanceValue ~= nil then
       rows[#rows + 1] = {
         key = "avoidance",
-        label = ResolveLabel("avoidance", opts),
+        label = resolveLabel("avoidance"),
         value = avoidanceValue,
         percent = ReadCombatRatingBonus("CR_AVOIDANCE", opts),
       }

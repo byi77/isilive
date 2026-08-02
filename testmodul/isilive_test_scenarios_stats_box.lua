@@ -105,7 +105,9 @@ return function(test, ctx)
       CreateFrame = BuildCreateFrameStub(),
       IsiLiveDB = { statsBoxShowDurability = true },
     }, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      -- Loading the locale aggregator is deliberate: the visible short labels
+      -- live in the shared locale tables, not in the stats-box module.
+      local addon = LoadAddonModules({ "isiLive_texts.lua", "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
       local StatsBox = addon.StatsBox
       local rows = StatsBox.CollectPlayerStats({
         locale = "deDE",
@@ -175,6 +177,73 @@ return function(test, ctx)
         end,
       })
       Assert.Equal(rows[1].label, "Int", "unsupported locales should still use the fixed short English intellect label")
+    end)
+  end)
+
+  test("StatsBox short labels resolve the shared locale chain once per collect pass", function()
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = BuildCreateFrameStub(),
+      IsiLiveDB = { locale = "deDE", statsBoxShowDurability = true },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_texts.lua", "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local sharedResolver =
+        Assert.NotNil(addon.UICommon.ResolveActiveLocale, "UICommon must expose the shared addon-locale resolver")
+
+      local calls = 0
+      addon.UICommon.ResolveActiveLocale = function(localeTag)
+        calls = calls + 1
+        return sharedResolver(localeTag)
+      end
+
+      local rows = addon.StatsBox.CollectPlayerStats({
+        UnitStat = function(_unit, statIndex)
+          if statIndex == 2 then
+            return 0, 2105
+          end
+          return nil
+        end,
+        UnitClass = function()
+          return "Hunter", "HUNTER"
+        end,
+        GetCombatRating = function()
+          return 100
+        end,
+        GetCombatRatingBonus = function()
+          return 10
+        end,
+        CR_CRIT_MELEE = 1,
+        CR_HASTE_MELEE = 2,
+      })
+
+      addon.UICommon.ResolveActiveLocale = sharedResolver
+      Assert.Equal(calls, 1, "a full collect pass must resolve the active locale exactly once")
+      Assert.Equal(rows[1].label, "Beweg", "the stored addon locale must still drive the rendered label")
+    end)
+  end)
+
+  test("StatsBox short labels fail closed when locale tables are unavailable", function()
+    WithGlobals({
+      UIParent = {},
+      CreateFrame = BuildCreateFrameStub(),
+      IsiLiveDB = { locale = "deDE" },
+    }, function()
+      -- No locale aggregator loaded on purpose: the module must fall back to
+      -- its fixed short labels instead of rendering a raw stat key.
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_stats_box.lua" })
+      local rows = addon.StatsBox.CollectPlayerStats({
+        UnitStat = function(_unit, statIndex)
+          if statIndex == 2 then
+            return 0, 2105
+          end
+          return nil
+        end,
+        UnitClass = function()
+          return "Hunter", "HUNTER"
+        end,
+      })
+      Assert.Equal(#rows, 1, "missing locale tables must not drop the primary stat row")
+      Assert.Equal(rows[1].label, "Agi", "missing locale tables must fall back to the fixed short label")
     end)
   end)
 
