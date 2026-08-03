@@ -42,7 +42,7 @@ The colorful Mythic+ command center for World of Warcraft.
 🟦 WoW 12.0.7 / 12.1.0 Midnight Retail
 🟩 Mythic+ Command Center
 🟧 Automatic Setup
-🟪 Version 0.9.366
+🟪 Version 0.9.367
 
 isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 A shared modern UI hierarchy runs across the main window, Mythic+ run surfaces, notices, Stats Box, Settings, ESC shortcuts, compact Group Finder markers, nameplates, tooltips, and death alerts. The compact H and V views keep one open background, all title controls are vertically centered, and every isiLive-owned window uses the same quiet slate close control with red reserved for hover or press. Background Opacity governs the complete main UI, the Stats Box shows a distinct color per stat with compact localized labels, and the M+ header lines and lower run blocks align cleanly. Version 0.9.365 restores the ESC menu addon shortcuts, which could disappear entirely on WoW 12.0 whenever the current character name was unavailable. Runtime data, secure actions, and automatic Midnight Season 2 selection remain unchanged.

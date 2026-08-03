@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-08-03 - Version 0.9.367 (patch)
+
+Maintenance release from a second code audit. No player-facing behavior
+changes: every rendered label, color, and layout stays identical.
+
+- Added the VIP Death Knight helper to the startup module guards. It exposes
+  the same `CreateController` / `SetDependencies` / `HandleEvent` trio as the
+  other combat feature modules, all of which were guarded, but it was listed in
+  neither `REQUIRED_MODULES` nor `REQUIRED_FUNCTIONS`. Because every call site
+  is type-guarded, a failure to load would have taken out the Soul Reaper and
+  Putrefy warnings, the ghoul reminder, and the horse-sound mute without any
+  error. Adding the guard immediately exposed that the composition-root test
+  never loaded the module either; it does now.
+- Peer-supplied addon version strings are normalized before they are stored.
+  They are rendered verbatim in the roster tooltip, where WoW interprets color,
+  texture, and hyperlink escapes, and this was the only peer string field that
+  reached the UI unfiltered. Version strings are now restricted to SemVer
+  characters and capped at 32 characters, matching how every other peer field
+  is already handled.
+- `sync_release_baseline.ps1` no longer rewrites the version number inside the
+  README current-version sentence. Rewriting only the number silently
+  attributed the previous release's description to the new version, which is
+  how 0.9.366 came to be labelled as the ESC-menu fix that belonged to 0.9.365.
+  The script now fails closed with the sentence to write; the badge is still
+  updated automatically.
+- Refreshed the enemy-forces database. Upstream data is unchanged (same source
+  commit, 8 dungeons, 127 NPCs); this only extends the freshness window.
+- The documented coverage baseline no longer claims an exact line count. The
+  architecture scenarios read the documentation file that carries the number,
+  so any edit to it shifts the measured count by a few lines and makes a
+  precise figure wrong on the next run.
+
 ## 2026-08-03 - Version 0.9.366 (patch)
 
 Maintenance release from a full code audit. No player-facing behavior changes:
