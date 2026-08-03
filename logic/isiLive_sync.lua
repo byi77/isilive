@@ -196,6 +196,23 @@ local function NormalizeSyncSource(source)
   return text
 end
 
+-- Peer-supplied version strings are rendered verbatim in the roster tooltip,
+-- where WoW interprets `|c`, `|T` and `|H` escapes. Every other peer string
+-- field is normalized before it is stored (see NormalizeSyncSource and the
+-- levelText pattern check), so this one follows the same whitelist approach:
+-- SemVer characters only, which drops any UI markup a modified client could
+-- send. Length is capped so a peer cannot stretch the tooltip line.
+local MAX_SYNC_ADDON_VERSION_LENGTH = 32
+
+local function NormalizeSyncAddonVersion(addonVersion)
+  local text = StringUtils.Trim(addonVersion and tostring(addonVersion) or "")
+  text = text:gsub("[^%w%.%-_+]", "")
+  if text == "" then
+    return nil
+  end
+  return text:sub(1, MAX_SYNC_ADDON_VERSION_LENGTH)
+end
+
 local function NormalizeSyncProtocolVersion(protocolVersion)
   local numericVersion = ToFiniteNumber(protocolVersion)
   if not numericVersion or numericVersion <= 0 then
@@ -698,7 +715,7 @@ function Sync.SetPlayerHelloInfo(name, realm, addonVersion, protocolVersion, cap
   local previous = helloInfoByPlayerKey[key]
   local previousStamp = GetEntrySyncStamp(previous)
   local nextValue = {
-    addonVersion = type(addonVersion) == "string" and addonVersion or tostring(addonVersion or "?"),
+    addonVersion = NormalizeSyncAddonVersion(addonVersion) or "?",
     protocolVersion = normalizedProtocolVersion,
     capturedAt = math.floor(normalizedCapturedAt),
     source = normalizedSource,
@@ -731,8 +748,8 @@ function Sync.SetPlayerHelloAckInfo(name, realm, addonVersion)
     return false
   end
 
-  local normalizedAddonVersion = type(addonVersion) == "string" and addonVersion or tostring(addonVersion or "")
-  if normalizedAddonVersion == "" then
+  local normalizedAddonVersion = NormalizeSyncAddonVersion(addonVersion)
+  if not normalizedAddonVersion then
     return false
   end
 

@@ -313,6 +313,14 @@ local SCHEMA = {
 -- them here would just create churn since they get overwritten ms later.
 -- runtimeLogLevel is also NOT in the schema; it's set via debug commands
 -- and the in-memory runtime-log module owns its own validation.
+--
+-- rosterCollapsed is a legacy key and must stay out of the schema: it is only
+-- read (never written) in ui/isiLive_roster_panel.lua to derive savedLayoutMode
+-- for databases written before the layout-mode rewrite. Adding it here would
+-- resurrect it with a default on every repair pass. Note this is a different
+-- pattern from the showDpsColumn -> showDpsBar rename, which uses a real
+-- __schemaVersion migration step; a migration would be the cleaner home for
+-- this fallback if it ever needs to do more than one boolean lookup.
 
 local function ResolveDefault(schema)
   if type(schema.default) == "function" then
