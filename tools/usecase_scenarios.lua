@@ -1,5 +1,6 @@
 local scenarioFiles = {
   "testmodul/isilive_test_scenarios_architecture.lua",
+  "testmodul/isilive_test_scenarios_architecture_audio_kick.lua",
   "testmodul/isilive_test_scenarios_ui_visual_contracts.lua",
   "testmodul/isilive_test_scenarios_audit_fixes.lua",
   "testmodul/isilive_test_scenarios_architecture_boundaries.lua",
@@ -26,6 +27,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_runtime_state.lua",
   "testmodul/isilive_test_scenarios_locale.lua",
   "testmodul/isilive_test_scenarios_sync.lua",
+  "testmodul/isilive_test_scenarios_sync_kick.lua",
   "testmodul/isilive_test_scenarios_sync_dispatch_safety.lua",
   "testmodul/isilive_test_scenarios_sound_handle_lifecycle.lua",
   "testmodul/isilive_test_scenarios_sync_payload_bounds.lua",
