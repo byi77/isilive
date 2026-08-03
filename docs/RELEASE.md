@@ -10,6 +10,7 @@ Dies ist der verbindliche Release-Ablauf fuer `isiLive` (Repository- und Tag-Pra
 2. Einen neuen Eintrag oben in `CHANGELOG.md` anlegen.
    - Reine Versions- oder Testbaseline-Verwaltungszeilen wie TOC-/Doku-Bump oder Release-Gate-Szenario-Baseline werden nicht als Changelog-Bullets eingetragen; der Changelog beschreibt nur relevante Nutzer- oder Engineering-Aenderungen.
 3. `README.md` fuer user-visible Verhaltens- oder Layoutaenderungen aktualisieren.
+   - Der einleitende Satz des Aktuelle-Version-Absatzes (`Version \`x.y.z\` ist ...`) wird **nicht** automatisch synchronisiert und muss von Hand geschrieben werden. `tools/sync_release_baseline.ps1` aktualisiert nur das numerische Badge; wenn der Absatz noch die Vorversion beschreibt, bricht das Skript mit Exit-Code 1 und einer konkreten Anweisung ab, statt der neuen Version die alte Beschreibung unterzuschieben. Der bisherige Satz wandert dabei nach hinten in die Versionshistorie desselben Absatzes.
 4. Wenn Season-Daten angefasst wurden, muessen die Dokus die aktive `ACTIVE_SEASON_ID` und den Vorbereitungsstand der naechsten Season explizit nennen (`README.md` und `CHANGELOG.md`).
 5. Wenn Runtime-Flow oder UI-Verhalten geaendert wurden, `ARCHITECTURE.md` und `USECASES.md` aktualisieren; wenn kurze Engineering-Regeln oder Wartungserwartungen betroffen sind, auch `RULES.md` und `WARTUNG.md` synchronisieren.
 6. Wenn UI-Labels geaendert wurden, pruefen, dass `README.md` und `ARCHITECTURE.md` die aktuellen Buttontexte verwenden.
@@ -46,7 +47,7 @@ Der bevorzugte vollstaendige lokale CI-Preflight ist:
 powershell -ExecutionPolicy Bypass -File tools\validate_ci_local.ps1
 ```
 
-Der Wrapper fuehrt Style-, Lint-, Syntax-, Metrics-, Locale-, Secret-Value-, Sound-, API-, Regel-, Usecase- und anschliessend die GitHub-identischen Coverage-Gates aus. Vor dem Coverage-Lauf entfernt er lokale Coverage-Artefakte, damit alte Treffer das Ergebnis nicht verfaelscht. Letzter voller lokaler CI-Stand vom 2026-08-03 bei TOC `0.9.366`: `Local CI preflight passed`, `2310 passed, 0 failed`, Coverage `92.54%` (`36286 / 39212`) und keine Produktionsdatei unter `80.00%`.
+Der Wrapper fuehrt Style-, Lint-, Syntax-, Metrics-, Locale-, Secret-Value-, Sound-, API-, Regel-, Usecase- und anschliessend die GitHub-identischen Coverage-Gates aus. Vor dem Coverage-Lauf entfernt er lokale Coverage-Artefakte, damit alte Treffer das Ergebnis nicht verfaelscht. Letzter voller lokaler CI-Stand vom 2026-08-03 bei TOC `0.9.367`: `Local CI preflight passed`, `2311 passed, 0 failed`, Coverage rund `92.5%` und keine Produktionsdatei unter `80.00%`. Bewusst ohne exakte Zeilenzahl -- siehe die Begruendung in `ARCHITECTURE.md`.
 
 Die Wrapper `tools/check.ps1` und `tools/check.cmd` fuehren den statischen lokalen Preflight ueber den repo-lokalen `luacheck.cmd`-Shim aus und vermeiden so den Windows-App-Auswahldialog, der beim direkten Aufruf des LuaRocks-`luacheck`-Scripts auftaucht.
 
@@ -55,7 +56,7 @@ Die GitHub-Workflows checken das Repository vor der Trigger-Pruefung aus, damit 
 
 `tools/validate_rules_logic.lua` validiert aktive Vertraege aus `RULES_LOGIC.md` gegen deterministische Testnamen.
 `tools/validate_architecture_rules.lua` validiert aktive Architekturvertraege aus `ARCHITECTURE_RULES.md` gegen deterministische Testnamen.
-`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (aktueller Stand: 2310 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
+`tools/validate_usecases.lua` ist Pflicht fuer das Release-Gate, fuehrt beide Regelvalidatoren zuerst aus und validiert danach die aktuell registrierten Szenarien ueber `tools/usecase_scenarios.lua` (aktueller Stand: 2311 Szenarien). Die Regelvalidatoren indizieren die entsprechenden deterministischen Tests.
 
 Alle externen Actions in `.github/workflows/` werden auf vollstaendige Commit-SHAs gepinnt und behalten den Major-Tag als Kommentar. `.github/dependabot.yml` prueft diese `github-actions`-Pins woechentlich auf Updates. Der geplante MDT-Forces-Refresh darf fremde Dungeonquellen nur in der globalfreien, groessen- und instruktionsbegrenzten Generator-Sandbox verarbeiten und muss den exakten 40-stelligen MDT-Checkout-Commit im generierten Snapshot persistieren. Coverage-Reports mit einer LuaCov-Meldung ueber nicht lesbare Quelldateien gelten lokal und in GitHub als fehlgeschlagen.
 

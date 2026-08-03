@@ -57,7 +57,31 @@ $changed = Update-TrackedFile "README.md" {
   param($text)
   $next = $text
   $next = Replace-Required $next '^(!\[isiLive )\d+\.\d+\.\d+(\]\(https://img\.shields\.io/badge/isiLive-)\d+\.\d+\.\d+(-1E90FF\?style=for-the-badge\))$' ('${1}' + $version + '${2}' + $version + '${3}') "README badge"
-  $next = Replace-Required $next '^(Version )`\d+\.\d+\.\d+`( is )' ('${1}' + '`' + $version + '`' + '${2}') "README current-version paragraph"
+
+  # The current-version paragraph is prose: "Version `X.Y.Z` is <what changed>".
+  # Rewriting only the number here silently attributes the OLD release's
+  # description to the NEW version -- that shipped once, when 0.9.366 was
+  # labelled as the ESC-menu fix that actually belonged to 0.9.365, and it
+  # pushed 0.9.365 out of the listed history entirely. The script cannot know
+  # what the new version did, so per the No-Guess contract in AGENTS.md it
+  # fails closed and asks for the sentence instead of inventing it.
+  $paragraphPattern = [regex]::new('^Version `(\d+\.\d+\.\d+)` is ', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+  $paragraphMatch = $paragraphPattern.Match($next)
+  if (-not $paragraphMatch.Success) {
+    throw "Could not find the README current-version paragraph (expected a line starting with 'Version ``X.Y.Z`` is ')"
+  }
+  $documentedVersion = $paragraphMatch.Groups[1].Value
+  if ($documentedVersion -ne $version) {
+    throw @"
+README current-version paragraph still describes $documentedVersion, but isiLive.toc is now $version.
+Write the new leading sentence yourself, then re-run this script:
+
+  Version ``$version`` is <what changed in $version>. Version ``$documentedVersion`` is <existing text>...
+
+Only the badge is updated automatically; the paragraph is prose and must stay accurate.
+"@
+  }
+
   return $next
 } -or $changed
 
