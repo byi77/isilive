@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-08-03 - Version 0.9.366 (patch)
+
+Maintenance release from a full code audit. No player-facing behavior changes:
+every rendered label, color, and layout stays identical.
+
+- Routed every Secret-Value check through the shared
+  `Validators.IsSecretValue`. The LFG queue module read the raw
+  `issecretvalue` global with no type check and no `pcall`, which is the one
+  place a throwing compatibility function in a future client build could have
+  taken down the queue path. Twelve further modules carried private copies in
+  three different hardening levels; five of them omitted the `pcall`. Thirty
+  modules already used the shared validator, so all copies now follow that
+  pattern.
+- Extended the Secret-Value gate with a second rule that guards the detector
+  itself: only `core/isiLive_validation_helpers.lua` may read the raw global.
+  The existing rules only inspect Blizzard API call sites, so the queue defect
+  passed a green gate.
+- Split the two scenario files that sat on the 3200-line hard limit
+  (`sync` at exactly 3200, `architecture` at 3199), where one added line would
+  have failed the build. Pure relocation, the scenario count is unchanged.
+- Recorded why Spanish, Portuguese, and Italian are absent from the settings
+  language selector (deliberate since 0.9.316) so the gap is no longer
+  readable as an oversight, and corrected the "adding a new UI language"
+  instructions, which named two string keys that no longer exist and claimed
+  the settings selector picks up new languages automatically.
+- Refreshed the documented coverage baseline, which still cited the 0.9.363
+  run: now `2310 passed, 0 failed` at `92.54%` (`36286 / 39212`).
+
 ## 2026-08-02 - Version 0.9.365 (patch)
 
 - Fixed the ESC menu addon shortcuts disappearing completely. When WoW 12.0

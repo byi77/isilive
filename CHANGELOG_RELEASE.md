@@ -3,7 +3,7 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.365`.
+Current version: `0.9.366`.
 
 Highlights:
 - **Fixed the missing ESC menu addon shortcuts.** On WoW 12.0 the addon panel
@@ -25,6 +25,10 @@ Highlights:
   German now uses `Beweg`, `Krit`, `Tempo`, `Meist`, `Versa` and `Haltb`. Those
   labels and the close-button danger colors now come from the shared locale and
   color tables, so translation and palette checks can see them.
-- **All local release gates pass.** The current development tree contains 2,310
-  passing deterministic scenarios, 92.53% total line coverage
-  (`36,312 / 39,245`), and no production file below 80% coverage.
+- **Hardened the WoW 12.0 Secret-Value handling and all local release gates
+  pass.** Every masked-value check now runs through one shared, fully guarded
+  helper instead of thirteen private copies, which removes a crash path in the
+  Group Finder queue code before it could reach players; nothing changes on
+  screen. The current development tree contains 2,310 passing deterministic
+  scenarios, 92.54% total line coverage (`36,286 / 39,212`), and no production
+  file below 80% coverage.
