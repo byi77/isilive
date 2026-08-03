@@ -26,11 +26,7 @@ local SetReadableText = addonTable.UICommon
 -- in a protected context must be Secret-checked BEFORE any `==`, `~=`, `<`, `..`
 -- or `:match` operation - the comparison itself taints the execution stack.
 -- Only type(), rawget and this helper are guaranteed non-tainting.
-local function IsSecretValue(v)
-  local fn = rawget(_G, "issecretvalue")
-  return type(fn) == "function" and fn(v) == true
-end
-RI.IsSecretValue = IsSecretValue
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local TOOLTIP_HORIZONTAL_PADDING = 10
 local TOOLTIP_VERTICAL_PADDING = 10

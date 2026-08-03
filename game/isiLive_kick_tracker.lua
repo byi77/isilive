@@ -216,12 +216,8 @@ local function ReadCooldownField(info, key)
     return nil, false
   end
 
-  local isSecretValue = rawget(_G, "issecretvalue")
-  if type(isSecretValue) == "function" then
-    local okSecret, isSecret = pcall(isSecretValue, value)
-    if okSecret and isSecret then
-      return nil, false
-    end
+  if IsSecretValue(value) then
+    return nil, false
   end
 
   if value == nil then

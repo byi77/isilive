@@ -13,14 +13,7 @@ local function FormatTraceValue(value)
   return tostring(value)
 end
 
-local function IsSecretValue(value)
-  local checker = rawget(_G, "issecretvalue")
-  if type(checker) ~= "function" then
-    return false
-  end
-  local ok, result = pcall(checker, value)
-  return ok and result == true
-end
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local function BuildLFGGroupRosterTraceLogger(ctx, modules)
   local lastSignature = nil

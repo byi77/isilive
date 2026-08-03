@@ -21,10 +21,7 @@ end
 -- there too.
 local lastAppendedKey = {}
 
-local function IsSecretValue(v)
-  local fn = rawget(_G, "issecretvalue")
-  return type(fn) == "function" and fn(v) == true
-end
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local function GetForcesDB()
   local seasonData = addonTable.SeasonData

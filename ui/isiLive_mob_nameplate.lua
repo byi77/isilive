@@ -39,10 +39,7 @@ local testMode = false
 local testPercent = "1.23"
 local testActiveMapID = nil
 
-local function IsSecretValue(v)
-  local fn = rawget(_G, "issecretvalue")
-  return type(fn) == "function" and fn(v) == true
-end
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local function SafeCall(fn, ...)
   if type(fn) ~= "function" then

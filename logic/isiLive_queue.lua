@@ -8,10 +8,7 @@ addonTable.Queue = Queue
 -- whichever WoW's runtime publishes, defensively going through rawget so a
 -- sandboxed _G can't smuggle nil into the bare global lookup.
 local unpack = rawget(_G, "unpack") or rawget(table, "unpack")
-
-local function IsSecretValue(value)
-  return _G.issecretvalue and _G.issecretvalue(value) == true
-end
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local queueDebugEnabled = false
 local queueDebugLogger

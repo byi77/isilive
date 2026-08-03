@@ -28,6 +28,14 @@
 --     IsChallengeModeActive
 --   * CombatLogGetCurrentEventInfo (also forbidden in 12.0; double-belt)
 --
+-- Detector ownership (second, independent rule):
+--   Only `core/isiLive_validation_helpers.lua` may read the raw `issecretvalue`
+--   global. Every other production module must call
+--   `addonTable.Validators.IsSecretValue`, so the rawget + type-check + pcall
+--   hardening exists in exactly one place. Locally re-implemented detectors
+--   have shipped without the pcall (and once without any guard at all), which
+--   the call-site rules above cannot see.
+--
 -- A call is considered guarded when it is protected by `pcall` and its
 -- returned value is rejected by `IsSecretValue`/`issecretvalue` in the same
 -- short code window. Both protections are required.
@@ -42,6 +50,11 @@
 --   lua tools/check_secret_value_guards.lua
 
 local SCAN_DIRS = { "core", "factory", "game", "logic", "ui" }
+
+-- The one module allowed to touch the raw `issecretvalue` global. Every other
+-- production module must go through `addonTable.Validators.IsSecretValue`, so
+-- the rawget + type-check + pcall hardening lives in exactly one place.
+local CANONICAL_DETECTOR_FILE = "core/isiLive_validation_helpers.lua"
 
 -- Pattern fragments ordered: longer/more specific names first so they are
 -- matched before shorter prefixes (e.g. UnitFullName vs UnitName).
@@ -259,6 +272,34 @@ local function resultHasOrderedGuard(lines, lineno, variable)
   return false
 end
 
+-- Guards the detector itself, not its call sites. A module that re-implements
+-- the `issecretvalue` lookup locally can silently drop the pcall or the
+-- type-check that `Validators.IsSecretValue` guarantees -- which is exactly how
+-- an unguarded `_G.issecretvalue(value)` once reached the LFG queue path while
+-- every call-site rule above stayed green.
+local function analyzeDetectorOwnership(path, lines)
+  local hits = {}
+  if path == CANONICAL_DETECTOR_FILE then
+    return hits
+  end
+
+  for lineno, raw in ipairs(lines) do
+    if not hasInlineOverride(raw) then
+      local code = stripComment(raw)
+      if code:find("issecretvalue") then
+        hits[#hits + 1] = string.format(
+          "%s:%d [local-secret-detector]: re-implements the Secret-Value detector; "
+            .. "use `addonTable.Validators.IsSecretValue` instead (only %s may read the raw global)",
+          path,
+          lineno,
+          CANONICAL_DETECTOR_FILE
+        )
+      end
+    end
+  end
+  return hits
+end
+
 local function analyzeLines(path, lines)
   local hits = {}
   local watchedAliasByName = {}
@@ -354,6 +395,10 @@ local function main()
     end
     local fileHits = analyzeLines(path, lines)
     for _, hit in ipairs(fileHits) do
+      hits[#hits + 1] = hit
+    end
+    local detectorHits = analyzeDetectorOwnership(path, lines)
+    for _, hit in ipairs(detectorHits) do
       hits[#hits + 1] = hit
     end
   end

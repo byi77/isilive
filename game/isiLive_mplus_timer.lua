@@ -30,12 +30,8 @@ local function RefreshElapsedTime()
   if not ok or type(elapsedTime) ~= "number" then
     return
   end
-  local isSecretValue = rawget(_G, "issecretvalue")
-  if type(isSecretValue) == "function" then
-    local secretOk, isSecret = pcall(isSecretValue, elapsedTime)
-    if not secretOk or isSecret == true then
-      return
-    end
+  if IsSecretValue(elapsedTime) then
+    return
   end
   if elapsedTime ~= elapsedTime or elapsedTime == math.huge or elapsedTime == -math.huge or elapsedTime < 0 then
     return

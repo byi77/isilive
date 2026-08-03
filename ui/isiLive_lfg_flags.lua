@@ -140,8 +140,7 @@ local function GetTagForResult(resultID)
     resultTagCache[resultID] = false
     return nil
   end
-  local issecretvalue_ref = rawget(_G, "issecretvalue")
-  if type(issecretvalue_ref) == "function" and issecretvalue_ref(info) then
+  if IsSecretValue(info) then
     resultTagCache[resultID] = false
     return nil
   end

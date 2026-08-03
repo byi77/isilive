@@ -19,6 +19,13 @@ Languages.SUPPORTED = {
   { tag = "trTR", cmdAliases = { "tr", "trtr" }, buttonLabel = "Türkçe" },
 }
 
+-- Deliberately narrower than SUPPORTED: esES, ptBR and itIT were removed from
+-- the settings language selector in 0.9.316 while their prepared locale tables
+-- stay available for validation, the slash-command aliases and realm-language
+-- display paths. Do not "restore" them here as a completeness fix -- they are
+-- absent on purpose and pinned by the deterministic test
+-- "Settings language selector hides Spanish Portuguese and Italian buttons"
+-- in testmodul/isilive_test_scenarios_ui_settings_order.lua.
 local SETTINGS_SELECTABLE_TAGS = {
   enUS = true,
   deDE = true,

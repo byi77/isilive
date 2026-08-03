@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 
 local SpellUtils = {}
 addonTable.SpellUtils = SpellUtils
+local IsSecretValue = addonTable.Validators.IsSecretValue
 local TELEPORT_MEANINGFUL_COOLDOWN_MIN_SECONDS = 2
 
 local function IsConfiguredTeleportSpellID(spellID)
@@ -99,18 +100,15 @@ function SpellUtils.GetSpellCooldownSafe(spellID)
 
   -- WoW internal bug workaround: GetSpellCooldown can return opaque
   -- "SecretValue" types in some builds that bypass normal Lua type checks.
-  -- issecretvalue() detects these and replaces them with safe defaults.
-  local issecretvalue = rawget(_G, "issecretvalue")
-  if type(issecretvalue) == "function" then
-    if issecretvalue(enabled) then
-      enabled = true
-    end
-    if issecretvalue(start) then
-      start = 0
-    end
-    if issecretvalue(duration) then
-      duration = 0
-    end
+  -- The shared detector finds these and replaces them with safe defaults.
+  if IsSecretValue(enabled) then
+    enabled = true
+  end
+  if IsSecretValue(start) then
+    start = 0
+  end
+  if IsSecretValue(duration) then
+    duration = 0
   end
 
   return start, duration, enabled

@@ -291,15 +291,8 @@ function UICommon.SetReadableText(fontString, text, localeTag)
   return true
 end
 
-function UICommon.IsSecretValue(value)
-  local isSecretValue = rawget(_G, "issecretvalue")
-  if type(isSecretValue) ~= "function" then
-    return false
-  end
-
-  local ok, result = pcall(isSecretValue, value)
-  return ok and result == true
-end
+-- Re-exported from the shared validator so UI callers keep a single import.
+UICommon.IsSecretValue = addonTable.Validators.IsSecretValue
 
 function UICommon.MeasureFontStringWidthSafe(fontString)
   if type(fontString) ~= "table" or type(fontString.GetStringWidth) ~= "function" then

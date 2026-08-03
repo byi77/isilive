@@ -13,15 +13,7 @@ local RosterUI = addonTable.RosterUI or {}
 addonTable.RosterUI = RosterUI
 local UICommon = addonTable.UICommon or {}
 
-local function IsSecretValue(value)
-  local isSecretValue = rawget(_G, "issecretvalue")
-  if type(isSecretValue) ~= "function" then
-    return false
-  end
-
-  local ok, result = pcall(isSecretValue, value)
-  return ok and result == true
-end
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local function MeasureFontStringWidthSafeFallback(fontString)
   if type(fontString) ~= "table" or type(fontString.GetStringWidth) ~= "function" then

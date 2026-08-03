@@ -271,14 +271,7 @@ local function NormalizeSpecText(value)
   return text
 end
 
-local function IsSecretValue(value)
-  local issecretvalue_ref = rawget(_G, "issecretvalue")
-  if type(issecretvalue_ref) ~= "function" then
-    return false
-  end
-  local ok, result = pcall(issecretvalue_ref, value)
-  return ok and result == true
-end
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local function ReadPositiveNumber(value)
   if value == nil or IsSecretValue(value) then

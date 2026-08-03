@@ -237,14 +237,7 @@ local function ResolveLayout()
   }
 end
 
-local function IsSecretValue(value)
-  local isSecretValue = rawget(_G, "issecretvalue")
-  if type(isSecretValue) ~= "function" then
-    return false
-  end
-  local ok, result = pcall(isSecretValue, value)
-  return ok and result == true
-end
+local IsSecretValue = addonTable.Validators.IsSecretValue
 
 local function FormatPercent(value)
   if value == nil then
