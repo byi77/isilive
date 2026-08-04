@@ -1,5 +1,49 @@
 # Changelog
 
+## 2026-08-04 - Version 0.9.369 (patch)
+
+Focuses the addon on the content it is built for. isiLive now resolves exactly
+three runtime profiles from one place and runs a reduced profile everywhere a
+Mythic+ key is not involved.
+
+- Added `core/isiLive_runtime_mode.lua`, the single resolver for the `OFF`,
+  `IDLE`, and `KEY` profiles. It replaces the private `DefaultIsInKey()` copies
+  that had accumulated in the death watch, combat announces, and factory
+  wiring, each with slightly different fail-closed behavior.
+- `OFF` (raid, or any group larger than five) now unregisters the dispatcher
+  events instead of only dropping them inside the handlers. The two unfiltered
+  high-frequency events, `UNIT_HEALTH` and `UNIT_AURA`, fire for every raid
+  member on every tick and were previously delivered just to be discarded.
+  `GROUP_ROSTER_UPDATE` and `PLAYER_ENTERING_WORLD` stay registered as the only
+  wake-up events; re-registration is deferred through `C_Timer.After(0)`
+  because patch 12.0 forbids `RegisterEvent` from a protected dispatch.
+- `IDLE` (open world, normal, heroic, timewalking, delves, torghast, follower
+  dungeons) keeps the group display and group sync but closes the kick sync
+  and the cooldown tracker. The 0.5s kick poll and its 15s sync heartbeats no
+  longer run for a roster column nobody is looking at.
+- `KEY` covers a running keystone and difficulty ID 23. The API cannot separate
+  a genuine M0 run from a key dungeon whose keystone has not been inserted yet,
+  and the run-up to a key is where roster, keys, and ready-check matter most,
+  so difficulty 23 receives the full profile. The M+ timer, enemy forces, and
+  kill-tracker percentages remain bound to a real running keystone.
+- The last-run DPS snapshot is a Mythic+ statistic and is now limited to M0 and
+  M+ as well. It used to be captured after normal, heroic, and timewalking runs
+  through a second difficulty table that has been removed; the tracked-run
+  context now reads its allowed difficulties from the same resolver as
+  everything else, so there is one source of truth instead of two.
+- Fixed timewalking dungeons being treated as mythic. Difficulty ID 24 sat in
+  the mythic difficulty table, so the status line printed "Mythic" next to
+  "M+: Inactive" and the dungeon-entry notice was suppressed, because that
+  notice skips party dungeons reported as mythic. Timewalking now has its own
+  difficulty label in all eight locales and shows the notice like normal and
+  heroic dungeons do.
+- Fixed a chat error in automatic instance groups. Both channel resolvers read
+  `LE_PARTY_CATEGORY_INSTANCE` without a numeric fallback; when the constant is
+  unavailable the instance-group check was skipped entirely and the resolver
+  fell through to `PARTY`, which Blizzard rejects with `ERR_NOT_IN_GROUP` while
+  the player is only in an instance group. The bundled ChatThrottleLib already
+  guarded the same call with `or 2`; isiLive's own resolvers now do too.
+
 ## 2026-08-04 - Version 0.9.368 (patch)
 
 Maintenance release that closes a blind spot in the build gates. No

@@ -59,8 +59,44 @@ local function InitializeFactorySecondaryCdTracker(
     return false
   end
 
+  -- BRes / Bloodlust tracking is a Mythic+ utility and only runs in the full
+  -- runtime profile (active keystone or M0). A tracked party run alone is not
+  -- enough any more: normal, heroic and timewalking runs are tracked for the
+  -- last-run DPS snapshot, but must not start the 1s CD poll. Fails closed
+  -- when the resolver is missing.
+  local function IsFullProfileActive()
+    -- Running keystone: answered by the injected bridge, which stays valid in
+    -- every call context. The wider M0 / pre-insert case can only be read from
+    -- live instance data, so it goes through the central resolver.
+    if type(ctx.GetActiveChallengeMapID) == "function" then
+      local okBridge, mapID = pcall(ctx.GetActiveChallengeMapID)
+      if okBridge and not addonTable.Validators.IsSecretValue(mapID) then
+        local numeric = tonumber(mapID)
+        if numeric and numeric > 0 then
+          return true
+        end
+      end
+    end
+    local runtimeMode = addonTable.RuntimeMode
+    if type(runtimeMode) ~= "table" or type(runtimeMode.IsFullProfileContext) ~= "function" then
+      return false
+    end
+    local ok, isFullProfile = pcall(runtimeMode.IsFullProfileContext)
+    return ok and isFullProfile == true
+  end
+
   local function IsCombatUtilityContextActive()
-    return IsMplusTimerRunning() or IsTrackedPartyRunActive()
+    -- A running key timer is itself proof of the full profile; no second
+    -- opinion needed. The tracked-party-run branch does need one: it also
+    -- covers normal, heroic and timewalking runs, which are tracked for the
+    -- last-run DPS snapshot but must not start the 1s CD poll.
+    if IsMplusTimerRunning() then
+      return true
+    end
+    if not IsFullProfileActive() then
+      return false
+    end
+    return IsTrackedPartyRunActive()
   end
 
   local function IsActiveChallengeContext()
@@ -168,7 +204,7 @@ local function InitializeFactorySecondaryCdTracker(
       return
     end
     local mplusRunning = IsMplusTimerRunning()
-    local combatUtilityContextActive = mplusRunning or IsTrackedPartyRunActive()
+    local combatUtilityContextActive = IsCombatUtilityContextActive()
     local readySoundContextActive = mplusRunning and IsGroupedUtilityContext() and IsActiveChallengeContext()
     if mplusRunning and not lastMplusRunning then
       lastBResCharges = nil

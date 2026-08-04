@@ -30,16 +30,17 @@ local function DefaultGetTime()
   return tonumber(value) or 0
 end
 
+-- Full runtime profile: an active keystone or a mythic party dungeon whose key
+-- has not been inserted yet (difficultyID 23). Resolved centrally so death
+-- alerts follow the same context contract as every other gated feature.
+-- Fails closed when the resolver is unavailable.
 local function DefaultIsInKey()
-  local api = rawget(_G, "C_ChallengeMode")
-  if type(api) ~= "table" or type(api.GetActiveChallengeMapID) ~= "function" then
+  local runtimeMode = addonTable.RuntimeMode
+  if type(runtimeMode) ~= "table" or type(runtimeMode.IsFullProfileContext) ~= "function" then
     return false
   end
-  local ok, mapID = pcall(api.GetActiveChallengeMapID)
-  if not ok or IsSecretValue(mapID) then
-    return false
-  end
-  return type(mapID) == "number" and mapID > 0
+  local ok, isFullProfile = pcall(runtimeMode.IsFullProfileContext)
+  return ok and isFullProfile == true
 end
 
 local function DefaultUnitExists(unit)

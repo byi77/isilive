@@ -124,6 +124,7 @@ addonTable.TextsLocales.trTR = {
   DUNGEON_DIFF_UNKNOWN = "Bilinmiyor",
   DUNGEON_DIFF_NORMAL = "Normal",
   DUNGEON_DIFF_HEROIC = "Destansi",
+  DUNGEON_DIFF_TIMEWALKING = "Zaman Yuruyusu",
   DUNGEON_DIFF_MYTHIC = "Efsanevi",
   DUNGEON_DIFF_RAID_LFR = "Akin Arayisi",
   DUNGEON_DIFF_RAID_NORMAL = "Normal Akin",

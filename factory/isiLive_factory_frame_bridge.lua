@@ -87,9 +87,14 @@ local function CreateFactoryContext(addonName, tbl)
 
   ctx.isInInstanceGroup = function()
     local isInGroup = rawget(_G, "IsInGroup")
-    local instanceCategory = rawget(_G, "LE_PARTY_CATEGORY_INSTANCE")
-    if type(isInGroup) ~= "function" or instanceCategory == nil then
+    if type(isInGroup) ~= "function" then
       return false
+    end
+    -- Numeric fallback mirrors logic/isiLive_sync.lua: a missing constant must
+    -- not silently downgrade an instance group to "no instance group".
+    local instanceCategory = rawget(_G, "LE_PARTY_CATEGORY_INSTANCE")
+    if instanceCategory == nil then
+      instanceCategory = 2
     end
     local ok, inInstanceGroup = pcall(isInGroup, instanceCategory)
     return ok and inInstanceGroup == true

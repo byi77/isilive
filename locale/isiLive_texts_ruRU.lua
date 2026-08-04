@@ -124,6 +124,7 @@ addonTable.TextsLocales.ruRU = {
   DUNGEON_DIFF_UNKNOWN = "Неизвестно",
   DUNGEON_DIFF_NORMAL = "Обычный",
   DUNGEON_DIFF_HEROIC = "Героический",
+  DUNGEON_DIFF_TIMEWALKING = "Путешествие во времени",
   DUNGEON_DIFF_MYTHIC = "Эпохальный",
   DUNGEON_DIFF_RAID_LFR = "ЛФР",
   DUNGEON_DIFF_RAID_NORMAL = "Обычный рейд",

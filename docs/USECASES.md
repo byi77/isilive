@@ -1,6 +1,6 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.368`
+Versionsbasis: `0.9.369`
 Zuletzt aktualisiert: `2026-08-04`
 
 ## Akteure
@@ -441,8 +441,8 @@ Ziel: isiLive bleibt ein M+-Tool, haelt aber ausgewaehlte Utility-Funktionen in 
 1. Trigger: `PLAYER_ENTERING_WORLD` oder ein vergleichbarer Instanzwechsel meldet `GetInstanceInfo()` fuer eine Party-Instanz.
 2. Voraussetzung: Es liegt kein aktiver Challenge-Kontext vor, `instanceType == "party"`, die Difficulty-ID ist als verfolgte Non-Challenge-Party-Difficulty zugelassen, und `ResolveTrackedMythicZeroMapID()` liefert eine positive numerische `mapID`.
 3. Speicherung: `RuntimeState.SetTrackedPartyRunInfo` speichert nur positive numerische `mapID` und Difficulty-ID sowie optional den beobachteten Instanznamen. Ungueltige, fehlende oder mehrdeutige Daten loeschen beziehungsweise verhindern den Zustand.
-4. Erlaubte Wirkung: Der Kontext darf BR-/Bloodlust-Anzeige, BR-/Bloodlust-Combat-Announces, Tank-/Heiler-DeathWatch und den bestehenden Non-Challenge-DPS-Snapshot oeffnen.
-4a. Gruppenquelle: Die BR-/Bloodlust-Anzeige darf in diesem Kontext entweder eine normale Gruppe oder eine automatische Instanzgruppe ueber `IsInGroup(LE_PARTY_CATEGORY_INSTANCE)` als Gruppenquelle akzeptieren. Wenn beide Gruppenquellen fehlen, bleibt die Anzeige geschlossen.
+4. Erlaubte Wirkung: Der Kontext entsteht nur im `KEY`-Profil nach Regel 109, praktisch im M0-Fall (Difficulty-ID 23, Keystein noch nicht eingesetzt). Dort darf er BR-/Bloodlust-Anzeige, BR-/Bloodlust-Combat-Announces, Tank-/Heiler-DeathWatch und den Non-Challenge-DPS-Snapshot oeffnen. Normale, heroische und Zeitwanderungs-Dungeons oeffnen ihn nicht mehr.
+4a. Gruppenquelle: Die BR-/Bloodlust-Anzeige darf im `KEY`-Profil entweder eine normale Gruppe oder eine automatische Instanzgruppe ueber `IsInGroup(LE_PARTY_CATEGORY_INSTANCE)` als Gruppenquelle akzeptieren. Wenn beide Gruppenquellen fehlen, bleibt die Anzeige geschlossen.
 5. M+-Grenze: M+-Timer, M+-Forces, M+-Killtracker-Prozentdaten, RIO-Delta, Keystone-Level, Portal-Target-Aufloesung sowie Battle-Res-ready- und Bloodlust-ready-Klanghinweise bleiben strikt an echte M+-Runs gebunden.
 6. Clear-Pfade: Beim Verlassen der Party-Instanz, beim Raid-Hard-off, beim Start eines echten Challenge-Runs oder bei unvollstaendigen Live-Daten wird `trackedPartyRun` geloescht.
 7. No-Guess-Regel: Namen, Zonentexte, LFG-Titel, gespeicherte Target-Dungeons oder heuristische Fallbacks duerfen keinen Non-Challenge-Utility-Kontext erzeugen.
@@ -495,7 +495,7 @@ Aktuelle Validator-Baseline: `2311` Szenarien ueber die in `tools/usecase_scenar
 15. UC-17: Mob-Tooltip-Forces-Rendering in der kuehlen gemeinsamen Textrolle nur bei aktiver Challenge-Map-ID mit passendem NPC-Dataset, Per-Tooltip-Dedup gegen `TooltipDataProcessor`-Rerender und `SetEnabled(false)`-Gate; das Nameplate-Pendant nutzt eine transparente Compact-Overlay-Flaeche.
 16. UC-25: VIP-DK-Hilfen mit Default-aus-Settings im durch eine duenne blaue Linie abgetrennten DK-Block, lokalem Dark-Transformation-Cast, verifizierter Unholy-DK-Quelle, eindeutigen Actionbar-Spell-IDs inklusive Secure-Actionbutton-Attributen, eingeruecktem DK-Pferdeklang-Mute, eingeruecktem lokalisiertem verschiebbarem Ghoul-Reminder, `UNIT_PET`-Refresh ausserhalb Raid-Hard-off und Stop-Pfaden ohne Ratefallbacks.
 17. UC-26: VIP-Bloodlust-Debuff-Button-Warnung mit default-aus, immer sichtbarem VIP-Schalter, verifizierter lokaler Bloodlust-Klasse, verifizierten Erschoepfungs-/Satt-Auren, exakten Bloodlust-Klassen-/Pet-Spell-IDs, ausdruecklichem Drums-Ausschluss und Stop-Pfaden ohne Ratefallbacks.
-18. UC-27: versteckter Non-Challenge-PartyRun-Utility-Kontext aus verifizierten Party-Instanz-, Difficulty- und MapID-Daten, mit strikt begrenzter Freigabe fuer BRes-/Bloodlust-Anzeige, Combat-Announces, DeathWatch und DPS-Snapshot ohne Oeffnung von M+-Timer-, Forces-, RIO-, Keylevel- oder Ready-Sound-Pfaden; automatische Dungeonfinder-Instanzgruppen gelten fuer die BR-/Bloodlust-Anzeige nur ueber `IsInGroup(LE_PARTY_CATEGORY_INSTANCE)` als belastbare Gruppenquelle.
+18. UC-27: versteckter Non-Challenge-PartyRun-Utility-Kontext aus verifizierten Party-Instanz-, Difficulty- und MapID-Daten, begrenzt auf das `KEY`-Profil und damit praktisch auf den M0-Fall, mit Freigabe fuer BRes-/Bloodlust-Anzeige, Combat-Announces, DeathWatch und DPS-Snapshot ohne Oeffnung von M+-Timer-, Forces-, RIO-, Keylevel- oder Ready-Sound-Pfaden; normale, heroische und Zeitwanderungs-Dungeons erzeugen keinen Kontext, und automatische Dungeonfinder-Instanzgruppen gelten ueber `IsInGroup(LE_PARTY_CATEGORY_INSTANCE)` als belastbare Gruppenquelle.
 19. UC-28: edge-getriggerte Tank-/Heiler-Todeswarnung, getrennte Sound-Gates,
     sichtbare Death-Counter und fail-closed Verhalten ausserhalb verifizierter
     Party-Utility-Kontexte.

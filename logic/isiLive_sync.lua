@@ -1266,19 +1266,36 @@ local function SafeBooleanCall(fn, ...)
   return ok and not addonTable.Validators.IsSecretValue(result) and result == true
 end
 
+-- Numeric fallbacks for the party-category constants. The bundled
+-- ChatThrottleLib guards the same call the same way (`LE_PARTY_CATEGORY_INSTANCE
+-- or 2`). Without the fallback a missing global skips the instance-group check
+-- entirely and the resolver falls through to a PARTY answer -- which Blizzard
+-- rejects with ERR_NOT_IN_GROUP while the player is only in an automatic
+-- instance group, surfacing as a chat error nobody asked for.
+local PARTY_CATEGORY_HOME = 1
+local PARTY_CATEGORY_INSTANCE = 2
+
+local function ResolvePartyCategory(globalName, numericFallback)
+  local value = rawget(_G, globalName)
+  if value == nil then
+    return numericFallback
+  end
+  return value
+end
+
 local function IsVerifiedInstanceGroup()
   local isInGroup = rawget(_G, "IsInGroup")
-  local instanceCategory = rawget(_G, "LE_PARTY_CATEGORY_INSTANCE")
-  if type(isInGroup) ~= "function" or instanceCategory == nil then
+  if type(isInGroup) ~= "function" then
     return false
   end
+  local instanceCategory = ResolvePartyCategory("LE_PARTY_CATEGORY_INSTANCE", PARTY_CATEGORY_INSTANCE)
   return SafeBooleanCall(isInGroup, instanceCategory)
 end
 
 local function IsVerifiedHomeParty()
   local isInGroup = rawget(_G, "IsInGroup")
-  local homeCategory = rawget(_G, "LE_PARTY_CATEGORY_HOME")
-  if homeCategory ~= nil and type(isInGroup) == "function" and SafeBooleanCall(isInGroup, homeCategory) then
+  local homeCategory = ResolvePartyCategory("LE_PARTY_CATEGORY_HOME", PARTY_CATEGORY_HOME)
+  if type(isInGroup) == "function" and SafeBooleanCall(isInGroup, homeCategory) then
     return true
   end
 

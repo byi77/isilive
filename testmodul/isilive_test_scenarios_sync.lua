@@ -180,8 +180,9 @@ local function RegisterSyncRuntimeLogBurstTests(test, Assert, WithGlobals, LoadA
       GetTime = function()
         return 1000
       end,
-      IsInGroup = function()
-        return true
+      IsInGroup = function(category)
+        -- Home party only; see the category note on the other group stubs.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -361,8 +362,11 @@ local function RegisterStatsSyncTests(test, Assert, WithGlobals, LoadAddonModule
       GetTime = function()
         return now
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -445,8 +449,11 @@ local function RegisterSendOwnKeySnapshotTests(test, Assert, WithGlobals, LoadAd
       GetTime = function()
         return 100
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -551,8 +558,11 @@ local function RegisterSendOwnKeySnapshotTests(test, Assert, WithGlobals, LoadAd
       GetTime = function()
         return 100
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -648,8 +658,11 @@ local function RegisterHiddenRefreshResponseTests(test, Assert, WithGlobals, Loa
       GetTime = function()
         return 100
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -733,8 +746,11 @@ local function RegisterHiddenRefreshResponseTests(test, Assert, WithGlobals, Loa
       GetTime = function()
         return 100
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -1408,8 +1424,11 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
   test("Sync GetAddonSyncChannel returns nil in raid", function()
     WithGlobals({
       LE_PARTY_CATEGORY_INSTANCE = 1,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return true
@@ -1463,8 +1482,11 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
       GetTime = function()
         return now
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -1531,8 +1553,11 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
     local sentMessages = {}
 
     WithGlobals({
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -1592,8 +1617,11 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
 
     WithGlobals({
       LE_PARTY_CATEGORY_INSTANCE = 1,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return true
@@ -1622,8 +1650,11 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
     local sentMessages = {}
 
     WithGlobals({
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -1653,8 +1684,11 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
     local sentMessages = {}
 
     WithGlobals({
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -1704,8 +1738,11 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
     local sentMessages = {}
 
     WithGlobals({
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -1746,8 +1783,11 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
     local sentMessages = {}
 
     WithGlobals({
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -1863,8 +1903,11 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
       GetTime = function()
         return now
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -1910,8 +1953,11 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
       GetTime = function()
         return now
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -1945,8 +1991,11 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
     local sentMessages = {}
 
     WithGlobals({
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -1979,8 +2028,11 @@ local function RegisterProcessMessageSendTests(test, Assert, WithGlobals, LoadAd
 
   test("Sync SendLibKeystonePartyData reports rejected dispatch", function()
     WithGlobals({
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -2149,8 +2201,11 @@ local function RegisterDpsLocSyncTests(test, Assert, WithGlobals, LoadAddonModul
       GetTime = function()
         return now
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -2413,8 +2468,11 @@ local function RegisterSyncResetTests(test, Assert, WithGlobals, LoadAddonModule
       GetTime = function()
         return now
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -2449,8 +2507,11 @@ local function RegisterSyncResetTests(test, Assert, WithGlobals, LoadAddonModule
       GetTime = function()
         return now
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only. The instance category must answer false, otherwise
+        -- this stub describes a player in a home party AND an instance group
+        -- at once, for which INSTANCE_CHAT is the correct channel.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false

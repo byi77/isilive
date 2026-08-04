@@ -182,6 +182,22 @@ local function SafeBooleanCall(fn, ...)
   return ok and not addonTable.Validators.IsSecretValue(result) and result == true
 end
 
+-- Numeric fallbacks for the party-category constants; kept in sync with
+-- logic/isiLive_sync.lua. A missing global must not skip the instance-group
+-- check, because the fall-through answer is PARTY and Blizzard rejects that
+-- with ERR_NOT_IN_GROUP while the player is only in an automatic instance
+-- group -- the send fails and the player sees a chat error.
+local PARTY_CATEGORY_HOME = 1
+local PARTY_CATEGORY_INSTANCE = 2
+
+local function ResolvePartyCategory(globalName, numericFallback)
+  local value = rawget(_G, globalName)
+  if value == nil then
+    return numericFallback
+  end
+  return value
+end
+
 -- Returns the correct chat channel for the current group context.
 -- Instance groups (M+, LFG, dungeon finder) must use INSTANCE_CHAT. PARTY is
 -- only valid for a verified home party; otherwise the helper fails closed.
@@ -190,13 +206,13 @@ function ContextHelpers.ResolveGroupChatChannel()
   if type(isInGroup) ~= "function" then
     return nil
   end
-  local instanceCategory = rawget(_G, "LE_PARTY_CATEGORY_INSTANCE")
-  if instanceCategory ~= nil and SafeBooleanCall(isInGroup, instanceCategory) then
+  local instanceCategory = ResolvePartyCategory("LE_PARTY_CATEGORY_INSTANCE", PARTY_CATEGORY_INSTANCE)
+  if SafeBooleanCall(isInGroup, instanceCategory) then
     return "INSTANCE_CHAT"
   end
 
-  local homeCategory = rawget(_G, "LE_PARTY_CATEGORY_HOME")
-  if homeCategory ~= nil and SafeBooleanCall(isInGroup, homeCategory) then
+  local homeCategory = ResolvePartyCategory("LE_PARTY_CATEGORY_HOME", PARTY_CATEGORY_HOME)
+  if SafeBooleanCall(isInGroup, homeCategory) then
     return "PARTY"
   end
 

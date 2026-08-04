@@ -13,8 +13,10 @@ return function(test, ctx)
       GetTime = function()
         return now
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only: category 2 (instance group) must answer false, or
+        -- the resolver correctly prefers INSTANCE_CHAT over PARTY.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -77,8 +79,10 @@ return function(test, ctx)
       GetTime = function()
         return now
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only: category 2 (instance group) must answer false, or
+        -- the resolver correctly prefers INSTANCE_CHAT over PARTY.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -128,8 +132,10 @@ return function(test, ctx)
       GetTime = function()
         return now
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only: category 2 (instance group) must answer false, or
+        -- the resolver correctly prefers INSTANCE_CHAT over PARTY.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -197,8 +203,10 @@ return function(test, ctx)
       GetTime = function()
         return now
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only: category 2 (instance group) must answer false, or
+        -- the resolver correctly prefers INSTANCE_CHAT over PARTY.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false
@@ -350,8 +358,9 @@ return function(test, ctx)
         GetTime = function()
           return 100
         end,
-        IsInGroup = function(_category)
-          return true
+        IsInGroup = function(category)
+          -- Home party only; see the category note on the other group stubs.
+          return category ~= 2
         end,
         IsInRaid = function()
           return false
@@ -425,8 +434,10 @@ return function(test, ctx)
       GetTime = function()
         return now
       end,
-      IsInGroup = function(_category)
-        return true
+      IsInGroup = function(category)
+        -- Home party only: category 2 (instance group) must answer false, or
+        -- the resolver correctly prefers INSTANCE_CHAT over PARTY.
+        return category ~= 2
       end,
       IsInRaid = function()
         return false

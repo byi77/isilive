@@ -389,8 +389,10 @@ return function(test, ctx)
       IsInRaid = function()
         return false
       end,
-      IsInGroup = function()
-        return true
+      IsInGroup = function(category)
+        -- Home party only: category 2 (instance group) must answer false, or
+        -- the resolver correctly prefers INSTANCE_CHAT over PARTY.
+        return category ~= 2
       end,
       IsiLiveDB = { syncEnabled = true },
       C_ChatInfo = {

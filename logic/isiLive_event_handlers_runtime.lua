@@ -105,15 +105,21 @@ local function HandleIncomingSummonChangedSound(ctx, unitTarget)
   StartIncomingSummonSoundLoopIfPending(ctx)
 end
 
-local TRACKED_NON_CHALLENGE_PARTY_DIFFICULTY_IDS = {
-  [1] = true,
-  [2] = true,
-  [174] = true,
-  [8] = true,
-  [23] = true,
-  [24] = true,
-  [167] = true,
-}
+-- Which party difficulties open a tracked run is not decided here: the answer
+-- comes from the full-profile table in core/isiLive_runtime_mode.lua, so the
+-- last-run DPS snapshot follows the same contract as every other gated feature.
+-- In practice this leaves difficultyID 23 (mythic without an inserted keystone,
+-- i.e. M0), because a running keystone is already handled by the challenge
+-- lifecycle and returns early below. Normal, heroic and timewalking runs used
+-- to be tracked here and no longer are. Fails closed without the resolver.
+local function IsTrackedPartyDifficulty(difficultyID)
+  local runtimeMode = addonTable.RuntimeMode
+  if type(runtimeMode) ~= "table" or type(runtimeMode.IsFullProfileDifficulty) ~= "function" then
+    return false
+  end
+  local ok, isTracked = pcall(runtimeMode.IsFullProfileDifficulty, difficultyID)
+  return ok and isTracked == true
+end
 local NON_CHALLENGE_RUN_CAPTURE_RETRIES = 5
 local NON_CHALLENGE_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
 local function ResolveTrackedMythicZeroMapID()
@@ -166,9 +172,10 @@ local function GetTrackedMythicZeroState(ctx)
     return false, nil, nil, nil
   end
   local okInstance, instanceName, instanceType, difficultyID = pcall(getInstanceInfo)
-  -- Legacy helper name: this now tracks all supported non-challenge party dungeons
-  -- so last-run DPS also appears after normal and heroic completions.
-  if not okInstance or instanceType ~= "party" or not TRACKED_NON_CHALLENGE_PARTY_DIFFICULTY_IDS[difficultyID] then
+  -- The helper name is historical. The tracked run is now the M0 case only:
+  -- a mythic party dungeon whose keystone has not been inserted yet. A running
+  -- keystone returns early above and is recorded by the challenge lifecycle.
+  if not okInstance or instanceType ~= "party" or not IsTrackedPartyDifficulty(difficultyID) then
     return false, nil, nil, nil
   end
 
@@ -715,6 +722,19 @@ local function ApplyVIPGuestSoundSettingsIfAvailable()
   end
 end
 
+-- Mirrors the current raid state onto the dispatcher's event registration.
+-- The per-handler early-outs stay in place as the correctness contract; this
+-- only removes the dispatch traffic that would reach them. Called from the two
+-- events that survive the hard-off, so the addon can always wake up again.
+local function ApplyRaidEventSuppression(ctx)
+  local bootstrap = addonTable.Bootstrap
+  if type(bootstrap) ~= "table" or type(bootstrap.ApplyRaidEventSuppression) ~= "function" then
+    return false
+  end
+  local ok, changed = pcall(bootstrap.ApplyRaidEventSuppression, IsRaidModeActive(ctx))
+  return ok and changed == true
+end
+
 local function BuildNonRaidEventForwarder(ctx, handlerName, eventName)
   return function(_self, ...)
     if not IsRaidModeActive(ctx) then
@@ -778,6 +798,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   ctx.handleLeaderWatchEvent = ResolveEventHandler(ctx.handleLeaderWatchEvent)
 
   local function HandleGroupRosterUpdateEvent(frame)
+    ApplyRaidEventSuppression(ctx)
     if ctx.isInGroup() and (ctx.isTestMode() or ctx.isTestAllMode()) then
       ctx.exitTestMode()
       return
@@ -887,6 +908,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
   end
 
   local function HandlePlayerEnteringWorldEvent(_self)
+    ApplyRaidEventSuppression(ctx)
     local inPartyInstance = ctx.isInPartyInstance() == true
     local wasInPartyInstance = ctx.wasInPartyInstance
     if type(ctx.logRuntimeTracef) == "function" then

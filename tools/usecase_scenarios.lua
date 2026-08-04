@@ -119,6 +119,7 @@ local scenarioFiles = {
   "testmodul/isilive_test_scenarios_chrome_branches.lua",
   "testmodul/isilive_test_scenarios_roster_tooltip_branches.lua",
   "testmodul/isilive_test_scenarios_death_alert.lua",
+  "testmodul/isilive_test_scenarios_runtime_mode.lua",
 }
 
 return scenarioFiles

@@ -452,10 +452,13 @@ local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, 
     )
   end)
 
-  test("Event handlers record run when leaving non-challenge normal dungeon", function()
+  test("Event handlers record run when leaving a mythic zero dungeon", function()
+    -- difficultyID 23: mythic party dungeon without an inserted keystone. This
+    -- is the only non-challenge run still tracked; normal, heroic and
+    -- timewalking runs belong to the reduced profile and record nothing.
     local current = {
       instanceType = "party",
-      difficultyID = 1,
+      difficultyID = 23,
       mapID = 2649,
     }
     local recordedRuns = {}
@@ -468,7 +471,7 @@ local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, 
 
     WithGlobals({
       GetInstanceInfo = function()
-        return "Priory of the Sacred Flame", current.instanceType, current.difficultyID, "Normal"
+        return "Priory of the Sacred Flame", current.instanceType, current.difficultyID, "Mythic"
       end,
       UnitExists = function(unit)
         return unit == "player"
@@ -503,11 +506,11 @@ local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, 
       })
 
       controller:Dispatch("PLAYER_ENTERING_WORLD")
-      Assert.Equal(#trackedContexts, 1, "normal dungeon entry must publish a verified tracked party-run context")
+      Assert.Equal(#trackedContexts, 1, "mythic zero entry must publish a verified tracked party-run context")
       Assert.Equal(trackedContexts[1].mapID, 2649, "tracked party-run context must carry the verified map id")
       Assert.Equal(
         trackedContexts[1].difficultyID,
-        1,
+        23,
         "tracked party-run context must carry the verified difficulty id"
       )
       Assert.Equal(
@@ -524,11 +527,71 @@ local function RegisterCombatStartupM0LifecycleTests(test, Assert, WithGlobals, 
       controller:Dispatch("PLAYER_ENTERING_WORLD")
     end)
 
-    Assert.Equal(#recordedRuns, 1, "normal dungeon exits should record one non-challenge run snapshot")
-    Assert.Equal(recordedRuns[1].mapID, 2649, "normal dungeon exit should keep the recorded dungeon map id")
-    Assert.Equal(recordedRuns[1].level, 0, "normal dungeon snapshots should keep non-key level 0")
-    Assert.Nil(recordedRuns[1].onTime, "normal dungeon snapshots have no timed-run flag")
-    Assert.True(clearTrackedContexts > 0, "normal dungeon exit must clear the tracked party-run utility context")
+    Assert.Equal(#recordedRuns, 1, "mythic zero exits should record one non-challenge run snapshot")
+    Assert.Equal(recordedRuns[1].mapID, 2649, "mythic zero exit should keep the recorded dungeon map id")
+    Assert.Equal(recordedRuns[1].level, 0, "mythic zero snapshots should keep non-key level 0")
+    Assert.Nil(recordedRuns[1].onTime, "mythic zero snapshots have no timed-run flag")
+    Assert.True(clearTrackedContexts > 0, "mythic zero exit must clear the tracked party-run utility context")
+  end)
+
+  test("Event handlers record no run for reduced-profile dungeons", function()
+    -- Normal, heroic and timewalking runs are IDLE profile: the last-run DPS
+    -- snapshot is a Mythic+ statistic and must not be captured for them.
+    for _, difficultyID in ipairs({ 1, 2, 24 }) do
+      local current = {
+        instanceType = "party",
+        difficultyID = difficultyID,
+        mapID = 2649,
+      }
+      local recordedRuns = {}
+      local trackedContexts = {}
+      local roster = {
+        player = { name = "Me", realm = "MyRealm" },
+        party1 = { name = "Buddy", realm = "Realm" },
+      }
+
+      WithGlobals({
+        GetInstanceInfo = function()
+          return "Priory of the Sacred Flame", current.instanceType, current.difficultyID, "Reduced"
+        end,
+        UnitExists = function(unit)
+          return unit == "player"
+        end,
+        C_Map = {
+          GetBestMapForUnit = function(unit)
+            if unit == "player" then
+              return current.mapID
+            end
+            return nil
+          end,
+        },
+      }, function()
+        local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+        local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+          getRoster = function()
+            return roster
+          end,
+          recordRun = function(mapID, level, onTime)
+            table.insert(recordedRuns, { mapID = mapID, level = level, onTime = onTime })
+          end,
+          setTrackedPartyRunInfo = function(value)
+            trackedContexts[#trackedContexts + 1] = value
+          end,
+          clearTrackedPartyRunInfo = function() end,
+        })
+
+        controller:Dispatch("PLAYER_ENTERING_WORLD")
+        Assert.Equal(#trackedContexts, 0, "reduced-profile dungeon entry must not publish a tracked party-run context")
+
+        current.instanceType = "none"
+        current.difficultyID = 0
+        current.mapID = nil
+        roster = {}
+        controller:Dispatch("PLAYER_ENTERING_WORLD")
+      end)
+
+      Assert.Equal(#recordedRuns, 0, "reduced-profile dungeon exit must not record a run snapshot")
+    end
   end)
 end
 

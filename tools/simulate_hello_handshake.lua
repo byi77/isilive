@@ -298,6 +298,13 @@ local function BuildSession()
     end
   end
 
+  -- Kick sync only runs in the full runtime profile (active keystone or M0).
+  -- The handshake fan-out this simulator asserts is the in-key one, so the
+  -- challenge bridge reports a running keystone.
+  ctx.GetActiveChallengeMapID = function()
+    return 559
+  end
+
   -- Initialize factory_kick_tracker — attaches ctx.SendOwnKickState.
   Harness.WithGlobals(buildGlobals(), function()
     addon._FactoryInternal.InitializeFactorySecondaryKickTracker(

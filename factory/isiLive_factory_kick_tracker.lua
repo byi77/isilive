@@ -54,11 +54,46 @@ local function InitializeFactorySecondaryKickTracker(
     end
   end
 
+  -- Kick tracking is a Mythic+ utility. It only runs in the full runtime
+  -- profile (active keystone or M0); in the reduced profile -- open world,
+  -- normal, heroic, timewalking, delves, torghast, follower dungeons -- the
+  -- 0.5s poll and its 15s sync heartbeats would keep running for a roster
+  -- column nobody is looking at. Fails closed when the resolver is missing.
+  local function HasActiveChallengeFromBridge()
+    if type(ctx.GetActiveChallengeMapID) ~= "function" then
+      return false
+    end
+    local ok, mapID = pcall(ctx.GetActiveChallengeMapID)
+    if not ok or addonTable.Validators.IsSecretValue(mapID) then
+      return false
+    end
+    local numeric = tonumber(mapID)
+    return numeric ~= nil and numeric > 0
+  end
+
+  local function IsKickProfileActive()
+    -- Running keystone: answered by the injected bridge, which stays valid in
+    -- every call context. The wider M0 / pre-insert case can only be read from
+    -- live instance data, so it goes through the central resolver.
+    if HasActiveChallengeFromBridge() then
+      return true
+    end
+    local runtimeMode = addonTable.RuntimeMode
+    if type(runtimeMode) ~= "table" or type(runtimeMode.IsFullProfileContext) ~= "function" then
+      return false
+    end
+    local ok, isFullProfile = pcall(runtimeMode.IsFullProfileContext)
+    return ok and isFullProfile == true
+  end
+
   local function IsKickSyncContextActive()
     if type(IsGroupSyncActive) ~= "function" then
       return false
     end
-    return IsGroupSyncActive() == true
+    if IsGroupSyncActive() ~= true then
+      return false
+    end
+    return IsKickProfileActive()
   end
 
   local function SyncOwnKickState(force)
@@ -67,6 +102,11 @@ local function InitializeFactorySecondaryKickTracker(
       return false
     end
     if kickTrackerSuppressedByRaid then
+      return false
+    end
+    -- Guards the paths that do not come through RunKickTrackerPoll:
+    -- SendOwnKickState, the cooldown-changed callback and post-raid recovery.
+    if not IsKickProfileActive() then
       return false
     end
     if not ctx.kickTrackerController then

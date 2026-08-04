@@ -124,6 +124,7 @@ addonTable.TextsLocales.deDE = {
   DUNGEON_DIFF_UNKNOWN = "Unbekannt",
   DUNGEON_DIFF_NORMAL = "Normal",
   DUNGEON_DIFF_HEROIC = "Heroisch",
+  DUNGEON_DIFF_TIMEWALKING = "Zeitwanderung",
   DUNGEON_DIFF_MYTHIC = "Mythisch",
   DUNGEON_DIFF_RAID_LFR = "Schlachtzugsuche",
   DUNGEON_DIFF_RAID_NORMAL = "Normaler Raid",

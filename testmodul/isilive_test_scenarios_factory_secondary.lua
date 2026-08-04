@@ -39,6 +39,26 @@ local function BuildGlobalsEnv(state)
     GetRealmName = function()
       return "Realm"
     end,
+    -- RuntimeMode resolves the OFF / IDLE / KEY profile from these globals, so
+    -- the gated features (kick sync, CD polling) need them stubbed the same way
+    -- production reads them. Default instance data stays inert: the key context
+    -- is driven by state.activeChallengeMapID alone, matching how these
+    -- scenarios have always expressed "inside a key".
+    C_ChallengeMode = {
+      GetActiveChallengeMapID = function()
+        return state.activeChallengeMapID
+      end,
+    },
+    GetInstanceInfo = function()
+      return state.instanceName or "Instance",
+        state.instanceType or "none",
+        state.difficultyID or 0,
+        nil,
+        nil,
+        nil,
+        nil,
+        state.instanceMapID
+    end,
     IsiLiveDB = state.db,
     CreateFrame = function()
       local frame = {

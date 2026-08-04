@@ -240,6 +240,12 @@ return function(test, ctx)
           return { Cancel = function() end }
         end,
       },
+      -- Mythic party dungeon without an inserted keystone (difficultyID 23):
+      -- a tracked party run that still carries the full runtime profile. Normal
+      -- and heroic runs are tracked too, but no longer open the CD tracker.
+      GetInstanceInfo = function()
+        return "Mythic Dungeon", "party", 23, nil, nil, nil, nil, 2000
+      end,
     }, function()
       addon._FactoryInternal.InitializeFactorySecondaryCdTracker(factoryCtx, modules, runtimeState, function()
         return 0
@@ -249,13 +255,15 @@ return function(test, ctx)
         return false
       end)
       factoryCtx.UpdateCdTracker()
-    end)
 
-    Assert.True(scans > 0, "tracked party-run context must allow CD tracker scans")
-    Assert.Equal(type(uiController), "table", "CD tracker UI controller must be wired")
-    Assert.NotNil(uiController.GetBResInfo(), "tracked party-run context must expose BR info to the UI")
-    trackedPartyRunActive = false
-    Assert.Nil(uiController.GetBResInfo(), "CD tracker UI must fail closed after party-run context clears")
+      -- Asserted inside the stubbed scope: the UI gate resolves the runtime
+      -- profile from live instance data, which only exists in here.
+      Assert.True(scans > 0, "tracked party-run context must allow CD tracker scans")
+      Assert.Equal(type(uiController), "table", "CD tracker UI controller must be wired")
+      Assert.NotNil(uiController.GetBResInfo(), "tracked party-run context must expose BR info to the UI")
+      trackedPartyRunActive = false
+      Assert.Nil(uiController.GetBResInfo(), "CD tracker UI must fail closed after party-run context clears")
+    end)
   end)
 
   test(
@@ -312,6 +320,11 @@ return function(test, ctx)
             return { Cancel = function() end }
           end,
         },
+        -- Mythic party dungeon without an inserted keystone (difficultyID 23),
+        -- reached through an automatic instance group.
+        GetInstanceInfo = function()
+          return "Mythic Dungeon", "party", 23, nil, nil, nil, nil, 2000
+        end,
       }, function()
         addon._FactoryInternal.InitializeFactorySecondaryCdTracker(factoryCtx, modules, runtimeState, function()
           return 0
@@ -320,13 +333,15 @@ return function(test, ctx)
         end, function()
           return false
         end)
-      end)
 
-      Assert.Equal(type(uiController), "table", "CD tracker UI controller must be wired for instance-group context")
-      Assert.NotNil(
-        uiController.GetBResInfo(),
-        "tracked party-run instance group must expose BR info even when the normal group category is false"
-      )
+        -- Asserted inside the stubbed scope: the UI gate resolves the runtime
+        -- profile from live instance data, which only exists in here.
+        Assert.Equal(type(uiController), "table", "CD tracker UI controller must be wired for instance-group context")
+        Assert.NotNil(
+          uiController.GetBResInfo(),
+          "tracked party-run instance group must expose BR info even when the normal group category is false"
+        )
+      end)
     end
   )
 

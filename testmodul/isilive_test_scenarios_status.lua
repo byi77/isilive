@@ -4,6 +4,7 @@ local function BuildLocale()
     DUNGEON_DIFF_UNKNOWN = "Unknown",
     DUNGEON_DIFF_NORMAL = "Normal",
     DUNGEON_DIFF_HEROIC = "Heroic",
+    DUNGEON_DIFF_TIMEWALKING = "Timewalking",
     DUNGEON_DIFF_MYTHIC = "Mythic",
     DUNGEON_DIFF_RAID_LFR = "LFR",
     DUNGEON_DIFF_RAID_NORMAL = "Normal Raid",
@@ -57,6 +58,33 @@ local function BuildLocale()
 end
 
 local function RegisterDungeonDifficultyTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Status labels timewalking dungeons as timewalking and not as mythic", function()
+    -- difficultyID 24 is Timewalking. It used to sit in the mythic table, which
+    -- printed "Mythic" next to "M+: Inactive" in the status line and suppressed
+    -- the dungeon-entry notice, because that notice skips party dungeons
+    -- reported as mythic.
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Pit of Saron", "party", 24, "Timewalking"
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_status.lua" })
+      local controller = addon.Status.CreateController({
+        getL = BuildLocale,
+      })
+
+      local label, isMythic, inDungeon = controller.GetDungeonDifficultyLabel()
+      Assert.Equal(label, "Timewalking", "difficulty 24 must resolve as timewalking")
+      Assert.False(isMythic, "timewalking must not be reported as mythic")
+      Assert.True(inDungeon, "timewalking must be treated as dungeon context")
+    end)
+  end)
+
   test("Status maps heroic fallback difficulty IDs as non-mythic heroic", function()
     local current = {
       instanceName = "Priory of the Sacred Flame",

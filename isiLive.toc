@@ -2,11 +2,12 @@
 ## Title: isi|cff1e90ffLive|r
 ## Notes: M+ Dungeon and Group Management
 ## Author: mematiWoW
-## Version: 0.9.368
+## Version: 0.9.369
 ## SavedVariables: IsiLiveDB
 ## IconTexture: Interface\Icons\INV_Misc_GroupLooking
 libs/ChatThrottleLib/ChatThrottleLib.lua
 core/isiLive_validation_helpers.lua
+core/isiLive_runtime_mode.lua
 core/isiLive_string_utils.lua
 core/isiLive_sound_registry.lua
 core/isiLive_sound_utils.lua

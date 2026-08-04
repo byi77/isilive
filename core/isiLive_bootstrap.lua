@@ -218,21 +218,99 @@ function Bootstrap.CreateGatedOnEvent(opts)
   })
 end
 
+-- Events that must survive the raid hard-off. Without them the addon can never
+-- learn that the raid ended and stays dark until the next /reload:
+-- GROUP_ROSTER_UPDATE reports the group dropping back below six,
+-- PLAYER_ENTERING_WORLD covers instance changes and reloads. Both fire rarely,
+-- so keeping them registered costs nothing measurable.
+local RAID_WAKE_EVENTS = {
+  GROUP_ROSTER_UPDATE = true,
+  PLAYER_ENTERING_WORLD = true,
+}
+Bootstrap.RAID_WAKE_EVENTS = RAID_WAKE_EVENTS
+
+local dispatcherEventFrame = nil
+local dispatcherEventsSuppressed = false
+
+local function RegisterDispatcherEntry(eventFrame, entry)
+  local unitFilter = entry[5]
+  if unitFilter and type(eventFrame.RegisterUnitEvent) == "function" then
+    if type(unitFilter) == "table" then
+      eventFrame:RegisterUnitEvent(entry[1], unpack(unitFilter))
+    else
+      eventFrame:RegisterUnitEvent(entry[1], unitFilter)
+    end
+  elseif type(eventFrame.RegisterEvent) == "function" then
+    eventFrame:RegisterEvent(entry[1])
+  end
+end
+
 function Bootstrap.RegisterDispatcherEvents(eventFrame)
   assert(eventFrame, "isiLive: Bootstrap.RegisterDispatcherEvents requires eventFrame")
 
+  dispatcherEventFrame = eventFrame
+  dispatcherEventsSuppressed = false
   for _, entry in ipairs(EVENT_REGISTRY) do
-    local unitFilter = entry[5]
-    if unitFilter and type(eventFrame.RegisterUnitEvent) == "function" then
-      if type(unitFilter) == "table" then
-        eventFrame:RegisterUnitEvent(entry[1], unpack(unitFilter))
-      else
-        eventFrame:RegisterUnitEvent(entry[1], unitFilter)
+    RegisterDispatcherEntry(eventFrame, entry)
+  end
+end
+
+--- Applies or lifts the raid hard-off at the event-registration level.
+-- Handler-side early-outs still pay a full dispatch per event, and the two
+-- unfiltered high-frequency entries (UNIT_HEALTH, UNIT_AURA) fire for every
+-- raid member on every tick. Unregistering removes that traffic outright.
+--
+-- Re-registration is deferred through C_Timer.After(0) so RegisterEvent never
+-- runs inside the dispatch stack that requested it: patch 12.0 raises
+-- ADDON_ACTION_FORBIDDEN for RegisterEvent called from a protected dispatch.
+-- @param suppressed boolean true to unregister, false to restore
+-- @return boolean true when the suppression state actually changed
+function Bootstrap.ApplyRaidEventSuppression(suppressed)
+  local eventFrame = dispatcherEventFrame
+  if not eventFrame then
+    return false
+  end
+
+  local shouldSuppress = suppressed == true
+  if shouldSuppress == dispatcherEventsSuppressed then
+    return false
+  end
+  dispatcherEventsSuppressed = shouldSuppress
+
+  if shouldSuppress then
+    if type(eventFrame.UnregisterEvent) ~= "function" then
+      dispatcherEventsSuppressed = false
+      return false
+    end
+    for _, entry in ipairs(EVENT_REGISTRY) do
+      if not RAID_WAKE_EVENTS[entry[1]] then
+        pcall(eventFrame.UnregisterEvent, eventFrame, entry[1])
       end
-    elseif type(eventFrame.RegisterEvent) == "function" then
-      eventFrame:RegisterEvent(entry[1])
+    end
+    return true
+  end
+
+  local function RestoreDispatcherEvents()
+    for _, entry in ipairs(EVENT_REGISTRY) do
+      if not RAID_WAKE_EVENTS[entry[1]] then
+        pcall(RegisterDispatcherEntry, eventFrame, entry)
+      end
     end
   end
+
+  local timer = rawget(_G, "C_Timer")
+  if type(timer) == "table" and type(timer.After) == "function" then
+    timer.After(0, RestoreDispatcherEvents)
+  else
+    RestoreDispatcherEvents()
+  end
+  return true
+end
+
+--- True while the dispatcher runs with raid-suppressed event registration.
+-- @return boolean
+function Bootstrap.IsRaidEventSuppressionActive()
+  return dispatcherEventsSuppressed == true
 end
 
 function Bootstrap.BindMainFrameScripts(mainFrame, opts)

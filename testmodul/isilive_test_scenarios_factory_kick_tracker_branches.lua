@@ -134,6 +134,15 @@ local function BuildCtxAndState(opts)
         end,
       },
     },
+    -- Kick sync only runs in the full runtime profile. These branch scenarios
+    -- all exercise in-key behaviour, so the challenge bridge reports a running
+    -- keystone unless a scenario opts out.
+    GetActiveChallengeMapID = function()
+      if opts.activeChallengeMapID == false then
+        return nil
+      end
+      return opts.activeChallengeMapID or 559
+    end,
     rosterPanelController = {
       RefreshKickColumn = function()
         state.kickRefreshes = (state.kickRefreshes or 0) + 1
@@ -368,5 +377,27 @@ return function(test, ctx)
     })
     state.fireEvent("SPELLS_CHANGED")
     Assert.True(#state.sentKick >= 1, "spellID change must trigger broadcast")
+  end)
+
+  -- Reduced-profile gate ---------------------------------------------------------
+
+  test("kick tracker: reduced profile keeps polling and sync closed", function()
+    -- No keystone and no live mythic instance data: open world, normal, heroic,
+    -- timewalking, delves, torghast, follower dungeons. Kick tracking is a
+    -- Mythic+ utility and must not run its 0.5s poll or its sync heartbeats
+    -- for a roster column nobody is looking at.
+    local _ctx, _modules, state = LoadFactoryKickTracker({
+      activeChallengeMapID = false,
+    })
+
+    Assert.True(
+      state.tickers == nil or #state.tickers == 0,
+      "the reduced profile must not start the kick polling ticker"
+    )
+    Assert.False(_ctx.SendOwnKickState(true), "an explicit kick sync request must be refused in the reduced profile")
+    Assert.Equal(#state.sentKick, 0, "no kick payload may leave the client in the reduced profile")
+
+    state.fireEvent("SPELLS_CHANGED")
+    Assert.Equal(#state.sentKick, 0, "spell changes must stay silent in the reduced profile")
   end)
 end

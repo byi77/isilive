@@ -47,7 +47,7 @@ Der bevorzugte vollstaendige lokale CI-Preflight ist:
 powershell -ExecutionPolicy Bypass -File tools\validate_ci_local.ps1
 ```
 
-Der Wrapper fuehrt Style-, Lint-, Syntax-, Metrics-, Locale-, Secret-Value-, Sound-, API-, Simulator-Coverage-, Regel-, Usecase- und anschliessend die GitHub-identischen Coverage-Gates aus. Vor dem Coverage-Lauf entfernt er lokale Coverage-Artefakte, damit alte Treffer das Ergebnis nicht verfaelscht. Letzter voller lokaler CI-Stand vom 2026-08-04 bei TOC `0.9.368`: `Local CI preflight passed`, `2311 passed, 0 failed`, Coverage rund `92.5%` und keine Produktionsdatei unter `80.00%`. Bewusst ohne exakte Zeilenzahl -- siehe die Begruendung in `ARCHITECTURE.md`.
+Der Wrapper fuehrt Style-, Lint-, Syntax-, Metrics-, Locale-, Secret-Value-, Sound-, API-, Simulator-Coverage-, Regel-, Usecase- und anschliessend die GitHub-identischen Coverage-Gates aus. Vor dem Coverage-Lauf entfernt er lokale Coverage-Artefakte, damit alte Treffer das Ergebnis nicht verfaelscht. Letzter voller lokaler CI-Stand vom 2026-08-04 bei TOC `0.9.369`: `Local CI preflight passed`, `2328 passed, 0 failed`, Coverage rund `92.5%` und keine Produktionsdatei unter `80.00%`. Bewusst ohne exakte Zeilenzahl -- siehe die Begruendung in `ARCHITECTURE.md`.
 
 Die Wrapper `tools/check.ps1` und `tools/check.cmd` fuehren den statischen lokalen Preflight ueber den repo-lokalen `luacheck.cmd`-Shim aus und vermeiden so den Windows-App-Auswahldialog, der beim direkten Aufruf des LuaRocks-`luacheck`-Scripts auftaucht.
 
