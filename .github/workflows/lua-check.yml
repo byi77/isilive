@@ -128,6 +128,10 @@ jobs:
         run: |
           lua tools/check_season_intake.lua
 
+      - name: Simulator CI Coverage Check
+        run: |
+          lua tools/check_simulator_ci_coverage.lua
+
       - name: Nameplate Key-Start Simulator
         run: |
           lua tools/simulate_nameplate_keystart.lua all
@@ -203,6 +207,59 @@ jobs:
       - name: M+ Timer Lifecycle Simulator
         run: |
           lua tools/simulate_mplus_timer_lifecycle.lua
+
+      # Twelve simulators used to exist without any pipeline calling them, and
+      # five of those were failing unnoticed -- three since 2026-07-23, broken
+      # by a runtime-hardening commit. A simulator no gate runs is dead weight
+      # rather than a gate. tools/check_simulator_ci_coverage.lua now enforces
+      # that every tools/simulate_*.lua appears here and in the local preflight.
+      - name: Ready-Check Lifecycle Simulator
+        run: |
+          lua tools/simulate_ready_check_lifecycle.lua
+
+      - name: Secret-Value Pipeline Simulator
+        run: |
+          lua tools/simulate_secret_value_pipeline.lua
+
+      - name: Sound Playback Simulator
+        run: |
+          lua tools/simulate_sound_playback.lua
+
+      - name: HELLO Handshake Simulator
+        run: |
+          lua tools/simulate_hello_handshake.lua
+
+      - name: Addon-Message Throttle Simulator
+        run: |
+          lua tools/simulate_addon_message_throttle.lua
+
+      - name: Inspect Pipeline Simulator
+        run: |
+          lua tools/simulate_inspect_pipeline.lua
+
+      - name: KillTrack Lifecycle Simulator
+        run: |
+          lua tools/simulate_killtrack_lifecycle.lua
+
+      - name: Multi-Invite Accept-Race Simulator
+        run: |
+          lua tools/simulate_multi_invite_accept_race.lua
+
+      - name: Settings Live-Apply Simulator
+        run: |
+          lua tools/simulate_settings_live_apply.lua
+
+      - name: Kick-Tracker Extras Simulator
+        run: |
+          lua tools/simulate_kick_tracker_extras.lua
+
+      - name: Ready-Check Frame-Overrides Simulator
+        run: |
+          lua tools/simulate_ready_check_frame_overrides.lua
+
+      - name: Sender-Receiver Roundtrip Simulator
+        run: |
+          lua tools/simulate_sender_receiver.lua
 
       - name: Deterministic Usecase + Rules Logic Validation
         run: |

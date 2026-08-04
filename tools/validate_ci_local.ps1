@@ -192,6 +192,7 @@ try {
   Invoke-CheckedCommand "Settings Default Pattern Check" "lua tools/check_settings_default_pattern.lua"
   Invoke-CheckedCommand "M+ Forces DB Lifetime" "lua tools/check_mplus_db_lifetime.lua"
   Invoke-CheckedCommand "Season Intake Check" "lua tools/check_season_intake.lua"
+  Invoke-CheckedCommand "Simulator CI Coverage Check" "lua tools/check_simulator_ci_coverage.lua"
   Invoke-CheckedCommand "Nameplate Key-Start Simulator" "lua tools/simulate_nameplate_keystart.lua all"
   Invoke-CheckedCommand "CTL Wire-Order Simulator" "lua tools/simulate_ctl_wire_order.lua"
   Invoke-CheckedCommand "SavedVariables Reload Simulator" "lua tools/simulate_savedvariables_reload.lua"
@@ -211,6 +212,23 @@ try {
   Invoke-CheckedCommand "Combat-Lockdown Defer-and-Replay Simulator" "lua tools/simulate_combat_lockdown_settings.lua"
   Invoke-CheckedCommand "Role-Marker Macro Simulator" "lua tools/simulate_role_marker_macro.lua"
   Invoke-CheckedCommand "M+ Timer Lifecycle Simulator" "lua tools/simulate_mplus_timer_lifecycle.lua"
+  # Twelve simulators used to exist without any pipeline calling them, and five
+  # of those were failing unnoticed -- three since 2026-07-23, broken by a
+  # runtime-hardening commit. A simulator no gate runs is dead weight rather
+  # than a gate. tools/check_simulator_ci_coverage.lua now enforces that every
+  # tools/simulate_*.lua appears here and in the GitHub workflow.
+  Invoke-CheckedCommand "Ready-Check Lifecycle Simulator" "lua tools/simulate_ready_check_lifecycle.lua"
+  Invoke-CheckedCommand "Secret-Value Pipeline Simulator" "lua tools/simulate_secret_value_pipeline.lua"
+  Invoke-CheckedCommand "Sound Playback Simulator" "lua tools/simulate_sound_playback.lua"
+  Invoke-CheckedCommand "HELLO Handshake Simulator" "lua tools/simulate_hello_handshake.lua"
+  Invoke-CheckedCommand "Addon-Message Throttle Simulator" "lua tools/simulate_addon_message_throttle.lua"
+  Invoke-CheckedCommand "Inspect Pipeline Simulator" "lua tools/simulate_inspect_pipeline.lua"
+  Invoke-CheckedCommand "KillTrack Lifecycle Simulator" "lua tools/simulate_killtrack_lifecycle.lua"
+  Invoke-CheckedCommand "Multi-Invite Accept-Race Simulator" "lua tools/simulate_multi_invite_accept_race.lua"
+  Invoke-CheckedCommand "Settings Live-Apply Simulator" "lua tools/simulate_settings_live_apply.lua"
+  Invoke-CheckedCommand "Kick-Tracker Extras Simulator" "lua tools/simulate_kick_tracker_extras.lua"
+  Invoke-CheckedCommand "Ready-Check Frame-Overrides Simulator" "lua tools/simulate_ready_check_frame_overrides.lua"
+  Invoke-CheckedCommand "Sender-Receiver Roundtrip Simulator" "lua tools/simulate_sender_receiver.lua"
   Invoke-CheckedCommand "Deterministic Usecase + Rules Logic Validation" "lua tools/validate_usecases.lua"
   Remove-Item -LiteralPath "luacov.stats.out", "luacov.report.out" -ErrorAction SilentlyContinue
   Invoke-CheckedCommand "Coverage Run" "lua -lluacov tools/validate_usecases.lua"
