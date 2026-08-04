@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-08-04 - Version 0.9.368 (patch)
+
+Maintenance release that closes a blind spot in the build gates. No
+player-facing behavior changes: every rendered label, color, and layout stays
+identical.
+
+- Added `tools/check_simulator_ci_coverage.lua`, which fails the build when a
+  deterministic simulator under `tools/` is not executed by both the local
+  preflight and the GitHub workflow. Twelve simulators existed without any
+  pipeline calling them, so nothing ever noticed when they broke.
+- Wired the three remaining unreferenced simulators into both CI paths
+  (kick-tracker extras, ready-check frame overrides, sender-receiver
+  roundtrip). All 31 simulators now run in both paths, with no exemptions.
+- Repaired two more simulators that had been failing unnoticed. The
+  kick-tracker extras and ready-check frame-override simulators never stubbed
+  `UnitExists`, so the spec/availability probe resolved nothing and every
+  assertion saw an empty state. In both cases the production code was correct
+  and the simulator had drifted.
+- Corrected the kick-tracker extras simulator's expectation for Avenger's
+  Shield from a 30-second to the tooltip-verified 13-second cooldown, matching
+  `EXTRA_KICK_CD`, and moved its mid-window and expiry probes into that window.
+- Dropped the automatic "helper module" exemption from the new gate. No
+  simulator loads another one -- they only reference each other in comments --
+  so name-based detection would have exempted real gates for being mentioned
+  in a neighbour's prose.
+
 ## 2026-08-03 - Version 0.9.367 (patch)
 
 Maintenance release from a second code audit. No player-facing behavior
