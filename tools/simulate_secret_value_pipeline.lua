@@ -340,6 +340,18 @@ local function ScenarioBuildStatusLine()
     DUNGEON_DIFF_RAID_HEROIC = "RH",
     DUNGEON_DIFF_RAID_MYTHIC = "RM",
     DUNGEON_DIFF_NONE = "-",
+    -- Every label GetDungeonDifficultyLabel can return must be present. A
+    -- missing key makes it hand nil to string.format, which Lua 5.4 quietly
+    -- renders as "nil" but Lua 5.1 -- the version WoW and GitHub CI run --
+    -- rejects outright ("bad argument #2 to 'format'"). Keep this table
+    -- complete rather than only covering the branches a scenario happens to
+    -- hit today.
+    DUNGEON_DIFF_NORMAL = "N",
+    DUNGEON_DIFF_HEROIC = "H",
+    DUNGEON_DIFF_MYTHIC = "M",
+    DUNGEON_DIFF_UNKNOWN = "?",
+    DUNGEON_DIFF_OUTSIDE = "Out",
+    DUNGEON_DIFF_RAID_UNKNOWN = "R?",
   }
   local controller = addon.Status.CreateController({
     getL = function()
