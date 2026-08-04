@@ -245,6 +245,12 @@ Harness.WithGlobals({
   GetReadyCheckStatus = function(unit)
     return sim.readyCheckStatus[unit]
   end,
+  -- GetReadyCheckStatusSafe bails out through Validators.IsExistingUnit before
+  -- it reads any status, so every simulated unit has to exist. Without this
+  -- stub every row reports visible=0 and no colour at all.
+  UnitExists = function(unit)
+    return roster[unit] ~= nil
+  end,
   RAID_CLASS_COLORS = {
     WARRIOR = { r = 0.78, g = 0.61, b = 0.43 },
     PRIEST = { r = 1, g = 1, b = 1 },

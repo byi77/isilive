@@ -3,7 +3,7 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.367`.
+Current version: `0.9.368`.
 
 Highlights:
 - **Fixed the missing ESC menu addon shortcuts.** On WoW 12.0 the addon panel
@@ -25,12 +25,13 @@ Highlights:
   German now uses `Beweg`, `Krit`, `Tempo`, `Meist`, `Versa` and `Haltb`. Those
   labels and the close-button danger colors now come from the shared locale and
   color tables, so translation and palette checks can see them.
-- **Hardened runtime safety across two code audits, and all local release gates
-  pass.** Every masked-value check now runs through one shared, fully guarded
-  helper instead of thirteen private copies, removing a crash path in the Group
-  Finder queue code. The VIP Death Knight helper is covered by the startup
-  guards instead of failing silently, and version strings received from other
-  players are stripped of UI markup before they reach the roster tooltip.
-  Nothing changes on screen. The current development tree contains 2,311
-  passing deterministic scenarios, around 92.5% total line coverage, and no
-  production file below 80% coverage.
+- **Hardened runtime safety across several code audits, and all local release
+  gates pass.** Every masked-value check now runs through one shared, fully
+  guarded helper instead of thirteen private copies, removing a crash path in
+  the Group Finder queue code. The VIP Death Knight helper is covered by the
+  startup guards instead of failing silently, and version strings received from
+  other players are stripped of UI markup before they reach the roster tooltip.
+  Twelve deterministic simulators that no pipeline had been running are now
+  executed by every build, enforced by a new gate. Nothing changes on screen.
+  The current development tree contains 2,311 passing deterministic scenarios,
+  around 92.5% total line coverage, and no production file below 80% coverage.

@@ -91,6 +91,13 @@ local function buildGlobals()
       end
       return nil, nil
     end,
+    -- The spec/availability probe runs through Validators.IsExistingUnit
+    -- before it reads anything, so the simulated player has to exist.
+    -- Without this stub the tracker resolves no spec at all and every
+    -- extras assertion sees an empty map.
+    UnitExists = function(unit)
+      return unit == "player"
+    end,
     -- KickTracker probes these on init/refresh; resolve Protection Paladin so
     -- Avenger's Shield is tested as a verified extra, not as unresolved-spec guesswork.
     GetSpecialization = function()
@@ -227,8 +234,8 @@ local function ScenarioExtraOnCastPopulates()
     "extras[31935].onCooldown == true after the cast"
   )
   Check(
-    info.extras and info.extras[31935] and info.extras[31935].cooldownRemain == 30,
-    "extras[31935].cooldownRemain == 30 (EXTRA_KICK_CD entry for Avenger's Shield)"
+    info.extras and info.extras[31935] and info.extras[31935].cooldownRemain == 13,
+    "extras[31935].cooldownRemain == 13 (EXTRA_KICK_CD entry for Avenger's Shield)"
   )
 end
 
@@ -342,20 +349,20 @@ local function ScenarioScanSweepsExpired()
   model.playerClass = "PALADIN"
   local session = BuildSession()
 
-  session.onCast("player", 31935) -- 30s CD window
+  session.onCast("player", 31935) -- 13s CD window (EXTRA_KICK_CD, tooltip-verified)
   Check(session.getKickInfo().extras and session.getKickInfo().extras[31935], "extras populated immediately after cast")
 
-  session.advance(15)
+  session.advance(6)
   session.scan()
   Check(
     session.getKickInfo().extras and session.getKickInfo().extras[31935],
-    "extras still present mid-window (15s into 30s CD)"
+    "extras still present mid-window (6s into 13s CD)"
   )
 
-  session.advance(20) -- now past 30s
+  session.advance(10) -- now past 13s
   session.scan()
   local info = session.getKickInfo()
-  Check(info.extras == nil or info.extras[31935] == nil, "extras[31935] is dropped by Scan() after the 30s CD expires")
+  Check(info.extras == nil or info.extras[31935] == nil, "extras[31935] is dropped by Scan() after the 13s CD expires")
 end
 
 -- ----------------------------------------------------------------------

@@ -283,7 +283,12 @@ local function ScenarioGetUnitNameAndRealm()
     "fullname-taint: UnitFullName raises -> UnitName fallback gives 'TankFallback', realm via GetRealmName"
   )
 
-  -- Both taint: returns nil, GetRealmName-realm
+  -- Both taint: bails out with nil, nil. A realm without a name is useless to
+  -- every caller, and Sync.NormalizePlayerKey treats a nil realm as
+  -- "self-realm fallback" anyway, so GetUnitNameAndRealm drops both instead of
+  -- returning a half-resolved pair (see the early bail-out in
+  -- game/isiLive_units.lua and "Units GetUnitNameAndRealm returns nil/nil for
+  -- missing unit").
   ResetModel()
   model.forceTaintFullName = true
   model.forceTaintUnitName = true
@@ -291,7 +296,7 @@ local function ScenarioGetUnitNameAndRealm()
     name, realm = addon.Units.GetUnitNameAndRealm("party1")
   end)
   Check(name == nil, "both-taint: name is nil when both UnitFullName + UnitName raise")
-  Check(realm == "Realm", "both-taint: realm still resolves via GetRealmName fallback")
+  Check(realm == nil, "both-taint: realm is dropped too instead of a name-less GetRealmName fallback")
 
   -- UnitFullName returns nil realm -> GetRealmName fills it.
   ResetModel()

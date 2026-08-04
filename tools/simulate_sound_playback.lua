@@ -13,7 +13,20 @@ local function script_dir()
 end
 
 local addon_root = script_dir() .. ".." .. package.config:sub(1, 1)
-local sound_utils_path = addon_root .. "core" .. package.config:sub(1, 1) .. "isiLive_sound_utils.lua"
+
+-- isiLive_sound_utils.lua reads addonTable.SoundRegistry at load time and
+-- builds its Registry from it, so the dependencies have to be loaded first and
+-- in .toc order. Loading sound_utils alone leaves Registry empty, which makes
+-- every playback helper a silent no-op and every asset lookup unresolvable --
+-- the simulator then reports "missing from disk" for assets that are present.
+local module_paths = {}
+for _, name in ipairs({
+  "isiLive_validation_helpers.lua",
+  "isiLive_sound_registry.lua",
+  "isiLive_sound_utils.lua",
+}) do
+  module_paths[#module_paths + 1] = addon_root .. "core" .. package.config:sub(1, 1) .. name
+end
 
 local addonTable = {}
 local fakeDB = {}
@@ -32,26 +45,28 @@ _G.GetTime = function()
   return fakeNow
 end
 
-local chunk, err = loadfile(
-  sound_utils_path,
-  "t",
-  setmetatable({
-    ["..."] = nil,
-  }, { __index = _G })
-)
-if not chunk then
-  io.stderr:write("failed to load sound utils: " .. tostring(err) .. "\n")
-  os.exit(1)
-end
+for _, path in ipairs(module_paths) do
+  local chunk, err = loadfile(
+    path,
+    "t",
+    setmetatable({
+      ["..."] = nil,
+    }, { __index = _G })
+  )
+  if not chunk then
+    io.stderr:write("failed to load " .. path .. ": " .. tostring(err) .. "\n")
+    os.exit(1)
+  end
 
--- Lua addon files use the `local _, addonTable = ...` idiom; we have to invoke
--- them with the same vararg pattern.
-local ok, loadErr = pcall(function()
-  chunk("isiLive", addonTable)
-end)
-if not ok then
-  io.stderr:write("sound utils chunk raised: " .. tostring(loadErr) .. "\n")
-  os.exit(1)
+  -- Lua addon files use the `local _, addonTable = ...` idiom; we have to
+  -- invoke them with the same vararg pattern.
+  local ok, loadErr = pcall(function()
+    chunk("isiLive", addonTable)
+  end)
+  if not ok then
+    io.stderr:write(path .. " chunk raised: " .. tostring(loadErr) .. "\n")
+    os.exit(1)
+  end
 end
 
 local SoundUtils = addonTable.SoundUtils

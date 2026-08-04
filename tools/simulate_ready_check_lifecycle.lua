@@ -187,6 +187,12 @@ local function SnapshotBackgrounds()
     UnitIsConnected = function()
       return true
     end,
+    -- GetReadyCheckStatusSafe bails out through Validators.IsExistingUnit
+    -- before it ever reads the status, so every simulated unit has to exist.
+    -- Without this stub the whole matrix silently reports "(none)".
+    UnitExists = function(unit)
+      return roster[unit] ~= nil
+    end,
   }, function()
     local addon = LoadRoster()
     for unit, info in pairs(roster) do
