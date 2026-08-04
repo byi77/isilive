@@ -1035,9 +1035,13 @@ return function(test, ctx)
       local addon = LoadAddonModules({ "isiLive_lfg_flags.lua" })
       local LI = addon._LFGFlagsInternal
       local function makeBtn(id)
-        return {
+        local btn
+        btn = {
           resultID = id,
-          HookScript = function() end,
+          hookedEvents = {},
+          HookScript = function(_self, event)
+            btn.hookedEvents[event] = (btn.hookedEvents[event] or 0) + 1
+          end,
           CreateTexture = function()
             return {
               SetSize = function() end,
@@ -1048,10 +1052,26 @@ return function(test, ctx)
             }
           end,
         }
+        return btn
       end
-      LI.HookButtons({ makeBtn(1), makeBtn(2), makeBtn(3) })
-      -- No assertion on count needed; cache size grows by 3 in the
-      -- weak hooked map. Smoke-test: must not throw.
+
+      local buttons = { makeBtn(1), makeBtn(2), makeBtn(3) }
+      LI.HookButtons(buttons)
+      for index, btn in ipairs(buttons) do
+        Assert.Equal(
+          btn.hookedEvents.OnEnter,
+          1,
+          "HookButtons must hook OnEnter on button " .. index .. ", not just the first one"
+        )
+      end
+
+      -- Hooking the same table twice must not stack a second OnEnter handler:
+      -- the weak hooked map short-circuits already-hooked buttons.
+      LI.HookButtons(buttons)
+      for index, btn in ipairs(buttons) do
+        Assert.Equal(btn.hookedEvents.OnEnter, 1, "re-hooking button " .. index .. " must stay idempotent")
+      end
+
       LI.RefreshAll() -- must iterate the freshly hooked buttons
     end)
   end)
