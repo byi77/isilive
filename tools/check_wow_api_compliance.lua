@@ -14,6 +14,8 @@
 --      Replacement: bag scan via C_Container.GetContainerItemLink for item 180653
 --   4. "Peer version" / "Peer-Version"      → tooltip sync-version regression
 --   5. protocolVersion in roster_tooltip    → tooltip sync-version regression
+--   6. SetRaidTarget                        → protected; ADDON_ACTION_FORBIDDEN
+--      Replacement: secure worldmarker / macrotext buttons
 --
 -- Inline override: append `-- wow-api-ok` (or `-- wow-api: ok`) to a line to
 -- silence the gate. Use sparingly — these rules exist because each violation
@@ -64,6 +66,16 @@ local RULES = {
       ["ui/isiLive_roster_tooltip.lua"] = true,
       ["ui\\isiLive_roster_tooltip.lua"] = true,
     },
+  },
+  {
+    id = "protected-set-raid-target",
+    pattern = "SetRaidTarget",
+    message = "SetRaidTarget is protected and raises ADDON_ACTION_FORBIDDEN from addon code. "
+      .. "Raid markers go through the secure worldmarker and macrotext buttons in "
+      .. "ui/isiLive_roster_panel_chrome.lua / ui/isiLive_roster_panel_render.lua. "
+      .. "This also covers merely capturing the global into a deps table: an unread "
+      .. "handle is invisible to the taint trap in testmodul/isilive_test_scenarios_taint.lua, "
+      .. "so the gate is the only thing that catches it.",
   },
 }
 

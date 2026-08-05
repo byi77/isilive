@@ -8,8 +8,10 @@
 --   lua tools/sync_mdt_forces.lua [--season=midnight_s1] [--mdt=tools/cache/mdt]
 --     [--source_commit=<40-char git sha>] [--out=data/isiLive_mplus_forces.lua]
 --
--- MDT dungeon files mutate a global `MDT` table. We stub that table,
--- run each file as a chunk, and serialize the collected data.
+-- MDT dungeon files mutate an `MDT` table. We stub that table, run each file
+-- as a chunk, and serialize the collected data. Files up to 6.1.x read the
+-- table as an environment global; 6.2.0+ reads it as the second chunk vararg
+-- (`local _, MDT = ...`). loadDungeonFile supplies both.
 --
 -- Re-run semantics: every invocation regenerates the whole file from
 -- scratch — there is no incremental cache and no `mdtVersion`-keyed
@@ -65,6 +67,10 @@ local function buildSandbox()
   })
 
   local MDT = {
+    -- MDT 6.2.0 builds texture paths as 'Interface\\AddOns\\'..addonName..'\\...'
+    -- from MDT.AddonName. A nil here turns into a concat error that skips the
+    -- whole dungeon file, so the stub has to carry the real addon folder name.
+    AddonName = "MythicDungeonTools",
     L = L,
     dungeonList = {},
     mapInfo = {},
@@ -102,6 +108,16 @@ local function loadDungeonFile(path, MDT)
   -- MDT dungeon data is third-party input. Current source files require only
   -- the injected MDT table plus ipairs; never inherit _G because this tool can
   -- run in an automated workflow with repository write permission.
+  --
+  -- MDT is provided BOTH ways on purpose:
+  --   * as an environment global, which is how files up to 6.1.x read it, and
+  --   * as the second chunk vararg (see the pcall below), which is how 6.2.0+
+  --     reads it via `local _, MDT = ...` -- the WoW addonName/addonTable
+  --     convention. 6.2.0-alpha5 switched to that form, and every dungeon file
+  --     failed with "attempt to index a nil value (local 'MDT')" until the
+  --     vararg was supplied.
+  -- Keeping both keeps the generator working across an MDT version bump
+  -- instead of silently producing an empty DB.
   local env = { MDT = MDT, ipairs = ipairs }
   local chunk, err
   if setfenv then
@@ -128,7 +144,7 @@ local function loadDungeonFile(path, MDT)
       error("MDT dungeon source exceeded instruction limit")
     end, "", MAX_DUNGEON_INSTRUCTIONS)
   end
-  local ok, runErr = pcall(chunk, "isiLive-sync")
+  local ok, runErr = pcall(chunk, "isiLive-sync", MDT)
   if canLimitInstructions then
     if previousHook then
       debugLib.sethook(previousHook, previousMask or "", previousCount or 0)
