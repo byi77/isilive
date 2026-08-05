@@ -1894,6 +1894,45 @@ local function RegisterGameMenuMountPanelTests(test, Assert, WithGlobals, LoadAd
   end)
 end
 
+local function RegisterHearthstonePickTests(test, Assert, WithGlobals, LoadAddonModules)
+  local function LoadPicker()
+    local picker
+    -- isiLive_ui_game_menu.lua creates its combat-retry frame in the main
+    -- chunk, so the module cannot load without a CreateFrame stub.
+    WithGlobals({ CreateFrame = BuildCreateFrameStub() }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      picker = RequireValue(UI._Test_PickDifferentEntry, "bounded hearthstone picker should be exposed")
+    end)
+    return picker
+  end
+
+  test("Hearthstone picker terminates on an all-duplicates pool", function()
+    -- Regression: the old `repeat ... until pick ~= current` had no bound, so
+    -- a pool whose entries all equal the current toy spun forever and froze
+    -- the client on a hearthstone click. The toy catalogue has no duplicates
+    -- today, which is exactly why this needs a test rather than trust.
+    local picker = LoadPicker()
+    local pool = { 54452, 54452, 54452 }
+    local pick = picker(pool, 54452)
+    Assert.Equal(pick, 54452, "an exhausted pool must fall back to the current entry, not loop")
+  end)
+
+  test("Hearthstone picker still avoids repeating the current entry when it can", function()
+    local picker = LoadPicker()
+    local pool = { 1, 2, 3, 4, 5 }
+    for _ = 1, 50 do
+      Assert.True(picker(pool, 1) ~= 1, "a pool with alternatives must not reroll the current entry")
+    end
+  end)
+
+  test("Hearthstone picker handles empty and single-entry pools", function()
+    local picker = LoadPicker()
+    Assert.Nil(picker({}, nil), "an empty pool must yield nil instead of indexing out of range")
+    Assert.Equal(picker({ 7 }, 7), 7, "a single-entry pool must return that entry even when it is current")
+  end)
+end
+
 return function(test, ctx)
   local Assert = RequireValue(ctx.assert, "UI game-menu addons scenario ctx.assert should exist")
   local WithGlobals = RequireValue(ctx.with_globals, "UI game-menu addons scenario ctx.with_globals should exist")
@@ -1902,4 +1941,5 @@ return function(test, ctx)
   RegisterGameMenuReloadButtonDeferredTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGameMenuAddonPanelCharacterScopeTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGameMenuMountPanelTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterHearthstonePickTests(test, Assert, WithGlobals, LoadAddonModules)
 end

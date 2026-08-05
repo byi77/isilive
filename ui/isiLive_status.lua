@@ -297,10 +297,16 @@ local function BuildTargetDungeonText(deps)
     return emptyText
   end
 
+  -- math.floor before the %d: info.level travels through several unfloored
+  -- tonumber() hops (LFG title hint, reload snapshot, roster owner key, synced
+  -- target) before it lands here. Lua 5.1 in the client would silently
+  -- truncate a fractional value, but Lua 5.4 in the local tooling raises
+  -- "number has no integer representation" -- and BuildTargetDungeonAnnouncementText
+  -- below already floors the exact same field.
   local level = tonumber(info.level)
   local targetText = name
   if level and level > 0 then
-    targetText = string.format("%s +%d", name, level)
+    targetText = string.format("%s +%d", name, math.floor(level))
   elseif type(info.levelText) == "string" and info.levelText ~= "" then
     targetText = string.format("%s %s", name, info.levelText)
   end

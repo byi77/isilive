@@ -1140,6 +1140,42 @@ local function RegisterStatusLineTests(test, Assert, WithGlobals, LoadAddonModul
     end)
   end)
 
+  test("Status line floors a fractional target key level instead of erroring on %d", function()
+    -- Regression: info.level reaches BuildTargetDungeonText through several
+    -- unfloored tonumber() hops (LFG title hint, reload snapshot, roster owner
+    -- key, synced target). The %d format used to receive it raw, which Lua 5.1
+    -- truncates silently but Lua 5.4 rejects with "number has no integer
+    -- representation" -- while the announce path already floored the same field.
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Outside", "none", 0, "Unknown"
+      end,
+      C_ChallengeMode = {
+        GetActiveChallengeMapID = function()
+          return nil
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_status.lua" })
+      local controller = addon.Status.CreateController({
+        getL = BuildLocale,
+        getTargetDungeonInfo = function()
+          return {
+            name = "Ara-Kara",
+            level = 14.7,
+          }
+        end,
+      })
+
+      local ok, text = pcall(controller.BuildStatusLineText, {})
+      Assert.True(ok, "a fractional key level must not throw while formatting the status line")
+      Assert.True(
+        string.find(text, "\nTarget Dungeon: Ara-Kara +14", 1, true) ~= nil,
+        "fractional key level must render floored, matching the announce path"
+      )
+    end)
+  end)
+
   test("Status target dungeon chat defers the level-less announce and fires once the level resolves", function()
     local current = {
       inGroup = false,

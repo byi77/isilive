@@ -348,6 +348,97 @@ return function(test, ctx)
   end)
 
   -- ----------------------------------------------------------------------
+  -- Size caps: array-shaped ring buffers vs string-keyed maps
+  -- ----------------------------------------------------------------------
+
+  local function CountPairs(tbl)
+    local n = 0
+    for _ in pairs(tbl) do
+      n = n + 1
+    end
+    return n
+  end
+
+  local function CountIpairs(tbl)
+    local n = 0
+    for _ in ipairs(tbl) do
+      n = n + 1
+    end
+    return n
+  end
+
+  test("DBSchema.Sanitize trims an over-cap errorLog without punching holes", function()
+    local DBSchema = LoadSchema()
+    -- Regression: the generic pairs()-based map trim used to delete arbitrary
+    -- indices here. Dropping index 1 left the ring sparse, so every ipairs()
+    -- consumer in core/isiLive_error_log.lua saw ZERO entries while # still
+    -- reported the pre-trim length -- the log vanished in exactly the
+    -- corruption case this cap exists to contain.
+    local db = { errorLog = {} }
+    for i = 1, 250 do
+      db.errorLog[i] = { fullText = "err" .. i, lastSeen = i }
+    end
+
+    DBSchema.Sanitize(db)
+
+    Assert.Equal(CountPairs(db.errorLog), 200, "over-cap ring must be bounded to the cap")
+    Assert.Equal(CountIpairs(db.errorLog), 200, "trimmed ring must stay walkable with ipairs")
+    Assert.Equal(#db.errorLog, 200, "trimmed ring must report the real length via #")
+    Assert.Equal(db.errorLog[1].fullText, "err51", "the oldest 50 entries must be the ones dropped")
+    Assert.Equal(db.errorLog[200].fullText, "err250", "the newest entry must survive the trim")
+  end)
+
+  test("DBSchema.Sanitize compacts an already-sparse errorLog under the cap", function()
+    local DBSchema = LoadSchema()
+    -- A ring written by an older build that punched holes must be repaired,
+    -- not left broken, even when it is well below the cap.
+    local db = { errorLog = {} }
+    db.errorLog[2] = { fullText = "err2" }
+    db.errorLog[5] = { fullText = "err5" }
+    db.errorLog[9] = { fullText = "err9" }
+
+    local messages = {}
+    DBSchema.Sanitize(db, function(msg)
+      messages[#messages + 1] = msg
+    end)
+
+    Assert.Equal(CountIpairs(db.errorLog), 3, "sparse ring must be reindexed into a dense list")
+    Assert.Equal(db.errorLog[1].fullText, "err2", "compaction must preserve ascending index order")
+    Assert.Equal(db.errorLog[3].fullText, "err9", "compaction must keep the last entry last")
+
+    local logged = false
+    for _, msg in ipairs(messages) do
+      if type(msg) == "string" and msg:find("compacted errorLog", 1, true) then
+        logged = true
+        break
+      end
+    end
+    Assert.True(logged, "a sparse-write repair must be logged, not applied silently")
+  end)
+
+  test("DBSchema.Sanitize leaves a healthy under-cap errorLog untouched", function()
+    local DBSchema = LoadSchema()
+    local db = { errorLog = { { fullText = "a" }, { fullText = "b" } } }
+    DBSchema.Sanitize(db)
+    local corrections = DBSchema.Sanitize(db)
+    Assert.Equal(corrections, 0, "a dense under-cap ring must not produce repeat corrections")
+    Assert.Equal(CountIpairs(db.errorLog), 2, "entries must be preserved verbatim")
+    Assert.Equal(db.errorLog[1].fullText, "a", "first entry preserved")
+  end)
+
+  test("DBSchema.Sanitize still bounds string-keyed maps via the map trim", function()
+    local DBSchema = LoadSchema()
+    -- rioBaseline is NOT arrayShaped: arbitrary eviction order stays fine
+    -- there, only the size bound matters.
+    local db = { rioBaseline = {} }
+    for i = 1, 5010 do
+      db.rioBaseline["Player" .. i .. "-Realm"] = i
+    end
+    DBSchema.Sanitize(db)
+    Assert.Equal(CountPairs(db.rioBaseline), 5000, "over-cap map must be trimmed down to the cap")
+  end)
+
+  -- ----------------------------------------------------------------------
   -- Correction logging
   -- ----------------------------------------------------------------------
 

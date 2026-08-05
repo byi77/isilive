@@ -297,11 +297,16 @@ local SCHEMA = {
   -- Error-log ring buffer (always-on, capped by ErrorLog module's hard
   -- limit). Schema declaration ensures the field exists with a table
   -- default; the actual ring management lives in core/isiLive_error_log.lua.
+  --
+  -- arrayShaped matters here: core/isiLive_error_log.lua reads this field via
+  -- ipairs / # / table.remove, so the generic pairs()-based map trim would
+  -- punch holes and make the whole log invisible instead of bounding it.
   errorLog = {
     type = "table",
     default = function()
       return {}
     end,
+    arrayShaped = true,
     maxMapEntries = 200, -- defensive: ErrorLog enforces 100; schema is the safety net
   },
 }
@@ -327,6 +332,57 @@ local function ResolveDefault(schema)
     return schema.default()
   end
   return schema.default
+end
+
+-- Bounds an ARRAY-shaped field (ring buffer) without breaking its contiguity.
+--
+-- The generic map trim below drops arbitrary pairs() keys, which is fine for
+-- string-keyed maps but fatal for a list: dropping index 1 leaves a hole, and
+-- every consumer that walks the field with ipairs() then sees zero entries
+-- while # still reports the old length. core/isiLive_error_log.lua does
+-- exactly that (ipairs + # + table.remove), so its whole ring would silently
+-- disappear in the very corruption case this cap exists for.
+--
+-- Instead: collect the numeric indices in ascending order, drop the oldest
+-- (lowest index = earliest appended) until the cap holds, and write the
+-- survivors back as a dense 1..n list. Non-numeric keys are left untouched,
+-- consistent with the "never delete unknown data" rule above. Holes that a
+-- previous version already punched are repaired by the same pass.
+local function CompactAndTrimArrayField(value, cap)
+  local indices = {}
+  for key in pairs(value) do
+    if type(key) == "number" then
+      indices[#indices + 1] = key
+    end
+  end
+  table.sort(indices)
+
+  local count = #indices
+  local contiguous = true
+  for i = 1, count do
+    if indices[i] ~= i then
+      contiguous = false
+      break
+    end
+  end
+
+  local removed = count > cap and (count - cap) or 0
+  if removed == 0 and contiguous then
+    return 0, count, false
+  end
+
+  local ordered = {}
+  for i = 1, count do
+    ordered[i] = value[indices[i]]
+  end
+  for i = 1, count do
+    value[indices[i]] = nil
+  end
+  for i = removed + 1, count do
+    value[i - removed] = ordered[i]
+  end
+
+  return removed, count, not contiguous
 end
 
 -- Recursively validates a single field. Self-heals via:
@@ -382,12 +438,24 @@ local function ValidateField(parent, key, schema, log, path)
     return
   end
 
-  -- Step 3a: enforce map-size cap (panic-mode guard against unbounded
-  -- growth). Counts entries via pairs() since ipairs() does not capture
-  -- string-keyed maps. When over cap, drops first-fit entries until at
-  -- cap; eviction order is intentionally arbitrary (we just need to
-  -- bound size, not preserve a specific ordering policy).
-  if schema.type == "table" and schema.maxMapEntries then
+  -- Step 3a: enforce the size cap (panic-mode guard against unbounded
+  -- growth). Two shapes, two eviction strategies:
+  --   * arrayShaped -> CompactAndTrimArrayField keeps 1..n dense so ipairs /
+  --     # consumers survive; drops the lowest indices (oldest appended).
+  --   * everything else -> string-keyed map; counted via pairs() since
+  --     ipairs() does not see string keys, and drops first-fit entries until
+  --     at cap. Eviction order is intentionally arbitrary there (we just need
+  --     to bound size, not preserve a specific ordering policy).
+  if schema.type == "table" and schema.maxMapEntries and schema.arrayShaped then
+    local removed, count, repaired = CompactAndTrimArrayField(value, schema.maxMapEntries)
+    if removed > 0 then
+      log(
+        string.format("trimmed %s: removed %d entries (was %d, cap %d)", fullPath, removed, count, schema.maxMapEntries)
+      )
+    elseif repaired then
+      log(string.format("compacted %s: reindexed %d entries after a sparse write", fullPath, count))
+    end
+  elseif schema.type == "table" and schema.maxMapEntries then
     local count = 0
     for _ in pairs(value) do
       count = count + 1

@@ -247,6 +247,36 @@ local function IsPanelUIEnabled(state)
   return true
 end
 
+-- Picks a random entry from `pool` that differs from `current` when possible.
+--
+-- The previous shape was `repeat pick = pool[math.random(1, #pool)] until pick
+-- ~= current`, guarded only by an `#pool == 1` special case. That loop never
+-- terminates when every remaining entry equals `current` -- which happens the
+-- moment the owned-toy list contains the same ID twice. The catalogue has no
+-- duplicates today, so this was latent rather than live, but the failure mode
+-- is a frozen client on a hearthstone click, so the loop gets a hard bound
+-- instead of relying on the data staying clean. After MAX_PICK_ATTEMPTS we
+-- accept a repeat of the current toy: rerolling the same mount is a cosmetic
+-- miss, hanging the client is not.
+local MAX_PICK_ATTEMPTS = 10
+
+local function PickDifferentEntry(pool, current)
+  local size = #pool
+  if size == 0 then
+    return nil
+  end
+  if size == 1 then
+    return pool[1]
+  end
+  local pick = pool[math.random(1, size)]
+  local attempts = 1
+  while pick == current and attempts < MAX_PICK_ATTEMPTS do
+    pick = pool[math.random(1, size)]
+    attempts = attempts + 1
+  end
+  return pick
+end
+
 local function RefreshPanelUISecureButton(button)
   if type(button) ~= "table" or type(button.SetAttribute) ~= "function" then
     return
@@ -841,14 +871,7 @@ function UI.EnsureSecondPanelUI(opts)
             button._hearthstoneOwnedToys = pool
           end
           local current = button:GetAttribute("toy")
-          local pick
-          if #pool == 1 then
-            pick = pool[1]
-          else
-            repeat
-              pick = pool[math.random(1, #pool)]
-            until pick ~= current
-          end
+          local pick = PickDifferentEntry(pool, current)
           button:SetAttribute("type", "toy")
           button:SetAttribute("toy", pick)
         end
@@ -1062,3 +1085,8 @@ function UI.EnsureThirdPanelUI(opts)
   thirdPanelUIState = state
   return RefreshPanelUIState(state)
 end
+
+-- Exposed for deterministic coverage of the bounded random pick. The live
+-- caller is the hearthstone PreClick hook, which cannot be driven to the
+-- pathological all-duplicates pool without a frame + secure button harness.
+UI._Test_PickDifferentEntry = PickDifferentEntry
