@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-08-05 - Version 0.9.370 (patch)
+
+A maintenance patch from a full code audit. Nothing changes on screen.
+
+- **The error log could vanish instead of being trimmed.**
+  [core/isiLive_db_schema.lua](../core/isiLive_db_schema.lua) bounded every
+  capped table by deleting arbitrary keys. That is correct for the
+  player-keyed maps, but the error log is a list: dropping its first index
+  left a hole, and the reader in
+  [core/isiLive_error_log.lua](../core/isiLive_error_log.lua) walks the ring
+  with `ipairs`, so it saw zero entries while the length operator still
+  reported the old count. The repair pass made a damaged log unreadable in
+  exactly the case it exists to contain. Capped tables can now declare
+  themselves list-shaped; those keep their entries contiguous, drop the
+  oldest first, and repair holes an older build already left behind.
+- **A dead handle on a forbidden API is gone.** The factory captured
+  `GetRaidTargetIndex` and `SetRaidTarget` into a dependency table that no
+  code ever read. The direct `SetRaidTarget` path was removed long ago after
+  it raised `ADDON_ACTION_FORBIDDEN`; raid markers run through the secure
+  worldmarker and macro buttons. A new build gate now rejects the call
+  outright, because merely storing the reference is invisible to the taint
+  trap in the test suite.
+- **The status line no longer trusts an unrounded key level.** It formatted
+  the target key level as an integer without rounding, while the chat
+  announce and the accepted-invite notice both round the same value.
+- **A hearthstone click can no longer freeze the client.** Picking a random
+  hearthstone toy retried until it drew something other than the current one,
+  with no upper bound — an owned-toy list containing the same entry twice
+  would have spun forever. The retry is now capped and accepts a repeat.
+- Refreshed the enemy-forces database; the previous one expired on
+  2026-08-19. Every Season 1 total is unchanged, so the active season is not
+  affected. The added rows are the eight Season 2 dungeons, published
+  upstream for the first time. Season 2 activation remains automatic and
+  happens only once Blizzard ships the exact recorded challenge-map set.
+- Repaired the forces generator, which stopped loading any dungeon data after
+  the upstream source switched its module interface. It failed closed and
+  refused to write an empty database rather than shipping one.
+
 ## 2026-08-04 - Version 0.9.369 (patch)
 
 Focuses the addon on the content it is built for. isiLive now resolves exactly

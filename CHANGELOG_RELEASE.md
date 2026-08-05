@@ -3,7 +3,7 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.369`.
+Current version: `0.9.370`.
 
 Highlights:
 - **isiLive now runs a reduced profile outside Mythic+.** In a raid or any

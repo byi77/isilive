@@ -1,7 +1,7 @@
 # isiLive Architektur
 
-Versionsbasis: `0.9.369`
-Zuletzt aktualisiert: `2026-08-04`
+Versionsbasis: `0.9.370`
+Zuletzt aktualisiert: `2026-08-05`
 
 ## Zweck
 
@@ -308,7 +308,7 @@ Layout-Schalter direkt links neben den gerahmten Fensterkontrollen fuer
 Settings, Lock und Close.
 
 ```text
-| isiLive v0.9.369                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
+| isiLive v0.9.370                                       Open/Close CTRL-F9 [M+][H][V][Gear][L][X]                 |
 |------------------------------------------------------------------------------------------------------------------|
 | Spec   Name         Flag Key     iLvl RIO       DPS       Kick    Marker (8x)             M+Managment    Travel  |
 |------------------------------------------------------------------------------------------------------------------|
@@ -408,7 +408,7 @@ Spielerprofil-Relevanz sowie Roster-Marker-/Tooltip-Texten wurde aus
 Search-Result- und Applicant-Frame-Lifecycle sowie globale Blizzard-Hooks
 liegen in `ui/isiLive_lfg_view_hooks.lua`; fachliche Search-, Applicant-,
 Flag- und Tooltip-Renderer bleiben in der kompatiblen `LFGFlags`-Fassade,
-die mit 1653 Zeilen weiterhin auf der Watchlist steht.
+die mit 1652 Zeilen weiterhin auf der Watchlist steht.
 Activity-/Map-Aufloesung, Listing-Normalisierung und
 Keylevel-Parsing wurden aus `game/isiLive_lfg_detect.lua` nach
 `game/isiLive_lfg_entry_resolver.lua` extrahiert; Invite-Lifecycle,
