@@ -6,36 +6,44 @@ local _, addonTable = ...
 
 addonTable.MPlusForces = {
   season = "midnight_s1",
-  mdtVersion = "6.1.20",
-  sourceCommit = "0eb3d8bff7b56ea1a7a7553d439a969170fd0497",
-  generatedAt = "2026-08-04",
-  expiresAt = "2026-08-19",
-  dungeonCount = 8,
-  npcCount = 127,
+  mdtVersion = "6.2.0-alpha5",
+  sourceCommit = "94473b391b6fb7563f8466c4a596a11ef6218a12",
+  generatedAt = "2026-08-05",
+  expiresAt = "2026-08-20",
+  dungeonCount = 16,
+  npcCount = 277,
 
   -- Enemy Forces total per dungeon (keyed by challenge-mode mapID)
   dungeonTotal = {
     [161] = { total = 431, name = "Skyreach" },
     [239] = { total = 568, name = "Seat of the Triumvirate" },
+    [249] = { total = 654, name = "King's Rest" },
+    [250] = { total = 661, name = "Temple of Sethraliss" },
+    [399] = { total = 531, name = "Ruby Life Pools" },
     [402] = { total = 460, name = "Algethar Academy" },
     [556] = { total = 643, name = "Pit of Saron" },
     [557] = { total = 591, name = "Windrunner Spire" },
     [558] = { total = 585, name = "Magisters Terrace" },
     [559] = { total = 596, name = "Nexus Point Xenas" },
     [560] = { total = 607, name = "Maisara Caverns" },
+    [584] = { total = 655, name = "The Blinding Vale" },
+    [585] = { total = 738, name = "Voidscar Arena" },
+    [586] = { total = 729, name = "Den of Nalorakk" },
+    [587] = { total = 690, name = "Murder Row" },
+    [588] = { total = 836, name = "Altar of Fangs" },
   },
 
   -- count per NPC-id (appears in one of the dungeons above)
   byNpcId = {
-    [75976] = { count = 1, mapID = 161 }, -- Outcast Servant
+    [75976] = { count = 1, mapID = 161 }, -- Lowborn Servant
     [76087] = { count = 12, mapID = 161 }, -- Solar Construct
     [76132] = { count = 5, mapID = 161 }, -- Soaring Chakram Master
     [76149] = { count = 15, mapID = 161 }, -- Dread Raven
-    [76154] = { count = 5, mapID = 161 }, -- Sun Talon Tamer
-    [76205] = { count = 5, mapID = 161 }, -- Blooded Bladefeather
+    [76154] = { count = 5, mapID = 161 }, -- Suntalon Tamer
+    [76205] = { count = 5, mapID = 161 }, -- Outcast Warrior
     [78932] = { count = 7, mapID = 161 }, -- Driving Gale-Caller
-    [78933] = { count = 15, mapID = 161 }, -- Herald of Sunrise
-    [79093] = { count = 2, mapID = 161 }, -- Skyreach Sun Talon
+    [78933] = { count = 15, mapID = 161 }, -- Solar Elemental
+    [79093] = { count = 2, mapID = 161 }, -- Suntalon
     [79303] = { count = 12, mapID = 161 }, -- Adorned Bladetalon
     [79462] = { count = 5, mapID = 161 }, -- Blinding Sun Priestess
     [79466] = { count = 7, mapID = 161 }, -- Initiate of the Rising Sun
@@ -49,19 +57,73 @@ addonTable.MPlusForces = {
     [122423] = { count = 15, mapID = 239 }, -- Grand Shadow-Weaver
     [122571] = { count = 20, mapID = 239 }, -- Rift Warden
     [124171] = { count = 10, mapID = 239 }, -- Merciless Subjugator
+    [133935] = { count = 15, mapID = 249 }, -- Animated Guardian
+    [134157] = { count = 5, mapID = 249 }, -- Umbral Warrior
+    [134158] = { count = 25, mapID = 249 }, -- Shadow-Borne Champion
+    [134174] = { count = 20, mapID = 249 }, -- Risen Hexer
+    [134251] = { count = 10, mapID = 249 }, -- Seneschal M'bara
+    [134331] = { count = 25, mapID = 249 }, -- King Rahu'ai
+    [134364] = { count = 7, mapID = 250 }, -- Faithless Subjugator
+    [134599] = { count = 7, mapID = 250 }, -- Imbued Stormcaller
+    [134600] = { count = 7, mapID = 250 }, -- Sandswept Hunter
+    [134602] = { count = 7, mapID = 250 }, -- Shrouded Fang
+    [134616] = { count = 5, mapID = 250 }, -- Barbed Krolusk
+    [134629] = { count = 25, mapID = 250 }, -- Sand-Sworn Rider
+    [134686] = { count = 16, mapID = 250 }, -- Krolusk Matriarch
+    [134691] = { count = 5, mapID = 250 }, -- Static Anomaly
+    [134739] = { count = 25, mapID = 249 }, -- Purification Construct
+    [134990] = { count = 7, mapID = 250 }, -- Storm Adept
+    [134991] = { count = 25, mapID = 250 }, -- Sandfury Stonefist
+    [135007] = { count = 25, mapID = 250 }, -- Orb Watcher
+    [135167] = { count = 22, mapID = 249 }, -- Royal Berserker
+    [135192] = { count = 5, mapID = 249 }, -- Honored Raptor
+    [135204] = { count = 7, mapID = 249 }, -- Phantom Hex Priest
+    [135231] = { count = 25, mapID = 249 }, -- Ghostly Brute
+    [135239] = { count = 7, mapID = 249 }, -- Spectral Shaman
+    [135562] = { count = 7, mapID = 250 }, -- Poisonous Viper
+    [135846] = { count = 5, mapID = 250 }, -- Lightning Serpent
+    [136076] = { count = 25, mapID = 250 }, -- Agitated Nimbus
+    [136250] = { count = 25, mapID = 250 }, -- Twisted Hexxer
+    [137473] = { count = 10, mapID = 249 }, -- Guard Captain Atu
+    [137474] = { count = 25, mapID = 249 }, -- King Timalji
+    [137478] = { count = 25, mapID = 249 }, -- Queen Wasi
+    [137484] = { count = 25, mapID = 249 }, -- King A'akul
+    [137485] = { count = 7, mapID = 249 }, -- Bloodsworn Assassin
+    [137486] = { count = 25, mapID = 249 }, -- Queen Patlaa
+    [137487] = { count = 10, mapID = 249 }, -- Skeletal Hunting Raptor
+    [137969] = { count = 15, mapID = 249 }, -- Interment Construct
+    [137989] = { count = 1, mapID = 249 }, -- Embalming Fluid
+    [138489] = { count = 8, mapID = 249 }, -- Shadow of Zul
+    [139110] = { count = 5, mapID = 250 }, -- Spark Channeler
+    [139422] = { count = 7, mapID = 250 }, -- Dutiful Tamer
+    [139425] = { count = 7, mapID = 250 }, -- Brood Tender
+    [187897] = { count = 30, mapID = 399 }, -- Defier Draghar
+    [187969] = { count = 5, mapID = 399 }, -- Deepstone Earthshaper
+    [188011] = { count = 5, mapID = 399 }, -- Earthbound Guardian
+    [188067] = { count = 7, mapID = 399 }, -- Flashfrost Chillweaver
+    [188244] = { count = 25, mapID = 399 }, -- Primal Juggernaut
+    [190034] = { count = 25, mapID = 399 }, -- Blazebound Destroyer
+    [190206] = { count = 7, mapID = 399 }, -- Ashseer Flamelasher
+    [190207] = { count = 7, mapID = 399 }, -- Primalist Cinderweaver
     [192329] = { count = 2, mapID = 402 }, -- Territorial Eagle
     [192333] = { count = 15, mapID = 402 }, -- Alpha Eagle
     [192680] = { count = 18, mapID = 402 }, -- Guardian Sentry
+    [195119] = { count = 7, mapID = 399 }, -- Ruinous Stormbringer
     [196044] = { count = 4, mapID = 402 }, -- Unruly Textbook
     [196045] = { count = 5, mapID = 402 }, -- Corrupted Manafiend
     [196200] = { count = 15, mapID = 402 }, -- Algeth'ar Echoknight
     [196202] = { count = 5, mapID = 402 }, -- Spectral Invoker
     [196577] = { count = 5, mapID = 402 }, -- Spellbound Battleaxe
-    [196671] = { count = 15, mapID = 402 }, -- Arcane Ravager
+    [196671] = { count = 15, mapID = 402 }, -- Vicious Ravager
     [196694] = { count = 4, mapID = 402 }, -- Arcane Forager
     [197219] = { count = 9, mapID = 402 }, -- Vile Lasher
     [197398] = { count = 2, mapID = 402 }, -- Hungry Lasher
     [197406] = { count = 4, mapID = 402 }, -- Aggravated Skitterfly
+    [197535] = { count = 30, mapID = 399 }, -- High Channeler Ryvati
+    [197697] = { count = 30, mapID = 399 }, -- Flamegullet
+    [197698] = { count = 30, mapID = 399 }, -- Thunderhead
+    [197982] = { count = 5, mapID = 399 }, -- Storm Warrior
+    [198047] = { count = 25, mapID = 399 }, -- Tempest Channeler
     [232056] = { count = 7, mapID = 557 }, -- Territorial Dragonhawk
     [232063] = { count = 15, mapID = 557 }, -- Apex Lynx
     [232067] = { count = 7, mapID = 557 }, -- Creeping Spindleweb
@@ -83,7 +145,7 @@ addonTable.MPlusForces = {
     [232283] = { count = 5, mapID = 557 }, -- Loyal Worg
     [232369] = { count = 7, mapID = 558 }, -- Arcane Magister
     [234062] = { count = 16, mapID = 558 }, -- Arcane Sentry
-    [234064] = { count = 7, mapID = 558 }, -- Dreaded Voidwalker
+    [234064] = { count = 7, mapID = 558 }, -- Dreadful Voidwalker
     [234065] = { count = 5, mapID = 558 }, -- Hollowsoul Shredder
     [234066] = { count = 12, mapID = 558 }, -- Devouring Tyrant
     [234068] = { count = 12, mapID = 558 }, -- Shadowrift Voidcaller
@@ -92,18 +154,82 @@ addonTable.MPlusForces = {
     [234124] = { count = 5, mapID = 558 }, -- Sunblade Enforcer
     [234486] = { count = 5, mapID = 558 }, -- Lightward Healer
     [234673] = { count = 1, mapID = 557 }, -- Spindleweb Hatchling
+    [234849] = { count = 2, mapID = 587 }, -- Unleashed Imp
+    [235257] = { count = 1, mapID = 587 }, -- Demon Fly
+    [235261] = { count = 5, mapID = 587 }, -- Trained Felhunter
+    [235265] = { count = 25, mapID = 587 }, -- Corrupted Warlock
+    [235267] = { count = 5, mapID = 587 }, -- Wrathguard Flayer
+    [235268] = { count = 7, mapID = 587 }, -- Fel Invoker
+    [235322] = { count = 35, mapID = 587 }, -- Defiled Golem
+    [235465] = { count = 25, mapID = 587 }, -- Shivan Punisher
+    [236071] = { count = 25, mapID = 587 }, -- Bribed Guard
+    [236073] = { count = 3, mapID = 587 }, -- Row Hooligan
+    [236082] = { count = 6, mapID = 587 }, -- Seductive Sayaad
+    [236084] = { count = 7, mapID = 587 }, -- Felonious Mage
+    [236085] = { count = 1, mapID = 587 }, -- Felwyrm
+    [236091] = { count = 3, mapID = 587 }, -- Street Sneak
+    [236893] = { count = 2, mapID = 587 }, -- Warehouse Worker
     [236894] = { count = 17, mapID = 557 }, -- Bloated Lasher
+    [236897] = { count = 7, mapID = 587 }, -- Keen Taskmaster
+    [236902] = { count = 12, mapID = 587 }, -- Massive Felwyrm
+    [236905] = { count = 30, mapID = 587 }, -- Felmaster Lucsei
     [238049] = { count = 5, mapID = 557 }, -- Scouting Trapper
     [238099] = { count = 1, mapID = 557 }, -- Pesty Lashling
+    [238883] = { count = 7, mapID = 585 }, -- Dominated Brawler
     [240973] = { count = 12, mapID = 558 }, -- Runed Spellbreaker
     [241354] = { count = 1, mapID = 558 }, -- Void-Infused Brightscale
+    [241496] = { count = 7, mapID = 585 }, -- Enthralled Shaman
     [241642] = { count = 15, mapID = 559 }, -- Lingering Image
     [241643] = { count = 5, mapID = 559 }, -- Shadowguard Defender
     [241644] = { count = 5, mapID = 559 }, -- Corewright Arcanist
     [241645] = { count = 3, mapID = 559 }, -- Hollowsoul Scrounger
     [241647] = { count = 7, mapID = 559 }, -- Flux Engineer
     [241660] = { count = 15, mapID = 559 }, -- Duskfright Herald
+    [241808] = { count = 8, mapID = 586 }, -- Territorial Matriarch
+    [241813] = { count = 5, mapID = 586 }, -- Thornclaw Gatherer
+    [241814] = { count = 7, mapID = 586 }, -- Earthwhisper Tender
+    [241816] = { count = 7, mapID = 586 }, -- Keen-Eyed Striker
+    [241869] = { count = 28, mapID = 586 }, -- Avatar of Determination
+    [241872] = { count = 9, mapID = 586 }, -- Frigid Mauler
+    [241874] = { count = 5, mapID = 586 }, -- Frostfang
+    [241876] = { count = 7, mapID = 586 }, -- Glacial Revenant
+    [241911] = { count = 7, mapID = 586 }, -- Terra Rumbler
     [242964] = { count = 7, mapID = 560 }, -- Keen Headhunter
+    [243028] = { count = 30, mapID = 584 }, -- Meittik
+    [243029] = { count = 30, mapID = 584 }, -- Kezkitt
+    [243030] = { count = 30, mapID = 584 }, -- Lekshi
+    [243736] = { count = 1, mapID = 585 }, -- Blistercreep
+    [243766] = { count = 7, mapID = 585 }, -- Kilivore Screamer
+    [243835] = { count = 5, mapID = 585 }, -- Savage Shredclaw
+    [243983] = { count = 4, mapID = 585 }, -- Sycophantic Tarasek
+    [243985] = { count = 5, mapID = 585 }, -- Longtooth Tuskarr
+    [243988] = { count = 4, mapID = 585 }, -- Feral Saberon
+    [243996] = { count = 4, mapID = 585 }, -- Lost Sethrak
+    [244260] = { count = 25, mapID = 585 }, -- Chitigoth
+    [244309] = { count = 25, mapID = 585 }, -- Brutok
+    [244708] = { count = 7, mapID = 585 }, -- Voidminder
+    [244887] = { count = 30, mapID = 584 }, -- Ikuzz the Light Hunter
+    [245139] = { count = 7, mapID = 586 }, -- Stormbound Mystic
+    [245143] = { count = 5, mapID = 586 }, -- Ruthless Totemcaller
+    [245145] = { count = 6, mapID = 586 }, -- Bonded Beasttamer
+    [245146] = { count = 25, mapID = 586 }, -- Grizzled Warbringer
+    [245190] = { count = 5, mapID = 586 }, -- Loyal Saberfang
+    [245336] = { count = 7, mapID = 584 }, -- Radiant Spellsower
+    [245339] = { count = 6, mapID = 584 }, -- Underbrush Stalker
+    [245345] = { count = 7, mapID = 584 }, -- Lightgorged Lasher
+    [245346] = { count = 20, mapID = 584 }, -- Virid Grovekeeper
+    [245410] = { count = 1, mapID = 584 }, -- Lasher
+    [245460] = { count = 7, mapID = 584 }, -- Leafy Grovecrawler
+    [245473] = { count = 5, mapID = 584 }, -- Thorny Saptor
+    [245484] = { count = 7, mapID = 584 }, -- Lightfeather Petalwing
+    [245513] = { count = 25, mapID = 584 }, -- Overgrown Hydra
+    [245527] = { count = 1, mapID = 584 }, -- Spineshield Beetle
+    [245752] = { count = 7, mapID = 586 }, -- Keen-Eyed Striker
+    [245855] = { count = 25, mapID = 586 }, -- Spirit of Hunger
+    [245912] = { count = 30, mapID = 584 }, -- Lightwarden Ruia
+    [245950] = { count = 65, mapID = 585 }, -- Watchful Harrower
+    [246871] = { count = 22, mapID = 584 }, -- Luminous Thornmaw
+    [247676] = { count = 30, mapID = 584 }, -- Ziekket
     [248373] = { count = 15, mapID = 559 }, -- Circuit Seer
     [248501] = { count = 1, mapID = 559 }, -- Reformed Voidling
     [248502] = { count = 15, mapID = 559 }, -- Null Sentinel
@@ -124,10 +250,20 @@ addonTable.MPlusForces = {
     [249025] = { count = 15, mapID = 560 }, -- Bound Defender
     [249030] = { count = 15, mapID = 560 }, -- Restless Gnarldin
     [249036] = { count = 7, mapID = 560 }, -- Tormented Shade
-    [249086] = { count = 7, mapID = 558 }, -- Void Infuser
+    [249086] = { count = 7, mapID = 558 }, -- Void Terror
+    [249461] = { count = 5, mapID = 585 }, -- Abducted Drakonid
+    [249590] = { count = 8, mapID = 585 }, -- Angry Krolusk
+    [249603] = { count = 5, mapID = 585 }, -- Protective Turtle
+    [249608] = { count = 5, mapID = 585 }, -- Raging Raptor
+    [249756] = { count = 30, mapID = 584 }, -- Potatoad Matriarch
+    [250478] = { count = 50, mapID = 586 }, -- The Winter Squall
     [250992] = { count = 1, mapID = 161 }, -- Raging Squall
     [251853] = { count = 7, mapID = 559 }, -- Grand Nullifier
     [251861] = { count = 12, mapID = 558 }, -- Blazing Pyromancer
+    [252053] = { count = 25, mapID = 585 }, -- Brutal Overseer
+    [252072] = { count = 25, mapID = 585 }, -- Voidtouched Magi
+    [252508] = { count = 1, mapID = 585 }, -- Scavenging Siphoid
+    [252529] = { count = 35, mapID = 587 }, -- Bribed Captain
     [252551] = { count = 15, mapID = 556 }, -- Deathwhisper Necrolyte
     [252555] = { count = 6, mapID = 556 }, -- Lumbering Plaguehorror
     [252558] = { count = 5, mapID = 556 }, -- Rotting Ghoul
@@ -142,17 +278,39 @@ addonTable.MPlusForces = {
     [252610] = { count = 11, mapID = 556 }, -- Ymirjar Graveblade
     [252756] = { count = 15, mapID = 239 }, -- Void-Infused Destroyer
     [253302] = { count = 15, mapID = 560 }, -- Hex Guardian
-    [253458] = { count = 7, mapID = 560 }, -- Zil'jan
+    [253458] = { count = 7, mapID = 560 }, -- Zaib'yan
     [253473] = { count = 5, mapID = 560 }, -- Gloomwing Bat
     [253683] = { count = 10, mapID = 560 }, -- Rokh'zal
     [254740] = { count = 5, mapID = 560 }, -- Umbral Shadowbinder
+    [254850] = { count = 25, mapID = 584 }, -- Sporeblight Belcher
     [254926] = { count = 7, mapID = 559 }, -- Lightwrought
     [254928] = { count = 3, mapID = 559 }, -- Flarebat
     [254932] = { count = 2, mapID = 559 }, -- Radiant Swarm
     [255320] = { count = 8, mapID = 239 }, -- Ravenous Umbralfin
+    [255604] = { count = 6, mapID = 587 }, -- Seductive Sayaad
     [257190] = { count = 9, mapID = 556 }, -- Iceborn Proto-Drake
     [257447] = { count = 5, mapID = 558 }, -- Hollowsoul Shredder
     [258868] = { count = 4, mapID = 557 }, -- Haunting Grunt
     [259387] = { count = 1, mapID = 558 }, -- Spellwoven Familiar
+    [261550] = { count = 1, mapID = 588 }, -- Venom Leech
+    [261552] = { count = 5, mapID = 588 }, -- Bloodletter
+    [261553] = { count = 5, mapID = 588 }, -- Ravenous Descendant
+    [261554] = { count = 25, mapID = 588 }, -- Twinfang Harrower
+    [261557] = { count = 7, mapID = 588 }, -- High Evolutionist
+    [261560] = { count = 7, mapID = 588 }, -- Primal Serpent
+    [261573] = { count = 30, mapID = 588 }, -- Ascendant Serpent
+    [262011] = { count = 25, mapID = 588 }, -- Rattling Writhe
+    [263109] = { count = 25, mapID = 588 }, -- Ula'tek's Chosen
+    [263112] = { count = 1, mapID = 588 }, -- Living Venom
+    [263228] = { count = 25, mapID = 585 }, -- Agitated Voidscythe
+    [265057] = { count = 5, mapID = 250 }, -- Spark Channeler
+    [267545] = { count = 40, mapID = 585 }, -- Aegyra the Unyielding
+    [267546] = { count = 40, mapID = 585 }, -- Raj'kess the Spellstorm
+    [268184] = { count = 30, mapID = 585 }, -- Devouring Brutalizer
+    [268317] = { count = 5, mapID = 250 }, -- Faithless Tormentor
+    [269227] = { count = 5, mapID = 250 }, -- Temple Disruptor
+    [270306] = { count = 25, mapID = 588 }, -- Ritual Chieftain
+    [270502] = { count = 7, mapID = 249 }, -- Half-Finished Mummy
+    [271453] = { count = 5, mapID = 588 }, -- Blade of the Altar
   },
 }
