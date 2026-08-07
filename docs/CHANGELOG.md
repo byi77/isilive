@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-08-07 - Version 0.9.371 (patch)
+
+A maintenance patch. Nothing changes on screen.
+
+- **The enemy-forces generator now filters by season.** The upstream source
+  directory is not organised per season. Up to version 6.1.20 it happened to
+  hold exactly the eight Season 1 dungeons, so the unfiltered sweep looked
+  correct and shipped correct data for years. Version 6.2.0 publishes Season 1
+  and Season 2 side by side in the same folder, and the sweep silently produced
+  a 16-dungeon database stamped as Season 1 — the state released in `0.9.370`,
+  where it was mistaken for newly published Season 2 data.
+  [game/isiLive_season_data.lua](../game/isiLive_season_data.lua) rejects every
+  map id and npc id that does not belong to the declared season, so the shipped
+  database reported 158 readiness errors and marked Season 1 "not ready".
+  The generator now restricts itself to the manifest map ids of the target
+  season, and refuses to write a partial database when the upstream source
+  yields fewer dungeons than the season expects, rather than shipping one that
+  reports missing totals.
+- **Correction to the `0.9.370` notes below.** That entry described the eight
+  extra rows as newly published Season 2 dungeons and a deliberate addition.
+  They were the season-filter defect described above. Automatic Season 2
+  selection was never at risk: Season 2 is configured without an enemy-forces
+  requirement, and the selection path checks the readiness of the season being
+  switched *to*, not the one being left. A season that does require forces data
+  would have been blocked.
+- Added a regression test that checks every dungeon total and npc mapping in
+  the shipped database against its declared season. The database is back to
+  8 dungeons and 127 NPCs, regenerated from the same upstream commit, so every
+  Season 1 value is unchanged.
+
 ## 2026-08-05 - Version 0.9.370 (patch)
 
 A maintenance patch from a full code audit. Nothing changes on screen.
