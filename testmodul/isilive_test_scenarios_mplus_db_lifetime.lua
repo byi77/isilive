@@ -179,4 +179,58 @@ return function(test, ctx)
     local code, msg = tool.Check("data/isiLive_mplus_forces.lua", { today = "2026-04-21" })
     Assert.Equal(0, code, "shipped DB must pass under the reference today: " .. tostring(msg))
   end)
+
+  test("shipped forces DB carries only the dungeons of its declared season", function()
+    -- Regression: the generator swept its upstream source directory without
+    -- filtering by season. That folder held exactly the Season 1 dungeons for
+    -- one upstream generation and then started carrying Season 1 and Season 2
+    -- side by side, which produced a 16-dungeon DB stamped
+    -- season = "midnight_s1". SeasonData rejects every out-of-season map id,
+    -- so the active season turned "not ready" and both SetActiveSeasonID and
+    -- the automatic season switch would have refused to run -- while the
+    -- lifetime gate above stayed green, because it only reads the header.
+    local manifestChunk, manifestErr = loadfile("data/isiLive_seasons.lua")
+    assert(manifestChunk, manifestErr)
+    local manifestTable = {}
+    manifestChunk("isiLive", manifestTable)
+    local manifest = manifestTable.SeasonManifest
+
+    local forcesChunk, forcesErr = loadfile("data/isiLive_mplus_forces.lua")
+    assert(forcesChunk, forcesErr)
+    local forcesTable = {}
+    forcesChunk("isiLive", forcesTable)
+    local forces = forcesTable.MPlusForces
+
+    local season = manifest.seasons[forces.season]
+    Assert.NotNil(season, "the DB must declare a season that exists in the manifest: " .. tostring(forces.season))
+
+    local allowed = {}
+    local expected = 0
+    for _, dungeon in ipairs(season.dungeons or {}) do
+      allowed[dungeon.mapID] = true
+      expected = expected + 1
+    end
+
+    local actual = 0
+    for mapID in pairs(forces.dungeonTotal or {}) do
+      Assert.True(
+        allowed[mapID] == true,
+        string.format("dungeonTotal map id %s does not belong to season %s", tostring(mapID), tostring(forces.season))
+      )
+      actual = actual + 1
+    end
+    Assert.Equal(actual, expected, "the DB must cover every dungeon of its declared season and no others")
+
+    for npcID, entry in pairs(forces.byNpcId or {}) do
+      Assert.True(
+        allowed[entry.mapID] == true,
+        string.format(
+          "npc id %s points at map %s outside season %s",
+          tostring(npcID),
+          tostring(entry.mapID),
+          tostring(forces.season)
+        )
+      )
+    end
+  end)
 end

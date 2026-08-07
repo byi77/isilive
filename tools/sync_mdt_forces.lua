@@ -297,6 +297,31 @@ local function main(argv)
     os.exit(0)
   end
 
+  -- Restrict the generated DB to the target season's own dungeons.
+  --
+  -- The upstream directory is not a per-season folder: 6.1.x happened to hold
+  -- exactly the eight Season 1 dungeons, so an unfiltered sweep looked correct.
+  -- 6.2.0 ships Season 1 and Season 2 side by side in the same folder, and the
+  -- unfiltered sweep silently produced a 16-dungeon DB stamped
+  -- season = "midnight_s1". SeasonData rejects every out-of-season map id and
+  -- npc id, which turns the active season "not ready" and blocks
+  -- SetActiveSeasonID / TryAutoSelectSeasonFromChallengeMapIDs. One DB file
+  -- carries exactly one season -- forces.season is a single field -- so the
+  -- filter belongs here.
+  local allowedMapIDs = {}
+  local allowedCount = 0
+  for _, dungeon in ipairs(type(season.dungeons) == "table" and season.dungeons or {}) do
+    local mapID = tonumber(type(dungeon) == "table" and dungeon.mapID or nil)
+    if mapID and mapID > 0 then
+      allowedMapIDs[mapID] = true
+      allowedCount = allowedCount + 1
+    end
+  end
+  if allowedCount == 0 then
+    io.stderr:write(string.format("[sync_mdt_forces] season %q has no dungeon map ids in the manifest\n", args.season))
+    os.exit(2)
+  end
+
   local sourceDir = args.mdt .. "/" .. mdtSubDir
   local sourceCommit = normalizeSourceCommit(args.source_commit)
   if not sourceCommit then
@@ -325,7 +350,7 @@ local function main(argv)
 
   local dungeonTotal = {}
   local byNpcId = {}
-  local skippedStubs, skippedBosses, skippedDupes = 0, 0, 0
+  local skippedStubs, skippedBosses, skippedDupes, skippedOtherSeason = 0, 0, 0, 0
 
   for dungeonIdx, enemies in pairs(MDT.dungeonEnemies) do
     local info = MDT.mapInfo[dungeonIdx]
@@ -336,6 +361,8 @@ local function main(argv)
     -- Stubs carry mapID=12345 (see MurderRow) — skip quietly.
     if not mapID or mapID == 12345 or mapID <= 0 then
       skippedStubs = skippedStubs + 1
+    elseif not allowedMapIDs[mapID] then
+      skippedOtherSeason = skippedOtherSeason + 1
     else
       local total = totals and tonumber(totals.normal) or 0
       if total > 0 then
@@ -371,14 +398,31 @@ local function main(argv)
 
   print(
     string.format(
-      "[sync_mdt_forces] dungeons=%d npcs=%d (skipped: stubs=%d bosses=%d cross-dungeon-dupes=%d)",
+      "[sync_mdt_forces] dungeons=%d/%d npcs=%d (skipped: stubs=%d bosses=%d cross-dungeon-dupes=%d other-season=%d)",
       dungeonCount,
+      allowedCount,
       npcCount,
       skippedStubs,
       skippedBosses,
-      skippedDupes
+      skippedDupes,
+      skippedOtherSeason
     )
   )
+
+  -- A season whose dungeons are all missing upstream is a real gap, not a
+  -- partial result to ship: the runtime would report every map id as missing
+  -- a positive total and the season would never become ready.
+  if dungeonCount < allowedCount then
+    io.stderr:write(
+      string.format(
+        "[sync_mdt_forces] season %q expects %d dungeons but upstream yielded %d — refusing to write a partial DB\n",
+        args.season,
+        allowedCount,
+        dungeonCount
+      )
+    )
+    os.exit(3)
+  end
 
   if dungeonCount == 0 or npcCount == 0 then
     io.stderr:write("[sync_mdt_forces] refusing to write empty DB\n")
