@@ -547,6 +547,15 @@ function SeasonData.GetSeasonReadiness(seasonID, opts)
 
   AppendForcesReadinessErrors(errors, resolvedSeasonID, season, opts)
 
+  -- Most entries above are appended while iterating maps with `pairs`, whose
+  -- order is unspecified. Both callers that surface a reason to the user report
+  -- errors[1] as *the* reason a season is not ready, so an unordered list means
+  -- identical data can produce a different message on the next run -- a support
+  -- report nobody can reproduce. Sorting here covers every append site at once,
+  -- including AppendForcesReadinessErrors.
+  table.sort(errors)
+  table.sort(warnings)
+
   return {
     seasonID = resolvedSeasonID,
     label = SeasonData.GetSeasonLabel(resolvedSeasonID),

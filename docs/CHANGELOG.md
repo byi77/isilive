@@ -17,6 +17,17 @@ A hardening patch for the group sync. Nothing changes on screen.
   value. A target entry with a valid dungeon but an absurd level keeps the
   dungeon and drops only the level. Both bounds live in the shared normalizers,
   so they apply to sent and received payloads alike.
+- **The reason given for an unusable season could change between reloads.**
+  When a season fails its readiness check, the addon reports the first entry of
+  the error list as *the* reason. Most of those entries are collected while
+  walking the dungeon tables, whose iteration order Lua does not define, so with
+  several problems present the reported reason was whichever one happened to be
+  collected first — the same data could produce a different message on the next
+  run, which makes a support report impossible to reproduce.
+  [game/isiLive_season_data.lua](../game/isiLive_season_data.lua) now sorts the
+  errors and warnings before returning them. The set of problems reported is
+  unchanged; only the order is now fixed. The season readiness report generated
+  in CI becomes stable for the same reason.
 
 ## 2026-08-10 - Version 0.9.372 (patch)
 

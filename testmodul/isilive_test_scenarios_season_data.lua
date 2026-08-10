@@ -28,6 +28,70 @@ local function findWarning(readiness, needle)
 end
 
 local function RegisterReadinessTests(test, Assert, LoadAddonModules)
+  -- SetActiveSeasonID and TryAutoSelectSeasonFromChallengeMapIDs report
+  -- readiness.errors[1] to the user as *the* reason a season is not ready. Most
+  -- of the readiness entries are appended while iterating maps with `pairs`, so
+  -- without an explicit ordering that first entry is whichever key the hash
+  -- happened to yield first -- the message can differ between two runs over
+  -- identical data, which makes a support report unreproducible.
+  --
+  -- Note the rest of this file only ever reaches errors via findError(); the
+  -- suite has always treated the order as unreliable while production indexed
+  -- into it.
+  test("SeasonData.GetSeasonReadiness returns errors and warnings in a stable order", function()
+    local addon = LoadSeasonData(LoadAddonModules)
+    -- Several simultaneous failures whose insertion order is driven by `pairs`
+    -- over a numeric-keyed map: every entry here yields both a bad-spell error
+    -- and a missing-short-code error.
+    addon.SeasonData.SEASONS.test_season = {
+      label = "Test",
+      mapToTeleport = {
+        [101] = -1,
+        [202] = -2,
+        [303] = -3,
+        [404] = -4,
+        [505] = -5,
+        [606] = -6,
+        [707] = -7,
+        [808] = -8,
+      },
+      shortCodesByLocale = { default = {}, deDE = {} },
+      namesByLocale = { enUS = {}, deDE = {} },
+      displayOrder = {},
+      challengeMapAliases = {},
+    }
+
+    local first = addon.SeasonData.GetSeasonReadiness("test_season")
+    Assert.True(#first.errors > 1, "scenario must produce several errors, otherwise it proves nothing")
+    Assert.True(#first.warnings > 1, "scenario must produce several warnings, otherwise it proves nothing")
+
+    -- Sorted output is the contract: it is reproducible across runs and across
+    -- Lua versions, which "whatever pairs yielded" is not.
+    local sortedErrors = {}
+    for index, value in ipairs(first.errors) do
+      sortedErrors[index] = value
+    end
+    table.sort(sortedErrors)
+    for index, value in ipairs(sortedErrors) do
+      Assert.Equal(first.errors[index], value, "errors must be returned in sorted order")
+    end
+
+    local sortedWarnings = {}
+    for index, value in ipairs(first.warnings) do
+      sortedWarnings[index] = value
+    end
+    table.sort(sortedWarnings)
+    for index, value in ipairs(sortedWarnings) do
+      Assert.Equal(first.warnings[index], value, "warnings must be returned in sorted order")
+    end
+
+    -- Repeated calls must agree on the first entry, since that is the one the
+    -- user is shown.
+    local second = addon.SeasonData.GetSeasonReadiness("test_season")
+    Assert.Equal(second.errors[1], first.errors[1], "errors[1] must be stable across calls")
+    Assert.Equal(second.warnings[1], first.warnings[1], "warnings[1] must be stable across calls")
+  end)
+
   test("SeasonData.GetSeasonReadiness reports unknown-season error for missing season id", function()
     local addon = LoadSeasonData(LoadAddonModules)
     local readiness = addon.SeasonData.GetSeasonReadiness("does_not_exist")
