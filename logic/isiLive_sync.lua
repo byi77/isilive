@@ -27,13 +27,21 @@ local MAX_SAFE_INTEGER = 9007199254740991
 -- peer can publish a key level or rating up to MAX_SAFE_INTEGER, which renders
 -- into the roster and blows up the column layout for everyone in the group.
 -- The rest of the ingest path is already strict this way (ParseKickPayload
--- rejects malformed suffixes outright, SKCD caps at 30s); these close the gap
--- for KEY and STATS. Values above the bound are treated as unresolved rather
--- than clamped, per the fail-closed contract: a silently clamped number would
--- be a fabricated value.
+-- rejects malformed suffixes outright, SKCD caps at 30s). Values above the
+-- bound are treated as unresolved rather than clamped, per the fail-closed
+-- contract: a silently clamped number would be a fabricated value.
+--
+-- Every numeric bucket that reaches a rendered surface is covered: KEY and
+-- STATS, plus TARGET (carries its own key level, rendered as "+<level>" in the
+-- kill row) and DPS (roster DPS column). TARGET and DPS were missed when the
+-- first two were added, which left exactly the gap this comment claimed to
+-- close -- so when adding a new numeric bucket, bound it here as well.
 local MAX_SYNC_KEY_LEVEL = 1000
 local MAX_SYNC_ILVL = 10000
 local MAX_SYNC_RIO = 100000
+-- Roughly two orders of magnitude above realistic end-of-expansion dps, so it
+-- only ever catches broken or hostile values, never a real parse.
+local MAX_SYNC_DPS = 100000000
 
 local function ToFiniteNumber(value)
   local numericValue = tonumber(value)
@@ -494,7 +502,7 @@ end
 
 local function NormalizeDpsPayload(dps, capturedAt, source)
   local numericDps = ToFiniteNumber(dps)
-  if not numericDps or numericDps < 0 then
+  if not numericDps or numericDps < 0 or numericDps > MAX_SYNC_DPS then
     numericDps = 0
   else
     numericDps = math.floor(numericDps + 0.5)
@@ -547,7 +555,10 @@ local function NormalizeTargetPayload(mapID, level, capturedAt, source, levelTex
   end
 
   numericMapID = math.floor(numericMapID)
-  if not numericLevel or numericLevel <= 0 then
+  -- An out-of-range level is dropped to unresolved, not clamped, and the entry
+  -- itself survives on its still-valid map id -- same handling as a missing
+  -- level. Bounded like KEY: TARGET renders "+<level>" into the kill row.
+  if not numericLevel or numericLevel <= 0 or numericLevel > MAX_SYNC_KEY_LEVEL then
     numericLevel = nil
     normalizedLevelText = NormalizeTargetLevelText(levelText, nil)
   else

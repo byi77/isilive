@@ -2,7 +2,8 @@
 
 ## 2026-08-10 - Version 0.9.372 (patch)
 
-A bugfix patch for the roster role markers.
+A bugfix patch for the roster role markers, plus sync hardening from the same
+code audit.
 
 - **The tank/healer role marker could mark the wrong player during combat.**
   Clicking a role icon runs a secure macro that targets a player by name, and
@@ -24,6 +25,20 @@ A bugfix patch for the roster role markers.
   previously never simulated combat at all, so every one of its scenarios ran
   the out-of-combat branch — which is why this defect went unnoticed in a test
   file written specifically to prevent this feature's regressions.
+- **Two sync buckets accepted unbounded numbers from other players.** Values
+  received over the addon channel are range-checked so a broken or hostile peer
+  cannot publish a number that renders into everyone's roster and breaks the
+  column layout. That check covered the keystone and player-stats buckets but
+  had been missed for the target keystone level (rendered as `+<level>` in the
+  kill row) and for DPS, both of which accepted anything up to the maximum safe
+  integer. [logic/isiLive_sync.lua](../logic/isiLive_sync.lua) now bounds the
+  target level against the same limit as a normal keystone level and adds an
+  upper bound for DPS. Out-of-range values are dropped as unresolved rather than
+  clamped, per the fail-closed contract — a clamped number would be a fabricated
+  value. A target entry with a valid dungeon but an absurd level keeps the
+  dungeon and drops only the level. Both bounds live in the shared normalizers,
+  so they apply to sent and received payloads alike. Nothing changes on screen
+  for well-behaved groups.
 
 ## 2026-08-07 - Version 0.9.371 (patch)
 

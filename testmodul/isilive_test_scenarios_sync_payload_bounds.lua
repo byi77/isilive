@@ -49,4 +49,53 @@ return function(test, ctx)
       Assert.Equal(otherStats.ilvl, 640, "the in-range item level alongside it must still be kept")
     end)
   end)
+
+  -- TARGET carries a key level just like KEY does, and it renders straight into
+  -- the kill row as "+<level>". It was left out when the KEY/STATS bounds were
+  -- added, so it accepted any positive number up to MAX_SAFE_INTEGER.
+  test("Sync rejects out-of-range target key levels instead of publishing them", function()
+    WithGlobals({
+      strsplit = function(_sep, str, _max)
+        return str
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      Assert.True(
+        addon.Sync.SetPlayerTargetInfo("Player", "Realm", 2649, 500),
+        "an in-range target key level must be stored"
+      )
+      Assert.Equal(addon.Sync.GetPlayerTargetInfo("Player", "Realm").level, 500, "in-range target level must survive")
+
+      addon.Sync.SetPlayerTargetInfo("Other", "Realm", 2649, 9007199254740991)
+      local target = addon.Sync.GetPlayerTargetInfo("Other", "Realm")
+      Assert.NotNil(target, "the target entry itself must survive: the map id is still valid")
+      Assert.Equal(target.mapID, 2649, "the in-range map id alongside it must still be kept")
+      Assert.Equal(target.level, nil, "an absurd target key level must stay unresolved, not render")
+    end)
+  end)
+
+  -- DPS renders into the roster's DPS column. Unlike ilvl/rio it had no upper
+  -- bound at all, so a broken or hostile peer could publish MAX_SAFE_INTEGER.
+  test("Sync rejects out-of-range dps instead of publishing it", function()
+    WithGlobals({
+      strsplit = function(_sep, str, _max)
+        return str
+      end,
+      GetRealmName = function()
+        return "Realm"
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_sync.lua" })
+
+      Assert.True(addon.Sync.SetPlayerDpsInfo("Player", "Realm", 1500000), "an in-range dps value must be stored")
+      Assert.Equal(addon.Sync.GetPlayerDpsInfo("Player", "Realm").dps, 1500000, "in-range dps must survive")
+
+      addon.Sync.SetPlayerDpsInfo("Other", "Realm", 9007199254740991)
+      Assert.Equal(addon.Sync.GetPlayerDpsInfo("Other", "Realm"), nil, "an absurd dps value must clear, not render")
+    end)
+  end)
 end
