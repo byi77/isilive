@@ -1,7 +1,7 @@
 # isiLive Anwendungsfaelle
 
-Versionsbasis: `0.9.371`
-Zuletzt aktualisiert: `2026-08-05`
+Versionsbasis: `0.9.372`
+Zuletzt aktualisiert: `2026-08-10`
 
 ## Akteure
 
@@ -164,8 +164,20 @@ markieren.
 2. Verarbeitung: Der vorab konfigurierte Secure-Button verwendet den
    verifizierten Charakternamen inklusive Realm statt eines instabilen Unit-Slots.
 3. Ergebnis: Tank wird mit dem blauen, Heiler mit dem gruenen Zielmarker markiert.
-4. Erfolgskriterium: Es gibt keinen direkten geschuetzten Marker-API-Aufruf aus
-   unsicherem Runtime-Code und kein Namensraten.
+4. Combat-Lockdown: Im Kampf ist `SetAttribute` gesperrt, das Makro einer Zeile
+   kann also nicht aktualisiert werden. Wechselt eine Zeile waehrend des Kampfes
+   den Insassen (Tod mit Ghost-Umsortierung, Rollenwechsel, Gruppenaustritt),
+   wird der Button ausgeblendet statt mit dem Namen des Vorgaengers sichtbar zu
+   bleiben. `Hide` ist nicht geschuetzt und daher auch im Kampf erlaubt. Eine
+   geleerte Roster-Zeile blendet ihren Rollen-Button immer aus, unabhaengig vom
+   Kampfzustand.
+5. Ergebnis nach Kampfende: `PLAYER_REGEN_ENABLED` rendert das Roster neu und
+   stellt den Button mit korrektem Makro wieder her; ein eigener Retry-Frame ist
+   dafuer nicht noetig.
+6. Erfolgskriterium: Es gibt keinen direkten geschuetzten Marker-API-Aufruf aus
+   unsicherem Runtime-Code, kein Namensraten und zu keinem Zeitpunkt einen
+   sichtbaren Rollen-Marker, dessen Makro einen anderen Spieler adressiert als
+   die Zeile anzeigt.
 
 ## UC-10 Raid-Zero-Process-Transition
 

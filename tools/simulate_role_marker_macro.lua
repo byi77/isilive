@@ -144,6 +144,14 @@ local function FindRowForUnit(memberRows, unit)
   return nil
 end
 
+-- Combat state for the InCombatLockdown stub installed in WithGlobals below.
+-- roster_layout's IsCombatLockdownActive re-reads the global on every call, so
+-- flipping this mid-scenario switches the production branch under test.
+local inCombat = false
+local function SetCombat(active)
+  inCombat = active and true or false
+end
+
 -- ----------------------------------------------------------------------
 -- Run.
 -- ----------------------------------------------------------------------
@@ -184,9 +192,23 @@ Harness.WithGlobals({
   GetRealmName = function()
     return "Stormrage"
   end,
+  InCombatLockdown = function()
+    return inCombat
+  end,
   CreateFrame = MakeFrameMock,
 }, function()
-  local addon = Harness.LoadAddonModules({ "isiLive_roster.lua", "isiLive_roster_panel_render.lua" })
+  -- isiLive_roster_layout.lua is loaded for its real IsCombatLockdownActive.
+  -- roster_panel_render.lua captures `RI.IsCombatLockdownActive or <false stub>`
+  -- into a local at load time, so without the layout module every scenario
+  -- would silently run the not-in-combat branch — which is exactly how the
+  -- combat-lockdown staleness bug (scenario 7) stayed invisible here. The real
+  -- helper re-reads the InCombatLockdown global on every call, so scenarios can
+  -- flip combat state at will via Harness.WithGlobals below.
+  local addon = Harness.LoadAddonModules({
+    "isiLive_roster.lua",
+    "isiLive_roster_layout.lua",
+    "isiLive_roster_panel_render.lua",
+  })
   local RI = addon._RosterInternal or addon._RosterPanelInternal
   if not RI then
     for _, v in pairs(addon) do
@@ -462,6 +484,128 @@ Harness.WithGlobals({
     if heal then
       Check(heal.roleButton:GetAttribute("type1") == "macro", "HEALER type1 = 'macro'")
       Check(heal.roleButton:GetAttribute("type2") == "macro", "HEALER type2 = 'macro'")
+    end
+  end
+
+  -- ----------------------------------------------------------------------
+  -- Scenario 7: combat lockdown must never leave a STALE macro on the button.
+  --
+  -- SetAttribute is forbidden during combat lockdown, so production skips the
+  -- whole roleButton block while InCombatLockdown() is true. The danger is not
+  -- the skipped write — it is what stays behind: the macro from the PREVIOUS
+  -- render still names the previous occupant of that row. A click then targets
+  -- and marks the wrong player, which is the exact failure class CLAUDE.md
+  -- records for v0.9.203 and v0.9.208.
+  --
+  -- Roster churn mid-combat is routine in a key: a death re-sorts rows (ghosts
+  -- sort last), a role swap re-sorts them, a disconnect drops a member. So the
+  -- contract is: while a row's macro cannot be rewritten, that row must not
+  -- offer a clickable marker at all. Hide() is not protected, so hiding is
+  -- always available even in combat.
+  -- ----------------------------------------------------------------------
+  print("\n========== Scenario 7: combat lockdown must not leave a stale macro ==========")
+  do
+    local memberRows = BuildMemberRows()
+    local state = BuildState(memberRows, addon)
+
+    -- Render A, out of combat: Felix tanks, Anna heals.
+    SetCombat(false)
+    RI.RenderRosterImpl(state, {
+      player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
+      party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER" },
+    })
+
+    local tankRowBefore = FindRowForUnit(memberRows, "player")
+    Check(
+      tankRowBefore ~= nil
+        and tankRowBefore.roleButton:GetAttribute("macrotext1") == "/target Felix\n/tm 6\n/targetlasttarget",
+      "pre-combat baseline: TANK row macro targets Felix"
+    )
+
+    -- Combat starts. Anna leaves the group and Zara joins as healer; the roster
+    -- rebuilds and party1 is now a different character. Production cannot
+    -- rewrite macrotext here.
+    SetCombat(true)
+    RI.RenderRosterImpl(state, {
+      player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
+      party1 = { name = "Zara", realm = "", class = "MAGE", role = "HEALER" },
+    })
+
+    local healRow = FindRowForUnit(memberRows, "party1")
+    if healRow then
+      local macro = healRow.roleButton:GetAttribute("macrotext1")
+      local namesStalePlayer = type(macro) == "string" and macro:find("Anna", 1, true) ~= nil
+      local isClickable = healRow.roleButton._shown == true
+
+      -- The button may keep a stale macro string (SetAttribute is forbidden),
+      -- but it must not simultaneously be shown — that combination is what
+      -- marks the wrong player.
+      Check(
+        not (namesStalePlayer and isClickable),
+        "in combat: healer row must not be BOTH shown AND still naming the departed player"
+      )
+    end
+
+    -- Combat ends: the deferred render must reconcile the button with reality.
+    SetCombat(false)
+    RI.RenderRosterImpl(state, {
+      player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
+      party1 = { name = "Zara", realm = "", class = "MAGE", role = "HEALER" },
+    })
+
+    local healAfter = FindRowForUnit(memberRows, "party1")
+    if healAfter then
+      Check(
+        healAfter.roleButton:GetAttribute("macrotext1") == "/target Zara\n/tm 4\n/targetlasttarget",
+        "post-combat: healer row macro targets the current occupant (Zara)"
+      )
+      Check(healAfter.roleButton._shown == true, "post-combat: healer role button is shown again")
+    end
+  end
+
+  -- ----------------------------------------------------------------------
+  -- Scenario 8: group SHRINK during combat must also drop the marker.
+  --
+  -- Same failure class as scenario 7, reached through the other code path:
+  -- when the group shrinks, the vacated rows go through ClearMemberRow instead
+  -- of the per-member render loop. A row cleared in combat keeps whatever macro
+  -- it last held, so a leftover button would still target the member who left.
+  -- Hide() is not protected, so clearing a row must hide its role button
+  -- regardless of combat state.
+  -- ----------------------------------------------------------------------
+  print("\n========== Scenario 8: combat group shrink hides the vacated row's marker ==========")
+  do
+    local memberRows = BuildMemberRows()
+    local state = BuildState(memberRows, addon)
+
+    SetCombat(false)
+    RI.RenderRosterImpl(state, {
+      player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
+      party1 = { name = "Anna", realm = "", class = "PRIEST", role = "HEALER" },
+    })
+
+    local healerRowIndex
+    for i = 1, #memberRows do
+      if memberRows[i].unit == "party1" then
+        healerRowIndex = i
+      end
+    end
+    Check(healerRowIndex ~= nil, "pre-shrink baseline: healer occupies a row")
+
+    -- Anna leaves mid-pull; only the tank remains. The healer's row is cleared.
+    SetCombat(true)
+    RI.RenderRosterImpl(state, {
+      player = { name = "Felix", realm = "", class = "WARRIOR", role = "TANK" },
+    })
+
+    if healerRowIndex then
+      local vacated = memberRows[healerRowIndex]
+      local macro = vacated.roleButton:GetAttribute("macrotext1")
+      local namesDepartedPlayer = type(macro) == "string" and macro:find("Anna", 1, true) ~= nil
+      Check(
+        not (namesDepartedPlayer and vacated.roleButton._shown == true),
+        "in combat: vacated row must not keep a shown marker naming the departed player"
+      )
     end
   end
 end)

@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-08-10 - Version 0.9.372 (patch)
+
+A bugfix patch for the roster role markers.
+
+- **The tank/healer role marker could mark the wrong player during combat.**
+  Clicking a role icon runs a secure macro that targets a player by name, and
+  that macro can only be rewritten outside combat. The roster render skipped
+  its whole role-button block while in combat, so when a row changed occupant
+  mid-pull — a death re-sorts the rows, someone swaps role, a member leaves —
+  the button kept the *previous* occupant's macro and stayed clickable. Clicking
+  it targeted and marked whoever used to be in that row, for as long as the
+  fight lasted. A row that leaves the group had the same problem through the
+  row-clearing path.
+  [ui/isiLive_roster_panel_render.lua](../ui/isiLive_roster_panel_render.lua)
+  now compares the macro a row should have against the one the button actually
+  carries and hides the button when they disagree, and clears a vacated row's
+  button unconditionally. Hiding is allowed in combat even though rewriting is
+  not, so the marker disappears instead of pointing at the wrong player; the
+  next out-of-combat render restores it. World-marker buttons are unaffected —
+  they carry a fixed marker id, never a player name.
+- Added combat-lockdown coverage to the role-marker regression simulator. It
+  previously never simulated combat at all, so every one of its scenarios ran
+  the out-of-combat branch — which is why this defect went unnoticed in a test
+  file written specifically to prevent this feature's regressions.
+
 ## 2026-08-07 - Version 0.9.371 (patch)
 
 A maintenance patch. Nothing changes on screen.

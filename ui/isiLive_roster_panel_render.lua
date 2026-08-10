@@ -506,7 +506,10 @@ local function RenderRosterImpl(state, roster)
     if row.readyCheckBackground then
       row.readyCheckBackground:Hide()
     end
-    if row.roleButton and not IsCombatLockdownActive() then
+    -- Hide() is not protected, so a cleared row drops its marker even during
+    -- combat lockdown. Leaving it shown would keep offering a click that still
+    -- targets the member who just left the group.
+    if row.roleButton then
       row.roleButton:Hide()
     end
   end
@@ -624,24 +627,33 @@ local function RenderRosterImpl(state, roster)
       -- Target by character name, never by unit token (12.0.5 secret-token
       -- regression). See CLAUDE.md "Role-marker click feature: target by
       -- character name".
+      local target = addonTable.StringUtils.BuildSlashTargetName(info.name, info.realm)
+      local marker = target and ROLE_MARKER[role]
+      local macroText1 = marker and ("/target " .. target .. "\n/tm " .. marker .. "\n/targetlasttarget") or nil
+      local macroText2 = marker and ("/target " .. target .. "\n/tm " .. CLEAR_MARKER .. "\n/targetlasttarget") or nil
+
       if not IsCombatLockdownActive() then
         if showButton and not isCollapsed then
           row.roleButton:Show()
           row.roleButton:SetAttribute("type1", "macro")
           row.roleButton:SetAttribute("type2", "macro")
-          local target = addonTable.StringUtils.BuildSlashTargetName(info.name, info.realm)
-          local marker = target and ROLE_MARKER[role]
-          if marker then
-            local prefix = "/target " .. target .. "\n/tm "
-            row.roleButton:SetAttribute("macrotext1", prefix .. marker .. "\n/targetlasttarget")
-            row.roleButton:SetAttribute("macrotext2", prefix .. CLEAR_MARKER .. "\n/targetlasttarget")
-          else
-            row.roleButton:SetAttribute("macrotext1", nil)
-            row.roleButton:SetAttribute("macrotext2", nil)
-          end
+          row.roleButton:SetAttribute("macrotext1", macroText1)
+          row.roleButton:SetAttribute("macrotext2", macroText2)
         else
           row.roleButton:Hide()
         end
+      elseif row.roleButton:GetAttribute("macrotext1") ~= macroText1 then
+        -- Combat lockdown: SetAttribute is forbidden, so the button still holds
+        -- the macro from the previous render. When the row has since changed
+        -- occupant (death re-sorts rows, role swap, member leaves), that macro
+        -- names somebody else and a click would target and mark the wrong
+        -- player -- the v0.9.203 / v0.9.208 failure class.
+        --
+        -- Hide() is not protected, so it works in combat. Hiding the button is
+        -- strictly better than offering a wrong one; the next out-of-combat
+        -- render (PLAYER_REGEN_ENABLED runs ctx.updateUI) restores it with a
+        -- correct macro.
+        row.roleButton:Hide()
       end
     end
 

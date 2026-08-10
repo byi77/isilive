@@ -3,9 +3,16 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.371`.
+Current version: `0.9.372`.
 
 Highlights:
+- **Fixed the tank/healer role markers marking the wrong player during combat.**
+  Clicking a role icon marks that player by name, and the macro behind it can
+  only be rewritten outside combat. When a row changed occupant mid-fight — a
+  death re-sorts the rows, someone swaps role, a player leaves the group — the
+  button kept pointing at the previous occupant and stayed clickable for the
+  rest of the pull. The marker now disappears instead of marking the wrong
+  player, and comes back as soon as combat ends. World markers are unaffected.
 - **Fixed the enemy-forces database, which shipped a second season's dungeons.**
   The upstream source now publishes two seasons in one folder, and the
   generator was not filtering by season, so `0.9.370` shipped a 16-dungeon
@@ -18,11 +25,6 @@ Highlights:
   the group display and group sync but stops the kick sync, the cooldown
   tracker, and the last-run DPS snapshot. Mythic dungeons — including a key
   dungeon before the keystone goes in — get the full feature set as before.
-- **Fixed timewalking dungeons being labelled "Mythic".** The status line
-  contradicted itself, and the dungeon-entry notice never appeared. Timewalking
-  now has its own label in all eight languages.
-- **Fixed the "you are not in a group" chat error** that could appear while in
-  an automatic instance group, for example an LFG timewalking run.
 - **Hardened runtime safety across several code audits, and all local release
   gates pass.** Every masked-value check now runs through one shared, fully
   guarded helper instead of thirteen private copies, removing a crash path in
