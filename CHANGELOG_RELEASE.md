@@ -3,9 +3,16 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.372`.
+Current version: `0.9.373`.
 
 Highlights:
+- **Hardened the group sync against out-of-range values from other players.**
+  Numbers received over the addon channel are range-checked so a broken or
+  hostile group member cannot publish a value that renders into everyone's
+  roster and breaks the column layout. Keystones and player stats were already
+  covered; the target keystone level and the DPS value had been missed. Both
+  are now bounded, and out-of-range values are dropped rather than trimmed to
+  the limit, so nothing invented is ever displayed.
 - **Fixed the tank/healer role markers marking the wrong player during combat.**
   Clicking a role icon marks that player by name, and the macro behind it can
   only be rewritten outside combat. When a row changed occupant mid-fight — a
