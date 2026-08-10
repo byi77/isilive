@@ -1,9 +1,8 @@
 # Changelog
 
-## 2026-08-10 - Version 0.9.374 (patch)
+## 2026-08-10 - Version 0.9.375 (patch)
 
-A determinism fix for the season readiness check and a memory fix for the roster
-ghost history. Nothing changes on screen.
+A memory fix for the roster ghost history. Nothing changes on screen.
 
 - **The roster kept every player who ever left a small group.** Former members
   are held as greyed-out ghost rows, which is deliberate: a group below five
@@ -19,6 +18,10 @@ ghost history. Nothing changes on screen.
   monotonic stamp taken when a member becomes a ghost so the retained window is
   always the newest. Visible behaviour is unchanged — the roster renders at most
   five rows, and active members still sort ahead of ghosts.
+
+## 2026-08-10 - Version 0.9.374 (patch)
+
+A determinism fix for the season readiness check. Nothing changes on screen.
 
 - **The reason given for an unusable season could change between reloads.**
   When a season fails its readiness check, the addon reports the first entry of
