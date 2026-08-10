@@ -2,7 +2,23 @@
 
 ## 2026-08-10 - Version 0.9.374 (patch)
 
-A determinism fix for the season readiness check. Nothing changes on screen.
+A determinism fix for the season readiness check and a memory fix for the roster
+ghost history. Nothing changes on screen.
+
+- **The roster kept every player who ever left a small group.** Former members
+  are held as greyed-out ghost rows, which is deliberate: a group below five
+  should still show its previous composition. Those ghosts are keyed by
+  character name rather than by party slot, and the regular cleanup only runs
+  once the group is back to five active members — so a group that stays below
+  five while cycling through applicants, the normal shape of filling a key via
+  LFG, added one entry per departing player and never dropped any. The roster
+  table is walked and sorted on every roster update, so it grew without limit in
+  both memory and per-update cost. Measured before the fix: thirty departures
+  left thirty ghosts. [logic/isiLive_group.lua](../logic/isiLive_group.lua) now
+  keeps at most the ten most recent departures and drops older ones, using a
+  monotonic stamp taken when a member becomes a ghost so the retained window is
+  always the newest. Visible behaviour is unchanged — the roster renders at most
+  five rows, and active members still sort ahead of ghosts.
 
 - **The reason given for an unusable season could change between reloads.**
   When a season fails its readiness check, the addon reports the first entry of

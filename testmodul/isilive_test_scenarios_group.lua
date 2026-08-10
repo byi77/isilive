@@ -1699,6 +1699,74 @@ local function RegisterGroupRosterCoreTests(test, Assert, LoadAddonModules)
 end
 
 local function RegisterGroupGhostShiftTests(test, Assert, LoadAddonModules)
+  -- Ghosts are keyed by character name, not by party slot, and are only pruned
+  -- once the group has five active members. A group that stays below five while
+  -- cycling through applicants -- the normal shape of filling a key via LFG --
+  -- therefore accumulates one ghost per distinct player who ever left, with no
+  -- upper limit. The roster table is walked and sorted on every roster update,
+  -- so this is unbounded memory plus growing per-update cost. Keeping recent
+  -- ghosts visible is deliberate (see PruneGhosts); keeping all of them forever
+  -- is not.
+  test("Ghost history stays bounded while a small group cycles through members", function()
+    local members = 2
+    local currentMember = 1
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      getNumGroupMembers = function()
+        return members
+      end,
+      getUnitNameAndRealm = function(unit)
+        if unit == "player" then
+          return "Player", "Realm"
+        end
+        if unit == "party1" and members >= 2 then
+          return "Applicant" .. currentMember, "Realm"
+        end
+        return nil
+      end,
+    })
+
+    -- 30 applicants join and leave a two-person group, one after another.
+    for i = 1, 30 do
+      currentMember = i
+      members = 2
+      controller.HandleGroupRosterUpdate()
+      members = 1
+      controller.HandleGroupRosterUpdate()
+    end
+
+    local ghostCount = 0
+    for key, info in pairs(state.roster) do
+      if info.isGhost then
+        ghostCount = ghostCount + 1
+        Assert.True(
+          string.find(key, "^ghost:") ~= nil,
+          "every ghost must live under a ghost: key, got '" .. tostring(key) .. "'"
+        )
+      end
+    end
+
+    Assert.True(ghostCount > 0, "leaving members must still produce ghost history")
+    Assert.True(
+      ghostCount <= 10,
+      "ghost history must stay bounded, got " .. tostring(ghostCount) .. " ghosts after 30 departures"
+    )
+
+    -- Which ghosts survive matters as much as how many: the retained window has
+    -- to be the newest departures, not an arbitrary slice of the hash order.
+    for i = 21, 30 do
+      Assert.NotNil(
+        state.roster["ghost:Applicant" .. i .. "-Realm"],
+        "Applicant" .. i .. " is among the ten most recent departures and must be retained"
+      )
+    end
+    for i = 1, 20 do
+      Assert.Nil(
+        state.roster["ghost:Applicant" .. i .. "-Realm"],
+        "Applicant" .. i .. " is older than the retained window and must be dropped"
+      )
+    end
+  end)
+
   test("Group member leaving becomes ghost", function()
     local members = 2
     local unitState = "present"

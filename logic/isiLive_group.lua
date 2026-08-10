@@ -338,6 +338,52 @@ local function GhostKey(name, realm)
   return GHOST_KEY_PREFIX .. MemberKey(name, realm)
 end
 
+-- Monotonic counter stamped on each entry as it becomes a ghost, so PruneGhosts
+-- can drop the oldest first. A counter rather than GetTime(): it needs no time
+-- API, cannot go backwards, and stays deterministic under test. Only the
+-- relative order matters, so wrap-around is not a concern at these magnitudes.
+local ghostSequence = 0
+local function NextGhostSequence()
+  ghostSequence = ghostSequence + 1
+  return ghostSequence
+end
+
+-- Ghosts are keyed by character name, so every distinct player who ever leaves
+-- adds one entry. Below five active members PruneGhosts deliberately keeps them
+-- as visible history, which meant a group cycling applicants -- the normal shape
+-- of filling a key via LFG -- grew the roster table without limit, and the table
+-- is walked and sorted on every roster update. Only the newest few are useful as
+-- history (the roster renders at most five rows), so keep a bounded window and
+-- drop the oldest beyond it.
+local MAX_GHOST_HISTORY = 10
+
+local function CapGhostHistory(roster)
+  local ghosts = {}
+  for unit, info in pairs(roster) do
+    if info.isGhost then
+      ghosts[#ghosts + 1] = { unit = unit, seq = tonumber(info.ghostSeq) or 0 }
+    end
+  end
+
+  if #ghosts <= MAX_GHOST_HISTORY then
+    return
+  end
+
+  -- Oldest first; ties broken by key so the result never depends on `pairs`
+  -- order. Entries predating the sequence stamp sort as 0 and are dropped first,
+  -- which is correct: they are the oldest history present.
+  table.sort(ghosts, function(a, b)
+    if a.seq ~= b.seq then
+      return a.seq < b.seq
+    end
+    return a.unit < b.unit
+  end)
+
+  for index = 1, #ghosts - MAX_GHOST_HISTORY do
+    roster[ghosts[index].unit] = nil
+  end
+end
+
 local SetIfNotNil
 local UpdatePlayerEntry
 
@@ -379,11 +425,17 @@ local function HandleNoGroup(deps, wasInGroupBefore, wasRaidGroupBefore)
 
     for unit, info in pairs(roster) do
       if unit ~= "player" then
+        -- Only stamp members ghosting now; entries that were already ghosts
+        -- keep their original sequence so the oldest stays the oldest.
+        if not info.isGhost then
+          info.ghostSeq = NextGhostSequence()
+        end
         info.isGhost = true
         info.isLeader = false
         newRoster[GhostKey(info.name, info.realm)] = info
       end
     end
+    CapGhostHistory(newRoster)
     deps.setRoster(newRoster)
   end
   deps.resetInspectAll()
@@ -400,6 +452,8 @@ end
 -- Ghosts are only removed when the group has 5 or more active members.
 -- With fewer than 5 active members ghosts are kept as visible history.
 -- Intentional design: a 4-person group should still show previous compositions.
+-- That history is bounded by CapGhostHistory below, so a group that stays under
+-- five while cycling members keeps recent departures without growing forever.
 local function PruneGhosts(roster)
   local activeCount = 0
   local ghosts = {}
@@ -416,6 +470,8 @@ local function PruneGhosts(roster)
       roster[ghostUnit] = nil
     end
   end
+
+  CapGhostHistory(roster)
 end
 
 SetIfNotNil = function(entry, key, value)
@@ -521,6 +577,7 @@ local function UpdatePartyMembersInRoster(deps, roster, callbacks)
   for _, conversion in ipairs(ghostConversions) do
     conversion.info.isGhost = true
     conversion.info.isLeader = false
+    conversion.info.ghostSeq = NextGhostSequence()
     roster[conversion.ghostKey] = conversion.info
     roster[conversion.partyUnit] = nil
     deps.logRuntimeTracef(
