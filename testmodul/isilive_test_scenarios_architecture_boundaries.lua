@@ -179,6 +179,9 @@ return function(test, ctx)
 
   test("Architecture optional WoW globals use guarded rawget caches", function()
     local consumers = {
+      ["core/isiLive_validation_helpers.lua"] = {
+        'rawget(_G, "GetInstanceInfo")',
+      },
       ["factory/isiLive_factory_secondary_runtime.lua"] = {
         'rawget(_G, "C_Map")',
         'rawget(_G, "UnitExists")',
@@ -187,10 +190,26 @@ return function(test, ctx)
         'rawget(_G, "C_Map")',
         'rawget(_G, "UnitExists")',
       },
+      ["logic/isiLive_keysync.lua"] = {
+        "GetInstanceInfoSafe",
+      },
+      ["logic/isiLive_event_handlers.lua"] = {
+        "GetInstanceInfoSafe",
+      },
+      ["factory/isiLive_factory_runtime_helpers.lua"] = {
+        "GetInstanceInfoSafe",
+      },
+      ["ui/isiLive_status.lua"] = {
+        "GetInstanceInfoSafe",
+      },
       ["logic/isiLive_event_handlers_runtime.lua"] = {
-        'rawget(_G, "C_Map")',
-        'rawget(_G, "UnitExists")',
-        'rawget(_G, "GetInstanceInfo")',
+        "GetInstanceInfoSafe",
+      },
+      ["core/isiLive_runtime_mode.lua"] = {
+        "GetInstanceInfoSafe",
+      },
+      ["game/isiLive_season_debug.lua"] = {
+        "GetInstanceInfoSafe",
       },
     }
     for path, required in pairs(consumers) do
@@ -201,7 +220,14 @@ return function(test, ctx)
       Assert.Nil(content:find("C_Map and", 1, true), path .. " must not use bare C_Map chains")
       Assert.Nil(content:find("pcall(UnitExists", 1, true), path .. " must not call bare UnitExists")
       Assert.Nil(content:find("pcall(GetInstanceInfo", 1, true), path .. " must not call bare GetInstanceInfo")
+      Assert.Nil(content:find("GetInstanceInfo(", 1, true), path .. " must not call bare GetInstanceInfo")
     end
+
+    local factoryContent = ReadFile("factory/isiLive_factory.lua"):gsub("%-%-[^\r\n]*", "")
+    Assert.Nil(
+      factoryContent:find("unitExists = UnitExists", 1, true),
+      "factory context must not capture a bare UnitExists handle"
+    )
   end)
 
   test("Architecture CTL wire-order simulator is enforced by local and GitHub CI", function()

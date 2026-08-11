@@ -7,6 +7,7 @@ addonTable.EventHandlers = EventHandlers
 local QueueLifecycle = addonTable.EventHandlersQueueLifecycle
 local ChallengeLifecycle = addonTable.EventHandlersChallengeLifecycle
 local RuntimeLifecycle = addonTable.EventHandlersRuntimeLifecycle
+local GetInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
 
 local function RequireFunction(value, name)
   return addonTable.Validators.RequireFunction(value, name, "EventHandlers")
@@ -36,11 +37,11 @@ local function BuildContext(opts)
     return false
   end)
   ctx.isInPartyInstance = OptionalFunction(opts.isInPartyInstance, function()
-    local ok, _, instanceType = pcall(GetInstanceInfo)
-    if not ok then
+    if type(GetInstanceInfoSafe) ~= "function" then
       return false
     end
-    return instanceType == "party"
+    local ok, instanceInfo = GetInstanceInfoSafe()
+    return ok and instanceInfo.instanceType == "party"
   end)
   ctx.setTrackedPartyRunInfo = OptionalFunction(opts.setTrackedPartyRunInfo, function(_value) end)
   ctx.clearTrackedPartyRunInfo = OptionalFunction(opts.clearTrackedPartyRunInfo, function() end)

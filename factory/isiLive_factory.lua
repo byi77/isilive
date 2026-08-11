@@ -855,15 +855,13 @@ local function FinalizeFactoryRuntime(ctx)
       local okLeader, isLeader = pcall(unitIsGroupLeader, unit)
       return okLeader and not addonTable.Validators.IsSecretValue(isLeader) and isLeader == true
     end,
-    unitExists = UnitExists,
     -- No getRaidTargetIndex / setRaidTarget here on purpose. SetRaidTarget is
     -- protected and its direct runtime path was removed after it raised
     -- ADDON_ACTION_FORBIDDEN; raid markers go through the secure worldmarker
     -- and macrotext buttons instead (ui/isiLive_roster_panel_chrome.lua,
     -- ui/isiLive_roster_panel_render.lua). Capturing the globals here left a
-    -- live handle to a forbidden API that no consumer read and that the
-    -- taint trap in testmodul/isilive_test_scenarios_taint.lua cannot see,
-    -- because rawget only stores the reference without calling it.
+    -- live handle to a forbidden API that no consumer read. The factory
+    -- context therefore exposes no direct unit-existence handle.
     isPlayerLeader = ctx.IsPlayerLeader,
     isStopped = runtimeState.IsStopped,
     isPaused = runtimeState.IsPaused,

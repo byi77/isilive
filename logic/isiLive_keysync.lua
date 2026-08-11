@@ -7,6 +7,7 @@ addonTable.KeySync = KeySync
 
 local SeasonData = addonTable.SeasonData or {}
 local IsSecretValue = addonTable.Validators.IsSecretValue
+local GetInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
 
 -- Module-level diagnostics counters. These are write-only from inside
 -- KeySync internals and read-only from outside via KeySync.GetDiagnostics().
@@ -208,11 +209,11 @@ local function SendLibKeystonePartyData(sync, getUnitRio, force)
 end
 
 local function GetOwnedLocMapID()
-  if not GetInstanceInfo then
+  if type(GetInstanceInfoSafe) ~= "function" then
     return nil
   end
-  local ok, _, instanceType = pcall(GetInstanceInfo)
-  if not ok or instanceType ~= "party" then
+  local ok, instanceInfo = GetInstanceInfoSafe()
+  if not ok or instanceInfo.instanceType ~= "party" then
     return nil
   end
   local mapApi = rawget(_G, "C_Map")

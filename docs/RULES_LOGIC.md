@@ -1640,6 +1640,12 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Roster target location requires existing unit and rejects secret map
   - VIP DK assist rejects secret specialization index
   - Status portal lookup rejects secret player map
+  - Validators.GetInstanceInfoSafe preserves clean instance metadata
+  - Validators.GetInstanceInfoSafe rejects missing, failing, or secret instance metadata
+  - RuntimeMode rejects secret instance metadata
+  - Status rejects secret instance metadata
+  - KeySync location snapshot rejects secret instance metadata
+  - SeasonDebug dump hides secret instance metadata
 
 ### RULE-SYNC-SENDESTATUS-TRANSAKTIONAL
 - Regelnummer: 103

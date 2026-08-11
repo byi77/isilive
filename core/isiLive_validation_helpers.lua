@@ -19,6 +19,61 @@ function Validators.IsSecretValue(value)
   return ok and result == true
 end
 
+local function HasSecretInstanceInfoValue(...)
+  for index = 1, select("#", ...) do
+    if Validators.IsSecretValue(select(index, ...)) then
+      return true
+    end
+  end
+  return false
+end
+
+--- Reads the optional instance API and rejects every returned secret value.
+--- @return boolean, table|nil -- success flag followed by verified metadata
+function Validators.GetInstanceInfoSafe()
+  local getInstanceInfo = rawget(_G, "GetInstanceInfo")
+  if type(getInstanceInfo) ~= "function" then
+    return false
+  end
+
+  local results = { pcall(getInstanceInfo) }
+  if
+    not results[1]
+    or HasSecretInstanceInfoValue(
+      results[2],
+      results[3],
+      results[4],
+      results[5],
+      results[6],
+      results[7],
+      results[8],
+      results[9],
+      results[10],
+      results[11],
+      results[12],
+      results[13]
+    )
+  then
+    return false
+  end
+
+  return true,
+    {
+      instanceName = results[2],
+      instanceType = results[3],
+      difficultyID = results[4],
+      difficultyName = results[5],
+      maxPlayers = results[6],
+      dynamicDifficultyID = results[7],
+      isDynamic = results[8],
+      instanceMapID = results[9],
+      instanceID = results[10],
+      lfgDungeonID = results[11],
+      lfgDungeonMapID = results[12],
+      lfgDungeonName = results[13],
+    }
+end
+
 --- Asserts that a value is a function and returns it.
 --- @param value any
 --- @param name string -- dependency name for error messages

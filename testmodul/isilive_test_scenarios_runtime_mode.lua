@@ -136,6 +136,18 @@ return function(test, ctx)
     end)
   end)
 
+  test("RuntimeMode rejects secret instance metadata", function()
+    local secret = {}
+    local globals = BuildInstanceGlobals("party", 8, nil)
+    globals.GetInstanceInfo = function()
+      return "Instance", secret, 8, nil, nil, nil, nil, 2000
+    end
+    globals.issecretvalue = function(value)
+      return value == secret
+    end
+    Assert.Equal(ResolveIn(globals), "IDLE", "secret instance metadata must not grant the full runtime profile")
+  end)
+
   test("RuntimeMode keeps timewalking out of the full-profile difficulty table", function()
     WithGlobals({}, function()
       local addon = LoadAddonModules({})

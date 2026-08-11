@@ -5,6 +5,7 @@ local FI = addonTable._FactoryInternal or {}
 addonTable._FactoryInternal = FI
 
 local InitializeStatusAndOperationalHelpers = FI.InitializeStatusAndOperationalHelpers
+local GetInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
 
 local function FormatTraceValue(value)
   if value == nil then
@@ -125,8 +126,11 @@ local function InitializeGameAPIHelpers(ctx, runtimeState)
     return runtimeState.ClearExpiredReadyCheckDeclined(now)
   end
   ctx.IsInPartyInstance = function()
-    local ok, _, instanceType = pcall(GetInstanceInfo)
-    return ok and instanceType == "party"
+    if type(GetInstanceInfoSafe) ~= "function" then
+      return false
+    end
+    local ok, instanceInfo = GetInstanceInfoSafe()
+    return ok and instanceInfo.instanceType == "party"
   end
   ctx.IsPortalNavigatorEnabled = function()
     local dbRef = rawget(_G, "IsiLiveDB")

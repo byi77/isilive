@@ -58,6 +58,32 @@ local function BuildLocale()
 end
 
 local function RegisterDungeonDifficultyTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("Status rejects secret instance metadata", function()
+    local secret = {}
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Secret Dungeon", secret, 8, "Mythic", 5, nil, nil, 777, 12345
+      end,
+      issecretvalue = function(value)
+        return value == secret
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_status.lua" })
+      local controller = addon.Status.CreateController({
+        getL = BuildLocale,
+      })
+
+      local label, isMythic, inDungeon, instanceType, difficultyID, instanceName =
+        controller.GetDungeonDifficultyLabel()
+      Assert.Equal(label, "Unknown", "secret instance metadata must render as unknown")
+      Assert.False(isMythic, "secret instance metadata must not enable Mythic mode")
+      Assert.False(inDungeon, "secret instance metadata must not establish dungeon context")
+      Assert.Nil(instanceType, "secret instance type must remain unresolved")
+      Assert.Nil(difficultyID, "secret difficulty ID must remain unresolved")
+      Assert.Nil(instanceName, "secret instance name must remain unresolved")
+    end)
+  end)
+
   test("Status labels timewalking dungeons as timewalking and not as mythic", function()
     -- difficultyID 24 is Timewalking. It used to sit in the mythic table, which
     -- printed "Mythic" next to "M+: Inactive" in the status line and suppressed

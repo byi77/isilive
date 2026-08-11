@@ -111,14 +111,16 @@ function RuntimeMode.IsFullProfileContext()
     return true
   end
 
-  local getInstanceInfo = rawget(_G, "GetInstanceInfo")
-  if type(getInstanceInfo) ~= "function" then
+  local getInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
+  if type(getInstanceInfoSafe) ~= "function" then
     return false
   end
-  local ok, _, instanceType, difficultyID = pcall(getInstanceInfo)
-  if not ok or IsSecretValue(instanceType) or IsSecretValue(difficultyID) then
+  local ok, instanceInfo = getInstanceInfoSafe()
+  if not ok then
     return false
   end
+  local instanceType = instanceInfo.instanceType
+  local difficultyID = instanceInfo.difficultyID
   if instanceType ~= "party" then
     return false
   end

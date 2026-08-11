@@ -6,6 +6,7 @@ local RuntimeLifecycle = {}
 addonTable.EventHandlersRuntimeLifecycle = RuntimeLifecycle
 local ChallengeLifecycle = addonTable.EventHandlersChallengeLifecycle
 local IsSecretValue = addonTable.Validators.IsSecretValue
+local GetInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
 local IsRaidModeActive
 local INCOMING_SUMMON_SOUND_LOOP_SECONDS = 5
 
@@ -123,11 +124,11 @@ end
 local NON_CHALLENGE_RUN_CAPTURE_RETRIES = 5
 local NON_CHALLENGE_RUN_CAPTURE_RETRY_DELAY_SECONDS = 1
 local function ResolveTrackedMythicZeroMapID()
-  local getInstanceInfo = rawget(_G, "GetInstanceInfo")
-  local okInstance, _, _, _, _, _, _, rawInstanceMapID = false, nil, nil, nil, nil, nil, nil, nil
-  if type(getInstanceInfo) == "function" then
-    okInstance, _, _, _, _, _, _, rawInstanceMapID = pcall(getInstanceInfo)
+  local okInstance, instanceInfo = false, nil
+  if type(GetInstanceInfoSafe) == "function" then
+    okInstance, instanceInfo = GetInstanceInfoSafe()
   end
+  local rawInstanceMapID = instanceInfo and instanceInfo.instanceMapID or nil
   local instanceMapID = okInstance and tonumber(rawInstanceMapID) or nil
   if instanceMapID and instanceMapID > 0 then
     return math.floor(instanceMapID)
@@ -167,14 +168,16 @@ local function GetTrackedMythicZeroState(ctx)
     return false, nil, nil, nil
   end
 
-  local getInstanceInfo = rawget(_G, "GetInstanceInfo")
-  if type(getInstanceInfo) ~= "function" then
+  if type(GetInstanceInfoSafe) ~= "function" then
     return false, nil, nil, nil
   end
-  local okInstance, instanceName, instanceType, difficultyID = pcall(getInstanceInfo)
+  local okInstance, instanceInfo = GetInstanceInfoSafe()
   -- The helper name is historical. The tracked run is now the M0 case only:
   -- a mythic party dungeon whose keystone has not been inserted yet. A running
   -- keystone returns early above and is recorded by the challenge lifecycle.
+  local instanceName = instanceInfo and instanceInfo.instanceName or nil
+  local instanceType = instanceInfo and instanceInfo.instanceType or nil
+  local difficultyID = instanceInfo and instanceInfo.difficultyID or nil
   if not okInstance or instanceType ~= "party" or not IsTrackedPartyDifficulty(difficultyID) then
     return false, nil, nil, nil
   end

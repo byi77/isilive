@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-10 - Version 0.9.376 (patch)
+
+A runtime-hardening patch for optional instance APIs. Nothing changes on screen.
+
+- **Instance metadata now fails closed everywhere.** Instance classification,
+  local map sync, status labels, M0 tracking, and season diagnostics all use a
+  shared guarded reader. Missing, failing, or Secret-Value metadata remains
+  unresolved instead of being used as a party, difficulty, map, or instance
+  identity. The architecture regression gate now covers every production
+  reader, and the deterministic suite pins the missing, failing, and secret
+  paths.
+
 ## 2026-08-10 - Version 0.9.375 (patch)
 
 A memory fix for the roster ghost history. Nothing changes on screen.

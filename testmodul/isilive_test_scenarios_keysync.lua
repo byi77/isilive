@@ -478,6 +478,32 @@ local function RegisterKeySyncPresenceTests(test, Assert, LoadAddonModules)
 end
 
 local function RegisterKeySyncOwnedKeyTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("KeySync location snapshot rejects secret instance metadata", function()
+    local secret = {}
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Secret Dungeon", secret, 23, "Mythic", 5, nil, nil, 777, 12345
+      end,
+      issecretvalue = function(value)
+        return value == secret
+      end,
+    }, function()
+      local sync = BuildMockSync()
+      local ctrl = BuildController(LoadAddonModules, sync)
+      ctrl.SendOwnKeySnapshot(true, "secret-instance-test", true, false, false)
+
+      local locationCall = nil
+      for _, call in ipairs(sync.calls) do
+        if call.fn == "SendLoc" then
+          locationCall = call
+          break
+        end
+      end
+      Assert.True(locationCall ~= nil, "location snapshot must still be dispatched")
+      Assert.Nil(locationCall.opts.mapID, "secret instance metadata must keep local map unresolved")
+    end)
+  end)
+
   test("KeySync RefreshLocalPlayerKey updates player key from C_MythicPlus", function()
     WithGlobals({
       C_MythicPlus = {

@@ -3,13 +3,15 @@
 **The colorful Mythic+ command center for World of Warcraft.** isiLive turns group prep, LFG decisions, dungeon portals, enemy forces, cooldowns, death tracking, and key sharing into one compact window.
 
 ![WoW 12.0.7 / 12.1.0 Midnight Retail](https://img.shields.io/badge/WoW-12.0.7%20%2F%2012.1.0%20Midnight%20Retail-00A2FF?style=for-the-badge)
-![isiLive 0.9.375](https://img.shields.io/badge/isiLive-0.9.375-1E90FF?style=for-the-badge)
+![isiLive 0.9.376](https://img.shields.io/badge/isiLive-0.9.376-1E90FF?style=for-the-badge)
 ![Mythic Plus command center](https://img.shields.io/badge/Mythic%2B-Command%20Center-22C55E?style=for-the-badge)
 ![No setup required](https://img.shields.io/badge/Setup-Automatic-F59E0B?style=for-the-badge)
 
 ![isiLive M+ roster, cooldowns, portals, and forces tools](https://raw.githubusercontent.com/byi77/isilive/main/isiLive_MPlus_ui.png)
 
 **Built for:** Mythic+ players, premade groups, and LFG runs
+
+Version `0.9.376` is a runtime-hardening patch for optional instance APIs; nothing changes on screen. Instance classification, local map sync, status labels, M0 tracking, and season diagnostics now reject missing, failing, or secret instance metadata instead of using it.
 
 **Active season:** `midnight_s1` with 8 supported dungeons: `WRS`, `MT`, `NPX`, `MC`, `AA`, `POS`, `SOT`, `SR`
 

@@ -94,4 +94,52 @@ return function(test, ctx)
       Assert.True(addon.Validators.IsSecretValue(secret), "shared secret-value detector must expose protected values")
     end)
   end)
+
+  test("Validators.GetInstanceInfoSafe preserves clean instance metadata", function()
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Test Dungeon", "party", 23, "Mythic", 5, nil, nil, 777, 12345
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_validation_helpers.lua" })
+      local ok, info = addon.Validators.GetInstanceInfoSafe()
+      Assert.True(ok, "clean instance metadata must be accepted")
+      Assert.Equal(info.instanceName, "Test Dungeon", "instance name must be preserved")
+      Assert.Equal(info.instanceType, "party", "instance type must be preserved")
+      Assert.Equal(info.difficultyID, 23, "difficulty ID must be preserved")
+      Assert.Equal(info.difficultyName, "Mythic", "difficulty name must be preserved")
+      Assert.Equal(info.maxPlayers, 5, "max players must be preserved")
+      Assert.Equal(info.instanceMapID, 777, "instance map ID must be preserved")
+      Assert.Equal(info.instanceID, 12345, "instance ID must be preserved")
+    end)
+  end)
+
+  test("Validators.GetInstanceInfoSafe rejects missing, failing, or secret instance metadata", function()
+    WithGlobals({ GetInstanceInfo = nil }, function()
+      local addon = LoadAddonModules({ "isiLive_validation_helpers.lua" })
+      Assert.False(addon.Validators.GetInstanceInfoSafe(), "missing instance API must fail closed")
+    end)
+
+    WithGlobals({
+      GetInstanceInfo = function()
+        error("simulated WoW API error")
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_validation_helpers.lua" })
+      Assert.False(addon.Validators.GetInstanceInfoSafe(), "instance API errors must fail closed")
+    end)
+
+    local secret = {}
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Test Dungeon", "party", 23, "Mythic", 5, nil, nil, secret, 12345
+      end,
+      issecretvalue = function(value)
+        return value == secret
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_validation_helpers.lua" })
+      Assert.False(addon.Validators.GetInstanceInfoSafe(), "secret instance metadata must fail closed")
+    end)
+  end)
 end

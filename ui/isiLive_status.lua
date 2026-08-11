@@ -6,6 +6,7 @@ local Status = {}
 addonTable.Status = Status
 local StringUtils = addonTable.StringUtils
 local IsSecretValue = addonTable.Validators.IsSecretValue
+local GetInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
 
 -- 8 = Mythic Keystone, 23 = Mythic. Both carry the full runtime profile; see
 -- FULL_PROFILE_PARTY_DIFFICULTY_IDS in core/isiLive_runtime_mode.lua for why
@@ -507,10 +508,16 @@ end
 
 local function GetDungeonDifficultyLabel(getL)
   local L = getL()
-  local okInstance, instanceName, instanceType, difficultyID = pcall(GetInstanceInfo)
+  if type(GetInstanceInfoSafe) ~= "function" then
+    return L.DUNGEON_DIFF_UNKNOWN, false, false, nil, nil, nil
+  end
+  local okInstance, instanceInfo = GetInstanceInfoSafe()
   if not okInstance then
     return L.DUNGEON_DIFF_UNKNOWN, false, false, nil, nil, nil
   end
+  local instanceName = instanceInfo.instanceName
+  local instanceType = instanceInfo.instanceType
+  local difficultyID = instanceInfo.difficultyID
   -- Raid branch: independent from the party / Mythic+ flow. Reports a raid
   -- label for the four current difficulties; `isMythic` stays false so the
   -- non-mythic-entry notice path (which gates on `not cMythic`) fires for

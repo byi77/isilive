@@ -3,7 +3,7 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.375`.
+Current version: `0.9.376`.
 
 Highlights:
 - **Hardened the group sync against out-of-range values from other players.**
@@ -33,7 +33,9 @@ Highlights:
   tracker, and the last-run DPS snapshot. Mythic dungeons — including a key
   dungeon before the keystone goes in — get the full feature set as before.
 - **Hardened runtime safety across several code audits, and all local release
-  gates pass.** Every masked-value check now runs through one shared, fully
+  gates pass.** Optional instance APIs now reject missing, failing, and secret
+  metadata through one shared guarded reader. Every masked-value check now runs
+  through one shared, fully
   guarded helper instead of thirteen private copies, removing a crash path in
   the Group Finder queue code. The VIP Death Knight helper is covered by the
   startup guards instead of failing silently, and version strings received from

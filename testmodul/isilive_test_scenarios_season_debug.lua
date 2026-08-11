@@ -59,4 +59,27 @@ return function(test, ctx)
     Assert.True(joined:find("activeChallengeMapID=999", 1, true) ~= nil, "challenge line must include observed map")
     Assert.True(joined:find("activityID=456", 1, true) ~= nil, "LFG line must include observed activity")
   end)
+
+  test("SeasonDebug dump hides secret instance metadata", function()
+    local secret = {}
+    WithGlobals({
+      GetInstanceInfo = function()
+        return "Secret Dungeon", secret, 23, "Mythic", 5, nil, nil, 777, 12345
+      end,
+      issecretvalue = function(value)
+        return value == secret
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_season_data.lua", "isiLive_season_debug.lua" })
+      local joined = table.concat(addon.SeasonDebug.BuildDumpLines(), "\n")
+      Assert.True(
+        joined:find("GetInstanceInfo=unavailable", 1, true) ~= nil,
+        "secret instance metadata must not be written to the debug dump"
+      )
+      Assert.True(
+        joined:find("instance name=Secret Dungeon", 1, true) == nil,
+        "secret instance metadata must not be rendered"
+      )
+    end)
+  end)
 end

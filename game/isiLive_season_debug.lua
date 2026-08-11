@@ -5,6 +5,7 @@ addonTable = addonTable or {}
 local SeasonDebug = {}
 addonTable.SeasonDebug = SeasonDebug
 local IsSecretValue = addonTable.Validators.IsSecretValue
+local GetInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
 
 local function ValueText(value)
   if value == nil then
@@ -36,18 +37,6 @@ local function SafeCallTable(rootName, fnName, ...)
     return false, "unavailable"
   end
   local ok, results = PackCallResults(pcall(root[fnName], ...))
-  if not ok then
-    return false, "error:" .. tostring(results[1])
-  end
-  return true, results
-end
-
-local function SafeCallGlobal(fnName, ...)
-  local fn = rawget(_G, fnName)
-  if type(fn) ~= "function" then
-    return false, "unavailable"
-  end
-  local ok, results = PackCallResults(pcall(fn, ...))
   if not ok then
     return false, "error:" .. tostring(results[1])
   end
@@ -107,20 +96,25 @@ local function AppendReadiness(lines)
 end
 
 local function AppendInstanceInfo(lines)
-  local ok, result = SafeCallGlobal("GetInstanceInfo")
+  if type(GetInstanceInfoSafe) ~= "function" then
+    lines[#lines + 1] = "[SEASON] GetInstanceInfo=unavailable"
+    return
+  end
+
+  local ok, instanceInfo = GetInstanceInfoSafe()
   if not ok then
-    lines[#lines + 1] = "[SEASON] GetInstanceInfo=" .. tostring(result)
+    lines[#lines + 1] = "[SEASON] GetInstanceInfo=unavailable"
     return
   end
 
   lines[#lines + 1] = string.format(
     "[SEASON] instance name=%s type=%s difficultyID=%s mapID=%s groupSize=%s instanceID=%s",
-    ValueText(result[1]),
-    ValueText(result[2]),
-    ValueText(result[3]),
-    ValueText(result[8]),
-    ValueText(result[5]),
-    ValueText(result[9])
+    ValueText(instanceInfo.instanceName),
+    ValueText(instanceInfo.instanceType),
+    ValueText(instanceInfo.difficultyID),
+    ValueText(instanceInfo.instanceMapID),
+    ValueText(instanceInfo.maxPlayers),
+    ValueText(instanceInfo.instanceID)
   )
 end
 
