@@ -106,18 +106,47 @@ local function main()
     fail(2, "enUS table missing from GetLocaleTables")
   end
 
+  -- Referenced-key index.
+  --
+  -- The obvious implementation runs the four reference patterns against the
+  -- whole blob once per key. That is O(keys * blob) with a fresh pattern
+  -- compile per probe -- 521 keys * 4 patterns over ~1.9 MB, which measured
+  -- ~33 s. Inverting the loop makes it O(blob): extract every string that
+  -- COULD be a key reference in one pass, then answer each key with a table
+  -- lookup. Same four accepted forms, same result set, ~0.2 s.
+  --
+  -- The extraction patterns below mirror the documented forms exactly:
+  --   .KEY[non-word]   -> "%.([%a_][%w_]*)"      (see the note on anchoring)
+  --   ["KEY"] / "KEY"  -> '"([%a_][%w_]*)"'      (bracketed form is a subset)
+  --   'KEY'            -> "'([%a_][%w_]*)'"
+  --
+  -- Anchoring each capture to a full identifier ([%a_][%w_]*) is what keeps
+  -- this equivalent rather than merely similar: a bare token scan would also
+  -- count a key named inside a prose comment, silently widening "alive".
+  --
+  -- The property pattern deliberately has NO trailing [^%w_] terminator.
+  -- `%w*` is greedy and already stops at the first non-identifier character,
+  -- so the terminator adds nothing -- but under gmatch it CONSUMES that
+  -- character, which makes the scanner skip an immediately adjacent match.
+  -- `ctx.L.LOADED_HINT` is the real case: the `.L` match would eat the `.`
+  -- that starts `.LOADED_HINT`, reporting a live key as an orphan.
+  local referenced = {}
+  for name in blob:gmatch("%.([%a_][%w_]*)") do
+    referenced[name] = true
+  end
+  for name in blob:gmatch('"([%a_][%w_]*)"') do
+    referenced[name] = true
+  end
+  for name in blob:gmatch("'([%a_][%w_]*)'") do
+    referenced[name] = true
+  end
+
   local orphans = {}
   local total = 0
   for key in pairs(enus) do
     total = total + 1
-    if not OVERRIDES[key] then
-      local pat1 = "%." .. key .. "[^%w_]"
-      local pat2 = '%["' .. key .. '"%]'
-      local pat3 = '"' .. key .. '"'
-      local pat4 = "'" .. key .. "'"
-      if not (blob:find(pat1) or blob:find(pat2) or blob:find(pat3) or blob:find(pat4)) then
-        orphans[#orphans + 1] = key
-      end
+    if not OVERRIDES[key] and not referenced[key] then
+      orphans[#orphans + 1] = key
     end
   end
 

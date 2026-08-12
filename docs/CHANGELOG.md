@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-08-12 - Version 0.9.377 (patch)
+
+A build-gate performance fix. Nothing changes on screen.
+
+- **The dead-locale-key gate no longer scans the whole codebase once per key.**
+  The check proved every enUS key is referenced in production code by running
+  four patterns against a 1.9 MB source blob for each of the 521 keys — over
+  two thousand full scans, around 33 seconds. The loop is now inverted: one
+  pass extracts every property, double-quoted, and single-quoted identifier
+  into a lookup table, and each key is answered from it. The gate runs in about
+  0.2 seconds with an identical result set, verified key by key against the
+  previous implementation including known-orphan inputs. A first attempt at the
+  rewrite carried a real defect worth recording: under `gmatch`, the trailing
+  `[^%w_]` terminator consumes the character it matches, so an immediately
+  adjacent reference is skipped — `ctx.L.LOADED_HINT` had its `.L` match eat
+  the dot that starts `.LOADED_HINT`, and a live key was reported as dead. The
+  terminator was redundant, since `%w*` already stops at the first
+  non-identifier character, and the reason it must not come back is documented
+  at the call site.
+
 ## 2026-08-10 - Version 0.9.376 (patch)
 
 A runtime-hardening patch for optional instance APIs. Nothing changes on screen.
