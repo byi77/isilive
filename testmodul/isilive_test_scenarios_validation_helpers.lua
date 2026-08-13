@@ -95,6 +95,68 @@ return function(test, ctx)
     end)
   end)
 
+  test("Validators.ReadPlainField returns plain values and rejects masked ones", function()
+    local secret = {}
+    WithGlobals({
+      issecretvalue = function(value)
+        return value == secret
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_validation_helpers.lua" })
+      local Validators = addon.Validators
+      local payload = { flag = true, count = 7, unit = "party1", masked = secret }
+
+      Assert.Equal(Validators.ReadPlainField(payload, "count"), 7, "plain fields must be returned unchanged")
+      Assert.Nil(Validators.ReadPlainField(payload, "masked"), "masked fields must fail closed")
+      Assert.Nil(Validators.ReadPlainField(payload, "missing"), "absent fields must return nil")
+      Assert.Nil(Validators.ReadPlainField("not a table", "count"), "non-tables must return nil")
+      Assert.Nil(Validators.ReadPlainField(nil, "count"), "nil sources must return nil")
+    end)
+  end)
+
+  test("Validators typed readers accept only their own plain type", function()
+    local secret = {}
+    WithGlobals({
+      issecretvalue = function(value)
+        return value == secret
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_validation_helpers.lua" })
+      local Validators = addon.Validators
+      local payload = { flag = false, count = 7, unit = "party1", masked = secret }
+
+      Assert.Equal(Validators.ReadPlainBoolean(payload, "flag"), false, "a plain false must survive as false")
+      Assert.Nil(Validators.ReadPlainBoolean(payload, "count"), "a number must not pass the boolean reader")
+      Assert.Nil(Validators.ReadPlainBoolean(payload, "masked"), "a masked flag must not pass the boolean reader")
+
+      Assert.Equal(Validators.ReadPlainNumber(payload, "count"), 7, "a plain number must survive")
+      Assert.Nil(Validators.ReadPlainNumber(payload, "unit"), "a string must not pass the number reader")
+      Assert.Nil(Validators.ReadPlainNumber(payload, "masked"), "a masked number must not pass the number reader")
+
+      Assert.Equal(Validators.ReadPlainString(payload, "unit"), "party1", "a plain string must survive")
+      Assert.Nil(Validators.ReadPlainString(payload, "count"), "a number must not pass the string reader")
+      Assert.Nil(Validators.ReadPlainString(payload, "masked"), "a masked string must not pass the string reader")
+    end)
+  end)
+
+  test("Validators.IsSecretField separates a masked field from an absent one", function()
+    local secret = {}
+    WithGlobals({
+      issecretvalue = function(value)
+        return value == secret
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_validation_helpers.lua" })
+      local Validators = addon.Validators
+      local payload = { masked = secret, plain = true }
+
+      Assert.True(Validators.IsSecretField(payload, "masked"), "a masked field must be reported as masked")
+      Assert.False(Validators.IsSecretField(payload, "plain"), "a readable field must not be reported as masked")
+      Assert.False(Validators.IsSecretField(payload, "missing"), "an absent field must not be reported as masked")
+      Assert.False(Validators.IsSecretField("not a table", "masked"), "non-tables must not be reported as masked")
+    end)
+  end)
+
   test("Validators.GetInstanceInfoSafe preserves clean instance metadata", function()
     WithGlobals({
       GetInstanceInfo = function()

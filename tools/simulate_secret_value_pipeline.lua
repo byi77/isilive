@@ -409,10 +409,96 @@ local function ScenarioBuildStatusLine()
   local _ = taintedText
 end
 
+-- ----------------------------------------------------------------------
+-- Phase 5 - UNIT_AURA payload fields. WoW 12.1 masks
+-- `unitAuraUpdateInfo.isFullUpdate` inside restricted instances; comparing it
+-- raised "attempt to compare field 'isFullUpdate' (a secret boolean value)",
+-- which aborted the whole UNIT_AURA handler. Because PiTracker runs FIRST in
+-- that handler, the abort also silently killed the CD-tracker resync and the
+-- Bloodlust button warning behind it -- so this scenario drives the real
+-- dispatcher with the real PiTracker wired in and asserts all three survive.
+-- ----------------------------------------------------------------------
+local function ScenarioUnitAuraPayload()
+  print("\n========== Scenario 5: UNIT_AURA masked payload fields ==========")
+  local Fixtures = LoadLocal("testmodul/isilive_test_fixtures.lua")
+  local secret = {}
+  local globals = buildGlobals()
+  globals.issecretvalue = function(value)
+    return value == secret
+  end
+
+  local announces = {}
+  local cdScans = 0
+  local addon
+  local controller
+
+  Harness.WithGlobals(globals, function()
+    addon = Harness.LoadAddonModules({ "isiLive_event_handlers.lua", "isiLive_pi_tracker.lua" })
+    addon.PiTracker.SetDependencies({
+      getTime = function()
+        return 500
+      end,
+      getUnitName = function(unit)
+        return unit == "party1" and "Priest-Realm" or "Me-Realm"
+      end,
+      getUnitClassToken = function(unit)
+        return unit == "party1" and "PRIEST" or "MAGE"
+      end,
+      getAuraDataByIndex = function(unit, index, filter)
+        if unit == "player" and index == 1 and filter == "HELPFUL" then
+          return { spellId = 10060, auraInstanceID = 501, sourceUnit = "party1" }
+        end
+        return nil
+      end,
+      announcePowerInfusion = function(casterName, recipientName)
+        announces[#announces + 1] = { casterName = casterName, recipientName = recipientName }
+      end,
+    })
+    controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+      handlePiTrackerEvent = function(event, unit, payload)
+        addon.PiTracker.HandleEvent(event, unit, payload)
+      end,
+      updateCdTracker = function()
+        cdScans = cdScans + 1
+      end,
+    })
+  end)
+
+  -- Masked flag, no delta list: the shape of a full update.
+  local ok = pcall(function()
+    Harness.WithGlobals(globals, function()
+      controller:Dispatch("UNIT_AURA", "player", { isFullUpdate = secret })
+    end)
+  end)
+  Check(ok == true, "masked isFullUpdate: UNIT_AURA dispatch completes without re-raising")
+  Check(#announces == 1, "masked isFullUpdate: the inferred full-update scan still announces Power Infusion")
+  Check(cdScans == 1, "masked isFullUpdate: the cd-tracker resync behind PiTracker still runs")
+
+  -- Masked flag next to a delta list: incremental, must not force a full scan.
+  Harness.WithGlobals(globals, function()
+    controller:Dispatch("UNIT_AURA", "player", { isFullUpdate = secret, updatedAuraInstanceIDs = { 7 } })
+  end)
+  Check(#announces == 1, "masked incremental payload: no extra PI announce from a 40-slot scan")
+
+  -- Masked aura fields inside a delta list must not reach a comparison or a
+  -- table lookup either.
+  local okFields = pcall(function()
+    Harness.WithGlobals(globals, function()
+      controller:Dispatch("UNIT_AURA", "player", {
+        isFullUpdate = secret,
+        addedAuras = { { spellId = secret, auraInstanceID = secret, sourceUnit = secret } },
+      })
+    end)
+  end)
+  Check(okFields == true, "masked aura fields: UNIT_AURA dispatch completes without re-raising")
+  Check(#announces == 1, "masked aura fields: nothing is announced from unreadable aura data")
+end
+
 ScenarioGetUnitRole()
 ScenarioGetUnitClass()
 ScenarioGetUnitNameAndRealm()
 ScenarioBuildStatusLine()
+ScenarioUnitAuraPayload()
 
 if failures > 0 then
   print(string.format("\nSecret-Value pipeline simulator failed: %d check(s) failed", failures))

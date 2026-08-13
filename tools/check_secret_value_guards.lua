@@ -28,6 +28,32 @@
 --     IsChallengeModeActive
 --   * CombatLogGetCurrentEventInfo (also forbidden in 12.0; double-belt)
 --
+-- Entry channels for a masked value (what this gate does and does not see):
+--   1. Return value of a watched Blizzard API  -> covered by the call-site
+--      rules below.
+--   2. FIELD of a Blizzard-supplied table (event payload, API result struct,
+--      tooltip data)                           -> covered by the payload-field
+--      rule below.
+--   3. Varargs of an event handler (e.g. the spellID of
+--      UNIT_SPELLCAST_SUCCEEDED)               -> NOT covered statically. The
+--      handler signature carries no marker a line-based gate could key on;
+--      those paths are pinned by runtime simulators instead
+--      (tools/simulate_secret_value_pipeline.lua).
+--   4. Values handed to a callback by a Blizzard library or hook
+--                                              -> NOT covered, same reason.
+--
+-- The channel-2 rule is line-local: a field copied into a local on one line and
+-- compared on the next is not seen (`local e = rawget(aura, "expirationTime")`
+-- followed by `e - now`). Routing every such read through
+-- `Validators.ReadPlain*` is what closes that gap, not the gate.
+--
+-- Channel 2 was added after WoW 12.1 masked `unitAuraUpdateInfo.isFullUpdate`:
+-- comparing it raised "attempt to compare field 'isFullUpdate' (a secret
+-- boolean value)" and took down the whole UNIT_AURA dispatch, while this gate
+-- stayed green because no watched API NAME appears on such a line. A rule
+-- scoped to the symbols known when it was written certifies those symbols, not
+-- the property it is meant to enforce.
+--
 -- Detector ownership (second, independent rule):
 --   Only `core/isiLive_validation_helpers.lua` may read the raw `issecretvalue`
 --   global. Every other production module must call
@@ -95,6 +121,44 @@ local WATCHED_API_SET = {}
 for _, api in ipairs(WATCHED_APIS) do
   WATCHED_API_SET[api] = true
 end
+
+-- Fields of Blizzard-supplied tables that are known to carry Secret Values in
+-- restricted instances. Only names Blizzard actually owns belong here -- a
+-- generic name like `icon` or `name` would flag our own structs on every line.
+local WATCHED_PAYLOAD_FIELDS = {
+  "isFullUpdate",
+  "addedAuras",
+  "updatedAuraInstanceIDs",
+  "removedAuraInstanceIDs",
+  "removedAuras",
+  "auraInstanceID",
+  "expirationTime",
+  "applications",
+  "sourceUnit",
+  "spellId",
+}
+
+-- Operations that raise when applied to a Secret Value. Assignment and plain
+-- copying are safe and deliberately absent. Arithmetic requires surrounding
+-- whitespace because StyLua enforces it, which keeps the pattern off unrelated
+-- hyphens and slashes.
+local PAYLOAD_FIELD_RISK_OPERATIONS = {
+  { pattern = "#", label = "length-read" },
+  { pattern = "==", label = "compared" },
+  { pattern = "~=", label = "compared" },
+  { pattern = "<", label = "compared" },
+  { pattern = ">", label = "compared" },
+  { pattern = "%.%.", label = "concatenated" },
+  { pattern = "%s%+%s", label = "used in arithmetic" },
+  { pattern = "%s%-%s", label = "used in arithmetic" },
+  { pattern = "%s%*%s", label = "used in arithmetic" },
+  { pattern = "%s/%s", label = "used in arithmetic" },
+}
+
+-- Branching on a masked field does not raise today, but it reads every Secret
+-- Value as truthy: the branch then fires on every event instead of only when
+-- the real flag is set. Same defect, performance symptom instead of a crash.
+local PAYLOAD_FIELD_CONDITION_SUFFIXES = { "then", "and", "or" }
 
 local ok_lfs, lfs = pcall(require, "lfs")
 if not ok_lfs then
@@ -300,6 +364,74 @@ local function analyzeDetectorOwnership(path, lines)
   return hits
 end
 
+-- A line is exempt when it routes the field through the central secret-safe
+-- readers, or checks it explicitly. `Validators.ReadPlain*` rejects a masked
+-- value before returning, so anything it produced is plain by construction.
+local function lineHasPayloadGuard(code)
+  return code:find("ReadPlain") ~= nil
+    or code:find("IsSecretValue%s*%(") ~= nil
+    or code:find("issecretvalue%s*%(") ~= nil
+end
+
+local function lineReadsPayloadField(code, field)
+  if code:find("%." .. field .. "%f[^%w_]") then
+    return true
+  end
+  if code:find('"' .. field .. '"') then
+    return true
+  end
+  return false
+end
+
+local function payloadFieldRiskLabel(code, field)
+  for _, operation in ipairs(PAYLOAD_FIELD_RISK_OPERATIONS) do
+    if code:find(operation.pattern) then
+      return operation.label
+    end
+  end
+  for _, suffix in ipairs(PAYLOAD_FIELD_CONDITION_SUFFIXES) do
+    if code:find("%." .. field .. "%s+" .. suffix .. "%f[^%w_]") then
+      return "branched on"
+    end
+  end
+  if code:find("%[[^%]]*%." .. field .. "%f[^%w_]") or code:find('%[[^%]]*"' .. field .. '"') then
+    return "used as a table key"
+  end
+  return nil
+end
+
+-- Second entry channel: a Secret Value that arrives as a FIELD of a
+-- Blizzard-supplied table rather than as a watched API return. The call-site
+-- rules cannot see it because no watched API name appears on the line.
+local function analyzePayloadFields(path, lines)
+  local hits = {}
+  for lineno, raw in ipairs(lines) do
+    local previous = lineno > 1 and lines[lineno - 1] or ""
+    if not hasInlineOverride(raw) and not hasInlineOverride(previous) then
+      local code = stripComment(raw)
+      if not lineHasPayloadGuard(code) then
+        for _, field in ipairs(WATCHED_PAYLOAD_FIELDS) do
+          if lineReadsPayloadField(code, field) then
+            local label = payloadFieldRiskLabel(code, field)
+            if label then
+              hits[#hits + 1] = string.format(
+                "%s:%d [payload field %s]: masked-capable field is %s without a Secret-Value guard; "
+                  .. "read it through addonTable.Validators.ReadPlain*",
+                path,
+                lineno,
+                field,
+                label
+              )
+              break
+            end
+          end
+        end
+      end
+    end
+  end
+  return hits
+end
+
 local function analyzeLines(path, lines)
   local hits = {}
   local watchedAliasByName = {}
@@ -401,6 +533,10 @@ local function main()
     for _, hit in ipairs(detectorHits) do
       hits[#hits + 1] = hit
     end
+    local payloadHits = analyzePayloadFields(path, lines)
+    for _, hit in ipairs(payloadHits) do
+      hits[#hits + 1] = hit
+    end
   end
 
   if #hits == 0 then
@@ -422,6 +558,7 @@ end
 if ... == "test" then
   return {
     AnalyzeLines = analyzeLines,
+    AnalyzePayloadFields = analyzePayloadFields,
   }
 end
 

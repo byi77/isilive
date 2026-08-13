@@ -123,6 +123,54 @@ return function(test, ctx)
     Assert.Equal(#wrapperHits, 0, "file-local wrappers must not be mistaken for Blizzard method calls")
   end)
 
+  -- The API-name rules above cannot see a masked value that arrives as a FIELD
+  -- of a Blizzard payload: no watched name appears on such a line. That is how
+  -- `unitAuraUpdateInfo.isFullUpdate == true` shipped while this gate was green.
+  test("Secret value checker audits masked payload fields", function()
+    local chunk = assert(loadfile("tools/check_secret_value_guards.lua"))
+    local checker = chunk("test")
+
+    local shippedDefectHits = checker.AnalyzePayloadFields("fixture.lua", {
+      'if type(updateInfo) ~= "table" or updateInfo.isFullUpdate == true then',
+    })
+    Assert.Equal(#shippedDefectHits, 1, "comparing a masked payload field must be audited")
+
+    local branchHits = checker.AnalyzePayloadFields("fixture.lua", {
+      "if updateInfo.isFullUpdate then",
+    })
+    Assert.Equal(#branchHits, 1, "branching on a masked payload field must be audited")
+
+    local lengthHits = checker.AnalyzePayloadFields("fixture.lua", {
+      "if #updateInfo.removedAuraInstanceIDs > 0 then",
+    })
+    Assert.Equal(#lengthHits, 1, "length-reading a masked payload list must be audited")
+
+    local tableKeyHits = checker.AnalyzePayloadFields("fixture.lua", {
+      "if LUST_SATED_IDS[aura.spellId] then",
+    })
+    Assert.Equal(#tableKeyHits, 1, "using a masked payload field as a table key must be audited")
+
+    local arithmeticHits = checker.AnalyzePayloadFields("fixture.lua", {
+      'local remain = rawget(aura, "expirationTime") - getTime()',
+    })
+    Assert.Equal(#arithmeticHits, 1, "arithmetic on a masked payload field must be audited")
+
+    local guardedHits = checker.AnalyzePayloadFields("fixture.lua", {
+      'local isFullUpdate = ReadPlainBoolean(updateInfo, "isFullUpdate")',
+      "if isFullUpdate == true then",
+      '  local added = ReadPlainField(updateInfo, "addedAuras")',
+      "end",
+    })
+    Assert.Equal(#guardedHits, 0, "fields routed through the central readers must pass")
+
+    local copyHits = checker.AnalyzePayloadFields("fixture.lua", {
+      "local snapshot = { spellId = aura.spellId }",
+      "-- aura.expirationTime - now would be unsafe",
+      "if updateInfo.isFullUpdate == true then -- secret-value-ok",
+    })
+    Assert.Equal(#copyHits, 0, "copies, comments and annotated lines must not be audited")
+  end)
+
   test("Units reject secret specialization and inspect values", function()
     local secret = {}
     WithGlobals({

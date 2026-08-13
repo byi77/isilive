@@ -1433,6 +1433,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - PiTracker default WoW name adapter fails closed when names are unavailable
   - PiTracker controller fails closed for unsupported units partial updates and reset
   - PiTracker module event wrapper installs dependencies handles aura and reset events
+  - PiTracker treats a masked UNIT_AURA full-update flag as a full update
+  - PiTracker skips the full scan when a masked flag arrives next to a delta list
+  - PiTracker survives a UNIT_AURA payload whose field reads raise
+  - PiTracker keeps masked aura fields out of the announce path
+  - Event handlers resolve a masked UNIT_AURA full-update flag from the payload shape
   - UNIT_AURA refreshes cd tracker only for player unit outside raid
   - UNIT_AURA bails out in raid mode even for player unit
   - factory split coverage: combat announce callbacks render, sound, and broadcast

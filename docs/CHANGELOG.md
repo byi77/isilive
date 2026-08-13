@@ -1,5 +1,56 @@
 # Changelog
 
+## 2026-08-13 - Version 0.9.378 (patch)
+
+Fixes the WoW 12.1 chat spam in keys and raids, and the two features that were
+silently dead behind it.
+
+- **`UNIT_AURA` no longer crashes on the masked full-update flag.** Patch 12.1
+  masks `unitAuraUpdateInfo.isFullUpdate` as a Secret Value inside M+ and boss
+  instances. `game/isiLive_pi_tracker.lua` compared it with `== true`, which
+  raises "attempt to compare field 'isFullUpdate' (a secret boolean value)" —
+  once per `UNIT_AURA`, for five units, many times per second. Two things went
+  wrong at once: the chat filled with dispatch-error lines, and because the
+  Power-Infusion tracker runs *first* in that handler, the abort also took the
+  Lust/Sated countdown and the Bloodlust button warning down with it for the
+  whole run. Nobody could see that second half from the error text.
+- **The flag is now resolved without ever touching the masked value.** A
+  readable flag is used as before. A masked one is answered from the payload
+  shape: WoW sends a bare table for a full update and always attaches at least
+  one delta list (`addedAuras`, `updatedAuraInstanceIDs`,
+  `removedAuraInstanceIDs`, `removedAuras`) to an incremental one. The
+  alternative — scanning on every event — would have meant a 40-slot aura scan
+  per tracked unit many times per second in exactly the instances where the flag
+  is masked. A flag that is genuinely absent keeps its pre-12.1 answer, so the
+  existing payload contracts are unchanged.
+- **Every Blizzard-supplied field now goes through one guarded reader.**
+  `Validators.ReadPlainField` / `ReadPlainBoolean` / `ReadPlainNumber` /
+  `ReadPlainString` pcall the read and reject masked values before anything is
+  compared, concatenated, calculated with or used as a table key;
+  `Validators.IsSecretField` tells a masked field apart from an absent one.
+  Applied to the same class of latent defect found alongside the crash: the
+  aura `sourceUnit` compared against `""`, `auraInstanceID` concatenated into
+  the dedup key, `expirationTime` used in arithmetic in the CD tracker, and the
+  `#`-reads of the delta lists in the event filter. All of these used `type()`
+  as their only guard, and `type()` lies about a Secret Value.
+- **The static gate now audits the channel this arrived through.**
+  `tools/check_secret_value_guards.lua` enforced "masked values must be
+  guarded" as a watchlist of ~30 API function *names*, so a masked value
+  arriving as a payload *field* was invisible to it and the release shipped
+  green. It now also audits masked-capable field names that are compared,
+  branched on, concatenated, length-read, or used as a table key, and its
+  header states which entry channels it does not cover (handler varargs,
+  library callbacks) and that the field rule is line-local. Verified against the
+  shipped code: the new rule fires on the exact lines that crashed.
+- **A high-frequency dispatch error can no longer flood the chat.** Identical
+  event+error pairs are printed at most once per minute; a different error still
+  prints immediately.
+- Runtime coverage: `tools/simulate_secret_value_pipeline.lua` gained a
+  `UNIT_AURA` scenario that drives the real dispatcher with the real
+  Power-Infusion tracker wired in and asserts the announce, the CD-tracker
+  resync behind it, and that an incremental payload is not promoted to a full
+  scan. It was confirmed to fail against the pre-fix code.
+
 ## 2026-08-12 - Version 0.9.377 (patch)
 
 A build-gate performance fix. Nothing changes on screen.

@@ -363,4 +363,106 @@ return function(test, ctx)
     Assert.Equal(announces[1].casterName, "WrapperPriest-Realm", "wrapper must use configured caster resolver")
     Assert.True(announces[1].isLocalRecipient == true, "wrapper must preserve local recipient flag")
   end)
+
+  -- WoW 12.1 masks `unitAuraUpdateInfo.isFullUpdate` as a Secret Value inside
+  -- restricted instances. Comparing it raised "attempt to compare field
+  -- 'isFullUpdate' (a secret boolean value)", which killed the whole UNIT_AURA
+  -- dispatch and printed one error line per event.
+  test("PiTracker treats a masked UNIT_AURA full-update flag as a full update", function()
+    local PiTracker
+    local secret = {}
+    WithGlobals({
+      issecretvalue = function(value)
+        return value == secret
+      end,
+    }, function()
+      PiTracker = LoadPiTracker(ctx)
+      local controller, announces = BuildController(PiTracker, {
+        getAuraDataByIndex = function(unit, index)
+          if unit == "player" and index == 1 then
+            return { spellId = 10060, auraInstanceID = 91, sourceUnit = "party1" }
+          end
+          return nil
+        end,
+      })
+
+      Assert.True(
+        controller.HandleUnitAura("player", { isFullUpdate = secret }) == true,
+        "a masked flag without any delta list must still be scanned like a full update"
+      )
+      Assert.Equal(#announces, 1, "the inferred full-update scan must announce the verified PI")
+    end)
+  end)
+
+  test("PiTracker skips the full scan when a masked flag arrives next to a delta list", function()
+    local PiTracker
+    local secret = {}
+    local scans = 0
+    WithGlobals({
+      issecretvalue = function(value)
+        return value == secret
+      end,
+    }, function()
+      PiTracker = LoadPiTracker(ctx)
+      local controller = BuildController(PiTracker, {
+        getAuraDataByIndex = function()
+          scans = scans + 1
+          return nil
+        end,
+      })
+
+      Assert.True(
+        controller.HandleUnitAura("player", { isFullUpdate = secret, updatedAuraInstanceIDs = { 7 } }) == false,
+        "a delta payload must not be promoted to a full update just because the flag is masked"
+      )
+      Assert.Equal(scans, 0, "an incremental payload must not trigger the 40-slot scan")
+    end)
+  end)
+
+  test("PiTracker survives a UNIT_AURA payload whose field reads raise", function()
+    local PiTracker
+    WithGlobals({}, function()
+      PiTracker = LoadPiTracker(ctx)
+    end)
+    local controller, announces = BuildController(PiTracker, {
+      getAuraDataByIndex = function()
+        return nil
+      end,
+    })
+
+    local hostilePayload = setmetatable({}, {
+      __index = function()
+        error("attempt to compare field 'isFullUpdate' (a secret boolean value)", 0)
+      end,
+    })
+    Assert.False(
+      pcall(function()
+        return hostilePayload.isFullUpdate == true
+      end),
+      "the fixture must reproduce a payload whose plain field read raises"
+    )
+    Assert.True(controller.HandleUnitAura("player", hostilePayload) == false, "a hostile payload must fail closed")
+    Assert.Equal(#announces, 0, "a hostile payload must not synthesize an announce")
+  end)
+
+  test("PiTracker keeps masked aura fields out of the announce path", function()
+    local PiTracker
+    local secret = {}
+    WithGlobals({
+      issecretvalue = function(value)
+        return value == secret
+      end,
+    }, function()
+      PiTracker = LoadPiTracker(ctx)
+      local controller, announces = BuildController(PiTracker)
+
+      Assert.True(controller.HandleUnitAura("player", {
+        addedAuras = { { spellId = 10060, auraInstanceID = 92, sourceUnit = secret } },
+      }) == false, "a masked source unit must not be compared or announced")
+      Assert.True(controller.HandleUnitAura("player", {
+        addedAuras = { { spellId = secret, auraInstanceID = 93, sourceUnit = "party1" } },
+      }) == false, "a masked spell id must not reach the spell-id match")
+      Assert.Equal(#announces, 0, "masked aura fields must keep the tracker silent")
+    end)
+  end)
 end

@@ -19,6 +19,84 @@ function Validators.IsSecretValue(value)
   return ok and result == true
 end
 
+--- Reads a single field out of a table that Blizzard handed us (event payload,
+--- API result struct, tooltip data) without ever operating on a masked value.
+---
+--- Secret Values do not only arrive as return values of the APIs watched by
+--- `tools/check_secret_value_guards.lua`. Since WoW 12.1 they also arrive as
+--- FIELDS of event payloads -- `unitAuraUpdateInfo.isFullUpdate` is masked
+--- inside restricted instances. Reading such a field is safe, but comparing,
+--- concatenating or calculating with it raises and kills the whole dispatch.
+--- `type()` lies about a Secret Value, so the secret check has to run before
+--- any type inspection.
+--- @param source table|nil
+--- @param key any
+--- @return any -- nil when the table, the key or the value is unusable
+function Validators.ReadPlainField(source, key)
+  if type(source) ~= "table" then
+    return nil
+  end
+  local ok, value = pcall(rawget, source, key)
+  if not ok or Validators.IsSecretValue(value) then
+    return nil
+  end
+  return value
+end
+
+--- True when the field exists but Blizzard masked it: reading it is safe, every
+--- comparison raises. ReadPlainField collapses "masked" and "absent" into one
+--- nil; callers that must tell them apart (a masked flag still carries meaning,
+--- an absent one does not) ask here.
+--- @param source table|nil
+--- @param key any
+--- @return boolean
+function Validators.IsSecretField(source, key)
+  if type(source) ~= "table" then
+    return false
+  end
+  local ok, value = pcall(rawget, source, key)
+  if not ok then
+    return true
+  end
+  return Validators.IsSecretValue(value)
+end
+
+--- ReadPlainField restricted to a readable plain boolean.
+--- @param source table|nil
+--- @param key any
+--- @return boolean|nil -- nil when the field is missing, masked or not a boolean
+function Validators.ReadPlainBoolean(source, key)
+  local value = Validators.ReadPlainField(source, key)
+  if type(value) ~= "boolean" then
+    return nil
+  end
+  return value
+end
+
+--- ReadPlainField restricted to a readable plain number.
+--- @param source table|nil
+--- @param key any
+--- @return number|nil -- nil when the field is missing, masked or not a number
+function Validators.ReadPlainNumber(source, key)
+  local value = Validators.ReadPlainField(source, key)
+  if type(value) ~= "number" then
+    return nil
+  end
+  return value
+end
+
+--- ReadPlainField restricted to a readable plain string.
+--- @param source table|nil
+--- @param key any
+--- @return string|nil -- nil when the field is missing, masked or not a string
+function Validators.ReadPlainString(source, key)
+  local value = Validators.ReadPlainField(source, key)
+  if type(value) ~= "string" then
+    return nil
+  end
+  return value
+end
+
 local function HasSecretInstanceInfoValue(...)
   for index = 1, select("#", ...) do
     if Validators.IsSecretValue(select(index, ...)) then

@@ -4,6 +4,7 @@ addonTable = addonTable or {}
 local BloodlustButtonWarning = {}
 addonTable.BloodlustButtonWarning = BloodlustButtonWarning
 local IsSecretValue = addonTable.Validators.IsSecretValue
+local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
 
 local LUST_SATED_IDS = {
   [57723] = true, -- Exhaustion
@@ -81,14 +82,10 @@ local function DefaultHasBloodlustExhaustionDebuff()
   for index = 1, 40 do
     local ok, aura = pcall(getAuraDataByIndex, "player", index, "HARMFUL")
     if ok and type(aura) == "table" then
-      local isMatch = false
-      pcall(function()
-        local spellID = rawget(aura, "spellId")
-        if spellID and LUST_SATED_IDS[spellID] == true then
-          isMatch = true
-        end
-      end)
-      if isMatch then
+      -- ReadPlainNumber rejects a masked spellId before it reaches the lookup;
+      -- a Secret Value used as a table key raises "table index is secret".
+      local spellID = ReadPlainNumber(aura, "spellId")
+      if spellID and LUST_SATED_IDS[spellID] == true then
         return true
       end
     end
