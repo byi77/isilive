@@ -203,6 +203,25 @@ Typische Ursachen fuer Brueche:
 - Der Self-Cast-Filter (`unit == "player"`) wird aufgeweicht → sofortiger Log-Spam aus anderen Spielern in protected Zonen.
 - Blizzard erweitert BR- oder Lust-Spell-Liste → `BR_SPELL_IDS` / `LUST_CAST_IDS` entsprechend ergaenzen, sonst fehlen Ansagen.
 
+### 3.6 UNIT_AURA-Payload und Secret-Value-Felder (ab 12.1)
+
+Pruefen:
+- `core/isiLive_validation_helpers.lua` (`ReadPlainField`/`ReadPlainBoolean`/`ReadPlainNumber`/`ReadPlainString`, `IsSecretField`)
+- `game/isiLive_pi_tracker.lua` (`ResolveFullUpdate`)
+- `logic/isiLive_event_handlers_runtime.lua` (`UnitAuraUpdateRequiresCdScan`, `HandleUnitAuraEvent`)
+- `game/isiLive_cd_tracker.lua` (`ScanLust`), `game/isiLive_bloodlust_button_warning.lua`
+- `tools/check_secret_value_guards.lua` (`WATCHED_PAYLOAD_FIELDS`), `tools/simulate_secret_value_pipeline.lua` (Szenario 5)
+
+Aktueller Soll-Zustand:
+- Kein Feld einer Blizzard-Tabelle wird direkt verglichen, konkateniert, verrechnet, laengengelesen oder als Table-Key benutzt. Jeder Zugriff laeuft ueber `Validators.ReadPlain*`; `type()` allein ist **kein** Schutz, weil es bei Secret Values luegt.
+- `isFullUpdate` maskiert → Payload-Form entscheidet: keine Delta-Liste ⇒ Full Update. `isFullUpdate` fehlt ⇒ Verhalten wie vor 12.1 (kein Full Update).
+- `HandleUnitAuraEvent` ruft PiTracker **vor** CD-Tracker und Bloodlust-Warnung. Ein Fehler im PiTracker-Pfad nimmt also beide mit — Fehler dort sind nie nur kosmetisch.
+- Identische Dispatch-Fehler werden hoechstens einmal pro Minute geprintet.
+
+Typische Ursachen fuer Brueche:
+- Ein neues Blizzard-Feld wird direkt gelesen → Crash pro Event, Chat-Wall, und alles hinter dem Handler-Aufruf faellt still aus. Feldname in `WATCHED_PAYLOAD_FIELDS` ergaenzen, damit der Gate ihn sieht.
+- Jemand ersetzt die strukturelle Ableitung durch „immer scannen“ → 40-Slot-Aura-Scan pro Unit mehrfach pro Sekunde genau im Key.
+
 ### 3.6 ChatThrottleLib und Addon-Message-Prioritaeten
 
 Pruefen:

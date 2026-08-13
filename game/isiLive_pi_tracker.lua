@@ -4,9 +4,24 @@ addonTable = addonTable or {}
 local PiTracker = {}
 addonTable.PiTracker = PiTracker
 local IsSecretValue = addonTable.Validators.IsSecretValue
+local IsSecretField = addonTable.Validators.IsSecretField
+local ReadPlainField = addonTable.Validators.ReadPlainField
+local ReadPlainBoolean = addonTable.Validators.ReadPlainBoolean
+local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
+local ReadPlainString = addonTable.Validators.ReadPlainString
 
 local POWER_INFUSION_SPELL_ID = 10060
 local DEDUP_WINDOW_SECONDS = 30
+
+-- Every delta list WoW can put into a UNIT_AURA payload. A full update arrives
+-- without any of them; every incremental update carries at least one. See
+-- ResolveFullUpdate below for why the shape matters.
+local UNIT_AURA_DELTA_KEYS = {
+  "addedAuras",
+  "updatedAuraInstanceIDs",
+  "removedAuraInstanceIDs",
+  "removedAuras",
+}
 
 local TRACKED_UNITS = {
   player = true,
@@ -74,24 +89,13 @@ local function DefaultGetUnitClassToken(unit)
 end
 
 local function ReadSpellID(aura)
-  if type(aura) ~= "table" then
-    return nil
-  end
-  local spellID = nil
-  pcall(function()
-    spellID = rawget(aura, "spellId")
-  end)
-  return type(spellID) == "number" and spellID or nil
+  return ReadPlainNumber(aura, "spellId")
 end
 
 local function ReadAuraInstanceID(aura)
-  if type(aura) ~= "table" then
-    return nil
-  end
-  local auraInstanceID = nil
-  pcall(function()
-    auraInstanceID = rawget(aura, "auraInstanceID")
-  end)
+  -- The masked check already happened inside ReadPlainField, so type() can be
+  -- trusted from here on and tostring() cannot hit a Secret Value.
+  local auraInstanceID = ReadPlainField(aura, "auraInstanceID")
   if type(auraInstanceID) == "number" or type(auraInstanceID) == "string" then
     return tostring(auraInstanceID)
   end
@@ -99,14 +103,51 @@ local function ReadAuraInstanceID(aura)
 end
 
 local function ReadSourceUnit(aura)
-  if type(aura) ~= "table" then
+  local sourceUnit = ReadPlainString(aura, "sourceUnit")
+  if sourceUnit == nil or sourceUnit == "" then
     return nil
   end
-  local sourceUnit = nil
-  pcall(function()
-    sourceUnit = rawget(aura, "sourceUnit")
-  end)
-  return type(sourceUnit) == "string" and sourceUnit ~= "" and sourceUnit or nil
+  return sourceUnit
+end
+
+--- Answers whether a UNIT_AURA payload asks for a full re-scan.
+---
+--- WoW 12.1 masks `isFullUpdate` as a Secret Value inside restricted instances
+--- (M+ / boss encounters) -- exactly where isiLive runs. Comparing the masked
+--- flag raises "attempt to compare field 'isFullUpdate' (a secret boolean
+--- value)", which killed the whole UNIT_AURA dispatch and spammed the chat with
+--- one dispatch-error line per event.
+---
+--- When the flag is masked the SHAPE of the payload carries the same
+--- information: WoW sends a bare table for a full update and always attaches at
+--- least one delta list to an incremental one. Deriving it structurally keeps
+--- the /reload + zone-transition resync alive without ever touching the masked
+--- value, and without falling back to "scan on every event" -- which would mean
+--- a 40-slot scan per tracked unit many times per second in precisely the
+--- instances where the flag is masked.
+---
+--- A flag that is genuinely ABSENT is not the same as a masked one and keeps
+--- the pre-12.1 answer (no full update). Only a present-but-unreadable flag
+--- triggers the structural inference.
+--- @param unitAuraUpdateInfo table|nil
+--- @return boolean
+local function ResolveFullUpdate(unitAuraUpdateInfo)
+  if type(unitAuraUpdateInfo) ~= "table" then
+    return true
+  end
+  local isFullUpdate = ReadPlainBoolean(unitAuraUpdateInfo, "isFullUpdate")
+  if isFullUpdate ~= nil then
+    return isFullUpdate
+  end
+  if not IsSecretField(unitAuraUpdateInfo, "isFullUpdate") then
+    return false
+  end
+  for index = 1, #UNIT_AURA_DELTA_KEYS do
+    if type(ReadPlainField(unitAuraUpdateInfo, UNIT_AURA_DELTA_KEYS[index])) == "table" then
+      return false
+    end
+  end
+  return true
 end
 
 local function DefaultSpellIDMatches(spellID, expectedSpellID)
@@ -192,7 +233,7 @@ function PiTracker.CreateController(opts)
   end
 
   local function CheckAddedAuras(unit, unitAuraUpdateInfo)
-    local addedAuras = type(unitAuraUpdateInfo) == "table" and rawget(unitAuraUpdateInfo, "addedAuras") or nil
+    local addedAuras = ReadPlainField(unitAuraUpdateInfo, "addedAuras")
     if type(addedAuras) ~= "table" then
       return false
     end
@@ -212,7 +253,7 @@ function PiTracker.CreateController(opts)
     if CheckAddedAuras(unit, unitAuraUpdateInfo) then
       return true
     end
-    if type(unitAuraUpdateInfo) ~= "table" or unitAuraUpdateInfo.isFullUpdate == true then
+    if ResolveFullUpdate(unitAuraUpdateInfo) then
       return ScanUnit(unit)
     end
     return false

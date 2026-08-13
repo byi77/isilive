@@ -3,6 +3,8 @@ addonTable = addonTable or {}
 
 local CdTracker = {}
 addonTable.CdTracker = CdTracker
+local ReadPlainField = addonTable.Validators.ReadPlainField
+local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
 
 local BRES_SPELL_IDS = {
   20484, -- Rebirth (Druid)
@@ -93,28 +95,24 @@ function CdTracker.CreateController(opts)
     end
     -- Query each aura slot for a known Sated/Exhaustion debuff.
     -- WoW aura objects contain "secret" values that look like numbers to type()
-    -- but throw "table index is secret" when used as table keys.  Wrapping the
-    -- spell-ID check in pcall is the only safe path.
+    -- but throw "table index is secret" when used as table keys, and raise on
+    -- every comparison or calculation. Validators.ReadPlain* rejects a masked
+    -- field before it is ever used, so both the table lookup below and the
+    -- expiry arithmetic only ever see plain values.
     local found = false
     for index = 1, 40 do
       local ok, aura = pcall(getAuraDataByIndex, "player", index, "HARMFUL")
       if ok and type(aura) == "table" then
-        local isMatch = false
-        pcall(function()
-          local sid = rawget(aura, "spellId")
-          if sid and LUST_SATED_IDS[sid] then
-            isMatch = true
-          end
-        end)
-        if isMatch then
-          local expiry = rawget(aura, "expirationTime")
-          local remain = type(expiry) == "number" and math.max(0, expiry - getTime()) or 0
+        local spellID = ReadPlainNumber(aura, "spellId")
+        if spellID and LUST_SATED_IDS[spellID] then
+          local expiry = ReadPlainNumber(aura, "expirationTime")
+          local remain = expiry and math.max(0, expiry - getTime()) or 0
           if remain > 0 then
             lustRemain = remain
           elseif lustRemain ~= nil then
             lustRemain = 0
           end
-          lustIcon = rawget(aura, "icon")
+          lustIcon = ReadPlainField(aura, "icon")
           found = true
           break
         end

@@ -7,6 +7,10 @@ addonTable.EventHandlersRuntimeLifecycle = RuntimeLifecycle
 local ChallengeLifecycle = addonTable.EventHandlersChallengeLifecycle
 local IsSecretValue = addonTable.Validators.IsSecretValue
 local GetInstanceInfoSafe = addonTable.Validators.GetInstanceInfoSafe
+local IsSecretField = addonTable.Validators.IsSecretField
+local ReadPlainField = addonTable.Validators.ReadPlainField
+local ReadPlainBoolean = addonTable.Validators.ReadPlainBoolean
+local ReadPlainNumber = addonTable.Validators.ReadPlainNumber
 local IsRaidModeActive
 local INCOMING_SUMMON_SOUND_LOOP_SECONDS = 5
 
@@ -522,43 +526,74 @@ local LUST_SATED_AURA_IDS = {
 -- Secret-Value note: in WoW 12.0+ M+ / boss restriction zones, aura fields
 -- on the payload can be Secret Values. `type(secret)` lies and returns
 -- "number", but using the value as a table key raises "attempted to index a
--- table that cannot be indexed with secret keys". The lookup MUST run inside
--- pcall — mirroring the same defence in game/isiLive_cd_tracker.lua:ScanLust.
+-- table that cannot be indexed with secret keys". Since 12.1 the payload's own
+-- `isFullUpdate` flag is masked as well, and comparing it raises. Every field
+-- read therefore goes through Validators.ReadPlain*, which rejects masked
+-- values before anything is compared, indexed or calculated with.
+local UNIT_AURA_DELTA_KEYS = {
+  "addedAuras",
+  "updatedAuraInstanceIDs",
+  "removedAuraInstanceIDs",
+  "removedAuras",
+}
+
+-- Delta lists whose mere presence forces a scan: removals and instance updates
+-- do not reliably carry a spellId, so Sated/Exhaustion expiry is only visible
+-- by re-scanning.
+local UNIT_AURA_SCAN_TRIGGER_KEYS = {
+  "removedAuraInstanceIDs",
+  "updatedAuraInstanceIDs",
+  "removedAuras",
+}
+
+local function ReadAuraDeltaList(updateInfo, key)
+  local list = ReadPlainField(updateInfo, key)
+  if type(list) ~= "table" then
+    return nil
+  end
+  return list
+end
+
+local function HasAnyAuraDeltaList(updateInfo)
+  for index = 1, #UNIT_AURA_DELTA_KEYS do
+    if ReadAuraDeltaList(updateInfo, UNIT_AURA_DELTA_KEYS[index]) then
+      return true
+    end
+  end
+  return false
+end
+
 local function UnitAuraUpdateRequiresCdScan(updateInfo)
   if type(updateInfo) ~= "table" then
     return true
   end
-  if updateInfo.isFullUpdate then
+  local isFullUpdate = ReadPlainBoolean(updateInfo, "isFullUpdate")
+  if isFullUpdate == true then
     return true
   end
-  if type(updateInfo.removedAuraInstanceIDs) == "table" and #updateInfo.removedAuraInstanceIDs > 0 then
-    return true
+  -- ReadAuraDeltaList already rejected masked values, so `#` and the numeric
+  -- index below only ever touch a plain table -- no pcall needed on a path that
+  -- runs many times per second.
+  for index = 1, #UNIT_AURA_SCAN_TRIGGER_KEYS do
+    local list = ReadAuraDeltaList(updateInfo, UNIT_AURA_SCAN_TRIGGER_KEYS[index])
+    if list and #list > 0 then
+      return true
+    end
   end
-  if type(updateInfo.updatedAuraInstanceIDs) == "table" and #updateInfo.updatedAuraInstanceIDs > 0 then
-    return true
-  end
-  if type(updateInfo.removedAuras) == "table" and #updateInfo.removedAuras > 0 then
-    return true
-  end
-  local added = updateInfo.addedAuras
-  if type(added) == "table" then
+  local added = ReadAuraDeltaList(updateInfo, "addedAuras")
+  if added then
     for i = 1, #added do
-      local aura = added[i]
-      if type(aura) == "table" then
-        local isMatch = false
-        pcall(function()
-          local sid = rawget(aura, "spellId")
-          if sid and LUST_SATED_AURA_IDS[sid] then
-            isMatch = true
-          end
-        end)
-        if isMatch then
-          return true
-        end
+      local spellID = ReadPlainNumber(ReadPlainField(added, i), "spellId")
+      if spellID and LUST_SATED_AURA_IDS[spellID] then
+        return true
       end
     end
   end
-  return false
+  -- 12.1 masks `isFullUpdate` inside restricted instances: the flag is present
+  -- but unreadable. A payload that then carries no delta list at all has the
+  -- shape of a full update, so resync rather than dropping the /reload +
+  -- zone-transition hydration. An absent flag keeps the pre-12.1 answer.
+  return IsSecretField(updateInfo, "isFullUpdate") and not HasAnyAuraDeltaList(updateInfo)
 end
 
 -- SPELL_UPDATE_COOLDOWN and SPELL_UPDATE_CHARGES fire many times per second

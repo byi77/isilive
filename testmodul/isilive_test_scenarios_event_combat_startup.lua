@@ -280,6 +280,37 @@ local function RegisterCombatStartupCVarAndWorldEntryTests(test, Assert, WithGlo
     )
   end)
 
+  -- WoW 12.1 masks `isFullUpdate` inside restricted instances. The flag is
+  -- present but unreadable, so the payload shape decides: no delta list at all
+  -- means the same thing a full update means, one delta list means it does not.
+  test("Event handlers resolve a masked UNIT_AURA full-update flag from the payload shape", function()
+    local cdTrackerCalls = 0
+    local secret = {}
+
+    WithGlobals({
+      issecretvalue = function(value)
+        return value == secret
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_event_handlers.lua" })
+      local controller = Fixtures.BuildEventHandlersController(addon.EventHandlers, { value = nil }, {}, {
+        updateCdTracker = function()
+          cdTrackerCalls = cdTrackerCalls + 1
+        end,
+      })
+
+      controller:Dispatch("UNIT_AURA", "player", { isFullUpdate = secret })
+      Assert.Equal(cdTrackerCalls, 1, "a masked flag without delta lists must still resync the cd tracker")
+
+      controller:Dispatch("UNIT_AURA", "player", { isFullUpdate = secret, addedAuras = { { spellId = 12345 } } })
+      controller:Dispatch("UNIT_AURA", "player", { isFullUpdate = secret, updatedAuraInstanceIDs = {} })
+      Assert.Equal(cdTrackerCalls, 1, "a masked flag next to a delta list must not force the 40-slot scan")
+
+      controller:Dispatch("UNIT_AURA", "player", { isFullUpdate = secret, addedAuras = { { spellId = secret } } })
+      Assert.Equal(cdTrackerCalls, 1, "a masked spell id must not be used as a table key")
+    end)
+  end)
+
   test("Event handlers call updateCdTracker on UNIT_AURA aura removals", function()
     local cdTrackerCalls = 0
 

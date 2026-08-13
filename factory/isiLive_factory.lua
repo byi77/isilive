@@ -635,13 +635,43 @@ local function BuildRuntimeSetupSlashCommandsContext(ctx, runtimeState)
   }
 end
 
+-- A dispatch error on a high-frequency event (UNIT_AURA fires many times per
+-- second for five units) turns one broken read into a wall of chat lines. When
+-- a client patch masks a value we did not expect, the addon should report the
+-- problem once, not once per event. Identical event+error pairs are therefore
+-- printed at most once per window; a different error still prints immediately.
+local DISPATCH_ERROR_REPEAT_SECONDS = 60
+
+local function BuildDispatchErrorReporter(ctx)
+  local lastMessage = nil
+  local lastPrintedAt = nil
+
+  return function(_frame, event, err)
+    local message = string.format("Event dispatch failed (%s): %s", tostring(event), tostring(err))
+    local getTime = rawget(_G, "GetTime")
+    local ok, now = pcall(function()
+      return type(getTime) == "function" and getTime() or nil
+    end)
+    now = ok and type(now) == "number" and now or nil
+    if
+      message == lastMessage
+      and now ~= nil
+      and lastPrintedAt ~= nil
+      and (now - lastPrintedAt) < DISPATCH_ERROR_REPEAT_SECONDS
+    then
+      return
+    end
+    lastMessage = message
+    lastPrintedAt = now
+    ctx.Print(message)
+  end
+end
+
 local function BuildRuntimeSetupGateContext(ctx, runtimeState)
   return {
     events = ctx.modules.events,
     onEvent = ctx.OnEvent,
-    onDispatchError = function(_frame, event, err)
-      ctx.Print(string.format("Event dispatch failed (%s): %s", tostring(event), tostring(err)))
-    end,
+    onDispatchError = BuildDispatchErrorReporter(ctx),
     isStopped = runtimeState.IsStopped,
     isPaused = runtimeState.IsPaused,
     isTestMode = runtimeState.IsTestMode,
