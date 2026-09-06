@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-09-06 - Version 0.9.382 (patch)
+
+Reaches the goal of 0.9.379 from the other side: the ESC menu now closes itself
+after a travel or mount shortcut, so there is no ESC press left to cancel the
+cast.
+
+- **The ESC panel closes the game menu once a shortcut has fired.** Three
+  releases tried to stop ESC from cancelling a hearthstone or mount cast by
+  intervening in Blizzard's ESC chain; that is not possible without breaking
+  Blizzard's own protected calls (see 0.9.381). The reason to press ESC is
+  removed instead: after the click, the menu closes on its own, the cast keeps
+  running, and no key needs to be pressed at all.
+- **The hook is attached to `PostClick`, not `PreClick`.** These buttons are
+  children of `GameMenuFrame`, so hiding it before the click has been processed
+  would pull the frame out from under a secure button mid-click. Once the action
+  has fired, closing is safe.
+- **During combat lockdown the menu stays open**, since Show/Hide mutations on
+  the ESC panel are not allowed there.
+- Worth noting for anyone who wondered why mounts behaved differently: the mount
+  shortcuts already carried `/click GameMenuButtonContinue` in their macro,
+  while the hearthstone buttons are toy buttons with no macro at all and had
+  nothing. The hook now covers both paths.
+
 ## 2026-09-06 - Version 0.9.381 (hotfix)
 
 Withdraws the ESC cast guard entirely and removes a per-mouse-move cost from
