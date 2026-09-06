@@ -129,42 +129,28 @@ local function RegisterReadinessTests(test, Assert, LoadAddonModules)
     Assert.NotNil(findError(readiness, "mapToTeleport is empty"), "empty mapToTeleport must surface an error")
   end)
 
-  test("SeasonData keeps prepared Midnight Season 2 manually activatable without forces data", function()
+  -- S2 went live on 2026-09-06 and S1 became the non-active season. The roles in
+  -- this test swapped with it: what is asserted is that a non-active season stays
+  -- fully described and manually selectable, which is the property that matters
+  -- when Blizzard's map table and the manifest ever disagree.
+  test("SeasonData keeps the non-active Midnight Season 1 manually activatable", function()
     local addon = LoadSeasonData(LoadAddonModules)
-    local readiness = addon.SeasonData.GetSeasonReadiness("midnight_s2")
-    Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s1", "prepared S2 scaffold must not be active")
-    Assert.True(readiness.isReady, "optional Forces data must not block the manual S2 switch")
-    Assert.Equal(readiness.mappedDungeonCount, 8, "prepared S2 scaffold must expose all approved map mappings")
-    local ok = addon.SeasonData.SetActiveSeasonID("midnight_s2")
-    Assert.True(ok, "manual S2 activation must succeed without an MDT Forces DB")
-    Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s2", "manual activation must select S2")
+    local readiness = addon.SeasonData.GetSeasonReadiness("midnight_s1")
+    Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s2", "S2 is the active season")
+    Assert.True(readiness.isReady, "the non-active season must stay fully described")
+    Assert.Equal(readiness.mappedDungeonCount, 8, "the non-active season must expose all approved map mappings")
+    local ok = addon.SeasonData.SetActiveSeasonID("midnight_s1")
+    Assert.True(ok, "manual S1 activation must remain possible as the fallback")
+    Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s1", "manual activation must select S1")
     Assert.Equal(
       addon.SeasonData.GetInactivePortalMessage("deDE", "midnight_s2"),
       "Midnight Season 2 ist vorbereitet, aber noch nicht aktiv.",
-      "prepared S2 scaffold should expose a German inactive message"
+      "the manifest keeps its German inactive message for the prepared-season path"
     )
   end)
 
   test("SeasonData.GetMatchingForcesData exposes only the active season DB", function()
     local addon = LoadSeasonData(LoadAddonModules)
-    addon.MPlusForces = {
-      season = "midnight_s1",
-      expiresAt = "2099-01-01",
-      dungeonTotal = {},
-      byNpcId = {},
-    }
-    Assert.NotNil(
-      addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-07-27" }),
-      "active S1 must receive its matching Forces DB"
-    )
-
-    local ok = addon.SeasonData.SetActiveSeasonID("midnight_s2")
-    Assert.True(ok, "manual S2 activation must succeed for the season-match test")
-    Assert.Nil(
-      addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-07-27" }),
-      "S1 Forces must be hidden while S2 is active"
-    )
-
     addon.MPlusForces = {
       season = "midnight_s2",
       expiresAt = "2099-01-01",
@@ -173,14 +159,32 @@ local function RegisterReadinessTests(test, Assert, LoadAddonModules)
     }
     Assert.NotNil(
       addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-07-27" }),
-      "matching S2 Forces must become available"
+      "active S2 must receive its matching Forces DB"
+    )
+
+    local ok = addon.SeasonData.SetActiveSeasonID("midnight_s1")
+    Assert.True(ok, "manual S1 activation must succeed for the season-match test")
+    Assert.Nil(
+      addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-07-27" }),
+      "S2 Forces must be hidden while S1 is active"
+    )
+
+    addon.MPlusForces = {
+      season = "midnight_s1",
+      expiresAt = "2099-01-01",
+      dungeonTotal = {},
+      byNpcId = {},
+    }
+    Assert.NotNil(
+      addon.SeasonData.GetMatchingForcesData(nil, { currentDate = "2026-07-27" }),
+      "matching S1 Forces must become available"
     )
   end)
 
   test("SeasonData.GetMatchingForcesData rejects expired or unverifiable forces data", function()
     local addon = LoadSeasonData(LoadAddonModules)
     addon.MPlusForces = {
-      season = "midnight_s1",
+      season = "midnight_s2",
       expiresAt = "2026-08-07",
       dungeonTotal = {},
       byNpcId = {},
@@ -591,7 +595,37 @@ local function RegisterAutomaticSeasonSelectionTests(test, Assert, LoadAddonModu
     Assert.Equal(seasonID, "midnight_s2", "the exact S2 map set must resolve to S2")
     Assert.Nil(reason, "a successful resolution must not report a rejection reason")
 
-    -- S2 declares requiresForces = false, so the stale S1 forces DB must not block it.
+    -- S2 is the manifest's active season since it went live, so the auto-selection
+    -- has to be observed from the other side: start on S1 and let Blizzard's S2 map
+    -- set move it. Without this the call is a no-op and reports no change.
+    Assert.True(addon.SeasonData.SetActiveSeasonID("midnight_s1"), "test starts from S1")
+
+    -- S2 declares requiresForces = true and ships with its own forces DB, which is
+    -- what the shipped addon looks like; the readiness gate must accept that.
+    addon.MPlusForces = {
+      season = "midnight_s2",
+      expiresAt = "2099-01-01",
+      dungeonTotal = {
+        [249] = { total = 100 },
+        [250] = { total = 100 },
+        [399] = { total = 100 },
+        [584] = { total = 100 },
+        [585] = { total = 100 },
+        [586] = { total = 100 },
+        [587] = { total = 100 },
+        [588] = { total = 100 },
+      },
+      byNpcId = {
+        [1000] = { count = 1, mapID = 249 },
+        [1001] = { count = 1, mapID = 250 },
+        [1002] = { count = 1, mapID = 399 },
+        [1003] = { count = 1, mapID = 584 },
+        [1004] = { count = 1, mapID = 585 },
+        [1005] = { count = 1, mapID = 586 },
+        [1006] = { count = 1, mapID = 587 },
+        [1007] = { count = 1, mapID = 588 },
+      },
+    }
     local ok, changed = addon.SeasonData.TryAutoSelectSeasonFromChallengeMapIDs({
       249,
       250,
@@ -601,8 +635,8 @@ local function RegisterAutomaticSeasonSelectionTests(test, Assert, LoadAddonModu
       586,
       587,
       588,
-    })
-    Assert.True(ok, "S2 must pass the readiness gate without matching forces data")
+    }, { currentDate = "2026-09-06" })
+    Assert.True(ok, "S2 must pass the readiness gate with its matching forces data")
     Assert.True(changed, "auto-selection must report the active-season change")
     Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s2", "S2 must become the runtime-active season")
   end)
@@ -854,7 +888,7 @@ local function RegisterAccessorFallbackTests(test, Assert, LoadAddonModules)
     local addon = LoadSeasonData(LoadAddonModules)
     local manifest = addon.SeasonData.MANIFEST
     local source = manifest and manifest.seasons and manifest.seasons.midnight_s2
-    Assert.Equal(manifest.activeSeasonID, "midnight_s1", "manifest must own the active season id")
+    Assert.Equal(manifest.activeSeasonID, "midnight_s2", "manifest must own the active season id")
     Assert.Equal(#source.dungeons, 8, "S2 must be maintained as eight normalized dungeon records")
     Assert.Equal(
       addon.SeasonData.GetMapIDByActivityID(1933, "midnight_s2"),
@@ -870,7 +904,11 @@ local function RegisterAccessorFallbackTests(test, Assert, LoadAddonModules)
     Assert.Equal(navigator.slots.half_left, 249, "S2 portal-room slots must live in the manifest")
     Assert.Equal(navigator.slots.center, 399, "S2 portal-room center must resolve from the manifest")
     Assert.False(navigator.slots.left, "explicitly empty S2 portal-room slots must remain false")
-    Assert.Nil(addon.SeasonData.GetMdtDirectory("midnight_s2"), "unknown S2 MDT directory must stay unresolved")
+    Assert.Equal(
+      addon.SeasonData.GetMdtDirectory("midnight_s2"),
+      "Midnight",
+      "the verified S2 MDT directory must compile into the season index"
+    )
   end)
 
   test("SeasonData compiles the portal-room zone into normalized lookup sets", function()

@@ -8,7 +8,7 @@ return function(test, ctx)
   test("SeasonDebug dump fails closed when Blizzard season APIs are unavailable", function()
     local addon = LoadAddonModules({ "isiLive_season_data.lua", "isiLive_season_debug.lua" })
     local joined = table.concat(addon.SeasonDebug.BuildDumpLines(), "\n")
-    Assert.True(joined:find("activeSeasonID=midnight_s1", 1, true) ~= nil, "dump must include active season")
+    Assert.True(joined:find("activeSeasonID=midnight_s2", 1, true) ~= nil, "dump must include active season")
     Assert.True(joined:find("GetInstanceInfo=unavailable", 1, true) ~= nil, "missing instance API is surfaced")
     Assert.True(joined:find("activeChallengeMapID=unavailable", 1, true) ~= nil, "missing challenge API is surfaced")
     Assert.True(joined:find("activeLfgEntry=unavailable", 1, true) ~= nil, "missing LFG API is surfaced")
@@ -44,7 +44,7 @@ return function(test, ctx)
     }, function()
       local addon = LoadAddonModules({ "isiLive_season_data.lua", "isiLive_season_debug.lua" }, {
         MPlusForces = {
-          season = "midnight_s1",
+          season = "midnight_s2",
           mdtVersion = "test",
           generatedAt = "2026-06-30",
           expiresAt = "2030-01-01",

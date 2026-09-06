@@ -123,15 +123,15 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
         "isiLive_teleport.lua",
       })
 
-      Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s1", "runtime should default to midnight_s1")
+      Assert.Equal(addon.SeasonData.GetActiveSeasonID(), "midnight_s2", "runtime should default to midnight_s2")
       Assert.True(
         addon.SeasonData.HasActiveDungeons(),
-        "runtime should expose the active Midnight Season 1 portal pool"
+        "runtime should expose the active Midnight Season 2 portal pool"
       )
       Assert.Equal(
         #addon.SeasonData.GetOrderedMapIDs(),
         8,
-        "runtime should keep all 8 Midnight Season 1 dungeons in the active ordered map list"
+        "runtime should keep all 8 Midnight Season 2 dungeons in the active ordered map list"
       )
 
       addon.SeasonData.SEASONS.test_season = {
@@ -252,19 +252,19 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
       })
 
       Assert.Equal(
-        addon.Teleport.GetDungeonName(558, "deDE"),
-        "Terrasse der Magister",
+        addon.Teleport.GetDungeonName(250, "deDE"),
+        "Tempel von Sethraliss",
         "deDE should resolve the localized full dungeon name"
       )
       Assert.Equal(
-        addon.Teleport.GetDungeonName(558, "enUS"),
-        "Magisters' Terrace",
+        addon.Teleport.GetDungeonName(250, "enUS"),
+        "Temple of Sethraliss",
         "enUS should resolve the English full dungeon name"
       )
     end)
   end)
 
-  test("Teleport active Midnight Season 1 uses shared short codes for enUS and deDE", function()
+  test("Teleport active Midnight Season 2 exposes the locale-specific short codes", function()
     local createFrameStub = BuildCreateFrameStub()
 
     WithGlobals({
@@ -275,33 +275,36 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
         "isiLive_teleport.lua",
       })
 
+      -- Season 1 used one short code per dungeon for both locales. Season 2 does
+      -- not: the German client abbreviates the localized names, so enUS and deDE
+      -- diverge for six of the eight dungeons and are asserted separately.
       local expectedShortCodes = {
-        [557] = "WRS",
-        [558] = "MT",
-        [559] = "NPX",
-        [560] = "MC",
-        [402] = "AA",
-        [556] = "POS",
-        [239] = "SOT",
-        [161] = "SR",
+        [249] = { enUS = "KR", deDE = "KR" },
+        [250] = { enUS = "TOS", deDE = "TVS" },
+        [399] = { enUS = "RLP", deDE = "RLB" },
+        [584] = { enUS = "TBV", deDE = "DBT" },
+        [585] = { enUS = "VA", deDE = "ADL" },
+        [586] = { enUS = "DON", deDE = "NB" },
+        [587] = { enUS = "MR", deDE = "MG" },
+        [588] = { enUS = "AOF", deDE = "ADF" },
       }
 
-      for mapID, expectedShortCode in pairs(expectedShortCodes) do
+      for mapID, expected in pairs(expectedShortCodes) do
         Assert.Equal(
           addon.Teleport.GetDungeonShortCode(mapID, "enUS"),
-          expectedShortCode,
+          expected.enUS,
           string.format("enUS short code for map %d should match the active season baseline", mapID)
         )
         Assert.Equal(
           addon.Teleport.GetDungeonShortCode(mapID, "deDE"),
-          expectedShortCode,
+          expected.deDE,
           string.format("deDE short code for map %d should match the active season baseline", mapID)
         )
       end
     end)
   end)
 
-  test("Teleport active Midnight Season 1 resolves corrected deDE dungeon names", function()
+  test("Teleport active Midnight Season 2 resolves the deDE dungeon names", function()
     local createFrameStub = BuildCreateFrameStub()
 
     WithGlobals({
@@ -313,21 +316,21 @@ local function RegisterTeleportResolverCoreTests(test, Assert, WithGlobals, Load
       })
 
       local expectedNames = {
-        [557] = "Windläuferturm",
-        [558] = "Terrasse der Magister",
-        [559] = "Nexuspunkt Xenas",
-        [560] = "Maisarakavernen",
-        [402] = "Akademie von Algeth'ar",
-        [556] = "Grube von Saron",
-        [239] = "Sitz des Triumvirats",
-        [161] = "Die Himmelsnadel",
+        [249] = "Königsruh",
+        [250] = "Tempel von Sethraliss",
+        [399] = "Rubinlebensbecken",
+        [584] = "Das blendende Tal",
+        [585] = "Arena der Leerennarbe",
+        [586] = "Nalorakks Bau",
+        [587] = "Mördergasse",
+        [588] = "Der Altar der Fänge",
       }
 
       for mapID, expectedName in pairs(expectedNames) do
         Assert.Equal(
           addon.Teleport.GetDungeonName(mapID, "deDE"),
           expectedName,
-          string.format("deDE dungeon name for map %d should match the corrected active season baseline", mapID)
+          string.format("deDE dungeon name for map %d should match the active season baseline", mapID)
         )
       end
     end)

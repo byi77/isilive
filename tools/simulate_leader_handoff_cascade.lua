@@ -4,7 +4,7 @@
 -- accepted invite's metadata, or replaying the post-invite announce.
 --
 -- Real-world scenario this guards against:
---   * Player accepts a +14 NPX invite from leader Alice. First "Ziel-Dungeon"
+--   * Player accepts a +14 KR invite from leader Alice. First "Ziel-Dungeon"
 --     announce fires with "+14".
 --   * Alice leaves the group mid-key (DC, ragequit, vote-kick).
 --   * Leadership transfers to Bob; Blizzard fires PARTY_LEADER_CHANGED +
@@ -120,7 +120,7 @@ local function Run()
 
   local groupRef = { inGroup = false, members = 0 }
   local searchResults = {
-    [3] = { activityID = 1768, name = "+14 NPX push", leaderName = "Alice-Realm" },
+    [3] = { activityID = 514, name = "+14 KR push", leaderName = "Alice-Realm" },
   }
   local globals, fire = BuildSimGlobals(searchResults, groupRef)
 
@@ -157,8 +157,8 @@ local function Run()
         },
         teleport = {
           GetTeleportInfoByMapID = function(mapID)
-            if mapID == 559 then
-              return { mapName = "Nexus-Point Xenas" }
+            if mapID == 249 then
+              return { mapName = "King's Rest" }
             end
             return nil
           end,
@@ -185,8 +185,8 @@ local function Run()
       Print = function() end,
       UpdateStatusLine = function() end,
       ResolveMapIDByActivityID = function(activityID)
-        if activityID == 1768 then
-          return 559
+        if activityID == 514 then
+          return 249
         end
         return nil
       end,
@@ -262,7 +262,7 @@ local function Run()
     leaderController.Start()
 
     -- ----------------------------------------------------------------------
-    -- Phase 1: Player accepts +14 NPX invite from Alice. First announce fires.
+    -- Phase 1: Player accepts +14 KR invite from Alice. First announce fires.
     -- ----------------------------------------------------------------------
     print("---- Phase 1: invite-accept + first announce ----")
     fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 3, "invited")
@@ -277,7 +277,7 @@ local function Run()
 
     -- Drive the REAL ctx.GetStatusTargetDungeonInfo. With LFGDetect.GetActiveInviteTitleLevel()
     -- already set to 14 from the accept above, the resolver yields
-    -- {name="Nexus-Point Xenas", level=14} via the title-priority branch.
+    -- {name="King's Rest", level=14} via the title-priority branch.
     local resolved1 = ctx.GetStatusTargetDungeonInfo()
     Check(
       type(resolved1) == "table" and resolved1.level == 14,
@@ -286,7 +286,7 @@ local function Run()
     statusController.MaybeAnnounceTargetDungeonChat()
     Check(#statusModel.prints == 1, "Phase 1: first announce fires once")
     Check(
-      statusModel.prints[1] == "Target Dungeon: |cffffd200Nexus-Point Xenas +14|r",
+      statusModel.prints[1] == "Target Dungeon: |cffffd200King's Rest +14|r",
       "Phase 1: announce carries the +14 level"
     )
 

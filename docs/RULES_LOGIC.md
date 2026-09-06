@@ -546,7 +546,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Roster display shows flag only without language letters
   - Roster display clamps key short code to four letters
   - Roster display falls back to '?' for numeric-only key short codes
-  - Teleport active Midnight Season 1 uses shared short codes for enUS and deDE
+  - Teleport active Midnight Season 2 exposes the locale-specific short codes
 
 ### RULE-WARTUNGSDATEI-NICHT-IM-PAKET
 - Regelnummer: 37
@@ -817,7 +817,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - LFGDetect keeps partially unresolved invite activity maps unresolved
   - LFGDetect active listing stays unresolved when only dungeon name text is available
   - LFGDetect exact invite stays pending until inviteaccepted and then highlights without sound
-  - LFGDetect resolves Algethar Academy after accepted invite
+  - LFGDetect resolves Temple of Sethraliss after accepted invite
   - LFGDetect inviteaccepted refreshes incomplete invited listing before direct-push
   - LFGDetect direct-push carries exact Blizzard keystone level markup
   - LFGDetect ResolveEntryTitleLevel recovers level from groupName when titleLevel is nil
@@ -1592,10 +1592,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-MIDNIGHT-S2-OPTIONALE-FORCES
 - Regelnummer: 99
 - Status: aktiv
-- Zusammenfassung: `midnight_s2` muss `autoDetectFromChallengeMaps=true` und `requiresForces=false` tragen. Dadurch darf S2 beim exakten, eindeutigen Blizzard-S2-Mapset automatisch aktiv werden und bleibt zugleich ueber `activeSeasonID` manuell aktivierbar, auch wenn noch keine passende MDT-Forces-DB vorliegt. Eine fehlende, strukturell ungueltige, abgelaufene oder fuer eine andere Season erzeugte `MPlusForces`-DB darf keine Fehlermeldung und keine MDT-abhaengige Anzeige erzeugen: Mob-Forces auf Nameplates, Mob-Forces im Tooltip und der MDT-Dungeon-Gesamtwert-Fallback des Killtrackers bleiben geschlossen. Der direkt aus verifizierten Blizzard-Scenario-Daten gelesene laufende Dungeon-Gesamtfortschritt des Killtrackers bleibt davon unabhaengig sichtbar. MDT-Daten duerfen fuer Runtime-Anzeigen erst verwendet werden, wenn `MPlusForces.season` exakt der aktiven `SeasonData.ACTIVE_SEASON_ID` entspricht, `dungeonTotal` sowie `byNpcId` Tabellen sind und das kalendarisch gueltige `expiresAt` am verifizierbaren aktuellen Datum noch nicht ueberschritten ist. Ist das aktuelle Datum nicht verifizierbar, bleibt der MDT-Datensatz fail-closed.
+- Zusammenfassung: `midnight_s2` traegt `autoDetectFromChallengeMaps=true`, `requiresForces=true` und `mdtDirectory="Midnight"`. S2 wird beim exakten, eindeutigen Blizzard-S2-Mapset automatisch aktiv und bleibt zugleich ueber `activeSeasonID` manuell aktivierbar. Jede Season bleibt auch ohne passende MDT-Forces-DB nutzbar. Eine fehlende, strukturell ungueltige, abgelaufene oder fuer eine andere Season erzeugte `MPlusForces`-DB darf keine Fehlermeldung und keine MDT-abhaengige Anzeige erzeugen: Mob-Forces auf Nameplates, Mob-Forces im Tooltip und der MDT-Dungeon-Gesamtwert-Fallback des Killtrackers bleiben geschlossen. Der direkt aus verifizierten Blizzard-Scenario-Daten gelesene laufende Dungeon-Gesamtfortschritt des Killtrackers bleibt davon unabhaengig sichtbar. MDT-Daten duerfen fuer Runtime-Anzeigen erst verwendet werden, wenn `MPlusForces.season` exakt der aktiven `SeasonData.ACTIVE_SEASON_ID` entspricht, `dungeonTotal` sowie `byNpcId` Tabellen sind und das kalendarisch gueltige `expiresAt` am verifizierbaren aktuellen Datum noch nicht ueberschritten ist. Ist das aktuelle Datum nicht verifizierbar, bleibt der MDT-Datensatz fail-closed.
+- Ersetzte Festlegung (0.9.383, 2026-09-06): "`midnight_s2` muss `autoDetectFromChallengeMaps=true` und `requiresForces=false` tragen ... auch wenn noch keine passende MDT-Forces-DB vorliegt." Midnight Season 2 ging am 2026-09-06 live, und MDT 6.2.15 liefert die S2-Dungeons im Verzeichnis `Midnight`. Damit ist `requiresForces=false` gegenstandslos: die Forces-DB wird fuer S2 erzeugt und geprueft. Der Fail-closed-Teil der Regel bleibt unveraendert gueltig.
 - Erforderliche Tests:
   - SeasonData auto-selects Midnight Season 2 only once Blizzard ships the S2 map set
-  - SeasonData keeps prepared Midnight Season 2 manually activatable without forces data
+  - SeasonData keeps the non-active Midnight Season 1 manually activatable
   - SeasonData.GetMatchingForcesData exposes only the active season DB
   - SeasonData.GetMatchingForcesData rejects expired or unverifiable forces data
   - MobNameplate hides MDT and API mob percentages when the active season has no matching Forces DB

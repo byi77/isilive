@@ -93,7 +93,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [1] = { activityID = 1542 }, -- 1542 -> 557 (Windrunner Spire)
+          [1] = { activityID = 514 }, -- 514 -> 249 (King's Rest)
         }, nil),
       },
     })
@@ -104,15 +104,15 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "static ACTIVITY_TO_MAP must resolve 1542 -> 557")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "static ACTIVITY_TO_MAP must resolve 514 -> 249")
     end)
   end)
 
-  test("LFGDetect resolves Algethar Academy after accepted invite", function()
+  test("LFGDetect resolves Temple of Sethraliss after accepted invite", function()
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [4021160] = { activityID = 1160, name = "+17 Akademie", leaderName = "AcademyLead" },
+          [4021160] = { activityID = 504, name = "+17 Sethraliss", leaderName = "SethraLead" },
         }, nil),
       },
     })
@@ -127,7 +127,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 4021160, "invited")
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 4021160, "inviteaccepted")
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 402, "activityID 1160 must resolve to Algethar mapID 402")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 250, "activityID 504 must resolve to Algethar mapID 250")
       Assert.Equal(highlightContext, "invite", "accepted Academy invite must trigger the invite highlight path")
     end)
   end)
@@ -137,7 +137,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [1] = { activityID = 9999, name = "Windrunner Spire" },
+          [1] = { activityID = 9999, name = "King's Rest" },
         }, nil),
       },
     })
@@ -161,7 +161,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [1] = { activityIDs = { 1542, 182 }, name = "Windrunner Spire" },
+          [1] = { activityIDs = { 514, 182 }, name = "King's Rest" },
         }, nil),
       },
     })
@@ -185,7 +185,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [1] = { activityID = 1542, activityIDs = { 1542, 9999 }, name = "Windrunner Spire" },
+          [1] = { activityID = 514, activityIDs = { 514, 9999 }, name = "King's Rest" },
         }, nil),
       },
     })
@@ -212,7 +212,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
   test("LFGDetect normalizes uppercase Invited status", function()
     local globals, fire = BuildLFGDetectEnv({
       globals = {
-        C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+        C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
       },
     })
 
@@ -222,14 +222,14 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "Invited") -- uppercase
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "uppercase Invited must be normalized and processed")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "uppercase Invited must be normalized and processed")
     end)
   end)
 
   test("LFGDetect normalizes mixed-case InviteAccepted status", function()
     local globals, fire = BuildLFGDetectEnv({
       globals = {
-        C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+        C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
       },
     })
 
@@ -239,7 +239,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "InviteAccepted") -- mixed case
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "mixed-case InviteAccepted must be normalized and accepted")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "mixed-case InviteAccepted must be normalized and accepted")
     end)
   end)
 
@@ -249,7 +249,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
         return false
       end,
       globals = {
-        C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+        C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
       },
     })
 
@@ -275,7 +275,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
 
     local globals, fire = BuildLFGDetectEnv({
       globals = {
-        C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+        C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
       },
     })
 
@@ -294,7 +294,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
+        249,
         "inviteaccepted must set detectedMapID from the pending invite"
       )
       Assert.Equal(#callbackSoundContexts, 1, "highlight callback must fire once on inviteaccepted")
@@ -309,7 +309,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
+        249,
         "CHALLENGE_MODE_START must not clear a confirmed invite highlight before dungeon entry"
       )
       Assert.Equal(#callbackSoundContexts, 1, "CHALLENGE_MODE_START must not retrigger the highlight")
@@ -335,7 +335,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
         return groupMemberCount
       end,
       globals = {
-        C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+        C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
       },
     })
 
@@ -348,14 +348,14 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "inviteaccepted must set detectedMapID")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "inviteaccepted must set detectedMapID")
       Assert.Equal(#callbackSoundContexts, 1, "inviteaccepted must trigger one highlight update")
 
       fire("GROUP_ROSTER_UPDATE")
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
+        249,
         "transient not-in-group roster updates must not clear a confirmed invite highlight"
       )
       Assert.Equal(
@@ -367,7 +367,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
       inGroup = true
       fire("GROUP_ROSTER_UPDATE")
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "confirmed invite highlight must survive group join")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "confirmed invite highlight must survive group join")
       Assert.Equal(
         #callbackSoundContexts,
         1,
@@ -391,7 +391,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
           return groupMemberCount
         end,
         globals = {
-          C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+          C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
         },
       })
 
@@ -404,14 +404,14 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
         fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
         fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
 
-        Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "inviteaccepted must set detectedMapID")
+        Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "inviteaccepted must set detectedMapID")
         Assert.Equal(#callbackSoundContexts, 1, "inviteaccepted must trigger one highlight update")
 
         fire("GROUP_ROSTER_UPDATE")
 
         Assert.Equal(
           addon.LFGDetect.GetDetectedMapID(),
-          557,
+          249,
           "transient zero-member roster updates must not clear a confirmed invite highlight before group settle"
         )
         Assert.Equal(
@@ -426,7 +426,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
 
         Assert.Equal(
           addon.LFGDetect.GetDetectedMapID(),
-          557,
+          249,
           "confirmed invite highlight must survive the eventual group join"
         )
         Assert.Equal(#callbackSoundContexts, 1, "settled group join must not emit an extra highlight update")
@@ -449,7 +449,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
           return groupMemberCount
         end,
         globals = {
-          C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+          C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
         },
       })
 
@@ -462,7 +462,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
         fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
         fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
 
-        Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "inviteaccepted must set detectedMapID")
+        Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "inviteaccepted must set detectedMapID")
         Assert.Equal(#callbackSoundContexts, 1, "inviteaccepted must trigger one highlight update")
 
         inGroup = false
@@ -470,7 +470,7 @@ local function RegisterLFGDetectResolutionTests(test, ctx)
 
         Assert.Equal(
           addon.LFGDetect.GetDetectedMapID(),
-          557,
+          249,
           "late roster false negatives must not clear a confirmed invite while group members are still present"
         )
         Assert.Equal(
@@ -511,7 +511,7 @@ local function RegisterLFGDetectInviteAcceptRaceTests(test, ctx)
     local callbackSoundContexts = {}
     local inGroup = false
     local groupMemberCount = 0
-    local currentActiveEntry = { activityIDs = { 1542 } }
+    local currentActiveEntry = { activityIDs = { 514 } }
 
     local globals, fire = BuildLFGDetectEnv({
       IsInGroup = function()
@@ -524,7 +524,7 @@ local function RegisterLFGDetectInviteAcceptRaceTests(test, ctx)
         C_LFGList = {
           GetSearchResultInfo = function(id)
             if id == 1 then
-              return { activityID = 1542 }
+              return { activityID = 514 }
             end
             return nil
           end,
@@ -550,15 +550,15 @@ local function RegisterLFGDetectInviteAcceptRaceTests(test, ctx)
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "inviteaccepted must set detectedMapID=557")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "inviteaccepted must set detectedMapID=249")
 
-      -- Own application still present (activityIDs=[1542]) -> lastQueueMapID=557.
+      -- Own application still present (activityIDs=[514]) -> lastQueueMapID=249.
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
-        "queue listing matching the accepted invite must keep detectedMapID=557"
+        249,
+        "queue listing matching the accepted invite must keep detectedMapID=249"
       )
 
       -- Own application gets dropped between the two event firings and IsInGroup()
@@ -569,7 +569,7 @@ local function RegisterLFGDetectInviteAcceptRaceTests(test, ctx)
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
+        249,
         "transient own-listing drop before GROUP_ROSTER_UPDATE must not clear the invite-set highlight"
       )
 
@@ -580,8 +580,8 @@ local function RegisterLFGDetectInviteAcceptRaceTests(test, ctx)
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
-        "GROUP_ROSTER_UPDATE with the joined group must preserve detectedMapID=557"
+        249,
+        "GROUP_ROSTER_UPDATE with the joined group must preserve detectedMapID=249"
       )
     end)
   end)
@@ -597,7 +597,7 @@ RegisterLFGDetectOwnListingAndReplayTests = function(test, ctx)
 
     local globals, fire = BuildLFGDetectEnv({
       globals = {
-        C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+        C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
       },
     })
 
@@ -609,7 +609,7 @@ RegisterLFGDetectOwnListingAndReplayTests = function(test, ctx)
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
+        249,
         "resolved invite must keep detectedMapID even without callback"
       )
 
@@ -635,7 +635,7 @@ RegisterLFGDetectOwnListingAndReplayTests = function(test, ctx)
 
     local globals, fire = BuildLFGDetectEnv({
       globals = {
-        C_LFGList = BuildC_LFGList({}, { activityID = 1542 }),
+        C_LFGList = BuildC_LFGList({}, { activityID = 514 }),
       },
     })
 
@@ -647,7 +647,7 @@ RegisterLFGDetectOwnListingAndReplayTests = function(test, ctx)
 
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "own listing must set detectedMapID")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "own listing must set detectedMapID")
       Assert.Equal(#callbackSoundContexts, 1, "highlight callback must fire once")
       Assert.Equal(
         callbackSoundContexts[1],
@@ -660,7 +660,7 @@ RegisterLFGDetectOwnListingAndReplayTests = function(test, ctx)
   test("LFGDetect active listing stays unresolved when only dungeon name text is available", function()
     local globals, fire = BuildLFGDetectEnv({
       globals = {
-        C_LFGList = BuildC_LFGList({}, { activityID = 9999, name = "Windrunner Spire" }),
+        C_LFGList = BuildC_LFGList({}, { activityID = 9999, name = "King's Rest" }),
       },
     })
 
@@ -694,7 +694,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
   test("LFGDetect pending invites survive CheckActiveGroup when no listing exists", function()
     local globals, fire = BuildLFGDetectEnv({
       globals = {
-        C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+        C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
       },
     })
 
@@ -709,7 +709,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
+        249,
         "pendingInvites must survive CheckActiveGroup so late inviteaccepted still resolves"
       )
     end)
@@ -722,7 +722,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
   test("LFGDetect invite-set detectedMapID survives CheckActiveGroup when no listing exists", function()
     local globals, fire = BuildLFGDetectEnv({
       globals = {
-        C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+        C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
       },
     })
 
@@ -731,14 +731,14 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
 
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "detectedMapID must be set after invite accept")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "detectedMapID must be set after invite accept")
 
       -- Simulate the 5s ticker: no active listing found
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE") -- GetActiveEntryInfo returns nil
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
+        249,
         "invite-set detectedMapID must survive CheckActiveGroup (BUG-LFG-4 guard)"
       )
     end)
@@ -749,7 +749,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
   -- ---------------------------------------------------------------------------
 
   test("LFGDetect queue-set detectedMapID is cleared when listing is removed", function()
-    local activeEntry = { activityID = 1542, name = "+11 weekly" }
+    local activeEntry = { activityID = 514, name = "+11 weekly" }
 
     local globals, fire = BuildLFGDetectEnv({
       globals = {
@@ -783,7 +783,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
 
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE") -- listing present
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "queue listing must set detectedMapID")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "queue listing must set detectedMapID")
       Assert.Equal(
         addon.LFGDetect.GetActiveQueueListingGroupName(),
         "+11 weekly",
@@ -818,7 +818,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [1] = { activityID = 1542, leaderName = "Mematiwow-Blackmoore" },
+          [1] = { activityID = 514, leaderName = "Mematiwow-Blackmoore" },
         }, nil),
       },
     })
@@ -841,7 +841,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
   test("LFGDetect GetActiveInviteLeader is nil for queue-set detectedMapID", function()
     local globals, fire = BuildLFGDetectEnv({
       globals = {
-        C_LFGList = BuildC_LFGList({}, { activityID = 1542 }),
+        C_LFGList = BuildC_LFGList({}, { activityID = 514 }),
       },
     })
 
@@ -849,7 +849,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       local addon = LoadAddonModules({ "isiLive_lfg_detect.lua" })
 
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "own listing must set detectedMapID")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "own listing must set detectedMapID")
       Assert.Nil(addon.LFGDetect.GetActiveInviteLeader(), "own queue path must not produce an invite leader hint")
     end)
   end)
@@ -866,7 +866,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
           end
           return nil
         end,
-        C_LFGList = BuildC_LFGList({}, { activityID = 1542, name = "+11 weekly" }),
+        C_LFGList = BuildC_LFGList({}, { activityID = 514, name = "+11 weekly" }),
       },
     })
 
@@ -875,7 +875,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
 
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "own listing must set detectedMapID")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "own listing must set detectedMapID")
       Assert.Equal(addon.LFGDetect.GetActiveQueueListingGroupName(), "+11 weekly", "own listing title must be exposed")
       Assert.Equal(
         addon.LFGDetect.GetActiveQueueListingLeaderName(),
@@ -889,7 +889,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [1] = { activityID = 1542, leaderName = "Leader-Realm" },
+          [1] = { activityID = 514, leaderName = "Leader-Realm" },
         }, nil),
       },
     })
@@ -919,8 +919,8 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [1] = { activityID = 1768, name = "+13 NPX", leaderName = "Other-Realm" },
-          [2] = { activityID = 1768, name = "+14 NPX push", leaderName = "Pusher-Realm" },
+          [1] = { activityID = 514, name = "+13 KR", leaderName = "Other-Realm" },
+          [2] = { activityID = 514, name = "+14 KR push", leaderName = "Pusher-Realm" },
         }, nil),
       },
     })
@@ -939,7 +939,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
         "setup: acceptedInviteSearchResultID points at the +14 listing"
       )
 
-      -- Listing 1 ("+13 NPX") delists in parallel. Same dungeon mapID, but a
+      -- Listing 1 ("+13 KR") delists in parallel. Same dungeon mapID, but a
       -- different searchResultID — must not erase the +14 invite state.
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "declined_delisted")
 
@@ -955,7 +955,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       )
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        559,
+        249,
         "delisting a different parallel listing must not null out detectedMapID"
       )
     end)
@@ -974,7 +974,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [42] = { activityID = 1768, name = "+12 Relaxed", leaderName = "Pinto-Realm" },
+          [42] = { activityID = 514, name = "+12 Relaxed", leaderName = "Pinto-Realm" },
         }, nil),
       },
     })
@@ -1026,7 +1026,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [77] = { activityID = 1768, name = "+15 push", leaderName = "Push-Realm" },
+          [77] = { activityID = 514, name = "+15 push", leaderName = "Push-Realm" },
         }, nil),
       },
     })
@@ -1050,7 +1050,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [99] = { activityID = 1768, name = "+13 push", leaderName = "Push-Realm" },
+          [99] = { activityID = 514, name = "+13 push", leaderName = "Push-Realm" },
         }, nil),
       },
     })
@@ -1087,7 +1087,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [501] = { activityID = 1768, name = "+13 POS", leaderName = "Leader-Realm" },
+          [501] = { activityID = 514, name = "+13 KR", leaderName = "Leader-Realm" },
         }, nil),
       },
     })
@@ -1126,7 +1126,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [502] = { activityID = 1768, name = "+15 push", leaderName = "Leader-Realm" },
+          [502] = { activityID = 514, name = "+15 push", leaderName = "Leader-Realm" },
         }, nil),
       },
     })
@@ -1154,7 +1154,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [503] = { activityID = 1768, name = "+12 chill", leaderName = "OldLeader-Realm" },
+          [503] = { activityID = 514, name = "+12 chill", leaderName = "OldLeader-Realm" },
         }, nil),
       },
     })
@@ -1210,7 +1210,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [777] = { activityID = 1768, name = "+13 NPX", leaderName = "Listing-Owner" },
+          [777] = { activityID = 514, name = "+13 KR", leaderName = "Listing-Owner" },
         }, nil),
       },
     })
@@ -1277,7 +1277,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [601] = { activityID = 1768, name = "+13 Relaxed", leaderName = "Leader-Realm" },
+          [601] = { activityID = 514, name = "+13 Relaxed", leaderName = "Leader-Realm" },
         }, nil),
       },
     })
@@ -1308,7 +1308,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
         "+13 Relaxed",
         "active invite group title stays available"
       )
-      Assert.Equal(payloads[1].activityID, 1768, "callback payload carries the accepted activityID")
+      Assert.Equal(payloads[1].activityID, 514, "callback payload carries the accepted activityID")
       Assert.Equal(payloads[1].searchResultID, 601, "callback payload carries the accepted searchResultID")
     end)
   end)
@@ -1327,9 +1327,9 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
             end
             searchInfoCalls = searchInfoCalls + 1
             if searchInfoCalls == 1 then
-              return { activityID = 1768, leaderName = "Leader-Realm" }
+              return { activityID = 514, leaderName = "Leader-Realm" }
             end
-            return { activityID = 1768, name = "+14 Kompetitiv", leaderName = "Leader-Realm" }
+            return { activityID = 514, name = "+14 Kompetitiv", leaderName = "Leader-Realm" }
           end,
           GetActiveEntryInfo = function()
             return nil
@@ -1379,7 +1379,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [602] = { activityID = 1768, name = "+14 chill", leaderName = "Leader-Realm" },
+          [602] = { activityID = 514, name = "+14 chill", leaderName = "Leader-Realm" },
         }, nil),
       },
     })
@@ -1408,7 +1408,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [603] = { activityID = 1768, name = "casual run", leaderName = "Z-Realm" },
+          [603] = { activityID = 514, name = "casual run", leaderName = "Z-Realm" },
         }, nil),
       },
     })
@@ -1439,7 +1439,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [603] = { activityID = 1768, name = "|Kk584|k", leaderName = "Z-Realm" },
+          [603] = { activityID = 514, name = "|Kk584|k", leaderName = "Z-Realm" },
         }, nil),
       },
     })
@@ -1491,7 +1491,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
         end,
         globals = {
           C_LFGList = BuildC_LFGList({
-            [604] = { activityID = 1768, name = "+13 quick", leaderName = "L-Realm" },
+            [604] = { activityID = 514, name = "+13 quick", leaderName = "L-Realm" },
           }, nil),
         },
       })
@@ -1610,7 +1610,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [42] = { activityID = 1768, name = "+14 NPX", leaderName = "Pusher-Realm" },
+          [42] = { activityID = 514, name = "+14 KR", leaderName = "Pusher-Realm" },
         }, nil),
       },
     })
@@ -1633,7 +1633,7 @@ local function RegisterLFGDetectQueueStateTests(test, ctx)
       Assert.Equal(hintCalls, 0, "removed pre-accept invite hint must not render on invited")
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        559,
+        249,
         "removed invite hint must not break pending invite resolution for accepted notices"
       )
     end)
@@ -1658,7 +1658,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [4021160] = { activityID = 1160, name = "+17 Akademie", leaderName = "AcademyLead" },
+          [4021160] = { activityID = 504, name = "+17 Sethraliss", leaderName = "SethraLead" },
         }, nil),
       },
     })
@@ -1677,7 +1677,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 4021160, "inviteaccepted")
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        402,
+        250,
         "a reused search result ID must resolve again after ClearAllState"
       )
     end)
@@ -1700,7 +1700,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
           return false
         end,
         globals = {
-          C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+          C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
         },
       })
 
@@ -1720,7 +1720,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
 
         Assert.Equal(
           addon.LFGDetect.GetDetectedMapID(),
-          557,
+          249,
           "late inviteaccepted after a group-leave reset must re-resolve via the API fallback"
         )
       end)
@@ -1730,7 +1730,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
   test("LFGDetect CHALLENGE_MODE_START keeps confirmed invite highlight until explicit clear", function()
     local globals, fire = BuildLFGDetectEnv({
       globals = {
-        C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+        C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
       },
     })
 
@@ -1739,13 +1739,13 @@ local function RegisterLFGDetectResetTests(test, ctx)
 
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "setup: detectedMapID must be set before key start")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "setup: detectedMapID must be set before key start")
 
       fire("CHALLENGE_MODE_START")
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
+        249,
         "CHALLENGE_MODE_START must not clear the confirmed invite highlight"
       )
 
@@ -1767,7 +1767,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
         return true
       end,
       globals = {
-        C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+        C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
       },
     })
 
@@ -1780,7 +1780,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
+        249,
         "GROUP_ROSTER_UPDATE fallback must apply pendingInvites when detectedMapID is unset"
       )
     end)
@@ -1793,7 +1793,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [1] = { activityID = 1542, name = "+13 vault", leaderName = "Leader-Realm" },
+          [1] = { activityID = 514, name = "+13 vault", leaderName = "Leader-Realm" },
         }, nil),
       },
     })
@@ -1806,7 +1806,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
+        249,
         "GROUP_ROSTER_UPDATE fallback must apply pending invite map"
       )
       Assert.Equal(
@@ -1829,7 +1829,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [1] = { activityID = 1542, name = "+13 vault", leaderName = "Leader-Realm" },
+          [1] = { activityID = 514, name = "+13 vault", leaderName = "Leader-Realm" },
         }, nil),
       },
     })
@@ -1848,7 +1848,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
       fire("GROUP_ROSTER_UPDATE")
 
       Assert.Equal(#payloads, 1, "GROUP_ROSTER_UPDATE recovery must fire the chat direct-push once")
-      Assert.Equal(payloads[1].mapID, 557, "chat payload must carry the recovered invite map")
+      Assert.Equal(payloads[1].mapID, 249, "chat payload must carry the recovered invite map")
       Assert.Equal(payloads[1].level, 13, "chat payload must carry the recovered invite title level")
       Assert.Equal(payloads[1].leaderName, "Leader-Realm", "chat payload must carry the recovered leader hint")
       Assert.Equal(payloads[1].searchResultID, 1, "chat payload must carry the recovered searchResultID")
@@ -1860,7 +1860,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
   end)
 
   test("LFGDetect inviteaccepted preserves title level when own listing already set the same map", function()
-    local currentActiveEntry = { activityID = 1542 }
+    local currentActiveEntry = { activityID = 514 }
     local globals, fire = BuildLFGDetectEnv({
       IsInGroup = function()
         return false
@@ -1869,7 +1869,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
         C_LFGList = {
           GetSearchResultInfo = function(id)
             if id == 1 then
-              return { activityID = 1542, name = "+13 vault", leaderName = "Leader-Realm" }
+              return { activityID = 514, name = "+13 vault", leaderName = "Leader-Realm" }
             end
             return nil
           end,
@@ -1893,12 +1893,12 @@ local function RegisterLFGDetectResetTests(test, ctx)
       end)
 
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "own listing must set detectedMapID first")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "own listing must set detectedMapID first")
 
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
 
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "same-map invite must keep the detected map")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "same-map invite must keep the detected map")
       Assert.Equal(callbackCount, 2, "same-map inviteaccepted must refresh consumers after capturing invite metadata")
       Assert.Equal(lastSoundContext, "invite", "same-map inviteaccepted refresh must use invite sound context")
       Assert.Equal(
@@ -1917,7 +1917,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
+        249,
         "same-map inviteaccepted must protect the target when the listing drops before group settle"
       )
       Assert.Equal(
@@ -1937,7 +1937,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [1] = { activityID = 1768, name = "Nexuspunkt Xenas +10", leaderName = "Leader-Realm" },
+          [1] = { activityID = 514, name = "Nexuspunkt Xenas +10", leaderName = "Leader-Realm" },
         }, nil),
       },
     })
@@ -1949,7 +1949,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        559,
+        249,
         "inviteaccepted must resolve mapID directly from search result"
       )
       Assert.Equal(
@@ -1974,7 +1974,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
         return 5
       end,
       globals = {
-        C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+        C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
       },
     })
 
@@ -1983,13 +1983,13 @@ local function RegisterLFGDetectResetTests(test, ctx)
 
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "invited")
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 1, "inviteaccepted")
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "setup: detectedMapID must be set before settle")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "setup: detectedMapID must be set before settle")
 
       fire("LFG_LIST_ACTIVE_ENTRY_UPDATE")
 
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
+        249,
         "grouped no-listing checks must keep detectedMapID until dungeon entry or group leave"
       )
     end)
@@ -2006,7 +2006,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
         return 5
       end,
       globals = {
-        C_LFGList = BuildC_LFGList({ [1] = { activityID = 1542 } }, nil),
+        C_LFGList = BuildC_LFGList({ [1] = { activityID = 514 } }, nil),
       },
     })
 
@@ -2023,8 +2023,8 @@ local function RegisterLFGDetectResetTests(test, ctx)
       Assert.Equal(#snapshots, 1, "group roster update must emit one diagnostic snapshot")
       Assert.Equal(snapshots[1].event, "GROUP_ROSTER_UPDATE", "diagnostic snapshot must record the source event")
       Assert.Equal(snapshots[1].members, 5, "diagnostic snapshot must record the settled group size")
-      Assert.Equal(snapshots[1].detectedBefore, 557, "diagnostic snapshot must capture detectedMapID before settle")
-      Assert.Equal(snapshots[1].detectedAfter, 557, "diagnostic snapshot must keep detectedMapID after settle")
+      Assert.Equal(snapshots[1].detectedBefore, 249, "diagnostic snapshot must capture detectedMapID before settle")
+      Assert.Equal(snapshots[1].detectedAfter, 249, "diagnostic snapshot must keep detectedMapID after settle")
       Assert.Nil(snapshots[1].pendingAccept, "diagnostic snapshot must reflect the cleared pending accept")
     end)
   end)
@@ -2034,7 +2034,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
 
     local globals, fire = BuildLFGDetectEnv({
       globals = {
-        C_LFGList = BuildC_LFGList({}, { activityID = 1542 }),
+        C_LFGList = BuildC_LFGList({}, { activityID = 514 }),
       },
     })
 
@@ -2049,7 +2049,7 @@ local function RegisterLFGDetectResetTests(test, ctx)
       capturedBuilder = Assert.NotNil(capturedBuilder, "LFG trace logger must receive a lazy message builder")
       Assert.Equal(type(capturedBuilder), "function", "LFG trace logger must receive a lazy message builder")
       Assert.True(
-        (capturedBuilder() or ""):find("%[LFG%] queue_listing_detected mapID=557 lastQueueMapID=nil") ~= nil,
+        (capturedBuilder() or ""):find("%[LFG%] queue_listing_detected mapID=249 lastQueueMapID=nil") ~= nil,
         "LFG trace builder must format on demand"
       )
     end)
@@ -2065,7 +2065,7 @@ local function RegisterLFGDetectInviteHintTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [1] = { activityID = 1542, name = "+12 NW Push, no jail", leaderName = "Tankadin-Realm" },
+          [1] = { activityID = 514, name = "+12 NW Push, no jail", leaderName = "Tankadin-Realm" },
         }, nil),
       },
     })
@@ -2088,7 +2088,7 @@ local function RegisterLFGDetectInviteHintTests(test, ctx)
       Assert.Equal(hintCalls, 0, "removed pre-accept invite hint callback must never be invoked")
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
+        249,
         "removed hint path must leave the accepted-invite target chain intact"
       )
     end)
@@ -2104,7 +2104,7 @@ local function RegisterLFGDetectBranchCoverageTests(test, ctx)
   local WithGlobals = ctx.with_globals
 
   test("LFGDetect ParseTitleKeyLevel resolves 'N+' trailing-plus form via OnInvited title", function()
-    -- activityID 1542 → mapID 557 (Windrunner Spire) is statically mapped, so
+    -- activityID 514 → mapID 249 (King's Rest) is statically mapped, so
     -- the invite resolves and the title level is promoted on inviteaccepted.
     local globals, fire = BuildLFGDetectEnv({
       IsInGroup = function()
@@ -2114,8 +2114,8 @@ local function RegisterLFGDetectBranchCoverageTests(test, ctx)
         C_LFGList = BuildC_LFGList({
           [42] = {
             -- Pattern A "+N" intentionally absent; only trailing-plus form.
-            activityID = 1542,
-            name = "12+ NPX gogo",
+            activityID = 514,
+            name = "12+ KR gogo",
             leaderName = "Pusher-Realm",
           },
         }, nil),
@@ -2136,7 +2136,7 @@ local function RegisterLFGDetectBranchCoverageTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [43] = { activityID = 1542, name = "+99 farm", leaderName = "X" },
+          [43] = { activityID = 514, name = "+99 farm", leaderName = "X" },
         }, nil),
       },
     })
@@ -2155,7 +2155,7 @@ local function RegisterLFGDetectBranchCoverageTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [44] = { activityID = 1542, name = "+10/+12/+14 NPX", leaderName = "Push" },
+          [44] = { activityID = 514, name = "+10/+12/+14 KR", leaderName = "Push" },
         }, nil),
       },
     })
@@ -2276,8 +2276,8 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [101] = { activityID = 1542, name = "+12 spire chill", leaderName = "Tank-A" },
-          [102] = { activityID = 1542, name = "+15 spire push", leaderName = "Tank-B" },
+          [101] = { activityID = 514, name = "+12 spire chill", leaderName = "Tank-A" },
+          [102] = { activityID = 514, name = "+15 spire push", leaderName = "Tank-B" },
         }, nil),
       },
     })
@@ -2298,8 +2298,8 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
 
       Assert.Equal(#payloads, 1, "AcceptedInviteNotice must fire exactly once on inviteaccepted")
       Assert.Equal(payloads[1].level, 15, "level must be the +15 of the accepted listing, not the +12 sibling")
-      Assert.Equal(payloads[1].mapID, 557, "mapID must resolve from accepted listing")
-      Assert.Equal(payloads[1].activityID, 1542, "activityID must propagate for teleport-button wiring")
+      Assert.Equal(payloads[1].mapID, 249, "mapID must resolve from accepted listing")
+      Assert.Equal(payloads[1].activityID, 514, "activityID must propagate for teleport-button wiring")
       Assert.Equal(payloads[1].searchResultID, 102, "searchResultID must be the accepted one")
       Assert.Equal(payloads[1].leaderName, "Tank-B", "leaderName must be from accepted listing")
     end)
@@ -2313,8 +2313,8 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
       local globals, fire = BuildLFGDetectEnv({
         globals = {
           C_LFGList = BuildC_LFGList({
-            [201] = { activityID = 1542, name = "+13 spire", leaderName = "S" }, -- mapID 557
-            [202] = { activityID = 182, name = "+10 sky", leaderName = "K" }, -- mapID 161
+            [201] = { activityID = 514, name = "+13 spire", leaderName = "S" }, -- mapID 249
+            [202] = { activityID = 1950, name = "+10 row", leaderName = "K" }, -- mapID 587
           }, nil),
         },
       })
@@ -2334,9 +2334,9 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
         fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 202, "inviteaccepted")
 
         Assert.Equal(#payloads, 1, "exactly one notice on accept")
-        Assert.Equal(payloads[1].mapID, 161, "mapID must be from the Skyreach listing the player accepted")
-        Assert.Equal(payloads[1].level, 10, "level must be Skyreach's +10, not Spire's +13")
-        Assert.Equal(payloads[1].activityID, 182, "activityID must be Skyreach's, for the teleport button")
+        Assert.Equal(payloads[1].mapID, 587, "mapID must be from the Murder Row listing the player accepted")
+        Assert.Equal(payloads[1].level, 10, "level must be Murder Row's +10, not the other listing's +13")
+        Assert.Equal(payloads[1].activityID, 1950, "activityID must be Murder Row's, for the teleport button")
       end)
     end
   )
@@ -2347,8 +2347,8 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [301] = { activityID = 1542, name = "+12 spire", leaderName = "A" },
-          [302] = { activityID = 1542, name = "+14 spire", leaderName = "B" },
+          [301] = { activityID = 514, name = "+12 spire", leaderName = "A" },
+          [302] = { activityID = 514, name = "+14 spire", leaderName = "B" },
         }, nil),
       },
     })
@@ -2380,7 +2380,7 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [401] = { activityID = 1542, name = "chill spire run", leaderName = "Z" },
+          [401] = { activityID = 514, name = "chill spire run", leaderName = "Z" },
         }, nil),
       },
     })
@@ -2400,7 +2400,7 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
 
       Assert.Equal(#payloads, 1, "notice must still fire even without a level")
       Assert.Nil(payloads[1].level, "level must stay nil rather than be inferred")
-      Assert.Equal(payloads[1].mapID, 557, "mapID must still resolve")
+      Assert.Equal(payloads[1].mapID, 249, "mapID must still resolve")
       Assert.Equal(payloads[1].groupName, "chill spire run", "raw group title must propagate for the subline")
     end)
   end)
@@ -2412,13 +2412,13 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [402] = {
-            activityID = 1542,
+          [250] = {
+            activityID = 514,
             name = "+13 spire push",
             leaderName = "C",
             comment = "Achiever 2.5k io, no afks",
           },
-          [403] = { activityID = 1542, name = "+10 chill", leaderName = "D" },
+          [403] = { activityID = 514, name = "+10 chill", leaderName = "D" },
         }, nil),
       },
     })
@@ -2433,8 +2433,8 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
         return true
       end)
 
-      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 402, "invited")
-      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 402, "inviteaccepted")
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 250, "invited")
+      fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 250, "inviteaccepted")
       Assert.Equal(payloads[1].comment, "Achiever 2.5k io, no afks", "comment must propagate from info.comment")
 
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 403, "invited")
@@ -2448,7 +2448,7 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [501] = { activityID = 1542, name = "+11 spire", leaderName = "X" },
+          [501] = { activityID = 514, name = "+11 spire", leaderName = "X" },
         }, nil),
       },
     })
@@ -2477,7 +2477,7 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [601] = { activityID = 1542, name = "+9", leaderName = "Q" },
+          [601] = { activityID = 514, name = "+9", leaderName = "Q" },
         }, nil),
       },
     })
@@ -2492,7 +2492,7 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 601, "inviteaccepted")
       Assert.Equal(
         addon.LFGDetect.GetDetectedMapID(),
-        557,
+        249,
         "missing notice callback must not break the existing pipeline"
       )
     end)
@@ -2508,7 +2508,7 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [701] = { activityID = 1542, name = "+13 spire", leaderName = "Tank" },
+          [701] = { activityID = 514, name = "+13 spire", leaderName = "Tank" },
         }, nil),
       },
     })
@@ -2541,7 +2541,7 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
     local globals, fire = BuildLFGDetectEnv({
       globals = {
         C_LFGList = BuildC_LFGList({
-          [702] = { activityID = 1542, name = "+13 spire", leaderName = "Tank" },
+          [702] = { activityID = 514, name = "+13 spire", leaderName = "Tank" },
         }, nil),
       },
     })
@@ -2562,7 +2562,7 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 702, "inviteaccepted")
 
       Assert.Equal(#payloads, 1, "key-start must close the accepted-invite notice window")
-      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 557, "key-start must not clear the detected invite map")
+      Assert.Equal(addon.LFGDetect.GetDetectedMapID(), 249, "key-start must not clear the detected invite map")
     end)
   end)
 
@@ -2579,7 +2579,7 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
     -- the resolution; otherwise the Center Notice would re-render for
     -- an accept cycle that was already consumed.
     local lfgList = BuildC_LFGList({
-      [802] = { activityID = 1542, name = "+13 spire", leaderName = "Tank" },
+      [802] = { activityID = 514, name = "+13 spire", leaderName = "Tank" },
     }, nil)
     -- Live-API stub: the application is still reported as
     -- "inviteaccepted" for resultID 802 even after the local accept
@@ -2909,7 +2909,7 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
       end,
       globals = {
         C_LFGList = BuildC_LFGList({
-          [801] = { activityID = 1542, name = "+12 spire", leaderName = "M+Lead" },
+          [801] = { activityID = 514, name = "+12 spire", leaderName = "M+Lead" },
         }, nil),
       },
     })
@@ -2936,7 +2936,7 @@ local function RegisterLFGDetectAcceptedInviteNoticeTests(test, ctx)
       fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 801, "inviteaccepted")
 
       Assert.Equal(#payloads, 1, "M+ accept after ClearAllState must still fire the notice")
-      Assert.Equal(payloads[1].mapID, 557, "mapID must resolve via ResolveInviteEntry after the reset")
+      Assert.Equal(payloads[1].mapID, 249, "mapID must resolve via ResolveInviteEntry after the reset")
       Assert.Equal(payloads[1].level, 12, "title level must be parsed from the LFG group name")
     end)
   end)

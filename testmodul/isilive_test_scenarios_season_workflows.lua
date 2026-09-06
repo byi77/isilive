@@ -56,12 +56,12 @@ return function(test, ctx)
       "season readiness inspect must emit a markdown heading"
     )
     Assert.True(
-      summary:find("- Active season: midnight_s1", 1, true) ~= nil,
+      summary:find("- Active season: midnight_s2", 1, true) ~= nil,
       "season readiness inspect must report the persisted active season"
     )
     Assert.True(
-      summary:find("| midnight_s2 | Midnight Season 2 | yes | 8 | 0 | - | - |", 1, true) ~= nil,
-      "season readiness inspect must allow manual S2 activation without optional Forces data"
+      summary:find("| midnight_s1 | Midnight Season 1 | yes | 8 | 0 | - | - |", 1, true) ~= nil,
+      "season readiness inspect must keep the non-active season manually activatable"
     )
     Assert.True(
       summary:find("- Matches active season: yes", 1, true) ~= nil,

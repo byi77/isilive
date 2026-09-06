@@ -24,13 +24,16 @@ local function BuildLocale()
     NON_MYTHIC_NOTICE_HINT_NON_MYTHIC = "Not a Mythic+ dungeon",
     NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED = "Instance entered",
     RAID_ENTERED = "Entered raid: %s",
-    PORTAL_NAVIGATOR_TITLE = "isiLive - Midnight Season One M+ Navigator",
+    PORTAL_NAVIGATOR_TITLE = "isiLive - Midnight Season Two M+ Navigator",
     PORTAL_NAVIGATOR_EYEBROW = "Portal - Navigation",
     PORTAL_NAVIGATOR_HALF_LEFT = "Half left",
     PORTAL_NAVIGATOR_LEFT = "Left",
     PORTAL_NAVIGATOR_RIGHT = "Right",
     PORTAL_NAVIGATOR_HALF_RIGHT = "Half right",
     PORTAL_NAVIGATOR_CENTER = "Straight ahead",
+    PORTAL_NAVIGATOR_KINGS_REST = "King's Rest",
+    PORTAL_NAVIGATOR_SETHRALISS = "Temple of Sethraliss",
+    PORTAL_NAVIGATOR_RUBY_LIFE_POOLS = "Ruby Life Pools",
     PORTAL_NAVIGATOR_SKYREACH = "Skyreach",
     PORTAL_NAVIGATOR_TRIUMVIRATE = "Seat of the Triumvirate",
     PORTAL_NAVIGATOR_PIT_OF_SARON = "Pit of Saron",
@@ -569,14 +572,12 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
     Assert.Equal(type(layout.entries), "table", "portal navigator should expose entry widgets")
     Assert.Equal(#layout.entries, 5, "portal navigator should expose five portal positions")
 
+    -- Season 2 reuses the Season 1 room but occupies different slots: left and
+    -- right are empty, the three inner slots carry the portals.
     Assert.Equal(layout.entries[1].slot, "left", "first portal entry should be left")
     Assert.Equal(layout.entries[1].direction, BuildLocale().PORTAL_NAVIGATOR_LEFT, "left entry should use left label")
-    Assert.Equal(
-      layout.entries[1].destination,
-      BuildLocale().PORTAL_NAVIGATOR_SKYREACH,
-      "left entry should point to Skyreach"
-    )
-    Assert.Equal(layout.entries[1].mapID, 161, "left entry should carry the Skyreach map id")
+    Assert.True(layout.entries[1].isEmpty, "left slot is unoccupied in Season 2")
+    Assert.Nil(layout.entries[1].mapID, "an empty left slot must not carry a dungeon map id")
 
     Assert.Equal(layout.entries[2].slot, "half_left", "second portal entry should be half left")
     Assert.Equal(
@@ -586,10 +587,10 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
     )
     Assert.Equal(
       layout.entries[2].destination,
-      BuildLocale().PORTAL_NAVIGATOR_PIT_OF_SARON,
-      "half left entry should point to Pit of Saron"
+      BuildLocale().PORTAL_NAVIGATOR_KINGS_REST,
+      "half left entry should point to King's Rest"
     )
-    Assert.Equal(layout.entries[2].mapID, 556, "half-left entry should carry the Pit of Saron map id")
+    Assert.Equal(layout.entries[2].mapID, 249, "half-left entry should carry the King's Rest map id")
 
     Assert.Equal(layout.entries[3].slot, "center", "third portal entry should be center")
     Assert.Equal(
@@ -599,16 +600,10 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
     )
     Assert.Equal(
       layout.entries[3].destination,
-      BuildLocale().PORTAL_NAVIGATOR_HEAVEN,
-      "center entry should show the configured Heaven placeholder"
+      BuildLocale().PORTAL_NAVIGATOR_RUBY_LIFE_POOLS,
+      "center entry should point to Ruby Life Pools"
     )
-    Assert.Equal(
-      layout.entries[3].detail,
-      BuildLocale().PORTAL_NAVIGATOR_UNOCCUPIED,
-      "center entry should mark the portal as unoccupied"
-    )
-    Assert.True(layout.entries[3].isEmpty, "center entry should be flagged as empty for muted rendering")
-    Assert.Nil(layout.entries[3].mapID, "center placeholder should not carry a dungeon map id")
+    Assert.Equal(layout.entries[3].mapID, 399, "center entry should carry the Ruby Life Pools map id")
 
     Assert.Equal(layout.entries[4].slot, "half_right", "fourth portal entry should be half right")
     Assert.Equal(
@@ -618,10 +613,10 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
     )
     Assert.Equal(
       layout.entries[4].destination,
-      BuildLocale().PORTAL_NAVIGATOR_ALGETHAR,
-      "half right entry should point to Algeth'ar Academy"
+      BuildLocale().PORTAL_NAVIGATOR_SETHRALISS,
+      "half right entry should point to Temple of Sethraliss"
     )
-    Assert.Equal(layout.entries[4].mapID, 402, "half-right entry should carry the Algeth'ar Academy map id")
+    Assert.Equal(layout.entries[4].mapID, 250, "half-right entry should carry the Temple of Sethraliss map id")
 
     Assert.Equal(layout.entries[5].slot, "right", "fifth portal entry should be right")
     Assert.Equal(
@@ -629,12 +624,8 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
       BuildLocale().PORTAL_NAVIGATOR_RIGHT,
       "right entry should use right label"
     )
-    Assert.Equal(
-      layout.entries[5].destination,
-      BuildLocale().PORTAL_NAVIGATOR_TRIUMVIRATE,
-      "right entry should point to Seat of the Triumvirate"
-    )
-    Assert.Equal(layout.entries[5].mapID, 239, "right entry should carry the Seat of the Triumvirate map id")
+    Assert.True(layout.entries[5].isEmpty, "right slot is unoccupied in Season 2")
+    Assert.Nil(layout.entries[5].mapID, "an empty right slot must not carry a dungeon map id")
   end
 
   test("Portal navigator shows the five portal positions only in the Timeways room", function()
@@ -757,13 +748,21 @@ local function RegisterPortalNavigatorTests(test, Assert, WithGlobals, LoadAddon
         entriesBySlot[entry.slot] = entry
       end
 
-      Assert.Equal(entriesBySlot.left.icon, "icon-161", "left portal should use the Skyreach teleport icon")
-      Assert.Equal(entriesBySlot.left.spellID, 1161, "left portal should keep the verified Skyreach spell id")
-      Assert.Equal(entriesBySlot.half_left.icon, "icon-556", "half-left portal should use the Pit of Saron icon")
-      Assert.Equal(entriesBySlot.half_right.icon, "icon-402", "half-right portal should use the Algeth'ar icon")
-      Assert.Equal(entriesBySlot.right.icon, "icon-239", "right portal should use the Seat of the Triumvirate icon")
-      Assert.Nil(entriesBySlot.center.icon, "empty center portal should not synthesize an icon")
-      Assert.Nil(entriesBySlot.center.spellID, "empty center portal should not synthesize a spell id")
+      Assert.Equal(entriesBySlot.half_left.icon, "icon-249", "half-left portal should use the King's Rest icon")
+      Assert.Equal(
+        entriesBySlot.half_left.spellID,
+        1249,
+        "half-left portal should keep the verified King's Rest spell id"
+      )
+      Assert.Equal(entriesBySlot.center.icon, "icon-399", "center portal should use the Ruby Life Pools icon")
+      Assert.Equal(
+        entriesBySlot.half_right.icon,
+        "icon-250",
+        "half-right portal should use the Temple of Sethraliss icon"
+      )
+      Assert.Nil(entriesBySlot.left.icon, "empty left portal should not synthesize an icon")
+      Assert.Nil(entriesBySlot.left.spellID, "empty left portal should not synthesize a spell id")
+      Assert.Nil(entriesBySlot.right.icon, "empty right portal should not synthesize an icon")
     end)
   end)
 

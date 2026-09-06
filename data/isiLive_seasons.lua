@@ -24,12 +24,21 @@ addonTable = addonTable or {}
 -- Runtime lookup tables are compiled from this manifest by game/isiLive_season_data.lua.
 -- Generated M+ forces payloads intentionally remain in data/isiLive_mplus_forces.lua.
 addonTable.SeasonManifest = {
-  activeSeasonID = "midnight_s1",
+  -- Midnight Season 2 went live; confirmed 2026-09-06 against a running client
+  -- whose portal room and keystones carry the S2 dungeons. Auto-selection had
+  -- already switched at runtime, but this value is what the build gates and the
+  -- no-auto-match fallback read, and leaving it on S1 kept the generated forces
+  -- DB pinned to a season nobody plays any more.
+  activeSeasonID = "midnight_s2",
   seasons = {
     midnight_s1 = {
       label = "Midnight Season 1",
       autoDetectFromChallengeMaps = true,
-      requiresForces = true,
+      -- S1 ended on 2026-09-06. The generated forces DB now tracks the active
+      -- season, so demanding a matching S1 DB here would leave S1 permanently
+      -- "not ready" and block it as the manual fallback. It stays fully usable,
+      -- just without MDT mob percentages -- the documented no-DB behavior.
+      requiresForces = false,
       mdtDirectory = "Midnight",
       inactivePortalMessageByLocale = {},
       portalNavigator = {
@@ -130,7 +139,14 @@ addonTable.SeasonManifest = {
     midnight_s2 = {
       label = "Midnight Season 2",
       autoDetectFromChallengeMaps = true,
-      requiresForces = false,
+      -- Verified 2026-09-06 against MDT 6.2.15: the S2 dungeons ship in the same
+      -- "Midnight" directory as the S1 ones (KingsRest.lua, TempleOfSethraliss.lua,
+      -- MurderRow.lua, RubyLifePools.lua, AltarOfFangs.lua, DenOfNalorakk.lua,
+      -- TheBlindingVale.lua, VoidscarArena.lua). Until then this season had no
+      -- mdtDirectory and requiresForces = false, so the generator skipped it and
+      -- an active S2 key showed no mob percentages at all.
+      requiresForces = true,
+      mdtDirectory = "Midnight",
       inactivePortalMessageByLocale = {
         default = "Midnight Season 2 is prepared but not active yet.",
         deDE = "Midnight Season 2 ist vorbereitet, aber noch nicht aktiv.",

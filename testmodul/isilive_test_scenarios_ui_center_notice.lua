@@ -1089,7 +1089,7 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
 
       local shown = portalNotice.Show({
         eyebrow = "Portal - Navigation",
-        title = "isiLive - Midnight Season One M+ Navigator",
+        title = "isiLive - Midnight Season Two M+ Navigator",
         entries = {
           { slot = "half_left", direction = "Half left", destination = "Grube von Saron", icon = "icon-pit" },
           { slot = "left", direction = "Left", destination = "Himmelsnadel", icon = "icon-skyreach" },
@@ -1124,7 +1124,7 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
       )
       Assert.Equal(
         portalNotice.titleText:GetText(),
-        "isiLive - Midnight Season One M+ Navigator",
+        "isiLive - Midnight Season Two M+ Navigator",
         "portal navigator should render the season navigator title"
       )
       local eyebrowR, eyebrowG, eyebrowB = portalNotice.eyebrowText:GetTextColor()

@@ -2,17 +2,17 @@
 -- three "Ziel-Dungeon" chat lines and a wrong invite-hint dungeon name.
 --
 -- Real-world scenario (player report 2026-05-03):
---   * Player has Nexus-Point Xenas +13 in their bag.
+--   * Player has King's Rest +13 in their bag.
 --   * Player listed for / received invites from THREE LFG groups in parallel:
 --       A: "+12 farm"        (other dungeon)
---       B: "+13 NPX"         (same dungeon as own key)
---       C: "+14 NPX"         (the leader's actual key, different player)
---   * Player accepts C (the +14 NPX).
+--       B: "+13 KR"         (same dungeon as own key)
+--       C: "+14 KR"         (the leader's actual key, different player)
+--   * Player accepts C (the +14 KR).
 --   * Listing A delists ("LFG abgemeldet").
 --   * The chat sees:
---       1.  "Ziel-Dungeon: Nexuspunkt Xenas +14"   (correct, from LFG-title hint)
---       2.  "Ziel-Dungeon: Nexuspunkt Xenas +13"   (WRONG — own key surfaced)
---       3.  "Ziel-Dungeon: Nexuspunkt Xenas"       (WRONG — level cleared entirely)
+--       1.  "Ziel-Dungeon: Koenigsruh +14"   (correct, from LFG-title hint)
+--       2.  "Ziel-Dungeon: Koenigsruh +13"   (WRONG — own key surfaced)
+--       3.  "Ziel-Dungeon: Koenigsruh"       (WRONG — level cleared entirely)
 --   * The invite-hint above the Blizzard dialog showed the wrong dungeon
 --     (latest invite text overwriting earlier text without dialog binding).
 --
@@ -169,12 +169,12 @@ local function Run()
 
   -- Three parallel listings:
   --   1: "+12 ZA farm"                — other dungeon
-  --   2: "+13 NPX self"               — same dungeon as the own +13 key
-  --   3: "Nexuspunkt Xenas +14 push"  — the listing the player accepts
+  --   2: "+13 KR self"               — same dungeon as the own +13 key
+  --   3: "Koenigsruh +14 push"  — the listing the player accepts
   local searchResults = {
     [1] = { activityID = 1542, name = "+12 Spire farm", leaderName = "Farmguy-Realm" },
-    [2] = { activityID = 1768, name = "+13 NPX easy", leaderName = "Selfish-Realm" },
-    [3] = { activityID = 1768, name = "Nexuspunkt Xenas +14 push", leaderName = "Pusher-Realm" },
+    [2] = { activityID = 514, name = "+13 KR easy", leaderName = "Selfish-Realm" },
+    [3] = { activityID = 514, name = "Koenigsruh +14 push", leaderName = "Pusher-Realm" },
   }
 
   local globals, fire = BuildLFGDetectGlobals(searchResults, isInGroup, numMembers)
@@ -221,8 +221,8 @@ local function Run()
         },
         teleport = {
           GetTeleportInfoByMapID = function(mapID)
-            if mapID == 559 then
-              return { mapName = "Nexus-Point Xenas" }
+            if mapID == 249 then
+              return { mapName = "King's Rest" }
             end
             return nil
           end,
@@ -249,8 +249,8 @@ local function Run()
       Print = function() end,
       UpdateStatusLine = function() end,
       ResolveMapIDByActivityID = function(activityID)
-        if activityID == 1768 then
-          return 559
+        if activityID == 514 then
+          return 249
         end
         return nil
       end,
@@ -291,17 +291,17 @@ local function Run()
     Check(#hints == 0, "incoming invites keep removed pre-accept invite hints suppressed")
 
     -- ------------------------------------------------------------------
-    -- Phase 2: player accepts listing C (the +14 NPX push).
+    -- Phase 2: player accepts listing C (the +14 KR push).
     -- activeInviteTitleLevel must lock onto 14 and acceptedInviteSearchResultID
     -- must point at listing 3.
     -- ------------------------------------------------------------------
-    print("\n---- Phase 2: accept listing C (+14 NPX) ----")
+    print("\n---- Phase 2: accept listing C (+14 KR) ----")
     fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 3, "inviteaccepted")
     isInGroup[1] = true
     numMembers[1] = 2
     fire("GROUP_ROSTER_UPDATE")
 
-    Check(addon.LFGDetect.GetDetectedMapID() == 559, "detectedMapID resolves to Nexus-Point Xenas")
+    Check(addon.LFGDetect.GetDetectedMapID() == 249, "detectedMapID resolves to King's Rest")
     Check(
       addon.LFGDetect.GetActiveInviteTitleLevel() == 14,
       "activeInviteTitleLevel resolves to +14 from the accepted listing's title"
@@ -318,23 +318,23 @@ local function Run()
     -- First Status announce: drive the REAL ctx.GetStatusTargetDungeonInfo
     -- resolver. With LFGDetect.GetActiveInviteTitleLevel() == 14 (set by the
     -- accept event above) and the resolver's title-wins priority (Fix 1), it
-    -- must yield { name="Nexus-Point Xenas", level=14 }.
+    -- must yield { name="King's Rest", level=14 }.
     statusModel.inGroup = true
     local resolved = ctx.GetStatusTargetDungeonInfo()
     Check(
-      type(resolved) == "table" and resolved.name == "Nexus-Point Xenas" and resolved.level == 14,
-      "real GetStatusTargetDungeonInfo yields {Nexus-Point Xenas, +14} from the LFG-title hint"
+      type(resolved) == "table" and resolved.name == "King's Rest" and resolved.level == 14,
+      "real GetStatusTargetDungeonInfo yields {King's Rest, +14} from the LFG-title hint"
     )
     statusController.MaybeAnnounceTargetDungeonChat()
     Check(#statusModel.prints == 1, "first announce fires once for the locked-in +14 target")
     Check(
-      statusModel.prints[1] == "Target Dungeon: |cffffd200Nexus-Point Xenas +14|r",
+      statusModel.prints[1] == "Target Dungeon: |cffffd200King's Rest +14|r",
       "first announce carries the +14 level"
     )
 
     -- ------------------------------------------------------------------
     -- Phase 3: parallel listings get delisted ("+12 Spire abgemeldet" /
-    -- "+13 NPX abgemeldet"). Each fires a NEGATIVE_STATUS update for a
+    -- "+13 KR abgemeldet"). Each fires a NEGATIVE_STATUS update for a
     -- searchResultID OTHER than the accepted one. With Fix 1, neither
     -- may null out activeInviteTitleLevel / activeInviteLeader.
     -- ------------------------------------------------------------------
@@ -354,7 +354,7 @@ local function Run()
       "activeInviteLeader survives parallel-listing delists"
     )
     Check(
-      addon.LFGDetect.GetDetectedMapID() == 559,
+      addon.LFGDetect.GetDetectedMapID() == 249,
       "detectedMapID survives parallel-listing delists (highlight stays on)"
     )
 
@@ -453,7 +453,7 @@ local function Run()
       "leaving the group resets the lock-in so a fresh key joins later can announce again"
     )
     Check(
-      statusModel.prints[2] == "Target Dungeon: |cffffd200Nexus-Point Xenas +14|r",
+      statusModel.prints[2] == "Target Dungeon: |cffffd200King's Rest +14|r",
       "second-cycle announce carries the +14 level"
     )
 

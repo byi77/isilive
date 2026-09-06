@@ -14,7 +14,7 @@ local function WriteDBFixture(path, expiresAt)
   local f = assert(io.open(path, "w"))
   f:write("local _, addonTable = ...\n")
   f:write("addonTable.MPlusForces = {\n")
-  f:write('  season = "midnight_s1",\n')
+  f:write('  season = "midnight_s2",\n')
   f:write('  sourceCommit = "0123456789abcdef0123456789abcdef01234567",\n')
   f:write(string.format("  expiresAt = %q,\n", tostring(expiresAt)))
   f:write("  dungeonTotal = {},\n")
@@ -122,7 +122,7 @@ return function(test, ctx)
     WriteRawFixture(
       path,
       "local _, addonTable = ...\n"
-        .. 'addonTable.MPlusForces = { season = "midnight_s1", sourceCommit = "01234567", '
+        .. 'addonTable.MPlusForces = { season = "midnight_s2", sourceCommit = "01234567", '
         .. 'expiresAt = "2030-01-01", dungeonTotal = {}, byNpcId = {} }\n'
     )
     local code, msg = tool.Check(path, { today = "2026-04-21" })
@@ -185,7 +185,7 @@ return function(test, ctx)
     -- filtering by season. That folder held exactly the Season 1 dungeons for
     -- one upstream generation and then started carrying Season 1 and Season 2
     -- side by side, which produced a 16-dungeon DB stamped
-    -- season = "midnight_s1". SeasonData rejects every out-of-season map id,
+    -- season = "midnight_s2". SeasonData rejects every out-of-season map id,
     -- so the active season turned "not ready" and both SetActiveSeasonID and
     -- the automatic season switch would have refused to run -- while the
     -- lifetime gate above stayed green, because it only reads the header.

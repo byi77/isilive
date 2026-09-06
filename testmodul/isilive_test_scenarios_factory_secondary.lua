@@ -394,7 +394,7 @@ local function BuildControllerContext(state, addon, initial)
         NON_MYTHIC_NOTICE_HINT_NON_MYTHIC = "Not a Mythic+ dungeon",
         NON_MYTHIC_NOTICE_SOURCE_INSTANCE_ENTERED = "Instance entered",
         NON_MYTHIC_NOTICE_DEMO_DUNGEON = "Priory of the Sacred Flame",
-        PORTAL_NAVIGATOR_TITLE = "isiLive - Midnight Season One M+ Navigator",
+        PORTAL_NAVIGATOR_TITLE = "isiLive - Midnight Season Two M+ Navigator",
         PORTAL_NAVIGATOR_EYEBROW = "Portal - Navigation",
         PORTAL_NAVIGATOR_HALF_LEFT = "Half-left",
         PORTAL_NAVIGATOR_LEFT = "Left",
@@ -828,7 +828,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     )
     Assert.Equal(
       state.portalNavigatorLayout.title,
-      "isiLive - Midnight Season One M+ Navigator",
+      "isiLive - Midnight Season Two M+ Navigator",
       "portal navigator demo must render the season navigator title"
     )
     Assert.Equal(#state.portalNavigatorLayout.entries, 5, "portal navigator demo must render all five portal positions")
@@ -836,16 +836,27 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     for _, entry in ipairs(state.portalNavigatorLayout.entries) do
       portalEntriesBySlot[entry.slot] = entry
     end
-    Assert.Equal(portalEntriesBySlot.left.icon, "icon-161", "demo left portal must use the Skyreach teleport icon")
-    Assert.Equal(portalEntriesBySlot.half_left.icon, "icon-556", "demo half-left portal must use the Pit teleport icon")
+    Assert.Equal(
+      portalEntriesBySlot.half_left.icon,
+      "icon-249",
+      "demo half-left portal must use the King's Rest teleport icon"
+    )
+    Assert.Equal(
+      portalEntriesBySlot.center.icon,
+      "icon-399",
+      "demo center portal must use the Ruby Life Pools teleport icon"
+    )
     Assert.Equal(
       portalEntriesBySlot.half_right.icon,
-      "icon-402",
-      "demo half-right portal must use the Academy teleport icon"
+      "icon-250",
+      "demo half-right portal must use the Temple of Sethraliss teleport icon"
     )
-    Assert.Equal(portalEntriesBySlot.right.icon, "icon-239", "demo right portal must use the Triumvirate teleport icon")
-    Assert.True(portalEntriesBySlot.center.isEmpty == true, "demo center portal must stay marked as empty")
-    Assert.Nil(portalEntriesBySlot.center.icon, "demo center portal must not synthesize an icon")
+    -- The demo builder only fills a slot that the season actually maps; it does not
+    -- set isEmpty for the unmapped ones, so the observable contract is that no
+    -- icon or teleport is invented for them.
+    Assert.Nil(portalEntriesBySlot.left.icon, "an unmapped demo portal must not synthesize an icon")
+    Assert.Nil(portalEntriesBySlot.left.spellID, "an unmapped demo portal must not synthesize a teleport")
+    Assert.Nil(portalEntriesBySlot.right.icon, "an unmapped demo portal must not synthesize an icon")
     Assert.NotNil(state.demoCenterNotices, "test mode must show the demo center notices without replacing each other")
     Assert.Equal(#state.demoCenterNotices, 2, "test mode must show both center notice demo variants at once")
     Assert.Nil(state.inviteHintPayload, "test mode must not show the removed pre-accept invite hint preview")
@@ -1039,7 +1050,7 @@ local function RegisterTestModeDemoDataTests(test, Assert, WithGlobals, LoadAddo
     )
     Assert.Equal(
       state.portalNavigatorLayout.title,
-      "isiLive - Midnight Season One M+ Navigator",
+      "isiLive - Midnight Season Two M+ Navigator",
       "demo portal navigator must pass the gold season title"
     )
   end)

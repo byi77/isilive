@@ -60,13 +60,13 @@ end
 
 local function BuildSearchResults()
   -- Three listings, three different dungeons + key levels:
-  --   1: Pit of Saron      (mapID 556) +12
-  --   2: Magisters' Terrace (mapID 558) +13
-  --   3: Seat of the Triumvirate (mapID 239) +15
+  --   1: King's Rest      (mapID 249) +12
+  --   2: Temple of Sethraliss (mapID 250) +13
+  --   3: Ruby Life Pools (mapID 399) +15
   return {
-    [1] = { activityID = 1770, name = "+12 PoS farm", leaderName = "Farmguy-Realm" },
-    [2] = { activityID = 1760, name = "+13 MT cleave", leaderName = "Cleaver-Realm" },
-    [3] = { activityID = 486, name = "+15 SOT push", leaderName = "Pusher-Realm" },
+    [1] = { activityID = 514, name = "+12 KR farm", leaderName = "Farmguy-Realm" },
+    [2] = { activityID = 504, name = "+13 TOS cleave", leaderName = "Cleaver-Realm" },
+    [3] = { activityID = 1176, name = "+15 RLP push", leaderName = "Pusher-Realm" },
   }
 end
 
@@ -213,8 +213,8 @@ RunCase("Case 1: API names the accepted invite (3 pending, ID=3 accepted)", func
   JoinGroup(env)
 
   Check(
-    env.addon.LFGDetect.GetDetectedMapID() == 239,
-    "detectedMapID resolves to Seat of the Triumvirate (mapID 239) — the API-named accepted ID"
+    env.addon.LFGDetect.GetDetectedMapID() == 399,
+    "detectedMapID resolves to Ruby Life Pools (mapID 399) — the API-named accepted ID"
   )
   Check(
     env.addon.LFGDetect.GetActiveInviteTitleLevel() == 15,
@@ -242,10 +242,10 @@ RunCase("Case 1: API names the accepted invite (3 pending, ID=3 accepted)", func
   env.applicationStatusByID[2] = "applied"
   env.applicationStatusByID[3] = "applied"
   env.fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 2, "inviteaccepted")
-  -- Switching the accepted ID must override the resolver state (mapID 558).
+  -- Switching the accepted ID must override the resolver state (mapID 250).
   Check(
-    env.addon.LFGDetect.GetDetectedMapID() == 558,
-    "subsequent inviteaccepted for ID 2 transitions detectedMapID to Magisters' Terrace (mapID 558)"
+    env.addon.LFGDetect.GetDetectedMapID() == 250,
+    "subsequent inviteaccepted for ID 2 transitions detectedMapID to Temple of Sethraliss (mapID 250)"
   )
   Check(
     env.addon.LFGDetect.GetActiveInviteTitleLevel() == 13,
@@ -266,7 +266,7 @@ RunCase("Case 2: Single pending invite, API returns no status (fallback path)", 
 
   JoinGroup(env)
 
-  Check(env.addon.LFGDetect.GetDetectedMapID() == 558, "single pending invite resolves to its own mapID (558)")
+  Check(env.addon.LFGDetect.GetDetectedMapID() == 250, "single pending invite resolves to its own mapID (250)")
   Check(env.addon.LFGDetect.GetAcceptedInviteSearchResultID() == 2, "single-pending fallback captures the ID")
   Check(env.addon.LFGDetect.GetActiveInviteTitleLevel() == 13, "single-pending fallback transfers the title level")
 end)
@@ -303,8 +303,8 @@ RunCase("Case 3: Three pending invites, API silent → defer until real inviteac
   env.fire("LFG_LIST_APPLICATION_STATUS_UPDATED", 2, "inviteaccepted")
 
   Check(
-    env.addon.LFGDetect.GetDetectedMapID() == 558,
-    "explicit inviteaccepted (ID 2) resolves Magisters' Terrace deterministically"
+    env.addon.LFGDetect.GetDetectedMapID() == 250,
+    "explicit inviteaccepted (ID 2) resolves Temple of Sethraliss deterministically"
   )
   Check(
     env.addon.LFGDetect.GetActiveInviteTitleLevel() == 13,
@@ -332,8 +332,8 @@ RunCase("Case 4: API names a searchResultID not present in pendingInvites", func
   JoinGroup(env)
 
   Check(
-    env.addon.LFGDetect.GetDetectedMapID() == 239,
-    "API-named ID 3 resolves live via ResolveInviteEntry → Seat of the Triumvirate (mapID 239)"
+    env.addon.LFGDetect.GetDetectedMapID() == 399,
+    "API-named ID 3 resolves live via ResolveInviteEntry → Ruby Life Pools (mapID 399)"
   )
   Check(
     env.addon.LFGDetect.GetAcceptedInviteSearchResultID() == 3,
@@ -356,7 +356,7 @@ RunCase("Case 5: Regression — single-apply, GROUP_ROSTER_UPDATE first, no API 
   JoinGroup(env)
 
   Check(
-    env.addon.LFGDetect.GetDetectedMapID() == 239,
+    env.addon.LFGDetect.GetDetectedMapID() == 399,
     "single-apply still resolves via the unambiguous fallback when API is silent"
   )
   Check(env.addon.LFGDetect.GetAcceptedInviteSearchResultID() == 3, "single-apply still captures the searchResultID")
