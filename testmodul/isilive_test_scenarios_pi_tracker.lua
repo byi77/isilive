@@ -21,6 +21,7 @@ local function BuildController(PiTracker, opts)
       return classByUnit[unit]
     end,
     getAuraDataByIndex = opts.getAuraDataByIndex,
+    getPlayerAuraBySpellID = opts.getPlayerAuraBySpellID,
     spellIDMatches = opts.spellIDMatches,
     announcePowerInfusion = function(casterName, recipientName, isLocalRecipient, isLocalCaster)
       table.insert(announces, {
@@ -464,5 +465,73 @@ return function(test, ctx)
       }) == false, "a masked spell id must not reach the spell-id match")
       Assert.Equal(#announces, 0, "masked aura fields must keep the tracker silent")
     end)
+  end)
+  -- The payload path stays silent on masked fields, which is correct -- but that
+  -- left the player without any Power Infusion feedback inside instances, where
+  -- 12.1 masks spellId/sourceUnit. The self-receive path answers from the
+  -- player's own buff instead and does not depend on those fields.
+  test("PiTracker announces own Power Infusion when the aura payload is masked", function()
+    local PiTracker
+    WithGlobals({}, function()
+      PiTracker = LoadPiTracker(ctx)
+    end)
+    local controller, announces = BuildController(PiTracker, {
+      getPlayerAuraBySpellID = function(spellID)
+        Assert.Equal(spellID, 10060, "the self lookup must ask for the Power Infusion spell id")
+        return { spellId = nil, sourceUnit = nil }
+      end,
+    })
+
+    Assert.True(controller.HandleUnitAura("player", { isFullUpdate = false }), "masked payload must still announce")
+    Assert.Equal(#announces, 1, "exactly one announcement for the received buff")
+    Assert.Equal(announces[1].isLocalRecipient, true, "the player is the recipient")
+    Assert.Equal(announces[1].recipientName, "Target-Realm", "the recipient name comes from the player unit")
+    Assert.Nil(announces[1].casterName, "an unknown caster must not be invented")
+  end)
+
+  test("PiTracker does not repeat the own-Power-Infusion announcement while it lasts", function()
+    local PiTracker
+    WithGlobals({}, function()
+      PiTracker = LoadPiTracker(ctx)
+    end)
+    local hasAura = true
+    local controller, announces = BuildController(PiTracker, {
+      getPlayerAuraBySpellID = function()
+        return hasAura and {} or nil
+      end,
+    })
+
+    controller.HandleUnitAura("player", { isFullUpdate = false })
+    controller.HandleUnitAura("player", { isFullUpdate = false })
+    Assert.Equal(#announces, 1, "a still-running buff must not announce again")
+
+    hasAura = false
+    controller.HandleUnitAura("player", { isFullUpdate = false })
+    Assert.Equal(#announces, 1, "losing the buff must not announce")
+
+    hasAura = true
+    controller.HandleUnitAura("player", { isFullUpdate = false })
+    Assert.Equal(#announces, 2, "receiving it again must announce again")
+  end)
+
+  test("PiTracker announces own Power Infusion once when both paths see it", function()
+    local PiTracker
+    WithGlobals({}, function()
+      PiTracker = LoadPiTracker(ctx)
+    end)
+    local controller, announces = BuildController(PiTracker, {
+      getPlayerAuraBySpellID = function()
+        return { sourceUnit = "party1" }
+      end,
+    })
+
+    -- Readable payload AND a readable self aura: the caster is known, and the
+    -- shared latch keeps it to a single message.
+    controller.HandleUnitAura("player", {
+      isFullUpdate = false,
+      addedAuras = { { spellId = 10060, sourceUnit = "party1", auraInstanceID = 7 } },
+    })
+    Assert.Equal(#announces, 1, "both paths seeing the same buff must announce once")
+    Assert.Equal(announces[1].casterName, "Priest-Realm", "a readable sourceUnit must still name the caster")
   end)
 end

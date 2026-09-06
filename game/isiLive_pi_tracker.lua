@@ -36,6 +36,26 @@ local function DefaultGetTime()
   return type(fn) == "function" and fn() or 0
 end
 
+-- Asks Blizzard directly whether the player currently carries a given aura.
+--
+-- The payload-driven path below reads `spellId` and `sourceUnit` off the aura
+-- table, and WoW 12.1 masks both of those inside restricted instances -- exactly
+-- where Power Infusion matters. Our guards then correctly read nil and the
+-- announcement silently never happens. This lookup takes a spell id and answers
+-- for the player alone, so it does not depend on any maskable payload field.
+local function DefaultGetPlayerAuraBySpellID(spellID)
+  local unitAuras = rawget(_G, "C_UnitAuras")
+  local getPlayerAura = type(unitAuras) == "table" and rawget(unitAuras, "GetPlayerAuraBySpellID") or nil
+  if type(getPlayerAura) ~= "function" then
+    return nil
+  end
+  local ok, aura = pcall(getPlayerAura, spellID)
+  if ok and type(aura) == "table" then
+    return aura
+  end
+  return nil
+end
+
 local function DefaultGetAuraDataByIndex(unit, index, filter)
   if not addonTable.Validators.IsExistingUnit(unit) then
     return nil
@@ -171,8 +191,13 @@ function PiTracker.CreateController(opts)
   local spellIDMatches = type(opts.spellIDMatches) == "function" and opts.spellIDMatches or DefaultSpellIDMatches
   local announcePowerInfusion = type(opts.announcePowerInfusion) == "function" and opts.announcePowerInfusion
     or function(_casterName, _recipientName, _isLocalRecipient, _isLocalCaster) end
+  local getPlayerAuraBySpellID = type(opts.getPlayerAuraBySpellID) == "function" and opts.getPlayerAuraBySpellID
+    or DefaultGetPlayerAuraBySpellID
 
   local recent = {}
+  -- Latch for the self-receive path below: true while we have already announced
+  -- the buff we can currently see on the player.
+  local selfPowerInfusionAnnounced = false
 
   local controller = {}
 
@@ -197,6 +222,12 @@ function PiTracker.CreateController(opts)
   end
 
   local function AnnounceIfFresh(unit, aura)
+    -- The self-receive path may already have announced this very buff; it shares
+    -- the latch so the player never gets the message twice when both paths see
+    -- the same aura.
+    if unit == "player" and selfPowerInfusionAnnounced then
+      return false
+    end
     local ok, isPowerInfusion = pcall(spellIDMatches, ReadSpellID(aura), POWER_INFUSION_SPELL_ID)
     if not ok or isPowerInfusion ~= true then
       return false
@@ -218,6 +249,9 @@ function PiTracker.CreateController(opts)
       return false
     end
     recent[key] = now
+    if unit == "player" then
+      selfPowerInfusionAnnounced = true
+    end
     announcePowerInfusion(casterName, recipientName, unit == "player", sourceUnit == "player")
     return true
   end
@@ -246,21 +280,58 @@ function PiTracker.CreateController(opts)
     return announced
   end
 
+  -- Second, independent path: does the player carry Power Infusion right now?
+  --
+  -- The payload path above needs a readable spellId AND a readable sourceUnit
+  -- whose owner resolves to a priest with a real name. Any one of those coming
+  -- back masked takes the whole announcement down without a trace, and 12.1
+  -- masks the aura fields precisely inside instances. This asks Blizzard for the
+  -- player's own buff by spell id instead, which no payload masking can hide.
+  --
+  -- The caster stays unknown here -- sourceUnit is the very field that may be
+  -- gone. Rather than invent a name, the announcement goes out without one; the
+  -- on-screen alert and the sound, which is what the player reacts to, need no
+  -- caster at all.
+  local function CheckSelfPowerInfusion()
+    local aura = getPlayerAuraBySpellID(POWER_INFUSION_SPELL_ID)
+    if type(aura) ~= "table" then
+      selfPowerInfusionAnnounced = false
+      return false
+    end
+    if selfPowerInfusionAnnounced then
+      return false
+    end
+    selfPowerInfusionAnnounced = true
+
+    local casterName = nil
+    local sourceUnit = ReadSourceUnit(aura)
+    if sourceUnit and getUnitClassToken(sourceUnit) == "PRIEST" then
+      casterName = ResolveVerifiedUnitName(sourceUnit)
+    end
+    announcePowerInfusion(casterName, ResolveVerifiedUnitName("player"), true, false)
+    return true
+  end
+
   function controller.HandleUnitAura(unit, unitAuraUpdateInfo)
     if not TRACKED_UNITS[unit] then
       return false
+    end
+    local announcedSelf = false
+    if unit == "player" then
+      announcedSelf = CheckSelfPowerInfusion()
     end
     if CheckAddedAuras(unit, unitAuraUpdateInfo) then
       return true
     end
     if ResolveFullUpdate(unitAuraUpdateInfo) then
-      return ScanUnit(unit)
+      return ScanUnit(unit) or announcedSelf
     end
-    return false
+    return announcedSelf
   end
 
   function controller.Reset()
     recent = {}
+    selfPowerInfusionAnnounced = false
   end
 
   function controller._Test_GetRecentSize()
