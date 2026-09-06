@@ -734,9 +734,78 @@ local function RegisterBlizzardUnitTooltipDataProcessorSkipTest(test, Assert, Wi
   )
 end
 
+-- The unit post-call also fires for the world-cursor tooltip, which Blizzard
+-- refreshes as the mouse moves across the world. Creature GUIDs must be rejected
+-- by a cheap prefix compare before the realm-library lookup, or enough NPCs in
+-- one frame make the client abort the call with "script ran too long".
+local function RegisterBlizzardUnitTooltipCreatureGuidSkipTest(test, Assert, WithGlobals, LoadAddonModules)
+  test("Blizzard GameTooltip skips creature GUIDs before touching the realm library", function()
+    local tooltipLines = {}
+    local gameTooltip = MakeGameTooltip(tooltipLines)
+    local postCallCallbacks = {}
+    local realmLookups = 0
+
+    WithGlobals({
+      GameTooltip = gameTooltip,
+      hooksecurefunc = function()
+        return nil
+      end,
+      TooltipDataProcessor = {
+        AddTooltipPostCall = function(_dataType, callback)
+          table.insert(postCallCallbacks, callback)
+        end,
+      },
+      Enum = {
+        TooltipDataType = {
+          Unit = 1,
+        },
+      },
+      RAID_CLASS_COLORS = {},
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_languages.lua", "isiLive_locale.lua", "isiLive_roster_tooltip.lua" })
+      local registered = addon._RosterInternal.RegisterBlizzardUnitLanguageTooltip({
+        getLanguageTooltipMarkup = function()
+          error("a creature hover must never resolve a language")
+        end,
+        getUnitNameAndRealm = function()
+          error("a creature hover must not probe the tooltip unit")
+        end,
+        getUnitServerLanguage = function()
+          error("a creature hover must not probe the tooltip unit")
+        end,
+        getRealmInfoLib = function()
+          return {
+            GetRealmInfoByGUID = function()
+              realmLookups = realmLookups + 1
+              return nil
+            end,
+          }
+        end,
+      })
+      Assert.True(registered, "Blizzard tooltip language hook must register successfully")
+
+      for _, callback in ipairs(postCallCallbacks) do
+        -- isPlayer is absent, exactly as Blizzard sends it for creatures.
+        callback(gameTooltip, {
+          guid = "Creature-0-4467-2444-13-224919-00003A9FE7",
+          dataInstanceID = 991,
+        })
+      end
+
+      Assert.Equal(realmLookups, 0, "a creature GUID must never reach the realm-library lookup")
+      Assert.Equal(#tooltipLines, 0, "a creature hover must not append a language line")
+      Assert.Nil(
+        addon._RosterInternal.LanguageFlagKeyByTooltip[gameTooltip],
+        "a creature hover must not cache a language key"
+      )
+    end)
+  end)
+end
+
 return function(test, ctx)
   RegisterRosterPanelRowTooltipHistoryAndDpsTests(test, ctx.assert, ctx.with_globals, ctx.load_modules)
   RegisterBlizzardUnitTooltipLanguageFlagTest(test, ctx.assert, ctx.with_globals, ctx.load_modules)
   RegisterBlizzardUnitTooltipDataProcessorTest(test, ctx.assert, ctx.with_globals, ctx.load_modules)
   RegisterBlizzardUnitTooltipDataProcessorSkipTest(test, ctx.assert, ctx.with_globals, ctx.load_modules)
+  RegisterBlizzardUnitTooltipCreatureGuidSkipTest(test, ctx.assert, ctx.with_globals, ctx.load_modules)
 end

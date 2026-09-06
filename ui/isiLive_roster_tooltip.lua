@@ -618,6 +618,18 @@ local function ResolveBlizzardTooltipLanguageTagFromTooltipData(tooltipData, get
     return nil, nil
   end
 
+  -- Only player GUIDs can carry a realm locale, and this runs on every unit
+  -- tooltip -- including the world-cursor tooltip, which Blizzard refreshes on
+  -- mouse movement. Creature GUIDs pass the isPlayer check above because
+  -- Blizzard sends nil rather than false for them, so without this every NPC
+  -- the cursor crosses used to reach the realm-library lookup below. Enough of
+  -- those in one frame and the client aborts the whole call with "script ran
+  -- too long", blaming whatever line it happened to stop on. A 7-character
+  -- prefix compare rejects them before any work happens.
+  if string.sub(guid, 1, 7) ~= "Player-" then
+    return nil, nil
+  end
+
   local realmInfoLib = type(getRealmInfoLib) == "function" and getRealmInfoLib() or nil
   if not realmInfoLib or type(realmInfoLib.GetRealmInfoByGUID) ~= "function" then
     return nil, nil
