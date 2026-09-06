@@ -86,6 +86,7 @@ local function BuildContext(opts)
   ctx.shouldShowMainFrameOnStartup = OptionalFunction(opts.shouldShowMainFrameOnStartup, function()
     return true
   end)
+  ctx.armMainFrameRestoreAfterRaid = OptionalFunction(opts.armMainFrameRestoreAfterRaid, function() end)
   ctx.shouldAutoOpenMainFrameOnKeyEnd = OptionalFunction(opts.shouldAutoOpenMainFrameOnKeyEnd, function()
     return true
   end)

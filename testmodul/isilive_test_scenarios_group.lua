@@ -1166,6 +1166,62 @@ local function RegisterGroupLifecycleFollowupTests(test, Assert, LoadAddonModule
     Assert.True(state.mainFrameVisibleCalls[2].visible, "raid disband must restore the previously visible frame")
   end)
 
+  -- Logging in or reloading while already in a raid never passes through the
+  -- "group grew past five" moment, so nothing recorded that the frame should
+  -- come back. The UI stayed dark after leaving the raid until the next
+  -- /reload. Startup arms the restore explicitly for that case.
+  test("Raid leave restores the UI when startup armed the restore inside the raid", function()
+    local inGroup = true
+    local members = 6
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      -- Startup does not show the frame in a raid, so it is closed here and the
+      -- "was it visible when the raid started" question has no useful answer.
+      mainFrameVisible = false,
+      isInGroup = function()
+        return inGroup
+      end,
+      getNumGroupMembers = function()
+        return members
+      end,
+    })
+
+    controller.ArmMainFrameRestoreAfterRaid()
+
+    controller.HandleGroupRosterUpdate()
+    inGroup = false
+    members = 0
+    controller.HandleGroupRosterUpdate()
+
+    local restore = state.mainFrameVisibleCalls[#state.mainFrameVisibleCalls]
+    Assert.True(restore ~= nil and restore.visible == true, "leaving the raid must restore the armed UI")
+    Assert.Equal(
+      restore.reasonOrOpts and restore.reasonOrOpts.reason,
+      "raid-return",
+      "the armed restore must carry the same reason as an observed raid return"
+    )
+  end)
+
+  test("Arming the restore does not reopen a UI the user closed before the raid", function()
+    local members = 6
+    local controller, state = BuildGroupController(LoadAddonModules, {
+      wasInGroup = true,
+      mainFrameVisible = false,
+      getNumGroupMembers = function()
+        return members
+      end,
+    })
+
+    -- No ArmMainFrameRestoreAfterRaid() here: the raid was joined while the
+    -- frame was deliberately closed, which must stay closed afterwards.
+    controller.HandleGroupRosterUpdate()
+    members = 5
+    controller.HandleGroupRosterUpdate()
+
+    Assert.Equal(#state.mainFrameVisibleCalls, 1, "a deliberately closed UI must not be reopened")
+    Assert.False(state.mainFrameVisible, "UI must remain closed after returning from raid")
+  end)
+
   test("First group join fires queue capture and announce", function()
     local controller, state = BuildGroupController(LoadAddonModules, {
       wasInGroup = false,

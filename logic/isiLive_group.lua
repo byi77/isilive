@@ -729,7 +729,11 @@ local function HandleGroupRosterUpdate(deps)
   local numMembers = deps.getNumGroupMembers()
   if numMembers > 5 then
     if not wasRaidGroupBefore then
-      deps.restoreMainFrameAfterRaid = deps.isMainFrameVisible() == true
+      -- Startup may have armed the restore already, when it found a raid in
+      -- progress and therefore never showed the frame. Its answer wins: asking
+      -- "was the frame visible" here would read the frame startup deliberately
+      -- left closed and disarm the restore again.
+      deps.restoreMainFrameAfterRaid = deps.restoreMainFrameAfterRaid == true or deps.isMainFrameVisible() == true
       deps.clearPendingQueueJoinInfo()
       deps.clearLatestQueueTarget()
       deps.clearRioBaselineSnapshot()
@@ -806,6 +810,19 @@ function Group.CreateController(opts)
 
   function controller.SaveReloadRosterMirror()
     return SaveReloadRosterMirror(deps, deps.getRoster())
+  end
+
+  -- Arms the post-raid restore without having observed the raid being joined.
+  --
+  -- The flag is normally set in HandleGroupRosterUpdate, at the moment the group
+  -- grows past five, from whether the frame was visible right then. Logging in
+  -- or reloading while already in a raid never passes through that moment: the
+  -- startup path deliberately does not show the frame in a raid, so the flag
+  -- stayed false and the UI remained dark after leaving the raid, until the next
+  -- /reload. The startup path knows what it would have done without the raid and
+  -- says so here.
+  function controller.ArmMainFrameRestoreAfterRaid()
+    deps.restoreMainFrameAfterRaid = true
   end
 
   return controller

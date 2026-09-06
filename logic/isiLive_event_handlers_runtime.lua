@@ -344,6 +344,28 @@ end
 -- (ADDON_LOADED / PLAYER_LOGIN via ApplyBindingStartupRefresh, and
 -- PLAYER_ENTERING_WORLD + 2 delayed via ScheduleBindingStartupRefresh)
 -- to reliably catch timing issues with the WoW binding system.
+-- PLAYER_LOGIN visibility, including the raid case.
+--
+-- Outside a raid the frame opens per the startup setting. Inside one it stays
+-- closed, but the restore has to be armed: logging in or reloading while
+-- already in a raid never passes through the "group grew past five" moment that
+-- normally records whether the frame was up, so leaving the raid used to leave
+-- the UI dark until the next /reload. Startup is the only place that knows it
+-- would have shown the frame if the raid were not there.
+local function ApplyStartupMainFrameVisibility(ctx)
+  local wantsStartupFrame = ctx.shouldShowMainFrameOnStartup()
+  if not IsRaidModeActive(ctx) then
+    ctx.handleBloodlustButtonWarningEvent("PLAYER_LOGIN")
+    if wantsStartupFrame then
+      ctx.setMainFrameVisible(true)
+    end
+    return
+  end
+  if wantsStartupFrame and type(ctx.armMainFrameRestoreAfterRaid) == "function" then
+    ctx.armMainFrameRestoreAfterRaid()
+  end
+end
+
 local function ApplyBindingStartupRefresh(ctx)
   ctx.applyHotkeyBindings()
   ctx.startBindingWatchdog()
@@ -928,12 +950,7 @@ function RuntimeLifecycle.BuildHandlers(ctx)
     ctx.refreshActiveSeasonFromBlizzard("PLAYER_LOGIN")
     ApplyBindingStartupRefresh(ctx)
     ctx.handleLFGDetectEvent("PLAYER_LOGIN")
-    if not IsRaidModeActive(ctx) then
-      ctx.handleBloodlustButtonWarningEvent("PLAYER_LOGIN")
-      if ctx.shouldShowMainFrameOnStartup() then
-        ctx.setMainFrameVisible(true)
-      end
-    end
+    ApplyStartupMainFrameVisibility(ctx)
     local playerName, playerRealm = ctx.getUnitNameAndRealm("player")
     ctx.markIsiLiveUser(playerName, playerRealm)
     if type(ctx.logRuntimeTracef) == "function" then

@@ -270,6 +270,11 @@ local function BuildEventHandlersBaseConfig(deps, state, refs, controllers, call
         controllers.group.SaveReloadRosterMirror()
       end
     end,
+    armMainFrameRestoreAfterRaid = function()
+      if controllers.group and type(controllers.group.ArmMainFrameRestoreAfterRaid) == "function" then
+        controllers.group.ArmMainFrameRestoreAfterRaid()
+      end
+    end,
     isInChallengeMode = RequireFunction(deps.isInChallengeMode, "isInChallengeMode"),
     isNegativeApplicationStatusEvent = RequireFunction(
       deps.isNegativeApplicationStatusEvent,
@@ -655,6 +660,7 @@ local function BuildEventHandlersDepsFromContext(ctx)
     sendOwnKeySnapshot = ctx.sendOwnKeySnapshot,
     sendOwnBackgroundSnapshot = ctx.sendOwnBackgroundSnapshot,
     shouldShowMainFrameOnStartup = ctx.shouldShowMainFrameOnStartup,
+    armMainFrameRestoreAfterRaid = ctx.armMainFrameRestoreAfterRaid,
     shouldAutoOpenMainFrameOnKeyEnd = ctx.shouldAutoOpenMainFrameOnKeyEnd,
     shouldAutoCloseOnKeyStart = ctx.shouldAutoCloseOnKeyStart,
     sendRefreshResponse = ctx.sendRefreshResponse,
