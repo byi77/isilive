@@ -131,6 +131,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 108. Die kompakten V- und H-Layouts verwenden eine ununterbrochene Hauptflaeche ohne zusaetzliche dunkle Innenkarten; ihre Layoutschalter folgen der gemeinsamen blau/slate Designsprache, ohne feste Groessen-, Positions- oder Secure-Vertraege zu veraendern.
 109. isiLive laeuft in genau drei zentral aufgeloesten Laufzeitprofilen: `OFF` im Raid und in jeder Gruppe groesser fuenf, `KEY` im mythischen Party-Dungeon (laufender Keystone oder Difficulty-ID 23) und `IDLE` in allem uebrigen. Im `OFF`-Profil werden die Dispatcher-Events bis auf die beiden Aufweck-Events abgemeldet; im `IDLE`-Profil bleiben nur Gruppenanzeige und Gruppensync aktiv. Difficulty-ID 24 (Zeitwanderung) ist kein mythischer Kontext, und die Kanalaufloesung muss die Instanzgruppen-Kategorie auch ohne `LE_PARTY_CATEGORY_*`-Globals numerisch pruefen.
 110. (veraltet — zurueckgenommen in 0.9.381) isiLive registriert keinen Handler in Blizzards ESC-Kette. Blizzard ruft die Kette als `securecallfunction(entry.handler)` in einer einzigen Schleife auf: der Aufruf selbst ist isoliert, die Schleife bleibt aber durch den zuvor gelaufenen Handler getaintet. Ein Addon-Handler vor der Stufe `Casting` (4) laesst deshalb Blizzards eigenen `SpellStopCasting()`-Aufruf mit `ADDON_ACTION_FORBIDDEN` scheitern. Die Prioritaetsstufen unterhalb von `AddOn` (8) gehoeren Blizzards eigenen Systemen; ein Addon kann sich dort nicht ohne Schaden einklinken.
+111. Sichere ESC-Panel-Buttons (Travel und Mounts) schliessen das `GameMenuFrame` selbst, sobald ihre Aktion ausgeloest wurde: der Hook haengt an `PostClick`, weil die Buttons Kinder des `GameMenuFrame` sind und dessen Verstecken waehrend der laufenden Klickverarbeitung nicht verlaesslich ist. Damit entfaellt der Grund, ESC zu druecken, und der gestartete Cast ueberlebt. Im Kampf-Lockdown unterbleibt das Schliessen (Regel 47).
 
 ## Regelbloecke
 
@@ -1773,3 +1774,11 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Ersetzte Festlegung (0.9.381, 2026-09-06): "Solange das `GameMenuFrame` offen ist und ein Cast oder Channel laeuft, beansprucht isiLive die ESC-Taste ueber einen eigenen Handler auf `GameMenuEscPriority.Menu` und schliesst ausschliesslich das Menue; Blizzards `Casting`-Handler kommt dann nicht mehr zum Zug, sodass ein aus dem ESC-Panel gestarteter Ruhestein- oder Mount-Cast nicht abgebrochen wird." Diese Festlegung war in 0.9.379 aktiv und in 0.9.380 gehaertet worden; beide Fassungen tainteten die ESC-Kette und wurden vollstaendig zurueckgenommen. Das urspruengliche Ziel — ESC bricht einen aus dem ESC-Panel gestarteten Cast nicht ab — bleibt damit unerfuellt.
 - Erforderliche Tests:
   - ESC panel registers no handler in Blizzard's ESC chain
+
+### RULE-ESC-PANEL-AUTOCLOSE
+- Regelnummer: 111
+- Status: aktiv
+- Zusammenfassung: Sichere ESC-Panel-Buttons (Travel und Mounts) schliessen das `GameMenuFrame` selbst, sobald ihre Aktion ausgeloest wurde: der Hook haengt an `PostClick`, weil die Buttons Kinder des `GameMenuFrame` sind und dessen Verstecken waehrend der laufenden Klickverarbeitung nicht verlaesslich ist. Damit entfaellt der Grund, ESC zu druecken, und der gestartete Cast ueberlebt. Im Kampf-Lockdown unterbleibt das Schliessen (Regel 47).
+- Erforderliche Tests:
+  - secure travel button closes the game menu after its action fired
+  - secure panel button leaves the game menu alone in combat

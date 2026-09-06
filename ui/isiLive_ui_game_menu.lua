@@ -638,6 +638,40 @@ RunAfterGameMenuClose = function(gameMenuFrame, callback, attempt)
   end
 end
 
+-- Closes the game menu once a secure panel action has fired.
+--
+-- The secure travel and mount buttons are children of GameMenuFrame, so the
+-- menu stays open behind the cast they start. Pressing ESC to get rid of it
+-- then cancels that cast, and isiLive cannot prevent that from inside
+-- Blizzard's ESC chain -- see rule 110, where that attempt is recorded as
+-- withdrawn. Closing the menu ourselves removes the reason to press ESC at all,
+-- and matches what the non-secure panel buttons already do.
+--
+-- PostClick rather than PreClick: the button is a child of the very frame being
+-- hidden, and hiding a secure button's parent while its click is still being
+-- processed is not something to rely on. Once the action has fired it is safe.
+--
+-- Combat is deliberately left alone. Rule 47 forbids Show/Hide mutations on the
+-- ESC panel during lockdown, and HideUIPanel on GameMenuFrame is exactly that;
+-- in combat the menu simply stays open as before.
+local function AttachSecurePanelButtonAutoClose(button, gameMenuFrame)
+  if type(button) ~= "table" or type(button.HookScript) ~= "function" then
+    return false
+  end
+  if type(gameMenuFrame) ~= "table" then
+    return false
+  end
+
+  button:HookScript("PostClick", function()
+    local inCombat = rawget(_G, "InCombatLockdown")
+    if type(inCombat) == "function" and inCombat() then
+      return
+    end
+    HideGameMenuFrame(gameMenuFrame)
+  end)
+  return true
+end
+
 local function BindNonSecurePanelButtonOnClick(button, state)
   if type(button) ~= "table" or type(button.SetScript) ~= "function" then
     return
@@ -794,6 +828,10 @@ function UI.EnsureSecondPanelUI(opts)
     button._secureMacroText = resolvedMacroText
     button._isSecurePanelAction = isSecure
     button._panelUIState = state
+
+    if isSecure then
+      AttachSecurePanelButtonAutoClose(button, gameMenuFrame)
+    end
 
     if
       (entry.id == "hearthstone" or entry.id == "dalaran_hearthstone" or entry.id == "housing_plot")
@@ -1010,6 +1048,8 @@ function UI.EnsureMountPanelUI(opts)
     button._secureMacroText = nil
     button._isSecurePanelAction = true
     button._available = false
+
+    AttachSecurePanelButtonAutoClose(button, gameMenuFrame)
 
     state.buttons[index] = button
     state.buttonsById[entry.id] = button

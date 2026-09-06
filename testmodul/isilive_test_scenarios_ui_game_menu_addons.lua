@@ -1627,6 +1627,15 @@ local function RegisterGameMenuMountPanelTests(test, Assert, WithGlobals, LoadAd
         "/click GameMenuButtonContinue\n/cast Grand Expedition Yak",
         "repair shortcut must cast the verified Expedition Yak spell by localized spell name"
       )
+
+      -- The macro's own "/click GameMenuButtonContinue" is the primary way the
+      -- menu closes here; the PostClick hook is the backstop that also covers
+      -- the toy-based travel buttons, which carry no macro at all.
+      Assert.Equal(
+        type(favoriteButton._scripts and favoriteButton._scripts.PostClick),
+        "function",
+        "mount shortcuts must also close the menu through the shared PostClick hook"
+      )
     end)
   end)
 
@@ -1966,6 +1975,77 @@ local function RegisterGameMenuEscChainAbstinenceTests(test, Assert, WithGlobals
   end)
 end
 
+-- The secure travel/mount buttons live inside GameMenuFrame, so the menu used to
+-- stay open behind the cast they start -- and pressing ESC to close it cancelled
+-- that cast. isiLive cannot intervene in Blizzard's ESC chain (rule 110), so the
+-- menu closes itself once the action fired, removing the reason to press ESC.
+local function RegisterSecurePanelAutoCloseTests(test, Assert, WithGlobals, LoadAddonModules)
+  local function BuildMenuWorld(inCombat)
+    local createFrameStub = BuildCreateFrameStub()
+    local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+    gameMenuFrame.CloseButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
+    local hidden = {}
+    return createFrameStub,
+      gameMenuFrame,
+      hidden,
+      {
+        CreateFrame = createFrameStub,
+        GameMenuFrame = gameMenuFrame,
+        InCombatLockdown = function()
+          return inCombat == true
+        end,
+        HideUIPanel = function(frame)
+          table.insert(hidden, frame)
+        end,
+      }
+  end
+
+  local function FirePostClick(button)
+    local handler = button._scripts and button._scripts.PostClick
+    Assert.Equal(type(handler), "function", "a secure panel button must carry a PostClick hook")
+    handler(button)
+  end
+
+  test("secure travel button closes the game menu after its action fired", function()
+    local _, gameMenuFrame, hidden, globals = BuildMenuWorld(false)
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local toolingStrip = UI.EnsurePanelUI({ gameMenuFrame = gameMenuFrame })
+      local travelStrip = UI.EnsureSecondPanelUI({
+        gameMenuFrame = gameMenuFrame,
+        firstPanelState = toolingStrip,
+      })
+      travelStrip = Assert.NotNil(travelStrip, "the travel panel should exist")
+
+      local hearthstone = Assert.NotNil(travelStrip.buttonsById.hearthstone, "the hearthstone button should exist")
+      FirePostClick(hearthstone)
+
+      Assert.Equal(#hidden, 1, "the game menu must be closed once, after the cast started")
+      Assert.Equal(hidden[1], gameMenuFrame, "the closed frame must be the game menu itself")
+    end)
+  end)
+
+  test("secure panel button leaves the game menu alone in combat", function()
+    local _, gameMenuFrame, hidden, globals = BuildMenuWorld(true)
+    WithGlobals(globals, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local toolingStrip = UI.EnsurePanelUI({ gameMenuFrame = gameMenuFrame })
+      local travelStrip = UI.EnsureSecondPanelUI({
+        gameMenuFrame = gameMenuFrame,
+        firstPanelState = toolingStrip,
+      })
+      travelStrip = Assert.NotNil(travelStrip, "the travel panel should exist")
+
+      local hearthstone = Assert.NotNil(travelStrip.buttonsById.hearthstone, "the hearthstone button should exist")
+      FirePostClick(hearthstone)
+
+      Assert.Equal(#hidden, 0, "combat lockdown forbids Show/Hide on the ESC panel (rule 47)")
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = RequireValue(ctx.assert, "UI game-menu addons scenario ctx.assert should exist")
   local WithGlobals = RequireValue(ctx.with_globals, "UI game-menu addons scenario ctx.with_globals should exist")
@@ -1976,4 +2056,5 @@ return function(test, ctx)
   RegisterGameMenuMountPanelTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterHearthstonePickTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGameMenuEscChainAbstinenceTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterSecurePanelAutoCloseTests(test, Assert, WithGlobals, LoadAddonModules)
 end
