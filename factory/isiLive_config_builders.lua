@@ -295,6 +295,16 @@ function ConfigBuilders.BuildSlashCommandsOpts(ctx)
       )
       ctx.printFn(
         string.format(
+          "[NP] tooltipApi=%s tooltipData=%s tooltipGuid=%s tooltipGuidSecret=%s tooltipNpcId=%s",
+          fmt(state.tooltipApi),
+          fmt(state.tooltipData),
+          fmt(state.tooltipGuid),
+          fmt(state.tooltipGuidSecret),
+          fmt(state.tooltipNpcId)
+        )
+      )
+      ctx.printFn(
+        string.format(
           "[NP] dbHasByNpcId=%s dbEntry=%s dbEntryMatchesMap=%s",
           fmt(state.dbHasByNpcId),
           fmt(state.dbEntry),

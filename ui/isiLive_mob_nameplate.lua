@@ -375,11 +375,13 @@ local function CreateOrGetFrame(unit)
       f.background:SetAllPoints(f)
     end
     if type(f.background.SetColorTexture) == "function" then
+      -- Fully transparent by request: the percentage sits directly on the
+      -- nameplate with no plate of its own. The texture is kept (rather than
+      -- dropped) so the contrast surface can be restored from one place if it is
+      -- ever wanted back; SURFACE_COMPACT_OVERLAY stays untouched because other
+      -- surfaces share that token.
       f.background:SetColorTexture(
-        unpack(
-          (type(UICommon) == "table" and UICommon.Colors and UICommon.Colors.SURFACE_COMPACT_OVERLAY)
-            or { 0.025, 0.04, 0.06, 0.78 }
-        )
+        unpack((type(UICommon) == "table" and UICommon.Colors and UICommon.Colors.TRANSPARENT) or { 0, 0, 0, 0 })
       )
     end
   end
@@ -688,6 +690,37 @@ local function ScheduleRefreshAll(delay)
   pcall(after, delay, RefreshAll)
 end
 
+-- SCENARIO_UPDATE fires on every bit of key progress -- several times a second
+-- during a big pull -- and each one used to walk every visible nameplate. That
+-- walk got markedly more expensive in 12.1: the forces-DB lookup needs the mob's
+-- GUID, which is masked in a key, so every plate now falls through to the
+-- GetUnitCriteriaProgressValues API call that the DB hit used to spare us.
+-- Coalescing the sweeps caps that at one pass per interval; a plate that appears
+-- in between is still handled immediately by NAME_PLATE_UNIT_ADDED.
+local REFRESH_COALESCE_SECONDS = 0.25
+local refreshPending = false
+
+local function RequestRefreshAll()
+  if refreshPending then
+    return
+  end
+  local timer = rawget(_G, "C_Timer")
+  local after = type(timer) == "table" and timer.After or nil
+  if type(after) ~= "function" then
+    RefreshAll()
+    return
+  end
+  refreshPending = true
+  local ok = pcall(after, REFRESH_COALESCE_SECONDS, function()
+    refreshPending = false
+    RefreshAll()
+  end)
+  if not ok then
+    refreshPending = false
+    RefreshAll()
+  end
+end
+
 local function OnEvent(_, event, arg1)
   if event == "NAME_PLATE_UNIT_ADDED" and type(arg1) == "string" then
     UpdateNameplate(arg1)
@@ -702,7 +735,7 @@ local function OnEvent(_, event, arg1)
     ScheduleRefreshAll(0.25)
     ScheduleRefreshAll(1)
   else
-    RefreshAll()
+    RequestRefreshAll()
   end
 end
 
@@ -970,6 +1003,29 @@ function MobNameplate.DumpState(unit)
     end
   end
 
+  -- Probe the tooltip data path. The unit's own GUID comes back masked in
+  -- restricted instances, but the GUID Blizzard hands to tooltip consumers does
+  -- not -- that is why the tooltip forces line still works while the nameplate
+  -- one does not. If C_TooltipInfo.GetUnit answers with a readable guid here,
+  -- the nameplate can be fed from the same source.
+  local tooltipInfo = rawget(_G, "C_TooltipInfo")
+  local getUnitTooltip = type(tooltipInfo) == "table" and rawget(tooltipInfo, "GetUnit") or nil
+  out.tooltipApi = type(getUnitTooltip) == "function"
+  if out.eligible and out.tooltipApi then
+    local okData, data = pcall(getUnitTooltip, unit)
+    out.tooltipData = okData and type(data) == "table"
+    if out.tooltipData then
+      local candidate = data.guid
+      out.tooltipGuidSecret = IsSecretValue(candidate)
+      if not out.tooltipGuidSecret and type(candidate) == "string" then
+        out.tooltipGuid = candidate
+        out.tooltipNpcId = NpcIdFromGuid(candidate)
+      else
+        out.tooltipGuid = "<secret>"
+      end
+    end
+  end
+
   local unitNameFn = rawget(_G, "UnitName")
   if out.eligible and type(unitNameFn) == "function" then
     local okName, name = pcall(unitNameFn, unit)
@@ -1005,16 +1061,26 @@ function MobNameplate.DumpState(unit)
     local api = rawget(_G, "C_ScenarioInfo")
     local _, _, apiPercent = SafeCall(api.GetUnitCriteriaProgressValues, unit)
     out.apiPercentSecret = IsSecretValue(apiPercent)
+    out.apiPercentRaw = apiPercent
     out.apiPercent = out.apiPercentSecret and "<secret>" or apiPercent
   end
 
+  -- Mirror what UpdateNameplate actually does, including the part that matters
+  -- most in a key: a masked API value IS passed through to the FontString, which
+  -- can render it even though Lua may not inspect it. The earlier version of this
+  -- diagnostic dropped masked values and therefore reported resolvedPercent=nil
+  -- for a case the real path would have displayed -- which read like "the feature
+  -- cannot work" when the actual reason was simply that it was switched off.
   local percentString = dbPercent
-  if not percentString and out.apiPercent and not out.apiPercentSecret then
-    percentString = out.apiPercent
+  local resolvedIsSecret = false
+  if percentString == nil and out.apiPercentRaw ~= nil then
+    percentString = out.apiPercentRaw
+    resolvedIsSecret = out.apiPercentSecret == true
   end
-  out.resolvedPercent = percentString
+  out.resolvedFromMaskedApi = resolvedIsSecret
+  out.resolvedPercent = resolvedIsSecret and "<secret, would render>" or percentString
   out.remainingPercent = ResolveRemainingPercent(out.activeMapID)
-  out.resolvedText = BuildText(percentString, out.remainingPercent)
+  out.resolvedText = resolvedIsSecret and "<secret, would render>" or BuildText(percentString, out.remainingPercent)
 
   local frame = frames[unit]
   if frame then

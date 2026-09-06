@@ -334,6 +334,51 @@ local function RegisterLifecycleTests(test, Assert, WithGlobals, LoadAddonModule
       Assert.Equal(frame.text._text, "1.16%", "delayed challenge refresh must render the percent text")
     end)
   end)
+
+  -- SCENARIO_UPDATE fires on every scrap of key progress. Sweeping every plate
+  -- per event became noticeably more expensive in 12.1, because the masked GUID
+  -- makes each plate fall through to the progress API instead of hitting the
+  -- forces DB. The sweeps are coalesced into one pass per interval.
+  test("MobNameplate coalesces scenario-driven refreshes into a single sweep", function()
+    local scheduled = {}
+    local globals, state, frames = BuildEnv({
+      challengeActive = true,
+      units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = MakeFrame() },
+      progressValues = { nameplate1 = { count = 5, total = 431, percent = "1.16" } },
+      globals = {
+        C_Timer = {
+          After = function(delay, fn)
+            scheduled[#scheduled + 1] = { delay = delay, fn = fn }
+          end,
+        },
+      },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      addon.MobNameplate.SetEnabled(true)
+
+      local eventFrame = nil
+      for _, f in ipairs(frames) do
+        if f._scripts and type(f._scripts.OnEvent) == "function" then
+          eventFrame = f
+          break
+        end
+      end
+      eventFrame = Assert.NotNil(eventFrame, "event frame with OnEvent script must exist")
+
+      for _ = 1, 12 do
+        eventFrame._scripts.OnEvent(eventFrame, "SCENARIO_UPDATE")
+      end
+      Assert.Equal(#scheduled, 1, "a burst of scenario updates must queue one sweep, not one per event")
+
+      -- Once the pass has run, the next burst may queue again.
+      scheduled[1].fn()
+      eventFrame._scripts.OnEvent(eventFrame, "SCENARIO_UPDATE")
+      Assert.Equal(#scheduled, 2, "a later update must be able to queue the next sweep")
+      Assert.True(state.challengeActive, "sanity: the test stays inside an active key")
+    end)
+  end)
 end
 
 local function RegisterRenderTests(test, Assert, WithGlobals, LoadAddonModules)
@@ -354,8 +399,8 @@ local function RegisterRenderTests(test, Assert, WithGlobals, LoadAddonModules)
       Assert.True(frame._shown == true, "frame must be visible")
       Assert.Equal(frame.text._text, "1.16%", "default format renders the percent string with a trailing %")
       Assert.Equal(frame._isiLiveSurfaceRole, "compact_overlay", "nameplate must expose the compact overlay role")
-      Assert.NotNil(frame.background, "nameplate must render a compact contrast surface")
-      Assert.Equal(frame.background._color[4], 0.78, "nameplate contrast surface must remain translucent")
+      Assert.NotNil(frame.background, "nameplate keeps its surface texture so it can be restored in one place")
+      Assert.Equal(frame.background._color[4], 0, "nameplate surface must be fully transparent")
       Assert.Equal(frame.text._color[1], 0.64, "nameplate text must use the cool shared section color")
     end)
   end)
