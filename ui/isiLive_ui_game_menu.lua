@@ -218,10 +218,13 @@ panelUISecureRetryFrame:SetScript("OnEvent", function(_, event)
     return
   end
 
+  -- Collect first, but do NOT drop the entries here: leaving combat inside a
+  -- Mythic+ key still leaves secure updates blocked, and a state removed at this
+  -- point would never be retried. ApplyPanelUISecureState re-queues what it
+  -- could not apply, so the next regen tick or the next menu open picks it up.
   local queuedStates = {}
   for state in pairs(pendingPanelUISecureStateRefresh) do
     queuedStates[#queuedStates + 1] = state
-    pendingPanelUISecureStateRefresh[state] = nil
   end
 
   for _, state in ipairs(queuedStates) do
@@ -335,14 +338,16 @@ local function RefreshPanelUISecureButton(button)
   button:SetAttribute("macrotext1", button._secureMacroText)
 end
 
+-- Returns true only when the buttons were actually refreshed. A blocked call
+-- keeps the state queued; the caller must not treat it as done.
 local function RefreshPanelUISecureButtons(state)
   if type(state) ~= "table" then
-    return
+    return false
   end
 
   if IsPanelUISecureUpdateBlocked(state) then
     QueuePanelUISecureStateRefresh(state)
-    return
+    return false
   end
 
   for _, button in ipairs(state.buttons or {}) do
@@ -350,6 +355,7 @@ local function RefreshPanelUISecureButtons(state)
   end
 
   ClearQueuedPanelUISecureState(state)
+  return true
 end
 
 local function SyncPanelUIButtonVisibility(button, visible)
@@ -375,12 +381,12 @@ end
 
 local function SyncPanelUISecureButtonVisibility(state)
   if type(state) ~= "table" then
-    return
+    return false
   end
 
   if IsPanelUISecureUpdateBlocked(state) then
     QueuePanelUISecureStateRefresh(state)
-    return
+    return false
   end
 
   local visible = IsPanelUIEnabled(state)
@@ -391,6 +397,7 @@ local function SyncPanelUISecureButtonVisibility(state)
   end
 
   ClearQueuedPanelUISecureState(state)
+  return true
 end
 
 local function SyncPanelUIButtonInteractivity(state)
@@ -578,9 +585,18 @@ ApplyPanelUISecureState = function(state, force)
   end
 
   PositionPanelUIButtons(state)
-  RefreshPanelUISecureButtons(state)
-  SyncPanelUISecureButtonVisibility(state)
+  -- `force` only bypasses the guard above; the two calls below check the block
+  -- themselves and bail out while a key or combat is running. Clearing the queue
+  -- unconditionally afterwards threw away the retry they had just re-armed, so a
+  -- panel built during a lockdown stayed invisible until the client restarted.
+  -- The queue survives unless both actually applied.
+  local refreshed = RefreshPanelUISecureButtons(state)
+  local synced = SyncPanelUISecureButtonVisibility(state)
   SyncPanelUIButtonInteractivity(state)
+  if not (refreshed and synced) then
+    QueuePanelUISecureStateRefresh(state)
+    return false
+  end
   ClearQueuedPanelUISecureState(state)
   return true
 end
@@ -1130,3 +1146,8 @@ end
 -- caller is the hearthstone PreClick hook, which cannot be driven to the
 -- pathological all-duplicates pool without a frame + secure button harness.
 UI._Test_PickDifferentEntry = PickDifferentEntry
+-- Exposed so the lockdown-retry contract can be asserted: a state that could not
+-- be applied has to stay queued until it actually was.
+UI._Test_HasPendingSecureRefresh = function(state)
+  return pendingPanelUISecureStateRefresh[state] == true
+end

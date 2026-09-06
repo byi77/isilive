@@ -2046,6 +2046,74 @@ local function RegisterSecurePanelAutoCloseTests(test, Assert, WithGlobals, Load
   end)
 end
 
+local function RegisterGameMenuSecureRetryTests(test, Assert, WithGlobals, LoadAddonModules)
+  -- Regression: reloading inside a Mythic+ key left the isiLive part of the ESC
+  -- menu gone until a full client restart. Secure updates are blocked by combat
+  -- AND by a running key, so the panel was built blocked and queued a retry --
+  -- but the regen drain removed the queue entry before applying, and the forced
+  -- apply cleared the queue again even though its inner calls had bailed out and
+  -- re-armed it. The retry was dropped twice and never happened.
+  test("UI game-menu keeps retrying the secure refresh while a key still blocks it", function()
+    -- No combat needed: a running key blocks secure updates on its own, which is
+    -- exactly the reload-inside-a-key case that lost the panel.
+    local inCombat = false
+    local keyActive = true
+    local createFrameStub, createdFrames = BuildCreateFrameStub({
+      simulateProtectedFrames = true,
+      isInCombat = function()
+        return inCombat
+      end,
+    })
+    local gameMenuFrame = createFrameStub("Frame", "GameMenuFrame", nil, "BackdropTemplate")
+    gameMenuFrame._isProtected = true
+    gameMenuFrame.CloseButton = createFrameStub("Button", nil, gameMenuFrame, "UIPanelCloseButton")
+
+    WithGlobals({
+      CreateFrame = createFrameStub,
+      GameMenuFrame = gameMenuFrame,
+      C_ChallengeMode = {
+        IsChallengeModeActive = function()
+          return keyActive
+        end,
+      },
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
+      local strip = UI.EnsurePanelUI({
+        gameMenuFrame = gameMenuFrame,
+        isInCombat = function()
+          return inCombat
+        end,
+      })
+      strip = Assert.NotNil(strip, "panel state should exist even when built under lockdown")
+
+      local retryFrame = FindCombatRetryFrame(createdFrames)
+      retryFrame = RequireValue(retryFrame, "the regen retry frame must exist")
+
+      Assert.True(
+        addon.UI._Test_HasPendingSecureRefresh(strip),
+        "a panel built while a key blocks secure updates must queue the refresh"
+      )
+
+      -- A regen tick while the key still runs must not drop the queued state.
+      retryFrame:FireEvent("PLAYER_REGEN_ENABLED")
+      Assert.True(
+        addon.UI._Test_HasPendingSecureRefresh(strip),
+        "the retry must survive a drain that still cannot apply it"
+      )
+
+      -- Key ends. The next drain has to still know about this state.
+      keyActive = false
+      retryFrame:FireEvent("PLAYER_REGEN_ENABLED")
+
+      Assert.False(
+        addon.UI._Test_HasPendingSecureRefresh(strip),
+        "once nothing blocks it any more the queued refresh must have been applied and cleared"
+      )
+    end)
+  end)
+end
+
 return function(test, ctx)
   local Assert = RequireValue(ctx.assert, "UI game-menu addons scenario ctx.assert should exist")
   local WithGlobals = RequireValue(ctx.with_globals, "UI game-menu addons scenario ctx.with_globals should exist")
@@ -2056,5 +2124,6 @@ return function(test, ctx)
   RegisterGameMenuMountPanelTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterHearthstonePickTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGameMenuEscChainAbstinenceTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterGameMenuSecureRetryTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterSecurePanelAutoCloseTests(test, Assert, WithGlobals, LoadAddonModules)
 end
