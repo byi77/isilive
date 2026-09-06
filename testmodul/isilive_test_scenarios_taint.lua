@@ -930,7 +930,7 @@ local function RegisterRosterPanelReadyCheckTaintTests(test, Assert, WithGlobals
     assert(readyCheckBackground ~= nil)
     ---@cast readyCheckHoverFrame { width: number }
     ---@cast readyCheckBackground { hidden: boolean, color: number[] }
-    Assert.Equal(readyCheckHoverFrame.width, 470, "ready-check hover background must span through the Kick column")
+    Assert.Equal(readyCheckHoverFrame.width, 476, "ready-check hover background must span through the Kick column")
     Assert.True(readyCheckBackground.hidden == true, "initial render should keep the ready-check row background hidden")
 
     readyCheckHoldActive = true

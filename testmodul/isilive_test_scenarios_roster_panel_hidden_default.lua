@@ -237,8 +237,8 @@ local function RegisterRosterPanelHiddenDisplayDefaultTests(test, Assert, WithGl
         name = 215,
         key = 278,
         ilvl = 314,
-        rio = 388,
-        dps = 430,
+        rio = 402,
+        dps = 444,
       }
 
       for guideKey, expectedX in pairs(expectedGuideX) do

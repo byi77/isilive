@@ -38,11 +38,16 @@ local SERVER_COL_WIDTH = 18
 local KEY_COL_WIDTH = 62
 local ILVL_COL_WIDTH = 32
 -- Leave enough room for long positive RIO deltas like (+999)9999 without clipping.
-local RIO_COL_WIDTH = 70
+-- 70 px was one digit short: a four-digit score with a three-digit delta rendered
+-- as "(+168)13..." because the FontString clamps to the column width.
+local RIO_COL_WIDTH = 84
 local DPS_COL_X = RIO_COL_X + RIO_COL_WIDTH + 2
 local DPS_COL_WIDTH = 40
+-- The kick cell only ever holds "-", "OK" or a two-digit cooldown ("25s"), so the
+-- extra width the RIO column needs is taken from here instead of pushing the
+-- whole column block into the management buttons on the right.
+local KICK_COL_WIDTH = 32
 local KICK_COL_X = DPS_COL_X + DPS_COL_WIDTH + 4
-local KICK_COL_WIDTH = 40
 local HEADER_MIN_FONT_SIZE = 8
 local HEADER_WIDTH_PADDING = 2
 
