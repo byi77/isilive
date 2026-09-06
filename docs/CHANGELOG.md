@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-09-06 - Version 0.9.384 (patch)
+
+Power Infusion is announced again, the portal navigator stops clipping, and the
+enemy-forces nameplate gets a transparent surface and a cheaper refresh.
+
+- **Power Infusion is announced again when you receive it.** The tracker read
+  `spellId` and `sourceUnit` off the aura payload and required both, plus a
+  caster resolving to a named priest. WoW 12.1 masks those fields inside
+  restricted instances -- exactly where Power Infusion matters -- so the guards
+  correctly read nil and the announcement silently never happened. A second,
+  independent path now asks Blizzard whether the player carries the buff
+  (`C_UnitAuras.GetPlayerAuraBySpellID`), which depends on no maskable payload
+  field. When the caster is readable the name still appears; when it is not, the
+  message goes out without one rather than inventing it -- the on-screen alert
+  and the sound, which is what you react to, need no caster. Both paths share a
+  latch, so the message never arrives twice.
+- **The portal navigator no longer clips its outer slots.** The frame height was
+  a fixed 220 while the outer slots anchor lowest, at y = -142. That fit while
+  those slots were occupied and rendered a single line; Season 2 leaves them
+  empty, which adds an "Unoccupied" line underneath, and the label pair rendered
+  outside the bottom border. The height is now derived from the slot anchors, so
+  a future re-stagger cannot bring the clipping back.
+- **The enemy-forces nameplate surface is fully transparent**, so the percentage
+  sits directly on the nameplate without a plate of its own.
+- **Scenario-driven nameplate refreshes are coalesced.** `SCENARIO_UPDATE` fires
+  on every scrap of key progress and swept every visible nameplate each time.
+  That sweep became markedly more expensive in 12.1: the masked mob GUID
+  prevents the forces-DB hit, so every plate now falls through to the progress
+  API the DB lookup used to spare. The sweeps are capped at one pass per 0.25 s;
+  a plate appearing in between is still handled immediately.
+- **`/isilive npstate` reports what the display would actually do.** It dropped
+  masked values before reporting, so it printed `resolvedPercent=nil` for a case
+  the real path renders happily -- which reads like "this cannot work" when the
+  actual reason was that the mode was switched off. It now mirrors the
+  production path and marks such values as `<secret, would render>`, and it also
+  probes whether the tooltip data path can supply an unmasked GUID.
+
 ## 2026-09-06 - Version 0.9.383 (minor)
 
 Activates Midnight Season 2 and drops WoW 12.0.7.
