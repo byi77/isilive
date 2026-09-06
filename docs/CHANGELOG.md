@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-09-06 - Version 0.9.381 (hotfix)
+
+Withdraws the ESC cast guard entirely and removes a per-mouse-move cost from
+the unit tooltip.
+
+- **The ESC cast guard is gone.** The approach could not work, and 0.9.380's
+  hardening did not change that. Blizzard walks its ESC handlers as
+  `securecallfunction(entry.handler)` inside a single loop: the call is
+  isolated, the loop is not — it stays tainted by whichever handler ran in it
+  before. A handler registered ahead of the "Casting" step therefore makes
+  Blizzard's own `SpellStopCasting()` fail with `ADDON_ACTION_FORBIDDEN`, on
+  every ESC press, whether or not the handler claims anything. This is also why
+  Blizzard places the `AddOn` priority *behind* Casting: the levels below it
+  belong to its own systems, and an addon cannot sit there without breaking
+  something. The handler, its registration and its tests are removed, and a test
+  now pins that isiLive registers nothing in that chain. What this means in
+  practice: ESC once again cancels a hearthstone or mount cast started from the
+  ESC panel — the original request from 0.9.379 is unfulfilled, not fixed.
+- **The unit tooltip no longer does realm lookups for every NPC.** The
+  server-language flag runs as a tooltip post-call, which also fires for the
+  world-cursor tooltip — refreshed continuously as the mouse moves across the
+  world. Its early exit only rejected `isPlayer == false`, but Blizzard sends
+  `nil` there for creatures, so every NPC the cursor crossed reached the realm
+  library lookup. Enough of them in one frame and the client aborted the call
+  with "script ran too long", pointing at whatever line it happened to stop on.
+  A GUID that does not start with `Player-` is now rejected by a prefix compare
+  before any work happens.
+
 ## 2026-09-06 - Version 0.9.380 (hotfix)
 
 Repairs the ESC key, which 0.9.379 could disable entirely.
