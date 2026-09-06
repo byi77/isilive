@@ -1,5 +1,52 @@
 # Changelog
 
+## 2026-09-06 - Version 0.9.379 (patch)
+
+Four fixes: a clipped roster column, a nameless invite card, ESC cancelling a
+cast it should not touch, and a tooltip taint that surfaced inside Blizzard's
+own widget layout.
+
+- **The RIO column no longer clips four-digit scores.** The cell is a
+  right-justified FontString with a fixed width and no wrapping, so WoW clamps
+  whatever does not fit and appends an ellipsis. At 70 px a nine-character value
+  like `(+168)662` just fit, while a four-digit score with a three-digit delta
+  rendered as `(+168)13…`. The column is now 84 px wide. The extra width comes
+  out of the Kick column (40 → 32 px) rather than from pushing the whole block
+  right: the kick cell only ever holds `-`, `OK` or a two-digit cooldown, while
+  the column block already ended at 474 px with the management buttons starting
+  at x=490 in the full layout. It now ends at 480 px, so the right-hand margin
+  survives in both the full and the M+ layout. The comment above the constant
+  had claimed 70 px covered `(+999)9999` — it never did, and the test pinned
+  that wrong number instead of catching it.
+- **The invite-accepted card names dungeons that have no teleport.** Its dungeon
+  name came from the teleport lookup alone, and that returns nothing as soon as
+  a map has no *mapped teleport spell* — which says nothing about whether the
+  dungeon's name is known. The card then read "Unknown dungeon" for a perfectly
+  ordinary dungeon, and for every raid invite, since those never have one. The
+  season / ChallengeMode-backed resolver now answers before the literal
+  fallback. The teleport name keeps priority when it is available, so nothing
+  changes for the dungeons that already worked.
+- **ESC no longer cancels a hearthstone or mount cast started from the ESC
+  panel.** Blizzard replaced the old `ToggleGameMenu` if/elseif chain with a
+  priority-ordered handler list. In the old chain the "game menu is open" branch
+  ran *before* `SpellStopCasting`, so ESC closed the menu and left the cast
+  alone. In the new list the casting handler consumes ESC *before* open panels
+  are torn down, so starting a cast from the panel and then pressing ESC to get
+  out of the menu killed the cast. isiLive now registers its own handler ahead
+  of the casting one: while the game menu is open **and** a cast or channel is
+  in flight, ESC closes the menu only. It claims the key in no other situation —
+  menu closed, no cast, a masked or failing cast read, or a client without the
+  new handler API all keep Blizzard's behavior unchanged.
+- **The unit tooltip no longer taints Blizzard's widget layout.** The dedup
+  marker for the server-language flag was written as a field straight onto
+  Blizzard's `GameTooltip`. Mutating a frame we do not own taints it, and that
+  taint resurfaced much later inside Blizzard's own layout code as "attempt to
+  compare a secret number value (execution tainted by 'isiLive')" — reported
+  from whichever unrelated addon happened to hide the tooltip next, which is why
+  it never looked like it came from here. The marker now lives in a module-local
+  table keyed by the tooltip frame, the same way the M+ forces line already
+  tracked its state. Same dedup behavior, no write to a foreign frame.
+
 ## 2026-08-13 - Version 0.9.378 (patch)
 
 Fixes the WoW 12.1 chat spam in keys and raids, and the two features that were
