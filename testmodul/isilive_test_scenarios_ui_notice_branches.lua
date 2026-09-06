@@ -204,6 +204,36 @@ local function RequireValue(value, message)
 end
 
 local function RegisterPortalNavigatorBranchTests(test, Assert, WithGlobals, LoadAddonModules)
+  -- Regression: the frame height was a free 220 while the outer slots anchor at
+  -- y = -142. That fit only as long as those slots were occupied and rendered a
+  -- single line. Season 2 leaves them empty, which adds an "Unoccupied" line
+  -- underneath, and the label pair rendered outside the bottom border.
+  test("PortalNavigator frame is tall enough for the deepest slot", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+      local navigator = RequireValue(addon.PortalNavigatorNotice, "PortalNavigatorNotice module should load")
+      local resolveHeight =
+        RequireValue(navigator.ResolveDefaultFrameHeight, "the derived default height should be exposed")
+
+      local Notice = RequireValue(addon.Notice, "Notice module should load")
+      local portal = Notice.CreatePortalNavigatorNotice({ parent = UIParent })
+
+      Assert.Equal(
+        portal.frame:GetHeight(),
+        resolveHeight(),
+        "the frame must use the height derived from the slot anchors, not a free number"
+      )
+      -- 142 is the deepest anchor; anything at or below it would clip again.
+      Assert.True(resolveHeight() > 142, "the height must clear the deepest slot anchor plus its entry stack")
+    end)
+  end)
+
   test("PortalNavigator hides itself when right-clicked", function()
     WithGlobals({
       UIParent = CreateFrameStub(),

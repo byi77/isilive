@@ -17,6 +17,29 @@ local PORTAL_NAVIGATOR_SLOT_POINTS = {
 
 local PORTAL_NAVIGATOR_SLOT_ORDER = { "left", "half_left", "center", "half_right", "right" }
 
+-- Vertical space one entry needs below its anchor: direction label, icon,
+-- destination line, and the "Unoccupied" detail line an empty slot adds, plus
+-- the bottom padding.
+local PORTAL_NAVIGATOR_ENTRY_STACK_HEIGHT = 110
+
+-- The frame height follows the deepest slot instead of being a free number.
+-- The slots are staggered to mirror the portal room, and the outer pair sits
+-- lowest. While those two were occupied they rendered a single line and fit;
+-- an empty slot adds a second line underneath, which pushed them out through
+-- the bottom border as soon as a season left them empty -- Season 2 does. Tying
+-- the height to the anchors means a future re-stagger cannot reintroduce this.
+local function ResolveDefaultFrameHeight()
+  local deepest = 0
+  for _, pointDef in pairs(PORTAL_NAVIGATOR_SLOT_POINTS) do
+    local depth = math.abs(tonumber(pointDef.y) or 0)
+    if depth > deepest then
+      deepest = depth
+    end
+  end
+  return deepest + PORTAL_NAVIGATOR_ENTRY_STACK_HEIGHT
+end
+PortalNavigatorNotice.ResolveDefaultFrameHeight = ResolveDefaultFrameHeight
+
 local function BuildConfig(opts)
   opts = opts or {}
   local frameName = type(opts.frameName) == "string" and opts.frameName ~= "" and opts.frameName
@@ -25,7 +48,7 @@ local function BuildConfig(opts)
     parent = opts.parent or UIParent,
     frameName = frameName,
     width = tonumber(opts.width) or 760,
-    height = tonumber(opts.height) or 220,
+    height = tonumber(opts.height) or ResolveDefaultFrameHeight(),
     yOffset = tonumber(opts.yOffset) or 190,
     frameAlpha = tonumber(opts.frameAlpha) or 1,
     backgroundAlpha = tonumber(opts.backgroundAlpha) or 0.62,

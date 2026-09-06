@@ -1062,7 +1062,13 @@ local function RegisterCenterNoticeDragResetTest(test, Assert, WithGlobals, Load
       Assert.Equal(frameRelativePoint, "CENTER", "portal navigator frame should keep center relative point")
       Assert.Equal(frameX, 0, "portal navigator frame should not drift horizontally")
       Assert.Equal(frameY, 190, "portal navigator frame should keep the compact notice near the top center")
-      Assert.Equal(portalNotice.frame:GetHeight(), 220, "portal navigator should use the compact crescent frame height")
+      -- 220 was the old free value and clipped the outer slots as soon as a season
+      -- left them empty (Season 2). The height is derived from the slot anchors now.
+      Assert.Equal(
+        portalNotice.frame:GetHeight(),
+        addon.PortalNavigatorNotice.ResolveDefaultFrameHeight(),
+        "portal navigator height must follow the deepest slot anchor"
+      )
       Assert.Equal(portalNotice.frame:GetAlpha(), 1, "portal navigator text should stay fully opaque")
       local bgR, bgG, bgB, bgA = portalNotice.frame:GetBackdropColor()
       Assert.Equal(bgR, 0.035, "portal navigator background should use the shared notice red channel")
