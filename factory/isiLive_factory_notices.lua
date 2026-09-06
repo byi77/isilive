@@ -24,6 +24,14 @@ local function ResolveAcceptedInviteRoleName(ctx, role)
   return nil
 end
 
+-- Name chain for the accepted-invite card. GetTeleportInfoByMapID is asked
+-- first because it already carries the localized season name, but it returns
+-- nil as soon as the map has no *mapped teleport spell* -- which has nothing to
+-- do with whether the dungeon's name is known. Using it as the only source made
+-- the card read "Unknown dungeon" for any dungeon outside the teleport table
+-- (and for every raid invite, which never has one). The season /
+-- ChallengeMode-backed resolver behind GetDungeonName does not depend on the
+-- teleport table at all, so it answers those cases before the literal fallback.
 local function ResolveAcceptedInviteDungeonName(ctx, modules, mapID)
   if modules.teleport and type(modules.teleport.GetTeleportInfoByMapID) == "function" and mapID then
     local info = modules.teleport.GetTeleportInfoByMapID(mapID)
@@ -36,6 +44,19 @@ local function ResolveAcceptedInviteDungeonName(ctx, modules, mapID)
       end
     end
   end
+
+  if mapID then
+    local resolvedName = nil
+    if type(ctx.GetDungeonName) == "function" then
+      resolvedName = ctx.GetDungeonName(mapID)
+    elseif modules.teleport and type(modules.teleport.GetDungeonName) == "function" then
+      resolvedName = modules.teleport.GetDungeonName(mapID)
+    end
+    if type(resolvedName) == "string" and resolvedName ~= "" then
+      return resolvedName
+    end
+  end
+
   local L = ctx.GetL and ctx.GetL() or {}
   return L.INVITE_HINT_UNKNOWN_DUNGEON or "Unknown dungeon"
 end

@@ -944,6 +944,84 @@ local function RegisterCenterNoticeRichLayoutTests(test, Assert, WithGlobals, Lo
       )
     end)
   end)
+
+  -- The accepted-invite card carries a teleport button, but the teleport is an
+  -- optional convenience: whether the player has learned that dungeon's
+  -- teleport must never decide whether the card itself is shown.
+  local function CreateCenterNoticeWithTeleportResolvers(LoadModules, spellID, known)
+    local addon = LoadModules({ "isiLive_ui_common.lua", "isiLive_notice.lua" })
+    local Notice = RequireValue(addon.Notice, "Notice module should load")
+    return Notice.CreateCenterNotice({
+      parent = UIParent,
+      isInCombat = function()
+        return false
+      end,
+      resolveTeleportSpellIDByMapID = function()
+        return spellID
+      end,
+      resolveTeleportSpellID = function()
+        return spellID
+      end,
+      resolveMapIDBySpellID = function()
+        return 559
+      end,
+      applySecureSpellToButton = function() end,
+      isSpellKnown = function()
+        return known
+      end,
+    })
+  end
+
+  local function ShowAcceptedInviteCard(centerNotice)
+    centerNotice.Show(nil, nil, "Halls of Atonement", nil, {
+      eyebrow = "M+ Target",
+      title = "isiLive - Invite accepted",
+      fields = {
+        { label = "Dungeon:", value = "Halls of Atonement +12" },
+        { label = "Leader:", value = "Leader-Realm" },
+      },
+      teleportMapID = 559,
+      frameWidth = 680,
+      persistent = true,
+    })
+  end
+
+  test("Center notice accepted-invite card renders when the dungeon teleport is not learned", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local centerNotice = CreateCenterNoticeWithTeleportResolvers(LoadAddonModules, 354464, false)
+      ShowAcceptedInviteCard(centerNotice)
+
+      Assert.True(centerNotice.frame:IsShown(), "card must show even though the teleport spell is not learned")
+      Assert.True(centerNotice.titleText._shown, "card title must render without a learned teleport")
+      Assert.True(centerNotice.fieldRows[1].label._shown, "dungeon row must render without a learned teleport")
+      Assert.True(centerNotice.fieldRows[2].label._shown, "leader row must render without a learned teleport")
+      Assert.True(centerNotice.teleportButton:IsShown(), "an unlearned teleport stays visible as a disabled action")
+    end)
+  end)
+
+  test("Center notice accepted-invite card renders when no teleport spell resolves at all", function()
+    WithGlobals({
+      UIParent = CreateFrameStub(),
+      CreateFrame = CreateFrameStub,
+      GetTime = function()
+        return 0
+      end,
+    }, function()
+      local centerNotice = CreateCenterNoticeWithTeleportResolvers(LoadAddonModules, nil, false)
+      ShowAcceptedInviteCard(centerNotice)
+
+      Assert.True(centerNotice.frame:IsShown(), "card must show even when no teleport spell resolves")
+      Assert.True(centerNotice.titleText._shown, "card title must render without any teleport")
+      Assert.True(centerNotice.fieldRows[1].label._shown, "dungeon row must render without any teleport")
+      Assert.False(centerNotice.teleportButton:IsShown(), "an unresolvable teleport hides only the button")
+    end)
+  end)
 end
 
 return function(test, ctx)

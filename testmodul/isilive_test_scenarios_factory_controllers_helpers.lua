@@ -163,6 +163,102 @@ local function InitializeHelpers(ctx, addonTable)
   addonTable._FactoryInternal.InitializeFactoryRuntimeHelpers(ctx)
 end
 
+-- Name-resolution scenarios for the accepted-invite card. Registered from the
+-- main block below but kept out of it: that block already sits close to the
+-- per-function metrics limit.
+local function RegisterAcceptedInviteDungeonNameTests(test, Assert, Load, BuildAcceptedInviteCtx)
+  test(
+    "factory_controllers: ResolveAcceptedInviteDungeonName resolves a map without a mapped teleport spell",
+    function()
+      local addon = Load()
+      local resolve = addon._FactoryInternal.ResolveAcceptedInviteDungeonName
+      local askedMapID = nil
+      local c = BuildAcceptedInviteCtx({
+        GetDungeonName = function(mapID)
+          askedMapID = mapID
+          return "Halls of Atonement"
+        end,
+      })
+      local modules = {
+        teleport = {
+          -- A map outside the teleport table: no mapped spell, so the teleport
+          -- lookup answers nil even though the dungeon name is well known.
+          GetTeleportInfoByMapID = function()
+            return nil
+          end,
+        },
+      }
+      Assert.Equal(
+        resolve(c, modules, 378),
+        "Halls of Atonement",
+        "a dungeon without a mapped teleport must still resolve its real name"
+      )
+      Assert.Equal(askedMapID, 378, "the mapID must reach the season-backed name resolver")
+    end
+  )
+
+  test("factory_controllers: ResolveAcceptedInviteDungeonName prefers the teleport name over the resolver", function()
+    local addon = Load()
+    local resolve = addon._FactoryInternal.ResolveAcceptedInviteDungeonName
+    local resolverCalled = false
+    local c = BuildAcceptedInviteCtx({
+      GetDungeonName = function()
+        resolverCalled = true
+        return "Season name"
+      end,
+    })
+    local modules = {
+      teleport = {
+        GetTeleportInfoByMapID = function()
+          return { mapName = "Teleport name" }
+        end,
+      },
+    }
+    Assert.Equal(resolve(c, modules, 559), "Teleport name", "teleport info keeps priority when it answers")
+    Assert.False(resolverCalled, "the season resolver must not be consulted when the teleport name is present")
+  end)
+
+  test("factory_controllers: ResolveAcceptedInviteDungeonName falls back to the teleport module resolver", function()
+    local addon = Load()
+    local resolve = addon._FactoryInternal.ResolveAcceptedInviteDungeonName
+    -- No ctx.GetDungeonName wired (early-load races, tests): the module's own
+    -- resolver has to carry the name.
+    local c = BuildAcceptedInviteCtx()
+    local modules = {
+      teleport = {
+        GetTeleportInfoByMapID = function()
+          return nil
+        end,
+        GetDungeonName = function()
+          return "Module name"
+        end,
+      },
+    }
+    Assert.Equal(resolve(c, modules, 378), "Module name", "module resolver must answer without ctx.GetDungeonName")
+  end)
+
+  test(
+    "factory_controllers: ResolveAcceptedInviteDungeonName keeps the locale fallback for unresolvable maps",
+    function()
+      local addon = Load()
+      local resolve = addon._FactoryInternal.ResolveAcceptedInviteDungeonName
+      local resolverCalled = false
+      local c = BuildAcceptedInviteCtx({
+        GetDungeonName = function()
+          resolverCalled = true
+          return ""
+        end,
+      })
+      Assert.Equal(resolve(c, {}, 378), "Unbekannt-DE", "a blank resolver answer must fall back to the locale string")
+      Assert.True(resolverCalled, "the resolver is consulted before the locale fallback")
+
+      resolverCalled = false
+      Assert.Equal(resolve(c, {}, nil), "Unbekannt-DE", "a nil mapID must fall back to the locale string")
+      Assert.False(resolverCalled, "a nil mapID must not reach the name resolver")
+    end
+  )
+end
+
 return function(test, ctx)
   local Assert = ctx.assert
   local LoadAddonModules = ctx.load_modules
@@ -805,6 +901,7 @@ return function(test, ctx)
         }
       end,
       GetUnitRole = overrides.GetUnitRole,
+      GetDungeonName = overrides.GetDungeonName,
       ShowCenterNotice = overrides.ShowCenterNotice,
       ResolveLocalStatusTargetMapID = overrides.ResolveLocalStatusTargetMapID,
       GetStatusTargetDungeonInfo = overrides.GetStatusTargetDungeonInfo,
@@ -918,6 +1015,8 @@ return function(test, ctx)
       )
     end
   )
+
+  RegisterAcceptedInviteDungeonNameTests(test, Assert, Load, BuildAcceptedInviteCtx)
 
   test("factory_controllers: BuildAcceptedInviteFields renders dungeon row with +N when level > 0", function()
     local addon = Load()
