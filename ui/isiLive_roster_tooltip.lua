@@ -956,6 +956,20 @@ local function ShowRosterInfoTooltip(
 end
 RI.ShowRosterInfoTooltip = ShowRosterInfoTooltip
 
+-- Dedup state for the language flag line, keyed by the tooltip frame.
+--
+-- This used to live as a `_isiLiveLanguageFlagUnit` field written straight onto
+-- Blizzard's GameTooltip. Writing our own fields onto a Blizzard frame taints
+-- it, and in 12.x that taint resurfaces much later inside Blizzard's own widget
+-- layout as "attempt to compare a secret number value (execution tainted by
+-- 'isiLive')" -- reported from whatever unrelated addon happened to hide the
+-- tooltip next. An external table keyed by the frame keeps the same dedup
+-- behavior without mutating anything we do not own; MobTooltip already tracks
+-- its append state this way. Weak keys so a tooltip frame is never held alive
+-- by this table alone.
+local languageFlagKeyByTooltip = setmetatable({}, { __mode = "k" })
+RI.LanguageFlagKeyByTooltip = languageFlagKeyByTooltip
+
 local function AppendBlizzardUnitLanguageLine(
   tooltip,
   unit,
@@ -1038,7 +1052,7 @@ local function AppendBlizzardUnitLanguageLine(
     languageKey = languageTag
   end
 
-  if tooltip._isiLiveLanguageFlagUnit == languageKey then
+  if languageFlagKeyByTooltip[tooltip] == languageKey then
     return false
   end
 
@@ -1067,7 +1081,7 @@ local function AppendBlizzardUnitLanguageLine(
     return false
   end
 
-  tooltip._isiLiveLanguageFlagUnit = languageKey
+  languageFlagKeyByTooltip[tooltip] = languageKey
   if languageMarkup then
     tooltip:AddLine(languageMarkup, 0.9, 0.9, 0.9)
   end
@@ -1103,7 +1117,7 @@ local function RegisterBlizzardUnitLanguageTooltip(opts)
 
   if type(gameTooltip.HookScript) == "function" then
     gameTooltip:HookScript("OnTooltipCleared", function(self)
-      self._isiLiveLanguageFlagUnit = nil
+      languageFlagKeyByTooltip[self] = nil
     end)
   end
 

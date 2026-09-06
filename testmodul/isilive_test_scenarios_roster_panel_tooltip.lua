@@ -643,10 +643,14 @@ local function RegisterBlizzardUnitTooltipDataProcessorTest(test, Assert, WithGl
       end
       Assert.True(foundLanguage, "Blizzard tooltip should show the server language name")
       Assert.Equal(#tooltipLines, 1, "Blizzard tooltip should append the language line exactly once")
+      Assert.Nil(
+        rawget(gameTooltip, "_isiLiveLanguageFlagUnit"),
+        "the dedup key must never be written onto Blizzard's tooltip frame (that taints it)"
+      )
       Assert.Equal(
-        gameTooltip._isiLiveLanguageFlagUnit,
+        addon._RosterInternal.LanguageFlagKeyByTooltip[gameTooltip],
         43049,
-        "TooltipDataProcessor hovers should cache the data instance id"
+        "TooltipDataProcessor hovers should cache the data instance id outside the frame"
       )
 
       if type(gameTooltip.OnTooltipCleared) == "function" then
@@ -717,10 +721,13 @@ local function RegisterBlizzardUnitTooltipDataProcessorSkipTest(test, Assert, Wi
         end
 
         Assert.Equal(#tooltipLines, 0, "TooltipDataProcessor hovers without GUIDs should not append a language line")
-        Assert.Equal(
-          gameTooltip._isiLiveLanguageFlagUnit,
-          nil,
+        Assert.Nil(
+          addon._RosterInternal.LanguageFlagKeyByTooltip[gameTooltip],
           "TooltipDataProcessor hovers without GUIDs should not cache a language key"
+        )
+        Assert.Nil(
+          rawget(gameTooltip, "_isiLiveLanguageFlagUnit"),
+          "the dedup key must never be written onto Blizzard's tooltip frame (that taints it)"
         )
       end)
     end
