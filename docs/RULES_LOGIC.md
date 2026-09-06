@@ -130,7 +130,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 107. Die Statsbox nutzt wieder pro Stat ihre feste unterscheidbare Farbe; der sichtbare BETA-Zusatz entfaellt nur aus der Main-UI-Ueberschrift, und die beiden oberen Trenner sowie alle unteren M+-Blockreihen enden jeweils an einer gemeinsamen rechten Kante.
 108. Die kompakten V- und H-Layouts verwenden eine ununterbrochene Hauptflaeche ohne zusaetzliche dunkle Innenkarten; ihre Layoutschalter folgen der gemeinsamen blau/slate Designsprache, ohne feste Groessen-, Positions- oder Secure-Vertraege zu veraendern.
 109. isiLive laeuft in genau drei zentral aufgeloesten Laufzeitprofilen: `OFF` im Raid und in jeder Gruppe groesser fuenf, `KEY` im mythischen Party-Dungeon (laufender Keystone oder Difficulty-ID 23) und `IDLE` in allem uebrigen. Im `OFF`-Profil werden die Dispatcher-Events bis auf die beiden Aufweck-Events abgemeldet; im `IDLE`-Profil bleiben nur Gruppenanzeige und Gruppensync aktiv. Difficulty-ID 24 (Zeitwanderung) ist kein mythischer Kontext, und die Kanalaufloesung muss die Instanzgruppen-Kategorie auch ohne `LE_PARTY_CATEGORY_*`-Globals numerisch pruefen.
-110. Solange das `GameMenuFrame` offen ist und ein Cast oder Channel laeuft, beansprucht isiLive die ESC-Taste ueber einen eigenen Handler auf `GameMenuEscPriority.Menu` und schliesst ausschliesslich das Menue; Blizzards `Casting`-Handler kommt dann nicht mehr zum Zug, sodass ein aus dem ESC-Panel gestarteter Ruhestein- oder Mount-Cast nicht abgebrochen wird. In jeder anderen Lage (Menue zu, kein Cast, maskierter oder fehlgeschlagener Cast-Read, Client ohne `RegisterGameMenuEscHandler`) bleibt Blizzards ESC-Verhalten unveraendert.
+110. (veraltet — zurueckgenommen in 0.9.381) isiLive registriert keinen Handler in Blizzards ESC-Kette. Blizzard ruft die Kette als `securecallfunction(entry.handler)` in einer einzigen Schleife auf: der Aufruf selbst ist isoliert, die Schleife bleibt aber durch den zuvor gelaufenen Handler getaintet. Ein Addon-Handler vor der Stufe `Casting` (4) laesst deshalb Blizzards eigenen `SpellStopCasting()`-Aufruf mit `ADDON_ACTION_FORBIDDEN` scheitern. Die Prioritaetsstufen unterhalb von `AddOn` (8) gehoeren Blizzards eigenen Systemen; ein Addon kann sich dort nicht ohne Schaden einklinken.
 
 ## Regelbloecke
 
@@ -1768,14 +1768,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 
 ### RULE-ESC-MENUE-CAST-SCHUTZ
 - Regelnummer: 110
-- Status: aktiv
-- Zusammenfassung: Solange das `GameMenuFrame` offen ist und ein Cast oder Channel laeuft, beansprucht isiLive die ESC-Taste ueber einen eigenen Handler auf `GameMenuEscPriority.Menu` und schliesst ausschliesslich das Menue; Blizzards `Casting`-Handler kommt dann nicht mehr zum Zug, sodass ein aus dem ESC-Panel gestarteter Ruhestein- oder Mount-Cast nicht abgebrochen wird. In jeder anderen Lage (Menue zu, kein Cast, maskierter oder fehlgeschlagener Cast-Read, Client ohne `RegisterGameMenuEscHandler`) bleibt Blizzards ESC-Verhalten unveraendert.
+- Status: veraltet
+- Zusammenfassung: isiLive registriert keinen Handler in Blizzards ESC-Kette. Blizzard ruft die Kette als `securecallfunction(entry.handler)` in einer einzigen Schleife auf: der Aufruf selbst ist isoliert, die Schleife bleibt aber durch den zuvor gelaufenen Handler getaintet. Ein Addon-Handler vor der Stufe `Casting` (4) laesst deshalb Blizzards eigenen `SpellStopCasting()`-Aufruf mit `ADDON_ACTION_FORBIDDEN` scheitern. Die Prioritaetsstufen unterhalb von `AddOn` (8) gehoeren Blizzards eigenen Systemen; ein Addon kann sich dort nicht ohne Schaden einklinken.
+- Ersetzte Festlegung (0.9.381, 2026-09-06): "Solange das `GameMenuFrame` offen ist und ein Cast oder Channel laeuft, beansprucht isiLive die ESC-Taste ueber einen eigenen Handler auf `GameMenuEscPriority.Menu` und schliesst ausschliesslich das Menue; Blizzards `Casting`-Handler kommt dann nicht mehr zum Zug, sodass ein aus dem ESC-Panel gestarteter Ruhestein- oder Mount-Cast nicht abgebrochen wird." Diese Festlegung war in 0.9.379 aktiv und in 0.9.380 gehaertet worden; beide Fassungen tainteten die ESC-Kette und wurden vollstaendig zurueckgenommen. Das urspruengliche Ziel — ESC bricht einen aus dem ESC-Panel gestarteten Cast nicht ab — bleibt damit unerfuellt.
 - Erforderliche Tests:
-  - ESC guard closes the game menu and keeps a running cast alive
-  - ESC guard claims the key for a channelled cast too
-  - ESC guard stays out of the way when no cast is running
-  - ESC guard stays out of the way when the game menu is closed
-  - ESC guard treats a masked cast name as no cast
-  - ESC guard survives a cast API that raises
-  - ESC guard registers ahead of Blizzard's casting handler
-  - ESC guard is a no-op on clients without the handler list
+  - ESC panel registers no handler in Blizzard's ESC chain

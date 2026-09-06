@@ -1933,232 +1933,35 @@ local function RegisterHearthstonePickTests(test, Assert, WithGlobals, LoadAddon
   end)
 end
 
--- ESC handling while a hearthstone / mount cast started from the ESC panel is
--- still in flight. Blizzard's handler list runs "Casting" (4) before the panel
--- teardown (6), so without our own handler ahead of it ESC cancels the cast
--- instead of closing the game menu.
-local function RegisterGameMenuEscapeCastGuardTests(test, Assert, WithGlobals, LoadAddonModules)
-  -- The stubbed globals only exist for the duration of the WithGlobals call, so
-  -- the handler has to run inside it -- otherwise every lookup fails closed and
-  -- the assertions pass for the wrong reason.
-  local function WithUI(globals, body)
-    globals.CreateFrame = globals.CreateFrame or BuildCreateFrameStub()
-    WithGlobals(globals, function()
-      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
-      body(RequireValue(addon.UI, "UI module should load"))
-    end)
-  end
-
-  local function BuildGameMenuFrameStub(shown)
-    return {
-      IsShown = function()
-        return shown
-      end,
-      Hide = function(self)
-        self._hidden = true
-      end,
-    }
-  end
-
-  test("ESC guard closes the game menu and keeps a running cast alive", function()
-    local menu = BuildGameMenuFrameStub(true)
-    local hidden = false
-    local askedUnit = nil
-    WithUI({
-      GameMenuFrame = menu,
-      HideUIPanel = function(frame)
-        hidden = frame == menu
-      end,
-      UnitCastingInfo = function(unit)
-        askedUnit = unit
-        return "Hearthstone"
-      end,
-      UnitChannelInfo = function()
-        return nil
-      end,
-    }, function(UI)
-      local handler = RequireValue(UI._Test_HandleGameMenuEscapeDuringCast, "ESC cast guard should be exposed")
-      Assert.True(handler(), "the guard must claim ESC so Blizzard's casting handler never runs")
-      Assert.True(hidden, "claiming ESC must still close the game menu")
-      Assert.Equal(askedUnit, "player", "the cast lookup must ask for the player")
-    end)
-  end)
-
-  test("ESC guard claims the key for a channelled cast too", function()
-    WithUI({
-      GameMenuFrame = BuildGameMenuFrameStub(true),
-      HideUIPanel = function() end,
-      UnitCastingInfo = function()
-        return nil
-      end,
-      UnitChannelInfo = function()
-        return "Channelled toy"
-      end,
-    }, function(UI)
-      local handler = RequireValue(UI._Test_HandleGameMenuEscapeDuringCast, "ESC cast guard should be exposed")
-      Assert.True(handler(), "a channel must be treated like a cast")
-    end)
-  end)
-
-  test("ESC guard stays out of the way when no cast is running", function()
-    local hidden = false
-    WithUI({
-      GameMenuFrame = BuildGameMenuFrameStub(true),
-      HideUIPanel = function()
-        hidden = true
-      end,
-      UnitCastingInfo = function()
-        return nil
-      end,
-      UnitChannelInfo = function()
-        return nil
-      end,
-    }, function(UI)
-      local handler = RequireValue(UI._Test_HandleGameMenuEscapeDuringCast, "ESC cast guard should be exposed")
-      Assert.False(handler(), "without a cast the framework must keep handling ESC")
-      Assert.False(hidden, "the guard must not close the menu when it does not claim ESC")
-    end)
-  end)
-
-  test("ESC guard stays out of the way when the game menu is closed", function()
-    local hidden = false
-    WithUI({
-      GameMenuFrame = BuildGameMenuFrameStub(false),
-      HideUIPanel = function()
-        hidden = true
-      end,
-      UnitCastingInfo = function()
-        return "Hearthstone"
-      end,
-      UnitChannelInfo = function()
-        return nil
-      end,
-    }, function(UI)
-      local handler = RequireValue(UI._Test_HandleGameMenuEscapeDuringCast, "ESC cast guard should be exposed")
-      Assert.False(handler(), "a cast without the menu open must keep Blizzard's cancel-on-ESC behavior")
-      Assert.False(hidden, "a closed menu must not be touched")
-    end)
-  end)
-
-  test("ESC guard treats a masked cast name as no cast", function()
-    WithUI({
-      GameMenuFrame = BuildGameMenuFrameStub(true),
-      HideUIPanel = function() end,
-      issecretvalue = function(value)
-        return value == "masked"
-      end,
-      UnitCastingInfo = function()
-        return "masked"
-      end,
-      UnitChannelInfo = function()
-        return nil
-      end,
-    }, function(UI)
-      local handler = RequireValue(UI._Test_HandleGameMenuEscapeDuringCast, "ESC cast guard should be exposed")
-      Assert.False(handler(), "a masked return is not proof of a cast and must not claim ESC")
-    end)
-  end)
-
-  -- Regression: the first version of this guard compared the IsShown() result
-  -- with `~= true` before checking whether it was masked. Inside combat and
-  -- restricted instances that comparison raises, and because Blizzard walks its
-  -- ESC handlers in a plain loop (securecallfunction strips taint, it does not
-  -- catch errors), the raise aborted the entire chain: ESC stopped opening the
-  -- game menu and stopped closing any open window, for every addon.
-  test("ESC guard does not claim ESC when the shown state is masked", function()
-    local hidden = false
-    WithUI({
+-- isiLive deliberately registers NO handler in Blizzard's ESC chain.
+--
+-- Blizzard walks that chain as `securecallfunction(entry.handler)` inside one
+-- loop (Blizzard_GameMenuEsc.lua). securecallfunction isolates the handler it
+-- calls, but the loop itself stays tainted by whoever ran in it before -- so an
+-- addon handler registered ahead of the "Casting" step (priority 4) makes
+-- Blizzard's own SpellStopCasting() call fail with ADDON_ACTION_FORBIDDEN.
+-- That is exactly what happened in 0.9.379/0.9.380, which is why the priority
+-- levels below AddOn (8) belong to Blizzard's own systems.
+local function RegisterGameMenuEscChainAbstinenceTests(test, Assert, WithGlobals, LoadAddonModules)
+  test("ESC panel registers no handler in Blizzard's ESC chain", function()
+    local registrations = {}
+    WithGlobals({
+      CreateFrame = BuildCreateFrameStub(),
       GameMenuFrame = {
         IsShown = function()
-          return "masked"
-        end,
-        Hide = function()
-          hidden = true
+          return false
         end,
       },
-      HideUIPanel = function()
-        hidden = true
-      end,
-      issecretvalue = function(value)
-        return value == "masked"
-      end,
-      UnitCastingInfo = function()
-        return "Hearthstone"
-      end,
-      UnitChannelInfo = function()
-        return nil
-      end,
-    }, function(UI)
-      local handler = RequireValue(UI._Test_HandleGameMenuEscapeDuringCast, "ESC cast guard should be exposed")
-      Assert.False(handler(), "a masked shown state must never claim ESC")
-      Assert.False(hidden, "a masked shown state must not close the menu either")
-    end)
-  end)
-
-  test("ESC guard never lets an error escape into Blizzard's handler chain", function()
-    WithUI({
-      GameMenuFrame = setmetatable({}, {
-        __index = function()
-          error("frame access raises")
-        end,
-      }),
-      HideUIPanel = function() end,
-      UnitCastingInfo = function()
-        return "Hearthstone"
-      end,
-      UnitChannelInfo = function()
-        return nil
-      end,
-    }, function(UI)
-      local handler = RequireValue(UI._Test_HandleGameMenuEscapeDuringCast, "ESC cast guard should be exposed")
-      local ok, claimed = pcall(handler)
-      Assert.True(ok, "the guard must never raise: a raise aborts Blizzard's whole ESC chain")
-      Assert.False(claimed, "an unusable frame must resolve to 'not claimed'")
-    end)
-  end)
-
-  test("ESC guard survives a cast API that raises", function()
-    WithUI({
-      GameMenuFrame = BuildGameMenuFrameStub(true),
-      HideUIPanel = function() end,
-      UnitCastingInfo = function()
-        error("protected")
-      end,
-      UnitChannelInfo = function()
-        error("protected")
-      end,
-    }, function(UI)
-      local handler = RequireValue(UI._Test_HandleGameMenuEscapeDuringCast, "ESC cast guard should be exposed")
-      Assert.False(handler(), "a raising cast API must fail closed instead of propagating")
-    end)
-  end)
-
-  test("ESC guard registers ahead of Blizzard's casting handler", function()
-    local registrations = {}
-    WithUI({
-      GameMenuFrame = BuildGameMenuFrameStub(false),
-      GameMenuEscPriority = { Dialog = 1, Menu = 2, Casting = 4, Framework = 6 },
+      GameMenuEscPriority = { Dialog = 1, Menu = 2, Casting = 4, Framework = 6, AddOn = 8 },
       RegisterGameMenuEscHandler = function(priority, handler)
         table.insert(registrations, { priority = priority, handler = handler })
       end,
-    }, function(UI)
-      local ensure = RequireValue(UI._Test_EnsureGameMenuEscapeCastGuard, "ESC guard registration should be exposed")
-      Assert.True(ensure(), "the guard must register when the handler list exists")
-      Assert.Equal(#registrations, 1, "RegisterGameMenuEscHandler must be called exactly once")
-      Assert.Equal(registrations[1].priority, 2, "the guard must run at Menu priority, ahead of Casting (4)")
-      Assert.Equal(type(registrations[1].handler), "function", "a handler function must be registered")
+    }, function()
+      local addon = LoadAddonModules({ "isiLive_ui_common.lua", "isiLive_ui.lua" })
+      local UI = RequireValue(addon.UI, "UI module should load")
 
-      Assert.False(ensure(), "a repeat call must report that nothing new was registered")
-      Assert.Equal(#registrations, 1, "the handler must not be registered twice per session")
-    end)
-  end)
-
-  test("ESC guard is a no-op on clients without the handler list", function()
-    WithUI({
-      GameMenuFrame = BuildGameMenuFrameStub(false),
-    }, function(UI)
-      local ensure = RequireValue(UI._Test_EnsureGameMenuEscapeCastGuard, "ESC guard registration should be exposed")
-      Assert.False(ensure(), "without RegisterGameMenuEscHandler the old ESC ordering already behaves correctly")
+      Assert.Nil(rawget(UI, "_Test_HandleGameMenuEscapeDuringCast"), "the removed ESC cast guard must not come back")
+      Assert.Equal(#registrations, 0, "loading the ESC panel must not register an ESC handler")
     end)
   end)
 end
@@ -2172,5 +1975,5 @@ return function(test, ctx)
   RegisterGameMenuAddonPanelCharacterScopeTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterGameMenuMountPanelTests(test, Assert, WithGlobals, LoadAddonModules)
   RegisterHearthstonePickTests(test, Assert, WithGlobals, LoadAddonModules)
-  RegisterGameMenuEscapeCastGuardTests(test, Assert, WithGlobals, LoadAddonModules)
+  RegisterGameMenuEscChainAbstinenceTests(test, Assert, WithGlobals, LoadAddonModules)
 end
