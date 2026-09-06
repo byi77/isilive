@@ -3,7 +3,7 @@
 Full changelog in the repository:
 https://github.com/byi77/isilive/blob/main/docs/CHANGELOG.md
 
-Current version: `0.9.384`.
+Current version: `0.9.385`.
 
 Highlights:
 - **Hardened the group sync against out-of-range values from other players.**

@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-09-07 - Version 0.9.385 (patch)
+
+Brings back the isiLive part of the ESC menu after a reload inside a key.
+
+- **Reloading inside a Mythic+ key no longer loses the ESC-menu shortcuts until
+  a client restart.** Secure buttons may not be touched during combat -- and,
+  as it turns out, not while a key is running either, which is the condition
+  that actually applied here: a reload in a dungeon always rebuilt the panel in
+  a blocked state, with or without combat. The refresh was queued for later and
+  then thrown away twice over. The regen drain removed the queue entry before
+  attempting to apply it, so when the still-running key blocked the attempt the
+  entry was already gone. And the forced apply only bypassed its outer guard:
+  the two inner calls check the block themselves, bailed out, re-armed the
+  retry -- and the final line of the function cleared exactly that re-armed
+  retry and reported success.
+- **The queue now survives what could not be applied.** The inner calls report
+  whether they actually ran, the queue is only cleared when both did, and the
+  drain no longer removes entries up front. As soon as neither combat nor a key
+  blocks any more -- at the latest when the ESC menu is next opened -- the
+  shortcuts come back on their own.
+
 ## 2026-09-06 - Version 0.9.384 (patch)
 
 Power Infusion is announced again, the portal navigator stops clipping, and the
