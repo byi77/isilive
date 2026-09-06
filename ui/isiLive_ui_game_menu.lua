@@ -671,14 +671,27 @@ end
 -- open without a cast, cast without the menu -- keeps Blizzard's behavior.
 local gameMenuEscapeCastGuardRegistered = false
 
+-- Calls a Blizzard API and hands back a value that is safe to compare.
+--
+-- Reading a masked return is safe; comparing one raises -- including against
+-- `nil` and `true`. The secret check therefore has to happen before any
+-- comparison, not alongside it. Mirrors Validators.ReadPlainField, which does
+-- the same for payload fields.
+local function ReadPlainCallResult(fn, ...)
+  local ok, value = pcall(fn, ...)
+  if not ok or IsSecretValue(value) then
+    return nil
+  end
+  return value
+end
+
 local function IsPlayerCastingOrChanneling()
   local castApis = { "UnitCastingInfo", "UnitChannelInfo" }
   for _, apiName in ipairs(castApis) do
     local api = rawget(_G, apiName)
     if type(api) == "function" then
-      local ok, castName = pcall(api, "player")
       -- A masked return is not proof of a cast, so it must not claim ESC.
-      if ok and castName ~= nil and not IsSecretValue(castName) then
+      if ReadPlainCallResult(api, "player") ~= nil then
         return true
       end
     end
@@ -686,14 +699,13 @@ local function IsPlayerCastingOrChanneling()
   return false
 end
 
-local function HandleGameMenuEscapeDuringCast()
+local function ResolveGameMenuEscapeClaim()
   local gameMenuFrame = rawget(_G, "GameMenuFrame")
   if type(gameMenuFrame) ~= "table" or type(gameMenuFrame.IsShown) ~= "function" then
     return false
   end
 
-  local okShown, shown = pcall(gameMenuFrame.IsShown, gameMenuFrame)
-  if not okShown or shown ~= true then
+  if ReadPlainCallResult(gameMenuFrame.IsShown, gameMenuFrame) ~= true then
     return false
   end
 
@@ -704,6 +716,17 @@ local function HandleGameMenuEscapeDuringCast()
   -- Returning true tells Blizzard the key was consumed, so the casting handler
   -- behind us never runs and the cast survives.
   return HideGameMenuFrame(gameMenuFrame) == true
+end
+
+-- Blizzard walks its ESC handlers as `securecallfunction(entry.handler)` in a
+-- plain loop: securecallfunction strips taint, it does not catch errors. A
+-- handler that raises therefore aborts the whole chain, and ESC stops opening
+-- the game menu and stops closing any open window -- for every addon, not just
+-- this one. Nothing this handler decides is worth that, so it is wrapped: any
+-- unexpected error means "not claimed" and Blizzard carries on.
+local function HandleGameMenuEscapeDuringCast()
+  local ok, claimed = pcall(ResolveGameMenuEscapeClaim)
+  return ok and claimed == true
 end
 
 local function EnsureGameMenuEscapeCastGuard()

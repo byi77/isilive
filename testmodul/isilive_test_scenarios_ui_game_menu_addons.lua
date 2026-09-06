@@ -2059,6 +2059,64 @@ local function RegisterGameMenuEscapeCastGuardTests(test, Assert, WithGlobals, L
     end)
   end)
 
+  -- Regression: the first version of this guard compared the IsShown() result
+  -- with `~= true` before checking whether it was masked. Inside combat and
+  -- restricted instances that comparison raises, and because Blizzard walks its
+  -- ESC handlers in a plain loop (securecallfunction strips taint, it does not
+  -- catch errors), the raise aborted the entire chain: ESC stopped opening the
+  -- game menu and stopped closing any open window, for every addon.
+  test("ESC guard does not claim ESC when the shown state is masked", function()
+    local hidden = false
+    WithUI({
+      GameMenuFrame = {
+        IsShown = function()
+          return "masked"
+        end,
+        Hide = function()
+          hidden = true
+        end,
+      },
+      HideUIPanel = function()
+        hidden = true
+      end,
+      issecretvalue = function(value)
+        return value == "masked"
+      end,
+      UnitCastingInfo = function()
+        return "Hearthstone"
+      end,
+      UnitChannelInfo = function()
+        return nil
+      end,
+    }, function(UI)
+      local handler = RequireValue(UI._Test_HandleGameMenuEscapeDuringCast, "ESC cast guard should be exposed")
+      Assert.False(handler(), "a masked shown state must never claim ESC")
+      Assert.False(hidden, "a masked shown state must not close the menu either")
+    end)
+  end)
+
+  test("ESC guard never lets an error escape into Blizzard's handler chain", function()
+    WithUI({
+      GameMenuFrame = setmetatable({}, {
+        __index = function()
+          error("frame access raises")
+        end,
+      }),
+      HideUIPanel = function() end,
+      UnitCastingInfo = function()
+        return "Hearthstone"
+      end,
+      UnitChannelInfo = function()
+        return nil
+      end,
+    }, function(UI)
+      local handler = RequireValue(UI._Test_HandleGameMenuEscapeDuringCast, "ESC cast guard should be exposed")
+      local ok, claimed = pcall(handler)
+      Assert.True(ok, "the guard must never raise: a raise aborts Blizzard's whole ESC chain")
+      Assert.False(claimed, "an unusable frame must resolve to 'not claimed'")
+    end)
+  end)
+
   test("ESC guard survives a cast API that raises", function()
     WithUI({
       GameMenuFrame = BuildGameMenuFrameStub(true),
