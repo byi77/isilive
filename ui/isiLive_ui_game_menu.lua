@@ -655,6 +655,85 @@ local function BindNonSecurePanelButtonOnClick(button, state)
   end)
 end
 
+-- ESC while a panel-started cast is in flight.
+--
+-- Blizzard replaced the old ToggleGameMenu if/elseif chain with a priority-
+-- ordered handler list (Blizzard_GameMenuEsc.lua). In the old chain the
+-- "GameMenuFrame is shown" branch ran *before* SpellStopCasting, so ESC closed
+-- the menu and left the cast alone. In the new list "Casting" (priority 4)
+-- consumes ESC *before* the framework tears down open panels (priority 6), so
+-- starting a hearthstone or mount cast from our panel and then pressing ESC to
+-- get out of the menu cancels the cast instead of closing the menu.
+--
+-- Registering ahead of the casting handler restores the previous order: while
+-- the game menu is open and a cast is in flight, ESC closes the menu only. The
+-- handler claims ESC in no other situation, so every other escape path -- menu
+-- open without a cast, cast without the menu -- keeps Blizzard's behavior.
+local gameMenuEscapeCastGuardRegistered = false
+
+local function IsPlayerCastingOrChanneling()
+  local castApis = { "UnitCastingInfo", "UnitChannelInfo" }
+  for _, apiName in ipairs(castApis) do
+    local api = rawget(_G, apiName)
+    if type(api) == "function" then
+      local ok, castName = pcall(api, "player")
+      -- A masked return is not proof of a cast, so it must not claim ESC.
+      if ok and castName ~= nil and not IsSecretValue(castName) then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+local function HandleGameMenuEscapeDuringCast()
+  local gameMenuFrame = rawget(_G, "GameMenuFrame")
+  if type(gameMenuFrame) ~= "table" or type(gameMenuFrame.IsShown) ~= "function" then
+    return false
+  end
+
+  local okShown, shown = pcall(gameMenuFrame.IsShown, gameMenuFrame)
+  if not okShown or shown ~= true then
+    return false
+  end
+
+  if not IsPlayerCastingOrChanneling() then
+    return false
+  end
+
+  -- Returning true tells Blizzard the key was consumed, so the casting handler
+  -- behind us never runs and the cast survives.
+  return HideGameMenuFrame(gameMenuFrame) == true
+end
+
+local function EnsureGameMenuEscapeCastGuard()
+  if gameMenuEscapeCastGuardRegistered then
+    return false
+  end
+
+  -- Pre-11.2 clients have no handler list; there the original ordering already
+  -- does the right thing, so the absent API is a no-op rather than a failure.
+  local register = rawget(_G, "RegisterGameMenuEscHandler")
+  if type(register) ~= "function" then
+    return false
+  end
+
+  local priorities = rawget(_G, "GameMenuEscPriority")
+  if type(priorities) ~= "table" then
+    return false
+  end
+  -- Menu (2) sits after static popups and before Casting (4): a dialog on top
+  -- of the game menu still gets ESC first.
+  local priority = tonumber(priorities.Menu)
+  if not priority then
+    return false
+  end
+
+  local ok = pcall(register, priority, HandleGameMenuEscapeDuringCast)
+  gameMenuEscapeCastGuardRegistered = ok == true
+  return gameMenuEscapeCastGuardRegistered
+end
+
 ApplyPanelUILocalization = function(state)
   if type(state) ~= "table" then
     return
@@ -676,6 +755,10 @@ function UI.EnsurePanelUI(opts)
   if type(gameMenuFrame) ~= "table" then
     return nil
   end
+
+  -- Idempotent: the guard registers once per session, on whichever EnsurePanelUI
+  -- call builds or reuses the panel first.
+  EnsureGameMenuEscapeCastGuard()
 
   local actionOverrides = opts.panelActions or opts.microMenuActions
 
@@ -1090,3 +1173,5 @@ end
 -- caller is the hearthstone PreClick hook, which cannot be driven to the
 -- pathological all-duplicates pool without a frame + secure button harness.
 UI._Test_PickDifferentEntry = PickDifferentEntry
+UI._Test_HandleGameMenuEscapeDuringCast = HandleGameMenuEscapeDuringCast
+UI._Test_EnsureGameMenuEscapeCastGuard = EnsureGameMenuEscapeCastGuard

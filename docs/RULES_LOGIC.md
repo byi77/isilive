@@ -130,6 +130,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 107. Die Statsbox nutzt wieder pro Stat ihre feste unterscheidbare Farbe; der sichtbare BETA-Zusatz entfaellt nur aus der Main-UI-Ueberschrift, und die beiden oberen Trenner sowie alle unteren M+-Blockreihen enden jeweils an einer gemeinsamen rechten Kante.
 108. Die kompakten V- und H-Layouts verwenden eine ununterbrochene Hauptflaeche ohne zusaetzliche dunkle Innenkarten; ihre Layoutschalter folgen der gemeinsamen blau/slate Designsprache, ohne feste Groessen-, Positions- oder Secure-Vertraege zu veraendern.
 109. isiLive laeuft in genau drei zentral aufgeloesten Laufzeitprofilen: `OFF` im Raid und in jeder Gruppe groesser fuenf, `KEY` im mythischen Party-Dungeon (laufender Keystone oder Difficulty-ID 23) und `IDLE` in allem uebrigen. Im `OFF`-Profil werden die Dispatcher-Events bis auf die beiden Aufweck-Events abgemeldet; im `IDLE`-Profil bleiben nur Gruppenanzeige und Gruppensync aktiv. Difficulty-ID 24 (Zeitwanderung) ist kein mythischer Kontext, und die Kanalaufloesung muss die Instanzgruppen-Kategorie auch ohne `LE_PARTY_CATEGORY_*`-Globals numerisch pruefen.
+110. Solange das `GameMenuFrame` offen ist und ein Cast oder Channel laeuft, beansprucht isiLive die ESC-Taste ueber einen eigenen Handler auf `GameMenuEscPriority.Menu` und schliesst ausschliesslich das Menue; Blizzards `Casting`-Handler kommt dann nicht mehr zum Zug, sodass ein aus dem ESC-Panel gestarteter Ruhestein- oder Mount-Cast nicht abgebrochen wird. In jeder anderen Lage (Menue zu, kein Cast, maskierter oder fehlgeschlagener Cast-Read, Client ohne `RegisterGameMenuEscHandler`) bleibt Blizzards ESC-Verhalten unveraendert.
 
 ## Regelbloecke
 
@@ -1764,3 +1765,17 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - Raid suppression is idempotent
   - Status labels timewalking dungeons as timewalking and not as mythic
   - kick tracker: reduced profile keeps polling and sync closed
+
+### RULE-ESC-MENUE-CAST-SCHUTZ
+- Regelnummer: 110
+- Status: aktiv
+- Zusammenfassung: Solange das `GameMenuFrame` offen ist und ein Cast oder Channel laeuft, beansprucht isiLive die ESC-Taste ueber einen eigenen Handler auf `GameMenuEscPriority.Menu` und schliesst ausschliesslich das Menue; Blizzards `Casting`-Handler kommt dann nicht mehr zum Zug, sodass ein aus dem ESC-Panel gestarteter Ruhestein- oder Mount-Cast nicht abgebrochen wird. In jeder anderen Lage (Menue zu, kein Cast, maskierter oder fehlgeschlagener Cast-Read, Client ohne `RegisterGameMenuEscHandler`) bleibt Blizzards ESC-Verhalten unveraendert.
+- Erforderliche Tests:
+  - ESC guard closes the game menu and keeps a running cast alive
+  - ESC guard claims the key for a channelled cast too
+  - ESC guard stays out of the way when no cast is running
+  - ESC guard stays out of the way when the game menu is closed
+  - ESC guard treats a masked cast name as no cast
+  - ESC guard survives a cast API that raises
+  - ESC guard registers ahead of Blizzard's casting handler
+  - ESC guard is a no-op on clients without the handler list
