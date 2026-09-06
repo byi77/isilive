@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-09-06 - Version 0.9.383 (minor)
+
+Activates Midnight Season 2 and drops WoW 12.0.7.
+
+- **Season 2 is now the active season.** Blizzard shipped it, the client's
+  portal room and keystones carry the S2 dungeons, and the runtime
+  auto-selection had already switched. The manifest still named S1 as its
+  active season, which is what the build gates and the no-auto-match fallback
+  read, so the generated forces database stayed pinned to a season nobody plays
+  any more. `activeSeasonID` now names S2.
+- **Mob percentages are back in Mythic+.** They had disappeared for everyone on
+  S2 keys, and not by accident: the S2 manifest entry carried no `mdtDirectory`
+  and `requiresForces = false`, so the forces generator skipped the season
+  entirely and every S2 dungeon was left without data. MDT 6.2.15 ships the S2
+  dungeons in the same `Midnight` directory as the S1 ones; that is now recorded
+  and verified, and the database is generated from it: 8 dungeons, 145 NPCs —
+  King's Rest, Temple of Sethraliss, Ruby Life Pools, The Blinding Vale,
+  Voidscar Arena, Den of Nalorakk, Murder Row, Altar of Fangs.
+- **Season 1 stays fully usable as the manual fallback**, now with
+  `requiresForces = false`: the forces database tracks the active season, so
+  demanding a matching S1 database would have left S1 permanently "not ready"
+  and unselectable. It works exactly as documented for a season without a
+  database — everything except MDT mob percentages.
+- **WoW 12.0.7 is no longer supported.** The TOC declares `120100` only, and the
+  platform floor in the rules moved to `12.1.0+`. No 12.0.7 compatibility code
+  is kept.
+- Around 80 deterministic tests encoded "S1 is the active season" as their
+  contract — short codes, portal-room slots, forces fixtures, LFG activity ids.
+  They now describe S2, including the fact that S2 uses different short codes
+  per locale where S1 shared one, and that the S2 portal room occupies the three
+  inner slots instead of S1's four outer ones.
+
 ## 2026-09-06 - Version 0.9.382 (patch)
 
 Reaches the goal of 0.9.379 from the other side: the ESC menu now closes itself
