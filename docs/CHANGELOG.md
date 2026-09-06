@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-09-06 - Version 0.9.380 (hotfix)
+
+Repairs the ESC key, which 0.9.379 could disable entirely.
+
+- **ESC works again.** The cast guard shipped in 0.9.379 could raise instead of
+  answering, and Blizzard walks its ESC handlers as
+  `securecallfunction(entry.handler)` in a plain loop — that strips taint, it
+  does not catch errors. A raising handler therefore aborted the whole chain, so
+  ESC stopped opening the game menu and stopped closing any open window, for
+  every addon, not only this one. Two reads were the cause: the guard compared
+  `IsShown()` against `true` and the cast name against `nil` *before* checking
+  whether either value was masked, and comparing a Secret Value raises. That is
+  why it showed up in combat and inside instances, where those values are
+  masked, and behaved normally outside — but "only in combat" was never
+  acceptable either.
+- **Both reads now clear the secret check before any comparison**, the same way
+  `Validators.ReadPlainField` handles payload fields. On top of that the handler
+  is wrapped so no error can escape into Blizzard's chain again: nothing it
+  decides is worth breaking ESC for everyone, so an unexpected error now simply
+  means "not claimed" and Blizzard carries on. The intended behavior from
+  0.9.379 is unchanged — with the game menu open and a cast in flight, ESC still
+  closes only the menu and leaves the cast alone.
+
 ## 2026-09-06 - Version 0.9.379 (patch)
 
 Four fixes: a clipped roster column, a nameless invite card, ESC cancelling a
