@@ -255,13 +255,25 @@ return function(test, ctx)
       factoryCtx.ShowPowerInfusionAnnounce("Alpha-RealmA", "Tank-RealmA", false)
       Assert.Equal(#prints, 3, "the repeat of the first caster must still be recognised as a duplicate")
 
+      -- An unresolved caster must not stay a wildcard: once the peer payload
+      -- names the priest, a different priest on the same target is a new cast.
+      now = now + 1
+      factoryCtx.ShowPowerInfusionAnnounce(nil, "Dps-RealmA", false)
+      Assert.Equal(#prints, 4, "the unnamed announce must render")
+      now = now + 0.2
+      factoryCtx.ShowPowerInfusionAnnounce("Named-RealmA", "Dps-RealmA", false)
+      Assert.Equal(#prints, 4, "the payload naming that same cast must still be a duplicate")
+      now = now + 0.2
+      factoryCtx.ShowPowerInfusionAnnounce("Other-RealmA", "Dps-RealmA", false)
+      Assert.Equal(#prints, 5, "a different priest must not be swallowed by the refined entry")
+
       -- Same base name, different realms: two players, two casts.
       now = now + 1
       factoryCtx.ShowPowerInfusionAnnounce("Twin-RealmA", "Healer-RealmA", false)
-      Assert.Equal(#prints, 4, "the first Twin must announce")
+      Assert.Equal(#prints, 6, "the first Twin must announce")
       now = now + 1
       factoryCtx.ShowPowerInfusionAnnounce("Twin-RealmB", "Healer-RealmA", false)
-      Assert.Equal(#prints, 5, "a same-named priest from another realm is a separate cast")
+      Assert.Equal(#prints, 7, "a same-named priest from another realm is a separate cast")
     end)
   end)
 

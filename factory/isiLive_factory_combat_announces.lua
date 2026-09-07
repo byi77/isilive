@@ -78,6 +78,27 @@ local function SplitAnnounceName(name)
   return string.sub(lowered, 1, dash - 1), string.sub(lowered, dash + 1)
 end
 
+-- A wildcard match is a one-time concession, not a permanent property of the
+-- history entry. Once the peer payload names the priest the local scan could
+-- not resolve, the entry has to adopt that identity -- otherwise it keeps
+-- absorbing every later cast on the same target, and a second priest's
+-- infusion disappears silently. The same applies to a name that gains its
+-- realm segment.
+local function RefineAnnounceName(stored, incoming)
+  local storedBase, storedRealm = SplitAnnounceName(stored)
+  local incomingBase, incomingRealm = SplitAnnounceName(incoming)
+  if not incomingBase then
+    return stored
+  end
+  if not storedBase then
+    return incoming
+  end
+  if storedRealm == nil and incomingRealm ~= nil then
+    return incoming
+  end
+  return stored
+end
+
 local function AnnounceNamesMatch(left, right)
   local leftBase, leftRealm = SplitAnnounceName(left)
   local rightBase, rightRealm = SplitAnnounceName(right)
@@ -158,28 +179,31 @@ local function InitializeFactoryCombatAnnounceControllers(ctx)
     end
 
     local kept = {}
-    local duplicate = false
+    local matched = nil
     for _, entry in ipairs(recentPowerInfusionAnnounces) do
       if now - entry.at < POWER_INFUSION_ANNOUNCE_DEDUPE_SECONDS then
         kept[#kept + 1] = entry
         if
-          not duplicate
+          not matched
           and AnnounceNamesMatch(entry.recipient, recipientName)
           and AnnounceNamesMatch(entry.caster, casterName)
         then
-          duplicate = true
+          matched = entry
         end
       end
     end
 
-    if not duplicate then
+    if matched then
+      matched.caster = RefineAnnounceName(matched.caster, casterName)
+      matched.recipient = RefineAnnounceName(matched.recipient, recipientName)
+    else
       kept[#kept + 1] = { caster = casterName, recipient = recipientName, at = now }
       while #kept > POWER_INFUSION_ANNOUNCE_HISTORY_LIMIT do
         table.remove(kept, 1)
       end
     end
     recentPowerInfusionAnnounces = kept
-    return duplicate
+    return matched ~= nil
   end
 
   ctx.ShowPowerInfusionAnnounce = function(infoOrCasterName, recipientName, isLocalRecipient, bypassDedupe)
