@@ -10,6 +10,10 @@
 local function MakeFontString()
   local fs = { _text = "", _points = nil, _color = nil, _font = nil, _justifyH = nil, _setFontCallCount = 0 }
   function fs:SetText(text)
+    -- Keep the raw argument as well: the rule-102 pass-through tests assert on
+    -- exactly what production handed the renderer, before any tostring.
+    self._setTextArg = text
+    self._setTextCallCount = (self._setTextCallCount or 0) + 1
     self._text = tostring(text or "")
   end
   function fs:SetPoint(...)
@@ -552,6 +556,89 @@ local function RegisterRenderTests(test, Assert, WithGlobals, LoadAddonModules)
       local frame = addon.MobNameplate._Test_GetFrames()["nameplate1"]
       frame = Assert.NotNil(frame, "Secret-Valued percentString must still produce a frame")
       Assert.True(frame._shown == true, "frame must be visible — WoW's renderer handles the masked text")
+    end)
+  end)
+
+  test("MobNameplate hands the Secret percent to the FontString unchanged apart from the rendered suffix", function()
+    -- Rule 102's render-only exception allows exactly one transformation of a
+    -- Secret Value: concatenation into the string handed to the renderer. The
+    -- older test above only proved the plate stays visible, which a rewritten
+    -- or replaced percent would satisfy too. Pin the argument itself.
+    local secret = "__ISILIVE_TEST_SECRET_PERCENT__"
+    local globals = BuildEnv({
+      units = { nameplate1 = { guid = "Creature-0-3889-161-99999-99999-0", reaction = 2 } },
+      nameplates = { nameplate1 = MakeFrame() },
+      progressValues = { nameplate1 = { count = 5, total = 431, percent = secret } },
+      issecretvalue = function(v)
+        return v == secret
+      end,
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      addon.MobNameplate.SetEnabled(true)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+
+      local frame = addon.MobNameplate._Test_GetFrames()["nameplate1"]
+      frame = Assert.NotNil(frame, "Secret-Valued percentString must still produce a frame")
+      Assert.Equal(
+        frame.text._setTextArg,
+        secret .. "%",
+        "the renderer must receive the Secret value verbatim, followed only by the percent sign"
+      )
+    end)
+  end)
+
+  test("MobNameplate repaints and drops its cache when the Secret dirty-check raises", function()
+    -- The repaint dirty-check compares the rendered text against its own cached
+    -- copy. Both the read and the write can raise on a poisoned field, and rule
+    -- 102 requires that failure to end in a render with a cleared cache -- never
+    -- in a skipped paint. A proxy that raises on `_lastText` forces both paths.
+    local globals = BuildEnv({
+      units = { nameplate1 = { guid = "Creature-0-3889-161-12345-76132-0", reaction = 2 } },
+      nameplates = { nameplate1 = MakeFrame() },
+      progressValues = { nameplate1 = { count = 5, total = 431, percent = "1.16" } },
+    })
+    WithGlobals(globals, function()
+      local addon = LoadModule(LoadAddonModules)
+      addon.MobNameplate.SetEnabled(true)
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+
+      local frame = addon.MobNameplate._Test_GetFrames()["nameplate1"]
+      frame = Assert.NotNil(frame, "the first update must produce a frame")
+
+      local inner = frame.text
+      local setTextCalls = 0
+      local proxy = {}
+      setmetatable(proxy, {
+        __index = function(_t, key)
+          if key == "_lastText" then
+            error("secret field read is poisoned")
+          end
+          local value = inner[key]
+          if type(value) == "function" then
+            return function(_self, ...)
+              if key == "SetText" then
+                setTextCalls = setTextCalls + 1
+              end
+              return value(inner, ...)
+            end
+          end
+          return value
+        end,
+        __newindex = function(t, key, value)
+          if key == "_lastText" then
+            error("secret field write is poisoned")
+          end
+          rawset(t, key, value)
+        end,
+      })
+      frame.text = proxy
+
+      addon.MobNameplate._Test_UpdateNameplate("nameplate1")
+
+      Assert.Equal(setTextCalls, 1, "a raising dirty-check must fall through to the render, not skip it")
+      Assert.True(frame._shown == true, "the plate must stay visible when the cache guard fails")
+      Assert.Equal(rawget(proxy, "_lastText"), nil, "a failed cache write must leave no cached text behind")
     end)
   end)
 

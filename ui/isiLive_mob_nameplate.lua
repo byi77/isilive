@@ -293,10 +293,20 @@ local function ApplyRenderedText(frame, text)
   pcall(function()
     canCache = text == text
   end)
+  -- The write is guarded too, not just the compare: a poisoned field can raise
+  -- on assignment as well, and this runs after SetText -- letting it escape
+  -- would abort the caller for a plate that is already painted correctly.
+  -- Clearing the cache on any failure costs one redundant SetText next tick.
+  local cached = false
   if canCache then
-    frame.text._lastText = text
-  else
-    frame.text._lastText = nil
+    cached = pcall(function()
+      frame.text._lastText = text
+    end)
+  end
+  if not cached then
+    pcall(function()
+      frame.text._lastText = nil
+    end)
   end
 end
 

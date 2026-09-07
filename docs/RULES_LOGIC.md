@@ -167,6 +167,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 - Erforderliche Tests:
   - Event handlers enable RIO delta only after delayed post-run refresh
   - Event handlers retry post-run refresh when first delayed attempt is blocked
+  - Event handlers keep RIO delta disabled when every post-run refresh fails
   - Event handlers defer post-run refresh while raid mode is active and resume after raid exit
 
 ### RULE-TELEPORT-KEIN-NAME-GUESSING
@@ -1631,7 +1632,7 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
 ### RULE-BLIZZARD-SECRET-VALUES-FAIL-CLOSED
 - Regelnummer: 102
 - Status: aktiv
-- Zusammenfassung: Jeder Rueckgabewert einer Blizzard-API muss nach einem erfolgreichen geschuetzten Aufruf zusaetzlich mit `issecretvalue` geprueft werden, sofern die API Secret Values liefern kann. Ein als geheim markierter Wert gilt unabhaengig von seinem Lua-Typ und seiner Truthiness als unverifiziert und darf weder als Unit-Existenz, Identitaet, Klasse, Spezialisierung, Rollen-, Karten-, Status- noch Zahlenwert in Runtime-State, UI oder Sync uebernommen werden. Fehlt `issecretvalue`, bleibt ein normal typisierter Rueckgabewert nach den uebrigen aktiven Validierungsregeln auswertbar. Einzige Ausnahme ist die reine Durchreichung an einen Blizzard-Renderer: Ein als geheim markierter Wert darf unveraendert an eine FontString-Ausgabe uebergeben werden, wenn er auf dem gesamten Weg dorthin nicht verglichen, umgeformt, in Runtime-State gespeichert, gesynct oder zur Grundlage einer Entscheidung gemacht wird, und wenn das Verwerfen die betroffene Anzeige ersatzlos leeren wuerde. Die Ausnahme deckt ausschliesslich die Darstellung selbst; jede daraus abgeleitete Aussage bleibt unverifiziert und muss geschlossen bleiben. Sie ist an der Aufrufstelle zu kommentieren und durch einen deterministischen Test zu pinnen, der die Durchreichung fordert.
+- Zusammenfassung: Jeder Rueckgabewert einer Blizzard-API muss nach einem erfolgreichen geschuetzten Aufruf zusaetzlich mit `issecretvalue` geprueft werden, sofern die API Secret Values liefern kann. Ein als geheim markierter Wert gilt unabhaengig von seinem Lua-Typ und seiner Truthiness als unverifiziert und darf weder als Unit-Existenz, Identitaet, Klasse, Spezialisierung, Rollen-, Karten-, Status- noch Zahlenwert in Runtime-State, UI oder Sync uebernommen werden. Fehlt `issecretvalue`, bleibt ein normal typisierter Rueckgabewert nach den uebrigen aktiven Validierungsregeln auswertbar. Einzige Ausnahme ist die Durchreichung an einen Blizzard-Renderer, wenn das Verwerfen die betroffene Anzeige ersatzlos leeren wuerde. Erlaubt sind dabei genau zwei Operationen: erstens die Verkettung in genau die Zeichenkette, die an die Ausgabe uebergeben wird, mit Trennern und mit anderweitig geguardeten Bestandteilen; zweitens ein pcall-geschuetzter Vergleich des Wertes ausschliesslich mit sich selbst oder mit seiner eigenen zuletzt gerenderten Kopie, allein um ein identisches Neuzeichnen zu sparen, samt pcall-geschuetztem Schreiben und Leeren dieses Render-Caches. Jede Verletzung dieser Guards muss zum Rendern fuehren und den Cache leeren, niemals zum Ausblenden oder zu einem ersetzten Inhalt. Verboten bleibt jede inhaltliche Auswertung: Parsen, Zahlenumwandlung, Mustersuche, wertabhaengige Formatierung, Vergleich mit fremden Werten, Uebernahme in sonstigen Runtime-State, Sync sowie jede daraus abgeleitete Aussage. Strukturelle Pruefungen auf Typ und Vorhandensein des Ergebnisses bleiben zulaessig. Die Ausnahme ist an der Aufrufstelle zu kommentieren und durch deterministische Tests zu pinnen, die sowohl die unveraenderte Durchreichung als auch das Rendern bei fehlgeschlagenem Guard fordern.
 - Erforderliche Tests:
   - Architecture LFG bonus model owns guarded bonus classification behind LFGFlags facade
   - Validators.IsExistingUnit rejects secret existence values
@@ -1656,6 +1657,8 @@ Diese Datei ist die verbindliche Quelle fuer Usecase- und Runtime-Regeln, die im
   - SeasonDebug dump hides secret instance metadata
   - MobNameplate renders Secret-Valued percentString through to the FontString
   - MobNameplate falls back to API path when UnitGUID is a Secret Value
+  - MobNameplate hands the Secret percent to the FontString unchanged apart from the rendered suffix
+  - MobNameplate repaints and drops its cache when the Secret dirty-check raises
 
 ### RULE-SYNC-SENDESTATUS-TRANSAKTIONAL
 - Regelnummer: 103
