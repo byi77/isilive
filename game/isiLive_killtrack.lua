@@ -36,6 +36,10 @@ local pull = {
   startRawCount = 0,
   pullPercent = 0,
   displayUntil = 0, -- pullPercent stays visible until this GetTime() stamp
+  -- Bumped whenever a combat end schedules a new grace window. The delayed
+  -- clear carries the value it was scheduled with, so a callback left over
+  -- from an earlier pull cannot cut a newer pull's window short.
+  displayGeneration = 0,
 }
 
 -- Post-combat grace window: the final SCENARIO_CRITERIA_UPDATE often lags
@@ -195,15 +199,23 @@ local function ReadLiveData()
     end
   end
 
-  local rawCount = 0
+  local rawCount = nil
   local qStr = cInfo.quantityString
   if qStr and not IsSecretValue(qStr) then
-    rawCount = tonumber(qStr:match("(%d+)")) or 0
-  else
+    rawCount = tonumber(qStr:match("(%d+)"))
+  end
+  if rawCount == nil then
     local qty = cInfo.quantity
     if qty and not IsSecretValue(qty) then
-      rawCount = tonumber(qty) or 0
+      rawCount = tonumber(qty)
     end
+  end
+  if rawCount == nil then
+    -- Neither source is readable: both were masked, or the string carried no
+    -- digits. Zeroing here would replace a verified 40% with a synthetic 0%
+    -- and, worse, look exactly like real progress. The last verified count
+    -- stays until a readable update arrives.
+    return
   end
   state.rawCount = rawCount
   state.percent = (rawCount / total) * 100
@@ -354,10 +366,18 @@ function KillTrack._DispatchEvent(event)
     UpdatePullPercent()
     pull.inCombat = false
     pull.displayUntil = Now() + POST_COMBAT_GRACE_SECONDS
+    pull.displayGeneration = pull.displayGeneration + 1
+    local scheduledGeneration = pull.displayGeneration
     NotifyUpdate()
     local timer = rawget(_G, "C_Timer")
     if type(timer) == "table" and type(timer.After) == "function" then
       timer.After(POST_COMBAT_GRACE_SECONDS + 0.1, function()
+        -- A short re-pull inside the grace window ends with its own combat end
+        -- and its own generation. Without this check the older callback fires
+        -- mid-window and wipes the newer pull's percentage off the row.
+        if pull.displayGeneration ~= scheduledGeneration then
+          return
+        end
         if not pull.inCombat then
           pull.pullPercent = 0
           pull.displayUntil = 0

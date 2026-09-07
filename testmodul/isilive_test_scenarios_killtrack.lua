@@ -672,6 +672,85 @@ local function RegisterKillTrackBranchTests(test, Assert, WithGlobals, LoadAddon
     end)
   end)
 
+  test("KillTrack keeps the verified count when both quantity sources are secret", function()
+    -- 12.1 can mask quantityString and quantity at the same time. Zeroing then
+    -- replaces confirmed progress with a synthetic 0% that is indistinguishable
+    -- from a real reading, so the last verified count has to survive.
+    local masked = false
+    local secretString = "__ISILIVE_TEST_SECRET_QSTR__"
+    local secretNumber = "__ISILIVE_TEST_SECRET_QTY__"
+    local env = BuildKillTrackEnv()
+    env.globals.issecretvalue = function(value)
+      return value == secretString or value == secretNumber
+    end
+    env.globals.C_ScenarioInfo = {
+      GetScenarioStepInfo = function()
+        return { numCriteria = 1 }
+      end,
+      GetCriteriaInfo = function()
+        if masked then
+          return {
+            isWeightedProgress = true,
+            totalQuantity = 100,
+            quantityString = secretString,
+            quantity = secretNumber,
+          }
+        end
+        return { isWeightedProgress = true, totalQuantity = 100, quantityString = "40", quantity = 40 }
+      end,
+    }
+    WithGlobals(env.globals, function()
+      local addon = LoadAddonModules({ "isiLive_killtrack.lua" })
+      addon.KillTrack._DispatchEvent("CHALLENGE_MODE_START")
+      Assert.Equal(addon.KillTrack.GetData().percent, 40, "the readable update must be taken")
+
+      masked = true
+      addon.KillTrack._DispatchEvent("SCENARIO_CRITERIA_UPDATE")
+
+      local data = addon.KillTrack.GetData()
+      Assert.Equal(data.percent, 40, "a fully masked update must not overwrite verified progress with 0%")
+      Assert.Equal(data.rawCount, 40, "the verified raw count must survive a masked update")
+    end)
+  end)
+
+  test("KillTrack keeps the new pull visible when the previous grace callback fires", function()
+    -- Combat ends, a short re-pull starts and ends inside the two-second grace
+    -- window, and only then does the first pull's delayed clear run. It must
+    -- not wipe the row the newer pull is still showing.
+    local env = BuildKillTrackEnv({ scenario = { quantity = 10, total = 100 } })
+    WithGlobals(env.globals, function()
+      local addon = LoadAddonModules({ "isiLive_killtrack.lua" })
+      addon.KillTrack._DispatchEvent("CHALLENGE_MODE_START")
+
+      addon.KillTrack._DispatchEvent("PLAYER_REGEN_DISABLED")
+      env.scenario.SetQuantity(15)
+      addon.KillTrack._DispatchEvent("PLAYER_REGEN_ENABLED")
+      local firstClear = env.scheduled[#env.scheduled]
+      Assert.NotNil(firstClear, "combat end must schedule the delayed clear")
+
+      -- Re-pull well inside the first grace window.
+      env.clock.now = env.clock.now + 0.5
+      addon.KillTrack._DispatchEvent("PLAYER_REGEN_DISABLED")
+      env.scenario.SetQuantity(22)
+      env.clock.now = env.clock.now + 0.5
+      addon.KillTrack._DispatchEvent("PLAYER_REGEN_ENABLED")
+
+      local secondPullPercent = addon.KillTrack.GetData().pullPercent
+      Assert.True(secondPullPercent > 0, "the second pull must have its own percentage")
+
+      -- The first pull's callback lands now, mid-window for the second pull.
+      env.clock.now = env.clock.now + 1.2
+      firstClear.fn()
+
+      Assert.Equal(
+        addon.KillTrack.GetData().pullPercent,
+        secondPullPercent,
+        "the stale callback must not clear the running pull display"
+      )
+      Assert.True(addon.KillTrack.GetData().inCombat == true, "the second pull must still count as displayed")
+    end)
+  end)
+
   test("KillTrack UpdatePullPercent clamps gained<0 to zero (rawCount drop)", function()
     local env = BuildKillTrackEnv({ scenario = { quantity = 50, total = 100 } })
     WithGlobals(env.globals, function()
