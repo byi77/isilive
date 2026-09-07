@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-09-07 - Version 0.9.386 (patch)
+
+Closes a raid-transition hole in the hard-off and makes the manual pre-release
+gate verify the tag it is about to ship.
+
+- **A fast raid-party-raid cycle could re-arm the raid hard-off's event
+  traffic.** Leaving a raid clears the suppression immediately but defers the
+  actual `RegisterEvent` calls by one tick, because patch 12.0 forbids them
+  inside a protected dispatch. `GROUP_ROSTER_UPDATE` fires in bursts, so both
+  transitions can land before that tick: the raid re-applied the hard-off, and
+  the still-pending callback then re-registered `UNIT_HEALTH` and `UNIT_AURA`
+  behind it -- the unfiltered per-raid-member traffic the hard-off exists to
+  remove. The deferred restore now re-checks the state and bails out.
+- **A manually dispatched pre-release verified the wrong commit.** The workflow
+  validated the entered `release_tag` by prefix but never checked it out: the
+  quality gate ran against `github.ref`, which on a manual dispatch is the
+  branch selected in the Actions UI. A green gate therefore proved that branch
+  green while CurseForge packaged the tag. The gate now accepts the tag as a
+  checkout reference; a tag that does not exist fails the checkout, so the
+  packager trigger never runs. The tag-push path was always correct and is
+  unchanged.
+- **The CurseForge release notes describe what actually shipped.** The stub had
+  been carried forward by version number alone since `0.9.373`, so it announced
+  a twelve-release-old set of changes -- and a test-count figure that had been
+  wrong for just as long. It now leads with the ESC-menu fix and covers the
+  Power Infusion, Season 2 and Mythic+ display work, without the stale metric.
+- **The usecase baseline names the shipped season.** It still described S1 as
+  active with `requiresForces=false` on S2, while the manifest has named S2
+  active with `requiresForces=true` since `0.9.383`. The flag is now also
+  described for what it is: a build gate over the generated forces database,
+  not runtime behaviour.
+
 ## 2026-09-07 - Version 0.9.385 (patch)
 
 Brings back the isiLive part of the ESC menu after a reload inside a key.
