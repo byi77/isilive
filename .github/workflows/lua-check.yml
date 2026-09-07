@@ -6,6 +6,17 @@ on:
   pull_request:
     branches: ["main"]
   workflow_call:
+    inputs:
+      ref:
+        # The commit-ish the gate must actually verify. A tag-push caller can
+        # omit it, because `github.ref` already is the tag. A manually
+        # dispatched caller must pass its release tag: `github.ref` is then the
+        # branch picked in the UI, so the gate would prove that branch green
+        # while the release is cut from the tag.
+        description: "Commit-ish to check out. Empty means the triggering ref."
+        required: false
+        type: string
+        default: ""
 
 jobs:
   quality-gate:
@@ -16,6 +27,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Empty falls back to the triggering ref inside actions/checkout.
+          ref: ${{ inputs.ref }}
 
       - name: Install StyLua via cargo
         # Workaround: JohnnyMorganz/stylua-action@v5 downloads from GitHub

@@ -31,6 +31,11 @@ jobs:
     uses: ./.github/workflows/lua-check.yml
     permissions:
       contents: read
+    with:
+      # On a tag push the empty default keeps the triggering tag. On a manual
+      # dispatch the gate must check out the selected release tag, otherwise it
+      # would verify the dispatch branch while CurseForge packages the tag.
+      ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag || '' }}
 
   trigger-curseforge-packager:
     needs: quality-gate

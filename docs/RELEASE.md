@@ -107,6 +107,12 @@ git tag isiLive_release_0.9.117
 git push origin isiLive_release_0.9.117
 ```
 
+Der manuelle `workflow_dispatch`-Pfad von `Pre-Release (Alpha/Beta)` reicht das
+eingegebene `release_tag` als `ref` an `Lua Check` weiter. Das Quality Gate
+checkt damit genau den Stand aus, der anschliessend paketiert wird, und nicht
+den im Actions-UI gewaehlten Branch. Existiert der Tag nicht, faellt der
+Checkout aus und der Trigger wird nicht ausgefuehrt.
+
 ## 6) GitHub Actions pruefen
 
 Im Actions-Tab pruefen:
